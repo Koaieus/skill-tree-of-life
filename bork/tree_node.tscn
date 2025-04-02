@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://dxsj4sc2n6kcm"]
 
 [ext_resource type="Theme" uid="uid://twp12lx6lihg" path="res://bork/theme.tres" id="1_hpis2"]
-[ext_resource type="Script" path="res://bork/tree_node.gd" id="1_myg1w"]
+[ext_resource type="Script" uid="uid://w8uldc548wtl" path="res://bork/tree_node.gd" id="1_myg1w"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bv6hc"]
 content_margin_left = 8.0

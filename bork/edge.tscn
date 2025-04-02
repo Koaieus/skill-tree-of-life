@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cgffxotofl4oc"]
 
-[ext_resource type="Script" path="res://bork/edge.gd" id="1_2nmqr"]
+[ext_resource type="Script" uid="uid://ciu0lh3w315fr" path="res://bork/edge.gd" id="1_2nmqr"]
 
 [node name="Line2D" type="Line2D"]
 z_index = -1
