@@ -1,4 +1,7 @@
-@tool 
+[gd_scene load_steps=2 format=3 uid="uid://bp2hkj6j8ob0g"]
+
+[sub_resource type="GDScript" id="GDScript_d2ox2"]
+script/source = "@tool 
 extends Line2D
 class_name Edge 
 
@@ -25,3 +28,13 @@ func _on_tree_entered():
 	print('on tree entered')
 	if node1 and node2:
 		update_position()
+"
+
+[node name="Line2D" type="Line2D"]
+z_index = -1
+points = PackedVector2Array(0, 0, 0, 0)
+default_color = Color(0.251979, 0.18284, 9.62615e-08, 1)
+script = SubResource("GDScript_d2ox2")
+
+[connection signal="property_list_changed" from="." to="." method="update_position"]
+[connection signal="tree_entered" from="." to="." method="_on_tree_entered"]
