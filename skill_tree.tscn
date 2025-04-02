@@ -1,6 +1,52 @@
-[gd_scene load_steps=2 format=3 uid="uid://c4yndstfo1xsh"]
+[gd_scene load_steps=5 format=3 uid="uid://c4yndstfo1xsh"]
 
-[ext_resource type="Script" path="res://skill_tree.gd" id="1_uhnts"]
+[ext_resource type="Script" uid="uid://db53y5jf71f76" path="res://skill_tree.gd" id="1_uhnts"]
+[ext_resource type="PackedScene" uid="uid://46cf45jboydb" path="res://skill.tscn" id="2_7e118"]
+[ext_resource type="PackedScene" uid="uid://cgffxotofl4oc" path="res://bork/edge.tscn" id="2_802jk"]
+[ext_resource type="PackedScene" uid="uid://ocw3oj3rx4gr" path="res://mod.tscn" id="4_t5gwv"]
 
 [node name="SkillTree" type="Node2D"]
 script = ExtResource("1_uhnts")
+
+[node name="Edges" type="Node" parent="."]
+
+[node name="Line2D" parent="Edges" node_paths=PackedStringArray("node1", "node2") instance=ExtResource("2_802jk")]
+position = Vector2(593, 100)
+points = PackedVector2Array(0, 0, -371, 132)
+node1 = NodePath("../../Skill")
+node2 = NodePath("../../Skill2")
+
+[node name="Line2D2" parent="Edges" node_paths=PackedStringArray("node1", "node2") instance=ExtResource("2_802jk")]
+position = Vector2(1021, 250)
+points = PackedVector2Array(0, 0, -799, -18)
+node1 = NodePath("../../Skill4")
+node2 = NodePath("../../Skill2")
+
+[node name="Line2D3" parent="Edges" node_paths=PackedStringArray("node1", "node2") instance=ExtResource("2_802jk")]
+position = Vector2(281, 460)
+points = PackedVector2Array(0, 0, -59, -228)
+node1 = NodePath("../../Skill3")
+node2 = NodePath("../../Skill2")
+
+[node name="Line2D4" parent="Edges" node_paths=PackedStringArray("node1", "node2") instance=ExtResource("2_802jk")]
+position = Vector2(281, 460)
+points = PackedVector2Array(0, 0, 740, -210)
+node1 = NodePath("../../Skill3")
+node2 = NodePath("../../Skill4")
+
+[node name="Skill2" parent="." instance=ExtResource("2_7e118")]
+position = Vector2(222, 232)
+
+[node name="Mod" parent="Skill2" instance=ExtResource("4_t5gwv")]
+amount = 10.0
+
+[node name="Skill" parent="." instance=ExtResource("2_7e118")]
+position = Vector2(593, 100)
+
+[node name="Skill4" parent="." instance=ExtResource("2_7e118")]
+position = Vector2(1021, 250)
+
+[node name="Skill3" parent="." instance=ExtResource("2_7e118")]
+position = Vector2(281, 460)
+
+[connection signal="property_list_changed" from="." to="." method="_on_property_list_changed"]

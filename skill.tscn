@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://46cf45jboydb"]
 
-[ext_resource type="Script" path="res://skill.gd" id="1_1on41"]
-[ext_resource type="Texture2D" uid="uid://b1gv4dmburk57" path="res://assets/buttons/Magic_button_blue.png" id="1_6tk7i"]
-[ext_resource type="Texture2D" uid="uid://cgoevrrkdrqbl" path="res://assets/buttons/Magic_button_green.png" id="2_qlbyw"]
-[ext_resource type="Texture2D" uid="uid://dc8k4mtklcm6f" path="res://assets/buttons/Magic_button_yellow.png" id="3_5aojj"]
-[ext_resource type="Texture2D" uid="uid://cbla5v6errx8t" path="res://assets/buttons/Magic_button_grey.png" id="4_h2yn6"]
+[ext_resource type="Script" uid="uid://cr6w0p400pvwb" path="res://skill.gd" id="1_1on41"]
+[ext_resource type="Texture2D" uid="uid://dytg5sqs02xda" path="res://assets/button_round/button_rnd_blue.png" id="2_m5kud"]
+[ext_resource type="Texture2D" uid="uid://clvpusnlrs6yg" path="res://assets/button_round/button_rnd_blue_pressed.png" id="3_arn4x"]
+[ext_resource type="Texture2D" uid="uid://de05ncs8qwkoi" path="res://assets/button_round/button_rnd_green.png" id="4_1q15l"]
+[ext_resource type="Texture2D" uid="uid://dpf64glbvy7ao" path="res://assets/button_round/button_rnd_grayscale.png" id="4_f3o2c"]
 
 [node name="Skill" type="Node2D"]
 scale = Vector2(0.3, 0.3)
@@ -23,10 +23,20 @@ offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
 toggle_mode = true
-texture_normal = ExtResource("1_6tk7i")
-texture_pressed = ExtResource("2_qlbyw")
-texture_hover = ExtResource("3_5aojj")
-texture_disabled = ExtResource("4_h2yn6")
+texture_normal = ExtResource("2_m5kud")
+texture_pressed = ExtResource("3_arn4x")
+texture_hover = ExtResource("4_1q15l")
+texture_disabled = ExtResource("4_f3o2c")
 stretch_mode = 0
 
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+custom_minimum_size = Vector2(200, 40)
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 0.5
+offset_top = 120.0
+grow_horizontal = 2
+
+[connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
+[connection signal="property_list_changed" from="." to="." method="_on_property_list_changed"]
 [connection signal="pressed" from="TextureButton" to="." method="_on_pressed"]

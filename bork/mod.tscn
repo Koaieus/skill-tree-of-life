@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://5kabc74uydul"]
 
-[ext_resource type="Script" path="res://bork/mod.gd" id="1_315tn"]
+[ext_resource type="Script" uid="uid://bvxi07b1b0xsu" path="res://bork/mod.gd" id="1_315tn"]
 
 [node name="Mod" type="HBoxContainer"]
 custom_minimum_size = Vector2(50, 30)

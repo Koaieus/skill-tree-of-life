@@ -1,5 +1,6 @@
 @tool 
-class_name Edge extends Line2D
+extends Line2D
+class_name Edge 
 
 @export var node1: Node
 @export var node2: Node
@@ -7,9 +8,12 @@ class_name Edge extends Line2D
 func _ready():
 	#add_point(Vector2())
 	#add_point(node2.global_position - node1.global_position)
+	
 	update_position()
 
 func update_position() -> void:
+	if not (node1 and node2):
+		return
 	print('updating position')
 	global_position = node1.global_position
 	set_point_position(1, node2.global_position - node1.global_position)
