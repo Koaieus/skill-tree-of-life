@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cgoevrrkdrqbl"
-path="res://.godot/imported/Magic_button_green.png-c66997eceeae4551ecb9a25149dd66bd.ctex"
+uid="uid://dpf64glbvy7ao"
+path="res://.godot/imported/button_rnd_grayscale.png-5badc7da8d90b36c7e4ed72ba2449ba4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/buttons/Magic_button_green.png"
-dest_files=["res://.godot/imported/Magic_button_green.png-c66997eceeae4551ecb9a25149dd66bd.ctex"]
+source_file="res://assets/button_round/button_rnd_grayscale.png"
+dest_files=["res://.godot/imported/button_rnd_grayscale.png-5badc7da8d90b36c7e4ed72ba2449ba4.ctex"]
 
 [params]
 
