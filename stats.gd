@@ -10,4 +10,4 @@ class_name Stats
 @export var INT: int = 0
 @export var DEX: int = 0
 
-@export_category('Misc')
+#@export_category('Misc')

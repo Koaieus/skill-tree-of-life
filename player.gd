@@ -1,11 +1,7 @@
 class_name Player
-extends Node
+extends TreeEntity
 
 @export var player_name: String = name
-@export var stats: Stats
-
-@export_color_no_alpha var color: Color
-
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:

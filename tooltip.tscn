@@ -1,0 +1,74 @@
+[gd_scene load_steps=5 format=3 uid="uid://bvetoc2tijk7i"]
+
+[ext_resource type="Script" uid="uid://d0ub8vjtcm7hd" path="res://tooltip.gd" id="1_abxgm"]
+[ext_resource type="Texture2D" uid="uid://dlgwiusb8d7lf" path="res://assets/border_pack/Border All 1.png" id="1_gwequ"]
+[ext_resource type="PackedScene" uid="uid://ocw3oj3rx4gr" path="res://mod.tscn" id="2_oxk8h"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_abxgm"]
+font_size = 22
+font_color = Color(1, 1, 0.717647, 1)
+shadow_color = Color(0, 0, 0, 1)
+
+[node name="ToolTip" type="MarginContainer"]
+top_level = true
+custom_minimum_size = Vector2(300, 200)
+offset_right = 300.0
+offset_bottom = 230.0
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("1_abxgm")
+
+[node name="NinePatchRect" type="NinePatchRect" parent="."]
+layout_mode = 2
+texture = ExtResource("1_gwequ")
+region_rect = Rect2(0, 0, 64, 63)
+patch_margin_left = 16
+patch_margin_top = 16
+patch_margin_right = 16
+patch_margin_bottom = 16
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[node name="M" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="V" type="VBoxContainer" parent="M"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="M/V"]
+layout_mode = 2
+text = "<title>"
+label_settings = SubResource("LabelSettings_abxgm")
+horizontal_alignment = 1
+
+[node name="Contents" type="VBoxContainer" parent="M/V"]
+layout_mode = 2
+theme_override_constants/separation = -3
+
+[node name="Mod" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
+visible = false
+layout_mode = 2
+
+[node name="Mod2" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
+visible = false
+layout_mode = 2
+
+[node name="Mod3" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
+visible = false
+layout_mode = 2
+
+[node name="Mod4" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
+visible = false
+layout_mode = 2
+
+[node name="Mod5" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
+visible = false
+layout_mode = 2
+
+[node name="Mod6" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
+visible = false
+layout_mode = 2
