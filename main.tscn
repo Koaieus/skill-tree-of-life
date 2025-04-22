@@ -1,7 +1,294 @@
-[gd_scene load_steps=2 format=3 uid="uid://cifdsy0tgbjj2"]
+[gd_scene load_steps=8 format=3 uid="uid://cifdsy0tgbjj2"]
 
-[ext_resource type="PackedScene" uid="uid://c4yndstfo1xsh" path="res://skill_tree.tscn" id="1_vh4gc"]
+[ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
+[ext_resource type="Script" uid="uid://cl2frtwgr21wg" path="res://stats.gd" id="3_lquwl"]
+[ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://tree_graph_edit.tscn" id="4_7mycd"]
+[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="5_lquwl"]
+[ext_resource type="PackedScene" uid="uid://ocw3oj3rx4gr" path="res://mod.tscn" id="6_272bh"]
+[ext_resource type="PackedScene" uid="uid://bykuqbr2eeh8j" path="res://skills.tscn" id="7_5vw27"]
+
+[sub_resource type="Resource" id="Resource_272bh"]
+script = ExtResource("3_lquwl")
+level = 1
+STR = 0
+INT = 0
+DEX = 0
+metadata/_custom_type_script = "uid://cl2frtwgr21wg"
 
 [node name="Main" type="Node"]
 
-[node name="SkillTree" parent="." instance=ExtResource("1_vh4gc")]
+[node name="Players" type="Node" parent="."]
+unique_name_in_owner = true
+
+[node name="Player" parent="Players" node_paths=PackedStringArray("core") instance=ExtResource("2_1bvp3")]
+core = NodePath("../../VBoxContainer/TreeGraphEdit/TreeNode")
+stats = SubResource("Resource_272bh")
+color = Color(0.31512, 0.490913, 1, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 6
+size_flags_vertical = 6
+
+[node name="TreeGraphEdit" parent="VBoxContainer" instance=ExtResource("4_7mycd")]
+unique_name_in_owner = true
+layout_mode = 2
+connection_lines_curvature = 0.3
+connections = Array[Dictionary]([{
+"from_node": &"TreeNode2",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"TreeNode",
+"to_port": 0
+}, {
+"from_node": &"Start",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"Strength",
+"to_port": 0
+}, {
+"from_node": &"Strength",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"StrInt",
+"to_port": 0
+}, {
+"from_node": &"StrInt",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"BigInt",
+"to_port": 0
+}])
+
+[node name="TreeNode" parent="VBoxContainer/TreeGraphEdit" index="1"]
+offset_left = 614.0
+offset_top = 555.0
+offset_right = 799.0
+offset_bottom = 768.0
+position_offset = Vector2(614, 555)
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
+slot/5/left_enabled = false
+slot/5/left_type = 0
+slot/5/left_color = Color(1, 1, 1, 1)
+slot/5/left_icon = null
+slot/5/right_enabled = false
+slot/5/right_type = 0
+slot/5/right_color = Color(1, 1, 1, 1)
+slot/5/right_icon = null
+slot/5/draw_stylebox = true
+
+[node name="Mod" parent="VBoxContainer/TreeGraphEdit/TreeNode" index="4" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+
+[node name="Mod2" parent="VBoxContainer/TreeGraphEdit/TreeNode" index="5" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+stat = "INT"
+
+[node name="Mod3" parent="VBoxContainer/TreeGraphEdit/TreeNode" index="6" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+stat = "DEX"
+
+[node name="TreeNode2" parent="VBoxContainer/TreeGraphEdit" index="2"]
+offset_left = 236.0
+offset_top = 656.0
+offset_right = 421.0
+offset_bottom = 792.0
+position_offset = Vector2(236, 656)
+
+[node name="Start" parent="VBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("owned_by") instance=ExtResource("5_lquwl")]
+layout_mode = 0
+offset_left = 336.0
+offset_top = 294.0
+offset_right = 521.0
+offset_bottom = 507.0
+mouse_filter = 1
+position_offset = Vector2(336, 294)
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
+slot/5/left_enabled = false
+slot/5/left_type = 0
+slot/5/left_color = Color(1, 1, 1, 1)
+slot/5/left_icon = null
+slot/5/right_enabled = false
+slot/5/right_type = 0
+slot/5/right_color = Color(1, 1, 1, 1)
+slot/5/right_icon = null
+slot/5/draw_stylebox = true
+owned_by = NodePath("../../../Players/Player")
+
+[node name="Mod" parent="VBoxContainer/TreeGraphEdit/Start" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+
+[node name="Mod2" parent="VBoxContainer/TreeGraphEdit/Start" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+stat = "INT"
+
+[node name="Mod3" parent="VBoxContainer/TreeGraphEdit/Start" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+stat = "DEX"
+
+[node name="TreeNode3" parent="VBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+layout_mode = 0
+offset_left = 897.0
+offset_top = 653.0
+offset_right = 1025.0
+offset_bottom = 781.0
+mouse_filter = 1
+position_offset = Vector2(897, 653)
+
+[node name="Strength" parent="VBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+layout_mode = 0
+offset_left = 640.0
+offset_top = 230.0
+offset_right = 768.0
+offset_bottom = 377.0
+mouse_filter = 1
+position_offset = Vector2(640, 230)
+title = "Strength"
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+
+[node name="Mod" parent="VBoxContainer/TreeGraphEdit/Strength" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+
+[node name="StrInt" parent="VBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+layout_mode = 0
+offset_left = 889.0
+offset_top = 220.0
+offset_right = 1017.0
+offset_bottom = 400.0
+mouse_filter = 1
+position_offset = Vector2(889, 220)
+title = "Str + Int"
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
+
+[node name="Mod" parent="VBoxContainer/TreeGraphEdit/StrInt" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+
+[node name="Mod2" parent="VBoxContainer/TreeGraphEdit/StrInt" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 10.0
+stat = "INT"
+
+[node name="BigInt" parent="VBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+layout_mode = 0
+offset_left = 1172.0
+offset_top = 237.0
+offset_right = 1300.0
+offset_bottom = 417.0
+mouse_filter = 1
+position_offset = Vector2(1172, 237)
+title = "Big Smart"
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
+
+[node name="Mod2" parent="VBoxContainer/TreeGraphEdit/BigInt" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 20.0
+stat = "INT"
+
+[node name="Mod" parent="VBoxContainer/TreeGraphEdit/BigInt" instance=ExtResource("6_272bh")]
+layout_mode = 2
+amount = 50.0
+stat = "INT"
+operation = 1
+
+[node name="Skills" parent="." instance=ExtResource("7_5vw27")]
+visible = false
+
+[node name="Strength" parent="Skills" index="0"]
+visible = false
+
+[node name="StrInt" parent="Skills" index="1"]
+visible = false
+
+[node name="BigInt" parent="Skills" index="2"]
+visible = false
+
+[editable path="VBoxContainer/TreeGraphEdit"]
+[editable path="Skills"]

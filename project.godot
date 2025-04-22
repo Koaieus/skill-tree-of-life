@@ -11,9 +11,13 @@ config_version=5
 [application]
 
 config/name="Skill Tree of Life"
-run/main_scene="res://bork/main.tscn"
+run/main_scene="uid://cifdsy0tgbjj2"
 config/features=PackedStringArray("4.4", "Forward Plus")
-config/icon="res://bork/icon.svg"
+config/icon="res://icon.svg"
+
+[autoload]
+
+Skills="*res://skills.tscn"
 
 [display]
 

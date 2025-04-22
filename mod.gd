@@ -1,7 +1,7 @@
 @tool
 extends HBoxContainer
 
-enum Stat {STR, INT, DEX, HEALTH}
+#enum Stat {STR, INT, DEX, HEALTH}
 enum Op {INCREMENT, INCREASE, MULTIPLY, SET}
 
 
@@ -11,21 +11,21 @@ enum Op {INCREMENT, INCREASE, MULTIPLY, SET}
 		return amount
 	set(value):
 		amount = value
-		#_update_text()
+		_update_text()
 		
-@export var stat: Stat = Stat.STR:
+@export var stat: String = 'STR':
 	get:
 		return stat
 	set(value):
 		stat = value
-		#_update_text()
+		_update_text()
 		
 @export var operation: Op = Op.INCREMENT:
 	get:
 		return operation
 	set(value):
 		operation = value
-		#_update_text()
+		_update_text()
 
 const OPERATION_DISPLAY: Dictionary = {
 	Op.INCREMENT: "+{amount} {stat}",
@@ -35,21 +35,23 @@ const OPERATION_DISPLAY: Dictionary = {
 }
 
 
-
-
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	_update_text()
 	
-	#for stat in Stat:
-		#$StatPicker.add_item()
-
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
 
 func _update_text() -> void:
-	$Label.text = OPERATION_DISPLAY[operation].format({stat = Stat.keys()[stat], amount = amount})
+	$Label.text = OPERATION_DISPLAY[operation].format({stat = stat, amount = amount})
 	
 func _on_delete_button_click() -> void:
 	self.queue_free()
+	
+	
+func apply_to(stats: Stats) -> void:
+	match operation:
+		Op.INCREMENT:
+			print('I would totally increment right now')
+	
