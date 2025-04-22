@@ -1,12 +1,12 @@
 [gd_scene load_steps=13 format=4 uid="uid://byyas3n86o7pa"]
 
-[ext_resource type="Script" path="res://bork/main.gd" id="1_l87wo"]
+[ext_resource type="Script" uid="uid://c8hbphdgiilj3" path="res://bork/main.gd" id="1_l87wo"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://bork/tree_node.tscn" id="1_x6hlu"]
-[ext_resource type="Script" path="res://bork/menu_insert.gd" id="2_7dtj0"]
+[ext_resource type="Script" uid="uid://dpuwcqebtjt70" path="res://bork/menu_insert.gd" id="2_7dtj0"]
 [ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://bork/tree_graph_edit.tscn" id="2_13828"]
 [ext_resource type="PackedScene" uid="uid://46cf45jboydb" path="res://skill.tscn" id="2_tkexu"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://bork/player.tscn" id="4_tc4j7"]
-[ext_resource type="Script" path="res://stats.gd" id="5_pqyfw"]
+[ext_resource type="Script" uid="uid://cl2frtwgr21wg" path="res://stats.gd" id="5_pqyfw"]
 
 [sub_resource type="TileSetScenesCollectionSource" id="TileSetScenesCollectionSource_nankl"]
 scenes/1/scene = ExtResource("2_tkexu")

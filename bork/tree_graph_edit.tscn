@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://cp7jtjmcxyxlm"]
 
-[ext_resource type="Script" path="res://bork/tree_graph_edit.gd" id="1_0sg4w"]
+[ext_resource type="Script" uid="uid://dnl6no1h6mn5p" path="res://bork/tree_graph_edit.gd" id="1_0sg4w"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://bork/tree_node.tscn" id="2_hnwal"]
 [ext_resource type="PackedScene" uid="uid://5kabc74uydul" path="res://bork/mod.tscn" id="3_8xost"]
 
