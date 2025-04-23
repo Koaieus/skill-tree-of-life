@@ -1,9 +1,20 @@
-[gd_scene load_steps=2 format=3 uid="uid://dcjpgyhts5inu"]
+[gd_scene load_steps=5 format=3 uid="uid://dcjpgyhts5inu"]
 
 [ext_resource type="Script" uid="uid://s5f18jfxg8sn" path="res://tree_entity.gd" id="1_fgaco"]
+[ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_elqwa"]
+[ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="3_47t3k"]
+
+[sub_resource type="Resource" id="Resource_8281m"]
+script = ExtResource("3_47t3k")
+metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="TreeEntity" type="Node"]
 script = ExtResource("1_fgaco")
+
+[node name="EntityStatsManager" type="Node" parent="."]
+script = ExtResource("2_elqwa")
+stats = SubResource("Resource_8281m")
+metadata/_custom_type_script = "uid://dvuuc7ytb0rla"
 
 [connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
 [connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]

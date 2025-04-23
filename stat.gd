@@ -1,5 +1,5 @@
 extends Resource
-class_name Stat
+class_name Stat_old
 
 @export var base: int = 0
 @export var mods: Array

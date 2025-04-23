@@ -1,0 +1,2 @@
+extends IntStat
+class_name StrengthStat

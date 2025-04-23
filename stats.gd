@@ -1,5 +1,5 @@
 extends Resource
-class_name Stats
+class_name Stats_old
 
 @export_category('Base')
 @export var level: int = 1
