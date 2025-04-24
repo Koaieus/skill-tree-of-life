@@ -12,6 +12,12 @@ func _ready() -> void:
 func _get_property_list() -> Array:
 	var result: Array = []
 
-	result.append({ "name": "stats", "class_name": &"Resource", "type": 24, "hint": 17, "hint_string": "EntityStats", "usage": 4102 })
+	result.append({
+		"name": "stats",
+		"class_name": &"Resource",
+		"type": TYPE_OBJECT,
+		"hint": PROPERTY_HINT_RESOURCE_TYPE,
+		"hint_string": "EntityStats",
+		"usage": 4102 })
 
 	return result

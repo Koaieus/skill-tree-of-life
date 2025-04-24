@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+StatUtils="*res://stat_system/utils.gd"
 Skills="*res://skills.tscn"
 
 [display]
