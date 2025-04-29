@@ -6,8 +6,8 @@ signal apply_count_changed()
 ## Key for identifying the stat it acts on
 @export var stat_key: GDScript
 
-## Order in which the modifier is applied   (application: in ASCENDING order)
-@export var application_order: int = 1000;
+### Order in which the modifier is applied   (application: in ASCENDING order)
+var application_order: int = 1000;
 
 ## How many times this stat is applied
 @export var apply_count: int = 1:

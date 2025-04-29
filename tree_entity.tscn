@@ -1,13 +1,72 @@
-[gd_scene load_steps=3 format=3 uid="uid://dcjpgyhts5inu"]
+[gd_scene load_steps=16 format=3 uid="uid://dcjpgyhts5inu"]
 
 [ext_resource type="Script" uid="uid://s5f18jfxg8sn" path="res://tree_entity.gd" id="1_fgaco"]
 [ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_elqwa"]
+[ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="3_8281m"]
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="3_g54k8"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="4_ovnba"]
+[ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="6_au033"]
+[ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_y7a68"]
+[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_5ha82"]
+
+[sub_resource type="Resource" id="Resource_1rubt"]
+script = ExtResource("3_g54k8")
+default_value = 0
+abbreviation = &"dex"
+description = "Zoominess"
+metadata/_custom_type_script = "uid://gj017hef4u2b"
+
+[sub_resource type="Resource" id="Resource_nihcs"]
+script = ExtResource("4_ovnba")
+default_value = 0
+abbreviation = &"int"
+description = "Big Smart"
+metadata/_custom_type_script = "uid://chokoff1ki83w"
+
+[sub_resource type="Resource" id="Resource_77k73"]
+script = ExtResource("6_au033")
+default_value = 0
+abbreviation = &""
+description = ""
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_k6fnf"]
+script = ExtResource("6_au033")
+default_value = 0
+abbreviation = &""
+description = ""
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_r78mo"]
+script = ExtResource("7_y7a68")
+max = SubResource("Resource_77k73")
+min = SubResource("Resource_k6fnf")
+default_value = 0
+abbreviation = &"skillpts"
+description = "Number of skill points currently in use"
+metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
+
+[sub_resource type="Resource" id="Resource_wcqib"]
+script = ExtResource("8_5ha82")
+default_value = 0
+abbreviation = &"str"
+description = "Strenght"
+metadata/_custom_type_script = "uid://cehpx155ql87x"
+
+[sub_resource type="Resource" id="Resource_8281m"]
+script = ExtResource("3_8281m")
+skill_points = SubResource("Resource_r78mo")
+strength = SubResource("Resource_wcqib")
+intelligence = SubResource("Resource_nihcs")
+dexterity = SubResource("Resource_1rubt")
+metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="TreeEntity" type="Node"]
 script = ExtResource("1_fgaco")
 
 [node name="EntityStatsManager" type="Node" parent="."]
 script = ExtResource("2_elqwa")
+stats = SubResource("Resource_8281m")
 metadata/_custom_type_script = "uid://dvuuc7ytb0rla"
 
 [connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]

@@ -23,6 +23,8 @@ func set_stats(value: Stats) -> void:
 func get_stat(key: Variant) -> Stat:
 	return _stats.get_stat(key) if _stats != null else null
 
+func get_stats_class_name() -> String:
+	return "Stats"
 
 #region Stat Modifiers
 ## Add a stat modifier to a stat
@@ -47,7 +49,9 @@ func clear_stat_modifiers() -> void:
 	_stats.clear_stat_modifiers()
 #endregion
 
-
+func _ready() -> void:
+	pass
+	
 #region Multiplayer
 ####
 ## MULTIPLAYER (Experimental)
@@ -89,3 +93,35 @@ func clear_stat_modifiers() -> void:
 	#if stat:
 		#stat.value = value
 #endregion
+
+# The magic to add a custom property to manage:
+func _get_property_list() -> Array:
+	var result: Array = []
+
+	result.append({
+		"name": "stats",
+		"class_name": &"Resource",
+		"type": TYPE_OBJECT,
+		"hint": PROPERTY_HINT_RESOURCE_TYPE,
+		"hint_string": get_stats_class_name(),
+		"usage": 4102,
+	})
+
+	return result
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: PackedStringArray = []
+	
+	var stats_class: String = get_stats_class_name()
+	
+	if not stats_class:
+		return ['Select stats class to manage']
+	
+	if stats_class == 'Stats':
+		warnings.append('Pick a concrete subclass to manage (not "Stats")')
+	
+	#if not stats_class.get_script_constant_map().get('IS_STATS', false):
+		#warnings.append('Managed stat class should be a subclass of `Stats`')
+		
+	return warnings
+		

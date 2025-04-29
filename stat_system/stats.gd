@@ -7,6 +7,8 @@ class_name Stats
 
 const EXPORTED_PROP = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 
+const IS_STATS: bool = true
+
 ###
 # STATS
 ###

@@ -1,19 +1,11 @@
-[gd_scene load_steps=8 format=3 uid="uid://cifdsy0tgbjj2"]
+[gd_scene load_steps=7 format=3 uid="uid://cifdsy0tgbjj2"]
 
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
-[ext_resource type="Script" uid="uid://cl2frtwgr21wg" path="res://stats.gd" id="3_lquwl"]
 [ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://tree_graph_edit.tscn" id="4_7mycd"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="5_lquwl"]
+[ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="6_5vw27"]
 [ext_resource type="PackedScene" uid="uid://ocw3oj3rx4gr" path="res://mod.tscn" id="6_272bh"]
 [ext_resource type="PackedScene" uid="uid://bykuqbr2eeh8j" path="res://skills.tscn" id="7_5vw27"]
-
-[sub_resource type="Resource" id="Resource_272bh"]
-script = ExtResource("3_lquwl")
-level = 1
-STR = 0
-INT = 0
-DEX = 0
-metadata/_custom_type_script = "uid://cl2frtwgr21wg"
 
 [node name="Main" type="Node"]
 
@@ -22,7 +14,6 @@ unique_name_in_owner = true
 
 [node name="Player" parent="Players" node_paths=PackedStringArray("core") instance=ExtResource("2_1bvp3")]
 core = NodePath("../../VBoxContainer/TreeGraphEdit/TreeNode")
-stats = SubResource("Resource_272bh")
 color = Color(0.31512, 0.490913, 1, 1)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
@@ -65,11 +56,11 @@ connections = Array[Dictionary]([{
 }])
 
 [node name="TreeNode" parent="VBoxContainer/TreeGraphEdit" index="1"]
-offset_left = 614.0
-offset_top = 555.0
-offset_right = 799.0
-offset_bottom = 768.0
-position_offset = Vector2(614, 555)
+offset_left = 637.0
+offset_top = 617.0
+offset_right = 822.0
+offset_bottom = 830.0
+position_offset = Vector2(637, 617)
 slot/3/left_enabled = false
 slot/3/left_type = 0
 slot/3/left_color = Color(1, 1, 1, 1)
@@ -113,11 +104,11 @@ amount = 10.0
 stat = "DEX"
 
 [node name="TreeNode2" parent="VBoxContainer/TreeGraphEdit" index="2"]
-offset_left = 236.0
-offset_top = 656.0
-offset_right = 421.0
-offset_bottom = 792.0
-position_offset = Vector2(236, 656)
+offset_left = 361.0
+offset_top = 614.0
+offset_right = 546.0
+offset_bottom = 750.0
+position_offset = Vector2(361, 614)
 
 [node name="Start" parent="VBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("owned_by") instance=ExtResource("5_lquwl")]
 layout_mode = 0
@@ -127,48 +118,8 @@ offset_right = 521.0
 offset_bottom = 507.0
 mouse_filter = 1
 position_offset = Vector2(336, 294)
-slot/3/left_enabled = false
-slot/3/left_type = 0
-slot/3/left_color = Color(1, 1, 1, 1)
-slot/3/left_icon = null
-slot/3/right_enabled = false
-slot/3/right_type = 0
-slot/3/right_color = Color(1, 1, 1, 1)
-slot/3/right_icon = null
-slot/3/draw_stylebox = true
-slot/4/left_enabled = false
-slot/4/left_type = 0
-slot/4/left_color = Color(1, 1, 1, 1)
-slot/4/left_icon = null
-slot/4/right_enabled = false
-slot/4/right_type = 0
-slot/4/right_color = Color(1, 1, 1, 1)
-slot/4/right_icon = null
-slot/4/draw_stylebox = true
-slot/5/left_enabled = false
-slot/5/left_type = 0
-slot/5/left_color = Color(1, 1, 1, 1)
-slot/5/left_icon = null
-slot/5/right_enabled = false
-slot/5/right_type = 0
-slot/5/right_color = Color(1, 1, 1, 1)
-slot/5/right_icon = null
-slot/5/draw_stylebox = true
 owned_by = NodePath("../../../Players/Player")
-
-[node name="Mod" parent="VBoxContainer/TreeGraphEdit/Start" instance=ExtResource("6_272bh")]
-layout_mode = 2
-amount = 10.0
-
-[node name="Mod2" parent="VBoxContainer/TreeGraphEdit/Start" instance=ExtResource("6_272bh")]
-layout_mode = 2
-amount = 10.0
-stat = "INT"
-
-[node name="Mod3" parent="VBoxContainer/TreeGraphEdit/Start" instance=ExtResource("6_272bh")]
-layout_mode = 2
-amount = 10.0
-stat = "DEX"
+modifiers = Array[ExtResource("6_5vw27")]([null])
 
 [node name="TreeNode3" parent="VBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
 layout_mode = 0

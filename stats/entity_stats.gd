@@ -1,6 +1,7 @@
 extends Stats
 class_name EntityStats
 
-@export var str: StrengthStat = StrengthStat.new(0)
-@export var int_: IntelligenceStat = IntelligenceStat.new(0)
-@export var dex: DexterityStat = DexterityStat.new(0)
+@export var skill_points: SkillPointPoolStat = SkillPointPoolStat.new()
+@export var strength: StrengthStat = StrengthStat.new(0)
+@export var intelligence: IntelligenceStat = IntelligenceStat.new(0)
+@export var dexterity: DexterityStat = DexterityStat.new(0)

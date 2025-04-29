@@ -9,6 +9,8 @@ extends GraphNode
 		owned_by = value
 		update_owner(value)
 
+@export var modifiers: Array[NumberStatModifier] = []
+
 #@onready var button: Button = $Ports/ButtonBar/Button
 @onready var icon = $C/Icon
 @onready var tool_tip: PackedScene = preload("res://tooltip.tscn")

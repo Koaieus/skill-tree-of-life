@@ -10,3 +10,6 @@ class_name IntStat
 		default_value = _default_value
 		base_value = default_value
 		_value = default_value
+
+func apply_multiplier():
+	value = roundi(value * _multiplier)

@@ -6,6 +6,10 @@ signal decreased(value: Variant, amount: Variant)
 
 var _multiplier: float = 1.0
 
+var multiplier: float:
+	get:
+		return _multiplier
+
 func compute() -> void:
 	var previous = _value
 	
@@ -14,11 +18,7 @@ func compute() -> void:
 	 # Run inherited compute function, which may or may not modify `_multiplier`
 	super()
 	# Apply multiplier (once)
-	if _value is int:
-		value = roundi(value * _multiplier)
-	else:
-		value *= _multiplier
-		
+	apply_multiplier()
 
 	if previous == null:
 		return
@@ -29,3 +29,7 @@ func compute() -> void:
 		increased.emit(value, amount)
 	elif amount < 0:
 		decreased.emit(value, amount)
+
+func apply_multiplier() -> void:
+	value *= _multiplier
+	

@@ -1,8 +1,25 @@
-[gd_scene load_steps=4 format=3 uid="uid://bykuqbr2eeh8j"]
+[gd_scene load_steps=8 format=3 uid="uid://bykuqbr2eeh8j"]
 
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="1_ne31x"]
 [ext_resource type="Script" uid="uid://ddsja4fdwhs6i" path="res://skills.gd" id="1_whxui"]
-[ext_resource type="PackedScene" uid="uid://ocw3oj3rx4gr" path="res://mod.tscn" id="2_whxui"]
+[ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="3_whxui"]
+[ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="4_jp2yk"]
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="5_g3cwk"]
+
+[sub_resource type="Resource" id="Resource_g3cwk"]
+script = ExtResource("4_jp2yk")
+operation_value = 0
+operation = 10
+stat_key = ExtResource("5_g3cwk")
+apply_count = 1
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_jp2yk"]
+script = ExtResource("4_jp2yk")
+operation_value = 0
+operation = 10
+apply_count = 1
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [node name="Skills" type="GridContainer"]
 anchors_preset = 15
@@ -19,90 +36,22 @@ script = ExtResource("1_whxui")
 
 [node name="Strength" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
-offset_top = 16.0
 offset_right = 128.0
-offset_bottom = 160.0
+offset_bottom = 128.0
 title = "Strength"
-slot/3/left_enabled = false
-slot/3/left_type = 0
-slot/3/left_color = Color(1, 1, 1, 1)
-slot/3/left_icon = null
-slot/3/right_enabled = false
-slot/3/right_type = 0
-slot/3/right_color = Color(1, 1, 1, 1)
-slot/3/right_icon = null
-slot/3/draw_stylebox = true
-
-[node name="Mod" parent="Strength" instance=ExtResource("2_whxui")]
-layout_mode = 2
-amount = 10.0
+modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_g3cwk")])
 
 [node name="StrInt" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
 offset_left = 144.0
 offset_right = 272.0
-offset_bottom = 177.0
+offset_bottom = 128.0
 title = "Str + Int"
-slot/3/left_enabled = false
-slot/3/left_type = 0
-slot/3/left_color = Color(1, 1, 1, 1)
-slot/3/left_icon = null
-slot/3/right_enabled = false
-slot/3/right_type = 0
-slot/3/right_color = Color(1, 1, 1, 1)
-slot/3/right_icon = null
-slot/3/draw_stylebox = true
-slot/4/left_enabled = false
-slot/4/left_type = 0
-slot/4/left_color = Color(1, 1, 1, 1)
-slot/4/left_icon = null
-slot/4/right_enabled = false
-slot/4/right_type = 0
-slot/4/right_color = Color(1, 1, 1, 1)
-slot/4/right_icon = null
-slot/4/draw_stylebox = true
-
-[node name="Mod" parent="StrInt" instance=ExtResource("2_whxui")]
-layout_mode = 2
-amount = 10.0
-
-[node name="Mod2" parent="StrInt" instance=ExtResource("2_whxui")]
-layout_mode = 2
-amount = 10.0
-stat = "INT"
+modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_jp2yk")])
 
 [node name="BigInt" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
 offset_left = 288.0
 offset_right = 416.0
-offset_bottom = 177.0
+offset_bottom = 128.0
 title = "Big Smart"
-slot/3/left_enabled = false
-slot/3/left_type = 0
-slot/3/left_color = Color(1, 1, 1, 1)
-slot/3/left_icon = null
-slot/3/right_enabled = false
-slot/3/right_type = 0
-slot/3/right_color = Color(1, 1, 1, 1)
-slot/3/right_icon = null
-slot/3/draw_stylebox = true
-slot/4/left_enabled = false
-slot/4/left_type = 0
-slot/4/left_color = Color(1, 1, 1, 1)
-slot/4/left_icon = null
-slot/4/right_enabled = false
-slot/4/right_type = 0
-slot/4/right_color = Color(1, 1, 1, 1)
-slot/4/right_icon = null
-slot/4/draw_stylebox = true
-
-[node name="Mod2" parent="BigInt" instance=ExtResource("2_whxui")]
-layout_mode = 2
-amount = 20.0
-stat = "INT"
-
-[node name="Mod" parent="BigInt" instance=ExtResource("2_whxui")]
-layout_mode = 2
-amount = 50.0
-stat = "INT"
-operation = 1
