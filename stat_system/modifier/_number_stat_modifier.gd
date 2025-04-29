@@ -35,5 +35,5 @@ func apply(value, _stat):
 			if _operation_value == 0:
 				push_error("NumberStatModifier cannot divide by 0")
 				return value			
-			return value / _operation_value * apply_count
+			return value / (_operation_value * apply_count)
 	return value

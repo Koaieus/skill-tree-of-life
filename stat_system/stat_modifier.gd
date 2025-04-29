@@ -10,7 +10,7 @@ signal apply_count_changed()
 var application_order: int = 1000;
 
 ## How many times this stat is applied
-@export var apply_count: int = 1:
+var apply_count: int = 1:
 	set = set_apply_count
 
 func set_apply_count(value: int) -> void:
