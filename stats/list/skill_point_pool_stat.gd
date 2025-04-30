@@ -2,8 +2,8 @@ extends IntPoolStat
 class_name SkillPointPoolStat
 
 
-func abbreviation():
+static func abbreviation():
 	return "skillpts"
 
-func description():
+static func description():
 	return "How many skill points you have and have spent"

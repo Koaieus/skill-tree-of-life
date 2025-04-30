@@ -30,4 +30,6 @@ func _on_popup_request(at_position: Vector2) -> void:
 	print('Poppin up at', at_position)
 	var rect = Rect2i(at_position, Vector2i(100,100))
 	%ContextMenu.popup(rect)
-	
+
+#func _get_connection_line(from_position: Vector2, to_position: Vector2) -> PackedVector2Array:
+	#return PackedVector2Array([from_position, to_position])

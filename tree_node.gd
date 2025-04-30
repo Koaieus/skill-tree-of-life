@@ -12,7 +12,7 @@ extends GraphNode
 @export var modifiers: Array[NumberStatModifier] = []
 
 #@onready var button: Button = $Ports/ButtonBar/Button
-@onready var icon = $C/Icon
+@onready var icon = %Icon
 @onready var tool_tip: PackedScene = preload("res://tooltip.tscn")
 
 var mod_scene_packed = preload("res://mod.tscn")
@@ -20,14 +20,25 @@ var mod_scene_packed = preload("res://mod.tscn")
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	update_owner(owned_by)
-	#self_modulate = Color.TRANSPARENT
+	
+	var title_box: HBoxContainer = get_titlebar_hbox()
+	var title_label: Label = title_box.get_child(0, true)
+	print(title_label.horizontal_alignment)
+	#title_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if not Engine.is_editor_hint():
+		self_modulate = Color.TRANSPARENT
+		get_titlebar_hbox().hide()
+		add_theme_constant_override("port_h_offset", size.x / 2)
+		$M.add_theme_constant_override("margin_top", -title_box.size.y)
+		$M.add_theme_constant_override("margin_bottom", -title_box.size.y)
+		add_theme_constant_override("separation", -title_box.size.y)
 	#icon.top_level = true
 	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
 	
-
 
 func update_owner(new_owner: TreeEntity):
 	if not new_owner:

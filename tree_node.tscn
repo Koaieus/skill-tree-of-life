@@ -1,17 +1,12 @@
-[gd_scene load_steps=11 format=3 uid="uid://dxsj4sc2n6kcm"]
+[gd_scene load_steps=10 format=3 uid="uid://dxsj4sc2n6kcm"]
 
 [ext_resource type="Theme" uid="uid://twp12lx6lihg" path="res://theme.tres" id="1_hpis2"]
 [ext_resource type="Script" uid="uid://w8uldc548wtl" path="res://tree_node.gd" id="1_myg1w"]
-[ext_resource type="Texture2D" uid="uid://dschwfguainhj" path="res://assets/icons/Icon set 1/0.5x/Asset 77@0.5x.png" id="3_3xe2u"]
 [ext_resource type="Shader" uid="uid://cuwcowt4g5tjm" path="res://button_socket2.gdshader" id="4_gvsnc"]
 [ext_resource type="Texture2D" uid="uid://dy7djfa2xjswl" path="res://icon.svg" id="4_l8d3n"]
 [ext_resource type="Texture2D" uid="uid://jclwkga81lg0" path="res://assets/border_pack/Ram Panels All.png" id="5_nt0f8"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bv6hc"]
-content_margin_left = 8.0
-content_margin_top = 8.0
-content_margin_right = 8.0
-content_margin_bottom = 8.0
 bg_color = Color(0.180392, 0.180392, 0.180392, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d3g1t"]
@@ -32,52 +27,42 @@ shader_parameter/use_different_texture = false
 shader_parameter/mask_texture = ExtResource("5_nt0f8")
 
 [node name="TreeNode" type="GraphNode"]
-custom_minimum_size = Vector2(128, 128)
+anchors_preset = -1
+anchor_top = 0.021
+anchor_right = 0.042
+anchor_bottom = 0.083
+offset_top = -20.16
+offset_right = -0.480003
+offset_bottom = 0.319992
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme = ExtResource("1_hpis2")
-theme_override_constants/separation = 3
+theme_override_constants/separation = 100
 theme_override_styles/panel = SubResource("StyleBoxFlat_bv6hc")
 theme_override_styles/titlebar = SubResource("StyleBoxFlat_d3g1t")
 theme_override_styles/slot = SubResource("StyleBoxFlat_i2wdb")
+draggable = false
+selectable = false
 title = "a skill"
-slot/0/left_enabled = false
+slot/0/left_enabled = true
 slot/0/left_type = 0
-slot/0/left_color = Color(0, 1, 0, 0.682353)
+slot/0/left_color = Color(1, 1, 1, 1)
 slot/0/left_icon = null
-slot/0/right_enabled = false
+slot/0/right_enabled = true
 slot/0/right_type = 0
-slot/0/right_color = Color(1, 0, 0, 0.74902)
+slot/0/right_color = Color(1, 1, 1, 1)
 slot/0/right_icon = null
 slot/0/draw_stylebox = true
-slot/1/left_enabled = true
-slot/1/left_type = 0
-slot/1/left_color = Color(1, 1, 1, 1)
-slot/1/left_icon = null
-slot/1/right_enabled = true
-slot/1/right_type = 0
-slot/1/right_color = Color(1, 1, 1, 1)
-slot/1/right_icon = null
-slot/1/draw_stylebox = true
-slot/2/left_enabled = false
-slot/2/left_type = 0
-slot/2/left_color = Color(1, 1, 1, 1)
-slot/2/left_icon = null
-slot/2/right_enabled = false
-slot/2/right_type = 0
-slot/2/right_color = Color(1, 1, 1, 1)
-slot/2/right_icon = null
-slot/2/draw_stylebox = true
 script = ExtResource("1_myg1w")
 
-[node name="Ports" type="Control" parent="."]
+[node name="M" type="MarginContainer" parent="."]
 layout_mode = 2
 
-[node name="C" type="CenterContainer" parent="."]
-custom_minimum_size = Vector2(64, 64)
+[node name="C" type="CenterContainer" parent="M"]
 layout_mode = 2
 
-[node name="Icon" type="TextureButton" parent="C"]
+[node name="Icon" type="TextureButton" parent="M/C"]
+unique_name_in_owner = true
 material = SubResource("ShaderMaterial_gvsnc")
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
@@ -85,22 +70,6 @@ texture_normal = ExtResource("4_l8d3n")
 ignore_texture_size = true
 stretch_mode = 0
 
-[node name="ButtonBar" type="HBoxContainer" parent="."]
-visible = false
-layout_mode = 2
-theme_override_constants/separation = 0
-alignment = 2
-
-[node name="Button" type="Button" parent="ButtonBar"]
-custom_minimum_size = Vector2(20, 20)
-layout_mode = 2
-size_flags_horizontal = 8
-size_flags_vertical = 4
-theme_override_constants/icon_max_width = 10
-text = "Mod "
-icon = ExtResource("3_3xe2u")
-
 [connection signal="tree_entered" from="." to="." method="_on_tree_entered"]
-[connection signal="mouse_entered" from="C/Icon" to="." method="_on_icon_mouse_entered"]
-[connection signal="mouse_exited" from="C/Icon" to="." method="_on_icon_mouse_exited"]
-[connection signal="pressed" from="ButtonBar/Button" to="." method="add_new_mod"]
+[connection signal="mouse_entered" from="M/C/Icon" to="." method="_on_icon_mouse_entered"]
+[connection signal="mouse_exited" from="M/C/Icon" to="." method="_on_icon_mouse_exited"]

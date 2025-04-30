@@ -1,8 +1,11 @@
 extends IntStat
 class_name DexterityStat
 
-func abbreviation():
-	return "dex"
+static func name():
+	return "Dexterity"
 	
-func description():
+static func abbreviation():
+	return "DEX"
+	
+static func description():
 	return "How much of a nimble speediboi you are"

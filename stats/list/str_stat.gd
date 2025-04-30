@@ -1,11 +1,11 @@
 extends IntStat
 class_name StrengthStat
 
-func name():
-	return ""
+static func name():
+	return "Strenth"
 
-func abbreviation():
-	return "str"
+static func abbreviation():
+	return "STR"
 	
-func description():
+static func description():
 	return "STRONG MONKE"

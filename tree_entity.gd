@@ -11,3 +11,6 @@ class_name TreeEntity
 
 func _ready() -> void:
 	pass
+
+func allocate_skill_node(skill_node: TreeNode) -> bool:
+	if 

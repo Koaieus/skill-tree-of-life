@@ -1,9 +1,11 @@
 extends IntStat
 class_name IntelligenceStat
 
-
-func abbreviation():
-	return "int"
+static func name():
+	return "Intelligence"
 	
-func description():
+static func abbreviation():
+	return "INT"
+	
+static func description():
 	return "Big smart yes?"

@@ -38,8 +38,8 @@ metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_21ovc"]
 script = ExtResource("7_21ovc")
-operation_value = 50.0
-operation = 10
+operation_value = null
+operation = null
 stat_key = ExtResource("6_21ovc")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 

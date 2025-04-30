@@ -6,13 +6,13 @@ signal value_changed
 #@export var abbreviation: String = ""
 #@export var description: String = ""
 
-func name()-> String:
+static func name() -> String:
 	return "<full name of stat>"
 
-func abbreviation()-> String:
+static func abbreviation()-> String:
 	return "<stat abbreviation>"
 
-func description() -> String:
+static func description() -> String:
 	return "<stat description>"
 
 ## Key that defines the uniqueness of a stat

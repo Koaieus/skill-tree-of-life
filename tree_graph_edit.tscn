@@ -1,7 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://cp7jtjmcxyxlm"]
+[gd_scene load_steps=2 format=3 uid="uid://cp7jtjmcxyxlm"]
 
 [ext_resource type="Script" uid="uid://dnl6no1h6mn5p" path="res://tree_graph_edit.gd" id="1_0sg4w"]
-[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="2_hnwal"]
 
 [node name="TreeGraphEdit" type="GraphEdit"]
 anchors_preset = 15
@@ -11,35 +10,9 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 3
 right_disconnects = true
-connections = Array[Dictionary]([{
-"from_node": &"TreeNode2",
-"from_port": 0,
-"keep_alive": false,
-"to_node": &"TreeNode",
-"to_port": 0
-}])
 minimap_opacity = 0.6
 show_zoom_label = true
 script = ExtResource("1_0sg4w")
-
-[node name="TreeNode" parent="." instance=ExtResource("2_hnwal")]
-layout_mode = 1
-offset_left = 700.0
-offset_top = 191.0
-offset_right = 885.0
-offset_bottom = 319.0
-mouse_filter = 1
-position_offset = Vector2(700, 191)
-
-[node name="TreeNode2" parent="." instance=ExtResource("2_hnwal")]
-layout_mode = 1
-offset_left = 287.0
-offset_top = 317.0
-offset_right = 472.0
-offset_bottom = 453.0
-mouse_filter = 1
-position_offset = Vector2(287, 317)
-title = "another skill"
 
 [node name="ContextMenu" type="PopupMenu" parent="."]
 unique_name_in_owner = true
