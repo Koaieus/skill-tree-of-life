@@ -29,7 +29,7 @@ func get_internal_stats() -> Array[Stat]:
 	var res: Array[Stat] = []
 
 	for property in get_property_list():
-		if property.usage == 4102 and get(property.name) is Stat:
+		if property.usage == Stats.EXPORTED_PROP and get(property.name) is Stat:
 			res.append(get(property.name) as Stat)
 	
 	return res

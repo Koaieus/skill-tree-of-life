@@ -10,3 +10,6 @@ func _ready() -> void:
 		return
 	
 	super()
+
+func _get_stats() -> EntityStats:
+	return stats

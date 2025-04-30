@@ -30,7 +30,7 @@ func apply(value, _stat):
 		Operation.SUBSTRACT:
 			return value - (_operation_value * apply_count)
 		Operation.MULTIPLY:
-			return value * _operation_value * apply_count
+			return value * (_operation_value ** apply_count)
 		Operation.DIVIDE:
 			if _operation_value == 0:
 				push_error("NumberStatModifier cannot divide by 0")

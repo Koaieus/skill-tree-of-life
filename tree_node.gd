@@ -57,6 +57,12 @@ func _on_icon_mouse_entered() -> void:
 	tool_tip_instance.target = self
 	tool_tip_instance.position = self.get_global_transform_with_canvas().origin - Vector2(300, 0)
 	tool_tip_instance.title = title
+	var lines: Array[String] = []
+	for modifier in modifiers:
+		if not modifier:
+			continue
+		lines.append(modifier.as_string())
+	tool_tip_instance.set_lines(lines)
 	tool_tip_instance.valid = true
 	add_child(tool_tip_instance)
 	await get_tree().create_timer(0.3).timeout

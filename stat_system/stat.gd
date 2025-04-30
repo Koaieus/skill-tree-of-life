@@ -3,12 +3,17 @@ class_name Stat
 
 signal value_changed
 
-@export var abbreviation: StringName = ""
-@export var description: String = ""
-#func abbreviation()-> String:
-	#return ""
-#func description() -> String:
-	#return ""
+#@export var abbreviation: String = ""
+#@export var description: String = ""
+
+func name()-> String:
+	return "<full name of stat>"
+
+func abbreviation()-> String:
+	return "<stat abbreviation>"
+
+func description() -> String:
+	return "<stat description>"
 
 ## Key that defines the uniqueness of a stat
 var key: Variant:

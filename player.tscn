@@ -1,6 +1,58 @@
-[gd_scene load_steps=2 format=3 uid="uid://tm13xqmslpor"]
+[gd_scene load_steps=16 format=3 uid="uid://tm13xqmslpor"]
 
 [ext_resource type="Script" uid="uid://dlb3kc61sy7r2" path="res://player.gd" id="1_4flbx"]
+[ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_dw050"]
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="3_b26j0"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="4_n7ghd"]
+[ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="5_nvl01"]
+[ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="6_ivps1"]
+[ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_urp6f"]
+[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_bwjto"]
+
+[sub_resource type="Resource" id="Resource_606se"]
+script = ExtResource("3_b26j0")
+default_value = 0
+metadata/_custom_type_script = "uid://gj017hef4u2b"
+
+[sub_resource type="Resource" id="Resource_u1c27"]
+script = ExtResource("4_n7ghd")
+default_value = 0
+metadata/_custom_type_script = "uid://chokoff1ki83w"
+
+[sub_resource type="Resource" id="Resource_op7ga"]
+script = ExtResource("6_ivps1")
+default_value = 0
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_q13i1"]
+script = ExtResource("6_ivps1")
+default_value = 0
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_pylmc"]
+script = ExtResource("7_urp6f")
+max = SubResource("Resource_op7ga")
+min = SubResource("Resource_q13i1")
+default_value = 0
+metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
+
+[sub_resource type="Resource" id="Resource_pbfsw"]
+script = ExtResource("8_bwjto")
+default_value = 0
+metadata/_custom_type_script = "uid://cehpx155ql87x"
+
+[sub_resource type="Resource" id="Resource_5tmop"]
+script = ExtResource("5_nvl01")
+skill_points = SubResource("Resource_pylmc")
+strength = SubResource("Resource_pbfsw")
+intelligence = SubResource("Resource_u1c27")
+dexterity = SubResource("Resource_606se")
+metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="Player" type="Node"]
 script = ExtResource("1_4flbx")
+
+[node name="EntityStatsManager" type="Node" parent="."]
+script = ExtResource("2_dw050")
+stats = SubResource("Resource_5tmop")
+metadata/_custom_type_script = "uid://dvuuc7ytb0rla"

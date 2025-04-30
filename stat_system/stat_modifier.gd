@@ -20,3 +20,7 @@ func set_apply_count(value: int) -> void:
 
 func compatible_with(stat: Stat) -> bool:
 	return stat_key == stat.key
+
+
+func as_string() -> String:
+	return "<stat modifier>"

@@ -8,8 +8,9 @@ var _stats: Stats
 
 ## Stats holder
 var stats: Stats:
-	set = set_stats
-
+	set = set_stats,
+	get = _get_stats
+	
 func set_stats(value: Stats) -> void:
 	stats = value
 
@@ -18,6 +19,9 @@ func set_stats(value: Stats) -> void:
 	
 	_stats = stats.duplicate(true)
 	#initialize_replication()  # Sync multiplayer
+
+func _get_stats():
+	return stats
 
 ## Get a specific stat by its key
 func get_stat(key: Variant) -> Stat:
@@ -104,7 +108,7 @@ func _get_property_list() -> Array:
 		"type": TYPE_OBJECT,
 		"hint": PROPERTY_HINT_RESOURCE_TYPE,
 		"hint_string": get_stats_class_name(),
-		"usage": 4102,
+		"usage": Stats.EXPORTED_PROP,
 	})
 
 	return result

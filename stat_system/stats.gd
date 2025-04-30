@@ -54,10 +54,7 @@ func has_stat(key) -> bool:
 
 
 
-###
-# STAT MODIFIERS
-###
-
+#region Stat Modifiers
 ## Add a stat modifier to a stat
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
 	var stat: Stat = get_stat(stat_modifier.stat_key)
@@ -80,3 +77,4 @@ func remove_stat_modifier(stat_modifier: StatModifier) -> void:
 func clear_stat_modifiers() -> void:
 	for stat in get_stats():
 		stat.clear_stat_modifiers()
+#endregion

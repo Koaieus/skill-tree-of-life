@@ -18,8 +18,13 @@ signal level_down(new_level: int, difference: int)
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	print(stats.strength)
 	pass # Replace with function body.
 
+## Direct access to stats, but typed, via 
+@onready var stats: EntityStats:
+	get():
+		return _stats.stats
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:

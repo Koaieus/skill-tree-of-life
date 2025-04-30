@@ -18,7 +18,8 @@ func compute() -> void:
 	 # Run inherited compute function, which may or may not modify `_multiplier`
 	super()
 	# Apply multiplier (once)
-	apply_multiplier()
+	if _value != null:
+		apply_multiplier()
 
 	if previous == null:
 		return

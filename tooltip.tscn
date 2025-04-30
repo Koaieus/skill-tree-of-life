@@ -1,8 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://bvetoc2tijk7i"]
+[gd_scene load_steps=4 format=3 uid="uid://bvetoc2tijk7i"]
 
 [ext_resource type="Script" uid="uid://d0ub8vjtcm7hd" path="res://tooltip.gd" id="1_abxgm"]
 [ext_resource type="Texture2D" uid="uid://dlgwiusb8d7lf" path="res://assets/border_pack/Border All 1.png" id="1_gwequ"]
-[ext_resource type="PackedScene" uid="uid://ocw3oj3rx4gr" path="res://mod.tscn" id="2_oxk8h"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_abxgm"]
 font_size = 22
@@ -40,35 +39,13 @@ theme_override_constants/margin_bottom = 15
 layout_mode = 2
 
 [node name="Title" type="Label" parent="M/V"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "<title>"
 label_settings = SubResource("LabelSettings_abxgm")
 horizontal_alignment = 1
 
 [node name="Contents" type="VBoxContainer" parent="M/V"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = -3
-
-[node name="Mod" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
-visible = false
-layout_mode = 2
-
-[node name="Mod2" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
-visible = false
-layout_mode = 2
-
-[node name="Mod3" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
-visible = false
-layout_mode = 2
-
-[node name="Mod4" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
-visible = false
-layout_mode = 2
-
-[node name="Mod5" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
-visible = false
-layout_mode = 2
-
-[node name="Mod6" parent="M/V/Contents" instance=ExtResource("2_oxk8h")]
-visible = false
-layout_mode = 2

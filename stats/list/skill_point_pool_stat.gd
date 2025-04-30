@@ -1,5 +1,9 @@
 extends IntPoolStat
 class_name SkillPointPoolStat
 
-#func description():
-	#return "The skill points the tree entity can spend"
+
+func abbreviation():
+	return "skillpts"
+
+func description():
+	return "How many skill points you have and have spent"

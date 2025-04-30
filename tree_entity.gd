@@ -7,12 +7,7 @@ class_name TreeEntity
 #@export var stats: Stats = EntityStats.new()
 @export_color_no_alpha var color: Color
 
+@onready var _stats: EntityStatsManager = $EntityStatsManager
+
 func _ready() -> void:
 	pass
-
-#func _on_child_entered_tree(node: Node) -> void:
-	#if node is TreeNode:
-		#node.owner = self
-#
-#func _on_child_exiting_tree(node: Node) -> void:
-	#pass # Replace with function body.

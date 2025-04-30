@@ -12,29 +12,21 @@
 [sub_resource type="Resource" id="Resource_1rubt"]
 script = ExtResource("3_g54k8")
 default_value = 0
-abbreviation = &"dex"
-description = "Zoominess"
 metadata/_custom_type_script = "uid://gj017hef4u2b"
 
 [sub_resource type="Resource" id="Resource_nihcs"]
 script = ExtResource("4_ovnba")
 default_value = 0
-abbreviation = &"int"
-description = "Big Smart"
 metadata/_custom_type_script = "uid://chokoff1ki83w"
 
 [sub_resource type="Resource" id="Resource_77k73"]
 script = ExtResource("6_au033")
 default_value = 0
-abbreviation = &""
-description = ""
 metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
 [sub_resource type="Resource" id="Resource_k6fnf"]
 script = ExtResource("6_au033")
 default_value = 0
-abbreviation = &""
-description = ""
 metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
 [sub_resource type="Resource" id="Resource_r78mo"]
@@ -42,15 +34,11 @@ script = ExtResource("7_y7a68")
 max = SubResource("Resource_77k73")
 min = SubResource("Resource_k6fnf")
 default_value = 0
-abbreviation = &"skillpts"
-description = "Number of skill points currently in use"
 metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
 
 [sub_resource type="Resource" id="Resource_wcqib"]
 script = ExtResource("8_5ha82")
 default_value = 0
-abbreviation = &"str"
-description = "Strenght"
 metadata/_custom_type_script = "uid://cehpx155ql87x"
 
 [sub_resource type="Resource" id="Resource_8281m"]

@@ -12,4 +12,4 @@ class_name IntStat
 		_value = default_value
 
 func apply_multiplier():
-	value = roundi(value * _multiplier)
+	value = roundi(_value * _multiplier)
