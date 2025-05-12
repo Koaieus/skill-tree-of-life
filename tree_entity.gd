@@ -13,4 +13,7 @@ func _ready() -> void:
 	pass
 
 func allocate_skill_node(skill_node: TreeNode) -> bool:
-	if 
+	return false
+	
+func deallocate_skill_node(skill_node: TreeNode) -> bool:
+	return false

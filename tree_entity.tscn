@@ -51,7 +51,6 @@ metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="TreeEntity" type="Node"]
 script = ExtResource("1_fgaco")
-color = null
 
 [node name="EntityStatsManager" type="Node" parent="."]
 script = ExtResource("2_elqwa")

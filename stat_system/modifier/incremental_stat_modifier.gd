@@ -6,7 +6,7 @@ class_name IncrementalStatModifier
 func get_operation_value() -> float:
 	return operation_value / 100.
 
-func apply(value: float, stat: NumberStat):
+func apply(value: float, stat: IntStat):
 	match operation:
 		Operation.ADD:
 			stat._multiplier += _operation_value * apply_count
