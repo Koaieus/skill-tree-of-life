@@ -2,12 +2,19 @@
 class_name TreeNode
 extends GraphNode
 
+signal allocated(entity: TreeEntity)
+signal deallocated(previous_entity: TreeEntity)
+
 @export var owned_by: TreeEntity:
 	get:
 		return owned_by
-	set(value):
-		owned_by = value
-		update_owner(value)
+	set(new_owner):
+		var old_owner = owned_by
+		if new_owner == owned_by:
+			prints("Skip updating owner, no change:", old_owner, "->", new_owner)
+			return
+		owned_by = new_owner
+		update_owner(old_owner, new_owner)
 
 @export var modifiers: Array[NumberStatModifier] = []
 
@@ -19,12 +26,10 @@ var mod_scene_packed = preload("res://mod.tscn")
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	update_owner(owned_by)
-	
+	#update_owner(null, owned_by)
+	update_color()
 	var title_box: HBoxContainer = get_titlebar_hbox()
 	var title_label: Label = title_box.get_child(0, true)
-	print(title_label.horizontal_alignment)
-	#title_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if not Engine.is_editor_hint():
 		self_modulate = Color.TRANSPARENT
@@ -35,31 +40,61 @@ func _ready() -> void:
 		add_theme_constant_override("separation", -title_box.size.y)
 	#icon.top_level = true
 	
+		
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
-	
 
-func update_owner(new_owner: TreeEntity):
-	if not new_owner:
+func update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
+	if old_owner:
+		deallocate_from(old_owner)
+	if new_owner:
+		allocate_to(new_owner)
+	else:
 		clear_owner()
+
+
+func allocate_to(entity: TreeEntity):
+	prints(self, 'allocates to:', entity)
+	update_color()
+	if not entity._stats:
+		print('can\'t allocate: no stats')
 		return
-	set_color(new_owner.color)
-		
+	for mod in modifiers:
+		entity.stats.add_stat_modifier(mod)
+	allocated.emit(entity)
+	
+func deallocate_from(entity: TreeEntity):
+	prints(self, 'deallocates from:', entity)
+	update_color()
+	if not entity._stats:
+		return
+	for mod in modifiers:
+		entity._stats.remove_stat_modifier(mod)
+	deallocated.emit(entity)
+
 func clear_owner():
-	set_color(Color.WHITE)
+	update_color()
+
+func has_owner() -> bool:
+	return owned_by != null
+
+func update_color():
+	if has_owner():
+		set_color(owned_by.color)
+	else:
+		set_color(Color.WHITE)
+
 
 func set_color(color: Color):
 	if icon:
 		icon.self_modulate = color
+	else:
+		print('cannot set color: no icon')
 
 func add_new_mod() -> void:
 	var new_mod := mod_scene_packed.instantiate()
 	add_child(new_mod)
-
-
-func _on_tree_entered() -> void:
-	pass
 
 
 func _on_icon_mouse_entered() -> void:
@@ -82,3 +117,10 @@ func _on_icon_mouse_entered() -> void:
 
 func _on_icon_mouse_exited() -> void:
 	get_node('ToolTip').queue_free()
+
+
+func _on_icon_pressed() -> void:
+	if Global.player == owned_by:
+		return # Already owned
+		
+	Global.player.allocate_skill_node(self)

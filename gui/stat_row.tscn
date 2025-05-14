@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://c11i54435huk3"]
+
+[ext_resource type="Script" uid="uid://ixsokb3ah1bd" path="res://gui/stat_row.gd" id="1_6ty8x"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_tgb0x"]
+
+[node name="StatRow" type="HBoxContainer"]
+custom_minimum_size = Vector2(100, 30)
+offset_right = 241.0
+offset_bottom = 30.0
+theme_override_constants/separation = 10
+script = ExtResource("1_6ty8x")
+
+[node name="IconTextureRect" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = SubResource("PlaceholderTexture2D_tgb0x")
+stretch_mode = 5
+
+[node name="LabelText" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/shadow_outline_size = 3
+text = "<skill text>"
+
+[node name="LabelValue" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_constants/shadow_outline_size = 3
+text = "<skill text>"

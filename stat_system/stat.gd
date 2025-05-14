@@ -15,6 +15,8 @@ static func abbreviation()-> String:
 static func description() -> String:
 	return "<stat description>"
 
+var parent: Stats
+
 ## Key that defines the uniqueness of a stat
 var key: Variant:
 	get = get_key
@@ -33,15 +35,17 @@ var value:
 func get_value():
 	return base_value
 
+func display_value() -> String:
+	return "%s" % value
 
 ###
 # STAT MODIFIERS
 ###
-func add_stat_modifier(stat_modifier) -> void:
-	pass
-
-func remove_stat_modifier(stat_modifier) -> void:
-	pass
-
-func clear_stat_modifiers() -> void:
-	pass
+#func add_stat_modifier(stat_modifier) -> void:
+	#pass
+#
+#func remove_stat_modifier(stat_modifier) -> void:
+	#pass
+#
+#func clear_stat_modifiers() -> void:
+	#pass

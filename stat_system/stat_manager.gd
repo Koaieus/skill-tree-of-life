@@ -21,7 +21,7 @@ func set_stats(value: Stats) -> void:
 	#initialize_replication()  # Sync multiplayer
 
 func _get_stats():
-	return stats
+	return _stats
 
 ## Get a specific stat by its key
 func get_stat(key: Variant) -> Stat:
@@ -33,6 +33,7 @@ func get_stats_class_name() -> String:
 #region Stat Modifiers
 ## Add a stat modifier to a stat
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
+	print('adding stat modifier: %s %s' % [stat_modifier.stat_key.get_global_name(), stat_modifier])
 	if _stats == null:
 		return
 
@@ -123,9 +124,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 	
 	if stats_class == 'Stats':
 		warnings.append('Pick a concrete subclass to manage (not "Stats")')
-	
-	#if not stats_class.get_script_constant_map().get('IS_STATS', false):
-		#warnings.append('Managed stat class should be a subclass of `Stats`')
 		
 	return warnings
 		

@@ -1,7 +1,9 @@
 extends IntPoolStat
 class_name SkillPointPoolStat
 
-
+static func name():
+	return "Skill Points"
+	
 static func abbreviation():
 	return "skillpts"
 

@@ -14,20 +14,30 @@ func get_value():
 
 # (Re-)compute the computed value
 func compute() -> void:
+	print('>> Computing stats!')
 	# Start with base value
-	var computed = base_value
-		# Sort the modifiers
-	stat_modifiers.sort_custom(sort_modifiers_by_application_order)
-		# Apply each modifier
-	for stat_modifier in stat_modifiers:
-		computed = stat_modifier.apply(computed, self)
+	var computed = _apply_modifiers(base_value)
+	# Call customizable hook
+	computed = _on_after_modifier_application(computed)
 	# Save result and emit signal
 	_value = computed
 	value_changed.emit()
 
+func _apply_modifiers(start_value: Variant):
+	var updated_value = start_value
+	# Sort the modifiers
+	stat_modifiers.sort_custom(sort_modifiers_by_application_order)
+	# Apply each modifier
+	for stat_modifier in stat_modifiers:
+		print()
+		var old_value = updated_value
+		updated_value = stat_modifier.apply(updated_value, self)
+		print_debug('%s modified from %s to %s' % [name(), old_value, updated_value])
+	return updated_value
 
+	
 #region Stat Modifiers
-var stat_modifiers: Array[StatModifier] = []
+@export var stat_modifiers: Array[StatModifier] = []
 
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
 	stat_modifiers.append(stat_modifier)
@@ -45,6 +55,10 @@ func clear_stat_modifiers() -> void:
 
 	stat_modifiers = []
 	compute()
+	
+func _on_after_modifier_application(value):
+	return value
+
 #endregion
 
 

@@ -7,14 +7,21 @@ class_name Stats
 
 const EXPORTED_PROP = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 
-const IS_STATS: bool = true
+signal stats_changed(stat: Stat, new_value)
+
+func _init() -> void:
+	connect('changed', _on_stats_value_changed)
+	for stat in get_stats():
+		#print('connecting `value_changed` of %s to %s' % [stat, self])
+		stat.parent = self
+		#stat.value_changed.connect(_on_stats_value_changed)
+		
 
 ###
 # STATS
 ###
-
 ## Dictionary that holds a look up for (key, stat)
-var map: Dictionary:
+var map: Dictionary[GDScript, Stat]:
 	get = get_map_from_list
 
 
@@ -41,8 +48,10 @@ func get_map_from_list() -> Dictionary:
 	return new_map
 
 ## Get the look up table as an array
-func get_stats() -> Array:
-	return map.values()
+func get_stats() -> Array[Stat]:
+	var array: Array[Stat]
+	array.assign(map.values())
+	return array
 
 ## Get a specific stat by it's key
 func get_stat(key) -> Stat:
@@ -52,7 +61,9 @@ func get_stat(key) -> Stat:
 func has_stat(key) -> bool:
 	return map.has(key)
 
-
+func _on_stats_value_changed() -> void:
+	print('Stats changed!')
+	stats_changed.emit()
 
 #region Stat Modifiers
 ## Add a stat modifier to a stat

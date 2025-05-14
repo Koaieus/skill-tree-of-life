@@ -11,6 +11,8 @@ var _max: NumberStat
 var _min: NumberStat
 @export var is_infinite: BoolStat
 
+func display_value():
+	return "%s/%s" % [value, _max.value]
 
 func _on_max_increased(_max_value, increase_amount) -> void:
 	_value += increase_amount

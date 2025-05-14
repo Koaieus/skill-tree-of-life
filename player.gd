@@ -1,3 +1,4 @@
+@tool
 extends TreeEntity
 class_name Player
 
@@ -18,13 +19,15 @@ signal level_down(new_level: int, difference: int)
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	print(stats.strength)
-	pass # Replace with function body.
+	super()
+	print('level: ', level)
 
 ## Direct access to stats, but typed, via 
 @onready var stats: EntityStats:
 	get():
-		return _stats.stats
+		if _stats:
+			return _stats.stats
+		return null
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
@@ -35,3 +38,11 @@ func _on_level_up(new_level: int, difference: int) -> void:
 
 func _on_level_down(new_level: int, difference: int) -> void:
 	emit_signal("level_down", new_level, difference)
+
+func can_allocate_node(tree_node: TreeNode):
+	if stats.skill_points.value == 0:
+		return false
+	return super(tree_node)
+	
+func _pay_allocation_cost(tree_node: TreeNode):
+	stats.skill_points.decrease(1)

@@ -1,6 +1,8 @@
-[gd_scene load_steps=20 format=3 uid="uid://cifdsy0tgbjj2"]
+[gd_scene load_steps=22 format=3 uid="uid://cifdsy0tgbjj2"]
 
+[ext_resource type="Script" uid="uid://b6ot6ty5l7jis" path="res://main.gd" id="1_dg77c"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
+[ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://gui/stats_panel.tscn" id="2_efxa6"]
 [ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://tree_graph_edit.tscn" id="4_7mycd"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="5_lquwl"]
 [ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="6_4c57u"]
@@ -63,7 +65,7 @@ metadata/_custom_type_script = "uid://cfpnfqaij275b"
 [sub_resource type="Resource" id="Resource_cegan"]
 script = ExtResource("10_efxa6")
 operation_value = 50
-operation = 10
+operation = 20
 stat_key = ExtResource("8_dg77c")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
@@ -75,11 +77,14 @@ stat_key = ExtResource("7_efxa6")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [node name="Main" type="Node"]
+script = ExtResource("1_dg77c")
 
 [node name="Players" type="Node" parent="."]
 unique_name_in_owner = true
 
-[node name="Player" parent="Players" instance=ExtResource("2_1bvp3")]
+[node name="Player" parent="Players" node_paths=PackedStringArray("core") instance=ExtResource("2_1bvp3")]
+player_name = "DefaultPlayer"
+core = NodePath("../../GUI/HBoxContainer/TreeGraphEdit/Start")
 color = Color(0.31512, 0.490913, 1, 1)
 
 [node name="GUI" type="VBoxContainer" parent="."]
@@ -107,19 +112,8 @@ text = "Top panel"
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="PanelContainerLeft" type="PanelContainer" parent="GUI/HBoxContainer"]
+[node name="StatsDisplay" parent="GUI/HBoxContainer" instance=ExtResource("2_efxa6")]
 layout_mode = 2
-
-[node name="MarginContainer" type="MarginContainer" parent="GUI/HBoxContainer/PanelContainerLeft"]
-layout_mode = 2
-theme_override_constants/margin_left = 15
-theme_override_constants/margin_top = 15
-theme_override_constants/margin_right = 15
-theme_override_constants/margin_bottom = 15
-
-[node name="Label" type="Label" parent="GUI/HBoxContainer/PanelContainerLeft/MarginContainer"]
-layout_mode = 2
-text = "Left panel"
 
 [node name="TreeGraphEdit" parent="GUI/HBoxContainer" instance=ExtResource("4_7mycd")]
 unique_name_in_owner = true
@@ -283,5 +277,8 @@ theme_override_constants/port_h_offset = 64
 visible = false
 self_modulate = Color(1, 1, 1, 0)
 theme_override_constants/port_h_offset = 64
+
+[connection signal="child_entered_tree" from="Players" to="." method="_on_players_child_entered_tree"]
+[connection signal="child_exiting_tree" from="Players" to="." method="_on_players_child_exiting_tree"]
 
 [editable path="Skills"]

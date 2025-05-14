@@ -23,6 +23,7 @@ func set_title(title: String) -> void:
 
 func clear_lines() -> void:
 	for child in %Contents.get_children():
+		remove_child(child)
 		child.queue_free()
 
 func add_line(text: String) -> void:

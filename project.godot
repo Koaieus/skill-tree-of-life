@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 StatUtils="*res://stat_system/utils.gd"
 Skills="*res://skills.tscn"
+Global="*res://global.gd"
 
 [display]
 

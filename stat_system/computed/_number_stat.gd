@@ -11,26 +11,34 @@ var multiplier: float:
 		return _multiplier
 
 func compute() -> void:
-	var previous = _value
-	
+	print('>> Computing (number)stats!')
 	# Reset multiplier (will receive all INCREASE/DECREASE operation values)
 	_multiplier = 1.0
-	 # Run inherited compute function, which may or may not modify `_multiplier`
-	super()
-	# Apply multiplier (once)
-	if _value != null:
-		apply_multiplier()
+	# Start with base value
+	var computed = _apply_modifiers(base_value)
+	# Call customizable hook
+	computed = _on_after_modifier_application(computed)
+	# Save result and emit signal
+	var previous = _value
+	_value = computed
 
-	if previous == null:
+	if previous == null or _value == null:
 		return
 	
 	var amount = _value - previous
-
+	value_changed.emit()
 	if amount > 0:
 		increased.emit(value, amount)
 	elif amount < 0:
 		decreased.emit(value, amount)
 
-func apply_multiplier() -> void:
-	value *= _multiplier
+func _on_after_modifier_application(v):
+	# Apply multiplier (once)
+	if v != null:
+		v = apply_multiplier(v)
+	return v
+
+func apply_multiplier(v):
+	print("applying a mult of %s" % _multiplier)
+	return v * _multiplier
 	

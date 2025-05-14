@@ -11,5 +11,7 @@ class_name IntStat
 		base_value = default_value
 		_value = default_value
 
-func apply_multiplier():
-	value = roundi(_value * _multiplier)
+func apply_multiplier(v):
+	var new_v := roundi(v * _multiplier)
+	print("applying a mult of %s then rounding (to: %s)" % [_multiplier, new_v])
+	return new_v
