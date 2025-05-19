@@ -56,7 +56,7 @@ intelligence = SubResource("Resource_nihcs")
 dexterity = SubResource("Resource_1rubt")
 metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
-[node name="TreeEntity" type="Node"]
+[node name="TreeEntity" type="Node" groups=["entities"]]
 script = ExtResource("1_fgaco")
 
 [node name="EntityStatsManager" type="Node" parent="."]

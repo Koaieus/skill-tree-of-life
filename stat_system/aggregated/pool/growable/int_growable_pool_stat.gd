@@ -2,12 +2,12 @@ extends GrowablePoolStat
 class_name IntGrowablePoolStat
 
 
-@export var max: IntStat = IntStat.new():
+@export var max: IntStat = IntStat.new(0):
 	set(_max_value):
 		max = _max_value
 		_max = max
 
-@export var min: IntStat = IntStat.new():
+@export var min: IntStat = IntStat.new(0):
 	set(_min_value):
 		min = _min_value
 		_min = min

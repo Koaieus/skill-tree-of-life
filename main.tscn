@@ -82,10 +82,8 @@ script = ExtResource("1_dg77c")
 [node name="Players" type="Node" parent="."]
 unique_name_in_owner = true
 
-[node name="Player" parent="Players" node_paths=PackedStringArray("core") instance=ExtResource("2_1bvp3")]
-player_name = "DefaultPlayer"
-core = NodePath("../../GUI/HBoxContainer/TreeGraphEdit/Start")
-color = Color(0.31512, 0.490913, 1, 1)
+[node name="Entities" type="Node" parent="."]
+unique_name_in_owner = true
 
 [node name="GUI" type="VBoxContainer" parent="."]
 anchors_preset = 15
@@ -146,7 +144,7 @@ connections = Array[Dictionary]([{
 "to_port": 0
 }])
 
-[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("owned_by") instance=ExtResource("5_lquwl")]
+[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("local_entities") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -161,8 +159,13 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(187, 465)
 title = "Starter Skill"
-owned_by = NodePath("../../../../Players/Player")
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq")])
+local_entities = [NodePath("Player")]
+
+[node name="Player" parent="GUI/HBoxContainer/TreeGraphEdit/Start" instance=ExtResource("2_1bvp3")]
+player_name = "DefaultPlayer"
+level = 3
+color = Color(1, 0, 0, 1)
 
 [node name="Strength" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)

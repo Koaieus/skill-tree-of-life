@@ -17,7 +17,9 @@ func compute() -> void:
 	# Start with base value
 	var computed = _apply_modifiers(base_value)
 	# Call customizable hook
+	#print('before `_on_after_modifier_application`: %s' % computed)
 	computed = _on_after_modifier_application(computed)
+	#print('after `_on_after_modifier_application`: %s' % computed)
 	# Save result and emit signal
 	var previous = _value
 	_value = computed

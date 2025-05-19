@@ -1,10 +1,8 @@
-[gd_scene load_steps=10 format=3 uid="uid://dxsj4sc2n6kcm"]
+[gd_scene load_steps=7 format=3 uid="uid://dxsj4sc2n6kcm"]
 
 [ext_resource type="Theme" uid="uid://twp12lx6lihg" path="res://theme.tres" id="1_hpis2"]
 [ext_resource type="Script" uid="uid://w8uldc548wtl" path="res://tree_node.gd" id="1_myg1w"]
-[ext_resource type="Shader" uid="uid://cuwcowt4g5tjm" path="res://button_socket2.gdshader" id="4_gvsnc"]
 [ext_resource type="Texture2D" uid="uid://dy7djfa2xjswl" path="res://icon.svg" id="4_l8d3n"]
-[ext_resource type="Texture2D" uid="uid://jclwkga81lg0" path="res://assets/border_pack/Ram Panels All.png" id="5_nt0f8"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bv6hc"]
 bg_color = Color(0.180392, 0.180392, 0.180392, 1)
@@ -13,18 +11,6 @@ bg_color = Color(0.180392, 0.180392, 0.180392, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i2wdb"]
 bg_color = Color(0.180392, 0.180392, 0.180392, 1)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_gvsnc"]
-shader = ExtResource("4_gvsnc")
-shader_parameter/fill_amount = 0.0
-shader_parameter/mask_rotation = 0.0
-shader_parameter/mask_offset = Vector2(0.7, 0.125)
-shader_parameter/mask_size = Vector2(10, 8)
-shader_parameter/mask_rotation_pivot = Vector2(0.5, 0.5)
-shader_parameter/mask_scale_pivot = Vector2(0, 0)
-shader_parameter/invert_mask = true
-shader_parameter/use_different_texture = false
-shader_parameter/mask_texture = ExtResource("5_nt0f8")
 
 [node name="TreeNode" type="GraphNode"]
 anchors_preset = -1
@@ -63,13 +49,14 @@ layout_mode = 2
 
 [node name="Icon" type="TextureButton" parent="M/C"]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_gvsnc")
 custom_minimum_size = Vector2(60, 60)
 layout_mode = 2
 texture_normal = ExtResource("4_l8d3n")
 ignore_texture_size = true
 stretch_mode = 0
 
+[connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
+[connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]
 [connection signal="mouse_entered" from="M/C/Icon" to="." method="_on_icon_mouse_entered"]
 [connection signal="mouse_exited" from="M/C/Icon" to="." method="_on_icon_mouse_exited"]
 [connection signal="pressed" from="M/C/Icon" to="." method="_on_icon_pressed"]

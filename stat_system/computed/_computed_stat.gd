@@ -58,6 +58,9 @@ func clear_stat_modifiers() -> void:
 	
 func _on_after_modifier_application(value):
 	return value
+	
+func _on_base_value_changed(new_value, old_value):
+	compute()
 
 #endregion
 

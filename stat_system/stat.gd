@@ -22,7 +22,18 @@ var key: Variant:
 	get = get_key
 
 ## Base value for stat
-var base_value
+var _base_value
+var base_value: Variant:
+	get = _get_base_value,
+	set = _set_base_value
+	
+func _get_base_value():
+	return _base_value
+	
+func _set_base_value(new_value):
+	var _prev = _base_value
+	_base_value = new_value
+	_on_base_value_changed(_prev, new_value)
 
 ## Key getter
 func get_key() -> Variant:
@@ -37,6 +48,10 @@ func get_value():
 
 func display_value() -> String:
 	return "%s" % value
+
+
+func _on_base_value_changed(old_value, new_value):
+	pass
 
 ###
 # STAT MODIFIERS

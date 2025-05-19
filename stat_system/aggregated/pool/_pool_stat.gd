@@ -16,10 +16,10 @@ func display_value():
 
 func _on_max_increased(_max_value, increase_amount) -> void:
 	_value += increase_amount
+	print('max increased of %s by %s' % [resource_name, increase_amount])
 
 func _on_max_decreased(_max_value, decrease_amount) -> void:
 	_value = _value
-
 
 func _on_min_increased(_max_value, increase_amount) -> void:
 	_value = _value
@@ -53,20 +53,20 @@ func set_default_value(_default_value) -> void:
 	initialize()
 
 func set_value(new_value) -> void:
+	print('%s: set_value(%s -> %s) @ %s' % [name(), value, new_value, resource_name])
+
 	if is_infinite != null and is_infinite.value:
 		return
 	
 	var previous = _value
-	
 	new_value = clamp(new_value, _min.value, _max.value)
-
 	super(new_value)
 
 	# Check if we need to emit a signal related to change in value
 	if previous == null:
 		return
+	var amount = new_value - previous
 
-	var amount = _value - previous
 	if amount > 0:
 		increased.emit(new_value, amount)
 	elif amount < 0:

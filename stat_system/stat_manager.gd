@@ -4,28 +4,28 @@ class_name StatsManager
 ## The StatsManager class provides an interface to manage Stats and is typically attached to the entity that owns those stats. 
 ## This makes it easier to access and manipulate stats during gameplay.
 
-var _stats: Stats
+#var _stats: Stats
 
 ## Stats holder
 var stats: Stats:
-	set = set_stats,
-	get = _get_stats
+	get = _get_stats,
+	set = set_stats
 	
 func set_stats(value: Stats) -> void:
 	stats = value
 
-	if stats == null:
-		return
+	#if stats == null:
+		#return
 	
-	_stats = stats.duplicate(true)
+	#_stats = stats.duplicate(true)
 	#initialize_replication()  # Sync multiplayer
 
 func _get_stats():
-	return _stats
+	return stats
 
 ## Get a specific stat by its key
 func get_stat(key: Variant) -> Stat:
-	return _stats.get_stat(key) if _stats != null else null
+	return stats.get_stat(key) if stats != null else null
 
 func get_stats_class_name() -> String:
 	return "Stats"
@@ -34,24 +34,24 @@ func get_stats_class_name() -> String:
 ## Add a stat modifier to a stat
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
 	print('adding stat modifier: %s %s' % [stat_modifier.stat_key.get_global_name(), stat_modifier])
-	if _stats == null:
+	if stats == null:
 		return
 
-	_stats.add_stat_modifier(stat_modifier)
+	stats.add_stat_modifier(stat_modifier)
 
 ## Remove a stat modifier from a stat
 func remove_stat_modifier(stat_modifier: StatModifier) -> void:
-	if _stats == null:
+	if stats == null:
 		return
 
-	_stats.remove_stat_modifier(stat_modifier)
+	stats.remove_stat_modifier(stat_modifier)
 
 ## Clear all stat modifiers from all stats
 func clear_stat_modifiers() -> void:
-	if _stats == null:
+	if stats == null:
 		return
 
-	_stats.clear_stat_modifiers()
+	stats.clear_stat_modifiers()
 #endregion
 
 func _ready() -> void:

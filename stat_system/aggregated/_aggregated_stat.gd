@@ -6,6 +6,7 @@ class_name AggregatedStat
 # CORE
 ###
 var _value:
+	get = get_value,
 	set = set_value
 
 func get_value():

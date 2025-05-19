@@ -1,13 +1,21 @@
 extends Control
 class_name StatsPanel
 
-@export var stats: Stats
+@export var player: Player
 
 const STAT_ROW = preload("res://gui/stat_row.tscn")
 
+@onready var stats: EntityStats:
+	get():
+		return player.stats if player else null
+		
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	Global.player_selected.connect(_on_player_selected)
+	Global.player_stats_changed.connect(
+		func():
+			print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+	)
 	compute()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -22,14 +30,15 @@ func clear_rows() -> void:
 func compute():
 	print_debug("computing stats panel")
 	
-	if Global.player:
-		%NameLabel.text = Global.player.player_name
-	
-	stats = Global.entity_at_turn._stats.stats
-	if not stats:
-		return []
-	
 	clear_rows()
+	if player:
+		%NameLabel.text = player.player_name
+	else:
+		%NameLabel.text = "No player selected"
+		return
+	
+	if not stats:
+		return
 	
 	var row: StatRow
 	for stat in stats.get_stats():
@@ -40,5 +49,6 @@ func compute():
 		%StatsList.add_child(row)
 	
 func _on_player_selected(player: Player): 
-	player.stats.stats_changed.connect(compute)
+	self.player = player
+	#player.stats.stats_changed.connect(compute)
 	compute()

@@ -7,15 +7,22 @@ class_name Stats
 
 const EXPORTED_PROP = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 
-signal stats_changed(stat: Stat, new_value)
+signal stat_changed(stat: Stat, new_value)
+signal stats_changed(stats: Stats)
 
 func _init() -> void:
 	connect('changed', _on_stats_value_changed)
 	for stat in get_stats():
 		#print('connecting `value_changed` of %s to %s' % [stat, self])
 		stat.parent = self
+		stat.value_changed.connect(_on_stats_changed)
 		#stat.value_changed.connect(_on_stats_value_changed)
 		
+## Callback when any stat changes
+func _on_stats_changed() -> void:
+	print('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC')
+	stats_changed.emit(self)
+	
 
 ###
 # STATS

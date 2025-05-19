@@ -5,7 +5,7 @@ extends GraphNode
 signal allocated(entity: TreeEntity)
 signal deallocated(previous_entity: TreeEntity)
 
-@export var owned_by: TreeEntity:
+@onready var owned_by: TreeEntity = null:
 	get:
 		return owned_by
 	set(new_owner):
@@ -14,7 +14,7 @@ signal deallocated(previous_entity: TreeEntity)
 			prints("Skip updating owner, no change:", old_owner, "->", new_owner)
 			return
 		owned_by = new_owner
-		update_owner(old_owner, new_owner)
+		_on_update_owner(old_owner, new_owner)
 
 @export var modifiers: Array[NumberStatModifier] = []
 
@@ -22,30 +22,29 @@ signal deallocated(previous_entity: TreeEntity)
 @onready var icon = %Icon
 @onready var tool_tip: PackedScene = preload("res://tooltip.tscn")
 
-var mod_scene_packed = preload("res://mod.tscn")
+var _local_entities: Array[TreeEntity] = []
+
+@export var local_entities: Array[TreeEntity]:
+	get(): return _local_entities
+
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	#update_owner(null, owned_by)
-	update_color()
-	var title_box: HBoxContainer = get_titlebar_hbox()
-	var title_label: Label = title_box.get_child(0, true)
-	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if not Engine.is_editor_hint():
-		self_modulate = Color.TRANSPARENT
-		get_titlebar_hbox().hide()
-		add_theme_constant_override("port_h_offset", size.x / 2)
-		$M.add_theme_constant_override("margin_top", -title_box.size.y)
-		$M.add_theme_constant_override("margin_bottom", -title_box.size.y)
-		add_theme_constant_override("separation", -title_box.size.y)
-	#icon.top_level = true
-	
+	if _local_entities.size() == 1:
+		owned_by = _local_entities[0]
+	elif _local_entities.size() > 1:
+		push_warning('Muliple TreeEntities as children of a single TreeNode')
 		
+	update_color()
+	_hide_box_and_title()
+	
+
+
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
 
-func update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
+func _on_update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
 	if old_owner:
 		deallocate_from(old_owner)
 	if new_owner:
@@ -89,13 +88,24 @@ func update_color():
 func set_color(color: Color):
 	if icon:
 		icon.self_modulate = color
+		print('color set to: ', color)
 	else:
 		print('cannot set color: no icon')
 
-func add_new_mod() -> void:
-	var new_mod := mod_scene_packed.instantiate()
-	add_child(new_mod)
-
+func _hide_box_and_title() -> void:
+	var title_box: HBoxContainer = get_titlebar_hbox()
+	var title_label: Label = title_box.get_child(0, true)
+	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	
+	if not Engine.is_editor_hint():
+		self_modulate = Color.TRANSPARENT
+		get_titlebar_hbox().hide()
+		add_theme_constant_override("port_h_offset", size.x / 2)
+		$M.add_theme_constant_override("margin_top", -title_box.size.y)
+		$M.add_theme_constant_override("margin_bottom", -title_box.size.y)
+		add_theme_constant_override("separation", -title_box.size.y)
+	#icon.top_level = true
+	
 
 func _on_icon_mouse_entered() -> void:
 	var tool_tip_instance: ToolTip = tool_tip.instantiate()
@@ -124,3 +134,16 @@ func _on_icon_pressed() -> void:
 		return # Already owned
 		
 	Global.player.allocate_skill_node(self)
+
+
+func _on_child_entered_tree(node: Node) -> void:
+	if node is TreeEntity:
+		_local_entities.append(node)
+
+
+func _on_child_exiting_tree(node: Node) -> void:
+	if node is TreeEntity:
+		if owned_by == node:
+			push_warning('[Entity leaving tree] ToDo: maybe deallocate?')
+			#node.deallocate_skill_node(self)
+		_local_entities.erase(node)

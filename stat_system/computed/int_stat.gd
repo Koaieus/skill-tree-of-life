@@ -1,6 +1,6 @@
 extends NumberStat
 class_name IntStat
-## A computed Int stat comprised of a base value + modifiers
+## A computed Int stat comprised of a default value + modifiers
 
 #signal increased(value: int, amount: int)
 #signal decreased(value: int, amount: int)
@@ -13,5 +13,5 @@ class_name IntStat
 
 func apply_multiplier(v):
 	var new_v := roundi(v * _multiplier)
-	print("applying a mult of %s then rounding (to: %s)" % [_multiplier, new_v])
+	#print("applying a mult of %s then rounding (to: %s)" % [_multiplier, new_v])
 	return new_v

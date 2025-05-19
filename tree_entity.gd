@@ -4,18 +4,30 @@ class_name TreeEntity
 # Represents an `entity` that lives on a skill tree by owning 1 or more skills on it
 
 @export var core: TreeNode
+@export_color_no_alpha var color: Color = Color.BLUE
 #@export var stats: Stats = EntityStats.new()
-@export_color_no_alpha var color: Color
 
 @onready var _stats: EntityStatsManager = $EntityStatsManager
 
+
+#func _init(_core: TreeNode):
+	#if _core:
+		#core = _core
+
 func _ready() -> void:
-	print('TreeEntity READY')
-	if core:
-		core.allocate_to(self)
-		print('Allocated core')
-	else:
-		print('No Core')
+	#connect(Global.game_ready.get_name(), _on_game_ready)
+	
+	print('TreeEntity `%s` READY' % [name])
+	
+		
+
+#func initialize() -> void:
+	#if core:
+		#core.allocate_to(self)
+		#print('Allocated core')
+	#else:
+		#push_error('TreeEntity has no Core ')
+
 
 func can_allocate_node(tree_node: TreeNode) -> bool:
 	if tree_node.has_owner():
@@ -42,3 +54,14 @@ func deallocate_skill_node(tree_node: TreeNode):
 	prints('Deallocating', tree_node, 'from', self)
 	tree_node.owned_by = null
 	return false
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: Array[String] = []
+	#if not core:
+		#warnings.append('No core TreeNode set')
+	if not _stats:
+		warnings.append('No stats manager configured')
+	return warnings
+
+#func _on_game_ready():
+	#initialize()

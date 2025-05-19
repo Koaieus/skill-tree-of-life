@@ -1,7 +1,6 @@
 extends PoolStat
 class_name IntPoolStat
 
-
 @export var max: IntStat = IntStat.new(0):
 	set(_max_value):
 		max = _max_value

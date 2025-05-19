@@ -1,9 +1,11 @@
 ## Global singleton to manage game turns and other typical global stuff
 extends Node
 
+signal game_ready
 signal turn_ended(for_entity: TreeEntity)
 signal turn_started(for_entity: TreeEntity)
 signal player_selected(new_player: Player)
+signal player_stats_changed(new_stats: Stats)
 
 @export var player: Player:
 	get():
@@ -12,6 +14,12 @@ signal player_selected(new_player: Player)
 		if v and player != v:
 			player = v
 			player_selected.emit(player)
+			print('aaaaaaaaaaaaaaaaaaaaaaaaa')
+			player.stats.stats_changed.connect(
+				func(stats: Stats):
+					print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
+					player_stats_changed.emit(stats)
+			)
 
 @export var turn_number: int = 0
 @export var turn_order: Array[TreeEntity] = []

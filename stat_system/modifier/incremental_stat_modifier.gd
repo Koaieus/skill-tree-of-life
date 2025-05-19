@@ -7,7 +7,14 @@ func get_operation_value() -> float:
 	return operation_value / 100.
 
 func apply(value, stat: IntStat):
-	print("applying modifier of value %s%% %sx to %s of %s" % [_operation_value, apply_count, value, stat.name()])
+	print("Applying modifier of value x%s (%s) to %s of %s, %s time(s) [%s]" % [
+		_operation_value, 
+		operation_value, 
+		value, 
+		stat.name(), 
+		apply_count,
+		operation
+		])
 	match operation:
 		Operation.ADD:
 			stat._multiplier += _operation_value * apply_count
