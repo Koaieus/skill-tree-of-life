@@ -10,6 +10,8 @@ bg_color = Color(0.04, 1, 0.04, 1)
 
 [node name="ProgressBar" type="NinePatchRect"]
 size_flags_horizontal = 3
+tooltip_text = "sefsef"
+mouse_filter = 1
 texture = ExtResource("1_44pad")
 region_rect = Rect2(0, 0, 64, 32)
 patch_margin_left = 30
@@ -25,6 +27,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 theme_override_constants/margin_left = 9
 theme_override_constants/margin_top = 9
 theme_override_constants/margin_right = 9
@@ -36,6 +39,7 @@ clip_contents = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
+mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxEmpty_iwajc")
 theme_override_styles/fill = SubResource("StyleBoxFlat_xvkqt")
 value = 30.0
@@ -56,3 +60,6 @@ patch_margin_left = 30
 patch_margin_top = 15
 patch_margin_right = 30
 patch_margin_bottom = 15
+
+[connection signal="changed" from="MarginContainer/ProgressBar" to="." method="_on_progress_bar_changed"]
+[connection signal="value_changed" from="MarginContainer/ProgressBar" to="." method="_on_progress_bar_value_changed"]
