@@ -16,7 +16,7 @@ func display_value():
 
 func _on_max_increased(_max_value, increase_amount) -> void:
 	_value += increase_amount
-	print('max increased of %s by %s' % [resource_name, increase_amount])
+	print('max increased of %s by %s' % [name(), increase_amount])
 
 func _on_max_decreased(_max_value, decrease_amount) -> void:
 	_value = _value
@@ -34,15 +34,15 @@ func initialize() -> void:
 		base_value = _max.value
 	
 	_value = base_value
-	
+	print('[%s] initialized to: %s' % [name(), _value])
 	StatUtils.connect_if_not_connected(_max.increased, _on_max_increased)
 	StatUtils.connect_if_not_connected(_max.decreased, _on_max_decreased)
-	StatUtils.connect_if_not_connected(_min.increased, _on_min_increased)
-	StatUtils.connect_if_not_connected(_min.decreased, _on_min_decreased)
+	#StatUtils.connect_if_not_connected(_min.increased, _on_min_increased)
+	#StatUtils.connect_if_not_connected(_min.decreased, _on_min_decreased)
 
 	#SignalUtils.connect_if_not_connected(_max.increased, _on_max_increased)
 	#SignalUtils.connect_if_not_connected(_max.decreased, _on_max_decreased)
-	# SignalUtils.connect_if_not_connected(_min.value_changed, update_value)
+	#SignalUtils.connect_if_not_connected(_min.value_changed, update_value)
 
 func set_default_value(_default_value) -> void:
 	base_value = _default_value
@@ -59,7 +59,9 @@ func set_value(new_value) -> void:
 		return
 	
 	var previous = _value
+	var original = new_value
 	new_value = clamp(new_value, _min.value, _max.value)
+	print('clamped value %s to %s (min: %s, max: %s)' % [original, new_value, _min.value, _max.value])
 	super(new_value)
 
 	# Check if we need to emit a signal related to change in value

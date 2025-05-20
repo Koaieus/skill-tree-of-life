@@ -1,7 +1,10 @@
 extends Resource
 class_name Stat
 
+
 signal value_changed
+
+const STAT_ROW = preload("res://gui/stat_row.tscn")
 
 #@export var abbreviation: String = ""
 #@export var description: String = ""
@@ -15,6 +18,7 @@ static func abbreviation()-> String:
 static func description() -> String:
 	return "<stat description>"
 
+## The parent `Stats` board object
 var parent: Stats
 
 ## Key that defines the uniqueness of a stat
@@ -52,6 +56,14 @@ func display_value() -> String:
 
 func _on_base_value_changed(old_value, new_value):
 	pass
+
+func _generate_row() -> StatRow:
+	var row: StatRow = STAT_ROW.instantiate()
+	row.stat = self
+	row.text_display = name()
+	row.value_display = "%s" % [display_value()]
+	return row
+
 
 ###
 # STAT MODIFIERS

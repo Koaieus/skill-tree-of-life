@@ -10,3 +10,7 @@ class_name FloatStat
 		default_value = _default_value
 		base_value = default_value
 		_value = default_value
+
+@export var current_value: float:
+	get():
+		return _value

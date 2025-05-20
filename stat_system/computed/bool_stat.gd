@@ -6,3 +6,7 @@ class_name BoolStat
 		default_value = _default_value
 		base_value = default_value
 		_value = default_value
+
+@export var current_value: bool:
+	get():
+		return _value

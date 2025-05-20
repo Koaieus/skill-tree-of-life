@@ -17,8 +17,11 @@ func set_value(new_value):
 	_value = new_value
 
 	if is_different:
+		print('[%s] EMITTING `value_changed`' % [name()])
 		value_changed.emit()
 
+func _init() -> void:
+	print('INIT AGGREGATED STAT: %s' % [name()])
 
 ###
 # STAT MODIFIERS

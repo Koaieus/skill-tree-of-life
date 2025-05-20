@@ -1,3 +1,4 @@
+@tool
 extends Resource
 class_name Stats
 ## The Stats class is essentially a container for Stat objects. 
@@ -7,22 +8,27 @@ class_name Stats
 
 const EXPORTED_PROP = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 
-signal stat_changed(stat: Stat, new_value)
+#signal stat_changed(stat: Stat, new_value)
 signal stats_changed(stats: Stats)
 
-func _init() -> void:
-	connect('changed', _on_stats_value_changed)
-	for stat in get_stats():
-		#print('connecting `value_changed` of %s to %s' % [stat, self])
-		stat.parent = self
-		stat.value_changed.connect(_on_stats_changed)
-		#stat.value_changed.connect(_on_stats_value_changed)
-		
+#func _init() -> void:
+	##connect('changed', _on_stats_value_changed)
+	#for stat in get_stats():
+		#stat.parent = self
+		##var ret = stat.value_changed.connect(_on_stats_changed)
+		##print('connecting `value_changed` of %s to %s' % [stat.name(), self])
+		##stat.value_changed.connect(_on_stats_value_changed)
+		#stat.value_changed.emit()
+	##print("dex: %s" % get('dexterity').value)
+	
 ## Callback when any stat changes
 func _on_stats_changed() -> void:
 	print('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC')
 	stats_changed.emit(self)
-	
+
+#func _on_stats_value_changed() -> void:
+	#print('Stats changed!')
+	#stats_changed.emit()
 
 ###
 # STATS
@@ -68,9 +74,6 @@ func get_stat(key) -> Stat:
 func has_stat(key) -> bool:
 	return map.has(key)
 
-func _on_stats_value_changed() -> void:
-	print('Stats changed!')
-	stats_changed.emit()
 
 #region Stat Modifiers
 ## Add a stat modifier to a stat

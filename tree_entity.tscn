@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://dcjpgyhts5inu"]
+[gd_scene load_steps=21 format=3 uid="uid://dcjpgyhts5inu"]
 
 [ext_resource type="Script" uid="uid://s5f18jfxg8sn" path="res://tree_entity.gd" id="1_fgaco"]
 [ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_elqwa"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="3_g54k8"]
 [ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="4_au033"]
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="4_ovnba"]
+[ext_resource type="Script" uid="uid://csk0gjg3lplwk" path="res://stats/list/exp_stat.gd" id="5_au033"]
 [ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="6_au033"]
 [ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_y7a68"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_5ha82"]
@@ -13,29 +14,54 @@
 [sub_resource type="Resource" id="Resource_1rubt"]
 script = ExtResource("3_g54k8")
 default_value = 0
+current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://gj017hef4u2b"
+
+[sub_resource type="Resource" id="Resource_au033"]
+script = ExtResource("6_au033")
+default_value = 20
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+
+[sub_resource type="Resource" id="Resource_y7a68"]
+script = ExtResource("6_au033")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+
+[sub_resource type="Resource" id="Resource_5ha82"]
+script = ExtResource("5_au033")
+max = SubResource("Resource_au033")
+min = SubResource("Resource_y7a68")
+default_value = 0
+level = 1
+metadata/_custom_type_script = "uid://csk0gjg3lplwk"
 
 [sub_resource type="Resource" id="Resource_nihcs"]
 script = ExtResource("4_ovnba")
 default_value = 0
+current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://chokoff1ki83w"
 
 [sub_resource type="Resource" id="Resource_77k73"]
 script = ExtResource("6_au033")
 default_value = 0
+current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
 [sub_resource type="Resource" id="Resource_k6fnf"]
 script = ExtResource("6_au033")
 default_value = 0
+current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
 [sub_resource type="Resource" id="Resource_r78mo"]
 script = ExtResource("7_y7a68")
+current_value = 0
 max = SubResource("Resource_77k73")
 min = SubResource("Resource_k6fnf")
 default_value = 0
@@ -44,12 +70,13 @@ metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
 [sub_resource type="Resource" id="Resource_wcqib"]
 script = ExtResource("8_5ha82")
 default_value = 0
+current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://cehpx155ql87x"
 
 [sub_resource type="Resource" id="Resource_8281m"]
-resource_local_to_scene = true
 script = ExtResource("3_8281m")
+experience = SubResource("Resource_5ha82")
 skill_points = SubResource("Resource_r78mo")
 strength = SubResource("Resource_wcqib")
 intelligence = SubResource("Resource_nihcs")

@@ -3,6 +3,8 @@ class_name StatRow
 
 @export var stat: Stat
 
+@onready var progress_bar: DecoratedProgressBar = %ProgressBar
+
 @export var text_display: String:
 	get(): return text_display
 	set(value):

@@ -20,7 +20,7 @@ signal deallocated(previous_entity: TreeEntity)
 
 #@onready var button: Button = $Ports/ButtonBar/Button
 @onready var icon = %Icon
-@onready var tool_tip: PackedScene = preload("res://tooltip.tscn")
+@onready var tool_tip: PackedScene = preload("res://gui/tooltip.tscn")
 
 var _local_entities: Array[TreeEntity] = []
 

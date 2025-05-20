@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://cifdsy0tgbjj2"]
+[gd_scene load_steps=23 format=3 uid="uid://cifdsy0tgbjj2"]
 
 [ext_resource type="Script" uid="uid://b6ot6ty5l7jis" path="res://main.gd" id="1_dg77c"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
@@ -62,10 +62,10 @@ operation = 10
 stat_key = ExtResource("8_dg77c")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
-[sub_resource type="Resource" id="Resource_cegan"]
+[sub_resource type="Resource" id="Resource_82xsv"]
 script = ExtResource("10_efxa6")
 operation_value = 50
-operation = 20
+operation = 10
 stat_key = ExtResource("8_dg77c")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
@@ -75,6 +75,14 @@ operation_value = 20
 operation = 10
 stat_key = ExtResource("7_efxa6")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_cegan"]
+resource_local_to_scene = true
+script = ExtResource("10_efxa6")
+operation_value = 50
+operation = 20
+stat_key = ExtResource("8_dg77c")
+metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
 [node name="Main" type="Node"]
 script = ExtResource("1_dg77c")
@@ -216,7 +224,7 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 33
 position_offset = Vector2(548, 272)
 title = "Big Smart"
-modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_074og"), SubResource("Resource_cegan")])
+modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
 
 [node name="Dumb Force" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)

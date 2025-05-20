@@ -6,12 +6,9 @@ signal decreased(value: Variant, amount: Variant)
 
 var _multiplier: float = 1.0
 
-var multiplier: float:
-	get:
-		return _multiplier
 
 func compute() -> void:
-	print('>> Computing (number)stats!')
+	print('>> Computing stat: %s' % [name()])
 	# Reset multiplier (will receive all INCREASE/DECREASE operation values)
 	_multiplier = 1.0
 	# Start with base value
@@ -24,15 +21,20 @@ func compute() -> void:
 	var previous = _value
 	_value = computed
 
+	print('> prev: %s\tcomputed: %s' % [previous, computed])
 	if previous == null or _value == null:
 		return
 	
 	var amount = _value - previous
-	value_changed.emit()
+	print('> change amount: %s' % [amount])
+
+	if amount:
+		print('[%s] EMITTING `value_changed`' % [name()])
+		value_changed.emit()
 	if amount > 0:
-		increased.emit(value, amount)
+		increased.emit(_value, amount)
 	elif amount < 0:
-		decreased.emit(value, amount)
+		decreased.emit(_value, amount)
 
 func _on_after_modifier_application(v):
 	# Apply multiplier (once)

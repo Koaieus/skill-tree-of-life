@@ -6,6 +6,7 @@ signal level_up(new_level: int, difference: int)
 signal level_down(new_level: int, difference: int)
 
 @export var player_name: String = "Player"
+
 @export var level: int = 1:
 	get(): return level
 	set(value):
@@ -33,7 +34,11 @@ func _ready() -> void:
 		#print('Current max skill points AFTER increase to %s: %s' % [level, stats.skill_points._max.value])
 
 		var x = 3
-
+	stats.stats_changed.connect(
+		func():
+			print('my stats changed!')
+	)
+	stats.get('dexterity').value_changed.emit()
 ## Direct access to stats, but typed, via 
 @onready var stats: EntityStats:
 	get():
@@ -60,4 +65,12 @@ func can_allocate_node(tree_node: TreeNode):
 func _pay_allocation_cost(tree_node: TreeNode):
 	#print('paying 1 skill point... (current: %s / %s)' % [stats.skill_points.value, stats.skill_points._max.value])
 	stats.skill_points.decrease(1)
+	var x = 3
+	
 	#print('cost paid... (current: %s / %s)' % [stats.skill_points.value, stats.skill_points._max.value])
+
+func _get_property_list() -> Array:
+	var arr = []
+	if _stats:
+		arr.append_array(_stats._get_property_list())
+	return arr

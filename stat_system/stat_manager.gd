@@ -6,6 +6,8 @@ class_name StatsManager
 
 #var _stats: Stats
 
+signal stats_changed
+
 ## Stats holder
 var stats: Stats:
 	get = _get_stats,
@@ -14,11 +16,22 @@ var stats: Stats:
 func set_stats(value: Stats) -> void:
 	stats = value
 
-	#if stats == null:
-		#return
+	if stats == null:
+		return
+	
+	for stat_key in stats.map.keys():
+		var stat = stats.get_stat(stat_key)
+		stat.value_changed.connect(_on_stat_value_changed.bind(stat_key, stat))
 	
 	#_stats = stats.duplicate(true)
 	#initialize_replication()  # Sync multiplayer
+
+func _on_stat_value_changed(key: GDScript, stat: Stat) -> void:
+	print('[%s] CHANGED!\tto: %s' % [stat.name(), stat.value])
+	stats_changed.emit()
+	if Global.has_turn(get_parent()):
+		Global.player_stats_changed.emit()
+
 
 func _get_stats():
 	return stats

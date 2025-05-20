@@ -15,13 +15,20 @@ func get_value():
 # (Re-)compute the computed value
 func compute() -> void:
 	print('>> Computing stats!')
+	# Save current value as previous
+	var previous = _value
 	# Start with base value
 	var computed = _apply_modifiers(base_value)
 	# Call customizable hook
 	computed = _on_after_modifier_application(computed)
-	# Save result and emit signal
-	_value = computed
-	value_changed.emit()
+	# If different: Save result and emit signal
+	if _value != computed:
+		_value = computed
+		print('[%s] EMITTING value changed (computed)' % [name()])
+		value_changed.emit()
+		if parent:
+			print('[%s] emitting value changed (from parent %s)' % [name(), parent.resource_name])
+			parent.stats_changed.emit()
 
 func _apply_modifiers(start_value: Variant):
 	var updated_value = start_value

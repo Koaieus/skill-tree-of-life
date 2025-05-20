@@ -15,3 +15,7 @@ func apply_multiplier(v):
 	var new_v := roundi(v * _multiplier)
 	#print("applying a mult of %s then rounding (to: %s)" % [_multiplier, new_v])
 	return new_v
+
+@export var current_value: int:
+	get():
+		return _value

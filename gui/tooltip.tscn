@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://bvetoc2tijk7i"]
 
-[ext_resource type="Script" uid="uid://d0ub8vjtcm7hd" path="res://tooltip.gd" id="1_abxgm"]
+[ext_resource type="Script" uid="uid://d0ub8vjtcm7hd" path="res://gui/tooltip.gd" id="1_abxgm"]
 [ext_resource type="Texture2D" uid="uid://dlgwiusb8d7lf" path="res://assets/border_pack/Border All 1.png" id="1_gwequ"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_abxgm"]
@@ -10,9 +10,9 @@ shadow_color = Color(0, 0, 0, 1)
 
 [node name="ToolTip" type="MarginContainer"]
 top_level = true
-custom_minimum_size = Vector2(300, 200)
-offset_right = 300.0
-offset_bottom = 230.0
+custom_minimum_size = Vector2(150, 150)
+offset_right = 150.0
+offset_bottom = 150.0
 size_flags_horizontal = 0
 size_flags_vertical = 0
 script = ExtResource("1_abxgm")
