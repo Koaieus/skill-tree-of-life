@@ -38,7 +38,10 @@ func _ready() -> void:
 		func():
 			print('my stats changed!')
 	)
+	print('debugging: emitting `dexterity` "value_changed"...')
 	stats.get('dexterity').value_changed.emit()
+	stats.get('dexterity').value_changed.emit()
+	print('... emission done')
 ## Direct access to stats, but typed, via 
 @onready var stats: EntityStats:
 	get():

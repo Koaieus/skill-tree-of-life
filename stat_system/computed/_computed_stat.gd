@@ -24,8 +24,7 @@ func compute() -> void:
 	# If different: Save result and emit signal
 	if _value != computed:
 		_value = computed
-		print('[%s] EMITTING value changed (computed)' % [name()])
-		value_changed.emit()
+		notify_value_changed()
 		if parent:
 			print('[%s] emitting value changed (from parent %s)' % [name(), parent.resource_name])
 			parent.stats_changed.emit()

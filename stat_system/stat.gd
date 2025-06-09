@@ -64,6 +64,10 @@ func _generate_row() -> StatRow:
 	row.value_display = "%s" % [display_value()]
 	return row
 
+func notify_value_changed() -> void:
+	print('[%s]: EMITTING value_changed' % [name()])
+	value_changed.emit()
+	notify_property_list_changed()
 
 ###
 # STAT MODIFIERS

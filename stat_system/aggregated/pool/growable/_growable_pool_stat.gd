@@ -33,7 +33,7 @@ func set_value(new_value) -> void:
 func _perform_grow():
 	grow()
 	level += 1
-	value_changed.emit()
+	notify_value_changed()
 	leveled_up.emit()
 
 func _on_max_increased(_max_value, increase_amount) -> void:

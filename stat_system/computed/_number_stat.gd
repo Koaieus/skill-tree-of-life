@@ -29,8 +29,7 @@ func compute() -> void:
 	print('> change amount: %s' % [amount])
 
 	if amount:
-		print('[%s] EMITTING `value_changed`' % [name()])
-		value_changed.emit()
+		notify_value_changed()
 	if amount > 0:
 		increased.emit(_value, amount)
 	elif amount < 0:
