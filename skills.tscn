@@ -59,25 +59,37 @@ script = ExtResource("1_whxui")
 [node name="Strength" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
 anchors_preset = 0
-offset_right = 128.0
-offset_bottom = 128.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_top = 0.0
+offset_right = 60.0
+offset_bottom = 80.0
 title = "Strength"
 modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_g3cwk")])
 
 [node name="StrInt" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
 anchors_preset = 0
-offset_left = 144.0
-offset_right = 272.0
-offset_bottom = 128.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 76.0
+offset_top = 0.0
+offset_right = 136.0
+offset_bottom = 80.0
 title = "Str + Int"
 modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_jp2yk"), SubResource("Resource_ijkyq")])
 
 [node name="BigInt" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
 anchors_preset = 0
-offset_left = 288.0
-offset_right = 416.0
-offset_bottom = 128.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 152.0
+offset_top = 0.0
+offset_right = 218.0
+offset_bottom = 80.0
 title = "Big Smart"
 modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_i7bga"), SubResource("Resource_21ovc")])

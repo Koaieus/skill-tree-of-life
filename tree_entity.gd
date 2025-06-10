@@ -29,6 +29,8 @@ func _ready() -> void:
 	#else:
 		#push_error('TreeEntity has no Core ')
 
+func _to_string() -> String:
+	return 'Tree Entity'
 
 func can_allocate_node(tree_node: TreeNode) -> bool:
 	if tree_node.has_owner():

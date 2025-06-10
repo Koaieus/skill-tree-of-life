@@ -20,6 +20,9 @@ signal level_down(new_level: int, difference: int)
 			_on_level_down(value, difference)
 		
 
+func _to_string() -> String:
+	return 'Player<%s>' % player_name
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	super()
@@ -78,3 +81,7 @@ func _get_property_list() -> Array:
 	if _stats:
 		arr.append_array(_stats._get_property_list())
 	return arr
+
+	
+func _on_turn_start() -> void:
+	print('huzzah the turn started')

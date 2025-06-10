@@ -31,6 +31,7 @@ var _entity_at_turn: TreeEntity:
 	set(value):
 		turn_ended.emit(_entity_at_turn)
 		_entity_at_turn = value
+		print('[TURN]: It is now %s\'s turn' % [_entity_at_turn])
 		turn_started.emit(value)
 
 ## Readonly version of the entity that currently has the turn

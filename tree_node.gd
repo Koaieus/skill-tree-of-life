@@ -111,7 +111,8 @@ func _on_icon_mouse_entered() -> void:
 	var tool_tip_instance: ToolTip = tool_tip.instantiate()
 	tool_tip_instance.hide()
 	tool_tip_instance.target = self
-	tool_tip_instance.position = self.get_global_transform_with_canvas().origin - Vector2(300, 0)
+	print_debug(self.size)
+	tool_tip_instance.position = self.get_global_transform_with_canvas().origin + Vector2(size.x + 10, 0)
 	tool_tip_instance.title = title
 	var lines: Array[String] = []
 	for modifier in modifiers:

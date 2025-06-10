@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3 uid="uid://cifdsy0tgbjj2"]
+[gd_scene load_steps=26 format=3 uid="uid://cifdsy0tgbjj2"]
 
 [ext_resource type="Script" uid="uid://b6ot6ty5l7jis" path="res://main.gd" id="1_dg77c"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="8_dg77c"]
 [ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="9_ycdy4"]
 [ext_resource type="Script" uid="uid://cjce8d5f3u662" path="res://stat_system/modifier/incremental_stat_modifier.gd" id="10_efxa6"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="10_w48qg"]
 [ext_resource type="PackedScene" uid="uid://symm61ggw3xx" path="res://gui/end_turn_button.tscn" id="12_ycdy4"]
 
 [sub_resource type="Resource" id="Resource_w48qg"]
@@ -33,6 +34,13 @@ script = ExtResource("6_4c57u")
 operation_value = 10
 operation = 10
 stat_key = ExtResource("9_ycdy4")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_cegan"]
+script = ExtResource("6_4c57u")
+operation_value = 20
+operation = 10
+stat_key = ExtResource("10_w48qg")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_dg77c"]
@@ -77,7 +85,7 @@ operation = 10
 stat_key = ExtResource("7_efxa6")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
-[sub_resource type="Resource" id="Resource_cegan"]
+[sub_resource type="Resource" id="Resource_getpj"]
 resource_local_to_scene = true
 script = ExtResource("10_efxa6")
 operation_value = 50
@@ -153,7 +161,7 @@ connections = Array[Dictionary]([{
 "to_port": 0
 }])
 
-[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("local_entities") instance=ExtResource("5_lquwl")]
+[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -168,8 +176,7 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(187, 465)
 title = "Starter Skill"
-modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq")])
-local_entities = [NodePath("Player")]
+modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq"), SubResource("Resource_cegan")])
 
 [node name="Player" parent="GUI/HBoxContainer/TreeGraphEdit/Start" instance=ExtResource("2_1bvp3")]
 player_name = "DefaultPlayer"
@@ -242,7 +249,7 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 64
 position_offset = Vector2(532, 406)
 title = "Dumb Force"
-modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_4c57u"), SubResource("Resource_cegan")])
+modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_4c57u"), SubResource("Resource_getpj")])
 
 [node name="PanelContainerRight" type="PanelContainer" parent="GUI/HBoxContainer"]
 layout_mode = 2

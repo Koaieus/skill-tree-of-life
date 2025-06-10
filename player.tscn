@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3 uid="uid://tm13xqmslpor"]
+[gd_scene load_steps=25 format=3 uid="uid://tm13xqmslpor"]
 
 [ext_resource type="Script" uid="uid://dlb3kc61sy7r2" path="res://player.gd" id="1_4flbx"]
 [ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_dw050"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="5_nvl01"]
 [ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="6_ivps1"]
 [ext_resource type="Script" uid="uid://csk0gjg3lplwk" path="res://stats/list/exp_stat.gd" id="6_nvl01"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="6_urp6f"]
 [ext_resource type="Script" uid="uid://cyj1ab3s8eihp" path="res://stat_system/computed/bool_stat.gd" id="7_n7ghd"]
 [ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_urp6f"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_bwjto"]
@@ -39,6 +40,13 @@ min = SubResource("Resource_urp6f")
 default_value = 200
 level = 1
 metadata/_custom_type_script = "uid://csk0gjg3lplwk"
+
+[sub_resource type="Resource" id="Resource_7ahtn"]
+script = ExtResource("6_urp6f")
+default_value = 10
+current_value = 10
+stat_modifiers = Array[ExtResource("4_b26j0")]([])
+metadata/_custom_type_script = "uid://b2ju8klaorw55"
 
 [sub_resource type="Resource" id="Resource_u1c27"]
 script = ExtResource("4_n7ghd")
@@ -87,6 +95,7 @@ metadata/_custom_type_script = "uid://cehpx155ql87x"
 [sub_resource type="Resource" id="Resource_5tmop"]
 script = ExtResource("5_nvl01")
 experience = SubResource("Resource_bwjto")
+experience_gain = SubResource("Resource_7ahtn")
 skill_points = SubResource("Resource_pylmc")
 strength = SubResource("Resource_pbfsw")
 intelligence = SubResource("Resource_u1c27")
