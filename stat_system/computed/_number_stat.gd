@@ -21,12 +21,12 @@ func compute() -> void:
 	var previous = _value
 	_value = computed
 
-	print('> prev: %s\tcomputed: %s' % [previous, computed])
+	#print('> prev: %s\tcomputed: %s' % [previous, computed])
 	if previous == null or _value == null:
 		return
 	
 	var amount = _value - previous
-	print('> change amount: %s' % [amount])
+	#print('> change amount: %s' % [amount])
 
 	if amount:
 		notify_value_changed()

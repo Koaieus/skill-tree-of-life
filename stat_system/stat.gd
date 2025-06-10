@@ -10,7 +10,7 @@ const STAT_ROW := preload("res://gui/stats_panel/row/stat_row.tscn")
 #@export var description: String = ""
 
 static func name() -> String:
-	return "<full name of stat>"
+	return "<nameless stat>"
 
 static func abbreviation()-> String:
 	return "<stat abbreviation>"
@@ -57,20 +57,23 @@ func display_value() -> String:
 func _on_base_value_changed(old_value, new_value):
 	pass
 
+func _get_stat_row_resource() -> Resource:
+	return STAT_ROW
+
 func _generate_row(manager: StatsManager) -> StatRow:
-	var row: StatRow = STAT_ROW.instantiate()
-	print('Setting manager to %s' % manager)
+	var row: StatRow = _get_stat_row_resource().instantiate()
+	#print('Setting manager to %s' % manager)
 	row.stat_manager = manager
-	print('Setting stat key to %s' % get_key())
+	#print('Setting stat key to %s' % get_key())
 	row.stat_key = get_key()
-	print('Setting stat text display to %s' % name())
+	#print('Setting stat text display to %s' % name())
 	row.text_display = name()
 	#row.value_display = "%s" % [display_value()]
 	#print('Final settings: %s %s %s %s' % [row.stat_manager, row.stat_key, row.text_display, row.value_display])
 	return row
 
 func notify_value_changed() -> void:
-	print('[%s]: EMITTING value_changed' % [name()])
+	print_debug('[%s]: EMITTING value_changed' % [name()])
 	value_changed.emit()
 	notify_property_list_changed()
 

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://symm61ggw3xx"]
+
+[ext_resource type="Script" uid="uid://hoda12ryugy5" path="res://gui/end_turn_button.gd" id="1_i7v8u"]
+
+[node name="EndTurnButton" type="Button"]
+size_flags_vertical = 3
+text = "End Turn"
+script = ExtResource("1_i7v8u")
+
+[connection signal="pressed" from="." to="." method="_on_pressed"]

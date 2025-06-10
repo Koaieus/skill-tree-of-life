@@ -14,7 +14,7 @@ func get_value():
 
 # (Re-)compute the computed value
 func compute() -> void:
-	print('>> Computing stats!')
+	print('>> Computing stat "%s"' % name())
 	# Save current value as previous
 	var previous = _value
 	# Start with base value
@@ -25,9 +25,9 @@ func compute() -> void:
 	if _value != computed:
 		_value = computed
 		notify_value_changed()
-		if parent:
-			print('[%s] emitting value changed (from parent %s)' % [name(), parent.resource_name])
-			parent.stats_changed.emit()
+		#if parent:
+			#print('[%s] emitting value changed (from parent %s)' % [name(), parent.resource_name])
+			#parent.stats_changed.emit()
 
 func _apply_modifiers(start_value: Variant):
 	var updated_value = start_value
@@ -35,7 +35,6 @@ func _apply_modifiers(start_value: Variant):
 	stat_modifiers.sort_custom(sort_modifiers_by_application_order)
 	# Apply each modifier
 	for stat_modifier in stat_modifiers:
-		print()
 		var old_value = updated_value
 		updated_value = stat_modifier.apply(updated_value, self)
 		print_debug('%s modified from %s to %s' % [name(), old_value, updated_value])

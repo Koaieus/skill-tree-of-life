@@ -5,7 +5,7 @@ signal game_ready
 signal turn_ended(for_entity: TreeEntity)
 signal turn_started(for_entity: TreeEntity)
 signal player_selected(new_player: Player)
-signal player_stats_changed(new_stats: Stats)
+#signal player_stats_changed(new_stats: Stats)
 
 @export var player: Player:
 	get():
@@ -15,11 +15,11 @@ signal player_stats_changed(new_stats: Stats)
 			player = v
 			print('aaaaaaaaaaaaaaaaaaaaaaaaa')
 			player_selected.emit(player)
-			player.stats.stats_changed.connect(
-				func(stats: Stats):
-					print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
-					player_stats_changed.emit(stats)
-			)
+			#player.stats.stats_changed.connect(
+				#func(stats: Stats):
+					#print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
+					##player_stats_changed.emit(stats)
+			#)
 
 @export var turn_number: int = 0
 @export var turn_order: Array[TreeEntity] = []
@@ -29,8 +29,6 @@ var _entity_at_turn: TreeEntity:
 	get():
 		return _entity_at_turn
 	set(value):
-		if _entity_at_turn == value:
-			return
 		turn_ended.emit(_entity_at_turn)
 		_entity_at_turn = value
 		turn_started.emit(value)
@@ -47,6 +45,7 @@ func has_turn(entity: TreeEntity) -> bool:
 
 ## Ends turn for entity that currently has the turn
 func end_turn() -> void:
+	print('ENDING TURN!')
 	# Add current entity to back of turn order
 	turn_order.push_back(_entity_at_turn)
 	# Get next entity in turn order list, skipping ones that are NULL

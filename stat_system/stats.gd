@@ -9,7 +9,7 @@ class_name Stats
 const EXPORTED_PROP = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_EDITOR
 
 #signal stat_changed(stat: Stat, new_value)
-signal stats_changed(stats: Stats)
+#signal stats_changed(stats: Stats)
 
 #func _init() -> void:
 	##connect('changed', _on_stats_value_changed)
@@ -21,10 +21,10 @@ signal stats_changed(stats: Stats)
 		#stat.value_changed.emit()
 	##print("dex: %s" % get('dexterity').value)
 	
-## Callback when any stat changes
-func _on_stats_changed() -> void:
-	print('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC')
-	stats_changed.emit(self)
+### Callback when any stat changes
+#func _on_stats_changed() -> void:
+	#print('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC')
+	##stats_changed.emit(self)
 
 #func _on_stats_value_changed() -> void:
 	#print('Stats changed!')

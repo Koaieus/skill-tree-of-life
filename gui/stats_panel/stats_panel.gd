@@ -22,7 +22,7 @@ func clear_rows() -> void:
 		c.queue_free()
 
 func initialize():
-	print_debug("[STATS PANEL]: initializing")
+	#print_debug("[STATS PANEL]: initializing")
 	
 	clear_rows()
 	if player:
@@ -35,7 +35,7 @@ func initialize():
 		return
 	var stat_manager: StatsManager = player._stats
 	for stat in stat_manager.stats.get_stats():
-		print('Generating row for %s...' % stat.name())
+		#print('Generating row for %s...' % stat.name())
 		var row := stat._generate_row(stat_manager)
 		%StatsList.add_child(row)
 

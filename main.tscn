@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3 uid="uid://cifdsy0tgbjj2"]
+[gd_scene load_steps=24 format=3 uid="uid://cifdsy0tgbjj2"]
 
 [ext_resource type="Script" uid="uid://b6ot6ty5l7jis" path="res://main.gd" id="1_dg77c"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="8_dg77c"]
 [ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="9_ycdy4"]
 [ext_resource type="Script" uid="uid://cjce8d5f3u662" path="res://stat_system/modifier/incremental_stat_modifier.gd" id="10_efxa6"]
+[ext_resource type="PackedScene" uid="uid://symm61ggw3xx" path="res://gui/end_turn_button.tscn" id="12_ycdy4"]
 
 [sub_resource type="Resource" id="Resource_w48qg"]
 script = ExtResource("6_4c57u")
@@ -65,7 +66,7 @@ metadata/_custom_type_script = "uid://cfpnfqaij275b"
 [sub_resource type="Resource" id="Resource_82xsv"]
 script = ExtResource("10_efxa6")
 operation_value = 50
-operation = 10
+operation = null
 stat_key = ExtResource("8_dg77c")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
@@ -152,7 +153,7 @@ connections = Array[Dictionary]([{
 "to_port": 0
 }])
 
-[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("local_entities") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -168,6 +169,7 @@ theme_override_constants/port_h_offset = 30
 position_offset = Vector2(187, 465)
 title = "Starter Skill"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq")])
+local_entities = [NodePath("Player")]
 
 [node name="Player" parent="GUI/HBoxContainer/TreeGraphEdit/Start" instance=ExtResource("2_1bvp3")]
 player_name = "DefaultPlayer"
@@ -257,6 +259,7 @@ layout_mode = 2
 text = "Right panel"
 
 [node name="PanelContainerBottom" type="PanelContainer" parent="GUI"]
+custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="GUI/PanelContainerBottom"]
@@ -266,9 +269,16 @@ theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="Label" type="Label" parent="GUI/PanelContainerBottom/MarginContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="GUI/PanelContainerBottom/MarginContainer"]
 layout_mode = 2
+
+[node name="Label" type="Label" parent="GUI/PanelContainerBottom/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Bottom panel"
+
+[node name="EndTurnButton" parent="GUI/PanelContainerBottom/MarginContainer/HBoxContainer" instance=ExtResource("12_ycdy4")]
+layout_mode = 2
 
 [node name="Skills" parent="." instance=ExtResource("7_5vw27")]
 visible = false

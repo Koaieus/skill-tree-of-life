@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://c11i54435huk3"]
+[gd_scene load_steps=5 format=3 uid="uid://dfqimu1yhnoc2"]
 
-[ext_resource type="Script" uid="uid://ixsokb3ah1bd" path="res://gui/stats_panel/row/stat_row.gd" id="1_6ty8x"]
-[ext_resource type="Script" uid="uid://b73huwktlk1v8" path="res://stat_system/bind/stat_bind.gd" id="2_vftgp"]
+[ext_resource type="Script" uid="uid://ixsokb3ah1bd" path="res://gui/stats_panel/row/stat_row.gd" id="1_dhyo3"]
+[ext_resource type="Script" uid="uid://b73huwktlk1v8" path="res://stat_system/bind/stat_bind.gd" id="2_7snsq"]
+[ext_resource type="PackedScene" uid="uid://bcehc3jn4baxh" path="res://gui/progress_bar_decorated.tscn" id="3_o3h2y"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_tgb0x"]
 
@@ -10,11 +11,11 @@ custom_minimum_size = Vector2(100, 30)
 offset_right = 241.0
 offset_bottom = 30.0
 theme_override_constants/separation = 10
-script = ExtResource("1_6ty8x")
+script = ExtResource("1_dhyo3")
 
 [node name="StatBind" type="Node" parent="." node_paths=PackedStringArray("target")]
 unique_name_in_owner = true
-script = ExtResource("2_vftgp")
+script = ExtResource("2_7snsq")
 target = NodePath("..")
 property_to_bind = "stat"
 metadata/_custom_type_script = "uid://b73huwktlk1v8"
@@ -31,8 +32,6 @@ size_flags_horizontal = 3
 theme_override_constants/shadow_outline_size = 3
 text = "<skill text>"
 
-[node name="LabelValue" type="Label" parent="."]
+[node name="ProgressBar" parent="." instance=ExtResource("3_o3h2y")]
+unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 8
-theme_override_constants/shadow_outline_size = 3
-text = "<null>"

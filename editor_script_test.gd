@@ -14,22 +14,22 @@ func connect_nodes():
 		return
 	
 	if selection.size() != 2:
-		print('Must select exactly 2 `GraphNode`s')
+		push_error('Must select exactly 2 `GraphNode`s')
 		return
 		
 	# Verify node configuration
 	for node in selection:
 		
 		if node.get_class() != 'GraphNode':
-			print('Must connect two nodes of type `GraphNode`')
-			print('Found: ', node.get_class())
+			push_error('Must connect two nodes of type `GraphNode`')
+			push_error('Found: ', node.get_class())
 			return
 		var parent = node.get_parent()
 		if not parent:
-			print('No parent')
+			push_error('No parent')
 			return
 		if parent.get_class() != 'GraphEdit':
-			print('Must connect two nodes that are children of a `GraphEdit`')
+			push_error('Must connect two nodes that are children of a `GraphEdit`')
 			return
 		print('Connecting: ', node.name)
 		
@@ -38,7 +38,7 @@ func connect_nodes():
 	
 	# Verify they have the same parent
 	if node1.get_parent() != node2.get_parent():
-		print('Nodes must have the same parent')
+		push_error('Nodes must have the same parent')
 		return
 	
 	var parent: GraphEdit = node1.get_parent()

@@ -12,14 +12,14 @@ func get_operation_value() -> float:
 	return operation_value / 100.
 
 func apply(value, stat: IntStat):
-	print("Applying modifier of value x%s (%s) to %s of %s, %s time(s) [%s]" % [
-		_operation_value, 
-		operation_value, 
-		value, 
-		stat.name(), 
-		apply_count,
-		operation
-	])
+	#print("Applying modifier of value x%s (%s) to %s of %s, %s time(s) [%s]" % [
+		#_operation_value, 
+		#operation_value, 
+		#value, 
+		#stat.name(), 
+		#apply_count,
+		#operation
+	#])
 	match operation:
 		Operation.ADD:
 			stat._multiplier += _operation_value * apply_count
@@ -32,7 +32,7 @@ func apply(value, stat: IntStat):
 				push_error("NumberStatModifier cannot divide by 0")
 				return value
 			stat._multiplier /= _operation_value * apply_count
-	print('modifier is now: %s' % stat._multiplier)
+	#print('modifier is now: %s' % stat._multiplier)
 	return value
 
 func as_string() -> String:

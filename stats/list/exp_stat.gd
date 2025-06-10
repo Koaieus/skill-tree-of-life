@@ -2,6 +2,7 @@
 extends IntGrowablePoolStat
 class_name ExpStat
 
+const STAT_ROW_BAR = preload("res://gui/stats_panel/row/stat_row_bar.tscn")
 
 static func name():
 	return "Experience"
@@ -17,6 +18,9 @@ func grow():
 	print('growing: %s → %s' % [_max.base_value, new_value])
 	_max.base_value = new_value
 
+func _get_stat_row_resource():
+	return STAT_ROW_BAR
+	
 #func _generate_row(manager: StatsManager) -> StatRow:
 	##print('generating row with level %s, min/cur/max: %s/%s/%s' % [level, _min.value, value, _max.value])
 	#var row: StatRow = STAT_ROW.instantiate()

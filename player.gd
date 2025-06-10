@@ -34,14 +34,15 @@ func _ready() -> void:
 		#print('Current max skill points AFTER increase to %s: %s' % [level, stats.skill_points._max.value])
 
 		var x = 3
-	stats.stats_changed.connect(
-		func():
-			print('my stats changed!')
-	)
-	print('debugging: emitting `dexterity` "value_changed"...')
-	stats.get('dexterity').value_changed.emit()
-	stats.get('dexterity').value_changed.emit()
-	print('... emission done')
+	#stats.stats_changed.connect(
+		#func():
+			#print('my stats changed!')
+	#)
+	#print('debugging: emitting `dexterity` "value_changed"...')
+	#stats.get('dexterity').value_changed.emit()
+	#stats.get('dexterity').value_changed.emit()
+	#print('... emission done')
+	
 ## Direct access to stats, but typed, via 
 @onready var stats: EntityStats:
 	get():
