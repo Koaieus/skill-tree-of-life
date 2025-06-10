@@ -10,15 +10,34 @@ enum Mode {
 @export var mode: Mode = Mode.BIND_STAT
 @export var target: Node:
 	set(value):
+		if target:
+			unbind()
 		target = value
+		if value:
+			bind()
 		notify_property_list_changed()
-@export var stat_key: GDScript
+		
+@export var stat_key: GDScript:
+	set(value):
+		if target:
+			unbind()
+		stat_key = value
+		if value:
+			bind()
+		notify_property_list_changed()
+
 @export var property_to_bind: String
 
 
 var _on_stat_value_changed
 var _stats_manager: StatsManager:
+	set = set_stats_manager,
 	get = get_stats_manager
+
+
+func set_stats_manager(value: StatsManager) -> void:
+	if _stats_manager != value:
+		_stats_manager = value
 
 func get_stats_manager() -> StatsManager:
 	return null

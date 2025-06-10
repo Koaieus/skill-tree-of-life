@@ -16,12 +16,14 @@ static func connect_if_not_connected(sig: Signal, callable: Callable) -> void:
 #region Stat Utils
 
 static func bind_stat(target: Object, property: String, stat_key: GDScript, stats_manager: StatsManager) -> void:
+	print('[BIND]: Binding %s of %s to %s [manager: %s]' % [property, target, stat_key, stats_manager])
+
 	if target == null or property == "":
 		return push_error("Target has not been configured properly.")
-	
+
 	if stat_key == null or stats_manager == null:
 		return push_error("Stat has not been configured properly.")
-	
+
 	var _stat: Stat = stats_manager.get_stat(stat_key)
 	var target_value = target.get(property)
 
@@ -31,6 +33,7 @@ static func bind_stat(target: Object, property: String, stat_key: GDScript, stat
 	if target_value == _stat:
 		return
 	
+	print('[BIND]: Setting %s of %s to %s' % [property, target, _stat])
 	target.set(property, _stat)
 
 

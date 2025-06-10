@@ -13,8 +13,8 @@ signal player_stats_changed(new_stats: Stats)
 	set(v):
 		if v and player != v:
 			player = v
-			player_selected.emit(player)
 			print('aaaaaaaaaaaaaaaaaaaaaaaaa')
+			player_selected.emit(player)
 			player.stats.stats_changed.connect(
 				func(stats: Stats):
 					print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')

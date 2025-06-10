@@ -4,7 +4,7 @@ class_name Stat
 
 signal value_changed
 
-const STAT_ROW = preload("res://gui/stat_row.tscn")
+const STAT_ROW := preload("res://gui/stats_panel/row/stat_row.tscn")
 
 #@export var abbreviation: String = ""
 #@export var description: String = ""
@@ -57,11 +57,16 @@ func display_value() -> String:
 func _on_base_value_changed(old_value, new_value):
 	pass
 
-func _generate_row() -> StatRow:
+func _generate_row(manager: StatsManager) -> StatRow:
 	var row: StatRow = STAT_ROW.instantiate()
-	row.stat = self
+	print('Setting manager to %s' % manager)
+	row.stat_manager = manager
+	print('Setting stat key to %s' % get_key())
+	row.stat_key = get_key()
+	print('Setting stat text display to %s' % name())
 	row.text_display = name()
-	row.value_display = "%s" % [display_value()]
+	#row.value_display = "%s" % [display_value()]
+	#print('Final settings: %s %s %s %s' % [row.stat_manager, row.stat_key, row.text_display, row.value_display])
 	return row
 
 func notify_value_changed() -> void:

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b6ot6ty5l7jis" path="res://main.gd" id="1_dg77c"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
-[ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://gui/stats_panel.tscn" id="2_efxa6"]
+[ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://gui/stats_panel/stats_panel.tscn" id="2_efxa6"]
 [ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://tree_graph_edit.tscn" id="4_7mycd"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="5_lquwl"]
 [ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="6_4c57u"]
@@ -152,7 +152,7 @@ connections = Array[Dictionary]([{
 "to_port": 0
 }])
 
-[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("local_entities") instance=ExtResource("5_lquwl")]
+[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -168,7 +168,6 @@ theme_override_constants/port_h_offset = 30
 position_offset = Vector2(187, 465)
 title = "Starter Skill"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq")])
-local_entities = [NodePath("Player")]
 
 [node name="Player" parent="GUI/HBoxContainer/TreeGraphEdit/Start" instance=ExtResource("2_1bvp3")]
 player_name = "DefaultPlayer"

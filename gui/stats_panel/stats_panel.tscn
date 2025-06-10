@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://de731pyqvgh25"]
 
-[ext_resource type="Script" uid="uid://bwm7yqc05346x" path="res://gui/stats_panel.gd" id="1_iblab"]
-[ext_resource type="PackedScene" uid="uid://c11i54435huk3" path="res://gui/stat_row.tscn" id="2_h7nn3"]
+[ext_resource type="Script" uid="uid://bwm7yqc05346x" path="res://gui/stats_panel/stats_panel.gd" id="1_iblab"]
+[ext_resource type="PackedScene" uid="uid://c11i54435huk3" path="res://gui/stats_panel/row/stat_row.tscn" id="2_h7nn3"]
 
 [sub_resource type="SystemFont" id="SystemFont_h7nn3"]
 font_names = PackedStringArray("Fantasy")
