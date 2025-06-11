@@ -60,8 +60,8 @@ func _on_base_value_changed(old_value, new_value):
 func _get_stat_row_resource() -> Resource:
 	return STAT_ROW
 
-func _generate_row(manager: StatsManager) -> StatRow:
-	var row: StatRow = _get_stat_row_resource().instantiate()
+func _generate_row(manager: StatsManager) -> StatRowBase:
+	var row: StatRowBase = _get_stat_row_resource().instantiate()
 	#print('Setting manager to %s' % manager)
 	row.stat_manager = manager
 	#print('Setting stat key to %s' % get_key())

@@ -19,7 +19,7 @@ signal deallocated(previous_entity: TreeEntity)
 @export var modifiers: Array[NumberStatModifier] = []
 
 #@onready var button: Button = $Ports/ButtonBar/Button
-@onready var icon = %Icon
+@onready var icon: Control = %Icon
 @onready var tool_tip: PackedScene = preload("res://gui/tooltip.tscn")
 
 var _local_entities: Array[TreeEntity] = []
@@ -44,6 +44,15 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	pass
 
+func get_neighbors() -> Array[TreeNode]:
+	var arr = Array(
+		(get_parent() as TreeGraphEdit).nav.astar.get_point_connections(get_instance_id())
+	).map(instance_from_id)
+	var nbs: Array[TreeNode]
+	nbs.assign(arr)
+	return nbs
+
+
 func _on_update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
 	if old_owner:
 		deallocate_from(old_owner)
@@ -60,7 +69,7 @@ func allocate_to(entity: TreeEntity):
 		print('can\'t allocate: no stats')
 		return
 	for mod in modifiers:
-		entity.stats.add_stat_modifier(mod)
+		entity._stats.add_stat_modifier(mod)
 	allocated.emit(entity)
 	
 func deallocate_from(entity: TreeEntity):

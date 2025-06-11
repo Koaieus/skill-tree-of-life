@@ -20,7 +20,7 @@ metadata/_custom_type_script = "uid://gj017hef4u2b"
 
 [sub_resource type="Resource" id="Resource_au033"]
 script = ExtResource("6_au033")
-default_value = 20
+default_value = 0
 current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 

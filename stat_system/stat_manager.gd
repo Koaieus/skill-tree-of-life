@@ -19,8 +19,8 @@ func set_stats(value: Stats) -> void:
 	if stats == null:
 		return
 	
-	for stat_key in stats.map.keys():
-		var stat = stats.get_stat(stat_key)
+	for stat_key: GDScript in stats.map.keys():
+		var stat := stats.get_stat(stat_key)
 		stat.value_changed.connect(_on_stat_value_changed.bind(stat_key, stat))
 	
 	#_stats = stats.duplicate(true)

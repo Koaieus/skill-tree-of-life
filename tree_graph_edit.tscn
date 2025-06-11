@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://cp7jtjmcxyxlm"]
+[gd_scene load_steps=3 format=3 uid="uid://cp7jtjmcxyxlm"]
 
 [ext_resource type="Script" uid="uid://dnl6no1h6mn5p" path="res://tree_graph_edit.gd" id="1_0sg4w"]
+[ext_resource type="Script" uid="uid://dqogoeips47oo" path="res://navigator.gd" id="2_tx6qg"]
 
 [node name="TreeGraphEdit" type="GraphEdit"]
 anchors_preset = 15
@@ -20,6 +21,18 @@ item_count = 1
 item_0/text = "Connect"
 item_0/id = 0
 
+[node name="Navigator" type="Node" parent="."]
+script = ExtResource("2_tx6qg")
+metadata/_custom_type_script = "uid://dqogoeips47oo"
+
+[connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
+[connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]
 [connection signal="connection_request" from="." to="." method="_on_connection_request"]
 [connection signal="disconnection_request" from="." to="." method="_on_disconnection_request"]
+[connection signal="node_added" from="." to="Navigator" method="_on_tree_graph_edit_node_added"]
+[connection signal="node_removing" from="." to="Navigator" method="_on_tree_graph_edit_node_removing"]
+[connection signal="nodes_connected" from="." to="." method="_on_nodes_connected"]
+[connection signal="nodes_connected" from="." to="Navigator" method="_on_tree_graph_edit_nodes_connected"]
+[connection signal="nodes_disconnected" from="." to="." method="_on_nodes_disconnected"]
+[connection signal="nodes_disconnected" from="." to="Navigator" method="_on_tree_graph_edit_nodes_disconnected"]
 [connection signal="popup_request" from="." to="." method="_on_popup_request"]

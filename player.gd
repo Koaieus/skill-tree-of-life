@@ -66,6 +66,7 @@ func _on_level_down(new_level: int, difference: int) -> void:
 
 func can_allocate_node(tree_node: TreeNode):
 	if stats.skill_points.value == 0:
+		print('No skill point available')
 		return false
 	return super(tree_node)
 	

@@ -11,6 +11,14 @@ func grow() -> void:
 func set_value(new_value) -> void:
 	print('setting growable pool stat %s value from %s to %s' % [name(), _value, new_value])
 	
+	if not _max or not _min:
+		return
+	
+	#if 'value' not in _max:
+		#print('AAAAAAAAAAH NO VALUE IN _max, _max = %s | T = %s' % [_max, typeof(_max)])
+	#if 'value' not in _min:
+		#print('AAAAAAAAAAH NO VALUE IN _min')
+		
 	# Don't act if the ranges are fucked
 	if _max.value <= _min.value:
 		return 
