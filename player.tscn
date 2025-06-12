@@ -63,7 +63,7 @@ metadata/_custom_type_script = "uid://cyj1ab3s8eihp"
 
 [sub_resource type="Resource" id="Resource_op7ga"]
 script = ExtResource("6_ivps1")
-default_value = 1
+default_value = 3
 current_value = 0
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
@@ -80,7 +80,7 @@ script = ExtResource("7_urp6f")
 current_value = 0
 max = SubResource("Resource_op7ga")
 min = SubResource("Resource_q13i1")
-default_value = 1
+default_value = 3
 is_infinite = SubResource("Resource_nvl01")
 metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
 

@@ -16,7 +16,7 @@ func display_value():
 
 func _on_max_increased(_max_value, increase_amount) -> void:
 	_value += increase_amount
-	print('max increased of %s by %s' % [name(), increase_amount])
+	print('max increased of %s by %s' % [name, increase_amount])
 
 func _on_max_decreased(_max_value, decrease_amount) -> void:
 	_value = _value
@@ -34,7 +34,7 @@ func initialize() -> void:
 		base_value = _max.value
 	
 	_value = base_value
-	print('[%s] initialized to: %s' % [name(), _value])
+	print('[%s] initialized to: %s' % [name, _value])
 	StatUtils.connect_if_not_connected(_max.increased, _on_max_increased)
 	StatUtils.connect_if_not_connected(_max.decreased, _on_max_decreased)
 	#StatUtils.connect_if_not_connected(_min.increased, _on_min_increased)
@@ -53,7 +53,7 @@ func set_default_value(_default_value) -> void:
 	initialize()
 
 func set_value(new_value) -> void:
-	print('%s: set_value(%s -> %s) @ %s' % [name(), value, new_value, resource_name])
+	print('%s: set_value(%s -> %s) @ %s' % [name, value, new_value, resource_name])
 
 	if is_infinite != null and is_infinite.value:
 		return

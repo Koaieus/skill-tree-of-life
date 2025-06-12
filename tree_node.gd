@@ -4,40 +4,42 @@ extends GraphNode
 
 signal allocated(entity: TreeEntity)
 signal deallocated(previous_entity: TreeEntity)
+signal local_entities_changed(entity_list: Array[TreeEntity])
 
+## Tracks the TreeEntity this Skill node is currently allocated to
 @onready var owned_by: TreeEntity = null:
 	get:
 		return owned_by
 	set(new_owner):
 		var old_owner = owned_by
-		if new_owner == owned_by:
-			prints("Skip updating owner, no change:", old_owner, "->", new_owner)
-			return
-		owned_by = new_owner
-		_on_update_owner(old_owner, new_owner)
+		if new_owner != owned_by:
+			owned_by = new_owner
+			_on_update_owner(old_owner, new_owner)
 
+## List of StatModifiers offered by this skill node upon allocation
 @export var modifiers: Array[NumberStatModifier] = []
 
-#@onready var button: Button = $Ports/ButtonBar/Button
 @onready var icon: Control = %Icon
+
+## Tooltip resource [preloaded]
 @onready var tool_tip: PackedScene = preload("res://gui/tooltip.tscn")
 
-var _local_entities: Array[TreeEntity] = []
+## List of TreeEntities that are currently composed as children of this Skill Node
+@export var local_entities: Array[TreeEntity] = []:
+	get(): return local_entities
 
-@export var local_entities: Array[TreeEntity]:
-	get(): return _local_entities
+## Vision range, e.g. for fog-of-war mechanics; value in pixels (?)
+@export var vision_range: int = 100
+
+## Point ID for use in A* implementation
+var point_id: int = -1
 
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	if _local_entities.size() == 1:
-		owned_by = _local_entities[0]
-	elif _local_entities.size() > 1:
-		push_warning('Muliple TreeEntities as children of a single TreeNode')
-		
-	update_color()
 	_hide_box_and_title()
-	
+	compute_local_entities()
+	update_color()
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -68,7 +70,7 @@ func allocate_to(entity: TreeEntity):
 	if not entity._stats:
 		print('can\'t allocate: no stats')
 		return
-	for mod in modifiers:
+	for mod: StatModifier in modifiers:
 		entity._stats.add_stat_modifier(mod)
 	allocated.emit(entity)
 	
@@ -143,17 +145,36 @@ func _on_icon_pressed() -> void:
 	if Global.player == owned_by:
 		return # Already owned
 		
+	# ToDo: replace with emitting one of Global's signals
 	Global.player.allocate_skill_node(self)
 
 
-func _on_child_entered_tree(node: Node) -> void:
-	if node is TreeEntity:
-		_local_entities.append(node)
+#func _on_child_entered_tree(node: Node) -> void:
+	#if node is TreeEntity:
+		#local_entities.append(node)
+		#local_entities_changed.emit(local_entities)
+#
+#
+#func _on_child_exiting_tree(node: Node) -> void:
+	#if node is TreeEntity:
+		#if owned_by == node:
+			#push_warning('[Entity leaving tree] ToDo: maybe deallocate?')
+			##node.deallocate_skill_node(self)
+		#local_entities.erase(node)
+		#local_entities_changed.emit(local_entities)
 
+func compute_local_entities():
+	local_entities.clear()
+	for node in get_children():
+		if node is TreeEntity and node not in local_entities:
+			local_entities.append(node)
+	if local_entities:
+		handle_local_entities()
 
-func _on_child_exiting_tree(node: Node) -> void:
-	if node is TreeEntity:
-		if owned_by == node:
-			push_warning('[Entity leaving tree] ToDo: maybe deallocate?')
-			#node.deallocate_skill_node(self)
-		_local_entities.erase(node)
+## Checks list of TreeEntity children and maybe update owner accordingly
+func handle_local_entities():
+	if local_entities.size() == 1:
+		owned_by = local_entities[0]
+	elif local_entities.size() > 1:
+		push_error('Multiple TreeEntities as children of a single TreeNode')
+		

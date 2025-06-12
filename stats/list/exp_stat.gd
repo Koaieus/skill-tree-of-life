@@ -4,14 +4,6 @@ class_name ExpStat
 
 const STAT_ROW_BAR = preload("res://gui/stats_panel/row/stat_row_bar.tscn")
 
-static func name():
-	return "Experience"
-
-static func abbreviation():
-	return "EXP"
-	
-static func description():
-	return "muh experience"
 
 func grow():
 	var new_value := int(_max.value * 1.25 + 10)
@@ -26,7 +18,7 @@ func _get_stat_row_resource():
 	#var row: StatRow = STAT_ROW.instantiate()
 	#row.stat_manager = manager
 	#row.stat_key = get_key()
-	#row.text_display = name()
+	#row.text_display = name
 	#row.value_display = "Lv. %s" % [level]
 	#row.get_node('LabelValue').hide()
 	##var progressBar: DecoratedProgressBar = row.progress_bar

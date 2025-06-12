@@ -14,12 +14,9 @@ class_name TreeEntity
 	
 @export_color_no_alpha var color: Color = Color.BLUE
 
-#func _init(_core: TreeNode):
-	#if _core:
-		#core = _core
 
 func _ready() -> void:
-	#connect(Global.game_ready.get_name(), _on_game_ready)
+	#connect(Global.game_ready.get_name, _on_game_ready)
 	
 	print('TreeEntity `%s` READY' % [name])
 	

@@ -72,7 +72,7 @@ func initialize_binding() -> void:
 	if stat_manager is not StatsManager:
 		push_error('ERROR: %s is not a StatsManager' % stat_manager)
 	
-	#print('Initializing binding of %s to %s' % [stat_key.get_global_name(), stat_manager])
+	#print('Initializing binding of %s to %s' % [stat_key.get_global_name, stat_manager])
 	stat_bind.stats_manager = stat_manager
 	stat_bind.stat_key = stat_key
 	#stat_bind.bind()

@@ -9,14 +9,6 @@ const STAT_ROW := preload("res://gui/stats_panel/row/stat_row.tscn")
 #@export var abbreviation: String = ""
 #@export var description: String = ""
 
-static func name() -> String:
-	return "<nameless stat>"
-
-static func abbreviation()-> String:
-	return "<stat abbreviation>"
-
-static func description() -> String:
-	return "<stat description>"
 
 ## The parent `Stats` board object
 var parent: Stats
@@ -50,6 +42,39 @@ var value:
 func get_value():
 	return base_value
 
+#region Stat MetaData + caching (stat name, abbreviation, description, ...)
+## Static metadata cache var
+static var _meta: StatMetaData = null
+
+var FALLBACK: StatMetaData = preload("res://stat_system/fallback_metadata.tres")
+
+## MetaData descriptor (readonly)
+var meta: StatMetaData = null:
+	get = get_metadata
+
+## Full name of the stat
+var name: String:
+	get(): return meta.name if meta else 'err'
+	
+## Abbreviation of the stat
+var abbreviation: String:
+	get(): return meta.abbreviation
+	
+## Description of the stat
+var description: String:
+	get(): return meta.description
+
+## Lookup metadata unless static var cache has been set
+func get_metadata() -> StatMetaData:
+	if not meta:
+		if not StatMetaDataRepository.is_node_ready():
+			return FALLBACK
+		_meta = StatMetaDataRepository.get_by_key(get_script())
+	return _meta
+	
+#endregion
+
+## Display value, essentially a string representation of the value of a stat
 func display_value() -> String:
 	return "%s" % value
 
@@ -66,14 +91,14 @@ func _generate_row(manager: StatsManager) -> StatRowBase:
 	row.stat_manager = manager
 	#print('Setting stat key to %s' % get_key())
 	row.stat_key = get_key()
-	#print('Setting stat text display to %s' % name())
-	row.text_display = name()
+	#print('Setting stat text display to %s' % name)
+	row.text_display = name
 	#row.value_display = "%s" % [display_value()]
 	#print('Final settings: %s %s %s %s' % [row.stat_manager, row.stat_key, row.text_display, row.value_display])
 	return row
 
 func notify_value_changed() -> void:
-	print_debug('[%s]: EMITTING value_changed' % [name()])
+	print_debug('[%s]: EMITTING value_changed' % [name])
 	value_changed.emit()
 	notify_property_list_changed()
 

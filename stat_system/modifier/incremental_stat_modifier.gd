@@ -16,7 +16,7 @@ func apply(value, stat: IntStat):
 		#_operation_value, 
 		#operation_value, 
 		#value, 
-		#stat.name(), 
+		#stat.name, 
 		#apply_count,
 		#operation
 	#])
@@ -36,7 +36,7 @@ func apply(value, stat: IntStat):
 	return value
 
 func as_string() -> String:
-	var stat_name = get_stat_name()
+	var stat_name = stat_meta.name
 	match operation:
 		Operation.ADD:
 			return "+{0}% {1}".format([operation_value, stat_name])

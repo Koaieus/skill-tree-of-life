@@ -67,6 +67,7 @@ offset_right = 60.0
 offset_bottom = 80.0
 title = "Strength"
 modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_g3cwk")])
+vision_range = null
 
 [node name="StrInt" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
@@ -80,6 +81,7 @@ offset_right = 136.0
 offset_bottom = 80.0
 title = "Str + Int"
 modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_jp2yk"), SubResource("Resource_ijkyq")])
+vision_range = null
 
 [node name="BigInt" parent="." instance=ExtResource("1_ne31x")]
 layout_mode = 2
@@ -93,3 +95,4 @@ offset_right = 218.0
 offset_bottom = 80.0
 title = "Big Smart"
 modifiers = Array[ExtResource("3_whxui")]([SubResource("Resource_i7bga"), SubResource("Resource_21ovc")])
+vision_range = null

@@ -21,7 +21,7 @@ func set_value(new_value):
 
 
 func _init() -> void:
-	print('INIT AGGREGATED STAT: %s' % [name()])
+	print('INIT AGGREGATED STAT: %s' % [name])
 
 ###
 # STAT MODIFIERS

@@ -28,7 +28,7 @@ func set_stats(value: Stats) -> void:
 
 func _on_stat_value_changed(key: GDScript, stat: Stat) -> void:
 	pass
-	#print('[%s] CHANGED!\tto: %s' % [stat.name(), stat.value])
+	#print('[%s] CHANGED!\tto: %s' % [stat.name, stat.value])
 	#stats_changed.emit()
 	#if Global.has_turn(get_parent()):
 		#Global.player_stats_changed.emit()
@@ -47,7 +47,7 @@ func get_stats_class_name() -> String:
 #region Stat Modifiers
 ## Add a stat modifier to a stat
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
-	print('adding stat modifier: %s %s' % [stat_modifier.stat_key.get_global_name(), stat_modifier])
+	print('adding stat modifier: %s %s' % [stat_modifier.stat_key.get_global_name, stat_modifier])
 	if stats == null:
 		return
 
@@ -122,7 +122,7 @@ func _get_property_list() -> Array:
 		"class_name": &"Resource",
 		"type": TYPE_OBJECT,
 		"hint": PROPERTY_HINT_RESOURCE_TYPE,
-		"hint_string": get_stats_class_name(),
+		"hint_string": get_stats_class_name,
 		"usage": Stats.EXPORTED_PROP,
 	})
 

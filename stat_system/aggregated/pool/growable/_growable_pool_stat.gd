@@ -9,7 +9,7 @@ func grow() -> void:
 	pass
 
 func set_value(new_value) -> void:
-	print('setting growable pool stat %s value from %s to %s' % [name(), _value, new_value])
+	print('setting growable pool stat %s value from %s to %s' % [name, _value, new_value])
 	
 	if not _max or not _min:
 		return
@@ -45,4 +45,4 @@ func _perform_grow():
 	leveled_up.emit()
 
 func _on_max_increased(_max_value, increase_amount) -> void:
-	print('growable pool: max increased of %s by %s to %s' % [name(), increase_amount, _max_value])
+	print('growable pool: max increased of %s by %s to %s' % [name, increase_amount, _max_value])

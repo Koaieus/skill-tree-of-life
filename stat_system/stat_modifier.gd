@@ -25,3 +25,12 @@ func compatible_with(stat: Stat) -> bool:
 
 func as_string() -> String:
 	return "<stat modifier>"
+	
+func _to_string() -> String:
+	return "<StatModifier for %s>" % [stat_key]
+
+var stat_meta: StatMetaData:
+	get = get_stat_meta
+
+func get_stat_meta() -> StatMetaData:
+	return StatMetaDataRepository.get_by_key(stat_key)

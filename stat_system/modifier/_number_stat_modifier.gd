@@ -38,16 +38,9 @@ func apply(value, _stat):
 			return value / (_operation_value * apply_count)
 	return value
 
-func get_stat_name() -> String:
-	if stat_key:
-		#var name = stat_key.get('abbreviation').call()
-		var name = stat_key.abbreviation()
-		if name:
-			return name
-	return "<name or abbrev of the stat>"
-	
+
 func as_string() -> String:
-	var stat_name = get_stat_name()
+	var stat_name = stat_meta.name if stat_meta else 'uhh'
 	match operation:
 		Operation.ADD:
 			return "+{0} {1}".format([_operation_value, stat_name])
@@ -57,4 +50,4 @@ func as_string() -> String:
 			return "x{0} {1}".format([_operation_value, stat_name])
 		Operation.DIVIDE:
 			return "÷{0} {1}".format([_operation_value, stat_name])
-	return super()		
+	return super()

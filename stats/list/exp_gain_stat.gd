@@ -1,14 +1,14 @@
 extends IntStat
 class_name ExperienceGainStat
 
-static func name():
-	return "Experience per turn"
-	
-static func abbreviation():
-	return "EXP/turn"
-	
-static func description():
-	return "Experience points per turn."
+#static func name:
+	#return "Experience per turn"
+	#
+#static func abbreviation():
+	#return "EXP/turn"
+	#
+#static func description():
+	#return "Experience points per turn."
 
 #func _ready():
 	#Global.turn_started.connect(_on_turn_start)

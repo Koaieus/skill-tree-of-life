@@ -70,12 +70,11 @@ func can_allocate_node(tree_node: TreeNode):
 		return false
 	return super(tree_node)
 	
+
 func _pay_allocation_cost(tree_node: TreeNode):
 	#print('paying 1 skill point... (current: %s / %s)' % [stats.skill_points.value, stats.skill_points._max.value])
 	stats.skill_points.decrease(1)
-	var x = 3
-	
-	#print('cost paid... (current: %s / %s)' % [stats.skill_points.value, stats.skill_points._max.value])
+
 
 func _get_property_list() -> Array:
 	var arr = []

@@ -14,7 +14,7 @@ func get_value():
 
 # (Re-)compute the computed value
 func compute() -> void:
-	print('>> Computing stat "%s"' % name())
+	print('>> Computing stat "%s"' % name)
 	# Save current value as previous
 	var previous = _value
 	# Start with base value
@@ -26,18 +26,21 @@ func compute() -> void:
 		_value = computed
 		notify_value_changed()
 		#if parent:
-			#print('[%s] emitting value changed (from parent %s)' % [name(), parent.resource_name])
+			#print('[%s] emitting value changed (from parent %s)' % [name, parent.resource_name])
 			#parent.stats_changed.emit()
 
 func _apply_modifiers(start_value: Variant):
+	if start_value == null:
+		return null
 	var updated_value = start_value
 	# Sort the modifiers
 	stat_modifiers.sort_custom(sort_modifiers_by_application_order)
 	# Apply each modifier
 	for stat_modifier in stat_modifiers:
 		var old_value = updated_value
+		var script: GDScript = get_script()
 		updated_value = stat_modifier.apply(updated_value, self)
-		print_debug('%s modified from %s to %s' % [name(), old_value, updated_value])
+		print_debug('%s modified from %s to %s' % [name, old_value, updated_value])
 	return updated_value
 
 	
@@ -73,7 +76,7 @@ func _on_base_value_changed(new_value, old_value):
 #region Constructor
 func _init(_base_value = base_value) -> void:
 	base_value = _base_value
-	compute()
+	#compute()
 #endregion
 
 

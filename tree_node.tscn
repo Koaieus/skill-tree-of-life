@@ -40,6 +40,7 @@ slot/0/right_color = Color(1, 1, 1, 1)
 slot/0/right_icon = null
 slot/0/draw_stylebox = true
 script = ExtResource("1_myg1w")
+vision_range = null
 
 [node name="M" type="MarginContainer" parent="."]
 layout_mode = 2
@@ -57,6 +58,7 @@ stretch_mode = 0
 
 [connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
 [connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]
+[connection signal="ready" from="." to="." method="_on_local_entities_changed"]
 [connection signal="mouse_entered" from="M/C/Icon" to="." method="_on_icon_mouse_entered"]
 [connection signal="mouse_exited" from="M/C/Icon" to="." method="_on_icon_mouse_exited"]
 [connection signal="pressed" from="M/C/Icon" to="." method="_on_icon_pressed"]

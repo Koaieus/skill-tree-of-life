@@ -1,6 +1,7 @@
 @tool
 extends Node
 
+var FALLBACK_METADATA: StatMetaData = preload('res://stat_system/fallback_metadata.tres')
 
 @export var repository: Dictionary[GDScript, StatMetaData] = {}
 
@@ -12,11 +13,15 @@ extends Node
 
 @export_tool_button('Populate keys') var button = populate_repository_keys
 
+func _ready() -> void:
+	print('StatMetaDataRepository READY: %s entries' % [len(repository)])
 
 func get_by_key(key: GDScript) -> StatMetaData:
 	if not key:
 		return null
-	return repository.get(key)
+	#print('F: %s %s %s' % [FALLBACK_METADATA, FALLBACK_METADATA.get_class(), typeof(FALLBACK_METADATA)])
+	#return repository.get(key)
+	return repository.get(key, FALLBACK_METADATA)
 
 func populate_repository_keys():
 	print('Populating Stat Metadata Repository...')

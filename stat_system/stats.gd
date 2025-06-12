@@ -11,16 +11,6 @@ const EXPORTED_PROP = PROPERTY_USAGE_SCRIPT_VARIABLE | PROPERTY_USAGE_STORAGE | 
 #signal stat_changed(stat: Stat, new_value)
 #signal stats_changed(stats: Stats)
 
-#func _init() -> void:
-	##connect('changed', _on_stats_value_changed)
-	#for stat in get_stats():
-		#stat.parent = self
-		##var ret = stat.value_changed.connect(_on_stats_changed)
-		##print('connecting `value_changed` of %s to %s' % [stat.name(), self])
-		##stat.value_changed.connect(_on_stats_value_changed)
-		#stat.value_changed.emit()
-	##print("dex: %s" % get('dexterity').value)
-	
 ### Callback when any stat changes
 #func _on_stats_changed() -> void:
 	#print('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC')

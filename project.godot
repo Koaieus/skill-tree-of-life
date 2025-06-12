@@ -17,9 +17,9 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+StatMetaDataRepository="*res://stat_system/stat_metadata_repository.tscn"
 Skills="*res://skills.tscn"
-Global="*res://global.gd"
-StatMetadataRepository="*res://stat_system/stat_metadata_repository.gd"
+Global="*res://Global.tscn"
 
 [display]
 

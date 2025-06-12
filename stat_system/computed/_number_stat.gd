@@ -8,10 +8,15 @@ var _multiplier: float = 1.0
 
 
 func compute() -> void:
-	print('>> Computing stat: %s' % [name()])
+	#if not StatMetaDataRepository.has_method("get_metadata"):
+		#return
+	#if base_value == null:
+		#return
+	print('>> Computing stat: %s' % [name])
 	# Reset multiplier (will receive all INCREASE/DECREASE operation values)
 	_multiplier = 1.0
 	# Start with base value
+	#print_debug('COMPUTING %s FROM BASE VALUE %s' % [name, base_value])
 	var computed = _apply_modifiers(base_value)
 	# Call customizable hook
 	#print('before `_on_after_modifier_application`: %s' % computed)
