@@ -46,13 +46,6 @@ func _ready() -> void:
 	#stats.get('dexterity').value_changed.emit()
 	#print('... emission done')
 	
-## Direct access to stats, but typed, via 
-@onready var stats: EntityStats:
-	get():
-		if _stats:
-			return _stats.stats
-		return null
-
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass

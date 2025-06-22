@@ -5,22 +5,39 @@ class_name TreeEntity
 # Represents an `entity` that lives on a skill tree by owning 1 or more skills on it
 
 @onready var core: TreeNode:
-	get(): return get_parent()
-	
+	get(): 
+		return get_parent() as TreeNode
+
+## StatManager ref
 @onready var _stats: EntityStatsManager = $EntityStatsManager
 
-@onready var tree: TreeGraphEdit:
-	get(): return core.get_parent()
+## Direct access to stats, but typed
+@onready var stats: EntityStats:
+	get():
+		if _stats:
+			return _stats._stats
+		return null
+
+#@onready var tree: TreeGraph:
+	#get(): return core.get_parent()
 	
 @export_color_no_alpha var color: Color = Color.BLUE
 
 
 func _ready() -> void:
-	#connect(Global.game_ready.get_name, _on_game_ready)
+	Game.game_ready.connect(_on_game_ready, CONNECT_ONE_SHOT)
 	
 	print('TreeEntity `%s` READY' % [name])
 	
-		
+func _on_game_ready() -> void:
+	Game.turn_manager.ticked.connect(_on_game_tick)
+	Game.turn_manager.turn_started.connect(_on_entity_turn_started)
+	if core is TreeNode:
+		core.allocate_to(self)
+
+## Happens each game "tick"
+func _on_game_tick() -> void:
+	_stats.progress_initiative()
 
 #func initialize() -> void:
 	#if core:
@@ -37,7 +54,7 @@ func can_allocate_node(tree_node: TreeNode) -> bool:
 	if tree_node.has_owner():
 		return false
 	
-	for neighbor: TreeNode in tree_node.get_neighbors():
+	for neighbor: TreeNode in tree_node.neighbors:
 		if neighbor.owned_by == self:
 			return true
 	print('Node has no connected neighbors')
@@ -46,6 +63,9 @@ func can_allocate_node(tree_node: TreeNode) -> bool:
 func can_deallocate_node(tree_node: TreeNode) -> bool:
 	if tree_node.owned_by != self:
 		return false
+	return true
+	
+func can_take_turn() -> bool:
 	return true
 	
 func _pay_allocation_cost(tree_node: TreeNode):
@@ -75,3 +95,19 @@ func _get_configuration_warnings() -> PackedStringArray:
 
 #func _on_game_ready():
 	#initialize()
+
+
+func _on_initiative_ready_changed(state: bool) -> void:
+	if state:
+		add_to_group('initiative-ready')
+	else:
+		remove_from_group('initiative-ready')
+
+func start_turn() -> void:
+	print('[TURN START] %s is starting their turn!' % [self])
+
+func _on_entity_turn_started(entity: TreeEntity) -> void:
+	if entity != self:
+		return
+		
+	start_turn()

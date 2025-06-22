@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgj1th7lida6y"]
+
+[ext_resource type="Script" uid="uid://dqogoeips47oo" path="res://graph/navigator.gd" id="1_ilfma"]
+
+[node name="Navigator" type="Node"]
+script = ExtResource("1_ilfma")

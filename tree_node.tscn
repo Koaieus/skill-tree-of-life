@@ -40,7 +40,6 @@ slot/0/right_color = Color(1, 1, 1, 1)
 slot/0/right_icon = null
 slot/0/draw_stylebox = true
 script = ExtResource("1_myg1w")
-vision_range = null
 
 [node name="M" type="MarginContainer" parent="."]
 layout_mode = 2

@@ -1,0 +1,100 @@
+[gd_resource type="Resource" script_class="EntityStats" load_steps=22 format=3 uid="uid://3k2w0rkcgpny"]
+
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="1_uydjw"]
+[ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="2_13l01"]
+[ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="3_bgii1"]
+[ext_resource type="Script" uid="uid://csk0gjg3lplwk" path="res://stats/list/exp_stat.gd" id="4_rbymh"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="5_4d2xu"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="6_v7fmh"]
+[ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="7_etmrd"]
+[ext_resource type="Script" uid="uid://cyj1ab3s8eihp" path="res://stat_system/computed/bool_stat.gd" id="8_f2dc5"]
+[ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="9_db7i5"]
+[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="10_pfcbk"]
+
+[sub_resource type="Resource" id="Resource_606se"]
+script = ExtResource("1_uydjw")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://gj017hef4u2b"
+
+[sub_resource type="Resource" id="Resource_ivps1"]
+script = ExtResource("3_bgii1")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+
+[sub_resource type="Resource" id="Resource_urp6f"]
+script = ExtResource("3_bgii1")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+
+[sub_resource type="Resource" id="Resource_bwjto"]
+script = ExtResource("4_rbymh")
+max = SubResource("Resource_ivps1")
+min = SubResource("Resource_urp6f")
+default_value = 200
+level = 1
+metadata/_custom_type_script = "uid://csk0gjg3lplwk"
+
+[sub_resource type="Resource" id="Resource_7ahtn"]
+script = ExtResource("5_4d2xu")
+default_value = 10
+current_value = 10
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://b2ju8klaorw55"
+
+[sub_resource type="Resource" id="Resource_u1c27"]
+script = ExtResource("6_v7fmh")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://chokoff1ki83w"
+
+[sub_resource type="Resource" id="Resource_nvl01"]
+script = ExtResource("8_f2dc5")
+default_value = false
+current_value = false
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://cyj1ab3s8eihp"
+
+[sub_resource type="Resource" id="Resource_op7ga"]
+script = ExtResource("3_bgii1")
+default_value = 3
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_q13i1"]
+script = ExtResource("3_bgii1")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_pylmc"]
+script = ExtResource("9_db7i5")
+current_value = 0
+max = SubResource("Resource_op7ga")
+min = SubResource("Resource_q13i1")
+default_value = 3
+is_infinite = SubResource("Resource_nvl01")
+metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
+
+[sub_resource type="Resource" id="Resource_pbfsw"]
+script = ExtResource("10_pfcbk")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("2_13l01")]([])
+metadata/_custom_type_script = "uid://cehpx155ql87x"
+
+[resource]
+script = ExtResource("7_etmrd")
+experience = SubResource("Resource_bwjto")
+experience_gain = SubResource("Resource_7ahtn")
+skill_points = SubResource("Resource_pylmc")
+strength = SubResource("Resource_pbfsw")
+intelligence = SubResource("Resource_u1c27")
+dexterity = SubResource("Resource_606se")
+metadata/_custom_type_script = "uid://1p5k05vwjaf2"

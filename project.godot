@@ -19,7 +19,7 @@ config/icon="res://icon.svg"
 
 StatMetaDataRepository="*res://stat_system/stat_metadata_repository.tscn"
 Skills="*res://skills.tscn"
-Global="*res://Global.tscn"
+Game="*res://game.tscn"
 
 [display]
 
@@ -34,5 +34,6 @@ version_control/autoload_on_startup=true
 
 [global_group]
 
-players=""
-entities=""
+players="Player-controlled skill tree entities"
+entities="Skill tree entities"
+initiative-ready="Entities that have sufficient initiative progress that they are ready to take a turn"

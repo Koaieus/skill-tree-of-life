@@ -1,0 +1,61 @@
+[gd_scene load_steps=4 format=3 uid="uid://v6qyh4e3dro3"]
+
+[ext_resource type="Script" uid="uid://bwm7yqc05346x" path="res://gui/stats_panel/stats_panel.gd" id="1_uf4co"]
+[ext_resource type="PackedScene" uid="uid://c11i54435huk3" path="res://gui/stats_panel/row/stat_row.tscn" id="2_cwrdp"]
+
+[sub_resource type="SystemFont" id="SystemFont_h7nn3"]
+font_names = PackedStringArray("Fantasy")
+font_italic = true
+hinting = 2
+subpixel_positioning = 0
+
+[node name="StatsPanel" type="PanelContainer"]
+offset_right = 136.0
+offset_bottom = 53.0
+script = ExtResource("1_uf4co")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="StatsPanel" type="VBoxContainer" parent="MarginContainer"]
+custom_minimum_size = Vector2(250, 500)
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="MarginContainer/StatsPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 0
+theme_override_constants/shadow_outline_size = 3
+theme_override_font_sizes/font_size = 20
+text = "<name of player>"
+horizontal_alignment = 1
+
+[node name="Description" type="Label" parent="MarginContainer/StatsPanel"]
+visible = false
+custom_minimum_size = Vector2(100, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.691357, 0.691357, 0.691357, 1)
+theme_override_constants/line_spacing = 0
+theme_override_constants/shadow_outline_size = 5
+theme_override_fonts/font = SubResource("SystemFont_h7nn3")
+theme_override_font_sizes/font_size = 10
+text = "<This is some kind of intro text or description. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus erat eros, feugiat quis arcu nec, sagittis fermentum est.>"
+autowrap_mode = 3
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/StatsPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StatsList" type="VBoxContainer" parent="MarginContainer/StatsPanel/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="StatRow" parent="MarginContainer/StatsPanel/ScrollContainer/StatsList" instance=ExtResource("2_cwrdp")]
+layout_mode = 2

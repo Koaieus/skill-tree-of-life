@@ -91,5 +91,4 @@ script = ExtResource("2_elqwa")
 stats = SubResource("Resource_8281m")
 metadata/_custom_type_script = "uid://dvuuc7ytb0rla"
 
-[connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
-[connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]
+[connection signal="initiative_ready" from="EntityStatsManager" to="." method="_on_initiative_ready_changed"]

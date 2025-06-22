@@ -1,10 +1,10 @@
-[gd_scene load_steps=25 format=3 uid="uid://tm13xqmslpor"]
+[gd_scene load_steps=27 format=3 uid="uid://tm13xqmslpor"]
 
 [ext_resource type="Script" uid="uid://dlb3kc61sy7r2" path="res://player.gd" id="1_4flbx"]
-[ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_dw050"]
 [ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="3_b26j0"]
 [ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="4_b26j0"]
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="4_n7ghd"]
+[ext_resource type="PackedScene" uid="uid://bhrilkottyfbm" path="res://stats/entity_stat_manager.tscn" id="4_sweqy"]
 [ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="5_nvl01"]
 [ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="6_ivps1"]
 [ext_resource type="Script" uid="uid://csk0gjg3lplwk" path="res://stats/list/exp_stat.gd" id="6_nvl01"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://cyj1ab3s8eihp" path="res://stat_system/computed/bool_stat.gd" id="7_n7ghd"]
 [ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_urp6f"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_bwjto"]
+[ext_resource type="Script" uid="uid://bsee5glpbl28n" path="res://stats/list/initiative_stat.gd" id="10_606se"]
 
 [sub_resource type="Resource" id="Resource_606se"]
 script = ExtResource("3_b26j0")
@@ -46,6 +47,14 @@ default_value = 10
 current_value = 10
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 metadata/_custom_type_script = "uid://b2ju8klaorw55"
+
+[sub_resource type="Resource" id="Resource_5tmop"]
+script = ExtResource("10_606se")
+progress = 0
+default_value = 20
+current_value = 0
+stat_modifiers = Array[ExtResource("4_b26j0")]([])
+metadata/_custom_type_script = "uid://bsee5glpbl28n"
 
 [sub_resource type="Resource" id="Resource_u1c27"]
 script = ExtResource("4_n7ghd")
@@ -91,11 +100,12 @@ current_value = 0
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 metadata/_custom_type_script = "uid://cehpx155ql87x"
 
-[sub_resource type="Resource" id="Resource_5tmop"]
+[sub_resource type="Resource" id="Resource_7lmhl"]
 script = ExtResource("5_nvl01")
 experience = SubResource("Resource_bwjto")
 experience_gain = SubResource("Resource_7ahtn")
 skill_points = SubResource("Resource_pylmc")
+initiative = SubResource("Resource_5tmop")
 strength = SubResource("Resource_pbfsw")
 intelligence = SubResource("Resource_u1c27")
 dexterity = SubResource("Resource_606se")
@@ -103,10 +113,10 @@ metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="Player" type="Node" groups=["entities", "players"]]
 script = ExtResource("1_4flbx")
-stats = SubResource("Resource_5tmop")
+stats = SubResource("Resource_7lmhl")
 color = Color(0, 0, 0, 1)
 
-[node name="EntityStatsManager" type="Node" parent="."]
-script = ExtResource("2_dw050")
-stats = SubResource("Resource_5tmop")
-metadata/_custom_type_script = "uid://dvuuc7ytb0rla"
+[node name="EntityStatsManager" parent="." instance=ExtResource("4_sweqy")]
+stats = SubResource("Resource_7lmhl")
+
+[connection signal="initiative_ready" from="EntityStatsManager" to="." method="_on_initiative_ready_changed"]

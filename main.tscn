@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://b6ot6ty5l7jis" path="res://main.gd" id="1_dg77c"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="2_1bvp3"]
 [ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://gui/stats_panel/stats_panel.tscn" id="2_efxa6"]
-[ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://tree_graph_edit.tscn" id="4_7mycd"]
+[ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://graph/tree_graph.tscn" id="4_7mycd"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="5_lquwl"]
 [ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="6_4c57u"]
 [ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="6_5vw27"]
@@ -96,12 +96,6 @@ metadata/_custom_type_script = "uid://cjce8d5f3u662"
 [node name="Main" type="Node"]
 script = ExtResource("1_dg77c")
 
-[node name="Players" type="Node" parent="."]
-unique_name_in_owner = true
-
-[node name="Entities" type="Node" parent="."]
-unique_name_in_owner = true
-
 [node name="GUI" type="VBoxContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
@@ -130,7 +124,7 @@ size_flags_vertical = 3
 [node name="StatsDisplay" parent="GUI/HBoxContainer" instance=ExtResource("2_efxa6")]
 layout_mode = 2
 
-[node name="TreeGraphEdit" parent="GUI/HBoxContainer" instance=ExtResource("4_7mycd")]
+[node name="TreeGraph" parent="GUI/HBoxContainer" instance=ExtResource("4_7mycd")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -161,7 +155,7 @@ connections = Array[Dictionary]([{
 "to_port": 0
 }])
 
-[node name="Start" parent="GUI/HBoxContainer/TreeGraphEdit" node_paths=PackedStringArray("local_entities") instance=ExtResource("5_lquwl")]
+[node name="Start" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors", "local_entities") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -177,14 +171,14 @@ theme_override_constants/port_h_offset = 30
 position_offset = Vector2(187, 465)
 title = "Starter Skill"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq"), SubResource("Resource_cegan")])
-local_entities = [NodePath("Player"), NodePath("Player"), NodePath("Player")]
-vision_range = 100
+neighbors = [NodePath("../Strength")]
+local_entities = [NodePath("Player")]
 
-[node name="Player" parent="GUI/HBoxContainer/TreeGraphEdit/Start" instance=ExtResource("2_1bvp3")]
+[node name="Player" parent="GUI/HBoxContainer/TreeGraph/Start" instance=ExtResource("2_1bvp3")]
 player_name = "DefaultPlayer"
-color = Color(1, 0, 0, 1)
+color = Color(0.835294, 0, 0, 1)
 
-[node name="Strength" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+[node name="Strength" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -200,9 +194,9 @@ theme_override_constants/port_h_offset = 30
 position_offset = Vector2(313, 394)
 title = "Strength"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_dg77c")])
-vision_range = 100
+neighbors = [NodePath("../Start"), NodePath("../StrInt")]
 
-[node name="StrInt" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+[node name="StrInt" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -218,9 +212,9 @@ theme_override_constants/port_h_offset = 30
 position_offset = Vector2(431, 364)
 title = "Str + Int"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
-vision_range = 100
+neighbors = [NodePath("../Strength"), NodePath("../BigInt"), NodePath("../Dumb Force")]
 
-[node name="BigInt" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+[node name="BigInt" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -236,9 +230,9 @@ theme_override_constants/port_h_offset = 33
 position_offset = Vector2(548, 272)
 title = "Big Smart"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
-vision_range = 100
+neighbors = [NodePath("../StrInt")]
 
-[node name="Dumb Force" parent="GUI/HBoxContainer/TreeGraphEdit" instance=ExtResource("5_lquwl")]
+[node name="Dumb Force" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -254,7 +248,7 @@ theme_override_constants/port_h_offset = 64
 position_offset = Vector2(532, 406)
 title = "Dumb Force"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_4c57u"), SubResource("Resource_getpj")])
-vision_range = 100
+neighbors = [NodePath("../StrInt")]
 
 [node name="PanelContainerRight" type="PanelContainer" parent="GUI/HBoxContainer"]
 layout_mode = 2
@@ -299,21 +293,15 @@ visible = false
 visible = false
 self_modulate = Color(1, 1, 1, 0)
 theme_override_constants/port_h_offset = 64
-vision_range = 100
 
 [node name="StrInt" parent="Skills" index="1"]
 visible = false
 self_modulate = Color(1, 1, 1, 0)
 theme_override_constants/port_h_offset = 64
-vision_range = 100
 
 [node name="BigInt" parent="Skills" index="2"]
 visible = false
 self_modulate = Color(1, 1, 1, 0)
 theme_override_constants/port_h_offset = 64
-vision_range = 100
-
-[connection signal="child_entered_tree" from="Players" to="." method="_on_players_child_entered_tree"]
-[connection signal="child_exiting_tree" from="Players" to="." method="_on_players_child_exiting_tree"]
 
 [editable path="Skills"]

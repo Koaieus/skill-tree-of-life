@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://b0i5wlc44yt47"]
+[gd_scene load_steps=19 format=3 uid="uid://b0i5wlc44yt47"]
 
 [ext_resource type="Script" uid="uid://bt440sdyvbrvg" path="res://stat_system/stat_metadata_repository.gd" id="1_avqgv"]
 [ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/stat_metadata.gd" id="2_riiv7"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_4o73w"]
 [ext_resource type="Script" uid="uid://6riwuf1wd78b" path="res://stat_system/stat.gd" id="9_5qbi4"]
 [ext_resource type="Resource" uid="uid://ofwrba3yajmh" path="res://stat_system/fallback_metadata.tres" id="10_mmwlt"]
+[ext_resource type="Script" uid="uid://bsee5glpbl28n" path="res://stats/list/initiative_stat.gd" id="11_7cvnm"]
 
 [sub_resource type="Resource" id="Resource_puvpd"]
 script = ExtResource("2_riiv7")
@@ -47,6 +48,12 @@ name = "Strength"
 abbreviation = "STR"
 description = "Big Strong"
 
+[sub_resource type="Resource" id="Resource_5vj6n"]
+script = ExtResource("2_riiv7")
+name = "Initiative"
+abbreviation = "INIT"
+description = "How quickly an entity can take a turn"
+
 [node name="StatMetadataRepository" type="Node"]
 script = ExtResource("1_avqgv")
 repository = Dictionary[GDScript, ExtResource("2_riiv7")]({
@@ -56,5 +63,6 @@ ExtResource("5_7cvnm"): SubResource("Resource_eabwa"),
 ExtResource("6_5vj6n"): SubResource("Resource_5c8x6"),
 ExtResource("7_fsg3h"): SubResource("Resource_af5ne"),
 ExtResource("8_4o73w"): SubResource("Resource_ujh0h"),
-ExtResource("9_5qbi4"): ExtResource("10_mmwlt")
+ExtResource("9_5qbi4"): ExtResource("10_mmwlt"),
+ExtResource("11_7cvnm"): SubResource("Resource_5vj6n")
 })

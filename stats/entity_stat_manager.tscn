@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://bhrilkottyfbm"]
+
+[ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="1_um1eb"]
+
+[node name="EntityStatManager" type="Node"]
+script = ExtResource("1_um1eb")
+stats = null
+metadata/_custom_type_script = "uid://dvuuc7ytb0rla"

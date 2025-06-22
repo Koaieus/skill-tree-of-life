@@ -12,4 +12,4 @@ func _process(delta: float) -> void:
 
 
 func _on_pressed() -> void:
-	Global.end_turn()
+	Game.turn_manager.turn_ended.emit()

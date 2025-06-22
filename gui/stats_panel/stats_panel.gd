@@ -10,8 +10,8 @@ class_name StatsPanel
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	initialize()
-	Global.player_selected.connect(_on_player_selected)
-	#Global.player_stats_changed.connect(compute)
+	Game.player_selected.connect(_on_player_selected)
+	#Game.player_stats_changed.connect(compute)
 
 ## Called every frame. 'delta' is the elapsed time since the previous frame.
 #func _process(delta: float) -> void:
@@ -28,7 +28,7 @@ func initialize():
 	if player:
 		%NameLabel.text = player.player_name
 	else:
-		%NameLabel.text = "No player selected"
+		%NameLabel.text = "No Main Player configured"
 		return
 	
 	if not player._stats:

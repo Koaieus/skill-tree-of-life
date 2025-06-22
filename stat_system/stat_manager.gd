@@ -30,8 +30,8 @@ func _on_stat_value_changed(key: GDScript, stat: Stat) -> void:
 	pass
 	#print('[%s] CHANGED!\tto: %s' % [stat.name, stat.value])
 	#stats_changed.emit()
-	#if Global.has_turn(get_parent()):
-		#Global.player_stats_changed.emit()
+	#if Game.has_turn(get_parent()):
+		#Game.player_stats_changed.emit()
 
 
 func _get_stats():
@@ -122,7 +122,7 @@ func _get_property_list() -> Array:
 		"class_name": &"Resource",
 		"type": TYPE_OBJECT,
 		"hint": PROPERTY_HINT_RESOURCE_TYPE,
-		"hint_string": get_stats_class_name,
+		"hint_string": get_stats_class_name(),
 		"usage": Stats.EXPORTED_PROP,
 	})
 

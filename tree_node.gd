@@ -19,10 +19,9 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 ## List of StatModifiers offered by this skill node upon allocation
 @export var modifiers: Array[NumberStatModifier] = []
 
-@onready var icon: Control = %Icon
+@export var neighbors: Array[TreeNode] = []
 
-## Tooltip resource [preloaded]
-@onready var tool_tip: PackedScene = preload("res://gui/tooltip.tscn")
+@onready var icon: Control = %Icon
 
 ## List of TreeEntities that are currently composed as children of this Skill Node
 @export var local_entities: Array[TreeEntity] = []:
@@ -30,6 +29,9 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 
 ## Vision range, e.g. for fog-of-war mechanics; value in pixels (?)
 @export var vision_range: int = 100
+
+## Tooltip resource [preloaded]
+@onready var tool_tip: PackedScene = preload("res://gui/tooltip.tscn")
 
 ## Point ID for use in A* implementation
 var point_id: int = -1
@@ -46,14 +48,19 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	pass
 
-func get_neighbors() -> Array[TreeNode]:
-	var arr = Array(
-		(get_parent() as TreeGraphEdit).nav.astar.get_point_connections(get_instance_id())
-	).map(instance_from_id)
-	var nbs: Array[TreeNode]
-	nbs.assign(arr)
-	return nbs
+func _recalculate_neighbors():
+	neighbors.assign(
+		Array(
+			(get_parent() as TreeGraph).nav.astar.get_point_connections(get_instance_id())
+		).map(instance_from_id)
+	)
 
+func add_neighbor(new_neighbor: TreeNode) -> void:
+	if new_neighbor not in neighbors:
+		neighbors.append(new_neighbor)
+
+func remove_neighbor(neighbor_to_remove: TreeNode) -> void:
+	neighbors.erase(neighbor_to_remove)
 
 func _on_update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
 	if old_owner:
@@ -142,11 +149,11 @@ func _on_icon_mouse_exited() -> void:
 
 
 func _on_icon_pressed() -> void:
-	if Global.player == owned_by:
+	if Game.player == owned_by:
 		return # Already owned
 		
-	# ToDo: replace with emitting one of Global's signals
-	Global.player.allocate_skill_node(self)
+	# ToDo: replace with emitting one of Game's signals
+	Game.player.allocate_skill_node(self)
 
 
 #func _on_child_entered_tree(node: Node) -> void:

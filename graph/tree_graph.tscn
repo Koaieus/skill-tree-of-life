@@ -1,0 +1,40 @@
+[gd_scene load_steps=4 format=3 uid="uid://cp7jtjmcxyxlm"]
+
+[ext_resource type="Script" uid="uid://dnl6no1h6mn5p" path="res://graph/tree_graph.gd" id="1_0sg4w"]
+[ext_resource type="PackedScene" uid="uid://bgj1th7lida6y" path="res://graph/navigator.tscn" id="2_kkew0"]
+[ext_resource type="PackedScene" uid="uid://blggy3l3728dn" path="res://graph/turn_manager.tscn" id="3_skosc"]
+
+[node name="TreeGraph" type="GraphEdit"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+right_disconnects = true
+minimap_opacity = 0.6
+show_zoom_label = true
+show_arrange_button = false
+script = ExtResource("1_0sg4w")
+
+[node name="Navigator" parent="." instance=ExtResource("2_kkew0")]
+
+[node name="TurnManager" parent="." instance=ExtResource("3_skosc")]
+
+[node name="ContextMenu" type="PopupMenu" parent="."]
+unique_name_in_owner = true
+item_count = 1
+item_0/text = "Connect"
+item_0/id = 0
+
+[connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
+[connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]
+[connection signal="connection_request" from="." to="." method="_on_connection_request"]
+[connection signal="disconnection_request" from="." to="." method="_on_disconnection_request"]
+[connection signal="node_added" from="." to="Navigator" method="_on_tree_graph_node_added"]
+[connection signal="node_removing" from="." to="Navigator" method="_on_tree_graph_node_removing"]
+[connection signal="nodes_connected" from="." to="." method="_on_nodes_connected"]
+[connection signal="nodes_connected" from="." to="Navigator" method="_on_tree_graph_nodes_connected"]
+[connection signal="nodes_disconnected" from="." to="." method="_on_nodes_disconnected"]
+[connection signal="nodes_disconnected" from="." to="Navigator" method="_on_tree_graph_nodes_disconnected"]
+[connection signal="popup_request" from="." to="." method="_on_popup_request"]

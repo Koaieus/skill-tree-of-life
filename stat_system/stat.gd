@@ -98,9 +98,9 @@ func _generate_row(manager: StatsManager) -> StatRowBase:
 	return row
 
 func notify_value_changed() -> void:
+	notify_property_list_changed()
 	print_debug('[%s]: EMITTING value_changed' % [name])
 	value_changed.emit()
-	notify_property_list_changed()
 
 ###
 # STAT MODIFIERS

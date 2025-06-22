@@ -48,20 +48,38 @@ func _apply_modifiers(start_value: Variant):
 @export var stat_modifiers: Array[StatModifier] = []
 
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
-	stat_modifiers.append(stat_modifier)
-	stat_modifier.apply_count_changed.connect(compute)
+	var existing_modifier_idx := stat_modifiers.find(stat_modifier)
+	if existing_modifier_idx != -1:
+		stat_modifiers[existing_modifier_idx].apply_count += stat_modifier.apply_count
+	else:
+		stat_modifiers.append(stat_modifier)
+		stat_modifier.apply_count_changed.connect(compute)
 	compute()
 
 func remove_stat_modifier(stat_modifier: StatModifier) -> void:
-	stat_modifiers.erase(stat_modifier)
-	stat_modifier.apply_count_changed.disconnect(compute)
+	var existing_modifier_idx := stat_modifiers.find(stat_modifier)
+	if existing_modifier_idx == -1:
+		push_error('Cannot remove StatModifier %s: Not in list of stat modifiers')
+		return
+	
+	var existing_mod: StatModifier = stat_modifiers[existing_modifier_idx]
+	assert(
+		existing_mod.apply_count >= stat_modifier.apply_count, 
+		"Cannot remove %s applications of %s, as apply count is merely %s" % [
+			stat_modifier.apply_count, stat_modifier, existing_mod.apply_count
+		]
+	)
+	var new_apply_count = existing_mod.apply_count - stat_modifier.apply_count
+	if new_apply_count == 0:
+		stat_modifiers.erase(existing_mod)
+		existing_mod.apply_count_changed.disconnect(compute)
 	compute()
 
 func clear_stat_modifiers() -> void:
 	for stat_modifier in stat_modifiers:
 		stat_modifier.apply_count_changed.disconnect(compute)
 
-	stat_modifiers = []
+	stat_modifiers.clear()
 	compute()
 	
 func _on_after_modifier_application(value):

@@ -11,7 +11,7 @@ class_name ExperienceGainStat
 	#return "Experience points per turn."
 
 #func _ready():
-	#Global.turn_started.connect(_on_turn_start)
+	#Game.turn_started.connect(_on_turn_start)
 	#
 #func _on_turn_start() -> void:
 	#print('huzzah the turn started')

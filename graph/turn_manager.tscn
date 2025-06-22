@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://blggy3l3728dn"]
+
+[ext_resource type="Script" uid="uid://b3k0fie808t5c" path="res://graph/turn_manager.gd" id="1_k4nb4"]
+
+[node name="TurnManager" type="Node"]
+script = ExtResource("1_k4nb4")
+
+[connection signal="deadlock_detected" from="." to="." method="_on_deadlock_detected"]
+[connection signal="turn_ended" from="." to="." method="_on_turn_ended"]
