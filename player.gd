@@ -7,44 +7,30 @@ signal level_down(new_level: int, difference: int)
 
 @export var player_name: String = "Player"
 
-@export var level: int = 1:
-	get(): return level
-	set(value):
-		var difference: int = level - value
-		level = value
-		if difference == 0:
-			return
-		if difference > 0:
-			_on_level_up(value, difference)
-		else:
-			_on_level_down(value, difference)
+#@export var level: int = 1:
+	#get(): return level
+	#set(value):
+		#var difference: int = level - value
+		#level = value
+		#if difference == 0:
+			#return
+		#if difference > 0:
+			#_on_level_up(value, difference)
+		#else:
+			#_on_level_down(value, difference)
 		
 
 func _to_string() -> String:
 	return 'Player<%s>' % player_name
 
 # Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	super()
-	print('level: ', level)
-	if level > 1:
-		print_debug('Starting level: %s; increasing default max number of skill points accordingly' % level)
-		#print('Current max skill points BEFORE increase to %s: %s' % [level, stats.skill_points._max.value])
-		#stats.skill_points._max.value = level
-		#stats.skill_points._max.base_value += 5 # <- works kinda
-		stats.skill_points._max.default_value = level
-		#stats.skill_points.increase(level-1)
-		#print('Current max skill points AFTER increase to %s: %s' % [level, stats.skill_points._max.value])
+#func _ready() -> void:
+	#super()
+	#print('level: ', level)
+	#if level > 1:
+		#print_debug('Starting level: %s; increasing default max number of skill points accordingly' % level)
+		#stats.skill_points._max.default_value = level
 
-		var x = 3
-	#stats.stats_changed.connect(
-		#func():
-			#print('my stats changed!')
-	#)
-	#print('debugging: emitting `dexterity` "value_changed"...')
-	#stats.get('dexterity').value_changed.emit()
-	#stats.get('dexterity').value_changed.emit()
-	#print('... emission done')
 	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:

@@ -35,4 +35,4 @@ text = "<skill text>"
 layout_mode = 2
 size_flags_horizontal = 8
 theme_override_constants/shadow_outline_size = 3
-text = "<null>"
+text = "<N/A>"

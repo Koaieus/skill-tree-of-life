@@ -34,8 +34,6 @@ func _get_ready_entities() -> Array[TreeEntity]:
 	return ready
 
 func _get_all_active_entities() -> Array[TreeEntity]:
-	# Example: find all living entities in the TreeGraph
-	# You can customize this logic if needed
 	var result: Array[TreeEntity] = []
 	for entity: TreeEntity in get_tree().get_nodes_in_group("initiative-ready"):
 		if entity.can_take_turn():
@@ -72,6 +70,7 @@ func _run_turn_cycle() -> void:
 
 		# Wait for this entity to end its turn
 		await self.turn_ended
+		print('[TURN: ENDED for %s]' % entity_at_turn)
 
 		# Deduct initiative progress
 		entity_at_turn.stats.initiative.progress -= 100

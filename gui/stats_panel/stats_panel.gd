@@ -9,8 +9,9 @@ class_name StatsPanel
 		
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	initialize()
-	Game.player_selected.connect(_on_player_selected)
+	#initialize()
+	Game.main_player_selected.connect(_on_main_player_selected)
+	Game.game_ready.connect(_on_game_ready)
 	#Game.player_stats_changed.connect(compute)
 
 ## Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -39,7 +40,9 @@ func initialize():
 		var row := stat._generate_row(stat_manager)
 		%StatsList.add_child(row)
 
-func _on_player_selected(player: Player): 
+func _on_main_player_selected(player: Player): 
 	self.player = player
 	#player.stats.stats_changed.connect(compute)
+
+func _on_game_ready() -> void:
 	initialize()

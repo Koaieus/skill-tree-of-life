@@ -1,20 +1,23 @@
 extends GrowablePoolStat
 class_name IntGrowablePoolStat
 
-
+#@export var current_value: int:
+	#get():
+		#return _value
+		
 @export var max: IntStat = IntStat.new(0):
 	get(): return max
-	set(_max_value):
-		max = _max_value
+	set(v):
+		max = v
 		_max = max
 
 @export var min: IntStat = IntStat.new(0):
 	get(): return min
-	set(_min_value):
-		min = _min_value
+	set(v):
+		min = v
 		_min = min
 
 @export var default_value: int = 0:
-	set(_default_value):
-		default_value = _default_value
+	set(v):
+		default_value = v
 		set_default_value(default_value)

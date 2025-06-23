@@ -32,7 +32,9 @@ func _ready() -> void:
 func _on_game_ready() -> void:
 	Game.turn_manager.ticked.connect(_on_game_tick)
 	Game.turn_manager.turn_started.connect(_on_entity_turn_started)
+	assert(core != null, 'TREE ENTITY: MISSING CORE')
 	if core is TreeNode:
+		print_debug('[ALLOCATION]: Allocating initial skill on game_ready for Entity<%s>' % name)
 		core.allocate_to(self)
 
 ## Happens each game "tick"
@@ -78,7 +80,7 @@ func allocate_skill_node(tree_node: TreeNode):
 		print('Cannot allocate!')
 		return false
 	_pay_allocation_cost(tree_node)
-	tree_node.owned_by = self
+	tree_node.allocate_to(self)
 	
 func deallocate_skill_node(tree_node: TreeNode):
 	prints('Deallocating', tree_node, 'from', self)
@@ -105,6 +107,12 @@ func _on_initiative_ready_changed(state: bool) -> void:
 
 func start_turn() -> void:
 	print('[TURN START] %s is starting their turn!' % [self])
+	assert(core != null, 'TREE ENTITY: MISSING CORE')
+
+	var xp: ExpStat = stats.experience
+	assert(stats.experience._value != null, 'BORKED XP VALUE')
+	stats.experience._value += stats.experience_gain.current_value
+
 
 func _on_entity_turn_started(entity: TreeEntity) -> void:
 	if entity != self:

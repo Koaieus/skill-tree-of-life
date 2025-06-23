@@ -13,6 +13,10 @@ func grow():
 func _get_stat_row_resource():
 	return STAT_ROW_BAR
 	
+func notify_value_changed() -> void:
+	print("[%s]: Values before emit: current: %s | level: %s" % [name, _value, level])
+	super()
+
 #func _generate_row(manager: StatsManager) -> StatRow:
 	##print('generating row with level %s, min/cur/max: %s/%s/%s' % [level, _min.value, value, _max.value])
 	#var row: StatRow = STAT_ROW.instantiate()

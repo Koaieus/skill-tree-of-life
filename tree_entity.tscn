@@ -1,94 +1,118 @@
-[gd_scene load_steps=21 format=3 uid="uid://dcjpgyhts5inu"]
+[gd_scene load_steps=27 format=3 uid="uid://dcjpgyhts5inu"]
 
 [ext_resource type="Script" uid="uid://s5f18jfxg8sn" path="res://tree_entity.gd" id="1_fgaco"]
-[ext_resource type="Script" uid="uid://dvuuc7ytb0rla" path="res://stats/entity_stat_manager.gd" id="2_elqwa"]
+[ext_resource type="PackedScene" uid="uid://bhrilkottyfbm" path="res://stats/entity_stat_manager.tscn" id="2_1rubt"]
 [ext_resource type="Script" uid="uid://1p5k05vwjaf2" path="res://stats/entity_stats.gd" id="3_8281m"]
 [ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="3_g54k8"]
 [ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="4_au033"]
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="4_ovnba"]
 [ext_resource type="Script" uid="uid://csk0gjg3lplwk" path="res://stats/list/exp_stat.gd" id="5_au033"]
 [ext_resource type="Script" uid="uid://l4jhxvsxrrvy" path="res://stat_system/computed/int_stat.gd" id="6_au033"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="7_5ha82"]
 [ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_y7a68"]
+[ext_resource type="Script" uid="uid://bsee5glpbl28n" path="res://stats/list/initiative_stat.gd" id="8_1rubt"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_5ha82"]
+[ext_resource type="Script" uid="uid://cyj1ab3s8eihp" path="res://stat_system/computed/bool_stat.gd" id="11_nihcs"]
 
-[sub_resource type="Resource" id="Resource_1rubt"]
+[sub_resource type="Resource" id="Resource_606se"]
 script = ExtResource("3_g54k8")
 default_value = 0
 current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://gj017hef4u2b"
 
-[sub_resource type="Resource" id="Resource_au033"]
-script = ExtResource("6_au033")
-default_value = 0
-current_value = 0
-stat_modifiers = Array[ExtResource("4_au033")]([])
-
-[sub_resource type="Resource" id="Resource_y7a68"]
-script = ExtResource("6_au033")
-default_value = 0
-current_value = 0
-stat_modifiers = Array[ExtResource("4_au033")]([])
-
-[sub_resource type="Resource" id="Resource_5ha82"]
-script = ExtResource("5_au033")
-max = SubResource("Resource_au033")
-min = SubResource("Resource_y7a68")
-default_value = 0
-level = 1
-metadata/_custom_type_script = "uid://csk0gjg3lplwk"
-
-[sub_resource type="Resource" id="Resource_nihcs"]
-script = ExtResource("4_ovnba")
-default_value = 0
-current_value = 0
-stat_modifiers = Array[ExtResource("4_au033")]([])
-metadata/_custom_type_script = "uid://chokoff1ki83w"
-
 [sub_resource type="Resource" id="Resource_77k73"]
 script = ExtResource("6_au033")
-default_value = 0
+default_value = 20
 current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
-metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
 [sub_resource type="Resource" id="Resource_k6fnf"]
 script = ExtResource("6_au033")
 default_value = 0
 current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
-metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
-[sub_resource type="Resource" id="Resource_r78mo"]
-script = ExtResource("7_y7a68")
-current_value = 0
+[sub_resource type="Resource" id="Resource_bwjto"]
+script = ExtResource("5_au033")
 max = SubResource("Resource_77k73")
 min = SubResource("Resource_k6fnf")
 default_value = 0
-metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
+level = 1
+metadata/_custom_type_script = "uid://csk0gjg3lplwk"
+
+[sub_resource type="Resource" id="Resource_7ahtn"]
+script = ExtResource("7_5ha82")
+default_value = 10
+current_value = 10
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://b2ju8klaorw55"
+
+[sub_resource type="Resource" id="Resource_5tmop"]
+script = ExtResource("8_1rubt")
+progress = 0
+default_value = 20
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://bsee5glpbl28n"
+
+[sub_resource type="Resource" id="Resource_u1c27"]
+script = ExtResource("4_ovnba")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://chokoff1ki83w"
+
+[sub_resource type="Resource" id="Resource_r78mo"]
+script = ExtResource("11_nihcs")
+default_value = false
+current_value = false
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://cyj1ab3s8eihp"
 
 [sub_resource type="Resource" id="Resource_wcqib"]
+script = ExtResource("6_au033")
+default_value = 3
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_11lia"]
+script = ExtResource("6_au033")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_pylmc"]
+script = ExtResource("7_y7a68")
+current_value = 0
+max = SubResource("Resource_wcqib")
+min = SubResource("Resource_11lia")
+default_value = 1
+is_infinite = SubResource("Resource_r78mo")
+metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
+
+[sub_resource type="Resource" id="Resource_pbfsw"]
 script = ExtResource("8_5ha82")
 default_value = 0
 current_value = 0
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://cehpx155ql87x"
 
-[sub_resource type="Resource" id="Resource_8281m"]
+[sub_resource type="Resource" id="Resource_2gpvg"]
 script = ExtResource("3_8281m")
-experience = SubResource("Resource_5ha82")
-skill_points = SubResource("Resource_r78mo")
-strength = SubResource("Resource_wcqib")
-intelligence = SubResource("Resource_nihcs")
-dexterity = SubResource("Resource_1rubt")
+experience = SubResource("Resource_bwjto")
+experience_gain = SubResource("Resource_7ahtn")
+skill_points = SubResource("Resource_pylmc")
+initiative = SubResource("Resource_5tmop")
+strength = SubResource("Resource_pbfsw")
+intelligence = SubResource("Resource_u1c27")
+dexterity = SubResource("Resource_606se")
 metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="TreeEntity" type="Node" groups=["entities"]]
 script = ExtResource("1_fgaco")
 
-[node name="EntityStatsManager" type="Node" parent="."]
-script = ExtResource("2_elqwa")
-stats = SubResource("Resource_8281m")
-metadata/_custom_type_script = "uid://dvuuc7ytb0rla"
-
-[connection signal="initiative_ready" from="EntityStatsManager" to="." method="_on_initiative_ready_changed"]
+[node name="EntityStatsManager" parent="." instance=ExtResource("2_1rubt")]
+stats = SubResource("Resource_2gpvg")

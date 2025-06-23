@@ -14,7 +14,7 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 		var old_owner = owned_by
 		if new_owner != owned_by:
 			owned_by = new_owner
-			_on_update_owner(old_owner, new_owner)
+			#_on_update_owner(old_owner, new_owner)
 
 ## List of StatModifiers offered by this skill node upon allocation
 @export var modifiers: Array[NumberStatModifier] = []
@@ -44,9 +44,9 @@ func _ready() -> void:
 	update_color()
 
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
+## Called every frame. 'delta' is the elapsed time since the previous frame.
+#func _process(delta: float) -> void:
+	#pass
 
 func _recalculate_neighbors():
 	neighbors.assign(
@@ -62,27 +62,28 @@ func add_neighbor(new_neighbor: TreeNode) -> void:
 func remove_neighbor(neighbor_to_remove: TreeNode) -> void:
 	neighbors.erase(neighbor_to_remove)
 
-func _on_update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
-	if old_owner:
-		deallocate_from(old_owner)
-	if new_owner:
-		allocate_to(new_owner)
-	else:
-		clear_owner()
+#func _on_update_owner(old_owner: TreeEntity, new_owner: TreeEntity) -> void:
+	#if old_owner:
+		#deallocate_from(old_owner)
+	#if new_owner:
+		#allocate_to(new_owner)
+	#else:
+		#clear_owner()
 
 
 func allocate_to(entity: TreeEntity):
-	prints(self, 'allocates to:', entity)
+	prints('[ALLOCATION]:', self, 'allocates to:', entity)
+	owned_by = entity
 	update_color()
 	if not entity._stats:
-		print('can\'t allocate: no stats')
+		print('[ALLOCATION]: can\'t allocate: no stats')
 		return
 	for mod: StatModifier in modifiers:
 		entity._stats.add_stat_modifier(mod)
 	allocated.emit(entity)
 	
 func deallocate_from(entity: TreeEntity):
-	prints(self, 'deallocates from:', entity)
+	prints('[ALLOCATION]:', self, 'deallocates from:', entity)
 	update_color()
 	if not entity._stats:
 		return
@@ -153,6 +154,7 @@ func _on_icon_pressed() -> void:
 		return # Already owned
 		
 	# ToDo: replace with emitting one of Game's signals
+	#allocate_to(Game.player)
 	Game.player.allocate_skill_node(self)
 
 
@@ -180,8 +182,9 @@ func compute_local_entities():
 
 ## Checks list of TreeEntity children and maybe update owner accordingly
 func handle_local_entities():
-	if local_entities.size() == 1:
-		owned_by = local_entities[0]
-	elif local_entities.size() > 1:
+	#if local_entities.size() == 1:
+		#owned_by = local_entities[0]
+	#el
+	if local_entities.size() > 1:
 		push_error('Multiple TreeEntities as children of a single TreeNode')
 		

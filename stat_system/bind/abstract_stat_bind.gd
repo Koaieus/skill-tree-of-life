@@ -51,12 +51,12 @@ func _ready() -> void:
 
 func bind() -> void:
 	if mode == Mode.BIND_STAT:
-		StatUtils.bind_stat(target, property_to_bind, stat_key, _stats_manager)	
+		StatUtils.bind_stat(target, property_to_bind, stat_key, _stats_manager)
 	elif mode == Mode.BIND_VALUE:
 		_on_stat_value_changed = StatUtils.bind_stat_value(target, property_to_bind, stat_key, _stats_manager)
 
 func unbind() -> void:
 	if mode == Mode.BIND_STAT:
-		StatUtils.unbind_stat(target, property_to_bind)	
+		StatUtils.unbind_stat(target, property_to_bind)
 	elif mode == Mode.BIND_VALUE:
 		StatUtils.unbind_stat_value(target, property_to_bind, _on_stat_value_changed)

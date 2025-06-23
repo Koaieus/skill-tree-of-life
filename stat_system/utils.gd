@@ -33,7 +33,7 @@ static func bind_stat(target: Object, property: String, stat_key: GDScript, stat
 	if target_value == _stat:
 		return
 	
-	#print('[BIND]: Setting %s of %s to %s' % [property, target, _stat])
+	print('[BIND %s]: Setting %s of %s to %s' % [_stat.name, property, target, _stat])
 	target.set(property, _stat)
 
 

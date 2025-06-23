@@ -6,9 +6,6 @@ signal value_changed
 
 const STAT_ROW := preload("res://gui/stats_panel/row/stat_row.tscn")
 
-#@export var abbreviation: String = ""
-#@export var description: String = ""
-
 
 ## The parent `Stats` board object
 var parent: Stats
@@ -67,8 +64,8 @@ var description: String:
 ## Lookup metadata unless static var cache has been set
 func get_metadata() -> StatMetaData:
 	if not meta:
-		if not StatMetaDataRepository.is_node_ready():
-			return FALLBACK
+		#if not StatMetaDataRepository.is_node_ready():
+			#return FALLBACK
 		_meta = StatMetaDataRepository.get_by_key(get_script())
 	return _meta
 	
@@ -101,15 +98,3 @@ func notify_value_changed() -> void:
 	notify_property_list_changed()
 	print_debug('[%s]: EMITTING value_changed' % [name])
 	value_changed.emit()
-
-###
-# STAT MODIFIERS
-###
-#func add_stat_modifier(stat_modifier) -> void:
-	#pass
-#
-#func remove_stat_modifier(stat_modifier) -> void:
-	#pass
-#
-#func clear_stat_modifiers() -> void:
-	#pass

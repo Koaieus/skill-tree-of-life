@@ -40,47 +40,29 @@ func initialize() -> void:
 	#StatUtils.connect_if_not_connected(_min.increased, _on_min_increased)
 	#StatUtils.connect_if_not_connected(_min.decreased, _on_min_decreased)
 
-	#SignalUtils.connect_if_not_connected(_max.increased, _on_max_increased)
-	#SignalUtils.connect_if_not_connected(_max.decreased, _on_max_decreased)
-	#SignalUtils.connect_if_not_connected(_min.value_changed, update_value)
-
 func set_default_value(_default_value) -> void:
 	base_value = _default_value
 
-	if _max == null or _min == null:
-		return
-	
-	initialize()
+	if _max and _min:
+		initialize()
+		
 
 func set_value(new_value) -> void:
-	print('%s: set_value(%s -> %s) @ %s' % [name, value, new_value, resource_name])
+	print('%s: set_value(%s -> %s)' % [name, value, new_value])
 
 	if is_infinite != null and is_infinite.value:
 		return
 	
 	var previous = _value
-	var original = new_value
-	new_value = clamp(new_value, _min.value, _max.value)
-	print('clamped value %s to %s (min: %s, max: %s)' % [original, new_value, _min.value, _max.value])
-	super(new_value)
 
-	# Check if we need to emit a signal related to change in value
-	if previous == null:
-		return
-	var amount = new_value - previous
-
-	if amount > 0:
-		increased.emit(new_value, amount)
-	elif amount < 0:
-		decreased.emit(new_value, amount)
+	if previous != null:
+		new_value = _clamp_value(new_value)
+		super(new_value)
+		_emit_difference(previous, new_value)
+		_emit_extremities()
 	else:
-		return
-
-	if is_empty():
-		depleted.emit()
-	elif is_full():
-		replenished.emit()
-
+		print('[%s]: setting new value (previous was null) to %s' % [name, new_value])
+		super(new_value)
 
 func decrease(to_decrease) -> void:
 	_value -= to_decrease
@@ -100,3 +82,25 @@ func is_full() -> bool:
 
 func is_empty() -> bool:
 	return _min.value == _value
+	
+func _clamp_value(v):
+	var clamped = clamp(v, _min.value, _max.value)
+	print(
+		'clamped value %s to %s (min: %s, max: %s)' % [v, clamped, _min.value if _min else 'N/A', _max.value if _max else 'N/A']
+	)
+	return clamped
+
+
+func _emit_difference(old_value, new_value) -> void:
+	var amount = new_value - old_value
+	if amount > 0:
+		increased.emit(new_value, amount)
+	elif amount < 0:
+		decreased.emit(new_value, amount)
+
+## Emits `replenished` (if full) or `depleted` (if empty)
+func _emit_extremities() -> void:	
+	if is_empty():
+		depleted.emit()
+	elif is_full():
+		replenished.emit()

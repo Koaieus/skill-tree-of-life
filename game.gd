@@ -5,7 +5,7 @@ class_name GameManager
 signal game_ready
 signal turn_ended(for_entity: TreeEntity)
 signal turn_started(for_entity: TreeEntity)
-signal player_selected(new_player: Player)
+signal main_player_selected(new_player: Player)
 #signal player_stats_changed(new_stats: Stats)
 
 
@@ -20,14 +20,7 @@ signal player_selected(new_player: Player)
 	set(v):
 		if v and player != v:
 			player = v
-			print('aaaaaaaaaaaaaaaaaaaaaaaaa')
-			player_selected.emit(player)
-			#player.stats.stats_changed.connect(
-				#func(stats: Stats):
-					#print('BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB')
-					##player_stats_changed.emit(stats)
-			#)
-
+			main_player_selected.emit(player)
 
 func _on_game_ready() -> void:
 	initialize_main_player()

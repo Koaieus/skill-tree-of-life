@@ -30,10 +30,12 @@ class_name StatRowBase
 			return
 		if stat:
 			stat.value_changed.disconnect(_on_stat_value_changed)
-		stat = value
-		if stat:
+		if value:
+			value.value_changed.connect(_on_stat_value_changed)
+			if 'level' in value:
+				print('[%s]: LEVEL @ BIND = %s' % [value.name, value.level])
 			_on_stat_value_changed()
-			stat.value_changed.connect(_on_stat_value_changed)
+		stat = value
 		notify_property_list_changed()
 
 @onready var stat_bind: StatBind = %StatBind
@@ -61,16 +63,17 @@ func compute() -> void:
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	initialize_binding()
+	#Game.game_ready.connect(func(): Game.turn_manager.ticked.connect(compute))
 	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
 	
 func initialize_binding() -> void:
-	if not stat_manager or not stat_key or not stat_bind:
+	if stat_manager is not StatsManager or not stat_key or not stat_bind:
 		return
-	if stat_manager is not StatsManager:
-		push_error('ERROR: %s is not a StatsManager' % stat_manager)
+	#if stat_manager is not StatsManager:
+		#push_error('ERROR: %s is not a StatsManager' % stat_manager)
 	
 	#print('Initializing binding of %s to %s' % [stat_key.get_global_name, stat_manager])
 	stat_bind.stats_manager = stat_manager

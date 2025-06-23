@@ -14,7 +14,7 @@
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_bwjto"]
 [ext_resource type="Script" uid="uid://bsee5glpbl28n" path="res://stats/list/initiative_stat.gd" id="10_606se"]
 
-[sub_resource type="Resource" id="Resource_606se"]
+[sub_resource type="Resource" id="Resource_bwjto"]
 script = ExtResource("3_b26j0")
 default_value = 0
 current_value = 0
@@ -23,7 +23,7 @@ metadata/_custom_type_script = "uid://gj017hef4u2b"
 
 [sub_resource type="Resource" id="Resource_ivps1"]
 script = ExtResource("6_ivps1")
-default_value = 0
+default_value = 20
 current_value = 0
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 
@@ -33,22 +33,22 @@ default_value = 0
 current_value = 0
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 
-[sub_resource type="Resource" id="Resource_bwjto"]
+[sub_resource type="Resource" id="Resource_606se"]
 script = ExtResource("6_nvl01")
 max = SubResource("Resource_ivps1")
 min = SubResource("Resource_urp6f")
 default_value = 200
-level = 1
+level = -1
 metadata/_custom_type_script = "uid://csk0gjg3lplwk"
 
-[sub_resource type="Resource" id="Resource_7ahtn"]
+[sub_resource type="Resource" id="Resource_u1c27"]
 script = ExtResource("6_urp6f")
 default_value = 10
 current_value = 10
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 metadata/_custom_type_script = "uid://b2ju8klaorw55"
 
-[sub_resource type="Resource" id="Resource_5tmop"]
+[sub_resource type="Resource" id="Resource_pylmc"]
 script = ExtResource("10_606se")
 progress = 0
 default_value = 20
@@ -56,7 +56,7 @@ current_value = 0
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 metadata/_custom_type_script = "uid://bsee5glpbl28n"
 
-[sub_resource type="Resource" id="Resource_u1c27"]
+[sub_resource type="Resource" id="Resource_pbfsw"]
 script = ExtResource("4_n7ghd")
 default_value = 0
 current_value = 0
@@ -84,7 +84,7 @@ current_value = 0
 stat_modifiers = Array[ExtResource("4_b26j0")]([])
 metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
 
-[sub_resource type="Resource" id="Resource_pylmc"]
+[sub_resource type="Resource" id="Resource_5tmop"]
 script = ExtResource("7_urp6f")
 current_value = 0
 max = SubResource("Resource_op7ga")
@@ -93,7 +93,7 @@ default_value = 3
 is_infinite = SubResource("Resource_nvl01")
 metadata/_custom_type_script = "uid://0ot8vtmgh6iq"
 
-[sub_resource type="Resource" id="Resource_pbfsw"]
+[sub_resource type="Resource" id="Resource_7ahtn"]
 script = ExtResource("8_bwjto")
 default_value = 0
 current_value = 0
@@ -102,13 +102,13 @@ metadata/_custom_type_script = "uid://cehpx155ql87x"
 
 [sub_resource type="Resource" id="Resource_7lmhl"]
 script = ExtResource("5_nvl01")
-experience = SubResource("Resource_bwjto")
-experience_gain = SubResource("Resource_7ahtn")
-skill_points = SubResource("Resource_pylmc")
-initiative = SubResource("Resource_5tmop")
-strength = SubResource("Resource_pbfsw")
-intelligence = SubResource("Resource_u1c27")
-dexterity = SubResource("Resource_606se")
+experience = SubResource("Resource_606se")
+experience_gain = SubResource("Resource_u1c27")
+skill_points = SubResource("Resource_5tmop")
+initiative = SubResource("Resource_pylmc")
+strength = SubResource("Resource_7ahtn")
+intelligence = SubResource("Resource_pbfsw")
+dexterity = SubResource("Resource_bwjto")
 metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="Player" type="Node" groups=["entities", "players"]]

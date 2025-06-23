@@ -6,7 +6,7 @@
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_tgb0x"]
 
-[node name="StatRow" type="HBoxContainer"]
+[node name="StatRowBar" type="HBoxContainer"]
 custom_minimum_size = Vector2(100, 30)
 offset_right = 241.0
 offset_bottom = 30.0
@@ -31,6 +31,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/shadow_outline_size = 3
 text = "<skill text>"
+
+[node name="LabelValue" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_constants/shadow_outline_size = 3
+text = "<null>"
 
 [node name="ProgressBar" parent="." instance=ExtResource("3_o3h2y")]
 unique_name_in_owner = true
