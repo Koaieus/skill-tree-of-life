@@ -2,7 +2,7 @@ extends IntPoolStat
 class_name HealthPoolStat
 
 
-const STAT_ROW_BAR = preload("res://gui/stats_panel/row/stat_row_bar.tscn")
+const STAT_ROW_BAR = preload("res://ui/stats_panel/row/stat_row_bar.tscn")
 
 
 func _get_stat_row_resource():

@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3 uid="uid://c32gtps8w0e84"]
+
+[ext_resource type="Script" uid="uid://dadsh6eqabjcg" path="res://scenes/game_root.gd" id="1_78s5d"]
+
+[node name="GameRoot" type="Node"]
+script = ExtResource("1_78s5d")
+
+[node name="LevelLayer" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="UILayer" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0

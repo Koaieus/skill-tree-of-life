@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://c11i54435huk3"]
 
-[ext_resource type="Script" uid="uid://ixsokb3ah1bd" path="res://gui/stats_panel/row/stat_row.gd" id="1_6ty8x"]
+[ext_resource type="Script" uid="uid://ixsokb3ah1bd" path="res://ui/stats_panel/row/stat_row.gd" id="1_6ty8x"]
 [ext_resource type="Script" uid="uid://b73huwktlk1v8" path="res://stat_system/bind/stat_bind.gd" id="2_vftgp"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_tgb0x"]

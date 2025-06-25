@@ -2,7 +2,7 @@
 extends IntGrowablePoolStat
 class_name ExpStat
 
-const STAT_ROW_BAR = preload("res://gui/stats_panel/row/stat_row_bar.tscn")
+const STAT_ROW_BAR = preload("res://ui/stats_panel/row/stat_row_bar.tscn")
 
 
 func grow():

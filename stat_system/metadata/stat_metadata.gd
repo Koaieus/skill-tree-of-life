@@ -11,4 +11,4 @@ class_name StatMetaData
 @export_multiline var description: String = ''
 
 ## Ordering amongst stats
-@export_range(0, 999) var order: int = 100
+@export_range(0, 999, 1) var order: int = 100

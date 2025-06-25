@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://b0i5wlc44yt47"]
+[gd_scene load_steps=21 format=3 uid="uid://b0i5wlc44yt47"]
 
 [ext_resource type="Script" uid="uid://bt440sdyvbrvg" path="res://autoload/stat_metadata_repository.gd" id="1_bcx1n"]
 [ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/metadata/stat_metadata.gd" id="2_uj3ek"]
@@ -10,6 +10,8 @@
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="8_bn2rn"]
 [ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="9_mvhmh"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="10_0eksc"]
+[ext_resource type="Script" uid="uid://6riwuf1wd78b" path="res://stat_system/stat.gd" id="11_iwi73"]
+[ext_resource type="Resource" uid="uid://ofwrba3yajmh" path="res://stat_system/metadata/fallback_metadata.tres" id="12_ah6a3"]
 
 [sub_resource type="Resource" id="Resource_fjw8v"]
 script = ExtResource("2_uj3ek")
@@ -77,5 +79,6 @@ ExtResource("6_j6ndt"): SubResource("Resource_gkuli"),
 ExtResource("7_esjds"): SubResource("Resource_5vwfg"),
 ExtResource("8_bn2rn"): SubResource("Resource_f08ux"),
 ExtResource("9_mvhmh"): SubResource("Resource_3m0mw"),
-ExtResource("10_0eksc"): SubResource("Resource_pb10q")
+ExtResource("10_0eksc"): SubResource("Resource_pb10q"),
+ExtResource("11_iwi73"): ExtResource("12_ah6a3")
 })

@@ -31,7 +31,7 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 @export var vision_range: int = 100
 
 ## Tooltip resource [preloaded]
-@onready var tool_tip: PackedScene = preload("res://gui/tooltip.tscn")
+@onready var tool_tip: PackedScene = preload("res://ui/tooltip.tscn")
 
 ## Point ID for use in A* implementation
 var point_id: int = -1

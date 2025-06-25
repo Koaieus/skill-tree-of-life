@@ -4,7 +4,7 @@ class_name Stat
 
 signal value_changed
 
-const STAT_ROW := preload("res://gui/stats_panel/row/stat_row.tscn")
+const STAT_ROW := preload("res://ui/stats_panel/row/stat_row.tscn")
 
 
 ## The parent `Stats` board object

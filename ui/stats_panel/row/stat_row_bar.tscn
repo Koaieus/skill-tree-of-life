@@ -1,8 +1,8 @@
 [gd_scene load_steps=5 format=3 uid="uid://dfqimu1yhnoc2"]
 
-[ext_resource type="Script" uid="uid://cn51sv46mi21l" path="res://gui/stats_panel/row/stat_row_bar.gd" id="1_dhyo3"]
+[ext_resource type="Script" uid="uid://cn51sv46mi21l" path="res://ui/stats_panel/row/stat_row_bar.gd" id="1_dhyo3"]
 [ext_resource type="Script" uid="uid://b73huwktlk1v8" path="res://stat_system/bind/stat_bind.gd" id="2_7snsq"]
-[ext_resource type="PackedScene" uid="uid://bcehc3jn4baxh" path="res://gui/progress_bar_decorated.tscn" id="3_o3h2y"]
+[ext_resource type="PackedScene" uid="uid://bcehc3jn4baxh" path="res://ui/progress_bar_decorated.tscn" id="3_o3h2y"]
 
 [sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_tgb0x"]
 

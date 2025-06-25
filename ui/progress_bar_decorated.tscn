@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://bcehc3jn4baxh"]
 
 [ext_resource type="Texture2D" uid="uid://bsn2hke1bb817" path="res://assets/border1.png" id="1_44pad"]
-[ext_resource type="Script" uid="uid://dtkap4d0htbea" path="res://gui/progress_bar_decorated.gd" id="2_upqhh"]
+[ext_resource type="Script" uid="uid://dtkap4d0htbea" path="res://ui/progress_bar_decorated.gd" id="2_upqhh"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_iwajc"]
 

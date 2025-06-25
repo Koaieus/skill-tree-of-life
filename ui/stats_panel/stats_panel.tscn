@@ -1,7 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://v6qyh4e3dro3"]
+[gd_scene load_steps=4 format=3 uid="uid://de731pyqvgh25"]
 
-[ext_resource type="Script" uid="uid://bwm7yqc05346x" path="res://gui/stats_panel/stats_panel.gd" id="1_uf4co"]
-[ext_resource type="PackedScene" uid="uid://c11i54435huk3" path="res://gui/stats_panel/row/stat_row.tscn" id="2_cwrdp"]
+[ext_resource type="Script" uid="uid://bwm7yqc05346x" path="res://ui/stats_panel/stats_panel.gd" id="1_iblab"]
+[ext_resource type="PackedScene" uid="uid://c11i54435huk3" path="res://ui/stats_panel/row/stat_row.tscn" id="2_h7nn3"]
 
 [sub_resource type="SystemFont" id="SystemFont_h7nn3"]
 font_names = PackedStringArray("Fantasy")
@@ -12,7 +12,7 @@ subpixel_positioning = 0
 [node name="StatsPanel" type="PanelContainer"]
 offset_right = 136.0
 offset_bottom = 53.0
-script = ExtResource("1_uf4co")
+script = ExtResource("1_iblab")
 
 [node name="MarginContainer" type="MarginContainer" parent="."]
 layout_mode = 2
@@ -57,5 +57,5 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="StatRow" parent="MarginContainer/StatsPanel/ScrollContainer/StatsList" instance=ExtResource("2_cwrdp")]
+[node name="StatRow" parent="MarginContainer/StatsPanel/ScrollContainer/StatsList" instance=ExtResource("2_h7nn3")]
 layout_mode = 2

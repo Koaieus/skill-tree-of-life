@@ -1,8 +1,0 @@
-[gd_resource type="Resource" script_class="ModOperator" load_steps=2 format=3 uid="uid://pb84aykkflvs"]
-
-[ext_resource type="Script" uid="uid://bxqqg02pfiyjy" path="res://bork/mod_operator.gd" id="1_x24lk"]
-
-[resource]
-script = ExtResource("1_x24lk")
-name = "Increment"
-format = "+{amount} {stat}"

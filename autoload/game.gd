@@ -2,11 +2,12 @@
 extends Node
 class_name GameManager
 
+
 signal game_ready
+signal game_over
 signal turn_ended(for_entity: TreeEntity)
 signal turn_started(for_entity: TreeEntity)
 signal main_player_selected(new_player: Player)
-#signal player_stats_changed(new_stats: Stats)
 
 
 @export var tree_graph: TreeGraph
