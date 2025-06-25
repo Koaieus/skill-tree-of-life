@@ -1,6 +1,81 @@
-[gd_scene load_steps=2 format=3 uid="uid://b0i5wlc44yt47"]
+[gd_scene load_steps=19 format=3 uid="uid://b0i5wlc44yt47"]
 
 [ext_resource type="Script" uid="uid://bt440sdyvbrvg" path="res://autoload/stat_metadata_repository.gd" id="1_bcx1n"]
+[ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/metadata/stat_metadata.gd" id="2_uj3ek"]
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="3_qllhy"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="4_iwi73"]
+[ext_resource type="Script" uid="uid://csk0gjg3lplwk" path="res://stats/list/exp_stat.gd" id="5_ah6a3"]
+[ext_resource type="Script" uid="uid://c6qg1flohao7i" path="res://stats/list/health_pool_stat.gd" id="6_j6ndt"]
+[ext_resource type="Script" uid="uid://bsee5glpbl28n" path="res://stats/list/initiative_stat.gd" id="7_esjds"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="8_bn2rn"]
+[ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="9_mvhmh"]
+[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="10_0eksc"]
+
+[sub_resource type="Resource" id="Resource_fjw8v"]
+script = ExtResource("2_uj3ek")
+name = "Dexterity"
+abbreviation = "DEX"
+description = ""
+order = 300
+
+[sub_resource type="Resource" id="Resource_fshf2"]
+script = ExtResource("2_uj3ek")
+name = "Experience per turn"
+abbreviation = "XP/turn"
+description = ""
+order = 201
+
+[sub_resource type="Resource" id="Resource_4a3rd"]
+script = ExtResource("2_uj3ek")
+name = "Experience"
+abbreviation = "XP"
+description = ""
+order = 200
+
+[sub_resource type="Resource" id="Resource_gkuli"]
+script = ExtResource("2_uj3ek")
+name = "Health"
+abbreviation = "HP"
+description = ""
+order = 50
+
+[sub_resource type="Resource" id="Resource_5vwfg"]
+script = ExtResource("2_uj3ek")
+name = "Initiative"
+abbreviation = "INIT"
+description = "Initiative grants turn progress each turn"
+order = 250
+
+[sub_resource type="Resource" id="Resource_f08ux"]
+script = ExtResource("2_uj3ek")
+name = "Intelligence"
+abbreviation = "INT"
+description = ""
+order = 310
+
+[sub_resource type="Resource" id="Resource_3m0mw"]
+script = ExtResource("2_uj3ek")
+name = "Skill points"
+abbreviation = "SkillPts"
+description = ""
+order = 100
+
+[sub_resource type="Resource" id="Resource_pb10q"]
+script = ExtResource("2_uj3ek")
+name = "Strength"
+abbreviation = "STR"
+description = ""
+order = 320
 
 [node name="StatMetadataRepository" type="Node"]
 script = ExtResource("1_bcx1n")
+repository = Dictionary[GDScript, ExtResource("2_uj3ek")]({
+ExtResource("3_qllhy"): SubResource("Resource_fjw8v"),
+ExtResource("4_iwi73"): SubResource("Resource_fshf2"),
+ExtResource("5_ah6a3"): SubResource("Resource_4a3rd"),
+ExtResource("6_j6ndt"): SubResource("Resource_gkuli"),
+ExtResource("7_esjds"): SubResource("Resource_5vwfg"),
+ExtResource("8_bn2rn"): SubResource("Resource_f08ux"),
+ExtResource("9_mvhmh"): SubResource("Resource_3m0mw"),
+ExtResource("10_0eksc"): SubResource("Resource_pb10q")
+})

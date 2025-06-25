@@ -17,8 +17,8 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-StatMetaDataRepository="*res://autoload/stat_metadata_repository.tscn"
 DeferOnce="*res://utils/defer_once.tscn"
+StatMetaDataRepository="*res://autoload/stat_metadata_repository.tscn"
 Skills="res://skills.tscn"
 Game="*res://autoload/game.tscn"
 
