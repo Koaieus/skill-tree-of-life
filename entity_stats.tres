@@ -34,7 +34,7 @@ stat_modifiers = Array[ExtResource("2_13l01")]([])
 script = ExtResource("4_rbymh")
 max = SubResource("Resource_ivps1")
 min = SubResource("Resource_urp6f")
-default_value = 123
+default_value = 0
 level = 1
 metadata/_custom_type_script = "uid://csk0gjg3lplwk"
 

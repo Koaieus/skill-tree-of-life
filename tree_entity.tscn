@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3 uid="uid://dcjpgyhts5inu"]
+[gd_scene load_steps=31 format=3 uid="uid://dcjpgyhts5inu"]
 
 [ext_resource type="Script" uid="uid://s5f18jfxg8sn" path="res://tree_entity.gd" id="1_fgaco"]
 [ext_resource type="PackedScene" uid="uid://bhrilkottyfbm" path="res://stats/entity_stat_manager.tscn" id="2_1rubt"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://0ot8vtmgh6iq" path="res://stats/list/skill_point_pool_stat.gd" id="7_y7a68"]
 [ext_resource type="Script" uid="uid://bsee5glpbl28n" path="res://stats/list/initiative_stat.gd" id="8_1rubt"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="8_5ha82"]
+[ext_resource type="Script" uid="uid://c6qg1flohao7i" path="res://stats/list/health_pool_stat.gd" id="8_nihcs"]
 [ext_resource type="Script" uid="uid://cyj1ab3s8eihp" path="res://stat_system/computed/bool_stat.gd" id="11_nihcs"]
 
 [sub_resource type="Resource" id="Resource_606se"]
@@ -47,6 +48,28 @@ default_value = 10
 current_value = 10
 stat_modifiers = Array[ExtResource("4_au033")]([])
 metadata/_custom_type_script = "uid://b2ju8klaorw55"
+
+[sub_resource type="Resource" id="Resource_cyjpu"]
+script = ExtResource("6_au033")
+default_value = 10
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_5ltq4"]
+script = ExtResource("6_au033")
+default_value = 0
+current_value = 0
+stat_modifiers = Array[ExtResource("4_au033")]([])
+metadata/_custom_type_script = "uid://l4jhxvsxrrvy"
+
+[sub_resource type="Resource" id="Resource_xmq2q"]
+script = ExtResource("8_nihcs")
+current_value = 0
+max = SubResource("Resource_cyjpu")
+min = SubResource("Resource_5ltq4")
+default_value = -1
+metadata/_custom_type_script = "uid://c6qg1flohao7i"
 
 [sub_resource type="Resource" id="Resource_5tmop"]
 script = ExtResource("8_1rubt")
@@ -109,6 +132,7 @@ initiative = SubResource("Resource_5tmop")
 strength = SubResource("Resource_pbfsw")
 intelligence = SubResource("Resource_u1c27")
 dexterity = SubResource("Resource_606se")
+health = SubResource("Resource_xmq2q")
 metadata/_custom_type_script = "uid://1p5k05vwjaf2"
 
 [node name="TreeEntity" type="Node" groups=["entities"]]

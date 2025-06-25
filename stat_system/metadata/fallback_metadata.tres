@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatMetaData" load_steps=2 format=3 uid="uid://ofwrba3yajmh"]
+
+[ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/metadata/stat_metadata.gd" id="1_32dlt"]
+
+[resource]
+resource_name = "StatMetadataFallback"
+script = ExtResource("1_32dlt")
+name = "<anonymous stat>"
+abbreviation = "???"
+description = ""
+order = 999
+metadata/_custom_type_script = "uid://c2lhfevy5egoo"

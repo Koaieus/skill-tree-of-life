@@ -43,7 +43,7 @@ func get_value():
 ## Static metadata cache var
 static var _meta: StatMetaData = null
 
-var FALLBACK: StatMetaData = preload("res://stat_system/fallback_metadata.tres")
+var FALLBACK: StatMetaData = preload("res://stat_system/metadata/fallback_metadata.tres")
 
 ## MetaData descriptor (readonly)
 var meta: StatMetaData = null:
@@ -89,7 +89,7 @@ func _generate_row(manager: StatsManager) -> StatRowBase:
 	#print('Setting stat key to %s' % get_key())
 	row.stat_key = get_key()
 	#print('Setting stat text display to %s' % name)
-	row.text_display = name
+	row.text_display = abbreviation
 	#row.value_display = "%s" % [display_value()]
 	#print('Final settings: %s %s %s %s' % [row.stat_manager, row.stat_key, row.text_display, row.value_display])
 	return row

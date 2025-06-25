@@ -9,3 +9,6 @@ class_name StatMetaData
 
 ## Description of a stat
 @export_multiline var description: String = ''
+
+## Ordering amongst stats
+@export var order: int = 100

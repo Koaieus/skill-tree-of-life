@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c7fdagkm33r61"]
+
+[ext_resource type="Script" uid="uid://bveiq4bgu00o2" path="res://utils/defer_once.gd" id="1_mbepr"]
+
+[node name="DeferOnce" type="Node"]
+script = ExtResource("1_mbepr")

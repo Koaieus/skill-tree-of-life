@@ -35,7 +35,7 @@ func initialize():
 	if not player._stats:
 		return
 	var stat_manager: StatsManager = player._stats
-	for stat in stat_manager.stats.get_stats():
+	for stat in stat_manager.stats.get_stats(true):
 		#print('Generating row for %s...' % stat.name)
 		var row := stat._generate_row(stat_manager)
 		%StatsList.add_child(row)

@@ -4,9 +4,7 @@ class_name StatRowBar
 @onready var label_value: Label = $LabelValue
 @onready var progress_bar: DecoratedProgressBar = %ProgressBar
 
-func compute() -> void:
-	if not is_node_ready():
-		return
+func _compute() -> void:
 	if "level" in stat:
 		label_value.text = "Lv. %s" % stat.level
 	else:

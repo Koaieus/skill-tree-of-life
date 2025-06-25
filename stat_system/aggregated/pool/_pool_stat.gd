@@ -30,6 +30,9 @@ func _on_min_decreased(_max_value, decrease_amount) -> void:
 
 
 func initialize() -> void:
+	DeferOnce.defer_once(_initialize)
+	
+func _initialize() -> void:
 	if base_value == -1:
 		base_value = _max.value
 	

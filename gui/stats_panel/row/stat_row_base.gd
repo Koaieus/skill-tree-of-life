@@ -58,12 +58,15 @@ func _on_stat_value_changed():
 
 ## Update this row according to current stat properties
 func compute() -> void:
+	DeferOnce.defer_once(_compute)
+
+func _compute() -> void:
 	pass
 	
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	initialize_binding()
-	#Game.game_ready.connect(func(): Game.turn_manager.ticked.connect(compute))
+	compute()
 	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:

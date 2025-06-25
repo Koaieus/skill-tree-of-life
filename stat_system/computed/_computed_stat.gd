@@ -14,6 +14,9 @@ func get_value():
 
 # (Re-)compute the computed value
 func compute() -> void:
+	DeferOnce.defer_once(_compute)
+
+func _compute() -> void:
 	print('>> Computing stat "%s"' % name)
 	# Save current value as previous
 	var previous = _value
@@ -80,13 +83,13 @@ func clear_stat_modifiers() -> void:
 		stat_modifier.apply_count_changed.disconnect(compute)
 
 	stat_modifiers.clear()
-	compute()
+	_compute()
 	
 func _on_after_modifier_application(value):
 	return value
 	
 func _on_base_value_changed(new_value, old_value):
-	compute()
+	_compute()
 
 #endregion
 

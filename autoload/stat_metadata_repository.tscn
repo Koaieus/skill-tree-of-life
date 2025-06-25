@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://b0i5wlc44yt47"]
+
+[ext_resource type="Script" uid="uid://bt440sdyvbrvg" path="res://autoload/stat_metadata_repository.gd" id="1_bcx1n"]
+
+[node name="StatMetadataRepository" type="Node"]
+script = ExtResource("1_bcx1n")

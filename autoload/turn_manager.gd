@@ -29,7 +29,7 @@ func request_turn_cycle() -> void:
 func _get_ready_entities() -> Array[TreeEntity]:
 	var ready: Array[TreeEntity] = []
 	for entity: TreeEntity in _get_all_active_entities():
-		if entity._stats._stats.initiative.progress >= 100:
+		if entity.stats.initiative.progress >= 100:
 			ready.append(entity)
 	return ready
 

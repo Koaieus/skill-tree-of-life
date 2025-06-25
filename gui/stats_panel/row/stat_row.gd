@@ -23,7 +23,7 @@ func _ready() -> void:
 func _get_display_value_from_stat() -> String:
 	return stat.display_value()
 
-func compute() -> void:
+func _compute() -> void:
 	if not stat:
 		return
 	value_display = _get_display_value_from_stat()

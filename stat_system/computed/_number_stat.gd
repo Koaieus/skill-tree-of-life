@@ -7,7 +7,7 @@ signal decreased(value: Variant, amount: Variant)
 var _multiplier: float = 1.0
 
 
-func compute() -> void:
+func _compute() -> void:
 	#if not StatMetaDataRepository.has_method("get_metadata"):
 		#return
 	#if base_value == null:

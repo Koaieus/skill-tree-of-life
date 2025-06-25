@@ -51,9 +51,14 @@ func get_map_from_list() -> Dictionary:
 	return new_map
 
 ## Get the look up table as an array
-func get_stats() -> Array[Stat]:
+func get_stats(sorted: bool = false) -> Array[Stat]:
 	var array: Array[Stat]
 	array.assign(map.values())
+	if sorted:
+		array.sort_custom(
+			func(a: Stat, b: Stat): 
+				return StatMetaDataRepository.get_by_key(a.get_key()).order < StatMetaDataRepository.get_by_key(b.get_key()).order
+		)
 	return array
 
 ## Get a specific stat by it's key
