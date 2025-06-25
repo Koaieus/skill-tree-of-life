@@ -1,18 +1,318 @@
-[gd_scene load_steps=2 format=3 uid="uid://c32gtps8w0e84"]
+[gd_scene load_steps=26 format=3 uid="uid://c32gtps8w0e84"]
 
 [ext_resource type="Script" uid="uid://dadsh6eqabjcg" path="res://scenes/game_root.gd" id="1_78s5d"]
+[ext_resource type="PackedScene" uid="uid://blggy3l3728dn" path="res://systems/turn_manager.tscn" id="2_i7pw8"]
+[ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://graph/tree_graph.tscn" id="2_ywsqi"]
+[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="3_i7pw8"]
+[ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="4_x5456"]
+[ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="5_6puu6"]
+[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="6_k6861"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="7_x42w8"]
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="8_1vvmy"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="9_0aloa"]
+[ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="10_35vvr"]
+[ext_resource type="Script" uid="uid://cjce8d5f3u662" path="res://stat_system/modifier/incremental_stat_modifier.gd" id="11_so1mv"]
+[ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://ui/stats_panel/stats_panel.tscn" id="12_6y7e7"]
+[ext_resource type="PackedScene" uid="uid://symm61ggw3xx" path="res://ui/end_turn_button.tscn" id="13_0ns5a"]
+
+[sub_resource type="Resource" id="Resource_w48qg"]
+script = ExtResource("5_6puu6")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("6_k6861")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_vivmo"]
+script = ExtResource("5_6puu6")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("7_x42w8")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_2cqfq"]
+script = ExtResource("5_6puu6")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("8_1vvmy")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_cegan"]
+script = ExtResource("5_6puu6")
+operation_value = 20
+operation = 10
+stat_key = ExtResource("9_0aloa")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_dg77c"]
+script = ExtResource("5_6puu6")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("6_k6861")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_ycdy4"]
+script = ExtResource("5_6puu6")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("6_k6861")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_yaehf"]
+script = ExtResource("5_6puu6")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("7_x42w8")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_074og"]
+script = ExtResource("5_6puu6")
+operation_value = 20
+operation = 10
+stat_key = ExtResource("7_x42w8")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_82xsv"]
+script = ExtResource("11_so1mv")
+operation_value = 50
+operation = null
+stat_key = ExtResource("7_x42w8")
+metadata/_custom_type_script = "uid://cjce8d5f3u662"
+
+[sub_resource type="Resource" id="Resource_4c57u"]
+script = ExtResource("5_6puu6")
+operation_value = 20
+operation = 10
+stat_key = ExtResource("6_k6861")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
+
+[sub_resource type="Resource" id="Resource_ywsqi"]
+resource_local_to_scene = true
+script = ExtResource("11_so1mv")
+operation_value = 50
+operation = 20
+stat_key = ExtResource("7_x42w8")
+metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
 [node name="GameRoot" type="Node"]
 script = ExtResource("1_78s5d")
 
+[node name="TurnManager" parent="." instance=ExtResource("2_i7pw8")]
+
 [node name="LevelLayer" type="Control" parent="."]
 layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TreeGraph" parent="LevelLayer" instance=ExtResource("2_ywsqi")]
+unique_name_in_owner = true
+layout_mode = 2
 anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 284.0
+offset_top = 57.0
+offset_right = 1318.0
+offset_bottom = 856.0
+size_flags_horizontal = 3
+scroll_offset = Vector2(-420, -254)
+connection_lines_curvature = 0.3
+connections = Array[Dictionary]([{
+"from_node": &"Start",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"Strength",
+"to_port": 0
+}, {
+"from_node": &"Strength",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"StrInt",
+"to_port": 0
+}, {
+"from_node": &"StrInt",
+"from_port": 0,
+"keep_alive": false,
+"to_node": &"BigInt",
+"to_port": 0
+}, {
+"from_node": &"StrInt",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"Dumb Force",
+"to_port": 0
+}])
+
+[node name="Start" parent="LevelLayer/TreeGraph" node_paths=PackedStringArray("neighbors", "local_entities") instance=ExtResource("3_i7pw8")]
+self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+anchors_preset = 0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 322.0
+offset_top = 453.0
+offset_right = 401.0
+offset_bottom = 533.0
+mouse_filter = 1
+theme_override_constants/port_h_offset = 30
+position_offset = Vector2(-98, 199)
+title = "Starter Skill"
+modifiers = Array[ExtResource("4_x5456")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq"), SubResource("Resource_cegan")])
+neighbors = [NodePath("../Strength")]
+local_entities = [NodePath("Player")]
+
+[node name="Player" parent="LevelLayer/TreeGraph/Start" instance=ExtResource("10_35vvr")]
+player_name = "DefaultPlayer"
+color = Color(0.835294, 0, 0, 1)
+
+[node name="Strength" parent="LevelLayer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("3_i7pw8")]
+self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+anchors_preset = 0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 448.0
+offset_top = 382.0
+offset_right = 508.0
+offset_bottom = 462.0
+mouse_filter = 1
+theme_override_constants/port_h_offset = 30
+position_offset = Vector2(28, 128)
+title = "Strength"
+modifiers = Array[ExtResource("4_x5456")]([SubResource("Resource_dg77c")])
+neighbors = [NodePath("../Start"), NodePath("../StrInt")]
+
+[node name="StrInt" parent="LevelLayer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("3_i7pw8")]
+self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+anchors_preset = 0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 566.0
+offset_top = 352.0
+offset_right = 626.0
+offset_bottom = 432.0
+mouse_filter = 1
+theme_override_constants/port_h_offset = 30
+position_offset = Vector2(146, 98)
+title = "Str + Int"
+modifiers = Array[ExtResource("4_x5456")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
+neighbors = [NodePath("../Strength"), NodePath("../BigInt"), NodePath("../Dumb Force")]
+
+[node name="BigInt" parent="LevelLayer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("3_i7pw8")]
+self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+anchors_preset = 0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 683.0
+offset_top = 260.0
+offset_right = 749.0
+offset_bottom = 340.0
+mouse_filter = 1
+theme_override_constants/port_h_offset = 33
+position_offset = Vector2(263, 6)
+title = "Big Smart"
+modifiers = Array[ExtResource("4_x5456")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
+neighbors = [NodePath("../StrInt")]
+
+[node name="Dumb Force" parent="LevelLayer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("3_i7pw8")]
+self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+anchors_preset = 0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+offset_left = 667.0
+offset_top = 394.0
+offset_right = 749.0
+offset_bottom = 474.0
+mouse_filter = 1
+theme_override_constants/port_h_offset = 64
+position_offset = Vector2(247, 140)
+title = "Dumb Force"
+modifiers = Array[ExtResource("4_x5456")]([SubResource("Resource_4c57u"), SubResource("Resource_ywsqi")])
+neighbors = [NodePath("../StrInt")]
 
 [node name="UILayer" type="Control" parent="."]
 layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UILayer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PanelContainerTop" type="PanelContainer" parent="UILayer/VBoxContainer"]
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UILayer/VBoxContainer/PanelContainerTop"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="Label" type="Label" parent="UILayer/VBoxContainer/PanelContainerTop/MarginContainer"]
+layout_mode = 2
+text = "Top panel"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="StatsPanel" parent="UILayer/VBoxContainer/HBoxContainer" instance=ExtResource("12_6y7e7")]
+layout_mode = 2
+
+[node name="PanelContainerRight" type="PanelContainer" parent="UILayer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 10
+
+[node name="MarginContainer" type="MarginContainer" parent="UILayer/VBoxContainer/HBoxContainer/PanelContainerRight"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="Label" type="Label" parent="UILayer/VBoxContainer/HBoxContainer/PanelContainerRight/MarginContainer"]
+layout_mode = 2
+text = "Right panel"
+
+[node name="PanelContainerBottom" type="PanelContainer" parent="UILayer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="UILayer/VBoxContainer/PanelContainerBottom"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="HBoxContainer" type="HBoxContainer" parent="UILayer/VBoxContainer/PanelContainerBottom/MarginContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UILayer/VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Bottom panel"
+
+[node name="EndTurnButton" parent="UILayer/VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" instance=ExtResource("13_0ns5a")]
+layout_mode = 2

@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Skill Tree of Life"
-run/main_scene="uid://cifdsy0tgbjj2"
+run/main_scene="uid://bec1d4lmjw1l1"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://icon.svg"
 

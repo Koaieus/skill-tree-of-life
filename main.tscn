@@ -96,35 +96,35 @@ metadata/_custom_type_script = "uid://cjce8d5f3u662"
 [node name="Main" type="Node"]
 script = ExtResource("1_dg77c")
 
-[node name="GUI" type="VBoxContainer" parent="."]
+[node name="UI" type="VBoxContainer" parent="."]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PanelContainerTop" type="PanelContainer" parent="GUI"]
+[node name="PanelContainerTop" type="PanelContainer" parent="UI"]
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="GUI/PanelContainerTop"]
+[node name="MarginContainer" type="MarginContainer" parent="UI/PanelContainerTop"]
 layout_mode = 2
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="Label" type="Label" parent="GUI/PanelContainerTop/MarginContainer"]
+[node name="Label" type="Label" parent="UI/PanelContainerTop/MarginContainer"]
 layout_mode = 2
 text = "Top panel"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="GUI"]
+[node name="HBoxContainer" type="HBoxContainer" parent="UI"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="StatsDisplay" parent="GUI/HBoxContainer" instance=ExtResource("2_efxa6")]
+[node name="StatsDisplay" parent="UI/HBoxContainer" instance=ExtResource("2_efxa6")]
 layout_mode = 2
 
-[node name="TreeGraph" parent="GUI/HBoxContainer" instance=ExtResource("4_7mycd")]
+[node name="TreeGraph" parent="UI/HBoxContainer" instance=ExtResource("4_7mycd")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -155,7 +155,7 @@ connections = Array[Dictionary]([{
 "to_port": 0
 }])
 
-[node name="Start" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors", "local_entities") instance=ExtResource("5_lquwl")]
+[node name="Start" parent="UI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors", "local_entities") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -174,11 +174,11 @@ modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_w48qg"), SubRes
 neighbors = [NodePath("../Strength")]
 local_entities = [NodePath("Player")]
 
-[node name="Player" parent="GUI/HBoxContainer/TreeGraph/Start" instance=ExtResource("2_1bvp3")]
+[node name="Player" parent="UI/HBoxContainer/TreeGraph/Start" instance=ExtResource("2_1bvp3")]
 player_name = "DefaultPlayer"
 color = Color(0.835294, 0, 0, 1)
 
-[node name="Strength" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
+[node name="Strength" parent="UI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -196,7 +196,7 @@ title = "Strength"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_dg77c")])
 neighbors = [NodePath("../Start"), NodePath("../StrInt")]
 
-[node name="StrInt" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
+[node name="StrInt" parent="UI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -214,7 +214,7 @@ title = "Str + Int"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
 neighbors = [NodePath("../Strength"), NodePath("../BigInt"), NodePath("../Dumb Force")]
 
-[node name="BigInt" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
+[node name="BigInt" parent="UI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -232,7 +232,7 @@ title = "Big Smart"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
 neighbors = [NodePath("../StrInt")]
 
-[node name="Dumb Force" parent="GUI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
+[node name="Dumb Force" parent="UI/HBoxContainer/TreeGraph" node_paths=PackedStringArray("neighbors") instance=ExtResource("5_lquwl")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -250,40 +250,40 @@ title = "Dumb Force"
 modifiers = Array[ExtResource("6_5vw27")]([SubResource("Resource_4c57u"), SubResource("Resource_getpj")])
 neighbors = [NodePath("../StrInt")]
 
-[node name="PanelContainerRight" type="PanelContainer" parent="GUI/HBoxContainer"]
+[node name="PanelContainerRight" type="PanelContainer" parent="UI/HBoxContainer"]
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="GUI/HBoxContainer/PanelContainerRight"]
+[node name="MarginContainer" type="MarginContainer" parent="UI/HBoxContainer/PanelContainerRight"]
 layout_mode = 2
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="Label" type="Label" parent="GUI/HBoxContainer/PanelContainerRight/MarginContainer"]
+[node name="Label" type="Label" parent="UI/HBoxContainer/PanelContainerRight/MarginContainer"]
 layout_mode = 2
 text = "Right panel"
 
-[node name="PanelContainerBottom" type="PanelContainer" parent="GUI"]
+[node name="PanelContainerBottom" type="PanelContainer" parent="UI"]
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="GUI/PanelContainerBottom"]
+[node name="MarginContainer" type="MarginContainer" parent="UI/PanelContainerBottom"]
 layout_mode = 2
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="HBoxContainer" type="HBoxContainer" parent="GUI/PanelContainerBottom/MarginContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="UI/PanelContainerBottom/MarginContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="GUI/PanelContainerBottom/MarginContainer/HBoxContainer"]
+[node name="Label" type="Label" parent="UI/PanelContainerBottom/MarginContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Bottom panel"
 
-[node name="EndTurnButton" parent="GUI/PanelContainerBottom/MarginContainer/HBoxContainer" instance=ExtResource("12_ycdy4")]
+[node name="EndTurnButton" parent="UI/PanelContainerBottom/MarginContainer/HBoxContainer" instance=ExtResource("12_ycdy4")]
 layout_mode = 2
 
 [node name="Skills" parent="." instance=ExtResource("7_5vw27")]
