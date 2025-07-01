@@ -5,11 +5,14 @@ class_name GameManager
 
 signal game_ready
 signal game_over
+
 signal turn_ended(for_entity: TreeEntity)
 signal turn_started(for_entity: TreeEntity)
+
 signal main_player_selected(new_player: Player)
 
 
+@export var root: GameRoot
 @export var tree_graph: TreeGraph
 @export var navigator: Navigator
 @export var turn_manager: TurnManager
@@ -70,11 +73,11 @@ func end_turn() -> void:
 	
 func validate_game_setup() -> void:
 	
-	assert(player is Player, 'Game setup error: No Main Player!')
-	assert(player and player.is_node_ready(), 'Game setup error: Main Player is not yet ready!')
+	#assert(player is Player, 'Game setup error: No Main Player!')
+	#assert(player and player.is_node_ready(), 'Game setup error: Main Player is not yet ready!')
 	
-	assert(tree_graph is TreeGraph, 'Game setup error: No TreeGraph!')
-	assert(tree_graph and tree_graph.is_node_ready(), 'Game setup error: TreeGraph is not yet ready!')
+	#assert(tree_graph is TreeGraph, 'Game setup error: No TreeGraph!')
+	#assert(tree_graph and tree_graph.is_node_ready(), 'Game setup error: TreeGraph is not yet ready!')
 	
 	assert(turn_manager is TurnManager, 'Game setup error: No TurnManager!')
 	assert(turn_manager and turn_manager.is_node_ready(), 'Game setup error: TurnManager is not yet ready!')

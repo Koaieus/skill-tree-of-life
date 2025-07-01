@@ -9,8 +9,8 @@ signal node_removing(leaving_node: TreeNode)
 signal nodes_connected(from_node: TreeNode, to_node: TreeNode)
 signal nodes_disconnected(from_node: TreeNode, to_node: TreeNode)
 
-@onready var navigator: Navigator = $Navigator as Navigator
-@onready var turn_manager: TurnManager = $TurnManager as TurnManager
+@onready var navigator: Navigator = $Navigator 
+@onready var turn_manager: TurnManager = $TurnManager
 
 
 # Called when the node enters the scene tree for the first time.
@@ -23,13 +23,38 @@ func _ready() -> void:
 	for conn in connections:
 		notify_nodes_connected(conn.from_node, conn.from_port, conn.to_node, conn.to_port)
 	
-	Game.game_ready.emit.call_deferred()
+	#Game.game_ready.emit.call_deferred()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass
-	
 
+
+func add_new_skill_node() -> void:
+	var new_node := tree_node_packed.instantiate()
+	add_child(new_node)
+
+## Forces internal graph to be rebuilt from scratch
+func rebuild_graph() -> void:
+	print('Rebuilding graph...')
+	assert(is_node_ready(), 'Cannot rebuild graph if node is not ready yet.')
+	# Clear AStar
+	navigator.astar.clear()
+	navigator.assign_vertex_ids_to_all_nodes(self)
+
+
+
+#region Signal Emission methods
+func notify_nodes_connected(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+	nodes_connected.emit(get_node(NodePath(from_node)), get_node(NodePath(to_node)))
+
+
+func notify_nodes_disconnected(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+	nodes_disconnected.emit(get_node(NodePath(from_node)), get_node(NodePath(to_node)))
+#endregion
+
+
+#region Event Handlers
 func _on_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	if not connect_node(from_node, from_port, to_node, to_port):
 		notify_nodes_connected(from_node, from_port, to_node, to_port)
@@ -41,17 +66,6 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 
 
 
-func add_new_skill_node() -> void:
-	var new_node := tree_node_packed.instantiate()
-	add_child(new_node)
-
-
-func notify_nodes_connected(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
-	nodes_connected.emit(get_node(NodePath(from_node)), get_node(NodePath(to_node)))
-
-
-func notify_nodes_disconnected(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
-	nodes_disconnected.emit(get_node(NodePath(from_node)), get_node(NodePath(to_node)))
 
 
 func _on_insert_add_new_skill_node() -> void:
@@ -83,3 +97,4 @@ func _on_child_entered_tree(node: Node) -> void:
 func _on_child_exiting_tree(node: Node) -> void:
 	if node is TreeNode:
 		node_removing.emit(node as TreeNode)
+#endregion

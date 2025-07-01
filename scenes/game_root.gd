@@ -1,29 +1,62 @@
 extends Node
 class_name GameRoot
 
-@onready var level_container: Node = $LevelContainer
+#signal graph_rebuild_requested
+
+
+@onready var level_manager: LevelManager = $LevelLayer
 @onready var ui_root: Control = $UIRoot
 @onready var turn_manager: Node = $TurnManager
-@onready var tree_graph = $TreeGraph
+@onready var fade_layer: FadeLayer = $FadeLayer
+
+#@onready var tree_graph: TreeGraph = null
 
 
 var current_level: Node = null
 
 func _ready() -> void:
-	print_debug("[GameRoot]: Ready.")
-	Game.game_ready.emit()  # Notify Game.gd autoload
+	Game.root = self
+	print_debug("[GameRoot]: Ready. Deferring `_start_game()`")
+	call_deferred("_start_game")
 
-# --- Level loading ---
+func _start_game() -> void:
+	level_manager.level_loaded.connect(_on_level_loaded)
+	level_manager.level_load_progress.connect(fade_layer.set_progress)
+	#fade_layer.connect("fade_completed", self, "_on_fade_out_complete")
+	#fade_layer.fade_out(0.1)
+	
+	# 1) fade out
+	await fade_layer.fade_out().finished
+
+	# 2) load level (will update fade_layer.progress via signal if connected)
+	var tree_graph = await level_manager.load_level_async("res://levels/dev_level_tree_graph.tscn")
+	Game.tree_graph = tree_graph
+	
+	# 3) fade back in
+	await fade_layer.fade_in().finished
+
+	# 4) signal game-ready
+	Game.emit_signal("game_ready")
+
+
+	load_level("res://levels/my_level.tscn")
+
+
 func load_level(scene_path: String) -> void:
-	if current_level:
-		level_container.remove_child(current_level)
-		current_level.queue_free()
-		current_level = null
+	#if current_level:
+		#level_manager.remove_child(current_level)
+		#current_level.queue_free()
+		#current_level = null
+	current_level = null
+	level_manager.load_level_async(scene_path)
 
-	var scene: PackedScene = load(scene_path)
-	current_level = scene.instantiate()
-	level_container.add_child(current_level)
-	print_debug("[GameRoot]: Loaded level: %s" % scene_path)
+func _on_level_loaded(tree_graph: TreeGraph) -> void:
+	print_debug("[GameRoot]: Loaded level: %s" % tree_graph)
+	# Assign globals
+	Game.tree_graph = tree_graph
+	Game.navigator = tree_graph.navigator
+	# Game READY!
+	Game.game_ready.emit()
 
 # --- Utility accessors ---
 func get_active_entities() -> Array:
@@ -34,3 +67,4 @@ func get_active_entities() -> Array:
 # --- Turn manager hooks ---
 func start_turns():
 	turn_manager.start_turn_sequence()
+	

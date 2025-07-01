@@ -6,6 +6,7 @@ signal allocated(entity: TreeEntity)
 signal deallocated(previous_entity: TreeEntity)
 signal local_entities_changed(entity_list: Array[TreeEntity])
 
+
 ## Tracks the TreeEntity this Skill node is currently allocated to
 @onready var owned_by: TreeEntity = null:
 	get:
@@ -19,23 +20,32 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 ## List of StatModifiers offered by this skill node upon allocation
 @export var modifiers: Array[NumberStatModifier] = []
 
+## List of neighboring skill nodes
 @export var neighbors: Array[TreeNode] = []
 
+## Skill's icon to display
 @onready var icon: Control = %Icon
 
 ## List of TreeEntities that are currently composed as children of this Skill Node
 @export var local_entities: Array[TreeEntity] = []:
 	get(): return local_entities
-
+	
 ## Vision range, e.g. for fog-of-war mechanics; value in pixels (?)
 @export var vision_range: int = 100
 
 ## Tooltip resource [preloaded]
 @onready var tool_tip: PackedScene = preload("res://ui/tooltip.tscn")
 
-## Point ID for use in A* implementation
-var point_id: int = -1
 
+## Point ID for use in A* implementation (internal value, only Navigator class should set this!)
+var _vertex_id: int = -1
+
+func get_vertex_id():
+	return _vertex_id
+## Setter function for `vertex_id`; private, not for skills or entities to change themselves
+func _set_vertex_id(v):
+	_vertex_id = max(v, -1)
+	notify_property_list_changed()
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:

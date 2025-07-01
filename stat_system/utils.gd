@@ -11,7 +11,7 @@ static func connect_if_not_connected(sig: Signal, callable: Callable) -> void:
 
 #endregion
 
-
+const PRINT_ERROR: bool = false
 
 #region Stat Utils
 
@@ -19,16 +19,22 @@ static func bind_stat(target: Object, property: String, stat_key: GDScript, stat
 	#print('[BIND]: Binding %s of %s to %s [manager: %s]' % [property, target, stat_key, stats_manager])
 
 	if target == null or property == "":
-		return push_error("Target has not been configured properly.")
+		if PRINT_ERROR:
+			push_error("Target has not been configured properly.")
+		return
 
 	if stat_key == null or stats_manager == null:
-		return push_error("Stat has not been configured properly.")
+		if PRINT_ERROR:
+			push_error("Stat has not been configured properly.")
+		return
 
 	var _stat: Stat = stats_manager.get_stat(stat_key)
 	var target_value = target.get(property)
 
 	if target_value != null and target_value is not Object:
-		return push_error("Couldn't bind an object to a primitive type, did you meant to bind the value instead ?")
+		if PRINT_ERROR:
+			push_error("Couldn't bind an object to a primitive type, did you meant to bind the value instead ?") 
+		return
 
 	if target_value == _stat:
 		return
@@ -43,16 +49,19 @@ static func unbind_stat(target: Object, property: String) -> void:
 
 static func bind_stat_value(target: Object, property: String, stat_key: GDScript, stats_manager: StatsManager):
 	if target == null or property == "":
-		push_error("Target has not been configured properly.")
+		if PRINT_ERROR:
+			push_error("Target has not been configured properly.")
 		return null
 	
 	if stat_key == null or stats_manager == null:
-		push_error("Stat has not been configured properly.")
+		if PRINT_ERROR:
+			push_error("Stat has not been configured properly.")
 		return null
 	
 	var target_value = target.get(property)
 	if target_value != null and target_value is Object:
-		push_error("Couldn't bind a primitive type to an object, did you meant to bind the stat instead ?")
+		if PRINT_ERROR:
+			push_error("Couldn't bind a primitive type to an object, did you meant to bind the stat instead ?")
 		return null
 			
 	var _stat: Stat = stats_manager.get_stat(stat_key)

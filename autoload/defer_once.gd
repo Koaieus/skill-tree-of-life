@@ -21,7 +21,7 @@ static func _flush() -> void:
 		if callable.is_valid():
 			callable.call()
 		else:
-			push_warning("DeferredOnce: Invalid callable skipped")
+			push_warning("DeferredOnce: Invalid callable skipped: ", callable)
 
 	_pending_methods.clear()
 	_flush_queued = false

@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://cp7jtjmcxyxlm"]
 
 [ext_resource type="Script" uid="uid://dnl6no1h6mn5p" path="res://graph/tree_graph.gd" id="1_0sg4w"]
-[ext_resource type="PackedScene" uid="uid://bgj1th7lida6y" path="res://systems/navigator.tscn" id="2_kkew0"]
+[ext_resource type="PackedScene" uid="uid://bgj1th7lida6y" path="res://graph/navigator.tscn" id="2_kkew0"]
 [ext_resource type="PackedScene" uid="uid://blggy3l3728dn" path="res://systems/turn_manager.tscn" id="3_skosc"]
 
 [node name="TreeGraph" type="GraphEdit"]
