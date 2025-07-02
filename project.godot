@@ -17,6 +17,8 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+SceneTransition="*res://autoload/scene_transition.tscn"
+SceneLoader="*res://autoload/scene_loader.tscn"
 DeferOnce="*res://autoload/defer_once.gd"
 StatMetaDataRepository="*res://autoload/stat_metadata_repository.tscn"
 Skills="res://skills.tscn"

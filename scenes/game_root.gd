@@ -15,7 +15,7 @@ class_name GameRoot
 var current_level: Node = null
 
 func _ready() -> void:
-	Game.root = self
+	#Game.root = self
 	print_debug("[GameRoot]: Ready. Deferring `_start_game()`")
 	call_deferred("_start_game")
 

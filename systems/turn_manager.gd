@@ -12,8 +12,11 @@ signal deadlock_detected
 @export var auto_reset_deadlock_counter: bool = false
 
 # === State ===
+## TreeEntity that currently has the turn
 var entity_at_turn: TreeEntity = null
+## Number of cycles performed without any Entity getting a turn
 var _cycle_count_without_turn: int = 0
+## Whether currenly turn cycles are being processed
 var _is_processing_turn_cycle: bool = false
 
 # === Public API ===
@@ -25,19 +28,25 @@ func request_turn_cycle() -> void:
 	await _run_turn_cycle()
 	_is_processing_turn_cycle = false
 
+## Ends turn for entity that currently has the turn
+func end_turn() -> void:
+	emit_signal("turn_ended")
+	request_turn_cycle.call_deferred()
+
+
 # === Internal ===
 func _get_ready_entities() -> Array[TreeEntity]:
-	var ready: Array[TreeEntity] = []
-	for entity: TreeEntity in _get_all_active_entities():
-		if entity.stats.initiative.progress >= 100:
-			ready.append(entity)
-	return ready
+	return _get_all_active_entities().filter(
+		func(e: TreeEntity): return e.stats.initiative.progress >= 100
+	)
 
 func _get_all_active_entities() -> Array[TreeEntity]:
-	var result: Array[TreeEntity] = []
-	for entity: TreeEntity in get_tree().get_nodes_in_group("initiative-ready"):
-		if entity.can_take_turn():
-			result.append(entity)
+	var result: Array[TreeEntity]
+	result.assign(
+		get_tree().get_nodes_in_group("initiative-ready").filter(
+			func(e: TreeEntity): return e.can_take_turn()
+		)
+	)
 	return result
 
 func _reset_deadlock_counter() -> void:

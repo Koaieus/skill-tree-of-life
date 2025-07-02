@@ -90,6 +90,36 @@ stat_key = ExtResource("6_qacc5")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
 [node name="DevLevelTreeGraph" type="GraphEdit"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+connections = Array[Dictionary]([{
+"from_node": &"Start",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"Strength",
+"to_port": 0
+}, {
+"from_node": &"Strength",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"StrInt",
+"to_port": 0
+}, {
+"from_node": &"StrInt",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"BigInt",
+"to_port": 0
+}, {
+"from_node": &"StrInt",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"Dumb Force",
+"to_port": 0
+}])
 script = ExtResource("1_i70s0")
 metadata/_custom_type_script = "uid://dnl6no1h6mn5p"
 
@@ -100,13 +130,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = -98.0
-offset_top = 199.0
-offset_right = -19.0
-offset_bottom = 279.0
+offset_left = 392.0
+offset_top = 365.0
+offset_right = 471.0
+offset_bottom = 445.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 30
-position_offset = Vector2(-98, 199)
+position_offset = Vector2(392, 365)
 title = "Starter Skill"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq"), SubResource("Resource_cegan")])
 neighbors = [null]
@@ -123,13 +153,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 28.0
-offset_top = 128.0
-offset_right = 88.0
-offset_bottom = 208.0
+offset_left = 529.0
+offset_top = 296.0
+offset_right = 589.0
+offset_bottom = 376.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 30
-position_offset = Vector2(28, 128)
+position_offset = Vector2(529, 296)
 title = "Strength"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_dg77c")])
 neighbors = [null, null]
@@ -141,13 +171,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 146.0
-offset_top = 98.0
-offset_right = 206.0
-offset_bottom = 178.0
+offset_left = 639.0
+offset_top = 231.0
+offset_right = 699.0
+offset_bottom = 311.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 30
-position_offset = Vector2(146, 98)
+position_offset = Vector2(639, 231)
 title = "Str + Int"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
 neighbors = [null, null, null]
@@ -159,13 +189,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 263.0
-offset_top = 6.0
-offset_right = 329.0
-offset_bottom = 86.0
+offset_left = 534.0
+offset_top = 107.0
+offset_right = 600.0
+offset_bottom = 187.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 33
-position_offset = Vector2(263, 6)
+position_offset = Vector2(534, 107)
 title = "Big Smart"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
 neighbors = [null]
@@ -177,13 +207,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 247.0
-offset_top = 140.0
-offset_right = 329.0
-offset_bottom = 220.0
+offset_left = 758.0
+offset_top = 247.0
+offset_right = 840.0
+offset_bottom = 327.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 64
-position_offset = Vector2(247, 140)
+position_offset = Vector2(758, 247)
 title = "Dumb Force"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_4c57u"), SubResource("Resource_bhhj0")])
 neighbors = [null]
