@@ -62,7 +62,7 @@ func _recalculate_neighbors():
 	neighbors.assign(
 		Array(
 			(get_parent() as TreeGraph).nav.astar.get_point_connections(get_instance_id())
-		).map(instance_from_id)
+		).map(instance_from_id) # TODO
 	)
 
 func add_neighbor(new_neighbor: TreeNode) -> void:

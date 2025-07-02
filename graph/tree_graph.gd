@@ -1,4 +1,4 @@
-@tool
+#@tool
 extends GraphEdit
 class_name TreeGraph
 
@@ -15,9 +15,9 @@ signal nodes_disconnected(from_node: TreeNode, to_node: TreeNode)
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	Game.tree_graph = self
-	Game.navigator = navigator
-	Game.turn_manager = turn_manager
+	#Game.tree_graph = self
+	#Game.navigator = navigator
+	#Game.turn_manager = turn_manager
 
 	# Signal for each pre-defined connections:
 	for conn in connections:

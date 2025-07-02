@@ -1,11 +1,10 @@
-[gd_scene load_steps=7 format=3 uid="uid://c32gtps8w0e84"]
+[gd_scene load_steps=6 format=3 uid="uid://c32gtps8w0e84"]
 
 [ext_resource type="Script" uid="uid://dadsh6eqabjcg" path="res://scenes/game_root.gd" id="1_78s5d"]
 [ext_resource type="PackedScene" uid="uid://blggy3l3728dn" path="res://systems/turn_manager.tscn" id="2_i7pw8"]
 [ext_resource type="Script" uid="uid://bkln3po1tunhy" path="res://systems/level_manager.gd" id="3_x5456"]
 [ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://ui/stats_panel/stats_panel.tscn" id="12_6y7e7"]
 [ext_resource type="PackedScene" uid="uid://symm61ggw3xx" path="res://ui/end_turn_button.tscn" id="13_0ns5a"]
-[ext_resource type="PackedScene" uid="uid://cum3y5mrr1k8g" path="res://systems/fade_layer.tscn" id="16_6puu6"]
 
 [node name="GameRoot" type="Node"]
 script = ExtResource("1_78s5d")
@@ -97,5 +96,3 @@ text = "Bottom panel"
 
 [node name="EndTurnButton" parent="UIRoot/VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" instance=ExtResource("13_0ns5a")]
 layout_mode = 2
-
-[node name="FadeLayer" parent="." instance=ExtResource("16_6puu6")]

@@ -21,6 +21,10 @@ var status: LoadingStatus = LoadingStatus.IDLE
 var _progress_callback: Callable
 
 
+func _ready() -> void:
+	set_process(false)
+
+
 func load_scene_async(path: String, progress_callback := Callable()) -> Signal:
 	assert(not is_processing(), "Cannot load scene `%s`: already loading scene `%s`" % [path, _loading_path])
 	_loading_path = path
@@ -62,39 +66,3 @@ func abort_loading() -> void:
 	status = LoadingStatus.ABORTED
 	set_process(false)
 	scene_loaded.emit(null)
-
-
-#var _loading_path := ""
-#var _is_processing := false
-#var _loaded_scene: PackedScene = null
-#
-#func is_processing() -> bool:
-	#return _is_processing
-#
-#func load_scene_async(path: String) -> Node:
-	#assert(not _is_processing, "Already loading a scene!")
-	#_loading_path = path
-	#_is_processing = true
-#
-	#var result = ResourceLoader.load_threaded_request(path, "", true)
-	#assert(result == OK)
-#
-	#while true:
-		#await get_tree().process_frame
-		#var status := ResourceLoader.load_threaded_get_status(path)
-		#match status:
-			#ResourceLoader.THREAD_LOAD_LOADED:
-				#_loaded_scene = ResourceLoader.load_threaded_get(path)
-				#break
-			#ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-				#var stage := ResourceLoader.load_threaded_get_stage()
-				#var total := ResourceLoader.load_threaded_get_stage_count()
-				#var progress := float(stage) / float(max(total, 1))
-				#SceneTransition.set_progress(progress)
-			#ResourceLoader.THREAD_LOAD_FAILED:
-				#push_error("Failed to load scene: %s" % path)
-				#break
-#
-	#_is_processing = false
-	#_loading_path = ""
-	#return _loaded_scene.instantiate()

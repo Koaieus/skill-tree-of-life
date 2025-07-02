@@ -1,95 +1,100 @@
-[gd_scene load_steps=22 format=3 uid="uid://d03k3httljwig"]
+[gd_scene load_steps=22 format=3 uid="uid://78ryyp864oim"]
 
-[ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://graph/tree_graph.tscn" id="1_i70s0"]
-[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="2_nw5ke"]
-[ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="3_bhhj0"]
-[ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="4_61tkq"]
-[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="5_os46g"]
-[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="6_qacc5"]
-[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="7_8lgn6"]
-[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="8_mn6fn"]
-[ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="9_bhhj0"]
-[ext_resource type="Script" uid="uid://cjce8d5f3u662" path="res://stat_system/modifier/incremental_stat_modifier.gd" id="9_gt63v"]
+[ext_resource type="Script" uid="uid://dnl6no1h6mn5p" path="res://graph/tree_graph.gd" id="1_deb0w"]
+[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="2_i6duo"]
+[ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="3_ifw5y"]
+[ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="4_5qv45"]
+[ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="5_60gcc"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="6_2njua"]
+[ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="7_5w6mw"]
+[ext_resource type="Script" uid="uid://b2ju8klaorw55" path="res://stats/list/exp_gain_stat.gd" id="8_rjong"]
+[ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="9_qs2pm"]
+[ext_resource type="Script" uid="uid://cjce8d5f3u662" path="res://stat_system/modifier/incremental_stat_modifier.gd" id="10_t1h1x"]
 
 [sub_resource type="Resource" id="Resource_w48qg"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 10
 operation = 10
-stat_key = ExtResource("5_os46g")
+stat_key = ExtResource("5_60gcc")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_vivmo"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 10
 operation = 10
-stat_key = ExtResource("6_qacc5")
+stat_key = ExtResource("6_2njua")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_2cqfq"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 10
 operation = 10
-stat_key = ExtResource("7_8lgn6")
+stat_key = ExtResource("7_5w6mw")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_cegan"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 20
 operation = 10
-stat_key = ExtResource("8_mn6fn")
+stat_key = ExtResource("8_rjong")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_dg77c"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 10
 operation = 10
-stat_key = ExtResource("5_os46g")
+stat_key = ExtResource("5_60gcc")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_ycdy4"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 10
 operation = 10
-stat_key = ExtResource("5_os46g")
+stat_key = ExtResource("5_60gcc")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_yaehf"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 10
 operation = 10
-stat_key = ExtResource("6_qacc5")
+stat_key = ExtResource("6_2njua")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_074og"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 20
 operation = 10
-stat_key = ExtResource("6_qacc5")
+stat_key = ExtResource("6_2njua")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_82xsv"]
-script = ExtResource("9_gt63v")
+script = ExtResource("10_t1h1x")
 operation_value = 50
 operation = null
-stat_key = ExtResource("6_qacc5")
+stat_key = ExtResource("6_2njua")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
 [sub_resource type="Resource" id="Resource_4c57u"]
-script = ExtResource("4_61tkq")
+script = ExtResource("4_5qv45")
 operation_value = 20
 operation = 10
-stat_key = ExtResource("5_os46g")
+stat_key = ExtResource("5_60gcc")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_bhhj0"]
 resource_local_to_scene = true
-script = ExtResource("9_gt63v")
+script = ExtResource("10_t1h1x")
 operation_value = 50
 operation = 20
-stat_key = ExtResource("6_qacc5")
+stat_key = ExtResource("6_2njua")
 metadata/_custom_type_script = "uid://cjce8d5f3u662"
 
-[node name="TreeGraph" instance=ExtResource("1_i70s0")]
+[node name="DevLevelTreeGraph" type="GraphEdit"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 connections = Array[Dictionary]([{
 "from_node": &"Start",
 "from_port": 0,
@@ -115,9 +120,12 @@ connections = Array[Dictionary]([{
 "to_node": &"Dumb Force",
 "to_port": 0
 }])
+script = ExtResource("1_deb0w")
+metadata/_custom_type_script = "uid://dnl6no1h6mn5p"
 
-[node name="Start" parent="." index="4" node_paths=PackedStringArray("neighbors", "local_entities") instance=ExtResource("2_nw5ke")]
+[node name="Start" parent="." node_paths=PackedStringArray("neighbors", "local_entities") instance=ExtResource("2_i6duo")]
 self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
 anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
@@ -130,16 +138,17 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(392, 365)
 title = "Starter Skill"
-modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq"), SubResource("Resource_cegan")])
+modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_w48qg"), SubResource("Resource_vivmo"), SubResource("Resource_2cqfq"), SubResource("Resource_cegan")])
 neighbors = [null]
 local_entities = [NodePath("Player")]
 
-[node name="Player" parent="Start" index="2" instance=ExtResource("9_bhhj0")]
+[node name="Player" parent="Start" instance=ExtResource("9_qs2pm")]
 player_name = "DefaultPlayer"
 color = Color(0.835294, 0, 0, 1)
 
-[node name="Strength" parent="." index="5" node_paths=PackedStringArray("neighbors") instance=ExtResource("2_nw5ke")]
+[node name="Strength" parent="." node_paths=PackedStringArray("neighbors") instance=ExtResource("2_i6duo")]
 self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
 anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
@@ -152,11 +161,12 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(529, 296)
 title = "Strength"
-modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_dg77c")])
+modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_dg77c")])
 neighbors = [null, null]
 
-[node name="StrInt" parent="." index="6" node_paths=PackedStringArray("neighbors") instance=ExtResource("2_nw5ke")]
+[node name="StrInt" parent="." node_paths=PackedStringArray("neighbors") instance=ExtResource("2_i6duo")]
 self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
 anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
@@ -169,11 +179,12 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(639, 231)
 title = "Str + Int"
-modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
+modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
 neighbors = [null, null, null]
 
-[node name="BigInt" parent="." index="7" node_paths=PackedStringArray("neighbors") instance=ExtResource("2_nw5ke")]
+[node name="BigInt" parent="." node_paths=PackedStringArray("neighbors") instance=ExtResource("2_i6duo")]
 self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
 anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
@@ -186,11 +197,12 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 33
 position_offset = Vector2(534, 107)
 title = "Big Smart"
-modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
+modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
 neighbors = [null]
 
-[node name="Dumb Force" parent="." index="8" node_paths=PackedStringArray("neighbors") instance=ExtResource("2_nw5ke")]
+[node name="Dumb Force" parent="." node_paths=PackedStringArray("neighbors") instance=ExtResource("2_i6duo")]
 self_modulate = Color(1, 1, 1, 0)
+layout_mode = 0
 anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
@@ -203,5 +215,5 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 64
 position_offset = Vector2(758, 247)
 title = "Dumb Force"
-modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_4c57u"), SubResource("Resource_bhhj0")])
+modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_4c57u"), SubResource("Resource_bhhj0")])
 neighbors = [null]
