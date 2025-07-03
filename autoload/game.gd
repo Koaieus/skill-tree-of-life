@@ -29,7 +29,8 @@ func _ready() -> void:
 
 func start_game_with_level(level_path: String) -> void:
 	# 1) Single fade to black
-	await SceneTransition.fade_out()
+	#await SceneTransition.fade_out()
+	SceneTransition.set_faded(true)
 
 	# 2) (Re)Load the GameRoot scene
 	var res = get_tree().change_scene_to_packed(GAME_ROOT_SCENE)
@@ -50,11 +51,11 @@ func start_game_with_level(level_path: String) -> void:
 	# 6) Wire up the loaded level
 	_wire_level(level_instance)
 
-	# 7) Fade back in
-	await SceneTransition.fade_in()
-
-	# 8) All set!
+	# 7) All set!
 	emit_signal("game_ready")
+
+	# 8) Fade back in
+	await SceneTransition.fade_in()
 
 func _wire_game_root(game_root: GameRoot) -> void:
 	assert(root, 'ROOT BAD MKAY')

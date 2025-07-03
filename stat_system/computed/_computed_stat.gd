@@ -12,12 +12,22 @@ var _value
 func get_value():
 	return _value
 
+#region Constructor
+func _init(_base_value = base_value) -> void:
+	base_value = _base_value
+	#DeferOnce.defer_once(_compute)
+	#_compute.call_deferred()
+	_compute()
+#endregion
+
 # (Re-)compute the computed value
 func compute() -> void:
-	DeferOnce.defer_once(_compute)
+	_compute()
+	#DeferOnce.defer_once(_compute)
+	#_compute.call_deferred()
 
 func _compute() -> void:
-	print('>> Computing stat "%s"' % name)
+	print('[ComputedStat: %s]: Computing...' % name)
 	# Save current value as previous
 	var previous = _value
 	# Start with base value
@@ -93,12 +103,6 @@ func _on_base_value_changed(new_value, old_value):
 
 #endregion
 
-
-#region Constructor
-func _init(_base_value = base_value) -> void:
-	base_value = _base_value
-	#compute()
-#endregion
 
 
 #region Sorting

@@ -5,10 +5,10 @@ class_name DeferOnceUtil
 ## Usage:
 ##   DeferOnce.defer_once(Callable(target, "method_name"))
 
-static var _pending_methods: Dictionary = {}
-static var _flush_queued: bool = false
+var _pending_methods: Dictionary = {}
+var _flush_queued: bool = false
 
-static func defer_once(callable: Callable) -> void:
+func defer_once(callable: Callable) -> void:
 	if not _flush_queued:
 		_flush_queued = true
 		_flush.call_deferred()
@@ -16,8 +16,9 @@ static func defer_once(callable: Callable) -> void:
 	_pending_methods[callable] = true
 
 
-static func _flush() -> void:
+func _flush() -> void:
 	for callable in _pending_methods.keys():
+		assert(callable.is_valid(), 'Invalid callable: %s' % callable)
 		if callable.is_valid():
 			callable.call()
 		else:

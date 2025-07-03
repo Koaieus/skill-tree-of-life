@@ -47,7 +47,7 @@ func get_stats_class_name() -> String:
 #region Stat Modifiers
 ## Add a stat modifier to a stat
 func add_stat_modifier(stat_modifier: StatModifier) -> void:
-	print('adding stat modifier: %s %s' % [stat_modifier.stat_key.get_global_name, stat_modifier])
+	print('[StatsManager]: Adding stat modifier: %s %s' % [stat_modifier.stat_key.get_global_name, stat_modifier])
 	if stats == null:
 		return
 

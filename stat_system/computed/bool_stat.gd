@@ -9,4 +9,4 @@ class_name BoolStat
 
 @export var current_value: bool:
 	get():
-		return _value
+		return _value if value is bool else false

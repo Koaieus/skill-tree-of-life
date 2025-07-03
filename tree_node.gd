@@ -59,13 +59,15 @@ func _ready() -> void:
 	#pass
 
 func _recalculate_neighbors():
+	assert(false, 'TODO: Move to astar or treegraph or anything but here')
 	neighbors.assign(
 		Array(
 			(get_parent() as TreeGraph).nav.astar.get_point_connections(get_instance_id())
-		).map(instance_from_id) # TODO
+		).map(instance_from_id) # TODO: use vertex ID
 	)
 
 func add_neighbor(new_neighbor: TreeNode) -> void:
+	assert(new_neighbor is TreeNode)
 	if new_neighbor not in neighbors:
 		neighbors.append(new_neighbor)
 

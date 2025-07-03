@@ -81,7 +81,7 @@ operation = 10
 stat_key = ExtResource("5_60gcc")
 metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
-[sub_resource type="Resource" id="Resource_bhhj0"]
+[sub_resource type="Resource" id="Resource_deb0w"]
 resource_local_to_scene = true
 script = ExtResource("10_t1h1x")
 operation_value = 50
@@ -215,5 +215,5 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 64
 position_offset = Vector2(758, 247)
 title = "Dumb Force"
-modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_4c57u"), SubResource("Resource_bhhj0")])
+modifiers = Array[ExtResource("3_ifw5y")]([SubResource("Resource_4c57u"), SubResource("Resource_deb0w")])
 neighbors = [null]

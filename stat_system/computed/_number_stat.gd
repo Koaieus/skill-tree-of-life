@@ -12,7 +12,7 @@ func _compute() -> void:
 		#return
 	#if base_value == null:
 		#return
-	print('>> Computing stat: %s' % [name])
+	print('[NumberStat: %s]: Computing...' % [name])
 	# Reset multiplier (will receive all INCREASE/DECREASE operation values)
 	_multiplier = 1.0
 	# Start with base value
