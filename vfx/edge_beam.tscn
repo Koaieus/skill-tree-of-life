@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://bnxf0fymgpv7c"]
+
+[ext_resource type="Script" uid="uid://clrf5bxkwemtb" path="res://vfx/edge_beam.gd" id="1_4ol50"]
+
+[sub_resource type="Curve" id="Curve_4ol50"]
+_data = [Vector2(0, 0.5), 0.0, 0.0, 0, 0, Vector2(0.75, 0.5), 0.0, 0.0, 0, 0, Vector2(0.919753, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.496915), -20.0795, 0.0, 0, 0]
+point_count = 4
+
+[sub_resource type="Gradient" id="Gradient_4ol50"]
+interpolation_mode = 2
+offsets = PackedFloat32Array(0, 0.726384, 0.908795, 0.977199, 1)
+colors = PackedColorArray(1, 0.866667, 0.392157, 0.862745, 1, 0.867833, 0.39, 1, 1, 0.991, 0.91, 1, 0.29, 0.952667, 1, 1, 0.529696, 0.769805, 0.999999, 1)
+
+[node name="EdgeBeam" type="Line2D"]
+width_curve = SubResource("Curve_4ol50")
+gradient = SubResource("Gradient_4ol50")
+texture_mode = 2
+joint_mode = 2
+script = ExtResource("1_4ol50")
+travel_time = 3.0

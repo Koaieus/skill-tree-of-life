@@ -2,8 +2,8 @@
 class_name TreeNode
 extends GraphNode
 
-signal allocated(entity: TreeEntity)
-signal deallocated(previous_entity: TreeEntity)
+signal allocated(node: TreeNode, entity: TreeEntity)
+signal deallocated(node: TreeNode, previous_entity: TreeEntity)
 signal local_entities_changed(entity_list: Array[TreeEntity])
 
 
@@ -92,7 +92,7 @@ func allocate_to(entity: TreeEntity):
 		return
 	for mod: StatModifier in modifiers:
 		entity._stats.add_stat_modifier(mod)
-	allocated.emit(entity)
+	allocated.emit(self, entity)
 	
 func deallocate_from(entity: TreeEntity):
 	prints('[ALLOCATION]:', self, 'deallocates from:', entity)
@@ -101,7 +101,7 @@ func deallocate_from(entity: TreeEntity):
 		return
 	for mod in modifiers:
 		entity._stats.remove_stat_modifier(mod)
-	deallocated.emit(entity)
+	deallocated.emit(self, entity)
 
 func clear_owner():
 	update_color()
