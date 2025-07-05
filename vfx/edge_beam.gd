@@ -38,6 +38,6 @@ func make_offset_curve(orig: Curve, offset: float) -> Curve:
 	for i in range(orig.get_point_count()):
 		var point = Vector2(orig.get_point_position(i))
 		# wrap or clamp x between 0 and 1 as needed
-		point.x = clamp(point.x - offset, 0., 1.)
+		point.x = fmod(point.x + offset, 1.0)
 		c.add_point(point)
 	return c

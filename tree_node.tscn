@@ -55,6 +55,21 @@ texture_normal = ExtResource("4_l8d3n")
 ignore_texture_size = true
 stretch_mode = 0
 
+[node name="CenterContainer" type="CenterContainer" parent="M/C/Icon"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Control" type="Control" parent="M/C/Icon/CenterContainer"]
+layout_mode = 2
+
+[node name="Marker2D" type="Marker2D" parent="M/C/Icon/CenterContainer/Control"]
+unique_name_in_owner = true
+gizmo_extents = 14.0
+
 [connection signal="child_entered_tree" from="." to="." method="_on_child_entered_tree"]
 [connection signal="child_exiting_tree" from="." to="." method="_on_child_exiting_tree"]
 [connection signal="ready" from="." to="." method="_on_local_entities_changed"]

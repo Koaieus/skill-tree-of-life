@@ -76,7 +76,7 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 #region VFX
 func create_beam_along_edge(from_node: TreeNode, to_node: TreeNode) -> EdgeBeam:
 	var beam: EdgeBeam = beam_packed.instantiate()
-	var points = get_connection_line(from_node.position, to_node.position)
+	var points = get_connection_line(from_node.get_center(), to_node.get_center())
 	add_child(beam)
 	beam.start(points)
 	return beam
@@ -102,7 +102,7 @@ func _on_node_allocated(node: TreeNode, entity: TreeEntity):
 	for neighbor in node.neighbors:
 		if neighbor.owned_by == entity:
 			print('[VFX] Creating beam from %s to %s!' % [neighbor, node])
-			create_beam_along_edge(node, neighbor)
+			create_beam_along_edge(neighbor, node)
 
 func _on_popup_request(at_position: Vector2) -> void:
 	print('Poppin up at', at_position)

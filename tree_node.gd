@@ -26,6 +26,10 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 ## Skill's icon to display
 @onready var icon: Control = %Icon
 
+## Skill's center marker
+@onready var marker: Marker2D = %Marker2D
+
+
 ## List of TreeEntities that are currently composed as children of this Skill Node
 @export var local_entities: Array[TreeEntity] = []:
 	get(): return local_entities
@@ -122,6 +126,11 @@ func set_color(color: Color):
 		print('color set to: ', color)
 	else:
 		print('cannot set color: no icon')
+		
+		
+func get_center() -> Vector2:
+	assert(marker)
+	return marker.global_position
 
 func _hide_box_and_title() -> void:
 	var title_box: HBoxContainer = get_titlebar_hbox()
