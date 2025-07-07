@@ -18,4 +18,4 @@ gradient = SubResource("Gradient_4ol50")
 texture_mode = 2
 joint_mode = 2
 script = ExtResource("1_4ol50")
-travel_time = 3.0
+travel_time = 0.6

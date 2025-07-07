@@ -134,7 +134,7 @@ func get_center() -> Vector2:
 
 func _hide_box_and_title() -> void:
 	var title_box: HBoxContainer = get_titlebar_hbox()
-	var title_label: Label = title_box.get_child(0, true)
+	var title_label: Label = title_box.get_child(0)
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
 	if not Engine.is_editor_hint():
@@ -146,7 +146,12 @@ func _hide_box_and_title() -> void:
 		add_theme_constant_override("separation", -title_box.size.y)
 	#icon.top_level = true
 	
+#func get_input_port_position(port: int) -> Vector2:
+	#if Engine.is_editor_hint():
+		#return super(port)
+	#return get_center()
 
+	
 func _on_icon_mouse_entered() -> void:
 	var tool_tip_instance: ToolTip = tool_tip.instantiate()
 	tool_tip_instance.hide()

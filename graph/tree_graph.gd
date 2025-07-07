@@ -9,7 +9,7 @@ signal node_removing(leaving_node: TreeNode)
 signal nodes_connected(from_node: TreeNode, to_node: TreeNode)
 signal nodes_disconnected(from_node: TreeNode, to_node: TreeNode)
 
-signal connection_path_calculated(path : PackedVector2Array)
+signal connection_path_calculated(path: PackedVector2Array)
 
 @onready var navigator: Navigator = $Navigator 
 @onready var turn_manager: TurnManager = $TurnManager
@@ -51,7 +51,6 @@ func rebuild_graph() -> void:
 	navigator.assign_vertex_ids_to_all_nodes(self)
 
 
-
 #region Signal Emission methods
 func notify_nodes_connected(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	nodes_connected.emit(get_node(NodePath(from_node)), get_node(NodePath(to_node)))
@@ -59,6 +58,18 @@ func notify_nodes_connected(from_node: StringName, from_port: int, to_node: Stri
 
 func notify_nodes_disconnected(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	nodes_disconnected.emit(get_node(NodePath(from_node)), get_node(NodePath(to_node)))
+#endregion
+
+#region VFX
+func create_beam_along_edge(from_node: TreeNode, to_node: TreeNode):
+	print('Creating *very shitt* beam-like VFX from %s to %s!' % [from_node, to_node])
+	var beam: EdgeBeam = beam_packed.instantiate()
+	var points = get_connection_line(from_node.get_center(), to_node.get_center())
+	get_node('_connection_layer').add_child(beam)
+	beam.start(points)
+	await beam.completed # TODO: pass callback instead?
+	# Set color to "active"
+	set_connection_activity(from_node.name, 0, to_node.name, 0, 1)
 #endregion
 
 
@@ -73,14 +84,6 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 	notify_nodes_disconnected(from_node, from_port, to_node, to_port)
 
 
-#region VFX
-func create_beam_along_edge(from_node: TreeNode, to_node: TreeNode) -> EdgeBeam:
-	var beam: EdgeBeam = beam_packed.instantiate()
-	var points = get_connection_line(from_node.get_center(), to_node.get_center())
-	add_child(beam)
-	beam.start(points)
-	return beam
-#endregion
 
 
 func _on_insert_add_new_skill_node() -> void:

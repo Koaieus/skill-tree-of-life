@@ -114,6 +114,12 @@ connections = Array[Dictionary]([{
 "keep_alive": true,
 "to_node": &"Dumb Force",
 "to_port": 0
+}, {
+"from_node": &"Start",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"BigInt",
+"to_port": 0
 }])
 
 [node name="Start" parent="." index="4" node_paths=PackedStringArray("local_entities") instance=ExtResource("2_nw5ke")]
@@ -145,13 +151,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 529.0
-offset_top = 296.0
-offset_right = 589.0
-offset_bottom = 376.0
+offset_left = 570.0
+offset_top = 461.0
+offset_right = 630.0
+offset_bottom = 541.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 30
-position_offset = Vector2(529, 296)
+position_offset = Vector2(570, 461)
 title = "Strength"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_dg77c")])
 
@@ -162,13 +168,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 639.0
-offset_top = 231.0
-offset_right = 699.0
-offset_bottom = 311.0
+offset_left = 722.0
+offset_top = 308.0
+offset_right = 782.0
+offset_bottom = 388.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 30
-position_offset = Vector2(639, 231)
+position_offset = Vector2(722, 308)
 title = "Str + Int"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_ycdy4"), SubResource("Resource_yaehf")])
 
@@ -179,13 +185,13 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 534.0
-offset_top = 107.0
-offset_right = 600.0
-offset_bottom = 187.0
+offset_left = 512.0
+offset_top = 154.0
+offset_right = 578.0
+offset_bottom = 234.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 33
-position_offset = Vector2(534, 107)
+position_offset = Vector2(512, 154)
 title = "Big Smart"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_074og"), SubResource("Resource_82xsv")])
 
@@ -196,12 +202,12 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 758.0
-offset_top = 247.0
-offset_right = 840.0
-offset_bottom = 327.0
+offset_left = 744.0
+offset_top = 128.0
+offset_right = 826.0
+offset_bottom = 208.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 64
-position_offset = Vector2(758, 247)
+position_offset = Vector2(744, 128)
 title = "Dumb Force"
 modifiers = Array[ExtResource("3_bhhj0")]([SubResource("Resource_4c57u"), SubResource("Resource_bhhj0")])

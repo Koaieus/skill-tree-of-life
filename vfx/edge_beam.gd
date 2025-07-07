@@ -6,6 +6,8 @@ var path_points : PackedVector2Array
 var offset: float = 0.
 @onready var orig_curve = width_curve
 
+signal completed
+
 
 func _process(delta: float) -> void:
 	width_curve = make_offset_curve(orig_curve, offset)
@@ -26,12 +28,14 @@ func start(path: PackedVector2Array):
 	tween.tween_property(self, "offset", 1.0, travel_time) \
 		 .from(0) \
 		 .set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)
-	# Loop a pulsating thickness or color shift if you like:
 	tween.tween_callback(_on_complete)
+	
 
 func _on_complete() -> void:
-	print('done beamin!')
+	print('[VFX] done beamin!')
 	texture_mode = Line2D.LINE_TEXTURE_NONE
+	completed.emit()
+	queue_free()
 
 func make_offset_curve(orig: Curve, offset: float) -> Curve:
 	var c = Curve.new()
