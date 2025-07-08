@@ -1,0 +1,38 @@
+[gd_scene load_steps=3 format=3 uid="uid://bv8vunxbku6kk"]
+
+[ext_resource type="Script" uid="uid://b73huwktlk1v8" path="res://stat_system/bind/stat_bind.gd" id="1_s42tk"]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_geej7"]
+
+[node name="BasicStatWidget" type="HBoxContainer"]
+offset_right = 235.0
+offset_bottom = 34.0
+size_flags_horizontal = 0
+size_flags_vertical = 0
+
+[node name="StatBind" type="Node" parent="." node_paths=PackedStringArray("target")]
+unique_name_in_owner = true
+script = ExtResource("1_s42tk")
+target = NodePath("")
+property_to_bind = "stat"
+metadata/_custom_type_script = "uid://b73huwktlk1v8"
+
+[node name="IconTextureRect" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+texture = SubResource("PlaceholderTexture2D_geej7")
+stretch_mode = 5
+
+[node name="LabelText" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/shadow_outline_size = 3
+text = "<skill text>"
+
+[node name="LabelValue" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_constants/shadow_outline_size = 3
+text = "<N/A>"

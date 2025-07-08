@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StatMetaData" load_steps=2 format=3 uid="uid://dmtbbaxpl11y"]
+
+[ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/metadata/stat_metadata.gd" id="1_ui54r"]
+
+[resource]
+script = ExtResource("1_ui54r")
+name = "Experience per turn"
+abbreviation = "XP/turn"
+description = ""
+order = 201
+display_type = 0
+value_format = "%s"
+mid_label_format = ""
+tooltip_format = "%s"
+tint_color = Color(1, 1, 1, 1)
+value_fields = Array[String](["value"])

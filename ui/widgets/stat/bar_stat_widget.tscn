@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://d02f8um7qrbmm"]
+
+[ext_resource type="PackedScene" uid="uid://bv8vunxbku6kk" path="res://ui/widgets/stat/basic_stat_widget.tscn" id="1_cua5u"]
+[ext_resource type="PackedScene" uid="uid://bcehc3jn4baxh" path="res://ui/progress_bar_decorated.tscn" id="2_81oau"]
+
+[node name="BarStatWidget" instance=ExtResource("1_cua5u")]
+
+[node name="ProgressBar" parent="." index="4" instance=ExtResource("2_81oau")]
+unique_name_in_owner = true
+layout_mode = 2

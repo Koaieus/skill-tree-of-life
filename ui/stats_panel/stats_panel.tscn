@@ -21,11 +21,11 @@ theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="StatsPanel" type="VBoxContainer" parent="MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 custom_minimum_size = Vector2(250, 500)
 layout_mode = 2
 
-[node name="NameLabel" type="Label" parent="MarginContainer/StatsPanel"]
+[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
@@ -35,7 +35,8 @@ theme_override_font_sizes/font_size = 20
 text = "<name of player>"
 horizontal_alignment = 1
 
-[node name="Description" type="Label" parent="MarginContainer/StatsPanel"]
+[node name="DescriptionLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(100, 30)
 layout_mode = 2
@@ -47,15 +48,15 @@ theme_override_font_sizes/font_size = 10
 text = "<This is some kind of intro text or description. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus erat eros, feugiat quis arcu nec, sagittis fermentum est.>"
 autowrap_mode = 3
 
-[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/StatsPanel"]
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="StatsList" type="VBoxContainer" parent="MarginContainer/StatsPanel/ScrollContainer"]
+[node name="StatsList" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ScrollContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="StatRow" parent="MarginContainer/StatsPanel/ScrollContainer/StatsList" instance=ExtResource("2_h7nn3")]
+[node name="StatRow" parent="MarginContainer/VBoxContainer/ScrollContainer/StatsList" instance=ExtResource("2_h7nn3")]
 layout_mode = 2

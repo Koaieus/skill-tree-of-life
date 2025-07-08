@@ -38,7 +38,7 @@ class_name StatRowBase
 		stat = value
 		notify_property_list_changed()
 
-@onready var stat_bind: StatBind = %StatBind
+@onready var stat_bind: StatBind = %StatBind as StatBind
 
 @export var text_display: String:
 	get(): return text_display

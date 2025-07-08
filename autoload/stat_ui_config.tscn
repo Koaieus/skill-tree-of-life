@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://yvu2nkvew742"]
+
+[ext_resource type="Script" uid="uid://bfcg3bxoyhgff" path="res://autoload/stat_ui_config.gd" id="1_nunw7"]
+
+[node name="StatUIConfig" type="Node"]
+script = ExtResource("1_nunw7")

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StatMetaData" load_steps=2 format=3 uid="uid://ljmf8j7irhrk"]
+
+[ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/metadata/stat_metadata.gd" id="1_io3c0"]
+
+[resource]
+script = ExtResource("1_io3c0")
+name = "Skill points"
+abbreviation = "SkillPts"
+description = ""
+order = 100
+display_type = 0
+widget_overrides = Dictionary[int, PackedScene]({})
+value_format = "%s"
+mid_label_format = ""
+tooltip_format = "%s"
+tint_color = Color(1, 1, 1, 1)
+value_fields = Array[String](["value"])

@@ -19,6 +19,8 @@ config/icon="res://icon.svg"
 
 SceneTransition="*res://autoload/scene_transition.tscn"
 SceneLoader="*res://autoload/scene_loader.tscn"
+StatUIConfig="*res://autoload/stat_ui_config.tscn"
+XRM="res://autoload/global_transform.tscn"
 DeferOnce="*res://autoload/defer_once.tscn"
 StatMetaDataRepository="*res://autoload/stat_metadata_repository.tscn"
 Skills="res://skills.tscn"
@@ -34,6 +36,19 @@ window/stretch/mode="canvas_items"
 
 version_control/plugin_name="GitPlugin"
 version_control/autoload_on_startup=true
+
+[file_customization]
+
+folder_colors={
+"res://assets/": "gray",
+"res://autoload/": "red",
+"res://boot/": "gray",
+"res://shaders/": "pink",
+"res://stat_system/": "gray",
+"res://stats/": "red",
+"res://systems/": "orange",
+"res://ui/": "green"
+}
 
 [global_group]
 

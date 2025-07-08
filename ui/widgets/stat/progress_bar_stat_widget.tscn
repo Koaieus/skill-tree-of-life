@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://cxj5di4g4rtim"]
+
+[ext_resource type="PackedScene" uid="uid://d02f8um7qrbmm" path="res://ui/widgets/stat/bar_stat_widget.tscn" id="1_krkk3"]
+
+[node name="ProgressBarStatWidget" instance=ExtResource("1_krkk3")]
+offset_right = 224.0
+offset_bottom = 30.0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+
+[node name="LabelText" parent="." index="2"]
+unique_name_in_owner = false
+
+[node name="LabelValue" parent="." index="3"]
+unique_name_in_owner = false
