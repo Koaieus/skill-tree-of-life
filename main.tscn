@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="5_lquwl"]
 [ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="6_4c57u"]
 [ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="6_5vw27"]
-[ext_resource type="PackedScene" uid="uid://bykuqbr2eeh8j" path="res://skills.tscn" id="7_5vw27"]
+[ext_resource type="PackedScene" uid="uid://bykuqbr2eeh8j" path="res://skills/skills.tscn" id="7_5vw27"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="7_efxa6"]
 [ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="8_dg77c"]
 [ext_resource type="Script" uid="uid://gj017hef4u2b" path="res://stats/list/dex_stat.gd" id="9_ycdy4"]

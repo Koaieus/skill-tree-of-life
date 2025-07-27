@@ -23,7 +23,7 @@ StatUIConfig="*res://autoload/stat_ui_config.tscn"
 XRM="res://autoload/global_transform.tscn"
 DeferOnce="*res://autoload/defer_once.tscn"
 StatMetaDataRepository="*res://autoload/stat_metadata_repository.tscn"
-Skills="res://skills.tscn"
+Skills="res://skills/skills.tscn"
 Game="*res://autoload/game.tscn"
 
 [display]
@@ -43,7 +43,9 @@ folder_colors={
 "res://assets/": "gray",
 "res://autoload/": "red",
 "res://boot/": "gray",
+"res://data/": "blue",
 "res://shaders/": "teal",
+"res://skills/": "pink",
 "res://stat_system/": "gray",
 "res://stats/": "purple",
 "res://systems/": "orange",
@@ -55,3 +57,7 @@ folder_colors={
 players="Player-controlled skill tree entities"
 entities="Skill tree entities"
 initiative-ready="Entities that have sufficient initiative progress that they are ready to take a turn"
+
+[physics]
+
+2d/default_gravity=0.0

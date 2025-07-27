@@ -1,7 +1,7 @@
 [gd_scene load_steps=13 format=3 uid="uid://bykuqbr2eeh8j"]
 
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="1_ne31x"]
-[ext_resource type="Script" uid="uid://ddsja4fdwhs6i" path="res://skills.gd" id="1_whxui"]
+[ext_resource type="Script" uid="uid://ddsja4fdwhs6i" path="res://skills/skills.gd" id="1_whxui"]
 [ext_resource type="Script" uid="uid://c4wli7tfhudjl" path="res://stat_system/modifier/_number_stat_modifier.gd" id="3_whxui"]
 [ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="4_jp2yk"]
 [ext_resource type="Script" uid="uid://cehpx155ql87x" path="res://stats/list/str_stat.gd" id="5_ftha6"]

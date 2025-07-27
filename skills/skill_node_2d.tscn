@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3 uid="uid://cqfs5bfkojv72"]
+
+[ext_resource type="Script" uid="uid://ok3wat5bl5wd" path="res://skills/skill_node_2d.gd" id="1_xshka"]
+[ext_resource type="Texture2D" uid="uid://dy7djfa2xjswl" path="res://icon.svg" id="2_jpr2l"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jpr2l"]
+size = Vector2(76, 76)
+
+[node name="SkillNode2D" type="RigidBody2D"]
+input_pickable = true
+lock_rotation = true
+script = ExtResource("1_xshka")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+scale = Vector2(0.6, 0.6)
+texture = ExtResource("2_jpr2l")
+
+[node name="Marker2D" type="Marker2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_jpr2l")
+
+[node name="DebugLabel" type="Label" parent="."]
+offset_right = 40.0
+offset_bottom = 23.0

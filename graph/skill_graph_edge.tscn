@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://7jrtqgc17uew"]
+
+[ext_resource type="Script" uid="uid://tgwmeyhqw7qr" path="res://graph/skill_graph_edge.gd" id="1_5ajnk"]
+
+[node name="SkillGraphEdge" type="Line2D"]
+process_mode = 3
+points = PackedVector2Array(0, 0, 0, 0)
+script = ExtResource("1_5ajnk")
+
+[node name="DampedSpringJoint2D" type="DampedSpringJoint2D" parent="."]
+disable_collision = false
+stiffness = 64.0
+damping = 2.26274

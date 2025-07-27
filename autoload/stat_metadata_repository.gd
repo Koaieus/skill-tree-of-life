@@ -78,7 +78,7 @@ func _get_list_of_stat_classes() -> Array[StringName]:
 	var is_descendant_of_stat = func(cls: StringName) -> bool:
 		rabbit_hole.clear()
 		while cls in base_map:
-			print('Checking %s...' % cls)
+			#print('Checking %s...' % cls)
 			cls = base_map[cls]
 			if cls == "Stat":
 				return true

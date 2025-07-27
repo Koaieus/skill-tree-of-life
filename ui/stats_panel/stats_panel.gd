@@ -24,8 +24,9 @@ func _on_main_player_selected(p: Player) -> void:
 	set_player(p)
 
 func _on_game_ready() -> void:
-	if not player and Game.main_player:
-		set_player(Game.main_player)
+	pass
+	#if not player and Game.main_player:
+		#set_player(Game.main_player)
 
 ## Clear existing rows
 func _clear_rows() -> void:

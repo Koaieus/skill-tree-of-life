@@ -52,17 +52,17 @@ func _to_string() -> String:
 	return 'Tree Entity'
 	
 
-func can_allocate_node(tree_node: TreeNode) -> bool:
+func can_allocate_node(tree_node: SkillNode2D) -> bool:
 	if tree_node.has_owner():
 		return false
 	
-	for neighbor: TreeNode in tree_node.neighbors:
+	for neighbor: SkillNode2D in tree_node.neighbors:
 		if neighbor.owned_by == self:
 			return true
 	print('Node has no connected neighbors')
 	return false
 	
-func can_deallocate_node(tree_node: TreeNode) -> bool:
+func can_deallocate_node(tree_node: SkillNode2D) -> bool:
 	if tree_node.owned_by != self:
 		return false
 	return true
@@ -70,11 +70,11 @@ func can_deallocate_node(tree_node: TreeNode) -> bool:
 func can_take_turn() -> bool:
 	return true
 	
-func _pay_allocation_cost(tree_node: TreeNode):
+func _pay_allocation_cost(tree_node: SkillNode2D):
 	return
 
 
-func allocate_skill_node(tree_node: TreeNode):
+func allocate_skill_node(tree_node: SkillNode2D):
 	prints('Allocating', tree_node, 'to', self)
 	if not can_allocate_node(tree_node):
 		print('Cannot allocate!')
@@ -82,7 +82,7 @@ func allocate_skill_node(tree_node: TreeNode):
 	_pay_allocation_cost(tree_node)
 	tree_node.allocate_to(self)
 	
-func deallocate_skill_node(tree_node: TreeNode):
+func deallocate_skill_node(tree_node: SkillNode2D):
 	prints('Deallocating', tree_node, 'from', self)
 	tree_node.owned_by = null
 	return false

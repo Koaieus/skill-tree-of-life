@@ -2,7 +2,7 @@ extends MarginContainer
 class_name ToolTip
 
 var origin = ""
-var target: TreeNode = null
+var target: Node2D = null
 var valid: bool = false
 
 @onready var title_label: Label = %Title

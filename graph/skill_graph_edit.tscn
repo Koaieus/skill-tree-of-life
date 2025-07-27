@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dam7fnxmi6q3a"]
+
+[ext_resource type="Script" uid="uid://muaa4f7mga38" path="res://graph/skill_graph_edit.gd" id="1_umtig"]
+
+[node name="SkillGraphEdit" type="GraphEdit"]
+script = ExtResource("1_umtig")

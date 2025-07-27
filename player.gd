@@ -43,14 +43,14 @@ func _on_level_up(new_level: int, difference: int) -> void:
 func _on_level_down(new_level: int, difference: int) -> void:
 	emit_signal("level_down", new_level, difference)
 
-func can_allocate_node(tree_node: TreeNode):
+func can_allocate_node(tree_node: SkillNode2D):
 	if stats.skill_points.value == 0:
 		print('No skill point available')
 		return false
 	return super(tree_node)
 	
 
-func _pay_allocation_cost(tree_node: TreeNode):
+func _pay_allocation_cost(tree_node: SkillNode2D):
 	#print('paying 1 skill point... (current: %s / %s)' % [stats.skill_points.value, stats.skill_points._max.value])
 	stats.skill_points.decrease(1)
 

@@ -13,7 +13,7 @@ signal main_player_selected(new_player: Player)
 
 #region GLOBALS
 var root: GameRoot
-var tree_graph: TreeGraph
+var skill_graph_world: SkillGraphWorld # inside LevelLayer
 var navigator: Navigator
 var turn_manager: TurnManager
 ## The "Main Player" of this game instance
@@ -24,7 +24,7 @@ const GAME_ROOT_SCENE: PackedScene = preload("res://scenes/game_root.tscn")
 
 func _ready() -> void:
 	# Kick off into your first scene
-	start_game_with_level.call_deferred("res://levels/dev_level_tree_graph.tscn")
+	start_game_with_level.call_deferred("res://levels/dev_graph_level.tscn")
 
 
 func start_game_with_level(level_path: String) -> void:
@@ -44,39 +44,41 @@ func start_game_with_level(level_path: String) -> void:
 	_wire_game_root(root)
 	
 	# 5) Replace old level child under LevelLayer
-	var level_instance = packed_level.instantiate()
-	var level_layer = root.get_node("LevelLayer")
-	level_layer.add_child(level_instance)
 	
-	# 6) Wire up the loaded level
-	_wire_level(level_instance)
-
-	# 7) All set!
+	var level_data_source: SkillGraphEdit = packed_level.instantiate()
+	
+	skill_graph_world = preload("res://graph/skill_graph_world.tscn").instantiate()
+	root.level_layer.add_child(skill_graph_world)
+	_wire_level(skill_graph_world)
+	# Read SkillGraphEdit as datasource to populate new SkillGraphWorld instance
+	SkillGraphEditParser.populate_world_from_edit(level_data_source, skill_graph_world)
+	
+	# 6) All set!
 	emit_signal("game_ready")
 
-	# 8) Fade back in
+	# 7) Fade back in
 	await SceneTransition.fade_in()
 
 func _wire_game_root(game_root: GameRoot) -> void:
-	assert(root, 'ROOT BAD MKAY')
+	assert(game_root, 'ROOT BAD MKAY')
+	# Set globals:
 	root = game_root
-
-func _wire_level(level_instance: TreeGraph) -> void:
-	tree_graph = level_instance
-	navigator = tree_graph.get_node("Navigator")
+	navigator = root.navigator
 	assert(navigator, 'Navigator missing')
-	#navigator = tree_graph.navigator
-	turn_manager = tree_graph.turn_manager
-	root.current_level = level_instance
-	
-	# hook turn signals to global
-	#turn_manager.connect("turn_started", self, "_on_turn_started") # TODO: not yet, maybe later
-	#turn_manager.connect("turn_ended",   self, "_on_turn_ended")
+	turn_manager = root.turn_manager
 
-	# Setup main player (like this.. for now)
-	player = get_tree().get_first_node_in_group("players")
-	if player:
-		main_player_selected.emit(player)
+func _wire_level(level_instance: SkillGraphWorld) -> void:
+	root.current_level = level_instance
+	skill_graph_world = level_instance
+	
+	## hook turn signals to global
+	##turn_manager.connect("turn_started", self, "_on_turn_started") # TODO: not yet, maybe later
+	##turn_manager.connect("turn_ended",   self, "_on_turn_ended")
+#
+	## Setup main player (like this.. for now)
+	#player = get_tree().get_first_node_in_group("players")
+	#if player:
+		#main_player_selected.emit(player)
 
 
 func _on_game_ready() -> void:

@@ -1,6 +1,6 @@
 #@tool
 extends GraphEdit
-class_name TreeGraph
+class_name TreeGraph_DEPRECATED
 
 const tree_node_packed = preload("res://tree_node.tscn")
 

@@ -1,10 +1,10 @@
-extends Control
+extends Node
 class_name LevelManager
 
-signal level_loaded(new_tree_graph: TreeGraph)
+signal level_loaded(new_level: SkillGraphWorld)
 signal level_load_progress(pct: float)
 
-var _current_level_scene: TreeGraph = null
+var _current_level_scene: SkillGraphWorld = null
 
 var _loading_path: String = ""
 var _is_loading: bool = false

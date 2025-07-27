@@ -1,52 +1,63 @@
-[gd_scene load_steps=11 format=3 uid="uid://d03k3httljwig"]
+[gd_scene load_steps=11 format=3 uid="uid://ctrrg37otl3as"]
 
-[ext_resource type="PackedScene" uid="uid://cp7jtjmcxyxlm" path="res://graph/tree_graph.tscn" id="1_i70s0"]
-[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="2_nw5ke"]
-[ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="3_g1ure"]
-[ext_resource type="Script" uid="uid://c0wk5lho5uuhi" path="res://data/skill_data.gd" id="4_sse20"]
-[ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="9_bhhj0"]
+[ext_resource type="Script" uid="uid://muaa4f7mga38" path="res://graph/skill_graph_edit.gd" id="1_k8d73"]
+[ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="2_mwnyd"]
+[ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="3_5k7s0"]
+[ext_resource type="Script" uid="uid://c0wk5lho5uuhi" path="res://data/skill_data.gd" id="4_o2fq6"]
+[ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="5_vs5vf"]
 
-[sub_resource type="Resource" id="Resource_b4tm4"]
-script = ExtResource("4_sse20")
+[sub_resource type="Resource" id="Resource_bf53y"]
+script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
-modifiers = Array[ExtResource("3_g1ure")]([])
+modifiers = Array[ExtResource("3_5k7s0")]([])
 vision_range = 100
 
-[sub_resource type="Resource" id="Resource_d5at0"]
-script = ExtResource("4_sse20")
+[sub_resource type="Resource" id="Resource_c6b78"]
+script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
-modifiers = Array[ExtResource("3_g1ure")]([])
+modifiers = Array[ExtResource("3_5k7s0")]([])
 vision_range = 100
 
-[sub_resource type="Resource" id="Resource_nw5ke"]
-script = ExtResource("4_sse20")
+[sub_resource type="Resource" id="Resource_ki41n"]
+script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
-modifiers = Array[ExtResource("3_g1ure")]([])
+modifiers = Array[ExtResource("3_5k7s0")]([])
 vision_range = 100
 
-[sub_resource type="Resource" id="Resource_bhhj0"]
-script = ExtResource("4_sse20")
+[sub_resource type="Resource" id="Resource_80njy"]
+script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
-modifiers = Array[ExtResource("3_g1ure")]([])
+modifiers = Array[ExtResource("3_5k7s0")]([])
 vision_range = 100
 
-[sub_resource type="Resource" id="Resource_61tkq"]
-script = ExtResource("4_sse20")
+[sub_resource type="Resource" id="Resource_1jsg0"]
+script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
-modifiers = Array[ExtResource("3_g1ure")]([])
+modifiers = Array[ExtResource("3_5k7s0")]([])
 vision_range = 100
 
-[node name="TreeGraph" instance=ExtResource("1_i70s0")]
+[node name="DevGraphLevel" type="GraphEdit"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 connections = Array[Dictionary]([{
 "from_node": &"Start",
 "from_port": 0,
 "keep_alive": true,
 "to_node": &"Strength",
+"to_port": 0
+}, {
+"from_node": &"Start",
+"from_port": 0,
+"keep_alive": true,
+"to_node": &"BigInt",
 "to_port": 0
 }, {
 "from_node": &"Strength",
@@ -58,23 +69,19 @@ connections = Array[Dictionary]([{
 "from_node": &"StrInt",
 "from_port": 0,
 "keep_alive": true,
-"to_node": &"BigInt",
-"to_port": 0
-}, {
-"from_node": &"StrInt",
-"from_port": 0,
-"keep_alive": true,
 "to_node": &"Dumb Force",
 "to_port": 0
 }, {
-"from_node": &"Start",
+"from_node": &"BigInt",
 "from_port": 0,
 "keep_alive": true,
-"to_node": &"BigInt",
+"to_node": &"StrInt",
 "to_port": 0
 }])
+script = ExtResource("1_k8d73")
+metadata/_custom_type_script = "uid://muaa4f7mga38"
 
-[node name="Start" parent="." index="4" instance=ExtResource("2_nw5ke")]
+[node name="Start" parent="." instance=ExtResource("2_mwnyd")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -83,19 +90,19 @@ anchor_right = 0.0
 anchor_bottom = 0.0
 offset_left = 392.0
 offset_top = 365.0
-offset_right = 471.0
+offset_right = 479.0
 offset_bottom = 445.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(392, 365)
-title = "Starter Skill"
-skill_data = SubResource("Resource_b4tm4")
+title = "Starter Skilla"
+skill_data = SubResource("Resource_bf53y")
 
-[node name="Player" parent="Start" index="2" instance=ExtResource("9_bhhj0")]
+[node name="Player" parent="Start" instance=ExtResource("5_vs5vf")]
 player_name = "DefaultPlayer"
 color = Color(0.835294, 0, 0, 1)
 
-[node name="Strength" parent="." index="5" instance=ExtResource("2_nw5ke")]
+[node name="Strength" parent="." instance=ExtResource("2_mwnyd")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -110,9 +117,9 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(570, 461)
 title = "Strength"
-skill_data = SubResource("Resource_d5at0")
+skill_data = SubResource("Resource_c6b78")
 
-[node name="StrInt" parent="." index="6" instance=ExtResource("2_nw5ke")]
+[node name="StrInt" parent="." instance=ExtResource("2_mwnyd")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -127,9 +134,9 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 30
 position_offset = Vector2(722, 308)
 title = "Str + Int"
-skill_data = SubResource("Resource_nw5ke")
+skill_data = SubResource("Resource_ki41n")
 
-[node name="BigInt" parent="." index="7" instance=ExtResource("2_nw5ke")]
+[node name="BigInt" parent="." instance=ExtResource("2_mwnyd")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -144,9 +151,9 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 33
 position_offset = Vector2(512, 154)
 title = "Big Smart"
-skill_data = SubResource("Resource_bhhj0")
+skill_data = SubResource("Resource_80njy")
 
-[node name="Dumb Force" parent="." index="8" instance=ExtResource("2_nw5ke")]
+[node name="Dumb Force" parent="." instance=ExtResource("2_mwnyd")]
 self_modulate = Color(1, 1, 1, 0)
 layout_mode = 0
 anchors_preset = 0
@@ -161,4 +168,4 @@ mouse_filter = 1
 theme_override_constants/port_h_offset = 64
 position_offset = Vector2(744, 128)
 title = "Dumb Force"
-skill_data = SubResource("Resource_61tkq")
+skill_data = SubResource("Resource_1jsg0")
