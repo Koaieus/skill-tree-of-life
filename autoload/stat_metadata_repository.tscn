@@ -1,54 +1,17 @@
-[gd_scene load_steps=16 format=3 uid="uid://b0i5wlc44yt47"]
+[gd_scene load_steps=15 format=3 uid="uid://b0i5wlc44yt47"]
 
 [ext_resource type="Script" uid="uid://bt440sdyvbrvg" path="res://autoload/stat_metadata_repository.gd" id="1_bcx1n"]
 [ext_resource type="Script" uid="uid://c2lhfevy5egoo" path="res://stat_system/metadata/stat_metadata.gd" id="2_x1a76"]
+[ext_resource type="Resource" uid="uid://dl4qr3wyeurax" path="res://stats/meta/dex_stat_meta.tres" id="3_dpdvq"]
 [ext_resource type="Resource" uid="uid://bfnsh0i73hk5e" path="res://stats/meta/int_stat_meta.tres" id="3_ynjou"]
 [ext_resource type="Resource" uid="uid://ljmf8j7irhrk" path="res://stats/meta/skillpoint_stat_meta.tres" id="4_dpdvq"]
+[ext_resource type="Resource" uid="uid://c2ssf0e1djd41" path="res://stats/meta/exp_stat_meta.tres" id="4_uj3ek"]
 [ext_resource type="Resource" uid="uid://dsqnm062mb4nw" path="res://stats/meta/str_stat_meta.tres" id="5_2whh7"]
+[ext_resource type="Resource" uid="uid://dmtbbaxpl11y" path="res://stats/meta/exp_gain_stat_meta.tres" id="5_qllhy"]
+[ext_resource type="Resource" uid="uid://sqijlbocj8dv" path="res://stats/meta/health_stat_meta.tres" id="6_iwi73"]
+[ext_resource type="Resource" uid="uid://cmo0p48dxrthc" path="res://stats/meta/initiative_stat_meta.tres" id="7_ah6a3"]
 
 [sub_resource type="Resource" id="Resource_iwi73"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_ah6a3"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_lxhsw"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_ynjou"]
 script = ExtResource("2_x1a76")
 name = "Unnamed stat"
 abbreviation = "---"
@@ -76,34 +39,6 @@ tooltip_format = "%s"
 tint_color = Color(1, 1, 1, 1)
 value_fields = Array[String](["value"])
 
-[sub_resource type="Resource" id="Resource_2whh7"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_wkyhq"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
 [sub_resource type="Resource" id="Resource_8fkc7"]
 script = ExtResource("2_x1a76")
 name = "Unnamed stat"
@@ -118,21 +53,7 @@ tooltip_format = "%s"
 tint_color = Color(1, 1, 1, 1)
 value_fields = Array[String](["value"])
 
-[sub_resource type="Resource" id="Resource_uj3ek"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_qllhy"]
+[sub_resource type="Resource" id="Resource_j6ndt"]
 script = ExtResource("2_x1a76")
 name = "Unnamed stat"
 abbreviation = "---"
@@ -150,15 +71,15 @@ value_fields = Array[String](["value"])
 script = ExtResource("1_bcx1n")
 repository = Dictionary[StringName, ExtResource("2_x1a76")]({
 &"BoolStat": SubResource("Resource_iwi73"),
-&"DexterityStat": SubResource("Resource_ah6a3"),
-&"ExpStat": SubResource("Resource_lxhsw"),
-&"ExperienceGainStat": SubResource("Resource_ynjou"),
+&"DexterityStat": ExtResource("3_dpdvq"),
+&"ExpStat": ExtResource("4_uj3ek"),
+&"ExperienceGainStat": ExtResource("5_qllhy"),
 &"FloatStat": SubResource("Resource_dpdvq"),
-&"HealthPoolStat": SubResource("Resource_2whh7"),
-&"InitiativeStat": SubResource("Resource_wkyhq"),
+&"HealthPoolStat": ExtResource("6_iwi73"),
+&"InitiativeStat": ExtResource("7_ah6a3"),
 &"IntGrowablePoolStat": SubResource("Resource_8fkc7"),
-&"IntPoolStat": SubResource("Resource_uj3ek"),
-&"IntStat": SubResource("Resource_qllhy"),
+&"IntPoolStat": ExtResource("3_ynjou"),
+&"IntStat": SubResource("Resource_j6ndt"),
 &"IntelligenceStat": ExtResource("3_ynjou"),
 &"SkillPointPoolStat": ExtResource("4_dpdvq"),
 &"StrengthStat": ExtResource("5_2whh7")
