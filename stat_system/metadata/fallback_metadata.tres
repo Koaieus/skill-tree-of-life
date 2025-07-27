@@ -10,6 +10,7 @@ abbreviation = "???"
 description = null
 order = 999
 display_type = null
+widget_overrides = Dictionary[int, PackedScene]({})
 value_format = null
 mid_label_format = null
 tooltip_format = null

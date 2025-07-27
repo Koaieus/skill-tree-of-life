@@ -7,13 +7,12 @@
 [node name="BasicStatWidget" type="HBoxContainer"]
 offset_right = 235.0
 offset_bottom = 34.0
-size_flags_horizontal = 0
+size_flags_horizontal = 2
 size_flags_vertical = 0
 
-[node name="StatBind" type="Node" parent="." node_paths=PackedStringArray("target")]
+[node name="StatBind" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("1_s42tk")
-target = NodePath("")
 property_to_bind = "stat"
 metadata/_custom_type_script = "uid://b73huwktlk1v8"
 

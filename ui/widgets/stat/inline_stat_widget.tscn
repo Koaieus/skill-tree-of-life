@@ -10,9 +10,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="StatBind" type="Node" parent="." node_paths=PackedStringArray("target")]
+[node name="StatBind" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("1_2ronp")
-target = NodePath("")
 property_to_bind = "stat"
 metadata/_custom_type_script = "uid://b73huwktlk1v8"

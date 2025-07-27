@@ -1,0 +1,33 @@
+[gd_scene load_steps=6 format=3 uid="uid://jxwjyyoo76c2"]
+
+[ext_resource type="Texture2D" uid="uid://o8gr5nn5y614" path="res://assets/bars.png" id="1_hdgio"]
+[ext_resource type="Script" uid="uid://bvy03x8g5idh5" path="res://ui/widgets/bar_widget.gd" id="2_yhocb"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yhocb"]
+atlas = ExtResource("1_hdgio")
+region = Rect2(110, 27, 805, 190)
+filter_clip = true
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_diji8"]
+load_path = "res://.godot/imported/bars.png-97588dd9444fb86009feab97b6cb4d08.ctex"
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_j4sck"]
+atlas = SubResource("CompressedTexture2D_diji8")
+region = Rect2(109, 251, 806, 188)
+filter_clip = true
+
+[node name="BarWidget" type="TextureProgressBar"]
+offset_right = 444.0
+offset_bottom = 180.0
+value = 3.0
+exp_edit = true
+nine_patch_stretch = true
+stretch_margin_left = 132
+stretch_margin_top = 90
+stretch_margin_right = 132
+stretch_margin_bottom = 90
+texture_under = SubResource("AtlasTexture_yhocb")
+texture_progress = SubResource("AtlasTexture_j4sck")
+script = ExtResource("2_yhocb")
+
+[connection signal="property_list_changed" from="." to="." method="_on_property_list_changed"]

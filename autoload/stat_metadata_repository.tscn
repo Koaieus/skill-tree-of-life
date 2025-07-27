@@ -6,6 +6,34 @@
 [ext_resource type="Resource" uid="uid://ljmf8j7irhrk" path="res://stats/meta/skillpoint_stat_meta.tres" id="4_dpdvq"]
 [ext_resource type="Resource" uid="uid://dsqnm062mb4nw" path="res://stats/meta/str_stat_meta.tres" id="5_2whh7"]
 
+[sub_resource type="Resource" id="Resource_iwi73"]
+script = ExtResource("2_x1a76")
+name = "Unnamed stat"
+abbreviation = "---"
+description = ""
+order = 100
+display_type = 0
+widget_overrides = Dictionary[int, PackedScene]({})
+value_format = "%s"
+mid_label_format = ""
+tooltip_format = "%s"
+tint_color = Color(1, 1, 1, 1)
+value_fields = Array[String](["value"])
+
+[sub_resource type="Resource" id="Resource_ah6a3"]
+script = ExtResource("2_x1a76")
+name = "Unnamed stat"
+abbreviation = "---"
+description = ""
+order = 100
+display_type = 0
+widget_overrides = Dictionary[int, PackedScene]({})
+value_format = "%s"
+mid_label_format = ""
+tooltip_format = "%s"
+tint_color = Color(1, 1, 1, 1)
+value_fields = Array[String](["value"])
+
 [sub_resource type="Resource" id="Resource_lxhsw"]
 script = ExtResource("2_x1a76")
 name = "Unnamed stat"
@@ -105,34 +133,6 @@ tint_color = Color(1, 1, 1, 1)
 value_fields = Array[String](["value"])
 
 [sub_resource type="Resource" id="Resource_qllhy"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_iwi73"]
-script = ExtResource("2_x1a76")
-name = "Unnamed stat"
-abbreviation = "---"
-description = ""
-order = 100
-display_type = 0
-widget_overrides = Dictionary[int, PackedScene]({})
-value_format = "%s"
-mid_label_format = ""
-tooltip_format = "%s"
-tint_color = Color(1, 1, 1, 1)
-value_fields = Array[String](["value"])
-
-[sub_resource type="Resource" id="Resource_ah6a3"]
 script = ExtResource("2_x1a76")
 name = "Unnamed stat"
 abbreviation = "---"

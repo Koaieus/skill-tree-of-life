@@ -43,9 +43,9 @@ folder_colors={
 "res://assets/": "gray",
 "res://autoload/": "red",
 "res://boot/": "gray",
-"res://shaders/": "pink",
+"res://shaders/": "teal",
 "res://stat_system/": "gray",
-"res://stats/": "red",
+"res://stats/": "purple",
 "res://systems/": "orange",
 "res://ui/": "green"
 }
