@@ -8,6 +8,9 @@ signal local_entities_changed(entity_list: Array[TreeEntity])
 
 signal pressed
 signal hovered
+signal position_changed(new_pos: Vector2)
+
+var _last_pos: Vector2
 
 ## Tracks the TreeEntity this Skill node is currently allocated to
 var owned_by: TreeEntity = null
@@ -35,12 +38,25 @@ func set_vertex_id(v):
 	vertex_id = max(v, -1)
 	notify_property_list_changed()
 
+const USE_PHYSICS := true
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
+	if USE_PHYSICS:
+		set_notify_transform(true)
+	else:
+		set_notify_transform(false)
+		set_physics_process(false)
+		
+	_last_pos = global_position
+	
 	if skill_data.icon:
 		sprite_2d.texture = skill_data.icon
 
+func _physics_process(delta):
+	if USE_PHYSICS and global_position != _last_pos:
+		position_changed.emit(global_position)
+		_last_pos = global_position
 
 #func _recalculate_neighbors():
 	#assert(false, 'TODO: Move to astar or treegraph or anything but here')

@@ -6,8 +6,8 @@
 process_mode = 3
 points = PackedVector2Array(0, 0, 0, 0)
 script = ExtResource("1_5ajnk")
+stiffness = 61.9
 
 [node name="DampedSpringJoint2D" type="DampedSpringJoint2D" parent="."]
+bias = 0.9
 disable_collision = false
-stiffness = 64.0
-damping = 2.26274
