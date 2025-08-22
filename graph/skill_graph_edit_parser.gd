@@ -11,9 +11,10 @@ static func populate_world_from_edit(graph_edit: SkillGraphEdit, graph_world: Sk
 			var pos = tn.position_offset
 			var node: SkillNode2D = graph_world.add_skill_node_from_skill_data(tn.name, pos, tn.skill_data)
 			# Randomly freeze
-			if randf() < 0.15:
-				node.freeze = true
-				node.modulate = Color.SADDLE_BROWN
+			node.mass = randf_range(0.3,  6.0)
+			#if randf() < 0.15:
+				#node.freeze = true
+				#node.modulate = Color.SADDLE_BROWN
 
 	# 3) Edges
 	for c in graph_edit.get_connection_list():

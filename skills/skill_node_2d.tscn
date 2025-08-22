@@ -8,6 +8,8 @@ size = Vector2(76, 76)
 
 [node name="SkillNode2D" type="RigidBody2D"]
 input_pickable = true
+lock_rotation = true
+linear_damp = 1.0
 script = ExtResource("1_xshka")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
@@ -20,5 +22,14 @@ texture = ExtResource("2_jpr2l")
 shape = SubResource("RectangleShape2D_jpr2l")
 
 [node name="DebugLabel" type="Label" parent="."]
-offset_right = 40.0
-offset_bottom = 23.0
+offset_left = -38.0
+offset_top = 39.0
+offset_right = 42.0
+offset_bottom = 62.0
+text = "m=1.00"
+
+[node name="DebugLabel2" type="Label" parent="."]
+offset_top = -38.0
+offset_right = 37.0
+offset_bottom = -15.0
+horizontal_alignment = 2

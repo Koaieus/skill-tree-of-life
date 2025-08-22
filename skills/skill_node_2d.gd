@@ -7,6 +7,7 @@ signal deallocated(node: TreeNode, previous_entity: TreeEntity)
 signal local_entities_changed(entity_list: Array[TreeEntity])
 
 signal pressed
+signal right_pressed
 signal hovered
 signal position_changed(new_pos: Vector2)
 
@@ -14,12 +15,18 @@ var _last_pos: Vector2
 
 ## Tracks the TreeEntity this Skill node is currently allocated to
 var owned_by: TreeEntity = null
-@export var skill_data: SkillData
+@export var skill_data: SkillData:
+	set(v):
+		skill_data = v
+		_initialize()
 
 ## Icon sprite node
 @onready var sprite_2d: Sprite2D = $Sprite2D
 ## Skill's center marker node
 @onready var marker: Marker2D = $Marker2D
+
+@onready var debug_label: Label = $DebugLabel
+@onready var debug_label2: Label = $DebugLabel2
 
 ## List of neighboring skill nodes
 @export var neighbors: Array[SkillNode2D] = []
@@ -53,10 +60,23 @@ func _ready() -> void:
 	if skill_data.icon:
 		sprite_2d.texture = skill_data.icon
 
+func _process(delta: float) -> void:
+	if debug_label:
+		debug_label.text = "m=%.2f" % mass
+	if debug_label2:
+		debug_label2.text = "Zzz" if sleeping else ""
+	
 func _physics_process(delta):
 	if USE_PHYSICS and global_position != _last_pos:
 		position_changed.emit(global_position)
 		_last_pos = global_position
+		
+func _initialize() -> void:
+	assert(skill_data is SkillData, 'Cannot initialize skill %s: No skill data')
+	
+	if skill_data.is_starter_node:
+		print('Found Starting Skill Node: %s' % self)
+		add_to_group(&"starter-nodes")
 
 #func _recalculate_neighbors():
 	#assert(false, 'TODO: Move to astar or treegraph or anything but here')
@@ -123,6 +143,14 @@ func set_color(color: Color):
 func get_center() -> Vector2:
 	assert(marker, 'No center marker')
 	return marker.global_position
+
+func _input_event(viewport: Viewport, event: InputEvent, shape_idx: int) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouse).is_pressed():
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			pressed.emit()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			#Game.node_pressed_right.emit(self)
+			right_pressed.emit()
 
 
 #func _on_icon_pressed() -> void:

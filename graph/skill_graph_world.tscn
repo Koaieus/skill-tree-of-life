@@ -1,12 +1,22 @@
-[gd_scene load_steps=2 format=3 uid="uid://cac0y20ebt5ub"]
+[gd_scene load_steps=3 format=3 uid="uid://cac0y20ebt5ub"]
 
 [ext_resource type="Script" uid="uid://bpauitub1n8nf" path="res://graph/skill_graph_world.gd" id="1_5x1eq"]
+[ext_resource type="Script" uid="uid://b5irhsht87424" path="res://graph/skill_graph_camera.gd" id="2_qiuvl"]
 
 [node name="SkillGraphWorld" type="Node2D"]
+process_mode = 1
 script = ExtResource("1_5x1eq")
 metadata/_edit_lock_ = true
 
 [node name="Camera2D" type="Camera2D" parent="."]
+anchor_mode = 0
+limit_left = -5000
+limit_top = -5000
+limit_right = 5000
+limit_bottom = 5000
+position_smoothing_enabled = true
+position_smoothing_speed = 15.0
+script = ExtResource("2_qiuvl")
 
 [node name="EdgeLayer" type="Node2D" parent="."]
 metadata/_edit_lock_ = true

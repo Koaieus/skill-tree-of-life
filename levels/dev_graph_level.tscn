@@ -1,45 +1,64 @@
-[gd_scene load_steps=11 format=3 uid="uid://ctrrg37otl3as"]
+[gd_scene load_steps=14 format=3 uid="uid://ctrrg37otl3as"]
 
 [ext_resource type="Script" uid="uid://muaa4f7mga38" path="res://graph/skill_graph_edit.gd" id="1_k8d73"]
 [ext_resource type="PackedScene" uid="uid://dxsj4sc2n6kcm" path="res://tree_node.tscn" id="2_mwnyd"]
 [ext_resource type="Script" uid="uid://da58dxgrlo1xr" path="res://stat_system/stat_modifier.gd" id="3_5k7s0"]
 [ext_resource type="Script" uid="uid://c0wk5lho5uuhi" path="res://data/skill_data.gd" id="4_o2fq6"]
+[ext_resource type="Script" uid="uid://cfpnfqaij275b" path="res://stat_system/modifier/int_stat_modifier.gd" id="4_vs5vf"]
+[ext_resource type="Script" uid="uid://chokoff1ki83w" path="res://stats/list/int_stat.gd" id="5_bf53y"]
 [ext_resource type="PackedScene" uid="uid://tm13xqmslpor" path="res://player.tscn" id="5_vs5vf"]
+
+[sub_resource type="Resource" id="Resource_82r2y"]
+script = ExtResource("4_vs5vf")
+operation_value = 10
+operation = 10
+stat_key = ExtResource("5_bf53y")
+metadata/_custom_type_script = "uid://cfpnfqaij275b"
 
 [sub_resource type="Resource" id="Resource_bf53y"]
 script = ExtResource("4_o2fq6")
-name = ""
-desc = ""
-modifiers = Array[ExtResource("3_5k7s0")]([])
+name = "Starter Skill"
+desc = "A Skill for beginners and noobs alike"
+modifiers = Array[ExtResource("3_5k7s0")]([SubResource("Resource_82r2y")])
+pressure = 1.0
 vision_range = 100
+is_starter_node = true
 
 [sub_resource type="Resource" id="Resource_c6b78"]
 script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
 modifiers = Array[ExtResource("3_5k7s0")]([])
+pressure = 1.0
 vision_range = 100
+is_starter_node = false
 
 [sub_resource type="Resource" id="Resource_ki41n"]
 script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
 modifiers = Array[ExtResource("3_5k7s0")]([])
+pressure = 1.0
 vision_range = 100
+is_starter_node = false
 
 [sub_resource type="Resource" id="Resource_80njy"]
 script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
 modifiers = Array[ExtResource("3_5k7s0")]([])
+pressure = 1.0
 vision_range = 100
+is_starter_node = false
 
 [sub_resource type="Resource" id="Resource_1jsg0"]
 script = ExtResource("4_o2fq6")
 name = ""
 desc = ""
 modifiers = Array[ExtResource("3_5k7s0")]([])
+pressure = 1.0
 vision_range = 100
+is_starter_node = false
 
 [node name="DevGraphLevel" type="GraphEdit"]
 anchors_preset = 15
@@ -160,12 +179,12 @@ anchors_preset = 0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-offset_left = 744.0
-offset_top = 128.0
-offset_right = 826.0
-offset_bottom = 208.0
+offset_left = 773.0
+offset_top = 306.0
+offset_right = 855.0
+offset_bottom = 386.0
 mouse_filter = 1
 theme_override_constants/port_h_offset = 64
-position_offset = Vector2(744, 128)
+position_offset = Vector2(773, 306)
 title = "Dumb Force"
 skill_data = SubResource("Resource_1jsg0")

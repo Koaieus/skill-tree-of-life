@@ -11,6 +11,9 @@ signal turn_started(for_entity: TreeEntity)
 
 signal main_player_selected(new_player: Player)
 
+signal node_pressed(node: SkillNode2D)
+signal node_pressed_right(node: SkillNode2D)
+
 #region GLOBALS
 var root: GameRoot
 var skill_graph_world: SkillGraphWorld # inside LevelLayer

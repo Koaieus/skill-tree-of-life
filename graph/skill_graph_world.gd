@@ -19,6 +19,7 @@ signal connection_removed(from: SkillNode2D, to: SkillNode2D)
 @onready var fx_layer: Node2D = $FXLayer
 @onready var debug_layer: CanvasLayer = $DebugLayer
 
+@export var dragging: SkillNode2D = null
 
 ## Internal skill node map for quick lookups
 var node_map: Dictionary[StringName, SkillNode2D] = {} # StringName -> SkillNode2D
@@ -35,6 +36,13 @@ func _ready():
 	print_debug("SkillGraphWorld ready.")
 	# Optional: call some deferred initialization
 	# call_deferred("_initialize_world")
+	
+func _physics_process(delta: float) -> void:
+	if dragging:
+		var dragging_vector := get_global_mouse_position() - dragging.global_position
+		var dist := dragging_vector.length()
+		const force_factor: float = 10.
+		dragging.apply_central_force(dragging_vector.normalized() * dist * force_factor)
 
 func add_skill_node_from_skill_data(name: StringName, position: Vector2, data: SkillData) -> SkillNode2D:
 	var node: SkillNode2D = preload("res://skills/skill_node_2d.tscn").instantiate()
@@ -42,12 +50,10 @@ func add_skill_node_from_skill_data(name: StringName, position: Vector2, data: S
 	node.skill_data = data
 	node.global_position = position
 	node_layer.add_child(node)
+	initialize_node(node)  # Wire up signals etc.
+	
 	node_map[node.name] = node
 	Game.navigator._add_point(node)
-
-	# Wire up signals
-	node.pressed.connect(_on_node_pressed.bind(node))
-	node.hovered.connect(_on_node_hovered.bind(node))
 	
 	return node
 
@@ -56,7 +62,7 @@ func connect_nodes(from_node: SkillNode2D, to_node: SkillNode2D) -> void:
 	assert(from_node and to_node, "Missing nodes for edge: %s <-> %s" % nodes)
 	assert(SkillGraphEdge._make_key(from_node, to_node) not in edge_map, "Edge between %s and %s already exists!" % nodes)
 	
-	# Make new edge instance
+	# Make new Edge instance
 	var edge: SkillGraphEdge = preload("res://graph/skill_graph_edge.tscn").instantiate()
 	#edge.nodes = nodes
 	edge.node_a = from_node
@@ -95,3 +101,26 @@ func _on_node_hovered(node: SkillNode2D) -> void:
 
 func _on_node_pressed(node: SkillNode2D) -> void:
 	print("Node %s pressed" % [node])
+
+func _on_node_right_pressed(node: SkillNode2D) -> void:
+	print("Node %s right pressed" % [node])
+	dragging = node
+	print('Start dragging %s' % [dragging])
+	
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouse).is_released():
+		if (event as InputEventMouseButton).button_index == MOUSE_BUTTON_MASK_RIGHT:
+			if dragging:
+				dragging = null
+	
+	if event.is_action_pressed("ui_left"):
+		#camera.move_local_x()
+		pass
+
+## Wires up node, after it has been added
+func initialize_node(node: SkillNode2D) -> void:
+	print('Initializing %s' % node)
+	node.hovered.connect(_on_node_hovered.bind(node))
+	node.pressed.connect(_on_node_pressed.bind(node))
+	#node.right_pressed.connect(_on_node_right_pressed.bind(node))
+	node.right_pressed.connect(func(): _on_node_right_pressed(node))

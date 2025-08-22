@@ -34,6 +34,8 @@ window/stretch/mode="canvas_items"
 
 [editor]
 
+movie_writer/movie_file="/home/bramh/skill-tree-of-life/assets/screencap.avi"
+movie_writer/disable_vsync=true
 version_control/plugin_name="GitPlugin"
 version_control/autoload_on_startup=true
 
@@ -57,6 +59,7 @@ folder_colors={
 players="Player-controlled skill tree entities"
 entities="Skill tree entities"
 initiative-ready="Entities that have sufficient initiative progress that they are ready to take a turn"
+starter-nodes="Skill Nodes that can be used as player starting position"
 
 [physics]
 

@@ -5,9 +5,7 @@
 [node name="SkillGraphEdge" type="Line2D"]
 process_mode = 3
 points = PackedVector2Array(0, 0, 0, 0)
+default_color = Color(0.282353, 0.239216, 0.545098, 1)
 script = ExtResource("1_5ajnk")
 stiffness = 61.9
-
-[node name="DampedSpringJoint2D" type="DampedSpringJoint2D" parent="."]
-bias = 0.9
-disable_collision = false
+ZETA = 0.55
