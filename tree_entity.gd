@@ -4,9 +4,7 @@ class_name TreeEntity
 
 # Represents an `entity` that lives on a skill tree by owning 1 or more skills on it
 
-@onready var core: TreeNode:
-	get(): 
-		return get_parent() as TreeNode
+@onready var core: SkillNode2D
 
 ## StatManager ref
 @onready var _stats: EntityStatsManager = $EntityStatsManager
@@ -25,22 +23,27 @@ class_name TreeEntity
 
 
 func _ready() -> void:
-	Game.game_ready.connect(_on_game_ready, CONNECT_ONE_SHOT)
-	
+	_wire_up()
+	#Game.game_ready.connect(_on_game_ready, CONNECT_ONE_SHOT)
 	print('TreeEntity `%s` READY' % [name])
 	
 func _on_game_ready() -> void:
-	Game.turn_manager.ticked.connect(_on_game_tick)
-	Game.turn_manager.turn_started.connect(_on_entity_turn_started)
-	assert(core != null, 'TREE ENTITY: MISSING CORE')
-	if core is TreeNode:
-		print_debug('[ALLOCATION]: Allocating initial skill on game_ready for Entity<%s>' % name)
-		core.allocate_to(self)
+	_wire_up()
+	_allocate_initial_skill()
 
 ## Happens each game "tick"
 func _on_game_tick() -> void:
 	_stats.progress_initiative()
 
+func _wire_up() -> void:
+	Game.turn_manager.ticked.connect(_on_game_tick)
+	Game.turn_manager.turn_started.connect(_on_entity_turn_started)
+
+func _allocate_initial_skill() -> void:
+	assert(core is SkillNode2D, 'TREE ENTITY: MISSING CORE (is `%s`)' % core)
+	print_debug('[ALLOCATION]: Allocating initial skill on game_ready for Entity<%s>' % name)
+	core.allocate_to(self)
+	
 #func initialize() -> void:
 	#if core:
 		#core.allocate_to(self)
@@ -107,7 +110,7 @@ func _on_initiative_ready_changed(state: bool) -> void:
 
 func start_turn() -> void:
 	print('[TURN START] %s is starting their turn!' % [self])
-	assert(core != null, 'TREE ENTITY: MISSING CORE')
+	assert(core is SkillNode2D, 'TREE ENTITY: MISSING CORE')
 
 	var xp: ExpStat = stats.experience
 	assert(stats.experience._value != null, 'BORKED XP VALUE')

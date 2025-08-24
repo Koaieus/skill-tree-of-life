@@ -32,3 +32,7 @@ func get_active_entities() -> Array:
 #func start_turns():
 	#turn_manager.start_turn_sequence()
 	
+
+
+func _on_level_layer_level_loaded(new_level: SkillGraphWorld) -> void:
+	print('LEVEL LOADED @ GAMEROOT: %s' % new_level)

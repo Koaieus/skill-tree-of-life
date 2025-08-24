@@ -4,6 +4,7 @@ class_name GameManager
 
 
 signal game_ready
+signal game_started
 signal game_over
 
 signal turn_ended(for_entity: TreeEntity)
@@ -27,7 +28,7 @@ const GAME_ROOT_SCENE: PackedScene = preload("res://scenes/game_root.tscn")
 
 func _ready() -> void:
 	# Kick off into your first scene
-	start_game_with_level.call_deferred("res://levels/dev_graph_level.tscn")
+	start_game_with_level("res://levels/dev_graph_level.tscn")
 
 
 func start_game_with_level(level_path: String) -> void:
@@ -41,23 +42,25 @@ func start_game_with_level(level_path: String) -> void:
 	
 	# 3) Async load only the level
 	var packed_level = await SceneLoader.load_scene_async(level_path)
-	
+	await get_tree().process_frame
 	# 4) Set new root and wire it up as needed
 	root = get_tree().current_scene as GameRoot
+	assert(root, 'No root found')
 	_wire_game_root(root)
 	
-	# 5) Replace old level child under LevelLayer
-	
+	# 5) Instantiate the loaded level and use it as data source for constructing the graph
 	var level_data_source: SkillGraphEdit = packed_level.instantiate()
 	
 	skill_graph_world = preload("res://graph/skill_graph_world.tscn").instantiate()
+	#skill_graph_world = root.level_layer.skill_graph_world
+	assert(skill_graph_world is SkillGraphWorld, 'No SkillGraphWorld: %s' % skill_graph_world)
 	root.level_layer.add_child(skill_graph_world)
 	_wire_level(skill_graph_world)
 	# Read SkillGraphEdit as datasource to populate new SkillGraphWorld instance
 	SkillGraphEditParser.populate_world_from_edit(level_data_source, skill_graph_world)
 	
 	# 6) All set!
-	emit_signal("game_ready")
+	start_game()
 
 	# 7) Fade back in
 	await SceneTransition.fade_in()
@@ -83,14 +86,14 @@ func _wire_level(level_instance: SkillGraphWorld) -> void:
 	#if player:
 		#main_player_selected.emit(player)
 
+func start_game() -> void:
 
-func _on_game_ready() -> void:
-	pass
-	## TODO:
-	#initialize_main_player()
+	initialize_main_player()
+	pick_and_allocate_starting_skills()
+	await get_tree().process_frame
 	#validate_game_setup()
-	#
-	#turn_manager.request_turn_cycle()
+	turn_manager.request_turn_cycle()
+	game_started.emit()
 
 
 func validate_game_setup() -> void:
@@ -109,13 +112,12 @@ func validate_game_setup() -> void:
 
 
 func initialize_main_player(main_player: Player = null):
-	## TODO: use?
-	if player:
-		return # Already initialized
+	assert(player == null, 'Player already set')
 
 	# If not given, take first result of global `players` group
 	if not main_player:
 		main_player = get_tree().get_first_node_in_group('players') as Player
+	assert(main_player, 'Found no player to assign')
 	
 	if main_player is Player:
 		print('Player found: ', main_player)
@@ -125,3 +127,21 @@ func initialize_main_player(main_player: Player = null):
 		print_debug("No players, cannot initialize main player.")
 	else:
 		print_debug("Found player but of incorrect type, cannot initialize main player.")
+
+func pick_and_allocate_starting_skills() -> void:
+	for pl in get_tree().get_nodes_in_group(&'players'):
+		var starter_skill := _pick_player_starting_skill(pl)
+		Game.root.current_level.add_entity(pl, starter_skill)
+		starter_skill.remove_from_group(&'starter-skills')
+
+func _pick_player_starting_skill(_player: Player) -> SkillNode2D:
+	match get_tree().get_node_count_in_group(&'starter-skills'):
+		0:
+			assert(false, 'No starter skills available')
+		1:
+			# One choice, easy
+			return get_tree().get_first_node_in_group(&'starter-skills')
+		_:
+			assert(false, 'ToDo: handle multiple starter skills available')
+			return get_tree().get_first_node_in_group(&'starter-skills')
+	return null

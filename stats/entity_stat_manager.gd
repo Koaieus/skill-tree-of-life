@@ -22,5 +22,5 @@ func _get_stats() -> EntityStats:
 	return stats
 
 func progress_initiative():
-	#print('[INITIATIVE]: %s +%s' % [stats.initiative.value, stats.initiative.progress])
 	stats.initiative.progress += stats.initiative.value
+	print('[INITIATIVE]: +%s ⇒ %s/%s' % [stats.initiative.value, stats.initiative.progress, InitiativeStat.MAX_PROGRESS])

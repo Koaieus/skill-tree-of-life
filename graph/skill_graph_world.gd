@@ -14,6 +14,9 @@ signal connection_removed(from: SkillNode2D, to: SkillNode2D)
 
 @onready var camera: Camera2D = $Camera2D
 
+@onready var players: Node = $Players
+@onready var entities: Node = $Entities
+
 @onready var edge_layer: Node2D = $EdgeLayer
 @onready var node_layer: Node2D = $NodeLayer
 @onready var fx_layer: Node2D = $FXLayer
@@ -116,6 +119,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_left"):
 		#camera.move_local_x()
 		pass
+
+## Adds a new TreeEntity to the skill graph on given core node, allocates skill too
+func add_entity(entity: TreeEntity, core: SkillNode2D) -> void:
+	assert(core.owned_by == null, 'Designated core for %s is already owned by %s' % [entity, core.owned_by])
+	assert(entity.core == null, 'Cannot designate %s as core for new entity `%s`: entity already has core `%s`' % [core, entity, entity.core])
+	assert(core is SkillNode2D, 'Missing core')
+	entity.core = core
+	core.allocate_to(entity)
+	
 
 ## Wires up node, after it has been added
 func initialize_node(node: SkillNode2D) -> void:

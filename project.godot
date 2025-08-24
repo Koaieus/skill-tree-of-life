@@ -59,7 +59,7 @@ folder_colors={
 players="Player-controlled skill tree entities"
 entities="Skill tree entities"
 initiative-ready="Entities that have sufficient initiative progress that they are ready to take a turn"
-starter-nodes="Skill Nodes that can be used as player starting position"
+starter-skills="Skill Nodes that can be used as player starting position"
 
 [physics]
 

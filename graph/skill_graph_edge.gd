@@ -31,7 +31,7 @@ var _conn_refs: Array[Variant] = [null, null]
 @export_range(0.1, 130., 0.1) var stiffness: float = 50.
 @export var dead_zone: float = 10.
 @export var rest_length: float = -1
-
+@export_range(0.1, 3., 0.1, 'unit:s') var settle_time: float = 1.0
 
 var damping_crit: float:
 	get():
@@ -92,8 +92,7 @@ func apply_spring_force(delta: float) -> void:
 	var unit := dir.normalized()
 	# For a 2% settling criterion: Ts ≈ 4 / (ζ * ωₙ)
 	# Choose damping ratio ζ ≈ 1 (critical)
-	var desired_Ts = 1.0  # seconds
-	var omega_n = 4.0 / desired_Ts
+	var omega_n = 4.0 / settle_time # time in seconds
 	## PARAMETERS
 	## Mass
 	var m    = node_a.mass + node_b.mass
@@ -101,7 +100,8 @@ func apply_spring_force(delta: float) -> void:
 	var k    = omega_n * omega_n   # since ωₙ = sqrt(k/m)   
 	## Damping constant
 	var damping_crit: float = 2.0 * sqrt(k * m) 
-	var c    = damping_crit * ZETA          
+	var c    = damping_crit * ZETA
+	#var c    = damping_crit * (ZETA + ProjectSettings.get_setting('physics/2d/default_linear_damp'))          
 	## Dead zone, e.g. 10 pixels tolerance
 	var dead = dead_zone        
 

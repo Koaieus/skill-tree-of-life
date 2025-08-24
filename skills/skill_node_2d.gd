@@ -29,7 +29,7 @@ var owned_by: TreeEntity = null
 @onready var debug_label2: Label = $DebugLabel2
 
 ## List of neighboring skill nodes
-@export var neighbors: Array[SkillNode2D] = []
+@export var neighbors: Array[SkillNode2D]
 
 ### Tooltip resource [preloaded]
 #@onready var tool_tip: PackedScene = preload("res://ui/tooltip.tscn")
@@ -76,7 +76,7 @@ func _initialize() -> void:
 	
 	if skill_data.is_starter_node:
 		print('Found Starting Skill Node: %s' % self)
-		add_to_group(&"starter-nodes")
+		add_to_group(&"starter-skills")
 
 #func _recalculate_neighbors():
 	#assert(false, 'TODO: Move to astar or treegraph or anything but here')

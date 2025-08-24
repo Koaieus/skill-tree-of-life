@@ -5,7 +5,7 @@
 [node name="SkillGraphEdge" type="Line2D"]
 process_mode = 3
 points = PackedVector2Array(0, 0, 0, 0)
-default_color = Color(0.282353, 0.239216, 0.545098, 1)
+default_color = Color(0.960784, 0.870588, 0.701961, 1)
 script = ExtResource("1_5ajnk")
-stiffness = 61.9
-ZETA = 0.55
+stiffness = 0.9
+ZETA = 0.9

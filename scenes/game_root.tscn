@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dadsh6eqabjcg" path="res://scenes/game_root.gd" id="1_78s5d"]
 [ext_resource type="PackedScene" uid="uid://bgj1th7lida6y" path="res://graph/navigator.tscn" id="2_a1rh6"]
 [ext_resource type="PackedScene" uid="uid://blggy3l3728dn" path="res://systems/turn_manager.tscn" id="2_i7pw8"]
-[ext_resource type="Script" uid="uid://bkln3po1tunhy" path="res://systems/level_manager.gd" id="3_x5456"]
+[ext_resource type="PackedScene" uid="uid://ljtdewrpjewk" path="res://systems/level_layer.tscn" id="4_a1rh6"]
 [ext_resource type="PackedScene" uid="uid://de731pyqvgh25" path="res://ui/stats_panel/stats_panel.tscn" id="12_6y7e7"]
 [ext_resource type="PackedScene" uid="uid://symm61ggw3xx" path="res://ui/end_turn_button.tscn" id="13_0ns5a"]
 
@@ -14,9 +14,7 @@ script = ExtResource("1_78s5d")
 
 [node name="TurnManager" parent="." instance=ExtResource("2_i7pw8")]
 
-[node name="LevelLayer" type="Node2D" parent="."]
-script = ExtResource("3_x5456")
-metadata/_edit_lock_ = true
+[node name="LevelLayer" parent="." instance=ExtResource("4_a1rh6")]
 
 [node name="UIOverlay" type="CanvasLayer" parent="."]
 
@@ -97,3 +95,5 @@ text = "Bottom panel"
 
 [node name="EndTurnButton" parent="UIOverlay/UIRoot/VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" instance=ExtResource("13_0ns5a")]
 layout_mode = 2
+
+[connection signal="level_loaded" from="LevelLayer" to="." method="_on_level_layer_level_loaded"]

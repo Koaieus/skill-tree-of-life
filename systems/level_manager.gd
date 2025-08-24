@@ -5,13 +5,16 @@ signal level_loaded(new_level: SkillGraphWorld)
 signal level_load_progress(pct: float)
 
 var _current_level_scene: SkillGraphWorld = null
+@onready var skill_graph_world: SkillGraphWorld = $SkillGraphWorld
 
 var _loading_path: String = ""
 var _is_loading: bool = false
 
+## Starts loading a SkillGraphEdit scene asynchronously by resource path
+## 		In _process the loading will be polled until completion, 
+## 		after which the `level_loaded` signal is emitted with the instantiated scene
 func load_level_async(level_path: String):
-	if _is_loading:
-		return
+	assert(not _is_loading, 'Cannot load `%s`: already loading `%s`' % [level_path, _loading_path])
 	_is_loading = true
 	_loading_path = level_path
 	
@@ -25,16 +28,12 @@ func load_level_async(level_path: String):
 	#var fade = Game.root.fade_layer
 	#fade.fade_out()
 	#await fade.fade_completed
-	
+
 	if _current_level_scene:
 		remove_child(_current_level_scene)
 		_current_level_scene.queue_free()
 
-	# Hook up global systems refs
-	#Game.tree_graph = _current_level_scene
-	#Game.navigator = _current_level_scene.navigator
-	#Game.turn_manager = _current_level_scene.turn_manager
-
+	## Fade in
 	#await get_tree().process_frame
 	#fade.fade_in()
 	
@@ -68,7 +67,8 @@ func _process(delta: float) -> void:
 func _complete_loading() -> void:
 	var packed : PackedScene = ResourceLoader.load_threaded_get(_loading_path)
 	_current_level_scene = packed.instantiate()
-	add_child(_current_level_scene)
+	print("LEVEL LOADED @ LEVEL MANAGER: %s" % _current_level_scene)
 	level_loaded.emit(_current_level_scene)
+	add_child(_current_level_scene)
 	#var fade = Game.root.fade_layer
 	#fade.fade_in()
