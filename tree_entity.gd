@@ -23,19 +23,19 @@ class_name TreeEntity
 
 
 func _ready() -> void:
-	_wire_up()
+	_initialize()
 	#Game.game_ready.connect(_on_game_ready, CONNECT_ONE_SHOT)
 	print('TreeEntity `%s` READY' % [name])
 	
 func _on_game_ready() -> void:
-	_wire_up()
+	_initialize()
 	_allocate_initial_skill()
 
 ## Happens each game "tick"
 func _on_game_tick() -> void:
 	_stats.progress_initiative()
 
-func _wire_up() -> void:
+func _initialize() -> void:
 	Game.turn_manager.ticked.connect(_on_game_tick)
 	Game.turn_manager.turn_started.connect(_on_entity_turn_started)
 
@@ -44,12 +44,6 @@ func _allocate_initial_skill() -> void:
 	print_debug('[ALLOCATION]: Allocating initial skill on game_ready for Entity<%s>' % name)
 	core.allocate_to(self)
 	
-#func initialize() -> void:
-	#if core:
-		#core.allocate_to(self)
-		#print('Allocated core')
-	#else:
-		#push_error('TreeEntity has no Core ')
 
 func _to_string() -> String:
 	return 'Tree Entity'
@@ -97,9 +91,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 	if not _stats:
 		warnings.append('No stats manager configured')
 	return warnings
-
-#func _on_game_ready():
-	#initialize()
 
 
 func _on_initiative_ready_changed(state: bool) -> void:

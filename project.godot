@@ -61,6 +61,13 @@ entities="Skill tree entities"
 initiative-ready="Entities that have sufficient initiative progress that they are ready to take a turn"
 starter-skills="Skill Nodes that can be used as player starting position"
 
+[input]
+
+ui_starter_chosen={
+"deadzone": 0.2,
+"events": []
+}
+
 [physics]
 
 2d/default_gravity=0.0
