@@ -1,5 +1,4 @@
 # Stat System Design — Skill Tree of Life
-*Working doc · v0.2.0. Captures decisions made, tensions still open, and direction for v2.*
 
 ---
 
@@ -484,7 +483,7 @@ The RGBW node type system creates a combat identity for entities and individual 
 | B (Blue) | Intelligence | Graph-magic — hops along edges | G (Ranged) | R (Melee) |
 | W (White) | — | None | — | — |
 
-**Rock-paper-scissors logic (R › B › G › R):** R beats B (brute force closes the distance and crushes the wizard before magic matters), B beats G (magic outranges and disrupts the archer), G beats R (ranged kites the melee bruiser, who can't reach). *(Direction corrected in v0.2.0 — earlier drafts had R>G>B; the current canon is R>B>G.)*
+**Rock-paper-scissors logic (R › B › G › R):** R beats B (brute force closes the distance and crushes the wizard before magic matters), B beats G (magic outranges and disrupts the archer), G beats R (ranged kites the melee bruiser, who can't reach). *(Canon: R>B>G>R.)*
 
 White nodes are combat-neutral: they provide XP/turn (the SP economy's lifeblood), utility modifiers, but no attack affinity. An all-W build is economically rich but militarily helpless without allied RGB nodes — which is exactly why White nodes are fought over as economic objectives.
 

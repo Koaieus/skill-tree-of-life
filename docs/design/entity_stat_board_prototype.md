@@ -1,11 +1,9 @@
 # Prototype Stats Board — Skill Tree of Life
-*v0.3.0. Replaces v0.2.0.*
-*Changes: added `damage_floor` stat; SP accounting model formalized (transfer vs. force-deallocation distinction, core is free, N=3 starting SP); added `shell_distance` for Halo class; updated allround prototype defaults; BLITZ noted as Predator-class stat only.*
 
-This is the canonical reference for stat IDs and default values in the combat prototype.
-For stat architecture (StatDef resources, RuntimeStat classes, modifier pipeline), see `stat_system_design_v0_2_0.md`.
-For combat rules referencing these stats, see `combat_system_design_v0_4_0.md`.
-For class stat profiles, see `core_classes_v0_1_0.md`.
+Canonical reference for stat IDs and default values in the combat prototype.
+For stat architecture (StatDef resources, RuntimeStat classes, modifier pipeline), see `stat_system.md`.
+For combat rules referencing these stats, see `combat_system.md`.
+For class stat profiles, see `core_classes.md`.
 
 ---
 
@@ -159,7 +157,7 @@ Hive class: aura is per-pod (each Lifelink radiates to its sub-graph) or absent 
 
 ---
 
-## Tutorial Enemy (unchanged from v0.2.0)
+## Tutorial Enemy
 
 ```
 STR = 0, DEX = 0, INT = 0

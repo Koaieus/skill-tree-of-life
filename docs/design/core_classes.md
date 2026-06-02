@@ -1,6 +1,4 @@
 # Core Classes — Skill Tree of Life
-*v0.2.0. Replaces v0.1.0.*
-*Major changes: Halo — thorns mechanic added, Shell Shift ability (±1 shell_distance once/turn, no hard cap), ring-shrink graph math documented, counterplay updated from diagram session. Serpent — counterplay updated (bridge is the real weakness, not spatial proximity). Relay addon flagged as TBD throughout. Comparison matrix updated.*
 
 A **core class** defines an entity's fundamental identity — starting stat weights, core aura shape and reach, unique mechanics, and the constellation geometry it is rewarded for maintaining. Two entities with identical allocations but different core classes play completely differently.
 
@@ -340,4 +338,4 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 7. **Halo anti-ranged / anti-magic reflect:** Thorns is melee-only for now. Does the shell aura eventually provide deflect or reflect against ranged and magic too? TBD after combat prototypes.
 8. **Halo UI for ring distortion:** Should the game show hop distance changes in real time as nodes are sniped? Accessibility concern — the topology insight may not be obvious without visual feedback.
 9. **`thorns_base` upgrade path:** What's the ceiling? At what value does the shell deter all melee, removing a damage type from viable counterplay?
-10. **Relay addon:** Referenced in earlier docs as established. It is not confirmed. TBD pending magic propagation design. See `addons_v0_1_0.md`.
+10. **Relay addon:** Referenced in earlier docs as established. It is not confirmed. TBD pending magic propagation design. See `skill_node_addons.md`.

@@ -1,6 +1,4 @@
 # Metagame & Meta-Progression — Skill Tree of Life
-*Working doc · v0.1.0 · New document.*
-*Scope: the hub between runs, the meta skill tree, the run-as-allocation economy, permanent progression and unlocks, class selection, and the metagame as the outermost — and ultimately escapable — vertex of the fractal. Cross-refs: `lore_v0_4_0.md` (narrative framing, the Fairy, Graph Theology), `combat_system_design` (in-run mechanics), `core_classes` (what the unlocks unlock).*
 
 ---
 
@@ -63,7 +61,7 @@ This is the same compression logic as an in-run Breakout, one layer up: a comple
 
 ### The intro sequence (scripted)
 
-The opening is authored, not yet governed by the steady-state economy. The Fairy railroads you through spending your first points (this is the tutorial, and it is also how you are led to the slaughter — see `lore_v0_4_0.md`):
+The opening is authored, not yet governed by the steady-state economy. The Fairy railroads you through spending your first points (this is the tutorial, and it is also how you are led to the slaughter — see `lore.md`):
 
 | # | Node shows | On allocation |
 |---|---|---|
@@ -72,7 +70,7 @@ The opening is authored, not yet governed by the steady-state economy. The Fairy
 | 3 | `+10 INT` | allocates fine |
 | 4 | (e.g. `+1 armor`) | **crashes — Run 1 begins** |
 
-Nodes 1–3 set up your basic attributes and teach the click. They are tutorial freebies. The fourth is the fatal one. **The first three already count:** you enter Run 1 with 10 STR, 10 DEX, and 10 INT live as starting modifiers on your core, because you allocated them and allocations bless the core. Basic attribute kit: done, and done by *you*, via a skill tree. (See `combat_system_design` for why base-10 attributes are the anchor scale.)
+Nodes 1–3 set up your basic attributes and teach the click. They are tutorial freebies. The fourth is the fatal one. **The first three already count:** you enter Run 1 with 10 STR, 10 DEX, and 10 INT live as starting modifiers on your core, because you allocated them and allocations bless the core. Basic attribute kit: done, and done by *you*, via a skill tree. (See `combat_system.md` for why base-10 attributes are the anchor scale.)
 
 ### The steady-state economy
 
@@ -119,7 +117,7 @@ Source of stat values: in part hand-authored, in part **compressed run-essence**
 
 ### Magnitude and scale
 
-Meta stat grants live at the same base-10 scale as everything else (see `combat_system_design`). `+10` to an attribute is a *full baseline's worth* — strong, legible, and deliberately large at this scale so a meta upgrade feels like an upgrade. How meta-granted stats scale against in-run-granted stats (do they stack flat? is there diminishing return so meta-carry doesn't trivialize early runs?) is open and tied to the broader stat-scaling question (linear vs. steeper).
+Meta stat grants live at the same base-10 scale as everything else (see `combat_system.md`). `+10` to an attribute is a *full baseline's worth* — strong, legible, and deliberately large at this scale so a meta upgrade feels like an upgrade. How meta-granted stats scale against in-run-granted stats (do they stack flat? is there diminishing return so meta-carry doesn't trivialize early runs?) is open and tied to the broader stat-scaling question (linear vs. steeper).
 
 ---
 
@@ -138,13 +136,13 @@ This re-lands the Act 0 → Act 2 rug-pull one layer up, and it means the player
 
 ## The Way Out — the Metagame as Prison
 
-The Fairy cursed the player to **infinite regression** (see `lore_v0_4_0.md`). The metagame is what that curse looks like from the inside: a cozy little hub you return to between runs, that you cannot leave except by diving into another run, forever. The comfort is the cage. Always another point to allocate, always another world to fall into, always another floor below this one.
+The Fairy cursed the player to **infinite regression** (see `lore.md`). The metagame is what that curse looks like from the inside: a cozy little hub you return to between runs, that you cannot leave except by diving into another run, forever. The comfort is the cage. Always another point to allocate, always another world to fall into, always another floor below this one.
 
 But the fractal has a top, and a top has Tethers. The hub's disguised Tethers are the seams of the prison. The far end of the meta skill tree holds the unlock that lets the player **attempt a Breakout of the metagame itself** — sever the hub's own edges, the ultimate act of severance, the heresy to end all heresies in a universe that worships connection. This is the *complete* breakout: not climbing one more level inside the cell, but cutting the cell loose from whatever contains *it*.
 
 It is exactly the thing the Fairy both needs (it is trapped in here too) and dreads (it is the act that proves you are what it judged you to be). Escaping the metagame and being the antichrist are, in the end, the same motion.
 
-What's actually on the far side is unwritten — see `lore_v0_4_0.md`'s Final Ascent and the open questions there.
+What's actually on the far side is unwritten — see `lore.md`'s Final Ascent and the open questions there.
 
 ---
 
@@ -153,9 +151,9 @@ What's actually on the far side is unwritten — see `lore_v0_4_0.md`'s Final As
 1. **Intro bootstrap.** Exactly how many scripted free points before the fatal allocation (3 attribute nodes is the current sketch). Does the count teach everything it needs to?
 2. **Un-unlock on deallocation.** Pulling a point from an `unlocks <X>` node — does X re-lock? Leaning: stat refunds, unlock stays earned. Confirm.
 3. **Re-allocation re-trigger.** Does re-spending a cleared node re-run it? Leaning: no, instant. Hold the darker "always re-dive" option in reserve.
-4. **Meta vs. in-run stat scaling.** Do meta-carried stats stack flat with in-run gains? Any diminishing return so meta-carry doesn't trivialize early levels of a later run? Tied to the global linear/steeper scaling question in `combat_system_design`.
+4. **Meta vs. in-run stat scaling.** Do meta-carried stats stack flat with in-run gains? Any diminishing return so meta-carry doesn't trivialize early levels of a later run? Tied to the global linear/steeper scaling question in `combat_system.md`.
 5. **Run-essence compression.** What, concretely, does a cleared run fold into its meta node beyond authored values? How much of the meta ceiling is hand-built vs. earned?
 6. **The hub's physical identity.** House / garden / basement / something stranger. Drives the disguised-Tether art.
 7. **The worn artifact for class selection.** Helmet, mask, mantle, other.
 8. **The metagame Breakout.** What the final unlock actually does, what's on the far side of the hub's Tethers, and how this reconciles with the Apex Entity / Final Ascent (the in-run god-fight) — are these the same summit reached two ways, or two different tops?
-9. **The Fairy's presence across runs.** Does it ride along every run, wait in the hub and narrate from "outside," or change behavior as the betrayal approaches? See `lore_v0_4_0.md`.
+9. **The Fairy's presence across runs.** Does it ride along every run, wait in the hub and narrate from "outside," or change behavior as the betrayal approaches? See `lore.md`.

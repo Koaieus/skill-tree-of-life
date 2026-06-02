@@ -1,6 +1,4 @@
 # Skill Tree of Life — Lore & Narrative Design
-*Working doc · v0.5.0. Full replacement for v0.4.0.*
-*Changes: Graph Theology gains a self-loop subsection (theological ambiguity of the self-referential vertex); Self-Loops section rewritten from design-space placeholder to settled mechanics (triple-hit propagation, glass cannon identity, leaf exclusion, Breakout dissolution) with open questions preserved; Magic section updated to reflect self-loops as confirmed; Visual Language table gains self-loop entry.*
 
 ---
 
@@ -76,7 +74,7 @@ The punishment is likely already underway rather than pre-emptive. We are not ru
 
 The Fairy single-handedly caused the skill-tree crash — it is the agent behind Act 1's break — and the means of punishment is **infinite regression:** lock the antichrist inside the fractal, falling forever, every escape only a deeper floor. The railroading of Act 0 (*spend your point! open the tree! just one more!*) was the Fairy walking the player to the trap, including the fatal allocation that triggers the crash. We sell it as a tutorial lesson and as *just how the Fairy is* — ✨helpful like that✨ — and the player is meant to carry a real grudge once they understand. The Fairy pushed the button.
 
-**The curse is on the whole meta tree, not just one node.** The Fairy didn't curse a single allocation — it cursed the player's entire metagame skill tree. *Every uncleared node is a fresh trap:* reaching for any of them crashes you into a run, and the curse only lifts from a node once you survive what's inside it. This is the in-fiction reason a second run (and a third, and a fourth) exists at all — the curse is still there, waiting on every node you haven't cleared yet. The fourth node was simply the *first* trap to spring because it was the first one the Fairy steered you to allocate. Clearing the whole tree is clearing the whole curse — which is also what eventually lets you reach the metagame Breakout (see `metagame_design_v0_1_0.md`, The Way Out).
+**The curse is on the whole meta tree, not just one node.** The Fairy didn't curse a single allocation — it cursed the player's entire metagame skill tree. *Every uncleared node is a fresh trap:* reaching for any of them crashes you into a run, and the curse only lifts from a node once you survive what's inside it. This is the in-fiction reason a second run (and a third, and a fourth) exists at all — the curse is still there, waiting on every node you haven't cleared yet. The fourth node was simply the *first* trap to spring because it was the first one the Fairy steered you to allocate. Clearing the whole tree is clearing the whole curse — which is also what eventually lets you reach the metagame Breakout (see `metagame.md`, The Way Out).
 
 ### The Fairy and the Tethers
 
@@ -84,7 +82,7 @@ Does the Fairy comment on the Tethers — approve or recoil when you destroy the
 
 ### Caught in its own curse
 
-The Fairy is too clumsy by half: in cursing the player to the regression, it **trapped itself inside with them.** This is why it keeps helping — its escape is bound to yours. It needs you to break out *completely* (see `metagame_design_v0_1_0.md`, The Way Out), which is also the one act that proves its judgment of you correct. Helping you and being right about you are the same motion, and it hates that.
+The Fairy is too clumsy by half: in cursing the player to the regression, it **trapped itself inside with them.** This is why it keeps helping — its escape is bound to yours. It needs you to break out *completely* (see `metagame.md`, The Way Out), which is also the one act that proves its judgment of you correct. Helping you and being right about you are the same motion, and it hates that.
 
 ### Herald, not god
 
@@ -219,13 +217,13 @@ The game never tells you your depth explicitly. But the further you climb, the m
 
 **This is the central mystery:** not "what is the tree," but "how far in are you, and is there a way out?"
 
-And there is a layer *above* the levels: the **Metagame** — the hub you return to between runs — is itself a vertex of this same fractal, with its own disguised Tethers and its own possible Breakout. The way out, if there is one, runs through there. See `metagame_design_v0_1_0.md`.
+And there is a layer *above* the levels: the **Metagame** — the hub you return to between runs — is itself a vertex of this same fractal, with its own disguised Tethers and its own possible Breakout. The way out, if there is one, runs through there. See `metagame.md`.
 
 ---
 
 ## The Roguelike Loop
 
-The game is structured as a roguelike with meta-progression through fractal ascension. (Because meta-progression carries permanent stats forward, it is technically a rogueli*te* — that's intended; see `metagame_design_v0_1_0.md`.)
+The game is structured as a roguelike with meta-progression through fractal ascension. (Because meta-progression carries permanent stats forward, it is technically a rogueli*te* — that's intended; see `metagame.md`.)
 
 ### Within a Level
 - Begin at your starting node (the Breakout-compressed previous level, or a seed node on run start).
@@ -242,7 +240,7 @@ After Breakout but before the next level fully resolves, there is a brief **rest
 - Possibly: a trade — spend some of what you preserved to re-roll the new field's layout or enemy composition.
 
 ### Between Runs (the Metagame)
-A *completed run* (clearing the Apex, the final in-run Breakout) surfaces the player back in the **Metagame hub**, where permanent progression lives and the next dive is configured. This is a distinct, higher layer from the per-level rest state. Full mechanics: `metagame_design_v0_1_0.md`.
+A *completed run* (clearing the Apex, the final in-run Breakout) surfaces the player back in the **Metagame hub**, where permanent progression lives and the next dive is configured. This is a distinct, higher layer from the per-level rest state. Full mechanics: `metagame.md`.
 
 ### Scaling
 Each level is harder: wider field, more enemy entities, stronger base node stats on everything, more Tethers (up to 4), Tethers placed further from center. But the player is also compounding: their starting node is richer, their core stronger.
@@ -273,7 +271,7 @@ White nodes are the **economic lifeblood:** their XP/turn becomes skill points, 
 
 **Mixed builds** are rewarded by the tree structure itself: high-value interior nodes often combine colors (e.g. a Red/Blue node grants STR + INT bonuses), representing natural synergy points worth fighting for.
 
-**Topology is your loadout.** Beyond color, a node's *graph position* determines what it can do offensively and how well it defends — leaves fire ranged, hubs cast magic, dense adjacency melees, and degree scales defense. This is the spine of the combat redesign; see `combat_system_design`.
+**Topology is your loadout.** Beyond color, a node's *graph position* determines what it can do offensively and how well it defends — leaves fire ranged, hubs cast magic, dense adjacency melees, and degree scales defense. This is the spine of the combat redesign; see `combat_system.md`.
 
 ---
 
@@ -299,7 +297,7 @@ Structurally:
 
 ## Core Classes
 
-Stat weights and one aura rule define a class. The core class is the single most important architectural choice an entity makes — it shapes the whole constellation's tactical identity. Full entries live in `core_classes_v0_2_0.md`.
+Stat weights and one aura rule define a class. The core class is the single most important architectural choice an entity makes — it shapes the whole constellation's tactical identity. Full entries live in `core_classes.md`.
 
 ### The Ninja
 High deallocation budget. Massive aura buff to nodes close to the core. Steep penalty to nodes far from the core. Small `skill_points_max` — can't sprawl. Hit-and-run warfare. Every turn is a shape.
@@ -308,7 +306,7 @@ High deallocation budget. Massive aura buff to nodes close to the core. Steep pe
 Multiple isolated sub-constellations, each anchored by a **Lifelink** proxy core (see Addons). Multiplicative penalty to all node stats if any sub-graph exceeds N nodes, forcing pods to stay small and spread. The real core hides deep in one pod. An economic sprawler with inherently fragile pieces.
 
 ### The Edgelord
-The entity that fights *with* edges rather than against them — master of the very topology the combat redesign runs on. Adds edges (safe by construction — only increasing connectivity, so it can never strand a region), closes rings, builds hubs, collapses hop-distance, and is the natural wielder of **Bleeding Edge** — the edge-severing move — which it can use without committing the unreachable-region heresy, because it can re-add what it cuts. The convert who uses the Lord of Edge's own tools — and is *still* damned the instant it Breaks Out. High complexity, and likely **the final core class to unlock.** The Edgelord is also the most plausible *creator* of self-loops — if any entity can add an edge from a node to itself, it is this one. Full entry in `core_classes_v0_2_0.md`.
+The entity that fights *with* edges rather than against them — master of the very topology the combat redesign runs on. Adds edges (safe by construction — only increasing connectivity, so it can never strand a region), closes rings, builds hubs, collapses hop-distance, and is the natural wielder of **Bleeding Edge** — the edge-severing move — which it can use without committing the unreachable-region heresy, because it can re-add what it cuts. The convert who uses the Lord of Edge's own tools — and is *still* damned the instant it Breaks Out. High complexity, and likely **the final core class to unlock.** The Edgelord is also the most plausible *creator* of self-loops — if any entity can add an edge from a node to itself, it is this one. Full entry in `core_classes.md`.
 
 ---
 
@@ -322,88 +320,17 @@ This creates a **suppression mechanic:** sustained node damage shrinks the enemy
 
 ---
 
-## Perception & Fog of War
-
-**You see as far as you extend.**
-
-An entity's field of perception is determined entirely by its constellation shape. You are not a body with eyes — you are a network. The furthest nodes you own define the edge of your awareness. To see further, you must reach further.
-
-Two-layer perception system:
-
-**Sense range (hop-based):** Within N hops of any owned node, the entity can *detect* the presence of nodes — silhouettes. Count visible. No type, no HP, no modifiers. You know something is there. You don't know what it is.
-
-**Vision range (euclidean):** Within a radius of any owned node, the entity has *full sight* — node type, HP, modifiers, addon presence. You can read it. You can plan around it.
-
-The gap between the two is **tactical fog:** you have a silhouette, you have a position, you might even have a count — but the details are unknown. A cloud of silhouettes at the edge of your vision is threat-unknown. Extending one node forward might resolve it. That extension costs something.
-
-A silhouette-only node can still be targeted by ranged attacks if within range. Blind-firing is valid. Risky. Sometimes necessary.
-
----
-
-## Node Ownership Staining
-
-Nodes have memory. Each node tracks its most recent owner — an entity that has held a node leaves an invisible mark on it, not cleared until a different entity claims it.
-
-In world terms: an entity that has allocated a node has pressed itself into it, left heat in it. When the entity dies, nodes that are still warm with its mark tell a story — this was part of something, this belonged to something that is now gone. The loot system reads these marks (see Death, Loot, and the Kill Economy).
-
----
-
 ## Magic & Spells — the Blue Design Space
 
 Magic is not a generic "ranged attack that goes further." It is **graph-theory made into a weapon.**
 
 Each spell defines its own targeting mechanism, expressed in terms of the graph: hops from source, forks at junctions, propagation through specific node types, relay through edges. INT scales the spell's potency — damage, propagation depth, fork count, propagation distance — but the spell's *shape* is inherent to it.
 
-A **lightning spell** forks. It follows all available edges simultaneously from the source, and the player has to reason about the graph's branching structure to predict what it hits. But forking is only one primitive among many. The Blue design space is meant to hold *dozens* of spells, each a different graph-math behavior fit to a different situation:
+A **lightning spell** forks. It follows all available edges simultaneously from the source, and the player has to reason about the graph's branching structure to predict what it hits. But forking is only one primitive among many. The Blue design space is meant to hold *dozens* of spells, each a different graph-math behavior fit to a different situation — greedy walks, degree-reactive chains, allocation-boundary targeting. See `combat_system.md` for the full taxonomy.
 
-- **Greedy walk:** hops N times, and at each junction retargets to the neighbor with the highest (or lowest) chosen stat/attribute — a spell that climbs the field's STR gradient, or seeks out the weakest node to finish.
-- **Degree-reactive:** an effect or hop behavior keyed to the degree of each successive target — e.g. damage that grows as it passes through higher-degree hubs, or a spell that can only continue while degrees keep rising.
-- **Allocation-boundary spells:** effects that target or prefer *unallocated* nodes, or that specifically jump along edges crossing between allocated (enemy) and unallocated territory — magic that reads the frontier itself.
-- …and so on. Each spell should be a distinct graph traversal/targeting rule, scaled in potency by INT but fixed in *shape* by its own definition.
-
-Crucially, **a node's degree gates and boosts magic:** weak spells can be cast from low-degree nodes, while the heaviest spells require high-degree **hubs**, as if a node draws power from its allocated neighbors. Hunting and holding the finest casting hubs becomes a Blue-build quest in itself. Degree is counted over the entity's own (owned) subgraph by default; certain rare or drain-flavored spells may instead count *any* incident neighbor, owned or not. **Self-loops add degree** and are of acute interest to Blue builds chasing casting tiers — see Self-Loops below for both the power and the cost. Full mechanics in `combat_system_design`.
+Crucially, **a node's degree gates and boosts magic:** weak spells can be cast from low-degree nodes, while the heaviest spells require high-degree **hubs**, as if a node draws power from its allocated neighbors. Hunting and holding the finest casting hubs becomes a Blue-build quest in itself. Degree is counted over the entity's own (owned) subgraph by default; certain rare or drain-flavored spells may instead count *any* incident neighbor, owned or not. **Self-loops add degree** and are of acute interest to Blue builds chasing casting tiers. See `combat_system.md` for mechanics.
 
 This is a design space to open carefully and incrementally — too many spell types creates incomprehensible states; too few and Blue is just a better ranged attack. The guiding principle: every spell should feel like it *is* something that happens in a graph, not something that happens *to* a graph.
-
----
-
-## Self-Loops — the Thing Skill Trees Can't Do
-
-A real graph permits an edge from a vertex *to itself* — a **self-loop.** Ordinary skill trees never have these; the graph underneath ours can. That gap is an opportunity, and it is worth claiming as a signature mechanic precisely because it is *impossible* in the UI the game pretends to be in Act 0. A self-loop is a structure that could only exist once the skill tree stopped being a menu and became a place.
-
-Self-loops are **rare** — found as field anomalies, scars, or relics. How they can be produced deliberately (if at all) is open; see below.
-
-### Confirmed mechanics
-
-**+2 degree.** A self-loop adds +2 to the node's degree (convention: both endpoints land on the same vertex). This matters immediately for degree-gated magic and degree-defense: a self-looped node with one external neighbor has degree 3 (Major spells; +2 HP bracing) rather than degree 1 (Cantrip only; base HP).
-
-**Never a leaf.** Any self-looped node has minimum degree 2, so it permanently exits the ranged-firing pool (leaf = degree 1 only). A self-loop on a formerly-firing leaf converts it: ranged gun → magic station. A real build tradeoff.
-
-**Structurally durable degree.** The +2 cannot be pruned by killing a neighbor — there is no neighbor to kill for the loop's contribution. A self-loop provides a degree *floor* the enemy cannot reach.
-
-**No connectivity.** A self-loop creates no path to any other node. It cannot help an island survive disconnection, and cannot be cut to disconnect anything. Its effects are entirely expressed through the node's degree.
-
-**Dissolved at Breakout.** When the entire field compresses to one node, all internal topology dissolves — including self-loops. They do not carry forward as live edges. Their contribution is absorbed into the compressed stat aggregate, but not as structure.
-
-### The glass cannon
-
-A propagating spell that arrives at a self-looped node follows **all** edges out of it — including the self-loop. A self-loop presents two half-edges (it contributes +2 degree), both returning to the same node. So:
-
-1. Spell arrives → **hit 1** (initial)
-2. Propagation follows loop, first half-edge → arrives back → **hit 2**
-3. Propagation follows loop, second half-edge → arrives back → **hit 3**
-
-**Baseline: three hits from one spell's arrival.** What happens after hits 2 and 3 — whether propagation continues, amplifies, diminishes, or stops — is entirely **spell-dependent.** No global rule. A hop-depth-limited spell exhausts its depth. An amplifying spell resonates further. A diminishing spell tapers. Each spell defines its own recursion behavior.
-
-This creates the **glass cannon identity**: self-loops boost your casting tier (degree) and amplify what you receive (triple baseline magic damage) in the same move, by the same edge. The node that turned inward to amplify its own signal amplifies everything that hits it in equal measure.
-
-**The vulnerability is color-specific.** Only propagating spells (Blue magic) trigger the multi-hit. Ranged volleys and melee strikes hit the node once and continue — they are indifferent to the self-loop. The glass cannon weakness is Blue vs. Blue specifically.
-
-### Open questions
-
-**[OPEN] How self-loops arise.** Candidates: rare field-node property (found, not created); Edgelord power (it adds edges — why not an edge to self?); Tech Seed fruit (rare modifier-pool result); Blue-specialist unlock; a consequence of certain rare events or damage patterns. Not resolved. High-priority design space — do not waste on a small effect.
-
-**[OPEN] Self-loop degree and defense.** Does the +2 from a self-loop also add defensive HP bracing via the degree-defense formula (`base + degree − 1`)? Almost certainly yes — but confirm explicitly when degree-defense is finalized. See `combat_system_design`.
 
 ---
 
@@ -436,7 +363,7 @@ A more aggressive idea: the core rips a node entirely out of the graph — sever
 
 So Uprooting is **demoted** from the core's universal kit. It survives, if at all, as a **class specialty** — something a topology-savvy class (the Edgelord is the obvious candidate, since it can re-add edges and therefore clean up after itself) can wield deliberately, with full knowledge of the connectivity cost. It also remains a viable *enemy-facing* weapon (uprooting a critical cut vertex out of an opponent's path), just not a casual self-targeting one.
 
-**For build portability — moving a great node's power to where you want it — the intended tool is the Tech Seed, not Uprooting.** Tech Seeds already give core-bound, position-free modifiers without any edge surgery. That is the clean, safe portability path; see Tech Seeds below.
+**For build portability — moving a great node's power to where you want it — the intended tool is the Tech Seed, not Uprooting.** Tech Seeds already give core-bound, position-free modifiers without any edge surgery. That is the clean, safe portability path; see `skill_node_addons.md`.
 
 Rules (if it ships, as a specialty):
 - Costs charges (3, or 1 if the node is already player-owned).
@@ -452,34 +379,6 @@ Rules (if it ships, as a specialty):
 
 ---
 
-## Tech Seeds — Farming the Tree
-
-A **Tech Seed** is a rare item found on the field — dropped from loot nodes, hidden in neutral clusters, or earned as a level reward. The player holds a small number of them (capacity: 2 by default). Planting a seed on an owned node starts a growth process that, after several turns, produces **fruits:** modifier options drawn from a weighted pool seeded by the node's type and contents.
-
-### How it works
-
-1. The player selects an owned node and plants a Tech Seed on it. The seed is consumed.
-2. A **Tech Tree** visually grows from that node over 3–5 turns — a tiny branching structure that appears as a physical object on the field.
-3. When the Tech Tree is ripe, it bears **N fruits** (N = 3–5). The player selects one.
-4. The chosen fruit is a modifier that applies immediately — core-bound (travels with the core, not attached to any node).
-5. The Tech Tree withers. The node returns to normal.
-
-The node continues to function normally during growth. The Tech Tree is an extra process running on top of it.
-
-### The modifier pool
-
-The fruit pool is generated at plant-time from the node's type and modifier list, but the weighting is skewed toward the rarer end. The seed is how you access the *ceiling* of what a node could offer, not just what it normally provides.
-
-### Risk and commitment
-
-Planting a seed is an investment. The node must remain owned and alive for the full growth duration. An enemy severing access to the node before the Tech Tree fruits loses you the seed entirely. The growth timer is visible — to the opponent too. Racing to fruit before being cut off is a genuine tactical scenario.
-
-### How seeds are found and held
-
-Seeds are rare field items — not buyable, not craftable in v1. The player holds at most `tech_seed_capacity` seeds at once (default 2). Finding a seed when at capacity means either discarding it or immediately planting it.
-
----
-
 ## Constellation Geometry — Tendrils, Islands, and Rings
 
 The shape of a player's constellation is not just aesthetic. It has tactical consequences that reward different playstyles.
@@ -490,7 +389,7 @@ A **compact constellation** (dense cluster around the core) is defensible. Few e
 
 An **extended constellation** (long tendrils reaching out to high-value nodes at the edge) has access to better nodes but is structurally fragile. A single cut vertex cut by an enemy severs everything past it. The core may be exposed. The trade-off is power vs. survivability.
 
-Both are valid. Some core classes and rare nodes actively reward extended geometry — bonuses that scale with the length of the longest path, or with the number of leaf nodes. A tendril-specialist build leans into the risk. (And under the combat redesign, leaves are now firing ports — extended geometry is literally where your ranged guns live; see `combat_system_design`.)
+Both are valid. Some core classes and rare nodes actively reward extended geometry — bonuses that scale with the length of the longest path, or with the number of leaf nodes. A tendril-specialist build leans into the risk. (And under the combat redesign, leaves are now firing ports — extended geometry is literally where your ranged guns live; see `combat_system.md`.)
 
 ### Rings are strong (and that's graph theory, not a buff)
 
@@ -512,19 +411,9 @@ Islands created by Uprooting follow the same immediate-death rule.
 
 ## Node Components — The Addon System
 
-Nodes support **attachable components** — addons that modify a node's behavior beyond its base stat modifiers. This is an ECS-flavored layer on top of the base node type.
+Nodes support **attachable components** (addons) that modify behavior beyond base stat modifiers — an ECS layer on top of the base node type. Key addons: **Armor Ring** (damage resistance), **Reinforcement** (HP), **Buffer** (melee charging), **Winch** (euclidean pull force), **Lifeline** (island grace period), **Lifelink** (proxy core). See `skill_node_addons.md` for the full system including node specializations and Tech Seeds.
 
-| Addon | Effect |
-|---|---|
-| **Armor Ring** | Increases this node's damage resistance. Makes it harder to dislodge. |
-| **Reinforcement** | Increases health of this node. |
-| **Winch** | Exerts a pull force on adjacent nodes, reducing effective euclidean distance. Math-only — does not create or delete edges. |
-| **Relay** | (TBD — pending magic-propagation design.) Proposed to increase the effective propagation distance of Blue attacks through this node. |
-| **Buffer** | The node can be *charged/tapped* as part of a melee strike, spending its allocation force to add to the burst. See `combat_system_design` for the tap/recovery cadence. |
-| **Lifeline** | If this node's sub-graph is severed into an island, all nodes within N hops gain a 1-turn grace period to reconnect. Countered by the attacker occupying the cut vertex. |
-| **Lifelink** | Acts as a proxy core for disconnection purposes only. An island containing a Lifelink persists indefinitely. Very rare. Late-game only. |
-
-**Designer rule of thumb:** addons change *how a node behaves on the tree*, not what stats it grants. Stats are on the modifier list. Behavior is on the addon list.
+**Designer rule:** addons change *how a node behaves on the tree*, not what stats it grants.
 
 ---
 
@@ -534,7 +423,7 @@ Nodes support **attachable components** — addons that modify a node's behavior
 
 1. **XP reward:** The killing attacker receives XP proportional to the dead entity's level, converting to skill points through the normal pipeline.
 
-2. **BLITZ (Predator only):** If the Predator had at least one node adjacent to at least one of the dying entity's nodes at the moment of the kill, it may immediately **steal one adjacent enemy-owned node** — direct transfer, no SP cost. If it BLITZes the core node itself (the Relic Node), loot resolution triggers immediately with a bonus. (Universal kill reward is XP + a DAP bonus; see `combat_system_design`.)
+2. **BLITZ (Predator only):** If the Predator had at least one node adjacent to at least one of the dying entity's nodes at the moment of the kill, it may immediately **steal one adjacent enemy-owned node** — direct transfer, no SP cost. If it BLITZes the core node itself (the Relic Node), loot resolution triggers immediately with a bonus. (Universal kill reward is XP + a DAP bonus; see `combat_system.md`.)
 
 3. **Relic Node:** The dead core's node becomes a **Relic Node** — fused with the dead entity's core modifiers, sitting on the board indefinitely (provisional). All remaining enemy-owned nodes become neutral immediately — not destroyed, available to allocate.
 
@@ -542,27 +431,11 @@ Nodes support **attachable components** — addons that modify a node's behavior
 
 To trigger loot resolution, the player must **allocate the Relic Node.** The path to it usually runs through former-enemy neutral territory — chasing the loot naturally means claiming land. They are the same decision.
 
-### Loot Resolution
-
-The player is shown a **combined loot window** — one decision moment.
-
-**Assembling the draw pool:**
-- Modifiers from the dead entity's core itself.
-- Modifiers from nodes the entity owned at death.
-- Modifiers from nodes the player captured during the fight (carrying the dead entity's stain) — available for PROLIFERATE only, not STEAL.
-
-Nodes that dissolved mid-fight and nodes captured by a third party do not contribute.
-
-**Each modifier can be:**
-- **STEAL** — extracted and applied to the player's core directly. Portable, permanent, full value.
-- **PROLIFERATE** — copied to `proliferation_power` nearby owned nodes (RNG within range). Same value per node, spread = multiplied total. Geographically fixed; lost if those nodes are cut away.
-- **SKIP** — decline.
-
-**N total picks** (calibration-pending — starts at 3). BLITZ-the-core: +1 STEAL pick.
-
 ### The STEAL / PROLIFERATE tension
 
 STEAL is portable power. PROLIFERATE is multiplied-but-fixed power. A roaming, aggressive build wants STEAL; a territorial anchor build wants PROLIFERATE. Neither is always dominant. The first loot window teaches this tension. Playtime is over. Pick one.
+
+Full loot pool rules, pick count, and staining mechanics are in `combat_system.md`.
 
 ---
 
@@ -582,20 +455,20 @@ You wanted to take out God. Here, fight His angels. Oh — you didn't want that?
 
 The final level is not about reaching the Tethers. There are none. It is about dismantling the Apex Entity's constellation, reaching its core, and ending it — or absorbing it.
 
-**Every run ends here.** The Apex Ophanim is the capstone of a *run*, not only of the whole game: clearing it is the final in-run Breakout that surfaces the player back in the metagame and commits the meta-allocation that crashed them in (see `metagame_design_v0_1_0.md`). So the first run already culminates in an Apex fight. Subsequent runs face a **tougher Apex** — scaled by accumulated meta-progression, and/or by a player-selectable **heat / ascension modifier** in the roguelike tradition (Hades' Heat, StreetPass-difficulty knobs), letting players dial the challenge up for greater reward. The *truly* final confrontation — the one that ends the game rather than a run — is the **metagame Breakout**, a distinct endgame the player must earn their way to; see the note below and `metagame_design_v0_1_0.md`, The Way Out.
+**Every run ends here.** The Apex Ophanim is the capstone of a *run*, not only of the whole game: clearing it is the final in-run Breakout that surfaces the player back in the metagame and commits the meta-allocation that crashed them in (see `metagame.md`). So the first run already culminates in an Apex fight. Subsequent runs face a **tougher Apex** — scaled by accumulated meta-progression, and/or by a player-selectable **heat / ascension modifier** in the roguelike tradition (Hades' Heat, StreetPass-difficulty knobs), letting players dial the challenge up for greater reward. The *truly* final confrontation — the one that ends the game rather than a run — is the **metagame Breakout**, a distinct endgame the player must earn their way to; see the note below and `metagame.md`, The Way Out.
 
 What happens after is unwritten. Possibilities:
 - You Breakout one final time and the camera keeps pulling back — the game world itself is revealed as one node in something even larger.
 - The Apex Entity's core fuses with yours. A stats screen. A seed for the next run that carries a fragment of what the Apex was.
 - The tree collapses. The adventure game boots up. The sword is in your hand. But the skill tree panel, when you open it — is different.
 
-Note the open thread between this in-run summit and the **metagame Breakout** (`metagame_design_v0_1_0.md`, The Way Out): are these the same top reached two ways, or two different escapes? Unresolved.
+Note the open thread between this in-run summit and the **metagame Breakout** (`metagame.md`, The Way Out): are these the same top reached two ways, or two different escapes? Unresolved.
 
 ---
 
 ## Level Design — Field Themes
 
-Every level takes place on a bounded circular field, but the *feel* of that field is not fixed. Each level runs a theme — a structural and visual identity borrowed from the long tradition of skill trees and talent systems. The circular boundary is always present; what fills it varies. Themes determine edge density, node type distribution, field width vs. depth, edge directionality, palette, and Tether placement/count. (Because topology now determines offense and defense, themes also carry an *offensive identity:* dense webs favor magic hubs, sparse maps favor ranged tendrils — see `combat_system_design`.)
+Every level takes place on a bounded circular field, but the *feel* of that field is not fixed. Each level runs a theme — a structural and visual identity borrowed from the long tradition of skill trees and talent systems. The circular boundary is always present; what fills it varies. Themes determine edge density, node type distribution, field width vs. depth, edge directionality, palette, and Tether placement/count. (Because topology now determines offense and defense, themes also carry an *offensive identity:* dense webs favor magic hubs, sparse maps favor ranged tendrils — see `combat_system.md`.)
 
 **The Classic Talent Tree.** Tiered columns, wider at the top, narrowing down. Edges point downward — branching decisions, converging payoffs. Tall and narrow. Convergence points make natural hubs.
 
@@ -667,7 +540,7 @@ This game earns a JRPG-style finale. The Apex Entity is not ironic. It is the na
 
 7. **Curse vs. crime order.** Is the player cursed *because* they killed the innocents, or were they already cursed (the metagame already a prison) and the killing merely fit a doomed spirit? Leaning ambiguous — both readings should hold.
 
-8. **Can you win on the first run?** With meta-progression now canon (rogueli*te*), runs are individually winnable and the metagame supplies persistence. *Open:* is reaching the Apex possible cold, or does it require meta-carry? See `metagame_design_v0_1_0.md`.
+8. **Can you win on the first run?** With meta-progression now canon (rogueli*te*), runs are individually winnable and the metagame supplies persistence. *Open:* is reaching the Apex possible cold, or does it require meta-carry? See `metagame.md`.
 
 9. **The metagame Breakout vs. the Apex.** Two possible "tops" — the in-run god-fight and the escape from the hub-prison. Same summit reached two ways, or two distinct escapes? Unresolved.
 

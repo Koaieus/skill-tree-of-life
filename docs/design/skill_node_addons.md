@@ -1,6 +1,4 @@
 # Addons & Node Specializations — Skill Tree of Life
-*v0.1.0 · New document.*
-*Companion to: combat_system_design, core_classes, lore.*
 
 ---
 
@@ -128,6 +126,34 @@ Until these are decided, Relay cannot be specified. The concept is interesting �
 **Why it was mentioned in earlier docs:** Several versions of the combat design doc referenced Relay as if it were established, particularly in the context of Bleeding Edge (edge-cutting jabs paired with "edge-reintroduction via Relay"). This was premature. The Relay reference in those docs is informally flagged as TBD pending magic propagation design.
 
 **Note:** The edge-reintroduction requirement (no mechanic may leave a region permanently unreachable) still holds. Whatever mechanism eventually provides edge-reintroduction — whether it's Relay, a core ability, reallocation bridging, or something else — needs to be designed alongside Bleeding Edge.
+
+---
+
+## Tech Seeds
+
+A **Tech Seed** is a rare item found on the field — dropped from loot nodes, hidden in neutral clusters, or earned as a level reward. The player holds a small number of them (`tech_seed_capacity`, default 2). Planting a seed on an owned node starts a growth process that, after several turns, produces **fruits:** modifier options drawn from a weighted pool seeded by the node's type and contents.
+
+### How it works
+
+1. The player selects an owned node and plants a Tech Seed on it. The seed is consumed.
+2. A **Tech Tree** visually grows from that node over 3–5 turns — a tiny branching structure that appears as a physical object on the field.
+3. When the Tech Tree is ripe, it bears **N fruits** (N = 3–5). The player selects one.
+4. The chosen fruit is a modifier that applies immediately — core-bound (travels with the core, not attached to any node).
+5. The Tech Tree withers. The node returns to normal.
+
+The node continues to function normally during growth. The Tech Tree is an extra process running on top of it.
+
+### The modifier pool
+
+The fruit pool is generated at plant-time from the node's type and modifier list, but the weighting is skewed toward the rarer end. The seed is how you access the *ceiling* of what a node could offer, not just what it normally provides.
+
+### Risk and commitment
+
+Planting a seed is an investment. The node must remain owned and alive for the full growth duration. An enemy severing access to the node before the Tech Tree fruits loses you the seed entirely. The growth timer is visible — to the opponent too. Racing to fruit before being cut off is a genuine tactical scenario.
+
+### How seeds are found and held
+
+Seeds are rare field items — not buyable, not craftable in v1. Finding a seed when at capacity means either discarding it or immediately planting it.
 
 ---
 

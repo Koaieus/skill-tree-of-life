@@ -1,11 +1,4 @@
 # Combat System Design — Skill Tree of Life
-*Working doc*
-
-*Changes from v0.6.0:*
-- *Self-loop propagation model corrected: triple-hit baseline (initial arrival + 2 returns from the loop's 2 degree-points), no global traversal rule — spell-dependent. Removed incorrect single-reflection guard.*
-- *Breakout section corrected: the entire field collapses (all constellations, wall, everything → 1 node), not just the player's constellation. Internal topology (incl. self-loops) dissolves in compression.*
-- *Prototype Stat Defaults flag corrected: prototype_stats is a stat-existence vocabulary doc, not a values doc. Base-10 is a Balance-phase calibration anchor; no values conflict exists. Obligation is to register new stats in the vocabulary, already covered by Q9.*
-- *Open Questions: Q18 removed (was misframed); Q9 updated to cover all new stats.*
 
 ---
 
@@ -70,9 +63,9 @@ per target node:
 
 **Combined strikes apply defense once (per-attack, not per-hit).** Both the ranged **volley** (many leaves on one target) and the melee **tap** (many charge nodes in one strike) sum their contributions into a single `outgoing`, and `armor`/`resist` subtract **once** from that total.
 
-**`damage_floor`:** replaces the old hardcoded `max(1, ...)`. Global default `1` — behavior identical for most entities. The Bulwark class starts at `damage_floor = 3` with a class path to reduce it. Below `0`, the entity heals when hit (intentional extreme-build payoff). See `prototype_stats_v0_3_0.md`.
+**`damage_floor`:** replaces the old hardcoded `max(1, ...)`. Global default `1` — behavior identical for most entities. The Bulwark class starts at `damage_floor = 3` with a class path to reduce it. Below `0`, the entity heals when hit (intentional extreme-build payoff). See `entity_stat_board_prototype.md`.
 
-**Thorns:** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. The Halo class's aura grants thorns to shell and near-shell nodes from `thorns_base`. See `addons_v0_1_0.md` and `core_classes_v0_2_0.md`.
+**Thorns:** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. The Halo class's aura grants thorns to shell and near-shell nodes from `thorns_base`. See `skill_node_addons.md` and `core_classes.md`.
 
 ---
 
@@ -87,7 +80,7 @@ per target node:
 
 **Targeting modes:**
 - **Ranged (G):** euclidean distance from a firing **leaf** to the target. `attack_range` limits this. Pure geometry.
-- **Magic (B):** each spell defines its own graph-native targeting (hop count, fork behavior, propagation depth), scaled by INT, **gated by node degree**. `attack_range` does **not** apply to magic.
+- **Magic (B):** each spell defines its own graph-native targeting (hop count, fork behavior, propagation depth), scaled by INT, **gated by owned-subgraph degree** (owned allocated neighbors only; unallocated and enemy nodes do not contribute — see Degree-gated casting). `attack_range` does **not** apply to magic. Rare drain/leech spells may explicitly count all incident edges instead.
 - **Melee (R):** adjacency. You hit what you're next to.
 
 **Triangle (R › B › G › R):** lives primarily in emergent per-color `resist_*` stats. A small hardcoded `type_advantage` baseline may backstop early-game — decide alongside armor (both edit `taken`).
@@ -210,7 +203,7 @@ Tap count determines magnitude; shape determines spread. Starting vocabulary: **
 
 Some melee shapes target **edges, not nodes** — they sever a **bridge** (cut-edge). The island rule fires immediately. A tempo weapon: no HP damage, but forces a connectivity crisis.
 
-**Invariant: no mechanic may leave a region permanently unreachable.** Any edge-deletion mechanic must be paired with edge-reintroduction. The **Relay** addon was proposed as one form of reintroduction but is **TBD**. See `addons_v0_1_0.md`.
+**Invariant: no mechanic may leave a region permanently unreachable.** Any edge-deletion mechanic must be paired with edge-reintroduction. The **Relay** addon was proposed as one form of reintroduction but is **TBD**. See `skill_node_addons.md`.
 
 **Edgelord signature:** Bleeding Edge is the natural signature weapon of the **Edgelord** core class — it can wield bridge-severing without committing the unreachable-region heresy because it can re-add edges after cutting. All other classes remain subject to the softlock invariant.
 
@@ -227,6 +220,10 @@ Degree drives **both** offense (spell tier) and **defense (resilience)**, scalin
 ### Defense: continuous, HP-based
 
 > Effective node HP = base HP + (degree − 1)
+
+**Degree here = total incident edges, regardless of ownership** (all neighbors: owned, neutral, enemy). This is intentionally *different* from owned-subgraph degree used for magic offense — a hub connecting to many neutral or enemy nodes is physically well-braced even without drawing spell-power from those connections.
+
+**Design tension (open):** using total-degree for defense and owned-degree for offense creates a mild conflict for high-degree hubs — they're simultaneously elite spellcasters (from their many owned connections) *and* the tankiest nodes (from total degree). Counterplay ("silence, then grind") is the designed answer, but the degree split between offense and defense may need revisiting if alternative defense models (owned-neighbor ratio, territorial depth, local clustering) prove more interesting in practice. See Open Questions #18.
 
 Starting calibration: **+1 HP per degree beyond 1.**
 - Degree 1 (leaf): base HP (10)
@@ -352,7 +349,7 @@ Uprooting severs **all** edges of a target node. No longer a universal core powe
 
 When a sub-graph has no path back to the entity's core (or Lifelink proxy core), it dissolves immediately. All nodes become unallocated; SP Reservation fires for each.
 
-See `addons_v0_1_0.md` for **Lifeline** (1-turn grace) and **Lifelink** (indefinite proxy core).
+See `skill_node_addons.md` for **Lifeline** (1-turn grace) and **Lifelink** (indefinite proxy core).
 
 **Lifeline + Lifelink combo:** concerning but undesigned. Flag, don't balance against until seen in play.
 
@@ -412,13 +409,13 @@ Each modifier can be:
 | Late / pre-Apex | Larger single-thick rings | Same property, more nodes to grind |
 | Apex (final) | Multi-row thick ring (Ophanim) | Cannot be topologically dismantled — attrit arc by arc |
 
-The Apex Ophanim is fought at the end of every run. Subsequent runs face a tougher Apex. See `metagame_design_v0_1_0.md`.
+The Apex Ophanim is fought at the end of every run. Subsequent runs face a tougher Apex. See `metagame.md`.
 
 ---
 
 ## Breakout
 
-*(Combat-relevant summary. Full narrative version in `lore_v0_4_0.md`.)*
+*(Combat-relevant summary. Full narrative version in `lore.md`.)*
 
 **Condition (both required):**
 1. All Tethers destroyed.
@@ -434,7 +431,7 @@ Enemy entities that were alive when Breakout fires also compress — they become
 
 ## Starter Node Re-edging
 
-After Breakout the new starting node arrives with **zero edges** (every Tether was severed). At minimum 1 edge is always automatically restored (softlock invariant). Re-edging is partly random — a designed source of starting-position variance. See `lore_v0_4_0.md` for narrative framing (the Lord of Edge's immune response).
+After Breakout the new starting node arrives with **zero edges** (every Tether was severed). At minimum 1 edge is always automatically restored (softlock invariant). Re-edging is partly random — a designed source of starting-position variance. See `lore.md` for narrative framing (the Lord of Edge's immune response).
 
 **[OPEN]** Whether the player ever gains influence over re-edging is undecided.
 
@@ -442,7 +439,7 @@ After Breakout the new starting node arrives with **zero edges** (every Tether w
 
 ## Core Classes (summary reference)
 
-Full class entries in `core_classes_v0_2_0.md`. Combat-relevant highlights:
+Full class entries in `core_classes.md`. Combat-relevant highlights:
 
 - **Predator:** BLITZ on killing blow. XP ×0.5.
 - **Bulwark:** `damage_floor = 3` starting; floor-reduction perk path to 0 and below.
@@ -457,7 +454,7 @@ Full class entries in `core_classes_v0_2_0.md`. Combat-relevant highlights:
 
 ## Prototype Stat Defaults
 
-> **Note:** `prototype_stats_v0_3_0.md` is a **stat-existence vocabulary** — it tracks *which* stats exist, not their calibrated values. Numeric values are a Balance-phase activity. The illustrative numbers below follow the base-10 anchor; they are not commitments. The obligation from this doc is to ensure new stats introduced here (`pressure_recovery`, and any stats implied by degree/self-loop mechanics) are registered in the vocabulary — already covered by Q9.
+> **Note:** `entity_stat_board_prototype.md` is a **stat-existence vocabulary** — it tracks *which* stats exist, not their calibrated values. Numeric values are a Balance-phase activity. The illustrative numbers below follow the base-10 anchor; they are not commitments. The obligation from this doc is to ensure new stats introduced here (`pressure_recovery`, and any stats implied by degree/self-loop mechanics) are registered in the vocabulary — already covered by Q9.
 
 Allround combat prototype (illustrative, base-10 anchor):
 
@@ -513,7 +510,7 @@ pressure_recovery = 1 (turn)
 - ~~Killing blow → direct +1 SP~~ → XP reward (pipeline) + universal DAP bonus.
 - ~~Node staining~~ → Confirmed. `last_owner` field. A/B/C/D loot pool logic.
 - ~~damage_floor hardcoded~~ → Now a stat. Default 1. Bulwark 3; can go negative.
-- ~~Relay as confirmed~~ → TBD. See `addons_v0_1_0.md`.
+- ~~Relay as confirmed~~ → TBD. See `skill_node_addons.md`.
 - ~~Uprooting as universal~~ → Removed. Edgelord specialty.
 - ~~Breakout condition~~ → Tethers + boss, then grace window. Entire field collapses → 1 node.
 - ~~Breakout scope~~ → **Entire field** (all constellations + wall) collapses to 1 node. Internal topology (incl. self-loops) dissolves.
@@ -540,3 +537,4 @@ pressure_recovery = 1 (turn)
 16. **Re-edging influence** — does the player ever gain say over which edges are restored?
 17. **Second volley upgrade** — what grants a second ranged volley per turn?
 18. **Degree-defense HP calibration** — +1 HP/degree is a starting value; calibrate vs base-10.
+19. **Defense model** — current formula uses total-degree. Alternatives worth evaluating: (A) owned-neighbor count (anticorrelates with magic offense naturally — high-degree hubs connecting to neutral/enemy nodes get low defense); (B) territorial depth (hops to nearest unowned node); (C) local clustering coefficient on owned subgraph (rewards looped/dense builds, needs visual feedback, requires field to have cycles). Decision should follow first playtests of hub-heavy vs filament builds.
