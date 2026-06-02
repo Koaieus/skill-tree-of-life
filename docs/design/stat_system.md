@@ -482,6 +482,9 @@ The RGBW node type system creates a combat identity for entities and individual 
 | G (Green) | Dexterity | Ranged — long range, lower dmg | R (Melee) | B (Magic) |
 | B (Blue) | Intelligence | Graph-magic — hops along edges | G (Ranged) | R (Melee) |
 | W (White) | — | None | — | — |
+| X (Other) | — | None | — | — |
+
+**X (Other)** is a placeholder type for mystery / keystone / special nodes (rule-changers, sockets) — not yet specified. See GDD §3. It carries no attack and no triangle slot.
 
 **Rock-paper-scissors logic (R › B › G › R):** R beats B (brute force closes the distance and crushes the wizard before magic matters), B beats G (magic outranges and disrupts the archer), G beats R (ranged kites the melee bruiser, who can't reach). *(Canon: R>B>G>R.)*
 

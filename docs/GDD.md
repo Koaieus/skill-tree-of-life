@@ -287,18 +287,24 @@ You boot what looks like a normal Zelda-ish adventure game. You kill cute, harml
 
 ### 11a. The Battle Formula — a plan to actually nail it down
 
-This is the single biggest hole (your words: defensive resolution is "at best a stub"). It won't be solved by more prose — it needs **anchored worked examples**. Proposed path:
+This is the single biggest hole (your words: defensive resolution is "at best a stub"). It won't be solved by more prose — it needs **anchored worked examples**. The 3 fights are **drafted in real numbers** in `design/combat_worked_examples.md`, which is also the standalone handoff for continuing this in a fresh session. Summary of the path:
 
-1. **Lock the anchor invariants first** (these already exist, treat them as axioms): base node HP = 10; attributes ≈ 10 at start; **"3–4 unbuffed leaf volleys ≈ dismember one unbuffed node."** Everything else is fitted to satisfy these.
-2. **Write 3 canonical fights by hand**, in real numbers, before touching Godot:
-   - *(a) Glass vs. glass* — two unbuffed entities, leaf volley vs. a degree-2 node. Confirm the 3–4 volley anchor holds.
-   - *(b) Spear vs. wall* — a DEX attacker into an armored/Reinforced hub. This is where the **defensive curve** reveals itself: does armor subtract flat, scale, or cap?
-   - *(c) A dismemberment* — a cut-vertex snipe that islands an arm. Confirm the arm-loss health hit + SP Reservation feel right.
-3. **Pick the defensive function deliberately.** Candidates to test on example (b): pure flat (`taken = atk − armor`, floored), diminishing (`atk × atk/(atk+armor)`), or hybrid (flat armor + per-color resist as the current pipeline assumes). Decide by which keeps numbers legible (no four-digit values) *and* keeps a baseline node killable in a satisfying number of hits — from both sides.
-4. **Only then** build a tiny headless damage-calc harness in Godot (no UI) and replay the 3 fights as assertions. If the hand math and the code agree, the formula is real.
+1. **Anchor to a *tiered, fast-leaning* tempo target** (the old single "3–4 volleys" point is replaced):
+   - **Fast (1–2 volleys)** — super-effective / vulnerable / low-defense, *or converged fire*.
+   - **Regular (~3)** — even matchup, modest defense.
+   - **Grindy (5+)** — well-defended hub / ineffective matchup / hard armor.
+   - Stance: **tempo must stay high** (a turn-based game where nodes barely die goes static), and **nodes dying too fast beats too slow** — fast death forces rerouting and adaptation, which *is* the gameplay. When in doubt, tune faster.
+2. **The 3 fights** (each uses **two ≥10-node entities plus their surroundings** — positioning and targeting are the system, not flavour):
+   - *(a) Glass vs. glass* — proves tempo is a **positioning choice** (how many leaves you converge), and cheap-leaf vs. cut-vertex **targeting**.
+   - *(b) Spear vs. wall* — **the decision fight**: runs one volley through three candidate defense functions (flat / diminishing-ratio / hybrid) side by side.
+   - *(c) The dismemberment* — the **core-on-a-leaf trap**: kill the leaf-core's one neighbour (a cut vertex) and the entire entity islands off in one go. Core placement = survivability; rings defend.
+3. **Pick the defensive function deliberately.** Current recommendation from fight (b): **hybrid** — `armor` as the *hard wall* (Bulwark's home; can floor / go negative) and `resist_*` as *soft matchup scaling* (the emergent triangle; never grants immunity, so tempo survives). Open for override.
+4. **Only then** build a tiny headless damage-calc harness in Godot (no UI) and replay the 3 fights as assertions. Hand-math == code → the formula is real.
 5. **Defer crit, status effects, and the triangle multiplier** until the base offence/defence curve is locked — they're modifiers on top of a function that has to exist first.
 
-Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense model (degree-based vs. alternatives), and whether armor is per-hit or per-attack (combat doc leans *per-attack* for combined volleys/taps — keep that).
+Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense model (degree-based vs. alternatives), action economy (1 attack vs. `action_points` vs. one-of-each — multiplies tempo directly), and armor per-hit vs. per-attack (combat doc leans *per-attack* for combined volleys/taps — keep that).
+
+**Detail doc:** `design/combat_worked_examples.md`
 
 ---
 
@@ -345,6 +351,7 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense
 |-----|---------------|
 | `design/lore.md` | Narrative, Acts, the Fairy, Graph Theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
 | `design/combat_system.md` | Damage pipeline, RGBW triangle, ranged/magic/melee, degree → defense, self-loops, islands, Breakout, loot |
+| `design/combat_worked_examples.md` | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff) |
 | `design/stat_system.md` | v2 stat architecture, `StatDefinition`, modifier operators, canonical Stat Vocabulary |
 | `design/entity_stat_board_prototype.md` | Prototype stat values, SP accounting, damage-formula sketch, per-class stat variations |
 | `design/core_classes.md` | All entity core classes (Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester, Edgelord) |

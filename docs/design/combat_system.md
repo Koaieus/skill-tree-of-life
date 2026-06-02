@@ -77,6 +77,7 @@ per target node:
 | **G** (Green) | DEX | Ranged | **Euclidean** | Precise, moderate damage, long reach. Beats Red. |
 | **B** (Blue) | INT | Graph-magic / Spells | **Spell-native (graph)** | Propagates along edges, bypasses geometry. Beats Green. |
 | **W** (White) | — | None | — | XP/SP income. No attack, no triangle slot. |
+| **X** (Other) | — | — | — | Mystery / keystone / special nodes (rule-changers, sockets). Not yet specified — see GDD §3. |
 
 **Targeting modes:**
 - **Ranged (G):** euclidean distance from a firing **leaf** to the target. `attack_range` limits this. Pure geometry.
@@ -101,6 +102,21 @@ Two-layer system. Both entity-level stats. Per-node position determines coverage
 | `vision_range` | **Euclidean** from any owned node | Full detail: node type, HP, visible modifiers | ~4 |
 
 Beyond `sense_range`: total fog. Inside sense but outside vision: silhouette only. Inside vision: full information. A silhouette-only node can still be targeted by ranged attacks if within `attack_range`. `vision_range` belongs on the entity stat board (not on individual nodes — legacy code misplaces it).
+
+---
+
+## Turn Structure
+
+One attack per turn is the working baseline (see Open Questions — action economy). A turn, in order:
+
+1. **Assess** — read the board: your nodes, the tree's structure, enemy stats and constellation shape, where the cut vertices are.
+2. **Allocate / reshape** — spend skill points; optionally deallocate first (within the per-turn `deallocation_points` budget) to "move" the constellation across the field. Allocating a node extends `vision_range` (euclidean, full detail) from it and makes it a `sense_range` sensor (hops, silhouette only) — peeking into the Fog of War *structurally* without revealing node contents or ownership.
+3. **Move the core** — up to `movement_speed` hops along owned edges.
+4. **Attack** — one of: ranged volley (leaves), magic (degree-gated spell from a node), or melee (tap-and-recover Buffer nodes).
+5. **Special abilities / items** — situational; some are gated to specific points in the turn.
+6. **End turn** — enemies act. NPC turns resolve by the same rules; the player sees them play out in full only inside their vision, otherwise fast-forwarded unless something happens in view.
+
+*(Mirrors GDD §2. The attack count, and whether move/reshape/attack share a budget, are open — see Open Questions.)*
 
 ---
 
@@ -538,3 +554,6 @@ pressure_recovery = 1 (turn)
 17. **Second volley upgrade** — what grants a second ranged volley per turn?
 18. **Degree-defense HP calibration** — +1 HP/degree is a starting value; calibrate vs base-10.
 19. **Defense model** — current formula uses total-degree. Alternatives worth evaluating: (A) owned-neighbor count (anticorrelates with magic offense naturally — high-degree hubs connecting to neutral/enemy nodes get low defense); (B) territorial depth (hops to nearest unowned node); (C) local clustering coefficient on owned subgraph (rewards looped/dense builds, needs visual feedback, requires field to have cycles). Decision should follow first playtests of hub-heavy vs filament builds.
+20. **Action economy** — one attack per turn, an `action_points` stat (default 1), or one of each attack type per turn? Affects tempo heavily. (GDD §5.)
+21. **Triangle weight** — is type-advantage a *primary* combat axis or a *situational tiebreaker*? GDD §5 leans situational (positioning, topology, and target defense matter more than color); this doc currently treats the triangle as load-bearing. Reconcile — likely "situational, backstopped by a small baseline" so color never feels absent but rarely decides a fight alone.
+22. **Tempo target / the kill-speed anchor** — the "3–4 volleys per node" anchor is now a *tiered* target (1–2 super-effective / 3–4 regular / 5+ well-defended), leaning fast: nodes dying too quickly is preferable to too slowly (forces rerouting and adaptation; keeps the turn-based game from going static). Calibrate against worked examples — see `combat_worked_examples.md`.
