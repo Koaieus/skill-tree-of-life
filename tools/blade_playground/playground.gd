@@ -19,12 +19,13 @@ extends Node2D
 ##   Left-drag node→node . add edge          Hover + T .......... set TARGET
 ##   Shift+drag node ..... move node         Space .............. swing
 ##   1 / 2 / 3 ........... profile (sweep / crack / follow)
-##   [ / ] ............... narrow / widen sector        R ... reset sample   C ... clear
+##   [ / ] ............... narrow / widen sector        - / = ... swing slower / faster
+##   K (hover) .......... toggle Clamp addon on a node   Middle-click ... delete node
+##   R ... reset sample   C ... clear
 
 const NODE_RADIUS := 9.0
 const TARGET_RADIUS := 15.0
 const HIT_PAD := 4.0
-const SWING_DURATION := 0.75      # seconds, wall-clock
 const ITER := 12                  # constraint relaxation iterations / step
 const DAMPING := 0.992
 const SPEED_REF := 1600.0         # px/s mapped to "hot" colour
@@ -38,13 +39,15 @@ var pivot_idx := -1
 var target_idx := -1
 var theta := deg_to_rad(150.0)
 var profile := Profile.SWEEP
+var swing_time := 0.75            # seconds, wall-clock — adjustable at runtime
+var clamped_nodes := {}           # global index -> true (Clamp addon present)
 
 # ---- blade (pivot's connected component, target excluded) -----------------
 var blade: Array = []             # local -> global index
 var local_of := {}                # global -> local
 var blade_edges: Array = []       # [[la, lb], ...]
 var triangles: Array = []         # [[la, lb, lc], ...]
-var driven: Array = []            # bool per local (pivot + first ring = clamp)
+var driven: Array = []            # bool per local (rigid to the swing frame)
 
 # ---- physics --------------------------------------------------------------
 var pts: Array = []               # Array[Vector2]
@@ -95,6 +98,7 @@ func _reset_sample() -> void:
 	edges = [[0,1],[1,2],[1,3],[2,3],[2,4],[4,5],[5,3]]
 	pivot_idx = 0
 	target_idx = 6
+	clamped_nodes = {}
 	has_result = false
 	_rebuild_blade()
 
@@ -104,9 +108,39 @@ func _clear() -> void:
 	edges = []
 	pivot_idx = -1
 	target_idx = -1
+	clamped_nodes = {}
 	blade = []
 	has_result = false
 	_rebuild_blade()
+
+
+func _delete_node(idx: int) -> void:
+	if idx < 0 or idx >= node_pos.size():
+		return
+	node_pos.remove_at(idx)
+	clamped_nodes.erase(idx)
+	# drop incident edges, then re-index everything above `idx`
+	var kept: Array = []
+	for e in edges:
+		if e[0] == idx or e[1] == idx:
+			continue
+		kept.append([e[0] - (1 if e[0] > idx else 0), e[1] - (1 if e[1] > idx else 0)])
+	edges = kept
+	var reclamped := {}
+	for k in clamped_nodes.keys():
+		reclamped[k - (1 if k > idx else 0)] = true
+	clamped_nodes = reclamped
+	pivot_idx = _shift_index(pivot_idx, idx)
+	target_idx = _shift_index(target_idx, idx)
+	hovered = -1
+	has_result = false
+	_rebuild_blade()
+
+
+func _shift_index(i: int, removed: int) -> int:
+	if i == removed:
+		return -1
+	return i - 1 if i > removed else i
 
 
 func _node_at(p: Vector2) -> int:
@@ -181,16 +215,32 @@ func _rebuild_blade() -> void:
 		if local_of.has(e[0]) and local_of.has(e[1]):
 			blade_edges.append([local_of[e[0]], local_of[e[1]]])
 
+	# local adjacency
+	var ladj := {}
+	for l in blade.size():
+		ladj[l] = []
+	for be in blade_edges:
+		ladj[be[0]].append(be[1])
+		ladj[be[1]].append(be[0])
+
+	# driven = rigid to the swing frame. The grip clamps the pivot, so the pivot
+	# propagates rigidity to its first ring. Any OTHER node propagates outward
+	# only if it carries a Clamp addon; otherwise it is carried rigidly in
+	# position but its outgoing joint is a free pin (the #10 leaf-haft hinge).
 	driven.resize(blade.size())
 	for l in blade.size():
 		driven[l] = false
 	var lp: int = local_of[pivot_idx]
-	driven[lp] = true                       # pivot fixed
-	for be in blade_edges:                   # first ring = clamped grip
-		if be[0] == lp:
-			driven[be[1]] = true
-		elif be[1] == lp:
-			driven[be[0]] = true
+	driven[lp] = true
+	var dq := [lp]
+	while not dq.is_empty():
+		var n: int = dq.pop_front()
+		if n != lp and not clamped_nodes.has(blade[n]):
+			continue                            # driven, but free joint → no propagation
+		for m in ladj[n]:
+			if not driven[m]:
+				driven[m] = true
+				dq.append(m)
 
 	# triangles = faces (the common, meaningful case)
 	var eset := {}
@@ -268,7 +318,7 @@ func _start_swing() -> void:
 func _physics_process(delta: float) -> void:
 	if not swinging:
 		return
-	swing_t += delta / SWING_DURATION
+	swing_t += delta / maxf(swing_time, 0.05)
 	var done := swing_t >= 1.0
 	swing_t = minf(swing_t, 1.0)
 	var phi := -theta / 2.0 + _profile_ease(swing_t) * theta
@@ -350,7 +400,7 @@ func _finalize() -> void:
 	report.append("BLADE  V=%d  E=%d  cycles=%d  triangles=%d" % [V, E, cyc, triangles.size()])
 	var laman := E >= 2 * V - 3
 	report.append("tensegrity: %s" % ("braced — rigid-capable" if laman else "under-braced — floppy / whip"))
-	report.append("profile=%s   sector=%d deg" % [_profile_name(), int(rad_to_deg(theta))])
+	report.append("profile=%s   sector=%d deg   swing=%.1fs   clamps=%d" % [_profile_name(), int(rad_to_deg(theta)), swing_time, clamped_nodes.size()])
 	if target_idx < 0:
 		report.append("(no target: hover a node and press T)")
 		return
@@ -438,6 +488,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				pivot_idx = n
 				has_result = false
 				_rebuild_blade()
+		elif event.button_index == MOUSE_BUTTON_MIDDLE:
+			_delete_node(_node_at(event.position))
 		queue_redraw()
 	elif event is InputEventMouseButton and not event.pressed \
 			and event.button_index == MOUSE_BUTTON_LEFT:
@@ -462,6 +514,14 @@ func _unhandled_input(event: InputEvent) -> void:
 						pivot_idx = -1
 					has_result = false
 					_rebuild_blade()
+			KEY_K:
+				if hovered >= 0 and hovered != pivot_idx and hovered != target_idx:
+					if clamped_nodes.has(hovered):
+						clamped_nodes.erase(hovered)
+					else:
+						clamped_nodes[hovered] = true
+					has_result = false
+					_rebuild_blade()
 			KEY_R: _reset_sample()
 			KEY_C: _clear()
 			KEY_1: profile = Profile.SWEEP
@@ -469,6 +529,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_3: profile = Profile.FOLLOW
 			KEY_BRACKETLEFT: theta = maxf(deg_to_rad(20.0), theta - deg_to_rad(10.0))
 			KEY_BRACKETRIGHT: theta = minf(deg_to_rad(330.0), theta + deg_to_rad(10.0))
+			KEY_MINUS: swing_time = minf(3.0, swing_time + 0.1)
+			KEY_EQUAL: swing_time = maxf(0.1, swing_time - 0.1)
 		queue_redraw()
 
 
@@ -510,6 +572,8 @@ func _draw() -> void:
 		for l in blade.size():
 			var col := Color(0.95, 0.75, 0.2) if driven[l] else Color(0.55, 0.75, 1.0)
 			draw_circle(pts[l], NODE_RADIUS - 2.0, col)
+			if clamped_nodes.has(blade[l]):
+				_draw_clamp_marker(pts[l], 1.0)
 
 	_draw_report()
 	_draw_help()
@@ -546,8 +610,17 @@ func _draw_node(i: int, alpha: float) -> void:
 	if i == hovered:
 		draw_arc(p, NODE_RADIUS + 4.0, 0, TAU, 24, Color(1, 1, 1, 0.7), 1.5)
 	draw_circle(p, NODE_RADIUS, col)
+	if clamped_nodes.has(i):
+		_draw_clamp_marker(p, alpha)
 	draw_string(_font, p + Vector2(11, -10), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12,
 		Color(1, 1, 1, 0.5 * alpha + 0.3))
+
+
+func _draw_clamp_marker(p: Vector2, alpha: float) -> void:
+	# a cyan square bracket = "joint welded" (Clamp addon present)
+	var r := NODE_RADIUS + 3.0
+	var c := Color(0.3, 0.95, 0.95, alpha)
+	draw_rect(Rect2(p - Vector2(r, r), Vector2(r, r) * 2.0), c, false, 1.5)
 
 
 func _draw_report() -> void:
@@ -556,8 +629,8 @@ func _draw_report() -> void:
 		lines = report
 	else:
 		lines = [
-			"BLADE  V=%d  E=%d  triangles=%d" % [blade.size(), blade_edges.size(), triangles.size()],
-			"profile=%s   sector=%d deg" % [_profile_name(), int(rad_to_deg(theta))],
+			"BLADE  V=%d  E=%d  triangles=%d  clamps=%d" % [blade.size(), blade_edges.size(), triangles.size(), clamped_nodes.size()],
+			"profile=%s   sector=%d deg   swing=%.1fs" % [_profile_name(), int(rad_to_deg(theta)), swing_time],
 			"press SPACE to swing",
 		]
 	var y := 24.0
@@ -571,7 +644,7 @@ func _draw_report() -> void:
 
 func _draw_help() -> void:
 	var vp := get_viewport_rect().size
-	var help := "L-click empty: node   L-drag node→node: edge   Shift-drag: move   "
-	help += "R-click: pivot   hover+T: target   Space: swing   1/2/3 profile   [ ] sector   R reset   C clear"
-	draw_string(_font, Vector2(18, vp.y - 16), help, HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
-		Color(0.65, 0.7, 0.8))
+	var l1 := "L-click empty: node   L-drag node→node: edge   Shift-drag: move   Mid-click: delete   R-click: pivot"
+	var l2 := "hover+T: target   hover+K: clamp   Space: swing   1/2/3 profile   [ ] sector   - = swing time   R reset  C clear"
+	draw_string(_font, Vector2(18, vp.y - 34), l1, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.65, 0.7, 0.8))
+	draw_string(_font, Vector2(18, vp.y - 14), l2, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.65, 0.7, 0.8))
