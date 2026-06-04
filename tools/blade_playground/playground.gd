@@ -20,6 +20,7 @@ extends Node2D
 ##   Shift+drag node ..... move node         Space .............. swing
 ##   1 / 2 / 3 ........... profile (sweep / crack / follow)
 ##   [ / ] ............... narrow / widen sector        - / = ... swing slower / faster
+##   , / . .............. aim phase: where in the stroke the target is faced (0=start,1=snap)
 ##   K (hover) .......... toggle Clamp addon on a node   Middle-click ... delete node
 ##   R ... reset sample   C ... clear
 
@@ -38,6 +39,7 @@ var edges: Array = []             # Array[[gi, gj]]
 var pivot_idx := -1
 var target_idx := -1
 var theta := deg_to_rad(150.0)
+var aim_phase := 0.5              # where in the stroke the target is faced (0=start,1=end)
 var profile := Profile.SWEEP
 var swing_time := 0.75            # seconds, wall-clock — adjustable at runtime
 var clamped_nodes := {}           # global index -> true (Clamp addon present)
@@ -282,8 +284,9 @@ func _start_swing() -> void:
 		return
 	var pv: Vector2 = node_pos[pivot_idx]
 
-	# aim: rotate the rest shape so its centroid points at the target, so the
-	# sweep is centred on the target and actually crosses it mid-stroke.
+	# aim: rotate the rest shape so its centroid points at the target — but at
+	# the chosen point in the stroke (aim_phase: 0 = swing start, 0.5 = middle,
+	# 1 = the end/snap). A whip wants the target at the end, where it cracks.
 	var rot := 0.0
 	if target_idx >= 0:
 		var cen := Vector2.ZERO
@@ -294,6 +297,7 @@ func _start_swing() -> void:
 		var aim: Vector2 = node_pos[target_idx] - pv
 		if fwd.length() > 1.0 and aim.length() > 1.0:
 			rot = aim.angle() - fwd.angle()
+	var aim_off := -theta / 2.0 + aim_phase * theta   # phi at which we face the target
 
 	pts.resize(blade.size())
 	prev.resize(blade.size())
@@ -301,7 +305,7 @@ func _start_swing() -> void:
 	spd.resize(blade.size())
 	var phi0 := -theta / 2.0
 	for l in blade.size():
-		rest_off[l] = (node_pos[blade[l]] - pv).rotated(rot)
+		rest_off[l] = (node_pos[blade[l]] - pv).rotated(rot - aim_off)
 		var p: Vector2 = pv + rest_off[l].rotated(phi0)
 		pts[l] = p
 		prev[l] = p
@@ -400,7 +404,7 @@ func _finalize() -> void:
 	report.append("BLADE  V=%d  E=%d  cycles=%d  triangles=%d" % [V, E, cyc, triangles.size()])
 	var laman := E >= 2 * V - 3
 	report.append("tensegrity: %s" % ("braced — rigid-capable" if laman else "under-braced — floppy / whip"))
-	report.append("profile=%s   sector=%d deg   swing=%.1fs   clamps=%d" % [_profile_name(), int(rad_to_deg(theta)), swing_time, clamped_nodes.size()])
+	report.append("profile=%s   sector=%d deg   swing=%.1fs   aim@%.2f   clamps=%d" % [_profile_name(), int(rad_to_deg(theta)), swing_time, aim_phase, clamped_nodes.size()])
 	if target_idx < 0:
 		report.append("(no target: hover a node and press T)")
 		return
@@ -531,6 +535,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_BRACKETRIGHT: theta = minf(deg_to_rad(330.0), theta + deg_to_rad(10.0))
 			KEY_MINUS: swing_time = minf(3.0, swing_time + 0.1)
 			KEY_EQUAL: swing_time = maxf(0.1, swing_time - 0.1)
+			KEY_COMMA: aim_phase = maxf(0.0, aim_phase - 0.05)
+			KEY_PERIOD: aim_phase = minf(1.0, aim_phase + 0.05)
 		queue_redraw()
 
 
@@ -584,10 +590,14 @@ func _draw_arc_guide() -> void:
 		return
 	var pv: Vector2 = node_pos[pivot_idx]
 	var aim: float = (node_pos[target_idx] - pv).angle()
+	var aim_off := -theta / 2.0 + aim_phase * theta
+	var center := aim - aim_off
 	var r := pv.distance_to(node_pos[target_idx]) + 30.0
-	draw_arc(pv, r, aim - theta / 2.0, aim + theta / 2.0, 48, Color(1, 1, 1, 0.10), 2.0)
-	draw_line(pv, pv + Vector2.from_angle(aim - theta / 2.0) * r, Color(1, 1, 1, 0.08), 1.0)
-	draw_line(pv, pv + Vector2.from_angle(aim + theta / 2.0) * r, Color(1, 1, 1, 0.08), 1.0)
+	var a0 := center - theta / 2.0          # swing start
+	var a1 := center + theta / 2.0          # swing end (the snap)
+	draw_arc(pv, r, a0, a1, 48, Color(1, 1, 1, 0.10), 2.0)
+	draw_line(pv, pv + Vector2.from_angle(a0) * r, Color(1, 1, 1, 0.08), 1.0)
+	draw_line(pv, pv + Vector2.from_angle(a1) * r, Color(0.5, 1.0, 0.6, 0.55), 2.0)  # end/snap ray
 
 
 func _draw_faces() -> void:
@@ -630,7 +640,7 @@ func _draw_report() -> void:
 	else:
 		lines = [
 			"BLADE  V=%d  E=%d  triangles=%d  clamps=%d" % [blade.size(), blade_edges.size(), triangles.size(), clamped_nodes.size()],
-			"profile=%s   sector=%d deg   swing=%.1fs" % [_profile_name(), int(rad_to_deg(theta)), swing_time],
+			"profile=%s   sector=%d deg   swing=%.1fs   aim@%.2f" % [_profile_name(), int(rad_to_deg(theta)), swing_time, aim_phase],
 			"press SPACE to swing",
 		]
 	var y := 24.0
@@ -645,6 +655,6 @@ func _draw_report() -> void:
 func _draw_help() -> void:
 	var vp := get_viewport_rect().size
 	var l1 := "L-click empty: node   L-drag node→node: edge   Shift-drag: move   Mid-click: delete   R-click: pivot"
-	var l2 := "hover+T: target   hover+K: clamp   Space: swing   1/2/3 profile   [ ] sector   - = swing time   R reset  C clear"
+	var l2 := "hover+T: target   hover+K: clamp   Space: swing   1/2/3 profile   [ ] sector   , . aim-phase   - = swing time   R reset  C clear"
 	draw_string(_font, Vector2(18, vp.y - 34), l1, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.65, 0.7, 0.8))
 	draw_string(_font, Vector2(18, vp.y - 14), l2, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.65, 0.7, 0.8))
