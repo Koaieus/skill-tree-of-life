@@ -4,6 +4,11 @@ A **core class** defines an entity's fundamental identity — starting stat weig
 
 Core classes are not locked. A run may present opportunities to shift class identity through late-game loot or Keystone nodes. The starting class sets the trajectory.
 
+> **Combat-redesign deltas affecting classes (see `combat_system.md`).**
+> - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `damage_floor` / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
+> - **Six-attribute roster:** R/STR, G/DEX, B/INT (attack) + **White/CON** (durability), **Gold/WIS** (XP/growth — the new economy color), **Purple/PER** (vision/sensing). Class economy prose below still says "White nodes" for the economy (Hive, Harvester, Halo interior) — read that as **Gold** under the new roster; a dedicated migration sweep is pending and the reassignment is not yet final.
+> - **Melee is the phantom blade** (swing a copy of your owned subgraph; size `STR//10+1`; rigidity from triangulation). This hands the **Halo** a melee option — swing the thorny shell (thorns = swung spikes) — and gives any class that invests offense into its **core** a "core-swing" finisher (big payoff, real exposure).
+
 ---
 
 ## Class Entry Schema
@@ -79,7 +84,7 @@ Always available. Designed to be legible to new players.
 - **BLITZ (class exclusive):** On a killing blow, if at least one owned node is adjacent to any dying entity node: steal one adjacent enemy-owned node, direct transfer, no SP cost.
 - **Core BLITZ bonus:** If the stolen node is the Relic Node (dead core itself): loot resolution triggers immediately with +1 STEAL pick.
 
-**Synergizes with:** Buffer addon (melee burst aligned with close-range play); high-dealloc nodes; R (Red) nodes for STR.
+**Synergizes with:** Buffer addon (battle-phase reach to bring a melee pivot to the front, aligned with close-range play); high-dealloc nodes; R (Red) nodes for STR.
 
 **Counterplay:** Kite it. The Predator requires adjacency — keep it at range. A G-heavy ranged opponent that maintains distance exploits the Predator's need to close the gap. Deny BLITZ by avoiding adjacency at the kill moment.
 
@@ -214,6 +219,7 @@ Introduced after the player is comfortable with basic island rules and the stat 
 - **`thorns_base` stat:** Scales both the shell thorns (×2) and near-shell thorns (×1). Can be upgraded through loot or class progression. Higher `thorns_base` makes the ring progressively more dangerous to contact.
 - **Ring completion bonus (proposed):** If the shell ring forms a complete cycle at exactly shell_distance, an additional bonus applies — to be calibrated. Rewards deliberately closing the loop.
 - **Thorns and ring state interaction:** If a snipe shifts nodes OUT of the shell (see ring-shrink math below), those nodes lose their thorns. The ring softens in that area — safe to melee. The Halo must rebuild ring topology to restore coverage.
+- **Shell-swing (melee option, new):** since thorns = spikes (sharpness; motion decides direction — see `combat_system.md`), the Halo can select part of its thorny shell as a phantom blade and **swing it offensively** — the same spikes that punish incoming melee now drive through what they sweep. A closed shell ring is also a *cycle*, so a selected arc floods into a face (area damage) and the ring's own triangulation lends rigidity. Turns the defensive ring into an occasional offensive sweep.
 
 **Ring-shrink graph math:**
 

@@ -44,15 +44,17 @@ These are established mechanics referenced consistently in the design docs.
 
 ### Buffer
 
-**Effect:** This node can participate in the melee inhale/exhale as a charging buffer. When the entity begins charging a melee attack, the player may designate Buffer nodes to contribute pressure. Each designated node spends its action for that turn (cannot contribute to anything else). On release, each Buffer node that charged adds to the burst's power and/or shape size. The node returns to normal service after release.
+> **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **battle-phase temporary reach**.
 
-**While charged:** Buffer nodes that are currently holding charge are in a vulnerable state — they contribute a defensive penalty (form TBD: flat resist reduction or flat damage-taken increase) until released. Bigger melee wind-up = more Buffer nodes charging = bigger vulnerability window.
+**Effect:** During the **Battle phase** (see the three-phase turn), tapping a Buffer node **temporarily allocates existing field nodes** — reaching across the *real* graph to bring an attacking node/pivot to the front (melee), claim firing stubs (ranged), or pad a casting hub's degree (magic). It does **not** spawn new vertices; it plays with the real skill-node/edge graph. After a tap the Buffer goes on **cooldown** (cannot re-tap next turn — preserves cadence). All temporarily-allocated nodes **revert at turn end** unless **promoted** to permanent during the Consolidation phase (pay 1 real SP each).
 
-**Interaction with `pressure_capacity`:** The entity stat `pressure_capacity` caps how many Buffer nodes can charge simultaneously for a single burst.
+**Universal across all colors.** Melee/ranged/magic all benefit — it is reach, not a melee-only tool.
 
-**Notes:** Buffer addon is what makes a node capable of participating in melee charging. Without it, a node cannot be used as a charge buffer. This is a *capability* addon, not a passive bonus.
+**Interaction with `pressure_capacity`:** The entity stat `pressure_capacity` is now the **reach/budget** — how many field nodes a single tap can temporarily allocate (no longer "max nodes chargeable for a melee burst").
 
-**Design tension:** Is Buffer an addon the player applies to nodes they own, or a specialization — nodes that come pre-built with buffer capability? Leaning toward addon (applies to owned nodes through loot/crafting), but the "melee buffer node" concept (a node found already specialized for this role) is a candidate for Node Specializations. See that section.
+**Notes:** Buffer is **utility-only — no attack of its own** (not a firing leaf, not a caster, not a blade source). Dedicating a node slot to one is a real tradeoff: without Buffers you commit your shape up front and fight with it; with them you extend mid-fight and snap back. This is a *capability* addon, not a passive bonus.
+
+**Shelved alternative:** a "ghost extension" version that spawns *new* temporary vertices was considered and dropped — it read as a cop-out and cluttered the board. Reach plays with real nodes only.
 
 ---
 
@@ -169,13 +171,15 @@ The following are candidate specializations — design sketches, not confirmed m
 
 ---
 
-### Melee Buffer Node *(candidate specialization)*
+### Reach Buffer Node *(candidate specialization)* — *(was "Melee Buffer Node")*
 
-**Description:** A node with unusually high `pressure_capacity` — capable of holding more melee charge than a standard node could, even with the Buffer addon applied. Provides the equivalent of multiple Buffer addons in a single node, or enables melee bursts that wouldn't be possible with standard nodes.
+> **Re-pointed away from melee fuel.** Melee runs on the phantom blade now, not on charged buffers, so this is no longer "holds extra melee charge." It is a supercharged **reach** node.
+
+**Description:** A node with unusually high `pressure_capacity` — a single tap can temporarily allocate **far more** field nodes than a standard Buffer addon, reaching deeper across the real graph in one battle-phase move (a long melee pivot extension, a wide net of firing stubs, or a big degree-pad for a casting hub). Provides the equivalent of multiple Buffer addons in one node.
 
 **How encountered:** Found on the field in a special state (type-A specialization). Visually distinct. Allocating it provides this capability immediately.
 
-**Design tension:** Is this just a node with a boosted Buffer addon, or is it something categorically different? If it's just "Buffer addon + stat boost," it belongs in the addon system. If it allows melee behavior that no addon combination can replicate (e.g. a single node that can anchor an entire melee shape around it), it's a true specialization. To be resolved in playtesting.
+**Design tension:** Is this just a node with a boosted Buffer addon, or categorically different? If it's "Buffer addon + `pressure_capacity` boost," it belongs in the addon system. If it enables reach no addon combination can replicate, it's a true specialization. To be resolved in playtesting.
 
 ---
 
@@ -190,7 +194,7 @@ The following are candidate specializations — design sketches, not confirmed m
 
 **How encountered:** Field-generated (type-A) primarily. Possibly also type-B: the Bulwark's floor-reduction perk path as a form of controlled self-corruption — choosing to make your floor-reduction permanent and irreversible in exchange for a stronger bonus.
 
-**Design note:** Corrupted nodes as a category make the loot system richer. A STEAL option in the loot window that says `+5 DEX (take double damage)` is a real decision. Proliferating that modifier is especially interesting — spreading the double-damage downside across multiple nodes while spreading the DEX bonus. Whether the downside proliferates at the same rate as the bonus is a calibration question.
+**Design note:** Corrupted nodes as a category make the loot system richer. A STEAL option in the loot window that says `+5 DEX (take double damage)` is a real decision. Proliferating that modifier is especially interesting — under the reframed model (PROLIFERATE = remove a core-held mod, mint **N tainted copies** across a cluster you must hold; see `combat_system.md`), you'd be spreading the double-damage downside across multiple nodes while spreading the DEX bonus. Whether the downside proliferates at the same rate as the bonus is a calibration question. Note that the **N copies are tainted** — owner-independent, non-extractable, non-re-proliferable — so you can never launder a corrupted-but-juicy mod back into a clean portable core mod by round-tripping it through the field.
 
 ---
 

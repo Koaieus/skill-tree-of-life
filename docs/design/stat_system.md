@@ -416,9 +416,10 @@ ReinforcementAddon extends NodeAddon
   - health_bonus: int       # adds to node's effective HP
 
 BufferAddon extends NodeAddon
-  - pressure: int           # how much this node adds to a melee charge when activated
-  # behavior: spends the node's action to charge; returns to service after release;
-  # holding the charge applies a vulnerability penalty to the entity (form TBD)
+  - reach: int              # battle-phase reach budget (scaled by pressure_capacity)
+  # behavior: a tap TEMPORARILY allocates existing field nodes for reach (melee pivot /
+  # ranged stubs / magic hub-degree), then the buffer goes on cooldown. Reverts at turn
+  # end unless promoted in Consolidation. NOT melee fuel — see skill_node_addons.md.
 ```
 
 **Design constraint:** addons are applied to specific nodes by the designer (or by loot drops). They are not on the stat modifier list and do not flow through the modifier pipeline. Their effects are resolved by the systems that care about them (combat system reads `ArmorRingAddon` and `BufferAddon`, physics system reads `WinchAddon`, etc.).
@@ -446,11 +447,16 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 | `initiative` | INT | Scalar+progress | — | Turn order. Has a `progress` sub-value (0–100) filled each tick. |
 | `movement_speed` | INT | Scalar (resets) | — | Hops the core can relocate per turn. Default 1. |
 | `deallocation_points` | INT | Scalar (resets) | — | Per-turn reshape budget (apparent movement). Default small. |
-| `strength` | INT | Scalar | — | Melee (R) attack scaling. |
-| `dexterity` | INT | Scalar | — | Ranged (G) attack scaling. Possibly dodge. |
-| `intelligence` | INT | Scalar | — | Graph-magic (B) attack scaling, hop propagation. |
-| `attack_range` | INT | Scalar | — | Max hops for ranged/magic attacks. Relay addon extends Blue range through a node. |
-| `pressure_capacity` | INT | Scalar | — | Max nodes chargeable for a single melee burst (the N in inhale/exhale). |
+| `strength` | INT | Scalar | — | Melee (R/Red). `STR//10` per contact; blade size `STR//10+1` nodes. |
+| `dexterity` | INT | Scalar | — | Ranged (G/Green). `DEX//10` per firing leaf. Possibly dodge. |
+| `intelligence` | INT | Scalar | — | Magic (B/Blue). `INT//10` per damage instance — **potency, never reach**. |
+| `constitution` | INT | Scalar | — | **CON (White).** Durability — scales node/core HP (replaces degree-defense); weights armor affixes. No attack. |
+| `wisdom` | INT | Scalar | — | **WIS (Gold).** XP-gain rate; carries growth modifiers. The economy attribute (supersedes White=XP). |
+| `perception` | INT | Scalar | — | **PER (Purple).** Vision + sensor range. `+1 sense_range / 10 PER`, `+2% vision_range / PER`. |
+| `bonus_hop_count` | INT | Scalar | — | Magic **reach** (the only source). Ultra-rare (~1–2 on the map). Default 0. |
+| `coolness` | INT | Scalar | — | Prestige only — no mechanical effect; end-credits tally. The "all edge, no point" stat. |
+| `attack_range` | INT | Scalar | — | Max euclidean range for **ranged** only. Magic reach is `bonus_hop_count`. (Relay addon TBD.) |
+| `pressure_capacity` | INT | Scalar | — | **Battle-phase reach budget**: existing field nodes a buffer tap can temporarily allocate. (No longer melee charge count — melee size is `STR//10+1`.) |
 | `crit_chance` | INT | Scalar | — | Percent chance to crit. Global across attack types for now. Keep low (5–10%). |
 | `crit_mult` | FLOAT | Scalar | — | Crit damage multiplier. Default ×2. (FLOAT exception — it's a multiplier.) |
 | `armor` | INT | Scalar | — | Flat damage reduction (all types). Floor leaves ≥1 damage through. |
@@ -476,19 +482,23 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 
 The RGBW node type system creates a combat identity for entities and individual nodes.
 
-| Type | Stat | Attack | Strong vs. | Weak vs. |
+Six colors: three attack (prevalent), three utility (rarer). The attack triangle lives in R/G/B; White/Gold/Purple carry no attack slot.
+
+| Color | Attribute | Attack | Strong vs. | Weak vs. |
 |---|---|---|---|---|
-| R (Red) | Strength | Melee — adjacent only | B (Magic) | G (Ranged) |
-| G (Green) | Dexterity | Ranged — long range, lower dmg | R (Melee) | B (Magic) |
-| B (Blue) | Intelligence | Graph-magic — hops along edges | G (Ranged) | R (Melee) |
-| W (White) | — | None | — | — |
+| Red | Strength | Melee — phantom blade (adjacency) | B (Magic) | G (Ranged) |
+| Green | Dexterity | Ranged — leaf volley, long range | R (Melee) | B (Magic) |
+| Blue | Intelligence | Graph-magic — hops along edges | G (Ranged) | R (Melee) |
+| White | Constitution | None — durability | — | — |
+| Gold | Wisdom | None — XP / growth | — | — |
+| Purple | Perception | None — vision / sensing | — | — |
 | X (Other) | — | None | — | — |
 
 **X (Other)** is a placeholder type for mystery / keystone / special nodes (rule-changers, sockets) — not yet specified. See GDD §3. It carries no attack and no triangle slot.
 
 **Rock-paper-scissors logic (R › B › G › R):** R beats B (brute force closes the distance and crushes the wizard before magic matters), B beats G (magic outranges and disrupts the archer), G beats R (ranged kites the melee bruiser, who can't reach). *(Canon: R>B>G>R.)*
 
-White nodes are combat-neutral: they provide XP/turn (the SP economy's lifeblood), utility modifiers, but no attack affinity. An all-W build is economically rich but militarily helpless without allied RGB nodes — which is exactly why White nodes are fought over as economic objectives.
+The utility colors are combat-neutral. **Gold (WIS)** is the new economic lifeblood — XP/turn → SP income (this role was formerly White's). **White (CON)** is durability (node/core HP, armor-affix weight). **Purple (PER)** is sensing. A growth/knowledge-heavy build is rich but militarily helpless without allied RGB nodes — which is why Gold (and the old White-as-economy) nodes are fought over as objectives. **Procgen clusters like-colors into biome-like regions** (Red territory, Blue territory) — color is *content identity*, not an adjacency-coloring (the 4-color-theorem is a deliberate red herring here). Affix pools are weighted-mix (color-tilted, nonzero on everything), with a **hard Gold×Purple exclusion** (no node carries both XP and vision/sensor mods).
 
 **Application to node modifiers:** a node's color-type is an intrinsic property (`node_type: enum {R, G, B, W}`), not a stat. Stats like `strength`, `dexterity`, `intelligence` are what scale that type's attacks. A Red node typically carries `+STR` modifiers, reinforcing the melee identity — but a Red node with an unusual `+INT` modifier is a valid designer choice that creates interesting tension. Dual-color interior nodes (e.g. R/B) are high-value precisely because they may let an attacker choose the favorable side of the triangle per strike (timing of that choice is an open combat question).
 

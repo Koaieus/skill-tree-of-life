@@ -41,6 +41,18 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 - Default N = 3 (3 free SP to spend immediately on turn 1)
 - 0 non-core nodes allocated
 
+### The three-phase turn (SP model)
+
+**One SP pool.** Whether an allocation persists is decided by *which phase* you made it in — not by a second "temp SP" currency (rejected: it created spend-order ambiguity, a real/temp toggle, and per-node bookkeeping). Spawning new ghost vertices was also rejected (clutter). The phase *is* the temp/permanent flag.
+
+1. **Deployment** — spend SP and `deallocation_points` to **permanently** allocate/deallocate. No need to spend it all.
+2. **Battle** — act (one attack). **Tap buffer nodes** to *temporarily* allocate existing field nodes for reach (melee pivot forward / ranged firing stubs / magic hub-degree padding). These live **only this phase**; buffer cooldown after a tap. Reach budget scales with `pressure_capacity`.
+3. **Consolidation** — spend more SP/DP to finalize shape. Per battle-phase temp node: **promote** (pay 1 real SP → permanent) or let it **drop**. Then end turn.
+
+**No islanding:** permanents commit only in Deployment/Consolidation, and a permanent allocation still requires a permanent neighbor, so nothing solid hangs off a node about to revert. **Mid-turn level-up:** the +1 lands in the one pool, spendable under the current phase's rules. Battle-phase allocations are temporary *by definition*.
+
+> Naming nit: DP vs DAP for deallocation points (cosmetic). This is also a **TurnManager** flow change, not just stats.
+
 ---
 
 ## Stat Table
@@ -60,9 +72,14 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 | `initiative` | INT | Scalar | 10 | Turn order |
 | `movement_speed` | INT | Scalar (resets per turn) | 1 | Core hops per turn within owned territory |
 | `deallocation_points` | INT | Pool (resets per turn) | 1 | Deallocations available per turn. Drives constellation reshaping. |
-| `strength` | INT | Scalar | 0² | Melee (R) attack scaling |
-| `dexterity` | INT | Scalar | 0² | Ranged (G) attack scaling |
-| `intelligence` | INT | Scalar | 0² | Graph-magic (B) attack scaling |
+| `strength` | INT | Scalar | 0² | Melee (R). Scales blade size (`STR//10+1` nodes) **and** per-contact bite (`+STR//10`). Roughly quadratic in investment — see `combat_system.md` Melee. |
+| `dexterity` | INT | Scalar | 0² | Ranged (G). Per firing leaf: `DEX//10` (target `1→2/leaf` across `0→10`). `base_ranged` counted once per volley. |
+| `intelligence` | INT | Scalar | 0² | Magic (B). Per damage instance: `+INT//10`. Scales **potency, never reach** (reach is `bonus_hop_count`). |
+| `constitution` | INT | Scalar | 0² | **CON (White).** Durability: scales node/core HP (replaces degree-defense). Adds weight to armor modifiers in affix generation. No attack mode. |
+| `wisdom` | INT | Scalar | 0² | **WIS (Gold).** XP-gain rate (% multiplier). Carries the most valuable growth-oriented modifiers. The new economy attribute (was White's role). |
+| `perception` | INT | Scalar | 0² | **PER (Purple).** Vision + sensor range. Gearing: `+1 sense_range / 10 PER` (hops) and `+2% vision_range / PER` (euclidean). Information as weapon. |
+| `bonus_hop_count` | INT | Scalar | 0 | Magic reach. **Ultra-rare** — at most ~1–2 `+1` modifiers on the whole map. INT scales potency; this is the *only* way to buy spell reach. Prime (but rarity-throttled) proliferation target. |
+| `coolness` | INT | Scalar | 0 | **Prestige only — does nothing mechanically.** Tallied at end credits. Non-core. The purest "all edge, no point" (see `lore.md`); winning a coolness build is the cardinal aesthetic heresy. Procgen-sprinkled. Gold×Purple exclusion does not apply to it. |
 | `attack_range` | INT | Scalar | 4 | Euclidean units for ranged attacks. Magic spells use spell-native targeting, scaled by INT and spell parameters — not this stat. |
 | `armor` | INT | Scalar | 0 | Flat damage reduction vs. all attack types. After armor and resists, damage is floored at `damage_floor`. |
 | `resist_r` | INT | Scalar | 0 | Damage reduction vs. melee (Red). |
@@ -71,14 +88,14 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 | `damage_floor` | INT | Scalar | 1 | Minimum damage taken per hit after all reductions. Global default: 1. Bulwark class starts at 3. Can be reduced to 0 (chip immunity) or below 0 (healing on hit) through class progression. Negative values are intentional for extreme builds. |
 | `crit_chance` | INT | Scalar | 5 | Percent chance to crit. Global across all attack types. |
 | `crit_mult` | FLOAT | Scalar | 2.0 | Crit damage multiplier. Only FLOAT on the stat board. |
-| `pressure_capacity` | INT | Scalar | 2 | Max nodes chargeable for a single melee burst. |
+| `pressure_capacity` | INT | Scalar | 2 | **Redefined.** Battle-phase reach budget: how many existing field nodes a buffer node can *temporarily* allocate per tap (reach a pivot forward, claim firing stubs, pad a casting hub's degree). No longer "melee charge count" — melee size is now `STR//10+1` (the phantom blade). See `skill_node_addons.md` Buffer + the three-phase turn. |
 | `aura_range` | INT | Scalar | 0 | Hops the core aura reaches outward. 0 = no aura. |
 | `aura_strength` | INT | Scalar | 0 | Magnitude of core aura buff (before falloff). |
 | `shell_distance` | INT | Scalar | 0 | **Halo class only.** Hop distance at which the Halo's shell aura is centered. 0 = inactive (non-Halo entities). Modifiable through class upgrades. |
 | `core_charge_capacity` | INT | Scalar | 3 | Cap on extraction charges. +1 per enemy core killed. |
 | `sense_range` | INT | Scalar | 3 | **Hop-based.** Detection radius from any owned node. Silhouette only: position known, no type/HP/modifiers. |
 | `vision_range` | INT | Scalar | ~4³ | **Euclidean ("range").** Full-detail sight radius from any owned node. Reveals node type, HP, visible modifiers. |
-| `proliferation_power` | INT | Scalar | 3 | Number of nearby owned nodes affected when choosing PROLIFERATE during loot resolution. RNG within range. Open: fixed count or min-max range? |
+| `proliferation_power` | INT | Scalar | 3 | **Reframed.** The **N** copies minted when you PROLIFERATE (remove a core-held modifier, spread N tainted copies across a cluster you must hold). Rarity-scaled: rarer modifiers yield fewer copies. Not an RNG radius. See `combat_system.md` Proliferation. |
 | `node_health` | INT | Pool — current (per node) | 2 | HP per individual node. At 0, node is severed and island check fires immediately. |
 | `node_health_max` | INT | Pool — max (per node) | 2 | Max HP per node. Seeded from entity totals + addons. |
 | `core_health` | INT | Pool | 5 | HP of the core node. Core HP = 0: run ends, no Breakout. |
@@ -91,17 +108,19 @@ Fixed per attack type. Live in the combat system, not on the stat board. Do not 
 
 | Constant | Prototype Value | Notes |
 |---|---|---|
-| `base_ranged` | 2 | Base damage for a ranged shot. `outgoing = base_ranged + DEX` |
-| `base_melee` | TBD | Base damage for a melee strike. `outgoing = base_melee + STR` |
-| `base_magic` | TBD | Base damage for a magic spell hit. `outgoing = base_magic + INT` (or spell-specific formula) |
+| `base_ranged` | 2 | Per **volley** (counted once): `outgoing = base_ranged + DEX//10 × (firing leaves)`. |
+| `base_melee` | TBD | Per **contact** (edge/spike/face): each deals `base_melee + STR//10`; summed per target. |
+| `base_magic` | TBD | Per **damage instance** (initial + hops + loop returns): `base_magic + INT//10` (or spell-specific). |
+
+> **The //10 scaling spine** (see `combat_system.md`): `outgoing = base (once) + attribute//10 × instances`, defense applied **once per target node**. The `//10` is a deliberate gear ratio decoupling the modifier economy (chunky `+5 STR` loot) from the damage economy (single digits). Floors per-attribute → breakpoints, surfaced in UI on hover.
 
 ---
 
 ## Damage Resolution (updated)
 
 ```
-outgoing  = base[attack_type] + attribute
-taken     = max(damage_floor, outgoing − armor − resist[attack_color])
+per instance:  outgoing  = base[attack_type] + attribute//10     ← base counted once per attack
+               taken     = max(damage_floor, outgoing − armor − resist[attack_color])   ← once per target
 ```
 
 `damage_floor` replaces the hardcoded `max(1, ...)` from earlier versions. Default behavior is identical (floor = 1). The Bulwark class starts with floor = 3; it can reduce this to 0 (chip immunity) or negative (healing on hit). For all other classes at default, behavior is unchanged.
@@ -112,14 +131,16 @@ taken     = max(damage_floor, outgoing − armor − resist[attack_color])
 
 ```
 STR = 5, DEX = 5, INT = 5         ← +5 each from allround starting modifiers
+CON = 5, WIS = 5, PER = 5         ← utility attributes (White/Gold/Purple)
 armor = 0
 resist_r = 0, resist_g = 0, resist_b = 0
 damage_floor = 1                   ← global default
-node_health = 2  (max = 2)
+node_health = 2  (max = 2)          ← scaled by CON, not degree
 core_health = 5
 attack_range = 4                   ← euclidean, ranged only
-sense_range = 3                    ← hops
-vision_range = ~4                  ← euclidean; calibrate to editor node spacing
+bonus_hop_count = 0                 ← ultra-rare magic reach stat
+sense_range = 3                    ← hops; scaled by PER
+vision_range = ~4                  ← euclidean; scaled by PER; calibrate to editor node spacing
 skill_points = 3 / 3              ← starting state (N=3, no nodes allocated yet)
 sp_reservation = 0
 deallocation_points = 1 / turn
@@ -127,9 +148,10 @@ movement_speed = 1
 aura_range = 0, aura_strength = 0
 shell_distance = 0                 ← not a Halo class
 crit_chance = 5, crit_mult = 2.0
-pressure_capacity = 2
+pressure_capacity = 2              ← battle-phase reach budget (buffer taps), not melee charge count
 core_charge_capacity = 3
-proliferation_power = 3
+proliferation_power = 3            ← N tainted copies on PROLIFERATE
+coolness = 0                       ← prestige only
 ```
 
 **Combat prototype starting state** (pre-loaded for testing, not from gameplay):

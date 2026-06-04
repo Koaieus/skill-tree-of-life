@@ -12,7 +12,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 |---|---|
 | [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
-| [combat_system.md](combat_system.md) | Damage pipeline, RGBW triangle, ranged/magic/melee rules, degree → defense, self-loops, islands, Breakout, loot resolution |
+| [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, three-phase turn, islands, Breakout, loot/proliferation |
 | [combat_worked_examples.md](combat_worked_examples.md) | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff doc) |
 | [core_classes.md](core_classes.md) | All entity core classes: Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester |
 | [stat_system.md](stat_system.md) | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |

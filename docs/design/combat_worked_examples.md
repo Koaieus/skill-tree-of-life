@@ -45,14 +45,16 @@ Everything below is checked against these tiers.
 
 > ⚠️ **All numbers are placeholders for these examples only.** They exist so the fights are reproducible and the tiers are checkable. Real calibration is a later Balance-phase activity.
 
-Base-10 anchor (from `combat_system.md`):
-- **Node HP** = `10 + (total_degree − 1)` (total incident edges, any ownership). Leaf=10, connector(deg2)=11, hub(deg4)=13, deg6=15.
-- **Attributes** start ≈ **10** (STR/DEX/INT).
+> 🔧 **Predates the //10-spine rewrite — needs re-derivation (flagged, not yet redone).** These fights were authored against the *older* combat model. Since then `combat_system.md` adopted: (1) the **//10 scaling spine** (`attribute//10`, not `floor(attribute/4)`; base counted once); (2) **degree-defense removed** — node HP scales with **CON**, *not* `10 + (degree − 1)`; (3) **melee = phantom blade** — damage counts swept **contacts** (edges + spikes + faces), *not* tapped Buffer nodes. The fights' *structure and conclusions* (tempo tiers, positioning-as-system, the defense-function decision) still hold; the specific arithmetic below should be re-derived under the spine in Balance phase. Left as-is for now so the worked examples stay internally consistent.
+
+Base-10 anchor (⚠️ pre-rewrite numbers — see flag above):
+- **Node HP** = `10 + (total_degree − 1)` *(old degree-defense model; under the new model HP scales with CON)*.
+- **Attributes** start ≈ **10** (STR/DEX/INT, plus CON/WIS/PER).
 - **damage_floor** default **1** (Bulwark 3, can go negative → heal-on-hit).
 
-Provisional **outgoing** (per contributor, summed then defended once per attack):
+Provisional **outgoing** (⚠️ old `floor(attr/4)` per the flag; the spine uses `attr//10`):
 - **Ranged**, per firing leaf: `2 + floor(DEX / 4)` → DEX 10 = **4**/leaf. Volley = Σ leaves in euclidean range of the target.
-- **Melee**, per tapped Buffer node: `3 + floor(STR / 4)` → STR 10 = **5**/node. Burst = Σ tapped nodes.
+- **Melee** *(old tapped-Buffer model)*, per node: `3 + floor(STR / 4)` → STR 10 = **5**/node. *(New model: per swept contact of the phantom blade.)*
 - **Magic**, source output: `3 + floor(INT / 4)` → INT 10 = **5**. Then per-spell propagation (e.g. Lightning Bolt: hit target, then all neighbours at ×0.5 per hop).
 
 Provisional **taken** (the open question — three candidates compared in Fight B):

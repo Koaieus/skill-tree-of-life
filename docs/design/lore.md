@@ -115,6 +115,8 @@ It follows that **severance is heresy.** Cutting an edge is a sin against the Lo
 
 The faithful's condemnation of severance-for-its-own-sake — edgy behavior with nothing to anchor it — is **"all edge, no point."** It lands as a triple: an edge with no endpoints is a degenerate, meaningless object (no vertices = nothing); *point* is the vertex; and *point* is purpose. It is what graph theology says about anyone who only cuts and never connects, and it is a standing warning to the kind of entity that fights *with* edges (see the Edgelord, `core_classes`): sever without anchoring and you are nothing the universe values.
 
+This doctrine has a literal in-game embodiment: the **`coolness`** attribute (a rare, procgen-sprinkled color carrying *no mechanical effect whatsoever* — pure style, tallied only at the end credits). It is the purest "all edge, no point" — flair with nothing structural beneath it. Winning a run on a coolness-maxed build is therefore the **cardinal aesthetic heresy**, the most flamboyant possible way to be all edge and no point — and the Fairy, herald of the biggest edgelord alive, should have *opinions* about a champion who conquered the cosmos on style alone. (Roughly the joke-CHA of the attribute set.)
+
 ### The Ophanim
 
 The Lord of Edge's angelic order takes the form of **rings.** A ring (a cycle) is the purest expression of connection — redundant, 2-edge-connected, no loose ends, no single seam to cut. Biblical angels were sometimes drawn as wheels within wheels: the **Ophanim.** A ring is also, in graph terms, genuinely hard to dismantle — *OP*. We are putting the OP in **OP**hanim, and we mean it. The Ophanim are the divine made structural: connection so total it cannot be severed.
@@ -271,7 +273,9 @@ White nodes are the **economic lifeblood:** their XP/turn becomes skill points, 
 
 **Mixed builds** are rewarded by the tree structure itself: high-value interior nodes often combine colors (e.g. a Red/Blue node grants STR + INT bonuses), representing natural synergy points worth fighting for.
 
-**Topology is your loadout.** Beyond color, a node's *graph position* determines what it can do offensively and how well it defends — leaves fire ranged, hubs cast magic, dense adjacency melees, and degree scales defense. This is the spine of the combat redesign; see `combat_system.md`.
+**Topology is your loadout.** Beyond color, a node's *graph position* determines what it can do offensively and how well it defends — leaves fire ranged, hubs cast magic, dense adjacency melees. Durability now lives in a dedicated attribute (CON), not in degree. This is the spine of the combat redesign; see `combat_system.md`.
+
+> **Roster expansion (newer intent, not yet fully back-propagated through this doc).** The RGBW four has grown to **six colors:** R/STR (melee), G/DEX (ranged), B/INT (magic) — and three rarer utility colors: **White/CON** (durability), **Gold/WIS** (XP/growth — *the new economic lifeblood*), **Purple/PER** (vision/sensing). The old "White = XP economy" role moves to **Gold**; White becomes durability. Where this doc still says "White nodes" for the economy, read **Gold**. Mechanics: `combat_system.md`. A purely cosmetic, non-mechanical **coolness** attribute also exists (see "All edge, no point"). Procgen **clusters like-colors into biome-like regions** — Red territory, Blue territory — so the battlefield reads as a map of warring colors; node color is *content* (which attribute a node carries), deliberately **not** an adjacency-coloring (the planar 4-color theorem is a red herring noted against).
 
 ---
 
@@ -355,6 +359,8 @@ Rules:
 
 Extracted modifiers are displayed in a dedicated "Core Mods" panel, visually distinct from the board of node-granted stats.
 
+**Extraction and Proliferation are inverses.** Extraction (and loot's STEAL) pulls power **field → core** — *consolidate, make permanent and portable*. **Proliferation** pushes it back **core → field ×N** — remove a modifier the core holds and spread N copies across a cluster you must then fight to hold (*multiply, expose*). One pulls in, one pushes out. Crucially, proliferated copies carry an **intrinsic, owner-independent taint** that cannot be extracted or re-proliferated *by anyone* — even an enemy who captures one can only use it in place (a PoE-Mirror lineage). This is load-bearing: it breaks the otherwise infinite extract → proliferate → extract loop, so field→core paths stay rare and gated. See `combat_system.md` — Proliferation.
+
 ### Uprooting (status: class specialty — not a core-universal)
 
 A more aggressive idea: the core rips a node entirely out of the graph — severing its edges, lifting the whole thing (type, modifiers, addons) — and holds it as a **seed** to replant elsewhere.
@@ -394,6 +400,8 @@ Both are valid. Some core classes and rare nodes actively reward extended geomet
 ### Rings are strong (and that's graph theory, not a buff)
 
 A **cycle** — a constellation that closes a loop — is **2-edge-connected:** there is no single edge whose removal islands anything off it. To sever a chunk of a ring an attacker must make *two* cuts, and since edge-cutting is meant to be rare and gated, rings are genuinely, mathematically hard to dismantle. Looping a tendril back to close a cycle around the core is a real defensive technique that falls straight out of the graph being a literal graph. (It is also why the final boss is a ring — the Ophanim — see The Final Ascent, and why the Lord of Edge's angels take that shape.)
+
+**The same truth arms the melee blade (tensegrity resonance).** Under the phantom-blade model, a melee weapon *is* a swung copy of your topology, and its rigidity is a physical consequence of **triangulation** — a braced cycle holds its posture and delivers a full, wide "face" of damage, while a floppy hoop shears and deflates. So the structural fact that makes a ring an uncuttable *angel* is the same fact that makes a triangulated cycle a devastating *cleaver*: connection-made-rigid is holy **and** sharp. The Ophanim are not just hard to cut — were one to *swing*, it would land with the weight of every redundant edge in it. Graph theology and the swing kinematics are, again, the same text. (See `combat_system.md` — Tensegrity.)
 
 ### Islands
 

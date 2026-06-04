@@ -34,14 +34,14 @@ A run looks like:
 - Triggering map win conditions triggers a Breakout, where you can pick part of your stats to keep (grow STRONGER), then a new map starts with your enhanced stats, ready to allocate and fight enemies. Which will also be tougher.
 - Killing the final boss triggers metagame progression — allocates a point on the metagame skill tree (staying in theme ofc).
 
-**One turn looks like:**
+**One turn looks like:** *(structured as three phases — **Deployment** → **Battle** → **Consolidation** — where the phase an allocation happens in is itself the temporary/permanent flag; one SP pool, no separate "temp SP." Steps 1–3 are Deployment, step 4 is Battle, and a Consolidation step closes the turn where battle-phase temporary reach is either promoted with SP or dropped. See `combat_system.md`.)*
 1. Take in the battle map, locate your allocated nodes and check what the skill tree structure looks like and what skill points you might like and want to build towards, and locate enemies and analyze their stats and constellation structure.
 2. Spend skill points, possibly use per-turn deallocation budget to deallocate points first. Allocate skills you want to have or your build could benefit from structurally/topologically. Allocate skills to grow your network and deallocate to shrink — or to "move" your constellation across the battlefield [you can do this freely during your turn]. Allocating nodes extends your vision range (euclidean) with that node, and it will act as a sensor (hops-based) for peeking into the Fog of War graph-structurally without any detailed information on node contents or ownership. This allows you to see and plan a bit ahead. Vision and sensor range are also stats that can be tweaked.
 3. Move your Core up to <movement speed> hops along edges among nodes allocated by you.
 4. Perform an attack, one of:
     a. Ranged attack: target any node, and ALL your leaf nodes (degree 1) that have it within their respective (euclidean) range will fire once at the same time.
     b. Magic attack: pick a friendly node, then pick a spell that could fire from that node (more node degrees? more powerful spells), pick target enemy <spell target, usually a skill node>, magic attack launches and resolves (often involves hopping and forking along edges, graph-magick).
-    c. Melee attack: pick a melee attack pattern (jab, swing, ...), pick a friendly node to attack from (within striking range to enemy nodes), then select whether to use all [default] or some of your melee-buffer nodes. The melee attack then performs, and the selected amount of your specialized melee-buffer nodes got _tapped_ in the process, now vulnerable and inactive for this turn and the next.
+    c. Melee attack (the **phantom blade**): pick a connected set of your owned nodes; a 1:1 phantom copy of that subgraph is swung as a weapon, rooted (pivoted) at the attacking node. Size is capped by `STR//10+1` blade nodes. Rigidity falls out of the topology (triangulated = rigid cleaver with area-damage faces; sparse chain = floppy whip). One swing per turn, no source cooldown — the cost is structural and positional. (Supersedes the old melee-buffer "tap" model; Buffer nodes are repurposed for reach.)
 5. Activate Special Abilities of nodes, or items [situational, including when during the turn they can/can't be activated].
 6. End your turn, pray the enemy doesn't take out half your owned nodes on theirs.
 
@@ -74,13 +74,20 @@ The structures the player destroys are actually incidence points of edges into a
 
 
 ### Node types
-| Type | Colour | Role |
+
+Six colours: three **attack** attributes (prevalent) + three **utility** attributes (rarer). The old four-color RGBW reassigned White from XP to durability and moved economy to a new Gold color — see the migration note in `combat_system.md`.
+
+| Attribute | Colour | Role |
 |------|--------|------|
-| STR | Red (R) | Provide STR-related stat modifiers, and more |
-| DEX | Green (G) | Provide DEX-related stat modifiers, and more |
-| INT | Blue (B) | Provide INT-related stat modifiers, and more |
-| XP | White (W) | Mainly provide XP-related stat modifiers, economy, greed, ramping |
+| STR | Red (R) | Melee attack scaling; blade size & per-contact bite |
+| DEX | Green (G) | Ranged attack scaling; per firing leaf |
+| INT | Blue (B) | Magic attack scaling; per-instance potency (never reach) |
+| CON | White (W) | **Durability** — node/core HP, armor-affix weight. No attack. *(was XP)* |
+| WIS | Gold | **XP / growth** — the economic lifeblood; carries growth modifiers. No attack. |
+| PER | Purple | **Perception** — vision + sensor range. No attack. |
 | — | Other (X) | <mysterious, special nodes, keystones, ????> |
+
+A non-mechanical **coolness** attribute also exists (prestige-only, end-credits tally — the "all edge, no point" stat). Procgen clusters like-colours into biome-like regions; node colour is *content*, not an adjacency-colouring.
 
 ### Graph structure
 The graph is a massive planar graph, possibly 300-1000 nodes, various interconnectedness, all procedurally generated. Some maps get different themes, and resulting topologies, some node clusters are procedurally generated as such particular topologies/layouts or shared stats, all procedural. (Think of: PoE 1/2 passive tree meets Stellaris). Some generated substructures could form a star graph, wheel graph, friendship graph, and threshold graphs, to be embedded in the bigger structure.
@@ -124,7 +131,7 @@ If the Core of an entity falls, the entire entity ceases to exist — deallocate
 Nodes can have various types of stat modifiers of various magnitudes, from flat bonuses to additive boosts to multiplicative boosts — the stats board of the entity will figure out what the final values are.
 There are a LOT of stats. Almost every aspect in game may be a stat — if you find a node that provides a stat modifier for something, what else could that something be but a stat? Not all stats are equally abundant though: procedural generation. Worth exploring around.
 
-> **Enrichment (topology *is* loadout):** beyond the modifiers it grants, a node's **graph position** determines what it does in combat. **Leaves** (degree 1) are ranged firing ports; **hubs** (high degree) are the great magic casters (degree gates spell tier); **degree also braces defense** (more incident edges → more effective HP). And **SP Reservation** means lost nodes don't refund cleanly — sustained damage shrinks an enemy's reallocation budget in real time, a suppression tool. See §5 and `combat_system.md`.
+> **Enrichment (topology *is* loadout):** beyond the modifiers it grants, a node's **graph position** determines what it does in combat. **Leaves** (degree 1) are ranged firing ports; **hubs** (high degree) are the great magic casters (degree gates spell tier — *offense only now*; **degree-defense is cut**, durability comes from CON, so a hub is a glass cannon). And **SP Reservation** means lost nodes don't refund cleanly — sustained damage shrinks an enemy's reallocation budget in real time, a suppression tool. See §5 and `combat_system.md`.
 
 **Status:** 🔨 In progress
 
@@ -139,7 +146,7 @@ There are a LOT of stats. Almost every aspect in game may be a stat — if you f
 ### The R/G/B triangle (note: less important?)
 Not sure if relevant, your stats + graph topology vs enemy stats + topology determine what type of attack would land best, likely very situationally dependent. Some entities may have resistances, but can never be immune to all damage.
 
-> **Enrichment — the three modes are graph-native (from `combat_system.md`):** **Ranged (G/DEX)** fires only from **leaves**, euclidean-targeted; a *volley* = every leaf in range of one target firing at once (armor/resist apply once to the combined hit). **Magic (B/INT)** is *degree-gated* graph propagation (hubs cast the heavy spells; each spell is its own graph operation; `attack_range` doesn't apply). **Melee (R/STR)** is adjacency, via *tap-and-recover* — tap a subset of Buffer nodes into one combined strike; tapped nodes are vulnerable next turn. The triangle (**R › B › G › R**) lives mostly in emergent per-color `resist_*`, not hardcoded matchups.
+> **Enrichment — the three modes are graph-native (from `combat_system.md`):** all three share the **//10 scaling spine** — `outgoing = base (once) + attribute//10 × instances`, defense applied once per target — where each color weaponizes a different graph primitive. **Ranged (G/DEX)** fires from **leaves** (`DEX//10` per firing leaf), euclidean-targeted; a *volley* = every leaf in range of one target firing at once. **Magic (B/INT)** is *degree-gated* graph propagation (`INT//10` per damage instance — initial + hops + loop returns; potency only, reach is the rare `bonus_hop_count`). **Melee (R/STR)** is the **phantom blade**: swing a 1:1 copy of a connected set of owned nodes (size `STR//10+1`); damage counts contacts (edges + spikes + faces), and rigidity falls out of triangulation (tensegrity). The triangle (**R › B › G › R**) lives mostly in emergent per-color `resist_*`, not hardcoded matchups.
 
 ### Attack resolution — the short version
 Entity A chooses attack mode, source node [if applicable] and target node(/edge/AoE/whatever we decide), the attack resolves based on the type, often involving dealing damage to the affected node, and for magic attacks may involve hopping (a limited amount of times) along edges with some factor, possibly also affecting/damaging those.
@@ -198,9 +205,9 @@ Beyond these seven, the detail doc also carries the **Edgelord** (fights *with* 
 
 ### Stat categories
 One shared vocabulary, instantiated by every entity (player and NPC alike). The main buckets:
-- **Attributes** — `strength` (melee/R), `dexterity` (ranged/G), `intelligence` (magic/B). Base ≈ 10 each at run start.
-- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `damage_floor`, `health`/`health_max`, plus per-node `node_health`/`node_health_max`, and `core_health`.
-- **Economy** — `xp`, `skill_points`, and their `_per_turn` income siblings (`xp_per_turn`, `sp_per_turn`); White nodes are the lifeblood here.
+- **Attributes (six)** — three attack: `strength` (melee/R), `dexterity` (ranged/G), `intelligence` (magic/B); three utility: `constitution` (durability/White), `wisdom` (XP-growth/Gold), `perception` (sensing/Purple). Base ≈ 10 each at run start. All attack scaling runs through `attribute//10` (the spine). Plus non-mechanical `coolness`.
+- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `damage_floor`, `health`/`health_max`, plus per-node `node_health`/`node_health_max` (scaled by CON, not degree), and `core_health`.
+- **Economy** — `xp`, `skill_points`, and their `_per_turn` income siblings (`xp_per_turn`, `sp_per_turn`); **Gold (WIS)** nodes are the lifeblood here (the role formerly assigned to White).
 - **Movement** — `movement_speed` (core hops/turn) and `deallocation_points` (per-turn reshape budget). Two distinct stats on purpose.
 - **Perception** — `sense_range` (hops, silhouettes) and `vision_range` (euclidean, full detail).
 - **Core/aura** — `aura_range`, `aura_strength` (only meaningful on core-bearing entities).
@@ -240,7 +247,7 @@ A run ends — and is **won** — by clearing the **Apex Entity**: a vast Ophani
 
 Three distinct layers sit on top of a node's base type and modifier list:
 
-- **Addons** — attachable components that change *how a node behaves*, not what stats it grants. Found as loot, granted by classes, or grown from Tech Seeds. Confirmed: **Armor Ring** (per-node damage reduction), **Reinforcement** (per-node HP), **Buffer** (lets a node charge melee bursts), **Winch** (pulls neighbors closer in euclidean space), **Lifeline** (1-turn island grace), **Lifelink** (proxy core that sustains an island indefinitely). *Relay* (Blue-range booster) is referenced but **TBD** pending magic-propagation rules.
+- **Addons** — attachable components that change *how a node behaves*, not what stats it grants. Found as loot, granted by classes, or grown from Tech Seeds. Confirmed: **Armor Ring** (per-node damage reduction), **Reinforcement** (per-node HP), **Buffer** (utility — taps to *temporarily* allocate existing field nodes for battle-phase reach; no longer melee fuel), **Winch** (pulls neighbors closer in euclidean space), **Lifeline** (1-turn island grace), **Lifelink** (proxy core that sustains an island indefinitely). *Relay* (Blue-range booster) is referenced but **TBD** pending magic-propagation rules.
 - **Node Specializations** — deeper, rarer states a node either is generated with or is irreversibly transformed into (not freely applicable). Candidates: **Melee Buffer**, **Corrupted** (fused benefit + downside), **Crystallized** (frozen, stronger, undeployable), **Anchor** (intrinsic island grace).
 - **Tech Seeds** — plantable items: plant on an owned node, a little Tech Tree grows over 3–5 turns, then bears N fruits (you pick one core-bound modifier, skewed toward the rare ceiling). Racing to fruit before being cut off is real tactical tension. This is the clean, safe build-portability tool (vs. the footgun of Uprooting).
 
@@ -271,7 +278,10 @@ You boot what looks like a normal Zelda-ish adventure game. You kill cute, harml
 
 **Combat resolution & scaling:**
 - [ ] **Scaling shape** — linear baseline vs. steeper (quadratic/exponential) curves; revisit if linear flattens build diversity. (combat_system.md Q11)
-- [ ] **Defense model** — current sketch is `effective HP = base + (degree − 1)` on *total* degree. Alternatives: owned-neighbor count, territorial depth, local clustering. Decide after first hub-vs-filament playtests. (combat Q19)
+- [x] **Defense model** — *resolved:* durability is the **CON (White)** attribute, decoupled from degree entirely. Degree-defense is cut; degree is offense-only (cast tier). Calibrate the CON→HP curve in Balance phase. (combat §"Degree → Offense")
+- [ ] **Magic friendly-fire & reach** — lean: friendly-fire ON for propagating spells / OFF for targeted, rare opt-out; reach grows only via ultra-rare `bonus_hop_count`. Confirm during magic balancing (balanced LAST). (combat Q23–24)
+- [ ] **Small-blade melee feel** — joint floppiness for ≤5-node acyclic blades; floppiness-as-attack-toggle; leaf-pivot swings. (combat Q26 — next design session)
+- [ ] **Proliferation taint** — confirm intrinsic owner-independent non-extractable taint as the loop-break (recommended yes). (combat Q25)
 - [ ] **Action economy** — one attack per turn, an `action_points` stat, or one of each attack type? (GDD §5)
 - [ ] **Triangle backstop** — emergent `resist_*` only, or a small hardcoded `type_advantage` so the triangle isn't absent early-game? (combat Q3 / stat Q8)
 - [ ] **Magic propagation rules** — owned nodes only vs. any traversable edge; hop-limit; terminal vs. AoE; Relay. Blocks several other systems. (combat Q1)
@@ -326,7 +336,7 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense
 - [ ] A single hand-built level with Tethers, a triggered guardian, and a Breakout that compresses to one node.
 
 ### Milestone 2 — Combat depth & classes
-- [ ] All three attack types (ranged, magic, melee tap-and-recover).
+- [ ] All three attack types (ranged volley, magic, melee phantom blade).
 - [ ] The three starter classes (Allround, Predator, Bulwark).
 - [ ] Loot resolution (STEAL / PROLIFERATE / Relic Node).
 - [ ] Islands, cut-vertex snipes, dismemberment.
@@ -350,7 +360,7 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense
 | Doc | What it covers |
 |-----|---------------|
 | `design/lore.md` | Narrative, Acts, the Fairy, Graph Theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
-| `design/combat_system.md` | Damage pipeline, RGBW triangle, ranged/magic/melee, degree → defense, self-loops, islands, Breakout, loot |
+| `design/combat_system.md` | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, three-phase turn, islands, Breakout, loot/proliferation |
 | `design/combat_worked_examples.md` | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff) |
 | `design/stat_system.md` | v2 stat architecture, `StatDefinition`, modifier operators, canonical Stat Vocabulary |
 | `design/entity_stat_board_prototype.md` | Prototype stat values, SP accounting, damage-formula sketch, per-class stat variations |
