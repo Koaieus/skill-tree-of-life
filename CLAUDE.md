@@ -72,13 +72,27 @@ Beam effect along graph edges when a node is allocated.
 | `XRM` | Global transform utilities |
 | `DeferOnce` | Deferred single-fire utility |
 
-## Key design docs (`docs/design/`)
+## Design docs index
 
-- `stat_system.md` — definitive v2 stat architecture, canonical stat vocabulary, modifier operators
-- `core_classes.md` — all entity core classes (Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent) with mechanics
-- `combat_system.md` — R/G/B node type triangle, per-node health, attack resolution
-- `metagame.md` — progression, run structure
-- `lore.md` — narrative context
+Canonical entry points: **`docs/GDD.md`** (master GDD — pitch, core loop, roadmap) and **`docs/design/index.md`** (the design-doc index with reading order). Per-doc open questions live at the bottom of each doc; tracked work lives in **GitHub Issues** (see below).
+
+| Doc | What it covers |
+|---|---|
+| `docs/GDD.md` | Master GDD — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
+| `docs/design/index.md` | Index + reading order for the design docs below |
+| `docs/design/lore.md` | Narrative, acts, the Fairy, graph theology, Field/Tethers/Breakout, tone, visual language |
+| `docs/design/combat_system.md` | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree→offense, self-loops, three-phase turn, islands, Breakout, loot |
+| `docs/design/combat_worked_examples.md` | Worked fights in real numbers; tempo axiom; defense-function handoff |
+| `docs/design/core_classes.md` | Entity core classes (Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester, Edgelord) |
+| `docs/design/stat_system.md` | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
+| `docs/design/entity_stat_board_prototype.md` | Prototype stat values, SP accounting, damage formula, class stat variations |
+| `docs/design/metagame.md` | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
+| `docs/design/skill_node_addons.md` | Node addons, node specializations, Tech Seeds |
+| `docs/design/spells.md` | Spell catalogue — identity and propagation for all Blue (INT/magic) spells |
+
+## Issue tracking
+
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Project-specific labels: **`core`** (core game feature), **`design`** (game-design decision/investigation). Plus the default GitHub set (`bug`, `enhancement`, `documentation`, `question`, `good first issue`, `help wanted`, `duplicate`, `invalid`, `wontfix`).
 
 ## Godot conventions used here
 
