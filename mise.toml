@@ -1,0 +1,33 @@
+# Project tasks for Skill Tree of Life (Godot 4.6).
+# `godot` is the system install (4.6.2), not mise-managed — these are just tasks.
+# Usage: `mise tasks` to list, `mise run check`, `mise run playground`, ...
+
+[tasks.check]
+description = "Headless compile-check of all project scripts (Godot editor import)"
+run = '''
+#!/usr/bin/env bash
+set -uo pipefail
+out=$(godot --headless --editor --quit-after 400 2>&1)
+if printf '%s\n' "$out" | grep -qE 'SCRIPT ERROR'; then
+  printf '%s\n' "$out" | grep -E 'SCRIPT ERROR'
+  echo "✗ script errors found"
+  exit 1
+fi
+echo "✓ all scripts compiled clean"
+'''
+
+[tasks.check-script]
+description = "Parse-check a single GDScript file: `mise run check-script -- path/to.gd`"
+run = "godot --headless --check-only --script"
+
+[tasks.playground]
+description = "Launch the blade/swing playground (GitHub #12)"
+run = "godot --path . res://tools/blade_playground/playground.tscn"
+
+[tasks.editor]
+description = "Open the project in the Godot editor"
+run = "godot --editor --path ."
+
+[tasks.play]
+description = "Run the game"
+run = "godot --path ."

@@ -23,8 +23,17 @@ var player: Player
 const GAME_ROOT_SCENE: PackedScene = preload("res://scenes/game_root.tscn")
 
 func _ready() -> void:
-	# Kick off into your first scene
-	start_game_with_level.call_deferred("res://levels/dev_level_tree_graph.tscn")
+	# Boot into the first level — but skip it when a standalone tool scene is
+	# being run (e.g. tools/blade_playground), so those run in isolation with
+	# autoloads still enabled. Deferred so current_scene is populated.
+	_boot_if_game_scene.call_deferred()
+
+
+func _boot_if_game_scene() -> void:
+	var current := get_tree().current_scene
+	if current and current.scene_file_path.contains("/tools/"):
+		return
+	start_game_with_level("res://levels/dev_level_tree_graph.tscn")
 
 
 func start_game_with_level(level_path: String) -> void:
