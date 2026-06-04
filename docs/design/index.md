@@ -27,4 +27,4 @@ New to the project? `lore.md` for world and story context → `combat_system.md`
 
 ## Open questions
 
-Each doc tracks its own open questions at the bottom. There is no central list — keeping them near the content they relate to makes them more actionable.
+Each doc tracks its own open questions at the bottom; deeper investigations and tracked work live in **GitHub Issues** (`Koaieus/skill-tree-of-life`, labels `design` / `core`). Keeping per-doc questions near the content they relate to makes them more actionable.

@@ -73,6 +73,22 @@ These are established mechanics referenced consistently in the design docs.
 
 ---
 
+### Clamp
+
+**Effect:** If a node carrying the Clamp addon is used in a **phantom blade** (see melee, `combat_system.md`), its corresponding **joint becomes a clamp (a weld) instead of a free pin.** That is the *whole* effect — it locks the angles at that one joint into the blade's swing frame.
+
+**Why it matters:** Melee rigidity is normally **emergent from triangulation** (the grip/pivot is the only default clamp; every other joint is a free pin). Clamp lets you **stiffen a chosen joint *without* a triangle**, opening crafting options triangulation can't:
+
+- **Rigidity without a cycle** — hold an L-bend or a path stiff at a hand-picked joint; e.g. clamp a leaf-launched haft's first internal joint to turn a floppy mace into a **rigid pole-cleaver**.
+- **Partial whips** — clamp the base of a chain but leave the tip free, so only the outer segment whips (a controlled flail).
+- It does **not** create a face. Clamp gives **rigidity only**; **triangulation gives rigidity *and* a face (area damage)** — so the two stay distinct build verbs with distinct niches, and Clamp is no substitute for bracing when you want a pan.
+
+**Only matters at articulating joints:** a Clamp on a blade-leaf tip or an already-braced (triangulated) node does nothing extra — it pays off on a node that sits as a degree-2 hinge in the blade.
+
+**Notes:** A cheap, legible crafting lever. Because it's an addon (loot / class / Tech Seed), spending a slot on Clamp is a real tradeoff against triangulating the same shape with extra nodes/edges — a different cost curve to the same rigidity, minus the face.
+
+---
+
 ### Lifeline
 
 **Effect:** If any sub-graph containing nodes within N hops of this Lifeline node becomes an island (no path to the entity's core), those nodes receive a **1-turn grace period** before dissolving. During this grace period, the entity may re-establish a connection to the core — if they succeed, the island is saved and the timer cancels. If the grace period expires without reconnection, the island dissolves normally (SP Reservation fires for all nodes).

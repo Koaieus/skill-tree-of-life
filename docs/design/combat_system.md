@@ -204,6 +204,10 @@ taken     = max(damage_floor, outgoing − armor − resist_g)     ← once per 
 
 **Crit:** global `crit_chance` (5%) and `crit_mult` (×2) to start.
 
+### Ranged identity — the cut-vertex sniper *(open: GitHub #11)*
+
+Ranged's signature role is **precision reach**: it is the only attack that can pick and delete a *specific, deep* single node, so its highlight is **sniping cut vertices to trigger island collapse.** Kill a cut vertex and the island rule severs every region on its far side from the core (1..N−1 nodes) in one cascade — worst case, an enemy with its **core on a leaf** loses its *entire body* when you snipe the core's sole neighbor. Self-balancing: a **2-connected** constellation (no cut vertices) is immune, so *"be 2-connected or get sniped apart"* is a real defensive build axis; against dense enemies ranged falls back to single-target burst. The cut vertex still has CON-scaled HP — the payoff is the **cascade when it finally drops**, not single-shot lethality. Role triangle: **melee = area, magic = topological reach, ranged = precision single-target + cut-vertex surgery.**
+
 **Frontier / Pioneer class note:** since all leaves are now generic firing ports, Frontier's identity must be differentiated. Direction: Frontier *hardens* its leaves (defensive buff to degree-1 nodes), enabling a forward-push leaf playstyle rather than sit-back kiting. To be finalized in `core_classes`.
 
 ---
@@ -323,6 +327,10 @@ This unifies three things previously treated separately: rigidity, the whip, and
 
 **It is graph rigidity theory.** 2D generic rigidity is decidable and cheap (Laman's condition / the pebble game), so **the game auto-detects sweep vs. wobble vs. whip from topology — no player toggle.** The player provides aim (the drag); the game owns the swing kinematics (drives the handle to snap a floppy tip properly). Keep the simulation **deterministic** so the ghost-trail preview shows the true outcome (essential for legibility, especially whips). Physics for <80 edge-bones is trivial in Godot.
 
+**Grip = clamp, not pin (the handle is a hand).** The handle (attacking/pivot node) **welds its single edge into the swing frame** — you *hold* the weapon, so the **first joint is stiff by definition of gripping**, leaf or hub pivot alike (consistent with "handle+1 = single rigid edge"). Every *other* joint is an ideal free pin; downstream rigidity is **purely emergent from triangulation** — **no per-joint stiffness, no uniform global stiffness, no player floppiness toggle.** A uniform joint stiffness would rigidify sparse chains and mute the triangulate-or-flop axis; a rigidity toggle is either never-used or breaks tensegrity. The **only** dev scalar is a **weak global damping for sim stability + legibility** (deterministic preview = real outcome), kept low enough that a sparse chain still reads as a clean whip — *"shabby = whip" is a valid weapon, not a failure.* (Settled — GitHub #10.)
+
+**Leaves are the haft, not weak melee.** A leaf pivot can't brace its first *internal* joint (that needs pivot degree ≥2), so a leaf-launched blade = rigid haft + a (possibly braced) head hinging at one point → the **mace / axe / flail** family (the hinge becomes tip velocity, not flop-snap). A degree-≥2 (interior/hub) pivot *can* brace that joint → the **cleaver / pan** family. Melee thus gets its own **leaf↔hub gradient**, paralleling ranged-from-leaves and magic-from-hubs. The real switch is **pivot degree ≥2**, not "handle on a cycle."
+
 **Implementation phasing:** ship an **all-rigid placeholder** as MVP; layer the bones/joints physics in when the blade system matures. Everything above stands; tensegrity only swaps "perfectly rigid" for "rigidity from triangulation."
 
 **Rigidity scales damage delivery (the balloon principle).** Rigidity isn't only the *hit pattern* — it **scales how much of a face's potential damage actually lands.** A face is potential mass; you cash the full face-damage only if the structure is rigid enough to deliver it. A floppy cycle shears mid-swing and deflates — *an inflated balloon vs. a deflated one.*
@@ -333,6 +341,13 @@ This unifies three things previously treated separately: rigidity, the whip, and
 - The genuinely bad case — the **deflated balloon** — is floppy *and* not a real whip: no rigid face to slam, no tip to snap. Worst of both.
 - Therefore **bracing (chords/diagonals → triangles) is the melee build verb.** Exact damage-vs-rigidity curve is Balance-phase; the principle is locked.
 
+**Area-fullness is the second delivery factor (delivery = f(rigidity) × g(area-fullness)).** A balloon must be *fat* as well as *firm* — a geometrically **squished** cycle (near-collinear, ~zero enclosed area) is topologically a face but physically nothing, so it should under-deliver even on the node it grazes.
+
+- **Base face magnitude stays topological** — `Σ(edges) + Σ(spikes) + B`, exactly as above. Area never changes the *base*; it only modulates **how much lands** (delivery), the same lever rigidity already pulls. This keeps magnitude legible and the trigger planarity-free (cycle presence is always defined).
+- **Area is already rewarded once, through coverage:** a fat pan sweeps over *more enemy nodes* (breadth); a sliver grazes a line. The delivery factor adds the *per-target* half so a degenerate cycle can't cash a full pan on its one victim.
+- **Compute via the shoelace (signed) area** of the cycle's 1:1 positions. A **self-crossing / twisted** face nets ≈0 signed area → low delivery, which reads correctly as "a folded pan delivers little" — so bad embeddings degrade gracefully and never hit undefined behavior.
+- Exact `g(area)` curve is Balance-phase; the principle (fat **and** firm to inflate) is locked.
+
 **The board-spanning blade — self-limiting, allowed.** A huge blade (e.g. a 16-node line at ~140 STR) is welcome because the system balances it without patches:
 
 - A **sparse** board-spanning line is the most fragile topology in the game (every interior node a cut-vertex) **and** under tensegrity it flops into a board-spanning **whip**, not a rigid sweep.
@@ -341,7 +356,47 @@ This unifies three things previously treated separately: rigidity, the whip, and
 
 Grid/mesh-owners earn giant cleavers; filament-owners get giant flails. A Godot **grid sandbox** ("draw a shape, swing it") is the right tool to playtest blade feel — a dev task.
 
-> **Open (next design session): small-blade / low-STR melee feel.** For blades ≤5 nodes with no cycles (a rudimentary scythe — stick that curves), the joint/floppiness behavior wants detail: do we rotate just the pivot's edge(s) and let the rest follow as joint+bone physics? How floppy are the joints? **Floppiness-as-attack-toggle (low/med/hi)** is a candidate mechanic. A single edge off a leaf pivot must still launch a real swing, or leaf nodes can't melee at all — which loops back to joint stiffness. Matrix to fill: *structurally-sound topology (y/n) × intentionally-floppy design (y/n) × pivot degree (leaf vs >1).*
+> **Resolved (GitHub #10): grip = clamp.** The small-blade / leaf-pivot floppiness question is settled by the grip paragraph above — the handle is a **clamp** (you grip it), so the first joint is always stiff; all other joints are free pins with rigidity **emergent from triangulation**, with **no stiffness stat and no floppiness toggle** (the candidate low/med/hi toggle is dropped). A single edge off a leaf pivot swings for real because the grip is welded; leaf pivots specialize into haft/mace weapons rather than being weak.
+
+### The swing — sector aim + profile *(direction; tuning awaits the playground)*
+
+**Aim = a circular sector** anchored at the pivot: an aim direction + an angular width `θ`, radius = blade reach. `θ` may be driven by attack type / stat. **The swing animates the handle's root edge from one sector edge to the other**; the phantom blade follows via the tensegrity kinematics, and the **deterministic ghost-trail preview shows the true swept coverage** (which, for a whip, deviates from the clean sector — sector = intent, simulated sweep = truth).
+
+**Swing and thrust are two motion primitives, not one `θ`.** *(Corrects an earlier claim that `θ→0` is a thrust — it isn't: shrinking the arc just spawns the blade forward and jiggles it sideways, no penetration.)* A strike is a **scripted trajectory of the handle through planar DOF** (rotate `θ`, translate x/y) over normalized time:
+
+- **Swing** = drive the handle **angle** (sector `θ`), pivot ~fixed → the sweep/area motion.
+- **Thrust / jab** = drive the handle **position**, translating the whole phantom **forward along the aim ray** (the pivot lunges; nothing real moves) → penetration along the blade axis.
+- General case = a blend (lunge-slash). "Strike type" is therefore a small, principled set: **`(which DOF, how far) + profile`** — and the **profile/easing applies to whichever DOF the strike drives** (angle for a swing, displacement for a thrust). Whether `θ` (and thrust reach) is fixed-per-weapon or a stat-bounded player choice is an open knob.
+
+**Mass & angular inertia drive *feel*, never base damage.** A massive node-hammer must *feel* heavy — that's the whole point; its damage is already scaled by other means (topology + STR-bite + delivery). The sim already has node masses and computes `I = Σ mᵢrᵢ²` about the pivot, so use it for **motion** only:
+
+- **Windup, accel, follow-through** = the heavy weapon loads slowly and lumbers — feel, not numbers.
+- **Achievable arc per swing ≈ torque / inertia:** STR supplies torque, blade mass/inertia resists it, so a giant cleaver either sweeps a **narrow arc** (less coverage) or demands more STR. STR thus pulls **triple duty** (size, per-contact bite, swing-power-vs-mass), giving "board-spanning blade, self-limiting" a *physical* reason instead of a hand-wave.
+- **Tip velocity** (mass far from pivot → high tip speed) feeds the whip crack/resonance.
+- **Base damage stays topological** — momentum never enters the magnitude, preserving legibility.
+
+**Damage is time-modulated by a per-element speed envelope (rest → rest) — this is the anti-cheese spine.** Each contact's damage scales by **how fast the contacting element is actually moving as it crosses the target**, read from the deterministic sim and normalized to `[0,1]` (relative to that element's own stroke-peak speed — a **timing weight**, never a momentum multiplier on the topological base magnitude).
+
+- **Weight off the *element's* velocity, not the *handle's*.** A whip has a **propagation delay**: the tip cracks (peaks) *after* the handle has already slowed — the crack lands when the handle is ~still. Pegging the envelope to the handle's easing-curve derivative would therefore **nerf the crack to ~0 at exactly its payoff moment** — the trap to avoid. Reading each element's own sim velocity makes the sweet spot **ride the real crack automatically**, wherever the delay puts it. *(For a **rigid** blade an element's speed is just `ω·r` — handle angular speed × lever arm — fully determined by the easing curve, so it stays legible/predictable; the whip is where the delay bites.)*
+- A swing goes **rest → rest**, so every element's speed is **0 at both ends** — the envelope **starts and ends at 0 for free**, and the **sweet spot rides each element's own fast moment** (whip tip → the late crack; rigid sweep → a forgiving mid plateau). Generalizes to thrust (a lunge is also rest→rest, peak mid).
+- **This kills the spawn-on-target cheese continuously.** Spawning a blade head on `E` (or 0.1px against it, "resting against not onto") forces the crossing into the **near-spawn, near-zero-speed** window → ~0 damage. The brittle binary "exclude spawn-overlap" rule is **superseded**: the envelope handles the 0.1px escalation that an overlap-check cannot. *Laying* the blade on an enemy is worth nothing; the **sweep** is worth everything.
+- Worked cheese (triangle-on-a-stick, blade `H–T`, enemy `E` with `|HE| ≈ |HT*|`): aiming so `T` starts on `E` means `T` only grazes `E` during the dead early window before sweeping off → near-zero. To cash damage you must arrange `T` to **cross `E` at the sweet spot** — which is exactly the positioning skill we reward, not cheese.
+- Stays legible: base magnitude is still topological (Σ contacts × STR-bite × delivery); the envelope is a **normalized timing weight** that only gates *that the hit lands in the live part of the stroke*, never a momentum multiplier. The ghost-trail can color the high-damage window.
+
+**Swing profile — the velocity pattern is the way forward, but as a *choice*, never analog input.** How the handle accelerates from A→B governs whether a whip snaps, resonates, or flops worse than it had to. This genre puts all skill in **build/decision, none in execution dexterity** ("not a Wii game"), so:
+
+- **Baseline:** the engine auto-drives a **canonical, deterministic, learnable** profile — predictable over theoretically-optimal (a hidden optimizer would feel opaque). Aim is the only live input.
+- **Depth:** the profile is a **discrete, pre-committed technique** (e.g. `smooth sweep`, `crack` = late-acceleration whip-snap, `follow-through`), optionally stat/class-gated — chosen before the swing like choosing an attack, not flicked in real time.
+- **Depth lands where physics asks for it:** technique transforms a **whip** (snap/resonance) but does ~nothing to a **rigid pan** (it just sweeps). So profile-choice is automatically a whip-build's decision layer and a non-issue for cleavers.
+
+**Representation — a profile is an easing function.** Concretely a normalized angular curve `θ̂(t̂): [0,1]→[0,1]` (its derivative = angular velocity, so the curve shape *is* the snap/resonance behavior). Map cleanly to Godot:
+
+- `smooth sweep` ≈ `TRANS_SINE`/ease-in-out; `crack` ≈ `TRANS_EXPO`/`TRANS_QUINT` ease-in; windup/follow-through/resonance ≈ `TRANS_BACK`/`TRANS_ELASTIC` (these overshoot the endpoints → literal back-swing and oscillating tail).
+- Store as a **`Curve` resource** (or a `Tween` `TransitionType`+`EaseType` pair for simple presets); `@export var profile: Curve` already gives the editor curve widget. Because it's just a resource with an editor widget, **the same widget can ship at runtime** as a "technique forge"; presets are named `Curve`s.
+
+**Open (awaits the grid/blade playground — the dev sandbox above):**
+- The topology space is huge; we likely won't (and needn't) author one profile per shape. Target: **one robust default that is *sane* on every blade**, plus a handful of specialist presets, possibly with the engine **auto-scaling** the default from blade properties (rigidity / length / DOF count). Which of the three the playground confirms is TBD.
+- **Reliability floor — "crafting a working blade must not be more magic than actual magic."** The contract: the default profile yields a **sane, predictable** swing for *any* blade (rigid sweeps clean; floppy at least doesn't detonate). **Non-swingable blades are allowed** (a board-spanning floppy mess is fair "you built a bad weapon"), but failure must be **graceful and visible in the preview**, never chaotic. The ghost-trail answering "will this swing?" *before* committing is the guarantee.
 
 ### Edge-cutting jab (Bleeding Edge)
 
@@ -651,6 +706,7 @@ deallocation_points = 1 / turn
 - ~~Scale~~ → **Base-10 anchor.** Linear scaling baseline.
 - ~~"Bridge node" terminology~~ → **Cut vertex** (node) vs. **bridge** (cut-edge). Locked.
 - ~~Melee charge model (tap-and-recover)~~ → **Phantom blade.** Swing a 1:1 induced-connected copy of owned nodes; size `STR//10+1`; one swing/turn; damage = contacts (edges + spikes + faces) × `(base+STR//10)`, defense once per target; rigidity from triangulation (tensegrity). Buffer nodes repurposed.
+- ~~Melee grip / floppy-first-joint (leaf melee)~~ → **Grip = clamp** (#10). Handle welds its edge into the swing frame, so the first joint is always stiff (leaf or hub); other joints free pins, rigidity emergent from triangulation — no stiffness stat, no floppiness toggle; only a weak global damping for legibility. Leaf pivot = haft (mace/axe/flail); degree-≥2 pivot = cleaver/pan. Switch is pivot degree ≥2, not "handle on a cycle."
 - ~~Degree's role (offense + defense)~~ → **Offense only.** Degree gates cast tier; degree-defense is cut. Durability = CON. Connectivity still governs topological survival. Hubs are glass cannons; "silence, then grind" survives, simplified.
 - ~~Attribute roster~~ → **Six:** R/STR, G/DEX, B/INT (attack) + White/CON, Gold/WIS, Purple/PER (utility). Plus non-mechanical `coolness`. White→CON and economy→Gold supersede the old "W = XP."
 - ~~Attribute → damage scaling~~ → **The //10 spine:** `base (once) + attribute//10 × instances`, defense once per target. Floors per-attribute (breakpoints, surfaced in UI). Gear-ratio decouples modifier economy from damage economy.
@@ -692,9 +748,11 @@ deallocation_points = 1 / turn
 23. **Magic canonical situations** — magic is balanced LAST; needs a set of canonical attack topologies to pin per-instance `INT//10` scaling against. Friendly-fire lean: ON for propagating, OFF for targeted, rare opt-out — confirm during magic balancing.
 24. **`bonus_hop_count` rarity & proliferation curve** — ~1–2 on the whole map; rarity-scaled proliferation efficiency needs a curve.
 25. **Proliferation taint** — confirm the intrinsic, owner-independent, non-extractable taint as the loop-break (recommended yes).
-26. **Small-blade melee feel** — joint floppiness for ≤5-node acyclic blades; floppiness-as-attack-toggle; leaf-pivot single-edge swing. (Next design session — see Melee.)
+26. ~~**Small-blade melee feel**~~ — *resolved (#10):* grip = clamp; rigidity emergent from triangulation, no stiffness stat, no floppiness toggle; leaf pivot = haft. See Tensegrity.
 27. **Color nodes at all?** — content (attribute/role) exists regardless; whether to render node color is a presentation question. Procgen should cluster like-colors into biome-like regions either way.
 28. **DP vs DAP** — abbreviation for deallocation points (cosmetic).
 20. **Action economy** — one attack per turn, an `action_points` stat (default 1), or one of each attack type per turn? Affects tempo heavily. (GDD §5.)
 21. **Triangle weight** — is type-advantage a *primary* combat axis or a *situational tiebreaker*? GDD §5 leans situational (positioning, topology, and target defense matter more than color); this doc currently treats the triangle as load-bearing. Reconcile — likely "situational, backstopped by a small baseline" so color never feels absent but rarely decides a fight alone.
 22. **Tempo target / the kill-speed anchor** — the "3–4 volleys per node" anchor is now a *tiered* target (1–2 super-effective / 3–4 regular / 5+ well-defended), leaning fast: nodes dying too quickly is preferable to too slowly (forces rerouting and adaptation; keeps the turn-based game from going static). Calibrate against worked examples — see `combat_worked_examples.md`.
+29. **Ranged identity & cut-vertex surgery** — perception gating (must you *see* the articulation point?), volley concentrate-vs-spread, reach calibration to deep cut vertices, Lifeline/grace interaction with the island cascade, and whether ranged earns its keep against 2-connected (cut-vertex-free) builds. (GitHub #11 — see Ranged identity.)
+30. **Swing model tuning** — the model is locked (two motion primitives swing/thrust; easing-curve profile per technique; mass/inertia → feel + achievable-arc, never base damage; rest→rest damage envelope as the anti-cheese spine). The **grid/blade playground (GitHub #12)** owns the numbers: robust default + specialist presets (or an auto-scaled default), the per-profile envelope shape, the `arc ≈ torque/inertia` curve, tip-velocity→whip-delivery coupling, the reliability floor across topologies, and whether `θ`/thrust-reach are fixed-per-weapon or stat-bounded player choices. (See *The swing — sector aim + profile*; Clamp addon in `skill_node_addons.md`.)
