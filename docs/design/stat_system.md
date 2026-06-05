@@ -437,8 +437,9 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 | `health` | INT | Pool | `health_per_turn` | Current/max HP (entity aggregate). Tied to node ownership. |
 | `health_max` | INT | Scalar | — | Max of the health pool. Target of `+max health` modifiers. |
 | `health_per_turn` | INT | Scalar | — | HP regen per tick. Can be negative (DoT). |
-| `node_health` | INT | Pool (per-node) | — | Per-node HP (base 1–3). 0 → node deallocated. Seeded per-node, not a shared board entry. |
+| `node_health` | INT | Pool (per-node) | `node_health_per_turn` | Per-node HP (base 1–3). 0 → node deallocated. Seeded per-node, not a shared board entry. |
 | `node_health_max` | INT | Scalar (per-node) | — | Per-node HP cap; driven by entity totals + addons (Reinforcement). |
+| `node_health_per_turn` | INT | Scalar (per-node) | — | **Proposed — GitHub #13** ("node HP regen"). Recovery for nodes that take damage but don't die. Behaviour TBD: damage persistence, out-of-combat-only vs. always, flat / %-max / `CON//10`, entity-seeded vs. core-aura hops-falloff. Per-turn sibling of `node_health`; also a loot/proliferation modifier. Calibrate against the tempo anchor. |
 | `skill_points` | INT | Pool | `sp_per_turn` | Current/max SP. Spent on allocation. |
 | `skill_points_max` | INT | Scalar | — | Max SP capacity. Grows on level-up. |
 | `sp_per_turn` | INT | Scalar | — | SP income per tick. Core passive loop. |
