@@ -163,9 +163,11 @@ Node health is determined by:
 - <other..?>
 - All of the above, but what formula combines them? TBD
 
+> **Enrichment — the focus-soak model (LOCKED, from `combat_system.md`).** `node_health` **resets to full at the start of its owner's turn** (not end-of-turn). So it isn't durability-over-time — it's a **per-round gate**: *"how much damage must converge on me in a single round to kill me."* Within your turn, two actions stack on one target (dent-then-finish); across the enemy phase, several attackers can focus-fire one node down even when none could solo it (scarier swarms). No dent ever survives into the owner's own turn. This **retires the old "3–4 volleys" multi-turn anchor** in favour of a **focus-count per round**.
+> **The core node** carries a **recharging shield** (its `node_health`, resets each owner turn) over the **persistent `health` pool**: `armor/resist → shield → overflow-this-round → health`. You can only hurt the core by out-damaging its shield in one round and spilling over (gang-up-to-crack play). The shield never force-deallocates the core. Consequence: `core_health` **folds into the `health` pool** (a class-upgradable bonus), and **death = `health` depletion**, not core-node loss — see Win/loss.
+
 ### Turn structure in combat
-Generally, an entity can perform one attack during its turn. Or maybe 2, or set by `<action points>` stat starting at 1.
-Or they get one of each type of stat, not sure. Pending more fleshed out flow / balance.
+**Two action points per turn by default** (`action_points`, default 2 — *locked*). The second action is load-bearing: enemy `node_health` resets only at *its owner's* turn start, so within your turn two actions stack on one target (dent-then-finish), and seeing a node at 7/10 and choosing commit-to-finish vs. pivot is a real read. Ranged stays one volley/turn, but the second action can be a different mode (e.g. volley then melee tap) stacking on one node. More than 2 only via ultra-rare `action_points` modifiers. (Full rules in `combat_system.md` — Turn Structure.)
 
 **Status:** 📐 Designed, but not calibrated to the slightest, and real offensive vs defensive stat resolution is at best a stub. Big gap in especially defensive stats: just how killable should a random node more or less be? It would go both ways, for you and the enemy...
 
@@ -206,7 +208,7 @@ Beyond these seven, the detail doc also carries the **Edgelord** (fights *with* 
 ### Stat categories
 One shared vocabulary, instantiated by every entity (player and NPC alike). The main buckets:
 - **Attributes (six)** — three attack: `strength` (melee/R), `dexterity` (ranged/G), `intelligence` (magic/B); three utility: `constitution` (durability/White), `wisdom` (XP-growth/Gold), `perception` (sensing/Purple). Base ≈ 10 each at run start. All attack scaling runs through `attribute//10` (the spine). Plus non-mechanical `coolness`.
-- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `damage_floor`, `health`/`health_max`, plus per-node `node_health`/`node_health_max` (scaled by CON, not degree), and `core_health`.
+- **Defense** — `armor` (flat), `resist_r/g/b` (per-color, where the triangle emerges), `damage_floor`, the persistent `health`/`health_max` **death-clock pool**, plus per-node `node_health`/`node_health_max` (scaled by CON, not degree; resets each owner turn — the focus-soak gate). `core_health` now **folds into `health`** as a class bonus (the core node's `node_health` is a recharging shield over that pool — see §5 Per-node health).
 - **Economy** — `xp`, `skill_points`, and their `_per_turn` income siblings (`xp_per_turn`, `sp_per_turn`); **Gold (WIS)** nodes are the lifeblood here (the role formerly assigned to White).
 - **Movement** — `movement_speed` (core hops/turn) and `deallocation_points` (per-turn reshape budget). Two distinct stats on purpose.
 - **Perception** — `sense_range` (hops, silhouettes) and `vision_range` (euclidean, full detail).
@@ -233,7 +235,7 @@ You get stronger three ways at once, and they're the same act: **allocate nodes*
 The **Metagame** is a hub (a House/Breach-style between-runs space) *and* a meta skill tree. The twist: **allocating a node on the meta tree is what crashes you into a run.** Commit-on-completion — the allocation only finalizes when you survive the whole run (the final Breakout); die and it stays pending. Permanent stat carry (`+10 STR`, `+1 armor`, …) makes this a rogueli*te*; unlocks (core classes, hub rooms, themes) ride as a second clause on nodes. Steady-state economy: **allocatable points = runs completed + 1** (the `+1` is always the pending dive).
 
 ### Win / loss conditions
-A run ends — and is **won** — by clearing the **Apex Entity**: a vast Ophanim ring at the top of the fractal, fought at the end of every run. Clearing it surfaces you to the hub and commits the meta-allocation that crashed you in. A run is **lost** the moment your **core node** dies: no Breakout, no level carry-forward, and the pending meta-allocation does not commit. The *true* ending is a separate, earned endgame — the **metagame Breakout**, severing the hub's own disguised Tethers to escape the prison entirely.
+A run ends — and is **won** — by clearing the **Apex Entity**: a vast Ophanim ring at the top of the fractal, fought at the end of every run. Clearing it surfaces you to the hub and commits the meta-allocation that crashed you in. A run is **lost** the moment your **`health` pool is depleted** (the death clock — drained by both arm-loss and core-shield overflow; reframed from "core node dies," since the core node can never be islanded away — see §5 Per-node health): no Breakout, no level carry-forward, and the pending meta-allocation does not commit. The *true* ending is a separate, earned endgame — the **metagame Breakout**, severing the hub's own disguised Tethers to escape the prison entirely.
 
 **Status:** 📐 Designed (metagame loop thoroughly specified; the Apex-vs-metagame-Breakout relationship is an open narrative thread).
 
@@ -247,7 +249,7 @@ A run ends — and is **won** — by clearing the **Apex Entity**: a vast Ophani
 
 Three distinct layers sit on top of a node's base type and modifier list:
 
-- **Addons** — attachable components that change *how a node behaves*, not what stats it grants. Found as loot, granted by classes, or grown from Tech Seeds. Confirmed: **Armor Ring** (per-node damage reduction), **Reinforcement** (per-node HP), **Buffer** (utility — taps to *temporarily* allocate existing field nodes for battle-phase reach; no longer melee fuel), **Winch** (pulls neighbors closer in euclidean space), **Lifeline** (1-turn island grace), **Lifelink** (proxy core that sustains an island indefinitely). *Relay* (Blue-range booster) is referenced but **TBD** pending magic-propagation rules.
+- **Addons** — attachable components that change *how a node behaves*, not what stats it grants. Found as loot, granted by classes, or grown from Tech Seeds. Confirmed: **Armor Ring** (per-node damage reduction), **Reinforcement** (per-node HP), **Buffer** (utility — taps to *temporarily* allocate existing field nodes for battle-phase reach; no longer melee fuel), **Winch** (pulls neighbors closer in euclidean space), **Clamp** (welds one blade joint stiff — rigidity without a triangle), **Lifeline** (1-turn island grace), **Lifelink** (proxy core that sustains an island indefinitely). Newer (design direction set, some sub-points open): **Gate** (a 2-endpoint *toggleable edge* — depower an existing edge or spin up a temporary one; fully reversible, so it's universal and doesn't tread on the Edgelord's *permanent* edge severing), **Spikes** (raises a node's offensive vertex-spike bite; an open *structural* defensive model would let spikes de-rigidify an incoming melee blade — reconcile with Thorns first). *Relay* (Blue-range booster) is referenced but **TBD** pending magic-propagation rules.
 - **Node Specializations** — deeper, rarer states a node either is generated with or is irreversibly transformed into (not freely applicable). Candidates: **Melee Buffer**, **Corrupted** (fused benefit + downside), **Crystallized** (frozen, stronger, undeployable), **Anchor** (intrinsic island grace).
 - **Tech Seeds** — plantable items: plant on an owned node, a little Tech Tree grows over 3–5 turns, then bears N fruits (you pick one core-bound modifier, skewed toward the rare ceiling). Racing to fruit before being cut off is real tactical tension. This is the clean, safe build-portability tool (vs. the footgun of Uprooting).
 
@@ -282,7 +284,7 @@ You boot what looks like a normal Zelda-ish adventure game. You kill cute, harml
 - [ ] **Magic friendly-fire & reach** — lean: friendly-fire ON for propagating spells / OFF for targeted, rare opt-out; reach grows only via ultra-rare `bonus_hop_count`. Confirm during magic balancing (balanced LAST). (combat Q23–24)
 - [ ] **Small-blade melee feel** — joint floppiness for ≤5-node acyclic blades; floppiness-as-attack-toggle; leaf-pivot swings. (combat Q26 — next design session)
 - [ ] **Proliferation taint** — confirm intrinsic owner-independent non-extractable taint as the loop-break (recommended yes). (combat Q25)
-- [ ] **Action economy** — one attack per turn, an `action_points` stat, or one of each attack type? (GDD §5)
+- [x] **Action economy** — *resolved:* **2 `action_points` per turn** by default (second action finishes the first's dent before the owner-turn `node_health` reset). Ranged stays one volley/turn; the second action can be a different mode. More-than-2 only via ultra-rare modifiers. (GDD §5 / combat Q20)
 - [ ] **Triangle backstop** — emergent `resist_*` only, or a small hardcoded `type_advantage` so the triangle isn't absent early-game? (combat Q3 / stat Q8)
 - [ ] **Magic propagation rules** — owned nodes only vs. any traversable edge; hop-limit; terminal vs. AoE; Relay. Blocks several other systems. (combat Q1)
 - [ ] **Edge re-introduction** — what restores severed bridges so nothing is left permanently unreachable (Bleeding Edge invariant)? Relay is TBD. (combat Q2)
@@ -299,11 +301,11 @@ You boot what looks like a normal Zelda-ish adventure game. You kill cute, harml
 
 This is the single biggest hole (your words: defensive resolution is "at best a stub"). It won't be solved by more prose — it needs **anchored worked examples**. The 3 fights are **drafted in real numbers** in `design/combat_worked_examples.md`, which is also the standalone handoff for continuing this in a fresh session. Summary of the path:
 
-1. **Anchor to a *tiered, fast-leaning* tempo target** (the old single "3–4 volleys" point is replaced):
-   - **Fast (1–2 volleys)** — super-effective / vulnerable / low-defense, *or converged fire*.
+1. **Anchor to a *focus-count-per-round*, fast-leaning tempo target** (the old multi-turn "3–4 volleys" anchor is **retired** — `node_health` now resets at each owner's turn start, so survivability is *converged sources within one round*, not turns of chipping):
+   - **Fast (1–2 converged sources)** — super-effective / vulnerable / low-defense, *or converged fire*.
    - **Regular (~3)** — even matchup, modest defense.
-   - **Grindy (5+)** — well-defended hub / ineffective matchup / hard armor.
-   - Stance: **tempo must stay high** (a turn-based game where nodes barely die goes static), and **nodes dying too fast beats too slow** — fast death forces rerouting and adaptation, which *is* the gameplay. When in doubt, tune faster.
+   - **Grindy (5+)** — well-defended hub / ineffective matchup / hard armor (needs *more convergence*, not more turns).
+   - Stance: **tempo must stay high** (a turn-based game where nodes barely die goes static), and **nodes dying too fast beats too slow** — fast death forces rerouting and adaptation, which *is* the gameplay. Damage is amped relative to node HP. When in doubt, tune faster.
 2. **The 3 fights** (each uses **two ≥10-node entities plus their surroundings** — positioning and targeting are the system, not flavour):
    - *(a) Glass vs. glass* — proves tempo is a **positioning choice** (how many leaves you converge), and cheap-leaf vs. cut-vertex **targeting**.
    - *(b) Spear vs. wall* — **the decision fight**: runs one volley through three candidate defense functions (flat / diminishing-ratio / hybrid) side by side.
@@ -312,7 +314,7 @@ This is the single biggest hole (your words: defensive resolution is "at best a 
 4. **Only then** build a tiny headless damage-calc harness in Godot (no UI) and replay the 3 fights as assertions. Hand-math == code → the formula is real.
 5. **Defer crit, status effects, and the triangle multiplier** until the base offence/defence curve is locked — they're modifiers on top of a function that has to exist first.
 
-Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense model (degree-based vs. alternatives), action economy (1 attack vs. `action_points` vs. one-of-each — multiplies tempo directly), and armor per-hit vs. per-attack (combat doc leans *per-attack* for combined volleys/taps — keep that).
+Open sub-decisions feeding this: scaling shape (linear vs. steeper) and armor per-hit vs. per-attack (combat doc leans *per-attack* for combined volleys/taps — keep that). *(Resolved feeders: defense model = CON, degree decoupled; action economy = **2 `action_points`/turn** — multiplies tempo directly, and the second action is the dent-finisher against the owner-turn `node_health` reset.)*
 
 **Detail doc:** `design/combat_worked_examples.md`
 
@@ -324,7 +326,7 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper), the defense
 
 ### Milestone 0 — Design lock-in (current phase)
 - [ ] Resolve the battle formula via the §11a worked-example plan.
-- [ ] Decide action economy (§5) and the triangle backstop.
+- [ ] Decide the triangle backstop. *(Action economy resolved: 2 `action_points`/turn — §5.)*
 - [ ] Settle the defense model (degree-based vs. alternatives).
 - [ ] Finalize magic propagation rules (unblocks Relay, spells, Bleeding Edge).
 

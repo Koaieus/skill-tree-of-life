@@ -96,9 +96,10 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 | `sense_range` | INT | Scalar | 3 | **Hop-based.** Detection radius from any owned node. Silhouette only: position known, no type/HP/modifiers. |
 | `vision_range` | INT | Scalar | ~4³ | **Euclidean ("range").** Full-detail sight radius from any owned node. Reveals node type, HP, visible modifiers. |
 | `proliferation_power` | INT | Scalar | 3 | **Reframed.** The **N** copies minted when you PROLIFERATE (remove a core-held modifier, spread N tainted copies across a cluster you must hold). Rarity-scaled: rarer modifiers yield fewer copies. Not an RNG radius. See `combat_system.md` Proliferation. |
-| `node_health` | INT | Pool — current (per node) | 2 | HP per individual node. At 0, node is severed and island check fires immediately. |
-| `node_health_max` | INT | Pool — max (per node) | 2 | Max HP per node. Seeded from entity totals + addons. |
-| `core_health` | INT | Pool | 5 | HP of the core node. Core HP = 0: run ends, no Breakout. |
+| `node_health` | INT | Pool — current (per node) | 2 | HP per individual node. At 0, node is severed and island check fires immediately. **Resets to max at the owner's turn start** (focus-soak gate — see `combat_system.md` Node HP). The core node's `node_health` is instead a **recharging shield** over the `health` pool (never severs the core). |
+| `node_health_max` | INT | Pool — max (per node) | 2 | Max HP per node. Seeded from entity totals + addons + CON. |
+| `health` | INT | Pool | — | Entity-aggregate **persistent** pool — the death clock (depletion = death). Depleted by arm-loss + core-shield overflow. **`core_health` folds in here** as a class-upgradable base/bonus. |
+| ~~`core_health`~~ | — | — | — | **Folded into `health`** (no longer a separate pool). Death condition reframed from "core node loss" to "`health` depletion." Kept only as a class-upgradable bonus to `health`. See `combat_system.md` Core-on-node health. |
 
 ---
 
@@ -135,8 +136,9 @@ CON = 5, WIS = 5, PER = 5         ← utility attributes (White/Gold/Purple)
 armor = 0
 resist_r = 0, resist_g = 0, resist_b = 0
 damage_floor = 1                   ← global default
-node_health = 2  (max = 2)          ← scaled by CON, not degree
-core_health = 5
+node_health = 2  (max = 2)          ← scaled by CON, not degree; resets to max at owner turn start (focus-soak)
+health = 5  (max = 5)               ← persistent death-clock pool; core_health folds in as a class bonus
+core_health → (folded into health) ← core node's node_health is a recharging shield over this pool
 attack_range = 4                   ← euclidean, ranged only
 bonus_hop_count = 0                 ← ultra-rare magic reach stat
 sense_range = 3                    ← hops; scaled by PER
@@ -184,7 +186,7 @@ Hive class: aura is per-pod (each Lifelink radiates to its sub-graph) or absent 
 ```
 STR = 0, DEX = 0, INT = 0
 armor = 0, all resists = 0, damage_floor = 1
-node_health = 1, core_health = 2
+node_health = 1 (resets each turn), health = 2 (core_health folds into this pool)
 skill_points = 0 / 5, sp_reservation = 0
 movement_speed = 0, deallocation_points = 0, health_per_turn = 0
 ```

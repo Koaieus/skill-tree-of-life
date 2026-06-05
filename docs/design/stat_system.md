@@ -328,8 +328,8 @@ The core is a component that sits on top of a node. It has its own stats (separa
 
 **Core node as the kill condition:**
 - The core node is the node the core currently occupies.
-- Losing the core node = entity death. Other nodes can be lost and recovered; the core node cannot be surrendered.
-- The core node implicitly has extra health — partly from a base bonus (`core_health`, a core-class upgrade) and partly because the entity stacks modifiers on it and defends it harder.
+- **Death condition = `health` pool depletion**, *not* core-node loss (reframed — see `combat_system.md` Core-on-node health). The core node can never be *islanded away* (the islanding rule keeps the core's piece as the entity), so "lose the core" only ever meant "deplete the pool." Other nodes can be lost and recovered; the core node cannot be surrendered.
+- The core node carries a **recharging shield** (its `node_health`, resets each owner turn) over the **persistent `health` pool**. To grind the core you must out-damage its shield within one round and overflow into `health`. `core_health` **folds into `health`** as a class-upgradable base/bonus rather than a separate pool — trimming the stat table. The persistent `health` pool is thus depleted **two ways**: arm-loss (`health.decrease(N)`) and core-shield overflow — the single decisive attrition clock.
 
 **Entity = connected subgraph; core = nucleus.** Because an entity is just the connected set of nodes it owns, an attack that deallocates a bridge node would otherwise split it in two. The core resolves this: the piece holding the core stays the entity, every orphaned piece becomes an island (one-turn grace, else dissolves). This is why a cut entity doesn't spawn a second entity — there is exactly one nucleus.
 
@@ -361,10 +361,20 @@ Health is structurally tied to the entity's presence on the tree.
 
 The combat design introduces a distinction the stat layer must support: an entity has an aggregate `health` pool (the structural arm-loss model above), but **individual nodes also have their own small HP** for the moment-to-moment business of being attacked.
 
-- `node_health` / `node_health_max` — a small per-node pool (base 1–3). When a node's current HP hits 0, the node is deallocated → island/grace check → the aggregate `health.decrease(N)` path fires for any arm that drops.
+- `node_health` / `node_health_max` — a small per-node pool (base placeholder 1–3 vs. 10; set in Balance). When a node's current HP hits 0, the node is deallocated → island/grace check → the aggregate `health.decrease(N)` path fires for any arm that drops.
 - This is *not* a board stat in the same sense as the entity-wide stats. It lives per-node, and its max is driven by the owning entity's aggregate (entity totals set the baseline; addons like Reinforcement and per-node modifiers vary it). Architecturally this is the cleanest as a `RuntimePoolStat` instance held by the `TreeNode`'s combat component, seeded from the entity board + node addons, rather than a single registry entry.
 
-**Open:** do we model `node_health` through the same `StatDefinition`/registry machinery (a per-node `RuntimePoolStat` whose max is computed) or as a lighter-weight field on the node's combat component? Leaning: reuse `RuntimePoolStat` so the signal chain and clamping come for free, but seed it per-node rather than from a single shared board stat.
+**The reset rule — ephemeral vs. persistent *(LOCKED; see `combat_system.md` — Node HP).*** `node_health` is **ephemeral**: it resets to `node_health_max` **at the start of its owner entity's turn** (not at the end of every turn). The entity-aggregate `health` pool is **persistent** and does *not* reset. The two layers must be kept strictly separate in the architecture — the per-node reset signal must never touch the `health` `RuntimePoolStat`. Mechanically `node_health` now means *"how much damage must converge on me in one round to kill me"* (a per-round **focus-soak** gate), not durability-over-time.
+
+- **Implementation:** each owner-turn-start, the turn system calls `set_current(max)` (equivalently `replenish` to full) on every owned node's `node_health` pool. Enemy nodes do not reset during the owner's turn, so two actions stack within a turn (dent-then-finish); a node's wounds persist across the enemy phase, enabling multi-attacker focus-fire.
+
+**The core node — a recharging shield over the persistent pool *(LOCKED).*** The core node's `node_health` acts as a **recharging shield** in front of the entity `health` pool:
+
+- Attack order on the core node: `armor/resist → node_health (shield) → overflow-this-round → health (persistent)`.
+- The core node's shield resets to full at owner turn start like any node, but it **never force-deallocates the core** (unlike a normal node at 0 HP). **0 shield is a legal transient state** — at 0, post-mitigation damage routes straight into `health` for the rest of the round; the shield recharges next owner-turn-start.
+- Architecturally: the `TreeNode` combat component's `node_health` pool, when the node is the core seat, overflows its excess `decrease()` into the entity board's `health` pool instead of triggering severance. `core_health` is **no longer a separate pool** — it folds into `health` as a class-upgradable base/bonus. The **death condition is `health` depletion**, not core-node loss (the core can never be islanded away).
+
+**Open:** do we model `node_health` through the same `StatDefinition`/registry machinery (a per-node `RuntimePoolStat` whose max is computed) or as a lighter-weight field on the node's combat component? Leaning: reuse `RuntimePoolStat` so the signal chain, clamping, and the per-turn reset/overflow all come for free, but seed it per-node rather than from a single shared board stat.
 
 ---
 
@@ -420,6 +430,18 @@ BufferAddon extends NodeAddon
   # behavior: a tap TEMPORARILY allocates existing field nodes for reach (melee pivot /
   # ranged stubs / magic hub-degree), then the buffer goes on cooldown. Reverts at turn
   # end unless promoted in Consolidation. NOT melee fuel — see skill_node_addons.md.
+
+GateAddon extends NodeAddon       # 2-component: spans TWO endpoint nodes (paired/shared)
+  - endpoint_a: TreeNode
+  - endpoint_b: TreeNode    # both within euclidean range X; no existing gate between them
+  - powered: bool           # toggle at will: depower an existing edge / create a temp edge
+  # FULLY REVERSIBLE (on removal / endpoint death → revert). Self-islanding allowed (warn).
+  # Persistence-on-turn-end OPEN (lean persist). See skill_node_addons.md (Gate).
+
+SpikesAddon extends NodeAddon     # raises the node's vertex-spike contribution in a blade
+  - spike_power: int        # offensive: adds to the face/vertex term (confirmed)
+  # defensive structural model (attack incoming blade edges / de-rigidify) is OPEN;
+  # reconcile with thorns (one stat or two?) before shipping. See skill_node_addons.md (Spikes).
 ```
 
 **Design constraint:** addons are applied to specific nodes by the designer (or by loot drops). They are not on the stat modifier list and do not flow through the modifier pipeline. Their effects are resolved by the systems that care about them (combat system reads `ArmorRingAddon` and `BufferAddon`, physics system reads `WinchAddon`, etc.).
@@ -434,12 +456,12 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 
 | Stat ID | Type | Kind | Per-Turn Sibling | Notes |
 |---|---|---|---|---|
-| `health` | INT | Pool | `health_per_turn` | Current/max HP (entity aggregate). Tied to node ownership. |
+| `health` | INT | Pool | `health_per_turn` | Current/max HP (entity aggregate). **Persistent — does not reset.** The single **death clock** (depletion = death). Depleted two ways: arm-loss (`health.decrease(N)`) and **core-shield overflow** (damage that breaks the core node's `node_health` shield in one round). **`core_health` folds into this** as a class-upgradable base/bonus (no longer a separate pool). |
 | `health_max` | INT | Scalar | — | Max of the health pool. Target of `+max health` modifiers. |
 | `health_per_turn` | INT | Scalar | — | HP regen per tick. Can be negative (DoT). |
-| `node_health` | INT | Pool (per-node) | `node_health_per_turn` | Per-node HP (base 1–3). 0 → node deallocated. Seeded per-node, not a shared board entry. |
-| `node_health_max` | INT | Scalar (per-node) | — | Per-node HP cap; driven by entity totals + addons (Reinforcement). |
-| `node_health_per_turn` | INT | Scalar (per-node) | — | **Proposed — GitHub #13** ("node HP regen"). Recovery for nodes that take damage but don't die. Behaviour TBD: damage persistence, out-of-combat-only vs. always, flat / %-max / `CON//10`, entity-seeded vs. core-aura hops-falloff. Per-turn sibling of `node_health`; also a loot/proliferation modifier. Calibrate against the tempo anchor. |
+| `node_health` | INT | Pool (per-node) | — | Per-node HP (base placeholder 1–3 vs. 10; Balance). 0 → node deallocated (except the core node — its `node_health` is a shield; see below). **Ephemeral: resets to max at the start of its owner's turn** (focus-soak — "damage that must converge in one round to kill me"). Seeded per-node, not a shared board entry. |
+| `node_health_max` | INT | Scalar (per-node) | — | Per-node HP cap; driven by entity totals + addons (Reinforcement) + CON. The per-round focus-soak threshold. |
+| `node_health_per_turn` | INT | Scalar (per-node) | — | **Superseded — GitHub #13 resolved by the owner-turn-start reset.** The "what happens to nodes that don't die?" question is answered structurally: a node's `node_health` **fully resets to max at its owner's turn start**, so no dent survives into the owner's own turn and no gradual regen stat is needed. Wounds persist only *within a round* / across the enemy phase (enabling multi-attacker focus-fire), then reset. Keep this row only if a future mechanic wants *mid-round* node recovery; not part of the baseline. |
 | `skill_points` | INT | Pool | `sp_per_turn` | Current/max SP. Spent on allocation. |
 | `skill_points_max` | INT | Scalar | — | Max SP capacity. Grows on level-up. |
 | `sp_per_turn` | INT | Scalar | — | SP income per tick. Core passive loop. |
@@ -448,6 +470,7 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 | `initiative` | INT | Scalar+progress | — | Turn order. Has a `progress` sub-value (0–100) filled each tick. |
 | `movement_speed` | INT | Scalar (resets) | — | Hops the core can relocate per turn. Default 1. |
 | `deallocation_points` | INT | Scalar (resets) | — | Per-turn reshape budget (apparent movement). Default small. |
+| `action_points` | INT | Scalar (resets) | — | **Attacks per turn. Default 2** (LOCKED). Second action finishes the first's dent before the owner-turn `node_health` reset (commit-vs-pivot read). Ranged stays one volley/turn; the second action can be a different mode stacking on one node. More-than-2 only via **ultra-rare** `action_points` node modifiers (chase item, in the spirit of `bonus_hop_count`) — not default. Read by `TurnManager`. |
 | `strength` | INT | Scalar | — | Melee (R/Red). `STR//10` per contact; blade size `STR//10+1` nodes. |
 | `dexterity` | INT | Scalar | — | Ranged (G/Green). `DEX//10` per firing leaf. Possibly dodge. |
 | `intelligence` | INT | Scalar | — | Magic (B/Blue). `INT//10` per damage instance — **potency, never reach**. |

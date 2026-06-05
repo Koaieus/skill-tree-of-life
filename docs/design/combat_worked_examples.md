@@ -22,20 +22,24 @@ Then the open decision is explicit at the bottom: **pick a defense function**, t
 
 ---
 
-## The Tempo Axiom (revised — tiered, leaning fast)
+> 🔁 **Node-health reset rewrite (LOCKED — supersedes the multi-turn framing below).** `combat_system.md` now resets every node's `node_health` to full **at the start of its owner's turn** (not end-of-every-turn). So `node_health` no longer measures *durability over time* — it is the **per-round focus-soak gate**: *"how much damage must converge on me in a single round to kill me."* This **retires the multi-turn "3–4 volleys per node" anchor entirely.** Wherever a fight below reads "N volleys to kill" as *N separate turns of chipping*, reinterpret it as **N converged sources within one round** (multiple leaves in one volley, two actions stacking, and — across the enemy phase — multiple attackers focus-firing the still-wounded node). Any example assuming **persistent multi-turn chip** or **out-of-combat regen** is **stale** (`node_health_per_turn` is superseded by the reset). The fights' *conclusions* (positioning/targeting as the system, the defense-function decision) still hold; the per-round re-derivation is a Balance-phase activity.
 
-The old single-point anchor ("3–4 unbuffed volleys ≈ one node") is replaced by a **tiered** target. Kill-speed should depend on matchup and defense, and the whole curve leans **fast**:
+## The Tempo Axiom (revised — focus-count per round, leaning fast)
 
-| Tier | Volleys (or equivalent attacks) to dismember one node | When |
+The old single-point anchor ("3–4 unbuffed volleys ≈ one node") is replaced by a **focus-count-per-round** target. A node's survivability is *"N converged damage-sources **this round** to kill,"* not "N turns of chipping." Kill-speed depends on matchup and defense, and the whole curve leans **fast**:
+
+| Tier | Converged sources **within one round** to dismember a node | When |
 |---|---|---|
 | **Fast** | **1–2** | Super-effective color, vulnerable/exposed target, low defense, *or converged fire* |
-| **Regular** | **3** (≈2–3) | Baseline exchange, even matchup, modest defense |
-| **Grindy** | **5+** | Well-defended hub, ineffective matchup, hard armor |
+| **Regular** | **~3** | Baseline exchange, even matchup, modest defense |
+| **Grindy** | **5+** | Well-defended hub, ineffective matchup, hard armor (needs more converged sources, not more turns) |
+
+A "source" is any contribution that converges before the owner-turn reset wipes the dent: a leaf in a volley, a second stacked action, or — during the enemy phase — a *different attacker* piling onto the same still-wounded node. A node whose `node_health` exceeds your **entire round's** converged output is unkillable by you that round (intended — bring more sources, hit a softer target, or out-scale it on the XP clock); the breach number is shown on the node (nothing happens silently).
 
 **Design stance (from the designer, load-bearing):**
-- **Tempo must be relatively high.** A turn-based game where nodes barely die becomes *static* — death spiral of boredom. Keep it moving.
+- **Tempo must be relatively high.** A turn-based game where nodes barely die becomes *static* — death spiral of boredom. Keep it moving. Damage is **amped** relative to node HP; losing nodes is more common; sniping and melee both feel more decisive.
 - **Nodes dying too quickly is better than too slowly.** Fast death forces adaptation: rerouting around lost cut vertices, repositioning leaves, rebuilding broken rings, healing Reservations. That churn *is* the gameplay.
-- So when in doubt, **tune faster.** "Regular" sitting at ~3 (not 4) is deliberate, and even 2 is acceptable for the baseline. The grindy tier exists to make fortresses *feel* like fortresses, not to slow the general game.
+- So when in doubt, **tune faster.** "Regular" sitting at ~3 (not 4) is deliberate, and even 2 is acceptable for the baseline. The grindy tier exists to make fortresses *feel* like fortresses (a higher focus-count to crack), not to slow the general game.
 
 Everything below is checked against these tiers.
 
@@ -100,9 +104,10 @@ P1 — P2 — P3⊙— P4 — P5 · · · · · · · · · E5 — E4 — E3⊙�
 
 Target: **Ma** (E's leaf, degree 1, HP 10, armor 0).
 
-- **One** P-leaf in range fires: `outgoing 4` → Ma 10→6→2→dead. **3 volleys** → *Regular tier.* ✓ matches the anchor.
-- **Two** P-leaves converged in range (player spent a turn allocating a second leaf into range): `outgoing 8`/volley → Ma 10→2→dead. **2 volleys** → *Fast tier.* ✓
-- A **3-leaf** converge (`12`) one-shots Ma. *Fast tier, extreme.*
+- **One** P-leaf in range fires: `outgoing 4` → Ma 10→6→2→dead. **3 volleys** → *Regular tier.* ✓ matched the *old* anchor — but ⚠️ **stale under the node-health reset**: across 3 *separate* turns Ma's `node_health` resets to 10 at E's turn start each round, so a lone 4-damage leaf **never kills it.** Re-read this as *converged within a round* (below).
+- **Two** P-leaves converged in range (player spent a turn allocating a second leaf into range): `outgoing 8`/volley → Ma 10→2→dead. **2 volleys** → *Fast tier.* (Same caveat: this only kills if the two volleys land *in one round* — e.g. two stacked actions, or two attackers in the enemy phase — not across two of Ma's reset cycles.)
+- A **3-leaf** converge (`12`) one-shots Ma. *Fast tier, extreme.* ✓ This is the clean case under the reset: enough convergence **in a single round.**
+- **Takeaway under the reset:** killing Ma is a question of *how many sources you converge before its owner-turn reset*, not how many turns you chip. The focus-count, not the turn-count.
 
 **Takeaway 1 — tempo is a positioning choice.** Same target, same stats; the only variable is *how many leaves you brought into euclidean range.* That is the core ranged decision and it's entirely topological/spatial.
 

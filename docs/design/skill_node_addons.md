@@ -89,6 +89,59 @@ These are established mechanics referenced consistently in the design docs.
 
 ---
 
+### Spikes *(NEW — offensive direction confirmed; defensive model + collision OPEN)*
+
+> Spikes unify (and physically reframe) the offensive and defensive sides of node *sharpness*. Closely related to **Thorns** — see the `FLAG` below; resolve whether they are one stat or two **before either ships.**
+
+**Offensive *(confirmed direction)*:** Spikes raise a node's **vertex-spike** contribution when that node is part of a phantom blade. The combat doc bundles face damage as `Σ edges + Σ vertex spikes + B`; a Spikes modifier/addon raises that **vertex term** — a swung spiked node drives its spikes through whatever it sweeps (this is the "swung = offensive" half of thorns=spikes in `combat_system.md`).
+
+**Defensive *(OPEN — the part worth real exploration)*:**
+- *Rejected/uncertain candidate:* spikes damage *your own* nodes when struck. Leaning **no** / unclear.
+- *Candidate worth exploring:* spikes **damage or sever the edges/faces of an incoming phantom blade** on collision — a **physics-layer melee defense** (it only matters vs. melee, not ranged/magic). Because a phantom blade's rigidity comes from triangulation, **popping an edge can de-rigidify a braced blade into a floppy whip mid-swing.**
+- This is **thorns reframed**: instead of flat counter-damage to the attacker's node HP (current `thorns`), spikes attack the attacker's *blade structure*.
+
+**`FLAG` — Thorns vs. Spikes (resolve before either ships):** are `thorns` / `thorns_base` and `spikes` the **same stat viewed two ways**, or **distinct** (HP-counter vs. structure-attack)? The current `combat_system.md` treats thorns = spikes = one stat (*sharpness*: stationary→counter-damage, swung→offensive contact). The new defensive candidate (structure-attack on the incoming blade) is a *third* behaviour that may not collapse into flat counter-damage. Decide before implementing either.
+
+**Open collision questions (dedicated pass — do not implement until specified):** what exactly does contact do — damage an edge's HP? sever it outright? cost the blade rigidity? — how it is balanced, and what feels right.
+
+**Halo integration *(confirmed it should still work)*:** the Halo shell aura grants spikes → the shell becomes a literal **spike-ring / wall against incoming melee blades.** Counterplay preserved: a well-placed **ranged** attack can knock out a shell node and **distort the wall** (open a gap) — ranged remains the answer to a spike ring. See `core_classes.md` (The Halo).
+- **Proposal *(OPEN)*:** the spikes aura targets **any** node at shell distance, *including enemy-owned ones* — if an enemy allocates a node onto your ring, your aura spikes *their* node (intruding on the shell is self-harm). Positional, not ownership-gated. Gate this behind the collision-model decision above.
+
+---
+
+### Gate *(NEW — confirmed direction; a couple of sub-points OPEN)*
+
+> **A 2-component addon** — one addon spanning **two endpoint nodes** (paired, shared), not the usual single-node attachment. Theme-perfect for an edge-centric cosmos: it is the only addon whose unit *is an edge.*
+
+**Effect — a toggleable edge.** The Gate acts as a `gate` the owner can **toggle at will**:
+
+- If an edge **already existed** between the endpoints → the gate can **depower** it (turn it off).
+- If **no edge existed** → the gate can **create a temporary edge**.
+
+**Placement constraints:**
+- The two endpoint nodes must be within **euclidean range `X`** of each other.
+- No **gate** may already run between them. (A normal edge *may* exist — the gate depowers it.)
+- A **depowered** edge still renders and still counts as "present / not crossable" for placement — preserving planarity. You cannot route a new gate through the space a depowered edge occupies.
+
+**Self-islanding is allowed.** Toggling can island (and therefore wound) your own constellation — e.g. depowering what was a bridge. The player gets a **warning** *(frequency OPEN: once vs. every time)*, then it is their call. Power with rope to hang yourself on — consistent with bridge-sniping being intended skill expression.
+
+**Persistence *(OPEN — leaning persistent)*:** either the toggle **persists on turn end**, or it reverts (re-powers / removes the temp edge) at turn end. Leaning persistence.
+
+**Lifecycle:**
+- **On addon removal:** reverts to the original situation (re-powers a depowered edge / removes a created edge).
+- **On either endpoint node's death:** the addon is removed (and thus reverts). Refund / addon-breakage policy is **deferred** (a general addon-lifecycle question — see Open Questions).
+
+**Per-mode interactions (design hooks):**
+- **Melee:** toggling an internal edge changes the induced subgraph's faces and rigidity → **reshapes the phantom blade on demand** (brace/unbrace, open/close a face).
+- **Magic:** powering an edge raises the endpoints' degree → potential **cast-tier / degree-gate shift** (extra effective degree).
+- **Ranged:** depowering edges manufactures **leaves** (degree-1 nodes are the firing ports) → "leaf city," more volley origins on demand.
+
+**Relationship to existing systems (`FLAG`):**
+- **Edge-deletion invariant / Edgelord — not violated.** The combat doc's invariant ("no mechanic may leave a region permanently unreachable") and the Edgelord's *permanent* edge add/remove specialty (Bleeding Edge) are **not** infringed by the Gate, because the Gate is **fully reversible** (re-power, or remove-to-revert). Permanent severing remains Edgelord's heresy-free domain; the Gate is universal *precisely because* it is reversible/toggle. The two are not redundant — distinct on permanence. (Mirrored in `combat_system.md` — Edge-cutting jab invariant.)
+- **Buffer overlap — reconcile.** Buffer is "universal temporary **reach** utility" (temporarily allocate existing *nodes* for a battle-phase move); the Gate is temporary **edge** toggling. They share a "temporary topology" identity but operate on different objects (nodes vs. edges) and at different scopes (Buffer reverts at turn end and goes on cooldown; Gate leans persistent and is a placed 2-node addon). Treat them as **distinct addons** for now — Buffer reaches across the *existing* graph, the Gate *rewires* it — and revisit if play shows the identities blur.
+
+---
+
 ### Lifeline
 
 **Effect:** If any sub-graph containing nodes within N hops of this Lifeline node becomes an island (no path to the entity's core), those nodes receive a **1-turn grace period** before dissolving. During this grace period, the entity may re-establish a connection to the core — if they succeed, the island is saved and the timer cancels. If the grace period expires without reconnection, the island dissolves normally (SP Reservation fires for all nodes).
@@ -257,3 +310,7 @@ The following are candidate specializations — design sketches, not confirmed m
 5. **Corrupted node downside proliferation:** When a corrupted modifier is PROLIFERATED in loot resolution, does the downside also proliferate? At the same rate? This determines how dangerous a corrupted loot pick is.
 6. **Crystallized node combat interaction:** Crystallized = can't be voluntarily deallocated. Does this mean it can't participate in melee reshaping (Buffer charging requires the node to spend its action, not dealloc — so probably fine)? Does Uprooting count as force-deallocation or voluntary?
 7. **Buffer addon vs Buffer specialization:** Resolve by playtesting whether the capability difference is meaningful enough to warrant two systems.
+8. **Gate persistence on turn end:** does a toggle persist past turn end, or revert? Leaning persistent. (Gate addon.)
+9. **Gate self-island warning frequency:** warn once, or every time a toggle would island the owner's own constellation? (Gate addon.)
+10. **Addon lifecycle on node death (general):** refund / addon-breakage policy when an endpoint (Gate) or carrier node dies — does the addon drop, refund, or break? Deferred general question raised by the Gate's 2-endpoint lifecycle.
+11. **Gate vs. Buffer identity:** both are "temporary topology" utility — keep distinct (edges vs. nodes) or let one absorb part of the other's role? Revisit if play shows the identities blur.
