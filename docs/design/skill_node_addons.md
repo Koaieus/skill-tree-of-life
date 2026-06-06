@@ -211,13 +211,17 @@ Concepts that appeared in design discussion but have not been formally designed.
 
 ---
 
-### Conduit *(concept — TBD; likely specialization, not addon)*
+### Conduit *(concept — likely dropped; see note)*
 
-**Proposed concept:** A node with 0 hop cost for spell propagation. Spells pass through Conduit nodes without consuming hops — a magical highway. A chain of Conduit nodes allows spells to travel far with no range penalty.
+**Proposed concept:** A node with 0 hop cost for spell propagation. Spells pass through it without consuming hops — a magical highway.
 
-**Classification question:** This reads as a field-generated intrinsic specialization more than a player-applied addon — zero-cost transit feels like rare terrain rather than equipment. Resolve alongside Anti-Magic once magic propagation is stable.
+**Why likely dropped:** Initial spell targeting is **euclidean** (`range: euclidean casting distance, caster node to initial target` — see `spells.md`). Hop costs only matter in the **propagation phase** after hitting the first target. Since spells mostly don't propagate *through your own nodes* (no-friendly-fire default), a Conduit node in your constellation is nearly useless — it can't extend initial reach (euclidean gate), and propagation doesn't route through you. Owning one is almost purely a **liability**: enemy spells propagating into your territory get free hops passing through it.
 
-**Interaction with Anti-Magic:** An Anti-Magic node immediately downstream of a Conduit chain would consume the hops the Conduit preserved — the two effects cancel locally, which is interesting territory.
+**One surviving edge case:** neutral-territory Conduit nodes as rare field terrain that both players can exploit. Interesting in theory; complicated to balance. Revisit only if propagation-through-own-territory ever becomes a design choice.
+
+**Naming clash:** "Conduit" is already a candidate name for **Tethers** in `lore.md` — use a different name if this ever revives.
+
+**Interaction with Anti-Magic:** would cancel locally — 0-cost immediately adjacent to +1-cost nets neutral.
 
 ---
 

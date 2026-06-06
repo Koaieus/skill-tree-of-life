@@ -478,6 +478,7 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 | `wisdom` | INT | Scalar | — | **WIS (Gold).** XP-gain rate; carries growth modifiers. The economy attribute (supersedes White=XP). |
 | `perception` | INT | Scalar | — | **PER (Purple).** Vision + sensor range. `+1 sense_range / 10 PER`, `+2% vision_range / PER`. |
 | `bonus_hop_count` | INT | Scalar | — | Magic **reach** (the only source). Ultra-rare (~1–2 on the map). Default 0. |
+| `luck` | INT | Scalar | — | Scales roguelike fortune mechanics. **Modifier draft pool size = 3 + `luck`** (at level-up; see `entity_stat_board_prototype.md`). Also skews loot table quality and damage RNG: rolls on `N–M` damage ranges are biased toward `M` proportionally to `luck`. Default 0. |
 | `coolness` | INT | Scalar | — | Prestige only — no mechanical effect; end-credits tally. The "all edge, no point" stat. |
 | `attack_range` | INT | Scalar | — | Max euclidean range for **ranged** only. Magic reach is `bonus_hop_count`. (Relay addon TBD.) |
 | `pressure_capacity` | INT | Scalar | — | **Battle-phase reach budget**: existing field nodes a buffer tap can temporarily allocate. (No longer melee charge count — melee size is `STR//10+1`.) |

@@ -20,7 +20,7 @@ sp_current      ≤ effective_sp_max
 sp_in_use       = count of non-core allocated nodes  (implicit — not stored separately)
 ```
 
-**On level up:** `sp_max += 1`, `sp_current += 1`
+**On level up:** `sp_max += 1`, `sp_current += 1` — plus a **modifier draft**: pick 1 permanent core modifier from a pool of (3 + `luck`) options. The chosen modifier attaches to the core and persists for the rest of the run.
 
 **On allocate node:** `sp_current -= 1`
 
