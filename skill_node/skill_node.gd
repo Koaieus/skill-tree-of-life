@@ -15,6 +15,10 @@ signal owner_changed
 		owned_by = value
 		owner_changed.emit()
 
+## The modifier offerings this node carries — pushed onto an allocating
+## entity's stat board by AllocationSystem. Node-level data, no behaviour.
+@export var modifiers: Array[StatModifierDef] = []
+
 @export var radius: float = 32.0:
 	set(value):
 		if is_equal_approx(radius, value):

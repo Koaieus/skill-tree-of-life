@@ -1,9 +1,13 @@
-[gd_scene load_steps=3 format=3 uid="uid://chzs7sw18mc23"]
+[gd_scene load_steps=4 format=3 uid="uid://ch0s7sw18mc23"]
 
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_skill_node"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="2_entity"]
+[ext_resource type="Script" path="res://systems/allocation_system.gd" id="3_alloc"]
 
 [node name="DevSandbox" type="Node2D"]
+
+[node name="AllocationSystem" type="Node" parent="."]
+script = ExtResource("3_alloc")
 
 [node name="Entities" type="Node" parent="."]
 
