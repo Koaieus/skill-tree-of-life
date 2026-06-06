@@ -8,8 +8,7 @@ signal owner_changed
 # `owned_by` is the single source of truth for allocation:
 # null  → unallocated
 # !null → allocated
-# Typed `Node` as a placeholder until the v2 `Entity` class lands.
-@export var owned_by: Node = null:
+@export var owned_by: Entity = null:
 	set(value):
 		if owned_by == value:
 			return
@@ -46,8 +45,7 @@ func is_allocated() -> bool:
 
 
 func get_owner_color() -> Color:
-	# Duck-typed for now; owner is expected to expose a `color` property.
-	if owned_by and "color" in owned_by:
+	if owned_by:
 		return owned_by.color
 	return Color.WHITE
 

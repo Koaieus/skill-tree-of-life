@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3 uid="uid://chzs7sw18mc23"]
+
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_skill_node"]
+[ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="2_entity"]
+
+[node name="DevSandbox" type="Node2D"]
+
+[node name="Entities" type="Node" parent="."]
+
+[node name="RedPlayer" parent="Entities" instance=ExtResource("2_entity")]
+display_name = "Red Player"
+color = Color(0.9, 0.2, 0.2, 1)
+
+[node name="BlueNPC" parent="Entities" instance=ExtResource("2_entity")]
+display_name = "Blue NPC"
+color = Color(0.2, 0.3, 0.9, 1)
+
+[node name="Nodes" type="Node2D" parent="."]
+
+[node name="Unowned" parent="Nodes" instance=ExtResource("1_skill_node")]
+position = Vector2(360, 480)
+
+[node name="OwnedRed" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("1_skill_node")]
+position = Vector2(560, 480)
+owned_by = NodePath("../../Entities/RedPlayer")
+
+[node name="OwnedBlue" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("1_skill_node")]
+position = Vector2(760, 480)
+owned_by = NodePath("../../Entities/BlueNPC")
