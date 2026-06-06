@@ -12,6 +12,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 |---|---|
 | [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
+| [first_session_walkthrough.md](first_session_walkthrough.md) | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
 | [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, three-phase turn, islands, Breakout, loot/proliferation |
 | [combat_worked_examples.md](combat_worked_examples.md) | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff doc) |
 | [core_classes.md](core_classes.md) | All entity core classes: Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester |
@@ -24,7 +25,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 
 ## Reading order
 
-New to the project? `lore.md` for world and story context → `combat_system.md` for mechanics → others as needed.
+New to the project? `lore.md` for world and story context → `combat_system.md` for mechanics → others as needed. Want to feel what a new player feels? `first_session_walkthrough.md` is spoiler-free and ends at the first dismemberment snipe.
 
 ## Open questions
 

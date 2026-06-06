@@ -362,6 +362,7 @@ Open sub-decisions feeding this: scaling shape (linear vs. steeper) and armor pe
 | Doc | What it covers |
 |-----|---------------|
 | `design/lore.md` | Narrative, Acts, the Fairy, Graph Theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
+| `design/first_session_walkthrough.md` | Spoiler-free, second-person UX walkthrough — boot → first cut-vertex snipe; calls out funny/questionable beats |
 | `design/combat_system.md` | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, three-phase turn, islands, Breakout, loot/proliferation |
 | `design/combat_worked_examples.md` | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff) |
 | `design/stat_system.md` | v2 stat architecture, `StatDefinition`, modifier operators, canonical Stat Vocabulary |
