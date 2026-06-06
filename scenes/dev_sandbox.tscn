@@ -1,37 +1,108 @@
-[gd_scene load_steps=5 format=3 uid="uid://ch0s7sw18mc23"]
+[gd_scene load_steps=19 format=3 uid="uid://ch0s7sw18mc23"]
 
-[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_skill_node"]
-[ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="2_entity"]
-[ext_resource type="Script" path="res://systems/allocation_system.gd" id="3_alloc"]
-[ext_resource type="Script" path="res://systems/turn_manager.gd" id="4_turn"]
+[ext_resource type="Script" path="res://scenes/dev_sandbox.gd" id="1_dev"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="2_mod"]
+[ext_resource type="Script" path="res://graph/graph.gd" id="3_graph"]
+[ext_resource type="Script" path="res://graph/edge.gd" id="4_edge"]
+[ext_resource type="Script" path="res://graph/navigator.gd" id="5_nav"]
+[ext_resource type="Script" path="res://systems/allocation_system.gd" id="6_alloc"]
+[ext_resource type="Script" path="res://systems/turn_manager.gd" id="7_turn"]
+[ext_resource type="Script" path="res://systems/player_input_controller.gd" id="8_input"]
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
+[ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
+[ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="11_ui"]
+[ext_resource type="Resource" path="res://entity/default_entity_board.tres" id="12_board"]
+
+[sub_resource type="Resource" id="mod_dex_2"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+operation = 0
+value = 2.0
+priority = 0
+
+[sub_resource type="Resource" id="mod_str_2"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+operation = 0
+value = 2.0
+priority = 0
+
+[sub_resource type="Resource" id="mod_hp_5"]
+script = ExtResource("2_mod")
+stat_id = &"health_max"
+operation = 0
+value = 5.0
+priority = 0
 
 [node name="DevSandbox" type="Node2D"]
+script = ExtResource("1_dev")
 
-[node name="AllocationSystem" type="Node" parent="."]
-script = ExtResource("3_alloc")
+[node name="Graph" type="Node2D" parent="." node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
+script = ExtResource("3_graph")
+navigator = NodePath("Navigator")
+skill_nodes_container = NodePath("Nodes")
+edges_container = NodePath("Edges")
 
-[node name="TurnManager" type="Node" parent="."]
-script = ExtResource("4_turn")
+[node name="AllocationSystem" type="Node" parent="Graph" node_paths=PackedStringArray("graph")]
+script = ExtResource("6_alloc")
+graph = NodePath("..")
 
-[node name="Entities" type="Node" parent="."]
+[node name="TurnManager" type="Node" parent="Graph"]
+script = ExtResource("7_turn")
 
-[node name="RedPlayer" parent="Entities" instance=ExtResource("2_entity")]
+[node name="Navigator" type="Node" parent="Graph" node_paths=PackedStringArray("graph")]
+script = ExtResource("5_nav")
+graph = NodePath("..")
+
+[node name="Entities" type="Node" parent="Graph"]
+
+[node name="Player" parent="Graph/Entities" instance=ExtResource("10_entity")]
+unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
+stat_board = ExtResource("12_board")
 
-[node name="BlueNPC" parent="Entities" instance=ExtResource("2_entity")]
-display_name = "Blue NPC"
-color = Color(0.2, 0.3, 0.9, 1)
+[node name="Edges" type="Node2D" parent="Graph"]
 
-[node name="Nodes" type="Node2D" parent="."]
+[node name="Edge_Core_Up" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/Up")
 
-[node name="Unowned" parent="Nodes" instance=ExtResource("1_skill_node")]
-position = Vector2(360, 480)
+[node name="Edge_Core_Right" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/Right")
 
-[node name="OwnedRed" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("1_skill_node")]
-position = Vector2(560, 480)
-owned_by = NodePath("../../Entities/RedPlayer")
+[node name="Edge_Core_Down" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/Down")
 
-[node name="OwnedBlue" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("1_skill_node")]
-position = Vector2(760, 480)
-owned_by = NodePath("../../Entities/BlueNPC")
+[node name="Nodes" type="Node2D" parent="Graph"]
+
+[node name="Core" parent="Graph/Nodes" instance=ExtResource("9_skill") node_paths=PackedStringArray("owned_by")]
+position = Vector2(720, 480)
+owned_by = NodePath("../../Entities/Player")
+
+[node name="Up" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(720, 360)
+modifiers = Array[Resource]([SubResource("mod_dex_2")])
+
+[node name="Right" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(840, 480)
+modifiers = Array[Resource]([SubResource("mod_str_2")])
+
+[node name="Down" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(720, 600)
+modifiers = Array[Resource]([SubResource("mod_hp_5")])
+
+[node name="PlayerInputController" type="Node" parent="." node_paths=PackedStringArray("graph", "allocation_system", "player")]
+script = ExtResource("8_input")
+graph = NodePath("../Graph")
+allocation_system = NodePath("../Graph/AllocationSystem")
+player = NodePath("../Graph/Entities/Player")
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="UIRoot" parent="UI" instance=ExtResource("11_ui")]
