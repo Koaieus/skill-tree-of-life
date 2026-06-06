@@ -1,8 +1,0 @@
-[gd_scene format=3 uid="uid://by4rv2dgkjkev"]
-
-[ext_resource type="Script" uid="uid://bvytjccoxn05h" path="res://autoload/game.gd" id="1_80nbo"]
-
-[node name="Game" type="Node" unique_id=341999445]
-script = ExtResource("1_80nbo")
-
-[connection signal="game_ready" from="." to="." method="_on_game_ready"]

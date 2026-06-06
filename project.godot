@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Skill Tree of Life"
-run/main_scene="uid://bec1d4lmjw1l1"
+run/main_scene="uid://c1cye7r2jar3o"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -23,7 +23,6 @@ config/icon="res://icon.svg"
 
 SceneTransition="*res://autoload/scene_transition.tscn"
 SceneLoader="*res://autoload/scene_loader.tscn"
-Game="*res://autoload/game.tscn"
 
 [display]
 
@@ -40,16 +39,5 @@ version_control/autoload_on_startup=true
 
 folder_colors={
 "res://assets/": "gray",
-"res://autoload/": "red",
-"res://boot/": "gray",
-"res://shaders/": "teal",
-"res://stats/": "purple",
-"res://systems/": "orange",
-"res://ui/": "green"
+"res://autoload/": "red"
 }
-
-[global_group]
-
-players="Player-controlled skill tree entities"
-entities="Skill tree entities"
-initiative-ready="Entities that have sufficient initiative progress that they are ready to take a turn"
