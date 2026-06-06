@@ -46,7 +46,7 @@ These are established mechanics referenced consistently in the design docs.
 
 > **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **battle-phase temporary reach**.
 
-**Effect:** During the **Battle phase** (see the three-phase turn), tapping a Buffer node **temporarily allocates existing field nodes** — reaching across the *real* graph to bring an attacking node/pivot to the front (melee), claim firing stubs (ranged), or pad a casting hub's degree (magic). It does **not** spawn new vertices; it plays with the real skill-node/edge graph. After a tap the Buffer goes on **cooldown** (cannot re-tap next turn — preserves cadence). All temporarily-allocated nodes **revert at turn end** unless **promoted** to permanent during the Consolidation phase (pay 1 real SP each).
+**Effect:** During the **Battle phase** (see the three-phase turn), tapping a Buffer node **temporarily allocates existing field nodes** — reaching across the *real* graph to bring an attacking node/pivot to the front (melee), claim firing stubs (ranged), or pad a casting hub's degree (magic). It does **not** spawn new vertices; it plays with the real skill-node/edge graph. After a tap the Buffer goes on **cooldown** (cannot re-tap next turn — preserves cadence). All temporarily-allocated nodes **revert at battle phase end**.
 
 **Universal across all colors.** Melee/ranged/magic all benefit — it is reach, not a melee-only tool.
 
@@ -185,24 +185,14 @@ Concepts that appeared in design discussion but have not been formally designed.
 
 ### Relay *(concept only — TBD)*
 
-**Proposed concept:** A node carrying Relay increases the effective propagation distance or reach of Blue (graph-magic) attacks that pass through it. Acts like a signal booster in the magic propagation network.
-
-**Why it's TBD:** Magic propagation rules are still an open design question. The exact semantics of "relay" depend on decisions not yet made:
-- Does magic propagate through owned nodes only, or any traversable edge?
-- Is propagation hop-count limited? If so, does Relay add to that count?
-- Does magic hit terminal nodes only, or everything along the path?
-
-Until these are decided, Relay cannot be specified. The concept is interesting — a node that makes your magic more dangerous by virtue of the path running through it — but the implementation is premature.
-
-**Why it was mentioned in earlier docs:** Several versions of the combat design doc referenced Relay as if it were established, particularly in the context of Bleeding Edge (edge-cutting jabs paired with "edge-reintroduction via Relay"). This was premature. The Relay reference in those docs is informally flagged as TBD pending magic propagation design.
-
-**Note:** The edge-reintroduction requirement (no mechanic may leave a region permanently unreachable) still holds. Whatever mechanism eventually provides edge-reintroduction — whether it's Relay, a core ability, reallocation bridging, or something else — needs to be designed alongside Bleeding Edge.
+**Proposed concept:** A node carrying Relay increases the effective propagation distance or reach of Blue (graph-magic) by acting as a signal booster such that a casting node can target anywhere in its own range or within the combined ranges of in-range relays. The spell would be cast as if from there, while it was in fact one or more relays away — might have been some high-degree casting tower node.
 
 ---
 
 ## Tech Seeds
 
 A **Tech Seed** is a rare item found on the field — dropped from loot nodes, hidden in neutral clusters, or earned as a level reward. The player holds a small number of them (`tech_seed_capacity`, default 2). Planting a seed on an owned node starts a growth process that, after several turns, produces **fruits:** modifier options drawn from a weighted pool seeded by the node's type and contents.
+Plant a tech seed, harvest its tech fruits — delicious.
 
 ### How it works
 
@@ -228,7 +218,7 @@ Seeds are rare field items — not buyable, not craftable in v1. Finding a seed 
 
 ---
 
-## Node Specializations
+# Node Specializations (TODO: Move specializations to separate file)
 
 A different concept from addons. A specialization is either:
 - **(A) Intrinsic:** the node was generated on the field in this state. Found-in-the-wild. Cannot be removed or changed.
@@ -237,18 +227,6 @@ A different concept from addons. A specialization is either:
 Both contrast with addons, which are applied freely (within resource constraints) to any compatible owned node.
 
 The following are candidate specializations — design sketches, not confirmed mechanics. The concept is under exploration.
-
----
-
-### Reach Buffer Node *(candidate specialization)* — *(was "Melee Buffer Node")*
-
-> **Re-pointed away from melee fuel.** Melee runs on the phantom blade now, not on charged buffers, so this is no longer "holds extra melee charge." It is a supercharged **reach** node.
-
-**Description:** A node with unusually high `pressure_capacity` — a single tap can temporarily allocate **far more** field nodes than a standard Buffer addon, reaching deeper across the real graph in one battle-phase move (a long melee pivot extension, a wide net of firing stubs, or a big degree-pad for a casting hub). Provides the equivalent of multiple Buffer addons in one node.
-
-**How encountered:** Found on the field in a special state (type-A specialization). Visually distinct. Allocating it provides this capability immediately.
-
-**Design tension:** Is this just a node with a boosted Buffer addon, or categorically different? If it's "Buffer addon + `pressure_capacity` boost," it belongs in the addon system. If it enables reach no addon combination can replicate, it's a true specialization. To be resolved in playtesting.
 
 ---
 
