@@ -18,7 +18,8 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [stat_system.md](stat_system.md) | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
 | [entity_stat_board_prototype.md](entity_stat_board_prototype.md) | Prototype stat values, SP accounting model, damage formula, class stat variations |
 | [metagame.md](metagame.md) | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
-| [skill_node_addons.md](skill_node_addons.md) | Node addons, node specializations, Tech Seeds |
+| [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
+| [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) |
 | [spells.md](spells.md) | Spell catalogue — identity and propagation mechanics for all Blue (INT/magic) spells |
 
 ## Reading order

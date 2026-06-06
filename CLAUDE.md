@@ -87,7 +87,8 @@ Canonical entry points: **`docs/GDD.md`** (master GDD — pitch, core loop, road
 | `docs/design/stat_system.md` | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
 | `docs/design/entity_stat_board_prototype.md` | Prototype stat values, SP accounting, damage formula, class stat variations |
 | `docs/design/metagame.md` | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
-| `docs/design/skill_node_addons.md` | Node addons, node specializations, Tech Seeds |
+| `docs/design/skill_node_addons.md` | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
+| `docs/design/skill_node_specializations.md` | Node specializations (Corrupted, Crystallized, Anchor) |
 | `docs/design/spells.md` | Spell catalogue — identity and propagation for all Blue (INT/magic) spells |
 
 ## Issue tracking

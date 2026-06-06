@@ -1,18 +1,16 @@
-# Addons & Node Specializations — Skill Tree of Life
+# Node Addons — Skill Tree of Life
 
 ---
 
 ## Two Distinct Concepts
 
-Before listing anything, the distinction:
+**Addons** are attachable components applied to a node on top of its base type. They are modular — a node can have an addon applied to it, possibly removed, possibly transferred. Multiple addons can coexist on one node (if compatible). Addons are found as loot, granted by class abilities, or produced by the Tech Seed system.
 
-**Addons** are attachable components applied to a node on top of its base type. They are modular — a node can have an addon applied to it, possibly removed, possibly transferred. A node with an Armor Ring addon is still a regular node; it just has a piece of equipment attached. Multiple addons can coexist on one node (if compatible). Addons are found as loot, granted by class abilities, or produced by the Tech Seed system.
-
-**Node Specializations** are something deeper — either a node's intrinsic nature as generated on the field, or a state a node has been transformed into through a process. A specialized node cannot have its specialization removed without destroying or fundamentally altering the node. Some specializations may be one-way: once transformed, the node is that forever. Others may be found in that state — already specialized when the player encounters them, as part of the field's procedural generation. Specializations are rarer, more impactful, and not freely applicable to arbitrary nodes.
+**Node Specializations** are something deeper — either a node's intrinsic nature as generated on the field, or a state transformed into through a costly irreversible process. See [skill_node_specializations.md](skill_node_specializations.md).
 
 **Designer test:** If you can apply it to any node you already own with resources, it's probably an addon. If the node has to come that way, or be forged into that state through a special act, it's probably a specialization.
 
-This distinction is provisional and may collapse or subdivide further once both systems are playtested. Both concepts are tracked in this doc; the exact boundary is flagged as an open question.
+This distinction is provisional and may collapse or subdivide further once both systems are playtested.
 
 ---
 
@@ -177,15 +175,49 @@ It is purely a topological anchor.
 
 ---
 
+### Relay
+
+> **Direction confirmed; damage bonus and routing cost OPEN.** The old "extends hop count" model is replaced. Relay is now an *extension of the casting origin* — a magical signal booster, not a range extender.
+
+**Effect:** A Relay node allows a casting hub to **project its cast origin** through a chain of Relay nodes. When a spell is initiated, the player may designate any chain of Relay nodes reachable from the hub; the spell then originates from the terminal Relay — as if cast from there. The intermediate chain is transparent (does not consume hops to traverse). The hub still acts; the Relay shifts where the spell begins.
+
+**Chain behavior:** A sequence of Relays pushes the effective origin progressively deeper — or to a high-degree position the hub itself can't reach. Like RA2 Prism Towers: each Relay rebroadcasts from its own location, with potential amplification.
+
+**Degree at the relay:** The terminal Relay's degree determines the spell's tier and branching factor from that point. Routing to a Relay on a high-degree node unlocks higher-tier spells the hub might not access on its own — a remote casting tower.
+
+**No downside:** No cooldown, no hop penalty for using a relay. Dedicating a node slot to Relay is the cost — a non-attacking, non-blocking slot whose value is purely positional.
+
+**Damage bonus *(OPEN)*:** Routing through N Relays may add a damage multiplier or flat bonus (the signal concentrates as it rebroadcasts). Whether this is per-Relay (stacking) or flat for using any relay at all is unresolved; TBD in playtesting.
+
+---
+
 ## TBD Addons
 
 Concepts that appeared in design discussion but have not been formally designed. Listed here for tracking. **Not confirmed mechanics.**
 
 ---
 
-### Relay *(concept only — TBD)*
+### Anti-Magic *(concept — TBD)*
 
-**Proposed concept:** A node carrying Relay increases the effective propagation distance or reach of Blue (graph-magic) by acting as a signal booster such that a casting node can target anywhere in its own range or within the combined ranges of in-range relays. The spell would be cast as if from there, while it was in fact one or more relays away — might have been some high-degree casting tower node.
+**Proposed concept:** A node carrying Anti-Magic adds +1 to the effective hop cost of any spell passing through it. A spell with N hops remaining that would normally propagate to neighbors with N−1 hops exits with N−2 instead — consuming one extra hop at the anti-magic node, reducing propagation depth and spread.
+
+**Effect in play:** Anti-Magic nodes in a chokepoint form magical terrain denial — enemy spells enter with N hops and leave significantly depleted. A ring of Anti-Magic nodes around a cluster could render it effectively magic-immune.
+
+**Branching interaction:** Fewer remaining hops reduce the spell's effective branching factor at downstream nodes (if degree-gated by remaining hops). Anti-Magic doesn't just cap range — it reduces spread as a spell penetrates deeper.
+
+**Counterplay:** Route spells *around* anti-magic clusters via Relay chains, projecting the cast origin past the denial zone rather than through it.
+
+**Why not negative hop costs:** The inverse direction — nodes that *restore* hops (negative edge cost) — was considered. Standard Dijkstra/BFS breaks with negative weights; nodes giving back hops would loop indefinitely through a negative-cost node to accumulate free range. Bellman-Ford handles negative weights but not negative *cycles*, and any graph loop through a negative-cost node is a negative cycle. Anti-Magic (+cost, always positive) is the clean design lever for hop-cost manipulation — no algorithmic special-casing required.
+
+---
+
+### Conduit *(concept — TBD; likely specialization, not addon)*
+
+**Proposed concept:** A node with 0 hop cost for spell propagation. Spells pass through Conduit nodes without consuming hops — a magical highway. A chain of Conduit nodes allows spells to travel far with no range penalty.
+
+**Classification question:** This reads as a field-generated intrinsic specialization more than a player-applied addon — zero-cost transit feels like rare terrain rather than equipment. Resolve alongside Anti-Magic once magic propagation is stable.
+
+**Interaction with Anti-Magic:** An Anti-Magic node immediately downstream of a Conduit chain would consume the hops the Conduit preserved — the two effects cancel locally, which is interesting territory.
 
 ---
 
@@ -218,55 +250,6 @@ Seeds are rare field items — not buyable, not craftable in v1. Finding a seed 
 
 ---
 
-# Node Specializations (TODO: Move specializations to separate file)
-
-A different concept from addons. A specialization is either:
-- **(A) Intrinsic:** the node was generated on the field in this state. Found-in-the-wild. Cannot be removed or changed.
-- **(B) Transformed:** a player (or enemy) applied an irreversible or partially-reversible process to a normal node to create a specialized state. The process is costly, possibly destructive.
-
-Both contrast with addons, which are applied freely (within resource constraints) to any compatible owned node.
-
-The following are candidate specializations — design sketches, not confirmed mechanics. The concept is under exploration.
-
----
-
-### Corrupted Node *(candidate specialization)*
-
-**Description:** A node with powerful modifiers but a significant downside that cannot be removed — the benefit and the cost are permanently fused. Might be encountered on the field as neutral (abandoned by a dead entity that couldn't afford the cost), or created through a process that involves trading something permanently.
-
-**Examples (illustrative, not committed):**
-- `+5 DEX / −3 armor` — ranged powerhouse, structurally fragile
-- `+1 sp_per_turn / takes double damage` — economic engine with a death wish
-- `damage_floor = −1 / 0.5× node_health_max` — heals slightly when hit, but dies in two hits
-
-**How encountered:** Field-generated (type-A) primarily. Possibly also type-B: the Bulwark's floor-reduction perk path as a form of controlled self-corruption — choosing to make your floor-reduction permanent and irreversible in exchange for a stronger bonus.
-
-**Design note:** Corrupted nodes as a category make the loot system richer. A STEAL option in the loot window that says `+5 DEX (take double damage)` is a real decision. Proliferating that modifier is especially interesting — under the reframed model (PROLIFERATE = remove a core-held mod, mint **N tainted copies** across a cluster you must hold; see `combat_system.md`), you'd be spreading the double-damage downside across multiple nodes while spreading the DEX bonus. Whether the downside proliferates at the same rate as the bonus is a calibration question. Note that the **N copies are tainted** — owner-independent, non-extractable, non-re-proliferable — so you can never launder a corrupted-but-juicy mod back into a clean portable core mod by round-tripping it through the field.
-
----
-
-### Crystallized Node *(candidate specialization)*
-
-**Description:** A normal node that has been locked into its current state — its modifiers are frozen permanently (cannot be upgraded, overwritten, or proliferated from). In exchange, those modifiers are permanently stronger than a normal node's equivalents. Cannot be deallocated by the owning entity (only force-deallocation by combat can remove it). Can be transferred to an adjacent position once (consuming the crystallization — the node becomes normal again at the destination).
-
-**How created:** Type-B specialization. Triggered by a player ability or loot option — a deliberate act of trading flexibility for permanence. "I want this `+3 armor` node here, always, no matter what."
-
-**Use case:** Locking a high-value node in a critical position. A Crystallized Lifeline node that cannot be voluntarily retreated becomes an ironclad topological anchor. A Crystallized Armor Ring node at a chokepoint is a permanent fortification.
-
-**Cost:** Inability to dealloc it if the build changes. Potentially losing the investment if that node is killed in combat (crystalized doesn't mean unkillable — just unlockable).
-
----
-
-### Anchor Node *(candidate specialization)*
-
-**Description:** A node that resists island dissolution — when it becomes part of an island, it has N turns of built-in grace before the island dissolves (like a built-in Lifeline, but intrinsic to the node rather than an addon).
-
-**Distinction from Lifeline addon:** Lifeline protects nodes *near* it. An Anchor node protects *itself and its sub-graph* from immediate dissolution. It's stronger per-node but applies to fewer nodes (just those in its own island).
-
-**Notes:** Potentially the rarest field-generated node type. Might be the natural-lore explanation for why some nodes survive longer than others in ancient contested regions of the tree — they've "crystallized" through long allocation history into more resilient forms.
-
----
-
 ## Addon Design Principles
 
 1. **Addons change behavior; modifiers change stats.** A node with Armor Ring is defensively stronger because of behavior (damage reduction per hit). A node with a `+3 armor` modifier is stronger because of a stat. Both contribute to the same effective armor, but through different pipeline stages.
@@ -275,20 +258,18 @@ The following are candidate specializations — design sketches, not confirmed m
 
 3. **Addons don't define node type.** A Red node with Armor Ring is still a Red node — it provides STR, it attacks with melee, it just also reduces damage to itself. The color identity doesn't change.
 
-4. **Specializations should feel rare and meaningful.** If specializations are too common, they're just addons with extra steps. The first Crystallized node a player encounters should feel significant.
-
 ---
 
 ## Open Questions
 
-1. **Addon/Specialization boundary:** Does the distinction hold up in practice, or does everything collapse into one system? Could revisit after first playtests.
+1. **Addon/Specialization boundary:** Does the distinction hold up in practice, or does everything collapse into one system? Could revisit after first playtests. (Also tracked in [skill_node_specializations.md](skill_node_specializations.md).)
 2. **Addon transferability:** Can addons be moved from one node to another? Removed entirely? Or are they permanent once applied? If removable, they're more like equipment. If permanent, they're closer to specializations.
 3. **Addon stacking:** Can a node have multiple addons simultaneously? Are there compatibility rules? (E.g., Armor Ring + Reinforcement = yes. Lifeline + Lifelink = probably not, doesn't make sense.)
-4. **Relay design:** Blocked on magic propagation rules. Return to this after magic is designed.
-5. **Corrupted node downside proliferation:** When a corrupted modifier is PROLIFERATED in loot resolution, does the downside also proliferate? At the same rate? This determines how dangerous a corrupted loot pick is.
-6. **Crystallized node combat interaction:** Crystallized = can't be voluntarily deallocated. Does this mean it can't participate in melee reshaping (Buffer charging requires the node to spend its action, not dealloc — so probably fine)? Does Uprooting count as force-deallocation or voluntary?
-7. **Buffer addon vs Buffer specialization:** Resolve by playtesting whether the capability difference is meaningful enough to warrant two systems.
-8. **Gate persistence on turn end:** does a toggle persist past turn end, or revert? Leaning persistent. (Gate addon.)
-9. **Gate self-island warning frequency:** warn once, or every time a toggle would island the owner's own constellation? (Gate addon.)
-10. **Addon lifecycle on node death (general):** refund / addon-breakage policy when an endpoint (Gate) or carrier node dies — does the addon drop, refund, or break? Deferred general question raised by the Gate's 2-endpoint lifecycle.
-11. **Gate vs. Buffer identity:** both are "temporary topology" utility — keep distinct (edges vs. nodes) or let one absorb part of the other's role? Revisit if play shows the identities blur.
+4. **Buffer addon vs Buffer specialization:** Resolve by playtesting whether the capability difference is meaningful enough to warrant two systems.
+5. **Gate persistence on turn end:** Does a toggle persist past turn end, or revert? Leaning persistent.
+6. **Gate self-island warning frequency:** Warn once, or every time a toggle would island the owner's own constellation?
+7. **Addon lifecycle on node death (general):** Refund / addon-breakage policy when an endpoint (Gate) or carrier node dies — does the addon drop, refund, or break? Deferred general question raised by the Gate's 2-endpoint lifecycle.
+8. **Gate vs. Buffer identity:** Both are "temporary topology" utility — keep distinct (edges vs. nodes) or let one absorb part of the other's role? Revisit if play shows the identities blur.
+9. **Relay damage bonus:** Is the amplification per-Relay (stacking) or a flat bonus for using any relay at all? TBD in playtesting.
+10. **Relay routing cost:** Is the relay chain transparent (free origin-shift, no hop cost to traverse), or does routing through relays consume hops to reach the terminal relay? Direction: transparent (free); confirm in playtesting.
+11. **Anti-Magic / Conduit classification:** +1-hop-cost and 0-hop-cost as player-applied addons or field-generated specializations? Resolve once magic propagation model is stable.
