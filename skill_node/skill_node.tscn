@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://skill_node/skill_node.gd" id="1_skill"]
+[ext_resource type="Script" path="res://skill_node/base_circle.gd" id="2_base"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
+radius = 32.0
+
+[node name="SkillNode" type="Area2D"]
+script = ExtResource("1_skill")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_hit")
+
+[node name="Visuals" type="Node2D" parent="."]
+
+[node name="BaseCircle" type="Node2D" parent="Visuals"]
+script = ExtResource("2_base")
+
+[node name="HoverRing" type="Node2D" parent="Visuals"]
+visible = false
+
+[node name="CoreMarker" type="Node2D" parent="Visuals"]
+visible = false
+
+[node name="AddonAnchor" type="Node2D" parent="Visuals"]
