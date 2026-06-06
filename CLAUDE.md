@@ -72,6 +72,31 @@ Beam effect along graph edges when a node is allocated.
 | `XRM` | Global transform utilities |
 | `DeferOnce` | Deferred single-fire utility |
 
+## Game mechanics in one screen
+
+A mental model for fast routing and answering questions. Status: most rules are designed, most numbers are not calibrated. Full detail lives in `docs/design/` (see index below).
+
+**The pitch.** The skill tree IS the world. Entities (player + NPCs) own connected **induced** subgraphs of allocated nodes on one shared, procedurally generated planar graph (300–1000 nodes). Turn-based, initiative-driven. Roguelite — a run is a level chain ending in a Breakout that recurses you one fractal level up.
+
+**Entity = connected induced subgraph + a Core.** The Core is a portable node the entity "sits on"; it carries modifiers like any node and also radiates an *aura* over nearby owned nodes (range/shape varies by class). Each allocated node contributes its `StatModifier`s to the entity's stat board. Allocating costs 1 SP; deallocating refunds. Lost-to-attack nodes **reserve** SP (no refund), recovered via `heal/turn`. Killing a **cut vertex** islands an arm; orphans dissolve unless Lifeline/Lifelink saves them.
+
+**Six color attributes (base ≈ 10 each).** Attack: **R/STR** (melee), **G/DEX** (ranged), **B/INT** (magic). Utility: **W/CON** (durability — node HP, armor weight), **Gold/WIS** (XP / economy), **Purple/PER** (vision + sensor). The scaling spine: `outgoing = base + attribute//10 × instances`, defense applied once per target.
+
+**Three attack modes, each weaponizes a different graph primitive.**
+- **Ranged (G/DEX)** — every owned **leaf** (degree 1) in euclidean range volleys one target. `DEX//10` per firing leaf.
+- **Magic (B/INT)** — degree-gates spell tier (hubs cast bigger; self-loops give +2 degree and are prized casting stations). Propagation along edges; potency scales with `INT//10`; reach is rare (`bonus_hop_count`). `attack_range` doesn't apply.
+- **Melee (R/STR) — the phantom blade.** Pick a connected set of owned nodes (size `STR//10+1`); a 1:1 copy is swung pivoted at one node. Rigidity emerges from triangulation (tensegrity); chain = whippy, triangulated = rigid cleaver.
+
+**Turn structure.** Initiative ticks until 100 → entity acts. Three phases: **Deployment → Battle → Consolidation**, single SP pool (no "temp SP" — the phase IS the temp/permanent flag). **2 `action_points`** per turn by default. The second action is load-bearing because **`node_health` resets at each owner's turn start** — survivability is a *per-round focus-soak gate*, not chipping over turns. The Core has a recharging shield over a persistent `health` pool; **death = `health` depletion**, not core-node loss.
+
+**Progression.** Three growth axes are the same act: allocate nodes (territory + modifiers), level up (+1 SP cap + draft 1 of 3–5 permanent core modifiers; pool size = `3 + luck`), loot kills (STEAL onto core, PROLIFERATE over nearby nodes). Each level ends in a **Breakout**: destroy all **Tethers** + kill the guardian → the field collapses into one node, your new starter one fractal level up. End-game = the **Apex Entity** (Ophanim ring). Between runs: a **Metagame** hub + meta skill tree; allocating a meta node *is* what crashes you into a run; commit-on-completion.
+
+**Classes (7 + sketches).** Class = starting stat weights + an aura rule (+ occasional unique mechanic). Aura *shape* (near / shell / far) is most of identity. Roster: Allround, Predator (BLITZ-steal), Bulwark (`damage_floor` floor), Ninja (deallocation burst), Hive (Lifelink pods), Halo (shell aura + thorns), Serpent (far-in-hops-near-in-space). Plus Edgelord (edge ops; last to unlock), Frontier, Harvester.
+
+**Stat system (v2 in flight).** `StatDefinition` resources keyed by `StringName`, `RuntimeStat` objects, `StatRegistry` autoload. Operators apply PoE-style: `ADD_FLAT → ADD_PERCENT → MULTIPLY`. Adding a stat = define one resource. v1 (GDScript-as-key) still ships; prefer v2 patterns for new stats.
+
+**Open holes worth knowing about.** The **defensive curve** and the per-round focus count are uncalibrated — GDD §11a and `docs/design/combat_worked_examples.md` are the agreed plan to lock the battle formula. Magic propagation rules + Relay are still open (blocks several systems). Most class numbers await calibration.
+
 ## Design docs index
 
 Canonical entry points: **`docs/GDD.md`** (master GDD — pitch, core loop, roadmap) and **`docs/design/index.md`** (the design-doc index with reading order). Per-doc open questions live at the bottom of each doc; tracked work lives in **GitHub Issues** (see below).
@@ -81,6 +106,7 @@ Canonical entry points: **`docs/GDD.md`** (master GDD — pitch, core loop, road
 | `docs/GDD.md` | Master GDD — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | `docs/design/index.md` | Index + reading order for the design docs below |
 | `docs/design/lore.md` | Narrative, acts, the Fairy, graph theology, Field/Tethers/Breakout, tone, visual language |
+| `docs/design/first_session_walkthrough.md` | Spoiler-free, second-person UX walkthrough — boot → first cut-vertex snipe; calls out funny/questionable beats |
 | `docs/design/combat_system.md` | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree→offense, self-loops, three-phase turn, islands, Breakout, loot |
 | `docs/design/combat_worked_examples.md` | Worked fights in real numbers; tempo axiom; defense-function handoff |
 | `docs/design/core_classes.md` | Entity core classes (Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester, Edgelord) |
@@ -101,3 +127,17 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Project-specific lab
 - `%NodeName` (unique name) shorthand is used for child node access in several scenes.
 - `call_deferred` / `await` patterns are common for post-ready initialization (e.g. `Game.game_ready` signal).
 - Stat keys are currently `GDScript` objects (`get_script()`) — do not rename or move stat files without updating all `StatModifier.stat_key` references.
+
+## Knowledge accumulation
+
+When you learn something non-obvious about this project — a gotcha, a convention that isn't visible from the code, a workflow surprise, a design decision the GDD doesn't capture — **proactively offer to write it down**. Don't wait to be asked.
+
+Sizing discipline:
+- **Small rules / gotchas (<200 tokens)** live inline in this file under whatever section fits (Architecture, Godot conventions, etc.). Format: lead with the rule, then **Why:** and **How to apply:** so future-you can judge edge cases instead of blindly following.
+- **Larger context** (multi-paragraph mechanics, decision trees, code samples, refactor playbooks) lives in `docs/domain/<topic>.md`. This is distinct from `docs/design/` — `docs/design/` is the *game's* design (lore, balance, mechanics specs), `docs/domain/` is *engineering* knowledge for agents working on this codebase.
+- **Project-wide rules** that don't slot under any existing section live in CLAUDE.md as a top-level entry, no scoping needed.
+- When an inline rule grows past ~200 tokens, **graduate it to `docs/domain/`** and leave a one-line breadcrumb here: `- See [docs/domain/<topic>.md](docs/domain/<topic>.md) for X`.
+
+Audit every few turns: scan CLAUDE.md for rules that have ballooned and propose graduation. Goal: this file stays scannable — ~200 lines max — while the rule-base scales.
+
+Game-design knowledge (lore, mechanics, balance numbers) belongs in `docs/design/`, not `docs/domain/` and not inline here. If a "rule" you're tempted to save is really a design clarification, raise it as a doc update or a GitHub Issue (`design` label) instead.
