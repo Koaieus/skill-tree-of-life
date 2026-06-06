@@ -6,24 +6,7 @@
 
 The other design docs describe systems. This one describes **what the player goes through.** It tracks the felt arc — the boring bits, the off-bits, the click-of-understanding bit — from the title screen to the moment the player executes the game's signature move: severing an enemy entity into pieces by hitting the right load-bearing node.
 
-It is **spoiler-free.** It does not reveal:
-
-- Why the crash happens, or what caused it.
-- What the Tethers actually are.
-- The shape of the world beyond the first map.
-- Anything about the Fairy beyond what the player observes first-hand.
-- The endgame.
-
-(If you can read those words and not flinch, you've read too much of `lore.md`. This doc is written for a fresh pair of eyes.)
-
-### Reading the callouts
-
-Two kinds of moments are tagged inline so they don't get lost in the prose:
-
-- **Questionable** — a beat a thinking player will notice and squint at. Something subtly off, an unstated implication, a small violation of the contract the game seemed to make a minute ago.
-- **Funny** — comic friction, deliberate absurdity, or the kind of moment a streamer will replay. Often the same moment is both, ten seconds apart.
-
-A running tally is in the appendix.
+It is **spoiler-free.** 
 
 ---
 

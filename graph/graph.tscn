@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://graph/graph.gd" id="1_graph"]
+[ext_resource type="Script" path="res://graph/navigator.gd" id="2_nav"]
+[ext_resource type="Script" path="res://systems/allocation_system.gd" id="3_alloc"]
+[ext_resource type="Script" path="res://systems/turn_manager.gd" id="4_turn"]
+
+[node name="Graph" type="Node2D" node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
+script = ExtResource("1_graph")
+navigator = NodePath("Navigator")
+skill_nodes_container = NodePath("Nodes")
+edges_container = NodePath("Edges")
+
+[node name="AllocationSystem" type="Node" parent="." node_paths=PackedStringArray("graph")]
+script = ExtResource("3_alloc")
+graph = NodePath("..")
+
+[node name="TurnManager" type="Node" parent="."]
+script = ExtResource("4_turn")
+
+[node name="Navigator" type="Node" parent="." node_paths=PackedStringArray("graph")]
+script = ExtResource("2_nav")
+graph = NodePath("..")
+
+[node name="Entities" type="Node" parent="."]
+
+[node name="Edges" type="Node2D" parent="."]
+
+[node name="Nodes" type="Node2D" parent="."]
