@@ -31,7 +31,7 @@ func _ready() -> void:
 
 func _boot_if_game_scene() -> void:
 	var current := get_tree().current_scene
-	if current and current.scene_file_path.contains("/tools/"):
+	if current and not current.scene_file_path.contains("/boot/"):
 		return
 	start_game_with_level("res://levels/dev_level_tree_graph.tscn")
 

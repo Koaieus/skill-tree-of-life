@@ -1,26 +1,55 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://c1cye7r2jar3o"]
 
-[ext_resource type="Script" path="res://skill_node/skill_node.gd" id="1_skill"]
-[ext_resource type="Script" path="res://skill_node/base_circle.gd" id="2_base"]
+[ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
+[ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
+[ext_resource type="Script" uid="uid://cf2g8u0e7gw33" path="res://skill_node/core_marker.gd" id="3_0y6o7"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 radius = 32.0
 
-[node name="SkillNode" type="Area2D"]
+[sub_resource type="GDScript" id="GDScript_0y6o7"]
+script/source = "@tool
+extends Node2D
+
+var _host: SkillNode
+@export var color: Color = Color.YELLOW_GREEN
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	_host = owner as SkillNode
+
+func _draw() -> void:
+	if _host == null:
+		return
+	var r := _host.radius + 6
+	draw_circle(Vector2.ZERO, r, color, false, 3)
+	
+"
+
+[node name="SkillNode" type="Area2D" unique_id=1765804138]
 script = ExtResource("1_skill")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=987061496]
+visible = false
 shape = SubResource("CircleShape2D_hit")
+metadata/_edit_lock_ = true
 
-[node name="Visuals" type="Node2D" parent="."]
+[node name="Visuals" type="Node2D" parent="." unique_id=1803819214]
+metadata/_edit_lock_ = true
 
-[node name="BaseCircle" type="Node2D" parent="Visuals"]
+[node name="BaseCircle" type="Node2D" parent="Visuals" unique_id=215651254]
 script = ExtResource("2_base")
 
-[node name="HoverRing" type="Node2D" parent="Visuals"]
+[node name="HoverRing" type="Node2D" parent="Visuals" unique_id=670952446]
 visible = false
+script = SubResource("GDScript_0y6o7")
+color = Color(0.6039216, 0.8039216, 0.19607843, 0.6745098)
 
-[node name="CoreMarker" type="Node2D" parent="Visuals"]
+[node name="CoreMarker" type="Node2D" parent="Visuals" unique_id=1043477974]
 visible = false
+script = ExtResource("3_0y6o7")
 
-[node name="AddonAnchor" type="Node2D" parent="Visuals"]
+[node name="AddonAnchor" type="Node2D" parent="Visuals" unique_id=1119406181]
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]

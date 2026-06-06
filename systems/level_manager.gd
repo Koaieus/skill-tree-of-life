@@ -30,14 +30,6 @@ func load_level_async(level_path: String):
 		remove_child(_current_level_scene)
 		_current_level_scene.queue_free()
 
-	# Hook up global systems refs
-	#Game.tree_graph = _current_level_scene
-	#Game.navigator = _current_level_scene.navigator
-	#Game.turn_manager = _current_level_scene.turn_manager
-
-	#await get_tree().process_frame
-	#fade.fade_in()
-	
 	return level_loaded
 
 func _reset() -> void:
@@ -70,5 +62,3 @@ func _complete_loading() -> void:
 	_current_level_scene = packed.instantiate()
 	add_child(_current_level_scene)
 	level_loaded.emit(_current_level_scene)
-	#var fade = Game.root.fade_layer
-	#fade.fade_in()

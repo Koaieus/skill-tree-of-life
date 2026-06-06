@@ -3,13 +3,18 @@ class_name SkillNode
 extends Area2D
 
 signal radius_changed
-signal allocation_state_changed
+signal owner_changed
 
-enum AllocationState {
-	UNALLOCATED,
-	ALLOCATED,
-	LOCKED,
-}
+# `owned_by` is the single source of truth for allocation:
+# null  → unallocated
+# !null → allocated
+# Typed `Node` as a placeholder until the v2 `Entity` class lands.
+@export var owned_by: Node = null:
+	set(value):
+		if owned_by == value:
+			return
+		owned_by = value
+		owner_changed.emit()
 
 @export var radius: float = 32.0:
 	set(value):
@@ -19,12 +24,7 @@ enum AllocationState {
 		radius_changed.emit()
 		_sync_collision()
 
-@export var allocation_state: AllocationState = AllocationState.UNALLOCATED:
-	set(value):
-		if allocation_state == value:
-			return
-		allocation_state = value
-		allocation_state_changed.emit()
+@onready var hover_ring: Node2D = $Visuals/HoverRing
 
 
 func _ready() -> void:
@@ -39,3 +39,22 @@ func _sync_collision() -> void:
 	if shape == null:
 		return
 	shape.radius = radius
+
+
+func is_allocated() -> bool:
+	return owned_by != null
+
+
+func get_owner_color() -> Color:
+	# Duck-typed for now; owner is expected to expose a `color` property.
+	if owned_by and "color" in owned_by:
+		return owned_by.color
+	return Color.WHITE
+
+
+func _on_mouse_entered() -> void:
+	hover_ring.show()
+
+
+func _on_mouse_exited() -> void:
+	hover_ring.hide()

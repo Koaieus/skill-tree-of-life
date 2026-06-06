@@ -42,6 +42,8 @@ func load_scene_async(path: String, progress_callback := Callable()) -> Signal:
 
 
 func _process(_delta):
+	if status == LoadingStatus.IDLE:
+		return
 	var prog : Array[float] = []
 	var loading_status = ResourceLoader.load_threaded_get_status(_loading_path, prog)
 	match loading_status:

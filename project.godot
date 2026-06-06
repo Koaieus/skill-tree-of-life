@@ -23,11 +23,6 @@ config/icon="res://icon.svg"
 
 SceneTransition="*res://autoload/scene_transition.tscn"
 SceneLoader="*res://autoload/scene_loader.tscn"
-StatUIConfig="*res://autoload/stat_ui_config.tscn"
-XRM="res://autoload/global_transform.tscn"
-DeferOnce="*res://autoload/defer_once.tscn"
-StatMetaDataRepository="*res://autoload/stat_metadata_repository.tscn"
-Skills="res://skills.tscn"
 Game="*res://autoload/game.tscn"
 
 [display]
@@ -48,7 +43,6 @@ folder_colors={
 "res://autoload/": "red",
 "res://boot/": "gray",
 "res://shaders/": "teal",
-"res://stat_system/": "gray",
 "res://stats/": "purple",
 "res://systems/": "orange",
 "res://ui/": "green"
