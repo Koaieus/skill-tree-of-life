@@ -10,4 +10,5 @@ extends StatDef
 @export var min_value: int = 0
 @export var is_growable: bool = false
 @export var heal_on_max_increase: bool = true
+@export var can_overflow: bool = false
 # growth_formula: TBD (Callable / GrowthCurve resource)
