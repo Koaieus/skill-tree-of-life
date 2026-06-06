@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://dc4sbd0hfnuni"]
+[gd_scene load_steps=2 format=3 uid="uid://dc4sbd0hfnuni"]
+
+[ext_resource type="Script" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 
 [sub_resource type="GDScript" id="GDScript_l40t2"]
 resource_name = "UIRoot"
@@ -76,8 +78,10 @@ text = "Stats:"
 uppercase = true
 
 [node name="StatsVBox" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/StatsPanel/MarginContainer/VBoxContainer" unique_id=1108079112]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+script = ExtResource("1_stats_panel")
 
 [node name="PanelContainerRight" type="PanelContainer" parent="VBoxContainer/HBoxContainer" unique_id=118152412]
 layout_mode = 2
