@@ -177,7 +177,7 @@ value = 0.0
 
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
 script = ExtResource("script_expr")
-formula = "floor(log(max(1.0, float(intelligence))))"
+formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
 inputs = [&"intelligence"]
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
@@ -189,7 +189,7 @@ value = 0.0
 
 [sub_resource type="Resource" id="formula_wis_to_xp_pt"]
 script = ExtResource("script_expr")
-formula = "floor(log(max(1.0, float(wisdom))))"
+formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
 inputs = [&"wisdom"]
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
