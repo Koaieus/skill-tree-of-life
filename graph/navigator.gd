@@ -13,7 +13,6 @@ extends Node
 
 var astar: AStarSkillTree = AStarSkillTree.new()
 var _node_ids: Dictionary[SkillNode, int] = {}
-var _next_id: int = 0
 
 
 func _ready() -> void:
@@ -36,8 +35,7 @@ func vertex_id(node: SkillNode) -> int:
 func _on_node_added(node: SkillNode) -> void:
 	if _node_ids.has(node):
 		return
-	var id := _next_id
-	_next_id += 1
+	var id := astar.get_available_point_id()
 	_node_ids[node] = id
 	astar.add_point(id, node.global_position)
 

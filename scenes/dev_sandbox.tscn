@@ -1,108 +1,103 @@
-[gd_scene load_steps=19 format=3 uid="uid://ch0s7sw18mc23"]
+[gd_scene format=3 uid="uid://ch0s7sw18mc23"]
 
-[ext_resource type="Script" path="res://scenes/dev_sandbox.gd" id="1_dev"]
+[ext_resource type="Script" uid="uid://2d6x3xbm2fai" path="res://scenes/dev_sandbox.gd" id="1_dev"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="2_mod"]
-[ext_resource type="Script" path="res://graph/graph.gd" id="3_graph"]
-[ext_resource type="Script" path="res://graph/edge.gd" id="4_edge"]
-[ext_resource type="Script" path="res://graph/navigator.gd" id="5_nav"]
-[ext_resource type="Script" path="res://systems/allocation_system.gd" id="6_alloc"]
-[ext_resource type="Script" path="res://systems/turn_manager.gd" id="7_turn"]
-[ext_resource type="Script" path="res://systems/player_input_controller.gd" id="8_input"]
+[ext_resource type="Script" uid="uid://l5c7l8ty7fm1" path="res://graph/graph.gd" id="3_graph"]
+[ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="4_edge"]
+[ext_resource type="Script" uid="uid://drlgxrdnh2rtd" path="res://graph/navigator.gd" id="5_nav"]
+[ext_resource type="Script" uid="uid://blmjm81fytofd" path="res://systems/allocation_system.gd" id="6_alloc"]
+[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="7_al7ob"]
+[ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
+[ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="11_ui"]
-[ext_resource type="Resource" path="res://entity/default_entity_board.tres" id="12_board"]
 
 [sub_resource type="Resource" id="mod_dex_2"]
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
-operation = 0
 value = 2.0
-priority = 0
 
 [sub_resource type="Resource" id="mod_str_2"]
 script = ExtResource("2_mod")
 stat_id = &"strength"
-operation = 0
 value = 2.0
-priority = 0
 
 [sub_resource type="Resource" id="mod_hp_5"]
 script = ExtResource("2_mod")
 stat_id = &"health_max"
-operation = 0
 value = 5.0
-priority = 0
 
-[node name="DevSandbox" type="Node2D"]
+[node name="DevSandbox" type="Node2D" unique_id=325788489]
 script = ExtResource("1_dev")
 
-[node name="Graph" type="Node2D" parent="." node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
+[node name="Graph" type="Node2D" parent="." unique_id=1984989213 node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
 script = ExtResource("3_graph")
 navigator = NodePath("Navigator")
 skill_nodes_container = NodePath("Nodes")
 edges_container = NodePath("Edges")
 
-[node name="AllocationSystem" type="Node" parent="Graph" node_paths=PackedStringArray("graph")]
+[node name="AllocationSystem" type="Node" parent="Graph" unique_id=1431902936 node_paths=PackedStringArray("graph")]
 script = ExtResource("6_alloc")
 graph = NodePath("..")
 
-[node name="TurnManager" type="Node" parent="Graph"]
+[node name="TurnManager" type="Node" parent="Graph" unique_id=1435071114]
 script = ExtResource("7_turn")
 
-[node name="Navigator" type="Node" parent="Graph" node_paths=PackedStringArray("graph")]
+[node name="Navigator" type="Node" parent="Graph" unique_id=552086591 node_paths=PackedStringArray("graph")]
 script = ExtResource("5_nav")
 graph = NodePath("..")
 
-[node name="Entities" type="Node" parent="Graph"]
+[node name="Entities" type="Node" parent="Graph" unique_id=945415300]
 
-[node name="Player" parent="Graph/Entities" instance=ExtResource("10_entity")]
+[node name="Player" parent="Graph/Entities" unique_id=197551442 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = ExtResource("12_board")
+stat_board = ExtResource("7_al7ob")
+core_location = NodePath("../../Nodes/Core")
 
-[node name="Edges" type="Node2D" parent="Graph"]
+[node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]
 
-[node name="Edge_Core_Up" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Up" type="Node2D" parent="Graph/Edges" unique_id=709243764 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Up")
 
-[node name="Edge_Core_Right" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Right" type="Node2D" parent="Graph/Edges" unique_id=504798742 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Right")
 
-[node name="Edge_Core_Down" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Down" type="Node2D" parent="Graph/Edges" unique_id=1248232282 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Down")
 
-[node name="Nodes" type="Node2D" parent="Graph"]
+[node name="Nodes" type="Node2D" parent="Graph" unique_id=1697871484]
 
-[node name="Core" parent="Graph/Nodes" instance=ExtResource("9_skill") node_paths=PackedStringArray("owned_by")]
+[node name="Core" parent="Graph/Nodes" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(720, 480)
 owned_by = NodePath("../../Entities/Player")
 
-[node name="Up" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+[node name="Up" parent="Graph/Nodes" unique_id=1730649151 instance=ExtResource("9_skill")]
 position = Vector2(720, 360)
-modifiers = Array[Resource]([SubResource("mod_dex_2")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 
-[node name="Right" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+[node name="Right" parent="Graph/Nodes" unique_id=1699135446 instance=ExtResource("9_skill")]
 position = Vector2(840, 480)
-modifiers = Array[Resource]([SubResource("mod_str_2")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 
-[node name="Down" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+[node name="Down" parent="Graph/Nodes" unique_id=1425471291 instance=ExtResource("9_skill")]
 position = Vector2(720, 600)
-modifiers = Array[Resource]([SubResource("mod_hp_5")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
-[node name="PlayerInputController" type="Node" parent="." node_paths=PackedStringArray("graph", "allocation_system", "player")]
+[node name="PlayerInputController" type="Node" parent="." unique_id=430342798 node_paths=PackedStringArray("graph", "allocation_system", "player")]
 script = ExtResource("8_input")
 graph = NodePath("../Graph")
 allocation_system = NodePath("../Graph/AllocationSystem")
 player = NodePath("../Graph/Entities/Player")
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=1065711835]
 
-[node name="UIRoot" parent="UI" instance=ExtResource("11_ui")]
+[node name="UIRoot" parent="UI" unique_id=851512849 instance=ExtResource("11_ui")]

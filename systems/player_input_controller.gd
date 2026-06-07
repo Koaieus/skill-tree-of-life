@@ -34,4 +34,4 @@ func _on_skill_node_clicked(skill_node: SkillNode) -> void:
 	if skill_node.owned_by == null:
 		allocation_system.allocate(skill_node, player)
 	elif skill_node.owned_by == player:
-		allocation_system.deallocate(skill_node)
+		allocation_system.deallocate(skill_node, player)
