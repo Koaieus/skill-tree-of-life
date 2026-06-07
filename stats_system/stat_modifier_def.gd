@@ -46,3 +46,9 @@ enum Operation {
 ## Tie-breaker — currently only consulted for SET (the only op where
 ## composition order matters). Higher wins.
 @export var priority: int = 0
+
+
+## Returns the modifier's effective value. Subclasses (e.g. DerivedModifierDef)
+## override this to compute from other stats at runtime. Base returns `value`.
+func get_effective_value() -> float:
+	return value

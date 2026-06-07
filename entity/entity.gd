@@ -13,6 +13,11 @@ signal leveled_up(new_level: int)
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
 @export var stat_board: StatBoard = null
+## Persistent modifiers applied once on _ready() and never removed.
+## Use for class identity bonuses and starting attribute offsets.
+## DerivedModifierDef entries must NOT be shared across entities — each
+## entity needs its own instance (duplicate the .tres if reusing).
+@export var core_modifiers: Array[StatModifierDef] = []
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:
@@ -26,6 +31,11 @@ signal leveled_up(new_level: int)
 ## modifiers start showing up.
 var level: int = 1
 
+## Accumulated initiative clock. Incremented each tick by initiative_speed.
+## Reaches 100 → TurnManager starts this entity's turn and deducts 100.
+## Plain float (not PoolStat) because we need it to exceed 100 before deduction.
+var initiative_current: float = 0.0
+
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
@@ -34,6 +44,7 @@ var navigator: EntityNavigator
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
+	add_to_group("entities")
 	var g := _find_graph()
 	if g == null:
 		push_warning("Entity '%s' has no Graph ancestor; navigator disabled" % display_name)
@@ -44,8 +55,12 @@ func _ready() -> void:
 		navigator.graph = g
 		add_child(navigator)
 
-	if stat_board != null and stat_board.xp != null:
-		stat_board.xp.replenished.connect(_on_xp_replenished)
+	if stat_board != null:
+		stat_board.apply_intrinsics()
+		for m in core_modifiers:
+			stat_board.add_modifier(m)
+		if stat_board.xp != null:
+			stat_board.xp.replenished.connect(_on_xp_replenished)
 
 	var tm := _find_turn_manager()
 	if tm != null:

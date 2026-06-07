@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="2_scalar"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="3_pool"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="12_3edt8"]
 [ext_resource type="Resource" path="res://stats_system/list/action_points.tres" id="def_ap"]
 [ext_resource type="Resource" path="res://stats_system/list/action_points_max.tres" id="def_ap_max"]
 [ext_resource type="Resource" path="res://stats_system/list/deallocation_points.tres" id="def_dealloc"]
@@ -11,16 +12,21 @@
 [ext_resource type="Resource" path="res://stats_system/list/dexterity.tres" id="def_dexterity"]
 [ext_resource type="Resource" path="res://stats_system/list/health.tres" id="def_health"]
 [ext_resource type="Resource" path="res://stats_system/list/health_max.tres" id="def_health_max"]
+[ext_resource type="Resource" path="res://stats_system/list/initiative_speed.tres" id="def_initiative_speed"]
 [ext_resource type="Resource" path="res://stats_system/list/intelligence.tres" id="def_intelligence"]
 [ext_resource type="Resource" path="res://stats_system/list/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/list/perception.tres" id="def_perception"]
+[ext_resource type="Resource" path="res://stats_system/list/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" path="res://stats_system/list/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" uid="uid://cxgk27rkpjwi0" path="res://stats_system/list/skill_points_max.tres" id="def_skill_points_max"]
 [ext_resource type="Resource" path="res://stats_system/list/strength.tres" id="def_strength"]
+[ext_resource type="Resource" path="res://stats_system/list/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" path="res://stats_system/list/wisdom.tres" id="def_wisdom"]
 [ext_resource type="Resource" path="res://stats_system/list/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://stats_system/list/xp_max.tres" id="def_xp_max"]
 [ext_resource type="Resource" path="res://stats_system/list/xp_per_turn.tres" id="def_xp_per_turn"]
+[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="script_derived"]
+[ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 
 [sub_resource type="Resource" id="scalar_ap_max"]
 script = ExtResource("2_scalar")
@@ -60,10 +66,26 @@ current = 10.0
 max_stat = SubResource("scalar_health_max")
 definition = ExtResource("def_health")
 
+[sub_resource type="Resource" id="scalar_initiative_speed"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_initiative_speed")
+base_value = 10.0
+
 [sub_resource type="Resource" id="scalar_intelligence"]
 script = ExtResource("2_scalar")
 definition = ExtResource("def_intelligence")
 base_value = 10.0
+
+[sub_resource type="Resource" id="formula_per_to_vision"]
+script = ExtResource("script_linear")
+source_stat_id = &"perception"
+scale_per_point = 2.0
+
+[sub_resource type="Resource" id="mod_per_to_vision"]
+script = ExtResource("script_derived")
+formula = SubResource("formula_per_to_vision")
+stat_id = &"vision_range"
+operation = 1
 
 [sub_resource type="Resource" id="scalar_node_health"]
 script = ExtResource("2_scalar")
@@ -74,6 +96,11 @@ base_value = 10.0
 script = ExtResource("2_scalar")
 definition = ExtResource("def_perception")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_sensor_range"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_sensor_range")
+base_value = 2.0
 
 [sub_resource type="Resource" id="scalar_sp_max"]
 script = ExtResource("2_scalar")
@@ -92,6 +119,11 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_strength")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_vision_range"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_vision_range")
+base_value = 400.0
+
 [sub_resource type="Resource" id="scalar_wisdom"]
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wisdom")
@@ -104,7 +136,6 @@ base_value = 5.0
 
 [sub_resource type="Resource" id="pool_xp"]
 script = ExtResource("3_pool")
-current = 0.0
 max_stat = SubResource("scalar_xp_max")
 definition = ExtResource("def_xp")
 
@@ -127,3 +158,7 @@ xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision")])

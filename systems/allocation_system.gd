@@ -29,6 +29,7 @@ signal deallocated(node: SkillNode, previous_owner: Entity)
 
 @export var graph: Graph
 @export var navigator: Navigator
+@export var turn_manager: TurnManager
 
 
 func can_allocate(node: SkillNode, entity: Entity) -> bool:

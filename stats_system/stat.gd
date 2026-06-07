@@ -34,6 +34,8 @@ var value: Variant:
 
 func add_modifier(m: StatModifierDef) -> void:
 	_modifiers.append(m)
+	if m is DerivedModifierDef:
+		(m as DerivedModifierDef).source_value_changed.connect(_on_dependent_modifier_changed)
 	if m.operation == StatModifierDef.Operation.SET:
 		if _winning_set == null or m.priority >= _winning_set.priority:
 			_winning_set = m
@@ -42,8 +44,16 @@ func add_modifier(m: StatModifierDef) -> void:
 
 func remove_modifier(m: StatModifierDef) -> void:
 	_modifiers.erase(m)
+	if m is DerivedModifierDef:
+		var dm := m as DerivedModifierDef
+		if dm.source_value_changed.is_connected(_on_dependent_modifier_changed):
+			dm.source_value_changed.disconnect(_on_dependent_modifier_changed)
 	if m == _winning_set:
 		_winning_set = _find_winning_set()
+	value_changed.emit()
+
+
+func _on_dependent_modifier_changed() -> void:
 	value_changed.emit()
 
 
@@ -59,7 +69,7 @@ func _find_winning_set() -> StatModifierDef:
 ## Computed value: base + modifier pipeline, coerced to the definition's value_type.
 func get_value() -> Variant:
 	if _winning_set != null:
-		return _coerce(_winning_set.value)
+		return _coerce(_winning_set.get_effective_value())
 	var base_add := 0.0
 	var increase_sum := 0.0
 	var mult := 1.0
@@ -67,13 +77,13 @@ func get_value() -> Variant:
 	for m in _modifiers:
 		match m.operation:
 			StatModifierDef.Operation.ADD_BASE:
-				base_add += m.value
+				base_add += m.get_effective_value()
 			StatModifierDef.Operation.INCREASE:
-				increase_sum += m.value
+				increase_sum += m.get_effective_value()
 			StatModifierDef.Operation.MULTIPLY:
-				mult *= m.value
+				mult *= m.get_effective_value()
 			StatModifierDef.Operation.ADD_BONUS:
-				bonus_add += m.value
+				bonus_add += m.get_effective_value()
 			# SET handled via _winning_set cache.
 	var raw: float = (base_value + base_add) * (1.0 + increase_sum / 100.0) * mult + bonus_add
 	return _coerce(raw)

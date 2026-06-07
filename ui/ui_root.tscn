@@ -1,22 +1,11 @@
 [gd_scene format=3 uid="uid://dc4sbd0hfnuni"]
 
+[ext_resource type="Script" uid="uid://bkm26sesx8gjj" path="res://ui/ui_root.gd" id="1_d55xy"]
 [ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
 
-[sub_resource type="GDScript" id="GDScript_l40t2"]
-resource_name = "UIRoot"
-script/source = "extends Control
-class_name UIRoot
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-"
+[sub_resource type="ButtonGroup" id="ButtonGroup_d55xy"]
+allow_unpress = true
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 layout_mode = 3
@@ -26,7 +15,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-script = SubResource("GDScript_l40t2")
+script = ExtResource("1_d55xy")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1297335697]
 layout_mode = 1
@@ -115,14 +104,46 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=544977831]
 layout_mode = 2
-size_flags_horizontal = 3
 text = "Bottom panel"
 
-[node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1234156537]
-custom_minimum_size = Vector2(64, 64)
+[node name="Control" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=178211490]
 layout_mode = 2
-text = "End
-Turn"
+size_flags_horizontal = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1032057531]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Button" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/HBoxContainer" unique_id=106939506]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_d55xy")
+text = "Melee"
+
+[node name="Button2" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/HBoxContainer" unique_id=1168578557]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_d55xy")
+text = "Ranged"
+
+[node name="Button3" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/HBoxContainer" unique_id=745331057]
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_group = SubResource("ButtonGroup_d55xy")
+text = "Magic"
+
+[node name="Control2" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=606294971]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1234156537]
+custom_minimum_size = Vector2(128, 64)
+layout_mode = 2
+text = "End Turn"
 
 [node name="SkillNodeTooltip" parent="." unique_id=1365414747 instance=ExtResource("2_tooltip")]
 layout_mode = 0

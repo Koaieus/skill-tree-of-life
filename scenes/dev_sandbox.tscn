@@ -21,17 +21,22 @@
 [ext_resource type="Resource" path="res://stats_system/list/health.tres" id="14_qrijo"]
 [ext_resource type="Resource" path="res://stats_system/list/health_max.tres" id="15_umwfs"]
 [ext_resource type="Resource" path="res://stats_system/list/intelligence.tres" id="16_o5a17"]
+[ext_resource type="Resource" path="res://stats_system/list/initiative_speed.tres" id="16_umwfs"]
 [ext_resource type="Resource" path="res://stats_system/list/node_health.tres" id="17_vybhe"]
 [ext_resource type="Resource" path="res://stats_system/list/perception.tres" id="18_uulnk"]
+[ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="19_o5a17"]
 [ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="19_ubc5n"]
 [ext_resource type="Resource" path="res://stats_system/list/skill_points.tres" id="20_0clpu"]
+[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="20_vybhe"]
 [ext_resource type="Resource" uid="uid://cxgk27rkpjwi0" path="res://stats_system/list/skill_points_max.tres" id="21_ijxde"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="21_sdhs6"]
 [ext_resource type="Resource" path="res://stats_system/list/strength.tres" id="22_8r5xj"]
 [ext_resource type="Resource" path="res://stats_system/list/wisdom.tres" id="23_k8amt"]
+[ext_resource type="Resource" path="res://stats_system/list/xp_per_turn.tres" id="24_f58km"]
+[ext_resource type="Resource" path="res://stats_system/list/sensor_range.tres" id="24_uulnk"]
 [ext_resource type="Resource" path="res://stats_system/list/xp.tres" id="24_xp"]
 [ext_resource type="Resource" path="res://stats_system/list/xp_max.tres" id="24_xp_max"]
-[ext_resource type="Resource" path="res://stats_system/list/xp_per_turn.tres" id="24_f58km"]
+[ext_resource type="Resource" path="res://stats_system/list/vision_range.tres" id="29_ubc5n"]
 
 [sub_resource type="Resource" id="scalar_ap_max"]
 script = ExtResource("9_ycecq")
@@ -71,10 +76,26 @@ current = 10.0
 max_stat = SubResource("scalar_health_max")
 definition = ExtResource("14_qrijo")
 
+[sub_resource type="Resource" id="scalar_initiative_speed"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("16_umwfs")
+base_value = 10.0
+
 [sub_resource type="Resource" id="scalar_intelligence"]
 script = ExtResource("9_ycecq")
 definition = ExtResource("16_o5a17")
 base_value = 10.0
+
+[sub_resource type="Resource" id="formula_per_to_vision"]
+script = ExtResource("19_o5a17")
+source_stat_id = &"perception"
+scale_per_point = 2.0
+
+[sub_resource type="Resource" id="mod_per_to_vision"]
+script = ExtResource("20_vybhe")
+formula = SubResource("formula_per_to_vision")
+stat_id = &"vision_range"
+operation = 1
 
 [sub_resource type="Resource" id="scalar_node_health"]
 script = ExtResource("9_ycecq")
@@ -85,6 +106,11 @@ base_value = 10.0
 script = ExtResource("9_ycecq")
 definition = ExtResource("18_uulnk")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_sensor_range"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("24_uulnk")
+base_value = 2.0
 
 [sub_resource type="Resource" id="scalar_sp_max"]
 script = ExtResource("9_ycecq")
@@ -103,6 +129,11 @@ script = ExtResource("9_ycecq")
 definition = ExtResource("22_8r5xj")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_vision_range"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("29_ubc5n")
+base_value = 400.0
+
 [sub_resource type="Resource" id="scalar_wisdom"]
 script = ExtResource("9_ycecq")
 definition = ExtResource("23_k8amt")
@@ -115,7 +146,6 @@ base_value = 5.0
 
 [sub_resource type="Resource" id="pool_xp"]
 script = ExtResource("10_r44ow")
-current = 0.0
 max_stat = SubResource("scalar_xp_max")
 definition = ExtResource("24_xp")
 
@@ -123,7 +153,7 @@ definition = ExtResource("24_xp")
 script = ExtResource("9_ycecq")
 definition = ExtResource("24_f58km")
 
-[sub_resource type="Resource" id="Resource_ijxde"]
+[sub_resource type="Resource" id="Resource_umwfs"]
 resource_local_to_scene = true
 script = ExtResource("19_ubc5n")
 strength = SubResource("scalar_strength")
@@ -138,6 +168,10 @@ xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision")])
 
 [sub_resource type="Resource" id="mod_dex_2"]
 script = ExtResource("2_mod")
@@ -169,14 +203,14 @@ script = ExtResource("2_mod")
 stat_id = &"dexterity"
 value = 1.0
 
-[sub_resource type="Resource" id="mod_str_1"]
-script = ExtResource("2_mod")
-stat_id = &"strength"
-value = 1.0
-
 [sub_resource type="Resource" id="mod_xp_1"]
 script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
+value = 1.0
+
+[sub_resource type="Resource" id="mod_str_1"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
 value = 1.0
 
 [sub_resource type="Resource" id="mod_xp_2"]
@@ -210,7 +244,7 @@ graph = NodePath("..")
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_ijxde")
+stat_board = SubResource("Resource_umwfs")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]
@@ -297,5 +331,4 @@ player = NodePath("../Graph/Entities/Player")
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=1065711835]
 
-[node name="UIRoot" parent="UI" unique_id=851512849 instance=ExtResource("11_ui")]
-metadata/_edit_lock_ = true
+[node name="UIRoot" parent="UI" unique_id=1221477821 instance=ExtResource("11_ui")]

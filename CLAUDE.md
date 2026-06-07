@@ -37,18 +37,20 @@ Maintains an `AStarSkillTree` (custom `AStar2D`) in sync with the `TreeGraph`. E
 ### TurnManager (`systems/turn_manager.gd`)
 Initiative-based turn order. Each game tick (`ticked` signal), entities progress their initiative; once it reaches 100 they enter the `initiative-ready` group and get a turn. `end_turn()` deducts 100 initiative and cycles.
 
-### Stat system (`stat_system/`)
-**Current state (v1):** Stats are subclassed from `Stat extends Resource`. Each concrete stat (e.g. `HealthPoolStat`, `InitiativeStat`) is a GDScript class. The `key` is the GDScript object itself — used as a dict key in `Stats.map`. `StatsManager` (node component) wraps a `Stats` resource and provides `add_stat_modifier` / `remove_stat_modifier`.
+### Stat system (`stats_system/`)
 
-**Planned direction (v2):** See `docs/design/stat_system.md`. The direction is `StatDefinition` resources with `StringName` IDs (replacing GDScript-as-key), `RuntimeStat` objects created at runtime, and a `StatRegistry` autoload replacing the fragile `StatMetaDataRepository`. This is an active refactor — prefer the v2 patterns when adding new stats.
+Stats are central to this game. See `.claude/rules/stats-system.md` for the full reference (IDs, pipeline, gotchas) — keep it current when the system changes.
 
-Hierarchy:
-- `stat_system/stat.gd` — base `Stat` resource
-- `stat_system/computed/` — scalar stats with modifier pipeline (`_computed_stat.gd`, `int_stat.gd`, `float_stat.gd`)
-- `stat_system/aggregated/pool/` — pool stats with current/max (`_pool_stat.gd`, growable variant)
-- `stat_system/modifier/` — `StatModifier` resources applied to stats
-- `stats/` — concrete `EntityStats extends Stats` board with all gameplay stats exported
-- `stats/list/` — concrete stat implementations (`ExpStat`, `InitiativeStat`, `HealthPoolStat`, etc.)
+PoE-style modifier pipeline: `(base + ADD_BASE) × (1 + INCREASE/100) × MULTIPLY + ADD_BONUS`. SET short-circuits everything.
+
+Key files:
+- `stats_system/stat_board.gd` — entity's stat container; `add_modifier` / `remove_modifier` / `get_value(id)`
+- `stats_system/stat.gd` — runtime stat instance (ScalarStat / PoolStat / SkillPointStat)
+- `stats_system/stat_modifier_def.gd` — static modifier atom (stat_id + operation + value)
+- `stats_system/derived_modifier_def.gd` — formula-computed modifier; **must not be shared across entities**
+- `stats_system/formulas/` — LinearFormula, ExpressionFormula
+- `stats_system/list/` — 20 `.tres` StatDef resources (one per stat)
+- `entity/default_entity_board.tres` — template board with all stats + intrinsic scaling modifiers
 
 ### UI (`ui/`)
 - `ui/stats_panel/` — entity stats display, driven by `StatsManager`

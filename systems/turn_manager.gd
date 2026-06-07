@@ -57,20 +57,53 @@ func advance_phase() -> bool:
 
 ## End the current turn. Caller is responsible for having reached
 ## CONSOLIDATION (or for explicitly bailing early).
+## Deducts 100 initiative from the entity, then auto-ticks until the next
+## entity is ready and starts their turn.
 func end_turn() -> void:
 	if current_entity == null:
 		return
 	var entity := current_entity
 	current_entity = null
 	turn_ended.emit(entity)
-	# TODO: deduct 100 from entity's initiative; pick the next ready
-	# entity. Both wait on the v2 Stat to land.
+	entity.initiative_current -= 100.0
+	_tick_until_ready()
 
 
-## Tick the clock by one unit. Stub: just emits so listeners can
-## already hook in. Initiative progression + ready-queue cycle land
-## once entities carry an initiative Stat.
+## Tick the initiative clock by one unit. Advances every entity in the
+## "entities" group by their initiative_speed value.
 func tick() -> void:
 	ticked.emit()
-	# TODO: for each entity in `entities` group, progress initiative;
-	# if any crosses 100, start its turn (or queue it).
+	for node in get_tree().get_nodes_in_group("entities"):
+		var e := node as Entity
+		if e == null or e.stat_board == null or e.stat_board.initiative_speed == null:
+			continue
+		e.initiative_current += float(e.stat_board.initiative_speed.value)
+
+
+## Tick until at least one entity has initiative >= 100, then start the turn
+## for the highest-initiative entity among the ready set.
+## Guards against all-zero-speed edge cases with a tick cap.
+func _tick_until_ready(max_ticks: int = 1000) -> void:
+	for _i in max_ticks:
+		tick()
+		var ready: Array[Entity] = []
+		for node in get_tree().get_nodes_in_group("entities"):
+			var e := node as Entity
+			if e != null and e.initiative_current >= 100.0:
+				ready.append(e)
+		if not ready.is_empty():
+			ready.sort_custom(func(a: Entity, b: Entity) -> bool:
+				return a.initiative_current > b.initiative_current)
+			start_turn(ready[0])
+			return
+	push_warning("TurnManager: no entity reached 100 initiative in %d ticks" % max_ticks)
+
+
+## Returns true if an allocation/deallocation is currently permitted.
+func can_allocate() -> bool:
+	return current_entity != null and current_phase == Phase.DEPLOYMENT
+
+
+## Returns true if a combat action is currently permitted.
+func can_act() -> bool:
+	return current_entity != null and current_phase == Phase.BATTLE

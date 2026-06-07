@@ -15,5 +15,5 @@ func _ready() -> void:
 func _draw() -> void:
 	if _host == null:
 		return
-	var r := _host.radius - 6
+	var r := _host.radius - 8
 	draw_circle(Vector2.ZERO, r, _host.get_owner_color(), true)

@@ -14,33 +14,49 @@ extends Resource
 ## Scalar fields use `ScalarStat` (not `Stat`) so the inspector dropdown
 ## offers only "New ScalarStat" — Stat itself is abstract.
 
-# Six-attribute attack/utility spine.
+@export_group("Attributes")
 @export var strength: ScalarStat        ## STR / Red — melee.
 @export var dexterity: ScalarStat       ## DEX / Green — ranged.
 @export var intelligence: ScalarStat    ## INT / Blue — magic potency.
 @export var wisdom: ScalarStat          ## WIS / Gold — XP / economy.
 @export var perception: ScalarStat      ## PER / Purple — vision / sensing.
 
-# Survivability.
+@export_group("Survivability")
 @export var health: PoolStat
 ## Board-level scalar baseline that seeds owned-node max HP. The per-node
 ## ephemeral combat pool lives on each TreeNode's combat component (see the
-## "Per-Node Health" section of the design doc); this is the aggregate it
+## "Per-Node Health" section of the design doc); this is the aggregate itw
 ## reads from.
 @export var node_health: ScalarStat
 
-# Economy.
+@export_group("Economy")
 @export var xp: PoolStat            ## XP pool; fires Entity.leveled_up on fill.
 @export var xp_per_turn: ScalarStat
 
-# Allocation budget — careful tracking via SkillPointStat (current/wounded/max
-# with `used + current + wounded == max` invariant; see skill_point_stat.gd).
+@export_group( "Allocation")
+## Allocation budget — careful tracking via SkillPointStat (current/wounded/max
+## with `used + current + wounded == max` invariant; see skill_point_stat.gd).
 @export var skill_points: SkillPointStat
 
-# Per-turn budgets — both are pools whose current resets at turn start
-# (TurnManager owns that reset; unspent are wasted).
+@export_group("Turn Budget")
 @export var deallocation_points: PoolStat  ## Default 3/3 — reshape budget.
 @export var action_points: PoolStat        ## Default 2/2 — attacks per turn.
+
+@export_group("Turn Order")
+@export var initiative_speed: ScalarStat  ## Ticks of initiative added per clock tick.
+
+@export_group("Vision")
+@export var vision_range: ScalarStat   ## Euclidean sight radius in scene pixels.
+@export var sensor_range: ScalarStat   ## Topology sensor radius in hops past owned nodes.
+
+## Scaling rules intrinsic to this board — DerivedModifierDefs that describe
+## how stats on this board relate to each other (e.g. PER scales vision_range).
+## Applied once by Entity._ready() via apply_intrinsics(). These are board-level
+## truths, not per-entity bonuses (those live on Entity.core_modifiers).
+@export_group("Scaling Rules")
+@export var intrinsic_modifiers: Array[StatModifierDef] = []
+
+@export_group("")
 
 
 # --- Pool max stats (derived) ----------------------------------------------
@@ -83,7 +99,11 @@ func get_value(id: StringName) -> Variant:
 
 ## Route a modifier to its target Stat by id. The intended one-liner from
 ## AllocationSystem: `for m in node.modifiers: entity.stat_board.add_modifier(m)`.
+## DerivedModifierDef instances are bound to this board so their formulas can
+## read source stats and subscribe to their value_changed signals.
 func add_modifier(m: StatModifierDef) -> void:
+	if m is DerivedModifierDef:
+		(m as DerivedModifierDef).bind(self)
 	var s := get_stat(m.stat_id)
 	if s == null:
 		push_warning("StatBoard has no stat for id %s" % m.stat_id)
@@ -92,7 +112,19 @@ func add_modifier(m: StatModifierDef) -> void:
 
 
 func remove_modifier(m: StatModifierDef) -> void:
+	if m is DerivedModifierDef:
+		(m as DerivedModifierDef).unbind()
 	var s := get_stat(m.stat_id)
 	if s == null:
 		return
 	s.remove_modifier(m)
+
+
+## Apply intrinsic_modifiers. Call once from Entity._ready() after the board
+## is fully wired. DerivedModifierDef entries are duplicated automatically so
+## each entity board gets its own bound instance — callers don't need to think
+## about this.
+func apply_intrinsics() -> void:
+	for m in intrinsic_modifiers:
+		var safe: StatModifierDef = m.duplicate(true) if m is DerivedModifierDef else m
+		add_modifier(safe)

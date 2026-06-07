@@ -1,0 +1,18 @@
+# Standalone copy for reference / node-level use.
+# The canonical wiring lives in default_entity_board.tres intrinsic_modifiers.
+[gd_resource type="Resource" script_class="DerivedModifierDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/derived_modifier_def.gd" id="1_derived"]
+[ext_resource type="Script" path="res://stats_system/formulas/linear_formula.gd" id="2_linear"]
+
+[sub_resource type="Resource" id="formula_1"]
+script = ExtResource("2_linear")
+source_stat_id = &"perception"
+scale_per_point = 2.0
+
+[resource]
+script = ExtResource("1_derived")
+stat_id = &"vision_range"
+operation = 1
+formula = SubResource("formula_1")
+value = 0.0
