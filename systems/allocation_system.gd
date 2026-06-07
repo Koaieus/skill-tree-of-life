@@ -48,6 +48,8 @@ func can_deallocate(node: SkillNode, entity: Entity) -> bool:
 		return false
 	if node.owned_by != entity:
 		return false
+	if node.is_core():
+		return false
 	var board := entity.stat_board
 	if board != null and board.deallocation_points != null and board.deallocation_points.current < 1:
 		return false

@@ -66,6 +66,10 @@ func is_allocated() -> bool:
 	return owned_by != null
 
 
+func is_core() -> bool:
+	return owned_by != null and owned_by.core_location == self
+
+
 func get_owner_color() -> Color:
 	if owned_by:
 		return owned_by.color

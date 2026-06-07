@@ -65,7 +65,8 @@ func _populate() -> void:
 		return
 
 	if _node.owned_by != null:
-		_owner_label.text = _node.owned_by.display_name
+		var core_tag := " (core)" if _node.is_core() else ""
+		_owner_label.text = _node.owned_by.display_name + core_tag
 		_owner_label.modulate = _node.owned_by.color
 	else:
 		_owner_label.text = "Unallocated"
@@ -96,19 +97,26 @@ func _populate() -> void:
 
 
 func _format_modifier(m: StatModifierDef, stat_name: String) -> String:
-	var _sign := "+" if m.value >= 0.0 else ""
+	var sign := "+" if m.value >= 0.0 else ""
+	var val := _val(m.value)
 	match m.operation:
 		StatModifierDef.Operation.ADD_BASE:
-			return "%s%g %s" % [_sign, m.value, stat_name]
+			return sign + val + " " + stat_name
 		StatModifierDef.Operation.INCREASE:
-			return "%s%g%% %s" % [_sign, m.value, stat_name]
+			return sign + val + "% " + stat_name
 		StatModifierDef.Operation.MULTIPLY:
-			return "×%g %s" % [m.value, stat_name]
+			return "×" + val + " " + stat_name
 		StatModifierDef.Operation.ADD_BONUS:
-			return "%s%g %s (flat)" % [_sign, m.value, stat_name]
+			return sign + val + " " + stat_name + " (flat)"
 		StatModifierDef.Operation.SET:
-			return "= %g %s" % [m.value, stat_name]
-	return "%g %s" % [m.value, stat_name]
+			return "= " + val + " " + stat_name
+	return val + " " + stat_name
+
+
+func _val(v: float) -> String:
+	if is_equal_approx(v, roundf(v)):
+		return str(int(v))
+	return "%.2f" % v
 
 
 func _reposition() -> void:

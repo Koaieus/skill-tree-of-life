@@ -23,6 +23,8 @@ config/icon="res://icon.svg"
 
 SceneTransition="*res://autoload/scene_transition.tscn"
 SceneLoader="*res://autoload/scene_loader.tscn"
+Events="*res://autoload/events.gd"
+StatRegistry="*res://autoload/stat_registry.gd"
 
 [display]
 

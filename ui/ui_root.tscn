@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://dc4sbd0hfnuni"]
+[gd_scene format=3 uid="uid://dc4sbd0hfnuni"]
 
-[ext_resource type="Script" path="res://ui/stats_panel.gd" id="1_stats_panel"]
+[ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
 
 [sub_resource type="GDScript" id="GDScript_l40t2"]
@@ -124,5 +124,5 @@ layout_mode = 2
 text = "End
 Turn"
 
-[node name="SkillNodeTooltip" parent="." instance=ExtResource("2_tooltip")]
+[node name="SkillNodeTooltip" parent="." unique_id=1365414747 instance=ExtResource("2_tooltip")]
 layout_mode = 0
