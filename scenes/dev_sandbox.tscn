@@ -6,12 +6,124 @@
 [ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="4_edge"]
 [ext_resource type="Script" uid="uid://drlgxrdnh2rtd" path="res://graph/navigator.gd" id="5_nav"]
 [ext_resource type="Script" uid="uid://blmjm81fytofd" path="res://systems/allocation_system.gd" id="6_alloc"]
-[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="7_al7ob"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
+[ext_resource type="Resource" path="res://stats_system/list/action_points.tres" id="7_x8df0"]
+[ext_resource type="Resource" path="res://stats_system/list/action_points_max.tres" id="8_ijxde"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
+[ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="9_ycecq"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
+[ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="10_r44ow"]
+[ext_resource type="Resource" path="res://stats_system/list/deallocation_points.tres" id="11_ebeys"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="11_ui"]
+[ext_resource type="Resource" path="res://stats_system/list/deallocation_points_max.tres" id="12_g6i1j"]
+[ext_resource type="Resource" path="res://stats_system/list/dexterity.tres" id="13_pyapo"]
+[ext_resource type="Resource" path="res://stats_system/list/health.tres" id="14_qrijo"]
+[ext_resource type="Resource" path="res://stats_system/list/health_max.tres" id="15_umwfs"]
+[ext_resource type="Resource" path="res://stats_system/list/intelligence.tres" id="16_o5a17"]
+[ext_resource type="Resource" path="res://stats_system/list/node_health.tres" id="17_vybhe"]
+[ext_resource type="Resource" path="res://stats_system/list/perception.tres" id="18_uulnk"]
+[ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="19_ubc5n"]
+[ext_resource type="Resource" path="res://stats_system/list/skill_points.tres" id="20_0clpu"]
+[ext_resource type="Resource" uid="uid://cxgk27rkpjwi0" path="res://stats_system/list/skill_points_max.tres" id="21_ijxde"]
+[ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="21_sdhs6"]
+[ext_resource type="Resource" path="res://stats_system/list/strength.tres" id="22_8r5xj"]
+[ext_resource type="Resource" path="res://stats_system/list/wisdom.tres" id="23_k8amt"]
+[ext_resource type="Resource" path="res://stats_system/list/xp_per_turn.tres" id="24_f58km"]
+
+[sub_resource type="Resource" id="scalar_ap_max"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("8_ijxde")
+base_value = 2.0
+
+[sub_resource type="Resource" id="pool_ap"]
+script = ExtResource("10_r44ow")
+current = 2.0
+max_stat = SubResource("scalar_ap_max")
+definition = ExtResource("7_x8df0")
+
+[sub_resource type="Resource" id="scalar_dealloc_max"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("12_g6i1j")
+base_value = 3.0
+
+[sub_resource type="Resource" id="pool_dealloc"]
+script = ExtResource("10_r44ow")
+current = 3.0
+max_stat = SubResource("scalar_dealloc_max")
+definition = ExtResource("11_ebeys")
+
+[sub_resource type="Resource" id="scalar_dexterity"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("13_pyapo")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_health_max"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("15_umwfs")
+base_value = 10.0
+
+[sub_resource type="Resource" id="pool_health"]
+script = ExtResource("10_r44ow")
+current = 10.0
+max_stat = SubResource("scalar_health_max")
+definition = ExtResource("14_qrijo")
+
+[sub_resource type="Resource" id="scalar_intelligence"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("16_o5a17")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_node_health"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("17_vybhe")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_perception"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("18_uulnk")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_sp_max"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("21_ijxde")
+base_value = 3.0
+
+[sub_resource type="Resource" id="sp_skill_points"]
+script = ExtResource("21_sdhs6")
+wounded = 3
+current = 3.0
+max_stat = SubResource("scalar_sp_max")
+definition = ExtResource("20_0clpu")
+
+[sub_resource type="Resource" id="scalar_strength"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("22_8r5xj")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_wisdom"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("23_k8amt")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_xp_per_turn"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("24_f58km")
+
+[sub_resource type="Resource" id="Resource_ijxde"]
+resource_local_to_scene = true
+script = ExtResource("19_ubc5n")
+strength = SubResource("scalar_strength")
+dexterity = SubResource("scalar_dexterity")
+intelligence = SubResource("scalar_intelligence")
+wisdom = SubResource("scalar_wisdom")
+perception = SubResource("scalar_perception")
+health = SubResource("pool_health")
+node_health = SubResource("scalar_node_health")
+xp_per_turn = SubResource("scalar_xp_per_turn")
+skill_points = SubResource("sp_skill_points")
+deallocation_points = SubResource("pool_dealloc")
+action_points = SubResource("pool_ap")
 
 [sub_resource type="Resource" id="mod_dex_2"]
 script = ExtResource("2_mod")
@@ -74,7 +186,7 @@ graph = NodePath("..")
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = ExtResource("7_al7ob")
+stat_board = SubResource("Resource_ijxde")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]
@@ -94,27 +206,27 @@ script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Down")
 
-[node name="Edge_Core_Left" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Left" type="Node2D" parent="Graph/Edges" unique_id=1825049266 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Left")
 
-[node name="Edge_Up_NE" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Up_NE" type="Node2D" parent="Graph/Edges" unique_id=603224024 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up")
 to = NodePath("../../Nodes/NE")
 
-[node name="Edge_Right_NE" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Right_NE" type="Node2D" parent="Graph/Edges" unique_id=1760779239 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Right")
 to = NodePath("../../Nodes/NE")
 
-[node name="Edge_Up_UpOut" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Up_UpOut" type="Node2D" parent="Graph/Edges" unique_id=1453757900 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up")
 to = NodePath("../../Nodes/Up_Out")
 
-[node name="Edge_Right_RightOut" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Right_RightOut" type="Node2D" parent="Graph/Edges" unique_id=1347815492 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Right")
 to = NodePath("../../Nodes/Right_Out")
@@ -122,34 +234,34 @@ to = NodePath("../../Nodes/Right_Out")
 [node name="Nodes" type="Node2D" parent="Graph" unique_id=1697871484]
 
 [node name="Core" parent="Graph/Nodes" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(720, 480)
+position = Vector2(673, 457)
 owned_by = NodePath("../../Entities/Player")
 
 [node name="Up" parent="Graph/Nodes" unique_id=1730649151 instance=ExtResource("9_skill")]
-position = Vector2(720, 360)
+position = Vector2(697, 339)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 
 [node name="Right" parent="Graph/Nodes" unique_id=1699135446 instance=ExtResource("9_skill")]
-position = Vector2(840, 480)
+position = Vector2(824, 535)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 
 [node name="Down" parent="Graph/Nodes" unique_id=1425471291 instance=ExtResource("9_skill")]
-position = Vector2(720, 600)
+position = Vector2(716, 605)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
-[node name="Left" parent="Graph/Nodes" instance=ExtResource("9_skill")]
-position = Vector2(600, 480)
+[node name="Left" parent="Graph/Nodes" unique_id=1010139945 instance=ExtResource("9_skill")]
+position = Vector2(523, 434)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 
-[node name="NE" parent="Graph/Nodes" instance=ExtResource("9_skill")]
-position = Vector2(840, 360)
+[node name="NE" parent="Graph/Nodes" unique_id=1041223297 instance=ExtResource("9_skill")]
+position = Vector2(836, 393)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
-[node name="Up_Out" parent="Graph/Nodes" instance=ExtResource("9_skill")]
-position = Vector2(720, 240)
+[node name="Up_Out" parent="Graph/Nodes" unique_id=1748015269 instance=ExtResource("9_skill")]
+position = Vector2(751, 202)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
 
-[node name="Right_Out" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+[node name="Right_Out" parent="Graph/Nodes" unique_id=1524370075 instance=ExtResource("9_skill")]
 position = Vector2(960, 480)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1")])
 
@@ -162,3 +274,4 @@ player = NodePath("../Graph/Entities/Player")
 [node name="UI" type="CanvasLayer" parent="." unique_id=1065711835]
 
 [node name="UIRoot" parent="UI" unique_id=851512849 instance=ExtResource("11_ui")]
+metadata/_edit_lock_ = true

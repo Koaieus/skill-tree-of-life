@@ -74,10 +74,14 @@ func get_owner_color() -> Color:
 
 func _on_mouse_entered() -> void:
 	hover_ring.show()
+	if not Engine.is_editor_hint():
+		Events.skill_node_hovered.emit(self)
 
 
 func _on_mouse_exited() -> void:
 	hover_ring.hide()
+	if not Engine.is_editor_hint():
+		Events.skill_node_unhovered.emit()
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
