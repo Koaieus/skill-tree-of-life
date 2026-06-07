@@ -1,10 +1,10 @@
 ---
-description: Stat system quick-reference — pipeline, all stat IDs, gotchas
+description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsic scaling, gotchas
 ---
 
 # Stat system reference
 
-**Keep current.** Any change to the stat system — new stat, new formula type, modified pipeline, new pool or modifier class — must be followed by updating this rule. Its value is that it isn't stale.
+**Keep current.** Any change to the stat system — new stat, new formula type, modified pipeline, new pool or modifier class, new intrinsic scaling rule — must be followed by updating this rule.
 
 ## Modifier pipeline
 
@@ -15,13 +15,22 @@ description: Stat system quick-reference — pipeline, all stat IDs, gotchas
 
 ## Stat IDs
 
-**Scalars:** `strength` · `dexterity` · `intelligence` · `wisdom` · `perception` · `node_health` · `initiative_speed` · `xp_per_turn` · `vision_range` · `sensor_range` · `mana_per_turn`
-
-**Pools (current + sibling cap):** `health`/`health_max` · `xp`/`xp_max` · `skill_points`/`skill_points_max` · `action_points`/`action_points_max` · `deallocation_points`/`deallocation_points_max` · `mana`/`mana_max`
-
-Defaults: attributes 10 · health 10/10 · XP 0/5 · SP 1/3 · AP 2/2 · DP 3/3 · mana 10/10 · vision_range 400px · initiative_speed 10 · sensor_range 0 · mana_per_turn 0.
+Run to list all current stat IDs:
+```
+grep -h "^id = " stats_system/list/*.tres | sort
+```
 
 `skill_points` is `SkillPointStat` (PoolStat subclass) with a `wounded` bucket: `wound(n)` = forced dealloc (attack); `heal(n)` = restore wounded → current; `refund(n)` = voluntary dealloc. Not interchangeable.
+
+## Intrinsic scaling (entity/default_entity_board.tres)
+
+These are `DerivedModifierDef` entries wired as `intrinsic_modifiers` on the default board — all entities get them. **Update this table when adding or changing a derived modifier.**
+
+| Input stat | Target stat | Formula |
+|---|---|---|
+| `perception` | `vision_range` | `floor(PER / 10.0)` ADD_BASE |
+| `intelligence` | `mana_max` | `floor(INT / 10.0)` ADD_BASE |
+| `intelligence` | `mana_per_turn` | `floor(log(max(1, INT)))` ADD_BASE |
 
 ## Gotchas
 
