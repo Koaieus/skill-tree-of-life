@@ -29,6 +29,8 @@
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="21_sdhs6"]
 [ext_resource type="Resource" path="res://stats_system/list/strength.tres" id="22_8r5xj"]
 [ext_resource type="Resource" path="res://stats_system/list/wisdom.tres" id="23_k8amt"]
+[ext_resource type="Resource" path="res://stats_system/list/xp.tres" id="24_xp"]
+[ext_resource type="Resource" path="res://stats_system/list/xp_max.tres" id="24_xp_max"]
 [ext_resource type="Resource" path="res://stats_system/list/xp_per_turn.tres" id="24_f58km"]
 
 [sub_resource type="Resource" id="scalar_ap_max"]
@@ -106,6 +108,17 @@ script = ExtResource("9_ycecq")
 definition = ExtResource("23_k8amt")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_xp_max"]
+script = ExtResource("9_ycecq")
+definition = ExtResource("24_xp_max")
+base_value = 5.0
+
+[sub_resource type="Resource" id="pool_xp"]
+script = ExtResource("10_r44ow")
+current = 0.0
+max_stat = SubResource("scalar_xp_max")
+definition = ExtResource("24_xp")
+
 [sub_resource type="Resource" id="scalar_xp_per_turn"]
 script = ExtResource("9_ycecq")
 definition = ExtResource("24_f58km")
@@ -120,6 +133,7 @@ wisdom = SubResource("scalar_wisdom")
 perception = SubResource("scalar_perception")
 health = SubResource("pool_health")
 node_health = SubResource("scalar_node_health")
+xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
 deallocation_points = SubResource("pool_dealloc")
@@ -159,6 +173,16 @@ value = 1.0
 script = ExtResource("2_mod")
 stat_id = &"strength"
 value = 1.0
+
+[sub_resource type="Resource" id="mod_xp_1"]
+script = ExtResource("2_mod")
+stat_id = &"xp_per_turn"
+value = 1.0
+
+[sub_resource type="Resource" id="mod_xp_2"]
+script = ExtResource("2_mod")
+stat_id = &"xp_per_turn"
+value = 2.0
 
 [node name="DevSandbox" type="Node2D" unique_id=325788489]
 script = ExtResource("1_dev")
@@ -259,11 +283,11 @@ modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
 [node name="Up_Out" parent="Graph/Nodes" unique_id=1748015269 instance=ExtResource("9_skill")]
 position = Vector2(751, 202)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
 
 [node name="Right_Out" parent="Graph/Nodes" unique_id=1524370075 instance=ExtResource("9_skill")]
 position = Vector2(960, 480)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
 
 [node name="PlayerInputController" type="Node" parent="." unique_id=430342798 node_paths=PackedStringArray("graph", "allocation_system", "player")]
 script = ExtResource("8_input")

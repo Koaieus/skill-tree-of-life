@@ -67,6 +67,24 @@ func restore_to_full() -> void:
 		set_current(float(max_stat.get_value()))
 
 
+## Grow the pool's cap by the definition's growth formula. Bumps
+## `max_stat.base_value` (so external modifiers continue to layer atop).
+## Does not touch `current` — callers handle carry-over policy themselves
+## (XP: deplete by old_max; HP-style pools: rely on heal_on_max_increase).
+## Returns the delta applied (0 if formula is a no-op or stat is unconfigured).
+func grow() -> int:
+	if max_stat == null or definition == null or not (definition is PoolStatDef):
+		return 0
+	var def := definition as PoolStatDef
+	var old_max := int(max_stat.get_value())
+	var new_max := roundi(float(old_max) * def.growth_factor + float(def.growth_flat))
+	var delta := new_max - old_max
+	if delta == 0:
+		return 0
+	max_stat.base_value += float(delta)
+	return delta
+
+
 func _min_value() -> int:
 	if definition is PoolStatDef:
 		return (definition as PoolStatDef).min_value

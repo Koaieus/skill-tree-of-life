@@ -30,6 +30,7 @@ extends Resource
 @export var node_health: ScalarStat
 
 # Economy.
+@export var xp: PoolStat            ## XP pool; fires Entity.leveled_up on fill.
 @export var xp_per_turn: ScalarStat
 
 # Allocation budget — careful tracking via SkillPointStat (current/wounded/max
@@ -52,6 +53,9 @@ extends Resource
 
 var health_max: ScalarStat:
 	get: return health.max_stat if health != null else null
+
+var xp_max: ScalarStat:
+	get: return xp.max_stat if xp != null else null
 
 var skill_points_max: ScalarStat:
 	get: return skill_points.max_stat if skill_points != null else null

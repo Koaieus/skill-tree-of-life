@@ -15,9 +15,11 @@ const SCALARS: Array[StringName] = [
 	&"intelligence",
 	&"wisdom",
 	&"perception",
+	&"xp_per_turn",
 ]
 const POOLS: Array[StringName] = [
 	&"health",
+	&"xp",
 	&"skill_points",
 	&"action_points",
 	&"deallocation_points",
