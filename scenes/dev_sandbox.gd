@@ -29,6 +29,10 @@ func _ready() -> void:
 	if _turn_manager != null and _player != null:
 		_player.initiative_current = 100.0
 		_turn_manager.start_turn(_player)
+		
+	# Wire board to UI
+	if _ui_root.stat_board_overlay != null and _player != null:
+		_ui_root.stat_board_overlay.board = _player.stat_board
 
 
 func _on_phase_changed(_entity: Entity, phase: TurnManager.Phase) -> void:

@@ -97,17 +97,17 @@ func _populate() -> void:
 
 
 func _format_modifier(m: StatModifierDef, stat_name: String) -> String:
-	var sign := "+" if m.value >= 0.0 else ""
+	var _sign := "+" if m.value >= 0.0 else ""
 	var val := _val(m.value)
 	match m.operation:
 		StatModifierDef.Operation.ADD_BASE:
-			return sign + val + " " + stat_name
+			return _sign + val + " " + stat_name
 		StatModifierDef.Operation.INCREASE:
-			return sign + val + "% " + stat_name
+			return _sign + val + "% " + stat_name
 		StatModifierDef.Operation.MULTIPLY:
 			return "×" + val + " " + stat_name
 		StatModifierDef.Operation.ADD_BONUS:
-			return sign + val + " " + stat_name + " (flat)"
+			return _sign + val + " " + stat_name + " (flat)"
 		StatModifierDef.Operation.SET:
 			return "= " + val + " " + stat_name
 	return val + " " + stat_name

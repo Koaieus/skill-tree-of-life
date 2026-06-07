@@ -10,6 +10,7 @@
 ## The internal StatBoardGraph runs a 4 Hz refresh timer; we don't need to
 ## drive it from _process.
 extends Control
+class_name StatBoardOverlay
 
 const StatBoardGraphScene := preload("res://addons/stat_board_visualizer/stat_board_graph.tscn")
 

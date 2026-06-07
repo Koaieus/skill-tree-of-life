@@ -3,9 +3,8 @@
 [ext_resource type="Script" uid="uid://bkm26sesx8gjj" path="res://ui/ui_root.gd" id="1_d55xy"]
 [ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
-
-[sub_resource type="ButtonGroup" id="ButtonGroup_d55xy"]
-allow_unpress = true
+[ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/action_bar/action_button.tscn" id="4_6qk7i"]
+[ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="4_f6o6b"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 layout_mode = 3
@@ -45,52 +44,114 @@ layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="StatsPanel" type="PanelContainer" parent="VBoxContainer/HBoxContainer" unique_id=865354617]
-editor_description = "Shows list of player entity stats"
+[node name="Left" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=1718291529]
+clip_contents = true
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
+
+[node name="StatsPanel" type="PanelContainer" parent="VBoxContainer/HBoxContainer/Left" unique_id=865354617]
+editor_description = "Shows list of player entity stats"
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_horizontal = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/HBoxContainer/StatsPanel" unique_id=695401453]
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/HBoxContainer/Left/StatsPanel" unique_id=695401453]
 layout_mode = 2
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/StatsPanel/MarginContainer" unique_id=1440602146]
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/Left/StatsPanel/MarginContainer" unique_id=1440602146]
 layout_mode = 2
 
-[node name="StatsPanelTitle" type="Label" parent="VBoxContainer/HBoxContainer/StatsPanel/MarginContainer/VBoxContainer" unique_id=1572901163]
+[node name="StatsPanelTitle" type="Label" parent="VBoxContainer/HBoxContainer/Left/StatsPanel/MarginContainer/VBoxContainer" unique_id=1572901163]
 layout_mode = 2
 size_flags_vertical = 0
 text = "Stats:"
 uppercase = true
 
-[node name="StatsVBox" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/StatsPanel/MarginContainer/VBoxContainer" unique_id=1108079112]
+[node name="StatsVBox" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/Left/StatsPanel/MarginContainer/VBoxContainer" unique_id=1108079112]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 script = ExtResource("1_stats_panel")
 
-[node name="PanelContainerRight" type="PanelContainer" parent="VBoxContainer/HBoxContainer" unique_id=118152412]
+[node name="Center" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=1886377179]
 layout_mode = 2
-size_flags_horizontal = 10
+size_flags_horizontal = 3
 
-[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/HBoxContainer/PanelContainerRight" unique_id=115445108]
+[node name="StatBoardOverlay" type="Control" parent="VBoxContainer/HBoxContainer/Center" unique_id=825145876]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_f6o6b")
+metadata/_custom_type_script = "uid://co6nsf5jw2yo6"
+
+[node name="PanelContainerCenter" type="PanelContainer" parent="VBoxContainer/HBoxContainer/Center" unique_id=1597719399]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/HBoxContainer/Center/PanelContainerCenter" unique_id=1659825340]
 layout_mode = 2
 theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 15
 theme_override_constants/margin_right = 15
 theme_override_constants/margin_bottom = 15
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/PanelContainerRight/MarginContainer" unique_id=280379430]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/Center/PanelContainerCenter/MarginContainer" unique_id=1557881274]
+layout_mode = 2
+text = "Center"
+
+[node name="Right" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=355221347]
+visible = false
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+
+[node name="PanelContainerRight" type="PanelContainer" parent="VBoxContainer/HBoxContainer/Right" unique_id=118152412]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 10
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/HBoxContainer/Right/PanelContainerRight" unique_id=115445108]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 15
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/Right/PanelContainerRight/MarginContainer" unique_id=280379430]
 layout_mode = 2
 text = "Right panel"
 
 [node name="PanelContainerBottom" type="PanelContainer" parent="VBoxContainer" unique_id=818145290]
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/PanelContainerBottom" unique_id=544977831]
+layout_mode = 2
+size_flags_vertical = 8
+text = "Bottom panel"
+horizontal_alignment = 1
 
 [node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/PanelContainerBottom" unique_id=1265643512]
 layout_mode = 2
@@ -102,47 +163,57 @@ theme_override_constants/margin_bottom = 15
 [node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer" unique_id=185394121]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=544977831]
-layout_mode = 2
-text = "Bottom panel"
-
 [node name="Control" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=178211490]
 layout_mode = 2
 size_flags_horizontal = 3
-
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1032057531]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Button" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/HBoxContainer" unique_id=106939506]
-layout_mode = 2
-size_flags_horizontal = 3
-toggle_mode = true
-button_group = SubResource("ButtonGroup_d55xy")
-text = "Melee"
-
-[node name="Button2" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/HBoxContainer" unique_id=1168578557]
-layout_mode = 2
-size_flags_horizontal = 3
-toggle_mode = true
-button_group = SubResource("ButtonGroup_d55xy")
-text = "Ranged"
-
-[node name="Button3" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/HBoxContainer" unique_id=745331057]
-layout_mode = 2
-size_flags_horizontal = 3
-toggle_mode = true
-button_group = SubResource("ButtonGroup_d55xy")
-text = "Magic"
 
 [node name="Control2" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=606294971]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1234156537]
-custom_minimum_size = Vector2(128, 64)
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=1032057531]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+
+[node name="ActionButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/HBoxContainer" unique_id=1205266549 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
+size_flags_horizontal = 3
+text = "Melee"
+
+[node name="ActionButton2" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/HBoxContainer" unique_id=1223590152 instance=ExtResource("4_6qk7i")]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Ranged"
+
+[node name="ActionButton3" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/HBoxContainer" unique_id=2044187866 instance=ExtResource("4_6qk7i")]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Magic"
+
+[node name="Control3" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1768707412]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control3" unique_id=1234156537]
+custom_minimum_size = Vector2(128, 64)
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -132.0
+offset_top = -32.0
+offset_right = -4.0
+offset_bottom = 32.0
+grow_horizontal = 0
+grow_vertical = 2
 text = "End Turn"
 
 [node name="SkillNodeTooltip" parent="." unique_id=1365414747 instance=ExtResource("2_tooltip")]

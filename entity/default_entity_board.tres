@@ -14,6 +14,9 @@
 [ext_resource type="Resource" path="res://stats_system/list/health_max.tres" id="def_health_max"]
 [ext_resource type="Resource" path="res://stats_system/list/initiative_speed.tres" id="def_initiative_speed"]
 [ext_resource type="Resource" path="res://stats_system/list/intelligence.tres" id="def_intelligence"]
+[ext_resource type="Resource" path="res://stats_system/list/mana.tres" id="def_mana"]
+[ext_resource type="Resource" uid="uid://cv20hcpwmdvoe" path="res://stats_system/list/mana_max.tres" id="def_mana_max"]
+[ext_resource type="Resource" path="res://stats_system/list/mana_per_turn.tres" id="def_mana_per_turn"]
 [ext_resource type="Resource" path="res://stats_system/list/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/list/perception.tres" id="def_perception"]
 [ext_resource type="Resource" path="res://stats_system/list/sensor_range.tres" id="def_sensor_range"]
@@ -26,11 +29,8 @@
 [ext_resource type="Resource" path="res://stats_system/list/xp_max.tres" id="def_xp_max"]
 [ext_resource type="Resource" path="res://stats_system/list/xp_per_turn.tres" id="def_xp_per_turn"]
 [ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="script_derived"]
+[ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
-[ext_resource type="Script" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
-[ext_resource type="Resource" path="res://stats_system/list/mana.tres" id="def_mana"]
-[ext_resource type="Resource" path="res://stats_system/list/mana_max.tres" id="def_mana_max"]
-[ext_resource type="Resource" path="res://stats_system/list/mana_per_turn.tres" id="def_mana_per_turn"]
 
 [sub_resource type="Resource" id="scalar_ap_max"]
 script = ExtResource("2_scalar")
@@ -91,6 +91,51 @@ formula = SubResource("formula_per_to_vision")
 stat_id = &"vision_range"
 operation = 1
 
+[sub_resource type="Resource" id="formula_int_to_mana_max"]
+script = ExtResource("script_expr")
+formula = "floor(float(intelligence) / 10.0)"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="mod_int_to_mana_max"]
+script = ExtResource("script_derived")
+formula = SubResource("formula_int_to_mana_max")
+stat_id = &"mana_max"
+
+[sub_resource type="Resource" id="formula_int_to_mana_pt"]
+script = ExtResource("script_expr")
+formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="mod_int_to_mana_pt"]
+script = ExtResource("script_derived")
+formula = SubResource("formula_int_to_mana_pt")
+stat_id = &"mana_per_turn"
+
+[sub_resource type="Resource" id="formula_wis_to_xp_pt"]
+script = ExtResource("script_expr")
+formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
+inputs = Array[StringName]([&"wisdom"])
+
+[sub_resource type="Resource" id="mod_wis_to_xp_pt"]
+script = ExtResource("script_derived")
+formula = SubResource("formula_wis_to_xp_pt")
+stat_id = &"xp_per_turn"
+
+[sub_resource type="Resource" id="scalar_mana_max"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_mana_max")
+base_value = 10.0
+
+[sub_resource type="Resource" id="pool_mana"]
+script = ExtResource("3_pool")
+current = 10.0
+max_stat = SubResource("scalar_mana_max")
+definition = ExtResource("def_mana")
+
+[sub_resource type="Resource" id="scalar_mana_per_turn"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_mana_per_turn")
+
 [sub_resource type="Resource" id="scalar_node_health"]
 script = ExtResource("2_scalar")
 definition = ExtResource("def_node_health")
@@ -146,58 +191,6 @@ definition = ExtResource("def_xp")
 [sub_resource type="Resource" id="scalar_xp_per_turn"]
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
-
-[sub_resource type="Resource" id="scalar_mana_max"]
-script = ExtResource("2_scalar")
-definition = ExtResource("def_mana_max")
-base_value = 10.0
-
-[sub_resource type="Resource" id="pool_mana"]
-script = ExtResource("3_pool")
-current = 10.0
-max_stat = SubResource("scalar_mana_max")
-definition = ExtResource("def_mana")
-
-[sub_resource type="Resource" id="scalar_mana_per_turn"]
-script = ExtResource("2_scalar")
-definition = ExtResource("def_mana_per_turn")
-base_value = 0.0
-
-[sub_resource type="Resource" id="formula_int_to_mana_max"]
-script = ExtResource("script_expr")
-formula = "floor(float(intelligence) / 10.0)"
-inputs = [&"intelligence"]
-
-[sub_resource type="Resource" id="mod_int_to_mana_max"]
-script = ExtResource("script_derived")
-stat_id = &"mana_max"
-operation = 0
-formula = SubResource("formula_int_to_mana_max")
-value = 0.0
-
-[sub_resource type="Resource" id="formula_int_to_mana_pt"]
-script = ExtResource("script_expr")
-formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
-inputs = [&"intelligence"]
-
-[sub_resource type="Resource" id="mod_int_to_mana_pt"]
-script = ExtResource("script_derived")
-stat_id = &"mana_per_turn"
-operation = 0
-formula = SubResource("formula_int_to_mana_pt")
-value = 0.0
-
-[sub_resource type="Resource" id="formula_wis_to_xp_pt"]
-script = ExtResource("script_expr")
-formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
-inputs = [&"wisdom"]
-
-[sub_resource type="Resource" id="mod_wis_to_xp_pt"]
-script = ExtResource("script_derived")
-stat_id = &"xp_per_turn"
-operation = 0
-formula = SubResource("formula_wis_to_xp_pt")
-value = 0.0
 
 [resource]
 resource_local_to_scene = true

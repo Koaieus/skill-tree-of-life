@@ -50,6 +50,7 @@ script = SubResource("GDScript_0y6o7")
 color = Color(0.6039216, 0.8039216, 0.19607843, 0.6745098)
 
 [node name="CoreMarker" type="Node2D" parent="Visuals" unique_id=1043477974]
+visible = false
 script = ExtResource("3_0y6o7")
 
 [node name="Label" type="Label" parent="Visuals/CoreMarker" unique_id=1873155182]
