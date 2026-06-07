@@ -39,3 +39,14 @@ These are `DerivedModifierDef` entries wired as `intrinsic_modifiers` on the def
 - **Pool cap is a sibling stat, not a sub-property.** Target `&"health_max"`, not `&"health.max"`.
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
 - **Stat keys are currently GDScript objects (`get_script()`), not `StringName`.** Do not rename or move stat files without updating all `StatModifier.stat_key` references. v2 will use `StringName`; prefer `StringName` for any new stat work.
+
+## Visualizer (editor plugin)
+
+`addons/stat_board_visualizer/` — enabled in `project.godot`. Open any `StatBoard` .tres in the inspector; an "Open in StatBoard Visualizer" button mounts the board in the "StatBoard" bottom panel.
+
+- **Layout** — three `GraphFrame` columns: Attributes / Pools / Derived. Nodes auto-place inside their frame.
+- **Edges** — one per `DerivedModifierDef` input, source → target. They show dependency only.
+- **Contribution** — rendered as breakdown rows INSIDE the target node (op-tag, formula text, effective value). That's where the number lives — edges would only duplicate the dependency arrow.
+- **Add menu** — toolbar button (inside `GraphEdit.get_menu_hbox()`) pops `add_modifier_dialog.tscn`. Supports Constant / Linear / Expression formulas. Disk-backed boards are written back via `ResourceSaver` (editor only); runtime boards mutate in memory.
+- **Live updates** — `_board.changed` triggers a full rebuild (catches inspector edits to the intrinsic array); per-stat `value_changed` triggers a refresh; a 4 Hz timer covers derived-value recomputes.
+- **Runtime overlay** — `ui/stat_board_overlay/` mounts the same scene over the game (F3 to toggle). Set `overlay.board = entity.stat_board` from your level scene, or add the entity to group `"player"` for the fallback lookup.
