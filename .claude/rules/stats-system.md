@@ -15,11 +15,11 @@ description: Stat system quick-reference — pipeline, all stat IDs, gotchas
 
 ## Stat IDs
 
-**Scalars:** `strength` · `dexterity` · `intelligence` · `wisdom` · `perception` · `node_health` · `initiative_speed` · `xp_per_turn` · `vision_range` · `sensor_range`
+**Scalars:** `strength` · `dexterity` · `intelligence` · `wisdom` · `perception` · `node_health` · `initiative_speed` · `xp_per_turn` · `vision_range` · `sensor_range` · `mana_per_turn`
 
-**Pools (current + sibling cap):** `health`/`health_max` · `xp`/`xp_max` · `skill_points`/`skill_points_max` · `action_points`/`action_points_max` · `deallocation_points`/`deallocation_points_max`
+**Pools (current + sibling cap):** `health`/`health_max` · `xp`/`xp_max` · `skill_points`/`skill_points_max` · `action_points`/`action_points_max` · `deallocation_points`/`deallocation_points_max` · `mana`/`mana_max`
 
-Defaults: attributes 10 · health 10/10 · XP 0/5 · SP 1/3 · AP 2/2 · DP 3/3 · vision_range 400px · initiative_speed 10 · sensor_range 0.
+Defaults: attributes 10 · health 10/10 · XP 0/5 · SP 1/3 · AP 2/2 · DP 3/3 · mana 10/10 · vision_range 400px · initiative_speed 10 · sensor_range 0 · mana_per_turn 0.
 
 `skill_points` is `SkillPointStat` (PoolStat subclass) with a `wounded` bucket: `wound(n)` = forced dealloc (attack); `heal(n)` = restore wounded → current; `refund(n)` = voluntary dealloc. Not interchangeable.
 
@@ -28,3 +28,4 @@ Defaults: attributes 10 · health 10/10 · XP 0/5 · SP 1/3 · AP 2/2 · DP 3/3 
 - **DerivedModifierDef must not be shared across entities.** Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` auto-duplicates them.
 - **Pool cap is a sibling stat, not a sub-property.** Target `&"health_max"`, not `&"health.max"`.
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
+- **Stat keys are currently GDScript objects (`get_script()`), not `StringName`.** Do not rename or move stat files without updating all `StatModifier.stat_key` references. v2 will use `StringName`; prefer `StringName` for any new stat work.
