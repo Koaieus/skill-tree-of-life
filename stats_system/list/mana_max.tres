@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://cv20hcpwmdvoe"]
+
+[ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"mana_max"
+display_name = "Max Mana"
+description = "Cap of the mana pool. Base 10; +1 per INT//10 from the intrinsic scaling rule."
+default_value = 2.0
+display_order = 31
+tint_color = Color(0.3, 0.5, 0.9, 1)

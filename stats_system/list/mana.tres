@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="PoolStatDef" load_steps=2 format=3]
+[ext_resource type="Script" uid="uid://tpd28s10cxxv" path="res://stats_system/pool_stat_def.gd" id="1_pool_stat_def"]
+
+[resource]
+script = ExtResource("1_pool_stat_def")
+id = &"mana"
+display_name = "Mana"
+description = "Magic resource pool. Used for casting spells. Max = base + INT//10; regen = floor(log(INT)) per turn."
+value_type = 0
+default_value = 0.0
+display_order = 30
+display_type = 1
+tint_color = Color(0.3, 0.5, 0.9, 1)
+max_id = &"mana_max"
+min_value = 0
+is_growable = false
+heal_on_max_increase = true
+can_overflow = false
+growth_flat = 0
+growth_factor = 1.0

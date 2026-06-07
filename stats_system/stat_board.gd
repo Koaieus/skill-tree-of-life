@@ -49,6 +49,10 @@ extends Resource
 @export var vision_range: ScalarStat   ## Euclidean sight radius in scene pixels.
 @export var sensor_range: ScalarStat   ## Topology sensor radius in hops past owned nodes.
 
+@export_group("Magic")
+@export var mana: PoolStat             ## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
+@export var mana_per_turn: ScalarStat  ## Mana restored at turn start. Base: floor(log(INT)).
+
 ## Scaling rules intrinsic to this board — DerivedModifierDefs that describe
 ## how stats on this board relate to each other (e.g. PER scales vision_range).
 ## Applied once by Entity._ready() via apply_intrinsics(). These are board-level
@@ -81,6 +85,9 @@ var deallocation_points_max: ScalarStat:
 
 var action_points_max: ScalarStat:
 	get: return action_points.max_stat if action_points != null else null
+
+var mana_max: ScalarStat:
+	get: return mana.max_stat if mana != null else null
 
 
 # --- Lookup + modifier routing ---------------------------------------------

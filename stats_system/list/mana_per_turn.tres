@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+[ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"mana_per_turn"
+display_name = "Mana / Turn"
+description = "Mana restored at turn start. Scales as floor(log(INT)); at INT=10 that's 2 per turn."
+value_type = 0
+default_value = 0.0
+display_order = 32
+display_type = 0
+tint_color = Color(0.3, 0.5, 0.9, 1)

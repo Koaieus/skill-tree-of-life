@@ -31,6 +31,7 @@ These are `DerivedModifierDef` entries wired as `intrinsic_modifiers` on the def
 | `perception` | `vision_range` | `floor(PER / 10.0)` ADD_BASE |
 | `intelligence` | `mana_max` | `floor(INT / 10.0)` ADD_BASE |
 | `intelligence` | `mana_per_turn` | `floor(log(max(1, INT)))` ADD_BASE |
+| `wisdom` | `xp_per_turn` | `floor(log(max(1, WIS)))` ADD_BASE |
 
 ## Gotchas
 
