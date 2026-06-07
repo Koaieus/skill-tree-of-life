@@ -29,10 +29,27 @@ signal clicked(skill_node: SkillNode)
 		_sync_collision()
 
 @onready var hover_ring: Node2D = $Visuals/HoverRing
+@onready var core_marker: Node2D = $Visuals/CoreMarker
+
+# Owner subscription tracking — re-bound whenever `owned_by` changes so the
+# CoreMarker reflects the *current* owner's core_location, not a stale one.
+var _bound_owner: Entity = null
 
 
 func _ready() -> void:
 	_sync_collision()
+	owner_changed.connect(_refresh_core_marker)
+	_refresh_core_marker()
+
+
+func _refresh_core_marker() -> void:
+	if _bound_owner != owned_by:
+		if _bound_owner != null and _bound_owner.core_location_changed.is_connected(_refresh_core_marker):
+			_bound_owner.core_location_changed.disconnect(_refresh_core_marker)
+		_bound_owner = owned_by
+		if _bound_owner != null:
+			_bound_owner.core_location_changed.connect(_refresh_core_marker)
+	core_marker.visible = owned_by != null and owned_by.core_location == self
 
 
 func _sync_collision() -> void:

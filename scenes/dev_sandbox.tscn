@@ -28,6 +28,26 @@ script = ExtResource("2_mod")
 stat_id = &"health_max"
 value = 5.0
 
+[sub_resource type="Resource" id="mod_int_2"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_per_2"]
+script = ExtResource("2_mod")
+stat_id = &"perception"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_dex_1"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 1.0
+
+[sub_resource type="Resource" id="mod_str_1"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+value = 1.0
+
 [node name="DevSandbox" type="Node2D" unique_id=325788489]
 script = ExtResource("1_dev")
 
@@ -74,6 +94,31 @@ script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Down")
 
+[node name="Edge_Core_Left" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Core")
+to = NodePath("../../Nodes/Left")
+
+[node name="Edge_Up_NE" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Up")
+to = NodePath("../../Nodes/NE")
+
+[node name="Edge_Right_NE" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Right")
+to = NodePath("../../Nodes/NE")
+
+[node name="Edge_Up_UpOut" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Up")
+to = NodePath("../../Nodes/Up_Out")
+
+[node name="Edge_Right_RightOut" type="Node2D" parent="Graph/Edges" node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Right")
+to = NodePath("../../Nodes/Right_Out")
+
 [node name="Nodes" type="Node2D" parent="Graph" unique_id=1697871484]
 
 [node name="Core" parent="Graph/Nodes" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -91,6 +136,22 @@ modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 [node name="Down" parent="Graph/Nodes" unique_id=1425471291 instance=ExtResource("9_skill")]
 position = Vector2(720, 600)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
+
+[node name="Left" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(600, 480)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
+
+[node name="NE" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(840, 360)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
+
+[node name="Up_Out" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(720, 240)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
+
+[node name="Right_Out" parent="Graph/Nodes" instance=ExtResource("9_skill")]
+position = Vector2(960, 480)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1")])
 
 [node name="PlayerInputController" type="Node" parent="." unique_id=430342798 node_paths=PackedStringArray("graph", "allocation_system", "player")]
 script = ExtResource("8_input")

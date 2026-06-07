@@ -7,10 +7,17 @@ extends Node
 ## a child `EntityNavigator` that mirrors the owned-subgraph for connectivity
 ## queries (islanding checks now; combat path/reach queries later).
 
+signal core_location_changed
+
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
 @export var stat_board: StatBoard = null
-@export var core_location: SkillNode
+@export var core_location: SkillNode:
+	set(value):
+		if core_location == value:
+			return
+		core_location = value
+		core_location_changed.emit()
 
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
