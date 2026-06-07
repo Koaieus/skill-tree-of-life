@@ -56,15 +56,15 @@ You hit *Tab.* The panel doesn't move.
 
 > **Funny.** You spend a real, embarrassing amount of time looking for the close button. There isn't one. There will never be one again.
 
-The camera does something subtle. The panel's borders thin, the background dims, and the panel **grows.** It fills the screen. The icons on the nodes resolve into structures, not glyphs. The lines between them resolve into paths you could walk.
+The camera does something subtle. The panel's borders thin, the background dims, and the panel **grows.** It fills the screen. The icons on the nodes resolve into structures, not glyphs. The lines between them resolve into edges — not connectors, traversable paths your Core could hop along.
 
 Your hero sprite is gone. Your HP bar is gone. The old HUD is gone.
 
-You are standing on a node.
+Your Core is at a node.
 
 ## Beat 5 — Orientation. You realize the tree is the world.
 
-Your starter node — labeled **ENTITY CORE — +10 XP/TURN** — is beneath you, glowing warm. The three nodes you allocated in the panel earlier are **here,** lit in your color, connected to your core by visible edges. **+10 STR.** **+10 DEX.** **+10 INT.** The numbers are the same; the substrate is not.
+Your starter node — labeled **ENTITY CORE — +10 XP/TURN** — glows warm, your Core anchored to it. The three nodes you allocated in the panel earlier are **here,** lit in your color, connected to your core by visible edges. **+10 STR.** **+10 DEX.** **+10 INT.** The numbers are the same; the substrate is not.
 
 > **Questionable.** So when you clicked +10 STR in the panel during the adventure game, you weren't *configuring a build.* You were claiming a node in a place. You just didn't know you were here yet.
 

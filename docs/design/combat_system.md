@@ -484,7 +484,7 @@ A propagating spell that arrives at a self-looped node follows **all** edges out
 
 Every spell must define its own recursion/propagation rule. The self-loop's behavior emerges from whatever rule the spell applies.
 
-**Color-specific vulnerability.** This triple-hit only triggers on *propagating* spells (Blue magic). Ranged volleys and melee strikes hit the node once and move on — the self-loop is transparent to them. The glass cannon weakness is **Blue vs. Blue** specifically. A Red entity can walk up and punch the self-looped wizard node without triggering any resonance.
+**Color-specific vulnerability.** This triple-hit only triggers on *propagating* spells (Blue magic). Ranged volleys and melee strikes hit the node once and move on — the self-loop is transparent to them. The glass cannon weakness is **Blue vs. Blue** specifically. A Red entity can close range and strike the self-looped wizard node without triggering any resonance.
 
 **Summary:** a self-looped node hits harder (better, unprunable casting tier) and takes harder (triple damage from propagating spells, normal HP). Both from the same math. The ideal Blue glass cannon — and a priority target for any Blue attacker who knows what they're looking at.
 

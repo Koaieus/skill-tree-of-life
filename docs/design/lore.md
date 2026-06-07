@@ -48,7 +48,7 @@ Except it doesn't close.
 
 The player is no longer *looking at* the skill tree. They are *in* it. The nodes are structures. The edges between them are traversable paths. What was a UI overlay is now the world.
 
-The hero stands on their starting node — the one they've been inhabiting since the game began, the "Starter Skill." They can see the nodes they've allocated glowing with their color. The unallocated nodes are dark, cold, distant.
+The entity's Core rests at their starting node — the one they've been inhabiting since the game began, the "Starter Skill." They can see the nodes they've allocated glowing with their color. The unallocated nodes are dark, cold, distant.
 
 There is no "Close Panel" button. There is no menu. There is no going back to the adventure game.
 
@@ -211,7 +211,7 @@ What is lost: the shape of your constellation. The individual nodes as distinct 
 
 ## The Fractal — Depth Unknown
 
-Each level is one layer of a fractal. Your starting node at level 2 *is* your level-1 field. Your starting node at level 3 *is* your level-2 field. All the way up — or down, depending on how you orient it. The Tethers make this concrete: every level you stand inside is a vertex, and its Tethers are that vertex's edges to the level above.
+Each level is one layer of a fractal. Your starting node at level 2 *is* your level-1 field. Your starting node at level 3 *is* your level-2 field. All the way up — or down, depending on how you orient it. The Tethers make this concrete: every level you inhabit is a vertex, and its Tethers are that vertex's edges to the level above.
 
 The intro crash didn't drop you into a skill tree. It dropped you into **a specific depth** of the fractal. You don't know which one. You don't know how deep the tree goes in the direction you came from. You don't know what's at the top.
 
@@ -510,7 +510,7 @@ The Apex Entity's level is a homage to Path of Exile's passive skill tree. Massi
 
 **Other entities.** NPCs, enemies — they have their own nodes, allocations, colors. The turn-based structure (initiative, ticking, turn order) is the natural rhythm of entities on a shared tree negotiating who acts next.
 
-**Compression as growth.** Everything you lose at Breakout became the ground you stand on. You don't lose your run when a level ends. You *become* it.
+**Compression as growth.** Everything you lose at Breakout became the substrate beneath your Core. You don't lose your run when a level ends. You *become* it.
 
 ---
 
