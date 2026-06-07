@@ -124,17 +124,17 @@ layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "floor(float(intelligence) / 10.0)"
 
-[node name="InputsRow" type="HBoxContainer" parent="Body/ExprRow"]
+[node name="StatusRow" type="HBoxContainer" parent="Body/ExprRow"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Label" type="Label" parent="Body/ExprRow/InputsRow"]
+[node name="Spacer" type="Control" parent="Body/ExprRow/StatusRow"]
 layout_mode = 2
 custom_minimum_size = Vector2(140, 0)
-text = "Inputs"
 
-[node name="ExprInputs" type="LineEdit" parent="Body/ExprRow/InputsRow"]
+[node name="ExprStatus" type="Label" parent="Body/ExprRow/StatusRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "comma-separated stat ids, e.g. intelligence,wisdom"
+text = "type a formula…"
+theme_override_font_sizes/font_size = 11

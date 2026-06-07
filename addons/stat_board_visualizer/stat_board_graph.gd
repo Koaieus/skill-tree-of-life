@@ -92,6 +92,10 @@ func _ready() -> void:
 	_build_toolbar()
 	_refresh_timer.timeout.connect(refresh)
 	_add_dialog.modifier_confirmed.connect(_on_modifier_confirmed)
+	# Drag-from-port-to-port → don't draw the visual link; instead pop the
+	# add-modifier dialog prefilled with a Linear from→to. The actual edge
+	# materialises when the user confirms (rebuild iterates intrinsic_modifiers).
+	connection_request.connect(_on_connection_request)
 
 
 func _exit_tree() -> void:
@@ -449,13 +453,27 @@ func _board_display_name() -> String:
 func _on_add_pressed() -> void:
 	if _board == null:
 		return
+	_add_dialog.call(&"populate", _collect_stat_ids())
+	_add_dialog.popup_centered()
+
+
+func _on_connection_request(from_node: StringName, _from_port: int, to_node: StringName, _to_port: int) -> void:
+	if _board == null:
+		return
+	if from_node == to_node:
+		return
+	_add_dialog.call(&"populate", _collect_stat_ids())
+	_add_dialog.call(&"preset_linear", from_node, to_node)
+	_add_dialog.popup_centered()
+
+
+func _collect_stat_ids() -> Array:
 	var ids: Array = []
 	for spec in _GROUP_LAYOUT:
 		for id in spec.stats:
 			if _board.get_stat(id) != null:
 				ids.append(id)
-	_add_dialog.call(&"populate", ids)
-	_add_dialog.popup_centered()
+	return ids
 
 
 func _on_modifier_confirmed(mod: StatModifierDef) -> void:

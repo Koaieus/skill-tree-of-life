@@ -54,3 +54,43 @@ func _parse() -> void:
 	if _expr.parse(formula, names) != OK:
 		push_error("ExpressionFormula parse error in '%s': %s" % [formula, _expr.get_error_text()])
 		_expr = null
+
+
+# --- Static tooling helpers ----------------------------------------------
+#
+# Godot's `Expression` class has no AST introspection — it accepts a name
+# list at parse time but won't tell you which names a parsed expression
+# actually references. So tooling that wants to derive `inputs` from
+# `formula` has to string-match. We pair two helpers:
+#
+#   validate(text, candidates) — uses `Expression.parse(text, candidates)`
+#     to catch syntax errors and unknown identifiers. Pass every stat id
+#     you'd allow as a candidate so a valid formula parses.
+#
+#   detect_inputs(text, candidates) — word-boundary matches each candidate
+#     against the formula text and returns the subset actually used. This
+#     is what feeds the `inputs` field, replacing manual entry that gets
+#     forgotten and silently breaks subscription.
+
+## Returns "" on parse success, or the Expression's error text.
+static func validate(formula_text: String, candidate_ids: Array) -> String:
+	if formula_text.strip_edges() == "":
+		return "formula is empty"
+	var names := PackedStringArray()
+	for id in candidate_ids:
+		names.append(str(id))
+	var ex := Expression.new()
+	if ex.parse(formula_text, names) != OK:
+		return ex.get_error_text()
+	return ""
+
+
+## Returns the subset of `candidate_ids` that appear as whole-word tokens
+## in `formula_text`. Order follows `candidate_ids` for stable output.
+static func detect_inputs(formula_text: String, candidate_ids: Array) -> Array[StringName]:
+	var found: Array[StringName] = []
+	for id in candidate_ids:
+		var rx := RegEx.create_from_string("\\b%s\\b" % str(id))
+		if rx != null and rx.search(formula_text) != null:
+			found.append(id)
+	return found

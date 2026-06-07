@@ -42,11 +42,7 @@ These are `DerivedModifierDef` entries wired as `intrinsic_modifiers` on the def
 
 ## Visualizer (editor plugin)
 
-`addons/stat_board_visualizer/` — enabled in `project.godot`. Open any `StatBoard` .tres in the inspector; an "Open in StatBoard Visualizer" button mounts the board in the "StatBoard" bottom panel.
+`addons/stat_board_visualizer/` — Inspector button on any `StatBoard` .tres mounts it in the "StatBoard" bottom panel. Runtime F3 overlay is `ui/stat_board_overlay/`.
 
-- **Layout** — three `GraphFrame` columns: Attributes / Pools / Derived. Nodes auto-place inside their frame.
-- **Edges** — one per `DerivedModifierDef` input, source → target. They show dependency only.
-- **Contribution** — rendered as breakdown rows INSIDE the target node (op-tag, formula text, effective value). That's where the number lives — edges would only duplicate the dependency arrow.
-- **Add menu** — toolbar button (inside `GraphEdit.get_menu_hbox()`) pops `add_modifier_dialog.tscn`. Supports Constant / Linear / Expression formulas. Disk-backed boards are written back via `ResourceSaver` (editor only); runtime boards mutate in memory.
-- **Live updates** — `_board.changed` triggers a full rebuild (catches inspector edits to the intrinsic array); per-stat `value_changed` triggers a refresh; a 4 Hz timer covers derived-value recomputes.
-- **Runtime overlay** — `ui/stat_board_overlay/` mounts the same scene over the game (F3 to toggle). Set `overlay.board = entity.stat_board` from your level scene, or add the entity to group `"player"` for the fallback lookup.
+- **Add modifiers** — toolbar `+` button OR drag a stat's port to another stat's port (presets as Linear `source × scale`). Disk-backed boards persist via `ResourceSaver`; runtime boards mutate in memory only. Refresh: `_board.changed` → rebuild, stat `value_changed` → refresh, 4 Hz timer covers derived recomputes.
+- **Expression formula inputs are auto-derived.** Godot's `Expression` exposes no AST, so we pair `ExpressionFormula.validate(text, candidates)` (uses `Expression.parse` against the full stat-id list) with `ExpressionFormula.detect_inputs(text, candidates)` (word-boundary regex). The dialog live-validates while typing and only writes the detected subset to `inputs` — manual entry is no longer required.
