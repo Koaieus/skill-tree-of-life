@@ -12,6 +12,6 @@ void fragment() {
 	float d = distance(UV, mouse_uv);
 	float falloff = 1.0 - smoothstep(0.0, glow_radius, d);
 	float glow = falloff * max(glow_strength, active_strength);
-	vec3 base = tint + vec3(active_strength) * 0.3;
+	vec3 base = tint * 0.5 + vec3(active_strength) * 0.3;
 	COLOR = mix(vec4(base, 1.0), GLOW_COLOR, glow);
 }

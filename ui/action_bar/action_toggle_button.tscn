@@ -34,7 +34,7 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_46ywa")
 toggle_mode = true
 button_group = ExtResource("1_b2a6j")
 script = ExtResource("2_inglx")
-tint = Color(0.19730401, 0.50484705, 0.4734835, 1)
+tint = Color(0, 0.59229046, 0.65951425, 1)
 glow_radius = 0.31
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=726387690]

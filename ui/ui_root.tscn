@@ -184,14 +184,17 @@ size_flags_horizontal = 3
 
 [node name="MeleeToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1205266549 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
+text = "Melee"
 tint = Color(1, 0, 0, 1)
 
 [node name="RangedToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1223590152 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
+text = "Ranged"
 tint = Color(0, 1, 0, 1)
 
 [node name="MagicToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=2044187866 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
+text = "Magic"
 tint = Color(0, 0, 1, 1)
 
 [node name="Control3" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1768707412]

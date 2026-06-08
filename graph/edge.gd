@@ -37,10 +37,14 @@ func _draw() -> void:
 	if from == null or to == null:
 		return
 	var a := from.global_position - global_position
-	var b := to.global_position - global_position
-	var c := lit_color if is_lit() else color
-	draw_line(a, b, c, width, true)
-
+	var b := to.global_position - global_position                                                                                                            
+	var dir := (b - a).normalized()
+	var a_trim := a + dir * from.radius                                                                                                                      
+	var b_trim := b - dir * to.radius                           
+	if (b_trim - a_trim).dot(dir) <= 0.0:                                                                                                                    
+		return  # nodes overlap — nothing to draw
+	var c := lit_color if is_lit() else color                                                                                                                
+	draw_line(a_trim, b_trim, c, width, true)  
 
 ## Lit when both endpoints are owned by the same entity. Override in a
 ## subclass or replace the predicate later for richer states (e.g. owned
@@ -56,6 +60,8 @@ func _connect_endpoint(node: SkillNode) -> void:
 		return
 	if not node.owner_changed.is_connected(_on_endpoint_owner_changed):
 		node.owner_changed.connect(_on_endpoint_owner_changed)
+	if not node.radius_changed.is_connected(_on_endpoint_radius_changed):
+		node.radius_changed.connect(_on_endpoint_radius_changed)
 
 
 func _disconnect_endpoint(node: SkillNode) -> void:
@@ -63,7 +69,12 @@ func _disconnect_endpoint(node: SkillNode) -> void:
 		return
 	if node.owner_changed.is_connected(_on_endpoint_owner_changed):
 		node.owner_changed.disconnect(_on_endpoint_owner_changed)
+	if node.radius_changed.is_connected(_on_endpoint_radius_changed):
+		node.radius_changed.disconnect(_on_endpoint_radius_changed)
 
 
 func _on_endpoint_owner_changed() -> void:
+	queue_redraw()
+	
+func _on_endpoint_radius_changed() -> void:
 	queue_redraw()
