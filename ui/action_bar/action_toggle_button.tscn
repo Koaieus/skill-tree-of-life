@@ -1,0 +1,62 @@
+[gd_scene format=3 uid="uid://vntdpku7608y"]
+
+[ext_resource type="ButtonGroup" uid="uid://dxkqyaaidik02" path="res://ui/action_bar/action_button_group.tres" id="1_b2a6j"]
+[ext_resource type="Script" uid="uid://q7pbhm4e8ui6" path="res://ui/action_bar/action_toggle_button.gd" id="2_inglx"]
+[ext_resource type="Shader" uid="uid://dtks7uire567h" path="res://ui/action_bar/action_toggle_button.gdshader" id="3_ndpa3"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_inglx"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ndpa3"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_pjooi"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qhfcg"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_46ywa"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pjooi"]
+resource_local_to_scene = true
+shader = ExtResource("3_ndpa3")
+shader_parameter/mouse_uv = Vector2(0, 0)
+shader_parameter/tint = Color(0.19730401, 0.50484705, 0.4734835, 1)
+shader_parameter/glow_radius = 0.31
+shader_parameter/glow_strength = 0.0
+shader_parameter/active_strength = 0.0
+
+[node name="ActionToggleButton" type="Button" unique_id=1205266549]
+custom_minimum_size = Vector2(32, 32)
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxEmpty_inglx")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_ndpa3")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_pjooi")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_qhfcg")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_46ywa")
+toggle_mode = true
+button_group = ExtResource("1_b2a6j")
+script = ExtResource("2_inglx")
+tint = Color(0.19730401, 0.50484705, 0.4734835, 1)
+glow_radius = 0.31
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=726387690]
+material = SubResource("ShaderMaterial_pjooi")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="." unique_id=311423691]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
+[connection signal="toggled" from="." to="." method="_on_toggled"]

@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bkm26sesx8gjj" path="res://ui/ui_root.gd" id="1_d55xy"]
 [ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
-[ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/action_bar/action_button.tscn" id="4_6qk7i"]
+[ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/action_bar/action_toggle_button.tscn" id="4_6qk7i"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="4_f6o6b"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
@@ -84,6 +84,7 @@ script = ExtResource("1_stats_panel")
 [node name="Center" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=1886377179]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 1
 
 [node name="StatBoardOverlay" type="Control" parent="VBoxContainer/HBoxContainer/Center" unique_id=825145876]
 unique_name_in_owner = true
@@ -171,7 +172,7 @@ size_flags_horizontal = 3
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=1032057531]
+[node name="ActionBar" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=1032057531]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -181,20 +182,17 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 
-[node name="ActionButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/HBoxContainer" unique_id=1205266549 instance=ExtResource("4_6qk7i")]
+[node name="MeleeToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1205266549 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "Melee"
+tint = Color(1, 0, 0, 1)
 
-[node name="ActionButton2" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/HBoxContainer" unique_id=1223590152 instance=ExtResource("4_6qk7i")]
+[node name="RangedToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1223590152 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "Ranged"
+tint = Color(0, 1, 0, 1)
 
-[node name="ActionButton3" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/HBoxContainer" unique_id=2044187866 instance=ExtResource("4_6qk7i")]
+[node name="MagicToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=2044187866 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "Magic"
+tint = Color(0, 0, 1, 1)
 
 [node name="Control3" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1768707412]
 layout_mode = 2
