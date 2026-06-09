@@ -7,15 +7,15 @@ var _defs: Dictionary = {}
 
 
 func _ready() -> void:
-	var dir := DirAccess.open("res://stats_system/list")
+	var dir := DirAccess.open("res://entity/stats/list")
 	if dir == null:
-		push_warning("StatRegistry: could not open res://stats_system/list")
+		push_warning("StatRegistry: could not open res://entity/stats/list")
 		return
 	dir.list_dir_begin()
 	var file := dir.get_next()
 	while file != "":
 		if file.ends_with(".tres"):
-			var res := load("res://stats_system/list/" + file)
+			var res := load("res://entity/stats/list/" + file)
 			if res is StatDef:
 				_defs[res.id] = res
 		file = dir.get_next()
