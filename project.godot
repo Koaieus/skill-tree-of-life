@@ -45,5 +45,10 @@ enabled=PackedStringArray("res://addons/stat_board_visualizer/plugin.cfg")
 
 folder_colors={
 "res://assets/": "gray",
-"res://autoload/": "red"
+"res://autoload/": "red",
+"res://entity/": "red",
+"res://entity/stats/": "pink",
+"res://graph/": "teal",
+"res://skill_node/": "green",
+"res://systems/": "yellow"
 }

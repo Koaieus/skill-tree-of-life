@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="PoolStatDef" format=3 uid="uid://cuwrjp66o6bnx"]
+
+[ext_resource type="Script" uid="uid://tpd28s10cxxv" path="res://stats_system/pool_stat_def.gd" id="1_8kl0j"]
+
+[resource]
+script = ExtResource("1_8kl0j")
+max_id = &"movement_points_max"
+can_overflow = true
+id = &"movement_points"
+display_name = "Movement"
+description = "How many hops an entity's Core can do per turn."
+default_value = 1.0
+display_order = 2
+tint_color = Color(0.043137256, 1, 0.3764706, 1)
+metadata/_custom_type_script = "uid://tpd28s10cxxv"

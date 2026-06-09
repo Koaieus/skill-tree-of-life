@@ -40,18 +40,19 @@ extends Resource
 
 @export_group("Turn Budget")
 @export var deallocation_points: PoolStat  ## Default 3/3 — reshape budget.
-@export var action_points: PoolStat        ## Default 2/2 — attacks per turn.
+@export var action_points: PoolStat        	## Default 2/2 — attacks per turn.
+@export var movement_points: PoolStat		## Default 1/1 — moves Core along edges.
 
 @export_group("Turn Order")
-@export var initiative_speed: ScalarStat  ## Ticks of initiative added per clock tick.
+@export var initiative_speed: ScalarStat	## Ticks of initiative added per clock tick.
 
 @export_group("Vision")
-@export var vision_range: ScalarStat   ## Euclidean sight radius in scene pixels.
-@export var sensor_range: ScalarStat   ## Topology sensor radius in hops past owned nodes.
+@export var vision_range: ScalarStat	## Euclidean sight radius in scene pixels.
+@export var sensor_range: ScalarStat	## Topology sensor radius in hops past owned nodes.
 
 @export_group("Magic")
-@export var mana: PoolStat             ## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
-@export var mana_per_turn: ScalarStat  ## Mana restored at turn start. Base: floor(log(INT)).
+@export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
+@export var mana_per_turn: ScalarStat	## Mana restored at turn start. Base: floor(log(INT)).
 
 ## Scaling rules intrinsic to this board — DerivedModifierDefs that describe
 ## how stats on this board relate to each other (e.g. PER scales vision_range).

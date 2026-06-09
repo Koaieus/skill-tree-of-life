@@ -1,19 +1,14 @@
-[gd_resource type="Resource" script_class="PoolStatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="PoolStatDef" format=3 uid="uid://ccpue5w27rur1"]
 
 [ext_resource type="Script" uid="uid://tpd28s10cxxv" path="res://stats_system/pool_stat_def.gd" id="1_pool_stat_def"]
 
 [resource]
 script = ExtResource("1_pool_stat_def")
+max_id = &"action_points_max"
 id = &"action_points"
 display_name = "Action Points"
 description = "Attacks per turn. Default 2; resets each turn via TurnManager (wire-up TBD)."
-value_type = 0
 default_value = 2.0
 display_order = 3
 display_type = 1
 tint_color = Color(0.4, 0.7, 0.9, 1)
-max_id = &"action_points_max"
-min_value = 0
-is_growable = false
-heal_on_max_increase = false
-can_overflow = false

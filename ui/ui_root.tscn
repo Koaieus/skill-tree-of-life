@@ -189,6 +189,7 @@ tint = Color(1, 0, 0, 1)
 
 [node name="RangedToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1223590152 instance=ExtResource("4_6qk7i")]
 layout_mode = 2
+disabled = true
 text = "Ranged"
 tint = Color(0, 1, 0, 1)
 
