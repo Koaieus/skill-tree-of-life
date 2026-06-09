@@ -12,7 +12,6 @@ default_value = 0.0
 display_order = 21
 display_type = 1
 tint_color = Color(0.95, 0.8, 0.2, 1)
-max_id = &"xp_max"
 min_value = 0
 is_growable = true
 heal_on_max_increase = false

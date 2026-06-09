@@ -8,11 +8,12 @@ extends Resource
 ## inheritance after the first playable slice.
 ##
 ## Property names match each Stat's `definition.id` — so `get_stat(id)` is
-## just `Object.get(id)`, which transparently resolves both @export fields
-## and the derived getter properties for pool maxes below.
+## just `Object.get(id)`.
 ##
 ## Scalar fields use `ScalarStat` (not `Stat`) so the inspector dropdown
 ## offers only "New ScalarStat" — Stat itself is abstract.
+## Pool fields use `PoolStat`; `.value` is the modifier-computed cap,
+## `.current` is the ephemeral game state.
 
 @export_group("Attributes")
 @export var strength: ScalarStat        ## STR / Red — melee.
@@ -64,37 +65,9 @@ extends Resource
 @export_group("")
 
 
-# --- Pool max stats (derived) ----------------------------------------------
-# Each pool already owns its `max_stat` reference, so the board exposes a
-# computed view rather than a second @export. Single source of truth:
-# edit `health.max_stat` in the inspector; `board.health_max` follows.
-# Non-@export so the inspector doesn't show an uneditable shadow and
-# nothing serializes twice. `Object.get(&"health_max")` invokes the getter,
-# so `get_stat()` / modifier routing keep working.
-
-var health_max: ScalarStat:
-	get: return health.max_stat if health != null else null
-
-var xp_max: ScalarStat:
-	get: return xp.max_stat if xp != null else null
-
-var skill_points_max: ScalarStat:
-	get: return skill_points.max_stat if skill_points != null else null
-
-var deallocation_points_max: ScalarStat:
-	get: return deallocation_points.max_stat if deallocation_points != null else null
-
-var action_points_max: ScalarStat:
-	get: return action_points.max_stat if action_points != null else null
-
-var mana_max: ScalarStat:
-	get: return mana.max_stat if mana != null else null
-
-
 # --- Lookup + modifier routing ---------------------------------------------
 
-## Lookup a Stat by its StatDef id. Property-name == id convention; works
-## for @exports and the derived getters above.
+## Lookup a Stat by its StatDef id. Property-name == id convention.
 func get_stat(id: StringName) -> Stat:
 	return get(id)
 

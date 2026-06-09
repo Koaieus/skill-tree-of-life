@@ -42,10 +42,8 @@ const _GROUP_LAYOUT := [
 		"x": 360.0,
 		"tint": Color(0.30, 0.45, 0.55, 0.35),
 		"stats": [
-			&"health", &"health_max", &"mana", &"mana_max",
-			&"xp", &"xp_max", &"skill_points", &"skill_points_max",
-			&"action_points", &"action_points_max",
-			&"deallocation_points", &"deallocation_points_max",
+			&"health", &"mana", &"xp", &"skill_points",
+			&"action_points", &"deallocation_points", &"movement_points",
 		],
 	},
 	{
@@ -385,8 +383,7 @@ func _display_title(id: StringName, stat: Stat) -> String:
 func _value_text(stat: Stat) -> String:
 	if stat is PoolStat:
 		var ps := stat as PoolStat
-		var cap = ps.max_value
-		return "%s / %s" % [str(ps.current), str(cap) if cap != null else "?"]
+		return "%s / %s" % [str(ps.current), str(ps.get_value())]
 	return str(stat.get_value())
 
 

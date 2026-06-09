@@ -11,7 +11,6 @@ default_value = 0.0
 display_order = 30
 display_type = 1
 tint_color = Color(0.3, 0.5, 0.9, 1)
-max_id = &"mana_max"
 min_value = 0
 is_growable = false
 heal_on_max_increase = true

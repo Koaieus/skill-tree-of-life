@@ -4,7 +4,6 @@
 
 [resource]
 script = ExtResource("1_pool_stat_def")
-max_id = &"action_points_max"
 id = &"action_points"
 display_name = "Action Points"
 description = "Attacks per turn. Default 2; resets each turn via TurnManager (wire-up TBD)."

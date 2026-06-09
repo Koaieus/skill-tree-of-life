@@ -4,7 +4,6 @@
 
 [resource]
 script = ExtResource("1_8kl0j")
-max_id = &"movement_points_max"
 can_overflow = true
 id = &"movement_points"
 display_name = "Movement"

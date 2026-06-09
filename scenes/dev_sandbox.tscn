@@ -8,7 +8,6 @@
 [ext_resource type="Script" uid="uid://blmjm81fytofd" path="res://systems/allocation_system.gd" id="6_alloc"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://entity/stats/list/action_points.tres" id="7_x8df0"]
-[ext_resource type="Resource" path="res://entity/stats/list/action_points_max.tres" id="8_ijxde"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="9_ycecq"]
@@ -16,10 +15,8 @@
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="10_r44ow"]
 [ext_resource type="Resource" path="res://entity/stats/list/deallocation_points.tres" id="11_ebeys"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="11_ui"]
-[ext_resource type="Resource" path="res://entity/stats/list/deallocation_points_max.tres" id="12_g6i1j"]
 [ext_resource type="Resource" path="res://entity/stats/list/dexterity.tres" id="13_pyapo"]
 [ext_resource type="Resource" path="res://entity/stats/list/health.tres" id="14_qrijo"]
-[ext_resource type="Resource" path="res://entity/stats/list/health_max.tres" id="15_umwfs"]
 [ext_resource type="Resource" path="res://entity/stats/list/intelligence.tres" id="16_o5a17"]
 [ext_resource type="Resource" path="res://entity/stats/list/initiative_speed.tres" id="16_umwfs"]
 [ext_resource type="Resource" path="res://entity/stats/list/node_health.tres" id="17_vybhe"]
@@ -28,36 +25,24 @@
 [ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://entity/stats/stat_board.gd" id="19_ubc5n"]
 [ext_resource type="Resource" path="res://entity/stats/list/skill_points.tres" id="20_0clpu"]
 [ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="20_vybhe"]
-[ext_resource type="Resource" uid="uid://cxgk27rkpjwi0" path="res://entity/stats/list/skill_points_max.tres" id="21_ijxde"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://entity/stats/skill_point_stat.gd" id="21_sdhs6"]
 [ext_resource type="Resource" path="res://entity/stats/list/strength.tres" id="22_8r5xj"]
 [ext_resource type="Resource" path="res://entity/stats/list/wisdom.tres" id="23_k8amt"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp_per_turn.tres" id="24_f58km"]
 [ext_resource type="Resource" path="res://entity/stats/list/sensor_range.tres" id="24_uulnk"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp.tres" id="24_xp"]
-[ext_resource type="Resource" path="res://entity/stats/list/xp_max.tres" id="24_xp_max"]
 [ext_resource type="Resource" path="res://entity/stats/list/vision_range.tres" id="29_ubc5n"]
-
-[sub_resource type="Resource" id="scalar_ap_max"]
-script = ExtResource("9_ycecq")
-definition = ExtResource("8_ijxde")
-base_value = 2.0
 
 [sub_resource type="Resource" id="pool_ap"]
 script = ExtResource("10_r44ow")
+base_value = 2.0
 current = 2.0
-max_stat = SubResource("scalar_ap_max")
 definition = ExtResource("7_x8df0")
-
-[sub_resource type="Resource" id="scalar_dealloc_max"]
-script = ExtResource("9_ycecq")
-definition = ExtResource("12_g6i1j")
-base_value = 3.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
 script = ExtResource("10_r44ow")
+base_value = 3.0
 current = 3.0
-max_stat = SubResource("scalar_dealloc_max")
 definition = ExtResource("11_ebeys")
 
 [sub_resource type="Resource" id="scalar_dexterity"]
@@ -65,15 +50,10 @@ script = ExtResource("9_ycecq")
 definition = ExtResource("13_pyapo")
 base_value = 10.0
 
-[sub_resource type="Resource" id="scalar_health_max"]
-script = ExtResource("9_ycecq")
-definition = ExtResource("15_umwfs")
-base_value = 10.0
-
 [sub_resource type="Resource" id="pool_health"]
 script = ExtResource("10_r44ow")
+base_value = 10.0
 current = 10.0
-max_stat = SubResource("scalar_health_max")
 definition = ExtResource("14_qrijo")
 
 [sub_resource type="Resource" id="scalar_initiative_speed"]
@@ -112,16 +92,10 @@ script = ExtResource("9_ycecq")
 definition = ExtResource("24_uulnk")
 base_value = 2.0
 
-[sub_resource type="Resource" id="scalar_sp_max"]
-script = ExtResource("9_ycecq")
-definition = ExtResource("21_ijxde")
-base_value = 3.0
-
 [sub_resource type="Resource" id="sp_skill_points"]
 script = ExtResource("21_sdhs6")
-wounded = 3
+base_value = 3.0
 current = 3.0
-max_stat = SubResource("scalar_sp_max")
 definition = ExtResource("20_0clpu")
 
 [sub_resource type="Resource" id="scalar_strength"]
@@ -139,14 +113,10 @@ script = ExtResource("9_ycecq")
 definition = ExtResource("23_k8amt")
 base_value = 10.0
 
-[sub_resource type="Resource" id="scalar_xp_max"]
-script = ExtResource("9_ycecq")
-definition = ExtResource("24_xp_max")
-base_value = 5.0
-
 [sub_resource type="Resource" id="pool_xp"]
 script = ExtResource("10_r44ow")
-max_stat = SubResource("scalar_xp_max")
+base_value = 5.0
+current = 0.0
 definition = ExtResource("24_xp")
 
 [sub_resource type="Resource" id="scalar_xp_per_turn"]
@@ -185,7 +155,7 @@ value = 2.0
 
 [sub_resource type="Resource" id="mod_hp_5"]
 script = ExtResource("2_mod")
-stat_id = &"health_max"
+stat_id = &"health"
 value = 5.0
 
 [sub_resource type="Resource" id="mod_int_2"]

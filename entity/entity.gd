@@ -91,12 +91,12 @@ func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
 	var xp_pool := stat_board.xp
-	var old_max := int(xp_pool.max_value)
+	var old_max := int(xp_pool.value)
 	xp_pool.grow()
 	xp_pool.set_current(max(0.0, xp_pool.current - float(old_max)))
 
-	if stat_board.skill_points_max != null:
-		stat_board.skill_points_max.base_value += 1.0
+	if stat_board.skill_points != null:
+		stat_board.skill_points.base_value += 1.0
 
 	level += 1
 	leveled_up.emit(level)

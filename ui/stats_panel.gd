@@ -74,7 +74,7 @@ func _refresh(id: StringName, is_pool: bool) -> void:
 	var stat_name: String = def.display_name if def != null else String(id)
 	if is_pool and stat is PoolStat:
 		var pool := stat as PoolStat
-		label.text = "%s: %d/%d" % [stat_name, int(pool.value), int(pool.max_value)]
+		label.text = "%s: %d/%d" % [stat_name, int(pool.current), int(pool.value)]
 	else:
 		label.text = "%s: %d" % [stat_name, int(stat.value)]
 
@@ -104,10 +104,8 @@ func _connect_stat(id: StringName, is_pool: bool) -> void:
 	var cb := _refresh.bind(id, is_pool)
 	if not stat.value_changed.is_connected(cb):
 		stat.value_changed.connect(cb)
-	if is_pool and stat is PoolStat:
-		var pool := stat as PoolStat
-		if pool.max_stat != null and not pool.max_stat.value_changed.is_connected(cb):
-			pool.max_stat.value_changed.connect(cb)
+	# PoolStat.value_changed fires on both current changes and cap changes
+	# (add/remove_modifier both emit it), so one connection is sufficient.
 
 
 func _disconnect_stat(id: StringName, is_pool: bool) -> void:
