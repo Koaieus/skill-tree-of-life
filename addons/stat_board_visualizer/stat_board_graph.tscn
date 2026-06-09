@@ -1,19 +1,16 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://5v4i40tx4p37"]
 
-[ext_resource type="Script" path="res://addons/stat_board_visualizer/stat_board_graph.gd" id="1_graph"]
+[ext_resource type="Script" uid="uid://bvm06dmjtuff3" path="res://addons/stat_board_visualizer/stat_board_graph.gd" id="1_graph"]
 [ext_resource type="PackedScene" path="res://addons/stat_board_visualizer/add_modifier_dialog.tscn" id="2_dlg"]
 
-[node name="StatBoardGraph" type="GraphEdit"]
+[node name="StatBoardGraph" type="GraphEdit" unique_id=633225186]
 custom_minimum_size = Vector2(960, 420)
-right_disconnects = false
-minimap_enabled = true
 minimap_opacity = 0.55
-show_grid = true
 script = ExtResource("1_graph")
 
-[node name="RefreshTimer" type="Timer" parent="."]
+[node name="RefreshTimer" type="Timer" parent="." unique_id=805547173]
 unique_name_in_owner = true
 wait_time = 0.25
 
-[node name="AddDialog" parent="." instance=ExtResource("2_dlg")]
+[node name="AddDialog" parent="." unique_id=1667832461 instance=ExtResource("2_dlg")]
 unique_name_in_owner = true

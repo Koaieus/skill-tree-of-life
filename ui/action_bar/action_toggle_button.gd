@@ -26,7 +26,6 @@ var active: float = 0.0:
 var _disabled: float = 0.0:
 	set(value):
 		_disabled = value
-		print("_disabled =", value)
 		if _mat: _mat.set_shader_parameter("disabled_strength", value)
 
 func _ready() -> void:

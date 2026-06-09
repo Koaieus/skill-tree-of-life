@@ -21,6 +21,7 @@ const POOLS: Array[StringName] = [
 	&"health",
 	&"xp",
 	&"skill_points",
+	&"movement_points",
 	&"action_points",
 	&"deallocation_points",
 ]
