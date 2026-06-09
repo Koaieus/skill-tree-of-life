@@ -3,19 +3,21 @@ extends Node
 ## Global lookup: stat_id → StatDef. Scans stats_system/list/ on ready.
 ## Use StatRegistry.get_def(id) wherever you need display info without a board.
 
+const STAT_LIST_DIR: String = "res://entity/stats/list"
+
 var _defs: Dictionary = {}
 
 
 func _ready() -> void:
-	var dir := DirAccess.open("res://entity/stats/list")
+	var dir := DirAccess.open(STAT_LIST_DIR)
 	if dir == null:
-		push_warning("StatRegistry: could not open res://entity/stats/list")
+		push_warning("StatRegistry: could not open %s" % STAT_LIST_DIR)
 		return
 	dir.list_dir_begin()
 	var file := dir.get_next()
 	while file != "":
 		if file.ends_with(".tres"):
-			var res := load("res://entity/stats/list/" + file)
+			var res := load(STAT_LIST_DIR + "/" + file)
 			if res is StatDef:
 				_defs[res.id] = res
 		file = dir.get_next()
