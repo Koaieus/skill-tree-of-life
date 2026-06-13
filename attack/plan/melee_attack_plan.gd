@@ -1,10 +1,14 @@
 class_name MeleeAttackPlan
-extends AttackPlan                   
+extends AttackPlan
 
 
-var source: SkillNode				# 1 self-allocated pivot                                                                                                                                                                                                                                                                 
-var blade_nodes: Array[SkillNode]	# N self-allocated, connected to source                                                                                                                                                                                                                                                  
+var source: SkillNode				# 1 self-allocated pivot
+var blade_nodes: Array[SkillNode]	# N self-allocated, connected to source
 var blade_target: Vector2			# or whatever describes the arc
+
+
+func _init() -> void:
+	mode = BattleSystem.AttackMode.MELEE
 
 
 func validate() -> Array[String]:

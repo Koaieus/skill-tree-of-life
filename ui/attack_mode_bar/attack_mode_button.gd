@@ -38,6 +38,17 @@ var _disabled: float = 0.0:
 		_disabled = value
 		_push("disabled_strength", value)
 
+## Sole write-path for the button's enabled state. Mirrors to the engine's
+## native `disabled` and runs the visual tween. Use `btn.enabled = X` at call
+## sites — direct `disabled = X` writes would bypass the tween (engine writes
+## to the native property can't be intercepted from GDScript).
+var enabled: bool = true: set = set_enabled
+
+func set_enabled(value: bool) -> void:
+	enabled = value
+	disabled = not value
+	_tween_disabled(float(not value))
+
 func _ready() -> void:
 	update_label_text()
 
@@ -48,7 +59,7 @@ func _ready() -> void:
 	_push("tint", tint)
 	_push("glow_radius", glow_radius)
 	_push("texture_size", size)
-	_set_disabled.call_deferred(disabled)
+	enabled = not disabled    # snap GDScript var to .tscn-set Button.disabled
 
 func _push(param: String, value: Variant) -> void:
 	for mat in _materials:
@@ -67,10 +78,6 @@ func update_label_text() -> void:
 	
 func _process(_delta: float) -> void:
 	_push("mouse_uv", get_local_mouse_position() / size)
-
-func _set_disabled(is_disabled: bool) -> void:
-	disabled = is_disabled
-	_tween_disabled(float(is_disabled))
 
 func _tween_disabled(to: float) -> void:
 	if _disabled_tweener: _disabled_tweener.kill()

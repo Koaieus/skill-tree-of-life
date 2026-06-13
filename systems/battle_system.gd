@@ -17,7 +17,7 @@ var attack_plan: AttackPlan:
 	set(value):
 		if attack_plan != value:
 			attack_plan = value
-			print('Attack plan is now: %s [%s]' % [value, attack_mode])
+			print('Attack plan is now: %s' % value)
 			attack_plan_changed.emit(value)
 
 var attack_mode: AttackMode:

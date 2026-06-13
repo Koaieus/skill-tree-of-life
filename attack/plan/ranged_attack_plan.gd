@@ -1,8 +1,12 @@
-class_name RangedAttackPlan 
-extends AttackPlan                                                                                                                                                                                                                                                                               
+class_name RangedAttackPlan
+extends AttackPlan
 
 
-var target: SkillNode  # 1 enemy node              
+var target: SkillNode  # 1 enemy node
+
+
+func _init() -> void:
+	mode = BattleSystem.AttackMode.RANGED
 
 
 func get_firing_positions() -> Array[SkillNode]:

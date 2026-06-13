@@ -4,6 +4,11 @@ extends AttackPlan
 var source: SkillNode
 var spell: Spell
 
+
+func _init() -> void:
+	mode = BattleSystem.AttackMode.MAGIC
+
+
 func validate() -> Array[String]:
 	var errors: Array[String] = []
 	

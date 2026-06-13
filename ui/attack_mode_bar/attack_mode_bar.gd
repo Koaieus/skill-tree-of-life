@@ -30,5 +30,5 @@ func set_active_mode(mode: BattleSystem.AttackMode) -> void:
 		btn.override_toggle(btn.attack_mode == mode)
 
 func set_enabled(enabled: bool) -> void:
-	for btn: AttackModeButton in _group.get_buttons(): 
-		btn._set_disabled(not enabled)
+	for btn: AttackModeButton in _group.get_buttons():
+		btn.enabled = enabled

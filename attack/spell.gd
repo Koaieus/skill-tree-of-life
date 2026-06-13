@@ -9,3 +9,7 @@ extends Resource
 
 func validate(plan: MagicAttackPlan) -> Array[String]:
 	return []
+
+
+func _to_string() -> String:
+	return "<Spell %s (%d mana)>" % [name, mana_cost]
