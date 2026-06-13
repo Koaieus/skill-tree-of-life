@@ -196,6 +196,7 @@ size_flags_horizontal = 3
 mouse_filter = 2
 
 [node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control3" unique_id=1234156537]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(128, 64)
 layout_mode = 1
 anchors_preset = 6

@@ -36,28 +36,19 @@ func _reset() -> void:
 	if attack_plan:
 		attack_plan = null
 
-
-func _on_attack_mode_requested(mode: AttackMode) -> void:
-	if is_attacking and attack_plan.mode == mode:
-		push_warning('Already in mode %s' % mode)
-		
+func request_attack_mode(mode: AttackMode) -> void:
+	if attack_mode == mode:
+		return
 	match mode:
-		AttackMode.NONE:
-			cancel_attack()
-		AttackMode.MELEE:
-			var new_plan: MeleeAttackPlan = MeleeAttackPlan.new()
-			new_plan.attacker = turn_manager.current_entity
-			attack_plan = new_plan
-		AttackMode.RANGED:
-			var new_plan: RangedAttackPlan = RangedAttackPlan.new()
-			new_plan.attacker = turn_manager.current_entity
-			attack_plan = new_plan
-		AttackMode.MAGIC:
-			var new_plan: MagicAttackPlan = MagicAttackPlan.new()
-			new_plan.attacker = turn_manager.current_entity
-			attack_plan = new_plan
-		
-	
+		AttackMode.NONE:    cancel_attack()
+		AttackMode.MELEE:   attack_plan = _new_plan(MeleeAttackPlan)
+		AttackMode.RANGED:  attack_plan = _new_plan(RangedAttackPlan)
+		AttackMode.MAGIC:   attack_plan = _new_plan(MagicAttackPlan)
+
+func _new_plan(plan_class: Script) -> AttackPlan:
+	var p: AttackPlan = plan_class.new()
+	p.attacker = turn_manager.current_entity
+	return p
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
