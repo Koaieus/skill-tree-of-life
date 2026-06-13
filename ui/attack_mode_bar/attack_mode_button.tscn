@@ -1,8 +1,9 @@
 [gd_scene format=3 uid="uid://vntdpku7608y"]
 
-[ext_resource type="ButtonGroup" uid="uid://dxkqyaaidik02" path="res://ui/action_bar/action_button_group.tres" id="1_b2a6j"]
-[ext_resource type="Script" uid="uid://q7pbhm4e8ui6" path="res://ui/action_bar/action_toggle_button.gd" id="2_inglx"]
-[ext_resource type="Shader" uid="uid://dtks7uire567h" path="res://ui/action_bar/action_toggle_button.gdshader" id="3_ndpa3"]
+[ext_resource type="ButtonGroup" uid="uid://dxkqyaaidik02" path="res://ui/attack_mode_bar/attack_mode_group.tres" id="1_yol2q"]
+[ext_resource type="Script" uid="uid://q7pbhm4e8ui6" path="res://ui/attack_mode_bar/attack_mode_button.gd" id="2_yb27n"]
+[ext_resource type="Shader" uid="uid://dtks7uire567h" path="res://ui/attack_mode_bar/attack_mode_button.gdshader" id="3_bsmqx"]
+[ext_resource type="Shader" uid="uid://be6ivh08s24of" path="res://ui/attack_mode_bar/attack_mode_button_text.gdshader" id="4_kuoad"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_inglx"]
 
@@ -16,11 +17,18 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pjooi"]
 resource_local_to_scene = true
-shader = ExtResource("3_ndpa3")
-shader_parameter/mouse_uv = Vector2(0, 0)
+shader = ExtResource("3_bsmqx")
+shader_parameter/mouse_uv = Vector2(2.8515625, -2.203125)
 shader_parameter/texture_size = Vector2i(1, 1)
-shader_parameter/tint = Color(0.19730401, 0.50484705, 0.4734835, 1)
+shader_parameter/tint = Color(0, 0.59229046, 0.65951425, 1)
 shader_parameter/glow_radius = 0.31
+shader_parameter/glow_strength = 0.0
+shader_parameter/active_strength = 0.0
+shader_parameter/disabled_strength = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yol2q"]
+shader = ExtResource("4_kuoad")
+shader_parameter/tint = Color(0, 0.59229046, 0.65951425, 1)
 shader_parameter/glow_strength = 0.0
 shader_parameter/active_strength = 0.0
 shader_parameter/disabled_strength = 0.0
@@ -29,17 +37,22 @@ shader_parameter/disabled_strength = 0.0
 font_size = 30
 
 [node name="ActionToggleButton" type="Button" unique_id=1205266549]
-custom_minimum_size = Vector2(32, 32)
-size_flags_horizontal = 3
+custom_minimum_size = Vector2(128, 64)
+theme_override_colors/font_color = Color(0, 0, 0, 0)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_disabled_color = Color(0, 0, 0, 0)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0)
 theme_override_styles/normal = SubResource("StyleBoxEmpty_inglx")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_ndpa3")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_pjooi")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_qhfcg")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_46ywa")
 toggle_mode = true
-button_group = ExtResource("1_b2a6j")
-text = "Button"
-script = ExtResource("2_inglx")
+button_group = ExtResource("1_yol2q")
+script = ExtResource("2_yb27n")
 tint = Color(0, 0.59229046, 0.65951425, 1)
 glow_radius = 0.31
 
@@ -54,17 +67,18 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="Label" type="Label" parent="." unique_id=311423691]
+material = SubResource("ShaderMaterial_yol2q")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Label"
 label_settings = SubResource("LabelSettings_ndpa3")
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[connection signal="editor_state_changed" from="." to="." method="update_label_text"]
 [connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
 [connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
 [connection signal="resized" from="." to="." method="_on_resized"]

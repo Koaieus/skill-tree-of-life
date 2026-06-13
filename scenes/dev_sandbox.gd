@@ -8,6 +8,7 @@ extends Node2D
 @onready var _player: Entity = %Player
 @onready var _ui_root: UIRoot = $UI/UIRoot
 @onready var _turn_manager: TurnManager = $Graph/TurnManager
+@onready var _battle_system: BattleSystem = $Graph/BattleSystem
 
 var _end_turn_btn: Button
 
@@ -33,6 +34,10 @@ func _ready() -> void:
 	# Wire board to UI
 	if _ui_root.stat_board_overlay != null and _player != null:
 		_ui_root.stat_board_overlay.board = _player.stat_board
+	
+	if _ui_root.attack_mode_bar != null and _player != null:
+		_ui_root.attack_mode_bar.attack_mode_requested.connect(_battle_system.request_attack_mode)
+	
 
 
 func _on_phase_changed(_entity: Entity, phase: TurnManager.Phase) -> void:

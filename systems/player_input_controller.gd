@@ -11,7 +11,9 @@ extends Node
 
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
+@export var battle_system: BattleSystem
 @export var player: Entity
+@export var turn_manager: TurnManager
 
 
 func _ready() -> void:
@@ -31,7 +33,8 @@ func _on_node_added(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_clicked(skill_node: SkillNode) -> void:
-	if skill_node.owned_by == null:
-		allocation_system.allocate(skill_node, player)
-	elif skill_node.owned_by == player:
-		allocation_system.deallocate(skill_node, player)
+	if turn_manager.can_allocate():
+		if skill_node.owned_by == null:
+			allocation_system.allocate(skill_node, player)
+		elif skill_node.owned_by == player:
+			allocation_system.deallocate(skill_node, player)

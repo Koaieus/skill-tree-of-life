@@ -12,6 +12,7 @@ const float CORNER_RADIUS = 0.12; // fraction of button height
 const float RIM_WIDTH     = 0.04;
 const float ARC_ANGULAR_SPEED = .28;  //  0.28
 const float BREATHING_SPEED = 3.;
+const float BREATHING_AMP = 0.5;
 
 // Rounded-rect SDF: p centered at origin, b = full half-extents, r = corner radius.
 float sdf_rrect(vec2 p, vec2 b, float r) {
@@ -55,7 +56,7 @@ void fragment() {
     col += tint * mouse_spot * glow_strength * 0.30;
 
     // ── Active fill: breathing tint pulse ─────────────────────────────────────
-    float pulse = sin(TIME * 2.8 * BREATHING_SPEED) * 0.5 + 0.5;
+    float pulse = sin(TIME * 2.8 * BREATHING_SPEED) * BREATHING_AMP + 0.5;
     col += tint * active_strength * (0.12 + pulse * 0.06);
 
     // ── Rim layer ─────────────────────────────────────────────────────────────

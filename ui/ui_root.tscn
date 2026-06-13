@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://bkm26sesx8gjj" path="res://ui/ui_root.gd" id="1_d55xy"]
 [ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
-[ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/action_bar/action_toggle_button.tscn" id="4_6qk7i"]
+[ext_resource type="PackedScene" uid="uid://bvttxdu4jd6se" path="res://ui/AttackModeBar.tscn" id="4_6qk7i"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="4_f6o6b"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
@@ -75,7 +75,7 @@ size_flags_vertical = 0
 text = "Stats:"
 uppercase = true
 
-[node name="StatsVBox" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/Left/StatsPanel/MarginContainer/VBoxContainer" unique_id=1108079112]
+[node name="StatsPanel" type="VBoxContainer" parent="VBoxContainer/HBoxContainer/Left/StatsPanel/MarginContainer/VBoxContainer" unique_id=1108079112]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
@@ -167,40 +167,33 @@ layout_mode = 2
 [node name="Control" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=178211490]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 
 [node name="Control2" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=606294971]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
 
-[node name="ActionBar" type="HBoxContainer" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=1032057531]
+[node name="AttackModeBar" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=479899127 instance=ExtResource("4_6qk7i")]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -196.0
+offset_top = -32.0
+offset_right = 196.0
+offset_bottom = 32.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 3
-
-[node name="MeleeToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1205266549 instance=ExtResource("4_6qk7i")]
-layout_mode = 2
-text = "Melee"
-tint = Color(1, 0, 0, 1)
-
-[node name="RangedToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=1223590152 instance=ExtResource("4_6qk7i")]
-layout_mode = 2
-disabled = true
-text = "Ranged"
-tint = Color(0, 1, 0, 1)
-
-[node name="MagicToggleButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionBar" unique_id=2044187866 instance=ExtResource("4_6qk7i")]
-layout_mode = 2
-text = "Magic"
-tint = Color(0, 0, 1, 1)
 
 [node name="Control3" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1768707412]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 
 [node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control3" unique_id=1234156537]
 custom_minimum_size = Vector2(128, 64)

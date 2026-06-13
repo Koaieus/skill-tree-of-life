@@ -1,22 +1,27 @@
+@tool
+class_name AttackModeButton
 extends Button
 
-const TEXT_SHADER := preload("res://ui/action_bar/action_toggle_button_text.gdshader")
+const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.gdshader")
+const ANIMATION_TIME: float = 0.2
 
 @export_color_no_alpha var tint: Color = Color.WHITE
 @export_range(0.0, 1.0, 0.01) var glow_radius: float = 0.3
 
-const ANIMATION_TIME: float = 0.2
+@export var attack_mode: BattleSystem.AttackMode
+
+var _text_mat := ShaderMaterial.new()
+var _materials: Array[ShaderMaterial] = []
+
+
+var _hover_tweener: Tween
+var _active_tweener: Tween
+var _disabled_tweener: Tween
 
 @onready var color_rect: ColorRect = $ColorRect
 @onready var label: Label = $Label
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
 
-var _text_mat := ShaderMaterial.new()
-var _materials: Array[ShaderMaterial] = []
-
-var _hover_tweener: Tween
-var _active_tweener: Tween
-var _disabled_tweener: Tween
 
 var hovered: float = 0.0:
 	set(value):
@@ -34,8 +39,7 @@ var _disabled: float = 0.0:
 		_push("disabled_strength", value)
 
 func _ready() -> void:
-	label.text = text
-	text = ""
+	update_label_text()
 
 	_text_mat.shader = TEXT_SHADER
 	label.material = _text_mat
@@ -50,6 +54,17 @@ func _push(param: String, value: Variant) -> void:
 	for mat in _materials:
 		mat.set_shader_parameter(param, value)
 
+
+func override_toggle(toggled: bool) -> void:
+	active = toggled
+	set_pressed_no_signal(toggled)
+
+func update_label_text() -> void:
+	if not label: return
+	if label.text != text:
+		label.text = text
+		
+	
 func _process(_delta: float) -> void:
 	_push("mouse_uv", get_local_mouse_position() / size)
 

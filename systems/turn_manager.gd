@@ -86,15 +86,15 @@ func tick() -> void:
 func _tick_until_ready(max_ticks: int = 1000) -> void:
 	for _i in max_ticks:
 		tick()
-		var ready: Array[Entity] = []
+		var ready_entities: Array[Entity] = []
 		for node in get_tree().get_nodes_in_group("entities"):
 			var e := node as Entity
 			if e != null and e.initiative_current >= 100.0:
-				ready.append(e)
-		if not ready.is_empty():
-			ready.sort_custom(func(a: Entity, b: Entity) -> bool:
+				ready_entities.append(e)
+		if not ready_entities.is_empty():
+			ready_entities.sort_custom(func(a: Entity, b: Entity) -> bool:
 				return a.initiative_current > b.initiative_current)
-			start_turn(ready[0])
+			start_turn(ready_entities[0])
 			return
 	push_warning("TurnManager: no entity reached 100 initiative in %d ticks" % max_ticks)
 
