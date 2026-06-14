@@ -54,7 +54,7 @@ func can_deallocate(node: SkillNode, entity: Entity) -> bool:
 	var board := entity.stat_board
 	if board != null and board.deallocation_points != null and board.deallocation_points.current < 1:
 		return false
-	if entity.navigator != null and entity.navigator.is_cut_disconnecting_core(node):
+	if entity.navigator != null and entity.navigator.would_disconnect_from(node, entity.core_location):
 		return false
 	return true
 
