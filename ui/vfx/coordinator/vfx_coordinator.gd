@@ -1,3 +1,4 @@
+@tool
 @abstract
 class_name VFXCoordinator
 extends Node2D

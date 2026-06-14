@@ -1,3 +1,4 @@
+@tool
 class_name GlowingDot
 extends Node2D
 

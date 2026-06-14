@@ -3,10 +3,10 @@
 [ext_resource type="Script" uid="uid://bkm26sesx8gjj" path="res://ui/ui_root.gd" id="1_d55xy"]
 [ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
-[ext_resource type="PackedScene" uid="uid://bvttxdu4jd6se" path="res://ui/AttackModeBar.tscn" id="4_6qk7i"]
+[ext_resource type="PackedScene" uid="uid://bvttxdu4jd6se" path="res://ui/attack_mode_bar/attack_mode_bar.tscn" id="4_6qk7i"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="4_f6o6b"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="5_launch"]
-[ext_resource type="PackedScene" uid="uid://b3pq9k7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="6_endturn"]
+[ext_resource type="PackedScene" uid="uid://b3prak7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="6_endturn"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 layout_mode = 3
