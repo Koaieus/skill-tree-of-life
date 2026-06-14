@@ -1,7 +1,7 @@
-[gd_scene load_steps=10 format=3 uid="uid://b5lvy7n8p4qbk"]
+[gd_scene format=3 uid="uid://b5lvy7n8p4qbk"]
 
-[ext_resource type="Script" path="res://ui/launch_attack_button/launch_attack_button.gd" id="1_launch"]
-[ext_resource type="Shader" path="res://ui/launch_attack_button/launch_attack_button.gdshader" id="2_fire"]
+[ext_resource type="Script" uid="uid://ditodvn0makud" path="res://ui/launch_attack_button/launch_attack_button.gd" id="1_launch"]
+[ext_resource type="Shader" uid="uid://dwgg01080huf0" path="res://ui/launch_attack_button/launch_attack_button.gdshader" id="2_fire"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
 
@@ -17,9 +17,9 @@
 resource_local_to_scene = true
 shader = ExtResource("2_fire")
 shader_parameter/mouse_uv = Vector2(0.5, 0.5)
-shader_parameter/texture_size = Vector2(1.0, 1.0)
-shader_parameter/tint = Color(1.0, 0.55, 0.1, 1.0)
-shader_parameter/hot_color = Color(1.0, 1.0, 0.7, 1.0)
+shader_parameter/texture_size = Vector2(1, 1)
+shader_parameter/tint = Color(1, 0.55, 0.1, 1)
+shader_parameter/hot_color = Color(1, 1, 0.7, 1)
 shader_parameter/glow_strength = 0.0
 shader_parameter/active_strength = 0.0
 shader_parameter/disabled_strength = 0.0
@@ -27,7 +27,7 @@ shader_parameter/disabled_strength = 0.0
 [sub_resource type="LabelSettings" id="LabelSettings_text"]
 font_size = 24
 
-[node name="LaunchAttackButton" type="Button"]
+[node name="LaunchAttackButton" type="Button" unique_id=1537963807]
 custom_minimum_size = Vector2(160, 64)
 theme_override_colors/font_color = Color(0, 0, 0, 0)
 theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
@@ -42,12 +42,10 @@ theme_override_styles/hover = SubResource("StyleBoxEmpty_hover")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 disabled = true
-text = "Launch Attack"
+text = "Launch"
 script = ExtResource("1_launch")
-tint = Color(1.0, 0.55, 0.1, 1)
-hot_color = Color(1.0, 1.0, 0.7, 1)
 
-[node name="ColorRect" type="ColorRect" parent="."]
+[node name="ColorRect" type="ColorRect" parent="." unique_id=638844461]
 material = SubResource("ShaderMaterial_bg")
 layout_mode = 1
 anchors_preset = 15
@@ -57,7 +55,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Label" type="Label" parent="."]
+[node name="Label" type="Label" parent="." unique_id=2134566386]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

@@ -6,7 +6,6 @@
 
 [sub_resource type="Resource" id="range_3hop"]
 script = ExtResource("3_range")
-max_hops = 3
 
 [sub_resource type="Resource" id="targeting_hostile_3hop"]
 script = ExtResource("2_targeting")
