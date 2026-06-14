@@ -63,17 +63,19 @@ void fragment() {
     if (shape < 0.001) discard;
 
     // Two flow layers — slower wide base, faster jittered overlay — combined
-    // to break up obvious vertical streaks.
+    // to break up obvious vertical streaks. UV.y grows downward in
+    // canvas_item, so +TIME on Y makes the sampled noise rise on screen.
     vec2 base_uv = vec2(UV.x * aspect * 2.2, UV.y * 1.6);
-    vec2 flow1 = base_uv + vec2(0.0, -TIME * 1.1);
-    vec2 flow2 = base_uv * 1.7 + vec2(TIME * 0.2, -TIME * 0.7);
+    vec2 flow1 = base_uv + vec2(0.0, TIME * 1.1);
+    vec2 flow2 = base_uv * 1.7 + vec2(TIME * 0.2, TIME * 0.7);
     float n = fbm(flow1) * 0.65 + fbm(flow2) * 0.35;
 
-    // Flame envelope: bottom-heavy, horizontally narrowed at edges so the
-    // fire reads as a column rather than a uniform wash.
-    float u_centered = (UV.x - 0.5) * aspect * 2.0;
-    float horiz_falloff = 1.0 - smoothstep(0.4, 1.0, abs(u_centered));
-    float vertical_mask = pow(1.0 - UV.y, 1.4);
+    // Flame envelope: bottom-heavy (UV.y=1 is the bottom edge in
+    // canvas_item), horizontally narrowed at edges so the fire reads as a
+    // column rather than a uniform wash.
+    float u_centered = (UV.x - 0.5) * 2.0;
+    float horiz_falloff = 1.0 - smoothstep(0.7, 1.0, abs(u_centered));
+    float vertical_mask = pow(UV.y, 1.4);
     float fire = n * vertical_mask * horiz_falloff;
     fire = pow(fire, 1.3);
 
@@ -91,7 +93,7 @@ void fragment() {
     col += hot_color * mouse_spot * glow_strength * 0.45;
 
     // Embers — high-frequency sparkles riding the same upward current.
-    float spark = fbm(base_uv * 3.0 + vec2(TIME * 0.3, -TIME * 2.5));
+    float spark = fbm(base_uv * 3.0 + vec2(TIME * 0.3, TIME * 2.5));
     spark = smoothstep(0.78, 0.92, spark) * vertical_mask;
     col += hot_color * spark * active_strength * 1.6;
 
