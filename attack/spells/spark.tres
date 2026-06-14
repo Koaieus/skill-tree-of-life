@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="SpellDef" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="SpellDef" load_steps=5 format=3 uid="uid://hi2w3tufav8y"]
 
-[ext_resource type="Script" path="res://attack/spell_def.gd" id="1_spell"]
-[ext_resource type="Script" path="res://attack/targeting/single_hostile_node_targeting.gd" id="2_targeting"]
-[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="3_range"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="2_targeting"]
+[ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="3_range"]
 
 [sub_resource type="Resource" id="range_3hop"]
 script = ExtResource("3_range")
@@ -15,7 +15,7 @@ range_finder = SubResource("range_3hop")
 [resource]
 script = ExtResource("1_spell")
 name = "Spark"
-description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source."
+description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source via the live graph (allocation status irrelevant — hops route through whatever's connected)."
 mana_cost = 1
 damage = 5
 targeting = SubResource("targeting_hostile_3hop")

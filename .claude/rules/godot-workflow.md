@@ -17,8 +17,8 @@ godot --headless --editor --quit
 
 ## Always git status after a refresh
 
-The editor pass round-trips any scene it briefly touches and can silently
-mutate them. Observed:
+The editor pass round-trips any scene OR `.tres` it briefly touches and
+can silently mutate them. Observed:
 
 - **Dropped node instances** — `[node name="UIRoot" ...]` vanished from
   `dev_sandbox.tscn` during a refresh, with the matching ext_resource
@@ -27,15 +27,27 @@ mutate them. Observed:
   with the consumer reference updated in lockstep (cosmetic, but noise).
 - **Position normalisation** — node positions tweaked by a few pixels
   if the editor briefly re-laid out something.
+- **Stripped `.tres` fields + sub-resources** — `spark.tres` lost its
+  `damage = 5` line, its `range_finder` sub-resource, and the
+  `HopRangeFinder` ext_resource entry. The author code (`SpellDef.damage`,
+  `SingleHostileNodeTargeting.range_finder`) was correct; the editor
+  re-serialized with a *stale view* of the class's field set, omitting
+  fields it didn't recognise at that moment. Functionally castrates the
+  resource silently — runtime parses it fine, behaves wrong.
 
-Position/id noise is fine. Dropped instances are not. Mandatory pattern:
+Position/id noise is fine. Dropped instances and stripped fields are not.
+Mandatory pattern:
 
 ```bash
-git status               # before refresh
+git status                   # before refresh
 godot --headless --editor --quit
-git diff scenes/         # immediately after
+git diff scenes/ '*.tres'    # immediately after
 # restore anything load-bearing that disappeared
 ```
+
+For `.tres` files specifically: also boot and exercise the resource's
+behaviour if you can — silent strip won't cause a parse error, so the
+diff is your only signal until the bug surfaces in gameplay.
 
 ## Don't refresh while the user is editing
 
