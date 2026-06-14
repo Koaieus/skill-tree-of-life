@@ -5,7 +5,8 @@ extends PanelContainer
 ##
 ## Subscribes to Events.skill_node_hovered / unhovered. While visible, tracks
 ## the hovered node's owner_changed signal so the owner line updates live when
-## a node is allocated or deallocated without re-hovering.
+## a node is allocated or deallocated without re-hovering, and damaged so the
+## HP line updates as hits land.
 ##
 ## Modifier formatting follows the StatModifierDef pipeline conventions:
 ##   ADD_BASE  → "+5 Strength"        (scales with %, the usual node source)
@@ -16,6 +17,7 @@ extends PanelContainer
 ## Each modifier line is tinted with the stat's tint_color from StatRegistry.
 
 @onready var _owner_label: Label = %OwnerLabel
+@onready var _hp_label: Label = %HpLabel
 @onready var _modifiers_box: VBoxContainer = %ModifiersBox
 
 var _node: SkillNode = null
@@ -48,16 +50,24 @@ func _bind(node: SkillNode) -> void:
 	_unbind()
 	_node = node
 	_node.owner_changed.connect(_on_owner_changed)
+	_node.damaged.connect(_on_damaged)
 
 
 func _unbind() -> void:
-	if _node != null and _node.owner_changed.is_connected(_on_owner_changed):
-		_node.owner_changed.disconnect(_on_owner_changed)
+	if _node != null:
+		if _node.owner_changed.is_connected(_on_owner_changed):
+			_node.owner_changed.disconnect(_on_owner_changed)
+		if _node.damaged.is_connected(_on_damaged):
+			_node.damaged.disconnect(_on_damaged)
 	_node = null
 
 
 func _on_owner_changed() -> void:
 	_populate()
+
+
+func _on_damaged(_amount: float, _source: Variant) -> void:
+	_populate_hp()
 
 
 func _populate() -> void:
@@ -71,6 +81,8 @@ func _populate() -> void:
 	else:
 		_owner_label.text = "Unallocated"
 		_owner_label.modulate = Color(0.55, 0.55, 0.55)
+
+	_populate_hp()
 
 	for child in _modifiers_box.get_children():
 		child.queue_free()
@@ -94,6 +106,22 @@ func _populate() -> void:
 		label.text = _format_modifier(m, stat_name)
 		label.modulate = tint
 		_modifiers_box.add_child(label)
+
+
+func _populate_hp() -> void:
+	if _node == null or _node.owned_by == null:
+		_hp_label.hide()
+		return
+	var max_hp := _node.get_max_hp()
+	if max_hp <= 0.0:
+		_hp_label.hide()
+		return
+	var cur := _node.current_hp
+	var ratio: float = clampf(cur / max_hp, 0.0, 1.0)
+	# Hue 0.0 = red, 0.33 = green; passes through orange/yellow at ~0.5.
+	_hp_label.text = "HP %s/%s" % [_val(cur), _val(max_hp)]
+	_hp_label.modulate = Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0)
+	_hp_label.show()
 
 
 func _format_modifier(m: StatModifierDef, stat_name: String) -> String:
