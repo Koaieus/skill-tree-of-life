@@ -37,14 +37,40 @@ func _ready() -> void:
 func _on_node_added(skill_node: SkillNode) -> void:
 	if not skill_node.left_clicked.is_connected(_on_skill_node_left_clicked):
 		skill_node.left_clicked.connect(_on_skill_node_left_clicked)
+	if not skill_node.right_clicked.is_connected(_on_skill_node_right_clicked):
+		skill_node.right_clicked.connect(_on_skill_node_right_clicked)
 
 
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
+	if _route_battle_click(skill_node, true):
+		return
 	if turn_manager.can_allocate():
 		if skill_node.owned_by == null:
 			allocation_system.allocate(skill_node, player)
 		elif skill_node.owned_by == player:
 			allocation_system.deallocate(skill_node, player)
+
+
+func _on_skill_node_right_clicked(skill_node: SkillNode) -> void:
+	_route_battle_click(skill_node, false)
+
+
+## Returns true if a battle-phase plan handled the click. Gating: player's
+## turn AND the active plan belongs to this player. Caller treats `true`
+## as "consumed, no further routing".
+func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
+	if not can_player_act():
+		return false
+	if not battle_system.is_attacking:
+		return false
+	var plan := battle_system.attack_plan
+	if plan == null or plan.attacker != player:
+		return false
+	if is_left:
+		plan._on_node_left_clicked(skill_node)
+	else:
+		plan._on_node_right_clicked(skill_node)
+	return true
 
 
 func can_player_act() -> bool:
