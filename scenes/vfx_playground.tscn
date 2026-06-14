@@ -1,15 +1,233 @@
-[gd_scene format=3 load_steps=10]
+[gd_scene format=3 uid="uid://dqqq4gbnc02bt"]
 
-[ext_resource type="Script" path="res://scenes/vfx_playground.gd" id="1_pg"]
+[ext_resource type="Script" uid="uid://dfgsa0jx7s6rs" path="res://scenes/vfx_playground.gd" id="1_pg"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="2_sn"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="3_ent"]
-[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="4_board"]
+[ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://entity/stats/list/action_points.tres" id="3_nhh4r"]
+[ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="4_ajalt"]
+[ext_resource type="Resource" path="res://entity/stats/list/blade_size.tres" id="5_c0rq1"]
+[ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="6_qj1qk"]
+[ext_resource type="Resource" path="res://entity/stats/list/deallocation_points.tres" id="7_gfc4p"]
+[ext_resource type="Resource" path="res://entity/stats/list/dexterity.tres" id="8_v2fx1"]
+[ext_resource type="Resource" path="res://entity/stats/list/health.tres" id="9_exnve"]
+[ext_resource type="Resource" path="res://entity/stats/list/initiative_speed.tres" id="10_ie4ta"]
+[ext_resource type="Resource" path="res://entity/stats/list/intelligence.tres" id="11_fbcc5"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="12_6jwts"]
+[ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="13_kp26s"]
+[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="14_1t7th"]
+[ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="15_g0ox7"]
+[ext_resource type="Resource" path="res://entity/stats/list/mana.tres" id="16_nqrg0"]
+[ext_resource type="Resource" path="res://entity/stats/list/mana_per_turn.tres" id="17_yrmbt"]
+[ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://entity/stats/list/movement_points.tres" id="18_8amqd"]
+[ext_resource type="Resource" path="res://entity/stats/list/node_health.tres" id="19_h6gv4"]
+[ext_resource type="Resource" path="res://entity/stats/list/perception.tres" id="20_3m2hk"]
+[ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://entity/stats/stat_board.gd" id="21_afw72"]
+[ext_resource type="Resource" path="res://entity/stats/list/sensor_range.tres" id="22_x3rpq"]
+[ext_resource type="Resource" path="res://entity/stats/list/skill_points.tres" id="23_123p5"]
+[ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://entity/stats/skill_point_stat.gd" id="24_ly6yn"]
+[ext_resource type="Resource" path="res://entity/stats/list/strength.tres" id="25_1lwff"]
+[ext_resource type="Resource" path="res://entity/stats/list/vision_range.tres" id="26_7lhgu"]
+[ext_resource type="Resource" path="res://entity/stats/list/wisdom.tres" id="27_75e8p"]
+[ext_resource type="Resource" path="res://entity/stats/list/wound_heal_per_turn.tres" id="28_yj0pv"]
+[ext_resource type="Resource" path="res://entity/stats/list/xp.tres" id="29_5ali4"]
+[ext_resource type="Resource" path="res://entity/stats/list/xp_per_turn.tres" id="30_416fy"]
+
+[sub_resource type="Resource" id="pool_ap"]
+script = ExtResource("4_ajalt")
+current = 2.0
+definition = ExtResource("3_nhh4r")
+base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_blade_size"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("5_c0rq1")
+base_value = 1.0
+
+[sub_resource type="Resource" id="pool_dealloc"]
+script = ExtResource("4_ajalt")
+current = 3.0
+definition = ExtResource("7_gfc4p")
+base_value = 3.0
+
+[sub_resource type="Resource" id="scalar_dexterity"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("8_v2fx1")
+base_value = 10.0
+
+[sub_resource type="Resource" id="pool_health"]
+script = ExtResource("4_ajalt")
+current = 10.0
+definition = ExtResource("9_exnve")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_initiative_speed"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("10_ie4ta")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_intelligence"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("11_fbcc5")
+base_value = 10.0
+
+[sub_resource type="Resource" id="formula_per_to_vision"]
+script = ExtResource("13_kp26s")
+source_stat_id = &"perception"
+scale_per_point = 2.0
+
+[sub_resource type="Resource" id="mod_per_to_vision"]
+script = ExtResource("14_1t7th")
+formula = SubResource("formula_per_to_vision")
+stat_id = &"vision_range"
+operation = 1
+
+[sub_resource type="Resource" id="formula_int_to_mana"]
+script = ExtResource("15_g0ox7")
+formula = "floor(float(intelligence) / 10.0)"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="mod_int_to_mana"]
+script = ExtResource("14_1t7th")
+formula = SubResource("formula_int_to_mana")
+stat_id = &"mana"
+
+[sub_resource type="Resource" id="formula_int_to_mana_pt"]
+script = ExtResource("15_g0ox7")
+formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="mod_int_to_mana_pt"]
+script = ExtResource("14_1t7th")
+formula = SubResource("formula_int_to_mana_pt")
+stat_id = &"mana_per_turn"
+
+[sub_resource type="Resource" id="formula_wis_to_xp_pt"]
+script = ExtResource("15_g0ox7")
+formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
+inputs = Array[StringName]([&"wisdom"])
+
+[sub_resource type="Resource" id="mod_wis_to_xp_pt"]
+script = ExtResource("14_1t7th")
+formula = SubResource("formula_wis_to_xp_pt")
+stat_id = &"xp_per_turn"
+
+[sub_resource type="Resource" id="Resource_vupus"]
+script = ExtResource("15_g0ox7")
+formula = "floor(dexterity / 10.)"
+metadata/_custom_type_script = "uid://dn253es0cni7j"
+
+[sub_resource type="Resource" id="Resource_3edt8"]
+script = ExtResource("14_1t7th")
+formula = SubResource("Resource_vupus")
+stat_id = &"sensor_range"
+metadata/_custom_type_script = "uid://ix51i0mr6n8v"
+
+[sub_resource type="Resource" id="formula_str_to_blade_size"]
+script = ExtResource("15_g0ox7")
+formula = "floor(float(strength) / 10.0)"
+inputs = Array[StringName]([&"strength"])
+
+[sub_resource type="Resource" id="mod_str_to_blade_size"]
+script = ExtResource("14_1t7th")
+formula = SubResource("formula_str_to_blade_size")
+stat_id = &"blade_size"
+
+[sub_resource type="Resource" id="pool_mana"]
+script = ExtResource("4_ajalt")
+current = 10.0
+definition = ExtResource("16_nqrg0")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_mana_per_turn"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("17_yrmbt")
+
+[sub_resource type="Resource" id="pool_movement_points"]
+script = ExtResource("4_ajalt")
+current = 1.0
+definition = ExtResource("18_8amqd")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_node_health"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("19_h6gv4")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_perception"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("20_3m2hk")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_sensor_range"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("22_x3rpq")
+base_value = 2.0
+
+[sub_resource type="Resource" id="sp_skill_points"]
+script = ExtResource("24_ly6yn")
+current = 3.0
+definition = ExtResource("23_123p5")
+base_value = 3.0
+
+[sub_resource type="Resource" id="scalar_strength"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("25_1lwff")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_vision_range"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("26_7lhgu")
+base_value = 400.0
+
+[sub_resource type="Resource" id="scalar_wisdom"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("27_75e8p")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_wound_heal_per_turn"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("28_yj0pv")
+base_value = 1.0
+
+[sub_resource type="Resource" id="pool_xp"]
+script = ExtResource("4_ajalt")
+definition = ExtResource("29_5ali4")
+base_value = 5.0
+
+[sub_resource type="Resource" id="scalar_xp_per_turn"]
+script = ExtResource("6_qj1qk")
+definition = ExtResource("30_416fy")
+
+[sub_resource type="Resource" id="Resource_6hm8y"]
+resource_local_to_scene = true
+script = ExtResource("21_afw72")
+strength = SubResource("scalar_strength")
+dexterity = SubResource("scalar_dexterity")
+intelligence = SubResource("scalar_intelligence")
+wisdom = SubResource("scalar_wisdom")
+perception = SubResource("scalar_perception")
+health = SubResource("pool_health")
+node_health = SubResource("scalar_node_health")
+xp = SubResource("pool_xp")
+xp_per_turn = SubResource("scalar_xp_per_turn")
+skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+deallocation_points = SubResource("pool_dealloc")
+action_points = SubResource("pool_ap")
+movement_points = SubResource("pool_movement_points")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+mana = SubResource("pool_mana")
+mana_per_turn = SubResource("scalar_mana_per_turn")
+blade_size = SubResource("scalar_blade_size")
+intrinsic_modifiers = Array[ExtResource("12_6jwts")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("Resource_3edt8"), SubResource("mod_str_to_blade_size")])
 
 [sub_resource type="Curve2D" id="Curve2D_default"]
 _data = {
-"points": PackedVector2Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200, -300, 0, 0, 0, 0, 400, -300, 0, 0, 0, 0, 600, 0)
+"points": PackedVector2Array(0, 0, 0, 0, -2, 2, 0, 0, 0, 0, 46, -199, 0, 0, 0, 0, 106, -229, 0, 0, 0, 0, 189, -234, 0, 0, 0, 0, 299, -195, 0, 0, 0, 0, 600, 0)
 }
-point_count = 4
+point_count = 6
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
 font_size = 22
@@ -22,184 +240,179 @@ font_color = Color(0.7, 0.7, 0.75, 1)
 font_size = 11
 font_color = Color(0.55, 0.55, 0.6, 1)
 
-[node name="VFXPlayground" type="Node2D"]
+[node name="VFXPlayground" type="Node2D" unique_id=553529087]
 script = ExtResource("1_pg")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=394673111]
 offset_right = 1440.0
 offset_bottom = 960.0
-color = Color(0.08, 0.08, 0.12, 1)
 mouse_filter = 2
+color = Color(0.08, 0.08, 0.12, 1)
 
-[node name="DummyEntity" parent="." instance=ExtResource("3_ent")]
+[node name="DummyEntity" parent="." unique_id=843657274 instance=ExtResource("3_ent")]
 display_name = "Playground Targets"
 color = Color(0.85, 0.4, 0.3, 1)
-stat_board = ExtResource("4_board")
+stat_board = SubResource("Resource_6hm8y")
 
-[node name="Origin" parent="." instance=ExtResource("2_sn")]
+[node name="Origin" parent="." unique_id=1175103569 instance=ExtResource("2_sn")]
 unique_name_in_owner = true
 position = Vector2(720, 760)
 
-[node name="Targets" type="Node2D" parent="."]
+[node name="Targets" type="Node2D" parent="." unique_id=7323012]
 unique_name_in_owner = true
 
-[node name="Target1" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="Target1" parent="Targets" unique_id=640150686 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(200, 280)
 owned_by = NodePath("../../DummyEntity")
 
-[node name="Target2" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="Target2" parent="Targets" unique_id=1158237604 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(480, 180)
 owned_by = NodePath("../../DummyEntity")
 
-[node name="Target3" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="Target3" parent="Targets" unique_id=383502800 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(720, 140)
 owned_by = NodePath("../../DummyEntity")
 
-[node name="Target4" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="Target4" parent="Targets" unique_id=1736221702 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(960, 180)
 owned_by = NodePath("../../DummyEntity")
 
-[node name="Target5" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="Target5" parent="Targets" unique_id=721364531 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(1240, 280)
 owned_by = NodePath("../../DummyEntity")
 
-[node name="PathEditor" type="Path2D" parent="."]
+[node name="PathEditor" type="Path2D" parent="." unique_id=1153056552]
 unique_name_in_owner = true
 position = Vector2(720, 760)
-visible = false
 curve = SubResource("Curve2D_default")
 
-[node name="VFXLayer" type="Node2D" parent="."]
+[node name="VFXLayer" type="Node2D" parent="." unique_id=463136350]
 unique_name_in_owner = true
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=2111771082]
 
-[node name="Panel" type="PanelContainer" parent="UI"]
+[node name="Panel" type="PanelContainer" parent="UI" unique_id=224439918]
 offset_left = 20.0
 offset_top = 20.0
 offset_right = 380.0
 offset_bottom = 920.0
 
-[node name="Margin" type="MarginContainer" parent="UI/Panel"]
+[node name="Margin" type="MarginContainer" parent="UI/Panel" unique_id=535816489]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="VBox" type="VBoxContainer" parent="UI/Panel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="UI/Panel/Margin" unique_id=940413585]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="UI/Panel/Margin/VBox"]
+[node name="Title" type="Label" parent="UI/Panel/Margin/VBox" unique_id=335364474]
 layout_mode = 2
 text = "VFX Playground"
 label_settings = SubResource("LabelSettings_title")
 
-[node name="FireButton" type="Button" parent="UI/Panel/Margin/VBox"]
+[node name="FireButton" type="Button" parent="UI/Panel/Margin/VBox" unique_id=90411027]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "Fire volley"
 
-[node name="HSep1" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+[node name="HSep1" type="HSeparator" parent="UI/Panel/Margin/VBox" unique_id=1995932935]
 layout_mode = 2
 
-[node name="VolleySection" type="Label" parent="UI/Panel/Margin/VBox"]
+[node name="VolleySection" type="Label" parent="UI/Panel/Margin/VBox" unique_id=1605187952]
 layout_mode = 2
 text = "VOLLEY"
 label_settings = SubResource("LabelSettings_section")
 
-[node name="DamageRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="DamageRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=938865508]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/DamageRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/DamageRow" unique_id=1884870844]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Damage per hit"
 
-[node name="DamageSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/DamageRow"]
+[node name="DamageSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/DamageRow" unique_id=827404712]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 0.0
 max_value = 9999.0
-step = 1.0
 value = 5.0
 
-[node name="StaggerRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="StaggerRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=2122111018]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/StaggerRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/StaggerRow" unique_id=1230531541]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Stagger / shot (s)"
 
-[node name="StaggerSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/StaggerRow"]
+[node name="StaggerSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/StaggerRow" unique_id=1091554772]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 0.0
 max_value = 2.0
 step = 0.05
 value = 0.2
 
-[node name="HSep2" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+[node name="HSep2" type="HSeparator" parent="UI/Panel/Margin/VBox" unique_id=1978292166]
 layout_mode = 2
 
-[node name="PathSection" type="Label" parent="UI/Panel/Margin/VBox"]
+[node name="PathSection" type="Label" parent="UI/Panel/Margin/VBox" unique_id=1534974326]
 layout_mode = 2
 text = "PATH"
 label_settings = SubResource("LabelSettings_section")
 
-[node name="PathModeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="PathModeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=1240564191]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/PathModeRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/PathModeRow" unique_id=1885394727]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Mode"
 
-[node name="PathModeOption" type="OptionButton" parent="UI/Panel/Margin/VBox/PathModeRow"]
+[node name="PathModeOption" type="OptionButton" parent="UI/Panel/Margin/VBox/PathModeRow" unique_id=2102185971]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ArcHeightRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="ArcHeightRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=1757261047]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/ArcHeightRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/ArcHeightRow" unique_id=908564499]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Arc apex height"
 
-[node name="ArcHeightSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/ArcHeightRow"]
+[node name="ArcHeightSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/ArcHeightRow" unique_id=1863597098]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 0.0
 max_value = 1200.0
 step = 10.0
 value = 420.0
 
-[node name="HSep3" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+[node name="HSep3" type="HSeparator" parent="UI/Panel/Margin/VBox" unique_id=2136851232]
 layout_mode = 2
 
-[node name="TimingSection" type="Label" parent="UI/Panel/Margin/VBox"]
+[node name="TimingSection" type="Label" parent="UI/Panel/Margin/VBox" unique_id=642373553]
 layout_mode = 2
 text = "PROJECTILE TIMING"
 label_settings = SubResource("LabelSettings_section")
 
-[node name="FlightTimeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="FlightTimeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=1861992111]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/FlightTimeRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/FlightTimeRow" unique_id=1158453911]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Flight time (s)"
 
-[node name="FlightTimeSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/FlightTimeRow"]
+[node name="FlightTimeSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/FlightTimeRow" unique_id=1672164303]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -208,112 +421,110 @@ max_value = 4.0
 step = 0.05
 value = 0.55
 
-[node name="FaceVelocityRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="FaceVelocityRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=1778492135]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/FaceVelocityRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/FaceVelocityRow" unique_id=25057167]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Face velocity"
 
-[node name="FaceVelocityCheck" type="CheckBox" parent="UI/Panel/Margin/VBox/FaceVelocityRow"]
+[node name="FaceVelocityCheck" type="CheckBox" parent="UI/Panel/Margin/VBox/FaceVelocityRow" unique_id=778097194]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 
-[node name="HSep4" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+[node name="HSep4" type="HSeparator" parent="UI/Panel/Margin/VBox" unique_id=1185820973]
 layout_mode = 2
 
-[node name="VisualSection" type="Label" parent="UI/Panel/Margin/VBox"]
+[node name="VisualSection" type="Label" parent="UI/Panel/Margin/VBox" unique_id=1835901569]
 layout_mode = 2
 text = "VISUAL (GlowingDot)"
 label_settings = SubResource("LabelSettings_section")
 
-[node name="HeadRadiusRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="HeadRadiusRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=910392163]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/HeadRadiusRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/HeadRadiusRow" unique_id=1495502784]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Head radius"
 
-[node name="HeadRadiusSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/HeadRadiusRow"]
+[node name="HeadRadiusSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/HeadRadiusRow" unique_id=873833434]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 1.0
 max_value = 64.0
-step = 1.0
 value = 6.0
 
-[node name="GlowRadiusRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="GlowRadiusRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=884463162]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/GlowRadiusRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/GlowRadiusRow" unique_id=1904422624]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Glow radius"
 
-[node name="GlowRadiusSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/GlowRadiusRow"]
+[node name="GlowRadiusSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/GlowRadiusRow" unique_id=1669648831]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 min_value = 1.0
 max_value = 128.0
-step = 1.0
 value = 16.0
 
-[node name="TrailLenRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="SegmentLifetimeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=53988056]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/TrailLenRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/SegmentLifetimeRow" unique_id=1201773989]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
-text = "Trail length"
+text = "Segment lifetime (s)"
 
-[node name="TrailLenSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/TrailLenRow"]
+[node name="SegmentLifetimeSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/SegmentLifetimeRow" unique_id=1909945671]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 0.0
-max_value = 80.0
-step = 1.0
-value = 14.0
+min_value = 0.05
+max_value = 4.0
+step = 0.05
+value = 0.45
 
-[node name="HeadColorRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="HeadColorRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=1789968564]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/HeadColorRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/HeadColorRow" unique_id=562688824]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Head color"
 
-[node name="HeadColorPicker" type="ColorPickerButton" parent="UI/Panel/Margin/VBox/HeadColorRow"]
+[node name="HeadColorPicker" type="ColorPickerButton" parent="UI/Panel/Margin/VBox/HeadColorRow" unique_id=2090811058]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(1, 0.85, 0.3, 0.95)
 
-[node name="GlowColorRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+[node name="GlowColorRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=519676528]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/GlowColorRow"]
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/GlowColorRow" unique_id=392220528]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 text = "Glow color"
 
-[node name="GlowColorPicker" type="ColorPickerButton" parent="UI/Panel/Margin/VBox/GlowColorRow"]
+[node name="GlowColorPicker" type="ColorPickerButton" parent="UI/Panel/Margin/VBox/GlowColorRow" unique_id=473938318]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 size_flags_horizontal = 3
 color = Color(1, 0.85, 0.3, 0.18)
 
-[node name="HSep5" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+[node name="HSep5" type="HSeparator" parent="UI/Panel/Margin/VBox" unique_id=15227559]
 layout_mode = 2
 
-[node name="HintLabel" type="Label" parent="UI/Panel/Margin/VBox"]
+[node name="HintLabel" type="Label" parent="UI/Panel/Margin/VBox" unique_id=1116289226]
 layout_mode = 2
 text = "Curve2D mode: select the PathEditor node and drag the curve points in the editor — next fire picks up the new shape. Save the Curve2D sub-resource to a .tres when happy."
 label_settings = SubResource("LabelSettings_hint")

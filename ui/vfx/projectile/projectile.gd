@@ -14,10 +14,16 @@ extends Node2D
 ##
 ## Visual scene hook contract (duck-typed; future commits may formalise as a
 ## typed `ProjectileVisual` base class):
-##   * `_on_launch()`        — once when flight begins (post-delay).
-##   * `_on_progress(t)`     — each frame, t ∈ [0, 1].
-##   * `_on_arrival()`       — once on impact, before the linger / free.
-## Any subset is fine; missing methods are skipped.
+##   inbound  (Projectile → Visual)
+##     * `_on_launch()`        — once when flight begins (post-delay).
+##     * `_on_progress(t)`     — each frame, t ∈ [0, 1].
+##     * `_on_arrival()`       — once on impact, before the linger / free.
+##   outbound (Visual → Projectile)
+##     * `finished` signal     — visual says "I'm fully done draining" so
+##       the projectile (and the BattleSystem await chain it feeds) waits
+##       on the actual fade-out instead of a fixed linger.
+## Any subset is fine; missing inbound methods are skipped, and a missing
+## `finished` signal falls back to [member linger_seconds].
 
 signal arrived
 
@@ -28,8 +34,9 @@ signal arrived
 ## so an oriented visual (arrow, missile) faces forward. Symmetric visuals
 ## (the default dot) ignore it.
 @export var face_velocity: bool = true
-## Brief tween after [signal arrived] so trail/particles have a frame to finish
-## rendering before [method queue_free] tears the node down.
+## Fallback post-arrival wait when the visual scene exposes no `finished`
+## signal. With the default [GlowingDot] visual (which DOES emit `finished`)
+## this is unused — the projectile waits for the trail to fully drain.
 @export var linger_seconds: float = 0.1
 
 var _origin_pos: Vector2
@@ -80,6 +87,9 @@ func _process(delta: float) -> void:
 	if _t >= 1.0:
 		_t = 1.0
 		global_position = _target_pos
+		# Last trail/particle sample at the impact point — without it the
+		# trail visibly ends one frame short of the target.
+		_call_visual(&"_on_progress", [1.0])
 		_on_arrived()
 		return
 	var prev := global_position
@@ -92,20 +102,30 @@ func _process(delta: float) -> void:
 	_call_visual(&"_on_progress", [_t])
 
 
-# Halt _process before emitting — the linger tween below keeps this node alive
-# for `linger_seconds`, during which any further _process tick would re-fire
-# arrived and any damage-application lambda hooked to it. (See the commit that
-# introduced this guard for the regression.)
+# Halt _process before emitting — the post-arrival wait below keeps this node
+# alive for `finished` (or `linger_seconds` fallback), during which any further
+# _process tick would re-fire `arrived` and any damage-application lambda
+# hooked to it. (See the commit that introduced this guard for the regression.)
 func _on_arrived() -> void:
 	set_process(false)
 	_call_visual(&"_on_arrival", [])
 	arrived.emit()
+	await _wait_for_visual_done()
+	queue_free()
+
+
+# Wait on the visual's own "I'm done dissipating" signal so the projectile
+# (and the BattleSystem await chain that feeds off it) stays alive until the
+# trail / particles / shader actually finish — not just until the head lands.
+func _wait_for_visual_done() -> void:
+	if _visual != null and _visual.has_signal(&"finished"):
+		await _visual.finished
+		return
 	if linger_seconds <= 0.0:
-		queue_free()
 		return
 	var t := create_tween()
 	t.tween_interval(linger_seconds)
-	t.finished.connect(queue_free)
+	await t.finished
 
 
 func _call_visual(method: StringName, args: Array) -> void:

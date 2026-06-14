@@ -35,7 +35,7 @@ enum PathMode { BEZIER_ARC, CURVE_2D }
 @onready var face_velocity_check: CheckBox = %FaceVelocityCheck
 @onready var head_radius_spin: SpinBox = %HeadRadiusSpin
 @onready var glow_radius_spin: SpinBox = %GlowRadiusSpin
-@onready var trail_len_spin: SpinBox = %TrailLenSpin
+@onready var segment_lifetime_spin: SpinBox = %SegmentLifetimeSpin
 @onready var head_color_picker: ColorPickerButton = %HeadColorPicker
 @onready var glow_color_picker: ColorPickerButton = %GlowColorPicker
 @onready var arc_height_row: Control = %ArcHeightRow
@@ -120,7 +120,7 @@ func _build_visual_scene() -> PackedScene:
 	var template := GlowingDot.new()
 	template.head_radius = head_radius_spin.value
 	template.head_glow_radius = glow_radius_spin.value
-	template.trail_len = int(trail_len_spin.value)
+	template.segment_lifetime = segment_lifetime_spin.value
 	template.head_color = head_color_picker.color
 	template.head_glow_color = glow_color_picker.color
 	var live := PackedScene.new()
