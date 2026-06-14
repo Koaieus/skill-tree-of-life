@@ -58,6 +58,13 @@ func _on_node_right_clicked(_node: SkillNode) -> void:
 	pass
 
 
+## Optional range visualization hook. Concrete plans return a non-zero
+## radius to have the overlay paint a range circle around [param node]
+## (e.g. ranged firing-position reach). Default 0 = no circle.
+func get_node_range(_node: SkillNode) -> float:
+	return 0.0
+
+
 func _to_string() -> String:
 	var cls: String = str(get_script().get_global_name()) if get_script() else "AttackPlan"
 	var mode_name: String = BattleSystem.AttackMode.keys()[mode]

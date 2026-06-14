@@ -1,10 +1,11 @@
 class_name SingleAlliedNodeTargeting
 extends Targeting
 
-## A node owned by the attacker, within [member max_range] scene-pixels of
-## the source node. For buffs / heals.
+## A node owned by the attacker, within the optional [member range_finder]'s
+## reach of the source. For buffs / heals. If `range_finder` is null, any
+## owned node is valid.
 
-@export var max_range: float = 200.0
+@export var range_finder: RangeFinder
 
 
 func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool:
@@ -12,4 +13,6 @@ func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) 
 		return false
 	if candidate.owned_by != plan.attacker:
 		return false
-	return source.global_position.distance_to(candidate.global_position) <= max_range
+	if range_finder != null and not range_finder.in_range(plan, source, candidate):
+		return false
+	return true

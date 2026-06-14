@@ -10,6 +10,10 @@ extends Resource
 @export_multiline var description: String
 
 @export var mana_cost: int = 0
+## Scalar damage applied to the resolved target on commit. Damage application
+## itself isn't wired yet — combat resolution lands later. Data shape now so
+## spell .tres files don't need migration when it does.
+@export var damage: int = 0
 
 ## How this spell's target is gathered + what counts as valid. The kind
 ## drives input dispatch (NODE click vs. world click); the predicates drive

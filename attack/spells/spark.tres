@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="SpellDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://attack/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" path="res://attack/targeting/single_hostile_node_targeting.gd" id="2_targeting"]
+[ext_resource type="Script" path="res://attack/range_finder/hop_range_finder.gd" id="3_range"]
+
+[sub_resource type="Resource" id="range_3hop"]
+script = ExtResource("3_range")
+max_hops = 3
+
+[sub_resource type="Resource" id="targeting_hostile_3hop"]
+script = ExtResource("2_targeting")
+range_finder = SubResource("range_3hop")
+
+[resource]
+script = ExtResource("1_spell")
+name = "Spark"
+description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source."
+mana_cost = 1
+damage = 5
+targeting = SubResource("targeting_hostile_3hop")
