@@ -84,6 +84,10 @@ func _draw() -> void:
 
 
 func _on_arrived() -> void:
+	# Halt _process before emitting — otherwise the linger tween below keeps
+	# the node alive for 0.1s while _t stays ≥ 1.0, re-firing `arrived` (and
+	# the damage-application lambda hooked to it) every frame.
+	set_process(false)
 	arrived.emit()
 	# Brief linger so the trail has time to render its last frame before
 	# the node disappears; without this, fast volleys can pop visually.
