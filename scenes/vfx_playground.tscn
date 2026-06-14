@@ -198,7 +198,7 @@ base_value = 5.0
 script = ExtResource("6_qj1qk")
 definition = ExtResource("30_416fy")
 
-[sub_resource type="Resource" id="Resource_6hm8y"]
+[sub_resource type="Resource" id="Resource_nhh4r"]
 resource_local_to_scene = true
 script = ExtResource("21_afw72")
 strength = SubResource("scalar_strength")
@@ -225,9 +225,9 @@ intrinsic_modifiers = Array[ExtResource("12_6jwts")]([SubResource("mod_per_to_vi
 
 [sub_resource type="Curve2D" id="Curve2D_default"]
 _data = {
-"points": PackedVector2Array(0, 0, 0, 0, -2, 2, 0, 0, 0, 0, 46, -199, 0, 0, 0, 0, 106, -229, 0, 0, 0, 0, 189, -234, 0, 0, 0, 0, 299, -195, 0, 0, 0, 0, 600, 0)
+"points": PackedVector2Array(-17, 52, 0, 0, 19, -9, -115, 0, 115, 0, 177, -294, 0, 0, 0, 0, 600, 0)
 }
-point_count = 6
+point_count = 3
 
 [sub_resource type="LabelSettings" id="LabelSettings_title"]
 font_size = 22
@@ -252,38 +252,38 @@ color = Color(0.08, 0.08, 0.12, 1)
 [node name="DummyEntity" parent="." unique_id=843657274 instance=ExtResource("3_ent")]
 display_name = "Playground Targets"
 color = Color(0.85, 0.4, 0.3, 1)
-stat_board = SubResource("Resource_6hm8y")
+stat_board = SubResource("Resource_nhh4r")
 
 [node name="Origin" parent="." unique_id=1175103569 instance=ExtResource("2_sn")]
 unique_name_in_owner = true
-position = Vector2(720, 760)
+position = Vector2(771, 424)
 
 [node name="Targets" type="Node2D" parent="." unique_id=7323012]
 unique_name_in_owner = true
 
 [node name="Target1" parent="Targets" unique_id=640150686 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-position = Vector2(200, 280)
+position = Vector2(543, 466)
 owned_by = NodePath("../../DummyEntity")
 
 [node name="Target2" parent="Targets" unique_id=1158237604 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-position = Vector2(480, 180)
+position = Vector2(664, 201)
 owned_by = NodePath("../../DummyEntity")
 
 [node name="Target3" parent="Targets" unique_id=383502800 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-position = Vector2(720, 140)
+position = Vector2(918, 275)
 owned_by = NodePath("../../DummyEntity")
 
 [node name="Target4" parent="Targets" unique_id=1736221702 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-position = Vector2(960, 180)
+position = Vector2(944, 523)
 owned_by = NodePath("../../DummyEntity")
 
 [node name="Target5" parent="Targets" unique_id=721364531 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-position = Vector2(1240, 280)
+position = Vector2(692, 603)
 owned_by = NodePath("../../DummyEntity")
 
 [node name="PathEditor" type="Path2D" parent="." unique_id=1153056552]
 unique_name_in_owner = true
-position = Vector2(720, 760)
+position = Vector2(696, 697)
 curve = SubResource("Curve2D_default")
 
 [node name="VFXLayer" type="Node2D" parent="." unique_id=463136350]
@@ -395,6 +395,79 @@ size_flags_horizontal = 3
 max_value = 1200.0
 step = 10.0
 value = 420.0
+
+[node name="CubicBezierRows" type="VBoxContainer" parent="UI/Panel/Margin/VBox" unique_id=8800301]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StartAngleRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox/CubicBezierRows" unique_id=8800302]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/CubicBezierRows/StartAngleRow" unique_id=8800303]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Start angle (deg)"
+
+[node name="StartAngleSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/CubicBezierRows/StartAngleRow" unique_id=8800304]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -180.0
+max_value = 180.0
+step = 5.0
+value = -90.0
+
+[node name="StartStrengthRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox/CubicBezierRows" unique_id=8800305]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/CubicBezierRows/StartStrengthRow" unique_id=8800306]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Start strength"
+
+[node name="StartStrengthSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/CubicBezierRows/StartStrengthRow" unique_id=8800307]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 3.0
+step = 0.05
+value = 0.5
+
+[node name="EndAngleRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox/CubicBezierRows" unique_id=8800308]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/CubicBezierRows/EndAngleRow" unique_id=8800309]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "End angle (deg)"
+
+[node name="EndAngleSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/CubicBezierRows/EndAngleRow" unique_id=8800310]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -180.0
+max_value = 180.0
+step = 5.0
+value = -90.0
+
+[node name="EndStrengthRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox/CubicBezierRows" unique_id=8800311]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/CubicBezierRows/EndStrengthRow" unique_id=8800312]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "End strength"
+
+[node name="EndStrengthSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/CubicBezierRows/EndStrengthRow" unique_id=8800313]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 3.0
+step = 0.05
+value = 0.5
 
 [node name="HSep3" type="HSeparator" parent="UI/Panel/Margin/VBox" unique_id=2136851232]
 layout_mode = 2

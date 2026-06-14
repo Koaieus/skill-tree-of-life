@@ -19,7 +19,7 @@ extends Node2D
 const _GLOWING_DOT_SCENE: PackedScene = preload(
 		"res://ui/vfx/projectile/visual/glowing_dot.tscn")
 
-enum PathMode { BEZIER_ARC, CURVE_2D }
+enum PathMode { BEZIER_ARC, CUBIC_BEZIER, CURVE_2D }
 
 @onready var origin: SkillNode = %Origin
 @onready var targets_root: Node2D = %Targets
@@ -39,6 +39,11 @@ enum PathMode { BEZIER_ARC, CURVE_2D }
 @onready var head_color_picker: ColorPickerButton = %HeadColorPicker
 @onready var glow_color_picker: ColorPickerButton = %GlowColorPicker
 @onready var arc_height_row: Control = %ArcHeightRow
+@onready var cubic_bezier_rows: Control = %CubicBezierRows
+@onready var start_angle_spin: SpinBox = %StartAngleSpin
+@onready var start_strength_spin: SpinBox = %StartStrengthSpin
+@onready var end_angle_spin: SpinBox = %EndAngleSpin
+@onready var end_strength_spin: SpinBox = %EndStrengthSpin
 
 
 func _ready() -> void:
@@ -51,14 +56,16 @@ func _ready() -> void:
 func _populate_path_modes() -> void:
 	path_mode_option.clear()
 	path_mode_option.add_item("Bezier arc (tunable apex)", PathMode.BEZIER_ARC)
+	path_mode_option.add_item("Cubic Bezier (tangent handles)", PathMode.CUBIC_BEZIER)
 	path_mode_option.add_item("Curve2D (drag the points)", PathMode.CURVE_2D)
 	path_mode_option.selected = 0
 
 
 func _on_path_mode_changed(id: int) -> void:
-	# Arc-height knob is only meaningful in Bezier mode; hide it in Curve2D
-	# to make the "edit the Path2D directly" UX self-evident.
+	# Each mode shows only its own knob set so the UI matches the math
+	# the user is reading.
 	arc_height_row.visible = id == int(PathMode.BEZIER_ARC)
+	cubic_bezier_rows.visible = id == int(PathMode.CUBIC_BEZIER)
 	path_editor.visible = id == int(PathMode.CURVE_2D)
 
 
@@ -102,6 +109,13 @@ func _build_path() -> ProjectilePath:
 		PathMode.BEZIER_ARC:
 			var p := BezierArcPath.new()
 			p.apex_height = arc_height_spin.value
+			return p
+		PathMode.CUBIC_BEZIER:
+			var p := CubicBezierPath.new()
+			p.start_tangent = Vector2.from_angle(deg_to_rad(start_angle_spin.value))
+			p.start_strength = start_strength_spin.value
+			p.end_tangent = Vector2.from_angle(deg_to_rad(end_angle_spin.value))
+			p.end_strength = end_strength_spin.value
 			return p
 		PathMode.CURVE_2D:
 			var p := Curve2DPath.new()
