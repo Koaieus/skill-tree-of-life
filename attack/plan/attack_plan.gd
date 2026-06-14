@@ -1,9 +1,34 @@
-@abstract 
+@abstract
 class_name AttackPlan
 extends RefCounted
 ## Abstract parent class for a plan for an [Entity] preparing an attack.
-#
-# Contains information of source and target, and mode of attack.
+##
+## Holds shared state (attacker, mode) and the input + visualization contract:
+## concrete plans handle [method _on_node_left_clicked] /
+## [method _on_node_right_clicked] for input, expose visualization roles via
+## [method get_highlight_role], and emit [signal state_changed] whenever any
+## of their internal state shifts (pivot picked, blade toggled, target set,
+## spell selected, etc.). BattleSystem rebinds [signal state_changed] across
+## plan swaps so UI subscribes once to the system, not every plan.
+
+## Semantic roles for visualizing nodes participating in a plan. The
+## AttackHighlightOverlay reads these per visible SkillNode and renders
+## accordingly — overlay doesn't care whether a role came from a right-click
+## (melee pivot) or was derived (ranged firing position).
+enum HighlightRole {
+	NONE,
+	ORIGIN,           ## Melee pivot / magic source / ranged firing position.
+	MEMBER,           ## Secondary participant (melee blade member).
+	HOSTILE_TARGET,   ## Committed enemy target.
+	FRIENDLY_TARGET,  ## Committed allied target (heals / buffs).
+	IN_RANGE,         ## Valid candidate the plan would accept.
+	INVALID,          ## Hovered-but-rejected (range / ownership / etc.).
+}
+
+## Fires whenever any plan-internal state changes. Concrete plans emit this
+## after mutations. BattleSystem rebinds + re-emits as
+## attack_plan_state_changed for downstream UI.
+signal state_changed
 
 var attacker: Entity
 var mode: BattleSystem.AttackMode
@@ -15,6 +40,22 @@ var mode: BattleSystem.AttackMode
 ## all required slots filled
 func is_valid() -> bool:
 	return validate().is_empty()
+
+
+## Visualization role for [param node] under this plan's current state.
+## Default is NONE; concrete plans override for the nodes they care about.
+func get_highlight_role(_node: SkillNode) -> HighlightRole:
+	return HighlightRole.NONE
+
+
+## Input hooks — concrete plans override the ones they react to. Defaults
+## are no-ops so plans only implement what's relevant to their mode.
+func _on_node_left_clicked(_node: SkillNode) -> void:
+	pass
+
+
+func _on_node_right_clicked(_node: SkillNode) -> void:
+	pass
 
 
 func _to_string() -> String:
