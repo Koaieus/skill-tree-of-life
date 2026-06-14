@@ -4,7 +4,8 @@ extends Area2D
 
 signal radius_changed
 signal owner_changed
-signal clicked(skill_node: SkillNode)
+signal left_clicked(skill_node: SkillNode)
+signal right_clicked(skill_node: SkillNode)
 
 # `owned_by` is the single source of truth for allocation:
 # null  → unallocated
@@ -91,5 +92,10 @@ func _on_mouse_exited() -> void:
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			clicked.emit(self)
+		if not mb.pressed:
+			return
+		match mb.button_index:
+			MOUSE_BUTTON_LEFT:
+				left_clicked.emit(self)
+			MOUSE_BUTTON_RIGHT:
+				right_clicked.emit(self)
