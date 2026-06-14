@@ -184,7 +184,7 @@ base_value = 5.0
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
-[sub_resource type="Resource" id="Resource_qrijo"]
+[sub_resource type="Resource" id="Resource_umwfs"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
 strength = SubResource("scalar_strength")
@@ -266,27 +266,30 @@ edges_container = NodePath("Edges")
 script = ExtResource("5_nav")
 graph = NodePath("..")
 
-[node name="TurnManager" type="Node" parent="Graph" unique_id=1435071114]
+[node name="TurnManager" type="Node" parent="Graph" unique_id=1834844179]
 script = ExtResource("7_turn")
+metadata/_custom_type_script = "uid://hhfetuy6hfu"
 
-[node name="AllocationSystem" type="Node" parent="Graph" unique_id=1431902936 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
+[node name="AllocationSystem" type="Node" parent="Graph" unique_id=394689840 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
 script = ExtResource("6_alloc")
 graph = NodePath("..")
 navigator = NodePath("../Navigator")
 turn_manager = NodePath("../TurnManager")
+metadata/_custom_type_script = "uid://blmjm81fytofd"
 
 [node name="BattleSystem" type="Node" parent="Graph" unique_id=1245123863 node_paths=PackedStringArray("turn_manager")]
 script = ExtResource("6_umwfs")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://c8h46d4u0rss3"
 
-[node name="PlayerInputController" type="Node" parent="Graph" unique_id=430342798 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "player", "turn_manager")]
+[node name="PlayerInputController" type="Node" parent="Graph" unique_id=252155233 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "player", "turn_manager")]
 script = ExtResource("8_input")
 graph = NodePath("..")
 allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
 player = NodePath("../Entities/Player")
 turn_manager = NodePath("../TurnManager")
+metadata/_custom_type_script = "uid://tmd2wsn34dny"
 
 [node name="Entities" type="Node" parent="Graph" unique_id=945415300]
 
@@ -294,7 +297,7 @@ turn_manager = NodePath("../TurnManager")
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_qrijo")
+stat_board = SubResource("Resource_umwfs")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
