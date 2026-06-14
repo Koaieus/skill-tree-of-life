@@ -69,7 +69,7 @@ func _ready() -> void:
 
 ## Listens for TurnManager.turn_started. Each entity self-handles its own
 ## start-of-turn upkeep so we don't grow a god-mode TurnManager. Per-turn
-## bookkeeping today: reset AP/DP to full, tick XP by xp_per_turn.
+## bookkeeping today: reset AP/DP, tick XP, heal wounds, refill owned-node HP.
 func _on_turn_started(entity: Entity) -> void:
 	if entity != self or stat_board == null:
 		return
@@ -81,6 +81,16 @@ func _on_turn_started(entity: Entity) -> void:
 		var gain := int(stat_board.xp_per_turn.value)
 		if gain > 0:
 			stat_board.xp.replenish(gain)
+	if stat_board.skill_points != null and stat_board.wound_heal_per_turn != null:
+		var heal := int(stat_board.wound_heal_per_turn.value)
+		if heal > 0:
+			stat_board.skill_points.heal(heal)
+	# Per-node combat HP refill — every node owned by this entity returns to
+	# full. Lives here rather than on the node itself so a single sweep on
+	# turn start beats every node subscribing to a turn-manager signal.
+	if navigator != null:
+		for n in navigator.get_mirrored_nodes():
+			n.refill()
 
 
 ## Listens for xp.replenished (pool crossed into full). Grows the xp cap via

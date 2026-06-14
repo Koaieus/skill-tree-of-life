@@ -37,6 +37,13 @@ var mode: BattleSystem.AttackMode
 ## error messages, empty = valid
 @abstract func validate() -> Array[String]
 
+
+## Pure resolution — what would happen if this plan were committed right now.
+## Called for BOTH preview (UI tooltips, AI scoring) and commit (the launch
+## flow drives VFX off these hits then applies them). Implementations should
+## be side-effect free: no state mutation on the plan, attacker, or any node.
+@abstract func resolve() -> AttackOutcome
+
 ## all required slots filled
 func is_valid() -> bool:
 	return validate().is_empty()

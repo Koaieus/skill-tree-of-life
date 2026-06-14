@@ -1,0 +1,72 @@
+[gd_scene load_steps=10 format=3 uid="uid://b3pq9k7x5n2yc"]
+
+[ext_resource type="Script" path="res://ui/end_turn_button/end_turn_button.gd" id="1_endturn"]
+[ext_resource type="Shader" path="res://ui/end_turn_button/end_turn_button.gdshader" id="2_vortex"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hover"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_disabled"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bg"]
+resource_local_to_scene = true
+shader = ExtResource("2_vortex")
+shader_parameter/mouse_uv = Vector2(0.5, 0.5)
+shader_parameter/texture_size = Vector2(1.0, 1.0)
+shader_parameter/tint = Color(0.35, 0.55, 0.95, 1.0)
+shader_parameter/hot_color = Color(0.85, 0.95, 1.0, 1.0)
+shader_parameter/glow_strength = 0.0
+shader_parameter/active_strength = 0.0
+shader_parameter/disabled_strength = 0.0
+
+[sub_resource type="LabelSettings" id="LabelSettings_text"]
+font_size = 22
+
+[node name="EndTurnButton" type="Button"]
+custom_minimum_size = Vector2(128, 64)
+theme_override_colors/font_color = Color(0, 0, 0, 0)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_disabled_color = Color(0, 0, 0, 0)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0)
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_pressed")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_hover")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "End Turn"
+script = ExtResource("1_endturn")
+tint = Color(0.35, 0.55, 0.95, 1)
+hot_color = Color(0.85, 0.95, 1.0, 1)
+
+[node name="ColorRect" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_bg")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+label_settings = SubResource("LabelSettings_text")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
+[connection signal="resized" from="." to="." method="_on_resized"]

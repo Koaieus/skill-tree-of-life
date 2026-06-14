@@ -37,6 +37,8 @@
 [ext_resource type="Resource" path="res://entity/stats/list/wisdom.tres" id="30_jc1be"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp.tres" id="31_54w3d"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp_per_turn.tres" id="32_v0kkn"]
+[ext_resource type="Resource" path="res://entity/stats/list/wound_heal_per_turn.tres" id="33_woundheal"]
+[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="34_defboard"]
 
 [sub_resource type="Resource" id="pool_ap"]
 script = ExtResource("8_umwfs")
@@ -175,6 +177,11 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("30_jc1be")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_wound_heal"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("33_woundheal")
+base_value = 1.0
+
 [sub_resource type="Resource" id="pool_xp"]
 script = ExtResource("8_umwfs")
 definition = ExtResource("31_54w3d")
@@ -197,6 +204,7 @@ node_health = SubResource("scalar_node_health")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
 movement_points = SubResource("pool_movement_points")
@@ -304,6 +312,7 @@ core_location = NodePath("../../Nodes/Core")
 [node name="Enemy" parent="Graph/Entities" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
 display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
+stat_board = ExtResource("34_defboard")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]

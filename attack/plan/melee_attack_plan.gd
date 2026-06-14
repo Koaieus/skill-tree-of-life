@@ -169,6 +169,14 @@ func _can_be_blade(node: SkillNode) -> bool:
 	return true
 
 
+func resolve() -> AttackOutcome:
+	# Stub: melee resolution lands in a follow-up alongside the phantom-swing
+	# sandbox graduating to a real attack. Returning empty for now means the
+	# launch flow runs (animation + AP deduction) but applies no damage —
+	# acceptable while we settle on the swing → contact-set mapping.
+	return AttackOutcome.new()
+
+
 func _is_neighbor_of_blade_set(node: SkillNode) -> bool:
 	# Adjacency to pivot OR any current blade member, via the live graph's
 	# edges. The mirror can't answer this for candidates (they're not yet

@@ -22,6 +22,7 @@
 [ext_resource type="Resource" path="res://entity/stats/list/strength.tres" id="def_strength"]
 [ext_resource type="Resource" path="res://entity/stats/list/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" path="res://entity/stats/list/wisdom.tres" id="def_wisdom"]
+[ext_resource type="Resource" path="res://entity/stats/list/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp_per_turn.tres" id="def_xp_per_turn"]
 [ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="script_derived"]
@@ -180,6 +181,11 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_wisdom")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_wound_heal_per_turn"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_wound_heal_per_turn")
+base_value = 1.0
+
 [sub_resource type="Resource" id="pool_xp"]
 script = ExtResource("3_pool")
 definition = ExtResource("def_xp")
@@ -202,6 +208,7 @@ node_health = SubResource("scalar_node_health")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
 movement_points = SubResource("pool_movement_points")

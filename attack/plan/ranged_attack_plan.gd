@@ -91,3 +91,17 @@ func _is_valid_target(node: SkillNode) -> bool:
 	if node.owned_by == null or node.owned_by == attacker:
 		return false
 	return true
+
+
+func resolve() -> AttackOutcome:
+	# One DamageInstance per reaching firing position — flat-armour-friendly,
+	# stagger-VFX-friendly. Caller (BattleSystem.launch_attack) consumes these
+	# in order; arrival is staggered by the VFX layer, not here.
+	var outcome := AttackOutcome.new()
+	if not is_valid():
+		return outcome
+	for firing in get_reaching_firing_positions():
+		var hit := RangedDamageFormula.compute(attacker, firing, target)
+		hit.source = self
+		outcome.hits.append(hit)
+	return outcome

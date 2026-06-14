@@ -98,6 +98,30 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 	return true
 
 
+## Bypass for forced deallocation by attack. Skips can_deallocate guards
+## (DP cost, would_disconnect, is_core check) and does not refund SP — the
+## caller is responsible for the wound + core-HP-loss routing instead. This
+## is the "elsewhere" referenced at the top of this file.
+##
+## Returns the previous owner so the caller can chain wound + health.deplete
+## without re-reading owned_by (which is null after this call).
+func force_deallocate(node: SkillNode) -> Entity:
+	if node == null:
+		return null
+	var previous := node.owned_by
+	if previous == null:
+		return null
+	var board := previous.stat_board
+	if board != null:
+		for m in node.modifiers:
+			board.remove_modifier(m)
+	if previous.navigator != null:
+		previous.navigator.mirror_remove(node)
+	node.owned_by = null
+	deallocated.emit(node, previous)
+	return previous
+
+
 func _has_any_owned_node(entity: Entity) -> bool:
 	if graph == null:
 		return false

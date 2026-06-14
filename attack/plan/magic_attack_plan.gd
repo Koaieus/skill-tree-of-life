@@ -74,3 +74,10 @@ func _target_still_valid() -> bool:
 	if spell == null or spell.targeting == null or source == null:
 		return false
 	return spell.targeting.is_valid_target(self, source, target)
+
+
+func resolve() -> AttackOutcome:
+	# Stub: spell resolution lands with the spell-effect payload (TBD per
+	# SpellDef header). Empty outcome lets the launch flow run dry — useful
+	# for verifying button gating against MagicAttackPlan without damage.
+	return AttackOutcome.new()

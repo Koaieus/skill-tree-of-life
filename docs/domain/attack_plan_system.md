@@ -65,18 +65,113 @@ re-deriving anything.
 ### Plumbing
 
 - **`SkillNode`** emits `left_clicked(self)` and `right_clicked(self)`
-  separately (split from one `clicked` signal).
+  separately (split from one `clicked` signal). Also carries per-node
+  combat HP — see Combat resolution below.
 - **`PlayerInputController`** routes both clicks. In battle phase with an
   active plan owned by the player, dispatches to the plan's virtual
   click handler; otherwise falls through to allocation routing
   (deployment phase).
 - **`BattleSystem`** rebinds `attack_plan.state_changed` across plan
   swaps and re-emits as `attack_plan_state_changed`. UI subscribes once
-  to the system, not per plan.
+  to the system, not per plan. Also owns `launch_attack()` (the commit
+  flow) and the forced-dealloc cascade — see Combat resolution.
 - **`AttackHighlightOverlay`** (`Node2D` mounted under `Graph` by
   `GameRoot`) — subscribes to both BattleSystem signals,
   `queue_redraw()`s on either, paints role rings + range circles. One
   overlay, every plan type.
+
+### Combat resolution
+
+The plans plan; this layer commits.
+
+- **`AttackOutcome`** (RefCounted) — what `plan.resolve()` returns:
+  `hits: Array[DamageInstance]` + `ap_cost: int`. Used twice:
+  preview-on-hover (future tooltip UI) and commit-on-launch.
+- **`DamageInstance`** — `amount` + `type` (PHYSICAL / MAGIC / TRUE) +
+  `source` (the plan or spell) + `target` (the SkillNode being hit) +
+  `origin` (firing position, for VFX routing).
+- **`attack/formulas/`** — pure-function damage modules. One per
+  offense profile (`RangedDamageFormula` is the only one wired so far:
+  `floor(DEX / 10) + 1` PHYSICAL per shot), one for the universal
+  defense step (`Mitigation.apply` — pass-through stub today). Plans
+  use the offensive helpers; `SkillNode.take_damage` calls the
+  defensive one. The boundary lands at the moment damage arrives.
+- **`AttackPlan.resolve() -> AttackOutcome`** — abstract; called for
+  *both* preview and commit. Implementations are pure: no state
+  mutation on plan, attacker, world. `RangedAttackPlan.resolve()`
+  loops `get_reaching_firing_positions()` and produces one
+  `DamageInstance` per shot. Melee and magic ship as empty-outcome
+  stubs awaiting their per-mode follow-ups.
+- **`BattleSystem.launch_attack()`** — three-phase coordinator:
+  1. `plan.resolve()` (pure)
+  2. `await attack_vfx.play_ranged_volley(outcome)` (animates, applies
+     damage on each tracer's arrival)
+  3. AP deduction + `_reset()` (cleared before the await window so the
+     player can't spam-click during VFX)
+- **`Events.skill_node_damaged(node, amount, source)`** /
+  **`Events.skill_node_depleted(node)`** — global signals re-emitted
+  by `SkillNode.take_damage`. The damage signal is what makes the
+  damage-numbers widget mode-agnostic; the depleted signal is what
+  BattleSystem listens for to run the cascade.
+- **`SkillNode.current_hp` / `take_damage()` / `refill()`** — per-node
+  combat HP. Plain field, not in the modifier pipeline (see
+  `docs/domain/node-hp.md`). Core nodes never deallocate; overflow
+  past `current_hp` routes to `owned_by.stat_board.health`.
+- **`AllocationSystem.force_deallocate(node)`** — bypasses the
+  voluntary `can_deallocate` guards (is_core, DP cost, would_disconnect)
+  and emits `deallocated` but does *not* refund SP. The caller (which
+  is always `BattleSystem._on_node_depleted`) does the wound + core HP
+  loss instead. This is the "elsewhere" the file's top comment
+  foretold.
+- **`BattleSystem._on_node_depleted(node)`** — the cascade. Snapshots
+  `defender.navigator.nodes_islanded_by_removing(node, core)` BEFORE
+  touching the mirror; force-deallocs each node in the cascade
+  (depleted node + all newly islanded), each costing the defender
+  `skill_points.wound(1)` and `health.deplete(1)`.
+
+### Turn-start upkeep
+
+Lives on `Entity._on_turn_started` (the explicit "no god-mode
+TurnManager" pattern). Per-turn bookkeeping consumes:
+
+- `action_points` → `restore_to_full()`
+- `deallocation_points` → `restore_to_full()`
+- `xp` → `+xp_per_turn`
+- `skill_points.heal(wound_heal_per_turn)` — `wound_heal_per_turn` is
+  the new ScalarStat for this (default 1)
+- `SkillNode.refill()` on every owned node (via
+  `EntityNavigator.get_mirrored_nodes()` — new GraphMirror query)
+
+### VFX layer
+
+- **`AttackVFX`** (Node2D, sibling of `AttackHighlightOverlay` under
+  `Graph`) — `play_ranged_volley(outcome) -> void` (coroutine).
+  Spawns one `RangedTracer` per `DamageInstance`, staggered 60ms; each
+  tracer applies its own hit's damage on arrival; the coroutine
+  resumes when the last tracer arrives.
+- **`RangedTracer`** — code-only Node2D. Quadratic Bezier (start →
+  start + (0, -200) apex → target), ~0.55s flight, custom-drawn glow
+  + position trail. Emits `arrived` then linger-then-`queue_free`.
+- **`DamageNumberLayer`** — Node2D global subscriber to
+  `Events.skill_node_damaged`. Spawns a private `_DamageFloater`
+  (custom-drawn `draw_string` + outline) at the node's position;
+  tweens up + fade. Completely decoupled from attack source — any
+  future damage (spells, traps, status effects) gets floating numbers
+  for free.
+- **Hit flash** — lives on the SkillNode itself, listening to its own
+  local `damaged` signal. Tweens `Visuals.modulate` red → white.
+
+### Launch UI
+
+- **`LaunchAttackButton`** (own scene + .gd + .gdshader). UIRoot gates
+  enabled iff `plan != null and plan.is_valid()`; pressed calls
+  `battle_system.launch_attack`. Procedural fire shader when active,
+  desaturated when disabled. Same `ColorRect + Label + ShaderMaterial`
+  pipeline as `AttackModeButton`.
+- **`EndTurnButton`** (own scene + .gd + .gdshader). Promoted from a
+  plain Button inline in `ui_root.tscn`. Slow blue-vortex shader. Same
+  pipeline. `text` poll in `_process` propagates UIRoot's phase-based
+  label flips into the visible Label child.
 
 ### Graph layer (foundation)
 
@@ -97,13 +192,17 @@ re-deriving anything.
 - **`blade_size`** ScalarStat, intrinsic DerivedModifierDef:
   `ADD_BASE floor(STR/10)`. Base value 1 → default total is
   `1 + floor(STR/10) = 2` at STR=10.
+- **`wound_heal_per_turn`** ScalarStat, base 1 — the rate that wounds
+  flow back to spendable SP at turn start. Tuning lever for
+  combat-recovery cadence.
 
 ### Sandbox
 
-`scenes/dev_sandbox.tscn` has a Red Player (full stat board) and a Blue
-Enemy (no board, just a colour and a 5-node territory) bridged by
-unallocated nodes. Enough geometry for ranged firing positions to
-actually have things to fire at.
+`scenes/dev_sandbox.tscn` has a Red Player (inline stat board) and a
+Blue Enemy (`default_entity_board.tres`) bridged by unallocated nodes.
+Both boards include `wound_heal_per_turn`. Enough geometry for ranged
+firing positions to actually have things to fire at, and the Enemy
+having a board means damage flow has something to deplete on commit.
 
 ---
 
@@ -228,6 +327,102 @@ plan returns `FIRING_RANGE` for leaves. Considered:
 If a future plan wants multiple radii per node (e.g. melee's blade arc
 + ranged firing reach simultaneously), we'll generalize then.
 
+### Combat resolution: three-phase commit (resolve → VFX → apply)
+
+`BattleSystem.launch_attack` separates:
+1. **Pure resolution** (`plan.resolve()`): no side effects; pure
+   `(plan state) → AttackOutcome`. Same call used for preview.
+2. **Animation** (`await attack_vfx.play_ranged_volley(outcome)`):
+   tracers spawn, fly, apply damage per arrival.
+3. **State mutation** (AP deduction + plan reset).
+
+Considered alternatives:
+
+- **Fire-and-forget VFX, apply immediately, animate later**: clean to
+  write but visually wrong — numbers would pop before tracers land.
+  And per-shot stagger needs the apply step to ride the arrival
+  signal, not a single pre-await batch.
+- **Plan.commit(ctx) that does everything**: tighter coupling, but
+  plans then need to know about VFX dispatch + AP cost + cascade
+  routing. Keeping `resolve` pure means the *same* method drives the
+  damage-tooltip preview that ships later; no second code path.
+
+### Offense per-plan, defense per-target
+
+Each plan's `resolve()` builds raw `DamageInstance`s using helpers in
+`attack/formulas/` (offense profile per attack mode).
+`SkillNode.take_damage()` calls `Mitigation.apply(raw, defender_board)`
+*before* deducting `current_hp`. Reason:
+
+- Mode-specific damage (DEX-per-shot vs STR-per-contact vs INT-per-cast)
+  has fundamentally different shape; trying to unify it in one
+  resolver kills the cleanliness.
+- Mitigation is universal: armour, resists, magic shields apply
+  regardless of who's shooting. Putting it on the defender means one
+  pipeline, every source.
+- The boundary lands at the moment damage *arrives*. Attacker says
+  "5 PHYSICAL"; defender's node says "I have 1 armour, take 4."
+  Cleanest possible split.
+
+### Per-shot damage instances (vs consolidated total)
+
+`RangedAttackPlan.resolve()` emits one `DamageInstance` per firing
+position, not one consolidated total. Reasons:
+
+- **Flat armour reads correctly.** N hits × small damage, each reduced
+  by armour, is meaningfully different from one big hit reduced once.
+  Locks in armour as a viable defensive stat shape.
+- **VFX staggers naturally.** Tracers can arrive 60ms apart, each
+  applying its own hit, producing separated impact moments — the
+  AttackVFX layer doesn't need to invent staggered damage.
+- **AoE / multi-shot uniformity.** The same shape covers a single
+  spark (one hit), a volley (N hits), a fireball (one origin, many
+  targets), an AoE radial (many origins, many targets). One data
+  type, every attack.
+
+### Cascade lives on BattleSystem, not AllocationSystem
+
+The forced-dealloc cascade (depleted node + islanded nodes → dealloc
++ wound + core HP) lives on `BattleSystem._on_node_depleted`, a
+subscriber to `Events.skill_node_depleted`. AllocationSystem grew a
+`force_deallocate(node)` helper but doesn't subscribe to the signal.
+Reason:
+
+- AllocationSystem is the voluntary-allocation rules engine. Forced
+  dealloc by attack is a *combat outcome*. Wound + core HP routing is
+  combat policy, not allocation policy.
+- Coupling AllocationSystem to combat would invert dependency:
+  combat-system-changes would touch the allocation files. Keeping the
+  cascade on BattleSystem means combat changes stay in combat code.
+- The Events bus carries the depleted signal because *anything* may
+  cause a node to die — direct combat, area-effect spells, future
+  status DoT. One subscriber, all damage sources.
+
+### Node HP is a plain field, not a Stat
+
+`SkillNode.current_hp` is a bare float; `get_max_hp()` reads
+`owner.stat_board.node_health`. Not a `PoolStat`, not in the modifier
+pipeline. Full reasoning in `docs/domain/node-hp.md`. TL;DR: cross-board
+derivation (node-local + owner stats) isn't a supported pattern yet
+and node-local stats don't exist; building infrastructure for absent
+state would be premature. Clean seam: the entire concern lives at
+`get_max_hp()` and `_refresh_hp_binding`. When node-local stats land,
+those two methods graduate to a real cross-board derivation.
+
+### Damage numbers via `Events.skill_node_damaged`, not direct VFX calls
+
+`DamageNumberLayer` subscribes to the global signal; it does *not*
+take callbacks from BattleSystem or AttackVFX. Reasons:
+
+- A spell, a falling trap, a thorn aura, a future status-effect DoT —
+  none of them need to know "there's a floating-number widget I
+  should call." They call `node.take_damage(amount, source)` and the
+  number appears.
+- Adding a second damage-number style (crit yellow, healing green) is
+  a single subscriber change, no source coordination.
+- Mode-specific UI (e.g. a "Magic" tinting if `source is SpellDef`) is
+  one branch in the subscriber, not N branches at every emit site.
+
 ### MagicAttackPlan auto-equips the default spell
 
 `_init()` preloads `spark.tres` and sets `spell = _DEFAULT_SPELL`. This
@@ -253,41 +448,70 @@ different RangeFinder subclass. Pattern is set up for it.
 Roughly in dependency order. Each entry has the rough size, the
 prerequisites, and the design intent so we don't rederive.
 
-### Combat resolution — actually apply damage (medium)
+### Mitigation stats — armour + resistances (small)
 
-**Prereq:** none. **Touches:** new `CombatSystem` node + per-node HP
-tracking (already a `node_health` board stat; per-node HP is on the
-design doc but not coded).
+**Prereq:** none — the seam already exists. **Touches:** new
+StatBoard fields (`armour`, maybe per-type resistances), update
+`Mitigation.apply()` to actually subtract / multiply, possibly add a
+`damage_type` mapping for per-type resistance.
 
-The plans currently *plan* attacks; nothing fires. Need:
+Right now `Mitigation.apply` returns `raw.amount` unchanged. The
+single function is the entire defense pipeline; growing it is one
+edit + one set of stat definitions. Decide whether resistances are
+PoE-style additive % or D&D-style per-source flat — design call.
 
-- A "Commit" button (or click trigger) that asks `plan.is_valid()` and
-  then enacts it. Likely an `AttackResolver` / `CombatSystem` that takes
-  a validated plan, computes per-target damage, applies it.
-- Per-`SkillNode` HP: a `current_health` field (transient — not a board
-  stat). When it hits 0, forced deallocation → cascade.
-- The cascade reuses `EntityNavigator.nodes_islanded_by_removing_set`
-  (set-variant deliberately exists for this).
-- AP/MP deduction on commit. AP from `attacker.stat_board.action_points`.
-- Animation / VFX hooks live with the resolver, not the plan.
+### Melee `resolve()` (medium, depends on phantom-swing sandbox)
 
-### Damage / death preview overlay (medium, depends on Combat resolution)
+**Prereq:** the existing phantom-swing sandbox graduates to a real
+attack (defines the contact set: which enemy nodes a blade sweep
+actually hits). **Touches:** `MeleeAttackPlan.resolve()`,
+`attack/formulas/melee_damage.gd` (new), maybe `AttackVFX.play_melee_swing`.
 
-**Prereq:** Combat resolution shapes the damage call. **Touches:** new
-overlay widget + plan hooks.
+The empty-outcome stub is the placeholder. Damage formula likely
+`floor(STR / 10) + 1` PHYSICAL per contact, mirroring ranged's per-shot
+shape. Per-contact instances let armour bite each one independently —
+keeps the offense/defense symmetry the ranged path established.
 
-When hovering a candidate target with a spell selected:
+### Magic `resolve()` + spell effect payload (medium)
 
-- Show projected damage on the target (and any AoE collaterals).
-- Show projected deaths (HP would drop ≤ 0).
+**Prereq:** spell effect data shape — `SpellDef` currently has `damage:
+int` as a placeholder. **Touches:** `MagicAttackPlan.resolve()`,
+`attack/formulas/magic_damage.gd` (new), possibly grow `SpellDef` to
+carry an effect kind enum (damage / heal / debuff / status).
+
+The Spark proof-of-concept (one target, damage by INT//10) lands first.
+AoE spells require Targeting `valid_targets()` returning multiple +
+one DamageInstance per resolved target. Status effects need a
+container on the outcome (`effects: Array[StatusInstance]` alongside
+`hits`).
+
+### Damage / death preview overlay (small, depends on hover hook)
+
+**Prereq:** plan.resolve is pure — already true. **Touches:** new
+overlay widget + maybe a hover-target hook in plans.
+
+When hovering a candidate target with a plan active:
+
+- Show projected damage on the target (and any AoE collaterals) — call
+  `plan.resolve()` and read `outcome.hits`.
+- Show projected deaths (per-target damage vs `node.current_hp`).
 - Show projected island cascade from those deaths (via
   `defender.navigator.nodes_islanded_by_removing_set(projected_kills,
   defender_core)`).
 
 Probably a separate overlay (above the highlight overlay) that listens
-to `Events.skill_node_hovered`. Could add a `PROJECTED_KILL` role; could
-also keep it in its own visual vocabulary entirely. Lean: keep it
-separate so the highlight role enum stays minimal.
+to `Events.skill_node_hovered` + `attack_plan_state_changed`. Could
+add a `PROJECTED_KILL` role; could also keep it in its own visual
+vocabulary entirely. Lean: keep it separate so the highlight role enum
+stays minimal.
+
+### Forced-dealloc cascade visual feedback (small, depends on AttackVFX seam)
+
+When a damaged node dies and cascade-disallocates kin, the player needs
+to *see it*. Hooks off the existing `AllocationSystem.deallocated`
+signal — already emits for the cascade nodes. Wire a `DeallocFlash`
+layer (same pattern as `DamageNumberLayer`: global subscriber, custom
+draw). Could share VFX helpers with `AttackVFX`.
 
 ### AttackPlanPanel sub-widgets (small, no prereq)
 
@@ -310,12 +534,6 @@ Removes the `_DEFAULT_SPELL` preload stopgap. Magic mode's sub-widget
 shows the player's known spells (`attacker.spells` — not yet a field,
 add one) and lets the player click to equip. `MagicAttackPlan.spell`
 setter clears `target` if it falls out of reach under the new spell.
-
-### Forced-dealloc cascade visual feedback (small, depends on Combat resolution)
-
-When a damaged node dies and cascade-disallocates kin, the player needs
-to *see it* — a deallocate flash + a brief "X nodes lost to islanding"
-toast. Hooks off the existing `AllocationSystem.deallocated` signal.
 
 ### blade_target — what is it? (small design decision)
 
@@ -351,12 +569,14 @@ Design decision pending. Probably defer until melee animation lands.
 
 ### Enemy AI (large)
 
-**Prereq:** Combat resolution exists. **Touches:** new `EnemyController`
-that builds AttackPlans for non-player entities on their turn.
+**Prereq:** none — combat resolution is in. **Touches:** new
+`EnemyController` that builds AttackPlans for non-player entities on
+their turn.
 
 The plan abstraction is AI-friendly: AI builds the same plan types the
-player does, asks `validate()` and `valid_targets()`, picks one, commits.
-A `MinimaxAttackPlanner` could score plans by damage dealt × territory
+player does, calls `plan.resolve()` to score (it's pure!), picks the
+highest-EV plan, calls `battle_system.launch_attack`. A
+`MinimaxAttackPlanner` could score plans by damage dealt × territory
 captured / mana spent. MVP: random valid plan, just to test the cycle.
 
 ---
@@ -366,29 +586,48 @@ captured / mana spent. MVP: random valid plan, just to test the cycle.
 ```
 attack/
 ├── plan/
-│   ├── attack_plan.gd            # abstract base — state_changed, role enum, virtuals
-│   ├── melee_attack_plan.gd      # pivot + blades + cascade-prune
-│   ├── ranged_attack_plan.gd     # target + firing positions
-│   └── magic_attack_plan.gd      # source + spell + target
-├── range_finder/
-│   ├── range_finder.gd           # abstract — in_range(plan, source, candidate)
-│   ├── euclidean_range_finder.gd
-│   └── hop_range_finder.gd       # via global Navigator AStar
-├── targeting/
-│   ├── targeting.gd              # abstract — is_valid_target, valid_targets, kind
-│   ├── single_hostile_node_targeting.gd
-│   └── single_allied_node_targeting.gd
+│   ├── attack_plan.gd            # abstract base — state_changed, role enum, virtuals, resolve()
+│   ├── melee_attack_plan.gd      # pivot + blades + cascade-prune (resolve stub)
+│   ├── ranged_attack_plan.gd     # target + firing positions, resolve() per-shot
+│   └── magic_attack_plan.gd      # source + spell + target (resolve stub)
+├── outcome/
+│   ├── attack_outcome.gd         # hits[] + ap_cost
+│   └── damage_instance.gd        # amount, type, source, target, origin
+├── formulas/
+│   ├── ranged_damage.gd          # pure: (attacker, firing, target) → DamageInstance
+│   └── mitigation.gd             # pure: (raw, defender_board) → effective amount
+├── range_finder/                 # in_range primitives (Euclidean, hop)
+├── targeting/                    # is_valid_target predicates + kind
 ├── spells/
 │   └── spark.tres                # first spell
 ├── spell_def.gd                  # name, cost, damage, targeting
 graph/
-└── graph_mirror.gd               # abstract; Navigator + EntityNavigator subclass
+└── graph_mirror.gd               # abstract; +get_mirrored_nodes for turn-start sweeps
+skill_node/
+└── skill_node.gd                 # +current_hp, take_damage, refill, damaged/depleted
+entity/
+├── entity.gd                     # _on_turn_started: AP/DP, XP, wound heal, node refill
+└── stats/
+    ├── stat_board.gd             # +wound_heal_per_turn
+    └── list/wound_heal_per_turn.tres
 ui/
-└── attack_highlight_overlay/
-    └── attack_highlight_overlay.gd   # role rings + range circles
+├── attack_highlight_overlay/     # role rings + range circles
+├── attack_vfx/
+│   ├── attack_vfx.gd             # play_ranged_volley coroutine
+│   └── ranged_tracer.gd          # Bezier-arc projectile, custom-drawn
+├── damage_number_layer/
+│   └── damage_number_layer.gd    # global Events.skill_node_damaged subscriber
+├── launch_attack_button/         # .gd + .tscn + .gdshader (fire)
+└── end_turn_button/              # .gd + .tscn + .gdshader (vortex)
+autoload/
+└── events.gd                     # +skill_node_damaged, +skill_node_depleted
 systems/
-├── battle_system.gd              # plan owner, state_changed rebinding
+├── battle_system.gd              # plan owner; launch_attack; cascade
+├── allocation_system.gd          # +force_deallocate (no SP refund)
 └── player_input_controller.gd    # click dispatch
+docs/domain/
+├── attack_plan_system.md         # this file
+└── node-hp.md                    # why per-node HP isn't (yet) in the stat pipeline
 .claude/rules/
 ├── stats-system.md               # stat system contract (keep current)
 └── godot-workflow.md             # class cache + scene round-trip gotchas

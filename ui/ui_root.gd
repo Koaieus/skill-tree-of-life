@@ -9,7 +9,8 @@ class_name UIRoot
 @onready var stats_panel: StatsPanel = %StatsPanel
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 @onready var attack_mode_bar: AttackModeBar = %AttackModeBar
-@onready var end_turn_button: Button = %EndTurnButton
+@onready var launch_attack_button: LaunchAttackButton = %LaunchAttackButton
+@onready var end_turn_button: EndTurnButton = %EndTurnButton
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -35,7 +36,10 @@ func compose(game_root: GameRoot) -> void:
 	attack_mode_bar.attack_mode_requested.connect(_input_ctl.on_attack_mode_requested)
 
 	_battle_system.attack_plan_changed.connect(_on_attack_plan_changed)
+	_battle_system.attack_plan_state_changed.connect(_refresh_launch_button)
 	_on_attack_plan_changed(_battle_system.attack_plan)
+
+	launch_attack_button.pressed.connect(_battle_system.launch_attack)
 
 	_input_ctl.player_can_act_changed.connect(attack_mode_bar.set_enabled)
 	attack_mode_bar.set_enabled(_input_ctl.can_player_act())
@@ -48,6 +52,15 @@ func compose(game_root: GameRoot) -> void:
 func _on_attack_plan_changed(plan: AttackPlan) -> void:
 	var mode := plan.mode if plan else BattleSystem.AttackMode.NONE
 	attack_mode_bar.set_active_mode(mode)
+	_refresh_launch_button()
+
+
+## Plan presence + validity gate the launch button. Subscribed to both plan
+## swap (attack_plan_changed) and plan-internal mutation
+## (attack_plan_state_changed) so target-selection ticks the button live.
+func _refresh_launch_button() -> void:
+	var plan := _battle_system.attack_plan
+	launch_attack_button.set_enabled(plan != null and plan.is_valid())
 
 
 func _on_phase_changed(_e: Entity, phase: TurnManager.Phase) -> void:

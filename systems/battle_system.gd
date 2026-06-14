@@ -15,6 +15,8 @@ signal attack_plan_changed(plan: AttackPlan)
 signal attack_plan_state_changed
 
 @export var turn_manager: TurnManager
+@export var allocation_system: AllocationSystem
+@export var attack_vfx: AttackVFX
 
 
 var attack_plan: AttackPlan:
@@ -66,4 +68,73 @@ func _new_plan(plan_class: Script) -> AttackPlan:
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	pass # Replace with function body.
+	Events.skill_node_depleted.connect(_on_node_depleted)
+
+
+## Commit the active plan. Three phases:
+##   1. resolve() → AttackOutcome (pure, no side-effects on plan/world)
+##   2. await attack_vfx → tracers fly + apply damage on arrival
+##   3. AP deduction + plan clear
+##
+## AP + plan clear happen up front so the player can't spam-click during the
+## VFX await window. Without VFX, the volley call is synchronous and damage
+## lands immediately.
+func launch_attack() -> void:
+	if not is_attacking:
+		push_warning("BattleSystem.launch_attack: no plan")
+		return
+	if not attack_plan.is_valid():
+		push_warning("BattleSystem.launch_attack: invalid plan: %s" % str(attack_plan.validate()))
+		return
+	var entity := turn_manager.current_entity if turn_manager != null else null
+	if entity == null:
+		push_warning("BattleSystem.launch_attack: no current entity")
+		return
+	var outcome := attack_plan.resolve()
+	var ap_pool: PoolStat = entity.stat_board.action_points \
+			if entity.stat_board != null else null
+	if ap_pool != null and ap_pool.current < float(outcome.ap_cost):
+		push_warning("BattleSystem.launch_attack: insufficient AP (%d < %d)" \
+				% [int(ap_pool.current), outcome.ap_cost])
+		return
+	if ap_pool != null:
+		ap_pool.deplete(float(outcome.ap_cost))
+	_reset()
+	if attack_vfx != null:
+		await attack_vfx.play_ranged_volley(outcome)
+	else:
+		# Headless / no-VFX path: apply damage directly so tests can still
+		# observe the outcome without a scene-attached VFX node.
+		for hit in outcome.hits:
+			if hit.target != null:
+				hit.target.take_damage(hit.amount, hit)
+
+
+## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the
+## depleted node and every node disconnected from the defender's core when
+## it leaves are force-dealloc'd; each costs the defender 1 wound + 1 core HP.
+##
+## "Forced-deallocation lives elsewhere" in AllocationSystem comments —
+## that elsewhere is here.
+func _on_node_depleted(node: SkillNode) -> void:
+	if node == null or allocation_system == null:
+		return
+	var defender: Entity = node.owned_by
+	if defender == null:
+		return
+	# Cascade snapshot — must be computed BEFORE removing the depleted node
+	# from the navigator mirror, or its islanded set goes stale.
+	var cascade: Array[SkillNode] = [node]
+	if defender.navigator != null and defender.core_location != null:
+		cascade.append_array(defender.navigator.nodes_islanded_by_removing(
+				node, defender.core_location))
+	var board: StatBoard = defender.stat_board
+	for n in cascade:
+		if n == null or n.owned_by != defender:
+			continue
+		allocation_system.force_deallocate(n)
+		if board != null:
+			if board.skill_points != null:
+				board.skill_points.wound(1)
+			if board.health != null:
+				board.health.deplete(1.0)

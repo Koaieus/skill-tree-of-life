@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SpellDef" load_steps=5 format=3 uid="uid://hi2w3tufav8y"]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://hi2w3tufav8y"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="2_targeting"]

@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
 [ext_resource type="PackedScene" uid="uid://bvttxdu4jd6se" path="res://ui/AttackModeBar.tscn" id="4_6qk7i"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="4_f6o6b"]
+[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="5_launch"]
+[ext_resource type="PackedScene" uid="uid://b3pq9k7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="6_endturn"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 layout_mode = 3
@@ -166,8 +168,14 @@ layout_mode = 2
 
 [node name="Control" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=178211490]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 2
 mouse_filter = 2
+
+[node name="LaunchAttackButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control" unique_id=1481929375 instance=ExtResource("5_launch")]
+unique_name_in_owner = true
+layout_mode = 1
+offset_right = 160.0
+offset_bottom = 64.0
 
 [node name="Control2" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=606294971]
 layout_mode = 2
@@ -195,9 +203,8 @@ layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="EndTurnButton" type="Button" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control3" unique_id=1234156537]
+[node name="EndTurnButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control3" unique_id=1234156537 instance=ExtResource("6_endturn")]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(128, 64)
 layout_mode = 1
 anchors_preset = 6
 anchor_left = 1.0
@@ -210,7 +217,6 @@ offset_right = -4.0
 offset_bottom = 32.0
 grow_horizontal = 0
 grow_vertical = 2
-text = "End Turn"
 
 [node name="SkillNodeTooltip" parent="." unique_id=1365414747 instance=ExtResource("2_tooltip")]
 layout_mode = 0

@@ -38,6 +38,10 @@ extends Resource
 ## Allocation budget — careful tracking via SkillPointStat (current/wounded/max
 ## with `used + current + wounded == max` invariant; see skill_point_stat.gd).
 @export var skill_points: SkillPointStat
+## Wounds healed at this entity's turn start. SkillPointStat.heal(N) flows
+## that many from `wounded` back into `current`. Consumed by
+## Entity._on_turn_started.
+@export var wound_heal_per_turn: ScalarStat
 
 @export_group("Turn Budget")
 @export var deallocation_points: PoolStat  ## Default 3/3 — reshape budget.

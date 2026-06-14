@@ -90,6 +90,16 @@ func _should_mirror(_node: SkillNode) -> bool:
 
 # ── Queries ────────────────────────────────────────────────────────────────
 
+## Every node currently in the mirror, in dictionary-iteration order. Cheap;
+## callers that need a stable order should sort. Used by per-entity sweeps
+## like turn-start HP refill on owned nodes.
+func get_mirrored_nodes() -> Array[SkillNode]:
+	var result: Array[SkillNode] = []
+	for n in _node_ids:
+		result.append(n)
+	return result
+
+
 ## All mirrored nodes whose degree in the mirror equals [param degree].
 func get_nodes_by_degree(degree: int) -> Array[SkillNode]:
 	var result: Array[SkillNode] = []

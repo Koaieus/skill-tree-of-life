@@ -1,0 +1,17 @@
+class_name AttackOutcome
+extends RefCounted
+
+## The result of [method AttackPlan.resolve] — pure data describing what the
+## attack would do. Used twice:
+##   1. As a preview (UI tooltips, AI scoring) — call [method AttackPlan.resolve]
+##      anytime to peek at current outcome.
+##   2. As the commit payload — [BattleSystem.launch_attack] awaits VFX on it,
+##      then applies each hit's damage.
+
+var hits: Array[DamageInstance] = []
+## Action points consumed on commit.
+var ap_cost: int = 1
+
+
+func _to_string() -> String:
+	return "<AttackOutcome %d hit(s), %d AP>" % [hits.size(), ap_cost]

@@ -21,6 +21,18 @@ description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsi
 
 `skill_points` is `SkillPointStat` (PoolStat subclass) with a `wounded` bucket: `wound(n)` = forced dealloc (attack); `heal(n)` = restore wounded → current; `refund(n)` = voluntary dealloc. Not interchangeable.
 
+## Turn-start upkeep
+
+`Entity._on_turn_started` runs at the owning entity's turn start. Stats it consumes:
+
+- `action_points` → `restore_to_full()`
+- `deallocation_points` → `restore_to_full()`
+- `xp` → `replenish(int(xp_per_turn.value))`
+- `wound_heal_per_turn` → `skill_points.heal(int(value))` (wounded → current)
+- (also, for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max
+
+`wound_heal_per_turn` defaults to 1. Tuning lever: raise to recover faster from forced deallocs; drop to make wound damage stickier.
+
 ## Stat IDs
 
 Run to list all current stat IDs:
