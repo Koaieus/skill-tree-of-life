@@ -39,6 +39,7 @@ These are `DerivedModifierDef` sub-resources wired as `intrinsic_modifiers` on t
 | `intelligence` | `mana_per_turn` | ADD_BASE | `floor(log10(max(1e-5, INT)))` |
 | `wisdom` | `xp_per_turn` | ADD_BASE | `floor(log10(max(1e-5, WIS)))` |
 | `dexterity` | `sensor_range` | ADD_BASE | `floor(DEX / 10.0)` |
+| `strength` | `blade_size` | ADD_BASE | `floor(STR / 10.0)` |
 
 ## Gotchas
 

@@ -184,7 +184,7 @@ base_value = 5.0
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
-[sub_resource type="Resource" id="Resource_umwfs"]
+[sub_resource type="Resource" id="Resource_qrijo"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
 strength = SubResource("scalar_strength")
@@ -254,6 +254,7 @@ value = 2.0
 
 [node name="DevSandbox" type="Node2D" unique_id=325788489]
 script = ExtResource("1_dev")
+metadata/_edit_lock_ = true
 
 [node name="Graph" type="Node2D" parent="." unique_id=1984989213 node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
 script = ExtResource("3_graph")
@@ -293,7 +294,7 @@ turn_manager = NodePath("../TurnManager")
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_umwfs")
+stat_board = SubResource("Resource_qrijo")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
@@ -302,6 +303,7 @@ color = Color(0.25, 0.45, 0.95, 1)
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]
+metadata/_edit_lock_ = true
 
 [node name="Edge_Core_Up" type="Node2D" parent="Graph/Edges" unique_id=709243764 node_paths=PackedStringArray("from", "to")]
 script = ExtResource("4_edge")
@@ -414,13 +416,14 @@ from = NodePath("../../Nodes/Enemy_S")
 to = NodePath("../../Nodes/Enemy_W")
 
 [node name="Nodes" type="Node2D" parent="Graph" unique_id=1697871484]
+metadata/_edit_lock_ = true
 
 [node name="Core" parent="Graph/Nodes" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(673, 457)
 owned_by = NodePath("../../Entities/Player")
 
 [node name="Up" parent="Graph/Nodes" unique_id=1730649151 instance=ExtResource("9_skill")]
-position = Vector2(697, 339)
+position = Vector2(731, 321)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 
 [node name="Right" parent="Graph/Nodes" unique_id=1699135446 instance=ExtResource("9_skill")]
@@ -440,11 +443,11 @@ position = Vector2(836, 393)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
 [node name="Up_Out" parent="Graph/Nodes" unique_id=1748015269 instance=ExtResource("9_skill")]
-position = Vector2(751, 202)
+position = Vector2(818, 225)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
 
 [node name="Right_Out" parent="Graph/Nodes" unique_id=1524370075 instance=ExtResource("9_skill")]
-position = Vector2(960, 480)
+position = Vector2(923, 452)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
 
 [node name="Down_Out" parent="Graph/Nodes" unique_id=8800201 instance=ExtResource("9_skill")]

@@ -55,6 +55,9 @@ extends Resource
 @export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
 @export var mana_per_turn: ScalarStat	## Mana restored at turn start. Base: floor(log(INT)).
 
+@export_group("Melee")
+@export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.
+
 ## Scaling rules intrinsic to this board — DerivedModifierDefs that describe
 ## how stats on this board relate to each other (e.g. PER scales vision_range).
 ## Applied once by Entity._ready() via apply_intrinsics(). These are board-level

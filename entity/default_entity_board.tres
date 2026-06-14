@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://entity/stats/skill_point_stat.gd" id="4_sp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://entity/stats/list/action_points.tres" id="def_ap"]
+[ext_resource type="Resource" path="res://entity/stats/list/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" path="res://entity/stats/list/deallocation_points.tres" id="def_dealloc"]
 [ext_resource type="Resource" path="res://entity/stats/list/dexterity.tres" id="def_dexterity"]
 [ext_resource type="Resource" path="res://entity/stats/list/health.tres" id="def_health"]
@@ -112,6 +113,21 @@ formula = SubResource("Resource_vupus")
 stat_id = &"sensor_range"
 metadata/_custom_type_script = "uid://ix51i0mr6n8v"
 
+[sub_resource type="Resource" id="formula_str_to_blade_size"]
+script = ExtResource("script_expr")
+formula = "floor(float(strength) / 10.0)"
+inputs = Array[StringName]([&"strength"])
+
+[sub_resource type="Resource" id="mod_str_to_blade_size"]
+script = ExtResource("script_derived")
+formula = SubResource("formula_str_to_blade_size")
+stat_id = &"blade_size"
+
+[sub_resource type="Resource" id="scalar_blade_size"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blade_size")
+base_value = 1.0
+
 [sub_resource type="Resource" id="pool_mana"]
 script = ExtResource("3_pool")
 current = 10.0
@@ -194,4 +210,5 @@ vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("Resource_3edt8")])
+blade_size = SubResource("scalar_blade_size")
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("Resource_3edt8"), SubResource("mod_str_to_blade_size")])
