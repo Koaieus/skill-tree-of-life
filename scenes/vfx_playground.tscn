@@ -1,0 +1,320 @@
+[gd_scene format=3 load_steps=10]
+
+[ext_resource type="Script" path="res://scenes/vfx_playground.gd" id="1_pg"]
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="2_sn"]
+[ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="3_ent"]
+[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="4_board"]
+
+[sub_resource type="Curve2D" id="Curve2D_default"]
+_data = {
+"points": PackedVector2Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200, -300, 0, 0, 0, 0, 400, -300, 0, 0, 0, 0, 600, 0)
+}
+point_count = 4
+
+[sub_resource type="LabelSettings" id="LabelSettings_title"]
+font_size = 22
+
+[sub_resource type="LabelSettings" id="LabelSettings_section"]
+font_size = 14
+font_color = Color(0.7, 0.7, 0.75, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_hint"]
+font_size = 11
+font_color = Color(0.55, 0.55, 0.6, 1)
+
+[node name="VFXPlayground" type="Node2D"]
+script = ExtResource("1_pg")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1440.0
+offset_bottom = 960.0
+color = Color(0.08, 0.08, 0.12, 1)
+mouse_filter = 2
+
+[node name="DummyEntity" parent="." instance=ExtResource("3_ent")]
+display_name = "Playground Targets"
+color = Color(0.85, 0.4, 0.3, 1)
+stat_board = ExtResource("4_board")
+
+[node name="Origin" parent="." instance=ExtResource("2_sn")]
+unique_name_in_owner = true
+position = Vector2(720, 760)
+
+[node name="Targets" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="Target1" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(200, 280)
+owned_by = NodePath("../../DummyEntity")
+
+[node name="Target2" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(480, 180)
+owned_by = NodePath("../../DummyEntity")
+
+[node name="Target3" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(720, 140)
+owned_by = NodePath("../../DummyEntity")
+
+[node name="Target4" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(960, 180)
+owned_by = NodePath("../../DummyEntity")
+
+[node name="Target5" parent="Targets" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(1240, 280)
+owned_by = NodePath("../../DummyEntity")
+
+[node name="PathEditor" type="Path2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(720, 760)
+visible = false
+curve = SubResource("Curve2D_default")
+
+[node name="VFXLayer" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Panel" type="PanelContainer" parent="UI"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 380.0
+offset_bottom = 920.0
+
+[node name="Margin" type="MarginContainer" parent="UI/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="UI/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "VFX Playground"
+label_settings = SubResource("LabelSettings_title")
+
+[node name="FireButton" type="Button" parent="UI/Panel/Margin/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "Fire volley"
+
+[node name="HSep1" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="VolleySection" type="Label" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "VOLLEY"
+label_settings = SubResource("LabelSettings_section")
+
+[node name="DamageRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/DamageRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Damage per hit"
+
+[node name="DamageSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/DamageRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 9999.0
+step = 1.0
+value = 5.0
+
+[node name="StaggerRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/StaggerRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Stagger / shot (s)"
+
+[node name="StaggerSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/StaggerRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 2.0
+step = 0.05
+value = 0.2
+
+[node name="HSep2" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="PathSection" type="Label" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "PATH"
+label_settings = SubResource("LabelSettings_section")
+
+[node name="PathModeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/PathModeRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Mode"
+
+[node name="PathModeOption" type="OptionButton" parent="UI/Panel/Margin/VBox/PathModeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ArcHeightRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/ArcHeightRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Arc apex height"
+
+[node name="ArcHeightSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/ArcHeightRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 1200.0
+step = 10.0
+value = 420.0
+
+[node name="HSep3" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="TimingSection" type="Label" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "PROJECTILE TIMING"
+label_settings = SubResource("LabelSettings_section")
+
+[node name="FlightTimeRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/FlightTimeRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Flight time (s)"
+
+[node name="FlightTimeSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/FlightTimeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.05
+max_value = 4.0
+step = 0.05
+value = 0.55
+
+[node name="FaceVelocityRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/FaceVelocityRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Face velocity"
+
+[node name="FaceVelocityCheck" type="CheckBox" parent="UI/Panel/Margin/VBox/FaceVelocityRow"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+
+[node name="HSep4" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="VisualSection" type="Label" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "VISUAL (GlowingDot)"
+label_settings = SubResource("LabelSettings_section")
+
+[node name="HeadRadiusRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/HeadRadiusRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Head radius"
+
+[node name="HeadRadiusSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/HeadRadiusRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 64.0
+step = 1.0
+value = 6.0
+
+[node name="GlowRadiusRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/GlowRadiusRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Glow radius"
+
+[node name="GlowRadiusSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/GlowRadiusRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 1.0
+max_value = 128.0
+step = 1.0
+value = 16.0
+
+[node name="TrailLenRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/TrailLenRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Trail length"
+
+[node name="TrailLenSpin" type="SpinBox" parent="UI/Panel/Margin/VBox/TrailLenRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 80.0
+step = 1.0
+value = 14.0
+
+[node name="HeadColorRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/HeadColorRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Head color"
+
+[node name="HeadColorPicker" type="ColorPickerButton" parent="UI/Panel/Margin/VBox/HeadColorRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(1, 0.85, 0.3, 0.95)
+
+[node name="GlowColorRow" type="HBoxContainer" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="UI/Panel/Margin/VBox/GlowColorRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Glow color"
+
+[node name="GlowColorPicker" type="ColorPickerButton" parent="UI/Panel/Margin/VBox/GlowColorRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(1, 0.85, 0.3, 0.18)
+
+[node name="HSep5" type="HSeparator" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+
+[node name="HintLabel" type="Label" parent="UI/Panel/Margin/VBox"]
+layout_mode = 2
+text = "Curve2D mode: select the PathEditor node and drag the curve points in the editor — next fire picks up the new shape. Save the Curve2D sub-resource to a .tres when happy."
+label_settings = SubResource("LabelSettings_hint")
+autowrap_mode = 2
