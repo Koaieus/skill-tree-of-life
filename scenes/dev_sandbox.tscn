@@ -699,6 +699,7 @@ owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Camera" type="Camera2D" parent="Graph" unique_id=1488255030]
 unique_name_in_owner = true
+position = Vector2(736, 482)
 script = ExtResource("39_uulnk")
 metadata/_custom_type_script = "uid://bb2qycfjh26rf"
 

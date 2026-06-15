@@ -35,6 +35,12 @@ var _selected_target: SkillNode = null
 func _ready() -> void:
 	cast_button.pressed.connect(_cast)
 	world.size_changed.connect(_layout_world)
+	# Belt and suspenders: SkillNode's Area2D wires `input_event → left_clicked`
+	# via signal, but Godot only routes the pick through a SubViewport when
+	# the viewport opts in to physics picking. Set it here too in case the
+	# panel scene was authored / cached without it.
+	world.physics_object_picking = true
+	world.handle_input_locally = true
 	_build_grid_edges()
 	for sn in graph.get_skill_nodes():
 		sn.left_clicked.connect(_on_target_clicked)
@@ -204,23 +210,31 @@ func _layout_world() -> void:
 func _cast() -> void:
 	if not is_instance_valid(_spell) or _selected_target == null:
 		return
+	if _spell.vfx_coordinator_scene == null:
+		# No headless fallback — that path would apply damage synchronously
+		# at cast time, which is the exact bug we want to make impossible.
+		# Wire a coord scene on the SpellDef.
+		push_warning("Spell Playground: spell has no vfx_coordinator_scene — Cast skipped")
+		return
 	for sn in graph.get_skill_nodes():
 		sn.refill()
 	var outcome := SpellResolver.resolve(
 			_spell, _selected_target, caster_node, caster_entity, graph)
 	if outcome.hits.is_empty():
 		return
-	if _spell.vfx_coordinator_scene == null:
-		# Headless fallback: apply damage immediately so the user still
-		# sees HP draining even if a coord scene isn't wired.
-		for hit in outcome.hits:
-			if hit.target != null:
-				hit.target.take_damage(hit.amount, hit)
-		return
 	var coord := _spell.vfx_coordinator_scene.instantiate() as VFXCoordinator
 	if coord == null:
 		push_warning("Spell Playground: vfx_coordinator_scene root is not a VFXCoordinator")
 		return
+	# Production VFX defaults assume a full-screen battlefield (apex 420 px).
+	# In the playground's ~340 px viewport that arc sends the projectile off
+	# the top for most of the flight — read by the user as "no projectile,
+	# damage just appeared". Override with an arc that fits the panel.
+	if coord is RangedVolleyCoordinator:
+		var rvc := coord as RangedVolleyCoordinator
+		var arc := BezierArcPath.new()
+		arc.apex_height = 70.0
+		rvc.projectile_path = arc
 	vfx_layer.add_child(coord)
 	await coord.play(outcome)
 	coord.queue_free()

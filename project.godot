@@ -48,9 +48,9 @@ folder_colors={
 "res://attack/": "orange",
 "res://autoload/": "red",
 "res://entity/": "red",
-"res://stats_system/": "pink",
 "res://graph/": "teal",
 "res://skill_node/": "red",
+"res://stats_system/": "pink",
 "res://systems/": "yellow",
 "res://ui/": "green"
 }
