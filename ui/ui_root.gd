@@ -64,6 +64,7 @@ func _refresh_launch_button() -> void:
 
 
 func _on_phase_changed(_e: Entity, phase: TurnManager.Phase) -> void:
+	end_turn_button.phase = float(phase)
 	match phase:
 		TurnManager.Phase.DEPLOYMENT:    end_turn_button.text = "To Battle"
 		TurnManager.Phase.BATTLE:        end_turn_button.text = "Consolidate"

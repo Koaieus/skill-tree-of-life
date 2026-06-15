@@ -44,6 +44,11 @@ var _disabled: float = 0.0:
 		_push("disabled_strength", value)
 
 
+var phase: float = 0.0:
+	set(value):
+		phase = value
+		_push("phase_blend", value)
+
 var enabled: bool = true: set = set_enabled
 
 

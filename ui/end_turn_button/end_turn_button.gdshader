@@ -1,9 +1,9 @@
 shader_type canvas_item;
 
 // Slow swirling vortex — time-passes mood for the End Turn button.
-// Polar-domain spiral arms warped by fbm noise, color-ramped cool blue to
-// soft white at the core. Same uniform contract as the fire shader for the
-// `_push()` symmetry.
+// Polar-domain spiral arms warped by fbm noise, color-ramped per turn phase.
+// phase_blend: 0=DEPLOYMENT (blue, calm), 1=BATTLE (orange, fast), 2=CONSOLIDATION (teal, slow).
+// Same uniform contract as the fire shader for the `_push()` symmetry.
 
 uniform vec2 mouse_uv;
 uniform vec2 texture_size = vec2(1.0);
@@ -12,6 +12,7 @@ uniform vec3 hot_color : source_color = vec3(0.85, 0.95, 1.0);
 uniform float glow_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float active_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float disabled_strength : hint_range(0.0, 1.0) = 0.0;
+uniform float phase_blend : hint_range(0.0, 2.0) = 0.0;
 
 const float CORNER_RADIUS = 0.14;
 const float RIM_WIDTH = 0.04;
@@ -59,37 +60,51 @@ void fragment() {
     float shape = 1.0 - smoothstep(-aa, aa, dist);
     if (shape < 0.001) discard;
 
-    // Polar domain. Spiraling arms: angle modulated by radius gives the
-    // logarithmic-spiral look; TIME advances the whole pattern.
+    // Phase-derived tint and swirl speed.
+    // DEPLOYMENT=0: cool blue, relaxed cadence.
+    // BATTLE=1:     orange-red, quick spiral.
+    // CONSOLIDATION=2: teal-green, very slow drift.
+    float p01 = clamp(phase_blend, 0.0, 1.0);
+    float p12 = clamp(phase_blend - 1.0, 0.0, 1.0);
+    vec3 tint_d = vec3(0.28, 0.48, 0.92);
+    vec3 tint_b = vec3(0.88, 0.32, 0.10);
+    vec3 tint_c = vec3(0.18, 0.72, 0.52);
+    vec3 phase_tint = mix(mix(tint_d, tint_b, p01), tint_c, p12);
+    vec3 phase_hot  = mix(mix(vec3(0.85, 0.95, 1.0), vec3(1.0, 0.72, 0.35), p01),
+                          vec3(0.60, 1.0, 0.78), p12);
+    // Deploy=0.7, Battle=1.6, Consolidation=0.45
+    float swirl_speed = mix(mix(0.7, 1.6, p01), 0.45, p12);
+
+    // Polar domain. Spiral arms: angle modulated by radius gives the
+    // logarithmic-spiral look; TIME * swirl_speed drives the rotation.
     float r = length(p);
     float a = atan(p.y, p.x);
-    float swirl_a = a - r * 5.0 + TIME * 0.9;
+    float swirl_a = a - r * 5.0 + TIME * swirl_speed;
 
     float arms = sin(swirl_a * 3.0) * 0.5 + 0.5;
     float noise_warp = fbm(vec2(swirl_a * 0.5, r * 2.5) + TIME * 0.15);
     arms = arms * 0.6 + noise_warp * 0.4;
 
-    // Wide buttons: fade by an elongated radial so the arms taper into the
-    // dark background near the edges instead of just clipping.
+    // Taper toward the edges; also scale down overall so text stays legible.
     float radial = smoothstep(0.6, 0.1, length(p * vec2(0.7, 1.0)));
-    arms *= radial;
+    arms = arms * radial * 0.55;
 
     vec3 col = vec3(0.03, 0.04, 0.10);
-    col = mix(col, tint, arms * active_strength);
-    col = mix(col, hot_color, pow(arms, 3.0) * active_strength);
+    col = mix(col, phase_tint, arms * active_strength * 0.85);
+    col = mix(col, phase_hot, pow(arms, 3.0) * active_strength * 0.85);
 
-    // Bright core
+    // Subtle core — kept dim so text is not washed out.
     float core = smoothstep(0.30, 0.0, r);
-    col += hot_color * core * active_strength * 0.25;
+    col += phase_hot * core * active_strength * 0.12;
 
     // Mouse hot spot
     float md = distance(p, mp);
     float mouse_spot = 1.0 - smoothstep(0.0, 0.5, md);
-    col += hot_color * mouse_spot * glow_strength * 0.35;
+    col += phase_hot * mouse_spot * glow_strength * 0.30;
 
     // Rim
     float rim = shape * smoothstep(RIM_WIDTH, 0.0, -dist);
-    col += mix(tint, hot_color, 0.4) * rim * (0.22 + active_strength * 0.5 + glow_strength * 0.4);
+    col += mix(phase_tint, phase_hot, 0.4) * rim * (0.22 + active_strength * 0.5 + glow_strength * 0.4);
 
     vec2 noise_cell = floor(UV * texture_size * 0.3);
     col += (hash21(noise_cell) - 0.5) * 0.01;
