@@ -48,7 +48,7 @@ folder_colors={
 "res://attack/": "orange",
 "res://autoload/": "red",
 "res://entity/": "red",
-"res://entity/stats/": "pink",
+"res://stats_system/": "pink",
 "res://graph/": "teal",
 "res://skill_node/": "red",
 "res://systems/": "yellow",

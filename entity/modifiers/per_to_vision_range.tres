@@ -1,5 +1,3 @@
-# Standalone copy for reference / node-level use.
-# The canonical wiring lives in default_entity_board.tres intrinsic_modifiers.
 [gd_resource type="Resource" script_class="DerivedModifierDef" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://stats_system/derived_modifier_def.gd" id="1_derived"]

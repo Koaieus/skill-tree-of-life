@@ -5,7 +5,7 @@ extends AttackPlan
 ## target per the equipped spell's targeting. Auto-equips a default spell at
 ## plan creation — spell-picker UI lands later.
 
-const _DEFAULT_SPELL: SpellDef = preload("res://attack/spells/spark.tres")
+const _DEFAULT_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
 var source: SkillNode = null
 var spell: SpellDef = null

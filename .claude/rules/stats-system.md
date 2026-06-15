@@ -37,7 +37,7 @@ description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsi
 
 Run to list all current stat IDs:
 ```
-grep -h "^id = " entity/stats/list/*.tres | sort
+grep -h "^id = " stats_system/defs/*.tres | sort
 ```
 
 ## Intrinsic scaling (entity/default_entity_board.tres)

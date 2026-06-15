@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://22735wciupcm"]
 
-[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell_def.gd" id="1_spell"]
-[ext_resource type="Script" uid="uid://bfvk0dkeaerp1" path="res://attack/spell/all_neighbours_propagation.gd" id="2_prop"]
-[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/damage_effect.gd" id="3_dmg"]
-[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit_effect.gd" id="4_effect"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://bfvk0dkeaerp1" path="res://attack/spell/propagation/all_neighbours_propagation.gd" id="2_prop"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="4_effect"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/ranged_volley_coordinator.tscn" id="5_vfx"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]

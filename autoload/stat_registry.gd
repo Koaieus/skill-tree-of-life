@@ -1,9 +1,9 @@
 extends Node
 
-## Global lookup: stat_id → StatDef. Scans stats_system/list/ on ready.
+## Global lookup: stat_id → StatDef. Scans stats_system/defs/ on ready.
 ## Use StatRegistry.get_def(id) wherever you need display info without a board.
 
-const STAT_LIST_DIR: String = "res://entity/stats/list"
+const STAT_LIST_DIR: String = "res://stats_system/defs"
 
 var _defs: Dictionary = {}
 

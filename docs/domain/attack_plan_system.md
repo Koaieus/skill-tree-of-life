@@ -38,7 +38,7 @@ re-deriving anything.
   (max_hops via the global Navigator's AStar).
 - **`SpellDef`** — Resource holding name / description / mana_cost /
   damage / `targeting: Targeting`. Spell instances live as `.tres` files
-  under `attack/spells/`. First spell: `spark.tres` — 5 damage, 1 mana,
+  under `attack/spell/defs/`. First spell: `spark.tres` — 5 damage, 1 mana,
   hostile-node targeting + 3-hop range.
 
 ### Mode plans
