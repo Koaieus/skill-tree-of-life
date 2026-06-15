@@ -3,8 +3,8 @@
 ## read-only summary of the loaded coordinator's exports.
 ##
 ## The coordinator itself lives wherever the user is editing it — this panel
-## just keeps a live reference and [code]duplicate(true)[/code]'s it on every
-## Fire so each shot uses the inspector's *current* state.
+## just keeps a live reference and [code]duplicate()[/code]'s it on every Fire
+## so each shot uses the inspector's *current* state.
 ##
 ## The summary is regenerated on Fire (not on inspector edit) — there's no
 ## clean signal for "inspector property changed" in Godot 4. Re-fire to see
@@ -13,6 +13,13 @@
 extends PanelContainer
 
 const _DEFAULT_DAMAGE: float = 5.0
+# Outer ring sits this many pixels inside the viewport edge — leaves room for
+# the SkillNode visual + a hit-flash without clipping.
+const _RING_MARGIN: float = 48.0
+# Inner ring radius as a fraction of the outer ring's. ~0.5 keeps near targets
+# clearly distinct from far ones at any viewport size.
+const _INNER_RING_FRAC: float = 0.5
+const _DIR_COUNT: int = 8
 
 @onready var fire_button: Button = %FireButton
 @onready var status_label: Label = %StatusLabel
@@ -20,12 +27,16 @@ const _DEFAULT_DAMAGE: float = 5.0
 @onready var origin: SkillNode = %Origin
 @onready var targets_root: Node2D = %Targets
 @onready var vfx_layer: Node2D = %VFXLayer
+@onready var world: SubViewport = %World
+@onready var background: ColorRect = %Background
 
 var _coordinator: VFXCoordinator
 
 
 func _ready() -> void:
 	fire_button.pressed.connect(_fire)
+	world.size_changed.connect(_layout_world)
+	_layout_world()
 	_refresh_status()
 
 
@@ -47,26 +58,22 @@ func _refresh_status() -> void:
 	values_label.text = _build_values_text(_coordinator)
 
 
-# Walk the coord's own script properties (one level — subclasses own their
-# exports; if a future intermediate base ever defines exports, expand this
-# to chain `get_base_script()`).
+# Use the instance's property list filtered by SCRIPT_VARIABLE, not
+# `Script.get_script_property_list()` — the latter doesn't reliably include
+# `@export` entries in Godot 4. Walking the instance also covers the full
+# inheritance chain for free.
 func _build_values_text(coord: VFXCoordinator) -> String:
-	var script: Script = coord.get_script()
-	if script == null:
-		return "[i]<scriptless coordinator>[/i]"
 	var lines: PackedStringArray = []
-	for p: Dictionary in script.get_script_property_list():
-		var name: String = p.name
+	for p in coord.get_property_list():
 		var usage: int = p.usage
+		if (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0:
+			continue
 		if (usage & PROPERTY_USAGE_EDITOR) == 0:
 			continue
-		if (usage & PROPERTY_USAGE_CATEGORY) != 0:
+		if (usage & (PROPERTY_USAGE_CATEGORY | PROPERTY_USAGE_GROUP | PROPERTY_USAGE_SUBGROUP)) != 0:
 			continue
-		if (usage & PROPERTY_USAGE_GROUP) != 0:
-			continue
-		if (usage & PROPERTY_USAGE_SUBGROUP) != 0:
-			continue
-		lines.append("[b]%s[/b] = %s" % [name, _format_value(coord.get(name))])
+		var prop_name: String = p.name
+		lines.append("[b]%s[/b] = %s" % [prop_name, _format_value(coord.get(prop_name))])
 	if lines.is_empty():
 		return "[i]<no exports>[/i]"
 	return "\n".join(lines)
@@ -101,6 +108,41 @@ func _gather_targets() -> Array[SkillNode]:
 	return out
 
 
+# Re-positions origin (centre) and targets (two elliptical rings of eight
+# cardinal/ordinal directions) to the current SubViewport size. Hooked to
+# `world.size_changed`, so as the SubViewportContainer stretches with the
+# panel the gameplay area follows.
+#
+# Target order in the scene tree is significant: indices 0..7 are the near
+# ring (N, NE, E, SE, S, SW, W, NW), 8..15 are the far ring in the same
+# direction order. `_DIR_COUNT` keys the modulo.
+func _layout_world() -> void:
+	if world == null or background == null or origin == null or targets_root == null:
+		return
+	var size := Vector2(world.size)
+	if size.x <= 0.0 or size.y <= 0.0:
+		return
+	background.size = size
+	var center := size * 0.5
+	origin.position = center
+	var targets := _gather_targets()
+	var n := targets.size()
+	if n <= 0:
+		return
+	# Elliptical rings — fill rectangular panels without distorting the
+	# direction angles (cos/sin still correspond to N/E etc).
+	var rx_outer := maxf(20.0, size.x * 0.5 - _RING_MARGIN)
+	var ry_outer := maxf(20.0, size.y * 0.5 - _RING_MARGIN)
+	for i in n:
+		var dir_idx := i % _DIR_COUNT
+		var ring_idx := i / _DIR_COUNT
+		var ring_scale := 1.0 if ring_idx >= 1 else _INNER_RING_FRAC
+		# dir_idx 0 = North (up). Screen Y points down, so North is angle -π/2.
+		var dir_angle := -PI * 0.5 + float(dir_idx) * TAU / float(_DIR_COUNT)
+		var offset := Vector2(cos(dir_angle) * rx_outer, sin(dir_angle) * ry_outer) * ring_scale
+		targets[i].position = center + offset
+
+
 func _fire() -> void:
 	if not is_instance_valid(_coordinator):
 		_coordinator = null
@@ -118,10 +160,11 @@ func _fire() -> void:
 		hit.origin = origin
 		hit.target = t
 		outcome.hits.append(hit)
-	# Duplicate so we don't reparent the edited instance — the original
-	# keeps its place in whatever scene the user is editing. Exports come
-	# along via duplicate(true).
-	var runtime := _coordinator.duplicate(true) as VFXCoordinator
+	# `duplicate()` with default flags (15) copies signals + groups + scripts +
+	# uses instantiation. `duplicate(true)` would coerce the bool to int 1 =
+	# DUPLICATE_SIGNALS only, dropping the script — the cast then returns null
+	# and Fire silently no-ops.
+	var runtime := _coordinator.duplicate() as VFXCoordinator
 	if runtime == null:
 		push_warning("VFX Playground: duplicate did not return a VFXCoordinator")
 		return

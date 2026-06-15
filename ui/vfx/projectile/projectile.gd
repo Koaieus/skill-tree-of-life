@@ -71,6 +71,13 @@ func _instantiate_visual() -> void:
 func _process(delta: float) -> void:
 	if not _launched:
 		return
+	# Editor-side bottom panels go through long stretches of no process ticks
+	# (collapsed panel, just-opened SubViewport, scene editor focus stolen).
+	# When ticks resume, the first `delta` can be the whole pause length —
+	# enough to advance `_t` past 1.0 in one frame and instant-teleport the
+	# projectile to its target before the visual ever spawns. Cap to ~20fps
+	# so a single bad frame can advance at most ~9 % of a 0.55 s flight.
+	delta = minf(delta, 0.05)
 	if _delay > 0.0:
 		_delay -= delta
 		return

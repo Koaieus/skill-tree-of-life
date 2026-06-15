@@ -54,6 +54,21 @@ func get_edges() -> Array[Edge]:
 	return out
 
 
+## Direct neighbours of [param node] — every other endpoint that shares an
+## edge with it. Walks edges, no AStar dependency, so it works in editor
+## context (spell playground, validation).
+func get_neighbours(node: SkillNode) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	if edges_container == null or node == null:
+		return out
+	for e in get_edges():
+		if e.from == node and e.to != null and e.to != node:
+			out.append(e.to)
+		elif e.to == node and e.from != null and e.from != node:
+			out.append(e.from)
+	return out
+
+
 func add_skill_node(node: SkillNode) -> void:
 	skill_nodes_container.add_child(node)
 	node_added.emit(node)

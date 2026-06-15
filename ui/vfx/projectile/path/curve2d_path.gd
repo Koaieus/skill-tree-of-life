@@ -1,3 +1,4 @@
+@tool
 class_name Curve2DPath
 extends ProjectilePath
 

@@ -1,3 +1,4 @@
+@tool
 extends Node
 
 signal skill_node_hovered(node: SkillNode)

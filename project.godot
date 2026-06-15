@@ -39,7 +39,7 @@ version_control/autoload_on_startup=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/stat_board_visualizer/plugin.cfg", "res://addons/vfx_playground/plugin.cfg")
+enabled=PackedStringArray("res://addons/stat_board_visualizer/plugin.cfg", "res://addons/vfx_playground/plugin.cfg", "res://addons/spell_playground/plugin.cfg")
 
 [file_customization]
 

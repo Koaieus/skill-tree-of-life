@@ -35,6 +35,11 @@ current = 2.0
 definition = ExtResource("def_ap")
 base_value = 2.0
 
+[sub_resource type="Resource" id="scalar_blade_size"]
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blade_size")
+base_value = 1.0
+
 [sub_resource type="Resource" id="pool_dealloc"]
 script = ExtResource("3_pool")
 current = 3.0
@@ -123,11 +128,6 @@ inputs = Array[StringName]([&"strength"])
 script = ExtResource("script_derived")
 formula = SubResource("formula_str_to_blade_size")
 stat_id = &"blade_size"
-
-[sub_resource type="Resource" id="scalar_blade_size"]
-script = ExtResource("2_scalar")
-definition = ExtResource("def_blade_size")
-base_value = 1.0
 
 [sub_resource type="Resource" id="pool_mana"]
 script = ExtResource("3_pool")

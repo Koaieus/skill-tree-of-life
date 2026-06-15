@@ -38,7 +38,8 @@
 [ext_resource type="Resource" path="res://entity/stats/list/xp.tres" id="31_54w3d"]
 [ext_resource type="Resource" path="res://entity/stats/list/xp_per_turn.tres" id="32_v0kkn"]
 [ext_resource type="Resource" path="res://entity/stats/list/wound_heal_per_turn.tres" id="33_woundheal"]
-[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="34_defboard"]
+[ext_resource type="Resource" path="res://entity/stats/list/blade_size.tres" id="36_vybhe"]
+[ext_resource type="Script" uid="uid://bb2qycfjh26rf" path="res://scenes/camera_2d.gd" id="39_uulnk"]
 
 [sub_resource type="Resource" id="pool_ap"]
 script = ExtResource("8_umwfs")
@@ -191,7 +192,7 @@ base_value = 5.0
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
-[sub_resource type="Resource" id="Resource_umwfs"]
+[sub_resource type="Resource" id="Resource_uulnk"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
 strength = SubResource("scalar_strength")
@@ -214,6 +215,197 @@ sensor_range = SubResource("scalar_sensor_range")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("Resource_3edt8")])
+
+[sub_resource type="Resource" id="Resource_ubc5n"]
+script = ExtResource("8_umwfs")
+current = 2.0
+definition = ExtResource("7_qrijo")
+base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_blade_size"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("36_vybhe")
+base_value = 1.0
+
+[sub_resource type="Resource" id="Resource_0clpu"]
+script = ExtResource("8_umwfs")
+current = 3.0
+definition = ExtResource("9_o5a17")
+base_value = 3.0
+
+[sub_resource type="Resource" id="Resource_sdhs6"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("10_vybhe")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_8r5xj"]
+script = ExtResource("8_umwfs")
+current = 10.0
+definition = ExtResource("12_ubc5n")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_k8amt"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("13_0clpu")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_f58km"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("14_sdhs6")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_arms0"]
+script = ExtResource("16_8r5xj")
+source_stat_id = &"perception"
+scale_per_point = 2.0
+
+[sub_resource type="Resource" id="Resource_3ogaa"]
+script = ExtResource("17_k8amt")
+formula = SubResource("Resource_arms0")
+stat_id = &"vision_range"
+operation = 1
+
+[sub_resource type="Resource" id="Resource_sybeb"]
+script = ExtResource("18_f58km")
+formula = "floor(float(intelligence) / 10.0)"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="Resource_df164"]
+script = ExtResource("17_k8amt")
+formula = SubResource("Resource_sybeb")
+stat_id = &"mana"
+
+[sub_resource type="Resource" id="Resource_owpne"]
+script = ExtResource("18_f58km")
+formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="Resource_qk0se"]
+script = ExtResource("17_k8amt")
+formula = SubResource("Resource_owpne")
+stat_id = &"mana_per_turn"
+
+[sub_resource type="Resource" id="Resource_drqyt"]
+script = ExtResource("18_f58km")
+formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
+inputs = Array[StringName]([&"wisdom"])
+
+[sub_resource type="Resource" id="Resource_lwubc"]
+script = ExtResource("17_k8amt")
+formula = SubResource("Resource_drqyt")
+stat_id = &"xp_per_turn"
+
+[sub_resource type="Resource" id="Resource_4oa4u"]
+script = ExtResource("18_f58km")
+formula = "floor(dexterity / 10.)"
+metadata/_custom_type_script = "uid://dn253es0cni7j"
+
+[sub_resource type="Resource" id="Resource_3dypl"]
+script = ExtResource("17_k8amt")
+formula = SubResource("Resource_4oa4u")
+stat_id = &"sensor_range"
+metadata/_custom_type_script = "uid://ix51i0mr6n8v"
+
+[sub_resource type="Resource" id="formula_str_to_blade_size"]
+script = ExtResource("18_f58km")
+formula = "floor(float(strength) / 10.0)"
+inputs = Array[StringName]([&"strength"])
+
+[sub_resource type="Resource" id="mod_str_to_blade_size"]
+script = ExtResource("17_k8amt")
+formula = SubResource("formula_str_to_blade_size")
+stat_id = &"blade_size"
+
+[sub_resource type="Resource" id="Resource_d7bkb"]
+script = ExtResource("8_umwfs")
+current = 10.0
+definition = ExtResource("19_arms0")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_jc1be"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("20_3ogaa")
+
+[sub_resource type="Resource" id="Resource_54w3d"]
+script = ExtResource("8_umwfs")
+current = 1.0
+definition = ExtResource("21_sybeb")
+base_value = 1.0
+
+[sub_resource type="Resource" id="Resource_v0kkn"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("22_df164")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_43nyu"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("23_owpne")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_ub3io"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("25_drqyt")
+base_value = 2.0
+
+[sub_resource type="Resource" id="Resource_c0lwm"]
+script = ExtResource("27_4oa4u")
+current = 3.0
+definition = ExtResource("26_lwubc")
+base_value = 3.0
+
+[sub_resource type="Resource" id="Resource_l68re"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("28_3dypl")
+base_value = 10.0
+
+[sub_resource type="Resource" id="Resource_xn71l"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("29_d7bkb")
+base_value = 400.0
+
+[sub_resource type="Resource" id="Resource_d7te6"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("30_jc1be")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_wound_heal_per_turn"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("33_woundheal")
+base_value = 1.0
+
+[sub_resource type="Resource" id="Resource_67r7j"]
+script = ExtResource("8_umwfs")
+definition = ExtResource("31_54w3d")
+base_value = 5.0
+
+[sub_resource type="Resource" id="Resource_hssq8"]
+script = ExtResource("11_uulnk")
+definition = ExtResource("32_v0kkn")
+
+[sub_resource type="Resource" id="Resource_11lpl"]
+resource_local_to_scene = true
+script = ExtResource("24_qk0se")
+strength = SubResource("Resource_l68re")
+dexterity = SubResource("Resource_sdhs6")
+intelligence = SubResource("Resource_f58km")
+wisdom = SubResource("Resource_d7te6")
+perception = SubResource("Resource_43nyu")
+health = SubResource("Resource_8r5xj")
+node_health = SubResource("Resource_v0kkn")
+xp = SubResource("Resource_67r7j")
+xp_per_turn = SubResource("Resource_hssq8")
+skill_points = SubResource("Resource_c0lwm")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+deallocation_points = SubResource("Resource_0clpu")
+action_points = SubResource("Resource_ubc5n")
+movement_points = SubResource("Resource_54w3d")
+initiative_speed = SubResource("Resource_k8amt")
+vision_range = SubResource("Resource_xn71l")
+sensor_range = SubResource("Resource_ub3io")
+mana = SubResource("Resource_d7bkb")
+mana_per_turn = SubResource("Resource_jc1be")
+blade_size = SubResource("scalar_blade_size")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_3ogaa"), SubResource("Resource_df164"), SubResource("Resource_qk0se"), SubResource("Resource_lwubc"), SubResource("Resource_3dypl"), SubResource("mod_str_to_blade_size")])
 
 [sub_resource type="Resource" id="mod_dex_2"]
 script = ExtResource("2_mod")
@@ -306,13 +498,13 @@ metadata/_custom_type_script = "uid://tmd2wsn34dny"
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_umwfs")
+stat_board = SubResource("Resource_uulnk")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
 display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
-stat_board = ExtResource("34_defboard")
+stat_board = SubResource("Resource_11lpl")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]
@@ -504,6 +696,11 @@ owned_by = NodePath("../../Entities/Enemy")
 [node name="Enemy_W" parent="Graph/Nodes" unique_id=8800210 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(1070, 600)
 owned_by = NodePath("../../Entities/Enemy")
+
+[node name="Camera" type="Camera2D" parent="Graph" unique_id=1488255030]
+unique_name_in_owner = true
+script = ExtResource("39_uulnk")
+metadata/_custom_type_script = "uid://bb2qycfjh26rf"
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=1065711835]
 
