@@ -4,20 +4,21 @@
 [ext_resource type="Script" uid="uid://bb04be815brex" path="res://attack/melee/blade_circle.gd" id="2_xguwb"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_ml362"]
+resource_local_to_scene = true
 radius = 32.0
 
-[node name="BladeNode" type="Area2D" unique_id=1562374757]
+[node name="BladeNode" type="RigidBody2D"]
 script = ExtResource("1_yhxd4")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1744659981]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_ml362")
 debug_color = Color(1.2513996e-06, 0.5906466, 0.24353442, 0.41960785)
 metadata/_edit_lock_ = true
 
-[node name="Visuals" type="Node2D" parent="." unique_id=1994889006]
+[node name="Visuals" type="Node2D" parent="."]
 metadata/_edit_lock_ = true
 
-[node name="BladeCircle" type="Node2D" parent="Visuals" unique_id=1441111995]
+[node name="BladeCircle" type="Node2D" parent="Visuals"]
 script = ExtResource("2_xguwb")
 
-[node name="AddonAnchor" type="Node2D" parent="Visuals" unique_id=78016549]
+[node name="AddonAnchor" type="Node2D" parent="Visuals"]

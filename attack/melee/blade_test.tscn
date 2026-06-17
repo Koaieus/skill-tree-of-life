@@ -3,8 +3,10 @@
 [ext_resource type="PackedScene" uid="uid://bhh4qjun7f2a5" path="res://attack/melee/skill_blade.tscn" id="1_4qlak"]
 [ext_resource type="PackedScene" uid="uid://cvgjpy6eecjbi" path="res://attack/melee/blade_edge.tscn" id="2_re4k1"]
 [ext_resource type="PackedScene" uid="uid://ymlt27q0llkx" path="res://attack/melee/blade_node.tscn" id="3_52upf"]
+[ext_resource type="Script" path="res://attack/melee/blade_test.gd" id="4_blade_test"]
 
 [node name="BladeTest" type="Node2D" unique_id=901312833]
+script = ExtResource("4_blade_test")
 
 [node name="SkillBlade" parent="." unique_id=33732259 instance=ExtResource("1_4qlak")]
 position = Vector2(234, 149)
@@ -59,4 +61,15 @@ position = Vector2(625, 296)
 [node name="BladeNode6" parent="SkillBlade" unique_id=1416241494 instance=ExtResource("3_52upf")]
 position = Vector2(466, 413)
 
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="SwingButton" type="Button" parent="UI"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 120.0
+offset_bottom = 50.0
+text = "Swing"
+
 [editable path="SkillBlade"]
+
+[connection signal="pressed" from="UI/SwingButton" to="." method="_on_swing_pressed"]
