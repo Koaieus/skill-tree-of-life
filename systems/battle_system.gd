@@ -17,6 +17,7 @@ signal attack_plan_state_changed
 @export var turn_manager: TurnManager
 @export var allocation_system: AllocationSystem
 @export var attack_vfx: AttackVFX
+@export var melee_preview: MeleePreview
 
 
 var attack_plan: AttackPlan:
@@ -99,6 +100,15 @@ func launch_attack() -> void:
 		return
 	if ap_pool != null:
 		ap_pool.deplete(float(outcome.ap_cost))
+	# Melee: hand off to the MeleePreview (which has the ghost mounted) for
+	# the live swing + damage application BEFORE clearing the plan, so the
+	# blade can read selection state during the await. Other modes go via
+	# the ranged/magic VFX path that consumes the precomputed outcome.
+	if attack_plan is MeleeAttackPlan and melee_preview != null:
+		var melee_plan: MeleeAttackPlan = attack_plan
+		_reset()
+		await melee_preview.launch(melee_plan)
+		return
 	_reset()
 	if attack_vfx != null:
 		await attack_vfx.play_ranged_volley(outcome)

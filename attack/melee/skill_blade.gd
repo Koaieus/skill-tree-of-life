@@ -1,175 +1,190 @@
 class_name SkillBlade
 extends Node2D
 
-## Emitted whenever a blade element overlaps an enemy SkillNode during a swing.
-## hitter is the BladeEdge or BladeNode that made contact.
-## Callers (BattleSystem, Events) subscribe here; SkillBlade does not know about
-## damage routing — it only collects and re-emits.
-signal hit(hitter: Node2D, target: SkillNode, damage: float)
+## Visual wrapper around a BladeState + BladeTrajectory. Owns the BladeNode
+## and BladeEdge visuals; replays a trajectory by writing positions onto
+## them frame-by-frame. Pure visuals — hit detection is the deterministic
+## BladeHitScan over the trajectory, not Godot collision overlap.
 
-@export var owned_by: Entity
+## Emitted during non-ghost playback at the scheduled time of each hit event.
+## hitter_idx is the particle or edge index; is_edge distinguishes the two.
+signal hit(hitter_idx: int, is_edge: bool, target: SkillNode, t: float, damage: float)
+signal playback_finished
 
-@onready var _edges_node: Node = $Edges
-
-const BLADE_NODE = preload("res://attack/melee/blade_node.tscn")
-const BLADE_EDGE = preload("res://attack/melee/blade_edge.tscn")
+const SCENE := preload("res://attack/melee/skill_blade.tscn")
+const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
+const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
 
 const EDGE_DAMAGE: float = 1.0
 const NODE_DAMAGE: float = 1.0
 
-var _blade_nodes: Array[BladeNode] = []
-var _pivot: BladeNode = null
-# Per-element hit dedup: element → {SkillNode: true}. Cleared at swing start.
-var _hits_this_swing: Dictionary = {}
+@export var owned_by: Entity
+
+var state: BladeState
+var trajectory: BladeTrajectory
+
+var _node_visuals: Array[BladeNode] = []
+var _edge_visuals: Array[BladeEdge] = []
+var _nodes_container: Node2D
+var _edges_container: Node2D
+var _active_tween: Tween
 
 
 func _ready() -> void:
-	for child in get_children():
-		if child is BladeNode:
-			_register_blade_node(child)
-	for edge in _edges_node.get_children():
-		if edge is BladeEdge and edge.from != null and edge.to != null:
-			_create_joint(edge.from, edge.to)
-			edge.area_entered.connect(_on_edge_area_entered.bind(edge))
-
-
-func add_blade_node(pos: Vector2, pivot: bool = false) -> BladeNode:
-	var node := BLADE_NODE.instantiate() as BladeNode
-	node.position = pos
-	node.is_pivot = pivot
-	add_child(node)
-	_register_blade_node(node)
-	return node
-
-
-func add_edge(from: BladeNode, to: BladeNode) -> BladeEdge:
-	var edge := BLADE_EDGE.instantiate() as BladeEdge
-	edge.from = from
-	edge.to = to
-	_edges_node.add_child(edge)
-	edge.area_entered.connect(_on_edge_area_entered.bind(edge))
-	_create_joint(from, to)
-	return edge
-
-
-func _register_blade_node(node: BladeNode) -> void:
-	_blade_nodes.append(node)
-	if node.is_pivot:
-		_pivot = node
-	node.hitbox.area_entered.connect(_on_node_area_entered.bind(node))
-
-
-func _create_joint(from: BladeNode, to: BladeNode) -> void:
-	var joint := PinJoint2D.new()
-	joint.position = from.position
-	add_child(joint)
-	joint.node_a = joint.get_path_to(from)
-	joint.node_b = joint.get_path_to(to)
+	_edges_container = get_node_or_null("Edges")
+	if _edges_container == null:
+		_edges_container = Node2D.new()
+		_edges_container.name = "Edges"
+		add_child(_edges_container)
+	_nodes_container = get_node_or_null("Nodes")
+	if _nodes_container == null:
+		_nodes_container = Node2D.new()
+		_nodes_container.name = "Nodes"
+		add_child(_nodes_container)
 
 
 ## True when the selected node set can form a valid blade.
-## Requires: pivot present in the set, at least one induced edge (which implies
-## the pivot is connected to at least one other selected node).
 static func is_valid_selection(
 		skill_nodes: Array,
 		pivot: SkillNode,
 		induced_edges: Array) -> bool:
-	return skill_nodes.size() >= 2 and pivot in skill_nodes and induced_edges.size() >= 1
+	return skill_nodes.size() >= 2 \
+			and pivot in skill_nodes \
+			and induced_edges.size() >= 1
 
 
-## Populate the blade from game-world SkillNodes.
-## Call this after adding the SkillBlade to the scene tree, before execute().
-## induced_edges: Array of [SkillNode, SkillNode] pairs (induced subgraph edges).
-func build(
+## Construct the blade from a 1:1 copy of the chosen SkillNodes.
+## `induced_edges`: Array of [SkillNode, SkillNode] pairs (induced subgraph).
+## Call after adding the SkillBlade to the scene tree; safe to call again to
+## rebuild for an updated selection (visuals are torn down + rebuilt).
+func build_from_skill_nodes(
 		skill_nodes: Array[SkillNode],
 		pivot: SkillNode,
 		induced_edges: Array,
 		owner_entity: Entity) -> void:
 	owned_by = owner_entity
-	var node_map: Dictionary = {}
-	for sn: SkillNode in skill_nodes:
-		node_map[sn] = add_blade_node(sn.global_position, sn == pivot)
-	for pair: Array in induced_edges:
-		add_edge(node_map[pair[0]], node_map[pair[1]])
+	_clear_visuals()
+	var positions: Array[Vector2] = []
+	var radii: Array[float] = []
+	var pivot_idx := 0
+	var sn_to_idx: Dictionary = {}
+	for i in skill_nodes.size():
+		var sn := skill_nodes[i]
+		sn_to_idx[sn] = i
+		positions.append(sn.global_position)
+		radii.append(sn.radius)
+		if sn == pivot:
+			pivot_idx = i
+	var edges_idx: Array[Vector2i] = []
+	for pair in induced_edges:
+		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
+	state = BladeState.build(positions, pivot_idx, edges_idx, radii)
+	_spawn_visuals()
 
 
-## Full attack lifecycle: swing → disable hitboxes → glow-fade → free.
-## Awaitable: returns after the swing completes; the outro plays in the background.
-func execute(swing_duration: float = 1.2) -> void:
-	await swing(swing_duration)
-	_begin_outro()
+## Run a swing simulation around the pivot. Returns a fresh trajectory each
+## call; safe to invoke repeatedly (state is reset to the descriptor's
+## original positions internally via re-build_from_skill_nodes if needed).
+## Drivers are auto-built: one BladeArcDriver per pivot-adjacent particle.
+func simulate(
+		duration: float = 1.2,
+		dt: float = BladeSim.DEFAULT_DT,
+		iterations: int = BladeSim.DEFAULT_ITERATIONS,
+		velocity_iter_ref: float = 0.0) -> BladeTrajectory:
+	var drivers := _build_swing_drivers(duration)
+	trajectory = BladeSim.simulate(
+			state, drivers, duration, dt, iterations, velocity_iter_ref)
+	return trajectory
 
 
-func _begin_outro() -> void:
-	for bn in _blade_nodes:
-		bn.hitbox.monitoring = false
-	for edge in _edges_node.get_children():
-		if edge is BladeEdge:
-			(edge as BladeEdge).monitoring = false
-	var tween := create_tween()
-	tween.tween_property(self, "modulate", Color(0.55, 0.55, 0.55, 0.0), 0.45)
-	await tween.finished
-	queue_free()
-
-
-## Sweep the entire blade one full revolution around the pivot.
-## duration: total time in seconds. Uses sine ease-in-out for an s-curve feel.
-func swing(duration: float = 1.2) -> void:
-	if _pivot == null:
-		push_error("SkillBlade.swing: no pivot node")
+## Tween visual positions through the trajectory. Awaitable.
+##   - ghostly=true: translucent modulate, no hit signals emitted
+##   - hits: pre-scanned BladeHitEvents emitted at their scheduled t
+func play(
+		traj: BladeTrajectory,
+		hits: Array[BladeHitEvent] = [],
+		ghostly: bool = false) -> void:
+	if traj == null or traj.samples.is_empty():
+		playback_finished.emit()
 		return
-
-	var pivot_world := _pivot.global_position
-	var pivot_local := _pivot.position
-	var start_rot := rotation
-
-	_hits_this_swing.clear()
-	_set_dynamic_freeze(true)
-
+	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
+	var pending: Array[BladeHitEvent] = hits.duplicate()
+	var dur := traj.duration()
 	var tween := create_tween()
-	tween.set_ease(Tween.EASE_IN_OUT)
-	tween.set_trans(Tween.TRANS_SINE)
-	tween.tween_method(func(frac: float) -> void:
-		var angle := start_rot + frac * TAU
-		rotation = angle
-		global_position = pivot_world - pivot_local.rotated(angle)
-	, 0.0, 1.0, duration)
-
+	_active_tween = tween
+	tween.tween_method(
+			_apply_playback_frame.bind(traj, pending, ghostly),
+			0.0, dur, dur)
 	await tween.finished
-	_set_dynamic_freeze(false)
+	_active_tween = null
+	playback_finished.emit()
 
 
-func _set_dynamic_freeze(frozen: bool) -> void:
-	for node in _blade_nodes:
-		if node.is_pivot:
+func _apply_playback_frame(
+		t: float,
+		traj: BladeTrajectory,
+		pending: Array[BladeHitEvent],
+		ghostly: bool) -> void:
+	var positions := traj.sample(t)
+	for i in _node_visuals.size():
+		if i < positions.size():
+			_node_visuals[i].global_position = positions[i]
+	while not pending.is_empty() and pending[0].t <= t:
+		var ev: BladeHitEvent = pending.pop_front()
+		if not ghostly:
+			var damage := EDGE_DAMAGE if ev.is_edge_hit() else NODE_DAMAGE
+			var idx := ev.edge_idx if ev.is_edge_hit() else ev.particle_idx
+			hit.emit(idx, ev.is_edge_hit(), ev.target as SkillNode, ev.t, damage)
+
+
+## Stop any in-flight playback. Emits playback_finished so awaiters wake up.
+func stop() -> void:
+	if _active_tween != null and _active_tween.is_valid():
+		_active_tween.kill()
+		_active_tween = null
+		playback_finished.emit()
+
+
+func _build_swing_drivers(duration: float) -> Array[BladeDriver]:
+	var drivers: Array[BladeDriver] = []
+	var pivot_pos := state.positions[state.pivot_index]
+	var seen: Dictionary = {}
+	for e in state.edges:
+		var other := -1
+		if e.x == state.pivot_index:
+			other = e.y
+		elif e.y == state.pivot_index:
+			other = e.x
+		if other < 0 or seen.has(other):
 			continue
-		node.freeze = frozen
-		if frozen:
-			node.freeze_mode = RigidBody2D.FREEZE_MODE_KINEMATIC
+		seen[other] = true
+		var offset := state.positions[other] - pivot_pos
+		drivers.append(BladeArcDriver.new(
+				other, pivot_pos, offset.length(), offset.angle(),
+				TAU, duration))
+	return drivers
 
 
-func _on_edge_area_entered(area: Area2D, edge: BladeEdge) -> void:
-	if _is_valid_target(area) and _record_hit(edge, area as SkillNode):
-		hit.emit(edge, area as SkillNode, EDGE_DAMAGE)
+func _clear_visuals() -> void:
+	for n in _node_visuals:
+		n.queue_free()
+	for e in _edge_visuals:
+		e.queue_free()
+	_node_visuals.clear()
+	_edge_visuals.clear()
 
 
-func _on_node_area_entered(area: Area2D, node: BladeNode) -> void:
-	if _is_valid_target(area) and _record_hit(node, area as SkillNode):
-		hit.emit(node, area as SkillNode, NODE_DAMAGE)
-
-
-func _is_valid_target(area: Area2D) -> bool:
-	if not area is SkillNode:
-		return false
-	var sn := area as SkillNode
-	return sn.is_allocated() and (owned_by == null or sn.owned_by != owned_by)
-
-
-func _record_hit(element: Node2D, target: SkillNode) -> bool:
-	if not _hits_this_swing.has(element):
-		_hits_this_swing[element] = {}
-	var seen: Dictionary = _hits_this_swing[element]
-	if seen.has(target):
-		return false
-	seen[target] = true
-	return true
+func _spawn_visuals() -> void:
+	for i in state.positions.size():
+		var bn := BLADE_NODE.instantiate() as BladeNode
+		bn.radius = state.radii[i]
+		bn.is_pivot = (i == state.pivot_index)
+		_nodes_container.add_child(bn)
+		bn.global_position = state.positions[i]
+		_node_visuals.append(bn)
+	for e in state.edges:
+		var be := BLADE_EDGE.instantiate() as BladeEdge
+		_edges_container.add_child(be)
+		be.from = _node_visuals[e.x]
+		be.to = _node_visuals[e.y]
+		_edge_visuals.append(be)

@@ -15,6 +15,7 @@ extends Node2D
 
 var attack_highlight: AttackHighlightOverlay
 var attack_vfx: AttackVFX
+var melee_preview: MeleePreview
 var damage_number_layer: DamageNumberLayer
 
 
@@ -22,12 +23,14 @@ func _ready() -> void:
 	ui_root.compose(self)
 	_mount_attack_highlight()
 	_mount_attack_vfx()
+	_mount_melee_preview()
 	_mount_damage_number_layer()
 	# Inject the systems BattleSystem needs to commit attacks. Done in code
 	# rather than via scene NodePaths so the runtime-spawned VFX node can be
 	# wired the same way as the scene-tree allocation_system.
 	battle_system.allocation_system = allocation_system
 	battle_system.attack_vfx = attack_vfx
+	battle_system.melee_preview = melee_preview
 
 	if player != null and turn_manager != null:
 		player.initiative_current = 100.0
@@ -44,6 +47,12 @@ func _mount_attack_highlight() -> void:
 func _mount_attack_vfx() -> void:
 	attack_vfx = AttackVFX.new()
 	graph.add_child(attack_vfx)
+
+
+func _mount_melee_preview() -> void:
+	melee_preview = MeleePreview.new()
+	melee_preview.battle_system = battle_system
+	graph.add_child(melee_preview)
 
 
 func _mount_damage_number_layer() -> void:

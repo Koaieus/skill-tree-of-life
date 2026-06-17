@@ -2,14 +2,6 @@
 
 [ext_resource type="Script" uid="uid://d0qnv1unefpd" path="res://attack/melee/blade_edge.gd" id="1_0hnrc"]
 
-[sub_resource type="SegmentShape2D" id="SegmentShape2D_0hnrc"]
-resource_local_to_scene = true
-a = Vector2(218, 216)
-b = Vector2(435, 253)
-
-[node name="BladeEdge" type="Area2D" unique_id=628086114]
+[node name="BladeEdge" type="Node2D"]
 script = ExtResource("1_0hnrc")
 metadata/_custom_type_script = "uid://d0qnv1unefpd"
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1828466012]
-shape = SubResource("SegmentShape2D_0hnrc")

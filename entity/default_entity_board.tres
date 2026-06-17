@@ -38,7 +38,7 @@ base_value = 2.0
 [sub_resource type="Resource" id="scalar_blade_size"]
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
-base_value = 1.0
+base_value = 3.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
 script = ExtResource("3_pool")

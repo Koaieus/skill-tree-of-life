@@ -9,6 +9,10 @@ extends AttackPlan
 
 const _BLADE_SIZE_ID: StringName = &"blade_size"
 
+## Swing duration the sim is built around. Real-time playback (live or
+## ghost) honours the same value so preview matches commit.
+const SWING_DURATION: float = 1.2
+
 ## The pivot — right-clicked, owned-by-attacker. Always in the blade mirror.
 var source: SkillNode = null
 
@@ -170,11 +174,116 @@ func _can_be_blade(node: SkillNode) -> bool:
 
 
 func resolve() -> AttackOutcome:
-	# Stub: melee resolution lands in a follow-up alongside the phantom-swing
-	# sandbox graduating to a real attack. Returning empty for now means the
-	# launch flow runs (animation + AP deduction) but applies no damage —
-	# acceptable while we settle on the swing → contact-set mapping.
-	return AttackOutcome.new()
+	var outcome := AttackOutcome.new()
+	if not is_valid():
+		return outcome
+	var blade_state := build_blade_state()
+	if blade_state == null:
+		return outcome
+	var drivers := _build_drivers(blade_state)
+	var trajectory := BladeSim.simulate(blade_state, drivers, SWING_DURATION)
+	var targets := collect_targets()
+	var events := BladeHitScan.scan(trajectory, blade_state, targets)
+	for ev in events:
+		var di := DamageInstance.new()
+		di.amount = 1.0
+		di.type = DamageInstance.Type.PHYSICAL
+		di.target = ev.target as SkillNode
+		di.origin = source
+		di.source = self
+		outcome.hits.append(di)
+	return outcome
+
+
+## Build a fresh BladeState from the current selection. Public so the
+## MeleePreview controller can share the same construction with resolve().
+func build_blade_state() -> BladeState:
+	if source == null:
+		return null
+	var selection: Array[SkillNode] = [source]
+	selection.append_array(blade_nodes)
+	var positions: Array[Vector2] = []
+	var radii: Array[float] = []
+	var pivot_idx := 0
+	var sn_to_idx: Dictionary = {}
+	for i in selection.size():
+		var sn := selection[i]
+		sn_to_idx[sn] = i
+		positions.append(sn.global_position)
+		radii.append(sn.radius)
+		if sn == source:
+			pivot_idx = i
+	var induced_edges := get_induced_edges()
+	var edge_indices: Array[Vector2i] = []
+	for pair in induced_edges:
+		edge_indices.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
+	return BladeState.build(positions, pivot_idx, edge_indices, radii)
+
+
+## [SkillNode, SkillNode] pairs over the live graph, restricted to the
+## current selection — i.e. the induced subgraph of pivot + members.
+func get_induced_edges() -> Array:
+	var out: Array = []
+	if attacker == null or attacker.navigator == null:
+		return out
+	var graph := attacker.navigator.graph
+	if graph == null:
+		return out
+	var selection: Dictionary = {}
+	if source != null:
+		selection[source] = true
+	for b in blade_nodes:
+		selection[b] = true
+	for e in graph.get_edges():
+		if selection.has(e.from) and selection.has(e.to):
+			out.append([e.from, e.to])
+	return out
+
+
+func _build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
+	var drivers: Array[BladeDriver] = []
+	var pivot_pos := blade_state.positions[blade_state.pivot_index]
+	var seen: Dictionary = {}
+	for e in blade_state.edges:
+		var other := -1
+		if e.x == blade_state.pivot_index:
+			other = e.y
+		elif e.y == blade_state.pivot_index:
+			other = e.x
+		if other < 0 or seen.has(other):
+			continue
+		seen[other] = true
+		var offset := blade_state.positions[other] - pivot_pos
+		drivers.append(BladeArcDriver.new(
+				other, pivot_pos, offset.length(), offset.angle(),
+				TAU, SWING_DURATION))
+	return drivers
+
+
+## Targets in the format BladeHitScan expects: [position, radius, payload].
+## Filters out unallocated nodes and nodes owned by the attacker, plus the
+## blade members themselves (they don't hit their own subgraph).
+func collect_targets() -> Array:
+	var out: Array = []
+	if attacker == null or attacker.navigator == null:
+		return out
+	var graph := attacker.navigator.graph
+	if graph == null:
+		return out
+	var self_set: Dictionary = {}
+	if source != null:
+		self_set[source] = true
+	for b in blade_nodes:
+		self_set[b] = true
+	for sn in graph.get_skill_nodes():
+		if self_set.has(sn):
+			continue
+		if not sn.is_allocated():
+			continue
+		if sn.owned_by == attacker:
+			continue
+		out.append([sn.global_position, sn.radius, sn])
+	return out
 
 
 func _is_neighbor_of_blade_set(node: SkillNode) -> bool:

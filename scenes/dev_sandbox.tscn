@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="8_umwfs"]
 [ext_resource type="Resource" path="res://stats_system/defs/deallocation_points.tres" id="9_o5a17"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
+[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="9_ubc5n"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="10_vybhe"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="11_ui"]
@@ -40,181 +41,6 @@
 [ext_resource type="Resource" path="res://stats_system/defs/wound_heal_per_turn.tres" id="33_woundheal"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="36_vybhe"]
 [ext_resource type="Script" uid="uid://bb2qycfjh26rf" path="res://scenes/camera_2d.gd" id="39_uulnk"]
-
-[sub_resource type="Resource" id="pool_ap"]
-script = ExtResource("8_umwfs")
-current = 2.0
-definition = ExtResource("7_qrijo")
-base_value = 2.0
-
-[sub_resource type="Resource" id="pool_dealloc"]
-script = ExtResource("8_umwfs")
-current = 3.0
-definition = ExtResource("9_o5a17")
-base_value = 3.0
-
-[sub_resource type="Resource" id="scalar_dexterity"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("10_vybhe")
-base_value = 10.0
-
-[sub_resource type="Resource" id="pool_health"]
-script = ExtResource("8_umwfs")
-current = 10.0
-definition = ExtResource("12_ubc5n")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_initiative_speed"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("13_0clpu")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_intelligence"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("14_sdhs6")
-base_value = 10.0
-
-[sub_resource type="Resource" id="formula_per_to_vision"]
-script = ExtResource("16_8r5xj")
-source_stat_id = &"perception"
-scale_per_point = 2.0
-
-[sub_resource type="Resource" id="mod_per_to_vision"]
-script = ExtResource("17_k8amt")
-formula = SubResource("formula_per_to_vision")
-stat_id = &"vision_range"
-operation = 1
-
-[sub_resource type="Resource" id="formula_int_to_mana"]
-script = ExtResource("18_f58km")
-formula = "floor(float(intelligence) / 10.0)"
-inputs = Array[StringName]([&"intelligence"])
-
-[sub_resource type="Resource" id="mod_int_to_mana"]
-script = ExtResource("17_k8amt")
-formula = SubResource("formula_int_to_mana")
-stat_id = &"mana"
-
-[sub_resource type="Resource" id="formula_int_to_mana_pt"]
-script = ExtResource("18_f58km")
-formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
-inputs = Array[StringName]([&"intelligence"])
-
-[sub_resource type="Resource" id="mod_int_to_mana_pt"]
-script = ExtResource("17_k8amt")
-formula = SubResource("formula_int_to_mana_pt")
-stat_id = &"mana_per_turn"
-
-[sub_resource type="Resource" id="formula_wis_to_xp_pt"]
-script = ExtResource("18_f58km")
-formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
-inputs = Array[StringName]([&"wisdom"])
-
-[sub_resource type="Resource" id="mod_wis_to_xp_pt"]
-script = ExtResource("17_k8amt")
-formula = SubResource("formula_wis_to_xp_pt")
-stat_id = &"xp_per_turn"
-
-[sub_resource type="Resource" id="Resource_vupus"]
-script = ExtResource("18_f58km")
-formula = "floor(dexterity / 10.)"
-metadata/_custom_type_script = "uid://dn253es0cni7j"
-
-[sub_resource type="Resource" id="Resource_3edt8"]
-script = ExtResource("17_k8amt")
-formula = SubResource("Resource_vupus")
-stat_id = &"sensor_range"
-metadata/_custom_type_script = "uid://ix51i0mr6n8v"
-
-[sub_resource type="Resource" id="pool_mana"]
-script = ExtResource("8_umwfs")
-current = 10.0
-definition = ExtResource("19_arms0")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_mana_per_turn"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("20_3ogaa")
-
-[sub_resource type="Resource" id="pool_movement_points"]
-script = ExtResource("8_umwfs")
-current = 1.0
-definition = ExtResource("21_sybeb")
-base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_node_health"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("22_df164")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_perception"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("23_owpne")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_sensor_range"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("25_drqyt")
-base_value = 2.0
-
-[sub_resource type="Resource" id="sp_skill_points"]
-script = ExtResource("27_4oa4u")
-current = 3.0
-definition = ExtResource("26_lwubc")
-base_value = 3.0
-
-[sub_resource type="Resource" id="scalar_strength"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("28_3dypl")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_vision_range"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("29_d7bkb")
-base_value = 400.0
-
-[sub_resource type="Resource" id="scalar_wisdom"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("30_jc1be")
-base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_wound_heal"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("33_woundheal")
-base_value = 1.0
-
-[sub_resource type="Resource" id="pool_xp"]
-script = ExtResource("8_umwfs")
-definition = ExtResource("31_54w3d")
-base_value = 5.0
-
-[sub_resource type="Resource" id="scalar_xp_per_turn"]
-script = ExtResource("11_uulnk")
-definition = ExtResource("32_v0kkn")
-
-[sub_resource type="Resource" id="Resource_uulnk"]
-resource_local_to_scene = true
-script = ExtResource("24_qk0se")
-strength = SubResource("scalar_strength")
-dexterity = SubResource("scalar_dexterity")
-intelligence = SubResource("scalar_intelligence")
-wisdom = SubResource("scalar_wisdom")
-perception = SubResource("scalar_perception")
-health = SubResource("pool_health")
-node_health = SubResource("scalar_node_health")
-xp = SubResource("pool_xp")
-xp_per_turn = SubResource("scalar_xp_per_turn")
-skill_points = SubResource("sp_skill_points")
-wound_heal_per_turn = SubResource("scalar_wound_heal")
-deallocation_points = SubResource("pool_dealloc")
-action_points = SubResource("pool_ap")
-movement_points = SubResource("pool_movement_points")
-initiative_speed = SubResource("scalar_initiative_speed")
-vision_range = SubResource("scalar_vision_range")
-sensor_range = SubResource("scalar_sensor_range")
-mana = SubResource("pool_mana")
-mana_per_turn = SubResource("scalar_mana_per_turn")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("Resource_3edt8")])
 
 [sub_resource type="Resource" id="Resource_ubc5n"]
 script = ExtResource("8_umwfs")
@@ -498,7 +324,7 @@ metadata/_custom_type_script = "uid://tmd2wsn34dny"
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_uulnk")
+stat_board = ExtResource("9_ubc5n")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
@@ -631,12 +457,14 @@ owned_by = NodePath("../../Entities/Player")
 position = Vector2(731, 321)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 
-[node name="Right" parent="Graph/Nodes" unique_id=1699135446 instance=ExtResource("9_skill")]
+[node name="Right" parent="Graph/Nodes" unique_id=1699135446 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(824, 535)
+owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 
-[node name="Down" parent="Graph/Nodes" unique_id=1425471291 instance=ExtResource("9_skill")]
+[node name="Down" parent="Graph/Nodes" unique_id=1425471291 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(716, 605)
+owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
 [node name="Left" parent="Graph/Nodes" unique_id=1010139945 instance=ExtResource("9_skill")]
@@ -656,8 +484,9 @@ position = Vector2(923, 452)
 owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
 
-[node name="Down_Out" parent="Graph/Nodes" unique_id=8800201 instance=ExtResource("9_skill")]
+[node name="Down_Out" parent="Graph/Nodes" unique_id=8800201 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(700, 720)
+owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2")])
 
 [node name="Left_Out" parent="Graph/Nodes" unique_id=8800202 instance=ExtResource("9_skill")]
@@ -673,8 +502,9 @@ position = Vector2(1023, 478)
 owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
 
-[node name="Bridge_S" parent="Graph/Nodes" unique_id=8800205 instance=ExtResource("9_skill")]
+[node name="Bridge_S" parent="Graph/Nodes" unique_id=8800205 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(870, 680)
+owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
 [node name="Enemy_Core" parent="Graph/Nodes" unique_id=8800206 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
