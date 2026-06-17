@@ -44,8 +44,10 @@ func launch(plan: MeleeAttackPlan) -> void:
 		return
 	var gen := _gen
 	var traj := blade.simulate(MeleeAttackPlan.SWING_DURATION)
-	var targets := plan.collect_targets()
-	var events := BladeHitScan.scan(traj, blade.state, targets)
+	var space_state := blade.get_world_2d().direct_space_state
+	var exclude := plan.collect_target_excludes()
+	var events := BladeHitScan.scan(
+			traj, blade.state, space_state, 0xFFFFFFFF, exclude)
 	blade.hit.connect(_on_live_hit)
 	await blade.play(traj, events, false)
 	if gen != _gen or blade != _ghost:

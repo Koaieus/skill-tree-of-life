@@ -182,8 +182,10 @@ func resolve() -> AttackOutcome:
 		return outcome
 	var drivers := _build_drivers(blade_state)
 	var trajectory := BladeSim.simulate(blade_state, drivers, SWING_DURATION)
-	var targets := collect_targets()
-	var events := BladeHitScan.scan(trajectory, blade_state, targets)
+	var space_state := source.get_world_2d().direct_space_state
+	var exclude := collect_target_excludes()
+	var events := BladeHitScan.scan(
+			trajectory, blade_state, space_state, 0xFFFFFFFF, exclude)
 	for ev in events:
 		var di := DamageInstance.new()
 		di.amount = 1.0
@@ -260,11 +262,12 @@ func _build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 	return drivers
 
 
-## Targets in the format BladeHitScan expects: [position, radius, payload].
-## Filters out unallocated nodes and nodes owned by the attacker, plus the
-## blade members themselves (they don't hit their own subgraph).
-func collect_targets() -> Array:
-	var out: Array = []
+## RIDs to feed BladeHitScan as the physics-query exclude list — covers
+## the blade members themselves (don't hit their own subgraph), plus
+## unallocated nodes and nodes owned by the attacker. The scan picks up
+## everything else in the world that overlaps the swing.
+func collect_target_excludes() -> Array[RID]:
+	var out: Array[RID] = []
 	if attacker == null or attacker.navigator == null:
 		return out
 	var graph := attacker.navigator.graph
@@ -276,13 +279,8 @@ func collect_targets() -> Array:
 	for b in blade_nodes:
 		self_set[b] = true
 	for sn in graph.get_skill_nodes():
-		if self_set.has(sn):
-			continue
-		if not sn.is_allocated():
-			continue
-		if sn.owned_by == attacker:
-			continue
-		out.append([sn.global_position, sn.radius, sn])
+		if self_set.has(sn) or not sn.is_allocated() or sn.owned_by == attacker:
+			out.append(sn.get_rid())
 	return out
 
 
