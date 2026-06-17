@@ -67,6 +67,51 @@ func _create_joint(from: BladeNode, to: BladeNode) -> void:
 	joint.node_b = joint.get_path_to(to)
 
 
+## True when the selected node set can form a valid blade.
+## Requires: pivot present in the set, at least one induced edge (which implies
+## the pivot is connected to at least one other selected node).
+static func is_valid_selection(
+		skill_nodes: Array,
+		pivot: SkillNode,
+		induced_edges: Array) -> bool:
+	return skill_nodes.size() >= 2 and pivot in skill_nodes and induced_edges.size() >= 1
+
+
+## Populate the blade from game-world SkillNodes.
+## Call this after adding the SkillBlade to the scene tree, before execute().
+## induced_edges: Array of [SkillNode, SkillNode] pairs (induced subgraph edges).
+func build(
+		skill_nodes: Array[SkillNode],
+		pivot: SkillNode,
+		induced_edges: Array,
+		owner_entity: Entity) -> void:
+	owned_by = owner_entity
+	var node_map: Dictionary = {}
+	for sn: SkillNode in skill_nodes:
+		node_map[sn] = add_blade_node(sn.global_position, sn == pivot)
+	for pair: Array in induced_edges:
+		add_edge(node_map[pair[0]], node_map[pair[1]])
+
+
+## Full attack lifecycle: swing → disable hitboxes → glow-fade → free.
+## Awaitable: returns after the swing completes; the outro plays in the background.
+func execute(swing_duration: float = 1.2) -> void:
+	await swing(swing_duration)
+	_begin_outro()
+
+
+func _begin_outro() -> void:
+	for bn in _blade_nodes:
+		bn.hitbox.monitoring = false
+	for edge in _edges_node.get_children():
+		if edge is BladeEdge:
+			(edge as BladeEdge).monitoring = false
+	var tween := create_tween()
+	tween.tween_property(self, "modulate", Color(0.55, 0.55, 0.55, 0.0), 0.45)
+	await tween.finished
+	queue_free()
+
+
 ## Sweep the entire blade one full revolution around the pivot.
 ## duration: total time in seconds. Uses sine ease-in-out for an s-curve feel.
 func swing(duration: float = 1.2) -> void:
