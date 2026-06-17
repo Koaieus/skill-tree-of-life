@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bhh4qjun7f2a5"]
+
+[ext_resource type="Script" uid="uid://dlbrcwtqwgqqr" path="res://attack/melee/skill_blade.gd" id="1_wxckt"]
+
+[node name="SkillBlade" type="Node2D" unique_id=33732259]
+script = ExtResource("1_wxckt")
+
+[node name="Edges" type="Node2D" parent="." unique_id=607642015]
