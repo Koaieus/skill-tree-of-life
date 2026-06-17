@@ -40,6 +40,8 @@ signal depleted
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_marker: Node2D = $Visuals/CoreMarker
+@onready var _base_circle: Node2D = $Visuals/BaseCircle
+@onready var _collision: CollisionShape2D = $CollisionShape2D
 
 # Owner subscription tracking — re-bound whenever `owned_by` changes so the
 # CoreMarker reflects the *current* owner's core_location, not a stale one.
@@ -61,6 +63,9 @@ var _hit_flash_tween: Tween
 
 func _ready() -> void:
 	_sync_collision()
+	_sync_visuals()
+	radius_changed.connect(_sync_visuals)
+	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_marker)
 	owner_changed.connect(_refresh_hp_binding)
 	damaged.connect(_play_hit_flash.unbind(2))
@@ -79,13 +84,18 @@ func _refresh_core_marker() -> void:
 
 
 func _sync_collision() -> void:
-	var collision := get_node_or_null(^"CollisionShape2D") as CollisionShape2D
-	if collision == null:
+	if _collision == null or _collision.shape == null:
 		return
-	var shape := collision.shape as CircleShape2D
-	if shape == null:
+	(_collision.shape as CircleShape2D).radius = radius
+
+
+func _sync_visuals() -> void:
+	if not is_node_ready():
 		return
-	shape.radius = radius
+	var color := get_owner_color() if is_allocated() else Color.DIM_GRAY
+	_base_circle.configure(radius, color)
+	core_marker.configure(radius, get_owner_color())
+	hover_ring.configure(radius)
 
 
 func is_allocated() -> bool:
@@ -100,6 +110,11 @@ func get_owner_color() -> Color:
 	if owned_by:
 		return owned_by.color
 	return Color.WHITE
+
+
+func edge_point(world_target: Vector2) -> Vector2:
+	var dir := (world_target - global_position).normalized()
+	return global_position + dir * radius
 
 
 # ── Combat HP ──────────────────────────────────────────────────────────────

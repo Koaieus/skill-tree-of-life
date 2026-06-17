@@ -1,19 +1,15 @@
 @tool
 extends Node2D
 
-var _host: SkillNode
+var _radius: float = 32.0
+var _color: Color = Color.WHITE
 
 
-func _ready() -> void:
-	_host = owner as SkillNode
-	if _host == null:
-		return
-	_host.radius_changed.connect(queue_redraw)
-	_host.owner_changed.connect(queue_redraw)
+func configure(r: float, color: Color) -> void:
+	_radius = r
+	_color = color
+	queue_redraw()
 
 
 func _draw() -> void:
-	if _host == null:
-		return
-	var r := _host.radius - 8
-	draw_circle(Vector2.ZERO, r, _host.get_owner_color(), true)
+	draw_circle(Vector2.ZERO, _radius - 8.0, _color, true)

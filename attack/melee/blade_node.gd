@@ -18,6 +18,8 @@ extends RigidBody2D
 
 @onready var _visual: Node2D = $Visuals/BladeCircle
 @onready var _col: CollisionShape2D = $CollisionShape2D
+@onready var hitbox: Area2D = $Hitbox
+@onready var _hitbox_col: CollisionShape2D = $Hitbox/HitboxShape
 
 func _ready() -> void:
 	_sync_collision()
@@ -27,6 +29,8 @@ func _ready() -> void:
 func _sync_collision() -> void:
 	if _col and _col.shape:
 		(_col.shape as CircleShape2D).radius = radius
+	if _hitbox_col and _hitbox_col.shape:
+		(_hitbox_col.shape as CircleShape2D).radius = radius
 
 func _apply_pivot_freeze() -> void:
 	if is_pivot:

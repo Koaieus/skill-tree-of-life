@@ -7,6 +7,10 @@
 resource_local_to_scene = true
 radius = 32.0
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_hitbox"]
+resource_local_to_scene = true
+radius = 32.0
+
 [node name="BladeNode" type="RigidBody2D"]
 script = ExtResource("1_yhxd4")
 
@@ -14,6 +18,11 @@ script = ExtResource("1_yhxd4")
 shape = SubResource("CircleShape2D_ml362")
 debug_color = Color(1.2513996e-06, 0.5906466, 0.24353442, 0.41960785)
 metadata/_edit_lock_ = true
+
+[node name="Hitbox" type="Area2D" parent="."]
+
+[node name="HitboxShape" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_hitbox")
 
 [node name="Visuals" type="Node2D" parent="."]
 metadata/_edit_lock_ = true

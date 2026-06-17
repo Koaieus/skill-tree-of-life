@@ -3,28 +3,11 @@
 [ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
 [ext_resource type="Script" uid="uid://cf2g8u0e7gw33" path="res://skill_node/core_marker.gd" id="3_0y6o7"]
+[ext_resource type="Script" path="res://skill_node/hover_ring.gd" id="4_hover"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
+resource_local_to_scene = true
 radius = 32.0
-
-[sub_resource type="GDScript" id="GDScript_0y6o7"]
-script/source = "@tool
-extends Node2D
-
-var _host: SkillNode
-@export var color: Color = Color.YELLOW_GREEN
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	_host = owner as SkillNode
-
-func _draw() -> void:
-	if _host == null:
-		return
-	var r := _host.radius + 6
-	draw_circle(Vector2.ZERO, r, color, false, 3)
-	
-"
 
 [sub_resource type="LabelSettings" id="LabelSettings_0y6o7"]
 line_spacing = 0.0
@@ -46,7 +29,7 @@ script = ExtResource("2_base")
 
 [node name="HoverRing" type="Node2D" parent="Visuals" unique_id=670952446]
 visible = false
-script = SubResource("GDScript_0y6o7")
+script = ExtResource("4_hover")
 color = Color(0.6039216, 0.8039216, 0.19607843, 0.6745098)
 
 [node name="CoreMarker" type="Node2D" parent="Visuals" unique_id=1043477974]
