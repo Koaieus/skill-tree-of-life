@@ -87,9 +87,9 @@ func remove_modifier(m: StatModifierDef) -> void:
 	_apply_max_change(old_max)
 
 
-func _on_dependent_modifier_changed() -> void:
+func _on_dependent_modifier_changed(m: StatModifierDef) -> void:
 	var old_max := float(get_value())
-	super()
+	super(m)
 	_apply_max_change(old_max)
 
 
