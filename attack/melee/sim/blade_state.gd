@@ -9,6 +9,10 @@ var positions: PackedVector2Array
 var prev_positions: PackedVector2Array
 var inv_masses: PackedFloat32Array
 var radii: PackedFloat32Array
+## Per-particle vertex spike damage, contributed by SkillNodeAddons (e.g.
+## SpikeRingAddon) via apply_to_blade. Read by SkillBlade on node-hit
+## damage. Zeroed in build(); addons add to it after.
+var vertex_spikes: PackedFloat32Array
 var pivot_index: int = 0
 var edges: Array[Vector2i] = []
 var constraints: Array[BladeConstraint] = []
@@ -27,6 +31,8 @@ static func build(
 	s.pivot_index = pivot_idx
 	s.edges = edges_
 	s.radii = PackedFloat32Array(radii_)
+	s.vertex_spikes = PackedFloat32Array()
+	s.vertex_spikes.resize(positions_.size())  # zero-init
 	s.inv_masses = PackedFloat32Array()
 	s.inv_masses.resize(positions_.size())
 	for i in positions_.size():

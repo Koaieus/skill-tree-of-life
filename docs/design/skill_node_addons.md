@@ -58,7 +58,7 @@ These are established mechanics referenced consistently in the design docs.
 
 ### Winch
 
-**Effect:** Exerts a pull force on adjacent nodes, reducing effective euclidean distance between this node and its neighbors. Does not create or delete edges — purely a math adjustment to the distance calculation.
+**Effect:** Exerts a pull force on adjacent nodes, reducing effective euclidean distance between this node and its neighbors, as an ability that targets one selected neighbor per turn (reeling in 1 edge). Does not create or delete edges — purely a math adjustment to the distance calculation.
 
 **Use cases:**
 - Draws neutral or loot nodes (that are adjacent to this node) closer within the euclidean distance framework. Makes them easier to target with ranged attacks or bring within aura range.

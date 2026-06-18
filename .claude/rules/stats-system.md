@@ -13,6 +13,20 @@ description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsi
 - **SET** short-circuits everything; highest `priority` wins, last-in breaks ties at equal priority.
 - **INCREASE** sums additively (PoE-style). Five +20% = ×2.0, NOT (1.2)⁵.
 
+## Bin-as-algebra & local stats
+
+The pipeline bins (`ModifierBins`, `stats_system/modifier_bins.gd`) are a first-class type, not private fields on `Stat`. Each op class composes by addition across sources (or list-concat for MULTIPLY) — `ModifierBins.compute(base, sources)` takes N bin sources, sums them, walks all multiplier lists, and runs the pipeline **once**.
+
+**Why this matters:** chaining pipelines (entity result → local base) double-applies INCREASEs against MULTIPLYs. Bin-merge does not. `Stat.get_value()` delegates to `ModifierBins.compute(base_value, [bins])` (single-source path); multi-source overrides do the same call with more bins.
+
+**`LocalStat extends Stat`** (`stats_system/local_stat.gd`) — a per-node Stat that holds an `entity_stat: Stat` reference and overrides `get_value()` to call `ModifierBins.compute(entity_stat.base_value, [entity_stat.bins, bins])`. Subscribes to `entity_stat.value_changed` and re-emits its own so downstream subscribers wake.
+
+**SET tiebreak across sources:** highest priority wins; at equal priority **the LAST source listed wins**. Consumers order sources so the most specific scope is LAST — `LocalStat` passes `[entity.bins, self.bins]` so a local SET at equal priority overrides the entity one.
+
+**No gating on which stat ids can be localized.** Same `Stat` machinery, same definitions, same pipeline. Localizing a stat nothing reads on a per-node basis (e.g. INT) is inert — no harm. Convention guides which are *meaningful*; types don't enforce.
+
+`SkillNode.get_local_stat(id)` lazily materializes a `LocalStat` on first touch and rebinds `entity_stat` on `owner_changed`. `get_max_hp()` collapses through it — one read path, no caller branches on "is there a local override."
+
 ## Pool stats
 
 `PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers always target the pool id directly (e.g. `"health"`, `"mana"`); there are no `*_max` sibling stats or IDs.

@@ -23,25 +23,25 @@ signal value_changed
 @export var base_value: float = 0.0
 
 var _modifiers: Array[StatModifierDef] = []
-## Cached SET winner. SET is the only op where order matters; tracking the
-## winner on insert/remove lets get_value() early-return in O(1).
-var _winning_set: StatModifierDef = null
 
-## Per-operation bins. ADD_BASE / INCREASE / ADD_BONUS keep a running scalar
-## sum — additions are pure float adds; FP drift over many add/remove cycles
-## is negligible (stat values are small, INT stats coerce via roundi). MULTIPLY
-## intentionally keeps the *list* and walks it on read: maintaining a running
-## product would require division on remove (the canonical FP-drift trap), and
-## a value-of-0 modifier would wedge it. The multiplier list is typically tiny
-## (0–2 entries), so the walk is cheap.
+## Per-operation pipeline bins, factored into ModifierBins so multi-source
+## reads (e.g. LocalStat layering on top of an entity-side Stat) can compose
+## via bin-sum + one pipeline run. See modifier_bins.gd for the algebra.
+##
+## ADD_BASE / INCREASE / ADD_BONUS keep a running scalar sum — additions are
+## pure float adds; FP drift over many add/remove cycles is negligible (stat
+## values are small, INT stats coerce via roundi). MULTIPLY intentionally
+## keeps the *list* and walks it on read: a running product would require
+## division on remove (FP-drift trap) and a value-of-0 modifier would wedge
+## it. The multiplier list is typically tiny (0–2), so the walk is cheap.
+##
+## SET caches its winner (`bins.winning_set`) so get_value() early-returns
+## in O(1) — SET is the only op where composition order matters.
 ##
 ## `_last_contrib` remembers what each non-SET, non-MULTIPLY modifier last
 ## added to its bin. On `source_value_changed` from a DerivedModifierDef, we
 ## apply `(new − last)` as a delta, mirroring add/remove through one path.
-var _bin_base_add: float = 0.0
-var _bin_increase_sum: float = 0.0
-var _bin_bonus_add: float = 0.0
-var _multipliers: Array[StatModifierDef] = []
+var bins: ModifierBins = ModifierBins.new()
 var _last_contrib: Dictionary = {}
 
 ## Shorthand for `get_value()`. Delegates so subclass overrides win — e.g.
@@ -62,10 +62,10 @@ func add_modifier(m: StatModifierDef) -> void:
 		(m as DerivedModifierDef).source_value_changed.connect(_on_dependent_modifier_changed.bind(m))
 	match m.operation:
 		StatModifierDef.Operation.SET:
-			if _winning_set == null or m.priority >= _winning_set.priority:
-				_winning_set = m
+			if bins.winning_set == null or m.priority >= bins.winning_set.priority:
+				bins.winning_set = m
 		StatModifierDef.Operation.MULTIPLY:
-			_multipliers.append(m)
+			bins.multipliers.append(m)
 		_:
 			var v := m.get_effective_value()
 			_last_contrib[m] = v
@@ -83,10 +83,10 @@ func remove_modifier(m: StatModifierDef) -> void:
 			dm.source_value_changed.disconnect(cb)
 	match m.operation:
 		StatModifierDef.Operation.SET:
-			if m == _winning_set:
-				_winning_set = _find_winning_set()
+			if m == bins.winning_set:
+				bins.winning_set = _find_winning_set()
 		StatModifierDef.Operation.MULTIPLY:
-			_multipliers.erase(m)
+			bins.multipliers.erase(m)
 		_:
 			var old: float = _last_contrib.get(m, m.get_effective_value())
 			_last_contrib.erase(m)
@@ -112,11 +112,11 @@ func _apply_bin_delta(op: int, old: float, new_v: float) -> void:
 	var delta := new_v - old
 	match op:
 		StatModifierDef.Operation.ADD_BASE:
-			_bin_base_add += delta
+			bins.base_add += delta
 		StatModifierDef.Operation.INCREASE:
-			_bin_increase_sum += delta
+			bins.increase_sum += delta
 		StatModifierDef.Operation.ADD_BONUS:
-			_bin_bonus_add += delta
+			bins.bonus_add += delta
 
 
 ## Free anti-drift: at 0 or 1 modifiers the bins have a known exact form, so
@@ -124,19 +124,19 @@ func _apply_bin_delta(op: int, old: float, new_v: float) -> void:
 func _resync_bins_if_trivial() -> void:
 	if _modifiers.size() > 1:
 		return
-	_bin_base_add = 0.0
-	_bin_increase_sum = 0.0
-	_bin_bonus_add = 0.0
-	_multipliers.clear()
+	bins.base_add = 0.0
+	bins.increase_sum = 0.0
+	bins.bonus_add = 0.0
+	bins.multipliers.clear()
 	_last_contrib.clear()
 	if _modifiers.is_empty():
 		return
 	var m := _modifiers[0]
 	match m.operation:
 		StatModifierDef.Operation.SET:
-			pass  # _winning_set already correct.
+			pass  # bins.winning_set already correct.
 		StatModifierDef.Operation.MULTIPLY:
-			_multipliers.append(m)
+			bins.multipliers.append(m)
 		_:
 			var v := m.get_effective_value()
 			_last_contrib[m] = v
@@ -155,14 +155,10 @@ func _find_winning_set() -> StatModifierDef:
 ## Computed value: base + modifier pipeline, coerced to the definition's value_type.
 ## ADD_BASE / INCREASE / ADD_BONUS read O(1) from running bins; MULTIPLY walks
 ## its (typically tiny) list to avoid the divide-on-remove drift trap.
+## Delegates the math to ModifierBins.compute so single-source (this) and
+## multi-source (LocalStat) reads share the one pipeline implementation.
 func get_value() -> Variant:
-	if _winning_set != null:
-		return _coerce(_winning_set.get_effective_value())
-	var mult := 1.0
-	for m in _multipliers:
-		mult *= m.get_effective_value()
-	var raw: float = (base_value + _bin_base_add) * (1.0 + _bin_increase_sum / 100.0) * mult + _bin_bonus_add
-	return _coerce(raw)
+	return _coerce(ModifierBins.compute(base_value, [bins]))
 
 
 ## Inspector niceties -------------------------------------------------------

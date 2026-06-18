@@ -79,6 +79,13 @@ func build_from_skill_nodes(
 	for pair in induced_edges:
 		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
 	state = BladeState.build(positions, pivot_idx, edges_idx, radii)
+	# Dispatch to addons after BladeState is built so they can append
+	# constraints (Clamp's phantom brace) and per-particle damage
+	# contributions (SpikeRing's vertex_spikes). SkillBlade never learns
+	# specific addon types — pure virtual dispatch.
+	for i in skill_nodes.size():
+		for addon in skill_nodes[i].get_addons():
+			addon.apply_to_blade(state, i)
 	_spawn_visuals()
 
 
@@ -132,8 +139,12 @@ func _apply_playback_frame(
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
-			var damage := EDGE_DAMAGE if ev.is_edge_hit() else NODE_DAMAGE
 			var idx := ev.edge_idx if ev.is_edge_hit() else ev.particle_idx
+			var damage: float
+			if ev.is_edge_hit():
+				damage = EDGE_DAMAGE
+			else:
+				damage = NODE_DAMAGE + state.vertex_spikes[ev.particle_idx]
 			hit.emit(idx, ev.is_edge_hit(), ev.target as SkillNode, ev.t, damage)
 
 

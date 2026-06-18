@@ -41,6 +41,7 @@ signal depleted
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_marker: Node2D = $Visuals/CoreMarker
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
+@onready var _addon_anchor: Node2D = $Visuals/AddonAnchor
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
 # Owner subscription tracking — re-bound whenever `owned_by` changes so the
@@ -56,6 +57,12 @@ var current_hp: float = 0.0
 # change (level-up, modifier swap) clamps + refills `current_hp` immediately.
 var _bound_node_health: Stat = null
 
+## Sparse, lazy LocalStat instances — one per stat_id that an addon (or
+## anything else) has localized on this node. Each LocalStat is bound to
+## the owning entity's same-id Stat (if any) so its read merges entity +
+## local bins in one pipeline run; see local_stat.gd.
+var _local_stats: Dictionary = {}  # StringName → LocalStat
+
 # Hit-flash bookkeeping. Killed and re-created on every hit so back-to-back
 # damage doesn't visually merge into one stuck red.
 var _hit_flash_tween: Tween
@@ -68,7 +75,10 @@ func _ready() -> void:
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_marker)
 	owner_changed.connect(_refresh_hp_binding)
+	owner_changed.connect(_refresh_local_stat_bindings)
 	damaged.connect(_play_hit_flash.unbind(2))
+	_addon_anchor.child_entered_tree.connect(_on_addon_added)
+	_addon_anchor.child_exiting_tree.connect(_on_addon_removed)
 	_refresh_core_marker()
 	_refresh_hp_binding()
 
@@ -96,6 +106,8 @@ func _sync_visuals() -> void:
 	_base_circle.configure(radius, color)
 	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)
+	for a in get_addons():
+		a.configure_visual(radius)
 
 
 func is_allocated() -> bool:
@@ -119,14 +131,41 @@ func edge_point(world_target: Vector2) -> Vector2:
 
 # ── Combat HP ──────────────────────────────────────────────────────────────
 
-## Max HP for this node. Reads `node_health` off the owning entity's stat board.
-## When node-local stats land, this graduates to a combining formula
-## (see docs/domain/node-hp.md). 0 if unallocated.
+## Max HP for this node. Routes through a per-node LocalStat so any addon
+## (or other source) localizing `node_health` composes correctly with the
+## entity-side value via one PoE pipeline run. 0 if unallocated.
 func get_max_hp() -> float:
 	if owned_by == null or owned_by.stat_board == null:
 		return 0.0
-	var v: Variant = owned_by.stat_board.get_value(&"node_health")
+	var v: Variant = get_local_stat(&"node_health").value
 	return float(v) if v != null else 0.0
+
+
+## Lazy materialization of a per-node Stat for `stat_id`. If the owning
+## entity has the same-id stat, we bind to it so the LocalStat's read
+## merges entity + local bins. Owner changes re-bind via
+## _refresh_local_stat_bindings.
+func get_local_stat(stat_id: StringName) -> LocalStat:
+	if not _local_stats.has(stat_id):
+		var ls := LocalStat.new()
+		var src: Stat = null
+		if owned_by != null and owned_by.stat_board != null:
+			src = owned_by.stat_board.get_stat(stat_id)
+		if src != null:
+			ls.definition = src.definition
+			ls.entity_stat = src
+		_local_stats[stat_id] = ls
+	return _local_stats[stat_id]
+
+
+func get_addons() -> Array[SkillNodeAddon]:
+	var out: Array[SkillNodeAddon] = []
+	if _addon_anchor == null:
+		return out
+	for c in _addon_anchor.get_children():
+		if c is SkillNodeAddon:
+			out.append(c)
+	return out
 
 
 ## Reset to full. Called on owner change and at turn-start upkeep.
@@ -186,6 +225,57 @@ func _on_max_hp_changed() -> void:
 	var cap := get_max_hp()
 	if current_hp > cap:
 		current_hp = cap
+
+
+# Re-bind every materialized LocalStat to the current owner's same-id Stat.
+# Unallocated → entity_stat = null and the local stat acts standalone.
+func _refresh_local_stat_bindings() -> void:
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	for stat_id in _local_stats:
+		var ls: LocalStat = _local_stats[stat_id]
+		var src: Stat = board.get_stat(stat_id) if board != null else null
+		if src != null and ls.definition == null:
+			ls.definition = src.definition
+		ls.entity_stat = src
+
+
+# Addon plumbing. Carrier owns its `modifiers` array as the source-of-truth
+# for AllocationSystem, so addons mutate it directly here (append/erase).
+# While allocated we also push/pop live on the entity board so the effect
+# is immediate — same StatModifierDef instance, no double-pop because
+# AllocationSystem iterates the (now-updated) array on dealloc.
+func _on_addon_added(c: Node) -> void:
+	if not (c is SkillNodeAddon):
+		return
+	var a := c as SkillNodeAddon
+	if a.unique:
+		for existing in get_addons():
+			if existing != a and existing.get_script() == a.get_script():
+				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_script().resource_path, name])
+				a.queue_free()
+				return
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	for m in a.entity_modifiers:
+		modifiers.append(m)
+		if board != null:
+			board.add_modifier(m)
+	for m in a.local_modifiers:
+		get_local_stat(m.stat_id).add_modifier(m)
+	_sync_visuals()
+
+
+func _on_addon_removed(c: Node) -> void:
+	if not (c is SkillNodeAddon):
+		return
+	var a := c as SkillNodeAddon
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	for m in a.entity_modifiers:
+		modifiers.erase(m)
+		if board != null:
+			board.remove_modifier(m)
+	for m in a.local_modifiers:
+		if _local_stats.has(m.stat_id):
+			_local_stats[m.stat_id].remove_modifier(m)
 
 
 func _play_hit_flash() -> void:

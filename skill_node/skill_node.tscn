@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
 [ext_resource type="Script" uid="uid://cf2g8u0e7gw33" path="res://skill_node/core_marker.gd" id="3_0y6o7"]
-[ext_resource type="Script" path="res://skill_node/hover_ring.gd" id="4_hover"]
+[ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true

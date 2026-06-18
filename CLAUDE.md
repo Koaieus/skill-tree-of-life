@@ -18,8 +18,8 @@ No build step, test runner, or lint tool. Game boots into `dev_level_tree_graph.
 ## Architecture
 
 `Game` (`autoload/game.gd`) — bootstraps the game; wires `tree_graph`, `navigator`, `turn_manager`, `player`.  
-`TreeGraph` (`graph/tree_graph.gd`) — extends `GraphEdit`; the skill tree UI *is* the game world; `TreeNode` extends `GraphNode`.  
-`TreeEntity` / `Player` (`tree_entity.gd`, `player.gd`) — entity owns nodes via `tree_node.allocate_to(self)`.  
+`Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s; pure scene-graph, no GraphEdit dependency.  
+`Entity` (`entity/entity.gd`) — players and NPCs use the same class; owns nodes via `skill_node.allocate_to(self)`. No `TreeEntity`/`Player` split (may spin off `PlayerEntity` later for metaprogression).  
 `Navigator` (`graph/navigator.gd`) — maintains `AStarSkillTree` (custom `AStar2D`) mirroring the live graph.  
 `TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100.  
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
@@ -47,7 +47,7 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 ## Godot conventions
 
-- `@tool` on `TreeNode`, `TreeEntity`, `Player` — they run in the editor.
+- `@tool` on `SkillNode`, `Entity` — they run in the editor.
 - `%NodeName` (unique name) for child node access in scenes.
 - `call_deferred` / `await` for post-ready init (e.g. `Game.game_ready` signal).
 
