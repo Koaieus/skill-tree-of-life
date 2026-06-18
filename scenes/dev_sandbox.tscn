@@ -508,6 +508,56 @@ script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 value = 2.0
 
+[sub_resource type="Resource" id="mod_vision_50"]
+script = ExtResource("2_mod")
+stat_id = &"vision_range"
+value = 50.0
+
+[sub_resource type="Resource" id="mod_vision_100"]
+script = ExtResource("2_mod")
+stat_id = &"vision_range"
+value = 100.0
+
+[sub_resource type="Resource" id="mod_sensor_1"]
+script = ExtResource("2_mod")
+stat_id = &"sensor_range"
+value = 1.0
+
+[sub_resource type="Resource" id="mod_sensor_2"]
+script = ExtResource("2_mod")
+stat_id = &"sensor_range"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_dex_3"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 3.0
+
+[sub_resource type="Resource" id="mod_int_3"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 3.0
+
+[sub_resource type="Resource" id="mod_wis_2"]
+script = ExtResource("2_mod")
+stat_id = &"wisdom"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_per_1"]
+script = ExtResource("2_mod")
+stat_id = &"perception"
+value = 1.0
+
+[sub_resource type="Resource" id="mod_hp_3"]
+script = ExtResource("2_mod")
+stat_id = &"health"
+value = 3.0
+
+[sub_resource type="Resource" id="mod_mp_1"]
+script = ExtResource("2_mod")
+stat_id = &"movement_points"
+value = 1.0
+
 [node name="DevSandbox" type="Node2D" unique_id=325788489]
 script = ExtResource("1_dev")
 metadata/_edit_lock_ = true
@@ -523,8 +573,8 @@ metadata/_edit_lock_ = true
 [node name="FogOverlay" parent="Graph" unique_id=295980468 node_paths=PackedStringArray("vision_system") instance=ExtResource("41_fog")]
 z_index = 1000
 vision_system = NodePath("../Systems/VisionSystem")
-falloff = 0.0
-bounds = Rect2(-1000, -1000, 4000, 3000)
+falloff = 0.3
+bounds = Rect2(-3000, -2250, 6000, 4500)
 
 [node name="Systems" type="Node" parent="Graph" unique_id=1059257422]
 
@@ -699,99 +749,186 @@ script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_S")
 to = NodePath("../../Nodes/Enemy_W")
 
+[node name="Edge_NE_Watchtower" type="Node2D" parent="Graph/Edges" unique_id=9000101 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/NE")
+to = NodePath("../../Nodes/Watchtower")
+
+[node name="Edge_UpOut_Watchtower" type="Node2D" parent="Graph/Edges" unique_id=9000102 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Up_Out")
+to = NodePath("../../Nodes/Watchtower")
+
+[node name="Edge_UpOut_Juggler" type="Node2D" parent="Graph/Edges" unique_id=9000103 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Up_Out")
+to = NodePath("../../Nodes/Juggler")
+
+[node name="Edge_LeftOut_Spyglass" type="Node2D" parent="Graph/Edges" unique_id=9000104 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Left_Out")
+to = NodePath("../../Nodes/Spyglass")
+
+[node name="Edge_Left_Library" type="Node2D" parent="Graph/Edges" unique_id=9000105 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Left")
+to = NodePath("../../Nodes/Library")
+
+[node name="Edge_LeftOut_Library" type="Node2D" parent="Graph/Edges" unique_id=9000106 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Left_Out")
+to = NodePath("../../Nodes/Library")
+
+[node name="Edge_SW_Forge" type="Node2D" parent="Graph/Edges" unique_id=9000107 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/SW")
+to = NodePath("../../Nodes/Forge")
+
+[node name="Edge_BridgeE_Crossroads" type="Node2D" parent="Graph/Edges" unique_id=9000108 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Bridge_E")
+to = NodePath("../../Nodes/Crossroads")
+
+[node name="Edge_Crossroads_EnemyW" type="Node2D" parent="Graph/Edges" unique_id=9000109 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Crossroads")
+to = NodePath("../../Nodes/Enemy_W")
+
+[node name="Edge_EnemyN_EnemyTower" type="Node2D" parent="Graph/Edges" unique_id=9000110 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Enemy_N")
+to = NodePath("../../Nodes/Enemy_Tower")
+
+[node name="Edge_EnemyE_EnemyRecon" type="Node2D" parent="Graph/Edges" unique_id=9000111 node_paths=PackedStringArray("from", "to")]
+script = ExtResource("4_edge")
+from = NodePath("../../Nodes/Enemy_E")
+to = NodePath("../../Nodes/Enemy_Recon")
+
 [node name="Nodes" type="Node2D" parent="Graph" unique_id=1697871484]
 metadata/_edit_lock_ = true
 
 [node name="Core" parent="Graph/Nodes" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(673, 457)
+position = Vector2(0, 0)
 owned_by = NodePath("../../Entities/Player")
 
 [node name="Up" parent="Graph/Nodes" unique_id=1730649151 instance=ExtResource("9_skill")]
-position = Vector2(731, 321)
+position = Vector2(58, -136)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 
 [node name="Right" parent="Graph/Nodes" unique_id=1699135446 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(824, 535)
+position = Vector2(151, 78)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 
 [node name="Down" parent="Graph/Nodes" unique_id=1425471291 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(716, 605)
+position = Vector2(43, 148)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
 [node name="Left" parent="Graph/Nodes" unique_id=1010139945 instance=ExtResource("9_skill")]
-position = Vector2(523, 434)
+position = Vector2(-150, -23)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 
 [node name="NE" parent="Graph/Nodes" unique_id=1041223297 instance=ExtResource("9_skill")]
-position = Vector2(836, 393)
+position = Vector2(163, -64)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
 [node name="Up_Out" parent="Graph/Nodes" unique_id=1748015269 instance=ExtResource("9_skill")]
-position = Vector2(818, 225)
+position = Vector2(145, -232)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
 
 [node name="Right_Out" parent="Graph/Nodes" unique_id=1524370075 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(923, 452)
+position = Vector2(250, -5)
 owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
 
 [node name="Down_Out" parent="Graph/Nodes" unique_id=8800201 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(700, 720)
+position = Vector2(27, 263)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2")])
 
 [node name="Left_Out" parent="Graph/Nodes" unique_id=8800202 instance=ExtResource("9_skill")]
-position = Vector2(390, 350)
+position = Vector2(-283, -107)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
 [node name="SW" parent="Graph/Nodes" unique_id=8800203 instance=ExtResource("9_skill")]
-position = Vector2(470, 560)
+position = Vector2(-203, 103)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 
 [node name="Bridge_E" parent="Graph/Nodes" unique_id=8800204 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(1023, 478)
+position = Vector2(350, 21)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
 
 [node name="Bridge_S" parent="Graph/Nodes" unique_id=8800205 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(870, 680)
+position = Vector2(197, 223)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
 [node name="Enemy_Core" parent="Graph/Nodes" unique_id=8800206 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(1180, 540)
+position = Vector2(507, 83)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_N" parent="Graph/Nodes" unique_id=8800207 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(1140, 410)
+position = Vector2(467, -47)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_E" parent="Graph/Nodes" unique_id=8800208 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(1280, 580)
+position = Vector2(607, 123)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_S" parent="Graph/Nodes" unique_id=8800209 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(1180, 670)
+position = Vector2(507, 213)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_W" parent="Graph/Nodes" unique_id=8800210 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(1070, 600)
+position = Vector2(397, 143)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 
+[node name="Watchtower" parent="Graph/Nodes" unique_id=9000001 instance=ExtResource("9_skill")]
+position = Vector2(300, -260)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
+
+[node name="Juggler" parent="Graph/Nodes" unique_id=9000002 instance=ExtResource("9_skill")]
+position = Vector2(-50, -290)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
+
+[node name="Spyglass" parent="Graph/Nodes" unique_id=9000003 instance=ExtResource("9_skill")]
+position = Vector2(-380, -180)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
+
+[node name="Library" parent="Graph/Nodes" unique_id=9000004 instance=ExtResource("9_skill")]
+position = Vector2(-380, 50)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
+
+[node name="Forge" parent="Graph/Nodes" unique_id=9000005 instance=ExtResource("9_skill")]
+position = Vector2(-350, 200)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_hp_3")])
+
+[node name="Crossroads" parent="Graph/Nodes" unique_id=9000006 instance=ExtResource("9_skill")]
+position = Vector2(420, 130)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1"), SubResource("mod_mp_1")])
+
+[node name="Enemy_Tower" parent="Graph/Nodes" unique_id=9000007 instance=ExtResource("9_skill")]
+position = Vector2(650, -80)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_50")])
+
+[node name="Enemy_Recon" parent="Graph/Nodes" unique_id=9000008 instance=ExtResource("9_skill")]
+position = Vector2(750, 120)
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2")])
+
 [node name="Camera" type="Camera2D" parent="Graph" unique_id=1488255030]
 unique_name_in_owner = true
-position = Vector2(736, 482)
+position = Vector2(200, 40)
 script = ExtResource("39_uulnk")
 metadata/_custom_type_script = "uid://bb2qycfjh26rf"
 
