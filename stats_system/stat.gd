@@ -16,7 +16,10 @@ extends Resource
 
 signal value_changed
 
-@export var definition: StatDef
+@export var definition: StatDef:
+	set(v):
+		definition = v
+		_sync_resource_name()
 @export var base_value: float = 0.0
 
 var _modifiers: Array[StatModifierDef] = []
@@ -30,6 +33,12 @@ var _winning_set: StatModifierDef = null
 ## `pool.value` returns the pool's current via PoolStat's override.
 var value: Variant:
 	get: return get_value()
+
+
+func _init() -> void:
+	# Editor: refresh the computed_value inspector row whenever the pipeline result changes.
+	if Engine.is_editor_hint():
+		value_changed.connect(notify_property_list_changed)
 
 
 func add_modifier(m: StatModifierDef) -> void:
@@ -87,6 +96,48 @@ func get_value() -> Variant:
 			# SET handled via _winning_set cache.
 	var raw: float = (base_value + base_add) * (1.0 + increase_sum / 100.0) * mult + bonus_add
 	return _coerce(raw)
+
+
+## Inspector niceties -------------------------------------------------------
+##
+## Synthetic read-only `computed_value` row shows the post-pipeline result
+## live, so modifier math is verifiable without entering play mode.
+## Subclasses override `_computed_display()` to enrich the readout
+## (e.g. PoolStat shows "current / max").
+
+const _COMPUTED_KEY := &"computed_value"
+
+
+func _get_property_list() -> Array[Dictionary]:
+	return [{
+		"name": _COMPUTED_KEY,
+		"type": TYPE_STRING,
+		"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY,
+	}]
+
+
+func _get(property: StringName) -> Variant:
+	if property == _COMPUTED_KEY:
+		return _computed_display()
+	return null
+
+
+func _computed_display() -> String:
+	return str(get_value())
+
+
+func _sync_resource_name() -> void:
+	if definition != null and definition.id != &"":
+		resource_name = String(definition.id)
+
+
+func _to_string() -> String:
+	var id_str := String(definition.id) if definition != null else "?"
+	var label := "Stat"
+	var s := get_script() as Script
+	if s != null and s.get_global_name() != &"":
+		label = String(s.get_global_name())
+	return "<%s:%s=%s>" % [label, id_str, str(get_value())]
 
 
 func _coerce(v: float) -> Variant:

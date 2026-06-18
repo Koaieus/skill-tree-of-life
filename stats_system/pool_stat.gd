@@ -19,6 +19,16 @@ signal current_changed(new_current: Variant)
 @export var current: float = 0.0
 
 
+func _init() -> void:
+	super()
+	if Engine.is_editor_hint():
+		current_changed.connect(func(_v): notify_property_list_changed())
+
+
+func _computed_display() -> String:
+	return "%s / %s" % [str(_coerce(current)), str(get_value())]
+
+
 func set_current(v: float) -> void:
 	var cap: float = float(get_value())
 	var floor_v: float = float(_min_value())
