@@ -53,42 +53,42 @@ attack/melee/
 ├── blade_edge.gd / .tscn         Node2D — line draw between two BladeNodes
 ├── skill_blade.gd / .tscn        Node2D — owns visuals; build_from_skill_nodes(), simulate(), play()
 └── melee_preview.gd              Mounted in the level; watches BattleSystem.
-                                  When the MELEE plan is valid, spawns a ghost
-                                  SkillBlade overlaid on the selection and loops
-                                  the same sim resolve() runs.
+								  When the MELEE plan is valid, spawns a ghost
+								  SkillBlade overlaid on the selection and loops
+								  the same sim resolve() runs.
 
 attack/plan/melee_attack_plan.gd  resolve() → builds BladeState → BladeSim.simulate
-                                            → BladeHitScan → AttackOutcome
+											→ BladeHitScan → AttackOutcome
 ```
 
 ## Data flow
 
 ```
-                 ┌─ MeleeAttackPlan (UI selection)
-                 │   pivot SkillNode + member SkillNodes + induced edges
-                 ▼
-            BladeState  ◄── pure descriptor (positions, inv_masses, edges, constraints)
-                 │
-                 ├──► BladeSim.simulate(state, drivers, duration)
-                 │         │
-                 │         ▼
-                 │     BladeTrajectory (samples[step] = PackedVector2Array)
-                 │         │
-                 │         ├──► BladeHitScan.scan(trajectory, state, targets)
-                 │         │         │
-                 │         │         ▼
-                 │         │     [HitEvent { t, particle/edge, target }]
-                 │         │         │
-                 │         │         ▼ (resolve only)
-                 │         │     AttackOutcome
-                 │         │
-                 │         └──► SkillBlade.play(trajectory)  ◄── ghost or live
-                 │                   │
-                 │                   ▼
-                 │             BladeNode visuals tween-driven over real time
-                 │             hit signal emitted at each HitEvent.t (live only)
-                 ▼
-            (visuals)
+				 ┌─ MeleeAttackPlan (UI selection)
+				 │   pivot SkillNode + member SkillNodes + induced edges
+				 ▼
+			BladeState  ◄── pure descriptor (positions, inv_masses, edges, constraints)
+				 │
+				 ├──► BladeSim.simulate(state, drivers, duration)
+				 │         │
+				 │         ▼
+				 │     BladeTrajectory (samples[step] = PackedVector2Array)
+				 │         │
+				 │         ├──► BladeHitScan.scan(trajectory, state, targets)
+				 │         │         │
+				 │         │         ▼
+				 │         │     [HitEvent { t, particle/edge, target }]
+				 │         │         │
+				 │         │         ▼ (resolve only)
+				 │         │     AttackOutcome
+				 │         │
+				 │         └──► SkillBlade.play(trajectory)  ◄── ghost or live
+				 │                   │
+				 │                   ▼
+				 │             BladeNode visuals tween-driven over real time
+				 │             hit signal emitted at each HitEvent.t (live only)
+				 ▼
+			(visuals)
 ```
 
 ## Module contracts
@@ -117,7 +117,7 @@ simulating.
 
 ```gdscript
 @abstract func project(positions: PackedVector2Array,
-                       inv_masses: PackedFloat32Array) -> void
+					   inv_masses: PackedFloat32Array) -> void
 ```
 
 Mutates `positions` in place to satisfy the constraint. Called N times
@@ -225,7 +225,7 @@ deterministic scan, not Godot collision overlap.
 
 ```
 selection → BladeState → drivers → BladeSim.simulate → BladeHitScan
-        → AttackOutcome { hits: DamageInstance[], ap_cost }
+		→ AttackOutcome { hits: DamageInstance[], ap_cost }
 ```
 
 Synchronous. Pure. Same call shape as `RangedAttackPlan.resolve` and

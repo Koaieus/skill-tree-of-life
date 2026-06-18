@@ -1,0 +1,156 @@
+[gd_resource type="Resource" script_class="GraphProcgenConfig" format=3 uid="uid://drdxdv4lm7sgr"]
+
+[ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="1_cfg"]
+[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/circular_shape_mask.gd" id="2_shape"]
+[ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/node_type_def.gd" id="3_type"]
+[ext_resource type="Script" uid="uid://dhvo8sk56h48c" path="res://procgen/modifier_pool.gd" id="4_pool"]
+[ext_resource type="Script" uid="uid://cd378og7212uy" path="res://procgen/modifier_pool_entry.gd" id="5_entry"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="6_mod"]
+[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/starting_point.gd" id="7_sp"]
+[ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/radial_gradient_field.gd" id="8_field"]
+
+[sub_resource type="Resource" id="budget_field"]
+script = ExtResource("8_field")
+outer_radius = 800.0
+
+[sub_resource type="Resource" id="mod_str_1"]
+script = ExtResource("6_mod")
+stat_id = &"strength"
+value = 1.0
+
+[sub_resource type="Resource" id="entry_str_1"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_str_1")
+weight = 3.0
+
+[sub_resource type="Resource" id="mod_str_2"]
+script = ExtResource("6_mod")
+stat_id = &"strength"
+value = 2.0
+
+[sub_resource type="Resource" id="entry_str_2"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_str_2")
+cost = 2
+
+[sub_resource type="Resource" id="mod_hp_5"]
+script = ExtResource("6_mod")
+stat_id = &"health"
+value = 5.0
+
+[sub_resource type="Resource" id="entry_hp_5"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_hp_5")
+cost = 2
+weight = 1.5
+
+[sub_resource type="Resource" id="pool_red"]
+script = ExtResource("4_pool")
+entries = Array[ExtResource("5_entry")]([SubResource("entry_str_1"), SubResource("entry_str_2"), SubResource("entry_hp_5")])
+max_picks = 3
+
+[sub_resource type="Resource" id="type_red"]
+script = ExtResource("3_type")
+id = &"red"
+color = Color(0.95, 0.35, 0.35, 1)
+modifier_pool = SubResource("pool_red")
+
+[sub_resource type="Resource" id="mod_int_1"]
+script = ExtResource("6_mod")
+stat_id = &"intelligence"
+value = 1.0
+
+[sub_resource type="Resource" id="entry_int_1"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_int_1")
+weight = 3.0
+
+[sub_resource type="Resource" id="mod_int_2"]
+script = ExtResource("6_mod")
+stat_id = &"intelligence"
+value = 2.0
+
+[sub_resource type="Resource" id="entry_int_2"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_int_2")
+cost = 2
+
+[sub_resource type="Resource" id="mod_mana_2"]
+script = ExtResource("6_mod")
+stat_id = &"mana"
+value = 2.0
+
+[sub_resource type="Resource" id="entry_mana"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_mana_2")
+cost = 2
+weight = 1.5
+
+[sub_resource type="Resource" id="pool_blue"]
+script = ExtResource("4_pool")
+entries = Array[ExtResource("5_entry")]([SubResource("entry_int_1"), SubResource("entry_int_2"), SubResource("entry_mana")])
+max_picks = 3
+
+[sub_resource type="Resource" id="type_blue"]
+script = ExtResource("3_type")
+id = &"blue"
+color = Color(0.4, 0.55, 0.95, 1)
+modifier_pool = SubResource("pool_blue")
+
+[sub_resource type="Resource" id="mod_dex_1"]
+script = ExtResource("6_mod")
+stat_id = &"dexterity"
+value = 1.0
+
+[sub_resource type="Resource" id="entry_dex_1"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_dex_1")
+weight = 3.0
+
+[sub_resource type="Resource" id="mod_dex_2"]
+script = ExtResource("6_mod")
+stat_id = &"dexterity"
+value = 2.0
+
+[sub_resource type="Resource" id="entry_dex_2"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_dex_2")
+cost = 2
+
+[sub_resource type="Resource" id="mod_per_1"]
+script = ExtResource("6_mod")
+stat_id = &"perception"
+value = 1.0
+
+[sub_resource type="Resource" id="entry_per_1"]
+script = ExtResource("5_entry")
+modifier = SubResource("mod_per_1")
+weight = 2.0
+
+[sub_resource type="Resource" id="pool_green"]
+script = ExtResource("4_pool")
+entries = Array[ExtResource("5_entry")]([SubResource("entry_dex_1"), SubResource("entry_dex_2"), SubResource("entry_per_1")])
+max_picks = 3
+
+[sub_resource type="Resource" id="type_green"]
+script = ExtResource("3_type")
+id = &"green"
+color = Color(0.45, 0.8, 0.45, 1)
+modifier_pool = SubResource("pool_green")
+
+[sub_resource type="Resource" id="shape_circle"]
+script = ExtResource("2_shape")
+radius = 1000.0
+
+[sub_resource type="Resource" id="starting_core"]
+script = ExtResource("7_sp")
+id = &"core"
+
+[resource]
+script = ExtResource("1_cfg")
+node_padding = 64.0
+connectivity = 0.2
+shape_mask = SubResource("shape_circle")
+starting_points = Array[ExtResource("7_sp")]([SubResource("starting_core")])
+node_types = Array[ExtResource("3_type")]([SubResource("type_red"), SubResource("type_blue"), SubResource("type_green")])
+budget_field = SubResource("budget_field")
