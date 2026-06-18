@@ -42,9 +42,11 @@ var navigator: EntityNavigator
 
 
 func _ready() -> void:
+	# Group membership is editor-safe and lets @tool consumers (e.g.
+	# VisionSystem) enumerate entities live in the inspector.
+	add_to_group("entities")
 	if Engine.is_editor_hint():
 		return
-	add_to_group("entities")
 	var g := _find_graph()
 	if g == null:
 		push_warning("Entity '%s' has no Graph ancestor; navigator disabled" % display_name)

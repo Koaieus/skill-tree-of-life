@@ -30,39 +30,46 @@
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 
 [sub_resource type="Resource" id="pool_ap"]
+resource_name = "action_points"
 script = ExtResource("3_pool")
 current = 2.0
 definition = ExtResource("def_ap")
 base_value = 2.0
 
 [sub_resource type="Resource" id="scalar_blade_size"]
+resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
 base_value = 3.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
+resource_name = "deallocation_points"
 script = ExtResource("3_pool")
 current = 3.0
 definition = ExtResource("def_dealloc")
 base_value = 3.0
 
 [sub_resource type="Resource" id="scalar_dexterity"]
+resource_name = "dexterity"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_dexterity")
 base_value = 10.0
 
 [sub_resource type="Resource" id="pool_health"]
+resource_name = "health"
 script = ExtResource("3_pool")
 current = 10.0
 definition = ExtResource("def_health")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_initiative_speed"]
+resource_name = "initiative_speed"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_initiative_speed")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_intelligence"]
+resource_name = "intelligence"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_intelligence")
 base_value = 10.0
@@ -108,16 +115,15 @@ script = ExtResource("script_derived")
 formula = SubResource("formula_wis_to_xp_pt")
 stat_id = &"xp_per_turn"
 
-[sub_resource type="Resource" id="Resource_vupus"]
+[sub_resource type="Resource" id="formula_dex_to_sensor"]
 script = ExtResource("script_expr")
-formula = "floor(dexterity / 10.)"
-metadata/_custom_type_script = "uid://dn253es0cni7j"
+formula = "floor(float(dexterity) / 10.0)"
+inputs = Array[StringName]([&"dexterity"])
 
-[sub_resource type="Resource" id="Resource_3edt8"]
+[sub_resource type="Resource" id="mod_dex_to_sensor"]
 script = ExtResource("script_derived")
-formula = SubResource("Resource_vupus")
+formula = SubResource("formula_dex_to_sensor")
 stat_id = &"sensor_range"
-metadata/_custom_type_script = "uid://ix51i0mr6n8v"
 
 [sub_resource type="Resource" id="formula_str_to_blade_size"]
 script = ExtResource("script_expr")
@@ -130,68 +136,81 @@ formula = SubResource("formula_str_to_blade_size")
 stat_id = &"blade_size"
 
 [sub_resource type="Resource" id="pool_mana"]
+resource_name = "mana"
 script = ExtResource("3_pool")
 current = 10.0
 definition = ExtResource("def_mana")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_mana_per_turn"]
+resource_name = "mana_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_mana_per_turn")
 
 [sub_resource type="Resource" id="pool_movement_points"]
+resource_name = "movement_points"
 script = ExtResource("3_pool")
 current = 1.0
 definition = ExtResource("def_movement_points")
 base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_node_health"]
+resource_name = "node_health"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_node_health")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_perception"]
+resource_name = "perception"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_perception")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
+resource_name = "sensor_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_sensor_range")
 base_value = 2.0
 
 [sub_resource type="Resource" id="sp_skill_points"]
+resource_name = "skill_points"
 script = ExtResource("4_sp")
 current = 3.0
 definition = ExtResource("def_skill_points")
 base_value = 3.0
 
 [sub_resource type="Resource" id="scalar_strength"]
+resource_name = "strength"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_strength")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_vision_range"]
+resource_name = "vision_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_vision_range")
-base_value = 400.0
+base_value = 300.0
 
 [sub_resource type="Resource" id="scalar_wisdom"]
+resource_name = "wisdom"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wisdom")
 base_value = 10.0
 
 [sub_resource type="Resource" id="scalar_wound_heal_per_turn"]
+resource_name = "wound_heal_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wound_heal_per_turn")
 base_value = 1.0
 
 [sub_resource type="Resource" id="pool_xp"]
+resource_name = "xp"
 script = ExtResource("3_pool")
 definition = ExtResource("def_xp")
 base_value = 5.0
 
 [sub_resource type="Resource" id="scalar_xp_per_turn"]
+resource_name = "xp_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
 
@@ -218,4 +237,4 @@ sensor_range = SubResource("scalar_sensor_range")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
 blade_size = SubResource("scalar_blade_size")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("Resource_3edt8"), SubResource("mod_str_to_blade_size")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size")])

@@ -5,13 +5,18 @@ extends Node2D
 ## future AI / save / debug consumers) compose against. Public fields are the
 ## level's contract — read-only by convention; GameRoot itself owns mutations.
 
+# Entities
 @onready var player: Entity = %Player
 @onready var graph: Graph = $Graph
-@onready var input_ctl: PlayerInputController = $Graph/PlayerInputController
-@onready var allocation_system: AllocationSystem = $Graph/AllocationSystem
-@onready var battle_system: BattleSystem = $Graph/BattleSystem
-@onready var turn_manager: TurnManager = $Graph/TurnManager
-@onready var ui_root: UIRoot = $UI/UIRoot
+
+# Systems
+@onready var input_ctl: PlayerInputController = %PlayerInputController
+@onready var allocation_system: AllocationSystem = %AllocationSystem
+@onready var battle_system: BattleSystem = %BattleSystem
+@onready var turn_manager: TurnManager = %TurnManager
+
+# UI
+@onready var ui_root: UIRoot = %UIRoot
 
 var attack_highlight: AttackHighlightOverlay
 var attack_vfx: AttackVFX
