@@ -10,7 +10,7 @@ extends Node2D
 ## [b]Intensity slider[/b] is the debug knob: 0 = invisible, 1 = full black.
 ## Falloff softens the circle edge.
 
-const _MAX_CIRCLES := 64
+const _MAX_CIRCLES := 256
 
 @export var vision_system: VisionSystem:
 	set(value):
@@ -47,6 +47,12 @@ func _draw() -> void:
 
 
 func _refresh() -> void:
+	# Hide entirely when the system says no fog is meaningful (e.g. inert
+	# OFF mode). Avoids the shader's "zero circles → fully dark" default
+	# kicking in and saves the fullscreen fragment pass.
+	visible = vision_system == null or vision_system.should_render_fog()
+	if not visible:
+		return
 	queue_redraw()
 	if material == null or not material is ShaderMaterial:
 		return
@@ -54,14 +60,14 @@ func _refresh() -> void:
 	var sources: Array = vision_system.get_vision_sources() if vision_system != null else []
 	var packed: Array = []
 	for s in sources:
-		packed.append(Vector3(s.pos.x, s.pos.y, s.radius))
+		packed.append(Vector4(s.pos.x, s.pos.y, s.radius, s.get("motion", 0.0)))
 		if packed.size() >= _MAX_CIRCLES:
 			break
 	# Pad to MAX so the uniform array always has a defined length — Godot's
 	# canvas_item shader needs the array fully populated even when unused
 	# slots are skipped via the count guard.
 	while packed.size() < _MAX_CIRCLES:
-		packed.append(Vector3.ZERO)
+		packed.append(Vector4.ZERO)
 	mat.set_shader_parameter(&"circles", packed)
 	mat.set_shader_parameter(&"circle_count", min(sources.size(), _MAX_CIRCLES))
 
@@ -72,10 +78,18 @@ func _apply_shader_intensity() -> void:
 
 
 func _connect_vision() -> void:
-	if vision_system != null and not vision_system.visibility_changed.is_connected(_refresh):
+	if vision_system == null:
+		return
+	if not vision_system.visibility_changed.is_connected(_refresh):
 		vision_system.visibility_changed.connect(_refresh)
+	if not vision_system.vision_render_tick.is_connected(_refresh):
+		vision_system.vision_render_tick.connect(_refresh)
 
 
 func _disconnect_vision() -> void:
-	if vision_system != null and vision_system.visibility_changed.is_connected(_refresh):
+	if vision_system == null:
+		return
+	if vision_system.visibility_changed.is_connected(_refresh):
 		vision_system.visibility_changed.disconnect(_refresh)
+	if vision_system.vision_render_tick.is_connected(_refresh):
+		vision_system.vision_render_tick.disconnect(_refresh)

@@ -35,7 +35,13 @@ enum EmptyMode {
 	ALL_ENTITIES,   ## Use every Entity in group("entities") as a viewer.
 }
 
+## Logical visibility change — fires on _recompute (allocation, stat
+## change, empty-mode toggle). Drives input_pickable + render-mode hide.
 signal visibility_changed
+
+## Per-frame render tick — fires while any circle is animating toward its
+## target radius. FogOverlay re-uploads uniforms on each tick.
+signal vision_render_tick
 
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
@@ -51,6 +57,14 @@ signal visibility_changed
 		if is_inside_tree():
 			_rebind_viewers()
 			_recompute()
+## Lerp rate for circle radius animation. Higher = snappier. ~8 gives a
+## ~90ms 90%-complete fade; 0 disables animation (instant snap).
+@export_range(0.0, 30.0, 0.1) var ease_rate: float = 8.0
+
+# Sub-pixel cleanup threshold. Retreating circles snap to 0 once they get
+# within this radius. Not exposed because the snap-to-target at < 0.5
+# already makes this effectively invisible to gameplay tuning.
+const _RETIRE_RADIUS := 1.0
 
 # Per-viewer Stat connections (entity-side vision/sensor) and per-node
 # LocalStat connections (node-side vision overrides via addons). Rebuilt
@@ -58,9 +72,12 @@ signal visibility_changed
 var _bound_entity_stats: Array[Stat] = []
 var _bound_local_stats: Array[LocalStat] = []
 
-var _visible: Dictionary = {}        # SkillNode → true
-var _sensed: Dictionary = {}         # SkillNode → true
-var _vision_sources: Array = []      # [{pos: Vector2, radius: float}, ...]
+var _visible: Dictionary = {}   # SkillNode → true (logical)
+var _sensed: Dictionary = {}    # SkillNode → true (logical)
+# Per-source animation state. SkillNode → { radius: float, target: float }.
+# `radius` is the rendered radius (lerped); `target` is the logical
+# vision_range. Entries with target=0 retreat to 0 then get dropped.
+var _circles: Dictionary = {}
 
 
 func _ready() -> void:
@@ -86,9 +103,35 @@ func is_sensed(node: SkillNode) -> bool:
 	return _sensed.has(node)
 
 
-## For renderers. Each entry: { pos: Vector2 (world), radius: float }.
+## For renderers. Each entry: { pos: Vector2 (world), radius: float,
+## motion: float (0..1) }. `radius` is the rendered (animated) radius,
+## not the logical target — stale entries from deallocated sources stay
+## until their fade completes. `motion` is non-zero while the circle is
+## still moving toward target, used by the shader for frontier glow.
 func get_vision_sources() -> Array:
-	return _vision_sources
+	var out: Array = []
+	for k in _circles:
+		if not is_instance_valid(k):
+			continue
+		var e: Dictionary = _circles[k]
+		if e.radius <= 0.0:
+			continue
+		out.append({
+			"pos": (k as SkillNode).global_position,
+			"radius": e.radius,
+			"motion": e.get("motion", 0.0),
+		})
+	return out
+
+
+## Whether the FogOverlay should be drawn at all. False when the system
+## is in its inert "all visible" state — saves a fullscreen fragment pass
+## and avoids the shader's "zero circles → fully dark" default kicking in
+## as a confusing artifact.
+func should_render_fog() -> bool:
+	if not viewers.is_empty():
+		return true
+	return empty_mode != EmptyMode.OFF
 
 
 ## Entities currently treated as viewers given the explicit list and the
@@ -151,10 +194,16 @@ func _recompute() -> void:
 		return
 	_visible.clear()
 	_sensed.clear()
-	_vision_sources.clear()
 
 	var nodes := graph.get_skill_nodes()
 	var effective := _effective_viewers()
+
+	# Mark all existing circles as retreating; the active loop below
+	# overwrites targets for sources that are still owned. Sources that
+	# silently dropped (deallocation, viewer removed) stay in _circles
+	# with target=0 so they animate out instead of popping.
+	for k in _circles:
+		_circles[k].target = 0.0
 
 	if effective.is_empty():
 		match empty_mode:
@@ -172,21 +221,27 @@ func _recompute() -> void:
 					owned_per_viewer[owner] = []
 				owned_per_viewer[owner].append(n)
 
-		# Visible: Euclidean radius from each owned node, radius read locally
-		# so per-node mods (Spyglass etc) compose into the source-of-truth.
+		# Logical visibility uses TARGET radii, not animated. Targeting and
+		# input gating snap on allocation; only the render fades.
 		var all_owned: Array = []
+		var targets: Array = []  # parallel to all_owned; the target radius for each
 		for viewer in effective:
 			for own_node in owned_per_viewer.get(viewer, []):
 				all_owned.append(own_node)
 				var ls := (own_node as SkillNode).get_local_stat(&"vision_range")
 				var r: float = float(ls.value) if ls != null else 0.0
-				_vision_sources.append({"pos": (own_node as SkillNode).global_position, "radius": r})
+				targets.append(r)
+				if not _circles.has(own_node):
+					_circles[own_node] = {"radius": 0.0, "target": r}
+				else:
+					_circles[own_node].target = r
 
 		for n in nodes:
-			for src in _vision_sources:
-				var dx: float = n.global_position.x - src.pos.x
-				var dy: float = n.global_position.y - src.pos.y
-				var r: float = src.radius
+			for i in all_owned.size():
+				var src: SkillNode = all_owned[i]
+				var r: float = targets[i]
+				var dx: float = n.global_position.x - src.global_position.x
+				var dy: float = n.global_position.y - src.global_position.y
 				if dx * dx + dy * dy <= r * r:
 					_visible[n] = true
 					break
@@ -224,4 +279,54 @@ func _recompute() -> void:
 	for n in nodes:
 		n.input_pickable = _visible.has(n)
 
+	# Set process state so the animation loop only runs when something
+	# is actually moving. Cheap to toggle, saves a per-frame walk while idle.
+	set_process(_has_pending_motion())
+
 	visibility_changed.emit()
+
+
+func _process(delta: float) -> void:
+	if _circles.is_empty():
+		set_process(false)
+		return
+	# Frame-rate-independent ease-out. ease_rate=0 → t=0 → no motion;
+	# we still drop dead entries that already hit 0 in earlier frames.
+	var t: float = 1.0 - exp(-ease_rate * delta) if ease_rate > 0.0 else 1.0
+	var to_drop: Array = []
+	var any_motion := false
+	for k in _circles:
+		var e: Dictionary = _circles[k]
+		var r: float = e.radius
+		var tgt: float = e.target
+		if not is_equal_approx(r, tgt):
+			r = lerp(r, tgt, t)
+			# Snap to target when close enough so retreating circles
+			# actually reach 0 (and exit) instead of asymptoting.
+			if abs(r - tgt) < 0.5:
+				r = tgt
+			e.radius = r
+			any_motion = true
+		# Motion strength: how far this circle still is from its target,
+		# normalized against a reference scale. Drives the frontier glow
+		# in the shader. Decays naturally as r → tgt.
+		var ref: float = max(tgt, _RETIRE_RADIUS * 2.0)
+		e.motion = clamp(abs(r - tgt) / ref, 0.0, 1.0)
+		if tgt == 0.0 and r <= _RETIRE_RADIUS:
+			to_drop.append(k)
+		if not is_instance_valid(k):
+			to_drop.append(k)
+	for k in to_drop:
+		_circles.erase(k)
+	if any_motion or not to_drop.is_empty():
+		vision_render_tick.emit()
+	if not _has_pending_motion():
+		set_process(false)
+
+
+func _has_pending_motion() -> bool:
+	for k in _circles:
+		var e: Dictionary = _circles[k]
+		if not is_equal_approx(e.radius, e.target):
+			return true
+	return false
