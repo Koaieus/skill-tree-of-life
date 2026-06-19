@@ -1,23 +1,25 @@
-extends GameRoot
+extends Node2D
 
 ## Drop-in tester: picks a preset, runs [GraphProcgen] into the child [Graph],
 ## then frames the result with the camera. No entities, no turn loop — this
-## is just to see the generator output.
+## is just to see the generator output. Use procgen_play_sandbox.tscn for the
+## full level setup (player, enemies, systems wired up).
 
 @export var preset: GraphProcgenConfig
 
+@onready var graph: Graph = $Graph
+@onready var camera: Camera2D = %GraphCamera
 
 
 func _ready() -> void:
 	if preset == null or graph == null:
 		push_warning("ProcgenSandbox: assign `preset` and `graph` in the inspector")
 		return
-	# Skips super._ready() — this sandbox is generator-only (no systems/UI/player).
-	camera = _resolve_camera()
 	var result := GraphProcgen.generate(preset, graph)
 	var node_count: int = (result.get("nodes") as Array).size()
 	print("[procgen] generated %d nodes" % node_count)
 	_frame_camera()
+
 
 func _frame_camera() -> void:
 	if camera == null or preset == null or preset.shape_mask == null:

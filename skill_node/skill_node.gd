@@ -118,6 +118,7 @@ func _sync_visuals() -> void:
 	_base_circle._radius = radius
 	_base_circle.border_color = base_type_color
 	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
+	_base_circle.allocated = is_allocated()
 	_base_circle.queue_redraw()
 	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)

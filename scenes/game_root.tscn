@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://b0game0root0base"]
+[gd_scene format=3 uid="uid://c13p7m8d4clqu"]
 
 [ext_resource type="Script" path="res://scenes/game_root.gd" id="1_root"]
 [ext_resource type="Script" uid="uid://l5c7l8ty7fm1" path="res://graph/graph.gd" id="2_graph"]

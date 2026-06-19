@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://b0proc0play0sand"]
+[gd_scene format=3 uid="uid://bgrmlsmdot2xl"]
 
 [ext_resource type="PackedScene" uid="uid://b0game0root0base" path="res://scenes/game_root.tscn" id="1_base"]
 [ext_resource type="Script" path="res://scenes/procgen_play_sandbox.gd" id="2_script"]
