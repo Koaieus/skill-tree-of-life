@@ -12,9 +12,9 @@ extends Node
 ## the phase IS that flag).
 
 enum Phase {
-	DEPLOYMENT,    # Allocate / deallocate, reposition the constellation
-	BATTLE,        # Attack & defend; action_points consumed here
-	CONSOLIDATION, # Cleanup, promotions, lock-ins, end-of-turn ticks
+	CONTRACT,  # Deallocate only — free SP by ceding territory (deallocation_points)
+	EXPAND,    # Allocate only — spend SP to grow the constellation
+	BATTLE,    # Attack & defend — action_points consumed here
 }
 
 signal ticked
@@ -26,30 +26,30 @@ signal turn_ended(entity: Entity)
 var current_entity: Entity = null
 ## The phase that `current_entity` is currently in. Meaningless if
 ## `current_entity == null`.
-var current_phase: Phase = Phase.DEPLOYMENT
+var current_phase: Phase = Phase.CONTRACT
 
 
-## Hand the turn to `entity`. Phase resets to DEPLOYMENT.
+## Hand the turn to `entity`. Phase resets to CONTRACT.
 func start_turn(entity: Entity) -> void:
 	assert(entity != null, "TurnManager.start_turn(null)")
 	assert(current_entity == null, "Already in a turn: %s" % current_entity)
 	current_entity = entity
-	current_phase = Phase.DEPLOYMENT
+	current_phase = Phase.CONTRACT
 	turn_started.emit(entity)
 	phase_changed.emit(entity, current_phase)
 
 
 ## Advance to the next phase. Returns true on a real transition, false
-## if already at CONSOLIDATION (caller should then `end_turn()`).
+## if already at BATTLE (caller should then `end_turn()`).
 func advance_phase() -> bool:
 	if current_entity == null:
 		return false
 	match current_phase:
-		Phase.DEPLOYMENT:
+		Phase.CONTRACT:
+			current_phase = Phase.EXPAND
+		Phase.EXPAND:
 			current_phase = Phase.BATTLE
 		Phase.BATTLE:
-			current_phase = Phase.CONSOLIDATION
-		Phase.CONSOLIDATION:
 			return false
 	phase_changed.emit(current_entity, current_phase)
 	return true
@@ -99,9 +99,14 @@ func _tick_until_ready(max_ticks: int = 1000) -> void:
 	push_warning("TurnManager: no entity reached 100 initiative in %d ticks" % max_ticks)
 
 
-## Returns true if an allocation/deallocation is currently permitted.
+## Returns true if voluntary allocation is currently permitted.
 func can_allocate() -> bool:
-	return current_entity != null and current_phase == Phase.DEPLOYMENT
+	return current_entity != null and current_phase == Phase.EXPAND
+
+
+## Returns true if voluntary deallocation is currently permitted.
+func can_deallocate() -> bool:
+	return current_entity != null and current_phase == Phase.CONTRACT
 
 
 ## Returns true if a combat action is currently permitted.

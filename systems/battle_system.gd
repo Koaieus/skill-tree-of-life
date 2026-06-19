@@ -29,7 +29,6 @@ var attack_plan: AttackPlan:
 		attack_plan = value
 		if attack_plan != null:
 			attack_plan.state_changed.connect(_on_plan_state_changed)
-		print('Attack plan is now: %s' % value)
 		attack_plan_changed.emit(value)
 		attack_plan_state_changed.emit()
 

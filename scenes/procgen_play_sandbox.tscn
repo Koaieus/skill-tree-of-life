@@ -1,9 +1,15 @@
 [gd_scene format=3 uid="uid://bgrmlsmdot2xl"]
 
-[ext_resource type="PackedScene" uid="uid://b0game0root0base" path="res://scenes/game_root.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scenes/procgen_play_sandbox.gd" id="2_script"]
+[ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://bki8jbn5yvk7u" path="res://scenes/procgen_play_sandbox.gd" id="2_script"]
 [ext_resource type="Resource" uid="uid://drdxdv4lm7sgr" path="res://procgen/presets/circle_default.tres" id="3_preset"]
 
-[node name="ProcgenPlaySandbox" instance=ExtResource("1_base")]
+[node name="ProcgenPlaySandbox" unique_id=1716671599 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 preset = ExtResource("3_preset")
+player_color = Color(0.4, 0.8, 1, 1)
+enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1)])
+node_count_override = 50
+n_random_starters = 1
+viability_radius = 400.0
+expansion_steps = 9

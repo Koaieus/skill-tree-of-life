@@ -10,32 +10,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 godot --editor .                          # open project in editor
-godot --path . scenes/game_root.tscn      # run directly (headless-friendly)
+godot --path . scenes/dev_sandbox.tscn    # hand-authored sandbox (player + small graph)
+godot --path . scenes/procgen_play_sandbox.tscn   # procgen level + player + AI starters
 ```
 
-No build step, test runner, or lint tool. Game boots into `dev_level_tree_graph.tscn` via `autoload/game.gd`.
+No build step, test runner, or lint tool. Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 
 ## Architecture
 
-`Game` (`autoload/game.gd`) — bootstraps the game; wires `tree_graph`, `navigator`, `turn_manager`, `player`.  
-`Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s; pure scene-graph, no GraphEdit dependency.  
-`Entity` (`entity/entity.gd`) — players and NPCs use the same class; owns nodes via `skill_node.allocate_to(self)`. No `TreeEntity`/`Player` split (may spin off `PlayerEntity` later for metaprogression).  
-`Navigator` (`graph/navigator.gd`) — maintains `AStarSkillTree` (custom `AStar2D`) mirroring the live graph.  
-`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100.  
+`GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `UIRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content. Spawn entities via `spawn_entity(name, color, core)`.
+`Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
+`Entity` (`entity/entity.gd`) — players and NPCs use the same class; ownership is set by `AllocationSystem`.
+`Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` (`entity/entity_navigator.gd`) is the per-entity subgraph mirror used for cut-vertex / islanding queries.
+`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; phases `CONTRACT → EXPAND → BATTLE`; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
+`AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
+`BattleSystem` (`systems/battle_system.gd`) — owns active `AttackPlan`, runs `launch_attack` (resolve → VFX await → AP deduction), drives forced-dealloc cascade. See `docs/domain/attack_plan_system.md`.
+`VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
+`GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md`.
+
+Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call `spawn_entity(name, color, core)` — it duplicates the default stat board, parents under `graph.entities_container`, and force-allocates the core. See `scenes/procgen_play_sandbox.gd`.
 
 ## Autoloads (registered in `project.godot`)
 
 | Singleton | Purpose |
 |---|---|
-| `Game` | Global game state, turn wiring, level loading |
 | `SceneTransition` | Fade in/out + loading progress bar |
 | `SceneLoader` | Async scene loading |
-| `StatUIConfig` | Maps stat keys to UI display config |
-| `StatMetaDataRepository` | Stat name/description lookup (fragile, slated for removal in v2) |
-| `Skills` | Global skill definitions |
-| `XRM` | Global transform utilities |
-| `DeferOnce` | Deferred single-fire utility |
+| `Events` | Global signal bus (`skill_node_depleted`, etc.) |
+| `StatRegistry` | StatDef lookup by id |
 
 ## Design docs
 
@@ -47,9 +50,9 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 ## Godot conventions
 
-- `@tool` on `SkillNode`, `Entity` — they run in the editor.
-- `%NodeName` (unique name) for child node access in scenes.
-- `call_deferred` / `await` for post-ready init (e.g. `Game.game_ready` signal).
+- `@tool` on `SkillNode`, `Entity`, `Graph` — they run in the editor.
+- `%NodeName` (unique name) for child node access in scenes; UIRoot reads systems via `%PlayerInputController`, `%VisionSystem`, etc.
+- `call_deferred` / `await` for post-ready init.
 
 ## Knowledge accumulation
 

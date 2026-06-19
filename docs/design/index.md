@@ -13,7 +13,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
 | [first_session_walkthrough.md](first_session_walkthrough.md) | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
-| [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, three-phase turn, islands, Breakout, loot/proliferation |
+| [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, three-phase turn (CONTRACT/EXPAND/BATTLE), islands, Breakout, loot/proliferation |
 | [combat_worked_examples.md](combat_worked_examples.md) | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff doc) |
 | [core_classes.md](core_classes.md) | All entity core classes: Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester |
 | [stat_system.md](stat_system.md) | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
@@ -26,6 +26,19 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 ## Reading order
 
 New to the project? `lore.md` for world and story context → `combat_system.md` for mechanics → others as needed. Want to feel what a new player feels? `first_session_walkthrough.md` is spoiler-free and ends at the first dismemberment snipe.
+
+## Engineering docs (`docs/domain/`)
+
+Implementation companions to the design docs — read when modifying systems, not when designing them.
+
+| File | What it covers |
+|---|---|
+| [../domain/allocation_system.md](../domain/allocation_system.md) | The 3 side-effects, gated vs forced paths, when to use `force_allocate` |
+| [../domain/attack_plan_system.md](../domain/attack_plan_system.md) | Attack planner architecture, ranged/melee/magic, VFX, cascade |
+| [../domain/melee-blade-sim.md](../domain/melee-blade-sim.md) | Phantom blade PBD physics, deterministic resolve, ghost preview |
+| [../domain/node-hp.md](../domain/node-hp.md) | Why per-node HP is a plain field, not a stat; promotion path |
+| [../domain/procgen.md](../domain/procgen.md) | Generation pipeline, config knobs, starter group convention |
+| [../domain/vision-system.md](../domain/vision-system.md) | Fog of war, Euclidean/sensor visibility, shader, animation |
 
 ## Open questions
 

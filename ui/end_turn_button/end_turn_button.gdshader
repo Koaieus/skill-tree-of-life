@@ -2,7 +2,7 @@ shader_type canvas_item;
 
 // Slow swirling vortex — time-passes mood for the End Turn button.
 // Polar-domain spiral arms warped by fbm noise, color-ramped per turn phase.
-// phase_blend: 0=DEPLOYMENT (blue, calm), 1=BATTLE (orange, fast), 2=CONSOLIDATION (teal, slow).
+// phase_blend: 0=CONTRACT (blue, calm), 1=EXPAND (green, growing), 2=BATTLE (orange, fast).
 // Same uniform contract as the fire shader for the `_push()` symmetry.
 
 uniform vec2 mouse_uv;
@@ -61,19 +61,19 @@ void fragment() {
     if (shape < 0.001) discard;
 
     // Phase-derived tint and swirl speed.
-    // DEPLOYMENT=0: cool blue, relaxed cadence.
-    // BATTLE=1:     orange-red, quick spiral.
-    // CONSOLIDATION=2: teal-green, very slow drift.
+    // CONTRACT=0: cool blue, relaxed cadence.
+    // EXPAND=1:   teal-green, growing drift.
+    // BATTLE=2:   orange-red, quick spiral.
     float p01 = clamp(phase_blend, 0.0, 1.0);
     float p12 = clamp(phase_blend - 1.0, 0.0, 1.0);
-    vec3 tint_d = vec3(0.28, 0.48, 0.92);
-    vec3 tint_b = vec3(0.88, 0.32, 0.10);
-    vec3 tint_c = vec3(0.18, 0.72, 0.52);
-    vec3 phase_tint = mix(mix(tint_d, tint_b, p01), tint_c, p12);
-    vec3 phase_hot  = mix(mix(vec3(0.85, 0.95, 1.0), vec3(1.0, 0.72, 0.35), p01),
-                          vec3(0.60, 1.0, 0.78), p12);
-    // Deploy=0.7, Battle=1.6, Consolidation=0.45
-    float swirl_speed = mix(mix(0.7, 1.6, p01), 0.45, p12);
+    vec3 tint_contract = vec3(0.28, 0.48, 0.92);
+    vec3 tint_expand   = vec3(0.18, 0.72, 0.52);
+    vec3 tint_battle   = vec3(0.88, 0.32, 0.10);
+    vec3 phase_tint = mix(mix(tint_contract, tint_expand, p01), tint_battle, p12);
+    vec3 phase_hot  = mix(mix(vec3(0.85, 0.95, 1.0), vec3(0.60, 1.0, 0.78), p01),
+                          vec3(1.0, 0.72, 0.35), p12);
+    // Contract=0.55, Expand=0.85, Battle=1.6
+    float swirl_speed = mix(mix(0.55, 0.85, p01), 1.6, p12);
 
     // Polar domain. Spiral arms: angle modulated by radius gives the
     // logarithmic-spiral look; TIME * swirl_speed drives the rotation.

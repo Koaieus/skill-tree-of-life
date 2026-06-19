@@ -65,14 +65,24 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 	var board := entity.stat_board
 	if board != null and board.skill_points != null:
 		board.skill_points.spend(1)
+	force_allocate(entity, node)
+	return true
+
+
+## Gating-free primitive: set ownership, mirror to navigator, push node
+## modifiers onto entity's stat board. allocate() composes this with SP
+## gating + adjacency rules; procgen / scripted setup uses it directly.
+func force_allocate(entity: Entity, node: SkillNode) -> void:
+	if entity == null or node == null:
+		return
 	node.owned_by = entity
 	if entity.navigator != null:
 		entity.navigator.mirror_add(node)
+	var board := entity.stat_board
 	if board != null:
 		for m in node.modifiers:
 			board.add_modifier(m)
 	allocated.emit(node, entity)
-	return true
 
 
 func deallocate(node: SkillNode, entity: Entity) -> bool:

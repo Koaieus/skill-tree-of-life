@@ -43,15 +43,15 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 
 ### The three-phase turn (SP model)
 
-**One SP pool.** Whether an allocation persists is decided by *which phase* you made it in — not by a second "temp SP" currency (rejected: it created spend-order ambiguity, a real/temp toggle, and per-node bookkeeping). Spawning new ghost vertices was also rejected (clutter). The phase *is* the temp/permanent flag.
+**One SP pool.** The turn splits by *action type*, not by temp/permanent flag — the old "battle-phase allocations are temporary, then promote/drop in consolidation" model was parked once the live code settled on a simpler split.
 
-1. **Deployment** — spend SP and `deallocation_points` to **permanently** allocate/deallocate. No need to spend it all.
-2. **Battle** — act (one attack). **Tap buffer nodes** to *temporarily* allocate existing field nodes for reach (melee pivot forward / ranged firing stubs / magic hub-degree padding). These live **only this phase**; buffer cooldown after a tap. Reach budget scales with `pressure_capacity`.
-3. **Consolidation** — spend more SP/DP to finalize shape. Per battle-phase temp node: **promote** (pay 1 real SP → permanent) or let it **drop**. Then end turn.
+1. **CONTRACT** — deallocation only. Spend `deallocation_points` to free SP and reshape; refunds SP, gated by the no-island cut-vertex rule. Allocation is locked off.
+2. **EXPAND** — allocation only. Spend SP. Deallocation is locked off — symmetric guard against misclicks the other way.
+3. **BATTLE** — act (up to two actions, see combat_system.md). Allocation and deallocation are both locked.
 
-**No islanding:** permanents commit only in Deployment/Consolidation, and a permanent allocation still requires a permanent neighbor, so nothing solid hangs off a node about to revert. **Mid-turn level-up:** the +1 lands in the one pool, spendable under the current phase's rules. Battle-phase allocations are temporary *by definition*.
+**Wound mechanics:** forced deallocation by attack routes through `force_deallocate()` and `skill_points.wound(n)` — the freed SP land in the `wounded` bucket, not `current`. `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) wounded back to current each turn. Voluntary CONTRACT-phase deallocation uses `refund(1)` instead, which lands back in `current` immediately.
 
-> Naming nit: DP vs DAP for deallocation points (cosmetic). This is also a **TurnManager** flow change, not just stats.
+**Mid-turn level-up:** the +1 lands in the one pool, spendable under the current phase's rules (i.e. only consumed during EXPAND).
 
 ---
 
@@ -95,6 +95,7 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 | `core_charge_capacity` | INT | Scalar | 3 | Cap on extraction charges. +1 per enemy core killed. |
 | `sense_range` | INT | Scalar | 3 | **Hop-based.** Detection radius from any owned node. Silhouette only: position known, no type/HP/modifiers. |
 | `vision_range` | INT | Scalar | ~4³ | **Euclidean ("range").** Full-detail sight radius from any owned node. Reveals node type, HP, visible modifiers. |
+| `range` | INT | Scalar | 300 | **Euclidean firing distance.** Read **per leaf** via `LocalStat`, so node-level modifiers (sniper posts, scopes) can extend a specific firing leaf without bumping the global value. Scales `+1% / DEX` (LinearFormula scale=1, INCREASE op) — at DEX 10 → 330; at DEX 30 → 390. |
 | `proliferation_power` | INT | Scalar | 3 | **Reframed.** The **N** copies minted when you PROLIFERATE (remove a core-held modifier, spread N tainted copies across a cluster you must hold). Rarity-scaled: rarer modifiers yield fewer copies. Not an RNG radius. See `combat_system.md` Proliferation. |
 | `node_health` | INT | Pool — current (per node) | 2 | HP per individual node. At 0, node is severed and island check fires immediately. **Resets to max at the owner's turn start** (focus-soak gate — see `combat_system.md` Node HP). The core node's `node_health` is instead a **recharging shield** over the `health` pool (never severs the core). |
 | `node_health_max` | INT | Pool — max (per node) | 2 | Max HP per node. Seeded from entity totals + addons + CON. |

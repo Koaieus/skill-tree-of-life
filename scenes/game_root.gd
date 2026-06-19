@@ -9,6 +9,13 @@ extends Node2D
 ## system wiring and turn start. Default behaviour expects a hand-authored
 ## scene with `%Player` already present (dev_sandbox style); procgen sandboxes
 ## override the hook to spawn the player after generation.
+##
+## Spawning runtime entities: call [method spawn_entity] — it parents under
+## `graph.entities_container`, duplicates the default stat board, and force-
+## allocates a core if given. The hand-authored dev_sandbox `%Player` skips
+## this path; that's fine, `%Player` lookup ignores parent.
+
+const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 
 # Entities — `player` may be null until _setup_level() resolves it. The default
 # hook tries to find a `%Player` unique-name node; subclasses can replace.
@@ -66,6 +73,26 @@ func _ready() -> void:
 func _setup_level() -> void:
 	if has_node("%Player"):
 		player = get_node("%Player") as Entity
+
+
+## Spawn an [Entity] under `graph.entities_container` with a duplicated copy
+## of the default stat board. If [param core] is given, force-allocates it as
+## the entity's first node and sets `core_location`. Returns the entity.
+##
+## Skips [method AllocationSystem.allocate] gating — this is dev/procgen
+## setup, not a gameplay action. Mid-game spawning should still route through
+## the gated path.
+func spawn_entity(ent_name: String, color: Color, core: SkillNode = null) -> Entity:
+	var ent := Entity.new()
+	ent.name = ent_name
+	ent.display_name = ent_name
+	ent.color = color
+	ent.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
+	graph.entities_container.add_child(ent)
+	if core != null:
+		allocation_system.force_allocate(ent, core)
+		ent.core_location = core
+	return ent
 
 
 func _focus_camera_on_player() -> void:

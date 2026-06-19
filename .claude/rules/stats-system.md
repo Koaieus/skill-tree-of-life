@@ -13,19 +13,13 @@ description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsi
 - **SET** short-circuits everything; highest `priority` wins, last-in breaks ties at equal priority.
 - **INCREASE** sums additively (PoE-style). Five +20% = ×2.0, NOT (1.2)⁵.
 
-## Bin-as-algebra & local stats
+## Local stats (per-node overrides)
 
-The pipeline bins (`ModifierBins`, `stats_system/modifier_bins.gd`) are a first-class type, not private fields on `Stat`. Each op class composes by addition across sources (or list-concat for MULTIPLY) — `ModifierBins.compute(base, sources)` takes N bin sources, sums them, walks all multiplier lists, and runs the pipeline **once**.
+`LocalStat extends Stat` (`stats_system/local_stat.gd`) is a per-node stat that reads `entity_stat.base_value` and merges entity + node bins via `ModifierBins.compute()` — avoids double-applying INCREASE/MULTIPLY that a naive pipeline-chain would. Lazy-created on `SkillNode.get_local_stat(id)`, rebinds on `owner_changed`.
 
-**Why this matters:** chaining pipelines (entity result → local base) double-applies INCREASEs against MULTIPLYs. Bin-merge does not. `Stat.get_value()` delegates to `ModifierBins.compute(base_value, [bins])` (single-source path); multi-source overrides do the same call with more bins.
+**SET tiebreak:** highest priority wins; at equal priority **last source listed wins**. `LocalStat` orders `[entity.bins, self.bins]` so a local SET beats an entity SET at the same priority.
 
-**`LocalStat extends Stat`** (`stats_system/local_stat.gd`) — a per-node Stat that holds an `entity_stat: Stat` reference and overrides `get_value()` to call `ModifierBins.compute(entity_stat.base_value, [entity_stat.bins, bins])`. Subscribes to `entity_stat.value_changed` and re-emits its own so downstream subscribers wake.
-
-**SET tiebreak across sources:** highest priority wins; at equal priority **the LAST source listed wins**. Consumers order sources so the most specific scope is LAST — `LocalStat` passes `[entity.bins, self.bins]` so a local SET at equal priority overrides the entity one.
-
-**No gating on which stat ids can be localized.** Same `Stat` machinery, same definitions, same pipeline. Localizing a stat nothing reads on a per-node basis (e.g. INT) is inert — no harm. Convention guides which are *meaningful*; types don't enforce.
-
-`SkillNode.get_local_stat(id)` lazily materializes a `LocalStat` on first touch and rebinds `entity_stat` on `owner_changed`. `get_max_hp()` collapses through it — one read path, no caller branches on "is there a local override."
+Any stat id can be localized; convention picks the meaningful ones (currently `node_health`, `range`). If the owning entity's board lacks the stat (older hand-authored boards that predate it), `SkillNode.get_local_stat` falls back to `StatRegistry.get_def(id).default_value` so reads return something sensible — but scaling modifiers won't apply until the board catches up.
 
 ## Pool stats
 
@@ -65,13 +59,14 @@ These are `DerivedModifierDef` sub-resources wired as `intrinsic_modifiers` on t
 | `intelligence` | `mana_per_turn` | ADD_BASE | `floor(log10(max(1e-5, INT)))` |
 | `wisdom` | `xp_per_turn` | ADD_BASE | `floor(log10(max(1e-5, WIS)))` |
 | `dexterity` | `sensor_range` | ADD_BASE | `floor(DEX / 10.0)` |
+| `dexterity` | `range` | INCREASE | `DEX × 1.0` (LinearFormula scale=1) — at DEX=30 → +30% |
 | `strength` | `blade_size` | ADD_BASE | `floor(STR / 10.0)` |
 
 ## Gotchas
 
 - **DerivedModifierDef must not be shared across entities.** Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` auto-duplicates them.
 - **Pool modifiers target the pool id, not a `_max` suffix.** `"health"` targets the health cap. `"health_max"` doesn't exist.
-- **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap.
+- **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
 
 ## Visualizer (editor plugin)

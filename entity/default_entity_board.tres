@@ -17,6 +17,7 @@
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
+[ext_resource type="Resource" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="def_strength"]
@@ -135,6 +136,16 @@ script = ExtResource("script_derived")
 formula = SubResource("formula_str_to_blade_size")
 stat_id = &"blade_size"
 
+[sub_resource type="Resource" id="formula_dex_to_range"]
+script = ExtResource("script_linear")
+source_stat_id = &"dexterity"
+
+[sub_resource type="Resource" id="mod_dex_to_range"]
+script = ExtResource("script_derived")
+formula = SubResource("formula_dex_to_range")
+stat_id = &"range"
+operation = 1
+
 [sub_resource type="Resource" id="pool_mana"]
 resource_name = "mana"
 script = ExtResource("3_pool")
@@ -165,6 +176,12 @@ resource_name = "perception"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_perception")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_range"]
+resource_name = "range"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_range")
+base_value = 300.0
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -234,7 +251,8 @@ movement_points = SubResource("pool_movement_points")
 initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
+range = SubResource("scalar_range")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
 blade_size = SubResource("scalar_blade_size")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])

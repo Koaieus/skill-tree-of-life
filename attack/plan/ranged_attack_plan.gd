@@ -3,11 +3,10 @@ extends AttackPlan
 
 ## Single-target ranged attack: the player left-clicks an enemy-occupied
 ## node to mark it as the target. Firing positions are derived (every leaf
-## of the attacker's owned territory) — those within [member FIRING_RANGE]
-## of the target light up as ORIGIN. Right-click the current target to
-## clear it.
-
-const FIRING_RANGE: float = 280.0
+## of the attacker's owned territory). Each leaf reads its own `range` stat
+## (LocalStat, so per-node modifiers can extend reach); leaves whose range
+## reaches the target light up as ORIGIN. Right-click the current target
+## to clear it.
 
 var target: SkillNode = null
 
@@ -38,14 +37,14 @@ func get_firing_positions() -> Array[SkillNode]:
 	return attacker.navigator.get_leaf_nodes()
 
 
-## Subset of [method get_firing_positions] within [const FIRING_RANGE] of
-## the current target. Empty if no target.
+## Subset of [method get_firing_positions] whose per-leaf [code]range[/code]
+## stat reaches the current target. Empty if no target.
 func get_reaching_firing_positions() -> Array[SkillNode]:
 	var result: Array[SkillNode] = []
 	if target == null:
 		return result
 	for leaf in get_firing_positions():
-		if leaf.global_position.distance_to(target.global_position) <= FIRING_RANGE:
+		if leaf.global_position.distance_to(target.global_position) <= _leaf_range(leaf):
 			result.append(leaf)
 	return result
 
@@ -58,7 +57,7 @@ func get_highlight_role(node: SkillNode) -> HighlightRole:
 	if node.owned_by == attacker:
 		if get_firing_positions().has(node) and target != null:
 			var d := node.global_position.distance_to(target.global_position)
-			return HighlightRole.ORIGIN if d <= FIRING_RANGE else HighlightRole.NONE
+			return HighlightRole.ORIGIN if d <= _leaf_range(node) else HighlightRole.NONE
 		return HighlightRole.NONE
 	if node.owned_by != null and node.owned_by != attacker:
 		return HighlightRole.IN_RANGE
@@ -69,8 +68,12 @@ func get_node_range(node: SkillNode) -> float:
 	if attacker == null or attacker.navigator == null:
 		return 0.0
 	if get_firing_positions().has(node):
-		return FIRING_RANGE
+		return _leaf_range(node)
 	return 0.0
+
+
+func _leaf_range(node: SkillNode) -> float:
+	return float(node.get_local_stat(&"range").value)
 
 
 func validate() -> Array[String]:

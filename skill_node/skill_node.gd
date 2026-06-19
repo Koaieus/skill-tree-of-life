@@ -160,7 +160,10 @@ func get_max_hp() -> float:
 ## Lazy materialization of a per-node Stat for `stat_id`. If the owning
 ## entity has the same-id stat, we bind to it so the LocalStat's read
 ## merges entity + local bins. Owner changes re-bind via
-## _refresh_local_stat_bindings.
+## _refresh_local_stat_bindings. If the entity board doesn't carry that
+## stat (older hand-authored boards predating the stat's introduction),
+## we still seed the LocalStat from StatRegistry's default so reads return
+## something sensible instead of 0.
 func get_local_stat(stat_id: StringName) -> LocalStat:
 	if not _local_stats.has(stat_id):
 		var ls := LocalStat.new()
@@ -170,6 +173,11 @@ func get_local_stat(stat_id: StringName) -> LocalStat:
 		if src != null:
 			ls.definition = src.definition
 			ls.entity_stat = src
+		else:
+			var def: StatDef = StatRegistry.get_def(stat_id)
+			if def != null:
+				ls.definition = def
+				ls.base_value = def.default_value
 		_local_stats[stat_id] = ls
 	return _local_stats[stat_id]
 

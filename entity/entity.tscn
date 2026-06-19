@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3 uid="uid://b8gxnt7y3a1pk"]
+[gd_scene format=3 uid="uid://b8gxnt7y3a1pk"]
 
-[ext_resource type="Script" path="res://entity/entity.gd" id="1_entity"]
+[ext_resource type="Script" uid="uid://dwxok6qi3pfce" path="res://entity/entity.gd" id="1_entity"]
+[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="2_mckvm"]
 
-[node name="Entity" type="Node"]
+[node name="Entity" type="Node" unique_id=306801215]
 script = ExtResource("1_entity")
+stat_board = ExtResource("2_mckvm")
+metadata/_custom_type_script = "uid://dwxok6qi3pfce"

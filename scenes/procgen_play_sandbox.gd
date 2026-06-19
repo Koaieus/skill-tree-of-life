@@ -7,10 +7,10 @@ extends GameRoot
 ##
 ## Random-walk territory expansion below skips [AllocationSystem.allocate]
 ## because that's gated on SP/AP — fine in-game, hostile to one-shot setup.
-## Setting `node.owned_by` directly + mirroring + pushing modifiers is the
-## same primitive AllocationSystem composes on top of.
+## Uses [method AllocationSystem.force_allocate], the same primitive
+## [method GameRoot.spawn_entity] composes for the initial core.
 
-const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
+const _STARTER_GROUP := &"procgen_starter"
 
 @export var preset: GraphProcgenConfig
 @export var player_color: Color = Color(0.4, 0.8, 1.0)
@@ -42,18 +42,15 @@ func _setup_level() -> void:
 	if starting_nodes.is_empty():
 		push_warning("ProcgenPlaySandbox: procgen returned no starting nodes")
 		return
+	for n in starting_nodes:
+		(n as Node).add_to_group(_STARTER_GROUP)
 
-	# Entities live under Graph so Entity._find_graph() resolves.
-	var entities_root := Node.new()
-	entities_root.name = "Entities"
-	graph.add_child(entities_root)
-
-	player = _spawn_entity(entities_root, "Player", player_color, starting_nodes[0])
+	player = spawn_entity("Player", player_color, starting_nodes[0])
 
 	var enemies: Array[Entity] = []
 	for i in range(1, starting_nodes.size()):
 		var color: Color = enemy_colors[(i - 1) % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
-		enemies.append(_spawn_entity(entities_root, "Enemy_%d" % i, color, starting_nodes[i]))
+		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i]))
 
 	# Wire systems that needed live entities (edit-time NodePaths can't bind
 	# to nodes that don't exist yet).
@@ -66,32 +63,6 @@ func _setup_level() -> void:
 	_expand(player, rng, expansion_steps)
 	for e in enemies:
 		_expand(e, rng, expansion_steps)
-
-
-func _spawn_entity(parent: Node, ent_name: String, color: Color, core: SkillNode) -> Entity:
-	var ent := Entity.new()
-	ent.name = ent_name
-	ent.display_name = ent_name
-	ent.color = color
-	ent.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
-	parent.add_child(ent)
-	# add_child triggers Entity._ready synchronously (parent is already in
-	# tree), so ent.navigator is live by the time we allocate the core.
-	_force_allocate(ent, core)
-	ent.core_location = core
-	return ent
-
-
-## Skips AllocationSystem gating (SP cost, adjacency) — direct primitive
-## suitable for dev setup. AllocationSystem.allocate composes the same
-## three side-effects plus the gates.
-func _force_allocate(ent: Entity, node: SkillNode) -> void:
-	node.owned_by = ent
-	if ent.navigator != null:
-		ent.navigator.mirror_add(node)
-	if ent.stat_board != null:
-		for m in node.modifiers:
-			ent.stat_board.add_modifier(m)
 
 
 func _expand(ent: Entity, rng: RandomNumberGenerator, steps: int) -> void:
@@ -110,4 +81,4 @@ func _expand(ent: Entity, rng: RandomNumberGenerator, steps: int) -> void:
 		if candidates.is_empty():
 			continue
 		var target: SkillNode = candidates[rng.randi() % candidates.size()]
-		_force_allocate(ent, target)
+		allocation_system.force_allocate(ent, target)

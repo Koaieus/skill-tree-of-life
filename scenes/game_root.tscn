@@ -15,15 +15,18 @@
 [node name="GameRoot" type="Node2D"]
 script = ExtResource("1_root")
 
-[node name="Graph" type="Node2D" parent="." node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
+[node name="Graph" type="Node2D" parent="." node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container", "entities_container")]
 script = ExtResource("2_graph")
 navigator = NodePath("Systems/Navigator")
 skill_nodes_container = NodePath("Nodes")
 edges_container = NodePath("Edges")
+entities_container = NodePath("Entities")
 
 [node name="Edges" type="Node2D" parent="Graph"]
 
 [node name="Nodes" type="Node2D" parent="Graph"]
+
+[node name="Entities" type="Node" parent="Graph"]
 
 [node name="GraphCamera" type="Camera2D" parent="Graph"]
 unique_name_in_owner = true

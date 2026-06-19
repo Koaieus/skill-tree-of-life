@@ -161,21 +161,19 @@ Beyond `sense_range`: total fog. Inside sense but outside vision: silhouette onl
 
 ## Turn Structure — the three-phase turn
 
-**Two action points per turn by default** (`action_points`, default 2 — *LOCKED*). The turn is structured in **three phases**, where *the phase an allocation happens in is itself the temp/permanent flag* — no second SP pool, no per-node tracking, no real/temp toggle. (This supersedes the flat ordered list and the rejected "temp SP" idea; full SP accounting in `entity_stat_board_prototype.md`.)
+**Two action points per turn by default** (`action_points`, default 2 — *LOCKED*). The turn is structured in **three phases — CONTRACT → EXPAND → BATTLE** — split by action type, not by temp/permanent flag. (The old "temp SP via battle-phase allocations" model is dropped: in the live code battle-phase allocations don't exist; all allocation is permanent and gated by the EXPAND phase.)
 
-> **Action economy — 2 actions, load-bearing *(LOCKED)*.** Two action points is not just throughput: the second action's primary role is to **capitalize on the first's dent before the owner-turn-start reset** (see Node HP — enemy nodes don't reset mid-turn, so two actions stack on one target). Seeing a node at e.g. 7/10 and choosing **commit-to-finish vs. pivot** is a real read. Ranged still fires **one volley per turn**, but the second action can be a **different mode** (e.g. volley then melee tap) stacking on the same node — cross-mode same-turn stacking is the expected combining pattern. More than 2 actions is possible later, or via **ultra-rare `action_points` node modifiers** (a chase item, in the spirit of `bonus_hop_count`) — not default.
+> **Action economy — 2 actions, load-bearing *(LOCKED)*.** Two action points is not just throughput: the second action's primary role is to **capitalize on the first's dent before the owner-turn-start reset** (see Node HP — enemy nodes don't reset mid-turn, so two actions stack on one target). Ranged fires **one volley per turn**, but the second action can be a **different mode** (e.g. volley then melee tap) stacking on the same node — cross-mode same-turn stacking is the expected combining pattern.
 
-1. **Deployment** — *assess*, then spend SP and `deallocation_points` to **permanently** allocate/deallocate. Optionally deallocate first to "move" the constellation across the field. Allocating a node extends `vision_range` (euclidean, full detail) from it and makes it a `sense_range` sensor (hops, silhouette only) — peeking into the Fog of War *structurally* without revealing node contents or ownership. No need to spend all SP. Move the core up to `movement_speed` hops along owned edges.
-2. **Battle** — act: **two actions** (each a ranged volley from leaves / magic spell from a degree-gated node / one phantom-blade melee swing; ranged is capped at one volley/turn, so a second action there must be a different mode). The two can stack on one node — *dent then finish* — since enemy nodes don't reset until their own turn. **Tap buffer nodes** to *temporarily* allocate existing field nodes for reach (bring a pivot/attacking node forward, claim firing stubs, pad a casting hub's degree). These temp allocations live **only this phase**; buffer goes on cooldown after a tap. Special abilities / items resolve here (some gated to specific points).
-3. **Consolidation** — spend more SP/DP to finalize and optimize shape. Per battle-phase temp node: **promote** it (pay 1 real SP → permanent) or let it **drop**. Then end turn — enemies act.
+1. **CONTRACT** — *deallocate only*. Spend `deallocation_points` to free SP and reshape — voluntary deallocs refund SP and obey the no-island rule (the cut would-disconnect gate). Allocation is locked off, so a misclick on an own-node can't accidentally cost SP-then-DP. Effectively also the "move the constellation" phase, since deallocation is half of that motion.
+2. **EXPAND** — *allocate only*. Spend SP to grow. Each allocation extends `vision_range` (euclidean, full detail) and adds a `sensor_range` silhouette ping. Deallocation is locked off — symmetric guard against misclicks the other way.
+3. **BATTLE** — act: **two actions** (each a ranged volley from leaves / magic spell from a degree-gated node / one phantom-blade melee swing; ranged is capped at one volley/turn, so a second action there must be a different mode). The two can stack on one node — *dent then finish* — since enemy nodes don't reset until their own turn. Allocation and deallocation are both locked.
 
-**Why it's clean:** one SP pool; whether an allocation persists is decided by *when* (phase), not a tagged currency. **No islanding** — permanents commit only in Deployment/Consolidation, and a permanent allocation still requires a permanent neighbor, so nothing solid ever hangs off a node about to revert. **Mid-turn level-up** is a non-issue: a +1 lands in the one pool and is spendable under the current phase's rules.
+**Why split this way:** *intent* is now visible in the phase. In the previous "Deployment" lump, clicking your own node in a context-sensitive way could deallocate when you wanted to allocate (or vice versa), wasting one of the very limited pools. CONTRACT vs EXPAND makes click-routing unambiguous. The phase order (free SP → spend SP → fight) is also the natural decision flow.
 
 NPC turns resolve by the same rules; the player sees them play out in full only inside their vision, otherwise fast-forwarded unless something happens in view.
 
-> **Naming nit:** abbreviation for deallocation points (DP vs DAP) — cosmetic, settle in the docs. **TurnManager impact:** this is a turn-flow change (deployment → battle → consolidation), not just a stat change — see `systems/turn_manager.gd` when the combat loop is rebuilt.
-
-*(Mirrors GDD §2. The attack count is now **2 `action_points`** (locked above); whether move/reshape/attack share a budget is still open — see Open Questions.)*
+*(Mirrors GDD §2. The buffer-node "temporary reach" mechanic from earlier drafts is parked — Buffer addons currently exist on the node side, the temp-allocation hook hasn't been built, and the new phase split removes its main rationale.)*
 
 ---
 
@@ -770,7 +768,7 @@ deallocation_points = 1 / turn
 - ~~Attribute roster~~ → **Six:** R/STR, G/DEX, B/INT (attack) + White/CON, Gold/WIS, Purple/PER (utility). Plus non-mechanical `coolness`. White→CON and economy→Gold supersede the old "W = XP."
 - ~~Attribute → damage scaling~~ → **The //10 spine:** `base (once) + attribute//10 × instances`, defense once per target. Floors per-attribute (breakpoints, surfaced in UI). Gear-ratio decouples modifier economy from damage economy.
 - ~~Proliferation~~ → **core→field ×N trade** (remove a core mod, spread N tainted copies). Intrinsic non-extractable taint breaks the extract→proliferate loop. Rarity-scaled efficiency.
-- ~~Turn structure~~ → **Three phases:** Deployment (permanent) → Battle (act + temp buffer reach) → Consolidation (promote/drop temps). Phase = the temp/permanent flag; one SP pool.
+- ~~Turn structure~~ → **Three phases:** CONTRACT (dealloc only) → EXPAND (alloc only) → BATTLE (act, no reshape). One SP pool; intent is the phase, not a temp/permanent flag.
 - ~~Self-loop propagation model~~ → Triple-hit baseline (initial + 2 loop returns). Spell-dependent further behavior. No global rule.
 - ~~Claim bonus → BLITZ~~ → BLITZ Predator-only. Universal: XP + DAP.
 - ~~Killing blow → direct +1 SP~~ → XP reward (pipeline) + universal DAP bonus.

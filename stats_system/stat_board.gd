@@ -55,6 +55,9 @@ extends Resource
 @export var vision_range: ScalarStat	## Euclidean sight radius in scene pixels.
 @export var sensor_range: ScalarStat	## Topology sensor radius in hops past owned nodes.
 
+@export_group("Ranged")
+@export var range: ScalarStat			## Per-leaf firing distance in scene pixels. Localized on leaves.
+
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
 @export var mana_per_turn: ScalarStat	## Mana restored at turn start. Base: floor(log(INT)).

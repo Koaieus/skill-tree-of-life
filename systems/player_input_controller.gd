@@ -47,11 +47,10 @@ func _on_node_added(skill_node: SkillNode) -> void:
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 	if _route_battle_click(skill_node, true):
 		return
-	if turn_manager.can_allocate():
-		if skill_node.owned_by == null:
-			allocation_system.allocate(skill_node, player)
-		elif skill_node.owned_by == player:
-			allocation_system.deallocate(skill_node, player)
+	if turn_manager.can_allocate() and skill_node.owned_by == null:
+		allocation_system.allocate(skill_node, player)
+	elif turn_manager.can_deallocate() and skill_node.owned_by == player:
+		allocation_system.deallocate(skill_node, player)
 
 
 func _on_skill_node_right_clicked(skill_node: SkillNode) -> void:
