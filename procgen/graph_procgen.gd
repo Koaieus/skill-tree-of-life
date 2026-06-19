@@ -27,16 +27,28 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 	rng.seed = config.seed if config.seed != 0 else randi()
 
 	var min_dist := 2.0 * config.node_radius + config.node_padding
-	var anchors: Array[Vector2] = []
+	# Final ordered starter list = manual entries first, then any random anchors
+	# we place. Caller reads back via `starting_nodes` in the same order, so
+	# manual vs. random can be told apart by index.
+	var starters: Array[StartingPoint] = []
 	for sp in config.starting_points:
 		if sp != null:
-			anchors.append(sp.position)
+			starters.append(sp)
+	_place_random_starters(starters, config, rng)
+
+	var anchors: Array[Vector2] = []
+	for sp in starters:
+		anchors.append(sp.position)
 	var positions := PoissonDiskSampler.sample(
 			config.shape_mask, min_dist, config.node_count,
 			anchors, rng)
 	if positions.is_empty():
 		push_warning("GraphProcgen: sampler produced no points")
-		return {"nodes": [] as Array[SkillNode], "starting_nodes": [] as Array[SkillNode]}
+		return {
+				"nodes": [] as Array[SkillNode],
+				"starting_nodes": [] as Array[SkillNode],
+				"starters": starters,
+		}
 
 	var edge_pairs := _triangulate_and_prune(positions, config.connectivity)
 	var type_assignments := _assign_types(positions, config, rng)
@@ -50,7 +62,9 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 		if type_def != null:
 			var field_scale := 1.0 if config.budget_field == null else config.budget_field.sample(positions[i])
 			sn.modifiers = _roll_modifiers(type_def, field_scale, rng)
-			sn.modulate = type_def.color
+			# Border-channel stamp on BaseCircle (persistent type identity).
+			# Owner colour stays free to drive the fill channel via SkillNode.
+			sn.base_type_color = type_def.color
 			sn.set_meta("base_type", type_def.id)
 		graph.add_skill_node(sn)
 		nodes.append(sn)
@@ -60,10 +74,54 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 
 	# Starting points were seeded first into Poisson; they occupy positions[0..n).
 	var starting_nodes: Array[SkillNode] = []
-	for i in min(config.starting_points.size(), nodes.size()):
+	for i in min(starters.size(), nodes.size()):
 		starting_nodes.append(nodes[i])
 
-	return {"nodes": nodes, "starting_nodes": starting_nodes}
+	return {"nodes": nodes, "starting_nodes": starting_nodes, "starters": starters}
+
+
+# ── Random starter placement (issue #15) ──────────────────────────────────
+
+
+## Appends up to [member GraphProcgenConfig.n_random_starters] fresh
+## StartingPoints to `starters`, each rejection-sampled inside the shape
+## mask and required to sit at least `viability_radius` from every prior
+## starter. Bounded retries; warns if any anchor couldn't be placed so a
+## level designer sees the squeeze instead of silently shipping fewer NPCs.
+static func _place_random_starters(
+		starters: Array[StartingPoint],
+		config: GraphProcgenConfig,
+		rng: RandomNumberGenerator,
+) -> void:
+	if config.n_random_starters <= 0 or config.shape_mask == null:
+		return
+	var bounds := config.shape_mask.aabb()
+	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
+		return
+	var min_sq := config.viability_radius * config.viability_radius
+	for i in config.n_random_starters:
+		var placed := false
+		for _t in maxi(1, config.random_starter_max_tries):
+			var p := Vector2(
+					rng.randf_range(bounds.position.x, bounds.end.x),
+					rng.randf_range(bounds.position.y, bounds.end.y))
+			if not config.shape_mask.contains(p):
+				continue
+			var ok := true
+			for sp in starters:
+				if p.distance_squared_to(sp.position) < min_sq:
+					ok = false
+					break
+			if not ok:
+				continue
+			var new_sp := StartingPoint.new()
+			new_sp.position = p
+			new_sp.id = StringName("%s_%d" % [config.random_starter_id_prefix, i])
+			starters.append(new_sp)
+			placed = true
+			break
+		if not placed:
+			push_warning("GraphProcgen: couldn't place random starter %d after %d tries — viability_radius too large for shape/anchor density?" % [i, config.random_starter_max_tries])
 
 
 # ── Topology ──────────────────────────────────────────────────────────────

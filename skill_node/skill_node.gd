@@ -29,6 +29,16 @@ signal depleted
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
 @export var modifiers: Array[StatModifierDef] = []
 
+## Persistent base-type identity colour (e.g. procgen's NodeTypeDef colour).
+## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
+## a hand-placed node in dev_sandbox.tscn looks the same as before any procgen
+## stamping.
+@export var base_type_color: Color = Color.DIM_GRAY:
+	set(value):
+		base_type_color = value
+		if is_node_ready():
+			_sync_visuals()
+
 @export var radius: float = 32.0:
 	set(value):
 		if is_equal_approx(radius, value):
@@ -102,8 +112,13 @@ func _sync_collision() -> void:
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
-	var color := get_owner_color() if is_allocated() else Color.DIM_GRAY
-	_base_circle.configure(radius, color)
+	# Border = base-type identity (persistent). Fill = owner colour when
+	# allocated, dim-grey idle otherwise. Two channels so allocation status
+	# never wipes the type read.
+	_base_circle._radius = radius
+	_base_circle.border_color = base_type_color
+	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
+	_base_circle.queue_redraw()
 	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)
 	for a in get_addons():
@@ -279,13 +294,15 @@ func _on_addon_removed(c: Node) -> void:
 
 
 func _play_hit_flash() -> void:
-	if visuals == null:
+	if _base_circle == null:
 		return
 	if _hit_flash_tween != null:
 		_hit_flash_tween.kill()
-	visuals.modulate = Color(1.0, 0.3, 0.3)
+	# Tweens BaseCircle.flash_amount only — leaves visuals.modulate free for
+	# other consumers (selection tint, status effects, etc.) without colliding.
+	_base_circle.flash_amount = 1.0
 	_hit_flash_tween = create_tween()
-	_hit_flash_tween.tween_property(visuals, "modulate", Color.WHITE, 0.25)
+	_hit_flash_tween.tween_property(_base_circle, "flash_amount", 0.0, 0.25)
 
 
 func _on_mouse_entered() -> void:

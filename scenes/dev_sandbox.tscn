@@ -508,30 +508,30 @@ script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 value = 2.0
 
-[sub_resource type="Resource" id="mod_vision_50"]
-script = ExtResource("2_mod")
-stat_id = &"vision_range"
-value = 50.0
-
 [sub_resource type="Resource" id="mod_vision_100"]
 script = ExtResource("2_mod")
 stat_id = &"vision_range"
 value = 100.0
+
+[sub_resource type="Resource" id="mod_hp_3"]
+script = ExtResource("2_mod")
+stat_id = &"health"
+value = 3.0
+
+[sub_resource type="Resource" id="mod_dex_3"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 3.0
 
 [sub_resource type="Resource" id="mod_sensor_1"]
 script = ExtResource("2_mod")
 stat_id = &"sensor_range"
 value = 1.0
 
-[sub_resource type="Resource" id="mod_sensor_2"]
+[sub_resource type="Resource" id="mod_per_1"]
 script = ExtResource("2_mod")
-stat_id = &"sensor_range"
-value = 2.0
-
-[sub_resource type="Resource" id="mod_dex_3"]
-script = ExtResource("2_mod")
-stat_id = &"dexterity"
-value = 3.0
+stat_id = &"perception"
+value = 1.0
 
 [sub_resource type="Resource" id="mod_int_3"]
 script = ExtResource("2_mod")
@@ -543,20 +543,20 @@ script = ExtResource("2_mod")
 stat_id = &"wisdom"
 value = 2.0
 
-[sub_resource type="Resource" id="mod_per_1"]
-script = ExtResource("2_mod")
-stat_id = &"perception"
-value = 1.0
-
-[sub_resource type="Resource" id="mod_hp_3"]
-script = ExtResource("2_mod")
-stat_id = &"health"
-value = 3.0
-
 [sub_resource type="Resource" id="mod_mp_1"]
 script = ExtResource("2_mod")
 stat_id = &"movement_points"
 value = 1.0
+
+[sub_resource type="Resource" id="mod_vision_50"]
+script = ExtResource("2_mod")
+stat_id = &"vision_range"
+value = 50.0
+
+[sub_resource type="Resource" id="mod_sensor_2"]
+script = ExtResource("2_mod")
+stat_id = &"sensor_range"
+value = 2.0
 
 [node name="DevSandbox" type="Node2D" unique_id=325788489]
 script = ExtResource("1_dev")
@@ -808,7 +808,6 @@ to = NodePath("../../Nodes/Enemy_Recon")
 metadata/_edit_lock_ = true
 
 [node name="Core" parent="Graph/Nodes" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
-position = Vector2(0, 0)
 owned_by = NodePath("../../Entities/Player")
 
 [node name="Up" parent="Graph/Nodes" unique_id=1730649151 instance=ExtResource("9_skill")]
@@ -896,34 +895,42 @@ owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Watchtower" parent="Graph/Nodes" unique_id=9000001 instance=ExtResource("9_skill")]
 position = Vector2(300, -260)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 
 [node name="Juggler" parent="Graph/Nodes" unique_id=9000002 instance=ExtResource("9_skill")]
 position = Vector2(-50, -290)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
 
 [node name="Spyglass" parent="Graph/Nodes" unique_id=9000003 instance=ExtResource("9_skill")]
 position = Vector2(-380, -180)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
 
 [node name="Library" parent="Graph/Nodes" unique_id=9000004 instance=ExtResource("9_skill")]
 position = Vector2(-380, 50)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
 
 [node name="Forge" parent="Graph/Nodes" unique_id=9000005 instance=ExtResource("9_skill")]
 position = Vector2(-350, 200)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_hp_3")])
 
 [node name="Crossroads" parent="Graph/Nodes" unique_id=9000006 instance=ExtResource("9_skill")]
 position = Vector2(420, 130)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1"), SubResource("mod_mp_1")])
 
 [node name="Enemy_Tower" parent="Graph/Nodes" unique_id=9000007 instance=ExtResource("9_skill")]
 position = Vector2(650, -80)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_50")])
 
 [node name="Enemy_Recon" parent="Graph/Nodes" unique_id=9000008 instance=ExtResource("9_skill")]
 position = Vector2(750, 120)
+input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2")])
 
 [node name="Camera" type="Camera2D" parent="Graph" unique_id=1488255030]

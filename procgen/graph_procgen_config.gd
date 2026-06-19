@@ -36,6 +36,23 @@ extends Resource
 ## landed on these (in order) so the caller can wire them as cores.
 @export var starting_points: Array[StartingPoint] = []
 
+## Extra anchors placed randomly inside [member shape_mask] before Poisson
+## body sampling — typically the NPC opponents on a level. Each random anchor
+## is rejection-sampled to keep `> viability_radius` away from every prior
+## anchor (manual + already-placed random). 0 = none.
+@export var n_random_starters: int = 0
+## Min distance from any other starter (manual or random) that a random
+## anchor must respect. "Viability" because the same separation gates several
+## gameplay concerns at once — territory growth space, sensible AI separation,
+## avoiding immediate-conflict starts. Default 0 = no minimum (caller opted in
+## by setting n_random_starters > 0 but didn't specify spacing).
+@export var viability_radius: float = 0.0
+## Generated `StartingPoint.id`s use this prefix plus an index — e.g.
+## "enemy_0", "enemy_1". Inert if [member n_random_starters] is 0.
+@export var random_starter_id_prefix: StringName = &"enemy"
+## Bounded retry per random anchor. Hit it without placing → warn and skip.
+@export var random_starter_max_tries: int = 200
+
 # ── Base types + modifiers ────────────────────────────────────────────────
 
 @export var node_types: Array[NodeTypeDef] = []

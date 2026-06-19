@@ -22,8 +22,11 @@ signal player_can_act_changed(can_act: bool)
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
-	if graph == null or allocation_system == null or player == null:
-		push_warning("PlayerInputController missing a reference; clicks won't route")
+	# `player` may be wired post-_ready (procgen sandboxes spawn it during
+	# GameRoot._setup_level). Skip the player-dependent gate, not the graph
+	# subscription — clicks still connect; routing checks player at fire time.
+	if graph == null or allocation_system == null or turn_manager == null:
+		push_warning("PlayerInputController missing graph/allocation/turn_manager; clicks won't route")
 		return
 	graph.node_added.connect(_on_node_added)
 	for sn in graph.get_skill_nodes():
