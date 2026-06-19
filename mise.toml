@@ -31,3 +31,15 @@ run = "godot --editor --path ."
 [tasks.play]
 description = "Run the game"
 run = "godot --path ."
+
+[tasks.test]
+description = "Run all GUT unit tests headless (reads .gutconfig.json)"
+run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd"
+
+[tasks."test:one"]
+description = "Run a single test script: `mise run test:one -- res://test/unit/test_smoke.gd`"
+run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest"
+
+[tasks."test:dir"]
+description = "Run all tests in a directory: `mise run test:dir -- res://test/unit/`"
+run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir"
