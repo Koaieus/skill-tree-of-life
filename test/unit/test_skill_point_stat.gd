@@ -1,14 +1,18 @@
 extends GutTest
 
-## Four-bucket SP model: used + current + wounded + staked == max (identity).
-## Transfers preserve max; only claim() / grant() mint.
+## SP buckets: max canonical (PoolStat), wounded + staked stored, used derived.
+## Identity: `used == max - current - wounded - staked` at all times.
+## Transfers preserve max; only claim() and grant() mint.
 
 const _DEF := preload("res://stats_system/defs/skill_points.tres")
 
 
+## Pool at `current/current` — base_value matches so an unallocated fresh entity
+## has used == 0.
 func _fresh(current: int = 3) -> SkillPointStat:
 	var sp := SkillPointStat.new()
 	sp.definition = _DEF
+	sp.base_value = float(current)
 	sp.current = float(current)
 	return sp
 
@@ -18,8 +22,9 @@ func _max(sp: SkillPointStat) -> int:
 
 
 func _assert_invariant(sp: SkillPointStat) -> void:
-	var sum := sp.used + roundi(sp.current) + sp.wounded + sp.staked
-	assert_eq(_max(sp), sum, "max must equal sum of buckets")
+	var derived := _max(sp) - roundi(sp.current) - sp.wounded - sp.staked
+	assert_eq(sp.used, derived, "used getter must match the derivation")
+	assert_gte(sp.used, 0, "used must never go negative")
 
 
 # --- initial state ----------------------------------------------------------
@@ -30,6 +35,7 @@ func test_fresh_pool_max_equals_current() -> void:
 	assert_eq(sp.used, 0)
 	assert_eq(sp.wounded, 0)
 	assert_eq(sp.staked, 0)
+	_assert_invariant(sp)
 
 
 # --- transfers preserve max -------------------------------------------------
@@ -39,8 +45,8 @@ func test_spend_transfers_current_to_used() -> void:
 	assert_true(sp.spend(1))
 	assert_eq(sp.current, 2.0)
 	assert_eq(sp.used, 1)
-	_assert_invariant(sp)
 	assert_eq(_max(sp), 3)
+	_assert_invariant(sp)
 
 
 func test_spend_refund_round_trip() -> void:
@@ -67,10 +73,12 @@ func test_wound_heal_round_trip() -> void:
 	assert_eq(sp.used, 1)
 	assert_eq(sp.wounded, 1)
 	assert_eq(_max(sp), 3)
+	_assert_invariant(sp)
 	sp.heal(1)
 	assert_eq(sp.wounded, 0)
 	assert_eq(sp.current, 2.0)
 	assert_eq(_max(sp), 3)
+	_assert_invariant(sp)
 
 
 func test_stake_extract_round_trip() -> void:
@@ -79,6 +87,7 @@ func test_stake_extract_round_trip() -> void:
 	assert_eq(sp.staked, 1)
 	assert_eq(sp.current, 2.0)
 	assert_eq(_max(sp), 3)
+	_assert_invariant(sp)
 	sp.extract(1)
 	assert_eq(sp.staked, 0)
 	assert_eq(sp.current, 3.0)
@@ -87,19 +96,22 @@ func test_stake_extract_round_trip() -> void:
 
 # --- mints: claim + grant --------------------------------------------------
 
-func test_claim_mints_into_used() -> void:
+func test_claim_mints_max_only() -> void:
 	var sp := _fresh(3)
 	sp.claim(1)
-	assert_eq(sp.used, 1)
-	assert_eq(sp.current, 3.0)
-	assert_eq(_max(sp), 4)  # max bumped by 1
+	assert_eq(sp.used, 1, "the new SP lands in used (derived)")
+	assert_eq(sp.current, 3.0, "current unchanged — that's what makes claim distinct from grant")
+	assert_eq(_max(sp), 4)
+	_assert_invariant(sp)
 
 
-func test_grant_mints_into_current() -> void:
+func test_grant_mints_max_and_current() -> void:
 	var sp := _fresh(3)
 	sp.grant(1)
 	assert_eq(sp.current, 4.0)
-	assert_eq(_max(sp), 4)  # max bumped by 1
+	assert_eq(sp.used, 0)
+	assert_eq(_max(sp), 4)
+	_assert_invariant(sp)
 
 
 # --- the original bug: force-allocate N nodes, deallocate all, no leak -----
@@ -123,37 +135,28 @@ func test_force_allocate_then_full_dealloc_preserves_currency() -> void:
 	_assert_invariant(sp)
 
 
-# --- the leak we'd hit if order were wrong ---------------------------------
-
-func test_heal_at_zero_used_does_not_clamp_away_sp() -> void:
-	# If wounded → current ran in the wrong order (drop wounded first, then
-	# set_current), set_current would clamp to the lowered cap and silently
-	# eat 1 SP. This guards the order discipline.
-	var sp := _fresh(0)
-	sp.wounded = 1  # synthetic: 1 SP exists in the wounded bucket
-	assert_eq(_max(sp), 1)
-	sp.heal(1)
-	assert_eq(sp.wounded, 0)
-	assert_eq(sp.current, 1.0)
-	assert_eq(_max(sp), 1)
-
-
-# --- amount clamping --------------------------------------------------------
+# --- bucket clamps ----------------------------------------------------------
 
 func test_wound_caps_at_used_balance() -> void:
 	var sp := _fresh(3)
-	sp.spend(1)
+	sp.spend(1)  # current=2, used=1
 	sp.wound(5)  # more than `used` (1)
 	assert_eq(sp.used, 0)
 	assert_eq(sp.wounded, 1)
+	_assert_invariant(sp)
 
 
 func test_heal_caps_at_wounded_balance() -> void:
-	var sp := _fresh(3)
-	sp.wounded = 2
+	# Build wounded=2 via claim + wound (legit state path) rather than poking
+	# the bucket directly — keeps the invariant satisfied throughout.
+	var sp := _fresh(0)
+	sp.claim(2)  # base=2, used=2
+	sp.wound(2)  # wounded=2, used=0
+	assert_eq(sp.wounded, 2)
 	sp.heal(5)
 	assert_eq(sp.wounded, 0)
-	assert_eq(sp.current, 5.0)
+	assert_eq(sp.current, 2.0)
+	_assert_invariant(sp)
 
 
 func test_refund_caps_at_used_balance() -> void:
@@ -162,3 +165,22 @@ func test_refund_caps_at_used_balance() -> void:
 	sp.refund(5)
 	assert_eq(sp.used, 0)
 	assert_eq(sp.current, 3.0)
+	_assert_invariant(sp)
+
+
+# --- the canonical-max promise ---------------------------------------------
+
+func test_modifier_driven_max_works_normally() -> void:
+	# A +5 ADD_BASE modifier should grow max by 5 (full PoolStat behavior).
+	# heal_on_max_increase is true on the def → current also rises by 5.
+	var sp := _fresh(3)
+	var mod := StatModifierDef.new()
+	mod.stat_id = &"skill_points"
+	mod.operation = StatModifierDef.Operation.ADD_BASE
+	mod.value = 5.0
+	sp.add_modifier(mod)
+	assert_eq(_max(sp), 8)
+	assert_eq(sp.current, 8.0)  # heal_on_max_increase
+	_assert_invariant(sp)
+	sp.remove_modifier(mod)
+	assert_eq(_max(sp), 3)

@@ -49,16 +49,16 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 2. **EXPAND** — allocation only. Spend SP. Deallocation is locked off — symmetric guard against misclicks the other way.
 3. **BATTLE** — act (up to two actions, see combat_system.md). Allocation and deallocation are both locked.
 
-### Four-bucket SP model
+### SP buckets (and the derived `used`)
 
-`max = used + current + wounded + staked` (identity, always). Transfers between buckets preserve max; only **claim** and **grant** mint.
+`max` is the canonical PoolStat cap (base_value + modifier pipeline). Three stored buckets sit *inside* max: `current` (spendable), `wounded`, `staked`. A fourth bucket — **`used`** — is derived as `max - current - wounded - staked`. Transfers between stored buckets preserve max; only **claim** and **grant** mint.
 
-| Bucket | What it holds |
-|---|---|
-| `used` | SP locked into currently-allocated nodes (one per node beyond the core) |
-| `current` | Spendable; what the player has "in hand" |
-| `wounded` | Forced out by attack; heals back via turn-start `wound_heal_per_turn` |
-| `staked` | Spent to raise a node's allocation cap; recoverable via the future *extract* action |
+| Bucket | Storage | What it holds |
+|---|---|---|
+| `current` | PoolStat | Spendable; what the player has "in hand" |
+| `wounded` | stored | Forced out by attack; heals back via turn-start `wound_heal_per_turn` |
+| `staked` | stored | Spent to raise a node's allocation cap; recoverable via the future *extract* action |
+| `used` | **derived** | SP locked into currently-allocated nodes (one per node beyond core) |
 
 **Wound mechanics:** forced deallocation routes used → wounded (no SP returned to hand). `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) per turn. Voluntary CONTRACT-phase deallocation uses `refund(n)`, which moves used → current immediately.
 
