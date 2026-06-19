@@ -37,8 +37,8 @@ Any stat id can be localized; convention picks the meaningful ones (currently `n
 | `heal(n)` | wounded → current (turn-start) | no |
 | `stake(n)` | current → staked (raise per-node alloc cap) | no |
 | `extract(n)` | staked → current (recover a stake) | no |
-| **`claim(n)`** | mint into used (force_allocate / scripted setup) | **yes** |
-| **`grant(n)`** | mint into current (level-up) | **yes** |
+| **`claim(n)`** | `used += n` — equivalent to "grant(n) then spend(n)" collapsed: max grows, current unchanged, the new SP lands directly in the allocated node. Use for force_allocate / scripted setup. | **yes** |
+| **`grant(n)`** | `current += n` — mints free SP (level-up reward). Max grows, current grows. | **yes** |
 
 Order discipline inside transfers: when raising current (refund/heal/extract), call `set_current()` **first** then drop the source bucket — otherwise PoolStat.set_current clamps to the pre-write cap and silently eats 1 SP. The `grant()` mint writes `current` directly (bypasses the clamp) so max can grow.
 
