@@ -32,6 +32,22 @@ signal deallocated(node: SkillNode, previous_owner: Entity)
 @export var turn_manager: TurnManager
 
 
+## Register scene-authored ownership with the SP accounting. Called by
+## GameRoot before _setup_level — walks the graph and calls claim(1) for
+## every already-owned node, so a hand-authored dev_sandbox player ends up
+## with the same `used` bookkeeping a procgen-spawned player gets via
+## force_allocate. Procgen content arrives later (during _setup_level) and
+## goes through force_allocate, which calls claim() itself — no double-count.
+func register_scene_authored_ownership() -> void:
+	if graph == null:
+		return
+	for n in graph.get_skill_nodes():
+		if n.owned_by == null or n.owned_by.stat_board == null:
+			continue
+		if n.owned_by.stat_board.skill_points != null:
+			n.owned_by.stat_board.skill_points.claim(1)
+
+
 func can_allocate(node: SkillNode, entity: Entity) -> bool:
 	if entity == null or node == null:
 		return false
@@ -62,16 +78,30 @@ func can_deallocate(node: SkillNode, entity: Entity) -> bool:
 func allocate(node: SkillNode, entity: Entity) -> bool:
 	if not can_allocate(node, entity):
 		return false
+	# spend(1) does current -= 1, used += 1. force_allocate would also call
+	# claim(1) — that'd double-bump used and mint an extra SP. So inline the
+	# rest of force_allocate's side-effects here, skipping the claim.
 	var board := entity.stat_board
 	if board != null and board.skill_points != null:
 		board.skill_points.spend(1)
-	force_allocate(entity, node)
+	node.owned_by = entity
+	if entity.navigator != null:
+		entity.navigator.mirror_add(node)
+	if board != null:
+		for m in node.modifiers:
+			board.add_modifier(m)
+	allocated.emit(node, entity)
 	return true
 
 
 ## Gating-free primitive: set ownership, mirror to navigator, push node
-## modifiers onto entity's stat board. allocate() composes this with SP
-## gating + adjacency rules; procgen / scripted setup uses it directly.
+## modifiers onto entity's stat board, claim 1 SP into the entity's `used`
+## bucket. allocate() composes this with SP gating + adjacency rules;
+## procgen / scripted setup uses it directly.
+##
+## The claim(1) call is what mints the SP that backs the free allocation —
+## without it, deallocating later would overflow the pool's max and silently
+## lose the SP to clamping. See docs/domain/allocation_system.md.
 func force_allocate(entity: Entity, node: SkillNode) -> void:
 	if entity == null or node == null:
 		return
@@ -80,6 +110,8 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 		entity.navigator.mirror_add(node)
 	var board := entity.stat_board
 	if board != null:
+		if board.skill_points != null:
+			board.skill_points.claim(1)
 		for m in node.modifiers:
 			board.add_modifier(m)
 	allocated.emit(node, entity)

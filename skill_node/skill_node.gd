@@ -63,6 +63,15 @@ var _bound_owner: Entity = null
 ## docs/domain/node-hp.md for the reasoning + future-expansion path.
 var current_hp: float = 0.0
 
+## Per-node allocation cap. `alloc_cap_max` defaults to 1 (single allocation
+## slot); raise by 1 per stake via the entity's `skill_points.stake(1)` action.
+## `alloc_count` mirrors live allocation: 0 = unowned, 1 = baseline, 2+ = staked.
+## Pure node-local — these are not Stats and must never be registered with
+## an entity StatBoard. If you want to scale modifier contributions by the
+## stake count, read it directly off the SkillNode.
+var alloc_cap_max: int = 1
+var alloc_count: int = 0
+
 # node_health stat subscription, kept in lockstep with `owned_by` so a max-HP
 # change (level-up, modifier swap) clamps + refills `current_hp` immediately.
 var _bound_node_health: Stat = null
@@ -86,6 +95,7 @@ func _ready() -> void:
 	owner_changed.connect(_refresh_core_marker)
 	owner_changed.connect(_refresh_hp_binding)
 	owner_changed.connect(_refresh_local_stat_bindings)
+	owner_changed.connect(_refresh_alloc_count)
 	damaged.connect(_play_hit_flash.unbind(2))
 	_addon_anchor.child_entered_tree.connect(_on_addon_added)
 	_addon_anchor.child_exiting_tree.connect(_on_addon_removed)
@@ -253,6 +263,18 @@ func _on_max_hp_changed() -> void:
 
 # Re-bind every materialized LocalStat to the current owner's same-id Stat.
 # Unallocated → entity_stat = null and the local stat acts standalone.
+## On allocate: count moves to 1 (the baseline slot). On dealloc: back to 0.
+## Stakes (count > 1) are not auto-cleared on dealloc — extracting first is
+## the player's responsibility, otherwise the staked SP heals via the future
+## extract action. (Force-dealloc semantics for staked nodes: still open;
+## design doc.)
+func _refresh_alloc_count() -> void:
+	if owned_by == null:
+		alloc_count = 0
+	elif alloc_count == 0:
+		alloc_count = 1
+
+
 func _refresh_local_stat_bindings() -> void:
 	var board: StatBoard = owned_by.stat_board if owned_by != null else null
 	for stat_id in _local_stats:

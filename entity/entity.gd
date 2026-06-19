@@ -97,8 +97,8 @@ func _on_turn_started(entity: Entity) -> void:
 
 ## Listens for xp.replenished (pool crossed into full). Grows the xp cap via
 ## its formula, deducts the old cap from current (carrying overflow if the
-## pool ever permits it), bumps SP max — SP's heal_on_max_increase=true takes
-## care of the matching +1 current — then emits leveled_up.
+## pool ever permits it), mints 1 SP via grant() — bumps both max and current
+## by 1 — then emits leveled_up.
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
@@ -108,7 +108,7 @@ func _on_xp_replenished() -> void:
 	xp_pool.set_current(max(0.0, xp_pool.current - float(old_max)))
 
 	if stat_board.skill_points != null:
-		stat_board.skill_points.base_value += 1.0
+		stat_board.skill_points.grant(1)
 
 	level += 1
 	leveled_up.emit(level)

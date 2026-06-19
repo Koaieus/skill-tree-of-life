@@ -49,9 +49,43 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 2. **EXPAND** — allocation only. Spend SP. Deallocation is locked off — symmetric guard against misclicks the other way.
 3. **BATTLE** — act (up to two actions, see combat_system.md). Allocation and deallocation are both locked.
 
-**Wound mechanics:** forced deallocation by attack routes through `force_deallocate()` and `skill_points.wound(n)` — the freed SP land in the `wounded` bucket, not `current`. `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) wounded back to current each turn. Voluntary CONTRACT-phase deallocation uses `refund(1)` instead, which lands back in `current` immediately.
+### Four-bucket SP model
 
-**Mid-turn level-up:** the +1 lands in the one pool, spendable under the current phase's rules (i.e. only consumed during EXPAND).
+`max = used + current + wounded + staked` (identity, always). Transfers between buckets preserve max; only **claim** and **grant** mint.
+
+| Bucket | What it holds |
+|---|---|
+| `used` | SP locked into currently-allocated nodes (one per node beyond the core) |
+| `current` | Spendable; what the player has "in hand" |
+| `wounded` | Forced out by attack; heals back via turn-start `wound_heal_per_turn` |
+| `staked` | Spent to raise a node's allocation cap; recoverable via the future *extract* action |
+
+**Wound mechanics:** forced deallocation routes used → wounded (no SP returned to hand). `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) per turn. Voluntary CONTRACT-phase deallocation uses `refund(n)`, which moves used → current immediately.
+
+**Mints (max grows):**
+
+- **`claim(1)`** — `used += 1`. Used by `force_allocate` for procgen and scripted setup; the entity gets a free node, max bumps to reflect it, deallocation later refunds correctly.
+- **`grant(1)`** — `current += 1`. Level-up — XP pool fills, entity earns 1 SP.
+
+**Example trajectory** with dev board base = 3:
+
+| Action | used | current | wounded | staked | max |
+|---|---|---|---|---|---|
+| Spawn (board base) | 0 | 3 | 0 | 0 | 3 |
+| Procgen claim ×4 (4 nodes seeded) | 4 | 3 | 0 | 0 | 7 |
+| Spend ×3 (gameplay alloc) | 7 | 0 | 0 | 0 | 7 |
+| Wound ×2 (attack severs 2) | 5 | 0 | 2 | 0 | 7 |
+| Heal ×1 (turn start) | 5 | 1 | 1 | 0 | 7 |
+| Stake ×1 (raise a node cap) | 5 | 0 | 1 | 1 | 7 |
+| Level-up grant | 5 | 1 | 1 | 1 | 8 |
+
+### Stake / Extract — the per-node cap (design)
+
+Each `SkillNode` carries `alloc_cap_max` (default 1) and `alloc_count` (0 unowned, 1 baseline allocation, 2+ staked-up). A **Stake** action lets an entity spend 1 SP into a node it owns, raising `alloc_cap_max` by 1. The spent SP lives in the entity's `staked` bucket until extracted; the node's stake count drives any scaling mechanic that wants to read "how deep is this entity invested here?" (open: what scales — modifier contributions × stake count? node HP? both?).
+
+**Extract** is the inverse — recover 1 staked SP back to current. Provisional gating: core within **0–1 hops** of the staked node. Bonus mechanic: extracting from an *enemy's* staked node steals their investment — a capture-and-heal play that reads naturally as graph-positional warfare. Final gating TBD; the mechanic encourages aggressive core movement to recover sunk SP.
+
+Stakes are pure node-local — never registered with an entity `StatBoard`. Future-extension: if a per-node "depth" or "rank" stat is wanted, materialize it via `SkillNode.get_local_stat(&"...")` against the existing LocalStat machinery, not the board.
 
 ---
 

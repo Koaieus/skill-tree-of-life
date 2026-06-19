@@ -55,6 +55,10 @@ func _ready() -> void:
 	battle_system.melee_preview = melee_preview
 
 	camera = _resolve_camera()
+	# Scene-authored ownership (dev_sandbox-style) must claim SP before
+	# _setup_level runs — procgen spawning goes through force_allocate which
+	# claims itself, but hand-authored owned_by= assignments skip that path.
+	allocation_system.register_scene_authored_ownership()
 	# _setup_level runs BEFORE ui_root.compose because compose reads
 	# `player.stat_board` immediately — procgen sandboxes that spawn the
 	# player here need the entity in place first.

@@ -27,7 +27,24 @@ Any stat id can be localized; convention picks the meaningful ones (currently `n
 
 `heal_on_max_increase` fires automatically via `add/remove_modifier` overrides — no external plumbing.
 
-`skill_points` is `SkillPointStat` (PoolStat subclass) with a `wounded` bucket: `wound(n)` = forced dealloc (attack); `heal(n)` = restore wounded → current; `refund(n)` = voluntary dealloc. Not interchangeable.
+`skill_points` is `SkillPointStat` (PoolStat subclass) with **four buckets**: `used + current + wounded + staked == max` (identity — get_value() returns the sum, modifiers and base_value are bypassed). Operations:
+
+| Method | Effect | Mints? |
+|---|---|---|
+| `spend(n)` | current → used | no |
+| `refund(n)` | used → current (voluntary dealloc) | no |
+| `wound(n)` | used → wounded (forced dealloc, AttackSystem cascade) | no |
+| `heal(n)` | wounded → current (turn-start) | no |
+| `stake(n)` | current → staked (raise per-node alloc cap) | no |
+| `extract(n)` | staked → current (recover a stake) | no |
+| **`claim(n)`** | mint into used (force_allocate / scripted setup) | **yes** |
+| **`grant(n)`** | mint into current (level-up) | **yes** |
+
+Order discipline inside transfers: when raising current (refund/heal/extract), call `set_current()` **first** then drop the source bucket — otherwise PoolStat.set_current clamps to the pre-write cap and silently eats 1 SP. The `grant()` mint writes `current` directly (bypasses the clamp) so max can grow.
+
+Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't go through `force_allocate`, so `AllocationSystem.register_scene_authored_ownership()` walks the graph at GameRoot._ready and claims for each pre-owned node. Procgen content runs later and claims via force_allocate — no double-count.
+
+**Do not** push StatModifierDefs at `skill_points`. The override of get_value bypasses the modifier pipeline; modifiers would be silently inert. Mint via `grant(n)` instead, or `claim(n)` for locked-in SP.
 
 ## Turn-start upkeep
 
