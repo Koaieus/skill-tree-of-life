@@ -117,9 +117,91 @@ duplication. **No fusion.** A re-roll picks a different (stat, op) pair —
 budget accounting stays honest, modifier lists read cleanly (no "+1 STR | +1
 STR" awkwardness).
 
-If you'd later want "+1–3 STR" random-range entries instead of discrete tiers,
-that lives entirely inside the *entry* (a `RangeModifier` resource that resolves
-at roll time), not in the weighting pipeline.
+### Flat values vs ranges (PoE2-style tier rolling)
+
+Tier *and* in-tier variation both live on the pool entry. The entry carries
+the `(stat_id, operation, value_range)` triple; on `roll()` it samples the
+range and mints a fresh **scalar** `StatModifier`. `StatModifier` itself stays
+range-free — procgen is a roll-time concern that never leaks into the runtime
+stat pipeline.
+
+```
+ModifierPoolEntry
+ ├── stat_id: StringName       # &"strength"
+ ├── operation: ModifierOp     # ADD_BASE
+ ├── value_range: Vector2      # (5.0, 8.0) — tier 2 STR
+ ├── cost: int                 # 2 — budget axis
+ ├── weight: float              # 6.0 — base sampling weight
+ └── tags: Array[StringName]   # [&"str", &"flat", &"tier_2"]
+
+  func roll(rng) -> StatModifier:
+      var m := StatModifier.new()
+      m.stat_id = stat_id
+      m.operation = operation
+      m.value = rng.randf_range(value_range.x, value_range.y)
+      return m
+```
+
+This is the **PoE/PoE2 gear-affix model**: each entry IS a tier (cost +
+weight + tags), and the range supplies that tier's natural jitter. Three STR
+tiers (`+1-4 / +5-8 / +9-13`) replace nine hardcoded integer entries; in-tier
+high-rolls give a small "lucky" feel; players just see `+10 STR` and never
+need to know which tier rolled it.
+
+Two consequences worth pinning:
+
+- **Crazy-numbers stats fit naturally.** A `tier_5` INT entry can carry
+  `value_range = (1000, 10000)` because INT is log10-compressed downstream
+  (e.g. `mana_per_turn = floor(log10(INT))`). The pool doesn't know or care
+  — it just rolls a scalar. **Invariant:** *if a stat is meant to scale via
+  log/sqrt downstream, its pool entries may carry orders-of-magnitude larger
+  value ranges than linear stats.* Spell this out wherever crazy-INT ranges
+  appear in a balancing doc.
+- **CollisionProfile keys on `(stat_id, operation)`.** Range-on-entry doesn't
+  change the collision rule: a second draw on the same node still can't
+  produce another `(strength, ADD_BASE)` regardless of which tier rolled
+  first. The modifier list reads cleanly: `+6 STR | +5% STR | +1 DEX`, never
+  `+3 STR | +6 STR`.
+
+---
+
+## Identifiers & validation — keeping `StringName` honest
+
+The whole system leans on `StringName` tags and ids. One typo (`&"str"` vs
+`&"strr"`) silently weights nothing. Two layers catch this cleanly without
+boxing designers in:
+
+### Layer 1: `procgen/tags.tres` — single source of truth
+
+A small data resource — `Array[StringName]` — listing every legal tag with a
+short description per entry. Designers add a tag by editing this file; the
+rest of the system reads from it. **Data, not code.** A generated constants
+script (`procgen/tags_constants.gd` — `const STR := &"str"` etc.) is optional
+sugar for code-side construction; skip it until the lack hurts.
+
+### Layer 2: `@tool` validator on entries + profiles
+
+`ModifierPoolEntry._get_configuration_warnings()` (and the equivalent on
+each `WeightProfile`) walks `tags` against the loaded `tags.tres` set and
+returns a warning per unknown tag. Designer types a typo into the inspector
+→ red banner appears immediately, no need to wait for a test run.
+
+### Layer 3: GUT test as the belt-and-braces backstop
+
+`test/unit/test_procgen_tags.gd` loads every `.tres` under `procgen/`, walks
+their `tags` arrays and every `WeightProfile` dictionary, asserts every
+member is in `tags.tres`. Catches anything the `@tool` warning missed (a
+profile that loaded clean but the entry was edited later, etc.) and gates
+pre-push.
+
+`stat_id` typos benefit from the same treatment for free — `StatRegistry`
+already enforces the legal set at startup, so a `WeightProfile` that
+references an unknown `stat_id` can `push_error` at load time.
+
+**Why not enums / `const` only?** They'd block designers from authoring
+entries in the inspector. The data-resource approach lets both audiences
+(code authors via constants, designers via inspector) share one source of
+truth with one validator.
 
 ---
 
@@ -244,17 +326,165 @@ ArchetypeBalancer
 
 ---
 
+## Worked examples — low, mid, high budget
+
+Three example rolls to anchor the model. Same fixed setup, different budgets.
+Numbers are illustrative — the *shape* of the math is the point.
+
+### Shared setup
+
+**Universal pool (excerpt — `value_range` × `cost` × `weight` × `tags`):**
+
+| Entry | value_range | cost | weight | tags |
+|---|---|---|---|---|
+| STR-T1 | (1, 4) | 1 | 10.0 | str, attack, flat, tier_1, common |
+| STR-T2 | (5, 8) | 2 | 6.0 | str, attack, flat, tier_2 |
+| STR-T3 | (9, 13) | 3 | 3.0 | str, attack, flat, tier_3 |
+| STR%-T2 | (4, 7) | 2 | 4.0 | str, attack, percent, tier_2 |
+| STR%-T3 | (9, 12) | 3 | 1.5 | str, attack, percent, tier_3 |
+| DEX-T1 | (1, 4) | 1 | 10.0 | dex, attack, flat, tier_1, common |
+| DEX-T2 | (5, 8) | 2 | 6.0 | dex, attack, flat, tier_2 |
+| INT-T5 | (1000, 10000) | 5 | 0.1 | int, magic, flat, tier_5, rare |
+| CON-T1 | (1, 4) | 1 | 10.0 | con, defense, flat, tier_1, common |
+| PER-T1 | (1, 4) | 1 | 10.0 | per, sense, flat, tier_1, common |
+| SP+/turn | (1, 1) | 3 | 0.4 | sp, growth, tier_3, rare |
+| dmg_floor% | (3, 6) | 4 | 0.2 | def, percent, tier_4, rare |
+| self-loop | (1, 1) | 6 | 0.05 | structural, tier_5, mythic |
+
+(Similar shape for INT-T1..T3 / WIS / PER tiers — elided.)
+
+**Profile pipeline:** `ArchetypeWeightProfile` → `RadialBandProfile` → `CollisionProfile`.
+
+- **Red (STR) archetype multipliers:** `str ×3.0`, `dex ×0.3`, `int ×0.2`, other ×0.5.
+- **Outer-rim band multipliers:** `rare ×4.0`, `mythic ×8.0`, `common ×0.6`.
+
+---
+
+### Low budget = 2 — inner-rim, red cluster, common node
+
+Context: `archetype=red`, `radial_band=inner` (no rare/mythic boost).
+
+**Draw 1 (budget 2)** — affordable subset after archetype weighting:
+
+| Entry | base | × archetype | effective |
+|---|---|---|---|
+| STR-T1 | 10.0 | ×3.0 | 30.0 |
+| STR-T2 | 6.0 | ×3.0 | 18.0 |
+| STR%-T2 | 4.0 | ×3.0 | 12.0 |
+| DEX-T1, DEX-T2 | 10/6 | ×0.3 | 3.0 / 1.8 |
+| INT-T1 (≈10) | 10.0 | ×0.2 | 2.0 |
+| CON/WIS/PER T1 | 10.0 ea | ×0.5 | 5.0 ea |
+
+Roll → **STR-T2**. `value_range = (5, 8)` → rng resolves to **+7 STR**.
+Budget 0. **Done.**
+
+**Final node modifiers:** `+7 STR`. Predictable STR-cluster flavour from a
+small budget.
+
+---
+
+### Mid budget = 4 — mid-rim, red cluster
+
+Context: `archetype=red`, `radial_band=mid` — `rare ×1.5` band bump.
+
+**Draw 1 (budget 4)** — heaviest entry is still STR-T1 (30.0). Roll → **STR-T1** → range (1, 4) → **+3 STR**. Budget 3.
+
+**Draw 2 (budget 3)** — `CollisionProfile` zeroes STR-T1/T2/T3 (same
+`(strength, ADD_BASE)`). STR% survives (different op). Affordable subset:
+
+| Entry | effective | notes |
+|---|---|---|
+| STR%-T2 | 4.0 × 3.0 = 12.0 | |
+| STR%-T3 | 1.5 × 3.0 = 4.5 | |
+| DEX-T1/T2 | 3.0 / 1.8 | |
+| SP+/turn | 0.4 × 0.5 × 1.5 = 0.3 | (other ×0.5, rare ×1.5) |
+| STR-T*flat | 0 | collision |
+
+Roll → **STR%-T2** → range (4, 7) → **+5% STR**. Budget 1.
+
+**Draw 3 (budget 1)** — only T1s. STR-T1 collision. Among remaining
+attributes' T1s (DEX depressed, others ×0.5), roll → **DEX-T1** → range (1, 4) → **+2 DEX**. Budget 0.
+
+**Final node modifiers:** `+3 STR | +5% STR | +2 DEX`. The "STR specialist
+with a splash" pattern.
+
+---
+
+### High budget = 7 — outer-rim, red cluster
+
+Context: `archetype=red`, `radial_band=outer` — `rare ×4.0`, `mythic ×8.0`,
+`common ×0.6`. This is where **rare odds compound across multiple draws**.
+
+**Draw 1 (budget 7)** — fully open. Notable effective weights:
+
+| Entry | base | × arch | × band | effective | Pr |
+|---|---|---|---|---|---|
+| STR-T1 (common) | 10.0 | ×3.0 | ×0.6 | 18.0 | ~60 % |
+| STR-T2 | 6.0 | ×3.0 | — | 18.0 | (T2 not tagged common) |
+| STR-T3 | 3.0 | ×3.0 | — | 9.0 | |
+| INT-T5 (rare) | 0.1 | ×0.2 | ×4.0 | 0.08 | ~0.3 % |
+| SP+/turn (rare) | 0.4 | ×0.5 | ×4.0 | 0.8 | ~2.7 % |
+| dmg_floor% (rare) | 0.2 | ×0.5 | ×4.0 | 0.4 | ~1.3 % |
+| self-loop (mythic) | 0.05 | ×0.5 | ×8.0 | 0.2 | ~0.7 % |
+
+**Pr(any rare-or-mythic this draw) ≈ 5 %.** Roll → **STR-T3** → range (9, 13) → **+11 STR**. Budget 4.
+
+**Draw 2 (budget 4)** — STR-T* flat collision-blocked. Now:
+
+| Entry | effective | notes |
+|---|---|---|
+| STR%-T2 | 12.0 | |
+| STR%-T3 | 4.5 | |
+| DEX-T2 | 1.8 | |
+| dmg_floor% (rare, cost 4) | 0.4 × 1 = 0.4 | newly affordable, still ~1 % |
+| SP+/turn (rare, cost 3) | 0.8 | |
+| INT-T5 (rare, cost 5) | unaffordable | |
+| self-loop (mythic, cost 6) | unaffordable | |
+
+Roll → **STR%-T2** → range (4, 7) → **+6% STR**. Budget 2.
+
+**Draw 3 (budget 2)** — STR flat + percent both collision-blocked. Roll →
+**CON-T2** (5.0 effective) → range (5, 8) → **+5 CON**. Budget 0.
+
+**Final node modifiers:** `+11 STR | +6% STR | +5 CON`. A solid red-cluster
+outer-rim node — strong STR identity, a defensive splash.
+
+#### What if we'd hit a rare?
+
+**Pr(at least one rare across all 3 draws) ≈ 1 − (1 − 0.05)³ ≈ 14 %.** Roughly
+1 in 7 high-budget outer-rim nodes carries something interesting. **Levers
+to crank that up:**
+
+1. **Raise the outer-rim `rare ×` multiplier** — most direct.
+2. **Add a `MinPerRegion` `GuaranteedPlacement`** ("≥1 rare somewhere in the
+   outer rim"). Turns probabilistic into guaranteed-but-RNG-located. Strong
+   tool for "every run has *something*."
+3. **Local archetype-rare affinity** — red+outer specifically boosts
+   `str`-tagged rares. Locality of flavour.
+4. **Budget scaling via `BudgetPolicy.budget_field`** — outer rim gets
+   higher budgets → more draws → multiplicatively more chances.
+
+All four are existing `WeightProfile` / `GuaranteedPlacement` / `BudgetPolicy`
+knobs. No new engine code, all `.tres`.
+
+---
+
 ## Migration sketch (very rough)
 
-1. Extract `WeightContext`, `WeightProfile` (abstract), and `ArchetypeWeightProfile`
-   + `CollisionProfile` (the two minimum-viable profiles).
-2. Add `tags: Array[StringName]` to `ModifierPoolEntry`.
-3. Replace `NodeTypeDef.modifier_pool` per-type pools with a single
+1. Reshape `ModifierPoolEntry`: add `stat_id`, `operation`, `value_range`,
+   `tags`; remove the embedded `StatModifier` resource (the entry now mints
+   one on `roll()`). Migrate existing presets.
+2. Land `procgen/tags.tres` + `@tool` validator + GUT test (the typo backstop)
+   in the same change as step 1 so new tags are gated from day one.
+3. Extract `WeightContext`, `WeightProfile` (abstract), and
+   `ArchetypeWeightProfile` + `CollisionProfile` (the two minimum-viable
+   profiles).
+4. Replace `NodeTypeDef.modifier_pool` per-type pools with a single
    `GraphProcgenConfig.modifier_pool` + an archetype-keyed weight profile.
-4. Add `BudgetPolicy` (extract from `NodeTypeDef`, keep type-bound override).
-5. Add `AddonPolicy` + `AddonPool` + first concrete addon entries.
-6. `GuaranteedPlacement` pass — start with `MinNearStartingPoints` only.
-7. `ArchetypeBalancer` — opt-in, off by default until tuned.
+5. Add `BudgetPolicy` (extract from `NodeTypeDef`, keep type-bound override).
+6. Add `AddonPolicy` + `AddonPool` + first concrete addon entries.
+7. `GuaranteedPlacement` pass — start with `MinNearStartingPoints` only.
+8. `ArchetypeBalancer` — opt-in, off by default until tuned.
 
 Each step is shippable and reversible. The existing v1 procgen keeps working
 in the meantime — `GraphProcgenConfig` grows new optional fields, doesn't
