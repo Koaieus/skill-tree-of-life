@@ -96,24 +96,14 @@ func _on_turn_started(entity: Entity) -> void:
 		core_class.on_turn_started(self)
 
 
-## Listens for xp.replenished (pool crossed into full). Grows the xp cap via
-## its formula, deducts the old cap from current (carrying overflow if the
-## pool ever permits it), mints 1 SP via grant() — bumps both max and current
-## by 1 — then emits leveled_up.
+## Listens for xp.replenished (pool crossed into full). Pool growth + current
+## carry-over are handled inside PoolStat when its def is `is_growable`; here
+## we just mint 1 SP via grant() (bumps both max and current) and emit leveled_up.
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
-	#var xp_pool := stat_board.xp
-	#var old_max := int(xp_pool.value)
-	
-	## growth hooking moved to poolstat.. good idea?
-	#xp_pool.grow() 
-	## deducting old max also no longer needed, part of pool stat config, .. good idea right?
-	#xp_pool.set_current(max(0.0, xp_pool.current - float(old_max))) 
-
 	if stat_board.skill_points != null:
 		stat_board.skill_points.grant(1)
-
 	level += 1
 	leveled_up.emit(level)
 

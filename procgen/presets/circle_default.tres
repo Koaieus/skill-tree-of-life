@@ -16,7 +16,6 @@ outer_radius = 800.0
 [sub_resource type="Resource" id="mod_str_1"]
 script = ExtResource("6_mod")
 stat_id = &"strength"
-value = 1.0
 
 [sub_resource type="Resource" id="entry_str_1"]
 script = ExtResource("5_entry")
@@ -58,7 +57,6 @@ modifier_pool = SubResource("pool_red")
 [sub_resource type="Resource" id="mod_int_1"]
 script = ExtResource("6_mod")
 stat_id = &"intelligence"
-value = 1.0
 
 [sub_resource type="Resource" id="entry_int_1"]
 script = ExtResource("5_entry")
@@ -100,7 +98,6 @@ modifier_pool = SubResource("pool_blue")
 [sub_resource type="Resource" id="mod_dex_1"]
 script = ExtResource("6_mod")
 stat_id = &"dexterity"
-value = 1.0
 
 [sub_resource type="Resource" id="entry_dex_1"]
 script = ExtResource("5_entry")
@@ -120,7 +117,6 @@ cost = 2
 [sub_resource type="Resource" id="mod_per_1"]
 script = ExtResource("6_mod")
 stat_id = &"perception"
-value = 1.0
 
 [sub_resource type="Resource" id="entry_per_1"]
 script = ExtResource("5_entry")

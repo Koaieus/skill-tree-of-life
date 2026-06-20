@@ -135,11 +135,11 @@ ModifierPoolEntry
  └── tags: Array[StringName]   # [&"str", &"flat", &"tier_2"]
 
   func roll(rng) -> StatModifier:
-      var m := StatModifier.new()
-      m.stat_id = stat_id
-      m.operation = operation
-      m.value = rng.randf_range(value_range.x, value_range.y)
-      return m
+	  var m := StatModifier.new()
+	  m.stat_id = stat_id
+	  m.operation = operation
+	  m.value = rng.randf_range(value_range.x, value_range.y)
+	  return m
 ```
 
 This is the **PoE/PoE2 gear-affix model**: each entry IS a tier (cost +

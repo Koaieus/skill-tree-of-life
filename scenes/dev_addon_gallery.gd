@@ -43,6 +43,7 @@ func _rebuild() -> void:
 
 
 func _make_tile(addon_script: Script) -> Control:
+	# TODO: this is node composition — should be a scene
 	var label_h := 24.0
 	var tile := PanelContainer.new()
 	tile.custom_minimum_size = tile_size

@@ -143,7 +143,7 @@ func _effective_viewers() -> Array[Entity]:
 			if v != null:
 				out.append(v)
 		return out
-	if empty_mode == EmptyMode.ALL_ENTITIES:
+	if is_inside_tree() and empty_mode == EmptyMode.ALL_ENTITIES:
 		var out: Array[Entity] = []
 		for n in get_tree().get_nodes_in_group(&"entities"):
 			if n is Entity:
