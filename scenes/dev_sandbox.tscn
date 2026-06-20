@@ -42,6 +42,7 @@
 [ext_resource type="Script" uid="uid://bb2qycfjh26rf" path="res://scenes/camera_2d.gd" id="39_uulnk"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="40_vision"]
 [ext_resource type="PackedScene" path="res://ui/fog_overlay/fog_overlay.tscn" id="41_fog"]
+[ext_resource type="Resource" path="res://entity/core/balanced_core.tres" id="42_core"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -645,12 +646,14 @@ unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
 stat_board = SubResource("Resource_11lpl")
+core_class = ExtResource("42_core")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
 display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
 stat_board = SubResource("Resource_85b6y")
+core_class = ExtResource("42_core")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Edges" type="Node2D" parent="Graph" unique_id=97374127]
