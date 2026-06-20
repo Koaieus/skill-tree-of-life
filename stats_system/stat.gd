@@ -20,7 +20,15 @@ signal value_changed
 	set(v):
 		definition = v
 		_sync_resource_name()
-@export var base_value: float = 0.0
+@export var base_value: float = 0.0:
+	set(v):
+		if v == base_value:
+			return
+		base_value = v
+		# Computed value moves with base_value; notify subscribers (UI, formula
+		# modifiers watching this stat) so reactive paths stay coherent when
+		# scripts write base_value directly.
+		value_changed.emit()
 
 var _modifiers: Array[StatModifier] = []
 

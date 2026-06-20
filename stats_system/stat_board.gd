@@ -68,7 +68,7 @@ extends Resource
 ## Scaling rules intrinsic to this board — formula-driven StatModifiers that
 ## describe how stats on this board relate to each other (e.g. PER scales
 ## vision_range). Applied once by Entity._ready() via apply_intrinsics(). These
-## are board-level truths, not per-entity bonuses (those live on Entity.core_modifiers).
+## are board-level truths, not per-entity bonuses (those live on Entity.core_class).
 @export_group("Scaling Rules")
 @export var intrinsic_modifiers: Array[StatModifier] = []
 

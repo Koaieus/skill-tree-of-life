@@ -179,8 +179,7 @@ func test_formula_value_acts_as_coefficient() -> void:
 	assert_eq(board.strength.get_value(), 30)
 
 
-func test_formula_source_change_propagates() -> void:
-	# Bumping DEX via a modifier on DEX must dirty STR's formula-driven modifier.
+func test_formula_source_change_via_modifier_propagates() -> void:
 	var board := _board()
 	board.strength.base_value = 0.0
 	board.dexterity.base_value = 5.0
@@ -194,6 +193,35 @@ func test_formula_source_change_propagates() -> void:
 	bump.value = 10.0
 	board.add_modifier(bump)
 	assert_eq(int(board.strength.get_value()) - before, 10)
+
+
+func test_formula_source_change_via_base_value_propagates() -> void:
+	# Direct base_value writes must dirty downstream formulas — same reactive
+	# path as the modifier route above.
+	var board := _board()
+	board.strength.base_value = 0.0
+	board.dexterity.base_value = 5.0
+	var lf := LinearFormula.new()
+	lf.source_stat_id = &"dexterity"
+	board.add_modifier(_mod(StatModifier.Operation.ADD_BASE, 1.0, lf))
+	var before := int(board.strength.get_value())
+	board.dexterity.base_value = 15.0
+	assert_eq(int(board.strength.get_value()) - before, 10)
+
+
+func test_base_value_change_emits_value_changed() -> void:
+	var s := _stat(0.0)
+	watch_signals(s)
+	s.base_value = 5.0
+	assert_signal_emitted(s, "value_changed")
+	assert_eq(s.get_value(), 5)
+
+
+func test_base_value_same_value_write_is_noop() -> void:
+	var s := _stat(7.0)
+	watch_signals(s)
+	s.base_value = 7.0
+	assert_signal_not_emitted(s, "value_changed")
 
 
 func test_formula_mixed_with_static_modifiers() -> void:

@@ -13,12 +13,6 @@ signal leveled_up(new_level: int)
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
 @export var stat_board: StatBoard = null
-## Persistent modifiers applied once on _ready() and never removed.
-## Use for one-off starting attribute offsets that aren't part of any class.
-## Class-defined modifiers belong on `core_class` instead.
-## Formula-driven entries must NOT be shared across entities — each entity
-## needs its own instance (duplicate the .tres if reusing).
-@export var core_modifiers: Array[StatModifier] = []
 ## Class specialization for this entity. Applied once on _ready via
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.
 ## Optional — null means a plain entity with no class bonuses.
@@ -64,8 +58,6 @@ func _ready() -> void:
 
 	if stat_board != null:
 		stat_board.apply_intrinsics()
-		for m in core_modifiers:
-			stat_board.add_modifier(m)
 		if core_class != null:
 			core_class.apply(self)
 		if stat_board.xp != null:
