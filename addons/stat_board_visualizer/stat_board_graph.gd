@@ -2,7 +2,7 @@
 ##
 ## - One `GraphNode` per stat, grouped into three `GraphFrame` columns
 ##   (Attributes · Pools · Derived).
-## - One edge per intrinsic `DerivedModifierDef` from its input stats to its
+## - One edge per intrinsic `DerivedStatModifier` from its input stats to its
 ##   target — the *dependency*. The actual *contribution* (formula text +
 ##   effective value + op-tag) is rendered as a row inside the target node,
 ##   because that's where the number lives.
@@ -57,7 +57,7 @@ const _GROUP_LAYOUT := [
 	},
 ]
 
-# Per-op styling. Indexed by `StatModifierDef.Operation`.
+# Per-op styling. Indexed by `StatModifier.Operation`.
 const _OP_TAGS := ["+base", "+%", "×", "+bonus", "=set"]
 const _OP_COLORS := [
 	Color(0.62, 0.82, 1.00),  # ADD_BASE
@@ -289,8 +289,8 @@ func _wire_edges_and_breakdowns() -> void:
 		if not _entries.has(to_id):
 			continue
 		_add_breakdown_row(to_id, m)
-		if m is DerivedModifierDef:
-			var dm := m as DerivedModifierDef
+		if m is DerivedStatModifier:
+			var dm := m as DerivedStatModifier
 			if dm.formula == null:
 				continue
 			for src_id in dm.formula.get_input_ids():
@@ -298,7 +298,7 @@ func _wire_edges_and_breakdowns() -> void:
 					connect_node(src_id, 0, to_id, 0)
 
 
-func _add_breakdown_row(target_id: StringName, m: StatModifierDef) -> void:
+func _add_breakdown_row(target_id: StringName, m: StatModifier) -> void:
 	var entry: Dictionary = _entries[target_id]
 	var box: VBoxContainer = entry.breakdown
 
@@ -404,9 +404,9 @@ func _op_summary(stat: Stat) -> String:
 	return " · ".join(parts)
 
 
-func _formula_text(m: StatModifierDef) -> String:
-	if m is DerivedModifierDef:
-		var dm := m as DerivedModifierDef
+func _formula_text(m: StatModifier) -> String:
+	if m is DerivedStatModifier:
+		var dm := m as DerivedStatModifier
 		if dm.formula == null:
 			return "const %s" % _trim_float(m.value)
 		if dm.formula is LinearFormula:
@@ -419,13 +419,13 @@ func _formula_text(m: StatModifierDef) -> String:
 	return "const %s" % _trim_float(m.value)
 
 
-func _contribution_text(m: StatModifierDef) -> String:
+func _contribution_text(m: StatModifier) -> String:
 	return "= %s" % _trim_float(_contribution_value(m))
 
 
-func _contribution_value(m: StatModifierDef) -> float:
-	if m is DerivedModifierDef:
-		var dm := m as DerivedModifierDef
+func _contribution_value(m: StatModifier) -> float:
+	if m is DerivedStatModifier:
+		var dm := m as DerivedStatModifier
 		if dm.formula != null and _board != null:
 			return dm.formula.compute(_board)
 	return m.value
@@ -473,13 +473,13 @@ func _collect_stat_ids() -> Array:
 	return ids
 
 
-func _on_modifier_confirmed(mod: StatModifierDef) -> void:
+func _on_modifier_confirmed(mod: StatModifier) -> void:
 	if _board == null or mod == null:
 		return
 	# Append to the typed array via a copy so the property's "set" sees a
 	# distinct value (some Godot versions skip change notifications on
 	# in-place mutation of an exported array).
-	var new_arr: Array[StatModifierDef] = _board.intrinsic_modifiers.duplicate()
+	var new_arr: Array[StatModifier] = _board.intrinsic_modifiers.duplicate()
 	new_arr.append(mod)
 	_board.intrinsic_modifiers = new_arr
 	_board.emit_changed()  # triggers _on_board_changed → rebuild

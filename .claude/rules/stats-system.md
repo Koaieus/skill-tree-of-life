@@ -65,7 +65,7 @@ grep -h "^id = " stats_system/defs/*.tres | sort
 
 ## Intrinsic scaling (entity/default_entity_board.tres)
 
-These are `DerivedModifierDef` sub-resources wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). **Update this table when adding or changing a derived modifier.**
+These are `DerivedStatModifier` sub-resources wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). **Update this table when adding or changing a derived modifier.**
 
 | Input stat | Target stat | Op | Formula |
 |---|---|---|---|
@@ -79,7 +79,7 @@ These are `DerivedModifierDef` sub-resources wired as `intrinsic_modifiers` on t
 
 ## Gotchas
 
-- **DerivedModifierDef must not be shared across entities.** Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` auto-duplicates them.
+- **DerivedStatModifier must not be shared across entities.** Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` auto-duplicates them.
 - **Pool modifiers target the pool id, not a `_max` suffix.** `"health"` targets the health cap. `"health_max"` doesn't exist.
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.

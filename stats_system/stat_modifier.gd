@@ -1,17 +1,15 @@
 @tool
-class_name StatModifierDef
+class_name StatModifier
 extends Resource
 
 ## The designer-loop atom: pick a stat (by id), pick an op, enter a value.
-## Sits on a SkillNode's `modifiers: Array[StatModifierDef]`. Stat applies it
-## via the pipeline below.
+## Sits on a SkillNode's `modifiers: Array[StatModifier]`. Stat applies it via
+## the pipeline below. The runtime carrier for modifier state — *not* an
+## immutable schema (those are StatDef / PoolStatDef under defs/).
 ##
-## TODO:	If this is the runtime carrier for stat modifiers, then I propose renaming this 
-##			`StatModifier` (losing the `-Def`)
-## TODO: 	Wire `changed` signal to stats boards or their bins — a change e.g. of modifier value 
-##			should dirty the stat. Currently emitting `changed`, could also opt for making our 
-##			own signal just for the value? Or to lift up the source_value_changed signal
-##			from DerivedStatModifierDef (which we should also lose the -Def of_
+## A live `value` edit fires `Resource.changed`, which Stat.add_modifier wires
+## into `_on_dependent_modifier_changed` — the same path DerivedStatModifier's
+## `source_value_changed` uses. No manual dirty-marking required.
 ##
 ## Pipeline (see Stat.get_value):
 ##   SET (if present) returns immediately — highest `priority` wins,
@@ -61,8 +59,7 @@ enum Operation {
 @export var priority: int = 0
 
 
-## Returns the modifier's effective value. Subclasses (e.g. DerivedModifierDef)
+## Returns the modifier's effective value. Subclasses (e.g. DerivedStatModifier)
 ## override this to compute from other stats at runtime. Base returns `value`.
 func get_effective_value() -> float:
 	return value
-	

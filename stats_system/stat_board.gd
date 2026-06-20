@@ -65,12 +65,12 @@ extends Resource
 @export_group("Melee")
 @export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.
 
-## Scaling rules intrinsic to this board — DerivedModifierDefs that describe
+## Scaling rules intrinsic to this board — DerivedStatModifiers that describe
 ## how stats on this board relate to each other (e.g. PER scales vision_range).
 ## Applied once by Entity._ready() via apply_intrinsics(). These are board-level
 ## truths, not per-entity bonuses (those live on Entity.core_modifiers).
 @export_group("Scaling Rules")
-@export var intrinsic_modifiers: Array[StatModifierDef] = []
+@export var intrinsic_modifiers: Array[StatModifier] = []
 
 @export_group("")
 
@@ -90,11 +90,11 @@ func get_value(id: StringName) -> Variant:
 
 ## Route a modifier to its target Stat by id. The intended one-liner from
 ## AllocationSystem: `for m in node.modifiers: entity.stat_board.add_modifier(m)`.
-## DerivedModifierDef instances are bound to this board so their formulas can
+## DerivedStatModifier instances are bound to this board so their formulas can
 ## read source stats and subscribe to their value_changed signals.
-func add_modifier(m: StatModifierDef) -> void:
-	if m is DerivedModifierDef:
-		(m as DerivedModifierDef).bind(self)
+func add_modifier(m: StatModifier) -> void:
+	if m is DerivedStatModifier:
+		(m as DerivedStatModifier).bind(self)
 	var s := get_stat(m.stat_id)
 	if s == null:
 		push_warning("StatBoard has no stat for id %s" % m.stat_id)
@@ -102,9 +102,9 @@ func add_modifier(m: StatModifierDef) -> void:
 	s.add_modifier(m)
 
 
-func remove_modifier(m: StatModifierDef) -> void:
-	if m is DerivedModifierDef:
-		(m as DerivedModifierDef).unbind()
+func remove_modifier(m: StatModifier) -> void:
+	if m is DerivedStatModifier:
+		(m as DerivedStatModifier).unbind()
 	var s := get_stat(m.stat_id)
 	if s == null:
 		return
@@ -112,10 +112,10 @@ func remove_modifier(m: StatModifierDef) -> void:
 
 
 ## Apply intrinsic_modifiers. Call once from Entity._ready() after the board
-## is fully wired. DerivedModifierDef entries are duplicated automatically so
+## is fully wired. DerivedStatModifier entries are duplicated automatically so
 ## each entity board gets its own bound instance — callers don't need to think
 ## about this.
 func apply_intrinsics() -> void:
 	for m in intrinsic_modifiers:
-		var safe: StatModifierDef = m.duplicate(true) if m is DerivedModifierDef else m
+		var safe: StatModifier = m.duplicate(true) if m is DerivedStatModifier else m
 		add_modifier(safe)

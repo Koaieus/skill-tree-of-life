@@ -82,19 +82,19 @@ func grow() -> int:
 
 # --- Modifier overrides (maintain current ≤ cap on every cap change) -------
 
-func add_modifier(m: StatModifierDef) -> void:
+func add_modifier(m: StatModifier) -> void:
 	var old_max := float(get_value())
 	super(m)
 	_apply_max_change(old_max)
 
 
-func remove_modifier(m: StatModifierDef) -> void:
+func remove_modifier(m: StatModifier) -> void:
 	var old_max := float(get_value())
 	super(m)
 	_apply_max_change(old_max)
 
 
-func _on_dependent_modifier_changed(m: StatModifierDef) -> void:
+func _on_dependent_modifier_changed(m: StatModifier) -> void:
 	var old_max := float(get_value())
 	super(m)
 	_apply_max_change(old_max)

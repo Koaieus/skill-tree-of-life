@@ -11,7 +11,7 @@
 @tool
 extends ConfirmationDialog
 
-signal modifier_confirmed(modifier: StatModifierDef)
+signal modifier_confirmed(modifier: StatModifier)
 
 const _OP_TAGS := ["+base", "+%", "×", "+bonus", "=set"]
 const _KIND_CONSTANT := 0
@@ -39,7 +39,7 @@ var _stat_ids: Array = []
 func _ready() -> void:
 	_operation.clear()
 	for i in _OP_TAGS.size():
-		var op_name: String = StatModifierDef.Operation.keys()[i]
+		var op_name: String = StatModifier.Operation.keys()[i]
 		_operation.add_item("%s  (%s)" % [_OP_TAGS[i], op_name], i)
 	_kind.clear()
 	_kind.add_item("Constant", _KIND_CONSTANT)
@@ -120,10 +120,10 @@ func _on_confirmed() -> void:
 	var op: int = _operation.selected
 	var kind: int = _kind.selected
 
-	var mod: StatModifierDef
+	var mod: StatModifier
 	match kind:
 		_KIND_CONSTANT:
-			mod = StatModifierDef.new()
+			mod = StatModifier.new()
 			mod.value = float(_value.value)
 		_KIND_LINEAR:
 			if _linear_source.selected < 0:
@@ -131,14 +131,14 @@ func _on_confirmed() -> void:
 			var lf := LinearFormula.new()
 			lf.source_stat_id = StringName(_linear_source.get_item_text(_linear_source.selected))
 			lf.scale_per_point = float(_linear_scale.value)
-			var dm := DerivedModifierDef.new()
+			var dm := DerivedStatModifier.new()
 			dm.formula = lf
 			mod = dm
 		_KIND_EXPRESSION:
 			var ef := ExpressionFormula.new()
 			ef.formula = _expr_formula.text
 			ef.inputs = ExpressionFormula.detect_inputs(_expr_formula.text, _stat_ids)
-			var dm2 := DerivedModifierDef.new()
+			var dm2 := DerivedStatModifier.new()
 			dm2.formula = ef
 			mod = dm2
 		_:

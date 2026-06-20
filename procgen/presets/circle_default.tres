@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/node_type_def.gd" id="3_type"]
 [ext_resource type="Script" uid="uid://dhvo8sk56h48c" path="res://procgen/modifier_pool.gd" id="4_pool"]
 [ext_resource type="Script" uid="uid://cd378og7212uy" path="res://procgen/modifier_pool_entry.gd" id="5_entry"]
-[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="6_mod"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="6_mod"]
 [ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/starting_point.gd" id="7_sp"]
 [ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/radial_gradient_field.gd" id="8_field"]
 

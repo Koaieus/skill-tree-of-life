@@ -51,7 +51,7 @@ Both contrast with addons, which are applied freely (within resource constraints
 
 **Concept:** Normally allocating a node moves it from `0/1 → 1/1` (1 SP spent). A Doubled Node separates *allocation count* from *capacity* — you can spend an additional SP to raise the cap: `0/1 → 0/2`. Then a third SP fully double-allocates it: `0/2 → 1/2 → 2/2`.
 
-**What doubles:** Every `StatModifierDef` on the node is applied to the entity's stat board twice — exactly as if the node were allocated twice. Unique/special-effect modifiers may react to being applied a second time in a custom way (e.g., a Lifeline modifier might extend its grace window rather than duplicate it), or simply no-op on the second application. Plain scalar modifiers (ADD_BASE, INCREASE, etc.) double straightforwardly.
+**What doubles:** Every `StatModifier` on the node is applied to the entity's stat board twice — exactly as if the node were allocated twice. Unique/special-effect modifiers may react to being applied a second time in a custom way (e.g., a Lifeline modifier might extend its grace window rather than duplicate it), or simply no-op on the second application. Plain scalar modifiers (ADD_BASE, INCREASE, etc.) double straightforwardly.
 
 Note: the doubled node does **not** gain twice its own HP. But if the node carries a `node_health` stat modifier (e.g. `+2 node_health`), the entity receives that modifier twice, raising the `node_health` stat — which then propagates to all owned nodes' HP pools. So indirectly, doubling a node that gives node durability *does* make all your nodes tougher.
 
@@ -63,7 +63,7 @@ Recovery via **stack-extract**: move your Core to a doubled node and spend an ac
 **Limit:** Cap TBD — likely `X/3` or `X/4`. Each capacity tier costs one deep-spent SP, so the cost curve is steep.
 
 **Relationship to core extraction (adjacent, preliminary):**
-The stack-extract ritual is mechanically adjacent to a separate planned feature: a core can "mine" a node it sits on over several turns to copy or permanently transfer one of its `StatModifierDef`s onto the core itself. This makes that modifier a permanent core bonus independent of the node. This feature is rare/slow by design (multi-turn investment) and will need careful balance to avoid trivialising the skill tree economy. Both features share the *verb* of "extracting value from a node", but the targets and costs differ.
+The stack-extract ritual is mechanically adjacent to a separate planned feature: a core can "mine" a node it sits on over several turns to copy or permanently transfer one of its `StatModifier`s onto the core itself. This makes that modifier a permanent core bonus independent of the node. This feature is rare/slow by design (multi-turn investment) and will need careful balance to avoid trivialising the skill tree economy. Both features share the *verb* of "extracting value from a node", but the targets and costs differ.
 
 **Open questions:**
 - Is the extract action free or does it cost an AP? (Current lean: costs 1 AP, making mid-combat extraction a real trade-off.)
@@ -84,5 +84,5 @@ The stack-extract ritual is mechanically adjacent to a separate planned feature:
 2. **Corrupted node downside proliferation:** When a corrupted modifier is PROLIFERATED in loot resolution, does the downside also proliferate? At the same rate? This determines how dangerous a corrupted loot pick is.
 3. **Crystallized node combat interaction:** Crystallized = can't be voluntarily deallocated. Does this mean it can't participate in melee reshaping (Buffer charging requires the node to spend its action, not dealloc — so probably fine)? Does Uprooting count as force-deallocation or voluntary?
 4. **Buffer addon vs Buffer specialization:** Resolve by playtesting whether the capability difference (freely-applied addon vs. a node that *is* a Buffer intrinsically) is meaningful enough to warrant two systems.
-5. **Doubled node — "unique" modifier tag:** Need a canonical way to mark a `StatModifierDef` as unique (no-ops on second application). Likely an `@export var unique: bool` on StatModifierDef, checked by the doubling application logic.
+5. **Doubled node — "unique" modifier tag:** Need a canonical way to mark a `StatModifier` as unique (no-ops on second application). Likely an `@export var unique: bool` on StatModifier, checked by the doubling application logic.
 6. **Doubled node — extraction ownership:** Can you extract a stack from a node owned by an *enemy*? Doing so would heal your deep-spent wound but return their capacity investment — a very asymmetric interaction worth designing explicitly.

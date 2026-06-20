@@ -22,7 +22,7 @@ A `Stat.value_changed` subscription on the bound `node_health` stat clamps
 
 ## Why not in the modifier pipeline yet
 
-`DerivedModifierDef` (`stats_system/derived_modifier_def.gd`) binds to **one
+`DerivedStatModifier` (`stats_system/derived_modifier_def.gd`) binds to **one
 StatBoard** and looks source stats up on that same board
 (`board.get_stat(id)` at `derived_modifier_def.gd:37`). `StatFormula.compute`
 takes a single board argument.

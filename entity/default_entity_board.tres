@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="2_scalar"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="3_pool"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
-[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="12_3edt8"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
@@ -26,7 +26,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
-[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="script_derived"]
+[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_stat_modifier.gd" id="script_derived"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 

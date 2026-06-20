@@ -27,7 +27,7 @@ signal depleted
 
 ## The modifier offerings this node carries — pushed onto an allocating
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
-@export var modifiers: Array[StatModifierDef] = []
+@export var modifiers: Array[StatModifier] = []
 
 ## Persistent base-type identity colour (e.g. procgen's NodeTypeDef colour).
 ## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
@@ -288,7 +288,7 @@ func _refresh_local_stat_bindings() -> void:
 # Addon plumbing. Carrier owns its `modifiers` array as the source-of-truth
 # for AllocationSystem, so addons mutate it directly here (append/erase).
 # While allocated we also push/pop live on the entity board so the effect
-# is immediate — same StatModifierDef instance, no double-pop because
+# is immediate — same StatModifier instance, no double-pop because
 # AllocationSystem iterates the (now-updated) array on dealloc.
 func _on_addon_added(c: Node) -> void:
 	if not (c is SkillNodeAddon):

@@ -8,7 +8,7 @@ Allocating a node `n` to entity `e` always does these four things:
 
 1. **`n.owned_by = e`** — drives all visuals (owner-tint disk, addon visibility), `SkillNode.refill()` at owner turn-start, and per-node LocalStat rebinds (`get_local_stat()` reads its `entity_stat` from `owned_by.stat_board`).
 2. **`e.navigator.mirror_add(n)`** — the EntityNavigator AStar mirror of *this entity's* subgraph picks up the node. Cut-vertex / islanding queries (`would_disconnect_from`, `nodes_islanded_by_removing`) read this mirror.
-3. **For each `m` in `n.modifiers`: `e.stat_board.add_modifier(m)`** — pushes the node's intrinsic modifiers onto the entity's stat pipeline. DerivedModifierDefs are auto-bound to the board by `add_modifier`.
+3. **For each `m` in `n.modifiers`: `e.stat_board.add_modifier(m)`** — pushes the node's intrinsic modifiers onto the entity's stat pipeline. DerivedStatModifiers are auto-bound to the board by `add_modifier`.
 4. **`e.stat_board.skill_points.claim(1)`** (force_allocate only) — mints 1 SP into the `used` bucket, bumping max. Required so subsequent voluntary deallocation can refund into current without overflowing max and silently clamping away the SP. See `.claude/rules/stats-system.md` for the four-bucket SP model.
 
 These four are exposed as the **`force_allocate(entity, node)`** primitive. It's the gating-free atom; everything else composes it. **Exception**: `allocate()` (the gated path) inlines steps 1–3 and substitutes `spend(1)` for step 4 — `spend` transfers current → used rather than minting, since the player paid for the allocation.

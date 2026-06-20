@@ -12,7 +12,7 @@ extends StatFormula
 ## The Expression is parsed once on first compute() and cached. If the formula
 ## string changes at runtime (editor @tool use), call _invalidate() to reparse.
 ## `inputs` must list every stat the formula reads — this is also the subscription
-## list DerivedModifierDef uses for dirty-tracking.
+## list DerivedStatModifier uses for dirty-tracking.
 
 @export_multiline var formula: String = ""
 @export var inputs: Array[StringName] = []

@@ -13,7 +13,7 @@ extends Node2D
 ## "is-this-mod-attached" truth — addons just hand off and reclaim.
 ##
 ## - `entity_modifiers`: appended to carrier.modifiers (the same
-##   `Array[StatModifierDef]` AllocationSystem already iterates) on add,
+##   `Array[StatModifier]` AllocationSystem already iterates) on add,
 ##   erased on remove. While the carrier IS allocated we also push/pop
 ##   live on the entity stat_board so the effect is immediate.
 ## - `local_modifiers`: routed directly to carrier.get_local_stat(stat_id)
@@ -23,8 +23,8 @@ extends Node2D
 ## Future stacking cap (e.g. "1 + 1/<stat>" addon capacity) lives at
 ## allocation/edit time and doesn't touch this class.
 
-@export var entity_modifiers: Array[StatModifierDef] = []
-@export var local_modifiers: Array[StatModifierDef] = []
+@export var entity_modifiers: Array[StatModifier] = []
+@export var local_modifiers: Array[StatModifier] = []
 ## When true, at most one of this exact script class may sit on a carrier
 ## (enforced by SkillNode at child_entered_tree — duplicate is rejected).
 @export var unique: bool = false

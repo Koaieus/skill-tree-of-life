@@ -1,6 +1,6 @@
 @tool
-class_name DerivedModifierDef
-extends StatModifierDef
+class_name DerivedStatModifier
+extends StatModifier
 
 ## A modifier whose effective value is computed from other stats via a
 ## pluggable StatFormula. `value` (inherited) is the fallback when
@@ -36,7 +36,7 @@ func bind(board: StatBoard) -> void:
 	for id in formula.get_input_ids():
 		var s := board.get_stat(id)
 		if s == null:
-			push_warning("DerivedModifierDef: source stat '%s' not found in board" % id)
+			push_warning("DerivedStatModifier: source stat '%s' not found in board" % id)
 			continue
 		if not s.value_changed.is_connected(_on_source_changed):
 			s.value_changed.connect(_on_source_changed)

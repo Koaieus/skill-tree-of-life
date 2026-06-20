@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://ch0s7sw18mc23"]
 
 [ext_resource type="Script" uid="uid://2d6x3xbm2fai" path="res://scenes/dev_sandbox.gd" id="1_dev"]
-[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier_def.gd" id="2_mod"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="Script" uid="uid://l5c7l8ty7fm1" path="res://graph/graph.gd" id="3_graph"]
 [ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="4_edge"]
 [ext_resource type="Script" uid="uid://drlgxrdnh2rtd" path="res://graph/navigator.gd" id="5_nav"]
@@ -21,7 +21,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="13_0clpu"]
 [ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="14_sdhs6"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="16_8r5xj"]
-[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="17_k8amt"]
+[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_stat_modifier.gd" id="17_k8amt"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="18_f58km"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana.tres" id="19_arms0"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="20_3ogaa"]

@@ -252,7 +252,7 @@ static func _assign_types(
 # ── Modifier roll ─────────────────────────────────────────────────────────
 
 
-static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: RandomNumberGenerator) -> Array[StatModifierDef]:
+static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: RandomNumberGenerator) -> Array[StatModifier]:
 	if type_def.modifier_pool == null:
 		return []
 	var raw := rng.randi_range(type_def.budget_min, type_def.budget_max)

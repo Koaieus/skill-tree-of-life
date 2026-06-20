@@ -24,8 +24,8 @@ extends RefCounted
 var base_add: float = 0.0
 var increase_sum: float = 0.0
 var bonus_add: float = 0.0
-var multipliers: Array[StatModifierDef] = []
-var winning_set: StatModifierDef = null
+var multipliers: Array[StatModifier] = []
+var winning_set: StatModifier = null
 
 
 ## N-source compose. SET short-circuits; otherwise sum bins, walk all
@@ -52,8 +52,8 @@ static func compute(base: float, sources: Array[ModifierBins]) -> float:
 ## the LAST source listed wins. Consumers order sources so the most
 ## specific scope is LAST (LocalStat passes [entity.bins, self.bins] so
 ## a local SET at equal priority overrides the entity-side one).
-static func _pick_set_winner(sources: Array[ModifierBins]) -> StatModifierDef:
-	var best: StatModifierDef = null
+static func _pick_set_winner(sources: Array[ModifierBins]) -> StatModifier:
+	var best: StatModifier = null
 	for b in sources:
 		var c := b.winning_set
 		if c == null:

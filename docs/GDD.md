@@ -216,7 +216,7 @@ One shared vocabulary, instantiated by every entity (player and NPC alike). The 
 - **Combat misc** — `crit_chance`, `crit_mult`, `attack_range`, `pressure_capacity`, `core_charge_capacity`.
 
 ### How modifiers attach
-Nodes carry `StatModifierDef`s — a `stat_id` (StringName), an operator, and a value. Allocate a node → its modifiers are added to the entity's board; deallocate or lose it → they're removed. The board recomputes reactively. Operators apply in the Path of Exile order: **`ADD_FLAT` → `ADD_PERCENT` → `MULTIPLY`** (with `SET` used sparingly). For a designer, adding a new stat is: define it once as a resource, and it's instantly a valid modifier target — no per-stat class file.
+Nodes carry `StatModifier`s — a `stat_id` (StringName), an operator, and a value. Allocate a node → its modifiers are added to the entity's board; deallocate or lose it → they're removed. The board recomputes reactively. Operators apply in the Path of Exile order: **`ADD_FLAT` → `ADD_PERCENT` → `MULTIPLY`** (with `SET` used sparingly). For a designer, adding a new stat is: define it once as a resource, and it's instantly a valid modifier target — no per-stat class file.
 
 **Status:** 🔨 In progress (v2 refactor). v2 replaces GDScript-as-key with `StatDefinition` resources, `StringName` IDs, a `StatRegistry` autoload, and slim `RuntimeStat`/`RuntimePoolStat` objects. Prefer v2 patterns for new stats.
 

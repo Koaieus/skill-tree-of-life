@@ -11,11 +11,11 @@ extends Resource
 @export var max_picks: int = 0
 
 
-## Returns a fresh list of duplicated [StatModifierDef]s. Duplication keeps
+## Returns a fresh list of duplicated [StatModifier]s. Duplication keeps
 ## procgen-produced modifiers independent of pool definitions so later tweaks
 ## (rolled values, runtime mutation) don't leak back.
-func roll(budget: int, rng: RandomNumberGenerator) -> Array[StatModifierDef]:
-	var out: Array[StatModifierDef] = []
+func roll(budget: int, rng: RandomNumberGenerator) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
 	if entries.is_empty():
 		return out
 	var remaining := budget

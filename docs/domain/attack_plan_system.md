@@ -189,7 +189,7 @@ TurnManager" pattern). Per-turn bookkeeping consumes:
 
 ### Stats
 
-- **`blade_size`** ScalarStat, intrinsic DerivedModifierDef:
+- **`blade_size`** ScalarStat, intrinsic DerivedStatModifier:
   `ADD_BASE floor(STR/10)`. Base value 1 → default total is
   `1 + floor(STR/10) = 2` at STR=10.
 - **`wound_heal_per_turn`** ScalarStat, base 1 — the rate that wounds
@@ -284,7 +284,7 @@ version did this). Pulled it out into `RangeFinder` because:
 
 ### SpellDef rename (from `Spell`)
 
-Matches the existing `Def` suffix convention (`StatDef`, `StatModifierDef`,
+Matches the existing `Def` suffix convention (`StatDef`, `StatModifier`,
 `PoolStatDef`). `Spell` reads like a runtime instance ("cast a spell");
 `SpellDef` reads like authored data ("the Spark spell definition"). The
 distinction will matter when spells gain runtime state (charges,

@@ -174,9 +174,9 @@ func test_modifier_driven_max_works_normally() -> void:
 	# A +5 ADD_BASE modifier should grow max by 5 (full PoolStat behavior).
 	# heal_on_max_increase is true on the def → current also rises by 5.
 	var sp := _fresh(3)
-	var mod := StatModifierDef.new()
+	var mod := StatModifier.new()
 	mod.stat_id = &"skill_points"
-	mod.operation = StatModifierDef.Operation.ADD_BASE
+	mod.operation = StatModifier.Operation.ADD_BASE
 	mod.value = 5.0
 	sp.add_modifier(mod)
 	assert_eq(_max(sp), 8)

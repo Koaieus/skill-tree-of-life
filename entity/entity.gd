@@ -15,9 +15,9 @@ signal leveled_up(new_level: int)
 @export var stat_board: StatBoard = null
 ## Persistent modifiers applied once on _ready() and never removed.
 ## Use for class identity bonuses and starting attribute offsets.
-## DerivedModifierDef entries must NOT be shared across entities — each
+## DerivedStatModifier entries must NOT be shared across entities — each
 ## entity needs its own instance (duplicate the .tres if reusing).
-@export var core_modifiers: Array[StatModifierDef] = []
+@export var core_modifiers: Array[StatModifier] = []
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:

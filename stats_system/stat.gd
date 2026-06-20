@@ -12,7 +12,7 @@ extends Resource
 ##           × (1 + Σ INCREASE / 100)
 ##           × Π MULTIPLY
 ##           + Σ ADD_BONUS
-##   INT stats round once, here. See StatModifierDef for value-scale conventions.
+##   INT stats round once, here. See StatModifier for value-scale conventions.
 
 signal value_changed
 
@@ -22,7 +22,7 @@ signal value_changed
 		_sync_resource_name()
 @export var base_value: float = 0.0
 
-var _modifiers: Array[StatModifierDef] = []
+var _modifiers: Array[StatModifier] = []
 
 ## Per-operation pipeline bins, factored into ModifierBins so multi-source
 ## reads (e.g. LocalStat layering on top of an entity-side Stat) can compose
@@ -39,7 +39,7 @@ var _modifiers: Array[StatModifierDef] = []
 ## in O(1) — SET is the only op where composition order matters.
 ##
 ## `_last_contrib` remembers what each non-SET, non-MULTIPLY modifier last
-## added to its bin. On `source_value_changed` from a DerivedModifierDef, we
+## added to its bin. On `source_value_changed` from a DerivedStatModifier, we
 ## apply `(new − last)` as a delta, mirroring add/remove through one path.
 var bins: ModifierBins = ModifierBins.new()
 var _last_contrib: Dictionary = {}
@@ -56,15 +56,19 @@ func _init() -> void:
 		value_changed.connect(notify_property_list_changed)
 
 
-func add_modifier(m: StatModifierDef) -> void:
+func add_modifier(m: StatModifier) -> void:
 	_modifiers.append(m)
-	if m is DerivedModifierDef:
-		(m as DerivedModifierDef).source_value_changed.connect(_on_dependent_modifier_changed.bind(m))
+	# Resource.changed fires from the value setter (and any other emit_changed
+	# call on the modifier), so live inspector edits + scripted value writes
+	# both re-deltify through the same path as derived-source updates.
+	m.changed.connect(_on_dependent_modifier_changed.bind(m))
+	if m is DerivedStatModifier:
+		(m as DerivedStatModifier).source_value_changed.connect(_on_dependent_modifier_changed.bind(m))
 	match m.operation:
-		StatModifierDef.Operation.SET:
+		StatModifier.Operation.SET:
 			if bins.winning_set == null or m.priority >= bins.winning_set.priority:
 				bins.winning_set = m
-		StatModifierDef.Operation.MULTIPLY:
+		StatModifier.Operation.MULTIPLY:
 			bins.multipliers.append(m)
 		_:
 			var v := m.get_effective_value()
@@ -74,18 +78,20 @@ func add_modifier(m: StatModifierDef) -> void:
 	value_changed.emit()
 
 
-func remove_modifier(m: StatModifierDef) -> void:
+func remove_modifier(m: StatModifier) -> void:
 	_modifiers.erase(m)
-	if m is DerivedModifierDef:
-		var dm := m as DerivedModifierDef
-		var cb := _on_dependent_modifier_changed.bind(m)
+	var cb := _on_dependent_modifier_changed.bind(m)
+	if m.changed.is_connected(cb):
+		m.changed.disconnect(cb)
+	if m is DerivedStatModifier:
+		var dm := m as DerivedStatModifier
 		if dm.source_value_changed.is_connected(cb):
 			dm.source_value_changed.disconnect(cb)
 	match m.operation:
-		StatModifierDef.Operation.SET:
+		StatModifier.Operation.SET:
 			if m == bins.winning_set:
 				bins.winning_set = _find_winning_set()
-		StatModifierDef.Operation.MULTIPLY:
+		StatModifier.Operation.MULTIPLY:
 			bins.multipliers.erase(m)
 		_:
 			var old: float = _last_contrib.get(m, m.get_effective_value())
@@ -95,12 +101,14 @@ func remove_modifier(m: StatModifierDef) -> void:
 	value_changed.emit()
 
 
-## Derived-modifier source moved → re-deltify this specific modifier through
-## the same path as add/remove. SET winners and MULTIPLY entries read live in
-## get_value(), so no bin maintenance is needed for those ops.
-func _on_dependent_modifier_changed(m: StatModifierDef) -> void:
+## A modifier this stat depends on has changed — either its `value` was edited
+## (Resource.changed) or, for a DerivedStatModifier, a source stat moved
+## (source_value_changed). Re-deltify the additive bins through the same path
+## as add/remove. SET winners and MULTIPLY entries read live in get_value(),
+## so no bin maintenance is needed for those ops.
+func _on_dependent_modifier_changed(m: StatModifier) -> void:
 	var op := m.operation
-	if op != StatModifierDef.Operation.SET and op != StatModifierDef.Operation.MULTIPLY:
+	if op != StatModifier.Operation.SET and op != StatModifier.Operation.MULTIPLY:
 		var old: float = _last_contrib.get(m, 0.0)
 		var new_v := m.get_effective_value()
 		_last_contrib[m] = new_v
@@ -111,11 +119,11 @@ func _on_dependent_modifier_changed(m: StatModifierDef) -> void:
 func _apply_bin_delta(op: int, old: float, new_v: float) -> void:
 	var delta := new_v - old
 	match op:
-		StatModifierDef.Operation.ADD_BASE:
+		StatModifier.Operation.ADD_BASE:
 			bins.base_add += delta
-		StatModifierDef.Operation.INCREASE:
+		StatModifier.Operation.INCREASE:
 			bins.increase_sum += delta
-		StatModifierDef.Operation.ADD_BONUS:
+		StatModifier.Operation.ADD_BONUS:
 			bins.bonus_add += delta
 
 
@@ -133,9 +141,9 @@ func _resync_bins_if_trivial() -> void:
 		return
 	var m := _modifiers[0]
 	match m.operation:
-		StatModifierDef.Operation.SET:
+		StatModifier.Operation.SET:
 			pass  # bins.winning_set already correct.
-		StatModifierDef.Operation.MULTIPLY:
+		StatModifier.Operation.MULTIPLY:
 			bins.multipliers.append(m)
 		_:
 			var v := m.get_effective_value()
@@ -143,10 +151,10 @@ func _resync_bins_if_trivial() -> void:
 			_apply_bin_delta(m.operation, 0.0, v)
 
 
-func _find_winning_set() -> StatModifierDef:
-	var best: StatModifierDef = null
+func _find_winning_set() -> StatModifier:
+	var best: StatModifier = null
 	for m in _modifiers:
-		if m.operation == StatModifierDef.Operation.SET:
+		if m.operation == StatModifier.Operation.SET:
 			if best == null or m.priority >= best.priority:
 				best = m
 	return best

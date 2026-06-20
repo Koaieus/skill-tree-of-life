@@ -8,7 +8,7 @@ extends PanelContainer
 ## a node is allocated or deallocated without re-hovering, and damaged so the
 ## HP line updates as hits land.
 ##
-## Modifier formatting follows the StatModifierDef pipeline conventions:
+## Modifier formatting follows the StatModifier pipeline conventions:
 ##   ADD_BASE  → "+5 Strength"        (scales with %, the usual node source)
 ##   INCREASE  → "+20% Dexterity"     (additive % to the multiplier bucket)
 ##   MULTIPLY  → "×1.5 Intelligence"  (independent multiplier)
@@ -96,7 +96,7 @@ func _populate() -> void:
 		_modifiers_box.add_child(empty)
 		return
 
-	for m: StatModifierDef in _node.modifiers:
+	for m: StatModifier in _node.modifiers:
 		var def := StatRegistry.get_def(m.stat_id)
 		var stat_name := def.display_name if def != null else String(m.stat_id)
 		var tint := def.tint_color if def != null else Color.WHITE
@@ -124,19 +124,19 @@ func _populate_hp() -> void:
 	_hp_label.show()
 
 
-func _format_modifier(m: StatModifierDef, stat_name: String) -> String:
+func _format_modifier(m: StatModifier, stat_name: String) -> String:
 	var _sign := "+" if m.value >= 0.0 else ""
 	var val := _val(m.value)
 	match m.operation:
-		StatModifierDef.Operation.ADD_BASE:
+		StatModifier.Operation.ADD_BASE:
 			return _sign + val + " " + stat_name
-		StatModifierDef.Operation.INCREASE:
+		StatModifier.Operation.INCREASE:
 			return _sign + val + "% " + stat_name
-		StatModifierDef.Operation.MULTIPLY:
+		StatModifier.Operation.MULTIPLY:
 			return "×" + val + " " + stat_name
-		StatModifierDef.Operation.ADD_BONUS:
+		StatModifier.Operation.ADD_BONUS:
 			return _sign + val + " " + stat_name + " (flat)"
-		StatModifierDef.Operation.SET:
+		StatModifier.Operation.SET:
 			return "= " + val + " " + stat_name
 	return val + " " + stat_name
 

@@ -64,7 +64,7 @@ health_max  → StatDef       { value_type: INT }
 
 A node modifier that increases max health is simply:
 ```
-StatModifierDef { stat_id: &"health_max", operation: ADD_FLAT, value: 1 }
+StatModifier { stat_id: &"health_max", operation: ADD_FLAT, value: 1 }
 ```
 
 No special syntax. No sub-stat notation. The `RuntimePoolStat` holds a typed reference to the `RuntimeStat` for its max, and listens for changes:
@@ -162,7 +162,7 @@ RuntimePoolStat extends RuntimeStat
 ### Modifier definition (on a SkillNode)
 
 ```
-StatModifierDef (Resource)
+StatModifier (Resource)
   - stat_id: StringName         # matches StatDefinition.id — including pool max IDs like &"health_max"
   - operation: enum {ADD_FLAT, ADD_PERCENT, MULTIPLY, SET}
   - value: float
@@ -176,7 +176,7 @@ This is what the designer sets in the inspector. No class file per stat. The `st
 abstract class StatsBoard extends Resource
   func get_stat(id: StringName) -> RuntimeStat: abstract
   func get_stats() -> Array[RuntimeStat]: abstract
-  func add_modifier(mod: StatModifierDef): abstract
+  func add_modifier(mod: StatModifier): abstract
 
 class EntityStatsBoard extends StatsBoard
   # typed fields for editor visibility + type safety
@@ -295,7 +295,7 @@ Under Option A, `stat` is never null. The warning is a safety net for mistyped s
 
 ### The same tree means entity-agnostic modifiers
 
-`StatModifierDef` says "+10 STR." Whoever owns the node gets +10 STR. The tree doesn't care who you are. This is correct and elegant.
+`StatModifier` says "+10 STR." Whoever owns the node gets +10 STR. The tree doesn't care who you are. This is correct and elegant.
 
 ---
 
