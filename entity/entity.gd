@@ -14,10 +14,15 @@ signal leveled_up(new_level: int)
 @export var color: Color = Color.WHITE
 @export var stat_board: StatBoard = null
 ## Persistent modifiers applied once on _ready() and never removed.
-## Use for class identity bonuses and starting attribute offsets.
-## DerivedStatModifier entries must NOT be shared across entities — each
-## entity needs its own instance (duplicate the .tres if reusing).
+## Use for one-off starting attribute offsets that aren't part of any class.
+## Class-defined modifiers belong on `core_class` instead.
+## Formula-driven entries must NOT be shared across entities — each entity
+## needs its own instance (duplicate the .tres if reusing).
 @export var core_modifiers: Array[StatModifier] = []
+## Class specialization for this entity. Applied once on _ready via
+## `core_class.apply(self)` and consulted each turn via `on_turn_started`.
+## Optional — null means a plain entity with no class bonuses.
+@export var core_class: CoreClass = null
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:
@@ -61,6 +66,8 @@ func _ready() -> void:
 		stat_board.apply_intrinsics()
 		for m in core_modifiers:
 			stat_board.add_modifier(m)
+		if core_class != null:
+			core_class.apply(self)
 		if stat_board.xp != null:
 			stat_board.xp.replenished.connect(_on_xp_replenished)
 
@@ -93,6 +100,8 @@ func _on_turn_started(entity: Entity) -> void:
 	if navigator != null:
 		for n in navigator.get_mirrored_nodes():
 			n.refill()
+	if core_class != null:
+		core_class.on_turn_started(self)
 
 
 ## Listens for xp.replenished (pool crossed into full). Grows the xp cap via

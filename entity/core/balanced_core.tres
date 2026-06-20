@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BalancedCore" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://entity/core/balanced_core.gd" id="1_core"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+
+[sub_resource type="Resource" id="mod_str"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_dex"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_int"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 10.0
+
+[resource]
+script = ExtResource("1_core")
+display_name = "Balanced"
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
