@@ -120,27 +120,23 @@ func _on_confirmed() -> void:
 	var op: int = _operation.selected
 	var kind: int = _kind.selected
 
-	var mod: StatModifier
+	var mod := StatModifier.new()
 	match kind:
 		_KIND_CONSTANT:
-			mod = StatModifier.new()
 			mod.value = float(_value.value)
 		_KIND_LINEAR:
 			if _linear_source.selected < 0:
 				return
 			var lf := LinearFormula.new()
 			lf.source_stat_id = StringName(_linear_source.get_item_text(_linear_source.selected))
-			lf.scale_per_point = float(_linear_scale.value)
-			var dm := DerivedStatModifier.new()
-			dm.formula = lf
-			mod = dm
+			mod.value = float(_linear_scale.value)
+			mod.formula = lf
 		_KIND_EXPRESSION:
 			var ef := ExpressionFormula.new()
 			ef.formula = _expr_formula.text
 			ef.inputs = ExpressionFormula.detect_inputs(_expr_formula.text, _stat_ids)
-			var dm2 := DerivedStatModifier.new()
-			dm2.formula = ef
-			mod = dm2
+			mod.value = 1.0
+			mod.formula = ef
 		_:
 			return
 	mod.stat_id = target_id

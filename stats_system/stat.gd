@@ -39,8 +39,9 @@ var _modifiers: Array[StatModifier] = []
 ## in O(1) — SET is the only op where composition order matters.
 ##
 ## `_last_contrib` remembers what each non-SET, non-MULTIPLY modifier last
-## added to its bin. On `source_value_changed` from a DerivedStatModifier, we
-## apply `(new − last)` as a delta, mirroring add/remove through one path.
+## added to its bin. When a modifier's `changed` fires (live value edit or
+## formula-source moved), we apply `(new − last)` as a delta, mirroring
+## add/remove through one path.
 var bins: ModifierBins = ModifierBins.new()
 var _last_contrib: Dictionary = {}
 
@@ -58,12 +59,10 @@ func _init() -> void:
 
 func add_modifier(m: StatModifier) -> void:
 	_modifiers.append(m)
-	# Resource.changed fires from the value setter (and any other emit_changed
-	# call on the modifier), so live inspector edits + scripted value writes
-	# both re-deltify through the same path as derived-source updates.
+	# Resource.changed fires from the value setter, from any other emit_changed
+	# call on the modifier, and from formula-source updates (StatModifier's
+	# _on_source_changed re-emits `changed`). One subscription covers all three.
 	m.changed.connect(_on_dependent_modifier_changed.bind(m))
-	if m is DerivedStatModifier:
-		(m as DerivedStatModifier).source_value_changed.connect(_on_dependent_modifier_changed.bind(m))
 	match m.operation:
 		StatModifier.Operation.SET:
 			if bins.winning_set == null or m.priority >= bins.winning_set.priority:
@@ -83,10 +82,6 @@ func remove_modifier(m: StatModifier) -> void:
 	var cb := _on_dependent_modifier_changed.bind(m)
 	if m.changed.is_connected(cb):
 		m.changed.disconnect(cb)
-	if m is DerivedStatModifier:
-		var dm := m as DerivedStatModifier
-		if dm.source_value_changed.is_connected(cb):
-			dm.source_value_changed.disconnect(cb)
 	match m.operation:
 		StatModifier.Operation.SET:
 			if m == bins.winning_set:
@@ -101,11 +96,10 @@ func remove_modifier(m: StatModifier) -> void:
 	value_changed.emit()
 
 
-## A modifier this stat depends on has changed — either its `value` was edited
-## (Resource.changed) or, for a DerivedStatModifier, a source stat moved
-## (source_value_changed). Re-deltify the additive bins through the same path
-## as add/remove. SET winners and MULTIPLY entries read live in get_value(),
-## so no bin maintenance is needed for those ops.
+## A modifier this stat depends on has changed — its `value` was edited or a
+## formula source moved. Re-deltify the additive bins through the same path as
+## add/remove. SET winners and MULTIPLY entries read live in get_value(), so
+## no bin maintenance is needed for those ops.
 func _on_dependent_modifier_changed(m: StatModifier) -> void:
 	var op := m.operation
 	if op != StatModifier.Operation.SET and op != StatModifier.Operation.MULTIPLY:

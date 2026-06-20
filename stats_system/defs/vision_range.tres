@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"vision_range"
 display_name = "Vision Range"
-description = "Euclidean sight radius in scene pixels. Reveals full node detail (type, HP, modifiers) within range. Scales with PER via a DerivedStatModifier."
+description = "Euclidean sight radius in scene pixels. Reveals full node detail (type, HP, modifiers) within range. Scales with PER via an intrinsic formula modifier."
 value_type = 0
 default_value = 400.0
 display_order = 60

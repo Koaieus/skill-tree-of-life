@@ -2,7 +2,7 @@
 ##
 ## - One `GraphNode` per stat, grouped into three `GraphFrame` columns
 ##   (Attributes · Pools · Derived).
-## - One edge per intrinsic `DerivedStatModifier` from its input stats to its
+## - One edge per intrinsic formula-driven modifier from its input stats to its
 ##   target — the *dependency*. The actual *contribution* (formula text +
 ##   effective value + op-tag) is rendered as a row inside the target node,
 ##   because that's where the number lives.
@@ -289,13 +289,11 @@ func _wire_edges_and_breakdowns() -> void:
 		if not _entries.has(to_id):
 			continue
 		_add_breakdown_row(to_id, m)
-		if m is DerivedStatModifier:
-			var dm := m as DerivedStatModifier
-			if dm.formula == null:
-				continue
-			for src_id in dm.formula.get_input_ids():
-				if _entries.has(src_id):
-					connect_node(src_id, 0, to_id, 0)
+		if m.formula == null:
+			continue
+		for src_id in m.formula.get_input_ids():
+			if _entries.has(src_id):
+				connect_node(src_id, 0, to_id, 0)
 
 
 func _add_breakdown_row(target_id: StringName, m: StatModifier) -> void:
@@ -405,18 +403,15 @@ func _op_summary(stat: Stat) -> String:
 
 
 func _formula_text(m: StatModifier) -> String:
-	if m is DerivedStatModifier:
-		var dm := m as DerivedStatModifier
-		if dm.formula == null:
-			return "const %s" % _trim_float(m.value)
-		if dm.formula is LinearFormula:
-			var lf := dm.formula as LinearFormula
-			return "%s × %s" % [str(lf.source_stat_id), _trim_float(lf.scale_per_point)]
-		if dm.formula is ExpressionFormula:
-			var ef := dm.formula as ExpressionFormula
-			return ef.formula
-		return "<formula>"
-	return "const %s" % _trim_float(m.value)
+	if m.formula == null:
+		return "const %s" % _trim_float(m.value)
+	if m.formula is LinearFormula:
+		var lf := m.formula as LinearFormula
+		return "%s × %s" % [str(lf.source_stat_id), _trim_float(m.value)]
+	if m.formula is ExpressionFormula:
+		var ef := m.formula as ExpressionFormula
+		return "%s × (%s)" % [_trim_float(m.value), ef.formula] if m.value != 1.0 else ef.formula
+	return "<formula>"
 
 
 func _contribution_text(m: StatModifier) -> String:
@@ -424,10 +419,8 @@ func _contribution_text(m: StatModifier) -> String:
 
 
 func _contribution_value(m: StatModifier) -> float:
-	if m is DerivedStatModifier:
-		var dm := m as DerivedStatModifier
-		if dm.formula != null and _board != null:
-			return dm.formula.compute(_board)
+	if m.formula != null and _board != null:
+		return m.value * m.formula.compute(_board)
 	return m.value
 
 

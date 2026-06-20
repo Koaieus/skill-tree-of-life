@@ -21,7 +21,6 @@
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="13_0clpu"]
 [ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="14_sdhs6"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="16_8r5xj"]
-[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_stat_modifier.gd" id="17_k8amt"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="18_f58km"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana.tres" id="19_arms0"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="20_3ogaa"]
@@ -92,10 +91,10 @@ base_value = 10.0
 [sub_resource type="Resource" id="formula_per_to_vision"]
 script = ExtResource("16_8r5xj")
 source_stat_id = &"perception"
-scale_per_point = 2.0
 
 [sub_resource type="Resource" id="mod_per_to_vision"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
+value = 2.0
 formula = SubResource("formula_per_to_vision")
 stat_id = &"vision_range"
 operation = 1
@@ -106,7 +105,7 @@ formula = "floor(float(intelligence) / 10.0)"
 inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="mod_int_to_mana"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("formula_int_to_mana")
 stat_id = &"mana"
 
@@ -116,7 +115,7 @@ formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
 inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("formula_int_to_mana_pt")
 stat_id = &"mana_per_turn"
 
@@ -126,7 +125,7 @@ formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
 inputs = Array[StringName]([&"wisdom"])
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("formula_wis_to_xp_pt")
 stat_id = &"xp_per_turn"
 
@@ -136,7 +135,7 @@ formula = "floor(float(dexterity) / 10.0)"
 inputs = Array[StringName]([&"dexterity"])
 
 [sub_resource type="Resource" id="mod_dex_to_sensor"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("formula_dex_to_sensor")
 stat_id = &"sensor_range"
 
@@ -146,7 +145,7 @@ formula = "floor(float(strength) / 10.0)"
 inputs = Array[StringName]([&"strength"])
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("formula_str_to_blade_size")
 stat_id = &"blade_size"
 
@@ -155,7 +154,7 @@ script = ExtResource("16_8r5xj")
 source_stat_id = &"dexterity"
 
 [sub_resource type="Resource" id="mod_dex_to_range"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("formula_dex_to_range")
 stat_id = &"range"
 operation = 1
@@ -319,10 +318,10 @@ base_value = 10.0
 [sub_resource type="Resource" id="Resource_arms0"]
 script = ExtResource("16_8r5xj")
 source_stat_id = &"perception"
-scale_per_point = 2.0
 
 [sub_resource type="Resource" id="Resource_3ogaa"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
+value = 2.0
 formula = SubResource("Resource_arms0")
 stat_id = &"vision_range"
 operation = 1
@@ -333,7 +332,7 @@ formula = "floor(float(intelligence) / 10.0)"
 inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="Resource_df164"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("Resource_sybeb")
 stat_id = &"mana"
 
@@ -343,7 +342,7 @@ formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
 inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="Resource_qk0se"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("Resource_owpne")
 stat_id = &"mana_per_turn"
 
@@ -353,7 +352,7 @@ formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
 inputs = Array[StringName]([&"wisdom"])
 
 [sub_resource type="Resource" id="Resource_lwubc"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("Resource_drqyt")
 stat_id = &"xp_per_turn"
 
@@ -363,7 +362,7 @@ formula = "floor(float(dexterity) / 10.0)"
 inputs = Array[StringName]([&"dexterity"])
 
 [sub_resource type="Resource" id="Resource_3dypl"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("Resource_4oa4u")
 stat_id = &"sensor_range"
 
@@ -373,7 +372,7 @@ formula = "floor(float(strength) / 10.0)"
 inputs = Array[StringName]([&"strength"])
 
 [sub_resource type="Resource" id="Resource_piqb8"]
-script = ExtResource("17_k8amt")
+script = ExtResource("2_mod")
 formula = SubResource("Resource_rm3s8")
 stat_id = &"blade_size"
 

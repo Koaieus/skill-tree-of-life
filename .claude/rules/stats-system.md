@@ -65,21 +65,21 @@ grep -h "^id = " stats_system/defs/*.tres | sort
 
 ## Intrinsic scaling (entity/default_entity_board.tres)
 
-These are `DerivedStatModifier` sub-resources wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). **Update this table when adding or changing a derived modifier.**
+These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). Effective contribution = `modifier.value × formula.compute(board)`; with `value = 1` the formula reads through. **Update this table when adding or changing one.**
 
-| Input stat | Target stat | Op | Formula |
-|---|---|---|---|
-| `perception` | `vision_range` | INCREASE | `PER × 2.0` (LinearFormula scale=2) — at PER=3 → +6% |
-| `intelligence` | `mana` | ADD_BASE | `floor(INT / 10.0)` |
-| `intelligence` | `mana_per_turn` | ADD_BASE | `floor(log10(max(1e-5, INT)))` |
-| `wisdom` | `xp_per_turn` | ADD_BASE | `floor(log10(max(1e-5, WIS)))` |
-| `dexterity` | `sensor_range` | ADD_BASE | `floor(DEX / 10.0)` |
-| `dexterity` | `range` | INCREASE | `DEX × 1.0` (LinearFormula scale=1) — at DEX=30 → +30% |
-| `strength` | `blade_size` | ADD_BASE | `floor(STR / 10.0)` |
+| Input stat | Target stat | Op | value | formula |
+|---|---|---|---|---|
+| `perception` | `vision_range` | INCREASE | 2 | LinearFormula(perception) — at PER=3 → +6% |
+| `intelligence` | `mana` | ADD_BASE | 1 | `floor(intelligence / 10.0)` |
+| `intelligence` | `mana_per_turn` | ADD_BASE | 1 | `floor(log(max(1e-5, intelligence))/log(10.0))` |
+| `wisdom` | `xp_per_turn` | ADD_BASE | 1 | `floor(log(max(1e-5, wisdom))/log(10.0))` |
+| `dexterity` | `sensor_range` | ADD_BASE | 1 | `floor(dexterity / 10.0)` |
+| `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
+| `strength` | `blade_size` | ADD_BASE | 1 | `floor(strength / 10.0)` |
 
 ## Gotchas
 
-- **DerivedStatModifier must not be shared across entities.** Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` auto-duplicates them.
+- **Formula-driven modifiers must not be shared across entities.** Each carries mutable `_board` / `_bound_sources` binding state. Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` duplicates every entry.
 - **Pool modifiers target the pool id, not a `_max` suffix.** `"health"` targets the health cap. `"health_max"` doesn't exist.
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.

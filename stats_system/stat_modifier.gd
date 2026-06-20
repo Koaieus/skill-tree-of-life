@@ -2,14 +2,23 @@
 class_name StatModifier
 extends Resource
 
-## The designer-loop atom: pick a stat (by id), pick an op, enter a value.
-## Sits on a SkillNode's `modifiers: Array[StatModifier]`. Stat applies it via
-## the pipeline below. The runtime carrier for modifier state — *not* an
-## immutable schema (those are StatDef / PoolStatDef under defs/).
+## The designer-loop atom: pick a stat (by id), pick an op, enter a value,
+## optionally attach a formula. Sits on a SkillNode's `modifiers` or on a
+## StatBoard's `intrinsic_modifiers`. The runtime carrier for modifier state
+## — *not* an immutable schema (those are StatDef / PoolStatDef under defs/).
 ##
-## A live `value` edit fires `Resource.changed`, which Stat.add_modifier wires
-## into `_on_dependent_modifier_changed` — the same path DerivedStatModifier's
-## `source_value_changed` uses. No manual dirty-marking required.
+## Effective value:
+##   formula == null   → value                       (static modifier)
+##   formula != null   → value * formula.compute()   (derived modifier)
+##
+## `value` defaults to 1.0 so it acts as the identity in both branches — a
+## bare formula-only modifier reads its formula straight through, and a bare
+## static modifier contributes at least something.
+##
+## A live `value` edit fires `Resource.changed`; Stat.add_modifier wires that
+## into `_on_dependent_modifier_changed`. Formula-driven source updates flow
+## through the same path via `_on_source_changed → emit_changed()`. No manual
+## dirty-marking required.
 ##
 ## Pipeline (see Stat.get_value):
 ##   SET (if present) returns immediately — highest `priority` wins,
@@ -26,6 +35,11 @@ extends Resource
 ##   INCREASE             : percent points   (value = 20   →  +20%; 5× gives ×2)
 ##   MULTIPLY             : raw multiplier   (value =  1.5 →  ×1.5; 0.5 acts as ÷2)
 ##   SET                  : the result       (value = 13   →  =13, pipeline bypassed)
+##
+## WARNING: modifiers with a non-null `formula` carry mutable binding state
+## (_board, _bound_sources, _propagating) and MUST NOT be shared across
+## entities. Call .duplicate(true) on assignment. apply_intrinsics() does this
+## automatically; manual `add_modifier` callers must handle it themselves.
 
 enum Operation {
 	## +X to base, before multipliers. Scales with INCREASE and MULTIPLY.
@@ -48,18 +62,63 @@ enum Operation {
 
 @export var stat_id: StringName = &""
 @export var operation: Operation = Operation.ADD_BASE
-@export var value: float = 0.0:
+@export var value: float = 1.0:
 	set(v):
 		if v == value:
 			return
 		value = v
 		emit_changed()
+## Optional. When set, effective value becomes `value * formula.compute(board)`,
+## so `value` reads as the coefficient and the formula contributes the variable
+## part. When null, effective value is just `value` (plain static modifier).
+@export var formula: StatFormula = null
 ## Tie-breaker — currently only consulted for SET (the only op where
 ## composition order matters). Higher wins.
 @export var priority: int = 0
 
 
-## Returns the modifier's effective value. Subclasses (e.g. DerivedStatModifier)
-## override this to compute from other stats at runtime. Base returns `value`.
+var _board: StatBoard = null
+var _bound_sources: Array[Stat] = []
+var _propagating: bool = false
+
+
+## Returns the modifier's effective value. When a formula is bound, scales it
+## by `value` so the same field serves both branches: bare-formula reads pass
+## through (value=1), explicit coefficients show up as the modifier's `value`.
 func get_effective_value() -> float:
+	if formula != null and _board != null:
+		return value * formula.compute(_board)
 	return value
+
+
+## Subscribe to the formula's source stats so changes there propagate to this
+## modifier (and onward to its target stat via emit_changed()). No-op when
+## formula is null — static modifiers pay zero binding cost.
+func bind(board: StatBoard) -> void:
+	_board = board
+	if formula == null:
+		return
+	for id in formula.get_input_ids():
+		var s := board.get_stat(id)
+		if s == null:
+			push_warning("StatModifier: formula source stat '%s' not found in board" % id)
+			continue
+		if not s.value_changed.is_connected(_on_source_changed):
+			s.value_changed.connect(_on_source_changed)
+		_bound_sources.append(s)
+
+
+func unbind() -> void:
+	for s in _bound_sources:
+		if s.value_changed.is_connected(_on_source_changed):
+			s.value_changed.disconnect(_on_source_changed)
+	_bound_sources.clear()
+	_board = null
+
+
+func _on_source_changed() -> void:
+	if _propagating:
+		return  # cycle guard: stops A→B→A from looping indefinitely
+	_propagating = true
+	emit_changed()
+	_propagating = false

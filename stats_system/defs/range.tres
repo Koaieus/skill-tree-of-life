@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"range"
 display_name = "Range"
-description = "Ranged firing distance in scene pixels — distance from a leaf node to an enemy node it can fire on. Read per-leaf as a LocalStat, so node-level modifiers (sniper posts, scopes) extend reach on specific firing positions. Scales with DEX via a DerivedStatModifier (+1% per DEX)."
+description = "Ranged firing distance in scene pixels — distance from a leaf node to an enemy node it can fire on. Read per-leaf as a LocalStat, so node-level modifiers (sniper posts, scopes) extend reach on specific firing positions. Scales with DEX via an intrinsic formula modifier (+1% per DEX)."
 value_type = 0
 default_value = 300.0
 display_order = 70
