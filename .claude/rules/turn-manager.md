@@ -22,6 +22,10 @@ Gates: `can_allocate()` returns true iff `current_phase == EXPAND`; `can_dealloc
 
 `tick()` advances every node in group `entities` by its `initiative_speed.value`. `end_turn()` deducts 100 from the previous entity, then `_tick_until_ready()` ticks until at least one entity ≥ 100 and starts the highest's turn. `start_turn()` resets phase to `CONTRACT` and emits `turn_started` + `phase_changed`.
 
+## Discovery
+
+`TurnManager` joins the `"turn_manager"` group (constant `TurnManager.GROUP`) in `_enter_tree`. `Entity._find_turn_manager()` uses `get_tree().get_first_node_in_group(...)`. A tree-walk via `get_children()` missed it — TM lives at `Graph/Systems/TurnManager`, never a direct child of an Entity ancestor. Single instance per level.
+
 ## Wiring a new level
 
 After `_setup_level()` resolves the player, GameRoot kicks the first turn:

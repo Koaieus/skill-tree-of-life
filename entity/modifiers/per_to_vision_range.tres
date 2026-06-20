@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="DerivedModifierDef" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="DerivedModifierDef" format=3 uid="uid://cpq1g1frjdqel"]
 
-[ext_resource type="Script" path="res://stats_system/derived_modifier_def.gd" id="1_derived"]
-[ext_resource type="Script" path="res://stats_system/formulas/linear_formula.gd" id="2_linear"]
+[ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="1_derived"]
+[ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="2_linear"]
 
 [sub_resource type="Resource" id="formula_1"]
 script = ExtResource("2_linear")
@@ -10,7 +10,6 @@ scale_per_point = 2.0
 
 [resource]
 script = ExtResource("1_derived")
+formula = SubResource("formula_1")
 stat_id = &"vision_range"
 operation = 1
-formula = SubResource("formula_1")
-value = 0.0

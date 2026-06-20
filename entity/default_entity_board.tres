@@ -24,7 +24,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/wisdom.tres" id="def_wisdom"]
 [ext_resource type="Resource" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
-[ext_resource type="Resource" path="res://stats_system/defs/xp.tres" id="def_xp"]
+[ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
 [ext_resource type="Script" uid="uid://ix51i0mr6n8v" path="res://stats_system/derived_modifier_def.gd" id="script_derived"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
@@ -206,7 +206,7 @@ base_value = 10.0
 resource_name = "vision_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_vision_range")
-base_value = 300.0
+base_value = 400.0
 
 [sub_resource type="Resource" id="scalar_wisdom"]
 resource_name = "wisdom"

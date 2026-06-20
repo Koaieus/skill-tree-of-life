@@ -102,10 +102,13 @@ func _on_turn_started(entity: Entity) -> void:
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
-	var xp_pool := stat_board.xp
-	var old_max := int(xp_pool.value)
-	xp_pool.grow()
-	xp_pool.set_current(max(0.0, xp_pool.current - float(old_max)))
+	#var xp_pool := stat_board.xp
+	#var old_max := int(xp_pool.value)
+	
+	## growth hooking moved to poolstat.. good idea?
+	#xp_pool.grow() 
+	## deducting old max also no longer needed, part of pool stat config, .. good idea right?
+	#xp_pool.set_current(max(0.0, xp_pool.current - float(old_max))) 
 
 	if stat_board.skill_points != null:
 		stat_board.skill_points.grant(1)
@@ -114,14 +117,12 @@ func _on_xp_replenished() -> void:
 	leveled_up.emit(level)
 
 
+## Group lookup beats a tree walk because TurnManager lives at
+## `Graph/Systems/TurnManager` — not a direct child of any Entity ancestor,
+## so a get_children() walk-up always missed it. TurnManager joins its group
+## in `_enter_tree`, which fires before any spawned entity's _ready.
 func _find_turn_manager() -> TurnManager:
-	var n: Node = self
-	while n != null:
-		for c in n.get_children():
-			if c is TurnManager:
-				return c as TurnManager
-		n = n.get_parent()
-	return null
+	return get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
 
 
 func _find_graph() -> Graph:

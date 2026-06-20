@@ -29,6 +29,15 @@ var current_entity: Entity = null
 var current_phase: Phase = Phase.CONTRACT
 
 
+## Group used by Entity to discover the level's TurnManager without coupling
+## to scene-tree depth. Single instance per level.
+const GROUP := &"turn_manager"
+
+
+func _enter_tree() -> void:
+	add_to_group(GROUP)
+
+
 ## Hand the turn to `entity`. Phase resets to CONTRACT.
 func start_turn(entity: Entity) -> void:
 	assert(entity != null, "TurnManager.start_turn(null)")

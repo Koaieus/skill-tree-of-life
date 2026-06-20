@@ -19,6 +19,9 @@ signal current_changed(new_current: Variant)
 @export var current: float = 0.0
 
 
+var pool_definition: PoolStatDef:
+	get(): return definition as PoolStatDef
+
 func _init() -> void:
 	super()
 	if Engine.is_editor_hint():
@@ -42,6 +45,8 @@ func set_current(v: float) -> void:
 	if current <= floor_v:
 		depleted.emit()
 	elif was_below_cap and current >= cap:
+		if pool_definition.is_growable and cap > 0:
+			grow()
 		replenished.emit()
 
 
@@ -67,6 +72,8 @@ func grow() -> int:
 	var old_max := int(get_value())
 	var new_max := roundi(float(old_max) * def.growth_factor + float(def.growth_flat))
 	var delta := new_max - old_max
+	if pool_definition.deduct_old_max:
+		deplete(old_max)
 	if delta == 0:
 		return 0
 	base_value += float(delta)
@@ -99,11 +106,11 @@ func _apply_max_change(old_max: float) -> void:
 		return
 	if current > new_max:
 		set_current(new_max)
-	elif (definition is PoolStatDef) and (definition as PoolStatDef).heal_on_max_increase:
+	elif pool_definition is PoolStatDef and pool_definition.heal_on_max_increase:
 		set_current(current + (new_max - old_max))
 
 
 func _min_value() -> int:
 	if definition is PoolStatDef:
-		return (definition as PoolStatDef).min_value
+		return pool_definition.min_value
 	return 0

@@ -6,6 +6,13 @@ extends Resource
 ## Sits on a SkillNode's `modifiers: Array[StatModifierDef]`. Stat applies it
 ## via the pipeline below.
 ##
+## TODO:	If this is the runtime carrier for stat modifiers, then I propose renaming this 
+##			`StatModifier` (losing the `-Def`)
+## TODO: 	Wire `changed` signal to stats boards or their bins — a change e.g. of modifier value 
+##			should dirty the stat. Currently emitting `changed`, could also opt for making our 
+##			own signal just for the value? Or to lift up the source_value_changed signal
+##			from DerivedStatModifierDef (which we should also lose the -Def of_
+##
 ## Pipeline (see Stat.get_value):
 ##   SET (if present) returns immediately — highest `priority` wins,
 ##   ties broken by insertion order (last-in wins).
@@ -40,9 +47,15 @@ enum Operation {
 	SET,
 }
 
+
 @export var stat_id: StringName = &""
 @export var operation: Operation = Operation.ADD_BASE
-@export var value: float = 0.0
+@export var value: float = 0.0:
+	set(v):
+		if v == value:
+			return
+		value = v
+		emit_changed()
 ## Tie-breaker — currently only consulted for SET (the only op where
 ## composition order matters). Higher wins.
 @export var priority: int = 0
@@ -52,3 +65,4 @@ enum Operation {
 ## override this to compute from other stats at runtime. Base returns `value`.
 func get_effective_value() -> float:
 	return value
+	
