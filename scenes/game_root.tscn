@@ -17,10 +17,15 @@ script = ExtResource("1_root")
 
 [node name="Graph" type="Node2D" parent="." node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container", "entities_container")]
 script = ExtResource("2_graph")
-navigator = NodePath("Systems/Navigator")
+navigator = NodePath("Navigator")
 skill_nodes_container = NodePath("Nodes")
 edges_container = NodePath("Edges")
 entities_container = NodePath("Entities")
+
+[node name="Navigator" type="Node" parent="Graph" node_paths=PackedStringArray("graph")]
+unique_name_in_owner = true
+script = ExtResource("3_nav")
+graph = NodePath("..")
 
 [node name="Edges" type="Node2D" parent="Graph"]
 
@@ -34,45 +39,40 @@ script = ExtResource("4_cam")
 
 [node name="FogOverlay" parent="Graph" node_paths=PackedStringArray("vision_system") instance=ExtResource("11_fog")]
 z_index = 1000
-vision_system = NodePath("../Systems/VisionSystem")
+vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
-[node name="Systems" type="Node" parent="Graph"]
+[node name="Systems" type="Node" parent="."]
 
-[node name="Navigator" type="Node" parent="Graph/Systems" node_paths=PackedStringArray("graph")]
-unique_name_in_owner = true
-script = ExtResource("3_nav")
-graph = NodePath("../..")
-
-[node name="TurnManager" type="Node" parent="Graph/Systems"]
+[node name="TurnManager" type="Node" parent="Systems"]
 unique_name_in_owner = true
 script = ExtResource("7_turn")
 
-[node name="AllocationSystem" type="Node" parent="Graph/Systems" node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
+[node name="AllocationSystem" type="Node" parent="Systems" node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("5_alloc")
-graph = NodePath("../..")
-navigator = NodePath("../Navigator")
+graph = NodePath("../../Graph")
+navigator = NodePath("../../Graph/Navigator")
 turn_manager = NodePath("../TurnManager")
 
-[node name="BattleSystem" type="Node" parent="Graph/Systems" node_paths=PackedStringArray("turn_manager")]
+[node name="BattleSystem" type="Node" parent="Systems" node_paths=PackedStringArray("turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("6_battle")
 turn_manager = NodePath("../TurnManager")
 
-[node name="VisionSystem" type="Node" parent="Graph/Systems" node_paths=PackedStringArray("graph", "allocation_system")]
+[node name="VisionSystem" type="Node" parent="Systems" node_paths=PackedStringArray("graph", "allocation_system")]
 unique_name_in_owner = true
 script = ExtResource("9_vision")
-graph = NodePath("../..")
+graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
 empty_mode = 2
 ease_rate = 2.5
 
-[node name="PlayerInputController" type="Node" parent="Graph/Systems" node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
+[node name="PlayerInputController" type="Node" parent="Systems" node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("8_input")
-graph = NodePath("../..")
+graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")

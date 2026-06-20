@@ -117,10 +117,10 @@ func _on_xp_replenished() -> void:
 	leveled_up.emit(level)
 
 
-## Group lookup beats a tree walk because TurnManager lives at
-## `Graph/Systems/TurnManager` — not a direct child of any Entity ancestor,
-## so a get_children() walk-up always missed it. TurnManager joins its group
-## in `_enter_tree`, which fires before any spawned entity's _ready.
+## Group lookup, not tree walk: TurnManager lives at `GameRoot/Systems/...`,
+## a sibling of Graph, so an ancestor get_children() walk never reaches it.
+## TurnManager joins its group in `_enter_tree`, which fires before any
+## spawned entity's _ready.
 func _find_turn_manager() -> TurnManager:
 	return get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
 

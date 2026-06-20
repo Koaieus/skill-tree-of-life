@@ -24,7 +24,7 @@ Gates: `can_allocate()` returns true iff `current_phase == EXPAND`; `can_dealloc
 
 ## Discovery
 
-`TurnManager` joins the `"turn_manager"` group (constant `TurnManager.GROUP`) in `_enter_tree`. `Entity._find_turn_manager()` uses `get_tree().get_first_node_in_group(...)`. A tree-walk via `get_children()` missed it — TM lives at `Graph/Systems/TurnManager`, never a direct child of an Entity ancestor. Single instance per level.
+`TurnManager` joins the `"turn_manager"` group (constant `TurnManager.GROUP`) in `_enter_tree`. `Entity._find_turn_manager()` uses `get_tree().get_first_node_in_group(...)`. A tree-walk via `get_children()` missed it — TM lives at `GameRoot/Systems/TurnManager` (sibling of Graph), never a direct child of an Entity ancestor. Single instance per level.
 
 ## Wiring a new level
 

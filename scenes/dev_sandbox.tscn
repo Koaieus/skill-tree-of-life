@@ -583,59 +583,59 @@ metadata/_edit_vertical_guides_ = [701.0, 499.0]
 
 [node name="Graph" type="Node2D" parent="." unique_id=1984989213 node_paths=PackedStringArray("navigator", "skill_nodes_container", "edges_container")]
 script = ExtResource("3_graph")
-navigator = NodePath("Systems/Navigator")
+navigator = NodePath("Navigator")
 skill_nodes_container = NodePath("Nodes")
 edges_container = NodePath("Edges")
 metadata/_edit_lock_ = true
 
 [node name="FogOverlay" parent="Graph" unique_id=295980468 node_paths=PackedStringArray("vision_system") instance=ExtResource("41_fog")]
 z_index = 1000
-vision_system = NodePath("../Systems/VisionSystem")
+vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
-[node name="Systems" type="Node" parent="Graph" unique_id=1059257422]
-
-[node name="Navigator" type="Node" parent="Graph/Systems" unique_id=552086591 node_paths=PackedStringArray("graph")]
+[node name="Navigator" type="Node" parent="Graph" unique_id=552086591 node_paths=PackedStringArray("graph")]
 unique_name_in_owner = true
 script = ExtResource("5_nav")
-graph = NodePath("../..")
+graph = NodePath("..")
 
-[node name="VisionSystem" type="Node" parent="Graph/Systems" unique_id=200425398 node_paths=PackedStringArray("graph", "allocation_system", "viewers")]
+[node name="Systems" type="Node" parent="." unique_id=1059257422]
+
+[node name="VisionSystem" type="Node" parent="Systems" unique_id=200425398 node_paths=PackedStringArray("graph", "allocation_system", "viewers")]
 unique_name_in_owner = true
 script = ExtResource("40_vision")
-graph = NodePath("../..")
+graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
-viewers = [NodePath("../../Entities/Player")]
+viewers = [NodePath("../../Graph/Entities/Player")]
 empty_mode = 2
 ease_rate = 2.5
 
-[node name="TurnManager" type="Node" parent="Graph/Systems" unique_id=1834844179]
+[node name="TurnManager" type="Node" parent="Systems" unique_id=1834844179]
 unique_name_in_owner = true
 script = ExtResource("7_turn")
 metadata/_custom_type_script = "uid://hhfetuy6hfu"
 
-[node name="AllocationSystem" type="Node" parent="Graph/Systems" unique_id=394689840 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
+[node name="AllocationSystem" type="Node" parent="Systems" unique_id=394689840 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("6_alloc")
-graph = NodePath("../..")
-navigator = NodePath("../Navigator")
+graph = NodePath("../../Graph")
+navigator = NodePath("../../Graph/Navigator")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://blmjm81fytofd"
 
-[node name="BattleSystem" type="Node" parent="Graph/Systems" unique_id=1245123863 node_paths=PackedStringArray("turn_manager")]
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1245123863 node_paths=PackedStringArray("turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("6_umwfs")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://c8h46d4u0rss3"
 
-[node name="PlayerInputController" type="Node" parent="Graph/Systems" unique_id=252155233 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "player", "turn_manager")]
+[node name="PlayerInputController" type="Node" parent="Systems" unique_id=252155233 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "player", "turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("8_input")
-graph = NodePath("../..")
+graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
-player = NodePath("../../Entities/Player")
+player = NodePath("../../Graph/Entities/Player")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://tmd2wsn34dny"
 
