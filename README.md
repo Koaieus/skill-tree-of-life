@@ -88,15 +88,6 @@ The design is much further along than the code. Read in this order:
 
 ---
 
-## Project conventions
-
-- `@tool` scripts (`SkillNode`, `Entity`, `Graph`) run in the editor. Be careful: opening the editor can round-trip scenes/`.tres` — `git diff` after a refresh is mandatory (see `.claude/rules/godot-workflow.md`).
-- Scene access uses unique names: `%PlayerInputController`, `%VisionSystem`, etc.
-- `call_deferred` / `await` for post-`_ready` initialization.
-- Issue tracking is GitHub Issues (`Koaieus/skill-tree-of-life`); labels include `core`, `design`.
-
----
-
 ## Status & contributing
 
 This is a personal R&D project in active design phase. Code is exploratory; expect breaking changes. Issues and design discussion welcome via the GitHub tracker — but balance, scope, and many systems are deliberately unsettled.
