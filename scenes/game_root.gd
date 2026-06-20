@@ -80,22 +80,30 @@ func _setup_level() -> void:
 
 
 ## Spawn an [Entity] under `graph.entities_container` with a duplicated copy
-## of the default stat board. If [param core] is given, force-allocates it as
-## the entity's first node and sets `core_location`. Returns the entity.
+## of the default stat board. If [param core_location] is given, force-allocates
+## it as the entity's first node and sets `core_location`. If [param core_class]
+## is given, assigns it as `core_class` so its modifier set + on_turn_started
+## hook fire from Entity._ready. Returns the entity.
 ##
 ## Skips [method AllocationSystem.allocate] gating — this is dev/procgen
 ## setup, not a gameplay action. Mid-game spawning should still route through
 ## the gated path.
-func spawn_entity(ent_name: String, color: Color, core: SkillNode = null) -> Entity:
+func spawn_entity(
+	ent_name: String,
+	color: Color,
+	core_location: SkillNode = null,
+	core_class: CoreClass = null,
+) -> Entity:
 	var ent := Entity.new()
 	ent.name = ent_name
 	ent.display_name = ent_name
 	ent.color = color
 	ent.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
+	ent.core_class = core_class
 	graph.entities_container.add_child(ent)
-	if core != null:
-		allocation_system.force_allocate(ent, core)
-		ent.core_location = core
+	if core_location != null:
+		allocation_system.force_allocate(ent, core_location)
+		ent.core_location = core_location
 	return ent
 
 

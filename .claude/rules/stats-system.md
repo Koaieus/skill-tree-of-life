@@ -56,6 +56,12 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 
 `wound_heal_per_turn` defaults to 1. Tuning lever: raise to recover faster from forced deallocs; drop to make wound damage stickier.
 
+After the entity's own upkeep, `Entity._on_turn_started` calls `core_class.on_turn_started(self)` so the wired class can run its own per-turn effects (mana regen for casters, rage decay for berserkers, etc.). Default hook is a no-op.
+
+## Class identity modifiers (CoreClass)
+
+Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which `duplicate(true)`s every entry in `CoreClass.modifiers` before installing — same `.tres` is safe across many entities. `BalancedCore` is the +10 STR/DEX/INT baseline against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
+
 ## Stat IDs
 
 Run to list all current stat IDs:

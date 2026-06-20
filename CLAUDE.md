@@ -18,9 +18,9 @@ No build step, test runner, or lint tool. Each level scene extends `scenes/game_
 
 ## Architecture
 
-`GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `UIRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content. Spawn entities via `spawn_entity(name, color, core)`.
+`GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `UIRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content. Spawn entities via `spawn_entity(name, color, core_location, core_class)`.
 `Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
-`Entity` (`entity/entity.gd`) — players and NPCs use the same class; ownership is set by `AllocationSystem`.
+`Entity` (`entity/entity.gd`) — players and NPCs use the same class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) that brands the entity with identity modifiers + an `on_turn_started` hook; `BalancedCore` is the +10 STR/DEX/INT baseline.
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` (`entity/entity_navigator.gd`) is the per-entity subgraph mirror used for cut-vertex / islanding queries.
 `TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; phases `CONTRACT → EXPAND → BATTLE`; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
@@ -29,7 +29,7 @@ No build step, test runner, or lint tool. Each level scene extends `scenes/game_
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
 `GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md`.
 
-Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call `spawn_entity(name, color, core)` — it duplicates the default stat board, parents under `graph.entities_container`, and force-allocates the core. See `scenes/procgen_play_sandbox.gd`.
+Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)` — it duplicates the default stat board, parents under `graph.entities_container`, force-allocates the core node, and assigns the class. See `scenes/procgen_play_sandbox.gd`.
 
 ## Autoloads (registered in `project.godot`)
 

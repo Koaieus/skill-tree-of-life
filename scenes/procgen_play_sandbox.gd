@@ -11,10 +11,14 @@ extends GameRoot
 ## [method GameRoot.spawn_entity] composes for the initial core.
 
 const _STARTER_GROUP := &"procgen_starter"
+const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 
 @export var preset: GraphProcgenConfig
 @export var player_color: Color = Color(0.4, 0.8, 1.0)
 @export var enemy_colors: Array[Color] = [Color(0.95, 0.4, 0.4), Color(1.0, 0.6, 0.2)]
+## Class wired onto every spawned entity. The .tres is shared safely — apply()
+## duplicates each modifier before installing it on the entity's stat board.
+@export var core_class: CoreClass = _DEFAULT_CORE_CLASS
 
 ## Overrides applied to a duplicate of `preset` — leaves the on-disk preset
 ## untouched so the same resource can serve multiple sandboxes at different
@@ -45,12 +49,12 @@ func _setup_level() -> void:
 	for n in starting_nodes:
 		(n as Node).add_to_group(_STARTER_GROUP)
 
-	player = spawn_entity("Player", player_color, starting_nodes[0])
+	player = spawn_entity("Player", player_color, starting_nodes[0], core_class)
 
 	var enemies: Array[Entity] = []
 	for i in range(1, starting_nodes.size()):
 		var color: Color = enemy_colors[(i - 1) % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
-		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i]))
+		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i], core_class))
 
 	# Wire systems that needed live entities (edit-time NodePaths can't bind
 	# to nodes that don't exist yet).
