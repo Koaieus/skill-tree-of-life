@@ -8,9 +8,10 @@ extends ScalarStat
 ## modifier pipeline). `.current` is the ephemeral game state. Modifiers
 ## always target the cap; game systems read/write `.current` directly.
 ##
-## heal_on_max_increase: whenever the cap rises, current follows by the same
-## delta. Handled by overriding add/remove_modifier and the derived-modifier
-## change hook — no persistent _previous_max tracking required.
+## Behaviour on cap-rise (heal-on-max-increase) and on cap-fill (growth) is
+## delegated to the def — see PoolStatDef.on_max_increased / on_pool_filled
+## and the StandardPoolStatDef / GrowablePoolStatDef subclasses. This class
+## stays agnostic to which subclass it holds.
 
 signal depleted
 signal replenished
@@ -39,14 +40,15 @@ func set_current(v: float) -> void:
 	if is_equal_approx(clamped, current):
 		return
 	var was_below_cap := current < cap
+	var excess: float = max(0.0, v - cap)
 	current = clamped
 	current_changed.emit(_coerce(current))
 	value_changed.emit()
 	if current <= floor_v:
 		depleted.emit()
 	elif was_below_cap and current >= cap:
-		if pool_definition.is_growable and cap > 0:
-			grow()
+		if pool_definition != null and cap > 0:
+			pool_definition.on_pool_filled(self, excess)
 		replenished.emit()
 
 
@@ -60,24 +62,6 @@ func replenish(amount: float) -> void:
 
 func restore_to_full() -> void:
 	set_current(float(get_value()))
-
-
-## Grow the pool's cap by the definition's growth formula.
-## Bumps base_value so external modifiers continue to layer atop.
-## Returns the delta applied (0 if formula is a no-op or unconfigured).
-func grow() -> int:
-	if definition == null or not (definition is PoolStatDef):
-		return 0
-	var def := definition as PoolStatDef
-	var old_max := int(get_value())
-	var new_max := roundi(float(old_max) * def.growth_factor + float(def.growth_flat))
-	var delta := new_max - old_max
-	if pool_definition.deduct_old_max:
-		deplete(old_max)
-	if delta == 0:
-		return 0
-	base_value += float(delta)
-	return delta
 
 
 # --- Modifier overrides (maintain current ≤ cap on every cap change) -------
@@ -106,8 +90,8 @@ func _apply_max_change(old_max: float) -> void:
 		return
 	if current > new_max:
 		set_current(new_max)
-	elif pool_definition is PoolStatDef and pool_definition.heal_on_max_increase:
-		set_current(current + (new_max - old_max))
+	elif new_max > old_max and pool_definition != null:
+		pool_definition.on_max_increased(self, new_max - old_max)
 
 
 func _min_value() -> int:

@@ -1,18 +1,16 @@
-[gd_resource type="Resource" script_class="PoolStatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StandardPoolStatDef" load_steps=2 format=3]
 
-[ext_resource type="Script" uid="uid://tpd28s10cxxv" path="res://stats_system/pool_stat_def.gd" id="1_pool_stat_def"]
+[ext_resource type="Script" path="res://stats_system/standard_pool_stat_def.gd" id="1_std_pool_def"]
 
 [resource]
-script = ExtResource("1_pool_stat_def")
+script = ExtResource("1_std_pool_def")
 id = &"skill_points"
 display_name = "Skill Points"
-description = "Allocation budget — the mana bar. Spent on allocation, refunded on normal deallocation, wounded by forced deallocation (see SkillPointStat). Buffer-tap temp SP not yet supported by can_overflow. heal_on_max_increase=true so level-up's +1 max also gifts +1 current (auto-bookkeeping); revisit if non-level sources start raising max SP."
+description = "Allocation budget — the mana bar. Spent on allocation, refunded on normal deallocation, wounded by forced deallocation (see SkillPointStat). heal_on_max_increase=true so level-up's +1 max also gifts +1 current (auto-bookkeeping); revisit if non-level sources start raising max SP."
 value_type = 0
 default_value = 1.0
 display_order = 5
 display_type = 1
 tint_color = Color(0.35, 0.85, 0.95, 1)
 min_value = 0
-is_growable = false
 heal_on_max_increase = true
-can_overflow = false

@@ -1,15 +1,15 @@
-[gd_resource type="Resource" script_class="PoolStatDef" format=3 uid="uid://b04rych6tmpxr"]
+[gd_resource type="Resource" script_class="GrowablePoolStatDef" format=3 uid="uid://b04rych6tmpxr"]
 
-[ext_resource type="Script" uid="uid://tpd28s10cxxv" path="res://stats_system/pool_stat_def.gd" id="1_pool_stat_def"]
+[ext_resource type="Script" path="res://stats_system/growable_pool_stat_def.gd" id="1_growable_pool_def"]
 
 [resource]
-script = ExtResource("1_pool_stat_def")
-heal_on_max_increase = false
-is_growable = true
-growth_flat = 5
+script = ExtResource("1_growable_pool_def")
+growth_flat = 5.0
+growth_factor = 1.0
+post_grow_mode = 2
 id = &"xp"
 display_name = "XP"
-description = "Experience pool toward the next level. Fills via xp_per_turn (and quests/kills later); fires Entity.leveled_up when full. Max grows on level-up via the growth formula."
+description = "Experience pool toward the next level. Fills via xp_per_turn (and quests/kills later); fires Entity.leveled_up when full. Max grows on level-up via the growth formula; OVERFLOW mode carries unused replenish into the next level."
 display_order = 21
 display_type = 1
 tint_color = Color(0.95, 0.8, 0.2, 1)

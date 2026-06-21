@@ -97,7 +97,7 @@ func _on_turn_started(entity: Entity) -> void:
 
 
 ## Listens for xp.replenished (pool crossed into full). Pool growth + current
-## carry-over are handled inside PoolStat when its def is `is_growable`; here
+## carry-over are handled by the def when it's a `GrowablePoolStatDef`; here
 ## we just mint 1 SP via grant() (bumps both max and current) and emit leveled_up.
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
