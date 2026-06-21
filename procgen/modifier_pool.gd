@@ -4,28 +4,26 @@ extends Resource
 
 ## Tiered-pick pool: roll a budget per node, then repeatedly draw an entry
 ## whose [member ModifierPoolEntry.cost] fits the remaining budget, subtract,
-## repeat until nothing's affordable or [member max_picks] is hit.
+## repeat until nothing's affordable.
+##
+## Each draw calls [method ModifierPoolEntry.roll] to mint a fresh
+## [StatModifier] with a value sampled from the entry's `value_range`.
+## Per docs/domain/procgen-v2.md, the cost floor (≥1) is the implicit cap on
+## per-node modifier count — no `max_picks` knob.
 
 @export var entries: Array[ModifierPoolEntry] = []
-## Hard cap on picks per roll, regardless of leftover budget. 0 = no cap.
-@export var max_picks: int = 0
 
 
-## Returns a fresh list of duplicated [StatModifier]s. Duplication keeps
-## procgen-produced modifiers independent of pool definitions so later tweaks
-## (rolled values, runtime mutation) don't leak back.
 func roll(budget: int, rng: RandomNumberGenerator) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	if entries.is_empty():
 		return out
 	var remaining := budget
 	while true:
-		if max_picks > 0 and out.size() >= max_picks:
-			break
 		var entry := _weighted_pick_affordable(remaining, rng)
-		if entry == null or entry.modifier == null:
+		if entry == null:
 			break
-		out.append(entry.modifier.duplicate(true))
+		out.append(entry.roll(rng))
 		remaining -= entry.cost
 		if remaining <= 0:
 			break

@@ -59,6 +59,31 @@ Either:
 - Leave the parse error visible — they'll see it next time they open
   the editor, which triggers its own refresh.
 
+## Hand-authoring `.tres` — UID mismatch silently nulls the field
+
+`[ext_resource type="Script" uid="uid://..." path="res://foo/bar.gd" id="x"]`
+— if `uid` doesn't match the actual `.uid` file for `path`, Godot does NOT
+error. The ext_resource entry silently fails to resolve; any `SubResource`
+declaring `script = ExtResource("x")` instantiates as a bare `Resource`
+without the script attached; any field referencing that SubResource ends up
+as `null`. Tests that don't probe the field never notice — the broken
+preset just generates empty content downstream.
+
+How to apply: when authoring a multi-script `.tres` by hand, **never trust
+copy-pasted uids**. Either omit the `uid=` attribute (Godot resolves by
+`path=`), or verify each uid against `cat <script>.gd.uid`. Lint by loading
+the preset in a GUT test and asserting every field is non-null.
+
+## Hand-authoring `.tres` — two parser gotchas
+
+- **Array literals must be single-line.** `Array[T]([a, b, c])` works; the
+  same with newlines after `[` gives a "Parse Error: Expected string."
+  Same for `PackedStringArray` contents. Author wide, don't pretty-print.
+- **`PackedStringArray` uses positional args, NOT a bracketed list.**
+  `PackedStringArray("a", "b")` — correct. `PackedStringArray(["a", "b"])`
+  — parses as a single nested-array element and breaks reads. `Array[T]`
+  *does* take `[...]`. Don't conflate them.
+
 ## When the refresh is safe to skip
 
 Pure script changes (function body edits, new methods, new files

@@ -71,3 +71,44 @@ extends Resource
 ## Pair a [RadialGradientField] with a circular shape for the classic
 ## "weak center, strong rim" gradient. Unset = neutral.
 @export var budget_field: ScalarField
+
+# ── v2 universal pool (optional) ──────────────────────────────────────────
+
+## Procgen v2 (see docs/domain/procgen-v2.md). When set, the per-node modifier
+## pass draws from this universal pool instead of the per-[NodeTypeDef] pools.
+## `weight_profiles` provide per-entry sampling biases (archetype-affinity,
+## collision-block, radial-band, etc.) composed multiplicatively. Leave unset
+## to keep v1 behaviour — the per-type pools on `node_types` are used.
+@export var modifier_pool: ModifierPool
+## Typed as Array[Resource] because Godot's TypedArray check rejects
+## subclasses of an abstract base — concrete profiles (Archetype/Collision/Radial)
+## couldn't coexist in `Array[WeightProfile]`. Runtime dispatches via
+## [method WeightProfile.multiplier_for] duck-typing.
+@export var weight_profiles: Array[Resource] = []
+
+## Per-node budget knobs. When non-null, overrides the v1
+## [NodeTypeDef.budget_min] / `budget_max` + `budget_field` combo and uses its
+## own archetype/role/field multipliers instead. Unset = v1 fallback.
+@export var budget_policy: BudgetPolicy
+
+## v2 archetype policies. When [member use_archetype_policies] is true (and
+## this array is non-empty), the cluster pass switches from v1 Voronoi-on-
+## NodeTypeDef to v2 cluster-planned BFS-grow using these per-archetype
+## target ratios + size distributions.
+@export var archetypes: Array[ArchetypePolicy] = []
+@export var use_archetype_policies: bool = false
+
+## Second-pass addon roll. Unset = no addons attached by procgen.
+@export var addon_policy: AddonPolicy
+
+## Pre-roll constraints. Each runs against a [PlacementContext] and may stamp
+## role tags (consumed by [BudgetPolicy.role_bonus]) or reserve nodes for
+## special content. See docs/domain/procgen-v2.md "GuaranteedPlacement".
+## Typed Array[Resource] for the same reason weight_profiles is — concrete
+## placement subclasses can't coexist in a typed abstract-base array.
+@export var guaranteed_placements: Array[Resource] = []
+
+## Optional running-count rebalance for jitter rerolls + fallback assignment.
+## See [ArchetypeBalancer]. Off by default; set + flip `enabled` to dampen RNG
+## streaks against the target ratios.
+@export var archetype_balancer: ArchetypeBalancer

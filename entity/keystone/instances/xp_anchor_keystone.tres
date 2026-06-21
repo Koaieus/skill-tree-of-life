@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StatKeystone" format=3 uid="uid://byxjrmwf12wt6"]
+
+[ext_resource type="Script" uid="uid://dompbpyb118ak" path="res://entity/keystone/stat_keystone.gd" id="1_ks"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+
+[sub_resource type="Resource" id="m_xp_per_turn"]
+script = ExtResource("2_mod")
+stat_id = &"xp_per_turn"
+value = 4.0
+
+[resource]
+script = ExtResource("1_ks")
+display_name = "XP Anchor"
+description = "A natural-expansion anchor: guaranteed near every starter so early growth never starves."
+modifiers = Array[ExtResource("2_mod")]([SubResource("m_xp_per_turn")])
