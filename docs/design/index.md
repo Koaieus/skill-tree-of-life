@@ -22,6 +22,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
 | [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) |
 | [spells.md](spells.md) | Spell catalogue — identity and propagation mechanics for all Blue (INT/magic) spells |
+| [info_gating.md](info_gating.md) | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
 ## Reading order
 

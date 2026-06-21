@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3 uid="uid://b1addon0spike"]
+[gd_scene format=3 uid="uid://b1addon0spike"]
 
-[ext_resource type="Script" path="res://skill_node/addons/spike_ring_addon.gd" id="1_spike"]
+[ext_resource type="Script" uid="uid://b3a7a3yleuv1a" path="res://skill_node/addons/spike_ring_addon.gd" id="1_spike"]
 
-[node name="SpikeRingAddon" type="Node2D"]
+[node name="SpikeRingAddon" type="Node2D" unique_id=1569558765]
 script = ExtResource("1_spike")

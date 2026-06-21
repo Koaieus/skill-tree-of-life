@@ -52,7 +52,9 @@ void fragment() {
 
     // ── Mouse proximity glow ──────────────────────────────────────────────────
     float md         = distance(p, mp);
-    float mouse_spot = 1.0 - smoothstep(0.0, glow_radius * 0.5, md);
+    //float mouse_spot = 1.0 - smoothstep(0.0, glow_radius * 0.5, md);
+    float mouse_spot = 1.0 - smoothstep(0.0, glow_radius * 2.0, md);
+	mouse_spot *= max(0., cos( md * 50.- TIME * 25.)) * (1. - rim);
     col += tint * mouse_spot * glow_strength * 0.30;
 
     // ── Active fill: breathing tint pulse ─────────────────────────────────────

@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="BalancedCore" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BalancedCore" format=3 uid="uid://0icrnqbby6yx"]
 
-[ext_resource type="Script" path="res://entity/core/balanced_core.gd" id="1_core"]
+[ext_resource type="Script" uid="uid://bv71o73jcthj3" path="res://entity/core/balanced_core.gd" id="1_core"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 
 [sub_resource type="Resource" id="mod_str"]

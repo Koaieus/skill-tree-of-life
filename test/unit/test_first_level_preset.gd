@@ -35,7 +35,7 @@ func test_modifiers_rolled_on_nodes() -> void:
 	add_child(graph)
 	await get_tree().process_frame
 
-	var result: Dictionary = GraphProcgen.generate(cfg, graph)
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
 	var nodes: Array = result.get("nodes", [])
 	var with_modifiers := 0
 	for n in nodes:
@@ -57,7 +57,7 @@ func test_procgen_generates_full_level() -> void:
 	add_child(graph)
 	await get_tree().process_frame
 
-	var result: Dictionary = GraphProcgen.generate(cfg, graph)
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
 	var nodes: Array = result.get("nodes", [])
 	assert_true(nodes.size() > 80, "got %d nodes; expected close to 120" % nodes.size())
 

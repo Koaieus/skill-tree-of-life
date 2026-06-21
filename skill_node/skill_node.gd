@@ -58,6 +58,16 @@ signal depleted
 # CoreMarker reflects the *current* owner's core_location, not a stale one.
 var _bound_owner: Entity = null
 
+## Sensed-but-not-visible flag, written by VisionSystem on every recompute.
+## Drives the faint outline render on BaseCircle. Not a stat — purely a
+## per-frame render hint, no signals, no persistence.
+var sensed: bool = false:
+	set(value):
+		if sensed == value:
+			return
+		sensed = value
+		_apply_sensed_state()
+
 ## Ephemeral combat HP. Refills to [method get_max_hp] at the owning entity's
 ## turn start and on first allocation. Not in the stat-modifier pipeline — see
 ## docs/domain/node-hp.md for the reasoning + future-expansion path.
@@ -110,7 +120,26 @@ func _refresh_core_marker() -> void:
 		_bound_owner = owned_by
 		if _bound_owner != null:
 			_bound_owner.core_location_changed.connect(_refresh_core_marker)
-	core_marker.visible = owned_by != null and owned_by.core_location == self
+	core_marker.visible = (not sensed) and owned_by != null and owned_by.core_location == self
+
+
+## Mirror the `sensed` flag onto the visual stack. Three things shift:
+## the BaseCircle switches to its outline-only draw, the SkillNode is
+## promoted above the fog overlay's z so the outline isn't dimmed into
+## nothing, and owner/mechanic detail (core marker, addons) is hidden so
+## a sensed-only viewer reads archetype only. The hide is a global
+## placeholder — proper per-viewer info gating is the next layer up
+## (see docs/domain/vision-system.md).
+func _apply_sensed_state() -> void:
+	if not is_node_ready():
+		return
+	if _base_circle != null:
+		_base_circle.sensed = sensed
+	z_as_relative = not sensed
+	z_index = 1001 if sensed else 0
+	core_marker.visible = (not sensed) and owned_by != null and owned_by.core_location == self
+	for a in get_addons():
+		a.visible = not sensed
 
 
 func _sync_collision() -> void:
@@ -129,6 +158,7 @@ func _sync_visuals() -> void:
 	_base_circle.border_color = base_type_color
 	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
 	_base_circle.allocated = is_allocated()
+	_base_circle.sensed = sensed
 	_base_circle.queue_redraw()
 	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)
@@ -307,6 +337,7 @@ func _on_addon_added(c: Node) -> void:
 			board.add_modifier(m)
 	for m in a.local_modifiers:
 		get_local_stat(m.stat_id).add_modifier(m)
+	a.visible = not sensed
 	_sync_visuals()
 
 

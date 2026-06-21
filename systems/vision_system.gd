@@ -322,6 +322,22 @@ func _recompute() -> void:
 		n.input_pickable = _visible.has(n)
 		n.sensed = _sensed.has(n)
 
+	# Edges follow the same logic as nodes but with stricter reveal: an
+	# edge is sensed iff BOTH endpoints are reached AND at least one is
+	# sensed-only. Both-visible edges render normally (lit/unlit by
+	# ownership); edges with one unreached endpoint stay hidden behind
+	# fog. That keeps topology breadcrumbs from leaking the existence of
+	# nodes the viewer hasn't touched yet.
+	for e in graph.get_edges():
+		if e.from == null or e.to == null:
+			e.sensed = false
+			continue
+		var from_vis: bool = _visible.has(e.from)
+		var to_vis: bool = _visible.has(e.to)
+		var from_reached: bool = from_vis or _sensed.has(e.from)
+		var to_reached: bool = to_vis or _sensed.has(e.to)
+		e.sensed = from_reached and to_reached and not (from_vis and to_vis)
+
 	# Set process state so the animation loop only runs when something
 	# is actually moving. Cheap to toggle, saves a per-frame walk while idle.
 	set_process(_has_pending_motion())

@@ -33,10 +33,20 @@ Per-entity, derived from each allocated node:
   radius is read per-node via `SkillNode.get_local_stat(&"vision_range")`,
   so an addon (e.g. Spyglass) can buff sight on one node without
   touching the entity stat.
-- **Sensed set** — graph BFS: every node within `sensor_range` *hops*
-  from any allocated node, walking edges through `graph.get_neighbours`.
-  Sensed-but-not-visible nodes are queryable (`is_sensed(node)`) but
-  stay unpickable.
+- **Sensed set** — graph priority traversal. Every owned node seeds a
+  probe with its own *local* `sensor_range` (read via
+  `SkillNode.get_local_stat(&"sensor_range")`, so an addon — e.g. a
+  Sensor Tower — can pump reach on one node only). Probes pop
+  highest-budget-first; a node already reached with budget ≥ B can't be
+  improved by a later, weaker probe and is skipped without expansion.
+  A +3 tower next to a +0 neighbour therefore *dominates* the
+  neighbour's seed: by the time that 0-budget probe pops, the tower's
+  paint has already reached it. Only allocated nodes seed today
+  (unallocated nodes are inert traversers — see "Future hooks" below).
+  Sensed ∖ visible nodes are queryable (`is_sensed(node)`) and the
+  `SkillNode.sensed` flag drives a faint base-type-tinted outline
+  render in `BaseCircle._draw` — archetype only, no owner colour, no
+  modifier content.
 - **Viewers** are an `Array[Entity]`. Multiple viewers compose their
   sets via union. Empty array + `empty_mode = ALL_ENTITIES` falls back
   to `group("entities")` — Entity self-joins that group at edit time
@@ -122,7 +132,7 @@ recompute — once per logical change.
 
 | Path | Complexity | Frequency |
 |---|---|---|
-| `_recompute` (CPU) | O(N × S) distance checks + O(S × hops) BFS | per allocation / stat change |
+| `_recompute` (CPU) | O(N × S) distance checks + O((N + E) · log-ish) priority traversal | per allocation / stat change |
 | `_process` (CPU) | O(\|_circles\|) lerps | per frame while animating |
 | Shader (GPU) | O(circle_count) per pixel | per frame while overlay visible |
 
@@ -158,6 +168,73 @@ Three independent levers, layered:
    visible darkness. Useful for testing logical gating.
 3. `viewers = []` + `empty_mode = OFF` — system is wired but inert,
    all nodes visible. `FogOverlay.visible = false` (no fullscreen pass).
+
+## Future hooks (sensor mechanics)
+
+The priority-traversal shape leaves two natural extension points open;
+neither is wired today, both are worth noting before someone reinvents
+them ad-hoc.
+
+- **Signal blockers** — per-node hop cost. Today every edge step costs
+  1 budget. A node could carry a `sensor_hop_cost` local stat (default
+  1, blockers raise it to 2/3/N); the traversal would subtract
+  `nb.get_local_stat(&"sensor_hop_cost").value` instead of a constant
+  1 when expanding into `nb`. Falls out of the existing
+  `best_remaining` dominance check unchanged.
+- **Unallocated re-radiating boosters** — a signal repeater that an
+  enemy hasn't claimed yet but still amplifies any probe passing
+  through. On expansion into `nb`, take `max(remaining_after_hop,
+  nb.get_local_stat(&"sensor_radiate_range").value)` as the new
+  budget (capped at most once to avoid runaway). Owned re-radiators
+  are degenerate — they're already seeds with their own budget.
+
+Both are pure traversal tweaks: no new signals, no new render state,
+no schema migration. Don't pre-build either until a mechanic actually
+calls for it.
+
+## Sensed render rules
+
+When `SkillNode.sensed` flips on, `_apply_sensed_state` does three
+things in one pass:
+
+1. `BaseCircle._draw` switches to outline-only (faint base-type-tinted
+   ring; no wash, no inner disk, no flash).
+2. `z_as_relative = false` + `z_index = 1001` lifts the node above the
+   fog overlay (which lives at `z_index=1000`) so the outline isn't
+   dimmed into nothing. The exact z is a knob — bump both if the fog
+   overlay's z changes, or if some other UI layer wants to live in
+   between.
+3. `core_marker` and every `AddonAnchor` child are hidden. The viewer
+   shouldn't learn ownership-vs-not-ownership of the core, nor which
+   addons sit on the node, from a sensed read.
+
+The hide in (3) is a **global** rule — every sensed node hides every
+addon and the core marker, regardless of viewer. The intended next
+layer is per-viewer info gating: each gate (existence, archetype,
+owner, modifiers, addons, HP, …) opens independently, and `sensed: bool`
+becomes a derived view of "info level for the local viewer is
+sensed-or-higher." Full vision then becomes "all gates open" on the
+same surface, not a separate code path. See
+[../design/info_gating.md](../design/info_gating.md) for the dimensions
+roster, default profiles (Hidden / Sensed / Scouted / Identified /
+Vision), and the ergonomics requirements that should land first.
+
+## Sensed edges
+
+An edge is sensed iff **both endpoints are reached** (visible or
+sensed) **and at least one is sensed-only**. Both-visible edges render
+normally (lit/unlit by ownership); edges with one unreached endpoint
+stay hidden behind fog. The "at least one sensed-only" clause keeps
+two clear-vision endpoints on the normal lit/unlit path even if their
+edge would also be sensed-by-definition — sensed treatment is for the
+fog backdrop, not the clear one.
+
+`Edge.sensed` mirrors the SkillNode pattern: written by VisionSystem
+after the node sets are computed, the setter z-promotes the edge above
+the fog (`z_as_relative=false`, `z_index=1001`) so the topology
+breadcrumb reads through, and `_draw` switches to the unlit colour at
+70% alpha and 75% width — never the lit colour, even if both endpoints
+happen to share owner. Owner identity is above the topology gate.
 
 ## Gotchas
 

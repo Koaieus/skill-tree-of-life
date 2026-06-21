@@ -18,7 +18,7 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pjooi"]
 resource_local_to_scene = true
 shader = ExtResource("3_bsmqx")
-shader_parameter/mouse_uv = Vector2(2.8515625, -2.203125)
+shader_parameter/mouse_uv = Vector2(2.80625, 1.1593761)
 shader_parameter/texture_size = Vector2i(1, 1)
 shader_parameter/tint = Color(0, 0.59229046, 0.65951425, 1)
 shader_parameter/glow_radius = 0.31
@@ -54,7 +54,7 @@ toggle_mode = true
 button_group = ExtResource("1_yol2q")
 script = ExtResource("2_yb27n")
 tint = Color(0, 0.59229046, 0.65951425, 1)
-glow_radius = 0.31
+glow_radius = 0.44
 
 [node name="ColorRect" type="ColorRect" parent="." unique_id=726387690]
 material = SubResource("ShaderMaterial_pjooi")

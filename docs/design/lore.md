@@ -26,15 +26,39 @@ The enemies of Act 0 are not menacing. They are **small, harmless, cute** — ro
 
 The Fairy notices. The Fairy is not okay with it. (See **The Fairy.**)
 
+### The intro beat sheet
+
+The abstract framing above resolves into a concrete opening sequence — a small herding ritual disguised as a tutorial. The player should feel like they are playing a perfectly ordinary fetch-quest opening; every beat is doing double duty.
+
+**Setup — the Evil Overlord.** The Fairy frames the world for the player: somewhere out there is the **Evil Overlord**, and the player has been sent into "the world" to grow stronger and one day face him. The Overlord is never seen, never described in detail, never given a face. He is a pure narrative MacGuffin — the fake antagonist that justifies every kill the player is about to make. The real antagonist is the companion telling you about him, and that fake-out is the whole point of giving him top billing.
+
+**First fetch quest — gather plants.** The Fairy points the player to a **nearby forest**: gather plants, bring them back. Each plant is worth **1 XP**. The quest asks for roughly **10 plants** — just enough to ding the first level and earn the first skill point. The plants are the in-fiction stand-in for **Gold nodes** (the new XP-economic lifeblood, see the RGBW roster expansion note): a slow, peaceful, gathering economy. This first level-up should feel earned, calm, and entirely innocent.
+
+**The boulder — a visible STR gate.** Somewhere on the early path is a **boulder blocking the way**, with a prompt that the player needs more **Strength** to push it aside. This is the perfect ludonarrative lever: at the exact moment the player is being asked to spend their first skill points, the world hands them a concrete reason to want more STR. Intrinsic motivation aligned with the trap. The boulder doesn't move yet. The player banks the goal: *more STR, somehow.*
+
+**The squirrel — a taste of real XP.** During more fetch questing, a **cutesie squirrel** crosses the player's path. The game lets — invites — the player to slay it. Reward: **+20 XP** (or some ratio absurdly favorable to picking leaves). The first kill in the game, and it pays roughly twenty times what bending down for a leaf pays. The genre's open secret has just been confirmed: *living things are worth more than gathered things.* This is the Apex Heresy of the cosmos in miniature, taught to the player in the first hour as if it were a tutorial about efficient grinding.
+
+**The Fairy protests. The player ignores.** From the squirrel onward, every kill draws a Fairy reaction — disappointed, then upset, then visibly hurt. The player ignores it. (The Fairy is *also* the only voice telling them where to go next, so brushing it off is easy.) Through this stretch, the world's affordances quietly funnel the player into a binary: **gather more leaves (slow) or hunt more innocent creatures (fast).** Both paths exist. Both work. Only one is being whispered against. The Fairy escalates each time the player chooses the fast one.
+
+**The clearing — the engineered temptation.** The final test moment: the player needs roughly **500 more XP** to land the last STR point that would let them push the boulder. They round a corner into a sun-dappled **clearing of two dozen ultra-cute animals**, packed together, idle, ripe for the reaping. The math is rigged — finding 500 more plants would be a real grind; the clearing is two dozen one-swing kills. *The clearing was placed there.* In retrospect, the Fairy walked the player to it; the whole intro was a herding ritual. In the moment, it just looks like good fortune.
+
+There are two outcomes the design needs to accept:
+- The player **resists** and goes hunting for 500 leaves the slow way. The Fairy is touched. The trap still springs eventually — the curse is on the whole metagame tree (see The Fairy → *The crash is the Fairy's doing*), not contingent on this one swing — but the lore-canonical first run is the one where the player gives in. We design for the canonical path; the resistant path is a quiet branch that ends the same way, slightly later.
+- The player **swings**, claims fucktons of XP in one minute of play, and walks out of the clearing carrying the skill point that buys the last STR.
+
+**The curse, mid-syllable.** That clearing-fueled allocation **does it** for the Fairy. The companion finally snaps — *"AAH FUUUCK"* — which reads in the moment as the only profanity it has ever used, a small character break, almost endearing. (Optional: a single subliminal frame in the speech bubble where the glyphs aren't Latin.) It is, of course, **literally the curse being cast** — the player is parsing English; the Fairy is speaking Old Tongue, and *fuuuck* is the verb. As the player commits the allocation — the one bought with two dozen lives — the casting completes. The screen breaks.
+
+This is the **fatal allocation** referenced in Act 1: not an arbitrary fourth click, but the one purchased with mass murder, on the skill point the Fairy walked the player into earning. The crime and the sentence land in the same frame.
+
 ---
 
 ## Act 1 — Something is Off
 
-The player keeps playing. More kills, more XP, more skill points. The Fairy keeps insisting they open the tree and allocate. They do.
+The player keeps playing through the early fetch loop. More plants, more squirrels, more skill points. The Fairy keeps insisting they open the tree and allocate. They do.
 
-**The tree resists.** Not dramatically — a visual stutter, a sound that doesn't quite belong, a moment where the camera feels like it hiccupped. The kind of thing you'd chalk up to a bug and post on the game's Discord.
+**The tree resists.** Not dramatically — a visual stutter, a sound that doesn't quite belong, a moment where the camera feels like it hiccupped. The kind of thing you'd chalk up to a bug and post on the game's Discord. Each kill-fueled allocation hiccups a little harder than each plant-fueled one, though the player is unlikely to notice the correlation on a first pass.
 
-A third allocation. The Fairy, sweetly, relentlessly, pushes you toward a fourth. The game **breaks**. Hard. Visually catastrophic — the kind of "crash" that looks deliberate in retrospect but feels real in the moment. Screen artifacts, audio distortion, a freeze.
+Then the clearing happens (see *The intro beat sheet*). The Fairy snaps *"AAH FUUUCK"*, the player allocates the skill point bought with two dozen lives, and the game **breaks**. Hard. Visually catastrophic — the kind of "crash" that looks deliberate in retrospect but feels real in the moment. Screen artifacts, audio distortion, a freeze.
 
 Then: a reboot sequence. Loading bars. The game "comes back."
 

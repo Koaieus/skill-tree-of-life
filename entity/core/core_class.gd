@@ -22,6 +22,7 @@ extends Resource
 @export var modifiers: Array[StatModifier] = []
 
 
+
 ## Wire this class onto the given entity. Default applies the modifier set;
 ## override for classes whose effects don't reduce to modifiers (custom
 ## signal wiring, scene additions, etc.).

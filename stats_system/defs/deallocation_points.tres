@@ -1,16 +1,14 @@
-[gd_resource type="Resource" script_class="StandardPoolStatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StandardPoolStatDef" format=3 uid="uid://cimwxtc82ck7f"]
 
 [ext_resource type="Script" path="res://stats_system/standard_pool_stat_def.gd" id="1_std_pool_def"]
 
 [resource]
 script = ExtResource("1_std_pool_def")
+heal_on_max_increase = false
 id = &"deallocation_points"
 display_name = "Deallocation Points"
 description = "Per-turn reshape budget (apparent movement). Resets to max at turn start; unspent are wasted."
-value_type = 0
 default_value = 3.0
 display_order = 7
 display_type = 1
 tint_color = Color(0.7, 0.5, 0.9, 1)
-min_value = 0
-heal_on_max_increase = false

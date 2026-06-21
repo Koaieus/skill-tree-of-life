@@ -32,6 +32,21 @@ signal endpoints_changed
 @export var color: Color = Color(0.55, 0.55, 0.6, 0.55)
 @export var lit_color: Color = Color(1.0, 0.85, 0.4, 0.95)
 
+## Sensed-but-not-clearly-visible: at least one endpoint is sensed
+## (not visible). VisionSystem writes this every recompute. When true,
+## the edge renders above the fog overlay so the topology hint reads
+## through the darkness — a topology breadcrumb, not a full reveal.
+## See docs/design/info_gating.md for the broader info dimensions this
+## flag will eventually plug into.
+var sensed: bool = false:
+	set(value):
+		if sensed == value:
+			return
+		sensed = value
+		z_as_relative = not sensed
+		z_index = 1001 if sensed else 0
+		queue_redraw()
+
 
 func _draw() -> void:
 	if from == null or to == null:
@@ -41,10 +56,18 @@ func _draw() -> void:
 	var dir := (b - a).normalized()
 	var a_trim := a + dir * from.radius                                                                                                                      
 	var b_trim := b - dir * to.radius                           
-	if (b_trim - a_trim).dot(dir) <= 0.0:                                                                                                                    
+	if (b_trim - a_trim).dot(dir) <= 0.0:
 		return  # nodes overlap — nothing to draw
-	var c := lit_color if is_lit() else color                                                                                                                
-	draw_line(a_trim, b_trim, c, width, true)  
+	if sensed:
+		# Sensed = topology hint only. Use the unlit colour (never lit,
+		# even if both endpoints happen to share owner: owner identity is
+		# above the topology gate) at a thinner stroke so it reads as
+		# "structure breadcrumb" not "I see this edge clearly."
+		var sc := Color(color.r, color.g, color.b, 0.7)
+		draw_line(a_trim, b_trim, sc, width * 0.75, true)
+		return
+	var c := lit_color if is_lit() else color
+	draw_line(a_trim, b_trim, c, width, true)
 
 ## Lit when both endpoints are owned by the same entity. Override in a
 ## subclass or replace the predicate later for richer states (e.g. owned

@@ -12,6 +12,8 @@ extends Node2D
 
 const _MAX_CIRCLES := 256
 
+@export var enabled: bool = true
+
 @export var vision_system: VisionSystem:
 	set(value):
 		_disconnect_vision()
@@ -50,7 +52,7 @@ func _refresh() -> void:
 	# Hide entirely when the system says no fog is meaningful (e.g. inert
 	# OFF mode). Avoids the shader's "zero circles → fully dark" default
 	# kicking in and saves the fullscreen fragment pass.
-	visible = vision_system == null or vision_system.should_render_fog()
+	visible = enabled and (vision_system == null or vision_system.should_render_fog())
 	if not visible:
 		return
 	queue_redraw()

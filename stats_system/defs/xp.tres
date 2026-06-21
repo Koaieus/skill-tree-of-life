@@ -5,7 +5,6 @@
 [resource]
 script = ExtResource("1_growable_pool_def")
 growth_flat = 5.0
-growth_factor = 1.0
 post_grow_mode = 2
 id = &"xp"
 display_name = "XP"

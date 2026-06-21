@@ -12,9 +12,9 @@ player_color = Color(0.4, 0.8, 1, 1)
 enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1), Color(0.5, 0.3, 0.85, 1)])
 core_class = ExtResource("4_core")
 node_count_override = 0
-n_random_starters = 3
-viability_radius = 600.0
+n_random_starters = 5
+viability_radius = 300.0
 expansion_steps = 6
 
 [node name="FogOverlay" parent="Graph" index="5"]
-enabled = false
+enabled = true
