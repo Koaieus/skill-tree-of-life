@@ -9,7 +9,10 @@ extends ScalarField
 
 @export var center: Vector2 = Vector2.ZERO
 @export var inner_radius: float = 0.0
-@export var outer_radius: float = 600.0
+## When > 0, used verbatim. When ≤ 0, [GraphProcgen] fills this from the
+## resolved shape mask (so an auto-scaled shape and the budget gradient stay
+## in lockstep).
+@export var outer_radius: float = 0.0
 @export var inner_value: float = 0.5
 @export var outer_value: float = 1.5
 ## Optional shaping curve over t ∈ [0,1]. Output is read at `curve.sample(t)`

@@ -13,11 +13,11 @@ extends Resource
 
 ## Target node count. Poisson sampling stops when the active list empties,
 ## so the actual count is bounded by what the shape + spacing allow.
-@export var node_count: int = 300
+@export_range(50, 3000, 10) var node_count: int = 300
 ## Visual + collision radius pushed onto every generated SkillNode.
-@export var node_radius: float = 32.0
+@export_range(1., 64., 1.) var node_radius: float = 32.0
 ## Extra clearance between nodes beyond `2 × node_radius`. Higher = airier.
-@export var node_padding: float = 14.0
+@export_range(1., 128., 1.,) var node_padding: float = 14.0
 ## Fraction of Delaunay edges to keep beyond the minimum spanning tree.
 ## 0 = MST only (every node connected, sparsest planar). 1 = full Delaunay
 ## (densest planar). Spans shortest-edges-first so the result stays organic.

@@ -1,5 +1,11 @@
 [gd_resource type="Resource" script_class="GraphProcgenConfig" format=3 uid="uid://chf1rstvlgexn"]
 
+[ext_resource type="Script" uid="uid://b3fhyx2c2bvat" path="res://procgen/addon_pool_entry.gd" id="1_ihaem"]
+[ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="2_rg3kx"]
+[ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/clamp_addon.tscn" id="3_xg7iw"]
+[ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/addon_pool.gd" id="4_x1g7b"]
+[ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/addon_policy.gd" id="5_qrpdt"]
+[ext_resource type="Script" uid="uid://gkkhlftrrrv1" path="res://procgen/archetype_balancer.gd" id="6_eyb1c"]
 [ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/node_type_def.gd" id="9_66coo"]
 [ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetype_policy.gd" id="ap"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetype_weight_profile.gd" id="awp"]
@@ -15,6 +21,39 @@
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/circular_shape_mask.gd" id="shape"]
 [ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/starting_point.gd" id="sp"]
 [ext_resource type="Resource" uid="uid://byxjrmwf12wt6" path="res://entity/keystone/instances/xp_anchor_keystone.tres" id="xp_keystone"]
+
+[sub_resource type="Resource" id="Resource_68xts"]
+script = ExtResource("1_ihaem")
+id = &"spikes"
+addon_scene = ExtResource("2_rg3kx")
+cost = 5
+weight = 20.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_2jawg"]
+script = ExtResource("1_ihaem")
+id = &"clamp"
+addon_scene = ExtResource("3_xg7iw")
+cost = 3
+weight = 15.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_3kv1o"]
+script = ExtResource("4_x1g7b")
+entries = Array[ExtResource("1_ihaem")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg")])
+metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
+
+[sub_resource type="Resource" id="Resource_c6pvu"]
+script = ExtResource("5_qrpdt")
+chance_per_node = 0.1
+pool = SubResource("Resource_3kv1o")
+weight_profiles = Array[Resource]([null])
+metadata/_custom_type_script = "uid://bi20g047mnsv6"
+
+[sub_resource type="Resource" id="Resource_7wgja"]
+script = ExtResource("6_eyb1c")
+enabled = true
+metadata/_custom_type_script = "uid://gkkhlftrrrv1"
 
 [sub_resource type="Resource" id="ap_red"]
 script = ExtResource("ap")
@@ -62,6 +101,7 @@ cluster_size_weights = {
 2: 0.5
 }
 cluster_jitter = 0.05
+forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"per", &"attack", &"magic", &"defense", &"vision"])
 
 [sub_resource type="Resource" id="ap_purple"]
 script = ExtResource("ap")
@@ -73,6 +113,14 @@ cluster_size_weights = {
 2: 0.3
 }
 cluster_jitter = 0.05
+forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"wis", &"attack", &"magic", &"defense", &"growth", &"xp_growth"])
+
+[sub_resource type="Resource" id="Resource_ihaem"]
+script = ExtResource("grad")
+outer_radius = 2000.0
+inner_value = 1.0
+outer_value = 3.0
+metadata/_custom_type_script = "uid://df2coaqjbaxff"
 
 [sub_resource type="Resource" id="budget_field"]
 script = ExtResource("grad")
@@ -102,7 +150,7 @@ count = 10
 
 [sub_resource type="Resource" id="shape_circle"]
 script = ExtResource("shape")
-radius = 1000.0
+radius = 2000.0
 
 [sub_resource type="Resource" id="sp_core"]
 script = ExtResource("sp")
@@ -185,14 +233,18 @@ script = ExtResource("cp")
 script = ExtResource("cfg")
 seed = 1
 node_count = 500
-connectivity = 0.4
+node_padding = 48.0
+connectivity = 0.357
 shape_mask = SubResource("shape_circle")
 starting_points = Array[ExtResource("sp")]([SubResource("sp_core")])
 n_random_starters = 3
-viability_radius = 400.0
+viability_radius = 300.0
+budget_field = SubResource("Resource_ihaem")
 modifier_pool = ExtResource("pool")
 weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_main"), SubResource("cp_main")])
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_gold"), SubResource("ap_purple")])
 use_archetype_policies = true
+addon_policy = SubResource("Resource_c6pvu")
 guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
+archetype_balancer = SubResource("Resource_7wgja")

@@ -25,3 +25,7 @@ var already_rolled: Array[StatModifier] = []
 var node_index: int = -1
 ## Per-run state — level number, difficulty, etc. Empty in v2 step 3.
 var run_state: Dictionary = {}
+## Hard-exclusion tags pulled from the active [ArchetypePolicy.forbid_tags].
+## Picker zeroes weight on any entry whose tags overlap this set BEFORE
+## weight profiles run, so designers' explicit exclusions are uncrossable.
+var forbid_tags: Array[StringName] = []

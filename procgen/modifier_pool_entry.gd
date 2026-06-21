@@ -38,13 +38,18 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 	m.stat_id = stat_id
 	m.operation = operation
 	var v := rng.randf_range(value_range.x, value_range.y)
-	m.value = _coerce_to_stat_type(v)
+	m.value = _coerce_to_stat_type(v, operation)
 	return m
 
 
-func _coerce_to_stat_type(v: float) -> float:
-	# Unknown stat → pass through; the runtime stat pipeline applies its own
-	# value_type coercion downstream (Stat.get_value).
+## Coerces only the operations whose `value` flows through the target stat's
+## value_type. ADD_BASE/ADD_BONUS deliver a raw amount in the stat's units —
+## INT-typed stats want whole numbers there. INCREASE is percent-points and
+## MULTIPLY is a raw scalar (×1.07 etc.) — both are stat-type-agnostic;
+## coercing them would round `×1.07 INT` to `×1.0 INT`, destroying the roll.
+func _coerce_to_stat_type(v: float, op: int) -> float:
+	if op != StatModifier.Operation.ADD_BASE and op != StatModifier.Operation.ADD_BONUS:
+		return v
 	if StatRegistry == null:
 		return v
 	var def: StatDef = StatRegistry.get_def(stat_id)

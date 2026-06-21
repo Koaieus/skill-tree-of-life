@@ -116,7 +116,7 @@ func test_v2_pipeline_collision_prevents_duplicate_stat_op_on_node() -> void:
 	var profiles: Array[Resource] = [CollisionProfile.new()]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
-	var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"red", Vector2.ZERO, 0, 4, rng)
+	var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"red", [] as Array[StringName], Vector2.ZERO, 0, 4, rng)
 	# Only 2 distinct (stat_id, ADD_BASE) pairs in the pool: strength + dexterity.
 	# Collision blocks repeats → max 2 picks even though budget allows 4.
 	assert_eq(rolled.size(), 2, "collision should cap at one pick per (stat, op) pair")
@@ -149,7 +149,7 @@ func test_v2_pipeline_archetype_steers_picks_red() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = i + 1
 		# Budget 1 → exactly one draw per call.
-		var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"red", Vector2.ZERO, 0, 1, rng)
+		var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"red", [] as Array[StringName], Vector2.ZERO, 0, 1, rng)
 		assert_eq(rolled.size(), 1)
 		if rolled[0].stat_id == &"strength":
 			str_hits += 1
@@ -157,8 +157,26 @@ func test_v2_pipeline_archetype_steers_picks_red() -> void:
 	assert_gt(str_hits, 190, "expected ≥95%% STR with ×100 bias; got %d/%d" % [str_hits, total])
 
 
+func test_v2_pipeline_forbid_tags_hard_excludes() -> void:
+	# Gold archetype: forbid str/dex/int — only WIS-tagged entries should survive.
+	var pool := ModifierPool.new()
+	pool.entries = [
+		_entry(&"str_t1", &"strength", [&"str", &"flat"], 1, 10.0),
+		_entry(&"dex_t1", &"dexterity", [&"dex", &"flat"], 1, 10.0),
+		_entry(&"int_t1", &"intelligence", [&"int", &"flat"], 1, 10.0),
+		_entry(&"wis_t1", &"wisdom", [&"wis", &"flat"], 1, 1.0),
+	]
+	var forbid: Array[StringName] = [&"str", &"dex", &"int"]
+	# Profiles default to [CollisionProfile] so duplicate WIS picks are blocked.
+	var profiles: Array[Resource] = [CollisionProfile.new()]
+	var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"gold", forbid, Vector2.ZERO, 0, 5, RandomNumberGenerator.new())
+	# Only wisdom can be picked, and collision blocks duplicate (wisdom, ADD_BASE).
+	assert_eq(rolled.size(), 1, "forbid should leave only wisdom; got %d" % rolled.size())
+	assert_eq(rolled[0].stat_id, &"wisdom")
+
+
 func test_v2_pipeline_empty_pool_returns_empty() -> void:
 	var pool := ModifierPool.new()
 	var rng := RandomNumberGenerator.new()
-	var rolled := GraphProcgen._roll_modifiers_v2(pool, [], &"red", Vector2.ZERO, 0, 5, rng)
+	var rolled := GraphProcgen._roll_modifiers_v2(pool, [], &"red", [] as Array[StringName], Vector2.ZERO, 0, 5, rng)
 	assert_eq(rolled.size(), 0)

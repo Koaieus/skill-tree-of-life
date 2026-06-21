@@ -17,9 +17,12 @@ extends Node
 ## (entity stat × node-local mods composed via LocalStat). Per-node so
 ## addons like a Spyglass can buff sight on one node only.
 ##
-## Sources of sensor: BFS up to [code]viewer.stat_board.sensor_range[/code]
-## hops from each owned node through the graph edges. Sensed ∖ visible
-## = "blip with no detail" set.
+## Sources of sensor: priority traversal seeded by every owned node with
+## its own local [code]sensor_range[/code] budget (entity stat × node-local
+## mods). Highest-budget probes are processed first; a node already reached
+## with budget ≥ B can't be improved by a later, weaker probe and is
+## skipped — so a +3 sensor tower dominates its weaker neighbours' seeds
+## without expanding them. Sensed ∖ visible = "blip with no detail" set.
 ##
 ## [b]Composability[/b]:
 ##   - Remove this node from the scene → no recomputes, input_pickable stays
@@ -50,13 +53,13 @@ signal vision_render_tick
 		viewers = value
 		if is_inside_tree():
 			_rebind_viewers()
-			_recompute()
+			_request_recompute()
 @export var empty_mode: EmptyMode = EmptyMode.OFF:
 	set(value):
 		empty_mode = value
 		if is_inside_tree():
 			_rebind_viewers()
-			_recompute()
+			_request_recompute()
 ## Lerp rate for circle radius animation. Higher = snappier. ~8 gives a
 ## ~90ms 90%-complete fade; 0 disables animation (instant snap).
 @export_range(0.0, 30.0, 0.1) var ease_rate: float = 8.0
@@ -154,13 +157,33 @@ func _effective_viewers() -> Array[Entity]:
 
 func _on_allocation_changed() -> void:
 	_rebind_viewers()
+	_request_recompute()
+
+
+## Coalesces multiple `value_changed` cascades into one frame's recompute.
+## Allocating a single node fires ~3 modifier-add → stat value_changed →
+## (here) recompute requests. Without debouncing, each click triggered N
+## synchronous recomputes, each O(graph × owned_count). With debouncing,
+## the whole burst lands as one recompute on the next idle.
+var _recompute_pending: bool = false
+
+
+func _request_recompute() -> void:
+	if _recompute_pending:
+		return
+	_recompute_pending = true
+	_recompute_deferred.call_deferred()
+
+
+func _recompute_deferred() -> void:
+	_recompute_pending = false
 	_recompute()
 
 
 func _rebind_viewers() -> void:
 	for s in _bound_entity_stats:
-		if is_instance_valid(s) and s.value_changed.is_connected(_recompute):
-			s.value_changed.disconnect(_recompute)
+		if is_instance_valid(s) and s.value_changed.is_connected(_request_recompute):
+			s.value_changed.disconnect(_request_recompute)
 	_bound_entity_stats.clear()
 	for v in _effective_viewers():
 		if v.stat_board == null:
@@ -172,21 +195,22 @@ func _rebind_viewers() -> void:
 func _bind_entity_stat(s: Stat) -> void:
 	if s == null:
 		return
-	if not s.value_changed.is_connected(_recompute):
-		s.value_changed.connect(_recompute)
+	if not s.value_changed.is_connected(_request_recompute):
+		s.value_changed.connect(_request_recompute)
 	_bound_entity_stats.append(s)
 
 
 func _rebind_local_stats(owner_nodes: Array) -> void:
 	for ls in _bound_local_stats:
-		if is_instance_valid(ls) and ls.value_changed.is_connected(_recompute):
-			ls.value_changed.disconnect(_recompute)
+		if is_instance_valid(ls) and ls.value_changed.is_connected(_request_recompute):
+			ls.value_changed.disconnect(_request_recompute)
 	_bound_local_stats.clear()
 	for n in owner_nodes:
-		var ls := (n as SkillNode).get_local_stat(&"vision_range")
-		if ls != null:
-			ls.value_changed.connect(_recompute)
-			_bound_local_stats.append(ls)
+		for stat_id in [&"vision_range", &"sensor_range"]:
+			var ls := (n as SkillNode).get_local_stat(stat_id)
+			if ls != null:
+				ls.value_changed.connect(_request_recompute)
+				_bound_local_stats.append(ls)
 
 
 func _recompute() -> void:
@@ -246,30 +270,48 @@ func _recompute() -> void:
 					_visible[n] = true
 					break
 
-		# Sensed: BFS hops through edges from owned nodes, capped per-viewer
-		# at its sensor_range. Skips already-visible.
-		for viewer in effective:
-			var hops := 0
-			if viewer.stat_board != null:
-				var ss := viewer.stat_board.get_stat(&"sensor_range")
-				if ss != null:
-					hops = int(ss.value)
-			if hops <= 0:
+		# Sensed: max-budget priority traversal seeded by every owned node
+		# with its own local sensor_range. Higher-budget probes pop first,
+		# so a +3 sensor tower paints its 3-hop radius before its weaker
+		# neighbours' weaker seeds are even considered — those then bail
+		# at the `best_remaining >= budget` check without expanding. Only
+		# owned nodes seed (unallocated nodes are inert today; see
+		# docs/domain/vision-system.md for future booster/blocker hooks).
+		# Cost is O(E + N log N) worst case; in practice the dominance
+		# check collapses most of the work.
+		var frontier: Array = []  # entries: {"node": SkillNode, "budget": int}
+		var best_remaining: Dictionary = {}  # SkillNode → int
+		var owned_set: Dictionary = {}  # SkillNode → true
+		for own_node in all_owned:
+			owned_set[own_node] = true
+			var ss := (own_node as SkillNode).get_local_stat(&"sensor_range")
+			var budget := int(ss.value) if ss != null else 0
+			if budget <= 0:
 				continue
-			var frontier: Dictionary = {}
-			for n in owned_per_viewer.get(viewer, []):
-				frontier[n] = true
-			for _h in range(hops):
-				var next: Dictionary = {}
-				for n in frontier:
-					for nb in graph.get_neighbours(n):
-						if _visible.has(nb) or _sensed.has(nb):
-							continue
-						_sensed[nb] = true
-						next[nb] = true
-				if next.is_empty():
-					break
-				frontier = next
+			frontier.append({"node": own_node, "budget": budget})
+		while not frontier.is_empty():
+			# Linear-scan max — graph sizes are small (~20–200 nodes); a
+			# binary heap isn't worth the extra surface here.
+			var top := 0
+			for i in frontier.size():
+				if frontier[i].budget > frontier[top].budget:
+					top = i
+			var cur: Dictionary = frontier[top]
+			frontier.remove_at(top)
+			var n: SkillNode = cur.node
+			var b: int = cur.budget
+			if best_remaining.get(n, -1) >= b:
+				continue
+			best_remaining[n] = b
+			if not _visible.has(n) and not owned_set.has(n):
+				_sensed[n] = true
+			if b <= 0:
+				continue
+			for nb in graph.get_neighbours(n):
+				var nb_budget := b - 1
+				if best_remaining.get(nb, -1) >= nb_budget:
+					continue
+				frontier.append({"node": nb, "budget": nb_budget})
 
 		_rebind_local_stats(all_owned)
 
@@ -278,6 +320,7 @@ func _recompute() -> void:
 	# of mouse_entered never firing.
 	for n in nodes:
 		n.input_pickable = _visible.has(n)
+		n.sensed = _sensed.has(n)
 
 	# Set process state so the animation loop only runs when something
 	# is actually moving. Cheap to toggle, saves a per-frame walk while idle.

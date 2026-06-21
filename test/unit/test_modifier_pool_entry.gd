@@ -50,6 +50,27 @@ func test_int_stat_coerces_to_whole_numbers() -> void:
 		assert_eq(m.value, float(int(m.value)), "strength is INT — rolled value %s must be whole" % m.value)
 
 
+func test_int_stat_multiply_does_not_coerce_to_one() -> void:
+	# Regression: ×1.07 INT was rounding to ×1.0, destroying the multiply roll.
+	# Only ADD_BASE/ADD_BONUS flow through value_type; INCREASE/MULTIPLY are
+	# raw scalars.
+	var e := _entry(&"intelligence", StatModifier.Operation.MULTIPLY, 1.05, 1.15)
+	var rng := _rng(42)
+	for i in 30:
+		var m := e.roll(rng)
+		assert_true(m.value >= 1.05 and m.value <= 1.15, "INT MULTIPLY value %s clamped wrongly" % m.value)
+		assert_ne(m.value, 1.0, "INT MULTIPLY should NOT collapse to 1.0")
+
+
+func test_int_stat_increase_does_not_coerce() -> void:
+	# +15% (value = 15) — INCREASE is percent points, not value_type units.
+	# Coercion would still work here since 15 is integer, but use a fractional
+	# range to prove the float survives.
+	var e := _entry(&"intelligence", StatModifier.Operation.INCREASE, 12.5, 12.5)
+	var m := e.roll(_rng(7))
+	assert_almost_eq(m.value, 12.5, 0.0001)
+
+
 func test_unknown_stat_does_not_coerce() -> void:
 	# If StatRegistry has no def for the id, roll() should pass the raw float.
 	var e := _entry(&"definitely_not_a_stat", StatModifier.Operation.ADD_BASE, 1.5, 1.5)

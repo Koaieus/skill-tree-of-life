@@ -29,6 +29,12 @@ extends Resource
 ## sampling weights. Empty = single-node "clusters" only.
 @export var cluster_size_weights: Dictionary = {}
 @export_range(0.0, 1.0) var cluster_jitter: float = 0.1
+## Hard exclusion list: any pool entry whose `tags` overlap with this set
+## gets weight 0 for nodes of this archetype. Use to enforce specialization
+## (e.g. gold drops STR/DEX/INT/CON/PER content and only keeps WIS/xp_growth).
+## Tighter than the `weights` dial: ArchetypeWeightProfile can depress to
+## 0.05× but never zero; forbid_tags is a brick wall.
+@export var forbid_tags: Array[StringName] = []
 
 
 ## Returns a cluster size sampled from `cluster_size_weights`, weighted-pick.

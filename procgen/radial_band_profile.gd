@@ -20,7 +20,10 @@ extends WeightProfile
 ## mentioned within its band's dict contributes 1.0.
 
 @export var center: Vector2 = Vector2.ZERO
-@export var outer_radius: float = 1000.0
+## When > 0, used as the explicit outer radius. When ≤ 0, [GraphProcgen]
+## fills this from the active shape mask's aabb (rim of the auto-sized
+## shape). Default 0 = follow the mask.
+@export var outer_radius: float = 0.0
 ## Fractions of `outer_radius`. With `[0.33, 0.66]` you get three bands:
 ## inner = [0, 0.33·R), mid = [0.33·R, 0.66·R), outer = [0.66·R, ∞).
 ## Boundaries must be strictly ascending.
@@ -51,7 +54,7 @@ func multiplier_for(entry: ModifierPoolEntry, context: WeightContext) -> float:
 
 func _band_for(position: Vector2) -> StringName:
 	var d := position.distance_to(center)
-	var ratio := d / outer_radius
+	var ratio := d / outer_radius if outer_radius > 0.0 else 0.0
 	for i in band_boundaries.size():
 		if ratio < band_boundaries[i]:
 			if i < band_names.size():

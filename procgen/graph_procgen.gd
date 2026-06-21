@@ -18,7 +18,19 @@ extends RefCounted
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 
-static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
+## When `progress_cb` is a valid Callable, `generate` becomes a coroutine —
+## it emits progress in [0, 1] with a short label between stages and yields
+## one `process_frame` per emit so the caller's UI can repaint. Pass an empty
+## Callable (the default) for the synchronous fast path used by tests and
+## headless tooling.
+##
+## Callers that pass `progress_cb` MUST `await` the call; the synchronous
+## path returns the Dictionary directly.
+static func generate(
+		config: GraphProcgenConfig,
+		graph: Graph,
+		progress_cb: Callable = Callable(),
+) -> Dictionary:
 	assert(config != null, "GraphProcgen.generate: null config")
 	assert(graph != null, "GraphProcgen.generate: null graph")
 	assert(config.shape_mask != null, "GraphProcgen.generate: config.shape_mask is null")
@@ -27,6 +39,18 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 	rng.seed = config.seed if config.seed != 0 else randi()
 
 	var min_dist := 2.0 * config.node_radius + config.node_padding
+	await _emit_progress(progress_cb, 0.02, "Preparing shape")
+	# Auto-size the shape mask so Poisson can fit node_count at the requested
+	# spacing without under-filling. Packing factor: Poisson approaches ~0.69
+	# of hexagonal density (2/(√3·d²)). We use 1.8× as a comfortable safety
+	# margin — leaves room for the active-list random walks to keep finding
+	# valid candidates instead of bailing early at the rim.
+	if config.shape_mask != null and config.shape_mask.auto_scale:
+		var target_area := float(maxi(1, config.node_count)) * min_dist * min_dist * 1.8
+		config.shape_mask.size_for(target_area, min_dist * 4.0)
+	# Now that the mask is sized, propagate its outer radius to any radial
+	# fields/profiles that opted in (outer_radius ≤ 0).
+	_propagate_mask_radius(config)
 	# Final ordered starter list = manual entries first, then any random anchors
 	# we place. Caller reads back via `starting_nodes` in the same order, so
 	# manual vs. random can be told apart by index.
@@ -39,6 +63,7 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 	var anchors: Array[Vector2] = []
 	for sp in starters:
 		anchors.append(sp.position)
+	await _emit_progress(progress_cb, 0.05, "Sampling positions")
 	var positions := PoissonDiskSampler.sample(
 			config.shape_mask, min_dist, config.node_count,
 			anchors, rng)
@@ -50,7 +75,9 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 				"starters": starters,
 		}
 
+	await _emit_progress(progress_cb, 0.25, "Connecting edges")
 	var edge_pairs := _triangulate_and_prune(positions, config.connectivity)
+	await _emit_progress(progress_cb, 0.30, "Planning clusters")
 	var use_v2_clusters := config.use_archetype_policies and not config.archetypes.is_empty()
 	var type_assignments: PackedInt32Array
 	if use_v2_clusters:
@@ -60,6 +87,7 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 
 	# Pre-roll pass: GuaranteedPlacements decorate nodes with role tags.
 	# starting_points were placed first into the position list (by index).
+	await _emit_progress(progress_cb, 0.40, "Placing guarantees")
 	var starter_indices := PackedInt32Array()
 	for k in starters.size():
 		starter_indices.append(k)
@@ -69,19 +97,25 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 		if placement != null:
 			placement.apply(placement_ctx)
 
+	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
+	# Yield ~10 times across the per-node loop so the bar moves smoothly
+	# without paying a frame per node. With 500 nodes that's every ~50.
+	var yield_every := maxi(1, positions.size() / 10)
 	for i in positions.size():
 		var sn: SkillNode = _SKILL_NODE_SCENE.instantiate()
 		sn.position = positions[i]
 		sn.radius = config.node_radius
 		var archetype_id: StringName = &""
 		var archetype_color: Color = Color.WHITE
+		var archetype_forbid: Array[StringName] = []
 		var type_def: NodeTypeDef = null
 		if use_v2_clusters:
 			var policy: ArchetypePolicy = config.archetypes[type_assignments[i]]
 			if policy != null:
 				archetype_id = policy.id
 				archetype_color = policy.color
+				archetype_forbid = policy.forbid_tags
 		elif not config.node_types.is_empty():
 			type_def = config.node_types[type_assignments[i]]
 			if type_def != null:
@@ -96,7 +130,7 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 						archetype_id, positions[i], role_tags, rng)
 				sn.modifiers = _roll_modifiers_v2(
 						config.modifier_pool, config.weight_profiles,
-						archetype_id, positions[i], i, budget, rng)
+						archetype_id, archetype_forbid, positions[i], i, budget, rng)
 			elif type_def != null:
 				sn.modifiers = _roll_modifiers(type_def, field_scale, rng)
 			# Border-channel stamp on BaseCircle (persistent type identity).
@@ -112,7 +146,12 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 		graph.add_skill_node(sn)
 		_roll_and_attach_addons(sn, config, rng)
 		nodes.append(sn)
+		if i > 0 and i % yield_every == 0:
+			# 0.45 → 0.92 over the per-node loop.
+			var frac: float = 0.45 + 0.47 * (float(i) / float(positions.size()))
+			await _emit_progress(progress_cb, frac, "Rolling content")
 
+	await _emit_progress(progress_cb, 0.95, "Wiring edges")
 	for pair in edge_pairs:
 		graph.add_edge(nodes[pair.x], nodes[pair.y])
 
@@ -121,7 +160,20 @@ static func generate(config: GraphProcgenConfig, graph: Graph) -> Dictionary:
 	for i in min(starters.size(), nodes.size()):
 		starting_nodes.append(nodes[i])
 
+	await _emit_progress(progress_cb, 1.0, "Done")
 	return {"nodes": nodes, "starting_nodes": starting_nodes, "starters": starters}
+
+
+## Calls `progress_cb` (if valid) and yields one process_frame so the caller's
+## UI can repaint. No-op + no yield when callback is empty — keeps synchronous
+## callers truly synchronous.
+static func _emit_progress(progress_cb: Callable, frac: float, label: String) -> void:
+	if not progress_cb.is_valid():
+		return
+	progress_cb.call(frac, label)
+	var tree := Engine.get_main_loop()
+	if tree is SceneTree:
+		await (tree as SceneTree).process_frame
 
 
 # ── Random starter placement (issue #15) ──────────────────────────────────
@@ -655,6 +707,7 @@ static func _roll_modifiers_v2(
 		pool: ModifierPool,
 		profiles: Array[Resource],
 		archetype: StringName,
+		forbid_tags: Array[StringName],
 		position: Vector2,
 		node_index: int,
 		budget: int,
@@ -668,6 +721,7 @@ static func _roll_modifiers_v2(
 	ctx.position = position
 	ctx.node_index = node_index
 	ctx.already_rolled = out  # alias — grows as we append
+	ctx.forbid_tags = forbid_tags
 	var remaining := budget
 	while true:
 		var entry := _weighted_pick_v2(pool, profiles, ctx, remaining, rng)
@@ -693,6 +747,10 @@ static func _weighted_pick_v2(
 	for e in pool.entries:
 		if e == null or e.cost > budget or e.weight <= 0.0:
 			continue
+		# Hard-exclusion check (ArchetypePolicy.forbid_tags). Brick wall —
+		# bypasses the weight profile pipeline entirely.
+		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
+			continue
 		var w := e.weight
 		for p in profiles:
 			if p == null:
@@ -713,3 +771,31 @@ static func _weighted_pick_v2(
 		if r <= 0.0:
 			return affordable[i]
 	return affordable.back()
+
+
+static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringName]) -> bool:
+	for t in entry.tags:
+		if t in forbid:
+			return true
+	return false
+
+
+## Fills `outer_radius` on radial fields/profiles that opted in (set to 0 or
+## negative) from the active shape mask's resolved outer extent. Lets a
+## RadialGradientField/RadialBandProfile track an auto-scaled mask without
+## the designer hard-coding the size in two places.
+static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
+	if config.shape_mask == null:
+		return
+	var aabb := config.shape_mask.aabb()
+	var resolved_radius := 0.5 * minf(aabb.size.x, aabb.size.y)
+	if resolved_radius <= 0.0:
+		return
+	# Budget field
+	var bf := config.budget_policy.budget_field if config.budget_policy != null else config.budget_field
+	if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
+		(bf as RadialGradientField).outer_radius = resolved_radius
+	# RadialBandProfile (any in the weight pipeline)
+	for p in config.weight_profiles:
+		if p is RadialBandProfile and (p as RadialBandProfile).outer_radius <= 0.0:
+			(p as RadialBandProfile).outer_radius = resolved_radius

@@ -15,7 +15,7 @@ func _ready() -> void:
 	if preset == null or graph == null:
 		push_warning("ProcgenSandbox: assign `preset` and `graph` in the inspector")
 		return
-	var result := GraphProcgen.generate(preset, graph)
+	var result := await GraphProcgen.generate(preset, graph)
 	var node_count: int = (result.get("nodes") as Array).size()
 	print("[procgen] generated %d nodes" % node_count)
 	_frame_camera()

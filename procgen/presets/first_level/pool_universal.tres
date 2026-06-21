@@ -365,6 +365,15 @@ cost = 3
 weight = 2.0
 tags = Array[StringName]([&"wis", &"growth", &"percent", &"tier_4"])
 
+[sub_resource type="Resource" id="xpt_a0"]
+script = ExtResource("e")
+id = &"xpt_a0"
+stat_id = &"xp_per_turn"
+value_range = Vector2(3, 8)
+cost = 1
+weight = 10.0
+tags = Array[StringName]([&"xp_growth", &"growth", &"flat", &"tier_1", &"common"])
+
 [sub_resource type="Resource" id="xpt_a1"]
 script = ExtResource("e")
 id = &"xpt_a1"
@@ -465,4 +474,4 @@ tags = Array[StringName]([&"con", &"defense", &"flat", &"tier_5"])
 
 [resource]
 script = ExtResource("p")
-entries = Array[ExtResource("e")]([SubResource("str_a1"), SubResource("str_a2"), SubResource("str_a3"), SubResource("str_a4"), SubResource("str_a5"), SubResource("str_p1"), SubResource("str_p2"), SubResource("str_p3"), SubResource("str_m1"), SubResource("str_m2"), SubResource("dex_a1"), SubResource("dex_a2"), SubResource("dex_a3"), SubResource("dex_a4"), SubResource("dex_a5"), SubResource("dex_p1"), SubResource("dex_p2"), SubResource("dex_p3"), SubResource("dex_m1"), SubResource("dex_m2"), SubResource("int_a1"), SubResource("int_a2"), SubResource("int_a3"), SubResource("int_a4"), SubResource("int_a5"), SubResource("int_a6"), SubResource("int_p1"), SubResource("int_p2"), SubResource("int_p3"), SubResource("int_m1"), SubResource("int_m2"), SubResource("per_a1"), SubResource("per_a2"), SubResource("per_a3"), SubResource("per_p1"), SubResource("wis_a1"), SubResource("wis_a2"), SubResource("wis_a3"), SubResource("wis_p1"), SubResource("xpt_a1"), SubResource("xpt_a2"), SubResource("xpt_a3"), SubResource("xpt_p1"), SubResource("xpt_m1"), SubResource("vis_a1"), SubResource("vis_a2"), SubResource("sen_a1"), SubResource("man_a1"), SubResource("hp_a1"), SubResource("hp_a2")])
+entries = Array[ExtResource("e")]([SubResource("str_a1"), SubResource("str_a2"), SubResource("str_a3"), SubResource("str_a4"), SubResource("str_a5"), SubResource("str_p1"), SubResource("str_p2"), SubResource("str_p3"), SubResource("str_m1"), SubResource("str_m2"), SubResource("dex_a1"), SubResource("dex_a2"), SubResource("dex_a3"), SubResource("dex_a4"), SubResource("dex_a5"), SubResource("dex_p1"), SubResource("dex_p2"), SubResource("dex_p3"), SubResource("dex_m1"), SubResource("dex_m2"), SubResource("int_a1"), SubResource("int_a2"), SubResource("int_a3"), SubResource("int_a4"), SubResource("int_a5"), SubResource("int_a6"), SubResource("int_p1"), SubResource("int_p2"), SubResource("int_p3"), SubResource("int_m1"), SubResource("int_m2"), SubResource("per_a1"), SubResource("per_a2"), SubResource("per_a3"), SubResource("per_p1"), SubResource("wis_a1"), SubResource("wis_a2"), SubResource("wis_a3"), SubResource("wis_p1"), SubResource("xpt_a0"), SubResource("xpt_a1"), SubResource("xpt_a2"), SubResource("xpt_a3"), SubResource("xpt_p1"), SubResource("xpt_m1"), SubResource("vis_a1"), SubResource("vis_a2"), SubResource("sen_a1"), SubResource("man_a1"), SubResource("hp_a1"), SubResource("hp_a2")])

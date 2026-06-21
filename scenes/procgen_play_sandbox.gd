@@ -41,7 +41,16 @@ func _setup_level() -> void:
 	cfg.n_random_starters = n_random_starters
 	cfg.viability_radius = viability_radius
 
-	var result := GraphProcgen.generate(cfg, graph)
+	# Show the loading bar over a black fade so the procgen wall-clock has a
+	# visible heartbeat. SceneTransition is the global fade/progress autoload.
+	# `set_faded(true)` snaps to opaque-black (no fade animation needed here —
+	# we're populating an empty level, no prior content to fade away from).
+	SceneTransition.set_faded(true)
+	SceneTransition.progress_bar.show()
+	SceneTransition.set_progress(0.0)
+	var progress_cb := func(frac: float, _label: String) -> void:
+		SceneTransition.set_progress(frac * 100.0)
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph, progress_cb)
 	var starting_nodes: Array = result.get("starting_nodes", [])
 	if starting_nodes.is_empty():
 		push_warning("ProcgenPlaySandbox: procgen returned no starting nodes")
@@ -62,11 +71,17 @@ func _setup_level() -> void:
 	var vs := %VisionSystem as VisionSystem
 	vs.viewers = [player]
 
+	# Derive expansion RNG from the config seed so identical `preset.seed`
+	# produces identical content + starter walks. Salting with a constant
+	# keeps the expansion stream independent of the procgen content stream
+	# (so adding/removing modifier rolls upstream doesn't shift expansion).
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	rng.seed = (cfg.seed if cfg.seed != 0 else hash("procgen_play_sandbox")) ^ 0x57AB02D
 	_expand(player, rng, expansion_steps)
 	for e in enemies:
 		_expand(e, rng, expansion_steps)
+
+	SceneTransition.fade_in()
 
 
 func _expand(ent: Entity, rng: RandomNumberGenerator, steps: int) -> void:

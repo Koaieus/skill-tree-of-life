@@ -61,8 +61,10 @@ func _ready() -> void:
 	allocation_system.register_scene_authored_ownership()
 	# _setup_level runs BEFORE ui_root.compose because compose reads
 	# `player.stat_board` immediately — procgen sandboxes that spawn the
-	# player here need the entity in place first.
-	_setup_level()
+	# player here need the entity in place first. `await` is harmless on
+	# synchronous overrides; procgen sandboxes that drive a loading bar
+	# return a coroutine.
+	await _setup_level()
 	ui_root.compose(self)
 
 	if player != null and turn_manager != null:
