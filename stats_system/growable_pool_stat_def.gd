@@ -39,6 +39,8 @@ func on_pool_filled(stat: PoolStat, excess: float) -> void:
 		PostGrowMode.RESET:
 			stat.set_current(float(stat._min_value()))
 		PostGrowMode.OVERFLOW:
-			# Carries excess forward. May cascade through multiple level-ups
-			# if the inbound replenish was huge — that's intentional.
-			stat.set_current(stat.current + excess)
+			# Carries excess forward. `current` is sitting at the old cap
+			# (the level-up consumed it), so the new level starts at just
+			# `excess`. May cascade through multiple level-ups if the inbound
+			# replenish was huge — that's intentional.
+			stat.set_current(float(stat._min_value()) + excess)
