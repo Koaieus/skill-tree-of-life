@@ -91,6 +91,7 @@ func _ready() -> void:
 		if allocation_system != null:
 			allocation_system.allocated.connect(_on_allocation_changed.unbind(2))
 			allocation_system.deallocated.connect(_on_allocation_changed.unbind(2))
+			allocation_system.force_deallocated.connect(_on_allocation_changed.unbind(2))
 		if graph != null:
 			graph.node_added.connect(_on_allocation_changed.unbind(1))
 			graph.node_removed.connect(_on_allocation_changed.unbind(1))

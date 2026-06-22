@@ -25,7 +25,14 @@ extends Node
 ## ancestor).
 
 signal allocated(node: SkillNode, entity: Entity)
+## Voluntary deallocation only — emitted from `deallocate()`. Forced kills
+## emit `force_deallocated` instead, so cosmetic effects can distinguish a
+## graceful lift-away from a shatter without sniffing context.
 signal deallocated(node: SkillNode, previous_owner: Entity)
+## Forced deallocation (attack-driven). Emitted by every `force_deallocate()`
+## call — including each follow-up in a battle cascade. See
+## `docs/domain/allocation-vfx.md`.
+signal force_deallocated(node: SkillNode, previous_owner: Entity)
 
 @export var graph: Graph
 @export var navigator: Navigator
@@ -160,7 +167,7 @@ func force_deallocate(node: SkillNode) -> Entity:
 	if previous.navigator != null:
 		previous.navigator.mirror_remove(node)
 	node.owned_by = null
-	deallocated.emit(node, previous)
+	force_deallocated.emit(node, previous)
 	return previous
 
 

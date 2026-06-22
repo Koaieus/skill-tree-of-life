@@ -14,8 +14,15 @@ signal attack_plan_changed(plan: AttackPlan)
 ## subscribers that care about content (re-paint highlights) use this one.
 signal attack_plan_state_changed
 
+## Forced-deallocation cascade about to run. `layers[i]` holds every cascade
+## node at BFS graph-distance `i` from the impact node; `layers[0] == [impact]`.
+## Emitted BEFORE the synchronous force_deallocate loop so VFX can snapshot
+## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
+signal cascade_started(layers: Array, defender: Entity)
+
 @export var turn_manager: TurnManager
 @export var allocation_system: AllocationSystem
+@export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
 
@@ -137,6 +144,11 @@ func _on_node_depleted(node: SkillNode) -> void:
 	if defender.navigator != null and defender.core_location != null:
 		cascade.append_array(defender.navigator.nodes_islanded_by_removing(
 				node, defender.core_location))
+	# BFS the cascade set from impact (in original graph topology) so VFX can
+	# ripple outward layer-by-layer. Computed before force_deallocate to keep
+	# the navigator state coherent — graph edges still exist either way, but
+	# owner state is what changes mid-loop.
+	cascade_started.emit(_cascade_layers(node, cascade), defender)
 	var board: StatBoard = defender.stat_board
 	for n in cascade:
 		if n == null or n.owned_by != defender:
@@ -147,3 +159,42 @@ func _on_node_depleted(node: SkillNode) -> void:
 				board.skill_points.wound(1)
 			if board.health != null:
 				board.health.deplete(1.0)
+
+
+## BFS the cascade set from [param impact] over graph edges restricted to
+## the cascade. Returns Array[Array[SkillNode]] where [i] holds every cascade
+## node at distance i from impact ([0] == [impact]). Falls back to a single
+## layer when [member graph] is unset (headless tests).
+func _cascade_layers(impact: SkillNode, cascade: Array[SkillNode]) -> Array:
+	if graph == null:
+		var lone: Array[SkillNode] = []
+		lone.append_array(cascade)
+		return [lone]
+	var in_cascade: Dictionary[SkillNode, bool] = {}
+	for n in cascade:
+		if n != null:
+			in_cascade[n] = true
+	var visited: Dictionary[SkillNode, bool] = {impact: true}
+	var first_layer: Array[SkillNode] = [impact]
+	var layers: Array = [first_layer]
+	var frontier: Array[SkillNode] = [impact]
+	while not frontier.is_empty():
+		var next_frontier: Array[SkillNode] = []
+		for n in frontier:
+			for nb in graph.get_neighbours(n):
+				if not in_cascade.has(nb) or visited.has(nb):
+					continue
+				visited[nb] = true
+				next_frontier.append(nb)
+		if not next_frontier.is_empty():
+			layers.append(next_frontier)
+		frontier = next_frontier
+	# Defensive: any cascade node BFS missed (shouldnt happen by construction)
+	# parks on an outermost layer so it still gets a VFX.
+	var orphans: Array[SkillNode] = []
+	for n in cascade:
+		if n != null and not visited.has(n):
+			orphans.append(n)
+	if not orphans.is_empty():
+		layers.append(orphans)
+	return layers

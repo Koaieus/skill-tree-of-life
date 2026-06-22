@@ -47,6 +47,17 @@ signal depleted
 		radius_changed.emit()
 		_sync_collision()
 
+## Radius of the inner fill disk — what reads as "ownership" when allocated,
+## and what VFX sizes effects against. Authored per-node so future archetypes
+## can run flush (inner_radius == radius) or extra-recessed; pushed down to
+## BaseCircle in _sync_visuals so BaseCircle has no inset policy of its own.
+@export var inner_radius: float = 24.0:
+	set(value):
+		if is_equal_approx(inner_radius, value):
+			return
+		inner_radius = value
+		_sync_visuals()
+
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_marker: Node2D = $Visuals/CoreMarker
@@ -155,6 +166,7 @@ func _sync_visuals() -> void:
 	# allocated, dim-grey idle otherwise. Two channels so allocation status
 	# never wipes the type read.
 	_base_circle._radius = radius
+	_base_circle.inner_radius = inner_radius
 	_base_circle.border_color = base_type_color
 	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
 	_base_circle.allocated = is_allocated()

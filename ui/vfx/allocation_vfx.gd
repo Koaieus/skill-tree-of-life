@@ -1,0 +1,269 @@
+class_name AllocationVFX
+extends Node2D
+
+## Listens to AllocationSystem (allocate / dealloc) and BattleSystem
+## (cascade_started) and spawns transient world-space effects:
+##   - alloc spike   : "skill point from the heavens" on every allocation
+##   - dealloc lift  : floating colored disk on voluntary deallocation
+##   - shatter       : vibrate + particle burst on forced deallocation,
+##                     staggered by BFS-distance-from-impact when part of a
+##                     battle cascade
+##
+## Mounted under Graph (sibling of AttackVFX) so world coords match.
+## See docs/domain/allocation-vfx.md for the design rationale.
+
+# --- Tunables ----------------------------------------------------------------
+
+const SPIKE_DURATION: float = 0.18
+# Base width = SkillNode.inner_radius * 2 (the horizontal chord through the
+# inner fill circle). Spike sits flush on the disk.
+const SPIKE_HEIGHT_FACTOR: float = 6.0  # multiplied by node radius
+# Lorentzian / Breit-Wigner-ish profile: w(t) ∝ γ² / (γ² + t²), tip pinned to 0.
+# Smaller γ → narrower needle, sharper concave shoulders. ~0.22 reads as a
+# clean resonance peak; raise toward 0.5 for a candle-flame, drop below 0.15
+# for a hair-thin spire.
+const SPIKE_NEEDLE_GAMMA: float = 0.22
+const SPIKE_SAMPLES: int = 14  # per side; total poly verts = 2*samples + 2
+
+# Z-order: spike + lift + shatter all render above visible SkillNodes (z=0)
+# but below sensed-promoted nodes (z=1001 in BaseCircle). 10 leaves head-room.
+const Z_INDEX: int = 10
+
+const LIFT_DURATION: float = 0.30
+const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
+const LIFT_END_SCALE: float = 0.6
+
+const SHATTER_VIBRATE_DURATION: float = 0.12
+const SHATTER_VIBRATE_AMPLITUDE: float = 2.5
+const SHATTER_VIBRATE_FREQ: float = 60.0  # hz
+const SHATTER_BURST_DURATION: float = 0.40
+const SHATTER_PARTICLE_COUNT: int = 24
+const SHATTER_PARTICLE_LIFETIME: float = 0.35
+const SHATTER_OUTWARD_SPEED: float = 220.0
+
+# Per-layer delay between cascade rings. 0.09s reads as a quick crackle —
+# tune up for slower domino, down for snap.
+const CASCADE_STEP: float = 0.09
+
+# --- Wiring ------------------------------------------------------------------
+
+var _allocation_system: AllocationSystem
+var _battle_system: BattleSystem
+# Nodes whose forced-dealloc was scheduled by a cascade — suppress the
+# default shatter that would otherwise fire from the per-node force_deallocated
+# signal, since the cascade handler already armed a staggered shatter for it.
+var _cascade_scheduled: Dictionary[SkillNode, bool] = {}
+
+
+func _ready() -> void:
+	# Force above SkillNodes regardless of sibling tree order under graph.
+	z_index = Z_INDEX
+
+
+func bind(allocation_system: AllocationSystem, battle_system: BattleSystem) -> void:
+	_allocation_system = allocation_system
+	_battle_system = battle_system
+	if _allocation_system != null:
+		_allocation_system.allocated.connect(_on_allocated)
+		_allocation_system.deallocated.connect(_on_deallocated)
+		_allocation_system.force_deallocated.connect(_on_force_deallocated)
+	if _battle_system != null:
+		_battle_system.cascade_started.connect(_on_cascade_started)
+
+
+# --- Signal handlers ---------------------------------------------------------
+
+func _on_allocated(node: SkillNode, entity: Entity) -> void:
+	if node == null or entity == null:
+		return
+	_spawn_alloc_spike(node, entity.color)
+
+
+func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
+	if node == null or previous_owner == null:
+		return
+	_spawn_lift(node.global_position, node.inner_radius, previous_owner.color)
+
+
+func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
+	if node == null or previous_owner == null:
+		return
+	if _cascade_scheduled.has(node):
+		_cascade_scheduled.erase(node)
+		return
+	# Standalone forced dealloc (no cascade) — single shatter at impact.
+	_spawn_shatter(node.global_position, node.inner_radius, previous_owner.color, 0.0)
+
+
+func _on_cascade_started(layers: Array, defender: Entity) -> void:
+	if defender == null or layers.is_empty():
+		return
+	var color: Color = defender.color
+	for i in layers.size():
+		var layer: Array = layers[i]
+		var delay: float = float(i) * CASCADE_STEP
+		for n in layer:
+			if n == null:
+				continue
+			_cascade_scheduled[n] = true
+			# Snapshot position+radius NOW, before force_deallocate runs.
+			# Node lives on — only ownership/visuals change — but capture
+			# in case future code reparents/frees on dealloc.
+			_spawn_shatter(n.global_position, n.inner_radius, color, delay)
+
+
+# --- Effect spawners ---------------------------------------------------------
+
+func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
+	var spike := Polygon2D.new()
+	spike.polygon = _build_needle_polygon(
+			node.inner_radius, node.radius * SPIKE_HEIGHT_FACTOR)
+	# Polygon2D.color is the draw tint — alpha here multiplies with modulate.a,
+	# so keep it opaque and animate visibility via modulate.a only.
+	spike.color = color
+	spike.global_position = node.global_position
+	spike.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	add_child(spike)
+	var tween := create_tween()
+	tween.set_parallel(true)
+	# Alpha 0 → 1 → 0 (peak at midpoint).
+	tween.tween_property(spike, "modulate:a", 1.0, SPIKE_DURATION * 0.4)
+	tween.tween_property(spike, "modulate:a", 0.0, SPIKE_DURATION * 0.6)\
+			.set_delay(SPIKE_DURATION * 0.4)
+	# Height collapses into the node center (poly's bottom edge is at y=0,
+	# so scaling y → 0 makes it sink in).
+	tween.tween_property(spike, "scale:y", 0.0, SPIKE_DURATION)\
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(spike.queue_free)
+
+
+func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
+	var disk := _make_snapshot_disk(disk_radius, color)
+	disk.global_position = world_pos
+	add_child(disk)
+	var rise := disk_radius * LIFT_RISE_FACTOR
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(disk, "position:y", world_pos.y - rise, LIFT_DURATION)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(disk, "scale", Vector2.ONE * LIFT_END_SCALE, LIFT_DURATION)
+	# Color shift owner → white (holy puff of smoke) over the first ~70% of
+	# the lift, so the bloom reads BEFORE the fade really kicks in. Keeps
+	# alpha at 1 during the shift; the modulate:a tween below handles fade.
+	tween.tween_property(disk, "disk_color", Color(1.0, 1.0, 1.0, 1.0),
+			LIFT_DURATION * 0.7)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(disk, "modulate:a", 0.0, LIFT_DURATION)\
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(disk.queue_free)
+
+
+func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float) -> void:
+	# Wrapper Node2D holds the vibrating snapshot disk; particles spawn at
+	# burst time as a sibling. Whole thing self-frees when both children are done.
+	var stage := Node2D.new()
+	stage.global_position = world_pos
+	add_child(stage)
+	var disk := _make_snapshot_disk(disk_radius, color)
+	stage.add_child(disk)
+	disk.modulate = Color(1.0, 1.0, 1.0, 0.0)  # start hidden if delayed
+
+	var tween := create_tween()
+	if delay > 0.0:
+		tween.tween_interval(delay)
+	# Reveal at vibrate start.
+	tween.tween_callback(func() -> void: disk.modulate = Color(1.0, 1.0, 1.0, 1.0))
+	# Vibrate: tiny sine-driven offset + glow ramp.
+	var t0 := 0.0
+	var steps := int(SHATTER_VIBRATE_DURATION * 60.0)
+	for s in steps:
+		var u := float(s) / float(steps)
+		var dx := sin(u * SHATTER_VIBRATE_FREQ * TAU) * SHATTER_VIBRATE_AMPLITUDE
+		var dy := cos(u * SHATTER_VIBRATE_FREQ * TAU * 0.7) * SHATTER_VIBRATE_AMPLITUDE
+		tween.tween_property(disk, "position", Vector2(dx, dy),
+				SHATTER_VIBRATE_DURATION / float(steps))
+	# Burst: hide disk, emit particles.
+	tween.tween_callback(func() -> void:
+		disk.visible = false
+		_emit_burst(stage, disk_radius, color))
+	tween.tween_interval(SHATTER_BURST_DURATION)
+	tween.tween_callback(stage.queue_free)
+
+
+func _emit_burst(parent: Node2D, disk_radius: float, color: Color) -> void:
+	var particles := CPUParticles2D.new()
+	particles.emitting = false
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.amount = SHATTER_PARTICLE_COUNT
+	particles.lifetime = SHATTER_PARTICLE_LIFETIME
+	particles.direction = Vector2.RIGHT
+	particles.spread = 180.0
+	particles.gravity = Vector2.ZERO
+	particles.initial_velocity_min = SHATTER_OUTWARD_SPEED * 0.6
+	particles.initial_velocity_max = SHATTER_OUTWARD_SPEED
+	particles.scale_amount_min = 2.0
+	particles.scale_amount_max = 4.0
+	particles.color = color
+	# Fade-out alpha curve so particles fizzle.
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(color.r, color.g, color.b, 1.0))
+	ramp.set_color(1, Color(color.r, color.g, color.b, 0.0))
+	particles.color_ramp = ramp
+	# Spawn distributed inside the snapshot disk so the burst reads as the
+	# disk shattering, not a point implosion.
+	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = max(1.0, disk_radius)
+	parent.add_child(particles)
+	particles.emitting = true
+
+
+func _make_snapshot_disk(disk_radius: float, color: Color) -> Node2D:
+	var disk := _SnapshotDisk.new()
+	disk.disk_radius = max(1.0, disk_radius)
+	disk.disk_color = color
+	return disk
+
+
+## Lorentzian (Breit-Wigner-ish) needle profile. Base sits at y=0 with full
+## width `2 * half_w`; tip pinned to (0, -height). γ controls how aggressively
+## the sides pinch toward the tip — see SPIKE_NEEDLE_GAMMA.
+##
+## Polygon wound CCW: right-side base → right shoulder → tip → left shoulder
+## → left base. y axis points DOWN in Godot, so "up" is negative y.
+func _build_needle_polygon(half_w: float, height: float) -> PackedVector2Array:
+	var pts: PackedVector2Array = []
+	var gamma_sq := SPIKE_NEEDLE_GAMMA * SPIKE_NEEDLE_GAMMA
+	# Right side: bottom (t=0) → just-below-tip (t≈1). Skip t=1 here; the
+	# tip vertex is appended explicitly so its width is exactly 0.
+	for i in SPIKE_SAMPLES:
+		var t := float(i) / float(SPIKE_SAMPLES)
+		var w := half_w * gamma_sq / (gamma_sq + t * t)
+		# (1 - t^6) eases the last few samples cleanly into the pinned tip
+		# so there's no kink between the lorentzian shoulder and the apex.
+		w *= 1.0 - pow(t, 6.0)
+		pts.append(Vector2(w, -t * height))
+	pts.append(Vector2(0.0, -height))  # tip
+	# Left side mirrored, walking back down toward the base.
+	for i in range(SPIKE_SAMPLES - 1, -1, -1):
+		var t := float(i) / float(SPIKE_SAMPLES)
+		var w := half_w * gamma_sq / (gamma_sq + t * t)
+		w *= 1.0 - pow(t, 6.0)
+		pts.append(Vector2(-w, -t * height))
+	return pts
+
+
+# Local helper class — a Node2D that renders one filled circle. Future texture
+# swap: replace _draw with a Sprite2D; keep the same disk_radius / disk_color
+# API and all callers stay valid.
+class _SnapshotDisk extends Node2D:
+	var disk_radius: float = 16.0
+	# Property with setter so tween_property("disk_color", ...) repaints
+	# every frame — without this the colour change isn't visible.
+	var disk_color: Color = Color.WHITE:
+		set(value):
+			disk_color = value
+			queue_redraw()
+
+	func _draw() -> void:
+		draw_circle(Vector2.ZERO, disk_radius, disk_color, true)

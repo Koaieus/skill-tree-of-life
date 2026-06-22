@@ -10,12 +10,15 @@ extends Node2D
 
 const BORDER_WIDTH: float = 2.0
 const FILL_ALPHA_UNALLOCATED: float = 0.2
-const INNER_DISK_INSET: float = 8.0  # matches CoreMarker's old inset
 const FLASH_COLOR: Color = Color(1.0, 0.3, 0.3)
 # Sensed-only outline: thinner than the live border and partially transparent,
 # so the node reads as "I know it's there, can't see detail" against the fog.
 const SENSED_OUTLINE_WIDTH: float = 1.5
-const SENSED_OUTLINE_ALPHA: float = 0.55
+# Low floor: sensed nodes z-promote above the fog overlay, so this alpha is
+# what they render at regardless of local darkness. Keep it below what a
+# barely-visible (fade-zone) node would render at, so a node transitioning
+# from sensed → visible-but-faded doesn't appear to JUMP darker.
+const SENSED_OUTLINE_ALPHA: float = 0.30
 
 var _radius: float = 32.0
 var border_color: Color = Color.DIM_GRAY:
@@ -47,6 +50,12 @@ var flash_amount: float = 0.0:
 		flash_amount = clampf(value, 0.0, 1.0)
 		queue_redraw()
 
+## Set by SkillNode._sync_visuals — BaseCircle has no inset policy of its
+## own; the owning SkillNode is the authority.
+var inner_radius: float = 24.0:
+	set(value):
+		inner_radius = value
+		queue_redraw()
 
 ## Back-compat one-shot used by SkillNode._sync_visuals when border + fill
 ## should match (i.e. the legacy single-colour mode — fill alpha kicks in
@@ -74,5 +83,5 @@ func _draw() -> void:
 		# Bright inner disk = "owned." Inset matches the legacy CoreMarker
 		# render so core nodes look identical to before; the star label is
 		# what now distinguishes core from non-core.
-		draw_circle(Vector2.ZERO, _radius - INNER_DISK_INSET, fc, true)
+		draw_circle(Vector2.ZERO, inner_radius, fc, true)
 	draw_circle(Vector2.ZERO, _radius, bc, false, BORDER_WIDTH, true)
