@@ -25,6 +25,7 @@ SceneTransition="*res://autoload/scene_transition.tscn"
 SceneLoader="*res://autoload/scene_loader.tscn"
 Events="*res://autoload/events.gd"
 StatRegistry="*res://autoload/stat_registry.gd"
+DebugClipboard="*res://autoload/debug_clipboard.gd"
 
 [display]
 

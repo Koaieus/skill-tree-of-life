@@ -97,6 +97,19 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `strength` | `blade_size` | ADD_BASE | 1 | `floor(strength / 10.0)` |
 
+## Damage mitigation
+
+`Mitigation.apply(raw, defender_board)` (`attack/formulas/mitigation.gd`) runs inside `SkillNode.take_damage` before HP soak. Formula:
+
+```
+final = max(min_damage_taken, raw.amount - armor)
+```
+
+- `TRUE`-typed damage bypasses everything and lands raw.
+- `raw.amount <= 0` returns 0 — the floor only triggers on a real hit.
+- `armor` scalar (default 0) and `min_damage_taken` scalar (default 3) are both standard board stats — modifiers / intrinsics apply normally. Defensive cores (e.g. Bulwark) can drive `min_damage_taken` below 0, allowing damage to *heal* nodes if the underflow is large enough.
+- Rare procgen modifier `-1 min_damage_taken` is a high-tier exotic roll.
+
 ## Gotchas
 
 - **Formula-driven modifiers must not be shared across entities.** Each carries mutable `_board` / `_bound_sources` binding state. Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` duplicates every entry.

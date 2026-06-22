@@ -42,14 +42,19 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 	return m
 
 
-## Coerces only the operations whose `value` flows through the target stat's
-## value_type. ADD_BASE/ADD_BONUS deliver a raw amount in the stat's units —
-## INT-typed stats want whole numbers there. INCREASE is percent-points and
-## MULTIPLY is a raw scalar (×1.07 etc.) — both are stat-type-agnostic;
-## coercing them would round `×1.07 INT` to `×1.0 INT`, destroying the roll.
+## Coerces operations whose displayed value should snap to whole numbers.
+## ADD_BASE / ADD_BONUS flow through the target stat's value_type — INT-typed
+## stats want integer amounts there. INCREASE is percent-points which read as
+## integers in UI (+13% not +13.84%), so we snap to int regardless of the
+## target stat's value_type. MULTIPLY is a raw scalar (×1.07) and is NOT
+## coerced — rounding would destroy the roll.
 func _coerce_to_stat_type(v: float, op: int) -> float:
-	if op != StatModifier.Operation.ADD_BASE and op != StatModifier.Operation.ADD_BONUS:
+	if op == StatModifier.Operation.MULTIPLY or op == StatModifier.Operation.SET:
 		return v
+	if op == StatModifier.Operation.INCREASE:
+		# Percent-points snap to int. Negative values too (-13 not -13.4).
+		return float(int(round(v)))
+	# ADD_BASE / ADD_BONUS: coerce by target stat's value_type.
 	if StatRegistry == null:
 		return v
 	var def: StatDef = StatRegistry.get_def(stat_id)

@@ -1,0 +1,82 @@
+[gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://cjqtijp5jtwdb"]
+
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://dyuijs3vfl8j8" path="res://procgen/pools/tier_pool.gd" id="2_tp"]
+[ext_resource type="Script" uid="uid://cf6t6jrkg5k23" path="res://procgen/pools/tier_def.gd" id="3_td"]
+
+[sub_resource type="Resource" id="nh_ab_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(2, 4)
+weight = 8.0
+extra_tags = Array[StringName]([&"tier_1", &"common"])
+
+[sub_resource type="Resource" id="nh_ab_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(5, 8)
+cost = 3
+weight = 3.0
+extra_tags = Array[StringName]([&"tier_2"])
+
+[sub_resource type="Resource" id="nh_ab"]
+script = ExtResource("2_tp")
+stat_id = &"node_health"
+role = 1
+tags = Array[StringName]([&"defense", &"flat"])
+tiers = Array[ExtResource("3_td")]([SubResource("nh_ab_t1"), SubResource("nh_ab_t2")])
+
+[sub_resource type="Resource" id="nh_inc_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(10, 20)
+cost = 2
+weight = 4.0
+extra_tags = Array[StringName]([&"tier_1", &"common"])
+
+[sub_resource type="Resource" id="nh_inc_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(30, 50)
+cost = 6
+extra_tags = Array[StringName]([&"tier_2"])
+
+[sub_resource type="Resource" id="nh_inc"]
+script = ExtResource("2_tp")
+stat_id = &"node_health"
+operation = 1
+role = 1
+tags = Array[StringName]([&"defense", &"percent"])
+tiers = Array[ExtResource("3_td")]([SubResource("nh_inc_t1"), SubResource("nh_inc_t2")])
+
+[sub_resource type="Resource" id="ar_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(1, 2)
+cost = 3
+weight = 3.0
+extra_tags = Array[StringName]([&"tier_1"])
+
+[sub_resource type="Resource" id="ar_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(3, 5)
+cost = 9
+extra_tags = Array[StringName]([&"tier_2"])
+
+[sub_resource type="Resource" id="ar_t3"]
+script = ExtResource("3_td")
+tier = 3
+value_range = Vector2(6, 10)
+cost = 27
+weight = 0.2
+extra_tags = Array[StringName]([&"tier_3", &"rare"])
+
+[sub_resource type="Resource" id="ar"]
+script = ExtResource("2_tp")
+stat_id = &"armor"
+role = 1
+tags = Array[StringName]([&"defense", &"flat"])
+tiers = Array[ExtResource("3_td")]([SubResource("ar_t1"), SubResource("ar_t2"), SubResource("ar_t3")])
+
+[resource]
+script = ExtResource("1_sp")
+tags = Array[StringName]([&"defense"])
+pools = Array[ExtResource("2_tp")]([SubResource("nh_ab"), SubResource("nh_inc"), SubResource("ar")])

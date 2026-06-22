@@ -80,6 +80,11 @@ extends Resource
 ## collision-block, radial-band, etc.) composed multiplicatively. Leave unset
 ## to keep v1 behaviour — the per-type pools on `node_types` are used.
 @export var modifier_pool: ModifierPool
+## v3 phased-draw modifier content. When set, takes priority over
+## `modifier_pool`: the draw loop runs as primary → off-attribute (cost-capped)
+## → universal → rare, reading `archetype_stat` / `role` off each [TierPool]
+## to slice the set per phase. Unset = falls back to `modifier_pool`.
+@export var modifier_pool_set: ModifierPoolSet
 ## Typed as Array[Resource] because Godot's TypedArray check rejects
 ## subclasses of an abstract base — concrete profiles (Archetype/Collision/Radial)
 ## couldn't coexist in `Array[WeightProfile]`. Runtime dispatches via

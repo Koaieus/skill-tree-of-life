@@ -5,7 +5,6 @@
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/clamp_addon.tscn" id="3_xg7iw"]
 [ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/addon_pool.gd" id="4_x1g7b"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/addon_policy.gd" id="5_qrpdt"]
-[ext_resource type="Script" uid="uid://gkkhlftrrrv1" path="res://procgen/archetype_balancer.gd" id="6_eyb1c"]
 [ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/node_type_def.gd" id="9_66coo"]
 [ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetype_policy.gd" id="ap"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetype_weight_profile.gd" id="awp"]
@@ -16,6 +15,7 @@
 [ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/keystone_placement.gd" id="kp"]
 [ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/min_near_starting_points.gd" id="mnsp"]
 [ext_resource type="Resource" uid="uid://b80xukagbkjvh" path="res://procgen/presets/first_level/pool_universal.tres" id="pool"]
+[ext_resource type="Resource" path="res://procgen/pools/specimen_pool_set.tres" id="pool_set"]
 [ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/random_budget_boost.gd" id="rbb"]
 [ext_resource type="Script" uid="uid://deokgpoaxy5db" path="res://procgen/radial_band_profile.gd" id="rbp"]
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/circular_shape_mask.gd" id="shape"]
@@ -45,20 +45,15 @@ metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
 
 [sub_resource type="Resource" id="Resource_c6pvu"]
 script = ExtResource("5_qrpdt")
-chance_per_node = 0.1
 pool = SubResource("Resource_3kv1o")
 weight_profiles = Array[Resource]([null])
 metadata/_custom_type_script = "uid://bi20g047mnsv6"
-
-[sub_resource type="Resource" id="Resource_7wgja"]
-script = ExtResource("6_eyb1c")
-enabled = true
-metadata/_custom_type_script = "uid://gkkhlftrrrv1"
 
 [sub_resource type="Resource" id="ap_red"]
 script = ExtResource("ap")
 id = &"red"
 color = Color(0.95, 0.35, 0.35, 1)
+primary_stat = &"strength"
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -71,6 +66,7 @@ cluster_size_weights = {
 script = ExtResource("ap")
 id = &"green"
 color = Color(0.45, 0.8, 0.45, 1)
+primary_stat = &"dexterity"
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -83,6 +79,7 @@ cluster_size_weights = {
 script = ExtResource("ap")
 id = &"blue"
 color = Color(0.4, 0.55, 0.95, 1)
+primary_stat = &"intelligence"
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -95,6 +92,7 @@ cluster_size_weights = {
 script = ExtResource("ap")
 id = &"gold"
 color = Color(0.95, 0.78, 0.25, 1)
+primary_stat = &"wisdom"
 target_ratio = 0.05
 cluster_size_weights = {
 1: 1.0,
@@ -107,6 +105,7 @@ forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"per", &"attac
 script = ExtResource("ap")
 id = &"purple"
 color = Color(0.65, 0.4, 0.85, 1)
+primary_stat = &"perception"
 target_ratio = 0.03
 cluster_size_weights = {
 1: 1.0,
@@ -117,9 +116,10 @@ forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"wis", &"attac
 
 [sub_resource type="Resource" id="Resource_ihaem"]
 script = ExtResource("grad")
-outer_radius = 2000.0
+inner_radius = 300.0
+outer_radius = 1500.0
 inner_value = 1.0
-outer_value = 3.0
+outer_value = 10.0
 metadata/_custom_type_script = "uid://df2coaqjbaxff"
 
 [sub_resource type="Resource" id="budget_field"]
@@ -241,10 +241,10 @@ n_random_starters = 3
 viability_radius = 300.0
 budget_field = SubResource("Resource_ihaem")
 modifier_pool = ExtResource("pool")
+modifier_pool_set = ExtResource("pool_set")
 weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_main"), SubResource("cp_main")])
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_gold"), SubResource("ap_purple")])
 use_archetype_policies = true
 addon_policy = SubResource("Resource_c6pvu")
 guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
-archetype_balancer = SubResource("Resource_7wgja")

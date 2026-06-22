@@ -45,7 +45,12 @@ static func compute(base: float, sources: Array[ModifierBins]) -> float:
 		bon += b.bonus_add
 		for m in b.multipliers:
 			mult *= m.get_effective_value()
-	return (base + add) * (1.0 + inc / 100.0) * mult + bon
+	# Clamp (1 + Σ INCREASE/100) at 0: large stacks of negative INCREASE zero
+	# the stat out rather than flipping its sign. Net inc below -100% is a
+	# legitimate gameplay state (think "nerf modifier" pool entries on INT);
+	# the floor keeps the math predictable and the result interpretable as
+	# "× 0 + BONUS" for downstream consumers.
+	return (base + add) * maxf(0.0, 1.0 + inc / 100.0) * mult + bon
 
 
 ## SET tiebreak across sources: highest priority wins; at equal priority

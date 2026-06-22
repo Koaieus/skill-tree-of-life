@@ -44,15 +44,11 @@ func test_mint_with_null_scene_returns_null() -> void:
 	assert_null(e.mint(_rng()))
 
 
-func test_pool_pick_respects_budget() -> void:
+func test_pool_pick_empty_returns_null() -> void:
 	var pool := AddonPool.new()
-	pool.entries = [_entry(_SPIKE_RING, {}, 5, 10.0)]  # cost 5
-	# Budget 3 → nothing affordable.
-	var picked := GraphProcgen._weighted_pick_addon(pool, 3, _rng())
+	pool.entries = []
+	var picked := GraphProcgen._weighted_pick_addon(pool, [], _rng())
 	assert_null(picked)
-	# Budget 5 → entry affordable.
-	var picked2 := GraphProcgen._weighted_pick_addon(pool, 5, _rng())
-	assert_not_null(picked2)
 
 
 func test_pool_pick_weighted() -> void:
@@ -65,7 +61,33 @@ func test_pool_pick_weighted() -> void:
 	var high_count := 0
 	for i in 100:
 		var rng := _rng(i + 1)
-		var p := GraphProcgen._weighted_pick_addon(pool, 1, rng)
+		var p := GraphProcgen._weighted_pick_addon(pool, [], rng)
 		if p != null and p.id == &"high":
 			high_count += 1
 	assert_gt(high_count, 90, "99:1 weight should favour 'high' overwhelmingly")
+
+
+func test_pool_pick_excludes_already_minted_unique_scenes() -> void:
+	# Same scene listed twice; once "minted" → pick falls through to fallback.
+	var pool := AddonPool.new()
+	var a := _entry(_SPIKE_RING, {}, 1, 1.0)
+	a.id = &"spike"
+	pool.entries = [a]
+	# Mark scene as already minted → no candidates → null.
+	var picked := GraphProcgen._weighted_pick_addon(pool, [_SPIKE_RING], _rng())
+	assert_null(picked)
+
+
+func test_slot_count_distribution_sampling() -> void:
+	var policy := AddonPolicy.new()
+	policy.slot_count_weights = {0: 60.0, 1: 25.0, 2: 12.0, 3: 3.0}
+	# Sample many; assert distribution is roughly right.
+	var counts := [0, 0, 0, 0]
+	for i in 1000:
+		var rng := _rng(i + 1)
+		var n := policy.sample_slot_count(rng)
+		if n >= 0 and n <= 3:
+			counts[n] += 1
+	# Loose bounds: 50%–70% zero, 15%–35% one. Stochastic but stable.
+	assert_true(counts[0] >= 500 and counts[0] <= 700, "0-slot count = %d not in [500,700]" % counts[0])
+	assert_true(counts[1] >= 150 and counts[1] <= 350, "1-slot count = %d not in [150,350]" % counts[1])

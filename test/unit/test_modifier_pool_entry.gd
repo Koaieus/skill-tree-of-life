@@ -62,13 +62,17 @@ func test_int_stat_multiply_does_not_coerce_to_one() -> void:
 		assert_ne(m.value, 1.0, "INT MULTIPLY should NOT collapse to 1.0")
 
 
-func test_int_stat_increase_does_not_coerce() -> void:
-	# +15% (value = 15) — INCREASE is percent points, not value_type units.
-	# Coercion would still work here since 15 is integer, but use a fractional
-	# range to prove the float survives.
+func test_increase_snaps_to_int() -> void:
+	# INCREASE is percent-points and reads as integers in UI (+13%, not +12.5%).
+	# We snap to int regardless of the target stat's value_type. (Replaces the
+	# old "does_not_coerce" — design changed to always-snap-INCREASE.)
 	var e := _entry(&"intelligence", StatModifier.Operation.INCREASE, 12.5, 12.5)
 	var m := e.roll(_rng(7))
-	assert_almost_eq(m.value, 12.5, 0.0001)
+	assert_eq(m.value, 13.0, "12.5 should snap to 13 (round-half-up)")
+	# Negative INCREASE also snaps.
+	var e_neg := _entry(&"intelligence", StatModifier.Operation.INCREASE, -3.7, -3.7)
+	var m_neg := e_neg.roll(_rng(7))
+	assert_eq(m_neg.value, -4.0, "-3.7 should snap to -4")
 
 
 func test_unknown_stat_does_not_coerce() -> void:

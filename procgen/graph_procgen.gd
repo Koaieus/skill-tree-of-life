@@ -109,6 +109,7 @@ static func generate(
 		var archetype_id: StringName = &""
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []
+		var archetype_primary_stat: StringName = &""
 		var type_def: NodeTypeDef = null
 		if use_v2_clusters:
 			var policy: ArchetypePolicy = config.archetypes[type_assignments[i]]
@@ -116,6 +117,7 @@ static func generate(
 				archetype_id = policy.id
 				archetype_color = policy.color
 				archetype_forbid = policy.forbid_tags
+				archetype_primary_stat = policy.primary_stat
 		elif not config.node_types.is_empty():
 			type_def = config.node_types[type_assignments[i]]
 			if type_def != null:
@@ -123,7 +125,16 @@ static func generate(
 				archetype_color = type_def.color
 		if archetype_id != &"":
 			var field_scale := 1.0 if config.budget_field == null else config.budget_field.sample(positions[i])
-			if config.modifier_pool != null:
+			if config.modifier_pool_set != null:
+				var role_tags: Array = placement_ctx.role_tags[i]
+				var budget := _compute_v2_budget(
+						config.budget_policy, type_def, field_scale,
+						archetype_id, positions[i], role_tags, rng)
+				sn.modifiers = _roll_modifiers_v3(
+						config.modifier_pool_set, config.weight_profiles,
+						archetype_id, archetype_primary_stat, archetype_forbid,
+						positions[i], i, budget, rng)
+			elif config.modifier_pool != null:
 				var role_tags: Array = placement_ctx.role_tags[i]
 				var budget := _compute_v2_budget(
 						config.budget_policy, type_def, field_scale,
@@ -137,6 +148,8 @@ static func generate(
 			# Owner colour stays free to drive the fill channel via SkillNode.
 			sn.base_type_color = archetype_color
 			sn.set_meta("base_type", archetype_id)
+			if archetype_primary_stat != &"":
+				sn.set_meta("primary_stat", archetype_primary_stat)
 			# Persist role tags for downstream inspection / debug overlays.
 			if not placement_ctx.role_tags[i].is_empty():
 				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
@@ -622,44 +635,49 @@ static func _roll_and_attach_addons(
 		rng: RandomNumberGenerator,
 ) -> void:
 	var policy: AddonPolicy = config.addon_policy
-	if policy == null or policy.pool == null or policy.chance_per_node <= 0.0:
+	if policy == null or policy.pool == null:
 		return
-	if rng.randf() >= policy.chance_per_node:
-		return
-	var budget := rng.randi_range(policy.addon_budget_min, policy.addon_budget_max)
-	if budget <= 0:
+	var slots := policy.sample_slot_count(rng)
+	if slots <= 0:
 		return
 	var anchor := sn.get_node_or_null("Visuals/AddonAnchor") as Node
 	if anchor == null:
 		return
-	var remaining := budget
-	while true:
-		var entry := _weighted_pick_addon(policy.pool, remaining, rng)
+	# Track unique-addon scenes already minted on this node so we filter
+	# duplicates out of subsequent slot picks. The scene PackedScene IS the
+	# uniqueness key — same scene → same uniqueness class.
+	var minted_unique_scenes: Array = []
+	for _i in slots:
+		var entry := _weighted_pick_addon(policy.pool, minted_unique_scenes, rng)
 		if entry == null:
 			break
-		var instance := entry.mint(rng)
+		var instance: SkillNodeAddon = entry.mint(rng)
 		if instance == null:
 			break
 		anchor.add_child(instance)
-		remaining -= entry.cost
-		if remaining <= 0:
-			break
+		if instance.unique:
+			minted_unique_scenes.append(entry.addon_scene)
 
 
 static func _weighted_pick_addon(
 		pool: AddonPool,
-		budget: int,
+		minted_unique_scenes: Array,
 		rng: RandomNumberGenerator,
 ) -> AddonPoolEntry:
 	var total := 0.0
 	for e in pool.entries:
-		if e != null and e.cost <= budget and e.weight > 0.0:
-			total += e.weight
+		if e == null or e.weight <= 0.0 or e.addon_scene == null:
+			continue
+		if e.addon_scene in minted_unique_scenes:
+			continue
+		total += e.weight
 	if total <= 0.0:
 		return null
 	var r := rng.randf() * total
 	for e in pool.entries:
-		if e == null or e.cost > budget or e.weight <= 0.0:
+		if e == null or e.weight <= 0.0 or e.addon_scene == null:
+			continue
+		if e.addon_scene in minted_unique_scenes:
 			continue
 		r -= e.weight
 		if r <= 0.0:
@@ -778,6 +796,129 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 		if t in forbid:
 			return true
 	return false
+
+
+## v3 phased modifier draw. Replaces the flat budget-exhaustion loop with a
+## slot-count-then-budget model:
+##   1. Roll total slot count, split into primary_share / off_share.
+##   2. Phase 2: fill primary slots from PRIMARY pools matching primary_stat;
+##      track peak_primary_cost.
+##   3. Phase 3: fill off slots from off-attribute PRIMARY (cost-capped),
+##      DEFENSIVE, and RARE pools (defensive/rare uncapped).
+##
+## See docs/domain/procgen-v2.md (forthcoming v3 section) for design rationale.
+static func _roll_modifiers_v3(
+		pool_set: ModifierPoolSet,
+		profiles: Array[Resource],
+		archetype: StringName,
+		primary_stat: StringName,
+		forbid_tags: Array[StringName],
+		position: Vector2,
+		node_index: int,
+		budget: int,
+		rng: RandomNumberGenerator,
+) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	if pool_set == null or pool_set.packs.is_empty() or budget <= 0:
+		return out
+	var slots := pool_set.sample_slot_count(rng)
+	var primary_share := int(ceil(float(slots) * pool_set.primary_share_ratio))
+	primary_share = clampi(primary_share, 0, slots)
+	var off_share := slots - primary_share
+
+	var ctx := WeightContext.new()
+	ctx.archetype = archetype
+	ctx.position = position
+	ctx.node_index = node_index
+	ctx.already_rolled = out
+	ctx.forbid_tags = forbid_tags
+
+	var remaining := budget
+	var peak_primary_cost := 0
+
+	# Phase 2: primary slots.
+	if primary_share > 0 and primary_stat != &"":
+		var primary_entries := pool_set.flatten_for_phase(&"primary", primary_stat)
+		for _i in primary_share:
+			var entry := _weighted_pick_from(primary_entries, profiles, ctx, remaining, rng)
+			if entry == null:
+				break
+			out.append(entry.roll(rng))
+			remaining -= entry.cost
+			peak_primary_cost = maxi(peak_primary_cost, entry.cost)
+			if remaining <= 0:
+				break
+
+	# Phase 3: off-attribute + defensive + rare slots.
+	if off_share > 0 and remaining > 0:
+		var off_entries := pool_set.flatten_for_phase(&"off", primary_stat)
+		var defensive_entries := pool_set.flatten_for_phase(&"defensive", primary_stat)
+		var rare_entries := pool_set.flatten_for_phase(&"rare", primary_stat)
+		# Cost-cap off-attribute entries relative to peak primary cost. Defensive
+		# and rare are exempt (see ModifierPoolSet docstring).
+		# Cap formula: floor(peak * factor) - offset.
+		var cap := int(floor(float(peak_primary_cost) * pool_set.off_cost_cap_factor)) - pool_set.off_cost_cap_offset
+		var off_capped: Array[ModifierPoolEntry] = []
+		if peak_primary_cost > 0:
+			for e in off_entries:
+				if e != null and e.cost <= cap:
+					off_capped.append(e)
+		else:
+			# No primary picks happened (no primary_stat, or empty primary pools).
+			# Don't cap — off-attribute is the only stat content available.
+			off_capped = off_entries
+		var combined: Array[ModifierPoolEntry] = []
+		combined.append_array(off_capped)
+		combined.append_array(defensive_entries)
+		combined.append_array(rare_entries)
+		for _i in off_share:
+			var entry := _weighted_pick_from(combined, profiles, ctx, remaining, rng)
+			if entry == null:
+				break
+			out.append(entry.roll(rng))
+			remaining -= entry.cost
+			if remaining <= 0:
+				break
+	return out
+
+
+## Picks one entry from a pre-filtered list, applying weight profiles. Shared
+## by phase 2 and phase 3 of the v3 draw.
+static func _weighted_pick_from(
+		entries: Array[ModifierPoolEntry],
+		profiles: Array[Resource],
+		context: WeightContext,
+		budget: int,
+		rng: RandomNumberGenerator,
+) -> ModifierPoolEntry:
+	var affordable: Array[ModifierPoolEntry] = []
+	var weights: Array[float] = []
+	var total := 0.0
+	for e in entries:
+		if e == null or e.cost > budget or e.weight <= 0.0:
+			continue
+		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
+			continue
+		var w := e.weight
+		for p in profiles:
+			if p == null:
+				continue
+			w *= p.multiplier_for(e, context)
+			if w <= 0.0:
+				break
+		if w <= 0.0:
+			continue
+		affordable.append(e)
+		weights.append(w)
+		total += w
+	if total <= 0.0:
+		return null
+	var r := rng.randf() * total
+	for i in affordable.size():
+		r -= weights[i]
+		if r <= 0.0:
+			return affordable[i]
+	return affordable.back()
 
 
 ## Fills `outer_radius` on radial fields/profiles that opted in (set to 0 or

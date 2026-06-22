@@ -2,22 +2,41 @@
 class_name AddonPolicy
 extends Resource
 
-## Procgen v2 second-pass content config. After the per-node modifier roll
-## finishes, each node has a `chance_per_node` probability of also rolling
-## addons. Addons get their own budget axis so designers can tune "how many
-## modifier slots" and "how often does this archetype get an addon"
-## independently (see docs/domain/procgen-v2.md, "AddonPolicy").
+## Procgen v3 addon roll config. Independent of stat-modifier budget; the
+## number of addons per node is sampled from `slot_count_weights` and each
+## slot picks from `pool` via weighted draw with profiles.
+##
+## Unicity: addons declaring `unique = true` on their root [SkillNodeAddon]
+## scene cannot stack — once one mints on a node, the entry is filtered out
+## of subsequent slot picks for that same node.
 ##
 ## The weight pipeline shares its [WeightProfile] vocabulary with the modifier
-## pass. A [CollisionProfile] won't help here (addons don't collide on
-## stat_id), but [ArchetypeWeightProfile] and a future "AlreadyRolledProfile"
-## are natural fits — e.g. "Spikes are more likely on STR-tagged nodes."
-##
-## The addon-pass [WeightContext] carries the modifier-pass output as
+## pass. The addon-pass [WeightContext] carries the modifier-pass output as
 ## `already_rolled` so profiles can react to what's already on the node.
 
-@export_range(0.0, 1.0) var chance_per_node: float = 0.0
-@export var addon_budget_min: int = 1
-@export var addon_budget_max: int = 1
+## Slot-count distribution per node. Keys = total addons (int), values =
+## sampling weights. Default `[0:60, 1:25, 2:12, 3:3]` — mean ~0.55, mostly
+## zero with a long tail. `0` means "no addons this node".
+@export var slot_count_weights: Dictionary = {0: 60.0, 1: 25.0, 2: 12.0, 3: 3.0}
+
 @export var pool: AddonPool
 @export var weight_profiles: Array[Resource] = []
+
+
+## Sample a slot count from `slot_count_weights`. Returns 0 when the
+## distribution is empty.
+func sample_slot_count(rng: RandomNumberGenerator) -> int:
+	if slot_count_weights.is_empty():
+		return 0
+	var total := 0.0
+	for v in slot_count_weights.values():
+		total += maxf(0.0, float(v))
+	if total <= 0.0:
+		return 0
+	var r := rng.randf() * total
+	for key in slot_count_weights.keys():
+		var w := maxf(0.0, float(slot_count_weights[key]))
+		r -= w
+		if r <= 0.0:
+			return maxi(0, int(key))
+	return maxi(0, int(slot_count_weights.keys().back()))

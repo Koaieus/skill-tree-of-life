@@ -29,6 +29,12 @@ extends Resource
 ## "Per-Node Health" section of the design doc); this is the aggregate itw
 ## reads from.
 @export var node_health: ScalarStat
+## Flat damage reduction. Applied by Mitigation.apply before the
+## min_damage_taken floor. Default 0.
+@export var armor: ScalarStat
+## Floor on post-armor damage. A landed hit always deals at least this much
+## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
+@export var min_damage_taken: ScalarStat
 
 @export_group("Economy")
 @export var xp: PoolStat            ## XP pool; fires Entity.leveled_up on fill.

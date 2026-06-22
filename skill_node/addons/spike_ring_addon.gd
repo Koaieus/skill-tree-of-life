@@ -11,9 +11,15 @@ extends SkillNodeAddon
 ## structure) is explicitly out-of-scope per docs/design/skill_node_addons.md
 ## — collision model is open and "do not implement until specified".
 
+const default_color = Color(0.95, 0.55, 0.4, 0.95)
+
 @export var damage: float = 1.0
 @export_range(4, 24, 1) var spike_count: int = 12
-@export var spike_color: Color = Color(0.95, 0.55, 0.4, 0.95)
+@export var spike_color: Color:
+	get():
+		if carrier and carrier.owned_by:
+			return carrier.owned_by.color
+		return default_color
 ## How far out the spike tips reach beyond the carrier's radius.
 @export_range(0.0, 1.0, 0.05) var spike_overshoot: float = 0.45
 ## Spike base width as a fraction of the carrier's radius.

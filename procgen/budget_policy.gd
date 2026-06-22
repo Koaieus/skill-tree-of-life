@@ -8,12 +8,20 @@ extends Resource
 ## archetype multiplier.
 ##
 ## Budget formula:
-##   raw      = rng.randi_range(base_min, base_max)
+##   floor    = budget_floor_field.sample(position)   if set else base_min
+##   ceiling  = budget_ceiling_field.sample(position) if set else base_max
+##   raw      = lerp(floor, ceiling, rng.randf())
 ##   scaled   = raw
 ##            * archetype_multiplier.get(archetype, 1.0)
-##            * budget_field.sample(position)
-##            * Π role_bonus[t]                for t in role_tags
+##            * budget_field.sample(position)         if set else 1.0
+##            * Π role_bonus[t]                       for t in role_tags
 ##   budget   = max(1, round(scaled))
+##
+## The floor/ceiling split is the primary radial-shape lever: a typical setup
+## has both as [RadialGradientField] but with different lo/hi pairs, so the
+## outer ring's *floor* alone may already exceed the inner ring's *ceiling*
+## (eliminating dead nodes). `budget_field` remains as an orthogonal global
+## multiplier (e.g. difficulty), but is no longer the primary radial knob.
 ##
 ## Set [member modifier_pool] on the config and leave [member NodeTypeDef.budget_min]
 ## / `budget_max` in place — when [GraphProcgenConfig.budget_policy] is non-null
@@ -26,8 +34,18 @@ extends Resource
 ## only the archetypes you want to depart from baseline.
 @export var archetype_multiplier: Dictionary = {}
 
-## Spatial scalar — typically a [RadialGradientField] for "weak center,
-## strong rim". Unset = neutral.
+## Lower bound of the budget roll at this position. Typically a
+## [RadialGradientField] with `inner_value = lo_floor`, `outer_value = hi_floor`.
+## Unset = falls back to `base_min`.
+@export var budget_floor_field: ScalarField
+
+## Upper bound of the budget roll at this position. Typically a
+## [RadialGradientField] with `inner_value = lo_ceiling`, `outer_value = hi_ceiling`.
+## Unset = falls back to `base_max`.
+@export var budget_ceiling_field: ScalarField
+
+## Orthogonal global multiplier (e.g. difficulty). Composes on top of the
+## floor/ceiling roll. Unset = neutral.
 @export var budget_field: ScalarField
 
 ## Multiplicative per-role-tag bonuses. The procgen pass passes a list of role
@@ -42,9 +60,13 @@ func compute_budget(
 		role_tags: Array,
 		rng: RandomNumberGenerator,
 ) -> int:
-	var lo := mini(base_min, base_max)
-	var hi := maxi(base_min, base_max)
-	var raw := float(rng.randi_range(lo, hi))
+	var floor_v: float = float(base_min) if budget_floor_field == null else budget_floor_field.sample(position)
+	var ceil_v: float = float(base_max) if budget_ceiling_field == null else budget_ceiling_field.sample(position)
+	if ceil_v < floor_v:
+		var tmp := floor_v
+		floor_v = ceil_v
+		ceil_v = tmp
+	var raw := lerpf(floor_v, ceil_v, rng.randf())
 	var arch_mult := float(archetype_multiplier.get(archetype, 1.0))
 	var field_scale := 1.0 if budget_field == null else budget_field.sample(position)
 	var role_mult := 1.0

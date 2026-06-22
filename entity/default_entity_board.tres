@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
+[ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="def_dexterity"]
@@ -14,6 +15,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="def_intelligence"]
 [ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="def_mana"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="def_mana_per_turn"]
+[ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="def_min_dmg_taken"]
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
@@ -35,6 +37,11 @@ script = ExtResource("3_pool")
 current = 2.0
 definition = ExtResource("def_ap")
 base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_armor"]
+resource_name = "armor"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_armor")
 
 [sub_resource type="Resource" id="scalar_blade_size"]
 resource_name = "blade_size"
@@ -157,6 +164,12 @@ resource_name = "mana_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_mana_per_turn")
 
+[sub_resource type="Resource" id="scalar_min_dmg_taken"]
+resource_name = "min_damage_taken"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_min_dmg_taken")
+base_value = 3.0
+
 [sub_resource type="Resource" id="pool_movement_points"]
 resource_name = "movement_points"
 script = ExtResource("3_pool")
@@ -240,6 +253,8 @@ wisdom = SubResource("scalar_wisdom")
 perception = SubResource("scalar_perception")
 health = SubResource("pool_health")
 node_health = SubResource("scalar_node_health")
+armor = SubResource("scalar_armor")
+min_damage_taken = SubResource("scalar_min_dmg_taken")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")

@@ -15,20 +15,30 @@ extends Resource
 ##   grows clusters through the pruned graph.
 ## - `cluster_jitter` is a per-node reroll chance after assignment — softens
 ##   cluster borders. 0 = pure clusters; 1 = ignore clustering entirely.
+##   Defaults to 0 — clusters stay clean, opt in if you want messy borders.
+## - `primary_stat` is the StatBoard id this archetype maps to (e.g. red →
+##   `&"strength"`). Consumed by the phased modifier draw to bias toward
+##   stat-coherent rolls. Empty = archetype has no primary stat (e.g. a pure
+##   utility or wildcard archetype).
 ##
 ## Example shape:
 ##   id = &"red"
-##   target_ratio = 0.30
+##   color = Color.RED
+##   primary_stat = &"strength"
+##   target_ratio = 0.25
 ##   cluster_size_weights = {3: 1.0, 4: 1.0, 5: 0.6, 6: 0.2}
-##   cluster_jitter = 0.1
+##   cluster_jitter = 0.0
 
 @export var id: StringName = &""
 @export var color: Color = Color.WHITE
+## The stat this archetype's nodes are themed around. Used by the phased
+## modifier draw to weight primary vs off-attribute rolls.
+@export var primary_stat: StringName = &""
 @export_range(0.0, 1.0) var target_ratio: float = 0.0
 ## Dictionary[int, float]. Keys are cluster sizes (node counts); values are
 ## sampling weights. Empty = single-node "clusters" only.
 @export var cluster_size_weights: Dictionary = {}
-@export_range(0.0, 1.0) var cluster_jitter: float = 0.1
+@export_range(0.0, 1.0) var cluster_jitter: float = 0.0
 ## Hard exclusion list: any pool entry whose `tags` overlap with this set
 ## gets weight 0 for nodes of this archetype. Use to enforce specialization
 ## (e.g. gold drops STR/DEX/INT/CON/PER content and only keeps WIS/xp_growth).

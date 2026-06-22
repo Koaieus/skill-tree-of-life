@@ -370,7 +370,6 @@ script = ExtResource("e")
 id = &"xpt_a0"
 stat_id = &"xp_per_turn"
 value_range = Vector2(3, 8)
-cost = 1
 weight = 10.0
 tags = Array[StringName]([&"xp_growth", &"growth", &"flat", &"tier_1", &"common"])
 
