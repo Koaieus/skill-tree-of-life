@@ -5,8 +5,14 @@ extends PanelContainer
 ##
 ## Subscribes to Events.skill_node_hovered / unhovered. While visible, tracks
 ## the hovered node's owner_changed signal so the owner line updates live when
-## a node is allocated or deallocated without re-hovering, and damaged so the
-## HP line updates as hits land.
+## a node is allocated or deallocated without re-hovering, damaged so the node
+## HP bar updates as hits land, and — for core nodes — the owning entity's
+## health stat so the death-clock bar updates when the core itself takes core
+## damage.
+##
+## HP rendering uses LabeledProgressBar (shared with StatsPanel). Node HP is
+## tinted on a red→green hue ramp by ratio; core HP uses the health stat's
+## authored tint.
 ##
 ## Modifier formatting follows the StatModifier pipeline conventions:
 ##   ADD_BASE  → "+5 Strength"        (scales with %, the usual node source)
@@ -17,10 +23,11 @@ extends PanelContainer
 ## Each modifier line is tinted with the stat's tint_color from StatRegistry.
 
 @onready var _owner_label: Label = %OwnerLabel
-@onready var _hp_label: Label = %HpLabel
+@onready var _hp_box: VBoxContainer = %HpBox
 @onready var _modifiers_box: VBoxContainer = %ModifiersBox
 
 var _node: SkillNode = null
+var _core_health_stat: Stat = null
 
 
 func _ready() -> void:
@@ -51,6 +58,13 @@ func _bind(node: SkillNode) -> void:
 	_node = node
 	_node.owner_changed.connect(_on_owner_changed)
 	_node.damaged.connect(_on_damaged)
+	# Core nodes also surface the owning entity's health — bind to it so the
+	# core-HP bar tracks core damage between hovers.
+	if _node.is_core() and _node.owned_by != null:
+		var hp := _node.owned_by.stat_board.get_stat(&"health") if _node.owned_by.stat_board != null else null
+		if hp != null:
+			_core_health_stat = hp
+			_core_health_stat.value_changed.connect(_on_core_health_changed)
 
 
 func _unbind() -> void:
@@ -60,6 +74,10 @@ func _unbind() -> void:
 		if _node.damaged.is_connected(_on_damaged):
 			_node.damaged.disconnect(_on_damaged)
 	_node = null
+	if _core_health_stat != null:
+		if _core_health_stat.value_changed.is_connected(_on_core_health_changed):
+			_core_health_stat.value_changed.disconnect(_on_core_health_changed)
+		_core_health_stat = null
 
 
 func _on_owner_changed() -> void:
@@ -67,6 +85,10 @@ func _on_owner_changed() -> void:
 
 
 func _on_damaged(_amount: float, _source: Variant) -> void:
+	_populate_hp()
+
+
+func _on_core_health_changed() -> void:
 	_populate_hp()
 
 
@@ -109,19 +131,44 @@ func _populate() -> void:
 
 
 func _populate_hp() -> void:
+	for child in _hp_box.get_children():
+		child.queue_free()
 	if _node == null or _node.owned_by == null:
-		_hp_label.hide()
+		_hp_box.hide()
 		return
 	var max_hp := _node.get_max_hp()
 	if max_hp <= 0.0:
-		_hp_label.hide()
+		_hp_box.hide()
 		return
+
+	# Node HP bar — hue ramps red (low) → green (full) by ratio.
 	var cur := _node.current_hp
 	var ratio: float = clampf(cur / max_hp, 0.0, 1.0)
-	# Hue 0.0 = red, 0.33 = green; passes through orange/yellow at ~0.5.
-	_hp_label.text = "HP %s/%s" % [_val(cur), _val(max_hp)]
-	_hp_label.modulate = Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0)
-	_hp_label.show()
+	var node_bar := LabeledProgressBar.create()
+	_hp_box.add_child(node_bar)
+	node_bar.set_values(
+		"Node HP %s/%s" % [_val(cur), _val(max_hp)],
+		cur,
+		max_hp,
+		Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0),
+	)
+
+	# Core HP bar — only on core nodes; the death-clock pool that arm-loss
+	# overflow drains into. Uses the health stat's authored tint.
+	if _core_health_stat != null and _core_health_stat is PoolStat:
+		var pool := _core_health_stat as PoolStat
+		var def := pool.definition
+		var tint: Color = def.tint_color if def != null else Color(0.9, 0.1, 0.1)
+		var core_bar := LabeledProgressBar.create()
+		_hp_box.add_child(core_bar)
+		core_bar.set_values(
+			"Core HP %s/%s" % [_val(pool.current), _val(pool.value)],
+			float(pool.current),
+			float(pool.value),
+			tint,
+		)
+
+	_hp_box.show()
 
 
 func _format_modifier(m: StatModifier, stat_name: String) -> String:

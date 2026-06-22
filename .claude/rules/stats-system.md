@@ -117,6 +117,17 @@ final = max(min_damage_taken, raw.amount - armor)
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
 
+## Display contract (StatsPanel + future tooltips)
+
+`StatDef.display_type: {BASIC, BAR, PROGRESS, INLINE, HIDDEN}` picks the widget; `display_order` sorts the column; `tint_color` colours the bar fill. `ui/stats_panel.gd` enumerates `StatRegistry.get_all_defs()`, drops HIDDEN, drops any id the board lacks, sorts by `display_order`, and dispatches:
+
+- `BASIC` → `Label` (default for scalars)
+- `PROGRESS` → `ProgressBar` (`max_value = stat.value`, `value = pool.current`) with a centred `"Name: current/max"` label child. Default for every `PoolStat` def.
+- `BAR`, `INLINE` → reserved; currently fall through to `BASIC` so authoring them is a no-op until widgets land.
+- `HIDDEN` → omitted from the panel entirely.
+
+Adding a stat means dropping a .tres in `stats_system/defs/` with `display_type` + `display_order` set. The panel doesn't need to know it exists. The escape hatch for non-stock rendering (e.g. a sloshing mana ball) is to add an `@export var widget_scene: PackedScene` to `StatDef` and dispatch on it before the enum — not implemented yet, but that's the slot.
+
 ## Visualizer (editor plugin)
 
 `addons/stat_board_visualizer/` — Inspector button on any `StatBoard` .tres mounts it in the "StatBoard" bottom panel. Runtime F3 overlay is `ui/stat_board_overlay/`.

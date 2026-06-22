@@ -7,7 +7,13 @@ extends Resource
 ## See docs/design/stat_system.md.
 
 enum ValueType { INT, FLOAT, BOOL }
-enum DisplayType { BASIC, BAR, PROGRESS, INLINE }
+## Picks the widget the stats panel renders for this stat.
+## BASIC   — single Label. Default for scalars.
+## BAR     — scalar as a bar against an implicit ceiling. Reserved; not authored yet.
+## PROGRESS— pool with current/max as a ProgressBar. Default for pool stats.
+## INLINE  — reserved (compact one-line bar+label).
+## HIDDEN  — omitted from the panel entirely. Use for internal scratch stats.
+enum DisplayType { BASIC, BAR, PROGRESS, INLINE, HIDDEN }
 
 @export var id: StringName = &""
 @export var display_name: String = ""

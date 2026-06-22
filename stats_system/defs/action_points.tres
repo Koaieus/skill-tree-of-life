@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="StandardPoolStatDef" format=3 uid="uid://ccpue5w27rur1"]
 
-[ext_resource type="Script" path="res://stats_system/standard_pool_stat_def.gd" id="1_std_pool_def"]
+[ext_resource type="Script" uid="uid://curhuhdpmrd23" path="res://stats_system/standard_pool_stat_def.gd" id="1_std_pool_def"]
 
 [resource]
 script = ExtResource("1_std_pool_def")
@@ -9,5 +9,5 @@ display_name = "Action Points"
 description = "Attacks per turn. Default 2; resets each turn via TurnManager (wire-up TBD)."
 default_value = 2.0
 display_order = 3
-display_type = 1
+display_type = 2
 tint_color = Color(0.4, 0.7, 0.9, 1)

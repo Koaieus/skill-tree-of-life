@@ -26,3 +26,12 @@ func _ready() -> void:
 
 func get_def(id: StringName) -> StatDef:
 	return _defs.get(id, null)
+
+
+## All registered StatDefs. Order is filesystem-walk order — callers that need
+## a stable presentation (e.g. the stats panel) should sort by `display_order`.
+func get_all_defs() -> Array[StatDef]:
+	var out: Array[StatDef] = []
+	for def in _defs.values():
+		out.append(def)
+	return out
