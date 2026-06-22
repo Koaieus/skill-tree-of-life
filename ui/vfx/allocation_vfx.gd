@@ -25,9 +25,11 @@ const SPIKE_HEIGHT_FACTOR: float = 6.0  # multiplied by node radius
 const SPIKE_NEEDLE_GAMMA: float = 0.22
 const SPIKE_SAMPLES: int = 14  # per side; total poly verts = 2*samples + 2
 
-# Z-order: spike + lift + shatter all render above visible SkillNodes (z=0)
-# but below sensed-promoted nodes (z=1001 in BaseCircle). 10 leaves head-room.
-const Z_INDEX: int = 10
+# Z-order: must render above EVERYTHING the FogOverlay promotes — visible
+# SkillNodes + Edges get z=1001 (absolute) so they appear above the fog
+# (z=1000); sensed nodes/edges also z-promote to 1001. We use 2000 absolute
+# (z_as_relative = false) so the VFX always wins regardless of parent chain.
+const Z_INDEX: int = 2000
 
 const LIFT_DURATION: float = 0.30
 const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
@@ -56,7 +58,10 @@ var _cascade_scheduled: Dictionary[SkillNode, bool] = {}
 
 
 func _ready() -> void:
-	# Force above SkillNodes regardless of sibling tree order under graph.
+	# Absolute z (z_as_relative = false) so children inherit the same effective
+	# z floor — otherwise a transient effect added under us would be at
+	# parent_z + child_z and could land below a fog-promoted node.
+	z_as_relative = false
 	z_index = Z_INDEX
 
 

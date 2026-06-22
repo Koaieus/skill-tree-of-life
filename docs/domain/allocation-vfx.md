@@ -33,9 +33,11 @@ Every effect is a transient `Node2D` parented to the `AllocationVFX` node
 (itself a sibling of `AttackVFX` under `Graph`), positioned at the target
 SkillNode's `global_position` at spawn time — so the visual survives node
 freeing / ownership changes mid-animation. The `AllocationVFX` node sets
-`z_index = 10` in `_ready` so all effects render above visible SkillNodes
-(z=0) regardless of sibling tree order, while staying below sensed-promoted
-nodes (z=1001 in BaseCircle).
+`z_index = 2000` (absolute, `z_as_relative = false`) in `_ready` so effects
+always render above the `FogOverlay` (z=1000) and the visible/sensed nodes
++ edges it promotes to z=1001 — without this the spike sometimes ends up
+*under* a fog-promoted node, since visible nodes get z-promoted to render
+above the fog.
 
 Effects never touch the `BaseCircle` itself — that means ownership-state
 visuals (`BaseCircle.allocated`, fill color) flip the instant `owned_by`
