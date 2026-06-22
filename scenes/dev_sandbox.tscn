@@ -11,25 +11,25 @@
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="8_umwfs"]
-[ext_resource type="Resource" path="res://stats_system/defs/deallocation_points.tres" id="9_o5a17"]
+[ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="9_o5a17"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="10_vybhe"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="11_ui"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="11_uulnk"]
-[ext_resource type="Resource" path="res://stats_system/defs/health.tres" id="12_ubc5n"]
+[ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="12_ubc5n"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="13_0clpu"]
 [ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="14_sdhs6"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="16_8r5xj"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="18_f58km"]
-[ext_resource type="Resource" path="res://stats_system/defs/mana.tres" id="19_arms0"]
+[ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="19_arms0"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="20_3ogaa"]
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="21_sybeb"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="22_df164"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="23_owpne"]
 [ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="24_qk0se"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="25_drqyt"]
-[ext_resource type="Resource" path="res://stats_system/defs/skill_points.tres" id="26_lwubc"]
+[ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="26_lwubc"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="27_4oa4u"]
 [ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="28_3dypl"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="29_d7bkb"]
@@ -41,8 +41,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="36_vybhe"]
 [ext_resource type="Script" uid="uid://bb2qycfjh26rf" path="res://scenes/camera_2d.gd" id="39_uulnk"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="40_vision"]
-[ext_resource type="PackedScene" path="res://ui/fog_overlay/fog_overlay.tscn" id="41_fog"]
-[ext_resource type="Resource" path="res://entity/core/balanced_core.tres" id="42_core"]
+[ext_resource type="PackedScene" uid="uid://eqnsntb3dows" path="res://ui/fog_overlay/fog_overlay.tscn" id="41_fog"]
+[ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="42_core"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -95,10 +95,10 @@ source_stat_id = &"perception"
 
 [sub_resource type="Resource" id="mod_per_to_vision"]
 script = ExtResource("2_mod")
-value = 2.0
-formula = SubResource("formula_per_to_vision")
 stat_id = &"vision_range"
 operation = 1
+value = 2.0
+formula = SubResource("formula_per_to_vision")
 
 [sub_resource type="Resource" id="formula_int_to_mana"]
 script = ExtResource("18_f58km")
@@ -107,8 +107,8 @@ inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="mod_int_to_mana"]
 script = ExtResource("2_mod")
-formula = SubResource("formula_int_to_mana")
 stat_id = &"mana"
+formula = SubResource("formula_int_to_mana")
 
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
 script = ExtResource("18_f58km")
@@ -117,8 +117,8 @@ inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
 script = ExtResource("2_mod")
-formula = SubResource("formula_int_to_mana_pt")
 stat_id = &"mana_per_turn"
+formula = SubResource("formula_int_to_mana_pt")
 
 [sub_resource type="Resource" id="formula_wis_to_xp_pt"]
 script = ExtResource("18_f58km")
@@ -127,8 +127,8 @@ inputs = Array[StringName]([&"wisdom"])
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
 script = ExtResource("2_mod")
-formula = SubResource("formula_wis_to_xp_pt")
 stat_id = &"xp_per_turn"
+formula = SubResource("formula_wis_to_xp_pt")
 
 [sub_resource type="Resource" id="formula_dex_to_sensor"]
 script = ExtResource("18_f58km")
@@ -137,8 +137,8 @@ inputs = Array[StringName]([&"dexterity"])
 
 [sub_resource type="Resource" id="mod_dex_to_sensor"]
 script = ExtResource("2_mod")
-formula = SubResource("formula_dex_to_sensor")
 stat_id = &"sensor_range"
+formula = SubResource("formula_dex_to_sensor")
 
 [sub_resource type="Resource" id="formula_str_to_blade_size"]
 script = ExtResource("18_f58km")
@@ -147,8 +147,8 @@ inputs = Array[StringName]([&"strength"])
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
 script = ExtResource("2_mod")
-formula = SubResource("formula_str_to_blade_size")
 stat_id = &"blade_size"
+formula = SubResource("formula_str_to_blade_size")
 
 [sub_resource type="Resource" id="formula_dex_to_range"]
 script = ExtResource("16_8r5xj")
@@ -156,9 +156,9 @@ source_stat_id = &"dexterity"
 
 [sub_resource type="Resource" id="mod_dex_to_range"]
 script = ExtResource("2_mod")
-formula = SubResource("formula_dex_to_range")
 stat_id = &"range"
 operation = 1
+formula = SubResource("formula_dex_to_range")
 
 [sub_resource type="Resource" id="pool_mana"]
 resource_name = "mana"
@@ -322,10 +322,10 @@ source_stat_id = &"perception"
 
 [sub_resource type="Resource" id="Resource_3ogaa"]
 script = ExtResource("2_mod")
-value = 2.0
-formula = SubResource("Resource_arms0")
 stat_id = &"vision_range"
 operation = 1
+value = 2.0
+formula = SubResource("Resource_arms0")
 
 [sub_resource type="Resource" id="Resource_sybeb"]
 script = ExtResource("18_f58km")
@@ -334,8 +334,8 @@ inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="Resource_df164"]
 script = ExtResource("2_mod")
-formula = SubResource("Resource_sybeb")
 stat_id = &"mana"
+formula = SubResource("Resource_sybeb")
 
 [sub_resource type="Resource" id="Resource_owpne"]
 script = ExtResource("18_f58km")
@@ -344,8 +344,8 @@ inputs = Array[StringName]([&"intelligence"])
 
 [sub_resource type="Resource" id="Resource_qk0se"]
 script = ExtResource("2_mod")
-formula = SubResource("Resource_owpne")
 stat_id = &"mana_per_turn"
+formula = SubResource("Resource_owpne")
 
 [sub_resource type="Resource" id="Resource_drqyt"]
 script = ExtResource("18_f58km")
@@ -354,8 +354,8 @@ inputs = Array[StringName]([&"wisdom"])
 
 [sub_resource type="Resource" id="Resource_lwubc"]
 script = ExtResource("2_mod")
-formula = SubResource("Resource_drqyt")
 stat_id = &"xp_per_turn"
+formula = SubResource("Resource_drqyt")
 
 [sub_resource type="Resource" id="Resource_4oa4u"]
 script = ExtResource("18_f58km")
@@ -364,8 +364,8 @@ inputs = Array[StringName]([&"dexterity"])
 
 [sub_resource type="Resource" id="Resource_3dypl"]
 script = ExtResource("2_mod")
-formula = SubResource("Resource_4oa4u")
 stat_id = &"sensor_range"
+formula = SubResource("Resource_4oa4u")
 
 [sub_resource type="Resource" id="Resource_rm3s8"]
 script = ExtResource("18_f58km")
@@ -374,8 +374,8 @@ inputs = Array[StringName]([&"strength"])
 
 [sub_resource type="Resource" id="Resource_piqb8"]
 script = ExtResource("2_mod")
-formula = SubResource("Resource_rm3s8")
 stat_id = &"blade_size"
+formula = SubResource("Resource_rm3s8")
 
 [sub_resource type="Resource" id="Resource_d7bkb"]
 resource_name = "mana"
@@ -509,17 +509,14 @@ value = 2.0
 [sub_resource type="Resource" id="mod_dex_1"]
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
-value = 1.0
 
 [sub_resource type="Resource" id="mod_xp_1"]
 script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
-value = 1.0
 
 [sub_resource type="Resource" id="mod_str_1"]
 script = ExtResource("2_mod")
 stat_id = &"strength"
-value = 1.0
 
 [sub_resource type="Resource" id="mod_xp_2"]
 script = ExtResource("2_mod")
@@ -544,12 +541,10 @@ value = 3.0
 [sub_resource type="Resource" id="mod_sensor_1"]
 script = ExtResource("2_mod")
 stat_id = &"sensor_range"
-value = 1.0
 
 [sub_resource type="Resource" id="mod_per_1"]
 script = ExtResource("2_mod")
 stat_id = &"perception"
-value = 1.0
 
 [sub_resource type="Resource" id="mod_int_3"]
 script = ExtResource("2_mod")
@@ -564,7 +559,6 @@ value = 2.0
 [sub_resource type="Resource" id="mod_mp_1"]
 script = ExtResource("2_mod")
 stat_id = &"movement_points"
-value = 1.0
 
 [sub_resource type="Resource" id="mod_vision_50"]
 script = ExtResource("2_mod")
@@ -590,6 +584,7 @@ metadata/_edit_lock_ = true
 
 [node name="FogOverlay" parent="Graph" unique_id=295980468 node_paths=PackedStringArray("vision_system") instance=ExtResource("41_fog")]
 z_index = 1000
+enabled = true
 vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
@@ -598,46 +593,6 @@ bounds = Rect2(-3000, -2250, 6000, 4500)
 unique_name_in_owner = true
 script = ExtResource("5_nav")
 graph = NodePath("..")
-
-[node name="Systems" type="Node" parent="." unique_id=1059257422]
-
-[node name="VisionSystem" type="Node" parent="Systems" unique_id=200425398 node_paths=PackedStringArray("graph", "allocation_system", "viewers")]
-unique_name_in_owner = true
-script = ExtResource("40_vision")
-graph = NodePath("../../Graph")
-allocation_system = NodePath("../AllocationSystem")
-viewers = [NodePath("../../Graph/Entities/Player")]
-empty_mode = 2
-ease_rate = 2.5
-
-[node name="TurnManager" type="Node" parent="Systems" unique_id=1834844179]
-unique_name_in_owner = true
-script = ExtResource("7_turn")
-metadata/_custom_type_script = "uid://hhfetuy6hfu"
-
-[node name="AllocationSystem" type="Node" parent="Systems" unique_id=394689840 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
-unique_name_in_owner = true
-script = ExtResource("6_alloc")
-graph = NodePath("../../Graph")
-navigator = NodePath("../../Graph/Navigator")
-turn_manager = NodePath("../TurnManager")
-metadata/_custom_type_script = "uid://blmjm81fytofd"
-
-[node name="BattleSystem" type="Node" parent="Systems" unique_id=1245123863 node_paths=PackedStringArray("turn_manager")]
-unique_name_in_owner = true
-script = ExtResource("6_umwfs")
-turn_manager = NodePath("../TurnManager")
-metadata/_custom_type_script = "uid://c8h46d4u0rss3"
-
-[node name="PlayerInputController" type="Node" parent="Systems" unique_id=252155233 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "player", "turn_manager")]
-unique_name_in_owner = true
-script = ExtResource("8_input")
-graph = NodePath("../../Graph")
-allocation_system = NodePath("../AllocationSystem")
-battle_system = NodePath("../BattleSystem")
-player = NodePath("../../Graph/Entities/Player")
-turn_manager = NodePath("../TurnManager")
-metadata/_custom_type_script = "uid://tmd2wsn34dny"
 
 [node name="Entities" type="Node" parent="Graph" unique_id=945415300]
 
@@ -945,6 +900,46 @@ unique_name_in_owner = true
 position = Vector2(200, 40)
 script = ExtResource("39_uulnk")
 metadata/_custom_type_script = "uid://bb2qycfjh26rf"
+
+[node name="Systems" type="Node" parent="." unique_id=1059257422]
+
+[node name="VisionSystem" type="Node" parent="Systems" unique_id=200425398 node_paths=PackedStringArray("graph", "allocation_system", "viewers")]
+unique_name_in_owner = true
+script = ExtResource("40_vision")
+graph = NodePath("../../Graph")
+allocation_system = NodePath("../AllocationSystem")
+viewers = [NodePath("../../Graph/Entities/Player")]
+empty_mode = 2
+ease_rate = 2.5
+
+[node name="TurnManager" type="Node" parent="Systems" unique_id=1834844179]
+unique_name_in_owner = true
+script = ExtResource("7_turn")
+metadata/_custom_type_script = "uid://hhfetuy6hfu"
+
+[node name="AllocationSystem" type="Node" parent="Systems" unique_id=394689840 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
+unique_name_in_owner = true
+script = ExtResource("6_alloc")
+graph = NodePath("../../Graph")
+navigator = NodePath("../../Graph/Navigator")
+turn_manager = NodePath("../TurnManager")
+metadata/_custom_type_script = "uid://blmjm81fytofd"
+
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1245123863 node_paths=PackedStringArray("turn_manager")]
+unique_name_in_owner = true
+script = ExtResource("6_umwfs")
+turn_manager = NodePath("../TurnManager")
+metadata/_custom_type_script = "uid://c8h46d4u0rss3"
+
+[node name="PlayerInputController" type="Node" parent="Systems" unique_id=252155233 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "player", "turn_manager")]
+unique_name_in_owner = true
+script = ExtResource("8_input")
+graph = NodePath("../../Graph")
+allocation_system = NodePath("../AllocationSystem")
+battle_system = NodePath("../BattleSystem")
+player = NodePath("../../Graph/Entities/Player")
+turn_manager = NodePath("../TurnManager")
+metadata/_custom_type_script = "uid://tmd2wsn34dny"
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=1065711835]
 

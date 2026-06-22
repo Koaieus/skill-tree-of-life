@@ -250,3 +250,16 @@ happen to share owner. Owner identity is above the topology gate.
   is logically visible (clickable) but visually mostly dark. UX
   tradeoff: bias falloff small (≤ 0.15) so the gap between "I can see
   it" and "I can click it" stays narrow.
+- **Per-element dimming, not per-fragment.** FogOverlay z-promotes
+  visible nodes + edges above the fog (z=1001) and modulates their alpha
+  by the fog darkness sampled at their CENTER (`_sample_dark`,
+  `_apply_per_element_dimming`). Otherwise the per-fragment fog gradient
+  bisects any disk sitting in the fade zone — half clear, half pure
+  black — and that "half-shaded" disk reads darker than a fully-sensed
+  neighbour in pitch darkness. A `_VISIBLE_DIM_FLOOR` (= sensed outline
+  alpha) keeps the visible → sensed transition continuous: a node never
+  dims below the floor a sensed render would give it. Edges sample at
+  their midpoint; only both-endpoints-visible edges are lifted (a
+  one-visible-one-hidden edge stays at z=0 so fog covers its hidden half
+  naturally). Cost: O(N + E) per render tick, alongside the uniform
+  upload.

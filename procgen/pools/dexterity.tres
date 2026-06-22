@@ -1,14 +1,12 @@
-[gd_resource type="Resource" script_class="StatPack" load_steps=14 format=3 uid="uid://cp43eydkqykkg"]
+[gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://cp43eydkqykkg"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/tier_pool.gd" id="2_tp"]
-[ext_resource type="Script" path="res://procgen/pools/tier_def.gd" id="3_td"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://dyuijs3vfl8j8" path="res://procgen/pools/tier_pool.gd" id="2_tp"]
+[ext_resource type="Script" uid="uid://cf6t6jrkg5k23" path="res://procgen/pools/tier_def.gd" id="3_td"]
 
 [sub_resource type="Resource" id="ab_t1"]
 script = ExtResource("3_td")
-tier = 1
 value_range = Vector2(1, 3)
-cost = 1
 weight = 3.0
 extra_tags = Array[StringName]([&"tier_1", &"common"])
 
@@ -53,7 +51,6 @@ tiers = Array[ExtResource("3_td")]([SubResource("ab_t1"), SubResource("ab_t2"), 
 
 [sub_resource type="Resource" id="inc_t1"]
 script = ExtResource("3_td")
-tier = 1
 value_range = Vector2(5, 10)
 cost = 2
 weight = 3.0
@@ -85,7 +82,6 @@ tiers = Array[ExtResource("3_td")]([SubResource("inc_t1"), SubResource("inc_t2")
 
 [sub_resource type="Resource" id="mul_t1"]
 script = ExtResource("3_td")
-tier = 1
 value_range = Vector2(1.2, 1.3)
 cost = 30
 weight = 3.0

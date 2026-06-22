@@ -63,7 +63,11 @@ func _draw() -> void:
 		# even if both endpoints happen to share owner: owner identity is
 		# above the topology gate) at a thinner stroke so it reads as
 		# "structure breadcrumb" not "I see this edge clearly."
-		var sc := Color(color.r, color.g, color.b, 0.7)
+		# Low floor: sensed edges z-promote above the fog, so this alpha
+		# applies regardless of local darkness. Keep it modest so a sensed
+		# edge in pitch-black doesn't outshine a barely-visible unlit edge
+		# in someone's vision fade-zone.
+		var sc := Color(color.r, color.g, color.b, 0.35)
 		draw_line(a_trim, b_trim, sc, width * 0.75, true)
 		return
 	var c := lit_color if is_lit() else color

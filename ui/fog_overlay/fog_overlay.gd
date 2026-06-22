@@ -11,6 +11,10 @@ extends Node2D
 ## Falloff softens the circle edge.
 
 const _MAX_CIRCLES := 256
+# Visible elements in the fade zone dim toward this floor instead of being
+# bisected by the per-fragment fog gradient. Matches the sensed-outline
+# alpha so a node transitioning visible → sensed has no brightness jump.
+const _VISIBLE_DIM_FLOOR := 0.30
 
 @export var enabled: bool = true
 
@@ -72,6 +76,71 @@ func _refresh() -> void:
 		packed.append(Vector4.ZERO)
 	mat.set_shader_parameter(&"circles", packed)
 	mat.set_shader_parameter(&"circle_count", min(sources.size(), _MAX_CIRCLES))
+	_apply_per_element_dimming(sources)
+
+
+## Lift visible nodes/edges above the fog overlay and modulate their alpha
+## by the fog-darkness sampled at their CENTER (not per-fragment). Without
+## this, the per-fragment fog gradient bisects any node sitting in the fade
+## zone — half the disk reads clear, the other half pure black — and the
+## same node appears DARKER than a sensed neighbour in pitch black (sensed
+## elements already z-promote above the fog). Sensed elements are left to
+## their own render path (BaseCircle/Edge draw at a fixed sensed alpha).
+func _apply_per_element_dimming(sources: Array) -> void:
+	if vision_system == null or vision_system.graph == null:
+		return
+	var graph := vision_system.graph
+	for n in graph.get_skill_nodes():
+		if vision_system.is_sensed(n):
+			# Sensed path: SkillNode already z-promotes; keep modulate
+			# neutral so BaseCircle's fixed-alpha outline reads through.
+			n.modulate.a = 1.0
+			continue
+		if vision_system.is_visible(n):
+			var dark := _sample_dark(n.global_position, sources)
+			n.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
+			n.z_as_relative = false
+			n.z_index = 1001
+		else:
+			# Fully hidden: back to default z so the fog at z=1000 covers it.
+			n.modulate.a = 1.0
+			n.z_as_relative = true
+			n.z_index = 0
+	for e in graph.get_edges():
+		if e.sensed:
+			e.modulate.a = 1.0
+			continue
+		if e.from == null or e.to == null:
+			continue
+		var from_vis: bool = vision_system.is_visible(e.from)
+		var to_vis: bool = vision_system.is_visible(e.to)
+		if from_vis and to_vis:
+			var mid: Vector2 = (e.from.global_position + e.to.global_position) * 0.5
+			var dark := _sample_dark(mid, sources)
+			e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
+			e.z_as_relative = false
+			e.z_index = 1001
+		else:
+			e.modulate.a = 1.0
+			e.z_as_relative = true
+			e.z_index = 0
+
+
+## Mirrors the shader's darkness math (fog.gdshader): linear ramp 0 → 1
+## across the fade zone [(1-falloff)·r .. r], pinned at 1 beyond. Sampling
+## once per element at its center gives uniform per-element dimming.
+func _sample_dark(world_pos: Vector2, sources: Array) -> float:
+	if sources.is_empty():
+		return 1.0
+	var min_d: float = INF
+	for s in sources:
+		var pos: Vector2 = s.pos
+		var r: float = max(s.radius, 1.0)
+		var d: float = world_pos.distance_to(pos) / r
+		if d < min_d:
+			min_d = d
+	var fade_start: float = 1.0 - falloff
+	return clamp((min_d - fade_start) / max(falloff, 1e-4), 0.0, 1.0)
 
 
 func _apply_shader_intensity() -> void:
