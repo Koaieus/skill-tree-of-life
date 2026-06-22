@@ -95,6 +95,7 @@ func spawn_entity(
 	color: Color,
 	core_location: SkillNode = null,
 	core_class: CoreClass = null,
+	with_ai: bool = false,
 ) -> Entity:
 	var ent := Entity.new()
 	ent.name = ent_name
@@ -106,6 +107,10 @@ func spawn_entity(
 	if core_location != null:
 		allocation_system.force_allocate(ent, core_location)
 		ent.core_location = core_location
+	if with_ai:
+		var ai := AIController.new()
+		ai.name = "AIController"
+		ent.add_child(ai)
 	return ent
 
 

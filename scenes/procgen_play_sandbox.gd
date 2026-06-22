@@ -63,7 +63,7 @@ func _setup_level() -> void:
 	var enemies: Array[Entity] = []
 	for i in range(1, starting_nodes.size()):
 		var color: Color = enemy_colors[(i - 1) % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
-		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i], core_class))
+		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i], core_class, true))
 
 	# Wire systems that needed live entities (edit-time NodePaths can't bind
 	# to nodes that don't exist yet).
