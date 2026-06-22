@@ -2,18 +2,24 @@
 
 [ext_resource type="Script" uid="uid://ca6olga8di2iy" path="res://ui/labeled_progress_bar.gd" id="1_lpb"]
 
-[node name="LabeledProgressBar" type="ProgressBar"]
-custom_minimum_size = Vector2(0, 18)
+[node name="LabeledProgressBar" type="ProgressBar" unique_id=1921482563]
+custom_minimum_size = Vector2(0, 20)
 show_percentage = false
 script = ExtResource("1_lpb")
 
-[node name="Text" type="Label" parent="."]
+[node name="Text" type="Label" parent="." unique_id=1705971391]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.5
+offset_top = -11.5
+offset_right = 20.5
+offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
+text = "fyfytf"
 horizontal_alignment = 1
 vertical_alignment = 1

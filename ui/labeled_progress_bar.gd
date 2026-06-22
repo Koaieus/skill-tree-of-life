@@ -12,6 +12,7 @@ extends ProgressBar
 
 const SCENE: PackedScene = preload("res://ui/labeled_progress_bar.tscn")
 
+@onready var label: Label = $Text
 
 static func create() -> LabeledProgressBar:
 	return SCENE.instantiate() as LabeledProgressBar
@@ -23,6 +24,5 @@ func set_values(text: String, current: float, maximum: float, tint: Color) -> vo
 	self_modulate = tint
 	max_value = max(1.0, maximum)
 	value = current
-	var label: Label = get_node_or_null("Text")
 	if label != null:
 		label.text = text
