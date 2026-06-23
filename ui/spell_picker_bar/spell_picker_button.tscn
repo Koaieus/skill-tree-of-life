@@ -1,67 +1,38 @@
 [gd_scene format=3 uid="uid://w2m6rt1jv4vs"]
 
 [ext_resource type="Script" path="res://ui/spell_picker_bar/spell_picker_button.gd" id="1_spbtn"]
+[ext_resource type="PackedScene" uid="uid://ciwfwr1bjujfw" path="res://ui/spell_picker_bar/spell_picker_button_tick.tscn" id="2_77ytg"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_normal"]
-bg_color = Color(0.1, 0.13, 0.2, 0.85)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.4, 0.5, 0.7, 0.35)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hover"]
-bg_color = Color(0.14, 0.18, 0.28, 0.92)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.6, 0.8, 1.0, 0.6)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hover"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pressed"]
-bg_color = Color(0.18, 0.24, 0.4, 0.95)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.55, 0.95, 1.0, 0.9)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_pressed"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_disabled"]
-bg_color = Color(0.08, 0.08, 0.1, 0.6)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0.3, 0.35, 0.3)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_disabled"]
 
-[node name="SpellPickerButton" type="Button"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[node name="SpellPickerButton" type="Button" unique_id=1390665668]
 custom_minimum_size = Vector2(96, 96)
 focus_mode = 0
+theme_override_colors/font_color = Color(0, 0, 0, 0)
+theme_override_colors/font_focus_color = Color(0, 0, 0, 0)
+theme_override_colors/font_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_color = Color(0, 0, 0, 0)
+theme_override_colors/font_hover_pressed_color = Color(0, 0, 0, 0)
+theme_override_colors/font_disabled_color = Color(0, 0, 0, 0)
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_hover")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_pressed")
+theme_override_styles/hover_pressed = SubResource("StyleBoxEmpty_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 toggle_mode = true
-theme_override_styles/normal = SubResource("StyleBoxFlat_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_pressed")
-theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_pressed")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_disabled")
+clip_text = true
 script = ExtResource("1_spbtn")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="Bg" type="ColorRect" parent="." unique_id=1234567001]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -69,16 +40,48 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/separation = 2
 
-[node name="Ticks" type="HBoxContainer" parent="VBox"]
-layout_mode = 2
-size_flags_horizontal = 4
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=763785463]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
 mouse_filter = 2
-theme_override_constants/separation = 3
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 1
+
+[node name="Ticks" type="HBoxContainer" parent="MarginContainer" unique_id=668879426]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
 alignment = 1
 
-[node name="Icon" type="TextureRect" parent="VBox"]
+[node name="SpellPickerButtonTick" parent="MarginContainer/Ticks" unique_id=1608004441 instance=ExtResource("2_77ytg")]
+layout_mode = 2
+
+[node name="SpellPickerButtonTick2" parent="MarginContainer/Ticks" unique_id=1020152081 instance=ExtResource("2_77ytg")]
+layout_mode = 2
+
+[node name="SpellPickerButtonTick3" parent="MarginContainer/Ticks" unique_id=967620707 instance=ExtResource("2_77ytg")]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1687825941]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 14.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="Icon" type="TextureRect" parent="VBox" unique_id=1442974103]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -86,22 +89,27 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="LetterLabel" type="Label" parent="VBox/Icon"]
+[node name="LetterLabel" type="Label" parent="VBox/Icon" unique_id=1609604383]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme_override_font_sizes/font_size = 28
 horizontal_alignment = 1
 vertical_alignment = 1
+text = "?"
 
-[node name="NameLabel" type="Label" parent="VBox"]
+[node name="NameLabel" type="Label" parent="VBox" unique_id=1053795080]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
-mouse_filter = 2
-text = ""
 horizontal_alignment = 1
 clip_text = true
+
+[connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
+[connection signal="resized" from="." to="." method="_on_resized"]
+[connection signal="toggled" from="." to="." method="_on_toggled"]

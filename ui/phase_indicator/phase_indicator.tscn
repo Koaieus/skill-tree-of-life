@@ -28,6 +28,7 @@ script = ExtResource("1_pi")
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
+offset_top = -24.0
 offset_bottom = 64.0
 grow_horizontal = 2
 mouse_filter = 2

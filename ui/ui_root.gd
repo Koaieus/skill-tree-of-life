@@ -133,6 +133,10 @@ func _on_phase_changed(entity: Entity, phase: TurnManager.Phase) -> void:
 		TurnManager.Phase.CONTRACT: end_turn_button.text = "Expand"
 		TurnManager.Phase.EXPAND:   end_turn_button.text = "Battle"
 		TurnManager.Phase.BATTLE:   end_turn_button.text = "End Turn"
+	# Defensive: every phase transition also reaffirms button enabled state.
+	# turn_started is the canonical trigger, but if any rotation path ever
+	# leaves the button stale, the next phase change recovers it.
+	_refresh_end_turn_button()
 	# Banner: only the player gets phase announcements, and CONTRACT is
 	# folded into the turn-start banner so we don't double up.
 	if entity == _player:

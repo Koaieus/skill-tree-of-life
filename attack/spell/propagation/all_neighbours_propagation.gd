@@ -29,6 +29,6 @@ func next_hops(state: CastSpell) -> Array[CastSpell]:
 
 func get_description() -> String:
 	var hops := "%d hop%s" % [max_hops, "" if max_hops == 1 else "s"]
-	var falloff := "" if is_equal_approx(damage_multiplier_per_hop, 1.0) else " (×%.2g per hop)" % damage_multiplier_per_hop
+	var falloff := "" if is_equal_approx(damage_multiplier_per_hop, 1.0) else " (×%.2f per hop)" % damage_multiplier_per_hop
 	var scope := "enemy neighbours" if only_enemy else "all neighbours"
 	return "Chains to %s, up to %s%s." % [scope, hops, falloff]
