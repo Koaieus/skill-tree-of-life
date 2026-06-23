@@ -3,6 +3,24 @@
 [ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/attack_mode_bar/attack_mode_button.tscn" id="1_lgd3m"]
 [ext_resource type="Script" uid="uid://dbby8cnmigwn0" path="res://ui/attack_mode_bar/attack_mode_bar.gd" id="1_lh5ky"]
 
+[sub_resource type="InputEventAction" id="InputEventAction_hcxj6"]
+action = &"ui_select_melee_mode"
+
+[sub_resource type="Shortcut" id="Shortcut_cxu8c"]
+events = [SubResource("InputEventAction_hcxj6")]
+
+[sub_resource type="InputEventAction" id="InputEventAction_cxu8c"]
+action = &"ui_select_ranged_mode"
+
+[sub_resource type="Shortcut" id="Shortcut_yg4qb"]
+events = [SubResource("InputEventAction_cxu8c")]
+
+[sub_resource type="InputEventAction" id="InputEventAction_65xm6"]
+action = &"ui_select_magic_mode"
+
+[sub_resource type="Shortcut" id="Shortcut_ei3j1"]
+events = [SubResource("InputEventAction_65xm6")]
+
 [node name="ActionBar" type="HBoxContainer" unique_id=479899127]
 offset_right = 392.0
 offset_bottom = 64.0
@@ -14,6 +32,7 @@ script = ExtResource("1_lh5ky")
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
+shortcut = SubResource("Shortcut_cxu8c")
 text = "Melee"
 tint = Color(1, 0, 0, 1)
 attack_mode = 1
@@ -22,6 +41,7 @@ attack_mode = 1
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
+shortcut = SubResource("Shortcut_yg4qb")
 text = "Ranged"
 tint = Color(0, 1, 0, 1)
 attack_mode = 2
@@ -30,6 +50,7 @@ attack_mode = 2
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
+shortcut = SubResource("Shortcut_ei3j1")
 text = "Magic"
 tint = Color(0, 0, 1, 1)
 attack_mode = 3

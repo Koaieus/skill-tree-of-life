@@ -13,6 +13,12 @@
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
 
+[sub_resource type="InputEventAction" id="InputEventAction_yut8h"]
+action = &"ui_launch_attack"
+
+[sub_resource type="Shortcut" id="Shortcut_7yw0p"]
+events = [SubResource("InputEventAction_yut8h")]
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bg"]
 resource_local_to_scene = true
 shader = ExtResource("2_fire")
@@ -42,6 +48,7 @@ theme_override_styles/hover = SubResource("StyleBoxEmpty_hover")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 disabled = true
+shortcut = SubResource("Shortcut_7yw0p")
 text = "Launch"
 script = ExtResource("1_launch")
 

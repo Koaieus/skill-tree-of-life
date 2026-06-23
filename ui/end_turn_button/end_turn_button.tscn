@@ -13,6 +13,12 @@
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
 
+[sub_resource type="InputEventAction" id="InputEventAction_ys8lc"]
+action = &"ui_end_turn"
+
+[sub_resource type="Shortcut" id="Shortcut_0oa04"]
+events = [SubResource("InputEventAction_ys8lc")]
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_bg"]
 resource_local_to_scene = true
 shader = ExtResource("2_vortex")
@@ -23,6 +29,7 @@ shader_parameter/hot_color = Color(0.85, 0.95, 1, 1)
 shader_parameter/glow_strength = 0.0
 shader_parameter/active_strength = 0.0
 shader_parameter/disabled_strength = 0.0
+shader_parameter/phase_blend = 0.0
 
 [sub_resource type="LabelSettings" id="LabelSettings_text"]
 font_size = 22
@@ -41,6 +48,7 @@ theme_override_styles/pressed = SubResource("StyleBoxEmpty_pressed")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_hover")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+shortcut = SubResource("Shortcut_0oa04")
 text = "End Turn"
 script = ExtResource("1_endturn")
 
