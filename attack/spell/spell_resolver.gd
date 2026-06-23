@@ -23,8 +23,8 @@ static func resolve(
 	if spell == null or spell.propagation == null or target == null or graph == null:
 		return outcome
 	var prop := spell.propagation
-	var initial := SpellState.new()
-	initial.seed = target
+	var initial := CastSpell.new()
+	initial.seed_node = target
 	initial.current_node = target
 	initial.predecessor = null
 	initial.source = source
@@ -36,9 +36,9 @@ static func resolve(
 	initial.graph = graph
 	# BFS queue — pop_front + append yields strictly hop-monotonic order,
 	# which is what the VFX layer wants for staggering.
-	var queue: Array[SpellState] = [initial]
+	var queue: Array[CastSpell] = [initial]
 	while not queue.is_empty():
-		var state: SpellState = queue.pop_front()
+		var state: CastSpell = queue.pop_front()
 		for eff in spell.on_hit_effects:
 			if eff != null:
 				eff.apply(state, outcome)

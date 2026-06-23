@@ -1,4 +1,4 @@
-class_name SpellState
+class_name CastSpell
 extends RefCounted
 
 ## The in-flight carrier for a spell propagating through the graph. One
@@ -10,7 +10,9 @@ extends RefCounted
 ## sort by [member hop_index] for VFX staggering.
 
 ## The original target the cast seeded at. Immutable across hops.
-var seed: SkillNode = null
+## Field is [code]seed_node[/code] (not [code]seed[/code]) to avoid shadowing
+## the GDScript built-in [code]seed()[/code] PRNG function.
+var seed_node: SkillNode = null
 ## Where the in-flight spell currently lives.
 var current_node: SkillNode = null
 ## Graph predecessor in the walk. Null at the seed. For visual chains the

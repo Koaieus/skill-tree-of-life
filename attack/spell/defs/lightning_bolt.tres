@@ -27,6 +27,7 @@ range_finder = SubResource("range_lightning")
 script = ExtResource("1_spell")
 name = "Lightning Bolt"
 description = "Deal full damage to the target, then chain to every enemy neighbour up to 3 hops away — damage halves each hop. No friendly fire."
+min_degree = 2
 mana_cost = 2
 base_damage = 10.0
 propagation = SubResource("prop_lightning")

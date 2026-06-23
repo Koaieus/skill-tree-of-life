@@ -100,6 +100,16 @@ func get_mirrored_nodes() -> Array[SkillNode]:
 	return result
 
 
+## Degree of [param node] in the mirror — number of edges to other mirrored
+## nodes. Returns -1 if the node isn't in the mirror so callers can tell
+## "unowned" apart from "owned but isolated (degree 0)".
+func get_degree(node: SkillNode) -> int:
+	var id := vertex_id(node)
+	if id < 0:
+		return -1
+	return astar.get_point_connections(id).size()
+
+
 ## All mirrored nodes whose degree in the mirror equals [param degree].
 func get_nodes_by_degree(degree: int) -> Array[SkillNode]:
 	var result: Array[SkillNode] = []

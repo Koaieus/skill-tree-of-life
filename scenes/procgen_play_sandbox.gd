@@ -12,6 +12,18 @@ extends GameRoot
 
 const _STARTER_GROUP := &"procgen_starter"
 const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
+const _STARTING_SPELLS: Array[SpellDef] = [
+	preload("res://attack/spell/defs/spark.tres"),
+	preload("res://attack/spell/defs/lightning_bolt.tres"),
+]
+
+
+# Runtime-built spellbook for sandbox starts. Once a "player profile" lands
+# this should come from there instead.
+static func _make_starting_spellbook() -> SpellBook:
+	var book := SpellBook.new()
+	book.spells = _STARTING_SPELLS.duplicate()
+	return book
 
 @export var preset: GraphProcgenConfig
 @export var player_color: Color = Color(0.4, 0.8, 1.0)
@@ -62,6 +74,7 @@ func _setup_level() -> void:
 		(n as Node).add_to_group(_STARTER_GROUP)
 
 	player = spawn_entity("Player", player_color, starting_nodes[0], core_class)
+	player.spellbook = _make_starting_spellbook()
 
 	var enemies: Array[Entity] = []
 	for i in range(1, starting_nodes.size()):

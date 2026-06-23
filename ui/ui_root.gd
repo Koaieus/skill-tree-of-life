@@ -12,6 +12,9 @@ class_name UIRoot
 @onready var launch_attack_button: LaunchAttackButton = %LaunchAttackButton
 @onready var end_turn_button: EndTurnButton = %EndTurnButton
 @onready var banner_layer: BannerLayer = %BannerLayer
+@onready var phase_indicator: PhaseIndicator = %PhaseIndicator
+@onready var phase_context_panel: PhaseContextPanel = %PhaseContextPanel
+@onready var spell_picker_bar: SpellPickerBar = %SpellPickerBar
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -69,11 +72,47 @@ func compose(game_root: GameRoot) -> void:
 	# BattleSystem (or Entity) gains one.
 	_player.leveled_up.connect(_on_player_leveled_up)
 
+	# Phase-driven contextual widgets: both self-subscribe once handed refs.
+	phase_indicator.bind(_turn_manager)
+	phase_context_panel.bind(_turn_manager, _battle_system)
+
+	# Spell picker. Bound to the player's spellbook; default-selects the first
+	# known spell so MagicAttackPlans land armed rather than falling back to
+	# the bundled spell. Picker emits its selection; we route to BattleSystem
+	# which updates any live magic plan in place. Bar visibility tracks magic
+	# mode and its castability gating tracks the plan's selected source.
+	spell_picker_bar.bind_spellbook(_player.spellbook)
+	spell_picker_bar.spell_selected.connect(_on_spell_selected)
+	_battle_system.selected_spell_changed.connect(spell_picker_bar.sync_selected)
+	if _player.spellbook != null and not _player.spellbook.spells.is_empty():
+		_battle_system.selected_spell = _player.spellbook.spells[0]
+	_refresh_spell_picker_visibility()
+
 
 func _on_attack_plan_changed(plan: AttackPlan) -> void:
 	var mode := plan.mode if plan else BattleSystem.AttackMode.NONE
 	attack_mode_bar.set_active_mode(mode)
 	_refresh_launch_button()
+	_refresh_spell_picker_visibility()
+	_refresh_spell_picker_gating()
+
+
+func _refresh_spell_picker_visibility() -> void:
+	if spell_picker_bar == null:
+		return
+	var plan := _battle_system.attack_plan if _battle_system != null else null
+	spell_picker_bar.visible = plan is MagicAttackPlan
+
+
+func _refresh_spell_picker_gating() -> void:
+	if spell_picker_bar == null or _battle_system == null:
+		return
+	var plan := _battle_system.attack_plan
+	if plan is MagicAttackPlan:
+		var mp := plan as MagicAttackPlan
+		spell_picker_bar.update_gating_context(mp.attacker, mp.source)
+	else:
+		spell_picker_bar.update_gating_context(null, null)
 
 
 ## Plan presence + validity gate the launch button. Subscribed to both plan
@@ -82,6 +121,10 @@ func _on_attack_plan_changed(plan: AttackPlan) -> void:
 func _refresh_launch_button() -> void:
 	var plan := _battle_system.attack_plan
 	launch_attack_button.set_enabled(plan != null and plan.is_valid())
+	# Source picks on the magic plan don't change the plan instance — they
+	# fire attack_plan_state_changed. Refresh picker gating off the same hook
+	# so disabled-state tracks the live source.
+	_refresh_spell_picker_gating()
 
 
 func _on_phase_changed(entity: Entity, phase: TurnManager.Phase) -> void:
@@ -126,6 +169,10 @@ func _on_player_leveled_up(new_level: int) -> void:
 
 func _refresh_end_turn_button() -> void:
 	end_turn_button.set_enabled(_turn_manager.current_entity == _player)
+
+
+func _on_spell_selected(spell: SpellDef) -> void:
+	_battle_system.selected_spell = spell
 
 
 func _on_end_turn_pressed() -> void:

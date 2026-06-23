@@ -8,6 +8,9 @@
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="5_launch"]
 [ext_resource type="PackedScene" uid="uid://b3prak7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="6_endturn"]
 [ext_resource type="PackedScene" path="res://ui/banner_layer/banner_layer.tscn" id="7_banner"]
+[ext_resource type="PackedScene" uid="uid://b78r0ampnwcmy" path="res://ui/phase_context_panel/phase_context_panel.tscn" id="8_pcp"]
+[ext_resource type="PackedScene" uid="uid://rovajbp1a4to" path="res://ui/phase_indicator/phase_indicator.tscn" id="9_pi"]
+[ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="10_sp"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 layout_mode = 3
@@ -19,6 +22,23 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_d55xy")
 
+[node name="PhaseIndicator" parent="." unique_id=1515209527 instance=ExtResource("9_pi")]
+unique_name_in_owner = true
+layout_mode = 0
+anchors_preset = 0
+anchor_left = 0.0
+anchor_right = 0.0
+offset_left = 720.0
+offset_right = 720.0
+grow_horizontal = 2
+size_flags_horizontal = 4
+
+[node name="SkillNodeTooltip" parent="." unique_id=1365414747 instance=ExtResource("2_tooltip")]
+visible = false
+layout_mode = 0
+offset_right = 180.0
+offset_bottom = 55.0
+
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1297335697]
 layout_mode = 1
 anchors_preset = 15
@@ -29,6 +49,7 @@ grow_vertical = 2
 mouse_filter = 2
 
 [node name="PanelContainerTop" type="PanelContainer" parent="VBoxContainer" unique_id=657225226]
+visible = false
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/PanelContainerTop" unique_id=1459593063]
@@ -122,30 +143,18 @@ layout_mode = 2
 text = "Center"
 
 [node name="Right" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=355221347]
-visible = false
-custom_minimum_size = Vector2(200, 0)
+custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 size_flags_horizontal = 8
 
-[node name="PanelContainerRight" type="PanelContainer" parent="VBoxContainer/HBoxContainer/Right" unique_id=118152412]
+[node name="PhaseContextPanel" parent="VBoxContainer/HBoxContainer/Right" unique_id=2140263214 instance=ExtResource("8_pcp")]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 10
-
-[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/HBoxContainer/Right/PanelContainerRight" unique_id=115445108]
-layout_mode = 2
-theme_override_constants/margin_left = 15
-theme_override_constants/margin_top = 15
-theme_override_constants/margin_right = 15
-theme_override_constants/margin_bottom = 15
-
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer/Right/PanelContainerRight/MarginContainer" unique_id=280379430]
-layout_mode = 2
-text = "Right panel"
 
 [node name="PanelContainerBottom" type="PanelContainer" parent="VBoxContainer" unique_id=818145290]
 custom_minimum_size = Vector2(0, 100)
@@ -184,6 +193,21 @@ size_flags_horizontal = 4
 size_flags_vertical = 4
 mouse_filter = 2
 
+[node name="SpellPickerBar" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=1980495664 instance=ExtResource("10_sp")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -196.0
+offset_top = -64.0
+offset_right = 196.0
+offset_bottom = -36.0
+grow_horizontal = 2
+grow_vertical = 2
+
 [node name="AttackModeBar" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2" unique_id=479899127 instance=ExtResource("4_6qk7i")]
 unique_name_in_owner = true
 layout_mode = 1
@@ -219,8 +243,5 @@ offset_bottom = 32.0
 grow_horizontal = 0
 grow_vertical = 2
 
-[node name="SkillNodeTooltip" parent="." unique_id=1365414747 instance=ExtResource("2_tooltip")]
-layout_mode = 0
-
-[node name="BannerLayer" parent="." instance=ExtResource("7_banner")]
+[node name="BannerLayer" parent="." unique_id=1723132126 instance=ExtResource("7_banner")]
 unique_name_in_owner = true

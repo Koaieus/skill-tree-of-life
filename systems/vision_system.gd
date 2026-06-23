@@ -240,11 +240,11 @@ func _recompute() -> void:
 	else:
 		var owned_per_viewer: Dictionary = {}
 		for n in nodes:
-			var owner: Entity = n.owned_by
-			if owner != null and owner in effective:
-				if not owned_per_viewer.has(owner):
-					owned_per_viewer[owner] = []
-				owned_per_viewer[owner].append(n)
+			var node_owner: Entity = n.owned_by
+			if node_owner != null and node_owner in effective:
+				if not owned_per_viewer.has(node_owner):
+					owned_per_viewer[node_owner] = []
+				owned_per_viewer[node_owner].append(n)
 
 		# Logical visibility uses TARGET radii, not animated. Targeting and
 		# input gating snap on allocation; only the render fades.

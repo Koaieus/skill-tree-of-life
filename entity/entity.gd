@@ -17,6 +17,11 @@ signal leveled_up(new_level: int)
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.
 ## Optional — null means a plain entity with no class bonuses.
 @export var core_class: CoreClass = null
+## Spells this entity knows + the gating logic for whether they can be cast
+## from a given node (degree, etc.). Surfaced by the spell-picker UI and
+## consulted by AI when scoring magic attacks. Promotion of a known spell
+## into the active slot happens via [member BattleSystem.selected_spell].
+@export var spellbook: SpellBook = null
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:

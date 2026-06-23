@@ -2,10 +2,13 @@ class_name MagicAttackPlan
 extends AttackPlan
 
 ## Right-click an owned node to set the casting source; left-click a valid
-## target per the equipped spell's targeting. Auto-equips a default spell at
-## plan creation — spell-picker UI lands later.
+## target per the equipped spell's targeting. The active spell comes from
+## [BattleSystem.selected_spell] when the plan is constructed by the system;
+## hand-instantiated plans (tests, AI scoring) can assign [member spell]
+## directly. Falls back to the bundled default if nothing is selected so the
+## plan is never silently unarmed.
 
-const _DEFAULT_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
+const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
 var source: SkillNode = null
 var spell: SpellDef = null
@@ -14,7 +17,7 @@ var target: SkillNode = null
 
 func _init() -> void:
 	mode = BattleSystem.AttackMode.MAGIC
-	spell = _DEFAULT_SPELL
+	spell = _FALLBACK_SPELL
 
 
 func _on_node_right_clicked(node: SkillNode) -> void:
@@ -61,9 +64,22 @@ func validate() -> Array[String]:
 		errors.append_array(spell.validate(self))
 	if source == null:
 		errors.append(&'No source selected')
+	elif spell != null and attacker != null \
+			and not _source_meets_min_degree(spell, source):
+		errors.append(&'Source node degree too low for spell')
 	if target == null:
 		errors.append(&'No target selected')
 	return errors
+
+
+func _source_meets_min_degree(spell_def: SpellDef, src: SkillNode) -> bool:
+	if attacker.spellbook != null:
+		return attacker.spellbook.is_castable(spell_def, src, attacker)
+	# No spellbook? Fall back to a direct navigator check — keeps the gate
+	# functional for tests / scripted setups that skip the book entirely.
+	if attacker.navigator == null:
+		return false
+	return attacker.navigator.get_degree(src) >= spell_def.min_degree
 
 
 func get_available_spells() -> Array[SpellDef]:
@@ -77,7 +93,27 @@ func _target_still_valid() -> bool:
 
 
 func resolve() -> AttackOutcome:
-	# Stub: spell resolution lands with the spell-effect payload (TBD per
-	# SpellDef header). Empty outcome lets the launch flow run dry — useful
-	# for verifying button gating against MagicAttackPlan without damage.
-	return AttackOutcome.new()
+	if spell == null or source == null or target == null:
+		return AttackOutcome.new()
+	# Walk parents to find the Graph; SkillNodes live under Graph/SkillNodes.
+	var n: Node = source
+	while n != null and not (n is Graph):
+		n = n.get_parent()
+	var graph: Graph = n
+	if graph == null:
+		return AttackOutcome.new()
+	var outcome := SpellResolver.resolve(spell, target, source, attacker, graph)
+	outcome.mana_cost = spell.mana_cost
+	return outcome
+
+
+## Swap the equipped spell mid-plan. Clears the target if the new spell's
+## targeting would reject it, so the player can't accidentally cast with a
+## stale pick. Emits [signal state_changed] so the UI re-paints.
+func set_spell(new_spell: SpellDef) -> void:
+	if spell == new_spell:
+		return
+	spell = new_spell
+	if target != null and not _target_still_valid():
+		target = null
+	state_changed.emit()

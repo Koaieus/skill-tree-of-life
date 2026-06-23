@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://b78r0ampnwcmy"]
+
+[ext_resource type="Script" uid="uid://cnmd48v0udxiq" path="res://ui/phase_context_panel/phase_context_panel.gd" id="1_pcp"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pcp"]
+bg_color = Color(0.08, 0.1, 0.16, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.5, 0.7, 0.4)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="PhaseContextPanel" type="PanelContainer" unique_id=932006098]
+custom_minimum_size = Vector2(220, 0)
+size_flags_horizontal = 0
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_pcp")
+script = ExtResource("1_pcp")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=1038064613]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="Margin" unique_id=542363778]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="Label" parent="Margin/VBox" unique_id=1477645172]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "—"
+
+[node name="BodySlot" type="VBoxContainer" parent="Margin/VBox" unique_id=591811130]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6

@@ -20,6 +20,21 @@ signal attack_plan_state_changed
 ## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
 signal cascade_started(layers: Array, defender: Entity)
 
+## The currently-selected spell for magic attacks. Updated by the spell-picker
+## UI; consumed by [method _new_plan] when constructing a [MagicAttackPlan].
+## Null means "use the plan's bundled fallback". Live mutation is supported:
+## changing this while a magic plan is active re-equips on the active plan
+## via [method MagicAttackPlan.set_spell].
+signal selected_spell_changed(spell: SpellDef)
+var selected_spell: SpellDef = null:
+	set(value):
+		if selected_spell == value:
+			return
+		selected_spell = value
+		if attack_plan is MagicAttackPlan:
+			(attack_plan as MagicAttackPlan).set_spell(value)
+		selected_spell_changed.emit(value)
+
 @export var turn_manager: TurnManager
 @export var allocation_system: AllocationSystem
 @export var graph: Graph
@@ -71,6 +86,8 @@ func request_attack_mode(mode: AttackMode) -> void:
 func _new_plan(plan_class: Script) -> AttackPlan:
 	var p: AttackPlan = plan_class.new()
 	p.attacker = turn_manager.current_entity
+	if p is MagicAttackPlan and selected_spell != null:
+		(p as MagicAttackPlan).spell = selected_spell
 	return p
 
 # Called when the node enters the scene tree for the first time.
@@ -98,26 +115,42 @@ func launch_attack() -> void:
 		push_warning("BattleSystem.launch_attack: no current entity")
 		return
 	var outcome := attack_plan.resolve()
-	var ap_pool: PoolStat = entity.stat_board.action_points \
-			if entity.stat_board != null else null
+	var board: StatBoard = entity.stat_board
+	var ap_pool: PoolStat = board.action_points if board != null else null
 	if ap_pool != null and ap_pool.current < float(outcome.ap_cost):
 		push_warning("BattleSystem.launch_attack: insufficient AP (%d < %d)" \
 				% [int(ap_pool.current), outcome.ap_cost])
 		return
+	var mana_pool: PoolStat = board.mana if board != null else null
+	if outcome.mana_cost > 0 and mana_pool != null \
+			and mana_pool.current < float(outcome.mana_cost):
+		push_warning("BattleSystem.launch_attack: insufficient mana (%d < %d)" \
+				% [int(mana_pool.current), outcome.mana_cost])
+		return
 	if ap_pool != null:
 		ap_pool.deplete(float(outcome.ap_cost))
+	if outcome.mana_cost > 0 and mana_pool != null:
+		mana_pool.deplete(float(outcome.mana_cost))
 	# Melee: hand off to the MeleePreview (which has the ghost mounted) for
 	# the live swing + damage application BEFORE clearing the plan, so the
-	# blade can read selection state during the await. Other modes go via
-	# the ranged/magic VFX path that consumes the precomputed outcome.
+	# blade can read selection state during the await. Magic uses the spell's
+	# bundled coordinator scene. Ranged falls back to the default ranged volley.
 	if attack_plan is MeleeAttackPlan and melee_preview != null:
 		var melee_plan: MeleeAttackPlan = attack_plan
 		_reset()
 		await melee_preview.launch(melee_plan)
 		return
+	var coord_scene: PackedScene = null
+	if attack_plan is MagicAttackPlan:
+		var magic_plan: MagicAttackPlan = attack_plan
+		if magic_plan.spell != null:
+			coord_scene = magic_plan.spell.vfx_coordinator_scene
 	_reset()
 	if attack_vfx != null:
-		await attack_vfx.play_ranged_volley(outcome)
+		if coord_scene != null:
+			await attack_vfx.play(coord_scene, outcome)
+		else:
+			await attack_vfx.play_ranged_volley(outcome)
 	else:
 		# Headless / no-VFX path: apply damage directly so tests can still
 		# observe the outcome without a scene-attached VFX node.

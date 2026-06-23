@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://dqlt773tgviy7"]
+
+[ext_resource type="Script" path="res://ui/spell_picker_bar/spell_picker_bar.gd" id="1_picker"]
+
+[node name="SpellPickerBar" type="HBoxContainer"]
+size_flags_horizontal = 4
+size_flags_vertical = 0
+script = ExtResource("1_picker")

@@ -23,6 +23,13 @@ extends PoolStat
 
 signal wounded_changed
 signal staked_changed
+## Delta signals carry the change amount (always positive). Use these for
+## animation triggers (pulses, floaters); use [signal wounded_changed] /
+## [signal staked_changed] for snapshot re-renders.
+signal wounds_applied(amount: int)
+signal wounds_healed(amount: int)
+signal stake_applied(amount: int)
+signal stake_extracted(amount: int)
 
 @export var wounded: int = 0:
 	set(v):
@@ -76,14 +83,20 @@ func refund(n: int) -> void:
 ## (the node is gone), wounded climbs — SP doesn't return to current.
 func wound(n: int) -> void:
 	var amount: int = min(n, used)
+	if amount <= 0:
+		return
 	wounded += amount
+	wounds_applied.emit(amount)
 
 
 ## Heal N wounds: transfer wounded → current.
 func heal(n: int) -> void:
 	var amount: int = min(n, wounded)
+	if amount <= 0:
+		return
 	wounded -= amount
 	set_current(current + float(amount))
+	wounds_healed.emit(amount)
 
 
 ## Stake N: transfer current → staked (raise a node's allocation cap).
@@ -92,14 +105,18 @@ func stake(n: int) -> bool:
 		return false
 	staked += n
 	set_current(current - float(n))
+	stake_applied.emit(n)
 	return true
 
 
 ## Extract N staked SP back into current — the inverse of stake().
 func extract(n: int) -> void:
 	var amount: int = min(n, staked)
+	if amount <= 0:
+		return
 	staked -= amount
 	set_current(current + float(amount))
+	stake_extracted.emit(amount)
 
 
 # --- Mints (max grows) ------------------------------------------------------

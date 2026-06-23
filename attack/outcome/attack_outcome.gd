@@ -11,7 +11,10 @@ extends RefCounted
 var hits: Array[DamageInstance] = []
 ## Action points consumed on commit.
 var ap_cost: int = 1
+## Mana consumed on commit. Spell plans copy from [member SpellDef.mana_cost];
+## non-magic plans leave it at 0.
+var mana_cost: int = 0
 
 
 func _to_string() -> String:
-	return "<AttackOutcome %d hit(s), %d AP>" % [hits.size(), ap_cost]
+	return "<AttackOutcome %d hit(s), %d AP, %d mana>" % [hits.size(), ap_cost, mana_cost]

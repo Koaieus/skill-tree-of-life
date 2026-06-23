@@ -10,6 +10,15 @@ extends Resource
 
 @export var name: String
 @export_multiline var description: String
+## Spell-card iconography. Rendered in the spell picker (top, large) and in
+## tooltips. Optional — falls back to a glyph derived from the spell name.
+@export var icon: Texture2D = null
+
+## Required degree for [SkillNodes] to have (how many edges they have) before this spell may be fired
+# 	could also opt for encoding this as an named (int)enum
+@export var min_degree: int = 1
+
+## Required mana to cast this spell
 @export var mana_cost: int = 0
 
 ## Initial damage at the seed target. Multiplied at seed time by

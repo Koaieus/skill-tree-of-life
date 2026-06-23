@@ -8,5 +8,9 @@ extends SpellPropagation
 ## on-hit effects, not in propagation.
 
 
-func next_hops(_state: SpellState) -> Array[SpellState]:
+func next_hops(_state: CastSpell) -> Array[CastSpell]:
 	return []
+
+
+func get_description() -> String:
+	return "Single target."

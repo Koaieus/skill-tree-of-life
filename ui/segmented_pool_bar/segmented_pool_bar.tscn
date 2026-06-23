@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://b8segpoolbar0001"]
+
+[ext_resource type="Script" path="res://ui/segmented_pool_bar/segmented_pool_bar.gd" id="1_seg"]
+
+[node name="SegmentedPoolBar" type="HBoxContainer"]
+size_flags_horizontal = 0
+size_flags_vertical = 0
+script = ExtResource("1_seg")

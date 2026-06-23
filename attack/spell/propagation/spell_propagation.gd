@@ -25,7 +25,7 @@ extends Resource
 @export var seed_damage_fraction: float = 1.0
 
 ## Max recursion depth from the seed. 0 = seed only, no propagation. The
-## resolver stops descending when [member SpellState.hops_remaining] hits 0.
+## resolver stops descending when [member CastSpell.hops_remaining] hits 0.
 @export var max_hops: int = 0
 
 ## If true, the walk may re-enter a previously-hit node. Default false avoids
@@ -35,16 +35,23 @@ extends Resource
 
 ## Given the in-flight spell, return the set of states to propagate to next.
 ## Empty array terminates this branch. Implementations should not mutate
-## [param state] — produce fresh [SpellState] instances via [method _propagate_to].
-@abstract func next_hops(state: SpellState) -> Array[SpellState]
+## [param state] — produce fresh [CastSpell] instances via [method _propagate_to].
+@abstract func next_hops(state: CastSpell) -> Array[CastSpell]
+
+
+## One-line human-readable description of this propagation shape, surfaced in
+## tooltips / spell cards. Subclasses override; the base returns "" so any
+## propagation lacking an override simply renders no description line.
+func get_description() -> String:
+	return ""
 
 
 ## Helper for subclasses — mints a propagated state with the seed/caster/source
 ## copied through, hop counters advanced, and the per-hop damage multiplier
 ## applied. Subclasses call this once per neighbour they're propagating into.
-func _propagate_to(neighbour: SkillNode, state: SpellState) -> SpellState:
-	var next := SpellState.new()
-	next.seed = state.seed
+func _propagate_to(neighbour: SkillNode, state: CastSpell) -> CastSpell:
+	var next := CastSpell.new()
+	next.seed_node = state.seed_node
 	next.current_node = neighbour
 	next.predecessor = state.current_node
 	next.source = state.source

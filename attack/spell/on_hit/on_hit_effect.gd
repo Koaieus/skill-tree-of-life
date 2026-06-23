@@ -15,4 +15,4 @@ extends Resource
 ## [code]Engine.is_editor_hint()[/code] where appropriate.
 
 
-@abstract func apply(state: SpellState, outcome: AttackOutcome) -> void
+@abstract func apply(state: CastSpell, outcome: AttackOutcome) -> void
