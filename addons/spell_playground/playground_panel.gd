@@ -54,9 +54,21 @@ func _ready() -> void:
 	_refresh_status()
 
 
-## Called by the EditorPlugin when the inspector button fires.
+## Called by the EditorPlugin whenever a SpellDef becomes the inspected
+## object. Tolerates null (e.g. selecting something that isn't a SpellDef
+## via something other than the inspector) and rapid re-fires.
 func load_spell(spell: SpellDef) -> void:
+	if spell == _spell:
+		_refresh_status()
+		return
 	_spell = spell
+	_refresh_status()
+
+
+## Called by the EditorPlugin on `property_edited` — the spell reference
+## hasn't changed but one of its exports has. Re-render the readout so
+## live edits show up without re-clicking the inspector button.
+func refresh_from_spell() -> void:
 	_refresh_status()
 
 
@@ -128,7 +140,7 @@ func _refresh_status() -> void:
 		sn.modulate = _SELECTED_TINT if sn == _selected_target else _UNSELECTED_TINT
 	if not is_instance_valid(_spell):
 		_spell = null
-		status_label.text = "No spell loaded — select a SpellDef in the inspector and hit \"Open in Spell Playground\"."
+		status_label.text = "No spell loaded — select a SpellDef in the inspector to sync it here."
 		values_label.text = ""
 		cast_button.disabled = true
 		return

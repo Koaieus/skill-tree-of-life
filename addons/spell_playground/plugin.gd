@@ -1,9 +1,7 @@
 ## EditorPlugin: mounts a `PlaygroundPanel` in the bottom panel and an
-## `EditorInspectorPlugin` that adds an "Open in Spell Playground" button
-## whenever a [SpellDef] is selected.
-##
-## Mirrors the layout of addons/vfx_playground/plugin.gd — same pattern,
-## different domain (full spell resolution instead of just a coord preview).
+## `EditorInspectorPlugin` that auto-syncs the panel with whichever [SpellDef]
+## is currently inspected. The inspector button just reveals/focuses the
+## panel — no manual load step.
 @tool
 extends EditorPlugin
 
@@ -20,11 +18,21 @@ func _enter_tree() -> void:
 	add_control_to_bottom_panel(_panel, _BOTTOM_PANEL_TITLE)
 
 	_inspector = load("res://addons/spell_playground/spell_def_inspector.gd").new()
-	_inspector.playground_requested.connect(_on_playground_requested)
+	_inspector.spell_inspected.connect(_on_spell_inspected)
+	_inspector.reveal_panel_requested.connect(_on_reveal_requested)
 	add_inspector_plugin(_inspector)
+
+	# Live property edits in the inspector don't always re-fire _parse_begin,
+	# so subscribe to property_edited too and refresh the readout on edits.
+	var insp := EditorInterface.get_inspector()
+	if insp != null and not insp.property_edited.is_connected(_on_property_edited):
+		insp.property_edited.connect(_on_property_edited)
 
 
 func _exit_tree() -> void:
+	var insp := EditorInterface.get_inspector()
+	if insp != null and insp.property_edited.is_connected(_on_property_edited):
+		insp.property_edited.disconnect(_on_property_edited)
 	if is_instance_valid(_panel):
 		remove_control_from_bottom_panel(_panel)
 		_panel.queue_free()
@@ -32,6 +40,16 @@ func _exit_tree() -> void:
 		remove_inspector_plugin(_inspector)
 
 
-func _on_playground_requested(spell: SpellDef) -> void:
-	_panel.call(&"load_spell", spell)
-	make_bottom_panel_item_visible(_panel)
+func _on_spell_inspected(spell: SpellDef) -> void:
+	if is_instance_valid(_panel):
+		_panel.call(&"load_spell", spell)
+
+
+func _on_reveal_requested() -> void:
+	if is_instance_valid(_panel):
+		make_bottom_panel_item_visible(_panel)
+
+
+func _on_property_edited(_property: String) -> void:
+	if is_instance_valid(_panel):
+		_panel.call(&"refresh_from_spell")

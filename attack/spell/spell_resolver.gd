@@ -18,7 +18,8 @@ static func resolve(
 		target: SkillNode,
 		source: SkillNode,
 		caster: Entity,
-		graph: Graph) -> AttackOutcome:
+		graph: Graph,
+		rng: RandomNumberGenerator = null) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	if spell == null or spell.propagation == null or target == null or graph == null:
 		return outcome
@@ -34,6 +35,7 @@ static func resolve(
 	initial.visited = [target]
 	initial.caster = caster
 	initial.graph = graph
+	initial.rng = rng
 	# BFS queue — pop_front + append yields strictly hop-monotonic order,
 	# which is what the VFX layer wants for staggering.
 	var queue: Array[CastSpell] = [initial]

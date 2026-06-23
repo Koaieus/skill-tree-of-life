@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="RankedStatPropagation" format=3]
+
+[ext_resource type="Script" path="res://attack/spell/propagation/ranked_stat_propagation.gd" id="1_rank"]
+
+[resource]
+script = ExtResource("1_rank")
+damage_multiplier_per_hop = 1.0
+seed_damage_fraction = 1.0
+max_hops = 3
+revisit_visited = false
+stat_id = &"node_health"
+direction = 1
+take_count = 1
+only_enemy = true

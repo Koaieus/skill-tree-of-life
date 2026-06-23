@@ -40,3 +40,9 @@ var caster: Entity = null
 ## The graph the spell walks. Held on the state so propagation strategies
 ## don't need it threaded as a separate argument.
 var graph: Graph = null
+## Optional RNG used by stochastic propagation strategies
+## ([RandomWalkPropagation], future variants). Threaded through every hop so
+## the same seed reproduces the same walk. Null = the propagation falls back
+## to a fresh, time-seeded RandomNumberGenerator. Tests inject a seeded one
+## via [method SpellResolver.resolve]'s `rng` parameter for determinism.
+var rng: RandomNumberGenerator = null

@@ -62,4 +62,5 @@ func _propagate_to(neighbour: SkillNode, state: CastSpell) -> CastSpell:
 	next.visited.append(neighbour)
 	next.caster = state.caster
 	next.graph = state.graph
+	next.rng = state.rng
 	return next
