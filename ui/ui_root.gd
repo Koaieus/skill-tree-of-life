@@ -11,6 +11,7 @@ class_name UIRoot
 @onready var attack_mode_bar: AttackModeBar = %AttackModeBar
 @onready var launch_attack_button: LaunchAttackButton = %LaunchAttackButton
 @onready var end_turn_button: EndTurnButton = %EndTurnButton
+@onready var banner_layer: BannerLayer = %BannerLayer
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -48,6 +49,26 @@ func compose(game_root: GameRoot) -> void:
 	_turn_manager.phase_changed.connect(_on_phase_changed)
 	_on_phase_changed(_turn_manager.current_entity, _turn_manager.current_phase)
 
+	# End-of-turn cleanup: cancel any stale attack plan and disable the
+	# end-turn button until it's the player's turn again. The banner system
+	# now carries the "your turn just ended" feedback role.
+	_turn_manager.turn_started.connect(_on_turn_started)
+	_turn_manager.turn_ended.connect(_on_turn_ended)
+	_refresh_end_turn_button()
+
+	# Banner routing — translate gameplay signals into BannerLayer.enqueue()
+	# calls. Player-only by design: AI turns animate silently. Emit order at
+	# the player's turn start (per TurnManager.start_turn → _on_turn_started
+	# → phase_changed) is:
+	#   turn_started → (XP replenish; may emit leveled_up) → phase_changed(CONTRACT)
+	# We fold CONTRACT into the turn-start banner ("TURN STARTED /
+	# CONTRACTION PHASE") via _on_turn_started below, and skip the standalone
+	# CONTRACT phase banner in _on_phase_changed.
+	# TODO: KILL / YOU DIED banners — needs an entity-death signal that
+	# doesn't exist yet (no is_dead / died emit anywhere). Wire here once
+	# BattleSystem (or Entity) gains one.
+	_player.leveled_up.connect(_on_player_leveled_up)
+
 
 func _on_attack_plan_changed(plan: AttackPlan) -> void:
 	var mode := plan.mode if plan else BattleSystem.AttackMode.NONE
@@ -63,12 +84,48 @@ func _refresh_launch_button() -> void:
 	launch_attack_button.set_enabled(plan != null and plan.is_valid())
 
 
-func _on_phase_changed(_e: Entity, phase: TurnManager.Phase) -> void:
+func _on_phase_changed(entity: Entity, phase: TurnManager.Phase) -> void:
 	end_turn_button.phase = float(phase)
 	match phase:
 		TurnManager.Phase.CONTRACT: end_turn_button.text = "Expand"
 		TurnManager.Phase.EXPAND:   end_turn_button.text = "Battle"
 		TurnManager.Phase.BATTLE:   end_turn_button.text = "End Turn"
+	# Banner: only the player gets phase announcements, and CONTRACT is
+	# folded into the turn-start banner so we don't double up.
+	if entity == _player:
+		match phase:
+			TurnManager.Phase.EXPAND:
+				banner_layer.enqueue(BannerRequest.make(
+						"EXPAND PHASE", "", BannerRequest.Style.PHASE))
+			TurnManager.Phase.BATTLE:
+				banner_layer.enqueue(BannerRequest.make(
+						"BATTLE PHASE", "", BannerRequest.Style.PHASE))
+
+
+func _on_turn_started(entity: Entity) -> void:
+	if entity == _player:
+		banner_layer.enqueue(BannerRequest.make(
+				"TURN STARTED", "CONTRACTION PHASE", BannerRequest.Style.DEFAULT))
+	_refresh_end_turn_button()
+
+
+func _on_turn_ended(entity: Entity) -> void:
+	if entity == _player and _battle_system != null:
+		# Stale plan would outlive the turn; cancelling clears the launch
+		# button via attack_plan_changed → _refresh_launch_button.
+		_battle_system.cancel_attack()
+	_refresh_end_turn_button()
+
+
+func _on_player_leveled_up(new_level: int) -> void:
+	banner_layer.enqueue(BannerRequest.make(
+			"LEVEL UP",
+			"+1 Skill Point — Level %d" % new_level,
+			BannerRequest.Style.LEVEL_UP))
+
+
+func _refresh_end_turn_button() -> void:
+	end_turn_button.set_enabled(_turn_manager.current_entity == _player)
 
 
 func _on_end_turn_pressed() -> void:

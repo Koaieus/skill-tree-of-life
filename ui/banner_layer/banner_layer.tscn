@@ -1,0 +1,33 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/banner_layer/banner_layer.gd" id="1_layer"]
+[ext_resource type="PackedScene" path="res://ui/banner_layer/banner.tscn" id="2_banner"]
+
+[node name="BannerLayer" type="CanvasLayer"]
+layer = 100
+script = ExtResource("1_layer")
+
+[node name="Root" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="MainBanner" parent="Root" instance=ExtResource("2_banner")]
+unique_name_in_owner = true
+anchor_left = 0.0
+anchor_right = 1.0
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -132.0
+offset_bottom = 8.0
+is_sub = false
+
+[node name="SubBanner" parent="Root" instance=ExtResource("2_banner")]
+unique_name_in_owner = true
+anchor_left = 0.0
+anchor_right = 1.0
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = 32.0
+offset_bottom = 112.0
+is_sub = true
