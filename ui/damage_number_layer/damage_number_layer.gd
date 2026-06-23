@@ -19,6 +19,7 @@ const OUTLINE_SIZE: int = 6
 
 func _ready() -> void:
 	Events.skill_node_damaged.connect(_on_damage)
+	z_index = 2000
 
 
 func _on_damage(node: SkillNode, amount: float, _source: Variant) -> void:
@@ -30,7 +31,7 @@ func _on_damage(node: SkillNode, amount: float, _source: Variant) -> void:
 	add_child(floater)
 	var t := create_tween().set_parallel(true)
 	t.tween_property(floater, "position",
-			floater.position + Vector2(0.0, -FLOAT_DISTANCE), FLOAT_TIME)
+		floater.position + Vector2(0.0, -FLOAT_DISTANCE), FLOAT_TIME)
 	t.tween_property(floater, "alpha", 0.0, FLOAT_TIME)
 	t.chain().tween_callback(floater.queue_free)
 
@@ -53,22 +54,22 @@ class _DamageFloater extends Node2D:
 	func _draw() -> void:
 		if _font == null or text.is_empty():
 			return
-		var size := DamageNumberLayer.FONT_SIZE
+		var size := FONT_SIZE
 		var text_size := _font.get_string_size(
-				text, HORIZONTAL_ALIGNMENT_CENTER, -1, size)
+			text, HORIZONTAL_ALIGNMENT_CENTER, -1, size)
 		var pos := Vector2(-text_size.x * 0.5, text_size.y * 0.25)
 		var fill := Color(
-				DamageNumberLayer.TEXT_COLOR.r,
-				DamageNumberLayer.TEXT_COLOR.g,
-				DamageNumberLayer.TEXT_COLOR.b,
-				alpha)
+			TEXT_COLOR.r,
+			TEXT_COLOR.g,
+			TEXT_COLOR.b,
+			alpha)
 		var outline := Color(
-				DamageNumberLayer.OUTLINE_COLOR.r,
-				DamageNumberLayer.OUTLINE_COLOR.g,
-				DamageNumberLayer.OUTLINE_COLOR.b,
-				alpha)
+			OUTLINE_COLOR.r,
+			OUTLINE_COLOR.g,
+			OUTLINE_COLOR.b,
+			alpha)
 		draw_string_outline(_font, pos, text,
-				HORIZONTAL_ALIGNMENT_CENTER, -1, size,
-				DamageNumberLayer.OUTLINE_SIZE, outline)
+			HORIZONTAL_ALIGNMENT_CENTER, -1, size,
+			OUTLINE_SIZE, outline)
 		draw_string(_font, pos, text,
-				HORIZONTAL_ALIGNMENT_CENTER, -1, size, fill)
+			HORIZONTAL_ALIGNMENT_CENTER, -1, size, fill)

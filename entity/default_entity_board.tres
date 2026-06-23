@@ -47,7 +47,7 @@ definition = ExtResource("def_armor")
 resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
-base_value = 3.0
+base_value = 1.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
 resource_name = "deallocation_points"

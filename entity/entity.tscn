@@ -2,8 +2,18 @@
 
 [ext_resource type="Script" uid="uid://dwxok6qi3pfce" path="res://entity/entity.gd" id="1_entity"]
 [ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="2_mckvm"]
+[ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="3_s1kue"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="4_ec552"]
+[ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="5_whxwk"]
+[ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="6_g2k83"]
+
+[sub_resource type="Resource" id="Resource_wrmdn"]
+script = ExtResource("3_s1kue")
+spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [node name="Entity" type="Node" unique_id=306801215]
 script = ExtResource("1_entity")
 stat_board = ExtResource("2_mckvm")
+spellbook = SubResource("Resource_wrmdn")
 metadata/_custom_type_script = "uid://dwxok6qi3pfce"
