@@ -192,9 +192,34 @@ func get_owner_color() -> Color:
 	return Color.WHITE
 
 
-func edge_point(world_target: Vector2) -> Vector2:
+## World-space point on this node's perimeter facing [param world_target],
+## plus optional [param extra_pad] outward. Use for projectile spawns,
+## directional badges, or any anchor that should sit on the visible boundary.
+func edge_point(world_target: Vector2, extra_pad: float = 0.0) -> Vector2:
 	var dir := (world_target - global_position).normalized()
-	return global_position + dir * radius
+	return global_position + dir * (radius + extra_pad)
+
+
+## World-space pair `[start, end]` of a segment between [param a] and
+## [param b], trimmed to each node's perimeter (plus [param pad] on each end).
+## Returns an empty array when the nodes overlap so callers can early-out
+## instead of drawing through each other. Static so it reads naturally at
+## the call site: `SkillNode.segment_between(from, to)`.
+static func segment_between(a: SkillNode, b: SkillNode, pad: float = 0.0) -> PackedVector2Array:
+	if a == null or b == null:
+		return PackedVector2Array()
+	var pa := a.global_position
+	var pb := b.global_position
+	var delta := pb - pa
+	var dist := delta.length()
+	var trim_total: float = a.radius + b.radius + pad * 2.0
+	if dist <= trim_total:
+		return PackedVector2Array()
+	var dir := delta / dist
+	return PackedVector2Array([
+		pa + dir * (a.radius + pad),
+		pb - dir * (b.radius + pad),
+	])
 
 
 # ── Combat HP ──────────────────────────────────────────────────────────────

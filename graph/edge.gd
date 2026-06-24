@@ -57,13 +57,11 @@ func _draw() -> void:
 	if from == to:
 		_draw_self_loop()
 		return
-	var a := from.global_position - global_position
-	var b := to.global_position - global_position
-	var dir := (b - a).normalized()
-	var a_trim := a + dir * from.radius
-	var b_trim := b - dir * to.radius
-	if (b_trim - a_trim).dot(dir) <= 0.0:
+	var seg := SkillNode.segment_between(from, to)
+	if seg.is_empty():
 		return  # nodes overlap — nothing to draw
+	var a_trim := seg[0] - global_position
+	var b_trim := seg[1] - global_position
 	if sensed:
 		# Sensed = topology hint only. Use the unlit colour (never lit,
 		# even if both endpoints happen to share owner: owner identity is

@@ -45,6 +45,13 @@ enum ScalingMode {
 		line_width = value
 		queue_redraw()
 
+## Extra outward padding past each endpoint's perimeter so the highlight sits
+## clearly outside the node's visible body instead of flush against it.
+@export var endpoint_padding: float = 2.0:
+	set(value):
+		endpoint_padding = value
+		queue_redraw()
+
 @export var scaling_mode: ScalingMode = ScalingMode.FLAT:
 	set(value):
 		scaling_mode = value
@@ -108,9 +115,10 @@ func _draw() -> void:
 			width_scale = s
 	var tint := Color(color.r, color.g, color.b, color.a * alpha_scale)
 	var w := line_width * width_scale
-	var a := edge.from.global_position - global_position
-	var b := edge.to.global_position - global_position
-	draw_line(a, b, tint, w, true)
+	var seg := SkillNode.segment_between(edge.from, edge.to, endpoint_padding)
+	if seg.is_empty():
+		return
+	draw_line(seg[0] - global_position, seg[1] - global_position, tint, w, true)
 
 
 func _scale_factor() -> float:
