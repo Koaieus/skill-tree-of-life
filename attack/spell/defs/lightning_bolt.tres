@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="8_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_vajd0"]
+[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_08wik"]
 
 [sub_resource type="Resource" id="dmg_lightning"]
 script = ExtResource("3_dmg")
@@ -48,4 +49,5 @@ mana_cost = 2
 base_damage = 10.0
 propagation = SubResource("prop_lightning")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_lightning")])
+vfx_coordinator_scene = ExtResource("12_08wik")
 targeting = SubResource("targeting_lightning")

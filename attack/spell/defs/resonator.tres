@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="8_ww832"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_uku7o"]
+[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_ww832"]
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
@@ -49,4 +50,5 @@ mana_cost = 5
 base_damage = 4.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+vfx_coordinator_scene = ExtResource("12_ww832")
 targeting = SubResource("targeting")

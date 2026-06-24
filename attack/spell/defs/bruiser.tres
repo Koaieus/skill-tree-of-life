@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="9_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_bm58y"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="10_range"]
+[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="13_ihn2u"]
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
@@ -52,4 +53,5 @@ mana_cost = 2
 base_damage = 4.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+vfx_coordinator_scene = ExtResource("13_ihn2u")
 targeting = SubResource("targeting")

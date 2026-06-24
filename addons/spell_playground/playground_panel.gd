@@ -27,6 +27,7 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 @onready var caster_entity: Entity = %CasterEntity
 @onready var defender_entity: Entity = %DefenderEntity
 @onready var caster_node: SkillNode = %CasterNode
+@onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 
 var _spell: SpellDef = null
 var _selected_target: SkillNode = null
@@ -42,8 +43,16 @@ func _ready() -> void:
 	world.physics_object_picking = true
 	world.handle_input_locally = true
 	_build_grid_edges()
-	for sn in graph.get_skill_nodes():
-		sn.left_clicked.connect(_on_target_clicked)
+	# Hit-test clicks directly on the SubViewportContainer rather than relying
+	# on Area2D pickup through the SubViewport. In editor bottom-panel context
+	# `physics_object_picking` routing has been unreliable — events reach the
+	# container, but not always the Area2D inside the SubViewport. The
+	# container is 1:1 with the SubViewport (stretch=true, no camera), so
+	# `event.position` IS world position; we walk skill nodes and pick the
+	# closest one within its `radius`. Bypasses the targeting-rule split that
+	# production gameplay applies — the playground deliberately lets any node
+	# (incl. the caster) be selected as seed.
+	_world_container.gui_input.connect(_on_world_gui_input)
 	# Default seed = the cell at row 2, col 1 — interior enough that a
 	# 3-hop spell reaches most of the grid; corner casts also work but
 	# undersell the BFS fan-out.
@@ -129,10 +138,46 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 
 
 func _on_target_clicked(node: SkillNode) -> void:
-	if node == null or node.owned_by == caster_entity:
+	# No targeting-rule gate here — the playground is for *previewing* what
+	# a spell does from an arbitrary seed; the rule check belongs to gameplay
+	# casting, not to authoring inspection.
+	if node == null:
 		return
 	_selected_target = node
 	_refresh_status()
+
+
+func _on_world_gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb := event as InputEventMouseButton
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var hit := _pick_node_at(mb.position)
+	if hit != null:
+		_on_target_clicked(hit)
+		# Container handles the click; don't let it leak back into the editor.
+		_world_container.accept_event()
+
+
+# Find the topmost skill node whose disc covers `world_pos`. SubViewport has
+# no camera and stretch=true, so the container's local coords ARE world coords.
+# Iterates grid + caster (caster legal-as-seed per playground policy).
+func _pick_node_at(world_pos: Vector2) -> SkillNode:
+	var best: SkillNode = null
+	var best_d2: float = INF
+	var candidates: Array[SkillNode] = graph.get_skill_nodes()
+	if caster_node != null:
+		candidates.append(caster_node)
+	for sn in candidates:
+		if sn == null:
+			continue
+		var d2 := world_pos.distance_squared_to(sn.position)
+		var r := sn.radius
+		if d2 <= r * r and d2 < best_d2:
+			best = sn
+			best_d2 = d2
+	return best
 
 
 func _refresh_status() -> void:
