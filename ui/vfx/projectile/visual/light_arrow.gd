@@ -13,8 +13,10 @@ extends Node2D
 
 signal finished
 
+const TINT = Color(1.0, 0.9, 0.6, 1.0)
+
 ## Set by the coordinator before the projectile launches. Read at draw time.
-@export var tint: Color = Color(1.0, 0.9, 0.6, 1.0)
+@export var tint: Color = TINT
 @export var shaft_length: float = 18.0
 @export var shaft_width: float = 2.0
 @export var head_length: float = 8.0
@@ -71,13 +73,13 @@ func _process(_delta: float) -> void:
 # Arrow points along +X with the tail behind (negative X).
 func _draw() -> void:
 	var a := clampf(_alpha, 0.0, 1.0)
-	var col := Color(tint.r, tint.g, tint.b, tint.a * a)
+	var col := Color(tint.r, tint.g, tint.b, tint.a * a).lightened(0.5)
 	var glow := Color(tint.r, tint.g, tint.b, tint.a * a * 0.25)
 	# Glow halo around the tip.
 	draw_circle(Vector2.ZERO, glow_radius, glow)
 	# Shaft: from (-shaft_length, 0) back to (0,0) tip.
-	var tail := Vector2(-shaft_length, 0.0)
-	draw_line(tail, Vector2.ZERO, col, shaft_width, true)
+	var tail := Vector2(-shaft_length-head_length, 0.0)
+	draw_line(tail, Vector2(-head_length, 0.0), col, shaft_width, true)
 	# Arrowhead triangle, point at origin, base at (-head_length, ±head_width/2).
 	var p0 := Vector2.ZERO
 	var p1 := Vector2(-head_length, head_width * 0.5)

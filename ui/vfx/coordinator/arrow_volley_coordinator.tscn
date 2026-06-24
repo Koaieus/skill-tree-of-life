@@ -1,11 +1,13 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dhyh22jv464v3"]
 
-[ext_resource type="Script" path="res://ui/vfx/coordinator/arrow_volley_coordinator.gd" id="1"]
-[ext_resource type="Script" path="res://ui/vfx/projectile/path/bezier_arc_path.gd" id="2"]
+[ext_resource type="Script" uid="uid://cibe1ge5x173i" path="res://ui/vfx/coordinator/arrow_volley_coordinator.gd" id="1"]
+[ext_resource type="Script" uid="uid://cgrg32a54m1xy" path="res://ui/vfx/projectile/path/bezier_arc_path.gd" id="2"]
 
 [sub_resource type="Resource" id="Resource_arc"]
 script = ExtResource("2")
 
-[node name="ArrowVolleyCoordinator" type="Node2D"]
+[node name="ArrowVolleyCoordinator" type="Node2D" unique_id=308820455]
 script = ExtResource("1")
 projectile_path = SubResource("Resource_arc")
+flight_time = 1.0
+stagger_per_shot = 0.2

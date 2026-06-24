@@ -35,17 +35,17 @@ const LIFT_DURATION: float = 0.30
 const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
 const LIFT_END_SCALE: float = 0.6
 
-const SHATTER_VIBRATE_DURATION: float = 0.12
+const SHATTER_VIBRATE_DURATION: float = 0.6
 const SHATTER_VIBRATE_AMPLITUDE: float = 2.5
 const SHATTER_VIBRATE_FREQ: float = 60.0  # hz
-const SHATTER_BURST_DURATION: float = 0.40
+const SHATTER_BURST_DURATION: float = 1.40
 const SHATTER_PARTICLE_COUNT: int = 24
 const SHATTER_PARTICLE_LIFETIME: float = 0.35
 const SHATTER_OUTWARD_SPEED: float = 220.0
 
 # Per-layer delay between cascade rings. 0.09s reads as a quick crackle —
 # tune up for slower domino, down for snap.
-const CASCADE_STEP: float = 0.09
+const CASCADE_STEP: float = 0.35
 
 # --- Wiring ------------------------------------------------------------------
 
@@ -171,13 +171,13 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 	add_child(stage)
 	var disk := _make_snapshot_disk(disk_radius, color)
 	stage.add_child(disk)
-	disk.modulate = Color(1.0, 1.0, 1.0, 0.0)  # start hidden if delayed
+	# Stay visible through the pre-vibrate delay — the real SkillNode's owned
+	# fill clears immediately on force_deallocate, so the snapshot has to stand
+	# in continuously or the node visibly vanishes until its cascade ring fires.
 
 	var tween := create_tween()
 	if delay > 0.0:
 		tween.tween_interval(delay)
-	# Reveal at vibrate start.
-	tween.tween_callback(func() -> void: disk.modulate = Color(1.0, 1.0, 1.0, 1.0))
 	# Vibrate: tiny sine-driven offset + glow ramp.
 	var t0 := 0.0
 	var steps := int(SHATTER_VIBRATE_DURATION * 60.0)
