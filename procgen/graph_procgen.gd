@@ -167,6 +167,12 @@ static func generate(
 	await _emit_progress(progress_cb, 0.95, "Wiring edges")
 	for pair in edge_pairs:
 		graph.add_edge(nodes[pair.x], nodes[pair.y])
+	
+	# Add self-loops
+	if config.self_loop_rate > 0.0:
+		for node in nodes:
+			if rng.randf() < config.self_loop_rate:
+				graph.add_edge(node, node)
 
 	# Starting points were seeded first into Poisson; they occupy positions[0..n).
 	var starting_nodes: Array[SkillNode] = []

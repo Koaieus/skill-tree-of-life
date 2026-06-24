@@ -17,5 +17,4 @@ viability_radius = 300.0
 expansion_steps = 6
 
 [node name="FogOverlay" parent="Graph" index="5"]
-enabled = true
 falloff = 0.15

@@ -51,11 +51,17 @@ var sensed: bool = false:
 func _draw() -> void:
 	if from == null or to == null:
 		return
+	# Self-loop branch: from and to are the same node. Render as a small
+	# loop arc tangent to the top of the node so the player can read it as
+	# "+2 degree, this is a Resonator setup."
+	if from == to:
+		_draw_self_loop()
+		return
 	var a := from.global_position - global_position
-	var b := to.global_position - global_position                                                                                                            
+	var b := to.global_position - global_position
 	var dir := (b - a).normalized()
-	var a_trim := a + dir * from.radius                                                                                                                      
-	var b_trim := b - dir * to.radius                           
+	var a_trim := a + dir * from.radius
+	var b_trim := b - dir * to.radius
 	if (b_trim - a_trim).dot(dir) <= 0.0:
 		return  # nodes overlap — nothing to draw
 	if sensed:
@@ -80,6 +86,26 @@ func is_lit() -> bool:
 	return from != null and to != null \
 		and from.owned_by != null \
 		and from.owned_by == to.owned_by
+
+
+## Self-loop glyph: a circular ring sitting just above the node, sized
+## relative to node radius. Reads as a distinct loop emerging from and
+## returning to the same body — visual cue that this node has +2 degree
+## and is a Resonator setup. Honors lit/sensed colour scheme.
+func _draw_self_loop() -> void:
+	var node_center := from.global_position - global_position
+	var r: float = from.radius
+	# Loop sits above the node: center offset = 1.0 × node radius up,
+	# loop radius = 0.55 × node radius — visually distinct without
+	# overpowering the node body.
+	var loop_center := node_center + Vector2(0.0, -r * 1.0)
+	var loop_radius: float = r * 0.55
+	if sensed:
+		var sc := Color(color.r, color.g, color.b, 0.35)
+		draw_arc(loop_center, loop_radius, 0.0, TAU, 24, sc, width * 0.75, true)
+		return
+	var c := lit_color if is_lit() else color
+	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, width, true)
 
 
 func _connect_endpoint(node: SkillNode) -> void:

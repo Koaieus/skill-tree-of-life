@@ -15,7 +15,7 @@ const FONT_SIZE: int = 28
 const TEXT_COLOR: Color = Color(1.0, 0.85, 0.85, 1.0)
 const OUTLINE_COLOR: Color = Color(0.25, 0.0, 0.0, 1.0)
 const OUTLINE_SIZE: int = 6
-
+const MAX_ANGLE: int = 30  # degrees
 
 func _ready() -> void:
 	Events.skill_node_damaged.connect(_on_damage)
@@ -30,9 +30,11 @@ func _on_damage(node: SkillNode, amount: float, _source: Variant) -> void:
 	floater.global_position = node.global_position
 	add_child(floater)
 	var t := create_tween().set_parallel(true)
+	var rng_dir := randi_range(-MAX_ANGLE, MAX_ANGLE)
 	t.tween_property(floater, "position",
-		floater.position + Vector2(0.0, -FLOAT_DISTANCE), FLOAT_TIME)
+		floater.position + Vector2(0.0, -FLOAT_DISTANCE).rotated(deg_to_rad(rng_dir)), FLOAT_TIME)
 	t.tween_property(floater, "alpha", 0.0, FLOAT_TIME)
+	t.tween_property(floater, "rotation_degrees", rng_dir, FLOAT_TIME)
 	t.chain().tween_callback(floater.queue_free)
 
 

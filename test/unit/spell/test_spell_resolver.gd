@@ -1,7 +1,7 @@
 extends GutTest
 
-## SpellResolver: the BFS driver. Should null-guard, emit hits in
-## hop-monotonic order (VFX layer staggers off this), and run every
+## SpellResolver: the wave-based BFS driver. Should null-guard, emit hits
+## in hop-monotonic order (VFX layer staggers off this), and run every
 ## on-hit effect in declaration order at every state.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
@@ -40,12 +40,11 @@ func test_hop_index_is_monotonic() -> void:
 	helper.give_big_hp(def)
 	helper.assign_owner(graph, def, [1, 2, 3])
 	helper.assign_owner(graph, atk, [0])
-	var prop := AllNeighboursPropagation.new()
-	prop.max_hops = 3
-	var spell := helper.make_spell(prop, [DamageEffect.new()], 10.0)
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.max_reducer(),
+			{max_hops = 3})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	# Walk the CastSpell hits — DamageInstance carries .source = CastSpell.
 	var hop_indices: Array[int] = []
 	for hit in outcome.hits:
 		var cs := hit.source as CastSpell
@@ -67,9 +66,10 @@ func test_multiple_on_hit_effects_run_in_order_per_state() -> void:
 	a.label = &"A"
 	var b := _RecordingEffect.new()
 	b.label = &"B"
-	var spell := helper.make_spell(NoPropagation.new(), [a, b], 10.0)
+	# Single-target via NoStep + max_hops 0.
+	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var spell := helper.make_spell(config, [a, b], 10.0)
 	var n := graph.get_skill_nodes()
 	SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	# Single seed state runs effects in array order.
 	assert_eq(a.calls.size(), 1)
 	assert_eq(b.calls.size(), 1)

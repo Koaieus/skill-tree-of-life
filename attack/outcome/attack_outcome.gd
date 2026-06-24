@@ -14,7 +14,13 @@ var ap_cost: int = 1
 ## Mana consumed on commit. Spell plans copy from [member SpellDef.mana_cost];
 ## non-magic plans leave it at 0.
 var mana_cost: int = 0
+## Per-node fizzle records — populated when a spell's [IncidentReducer]
+## returns null at a node (overlap-cancel, even-cancel, custom expression
+## returning negative). VFX coordinators can render a dissipate effect at
+## each entry's [member SpellCancellation.node].
+var cancellations: Array[SpellCancellation] = []
 
 
 func _to_string() -> String:
-	return "<AttackOutcome %d hit(s), %d AP, %d mana>" % [hits.size(), ap_cost, mana_cost]
+	return "<AttackOutcome %d hit(s), %d cancel(s), %d AP, %d mana>" % [
+		hits.size(), cancellations.size(), ap_cost, mana_cost]

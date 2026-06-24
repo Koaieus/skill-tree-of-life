@@ -23,6 +23,10 @@ extends Resource
 ## (densest planar). Spans shortest-edges-first so the result stays organic.
 @export_range(0.0, 1.0) var connectivity: float = 0.55
 
+## Prevalence of self-loops (1.0 = each node would get one)
+@export_range(0.0, 1.0) var self_loop_rate: float = 0.03
+
+
 # ── Shape ─────────────────────────────────────────────────────────────────
 
 @export var shape_mask: ShapeMask

@@ -67,9 +67,19 @@ func get_neighbours(node: SkillNode) -> Array[SkillNode]:
 	if edges_container == null or node == null:
 		return out
 	for e in get_edges():
-		if e.from == node and e.to != null and e.to != node:
+		if e.from == null or e.to == null:
+			continue
+		# Self-loop: per graph theory each endpoint counts independently, so a
+		# single self-loop edge contributes the node itself twice (degree +2).
+		# Consumers that BFS already dedupe via their own visited sets; this
+		# keeps spell propagation (FanAllStep etc.) consistent with the
+		# "self-loop weaponisable by SUM merger" mechanic. See Resonator.
+		if e.from == node and e.to == node:
+			out.append(node)
+			out.append(node)
+		elif e.from == node:
 			out.append(e.to)
-		elif e.to == node and e.from != null and e.from != node:
+		elif e.to == node:
 			out.append(e.from)
 	return out
 

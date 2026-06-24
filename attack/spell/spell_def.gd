@@ -4,9 +4,9 @@ extends Resource
 
 ## Authored spell data — identity, cost, propagation strategy, on-hit effects,
 ## and the VFX coordinator scene. The "what it does" half is composition:
-## pick a [SpellPropagation] subclass to define the walk + damage transform,
-## and an array of [OnHitEffect] for what happens per node (damage is just
-## the default first entry).
+## pick a [PropagationConfig] (which itself composes [PropagationFilter] /
+## [PropagationStep] / [IncidentReducer]) and an array of [OnHitEffect] for
+## what happens per node (damage is the default first entry).
 
 @export var name: String
 @export_multiline var description: String
@@ -22,13 +22,15 @@ extends Resource
 @export var mana_cost: int = 0
 
 ## Initial damage at the seed target. Multiplied at seed time by
-## [member SpellPropagation.seed_damage_fraction], then at each propagation
-## step by [member SpellPropagation.damage_multiplier_per_hop].
+## [member PropagationConfig.seed_damage_fraction], then at each propagation
+## step by [member PropagationConfig.damage_multiplier_per_hop].
 @export var base_damage: float = 0.0
 
-## How this spell propagates from the seed target. [NoPropagation] = single-
-## target; [AllNeighboursPropagation] = BFS fan-out (Lightning / Crunch / Flood).
-@export var propagation: SpellPropagation = null
+## How this spell propagates from the seed target. Composes
+## [PropagationFilter] (what neighbours count), [PropagationStep] (how
+## payloads fan), and [IncidentReducer] (what happens when branches
+## converge). See [code]docs/domain/spell-propagation.md[/code].
+@export var propagation: PropagationConfig = null
 
 ## What happens at every node the spell lands on, run in order. Damage is
 ## the standard first entry via [DamageEffect].

@@ -172,7 +172,8 @@ func _on_player_leveled_up(new_level: int) -> void:
 
 
 func _refresh_end_turn_button() -> void:
-	end_turn_button.set_enabled(_turn_manager.current_entity == _player)
+	var e = _turn_manager.current_entity == _player
+	end_turn_button.set_enabled(e)
 
 
 func _on_spell_selected(spell: SpellDef) -> void:

@@ -5,7 +5,8 @@ extends RefCounted
 ## SkillNodes + Entities + a SpellDef, all in-memory — no scene files driving
 ## test layout, no .tres fixtures per case. Resolver behaviour is pure
 ## w.r.t. world state (damage is deferred to VFX), so these fixtures are
-## enough to assert on `AttackOutcome.hits`.
+## enough to assert on [member AttackOutcome.hits] and
+## [member AttackOutcome.cancellations].
 ##
 ## Usage pattern:
 ## ```
@@ -16,7 +17,8 @@ extends RefCounted
 ## h.give_big_hp(defender)                                  # avoid mid-cast death noise
 ## h.assign_owner(graph, defender, [1, 2, 3])
 ## h.assign_owner(graph, attacker, [0])
-## var spell := h.make_spell(AllNeighboursPropagation.new(), [DamageEffect.new()], 10.0)
+## var config := h.make_config(h.fan_all(), h.owner_enemy(), null, {max_hops = 1})
+## var spell := h.make_spell(config, [DamageEffect.new()], 10.0)
 ## var out := SpellResolver.resolve(spell, graph.get_skill_nodes()[1], graph.get_skill_nodes()[0], attacker, graph)
 ## ```
 
@@ -24,11 +26,6 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 
 
-## Construct a Graph with `node_count` SkillNodes (auto-derived from the
-## adjacency) and one Edge per pair. `gut` is the GutTest invoking this —
-## used to add the graph to the test's tree so SkillNode._ready can run.
-## Returns the graph; nodes are accessible via `graph.get_skill_nodes()`
-## in index order.
 func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 	var node_count: int = 0
 	for pair in adjacency:
@@ -56,9 +53,6 @@ func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 	return graph
 
 
-## Make an Entity, parented under the graph so `_find_graph` succeeds and
-## `EntityNavigator` wires up. Each entity gets its own duplicated stat
-## board (intrinsic-modifier instances mustn't be shared across entities).
 func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE) -> Entity:
 	var ent := Entity.new()
 	ent.display_name = display_name
@@ -68,10 +62,6 @@ func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE)
 	return ent
 
 
-## Pump node_health up so per-node HP is effectively infinite for tests
-## that only care about *what was hit*, not death-cascades. Mutates the
-## entity's own copy of node_health base_value — won't bleed into other
-## entities.
 func give_big_hp(entity: Entity, value: float = 9999.0) -> void:
 	if entity == null or entity.stat_board == null:
 		return
@@ -80,20 +70,15 @@ func give_big_hp(entity: Entity, value: float = 9999.0) -> void:
 		nh.base_value = value
 
 
-## Assign `owned_by` directly on every node at `indices`. Skips
-## AllocationSystem (we're testing resolver semantics, not allocation
-## rules). Setting `owned_by` fires the node's own bindings, so HP refills
-## automatically to whatever the entity's node_health resolves to.
 func assign_owner(graph: Graph, entity: Entity, indices: Array) -> void:
 	var nodes := graph.get_skill_nodes()
 	for i in indices:
 		nodes[int(i)].owned_by = entity
 
 
-## Build a SpellDef in-memory. The targeting / VFX / mana fields are left
-## defaulted because SpellResolver doesn't read them; tests focusing on
-## resolver shape don't need them.
-func make_spell(prop: SpellPropagation, on_hits: Array[OnHitEffect], base_damage: float = 10.0) -> SpellDef:
+## Build a SpellDef. `prop` is a PropagationConfig (use [method make_config]
+## or wire one yourself).
+func make_spell(prop: PropagationConfig, on_hits: Array[OnHitEffect], base_damage: float = 10.0) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.name = "TestSpell"
 	spell.base_damage = base_damage
@@ -102,8 +87,90 @@ func make_spell(prop: SpellPropagation, on_hits: Array[OnHitEffect], base_damage
 	return spell
 
 
-## Group an outcome's hits by target node — keeps assertions readable
-## ("node 3 was hit twice for [10, 5]") versus walking the flat array.
+## Compose a PropagationConfig from parts. `opts` keys: max_hops (int, 0),
+## max_visits_per_node (int, 1), damage_multiplier_per_hop (float, 1.0),
+## seed_damage_fraction (float, 1.0).
+func make_config(
+		step: PropagationStep,
+		filter: PropagationFilter,
+		reducer: IncidentReducer,
+		opts: Dictionary = {}) -> PropagationConfig:
+	var c := PropagationConfig.new()
+	c.step = step
+	c.filter = filter
+	c.reducer = reducer
+	c.max_hops = int(opts.get("max_hops", 0))
+	c.max_visits_per_node = int(opts.get("max_visits_per_node", 1))
+	c.damage_multiplier_per_hop = float(opts.get("damage_multiplier_per_hop", 1.0))
+	c.seed_damage_fraction = float(opts.get("seed_damage_fraction", 1.0))
+	return c
+
+
+# ── Tiny constructors so tests read declaratively ──────────────────────────
+
+func fan_all() -> FanAllStep:
+	return FanAllStep.new()
+
+
+func no_step() -> NoStep:
+	return NoStep.new()
+
+
+func take_top_n(ranker: NodeRanker, n: int = 1, direction: int = TakeTopNStep.Direction.HIGHEST) -> TakeTopNStep:
+	var s := TakeTopNStep.new()
+	s.ranker = ranker
+	s.take_count = n
+	s.direction = direction
+	return s
+
+
+func degree_ranker() -> DegreeRanker:
+	return DegreeRanker.new()
+
+
+func stat_ranker(stat_id: StringName = &"node_health") -> StatRanker:
+	var r := StatRanker.new()
+	r.stat_id = stat_id
+	return r
+
+
+func owner_enemy() -> OwnerFilter:
+	var f := OwnerFilter.new()
+	f.scope = OwnerFilter.Scope.ENEMY
+	return f
+
+
+func owner(scope: int) -> OwnerFilter:
+	var f := OwnerFilter.new()
+	f.scope = scope
+	return f
+
+
+func degree_filter(compare: int = DegreeFilter.Compare.LESS) -> DegreeFilter:
+	var f := DegreeFilter.new()
+	f.compare = compare
+	return f
+
+
+func composite_filter(children: Array[PropagationFilter], mode: int = CompositeFilter.Mode.AND) -> CompositeFilter:
+	var f := CompositeFilter.new()
+	f.mode = mode
+	f.children = children
+	return f
+
+
+func sum_reducer() -> SumDamageReducer:
+	return SumDamageReducer.new()
+
+
+func max_reducer() -> MaxDamageReducer:
+	return MaxDamageReducer.new()
+
+
+func cancel_if_multi() -> CancelIfMultiReducer:
+	return CancelIfMultiReducer.new()
+
+
 func hits_by_node(outcome: AttackOutcome) -> Dictionary:
 	var out: Dictionary = {}
 	for hit in outcome.hits:
@@ -113,7 +180,6 @@ func hits_by_node(outcome: AttackOutcome) -> Dictionary:
 	return out
 
 
-## Sum the damage landed on `node` across an outcome's hits.
 func total_damage_on(outcome: AttackOutcome, node: SkillNode) -> float:
 	var total: float = 0.0
 	for hit in outcome.hits:

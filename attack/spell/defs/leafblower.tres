@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b6ecc584ysaku"]
+
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="5_filter_base"]
+[ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="6_owner"]
+[ext_resource type="Script" uid="uid://ct4rk6dn6b43u" path="res://attack/spell/propagation/filter/degree_filter.gd" id="7_degree"]
+[ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="8_composite"]
+[ext_resource type="Script" path="res://attack/spell/propagation/step/fan_all_step.gd" id="9_step"]
+[ext_resource type="Script" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="10_reducer"]
+[ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="11_targeting"]
+[ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_range"]
+[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/ranged_volley_coordinator.tscn" id="13_vfx"]
+
+[sub_resource type="Resource" id="dmg"]
+script = ExtResource("3_dmg")
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("6_owner")
+
+[sub_resource type="Resource" id="filter_degree_less"]
+script = ExtResource("7_degree")
+
+[sub_resource type="Resource" id="filter_composite"]
+script = ExtResource("8_composite")
+children = Array[ExtResource("5_filter_base")]([SubResource("filter_enemy"), SubResource("filter_degree_less")])
+
+[sub_resource type="Resource" id="reducer_max"]
+script = ExtResource("10_reducer")
+
+[sub_resource type="Resource" id="step_fan"]
+script = ExtResource("9_step")
+
+[sub_resource type="Resource" id="prop"]
+script = ExtResource("4_config")
+filter = SubResource("filter_composite")
+step = SubResource("step_fan")
+reducer = SubResource("reducer_max")
+max_hops = 3
+damage_multiplier_per_hop = 1.8
+
+[sub_resource type="Resource" id="range"]
+script = ExtResource("12_range")
+
+[sub_resource type="Resource" id="targeting"]
+script = ExtResource("11_targeting")
+range_finder = SubResource("range")
+
+[resource]
+script = ExtResource("1_spell")
+name = "Leafblower"
+description = "Trickles downhill: at each hop only flows into neighbours of strictly lower degree. Damage compounds (×1.8 per hop) so the leaf at the end of the chain eats the payload while intermediate hubs barely register. Perfect for sniping dangling addon-leaves through fortified topology."
+min_degree = 2
+mana_cost = 3
+base_damage = 2.0
+propagation = SubResource("prop")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+vfx_coordinator_scene = ExtResource("13_vfx")
+targeting = SubResource("targeting")

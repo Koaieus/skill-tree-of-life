@@ -68,12 +68,46 @@ func _ready() -> void:
 	# synchronous overrides; procgen sandboxes that drive a loading bar
 	# return a coroutine.
 	await _setup_level()
+	# Invariant: every Entity must have an EntityController child so the
+	# turn loop never stalls on an uncontrolled actor. Hand-authored
+	# scenes (dev_sandbox, first_level_sandbox) historically forgot to
+	# attach AIController to enemies; this defaulter is the catch-all
+	# that keeps every sandbox playable without per-scene wiring.
+	_ensure_controllers()
 	ui_root.compose(self)
 
 	if player != null and turn_manager != null:
 		player.initiative_current = 100.0
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
+
+
+## Attaches a default [EntityController] child to any [Entity] in the level
+## that doesn't already have one. [PlayerController] for [member player];
+## [AIController] for everyone else. No-op if the scene/code already wired
+## a controller — explicit composition always wins.
+func _ensure_controllers() -> void:
+	for node in get_tree().get_nodes_in_group("entities"):
+		var ent := node as Entity
+		if ent == null:
+			continue
+		if _find_controller(ent) != null:
+			continue
+		var ctrl: EntityController
+		if ent == player:
+			ctrl = PlayerController.new()
+			ctrl.name = "PlayerController"
+		else:
+			ctrl = AIController.new()
+			ctrl.name = "AIController"
+		ent.add_child(ctrl)
+
+
+static func _find_controller(ent: Entity) -> EntityController:
+	for child in ent.get_children():
+		if child is EntityController:
+			return child as EntityController
+	return null
 
 
 ## Subclass hook. Default = pick up an existing `%Player` node from the scene

@@ -1,0 +1,55 @@
+@tool
+class_name ExpressionFilter
+extends PropagationFilter
+
+## One-off escape hatch: author a boolean GDScript [Expression] inline on
+## the spell .tres. Mirrors the [ExpressionFormula] pattern in the stats
+## system — declarative for the 5% of spells that need a custom predicate
+## without a whole subclass.
+##
+## Available identifiers in the expression:
+##   from_degree, to_degree                — int
+##   to_owned_by_caster, to_unallocated    — bool
+##   damage, hops_remaining, hop_index     — payload state
+##   visit_count                           — ctx.visit_count(to)
+
+@export_multiline var expression: String = "true"
+
+var _expr: Expression = null
+var _last_text: String = ""
+
+
+func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: PropagationContext) -> bool:
+	if from == null or to == null or ctx.graph == null:
+		return false
+	if _expr == null or _last_text != expression:
+		_expr = Expression.new()
+		var err := _expr.parse(expression, [
+			"from_degree", "to_degree",
+			"to_owned_by_caster", "to_unallocated",
+			"damage", "hops_remaining", "hop_index",
+			"visit_count",
+		])
+		if err != OK:
+			push_warning("ExpressionFilter parse error: %s" % _expr.get_error_text())
+			_expr = null
+			return false
+		_last_text = expression
+	var inputs: Array = [
+		ctx.graph.get_neighbours(from).size(),
+		ctx.graph.get_neighbours(to).size(),
+		to.owned_by == payload.caster,
+		to.owned_by == null,
+		payload.damage,
+		payload.hops_remaining,
+		payload.hop_index,
+		ctx.visit_count(to),
+	]
+	var result: Variant = _expr.execute(inputs, null, false)
+	if _expr.has_execute_failed():
+		return false
+	return bool(result)
+
+
+func get_description() -> String:
+	return "Custom: %s" % expression

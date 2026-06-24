@@ -6,10 +6,13 @@
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="4_ec552"]
 [ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="5_whxwk"]
 [ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="6_g2k83"]
+[ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="7_g2k83"]
+[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="8_wrmdn"]
+[ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="9_8vg6i"]
 
 [sub_resource type="Resource" id="Resource_wrmdn"]
 script = ExtResource("3_s1kue")
-spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83")])
+spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83"), ExtResource("7_g2k83"), ExtResource("8_wrmdn"), ExtResource("9_8vg6i")])
 metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [node name="Entity" type="Node" unique_id=306801215]

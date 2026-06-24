@@ -47,7 +47,8 @@ func mirror_add(node: SkillNode) -> void:
 		else:
 			continue
 		var other_id := vertex_id(other)
-		if other_id >= 0 and not astar.are_points_connected(id, other_id):
+		# Skip self-loops (other_id == id): AStar2D rejects same-id connects.
+		if other_id >= 0 and other_id != id and not astar.are_points_connected(id, other_id):
 			astar.connect_points(id, other_id)
 
 
@@ -199,7 +200,10 @@ func _on_node_removed(node: SkillNode) -> void:
 func _on_edge_added(edge: Edge) -> void:
 	var a := vertex_id(edge.from)
 	var b := vertex_id(edge.to)
-	if a < 0 or b < 0:
+	if a < 0 or b < 0 or a == b:
+		# AStar2D rejects self-loop edges (Condition "p_id == p_with_id").
+		# Self-loops are a propagation/render concern, not a routing one —
+		# pathfinding has no use for self → self.
 		return
 	if not astar.are_points_connected(a, b):
 		astar.connect_points(a, b)
@@ -208,7 +212,7 @@ func _on_edge_added(edge: Edge) -> void:
 func _on_edge_removed(edge: Edge) -> void:
 	var a := vertex_id(edge.from)
 	var b := vertex_id(edge.to)
-	if a < 0 or b < 0:
+	if a < 0 or b < 0 or a == b:
 		return
 	if astar.are_points_connected(a, b):
 		astar.disconnect_points(a, b)

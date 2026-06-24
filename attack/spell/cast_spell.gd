@@ -2,8 +2,8 @@ class_name CastSpell
 extends RefCounted
 
 ## The in-flight carrier for a spell propagating through the graph. One
-## instance represents the spell *at one node*; [method SpellPropagation.next_hops]
-## mints fresh instances for each neighbour it propagates into.
+## instance represents the spell *at one node*; [PropagationStep] mints
+## fresh instances for each neighbour it propagates into.
 ##
 ## Each instance becomes one entry in the resolved outcome chain: trace
 ## [member predecessor] → [member current_node] to draw the spell's path,
@@ -31,18 +31,19 @@ var hops_remaining: int = 0
 ## 0 = seed; +1 per propagation step. Drives VFX stagger order and lets
 ## damage formulas reference "how deep are we?".
 var hop_index: int = 0
-## Nodes already hit on this cast (including [member current_node] itself).
-## Propagation strategies check this to avoid re-entering — unless their
-## [member SpellPropagation.revisit_visited] flag says otherwise.
+## Per-branch trail of nodes visited so far. Carried for filters that need
+## branch-local "have I been here on THIS path" semantics; the canonical
+## revisit gate is the global ledger on [PropagationContext.global_visit_count]
+## (consulted by [MaxVisitsFilter] and the resolver's cap enforcement).
 var visited: Array[SkillNode] = []
 ## Spell caster — for owner-relative predicates (e.g. only_enemy).
 var caster: Entity = null
 ## The graph the spell walks. Held on the state so propagation strategies
 ## don't need it threaded as a separate argument.
 var graph: Graph = null
-## Optional RNG used by stochastic propagation strategies
-## ([RandomWalkPropagation], future variants). Threaded through every hop so
-## the same seed reproduces the same walk. Null = the propagation falls back
-## to a fresh, time-seeded RandomNumberGenerator. Tests inject a seeded one
-## via [method SpellResolver.resolve]'s `rng` parameter for determinism.
+## Optional RNG used by stochastic propagation strategies ([RandomPickStep]
+## and friends). Threaded through every hop so the same seed reproduces the
+## same walk. Null = the propagation falls back to a fresh, time-seeded
+## RandomNumberGenerator. Tests inject a seeded one via [method
+## SpellResolver.resolve]'s `rng` parameter for determinism.
 var rng: RandomNumberGenerator = null

@@ -75,7 +75,7 @@ func end_turn() -> void:
 	current_entity = null
 	turn_ended.emit(entity)
 	entity.initiative_current -= 100.0
-	_tick_until_ready()
+	_tick_until_ready(entity)
 
 
 ## Tick the initiative clock by one unit. Advances every entity in the
@@ -89,12 +89,13 @@ func tick() -> void:
 		e.initiative_current += float(e.stat_board.initiative_speed.value)
 
 
-## Tick until at least one entity has initiative >= 100, then start the turn
-## for the highest-initiative entity among the ready set.
-## Guards against all-zero-speed edge cases with a tick cap.
-func _tick_until_ready(max_ticks: int = 1000) -> void:
+## Serve the next ready entity, or tick until one becomes ready.
+## Checks BEFORE ticking so entities that all reached 100 in the same cycle
+## are each served before the clock advances again.
+## `last` is the entity that just ended its turn — deprioritised on ties so
+## it doesn't immediately win its own initiative tie.
+func _tick_until_ready(last: Entity = null, max_ticks: int = 1000) -> void:
 	for _i in max_ticks:
-		tick()
 		var ready_entities: Array[Entity] = []
 		for node in get_tree().get_nodes_in_group("entities"):
 			var e := node as Entity
@@ -102,9 +103,13 @@ func _tick_until_ready(max_ticks: int = 1000) -> void:
 				ready_entities.append(e)
 		if not ready_entities.is_empty():
 			ready_entities.sort_custom(func(a: Entity, b: Entity) -> bool:
-				return a.initiative_current > b.initiative_current)
+				if a.initiative_current != b.initiative_current:
+					return a.initiative_current > b.initiative_current
+				return b == last  # tiebreak: just-acted entity goes last
+			)
 			start_turn(ready_entities[0])
 			return
+		tick()
 	push_warning("TurnManager: no entity reached 100 initiative in %d ticks" % max_ticks)
 
 
