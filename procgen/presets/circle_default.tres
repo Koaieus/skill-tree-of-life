@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="GraphProcgenConfig" format=3 uid="uid://drdxdv4lm7sgr"]
 
 [ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="1_cfg"]
-[ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetype_policy.gd" id="1_hux3y"]
-[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/circular_shape_mask.gd" id="2_shape"]
-[ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/node_type_def.gd" id="3_type"]
-[ext_resource type="Script" uid="uid://dhvo8sk56h48c" path="res://procgen/modifier_pool.gd" id="4_pool"]
-[ext_resource type="Script" uid="uid://cd378og7212uy" path="res://procgen/modifier_pool_entry.gd" id="5_entry"]
-[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/starting_point.gd" id="7_sp"]
-[ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/radial_gradient_field.gd" id="8_field"]
+[ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetypes/archetype_policy.gd" id="1_hux3y"]
+[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="2_shape"]
+[ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/archetypes/node_type_def.gd" id="3_type"]
+[ext_resource type="Script" uid="uid://dhvo8sk56h48c" path="res://procgen/pools/modifier_pool.gd" id="4_pool"]
+[ext_resource type="Script" uid="uid://cd378og7212uy" path="res://procgen/pools/modifier_pool_entry.gd" id="5_entry"]
+[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="7_sp"]
+[ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/placement/radial_gradient_field.gd" id="8_field"]
 
 [sub_resource type="Resource" id="budget_field"]
 script = ExtResource("8_field")

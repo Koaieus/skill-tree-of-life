@@ -23,7 +23,7 @@ func before_all() -> void:
 
 
 func test_canonical_registry_loads() -> void:
-	assert_not_null(_registry, "res://procgen/tags.tres should load as TagRegistry")
+	assert_not_null(_registry, "res://procgen/archetypes/tags.tres should load as TagRegistry")
 	assert_gt(_registry.tags.size(), 0, "registry should declare at least one tag")
 
 

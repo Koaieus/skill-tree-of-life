@@ -1,25 +1,25 @@
 [gd_resource type="Resource" script_class="GraphProcgenConfig" format=3 uid="uid://chf1rstvlgexn"]
 
-[ext_resource type="Script" uid="uid://b3fhyx2c2bvat" path="res://procgen/addon_pool_entry.gd" id="1_ihaem"]
+[ext_resource type="Script" uid="uid://b3fhyx2c2bvat" path="res://procgen/pools/addon_pool_entry.gd" id="1_ihaem"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="2_rg3kx"]
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/clamp_addon.tscn" id="3_xg7iw"]
-[ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/addon_pool.gd" id="4_x1g7b"]
-[ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/addon_policy.gd" id="5_qrpdt"]
-[ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/node_type_def.gd" id="9_66coo"]
-[ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetype_policy.gd" id="ap"]
-[ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetype_weight_profile.gd" id="awp"]
-[ext_resource type="Script" uid="uid://h1ade1x6qd2g" path="res://procgen/budget_policy.gd" id="bp"]
+[ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="4_x1g7b"]
+[ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="5_qrpdt"]
+[ext_resource type="Script" uid="uid://c5vv04jfqcmay" path="res://procgen/archetypes/node_type_def.gd" id="9_66coo"]
+[ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetypes/archetype_policy.gd" id="ap"]
+[ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="awp"]
+[ext_resource type="Script" uid="uid://h1ade1x6qd2g" path="res://procgen/budget/budget_policy.gd" id="bp"]
 [ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="cfg"]
-[ext_resource type="Script" uid="uid://clj7kev1ghrfn" path="res://procgen/collision_profile.gd" id="cp"]
-[ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/radial_gradient_field.gd" id="grad"]
-[ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/keystone_placement.gd" id="kp"]
-[ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/min_near_starting_points.gd" id="mnsp"]
+[ext_resource type="Script" uid="uid://clj7kev1ghrfn" path="res://procgen/weighting/collision_profile.gd" id="cp"]
+[ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/placement/radial_gradient_field.gd" id="grad"]
+[ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/placement/keystone_placement.gd" id="kp"]
+[ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/placement/min_near_starting_points.gd" id="mnsp"]
 [ext_resource type="Resource" uid="uid://b80xukagbkjvh" path="res://procgen/presets/first_level/pool_universal.tres" id="pool"]
 [ext_resource type="Resource" path="res://procgen/pools/specimen_pool_set.tres" id="pool_set"]
-[ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/random_budget_boost.gd" id="rbb"]
-[ext_resource type="Script" uid="uid://deokgpoaxy5db" path="res://procgen/radial_band_profile.gd" id="rbp"]
-[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/circular_shape_mask.gd" id="shape"]
-[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/starting_point.gd" id="sp"]
+[ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/budget/random_budget_boost.gd" id="rbb"]
+[ext_resource type="Script" uid="uid://deokgpoaxy5db" path="res://procgen/placement/radial_band_profile.gd" id="rbp"]
+[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
+[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="sp"]
 [ext_resource type="Resource" uid="uid://byxjrmwf12wt6" path="res://entity/keystone/instances/xp_anchor_keystone.tres" id="xp_keystone"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
@@ -231,7 +231,7 @@ script = ExtResource("cp")
 
 [resource]
 script = ExtResource("cfg")
-seed = 1
+seed = 2
 node_count = 500
 node_padding = 48.0
 connectivity = 0.357

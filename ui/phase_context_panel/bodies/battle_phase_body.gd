@@ -107,6 +107,8 @@ func _render_magic(plan: MagicAttackPlan) -> void:
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mode_slot.add_child(title)
 	_add_value_row("Min degree", str(spell.min_degree))
+	if plan.source != null and plan.attacker != null and plan.attacker.navigator != null:
+		_add_value_row("Source degree", str(plan.attacker.navigator.get_degree(plan.source)))
 	if spell.description != "":
 		var desc := Label.new()
 		desc.text = spell.description

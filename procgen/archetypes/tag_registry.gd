@@ -5,7 +5,7 @@ extends Resource
 ## Single source of truth for the StringName tags used by the procgen v2 content
 ## composition system — pool entries, weight profiles, role decorations.
 ##
-## Authored as `res://procgen/tags.tres`. Designers add a tag by editing that
+## Authored as `res://procgen/archetypes/tags.tres`. Designers add a tag by editing that
 ## file; everything else (`@tool` validators on `ModifierPoolEntry` /
 ## `WeightProfile`, the GUT typo backstop) reads from it.
 ##
@@ -13,7 +13,7 @@ extends Resource
 ## documents `tags[N]`. Descriptions are designer-facing; the system only
 ## reads `tags`.
 
-const CANONICAL_PATH: String = "res://procgen/tags.tres"
+const CANONICAL_PATH: String = "res://procgen/archetypes/tags.tres"
 
 @export var tags: Array[StringName] = []
 @export var descriptions: PackedStringArray = []

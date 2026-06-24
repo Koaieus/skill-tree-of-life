@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ModifierPool" format=3 uid="uid://b80xukagbkjvh"]
 
-[ext_resource type="Script" uid="uid://cd378og7212uy" path="res://procgen/modifier_pool_entry.gd" id="e"]
-[ext_resource type="Script" uid="uid://dhvo8sk56h48c" path="res://procgen/modifier_pool.gd" id="p"]
+[ext_resource type="Script" uid="uid://cd378og7212uy" path="res://procgen/pools/modifier_pool_entry.gd" id="e"]
+[ext_resource type="Script" uid="uid://dhvo8sk56h48c" path="res://procgen/pools/modifier_pool.gd" id="p"]
 
 [sub_resource type="Resource" id="str_a1"]
 script = ExtResource("e")

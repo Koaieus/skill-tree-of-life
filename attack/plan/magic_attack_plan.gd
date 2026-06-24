@@ -86,6 +86,15 @@ func get_available_spells() -> Array[SpellDef]:
 	return [spell] if spell != null else []
 
 
+func get_source_range_visual() -> RangeVisual:
+	if source == null or spell == null or spell.targeting == null:
+		return null
+	var finder: RangeFinder = spell.targeting.range_finder
+	if finder == null:
+		return null
+	return finder.get_visual(self, source)
+
+
 func _target_still_valid() -> bool:
 	if spell == null or spell.targeting == null or source == null:
 		return false

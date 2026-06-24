@@ -37,6 +37,7 @@ var player: Entity
 var camera: Camera2D
 
 var attack_highlight: AttackHighlightOverlay
+var range_overlay: RangeOverlay
 var attack_vfx: AttackVFX
 var allocation_vfx: AllocationVFX
 var melee_preview: MeleePreview
@@ -44,6 +45,7 @@ var damage_number_layer: DamageNumberLayer
 
 
 func _ready() -> void:
+	_mount_range_overlay()
 	_mount_attack_highlight()
 	_mount_attack_vfx()
 	_mount_allocation_vfx()
@@ -169,6 +171,15 @@ func _mount_attack_highlight() -> void:
 	attack_highlight.battle_system = battle_system
 	attack_highlight.graph = graph
 	graph.add_child(attack_highlight)
+
+
+func _mount_range_overlay() -> void:
+	# Mounted BEFORE the node-ring overlay so its edge highlights paint below
+	# the status rings (later siblings draw on top in Node2D z-order).
+	range_overlay = RangeOverlay.new()
+	range_overlay.battle_system = battle_system
+	range_overlay.graph = graph
+	graph.add_child(range_overlay)
 
 
 func _mount_attack_vfx() -> void:

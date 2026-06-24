@@ -72,6 +72,13 @@ func get_node_range(_node: SkillNode) -> float:
 	return 0.0
 
 
+## Optional richer range visualization — rings + edges from a RangeFinder.
+## Returned [code]null[/code] = nothing to paint. Magic plans hand back the
+## active spell's range_finder visual; other plans can opt in as needed.
+func get_source_range_visual() -> RangeVisual:
+	return null
+
+
 func _to_string() -> String:
 	var cls: String = str(get_script().get_global_name()) if get_script() else "AttackPlan"
 	var mode_name: String = BattleSystem.AttackMode.keys()[mode]
