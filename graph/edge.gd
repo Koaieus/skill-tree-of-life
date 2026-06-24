@@ -88,24 +88,72 @@ func is_lit() -> bool:
 		and from.owned_by == to.owned_by
 
 
-## Self-loop glyph: a circular ring sitting just above the node, sized
-## relative to node radius. Reads as a distinct loop emerging from and
-## returning to the same body — visual cue that this node has +2 degree
-## and is a Resonator setup. Honors lit/sensed colour scheme.
+## Self-loop glyph: a circular ring tangent to the outside of the node,
+## sized relative to node radius. The loop center sits at `r + loop_radius`
+## from node center along the chosen direction, so the ring's interior
+## just kisses the node circumference and never overlaps the node body.
+##
+## Direction is the bisector of the LARGEST angular gap between the node's
+## other edges — keeps the self-loop visually clear of existing edges
+## without disturbing them. Falls back to 12 o'clock when the node has no
+## other edges. Recomputed each draw (cheap; degree ≪ 16 in practice).
 func _draw_self_loop() -> void:
 	var node_center := from.global_position - global_position
 	var r: float = from.radius
-	# Loop sits above the node: center offset = 1.0 × node radius up,
-	# loop radius = 0.55 × node radius — visually distinct without
-	# overpowering the node body.
-	var loop_center := node_center + Vector2(0.0, -r * 1.0)
 	var loop_radius: float = r * 0.55
+	var angle := _self_loop_bisector_angle()
+	var loop_center := node_center + Vector2.from_angle(angle) * (r + loop_radius)
 	if sensed:
 		var sc := Color(color.r, color.g, color.b, 0.35)
 		draw_arc(loop_center, loop_radius, 0.0, TAU, 24, sc, width * 0.75, true)
 		return
 	var c := lit_color if is_lit() else color
 	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, width, true)
+
+
+## Returns the direction (radians) the self-loop should sit in: the
+## midpoint of the widest gap between `from`'s other outgoing edges.
+## -PI/2 (12 o'clock) when the node has no other edges.
+func _self_loop_bisector_angle() -> float:
+	if from == null or get_parent() == null:
+		return -PI / 2.0
+	var node_pos := from.global_position
+	var angles: PackedFloat32Array = []
+	for sibling in get_parent().get_children():
+		if sibling == self or not (sibling is Edge):
+			continue
+		var other := _other_endpoint(sibling as Edge)
+		if other == null:
+			continue
+		angles.append((other.global_position - node_pos).angle())
+	if angles.is_empty():
+		return -PI / 2.0
+	angles.sort()
+	# Widest gap (with wrap-around): place the loop in its bisector.
+	var best_gap: float = -1.0
+	var best_angle: float = -PI / 2.0
+	for i in angles.size():
+		var a1: float = angles[i]
+		var a2: float = angles[(i + 1) % angles.size()]
+		var gap: float = a2 - a1
+		if i == angles.size() - 1:
+			gap += TAU  # wrap-around closes the circle
+		if gap > best_gap:
+			best_gap = gap
+			best_angle = a1 + gap * 0.5
+	return best_angle
+
+
+## Returns the endpoint of `e` that is NOT `from` — used by self-loop angle
+## computation to gather the directions of all other edges incident to
+## `from`. Returns null when `e` doesn't touch `from` or is itself a
+## self-loop on `from` (those don't contribute a direction).
+func _other_endpoint(e: Edge) -> SkillNode:
+	if e.from == from and e.to != from:
+		return e.to
+	if e.to == from and e.from != from:
+		return e.from
+	return null
 
 
 func _connect_endpoint(node: SkillNode) -> void:
