@@ -242,11 +242,11 @@ func _cast() -> void:
 	# In the playground's ~340 px viewport that arc sends the projectile off
 	# the top for most of the flight — read by the user as "no projectile,
 	# damage just appeared". Override with an arc that fits the panel.
-	if coord is RangedVolleyCoordinator:
-		var rvc := coord as RangedVolleyCoordinator
+	if coord is MagicBounceCoordinator:
+		var mbc := coord as MagicBounceCoordinator
 		var arc := BezierArcPath.new()
 		arc.apex_height = 70.0
-		rvc.projectile_path = arc
+		mbc.projectile_path = arc
 	vfx_layer.add_child(coord)
 	await coord.play(outcome)
 	coord.queue_free()

@@ -5,12 +5,13 @@
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
-[ext_resource type="Script" path="res://attack/spell/propagation/step/take_top_n_step.gd" id="6_step"]
-[ext_resource type="Script" path="res://attack/spell/propagation/step/stat_ranker.gd" id="7_ranker"]
-[ext_resource type="Script" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="8_reducer"]
+[ext_resource type="Script" uid="uid://bdvx7u7771m3t" path="res://attack/spell/propagation/step/take_top_n_step.gd" id="6_step"]
+[ext_resource type="Script" uid="uid://kvd7y10ttqsx" path="res://attack/spell/propagation/step/stat_ranker.gd" id="7_ranker"]
+[ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="8_reducer"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="9_ihn2u"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="9_targeting"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_bm58y"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="10_range"]
-[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/ranged_volley_coordinator.tscn" id="11_vfx"]
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
@@ -51,5 +52,4 @@ mana_cost = 2
 base_damage = 4.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
-vfx_coordinator_scene = ExtResource("11_vfx")
 targeting = SubResource("targeting")

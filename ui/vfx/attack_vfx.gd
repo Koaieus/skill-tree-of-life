@@ -10,7 +10,7 @@ extends Node2D
 ## across attacks; per-action coordinators are spawned and freed per call.
 
 const _RANGED_VOLLEY_COORDINATOR: PackedScene = preload(
-		"res://ui/vfx/coordinator/ranged_volley_coordinator.tscn")
+		"res://ui/vfx/coordinator/arrow_volley_coordinator.tscn")
 
 
 ## Generic dispatch. Future [AttackDef] / [SpellDef] resources will carry the
