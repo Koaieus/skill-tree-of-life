@@ -180,6 +180,14 @@ func _on_spell_selected(spell: SpellDef) -> void:
 	_battle_system.selected_spell = spell
 
 
+## Swallow spacebar before it reaches focused Buttons (or anything else listening
+## for ui_accept). Enter still activates the focused control; only Space is eaten.
+## _shortcut_input runs before _gui_input, so consuming here pre-empts BaseButton.
+func _shortcut_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.keycode == KEY_SPACE and event.pressed:
+		get_viewport().set_input_as_handled()
+
+
 func _on_end_turn_pressed() -> void:
 	if _turn_manager.current_entity == null:
 		return
