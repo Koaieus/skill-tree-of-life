@@ -8,7 +8,7 @@ extends Node2D
 ##   • `flash_amount` — 0..1 hit-flash channel. Lerps fill toward red so the
 ##                       per-node modulate stays free for other effects.
 
-const BORDER_WIDTH: float = 2.0
+const BORDER_WIDTH: float = 8.0
 const FILL_ALPHA_UNALLOCATED: float = 0.2
 const FLASH_COLOR: Color = Color(1.0, 0.3, 0.3)
 # Sensed-only outline: thinner than the live border and partially transparent,
@@ -84,4 +84,4 @@ func _draw() -> void:
 		# render so core nodes look identical to before; the star label is
 		# what now distinguishes core from non-core.
 		draw_circle(Vector2.ZERO, inner_radius, fc, true)
-	draw_circle(Vector2.ZERO, _radius, bc, false, BORDER_WIDTH, true)
+	draw_circle(Vector2.ZERO, _radius - BORDER_WIDTH/2, bc, false, BORDER_WIDTH, true)

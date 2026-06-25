@@ -21,8 +21,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
-[ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
+[ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="def_strength"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/wisdom.tres" id="def_wisdom"]
@@ -160,7 +160,6 @@ source_stat_id = &"intelligence"
 [sub_resource type="Resource" id="mod_int_to_spell_range"]
 script = ExtResource("12_3edt8")
 stat_id = &"spell_range"
-value = 1.0
 formula = SubResource("formula_int_to_spell_range")
 
 [sub_resource type="Resource" id="pool_mana"]
@@ -212,18 +211,17 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_sensor_range")
 base_value = 2.0
 
-[sub_resource type="Resource" id="scalar_spell_range"]
-resource_name = "spell_range"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_spell_range")
-base_value = 0.0
-
 [sub_resource type="Resource" id="sp_skill_points"]
 resource_name = "skill_points"
 script = ExtResource("4_sp")
 current = 3.0
 definition = ExtResource("def_skill_points")
 base_value = 3.0
+
+[sub_resource type="Resource" id="scalar_spell_range"]
+resource_name = "spell_range"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_spell_range")
 
 [sub_resource type="Resource" id="scalar_strength"]
 resource_name = "strength"
