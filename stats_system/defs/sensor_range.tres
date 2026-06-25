@@ -12,3 +12,4 @@ default_value = 2.0
 display_order = 61
 display_type = 0
 tint_color = Color(0.65, 0.35, 0.85, 1)
+display_group = &"sense"

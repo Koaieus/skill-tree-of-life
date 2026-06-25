@@ -11,3 +11,4 @@ default_value = 1.0
 display_order = 5
 display_type = 2
 tint_color = Color(0.35, 0.85, 0.95, 1)
+display_group = &"body"

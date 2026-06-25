@@ -144,6 +144,19 @@ func _try_select_blade(node: SkillNode) -> bool:
 	return true
 
 
+func reset() -> void:
+	if source == null and blade_nodes.is_empty():
+		return
+	if _blade_mirror != null:
+		for b in blade_nodes:
+			_blade_mirror.mirror_remove(b)
+		if source != null:
+			_blade_mirror.mirror_remove(source)
+	blade_nodes.clear()
+	source = null
+	state_changed.emit()
+
+
 func _deselect_blade(node: SkillNode) -> void:
 	_ensure_mirror()
 	# Snapshot the cascade BEFORE we touch the mirror — the islanded set

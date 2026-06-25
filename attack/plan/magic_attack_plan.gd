@@ -43,6 +43,14 @@ func _on_node_left_clicked(node: SkillNode) -> void:
 	state_changed.emit()
 
 
+func reset() -> void:
+	if source == null and target == null:
+		return
+	source = null
+	target = null
+	state_changed.emit()
+
+
 func get_highlight_role(node: SkillNode) -> HighlightRole:
 	if node == null:
 		return HighlightRole.NONE

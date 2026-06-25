@@ -8,68 +8,22 @@ extends VBoxContainer
 ## What renders and in what order is driven entirely by StatDef metadata —
 ## `display_type` picks the widget (BASIC / PROGRESS, others reserved or
 ## HIDDEN) and `display_order` sorts the column. Adding a stat is a one-file
-## change: drop a .tres in stats_system/defs/, set its order and type, and
-## the panel picks it up the next time the board is bound.
+## change: drop a .tres in stats_system/defs/, set its order, type, and
+## display_group, and the panel picks it up the next time the board is bound.
 ##
-## Tabs (per #32) group stats by category. Category comes from the optional
-## in-script `_CATEGORY` map (stat id → category name); anything unmapped
-## lands in the catch-all "Misc" tab. "All" mirrors the flat layout.
+## Tabs group stats by StatDef.display_group. Anything with an empty or
+## unrecognised display_group lands in the catch-all "···" tab (hidden when
+## empty).
 
-const _TAB_ALL: StringName = &"all"
-const _TAB_OVERVIEW: StringName = &"overview"
-const _TAB_COMBAT: StringName = &"combat"
-const _TAB_MAGIC: StringName = &"magic"
-const _TAB_DEFENSE: StringName = &"defense"
-const _TAB_POOLS: StringName = &"pools"
-const _TAB_MISC: StringName = &"misc"
+const _TAB_FALLBACK: StringName = &"misc"
 
-const _TAB_TITLES: Dictionary[StringName, String] = {
-	_TAB_OVERVIEW: "Overview",
-	_TAB_COMBAT: "Combat",
-	_TAB_MAGIC: "Magic",
-	_TAB_DEFENSE: "Defense",
-	_TAB_POOLS: "Pools",
-	_TAB_MISC: "Misc",
-	_TAB_ALL: "All",
-}
-
-# Stat-id → category. Anything not listed falls into _TAB_MISC. Update here
-# when adding a new stat — kept in-script so .tres files don't sprout an
-# extra field. Promote to `StatDef.category` if the map grows unwieldy.
-const _CATEGORY: Dictionary[StringName, StringName] = {
-	&"strength": _TAB_OVERVIEW,
-	&"dexterity": _TAB_OVERVIEW,
-	&"intelligence": _TAB_OVERVIEW,
-	&"wisdom": _TAB_OVERVIEW,
-	&"perception": _TAB_OVERVIEW,
-	&"initiative_speed": _TAB_OVERVIEW,
-	&"xp_per_turn": _TAB_OVERVIEW,
-	&"vision_range": _TAB_OVERVIEW,
-	&"sensor_range": _TAB_OVERVIEW,
-
-	&"action_points": _TAB_COMBAT,
-	&"blade_size": _TAB_COMBAT,
-	&"range": _TAB_COMBAT,
-
-	&"mana": _TAB_MAGIC,
-	&"mana_per_turn": _TAB_MAGIC,
-	&"spell_range": _TAB_MAGIC,
-
-	&"health": _TAB_DEFENSE,
-	&"node_health": _TAB_DEFENSE,
-	&"armor": _TAB_DEFENSE,
-	&"min_damage_taken": _TAB_DEFENSE,
-	&"wound_heal_per_turn": _TAB_DEFENSE,
-
-	&"xp": _TAB_POOLS,
-	&"skill_points": _TAB_POOLS,
-	&"deallocation_points": _TAB_POOLS,
-	&"movement_points": _TAB_POOLS,
-}
-
-# Order tabs appear in the bar.
-const _TAB_ORDER: Array[StringName] = [
-	_TAB_OVERVIEW, _TAB_COMBAT, _TAB_MAGIC, _TAB_DEFENSE, _TAB_POOLS, _TAB_MISC, _TAB_ALL,
+# Tab order + display. Glyphs are unicode stopgaps; can swap to textures later.
+const _TABS: Array[Dictionary] = [
+	{ "id": &"body",   "title": "♥  Body"   },
+	{ "id": &"combat", "title": "⚔  Combat" },
+	{ "id": &"mind",   "title": "🧠 Mind"   },
+	{ "id": &"sense",  "title": "👁 Sense"  },
+	{ "id": _TAB_FALLBACK, "title": "···"   },
 ]
 
 @export var board: StatBoard:
@@ -79,8 +33,8 @@ const _TAB_ORDER: Array[StringName] = [
 		_connect_board()
 		_rebuild()
 
-# stat id → list of row Controls (one per tab the stat appears in — typically
-# 2 entries: the category tab + the "All" tab). Refresh walks both.
+# stat id → list of row Controls (one per tab the stat appears in — exactly
+# 1 entry now that the "All" tab is gone). Refresh walks each.
 var _rows: Dictionary[StringName, Array] = {}
 var _tab_container: TabContainer = null
 
@@ -104,22 +58,26 @@ func _rebuild() -> void:
 	add_child(_tab_container)
 
 	var per_tab: Dictionary[StringName, VBoxContainer] = {}
-	for tab_id in _TAB_ORDER:
+	var known_ids: Array[StringName] = []
+	for tab_def in _TABS:
+		var tab_id: StringName = tab_def["id"]
+		known_ids.append(tab_id)
 		var vb := VBoxContainer.new()
-		vb.name = _TAB_TITLES.get(tab_id, String(tab_id))
+		vb.name = tab_def["title"]
 		_tab_container.add_child(vb)
 		per_tab[tab_id] = vb
 
 	var defs := _collect_visible_defs()
 	defs.sort_custom(func(a, b): return a.display_order < b.display_order)
 	for def in defs:
-		var cat: StringName = _CATEGORY.get(def.id, _TAB_MISC)
-		_add_row_to_tab(def, per_tab[cat])
-		_add_row_to_tab(def, per_tab[_TAB_ALL])
+		var group: StringName = def.display_group
+		var dest: StringName = group if group in known_ids else _TAB_FALLBACK
+		_add_row_to_tab(def, per_tab[dest])
 		_refresh(def.id)
 
 	# Hide tabs with no rows — empty tabs are clutter.
-	for tab_id in _TAB_ORDER:
+	for tab_def in _TABS:
+		var tab_id: StringName = tab_def["id"]
 		var vb := per_tab[tab_id]
 		if vb.get_child_count() == 0:
 			vb.queue_free()

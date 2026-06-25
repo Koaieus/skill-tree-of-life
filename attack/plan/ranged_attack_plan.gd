@@ -31,6 +31,13 @@ func _on_node_right_clicked(node: SkillNode) -> void:
 	state_changed.emit()
 
 
+func reset() -> void:
+	if target == null:
+		return
+	target = null
+	state_changed.emit()
+
+
 func get_firing_positions() -> Array[SkillNode]:
 	if attacker == null or attacker.navigator == null:
 		return []

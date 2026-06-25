@@ -23,3 +23,6 @@ enum DisplayType { BASIC, BAR, PROGRESS, INLINE, HIDDEN }
 @export var display_order: int = 0
 @export var display_type: DisplayType = DisplayType.BASIC
 @export var tint_color: Color = Color.WHITE
+## Tab the StatsPanel routes this stat into. Empty defaults to the catch-all
+## tab. Convention: keep to a small fixed set so the panel stays scannable.
+@export var display_group: StringName = &""

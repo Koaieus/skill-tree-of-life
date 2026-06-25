@@ -49,6 +49,15 @@ func is_valid() -> bool:
 	return validate().is_empty()
 
 
+## Wipe plan-internal selection state back to its initial empty form. Keeps the
+## plan instance (and any sticky mode-level preferences like melee swing_cw)
+## alive — the UI's RESET button calls this so the player can re-target without
+## re-picking the mode. Default is a no-op; subclasses override and emit
+## state_changed when they've actually cleared something.
+func reset() -> void:
+	pass
+
+
 ## Visualization role for [param node] under this plan's current state.
 ## Default is NONE; concrete plans override for the nodes they care about.
 func get_highlight_role(_node: SkillNode) -> HighlightRole:

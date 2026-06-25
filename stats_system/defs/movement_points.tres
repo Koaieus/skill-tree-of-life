@@ -11,4 +11,5 @@ default_value = 1.0
 display_order = 2
 display_type = 2
 tint_color = Color(0.043137256, 1, 0.3764706, 1)
+display_group = &"body"
 metadata/_custom_type_script = "uid://tpd28s10cxxv"

@@ -1,78 +1,142 @@
 class_name PhaseIndicator
 extends Control
 
-## Center-top stylised label showing the active turn phase
-## (CONTRACT / EXPAND / BATTLE). Slides down from the viewport edge each
-## phase transition so the player gets a peripheral cue without it stealing
-## focus. Visual treatment mirrors [Banner]'s PHASE style so the two read
-## as a family.
+## Center-top phase breadcrumbs: [CONTRACT] → [EXPAND] → [BATTLE]. The active
+## chip lights up in its canonical phase tint; the others stay muted. Visible
+## only on the player's turn — on AI turns the row collapses to a small
+## "awaiting opponents…" pulse so the player knows the loop is alive without
+## being told the AI's business.
+##
+## Canonical phase tints are duplicated in [EndTurnButton.PHASE_TINTS]; keep
+## the two in sync until they're hoisted to a shared resource.
 
-@export_range(0.01, 1.0, 0.01) var slide_down_time: float = 0.22
-@export_range(0.01, 0.5, 0.01)  var settle_time: float = 0.08
-
-const _PHASE_NAMES: Dictionary[int, String] = {
-	TurnManager.Phase.CONTRACT: "CONTRACT",
-	TurnManager.Phase.EXPAND: "EXPAND",
-	TurnManager.Phase.BATTLE: "BATTLE",
-}
 const _PHASE_TINTS: Dictionary[int, Color] = {
-	TurnManager.Phase.CONTRACT: Color(0.75, 0.65, 1.0),
-	TurnManager.Phase.EXPAND: Color(0.55, 1.0, 0.75),
-	TurnManager.Phase.BATTLE: Color(1.0, 0.55, 0.55),
+	TurnManager.Phase.CONTRACT: Color(0.55, 0.70, 1.00),
+	TurnManager.Phase.EXPAND:   Color(0.45, 1.00, 0.55),
+	TurnManager.Phase.BATTLE:   Color(1.00, 0.55, 0.20),
 }
+const _MUTED_TINT := Color(0.55, 0.58, 0.65)
+const _BG_ACTIVE := Color(0.12, 0.16, 0.22, 0.92)
+const _BG_MUTED  := Color(0.07, 0.09, 0.14, 0.55)
+const _BORDER_MUTED := Color(0.35, 0.40, 0.48, 0.55)
 
-@onready var _panel: PanelContainer = $Panel
-@onready var _label: Label = $Panel/Margin/Label
+@onready var _breadcrumbs: HBoxContainer = $Breadcrumbs
+@onready var _awaiting: Label = $Awaiting
+
+@onready var _chips: Dictionary[int, Control] = {
+	TurnManager.Phase.CONTRACT: $Breadcrumbs/ChipContract,
+	TurnManager.Phase.EXPAND:   $Breadcrumbs/ChipExpand,
+	TurnManager.Phase.BATTLE:   $Breadcrumbs/ChipBattle,
+}
+@onready var _chip_labels: Dictionary[int, Label] = {
+	TurnManager.Phase.CONTRACT: $Breadcrumbs/ChipContract/Margin/Label,
+	TurnManager.Phase.EXPAND:   $Breadcrumbs/ChipExpand/Margin/Label,
+	TurnManager.Phase.BATTLE:   $Breadcrumbs/ChipBattle/Margin/Label,
+}
 
 var _turn_manager: TurnManager
-var _tween: Tween
-var _resting_y: float = 0.0
+var _player: Entity
+var _awaiting_tween: Tween
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label.add_theme_font_size_override("font_size", 32)
-	_label.add_theme_constant_override("outline_size", 6)
-	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	# Hide until a phase is set — keeps the slot from rendering an empty bar
-	# before the first turn starts.
-	_panel.modulate.a = 0.0
+	# Pre-render at muted; first phase_changed will paint the active one.
+	for phase in _chips.keys():
+		_paint_chip(phase, false)
 
 
-## UIRoot calls this once both subtrees are loaded. Subscribes to phase changes
-## and snaps to current state if a turn is already in progress.
-func bind(turn_manager: TurnManager) -> void:
+## UIRoot calls this once both subtrees are loaded. Binds to phase / turn
+## changes and snaps to current state.
+func bind(turn_manager: TurnManager, player: Entity) -> void:
+	_player = player
 	if _turn_manager == turn_manager:
+		_refresh()
 		return
-	if _turn_manager != null and _turn_manager.phase_changed.is_connected(_on_phase_changed):
-		_turn_manager.phase_changed.disconnect(_on_phase_changed)
+	if _turn_manager != null:
+		if _turn_manager.phase_changed.is_connected(_on_phase_changed):
+			_turn_manager.phase_changed.disconnect(_on_phase_changed)
+		if _turn_manager.turn_started.is_connected(_on_turn_event):
+			_turn_manager.turn_started.disconnect(_on_turn_event)
 	_turn_manager = turn_manager
 	if _turn_manager == null:
 		return
 	_turn_manager.phase_changed.connect(_on_phase_changed)
-	if _turn_manager.current_entity != null:
-		_on_phase_changed(_turn_manager.current_entity, _turn_manager.current_phase)
+	_turn_manager.turn_started.connect(_on_turn_event)
+	_refresh()
 
 
-func _on_phase_changed(_entity: Entity, phase: int) -> void:
-	_label.text = _PHASE_NAMES.get(phase, "—")
-	var tint: Color = _PHASE_TINTS.get(phase, Color.WHITE)
-	_label.add_theme_color_override("font_color", tint)
-	_play_drop_in()
+func _on_phase_changed(_entity: Entity, _phase: int) -> void:
+	_refresh()
 
 
-func _play_drop_in() -> void:
-	if _tween and _tween.is_valid():
-		_tween.kill()
-	# Drop from above viewport edge to resting position. Resting position is
-	# captured the first time we animate so the scene can place the panel
-	# wherever (we only need the delta back from that).
-	if is_equal_approx(_resting_y, 0.0):
-		_resting_y = _panel.position.y
-	_panel.position.y = _resting_y - _panel.size.y - 12.0
-	_panel.modulate.a = 0.0
-	_tween = create_tween().set_parallel(true)
-	_tween.tween_property(_panel, "position:y", _resting_y, slide_down_time) \
-			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_tween.tween_property(_panel, "modulate:a", 1.0, settle_time)
+func _on_turn_event(_entity: Entity) -> void:
+	_refresh()
+
+
+func _refresh() -> void:
+	if _turn_manager == null:
+		return
+	var is_player_turn := _player != null and _turn_manager.current_entity == _player
+	_breadcrumbs.visible = is_player_turn
+	_awaiting.visible = not is_player_turn
+	if is_player_turn:
+		var active_phase := _turn_manager.current_phase
+		for phase in _chips.keys():
+			_paint_chip(phase, phase == active_phase)
+		_stop_awaiting_pulse()
+	else:
+		_start_awaiting_pulse()
+
+
+func _paint_chip(phase: int, is_active: bool) -> void:
+	var chip: Control = _chips.get(phase)
+	if chip == null:
+		return
+	var label: Label = _chip_labels.get(phase)
+	var style: StyleBoxFlat = chip.get_theme_stylebox("panel") as StyleBoxFlat
+	if style == null:
+		return
+	# StyleBoxes from .tscn are shared across instances unless we duplicate. We
+	# only ever have one PhaseIndicator at a time so a per-call duplicate would
+	# be wasteful — but the chips share the same source style by default, so
+	# the first paint must duplicate-per-chip. Cheap: do it once and stash.
+	if not chip.has_meta("style_owned"):
+		style = style.duplicate() as StyleBoxFlat
+		chip.add_theme_stylebox_override("panel", style)
+		chip.set_meta("style_owned", true)
+	if is_active:
+		var tint: Color = _PHASE_TINTS.get(phase, Color.WHITE)
+		style.bg_color = _BG_ACTIVE
+		style.border_color = Color(tint.r, tint.g, tint.b, 0.9)
+		style.border_width_left = 2
+		style.border_width_top = 2
+		style.border_width_right = 2
+		style.border_width_bottom = 2
+		if label != null:
+			label.add_theme_color_override("font_color", tint)
+	else:
+		style.bg_color = _BG_MUTED
+		style.border_color = _BORDER_MUTED
+		style.border_width_left = 1
+		style.border_width_top = 1
+		style.border_width_right = 1
+		style.border_width_bottom = 1
+		if label != null:
+			label.add_theme_color_override("font_color", _MUTED_TINT)
+
+
+func _start_awaiting_pulse() -> void:
+	if _awaiting_tween != null and _awaiting_tween.is_valid():
+		return
+	_awaiting.modulate.a = 0.55
+	_awaiting_tween = create_tween().set_loops()
+	_awaiting_tween.tween_property(_awaiting, "modulate:a", 1.0, 0.9)
+	_awaiting_tween.tween_property(_awaiting, "modulate:a", 0.55, 0.9)
+
+
+func _stop_awaiting_pulse() -> void:
+	if _awaiting_tween != null and _awaiting_tween.is_valid():
+		_awaiting_tween.kill()
+	_awaiting_tween = null
+	_awaiting.modulate.a = 1.0

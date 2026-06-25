@@ -56,7 +56,6 @@ var enabled: bool = true: set = set_enabled
 func set_enabled(value: bool) -> void:
 	enabled = value
 	disabled = not value
-	visible = value
 	_tween_disabled(float(not value))
 	_tween_active(1.0 if value else 0.0)
 

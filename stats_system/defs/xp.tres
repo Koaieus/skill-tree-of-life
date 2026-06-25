@@ -12,3 +12,4 @@ description = "Experience pool toward the next level. Fills via xp_per_turn (and
 display_order = 21
 display_type = 2
 tint_color = Color(0.95, 0.8, 0.2, 1)
+display_group = &"body"

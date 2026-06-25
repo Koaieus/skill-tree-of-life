@@ -70,6 +70,14 @@ func cancel_attack() -> void:
 	else:
 		push_warning('Cannot cancel attack: not attacking')
 
+
+## Clear the active plan's selection state without dropping the plan itself —
+## keeps the mode set and any sticky preferences (melee swing_cw, magic spell)
+## alive. UI's RESET button routes here.
+func reset_plan() -> void:
+	if attack_plan != null:
+		attack_plan.reset()
+
 func _reset() -> void:
 	if attack_plan:
 		attack_plan = null
@@ -169,7 +177,11 @@ func launch_attack() -> void:
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the
 ## depleted node and every node disconnected from the defender's core when
-## it leaves are force-dealloc'd; each costs the defender 1 wound + 1 core HP.
+## it leaves are force-dealloc'd. Each cascaded node costs the defender:
+##   * 1 wounded SP — currency exchange (invested SP → wounded, reserves a
+##     slot in the pool until healed, mirrors PoE mana reservation).
+##   * `dealloc_damage` HP off the entity's `health` pool — bypass-mitigation
+##     chip damage tunable per class.
 ##
 ## "Forced-deallocation lives elsewhere" in AllocationSystem comments —
 ## that elsewhere is here.
@@ -191,6 +203,11 @@ func _on_node_depleted(node: SkillNode) -> void:
 	# owner state is what changes mid-loop.
 	cascade_started.emit(_cascade_layers(node, cascade), defender)
 	var board: StatBoard = defender.stat_board
+	# Per-cascade dealloc damage — read once, applied per cascaded node. Older
+	# hand-authored boards lacking the stat fall back to the def default (1).
+	var hp_per_node: float = 1.0
+	if board != null and board.dealloc_damage != null:
+		hp_per_node = float(board.dealloc_damage.value)
 	for n in cascade:
 		if n == null or n.owned_by != defender:
 			continue
@@ -198,8 +215,8 @@ func _on_node_depleted(node: SkillNode) -> void:
 		if board != null:
 			if board.skill_points != null:
 				board.skill_points.wound(1)
-			if board.health != null:
-				board.health.deplete(1.0)
+			if board.health != null and hp_per_node > 0.0:
+				board.health.deplete(hp_per_node)
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to

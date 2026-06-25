@@ -11,3 +11,4 @@ default_value = 0.0
 display_order = 32
 display_type = 0
 tint_color = Color(0.3, 0.5, 0.9, 1)
+display_group = &"mind"
