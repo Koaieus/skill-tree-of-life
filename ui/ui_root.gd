@@ -21,6 +21,11 @@ var _input_ctl: PlayerInputController
 var _battle_system: BattleSystem
 var _turn_manager: TurnManager
 
+# Per-turn latch — if the player ticked "Don't ask again this turn" in the
+# end-turn confirm dialog, skip the dialog for the rest of this turn. Reset
+# in _on_turn_ended.
+var _skip_end_turn_confirm: bool = false
+
 
 ## Injected by [GameRoot] once it and UIRoot are both in the tree. Reaches
 ## into nothing outside this subtree — all deps arrive here.
@@ -139,8 +144,8 @@ func _refresh_launch_button() -> void:
 func _on_phase_changed(entity: Entity, phase: TurnManager.Phase) -> void:
 	end_turn_button.phase = float(phase)
 	match phase:
-		TurnManager.Phase.CONTRACT: end_turn_button.text = "Expand"
-		TurnManager.Phase.EXPAND:   end_turn_button.text = "Battle"
+		TurnManager.Phase.CONTRACT: end_turn_button.text = "End CONTRACT → EXPAND"
+		TurnManager.Phase.EXPAND:   end_turn_button.text = "End EXPAND → BATTLE"
 		TurnManager.Phase.BATTLE:   end_turn_button.text = "End Turn"
 	# Defensive: every phase transition also reaffirms button enabled state.
 	# turn_started is the canonical trigger, but if any rotation path ever
@@ -173,6 +178,9 @@ func _on_turn_ended(entity: Entity) -> void:
 		# Stale plan would outlive the turn; cancelling clears the launch
 		# button via attack_plan_changed → _refresh_launch_button.
 		_battle_system.cancel_attack()
+		# End-of-turn resets the unspent-points warning: next turn re-prompts
+		# even if the player checked "don't ask again" last time.
+		_skip_end_turn_confirm = false
 	_refresh_end_turn_button()
 
 
@@ -204,5 +212,58 @@ func _shortcut_input(event: InputEvent) -> void:
 func _on_end_turn_pressed() -> void:
 	if _turn_manager.current_entity == null:
 		return
+	if _skip_end_turn_confirm:
+		_advance_or_end_turn()
+		return
+	var warning := _unspent_warning()
+	if warning == "":
+		_advance_or_end_turn()
+		return
+	_show_end_turn_confirm(warning)
+
+
+func _advance_or_end_turn() -> void:
 	if not _turn_manager.advance_phase():
 		_turn_manager.end_turn()
+
+
+## Returns a short noun phrase if the current entity has resources they're
+## about to forfeit by ending the phase, else "".
+func _unspent_warning() -> String:
+	if _player == null or _player.stat_board == null:
+		return ""
+	match _turn_manager.current_phase:
+		TurnManager.Phase.CONTRACT:
+			var dp: PoolStat = _player.stat_board.deallocation_points
+			if dp != null and dp.current > 0:
+				return "%d unspent deallocation point%s" \
+						% [int(dp.current), "" if int(dp.current) == 1 else "s"]
+		TurnManager.Phase.EXPAND:
+			var sp: PoolStat = _player.stat_board.skill_points
+			if sp != null and sp.current > 0:
+				return "%d unspent skill point%s" \
+						% [int(sp.current), "" if int(sp.current) == 1 else "s"]
+		TurnManager.Phase.BATTLE:
+			var ap: PoolStat = _player.stat_board.action_points
+			if ap != null and ap.current > 0:
+				return "%d unspent action point%s" \
+						% [int(ap.current), "" if int(ap.current) == 1 else "s"]
+	return ""
+
+
+func _show_end_turn_confirm(warning: String) -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.dialog_text = "You still have %s. End anyway?" % warning
+	dlg.ok_button_text = "End"
+	dlg.cancel_button_text = "Cancel"
+	var checkbox := CheckBox.new()
+	checkbox.text = "Don't ask again this turn"
+	dlg.add_child(checkbox)
+	add_child(dlg)
+	dlg.confirmed.connect(func() -> void:
+		if checkbox.button_pressed:
+			_skip_end_turn_confirm = true
+		_advance_or_end_turn()
+		dlg.queue_free())
+	dlg.canceled.connect(dlg.queue_free)
+	dlg.popup_centered()
