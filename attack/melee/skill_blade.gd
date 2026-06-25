@@ -15,8 +15,10 @@ const SCENE := preload("res://attack/melee/skill_blade.tscn")
 const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
 const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
 
-const EDGE_DAMAGE: float = 1.0
+## Edges deal no damage in the MVP melee model — only blade-nodes (the copied
+## vertices) hit. See docs/design/mvp_decisions.md §D-1.
 const NODE_DAMAGE: float = 1.0
+const _STR_DIVISOR: int = 10
 
 @export var owned_by: Entity
 
@@ -139,13 +141,23 @@ func _apply_playback_frame(
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
-			var idx := ev.edge_idx if ev.is_edge_hit() else ev.particle_idx
-			var damage: float
+			# D-1 MVP: edges are inert. Skip emission entirely so no zero-damage
+			# floaters or stat-tracking noise leaks through.
 			if ev.is_edge_hit():
-				damage = EDGE_DAMAGE
-			else:
-				damage = NODE_DAMAGE + state.vertex_spikes[ev.particle_idx]
-			hit.emit(idx, ev.is_edge_hit(), ev.target as SkillNode, ev.t, damage)
+				continue
+			var damage := NODE_DAMAGE + _str_bonus() + state.vertex_spikes[ev.particle_idx]
+			hit.emit(ev.particle_idx, false, ev.target as SkillNode, ev.t, damage)
+
+
+## STR//10 damage contribution from the attacker. Reads through `owned_by`
+## (set in build_from_skill_nodes). Returns 0 if no attacker/stat board.
+func _str_bonus() -> float:
+	if owned_by == null or owned_by.stat_board == null:
+		return 0.0
+	var s := owned_by.stat_board.get_stat(&"strength")
+	if s == null:
+		return 0.0
+	return floor(float(s.value) / _STR_DIVISOR)
 
 
 ## Stop any in-flight playback. Emits playback_finished so awaiters wake up.
