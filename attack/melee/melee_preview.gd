@@ -67,6 +67,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 	add_child(blade)
 	var selection: Array[SkillNode] = [plan.source]
 	selection.append_array(plan.blade_nodes)
+	blade.swing_cw = plan.swing_cw
 	blade.build_from_skill_nodes(
 			selection, plan.source, plan.get_induced_edges(), plan.attacker)
 	_ghost = blade
@@ -90,6 +91,7 @@ func _run_preview_loop(gen: int) -> void:
 			return
 		var selection: Array[SkillNode] = [plan.source]
 		selection.append_array(plan.blade_nodes)
+		blade.swing_cw = plan.swing_cw
 		blade.build_from_skill_nodes(
 				selection, plan.source, plan.get_induced_edges(), plan.attacker)
 		blade.modulate.a = 0.35

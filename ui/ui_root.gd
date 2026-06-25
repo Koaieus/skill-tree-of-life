@@ -26,6 +26,10 @@ var _turn_manager: TurnManager
 # in _on_turn_ended.
 var _skip_end_turn_confirm: bool = false
 
+# Small CW/CCW toggle parented to UIRoot. Visible only while a MeleeAttackPlan
+# is active. Created lazily in compose() so this remains scene-light.
+var _swing_dir_button: Button = null
+
 
 ## Injected by [GameRoot] once it and UIRoot are both in the tree. Reaches
 ## into nothing outside this subtree — all deps arrive here.
@@ -85,6 +89,8 @@ func compose(game_root: GameRoot) -> void:
 	# announcement gets to play).
 	banner_layer.bind_turn_manager(_turn_manager)
 
+	_install_swing_dir_button()
+
 	# Phase-driven contextual widgets: both self-subscribe once handed refs.
 	phase_indicator.bind(_turn_manager)
 	phase_context_panel.bind(_turn_manager, _battle_system)
@@ -108,6 +114,46 @@ func _on_attack_plan_changed(plan: AttackPlan) -> void:
 	_refresh_launch_button()
 	_refresh_spell_picker_visibility()
 	_refresh_spell_picker_gating()
+	_refresh_swing_dir_button()
+
+
+## Build a small "Swing: CCW/CW" toggle button anchored just below the
+## launch-attack FAB. Visible only while a melee plan is active; clicking
+## flips both the live plan and BattleSystem's sticky next_melee_cw.
+func _install_swing_dir_button() -> void:
+	if _swing_dir_button != null:
+		return
+	_swing_dir_button = Button.new()
+	_swing_dir_button.name = "SwingDirButton"
+	_swing_dir_button.focus_mode = Control.FOCUS_NONE
+	_swing_dir_button.anchor_left = 0.5
+	_swing_dir_button.anchor_top = 0.65
+	_swing_dir_button.anchor_right = 0.5
+	_swing_dir_button.anchor_bottom = 0.65
+	_swing_dir_button.offset_left = -60.0
+	_swing_dir_button.offset_top = 50.0
+	_swing_dir_button.offset_right = 60.0
+	_swing_dir_button.offset_bottom = 80.0
+	_swing_dir_button.pressed.connect(_on_swing_dir_pressed)
+	add_child(_swing_dir_button)
+	_refresh_swing_dir_button()
+
+
+func _on_swing_dir_pressed() -> void:
+	_battle_system.next_melee_cw = not _battle_system.next_melee_cw
+	var plan := _battle_system.attack_plan as MeleeAttackPlan
+	if plan != null:
+		plan.swing_cw = _battle_system.next_melee_cw
+	_refresh_swing_dir_button()
+
+
+func _refresh_swing_dir_button() -> void:
+	if _swing_dir_button == null:
+		return
+	var melee := _battle_system != null and _battle_system.attack_plan is MeleeAttackPlan
+	_swing_dir_button.visible = melee
+	var cw: bool = _battle_system.next_melee_cw if _battle_system != null else false
+	_swing_dir_button.text = "Swing: %s" % ("CW ↻" if cw else "CCW ↺")
 
 
 func _refresh_spell_picker_visibility() -> void:

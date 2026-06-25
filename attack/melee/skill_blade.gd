@@ -22,6 +22,11 @@ const _STR_DIVISOR: int = 10
 
 @export var owned_by: Entity
 
+## Mirror of [member MeleeAttackPlan.swing_cw]. Set by [MeleePreview] before
+## [method simulate] so the live blade swings in the same direction the plan's
+## resolve() simulated.
+var swing_cw: bool = false
+
 var state: BladeState
 var trajectory: BladeTrajectory
 
@@ -172,6 +177,7 @@ func _build_swing_drivers(duration: float) -> Array[BladeDriver]:
 	var drivers: Array[BladeDriver] = []
 	var pivot_pos := state.positions[state.pivot_index]
 	var seen: Dictionary = {}
+	var sweep := -TAU if swing_cw else TAU
 	for e in state.edges:
 		var other := -1
 		if e.x == state.pivot_index:
@@ -184,7 +190,7 @@ func _build_swing_drivers(duration: float) -> Array[BladeDriver]:
 		var offset := state.positions[other] - pivot_pos
 		drivers.append(BladeArcDriver.new(
 				other, pivot_pos, offset.length(), offset.angle(),
-				TAU, duration))
+				sweep, duration))
 	return drivers
 
 

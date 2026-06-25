@@ -88,7 +88,15 @@ func _new_plan(plan_class: Script) -> AttackPlan:
 	p.attacker = turn_manager.current_entity
 	if p is MagicAttackPlan and selected_spell != null:
 		(p as MagicAttackPlan).spell = selected_spell
+	if p is MeleeAttackPlan:
+		(p as MeleeAttackPlan).swing_cw = next_melee_cw
 	return p
+
+
+## Sticky preference for the next [MeleeAttackPlan]'s [member MeleeAttackPlan.swing_cw].
+## Toggled by UI; survives plan resets so the player doesn't re-pick direction
+## every time they switch into melee mode.
+var next_melee_cw: bool = false
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:

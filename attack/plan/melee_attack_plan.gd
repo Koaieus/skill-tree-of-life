@@ -24,6 +24,11 @@ var blade_nodes: Array[SkillNode] = []
 ## targeting integration comes when previews land.
 var blade_target: Vector2
 
+## Swing direction. false = CCW (positive sweep, the default); true = CW
+## (negative sweep). Toggle persists across plan resets via BattleSystem's
+## sticky preference. See docs/design/mvp_decisions.md §D-1.
+var swing_cw: bool = false: set = _set_swing_cw
+
 # Plan-driven mirror of `{source} ∪ blade_nodes`. Used to answer
 # "what islands off the pivot if I drop this member" via
 # nodes_islanded_by_removing(). No graph signal subscriptions —
@@ -262,6 +267,7 @@ func _build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 	var drivers: Array[BladeDriver] = []
 	var pivot_pos := blade_state.positions[blade_state.pivot_index]
 	var seen: Dictionary = {}
+	var sweep := -TAU if swing_cw else TAU
 	for e in blade_state.edges:
 		var other := -1
 		if e.x == blade_state.pivot_index:
@@ -274,8 +280,15 @@ func _build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 		var offset := blade_state.positions[other] - pivot_pos
 		drivers.append(BladeArcDriver.new(
 				other, pivot_pos, offset.length(), offset.angle(),
-				TAU, SWING_DURATION))
+				sweep, SWING_DURATION))
 	return drivers
+
+
+func _set_swing_cw(value: bool) -> void:
+	if swing_cw == value:
+		return
+	swing_cw = value
+	state_changed.emit()
 
 
 ## RIDs to feed BladeHitScan as the physics-query exclude list — covers
