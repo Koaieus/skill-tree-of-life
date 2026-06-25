@@ -35,6 +35,10 @@ extends Resource
 ## Floor on post-armor damage. A landed hit always deals at least this much
 ## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
 @export var min_damage_taken: ScalarStat
+## Flat HP damage dealt to this entity per node forced-deallocated in a battle
+## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
+## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.
+@export var dealloc_damage: ScalarStat
 
 @export_group("Economy")
 @export var xp: PoolStat            ## XP pool; fires Entity.leveled_up on fill.

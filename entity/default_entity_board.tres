@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
+[ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="def_dealloc_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="def_dexterity"]
 [ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="def_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="def_initiative_speed"]
@@ -48,6 +49,12 @@ definition = ExtResource("def_armor")
 resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_dealloc_damage"]
+resource_name = "dealloc_damage"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_dealloc_damage")
 base_value = 1.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
@@ -270,6 +277,7 @@ health = SubResource("pool_health")
 node_health = SubResource("scalar_node_health")
 armor = SubResource("scalar_armor")
 min_damage_taken = SubResource("scalar_min_dmg_taken")
+dealloc_damage = SubResource("scalar_dealloc_damage")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")

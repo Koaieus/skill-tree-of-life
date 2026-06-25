@@ -110,6 +110,15 @@ final = max(min_damage_taken, raw.amount - armor)
 - `armor` scalar (default 0) and `min_damage_taken` scalar (default 3) are both standard board stats — modifiers / intrinsics apply normally. Defensive cores (e.g. Bulwark) can drive `min_damage_taken` below 0, allowing damage to *heal* nodes if the underflow is large enough.
 - Rare procgen modifier `-1 min_damage_taken` is a high-tier exotic roll.
 
+## Forced-dealloc damage
+
+When a node's combat HP hits 0, `BattleSystem._on_node_depleted` runs the cascade (impact + islanded set). Each cascaded node costs the defender two things, neither going through `Mitigation`:
+
+- `skill_points.wound(1)` — moves 1 SP from `used` → `wounded`. Currency exchange; SP isn't refunded, it's reserved until `wound_heal_per_turn` ticks it back. Knob: hardcoded 1 (one node lost = one wound, tight coupling on purpose).
+- `health.deplete(dealloc_damage.value)` — chip damage off the entity HP pool. Default 1. **Tuning lever** — a fragile-core class can raise it (e.g. Glass Cannon = 3) to make every cascaded node hurt more. Skips `Mitigation.apply` deliberately — wounds and dealloc damage are explicitly "bypass armor" by design (read the user-facing framing: it's a currency exchange, not an attack landing).
+
+Both are emitted per cascaded node in the same loop, so a 5-node cascade with `dealloc_damage = 2` deals 5 wounds + 10 HP, ignoring armor.
+
 ## Gotchas
 
 - **Formula-driven modifiers must not be shared across entities.** Each carries mutable `_board` / `_bound_sources` binding state. Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` duplicates every entry.

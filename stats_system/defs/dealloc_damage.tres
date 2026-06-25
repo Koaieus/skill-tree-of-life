@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"dealloc_damage"
+display_name = "Dealloc Damage"
+description = "Flat HP damage dealt to this entity per node forced-deallocated in a battle cascade. Bypasses mitigation. Tuning lever for fragile-core classes."
+value_type = 0
+default_value = 1.0
+display_order = 25
+display_type = 0
+tint_color = Color(0.85, 0.3, 0.3, 1)
+display_group = &"combat"
