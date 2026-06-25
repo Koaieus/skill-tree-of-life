@@ -12,6 +12,10 @@ signal leveled_up(new_level: int)
 
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
+## Faction identifier for hostility checks. Single-faction MVP: player gets
+## `&"player"`, NPCs default to `&"npc"`. Hostility today still uses
+## `owned_by != attacker`; multi-faction is a one-line filter swap later.
+@export var faction: StringName = &"npc"
 @export var stat_board: StatBoard = null
 ## Class specialization for this entity. Applied once on _ready via
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.

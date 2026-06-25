@@ -70,6 +70,7 @@ func _ready() -> void:
 	# synchronous overrides; procgen sandboxes that drive a loading bar
 	# return a coroutine.
 	await _setup_level()
+	_assign_default_factions()
 	# Invariant: every Entity must have an EntityController child so the
 	# turn loop never stalls on an uncontrolled actor. Hand-authored
 	# scenes (dev_sandbox, first_level_sandbox) historically forgot to
@@ -82,6 +83,14 @@ func _ready() -> void:
 		player.initiative_current = 100.0
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
+
+
+## Assigns `&"player"` faction to [member player]; leaves all other entities
+## on their default (`&"npc"`). Future-proofs multi-faction filtering without
+## changing today's `owned_by != attacker` hostility checks.
+func _assign_default_factions() -> void:
+	if player != null:
+		player.faction = &"player"
 
 
 ## Attaches a default [EntityController] child to any [Entity] in the level
