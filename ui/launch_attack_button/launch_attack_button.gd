@@ -1,14 +1,13 @@
 class_name LaunchAttackButton
 extends Button
 
-## Commits the current attack plan. Enabled by UIRoot iff there's a plan and
-## it [method AttackPlan.is_valid]; pressed routes to
+## Commits the current attack plan. Enabled-and-visible by UIRoot iff there's
+## a plan and it [method AttackPlan.is_valid]; pressed routes to
 ## [method BattleSystem.launch_attack].
 ##
-## Visible always (no auto-hide) so the player sees the affordance even when
-## there's nothing to launch — disabled grey state telegraphs "you need a
-## target", enabled state lights up with a procedural fire shader because
-## the running gag on this project is that every button gets ridiculous.
+## As a FAB over the central viewport (per #28), the button hides entirely
+## when there's nothing to launch — the affordance is its appearance, not
+## its grey state. Enabled state lights up with a procedural fire shader.
 ##
 ## Material pipeline mirrors [AttackModeButton]: one [ShaderMaterial] on the
 ## bg [ColorRect], one on the [Label], both fed by the same `_push()` so
@@ -57,6 +56,7 @@ var enabled: bool = true: set = set_enabled
 func set_enabled(value: bool) -> void:
 	enabled = value
 	disabled = not value
+	visible = value
 	_tween_disabled(float(not value))
 	_tween_active(1.0 if value else 0.0)
 

@@ -181,11 +181,20 @@ layout_mode = 2
 size_flags_horizontal = 2
 mouse_filter = 2
 
-[node name="LaunchAttackButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control" unique_id=1481929375 instance=ExtResource("5_launch")]
+[node name="LaunchAttackButton" parent="." unique_id=1481929375 instance=ExtResource("5_launch")]
 unique_name_in_owner = true
 layout_mode = 1
-offset_right = 160.0
-offset_bottom = 64.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.65
+anchor_right = 0.5
+anchor_bottom = 0.65
+offset_left = -100.0
+offset_top = -40.0
+offset_right = 100.0
+offset_bottom = 40.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Control2" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=606294971]
 layout_mode = 2
