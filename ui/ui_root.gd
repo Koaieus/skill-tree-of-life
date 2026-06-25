@@ -46,7 +46,10 @@ func compose(game_root: GameRoot) -> void:
 	launch_attack_button.pressed.connect(_battle_system.launch_attack)
 
 	_input_ctl.player_can_act_changed.connect(attack_mode_bar.set_enabled)
+	_input_ctl.player_can_act_changed.connect(spell_picker_bar.set_enabled)
+	_input_ctl.player_can_act_changed.connect(_refresh_launch_button.unbind(1))
 	attack_mode_bar.set_enabled(_input_ctl.can_player_act())
+	spell_picker_bar.set_enabled(_input_ctl.can_player_act())
 
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_turn_manager.phase_changed.connect(_on_phase_changed)
@@ -120,7 +123,8 @@ func _refresh_spell_picker_gating() -> void:
 ## (attack_plan_state_changed) so target-selection ticks the button live.
 func _refresh_launch_button() -> void:
 	var plan := _battle_system.attack_plan
-	launch_attack_button.set_enabled(plan != null and plan.is_valid())
+	var can_act := _input_ctl == null or _input_ctl.can_player_act()
+	launch_attack_button.set_enabled(plan != null and plan.is_valid() and can_act)
 	# Source picks on the magic plan don't change the plan instance — they
 	# fire attack_plan_state_changed. Refresh picker gating off the same hook
 	# so disabled-state tracks the live source.

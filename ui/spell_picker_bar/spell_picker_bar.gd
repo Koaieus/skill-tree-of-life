@@ -21,6 +21,10 @@ var _buttons_by_spell: Dictionary[SpellDef, SpellPickerButton] = {}
 var _gating_attacker: Entity = null
 var _gating_source: SkillNode = null
 
+# True while the player can act (BATTLE phase + AP > 0). When false the bar
+# dims and all buttons go uninteractive — UI cue for "no action points left".
+var _act_enabled: bool = true
+
 
 func _ready() -> void:
 	_group = ButtonGroup.new()
@@ -73,7 +77,20 @@ func _refresh_castability() -> void:
 		return
 	for spell in _buttons_by_spell.keys():
 		var btn := _buttons_by_spell[spell]
-		btn.set_castable(_book.is_castable(spell, _gating_source, _gating_attacker))
+		var castable := _act_enabled and _book.is_castable(spell, _gating_source, _gating_attacker)
+		btn.set_castable(castable)
+
+
+## Bar-wide gate. False = no AP / not player's turn; dim the whole bar and
+## block input. Keeps per-spell castability authoritative when true.
+func set_enabled(enabled: bool) -> void:
+	if _act_enabled == enabled:
+		return
+	_act_enabled = enabled
+	modulate.a = 1.0 if enabled else 0.4
+	# Per-button disabled state (from _refresh_castability) blocks clicks; the
+	# alpha is the visual cue.
+	_refresh_castability()
 
 
 func _on_spell_button_pressed(spell: SpellDef) -> void:

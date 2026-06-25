@@ -13,7 +13,7 @@ extends Node
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
 @export var battle_system: BattleSystem
-@export var player: Entity
+@export var player: Entity: set = _set_player
 @export var turn_manager: TurnManager
 
 signal player_can_act_changed(can_act: bool)
@@ -76,7 +76,14 @@ func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 
 
 func can_player_act() -> bool:
-	return turn_manager.can_act() and turn_manager.current_entity == player
+	if not (turn_manager.can_act() and turn_manager.current_entity == player):
+		return false
+	# AP=0 in BATTLE phase blocks further actions; UI uses this to dim.
+	if player != null and player.stat_board != null:
+		var ap: PoolStat = player.stat_board.action_points
+		if ap != null and ap.current <= 0:
+			return false
+	return true
 
 
 func on_attack_mode_requested(mode: BattleSystem.AttackMode) -> void:
@@ -86,3 +93,21 @@ func on_attack_mode_requested(mode: BattleSystem.AttackMode) -> void:
 
 func _emit_gate_changed() -> void:
 	player_can_act_changed.emit(can_player_act())
+
+
+func _set_player(value: Entity) -> void:
+	if player == value:
+		return
+	if player != null and player.stat_board != null:
+		var prev_ap: PoolStat = player.stat_board.action_points
+		if prev_ap != null and prev_ap.current_changed.is_connected(_on_ap_changed):
+			prev_ap.current_changed.disconnect(_on_ap_changed)
+	player = value
+	if player != null and player.stat_board != null:
+		var ap: PoolStat = player.stat_board.action_points
+		if ap != null:
+			ap.current_changed.connect(_on_ap_changed)
+
+
+func _on_ap_changed(_new_current: Variant) -> void:
+	_emit_gate_changed()
