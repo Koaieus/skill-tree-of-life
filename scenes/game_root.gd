@@ -27,6 +27,7 @@ var player: Entity
 @onready var allocation_system: AllocationSystem = %AllocationSystem
 @onready var battle_system: BattleSystem = %BattleSystem
 @onready var turn_manager: TurnManager = %TurnManager
+@onready var vision_system: VisionSystem = %VisionSystem
 
 # UI
 @onready var ui_root: UIRoot = %UIRoot
@@ -41,7 +42,7 @@ var range_overlay: RangeOverlay
 var attack_vfx: AttackVFX
 var allocation_vfx: AllocationVFX
 var melee_preview: MeleePreview
-var damage_number_layer: DamageNumberLayer
+var floating_number_layer: FloatingNumberLayer
 
 
 func _ready() -> void:
@@ -50,7 +51,7 @@ func _ready() -> void:
 	_mount_attack_vfx()
 	_mount_allocation_vfx()
 	_mount_melee_preview()
-	_mount_damage_number_layer()
+	_mount_floating_number_layer()
 	# Inject the systems BattleSystem needs to commit attacks. Done in code
 	# rather than via scene NodePaths so the runtime-spawned VFX node can be
 	# wired the same way as the scene-tree allocation_system.
@@ -208,6 +209,7 @@ func _mount_melee_preview() -> void:
 	graph.add_child(melee_preview)
 
 
-func _mount_damage_number_layer() -> void:
-	damage_number_layer = DamageNumberLayer.new()
-	graph.add_child(damage_number_layer)
+func _mount_floating_number_layer() -> void:
+	floating_number_layer = FloatingNumberLayer.new()
+	floating_number_layer.vision_system = vision_system
+	graph.add_child(floating_number_layer)

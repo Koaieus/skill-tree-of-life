@@ -71,6 +71,13 @@ func _ready() -> void:
 			core_class.apply(self)
 		if stat_board.xp != null:
 			stat_board.xp.replenished.connect(_on_xp_replenished)
+		# Re-emit SP wound/heal on the global Events bus, keyed by self so
+		# floater layers don't need to bind per-entity. The signals on
+		# SkillPointStat fire on transfers, not on every value_changed —
+		# safe to forward without spam.
+		if stat_board.skill_points != null:
+			stat_board.skill_points.wounds_applied.connect(_emit_entity_wounded)
+			stat_board.skill_points.wounds_healed.connect(_emit_entity_healed)
 
 	var tm := _find_turn_manager()
 	if tm != null:
@@ -115,6 +122,14 @@ func _on_xp_replenished() -> void:
 		stat_board.skill_points.grant(1)
 	level += 1
 	leveled_up.emit(level)
+
+
+func _emit_entity_wounded(amount: int) -> void:
+	Events.entity_wounded.emit(self, amount)
+
+
+func _emit_entity_healed(amount: int) -> void:
+	Events.entity_healed.emit(self, amount)
 
 
 ## Group lookup, not tree walk: TurnManager lives at `GameRoot/Systems/...`,

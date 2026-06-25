@@ -118,7 +118,7 @@ func _ready() -> void:
 	owner_changed.connect(_refresh_hp_binding)
 	owner_changed.connect(_refresh_local_stat_bindings)
 	owner_changed.connect(_refresh_alloc_count)
-	damaged.connect(_play_hit_flash.unbind(2))
+	damaged.connect(play_hit_flash.unbind(2))
 	_addon_anchor.child_entered_tree.connect(_on_addon_added)
 	_addon_anchor.child_exiting_tree.connect(_on_addon_removed)
 	_refresh_core_marker()
@@ -393,7 +393,10 @@ func _on_addon_removed(c: Node) -> void:
 			_local_stats[m.stat_id].remove_modifier(m)
 
 
-func _play_hit_flash() -> void:
+## Brief white pulse on the BaseCircle. Auto-runs on the `damaged` signal;
+## also callable externally (FloatingNumberLayer triggers it on wound/heal
+## events so the core flashes alongside the floater).
+func play_hit_flash() -> void:
 	if _base_circle == null:
 		return
 	if _hit_flash_tween != null:
