@@ -67,6 +67,7 @@ extends Resource
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
 @export var mana_per_turn: ScalarStat	## Mana restored at turn start. Base: floor(log(INT)).
+@export var spell_range: ScalarStat		## Percent bonus to magic-spell reach. Scales with INT via intrinsic.
 
 @export_group("Melee")
 @export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.

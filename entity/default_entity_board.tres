@@ -21,6 +21,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
+[ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="def_strength"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
@@ -152,6 +153,16 @@ stat_id = &"range"
 operation = 1
 formula = SubResource("formula_dex_to_range")
 
+[sub_resource type="Resource" id="formula_int_to_spell_range"]
+script = ExtResource("script_linear")
+source_stat_id = &"intelligence"
+
+[sub_resource type="Resource" id="mod_int_to_spell_range"]
+script = ExtResource("12_3edt8")
+stat_id = &"spell_range"
+value = 1.0
+formula = SubResource("formula_int_to_spell_range")
+
 [sub_resource type="Resource" id="pool_mana"]
 resource_name = "mana"
 script = ExtResource("3_pool")
@@ -200,6 +211,12 @@ resource_name = "sensor_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_sensor_range")
 base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_spell_range"]
+resource_name = "spell_range"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_spell_range")
+base_value = 0.0
 
 [sub_resource type="Resource" id="sp_skill_points"]
 resource_name = "skill_points"
@@ -268,5 +285,6 @@ sensor_range = SubResource("scalar_sensor_range")
 range = SubResource("scalar_range")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
+spell_range = SubResource("scalar_spell_range")
 blade_size = SubResource("scalar_blade_size")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])

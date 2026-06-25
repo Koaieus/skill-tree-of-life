@@ -29,3 +29,16 @@ const DEFAULT_EDGE_SCENE: PackedScene = preload("res://attack/range_finder/visua
 ## populate rings (Euclidean) or edges (hop-based) as appropriate.
 func get_visual(_plan: AttackPlan, _source: SkillNode) -> RangeVisual:
 	return RangeVisual.new()
+
+
+## Per-attacker reach multiplier sourced from the `spell_range` stat
+## (interpreted as a percent bonus). Returns 1.0 if no attacker / stat board.
+## Subclasses scale their base reach by this value so INT-driven boosts
+## propagate uniformly across hop and euclidean finders.
+static func spell_range_multiplier(plan: AttackPlan) -> float:
+	if plan == null or plan.attacker == null or plan.attacker.stat_board == null:
+		return 1.0
+	var s := plan.attacker.stat_board.get_stat(&"spell_range")
+	if s == null:
+		return 1.0
+	return 1.0 + float(s.value) / 100.0
