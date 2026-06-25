@@ -75,6 +75,11 @@ func compose(game_root: GameRoot) -> void:
 	# BattleSystem (or Entity) gains one.
 	_player.leveled_up.connect(_on_player_leveled_up)
 
+	# Hand the banner layer the turn manager so it can drop stale phase
+	# banners (e.g. when the player rapid-end-turns past CONTRACT before its
+	# announcement gets to play).
+	banner_layer.bind_turn_manager(_turn_manager)
+
 	# Phase-driven contextual widgets: both self-subscribe once handed refs.
 	phase_indicator.bind(_turn_manager)
 	phase_context_panel.bind(_turn_manager, _battle_system)
@@ -146,17 +151,20 @@ func _on_phase_changed(entity: Entity, phase: TurnManager.Phase) -> void:
 	if entity == _player:
 		match phase:
 			TurnManager.Phase.EXPAND:
-				banner_layer.enqueue(BannerRequest.make(
-						"EXPAND PHASE", "", BannerRequest.Style.PHASE))
+				banner_layer.enqueue(BannerRequest.make_for_phase(
+						"EXPAND PHASE", "", BannerRequest.Style.PHASE,
+						entity, TurnManager.Phase.EXPAND))
 			TurnManager.Phase.BATTLE:
-				banner_layer.enqueue(BannerRequest.make(
-						"BATTLE PHASE", "", BannerRequest.Style.PHASE))
+				banner_layer.enqueue(BannerRequest.make_for_phase(
+						"BATTLE PHASE", "", BannerRequest.Style.PHASE,
+						entity, TurnManager.Phase.BATTLE))
 
 
 func _on_turn_started(entity: Entity) -> void:
 	if entity == _player:
-		banner_layer.enqueue(BannerRequest.make(
-				"TURN STARTED", "CONTRACTION PHASE", BannerRequest.Style.DEFAULT))
+		banner_layer.enqueue(BannerRequest.make_for_phase(
+				"TURN STARTED", "CONTRACTION PHASE", BannerRequest.Style.DEFAULT,
+				entity, TurnManager.Phase.CONTRACT))
 	_refresh_end_turn_button()
 
 
