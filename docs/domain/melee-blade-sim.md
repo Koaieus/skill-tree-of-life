@@ -1,5 +1,7 @@
 # Melee blade — PBD physics & deterministic preview
 
+> ⚠️ **MVP damage model:** blade-**nodes** deal damage; edges are inert. STR//10 scales per-node damage. Face/cycle bonus is deferred post-MVP. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1.
+
 ## Goal
 
 Melee attacks need a *deterministic* outcome up front — same as ranged and

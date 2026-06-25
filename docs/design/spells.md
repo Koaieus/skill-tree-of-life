@@ -1,5 +1,7 @@
 # Spells — Skill Tree of Life
 
+> ⚠️ **MVP-current state lives in [mvp_decisions.md](mvp_decisions.md).** Cast-range scales by INT (new `spell_range` stat), not by source-node degree. Degree-gating uses **allocated-degree** (`EntityNavigator`). "Overqualified casting" bonuses are deferred.
+
 ## Overview
 
 Blue (INT/magic) attacks. Each spell defines its own graph-native targeting and propagation — not a generic damage type applied to a graph, but a mechanism *that is* a graph operation. INT scales potency; degree gates casting tier. See `combat_system.md` for the full degree-gating table and damage pipeline.

@@ -6,10 +6,14 @@ A Godot 4.4 game where the skill tree *is* the game. Entities live on a graph of
 
 The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, and a map into the per-system docs below.
 
+> 📍 **For MVP-current state on contested questions, read [mvp_decisions.md](mvp_decisions.md) first** — it supersedes older sketches in the per-system docs where they disagree. Also see [../ROADMAP.md](../ROADMAP.md) for what's done vs in-flight.
+
 ## Documents
 
 | File | What it covers |
 |---|---|
+| [mvp_decisions.md](mvp_decisions.md) | **MVP decisions log** — authoritative current state for the 8 D-decisions (melee model, cast range, addons, factions, etc.). Supersedes per-system sketches where they disagree |
+| [../ROADMAP.md](../ROADMAP.md) | **Roadmap** — done / in-progress / todo across all milestones |
 | [../GDD.md](../GDD.md) | **Master GDD** — pitch, core loop, the supergraph, entities, combat summary, classes, progression, open questions, roadmap |
 | [lore.md](lore.md) | Narrative, acts, the Fairy, graph theology, the Field/Tethers/Breakout, the Fractal, tone, visual language |
 | [first_session_walkthrough.md](first_session_walkthrough.md) | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
