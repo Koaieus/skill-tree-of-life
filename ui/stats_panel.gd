@@ -17,13 +17,15 @@ extends VBoxContainer
 
 const _TAB_FALLBACK: StringName = &"misc"
 
-# Tab order + display. Glyphs are unicode stopgaps; can swap to textures later.
+# Tab order + display. Each tab header renders the GLYPH ONLY (so all tabs fit
+# in one row — no overflow/pagination), with the human `name` shown as a hover
+# tooltip. Glyphs are unicode stopgaps; swap to `set_tab_icon` textures later.
 const _TABS: Array[Dictionary] = [
-	{ "id": &"body",   "title": "♥  Body"   },
-	{ "id": &"combat", "title": "⚔  Combat" },
-	{ "id": &"mind",   "title": "🧠 Mind"   },
-	{ "id": &"sense",  "title": "👁 Sense"  },
-	{ "id": _TAB_FALLBACK, "title": "···"   },
+	{ "id": &"body",   "name": "Body",   "glyph": "♥"  },
+	{ "id": &"combat", "name": "Combat", "glyph": "⚔"  },
+	{ "id": &"mind",   "name": "Mind",   "glyph": "🧠" },
+	{ "id": &"sense",  "name": "Sense",  "glyph": "👁" },
+	{ "id": _TAB_FALLBACK, "name": "Misc", "glyph": "···" },
 ]
 
 @export var board: StatBoard:
@@ -63,7 +65,7 @@ func _rebuild() -> void:
 		var tab_id: StringName = tab_def["id"]
 		known_ids.append(tab_id)
 		var vb := VBoxContainer.new()
-		vb.name = tab_def["title"]
+		vb.name = String(tab_id)
 		_tab_container.add_child(vb)
 		per_tab[tab_id] = vb
 
@@ -80,7 +82,20 @@ func _rebuild() -> void:
 		var tab_id: StringName = tab_def["id"]
 		var vb := per_tab[tab_id]
 		if vb.get_child_count() == 0:
+			_tab_container.remove_child(vb)
 			vb.queue_free()
+
+	# Icon-only headers: render the glyph as the tab title, with the human name
+	# as a hover tooltip. Done after the empty-tab cull so indices are stable.
+	for tab_def in _TABS:
+		var vb: VBoxContainer = per_tab[tab_def["id"]]
+		if not is_instance_valid(vb) or vb.get_parent() != _tab_container:
+			continue
+		var idx := _tab_container.get_tab_idx_from_control(vb)
+		if idx < 0:
+			continue
+		_tab_container.set_tab_title(idx, tab_def["glyph"])
+		_tab_container.set_tab_tooltip(idx, tab_def["name"])
 
 
 func _add_row_to_tab(def: StatDef, tab_vb: VBoxContainer) -> void:
@@ -118,17 +133,13 @@ func _build_row(def: StatDef) -> Control:
 			return _build_basic_row()
 
 
+const _STAT_ROW_SCENE := preload("res://ui/stat_row.tscn")
+
+
 func _build_basic_row() -> HBoxContainer:
-	var row := HBoxContainer.new()
-	var name_label := Label.new()
-	name_label.name = "Name"
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(name_label)
-	var value_label := Label.new()
-	value_label.name = "Value"
-	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	row.add_child(value_label)
-	return row
+	# Scene-instantiated row: an HBoxContainer with `Name` (expand-fill) and
+	# right-aligned `Value` labels. _refresh() finds them by node name.
+	return _STAT_ROW_SCENE.instantiate() as HBoxContainer
 
 
 # --- Refresh ----------------------------------------------------------------
