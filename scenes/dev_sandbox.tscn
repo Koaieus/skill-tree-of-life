@@ -584,7 +584,6 @@ metadata/_edit_lock_ = true
 
 [node name="FogOverlay" parent="Graph" unique_id=295980468 node_paths=PackedStringArray("vision_system") instance=ExtResource("41_fog")]
 z_index = 1000
-enabled = true
 vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
@@ -695,6 +694,7 @@ from = NodePath("../../Nodes/Bridge_S")
 to = NodePath("../../Nodes/Enemy_W")
 
 [node name="Edge_EnemyCore_EnemyN" type="Node2D" parent="Graph/Edges" unique_id=8800109 node_paths=PackedStringArray("from", "to")]
+modulate = Color(1, 1, 1, 0.48904088)
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_N")
@@ -705,6 +705,7 @@ from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_E")
 
 [node name="Edge_EnemyCore_EnemyS" type="Node2D" parent="Graph/Edges" unique_id=8800111 node_paths=PackedStringArray("from", "to")]
+modulate = Color(1, 1, 1, 0.67547023)
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_S")
@@ -730,6 +731,7 @@ from = NodePath("../../Nodes/NE")
 to = NodePath("../../Nodes/Watchtower")
 
 [node name="Edge_UpOut_Watchtower" type="Node2D" parent="Graph/Edges" unique_id=9000102 node_paths=PackedStringArray("from", "to")]
+modulate = Color(1, 1, 1, 0.56919986)
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up_Out")
 to = NodePath("../../Nodes/Watchtower")
@@ -750,11 +752,13 @@ from = NodePath("../../Nodes/Left")
 to = NodePath("../../Nodes/Library")
 
 [node name="Edge_LeftOut_Library" type="Node2D" parent="Graph/Edges" unique_id=9000106 node_paths=PackedStringArray("from", "to")]
+modulate = Color(1, 1, 1, 0.5606428)
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Left_Out")
 to = NodePath("../../Nodes/Library")
 
 [node name="Edge_SW_Forge" type="Node2D" parent="Graph/Edges" unique_id=9000107 node_paths=PackedStringArray("from", "to")]
+modulate = Color(1, 1, 1, 0.7059601)
 script = ExtResource("4_edge")
 from = NodePath("../../Nodes/SW")
 to = NodePath("../../Nodes/Forge")
@@ -788,6 +792,7 @@ owned_by = NodePath("../../Entities/Player")
 [node name="Up" parent="Graph/Nodes" unique_id=1730649151 instance=ExtResource("9_skill")]
 position = Vector2(58, -136)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
+base_type_color = Color(0.13917014, 0.4724126, 0.4210909, 1)
 
 [node name="Right" parent="Graph/Nodes" unique_id=1699135446 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(151, 78)
@@ -822,6 +827,7 @@ owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2")])
 
 [node name="Left_Out" parent="Graph/Nodes" unique_id=8800202 instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.81206286)
 position = Vector2(-283, -107)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
@@ -840,10 +846,12 @@ owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
 [node name="Enemy_Core" parent="Graph/Nodes" unique_id=8800206 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.4987747)
 position = Vector2(507, 83)
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_N" parent="Graph/Nodes" unique_id=8800207 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.50145876)
 position = Vector2(467, -47)
 owned_by = NodePath("../../Entities/Enemy")
 
@@ -853,6 +861,7 @@ input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_S" parent="Graph/Nodes" unique_id=8800209 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.7486562)
 position = Vector2(507, 213)
 owned_by = NodePath("../../Entities/Enemy")
 
@@ -861,10 +870,12 @@ position = Vector2(397, 143)
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Watchtower" parent="Graph/Nodes" unique_id=9000001 instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.3)
 position = Vector2(300, -260)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 
 [node name="Juggler" parent="Graph/Nodes" unique_id=9000002 instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.8810102)
 position = Vector2(-50, -290)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
 
@@ -874,10 +885,12 @@ input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
 
 [node name="Library" parent="Graph/Nodes" unique_id=9000004 instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.3)
 position = Vector2(-380, 50)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
 
 [node name="Forge" parent="Graph/Nodes" unique_id=9000005 instance=ExtResource("9_skill")]
+modulate = Color(1, 1, 1, 0.3)
 position = Vector2(-350, 200)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_hp_3")])
 

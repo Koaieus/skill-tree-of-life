@@ -88,8 +88,7 @@ func _spawn_at_core(entity: Entity, text: String, color: Color) -> void:
 		return
 	# Flash the core itself so the number isn't the only signal — wound feels
 	# like an event happening to the core, not just a number popping up nearby.
-	if core.has_method("play_hit_flash"):
-		core.call("play_hit_flash")
+	core.play_hit_flash()
 	spawn(core.global_position, text, color)
 
 
