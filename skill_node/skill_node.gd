@@ -393,6 +393,25 @@ func _on_addon_removed(c: Node) -> void:
 			_local_stats[m.stat_id].remove_modifier(m)
 
 
+## Core-movement slide-in (#21). Called on the *new* core slot after
+## AllocationSystem.move_core commits; offsets the CoreMarker to start at
+## the previous slot's world position and tweens it back to local zero so
+## the star reads as gliding into place. The underlying `core_location` has
+## already flipped (and CoreMarker.visible was refreshed) — this is purely
+## the visual catch-up. No-op if the marker isn't ready or the offset is
+## degenerate (same node, fog-hidden marker).
+func play_core_slide_from(world_pos: Vector2, duration: float = 0.25) -> void:
+	if not is_node_ready() or core_marker == null or not core_marker.visible:
+		return
+	var offset := world_pos - global_position
+	if offset.is_zero_approx():
+		return
+	core_marker.position = offset
+	var tw := create_tween()
+	tw.tween_property(core_marker, "position", Vector2.ZERO, duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
 ## Brief white pulse on the BaseCircle. Auto-runs on the `damaged` signal;
 ## also callable externally (FloatingNumberLayer triggers it on wound/heal
 ## events so the core flashes alongside the floater).

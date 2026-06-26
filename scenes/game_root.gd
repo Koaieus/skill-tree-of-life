@@ -59,6 +59,11 @@ func _ready() -> void:
 	battle_system.graph = graph
 	battle_system.attack_vfx = attack_vfx
 	battle_system.melee_preview = melee_preview
+	# Core-movement (#21) slide tween. The CoreMarker on `to_node` has already
+	# popped in via Entity.core_location_changed; offset it to start at
+	# `from_node` and glide back. Lives here rather than on Entity so SkillNode
+	# stays the visual owner.
+	allocation_system.core_moved.connect(_on_core_moved)
 
 	camera = _resolve_camera()
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
@@ -161,6 +166,12 @@ func spawn_entity(
 		ai.name = "AIController"
 		ent.add_child(ai)
 	return ent
+
+
+func _on_core_moved(_entity: Entity, from_node: SkillNode, to_node: SkillNode) -> void:
+	if to_node == null or from_node == null:
+		return
+	to_node.play_core_slide_from(from_node.global_position)
 
 
 func _focus_camera_on_player() -> void:

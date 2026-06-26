@@ -33,6 +33,11 @@ signal deallocated(node: SkillNode, previous_owner: Entity)
 ## call — including each follow-up in a battle cascade. See
 ## `docs/domain/allocation-vfx.md`.
 signal force_deallocated(node: SkillNode, previous_owner: Entity)
+## Core movement (#21). Emitted after `move_core` commits the new
+## `core_location`. `from_node` is the previous core slot, `to_node` the new
+## one. Slide-tween consumers (SkillNode's CoreMarker) subscribe here rather
+## than to `core_location_changed` so they get the previous position too.
+signal core_moved(entity: Entity, from_node: SkillNode, to_node: SkillNode)
 
 @export var graph: Graph
 @export var navigator: Navigator
@@ -169,6 +174,56 @@ func force_deallocate(node: SkillNode) -> Entity:
 	node.owned_by = null
 	force_deallocated.emit(node, previous)
 	return previous
+
+
+## Core movement (#21). Validates `move_core` preconditions without committing.
+## - target must be owned by the entity (you only hop across your own subgraph)
+## - target must differ from the current core slot (self-loops are not landings)
+## - target must be adjacent via a non-self-loop edge to the current core slot
+## - entity must have ≥ 1 movement_points
+## Phase gating lives in the caller (PlayerInputController), mirroring how
+## allocate/deallocate handle CONTRACT vs EXPAND outside this system.
+func can_move_core(entity: Entity, target: SkillNode) -> bool:
+	if entity == null or target == null:
+		return false
+	var source := entity.core_location
+	if source == null or target == source:
+		return false
+	if target.owned_by != entity:
+		return false
+	if not _is_adjacent_via_real_edge(source, target):
+		return false
+	var board := entity.stat_board
+	if board != null and board.movement_points != null and board.movement_points.current < 1:
+		return false
+	return true
+
+
+## Core movement (#21). Hops `entity.core_location` to an adjacent owned node,
+## spends 1 movement_points, and emits `core_moved` (for slide-tween VFX) plus
+## the existing `core_location_changed` (for the CoreMarker swap, vision
+## recompute, etc.). No cut-vertex check: the owned subgraph is unchanged.
+func move_core(entity: Entity, target: SkillNode) -> bool:
+	if not can_move_core(entity, target):
+		return false
+	var from_node := entity.core_location
+	var board := entity.stat_board
+	if board != null and board.movement_points != null:
+		board.movement_points.deplete(1)
+	entity.core_location = target
+	core_moved.emit(entity, from_node, target)
+	return true
+
+
+func _is_adjacent_via_real_edge(a: SkillNode, b: SkillNode) -> bool:
+	if graph == null or a == null or b == null or a == b:
+		return false
+	for e in graph.get_edges():
+		if e.from == e.to:
+			continue  # self-loop never lands a move
+		if (e.from == a and e.to == b) or (e.from == b and e.to == a):
+			return true
+	return false
 
 
 func _has_any_owned_node(entity: Entity) -> bool:
