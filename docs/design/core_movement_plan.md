@@ -37,7 +37,7 @@ Related: **#58** (extend the movement model), **#39** (core-class buffs).
 - Ineligible adjacent owned nodes that *would* land within MP but are blocked (none today; placeholder for ZoC later) → `INVALID` role.
 
 ## Out of scope
-- BATTLE-phase movement → #58.
+- Extended movement model → #58.
 - Procgen `+1 movement` rolls → carve separately.
 - Core-class buff design → #39.
 

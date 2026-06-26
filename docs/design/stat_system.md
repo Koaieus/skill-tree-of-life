@@ -426,7 +426,7 @@ ReinforcementAddon extends NodeAddon
   - health_bonus: int       # adds to node's effective HP
 
 BufferAddon extends NodeAddon
-  - reach: int              # battle-phase reach budget (scaled by pressure_capacity)
+  - reach: int              # attack-time reach budget (scaled by pressure_capacity)
   # behavior: a tap TEMPORARILY allocates existing field nodes for reach (melee pivot /
   # ranged stubs / magic hub-degree), then the buffer goes on cooldown. Reverts at turn
   # end unless promoted in Consolidation. NOT melee fuel — see skill_node_addons.md.
@@ -481,7 +481,7 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 | `luck` | INT | Scalar | — | Scales roguelike fortune mechanics. **Modifier draft pool size = 3 + `luck`** (at level-up; see `entity_stat_board_prototype.md`). Also skews loot table quality and damage RNG: rolls on `N–M` damage ranges are biased toward `M` proportionally to `luck`. Default 0. |
 | `coolness` | INT | Scalar | — | Prestige only — no mechanical effect; end-credits tally. The "all edge, no point" stat. |
 | `attack_range` | INT | Scalar | — | Max euclidean range for **ranged** only. Magic reach is `bonus_hop_count`. (Relay addon TBD.) |
-| `pressure_capacity` | INT | Scalar | — | **Battle-phase reach budget**: existing field nodes a buffer tap can temporarily allocate. (No longer melee charge count — melee size is `STR//10+1`.) |
+| `pressure_capacity` | INT | Scalar | — | **Attack-time reach budget**: existing field nodes a buffer tap can temporarily allocate. (No longer melee charge count — melee size is `STR//10+1`.) |
 | `crit_chance` | INT | Scalar | — | Percent chance to crit. Global across attack types for now. Keep low (5–10%). |
 | `crit_mult` | FLOAT | Scalar | — | Crit damage multiplier. Default ×2. (FLOAT exception — it's a multiplier.) |
 | `armor` | INT | Scalar | — | Flat damage reduction (all types). Floor leaves ≥1 damage through. |

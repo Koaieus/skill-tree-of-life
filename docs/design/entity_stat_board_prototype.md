@@ -41,13 +41,11 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 - Default N = 3 (3 free SP to spend immediately on turn 1)
 - 0 non-core nodes allocated
 
-### The three-phase turn (SP model)
+### The turn (SP model)
 
-**One SP pool.** The turn splits by *action type*, not by temp/permanent flag — the old "battle-phase allocations are temporary, then promote/drop in consolidation" model was parked once the live code settled on a simpler split.
+**One SP pool, one phase per turn.** At `turn_started` every per-turn budget replenishes (`skill_points` / `deallocation_points` / `action_points` / `movement_points` / XP / …) and the entity spends them **in any order** until End Turn. Intent is disambiguated by **input channel**, not by phase — deallocate (hover + `D`, spends `deallocation_points`, gated by the no-island cut-vertex rule), allocate (bare left-click, spends SP), move core, act (up to two actions). The canonical turn model lives in [combat_system.md](combat_system.md#turn-structure--one-turn-intent-by-input-channel); this section only covers how SP flows through the buckets below.
 
-1. **CONTRACT** — deallocation only. Spend `deallocation_points` to free SP and reshape; refunds SP, gated by the no-island cut-vertex rule. Allocation is locked off.
-2. **EXPAND** — allocation only. Spend SP. Deallocation is locked off — symmetric guard against misclicks the other way.
-3. **BATTLE** — act (up to two actions, see combat_system.md). Allocation and deallocation are both locked.
+(There is no temp/permanent SP split — the old "in-battle allocations are temporary, then promote/drop in consolidation" idea was parked; all allocation is permanent.)
 
 ### SP buckets (and the derived `used`)
 
@@ -60,7 +58,7 @@ sp_in_use       = count of non-core allocated nodes  (implicit — not stored se
 | `staked` | stored | Spent to raise a node's allocation cap; recoverable via the future *extract* action |
 | `used` | **derived** | SP locked into currently-allocated nodes (one per node beyond core) |
 
-**Wound mechanics:** forced deallocation routes used → wounded (no SP returned to hand). `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) per turn. Voluntary CONTRACT-phase deallocation uses `refund(n)`, which moves used → current immediately.
+**Wound mechanics:** forced deallocation routes used → wounded (no SP returned to hand). `Entity._on_turn_started` heals `wound_heal_per_turn` (default 1) per turn. Voluntary deallocation uses `refund(n)`, which moves used → current immediately.
 
 **Mints (max grows):**
 
@@ -122,7 +120,7 @@ Stakes are pure node-local — never registered with an entity `StatBoard`. Futu
 | `damage_floor` | INT | Scalar | 1 | Minimum damage taken per hit after all reductions. Global default: 1. Bulwark class starts at 3. Can be reduced to 0 (chip immunity) or below 0 (healing on hit) through class progression. Negative values are intentional for extreme builds. |
 | `crit_chance` | INT | Scalar | 5 | Percent chance to crit. Global across all attack types. |
 | `crit_mult` | FLOAT | Scalar | 2.0 | Crit damage multiplier. Only FLOAT on the stat board. |
-| `pressure_capacity` | INT | Scalar | 2 | **Redefined.** Battle-phase reach budget: how many existing field nodes a buffer node can *temporarily* allocate per tap (reach a pivot forward, claim firing stubs, pad a casting hub's degree). No longer "melee charge count" — melee size is now `STR//10+1` (the phantom blade). See `skill_node_addons.md` Buffer + the three-phase turn. |
+| `pressure_capacity` | INT | Scalar | 2 | **Redefined.** Reach budget: how many existing field nodes a buffer node can *temporarily* allocate per tap (reach a pivot forward, claim firing stubs, pad a casting hub's degree). No longer "melee charge count" — melee size is now `STR//10+1` (the phantom blade). See `skill_node_addons.md` Buffer. (Speculative — the temp-allocation hook isn't built; see the parked buffer-reach mechanic.) |
 | `aura_range` | INT | Scalar | 0 | Hops the core aura reaches outward. 0 = no aura. |
 | `aura_strength` | INT | Scalar | 0 | Magnitude of core aura buff (before falloff). |
 | `shell_distance` | INT | Scalar | 0 | **Halo class only.** Hop distance at which the Halo's shell aura is centered. 0 = inactive (non-Halo entities). Modifiable through class upgrades. |
@@ -156,7 +154,7 @@ Fixed per attack type. Live in the combat system, not on the stat board. Do not 
 
 ```
 per instance:  outgoing  = base[attack_type] + attribute//10     ← base counted once per attack
-               taken     = max(damage_floor, outgoing − armor − resist[attack_color])   ← once per target
+			   taken     = max(damage_floor, outgoing − armor − resist[attack_color])   ← once per target
 ```
 
 `damage_floor` replaces the hardcoded `max(1, ...)` from earlier versions. Default behavior is identical (floor = 1). The Bulwark class starts with floor = 3; it can reduce this to 0 (chip immunity) or negative (healing on hit). For all other classes at default, behavior is unchanged.
@@ -185,7 +183,7 @@ movement_speed = 1
 aura_range = 0, aura_strength = 0
 shell_distance = 0                 ← not a Halo class
 crit_chance = 5, crit_mult = 2.0
-pressure_capacity = 2              ← battle-phase reach budget (buffer taps), not melee charge count
+pressure_capacity = 2              ← attack-time reach budget (buffer taps), not melee charge count
 core_charge_capacity = 3
 proliferation_power = 3            ← N tainted copies on PROLIFERATE
 coolness = 0                       ← prestige only

@@ -84,7 +84,7 @@ Always available. Designed to be legible to new players.
 - **BLITZ (class exclusive):** On a killing blow, if at least one owned node is adjacent to any dying entity node: steal one adjacent enemy-owned node, direct transfer, no SP cost.
 - **Core BLITZ bonus:** If the stolen node is the Relic Node (dead core itself): loot resolution triggers immediately with +1 STEAL pick.
 
-**Synergizes with:** Buffer addon (battle-phase reach to bring a melee pivot to the front, aligned with close-range play); high-dealloc nodes; R (Red) nodes for STR.
+**Synergizes with:** Buffer addon (attack-time reach to bring a melee pivot to the front, aligned with close-range play); high-dealloc nodes; R (Red) nodes for STR.
 
 **Counterplay:** Kite it. The Predator requires adjacency — keep it at range. A G-heavy ranged opponent that maintains distance exploits the Predator's need to close the gap. Deny BLITZ by avoiding adjacency at the kill moment.
 

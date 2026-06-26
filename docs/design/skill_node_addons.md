@@ -42,9 +42,11 @@ These are established mechanics referenced consistently in the design docs.
 
 ### Buffer
 
-> **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **battle-phase temporary reach**.
+> **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **temporary reach** for an attack.
+>
+> **Speculative — not built.** The temp-allocation hook this describes does not exist in the live code; this is a parked design. When it's built, its lifetime is bounded by the attack it serves, not by a turn phase (phases were removed in #60).
 
-**Effect:** During the **Battle phase** (see the three-phase turn), tapping a Buffer node **temporarily allocates existing field nodes** — reaching across the *real* graph to bring an attacking node/pivot to the front (melee), claim firing stubs (ranged), or pad a casting hub's degree (magic). It does **not** spawn new vertices; it plays with the real skill-node/edge graph. After a tap the Buffer goes on **cooldown** (cannot re-tap next turn — preserves cadence). All temporarily-allocated nodes **revert at battle phase end**.
+**Effect:** When composing an attack, tapping a Buffer node **temporarily allocates existing field nodes** — reaching across the *real* graph to bring an attacking node/pivot to the front (melee), claim firing stubs (ranged), or pad a casting hub's degree (magic). It does **not** spawn new vertices; it plays with the real skill-node/edge graph. After a tap the Buffer goes on **cooldown** (cannot re-tap next turn — preserves cadence). All temporarily-allocated nodes **revert when the attack they enabled resolves**.
 
 **Universal across all colors.** Melee/ranged/magic all benefit — it is reach, not a melee-only tool.
 
@@ -136,7 +138,7 @@ These are established mechanics referenced consistently in the design docs.
 
 **Relationship to existing systems (`FLAG`):**
 - **Edge-deletion invariant / Edgelord — not violated.** The combat doc's invariant ("no mechanic may leave a region permanently unreachable") and the Edgelord's *permanent* edge add/remove specialty (Bleeding Edge) are **not** infringed by the Gate, because the Gate is **fully reversible** (re-power, or remove-to-revert). Permanent severing remains Edgelord's heresy-free domain; the Gate is universal *precisely because* it is reversible/toggle. The two are not redundant — distinct on permanence. (Mirrored in `combat_system.md` — Edge-cutting jab invariant.)
-- **Buffer overlap — reconcile.** Buffer is "universal temporary **reach** utility" (temporarily allocate existing *nodes* for a battle-phase move); the Gate is temporary **edge** toggling. They share a "temporary topology" identity but operate on different objects (nodes vs. edges) and at different scopes (Buffer reverts at turn end and goes on cooldown; Gate leans persistent and is a placed 2-node addon). Treat them as **distinct addons** for now — Buffer reaches across the *existing* graph, the Gate *rewires* it — and revisit if play shows the identities blur.
+- **Buffer overlap — reconcile.** Buffer is "universal temporary **reach** utility" (temporarily allocate existing *nodes* for an attack); the Gate is temporary **edge** toggling. They share a "temporary topology" identity but operate on different objects (nodes vs. edges) and at different scopes (Buffer reverts when the attack resolves and goes on cooldown; Gate leans persistent and is a placed 2-node addon). Treat them as **distinct addons** for now — Buffer reaches across the *existing* graph, the Gate *rewires* it — and revisit if play shows the identities blur.
 
 ---
 
