@@ -1,3 +1,4 @@
+@tool
 class_name EndTurnButton
 extends Button
 
@@ -53,8 +54,8 @@ var _scroll_offset: float = 0.0
 @onready var color_rect: ColorRect = $ColorRect
 @onready var label: Label = $Label
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
-@onready var _bubble: PanelContainer = $ConfirmBubble
-@onready var _bubble_warning: Label = $ConfirmBubble/Margin/VBox/Warning
+@onready var _bubble: PanelContainer = %ConfirmBubble
+@onready var _bubble_warning: Label = %ConfirmBubble/Margin/VBox/Warning
 
 
 var hovered: float = 0.0:
