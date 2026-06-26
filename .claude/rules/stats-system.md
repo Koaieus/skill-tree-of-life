@@ -96,6 +96,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `dexterity` | `sensor_range` | ADD_BASE | 1 | `floor(dexterity / 10.0)` |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `strength` | `blade_size` | ADD_BASE | 1 | `floor(strength / 10.0)` |
+| `strength` | `blade_damage` | ADD_BASE | 1 | `floor(strength / 10.0)` |
 
 ## Damage mitigation
 
@@ -132,10 +133,16 @@ Both are emitted per cascaded node in the same loop, so a 5-node cascade with `d
 
 - `BASIC` → `Label` (default for scalars)
 - `PROGRESS` → `ProgressBar` (`max_value = stat.value`, `value = pool.current`) with a centred `"Name: current/max"` label child. Default for every `PoolStat` def.
-- `BAR`, `INLINE` → reserved; currently fall through to `BASIC` so authoring them is a no-op until widgets land.
+- `INLINE` → dimmed sub-row rendered immediately after the row named by `StatDef.parent_stat_id`. Name label prefixed with `"+ "`. Use for per-turn stats and other derivatives. Ignored `display_group` — tab is inherited from parent.
+- `BAR` → reserved; falls through to `BASIC`.
 - `HIDDEN` → omitted from the panel entirely.
 
-Adding a stat means dropping a .tres in `stats_system/defs/` with `display_type` + `display_order` set. The panel doesn't need to know it exists. The escape hatch for non-stock rendering (e.g. a sloshing mana ball) is to add an `@export var widget_scene: PackedScene` to `StatDef` and dispatch on it before the enum — not implemented yet, but that's the slot.
+**Tab taxonomy (3 tabs):**
+- `overview` — pools (health, mana, SP, DP, AP, movement, XP) + base attributes (STR, DEX, INT, WIS, PER). Per-turn stats (mana_per_turn, xp_per_turn, wound_heal_per_turn) appear as INLINE under their parent.
+- `combat` — blade_size, blade_damage, armor, dealloc_damage, min_damage_taken, range, vision_range, sensor_range, initiative_speed.
+- `magic` — spell_range and future magic-specific stats.
+
+Adding a stat means dropping a .tres in `stats_system/defs/` with `display_type` + `display_order` + `display_group` set. For INLINE, set `parent_stat_id` instead of `display_group`. The panel picks it up on next board bind. The escape hatch for non-stock rendering (e.g. a sloshing mana ball) is to add an `@export var widget_scene: PackedScene` to `StatDef` and dispatch on it before the enum — not implemented yet, but that's the slot.
 
 ## Visualizer (editor plugin)
 

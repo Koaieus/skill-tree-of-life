@@ -12,4 +12,4 @@ default_value = 0.0
 display_order = 75
 display_type = 0
 tint_color = Color(0.55, 0.65, 1.0, 1)
-display_group = &"mind"
+display_group = &"magic"

@@ -6,14 +6,16 @@ extends VBoxContainer
 ## one row per visible stat per tab, refreshing on each stat's value_changed.
 ##
 ## What renders and in what order is driven entirely by StatDef metadata —
-## `display_type` picks the widget (BASIC / PROGRESS, others reserved or
-## HIDDEN) and `display_order` sorts the column. Adding a stat is a one-file
-## change: drop a .tres in stats_system/defs/, set its order, type, and
-## display_group, and the panel picks it up the next time the board is bound.
+## `display_type` picks the widget (BASIC / PROGRESS / INLINE, others reserved
+## or HIDDEN) and `display_order` sorts the column within a tab. Adding a stat
+## is a one-file change: drop a .tres in stats_system/defs/, set its order,
+## type, display_group (or parent_stat_id for INLINE), and the panel picks it
+## up the next time the board is bound.
 ##
-## Tabs group stats by StatDef.display_group. Anything with an empty or
-## unrecognised display_group lands in the catch-all "···" tab (hidden when
-## empty).
+## Tabs group stats by StatDef.display_group. INLINE stats ignore display_group
+## and instead insert immediately after the row named by parent_stat_id. Stats
+## with an unrecognised display_group land in the catch-all "···" tab (hidden
+## when empty).
 
 const _TAB_FALLBACK: StringName = &"misc"
 
@@ -21,11 +23,11 @@ const _TAB_FALLBACK: StringName = &"misc"
 # in one row — no overflow/pagination), with the human `name` shown as a hover
 # tooltip. Glyphs are unicode stopgaps; swap to `set_tab_icon` textures later.
 const _TABS: Array[Dictionary] = [
-	{ "id": &"body",   "name": "Body",   "glyph": "♥"  },
-	{ "id": &"combat", "name": "Combat", "glyph": "⚔"  },
-	{ "id": &"mind",   "name": "Mind",   "glyph": "🧠" },
-	{ "id": &"sense",  "name": "Sense",  "glyph": "👁" },
-	{ "id": _TAB_FALLBACK, "name": "Misc", "glyph": "···" },
+	## TODO: add a new Resource class for this, get free typing. And allow glyph to be a (Node2D or) Texture2D
+	{ "id": &"overview", "name": "Overview", "glyph": "★"  },
+	{ "id": &"combat",   "name": "Combat",   "glyph": "⚔"  },
+	{ "id": &"magic",    "name": "Magic",    "glyph": "✦"  },
+	{ "id": _TAB_FALLBACK, "name": "Misc",   "glyph": "···" },
 ]
 
 @export var board: StatBoard:
@@ -35,8 +37,8 @@ const _TABS: Array[Dictionary] = [
 		_connect_board()
 		_rebuild()
 
-# stat id → list of row Controls (one per tab the stat appears in — exactly
-# 1 entry now that the "All" tab is gone). Refresh walks each.
+# stat id → list of row Controls (exactly 1 entry per stat in the current layout).
+# _refresh() walks each.
 var _rows: Dictionary[StringName, Array] = {}
 var _tab_container: TabContainer = null
 
@@ -69,12 +71,46 @@ func _rebuild() -> void:
 		_tab_container.add_child(vb)
 		per_tab[tab_id] = vb
 
-	var defs := _collect_visible_defs()
-	defs.sort_custom(func(a, b): return a.display_order < b.display_order)
-	for def in defs:
+	var all_defs := _collect_visible_defs()
+
+	# Separate INLINE stats (sub-rows that attach to a parent) from main stats.
+	var main_defs: Array[StatDef] = []
+	var inline_defs: Array[StatDef] = []
+	for def in all_defs:
+		if def.display_type == StatDef.DisplayType.INLINE and def.parent_stat_id != &"":
+			inline_defs.append(def)
+		else:
+			main_defs.append(def)
+
+	main_defs.sort_custom(func(a, b): return a.display_order < b.display_order)
+	for def in main_defs:
 		var group: StringName = def.display_group
 		var dest: StringName = group if group in known_ids else _TAB_FALLBACK
 		_add_row_to_tab(def, per_tab[dest])
+		_refresh(def.id)
+
+	# INLINE stats: insert immediately after their parent's row in the same tab.
+	inline_defs.sort_custom(func(a, b): return a.display_order < b.display_order)
+	for def in inline_defs:
+		var parent_rows: Array = _rows.get(def.parent_stat_id, [])
+		if parent_rows.is_empty():
+			# Parent not on this board; skip silently.
+			continue
+		var parent_row: Control = parent_rows[0]
+		var parent_vb := parent_row.get_parent() as VBoxContainer
+		if parent_vb == null:
+			continue
+		var inline_row := _build_inline_row(def)
+		if inline_row == null:
+			continue
+		inline_row.name = String(def.id)
+		var insert_idx := parent_row.get_index() + 1
+		# Account for any already-inserted inlines after the same parent.
+		var bucket: Array = _rows.get(def.id, [])
+		parent_vb.add_child(inline_row)
+		parent_vb.move_child(inline_row, insert_idx)
+		bucket.append(inline_row)
+		_rows[def.id] = bucket
 		_refresh(def.id)
 
 	# Hide tabs with no rows — empty tabs are clutter.
@@ -127,9 +163,7 @@ func _build_row(def: StatDef) -> Control:
 		StatDef.DisplayType.PROGRESS:
 			return LabeledProgressBar.create()
 		_:
-			# BAR and INLINE fall through to BASIC until their widgets are
-			# implemented. Bumping a .tres to one of those won't break the
-			# panel — just keeps the stat in the column as a label row.
+			# BAR falls through to BASIC until its widget is implemented.
 			return _build_basic_row()
 
 
@@ -137,9 +171,14 @@ const _STAT_ROW_SCENE := preload("res://ui/stat_row.tscn")
 
 
 func _build_basic_row() -> HBoxContainer:
-	# Scene-instantiated row: an HBoxContainer with `Name` (expand-fill) and
-	# right-aligned `Value` labels. _refresh() finds them by node name.
 	return _STAT_ROW_SCENE.instantiate() as HBoxContainer
+
+
+func _build_inline_row(_def: StatDef) -> HBoxContainer:
+	var row := _STAT_ROW_SCENE.instantiate() as HBoxContainer
+	# Dim the entire row to visually distinguish it as a sub-stat.
+	row.modulate = Color(1.0, 1.0, 1.0, 0.55)
+	return row
 
 
 # --- Refresh ----------------------------------------------------------------
@@ -154,6 +193,7 @@ func _refresh(id: StringName) -> void:
 	var def := stat.definition
 	var stat_name: String = def.display_name if def != null else String(id)
 	var tint: Color = def.tint_color if def != null else Color.WHITE
+	var is_inline := def != null and def.display_type == StatDef.DisplayType.INLINE
 	for row in rows:
 		if not is_instance_valid(row):
 			continue
@@ -166,7 +206,9 @@ func _refresh(id: StringName) -> void:
 			var name_label: Label = row.get_node_or_null("Name")
 			var value_label: Label = row.get_node_or_null("Value")
 			if name_label != null:
-				name_label.text = stat_name
+				# Inline sub-rows prefix their name with "+" so the reader
+				# immediately understands "this adds to the stat above."
+				name_label.text = ("+ " + stat_name) if is_inline else stat_name
 			if value_label != null:
 				value_label.text = "%d" % int(stat.value)
 

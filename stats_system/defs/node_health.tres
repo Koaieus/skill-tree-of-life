@@ -10,6 +10,6 @@ description = "Scaffold scalar: seeds the max HP of owned nodes. The per-node ep
 value_type = 0
 default_value = 10.0
 display_order = 2
-display_type = 0
+display_type = 4
 tint_color = Color(0.8, 0.5, 0.5, 1)
 display_group = &"body"

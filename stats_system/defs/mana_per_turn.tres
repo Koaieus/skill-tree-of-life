@@ -9,6 +9,7 @@ description = "Mana restored at turn start. Scales as floor(log(INT)); at INT=10
 value_type = 0
 default_value = 0.0
 display_order = 32
-display_type = 0
+display_type = 3
 tint_color = Color(0.3, 0.5, 0.9, 1)
-display_group = &"mind"
+display_group = &"overview"
+parent_stat_id = &"mana"

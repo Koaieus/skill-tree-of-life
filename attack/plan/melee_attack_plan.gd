@@ -204,14 +204,14 @@ func resolve() -> AttackOutcome:
 	var exclude := collect_target_excludes()
 	var events := BladeHitScan.scan(
 			trajectory, blade_state, space_state, 0xFFFFFFFF, exclude)
-	var str_bonus := _str_bonus()
+	var base_damage := _blade_damage_value()
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.
 		if ev.is_edge_hit():
 			continue
 		var di := DamageInstance.new()
-		di.amount = SkillBlade.NODE_DAMAGE + str_bonus + blade_state.vertex_spikes[ev.particle_idx]
+		di.amount = base_damage + blade_state.vertex_spikes[ev.particle_idx]
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
 		di.origin = source
@@ -220,15 +220,19 @@ func resolve() -> AttackOutcome:
 	return outcome
 
 
-## STR//10 damage contribution. Mirrors SkillBlade._str_bonus so preview and
-## live swing agree on the number.
-func _str_bonus() -> float:
+## Per-contact base damage from the attacker's board. Reads blade_damage stat
+## when available; falls back to SkillBlade.NODE_DAMAGE + STR//10.
+func _blade_damage_value() -> float:
+	if attacker != null and attacker.stat_board != null:
+		var s := attacker.stat_board.get_stat(&"blade_damage")
+		if s != null:
+			return float(s.value)
 	if attacker == null or attacker.stat_board == null:
-		return 0.0
-	var s := attacker.stat_board.get_stat(&"strength")
-	if s == null:
-		return 0.0
-	return floor(float(s.value) / 10.0)
+		return SkillBlade.NODE_DAMAGE
+	var str_stat := attacker.stat_board.get_stat(&"strength")
+	if str_stat == null:
+		return SkillBlade.NODE_DAMAGE
+	return SkillBlade.NODE_DAMAGE + floor(float(str_stat.value) / 10.0)
 
 
 ## Build a fresh BladeState from the current selection. Public so the

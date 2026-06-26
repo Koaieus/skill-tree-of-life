@@ -10,4 +10,4 @@ description = "Entity HP pool. Persistent — does not reset; the death clock. D
 default_value = 10.0
 display_type = 2
 tint_color = Color(0.9, 0.1, 0.1, 1)
-display_group = &"body"
+display_group = &"overview"

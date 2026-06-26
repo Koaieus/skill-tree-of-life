@@ -150,13 +150,21 @@ func _apply_playback_frame(
 			# floaters or stat-tracking noise leaks through.
 			if ev.is_edge_hit():
 				continue
-			var damage := NODE_DAMAGE + _str_bonus() + state.vertex_spikes[ev.particle_idx]
+			var damage := _blade_damage_value() + state.vertex_spikes[ev.particle_idx]
 			hit.emit(ev.particle_idx, false, ev.target as SkillNode, ev.t, damage)
 
 
-## STR//10 damage contribution from the attacker. Reads through `owned_by`
-## (set in build_from_skill_nodes). Returns 0 if no attacker/stat board.
-func _str_bonus() -> float:
+## Per-contact base damage. Reads the blade_damage stat when available; falls
+## back to NODE_DAMAGE + STR//10 so legacy boards without the stat still work.
+func _blade_damage_value() -> float:
+	if owned_by != null and owned_by.stat_board != null:
+		var s := owned_by.stat_board.get_stat(&"blade_damage")
+		if s != null:
+			return float(s.value)
+	return NODE_DAMAGE + _str_bonus_fallback()
+
+
+func _str_bonus_fallback() -> float:
 	if owned_by == null or owned_by.stat_board == null:
 		return 0.0
 	var s := owned_by.stat_board.get_stat(&"strength")

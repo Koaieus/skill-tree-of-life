@@ -75,6 +75,7 @@ extends Resource
 
 @export_group("Melee")
 @export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.
+@export var blade_damage: ScalarStat	## Damage per node contact. Base 1, +1 per 10 STR. Addons add on top via vertex_spikes.
 
 ## Scaling rules intrinsic to this board — formula-driven StatModifiers that
 ## describe how stats on this board relate to each other (e.g. PER scales

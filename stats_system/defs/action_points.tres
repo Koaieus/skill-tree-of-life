@@ -11,4 +11,4 @@ default_value = 2.0
 display_order = 3
 display_type = 2
 tint_color = Color(0.4, 0.7, 0.9, 1)
-display_group = &"body"
+display_group = &"overview"

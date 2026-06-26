@@ -1,15 +1,15 @@
-[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://dj0fpcgn42hcn"]
 
 [ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
 
 [resource]
 script = ExtResource("1_stat_def")
 id = &"wound_heal_per_turn"
-display_name = "Wound Heal"
+display_name = "Wound Heal / Turn"
 description = "Wounds healed at the owning entity's turn start: that many SkillPointStat.wounded units flow back to current. Default 1 — combat balance is built around \"a few hits across a few turns\", not free healing."
-value_type = 0
 default_value = 1.0
 display_order = 50
-display_type = 0
+display_type = 3
 tint_color = Color(0.6, 0.85, 0.6, 1)
-display_group = &"body"
+display_group = &"overview"
+parent_stat_id = &"skill_points"
