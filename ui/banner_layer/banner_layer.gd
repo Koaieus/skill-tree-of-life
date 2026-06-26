@@ -5,7 +5,7 @@ extends CanvasLayer
 ## Full-viewport announcer that plays animated [Banner]s back-to-back from a
 ## FIFO queue. The scene houses one main band and one sub band ([code]%MainBanner[/code]
 ## / [code]%SubBanner[/code]); a single [BannerRequest] drives both in parallel
-## (atomic display, e.g. "TURN STARTED / CONTRACTION PHASE").
+## (atomic display, e.g. "YOUR TURN").
 ##
 ## Public API ([method enqueue] / [method enqueue_now] / [method clear])
 ## is the only contract — call sites build a [BannerRequest] and submit it.
@@ -15,8 +15,7 @@ extends CanvasLayer
 @onready var _main: Banner = %MainBanner
 @onready var _sub: Banner = %SubBanner
 
-## Inspector button: queue a sample TURN STARTED / CONTRACTION PHASE for
-## live preview in the editor.
+## Inspector button: queue a sample banner for live preview in the editor.
 @export_tool_button("Preview") var _preview_button: Callable = _preview
 
 var _queue: Array[BannerRequest] = []
@@ -25,8 +24,8 @@ var _main_done: bool = true
 var _sub_done: bool = true
 
 # Optional turn-state source for staleness checks. When set, requests carrying
-# a `{entity, phase}` context get dropped on dequeue if the live state has
-# already moved past them. See [method BannerRequest.make_for_phase].
+# an `{entity}` context get dropped on dequeue if a different entity is now
+# acting. See [method BannerRequest.make_for_entity].
 var _turn_manager: TurnManager = null
 
 
@@ -35,8 +34,8 @@ func _ready() -> void:
 	_sub.finished.connect(_on_sub_finished)
 
 
-## Hand in the TurnManager so the layer can drop stale phase banners. Optional;
-## without this, all requests play in order regardless of their context.
+## Hand in the TurnManager so the layer can drop banners whose entity is no
+## longer acting. Optional; without this, all requests play in order.
 func bind_turn_manager(tm: TurnManager) -> void:
 	_turn_manager = tm
 
@@ -74,13 +73,13 @@ func clear() -> void:
 
 func _preview() -> void:
 	enqueue_now(BannerRequest.make(
-			"TURN STARTED", "CONTRACTION PHASE", BannerRequest.Style.DEFAULT))
+			"YOUR TURN", "", BannerRequest.Style.DEFAULT))
 
 
 func _pump() -> void:
 	if _current != null:
 		return
-	# Skip stale entries (e.g. phase banners for a turn that already ended)
+	# Skip stale entries (e.g. a banner whose entity is no longer acting)
 	# before deciding to play anything.
 	while not _queue.is_empty() and _should_skip(_queue[0]):
 		_queue.pop_front()
@@ -100,17 +99,13 @@ func _pump() -> void:
 
 
 ## True if `req`'s context says the live turn-state has moved past it
-## (different entity is acting, or the announced phase is already over).
+## (a different entity is now acting).
 func _should_skip(req: BannerRequest) -> bool:
 	if req == null or req.context.is_empty() or _turn_manager == null:
 		return false
 	var ctx_entity := req.context.get(&"entity") as Entity
 	if ctx_entity != null and _turn_manager.current_entity != ctx_entity:
 		return true
-	if req.context.has(&"phase"):
-		var ctx_phase: int = req.context[&"phase"]
-		if int(_turn_manager.current_phase) > ctx_phase:
-			return true
 	return false
 
 

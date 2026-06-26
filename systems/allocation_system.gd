@@ -14,9 +14,7 @@ extends Node
 ##   modifiers removed, deallocation_points -= 1, SP refunded.
 ##
 ## Forced-deallocation by attack lives elsewhere — it calls deallocate() then
-## skill_points.wound(1) to reclassify the refund as a wound. Buffer-tap temp
-## SP / temp allocations live on TurnManager (tag at allocate time; phase end
-## sweep deallocates and drains temp from current).
+## skill_points.wound(1) to reclassify the refund as a wound.
 ##
 ## `graph` is optional. Without it (e.g. an isolated test), adjacency is
 ## skipped — entities can allocate any unallocated node. SP gating still
@@ -181,8 +179,8 @@ func force_deallocate(node: SkillNode) -> Entity:
 ## - target must differ from the current core slot (self-loops are not landings)
 ## - target must be adjacent via a non-self-loop edge to the current core slot
 ## - entity must have ≥ 1 movement_points
-## Phase gating lives in the caller (PlayerInputController), mirroring how
-## allocate/deallocate handle CONTRACT vs EXPAND outside this system.
+## Turn-ownership gating lives in the caller (PlayerInputController), which
+## also routes the click channels (allocate / deallocate / move-core).
 func can_move_core(entity: Entity, target: SkillNode) -> bool:
 	if entity == null or target == null:
 		return false

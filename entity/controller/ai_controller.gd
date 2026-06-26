@@ -1,15 +1,16 @@
 class_name AIController
 extends EntityController
 
-## Minimum-viable NPC controller (AI v1, #22). Walks the entity through its
-## three phases with a tiny pause between each so the player can read what
-## happened, then ends the turn. No infinite loops — every branch exits in
-## bounded steps.
+## Minimum-viable NPC controller (AI v1, #22). There are no turn phases —
+## the controller sequences its own actions within the single turn, pausing
+## briefly between them so the player can read what happened, then ends the
+## turn. No infinite loops — every branch exits in bounded steps.
 ##
-## EXPAND: allocates one frontier node if any SP is available.
-## BATTLE: launches one ranged attack at the nearest hostile node if any AP
-## is available and a leaf can reach it. Range-finding is the existing
-## RangedAttackPlan logic, so per-leaf range/vision interactions stay live.
+## Sequence (budget-driven, not phase-driven): NPC v1 never voluntarily
+## deallocates → allocate one frontier node if any SP is available → launch one
+## ranged attack at the nearest hostile node if any AP is available and a leaf
+## can reach it. Range-finding is the existing RangedAttackPlan logic, so
+## per-leaf range/vision interactions stay live.
 ##
 ## Vision is intentionally NOT consulted here — fog of war is a viewer-side
 ## concept. A proper per-entity vision pass is post-MVP (AI v2 territory);
@@ -23,23 +24,19 @@ var _game_root: GameRoot = null
 
 
 func take_turn() -> void:
-	# CONTRACT phase: NPC v1 never voluntarily deallocates.
+	# Opening beat so the handover reads. NPC v1 never voluntarily deallocates.
 	await _wait()
 	if not _continue():
 		return
 
-	# EXPAND phase. Only pause if we actually allocated something — otherwise
-	# the AI's turn drags out as a string of empty beats.
-	if _turn_manager.current_phase == TurnManager.Phase.CONTRACT:
-		_turn_manager.advance_phase()
-	if _continue() and entity.stat_board != null:
+	# Allocate one frontier node if SP is available. Only pause if we actually
+	# allocated something — otherwise the AI's turn drags out as empty beats.
+	if entity.stat_board != null:
 		var sp: PoolStat = entity.stat_board.skill_points
 		if sp != null and sp.current > 0 and _try_allocate_frontier():
 			await _wait()
 
-	# BATTLE phase.
-	if _continue() and _turn_manager.current_phase == TurnManager.Phase.EXPAND:
-		_turn_manager.advance_phase()
+	# Attack if AP is available and a target is reachable.
 	if _continue() and entity.stat_board != null:
 		var ap: PoolStat = entity.stat_board.action_points
 		if ap != null and ap.current > 0 and await _try_attack():
@@ -117,7 +114,7 @@ func _pick_hostile_target() -> SkillNode:
 # --- helpers ---------------------------------------------------------------
 
 ## Bail if the turn has already ended or the entity died mid-turn. Keeps the
-## phase walk from racing on side effects.
+## action sequence from racing on side effects.
 func _continue() -> bool:
 	return _turn_manager != null \
 			and _turn_manager.current_entity == entity \

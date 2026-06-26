@@ -1,6 +1,6 @@
 # Attack-plan system — current state, decisions, pickup notes
 
-Engineering-side architecture doc for the battle-phase attack flow. The
+Engineering-side architecture doc for the in-turn attack flow. The
 game-design view of attacks (damage formulas, color triangle, dismemberment,
 etc.) lives in `docs/design/combat_system.md`; this doc covers the *code
 shape* the design rides on.
@@ -67,10 +67,12 @@ re-deriving anything.
 - **`SkillNode`** emits `left_clicked(self)` and `right_clicked(self)`
   separately (split from one `clicked` signal). Also carries per-node
   combat HP — see Combat resolution below.
-- **`PlayerInputController`** routes both clicks. In battle phase with an
-  active plan owned by the player, dispatches to the plan's virtual
-  click handler; otherwise falls through to allocation routing
-  (deployment phase).
+- **`PlayerInputController`** routes both clicks by **input channel** —
+  there are no turn phases. When it's the player's turn and an attack
+  plan owned by the player is active (a mode was chosen in the
+  `AttackModeBar`), it dispatches to the plan's virtual click handler;
+  otherwise the click falls through to the core-move and then the
+  allocate channels (a bare left-click on an unowned node allocates).
 - **`BattleSystem`** rebinds `attack_plan.state_changed` across plan
   swaps and re-emits as `attack_plan_state_changed`. UI subscribes once
   to the system, not per plan. Also owns `launch_attack()` (the commit
@@ -169,9 +171,14 @@ TurnManager" pattern). Per-turn bookkeeping consumes:
   desaturated when disabled. Same `ColorRect + Label + ShaderMaterial`
   pipeline as `AttackModeButton`.
 - **`EndTurnButton`** (own scene + .gd + .gdshader). Promoted from a
-  plain Button inline in `ui_root.tscn`. Slow blue-vortex shader. Same
-  pipeline. `text` poll in `_process` propagates UIRoot's phase-based
-  label flips into the visible Label child.
+  plain Button inline in `ui_root.tscn`. Same pipeline. Phases are gone,
+  so its label is a static "End Turn" (no per-phase text flips). When
+  ending the turn would waste `action_points` **and** an enemy node is
+  visible, UIRoot (`_unspent_warning` / `_any_enemy_visible`) calls
+  `show_confirm()` with the warning, popping an inline confirmation
+  bubble instead of ending; clicking the bubble — or ctrl-clicking the
+  button — commits the turn. No visible enemy means no AP-costing action
+  is left, so unspent AP raises no warning.
 
 ### Graph layer (foundation)
 

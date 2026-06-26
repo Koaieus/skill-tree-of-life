@@ -2,7 +2,7 @@
 
 Living overview of what's done and what's left. Each theme below is a [GitHub milestone](https://github.com/Koaieus/skill-tree-of-life/milestones); each bullet links to the tracking issue.
 
-Status legend: ✅ done · 🚧 in progress · ⬜ todo
+Status legend: ✅ done · 🚧 in progress · ⬜ todo · ❌ removed/obsolete
 
 > 📍 **Authoritative current state on contested design questions: [docs/design/mvp_decisions.md](design/mvp_decisions.md).** Older per-system design docs may contain superseded sketches; mvp_decisions.md wins.
 
@@ -20,7 +20,7 @@ Everything below the MVP cutline section is post-MVP.
 ## Done — the foundation
 
 - Graph + entity + allocation system (`graph/`, `entity/`, `systems/allocation_system.gd`)
-- Turn manager, phases, initiative (`systems/turn_manager.gd`)
+- Turn manager + initiative; single implicit phase per turn (`systems/turn_manager.gd`)
 - Stat board with PoE-style modifier pipeline; local stats, pool stats, growable pools (`stats_system/`)
 - Combat: melee blade-sim, ranged volley, magic spell propagation (`attack/`, `ui/vfx/coordinator/`)
 - Vision / fog of war (`systems/vision_system.gd`)
@@ -57,7 +57,7 @@ Everything below the MVP cutline section is post-MVP.
 ### Stats / UI panel rework
 
 - ⬜ [#32](https://github.com/Koaieus/skill-tree-of-life/issues/32) Tabbed stats panel
-- ⬜ [#33](https://github.com/Koaieus/skill-tree-of-life/issues/33) End-turn button: show phase + protect against unspent points
+- ❌ ~~[#33](https://github.com/Koaieus/skill-tree-of-life/issues/33) End-turn button: show phase + protect against unspent points~~ — **obsolete** (killed by the single-phase refactor, #60). There are no phases to show, and the only surviving protection — warn on unspent `action_points` when an enemy node is visible — is now baseline End Turn behavior.
 - ⬜ [#34](https://github.com/Koaieus/skill-tree-of-life/issues/34) Announcer drop-stale + dedup (D-8)
 
 ### MVP content slice
@@ -116,7 +116,7 @@ Everything below the MVP cutline section is post-MVP.
 - ⬜ [#4](https://github.com/Koaieus/skill-tree-of-life/issues/4) Effect system
 - ⬜ [#5](https://github.com/Koaieus/skill-tree-of-life/issues/5) Active player + global turn UI
 - ⬜ [#9](https://github.com/Koaieus/skill-tree-of-life/issues/9) Stat bind system
-- ⬜ [#16](https://github.com/Koaieus/skill-tree-of-life/issues/16) Move XP replenish from turn-start to expand-phase-start
+- ❌ ~~[#16](https://github.com/Koaieus/skill-tree-of-life/issues/16) Move XP replenish from turn-start to expand-phase-start~~ — **obsolete** (single-phase refactor, #60). There is no expand phase; turn-start upkeep already replenishes XP at `turn_started` along with every other per-turn budget.
 - ⬜ [#53](https://github.com/Koaieus/skill-tree-of-life/issues/53) Performance budget + procgen scaling profile
 - ⬜ [#54](https://github.com/Koaieus/skill-tree-of-life/issues/54) Design: "overqualified casting" bonuses (non-range)
 - ⬜ [#55](https://github.com/Koaieus/skill-tree-of-life/issues/55) Design: face/cycle melee damage bonus (post-MVP)

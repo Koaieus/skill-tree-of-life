@@ -2,13 +2,13 @@
 class_name EndTurnButton
 extends Button
 
-## End-phase / end-turn button. The chevron shader visualises the phase:
-## 1 chevron = CONTRACT, 2 = EXPAND, 3 = BATTLE. Phase tint flows from
-## cool blue → green-neon → fiery orange. Hover speeds the scroll.
+## End-turn button. A scrolling chevron shader gives it life; hover speeds the
+## scroll. (Phases are gone, so the chevron count + tint are fixed — the button
+## just ends the single-phase turn.)
 ##
-## Confirmation: an inline speech-bubble lives as a child node. When unspent
-## resources would be forfeit, UIRoot calls [method show_confirm] instead of
-## advancing; the bubble pops above the button and clicking it commits.
+## Confirmation: an inline speech-bubble lives as a child node. When the player
+## would waste action points, UIRoot calls [method show_confirm] instead of
+## ending; the bubble pops above the button and clicking it commits.
 ## Ctrl-clicking the button itself skips the bubble entirely (UIRoot decides;
 ## we just expose the signals).
 
@@ -22,22 +22,10 @@ const ANIMATION_TIME: float = 0.25
 const _SCROLL_IDLE_SPEED: float = 0.55
 const _SCROLL_HOVER_SPEED: float = 1.25
 
-## Canonical phase tints — shared with PhaseIndicator. Keep these two in sync.
-const PHASE_TINTS := {
-	TurnManager.Phase.CONTRACT: Color(0.55, 0.70, 1.00),
-	TurnManager.Phase.EXPAND:   Color(0.45, 1.00, 0.55),
-	TurnManager.Phase.BATTLE:   Color(1.00, 0.55, 0.20),
-}
-const PHASE_HOT_TINTS := {
-	TurnManager.Phase.CONTRACT: Color(0.85, 0.95, 1.00),
-	TurnManager.Phase.EXPAND:   Color(0.75, 1.00, 0.85),
-	TurnManager.Phase.BATTLE:   Color(1.00, 0.85, 0.40),
-}
-const PHASE_CHEVRONS := {
-	TurnManager.Phase.CONTRACT: 1,
-	TurnManager.Phase.EXPAND:   2,
-	TurnManager.Phase.BATTLE:   3,
-}
+## Fixed button look (no more per-phase tinting).
+const _TINT := Color(1.00, 0.55, 0.20)
+const _HOT_TINT := Color(1.00, 0.85, 0.40)
+const _CHEVRON_COUNT := 3
 
 ## Emitted when the user clicks the confirmation bubble.
 signal confirmed
@@ -86,17 +74,6 @@ func set_enabled(value: bool) -> void:
 		hide_confirm()
 
 
-## Switch chevron count + tint to match [param phase]. UIRoot is the only
-## caller; widgets stay dumb. Falls back to CONTRACT values for an unknown int.
-func set_phase(phase: int) -> void:
-	var tint: Color = PHASE_TINTS.get(phase, PHASE_TINTS[TurnManager.Phase.CONTRACT])
-	var hot: Color = PHASE_HOT_TINTS.get(phase, PHASE_HOT_TINTS[TurnManager.Phase.CONTRACT])
-	var count: int = PHASE_CHEVRONS.get(phase, 1)
-	_push("tint", tint)
-	_push("hot_color", hot)
-	_push("chevron_count", count)
-
-
 func _ready() -> void:
 	update_label_text()
 
@@ -105,8 +82,9 @@ func _ready() -> void:
 	_materials = [_bg_mat, _text_mat]
 
 	_push("texture_size", size)
-	# Seed with CONTRACT — UIRoot will overwrite on the first phase_changed.
-	set_phase(TurnManager.Phase.CONTRACT)
+	_push("tint", _TINT)
+	_push("hot_color", _HOT_TINT)
+	_push("chevron_count", _CHEVRON_COUNT)
 	enabled = not disabled
 
 	_bubble.visible = false

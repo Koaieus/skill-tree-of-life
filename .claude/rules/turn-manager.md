@@ -1,26 +1,31 @@
 ---
-description: Turn manager quick-reference — phase order, initiative, turn-start hooks
+description: Turn manager quick-reference — single-phase turn, initiative, turn-start hooks
 ---
 
 # Turn manager
 
-`systems/turn_manager.gd` owns who has the turn (`current_entity`), what phase they're in (`current_phase`), and the initiative clock that hands turns over.
+`systems/turn_manager.gd` owns who has the turn (`current_entity`) and the initiative clock that hands turns over.
 
-## Phase order
+## Single-phase turn (no more CONTRACT/EXPAND/BATTLE)
 
-`CONTRACT → EXPAND → BATTLE → end_turn` (per entity, per turn). `advance_phase()` walks one step; from `BATTLE` it returns false so the caller calls `end_turn()`.
+There is **one implicit phase per turn** (issue #60 removed the 3-phase model). On `turn_started` every per-turn budget replenishes; the entity spends them in any order until End Turn. There is no `Phase` enum, no `current_phase`, no `advance_phase()`, no `phase_changed` signal, and no `can_allocate`/`can_deallocate`/`can_act` on the TurnManager.
 
-| Phase | What's allowed | Stat consumed |
+Intent is disambiguated **by input channel**, each gated only by "is it your turn?" + its own budget (all enforced inside the systems, not the TurnManager):
+
+| Intent | Channel | Budget |
 |---|---|---|
-| `CONTRACT` | Voluntary deallocation only | `deallocation_points` |
-| `EXPAND`   | Allocation only | `skill_points` |
-| `BATTLE`   | Attacks (melee / ranged / magic) | `action_points` |
+| Allocate | bare left-click on an unowned node | `skill_points` + adjacency (`AllocationSystem.allocate`) |
+| Deallocate | hover a node + press `D` | `deallocation_points`, non-islanding (`AllocationSystem.deallocate`) |
+| Move core | left-click own core, then click an adjacent owned node (#21) | `movement_points` (`AllocationSystem.move_core`) |
+| Attack / cast | `AttackModeBar` picks the mode, then node clicks feed the plan | `action_points` (`BattleSystem`) |
 
-Gates: `can_allocate()` returns true iff `current_phase == EXPAND`; `can_deallocate()` iff `CONTRACT`; `can_act()` iff `BATTLE`. The split prevents misclicks burning a dealloc point when the player meant to allocate (and vice versa).
+Click dispatch lives in `PlayerInputController._on_skill_node_left_clicked` (battle plan → core-move → allocate) and `_unhandled_input` (the `D` deallocate channel). `can_player_act()` = your turn + AP > 0.
+
+> The polished AoE2-style contextual **Action Bar** (issue #60 Q2/A2: out-of-viewport square action icons with shortcut labels) is **deferred to a follow-up** — for now the `AttackModeBar` + `D`-hotkey + click-core-to-move cover the channels.
 
 ## Initiative
 
-`tick()` advances every node in group `entities` by its `initiative_speed.value`. `end_turn()` deducts 100 from the previous entity, then `_tick_until_ready()` ticks until at least one entity ≥ 100 and starts the highest's turn. `start_turn()` resets phase to `CONTRACT` and emits `turn_started` + `phase_changed`.
+`tick()` advances every node in group `entities` by its `initiative_speed.value`. `end_turn()` deducts 100 from the previous entity, then `_tick_until_ready()` ticks until at least one entity ≥ 100 and starts the highest's turn. `start_turn()` just sets `current_entity` and emits `turn_started`.
 
 ## Discovery
 

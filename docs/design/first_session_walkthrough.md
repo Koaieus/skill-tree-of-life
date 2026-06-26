@@ -76,7 +76,7 @@ A new HUD has arrived. Buttons: **Allocate, Move Core, Attack, End Turn.** A **S
 
 ## Beat 6 — Your first turn. You expand.
 
-You hover an unallocated neighbor. A tooltip: **+5 STR. +3 armor.** You click *Allocate.* 1 SP spent. The node lights up in your color. An edge between it and one of your existing nodes brightens. Your stat board ticks up.
+You hover an unallocated neighbor. A tooltip: **+5 STR. +3 armor.** You left-click it — that's all it takes to allocate. 1 SP spent. The node lights up in your color. An edge between it and one of your existing nodes brightens. Your stat board ticks up.
 
 Your **vision** extends with the new node. The fog peels back a hop or two. You see more nodes — and at the edge of vision, a **cluster lit in a color that is not yours.**
 

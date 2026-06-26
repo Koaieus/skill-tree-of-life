@@ -64,9 +64,7 @@ func before_each() -> void:
 # ---------------------------------------------------------------------------
 
 func test_enemy_gets_turn_after_player_ends() -> void:
-	# Drive the player through a full turn.
-	_tm.advance_phase()   # CONTRACT → EXPAND
-	_tm.advance_phase()   # EXPAND   → BATTLE
+	# Drive the player through a full turn (single phase now — just end it).
 	_tm.end_turn()
 
 	# Expected: enemy holds the turn.
@@ -87,8 +85,6 @@ func test_enemy_gets_turn_after_player_ends() -> void:
 func test_player_gets_turn_back_after_enemy_ai() -> void:
 	_enemy.initiative_current = 50.0   # head start so enemy wins the tick race
 
-	_tm.advance_phase()
-	_tm.advance_phase()
 	_tm.end_turn()
 
 	assert_eq(_tm.current_entity, _enemy, "precondition: enemy has the turn")

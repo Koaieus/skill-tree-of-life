@@ -161,21 +161,26 @@ Beyond `sense_range`: total fog. Inside sense but outside vision: silhouette onl
 
 ---
 
-## Turn Structure — the three-phase turn
+## Turn Structure — one turn, intent by input channel
 
-**Two action points per turn by default** (`action_points`, default 2 — *LOCKED*). The turn is structured in **three phases — CONTRACT → EXPAND → BATTLE** — split by action type, not by temp/permanent flag. (The old "temp SP via battle-phase allocations" model is dropped: in the live code battle-phase allocations don't exist; all allocation is permanent and gated by the EXPAND phase.)
+**Two action points per turn by default** (`action_points`, default 2 — *LOCKED*). There is **one implicit phase per turn**: at `turn_started` every per-turn budget replenishes (AP / DP / SP / XP / mana / wound-heal / node-refill), and the entity spends them **in any order** until it presses End Turn. There are no CONTRACT / EXPAND / BATTLE sub-phases — that split is dropped. (The old "temp SP via battle-phase allocations" model is likewise gone: all allocation is permanent.)
 
 > **Action economy — 2 actions, load-bearing *(LOCKED)*.** Two action points is not just throughput: the second action's primary role is to **capitalize on the first's dent before the owner-turn-start reset** (see Node HP — enemy nodes don't reset mid-turn, so two actions stack on one target). Ranged fires **one volley per turn**, but the second action can be a **different mode** (e.g. volley then melee tap) stacking on the same node — cross-mode same-turn stacking is the expected combining pattern.
 
-1. **CONTRACT** — *deallocate only*. Spend `deallocation_points` to free SP and reshape — voluntary deallocs refund SP and obey the no-island rule (the cut would-disconnect gate). Allocation is locked off, so a misclick on an own-node can't accidentally cost SP-then-DP. Effectively also the "move the constellation" phase, since deallocation is half of that motion.
-2. **EXPAND** — *allocate only*. Spend SP to grow. Each allocation extends `vision_range` (euclidean, full detail) and adds a `sensor_range` silhouette ping. Deallocation is locked off — symmetric guard against misclicks the other way.
-3. **BATTLE** — act: **two actions** (each a ranged volley from leaves / magic spell from a degree-gated node / one phantom-blade melee swing; ranged is capped at one volley/turn, so a second action there must be a different mode). The two can stack on one node — *dent then finish* — since enemy nodes don't reset until their own turn. Allocation and deallocation are both locked.
+**Intent is disambiguated by INPUT CHANNEL, not by phase.** Each channel is gated only by *"is it your turn?"* plus its own budget:
 
-**Why split this way:** *intent* is now visible in the phase. In the previous "Deployment" lump, clicking your own node in a context-sensitive way could deallocate when you wanted to allocate (or vice versa), wasting one of the very limited pools. CONTRACT vs EXPAND makes click-routing unambiguous. The phase order (free SP → spend SP → fight) is also the natural decision flow.
+- **Allocate** — bare **left-click on an unowned adjacent node**. Spends `skill_points`; obeys adjacency. Each allocation extends `vision_range` (euclidean, full detail) and adds a `sensor_range` silhouette ping.
+- **Deallocate** — hover a node + press the **`D` key**. Spends `deallocation_points`; refunds SP and obeys the no-island rule (the would-disconnect gate). Together with core-move, this is how you "move the constellation."
+- **Move core** — left-click your **own core**, then click an **adjacent owned node**. Spends `movement_points` (issue #21).
+- **Attack / cast** — the **AttackModeBar** picks the mode (melee / ranged / magic), then node clicks feed the active plan. Spends `action_points`. Ranged is one volley/turn; a second action must be a different mode and can stack on a dented node — *dent then finish* — since enemy nodes don't reset until their own turn.
+
+**Why input-channel and not phases:** the previous three-phase split (CONTRACT → EXPAND → BATTLE) existed to keep a context-sensitive click on your own node from deallocating when you meant to allocate (or vice versa), wasting one of the very limited pools. Separate input channels solve that disambiguation directly — allocate (a left-click) and deallocate (a keypress) can't be confused — without forcing the player to switch modes first. End Turn warns **only** about unspent `action_points`, and **only** when an enemy node is visible (no visible enemy → no AP-costing action left to waste → no warning). SP / DP / MP are spent at the player's discretion with no warning, and there are no phase-exit confirmation modals.
+
+> A polished AoE2-style contextual **Action Bar** (click a node → fan out its legal actions) is a **deferred follow-up** (ROADMAP #27), not the current model. Today attacks route through the AttackModeBar.
 
 NPC turns resolve by the same rules; the player sees them play out in full only inside their vision, otherwise fast-forwarded unless something happens in view.
 
-*(Mirrors GDD §2. The buffer-node "temporary reach" mechanic from earlier drafts is parked — Buffer addons currently exist on the node side, the temp-allocation hook hasn't been built, and the new phase split removes its main rationale.)*
+*(Mirrors GDD §2. The buffer-node "temporary reach" mechanic from earlier drafts is parked — Buffer addons currently exist on the node side, the temp-allocation hook hasn't been built, and removing the phase split removed its main rationale.)*
 
 ---
 
@@ -268,7 +273,7 @@ Design principle: every spell should feel like it *is* something that happens in
 
 ## Melee, In Depth
 
-> **Supersedes the old "tap-and-recover" + abstract-shape model.** Melee shapes are no longer hitboxes that come from nowhere, and Buffer nodes are no longer melee fuel (they are repurposed — see `skill_node_addons.md` and the three-phase turn). The melee weapon *is your topology.*
+> **Supersedes the old "tap-and-recover" + abstract-shape model.** Melee shapes are no longer hitboxes that come from nowhere, and Buffer nodes are no longer melee fuel (they are repurposed — see `skill_node_addons.md` and the Turn Structure section). The melee weapon *is your topology.*
 
 ### The phantom blade
 
@@ -770,7 +775,7 @@ deallocation_points = 1 / turn
 - ~~Attribute roster~~ → **Six:** R/STR, G/DEX, B/INT (attack) + White/CON, Gold/WIS, Purple/PER (utility). Plus non-mechanical `coolness`. White→CON and economy→Gold supersede the old "W = XP."
 - ~~Attribute → damage scaling~~ → **The //10 spine:** `base (once) + attribute//10 × instances`, defense once per target. Floors per-attribute (breakpoints, surfaced in UI). Gear-ratio decouples modifier economy from damage economy.
 - ~~Proliferation~~ → **core→field ×N trade** (remove a core mod, spread N tainted copies). Intrinsic non-extractable taint breaks the extract→proliferate loop. Rarity-scaled efficiency.
-- ~~Turn structure~~ → **Three phases:** CONTRACT (dealloc only) → EXPAND (alloc only) → BATTLE (act, no reshape). One SP pool; intent is the phase, not a temp/permanent flag.
+- ~~Turn structure~~ → **One implicit phase per turn** (the CONTRACT/EXPAND/BATTLE split is removed). All budgets replenish at turn start; spend in any order. Intent is disambiguated by **input channel** (left-click = allocate, `D` = deallocate, own-core-then-adjacent = move core, AttackModeBar = attack), each gated by your turn + its own budget.
 - ~~Self-loop propagation model~~ → Triple-hit baseline (initial + 2 loop returns). Spell-dependent further behavior. No global rule.
 - ~~Claim bonus → BLITZ~~ → BLITZ Predator-only. Universal: XP + DAP.
 - ~~Killing blow → direct +1 SP~~ → XP reward (pipeline) + universal DAP bonus.

@@ -12,8 +12,6 @@ class_name UIRoot
 @onready var launch_attack_button: LaunchAttackButton = %LaunchAttackButton
 @onready var end_turn_button: EndTurnButton = %EndTurnButton
 @onready var banner_layer: BannerLayer = %BannerLayer
-@onready var phase_indicator: PhaseIndicator = %PhaseIndicator
-@onready var phase_context_panel: PhaseContextPanel = %PhaseContextPanel
 @onready var spell_picker_bar: SpellPickerBar = %SpellPickerBar
 @onready var action_cluster: HBoxContainer = %ActionCluster
 
@@ -21,6 +19,7 @@ var _player: Entity
 var _input_ctl: PlayerInputController
 var _battle_system: BattleSystem
 var _turn_manager: TurnManager
+var _vision_system: VisionSystem
 
 # Cluster extras — built once in compose() and parented into ActionCluster
 # alongside the scene-authored LaunchAttackButton. CW/CCW shows only for
@@ -40,6 +39,7 @@ func compose(game_root: GameRoot) -> void:
 	_input_ctl = game_root.input_ctl
 	_battle_system = game_root.battle_system
 	_turn_manager = game_root.turn_manager
+	_vision_system = game_root.vision_system
 
 	stats_panel.board = _player.stat_board
 	stat_board_overlay.board = _player.stat_board
@@ -59,9 +59,8 @@ func compose(game_root: GameRoot) -> void:
 	spell_picker_bar.set_enabled(_input_ctl.can_player_act())
 
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
-	end_turn_button.confirmed.connect(_advance_or_end_turn)
-	_turn_manager.phase_changed.connect(_on_phase_changed)
-	_on_phase_changed(_turn_manager.current_entity, _turn_manager.current_phase)
+	end_turn_button.confirmed.connect(_end_turn)
+	end_turn_button.text = "End Turn"
 
 	_turn_manager.turn_started.connect(_on_turn_started)
 	_turn_manager.turn_ended.connect(_on_turn_ended)
@@ -73,11 +72,6 @@ func compose(game_root: GameRoot) -> void:
 	banner_layer.bind_turn_manager(_turn_manager)
 
 	_install_cluster_extras()
-
-	# Phase-driven contextual widgets. PhaseIndicator needs the player so it
-	# can hide its breadcrumbs on AI turns.
-	phase_indicator.bind(_turn_manager, _player)
-	phase_context_panel.bind(_turn_manager, _battle_system)
 
 	spell_picker_bar.bind_spellbook(_player.spellbook)
 	spell_picker_bar.spell_selected.connect(_on_spell_selected)
@@ -183,33 +177,12 @@ func _refresh_launch_button() -> void:
 	_refresh_spell_picker_gating()
 
 
-func _on_phase_changed(entity: Entity, phase: TurnManager.Phase) -> void:
-	end_turn_button.set_phase(phase)
-	match phase:
-		TurnManager.Phase.CONTRACT: end_turn_button.text = "Start Expand"
-		TurnManager.Phase.EXPAND:   end_turn_button.text = "Start Battle"
-		TurnManager.Phase.BATTLE:   end_turn_button.text = "End Turn"
-	# Stale bubble: any phase change cancels a pending confirm.
-	end_turn_button.hide_confirm()
-	# Defensive: every phase transition also reaffirms button enabled state.
-	_refresh_end_turn_button()
-	if entity == _player:
-		match phase:
-			TurnManager.Phase.EXPAND:
-				banner_layer.enqueue(BannerRequest.make_for_phase(
-						"EXPAND PHASE", "", BannerRequest.Style.PHASE,
-						entity, TurnManager.Phase.EXPAND))
-			TurnManager.Phase.BATTLE:
-				banner_layer.enqueue(BannerRequest.make_for_phase(
-						"BATTLE PHASE", "", BannerRequest.Style.PHASE,
-						entity, TurnManager.Phase.BATTLE))
-
-
 func _on_turn_started(entity: Entity) -> void:
 	if entity == _player:
-		banner_layer.enqueue(BannerRequest.make_for_phase(
-				"TURN STARTED", "CONTRACTION PHASE", BannerRequest.Style.DEFAULT,
-				entity, TurnManager.Phase.CONTRACT))
+		banner_layer.enqueue(BannerRequest.make_for_entity(
+				"YOUR TURN", "", BannerRequest.Style.DEFAULT, entity))
+	# Fresh turn: clear any stale confirm bubble and reaffirm enabled state.
+	end_turn_button.hide_confirm()
 	_refresh_end_turn_button()
 
 
@@ -247,9 +220,9 @@ func _shortcut_input(event: InputEvent) -> void:
 
 ## EndTurn click flow:
 ##   * If the bubble is already open, second click hides it (toggle off).
-##   * Ctrl-click skips the bubble entirely — for speedrunners and players
-##     who already know they're forfeiting resources.
-##   * No warning → just advance.
+##   * Ctrl-click skips the bubble entirely — for players who already know
+##     they're forfeiting action points.
+##   * No warning → just end the turn.
 ##   * Warning + no ctrl → show the bubble; click the bubble to commit.
 func _on_end_turn_pressed() -> void:
 	if _turn_manager.current_entity == null:
@@ -260,35 +233,46 @@ func _on_end_turn_pressed() -> void:
 	var ctrl_held := Input.is_key_pressed(KEY_CTRL)
 	var warning := _unspent_warning()
 	if ctrl_held or warning == "":
-		_advance_or_end_turn()
+		_end_turn()
 		return
 	end_turn_button.show_confirm(warning)
 
 
-func _advance_or_end_turn() -> void:
-	if not _turn_manager.advance_phase():
-		_turn_manager.end_turn()
+func _end_turn() -> void:
+	_turn_manager.end_turn()
 
 
-## Returns a short noun phrase if the current entity has resources they're
-## about to forfeit by ending the phase, else "".
+## Returns a short noun phrase if the player is about to waste ACTION POINTS,
+## else "". SP/DP/MP are at the player's discretion — only AP triggers a
+## confirm, and only while there's still something worth spending it on (an
+## enemy node the player can see). With no visible enemy there are no
+## AP-costing actions left, so unspent AP is not a warning.
 func _unspent_warning() -> String:
 	if _player == null or _player.stat_board == null:
 		return ""
-	match _turn_manager.current_phase:
-		TurnManager.Phase.CONTRACT:
-			var dp: PoolStat = _player.stat_board.deallocation_points
-			if dp != null and dp.current > 0:
-				return "%d unspent deallocation point%s" \
-						% [int(dp.current), "" if int(dp.current) == 1 else "s"]
-		TurnManager.Phase.EXPAND:
-			var sp: PoolStat = _player.stat_board.skill_points
-			if sp != null and sp.current > 0:
-				return "%d unspent skill point%s" \
-						% [int(sp.current), "" if int(sp.current) == 1 else "s"]
-		TurnManager.Phase.BATTLE:
-			var ap: PoolStat = _player.stat_board.action_points
-			if ap != null and ap.current > 0:
-				return "%d unspent action point%s" \
-						% [int(ap.current), "" if int(ap.current) == 1 else "s"]
-	return ""
+	var ap: PoolStat = _player.stat_board.action_points
+	if ap == null or ap.current <= 0:
+		return ""
+	if not _any_enemy_visible():
+		return ""
+	return "%d unspent action point%s" \
+			% [int(ap.current), "" if int(ap.current) == 1 else "s"]
+
+
+## True if any node owned by a hostile entity is currently visible to the
+## player. Used to suppress the unspent-AP warning when no attack target
+## exists.
+func _any_enemy_visible() -> bool:
+	if _vision_system == null or _player == null:
+		return false
+	var graph := _player.navigator.graph if _player.navigator != null else null
+	if graph == null:
+		return false
+	for node in graph.get_skill_nodes():
+		if node == null or node.owned_by == null:
+			continue
+		if node.owned_by.faction == _player.faction:
+			continue
+		if _vision_system.is_visible(node):
+			return true
+	return false

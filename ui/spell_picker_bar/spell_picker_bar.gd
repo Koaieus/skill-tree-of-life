@@ -21,7 +21,7 @@ var _buttons_by_spell: Dictionary[SpellDef, SpellPickerButton] = {}
 var _gating_attacker: Entity = null
 var _gating_source: SkillNode = null
 
-# True while the player can act (BATTLE phase + AP > 0). When false the bar
+# True while the player can act (their turn + AP > 0). When false the bar
 # dims and all buttons go uninteractive — UI cue for "no action points left".
 var _act_enabled: bool = true
 

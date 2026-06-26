@@ -19,9 +19,8 @@ enum Style {
 var main_text: String = ""
 var sub_text: String = ""
 var style: Style = Style.DEFAULT
-## Optional staleness context. Keys: `entity: Entity`, `phase: int` (a
-## [enum TurnManager.Phase]). BannerLayer drops the request on dequeue if
-## the current turn-state has already moved past either.
+## Optional staleness context. Key: `entity: Entity`. BannerLayer drops the
+## request on dequeue if a different entity is now acting.
 var context: Dictionary = {}
 
 
@@ -33,17 +32,16 @@ static func make(main: String, sub: String = "", s: Style = Style.DEFAULT) -> Ba
 	return r
 
 
-## Same as [method make] but stamps `{entity, phase}` into [member context]
-## so BannerLayer can drop the banner if its turn-state goes stale before
-## it dequeues.
-static func make_for_phase(
+## Same as [method make] but stamps `{entity}` into [member context] so
+## BannerLayer can drop the banner if a different entity is acting by the
+## time it dequeues.
+static func make_for_entity(
 		main: String,
 		sub: String,
 		s: Style,
-		entity: Entity,
-		phase: int) -> BannerRequest:
+		entity: Entity) -> BannerRequest:
 	var r := make(main, sub, s)
-	r.context = {&"entity": entity, &"phase": phase}
+	r.context = {&"entity": entity}
 	return r
 
 

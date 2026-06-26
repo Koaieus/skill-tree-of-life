@@ -22,7 +22,7 @@ These four are exposed as the **`force_allocate(entity, node)`** primitive. It's
 | Target empty | `can_allocate` | `node.owned_by == null` |
 | Has SP | `can_allocate` | `entity.stat_board.skill_points.current >= 1` |
 | Adjacency | `can_allocate` | Target is adjacent to a node already owned by entity, **unless** entity owns nothing yet (the "first allocation is free of adjacency" core-placement rule) |
-| Turn phase | (caller) | `turn_manager.can_allocate()` (i.e. `current_phase == EXPAND`) — gated in `PlayerInputController` |
+| Your turn | (caller) | The entity must hold the current turn — `turn_manager.current_entity == entity`. There are no turn phases; `PlayerInputController` routes the **allocate input channel** here: a bare left-click on an unowned node (`_on_skill_node_left_clicked`). |
 
 On success: `skill_points.spend(1)` runs (transfers current → used), then steps 1–3 of the side-effects, then `allocated.emit(node, entity)`. Note: `allocate()` does **not** call `force_allocate()` — that would double-bump `used` (once via spend, once via claim). The side-effects are inlined.
 
@@ -34,7 +34,7 @@ On success: `skill_points.spend(1)` runs (transfers current → used), then step
 | Node is not the core | `not node.is_core()` |
 | Has DP | `entity.stat_board.deallocation_points.current >= 1` |
 | No islanding | `entity.navigator.would_disconnect_from(node, entity.core_location)` returns false |
-| Turn phase (caller) | `turn_manager.can_deallocate()` (i.e. `current_phase == CONTRACT`) |
+| Your turn (caller) | The entity must hold the current turn (`turn_manager.current_entity == entity`). No turn phases; `PlayerInputController` routes the **deallocate input channel** here: the `D` key pressed while hovering an owned non-core node (`_unhandled_input`). |
 
 On success: removes modifiers, mirror-removes from navigator, clears `owned_by`, then `deallocation_points.deplete(1)` + `skill_points.refund(1)`. Refund lands in `skill_points.current` (voluntary path).
 
@@ -48,8 +48,8 @@ Returns the previous owner so the caller can chain wound + core-HP without re-re
 
 | Caller | Method | Why |
 |---|---|---|
-| Player click in EXPAND | `allocate` | Full gating; SP cost; signals |
-| Player click in CONTRACT | `deallocate` | Full gating; DP cost; islanding check |
+| Player left-clicks an unowned adjacent node | `allocate` | Full gating; SP cost; signals |
+| Player presses `D` over an owned non-core node | `deallocate` | Full gating; DP cost; islanding check |
 | Forced by attack | `force_deallocate` + caller-side `wound`/`health.deplete` | Bypass gates; route through wound bucket |
 | Procgen setup | `force_allocate` (via `GameRoot.spawn_entity(name, color, core)`) | Bypass SP/adjacency; just plant the core |
 | Procgen expansion | `force_allocate` directly | Random-walk expansion in dev sandboxes |
