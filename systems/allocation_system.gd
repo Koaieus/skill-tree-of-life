@@ -214,14 +214,96 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 
 
 func _is_adjacent_via_real_edge(a: SkillNode, b: SkillNode) -> bool:
-	if graph == null or a == null or b == null or a == b:
+	if a == null or b == null or a == b:
 		return false
+	return _real_neighbours(a).has(b)
+
+
+## Nodes adjacent to [param node] via a real (non-self-loop) edge, ignoring
+## ownership. Shared neighbour iterator for adjacency / BFS reachability.
+func _real_neighbours(node: SkillNode) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	if graph == null or node == null:
+		return out
 	for e in graph.get_edges():
 		if e.from == e.to:
 			continue  # self-loop never lands a move
-		if (e.from == a and e.to == b) or (e.from == b and e.to == a):
-			return true
-	return false
+		if e.from == node and e.to != null:
+			out.append(e.to)
+		elif e.to == node and e.from != null:
+			out.append(e.from)
+	return out
+
+
+func _movement_budget(entity: Entity) -> int:
+	if entity == null:
+		return 0
+	var board := entity.stat_board
+	if board != null and board.movement_points != null:
+		return int(board.movement_points.current)
+	return 0
+
+
+## Core movement (#21). BFS over the entity's OWNED subgraph (real edges only)
+## from the current core slot, returning every owned node reachable within
+## [param max_hops] mapped to its hop distance. Excludes the core itself and
+## self-loops. Drives the core-move reachability highlight ([CoreMoveHighlightProvider]).
+func reachable_core_landings(entity: Entity, max_hops: int) -> Dictionary:
+	var result: Dictionary = {}
+	if entity == null or graph == null or max_hops < 1:
+		return result
+	var source := entity.core_location
+	if source == null:
+		return result
+	var dist := {source: 0}
+	var queue: Array[SkillNode] = [source]
+	while not queue.is_empty():
+		var cur: SkillNode = queue.pop_front()
+		var d: int = dist[cur]
+		if d >= max_hops:
+			continue
+		for nb in _real_neighbours(cur):
+			if nb.owned_by != entity or dist.has(nb):
+				continue
+			dist[nb] = d + 1
+			result[nb] = d + 1
+			queue.append(nb)
+	return result
+
+
+## Core movement (#21). Shortest owned-edge path (inclusive of both ends) from
+## the current core slot to [param target], or [code][][/code] if [param target]
+## is unreachable, not owned, or farther than the entity's remaining movement
+## budget. Used to commit a multi-hop drag (chained single-hop `move_core`) and
+## to paint the on-route edges brighter.
+func core_path(entity: Entity, target: SkillNode) -> Array[SkillNode]:
+	var empty: Array[SkillNode] = []
+	if entity == null or graph == null or target == null:
+		return empty
+	var source := entity.core_location
+	if source == null or target == source or target.owned_by != entity:
+		return empty
+	var parent := {source: null}
+	var queue: Array[SkillNode] = [source]
+	while not queue.is_empty():
+		var cur: SkillNode = queue.pop_front()
+		if cur == target:
+			break
+		for nb in _real_neighbours(cur):
+			if nb.owned_by != entity or parent.has(nb):
+				continue
+			parent[nb] = cur
+			queue.append(nb)
+	if not parent.has(target):
+		return empty
+	var path: Array[SkillNode] = []
+	var n: SkillNode = target
+	while n != null:
+		path.push_front(n)
+		n = parent.get(n)
+	if path.size() - 1 > _movement_budget(entity):
+		return empty
+	return path
 
 
 func _has_any_owned_node(entity: Entity) -> bool:

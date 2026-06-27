@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" uid="uid://b3prak7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="6_endturn"]
 [ext_resource type="PackedScene" path="res://ui/banner_layer/banner_layer.tscn" id="7_banner"]
 [ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="10_sp"]
+[ext_resource type="PackedScene" path="res://ui/context_panel/context_panel.tscn" id="11_ctx"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 layout_mode = 3
@@ -143,6 +144,15 @@ text = "Center"
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
 size_flags_horizontal = 8
+
+[node name="ContextPanel" parent="VBoxContainer/HBoxContainer/Right" instance=ExtResource("11_ctx")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="PanelContainerBottom" type="PanelContainer" parent="VBoxContainer" unique_id=818145290]
 custom_minimum_size = Vector2(0, 100)

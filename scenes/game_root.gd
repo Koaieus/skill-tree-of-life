@@ -37,8 +37,9 @@ var player: Entity
 # is assumed (warn otherwise so a stray editor camera doesn't silently win).
 var camera: Camera2D
 
-var attack_highlight: AttackHighlightOverlay
-var range_overlay: RangeOverlay
+var highlight_controller: HighlightController
+var node_highlight: NodeHighlightOverlay
+var edge_highlight: EdgeHighlightOverlay
 var attack_vfx: AttackVFX
 var allocation_vfx: AllocationVFX
 var melee_preview: MeleePreview
@@ -46,8 +47,9 @@ var floating_number_layer: FloatingNumberLayer
 
 
 func _ready() -> void:
-	_mount_range_overlay()
-	_mount_attack_highlight()
+	_mount_highlight_controller()
+	_mount_edge_highlight()
+	_mount_node_highlight()
 	_mount_attack_vfx()
 	_mount_allocation_vfx()
 	_mount_melee_preview()
@@ -190,20 +192,32 @@ func _resolve_camera() -> Camera2D:
 	return null
 
 
-func _mount_attack_highlight() -> void:
-	attack_highlight = AttackHighlightOverlay.new()
-	attack_highlight.battle_system = battle_system
-	attack_highlight.graph = graph
-	graph.add_child(attack_highlight)
+## Single active-provider arbiter for all highlighting (attack plans, core-move,
+## future hover). Mounted before the overlays so they can bind to it in _ready.
+func _mount_highlight_controller() -> void:
+	highlight_controller = HighlightController.new()
+	highlight_controller.battle_system = battle_system
+	highlight_controller.input_ctl = input_ctl
+	highlight_controller.allocation_system = allocation_system
+	highlight_controller.graph = graph
+	highlight_controller.player = player
+	graph.add_child(highlight_controller)
 
 
-func _mount_range_overlay() -> void:
+func _mount_node_highlight() -> void:
+	node_highlight = NodeHighlightOverlay.new()
+	node_highlight.highlight_controller = highlight_controller
+	node_highlight.graph = graph
+	graph.add_child(node_highlight)
+
+
+func _mount_edge_highlight() -> void:
 	# Mounted BEFORE the node-ring overlay so its edge highlights paint below
 	# the status rings (later siblings draw on top in Node2D z-order).
-	range_overlay = RangeOverlay.new()
-	range_overlay.battle_system = battle_system
-	range_overlay.graph = graph
-	graph.add_child(range_overlay)
+	edge_highlight = EdgeHighlightOverlay.new()
+	edge_highlight.highlight_controller = highlight_controller
+	edge_highlight.graph = graph
+	graph.add_child(edge_highlight)
 
 
 func _mount_attack_vfx() -> void:

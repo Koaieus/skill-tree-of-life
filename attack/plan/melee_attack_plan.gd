@@ -82,7 +82,7 @@ func validate() -> Array[String]:
 	return errors
 
 
-func get_highlight_role(node: SkillNode) -> HighlightRole:
+func get_node_role(node: SkillNode) -> HighlightRole:
 	if node == null:
 		return HighlightRole.NONE
 	if source != null and node == source:

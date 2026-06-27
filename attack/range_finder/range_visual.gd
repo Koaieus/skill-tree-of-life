@@ -28,11 +28,17 @@ class EdgeEntry:
 	var edge: Edge
 	var hops_remaining: int
 	var max_hops: int
+	## Optional semantic role ([enum HighlightProvider.HighlightRole]) so the
+	## overlay can colour the edge by meaning (PATH = core-move reach, etc.).
+	## Default NONE → overlay keeps the finder's stock golden range look.
+	var role: int = HighlightProvider.HighlightRole.NONE
 
-	func _init(p_edge: Edge = null, p_hops_remaining: int = 0, p_max_hops: int = 0) -> void:
+	func _init(p_edge: Edge = null, p_hops_remaining: int = 0, p_max_hops: int = 0,
+			p_role: int = HighlightProvider.HighlightRole.NONE) -> void:
 		edge = p_edge
 		hops_remaining = p_hops_remaining
 		max_hops = p_max_hops
+		role = p_role
 
 
 var rings: Array[Ring] = []

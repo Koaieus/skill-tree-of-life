@@ -15,6 +15,7 @@ class_name UIRoot
 @onready var spell_picker_bar: SpellPickerBar = %SpellPickerBar
 @onready var action_cluster: HBoxContainer = %ActionCluster
 @onready var initiative_bar: InitiativeBar = %InitiativeBar
+@onready var context_panel: ContextPanel = %ContextPanel
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -44,6 +45,11 @@ func compose(game_root: GameRoot) -> void:
 
 	stats_panel.board = _player.stat_board
 	stat_board_overlay.board = _player.stat_board
+
+	# Contextual right-hand panel: swaps a pre-authored body per current context
+	# (attack plan / core-move / pinned node / idle). It self-resolves off the
+	# systems' signals; we just hand it the references.
+	context_panel.bind(_turn_manager, _battle_system, _input_ctl, _player)
 
 	attack_mode_bar.attack_mode_requested.connect(_input_ctl.on_attack_mode_requested)
 

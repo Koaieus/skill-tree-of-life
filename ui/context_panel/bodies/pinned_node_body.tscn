@@ -1,0 +1,39 @@
+[gd_scene load_steps=2 format=3 uid="uid://cwarrr8ctxpin"]
+
+[ext_resource type="Script" path="res://ui/context_panel/bodies/pinned_node_body.gd" id="1_pin"]
+
+[node name="PinnedNodeBody" type="VBoxContainer"]
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+script = ExtResource("1_pin")
+
+[node name="NodeName" type="Label" parent="."]
+layout_mode = 2
+text = "—"
+theme_override_font_sizes/font_size = 16
+
+[node name="OwnerRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="OwnerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+modulate = Color(1, 1, 1, 0.75)
+text = "Owner"
+
+[node name="Value" type="Label" parent="OwnerRow"]
+layout_mode = 2
+text = "—"
+
+[node name="HpRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HpRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+modulate = Color(1, 1, 1, 0.75)
+text = "HP"
+
+[node name="Value" type="Label" parent="HpRow"]
+layout_mode = 2
+text = "—"

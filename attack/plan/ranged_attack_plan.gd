@@ -56,7 +56,7 @@ func get_reaching_firing_positions() -> Array[SkillNode]:
 	return result
 
 
-func get_highlight_role(node: SkillNode) -> HighlightRole:
+func get_node_role(node: SkillNode) -> HighlightRole:
 	if node == null or attacker == null:
 		return HighlightRole.NONE
 	if target != null and node == target:

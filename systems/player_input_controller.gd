@@ -23,6 +23,16 @@ extends Node
 ## stays self-contained; promote to an action if rebinding is ever wanted.
 const _DEALLOC_KEY := KEY_D
 
+## Beat between hops when committing a multi-hop core move, so the slides read as
+## a cascade. Slightly under SkillNode's slide duration (~0.25s).
+const CORE_HOP_SLIDE_DELAY := 0.18
+
+## Core-move drag (#21). Cursor must leave the core by this many world px before
+## a press-hold counts as a drag (so a plain click still routes to click-to-move).
+const CORE_DRAG_THRESHOLD := 10.0
+## Max world distance from cursor to a landing for the ghost to snap onto it.
+const CORE_DRAG_SNAP_RADIUS := 90.0
+
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
 @export var battle_system: BattleSystem
@@ -36,6 +46,10 @@ signal player_can_act_changed(can_act: bool)
 ## CORE_PATH roles.
 signal core_move_targeting_changed(source: SkillNode)
 
+## A node was pinned (right-clicked when no attack plan was eating the click) or
+## unpinned (null). The ContextPanel surfaces the pinned node's details.
+signal node_pinned(node: SkillNode)
+
 ## The player's core node while a click-to-move is in progress. Null between
 ## moves. Set only via `_set_move_targeting_source` so the signal fires once
 ## per transition.
@@ -44,6 +58,18 @@ var _move_targeting_source: SkillNode = null
 ## Node currently under the cursor, tracked via the Events hover bus so the
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
+
+## Node pinned to the context panel via right-click (when no attack plan claims
+## the click). Null when nothing is pinned.
+var _pinned_node: SkillNode = null
+
+## Core-move drag state (#21). `_core_drag_started` flips once the cursor leaves
+## the core past CORE_DRAG_THRESHOLD; `_core_drag_landing` is the currently
+## snapped landing (committed on release). Ghost + badge are lazily built.
+var _core_drag_started := false
+var _core_drag_landing: SkillNode = null
+var _core_ghost: Control = null
+var _core_badge: Label = null
 
 
 func _ready() -> void:
@@ -85,7 +111,19 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_right_clicked(skill_node: SkillNode) -> void:
-	_route_battle_click(skill_node, false)
+	# Right-click feeds the active attack plan first (melee pivot / magic source).
+	# When no plan claims it, right-click toggles the node's pin in the context
+	# panel — re-pinning the same node unpins it.
+	if _route_battle_click(skill_node, false):
+		return
+	_set_pinned(null if skill_node == _pinned_node else skill_node)
+
+
+func _set_pinned(node: SkillNode) -> void:
+	if _pinned_node == node:
+		return
+	_pinned_node = node
+	node_pinned.emit(node)
 
 
 func _on_skill_node_hovered(skill_node: SkillNode) -> void:
@@ -96,10 +134,24 @@ func _on_skill_node_unhovered() -> void:
 	_hovered_node = null
 
 
-## Deallocate channel: pressing `D` while hovering one of the player's own
-## non-core nodes deallocates it. deallocate() enforces DP + non-islanding.
+## Two channels live here:
+##  - Core-move DRAG (#21): once targeting is active (the player pressed their
+##    own core), dragging the held mouse snaps a ghost core to the nearest
+##    reachable landing and a hop badge floats by the cursor; release commits.
+##    Click-to-move still works untouched — drag is the layered accelerator.
+##  - DEALLOCATE: pressing `D` while hovering one of the player's own non-core
+##    nodes deallocates it (DP + non-islanding enforced in deallocate()).
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
+		return
+	if event is InputEventMouseMotion:
+		if _move_targeting_source != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_update_core_drag()
+		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
+			_on_core_drag_released()
 		return
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
@@ -172,13 +224,141 @@ func _route_core_move_click(skill_node: SkillNode) -> bool:
 		_set_move_targeting_source(null)
 		return true
 	if skill_node.owned_by == player:
-		allocation_system.move_core(player, skill_node)
+		_commit_core_move(skill_node)
 		_set_move_targeting_source(null)
 		return true
 	# Click on someone else's node / unowned: cancel and fall through so
 	# allocate still works without a second click.
 	_set_move_targeting_source(null)
 	return false
+
+
+## Public read of the active core-move source (the player's core while a
+## click-to-move or drag is being composed), or null. Highlight providers read
+## this to paint reachability.
+func move_targeting_source() -> SkillNode:
+	return _move_targeting_source
+
+
+## Commit a core move to [param target] by hopping along the shortest owned-edge
+## path one node at a time — each hop spends 1 MP and plays its slide. Adjacent
+## target → a single `move_core`; reachable-but-distant target → walks the BFS
+## path (`AllocationSystem.core_path`). Non-reachable / over-budget targets give
+## an empty path and no-op. Awaits a beat between hops so the multi-hop slide
+## reads as a cascade rather than one snap.
+func _commit_core_move(target: SkillNode) -> void:
+	var path := allocation_system.core_path(player, target)
+	if path.size() < 2:
+		return
+	for i in range(1, path.size()):
+		if not allocation_system.move_core(player, path[i]):
+			break
+		if i < path.size() - 1:
+			await get_tree().create_timer(CORE_HOP_SLIDE_DELAY).timeout
+
+
+## Mouse moved with the button held while core-move targeting is active: snap a
+## ghost core to the nearest reachable landing under the cursor (within
+## CORE_DRAG_SNAP_RADIUS) and float a hop badge. Pushes the snapped landing into
+## the active highlight provider so the on-route preview brightens live.
+func _update_core_drag() -> void:
+	var src := _move_targeting_source
+	if src == null or graph == null:
+		return
+	var world := graph.get_global_mouse_position()
+	if not _core_drag_started:
+		if world.distance_to(src.global_position) < CORE_DRAG_THRESHOLD:
+			return  # still a click, not a drag
+		_core_drag_started = true
+		_ensure_core_drag_visuals()
+	var landing := _nearest_reachable_landing(world)
+	_core_drag_landing = landing
+	if landing != null:
+		var hops := maxi(0, allocation_system.core_path(player, landing).size() - 1)
+		var mp := _movement_points_current()
+		_core_ghost.global_position = landing.global_position
+		_core_ghost.modulate.a = 0.85
+		_core_badge.text = "%d hop%s · %d MP left" % [hops, "" if hops == 1 else "s", maxi(0, mp - hops)]
+	else:
+		_core_ghost.global_position = world
+		_core_ghost.modulate.a = 0.4
+		_core_badge.text = "—"
+	_core_badge.global_position = world + Vector2(18, -10)
+	_set_drag_preview_target(landing)
+
+
+## Release while dragging commits to the snapped landing (multi-hop along the
+## owned path) and ends targeting. A release without a real drag is left alone so
+## click-to-move keeps working (next click is the landing).
+func _on_core_drag_released() -> void:
+	if not _core_drag_started:
+		return
+	var landing := _core_drag_landing
+	_clear_core_drag()
+	if landing != null and _move_targeting_source != null:
+		_commit_core_move(landing)
+	_set_move_targeting_source(null)
+
+
+func _nearest_reachable_landing(world: Vector2) -> SkillNode:
+	var src := _move_targeting_source
+	if src == null or src.owned_by == null or allocation_system == null:
+		return null
+	var reach := allocation_system.reachable_core_landings(src.owned_by, _movement_points_current())
+	var best: SkillNode = null
+	var best_d := CORE_DRAG_SNAP_RADIUS
+	for node in reach:
+		var d: float = world.distance_to((node as SkillNode).global_position)
+		if d < best_d:
+			best_d = d
+			best = node
+	return best
+
+
+func _movement_points_current() -> int:
+	if player == null or player.stat_board == null:
+		return 0
+	var mp: PoolStat = player.stat_board.movement_points
+	return int(mp.current) if mp != null else 0
+
+
+## Mirror the drag's snapped landing into the active core-move highlight provider
+## (if that's what's driving highlights right now) so the brightened target ring
+## tracks the ghost. No-op when an attack plan owns the highlights.
+func _set_drag_preview_target(landing: SkillNode) -> void:
+	var ctl := get_tree().get_first_node_in_group(HighlightController.GROUP) as HighlightController
+	if ctl == null:
+		return
+	var core_provider := ctl.active_core_provider()
+	if core_provider != null:
+		core_provider.set_target(landing)
+
+
+func _ensure_core_drag_visuals() -> void:
+	if _core_ghost == null:
+		_core_ghost = Label.new()
+		_core_ghost.text = "⭐"
+		_core_ghost.add_theme_font_size_override("font_size", 40)
+		_core_ghost.z_index = 100
+		graph.add_child(_core_ghost)
+	if _core_badge == null:
+		_core_badge = Label.new()
+		_core_badge.add_theme_font_size_override("font_size", 18)
+		_core_badge.z_index = 100
+		graph.add_child(_core_badge)
+	_core_ghost.visible = true
+	_core_badge.visible = true
+
+
+func _clear_core_drag() -> void:
+	_core_drag_started = false
+	_core_drag_landing = null
+	if _core_ghost != null:
+		_core_ghost.queue_free()
+		_core_ghost = null
+	if _core_badge != null:
+		_core_badge.queue_free()
+		_core_badge = null
 
 
 func _player_has_movement_points() -> bool:
@@ -192,6 +372,8 @@ func _set_move_targeting_source(value: SkillNode) -> void:
 	if _move_targeting_source == value:
 		return
 	_move_targeting_source = value
+	if value == null:
+		_clear_core_drag()
 	core_move_targeting_changed.emit(value)
 
 

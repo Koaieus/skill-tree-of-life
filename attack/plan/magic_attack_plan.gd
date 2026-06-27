@@ -51,7 +51,7 @@ func reset() -> void:
 	state_changed.emit()
 
 
-func get_highlight_role(node: SkillNode) -> HighlightRole:
+func get_node_role(node: SkillNode) -> HighlightRole:
 	if node == null:
 		return HighlightRole.NONE
 	if source != null and node == source:
@@ -94,7 +94,7 @@ func get_available_spells() -> Array[SpellDef]:
 	return [spell] if spell != null else []
 
 
-func get_source_range_visual() -> RangeVisual:
+func get_range_visual() -> RangeVisual:
 	if source == null or spell == null or spell.targeting == null:
 		return null
 	var finder: RangeFinder = spell.targeting.range_finder

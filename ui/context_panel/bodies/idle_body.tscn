@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3 uid="uid://cwarrr8ctxidl"]
+
+[ext_resource type="Script" path="res://ui/context_panel/bodies/idle_body.gd" id="1_idl"]
+
+[node name="IdleBody" type="VBoxContainer"]
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+script = ExtResource("1_idl")
+
+[node name="Hint" type="Label" parent="."]
+layout_mode = 2
+text = ""
+autowrap_mode = 2
+modulate = Color(1, 1, 1, 0.6)

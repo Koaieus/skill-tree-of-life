@@ -5,7 +5,7 @@ extends Node2D
 ## payload, it instantiates the coordinator as a world-space child, awaits
 ## its [method VFXCoordinator.play], then tears it down.
 ##
-## Mounted as a sibling of [AttackHighlightOverlay] under the [Graph] so all
+## Mounted as a sibling of [NodeHighlightOverlay] under the [Graph] so all
 ## VFX share world coords with the SkillNodes they target. Stays mounted
 ## across attacks; per-action coordinators are spawned and freed per call.
 
