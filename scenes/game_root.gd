@@ -86,7 +86,10 @@ func _ready() -> void:
 	ui_root.compose(self)
 
 	if player != null and turn_manager != null:
-		player.initiative_current = 100.0
+		# Skip the initial tick race: fill the player's clock so they act first.
+		# (start_turn clears the ready-group membership this would otherwise set.)
+		if player.stat_board != null and player.stat_board.initiative != null:
+			player.stat_board.initiative.restore_to_full()
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
 

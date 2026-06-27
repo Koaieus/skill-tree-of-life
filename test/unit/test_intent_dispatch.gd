@@ -116,7 +116,7 @@ func test_left_click_non_adjacent_does_not_allocate() -> void:
 
 func test_left_click_not_players_turn_does_nothing() -> void:
 	# Hand the turn to the other entity so the player is no longer current.
-	_other.initiative_current = 100.0
+	_other.stat_board.initiative.restore_to_full()  # readies _other (joins ready group)
 	_tm.end_turn()
 	assert_eq(_tm.current_entity, _other, "precondition: other entity holds the turn")
 	_nodes[1].left_clicked.emit(_nodes[1])

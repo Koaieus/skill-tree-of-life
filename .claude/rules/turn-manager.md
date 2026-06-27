@@ -25,7 +25,11 @@ Click dispatch lives in `PlayerInputController._on_skill_node_left_clicked` (bat
 
 ## Initiative
 
-`tick()` advances every node in group `entities` by its `initiative_speed.value`. `end_turn()` deducts 100 from the previous entity, then `_tick_until_ready()` ticks until at least one entity ≥ 100 and starts the highest's turn. `start_turn()` just sets `current_entity` and emits `turn_started`.
+Initiative is the **`initiative` PoolStat** on each entity's stat board (a `CyclicPoolStatDef` — see `.claude/rules/stats-system.md`). The cap is that entity's action threshold (default 100, tweakable per entity via modifiers); `current` is the clock.
+
+`tick()` replenishes every entity's `initiative` pool by its `initiative_speed.value`. When a pool crosses its cap it fires `replenished` (the entity handles this by joining `Entity.READY_GROUP` / `&"ready_to_act"`) and the cyclic def carries the overshoot into the next cycle — so **`end_turn()` deducts nothing**; the deduction already happened at the crossing. `_tick_until_ready()` ticks until `READY_GROUP` is non-empty, then serves the member with the highest carried `current` (more overshoot wins), deprioritising the just-acted entity on ties. `start_turn()` removes the entity from `READY_GROUP`, sets `current_entity`, and emits `turn_started`.
+
+Readiness is **group membership, not `current >= cap`** — because the carry-reset drops `current` back near zero the instant the clock crosses. The `_tick_until_ready` loop is synchronous (no per-tick frame yield); the InitiativeBar animates the climb on its own via a tween bound to the pool's `current_changed`, and holds "full" off `replenished` until `turn_started` drains it.
 
 ## Discovery
 

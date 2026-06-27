@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://blmjm81fytofd" path="res://systems/allocation_system.gd" id="6_alloc"]
 [ext_resource type="Script" uid="uid://c8h46d4u0rss3" path="res://systems/battle_system.gd" id="6_umwfs"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="7_qrijo"]
+[ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="43_init"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="8_umwfs"]
@@ -245,6 +246,13 @@ resource_name = "xp_per_turn"
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
+[sub_resource type="Resource" id="pool_initiative"]
+resource_name = "initiative"
+script = ExtResource("8_umwfs")
+current = 0.0
+definition = ExtResource("43_init")
+base_value = 100.0
+
 [sub_resource type="Resource" id="Resource_11lpl"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
@@ -262,6 +270,7 @@ wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
 movement_points = SubResource("pool_movement_points")
+initiative = SubResource("pool_initiative")
 initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
@@ -456,6 +465,13 @@ resource_name = "xp_per_turn"
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
+[sub_resource type="Resource" id="pool_initiative_enemy"]
+resource_name = "initiative"
+script = ExtResource("8_umwfs")
+current = 0.0
+definition = ExtResource("43_init")
+base_value = 100.0
+
 [sub_resource type="Resource" id="Resource_85b6y"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
@@ -473,6 +489,7 @@ wound_heal_per_turn = SubResource("Resource_3670g")
 deallocation_points = SubResource("Resource_0clpu")
 action_points = SubResource("Resource_ubc5n")
 movement_points = SubResource("Resource_54w3d")
+initiative = SubResource("pool_initiative_enemy")
 initiative_speed = SubResource("Resource_k8amt")
 vision_range = SubResource("Resource_xn71l")
 sensor_range = SubResource("Resource_ub3io")

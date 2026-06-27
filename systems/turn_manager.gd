@@ -34,53 +34,62 @@ func _enter_tree() -> void:
 func start_turn(entity: Entity) -> void:
 	assert(entity != null, "TurnManager.start_turn(null)")
 	assert(current_entity == null, "Already in a turn: %s" % current_entity)
+	# Consume readiness: the entity must climb to its cap again for the next turn.
+	entity.remove_from_group(Entity.READY_GROUP)
 	current_entity = entity
 	turn_started.emit(entity)
 
 
-## End the current turn.
-## Deducts 100 initiative from the entity, then auto-ticks until the next
-## entity is ready and starts their turn.
+## End the current turn, then auto-tick until the next entity is ready and
+## starts their turn. The acting entity's initiative was already deducted at
+## fill time (CyclicPoolStatDef carries the overshoot forward), so there is no
+## deduction here.
 func end_turn() -> void:
 	if current_entity == null:
 		return
 	var entity := current_entity
 	current_entity = null
 	turn_ended.emit(entity)
-	entity.initiative_current -= 100.0
 	_tick_until_ready(entity)
 
 
-## Tick the initiative clock by one unit. Advances every entity in the
-## "entities" group by their initiative_speed value.
+## Tick the initiative clock by one unit. Replenishes every entity's `initiative`
+## pool by its initiative_speed; a pool that crosses its cap fires `replenished`,
+## which the entity handles by joining Entity.READY_GROUP (and the cyclic def
+## carries the overshoot into the next cycle).
 func tick() -> void:
 	ticked.emit()
 	for node in get_tree().get_nodes_in_group("entities"):
 		var e := node as Entity
-		if e == null or e.stat_board == null or e.stat_board.initiative_speed == null:
+		if e == null or e.stat_board == null:
 			continue
-		e.initiative_current += float(e.stat_board.initiative_speed.value)
+		if e.stat_board.initiative == null or e.stat_board.initiative_speed == null:
+			continue
+		e.stat_board.initiative.replenish(float(e.stat_board.initiative_speed.value))
 
 
 ## Serve the next ready entity, or tick until one becomes ready.
-## Checks BEFORE ticking so entities that all reached 100 in the same cycle
-## are each served before the clock advances again.
-## `last` is the entity that just ended its turn — deprioritised on ties so
-## it doesn't immediately win its own initiative tie.
+## Checks BEFORE ticking so entities that crossed the cap in the same cycle are
+## each served before the clock advances again. Ready entities are those in
+## Entity.READY_GROUP; ties break by carried initiative (more overshoot first),
+## then `last` (the just-acted entity) is deprioritised so it can't immediately
+## win its own tie.
 func _tick_until_ready(last: Entity = null, max_ticks: int = 1000) -> void:
 	for _i in max_ticks:
 		var ready_entities: Array[Entity] = []
-		for node in get_tree().get_nodes_in_group("entities"):
+		for node in get_tree().get_nodes_in_group(Entity.READY_GROUP):
 			var e := node as Entity
-			if e != null and e.initiative_current >= 100.0:
+			if e != null:
 				ready_entities.append(e)
 		if not ready_entities.is_empty():
 			ready_entities.sort_custom(func(a: Entity, b: Entity) -> bool:
-				if a.initiative_current != b.initiative_current:
-					return a.initiative_current > b.initiative_current
+				var ai := a.stat_board.initiative.current if a.stat_board != null and a.stat_board.initiative != null else 0.0
+				var bi := b.stat_board.initiative.current if b.stat_board != null and b.stat_board.initiative != null else 0.0
+				if ai != bi:
+					return ai > bi
 				return b == last  # tiebreak: just-acted entity goes last
 			)
 			start_turn(ready_entities[0])
 			return
 		tick()
-	push_warning("TurnManager: no entity reached 100 initiative in %d ticks" % max_ticks)
+	push_warning("TurnManager: no entity reached its initiative cap in %d ticks" % max_ticks)

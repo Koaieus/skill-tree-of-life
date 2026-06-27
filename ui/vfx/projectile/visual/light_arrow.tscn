@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://58lr4ejeatnl" path="res://ui/vfx/projectile/visual/light_arrow.gd" id="1"]
 
 [node name="LightArrow" type="Node2D" unique_id=648880851]
+z_index = 3000
 script = ExtResource("1")
 shaft_length = 36.0
 head_length = 12.0

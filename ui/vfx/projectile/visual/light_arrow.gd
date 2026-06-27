@@ -75,8 +75,9 @@ func _draw() -> void:
 	var a := clampf(_alpha, 0.0, 1.0)
 	var col := Color(tint.r, tint.g, tint.b, tint.a * a).lightened(0.5)
 	var glow := Color(tint.r, tint.g, tint.b, tint.a * a * 0.25)
-	# Glow halo around the tip.
-	draw_circle(Vector2.ZERO, glow_radius, glow)
+	if not _arrived:
+		# Glow halo around the tip.
+		draw_circle(Vector2.ZERO, glow_radius, glow)
 	# Shaft: from (-shaft_length, 0) back to (0,0) tip.
 	var tail := Vector2(-shaft_length-head_length, 0.0)
 	draw_line(tail, Vector2(-head_length, 0.0), col, shaft_width, true)

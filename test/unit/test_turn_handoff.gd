@@ -55,7 +55,7 @@ func before_each() -> void:
 	# Player starts ready; enemy is at 0 — the real-game configuration.
 	# Both have initiative_speed 10, so after end_turn they race from 0
 	# and tie at 100 simultaneously.
-	_player.initiative_current = 100.0
+	_player.stat_board.initiative.restore_to_full()
 	_tm.start_turn(_player)
 
 
@@ -83,7 +83,7 @@ func test_enemy_gets_turn_after_player_ends() -> void:
 # ---------------------------------------------------------------------------
 
 func test_player_gets_turn_back_after_enemy_ai() -> void:
-	_enemy.initiative_current = 50.0   # head start so enemy wins the tick race
+	_enemy.stat_board.initiative.set_current(50.0)   # head start so enemy wins the tick race
 
 	_tm.end_turn()
 

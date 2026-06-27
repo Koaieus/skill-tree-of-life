@@ -59,6 +59,7 @@ extends Resource
 @export var movement_points: PoolStat		## Default 1/1 — moves Core along edges.
 
 @export_group("Turn Order")
+@export var initiative: PoolStat				## Turn clock; cap = action threshold (100). Cyclic — carries overshoot.
 @export var initiative_speed: ScalarStat	## Ticks of initiative added per clock tick.
 
 @export_group("Vision")

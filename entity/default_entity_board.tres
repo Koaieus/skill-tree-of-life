@@ -13,6 +13,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="def_dealloc_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="def_dexterity"]
 [ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="def_health"]
+[ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="def_initiative"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="def_initiative_speed"]
 [ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="def_intelligence"]
 [ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="def_mana"]
@@ -83,6 +84,12 @@ script = ExtResource("3_pool")
 current = 10.0
 definition = ExtResource("def_health")
 base_value = 10.0
+
+[sub_resource type="Resource" id="pool_initiative"]
+resource_name = "initiative"
+script = ExtResource("3_pool")
+definition = ExtResource("def_initiative")
+base_value = 100.0
 
 [sub_resource type="Resource" id="scalar_initiative_speed"]
 resource_name = "initiative_speed"
@@ -302,6 +309,7 @@ wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
 movement_points = SubResource("pool_movement_points")
+initiative = SubResource("pool_initiative")
 initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")

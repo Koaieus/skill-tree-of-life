@@ -52,7 +52,7 @@ signal depleted
 ## and what VFX sizes effects against. Authored per-node so future archetypes
 ## can run flush (inner_radius == radius) or extra-recessed; pushed down to
 ## BaseCircle in _sync_visuals so BaseCircle has no inset policy of its own.
-@export var inner_radius: float = 32.0:
+@export var inner_radius: float = 24.0:
 	set(value):
 		if is_equal_approx(inner_radius, value):
 			return

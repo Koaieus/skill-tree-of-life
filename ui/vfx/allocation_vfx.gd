@@ -35,10 +35,10 @@ const LIFT_DURATION: float = 0.30
 const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
 const LIFT_END_SCALE: float = 0.6
 
-const SHATTER_VIBRATE_DURATION: float = 0.6
+const SHATTER_VIBRATE_DURATION: float = 0.8
 const SHATTER_VIBRATE_AMPLITUDE: float = 2.5
 const SHATTER_VIBRATE_FREQ: float = 60.0  # hz
-const SHATTER_BURST_DURATION: float = 1.40
+const SHATTER_BURST_DURATION: float = 2.40
 const SHATTER_PARTICLE_COUNT: int = 24
 const SHATTER_PARTICLE_LIFETIME: float = 0.35
 const SHATTER_OUTWARD_SPEED: float = 220.0
@@ -47,14 +47,15 @@ const SHATTER_OUTWARD_SPEED: float = 220.0
 # tune up for slower domino, down for snap.
 const CASCADE_STEP: float = 0.35
 
-# --- Wiring ------------------------------------------------------------------
 
+# --- Wiring ------------------------------------------------------------------
 var _allocation_system: AllocationSystem
 var _battle_system: BattleSystem
 # Nodes whose forced-dealloc was scheduled by a cascade — suppress the
 # default shatter that would otherwise fire from the per-node force_deallocated
 # signal, since the cascade handler already armed a staggered shatter for it.
 var _cascade_scheduled: Dictionary[SkillNode, bool] = {}
+
 
 
 func _ready() -> void:
@@ -163,6 +164,7 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	tween.chain().tween_callback(disk.queue_free)
 
 
+## Node "death" animation: start vibrating and shatter into pieces
 func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float) -> void:
 	# Wrapper Node2D holds the vibrating snapshot disk; particles spawn at
 	# burst time as a sibling. Whole thing self-frees when both children are done.
@@ -179,12 +181,13 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 	if delay > 0.0:
 		tween.tween_interval(delay)
 	# Vibrate: tiny sine-driven offset + glow ramp.
-	var t0 := 0.0
 	var steps := int(SHATTER_VIBRATE_DURATION * 60.0)
+	
 	for s in steps:
 		var u := float(s) / float(steps)
-		var dx := sin(u * SHATTER_VIBRATE_FREQ * TAU) * SHATTER_VIBRATE_AMPLITUDE
-		var dy := cos(u * SHATTER_VIBRATE_FREQ * TAU * 0.7) * SHATTER_VIBRATE_AMPLITUDE
+		var vibration_intensity := lerpf(0., SHATTER_VIBRATE_AMPLITUDE, u)
+		var dx := sin(u * SHATTER_VIBRATE_FREQ * TAU) * vibration_intensity
+		var dy := cos(u * SHATTER_VIBRATE_FREQ * TAU * 0.7) * vibration_intensity
 		tween.tween_property(disk, "position", Vector2(dx, dy),
 				SHATTER_VIBRATE_DURATION / float(steps))
 	# Burst: hide disk, emit particles.

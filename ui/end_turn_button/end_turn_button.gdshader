@@ -1,8 +1,8 @@
 shader_type canvas_item;
 
-// Forward-scrolling chevrons.
-// 1 chevron = CONTRACT, 2 = EXPAND, 3 = BATTLE. Tint + density both
-// communicate "where in the turn we are"; hover speeds the scroll.
+// Forward-scrolling chevrons. Phases are gone (single-phase turn), so the
+// count + tint are fixed; the chevrons just give the button life. Hover speeds
+// the scroll.
 
 uniform vec2 mouse_uv;
 uniform vec2 texture_size = vec2(1.0);
@@ -21,7 +21,7 @@ uniform float scroll_offset = 0.0;
 const float CORNER_RADIUS = 0.14;
 
 const float CHEVRON_THICKNESS = 0.25; // was: 0.055
-const float GLOW_INTENSITY = 0.0;
+const float GLOW_INTENSITY = 0.35;
 
 float sdf_rrect(vec2 p, vec2 b, float r) {
     vec2 d = abs(p) - b + r;

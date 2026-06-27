@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bkm26sesx8gjj" path="res://ui/ui_root.gd" id="1_d55xy"]
 [ext_resource type="Script" uid="uid://dhbamfrp04rr5" path="res://ui/stats_panel.gd" id="1_stats_panel"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="2_tooltip"]
+[ext_resource type="PackedScene" uid="uid://qybxf6lb7hjj" path="res://ui/initiative_bar.tscn" id="3_h72ba"]
 [ext_resource type="PackedScene" uid="uid://bvttxdu4jd6se" path="res://ui/attack_mode_bar/attack_mode_bar.tscn" id="4_6qk7i"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="4_f6o6b"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="5_launch"]
@@ -26,6 +27,10 @@ layout_mode = 0
 offset_right = 180.0
 offset_bottom = 55.0
 
+[node name="InitiativeBar" parent="." unique_id=1879021159 instance=ExtResource("3_h72ba")]
+unique_name_in_owner = true
+layout_mode = 1
+
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1297335697]
 layout_mode = 1
 anchors_preset = 15
@@ -34,6 +39,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+metadata/_edit_lock_ = true
 
 [node name="PanelContainerTop" type="PanelContainer" parent="VBoxContainer" unique_id=657225226]
 visible = false
@@ -54,6 +60,7 @@ text = "Top panel"
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
+metadata/_edit_lock_ = true
 
 [node name="Left" type="Control" parent="VBoxContainer/HBoxContainer" unique_id=1718291529]
 clip_contents = true
@@ -96,6 +103,8 @@ script = ExtResource("1_stats_panel")
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 1
+metadata/_edit_group_ = true
+metadata/_edit_lock_ = true
 
 [node name="StatBoardOverlay" type="Control" parent="VBoxContainer/HBoxContainer/Center" unique_id=825145876]
 unique_name_in_owner = true
@@ -107,6 +116,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("4_f6o6b")
 metadata/_custom_type_script = "uid://co6nsf5jw2yo6"
+metadata/_edit_lock_ = true
 
 [node name="PanelContainerCenter" type="PanelContainer" parent="VBoxContainer/HBoxContainer/Center" unique_id=1597719399]
 visible = false
@@ -167,7 +177,6 @@ anchors_preset = 4
 anchor_top = 0.5
 anchor_bottom = 0.5
 offset_top = -32.0
-offset_right = 392.0
 offset_bottom = 32.0
 grow_vertical = 2
 
@@ -207,13 +216,13 @@ offset_right = 160.0
 offset_bottom = 40.0
 grow_horizontal = 2
 grow_vertical = 2
-alignment = 1
 theme_override_constants/separation = 8
+alignment = 1
 
 [node name="LaunchAttackButton" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer/Control2/ActionCluster" unique_id=1481929375 instance=ExtResource("5_launch")]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(180, 64)
+layout_mode = 2
 
 [node name="Control3" type="Control" parent="VBoxContainer/PanelContainerBottom/MarginContainer/HBoxContainer" unique_id=1768707412]
 custom_minimum_size = Vector2(180, 0)

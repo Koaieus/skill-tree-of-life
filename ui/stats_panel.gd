@@ -100,6 +100,8 @@ func _rebuild() -> void:
 		var parent_vb := parent_row.get_parent() as VBoxContainer
 		if parent_vb == null:
 			continue
+		# TODO: add @export_placeholder to StatRow for name/value and make it a scene with a script or contract,
+		# is INLINE the right name? it should be a "per turn component to a main stat", like "+3/Turn" with the "+3" bright and "/Turn" dimmed. it's a new scene tbh, new layout. do we differentiate here? or over at _build_row()?
 		var inline_row := _build_inline_row(def)
 		if inline_row == null:
 			continue

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CyclicPoolStatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/cyclic_pool_stat_def.gd" id="1_cyclic_pool_def"]
+
+[resource]
+script = ExtResource("1_cyclic_pool_def")
+id = &"initiative"
+display_name = "Initiative"
+description = "Turn-order clock. Fills by initiative_speed each tick; on reaching the cap the entity acts and the overshoot carries into the next cycle. The cap is the per-entity action threshold (default 100)."
+value_type = 0
+default_value = 100.0
+display_order = 49
+display_type = 4
+tint_color = Color(0.85, 0.85, 0.85, 1)
+display_group = &"combat"
+per_turn_mode = 0

@@ -14,6 +14,7 @@ class_name UIRoot
 @onready var banner_layer: BannerLayer = %BannerLayer
 @onready var spell_picker_bar: SpellPickerBar = %SpellPickerBar
 @onready var action_cluster: HBoxContainer = %ActionCluster
+@onready var initiative_bar: InitiativeBar = %InitiativeBar
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -80,6 +81,15 @@ func compose(game_root: GameRoot) -> void:
 		_battle_system.selected_spell = _player.spellbook.spells[0]
 	_refresh_spell_picker_visibility()
 
+	# Initiative bar tracks the player's initiative pool. current_changed drives
+	# the climb; replenished latches the ready/full state. Drain happens in
+	# _on_turn_started when it's the player's turn.
+	var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
+	if init_pool != null:
+		initiative_bar.max_initiative = float(init_pool.value)
+		init_pool.current_changed.connect(initiative_bar._on_initiative_changed)
+		init_pool.replenished.connect(initiative_bar._on_ready)
+		initiative_bar._on_initiative_changed(float(init_pool.current))  # initial sync
 
 func _on_attack_plan_changed(plan: AttackPlan) -> void:
 	var mode := plan.mode if plan else BattleSystem.AttackMode.NONE
@@ -181,6 +191,10 @@ func _on_turn_started(entity: Entity) -> void:
 	if entity == _player:
 		banner_layer.enqueue(BannerRequest.make_for_entity(
 				"YOUR TURN", "", BannerRequest.Style.DEFAULT, entity))
+		# Spend the readiness: drain the initiative bar to the carried value.
+		var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
+		if init_pool != null:
+			initiative_bar._on_owner_turn_started(float(init_pool.current))
 	# Fresh turn: clear any stale confirm bubble and reaffirm enabled state.
 	end_turn_button.hide_confirm()
 	_refresh_end_turn_button()

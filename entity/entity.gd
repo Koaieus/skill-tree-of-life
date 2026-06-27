@@ -39,10 +39,11 @@ signal leveled_up(new_level: int)
 ## modifiers start showing up.
 var level: int = 1
 
-## Accumulated initiative clock. Incremented each tick by initiative_speed.
-## Reaches 100 → TurnManager starts this entity's turn and deducts 100.
-## Plain float (not PoolStat) because we need it to exceed 100 before deduction.
-var initiative_current: float = 0.0
+## The initiative clock lives on the stat board as the `initiative` PoolStat
+## (cap = this entity's action threshold). It fills by `initiative_speed` each
+## TurnManager tick; crossing the cap fires `replenished`, which adds this
+## entity to the `READY_GROUP` for TurnManager to serve. See _ready / TurnManager.
+const READY_GROUP := &"ready_to_act"
 
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
@@ -71,6 +72,10 @@ func _ready() -> void:
 			core_class.apply(self)
 		if stat_board.xp != null:
 			stat_board.xp.replenished.connect(_on_xp_replenished)
+		# Initiative clock crossed its cap → this entity is ready to act.
+		# TurnManager serves from READY_GROUP; it removes us again on start_turn.
+		if stat_board.initiative != null:
+			stat_board.initiative.replenished.connect(_on_initiative_ready)
 		# Re-emit SP wound/heal on the global Events bus, keyed by self so
 		# floater layers don't need to bind per-entity. The signals on
 		# SkillPointStat fire on transfers, not on every value_changed —
@@ -103,6 +108,14 @@ func _on_turn_started(entity: Entity) -> void:
 			n.refill()
 	if core_class != null:
 		core_class.on_turn_started(self)
+
+
+## Listens for initiative.replenished (clock crossed its cap). Joins the ready
+## group; TurnManager picks the highest-overshoot member and removes it on
+## start_turn. The CyclicPoolStatDef has already carried the overshoot forward,
+## so `current` is back near zero — readiness is the group membership, not the value.
+func _on_initiative_ready() -> void:
+	add_to_group(READY_GROUP)
 
 
 ## Listens for xp.replenished (pool crossed into full). Pool growth + current
