@@ -1,0 +1,123 @@
+[gd_scene format=3 uid="uid://c7aepi87fu42e"]
+
+[ext_resource type="Script" uid="uid://c7d1qle32aey5" path="res://ui/pause_menu.gd" id="1_50142"]
+[ext_resource type="Texture2D" uid="uid://bodnfn41ircef" path="res://assets/icons/Icon set 1/1x/Asset 52.png" id="2_j3kxr"]
+[ext_resource type="Texture2D" uid="uid://d0ps7valwvgg2" path="res://assets/icons/Icon set 1/1x/Asset 1.png" id="3_vovkw"]
+[ext_resource type="Texture2D" uid="uid://d0jpsnl30hfcm" path="res://assets/icons/Icon set 1/1x/Asset 25.png" id="4_jyvtb"]
+[ext_resource type="Texture2D" uid="uid://bpvps1mrffx5w" path="res://assets/icons/Icon set 1/1x/Asset 54.png" id="5_fijdv"]
+[ext_resource type="Texture2D" uid="uid://ot7ed7da8p0d" path="res://assets/icons/Icon set 1/1x/Asset 12.png" id="6_lpidc"]
+[ext_resource type="Texture2D" uid="uid://bk7qkhhhili3v" path="res://assets/icons/Icon set 1/1x/Asset 42.png" id="7_b1mq0"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bcxn4"]
+content_margin_left = 10.0
+content_margin_top = 14.0
+content_margin_right = 10.0
+content_margin_bottom = 14.0
+bg_color = Color(0.1, 0.1, 0.1, 0.6)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+corner_detail = 5
+
+[node name="PauseMenu" type="Control" unique_id=1364408204]
+process_mode = 3
+z_index = 4096
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_50142")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=2058644224]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.23529412)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1823161025]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer" unique_id=1304371530]
+custom_minimum_size = Vector2(350, 420)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bcxn4")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel" unique_id=1411148471]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CenterContainer/Panel/VBoxContainer" unique_id=113224769]
+layout_mode = 2
+theme_override_font_sizes/font_size = 43
+text = "GAME PAUSED"
+horizontal_alignment = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/Panel/VBoxContainer" unique_id=1482383794]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/Panel/VBoxContainer/MarginContainer" unique_id=1643382428]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="RestartButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=235955008]
+layout_mode = 2
+text = "RESTART"
+icon = ExtResource("2_j3kxr")
+expand_icon = true
+
+[node name="SaveButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=399043513]
+layout_mode = 2
+text = "SAVE"
+icon = ExtResource("3_vovkw")
+expand_icon = true
+
+[node name="LoadButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=690353971]
+layout_mode = 2
+text = "LOAD"
+icon = ExtResource("4_jyvtb")
+expand_icon = true
+
+[node name="ToMainMenuButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=2023258104]
+layout_mode = 2
+text = "Main Menu"
+icon = ExtResource("5_fijdv")
+expand_icon = true
+
+[node name="ExitButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=487799697]
+layout_mode = 2
+text = "EXIT"
+icon = ExtResource("6_lpidc")
+expand_icon = true
+
+[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=475485116]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ContinueButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=1603654823]
+layout_mode = 2
+text = "CONTINUE"
+icon = ExtResource("7_b1mq0")
+expand_icon = true
+
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/RestartButton" to="." method="_on_restart_button_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/SaveButton" to="." method="_on_save_button_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/LoadButton" to="." method="_on_load_button_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ToMainMenuButton" to="." method="_on_to_main_menu_button_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ExitButton" to="." method="_on_exit_button_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ContinueButton" to="." method="_on_continue_button_pressed"]
