@@ -121,6 +121,10 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 # --- Effect spawners ---------------------------------------------------------
 
 func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
+	var disk := _make_snapshot_disk(node.inner_radius, color)
+	disk.global_position = node.global_position
+	add_child(disk)
+
 	var spike := Polygon2D.new()
 	spike.polygon = _build_needle_polygon(
 			node.inner_radius, node.radius * SPIKE_HEIGHT_FACTOR)
@@ -130,8 +134,17 @@ func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
 	spike.global_position = node.global_position
 	spike.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	add_child(spike)
+
+	# White flash: disk + spike both ramp toward a lightened tint, then settle
+	# back to the entity color. Disk is the snapshot reused from the lift VFX.
+	var flash_color := color.lightened(0.5)
 	var tween := create_tween()
 	tween.set_parallel(true)
+
+	tween.tween_property(disk, "disk_color", flash_color, SPIKE_DURATION * 0.4)
+	tween.tween_property(disk, "disk_color", color, SPIKE_DURATION * 0.6)\
+			.set_delay(SPIKE_DURATION * 0.4)
+
 	# Alpha 0 → 1 → 0 (peak at midpoint).
 	tween.tween_property(spike, "modulate:a", 1.0, SPIKE_DURATION * 0.4)
 	tween.tween_property(spike, "modulate:a", 0.0, SPIKE_DURATION * 0.6)\
@@ -140,6 +153,10 @@ func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
 	# so scaling y → 0 makes it sink in).
 	tween.tween_property(spike, "scale:y", 0.0, SPIKE_DURATION)\
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tween.tween_property(spike, "color", flash_color, SPIKE_DURATION * 0.4)
+	tween.tween_property(spike, "color", color, SPIKE_DURATION * 0.6)\
+			.set_delay(SPIKE_DURATION * 0.4)
+	tween.chain().tween_callback(disk.queue_free)
 	tween.chain().tween_callback(spike.queue_free)
 
 
