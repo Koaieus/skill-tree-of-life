@@ -28,6 +28,7 @@ Skim these for context if the request involves pools, derived formulas, or class
 stats_system/pool_stat_def.gd            # abstract PoolStatDef + the two virtuals
 stats_system/standard_pool_stat_def.gd   # fixed-cap pool (HP, mana, AP, …)
 stats_system/growable_pool_stat_def.gd   # fill-and-level pool (XP) + PostGrowMode
+stats_system/cyclic_pool_stat_def.gd     # recurring threshold, carries overshoot (initiative)
 stats_system/formulas/linear_formula.gd
 stats_system/formulas/expression_formula.gd
 entity/core/core_class.gd                # per-entity class identity bonuses (replaces the old core_modifiers)
@@ -119,7 +120,9 @@ base_value = 10.0
 
 Wire it in the `[resource]` block: `my_stat = SubResource("scalar_my_stat")`.
 
-**4. Downstream homes** — see the [decision checkpoint](#decision-checkpoint-downstream-homes-for-a-new-stat) below.
+**4. Add it to hand-authored scene boards too** — see [Hand-authored boards](#hand-authored-scene-boards-the-silent-gap) below. (For a scalar a missing field just falls back to the def default — less dangerous than a pool, but still drift.)
+
+**5. Downstream homes** — see the [decision checkpoint](#decision-checkpoint-downstream-homes-for-a-new-stat) below.
 
 ---
 
@@ -133,8 +136,11 @@ Wire it in the `[resource]` block: `my_stat = SubResource("scalar_my_stat")`.
 |---|---|---|
 | `StandardPoolStatDef` | Fixed-cap pool (HP, mana, AP, DP, movement) | `heal_on_max_increase: bool` — bump `current` when the cap rises via modifiers so relative fill is preserved |
 | `GrowablePoolStatDef` | Fill-and-level gauge (XP) | `growth_flat`, `growth_factor`, `post_grow_mode: KEEP\|RESET\|OVERFLOW` |
+| `CyclicPoolStatDef` | Recurring threshold that resets on fill, carrying overshoot forward (`initiative`) | none — `on_pool_filled` does `set_current(min + excess)` |
 
 Both inherit `min_value: int` from the base. `value_type` is INT/FLOAT only (BOOL hidden — meaningless for a cap). Read `.claude/rules/stats-system.md` → "Pool stats" for the behavior of the two virtuals (`on_pool_filled`, `on_max_increased`) and the growth math before choosing.
+
+**None of the three fit? Author a new subclass.** The behavior split lives on `PoolStatDef` via two virtuals (`on_pool_filled(stat, excess)` fires when `current` crosses *up* to the cap; `on_max_increased(stat, delta)` fires when the pipeline raises the cap). A new pool archetype is a new `.gd` with `class_name FooPoolStatDef extends PoolStatDef` overriding the relevant virtual — that's the whole contract; `PoolStat` stays agnostic. `CyclicPoolStatDef` (third row) was added exactly this way: ~5 lines overriding `on_pool_filled`. A new `class_name` needs a **class-cache refresh** (`godot --headless --editor --quit`, then `git diff scenes/ '*.tres'`) — see gotchas. If the hook needs the stat's *own* extra state (like SP's bins), override `_custom_turn_upkeep` on the `PoolStat` subclass instead — "behaviour lives where its data lives."
 
 **2. Create one StatDef `.tres`** — `stats_system/defs/<pool_id>.tres` (omit `uid=`):
 
@@ -169,9 +175,11 @@ Set **`per_turn_mode`** if the pool replenishes at turn start: `1` (REFILL → t
 
 **4. Add a runtime instance to `default_entity_board.tres`** — one `[sub_resource]`, `script = ExtResource("3_pool")` (pool_stat.gd), `definition` → the def, set `current` and `base_value`. Wire `my_pool = SubResource("pool_my_pool")` in `[resource]`. Copy the `pool_health` / `pool_mana` blocks as the template.
 
-**5. Turn-start upkeep** — handled by `per_turn_mode` in step 1 (above), not by hand-editing `Entity._on_turn_started`. Even bespoke upkeep (e.g. SP wound-heal, a bin transfer) is `per_turn_mode = CUSTOM` + a `PoolStat` subclass override (`_custom_turn_upkeep`), not an `_on_turn_started` if-block.
+**5. Add it to hand-authored scene boards too** — see [Hand-authored boards](#hand-authored-scene-boards-the-silent-gap) below. **A missing pool field is `null`, and a null pool can break the entity outright** (a null `initiative` means the entity never gets a turn). This step is *not* optional for pools.
 
-**6. Downstream homes** — see the [decision checkpoint](#decision-checkpoint-downstream-homes-for-a-new-stat).
+**6. Turn-start upkeep** — handled by `per_turn_mode` in step 1 (above), not by hand-editing `Entity._on_turn_started`. Even bespoke upkeep (e.g. SP wound-heal, a bin transfer) is `per_turn_mode = CUSTOM` + a `PoolStat` subclass override (`_custom_turn_upkeep`), not an `_on_turn_started` if-block.
+
+**7. Downstream homes** — see the [decision checkpoint](#decision-checkpoint-downstream-homes-for-a-new-stat).
 
 ---
 
@@ -241,6 +249,21 @@ intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vi
 
 ---
 
+## Hand-authored scene boards: the silent gap
+
+`default_entity_board.tres` is **not the only board.** Hand-authored level scenes embed their *own* `StatBoard` sub-resources inline (so the scene is self-contained / tweakable per-entity) — and those do **not** inherit a new stat you added to the default board. Known offenders:
+
+- `scenes/dev_sandbox.tscn` — **two** inline boards (one per entity: Player + Enemy). Each is a `[sub_resource ... script=stat_board.gd]` with its own pool/scalar sub-resources.
+- `scenes/first_level_sandbox.tscn` and any other hand-authored scene — grep before assuming: `grep -rl 'script_class="StatBoard"\|stat_board.gd' scenes/`.
+
+For each such board, add the same `[sub_resource]` + `[ext_resource]` for the def + the `[resource]`-block assignment you added to the default board. **Each entity needs its own pool `[sub_resource]`** — pools carry per-entity ephemeral `current`, so they can't be shared between two boards.
+
+Why it matters: a board lacking the field leaves it `null`. For a scalar, reads fall back to the def default (quiet drift). **For a pool it's worse — a null pool can break the entity** (`TurnManager.tick` skips a null `initiative`, so that entity never gets a turn). `get_pool_stats()` discovers pools by introspection, so there's no registration to forget — but the per-board instance is on you.
+
+> Procgen content (`spawn_entity`) duplicates the *default* board, so it's covered automatically — this gap is specific to **scene-embedded** boards.
+
+---
+
 ## Decision checkpoint: downstream homes for a new stat
 
 Adding the stat to the board makes it *exist and scale*. A new stat is often a contender for one or both of these downstream systems — **ask before declaring done:**
@@ -294,6 +317,7 @@ stats_system/stat_def.gd                    # StatDef blueprint (id, display_typ
 stats_system/pool_stat_def.gd               # abstract PoolStatDef (+ two virtuals)
 stats_system/standard_pool_stat_def.gd      # fixed-cap pool def
 stats_system/growable_pool_stat_def.gd      # fill-and-level pool def (+ PostGrowMode)
+stats_system/cyclic_pool_stat_def.gd        # recurring-threshold pool def (carries overshoot)
 stats_system/stat.gd                        # runtime Stat base (modifier pipeline)
 stats_system/scalar_stat.gd                 # concrete scalar leaf
 stats_system/pool_stat.gd                   # pool: cap (.value) + ephemeral .current
