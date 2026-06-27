@@ -47,8 +47,8 @@ var floating_number_layer: FloatingNumberLayer
 
 
 func _ready() -> void:
-	# HighlightController is fully scene-wired (NodePath @exports) and self-wires
-	# its signals in its own _ready; GameRoot only hands it the runtime `player`
+	# HighlightController is scene-wired (NodePath @exports) and self-wires its
+	# signals in its own _ready; GameRoot only hands it the runtime `player`
 	# below, once that resolves.
 	_mount_edge_highlight()
 	_mount_node_highlight()
@@ -56,11 +56,9 @@ func _ready() -> void:
 	_mount_allocation_vfx()
 	_mount_melee_preview()
 	_mount_floating_number_layer()
-	# Inject the systems BattleSystem needs to commit attacks. Done in code
-	# rather than via scene NodePaths so the runtime-spawned VFX node can be
-	# wired the same way as the scene-tree allocation_system.
-	battle_system.allocation_system = allocation_system
-	battle_system.graph = graph
+	# BattleSystem's allocation_system + graph are scene-wired (NodePath @exports
+	# in game_root.tscn). Only the VFX nodes are runtime-spawned (mounted above),
+	# so those still get injected in code here.
 	battle_system.attack_vfx = attack_vfx
 	battle_system.melee_preview = melee_preview
 	# Core-movement (#21) slide tween. The CoreMarker on `to_node` has already

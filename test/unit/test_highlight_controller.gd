@@ -6,6 +6,7 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -15,11 +16,7 @@ var _ctl: HighlightController
 
 
 func before_each() -> void:
-	_graph = Graph.new()
-	_graph.skill_nodes_container = Node2D.new()
-	_graph.add_child(_graph.skill_nodes_container)
-	_graph.edges_container = Node2D.new()
-	_graph.add_child(_graph.edges_container)
+	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
 
 	_nodes = []

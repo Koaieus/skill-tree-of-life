@@ -8,6 +8,7 @@ extends GutTest
 const _PANEL_SCENE := preload("res://ui/context_panel/context_panel.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _BODY_SCENES := {
 	"attack": "res://ui/context_panel/bodies/attack_plan_body.tscn",
@@ -25,11 +26,7 @@ var _panel: ContextPanel
 
 
 func before_each() -> void:
-	_graph = Graph.new()
-	_graph.skill_nodes_container = Node2D.new()
-	_graph.add_child(_graph.skill_nodes_container)
-	_graph.edges_container = Node2D.new()
-	_graph.add_child(_graph.edges_container)
+	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
 
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode

@@ -24,20 +24,15 @@ extends RefCounted
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
 func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 	var node_count: int = 0
 	for pair in adjacency:
 		node_count = max(node_count, int(pair[0]) + 1, int(pair[1]) + 1)
-	var graph := Graph.new()
+	var graph := _GRAPH_SCENE.instantiate()
 	graph.name = "TestGraph"
-	graph.skill_nodes_container = Node2D.new()
-	graph.skill_nodes_container.name = "Nodes"
-	graph.add_child(graph.skill_nodes_container)
-	graph.edges_container = Node2D.new()
-	graph.edges_container.name = "Edges"
-	graph.add_child(graph.edges_container)
 	gut.add_child_autofree(graph)
 	for i in node_count:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode

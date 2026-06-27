@@ -13,6 +13,7 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -25,14 +26,8 @@ var _died_count: int = 0
 func before_each() -> void:
 	_died_count = 0
 
-	_graph = Graph.new()
+	_graph = _GRAPH_SCENE.instantiate()
 	_graph.name = "TestGraph"
-	_graph.skill_nodes_container = Node2D.new()
-	_graph.skill_nodes_container.name = "Nodes"
-	_graph.add_child(_graph.skill_nodes_container)
-	_graph.edges_container = Node2D.new()
-	_graph.edges_container.name = "Edges"
-	_graph.add_child(_graph.edges_container)
 	add_child_autofree(_graph)
 
 	_nodes = []
