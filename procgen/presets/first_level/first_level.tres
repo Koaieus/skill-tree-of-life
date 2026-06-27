@@ -231,7 +231,6 @@ script = ExtResource("cp")
 
 [resource]
 script = ExtResource("cfg")
-seed = 2
 node_count = 500
 node_padding = 48.0
 connectivity = 0.357

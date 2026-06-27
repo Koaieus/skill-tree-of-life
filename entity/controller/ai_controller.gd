@@ -32,7 +32,7 @@ func take_turn() -> void:
 	# Allocate one frontier node if SP is available. Only pause if we actually
 	# allocated something — otherwise the AI's turn drags out as empty beats.
 	if entity.stat_board != null:
-		var sp: PoolStat = entity.stat_board.skill_points
+		var sp: SkillPointStat = entity.stat_board.skill_points
 		if sp != null and sp.current > 0 and _try_allocate_frontier():
 			await _wait()
 

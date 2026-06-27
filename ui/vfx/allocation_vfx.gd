@@ -164,7 +164,7 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	tween.chain().tween_callback(disk.queue_free)
 
 
-## Node "death" animation: start vibrating and shatter into pieces
+## Node "death" animation: start vibrating and then *pop* shatter into pieces
 func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float) -> void:
 	# Wrapper Node2D holds the vibrating snapshot disk; particles spawn at
 	# burst time as a sibling. Whole thing self-frees when both children are done.

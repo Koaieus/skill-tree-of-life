@@ -15,11 +15,14 @@ extends Node2D
 ## SkillNode that isn't player-visible are suppressed. Without it, every event
 ## spawns (useful for headless tests and old sandboxes without fog).
 
-const FLOAT_DISTANCE: float = 40.0
-const FLOAT_TIME: float = 0.9
-const FONT_SIZE: int = 28
+const FLOAT_DISTANCE: float = 70.0
+const FLOAT_TIME: float = 3.0
+const FONT_SIZE: int = 36
 const OUTLINE_SIZE: int = 6
-const MAX_ANGLE: int = 30  # degrees
+const MAX_ANGLE: int = 0  # degrees
+
+# TODO: these numbers must be less wiggly yet still readable (angle wiggle was added because all spawned at same location, might not be the best solution to that problem, maybe we should fix)
+# TODO  and better yet: these should be scenes and own all these values AND their animation — such scenes could have an exported button that triggers the animation even??
 
 const _COLOR_DAMAGE := Color(1.0, 0.85, 0.85, 1.0)
 const _COLOR_WOUND  := Color(1.0, 0.55, 0.55, 1.0)
@@ -71,10 +74,18 @@ func _on_skill_node_damaged(node: SkillNode, amount: float, _source: Variant) ->
 
 
 func _on_entity_wounded(entity: Entity, amount: int) -> void:
-	_spawn_at_core(entity, "-%d SP" % amount, _COLOR_WOUND)
-
+	# TODO: Ideally, during a cascade this triggers at each *pop* [see allocation_vfx.gd] of a node they lose
+	# TODO: in general, we should find good wording for all this:
+	# 		- wounded: also deals HP damage (tracked separately?) and adds to `wounds` which is a reservation block on the skill point pool (bad)
+	# 		- healed: from `wound` reservation → frees up usable skill point, the opposite of wounding (-1 wound, +1 current SP)
+	# also the StatPanel entries should emit floating numbers when changed, or other animation (like a temporary "+/- 123" next to the updated stat)
+	
+	
+	_spawn_at_core(entity, "+%d WOUNDS" % amount, _COLOR_WOUND)
+	
 
 func _on_entity_healed(entity: Entity, amount: int) -> void:
+	_spawn_at_core(entity, "-%d WOUNDS" % amount, _COLOR_HEAL)
 	_spawn_at_core(entity, "+%d SP" % amount, _COLOR_HEAL)
 
 

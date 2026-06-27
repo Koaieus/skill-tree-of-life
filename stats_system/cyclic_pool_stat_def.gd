@@ -2,6 +2,7 @@
 class_name CyclicPoolStatDef
 extends PoolStatDef
 
+
 ## A pool that cycles: filling to the cap does NOT grow it and does NOT leave
 ## `current` parked at the cap — it carries the overflow into the next cycle and
 ## starts climbing again from `min + excess`. The cap is a recurring *threshold*,
