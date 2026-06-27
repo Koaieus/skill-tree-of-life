@@ -159,6 +159,8 @@ heal_on_max_increase = true
 
 (For a growable pool: `script_class="GrowablePoolStatDef"`, the growable script, and add `growth_flat` / `growth_factor` / `post_grow_mode`.)
 
+Set **`per_turn_mode`** if the pool replenishes at turn start: `1` (REFILL → to cap, like AP/movement), `2` (ADD → gains its auto-derived `<id>_per_turn` companion stat, like mana/xp), or `3` (CUSTOM → the pool's `PoolStat` subclass overrides `_custom_turn_upkeep(board)`, like `skill_points`' wound-heal). Leave unset (`0` NONE) for pools with no turn-start upkeep. This is the *only* wiring needed — `StatBoard.apply_per_turn_upkeep()` sweeps every pool and each replenishes itself; do NOT edit `Entity._on_turn_started`. ADD needs the companion `<id>_per_turn` scalar to exist (a separate StatDef); CUSTOM needs a `PoolStat` subclass with the override. See `.claude/rules/stats-system.md` → "Turn-start upkeep".
+
 **3. Add to `stat_board.gd`** — a single field, no max getter:
 
 ```gdscript
@@ -167,7 +169,7 @@ heal_on_max_increase = true
 
 **4. Add a runtime instance to `default_entity_board.tres`** — one `[sub_resource]`, `script = ExtResource("3_pool")` (pool_stat.gd), `definition` → the def, set `current` and `base_value`. Wire `my_pool = SubResource("pool_my_pool")` in `[resource]`. Copy the `pool_health` / `pool_mana` blocks as the template.
 
-**5. Turn-start upkeep** — if the pool should refill/replenish each turn, wire it in `Entity._on_turn_started` (NOT the TurnManager). See `.claude/rules/stats-system.md` → "Turn-start upkeep".
+**5. Turn-start upkeep** — handled by `per_turn_mode` in step 1 (above), not by hand-editing `Entity._on_turn_started`. Even bespoke upkeep (e.g. SP wound-heal, a bin transfer) is `per_turn_mode = CUSTOM` + a `PoolStat` subclass override (`_custom_turn_upkeep`), not an `_on_turn_started` if-block.
 
 **6. Downstream homes** — see the [decision checkpoint](#decision-checkpoint-downstream-homes-for-a-new-stat).
 
@@ -265,7 +267,7 @@ Request: *"Add mana (INT pool) and mana_per_turn, with +floor(INT/10) to the man
 2. **`stat_board.gd`** (Magic group): `@export var mana: PoolStat` and `@export var mana_per_turn: ScalarStat`. No max getter.
 3. **`default_entity_board.tres`**: a `pool_mana` sub_resource (`script=3_pool`, `current`/`base_value`) and a `scalar_mana_per_turn`. Wire both in `[resource]`.
 4. **Two intrinsic `StatModifier`s** targeting `&"mana"` and `&"mana_per_turn"` directly, each with an `ExpressionFormula` (`floor(float(intelligence)/10.0)` and `floor(log(max(1e-5, float(intelligence)))/log(10.0))`), `value` omitted (1.0). Add both to `intrinsic_modifiers`.
-5. **Turn upkeep**: `Entity._on_turn_started` replenishes `mana` by `mana_per_turn` (CoreClass `on_turn_started` for caster-specific regen).
+5. **Turn upkeep**: `mana.tres` sets `per_turn_mode = 2` (ADD) → the upkeep sweep replenishes `mana` by `mana_per_turn` automatically. No `_on_turn_started` edit. (CoreClass `on_turn_started` is the hook for caster-specific regen on top.)
 6. **Downstream**: mana lives in `intelligence.tres` StatPack as procgen content — a new magic stat would likely join it.
 
 ---
@@ -280,7 +282,7 @@ Request: *"Add mana (INT pool) and mana_per_turn, with +floor(INT/10) to the man
 - **`base_value` is what modifiers layer on.** `base_value=10` + `ADD_BASE +10` = 20. Don't double-count.
 - **`resource_local_to_scene` duplicates only inline `[sub_resource]` blocks, not `ExtResource` references** — that's why intrinsic modifiers/formulas are inlined in the board, not external files.
 - **`ExpressionFormula._expr` is cached after first `compute()`.** If you edit `formula` at runtime (`@tool`), call `formula._invalidate()` to re-parse.
-- **Turn upkeep lives in `Entity._on_turn_started`,** not the TurnManager (which is single-phase now — no `can_allocate`/`can_act` gates). Pools that reset each turn wire there.
+- **Pool turn-upkeep is declarative** — set `per_turn_mode` on the def (REFILL/ADD/CUSTOM), don't hand-wire `Entity._on_turn_started` (which lives on the Entity, not the single-phase TurnManager). Even the bespoke SP wound-heal is `CUSTOM` + a `PoolStat` override, so `_on_turn_started` carries no per-pool logic at all.
 - **Class cache after `class_name` changes.** Only relevant if you add a *new* `class_name` (e.g. a new formula or pool-def subclass): run `godot --headless --editor --quit`, then `git diff scenes/ '*.tres'` — see `.claude/rules/godot-workflow.md`. Plain `.tres`/script-body edits don't need it.
 
 ---

@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_std_pool_def")
+per_turn_mode = 3
 id = &"skill_points"
 display_name = "Skill Points"
 description = "Allocation budget — the mana bar. Spent on allocation, refunded on normal deallocation, wounded by forced deallocation (see SkillPointStat). heal_on_max_increase=true so level-up's +1 max also gifts +1 current (auto-bookkeeping); revisit if non-level sources start raising max SP."

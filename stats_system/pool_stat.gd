@@ -33,6 +33,34 @@ func _computed_display() -> String:
 	return "%s / %s" % [str(_coerce(current)), str(get_value())]
 
 
+## Apply this pool's start-of-turn replenishment, per its def's per_turn_mode.
+## Called from StatBoard.apply_per_turn_upkeep() for every pool. `board` is
+## needed to resolve sibling stats (ADD's companion, CUSTOM's inputs).
+func run_turn_upkeep(board: StatBoard) -> void:
+	if pool_definition == null:
+		return
+	match pool_definition.per_turn_mode:
+		PoolStatDef.PerTurnMode.REFILL:
+			restore_to_full()
+		PoolStatDef.PerTurnMode.ADD:
+			var companion := board.get_stat(StringName("%s_per_turn" % definition.id))
+			if companion == null:
+				push_warning("PoolStat '%s' is ADD per-turn but has no '%s_per_turn' companion stat" % [definition.id, definition.id])
+				return
+			var amount := float(companion.get_value())
+			if amount > 0.0:
+				replenish(amount)
+		PoolStatDef.PerTurnMode.CUSTOM:
+			_custom_turn_upkeep(board)
+
+
+## CUSTOM-mode hook. Base no-op; stat subclasses with bespoke turn-start
+## behaviour override this. Lives on the stat (not the def) because it
+## manipulates the stat's own extra state — see SkillPointStat (wound-heal).
+func _custom_turn_upkeep(_board: StatBoard) -> void:
+	pass
+
+
 func set_current(v: float) -> void:
 	var cap: float = float(get_value())
 	var floor_v: float = float(_min_value())

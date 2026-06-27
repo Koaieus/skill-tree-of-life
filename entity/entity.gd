@@ -86,22 +86,15 @@ func _ready() -> void:
 
 ## Listens for TurnManager.turn_started. Each entity self-handles its own
 ## start-of-turn upkeep so we don't grow a god-mode TurnManager. Per-turn
-## bookkeeping today: reset AP/DP, tick XP, heal wounds, refill owned-node HP.
+## bookkeeping today: replenish pools (per each pool's per_turn_mode, including
+## skill_points' CUSTOM wound-heal), refill owned-node HP, run the class hook.
 func _on_turn_started(entity: Entity) -> void:
 	if entity != self or stat_board == null:
 		return
-	if stat_board.action_points != null:
-		stat_board.action_points.restore_to_full()
-	if stat_board.deallocation_points != null:
-		stat_board.deallocation_points.restore_to_full()
-	if stat_board.xp != null and stat_board.xp_per_turn != null:
-		var gain := int(stat_board.xp_per_turn.value)
-		if gain > 0:
-			stat_board.xp.replenish(gain)
-	if stat_board.skill_points != null and stat_board.wound_heal_per_turn != null:
-		var heal := int(stat_board.wound_heal_per_turn.value)
-		if heal > 0:
-			stat_board.skill_points.heal(heal)
+	# All pool upkeep is declarative — each pool replenishes per its def's
+	# per_turn_mode (AP/DP/movement REFILL, mana/xp ADD, skill_points CUSTOM
+	# wound-heal). New pools opt in via their def; nothing is wired here.
+	stat_board.apply_per_turn_upkeep()
 	# Per-node combat HP refill — every node owned by this entity returns to
 	# full. Lives here rather than on the node itself so a single sweep on
 	# turn start beats every node subscribing to a turn-manager signal.

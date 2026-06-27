@@ -17,6 +17,22 @@ extends StatDef
 
 @export var min_value: int = 0
 
+## How this pool replenishes at its owner's turn start. Read by
+## StatBoard.apply_per_turn_upkeep(), which delegates to PoolStat.run_turn_upkeep()
+## per pool — no hand-wired line in Entity._on_turn_started. See
+## .claude/rules/stats-system.md "Turn-start upkeep" for the verb model.
+##   NONE   — no automatic upkeep (default).
+##   REFILL — current restored to the cap. For reset-each-turn budgets (AP, DP, movement).
+##   ADD    — current += the value of the companion stat `&"<id>_per_turn"` (mana, xp).
+##   CUSTOM — dispatches to PoolStat._custom_turn_upkeep(board), a virtual the
+##            *stat* subclass overrides. For upkeep that touches the stat's own
+##            extra state (skill_points' wound-heal moves the `wounded` bin).
+##            (The other two PoolStatDef virtuals live on the *def* because they
+##            vary by cap-shape; this one's on the stat because it varies by the
+##            stat's bins — behaviour lives where its data lives.)
+enum PerTurnMode { NONE, REFILL, ADD, CUSTOM }
+@export var per_turn_mode: PerTurnMode = PerTurnMode.NONE
+
 
 ## Called by PoolStat when `current` crosses *up* to the cap (replenish event).
 ## `excess` is the amount of the inbound replenish that was clipped by the

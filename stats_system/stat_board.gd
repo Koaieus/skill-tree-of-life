@@ -127,3 +127,25 @@ func remove_modifier(m: StatModifier) -> void:
 func apply_intrinsics() -> void:
 	for m in intrinsic_modifiers:
 		add_modifier(m.duplicate(true))
+
+
+## Every PoolStat field on this board, discovered by introspection so adding a
+## new pool needs no registration here. Includes SkillPointStat (a PoolStat).
+func get_pool_stats() -> Array[PoolStat]:
+	var pools: Array[PoolStat] = []
+	for prop in get_property_list():
+		if not (prop.usage & PROPERTY_USAGE_STORAGE):
+			continue
+		var v: Variant = get(prop.name)
+		if v is PoolStat:
+			pools.append(v)
+	return pools
+
+
+## Start-of-turn pool replenishment. Called once from Entity._on_turn_started;
+## each pool replenishes itself per its def's per_turn_mode (REFILL / ADD /
+## CUSTOM / NONE) — the per-pool behaviour lives on PoolStat.run_turn_upkeep(),
+## so this is just the sweep. No per-pool wiring here or in the Entity.
+func apply_per_turn_upkeep() -> void:
+	for pool in get_pool_stats():
+		pool.run_turn_upkeep(self)

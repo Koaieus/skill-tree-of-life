@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_std_pool_def")
+per_turn_mode = 2
 id = &"mana"
 display_name = "Mana"
 description = "Magic resource pool. Used for casting spells. Max = base + INT//10; regen = floor(log(INT)) per turn."

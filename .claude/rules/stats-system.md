@@ -32,6 +32,8 @@ Any stat id can be localized; convention picks the meaningful ones (currently `n
 - `on_pool_filled(stat, excess)` — fires when `current` crosses up to the cap. `excess` is the amount of the inbound replenish that was clipped by the cap-clamp.
 - `on_max_increased(stat, delta)` — fires when the modifier pipeline raises the cap (cap *decreases* are handled by PoolStat: current is clamped).
 
+The base also carries `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM}` — how the pool replenishes at turn start (`CUSTOM` dispatches to a `PoolStat` virtual). See "Turn-start upkeep" below. Default `NONE`.
+
 | Def class | When to use | Adds |
 |---|---|---|
 | `StandardPoolStatDef` | Fixed-cap pool (HP, mana, AP, DP, SP, movement) | `heal_on_max_increase: bool` — if true, `on_max_increased` bumps current by delta so the relative fill stays the same |
@@ -60,17 +62,30 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 
 ## Turn-start upkeep
 
-`Entity._on_turn_started` runs at the owning entity's turn start. Stats it consumes:
+`Entity._on_turn_started` runs at the owning entity's turn start. It does, in order: **pool replenishment** (one declarative sweep), **wound healing** (bespoke), **node HP refill**, then the **class hook**.
 
-- `action_points` → `restore_to_full()`
-- `deallocation_points` → `restore_to_full()`
-- `xp` → `replenish(int(xp_per_turn.value))`
-- `wound_heal_per_turn` → `skill_points.heal(int(value))` (wounded → current)
-- (also, for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max
+### Pool replenishment is declarative (`per_turn_mode`)
+
+"Per turn" is **three different verbs**, not one — don't conflate them:
+
+| Verb | `PerTurnMode` | Operation | Pools |
+|---|---|---|---|
+| Reset-to-cap | `REFILL` | `restore_to_full()` | `action_points`, `deallocation_points`, `movement_points` |
+| Top-up by a rate | `ADD` | `current += <id>_per_turn.value` (clamped) | `mana` (+`mana_per_turn`), `xp` (+`xp_per_turn`) |
+| Bespoke | `CUSTOM` | `PoolStat._custom_turn_upkeep(board)` override | `skill_points` (heals `wound_heal_per_turn` wounds) |
+
+`PoolStatDef.per_turn_mode` (base-class field, default `NONE`) declares the verb. `StatBoard.apply_per_turn_upkeep()` enumerates every `PoolStat` field by introspection (`get_pool_stats()`) and calls `pool.run_turn_upkeep(self)`; the per-pool behaviour lives on `PoolStat`, the board is just the sweep. So **a new pool opts into upkeep by setting `per_turn_mode` on its def, not by editing `_on_turn_started`** (that was the footgun: `movement_points` was never restored and `mana_per_turn` was never consumed because nobody remembered to wire them). ADD derives the companion id as `&"%s_per_turn"` and `push_warning`s if it's missing.
+
+**`CUSTOM` and the def-vs-stat hook split:** `wound_heal` isn't a pool top-up — it transfers SP from the `wounded` reservation back to `current` (a bin move inside `SkillPointStat`, conditional on `wounded > 0`). It can't be REFILL/ADD, so `skill_points` is `CUSTOM` and `SkillPointStat._custom_turn_upkeep()` does the `heal()`. Note this hook lives on the **stat** (`PoolStat`/`SkillPointStat`), whereas `on_pool_filled` / `on_max_increased` live on the **def** (`PoolStatDef` subclasses): cap-shape behaviour varies by def archetype → on the def; behaviour that touches the stat's *own extra state* (the SP bins) → on the stat. **Behaviour lives where its data lives.** A stray `REFILL`/`ADD` on `skill_points` would corrupt the `wounded`/`staked` bins — `test_per_turn_upkeep` guards the CUSTOM path.
 
 `wound_heal_per_turn` defaults to 1. Tuning lever: raise to recover faster from forced deallocs; drop to make wound damage stickier.
 
-After the entity's own upkeep, `Entity._on_turn_started` calls `core_class.on_turn_started(self)` so the wired class can run its own per-turn effects (mana regen for casters, rage decay for berserkers, etc.). Default hook is a no-op.
+`health` is `NONE` (the core does not auto-heal yet — a future "1/turn" core regen would be `ADD` with a `health_per_turn` companion, or a `CoreClass.on_turn_started` hook for class-specific healing).
+
+### Then: node refill + class hook
+
+- (for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max.
+- `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster mana flourishes, rage decay, etc.). Default hook is a no-op.
 
 ## Class identity modifiers (CoreClass)
 

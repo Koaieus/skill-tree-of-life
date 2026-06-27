@@ -89,6 +89,19 @@ func wound(n: int) -> void:
 	wounds_applied.emit(amount)
 
 
+## CUSTOM per-turn upkeep (skill_points.tres sets per_turn_mode = CUSTOM):
+## heal `wound_heal_per_turn` worth of wounds — a bin transfer (wounded →
+## current), not a pool top-up, which is why it can't be REFILL/ADD. Reads the
+## rate off the board (the same sibling-stat coupling ADD pays for its companion).
+func _custom_turn_upkeep(board: StatBoard) -> void:
+	var rate := board.get_stat(&"wound_heal_per_turn")
+	if rate == null:
+		return
+	var n := int(rate.get_value())
+	if n > 0:
+		heal(n)
+
+
 ## Heal N wounds: transfer wounded → current.
 func heal(n: int) -> void:
 	var amount: int = min(n, wounded)
