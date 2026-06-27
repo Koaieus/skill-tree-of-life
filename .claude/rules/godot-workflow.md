@@ -90,3 +90,25 @@ Pure script changes (function body edits, new methods, new files
 WITHOUT a new `class_name`) don't need a refresh — the runtime parses
 those fresh. Only `class_name` introduction / rename / removal requires
 the cache to be rebuilt.
+
+## Scene-node systems with injected deps: wire in `initialize()`, not `_ready()`
+
+A system that lives in the scene tree (e.g. `%HighlightController`, sibling of
+the other Systems nodes) has its `_ready()` fire DURING scene instantiation —
+**before** GameRoot's `_ready` can inject its dependency fields. So any signal
+hookup or resolve that reads injected deps must NOT live in the node's own
+`_ready`; it'll run with null deps and silently no-op. Put it in a public
+`initialize()` that GameRoot calls right after assigning the deps. (Group
+membership in `_enter_tree` is fine — it needs nothing injected.) Systems wired
+purely off autoloads (`BattleSystem` → `Events.skill_node_depleted`) can keep
+their hookup in `_ready`; a system reading sibling-system references can't.
+
+## Deferred call with a freed Object argument is silently dropped
+
+`some_method.call_deferred(obj)` — if `obj` (an Object/Node passed as an
+argument) is freed before the MessageQueue flushes, Godot drops the call with no
+error. Bit us in entity-death cleanup: a deferred `deallocate_all_owned(entity)`
+raced `queue_free(entity)` and never ran, orphaning nodes. If you must defer work
+keyed on an object that might be freed the same frame, either do the work
+synchronously or guarantee the free is ordered after it. See
+[entity-death.md](entity-death.md).
