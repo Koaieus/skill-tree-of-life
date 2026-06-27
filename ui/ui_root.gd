@@ -191,7 +191,7 @@ func _on_turn_started(entity: Entity) -> void:
 	if entity == _player:
 		banner_layer.enqueue(BannerRequest.make_for_entity(
 				"YOUR TURN", "", BannerRequest.Style.DEFAULT, entity))
-		# Spend the readiness: drain the initiative bar to the carried value.
+		# Player's turn: slide the (full) initiative bar out of view.
 		var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
 		if init_pool != null:
 			initiative_bar._on_owner_turn_started(float(init_pool.current))
@@ -201,8 +201,13 @@ func _on_turn_started(entity: Entity) -> void:
 
 
 func _on_turn_ended(entity: Entity) -> void:
-	if entity == _player and _battle_system != null:
-		_battle_system.cancel_attack()
+	if entity == _player:
+		if _battle_system != null:
+			_battle_system.cancel_attack()
+		# Turn's over: slide the (now ~empty) initiative bar back into view.
+		var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
+		if init_pool != null:
+			initiative_bar._on_owner_turn_ended(float(init_pool.current))
 	end_turn_button.hide_confirm()
 	_refresh_end_turn_button()
 
