@@ -45,8 +45,10 @@ func before_each() -> void:
 	_graph.add_child(_player)
 	await get_tree().process_frame
 
+	# Own through the system so the EntityNavigator mirror (which the reachability
+	# / path helpers read) stays in sync — direct owned_by writes would drift it.
 	for n in _nodes:
-		n.owned_by = _player
+		_alloc.force_allocate(_player, n)
 	_player.core_location = _nodes[0]
 
 
@@ -101,7 +103,7 @@ func test_reachable_caps_at_budget() -> void:
 
 
 func test_reachable_stops_at_unowned_node() -> void:
-	_nodes[2].owned_by = null  # C unowned: severs the owned path past B
+	_alloc.force_deallocate(_nodes[2])  # C unowned: severs the owned path past B
 	var reach := _alloc.reachable_core_landings(_player, 5)
 	assert_true(reach.has(_nodes[1]), "B still reachable")
 	assert_false(reach.has(_nodes[2]), "unowned C is not a landing")
@@ -124,7 +126,7 @@ func test_core_path_empty_when_over_budget() -> void:
 
 func test_core_path_empty_for_unowned_target() -> void:
 	_set_mp(5)
-	_nodes[3].owned_by = null
+	_alloc.force_deallocate(_nodes[3])
 	var path := _alloc.core_path(_player, _nodes[3])
 	assert_eq(path.size(), 0, "unowned target yields no path")
 

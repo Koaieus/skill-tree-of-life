@@ -47,42 +47,24 @@ func get_visual(plan: AttackPlan, source: SkillNode) -> RangeVisual:
 	var nav := graph.navigator
 	if nav == null:
 		return visual
-	var src_id := nav.vertex_id(source)
-	if src_id < 0:
+	# Hop distances from source, capped at max_hops, via the shared mirror BFS.
+	var depths := nav.nodes_within(source, max_hops)  # {SkillNode: hops}
+	if depths.is_empty():
 		return visual
-	# BFS distances from source, capped at max_hops, into a (point_id → depth) map.
-	var depths: Dictionary[int, int] = {src_id: 0}
-	var frontier: Array[int] = [src_id]
-	while not frontier.is_empty():
-		var next_frontier: Array[int] = []
-		for cur in frontier:
-			var d: int = depths[cur]
-			if d >= max_hops:
-				continue
-			for nb in nav.astar.get_point_connections(cur):
-				if depths.has(nb):
-					continue
-				depths[nb] = d + 1
-				next_frontier.append(nb)
-		frontier = next_frontier
 	# Walk live edges; an edge is lit when traversing it from the nearer endpoint
 	# stays within max_hops. hops_remaining = budget left after that step.
 	for edge in graph.get_edges():
 		if edge == null or edge.from == null or edge.to == null:
 			continue
-		var a_id := nav.vertex_id(edge.from)
-		var b_id := nav.vertex_id(edge.to)
-		if a_id < 0 or b_id < 0:
-			continue
-		var has_a: bool = depths.has(a_id)
-		var has_b: bool = depths.has(b_id)
+		var has_a: bool = depths.has(edge.from)
+		var has_b: bool = depths.has(edge.to)
 		if not (has_a or has_b):
 			continue
 		var d_min: int = max_hops
 		if has_a:
-			d_min = depths[a_id]
+			d_min = depths[edge.from]
 		if has_b:
-			d_min = min(d_min, int(depths[b_id]))
+			d_min = min(d_min, int(depths[edge.to]))
 		var depth_of_edge := d_min + 1
 		if depth_of_edge > max_hops:
 			continue

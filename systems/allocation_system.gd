@@ -244,63 +244,40 @@ func _movement_budget(entity: Entity) -> int:
 	return 0
 
 
-## Core movement (#21). BFS over the entity's OWNED subgraph (real edges only)
-## from the current core slot, returning every owned node reachable within
-## [param max_hops] mapped to its hop distance. Excludes the core itself and
-## self-loops. Drives the core-move reachability highlight ([CoreMoveHighlightProvider]).
+## Core movement (#21). Every owned node reachable from the current core slot
+## within [param max_hops] mapped to its hop distance, excluding the core itself.
+## Delegates to the entity's owned-subgraph mirror ([EntityNavigator]) — no
+## bespoke BFS here; the mirror already knows the owned topology (and excludes
+## self-loops). Drives the reachability highlight ([CoreMoveHighlightProvider]).
 func reachable_core_landings(entity: Entity, max_hops: int) -> Dictionary:
 	var result: Dictionary = {}
-	if entity == null or graph == null or max_hops < 1:
+	if entity == null or entity.navigator == null or max_hops < 1:
 		return result
 	var source := entity.core_location
 	if source == null:
 		return result
-	var dist := {source: 0}
-	var queue: Array[SkillNode] = [source]
-	while not queue.is_empty():
-		var cur: SkillNode = queue.pop_front()
-		var d: int = dist[cur]
-		if d >= max_hops:
-			continue
-		for nb in _real_neighbours(cur):
-			if nb.owned_by != entity or dist.has(nb):
-				continue
-			dist[nb] = d + 1
-			result[nb] = d + 1
-			queue.append(nb)
+	var within := entity.navigator.nodes_within(source, max_hops)
+	for node in within:
+		if node != source:
+			result[node] = within[node]
 	return result
 
 
-## Core movement (#21). Shortest owned-edge path (inclusive of both ends) from
+## Core movement (#21). Fewest-hops owned-edge path (inclusive of both ends) from
 ## the current core slot to [param target], or [code][][/code] if [param target]
-## is unreachable, not owned, or farther than the entity's remaining movement
-## budget. Used to commit a multi-hop drag (chained single-hop `move_core`) and
-## to paint the on-route edges brighter.
+## is unreachable (not in the owned subgraph) or farther than the entity's
+## remaining movement budget. Used to commit a multi-hop drag (chained single-hop
+## `move_core`) and to paint the on-route edges. Delegates to the owned mirror.
 func core_path(entity: Entity, target: SkillNode) -> Array[SkillNode]:
 	var empty: Array[SkillNode] = []
-	if entity == null or graph == null or target == null:
+	if entity == null or entity.navigator == null or target == null:
 		return empty
 	var source := entity.core_location
-	if source == null or target == source or target.owned_by != entity:
+	if source == null or target == source:
 		return empty
-	var parent := {source: null}
-	var queue: Array[SkillNode] = [source]
-	while not queue.is_empty():
-		var cur: SkillNode = queue.pop_front()
-		if cur == target:
-			break
-		for nb in _real_neighbours(cur):
-			if nb.owned_by != entity or parent.has(nb):
-				continue
-			parent[nb] = cur
-			queue.append(nb)
-	if not parent.has(target):
+	var path := entity.navigator.path_between(source, target)
+	if path.size() < 2:
 		return empty
-	var path: Array[SkillNode] = []
-	var n: SkillNode = target
-	while n != null:
-		path.push_front(n)
-		n = parent.get(n)
 	if path.size() - 1 > _movement_budget(entity):
 		return empty
 	return path

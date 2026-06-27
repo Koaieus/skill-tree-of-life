@@ -21,11 +21,17 @@ extends Node
 
 var astar: AStarSkillTree = AStarSkillTree.new()
 var _node_ids: Dictionary[SkillNode, int] = {}
+var _ids_node: Dictionary[int, SkillNode] = {}
 
 
 ## Vertex id for [param node] in the mirror, or -1 if not mirrored.
 func vertex_id(node: SkillNode) -> int:
 	return _node_ids.get(node, -1)
+
+
+## The [SkillNode] for vertex [param id], or null. O(1) reverse of [method vertex_id].
+func node_for_id(id: int) -> SkillNode:
+	return _ids_node.get(id, null)
 
 
 ## Add [param node] to the mirror. Idempotent. Connects any edges in [member graph]
@@ -35,6 +41,7 @@ func mirror_add(node: SkillNode) -> void:
 		return
 	var id := astar.get_available_point_id()
 	_node_ids[node] = id
+	_ids_node[id] = node
 	astar.add_point(id, node.global_position)
 	if graph == null:
 		return
@@ -59,6 +66,7 @@ func mirror_remove(node: SkillNode) -> void:
 		return
 	astar.remove_point(id)
 	_node_ids.erase(node)
+	_ids_node.erase(id)
 
 
 ## Subscribe to [member graph]'s structural signals and seed the mirror with
@@ -133,6 +141,52 @@ func connected_component(node: SkillNode) -> Array[SkillNode]:
 	if start_id < 0:
 		return []
 	return _nodes_from_ids(_flood_from(start_id))
+
+
+## Every mirrored node reachable from [param source] within [param max_hops]
+## edges, mapped to its hop distance. [param source] is included at depth 0.
+## [param max_hops] < 0 means unbounded. {} if [param source] isn't mirrored.
+##
+## The one true hop-bounded BFS — callers that need "everything within N hops"
+## (core-move reachability, hop-based spell/attack reach) go through here instead
+## of re-rolling a frontier loop.
+func nodes_within(source: SkillNode, max_hops: int) -> Dictionary[SkillNode, int]:
+	var result: Dictionary[SkillNode, int] = {}
+	var start_id := vertex_id(source)
+	if start_id < 0 or astar.is_point_disabled(start_id):
+		return result
+	var depths: Dictionary[int, int] = {start_id: 0}
+	var frontier: Array[int] = [start_id]
+	while not frontier.is_empty():
+		var next_frontier: Array[int] = []
+		for cur in frontier:
+			var d: int = depths[cur]
+			if max_hops >= 0 and d >= max_hops:
+				continue
+			for nb in astar.get_point_connections(cur):
+				if depths.has(nb) or astar.is_point_disabled(nb):
+					continue
+				depths[nb] = d + 1
+				next_frontier.append(nb)
+		frontier = next_frontier
+	for id in depths:
+		result[node_for_id(id)] = depths[id]
+	return result
+
+
+## Fewest-hops path of nodes from [param from_node] to [param to_node]
+## (inclusive of both ends), or [] if either isn't mirrored or no path exists.
+## Hop count is [code]path.size() - 1[/code]. Relies on the unit-cost +
+## zero-heuristic [AStarSkillTree] so the path is genuinely fewest-hops.
+func path_between(from_node: SkillNode, to_node: SkillNode) -> Array[SkillNode]:
+	var from_id := vertex_id(from_node)
+	var to_id := vertex_id(to_node)
+	if from_id < 0 or to_id < 0:
+		return []
+	var path: Array[SkillNode] = []
+	for id in astar.get_id_path(from_id, to_id):
+		path.append(node_for_id(id))
+	return path
 
 
 ## All mirrored nodes that would lose reachability to [param anchor] if
