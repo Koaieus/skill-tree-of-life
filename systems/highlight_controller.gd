@@ -11,10 +11,10 @@ extends Node
 ## Priority (highest first): active attack plan > core-move targeting > none.
 ## Mirrors the ContextPanel resolver deliberately — same shape, different output.
 ##
-## A scene-tree system (sibling of the other Systems nodes). GameRoot injects
-## the dependency fields then calls [method initialize] — the signal wiring can't
-## live in `_ready` because a scene node's `_ready` fires before GameRoot can
-## inject. Joins [constant GROUP] for discovery.
+## A scene-tree system (sibling of the other Systems nodes). Its system deps are
+## NodePath @exports wired in game_root.tscn — same DI style as AllocationSystem
+## / PlayerInputController — so they're resolved before `_ready` and the signal
+## wiring lives there. Joins [constant GROUP] for discovery.
 
 const GROUP := &"highlight_controller"
 
@@ -24,13 +24,14 @@ signal provider_changed(provider: HighlightProvider)
 ## without a swap. Overlays repaint on both.
 signal provider_state_changed
 
-# Injected by GameRoot.
-var battle_system: BattleSystem
-var input_ctl: PlayerInputController
-var allocation_system: AllocationSystem
-var graph: Graph
+# Scene-wired deps (NodePath @exports — see game_root.tscn).
+@export var battle_system: BattleSystem
+@export var input_ctl: PlayerInputController
+@export var allocation_system: AllocationSystem
+@export var graph: Graph
 ## The entity whose core moves (the human player) — fallback when a core node's
-## owner can't be read.
+## owner can't be read. Set by GameRoot once the player resolves (it's spawned at
+## runtime, so it can't be a scene NodePath); only read during a live core-move.
 var player: Entity
 
 ## The active provider. Setter rebinds its [signal HighlightProvider.state_changed]
@@ -47,8 +48,9 @@ func _enter_tree() -> void:
 
 
 ## Wire to the systems whose state drives provider selection, then pick the
-## initial provider. Called by GameRoot after it injects the dependency fields.
-func initialize() -> void:
+## initial provider. Deps are scene-injected via NodePath @exports, so they're
+## populated by the time `_ready` runs.
+func _ready() -> void:
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
 	if input_ctl != null:

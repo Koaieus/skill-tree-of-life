@@ -47,7 +47,9 @@ var floating_number_layer: FloatingNumberLayer
 
 
 func _ready() -> void:
-	_mount_highlight_controller()
+	# HighlightController is fully scene-wired (NodePath @exports) and self-wires
+	# its signals in its own _ready; GameRoot only hands it the runtime `player`
+	# below, once that resolves.
 	_mount_edge_highlight()
 	_mount_node_highlight()
 	_mount_attack_vfx()
@@ -82,6 +84,10 @@ func _ready() -> void:
 	# return a coroutine.
 	await _setup_level()
 	_assign_default_factions()
+	# The human player is spawned by _setup_level, so it can't be a scene
+	# NodePath — hand it to the highlight controller now (used as a core-move
+	# fallback owner).
+	highlight_controller.player = player
 	# Invariant: every Entity must have an EntityController child so the
 	# turn loop never stalls on an uncontrolled actor. Hand-authored
 	# scenes (dev_sandbox, first_level_sandbox) historically forgot to
@@ -246,18 +252,6 @@ func _resolve_camera() -> Camera2D:
 	for c in find_children("*", "Camera2D", true, false):
 		return c as Camera2D
 	return null
-
-
-## Single active-provider arbiter for all highlighting (attack plans, core-move,
-## future hover). Lives in the scene (`%HighlightController`); we inject its
-## system deps and `initialize()` it here, before the overlays bind to it.
-func _mount_highlight_controller() -> void:
-	highlight_controller.battle_system = battle_system
-	highlight_controller.input_ctl = input_ctl
-	highlight_controller.allocation_system = allocation_system
-	highlight_controller.graph = graph
-	highlight_controller.player = player
-	highlight_controller.initialize()
 
 
 func _mount_node_highlight() -> void:

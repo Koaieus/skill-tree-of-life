@@ -57,10 +57,12 @@ graph = NodePath("../../Graph")
 navigator = NodePath("../../Graph/Navigator")
 turn_manager = NodePath("../TurnManager")
 
-[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager")]
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph")]
 unique_name_in_owner = true
 script = ExtResource("6_battle")
 turn_manager = NodePath("../TurnManager")
+allocation_system = NodePath("../AllocationSystem")
+graph = NodePath("../../Graph")
 
 [node name="VisionSystem" type="Node" parent="Systems" unique_id=872348382 node_paths=PackedStringArray("graph", "allocation_system")]
 unique_name_in_owner = true
@@ -70,9 +72,13 @@ allocation_system = NodePath("../AllocationSystem")
 empty_mode = 2
 ease_rate = 2.5
 
-[node name="HighlightController" type="Node" parent="Systems" unique_id=39417906]
+[node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph")]
 unique_name_in_owner = true
 script = ExtResource("10_5dyip")
+battle_system = NodePath("../BattleSystem")
+input_ctl = NodePath("../PlayerInputController")
+allocation_system = NodePath("../AllocationSystem")
+graph = NodePath("../../Graph")
 metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
 
 [node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
