@@ -22,9 +22,13 @@ func _toggle(on: bool) -> void:
 	get_tree().paused = on
 
 
+## Reload the running level from scratch. `paused` is a SceneTree flag that
+## survives the reload, so clear it first (via `active`) or the fresh scene boots
+## frozen. No confirmation for now — straight restart.
 func _on_restart_button_pressed() -> void:
-	push_warning('ToDo: implement restarting the game')
-	
+	active = false
+	get_tree().reload_current_scene()
+
 
 func _on_save_button_pressed() -> void:
 	push_warning('ToDo: implement saving')
@@ -38,8 +42,11 @@ func _on_to_main_menu_button_pressed() -> void:
 	push_warning('ToDo: implement a main menu / metagame / outer world')
 
 
+## Quit the application. `get_tree().quit()` requests a clean shutdown — the
+## engine finishes the frame, runs NOTIFICATION_WM_CLOSE_REQUEST / _exit_tree,
+## then closes. (Editor: stops the play session.)
 func _on_exit_button_pressed() -> void:
-	push_warning('ToDo: implement closing the game')
+	get_tree().quit()
 
 
 func _on_continue_button_pressed() -> void:
