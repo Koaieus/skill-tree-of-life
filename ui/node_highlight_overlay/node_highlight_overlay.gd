@@ -12,16 +12,16 @@ extends Node2D
 @export var highlight_controller: HighlightController
 @export var graph: Graph
 
-const RING_PADDING: float = 6.0
-const RING_WIDTH: float = 3.0
-const RING_SEGMENTS: int = 32
+@export var ring_padding: float = 6.0
+@export var ring_width: float = 3.0
+@export var ring_segments: int = 32
 
-const RANGE_RING_WIDTH: float = 1.5
-const RANGE_RING_SEGMENTS: int = 64
-const RANGE_RING_ALPHA_IDLE: float = 0.10
-const RANGE_RING_ALPHA_ACTIVE: float = 0.30
+@export var range_ring_width: float = 1.5
+@export var range_ring_segments: int = 64
+@export var range_ring_alpha_idle: float = 0.10
+@export var range_ring_alpha_active: float = 0.30
 
-const ROLE_COLORS: Dictionary[int, Color] = {
+const ROLE_COLORS: Dictionary[HighlightProvider.HighlightRole, Color] = {
 	HighlightProvider.HighlightRole.ORIGIN:          Color(1.0, 0.85, 0.0, 0.9),
 	HighlightProvider.HighlightRole.MEMBER:          Color(1.0, 0.55, 0.1, 0.85),
 	HighlightProvider.HighlightRole.IN_RANGE:        Color(0.45, 0.95, 0.45, 0.55),
@@ -59,10 +59,10 @@ func _draw() -> void:
 		if range_radius > 0.0:
 			var base: Color = ROLE_COLORS.get(HighlightProvider.HighlightRole.ORIGIN, Color.WHITE)
 			var active := role == HighlightProvider.HighlightRole.ORIGIN
-			var alpha := RANGE_RING_ALPHA_ACTIVE if active else RANGE_RING_ALPHA_IDLE
+			var alpha := range_ring_alpha_active if active else range_ring_alpha_idle
 			var tint := Color(base.r, base.g, base.b, alpha)
-			draw_arc(center, range_radius, 0.0, TAU, RANGE_RING_SEGMENTS, tint, RANGE_RING_WIDTH)
+			draw_arc(center, range_radius, 0.0, TAU, range_ring_segments, tint, range_ring_width)
 		if role == HighlightProvider.HighlightRole.NONE:
 			continue
 		var color: Color = ROLE_COLORS.get(role, Color.WHITE)
-		draw_arc(center, sn.radius + RING_PADDING, 0.0, TAU, RING_SEGMENTS, color, RING_WIDTH)
+		draw_arc(center, sn.radius + ring_padding, 0.0, TAU, ring_segments, color, ring_width)

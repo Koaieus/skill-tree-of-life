@@ -28,6 +28,7 @@ var player: Entity
 @onready var battle_system: BattleSystem = %BattleSystem
 @onready var turn_manager: TurnManager = %TurnManager
 @onready var vision_system: VisionSystem = %VisionSystem
+@onready var highlight_controller: HighlightController = %HighlightController
 
 # UI
 @onready var ui_root: UIRoot = %UIRoot
@@ -37,7 +38,6 @@ var player: Entity
 # is assumed (warn otherwise so a stray editor camera doesn't silently win).
 var camera: Camera2D
 
-var highlight_controller: HighlightController
 var node_highlight: NodeHighlightOverlay
 var edge_highlight: EdgeHighlightOverlay
 var attack_vfx: AttackVFX
@@ -249,15 +249,15 @@ func _resolve_camera() -> Camera2D:
 
 
 ## Single active-provider arbiter for all highlighting (attack plans, core-move,
-## future hover). Mounted before the overlays so they can bind to it in _ready.
+## future hover). Lives in the scene (`%HighlightController`); we inject its
+## system deps and `initialize()` it here, before the overlays bind to it.
 func _mount_highlight_controller() -> void:
-	highlight_controller = HighlightController.new()
 	highlight_controller.battle_system = battle_system
 	highlight_controller.input_ctl = input_ctl
 	highlight_controller.allocation_system = allocation_system
 	highlight_controller.graph = graph
 	highlight_controller.player = player
-	graph.add_child(highlight_controller)
+	highlight_controller.initialize()
 
 
 func _mount_node_highlight() -> void:

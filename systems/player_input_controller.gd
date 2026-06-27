@@ -276,11 +276,11 @@ func _update_core_drag() -> void:
 	if landing != null:
 		var hops := maxi(0, allocation_system.core_path(player, landing).size() - 1)
 		var mp := _movement_points_current()
-		_core_ghost.global_position = landing.global_position
+		_center_ghost_at(landing.global_position)
 		_core_ghost.modulate.a = 0.85
 		_core_badge.text = "%d hop%s · %d MP left" % [hops, "" if hops == 1 else "s", maxi(0, mp - hops)]
 	else:
-		_core_ghost.global_position = world
+		_center_ghost_at(world)
 		_core_ghost.modulate.a = 0.4
 		_core_badge.text = "—"
 	_core_badge.global_position = world + Vector2(18, -10)
@@ -332,6 +332,15 @@ func _set_drag_preview_target(landing: SkillNode) -> void:
 	var core_provider := ctl.active_core_provider()
 	if core_provider != null:
 		core_provider.set_target(landing)
+
+
+## Center the ghost star on a world point. The ghost is a Label (parented to a
+## Node2D), and a Control positions by its top-left corner — so a bare
+## `global_position = center` renders the glyph down-and-right of the node (the
+## #21 "sits at bottom-right" report). Snap to minimum size, then offset by half.
+func _center_ghost_at(world: Vector2) -> void:
+	_core_ghost.reset_size()
+	_core_ghost.global_position = world - _core_ghost.size * 0.5
 
 
 func _ensure_core_drag_visuals() -> void:

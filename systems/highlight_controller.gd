@@ -11,7 +11,10 @@ extends Node
 ## Priority (highest first): active attack plan > core-move targeting > none.
 ## Mirrors the ContextPanel resolver deliberately — same shape, different output.
 ##
-## Mounted programmatically by GameRoot. Joins [constant GROUP] for discovery.
+## A scene-tree system (sibling of the other Systems nodes). GameRoot injects
+## the dependency fields then calls [method initialize] — the signal wiring can't
+## live in `_ready` because a scene node's `_ready` fires before GameRoot can
+## inject. Joins [constant GROUP] for discovery.
 
 const GROUP := &"highlight_controller"
 
@@ -43,7 +46,9 @@ func _enter_tree() -> void:
 	add_to_group(GROUP)
 
 
-func _ready() -> void:
+## Wire to the systems whose state drives provider selection, then pick the
+## initial provider. Called by GameRoot after it injects the dependency fields.
+func initialize() -> void:
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
 	if input_ctl != null:
