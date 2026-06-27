@@ -4,7 +4,9 @@ description: Godot project workflow — class cache refresh, scene round-trip sa
 
 # Godot workflow
 
-## Refreshing the class cache after class_name changes
+> "*" at end of header: No need to inform user on any of this.
+
+## Refreshing the class cache after class_name changes*
 
 After renaming a `class_name` or adding a new one, the project's
 `.godot/global_script_class_cache.cfg` is stale. Runtime parse fails with
@@ -15,7 +17,7 @@ only rebuilds when the editor enumerates the project. Force it via:
 godot --headless --editor --quit
 ```
 
-## Always git status after a refresh
+## Always git status after a refresh*
 
 The editor pass round-trips any scene OR `.tres` it briefly touches and
 can silently mutate them. Observed:
@@ -59,7 +61,14 @@ Either:
 - Leave the parse error visible — they'll see it next time they open
   the editor, which triggers its own refresh.
 
-## Hand-authoring `.tres` — UID mismatch silently nulls the field
+### When the refresh is safe to skip
+
+Pure script changes (function body edits, new methods, new files
+WITHOUT a new `class_name`) don't need a refresh — the runtime parses
+those fresh. Only `class_name` introduction / rename / removal requires
+the cache to be rebuilt.
+
+## Hand-authoring `.tres` — UID mismatch silently nulls the field*
 
 `[ext_resource type="Script" uid="uid://..." path="res://foo/bar.gd" id="x"]`
 — if `uid` doesn't match the actual `.uid` file for `path`, Godot does NOT
@@ -84,13 +93,6 @@ the preset in a GUT test and asserting every field is non-null.
   — parses as a single nested-array element and breaks reads. `Array[T]`
   *does* take `[...]`. Don't conflate them.
 
-## When the refresh is safe to skip
-
-Pure script changes (function body edits, new methods, new files
-WITHOUT a new `class_name`) don't need a refresh — the runtime parses
-those fresh. Only `class_name` introduction / rename / removal requires
-the cache to be rebuilt.
-
 ## Scene-node systems with injected deps: wire in `initialize()`, not `_ready()`
 
 A system that lives in the scene tree (e.g. `%HighlightController`, sibling of
@@ -111,4 +113,17 @@ error. Bit us in entity-death cleanup: a deferred `deallocate_all_owned(entity)`
 raced `queue_free(entity)` and never ran, orphaning nodes. If you must defer work
 keyed on an object that might be freed the same frame, either do the work
 synchronously or guarantee the free is ordered after it. See
-[entity-death.md](entity-death.md).
+[entity-death.md](entity-death.md). [TODO: is this too specific for a global rule? resolve this if read]
+
+### Git
+## Closing an issue?
+Mention "Closes #{id}" in the commit message.
+## No worktrees (no DX in place for fast switching between wt)
+Means other agents may be doing stuff on the main wt, or there may be a WIP.
+If tests suddenly start failing, don't spend too much time on it,
+so far you can still get another part done. If things are in your scope or quick fixes,
+apply — but check what was happening. It might be a first step of a refactor, if so
+see if you can follow its lead, verify with user for alignment.
+User likes clean codebase. Refactoring into scenes, DI via `@export`ed vars, inherited
+scenes where needed, always try and take it to the next level, keeping common
+conventions for YAGNI but the opposite of YAGNI may pay off too: planning ahead. Case by case care works best.

@@ -126,13 +126,6 @@ func remove_modifier(m: StatModifier) -> void:
 ## Apply intrinsic_modifiers. Call once from Entity._ready() after the board
 ## is fully wired. Entries are duplicated automatically so each entity board
 ## gets its own bound instance — callers don't need to think about this.
-##
-## Why not self-apply from `StatBoard._ready()`? StatBoard is a Resource, not a
-## Node — it has no `_ready` / tree lifecycle. And no `await` is needed: this
-## just registers modifiers; their formulas compute lazily on read. Entity._ready
-## is the right home precisely because intrinsics must bind to *that entity's*
-## duplicated board copy (formula modifiers carry mutable `_board` state and
-## can't be shared — see .claude/rules/stats-system.md).
 func apply_intrinsics() -> void:
 	for m in intrinsic_modifiers:
 		add_modifier(m.duplicate(true))

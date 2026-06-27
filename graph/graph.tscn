@@ -3,9 +3,8 @@
 [ext_resource type="Script" uid="uid://l5c7l8ty7fm1" path="res://graph/graph.gd" id="1_graph"]
 [ext_resource type="Script" uid="uid://drlgxrdnh2rtd" path="res://graph/navigator.gd" id="2_nav"]
 
-[node name="Graph" type="Node2D" unique_id=1726628961 node_paths=PackedStringArray("navigator")]
+[node name="Graph" type="Node2D" unique_id=1726628961]
 script = ExtResource("1_graph")
-navigator = NodePath("Navigator")
 
 [node name="Navigator" type="Node" parent="." unique_id=604899836 node_paths=PackedStringArray("graph")]
 script = ExtResource("2_nav")

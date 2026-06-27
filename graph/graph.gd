@@ -17,12 +17,12 @@ signal node_removed(skill_node: SkillNode)
 signal edge_added(edge: Edge)
 signal edge_removed(edge: Edge)
 
-@export var navigator: Navigator
 ## Where dynamically-spawned [Entity] instances live (procgen, scripted setup).
 ## Parallel to the other containers — Graph owns the slot, GameRoot owns the
 ## spawning API. Hand-authored entities (dev_sandbox) may live elsewhere; the
 ## `%Player` unique-name lookup ignores parent.
 
+@onready var navigator: Navigator = $Navigator
 @onready var entities_container: Node = $Entities
 @onready var skill_nodes_container: Node2D = $Nodes
 @onready var edges_container: Node2D = $Edges
