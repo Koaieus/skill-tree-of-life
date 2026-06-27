@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://b8addtile0001"]
+
+[ext_resource type="Script" path="res://scenes/addon_tile.gd" id="1_tile"]
+
+[node name="AddonTile" type="PanelContainer"]
+custom_minimum_size = Vector2(160, 180)
+script = ExtResource("1_tile")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="VisualHost" type="Control" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="NameLabel" type="Label" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 24)
+horizontal_alignment = 1

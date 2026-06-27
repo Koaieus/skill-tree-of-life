@@ -15,14 +15,10 @@ extends Node2D
 ## SkillNode that isn't player-visible are suppressed. Without it, every event
 ## spawns (useful for headless tests and old sandboxes without fog).
 
-const FLOAT_DISTANCE: float = 70.0
-const FLOAT_TIME: float = 3.0
-const FONT_SIZE: int = 36
-const OUTLINE_SIZE: int = 6
-const MAX_ANGLE: int = 0  # degrees
-
-# TODO: these numbers must be less wiggly yet still readable (angle wiggle was added because all spawned at same location, might not be the best solution to that problem, maybe we should fix)
-# TODO  and better yet: these should be scenes and own all these values AND their animation — such scenes could have an exported button that triggers the animation even??
+## Each floater is a [Floater] scene that owns its own drift/fade values and
+## animation (incl. an editor preview button). The layer just instantiates,
+## configures text/colour/position, and kicks the animation.
+const _FLOATER_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater.tscn")
 
 const _COLOR_DAMAGE := Color(1.0, 0.85, 0.85, 1.0)
 const _COLOR_WOUND  := Color(1.0, 0.55, 0.55, 1.0)
@@ -49,18 +45,12 @@ func _ready() -> void:
 func spawn(world_pos: Vector2, text: String, color: Color) -> void:
 	if text.is_empty():
 		return
-	var floater := _Floater.new()
+	var floater: Floater = _FLOATER_SCENE.instantiate()
 	floater.text = text
 	floater.fill_color = color
-	floater.global_position = world_pos
 	add_child(floater)
-	var t := create_tween().set_parallel(true)
-	var rng_dir := randi_range(-MAX_ANGLE, MAX_ANGLE)
-	t.tween_property(floater, "position",
-		floater.position + Vector2(0.0, -FLOAT_DISTANCE).rotated(deg_to_rad(rng_dir)), FLOAT_TIME)
-	t.tween_property(floater, "alpha", 0.0, FLOAT_TIME)
-	t.tween_property(floater, "rotation_degrees", rng_dir, FLOAT_TIME)
-	t.chain().tween_callback(floater.queue_free)
+	floater.global_position = world_pos
+	floater.animate()
 
 
 # --- Global signal handlers -------------------------------------------------
@@ -107,39 +97,3 @@ func _node_visible(node: SkillNode) -> bool:
 	if vision_system == null:
 		return true
 	return vision_system.is_visible(node)
-
-
-# --- Inline floater visual --------------------------------------------------
-
-## A Node2D that draws a single outlined string centered on its origin.
-## Kept private — callers should go through [method spawn] so the drift/fade
-## behavior stays consistent.
-class _Floater extends Node2D:
-	var text: String = ""
-	var fill_color: Color = Color.WHITE
-	var alpha: float = 1.0:
-		set(value):
-			alpha = value
-			queue_redraw()
-	var _font: Font
-
-	const _OUTLINE_COLOR := Color(0.1, 0.0, 0.0, 1.0)
-
-	func _ready() -> void:
-		_font = ThemeDB.fallback_font
-		queue_redraw()
-
-	func _draw() -> void:
-		if _font == null or text.is_empty():
-			return
-		var size := FloatingNumberLayer.FONT_SIZE
-		var text_size := _font.get_string_size(
-			text, HORIZONTAL_ALIGNMENT_CENTER, -1, size)
-		var pos := Vector2(-text_size.x * 0.5, text_size.y * 0.25)
-		var fill := Color(fill_color.r, fill_color.g, fill_color.b, alpha)
-		var outline := Color(_OUTLINE_COLOR.r, _OUTLINE_COLOR.g, _OUTLINE_COLOR.b, alpha)
-		draw_string_outline(_font, pos, text,
-			HORIZONTAL_ALIGNMENT_CENTER, -1, size,
-			FloatingNumberLayer.OUTLINE_SIZE, outline)
-		draw_string(_font, pos, text,
-			HORIZONTAL_ALIGNMENT_CENTER, -1, size, fill)

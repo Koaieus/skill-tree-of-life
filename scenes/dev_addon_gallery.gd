@@ -8,7 +8,7 @@ extends Control
 ## the editor. Each entry instantiates a fresh SkillNode + that addon and
 ## drops it into the grid. Runs in @tool so the editor previews it too.
 
-const SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn")
+const ADDON_TILE_SCENE: PackedScene = preload("res://scenes/addon_tile.tscn")
 
 ## Addons to display. Order = grid order, left-to-right, top-to-bottom.
 @export var addon_scripts: Array[Script] = [
@@ -39,43 +39,6 @@ func _rebuild() -> void:
 	for script in addon_scripts:
 		if script == null:
 			continue
-		_grid.add_child(_make_tile(script))
-
-
-func _make_tile(addon_script: Script) -> Control:
-	# TODO: this is node composition — should be a scene
-	var label_h := 24.0
-	var tile := PanelContainer.new()
-	tile.custom_minimum_size = tile_size
-
-	var vbox := VBoxContainer.new()
-	tile.add_child(vbox)
-
-	var visual_host := Control.new()
-	visual_host.custom_minimum_size = Vector2(tile_size.x, tile_size.y - label_h)
-	visual_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(visual_host)
-
-	var sn: SkillNode = SKILL_NODE_SCENE.instantiate()
-	sn.radius = node_radius
-	# Visual-only — center the gameplay object inside the Control tile.
-	sn.position = visual_host.custom_minimum_size * 0.5
-	visual_host.add_child(sn)
-
-	var anchor: Node2D = sn.get_node_or_null("Visuals/AddonAnchor")
-	if anchor != null:
-		var addon: Node2D = Node2D.new()
-		addon.set_script(addon_script)
-		anchor.add_child(addon)
-
-	var label := Label.new()
-	label.text = _pretty_name(addon_script)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.custom_minimum_size = Vector2(0.0, label_h)
-	vbox.add_child(label)
-
-	return tile
-
-
-func _pretty_name(script: Script) -> String:
-	return script.resource_path.get_file().get_basename().capitalize()
+		var tile: AddonTile = ADDON_TILE_SCENE.instantiate()
+		_grid.add_child(tile)
+		tile.configure(script, tile_size, node_radius)

@@ -21,13 +21,14 @@ const _TAB_FALLBACK: StringName = &"misc"
 
 # Tab order + display. Each tab header renders the GLYPH ONLY (so all tabs fit
 # in one row — no overflow/pagination), with the human `name` shown as a hover
-# tooltip. Glyphs are unicode stopgaps; swap to `set_tab_icon` textures later.
-const _TABS: Array[Dictionary] = [
-	## TODO: add a new Resource class for this, get free typing. And allow glyph to be a (Node2D or) Texture2D
-	{ "id": &"overview", "name": "Overview", "glyph": "★"  },
-	{ "id": &"combat",   "name": "Combat",   "glyph": "⚔"  },
-	{ "id": &"magic",    "name": "Magic",    "glyph": "✦"  },
-	{ "id": _TAB_FALLBACK, "name": "Misc",   "glyph": "···" },
+# tooltip. Glyphs are unicode stopgaps today; a TabDef.glyph may be a Texture2D
+# instead (set_tab_icon) without any code change here. Static var rather than
+# const because TabDef.new(...) isn't a constant expression.
+static var _TABS: Array[TabDef] = [
+	TabDef.new(&"overview", "Overview", "★"),
+	TabDef.new(&"combat", "Combat", "⚔"),
+	TabDef.new(&"magic", "Magic", "✦"),
+	TabDef.new(_TAB_FALLBACK, "Misc", "···"),
 ]
 
 @export var board: StatBoard:
@@ -64,7 +65,7 @@ func _rebuild() -> void:
 	var per_tab: Dictionary[StringName, VBoxContainer] = {}
 	var known_ids: Array[StringName] = []
 	for tab_def in _TABS:
-		var tab_id: StringName = tab_def["id"]
+		var tab_id: StringName = tab_def.id
 		known_ids.append(tab_id)
 		var vb := VBoxContainer.new()
 		vb.name = String(tab_id)
@@ -117,23 +118,26 @@ func _rebuild() -> void:
 
 	# Hide tabs with no rows — empty tabs are clutter.
 	for tab_def in _TABS:
-		var tab_id: StringName = tab_def["id"]
-		var vb := per_tab[tab_id]
+		var vb := per_tab[tab_def.id]
 		if vb.get_child_count() == 0:
 			_tab_container.remove_child(vb)
 			vb.queue_free()
 
-	# Icon-only headers: render the glyph as the tab title, with the human name
-	# as a hover tooltip. Done after the empty-tab cull so indices are stable.
+	# Icon-only headers: render the glyph as the tab title (or icon, if the
+	# TabDef carries a Texture2D), with the human name as a hover tooltip. Done
+	# after the empty-tab cull so indices are stable.
 	for tab_def in _TABS:
-		var vb: VBoxContainer = per_tab[tab_def["id"]]
+		var vb: VBoxContainer = per_tab[tab_def.id]
 		if not is_instance_valid(vb) or vb.get_parent() != _tab_container:
 			continue
 		var idx := _tab_container.get_tab_idx_from_control(vb)
 		if idx < 0:
 			continue
-		_tab_container.set_tab_title(idx, tab_def["glyph"])
-		_tab_container.set_tab_tooltip(idx, tab_def["name"])
+		if tab_def.glyph is Texture2D:
+			_tab_container.set_tab_icon(idx, tab_def.glyph)
+		else:
+			_tab_container.set_tab_title(idx, str(tab_def.glyph))
+		_tab_container.set_tab_tooltip(idx, tab_def.name)
 
 
 func _add_row_to_tab(def: StatDef, tab_vb: VBoxContainer) -> void:
