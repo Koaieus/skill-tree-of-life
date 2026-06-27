@@ -23,6 +23,7 @@ extends Resource
 @export var perception: ScalarStat      ## PER / Purple — vision / sensing.
 
 @export_group("Survivability")
+## Entity's **Core** health, entity dies if it reaches 0.
 @export var health: PoolStat
 ## Board-level scalar baseline that seeds owned-node max HP. The per-node
 ## ephemeral combat pool lives on each TreeNode's combat component (see the
@@ -128,6 +129,7 @@ func remove_modifier(m: StatModifier) -> void:
 func apply_intrinsics() -> void:
 	for m in intrinsic_modifiers:
 		add_modifier(m.duplicate(true))
+# TODO: do we *need* to await entity_ready to apply intrinsics? Or can we call it from `StatBoard._ready()`?
 
 
 ## Every PoolStat field on this board, discovered by introspection so adding a

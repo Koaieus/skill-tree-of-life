@@ -18,6 +18,11 @@ signal skill_node_depleted(node: SkillNode)
 ## layers subscribe here instead of binding to every entity's SP stat.
 signal entity_wounded(entity: Entity, amount: int)
 signal entity_healed(entity: Entity, amount: int)
+## Emitted once when an entity's core health hits 0 (see Entity.die). Systems
+## react off the bus: AllocationSystem strips its owned nodes, GameRoot handles
+## the player-vs-NPC consequence. A future `killed_by: Entity` param would feed
+## kill-reward XP/loot (#18 follow-ups) — add it when that lands.
+signal entity_died(entity: Entity)
 
 ## Emitted when a spell's [IncidentReducer] resolves to null at a node
 ## (overlap-cancel, even-cancel, custom-cancel) — the spell visibly fizzles

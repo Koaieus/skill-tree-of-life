@@ -59,7 +59,7 @@ func end_turn() -> void:
 ## carries the overshoot into the next cycle).
 func tick() -> void:
 	ticked.emit()
-	for node in get_tree().get_nodes_in_group("entities"):
+	for node in get_tree().get_nodes_in_group(Entity.GROUP):
 		var e := node as Entity
 		if e == null or e.stat_board == null:
 			continue

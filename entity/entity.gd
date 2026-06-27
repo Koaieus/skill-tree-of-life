@@ -9,6 +9,7 @@ extends Node
 
 signal core_location_changed
 signal leveled_up(new_level: int)
+signal died
 
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
@@ -45,15 +46,24 @@ var level: int = 1
 ## entity to the `READY_GROUP` for TurnManager to serve. See _ready / TurnManager.
 const READY_GROUP := &"ready_to_act"
 
+## Group every Entity joins on enter_tree. TurnManager enumerates it to tick
+## initiative and serve turns; death cleanup removes the corpse so it's skipped.
+const GROUP := &"entities"
+
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
+
+## Latched once `die()` runs, so death cleanup happens exactly once even if the
+## `health` pool re-emits `depleted` mid-cascade. Systems read this to skip a
+## corpse (TurnManager initiative, AI targeting).
+var is_dead: bool = false
 
 
 func _ready() -> void:
 	# Group membership is editor-safe and lets @tool consumers (e.g.
 	# VisionSystem) enumerate entities live in the inspector.
-	add_to_group("entities")
+	add_to_group(GROUP)
 	if Engine.is_editor_hint():
 		return
 	var g := _find_graph()
@@ -66,6 +76,7 @@ func _ready() -> void:
 		navigator.graph = g
 		add_child(navigator)
 
+	# Initialize stat board and wiring
 	if stat_board != null:
 		stat_board.apply_intrinsics()
 		if core_class != null:
@@ -83,6 +94,11 @@ func _ready() -> void:
 		if stat_board.skill_points != null:
 			stat_board.skill_points.wounds_applied.connect(_emit_entity_wounded)
 			stat_board.skill_points.wounds_healed.connect(_emit_entity_healed)
+		# Core HP is the entity's `health` pool: combat-HP overflow on the core
+		# node eats it (see SkillNode.take_damage), and it hits 0 → the entity
+		# dies. The core node never emits `depleted` itself (#18).
+		if stat_board.health != null:
+			stat_board.health.depleted.connect(_on_health_depleted)
 
 	var tm := _find_turn_manager()
 	if tm != null:
@@ -129,6 +145,22 @@ func _on_xp_replenished() -> void:
 	level += 1
 	leveled_up.emit(level)
 
+## Listens for health.depleted (Entity's core health reduced to 0) → entity dies.
+func _on_health_depleted() -> void:
+	die()
+
+
+## Mark the entity dead and announce it. Entity stays dumb here: the actual
+## cleanup (force-deallocate every owned node, free NPCs, player game-over) is
+## owned by systems reacting to `Events.entity_died` off the bus — same pattern
+## as BattleSystem←skill_node_depleted. Idempotent: death can fire re-entrantly
+## from inside a forced-dealloc cascade (chip damage to `health`), so guard.
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	died.emit()
+	Events.entity_died.emit(self)
 
 func _emit_entity_wounded(amount: int) -> void:
 	Events.entity_wounded.emit(self, amount)

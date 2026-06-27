@@ -42,6 +42,39 @@ signal core_moved(entity: Entity, from_node: SkillNode, to_node: SkillNode)
 @export var turn_manager: TurnManager
 
 
+func _ready() -> void:
+	Events.entity_died.connect(_on_entity_died)
+
+
+## Death cleanup (#18): strip a dead entity of every node it owns. Runs
+## SYNCHRONOUSLY even though death can fire mid-cascade — `health.deplete()`
+## inside BattleSystem's forced-dealloc loop (or SkillNode.take_damage) crosses
+## 0 → `depleted` → Entity.die() → this. That's safe: BattleSystem's loop guards
+## each step with `if n.owned_by != defender: continue`, so nodes we deallocate
+## here are simply skipped when control returns to it — the loop doesn't restart,
+## there's no re-entry. Synchronous is deliberately chosen over deferring: a
+## deferred `deallocate_all_owned(entity)` races GameRoot freeing the corpse, and
+## a deferred call whose Object arg is freed is dropped, orphaning the nodes
+## (owned_by a freed entity). See test_npc_death_via_bus_deallocates_before_free.
+func _on_entity_died(entity: Entity) -> void:
+	deallocate_all_owned(entity)
+
+
+## Force-deallocate every node the entity owns, via the same `force_deallocate`
+## primitive the battle cascade uses (so VFX shatter + `force_deallocated` fire
+## per node). The core node goes last — this is the only path that ever
+## force-deallocates a core. Public so concede / despawn flows can reuse it.
+func deallocate_all_owned(entity: Entity) -> void:
+	if entity == null or graph == null:
+		return
+	var core := entity.core_location
+	for n in graph.get_skill_nodes():
+		if n != core and n.owned_by == entity:
+			force_deallocate(n)
+	if core != null and core.owned_by == entity:
+		force_deallocate(core)
+
+
 ## Register scene-authored ownership with the SP accounting. Called by
 ## GameRoot before _setup_level — walks the graph and calls claim(1) for
 ## every already-owned node, so a hand-authored dev_sandbox player ends up

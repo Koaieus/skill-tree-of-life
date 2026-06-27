@@ -66,6 +66,9 @@ func _ready() -> void:
 	# `from_node` and glide back. Lives here rather than on Entity so SkillNode
 	# stays the visual owner.
 	allocation_system.core_moved.connect(_on_core_moved)
+	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
+	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
+	Events.entity_died.connect(_on_entity_died)
 
 	camera = _resolve_camera()
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
@@ -94,6 +97,59 @@ func _ready() -> void:
 			player.stat_board.initiative.restore_to_full()
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
+
+
+## Entity death consequence (#18). Node-stripping is AllocationSystem's job (it
+## also listens to `entity_died`); here we handle what's left: the player losing
+## ends the run (game-over stub), an NPC dying despawns from the scene. The
+## actual force-dealloc cascade + VFX already ran off the bus before this.
+func _on_entity_died(entity: Entity) -> void:
+	if entity == null:
+		return
+	if entity == player:
+		_show_game_over()
+	else:
+		_despawn_npc(entity)
+
+
+## Remove a dead NPC from the level. Pull it from the turn-loop groups
+## SYNCHRONOUSLY so TurnManager's tick / _tick_until_ready skip it this frame —
+## `queue_free` leaves the node valid (and group-resident) until frame end, so
+## the group removal can't wait for it. Defensive: if the corpse somehow held
+## the turn, clear `current_entity` so the loop isn't stalled on a freed actor.
+##
+## Free order is safe: AllocationSystem's death handler deallocates the corpse's
+## nodes SYNCHRONOUSLY (off the same `entity_died` emit, before this runs), so
+## `queue_free` here can't orphan them.
+func _despawn_npc(entity: Entity) -> void:
+	entity.remove_from_group(Entity.GROUP)
+	entity.remove_from_group(Entity.READY_GROUP)
+	if turn_manager != null and turn_manager.current_entity == entity:
+		turn_manager.current_entity = null
+	entity.queue_free()
+
+
+## Game-over placeholder (#18). The full screen lives in the Metagame milestone;
+## for now a dim overlay + label is enough to make player-death visible and stop
+## the level reading as "still playable". Idempotent via the unique node name.
+func _show_game_over() -> void:
+	if has_node("GameOverStub"):
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "GameOverStub"
+	layer.layer = 100
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var label := Label.new()
+	label.text = "GAME OVER"
+	label.add_theme_font_size_override("font_size", 64)
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	layer.add_child(label)
+	add_child(layer)
 
 
 ## Assigns `&"player"` faction to [member player]; leaves all other entities
