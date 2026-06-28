@@ -201,6 +201,23 @@ func edge_point(world_target: Vector2, extra_pad: float = 0.0) -> Vector2:
 	return global_position + dir * (radius + extra_pad)
 
 
+## Ring band convention (#67) — the single source of truth for how every
+## decorative ring around a node expresses its span. A ring is a stroke of
+## [param width] whose INNER edge sits [param inner_offset] outward from the
+## node's canonical [member radius] (negative `inner_offset` insets the ring,
+## so it lies inside the boundary). Returns the stroke CENTERLINE — the radius
+## `draw_arc` / `draw_circle(..., filled=false, width)` actually want.
+##   inner edge  = radius + inner_offset
+##   outer edge  = radius + inner_offset + width
+##   centerline  = radius + inner_offset + width / 2   ← returned
+## `radius` itself is never redefined by this — it stays the collision /
+## edge_point / blade-sim boundary; rings are purely relative to it. Filled
+## discs (wash, inner disk) are NOT rings and don't use this. See
+## `.claude/rules/skill-node-visuals.md` for the band table.
+static func ring_centerline(node_radius: float, inner_offset: float, width: float) -> float:
+	return node_radius + inner_offset + width / 2.0
+
+
 ## World-space pair `[start, end]` of a segment between [param a] and
 ## [param b], trimmed to each node's perimeter (plus [param pad] on each end).
 ## Returns an empty array when the nodes overlap so callers can early-out

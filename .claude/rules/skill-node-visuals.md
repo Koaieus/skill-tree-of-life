@@ -1,0 +1,58 @@
+# SkillNode visuals — ring band convention (#67)
+
+How the concentric rings around a `SkillNode` are sized. One convention, one
+formula, so radii stay legible "going forward" instead of each ring re-deriving
+its own.
+
+## The one formula
+
+Every **stroked ring** is specified as `(inner_offset, width)` relative to the
+node's canonical `radius`, and drawn via the single helper:
+
+```gdscript
+SkillNode.ring_centerline(node_radius, inner_offset, width)  # → stroke centerline
+```
+
+- `inner_offset` — signed gap from `radius` to the ring's **inner edge**
+  (negative = inset; the ring lies *inside* the boundary).
+- inner edge = `radius + inner_offset`
+- outer edge = `radius + inner_offset + width`
+- centerline = `radius + inner_offset + width/2` ← what `draw_arc` /
+  `draw_circle(..., filled=false, width)` actually take.
+
+**`radius` is never redefined by this.** It stays the load-bearing boundary used
+by collision, `edge_point`, `segment_between`, the blade sim (`sn.radius`), fog,
+and `edge.gd`. Rings are expressed *relative* to it. Don't fold ring geometry
+back into `radius`.
+
+**Filled discs are not rings** — the wash (`radius`) and the inner ownership disk
+(`inner_radius`) in `base_circle.gd` are solid `draw_circle(filled=true)` and
+don't use the convention.
+
+## Band table (inner → outer; stock `radius=32`, `inner_radius=24`)
+
+| Ring | File | `inner_offset` | `width` | span | sits |
+|---|---|---|---|---|---|
+| Archetype border | `base_circle.gd` `BORDER_INNER_OFFSET` | `-BORDER_WIDTH` (−8) | 8 | 24..32 | inset; outer edge flush at `radius` |
+| Sensed outline | `base_circle.gd` | `-SENSED_OUTLINE_WIDTH/2` (−0.75) | 1.5 | 31.25..32.75 | straddles the boundary (centerline = `radius`) |
+| Hover | `hover_ring.gd` `HOVER_INNER_OFFSET` | 0 | 8 | 32..40 | flush outside |
+| Selection / status | `node_highlight_overlay.gd` `ring_inner_offset` | 4.5 | 3 | 36.5..39.5 | outside, **inside the hover band today** |
+
+The archetype border's inner edge (24) coincides with `inner_radius` only because
+`BORDER_WIDTH == radius − inner_radius` at stock sizing — keep that in mind if
+either constant moves.
+
+## Exempt: the range ring
+
+`node_highlight_overlay.gd`'s **range ring** draws AT `range_radius` (centerline),
+not via the convention — it's a gameplay reach (world-space radius), not a
+decoration band.
+
+## Known follow-up (design, not geometry)
+
+The selection ring (36.5..39.5) overlaps the hover band (32..40), so a node that
+is both hovered and selected shows two clashing strokes. Open design question
+raised in #67: make hover a radial **glow/fade** rather than a hard ring, and/or
+unify hover + selection into one state (while still giving hover feedback when
+something is selected). Deferred to a `design`-labelled issue — this rule only
+pins the *geometry* convention, not the visual language.

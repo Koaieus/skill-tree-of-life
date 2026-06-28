@@ -9,6 +9,11 @@ extends Node2D
 ##                       per-node modulate stays free for other effects.
 
 const BORDER_WIDTH: float = 8.0
+# Archetype border band (ring convention — see SkillNode.ring_centerline):
+# inner edge BORDER_WIDTH in from `radius`, outer edge flush at `radius`. With
+# the stock 32/24 radius/inner_radius this puts the inner edge exactly on the
+# inner disk's rim (BORDER_WIDTH == radius - inner_radius today).
+const BORDER_INNER_OFFSET: float = -BORDER_WIDTH
 const FILL_ALPHA_UNALLOCATED: float = 0.2
 const FLASH_COLOR: Color = Color(1.0, 0.3, 0.3)
 # Sensed-only outline: thinner than the live border and partially transparent,
@@ -71,7 +76,9 @@ func _draw() -> void:
 		# Sensed-only: a single faint base-type-tinted ring, no wash, no
 		# inner disk — owner colour and modifier content stay hidden.
 		var outline := Color(border_color.r, border_color.g, border_color.b, SENSED_OUTLINE_ALPHA)
-		draw_circle(Vector2.ZERO, _radius, outline, false, SENSED_OUTLINE_WIDTH, true)
+		# Straddles the boundary: inner_offset = -width/2 → centerline at radius.
+		var sensed_c := SkillNode.ring_centerline(_radius, -SENSED_OUTLINE_WIDTH / 2.0, SENSED_OUTLINE_WIDTH)
+		draw_circle(Vector2.ZERO, sensed_c, outline, false, SENSED_OUTLINE_WIDTH, true)
 		return
 	var fc := fill_color.lerp(FLASH_COLOR, flash_amount)
 	var bc := border_color.lerp(FLASH_COLOR, flash_amount)
@@ -84,4 +91,5 @@ func _draw() -> void:
 		# render so core nodes look identical to before; the star label is
 		# what now distinguishes core from non-core.
 		draw_circle(Vector2.ZERO, inner_radius, fc, true)
-	draw_circle(Vector2.ZERO, _radius - BORDER_WIDTH/2, bc, false, BORDER_WIDTH, true)
+	var border_c := SkillNode.ring_centerline(_radius, BORDER_INNER_OFFSET, BORDER_WIDTH)
+	draw_circle(Vector2.ZERO, border_c, bc, false, BORDER_WIDTH, true)

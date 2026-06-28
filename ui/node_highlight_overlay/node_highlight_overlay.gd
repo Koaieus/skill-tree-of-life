@@ -12,10 +12,19 @@ extends Node2D
 @export var highlight_controller: HighlightController
 @export var graph: Graph
 
-@export var ring_padding: float = 6.0
+# Selection / status ring band (ring convention — see SkillNode.ring_centerline):
+# `ring_inner_offset` is the gap from the node boundary to the ring's INNER edge.
+# Default 4.5/3.0 → spans radius+4.5 .. radius+7.5, which currently overlaps the
+# hover band (radius .. radius+8). That overlap, plus a possible hover-as-glow
+# rethink, is tracked as a design follow-up (see #67 discussion) — not changed
+# here so this refactor preserves the rendered pixels.
+@export var ring_inner_offset: float = 4.5
 @export var ring_width: float = 3.0
 @export var ring_segments: int = 32
 
+# The range ring is a GAMEPLAY reach (world-space radius), not a decoration band,
+# so it draws AT `range_radius` (centerline) and is deliberately exempt from the
+# ring_inner_offset convention.
 @export var range_ring_width: float = 1.5
 @export var range_ring_segments: int = 64
 @export var range_ring_alpha_idle: float = 0.10
@@ -65,4 +74,5 @@ func _draw() -> void:
 		if role == HighlightProvider.HighlightRole.NONE:
 			continue
 		var color: Color = ROLE_COLORS.get(role, Color.WHITE)
-		draw_arc(center, sn.radius + ring_padding, 0.0, TAU, ring_segments, color, ring_width)
+		var ring_c := SkillNode.ring_centerline(sn.radius, ring_inner_offset, ring_width)
+		draw_arc(center, ring_c, 0.0, TAU, ring_segments, color, ring_width)
