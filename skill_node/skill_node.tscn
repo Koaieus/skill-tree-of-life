@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
 [ext_resource type="Script" uid="uid://cf2g8u0e7gw33" path="res://skill_node/core_marker.gd" id="3_0y6o7"]
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
+[ext_resource type="Resource" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -30,7 +31,7 @@ script = ExtResource("2_base")
 [node name="HoverRing" type="Node2D" parent="Visuals" unique_id=670952446]
 visible = false
 script = ExtResource("4_hover")
-color = Color(0.6039216, 0.8039216, 0.19607843, 0.6745098)
+style = ExtResource("5_glow")
 
 [node name="CoreMarker" type="Node2D" parent="Visuals" unique_id=1043477974]
 visible = false
