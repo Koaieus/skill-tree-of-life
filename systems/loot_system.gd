@@ -27,6 +27,16 @@ extends Node
 ## pattern BattleSystem / AllocationSystem use for their TurnManager dependency.
 @export var turn_manager: TurnManager
 
+## Per-side-effect kill-switches. A sandbox tab (a GameRoot-inherited scene) flips
+## these in the inspector to neuter a reward path while keeping 1:1 wiring with
+## the real system — ONE declarative guard at the data boundary, not guards
+## littered through call sites, and no mock subclass needed for simple on/off.
+## (For wholesale behaviour replacement, override the node's `script` to a
+## `DevLootSystem extends LootSystem` in the inherited scene instead — same
+## NodePaths, swapped logic. See docs/domain/sandbox-framework.md.)
+@export var award_xp_on_kill: bool = true
+@export var drop_skill_dust_on_death: bool = true
+
 ## XP awarded per level of the victim. Tuning knob — design says "XP proportional
 ## to the dead entity's level"; this is the slope.
 @export var xp_per_victim_level: float = 5.0
@@ -68,6 +78,8 @@ func _resolve_killer(victim: Entity) -> Entity:
 # ── #68: XP reward ───────────────────────────────────────────────────────────
 
 func _award_kill_xp(victim: Entity, killer: Entity) -> void:
+	if not award_xp_on_kill:
+		return
 	if killer == null or killer.is_dead:
 		return
 	var board := killer.stat_board
@@ -81,6 +93,8 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 # ── #69: SkillDust loot drop ─────────────────────────────────────────────────
 
 func _drop_skill_dust(victim: Entity) -> void:
+	if not drop_skill_dust_on_death:
+		return
 	var core := victim.core_location
 	if core == null:
 		return

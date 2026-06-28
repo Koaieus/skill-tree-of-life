@@ -130,6 +130,28 @@ func test_self_death_grants_no_xp() -> void:
 	assert_eq(_killer.stat_board.xp.current, before, "no killer → no XP")
 
 
+# ── Per-side-effect kill-switches (sandbox modularity) ───────────────────────
+
+func test_drop_skill_dust_off_suppresses_relic() -> void:
+	_loot.drop_skill_dust_on_death = false
+	_loot.xp_per_victim_level = 2.0  # sub-cap → no level-up reset, current is observable
+	_victim.level = 1
+	var before := _killer.stat_board.xp.current
+	_kill_victim()
+	assert_null(_find_dust(_nodes[1]), "dust drop disabled → no relic on former core")
+	# Other side-effects untouched: XP still awarded.
+	assert_eq(_killer.stat_board.xp.current, before + 2.0, "XP reward still fires when only dust is off")
+
+
+func test_award_xp_off_suppresses_xp() -> void:
+	_loot.award_xp_on_kill = false
+	var before := _killer.stat_board.xp.current
+	_kill_victim()
+	assert_eq(_killer.stat_board.xp.current, before, "xp award disabled → no XP")
+	# Other side-effects untouched: dust still drops.
+	assert_not_null(_find_dust(_nodes[1]), "dust still drops when only XP is off")
+
+
 # ── #69: SkillDust loot drop ─────────────────────────────────────────────────
 
 func test_skilldust_dropped_on_former_core() -> void:
