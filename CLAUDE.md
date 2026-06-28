@@ -26,7 +26,7 @@ No build step, test runner, or lint tool. Each level scene extends `scenes/game_
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
 `BattleSystem` (`systems/battle_system.gd`) — owns active `AttackPlan`, runs `launch_attack` (resolve → VFX await → AP deduction), drives forced-dealloc cascade. See `docs/domain/attack_plan_system.md`.
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
-`LootSystem` (`systems/loot_system.gd`) — killing-blow rewards: XP to the killer (#68) + a `SkillDustAddon` relic on the victim's former core (#69). Resolves the killer from its injected `turn_manager`; reacts to `Events.entity_died` **before** AllocationSystem strips the corpse. See `docs/domain/loot-system.md`.
+`LootSystem` (`systems/loot_system.gd`) — killing-blow rewards: XP to the killer (#68) + a `SkillDustAddon` relic on the victim's former core (#69). Resolves the killer from its injected `turn_manager`; reacts to the pre-cleanup `Events.entity_dying` phase (corpse still owns its nodes) so it snapshots before AllocationSystem's `entity_died` strip. See `docs/domain/loot-system.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
 `GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology) and `docs/domain/procgen-v3.md` (content: StatPack + phased draw).
 

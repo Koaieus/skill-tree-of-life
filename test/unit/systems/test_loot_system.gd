@@ -44,8 +44,9 @@ func before_each() -> void:
 	_tm = TurnManager.new()
 	add_child_autofree(_tm)
 
-	# LootSystem added FIRST so it connects to entity_died before AllocationSystem
-	# — the node-modifier snapshot must read still-owned nodes, before the strip.
+	# LootSystem listens to the pre-cleanup `entity_dying` phase, so its add order
+	# relative to AllocationSystem (on `entity_died`) doesn't matter — the phase
+	# split guarantees the snapshot reads still-owned nodes before the strip.
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm  # killer attribution source
 	add_child_autofree(_loot)

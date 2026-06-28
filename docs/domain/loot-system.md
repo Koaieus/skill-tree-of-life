@@ -41,28 +41,33 @@ null-guards a missing TurnManager (headless tests).
 > (the `DamageInstance.source` is non-uniform today — plan / node / spell-state —
 > so it can't carry the attacker cleanly without a dedicated pass).
 
-## Ordering is load-bearing: snapshot before the strip
+## Ordering is by phase, not tree position
 
-Three systems react to `Events.entity_died`, and **order matters**:
+Death is a **two-phase** announcement (`Entity.die`), so consumers pick a phase
+instead of racing on connection order:
 
 ```
-LootSystem        → snapshot victim modifiers + attach SkillDust to the core
-AllocationSystem  → force-deallocate every owned node (incl. core → neutral relic)
-GameRoot          → player game-over / NPC despawn
+Events.entity_dying  → LootSystem: snapshot victim modifiers + attach SkillDust,
+                        award kill XP        (corpse STILL owns its nodes)
+Events.entity_died   → AllocationSystem: force-deallocate every owned node
+                        (incl. core → neutral relic)
+                     → GameRoot: player game-over / NPC despawn
 ```
 
-LootSystem must run **first** because the loot draw's node-modifier source (set X)
-reads the victim's *still-owned* subgraph (`navigator.get_mirrored_nodes()`). Once
-AllocationSystem strips the nodes they're gone from the mirror.
+`emit()` is synchronous, so **every `entity_dying` handler finishes before any
+`entity_died` handler runs** — the phases sequence themselves. LootSystem needs
+the pre-strip world because its node-modifier source (set X) reads the victim's
+still-owned subgraph (`navigator.get_mirrored_nodes()`), gone once
+AllocationSystem strips it. Subscribing to `entity_dying` makes that guarantee
+explicit; LootSystem's position in the scene tree is **irrelevant** (this is why
+the two-phase split exists — the editor is free to reorder `Systems` children).
 
-Guaranteed by **tree order**: LootSystem is the **first child** of `Systems` in
-`game_root.tscn`, so its `_ready` connects to the bus before AllocationSystem's,
-and Godot serves signal handlers in connection order. (This extends the existing
-death-bus ordering contract — AllocationSystem already documents that it runs
-before GameRoot's despawn.)
+Within the `entity_died` phase, AllocationSystem-before-GameRoot still holds, but
+on the *stronger* child-before-parent ready order (GameRoot is the root, so its
+`_ready` connects last and fires last) — not the fragile sibling order.
 
-The XP grant and the dust *attach* are themselves order-independent — the addon
-survives the strip (`force_deallocate` only pops `node.modifiers`, not addon
+The XP grant and the dust *attach* are themselves order-independent anyway — the
+addon survives the strip (`force_deallocate` only pops `node.modifiers`, not addon
 children), and the core-mod source comes off the `core_class` resource, not live
 state. Only **set X** needs the pre-strip read.
 

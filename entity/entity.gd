@@ -160,6 +160,12 @@ func die() -> void:
 		return
 	is_dead = true
 	died.emit()
+	# Two-phase, in order: `entity_dying` fires with the corpse still intact
+	# (LootSystem snapshots loot + awards XP here), THEN `entity_died` drives
+	# cleanup (AllocationSystem strips nodes, GameRoot despawns). emit() is
+	# synchronous, so every dying-handler finishes before any died-handler —
+	# the phases sequence themselves, no tree-order dependency. See Events.
+	Events.entity_dying.emit(self)
 	Events.entity_died.emit(self)
 
 func _emit_entity_wounded(amount: int) -> void:

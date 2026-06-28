@@ -2,7 +2,10 @@ class_name LootSystem
 extends Node
 
 ## Authority for killing-blow rewards (#68 XP, #69 SkillDust loot). Reacts to
-## `Events.entity_died(victim)`:
+## `Events.entity_dying(victim)` — the PRE-cleanup phase, while the corpse still
+## owns its nodes (the loot draw reads the still-owned subgraph). The phase split
+## is what guarantees this runs before AllocationSystem's `entity_died` strip; no
+## tree-order / connection-order dependency. On the bus:
 ##   * XP reward — the killer gains XP scaled by the victim's level, fed through
 ##     the normal `xp` pool so it converts to SP / levels via the existing
 ##     replenished cascade (Entity._on_xp_replenished). Don't bypass the pool —
@@ -14,18 +17,10 @@ extends Node
 ## KILLER ATTRIBUTION lives here, not on the entity or the bus: death fires
 ## SYNCHRONOUSLY inside the attacker's turn (core-HP overflow + cascade chip
 ## damage both run in the attacker's `launch_attack` call stack), so
-## `turn_manager.current_entity` at `entity_died` IS the killer. Resolving it in
-## the rewards authority keeps Entity dumb and keeps reward logic out of
-## BattleSystem (which owns attacks, not rewards). Thorns / counter-damage would
-## kill on the defender's turn — when those land this needs real source-threading.
-##
-## ORDERING (load-bearing): this must run BEFORE AllocationSystem's death handler
-## strips the corpse's nodes — the node-granted-modifier snapshot reads the
-## victim's still-owned subgraph. Guaranteed by tree order: LootSystem is the
-## FIRST child of `Systems`, so its `_ready` connects to the bus first and the
-## bus serves handlers in connection order. (The XP grant and the dust attach are
-## themselves order-independent — the addon survives the strip, the core mods come
-## off the resource — only set X needs the pre-strip read.)
+## `turn_manager.current_entity` at death IS the killer. Resolving it in the
+## rewards authority keeps Entity dumb and keeps reward logic out of BattleSystem
+## (which owns attacks, not rewards). Thorns / counter-damage would kill on the
+## defender's turn — when those land this needs real source-threading.
 
 ## Injected so this system can attribute the killing blow. DI per the
 ## scene-composition rule (NodePath @export, wired in game_root.tscn) — the same
@@ -49,14 +44,15 @@ extends Node
 
 
 func _ready() -> void:
-	Events.entity_died.connect(_on_entity_died)
+	Events.entity_dying.connect(_on_entity_dying)
 
 
-func _on_entity_died(victim: Entity) -> void:
+## Pre-cleanup phase — corpse still owns its nodes (see Events.entity_dying).
+func _on_entity_dying(victim: Entity) -> void:
 	if victim == null:
 		return
 	_award_kill_xp(victim, _resolve_killer(victim))
-	_drop_skill_dust(victim)  # MUST precede AllocationSystem's node strip
+	_drop_skill_dust(victim)
 
 
 ## The entity holding the turn at the synchronous death is the killer. Guarded
