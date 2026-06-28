@@ -86,13 +86,20 @@ composition helper** (code), not a scene extraction — each played tab declares
 which systems it needs and the helper instantiates + `bind`s them with the same
 calls `GameRoot._ready` uses.
 
-**But don't build it from one consumer (rule of three).** The advisor's caution
-holds: the allocation showcase is consumer #1; its wiring block is intentionally
-inline + commented so the seams are visible (`_build_systems`, the SETUP/PLAY
-beats, the per-cell scenario table). Extract `SandboxWorld` when the **second**
-played tab (melee or ranged) exists and the shared shape is empirical, not
-guessed. Until then, the showcase mirroring `GameRoot`'s `bind` calls is an
-acceptable, documented duplication.
+**Built** (`scenes/dev/sandbox_world.gd`) once the second played consumer — the
+loot showcase — made the shared shape empirical rather than guessed. The two
+sandboxes request different subsets (allocation: the default core; loot:
+`{loot = true}` → adds TurnManager + LootSystem), which is exactly what proved
+the scaffold must be subset-capable. It's a `class_name`-less duck-typed helper:
+`build(graph, opts)` instantiates + wires the requested systems with GameRoot's
+exact calls and exposes them as properties.
+
+**Caveat — it's a parallel wiring source, not GameRoot's.** It mirrors
+`game_root.tscn`'s wiring; it does not share it (GameRoot wires declaratively in
+the .tscn, which we keep). So it unifies wiring *across sandboxes*, but must be
+**kept in sync with game_root.tscn** if a system gains a required dependency.
+True single-source would mean GameRoot composing systems in code — a regression
+of its clean declarative composition, not worth it.
 
 If we later still want `GameRoot` and `SandboxWorld` to share one wiring source,
 the safe refactor is to extract a `wire_systems(graph)` *helper function* both
@@ -104,8 +111,9 @@ inherited overrides) intact.
 | Phase | Work | Risk | Gate |
 |---|---|---|---|
 | 0 ✅ | Allocation VFX showcase as a played scene | low | shipped (`a65bfce`) |
-| 1 | Plugin host: main-screen `EditorPlugin` + `TabContainer`; tab base declares mode (live/played); explicit registration. Migrate the 3 existing plugins + the showcase as tabs. | med (additive; don't auto-enable in a user's open editor) | host loads, existing playgrounds work as tabs |
-| 2 | Extract `SandboxWorld` once a 2nd played tab (melee/ranged) exists — subset-capable system composition shared by played tabs. | low | 2+ tabs share it |
+| ✅ | LootSystem showcase (2nd played sandbox) + per-side-effect kill-switches | low | shipped (`147f7f6`, `def5e3d`) |
+| 2 ✅ | `SandboxWorld` subset-capable system composition (built once the 2nd consumer existed) | low | both showcases share it |
+| 1 | Plugin host: main-screen `EditorPlugin` + `TabContainer`; tab base declares mode (live/played); explicit registration. Migrate the 3 existing plugins + the showcases as tabs. **Do WITH a human** — enabling a plugin activates it in the open editor; can't GUI-verify headless. | med | host loads, existing playgrounds work as tabs |
 | 3 | Jump-to-tab `@export_tool_button` on tab-able classes (`set_main_screen_editor` + select tab) + live Inspector sync (`_edit`/`_handles` + resource `changed`) for live-edit tabs. | low | button jumps; knob edits reflect w/o reload |
 | 4 | Auto-discover tabs: scan `ProjectSettings.get_global_class_list()` for scripts whose `base` is the tab base class_name — **don't load scenes to detect inheritance.** Only if explicit registration becomes annoying. | low | tabs appear without manual registration |
 

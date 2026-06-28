@@ -18,11 +18,7 @@ extends Node2D
 ## which is what makes the two a real rule-of-three case for a shared scaffold.
 
 const _SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn")
-const _ALLOCATION_SYSTEM_SCRIPT: Script = preload("res://systems/allocation_system.gd")
-const _BATTLE_SYSTEM_SCRIPT: Script = preload("res://systems/battle_system.gd")
-const _LOOT_SYSTEM_SCRIPT: Script = preload("res://systems/loot_system.gd")
-const _ALLOC_VFX_SCRIPT: Script = preload("res://ui/vfx/allocation_vfx.gd")
-const _FLOATER_LAYER_SCRIPT: Script = preload("res://ui/floating_number_layer/floating_number_layer.gd")
+const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _DEFAULT_BOARD: Resource = preload("res://entity/default_entity_board.tres")
 
 @export var setup_hold: float = 1.0
@@ -65,41 +61,22 @@ func _ready() -> void:
 
 
 func _build_systems() -> void:
-	_alloc = _ALLOCATION_SYSTEM_SCRIPT.new()
-	_alloc.name = "AllocationSystem"
-	_alloc.graph = _graph
-	_alloc.navigator = _graph.get_node("Navigator")
-	add_child(_alloc)
-
-	_tm = TurnManager.new()
-	_tm.name = "TurnManager"
-	add_child(_tm)
-
-	_battle = _BATTLE_SYSTEM_SCRIPT.new()
-	_battle.name = "BattleSystem"
-	_battle.allocation_system = _alloc
-	_battle.graph = _graph
-	_battle.turn_manager = _tm
-	add_child(_battle)
-
-	_loot = _LOOT_SYSTEM_SCRIPT.new()
-	_loot.name = "LootSystem"
-	_loot.turn_manager = _tm
+	# Loot needs the full reward chain — request TurnManager (killer attribution)
+	# + LootSystem on top of the shared scaffold's allocation core.
+	var world = _SANDBOX_WORLD.new()
+	world.name = "SandboxWorld"
+	add_child(world)
+	world.build(_graph, {"loot": true})
+	_alloc = world.allocation_system
+	_battle = world.battle_system
+	_loot = world.loot_system
+	_tm = world.turn_manager
+	_vfx = world.allocation_vfx
+	_floaters = world.floating_number_layer
 	# Sub-cap award (xp cap is 5): keeps the kill XP observable as a delta without
 	# triggering a level-up, which would grow the xp cap + mint SP permanently and
 	# make the per-phase reset drift. The showcase is about loot landing, not levels.
 	_loot.xp_per_victim_level = 1.0
-	add_child(_loot)
-
-	_vfx = _ALLOC_VFX_SCRIPT.new()
-	_vfx.name = "AllocationVFX"
-	_graph.add_child(_vfx)
-	_vfx.bind(_alloc, _battle)
-
-	_floaters = _FLOATER_LAYER_SCRIPT.new()
-	_floaters.name = "FloatingNumberLayer"
-	_floaters.vision_system = null
-	_graph.add_child(_floaters)
 
 
 ## Attacker (left) + victim (right). The victim carries a core class + STR-bearing

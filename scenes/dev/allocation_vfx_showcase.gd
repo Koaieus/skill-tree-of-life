@@ -24,10 +24,7 @@ extends Node2D
 ## the *visual* catching up (pulses/floaters arrive later). That lag is the point.
 
 const _SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn")
-const _ALLOCATION_SYSTEM_SCRIPT: Script = preload("res://systems/allocation_system.gd")
-const _BATTLE_SYSTEM_SCRIPT: Script = preload("res://systems/battle_system.gd")
-const _ALLOC_VFX_SCRIPT: Script = preload("res://ui/vfx/allocation_vfx.gd")
-const _FLOATER_LAYER_SCRIPT: Script = preload("res://ui/floating_number_layer/floating_number_layer.gd")
+const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _DEFAULT_BOARD: Resource = preload("res://entity/default_entity_board.tres")
 
 # --- Tunables (inspector-designable) ----------------------------------------
@@ -61,33 +58,18 @@ func _ready() -> void:
 
 # --- Composition -------------------------------------------------------------
 
-## Compose + wire the systems exactly as GameRoot does (same `bind` / @export
-## assignments). No TurnManager / VisionSystem / UI — this is a cosmetics bench,
-## not a playable level; floaters run unfiltered (vision_system = null).
+## Compose systems via the shared SandboxWorld scaffold (mirrors GameRoot's
+## wiring). This bench needs only the allocation core — no TurnManager / Loot /
+## Vision / UI — so it requests the default subset.
 func _build_systems() -> void:
-	_alloc = _ALLOCATION_SYSTEM_SCRIPT.new()
-	_alloc.name = "AllocationSystem"
-	_alloc.graph = _graph
-	_alloc.navigator = _graph.get_node("Navigator")
-	add_child(_alloc)
-
-	_battle = _BATTLE_SYSTEM_SCRIPT.new()
-	_battle.name = "BattleSystem"
-	_battle.allocation_system = _alloc
-	_battle.graph = _graph
-	add_child(_battle)
-
-	# VFX + floaters live under the Graph so world coords line up (GameRoot does
-	# the same in _mount_allocation_vfx / _mount_floating_number_layer).
-	_vfx = _ALLOC_VFX_SCRIPT.new()
-	_vfx.name = "AllocationVFX"
-	_graph.add_child(_vfx)
-	_vfx.bind(_alloc, _battle)
-
-	_floaters = _FLOATER_LAYER_SCRIPT.new()
-	_floaters.name = "FloatingNumberLayer"
-	_floaters.vision_system = null
-	_graph.add_child(_floaters)
+	var world = _SANDBOX_WORLD.new()
+	world.name = "SandboxWorld"
+	add_child(world)
+	world.build(_graph)
+	_alloc = world.allocation_system
+	_battle = world.battle_system
+	_vfx = world.allocation_vfx
+	_floaters = world.floating_number_layer
 
 
 ## The 3×3 scenario table. Topology key: O = unallocated, 0 = allocated,
