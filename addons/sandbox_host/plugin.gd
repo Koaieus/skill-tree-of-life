@@ -28,6 +28,10 @@ func _enter_tree() -> void:
 	_host = _HOST_SCRIPT.new()
 	_host.name = _HOST_NAME
 	_host.hide()
+	# The editor main screen is a VBoxContainer — its children size by
+	# size_flags, NOT anchors — so without EXPAND_FILL the host renders
+	# vertically collapsed. (Horizontal fill is the VBox default.)
+	_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	EditorInterface.get_editor_main_screen().add_child(_host)
 
 	# Spell: selecting a SpellDef passively syncs the tab; the inspector button
