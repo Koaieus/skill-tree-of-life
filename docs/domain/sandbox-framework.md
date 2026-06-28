@@ -113,9 +113,46 @@ inherited overrides) intact.
 | 0 ✅ | Allocation VFX showcase as a played scene | low | shipped (`a65bfce`) |
 | ✅ | LootSystem showcase (2nd played sandbox) + per-side-effect kill-switches | low | shipped (`147f7f6`, `def5e3d`) |
 | 2 ✅ | `SandboxWorld` subset-capable system composition (built once the 2nd consumer existed) | low | both showcases share it |
-| 1 | Plugin host: main-screen `EditorPlugin` + `TabContainer`; tab base declares mode (live/played); explicit registration. Migrate the 3 existing plugins + the showcases as tabs. **Do WITH a human** — enabling a plugin activates it in the open editor; can't GUI-verify headless. | med | host loads, existing playgrounds work as tabs |
-| 3 | Jump-to-tab `@export_tool_button` on tab-able classes (`set_main_screen_editor` + select tab) + live Inspector sync (`_edit`/`_handles` + resource `changed`) for live-edit tabs. | low | button jumps; knob edits reflect w/o reload |
+| 1 ✅ | Plugin host: main-screen `EditorPlugin` + `TabContainer`; `SandboxTab` base declares mode (live/played); explicit registration. The 3 playground plugins folded into one host (`addons/sandbox_host/`); showcases are played launch cards. | med | loads clean headless; **GUI behaviour pending human verify** |
+| 3 | (partial — done) Inspector "Open in…" buttons now reveal the host main screen + select the tab (`set_main_screen_editor` + `current_tab`). (remaining) Jump-to-tab `@export_tool_button` on tab-able resource classes + finer live Inspector sync (`_edit`/`_handles` + resource `changed`). | low | button jumps; knob edits reflect w/o reload |
 | 4 | Auto-discover tabs: scan `ProjectSettings.get_global_class_list()` for scripts whose `base` is the tab base class_name — **don't load scenes to detect inheritance.** Only if explicit registration becomes annoying. | low | tabs appear without manual registration |
+
+## The host (`addons/sandbox_host/`, phase 1)
+
+One main-screen `EditorPlugin` replacing the three bottom-panel playground
+plugins. Files:
+
+- `plugin.gd` — the `EditorPlugin`. `_has_main_screen() → true`; mounts a
+  `SandboxHost` into `EditorInterface.get_editor_main_screen()` and shows/hides
+  it on `_make_visible`. **Reuses the three playgrounds' own
+  `EditorInspectorPlugin` scripts verbatim** (spell/VFX/stat-board) and routes
+  their signals → load the resource into the matching tab + `set_main_screen_editor`
+  + select the tab. So the inspector "Open in…" buttons + the spell auto-sync
+  still work; they just target the host now, not a bottom panel.
+- `sandbox_host.gd` (`class_name SandboxHost`) — a `TabContainer`-backed
+  `Control`. Explicit registration table in `_register_tabs()`. Instantiates
+  tab scripts via `preload` (not the global `class_name`) so it composes on the
+  first editor scan before the class cache exists.
+- `sandbox_tab.gd` (`class_name SandboxTab`) — the mode-declaring base
+  (`Mode {LIVE_EDIT, PLAYED}`). This is the **phase-4 auto-discovery scan
+  target** — declared now so phase 4 is a pure addition.
+- `sandbox_live_tab.gd` (`SandboxLiveTab`) — embeds an existing `@tool` panel
+  scene; forwards the inspected resource to its loader method by name.
+- `sandbox_played_tab.gd` (`SandboxPlayedTab`) — a launch card (title +
+  description + ▶ Run → `EditorInterface.play_custom_scene`). Played scenes are
+  non-`@tool` and can't run in-editor, so the host never embeds them.
+
+**Migration is reversible.** The three old plugin folders are untouched; the
+swap is one line in `project.godot`'s `[editor_plugins] enabled=` array (host in,
+the three playgrounds out — `gut` + `procgen_preview` stay). Re-adding the three
+entries restores the old bottom panels.
+
+**Known pre-existing carry-over:** the spell tab spams *"Node not found:
+Navigator/Entities/Nodes"* on load — `spell_playground/playground_panel.tscn`
+hand-authors a partial bare `Graph` (the exact anti-pattern `scene-composition.md`
+warns about) instead of instancing `graph.tscn`. The host only *surfaces* this
+bug (it embeds the same panel); it doesn't cause it. Fixing the panel to build
+its world via `graph.tscn` / `SandboxWorld` is its own cleanup.
 
 ## Mechanism notes (all verified Godot 4.x patterns)
 
