@@ -48,9 +48,12 @@ soft radial **glow halo** (`hover_ring.gd`), not a stroke. It's authored as a
 `GradientTexture2D` (FILL_RADIAL) with three control radii, all authored
 relative to the node boundary (`radius`). They live in a shared [GlowStyle]
 resource (`skill_node/glow_style.gd`, default `default_hover_glow.tres`) — one
-`@export var style` on HoverRing, not a setter per knob; editing the style in the
-inspector auto-emits `changed`, which HoverRing rebinds to rebuild the texture
-live. The knobs: `inner_feather` (how far inside the peak the fade-in starts) →
+`@export var style` on HoverRing whose setter rebinds the resource's `changed`
+signal to a texture rebuild. NOTE: a custom resource does NOT auto-emit `changed`
+on assignment (verified + per the engine docs), so each `GlowStyle` field carries
+a trivial `set(v): field = v; emit_changed()` — the side effect is uniform and in
+the *data* object, decoupled from the consumer's rebuild. The knobs:
+`inner_feather` (how far inside the peak the fade-in starts) →
 `peak_outset` (peak position past the boundary) → `outset` (outer fade-to-0).
 Defaults (`feather 2`, `peak +2`, `outset 14`) put the inner edge right at the
 boundary so the colored archetype ring keeps its pure type colour. Because it's a
