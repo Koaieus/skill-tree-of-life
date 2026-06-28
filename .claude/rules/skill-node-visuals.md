@@ -35,12 +35,29 @@ don't use the convention.
 |---|---|---|---|---|---|
 | Archetype border | `base_circle.gd` `BORDER_INNER_OFFSET` | `-BORDER_WIDTH` (−8) | 8 | 24..32 | inset; outer edge flush at `radius` |
 | Sensed outline | `base_circle.gd` | `-SENSED_OUTLINE_WIDTH/2` (−0.75) | 1.5 | 31.25..32.75 | straddles the boundary (centerline = `radius`) |
-| Hover | `hover_ring.gd` `HOVER_INNER_OFFSET` | 0 | 8 | 32..40 | flush outside |
-| Selection / status | `node_highlight_overlay.gd` `ring_inner_offset` | 4.5 | 3 | 36.5..39.5 | outside, **inside the hover band today** |
+| Selection / status | `node_highlight_overlay.gd` `ring_inner_offset` | 4.5 | 3 | 36.5..39.5 | outside the boundary |
 
 The archetype border's inner edge (24) coincides with `inner_radius` only because
 `BORDER_WIDTH == radius − inner_radius` at stock sizing — keep that in mind if
 either constant moves.
+
+## Hover is a glow, not a ring (#73)
+
+Hover is deliberately a **different visual register** from the stroked rings: a
+soft radial **glow halo** (`hover_ring.gd`), not a stroke. It's authored as a
+`GradientTexture2D` (FILL_RADIAL) with three control radii, all authored
+relative to the node boundary (`radius`) and exposed as live `@export`s on the
+HoverRing node (tweak in-editor with `visible = true`): `glow_inner_feather` (how
+far inside the peak the fade-in starts) → `glow_peak_outset` (peak position past
+the boundary) → `glow_outset` (outer fade-to-0). Defaults (`feather 2`, `peak +2`,
+`outset 14`) put the inner edge right at the boundary so the colored archetype
+ring keeps its pure type colour. Because it's a
+glow rather than a stroke, it layers cleanly *under* the crisp selection/status
+ring instead of clashing with it — hover means "pointer is here" (transient),
+the ring means "this node has a mechanical role" (state). This is why hover
+doesn't need to participate in the `ring_centerline` convention or dodge the
+selection band: the two are different registers by design, so they coexist for
+free (no `(role) × (hover Y/N)` state explosion).
 
 ## Exempt: the range ring
 
