@@ -39,4 +39,4 @@ func test_set_override() -> void:
 
 
 func test_trigger_signal_exists() -> void:
-	assert_true(Events.has_signal("stat_modifier_arrived"))
+	assert_true(Events.has_signal("stat_modifier_changed"))

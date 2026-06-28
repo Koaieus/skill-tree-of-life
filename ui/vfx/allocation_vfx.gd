@@ -114,7 +114,7 @@ func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 	# #70: voluntary dealloc only (force-dealloc / death use force_deallocated,
 	# so the death-strip flurry is suppressed by construction).
 	for m in node.modifiers:
-		Events.stat_modifier_arrived.emit(previous_owner, m, Events.ModifierFloater.REMOVED)
+		Events.stat_modifier_changed.emit(previous_owner, m, ModifierBinding.Kind.NODE, false)
 
 
 func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
@@ -208,7 +208,7 @@ func _launch_modifier_pulse(curve: Curve2D, origin: Vector2, target: Vector2,
 
 
 func _emit_modifier_floater(entity: Entity, modifier: StatModifier) -> void:
-	Events.stat_modifier_arrived.emit(entity, modifier, Events.ModifierFloater.DEFAULT_NODE)
+	Events.stat_modifier_changed.emit(entity, modifier, ModifierBinding.Kind.NODE, true)
 
 
 # --- Effect spawners ---------------------------------------------------------

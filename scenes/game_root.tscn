@@ -12,7 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="10_ui"]
 [ext_resource type="PackedScene" uid="uid://eqnsntb3dows" path="res://ui/fog_overlay/fog_overlay.tscn" id="11_fog"]
 [ext_resource type="Script" uid="uid://b5ivx78jchujx" path="res://systems/loot_system.gd" id="12_loot"]
-[ext_resource type="Script" uid="uid://b30rqrwv2r3me" path="res://ui/floating_number_layer/floating_number_layer.gd" id="12_ywsqi"]
+[ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="12_ywsqi"]
 [ext_resource type="Script" uid="uid://bi6xivsbbn0gu" path="res://ui/edge_highlight_overlay/edge_highlight_overlay.gd" id="13_i7pw8"]
 [ext_resource type="Script" uid="uid://c6mtnkcuktwte" path="res://ui/node_highlight_overlay/node_highlight_overlay.gd" id="14_x5456"]
 [ext_resource type="Script" uid="uid://8bt4s2ii2hx2" path="res://ui/vfx/attack_vfx.gd" id="15_6puu6"]
@@ -87,11 +87,9 @@ vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
-[node name="FloatingNumberLayer" type="Node2D" parent="Graph" unique_id=1985116673 node_paths=PackedStringArray("vision_system")]
+[node name="FloaterDirector" parent="Graph" unique_id=1985116673 node_paths=PackedStringArray("vision_system") instance=ExtResource("12_ywsqi")]
 unique_name_in_owner = true
-script = ExtResource("12_ywsqi")
 vision_system = NodePath("../../Systems/VisionSystem")
-metadata/_custom_type_script = "uid://b30rqrwv2r3me"
 
 [node name="EdgeHighlightOverlay" type="Node2D" parent="Graph" unique_id=316344470 node_paths=PackedStringArray("highlight_controller", "graph")]
 unique_name_in_owner = true

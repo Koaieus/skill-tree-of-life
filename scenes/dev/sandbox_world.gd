@@ -25,13 +25,15 @@ const _ALLOCATION_SYSTEM_SCRIPT: Script = preload("res://systems/allocation_syst
 const _BATTLE_SYSTEM_SCRIPT: Script = preload("res://systems/battle_system.gd")
 const _LOOT_SYSTEM_SCRIPT: Script = preload("res://systems/loot_system.gd")
 const _ALLOC_VFX_SCRIPT: Script = preload("res://ui/vfx/allocation_vfx.gd")
-const _FLOATER_LAYER_SCRIPT: Script = preload("res://ui/floating_number_layer/floating_number_layer.gd")
+const _FLOATER_DIRECTOR_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_director.tscn")
 
 # Always built.
 var graph: Graph
 var allocation_system: AllocationSystem
 var battle_system: BattleSystem
 var allocation_vfx: AllocationVFX
+var floater_director: FloaterDirector
+## Convenience handle to the director's renderer (used by showcases).
 var floating_number_layer: FloatingNumberLayer
 # Opt-in (null unless requested via opts).
 var turn_manager: TurnManager
@@ -73,15 +75,16 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		loot_system.turn_manager = turn_manager
 		add_child(loot_system)
 
-	# VFX + floaters live under the graph so world coords line up (GameRoot's
-	# _mount_allocation_vfx / _mount_floating_number_layer do the same). Floaters
-	# run unfiltered — no fog in a sandbox.
+	# VFX + floaters live under the graph so world coords line up (game_root.tscn
+	# parents them under Graph too). Floaters run unfiltered — no fog in a sandbox,
+	# so the director's vision_system stays null.
 	allocation_vfx = _ALLOC_VFX_SCRIPT.new()
 	allocation_vfx.name = "AllocationVFX"
 	graph.add_child(allocation_vfx)
 	allocation_vfx.bind(allocation_system, battle_system)
 
-	floating_number_layer = _FLOATER_LAYER_SCRIPT.new()
-	floating_number_layer.name = "FloatingNumberLayer"
-	floating_number_layer.vision_system = null
-	graph.add_child(floating_number_layer)
+	floater_director = _FLOATER_DIRECTOR_SCENE.instantiate()
+	floater_director.name = "FloaterDirector"
+	floater_director.vision_system = null
+	graph.add_child(floater_director)
+	floating_number_layer = floater_director.renderer

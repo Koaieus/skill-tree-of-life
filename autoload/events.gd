@@ -19,18 +19,17 @@ signal skill_node_depleted(node: SkillNode)
 signal entity_wounded(entity: Entity, amount: int)
 signal entity_healed(entity: Entity, amount: int)
 
-## VFX trigger: "show the floater for this modifier NOW" (#70). Deliberately
-## separate from the logical "modifier applied" (StatBoard.add_modifier, which
-## fires ~11×/spawn for intrinsics + class mods and for the whole death strip).
+## A stat modifier became visible on an entity (#70/#79). A PURE domain fact —
+## no presentation: `binding` is how the modifier is held ([enum
+## ModifierBinding.Kind]), `added` is gained-vs-lost. The [FloaterDirector]
+## translates this into a floater; nothing about colour/shape lives on the bus.
+##
+## Deliberately separate from the logical "modifier applied" (StatBoard.add_modifier,
+## which fires ~11×/spawn for intrinsics + class mods and for the whole death strip).
 ## Emitted from gameplay call sites at the visual moment — immediately for
-## non-travelling sources (SkillDust pickup, voluntary dealloc), and (once #71
-## lands) on pulse arrival for allocation. `kind` selects the floater variant.
-enum ModifierFloater {
-	DEFAULT_NODE,    ## node-sourced, temporary (held while node owned)
-	PERMANENT_CORE,  ## lands on the entity core (CoreClass / SkillDust loot) — "gold/mythic"
-	REMOVED,         ## counterpart for either above (voluntary dealloc / strip)
-}
-signal stat_modifier_arrived(entity: Entity, modifier: StatModifier, kind: int)
+## non-travelling sources (SkillDust pickup, voluntary dealloc), and on pulse
+## arrival for allocation.
+signal stat_modifier_changed(entity: Entity, modifier: StatModifier, binding: ModifierBinding.Kind, added: bool)
 ## Two-phase death announcement (see Entity.die), so consumers pick a phase
 ## instead of racing on connection order. emit() is synchronous, so EVERY
 ## `entity_dying` handler finishes before ANY `entity_died` handler runs —

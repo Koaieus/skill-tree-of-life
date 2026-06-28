@@ -71,8 +71,8 @@ func _grant_to(collector: Entity) -> void:
 		core.modifiers.append(m)
 		if board != null:
 			board.add_modifier(m)
-		# #70: permanent/core modifier looted — the build-defining "mythic" floater.
-		Events.stat_modifier_arrived.emit(collector, m, Events.ModifierFloater.PERMANENT_CORE)
+		# #70: core-held modifier looted — the build-defining "mythic" floater.
+		Events.stat_modifier_changed.emit(collector, m, ModifierBinding.Kind.CORE, true)
 	payload.clear()
 
 

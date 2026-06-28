@@ -2,8 +2,8 @@ extends GutTest
 
 ## #70 + #71 wiring, end-to-end through AllocationVFX:
 ##   - a VOLUNTARY allocation of a node carrying a modifier sends a pulse that,
-##     on arrival, fires Events.stat_modifier_arrived (DEFAULT_NODE) for that
-##     modifier at the allocator's core;
+##     on arrival, fires Events.stat_modifier_changed (binding NODE, added) for
+##     that modifier at the allocator's core;
 ##   - a FORCED allocation (setup) fires NO modifier floater (the spawn-flurry
 ##     suppression the `forced` flag exists for).
 ##
@@ -68,16 +68,16 @@ func before_each() -> void:
 	_player.stat_board.skill_points.restore_to_full()
 
 	_seen = []
-	Events.stat_modifier_arrived.connect(_record)
+	Events.stat_modifier_changed.connect(_record)
 
 
 func after_each() -> void:
-	if Events.stat_modifier_arrived.is_connected(_record):
-		Events.stat_modifier_arrived.disconnect(_record)
+	if Events.stat_modifier_changed.is_connected(_record):
+		Events.stat_modifier_changed.disconnect(_record)
 
 
-func _record(entity: Entity, modifier: StatModifier, kind: int) -> void:
-	_seen.append({"entity": entity, "modifier": modifier, "kind": kind})
+func _record(entity: Entity, modifier: StatModifier, binding: ModifierBinding.Kind, added: bool) -> void:
+	_seen.append({"entity": entity, "modifier": modifier, "binding": binding, "added": added})
 
 
 func test_voluntary_allocation_pulses_then_floats() -> void:
@@ -88,7 +88,8 @@ func test_voluntary_allocation_pulses_then_floats() -> void:
 	assert_eq(_seen.size(), 1, "exactly one floater after the pulse lands")
 	assert_eq(_seen[0]["modifier"], _leaf.modifiers[0], "floats the granted modifier")
 	assert_eq(_seen[0]["entity"], _player)
-	assert_eq(int(_seen[0]["kind"]), int(Events.ModifierFloater.DEFAULT_NODE))
+	assert_eq(int(_seen[0]["binding"]), int(ModifierBinding.Kind.NODE))
+	assert_true(_seen[0]["added"], "allocation is a gain, not a loss")
 
 
 func test_forced_allocation_does_not_float() -> void:

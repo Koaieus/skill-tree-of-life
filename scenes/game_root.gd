@@ -30,7 +30,7 @@ var player: Entity
 @onready var vision_system: VisionSystem = %VisionSystem
 @onready var highlight_controller: HighlightController = %HighlightController
 
-@onready var floating_number_layer: FloatingNumberLayer = %FloatingNumberLayer
+@onready var floater_director: FloaterDirector = %FloaterDirector
 
 # UI
 @onready var camera: Camera2D = %GraphCamera
