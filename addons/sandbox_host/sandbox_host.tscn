@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://balewsa6jgqb6"]
 
-[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_host.gd" id="1_h7j5c"]
+[ext_resource type="Script" uid="uid://dmr3sm822kloa" path="res://addons/sandbox_host/sandbox_host.gd" id="1_h7j5c"]
 
 [node name="SandboxHost" type="Control" unique_id=585499941]
 layout_mode = 3
@@ -11,3 +11,4 @@ script = ExtResource("1_h7j5c")
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
+current_tab = 0

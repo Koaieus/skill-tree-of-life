@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://b8floater00001"]
+[gd_scene format=3 uid="uid://bpnu8urifk441"]
 
-[ext_resource type="Script" path="res://ui/floating_number_layer/floater.gd" id="1_flt"]
+[ext_resource type="Script" uid="uid://c3cpyx30effam" path="res://ui/floating_number_layer/floater.gd" id="1_flt"]
 
-[node name="Floater" type="Node2D"]
+[node name="Floater" type="Node2D" unique_id=88234972]
 script = ExtResource("1_flt")
+text = "123"

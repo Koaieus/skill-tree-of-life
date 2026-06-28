@@ -66,8 +66,8 @@ const PULSE_MIN_FLIGHT: float = 0.2   # floor so a 1-hop path isn't a blink
 ## normal gameplay touches it.
 var muted: bool = false
 
-var _allocation_system: AllocationSystem
-var _battle_system: BattleSystem
+@export var allocation_system: AllocationSystem
+@export var battle_system: BattleSystem
 # Nodes whose forced-dealloc was scheduled by a cascade — suppress the
 # default shatter that would otherwise fire from the per-node force_deallocated
 # signal, since the cascade handler already armed a staggered shatter for it.
@@ -81,17 +81,17 @@ func _ready() -> void:
 	# parent_z + child_z and could land below a fog-promoted node.
 	z_as_relative = false
 	z_index = Z_INDEX
+	bind(allocation_system, battle_system)
 
-
-func bind(allocation_system: AllocationSystem, battle_system: BattleSystem) -> void:
-	_allocation_system = allocation_system
-	_battle_system = battle_system
+func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:
 	if _allocation_system != null:
-		_allocation_system.allocated.connect(_on_allocated)
-		_allocation_system.deallocated.connect(_on_deallocated)
-		_allocation_system.force_deallocated.connect(_on_force_deallocated)
+		allocation_system = _allocation_system
+		allocation_system.allocated.connect(_on_allocated)
+		allocation_system.deallocated.connect(_on_deallocated)
+		allocation_system.force_deallocated.connect(_on_force_deallocated)
 	if _battle_system != null:
-		_battle_system.cascade_started.connect(_on_cascade_started)
+		battle_system = _battle_system
+		battle_system.cascade_started.connect(_on_cascade_started)
 
 
 # --- Signal handlers ---------------------------------------------------------

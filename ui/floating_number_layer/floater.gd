@@ -24,7 +24,7 @@ extends Node2D
 	set(value):
 		glow_color = value
 		queue_redraw()
-@export var text: String = "123":
+@export_placeholder("123") var text: String:
 	set(value):
 		text = value
 		queue_redraw()

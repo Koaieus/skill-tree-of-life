@@ -30,47 +30,24 @@ var player: Entity
 @onready var vision_system: VisionSystem = %VisionSystem
 @onready var highlight_controller: HighlightController = %HighlightController
 
+@onready var floating_number_layer: FloatingNumberLayer = %FloatingNumberLayer
+
 # UI
+@onready var camera: Camera2D = %GraphCamera
 @onready var ui_root: UIRoot = %UIRoot
 
-# Camera — looked up rather than @onready'd because dev_sandbox.tscn names it
-# "Camera" while procgen variants use "GraphCamera". One Camera2D descendant
-# is assumed (warn otherwise so a stray editor camera doesn't silently win).
-var camera: Camera2D
-
-var node_highlight: NodeHighlightOverlay
-var edge_highlight: EdgeHighlightOverlay
-var attack_vfx: AttackVFX
-var allocation_vfx: AllocationVFX
-var melee_preview: MeleePreview
-var floating_number_layer: FloatingNumberLayer
+@onready var node_highlight: NodeHighlightOverlay = %NodeHighlightOverlay
+@onready var edge_highlight: EdgeHighlightOverlay = %EdgeHighlightOverlay
+@onready var attack_vfx: AttackVFX = %AttackVFX
+@onready var allocation_vfx: AllocationVFX = %AllocationVFX
+@onready var melee_preview: MeleePreview = %MeleePreview
 
 
 func _ready() -> void:
-	# HighlightController is scene-wired (NodePath @exports) and self-wires its
-	# signals in its own _ready; GameRoot only hands it the runtime `player`
-	# below, once that resolves.
-	_mount_edge_highlight()
-	_mount_node_highlight()
-	_mount_attack_vfx()
-	_mount_allocation_vfx()
-	_mount_melee_preview()
-	_mount_floating_number_layer()
-	# BattleSystem's allocation_system + graph are scene-wired (NodePath @exports
-	# in game_root.tscn). Only the VFX nodes are runtime-spawned (mounted above),
-	# so those still get injected in code here.
-	battle_system.attack_vfx = attack_vfx
-	battle_system.melee_preview = melee_preview
-	# Core-movement (#21) slide tween. The CoreMarker on `to_node` has already
-	# popped in via Entity.core_location_changed; offset it to start at
-	# `from_node` and glide back. Lives here rather than on Entity so SkillNode
-	# stays the visual owner.
-	allocation_system.core_moved.connect(_on_core_moved)
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
 
-	camera = _resolve_camera()
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
 	# _setup_level runs — procgen spawning goes through force_allocate which
 	# claims itself, but hand-authored owned_by= assignments skip that path.
@@ -139,6 +116,7 @@ func _despawn_npc(entity: Entity) -> void:
 func _show_game_over() -> void:
 	if has_node("GameOverStub"):
 		return
+	# TODO: this is visual composition -> should be a SCENE
 	var layer := CanvasLayer.new()
 	layer.name = "GameOverStub"
 	layer.layer = 100
@@ -246,46 +224,8 @@ func _focus_camera_on_player() -> void:
 	camera.position = target
 
 
-func _resolve_camera() -> Camera2D:
-	for c in find_children("*", "Camera2D", true, false):
-		return c as Camera2D
-	return null
-
-
-func _mount_node_highlight() -> void:
-	node_highlight = NodeHighlightOverlay.new()
-	node_highlight.highlight_controller = highlight_controller
-	node_highlight.graph = graph
-	graph.add_child(node_highlight)
-
-
-func _mount_edge_highlight() -> void:
-	# Mounted BEFORE the node-ring overlay so its edge highlights paint below
-	# the status rings (later siblings draw on top in Node2D z-order).
-	edge_highlight = EdgeHighlightOverlay.new()
-	edge_highlight.highlight_controller = highlight_controller
-	edge_highlight.graph = graph
-	graph.add_child(edge_highlight)
-
-
-func _mount_attack_vfx() -> void:
-	attack_vfx = AttackVFX.new()
-	graph.add_child(attack_vfx)
-
 
 func _mount_allocation_vfx() -> void:
-	allocation_vfx = AllocationVFX.new()
-	graph.add_child(allocation_vfx)
-	allocation_vfx.bind(allocation_system, battle_system)
-
-
-func _mount_melee_preview() -> void:
-	melee_preview = MeleePreview.new()
-	melee_preview.battle_system = battle_system
-	graph.add_child(melee_preview)
-
-
-func _mount_floating_number_layer() -> void:
-	floating_number_layer = FloatingNumberLayer.new()
-	floating_number_layer.vision_system = vision_system
-	graph.add_child(floating_number_layer)
+	# TODO: Keep here? I moved bind() call to AllocationVFX._ready() [noop if exports are off]
+	#allocation_vfx.bind(allocation_system, battle_system)
+	pass

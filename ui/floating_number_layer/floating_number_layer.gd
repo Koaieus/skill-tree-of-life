@@ -30,7 +30,7 @@ const _COLOR_MYTHIC := Color(1.0, 0.84, 0.3, 1.0)
 ## the player are dropped on the floor — prevents fog leakage (an enemy taking
 ## damage off-screen would otherwise reveal itself via a number popping up).
 ## Null = no gating.
-var vision_system: VisionSystem = null
+@export var vision_system: VisionSystem
 
 
 func _ready() -> void:
