@@ -91,6 +91,32 @@ func get_effective_value() -> float:
 	return value
 
 
+## A short, op-aware string for THIS modifier's own contribution — "+10",
+## "+20%", "×1.5", "=13". The stat label is NOT included (callers append the
+## StatDef display name). Uses get_effective_value() so a formula-bound mod
+## shows its real contribution rather than the bare coefficient. Drives the
+## #70 floaters; see the "Value scales" table above for the op semantics.
+func contribution_text() -> String:
+	var v := get_effective_value()
+	match operation:
+		Operation.ADD_BASE, Operation.ADD_BONUS:
+			return "%+d" % roundi(v)
+		Operation.INCREASE:
+			return "%+d%%" % roundi(v)
+		Operation.MULTIPLY:
+			return "×%s" % _trim(v)
+		Operation.SET:
+			return "=%s" % _trim(v)
+	return ""
+
+
+## Render a float without trailing ".00" — whole values print as ints.
+static func _trim(v: float) -> String:
+	if is_equal_approx(v, roundf(v)):
+		return "%d" % roundi(v)
+	return ("%.2f" % v).trim_suffix("0")  # 1.50 → "1.5", 1.25 stays
+
+
 ## Subscribe to the formula's source stats so changes there propagate to this
 ## modifier (and onward to its target stat via emit_changed()). No-op when
 ## formula is null — static modifiers pay zero binding cost.

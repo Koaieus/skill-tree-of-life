@@ -14,6 +14,16 @@ extends Node2D
 ## Degrees of drift-angle wiggle (0 = straight up). Was a layer-wide knob; now
 ## per-floater so a future "burst" floater can wiggle without touching others.
 @export_range(0, 90) var max_angle: int = 0
+## When true, draws a soft coloured bloom behind the text — used by the
+## "permanent / mythic" modifier floater variant (#70) to read as build-defining.
+@export var glow: bool = false:
+	set(value):
+		glow = value
+		queue_redraw()
+@export var glow_color: Color = Color(1.0, 0.84, 0.3, 1.0):
+	set(value):
+		glow_color = value
+		queue_redraw()
 @export var text: String = "123":
 	set(value):
 		text = value
@@ -71,6 +81,12 @@ func _draw() -> void:
 	var pos := Vector2(-text_size.x * 0.5, text_size.y * 0.25)
 	var fill := Color(fill_color.r, fill_color.g, fill_color.b, alpha)
 	var outline := Color(_OUTLINE_COLOR.r, _OUTLINE_COLOR.g, _OUTLINE_COLOR.b, alpha)
+	if glow:
+		# Fake a bloom by stamping a wide, translucent coloured outline pass under
+		# the text. Fades with the floater (alpha) so it doesn't outlive the label.
+		var halo := Color(glow_color.r, glow_color.g, glow_color.b, alpha * 0.5)
+		draw_string_outline(_font, pos, text,
+			HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, outline_size + 10, halo)
 	draw_string_outline(_font, pos, text,
 		HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, outline_size, outline)
 	draw_string(_font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, fill)

@@ -83,12 +83,20 @@ func _on_allocated(node: SkillNode, entity: Entity) -> void:
 	if node == null or entity == null:
 		return
 	_spawn_alloc_spike(node, entity.color)
+	# #70: announce each granted modifier at the core. Fired immediately here;
+	# #71 will replace this with a delayed emit on pulse arrival (the seam).
+	for m in node.modifiers:
+		Events.stat_modifier_arrived.emit(entity, m, Events.ModifierFloater.DEFAULT_NODE)
 
 
 func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 	if node == null or previous_owner == null:
 		return
 	_spawn_lift(node.global_position, node.inner_radius, previous_owner.color)
+	# #70: voluntary dealloc only (force-dealloc / death use force_deallocated,
+	# so the death-strip flurry is suppressed by construction).
+	for m in node.modifiers:
+		Events.stat_modifier_arrived.emit(previous_owner, m, Events.ModifierFloater.REMOVED)
 
 
 func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
