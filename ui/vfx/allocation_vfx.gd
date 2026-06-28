@@ -59,6 +59,13 @@ const PULSE_MIN_FLIGHT: float = 0.2   # floor so a 1-hop path isn't a blink
 
 
 # --- Wiring ------------------------------------------------------------------
+## When true, every cosmetic handler early-returns — the systems still run, the
+## VFX just stays silent. Lets a driver replay the real allocate/force-dealloc
+## primitives for a non-visual purpose (e.g. a showcase's silent SETUP beat that
+## re-arms cells) without spewing spikes/shatters. Off by default; nothing in
+## normal gameplay touches it.
+var muted: bool = false
+
 var _allocation_system: AllocationSystem
 var _battle_system: BattleSystem
 # Nodes whose forced-dealloc was scheduled by a cascade — suppress the
@@ -90,7 +97,7 @@ func bind(allocation_system: AllocationSystem, battle_system: BattleSystem) -> v
 # --- Signal handlers ---------------------------------------------------------
 
 func _on_allocated(node: SkillNode, entity: Entity, forced: bool) -> void:
-	if node == null or entity == null:
+	if muted or node == null or entity == null:
 		return
 	_spawn_alloc_spike(node, entity.color)
 	# Forced allocations are level setup (spawn / procgen / scene-authored) —
@@ -101,7 +108,7 @@ func _on_allocated(node: SkillNode, entity: Entity, forced: bool) -> void:
 
 
 func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
-	if node == null or previous_owner == null:
+	if muted or node == null or previous_owner == null:
 		return
 	_spawn_lift(node.global_position, node.inner_radius, previous_owner.color)
 	# #70: voluntary dealloc only (force-dealloc / death use force_deallocated,
@@ -111,7 +118,7 @@ func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 
 
 func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
-	if node == null or previous_owner == null:
+	if muted or node == null or previous_owner == null:
 		return
 	if _cascade_scheduled.has(node):
 		_cascade_scheduled.erase(node)
@@ -121,7 +128,7 @@ func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 
 
 func _on_cascade_started(layers: Array, defender: Entity) -> void:
-	if defender == null or layers.is_empty():
+	if muted or defender == null or layers.is_empty():
 		return
 	var color: Color = defender.color
 	for i in layers.size():

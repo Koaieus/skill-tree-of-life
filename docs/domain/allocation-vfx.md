@@ -138,12 +138,18 @@ breaking gameplay.
 
 ## Playground
 
-`scenes/vfx_playground.tscn` runs each effect on a loop in isolation —
-solo node for alloc / dealloc / single shatter, 5-node chain for cascade.
-Standalone: no GameRoot, no UI, no procgen; instantiates bare
-AllocationSystem + BattleSystem purely as signal hosts and emits the
-signals directly. Top-left label announces the current phase. Launch with:
+`scenes/dev/allocation_vfx_showcase.tscn` runs a 3×3 grid of self-resetting
+cells, each looping one allocation-flavoured scenario against the **real**
+systems (so #71 pulses + #70 floaters fire for real, unlike the old faked-signal
+loop). Cells: single-node alloc / dealloc / shatter; `O-0-0-0-X` allocate →
+three modifiers travel to core; `X-O-O-O-O` bulk allocate from core; and on a
+fully-allocated row — voluntary dealloc, forced-dealloc, mid-row force-dealloc
+→ islanding cascade, and core death → full cascade. Each cell renders its
+entity's live STRENGTH so the gap between the resolved value and the trailing
+visuals is visible. Two global beats loop: SETUP (silent re-arm, `AllocationVFX.muted`)
+→ PLAY (all cells fire at once). Systems are composed + wired in code exactly as
+`GameRoot._ready` wires them; the grid is generated procedurally. Launch with:
 
 ```
-godot --path . scenes/vfx_playground.tscn
+godot --path . scenes/dev/allocation_vfx_showcase.tscn
 ```

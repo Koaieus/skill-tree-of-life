@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://b1allocvfxshow8"]
+
+[ext_resource type="Script" path="res://scenes/dev/allocation_vfx_showcase.gd" id="1_driver"]
+[ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="2_graph"]
+
+[node name="AllocationVFXShowcase" type="Node2D"]
+script = ExtResource("1_driver")
+
+[node name="Graph" parent="." instance=ExtResource("2_graph")]
+
+[node name="Camera2D" type="Camera2D" parent="."]
