@@ -19,9 +19,11 @@ signal skill_node_depleted(node: SkillNode)
 signal entity_wounded(entity: Entity, amount: int)
 signal entity_healed(entity: Entity, amount: int)
 ## Emitted once when an entity's core health hits 0 (see Entity.die). Systems
-## react off the bus: AllocationSystem strips its owned nodes, GameRoot handles
-## the player-vs-NPC consequence. A future `killed_by: Entity` param would feed
-## kill-reward XP/loot (#18 follow-ups) — add it when that lands.
+## react off the bus: LootSystem grants the killer XP + drops SkillDust loot
+## (runs FIRST — needs the corpse's nodes still owned), AllocationSystem strips
+## its owned nodes, GameRoot handles the player-vs-NPC consequence. Killer
+## attribution is NOT carried here — LootSystem resolves it from its injected
+## TurnManager (current_entity at the synchronous death), keeping Entity dumb.
 signal entity_died(entity: Entity)
 
 ## Emitted when a spell's [IncidentReducer] resolves to null at a node

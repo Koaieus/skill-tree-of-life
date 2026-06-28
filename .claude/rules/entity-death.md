@@ -19,15 +19,26 @@ Don't wire death to a core-node `depleted` signal; it never fires.
 ## Entity stays dumb; systems react off the bus
 
 `Entity.die()` latches `is_dead` (idempotent — death can re-fire mid-cascade),
-emits `died` + `Events.entity_died`, and does nothing else. Consequences live in
-systems listening to `Events.entity_died`, mirroring `BattleSystem`←`skill_node_depleted`:
+emits `died` + `Events.entity_died(self)`, and does nothing else — **not even
+killer attribution** (that lives in LootSystem). Consequences live in systems
+listening to `Events.entity_died`, mirroring `BattleSystem`←`skill_node_depleted`.
+**Connection order is load-bearing** — the three handlers run in this order:
 
-- **AllocationSystem** force-deallocates every owned node (core last) via the
-  `force_deallocate` primitive — VFX shatter fires per node. This is the only
-  path that force-deallocates a core.
-- **GameRoot** owns the player-vs-NPC split: player → game-over stub; NPC →
-  removed from `Entity.GROUP` / `READY_GROUP` synchronously (so TurnManager
-  skips it that frame) then `queue_free`.
+1. **LootSystem** (#68/#69) — snapshots the victim's modifiers for the SkillDust
+   relic + attaches it to the core, and awards XP to the killer. Must run FIRST:
+   the loot draw reads the victim's still-owned nodes, which AllocationSystem then
+   strips. Guaranteed by tree order — LootSystem is the **first child** of
+   `Systems` in `game_root.tscn`. Killer attribution is resolved here from its
+   injected `turn_manager` (`current_entity` == killer, since death is synchronous
+   inside the attacker's turn), NOT on the bus or Entity. See
+   `docs/domain/loot-system.md`.
+2. **AllocationSystem** force-deallocates every owned node (core last) via the
+   `force_deallocate` primitive — VFX shatter fires per node. This is the only
+   path that force-deallocates a core. (The SkillDust addon survives this — it's
+   an addon child, not a `node.modifiers` entry.)
+3. **GameRoot** owns the player-vs-NPC split: player → game-over stub; NPC →
+   removed from `Entity.GROUP` / `READY_GROUP` synchronously (so TurnManager
+   skips it that frame) then `queue_free`.
 
 ## Death cleanup is SYNCHRONOUS, deliberately (not deferred)
 
