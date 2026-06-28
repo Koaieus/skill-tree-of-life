@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_played_tab.gd" id="1_ruv21"]
+
+[node name="Allocation VFX" type="MarginContainer" unique_id=2023103769]
+script = ExtResource("1_ruv21")
+tab_title = "Allocation VFX"
+scene_path = "res://scenes/dev/allocation_vfx_showcase.tscn"
+description = "Allocation / deallocation / death VFX on a 3×3 grid, driven by the real AllocationSystem + BattleSystem + VFX layers on a self-resetting loop."

@@ -13,7 +13,8 @@ extends EditorPlugin
 ## them is a one-line flip of project.godot's [editor_plugins] enabled= array.
 
 const _HOST_NAME := "Sandbox"
-const _HOST_SCRIPT := preload("res://addons/sandbox_host/sandbox_host.gd")
+const _HOST_SCENE := preload("res://addons/sandbox_host/sandbox_host.tscn")
+const _ICON: Texture2D = preload("res://addons/sandbox_host/icon.svg")
 const _SPELL_INSPECTOR := preload("res://addons/spell_playground/spell_def_inspector.gd")
 const _VFX_INSPECTOR := preload("res://addons/vfx_playground/coordinator_inspector.gd")
 const _STATBOARD_INSPECTOR := preload("res://addons/stat_board_visualizer/stat_board_inspector.gd")
@@ -25,7 +26,7 @@ var _statboard_inspector: EditorInspectorPlugin
 
 
 func _enter_tree() -> void:
-	_host = _HOST_SCRIPT.new()
+	_host = _HOST_SCENE.instantiate()
 	_host.name = _HOST_NAME
 	_host.hide()
 	# The editor main screen is a VBoxContainer — its children size by
@@ -77,7 +78,7 @@ func _get_plugin_name() -> String:
 
 
 func _get_plugin_icon() -> Texture2D:
-	return EditorInterface.get_editor_theme().get_icon(&"Node", &"EditorIcons")
+	return _ICON
 
 
 func _make_visible(visible: bool) -> void:

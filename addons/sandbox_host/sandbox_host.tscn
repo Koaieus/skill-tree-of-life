@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_host.gd" id="1_h7j5c"]
+
+[node name="SandboxHost" type="Control" unique_id=585499941]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_h7j5c")
+
+[node name="Tabs" type="TabContainer" parent="." unique_id=1814706947]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0

@@ -115,32 +115,52 @@ inherited overrides) intact.
 | 2 ✅ | `SandboxWorld` subset-capable system composition (built once the 2nd consumer existed) | low | both showcases share it |
 | 1 ✅ | Plugin host: main-screen `EditorPlugin` + `TabContainer`; `SandboxTab` base declares mode (live/played); explicit registration. The 3 playground plugins folded into one host (`addons/sandbox_host/`); showcases are played launch cards. | med | loads clean headless; **GUI behaviour pending human verify** |
 | 3 | (partial — done) Inspector "Open in…" buttons now reveal the host main screen + select the tab (`set_main_screen_editor` + `current_tab`). (remaining) Jump-to-tab `@export_tool_button` on tab-able resource classes + finer live Inspector sync (`_edit`/`_handles` + resource `changed`). | low | button jumps; knob edits reflect w/o reload |
-| 4 | Auto-discover tabs: scan `ProjectSettings.get_global_class_list()` for scripts whose `base` is the tab base class_name — **don't load scenes to detect inheritance.** Only if explicit registration becomes annoying. | low | tabs appear without manual registration |
+| 4 ✅ | Auto-discover tabs — **scene-directory scan**, NOT the `get_global_class_list` class scan the issue first sketched (see below: a dedicated `tabs/` dir is a cleaner declaration). Drop a `*.tscn` whose root is a `SandboxTab` in `addons/sandbox_host/tabs/`; the host loads + adds it, ordered by filename. | low | tabs appear without manual registration |
 
-## The host (`addons/sandbox_host/`, phase 1)
+## The host (`addons/sandbox_host/`)
 
 One main-screen `EditorPlugin` replacing the three bottom-panel playground
-plugins. Files:
+plugins. **Everything is scene-composed** (per `scene-composition.md`): the host
+is a scene, and every tab is a scene whose root is a `SandboxTab`. The `.tscn`
+files are *generated* by `tools/gen_sandbox_tabs.gd` (run headless), not
+hand-authored — that dodges the uid-mismatch / field-strip landmines in
+`godot-workflow.md`. Re-run it after changing the tab roster.
 
-- `plugin.gd` — the `EditorPlugin`. `_has_main_screen() → true`; mounts a
-  `SandboxHost` into `EditorInterface.get_editor_main_screen()` and shows/hides
-  it on `_make_visible`. **Reuses the three playgrounds' own
-  `EditorInspectorPlugin` scripts verbatim** (spell/VFX/stat-board) and routes
-  their signals → load the resource into the matching tab + `set_main_screen_editor`
-  + select the tab. So the inspector "Open in…" buttons + the spell auto-sync
-  still work; they just target the host now, not a bottom panel.
-- `sandbox_host.gd` (`class_name SandboxHost`) — a `TabContainer`-backed
-  `Control`. Explicit registration table in `_register_tabs()`. Instantiates
-  tab scripts via `preload` (not the global `class_name`) so it composes on the
-  first editor scan before the class cache exists.
+Files:
+
+- `plugin.gd` — the `EditorPlugin`. `_has_main_screen() → true`; instances
+  `sandbox_host.tscn` into `EditorInterface.get_editor_main_screen()` (a
+  `VBoxContainer` — the host needs `SIZE_EXPAND_FILL` or it renders collapsed)
+  and shows/hides it on `_make_visible`. **Reuses the three playgrounds' own
+  `EditorInspectorPlugin` scripts verbatim** and routes their signals → load the
+  resource into the matching tab (by `tab_id`) + `set_main_screen_editor` +
+  select the tab. So the "Open in…" buttons + the spell auto-sync still work;
+  they just target the host now. Icon: `icon.svg`.
+- `sandbox_host.tscn` / `.gd` (`class_name SandboxHost`) — a `Control` + a
+  `Tabs` `TabContainer`. **Auto-discovers tabs**: scans `tabs/*.tscn`, loads
+  each, asserts the root is a `SandboxTab`, adds it, titles it from
+  `get_tab_title()`. Numeric filename prefixes (`10_…`, `20_…`) fix tab order.
 - `sandbox_tab.gd` (`class_name SandboxTab`) — the mode-declaring base
-  (`Mode {LIVE_EDIT, PLAYED}`). This is the **phase-4 auto-discovery scan
-  target** — declared now so phase 4 is a pure addition.
-- `sandbox_live_tab.gd` (`SandboxLiveTab`) — embeds an existing `@tool` panel
-  scene; forwards the inspected resource to its loader method by name.
+  (`Mode {LIVE_EDIT, PLAYED}`) every tab scene roots on. The directory-scan
+  contract replaces the issue's class-list scan; the `class_name` survives only
+  as the runtime `is SandboxTab` guard, not a discovery mechanism.
+- `sandbox_live_tab.gd` (`SandboxLiveTab`) — embeds an `@tool` panel via the
+  `panel_scene` `@export` (DI); forwards the inspected resource to its
+  `loader_method` by name. `tab_id` is the host's routing key.
 - `sandbox_played_tab.gd` (`SandboxPlayedTab`) — a launch card (title +
-  description + ▶ Run → `EditorInterface.play_custom_scene`). Played scenes are
-  non-`@tool` and can't run in-editor, so the host never embeds them.
+  description + optional `preview: Texture2D` + ▶ Run → `play_custom_scene`).
+  Played scenes are non-`@tool` and can't run in-editor, so the host never
+  embeds them; the showcase *content* stays code-composed (its own docstring
+  defends that), only the tab *wrapper* is a scene.
+- `test/unit/test_sandbox_host_tabs.gd` — lints every tab scene: loads, root is
+  a `SandboxTab`, all exports resolve non-null (the `godot-workflow.md` guard
+  against a silently-nulled `@export`).
+
+**Previews:** `EditorResourcePreviewGenerator` does NOT help the played tabs —
+the showcases build their content in `_ready`, which doesn't run during preview
+generation, so it would thumbnail an empty graph. A meaningful thumbnail must be
+a captured screenshot wired into `SandboxPlayedTab.preview` (slot exists,
+unpopulated for now).
 
 **Migration is reversible.** The three old plugin folders are untouched; the
 swap is one line in `project.godot`'s `[editor_plugins] enabled=` array (host in,

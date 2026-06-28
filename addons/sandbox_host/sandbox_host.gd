@@ -1,68 +1,61 @@
 @tool
 class_name SandboxHost
 extends Control
-## The full-screen tabbed host (#77 phase 1). A TabContainer that aggregates
-## every module sandbox in one place:
-##   • live-edit @tool panels — spell / VFX / stat-board (embedded, run live)
-##   • played gameplay showcases — allocation / loot (launch cards)
+## The full-screen tabbed host (#77). Aggregates every module sandbox in one
+## TabContainer: the live-edit @tool panels (spell / VFX / stat-board, embedded)
+## and the played gameplay showcases (allocation / loot, launch cards).
 ##
-## Tabs are registered explicitly (the table in _register_tabs). Each is a
-## SandboxTab subclass declaring its mode; the host just adds it to the
-## TabContainer. Inspector routing — push the selected resource into the
-## matching live tab + reveal this screen — is driven by the EditorPlugin via
-## route_to() / reveal_tab() / refresh().
+## Authored as `sandbox_host.tscn` (Control + a TabContainer child). Tabs are
+## **auto-discovered**: every `*.tscn` under `tabs/` whose root is a SandboxTab
+## is loaded and added, sorted by filename (numeric prefixes order them). Adding
+## a tab = drop a scene in that folder; no code change. This supersedes the
+## issue's original `get_global_class_list` plan — a dedicated directory is the
+## declaration, so we never load scenes just to detect inheritance.
 ##
-## Scripts are instantiated via preload (not the global class_name) so the host
-## composes cleanly even on the very first editor scan, before the class cache
-## that backs `SandboxLiveTab`/`SandboxPlayedTab` typing exists.
+## Inspector routing — push the selected resource into the matching live tab +
+## reveal this screen — is driven by the EditorPlugin via route_to() /
+## reveal_tab() / refresh(), keyed on each live tab's `tab_id`.
 
-const _LIVE_TAB := preload("res://addons/sandbox_host/sandbox_live_tab.gd")
-const _PLAYED_TAB := preload("res://addons/sandbox_host/sandbox_played_tab.gd")
+const TABS_DIR := "res://addons/sandbox_host/tabs/"
 
-const _SPELL_PANEL := preload("res://addons/spell_playground/playground_panel.tscn")
-const _VFX_PANEL := preload("res://addons/vfx_playground/playground_panel.tscn")
-const _STATBOARD_PANEL := preload("res://addons/stat_board_visualizer/stat_board_graph.tscn")
+@onready var _tabs: TabContainer = $Tabs
 
-var _tabs := TabContainer.new()
-var _live_tabs: Dictionary = {}   # StringName id -> SandboxLiveTab
+var _live_tabs: Dictionary = {}   # StringName tab_id -> SandboxLiveTab
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	_tabs.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_tabs)
 	_register_tabs()
 
 
 func _register_tabs() -> void:
-	# Live-edit panels — instance each playground's existing @tool scene.
-	_add_live(&"spell", "Spell", _SPELL_PANEL, &"load_spell")
-	_add_live(&"vfx", "VFX", _VFX_PANEL, &"load_coordinator")
-	_add_live(&"statboard", "StatBoard", _STATBOARD_PANEL, &"load_board")
-	# Played gameplay showcases — launch cards (can't run in-editor).
-	_add_played("Allocation VFX", "res://scenes/dev/allocation_vfx_showcase.tscn",
-		"Allocation / deallocation / death VFX on a 3×3 grid, driven by the real "
-		+ "AllocationSystem + BattleSystem + VFX layers on a self-resetting loop.")
-	_add_played("Loot", "res://scenes/dev/loot_showcase.tscn",
-		"Kill → XP floater on the killer + a SkillDust relic blooming on the "
-		+ "victim's former core, driven by the real LootSystem on a loop.")
+	for file in _tab_scene_files():
+		var scene: PackedScene = load(TABS_DIR + file)
+		if scene == null:
+			push_warning("SandboxHost: could not load tab scene %s" % file)
+			continue
+		var tab := scene.instantiate()
+		if not (tab is SandboxTab):
+			push_warning("SandboxHost: %s root is not a SandboxTab; skipping" % file)
+			tab.queue_free()
+			continue
+		_tabs.add_child(tab)
+		_tabs.set_tab_title(tab.get_index(), tab.get_tab_title())
+		if tab.get_mode() == SandboxTab.Mode.LIVE_EDIT and tab.tab_id != &"":
+			_live_tabs[tab.tab_id] = tab
 
 
-func _add_live(id: StringName, title: String, panel_scene: PackedScene, loader: StringName) -> void:
-	var tab := _LIVE_TAB.new()
-	tab.name = title
-	tab.setup(title, panel_scene.instantiate(), loader)
-	_tabs.add_child(tab)
-	_tabs.set_tab_title(tab.get_index(), title)
-	_live_tabs[id] = tab
-
-
-func _add_played(title: String, scene_path: String, description: String) -> void:
-	var tab := _PLAYED_TAB.new()
-	tab.name = title
-	tab.setup(title, scene_path, description)
-	_tabs.add_child(tab)
-	_tabs.set_tab_title(tab.get_index(), title)
+## Sorted list of tab scene filenames (numeric prefixes give a stable order).
+func _tab_scene_files() -> Array[String]:
+	var out: Array[String] = []
+	var dir := DirAccess.open(TABS_DIR)
+	if dir == null:
+		push_warning("SandboxHost: tabs dir missing: %s" % TABS_DIR)
+		return out
+	for f in dir.get_files():
+		if f.ends_with(".tscn"):
+			out.append(f)
+	out.sort()
+	return out
 
 
 ## Push a freshly-inspected resource into the named live tab (no screen switch).

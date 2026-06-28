@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_arjef"]
+[ext_resource type="PackedScene" path="res://addons/stat_board_visualizer/stat_board_graph.tscn" id="2_ygsu5"]
+
+[node name="StatBoard" type="MarginContainer" unique_id=446803261]
+script = ExtResource("1_arjef")
+tab_title = "StatBoard"
+tab_id = &"statboard"
+panel_scene = ExtResource("2_ygsu5")
+loader_method = &"load_board"

@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_dvbqj"]
+[ext_resource type="PackedScene" path="res://addons/spell_playground/playground_panel.tscn" id="2_hmdc0"]
+
+[node name="Spell" type="MarginContainer" unique_id=2017943430]
+script = ExtResource("1_dvbqj")
+tab_title = "Spell"
+tab_id = &"spell"
+panel_scene = ExtResource("2_hmdc0")
+loader_method = &"load_spell"

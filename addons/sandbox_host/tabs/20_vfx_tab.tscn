@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_k5mud"]
+[ext_resource type="PackedScene" path="res://addons/vfx_playground/playground_panel.tscn" id="2_nflkv"]
+
+[node name="VFX" type="MarginContainer" unique_id=249215137]
+script = ExtResource("1_k5mud")
+tab_title = "VFX"
+tab_id = &"vfx"
+panel_scene = ExtResource("2_nflkv")
+loader_method = &"load_coordinator"
