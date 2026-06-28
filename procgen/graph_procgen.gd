@@ -125,25 +125,31 @@ static func generate(
 				archetype_color = type_def.color
 		if archetype_id != &"":
 			var field_scale := 1.0 if config.budget_field == null else config.budget_field.sample(positions[i])
+			var fp := {"archetype": archetype_id, "primary_stat": archetype_primary_stat}
+			if not placement_ctx.role_tags[i].is_empty():
+				fp["role_tags"] = placement_ctx.role_tags[i].duplicate()
 			if config.modifier_pool_set != null:
 				var role_tags: Array = placement_ctx.role_tags[i]
 				var budget := _compute_v2_budget(
 						config.budget_policy, type_def, field_scale,
 						archetype_id, positions[i], role_tags, rng)
+				fp["budget"] = budget
 				sn.modifiers = _roll_modifiers_v3(
 						config.modifier_pool_set, config.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
-						positions[i], i, budget, rng)
+						positions[i], i, budget, rng, fp)
 			elif config.modifier_pool != null:
 				var role_tags: Array = placement_ctx.role_tags[i]
 				var budget := _compute_v2_budget(
 						config.budget_policy, type_def, field_scale,
 						archetype_id, positions[i], role_tags, rng)
+				fp["budget"] = budget
 				sn.modifiers = _roll_modifiers_v2(
 						config.modifier_pool, config.weight_profiles,
-						archetype_id, archetype_forbid, positions[i], i, budget, rng)
+						archetype_id, archetype_forbid, positions[i], i, budget, rng, fp)
 			elif type_def != null:
-				sn.modifiers = _roll_modifiers(type_def, field_scale, rng)
+				sn.modifiers = _roll_modifiers(type_def, field_scale, rng, fp)
+			sn.set_meta("procgen_footprint", fp)
 			# Border-channel stamp on BaseCircle (persistent type identity).
 			# Owner colour stays free to drive the fill channel via SkillNode.
 			sn.base_type_color = archetype_color
@@ -694,11 +700,13 @@ static func _weighted_pick_addon(
 # ── Modifier roll ─────────────────────────────────────────────────────────
 
 
-static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: RandomNumberGenerator) -> Array[StatModifier]:
+static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: RandomNumberGenerator, fp: Dictionary = {}) -> Array[StatModifier]:
 	if type_def.modifier_pool == null:
 		return []
 	var raw := rng.randi_range(type_def.budget_min, type_def.budget_max)
 	var budget := maxi(0, int(round(raw * budget_scale)))
+	fp["phase"] = "v1"
+	fp["budget"] = budget
 	return type_def.modifier_pool.roll(budget, rng)
 
 
@@ -736,8 +744,10 @@ static func _roll_modifiers_v2(
 		node_index: int,
 		budget: int,
 		rng: RandomNumberGenerator,
+		fp: Dictionary = {},
 ) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
+	fp["phase"] = "v2"
 	if pool == null or pool.entries.is_empty() or budget <= 0:
 		return out
 	var ctx := WeightContext.new()
@@ -823,14 +833,19 @@ static func _roll_modifiers_v3(
 		node_index: int,
 		budget: int,
 		rng: RandomNumberGenerator,
+		fp: Dictionary = {},
 ) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
+	fp["phase"] = "v3"
 	if pool_set == null or pool_set.packs.is_empty() or budget <= 0:
 		return out
 	var slots := pool_set.sample_slot_count(rng)
 	var primary_share := int(ceil(float(slots) * pool_set.primary_share_ratio))
 	primary_share = clampi(primary_share, 0, slots)
 	var off_share := slots - primary_share
+	fp["slots"] = slots
+	fp["primary_slots"] = primary_share
+	fp["off_slots"] = off_share
 
 	var ctx := WeightContext.new()
 	ctx.archetype = archetype
@@ -863,7 +878,9 @@ static func _roll_modifiers_v3(
 		# Cost-cap off-attribute entries relative to peak primary cost. Defensive
 		# and rare are exempt (see ModifierPoolSet docstring).
 		# Cap formula: floor(peak * factor) - offset.
+		fp["peak_primary_cost"] = peak_primary_cost
 		var cap := int(floor(float(peak_primary_cost) * pool_set.off_cost_cap_factor)) - pool_set.off_cost_cap_offset
+		fp["off_cap"] = cap
 		var off_capped: Array[ModifierPoolEntry] = []
 		if peak_primary_cost > 0:
 			for e in off_entries:

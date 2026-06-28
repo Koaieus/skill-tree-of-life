@@ -111,7 +111,8 @@ func _populate() -> void:
 
 	var addon_sections := _node.get_addon_tooltip_sections()
 
-	if _node.modifiers.is_empty() and addon_sections.is_empty():
+	var has_procgen := _node.has_meta("procgen_footprint")
+	if _node.modifiers.is_empty() and addon_sections.is_empty() and not has_procgen:
 		var empty := Label.new()
 		empty.mouse_filter = MOUSE_FILTER_IGNORE
 		empty.text = "(no modifiers)"
@@ -119,9 +120,18 @@ func _populate() -> void:
 		empty.add_theme_font_size_override("font_size", 11)
 		_modifiers_box.add_child(empty)
 		return
+	if _node.modifiers.is_empty() and addon_sections.is_empty():
+		var empty := Label.new()
+		empty.mouse_filter = MOUSE_FILTER_IGNORE
+		empty.text = "(no modifiers)"
+		empty.modulate = Color(0.5, 0.5, 0.5)
+		empty.add_theme_font_size_override("font_size", 11)
+		_modifiers_box.add_child(empty)
 
 	for m: StatModifier in _node.modifiers:
 		_add_modifier_label(_modifiers_box, m)
+
+	_populate_procgen_debug()
 
 	# Addon-contributed sections (e.g. SkillDust loot payload) below the node's
 	# own modifiers — each a heading + its modifier lines.
@@ -139,6 +149,43 @@ func _populate() -> void:
 			_modifiers_box.add_child(heading)
 		for m in mods:
 			_add_modifier_label(_modifiers_box, m)
+
+
+func _populate_procgen_debug() -> void:
+	if _node == null or not _node.has_meta("procgen_footprint"):
+		return
+	var fp: Dictionary = _node.get_meta("procgen_footprint")
+	var dim := Color(0.45, 0.45, 0.5)
+
+	var heading := Label.new()
+	heading.mouse_filter = MOUSE_FILTER_IGNORE
+	heading.text = "[procgen]"
+	heading.modulate = dim
+	heading.add_theme_font_size_override("font_size", 10)
+	_modifiers_box.add_child(heading)
+
+	var lines: Array[String] = []
+	var phase: String = fp.get("phase", "?")
+	var budget: int = fp.get("budget", -1)
+	if fp.has("slots"):
+		var p: int = fp.get("primary_slots", 0)
+		var o: int = fp.get("off_slots", 0)
+		lines.append("budget %d · slots %d (%dP+%dO)" % [budget, fp["slots"], p, o])
+		if fp.has("peak_primary_cost"):
+			lines.append("peak %d · off_cap %d" % [fp["peak_primary_cost"], fp.get("off_cap", 0)])
+	elif budget >= 0:
+		lines.append("budget %d · phase %s" % [budget, phase])
+	var role_tags: Array = fp.get("role_tags", [])
+	if not role_tags.is_empty():
+		lines.append("role: " + ", ".join(PackedStringArray(role_tags.map(func(t): return String(t)))))
+
+	for line in lines:
+		var lbl := Label.new()
+		lbl.mouse_filter = MOUSE_FILTER_IGNORE
+		lbl.text = line
+		lbl.modulate = dim
+		lbl.add_theme_font_size_override("font_size", 10)
+		_modifiers_box.add_child(lbl)
 
 
 ## One tinted modifier line, formatted per the StatModifier pipeline conventions
