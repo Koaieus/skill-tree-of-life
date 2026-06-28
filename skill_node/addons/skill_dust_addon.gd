@@ -38,6 +38,16 @@ func configure_visual(r: float) -> void:
 	queue_redraw()
 
 
+# ─── Tooltip contract (SkillNodeAddon) ─────────────────────────────────────
+
+func get_tooltip_title() -> String:
+	return "SkillDust loot"
+
+
+func get_tooltip_modifiers() -> Array[StatModifier]:
+	return payload
+
+
 func _on_carrier_owner_changed() -> void:
 	if Engine.is_editor_hint() or carrier == null:
 		return

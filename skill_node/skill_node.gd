@@ -270,6 +270,21 @@ func get_addons() -> Array[SkillNodeAddon]:
 	return out
 
 
+## Tooltip sections contributed by attached addons. Each entry is
+## `{ "title": String, "modifiers": Array[StatModifier] }`; SkillNodeTooltip
+## renders them below the node's own modifier list. Addons opt in by overriding
+## [method SkillNodeAddon.get_tooltip_modifiers] (e.g. SkillDust lists its loot
+## payload). Addons that contribute nothing are skipped.
+func get_addon_tooltip_sections() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for a in get_addons():
+		var mods := a.get_tooltip_modifiers()
+		if mods.is_empty():
+			continue
+		out.append({"title": a.get_tooltip_title(), "modifiers": mods})
+	return out
+
+
 ## Reset to full. Called on owner change and at turn-start upkeep.
 func refill() -> void:
 	current_hp = get_max_hp()

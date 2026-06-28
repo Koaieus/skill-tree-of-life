@@ -109,7 +109,9 @@ func _populate() -> void:
 	for child in _modifiers_box.get_children():
 		child.queue_free()
 
-	if _node.modifiers.is_empty():
+	var addon_sections := _node.get_addon_tooltip_sections()
+
+	if _node.modifiers.is_empty() and addon_sections.is_empty():
 		var empty := Label.new()
 		empty.mouse_filter = MOUSE_FILTER_IGNORE
 		empty.text = "(no modifiers)"
@@ -119,15 +121,38 @@ func _populate() -> void:
 		return
 
 	for m: StatModifier in _node.modifiers:
-		var def := StatRegistry.get_def(m.stat_id)
-		var stat_name := def.display_name if def != null else String(m.stat_id)
-		var tint := def.tint_color if def != null else Color.WHITE
+		_add_modifier_label(_modifiers_box, m)
 
-		var label := Label.new()
-		label.mouse_filter = MOUSE_FILTER_IGNORE
-		label.text = _format_modifier(m, stat_name)
-		label.modulate = tint
-		_modifiers_box.add_child(label)
+	# Addon-contributed sections (e.g. SkillDust loot payload) below the node's
+	# own modifiers — each a heading + its modifier lines.
+	for section in addon_sections:
+		var title: String = section.get("title", "")
+		var mods: Array = section.get("modifiers", [])
+		if mods.is_empty():
+			continue
+		if not title.is_empty():
+			var heading := Label.new()
+			heading.mouse_filter = MOUSE_FILTER_IGNORE
+			heading.text = title
+			heading.modulate = Color(0.78, 0.78, 0.84)
+			heading.add_theme_font_size_override("font_size", 11)
+			_modifiers_box.add_child(heading)
+		for m in mods:
+			_add_modifier_label(_modifiers_box, m)
+
+
+## One tinted modifier line, formatted per the StatModifier pipeline conventions
+## documented at the class top. Shared by the node's own modifiers and any
+## addon-contributed sections.
+func _add_modifier_label(parent: Node, m: StatModifier) -> void:
+	var def := StatRegistry.get_def(m.stat_id)
+	var stat_name := def.display_name if def != null else String(m.stat_id)
+	var tint := def.tint_color if def != null else Color.WHITE
+	var label := Label.new()
+	label.mouse_filter = MOUSE_FILTER_IGNORE
+	label.text = _format_modifier(m, stat_name)
+	label.modulate = tint
+	parent.add_child(label)
 
 
 func _populate_hp() -> void:

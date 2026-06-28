@@ -183,6 +183,20 @@ func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
 	assert_not_null(_find_dust(_nodes[1]), "SkillDust dropped on the former core mid-cascade")
 
 
+func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
+	# The hover-tooltip content contract: a node aggregates its addons' tooltip
+	# sections; SkillDust contributes its drawn payload under a titled section.
+	_victim.level = 3
+	_kill_victim()
+	var sections := _nodes[1].get_addon_tooltip_sections()
+	assert_eq(sections.size(), 1, "one addon section (the SkillDust relic)")
+	assert_eq(sections[0]["title"], "SkillDust loot", "section is titled")
+	var dust := _find_dust(_nodes[1])
+	var mods: Array = sections[0]["modifiers"]
+	assert_eq(mods.size(), dust.payload.size(), "section mirrors the drawn payload")
+	assert_false(mods.is_empty(), "payload is listed for the tooltip")
+
+
 func test_pickup_grants_payload_to_collector_core() -> void:
 	_victim.level = 5
 	_kill_victim()

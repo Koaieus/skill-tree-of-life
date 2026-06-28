@@ -52,6 +52,26 @@ func apply_to_blade(_state: BladeState, _particle_idx: int) -> void:
 	pass
 
 
+# ─── Tooltip content contract ──────────────────────────────────────────────
+# Addons surface extra content on the carrier's hover tooltip by overriding the
+# pair below; the carrier aggregates them via SkillNode.get_addon_tooltip_sections,
+# and SkillNodeTooltip renders a titled section per non-empty addon. Today the
+# content is StatModifier-typed (reuses the tooltip's modifier formatting +
+# per-stat tint — SkillDust lists its loot payload); a richer text contract can
+# extend this later. Default: no contribution.
+
+## Heading for this addon's tooltip section. Only shown when
+## [method get_tooltip_modifiers] is non-empty.
+func get_tooltip_title() -> String:
+	return ""
+
+
+## Modifiers this addon contributes to the carrier's hover tooltip. Empty (the
+## default) means the addon adds no tooltip section.
+func get_tooltip_modifiers() -> Array[StatModifier]:
+	return []
+
+
 # Future hooks (add only when a concrete addon demands them):
 #   on_damage_taken(amount, source) -> void
 #   on_incoming_blade_contact(blade, edge_or_particle_idx) -> void
