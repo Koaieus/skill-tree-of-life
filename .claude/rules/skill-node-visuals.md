@@ -46,12 +46,14 @@ either constant moves.
 Hover is deliberately a **different visual register** from the stroked rings: a
 soft radial **glow halo** (`hover_ring.gd`), not a stroke. It's authored as a
 `GradientTexture2D` (FILL_RADIAL) with three control radii, all authored
-relative to the node boundary (`radius`) and exposed as live `@export`s on the
-HoverRing node (tweak in-editor with `visible = true`): `glow_inner_feather` (how
-far inside the peak the fade-in starts) → `glow_peak_outset` (peak position past
-the boundary) → `glow_outset` (outer fade-to-0). Defaults (`feather 2`, `peak +2`,
-`outset 14`) put the inner edge right at the boundary so the colored archetype
-ring keeps its pure type colour. Because it's a
+relative to the node boundary (`radius`). They live in a shared [GlowStyle]
+resource (`skill_node/glow_style.gd`, default `default_hover_glow.tres`) — one
+`@export var style` on HoverRing, not a setter per knob; editing the style in the
+inspector auto-emits `changed`, which HoverRing rebinds to rebuild the texture
+live. The knobs: `inner_feather` (how far inside the peak the fade-in starts) →
+`peak_outset` (peak position past the boundary) → `outset` (outer fade-to-0).
+Defaults (`feather 2`, `peak +2`, `outset 14`) put the inner edge right at the
+boundary so the colored archetype ring keeps its pure type colour. Because it's a
 glow rather than a stroke, it layers cleanly *under* the crisp selection/status
 ring instead of clashing with it — hover means "pointer is here" (transient),
 the ring means "this node has a mechanical role" (state). This is why hover
