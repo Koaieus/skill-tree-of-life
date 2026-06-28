@@ -17,6 +17,21 @@ extends Node2D
 
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 
+## Intent flags — let a subclass / inherited scene run a *neutered* GameRoot
+## (e.g. a live showcase in an editor tab) without the parts a self-driven demo
+## doesn't want. The owner toggles its own children here; nobody reaches in from
+## outside. Defaults preserve full-game behaviour, so real levels are untouched.
+@export_group("Showcase / embed")
+## When false, `_ready` skips the opening `start_turn` — the turn loop never
+## kicks, so a showcase can drive its own beat loop (and set `current_entity`
+## directly for killer attribution) without TurnManager/AI taking over.
+@export var auto_start_turn: bool = true
+## When false, `_ready` skips `UIRoot.compose` and hides the UI layer.
+@export var show_ui: bool = true
+## When false, the fog overlay is hidden (a self-driven demo wants every node
+## visible regardless of owned-subgraph vision).
+@export var enable_fog: bool = true
+
 # Entities — `player` may be null until _setup_level() resolves it. The default
 # hook tries to find a `%Player` unique-name node; subclasses can replace.
 var player: Entity
@@ -58,20 +73,28 @@ func _ready() -> void:
 	# synchronous overrides; procgen sandboxes that drive a loading bar
 	# return a coroutine.
 	await _setup_level()
-	_assign_default_factions()
-	# The human player is spawned by _setup_level, so it can't be a scene
-	# NodePath — hand it to the highlight controller now (used as a core-move
-	# fallback owner).
-	highlight_controller.player = player
 	# Invariant: every Entity must have an EntityController child so the
 	# turn loop never stalls on an uncontrolled actor. Hand-authored
 	# scenes (dev_sandbox, first_level_sandbox) historically forgot to
 	# attach AIController to enemies; this defaulter is the catch-all
 	# that keeps every sandbox playable without per-scene wiring.
 	_ensure_controllers()
-	ui_root.compose(self)
+	bind_player(player)
+	if not enable_fog:
+		if has_node("%FogOverlay"):
+			(get_node("%FogOverlay") as CanvasItem).visible = false
+		# Floaters must not query the (dormant, non-@tool) VisionSystem for
+		# per-node visibility in a no-fog showcase — calling a method on a
+		# non-@tool node from the editor is the boundary-error class. Null it so
+		# every floater shows (mirrors SandboxWorld's no-player wiring).
+		if floater_director != null:
+			floater_director.vision_system = null
+	if show_ui:
+		ui_root.compose(self)
+	else:
+		$UI.visible = false
 
-	if player != null and turn_manager != null:
+	if auto_start_turn and player != null and turn_manager != null:
 		# Skip the initial tick race: fill the player's clock so they act first.
 		# (start_turn clears the ready-group membership this would otherwise set.)
 		if player.stat_board != null and player.stat_board.initiative != null:
@@ -134,12 +157,26 @@ func _show_game_over() -> void:
 	add_child(layer)
 
 
-## Assigns `&"player"` faction to [member player]; leaves all other entities
-## on their default (`&"npc"`). Future-proofs multi-faction filtering without
-## changing today's `owned_by != attacker` hostility checks.
-func _assign_default_factions() -> void:
-	if player != null:
-		player.faction = &"player"
+## Wire a (possibly late-resolved) human player into the *player-interaction*
+## layer — faction, highlight fallback owner, input controller, vision viewer.
+## Null-safe + idempotent: GameRoot calls it once at the tail of `_ready` (after
+## `_setup_level` has had its chance to set `player`), and a level that resolves
+## its player asynchronously — or swaps it — can call it again.
+##
+## A self-driven showcase passes `null` (no human player): every dependant is
+## left untouched, which is exactly what keeps these non-`@tool` systems dormant
+## when a neutered GameRoot runs live in an editor tab. Don't move per-player
+## wiring back out into `_ready` — routing it through here is what makes the
+## no-player path clean.
+func bind_player(p: Entity) -> void:
+	player = p
+	if player == null:
+		return
+	player.faction = &"player"
+	highlight_controller.player = player
+	input_ctl.player = player
+	if vision_system != null:
+		vision_system.viewers = [player] as Array[Entity]
 
 
 ## Attaches a default [EntityController] child to any [Entity] in the level

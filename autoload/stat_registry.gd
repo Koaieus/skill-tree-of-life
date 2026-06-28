@@ -1,3 +1,4 @@
+@tool
 extends Node
 
 ## Global lookup: stat_id → StatDef. Scans stats_system/defs/ on ready.

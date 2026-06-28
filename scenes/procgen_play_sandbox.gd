@@ -81,11 +81,12 @@ func _setup_level() -> void:
 		var color: Color = enemy_colors[(i - 1) % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
 		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i], core_class, true))
 
-	# Wire systems that needed live entities (edit-time NodePaths can't bind
-	# to nodes that don't exist yet).
-	input_ctl.player = player
-	var vs := %VisionSystem as VisionSystem
-	vs.viewers = [player]
+	# Wire the player into the interaction layer (input / vision / highlight /
+	# faction) now that it exists — edit-time NodePaths can't bind to a node
+	# spawned at runtime. `_ready` calls `bind_player` again idempotently; doing
+	# it here too sets vision before `_expand` + the fade so the initial fog is
+	# correct.
+	bind_player(player)
 
 	# Derive expansion RNG from the config seed so identical `preset.seed`
 	# produces identical content + starter walks. Salting with a constant

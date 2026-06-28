@@ -112,6 +112,8 @@ metadata/_custom_type_script = "uid://8bt4s2ii2hx2"
 
 [node name="AllocationVFX" type="Node2D" parent="Graph" unique_id=1629578950 node_paths=PackedStringArray("allocation_system", "battle_system")]
 unique_name_in_owner = true
+z_index = 2000
+z_as_relative = false
 script = ExtResource("16_k6861")
 allocation_system = NodePath("../../Systems/AllocationSystem")
 battle_system = NodePath("../../Systems/BattleSystem")

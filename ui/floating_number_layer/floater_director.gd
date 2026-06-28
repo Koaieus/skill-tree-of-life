@@ -1,3 +1,4 @@
+@tool
 class_name FloaterDirector
 extends Node2D
 

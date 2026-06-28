@@ -1,3 +1,4 @@
+@tool
 class_name AllocationVFX
 extends Node2D
 
