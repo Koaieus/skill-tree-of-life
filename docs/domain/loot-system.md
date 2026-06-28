@@ -111,3 +111,19 @@ The `owner_changed` handler guards `owned_by == null` so the death-strip
 (`Entity._on_xp_replenished`) is what mints SP and bumps the level. Bypassing it
 would silently skip the level-up. See `.claude/rules/stats-system.md` (pool
 upkeep / GrowablePoolStatDef).
+
+## Playground
+
+`scenes/dev/loot_showcase.tscn` runs a real kill on a loop and shows the rewards
+land: the death cascade, a SkillDust relic blooming on the victim's former core,
+and the killer's live XP/level. Three sequential phases demonstrate the
+per-side-effect kill-switches (`award_xp_on_kill` / `drop_skill_dust_on_death`)
+by toggling one reward off at a time. Single attacker + victim, not a parallel
+grid — LootSystem/AllocationSystem/BattleSystem are singletons (global `Events`
+bus) and killer attribution reads `TurnManager.current_entity` at the
+synchronous death, so kills must be one-at-a-time. See
+`docs/domain/sandbox-framework.md` for the broader sandbox plan.
+
+```
+godot --path . scenes/dev/loot_showcase.tscn
+```
