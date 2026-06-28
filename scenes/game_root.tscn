@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="2_graphscene"]
 [ext_resource type="Script" uid="uid://bb2qycfjh26rf" path="res://scenes/camera_2d.gd" id="4_cam"]
 [ext_resource type="Script" uid="uid://blmjm81fytofd" path="res://systems/allocation_system.gd" id="5_alloc"]
-[ext_resource type="Script" uid="uid://b5ivx78jchujx" path="res://systems/loot_system.gd" id="12_loot"]
 [ext_resource type="Script" uid="uid://c8h46d4u0rss3" path="res://systems/battle_system.gd" id="6_battle"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
@@ -12,16 +11,12 @@
 [ext_resource type="Script" uid="uid://dkhgm4v74h1ya" path="res://systems/highlight_controller.gd" id="10_5dyip"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="10_ui"]
 [ext_resource type="PackedScene" uid="uid://eqnsntb3dows" path="res://ui/fog_overlay/fog_overlay.tscn" id="11_fog"]
+[ext_resource type="Script" uid="uid://b5ivx78jchujx" path="res://systems/loot_system.gd" id="12_loot"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
 
 [node name="Systems" type="Node" parent="." unique_id=896007769]
-
-[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager")]
-unique_name_in_owner = true
-script = ExtResource("12_loot")
-turn_manager = NodePath("../TurnManager")
 
 [node name="AllocationSystem" type="Node" parent="Systems" unique_id=1333348520 node_paths=PackedStringArray("graph", "navigator", "turn_manager")]
 unique_name_in_owner = true
@@ -45,6 +40,11 @@ input_ctl = NodePath("../PlayerInputController")
 allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
+
+[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager")]
+unique_name_in_owner = true
+script = ExtResource("12_loot")
+turn_manager = NodePath("../TurnManager")
 
 [node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
 unique_name_in_owner = true
