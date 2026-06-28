@@ -22,7 +22,13 @@ extends Node
 ## entity has no navigator (e.g. an entity instantiated without a graph
 ## ancestor).
 
-signal allocated(node: SkillNode, entity: Entity)
+## `forced` distinguishes the voluntary `allocate()` path (gameplay — false)
+## from the `force_allocate()` primitive (spawn / procgen / scene-authored
+## setup — true). Cosmetic consumers that should only react to gameplay (the
+## #71 modifier pulses + #70 floaters) gate on `not forced`, so a level's
+## setup allocations don't fire a pulse/floater flurry. The alloc spike fires
+## for both (nodes visibly "drop in" as the level builds).
+signal allocated(node: SkillNode, entity: Entity, forced: bool)
 ## Voluntary deallocation only — emitted from `deallocate()`. Forced kills
 ## emit `force_deallocated` instead, so cosmetic effects can distinguish a
 ## graceful lift-away from a shatter without sniffing context.
@@ -133,7 +139,7 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 	if board != null:
 		for m in node.modifiers:
 			board.add_modifier(m)
-	allocated.emit(node, entity)
+	allocated.emit(node, entity, false)
 	return true
 
 
@@ -157,7 +163,7 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 			board.skill_points.claim(1)
 		for m in node.modifiers:
 			board.add_modifier(m)
-	allocated.emit(node, entity)
+	allocated.emit(node, entity, true)
 
 
 func deallocate(node: SkillNode, entity: Entity) -> bool:

@@ -47,6 +47,16 @@ const SHATTER_OUTWARD_SPEED: float = 220.0
 # tune up for slower domino, down for snap.
 const CASCADE_STEP: float = 0.35
 
+# --- Modifier pulses (#71) ---------------------------------------------------
+# On voluntary allocation, one pulse per granted modifier flows from the
+# allocated node along the entity-navigator path to the core; on arrival each
+# fires #70's stat-modifier floater. Travel time scales with hop count so the
+# per-hop speed stays roughly constant regardless of path length.
+const _PULSE_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
+const PULSE_STAGGER: float = 0.07     # s between successive pulses (burst feel)
+const PULSE_PER_HOP: float = 0.13     # s of travel per graph hop (constant speed)
+const PULSE_MIN_FLIGHT: float = 0.2   # floor so a 1-hop path isn't a blink
+
 
 # --- Wiring ------------------------------------------------------------------
 var _allocation_system: AllocationSystem
@@ -79,14 +89,15 @@ func bind(allocation_system: AllocationSystem, battle_system: BattleSystem) -> v
 
 # --- Signal handlers ---------------------------------------------------------
 
-func _on_allocated(node: SkillNode, entity: Entity) -> void:
+func _on_allocated(node: SkillNode, entity: Entity, forced: bool) -> void:
 	if node == null or entity == null:
 		return
 	_spawn_alloc_spike(node, entity.color)
-	# #70: announce each granted modifier at the core. Fired immediately here;
-	# #71 will replace this with a delayed emit on pulse arrival (the seam).
-	for m in node.modifiers:
-		Events.stat_modifier_arrived.emit(entity, m, Events.ModifierFloater.DEFAULT_NODE)
+	# Forced allocations are level setup (spawn / procgen / scene-authored) —
+	# the spike "drops the node in", but no gameplay pulses/floaters fire.
+	if forced:
+		return
+	_spawn_modifier_pulses(node, entity)
 
 
 func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
@@ -124,6 +135,73 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 			# Node lives on — only ownership/visuals change — but capture
 			# in case future code reparents/frees on dealloc.
 			_spawn_shatter(n.global_position, n.inner_radius, color, delay)
+
+
+# --- Modifier pulses (#71) ---------------------------------------------------
+
+## One pulse per modifier the allocation grants, flowing node → core along the
+## entity's owned subgraph, each firing #70's floater on arrival. The modifier
+## is ALREADY on the board (allocation applied it synchronously) — this is the
+## visual catching up. The #70→#71 seam: the floater emit now waits for arrival
+## instead of firing in `_on_allocated` directly.
+func _spawn_modifier_pulses(node: SkillNode, entity: Entity) -> void:
+	var mods := node.modifiers
+	if mods.is_empty():
+		return
+	var route := _core_route(node, entity)
+	if route.size() < 2:
+		# No usable path (node IS the core, or no navigator) — pop in place.
+		for m in mods:
+			_emit_modifier_floater(entity, m)
+		return
+	var curve := _route_curve(route)
+	var origin := route[0]
+	var target := route[route.size() - 1]
+	var flight := maxf(PULSE_MIN_FLIGHT, float(route.size() - 1) * PULSE_PER_HOP)
+	for i in mods.size():
+		_launch_modifier_pulse(curve, origin, target, entity, mods[i],
+				float(i) * PULSE_STAGGER, flight)
+
+
+## World-space node centres from the allocated node to the core, via the
+## entity's navigator (shortest hop path within its owned subgraph).
+func _core_route(node: SkillNode, entity: Entity) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	if entity.navigator == null or entity.core_location == null:
+		return pts
+	for n in entity.navigator.path_between(node, entity.core_location):
+		if n != null:
+			pts.append(n.global_position)
+	return pts
+
+
+## Curve2D through the route points. With origin/target pinned to the route
+## endpoints, Curve2DPath's similarity transform is the identity, so the pulse
+## traces the exact polyline (no shape-warping). Zero tangents → straight hops.
+func _route_curve(route: PackedVector2Array) -> Curve2D:
+	var c := Curve2D.new()
+	for p in route:
+		c.add_point(p)
+	return c
+
+
+func _launch_modifier_pulse(curve: Curve2D, origin: Vector2, target: Vector2,
+		entity: Entity, modifier: StatModifier, delay: float, flight: float) -> void:
+	var path := Curve2DPath.new()
+	path.curve = curve
+	var proj := Projectile.new()
+	proj.path = path
+	proj.visual_scene = _PULSE_VISUAL
+	proj.flight_time = flight
+	proj.face_velocity = false
+	proj.modulate = entity.color
+	add_child(proj)
+	proj.arrived.connect(_emit_modifier_floater.bind(entity, modifier), CONNECT_ONE_SHOT)
+	proj.launch(origin, target, delay)
+
+
+func _emit_modifier_floater(entity: Entity, modifier: StatModifier) -> void:
+	Events.stat_modifier_arrived.emit(entity, modifier, Events.ModifierFloater.DEFAULT_NODE)
 
 
 # --- Effect spawners ---------------------------------------------------------

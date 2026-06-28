@@ -89,7 +89,7 @@ func _ready() -> void:
 	# whenever the scene is reloaded; setters drive subsequent updates.
 	if not Engine.is_editor_hint():
 		if allocation_system != null:
-			allocation_system.allocated.connect(_on_allocation_changed.unbind(2))
+			allocation_system.allocated.connect(_on_allocation_changed.unbind(3))
 			allocation_system.deallocated.connect(_on_allocation_changed.unbind(2))
 			allocation_system.force_deallocated.connect(_on_allocation_changed.unbind(2))
 		if graph != null:

@@ -112,7 +112,7 @@ func _phase_alloc_dealloc() -> void:
 
 	_label("allocate")
 	_set_owner(_solo, _owner)
-	_alloc_system.allocated.emit(_solo, _owner)
+	_alloc_system.allocated.emit(_solo, _owner, false)
 	await _sleep(_ALLOC_HOLD)
 
 	_label("voluntary deallocate (lift + holy puff)")
@@ -127,7 +127,7 @@ func _phase_alloc_shatter() -> void:
 
 	_label("allocate")
 	_set_owner(_solo, _owner)
-	_alloc_system.allocated.emit(_solo, _owner)
+	_alloc_system.allocated.emit(_solo, _owner, false)
 	await _sleep(_ALLOC_HOLD)
 
 	_label("force-deallocate")
@@ -143,7 +143,7 @@ func _phase_cascade() -> void:
 	# Allocate the whole chain.
 	for n in _chain:
 		_set_owner(n, _owner)
-		_alloc_system.allocated.emit(n, _owner)
+		_alloc_system.allocated.emit(n, _owner, false)
 		await _sleep(0.08)
 	await _sleep(_ALLOC_HOLD)
 
