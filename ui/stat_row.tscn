@@ -1,6 +1,9 @@
-[gd_scene format=3 uid="uid://hlydbeqxypvb"]
+[gd_scene load_steps=2 format=3 uid="uid://hlydbeqxypvb"]
+
+[ext_resource type="Script" path="res://ui/stat_row.gd" id="1_row"]
 
 [node name="StatRow" type="HBoxContainer" unique_id=1123761382]
+script = ExtResource("1_row")
 
 [node name="Name" type="Label" parent="." unique_id=759916466]
 layout_mode = 2

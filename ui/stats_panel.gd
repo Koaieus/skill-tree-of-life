@@ -19,6 +19,12 @@ extends VBoxContainer
 
 const _TAB_FALLBACK: StringName = &"misc"
 
+# Diff floater (#72): transient "+N/-N" that drifts off a row that just changed.
+const _DIFF_RISE: float = 14.0
+const _DIFF_TIME: float = 0.7
+const _COLOR_DIFF_UP := Color(0.6, 1.0, 0.65)
+const _COLOR_DIFF_DOWN := Color(1.0, 0.6, 0.6)
+
 # Tab order + display. Each tab header renders the GLYPH ONLY (so all tabs fit
 # in one row — no overflow/pagination), with the human `name` shown as a hover
 # tooltip. Glyphs are unicode stopgaps today; a TabDef.glyph may be a Texture2D
@@ -200,23 +206,41 @@ func _refresh(id: StringName) -> void:
 	var stat_name: String = def.display_name if def != null else String(id)
 	var tint: Color = def.tint_color if def != null else Color.WHITE
 	var is_inline := def != null and def.display_type == StatDef.DisplayType.INLINE
+	var value_type: int = def.value_type if def != null else StatDef.ValueType.INT
 	for row in rows:
 		if not is_instance_valid(row):
 			continue
+		var delta := 0.0
 		if row is LabeledProgressBar and stat is PoolStat:
 			var pool := stat as PoolStat
-			var cap := float(pool.value)
-			var text := "%s: %d/%d" % [stat_name, int(pool.current), int(cap)]
-			(row as LabeledProgressBar).set_values(text, float(pool.current), cap, tint)
-		elif row is HBoxContainer:
-			var name_label: Label = row.get_node_or_null("Name")
-			var value_label: Label = row.get_node_or_null("Value")
-			if name_label != null:
-				# Inline sub-rows prefix their name with "+" so the reader
-				# immediately understands "this adds to the stat above."
-				name_label.text = ("+ " + stat_name) if is_inline else stat_name
-			if value_label != null:
-				value_label.text = "%d" % int(stat.value)
+			delta = (row as LabeledProgressBar).animate_to(
+					stat_name, float(pool.current), float(pool.value), tint)
+		elif row.has_method("apply"):
+			delta = row.apply(stat_name, float(stat.value), value_type, tint, is_inline)
+		if delta != 0.0:
+			_spawn_diff(row as Control, delta, tint)
+
+
+# --- Diff floater -----------------------------------------------------------
+
+## Pop a transient "+N / -N" off a row that just changed. Parented at the panel
+## (top_level) and positioned from the row's global rect so it escapes the
+## TabContainer's clipping and drifts cleanly off the row's right edge.
+func _spawn_diff(row: Control, amount: float, _tint: Color) -> void:
+	if row == null or absf(amount) < 0.5:
+		return
+	var lbl := Label.new()
+	lbl.top_level = true
+	lbl.z_index = 100
+	lbl.text = "%+d" % roundi(amount)
+	lbl.modulate = _COLOR_DIFF_UP if amount > 0.0 else _COLOR_DIFF_DOWN
+	add_child(lbl)
+	var rect := row.get_global_rect()
+	lbl.global_position = Vector2(rect.end.x + 6.0, rect.position.y)
+	var t := lbl.create_tween().set_parallel(true)
+	t.tween_property(lbl, "global_position:y", rect.position.y - _DIFF_RISE, _DIFF_TIME)
+	t.tween_property(lbl, "modulate:a", 0.0, _DIFF_TIME)
+	t.chain().tween_callback(lbl.queue_free)
 
 
 # --- Signal wiring ----------------------------------------------------------
