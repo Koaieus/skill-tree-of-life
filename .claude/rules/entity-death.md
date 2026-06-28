@@ -1,8 +1,8 @@
 # Entity death (#18)
 
 How an entity dies and gets cleaned up. Touches Entity, AllocationSystem,
-BattleSystem, GameRoot, and the `Events` bus — keep this current if the flow
-changes.
+BattleSystem, GameRoot, LootSystem, and the `Events` bus — keep this current if
+the flow changes.
 
 ## Core HP **is** the `health` PoolStat — the core SkillNode never depletes
 
@@ -27,12 +27,10 @@ consumers by **phase, not connection order**: `emit()` is synchronous, so every
 reintroduce a tree-order dependency — the editor freely reorders `Systems`
 children, which is exactly what the phases immunise against.
 
-1. **`entity_dying` → LootSystem** (#68/#69) — the corpse still owns its nodes.
-   Snapshots the victim's modifiers for the SkillDust relic + attaches it to the
-   core, and awards XP to the killer. The loot draw needs this pre-strip read.
-   Killer attribution is resolved here from LootSystem's injected `turn_manager`
-   (`current_entity` == killer, since death is synchronous inside the attacker's
-   turn), NOT on the bus or Entity. See `docs/domain/loot-system.md`.
+1. **`entity_dying` → LootSystem** (#68/#69) — runs while the corpse still owns
+   its nodes; it needs that pre-strip world to snapshot loot + reward the killer.
+   The mechanics (the loot draw, killer attribution) are LootSystem's own concern
+   — see `loot_system.gd` / `docs/domain/loot-system.md`, not duplicated here.
 2. **`entity_died` → AllocationSystem** force-deallocates every owned node (core
    last) via the `force_deallocate` primitive — VFX shatter fires per node. This
    is the only path that force-deallocates a core. (The SkillDust addon survives
