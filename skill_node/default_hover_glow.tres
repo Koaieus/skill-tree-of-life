@@ -1,10 +1,8 @@
-[gd_resource type="Resource" script_class="GlowStyle" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="GlowStyle" format=3 uid="uid://ccftdiknrotmh"]
 
-[ext_resource type="Script" path="res://skill_node/glow_style.gd" id="1_glow"]
+[ext_resource type="Script" uid="uid://cp652gick6ya6" path="res://skill_node/glow_style.gd" id="1_glow"]
 
 [resource]
 script = ExtResource("1_glow")
-color = Color(0.6039216, 0.8039216, 0.19607843, 0.6745098)
-outset = 14.0
-peak_outset = 2.0
-inner_feather = 2.0
+color = Color(0.8, 0.7898667, 0.49600002, 0.627451)
+outset = 20.0
