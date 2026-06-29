@@ -20,6 +20,6 @@ extends Resource
 ## Relative likelihood this type wins a cluster seed. Sums normalised at use.
 @export var weight: float = 1.0
 @export var modifier_pool: ModifierPool
-## Inclusive budget range rolled per node before draws begin.
-@export var budget_min: int = 2
+## Budget ceiling per node; actual spend is determined by pool draw exhaustion.
+## Floored at 1 so nodes always get at least one draw attempt.
 @export var budget_max: int = 5

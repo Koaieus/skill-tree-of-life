@@ -703,8 +703,7 @@ static func _weighted_pick_addon(
 static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: RandomNumberGenerator, fp: Dictionary = {}) -> Array[StatModifier]:
 	if type_def.modifier_pool == null:
 		return []
-	var raw := rng.randi_range(type_def.budget_min, type_def.budget_max)
-	var budget := maxi(0, int(round(raw * budget_scale)))
+	var budget := maxi(1, int(round(type_def.budget_max * budget_scale)))
 	fp["phase"] = "v1"
 	fp["budget"] = budget
 	return type_def.modifier_pool.roll(budget, rng)
@@ -715,7 +714,7 @@ static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: Ran
 
 ## Budget for the v2 pass. If [BudgetPolicy] is set, it owns the formula
 ## (archetype × field × role). Otherwise falls back to v1's per-type
-## budget_min/max + `config.budget_field` for compatibility.
+## budget_max + `config.budget_field` for compatibility.
 static func _compute_v2_budget(
 		policy: BudgetPolicy,
 		type_def: NodeTypeDef,
@@ -729,8 +728,7 @@ static func _compute_v2_budget(
 		return policy.compute_budget(archetype, position, role_tags, rng)
 	if type_def == null:
 		return 0
-	var raw := rng.randi_range(type_def.budget_min, type_def.budget_max)
-	return maxi(0, int(round(raw * field_scale)))
+	return maxi(1, int(round(type_def.budget_max * field_scale)))
 
 
 ## v2 modifier roll. Draws from a single universal pool with weight profiles

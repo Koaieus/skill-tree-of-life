@@ -96,8 +96,8 @@ extends Resource
 @export var weight_profiles: Array[Resource] = []
 
 ## Per-node budget knobs. When non-null, overrides the v1
-## [NodeTypeDef.budget_min] / `budget_max` + `budget_field` combo and uses its
-## own archetype/role/field multipliers instead. Unset = v1 fallback.
+## [NodeTypeDef.budget_max] + `budget_field` combo and uses its own
+## archetype/role/field multipliers instead. Unset = v1 fallback.
 @export var budget_policy: BudgetPolicy
 
 ## v2 archetype policies. When [member use_archetype_policies] is true (and

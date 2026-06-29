@@ -23,9 +23,9 @@ extends Resource
 ## (eliminating dead nodes). `budget_field` remains as an orthogonal global
 ## multiplier (e.g. difficulty), but is no longer the primary radial knob.
 ##
-## Set [member modifier_pool] on the config and leave [member NodeTypeDef.budget_min]
-## / `budget_max` in place — when [GraphProcgenConfig.budget_policy] is non-null
-## it overrides the per-type values. Unset = falls back to per-type.
+## Set [member modifier_pool] on the config and leave [member NodeTypeDef.budget_max]
+## in place — when [GraphProcgenConfig.budget_policy] is non-null it overrides the
+## per-type value. Unset = falls back to per-type.
 
 @export var base_min: int = 2
 @export var base_max: int = 5
