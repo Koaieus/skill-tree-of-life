@@ -2,6 +2,8 @@
 class_name SkillNode
 extends Area2D
 
+const ZLayers = preload("res://ui/z_layers.gd")
+
 signal radius_changed
 signal owner_changed
 signal left_clicked(skill_node: SkillNode)
@@ -148,7 +150,7 @@ func _apply_sensed_state() -> void:
 	if _base_circle != null:
 		_base_circle.sensed = sensed
 	z_as_relative = not sensed
-	z_index = 1001 if sensed else 0
+	z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
 	core_marker.visible = (not sensed) and owned_by != null and owned_by.core_location == self
 	for a in get_addons():
 		a.visible = not sensed

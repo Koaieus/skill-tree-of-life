@@ -2,6 +2,8 @@
 class_name FogOverlay
 extends Node2D
 
+const ZLayers = preload("res://ui/z_layers.gd")
+
 ## World-space darkness layer driven by a [VisionSystem]. Renders a single
 ## big rect with a radial-cutout shader; vision circles are passed as a
 ## uniform array. Decoupled from VisionSystem's logic — remove this node
@@ -100,12 +102,12 @@ func _apply_per_element_dimming(sources: Array) -> void:
 			var dark := _sample_dark(n.global_position, sources)
 			n.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			n.z_as_relative = false
-			n.z_index = 1001
+			n.z_index = ZLayers.SENSED
 		else:
-			# Fully hidden: back to default z so the fog at z=1000 covers it.
+			# Fully hidden: back to default z so the fog at z=FOG covers it.
 			n.modulate.a = 1.0
 			n.z_as_relative = true
-			n.z_index = 0
+			n.z_index = ZLayers.GRAPH_DEFAULT
 	for e in graph.get_edges():
 		if e.sensed:
 			e.modulate.a = 1.0
@@ -119,11 +121,11 @@ func _apply_per_element_dimming(sources: Array) -> void:
 			var dark := _sample_dark(mid, sources)
 			e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			e.z_as_relative = false
-			e.z_index = 1001
+			e.z_index = ZLayers.SENSED
 		else:
 			e.modulate.a = 1.0
 			e.z_as_relative = true
-			e.z_index = 0
+			e.z_index = ZLayers.GRAPH_DEFAULT
 
 
 ## Mirrors the shader's darkness math (fog.gdshader): linear ramp 0 → 1

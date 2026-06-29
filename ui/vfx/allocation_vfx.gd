@@ -2,6 +2,8 @@
 class_name AllocationVFX
 extends Node2D
 
+const ZLayers = preload("res://ui/z_layers.gd")
+
 ## Listens to AllocationSystem (allocate / dealloc) and BattleSystem
 ## (cascade_started) and spawns transient world-space effects:
 ##   - alloc spike   : "skill point from the heavens" on every allocation
@@ -26,11 +28,9 @@ const SPIKE_HEIGHT_FACTOR: float = 6.0  # multiplied by node radius
 const SPIKE_NEEDLE_GAMMA: float = 0.22
 const SPIKE_SAMPLES: int = 14  # per side; total poly verts = 2*samples + 2
 
-# Z-order: must render above EVERYTHING the FogOverlay promotes — visible
-# SkillNodes + Edges get z=1001 (absolute) so they appear above the fog
-# (z=1000); sensed nodes/edges also z-promote to 1001. We use 2000 absolute
-# (z_as_relative = false) so the VFX always wins regardless of parent chain.
-const Z_INDEX: int = 2000
+# Z-order: must render above EVERYTHING the FogOverlay promotes — see ZLayers.
+# We use SPELL_VFX absolute (z_as_relative = false) so the VFX always wins
+# regardless of parent chain.
 
 const LIFT_DURATION: float = 0.30
 const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
@@ -81,7 +81,7 @@ func _ready() -> void:
 	# z floor — otherwise a transient effect added under us would be at
 	# parent_z + child_z and could land below a fog-promoted node.
 	z_as_relative = false
-	z_index = Z_INDEX
+	z_index = ZLayers.SPELL_VFX
 	bind(allocation_system, battle_system)
 
 func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:

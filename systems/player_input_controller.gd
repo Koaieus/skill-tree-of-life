@@ -1,6 +1,8 @@
 class_name PlayerInputController
 extends Node
 
+const ZLayers = preload("res://ui/z_layers.gd")
+
 ## Routes player input (skill-node clicks + UI intent) on behalf of a single
 ## Player entity. There are no turn phases — intent is disambiguated by INPUT
 ## CHANNEL, and each channel is gated only by "is it this player's turn?" plus
@@ -348,12 +350,12 @@ func _ensure_core_drag_visuals() -> void:
 		_core_ghost = Label.new()
 		_core_ghost.text = "⭐"
 		_core_ghost.add_theme_font_size_override("font_size", 40)
-		_core_ghost.z_index = 100
+		_core_ghost.z_index = ZLayers.CORE_MOVE
 		graph.add_child(_core_ghost)
 	if _core_badge == null:
 		_core_badge = Label.new()
 		_core_badge.add_theme_font_size_override("font_size", 18)
-		_core_badge.z_index = 100
+		_core_badge.z_index = ZLayers.CORE_MOVE
 		graph.add_child(_core_badge)
 	_core_ghost.visible = true
 	_core_badge.visible = true

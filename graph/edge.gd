@@ -2,6 +2,8 @@
 class_name Edge
 extends Node2D
 
+const ZLayers = preload("res://ui/z_layers.gd")
+
 ## Visible edge between two SkillNodes. Owns its rendering and listens to
 ## each endpoint's `owner_changed` so it can redraw lit/unlit autonomously —
 ## "lit" being the common case of both endpoints owned by the same entity.
@@ -44,7 +46,7 @@ var sensed: bool = false:
 			return
 		sensed = value
 		z_as_relative = not sensed
-		z_index = 1001 if sensed else 0
+		z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
 		queue_redraw()
 
 
