@@ -18,6 +18,7 @@ font_size = 40
 script = ExtResource("1_skill")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=987061496]
+visible = false
 shape = SubResource("CircleShape2D_hit")
 metadata/_edit_lock_ = true
 

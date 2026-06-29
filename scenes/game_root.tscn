@@ -91,6 +91,9 @@ bounds = Rect2(-3000, -2250, 6000, 4500)
 unique_name_in_owner = true
 vision_system = NodePath("../../Systems/VisionSystem")
 
+[node name="FloatingNumberLayer" parent="Graph/FloaterDirector" index="0"]
+stagger_seconds = 0.4
+
 [node name="EdgeHighlightOverlay" type="Node2D" parent="Graph" unique_id=316344470 node_paths=PackedStringArray("highlight_controller", "graph")]
 unique_name_in_owner = true
 script = ExtResource("13_i7pw8")
@@ -112,6 +115,8 @@ metadata/_custom_type_script = "uid://8bt4s2ii2hx2"
 
 [node name="AllocationVFX" type="Node2D" parent="Graph" unique_id=1629578950 node_paths=PackedStringArray("allocation_system", "battle_system")]
 unique_name_in_owner = true
+z_index = 2000
+z_as_relative = false
 script = ExtResource("16_k6861")
 allocation_system = NodePath("../../Systems/AllocationSystem")
 battle_system = NodePath("../../Systems/BattleSystem")
@@ -129,3 +134,5 @@ metadata/_custom_type_script = "uid://bfj2swvcuavon"
 unique_name_in_owner = true
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
+
+[editable path="Graph/FloaterDirector"]
