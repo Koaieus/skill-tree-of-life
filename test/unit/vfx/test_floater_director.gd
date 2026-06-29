@@ -67,3 +67,42 @@ func test_zero_damage_makes_no_floater() -> void:
 	await get_tree().process_frame
 	Events.skill_node_damaged.emit(node, 0.0, null)
 	assert_eq(_floater_children().size(), 0, "non-positive damage is suppressed")
+
+
+# --- Toaster ---
+
+func test_burst_staggers_by_target() -> void:
+	var target := Node2D.new()
+	add_child_autofree(target)
+	for i in 3:
+		var req := FloaterRequest.new()
+		req.target = target
+		req.text = "+%d" % i
+		_renderer.spawn(req)
+	assert_eq(_floater_children().size(), 1, "first fires immediately; 2 queued")
+	await get_tree().create_timer(_renderer.stagger_seconds * 2.2).timeout
+	assert_eq(_floater_children().size(), 3, "all 3 fired after stagger intervals")
+
+
+func test_ungrouped_bypasses_queue() -> void:
+	for i in 2:
+		var req := FloaterRequest.new()
+		req.target = null
+		req.anchor = Vector2(i * 10.0, 0.0)
+		req.text = "x"
+		_renderer.spawn(req)
+	assert_eq(_floater_children().size(), 2, "ungrouped (key==0) requests bypass buffer")
+
+
+func test_max_stack_drops_oldest() -> void:
+	_renderer.max_stack_size = 2
+	var target := Node2D.new()
+	add_child_autofree(target)
+	for i in 4:
+		var req := FloaterRequest.new()
+		req.target = target
+		req.text = "t%d" % i
+		_renderer.spawn(req)
+	# First fires immediately; queue held 3 then was capped to 2 (oldest dropped).
+	await get_tree().create_timer(_renderer.stagger_seconds * 2.5).timeout
+	assert_eq(_floater_children().size(), 3, "capped at first + 2 queued; oldest dropped")
