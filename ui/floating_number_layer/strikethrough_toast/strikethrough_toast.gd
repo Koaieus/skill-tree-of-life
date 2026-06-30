@@ -7,18 +7,21 @@ extends FloaterToast
 ##
 ## Lifecycle on top of the base:
 ##   1. Fade in at original tint (base handles this).
-##   2. Strike phase: a hot-coloured tip sweeps left → right, revealing a grey
-##      duplicate of the label, so text progressively desaturates from left.
-##   3. Unzip (_animate_out override): text cleves at the strike line; top half
-##      slides up, bottom half slides down while the VBox slot collapses normally.
+##   2. Strike: a thin horizontal laser line grows left→right at _STRIKE_Y_FRAC
+##      height.  Hot-tip leads the sweep; grey text is revealed behind it.
+##   3. Unzip (_animate_out): letters cleave along the cut line — top half slides
+##      up, bottom half slides down — while the VBox slot collapses normally.
 
 const _STRIKE_DURATION := 0.5
 const _HOT_COLOR  := Color(1.0, 0.65, 0.1, 1.0)
 const _COOL_COLOR := Color(0.55, 0.55, 0.55, 1.0)
+## Fractional Y of the laser cut within the label rect (≈ text strikethrough pos).
+const _STRIKE_Y_FRAC := 0.46
 
-@onready var _grey_clip:  Control = $GreyClip
-@onready var _label_grey: Label   = $GreyClip/LabelGrey
-@onready var _hot_tip:    ColorRect = $HotTip
+@onready var _grey_clip:   Control   = $GreyClip
+@onready var _label_grey:  Label     = $GreyClip/LabelGrey
+@onready var _strike_line: ColorRect = $StrikeLine
+@onready var _hot_tip:     ColorRect = $HotTip
 
 var _label_text:       String = ""
 var _label_grey_color: Color  = Color.GRAY
@@ -51,18 +54,30 @@ func _schedule_strike() -> void:
 func _run_strike() -> void:
 	if not is_inside_tree():
 		return
-	var w: float = label.size.x
-	var h: float = label.size.y
-	_grey_clip.size    = Vector2(0.0, h)
-	_label_grey.size   = Vector2(w,   h)
-	_hot_tip.size      = Vector2(5.0, h)
-	_hot_tip.color     = _HOT_COLOR
-	_hot_tip.position  = Vector2.ZERO
-	_hot_tip.visible   = true
+	var w: float   = label.size.x
+	var h: float   = label.size.y
+	var cut_y: float = h * _STRIKE_Y_FRAC
+
+	# Grey-text reveal clip: full height, grows left → right behind the laser.
+	_grey_clip.size  = Vector2(0.0, h)
+	_label_grey.size = Vector2(w,   h)
+
+	# Laser line: 2px horizontal stripe at the cut height.
+	_strike_line.position = Vector2(0.0, cut_y - 1.0)
+	_strike_line.size     = Vector2(0.0, 2.0)
+	_strike_line.color    = _COOL_COLOR
+	_strike_line.visible  = true
+
+	# Hot tip: small square leading the sweep.
+	_hot_tip.position = Vector2(0.0, cut_y - 2.5)
+	_hot_tip.size     = Vector2(5.0, 5.0)
+	_hot_tip.color    = _HOT_COLOR
+	_hot_tip.visible  = true
 
 	var t := create_tween().set_parallel(true)
-	t.tween_property(_grey_clip, "size:x",    w, _STRIKE_DURATION)
-	t.tween_property(_hot_tip,   "position:x", w, _STRIKE_DURATION)
+	t.tween_property(_grey_clip,   "size:x",      w, _STRIKE_DURATION)
+	t.tween_property(_strike_line, "size:x",      w, _STRIKE_DURATION)
+	t.tween_property(_hot_tip,     "position:x",  w, _STRIKE_DURATION)
 	t.tween_method(
 		func(v: float) -> void: _hot_tip.color = _HOT_COLOR.lerp(_COOL_COLOR, v),
 		0.0, 1.0, _STRIKE_DURATION)
@@ -71,23 +86,23 @@ func _run_strike() -> void:
 
 func _animate_out() -> void:
 	var snap_pos := label.global_position
-	var w: float  = label.size.x
-	var h: float  = label.size.y
-	var half: float = h * 0.5
+	var w: float   = label.size.x
+	var h: float   = label.size.y
+	# Split exactly where the laser was so letters cleave along the cut.
+	var cut_y: float = h * _STRIKE_Y_FRAC
 
 	# Build two clipping halves that together mirror the struck label.
 	# Added to the Toaster (Node2D grandparent) with top_level=true so they
-	# render in world space, unaffected by the VBox layout and by the Toaster's
-	# per-frame position tracking.
-	var toaster: Node = get_parent().get_parent()
-	var top_clip := _make_half_clip(w, h, 0.0,  half)
-	var bot_clip := _make_half_clip(w, h, half, half)
+	# render in world space, unaffected by VBox layout and Toaster tracking.
+	var toaster: Node  = get_parent().get_parent()
+	var top_clip := _make_half_clip(w, h, 0.0,   cut_y)
+	var bot_clip := _make_half_clip(w, h, cut_y, h - cut_y)
 	top_clip.top_level = true
 	bot_clip.top_level = true
 	toaster.add_child(top_clip)
 	toaster.add_child(bot_clip)
 	top_clip.global_position = snap_pos
-	bot_clip.global_position = Vector2(snap_pos.x, snap_pos.y + half)
+	bot_clip.global_position = Vector2(snap_pos.x, snap_pos.y + cut_y)
 
 	modulate.a = 0.0  # hand visibility over to the clips
 
@@ -95,9 +110,8 @@ func _animate_out() -> void:
 	# Collapse the VBox slot so remaining toasts rearrange.
 	tween.tween_property(self, "custom_minimum_size:y", 0.0, fade_out_duration * 0.4)
 	# Ninja cut: top slides up, bottom slides down.
-	var slide: float = half + 10.0
-	tween.tween_property(top_clip, "position:y", top_clip.position.y - slide, fade_out_duration)
-	tween.tween_property(bot_clip, "position:y", bot_clip.position.y + slide, fade_out_duration)
+	tween.tween_property(top_clip, "position:y", top_clip.position.y - cut_y - 10.0, fade_out_duration)
+	tween.tween_property(bot_clip, "position:y", bot_clip.position.y + (h - cut_y) + 10.0, fade_out_duration)
 	tween.tween_property(top_clip, "modulate:a", 0.0, fade_out_duration * 0.6)
 	tween.tween_property(bot_clip, "modulate:a", 0.0, fade_out_duration * 0.6)
 	tween.tween_callback(func() -> void:
@@ -118,17 +132,15 @@ func _make_half_clip(label_w: float, label_h: float,
 	clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var lbl := Label.new()
-	lbl.text                   = _label_text
-	lbl.position               = Vector2(0.0, -y_into_label)
-	lbl.size                   = Vector2(label_w, label_h)
-	lbl.horizontal_alignment   = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment     = VERTICAL_ALIGNMENT_CENTER
-	# Share the label_settings resource (read-only use — font_size, outline).
+	lbl.text                 = _label_text
+	lbl.position             = Vector2(0.0, -y_into_label)
+	lbl.size                 = Vector2(label_w, label_h)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment   = VERTICAL_ALIGNMENT_CENTER
+	# Duplicate label_settings before writing font_color so the original Label
+	# is unaffected (they would otherwise share the same resource object).
 	if label.label_settings != null:
-		lbl.label_settings = label.label_settings
-	# Use the grey colour computed at set_content time.
-	if lbl.label_settings != null:
-		lbl.label_settings = lbl.label_settings.duplicate()
+		lbl.label_settings            = label.label_settings.duplicate()
 		lbl.label_settings.font_color = _label_grey_color
 	else:
 		lbl.add_theme_color_override("font_color", _label_grey_color)
