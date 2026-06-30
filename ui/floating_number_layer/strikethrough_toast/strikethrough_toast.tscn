@@ -21,6 +21,8 @@ script = ExtResource("1_strkt")
 visible_duration = 2.0
 fade_in_duration = 0.3
 fade_out_duration = 1.0
+strike_duration = 0.5
+strike_y_frac = 0.46
 
 [node name="Label" type="Label" parent="."]
 layout_mode = 1
