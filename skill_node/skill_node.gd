@@ -68,6 +68,7 @@ signal depleted
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_marker: Node2D = $Visuals/CoreMarker
+@onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
 @onready var _addon_anchor: Node2D = $Visuals/AddonAnchor
 @onready var _collision: CollisionShape2D = $CollisionShape2D
@@ -138,7 +139,17 @@ func _refresh_core_marker() -> void:
 		_bound_owner = owned_by
 		if _bound_owner != null:
 			_bound_owner.core_location_changed.connect(_refresh_core_marker)
-	core_marker.visible = (not sensed) and owned_by != null and owned_by.core_location == self
+	var is_core := owned_by != null and owned_by.core_location == self
+	core_marker.visible = (not sensed) and is_core
+	_refresh_core_health_bar(is_core)
+
+
+func _refresh_core_health_bar(is_core: bool) -> void:
+	var pool: PoolStat = null
+	if is_core and owned_by != null and owned_by.stat_board != null:
+		pool = owned_by.stat_board.health
+	core_health_bar.bind_health(pool)
+	core_health_bar.visible = (not sensed) and is_core
 
 
 ## Mirror the `sensed` flag onto the visual stack. Three things shift:
@@ -155,7 +166,9 @@ func _apply_sensed_state() -> void:
 		_base_circle.sensed = sensed
 	z_as_relative = not sensed
 	z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
-	core_marker.visible = (not sensed) and owned_by != null and owned_by.core_location == self
+	var _is_core := owned_by != null and owned_by.core_location == self
+	core_marker.visible = (not sensed) and _is_core
+	core_health_bar.visible = (not sensed) and _is_core
 	for a in get_addons():
 		a.visible = not sensed
 

@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
+[ext_resource type="Script" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -15,12 +16,37 @@ radius = 32.0
 line_spacing = 0.0
 font_size = 40
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_r2qlo"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.1, 0.1, 0.1, 0.3)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+corner_detail = 6
+shadow_size = 4
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mcbms"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
 content_margin_bottom = 2.0
 bg_color = Color(0.17630166, 0.79, 0.16589999, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+corner_detail = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_corehb"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(1.0, 0.82, 0.1, 1.0)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -69,14 +95,27 @@ max_lines_visible = 1
 [node name="AddonAnchor" type="Node2D" parent="Visuals" unique_id=1119406181]
 
 [node name="HealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922168]
+z_index = 10
 offset_left = -31.0
 offset_top = -59.0
 offset_right = 31.0
 offset_bottom = -46.0
+theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
 theme_override_styles/fill = SubResource("StyleBoxFlat_mcbms")
 value = 45.0
 show_percentage = false
 script = ExtResource("6_r2qlo")
+
+[node name="CoreHealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922170]
+z_index = 10
+offset_left = -35.0
+offset_top = -44.0
+offset_right = 35.0
+offset_bottom = -28.0
+theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
+theme_override_styles/fill = SubResource("StyleBoxFlat_corehb")
+show_percentage = false
+script = ExtResource("7_corehb")
 
 [node name="FloatAnchor" type="Marker2D" parent="." unique_id=2130772427]
 unique_name_in_owner = true
@@ -86,3 +125,4 @@ position = Vector2(0, -50)
 [connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
 [connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
 [connection signal="value_changed" from="Visuals/HealthBar" to="Visuals/HealthBar" method="_on_value_changed"]
+[connection signal="value_changed" from="Visuals/CoreHealthBar" to="Visuals/CoreHealthBar" method="_on_value_changed"]
