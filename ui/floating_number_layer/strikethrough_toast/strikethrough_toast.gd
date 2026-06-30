@@ -10,11 +10,12 @@ extends FloaterToast
 ##
 ## Scene-tunable knobs live on the ShaderMaterial (inspector: SubViewportContainer
 ## → Material): hot_color, line_color, tip_radius, line_half_thick.
-## Timing knobs are @export on this node: strike_duration, strike_y_frac,
+## Timing knobs are @export on this node: strike_duration,
 ## plus the inherited visible_duration / fade_in_duration / fade_out_duration.
+## The diagonal cut position is computed from font metrics in _ready() and is
+## not scene-authorable — it tracks the actual x-height of whatever font is used.
 
 @export var strike_duration: float = 0.2
-@export_range(0.0, 1.0, 0.01) var strike_y_frac: float = 0.47
 
 @onready var _svc:           SubViewportContainer = $SubViewportContainer
 @onready var _content_label: Label = $SubViewportContainer/SubViewport/ContentLabel
@@ -28,7 +29,29 @@ func _ready() -> void:
 	# by default; parallel toasts must not share uniform state.
 	_svc.material = _svc.material.duplicate()
 	_mat = _svc.material as ShaderMaterial
-	_mat.set_shader_parameter("split_y", strike_y_frac)
+	_apply_diagonal_from_font()
+
+
+func _apply_diagonal_from_font() -> void:
+	var font := _content_label.get_theme_font("font")
+	var fsize := float(
+		_content_label.label_settings.font_size if _content_label.label_settings else 32)
+	var vp_h := float((_svc.get_child(0) as SubViewport).size.y)  # 32 from scene
+	var ascent := font.get_ascent(fsize)
+	var total_h := font.get_height(fsize)
+	# Baseline y in the SubViewport (text is vertically centred inside it).
+	var baseline_px := (vp_h - total_h) * 0.5 + ascent
+	# Typographic strikethrough: ~30 % of ascent above the baseline.
+	# This sits in the x-height zone and misses all ascender dots.
+	var center_px := baseline_px - ascent * 0.30
+	var center_uv := clampf(center_px / vp_h, 0.1, 0.9)
+	# Slope from the StrikeThroughBox geometry: the box fills the FloaterToast
+	# Label which is ~45 px tall and ~275 px wide.  In SubViewport UV space
+	# (220×32) that maps to dy/dx ≈ 1.13 — a corner-to-corner slash.
+	# Clamp the half-spread so both endpoints stay within [0.01, 0.99].
+	var half := minf(center_uv - 0.01, 0.99 - center_uv)
+	_mat.set_shader_parameter("split_y_start", center_uv + half)
+	_mat.set_shader_parameter("split_y_end",   center_uv - half)
 
 
 func set_content(text: String, color: Color) -> void:
