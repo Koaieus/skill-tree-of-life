@@ -12,6 +12,10 @@ signal right_clicked(skill_node: SkillNode)
 ## [signal Events.skill_node_damaged]; subscribe locally for per-node reactions
 ## (hit-flash lives right here), globally on the bus for UI like floating numbers.
 signal damaged(amount: float, source: Variant)
+## Emitted on every heal_damage call (even at 0 effective). Local twin of
+## [signal Events.skill_node_damaged]; subscribe locally for per-node reactions
+## (heal-flash lives right here)
+signal healed(amount: float, source: Variant)
 ## Emitted when a non-core node's [member current_hp] reaches 0. Local twin of
 ## [signal Events.skill_node_depleted]; BattleSystem listens on the bus for the
 ## cascade dealloc.
@@ -305,8 +309,15 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 
 
 ## Reset to full. Called on owner change and at turn-start upkeep.
-func refill() -> void:
+## Pass [param silent] = true when resetting on allocation (not a gameplay heal).
+func refill(silent: bool = false) -> void:
+	var prev := current_hp
 	current_hp = get_max_hp()
+	if not silent:
+		var delta := current_hp - prev
+		if delta > 0.0:
+			healed.emit(delta, null)
+			Events.skill_node_healed.emit(self, delta, null)
 
 
 ## Apply an incoming hit. Mitigation runs here so attackers don't need to know
@@ -316,12 +327,15 @@ func refill() -> void:
 func take_damage(amount: float, source: Variant) -> void:
 	if owned_by == null or amount <= 0.0:
 		return
-	var raw := DamageInstance.new()
-	raw.amount = amount
+	var raw: DamageInstance
 	# For mitigation-pipeline shape; type/source carry forward if the caller
 	# supplied a DamageInstance directly (we accept the looser float form too).
 	if source is DamageInstance:
 		raw = source
+	else:
+		raw = DamageInstance.new()
+		raw.amount = amount
+		
 	var effective: float = Mitigation.apply(raw, owned_by.stat_board)
 	var soak: float = min(effective, current_hp)
 	current_hp -= soak
@@ -337,6 +351,17 @@ func take_damage(amount: float, source: Variant) -> void:
 		depleted.emit()
 		Events.skill_node_depleted.emit(self)
 
+## Restore HP by [param amount], clamped at max. Emits [signal healed] (and
+## re-emits on the global bus) with the effective delta actually restored.
+func heal_damage(amount: float, source: Variant) -> void:
+	if owned_by == null or amount <= 0.0:
+		return
+	var prev := current_hp
+	current_hp = min(current_hp + amount, get_max_hp())
+	var effective := current_hp - prev
+	if effective > 0.0:
+		healed.emit(effective, source)
+		Events.skill_node_healed.emit(self, effective, source)
 
 # ── Internals ──────────────────────────────────────────────────────────────
 
@@ -352,7 +377,7 @@ func _refresh_hp_binding() -> void:
 		_bound_node_health = owned_by.stat_board.get_stat(&"node_health")
 		if _bound_node_health != null and not _bound_node_health.value_changed.is_connected(_on_max_hp_changed):
 			_bound_node_health.value_changed.connect(_on_max_hp_changed)
-		refill()
+		refill(true)
 	else:
 		current_hp = 0.0
 

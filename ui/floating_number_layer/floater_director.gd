@@ -21,7 +21,7 @@ extends Node2D
 const STRIKETHROUGH_TOAST_SCENE: PackedScene = preload(
 		"res://ui/floating_number_layer/strikethrough_toast/strikethrough_toast.tscn")
 
-const _COLOR_DAMAGE := Color(1.0, 0.85, 0.85, 1.0)
+const _COLOR_DAMAGE := Color(1.0, 0.25, 0.25, 1.0)
 const _COLOR_WOUND  := Color(1.0, 0.55, 0.55, 1.0)
 const _COLOR_HEAL   := Color(0.65, 1.0, 0.7, 1.0)
 ## Gold blended into the stat tint for the CORE-bound modifier floater (#70).
@@ -30,6 +30,7 @@ const _COLOR_MYTHIC := Color(1.0, 0.84, 0.3, 1.0)
 
 func _ready() -> void:
 	Events.skill_node_damaged.connect(_on_skill_node_damaged)
+	Events.skill_node_healed.connect(_on_skill_node_healed)
 	Events.entity_wounded.connect(_on_entity_wounded)
 	Events.entity_healed.connect(_on_entity_healed)
 	Events.stat_modifier_changed.connect(_on_stat_modifier_changed)
@@ -41,6 +42,12 @@ func _on_skill_node_damaged(node: SkillNode, amount: float, _source: Variant) ->
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	_emit(node, "%d" % int(round(amount)), _basic_style(_COLOR_DAMAGE))
+
+
+func _on_skill_node_healed(node: SkillNode, amount: float, _source: Variant) -> void:
+	if node == null or amount <= 0.0 or not _node_visible(node):
+		return
+	_emit(node, "+%d" % int(round(amount)), _basic_style(_COLOR_HEAL))
 
 
 func _on_entity_wounded(entity: Entity, amount: int) -> void:

@@ -8,6 +8,10 @@ signal skill_node_unhovered
 ## shake, etc.) can subscribe once globally instead of binding to every node.
 signal skill_node_damaged(node: SkillNode, amount: float, source: Variant)
 
+## Re-emitted by SkillNode.heal_damage and SkillNode.refill (non-silent) so UI
+## can show heal numbers. amount is the effective HP delta (always > 0).
+signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
+
 ## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
 signal skill_node_depleted(node: SkillNode)
