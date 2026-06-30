@@ -18,6 +18,9 @@ extends Node2D
 ## the renderer stays free of any vision dependency.
 @export var vision_system: VisionSystem = null
 
+const STRIKETHROUGH_TOAST_SCENE: PackedScene = preload(
+		"res://ui/floating_number_layer/strikethrough_toast/strikethrough_toast.tscn")
+
 const _COLOR_DAMAGE := Color(1.0, 0.85, 0.85, 1.0)
 const _COLOR_WOUND  := Color(1.0, 0.55, 0.55, 1.0)
 const _COLOR_HEAL   := Color(0.65, 1.0, 0.7, 1.0)
@@ -95,16 +98,15 @@ func _basic_style(color: Color) -> FloaterStyle:
 	return s
 
 
-## Per-variant modifier styling (#70). Removed → desaturated (color is the signal;
-## drift-down replaced by strikethrough toast scene_override in #82);
-## CORE-bound add → gold-blended; NODE add → plain stat tint.
-## (#78 will refine this matrix.)
+## Per-variant modifier styling (#70/#82). Removed → strikethrough toast at original
+## tint (animation owns desaturation); CORE add → gold-blended; NODE add → plain tint.
+## (#78 will refine the matrix further.)
 func _modifier_style(tint: Color, binding: ModifierBinding.Kind, added: bool) -> FloaterStyle:
 	var s := FloaterStyle.new()
 	if not added:
-		var grey := (tint.r + tint.g + tint.b) / 3.0
-		s.fill_color = tint.lerp(Color(grey, grey, grey, 1.0), 0.6)
-		# scene_override will be set here to the strikethrough toast scene (#82)
+		# Pass original tint — the animation owns the desaturation (#82).
+		s.fill_color = tint
+		s.scene_override = STRIKETHROUGH_TOAST_SCENE
 		return s
 	if binding == ModifierBinding.Kind.CORE:
 		s.fill_color = tint.lerp(_COLOR_MYTHIC, 0.6)

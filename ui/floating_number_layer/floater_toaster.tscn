@@ -2,11 +2,11 @@
 
 [ext_resource type="Script" uid="uid://cgjevfaon8f2n" path="res://ui/floating_number_layer/floater_toaster.gd" id="1_ttj8n"]
 
-[node name="FloaterToaster" type="Node2D"]
+[node name="FloaterToaster" type="Node2D" unique_id=1092897262]
 position = Vector2(304, 208)
 script = ExtResource("1_ttj8n")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=91229180]
 custom_minimum_size = Vector2(220, 0)
 anchors_preset = 7
 anchor_left = 0.5
@@ -20,7 +20,7 @@ grow_vertical = 0
 mouse_filter = 2
 theme_override_constants/separation = 2
 
-[node name="Timer" type="Timer" parent="."]
+[node name="Timer" type="Timer" parent="." unique_id=1549688564]
 one_shot = true
 
 [connection signal="timeout" from="Timer" to="." method="_pop_toast"]
