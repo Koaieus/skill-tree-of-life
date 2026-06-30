@@ -11,7 +11,7 @@ extends Node2D
 ## an implementation detail. Composition: see floater_director.tscn.
 
 ## The renderer this director drives (its own child, wired in the scene).
-@export var renderer: FloatingNumberLayer
+@export var renderer: FloaterToasterManager
 ## Injected by the composing scene. When set, a floater anchored at a SkillNode
 ## the player can't see is suppressed (fog). Null → no gating (headless tests /
 ## fog-less dev sandboxes). This "should it show" policy is the director's, so
@@ -95,15 +95,16 @@ func _basic_style(color: Color) -> FloaterStyle:
 	return s
 
 
-## Per-variant modifier styling (#70). Removed → desaturated + drifts down
-## ("lost"); CORE-bound add → gold-blended glow, bigger + slower (build-defining);
-## NODE add (default) → the stat's plain tint. (#78 will refine this matrix.)
+## Per-variant modifier styling (#70). Removed → desaturated (color is the signal;
+## drift-down replaced by strikethrough toast scene_override in #82);
+## CORE-bound add → gold-blended; NODE add → plain stat tint.
+## (#78 will refine this matrix.)
 func _modifier_style(tint: Color, binding: ModifierBinding.Kind, added: bool) -> FloaterStyle:
 	var s := FloaterStyle.new()
 	if not added:
 		var grey := (tint.r + tint.g + tint.b) / 3.0
 		s.fill_color = tint.lerp(Color(grey, grey, grey, 1.0), 0.6)
-		s.float_distance = -55.0  # drift down — "lost", not "gained"
+		# scene_override will be set here to the strikethrough toast scene (#82)
 		return s
 	if binding == ModifierBinding.Kind.CORE:
 		s.fill_color = tint.lerp(_COLOR_MYTHIC, 0.6)

@@ -3,7 +3,7 @@ extends Node2D
 ## Allocation / deallocation / death VFX showcase — a 3×3 grid of self-resetting
 ## "animation cells", each looping a single allocation-flavoured scenario against
 ## the REAL systems (AllocationSystem + BattleSystem + AllocationVFX +
-## FloatingNumberLayer). Because it drives the genuine `allocate` / `deallocate` /
+## FloaterToasterManager). Because it drives the genuine `allocate` / `deallocate` /
 ## `force_deallocate` / `take_damage` paths, the #71 modifier pulses and #70
 ## floaters fire for real — the old playground faked the signals and so couldn't.
 ##
@@ -42,7 +42,7 @@ var _graph: Graph
 var _alloc: AllocationSystem
 var _battle: BattleSystem
 var _vfx: AllocationVFX
-var _floaters: FloatingNumberLayer
+var _floaters: FloaterToasterManager
 var _cells: Array[_Cell] = []
 var _beat_label: Label
 

@@ -1,12 +1,12 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/floating_number_layer/floater_director.gd" id="1_dir"]
-[ext_resource type="Script" path="res://ui/floating_number_layer/floating_number_layer.gd" id="2_layer"]
+[ext_resource type="Script" path="res://ui/floating_number_layer/floater_toaster_manager.gd" id="2_layer"]
 
 [node name="FloaterDirector" type="Node2D" node_paths=PackedStringArray("renderer")]
 script = ExtResource("1_dir")
-renderer = NodePath("FloatingNumberLayer")
+renderer = NodePath("FloaterToasterManager")
 
-[node name="FloatingNumberLayer" type="Node2D" parent="."]
+[node name="FloaterToasterManager" type="Node2D" parent="."]
 z_index = 2000
 script = ExtResource("2_layer")

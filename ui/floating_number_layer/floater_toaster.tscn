@@ -2,26 +2,25 @@
 
 [ext_resource type="Script" uid="uid://cgjevfaon8f2n" path="res://ui/floating_number_layer/floater_toaster.gd" id="1_ttj8n"]
 
-[node name="FloaterToaster" type="Node2D" unique_id=1834277705]
+[node name="FloaterToaster" type="Node2D"]
 position = Vector2(304, 208)
 script = ExtResource("1_ttj8n")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1349046010]
-editor_description = "This is a test to see if composing a stack of toasts with a VBox works at all, or is too finnicky to get right.
-The thing would need to get animation going, like items entering from bottom, pushing up others, "
-custom_minimum_size = Vector2(100, 0)
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+custom_minimum_size = Vector2(220, 0)
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -50.0
-offset_right = 50.0
+offset_left = -110.0
+offset_right = 110.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
-[node name="Timer" type="Timer" parent="." unique_id=1457695969]
+[node name="Timer" type="Timer" parent="."]
+one_shot = true
 
-[connection signal="timeout" from="Timer" to="." method="pop_toast"]
+[connection signal="timeout" from="Timer" to="." method="_pop_toast"]

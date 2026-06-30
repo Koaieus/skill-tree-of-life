@@ -34,7 +34,7 @@ var battle_system: BattleSystem
 var allocation_vfx: AllocationVFX
 var floater_director: FloaterDirector
 ## Convenience handle to the director's renderer (used by showcases).
-var floating_number_layer: FloatingNumberLayer
+var floating_number_layer: FloaterToasterManager
 # Opt-in (null unless requested via opts).
 var turn_manager: TurnManager
 var loot_system: LootSystem

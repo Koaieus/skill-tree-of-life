@@ -14,8 +14,11 @@ extends Resource
 @export_range(0, 90) var max_angle: int = 0
 @export var glow: bool = false
 @export var glow_color: Color = Color(1.0, 0.84, 0.3, 1.0)
-## Optional exotic floater. MUST be an inherited scene from [Floater] (or a
-## shared base) so the renderer drives it uniformly. Null → the stock Floater.
+## Optional concrete toast scene. MUST be a scene whose root extends [FloaterToast]
+## so [FloaterToaster] can call [method FloaterToast.set_content] and
+## [method FloaterToast.animate] on it. Null → the stock [FloaterToast].
+## Used by [FloaterDirector] to swap in specialised toast variants — e.g. the
+## strikethrough scene for removed modifiers (#82).
 @export var scene_override: PackedScene = null
 
 

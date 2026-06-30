@@ -32,7 +32,7 @@ var _battle: BattleSystem
 var _loot: LootSystem
 var _tm: TurnManager
 var _vfx: AllocationVFX
-var _floaters: FloatingNumberLayer
+var _floaters: FloaterToasterManager
 
 var _attacker: Entity
 var _victim: Entity

@@ -1,40 +1,79 @@
 @tool
-class_name FloaterToasts
+class_name FloaterToaster
 extends Node2D
-## VBoxContainer to hold the sequence of active toasts until they expire, new ones should push up existing ones,
-## existing ones fade out after a while then are freed.
+
+## Stacked toast manager for one world-space target. Receives [FloaterRequest]s
+## via [method add_toast], drains them one-per-[member FloaterToast.fade_in_duration]
+## so rapid bursts read as a sequence rather than simultaneous noise, and
+## self-destructs when the queue is empty and the last toast has exited.
+##
+## Placed at the target's world position by [FloaterToasterManager]. If
+## [member target] is set, [method _process] mirrors the target's position
+## each frame (low cost — toasters are short-lived).
 
 
-@export var toast_queue: Array = []
-@export_tool_button('+ Toast!') var add_toast_button: Callable = _add_debug_toast
+## Cap on the waiting queue (not counting the currently-displayed toast).
+## When exceeded, the oldest queued entry is dropped.
+@export var max_queue_size: int = 8
 
-@onready var vbox: VBoxContainer = $VBoxContainer
-@onready var timer: Timer = $Timer
+## Optional live target to track. When set, this toaster's [member Node2D.global_position]
+## follows [member target]'s global_position each frame.
+var target: Node2D = null
+
+@onready var _vbox: VBoxContainer = $VBoxContainer
+@onready var _timer: Timer = $Timer
+
+var _queue: Array[FloaterRequest] = []
+
+const _FLOATER_TOAST_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_toast.tscn")
+
+# Tool button for in-editor smoke-testing.
+@export_tool_button("+ Toast!") var _btn: Callable = _add_debug_toasts
 
 
-const FLOATER_TOAST = preload("res://ui/floating_number_layer/floater_toast.tscn")
+func _ready() -> void:
+	_vbox.child_exiting_tree.connect(_on_toast_exited)
 
 
-func add_toast(toast: Variant) -> void: # TODO: Make into a real toast API
-	toast_queue.append(toast)
-	if timer.is_stopped():
-		pop_toast()
+func _process(_delta: float) -> void:
+	if target != null and is_instance_valid(target):
+		global_position = target.global_position
 
-func pop_toast() -> void:
-	if toast_queue.is_empty():
+
+func add_toast(request: FloaterRequest) -> void:
+	_queue.append(request)
+	if _queue.size() > max_queue_size:
+		_queue.pop_front()
+	if _timer.is_stopped():
+		_pop_toast()
+
+
+func _pop_toast() -> void:
+	if _queue.is_empty():
 		return
-	var toast_data = toast_queue.pop_front()
-	var toast := FLOATER_TOAST.instantiate() as FloaterToast
-	vbox.add_child(toast)
+	var request: FloaterRequest = _queue.pop_front()
+	var scene: PackedScene = _FLOATER_TOAST_SCENE
+	# scene_override lets the director swap in a concrete toast variant (e.g.
+	# the strikethrough scene for removed modifiers — see #82). The override
+	# MUST be a scene whose root extends FloaterToast.
+	if request.style != null and request.style.scene_override != null:
+		scene = request.style.scene_override
+	var toast := scene.instantiate() as FloaterToast
+	_vbox.add_child(toast)
+	var color := request.style.fill_color if request.style != null else Color.WHITE
+	toast.set_content(request.text, color)
 	toast.animate()
-	timer.start(toast.fade_in_duration)
+	_timer.start(toast.fade_in_duration)
 
 
-func _add_debug_toast() -> void:
-	add_toast('test')
-	add_toast('test')
-	add_toast('test')
+func _on_toast_exited(_node: Node) -> void:
+	if _queue.is_empty() and _vbox.get_child_count() <= 1:
+		queue_free()
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_accept"):
-		_add_debug_toast()
+
+func _add_debug_toasts() -> void:
+	var samples := ["-3", "+5 STR", "+123 XP", "LEVEL UP: +1 SP"]
+	for s in samples:
+		var req := FloaterRequest.new()
+		req.text = s
+		add_toast(req)

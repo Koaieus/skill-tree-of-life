@@ -91,9 +91,6 @@ bounds = Rect2(-3000, -2250, 6000, 4500)
 unique_name_in_owner = true
 vision_system = NodePath("../../Systems/VisionSystem")
 
-[node name="FloatingNumberLayer" parent="Graph/FloaterDirector" index="0"]
-stagger_seconds = 0.4
-
 [node name="EdgeHighlightOverlay" type="Node2D" parent="Graph" unique_id=316344470 node_paths=PackedStringArray("highlight_controller", "graph")]
 unique_name_in_owner = true
 script = ExtResource("13_i7pw8")
