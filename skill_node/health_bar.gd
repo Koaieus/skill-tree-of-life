@@ -39,7 +39,10 @@ func _ready() -> void:
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
-	_sync()
+	# Deferred so SkillNode._ready() (parent) has a chance to run first —
+	# it calls _refresh_hp_binding() which sets current_hp to max. Without
+	# this, _sync() sees current_hp=0 + owned_by!=null → false "damaged" state.
+	call_deferred(&"_sync")
 
 
 # ── HP signal handlers ────────────────────────────────────────────────────────
@@ -83,6 +86,7 @@ func _sync() -> void:
 func _update_visibility() -> void:
 	var damaged := _skill_node != null \
 			and _skill_node.owned_by != null \
+			and _skill_node.current_hp > 0.0 \
 			and _skill_node.current_hp < _skill_node.get_max_hp()
 	_fade_to(1.0 if (_hovered or damaged) else 0.0)
 
