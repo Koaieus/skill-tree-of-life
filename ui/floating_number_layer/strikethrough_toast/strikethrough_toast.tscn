@@ -1,66 +1,75 @@
 [gd_scene format=3 uid="uid://bxi4tko3jn6pm"]
 
-[ext_resource type="Script" path="res://ui/floating_number_layer/strikethrough_toast/strikethrough_toast.gd" id="1_strkt"]
+[ext_resource type="Script" uid="uid://257parwrigv6" path="res://ui/floating_number_layer/strikethrough_toast/strikethrough_toast.gd" id="1_strkt"]
+[ext_resource type="Shader" path="res://ui/floating_number_layer/strikethrough_toast/strikethrough.gdshader" id="2_shdtr"]
 
-[sub_resource type="LabelSettings" id="LabelSettings_label"]
+[sub_resource type="ShaderMaterial" id="ShaderMat_svc"]
+shader = ExtResource("2_shdtr")
+shader_parameter/gray_amount = 0.0
+shader_parameter/strike_x = 0.0
+shader_parameter/split_open = 0.0
+shader_parameter/split_y = 0.47
+shader_parameter/hot_color = Color(1, 0.65, 0.1, 1)
+shader_parameter/line_color = Color(0.55, 0.55, 0.55, 1)
+shader_parameter/tip_radius = 0.06
+shader_parameter/line_half_thick = 0.035
+
+[sub_resource type="LabelSettings" id="LabelSettings_hidden"]
 font_size = 32
 outline_size = 6
 outline_color = Color(0, 0, 0, 1)
 
-[sub_resource type="LabelSettings" id="LabelSettings_grey"]
+[sub_resource type="LabelSettings" id="LabelSettings_content"]
 font_size = 32
 outline_size = 6
 outline_color = Color(0, 0, 0, 1)
-font_color = Color(0.55, 0.55, 0.55, 1)
 
 [node name="StrikethroughToast" type="Control"]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
 script = ExtResource("1_strkt")
+strike_duration = 0.2
+strike_y_frac = 0.47
 visible_duration = 2.0
-fade_in_duration = 0.3
+fade_in_duration = 0.2
 fade_out_duration = 1.0
-strike_duration = 0.5
-strike_y_frac = 0.46
 
 [node name="Label" type="Label" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+text = "+10 STR"
+label_settings = SubResource("LabelSettings_hidden")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 1
-horizontal_alignment = 1
-vertical_alignment = 1
-text = "+10 STR"
-label_settings = SubResource("LabelSettings_label")
-
-[node name="GreyClip" type="Control" parent="."]
-layout_mode = 0
-offset_bottom = 32.0
-clip_contents = true
 mouse_filter = 2
+material = SubResource("ShaderMat_svc")
 
-[node name="LabelGrey" type="Label" parent="GreyClip"]
-layout_mode = 0
-offset_right = 220.0
-offset_bottom = 32.0
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+transparent_bg = true
+size = Vector2i(220, 32)
+
+[node name="ContentLabel" type="Label" parent="SubViewportContainer/SubViewport"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 1
+text = "+10 STR"
+label_settings = SubResource("LabelSettings_content")
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "+10 STR"
-label_settings = SubResource("LabelSettings_grey")
-
-[node name="StrikeLine" type="ColorRect" parent="."]
-visible = false
-layout_mode = 0
-offset_right = 0.0
-offset_bottom = 2.0
-color = Color(0.55, 0.55, 0.55, 1)
-
-[node name="HotTip" type="ColorRect" parent="."]
-visible = false
-layout_mode = 0
-offset_right = 5.0
-offset_bottom = 5.0
-color = Color(1, 0.65, 0.1, 1)
