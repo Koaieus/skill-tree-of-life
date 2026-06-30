@@ -34,8 +34,11 @@ func spawn(request: FloaterRequest) -> void:
 
 
 func _get_or_create_toaster(key: int, request: FloaterRequest) -> FloaterToaster:
-	var t: FloaterToaster = _toasters.get(key)
-	if not is_instance_valid(t):
+	# Read untyped first — assigning a freed instance to a typed var crashes
+	# before is_instance_valid gets a chance to run.
+	var stored = _toasters.get(key)
+	var t: FloaterToaster = stored if is_instance_valid(stored) else null
+	if t == null:
 		t = _TOASTER_SCENE.instantiate()
 		t.max_queue_size = max_queue_size
 		t.target = request.target

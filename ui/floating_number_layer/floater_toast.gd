@@ -25,7 +25,13 @@ extends Control
 
 func set_content(text: String, color: Color) -> void:
 	label.text = text
-	label.add_theme_color_override("font_color", color)
+	# LabelSettings.font_color takes priority over add_theme_color_override in
+	# Godot 4, so we must write the color directly into the settings resource.
+	# Sub-resources are duplicated per scene instantiation, so this is safe.
+	if label.label_settings != null:
+		label.label_settings.font_color = color
+	else:
+		label.add_theme_color_override("font_color", color)
 
 
 func animate() -> void:
