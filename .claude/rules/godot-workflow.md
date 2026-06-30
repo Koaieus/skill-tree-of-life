@@ -115,6 +115,17 @@ keyed on an object that might be freed the same frame, either do the work
 synchronously or guarantee the free is ordered after it. See
 [entity-death.md](entity-death.md). [TODO: is this too specific for a global rule? resolve this if read]
 
+### Typed variable + freed dict entry = crash before is_instance_valid*
+
+`var t: FloaterToaster = dict.get(key)` — if the dict holds a freed instance,
+the typed assignment crashes before `is_instance_valid` gets a chance to run.
+Read into an untyped var first:
+
+```gdscript
+var stored = dict.get(key)
+var t: MyType = stored if is_instance_valid(stored) else null
+```
+
 ### Git
 ## Closing an issue?
 Mention "Closes #{id}" in the commit message.

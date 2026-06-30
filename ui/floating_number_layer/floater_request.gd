@@ -15,7 +15,14 @@ var style: FloaterStyle = null
 
 
 func anchor_position() -> Vector2:
-	return target.global_position if is_instance_valid(target) else anchor
+	if not is_instance_valid(target):
+		return anchor
+	# Named-child convention: a Marker2D called "FloatAnchor" advertises where
+	# toasts should originate (e.g. above a SkillNode rather than at its center).
+	var marker := target.get_node_or_null(^"FloatAnchor")
+	if marker != null:
+		return marker.global_position
+	return target.global_position
 
 
 ## Stack-grouping key for the toaster. 0 = ungrouped (raw-position one-offs).
