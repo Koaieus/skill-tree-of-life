@@ -27,8 +27,10 @@ func set_content(text: String, color: Color) -> void:
 	label.text = text
 	# LabelSettings.font_color takes priority over add_theme_color_override in
 	# Godot 4, so we must write the color directly into the settings resource.
-	# Sub-resources are duplicated per scene instantiation, so this is safe.
+	# Duplicate first — sub-resources are SHARED across scene instances by default,
+	# so mutating without duplicating would corrupt every other live toast.
 	if label.label_settings != null:
+		label.label_settings = label.label_settings.duplicate()
 		label.label_settings.font_color = color
 	else:
 		label.add_theme_color_override("font_color", color)

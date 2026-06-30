@@ -38,6 +38,7 @@ func set_content(text: String, color: Color) -> void:
 	var lum: float = color.r * 0.299 + color.g * 0.587 + color.b * 0.114
 	_label_grey_color = Color(lum, lum, lum, 1.0)
 	if _label_grey.label_settings != null:
+		_label_grey.label_settings = _label_grey.label_settings.duplicate()
 		_label_grey.label_settings.font_color = _label_grey_color
 	else:
 		_label_grey.add_theme_color_override("font_color", _label_grey_color)
