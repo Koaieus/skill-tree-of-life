@@ -7,6 +7,15 @@ extends Node2D
 ##
 ## This node replaced [FloatingNumberLayer] (#81). It no longer owns a
 ## [_process] cooldown queue — the [FloaterToaster] handles its own stagger.
+##
+## Anchor resolution: when creating a toaster, this manager inspects the
+## request's target for a [Marker2D] child named [code]FloatAnchor[/code]
+## (unique-name lookup). If found, that marker's world position is used and
+## stored on the toaster's [member FloaterToaster._anchor] so
+## [method FloaterToaster._on_target_moved] can re-read it on movement.
+## If the target emits [code]position_changed[/code], the manager connects it
+## so the toaster tracks position without a _process loop. The connection
+## dissolves automatically if the target is freed before the toaster.
 
 const _TOASTER_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_toaster.tscn")
 
@@ -41,11 +50,26 @@ func _get_or_create_toaster(key: int, request: FloaterRequest) -> FloaterToaster
 	if t == null:
 		t = _TOASTER_SCENE.instantiate()
 		t.max_queue_size = max_queue_size
-		t.target = request.target
 		add_child(t)
-		t.global_position = request.anchor_position()
+		_wire_anchor(t, request.target)
 		_toasters[key] = t
 	return t
+
+
+## Resolve the anchor node for [param target], set the toaster's initial
+## world position, and connect a movement signal if the target exposes one.
+func _wire_anchor(toaster: FloaterToaster, target: Node2D) -> void:
+	if not is_instance_valid(target):
+		return
+	var anchor: Node2D = target.get_node_or_null(^"%FloatAnchor") as Node2D
+	if anchor == null:
+		anchor = target
+	toaster._anchor = anchor
+	toaster.global_position = anchor.global_position
+	# Duck-typed position tracking: connect if the target advertises movement.
+	# The connection dissolves for free when target is freed before the toaster.
+	if target.has_signal(&"position_changed"):
+		target.position_changed.connect(toaster._on_target_moved)
 
 
 ## Convenience: spawn a plain number at [param target] without composing a

@@ -7,23 +7,22 @@ extends Node2D
 ## so rapid bursts read as a sequence rather than simultaneous noise, and
 ## self-destructs when the queue is empty and the last toast has exited.
 ##
-## Placed at the target's world position by [FloaterToasterManager]. If
-## [member target] is set, [method _process] mirrors the target's position
-## each frame (low cost — toasters are short-lived).
+## Position is set once by [FloaterToasterManager] at creation time. If the
+## target emits [code]position_changed[/code], the manager connects it to
+## [method _on_target_moved] so the toaster tracks without a _process loop.
 
 
 ## Cap on the waiting queue (not counting the currently-displayed toast).
 ## When exceeded, the oldest queued entry is dropped.
 @export var max_queue_size: int = 8
 
-## Optional live target to track. When set, this toaster's [member Node2D.global_position]
-## follows [member target]'s global_position each frame.
-var target: Node2D = null
-
 @onready var _vbox: VBoxContainer = $VBoxContainer
 @onready var _timer: Timer = $Timer
 
 var _queue: Array[FloaterRequest] = []
+# The resolved anchor node (FloatAnchor marker, or the target itself).
+# Kept so _on_target_moved can re-read its position without storing the target.
+var _anchor: Node2D = null
 
 const _FLOATER_TOAST_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_toast.tscn")
 
@@ -35,9 +34,13 @@ func _ready() -> void:
 	_vbox.child_exiting_tree.connect(_on_toast_exited)
 
 
-func _process(_delta: float) -> void:
-	if target != null and is_instance_valid(target):
-		global_position = target.global_position
+## Called by [FloaterToasterManager] when the target signals that it moved.
+## Re-reads the anchor's current global_position rather than receiving it as
+## an argument, so any signal signature (or a no-arg signal) can be adapted
+## by the manager with [method Callable.bind].
+func _on_target_moved() -> void:
+	if is_instance_valid(_anchor):
+		global_position = _anchor.global_position
 
 
 func add_toast(request: FloaterRequest) -> void:

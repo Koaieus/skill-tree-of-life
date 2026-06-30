@@ -996,3 +996,4 @@ to = NodePath("../../Nodes/Enemy_Recon")
 visible = false
 
 [editable path="Graph"]
+[editable path="Graph/FloaterDirector"]
