@@ -42,7 +42,7 @@ func _ready() -> void:
 	# Deferred so SkillNode._ready() (parent) has a chance to run first —
 	# it calls _refresh_hp_binding() which sets current_hp to max. Without
 	# this, _sync() sees current_hp=0 + owned_by!=null → false "damaged" state.
-	call_deferred(&"_sync")
+	_sync.call_deferred()
 
 
 # ── HP signal handlers ────────────────────────────────────────────────────────
@@ -84,6 +84,8 @@ func _sync() -> void:
 # ── Visibility ────────────────────────────────────────────────────────────────
 
 func _update_visibility() -> void:
+	if not _skill_node.is_allocated():
+		return _fade_to(0.0)
 	var damaged := _skill_node != null \
 			and _skill_node.owned_by != null \
 			and _skill_node.current_hp > 0.0 \

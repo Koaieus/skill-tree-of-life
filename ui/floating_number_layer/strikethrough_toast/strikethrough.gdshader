@@ -29,11 +29,11 @@ void fragment() {
     if (split_open > 0.0) {
         if (uv.y < split_y) {
             float src_y = uv.y + split_open * split_y;
-            if (src_y >= split_y) { COLOR = vec4(0.0); return; }
+            if (src_y >= split_y) { COLOR = vec4(0.0); discard; }
             uv.y = src_y;
         } else {
             float src_y = uv.y - split_open * (1.0 - split_y);
-            if (src_y <= split_y) { COLOR = vec4(0.0); return; }
+            if (src_y <= split_y) { COLOR = vec4(0.0); discard; }
             uv.y = src_y;
         }
     }
@@ -47,9 +47,9 @@ void fragment() {
     // reads as a continuous beam rather than a dotted line between letters.
     if (tex.a < 0.005) {
         float line_a = on_line * struck * gray_amount;
-        if (line_a < 0.005) { COLOR = vec4(0.0); return; }
+        if (line_a < 0.005) { COLOR = vec4(0.0); discard; }
         COLOR = vec4(mix(line_color.rgb, hot_color.rgb, heat_norm), line_a);
-        return;
+        discard;
     }
 
     // Greyscale — whole label simultaneously (gray_amount is NOT per-pixel).

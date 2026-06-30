@@ -67,7 +67,7 @@ func _run_strike() -> void:
 func _animate_out() -> void:
 	var tween := create_tween().set_parallel(true)
 	# Collapse the VBox slot so remaining toasts rearrange.
-	tween.tween_property(self, "custom_minimum_size:y", 0.0, fade_out_duration * 0.4)
+	tween.tween_property(self, "custom_minimum_size:y", 0.0, fade_out_duration)
 	# UV displacement opens the gap at the cut; fade removes the SVC afterward.
 	tween.tween_method(func(v: float) -> void: _mat.set_shader_parameter("split_open", v),
 		0.0, 1.0, fade_out_duration)

@@ -55,6 +55,6 @@ func animate() -> void:
 func _animate_out() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(self, "modulate:a", 0.0, fade_out_duration)
-	tween.tween_property(self, "custom_minimum_size:y", 0.0, fade_out_duration * 0.5) \
+	tween.tween_property(self, "custom_minimum_size:y", 0.0, fade_out_duration) \
 		.set_delay(fade_out_duration * 0.5)
 	tween.tween_callback(queue_free).set_delay(fade_out_duration)

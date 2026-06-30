@@ -7,23 +7,34 @@ font_size = 32
 outline_size = 6
 outline_color = Color(0, 0, 0, 1)
 
-[node name="FloaterToast" type="Control"]
+[node name="FloaterToast" type="Control" unique_id=119965933]
 custom_minimum_size = Vector2(0, 32)
 layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
 script = ExtResource("1_kqjp4")
-visible_duration = 1.75
-fade_in_duration = 0.3
-fade_out_duration = 1.5
 
-[node name="Label" type="Label" parent="."]
+[node name="Label" type="Label" parent="." unique_id=995526733]
+layout_mode = 1
+anchors_preset = -1
+anchor_right = 1.0
+anchor_bottom = 1.088
+offset_left = -27.5
+offset_top = -6.5
+offset_right = 27.5
+offset_bottom = 3.683998
+grow_horizontal = 2
+grow_vertical = 2
+text = "+5 STR"
+label_settings = SubResource("LabelSettings_vpt67")
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="StrikeThroughBox" type="Control" parent="Label" unique_id=1995315764]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
-grow_vertical = 1
-horizontal_alignment = 1
-vertical_alignment = 1
-text = "123"
-label_settings = SubResource("LabelSettings_vpt67")
+grow_vertical = 2
+mouse_filter = 2
