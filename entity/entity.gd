@@ -78,6 +78,7 @@ func _ready() -> void:
 
 	# Initialize stat board and wiring
 	if stat_board != null:
+		stat_board = stat_board.duplicate(true)
 		stat_board.apply_intrinsics()
 		if core_class != null:
 			core_class.apply(self)

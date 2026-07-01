@@ -20,6 +20,9 @@ signal value_changed
 	set(v):
 		definition = v
 		_sync_resource_name()
+		
+# TODO: How should this relate to StatDef.default_value? 
+# if the StatDef has a default_value of 10.0, what does that say about base_value?
 @export var base_value: float = 0.0:
 	set(v):
 		if v == base_value:
