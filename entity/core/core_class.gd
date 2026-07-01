@@ -1,5 +1,4 @@
 @tool
-@abstract
 class_name CoreClass
 extends Resource
 

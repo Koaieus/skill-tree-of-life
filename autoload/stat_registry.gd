@@ -6,7 +6,7 @@ extends Node
 
 const STAT_LIST_DIR: String = "res://stats_system/defs"
 
-var _defs: Dictionary = {}
+var _defs: Dictionary[StringName, StatDef] = {}
 
 
 func _ready() -> void:

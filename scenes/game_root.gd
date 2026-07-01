@@ -231,11 +231,10 @@ func spawn_entity(
 	core_class: CoreClass = null,
 	with_ai: bool = false,
 ) -> Entity:
-	var ent := Entity.new()
+	var ent := preload("res://entity/entity.tscn").instantiate() as Entity
 	ent.name = ent_name
 	ent.display_name = ent_name
 	ent.color = color
-	ent.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
 	ent.core_class = core_class
 	graph.entities_container.add_child(ent)
 	if core_location != null:
