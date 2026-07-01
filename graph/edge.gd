@@ -49,6 +49,8 @@ var sensed: bool = false:
 		z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
 		queue_redraw()
 
+var is_self_loop: bool:
+	get(): return from != null and from == to
 
 func _draw() -> void:
 	if from == null or to == null:
@@ -56,7 +58,7 @@ func _draw() -> void:
 	# Self-loop branch: from and to are the same node. Render as a small
 	# loop arc tangent to the top of the node so the player can read it as
 	# "+2 degree, this is a Resonator setup."
-	if from == to:
+	if is_self_loop:
 		_draw_self_loop()
 		return
 	var seg := SkillNode.segment_between(from, to)

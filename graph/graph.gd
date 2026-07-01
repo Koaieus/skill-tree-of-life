@@ -106,6 +106,8 @@ func add_edge(from: SkillNode, to: SkillNode) -> Edge:
 	edge.from = from
 	edge.to = to
 	edges_container.add_child(edge)
+	if from == to:  # it's a self-loop!
+		from.self_loops.append(edge)
 	edge_added.emit(edge)
 	return edge
 

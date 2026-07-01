@@ -116,7 +116,7 @@ func get_degree(node: SkillNode) -> int:
 	var id := vertex_id(node)
 	if id < 0:
 		return -1
-	return astar.get_point_connections(id).size()
+	return astar.get_point_connections(id).size() + 2 * node.self_loop_count
 
 
 ## All mirrored nodes whose degree in the mirror equals [param degree].
@@ -258,6 +258,7 @@ func _on_edge_added(edge: Edge) -> void:
 		# AStar2D rejects self-loop edges (Condition "p_id == p_with_id").
 		# Self-loops are a propagation/render concern, not a routing one —
 		# pathfinding has no use for self → self.
+		# Instead, the Edge is added to the self-loop array of the SkillNode vertex
 		return
 	if not astar.are_points_connected(a, b):
 		astar.connect_points(a, b)

@@ -65,10 +65,12 @@ signal depleted
 		inner_radius = value
 		_sync_visuals()
 
+@export var self_loops: Array[Edge] = []
+
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_marker: Node2D = $Visuals/CoreMarker
-@onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
+@onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar # TODO: pull through vision system
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
 @onready var _addon_anchor: Node2D = $Visuals/AddonAnchor
 @onready var _collision: CollisionShape2D = $CollisionShape2D
@@ -115,6 +117,8 @@ var _local_stats: Dictionary = {}  # StringName → LocalStat
 # damage doesn't visually merge into one stuck red.
 var _hit_flash_tween: Tween
 
+var self_loop_count: int:
+	get(): return self_loops.size()
 
 func _ready() -> void:
 	_sync_collision()
