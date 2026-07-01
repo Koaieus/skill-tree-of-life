@@ -471,6 +471,31 @@ cost = 3
 weight = 1.5
 tags = Array[StringName]([&"con", &"defense", &"flat", &"tier_5"])
 
+[sub_resource type="Resource" id="Resource_n0xce"]
+script = ExtResource("e")
+id = &"armor_a1"
+stat_id = &"armor"
+value_range = Vector2(1, 2)
+tags = Array[StringName]([&"defense", &"flat", &"tier_1"])
+metadata/_custom_type_script = "uid://cd378og7212uy"
+
+[sub_resource type="Resource" id="Resource_ubihu"]
+script = ExtResource("e")
+id = &"armor_a2"
+stat_id = &"armor"
+value_range = Vector2(3, 5)
+cost = 2
+tags = Array[StringName]([&"defense", &"flat", &"tier_2"])
+metadata/_custom_type_script = "uid://cd378og7212uy"
+
+[sub_resource type="Resource" id="Resource_j63gc"]
+script = ExtResource("e")
+id = &"armor_a3"
+stat_id = &"armor"
+value_range = Vector2(1, 2)
+tags = Array[StringName]([&"defense", &"flat", &"tier_3"])
+metadata/_custom_type_script = "uid://cd378og7212uy"
+
 [resource]
 script = ExtResource("p")
-entries = Array[ExtResource("e")]([SubResource("str_a1"), SubResource("str_a2"), SubResource("str_a3"), SubResource("str_a4"), SubResource("str_a5"), SubResource("str_p1"), SubResource("str_p2"), SubResource("str_p3"), SubResource("str_m1"), SubResource("str_m2"), SubResource("dex_a1"), SubResource("dex_a2"), SubResource("dex_a3"), SubResource("dex_a4"), SubResource("dex_a5"), SubResource("dex_p1"), SubResource("dex_p2"), SubResource("dex_p3"), SubResource("dex_m1"), SubResource("dex_m2"), SubResource("int_a1"), SubResource("int_a2"), SubResource("int_a3"), SubResource("int_a4"), SubResource("int_a5"), SubResource("int_a6"), SubResource("int_p1"), SubResource("int_p2"), SubResource("int_p3"), SubResource("int_m1"), SubResource("int_m2"), SubResource("per_a1"), SubResource("per_a2"), SubResource("per_a3"), SubResource("per_p1"), SubResource("wis_a1"), SubResource("wis_a2"), SubResource("wis_a3"), SubResource("wis_p1"), SubResource("xpt_a0"), SubResource("xpt_a1"), SubResource("xpt_a2"), SubResource("xpt_a3"), SubResource("xpt_p1"), SubResource("xpt_m1"), SubResource("vis_a1"), SubResource("vis_a2"), SubResource("sen_a1"), SubResource("man_a1"), SubResource("hp_a1"), SubResource("hp_a2")])
+entries = Array[ExtResource("e")]([SubResource("str_a1"), SubResource("str_a2"), SubResource("str_a3"), SubResource("str_a4"), SubResource("str_a5"), SubResource("str_p1"), SubResource("str_p2"), SubResource("str_p3"), SubResource("str_m1"), SubResource("str_m2"), SubResource("dex_a1"), SubResource("dex_a2"), SubResource("dex_a3"), SubResource("dex_a4"), SubResource("dex_a5"), SubResource("dex_p1"), SubResource("dex_p2"), SubResource("dex_p3"), SubResource("dex_m1"), SubResource("dex_m2"), SubResource("int_a1"), SubResource("int_a2"), SubResource("int_a3"), SubResource("int_a4"), SubResource("int_a5"), SubResource("int_a6"), SubResource("int_p1"), SubResource("int_p2"), SubResource("int_p3"), SubResource("int_m1"), SubResource("int_m2"), SubResource("per_a1"), SubResource("per_a2"), SubResource("per_a3"), SubResource("per_p1"), SubResource("wis_a1"), SubResource("wis_a2"), SubResource("wis_a3"), SubResource("wis_p1"), SubResource("xpt_a0"), SubResource("xpt_a1"), SubResource("xpt_a2"), SubResource("xpt_a3"), SubResource("xpt_p1"), SubResource("xpt_m1"), SubResource("vis_a1"), SubResource("vis_a2"), SubResource("sen_a1"), SubResource("man_a1"), SubResource("hp_a1"), SubResource("hp_a2"), SubResource("Resource_n0xce"), SubResource("Resource_ubihu"), SubResource("Resource_j63gc")])
