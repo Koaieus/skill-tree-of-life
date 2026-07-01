@@ -231,7 +231,7 @@ script = ExtResource("cp")
 
 [resource]
 script = ExtResource("cfg")
-node_count = 500
+node_count = 600
 node_padding = 48.0
 connectivity = 0.357
 shape_mask = SubResource("shape_circle")

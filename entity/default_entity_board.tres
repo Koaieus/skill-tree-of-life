@@ -22,7 +22,7 @@
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
-[ext_resource type="Resource" path="res://stats_system/defs/range.tres" id="def_range"]
+[ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
@@ -214,9 +214,9 @@ base_value = 3.0
 [sub_resource type="Resource" id="pool_movement_points"]
 resource_name = "movement_points"
 script = ExtResource("3_pool")
-current = 1.0
+current = 3.0
 definition = ExtResource("def_movement_points")
-base_value = 1.0
+base_value = 3.0
 
 [sub_resource type="Resource" id="scalar_node_health"]
 resource_name = "node_health"
@@ -234,7 +234,7 @@ base_value = 10.0
 resource_name = "range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_range")
-base_value = 300.0
+base_value = 400.0
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -264,7 +264,7 @@ base_value = 10.0
 resource_name = "vision_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_vision_range")
-base_value = 400.0
+base_value = 420.0
 
 [sub_resource type="Resource" id="scalar_wisdom"]
 resource_name = "wisdom"
