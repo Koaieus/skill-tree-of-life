@@ -100,7 +100,7 @@ func get_range_visual() -> RangeVisual:
 	var finder: RangeFinder = spell.targeting.range_finder
 	if finder == null:
 		return null
-	return finder.get_visual(self, source)
+	return finder.get_visual(attacker, source)
 
 
 func _target_still_valid() -> bool:

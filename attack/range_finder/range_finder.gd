@@ -21,24 +21,30 @@ const DEFAULT_EDGE_SCENE: PackedScene = preload("res://attack/range_finder/visua
 @export var ring_scene: PackedScene = DEFAULT_RING_SCENE
 @export var edge_scene: PackedScene = DEFAULT_EDGE_SCENE
 
-@abstract func in_range(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool
+## [param attacker] is only consulted for [method spell_range_multiplier] (and,
+## on [HopRangeFinder], for its navigator) — it is NOT required to be mid-attack.
+## Pass null to get the finder's raw exported reach with no stat scaling (e.g.
+## a [CoreClass] aura, which should not scale with the caster's `spell_range`).
+@abstract func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 
 
 ## Returns a [RangeVisual] describing what reach from [param source] looks
-## like under the current [param plan]. Default is empty — subclasses
-## populate rings (Euclidean) or edges (hop-based) as appropriate.
-func get_visual(_plan: AttackPlan, _source: SkillNode) -> RangeVisual:
+## like for [param attacker] (see [method in_range] for the null contract).
+## Default is empty — subclasses populate rings (Euclidean) or edges
+## (hop-based) as appropriate.
+func get_visual(_attacker: Entity, _source: SkillNode) -> RangeVisual:
 	return RangeVisual.new()
 
 
 ## Per-attacker reach multiplier sourced from the `spell_range` stat
-## (interpreted as a percent bonus). Returns 1.0 if no attacker / stat board.
+## (interpreted as a percent bonus). Returns 1.0 if no attacker / stat board
+## (including a null attacker — the deliberate "no scaling" path).
 ## Subclasses scale their base reach by this value so INT-driven boosts
 ## propagate uniformly across hop and euclidean finders.
-static func spell_range_multiplier(plan: AttackPlan) -> float:
-	if plan == null or plan.attacker == null or plan.attacker.stat_board == null:
+static func spell_range_multiplier(attacker: Entity) -> float:
+	if attacker == null or attacker.stat_board == null:
 		return 1.0
-	var s := plan.attacker.stat_board.get_stat(&"spell_range")
+	var s := attacker.stat_board.get_stat(&"spell_range")
 	if s == null:
 		return 1.0
 	return 1.0 + float(s.value) / 100.0

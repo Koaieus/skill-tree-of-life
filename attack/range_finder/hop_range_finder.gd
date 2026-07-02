@@ -7,12 +7,12 @@ extends RangeFinder
 @export var max_hops: int = 3
 
 
-func in_range(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool:
+func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool:
 	if source == null or candidate == null:
 		return false
-	if plan == null or plan.attacker == null or plan.attacker.navigator == null:
+	if attacker == null or attacker.navigator == null:
 		return false
-	var graph := plan.attacker.navigator.graph
+	var graph := attacker.navigator.graph
 	if graph == null:
 		return false
 	var nav := graph.navigator
@@ -25,23 +25,23 @@ func in_range(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool
 	var path := nav.astar.get_id_path(src_id, dst_id)
 	if path.is_empty():
 		return false
-	return path.size() - 1 <= _effective_max_hops(plan)
+	return path.size() - 1 <= _effective_max_hops(attacker)
 
 
 ## Round-to-nearest scaling so a single +20% from INT pushes a 3-hop spell
 ## to 4 hops (3 × 1.2 ≈ 3.6 → 4) rather than getting eaten by truncation.
-func _effective_max_hops(plan: AttackPlan) -> int:
-	return int(round(float(max_hops) * spell_range_multiplier(plan)))
+func _effective_max_hops(attacker: Entity) -> int:
+	return int(round(float(max_hops) * spell_range_multiplier(attacker)))
 
 
-func get_visual(plan: AttackPlan, source: SkillNode) -> RangeVisual:
+func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
-	var max_hops := _effective_max_hops(plan)
+	var max_hops := _effective_max_hops(attacker)
 	if source == null or max_hops <= 0:
 		return visual
-	if plan == null or plan.attacker == null or plan.attacker.navigator == null:
+	if attacker == null or attacker.navigator == null:
 		return visual
-	var graph := plan.attacker.navigator.graph
+	var graph := attacker.navigator.graph
 	if graph == null:
 		return visual
 	var nav := graph.navigator

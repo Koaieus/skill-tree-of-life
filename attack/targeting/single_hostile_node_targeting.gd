@@ -13,6 +13,6 @@ func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) 
 		return false
 	if candidate.owned_by == null or candidate.owned_by == plan.attacker:
 		return false
-	if range_finder != null and not range_finder.in_range(plan, source, candidate):
+	if range_finder != null and not range_finder.in_range(plan.attacker, source, candidate):
 		return false
 	return true
