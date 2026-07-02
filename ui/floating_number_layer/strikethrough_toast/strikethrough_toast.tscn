@@ -6,16 +6,16 @@
 [sub_resource type="ShaderMaterial" id="ShaderMat_svc"]
 resource_local_to_scene = true
 shader = ExtResource("2_shdtr")
-shader_parameter/label_size = Vector2(0, 0)
-shader_parameter/gray_amount = 0.0
-shader_parameter/strike_x = 0.0
+shader_parameter/label_size = Vector2(128, 50)
+shader_parameter/gray_amount = 1.0
+shader_parameter/strike_x = 0.558000026505
 shader_parameter/split_open = 0.0
 shader_parameter/split_y_start = 0.85
 shader_parameter/split_y_end = 0.15
 shader_parameter/hot_color = Color(1, 0.65, 0.1, 1)
 shader_parameter/line_color = Color(0.55, 0.55, 0.55, 1)
-shader_parameter/tip_radius = 0.04500000143898
-shader_parameter/line_half_thick = 0.03800000145574
+shader_parameter/tip_radius = 0.06800000253148
+shader_parameter/line_half_thick = 0.03500000131324
 
 [sub_resource type="LabelSettings" id="LabelSettings_hidden"]
 font_size = 32
@@ -28,9 +28,9 @@ layout_mode = 3
 anchors_preset = 0
 mouse_filter = 2
 script = ExtResource("1_strkt")
+strike_duration = 0.6
 visible_duration = 2.0
 fade_in_duration = 0.2
-fade_out_duration = 1.0
 
 [node name="Label" type="Label" parent="." unique_id=1369817195]
 material = SubResource("ShaderMat_svc")

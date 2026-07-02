@@ -124,6 +124,6 @@ func _animate_out() -> void:
 	# UV displacement opens the gap at the cut; fade removes the SVC afterward.
 	tween.tween_method(func(v: float): _mat.set_shader_parameter("split_open", v),
 		0.0, 1.0, fade_out_duration)
-	tween.tween_property(label, "modulate:a", 0.0, fade_out_duration * 0.6) \
-		.set_delay(fade_out_duration * 0.4)
+	tween.tween_property(label, "modulate:a", 0.0, fade_out_duration * 0.4) \
+		.set_delay(fade_out_duration * 0.6)
 	tween.tween_callback(queue_free).set_delay(fade_out_duration)

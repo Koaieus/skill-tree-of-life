@@ -33,6 +33,12 @@ void vertex() {
 void fragment() {
     vec2 uv = text_uv;
 	vec2 letter_uv = UV;
+	// Glyph colour lives in the incoming vertex COLOR, not in TEXTURE. On a Label
+	// canvas material TEXTURE is the font atlas — coverage in .a, RGB is white —
+	// so the letters must be tinted by COLOR (font_color on the main pass,
+	// outline_color on the outline pass) or they render all-white with no outline.
+	// COLOR.a also carries modulate:a, which drives the _animate_out fade.
+	vec4 base_col = COLOR;
 
     // Cut line position at this x — linear interpolation gives the diagonal.
     // Endpoints are set once from font metrics (StrikethroughToast.strike_endpoints).
@@ -58,31 +64,34 @@ void fragment() {
 
 
     vec4  tex       = texture(TEXTURE, letter_uv);
-    float heat_norm = 1.0 - smoothstep(0.0, tip_radius,      abs(uv.x - strike_x));
+    // Hot tip is a laser DOT travelling along the cut, not a vertical column:
+    // distance to the point where the leading edge meets the diagonal, measured
+    // in height-normalised units (x scaled by W/H) so the glow reads round.
+    float tip_y     = mix(split_y_start, split_y_end, strike_x);
+    vec2  aspect    = vec2(label_size.x / max(label_size.y, 1.0), 1.0);
+    float heat_norm = 1.0 - smoothstep(0.0, tip_radius, length((uv - vec2(strike_x, tip_y)) * aspect));
     float on_line   = 1.0 - smoothstep(0.0, line_half_thick, abs(uv.y - local_split_y));
     float struck    = step(uv.x, strike_x);
 
-    // Transparent glyph gaps: only the strike line is drawn there, so the cut
-    // reads as a continuous beam rather than a dotted line between letters.
     if (tex.a < 0.005) {
-        float line_a = on_line * struck * gray_amount;
-        if (line_a < 0.005) { COLOR = vec4(0.0); discard; }
+        // Transparent glyph gap: only the strike beam is drawn there, so the cut
+        // reads as a continuous line rather than a dotted one between letters.
+        // (`return` is illegal in fragment(), so the glyph path is the else arm.)
+        float line_a = on_line * struck * gray_amount * base_col.a;
+        if (line_a < 0.005) { discard; }
         COLOR = vec4(mix(line_color.rgb, hot_color.rgb, heat_norm), line_a);
-        discard;
+    } else {
+        // Letter colour comes from base_col (font_color / outline_color), NOT
+        // tex.rgb. Greyscale is whole-label simultaneous (gray_amount is uniform).
+        float lum = dot(base_col.rgb, vec3(0.299, 0.587, 0.114));
+        vec3  col = mix(base_col.rgb, vec3(lum), gray_amount);
+        // Hot tip glow on glyph pixels.
+        col = mix(col, hot_color.rgb, heat_norm);
+        // Strike line overlaid on glyph pixels at the diagonal.
+        col = mix(col,
+                  mix(line_color.rgb, hot_color.rgb, heat_norm),
+                  on_line * struck * gray_amount);
+        COLOR = vec4(col, tex.a * base_col.a);
     }
-
-    // Greyscale — whole label simultaneously (gray_amount is NOT per-pixel).
-    float lum = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
-    vec3  col = mix(tex.rgb, vec3(lum), gray_amount);
-
-    // Hot tip glow on glyph pixels.
-    col = mix(col, hot_color.rgb, heat_norm);
-
-    // Strike line overlaid on glyph pixels at the diagonal.
-    col = mix(col,
-              mix(line_color.rgb, hot_color.rgb, heat_norm),
-              on_line * struck * gray_amount);
-
-    COLOR = vec4(col, tex.a);
 	//COLOR = mix(COLOR, vec4(1.,0,0,1), float(abs(text_uv.y - local_split_y) < 0.05));
 }
