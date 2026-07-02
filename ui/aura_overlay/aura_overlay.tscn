@@ -1,7 +1,7 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://d1rrcyivrxprd"]
 
-[ext_resource type="Script" path="res://ui/aura_overlay/aura_overlay.gd" id="1_script"]
-[ext_resource type="Shader" path="res://ui/aura_overlay/aura.gdshader" id="2_shader"]
+[ext_resource type="Script" uid="uid://h3xdxoq014mt" path="res://ui/aura_overlay/aura_overlay.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://gvujf74mm4da" path="res://ui/aura_overlay/aura.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aura"]
 shader = ExtResource("2_shader")
@@ -12,7 +12,9 @@ shader_parameter/entity_colors = [Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0,
 shader_parameter/intensity = 0.6
 shader_parameter/falloff = 0.6
 
-[node name="AuraOverlay" type="Node2D"]
+[node name="AuraOverlay" type="Node2D" unique_id=1398858785]
+z_index = -100
+z_as_relative = false
 material = SubResource("ShaderMaterial_aura")
 script = ExtResource("1_script")
-falloff = 0.6
+radius_multiplier = 3.0
