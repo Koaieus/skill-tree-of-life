@@ -85,9 +85,10 @@ func _populate() -> void:
 
 	if has_prop:
 		var prop := _spell.propagation
-		_add_stat_row(&"Hops", str(eff_hops), hops_dynamic)
+		var hops_text := str(eff_hops)
 		if hops_dynamic:
-			_add_stat_row(&"  (base", "%d)" % base_hops, false)
+			hops_text = "%d (base %d)" % [eff_hops, base_hops]
+		_add_stat_row(&"Hops", hops_text, hops_dynamic)
 
 		if not is_equal_approx(prop.damage_multiplier_per_hop, 1.0):
 			_add_stat_row(&"Hop Mult", "×%s" % _format_num(prop.damage_multiplier_per_hop), false)
@@ -206,9 +207,15 @@ func _reposition() -> void:
 	var vp_size := get_viewport_rect().size
 	var mouse := get_viewport().get_mouse_position()
 	var sz := size
+	# Preferred: below-right of cursor.
 	var pos := mouse + Vector2(16.0, 16.0)
-	if pos.x + sz.x > vp_size.x - 4.0:
+	# Flip horizontal if off right edge.
+	if pos.x + sz.x > vp_size.x:
 		pos.x = mouse.x - sz.x - 8.0
-	if pos.y + sz.y > vp_size.y - 4.0:
+	# Flip vertical if off bottom edge.
+	if pos.y + sz.y > vp_size.y:
 		pos.y = mouse.y - sz.y - 8.0
+	# Clamp so the tooltip never goes off-screen in any direction.
+	pos.x = clampf(pos.x, 4.0, vp_size.x - sz.x - 4.0)
+	pos.y = clampf(pos.y, 4.0, vp_size.y - sz.y - 4.0)
 	set_position(pos)
