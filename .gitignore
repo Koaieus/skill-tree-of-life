@@ -1,3 +1,6 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# git worktrees (mise worktree:new/rm), each carries its own .godot/
+/.worktrees/

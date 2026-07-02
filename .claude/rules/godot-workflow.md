@@ -129,12 +129,25 @@ var t: MyType = stored if is_instance_valid(stored) else null
 ### Git
 ## Closing an issue?
 Mention "Closes #{id}" in the commit message.
-## No worktrees (no DX in place for fast switching between wt)
-Means other agents may be doing stuff on the main wt, or there may be a WIP.
-If tests suddenly start failing, don't spend too much time on it,
-so far you can still get another part done. If things are in your scope or quick fixes,
-apply — but check what was happening. It might be a first step of a refactor, if so
-see if you can follow its lead, verify with user for alignment.
+## Worktrees (#86)
+Use `mise run worktree:new -- <issue|name>` / `worktree:ls` / `worktree:rm -- <fuzzy>`
+(see `mise.toml`) to get an isolated checkout under `.worktrees/<slug>/`
+instead of editing the main checkout directly. The `warp` skill
+(`.claude/skills/warp/SKILL.md`) drives the full issue → worktree →
+implement → approval → merge → close → teardown cycle on top of these tasks.
+
+Each worktree has its own gitignored `.godot/` — confirmed empirically (#86
+spike) that a fresh worktree's cold `godot --headless --editor` import
+neither touches nor corrupts the main checkout's `.godot/`, and is fully
+independent (own import cache, own class cache).
+
+The main checkout itself is still a **shared, un-worktree'd surface** —
+other agents may be doing stuff there directly, or there may be uncommitted
+WIP. If tests suddenly start failing there, don't spend too much time on it,
+so far you can still get another part done. If things are in your scope or
+quick fixes, apply — but check what was happening. It might be a first step
+of a refactor, if so see if you can follow its lead, verify with user for
+alignment.
 User likes clean codebase. Refactoring into scenes, DI via `@export`ed vars, inherited
 scenes where needed, always try and take it to the next level, keeping common
 conventions for YAGNI but the opposite of YAGNI may pay off too: planning ahead. Case by case care works best.

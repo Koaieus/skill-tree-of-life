@@ -43,3 +43,72 @@ run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest"
 [tasks."test:dir"]
 description = "Run all tests in a directory: `mise run test:dir -- res://test/unit/`"
 run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir"
+
+[tasks."worktree:new"]
+description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+arg="${1:?usage: mise run worktree:new -- <issue-number|name>}"
+slugify() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40; }
+
+if [[ "$arg" =~ ^[0-9]+$ ]]; then
+  title=$(gh issue view "$arg" --json title -q .title)
+  slug="issue-${arg}-$(slugify "$title")"
+else
+  slug="wt-$(slugify "$arg")"
+fi
+
+dir=".worktrees/${slug}"
+if [ -e "$dir" ]; then
+  echo "✗ worktree already exists: $dir"
+  exit 1
+fi
+
+git worktree add "$dir" -b "$slug"
+echo "✓ worktree ready: $dir (branch $slug)"
+echo "  cd $dir"
+'''
+
+[tasks."worktree:ls"]
+description = "List active worktrees with their branches"
+run = "git worktree list"
+
+[tasks."worktree:rm"]
+description = "Remove a worktree: `mise run worktree:rm -- 86` (fuzzy-matches dir/branch name via fzf if ambiguous)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+query="${1:?usage: mise run worktree:rm -- <fuzzy-name-or-issue-number>}"
+
+candidates=$(git worktree list --porcelain | awk '/^worktree /{print $2}' | grep '/\.worktrees/' || true)
+if [ -z "$candidates" ]; then
+  echo "✗ no worktrees under .worktrees/"
+  exit 1
+fi
+
+matches=$(printf '%s\n' "$candidates" | grep -i -- "$query" || true)
+match_count=$(printf '%s\n' "$matches" | grep -c . || true)
+
+if [ "$match_count" -eq 0 ]; then
+  echo "✗ no worktree matches '$query'"
+  exit 1
+elif [ "$match_count" -eq 1 ]; then
+  target="$matches"
+else
+  target=$(printf '%s\n' "$matches" | fzf --prompt="remove worktree> ")
+  [ -n "$target" ] || { echo "✗ nothing selected"; exit 1; }
+fi
+
+branch=$(git -C "$target" branch --show-current)
+git worktree remove "$target"
+echo "✓ removed worktree $target"
+
+read -r -p "Delete branch '$branch' too? [y/N] " confirm
+if [[ "$confirm" =~ ^[Yy]$ ]]; then
+  git branch -D "$branch"
+  echo "✓ deleted branch $branch"
+else
+  echo "  kept branch $branch"
+fi
+'''
