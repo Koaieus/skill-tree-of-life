@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://dco2juuyxbk6v" path="res://ui/spell_tooltip/spell_tooltip.gd" id="1_j4qkg"]
 
 [node name="SpellTooltip" type="PanelContainer" unique_id=890407428]
+layout_mode = 0
 custom_minimum_size = Vector2(200, 0)
 mouse_filter = 2
 script = ExtResource("1_j4qkg")
