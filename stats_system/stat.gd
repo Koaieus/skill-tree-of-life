@@ -21,8 +21,13 @@ signal value_changed
 		definition = v
 		_sync_resource_name()
 		
-# TODO: How should this relate to StatDef.default_value? 
-# if the StatDef has a default_value of 10.0, what does that say about base_value?
+## Runtime base value this entity's stat starts at (usually inherited from
+## the board .tres; 0.0 initially). [member StatDef.default_value] is a
+## separate manufacturing default — used by [method SkillNode.get_local_stat]
+## when the entity board doesn't carry the stat at all so the local stat can
+## still return a sensible value. They are not coupled: base_value is the
+## entity's *own* starting point after init; default_value is the system-wide
+## "if absent" floor.
 @export var base_value: float = 0.0:
 	set(v):
 		if v == base_value:

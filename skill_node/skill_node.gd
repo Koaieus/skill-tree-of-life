@@ -294,19 +294,15 @@ func get_max_hp() -> float:
 ## something sensible instead of 0.
 func get_local_stat(stat_id: StringName) -> LocalStat:
 	if not _local_stats.has(stat_id):
-		var ls := LocalStat.new()
 		var src: Stat = null
 		if owned_by != null and owned_by.stat_board != null:
 			src = owned_by.stat_board.get_stat(stat_id)
 		if src != null:
-			ls.definition = src.definition
-			ls.entity_stat = src
+			_local_stats[stat_id] = LocalStat.for_stat(src)
 		else:
 			var def: StatDef = StatRegistry.get_def(stat_id)
 			if def != null:
-				ls.definition = def
-				ls.base_value = def.default_value
-		_local_stats[stat_id] = ls
+				_local_stats[stat_id] = LocalStat.for_stat(null, def, def.default_value)
 	return _local_stats[stat_id]
 
 

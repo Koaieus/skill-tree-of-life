@@ -14,5 +14,4 @@ enum Kind {
 	NODE,        ## Normal: lent by an allocated [SkillNode]; transfers to the entity board; removed on dealloc.
 	CORE,        ## Held by the entity's mobile core (CoreClass / SkillDust loot).
 	NODE_LOCAL,  ## Sits on a node; does NOT transfer to the board, but counts for node-local stat queries.
-				 ## TODO: Add Core-only? one that only lives on the SkillNode that holds the core? Hmm not sure
 }
