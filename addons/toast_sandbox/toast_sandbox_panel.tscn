@@ -1,47 +1,47 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cs3y30hudgjvd"]
 
-[ext_resource type="Script" path="res://addons/toast_sandbox/toast_sandbox_panel.gd" id="1_6d3dg"]
+[ext_resource type="Script" uid="uid://cj3qc2ri4mn4p" path="res://addons/toast_sandbox/toast_sandbox_panel.gd" id="1_6d3dg"]
 
-[node name="ToastSandboxPanel" type="PanelContainer"]
+[node name="ToastSandboxPanel" type="PanelContainer" unique_id=1372848105]
 custom_minimum_size = Vector2(600, 300)
 script = ExtResource("1_6d3dg")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=1530910009]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ControlsBar" type="HBoxContainer" parent="VBox"]
+[node name="ControlsBar" type="HBoxContainer" parent="VBox" unique_id=1613694066]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 28)
 layout_mode = 2
 
-[node name="ToastAllBtn" type="Button" parent="VBox/ControlsBar"]
+[node name="ToastAllBtn" type="Button" parent="VBox/ControlsBar" unique_id=1174617805]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Toast All"
 
-[node name="ToastAllX3Btn" type="Button" parent="VBox/ControlsBar"]
+[node name="ToastAllX3Btn" type="Button" parent="VBox/ControlsBar" unique_id=1218019398]
 unique_name_in_owner = true
 layout_mode = 2
 text = "All 3×"
 
-[node name="VSep" type="VSeparator" parent="VBox/ControlsBar"]
+[node name="VSep" type="VSeparator" parent="VBox/ControlsBar" unique_id=1895585980]
 layout_mode = 2
 
-[node name="PlayBtn" type="Button" parent="VBox/ControlsBar"]
+[node name="PlayBtn" type="Button" parent="VBox/ControlsBar" unique_id=357878049]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "▶"
 
-[node name="IntervalLabel" type="Label" parent="VBox/ControlsBar"]
+[node name="IntervalLabel" type="Label" parent="VBox/ControlsBar" unique_id=1275808508]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 text = "1.0s"
 horizontal_alignment = 2
 
-[node name="IntervalSlider" type="HSlider" parent="VBox/ControlsBar"]
+[node name="IntervalSlider" type="HSlider" parent="VBox/ControlsBar" unique_id=378393740]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
@@ -51,20 +51,19 @@ step = 0.1
 value = 1.0
 tick_count = 10
 
-[node name="VSep2" type="VSeparator" parent="VBox/ControlsBar"]
+[node name="VSep2" type="VSeparator" parent="VBox/ControlsBar" unique_id=1407022389]
 layout_mode = 2
 
-[node name="PerCellRow" type="HBoxContainer" parent="VBox/ControlsBar"]
+[node name="PerCellRow" type="HBoxContainer" parent="VBox/ControlsBar" unique_id=1199778531]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="CellGrid" type="GridContainer" parent="VBox"]
+[node name="CellGrid" type="GridContainer" parent="VBox" unique_id=2126342331]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 columns = 3
 
-[node name="AutoTimer" type="Timer" parent="."]
+[node name="AutoTimer" type="Timer" parent="." unique_id=1291630117]
 unique_name_in_owner = true
-one_shot = false

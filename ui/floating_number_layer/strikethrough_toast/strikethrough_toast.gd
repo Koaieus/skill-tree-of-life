@@ -1,3 +1,4 @@
+@tool
 extends FloaterToast
 # No class_name — avoids global_script_class_cache rebuild on import.
 
