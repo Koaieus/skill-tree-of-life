@@ -81,6 +81,7 @@ func _build_cells() -> void:
 
 		var tint: Color = _CELL_TINTS[i] if i < _CELL_TINTS.size() else _CELL_TINTS[0]
 		var bg := ColorRect.new()
+		bg.z_index = -1000
 		bg.color = tint
 		bg.anchors_preset = Control.PRESET_FULL_RECT
 		sv.add_child(bg)
@@ -95,8 +96,10 @@ func _build_cells() -> void:
 
 		var toaster := _TOASTER_SCENE.instantiate()
 		toaster.max_queue_size = 16
-		toaster.position = Vector2.ZERO
 		sv.add_child(toaster)
+		var vbox := toaster.get_node("VBoxContainer") as VBoxContainer
+		if vbox != null:
+			vbox.anchors_preset = Control.PRESET_CENTER
 		_cell_toasters.append(toaster)
 
 
@@ -143,8 +146,10 @@ func _remake_toaster(index: int) -> FloaterToaster:
 	var sv: SubViewport = _cell_grid.get_child(index).get_node("Viewport")
 	var toaster := _TOASTER_SCENE.instantiate()
 	toaster.max_queue_size = 16
-	toaster.position = Vector2.ZERO
 	sv.add_child(toaster)
+	var vbox := toaster.get_node("VBoxContainer") as VBoxContainer
+	if vbox != null:
+		vbox.anchors_preset = Control.PRESET_CENTER
 	_cell_toasters[index] = toaster
 	return toaster
 
