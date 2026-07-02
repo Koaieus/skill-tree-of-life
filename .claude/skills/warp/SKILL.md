@@ -6,12 +6,11 @@ description: Drive a full trunk-based issue cycle in an isolated git worktree �
 # Warp
 
 Drive one issue from ticket to merged, on an isolated `git worktree` instead
-of the current checkout. This exists because this repo has (until #86) had
-**no worktree DX** — parallel agents editing the same checkout directly,
-occasionally colliding on someone else's WIP. Warp gives each issue its own
-disposable checkout, touches `master` only via a short-lived merge worktree
-(never by switching the main checkout's own branch), and gates the merge on
-explicit user approval.
+of the current checkout. This exists because this repo has set up worktree DX
+— parallel agents editing the same checkout directly, occasionally colliding
+on someone else's WIP. Warp gives each issue its own disposable checkout,
+touches `master` only via a short-lived merge worktree (never by switching
+the main checkout's own branch), and gates the merge on explicit user approval.
 
 > This is a **process** skill. It orchestrates existing tools — `gh`, the
 > `mise run worktree:*` tasks (`mise.toml`), and the project's own testing/
@@ -24,8 +23,6 @@ explicit user approval.
 ```
 mise.toml                          # worktree:new / worktree:ls / worktree:rm tasks
 .claude/rules/testing.md           # how to run GUT tests (mise run test / test:one / test:dir)
-.claude/rules/godot-workflow.md    # class-cache refresh gotchas, editor-mutation risk, "no worktrees" note
-CLAUDE.md                          # "Git" section — Closes #id convention, commit style
 ```
 
 ## The cycle
@@ -86,28 +83,17 @@ happened off to the side in a worktree.
 
 **6. Merge back to master — via a dedicated merge worktree, never the main checkout**
 The main checkout may have someone else's uncommitted WIP on some other
-branch (see Gotchas) — never `git checkout master` there to merge. Instead,
-stand up a short-lived worktree on `master` itself, merge into it, and tear
-it down:
-```bash
-git worktree add .worktrees/_merge master
-cd .worktrees/_merge
-git merge --ff-only issue-<n>-<slug>   # or rebase the issue branch first if master moved
-```
-Get the exact branch name from `mise run worktree:ls` output — don't
-reconstruct `issue-<n>-<slug>` from memory, the slug is truncated to 40
-chars and can differ from what you'd guess. Prefer fast-forward / rebase
-over a merge commit — the issue's own framing is "trunk-based, one main
-branch, rebase often." Commit message must contain `Closes #<n>` (see
-`CLAUDE.md` → Git) so GitHub auto-closes the issue. Then tear down the merge
-worktree itself:
-```bash
-cd ../..
-git worktree remove .worktrees/_merge
-```
-The main checkout's own `HEAD` doesn't need to move — anyone working there
-picks up the new `master` commits next time they fetch/pull, without their
-working directory ever being touched.
+branch (see Gotchas) — if dirty: never `git checkout master` there to merge.
+If master has progressed, rebase your worktree on the tip, make sure the incoming
+changes play nice.
+If master is clean, simply merge and get it over with.
+If master is dirty, git stash - merge - pop stash. The merge shouldn't conflict,
+the stash pop may but that's now the main tree's problem.
+Prefer fast-forward / rebase over a merge commit — the issue's own framing is
+"trunk-based, one main branch, rebase often." Commit message must contain
+`Closes #<n>` (see `CLAUDE.md` → Git) so GitHub auto-closes the issue.
+The main checkout's own `HEAD` doesn't _need_ to move but ideally it does and gets
+all the latest additions on there sooner rather than later.
 
 **7. Teardown**
 ```bash
