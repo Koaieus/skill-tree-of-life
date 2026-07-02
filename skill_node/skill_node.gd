@@ -517,9 +517,14 @@ func play_hit_flash() -> void:
 # Two registers for a rejected deallocation, driven by PlayerInputController:
 # the nodes that WOULD be islanded pulse danger-red (blink_blocked); the node
 # the player actually tried to drop gets a short "bzzt — no" shake (shake_denied).
-# Both act on `visuals` (modulate + a child-local position offset) which
-# play_hit_flash deliberately leaves free — edges anchor on the node root, so
-# shaking the visuals child never moves edge endpoints.
+#
+# The red tint lands on `_base_circle` (the node body), NOT on `visuals` — the
+# hover glow (HoverRing) is a child of `visuals`, so a `visuals.modulate` tint
+# multiplied the glow down to near-black and read as "the glow vanished". Body
+# tint keeps the hover register (a different visual meaning: "pointer is here")
+# clean. The shake offsets `visuals.position` (edges anchor on the node root, so
+# endpoints don't move); the hover glow is counter-translated to stay world-fixed
+# — the pointer isn't shaking, so its feedback shouldn't either.
 
 const _DENY_COLOR := Color(1.0, 0.3, 0.3)
 const _BLINK_STEP := 0.11
@@ -534,37 +539,43 @@ func _reset_feedback() -> void:
 	_feedback_tweens.clear()
 	if visuals != null:
 		visuals.position = Vector2.ZERO
-		visuals.modulate = Color.WHITE
+	if hover_ring != null:
+		hover_ring.position = Vector2.ZERO
+	if _base_circle != null:
+		_base_circle.modulate = Color.WHITE
 
 
 ## Danger-red pulse — marks a node that a denied deallocation would island (#89).
 func blink_blocked() -> void:
-	if not is_node_ready() or visuals == null:
+	if not is_node_ready() or _base_circle == null:
 		return
 	_reset_feedback()
 	var t := create_tween()
 	for i in 2:
-		t.tween_property(visuals, "modulate", _DENY_COLOR, _BLINK_STEP)
-		t.tween_property(visuals, "modulate", Color.WHITE, _BLINK_STEP)
+		t.tween_property(_base_circle, "modulate", _DENY_COLOR, _BLINK_STEP)
+		t.tween_property(_base_circle, "modulate", Color.WHITE, _BLINK_STEP)
 	_feedback_tweens.append(t)
 
 
 ## Short "bzzt — no" shake + red tint — the node the player tried but failed to
-## deallocate (#89). Horizontal decaying jitter on the visuals offset.
+## deallocate (#89). Horizontal decaying jitter on the body; hover glow held put.
 func shake_denied() -> void:
 	if not is_node_ready() or visuals == null:
 		return
 	_reset_feedback()
-	visuals.modulate = _DENY_COLOR
-	var tint := create_tween()
-	tint.tween_property(visuals, "modulate", Color.WHITE, _SHAKE_TIME)
-	_feedback_tweens.append(tint)
+	if _base_circle != null:
+		_base_circle.modulate = _DENY_COLOR
+		var tint := create_tween()
+		tint.tween_property(_base_circle, "modulate", Color.WHITE, _SHAKE_TIME)
+		_feedback_tweens.append(tint)
 	var shake := create_tween()
 	var amps := [1.0, -0.72, 0.5, -0.32, 0.16, 0.0]
 	var step := _SHAKE_TIME / float(amps.size())
 	for a in amps:
-		shake.tween_property(visuals, "position", Vector2(a * _SHAKE_AMPLITUDE, 0.0), step) \
-			.set_trans(Tween.TRANS_SINE)
+		var off := Vector2(a * _SHAKE_AMPLITUDE, 0.0)
+		shake.tween_property(visuals, "position", off, step).set_trans(Tween.TRANS_SINE)
+		if hover_ring != null:
+			shake.parallel().tween_property(hover_ring, "position", -off, step).set_trans(Tween.TRANS_SINE)
 	_feedback_tweens.append(shake)
 
 
