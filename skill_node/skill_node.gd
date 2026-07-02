@@ -126,8 +126,14 @@ func _ready() -> void:
 	radius_changed.connect(_sync_visuals)
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_marker)
-	owner_changed.connect(_refresh_hp_binding)
+	# Local-stat rebind MUST precede the HP refill: _refresh_hp_binding calls
+	# refill() → get_max_hp() → reads the cached `node_health` LocalStat. If the
+	# rebind ran after, a re-allocation would refill against a LocalStat still
+	# unbound from the prior dealloc (entity_stat=null) → get_max_hp()=0 →
+	# current_hp stuck at 0/N (#92). First alloc masked it (LocalStat created
+	# fresh mid-refill); later cycles hit the stale cache.
 	owner_changed.connect(_refresh_local_stat_bindings)
+	owner_changed.connect(_refresh_hp_binding)
 	owner_changed.connect(_refresh_alloc_count)
 	damaged.connect(play_hit_flash.unbind(2))
 	_addon_anchor.child_entered_tree.connect(_on_addon_added)
