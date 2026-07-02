@@ -13,7 +13,7 @@ const _PRESET_PATH := "res://procgen/presets/first_level/first_level.tres"
 func test_preset_loads() -> void:
 	var cfg: GraphProcgenConfig = load(_PRESET_PATH)
 	assert_not_null(cfg, "first_level.tres should load as GraphProcgenConfig")
-	assert_eq(cfg.node_count, 500)
+	assert_eq(cfg.node_count, 600)
 	assert_true(cfg.use_archetype_policies)
 	assert_eq(cfg.archetypes.size(), 5, "expected 5 archetypes (red/green/blue/gold/purple)")
 	assert_not_null(cfg.modifier_pool, "modifier_pool should be set")

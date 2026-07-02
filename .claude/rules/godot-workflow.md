@@ -113,7 +113,7 @@ error. Bit us in entity-death cleanup: a deferred `deallocate_all_owned(entity)`
 raced `queue_free(entity)` and never ran, orphaning nodes. If you must defer work
 keyed on an object that might be freed the same frame, either do the work
 synchronously or guarantee the free is ordered after it. See
-[entity-death.md](entity-death.md). [TODO: is this too specific for a global rule? resolve this if read]
+[entity-death.md](entity-death.md).
 
 ### Typed variable + freed dict entry = crash before is_instance_valid*
 

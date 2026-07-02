@@ -272,10 +272,10 @@ func test_unbind_disconnects_source_signal() -> void:
 # --- Intrinsics --------------------------------------------------------
 
 func test_apply_intrinsics_per_to_vision() -> void:
-	# Default board: PER=10, vision_range base 400. Intrinsic +2% per PER → +20% → 480.
+	# Default board: PER=10, vision_range base 420. Intrinsic +2% per PER → +20% → 504.
 	var board := _board()
 	board.apply_intrinsics()
-	assert_eq(board.vision_range.get_value(), 480)
+	assert_eq(board.vision_range.get_value(), 504)
 
 
 func test_apply_intrinsics_duplicates_so_two_boards_dont_share_state() -> void:
