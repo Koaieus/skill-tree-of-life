@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://dkhgm4v74h1ya" path="res://systems/highlight_controller.gd" id="10_5dyip"]
 [ext_resource type="PackedScene" uid="uid://dc4sbd0hfnuni" path="res://ui/ui_root.tscn" id="10_ui"]
 [ext_resource type="PackedScene" uid="uid://eqnsntb3dows" path="res://ui/fog_overlay/fog_overlay.tscn" id="11_fog"]
+[ext_resource type="PackedScene" path="res://ui/aura_overlay/aura_overlay.tscn" id="11_aura"]
 [ext_resource type="Script" uid="uid://b5ivx78jchujx" path="res://systems/loot_system.gd" id="12_loot"]
 [ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="12_ywsqi"]
 [ext_resource type="Script" uid="uid://bi6xivsbbn0gu" path="res://ui/edge_highlight_overlay/edge_highlight_overlay.gd" id="13_i7pw8"]
@@ -85,6 +86,12 @@ unique_name_in_owner = true
 z_index = 1000
 vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
+bounds = Rect2(-3000, -2250, 6000, 4500)
+
+[node name="AuraOverlay" parent="Graph" node_paths=PackedStringArray("graph", "allocation_system") instance=ExtResource("11_aura")]
+unique_name_in_owner = true
+graph = NodePath("..")
+allocation_system = NodePath("../../Systems/AllocationSystem")
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
 [node name="FloaterDirector" parent="Graph" unique_id=1985116673 node_paths=PackedStringArray("vision_system") instance=ExtResource("12_ywsqi")]
