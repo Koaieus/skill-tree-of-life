@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="10_sp"]
 [ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="11_0r57n"]
 [ext_resource type="PackedScene" uid="uid://b78r0amctxpnl" path="res://ui/context_panel/context_panel.tscn" id="11_ctx"]
+[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="12_spell_tt"]
 
 [node name="UIRoot" type="Control" unique_id=1221477821]
 process_mode = 1
@@ -29,6 +30,12 @@ visible = false
 layout_mode = 0
 offset_right = 180.0
 offset_bottom = 55.0
+
+[node name="SpellTooltip" parent="." instance=ExtResource("12_spell_tt")]
+visible = false
+layout_mode = 0
+offset_right = 200.0
+offset_bottom = 60.0
 
 [node name="InitiativeBar" parent="." unique_id=1879021159 instance=ExtResource("3_h72ba")]
 unique_name_in_owner = true

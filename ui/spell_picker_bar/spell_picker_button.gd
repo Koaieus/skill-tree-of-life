@@ -14,6 +14,10 @@ extends Button
 ## the name + letter labels a soft halo + tint blend. State plumbing routes
 ## hover / pressed (toggle) / disabled into shader strength uniforms via
 ## tweens so transitions are smooth.
+##
+## On hover emits [signal Events.spell_hovered] / [signal Events.spell_unhovered]
+## so the floating [SpellTooltip] (mounted in UIRoot) shows a formatted scene
+## with dynamic-value highlighting instead of a plain-text Godot tooltip.
 
 const BG_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button.gdshader")
 const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.gdshader")
@@ -39,6 +43,10 @@ const _LETTER_FONT_SIZE: int = 28
 var _bg_mat := ShaderMaterial.new()
 var _text_mat := ShaderMaterial.new()
 var _materials: Array[ShaderMaterial] = []
+
+## The casting entity whose stats may modify spell values shown in the
+## floating tooltip. Set externally by [SpellPickerBar.update_gating_context].
+var _caster: Entity = null
 
 var _hover_tweener: Tween
 var _active_tweener: Tween
@@ -116,7 +124,6 @@ func _apply_spell() -> void:
 			_clear_ticks()
 		return
 	_name_label.text = "%s (%d)" % [spell.name, spell.mana_cost]
-	tooltip_text = _tooltip_for(spell)
 	if spell.icon != null:
 		_icon_rect.texture = spell.icon
 		_letter_label.visible = false
@@ -166,10 +173,13 @@ func _on_resized() -> void:
 
 func _on_mouse_entered() -> void:
 	_tween_hover(1.0)
+	if spell != null:
+		Events.spell_hovered.emit(spell, _caster)
 
 
 func _on_mouse_exited() -> void:
 	_tween_hover(0.0)
+	Events.spell_unhovered.emit()
 
 
 func _on_toggled(toggled_on: bool) -> void:

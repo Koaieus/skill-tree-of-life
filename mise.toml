@@ -28,6 +28,36 @@ run = "godot --path . res://tools/blade_playground/playground.tscn"
 description = "Open the project in the Godot editor"
 run = "godot --editor --path ."
 
+[tasks.edit]
+description = "Open the Godot editor: `mise run edit` (current checkout) or `mise run edit -- 31` (fuzzy-match worktree)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+query="${1:-}"
+if [ -z "$query" ]; then
+  godot --editor --path .
+  exit 0
+fi
+candidates=$(git worktree list --porcelain | awk '/^worktree /{print $2}' | grep '/\.worktrees/' || true)
+if [ -z "$candidates" ]; then
+  echo "✗ no worktrees under .worktrees/"
+  exit 1
+fi
+matches=$(printf '%s\n' "$candidates" | grep -i -- "$query" || true)
+match_count=$(printf '%s\n' "$matches" | grep -c . || true)
+if [ "$match_count" -eq 0 ]; then
+  echo "✗ no worktree matches '$query'"
+  exit 1
+elif [ "$match_count" -eq 1 ]; then
+  target="$matches"
+else
+  target=$(printf '%s\n' "$matches" | fzf --prompt="edit worktree> ")
+  [ -n "$target" ] || { echo "✗ nothing selected"; exit 1; }
+fi
+echo "→ opening editor in $target"
+godot --editor --path "$target"
+'''
+
 [tasks.play]
 description = "Run the game"
 run = "godot --path ."

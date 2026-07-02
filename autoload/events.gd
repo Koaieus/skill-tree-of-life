@@ -55,3 +55,9 @@ signal entity_died(entity: Entity)
 ## there. VFX hooks listen to pop a dissipate effect; battle log can record.
 ## Also lives on [member AttackOutcome.cancellations] as a list for replay.
 signal spell_incident_cancelled(cancellation: SpellCancellation)
+
+## Floating-tooltip signals for SpellPickerButton hover. [SpellTooltip]
+## subscribes to both; the button emits on mouse_entered / mouse_exited.
+## [param caster] is the player entity whose stats may modify spell values.
+signal spell_hovered(spell: SpellDef, caster: Entity)
+signal spell_unhovered
