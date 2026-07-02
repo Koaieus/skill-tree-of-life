@@ -94,12 +94,14 @@ func _build_cells() -> void:
 		label.position = Vector2(4, 3)
 		sv.add_child(label)
 
+		var anchor := Control.new()
+		anchor.name = "ToastAnchor"
+		anchor.anchors_preset = Control.PRESET_CENTER
+		sv.add_child(anchor)
+
 		var toaster := _TOASTER_SCENE.instantiate()
 		toaster.max_queue_size = 16
-		sv.add_child(toaster)
-		var vbox := toaster.get_node("VBoxContainer") as VBoxContainer
-		if vbox != null:
-			vbox.anchors_preset = Control.PRESET_CENTER
+		anchor.add_child(toaster)
 		_cell_toasters.append(toaster)
 
 
@@ -144,12 +146,15 @@ func _toast_cell(index: int, count: int) -> void:
 
 func _remake_toaster(index: int) -> FloaterToaster:
 	var sv: SubViewport = _cell_grid.get_child(index).get_node("Viewport")
+	var anchor := sv.get_node_or_null("ToastAnchor") as Control
+	if anchor == null:
+		anchor = Control.new()
+		anchor.name = "ToastAnchor"
+		anchor.anchors_preset = Control.PRESET_CENTER
+		sv.add_child(anchor)
 	var toaster := _TOASTER_SCENE.instantiate()
 	toaster.max_queue_size = 16
-	sv.add_child(toaster)
-	var vbox := toaster.get_node("VBoxContainer") as VBoxContainer
-	if vbox != null:
-		vbox.anchors_preset = Control.PRESET_CENTER
+	anchor.add_child(toaster)
 	_cell_toasters[index] = toaster
 	return toaster
 
