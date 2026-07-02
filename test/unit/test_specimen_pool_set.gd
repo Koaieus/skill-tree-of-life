@@ -15,7 +15,7 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 
 func test_specimen_loads_and_has_expected_packs() -> void:
 	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	assert_eq(set.packs.size(), 7, "expected 7 packs (5 archetypes + defensive + rare)")
+	assert_eq(set.packs.size(), 8, "expected 8 packs (5 archetypes + defensive + rare + mobility)")
 	var arch_ids: Array[StringName] = []
 	for p in set.packs:
 		arch_ids.append(p.archetype_stat)
@@ -43,6 +43,46 @@ func test_specimen_defensive_phase_returns_node_health_and_armor() -> void:
 			stat_ids.append(e.stat_id)
 	assert_true(&"node_health" in stat_ids)
 	assert_true(&"armor" in stat_ids)
+
+
+func test_specimen_defensive_phase_returns_mobility_entries() -> void:
+	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var defensive := set.flatten_for_phase(&"defensive", &"strength")
+	var movement_values: Array[float] = []
+	var dealloc_values: Array[float] = []
+	for e in defensive:
+		if e.stat_id == &"movement_points":
+			movement_values.append(e.value_range.x)
+		elif e.stat_id == &"deallocation_points":
+			dealloc_values.append(e.value_range.x)
+	assert_true(not movement_values.is_empty(), "mobility pack should contribute movement_points entries")
+	assert_true(not dealloc_values.is_empty(), "mobility pack should contribute deallocation_points entries")
+	for v in movement_values:
+		assert_true(v >= 1.0 and v <= 3.0, "movement_points rolls should stay in 1..3")
+	for v in dealloc_values:
+		assert_true(v >= 1.0 and v <= 3.0, "deallocation_points rolls should stay in 1..3")
+
+
+func test_procgen_draw_occasionally_produces_movement_bonus() -> void:
+	# Regression for #41 acceptance: run several draws at the set's own
+	# (realistic) slot-count distribution and a budget matching
+	# first_level.tres's budget_policy (base_max=4, boosted up to ~7 by
+	# role_bonus/field), and confirm movement_points/deallocation_points show
+	# up "occasionally" — not forced via an inflated budget/slot count.
+	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var saw_movement := false
+	var saw_dealloc := false
+	for seed_value in range(1, 60):
+		var rng := _rng(seed_value)
+		var mods: Array = _GP._roll_modifiers_v3(
+				set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
+		for m in mods:
+			if m.stat_id == &"movement_points":
+				saw_movement = true
+			elif m.stat_id == &"deallocation_points":
+				saw_dealloc = true
+	assert_true(saw_movement, "expected at least one movement_points roll across 59 seeded draws")
+	assert_true(saw_dealloc, "expected at least one deallocation_points roll across 59 seeded draws")
 
 
 func test_specimen_rare_phase_has_min_damage_taken() -> void:

@@ -69,6 +69,7 @@ Convention: one .tres per archetype in `procgen/pools/`.
 | `perception.tres` | `&"perception"` | perception + vision_range INCREASE/ADD_BONUS + sensor_range. Same suppression as wisdom |
 | `defensive.tres` | `&""` (cross-cutting) | node_health add_base/increase + armor add_base. role=DEFENSIVE |
 | `rare.tres` | `&""` (cross-cutting) | min_damage_taken −1, vision_range flat additions, ×2 multipliers. role=RARE |
+| `mobility.tres` | `&""` (cross-cutting) | movement_points + deallocation_points add_base, +1/+2/+3 low-integer tiers (#41). role=DEFENSIVE — universal, not DEX-gated, since it always draws off `flatten_for_phase(&"defensive", ...)` regardless of a node's `primary_stat` |
 
 The set of these is bundled into `specimen_pool_set.tres`.
 
