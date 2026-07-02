@@ -1,9 +1,11 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_played_tab.gd" id="1_g4din"]
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_6d3dg"]
+[ext_resource type="PackedScene" path="res://addons/toast_sandbox/toast_sandbox_panel.tscn" id="2_6d3dg"]
 
-[node name="Toasts" type="MarginContainer" unique_id=600462077]
-script = ExtResource("1_g4din")
+[node name="Toasts" type="MarginContainer"]
+script = ExtResource("1_6d3dg")
 tab_title = "Toasts"
-scene_path = "res://scenes/dev/toast_showcase.tscn"
-description = "Every FloaterStyle on demand — one +1/+3 button row per variant, driven by the real FloaterToasterManager. The debug vehicle for the strikethrough toast (#84)."
+tab_id = &"toast"
+panel_scene = ExtResource("2_6d3dg")
+loader_method = &"load_object"
