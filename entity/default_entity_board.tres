@@ -166,7 +166,7 @@ formula = SubResource("formula_str_to_blade_damage")
 
 [sub_resource type="Resource" id="formula_str_to_blade_size"]
 script = ExtResource("script_expr")
-formula = "floor(float(strength) / 10.0)"
+formula = "floor(strength / 20.)"
 inputs = Array[StringName]([&"strength"])
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]

@@ -42,6 +42,12 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 	return m
 
 
+func is_in_budget(budget: int) -> bool:
+	return cost <= budget
+	
+func has_weight() -> bool:
+	return weight > 0.
+
 ## Coerces operations whose displayed value should snap to whole numbers.
 ## ADD_BASE / ADD_BONUS flow through the target stat's value_type — INT-typed
 ## stats want integer amounts there. INCREASE is percent-points which read as

@@ -105,32 +105,32 @@ tiers = Array[ExtResource("3_td")]([SubResource("mul_t1"), SubResource("mul_t2")
 
 [sub_resource type="Resource" id="xpt_ab_t1"]
 script = ExtResource("3_td")
-cost = 2
+value_range = Vector2(3, 5)
 weight = 3.0
 extra_tags = Array[StringName]([&"tier_1", &"common", &"xp_growth"])
 
 [sub_resource type="Resource" id="xpt_ab_t2"]
 script = ExtResource("3_td")
 tier = 2
-value_range = Vector2(2, 2)
-cost = 5
+value_range = Vector2(5, 15)
+cost = 3
 weight = 5.0
 extra_tags = Array[StringName]([&"tier_2", &"xp_growth"])
 
 [sub_resource type="Resource" id="xpt_ab_t3"]
 script = ExtResource("3_td")
 tier = 3
-value_range = Vector2(3, 5)
-cost = 15
-weight = 8.0
+value_range = Vector2(15, 40)
+cost = 7
+weight = 10.0
 extra_tags = Array[StringName]([&"tier_3", &"xp_growth"])
 
 [sub_resource type="Resource" id="xpt_ab_t4"]
 script = ExtResource("3_td")
 tier = 4
-value_range = Vector2(6, 10)
-cost = 40
-weight = 12.0
+value_range = Vector2(40, 100)
+cost = 15
+weight = 15.0
 extra_tags = Array[StringName]([&"tier_4", &"rare", &"xp_growth"])
 
 [sub_resource type="Resource" id="xpt_ab"]
