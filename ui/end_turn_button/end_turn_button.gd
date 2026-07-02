@@ -44,6 +44,10 @@ var _scroll_offset: float = 0.0
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
 @onready var _bubble: PanelContainer = %ConfirmBubble
 @onready var _bubble_warning: Label = %ConfirmBubble/Margin/VBox/Warning
+## One-shot auto-dismiss for the confirm bubble (#90). Restarted on every
+## show_confirm, stopped on hide. Scene-authored (%ConfirmTimer) + its timeout /
+## the button's focus_exited both wire to hide_confirm in the .tscn.
+@onready var _confirm_timer: Timer = %ConfirmTimer
 
 
 var hovered: float = 0.0:
@@ -147,10 +151,13 @@ func _on_resized() -> void:
 func show_confirm(warning_text: String) -> void:
 	_bubble_warning.text = warning_text
 	_bubble.visible = true
+	_confirm_timer.start()  # restart the countdown on every (re-)show
 
 
 func hide_confirm() -> void:
 	_bubble.visible = false
+	if _confirm_timer:
+		_confirm_timer.stop()
 
 
 func is_confirm_open() -> bool:
