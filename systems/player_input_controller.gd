@@ -164,11 +164,26 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _hovered_node.owned_by == player:
 		if allocation_system.deallocate(_hovered_node, player):
 			get_viewport().set_input_as_handled()
+		else:
+			_show_deallocate_denied(_hovered_node)
+			get_viewport().set_input_as_handled()
 
 
 func _is_players_turn() -> bool:
 	return player != null and turn_manager != null \
 			and turn_manager.current_entity == player
+
+
+## Feedback for a deallocation that was gated away (#89). If the reason is
+## islanding, the nodes that would be cut off from the core pulse danger-red;
+## the node the player actually tried to drop always gets a short "no" shake.
+## Other denials (out of DP, core node) just shake the target — there's no
+## "these get cut off" story to tell.
+func _show_deallocate_denied(node: SkillNode) -> void:
+	if player != null and player.navigator != null and player.core_location != null:
+		for islanded in player.navigator.nodes_islanded_by_removing(node, player.core_location):
+			islanded.blink_blocked()
+	node.shake_denied()
 
 
 ## Returns true if an active attack plan handled the click. Gating: player's
