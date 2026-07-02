@@ -40,6 +40,11 @@ func _initialize() -> void:
 		"res://scenes/dev/loot_showcase.tscn",
 		"Kill → XP floater on the killer + a SkillDust relic blooming on the "
 		+ "victim's former core, driven by the real LootSystem on a loop.")
+	_gen_played("60_toast_tab", "Toasts",
+		"res://scenes/dev/toast_showcase.tscn",
+		"Every FloaterStyle on demand — one +1/+3 button row per variant, driven "
+		+ "by the real FloaterToasterManager. The debug vehicle for the "
+		+ "strikethrough toast (#84).")
 
 	quit()
 

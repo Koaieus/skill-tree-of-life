@@ -18,14 +18,7 @@ extends Node2D
 ## the renderer stays free of any vision dependency.
 @export var vision_system: VisionSystem = null
 
-const STRIKETHROUGH_TOAST_SCENE: PackedScene = preload(
-		"res://ui/floating_number_layer/strikethrough_toast/strikethrough_toast.tscn")
-
-const _COLOR_DAMAGE := Color(1.0, 0.25, 0.25, 1.0)
-const _COLOR_WOUND  := Color(1.0, 0.55, 0.55, 1.0)
-const _COLOR_HEAL   := Color(0.65, 1.0, 0.7, 1.0)
-## Gold blended into the stat tint for the CORE-bound modifier floater (#70).
-const _COLOR_MYTHIC := Color(1.0, 0.84, 0.3, 1.0)
+const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
 
 
 func _ready() -> void:
@@ -41,22 +34,22 @@ func _ready() -> void:
 func _on_skill_node_damaged(node: SkillNode, amount: float, _source: Variant) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
-	_emit(node, "%d" % int(round(amount)), _basic_style(_COLOR_DAMAGE))
+	_emit(node, "%d" % int(round(amount)), FloaterStyles.damage())
 
 
 func _on_skill_node_healed(node: SkillNode, amount: float, _source: Variant) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
-	_emit(node, "+%d" % int(round(amount)), _basic_style(_COLOR_HEAL))
+	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())
 
 
 func _on_entity_wounded(entity: Entity, amount: int) -> void:
-	_spawn_at_core(entity, "+%d WOUNDS" % amount, _COLOR_WOUND)
+	_spawn_at_core(entity, "+%d WOUNDS" % amount, FloaterStyles.entity_wound())
 
 
 func _on_entity_healed(entity: Entity, amount: int) -> void:
-	_spawn_at_core(entity, "-%d WOUNDS" % amount, _COLOR_HEAL)
-	_spawn_at_core(entity, "+%d SP" % amount, _COLOR_HEAL)
+	_spawn_at_core(entity, "-%d WOUNDS" % amount, FloaterStyles.entity_heal())
+	_spawn_at_core(entity, "+%d SP" % amount, FloaterStyles.entity_heal())
 
 
 ## #70/#79 — a stat modifier became visible on an entity. Render its op-aware
@@ -72,7 +65,7 @@ func _on_stat_modifier_changed(
 	var label: String = def.display_name if def != null else String(modifier.stat_id)
 	var text := "%s %s" % [modifier.contribution_text(), label]
 	var tint: Color = def.tint_color if def != null else Color.WHITE
-	_emit(core, text, _modifier_style(tint, binding, added))
+	_emit(core, text, FloaterStyles.for_modifier(tint, binding, added))
 
 
 # --- Helpers ----------------------------------------------------------------
@@ -89,40 +82,14 @@ func _emit(target: Node2D, text: String, style: FloaterStyle) -> void:
 
 ## Flash the core itself so the number isn't the only signal — a wound/heal feels
 ## like an event happening to the core, not just a number popping up nearby.
-func _spawn_at_core(entity: Entity, text: String, color: Color) -> void:
+func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle) -> void:
 	if entity == null or entity.core_location == null:
 		return
 	var core := entity.core_location
 	if not _node_visible(core):
 		return
 	core.play_hit_flash()
-	_emit(core, text, _basic_style(color))
-
-
-func _basic_style(color: Color) -> FloaterStyle:
-	var s := FloaterStyle.new()
-	s.fill_color = color
-	return s
-
-
-## Per-variant modifier styling (#70/#82). Removed → strikethrough toast at original
-## tint (animation owns desaturation); CORE add → gold-blended; NODE add → plain tint.
-## (#78 will refine the matrix further.)
-func _modifier_style(tint: Color, binding: ModifierBinding.Kind, added: bool) -> FloaterStyle:
-	var s := FloaterStyle.new()
-	if not added:
-		# Pass original tint — the animation owns the desaturation (#82).
-		s.fill_color = tint
-		s.scene_override = STRIKETHROUGH_TOAST_SCENE
-		return s
-	if binding == ModifierBinding.Kind.CORE:
-		s.fill_color = tint.lerp(_COLOR_MYTHIC, 0.6)
-		s.glow = true
-		s.font_size = 46
-		s.float_time = 3.6
-	else:
-		s.fill_color = tint
-	return s
+	_emit(core, text, style)
 
 
 func _node_visible(node: SkillNode) -> bool:

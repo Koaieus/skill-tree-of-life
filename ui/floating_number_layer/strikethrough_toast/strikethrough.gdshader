@@ -25,11 +25,6 @@ uniform float tip_radius      : hint_range(0.01, 0.3)  = 0.06;
 // Strike-line half-thickness: 0.035 ≈ 1.1px at 32px tall.
 uniform float line_half_thick : hint_range(0.005, 0.1) = 0.035;
 
-// split: y(x) in uv values (0..1)
-float split_y(float x) {
-	return mix(0.7, 0.4, x);
-}
-
 void vertex() {
     // Reconstructs clean 0.0 to 1.0 UVs across the entire label bounding box
     text_uv = VERTEX / label_size;
@@ -40,8 +35,8 @@ void fragment() {
 	vec2 letter_uv = UV;
 
     // Cut line position at this x — linear interpolation gives the diagonal.
-    //float local_split_y = mix(split_y_start, split_y_end, uv.x);
-    float local_split_y = split_y(text_uv.x);
+    // Endpoints are set once from font metrics (StrikethroughToast.strike_endpoints).
+    float local_split_y = mix(split_y_start, split_y_end, uv.x);
 
     // --- Unzip: UV displacement so each half slides away from the cut line ---
     // Top half content (uv.y < local_split_y) slides up: screen pixel at y

@@ -63,8 +63,7 @@ func _pop_toast() -> void:
 		scene = request.style.scene_override
 	var toast := scene.instantiate() as FloaterToast
 	_vbox.add_child(toast)
-	var color := request.style.fill_color if request.style != null else Color.WHITE
-	toast.set_content(request.text, color)
+	toast.set_content(request.text, request.style)
 	toast.animate()
 	_timer.start(toast.fade_in_duration)
 

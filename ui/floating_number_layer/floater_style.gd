@@ -7,10 +7,18 @@ extends Resource
 ## this resource is just the carrier the renderer stamps onto a [Floater].
 
 @export var fill_color: Color = Color.WHITE
-@export var font_size: int = 36
+## Font size override. 0 = inherit the toast scene's authored size (the common
+## case — basic damage/heal toasts leave this unset). >0 overrides it, e.g. the
+## mythic CORE-modifier toast at 46 (#70).
+@export var font_size: int = 0
 ## Signed drift along Y. Negative drifts *down* (the "lost / removed" register).
+## Legacy drift knob — a *stacked* [FloaterToast] doesn't express free drift, so
+## this (and [member max_angle]) are not consumed by the current pipeline.
 @export var float_distance: float = 70.0
-@export var float_time: float = 3.0
+## On-screen hold override. 0 = inherit the toast scene's authored
+## [member FloaterToast.visible_duration]. >0 overrides it (e.g. the mythic toast
+## lingers at 3.6s for a build-defining beat).
+@export var float_time: float = 0.0
 @export_range(0, 90) var max_angle: int = 0
 @export var glow: bool = false
 @export var glow_color: Color = Color(1.0, 0.84, 0.3, 1.0)
@@ -20,15 +28,3 @@ extends Resource
 ## Used by [FloaterDirector] to swap in specialised toast variants — e.g. the
 ## strikethrough scene for removed modifiers (#82).
 @export var scene_override: PackedScene = null
-
-
-## Stamp these fields onto a freshly-instanced floater. One place owns the
-## field copy so the renderer stays a dumb pump.
-func apply_to(floater: Floater) -> void:
-	floater.fill_color = fill_color
-	floater.font_size = font_size
-	floater.float_distance = float_distance
-	floater.float_time = float_time
-	floater.max_angle = max_angle
-	floater.glow = glow
-	floater.glow_color = glow_color

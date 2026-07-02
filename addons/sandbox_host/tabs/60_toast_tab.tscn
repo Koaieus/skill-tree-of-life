@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_played_tab.gd" id="1_g4din"]
+
+[node name="Toasts" type="MarginContainer" unique_id=600462077]
+script = ExtResource("1_g4din")
+tab_title = "Toasts"
+scene_path = "res://scenes/dev/toast_showcase.tscn"
+description = "Every FloaterStyle on demand — one +1/+3 button row per variant, driven by the real FloaterToasterManager. The debug vehicle for the strikethrough toast (#84)."

@@ -13,6 +13,12 @@ extends Control
 ## that concrete toast scenes wire into. The [FloaterToaster] calls
 ## [method set_content] before [method animate] — both are always called before
 ## the node's first process frame.
+##
+## [method set_content] takes the whole [FloaterStyle] and stamps every field the
+## toast can express (colour, font size, glow, on-screen hold). This is the toast
+## growing up from the #81 PoC into the renderer's single style-application site —
+## the old per-field carrier on the legacy [Floater] is gone. Fields left at their
+## inherit sentinel (`font_size`/`float_time` == 0) keep the scene-authored value.
 
 
 @export_range(0.1, 10.0, 0.05, "or_greater", "suffix:s") var visible_duration: float = 1.75
@@ -23,17 +29,40 @@ extends Control
 @onready var label: Label = $Label
 
 
-func set_content(text: String, color: Color) -> void:
+## Set the toast text and apply [param style]. [param style] may be null (raw
+## debug toasts) → white, everything inherited.
+func set_content(text: String, style: FloaterStyle) -> void:
 	label.text = text
+	var color: Color = style.fill_color if style != null else Color.WHITE
 	# LabelSettings.font_color takes priority over add_theme_color_override in
-	# Godot 4, so we must write the color directly into the settings resource.
-	# Duplicate first — sub-resources are SHARED across scene instances by default,
-	# so mutating without duplicating would corrupt every other live toast.
+	# Godot 4, so we must write into the settings resource. Duplicate first —
+	# sub-resources are SHARED across scene instances by default, so mutating
+	# without duplicating would corrupt every other live toast.
 	if label.label_settings != null:
-		label.label_settings = label.label_settings.duplicate()
-		label.label_settings.font_color = color
+		var settings: LabelSettings = label.label_settings.duplicate()
+		settings.font_color = color
+		if style != null:
+			_apply_style(settings, style)
+		label.label_settings = settings
 	else:
 		label.add_theme_color_override("font_color", color)
+	if style != null and style.float_time > 0.0:
+		visible_duration = style.float_time
+
+
+## Stamp the non-colour style fields the stacked toast can express onto its
+## (already-duplicated) [param settings]. Font size and glow only; drift fields
+## ([member FloaterStyle.float_distance]/[member FloaterStyle.max_angle]) are N/A
+## for a stacked toast. Grows the slot to fit an enlarged font so it doesn't clip.
+func _apply_style(settings: LabelSettings, style: FloaterStyle) -> void:
+	if style.font_size > 0:
+		settings.font_size = style.font_size
+		custom_minimum_size.y = maxf(custom_minimum_size.y, float(style.font_size))
+	if style.glow:
+		# A soft halo: an offset-less shadow in the glow colour reads as a glow.
+		settings.shadow_color = style.glow_color
+		settings.shadow_size = 10
+		settings.shadow_offset = Vector2.ZERO
 
 
 func animate() -> void:
