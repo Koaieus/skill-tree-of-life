@@ -12,7 +12,6 @@ extends Control
 ##
 ## Composed side-by-side with UIRoot during the build-out (#107..#117) —
 ## GameRoot composes both; only #118 (Cutover) swaps which one is visible.
-## Command tray slot (Phase 5, #113/#114) is still an empty anchor.
 
 @onready var turn_tracker_slot: Control = %TurnTrackerSlot
 @onready var left_column_slot: Control = %LeftColumnSlot
@@ -26,6 +25,7 @@ extends Control
 @onready var combat_readout: CombatReadout = %CombatReadout
 @onready var initiative_bar: InitiativeBar = %InitiativeBar
 @onready var action_cluster: ActionCluster = %ActionCluster
+@onready var command_tray: CommandTray = %CommandTray
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -57,6 +57,8 @@ func compose(game_root: GameRoot) -> void:
 		combat_readout.bind(_player, _battle_system)
 	if action_cluster != null:
 		action_cluster.bind(_player, _turn_manager, _input_ctl, _vision_system)
+	if command_tray != null:
+		command_tray.bind(_turn_manager, _battle_system, _input_ctl, _player)
 	_bind_initiative_bar()
 
 

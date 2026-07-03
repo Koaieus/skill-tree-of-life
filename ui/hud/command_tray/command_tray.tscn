@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/command_tray.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/attack_mode_bar/attack_mode_bar.tscn" id="2_modebar"]
+[ext_resource type="PackedScene" path="res://ui/context_panel/context_panel.tscn" id="3_context"]
+
+[node name="CommandTray" type="VBoxContainer"]
+layout_mode = 3
+anchors_preset = 0
+alignment = 1
+theme_override_constants/separation = 4
+script = ExtResource("1_script")
+
+[node name="AttackModeBar" parent="." instance=ExtResource("2_modebar")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="ContextPanel" parent="." instance=ExtResource("3_context")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
