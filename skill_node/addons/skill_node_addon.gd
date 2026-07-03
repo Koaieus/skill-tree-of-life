@@ -16,7 +16,7 @@ extends Node2D
 ##   `Array[StatModifier]` AllocationSystem already iterates) on add,
 ##   erased on remove. While the carrier IS allocated we also push/pop
 ##   live on the entity stat_board so the effect is immediate.
-## - `local_modifiers`: routed directly to carrier.get_local_stat(stat_id)
+## - `local_modifiers`: routed to carrier.node_board via [method SkillNode._ensure_local_stat]
 ##   on add, removed on remove. Applies regardless of allocation; an
 ##   unallocated node is inert in combat anyway.
 ##

@@ -89,10 +89,11 @@ var sensed: bool = false:
 		sensed = value
 		_apply_sensed_state()
 
-## Ephemeral combat HP. Refills to [method get_max_hp] at the owning entity's
-## turn start and on first allocation. Not in the stat-modifier pipeline — see
-## docs/domain/node-hp.md for the reasoning + future-expansion path.
-var current_hp: float = 0.0
+## Sparse [StatBoard] for per-node localized stats. All fields start null;
+## a stat is only allocated when a node-local modifier targets it (via an
+## addon) or when the node is allocated (combat health pool). See
+## [method StatBoard._ensure_stat].
+var node_board: StatBoard = null
 
 ## Per-node allocation cap. `alloc_cap_max` defaults to 1 (single allocation
 ## slot); raise by 1 per stake via the entity's `skill_points.stake(1)` action.
@@ -103,15 +104,9 @@ var current_hp: float = 0.0
 var alloc_cap_max: int = 1
 var alloc_count: int = 0
 
-# node_health stat subscription, kept in lockstep with `owned_by` so a max-HP
-# change (level-up, modifier swap) clamps + refills `current_hp` immediately.
-var _bound_node_health: Stat = null
-
-## Sparse, lazy LocalStat instances — one per stat_id that an addon (or
-## anything else) has localized on this node. Each LocalStat is bound to
-## the owning entity's same-id Stat (if any) so its read merges entity +
-## local bins in one pipeline run; see local_stat.gd.
-var _local_stats: Dictionary = {}  # StringName → LocalStat
+# Track the entity node_health stat so we can re-sync the node's combat health
+# base_value when the entity baseline changes. Swap on owner_changed.
+var _bound_entity_node_health: Stat = null
 
 # Hit-flash bookkeeping. Killed and re-created on every hit so back-to-back
 # damage doesn't visually merge into one stuck red.
@@ -130,13 +125,6 @@ func _ready() -> void:
 	radius_changed.connect(_sync_visuals)
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_marker)
-	# Local-stat rebind MUST precede the HP refill: _refresh_hp_binding calls
-	# refill() → get_max_hp() → reads the cached `node_health` LocalStat. If the
-	# rebind ran after, a re-allocation would refill against a LocalStat still
-	# unbound from the prior dealloc (entity_stat=null) → get_max_hp()=0 →
-	# current_hp stuck at 0/N (#92). First alloc masked it (LocalStat created
-	# fresh mid-refill); later cycles hit the stale cache.
-	owner_changed.connect(_refresh_local_stat_bindings)
 	owner_changed.connect(_refresh_hp_binding)
 	owner_changed.connect(_refresh_alloc_count)
 	damaged.connect(play_hit_flash.unbind(2))
@@ -275,35 +263,72 @@ static func segment_between(a: SkillNode, b: SkillNode, pad: float = 0.0) -> Pac
 
 # ── Combat HP ──────────────────────────────────────────────────────────────
 
-## Max HP for this node. Routes through a per-node LocalStat so any addon
-## (or other source) localizing `node_health` composes correctly with the
-## entity-side value via one PoE pipeline run. 0 if unallocated.
+## Max combat HP for this node. Reads the node's [member node_board] combat
+## health pool, which is seeded from the owning entity's [code]node_health[/code]
+## baseline + any node-local modifiers. 0 if unallocated.
 func get_max_hp() -> float:
-	if owned_by == null or owned_by.stat_board == null:
+	if node_board == null:
 		return 0.0
-	var v: Variant = get_local_stat(&"node_health").value
-	return float(v) if v != null else 0.0
+	var hp := node_board.get_stat(&"node_health") as PoolStat
+	if hp == null:
+		return 0.0
+	return hp.value
 
 
-## Lazy materialization of a per-node Stat for `stat_id`. If the owning
-## entity has the same-id stat, we bind to it so the LocalStat's read
-## merges entity + local bins. Owner changes re-bind via
-## _refresh_local_stat_bindings. If the entity board doesn't carry that
-## stat (older hand-authored boards predating the stat's introduction),
-## we still seed the LocalStat from StatRegistry's default so reads return
-## something sensible instead of 0.
-func get_local_stat(stat_id: StringName) -> LocalStat:
-	if not _local_stats.has(stat_id):
-		var src: Stat = null
-		if owned_by != null and owned_by.stat_board != null:
-			src = owned_by.stat_board.get_stat(stat_id)
-		if src != null:
-			_local_stats[stat_id] = LocalStat.for_stat(src)
-		else:
-			var def: StatDef = StatRegistry.get_def(stat_id)
-			if def != null:
-				_local_stats[stat_id] = LocalStat.for_stat(null, def, def.default_value)
-	return _local_stats[stat_id]
+## Current combat HP for this node (ephemeral, from the pool's [member PoolStat.current]).
+func get_current_hp() -> float:
+	if node_board == null:
+		return 0.0
+	var hp := node_board.get_stat(&"node_health") as PoolStat
+	if hp == null:
+		return 0.0
+	return hp.current
+
+
+## Non-allocating passthrough read: returns the combined value of a stat
+## visible to this node (entity board if owned, or StatRegistry default if
+## orphaned). Does NOT create a stat on [member node_board] — use
+## [method _ensure_local_stat] when you need a modifier target.
+func get_local_value(stat_id: StringName) -> Variant:
+	if owned_by != null and owned_by.stat_board != null:
+		var es := owned_by.stat_board.get_stat(stat_id)
+		if es != null:
+			var ns: Stat = node_board.get_stat(stat_id) if node_board != null else null
+			if ns == null:
+				return es.get_value()
+			var sources: Array[ModifierBins] = [es.bins, ns.bins]
+			return ModifierBins.compute(es.base_value, sources)
+	var ns: Stat = node_board.get_stat(stat_id) if node_board != null else null
+	if ns != null:
+		return ns.get_value()
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def != null:
+		return def.default_value
+	return 0.0
+
+
+## Returns (creating if necessary) the [code]node_board[/code] stat for
+## [param stat_id]. This IS the modifier target — callers that just need a
+## value should use [method get_local_value] instead, which does not allocate.
+##
+## When [param stat_id] is "node_health", a PoolStat is created (using the
+## [code]node_combat_health[/code] PoolStatDef for its settings) instead of
+## a ScalarStat — the entity board already owns the ScalarStat baseline;
+## the node board needs the combat pool (max + current).
+func _ensure_local_stat(stat_id: StringName) -> Stat:
+	_init_node_board()
+	if stat_id == &"node_health":
+		var existing := node_board.get_stat(stat_id)
+		if existing != null:
+			return existing
+		var def: StatDef = StatRegistry.get_def(&"node_combat_health")
+		if def != null:
+			var hp := PoolStat.new()
+			hp.definition = def
+			hp.base_value = def.default_value
+			node_board._extra_stats[stat_id] = hp
+			return hp
+	return node_board._ensure_stat(stat_id)
 
 
 func get_addons() -> Array[SkillNodeAddon]:
@@ -331,13 +356,16 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 	return out
 
 
-## Reset to full. Called on owner change and at turn-start upkeep.
-## Pass [param silent] = true when resetting on allocation (not a gameplay heal).
+## Reset node combat health to full. Called on allocation (silent) and at
+## turn-start upkeep (not silent — emits healed signal).
 func refill(silent: bool = false) -> void:
-	var prev := current_hp
-	current_hp = get_max_hp()
+	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	if hp == null:
+		return
+	var prev := hp.current
+	hp.restore_to_full()
 	if not silent:
-		var delta := current_hp - prev
+		var delta := hp.current - prev
 		if delta > 0.0:
 			healed.emit(delta, null)
 			Events.skill_node_healed.emit(self, delta, null)
@@ -351,26 +379,26 @@ func take_damage(amount: float, source: Variant) -> void:
 	if owned_by == null or amount <= 0.0:
 		return
 	var raw: DamageInstance
-	# For mitigation-pipeline shape; type/source carry forward if the caller
-	# supplied a DamageInstance directly (we accept the looser float form too).
 	if source is DamageInstance:
 		raw = source
 	else:
 		raw = DamageInstance.new()
 		raw.amount = amount
-		
 	var effective: float = Mitigation.apply(raw, owned_by.stat_board)
-	var soak: float = min(effective, current_hp)
-	current_hp -= soak
+	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	if hp == null:
+		return
+	var before := hp.current
+	hp.deplete(effective)
+	var soaked: float = before - hp.current
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
-	var overflow: float = effective - soak
+	var overflow: float = effective - soaked
 	if owned_by.core_location == self:
-		# Core node: never deallocates; any overflow eats the entity's core HP.
 		if overflow > 0.0 and owned_by.stat_board != null and owned_by.stat_board.health != null:
 			owned_by.stat_board.health.deplete(overflow)
 		return
-	if current_hp <= 0.0:
+	if hp.current <= 0.0:
 		depleted.emit()
 		Events.skill_node_depleted.emit(self)
 
@@ -379,9 +407,12 @@ func take_damage(amount: float, source: Variant) -> void:
 func heal_damage(amount: float, source: Variant) -> void:
 	if owned_by == null or amount <= 0.0:
 		return
-	var prev := current_hp
-	current_hp = min(current_hp + amount, get_max_hp())
-	var effective := current_hp - prev
+	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	if hp == null:
+		return
+	var prev := hp.current
+	hp.set_current(min(hp.current + amount, hp.value))
+	var effective := hp.current - prev
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)
@@ -390,49 +421,52 @@ func heal_damage(amount: float, source: Variant) -> void:
 
 
 func _refresh_hp_binding() -> void:
-	# Unbind previous owner's node_health stat (if any) and bind the current
-	# one. Kept in lockstep with `owned_by` so a +node_health modifier landing
-	# mid-turn clamps / heals our `current_hp` immediately.
-	if _bound_node_health != null and _bound_node_health.value_changed.is_connected(_on_max_hp_changed):
-		_bound_node_health.value_changed.disconnect(_on_max_hp_changed)
-		_bound_node_health = null
+	# Detach from previous owner's node_health; attach to the new owner's.
+	if _bound_entity_node_health != null and _bound_entity_node_health.value_changed.is_connected(_on_entity_node_health_changed):
+		_bound_entity_node_health.value_changed.disconnect(_on_entity_node_health_changed)
+		_bound_entity_node_health = null
 	if owned_by != null and owned_by.stat_board != null:
-		_bound_node_health = owned_by.stat_board.get_stat(&"node_health")
-		if _bound_node_health != null and not _bound_node_health.value_changed.is_connected(_on_max_hp_changed):
-			_bound_node_health.value_changed.connect(_on_max_hp_changed)
+		_init_node_board()
+		_bound_entity_node_health = owned_by.stat_board.get_stat(&"node_health")
+		if _bound_entity_node_health != null:
+			if not _bound_entity_node_health.value_changed.is_connected(_on_entity_node_health_changed):
+				_bound_entity_node_health.value_changed.connect(_on_entity_node_health_changed)
+			# Sync our combat health pool's base_value to the entity baseline.
+			_sync_combat_health_base()
 		refill(true)
 	else:
-		current_hp = 0.0
+		_reset_combat_health()
 
 
-func _on_max_hp_changed() -> void:
-	var cap := get_max_hp()
-	if current_hp > cap:
-		current_hp = cap
+func _on_entity_node_health_changed() -> void:
+	_sync_combat_health_base()
 
 
-# Re-bind every materialized LocalStat to the current owner's same-id Stat.
-# Unallocated → entity_stat = null and the local stat acts standalone.
-## On allocate: count moves to 1 (the baseline slot). On dealloc: back to 0.
-## Stakes (count > 1) are not auto-cleared on dealloc — extracting first is
-## the player's responsibility, otherwise the staked SP heals via the future
-## extract action. (Force-dealloc semantics for staked nodes: still open;
-## design doc.)
+func _sync_combat_health_base() -> void:
+	if _bound_entity_node_health == null:
+		return
+	var hp := _ensure_local_stat(&"node_health") as PoolStat
+	if hp == null:
+		return
+	hp.base_value = _bound_entity_node_health.get_value()
+
+
+func _reset_combat_health() -> void:
+	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	if hp != null:
+		hp.set_current(0.0)
+
+
+func _init_node_board() -> void:
+	if node_board == null:
+		node_board = StatBoard.new()
+
+
 func _refresh_alloc_count() -> void:
 	if owned_by == null:
 		alloc_count = 0
 	elif alloc_count == 0:
 		alloc_count = 1
-
-
-func _refresh_local_stat_bindings() -> void:
-	var board: StatBoard = owned_by.stat_board if owned_by != null else null
-	for stat_id in _local_stats:
-		var ls: LocalStat = _local_stats[stat_id]
-		var src: Stat = board.get_stat(stat_id) if board != null else null
-		if src != null and ls.definition == null:
-			ls.definition = src.definition
-		ls.entity_stat = src
 
 
 # Addon plumbing. Carrier owns its `modifiers` array as the source-of-truth
@@ -456,7 +490,9 @@ func _on_addon_added(c: Node) -> void:
 		if board != null:
 			board.add_modifier(m)
 	for m in a.local_modifiers:
-		get_local_stat(m.stat_id).add_modifier(m)
+		var s := _ensure_local_stat(m.stat_id)
+		if not s.has_modifier(m):
+			s.add_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
 
@@ -471,8 +507,9 @@ func _on_addon_removed(c: Node) -> void:
 		if board != null:
 			board.remove_modifier(m)
 	for m in a.local_modifiers:
-		if _local_stats.has(m.stat_id):
-			_local_stats[m.stat_id].remove_modifier(m)
+		var s: Stat = node_board.get_stat(m.stat_id) if node_board != null else null
+		if s != null:
+			s.remove_modifier(m)
 
 
 ## Core-movement slide-in (#21). Called on the *new* core slot after

@@ -89,11 +89,45 @@ extends Resource
 @export_group("")
 
 
+# --- Dynamic stats (sparse boards) -----------------------------------------
+
+## Stats that don't correspond to a hardcoded @export field — created on
+## demand by [method _ensure_stat] for sparse boards (e.g. node-local stats).
+var _extra_stats: Dictionary = {}  # StringName → Stat
+
+
 # --- Lookup + modifier routing ---------------------------------------------
 
-## Lookup a Stat by its StatDef id. Property-name == id convention.
+## Lookup a Stat by its StatDef id. Checks hardcoded fields first, then
+## dynamically-created stats in [member _extra_stats].
 func get_stat(id: StringName) -> Stat:
-	return get(id)
+	var s: Stat = get(id)
+	if s != null:
+		return s
+	return _extra_stats.get(id, null)
+
+
+## Ensure a Stat exists for [param id], creating one if necessary from
+## [code]StatRegistry[/code]. Returns the existing or newly created Stat,
+## or [code]null[/code] if the id is unknown to the registry. Use this on
+## sparse boards (like [member SkillNode.node_board]) where stats are not
+## pre-populated; entity boards should have all stats already.
+func _ensure_stat(stat_id: StringName) -> Stat:
+	var s := get_stat(stat_id)
+	if s != null:
+		return s
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def == null:
+		push_warning("StatBoard._ensure_stat: unknown stat id '%s'" % stat_id)
+		return null
+	if def is PoolStatDef:
+		s = PoolStat.new()
+	else:
+		s = ScalarStat.new()
+	s.definition = def
+	s.base_value = def.default_value
+	_extra_stats[stat_id] = s
+	return s
 
 
 ## Read the computed value of a Stat by id. Returns null if the id is unknown.

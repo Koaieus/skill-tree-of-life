@@ -23,9 +23,9 @@ signal value_changed
 		
 ## Runtime base value this entity's stat starts at (usually inherited from
 ## the board .tres; 0.0 initially). [member StatDef.default_value] is a
-## separate manufacturing default — used by [method SkillNode.get_local_stat]
-## when the entity board doesn't carry the stat at all so the local stat can
-## still return a sensible value. They are not coupled: base_value is the
+## separate manufacturing default — used by [method SkillNode.get_local_value]
+## when the entity board doesn't carry the stat at all so reads can still
+## return a sensible value. They are not coupled: base_value is the
 ## entity's *own* starting point after init; default_value is the system-wide
 ## "if absent" floor.
 @export var base_value: float = 0.0:
@@ -41,7 +41,7 @@ signal value_changed
 var _modifiers: Array[StatModifier] = []
 
 ## Per-operation pipeline bins, factored into ModifierBins so multi-source
-## reads (e.g. LocalStat layering on top of an entity-side Stat) can compose
+## reads (e.g. a node-local stat layering on top of an entity-side Stat) can compose
 ## via bin-sum + one pipeline run. See modifier_bins.gd for the algebra.
 ##
 ## ADD_BASE / INCREASE / ADD_BONUS keep a running scalar sum — additions are
@@ -68,9 +68,13 @@ var value: Variant:
 
 
 func _init() -> void:
-	# Editor: refresh the computed_value inspector row whenever the pipeline result changes.
 	if Engine.is_editor_hint():
 		value_changed.connect(notify_property_list_changed)
+
+
+## Returns [code]true[/code] if [param m] is already in this stat's modifier list.
+func has_modifier(m: StatModifier) -> bool:
+	return m in _modifiers
 
 
 func add_modifier(m: StatModifier) -> void:
@@ -78,7 +82,7 @@ func add_modifier(m: StatModifier) -> void:
 	# Resource.changed fires from the value setter, from any other emit_changed
 	# call on the modifier, and from formula-source updates (StatModifier's
 	# _on_source_changed re-emits `changed`). One subscription covers all three.
-	m.changed.connect(_on_dependent_modifier_changed.bind(m))
+	m.changed.connect(_on_dependent_modifier_changed.bind(m)) # TODO: guard this, getting errors of multiple connections
 	match m.operation:
 		StatModifier.Operation.SET:
 			if bins.winning_set == null or m.priority >= bins.winning_set.priority:
@@ -174,7 +178,7 @@ func _find_winning_set() -> StatModifier:
 ## ADD_BASE / INCREASE / ADD_BONUS read O(1) from running bins; MULTIPLY walks
 ## its (typically tiny) list to avoid the divide-on-remove drift trap.
 ## Delegates the math to ModifierBins.compute so single-source (this) and
-## multi-source (LocalStat) reads share the one pipeline implementation.
+## multi-source (entity + node-board) reads share the one pipeline implementation.
 func get_value() -> Variant:
 	return _coerce(ModifierBins.compute(base_value, [bins]))
 

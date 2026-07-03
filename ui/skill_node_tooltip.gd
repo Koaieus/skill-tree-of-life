@@ -214,7 +214,7 @@ func _populate_hp() -> void:
 		return
 
 	# Node HP bar — hue ramps red (low) → green (full) by ratio.
-	var cur := _node.current_hp
+	var cur := _node.get_current_hp()
 	var ratio: float = clampf(cur / max_hp, 0.0, 1.0)
 	var node_bar := LabeledProgressBar.create()
 	_hp_box.add_child(node_bar)

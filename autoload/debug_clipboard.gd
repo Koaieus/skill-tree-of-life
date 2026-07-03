@@ -47,7 +47,7 @@ static func _format(node: SkillNode) -> String:
 	if node.owned_by != null and node.owned_by is Entity:
 		owner_name = (node.owned_by as Entity).display_name
 	lines.append("  owned_by: %s" % owner_name)
-	lines.append("  hp: %.1f / %.1f" % [node.current_hp, node.get_max_hp()])
+	lines.append("  hp: %.1f / %.1f" % [node.get_current_hp(), node.get_max_hp()])
 	var role_tags: Array = node.get_meta("role_tags", [])
 	if not role_tags.is_empty():
 		lines.append("  role_tags: %s" % str(role_tags))

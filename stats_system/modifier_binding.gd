@@ -6,7 +6,7 @@ class_name ModifierBinding
 ##
 ## Canonical domain taxonomy referenced by [signal Events.stat_modifier_changed]
 ## and the [FloaterDirector]. Deliberately NOT a field on [StatModifier] yet —
-## nothing reads binding behaviorally (node-local is modelled by [LocalStat];
+## nothing reads binding behaviorally (node-local is modelled by [member SkillNode.node_board];
 ## core-vs-node is derivable from the attachment site). Add a typed field of
 ## this enum to StatModifier only if a transfer-rule becomes load-bearing.
 

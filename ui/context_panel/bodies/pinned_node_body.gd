@@ -63,4 +63,4 @@ func _render() -> void:
 		return
 	_name.text = node.name
 	_owner.text = node.owned_by.display_name if node.owned_by != null else "Unowned"
-	_hp.text = "%d / %d" % [roundi(node.current_hp), roundi(node.get_max_hp())]
+	_hp.text = "%d / %d" % [roundi(node.get_current_hp()), roundi(node.get_max_hp())]

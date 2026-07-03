@@ -55,7 +55,7 @@ static func compute(base: float, sources: Array[ModifierBins]) -> float:
 
 ## SET tiebreak across sources: highest priority wins; at equal priority
 ## the LAST source listed wins. Consumers order sources so the most
-## specific scope is LAST (LocalStat passes [entity.bins, self.bins] so
+## specific scope is LAST (the combined read passes [entity.bins, node.bins] so
 ## a local SET at equal priority overrides the entity-side one).
 static func _pick_set_winner(sources: Array[ModifierBins]) -> StatModifier:
 	var best: StatModifier = null

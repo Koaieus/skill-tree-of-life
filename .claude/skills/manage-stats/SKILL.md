@@ -276,7 +276,7 @@ Adding the stat to the board makes it *exist and scale*. A new stat is often a c
 
 Don't reinvent the mechanics here — read **`docs/domain/procgen-v3.md`** (phased draw, StatPack structure, cost caps, `off_phase_op_weights`) and copy an existing pool as the template. This is the gap the skill historically missed: a new stat that's good build content but never gets a procgen pool.
 
-**2. Per-node localization.** *"Should this stat vary per skill node, not just per entity?"* (Currently `node_health` and `range` do.) If yes, it can be localized via `SkillNode.get_local_stat(id)` / `LocalStat` (`stats_system/local_stat.gd`) — any stat id can be localized, no extra wiring needed beyond the board having the stat, but procgen pools that target it become per-node overrides. See `.claude/rules/stats-system.md` → "Local stats".
+**2. Per-node localization.** *"Should this stat vary per skill node, not just per entity?"* (Currently `node_health` and `range` do.) If yes, it can be localized via `SkillNode._ensure_local_stat(id)` / `node_board` — the node's sparse `StatBoard` creates the stat on demand; procgen pools that target it become per-node overrides. See `.claude/rules/stats-system.md` → "Local stats".
 
 ---
 
@@ -332,6 +332,6 @@ entity/default_entity_board.tres            # default runtime board (all stat in
 entity/entity.gd                            # apply_intrinsics() + core_class.apply() on _ready
 entity/core/core_class.gd                   # per-entity class identity bonuses
 procgen/pools/                              # StatPacks (procgen content) — docs/domain/procgen-v3.md
-stats_system/local_stat.gd                  # per-node stat override (LocalStat)
+skill_node/skill_node.gd                    # node_board + per-node stat override
 .claude/rules/stats-system.md               # authoritative reference — KEEP IN SYNC
 ```

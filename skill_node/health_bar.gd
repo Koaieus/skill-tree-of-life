@@ -1,8 +1,8 @@
 extends ProgressBar
 
-## Visibility: hidden at full HP (or when unowned); fades in when damaged or hovered.
-## Value: tweens smoothly on damage (fast snap down) and heal (slower fill).
-## Wires itself to its owner SkillNode in _ready — no external injection needed.
+## Node combat health bar — shows the SkillNode's per-node HP pool (max vs
+## current) via [method SkillNode.node_board]. Wires in _ready; visibility is
+## automatic: hidden when unallocated or at full HP, fades in on hover or damage.
 
 const _FADE_IN_DURATION  := 0.12
 const _FADE_OUT_DURATION := 0.45
@@ -15,6 +15,7 @@ const _COLOR_MID  := Color(1.0, 0.65, 0.0,  1.0)
 const _COLOR_LOW  := Color(1.0, 0.22, 0.22, 1.0)
 
 var _fill_style: StyleBoxFlat = null
+var _pool: PoolStat = null
 var _skill_node: SkillNode = null
 var _hovered: bool = false
 var _fade_tween: Tween = null
@@ -33,33 +34,65 @@ func _ready() -> void:
 	if _skill_node == null:
 		return
 
-	_skill_node.damaged.connect(_on_damaged)
-	_skill_node.healed.connect(_on_healed)
-	_skill_node.owner_changed.connect(_sync, CONNECT_DEFERRED)
+	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
-	# Deferred so SkillNode._ready() (parent) has a chance to run first —
-	# it calls _refresh_hp_binding() which sets current_hp to max. Without
-	# this, _sync() sees current_hp=0 + owned_by!=null → false "damaged" state.
-	_sync.call_deferred()
+	# Deferred so SkillNode._ready() (parent) runs first — it creates the
+	# node_board and syncs combat health during _refresh_hp_binding.
+	_on_owner_changed.call_deferred()
 
 
-# ── HP signal handlers ────────────────────────────────────────────────────────
+func _on_owner_changed() -> void:
+	if _skill_node == null:
+		return
+	var hp: PoolStat = null
+	if _skill_node.is_allocated() and _skill_node.node_board != null:
+		hp = _skill_node.node_board.get_stat(&"node_health") as PoolStat
+	_bind_pool(hp)
 
-func _on_damaged(_amount: float, _source: Variant) -> void:
-	max_value = _skill_node.get_max_hp()
-	_tween_value(_skill_node.current_hp, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
+
+func _bind_pool(pool: PoolStat) -> void:
+	if _pool == pool:
+		return
+	if _pool != null:
+		if _pool.current_changed.is_connected(_on_current_changed):
+			_pool.current_changed.disconnect(_on_current_changed)
+		if _pool.value_changed.is_connected(_on_max_changed):
+			_pool.value_changed.disconnect(_on_max_changed)
+	_pool = pool
+	if _pool != null:
+		_pool.current_changed.connect(_on_current_changed)
+		_pool.value_changed.connect(_on_max_changed)
+		_sync()
 	_update_visibility()
 
 
-func _on_healed(_amount: float, _source: Variant) -> void:
-	max_value = _skill_node.get_max_hp()
-	_tween_value(_skill_node.current_hp, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
+func _on_current_changed(_new_val: Variant) -> void:
+	if _pool == null:
+		return
+	var target := float(_pool.current)
+	var going_down := target < value
+	if going_down:
+		_tween_value(target, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
+	else:
+		_tween_value(target, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
 	_update_visibility()
 
 
-# ── Hover handlers ────────────────────────────────────────────────────────────
+func _on_max_changed() -> void:
+	if _pool != null:
+		max_value = _pool.value
+
+
+func _sync() -> void:
+	if _pool == null:
+		return
+	max_value = _pool.value
+	value = float(_pool.current)
+
+
+# ── Hover ───────────────────────────────────────────────────────────────────
 
 func _on_hovered() -> void:
 	_hovered = true
@@ -71,25 +104,12 @@ func _on_unhovered() -> void:
 	_update_visibility()
 
 
-# ── Sync (owner change / init) ────────────────────────────────────────────────
-
-func _sync() -> void:
-	if _skill_node == null:
-		return
-	max_value = _skill_node.get_max_hp()
-	value = _skill_node.current_hp
-	_update_visibility()
-
-
-# ── Visibility ────────────────────────────────────────────────────────────────
+# ── Visibility ──────────────────────────────────────────────────────────────
 
 func _update_visibility() -> void:
-	if not _skill_node.is_allocated():
+	if _pool == null:
 		return _fade_to(0.0)
-	var damaged := _skill_node != null \
-			and _skill_node.owned_by != null \
-			and _skill_node.current_hp > 0.0 \
-			and _skill_node.current_hp < _skill_node.get_max_hp()
+	var damaged: bool = _pool.current > 0.0 and _pool.current < _pool.value
 	_fade_to(1.0 if (_hovered or damaged) else 0.0)
 
 
@@ -104,7 +124,7 @@ func _fade_to(target_alpha: float) -> void:
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 
 
-# ── Value tween ───────────────────────────────────────────────────────────────
+# ── Value tween ─────────────────────────────────────────────────────────────
 
 func _tween_value(target: float, duration: float,
 		ease: Tween.EaseType, trans: Tween.TransitionType) -> void:
@@ -115,7 +135,7 @@ func _tween_value(target: float, duration: float,
 			.set_ease(ease).set_trans(trans)
 
 
-# ── Color by ratio (called automatically via value_changed signal) ────────────
+# ── Color by ratio (connected via value_changed signal in scene) ────────────
 
 func _on_value_changed(new_value: float) -> void:
 	if _fill_style == null:

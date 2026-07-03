@@ -14,7 +14,7 @@ extends Node
 ##
 ## Sources of vision: every node owned by a viewer contributes a circle at
 ## its global_position with radius = that node's local vision_range
-## (entity stat × node-local mods composed via LocalStat). Per-node so
+## (entity stat × node-local mods composed via node_board). Per-node so
 ## addons like a Spyglass can buff sight on one node only.
 ##
 ## Sources of sensor: priority traversal seeded by every owned node with
@@ -70,10 +70,10 @@ signal vision_render_tick
 const _RETIRE_RADIUS := 1.0
 
 # Per-viewer Stat connections (entity-side vision/sensor) and per-node
-# LocalStat connections (node-side vision overrides via addons). Rebuilt
+# Node-board stat subscriptions (node-side vision overrides via addons). Rebuilt
 # eagerly on every recompute — cheap, no leak from stale owners.
 var _bound_entity_stats: Array[Stat] = []
-var _bound_local_stats: Array[LocalStat] = []
+var _bound_local_stats: Array[Stat] = []
 
 var _visible: Dictionary = {}   # SkillNode → true (logical)
 var _sensed: Dictionary = {}    # SkillNode → true (logical)
@@ -208,7 +208,10 @@ func _rebind_local_stats(owner_nodes: Array) -> void:
 	_bound_local_stats.clear()
 	for n in owner_nodes:
 		for stat_id in [&"vision_range", &"sensor_range"]:
-			var ls := (n as SkillNode).get_local_stat(stat_id)
+			var sn := n as SkillNode
+			if sn.node_board == null:
+				continue
+			var ls := sn.node_board.get_stat(stat_id)
 			if ls != null:
 				ls.value_changed.connect(_request_recompute)
 				_bound_local_stats.append(ls)
@@ -253,8 +256,7 @@ func _recompute() -> void:
 		for viewer in effective:
 			for own_node in owned_per_viewer.get(viewer, []):
 				all_owned.append(own_node)
-				var ls := (own_node as SkillNode).get_local_stat(&"vision_range")
-				var r: float = float(ls.value) if ls != null else 0.0
+				var r: float = float((own_node as SkillNode).get_local_value(&"vision_range"))
 				targets.append(r)
 				if not _circles.has(own_node):
 					_circles[own_node] = {"radius": 0.0, "target": r}
@@ -285,8 +287,7 @@ func _recompute() -> void:
 		var owned_set: Dictionary = {}  # SkillNode → true
 		for own_node in all_owned:
 			owned_set[own_node] = true
-			var ss := (own_node as SkillNode).get_local_stat(&"sensor_range")
-			var budget := int(ss.value) if ss != null else 0
+			var budget := int((own_node as SkillNode).get_local_value(&"sensor_range"))
 			if budget <= 0:
 				continue
 			frontier.append({"node": own_node, "budget": budget})

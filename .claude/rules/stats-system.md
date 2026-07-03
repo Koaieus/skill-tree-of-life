@@ -15,11 +15,17 @@ description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsi
 
 ## Local stats (per-node overrides)
 
-`LocalStat extends Stat` (`stats_system/local_stat.gd`) is a per-node stat that reads `entity_stat.base_value` and merges entity + node bins via `ModifierBins.compute()` — avoids double-applying INCREASE/MULTIPLY that a naive pipeline-chain would. Lazy-created on `SkillNode.get_local_stat(id)`, rebinds on `owner_changed`.
+`SkillNode.node_board` is a sparse `StatBoard` — all fields start null, created only when a node-local modifier targets them (via `_ensure_local_stat(id)`) or when the node is allocated (combat health pool). No `LocalStat` class — the merge happens directly: `StatBoard.get_stat(id)` may differ per board, and combined reads use `ModifierBins.compute()` with bins from both the entity and node board.
 
-**SET tiebreak:** highest priority wins; at equal priority **last source listed wins**. `LocalStat` orders `[entity.bins, self.bins]` so a local SET beats an entity SET at the same priority.
+Read side: `SkillNode.get_local_value(id)` returns the combined value without allocating — entity stat pass-through when the node board has no stat for that id. Modifier target side: `_ensure_local_stat(id)` creates (if needed) and returns the stat on `node_board`; addons route their `local_modifiers` here.
 
-Any stat id can be localized; convention picks the meaningful ones (currently `node_health`, `range`). If the owning entity's board lacks the stat (older hand-authored boards that predate it), `SkillNode.get_local_stat` falls back to `StatRegistry.get_def(id).default_value` so reads return something sensible — but scaling modifiers won't apply until the board catches up.
+**SET tiebreak:** highest priority wins; at equal priority **last source listed wins**. The combined read orders `[entity.bins, node.bins]` so a node-local SET beats an entity SET at the same priority.
+
+For entity-absent fallback: `get_local_value(id)` uses `StatRegistry.get_def(id).default_value` when neither board carries the stat.
+
+### Node combat health
+
+The node's health is a `PoolStat` on `node_board` with id `"node_combat_health"` (`StandardPoolStatDef`, `heal_on_max_increase = true`). On allocation, `base_value` is synced from the owning entity's `node_health` ScalarStat baseline and re-syncs on `value_changed`. `current` tracks damage; `deplete()` / `restore_to_full()` replace the old `current_hp` float. See `skill_node/skill_node.gd:_refresh_hp_binding`.
 
 ## Pool stats
 
