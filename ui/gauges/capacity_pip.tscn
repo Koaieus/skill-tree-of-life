@@ -1,12 +1,20 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://dtoh6l376qj0f"]
 
-[ext_resource type="Script" path="res://ui/gauges/capacity_pip.gd" id="1_script"]
-[ext_resource type="Shader" path="res://ui/gauges/capacity_pip.gdshader" id="2_shader"]
+[ext_resource type="Script" uid="uid://c62g1toun2gqn" path="res://ui/gauges/capacity_pip.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://lvkbvwnr5ocr" path="res://ui/gauges/capacity_pip.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pip"]
+resource_local_to_scene = true
 shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(14, 14)
+shader_parameter/fill_color = Color(0.62, 0.21, 0.21, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/highlight_color = Color(1, 1, 1, 0.9)
+shader_parameter/filled = 0.0
+shader_parameter/highlight = 0.0
+shader_parameter/glow_strength = 6.0
 
-[node name="CapacityPip" type="ColorRect"]
+[node name="CapacityPip" type="ColorRect" unique_id=904865353]
 material = SubResource("ShaderMaterial_pip")
 custom_minimum_size = Vector2(14, 14)
 offset_right = 14.0

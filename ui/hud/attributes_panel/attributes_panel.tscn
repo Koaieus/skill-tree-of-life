@@ -1,126 +1,130 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://h348jvfyef1r"]
 
-[ext_resource type="Script" path="res://ui/hud/attributes_panel/attributes_panel.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cfwkr7ca80c8p" path="res://ui/hud/attributes_panel/attributes_panel.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="PackedScene" path="res://ui/gauges/attribute_radar.tscn" id="3_radar"]
+[ext_resource type="PackedScene" uid="uid://cx536j2yv0u8w" path="res://ui/gauges/attribute_radar.tscn" id="3_radar"]
 [ext_resource type="PackedScene" path="res://ui/hud/attributes_panel/attribute_row.tscn" id="4_row"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tooltip"]
-bg_color = Color(0.039, 0.043, 0.075, 0.96)
-border_color = Color(0.47, 0.55, 0.75, 0.3)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
 content_margin_left = 8.0
 content_margin_top = 6.0
 content_margin_right = 8.0
 content_margin_bottom = 6.0
+bg_color = Color(0.039, 0.043, 0.075, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.47, 0.55, 0.75, 0.3)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
-[node name="AttributesPanel" type="Control"]
+[node name="AttributesPanel" type="Control" unique_id=1974392571]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 280.0
-offset_bottom = 260.0
+offset_right = 368.0
+offset_bottom = 189.0
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="GlassPanel" parent="." unique_id=1486745107 instance=ExtResource("2_glass")]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = 0.0
+offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="." unique_id=1036265460]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 12
+offset_right = 368.0
+offset_bottom = 189.0
+theme_override_constants/margin_left = 15
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="Content" type="HBoxContainer" parent="Margin"]
+[node name="Content" type="HBoxContainer" parent="Margin" unique_id=1804667402]
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_vertical = 0
+theme_override_constants/separation = 16
 
-[node name="AttributeRadar" parent="Margin/Content" instance=ExtResource("3_radar")]
+[node name="AttributeRadar" parent="Margin/Content" unique_id=110395745 instance=ExtResource("3_radar")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 120)
 layout_mode = 2
 size_flags_vertical = 4
 
-[node name="Rows" type="VBoxContainer" parent="Margin/Content"]
+[node name="Rows" type="VBoxContainer" parent="Margin/Content" unique_id=1074864045]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 3
 
-[node name="StrengthRow" parent="Margin/Content/Rows" instance=ExtResource("4_row")]
+[node name="StrengthRow" parent="Margin/Content/Rows" unique_id=273870957 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 
-[node name="DexterityRow" parent="Margin/Content/Rows" instance=ExtResource("4_row")]
+[node name="DexterityRow" parent="Margin/Content/Rows" unique_id=1284504467 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 
-[node name="IntelligenceRow" parent="Margin/Content/Rows" instance=ExtResource("4_row")]
+[node name="IntelligenceRow" parent="Margin/Content/Rows" unique_id=644228505 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 
-[node name="WisdomRow" parent="Margin/Content/Rows" instance=ExtResource("4_row")]
+[node name="WisdomRow" parent="Margin/Content/Rows" unique_id=1221488473 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 
-[node name="PerceptionRow" parent="Margin/Content/Rows" instance=ExtResource("4_row")]
+[node name="PerceptionRow" parent="Margin/Content/Rows" unique_id=1441043669 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 
-[node name="SensesRow" type="HBoxContainer" parent="Margin/Content/Rows"]
+[node name="SensesRow" type="HBoxContainer" parent="Margin/Content/Rows" unique_id=919498683]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="VisionLabel" type="Label" parent="Margin/Content/Rows/SensesRow"]
+[node name="VisionLabel" type="Label" parent="Margin/Content/Rows/SensesRow" unique_id=1968258459]
+modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.55)
 text = "Vision"
 
-[node name="VisionValue" type="Label" parent="Margin/Content/Rows/SensesRow"]
+[node name="VisionValue" type="Label" parent="Margin/Content/Rows/SensesRow" unique_id=439995238]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "0 px"
 
-[node name="SensorLabel" type="Label" parent="Margin/Content/Rows/SensesRow"]
+[node name="SensorLabel" type="Label" parent="Margin/Content/Rows/SensesRow" unique_id=309395794]
+modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.55)
 text = "Sensor"
 
-[node name="SensorValue" type="Label" parent="Margin/Content/Rows/SensesRow"]
+[node name="SensorValue" type="Label" parent="Margin/Content/Rows/SensesRow" unique_id=1185566511]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "0 hops"
 
-[node name="SensesCaption" type="Label" parent="Margin/Content/Rows/SensesRow"]
+[node name="SensesCaption" type="Label" parent="Margin/Content/Rows/SensesRow" unique_id=410488566]
+modulate = Color(1, 1, 1, 0.4)
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
-modulate = Color(1, 1, 1, 0.4)
 text = "scales / PER"
 
-[node name="Tooltip" type="PanelContainer" parent="."]
+[node name="Tooltip" type="PanelContainer" parent="." unique_id=651616263]
 unique_name_in_owner = true
-visible = false
 layout_mode = 1
 offset_left = 8.0
 offset_top = 8.0
@@ -129,9 +133,10 @@ offset_bottom = 60.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_tooltip")
 
-[node name="TooltipLabel" type="Label" parent="Tooltip"]
+[node name="TooltipLabel" type="Label" parent="Tooltip" unique_id=1831602612]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(50, 15)
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
-autowrap_mode = 2
 text = "..."
+autowrap_mode = 2

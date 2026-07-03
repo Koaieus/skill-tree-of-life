@@ -1,12 +1,27 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://cpht4m7pu7b2h"]
 
-[ext_resource type="Script" path="res://ui/gauges/pool_gauge.gd" id="1_script"]
-[ext_resource type="Shader" path="res://ui/gauges/pool_gauge.gdshader" id="2_shader"]
+[ext_resource type="Script" uid="uid://mcr8kle0xks8" path="res://ui/gauges/pool_gauge.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pool_gauge"]
+resource_local_to_scene = true
 shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(120, 20)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 2.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0.7, 0.75, 0.95, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(1, 1, 1, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 0.0
+shader_parameter/skew_degrees = 0.0
+shader_parameter/corner_radius = 4.0
+shader_parameter/cell_gap = 3.0
 
-[node name="PoolGauge" type="ColorRect"]
+[node name="PoolGauge" type="ColorRect" unique_id=1034588863]
 material = SubResource("ShaderMaterial_pool_gauge")
 custom_minimum_size = Vector2(120, 20)
 offset_right = 120.0

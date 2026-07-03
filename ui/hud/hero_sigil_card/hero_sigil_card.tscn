@@ -1,56 +1,109 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://c1fl7vqnjwoh5"]
 
-[ext_resource type="Script" path="res://ui/hud/hero_sigil_card/hero_sigil_card.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://duxwarhqbilce" path="res://ui/hud/hero_sigil_card/hero_sigil_card.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="Script" path="res://ui/hud/hero_sigil_card/emblem_ring.gd" id="3_ring"]
-[ext_resource type="PackedScene" path="res://ui/gauges/pool_gauge.tscn" id="4_gauge"]
+[ext_resource type="Script" uid="uid://bfx3nby25prre" path="res://ui/hud/hero_sigil_card/emblem_ring.gd" id="3_ring"]
+[ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="4_gauge"]
+[ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_whxag"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_badge"]
-bg_color = Color(0.086, 0.098, 0.149, 0.94)
-border_color = Color(0.9, 0.75, 0.4, 0.8)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-corner_radius_top_left = 9
-corner_radius_top_right = 9
-corner_radius_bottom_right = 9
-corner_radius_bottom_left = 9
 content_margin_left = 4.0
 content_margin_top = 1.0
 content_margin_right = 4.0
 content_margin_bottom = 1.0
+bg_color = Color(0.086, 0.098, 0.149, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9, 0.75, 0.4, 0.8)
+corner_radius_top_left = 9
+corner_radius_top_right = 9
+corner_radius_bottom_right = 9
+corner_radius_bottom_left = 9
 
-[node name="HeroSigilCard" type="MarginContainer"]
-layout_mode = 3
-anchors_preset = 0
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4cef1"]
+resource_local_to_scene = true
+shader = ExtResource("5_whxag")
+shader_parameter/size = Vector2(140, 14)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 2.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0.8878, 0.203, 0.2233, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(0.8878, 0.203, 0.2233, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 0.0
+shader_parameter/skew_degrees = 0.0
+shader_parameter/corner_radius = 4.0
+shader_parameter/cell_gap = 3.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ji1wf"]
+resource_local_to_scene = true
+shader = ExtResource("5_whxag")
+shader_parameter/size = Vector2(140, 14)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 2.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0, 0.72, 0.881, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(0, 0.72, 0.881, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 0.0
+shader_parameter/skew_degrees = 0.0
+shader_parameter/corner_radius = 4.0
+shader_parameter/cell_gap = 3.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_v86og"]
+resource_local_to_scene = true
+shader = ExtResource("5_whxag")
+shader_parameter/size = Vector2(140, 14)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 2.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0.8909, 0.7204, 0.2596, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 0.0
+shader_parameter/skew_degrees = 0.0
+shader_parameter/corner_radius = 4.0
+shader_parameter/cell_gap = 3.0
+
+[node name="HeroSigilCard" type="MarginContainer" unique_id=1208693110]
 script = ExtResource("1_script")
 
-[node name="FloatAnchor" type="Node2D" parent="."]
+[node name="FloatAnchor" type="Node2D" parent="." unique_id=564361223]
 unique_name_in_owner = true
 position = Vector2(70, 20)
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="GlassPanel" parent="." unique_id=465765485 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Padded" type="MarginContainer" parent="."]
+[node name="Padded" type="MarginContainer" parent="." unique_id=882723540]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="Content" type="HBoxContainer" parent="Padded"]
+[node name="Content" type="HBoxContainer" parent="Padded" unique_id=95079664]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Portrait" type="Control" parent="Padded/Content"]
+[node name="Portrait" type="Control" parent="Padded/Content" unique_id=1832702480]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 size_flags_vertical = 4
 
-[node name="EmblemRing" type="Control" parent="Padded/Content/Portrait"]
+[node name="EmblemRing" type="Control" parent="Padded/Content/Portrait" unique_id=991628644]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -58,10 +111,11 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+rotation = 34.21158
 pivot_offset = Vector2(32, 32)
 script = ExtResource("3_ring")
 
-[node name="EmblemGlyph" type="Label" parent="Padded/Content/Portrait"]
+[node name="EmblemGlyph" type="Label" parent="Padded/Content/Portrait" unique_id=1578923502]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -71,11 +125,11 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 26
+text = "✦"
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "✦"
 
-[node name="LevelBadge" type="Label" parent="Padded/Content/Portrait"]
+[node name="LevelBadge" type="Label" parent="Padded/Content/Portrait" unique_id=246929272]
 unique_name_in_owner = true
 layout_mode = 1
 offset_left = 44.0
@@ -83,80 +137,83 @@ offset_top = 44.0
 offset_right = 64.0
 offset_bottom = 64.0
 theme_override_font_sizes/font_size = 12
-horizontal_alignment = 1
-vertical_alignment = 1
 theme_override_styles/normal = SubResource("StyleBoxFlat_badge")
 text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="Vitals" type="VBoxContainer" parent="Padded/Content"]
+[node name="Vitals" type="VBoxContainer" parent="Padded/Content" unique_id=539041536]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="NameLabel" type="Label" parent="Padded/Content/Vitals"]
+[node name="NameLabel" type="Label" parent="Padded/Content/Vitals" unique_id=1479424424]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 18
 text = "Entity"
 
-[node name="ClassLabel" type="Label" parent="Padded/Content/Vitals"]
+[node name="ClassLabel" type="Label" parent="Padded/Content/Vitals" unique_id=862867589]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.6)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-modulate = Color(1, 1, 1, 0.6)
 text = "Allround"
 
-[node name="HealthRow" type="HBoxContainer" parent="Padded/Content/Vitals"]
+[node name="HealthRow" type="HBoxContainer" parent="Padded/Content/Vitals" unique_id=17544486]
 layout_mode = 2
 
-[node name="HealthGauge" parent="Padded/Content/Vitals/HealthRow" instance=ExtResource("4_gauge")]
+[node name="HealthGauge" parent="Padded/Content/Vitals/HealthRow" unique_id=560570739 instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_4cef1")
 custom_minimum_size = Vector2(140, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 fill_color = Color(0.8878, 0.203, 0.2233, 1)
 glow_color = Color(0.8878, 0.203, 0.2233, 0.6)
 
-[node name="HealthCaption" type="Label" parent="Padded/Content/Vitals/HealthRow"]
+[node name="HealthCaption" type="Label" parent="Padded/Content/Vitals/HealthRow" unique_id=1380640812]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.6)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.6)
 text = "0/0"
 
-[node name="ManaRow" type="HBoxContainer" parent="Padded/Content/Vitals"]
+[node name="ManaRow" type="HBoxContainer" parent="Padded/Content/Vitals" unique_id=1409335352]
 layout_mode = 2
 
-[node name="ManaGauge" parent="Padded/Content/Vitals/ManaRow" instance=ExtResource("4_gauge")]
+[node name="ManaGauge" parent="Padded/Content/Vitals/ManaRow" unique_id=1913829611 instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_ji1wf")
 custom_minimum_size = Vector2(140, 12)
 layout_mode = 2
 size_flags_horizontal = 3
-fill_color = Color(0.0, 0.72, 0.881, 1)
-glow_color = Color(0.0, 0.72, 0.881, 0.6)
+fill_color = Color(0, 0.72, 0.881, 1)
+glow_color = Color(0, 0.72, 0.881, 0.6)
 
-[node name="ManaCaption" type="Label" parent="Padded/Content/Vitals/ManaRow"]
+[node name="ManaCaption" type="Label" parent="Padded/Content/Vitals/ManaRow" unique_id=1503455658]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.6)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.6)
 text = "0/0"
 
-[node name="XPRow" type="HBoxContainer" parent="Padded/Content/Vitals"]
+[node name="XPRow" type="HBoxContainer" parent="Padded/Content/Vitals" unique_id=417111599]
 layout_mode = 2
 
-[node name="XPGauge" parent="Padded/Content/Vitals/XPRow" instance=ExtResource("4_gauge")]
+[node name="XPGauge" parent="Padded/Content/Vitals/XPRow" unique_id=1552507735 instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_v86og")
 custom_minimum_size = Vector2(140, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 fill_color = Color(0.8909, 0.7204, 0.2596, 1)
 glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
 
-[node name="XPCaption" type="Label" parent="Padded/Content/Vitals/XPRow"]
+[node name="XPCaption" type="Label" parent="Padded/Content/Vitals/XPRow" unique_id=198810305]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.6)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.6)
 text = "0/0"
