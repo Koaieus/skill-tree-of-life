@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/gauges/capacity_pip.gd" id="1_script"]
+[ext_resource type="Shader" path="res://ui/gauges/capacity_pip.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pip"]
+shader = ExtResource("2_shader")
+
+[node name="CapacityPip" type="ColorRect"]
+material = SubResource("ShaderMaterial_pip")
+custom_minimum_size = Vector2(14, 14)
+offset_right = 14.0
+offset_bottom = 14.0
+mouse_filter = 2
+script = ExtResource("1_script")
