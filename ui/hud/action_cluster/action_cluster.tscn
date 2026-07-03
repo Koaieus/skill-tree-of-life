@@ -1,0 +1,44 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/action_cluster/action_cluster.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/gauges/pool_gauge.tscn" id="2_gauge"]
+[ext_resource type="PackedScene" path="res://ui/end_turn_button/end_turn_button.tscn" id="3_endturn"]
+
+[node name="ActionCluster" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+custom_minimum_size = Vector2(200, 78)
+script = ExtResource("1_script")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 2
+theme_override_constants/separation = 4
+
+[node name="APGauge" parent="Content" instance=ExtResource("2_gauge")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+cell_count = 2.0
+skew_degrees = 15.0
+fill_color = Color(0.291, 0.5892, 1.0, 1)
+glow_color = Color(0.291, 0.5892, 1.0, 0.6)
+
+[node name="WarningLabel" type="Label" parent="Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.95, 0.7, 0.3, 1)
+horizontal_alignment = 2
+text = "0 unspent Action Points"
+
+[node name="EndTurnButton" parent="Content" instance=ExtResource("3_endturn")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8

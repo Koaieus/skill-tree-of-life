@@ -12,8 +12,7 @@ extends Control
 ##
 ## Composed side-by-side with UIRoot during the build-out (#107..#117) —
 ## GameRoot composes both; only #118 (Cutover) swaps which one is visible.
-## Phase 5/6 slots (command tray, AP+End Turn cluster) are empty anchors
-## until their issues land.
+## Command tray slot (Phase 5, #113/#114) is still an empty anchor.
 
 @onready var turn_tracker_slot: Control = %TurnTrackerSlot
 @onready var left_column_slot: Control = %LeftColumnSlot
@@ -25,6 +24,8 @@ extends Control
 @onready var attributes_panel: AttributesPanel = %AttributesPanel
 @onready var turn_resources_panel: TurnResourcesPanel = %TurnResourcesPanel
 @onready var combat_readout: CombatReadout = %CombatReadout
+@onready var initiative_bar: InitiativeBar = %InitiativeBar
+@onready var action_cluster: ActionCluster = %ActionCluster
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -54,3 +55,39 @@ func compose(game_root: GameRoot) -> void:
 		turn_resources_panel.bind(_player.stat_board)
 	if combat_readout != null:
 		combat_readout.bind(_player, _battle_system)
+	if action_cluster != null:
+		action_cluster.bind(_player, _turn_manager, _input_ctl, _vision_system)
+	_bind_initiative_bar()
+
+
+## #116 — Turn Tracker Pill. InitiativeBar already implements the "hide
+## during MY turn, show + climb otherwise" behavior UIRoot relies on
+## (_on_owner_turn_started slides it out, _on_owner_turn_ended slides it
+## back in) — reused verbatim, just wired the same way UIRoot.compose()
+## wires its own copy.
+func _bind_initiative_bar() -> void:
+	if initiative_bar == null or _player == null or _player.stat_board == null or _turn_manager == null:
+		return
+	var init_pool := _player.stat_board.initiative
+	if init_pool == null:
+		return
+	initiative_bar.max_initiative = float(init_pool.value)
+	init_pool.current_changed.connect(initiative_bar._on_initiative_changed)
+	init_pool.replenished.connect(initiative_bar._on_ready)
+	initiative_bar._on_initiative_changed(float(init_pool.current))
+	_turn_manager.turn_started.connect(_on_turn_started_for_initiative)
+	_turn_manager.turn_ended.connect(_on_turn_ended_for_initiative)
+
+
+func _on_turn_started_for_initiative(entity: Entity) -> void:
+	if entity == _player:
+		var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
+		if init_pool != null:
+			initiative_bar._on_owner_turn_started(float(init_pool.current))
+
+
+func _on_turn_ended_for_initiative(entity: Entity) -> void:
+	if entity == _player:
+		var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
+		if init_pool != null:
+			initiative_bar._on_owner_turn_ended(float(init_pool.current))
