@@ -1,0 +1,136 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/turn_resources_panel/turn_resources_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
+[ext_resource type="PackedScene" path="res://ui/gauges/composite_bar_gauge.tscn" id="4_composite"]
+
+[node name="TurnResourcesPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 280.0
+offset_bottom = 150.0
+script = ExtResource("1_script")
+
+[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="Content" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Batteries" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="APColumn" type="VBoxContainer" parent="Margin/Content/Batteries"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="APLabel" type="Label" parent="Margin/Content/Batteries/APColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(1, 1, 1, 0.55)
+text = "ACTION"
+
+[node name="APGauge" parent="Margin/Content/Batteries/APColumn" instance=ExtResource("3_gauge")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+cell_count = 2.0
+skew_degrees = 15.0
+fill_color = Color(0.291, 0.5892, 1.0, 1)
+glow_color = Color(0.291, 0.5892, 1.0, 0.6)
+
+[node name="DPColumn" type="VBoxContainer" parent="Margin/Content/Batteries"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DPLabel" type="Label" parent="Margin/Content/Batteries/DPColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(1, 1, 1, 0.55)
+text = "DEALLOC"
+
+[node name="DPGauge" parent="Margin/Content/Batteries/DPColumn" instance=ExtResource("3_gauge")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+cell_count = 3.0
+skew_degrees = 15.0
+fill_color = Color(0.9451, 0.2689, 0.2453, 1)
+glow_color = Color(0.9451, 0.2689, 0.2453, 0.6)
+
+[node name="MPColumn" type="VBoxContainer" parent="Margin/Content/Batteries"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MPLabel" type="Label" parent="Margin/Content/Batteries/MPColumn"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(1, 1, 1, 0.55)
+text = "MOVE"
+
+[node name="MPGauge" parent="Margin/Content/Batteries/MPColumn" instance=ExtResource("3_gauge")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+cell_count = 1.0
+skew_degrees = 15.0
+fill_color = Color(0.3187, 0.7773, 0.4484, 1)
+glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)
+
+[node name="SPSection" type="VBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="SPHeader" type="HBoxContainer" parent="Margin/Content/SPSection"]
+layout_mode = 2
+
+[node name="SPLabel" type="Label" parent="Margin/Content/SPSection/SPHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+modulate = Color(1, 1, 1, 0.6)
+text = "SKILL POINTS"
+
+[node name="SPToSpendValue" type="Label" parent="Margin/Content/SPSection/SPHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 18
+text = "0"
+
+[node name="SPBar" parent="Margin/Content/SPSection" instance=ExtResource("4_composite")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SPWoundHeal" type="Label" parent="Margin/Content/SPSection"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+modulate = Color(0.87, 0.23, 0.24, 0.85)
+text = "0 wounded, healing 0/turn"

@@ -18,6 +18,16 @@ extends Node2D
 ## the renderer stays free of any vision dependency.
 @export var vision_system: VisionSystem = null
 
+## #91/#108 — when set, entity-level toasts (wound/heal, stat-modifier gain)
+## for THIS entity render at [member player_anchor] (the Hero Sigil Card's
+## FloatAnchor) instead of the world-space core. A plain Node2D works
+## unmodified as a [FloaterRequest.target] — CanvasItem global transforms
+## compose across the Control/Node2D boundary, so it resolves to screen
+## pixels exactly like the HUD Control it lives under. AI entities have no
+## HUD card, so they keep rising from their core.
+@export var player: Entity = null
+@export var player_anchor: Node2D = null
+
 const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
 
 
@@ -59,13 +69,14 @@ func _on_stat_modifier_changed(
 	if entity == null or modifier == null or entity.core_location == null:
 		return
 	var core := entity.core_location
-	if not _node_visible(core):
+	var target := _resolve_target(entity, core)
+	if target == core and not _node_visible(core):
 		return
 	var def := StatRegistry.get_def(modifier.stat_id)
 	var label: String = def.display_name if def != null else String(modifier.stat_id)
 	var text := "%s %s" % [modifier.contribution_text(), label]
 	var tint: Color = def.tint_color if def != null else Color.WHITE
-	_emit(core, text, FloaterStyles.for_modifier(tint, binding, added))
+	_emit(target, text, FloaterStyles.for_modifier(tint, binding, added))
 
 
 # --- Helpers ----------------------------------------------------------------
@@ -81,15 +92,24 @@ func _emit(target: Node2D, text: String, style: FloaterStyle) -> void:
 
 
 ## Flash the core itself so the number isn't the only signal — a wound/heal feels
-## like an event happening to the core, not just a number popping up nearby.
+## like an event happening to the core, not just a number popping up nearby —
+## then route the actual toast to [method _resolve_target] (Hero Sigil Card
+## anchor for the bound player, core for everyone else).
 func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle) -> void:
 	if entity == null or entity.core_location == null:
 		return
 	var core := entity.core_location
-	if not _node_visible(core):
+	var target := _resolve_target(entity, core)
+	if target == core and not _node_visible(core):
 		return
 	core.play_hit_flash()
-	_emit(core, text, style)
+	_emit(target, text, style)
+
+
+func _resolve_target(entity: Entity, core: Node2D) -> Node2D:
+	if entity == player and is_instance_valid(player_anchor):
+		return player_anchor
+	return core
 
 
 func _node_visible(node: SkillNode) -> bool:

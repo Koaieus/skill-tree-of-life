@@ -28,6 +28,11 @@ const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 @export var auto_start_turn: bool = true
 ## When false, `_ready` skips `UIRoot.compose` and hides the UI layer.
 @export var show_ui: bool = true
+## #107 — HudRoot (the Arcane Terminal HUD rebuild) is composed side-by-side
+## with UIRoot but stays hidden until #118 (Cutover) swaps it in. Flip this
+## on to preview the in-progress HUD during development; both are kept live
+## so systems wiring can be exercised against either.
+@export var show_hud_root: bool = false
 ## When false, the fog overlay is hidden (a self-driven demo wants every node
 ## visible regardless of owned-subgraph vision).
 @export var enable_fog: bool = true
@@ -50,6 +55,7 @@ var player: Entity
 # UI
 @onready var camera: Camera2D = %GraphCamera
 @onready var ui_root: UIRoot = %UIRoot
+@onready var hud_root: HudRoot = %HudRoot
 
 @onready var node_highlight: NodeHighlightOverlay = %NodeHighlightOverlay
 @onready var edge_highlight: EdgeHighlightOverlay = %EdgeHighlightOverlay
@@ -91,6 +97,11 @@ func _ready() -> void:
 			floater_director.vision_system = null
 	if show_ui:
 		ui_root.compose(self)
+		if hud_root != null:
+			hud_root.compose(self)
+			hud_root.visible = show_hud_root
+			ui_root.visible = not show_hud_root
+		_wire_hud_floater_anchor()
 	else:
 		$UI.visible = false
 
@@ -251,6 +262,19 @@ func _on_core_moved(_entity: Entity, from_node: SkillNode, to_node: SkillNode) -
 	if to_node == null or from_node == null:
 		return
 	to_node.play_core_slide_from(from_node.global_position)
+
+
+## #91/#108 — routes the player's entity-level toasts (wound/heal, stat
+## modifier gain) to the Hero Sigil Card's FloatAnchor instead of the
+## world-space core. No-op if the HUD isn't composed (show_ui == false) or
+## the player hasn't resolved yet.
+func _wire_hud_floater_anchor() -> void:
+	if floater_director == null or hud_root == null or player == null:
+		return
+	if hud_root.hero_sigil_card == null:
+		return
+	floater_director.player = player
+	floater_director.player_anchor = hud_root.hero_sigil_card.float_anchor
 
 
 func _focus_camera_on_player() -> void:
