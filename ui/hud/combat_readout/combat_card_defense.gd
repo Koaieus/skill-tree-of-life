@@ -17,8 +17,9 @@ extends CombatReadoutCard
 var _board: StatBoard
 
 
-func bind(board: StatBoard) -> void:
+func bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	_board = board
+	_owner_entity = owner_entity
 	if board == null:
 		return
 	if board.armor != null:
@@ -31,5 +32,20 @@ func bind(board: StatBoard) -> void:
 func _refresh() -> void:
 	if _board == null:
 		return
-	_armor_row.set_value(float(_board.armor.value) if _board.armor != null else 0.0)
-	_floor_row.set_value(float(_board.min_damage_taken.value) if _board.min_damage_taken != null else 0.0)
+	var armor_v: float = float(_board.armor.value) if _board.armor != null else 0.0
+	var floor_v: float = float(_board.min_damage_taken.value) if _board.min_damage_taken != null else 0.0
+	_armor_row.set_value(armor_v)
+	_floor_row.set_value(floor_v)
+
+	# #119 — node-local override preview (armor/min_damage_taken are both
+	# common node-local modifier targets per stats-system.md).
+	var armor_ov: Variant = _local_override_or_null(&"armor", armor_v)
+	if armor_ov != null:
+		_armor_row.show_override(armor_ov)
+	else:
+		_armor_row.clear_override()
+	var floor_ov: Variant = _local_override_or_null(&"min_damage_taken", floor_v)
+	if floor_ov != null:
+		_floor_row.show_override(floor_ov)
+	else:
+		_floor_row.clear_override()

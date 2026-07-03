@@ -15,8 +15,9 @@ const STR_STEP := 10.0
 var _board: StatBoard
 
 
-func bind(board: StatBoard) -> void:
+func bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	_board = board
+	_owner_entity = owner_entity
 	if board == null:
 		return
 	if board.blade_size != null:
@@ -39,5 +40,15 @@ func _refresh() -> void:
 	_size_blips.count = size_v
 	_size_sliver.text = "+1 / 10 STR - next @%d" % int(next_bp)
 
-	_damage_row.set_value(float(_board.blade_damage.value) if _board.blade_damage != null else 0.0)
+	var damage_v: float = float(_board.blade_damage.value) if _board.blade_damage != null else 0.0
+	_damage_row.set_value(damage_v)
 	_damage_row.set_sliver("+1 / 10 STR - next @%d" % int(next_bp))
+
+	# #119 — node-local override preview. blade_size (the pip display) has no
+	# override-highlight visual of its own yet (CapacityBlips is per-pip, not
+	# a single value); only the damage row previews for v1.
+	var ov: Variant = _local_override_or_null(&"blade_damage", damage_v)
+	if ov != null:
+		_damage_row.show_override(ov)
+	else:
+		_damage_row.clear_override()

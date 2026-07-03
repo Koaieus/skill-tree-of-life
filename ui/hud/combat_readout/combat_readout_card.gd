@@ -24,9 +24,41 @@ const FLASH_TIME := 0.35
 var _active: bool = false
 var _flash_tween: Tween
 
+## #119 — node-local stat override preview. Set by [CombatReadout] off
+## Events.skill_node_hovered/unhovered; only a node owned by [member
+## _owner_entity] can preview (see [method _local_override_or_null]).
+var _hover_node: SkillNode = null
+var _owner_entity: Entity = null
+
 
 func _ready() -> void:
 	_apply_active(false)
+
+
+## Called by [CombatReadout] on hover/unhover. Subclasses override
+## [method _refresh] (already their per-mode convention) to react.
+func set_hover_node(node: SkillNode) -> void:
+	_hover_node = node
+	_refresh()
+
+
+## Virtual — subclasses already define this per their bind()'d stats.
+func _refresh() -> void:
+	pass
+
+
+## Returns the node-local combined value for `stat_id` if [member _hover_node]
+## is currently previewable AND its value differs from `baseline` — null
+## otherwise (not owned by us, no hover, or the node doesn't override it).
+## Callers pass the result straight to [method CombatValueRow.show_override]
+## / [method CombatValueRow.clear_override].
+func _local_override_or_null(stat_id: StringName, baseline: float) -> Variant:
+	if _hover_node == null or _owner_entity == null:
+		return null
+	if _hover_node.owned_by != _owner_entity:
+		return null
+	var overridden: float = float(_hover_node.get_local_value(stat_id))
+	return overridden if overridden != baseline else null
 
 
 ## Called by [CombatReadout] (the shell) when the selected attack mode

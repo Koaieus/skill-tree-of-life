@@ -14,8 +14,9 @@ extends CombatReadoutCard
 var _board: StatBoard
 
 
-func bind(board: StatBoard) -> void:
+func bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	_board = board
+	_owner_entity = owner_entity
 	if board == null:
 		return
 	if board.dexterity != null:
@@ -30,4 +31,15 @@ func _refresh() -> void:
 		return
 	var dex: float = float(_board.dexterity.value) if _board.dexterity != null else 0.0
 	_damage_row.set_value(floor(dex / 10.0) + 1.0)
-	_range_row.set_value(float(_board.range.value) if _board.range != null else 0.0, " px")
+
+	var range_v: float = float(_board.range.value) if _board.range != null else 0.0
+	_range_row.set_value(range_v, " px")
+
+	# #119 — node-local override preview. `range` is leaf-localized per
+	# stats-system.md; damage has no backing StatDef (see class doc TODO),
+	# so only the range row can preview.
+	var ov: Variant = _local_override_or_null(&"range", range_v)
+	if ov != null:
+		_range_row.show_override(ov)
+	else:
+		_range_row.clear_override()
