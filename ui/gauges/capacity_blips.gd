@@ -47,16 +47,27 @@ func _ready() -> void:
 	_rebuild()
 
 func _rebuild() -> void:
+	# Immediate free (not queue_free): the same names get reused below in the
+	# same call, and a deferred free leaves the old node parented (still
+	# holding its name slot) until frame end, which previously produced
+	# "Children name does not match parent name in hashtable" errors when
+	# max_count changed more than once before the deferred frees flushed.
 	for child in get_children():
 		remove_child(child)
-		child.queue_free()
+		child.free()
 	for i in max_count:
 		var pip: CapacityPip = PIP_SCENE.instantiate()
 		pip.name = "CapacityPip_%02d" % i
 		pip.custom_minimum_size = pip_size
 		add_child(pip)
-		if Engine.is_editor_hint():
-			pip.owner = get_tree().edited_scene_root if get_tree() else null
+		# Deliberately NOT stamping pip.owner in the editor: doing so let the
+		# editor bake these script-created pips into any consuming scene as
+		# persistent "editable children" overrides, which then collided with
+		# this same _rebuild() teardown on the next load (mismatched pip
+		# count/identity vs. what the script expects). Pips render fine in
+		# the editor viewport without an owner — they're just not individually
+		# selectable in the Scene dock, which is correct for a script-owned,
+		# count-driven leaf composition (see class doc above).
 	_apply_state()
 
 func _apply_state() -> void:

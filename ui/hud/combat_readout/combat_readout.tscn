@@ -1,31 +1,35 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://syx2qix6erfj"]
 
-[ext_resource type="Script" path="res://ui/hud/combat_readout/combat_readout.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://d3da7w341jw0f" path="res://ui/hud/combat_readout/combat_readout.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_card_melee.tscn" id="2_melee"]
 [ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_card_ranged.tscn" id="3_ranged"]
 [ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_card_magic.tscn" id="4_magic"]
 [ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_card_defense.tscn" id="5_defense"]
 
-[node name="CombatReadout" type="VBoxContainer"]
-layout_mode = 3
-anchors_preset = 0
+[node name="CombatReadout" type="VBoxContainer" unique_id=853016192]
 offset_right = 220.0
-offset_bottom = 320.0
+offset_bottom = 480.0
 theme_override_constants/separation = 8
 script = ExtResource("1_script")
 
-[node name="MeleeCard" parent="." instance=ExtResource("2_melee")]
+[node name="MeleeCard" parent="." unique_id=1195230700 instance=ExtResource("2_melee")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="RangedCard" parent="." instance=ExtResource("3_ranged")]
+[node name="RangedCard" parent="." unique_id=1595133741 instance=ExtResource("3_ranged")]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
+mode_color = Color(0.9, 0.75, 0.4, 1)
 
-[node name="MagicCard" parent="." instance=ExtResource("4_magic")]
+[node name="MagicCard" parent="." unique_id=64631164 instance=ExtResource("4_magic")]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
+mode_color = Color(0.9, 0.75, 0.4, 1)
 
-[node name="DefenseCard" parent="." instance=ExtResource("5_defense")]
+[node name="DefenseCard" parent="." unique_id=1210075918 instance=ExtResource("5_defense")]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
+mode_color = Color(0.9, 0.75, 0.4, 1)

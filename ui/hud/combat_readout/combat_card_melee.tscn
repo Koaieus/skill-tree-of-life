@@ -1,61 +1,49 @@
 [gd_scene load_steps=5 format=3]
 
-[ext_resource type="Script" path="res://ui/hud/combat_readout/combat_card_melee.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dn3nngslqm21" path="res://ui/hud/combat_readout/combat_card_melee.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="PackedScene" path="res://ui/gauges/capacity_blips.tscn" id="3_blips"]
+[ext_resource type="PackedScene" uid="uid://coykc218j64qq" path="res://ui/gauges/capacity_blips.tscn" id="3_blips"]
 [ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="4_row"]
 
-[node name="CombatCardMelee" type="Control"]
+[node name="CombatCardMelee" type="MarginContainer" unique_id=316532540]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 220.0
-offset_bottom = 80.0
 mode_color = Color(0.9451, 0.2689, 0.2453, 1)
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="GlassPanel" parent="." unique_id=2110722895 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
+glow_color = Color(0.9, 0.75, 0.4, 0)
 
-[node name="Margin" type="MarginContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="Padded" type="MarginContainer" parent="."]
+layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 8
 
-[node name="Content" type="VBoxContainer" parent="Margin"]
+[node name="Content" type="VBoxContainer" parent="Padded" unique_id=1458892802]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="Title" type="Label" parent="Margin/Content"]
+[node name="Title" type="Label" parent="Padded/Content" unique_id=1747116291]
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 12
 text = "MELEE"
 
-[node name="SizeBlips" parent="Margin/Content" instance=ExtResource("3_blips")]
+[node name="SizeBlips" parent="Padded/Content" unique_id=1115681226 instance=ExtResource("3_blips")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="SizeSliver" type="Label" parent="Margin/Content"]
+[node name="SizeSliver" type="Label" parent="Padded/Content" unique_id=1964322435]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.4)
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
-modulate = Color(1, 1, 1, 0.4)
-text = ""
 
-[node name="DamageRow" parent="Margin/Content" instance=ExtResource("4_row")]
+[node name="DamageRow" parent="Padded/Content" unique_id=1155016366 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Blade damage"

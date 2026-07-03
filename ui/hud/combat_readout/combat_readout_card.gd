@@ -1,11 +1,18 @@
 @tool
 class_name CombatReadoutCard
-extends Control
+extends MarginContainer
 ## Base for the four Combat Readout cards (#112: Melee/Ranged/Magic/Defense).
 ## Owns only the shared "am I the selected mode" visual language — border
 ## glow when active, dimmed when not, transient un-mute on a stat change even
 ## while dimmed (design's "un-mute even if not selected" behavior). Per-mode
 ## value binding lives in each subclass script.
+##
+## Root is a MarginContainer (margin 0) so its reported minimum size is the
+## max of its children's — specifically the "Padded" inner MarginContainer
+## wrapping Content. A plain Control root reports (0,0) regardless of its
+## children's real size, which collapsed every card to zero height inside
+## the shell's VBoxContainer. GlassPanel is a sibling of Padded at the same
+## 0-margin level so it fills the exact same rect as the card, behind it.
 
 const DIM_OPACITY := 0.55
 const FLASH_TIME := 0.35

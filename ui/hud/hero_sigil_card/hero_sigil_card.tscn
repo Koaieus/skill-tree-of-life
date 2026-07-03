@@ -21,11 +21,9 @@ content_margin_top = 1.0
 content_margin_right = 4.0
 content_margin_bottom = 1.0
 
-[node name="HeroSigilCard" type="Control"]
+[node name="HeroSigilCard" type="MarginContainer"]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 280.0
-offset_bottom = 176.0
 script = ExtResource("1_script")
 
 [node name="FloatAnchor" type="Node2D" parent="."]
@@ -34,35 +32,25 @@ position = Vector2(70, 20)
 
 [node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="Padded" type="MarginContainer" parent="."]
+layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="Content" type="HBoxContainer" parent="Margin"]
+[node name="Content" type="HBoxContainer" parent="Padded"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Portrait" type="Control" parent="Margin/Content"]
+[node name="Portrait" type="Control" parent="Padded/Content"]
 custom_minimum_size = Vector2(64, 64)
 layout_mode = 2
 size_flags_vertical = 4
 
-[node name="EmblemRing" type="Control" parent="Margin/Content/Portrait"]
+[node name="EmblemRing" type="Control" parent="Padded/Content/Portrait"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -73,7 +61,7 @@ grow_vertical = 2
 pivot_offset = Vector2(32, 32)
 script = ExtResource("3_ring")
 
-[node name="EmblemGlyph" type="Label" parent="Margin/Content/Portrait"]
+[node name="EmblemGlyph" type="Label" parent="Padded/Content/Portrait"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -87,7 +75,7 @@ horizontal_alignment = 1
 vertical_alignment = 1
 text = "✦"
 
-[node name="LevelBadge" type="Label" parent="Margin/Content/Portrait"]
+[node name="LevelBadge" type="Label" parent="Padded/Content/Portrait"]
 unique_name_in_owner = true
 layout_mode = 1
 offset_left = 44.0
@@ -100,29 +88,29 @@ vertical_alignment = 1
 theme_override_styles/normal = SubResource("StyleBoxFlat_badge")
 text = "1"
 
-[node name="Vitals" type="VBoxContainer" parent="Margin/Content"]
+[node name="Vitals" type="VBoxContainer" parent="Padded/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="NameLabel" type="Label" parent="Margin/Content/Vitals"]
+[node name="NameLabel" type="Label" parent="Padded/Content/Vitals"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 18
 text = "Entity"
 
-[node name="ClassLabel" type="Label" parent="Margin/Content/Vitals"]
+[node name="ClassLabel" type="Label" parent="Padded/Content/Vitals"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 modulate = Color(1, 1, 1, 0.6)
 text = "Allround"
 
-[node name="HealthRow" type="HBoxContainer" parent="Margin/Content/Vitals"]
+[node name="HealthRow" type="HBoxContainer" parent="Padded/Content/Vitals"]
 layout_mode = 2
 
-[node name="HealthGauge" parent="Margin/Content/Vitals/HealthRow" instance=ExtResource("4_gauge")]
+[node name="HealthGauge" parent="Padded/Content/Vitals/HealthRow" instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 12)
 layout_mode = 2
@@ -130,17 +118,17 @@ size_flags_horizontal = 3
 fill_color = Color(0.8878, 0.203, 0.2233, 1)
 glow_color = Color(0.8878, 0.203, 0.2233, 0.6)
 
-[node name="HealthCaption" type="Label" parent="Margin/Content/Vitals/HealthRow"]
+[node name="HealthCaption" type="Label" parent="Padded/Content/Vitals/HealthRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(1, 1, 1, 0.6)
 text = "0/0"
 
-[node name="ManaRow" type="HBoxContainer" parent="Margin/Content/Vitals"]
+[node name="ManaRow" type="HBoxContainer" parent="Padded/Content/Vitals"]
 layout_mode = 2
 
-[node name="ManaGauge" parent="Margin/Content/Vitals/ManaRow" instance=ExtResource("4_gauge")]
+[node name="ManaGauge" parent="Padded/Content/Vitals/ManaRow" instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 12)
 layout_mode = 2
@@ -148,17 +136,17 @@ size_flags_horizontal = 3
 fill_color = Color(0.0, 0.72, 0.881, 1)
 glow_color = Color(0.0, 0.72, 0.881, 0.6)
 
-[node name="ManaCaption" type="Label" parent="Margin/Content/Vitals/ManaRow"]
+[node name="ManaCaption" type="Label" parent="Padded/Content/Vitals/ManaRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(1, 1, 1, 0.6)
 text = "0/0"
 
-[node name="XPRow" type="HBoxContainer" parent="Margin/Content/Vitals"]
+[node name="XPRow" type="HBoxContainer" parent="Padded/Content/Vitals"]
 layout_mode = 2
 
-[node name="XPGauge" parent="Margin/Content/Vitals/XPRow" instance=ExtResource("4_gauge")]
+[node name="XPGauge" parent="Padded/Content/Vitals/XPRow" instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(140, 12)
 layout_mode = 2
@@ -166,7 +154,7 @@ size_flags_horizontal = 3
 fill_color = Color(0.8909, 0.7204, 0.2596, 1)
 glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
 
-[node name="XPCaption" type="Label" parent="Margin/Content/Vitals/XPRow"]
+[node name="XPCaption" type="Label" parent="Padded/Content/Vitals/XPRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 10

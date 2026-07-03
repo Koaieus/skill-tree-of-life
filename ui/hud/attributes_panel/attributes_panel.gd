@@ -4,11 +4,23 @@ extends Control
 ## Left column, second card (#109): [AttributeRadar] + numeric attribute
 ## rows + hover tooltip (shared [AttributeRules] text) + Senses row
 ## (vision/sensor). Reads [StatDef.tint_color] — no second palette.
+##
+## Root stays a plain Control (not a Container) because [member Tooltip] is
+## a free-floating absolute-positioned overlay — a Container parent would
+## force it into the layout flow instead. A plain Control's default
+## [method _get_minimum_size] ignores children entirely (returns
+## [member custom_minimum_size], i.e. (0,0) here), which collapsed this
+## card to zero height inside HudRoot's LeftColumnSlot VBoxContainer; the
+## override below forwards the real minimum size from "Margin" (the actual
+## layout content) without pulling Tooltip into container management. See
+## combat_readout_card.gd for the sibling fix used where there's no
+## overlay child to worry about.
 
 const ATTR_IDS: Array[StringName] = [
 	&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception",
 ]
 
+@onready var _margin: MarginContainer = %Margin
 @onready var _radar: AttributeRadar = %AttributeRadar
 @onready var _rows: Array[AttributeRow] = [
 	%StrengthRow, %DexterityRow, %IntelligenceRow, %WisdomRow, %PerceptionRow,
@@ -21,8 +33,22 @@ const ATTR_IDS: Array[StringName] = [
 var _board: StatBoard
 
 
+## Forwards the real layout content's minimum size so this Control reports
+## correctly to a Container parent (HudRoot's LeftColumnSlot). Reads the
+## node directly rather than the cached @onready [member _margin] — this can
+## fire before this node's own _ready() during the parent's layout pass.
+func _get_minimum_size() -> Vector2:
+	var margin := get_node_or_null(^"%Margin") as MarginContainer
+	return margin.get_combined_minimum_size() if margin != null else Vector2.ZERO
+
+
 func _ready() -> void:
 	_tooltip.visible = false
+	# Re-poll the forwarded minimum size whenever the wrapped content's
+	# changes (e.g. a value gaining a digit) — Container parents only
+	# re-layout on this Control's own minimum_size_changed, which the
+	# _get_minimum_size() override alone won't trigger.
+	_margin.minimum_size_changed.connect(update_minimum_size)
 	for row in _rows:
 		row.row_hovered.connect(_on_row_hovered)
 		row.row_unhovered.connect(_on_row_unhovered)

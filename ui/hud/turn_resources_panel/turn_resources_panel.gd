@@ -11,7 +11,13 @@ extends Control
 ## which reads fine up to the current stock caps (AP/DP/Move all <= ~5).
 ## Revisit with an HFlowContainer of PoolGauge strips if a run ever pushes
 ## a cap high enough to make single-row cells illegible.
+##
+## Root stays a plain Control; [method _get_minimum_size] forwards from
+## "Margin" so a Container parent (HudRoot's LeftColumnSlot) sees this
+## card's real size instead of the (0,0) a plain Control reports by
+## default. See attributes_panel.gd for the identical pattern + writeup.
 
+@onready var _margin: MarginContainer = %Margin
 @onready var _ap_gauge: PoolGauge = %APGauge
 @onready var _dp_gauge: PoolGauge = %DPGauge
 @onready var _mp_gauge: PoolGauge = %MPGauge
@@ -20,6 +26,15 @@ extends Control
 @onready var _sp_wound_heal: Label = %SPWoundHeal
 
 var _board: StatBoard
+
+
+func _get_minimum_size() -> Vector2:
+	var margin := get_node_or_null(^"%Margin") as MarginContainer
+	return margin.get_combined_minimum_size() if margin != null else Vector2.ZERO
+
+
+func _ready() -> void:
+	_margin.minimum_size_changed.connect(update_minimum_size)
 
 
 func bind(board: StatBoard) -> void:

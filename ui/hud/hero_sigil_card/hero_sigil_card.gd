@@ -1,12 +1,18 @@
 @tool
 class_name HeroSigilCard
-extends Control
+extends MarginContainer
 
 ## Left column, top card (#108): class emblem (spinning ring + glyph), level
 ## badge, entity name + class subtitle, Health/Mana/XP as [PoolGauge]s with
 ## dimmed "+N/t" regen captions. Also the floater-anchor origin for
 ## entity/core stat-change toasts (closes #91) — see [member float_anchor]
 ## and [method GameRoot]'s wiring of [FloaterDirector.player_anchor].
+##
+## Root is a 0-margin MarginContainer (not a plain Control) so its reported
+## minimum size aggregates its children's — a plain Control reports (0,0)
+## regardless of content, which collapsed this card to zero height inside
+## HudRoot's LeftColumnSlot VBoxContainer. See combat_readout_card.gd for
+## the same pattern/writeup (shared bug across all HUD cards).
 
 @onready var _panel: GlassPanel = %GlassPanel
 @onready var _emblem_ring: Control = %EmblemRing
