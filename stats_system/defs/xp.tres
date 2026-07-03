@@ -12,5 +12,5 @@ display_name = "XP"
 description = "Experience pool toward the next level. Fills via xp_per_turn (and quests/kills later); fires Entity.leveled_up when full. Max grows on level-up via the growth formula; OVERFLOW mode carries unused replenish into the next level."
 display_order = 21
 display_type = 2
-tint_color = Color(0.95, 0.8, 0.2, 1)
+tint_color = Color(0.8909, 0.7204, 0.2596, 1)
 display_group = &"overview"

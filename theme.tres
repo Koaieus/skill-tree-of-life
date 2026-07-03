@@ -1,7 +1,24 @@
-[gd_resource type="Theme" load_steps=2 format=3 uid="uid://twp12lx6lihg"]
+[gd_resource type="Theme" load_steps=6 format=3 uid="uid://twp12lx6lihg"]
 
-[sub_resource type="SystemFont" id="SystemFont_44353"]
+[ext_resource type="FontFile" path="res://assets/fonts/cinzel/Cinzel-VariableFont_wght.ttf" id="1_cinzel"]
+[ext_resource type="FontFile" path="res://assets/fonts/chakra_petch/ChakraPetch-Regular.ttf" id="2_chakra_regular"]
+[ext_resource type="FontFile" path="res://assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf" id="3_chakra_semibold"]
+[ext_resource type="FontFile" path="res://assets/fonts/chakra_petch/ChakraPetch-Bold.ttf" id="4_chakra_bold"]
+
+[sub_resource type="FontVariation" id="FontVariation_cinzel_bold"]
+base_font = ExtResource("1_cinzel")
+variation_opentype = {
+"wght": 700.0
+}
 
 [resource]
-default_font = SubResource("SystemFont_44353")
+default_font = ExtResource("2_chakra_regular")
 default_font_size = 14
+Label/fonts/font = ExtResource("2_chakra_regular")
+Button/fonts/font = ExtResource("3_chakra_semibold")
+CinzelHeader/base_type = &"Label"
+CinzelHeader/fonts/font = SubResource("FontVariation_cinzel_bold")
+CinzelHeader/font_sizes/font_size = 16
+CinzelHeader/colors/font_color = Color(0.8, 0.72, 0.53, 1)
+ChakraData/base_type = &"Label"
+ChakraData/fonts/font = ExtResource("4_chakra_bold")
