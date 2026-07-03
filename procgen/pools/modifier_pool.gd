@@ -31,7 +31,7 @@ func roll(budget: int, rng: RandomNumberGenerator) -> Array[StatModifier]:
 func _weighted_pick_affordable(budget: int, rng: RandomNumberGenerator) -> ModifierPoolEntry:
 	var total := 0.0
 	var partaking_entries := entries.filter(func(e: ModifierPoolEntry): return e.is_in_budget(budget) and e.has_weight())
-	total = partaking_entries.reduce(func(e: ModifierPoolEntry, tot: float): return tot + e.cost, 0.)
+	total = partaking_entries.reduce(func(tot: float, e: ModifierPoolEntry): return tot + e.weight, 0.)
 	if total <= 0.0:
 		return null
 	var r := rng.randf() * total
