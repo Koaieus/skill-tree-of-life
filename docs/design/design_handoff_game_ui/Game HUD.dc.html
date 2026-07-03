@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}
+  @keyframes floatUp{0%{opacity:0;transform:translateY(4px) scale(.82);}14%{opacity:1;}100%{opacity:0;transform:translateY(-54px) scale(1.03);}}
+  @keyframes ember{0%,100%{filter:brightness(1);}50%{filter:brightness(1.3);}}
+  @keyframes auraPulse{0%,100%{opacity:.4;}50%{opacity:.8;}}
+  @keyframes popA{0%{transform:scale(1);}42%{transform:scale(1.36);}100%{transform:scale(1);}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes woundPulse{0%,100%{opacity:.72;}50%{opacity:1;}}
+  @keyframes chipIn{0%{opacity:0;transform:translateY(3px) scale(.8);}100%{opacity:1;transform:none;}}
+  @keyframes annBar{0%{height:0;}9%{height:134px;}84%{height:134px;}100%{height:0;}}
+  @keyframes annText{0%{transform:translateX(-118%);opacity:0;}14%{transform:translateX(-4%);opacity:1;}25%{transform:translateX(0);}46%{transform:translateX(0);}57%{transform:translateX(-5%);}100%{transform:translateX(138%);opacity:1;}}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;overflow:hidden;background:radial-gradient(120% 90% at 50% 42%, #0b0d16 0%, #06070d 55%, #030409 100%);font-family:'Chakra Petch',sans-serif;">
+
+  <svg viewBox="0 0 1440 900" style="position:absolute;inset:0;width:1440px;height:900px;">
+    <sc-for list="{{ gEdges }}" as="e" hint-placeholder-count="0"><line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="rgba(150,170,210,0.10)" stroke-width="1.4"></line></sc-for>
+    <sc-for list="{{ gAura }}" as="a" hint-placeholder-count="0"><circle cx="{{ a.x }}" cy="{{ a.y }}" r="{{ a.ar }}" fill="{{ a.c }}" opacity="0.14" style="animation:auraPulse 3.4s ease-in-out infinite;"></circle></sc-for>
+    <sc-for list="{{ gNodes }}" as="node" hint-placeholder-count="0"><circle cx="{{ node.x }}" cy="{{ node.y }}" r="{{ node.r }}" fill="{{ node.fill }}" fill-opacity="{{ node.fo }}" stroke="{{ node.stroke }}" stroke-opacity="{{ node.so }}" stroke-width="{{ node.sw }}"></circle></sc-for>
+    <circle cx="{{ coreX }}" cy="{{ coreY }}" r="15" fill="none" stroke="oklch(0.82 0.13 88)" stroke-width="2.5"></circle>
+    <circle cx="{{ coreX }}" cy="{{ coreY }}" r="6" fill="oklch(0.88 0.13 90)"></circle>
+  </svg>
+  <div style="position:absolute;left:22px;bottom:10px;font-family:'Chakra Petch',monospace;font-size:10px;letter-spacing:1.5px;color:rgba(160,175,205,0.3);text-transform:uppercase;">◊ planar procgen field · placeholder</div>
+
+  <!-- TURN TRACKER -->
+  <div style="position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:rgba(10,12,20,0.72);border:1px solid rgba(200,170,90,0.28);border-radius:22px;padding:7px 16px 7px 14px;backdrop-filter:blur(6px);box-shadow:0 6px 22px -10px rgba(0,0,0,0.8);z-index:30;">
+    <span style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:1.5px;color:oklch(0.86 0.13 88);text-transform:uppercase;text-shadow:0 0 10px oklch(0.78 0.13 88);">⚡ Your Turn</span>
+    <div style="width:150px;height:7px;border-radius:4px;background:rgba(255,255,255,0.07);overflow:hidden;border:1px solid rgba(255,255,255,0.06);"><div style="height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,oklch(0.62 0.13 88),oklch(0.84 0.14 88));box-shadow:0 0 10px oklch(0.78 0.13 88);"></div></div>
+    <span style="font-size:10px;letter-spacing:0.5px;color:rgba(180,190,215,0.55);text-transform:uppercase;">init 100 · next <span style="color:oklch(0.66 0.20 25);">enemy 88</span></span>
+  </div>
+
+  <!-- LEFT COLUMN -->
+  <div style="position:absolute;left:24px;top:64px;width:366px;display:flex;flex-direction:column;gap:13px;z-index:10;">
+    <div style="position:relative;background:linear-gradient(158deg,rgba(24,26,40,0.95),rgba(10,11,20,0.96));border:1px solid rgba(150,165,210,0.18);border-radius:14px;box-shadow:0 12px 38px -14px rgba(0,0,0,0.9),inset 0 1px 0 rgba(255,255,255,0.05);backdrop-filter:blur(7px);padding:16px;display:flex;gap:16px;">
+      <div style="position:relative;width:100px;height:100px;flex:none;border-radius:12px;overflow:hidden;border:1px solid rgba(190,160,90,0.4);background:radial-gradient(circle at 50% 42%, rgba(60,50,20,0.9), rgba(10,10,16,0.98));display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 24px -6px rgba(200,170,90,0.5);">
+        <div style="position:absolute;width:150px;height:150px;background:conic-gradient(from 0deg, transparent, rgba(200,170,90,0.28), transparent 55%);animation:spin 9s linear infinite;"></div>
+        <div style="position:absolute;inset:8px;border-radius:9px;border:1px solid rgba(200,170,90,0.22);"></div>
+        <div style="position:relative;font-family:'Cinzel',serif;font-size:54px;color:oklch(0.85 0.13 88);text-shadow:0 0 14px oklch(0.80 0.14 88),0 0 30px oklch(0.72 0.14 85);">✦</div>
+        <div style="position:absolute;right:-4px;bottom:-4px;width:38px;height:38px;border-radius:9px;background:linear-gradient(150deg,#1a1c28,#0a0b12);border:1px solid oklch(0.80 0.13 88);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 14px -3px oklch(0.78 0.13 88);">
+          <div style="font-family:'Chakra Petch';font-size:7px;letter-spacing:1px;color:rgba(210,190,120,0.7);line-height:1;">LVL</div>
+          <div style="font-family:'Cinzel',serif;font-weight:800;font-size:19px;color:oklch(0.90 0.10 90);line-height:1;">{{ level }}</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:7px;">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-weight:800;font-size:19px;letter-spacing:1px;color:#eef0f6;line-height:1;">{{ entityName }}</div>
+          <div style="font-family:'Chakra Petch';font-size:10.5px;letter-spacing:0.5px;color:rgba(180,190,215,0.6);margin-top:2px;">{{ className }}</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;letter-spacing:0.5px;"><span style="color:rgba(220,150,150,0.85);text-transform:uppercase;font-weight:600;">Health</span><span style="font-family:'Chakra Petch';font-weight:600;color:#f0d8d8;">{{ health.cur }}<span style="color:rgba(255,255,255,0.35);">/{{ health.max }}</span> <span style="color:rgba(120,220,150,0.75);font-size:9.5px;">+{{ health.per }}/t</span></span></div>
+          <div style="height:8px;border-radius:5px;background:rgba(255,255,255,0.06);overflow:hidden;margin-top:3px;border:1px solid rgba(255,255,255,0.06);"><div style="height:100%;border-radius:5px;background:linear-gradient(90deg,oklch(0.55 0.20 22),oklch(0.66 0.21 30));box-shadow:0 0 12px -1px oklch(0.60 0.21 25);width:{{ health.pct }}%;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;letter-spacing:0.5px;"><span style="color:rgba(140,190,230,0.85);text-transform:uppercase;font-weight:600;">Mana</span><span style="font-family:'Chakra Petch';font-weight:600;color:#d8e6f2;">{{ mana.cur }}<span style="color:rgba(255,255,255,0.35);">/{{ mana.max }}</span> <span style="color:rgba(120,220,150,0.75);font-size:9.5px;">+{{ mana.per }}/t</span></span></div>
+          <div style="height:8px;border-radius:5px;background:rgba(255,255,255,0.06);overflow:hidden;margin-top:3px;border:1px solid rgba(255,255,255,0.06);"><div style="height:100%;border-radius:5px;background:linear-gradient(90deg,oklch(0.52 0.13 235),oklch(0.72 0.14 220));box-shadow:0 0 12px -1px oklch(0.68 0.14 225);width:{{ mana.pct }}%;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:10.5px;letter-spacing:0.5px;"><span style="color:oklch(0.80 0.11 88);text-transform:uppercase;font-weight:600;">XP</span><span style="font-family:'Chakra Petch';font-weight:600;color:#eee1c2;">{{ xp.cur }}<span style="color:rgba(255,255,255,0.35);">/{{ xp.max }}</span> <span style="color:rgba(120,220,150,0.75);font-size:9.5px;">+{{ xp.per }}/t</span></span></div>
+          <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;margin-top:3px;border:1px solid rgba(255,255,255,0.06);"><div style="height:100%;border-radius:4px;background:linear-gradient(90deg,oklch(0.62 0.13 88),oklch(0.82 0.14 88));box-shadow:0 0 10px -1px oklch(0.78 0.13 88);width:{{ xp.pct }}%;"></div></div>
+          <div style="font-size:8.5px;letter-spacing:0.3px;color:rgba(170,182,210,0.42);margin-top:2px;">◇ +1 XP/turn per 10 WIS · full bar → level up</div>
+        </div>
+      </div>
+      <div style="position:absolute;left:20px;top:6px;width:230px;height:2px;pointer-events:none;"><sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0"><div style="position:absolute;left:0;top:0;font-family:'Chakra Petch';font-weight:700;font-size:15px;white-space:nowrap;letter-spacing:0.5px;animation:floatUp 1.95s ease-out forwards;color:{{ t.color }};text-shadow:0 0 10px {{ t.color }},0 1px 2px rgba(0,0,0,0.9);">{{ t.text }}</div></sc-for></div>
+    </div>
+
+    <div style="background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:13px;box-shadow:0 10px 34px -14px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);backdrop-filter:blur(7px);padding:14px 16px 15px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;"><span style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:2.5px;color:oklch(0.80 0.10 88);text-transform:uppercase;">Attributes</span><span style="font-size:9px;letter-spacing:0.5px;color:rgba(160,172,200,0.45);text-transform:uppercase;">hover for scaling</span></div>
+      <div style="display:flex;gap:14px;align-items:center;">
+        <svg viewBox="-8 -8 216 216" style="width:150px;height:150px;flex:none;">
+          <polygon points="100,22 174.2,75.9 145.9,163.1 54.1,163.1 25.8,75.9" fill="none" stroke="rgba(150,170,210,0.13)" stroke-width="1"></polygon>
+          <polygon points="100,48.5 148.9,84.1 130.3,141.7 69.7,141.7 51.1,84.1" fill="none" stroke="rgba(150,170,210,0.10)" stroke-width="1"></polygon>
+          <polygon points="100,74.3 124.4,92.1 115.1,120.8 84.9,120.8 75.6,92.1" fill="none" stroke="rgba(150,170,210,0.08)" stroke-width="1"></polygon>
+          <line x1="100" y1="100" x2="100" y2="22" stroke="rgba(150,170,210,0.10)"></line>
+          <line x1="100" y1="100" x2="174.2" y2="75.9" stroke="rgba(150,170,210,0.10)"></line>
+          <line x1="100" y1="100" x2="145.9" y2="163.1" stroke="rgba(150,170,210,0.10)"></line>
+          <line x1="100" y1="100" x2="54.1" y2="163.1" stroke="rgba(150,170,210,0.10)"></line>
+          <line x1="100" y1="100" x2="25.8" y2="75.9" stroke="rgba(150,170,210,0.10)"></line>
+          <polygon points="{{ radarData }}" fill="rgba(210,190,120,0.14)" stroke="oklch(0.82 0.12 88)" stroke-width="1.6" style="filter:drop-shadow(0 0 5px oklch(0.75 0.13 88));"></polygon>
+          <sc-for list="{{ radarDots }}" as="d" hint-placeholder-count="5"><circle cx="{{ d.x }}" cy="{{ d.y }}" r="3.2" fill="{{ d.c }}" style="filter:drop-shadow(0 0 4px {{ d.c }});"></circle></sc-for>
+          <sc-for list="{{ axisLabels }}" as="l" hint-placeholder-count="5"><text x="{{ l.x }}" y="{{ l.y }}" fill="{{ l.color }}" font-size="12" font-family="Chakra Petch" font-weight="700" text-anchor="middle" dominant-baseline="middle">{{ l.abbr }}</text></sc-for>
+        </svg>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+          <sc-for list="{{ attrs }}" as="a" hint-placeholder-count="5">
+            <div onMouseEnter="{{ a.onEnter }}" onMouseLeave="{{ a.onLeave }}" style="position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 4px;border-radius:6px;cursor:default;background:{{ a.rowBg }};">
+              <div style="display:flex;align-items:center;gap:7px;min-width:0;"><span style="width:9px;height:9px;border-radius:50%;flex:none;background:{{ a.color }};box-shadow:0 0 7px {{ a.color }};"></span><span style="font-size:11px;letter-spacing:0.5px;color:rgba(200,208,225,0.72);text-transform:uppercase;">{{ a.label }}</span></div>
+              <div style="display:flex;align-items:center;gap:6px;"><sc-if value="{{ a.delta.show }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;white-space:nowrap;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);animation:chipIn .25s ease;color:{{ a.delta.color }};">{{ a.delta.text }}</span></sc-if><span style="font-family:'Chakra Petch';font-weight:700;font-size:22px;line-height:1;color:{{ a.color }};text-shadow:{{ a.glow }};animation:{{ a.numAnim }};">{{ a.value }}</span></div>
+              <sc-if value="{{ a.hover }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;left:calc(100% + 16px);top:50%;transform:translateY(-50%);width:224px;z-index:60;background:linear-gradient(158deg,rgba(28,31,46,0.98),rgba(13,14,23,0.99));border:1px solid {{ a.color }};border-radius:10px;box-shadow:0 14px 34px -12px rgba(0,0,0,0.9),0 0 22px -10px {{ a.color }};padding:10px 12px;">
+                  <div style="font-family:'Cinzel',serif;font-weight:700;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:{{ a.color }};margin-bottom:7px;">{{ a.label }} drives</div>
+                  <sc-for list="{{ a.drives }}" as="dr" hint-placeholder-count="2"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;"><span style="font-size:11px;color:#dbe1ee;">{{ dr.label }}</span><span style="font-size:9.5px;color:rgba(170,182,210,0.55);flex:1;text-align:right;">{{ dr.rule }}</span><span style="font-family:'Chakra Petch';font-weight:700;font-size:13px;color:{{ a.color }};min-width:34px;text-align:right;">{{ dr.val }}</span></div></sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="margin-top:11px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:16px;font-size:11px;"><span style="font-size:9px;letter-spacing:1px;color:oklch(0.66 0.18 305);text-transform:uppercase;font-weight:600;">Senses</span><span style="color:rgba(200,208,225,0.7);">◉ Vision <b style="color:oklch(0.78 0.14 305);">{{ vision }}</b></span><span style="color:rgba(200,208,225,0.7);"><svg width="11" height="11" viewBox="0 0 12 12" style="overflow:visible;color:oklch(0.72 0.16 305);"><line x1="6" y1="6" x2="6" y2="0" stroke="currentColor" stroke-width="1"></line><line x1="6" y1="6" x2="11.5" y2="9.5" stroke="currentColor" stroke-width="1"></line><line x1="6" y1="6" x2="0.5" y2="9.5" stroke="currentColor" stroke-width="1"></line><circle cx="6" cy="6" r="2" fill="currentColor"></circle></svg> Sensor <b style="color:oklch(0.78 0.14 305);">{{ sensor }}</b> hops</span><span style="font-size:9px;color:rgba(160,172,200,0.4);margin-left:auto;">scales / PER</span></div>
+    </div>
+
+    <div style="background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:13px;box-shadow:0 10px 34px -14px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);backdrop-filter:blur(7px);padding:14px 16px 15px;">
+      <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:2.5px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:12px;">Turn Resources</div>
+      <div style="display:flex;gap:14px;">
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;"><span style="color:oklch(0.80 0.09 88);">Action</span><span style="color:rgba(255,255,255,0.5);">{{ ap.cur }}/{{ ap.max }}</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;"><sc-for list="{{ apCells }}" as="c" hint-placeholder-count="2"><div style="flex:1 1 12px;min-width:12px;height:17px;transform:skewX(-15deg);border-radius:2px;border:1px solid {{ c.border }};background:{{ c.bg }};box-shadow:{{ c.glow }};"></div></sc-for></div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;"><span style="color:oklch(0.72 0.16 305);">Dealloc</span><span style="color:rgba(255,255,255,0.5);">{{ dp.cur }}/{{ dp.max }}</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;"><sc-for list="{{ dpCells }}" as="c" hint-placeholder-count="3"><div style="flex:1 1 12px;min-width:12px;height:17px;transform:skewX(-15deg);border-radius:2px;border:1px solid {{ c.border }};background:{{ c.bg }};box-shadow:{{ c.glow }};"></div></sc-for></div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;"><span style="color:oklch(0.74 0.16 150);">Move</span><span style="color:rgba(255,255,255,0.5);">{{ mv.cur }}/{{ mv.max }}</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;"><sc-for list="{{ mvCells }}" as="c" hint-placeholder-count="4"><div style="flex:1 1 12px;min-width:12px;height:17px;transform:skewX(-15deg);border-radius:2px;border:1px solid {{ c.border }};background:{{ c.bg }};box-shadow:{{ c.glow }};"></div></sc-for></div></div>
+      </div>
+      <div style="margin-top:15px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:8px;">
+          <div><div style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:1.5px;color:oklch(0.72 0.14 250);text-transform:uppercase;">Skill Points</div><div style="font-size:9.5px;color:rgba(170,182,210,0.5);letter-spacing:0.3px;margin-top:2px;">spend to grow your constellation</div></div>
+          <div style="text-align:right;line-height:1;"><span style="font-family:'Chakra Petch';font-weight:800;font-size:27px;color:{{ spCurColor }};text-shadow:{{ spCurGlow }};">{{ sp.cur }}</span><span style="font-family:'Chakra Petch';font-size:14px;color:rgba(255,255,255,0.35);">/{{ sp.max }}</span><div style="font-size:9px;letter-spacing:1px;color:rgba(170,182,210,0.55);text-transform:uppercase;margin-top:1px;">to spend</div></div>
+        </div>
+        <div style="display:flex;height:14px;border-radius:5px;overflow:hidden;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.03);"><sc-for list="{{ spZones }}" as="z" hint-placeholder-count="4"><div style="height:100%;background:{{ z.c }};box-shadow:{{ z.g }};animation:{{ z.anim }};width:{{ z.w }}%;"></div></sc-for></div>
+        <div style="display:flex;flex-wrap:wrap;gap:9px 16px;margin-top:9px;"><sc-for list="{{ spLegend }}" as="g" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:6px;"><span style="width:9px;height:9px;border-radius:2px;flex:none;background:{{ g.c }};"></span><span style="font-family:'Chakra Petch';font-weight:700;font-size:12px;color:#e6ebf5;">{{ g.count }}</span><span style="font-size:10px;letter-spacing:0.3px;color:rgba(180,190,215,0.6);text-transform:uppercase;">{{ g.label }}</span></div></sc-for></div>
+        <sc-if value="{{ hasWounds }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:8px;margin-top:10px;"><span style="font-size:9.5px;color:oklch(0.62 0.18 25);white-space:nowrap;">◷ wound heal {{ woundRate }}/turn</span><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;"><div style="height:100%;background:oklch(0.60 0.20 25);opacity:0.7;width:{{ woundProg }}%;"></div></div><span style="font-size:9px;color:rgba(170,182,210,0.5);white-space:nowrap;">next in {{ woundEta }}t</span></div></sc-if>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div style="position:absolute;right:24px;top:64px;width:352px;display:flex;flex-direction:column;gap:13px;z-index:10;">
+    <div style="background:linear-gradient(158deg,rgba(28,24,40,0.95),rgba(12,10,20,0.96));border:1px solid rgba(200,170,90,0.28);border-radius:13px;box-shadow:0 10px 34px -14px rgba(0,0,0,0.85),inset 0 0 26px -18px oklch(0.78 0.12 88);backdrop-filter:blur(7px);padding:13px 15px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;"><div style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:2px;color:oklch(0.80 0.10 88);text-transform:uppercase;">◈ Sandbox</div><div style="font-size:10px;color:rgba(180,190,215,0.55);letter-spacing:0.5px;">allocated: {{ nodes }}</div></div>
+      <div style="font-size:11px;color:rgba(190,198,220,0.65);line-height:1.35;margin-bottom:10px;">Allocate a STR node to see stats channel back. Switch modes in the command bar and hit <b style="color:#eee1c2;">Launch</b> (or ⎵) for the announcer.</div>
+      <div style="display:flex;gap:8px;">
+        <button onClick="{{ allocate }}" style="flex:1;cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:12px;letter-spacing:0.5px;padding:9px;border-radius:8px;border:1px solid oklch(0.60 0.20 25);background:linear-gradient(160deg,oklch(0.40 0.15 25),oklch(0.28 0.12 25));color:#ffdede;text-transform:uppercase;box-shadow:0 0 16px -6px oklch(0.60 0.20 25);" style-hover="filter:brightness(1.2);">▶ Allocate STR</button>
+        <button onClick="{{ deallocate }}" style="flex:1;cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:12px;letter-spacing:0.5px;padding:9px;border-radius:8px;border:1px solid rgba(150,160,190,0.3);background:linear-gradient(160deg,rgba(40,44,58,0.9),rgba(24,26,36,0.9));color:#c8d0e0;text-transform:uppercase;" style-hover="filter:brightness(1.2);">↺ Deallocate</button>
+      </div>
+    </div>
+
+    <div style="background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:13px;box-shadow:0 10px 34px -14px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);backdrop-filter:blur(7px);padding:14px 16px 16px;">
+      <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:2.5px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:12px;">Combat Readout</div>
+      <div style="border-radius:11px;padding:11px 12px;margin-bottom:9px;border:{{ meleeBorder }};box-shadow:{{ meleeShadow }};background:rgba(255,255,255,0.015);opacity:{{ meleeOpacity }};transition:opacity .25s,box-shadow .25s;">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'Chakra Petch';font-weight:700;font-size:12px;letter-spacing:1.5px;color:oklch(0.70 0.20 28);text-transform:uppercase;">⚔ Melee</span><span style="font-size:10px;color:rgba(180,190,215,0.5);">STR-driven</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;"><span style="font-size:11px;color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;">Blade Size</span><div style="display:flex;gap:5px;align-items:center;"><sc-if value="{{ bladeDelta.show }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;white-space:nowrap;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);animation:chipIn .25s ease;color:{{ bladeDelta.color }};">{{ bladeDelta.text }}</span></sc-if><div style="display:flex;gap:4px;align-items:center;animation:{{ bladeAnim }};"><sc-for list="{{ bladePips }}" as="p" hint-placeholder-count="3"><span style="width:11px;height:11px;transform:rotate(45deg);background:oklch(0.62 0.21 27);box-shadow:0 0 7px oklch(0.60 0.21 25);border-radius:2px;"></span></sc-for><span style="font-family:'Chakra Petch';font-weight:700;font-size:15px;color:#ffd9d9;margin-left:3px;">{{ bladeSize }}</span></div></div></div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:5px;"><span style="font-size:9.5px;color:rgba(160,172,200,0.5);white-space:nowrap;">{{ bpBlade.cap }}</span><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;"><div style="height:100%;background:oklch(0.62 0.18 27);opacity:0.6;width:{{ bpBlade.pct }}%;"></div></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;"><span style="color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">Blade Damage</span><div style="display:flex;gap:5px;align-items:center;"><sc-if value="{{ bdmgDelta.show }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;white-space:nowrap;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);animation:chipIn .25s ease;color:{{ bdmgDelta.color }};">{{ bdmgDelta.text }}</span></sc-if><span style="font-family:'Chakra Petch';font-weight:700;color:#ffd9d9;">{{ bladeDmg }}<span style="color:rgba(255,255,255,0.35);font-weight:400;"> /contact</span></span></div></div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:5px;"><span style="font-size:9.5px;color:rgba(160,172,200,0.5);white-space:nowrap;">{{ bpBdmg.cap }}</span><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;"><div style="height:100%;background:oklch(0.62 0.18 27);opacity:0.6;width:{{ bpBdmg.pct }}%;"></div></div></div>
+      </div>
+      <div style="border-radius:11px;padding:11px 12px;margin-bottom:9px;border:{{ rangedBorder }};box-shadow:{{ rangedShadow }};background:rgba(255,255,255,0.015);opacity:{{ rangedOpacity }};transition:opacity .25s,box-shadow .25s;">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'Chakra Petch';font-weight:700;font-size:12px;letter-spacing:1.5px;color:oklch(0.74 0.17 150);text-transform:uppercase;">➵ Ranged</span><span style="font-size:10px;color:rgba(180,190,215,0.5);">DEX-driven</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;font-size:12px;"><span style="color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">Damage</span><span style="font-family:'Chakra Petch';font-weight:700;color:#d9f6e2;">{{ rangedDmg }}<span style="color:rgba(255,255,255,0.35);font-weight:400;"> /leaf</span></span></div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:5px;"><span style="font-size:9.5px;color:rgba(160,172,200,0.5);white-space:nowrap;">{{ bpRdmg.cap }}</span><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;"><div style="height:100%;background:oklch(0.66 0.16 150);opacity:0.6;width:{{ bpRdmg.pct }}%;"></div></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;"><span style="color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">Range</span><span style="font-family:'Chakra Petch';font-weight:700;color:#d9f6e2;">{{ rangedRange }} <span style="color:rgba(255,255,255,0.35);font-weight:400;font-size:10px;">px</span></span></div>
+      </div>
+      <div style="border-radius:11px;padding:11px 12px;margin-bottom:9px;border:{{ magicBorder }};box-shadow:{{ magicShadow }};background:rgba(255,255,255,0.015);opacity:{{ magicOpacity }};transition:opacity .25s,box-shadow .25s;">
+        <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-family:'Chakra Petch';font-weight:700;font-size:12px;letter-spacing:1.5px;color:oklch(0.68 0.18 258);text-transform:uppercase;">✴ Magic</span><span style="font-size:10px;color:rgba(180,190,215,0.5);">INT-driven</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:9px;font-size:12px;"><span style="color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">Potency</span><div style="display:flex;gap:5px;align-items:center;"><sc-if value="{{ mpotDelta.show }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;white-space:nowrap;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);animation:chipIn .25s ease;color:{{ mpotDelta.color }};">{{ mpotDelta.text }}</span></sc-if><span style="font-family:'Chakra Petch';font-weight:700;color:#dae4fb;animation:{{ magicAnim }};">+{{ magicPot }}<span style="color:rgba(255,255,255,0.35);font-weight:400;"> /instance</span></span></div></div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:5px;"><span style="font-size:9.5px;color:rgba(160,172,200,0.5);white-space:nowrap;">{{ bpMpot.cap }}</span><div style="flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;"><div style="height:100%;background:oklch(0.66 0.17 258);opacity:0.6;width:{{ bpMpot.pct }}%;"></div></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px;"><span style="color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">Hop Reach</span><span style="font-family:'Chakra Petch';font-weight:700;color:#dae4fb;">{{ hopReach }} <span style="color:rgba(200,150,255,0.6);font-size:10px;font-weight:400;">rare</span></span></div>
+      </div>
+      <div style="border-radius:11px;padding:11px 12px;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.02);">
+        <div style="font-family:'Chakra Petch';font-weight:700;font-size:12px;letter-spacing:1.5px;color:oklch(0.88 0.02 250);text-transform:uppercase;margin-bottom:9px;">⛨ Defense</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span style="color:rgba(200,208,225,0.7);text-transform:uppercase;letter-spacing:0.5px;font-size:11px;">Armor</span><div style="display:flex;gap:5px;align-items:center;"><sc-if value="{{ armorDelta.show }}" hint-placeholder-val="{{ false }}"><span style="font-size:10.5px;font-weight:700;white-space:nowrap;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);animation:chipIn .25s ease;color:{{ armorDelta.color }};">{{ armorDelta.text }}</span></sc-if><span style="font-family:'Chakra Petch';font-weight:700;color:#eef1f6;animation:{{ armorAnim }};">{{ armor }}</span></div></div>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;"><div style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;letter-spacing:1px;color:oklch(0.64 0.20 27);">R</span><span style="font-family:'Chakra Petch';font-weight:700;font-size:14px;color:#ecc;">{{ resistR }}</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;letter-spacing:1px;color:oklch(0.74 0.16 150);">G</span><span style="font-family:'Chakra Petch';font-weight:700;font-size:14px;color:#cec;">{{ resistG }}</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;letter-spacing:1px;color:oklch(0.68 0.18 258);">B</span><span style="font-family:'Chakra Petch';font-weight:700;font-size:14px;color:#cce;">{{ resistB }}</span></div><div style="display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;letter-spacing:1px;color:rgba(200,208,225,0.6);">FLOOR</span><span style="font-family:'Chakra Petch';font-weight:700;font-size:14px;color:#eef1f6;">1</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMAND TRAY (mode tabs + contextual action bar) -->
+  <div style="position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:800px;z-index:20;">
+    <div style="display:flex;gap:6px;padding-left:6px;">
+      <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="4">
+        <button onClick="{{ tb.onClick }}" style="cursor:pointer;display:flex;align-items:center;gap:8px;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;padding:8px 18px 7px;border-radius:11px 11px 0 0;border:{{ tb.border }};border-bottom:none;background:{{ tb.bg }};color:{{ tb.color }};box-shadow:{{ tb.glow }};"><span style="font-family:'Chakra Petch';font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;border:1px solid {{ tb.keyColor }};color:{{ tb.keyColor }};">{{ tb.key }}</span>{{ tb.glyph }} {{ tb.label }}</button>
+      </sc-for>
+    </div>
+    <div style="background:linear-gradient(0deg,rgba(10,12,20,0.95),rgba(18,20,30,0.9));border:1px solid rgba(120,140,190,0.2);border-radius:0 14px 14px 14px;box-shadow:0 16px 42px -16px rgba(0,0,0,0.92);backdrop-filter:blur(8px);padding:13px 16px;min-height:96px;overflow:hidden;height:120px;">
+
+      <sc-if value="{{ isManage }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="font-size:11px;color:rgba(190,200,225,0.75);margin-bottom:10px;letter-spacing:0.3px;">No attack mode — clicking the graph <b style="color:#eef1f6;">shapes your constellation</b>.</div>
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1;border-radius:9px;border:1px solid rgba(120,140,190,0.18);background:rgba(255,255,255,0.02);padding:9px 11px;"><div style="font-family:'Chakra Petch';font-weight:700;font-size:11px;color:oklch(0.72 0.16 250);letter-spacing:0.5px;">◆ Allocate</div><div style="font-size:10.5px;color:rgba(185,195,220,0.65);margin-top:3px;">Left-click an adjacent node · costs 1 SP</div></div>
+            <div style="flex:1;border-radius:9px;border:1px solid rgba(120,140,190,0.18);background:rgba(255,255,255,0.02);padding:9px 11px;"><div style="font-family:'Chakra Petch';font-weight:700;font-size:11px;color:oklch(0.80 0.13 88);letter-spacing:0.5px;">✦ Move Core</div><div style="font-size:10.5px;color:rgba(185,195,220,0.65);margin-top:3px;">Click core then destination, or drag · costs Move</div></div>
+            <div style="flex:1;border-radius:9px;border:1px solid rgba(120,140,190,0.18);background:rgba(255,255,255,0.02);padding:9px 11px;"><div style="font-family:'Chakra Petch';font-weight:700;font-size:11px;color:oklch(0.72 0.16 305);letter-spacing:0.5px;">⌫ Deallocate</div><div style="font-size:10.5px;color:rgba(185,195,220,0.65);margin-top:3px;">Hover + <b style="color:#eef1f6;">D</b> · costs Dealloc · no self-islanding</div></div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMelee }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div style="flex:1;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:2px;color:oklch(0.70 0.20 28);text-transform:uppercase;margin-bottom:6px;">⚔ Phantom Blade</div>
+            <div style="font-size:11.5px;color:rgba(200,210,230,0.75);">Right-click a <b style="color:#ffd9d9;">pivot</b>, left-click to grow the blade up to <b style="color:#ffd9d9;">{{ bladeSize }}</b> connected nodes. The shape is copied and swung once.</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:9px;">
+              <span style="font-size:10px;color:rgba(170,182,210,0.6);text-transform:uppercase;letter-spacing:0.5px;">Blade:</span>
+              <span style="width:13px;height:13px;border-radius:50%;background:oklch(0.85 0.13 88);box-shadow:0 0 8px oklch(0.80 0.13 88);"></span>
+              <sc-for list="{{ bladeSel }}" as="p" hint-placeholder-count="2"><span style="width:12px;height:12px;transform:rotate(45deg);background:oklch(0.62 0.21 27);box-shadow:0 0 7px oklch(0.60 0.21 25);border-radius:2px;"></span></sc-for>
+              <span style="font-size:10.5px;color:rgba(185,195,220,0.6);margin-left:4px;">pivot + {{ bladeCount }}</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;flex:none;">
+            <button onClick="{{ toggleDir }}" style="cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:11px;letter-spacing:0.5px;padding:8px 14px;border-radius:8px;border:1px solid rgba(150,160,190,0.3);background:rgba(40,44,58,0.9);color:#c8d0e0;text-transform:uppercase;" style-hover="filter:brightness(1.2);">↻ Swing {{ dir }}</button>
+            <button onClick="{{ launch }}" style="cursor:pointer;font-family:'Cinzel',serif;font-weight:700;font-size:14px;letter-spacing:1.5px;padding:10px 22px;border-radius:9px;text-transform:uppercase;color:#ffe0e0;border:1px solid oklch(0.62 0.20 27);background:linear-gradient(160deg,oklch(0.44 0.16 27),oklch(0.30 0.12 27));box-shadow:0 0 20px -5px oklch(0.60 0.20 27);" style-hover="filter:brightness(1.2);">⚔ Launch <span style="font-size:11px;opacity:0.7;">⎵</span></button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isRanged }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <div style="flex:1;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:2px;color:oklch(0.74 0.17 150);text-transform:uppercase;margin-bottom:6px;">➵ Volley</div>
+            <div style="font-size:11.5px;color:rgba(200,210,230,0.75);">Click an <b style="color:#d9f6e2;">enemy node</b> to target. Every owned <b style="color:#d9f6e2;">leaf</b> (degree-1) that can reach it fires for <b style="color:#d9f6e2;">{{ rangedDmg }}</b> at up to <b style="color:#d9f6e2;">{{ rangedRange }}</b> px.</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:9px;"><span style="font-size:10px;color:rgba(170,182,210,0.6);text-transform:uppercase;letter-spacing:0.5px;">Firing leaves:</span><span style="font-family:'Chakra Petch';font-weight:700;font-size:13px;color:oklch(0.74 0.16 150);">{{ leaves }}</span><span style="font-size:10.5px;color:rgba(185,195,220,0.55);margin-left:8px;">target: enemy hub ●</span></div>
+          </div>
+          <button onClick="{{ launch }}" style="cursor:pointer;flex:none;font-family:'Cinzel',serif;font-weight:700;font-size:14px;letter-spacing:1.5px;padding:10px 22px;border-radius:9px;text-transform:uppercase;color:#dcffe8;border:1px solid oklch(0.66 0.16 150);background:linear-gradient(160deg,oklch(0.42 0.13 150),oklch(0.28 0.10 150));box-shadow:0 0 20px -5px oklch(0.64 0.16 150);" style-hover="filter:brightness(1.2);">➵ Launch <span style="font-size:11px;opacity:0.7;">⎵</span></button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMagic }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;"><span style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:2px;color:oklch(0.68 0.16 262);text-transform:uppercase;">✴ Spells</span><span style="font-size:11px;color:rgba(180,192,220,0.7);">source degree <span style="color:oklch(0.72 0.19 305);font-weight:700;">{{ srcDeg }}</span> · mana <span style="color:oklch(0.72 0.14 220);font-weight:700;">{{ mana.cur }}</span></span></div>
+          <div style="display:flex;gap:8px;align-items:stretch;">
+            <sc-for list="{{ spells }}" as="s" hint-placeholder-count="6">
+              <button onClick="{{ s.onSel }}" style="position:relative;flex:1;cursor:{{ s.cursor }};display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 6px 6px;border-radius:9px;border:{{ s.border }};background:{{ s.bg }};box-shadow:{{ s.glow }};opacity:{{ s.opacity }};transition:all .15s;"><span style="font-size:21px;line-height:1;color:{{ s.iconColor }};text-shadow:{{ s.iconGlow }};">{{ s.g }}</span><span style="font-family:'Chakra Petch';font-weight:600;font-size:11px;letter-spacing:0.5px;color:#dbe3f5;">{{ s.n }}</span><div style="display:flex;gap:7px;font-size:10px;font-weight:700;font-family:'Chakra Petch';align-items:center;"><span style="color:{{ s.costColor }};">◈{{ s.cost }}</span><span style="color:{{ s.degColor }};display:inline-flex;align-items:center;gap:2px;"><svg width="11" height="11" viewBox="0 0 12 12" style="overflow:visible;"><line x1="6" y1="6" x2="6" y2="0" stroke="currentColor" stroke-width="1"></line><line x1="6" y1="6" x2="11.5" y2="9.5" stroke="currentColor" stroke-width="1"></line><line x1="6" y1="6" x2="0.5" y2="9.5" stroke="currentColor" stroke-width="1"></line><circle cx="6" cy="6" r="2" fill="currentColor"></circle></svg>{{ s.deg }}</span></div><sc-if value="{{ s.locked }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:5px;right:6px;font-size:10px;color:rgba(255,140,140,0.85);">🔒</span></sc-if></button>
+            </sc-for>
+            <button onClick="{{ launch }}" style="cursor:pointer;flex:none;display:flex;align-items:center;font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:1px;padding:8px 18px;border-radius:9px;text-transform:uppercase;color:#dde6ff;border:1px solid oklch(0.62 0.17 262);background:linear-gradient(160deg,oklch(0.40 0.14 262),oklch(0.26 0.11 262));box-shadow:0 0 20px -5px oklch(0.62 0.17 262);" style-hover="filter:brightness(1.2);">Cast {{ spellName }} <span style="font-size:11px;opacity:0.7;margin-left:5px;">⎵</span></button>
+          </div>
+          <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:8px;letter-spacing:0.3px;">◈ mana cost · ⬡ min. source-node degree · then click an enemy node as target (range by hops / tiles per spell)</div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- END TURN (bottom-right, final) -->
+  <div style="position:absolute;right:26px;bottom:28px;z-index:20;display:flex;flex-direction:column;align-items:flex-end;gap:7px;">
+    <div style="display:flex;align-items:center;gap:7px;background:rgba(10,12,20,0.72);border:1px solid rgba(200,170,90,0.22);border-radius:10px;padding:6px 12px;backdrop-filter:blur(6px);"><span style="font-size:10px;letter-spacing:1px;color:oklch(0.80 0.09 88);text-transform:uppercase;font-weight:600;">Action</span><span style="width:15px;height:20px;transform:skewX(-15deg);border-radius:2px;border:1px solid oklch(0.80 0.13 88);background:oklch(0.80 0.13 88);box-shadow:0 0 9px -1px oklch(0.78 0.13 88);"></span><span style="width:15px;height:20px;transform:skewX(-15deg);border-radius:2px;border:1px solid oklch(0.80 0.13 88);background:oklch(0.80 0.13 88);box-shadow:0 0 9px -1px oklch(0.78 0.13 88);"></span><span style="font-family:'Chakra Petch';font-weight:700;font-size:13px;color:#eee1c2;">2/2</span></div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;color:oklch(0.74 0.15 70);letter-spacing:0.3px;"><span style="font-size:12px;">⚠</span> 2 unspent Action Points</div>
+    <button style="cursor:pointer;font-family:'Cinzel',serif;font-weight:800;font-size:17px;letter-spacing:2px;padding:15px 30px;border-radius:16px;text-transform:uppercase;color:#1a1405;border:1px solid oklch(0.82 0.13 88);background:linear-gradient(160deg,oklch(0.82 0.14 88),oklch(0.66 0.14 80));box-shadow:0 0 24px -6px oklch(0.80 0.14 88),inset 0 1px 0 rgba(255,255,255,0.4);opacity:0.62;" style-hover="filter:brightness(1.12);opacity:1;">End Turn ⟫⟫</button>
+  </div>
+
+  <!-- ANNOUNCER FX -->
+  <sc-if value="{{ announcer.show }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:80;">
+      <div style="position:relative;width:100%;height:134px;overflow:hidden;display:flex;align-items:center;background:linear-gradient(90deg,rgba(0,0,0,0),{{ announcer.bg }} 20%,{{ announcer.bg }} 80%,rgba(0,0,0,0));border-top:1px solid {{ announcer.line }};border-bottom:1px solid {{ announcer.line }};animation:annBar 2.6s ease forwards;box-shadow:0 0 70px -8px {{ announcer.line }};">
+        <div style="position:absolute;width:100%;text-align:center;font-family:'Cinzel',serif;font-weight:800;font-size:66px;letter-spacing:9px;text-transform:uppercase;white-space:nowrap;color:{{ announcer.color }};text-shadow:0 0 34px {{ announcer.line }},0 4px 12px rgba(0,0,0,0.7);animation:annText 2.6s ease forwards;">{{ announcer.text }}</div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  COL = {
+    str:'oklch(0.64 0.21 27)', dex:'oklch(0.74 0.16 150)', int:'oklch(0.68 0.18 258)',
+    wis:'oklch(0.81 0.14 88)', per:'oklch(0.66 0.21 305)', con:'oklch(0.92 0.02 250)',
+    steel:'oklch(0.88 0.02 250)', xp:'oklch(0.80 0.14 88)',
+    spCur:'oklch(0.70 0.16 250)', spWound:'oklch(0.60 0.20 25)', spStake:'oklch(0.78 0.13 75)', spUsed:'rgba(150,165,200,0.30)'
+  };
+  state = {
+    nodes:0, mode:'melee', spell:0, dir:'CW', hoverAttr:null,
+    toasts:[], deltas:{}, announcer:{show:false},
+    sp:{ cur:1, wounds:2, staked:1, used:6, max:10 }
+  };
+  _tid = 0; __g = null; _dt = null; _at = null; _onKey = null;
+  srcDeg = 3; bladeCount = 2;
+
+  curStr(n){ return Math.round((51 + 6*n) * (1 + 0.06*n)); }
+
+  componentDidMount(){
+    const modes=['manage','melee','ranged','magic'];
+    this._onKey = (e)=>{
+      if (e.code==='Space' || e.key===' '){ e.preventDefault(); const m=this.state.mode; if (m!=='manage') this.launch(); return; }
+      const idx=['Digit1','Digit2','Digit3','Digit4'].indexOf(e.code);
+      if (idx>=0){ e.preventDefault(); this.setMode(modes[idx]); }
+    };
+    window.addEventListener('keydown', this._onKey);
+  }
+  componentWillUnmount(){ if (this._onKey) window.removeEventListener('keydown', this._onKey); }
+
+  buildGraph(){
+    let s = 20260703;
+    const rnd = () => { s = (s*1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const cols = [this.COL.str,this.COL.dex,this.COL.int,this.COL.wis,this.COL.per,this.COL.con];
+    const cx = 720, cy = 428;
+    let nodes = [];
+    for (let i=0;i<48;i++){
+      const ang = rnd()*Math.PI*2, rad = 70 + rnd()*360;
+      const x = Math.round(cx + Math.cos(ang)*rad*(1+rnd()*0.35));
+      const y = Math.round(cy + Math.sin(ang)*rad*0.6);
+      nodes.push({ x, y, c: cols[Math.floor(rnd()*cols.length)], r: 9+Math.round(rnd()*5), owned:false, core:false, d: Math.hypot(x-cx,y-cy) });
+    }
+    nodes.sort((a,b)=>a.d-b.d);
+    for (let i=0;i<7;i++) nodes[i].owned = true;
+    nodes[0].core = true;
+    const edges = []; const seen = new Set();
+    for (let i=0;i<nodes.length;i++){
+      const ds = nodes.map((n,j)=>({j,d:Math.hypot(n.x-nodes[i].x,n.y-nodes[i].y)})).filter(o=>o.j!==i).sort((a,b)=>a.d-b.d);
+      for (let k=0;k<2;k++){ const j=ds[k].j, key=Math.min(i,j)+'-'+Math.max(i,j); if (seen.has(key)) continue; seen.add(key); edges.push({ x1:nodes[i].x, y1:nodes[i].y, x2:nodes[j].x, y2:nodes[j].y }); }
+    }
+    const gNodes = nodes.map(n=>({ x:n.x, y:n.y, r:n.r, stroke:n.c, sw:n.owned?2.8:2.2, fill:n.owned?n.c:'rgba(9,11,17,0.9)', fo:n.owned?0.85:0.9, so:n.owned?1:0.5 }));
+    const gAura = nodes.filter(n=>n.owned).map(n=>({ x:n.x, y:n.y, ar:n.r*3.6, c:n.c }));
+    const core = nodes.find(n=>n.core);
+    return { gNodes, gEdges:edges, gAura, coreX:core.x, coreY:core.y };
+  }
+
+  pushToast(text,color){ const id=++this._tid; this.setState(s=>({toasts:[...s.toasts,{id,text,color}]})); setTimeout(()=>this.setState(s=>({toasts:s.toasts.filter(t=>t.id!==id)})),1950); }
+  burst(list){ list.forEach((t,i)=> setTimeout(()=>this.pushToast(t[0],t[1]), i*95)); }
+
+  derivedAt(nodes){ const str=this.curStr(nodes), intel=18+2*nodes, armor=2+2*nodes; return { str, intel, armor, blade:1+Math.floor(str/20), bdmg:1+Math.floor(str/10), mpot:1+Math.floor(intel/10) }; }
+
+  change(newNodes, spNext){
+    const o=this.derivedAt(this.state.nodes), n=this.derivedAt(newNodes);
+    const d={}; const dd=(k,a,b)=>{ if (b!==a) d[k]=b-a; };
+    dd('str',o.str,n.str); dd('int',o.intel,n.intel); dd('armor',o.armor,n.armor);
+    dd('blade',o.blade,n.blade); dd('bdmg',o.bdmg,n.bdmg); dd('mpot',o.mpot,n.mpot);
+    this.setState({ nodes:newNodes, sp:spNext, deltas:d });
+    clearTimeout(this._dt); this._dt=setTimeout(()=>this.setState({deltas:{}}), 2700);
+  }
+
+  allocate(){
+    const n=this.state.nodes+1;
+    const ob=1+Math.floor(this.curStr(this.state.nodes)/20), nb=1+Math.floor(this.curStr(n)/20);
+    this.burst([['+6 STR',this.COL.str],['+6% STR',this.COL.str],['+2 INT',this.COL.int],['+2 Armor',this.COL.steel]]);
+    if (nb!==ob) setTimeout(()=>this.pushToast('◆ BLADE SIZE +'+(nb-ob), this.COL.str), 380);
+    const sp={...this.state.sp}; if (sp.cur>0){ sp.cur--; sp.used++; }
+    this.change(n, sp);
+  }
+  deallocate(){
+    if (this.state.nodes<=0) return;
+    const n=this.state.nodes-1;
+    const ob=1+Math.floor(this.curStr(this.state.nodes)/20), nb=1+Math.floor(this.curStr(n)/20);
+    const red='oklch(0.62 0.20 25)';
+    this.burst([['\u22126 STR',red],['\u22122 INT',red],['\u22122 Armor',red]]);
+    if (nb!==ob) setTimeout(()=>this.pushToast('\u25c7 BLADE SIZE \u2212'+(ob-nb), red), 380);
+    const sp={...this.state.sp}; if (sp.used>0){ sp.used--; sp.cur++; }
+    this.change(n, sp);
+  }
+  setMode(m){ this.setState({ mode:m }); }
+  selectSpell(i){ this.setState({ spell:i }); }
+  toggleDir(){ this.setState(s=>({ dir: s.dir==='CW'?'CCW':'CW' })); }
+  announce(kind){
+    const names=['Bolt','Arc','Pulse','Sever','Nova','Warp'];
+    const map={
+      melee:{text:'Phantom Blade',color:'#ffe2e2',bg:'rgba(120,28,28,0.5)',line:'oklch(0.62 0.20 27)'},
+      ranged:{text:'Volley',color:'#dcffe8',bg:'rgba(28,86,50,0.5)',line:'oklch(0.70 0.16 150)'},
+      magic:{text:names[this.state.spell]||'Spell',color:'#dde6ff',bg:'rgba(40,50,110,0.52)',line:'oklch(0.66 0.18 262)'}
+    };
+    const a=map[kind]; if (!a) return;
+    this.setState({ announcer:{show:false} });
+    setTimeout(()=>this.setState({ announcer:{show:true, ...a} }), 30);
+    clearTimeout(this._at); this._at=setTimeout(()=>this.setState({ announcer:{show:false} }), 2720);
+  }
+  launch(){ const m=this.state.mode; if (m==='manage') return; this.announce(m); }
+
+  renderVals(){
+    if (!this.__g) this.__g = this.buildGraph();
+    const g=this.__g, n=this.state.nodes;
+    const str=this.curStr(n), dex=25, intel=18+2*n, wis=10, per=10, armor=2+2*n;
+    const D=this.state.deltas, mode=this.state.mode;
+
+    const glow=(v,c)=>{ const t=Math.min(1,v/60); return `0 0 ${4+Math.round(t*10)}px ${c}, 0 0 ${Math.round(t*24)}px ${c}`; };
+    const mk=(v)=> (v==null||v===0)?{show:false,text:'',color:''}:{ show:true, text:(v>0?'▲ +'+v:'▼ '+v), color:(v>0?'oklch(0.80 0.17 150)':'oklch(0.68 0.20 25)') };
+
+    // derived
+    const bladeSize=1+Math.floor(str/20), bladeDmg=1+Math.floor(str/10);
+    const rangedDmg=2+Math.floor(dex/10), rangedRange=Math.round(400*(1+dex*0.01));
+    const magicPot=1+Math.floor(intel/10), leaves=3;
+    const xpPer=Math.floor(wis/10), vision=Math.round(420*(1+per*0.02)), sensor=3+Math.floor(per/10);
+
+    const drivesMap={
+      STR:[{label:'Blade size',rule:'+1 / 20',val:bladeSize},{label:'Blade dmg',rule:'+1 / 10',val:bladeDmg}],
+      DEX:[{label:'Ranged dmg',rule:'+1 / 10',val:rangedDmg},{label:'Range',rule:'+1% / DEX',val:rangedRange+'px'}],
+      INT:[{label:'Magic potency',rule:'+1 / 10',val:'+'+magicPot}],
+      WIS:[{label:'XP / turn',rule:'+1 / 10',val:xpPer}],
+      PER:[{label:'Vision',rule:'+2% / PER',val:vision},{label:'Sensor',rule:'+1 / 10',val:sensor}]
+    };
+
+    const raw=[['STR','Strength',str,this.COL.str,'str'],['DEX','Dexterity',dex,this.COL.dex,null],['INT','Intelligence',intel,this.COL.int,'int'],['WIS','Wisdom',wis,this.COL.wis,null],['PER','Perception',per,this.COL.per,null]];
+    const attrs=raw.map(a=>{
+      let na='none';
+      if (a[4] && D[a[4]]) na='popA .45s ease'; else if (a[2]>=40) na='ember 1.6s ease-in-out infinite';
+      const hv=this.state.hoverAttr===a[0];
+      return { abbr:a[0], label:a[1], value:a[2], color:a[3], glow:glow(a[2],a[3]), numAnim:na, delta:mk(a[4]?D[a[4]]:null),
+        hover:hv, rowBg: hv?'rgba(255,255,255,0.04)':'transparent', drives:drivesMap[a[0]],
+        onEnter:()=>this.setState({hoverAttr:a[0]}), onLeave:()=>this.setState({hoverAttr:null}) };
+    });
+
+    // radar
+    const SC=64,R=78,cx=100,cy=100;
+    const ang={STR:-90,DEX:-18,INT:54,WIS:126,PER:198};
+    const pt=(v,a)=>{ const r=Math.min(1,v/SC)*R, rad=a*Math.PI/180; return [cx+r*Math.cos(rad), cy+r*Math.sin(rad)]; };
+    const order=[['STR',str],['DEX',dex],['INT',intel],['WIS',wis],['PER',per]];
+    const pts=order.map(o=>pt(o[1],ang[o[0]]));
+    const radarData=pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+    const radarDots=pts.map((p,i)=>({ x:p[0].toFixed(1), y:p[1].toFixed(1), c:attrs[i].color }));
+    const lr=97;
+    const axisLabels=order.map(o=>{ const rad=ang[o[0]]*Math.PI/180; return { x:(cx+lr*Math.cos(rad)).toFixed(1), y:(cy+lr*Math.sin(rad)).toFixed(1), abbr:o[0], color:this.COL[o[0].toLowerCase()] }; });
+
+    const bp=(v,per,drv)=>{ const rem=per-(v%per); return { pct:(v%per)/per*100, cap:'+1 / '+per+' '+drv+' · next @'+(v+rem) }; };
+    const bladePips=Array.from({length:bladeSize},()=>({}));
+
+    const cells=(cur,max,c)=>Array.from({length:max},(_,i)=>({ bg:i<cur?c:'rgba(255,255,255,0.05)', glow:i<cur?'0 0 9px -1px '+c:'none', border:i<cur?c:'rgba(255,255,255,0.14)' }));
+
+    const sp=this.state.sp, T=sp.max||1;
+    const zone=(v,c,gg,anim)=> v>0?{ w:(v/T*100).toFixed(2), c, g:gg||'none', anim:anim||'none' }:null;
+    const spZones=[ zone(sp.cur,this.COL.spCur,'0 0 12px -1px '+this.COL.spCur), zone(sp.wounds,this.COL.spWound,'none','woundPulse 1.8s ease-in-out infinite'), zone(sp.staked,this.COL.spStake), zone(sp.used,this.COL.spUsed) ].filter(Boolean);
+    const spLegend=[ {c:this.COL.spCur,label:'to spend',count:sp.cur},{c:this.COL.spWound,label:'wounded',count:sp.wounds},{c:this.COL.spStake,label:'staked',count:sp.staked},{c:'rgba(150,165,200,0.6)',label:'allocated',count:sp.used} ];
+
+    const meleeCh=!!(D.str||D.blade||D.bdmg), magicCh=!!(D.int||D.mpot), rangedCh=!!D.dex;
+    const manage=mode==='manage'; const card=(m,c,changed)=>{ const on=mode===m, lit=on||changed||manage; return { border: on?'1px solid '+c:'1px solid rgba(255,255,255,0.09)', shadow: on?'0 0 22px -8px '+c+', inset 0 0 26px -18px '+c:(changed?'0 0 20px -7px '+c:'none'), opacity: lit?1:0.5 }; };
+    const mC=card('melee',this.COL.str,meleeCh), rC=card('ranged',this.COL.dex,rangedCh), gC=card('magic',this.COL.int,magicCh);
+
+    const tabDefs=[['manage','◈','Manage',this.COL.steel,'1'],['melee','⚔','Melee',this.COL.str,'2'],['ranged','➵','Ranged',this.COL.dex,'3'],['magic','✴','Magic',this.COL.int,'4']];
+    const tabs=tabDefs.map(t=>{ const on=mode===t[0]; return { label:t[2], glyph:t[1], key:t[4], border: on?'1px solid '+t[3]:'1px solid rgba(255,255,255,0.08)', bg: on?'linear-gradient(0deg,rgba(18,20,30,0.95),rgba(40,44,60,0.95))':'rgba(14,16,24,0.55)', color: on?'#eef1f6':'rgba(190,198,220,0.5)', glow: on?'0 -4px 18px -8px '+t[3]:'none', keyColor: on?t[3]:'rgba(255,255,255,0.28)', onClick:()=>this.setMode(t[0]) }; });
+
+    const manaCur=16, deg=this.srcDeg;
+    const spellDefs=[{g:'⟶',n:'Bolt',cost:3,deg:1},{g:'⟿',n:'Arc',cost:5,deg:2},{g:'◉',n:'Pulse',cost:6,deg:3},{g:'✂',n:'Sever',cost:7,deg:2},{g:'✺',n:'Nova',cost:9,deg:4},{g:'⟳',n:'Warp',cost:4,deg:1}];
+    const spells=spellDefs.map((s,i)=>{ const manaOk=manaCur>=s.cost, degOk=deg>=s.deg, enabled=manaOk&&degOk, sel=this.state.spell===i&&enabled;
+      return { g:s.g, n:s.n, cost:s.cost, deg:s.deg, locked:!enabled, cursor:enabled?'pointer':'not-allowed', opacity:enabled?1:0.42,
+        border: sel?'1px solid oklch(0.70 0.18 262)':enabled?'1px solid rgba(120,140,190,0.25)':'1px solid rgba(255,120,120,0.22)',
+        bg: sel?'linear-gradient(160deg,rgba(56,52,96,0.95),rgba(30,28,54,0.95))':'linear-gradient(160deg,rgba(30,32,46,0.9),rgba(18,20,30,0.9))',
+        glow: sel?'0 0 20px -5px oklch(0.66 0.18 262), inset 0 1px 0 rgba(255,255,255,0.12)':'none',
+        iconColor: enabled?'oklch(0.78 0.15 262)':'rgba(150,160,190,0.5)', iconGlow: sel?'0 0 12px oklch(0.66 0.18 262)':'none',
+        costColor: manaOk?'oklch(0.72 0.14 220)':'oklch(0.68 0.20 25)', degColor: degOk?'oklch(0.72 0.17 305)':'oklch(0.68 0.20 25)',
+        onSel:()=>this.selectSpell(i) }; });
+    const spellName=(spellDefs[this.state.spell]||{}).n||'Spell';
+
+    return {
+      ...g, level:3, entityName:'ALLROUND', className:'Allround \u2014 balanced core', nodes:n,
+      attrs, radarData, radarDots, axisLabels, vision, sensor,
+      bladeSize, bladeDmg, bladePips, rangedDmg, rangedRange, magicPot, hopReach:0, leaves,
+      bpBlade:bp(str,20,'STR'), bpBdmg:bp(str,10,'STR'), bpRdmg:bp(dex,10,'DEX'), bpMpot:bp(intel,10,'INT'),
+      armor, resistR:0, resistG:0, resistB:0,
+      bladeAnim:D.blade?'popA .45s ease':'none', armorAnim:D.armor?'popA .45s ease':'none', magicAnim:D.mpot?'popA .45s ease':'none',
+      bladeDelta:mk(D.blade), bdmgDelta:mk(D.bdmg), mpotDelta:mk(D.mpot), armorDelta:mk(D.armor),
+      health:{cur:10,max:10,pct:100,per:1}, mana:{cur:16,max:17,pct:94,per:5}, xp:{cur:1,max:5,pct:20,per:1},
+      ap:{cur:2,max:2}, dp:{cur:3,max:3}, mv:{cur:2,max:4},
+      apCells:cells(2,2,this.COL.wis), dpCells:cells(3,3,this.COL.per), mvCells:cells(2,4,this.COL.dex),
+      sp, spZones, spLegend, spCurColor: sp.cur>0?'oklch(0.78 0.15 250)':'rgba(160,172,205,0.55)', spCurGlow: sp.cur>0?'0 0 14px oklch(0.66 0.16 250)':'none',
+      hasWounds: sp.wounds>0, woundRate:'0.5', woundProg:50, woundEta:2,
+      meleeBorder:mC.border, meleeShadow:mC.shadow, meleeOpacity:mC.opacity,
+      rangedBorder:rC.border, rangedShadow:rC.shadow, rangedOpacity:rC.opacity,
+      magicBorder:gC.border, magicShadow:gC.shadow, magicOpacity:gC.opacity,
+      isManage:mode==='manage', isMelee:mode==='melee', isRanged:mode==='ranged', isMagic:mode==='magic',
+      tabs, srcDeg:this.srcDeg, spells, spellName, dir:this.state.dir,
+      bladeCount:this.bladeCount, bladeSel:Array.from({length:this.bladeCount},()=>({})),
+      announcer:this.state.announcer,
+      allocate:()=>this.allocate(), deallocate:()=>this.deallocate(), toggleDir:()=>this.toggleDir(), launch:()=>this.launch()
+    };
+  }
+}
+</script>
+</body>
+</html>
