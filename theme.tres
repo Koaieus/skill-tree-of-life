@@ -1,9 +1,9 @@
-[gd_resource type="Theme" load_steps=6 format=3 uid="uid://twp12lx6lihg"]
+[gd_resource type="Theme" format=3 uid="uid://twp12lx6lihg"]
 
-[ext_resource type="FontFile" path="res://assets/fonts/cinzel/Cinzel-VariableFont_wght.ttf" id="1_cinzel"]
-[ext_resource type="FontFile" path="res://assets/fonts/chakra_petch/ChakraPetch-Regular.ttf" id="2_chakra_regular"]
-[ext_resource type="FontFile" path="res://assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf" id="3_chakra_semibold"]
-[ext_resource type="FontFile" path="res://assets/fonts/chakra_petch/ChakraPetch-Bold.ttf" id="4_chakra_bold"]
+[ext_resource type="FontFile" uid="uid://bfgmwy4rqlsoh" path="res://assets/fonts/cinzel/Cinzel-VariableFont_wght.ttf" id="1_cinzel"]
+[ext_resource type="FontFile" uid="uid://c5for4vyifsuo" path="res://assets/fonts/chakra_petch/ChakraPetch-Regular.ttf" id="2_chakra_regular"]
+[ext_resource type="FontFile" uid="uid://vs8sy83xemwk" path="res://assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf" id="3_chakra_semibold"]
+[ext_resource type="FontFile" uid="uid://csq0xxdotkf7u" path="res://assets/fonts/chakra_petch/ChakraPetch-Bold.ttf" id="4_chakra_bold"]
 
 [sub_resource type="FontVariation" id="FontVariation_cinzel_bold"]
 base_font = ExtResource("1_cinzel")
@@ -14,11 +14,11 @@ variation_opentype = {
 [resource]
 default_font = ExtResource("2_chakra_regular")
 default_font_size = 14
-Label/fonts/font = ExtResource("2_chakra_regular")
 Button/fonts/font = ExtResource("3_chakra_semibold")
-CinzelHeader/base_type = &"Label"
-CinzelHeader/fonts/font = SubResource("FontVariation_cinzel_bold")
-CinzelHeader/font_sizes/font_size = 16
-CinzelHeader/colors/font_color = Color(0.8, 0.72, 0.53, 1)
 ChakraData/base_type = &"Label"
 ChakraData/fonts/font = ExtResource("4_chakra_bold")
+CinzelHeader/base_type = &"Label"
+CinzelHeader/colors/font_color = Color(0.8, 0.72, 0.53, 1)
+CinzelHeader/font_sizes/font_size = 16
+CinzelHeader/fonts/font = SubResource("FontVariation_cinzel_bold")
+Label/fonts/font = ExtResource("2_chakra_regular")

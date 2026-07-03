@@ -52,6 +52,7 @@ func _rebuild() -> void:
 		child.queue_free()
 	for i in max_count:
 		var pip: CapacityPip = PIP_SCENE.instantiate()
+		pip.name = "CapacityPip_%02d" % i
 		pip.custom_minimum_size = pip_size
 		add_child(pip)
 		if Engine.is_editor_hint():

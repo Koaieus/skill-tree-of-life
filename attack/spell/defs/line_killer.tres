@@ -31,9 +31,6 @@ children = Array[ExtResource("5_filter_base")]([SubResource("filter_enemy"), Sub
 
 [sub_resource type="Resource" id="step_killer"]
 script = ExtResource("9_step")
-per_hop_increment = 2.0
-terminal_mode = 2
-terminal_multiplier = 2.0
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")

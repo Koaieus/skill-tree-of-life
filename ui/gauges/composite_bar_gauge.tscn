@@ -1,12 +1,20 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://ep57rx7ojh8t"]
 
-[ext_resource type="Script" path="res://ui/gauges/composite_bar_gauge.gd" id="1_script"]
-[ext_resource type="Shader" path="res://ui/gauges/composite_bar_gauge.gdshader" id="2_shader"]
+[ext_resource type="Script" uid="uid://b43cp4f2jxtci" path="res://ui/gauges/composite_bar_gauge.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://c7b7o82i0weko" path="res://ui/gauges/composite_bar_gauge.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_composite_bar"]
 shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(200, 14)
+shader_parameter/fractions = Vector4(0.1, 0.2, 0.1, 0.6)
+shader_parameter/color_0 = Color(0.2606, 0.6387, 0.9922, 1)
+shader_parameter/color_1 = Color(0.8725, 0.2322, 0.2404, 1)
+shader_parameter/color_2 = Color(0.9084, 0.6684, 0.3042, 1)
+shader_parameter/color_3 = Color(0.588, 0.647, 0.784, 0.3)
+shader_parameter/corner_radius = 5.0
+shader_parameter/pulse_speed = 2.4
 
-[node name="CompositeBarGauge" type="ColorRect"]
+[node name="CompositeBarGauge" type="ColorRect" unique_id=44823656]
 material = SubResource("ShaderMaterial_composite_bar")
 custom_minimum_size = Vector2(200, 14)
 offset_right = 200.0

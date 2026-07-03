@@ -1,7 +1,66 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://coykc218j64qq"]
 
-[ext_resource type="Script" path="res://ui/gauges/capacity_blips.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dpr62rkwt4dx4" path="res://ui/gauges/capacity_blips.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/gauges/capacity_pip.tscn" id="2_6pc0d"]
+[ext_resource type="Shader" uid="uid://lvkbvwnr5ocr" path="res://ui/gauges/capacity_pip.gdshader" id="3_htbw3"]
+[ext_resource type="Script" uid="uid://c62g1toun2gqn" path="res://ui/gauges/capacity_pip.gd" id="4_kl0v6"]
 
-[node name="CapacityBlips" type="HBoxContainer"]
-theme_override_constants/separation = 4
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_6pc0d"]
+resource_local_to_scene = true
+shader = ExtResource("3_htbw3")
+shader_parameter/size = Vector2(13, 13)
+shader_parameter/fill_color = Color(0.62, 0.21, 0.21, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/highlight_color = Color(1, 1, 1, 0.9)
+shader_parameter/filled = 1.0
+shader_parameter/highlight = 0.0
+shader_parameter/glow_strength = 6.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_htbw3"]
+resource_local_to_scene = true
+shader = ExtResource("3_htbw3")
+shader_parameter/size = Vector2(13, 13)
+shader_parameter/fill_color = Color(0.62, 0.21, 0.21, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/highlight_color = Color(1, 1, 1, 0.9)
+shader_parameter/filled = 0.0
+shader_parameter/highlight = 0.0
+shader_parameter/glow_strength = 6.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_kl0v6"]
+resource_local_to_scene = true
+shader = ExtResource("3_htbw3")
+shader_parameter/size = Vector2(13, 13)
+shader_parameter/fill_color = Color(0.62, 0.21, 0.21, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/highlight_color = Color(1, 1, 1, 0.9)
+shader_parameter/filled = 0.0
+shader_parameter/highlight = 0.0
+shader_parameter/glow_strength = 6.0
+
+[node name="CapacityBlips" type="HBoxContainer" unique_id=1263026484]
+theme_override_constants/separation = 2
 script = ExtResource("1_script")
+count = 1
+
+[node name="CapacityPip_00" type="ColorRect" parent="." unique_id=1350999082 instance=ExtResource("2_6pc0d")]
+material = SubResource("ShaderMaterial_6pc0d")
+custom_minimum_size = Vector2(13, 13)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4_kl0v6")
+filled = true
+
+[node name="CapacityPip_01" type="ColorRect" parent="." unique_id=975497369 instance=ExtResource("2_6pc0d")]
+material = SubResource("ShaderMaterial_htbw3")
+custom_minimum_size = Vector2(13, 13)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4_kl0v6")
+
+[node name="CapacityPip_02" type="ColorRect" parent="." unique_id=923213630 instance=ExtResource("2_6pc0d")]
+material = SubResource("ShaderMaterial_kl0v6")
+custom_minimum_size = Vector2(13, 13)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("4_kl0v6")
