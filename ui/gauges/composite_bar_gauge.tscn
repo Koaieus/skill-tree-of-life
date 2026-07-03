@@ -6,11 +6,11 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_composite_bar"]
 shader = ExtResource("2_shader")
 shader_parameter/size = Vector2(200, 14)
-shader_parameter/fractions = Vector4(0.1, 0.2, 0.1, 0.6)
+shader_parameter/fractions = Vector3(0.1, 0.2, 0.1)
 shader_parameter/color_0 = Color(0.2606, 0.6387, 0.9922, 1)
 shader_parameter/color_1 = Color(0.8725, 0.2322, 0.2404, 1)
 shader_parameter/color_2 = Color(0.9084, 0.6684, 0.3042, 1)
-shader_parameter/color_3 = Color(0.588, 0.647, 0.784, 0.3)
+shader_parameter/color_background = Color(0.588, 0.647, 0.784, 0.3)
 shader_parameter/corner_radius = 5.0
 shader_parameter/pulse_speed = 2.4
 

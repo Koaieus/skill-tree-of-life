@@ -1,14 +1,16 @@
 shader_type canvas_item;
 
-// Proportional multi-bucket bar (Skill Points: to-spend/wounded/staked/
-// allocated). fractions are normalized 0..1 shares in stacking order;
-// bucket index 1 ("wounded") pulses per the design's woundPulse keyframe.
+// Proportional multi-bucket bar (Skill Points: to-spend/wounded/staked).
+// fractions are normalized 0..1 shares against the pool's max, in stacking
+// order; bucket index 1 ("wounded") pulses per the design's woundPulse
+// keyframe. Whatever fraction remains uncovered is empty background — NOT
+// a fourth filled "allocated" segment.
 uniform vec2 size = vec2(200.0, 14.0);
-uniform vec4 fractions = vec4(0.1, 0.2, 0.1, 0.6);
+uniform vec3 fractions = vec3(0.1, 0.2, 0.1);
 uniform vec4 color_0 : source_color = vec4(0.26, 0.64, 0.99, 1.0);
 uniform vec4 color_1 : source_color = vec4(0.87, 0.23, 0.24, 1.0);
 uniform vec4 color_2 : source_color = vec4(0.91, 0.67, 0.30, 1.0);
-uniform vec4 color_3 : source_color = vec4(0.59, 0.65, 0.78, 0.30);
+uniform vec4 color_background : source_color = vec4(0.59, 0.65, 0.78, 0.30);
 uniform float corner_radius = 5.0;
 uniform float pulse_speed = 2.4;
 
@@ -37,7 +39,7 @@ void fragment() {
 	} else if (UV.x < b2) {
 		col = color_2;
 	} else {
-		col = color_3;
+		col = color_background;
 	}
 
 	COLOR = vec4(col.rgb, col.a * pulse * shape_alpha);

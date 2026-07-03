@@ -100,7 +100,7 @@ func _draw() -> void:
 	for i in n:
 		var label_pos := _axis_point(i, 1.16)
 		var col: Color = axis_colors[i] if i < axis_colors.size() else Color.WHITE
-		draw_string(ThemeDB.fallback_font, label_pos - Vector2(8, -4), axis_labels[i], HORIZONTAL_ALIGNMENT_CENTER, 20, 12, col)
+		draw_string(ThemeDB.fallback_font, label_pos - Vector2(20, -4), axis_labels[i], HORIZONTAL_ALIGNMENT_CENTER, 40, 12, col)
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
