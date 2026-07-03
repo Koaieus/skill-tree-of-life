@@ -11,5 +11,5 @@ value_type = 0
 default_value = 10.0
 display_order = 14
 display_type = 0
-tint_color = Color(0.65, 0.35, 0.85, 1)
+tint_color = Color(0.6935, 0.4045, 0.9676, 1)
 display_group = &"overview"
