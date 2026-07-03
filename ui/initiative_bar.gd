@@ -45,7 +45,7 @@ const PANEL_OUT_MARGIN: float = 40.0
 		_update_fill_color()
 
 @onready var progress_bar: ProgressBar = %ProgressBar
-@onready var panel: PanelContainer = $PanelContainer
+@onready var panel: GlassPanel = %GlassPanel
 
 var _tween: Tween
 var _panel_tween: Tween
