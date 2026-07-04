@@ -31,7 +31,12 @@ void fragment() {
     vec2 p  = (UV - 0.5) * vec2(aspect, 1.0);
     vec2 mp = (mouse_uv - 0.5) * vec2(aspect, 1.0);
 
-    float dist = sdf_rrect(p, vec2(0.5 * aspect, 0.5), CORNER_RADIUS);
+    // Rounded-top tab per the design ("border-radius: 11px 11px 0 0") — the
+    // button sits flush against the content chrome below it, so only the
+    // top edge (p.y < 0 in this centred, y-down space) gets the corner
+    // radius; the bottom stays square.
+    float r = mix(0.0, CORNER_RADIUS, step(p.y, 0.0));
+    float dist = sdf_rrect(p, vec2(0.5 * aspect, 0.5), r);
 
     // Pixel-AA shape mask — discard empty corners
     float aa    = length(vec2(dFdx(dist), dFdy(dist)));

@@ -10,6 +10,14 @@ const ANIMATION_TIME: float = 0.2
 
 @export var attack_mode: BattleSystem.AttackMode
 
+## Keyboard shortcut chip text shown in the tab's top-left corner (e.g.
+## "1", "Q") — purely cosmetic, doesn't drive the actual [member shortcut].
+@export var key_hint: String = "":
+	set(v):
+		key_hint = v
+		if _key_label != null:
+			_key_label.text = v
+
 var _text_mat := ShaderMaterial.new()
 var _materials: Array[ShaderMaterial] = []
 
@@ -21,6 +29,8 @@ var _disabled_tweener: Tween
 @onready var color_rect: ColorRect = $ColorRect
 @onready var label: Label = $Label
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
+@onready var _key_chip: PanelContainer = $KeyChip
+@onready var _key_label: Label = $KeyChip/KeyLabel
 
 
 var hovered: float = 0.0:
@@ -60,6 +70,14 @@ func _ready() -> void:
 	_push("glow_radius", glow_radius)
 	_push("texture_size", size)
 	enabled = not disabled    # snap GDScript var to .tscn-set Button.disabled
+
+	if _key_chip != null:
+		var sb: StyleBoxFlat = _key_chip.get_theme_stylebox(&"panel").duplicate()
+		sb.border_color = tint
+		_key_chip.add_theme_stylebox_override(&"panel", sb)
+	if _key_label != null:
+		_key_label.modulate = tint
+		_key_label.text = key_hint
 
 func _push(param: String, value: Variant) -> void:
 	for mat in _materials:

@@ -36,6 +36,25 @@ shader_parameter/disabled_strength = 0.0
 [sub_resource type="LabelSettings" id="LabelSettings_ndpa3"]
 font_size = 30
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_keychip"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 5.0
+content_margin_top = 1.0
+content_margin_right = 5.0
+content_margin_bottom = 1.0
+
+[sub_resource type="LabelSettings" id="LabelSettings_keychip"]
+font_size = 9
+
 [node name="ActionToggleButton" type="Button" unique_id=1205266549]
 custom_minimum_size = Vector2(128, 64)
 theme_override_colors/font_color = Color(0, 0, 0, 0)
@@ -77,6 +96,22 @@ grow_vertical = 2
 label_settings = SubResource("LabelSettings_ndpa3")
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="KeyChip" type="PanelContainer" parent="." unique_id=3610441883]
+layout_mode = 1
+offset_left = 6.0
+offset_top = 5.0
+offset_right = 24.0
+offset_bottom = 19.0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_keychip")
+
+[node name="KeyLabel" type="Label" parent="KeyChip" unique_id=2846719036]
+layout_mode = 2
+mouse_filter = 2
+text = "1"
+label_settings = SubResource("LabelSettings_keychip")
+horizontal_alignment = 1
 
 [connection signal="editor_state_changed" from="." to="." method="update_label_text"]
 [connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]

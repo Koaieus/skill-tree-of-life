@@ -1,0 +1,54 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/magic_body.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="2_launch"]
+[ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="3_spellbar"]
+
+[node name="MagicBody" type="MarginContainer"]
+script = ExtResource("1_script")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 12
+modulate = Color(0.291, 0.5892, 1, 1)
+text = "✴ Spells"
+
+[node name="ContextLabel" type="Label" parent="Content/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+modulate = Color(0.784, 0.824, 0.902, 0.75)
+text = "source degree 0 · mana 0"
+
+[node name="SpellRow" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpellPickerBar" parent="Content/SpellRow" instance=ExtResource("3_spellbar")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="LaunchButton" parent="Content/SpellRow" instance=ExtResource("2_launch")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+custom_minimum_size = Vector2(150, 44)
+tint = Color(0.291, 0.5892, 1, 1)
+text = "Cast"
+
+[node name="Footer" type="Label" parent="Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+modulate = Color(0.667, 0.714, 0.824, 0.5)
+text = "◈ mana cost · degree icon = min. source-node degree · then click an enemy node as target"

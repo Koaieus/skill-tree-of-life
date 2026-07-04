@@ -1,0 +1,65 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/ranged_body.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="2_launch"]
+
+[node name="RangedBody" type="MarginContainer"]
+script = ExtResource("1_script")
+
+[node name="Row" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Info" type="VBoxContainer" parent="Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="Row/Info"]
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 12
+modulate = Color(0.3187, 0.7773, 0.4484, 1)
+text = "➵ Volley"
+
+[node name="Hint" type="Label" parent="Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+modulate = Color(0.784, 0.824, 0.902, 0.75)
+autowrap_mode = 2
+text = "Click an enemy node to target. Every owned leaf (degree-1) that can reach it fires."
+
+[node name="StatRow" type="HBoxContainer" parent="Row/Info"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LeavesLabel" type="Label" parent="Row/Info/StatRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.667, 0.714, 0.824, 0.6)
+text = "Firing leaves:"
+
+[node name="LeavesValue" type="Label" parent="Row/Info/StatRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"ChakraData"
+theme_override_font_sizes/font_size = 13
+modulate = Color(0.3187, 0.7773, 0.4484, 1)
+text = "0"
+
+[node name="DamageRangeLabel" type="Label" parent="Row/Info/StatRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.725, 0.765, 0.863, 0.55)
+text = "0 dmg/leaf · 0 px"
+
+[node name="LaunchButton" parent="Row" instance=ExtResource("2_launch")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+custom_minimum_size = Vector2(150, 44)
+tint = Color(0.3187, 0.7773, 0.4484, 1)
+text = "➵ Launch"

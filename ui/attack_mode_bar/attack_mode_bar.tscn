@@ -3,6 +3,12 @@
 [ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/attack_mode_bar/attack_mode_button.tscn" id="1_lgd3m"]
 [ext_resource type="Script" uid="uid://dbby8cnmigwn0" path="res://ui/attack_mode_bar/attack_mode_bar.gd" id="1_lh5ky"]
 
+[sub_resource type="InputEventAction" id="InputEventAction_gogxr"]
+action = &"ui_select_manage_mode"
+
+[sub_resource type="Shortcut" id="Shortcut_gogxr"]
+events = [SubResource("InputEventAction_gogxr")]
+
 [sub_resource type="InputEventAction" id="InputEventAction_hcxj6"]
 action = &"ui_select_melee_mode"
 
@@ -22,11 +28,22 @@ action = &"ui_select_magic_mode"
 events = [SubResource("InputEventAction_65xm6")]
 
 [node name="ActionBar" type="HBoxContainer" unique_id=479899127]
-offset_right = 392.0
+offset_right = 512.0
 offset_bottom = 64.0
 size_flags_horizontal = 0
 size_flags_vertical = 0
 script = ExtResource("1_lh5ky")
+
+[node name="ManageToggleButton" parent="." unique_id=3610441884 instance=ExtResource("1_lgd3m")]
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+shortcut = SubResource("Shortcut_gogxr")
+text = "Manage"
+tint = Color(0.784, 0.824, 0.902, 1)
+attack_mode = 0
+key_hint = "1"
+button_pressed = true
 
 [node name="MeleeToggleButton" parent="." unique_id=1205266549 instance=ExtResource("1_lgd3m")]
 layout_mode = 2
@@ -34,8 +51,9 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 shortcut = SubResource("Shortcut_cxu8c")
 text = "Melee"
-tint = Color(1, 0, 0, 1)
+tint = Color(0.9451, 0.2689, 0.2453, 1)
 attack_mode = 1
+key_hint = "Q"
 
 [node name="RangedToggleButton" parent="." unique_id=2083894384 instance=ExtResource("1_lgd3m")]
 layout_mode = 2
@@ -43,8 +61,9 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 shortcut = SubResource("Shortcut_yg4qb")
 text = "Ranged"
-tint = Color(0, 1, 0, 1)
+tint = Color(0.3187, 0.7773, 0.4484, 1)
 attack_mode = 2
+key_hint = "W"
 
 [node name="MagicToggleButton" parent="." unique_id=900054164 instance=ExtResource("1_lgd3m")]
 layout_mode = 2
@@ -52,5 +71,6 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 shortcut = SubResource("Shortcut_ei3j1")
 text = "Magic"
-tint = Color(0, 0, 1, 1)
+tint = Color(0.291, 0.5892, 1, 1)
 attack_mode = 3
+key_hint = "E"
