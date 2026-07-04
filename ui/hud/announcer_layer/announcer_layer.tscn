@@ -1,27 +1,60 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://c3yt4dj2a6x1y"]
 
-[ext_resource type="Script" path="res://ui/hud/announcer_layer/announcer_layer.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cv4c1dya0fm67" path="res://ui/hud/announcer_layer/announcer_layer.gd" id="1_script"]
 
-[node name="AnnouncerLayer" type="CanvasLayer"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ppq1r"]
+bg_color = Color(0.05, 0.05, 0.08, 0.82)
+
+[node name="AnnouncerLayer" type="CanvasLayer" unique_id=1718417348]
 layer = 90
 script = ExtResource("1_script")
 
-[node name="Root" type="Control" parent="."]
+[node name="Root" type="Control" parent="." unique_id=1556082131]
+layout_mode = 3
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="Bg" type="Panel" parent="Root"]
-unique_name_in_owner = true
-anchor_left = 0.0
+[node name="Control" type="Control" parent="Root" unique_id=2048937041]
+layout_mode = 1
+anchors_preset = 14
 anchor_top = 0.5
 anchor_right = 1.0
 anchor_bottom = 0.5
-mouse_filter = 2
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="Text" type="Label" parent="Root"]
+[node name="Bg" type="Panel" parent="Root/Control" unique_id=2114103768]
 unique_name_in_owner = true
-theme_type_variation = &"CinzelHeader"
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ppq1r")
+
+[node name="Text" type="Label" parent="Root/Control" unique_id=1378394800]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 720.0
+offset_right = 1054.0
+offset_bottom = 134.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_colors/font_color = Color(0.9451, 0.2689, 0.2453, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 96
+text = "MELEE"
 horizontal_alignment = 1
 vertical_alignment = 1

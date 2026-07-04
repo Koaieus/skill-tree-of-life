@@ -128,7 +128,12 @@ func _size_label() -> void:
 		font = ThemeDB.fallback_font
 	var text_w := font.get_string_size(_label.text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size).x
 	_label.size = Vector2(text_w + 40.0, bar_height)
-	_label.position.y = 0.0
+	# Label's anchor_top == anchor_bottom (the midline), so its box spans
+	# [midline + offset_top, midline + offset_bottom]. Center it the same way
+	# _set_bg_open centers Bg — offset_top = -half, offset_bottom = +half —
+	# not offset_top = 0, which pins the top edge to the midline and pushes
+	# the whole label (and its CENTER-aligned text) into the bottom half.
+	_label.position.y = -bar_height * 0.5
 
 
 func _apply_color(color: Color) -> void:
