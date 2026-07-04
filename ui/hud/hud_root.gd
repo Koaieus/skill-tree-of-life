@@ -27,6 +27,7 @@ extends Control
 @onready var action_cluster: ActionCluster = %ActionCluster
 @onready var command_tray: CommandTray = %CommandTray
 @onready var announcer_layer: AnnouncerLayer = %AnnouncerLayer
+@onready var banner_layer: BannerLayer = %BannerLayer
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -62,7 +63,32 @@ func compose(game_root: GameRoot) -> void:
 		command_tray.bind(_turn_manager, _battle_system, _input_ctl, _player)
 	if announcer_layer != null:
 		announcer_layer.bind(_battle_system)
+	_bind_banner_layer()
 	_bind_initiative_bar()
+
+
+## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the
+## player's turn start, "LEVEL UP" on level-up. AI turns animate silently.
+func _bind_banner_layer() -> void:
+	if banner_layer == null or _turn_manager == null or _player == null:
+		return
+	banner_layer.bind_turn_manager(_turn_manager)
+	_turn_manager.turn_started.connect(_on_turn_started_for_banner)
+	if not _player.leveled_up.is_connected(_on_player_leveled_up):
+		_player.leveled_up.connect(_on_player_leveled_up)
+
+
+func _on_turn_started_for_banner(entity: Entity) -> void:
+	if entity == _player:
+		banner_layer.enqueue(BannerRequest.make_for_entity(
+				"YOUR TURN", "", BannerRequest.Style.DEFAULT, entity))
+
+
+func _on_player_leveled_up(new_level: int) -> void:
+	banner_layer.enqueue(BannerRequest.make(
+			"LEVEL UP",
+			"+1 Skill Point — Level %d" % new_level,
+			BannerRequest.Style.LEVEL_UP))
 
 
 ## #116 — Turn Tracker Pill. InitiativeBar already implements the "hide
