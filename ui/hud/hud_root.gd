@@ -23,6 +23,7 @@ extends Control
 @onready var attributes_panel: AttributesPanel = %AttributesPanel
 @onready var turn_resources_panel: TurnResourcesPanel = %TurnResourcesPanel
 @onready var combat_readout: CombatReadout = %CombatReadout
+@onready var node_inspector_card: NodeInspectorCard = %NodeInspectorCard
 @onready var initiative_bar: InitiativeBar = %InitiativeBar
 @onready var action_cluster: ActionCluster = %ActionCluster
 @onready var command_tray: CommandTray = %CommandTray
@@ -55,8 +56,11 @@ func compose(game_root: GameRoot) -> void:
 		attributes_panel.bind(_player.stat_board)
 	if turn_resources_panel != null:
 		turn_resources_panel.bind(_player.stat_board)
+		turn_resources_panel.bind_input_ctl(_input_ctl)
 	if combat_readout != null:
 		combat_readout.bind(_player, _battle_system)
+	if node_inspector_card != null:
+		node_inspector_card.bind(_input_ctl)
 	if action_cluster != null:
 		action_cluster.bind(_player, _turn_manager, _input_ctl, _vision_system)
 	if command_tray != null:

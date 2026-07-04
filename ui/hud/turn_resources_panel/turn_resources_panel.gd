@@ -48,6 +48,7 @@ const _BUCKET_DESC := {
 
 var _board: StatBoard
 var _legend_base_alpha: Dictionary[int, float] = {}
+var _mp_base_glow: Color = Color(0, 0, 0, 0)
 
 
 func _get_minimum_size() -> Vector2:
@@ -63,6 +64,8 @@ func _ready() -> void:
 	if _sp_bar != null:
 		_sp_bar.segment_hovered.connect(_on_segment_hovered)
 		_sp_bar.segment_unhovered.connect(_on_segment_unhovered)
+	if _mp_gauge != null:
+		_mp_base_glow = _mp_gauge.glow_color
 
 
 func bind(board: StatBoard) -> void:
@@ -73,6 +76,22 @@ func bind(board: StatBoard) -> void:
 	_bind_cells(_dp_gauge, _board.deallocation_points)
 	_bind_cells(_mp_gauge, _board.movement_points)
 	_bind_skill_points(_board.skill_points)
+
+
+## Wired by [HudRoot] (#118) so the Move battery itself lights up while a core
+## move is being targeted — colocated feedback on the existing bar rather
+## than a second standalone widget (the old [ContextPanel]'s [CoreMoveBody]
+## rendered its own separate MP bar; this reacts on the one that's already
+## on-screen instead).
+func bind_input_ctl(input_ctl: PlayerInputController) -> void:
+	if input_ctl != null and not input_ctl.core_move_targeting_changed.is_connected(_on_core_move_targeting_changed):
+		input_ctl.core_move_targeting_changed.connect(_on_core_move_targeting_changed)
+
+
+func _on_core_move_targeting_changed(source: SkillNode) -> void:
+	if _mp_gauge == null:
+		return
+	_mp_gauge.glow_color = Color(1.0, 1.0, 1.0, 0.9) if source != null else _mp_base_glow
 
 
 func _bind_cells(gauge: PoolGauge, pool: PoolStat) -> void:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud_root.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/hud/hero_sigil_card/hero_sigil_card.tscn" id="2_hero"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
 [ext_resource type="PackedScene" path="res://ui/hud/announcer_layer/announcer_layer.tscn" id="9_announcer"]
 [ext_resource type="PackedScene" path="res://ui/banner_layer/banner_layer.tscn" id="10_banner"]
+[ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
 
 [node name="HudRoot" type="Control"]
 process_mode = 1
@@ -75,6 +76,15 @@ unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="NodeInspectorCard" parent="RightColumnSlot" instance=ExtResource("11_inspector")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 490.0
+offset_bottom = 600.0
 grow_horizontal = 2
 
 [node name="CommandTraySlot" type="Control" parent="."]

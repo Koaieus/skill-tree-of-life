@@ -1,0 +1,68 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/node_inspector_card/node_inspector_card.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+
+[node name="NodeInspectorCard" type="MarginContainer"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_script")
+
+[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Padded" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="Content" type="VBoxContainer" parent="Padded"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Title" type="Label" parent="Padded/Content"]
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 12
+text = "INSPECT"
+
+[node name="NodeName" type="Label" parent="Padded/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "—"
+
+[node name="OwnerRow" type="HBoxContainer" parent="Padded/Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Padded/Content/OwnerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+modulate = Color(1, 1, 1, 0.65)
+theme_override_font_sizes/font_size = 11
+text = "Owner"
+
+[node name="OwnerValue" type="Label" parent="Padded/Content/OwnerRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "—"
+
+[node name="HpRow" type="HBoxContainer" parent="Padded/Content"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Padded/Content/HpRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+modulate = Color(1, 1, 1, 0.65)
+theme_override_font_sizes/font_size = 11
+text = "HP"
+
+[node name="HpValue" type="Label" parent="Padded/Content/HpRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "—"
