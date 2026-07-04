@@ -153,9 +153,13 @@ Both are emitted per cascaded node in the same loop, so a 5-node cascade with `d
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
 
-## Display contract (StatsPanel + future tooltips)
+## Display contract — DORMANT since #118 (StatsPanel retired)
 
-`StatDef.display_type: {BASIC, BAR, PROGRESS, INLINE, HIDDEN}` picks the widget; `display_order` sorts the column; `tint_color` colours the bar fill. `ui/stats_panel.gd` enumerates `StatRegistry.get_all_defs()`, drops HIDDEN, drops any id the board lacks, sorts by `display_order`, and dispatches:
+**`ui/stats_panel.gd` was deleted in #118** (HudRoot cutover) and nothing has replaced it as a consumer of `display_type`/`display_group`/`display_order`/`parent_stat_id` — HudRoot's cards (AttributesPanel, CombatReadout, TurnResourcesPanel) hardcode which specific stat ids they bind instead of enumerating by this metadata. The fields are left on `StatDef` and still authored on every `.tres` in `stats_system/defs/`, but **nothing currently reads them**. See #120 for the open decision (formally retire the fields vs. keep them dormant for a future generic consumer) — don't add a new stat's `display_*` fields expecting a panel to pick them up; there isn't one right now.
+
+The rest of this section describes the contract as `ui/stats_panel.gd` implemented it, kept for whoever resolves #120:
+
+`StatDef.display_type: {BASIC, BAR, PROGRESS, INLINE, HIDDEN}` picks the widget; `display_order` sorts the column; `tint_color` colours the bar fill. The old panel enumerated `StatRegistry.get_all_defs()`, dropped HIDDEN, dropped any id the board lacks, sorted by `display_order`, and dispatched:
 
 - `BASIC` → `Label` (default for scalars)
 - `PROGRESS` → `ProgressBar` (`max_value = stat.value`, `value = pool.current`) with a centred `"Name: current/max"` label child. Default for every `PoolStat` def.
@@ -168,7 +172,7 @@ Both are emitted per cascaded node in the same loop, so a 5-node cascade with `d
 - `combat` — blade_size, blade_damage, armor, dealloc_damage, min_damage_taken, range, vision_range, sensor_range, initiative_speed.
 - `magic` — spell_range and future magic-specific stats.
 
-Adding a stat means dropping a .tres in `stats_system/defs/` with `display_type` + `display_order` + `display_group` set. For INLINE, set `parent_stat_id` instead of `display_group`. The panel picks it up on next board bind. The escape hatch for non-stock rendering (e.g. a sloshing mana ball) is to add an `@export var widget_scene: PackedScene` to `StatDef` and dispatch on it before the enum — not implemented yet, but that's the slot.
+Adding a stat today means dropping a .tres in `stats_system/defs/` and wiring it into whichever HudRoot card should show it (directly, by stat id — see e.g. `attributes_panel.gd`/`combat_readout.gd`), NOT by setting `display_*` fields and expecting a panel to pick it up (there isn't one). The fields below describe the old contract for reference.
 
 ## Visualizer (editor plugin)
 
