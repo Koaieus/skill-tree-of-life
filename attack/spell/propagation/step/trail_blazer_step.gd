@@ -1,9 +1,9 @@
 @tool
-class_name LineKillerStep
+class_name TrailBlazerStep
 extends PropagationStep
 
-## Single-path "string walker" for The Line Killer. From the seed it walks one
-## path of degree-2 nodes, adding [member per_hop_increment] to the damage at
+## Single-path "string walker" for The Trail Blazer, a true "Line Killer". From the seed it walks to
+## each degree-2 node, adding [member per_hop_increment] to the damage at
 ## each hop, until it reaches a junction (graph degree > 2) — the *slam* node —
 ## where it applies [member terminal_mode] and stops.
 ##

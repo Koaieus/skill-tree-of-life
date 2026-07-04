@@ -11,7 +11,7 @@
 [ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="7_g2k83"]
 [ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="8_wrmdn"]
 [ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="9_8vg6i"]
-[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/line_killer.tres" id="12_f6k7f"]
+[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="12_f6k7f"]
 
 [sub_resource type="Resource" id="Resource_psl4n"]
 resource_local_to_scene = true

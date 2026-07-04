@@ -1,22 +1,22 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene format=3 uid="uid://cqu7ltuapb1yh"]
 
-[ext_resource type="Script" path="res://ui/hud/hud_root.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="12_tooltip"]
-[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
-[ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
-[ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="15_overlay"]
-[ext_resource type="PackedScene" path="res://ui/hud/hero_sigil_card/hero_sigil_card.tscn" id="2_hero"]
-[ext_resource type="PackedScene" path="res://ui/hud/attributes_panel/attributes_panel.tscn" id="3_attrs"]
-[ext_resource type="PackedScene" path="res://ui/hud/turn_resources_panel/turn_resources_panel.tscn" id="4_turnres"]
-[ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_readout.tscn" id="5_combat"]
-[ext_resource type="PackedScene" path="res://ui/initiative_bar.tscn" id="6_initiative"]
-[ext_resource type="PackedScene" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
+[ext_resource type="Script" uid="uid://bj58e6djwb2m2" path="res://ui/hud/hud_root.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://c1fl7vqnjwoh5" path="res://ui/hud/hero_sigil_card/hero_sigil_card.tscn" id="2_hero"]
+[ext_resource type="PackedScene" uid="uid://h348jvfyef1r" path="res://ui/hud/attributes_panel/attributes_panel.tscn" id="3_attrs"]
+[ext_resource type="PackedScene" uid="uid://cxy0rep5jo226" path="res://ui/hud/turn_resources_panel/turn_resources_panel.tscn" id="4_turnres"]
+[ext_resource type="PackedScene" uid="uid://syx2qix6erfj" path="res://ui/hud/combat_readout/combat_readout.tscn" id="5_combat"]
+[ext_resource type="PackedScene" uid="uid://qybxf6lb7hjj" path="res://ui/initiative_bar.tscn" id="6_initiative"]
+[ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
-[ext_resource type="PackedScene" path="res://ui/hud/announcer_layer/announcer_layer.tscn" id="9_announcer"]
+[ext_resource type="PackedScene" uid="uid://c3yt4dj2a6x1y" path="res://ui/hud/announcer_layer/announcer_layer.tscn" id="9_announcer"]
 [ext_resource type="PackedScene" path="res://ui/banner_layer/banner_layer.tscn" id="10_banner"]
 [ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
+[ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="12_tooltip"]
+[ext_resource type="PackedScene" uid="uid://byuujrcff7ex7" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
+[ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
+[ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="15_overlay"]
 
-[node name="HudRoot" type="Control"]
+[node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
 layout_mode = 3
 anchors_preset = 15
@@ -27,7 +27,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_script")
 
-[node name="TurnTrackerSlot" type="Control" parent="."]
+[node name="TurnTrackerSlot" type="Control" parent="." unique_id=1786189160]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 10
@@ -37,32 +37,33 @@ offset_bottom = 44.0
 grow_horizontal = 2
 mouse_filter = 2
 
-[node name="InitiativeBar" parent="TurnTrackerSlot" instance=ExtResource("6_initiative")]
+[node name="InitiativeBar" parent="TurnTrackerSlot" unique_id=1934973789 instance=ExtResource("6_initiative")]
 unique_name_in_owner = true
+layout_mode = 1
 
-[node name="LeftColumnSlot" type="VBoxContainer" parent="."]
+[node name="LeftColumnSlot" type="VBoxContainer" parent="." unique_id=758516905]
 unique_name_in_owner = true
 layout_mode = 1
 offset_left = 20.0
 offset_top = 20.0
 offset_right = 300.0
 offset_bottom = 620.0
-theme_override_constants/separation = 10
 mouse_filter = 2
+theme_override_constants/separation = 10
 
-[node name="HeroSigilCard" parent="LeftColumnSlot" instance=ExtResource("2_hero")]
+[node name="HeroSigilCard" parent="LeftColumnSlot" unique_id=727252485 instance=ExtResource("2_hero")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AttributesPanel" parent="LeftColumnSlot" instance=ExtResource("3_attrs")]
+[node name="AttributesPanel" parent="LeftColumnSlot" unique_id=309475614 instance=ExtResource("3_attrs")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="TurnResourcesPanel" parent="LeftColumnSlot" instance=ExtResource("4_turnres")]
+[node name="TurnResourcesPanel" parent="LeftColumnSlot" unique_id=586963688 instance=ExtResource("4_turnres")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="RightColumnSlot" type="Control" parent="."]
+[node name="RightColumnSlot" type="Control" parent="." unique_id=1978774433]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 1
@@ -75,15 +76,18 @@ offset_bottom = 620.0
 grow_horizontal = 0
 mouse_filter = 2
 
-[node name="CombatReadout" parent="RightColumnSlot" instance=ExtResource("5_combat")]
+[node name="CombatReadout" parent="RightColumnSlot" unique_id=871035065 instance=ExtResource("5_combat")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
+offset_right = 0.0
+offset_bottom = 84.0
 grow_horizontal = 2
 
-[node name="NodeInspectorCard" parent="RightColumnSlot" instance=ExtResource("11_inspector")]
+[node name="NodeInspectorCard" parent="RightColumnSlot" unique_id=108897864 instance=ExtResource("11_inspector")]
 unique_name_in_owner = true
+visible = false
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -91,7 +95,7 @@ offset_top = 490.0
 offset_bottom = 600.0
 grow_horizontal = 2
 
-[node name="CommandTraySlot" type="Control" parent="."]
+[node name="CommandTraySlot" type="Control" parent="." unique_id=1568469518]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 7
@@ -107,7 +111,7 @@ grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 
-[node name="CommandTray" parent="CommandTraySlot" instance=ExtResource("8_tray")]
+[node name="CommandTray" parent="CommandTraySlot" unique_id=32839746 instance=ExtResource("8_tray")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -116,7 +120,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="APEndTurnSlot" type="Control" parent="."]
+[node name="APEndTurnSlot" type="Control" parent="." unique_id=1011505414]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 3
@@ -132,7 +136,7 @@ grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
 
-[node name="ActionCluster" parent="APEndTurnSlot" instance=ExtResource("7_cluster")]
+[node name="ActionCluster" parent="APEndTurnSlot" unique_id=1864315621 instance=ExtResource("7_cluster")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -141,26 +145,27 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="AnnouncerLayer" parent="." instance=ExtResource("9_announcer")]
+[node name="AnnouncerLayer" parent="." unique_id=394311347 instance=ExtResource("9_announcer")]
 unique_name_in_owner = true
 
-[node name="BannerLayer" parent="." instance=ExtResource("10_banner")]
+[node name="BannerLayer" parent="." unique_id=652362523 instance=ExtResource("10_banner")]
 unique_name_in_owner = true
 
-[node name="SkillNodeTooltip" parent="." instance=ExtResource("12_tooltip")]
+[node name="SkillNodeTooltip" parent="." unique_id=690332766 instance=ExtResource("12_tooltip")]
 visible = false
 layout_mode = 1
 offset_right = 180.0
 offset_bottom = 55.0
 
-[node name="SpellTooltip" parent="." instance=ExtResource("13_spell_tt")]
+[node name="SpellTooltip" parent="." unique_id=556906459 instance=ExtResource("13_spell_tt")]
 visible = false
 layout_mode = 1
 offset_right = 200.0
 offset_bottom = 60.0
 
-[node name="StatBoardOverlay" type="Control" parent="."]
+[node name="StatBoardOverlay" type="Control" parent="." unique_id=1359135557]
 unique_name_in_owner = true
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -169,5 +174,6 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("15_overlay")
 
-[node name="PauseMenu" parent="." instance=ExtResource("14_pause")]
+[node name="PauseMenu" parent="." unique_id=1576476463 instance=ExtResource("14_pause")]
+visible = false
 layout_mode = 1
