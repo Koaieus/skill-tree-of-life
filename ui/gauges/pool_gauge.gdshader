@@ -51,12 +51,25 @@ void fragment() {
 		COLOR = vec4(col.rgb, col.a * shape_alpha);
 	} else {
 		float n = max(1.0, floor(cell_count + 0.5));
+		// Shearing the whole cell strip by skew_degrees would push the
+		// top or bottom edge of the outermost cells past the texture
+		// bounds (clipped off) for any nonzero skew. Instead of shearing
+		// the full-width strip, shrink the strip to `usable_width` (the
+		// width still shared by every horizontal slice after shearing)
+		// and slide it within [0, size.x] as `t` sweeps top->bottom, so
+		// both slanted side edges stay on-canvas for the whole -45..45
+		// range without a second uniform — size + skew_degrees already
+		// carry what's needed.
 		float skew_px = size.y * tan(radians(skew_degrees));
-		float sheared_x = px.x - (px.y / max(size.y, 0.001)) * skew_px;
-		float cell_w = size.x / n;
+		float abs_skew = abs(skew_px);
+		float usable_width = max(1.0, size.x - abs_skew);
+		float t = clamp(px.y / max(size.y, 0.001), 0.0, 1.0);
+		float window_min = skew_px >= 0.0 ? t * skew_px : (1.0 - t) * abs_skew;
+		float sheared_x = px.x - window_min;
+		float cell_w = usable_width / n;
 		float idx = floor(sheared_x / max(cell_w, 0.001));
 
-		if (idx < 0.0 || idx >= n) {
+		if (sheared_x < 0.0 || sheared_x > usable_width || idx >= n) {
 			discard;
 		}
 

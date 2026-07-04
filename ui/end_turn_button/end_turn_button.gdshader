@@ -11,7 +11,7 @@ uniform vec3 hot_color : source_color = vec3(0.85, 0.95, 1.0);
 uniform float glow_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float active_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float disabled_strength : hint_range(0.0, 1.0) = 0.0;
-uniform int chevron_count : hint_range(1, 3) = 1;
+uniform int chevron_count : hint_range(1, 5) = 1;
 // Driven from EndTurnButton.gd: accumulates `delta * current_speed` per frame.
 // Doing the integration in script means a hover-driven speed bump doesn't
 // reproject all of TIME through the new multiplier (which jumps the pattern
@@ -77,10 +77,6 @@ void fragment() {
     // Rim
     float rim = shape * smoothstep(0.04, 0.0, -dist);
     col += mix(tint, hot_color, 0.4) * rim * (0.25 + active_strength * 0.35 + glow_strength * 0.4);
-
-    // Static grain
-    vec2 noise_cell = floor(UV * texture_size * 0.3);
-    col += (hash21(noise_cell) - 0.5) * 0.012;
 
     // Disabled desat
     float luma = dot(col, vec3(0.299, 0.587, 0.114));

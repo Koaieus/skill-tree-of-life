@@ -12,6 +12,7 @@ extends Control
 ## where one IS needed).
 
 @onready var _ap_gauge: PoolGauge = %APGauge
+@onready var _value_label: Label = %ValueLabel
 @onready var _warning_label: Label = %WarningLabel
 @onready var _end_turn_button: EndTurnButton = %EndTurnButton
 
@@ -36,6 +37,8 @@ func bind(player: Entity, turn_manager: TurnManager, input_ctl: PlayerInputContr
 			_ap_gauge.max_value = float(ap.value)
 			_ap_gauge.cell_count = float(ap.value)
 			_ap_gauge.current = float(ap.current)
+			if _value_label != null:
+				_value_label.text = "%d/%d" % [int(ap.current), int(ap.value)]
 			_refresh_warning()
 		ap.current_changed.connect(sync.unbind(1))
 		ap.value_changed.connect(sync)
@@ -78,15 +81,24 @@ func _refresh_end_turn_button() -> void:
 ## deliberately, not extracted — see #118 Cutover for the dedupe point once
 ## UIRoot retires): only AP triggers the confirm/warning, and only while
 ## there's still a visible enemy node worth spending it on.
+##
+## Fades via alpha rather than `.visible` — toggling `.visible` on a
+## VBoxContainer child collapses its layout slot, which shoves EndTurnButton
+## up/down every time the warning appears/disappears. Alpha keeps the slot
+## (and everything below it) fixed in place.
 func _refresh_warning() -> void:
 	if _warning_label == null or _player == null or _player.stat_board == null:
 		return
 	var ap: PoolStat = _player.stat_board.action_points
 	if ap == null or ap.current <= 0 or not _any_enemy_visible():
-		_warning_label.visible = false
+		_warning_label.modulate.a = 0.0
 		return
-	_warning_label.visible = true
+	_warning_label.modulate.a = 1.0
 	_warning_label.text = "%d unspent Action Point%s" % [int(ap.current), "" if int(ap.current) == 1 else "s"]
+
+
+func _warning_showing() -> bool:
+	return _warning_label != null and _warning_label.modulate.a > 0.5
 
 
 func _any_enemy_visible() -> bool:
@@ -112,7 +124,7 @@ func _on_end_turn_pressed() -> void:
 		_end_turn_button.hide_confirm()
 		return
 	var ctrl_held := Input.is_key_pressed(KEY_CTRL)
-	if ctrl_held or not _warning_label.visible:
+	if ctrl_held or not _warning_showing():
 		_end_turn()
 		return
 	_end_turn_button.show_confirm(_warning_label.text)

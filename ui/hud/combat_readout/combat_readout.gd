@@ -55,10 +55,14 @@ func bind(player: Entity, battle_system: BattleSystem) -> void:
 
 func _on_plan_changed(plan: AttackPlan) -> void:
 	var mode := plan.mode if plan != null else BattleSystem.AttackMode.NONE
-	_melee_card.set_active(mode == BattleSystem.AttackMode.MELEE)
-	_ranged_card.set_active(mode == BattleSystem.AttackMode.RANGED)
-	_magic_card.set_active(mode == BattleSystem.AttackMode.MAGIC)
-	_defense_card.set_active(false)
+	# Manage (no mode selected) un-dims every card — the design's "reference
+	# state". Defense is always active/undimmed: it's not mode-bound, there's
+	# no "select Defense" input channel.
+	var manage := mode == BattleSystem.AttackMode.NONE
+	_melee_card.set_active(manage or mode == BattleSystem.AttackMode.MELEE)
+	_ranged_card.set_active(manage or mode == BattleSystem.AttackMode.RANGED)
+	_magic_card.set_active(manage or mode == BattleSystem.AttackMode.MAGIC)
+	_defense_card.set_active(true)
 
 
 func _on_skill_node_hovered(node: SkillNode) -> void:

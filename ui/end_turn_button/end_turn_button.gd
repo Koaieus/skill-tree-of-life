@@ -23,9 +23,10 @@ const _SCROLL_IDLE_SPEED: float = 0.55
 const _SCROLL_HOVER_SPEED: float = 1.25
 
 ## Fixed button look (no more per-phase tinting).
-const _TINT := Color(1.00, 0.55, 0.20)
-const _HOT_TINT := Color(1.00, 0.85, 0.40)
-const _CHEVRON_COUNT := 3
+const _TINT := Color(1.0, 0.851, 0.4, 1.0)
+const _DARK_TINT := Color(0.278, 0.239, 0.114, 1.0) # Color(1.00, 0.55, 0.20)
+const _HOT_TINT := Color(1.0, 0.549, 0.2, 1.0) #Color(1.00, 0.85, 0.40)
+const _CHEVRON_COUNT := 1
 
 ## Emitted when the user clicks the confirmation bubble.
 signal confirmed
@@ -42,7 +43,7 @@ var _scroll_offset: float = 0.0
 @onready var color_rect: ColorRect = $ColorRect
 @onready var label: Label = $Label
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
-@onready var _bubble: PanelContainer = %ConfirmBubble
+@onready var _bubble: GlassPanel = %ConfirmBubble
 @onready var _bubble_warning: Label = %ConfirmBubble/Margin/VBox/Warning
 ## One-shot auto-dismiss for the confirm bubble (#90). Restarted on every
 ## show_confirm, stopped on hide. Scene-authored (%ConfirmTimer) + its timeout /
@@ -87,6 +88,7 @@ func _ready() -> void:
 
 	_push("texture_size", size)
 	_push("tint", _TINT)
+	_push("dark_tint", _DARK_TINT)
 	_push("hot_color", _HOT_TINT)
 	_push("chevron_count", _CHEVRON_COUNT)
 	enabled = not disabled

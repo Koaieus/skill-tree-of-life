@@ -48,7 +48,7 @@ size_flags_horizontal = 3
 [node name="APLabel" type="Label" parent="Margin/Content/Batteries/APColumn"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.55)
+modulate = Color(0.9039, 0.7331, 0.2746, 1)
 text = "ACTION"
 
 [node name="APGauge" parent="Margin/Content/Batteries/APColumn" instance=ExtResource("3_gauge")]
@@ -57,9 +57,9 @@ custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 cell_count = 2.0
-skew_degrees = 15.0
-fill_color = Color(0.291, 0.5892, 1.0, 1)
-glow_color = Color(0.291, 0.5892, 1.0, 0.6)
+skew_degrees = -15.0
+fill_color = Color(0.9039, 0.7331, 0.2746, 1)
+glow_color = Color(0.9039, 0.7331, 0.2746, 0.6)
 
 [node name="DPColumn" type="VBoxContainer" parent="Margin/Content/Batteries"]
 layout_mode = 2
@@ -68,7 +68,7 @@ size_flags_horizontal = 3
 [node name="DPLabel" type="Label" parent="Margin/Content/Batteries/DPColumn"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.55)
+modulate = Color(0.6935, 0.4045, 0.9676, 1)
 text = "DEALLOC"
 
 [node name="DPGauge" parent="Margin/Content/Batteries/DPColumn" instance=ExtResource("3_gauge")]
@@ -77,9 +77,9 @@ custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 cell_count = 3.0
-skew_degrees = 15.0
-fill_color = Color(0.9451, 0.2689, 0.2453, 1)
-glow_color = Color(0.9451, 0.2689, 0.2453, 0.6)
+skew_degrees = -15.0
+fill_color = Color(0.6935, 0.4045, 0.9676, 1)
+glow_color = Color(0.6935, 0.4045, 0.9676, 0.6)
 
 [node name="MPColumn" type="VBoxContainer" parent="Margin/Content/Batteries"]
 layout_mode = 2
@@ -88,7 +88,7 @@ size_flags_horizontal = 3
 [node name="MPLabel" type="Label" parent="Margin/Content/Batteries/MPColumn"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(1, 1, 1, 0.55)
+modulate = Color(0.3187, 0.7773, 0.4484, 1)
 text = "MOVE"
 
 [node name="MPGauge" parent="Margin/Content/Batteries/MPColumn" instance=ExtResource("3_gauge")]
@@ -97,7 +97,7 @@ custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 cell_count = 1.0
-skew_degrees = 15.0
+skew_degrees = -15.0
 fill_color = Color(0.3187, 0.7773, 0.4484, 1)
 glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)
 
@@ -112,7 +112,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 11
-modulate = Color(1, 1, 1, 0.6)
+modulate = Color(0.2606, 0.6387, 0.9922, 1)
 text = "SKILL POINTS"
 
 [node name="SPToSpendValue" type="Label" parent="Margin/Content/SPSection/SPHeader"]

@@ -65,6 +65,7 @@ func _bind_skill_points(sp: SkillPointStat) -> void:
 		return
 	var sync := func():
 		_sp_bar.set_buckets(float(sp.current), float(sp.wounded), float(sp.staked), float(sp.value))
+		_sp_bar.cell_count = float(sp.value)
 		if _sp_to_spend_value != null:
 			_sp_to_spend_value.text = str(int(sp.current))
 			_sp_to_spend_value.modulate = Color(1, 1, 1, 1) if sp.current > 0 else Color(1, 1, 1, 0.35)
