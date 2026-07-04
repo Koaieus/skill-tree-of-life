@@ -1,7 +1,7 @@
 class_name GameRoot
 extends Node2D
 
-## Composition root for a level: holds the live references that UIRoot (and
+## Composition root for a level: holds the live references that HudRoot (and
 ## future AI / save / debug consumers) compose against. Public fields are the
 ## level's contract — read-only by convention; GameRoot itself owns mutations.
 ##
@@ -26,13 +26,8 @@ const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 ## kicks, so a showcase can drive its own beat loop (and set `current_entity`
 ## directly for killer attribution) without TurnManager/AI taking over.
 @export var auto_start_turn: bool = true
-## When false, `_ready` skips `UIRoot.compose` and hides the UI layer.
+## When false, `_ready` skips `HudRoot.compose` and hides the UI layer.
 @export var show_ui: bool = true
-## #107 — HudRoot (the Arcane Terminal HUD rebuild) is composed side-by-side
-## with UIRoot but stays hidden until #118 (Cutover) swaps it in. Flip this
-## on to preview the in-progress HUD during development; both are kept live
-## so systems wiring can be exercised against either.
-@export var show_hud_root: bool = false
 ## When false, the fog overlay is hidden (a self-driven demo wants every node
 ## visible regardless of owned-subgraph vision).
 @export var enable_fog: bool = true
@@ -54,7 +49,6 @@ var player: Entity
 
 # UI
 @onready var camera: Camera2D = %GraphCamera
-@onready var ui_root: UIRoot = %UIRoot
 @onready var hud_root: HudRoot = %HudRoot
 
 @onready var node_highlight: NodeHighlightOverlay = %NodeHighlightOverlay
@@ -73,7 +67,7 @@ func _ready() -> void:
 	# _setup_level runs — procgen spawning goes through force_allocate which
 	# claims itself, but hand-authored owned_by= assignments skip that path.
 	allocation_system.register_scene_authored_ownership()
-	# _setup_level runs BEFORE ui_root.compose because compose reads
+	# _setup_level runs BEFORE hud_root.compose because compose reads
 	# `player.stat_board` immediately — procgen sandboxes that spawn the
 	# player here need the entity in place first. `await` is harmless on
 	# synchronous overrides; procgen sandboxes that drive a loading bar
@@ -96,11 +90,8 @@ func _ready() -> void:
 		if floater_director != null:
 			floater_director.vision_system = null
 	if show_ui:
-		ui_root.compose(self)
 		if hud_root != null:
 			hud_root.compose(self)
-			hud_root.visible = show_hud_root
-			ui_root.visible = not show_hud_root
 		_wire_hud_floater_anchor()
 	else:
 		$UI.visible = false

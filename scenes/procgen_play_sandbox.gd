@@ -3,7 +3,7 @@ extends GameRoot
 ## Procgen sandbox with a live player + AI starters. Inherits the
 ## [code]game_root.tscn[/code] skeleton; populates entities via
 ## [method GameRoot._setup_level] so generation runs *after* the systems
-## are in the tree but *before* UIRoot composes (it reads player stats).
+## are in the tree but *before* HudRoot composes (it reads player stats).
 ##
 ## Random-walk territory expansion below skips [AllocationSystem.allocate]
 ## because that's gated on SP/AP — fine in-game, hostile to one-shot setup.

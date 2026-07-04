@@ -9,7 +9,8 @@ extends Node
 ## teaching this resolver about it — the overlays never change.
 ##
 ## Priority (highest first): active attack plan > core-move targeting > none.
-## Mirrors the ContextPanel resolver deliberately — same shape, different output.
+## Mirrors the old ContextPanel resolver's shape (now retired, #118) —
+## same priority-resolve pattern, different output.
 ##
 ## A scene-tree system (sibling of the other Systems nodes). Its system deps are
 ## NodePath @exports wired in game_root.tscn — same DI style as AllocationSystem

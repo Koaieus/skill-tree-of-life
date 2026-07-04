@@ -24,9 +24,12 @@ enum DisplayType { BASIC, BAR, PROGRESS, INLINE, HIDDEN }
 @export var display_order: int = 0
 @export var display_type: DisplayType = DisplayType.BASIC
 @export var tint_color: Color = Color.WHITE
-## Tab the StatsPanel routes this stat into. Empty defaults to the catch-all
-## tab. Convention: keep to a small fixed set so the panel stays scannable.
-## Ignored for INLINE stats — those inherit their parent's tab.
+## Tab a generic stat panel would route this stat into (legacy — the old
+## StatsPanel that consumed this was retired in #118; HudRoot's cards bind
+## specific stat ids directly instead of enumerating by display_group. Kept
+## as still-valid metadata pending a decision on whether a generic consumer
+## returns — see the #118 follow-up issue). Empty defaults to the catch-all
+## tab. Ignored for INLINE stats — those inherit their parent's tab.
 @export var display_group: StringName = &""
 ## For INLINE display_type: the id of the stat this renders under as a sub-row.
 ## The panel inserts the inline row immediately after the named parent's row.

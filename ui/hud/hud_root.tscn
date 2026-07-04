@@ -1,6 +1,10 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud_root.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="12_tooltip"]
+[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
+[ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
+[ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="15_overlay"]
 [ext_resource type="PackedScene" path="res://ui/hud/hero_sigil_card/hero_sigil_card.tscn" id="2_hero"]
 [ext_resource type="PackedScene" path="res://ui/hud/attributes_panel/attributes_panel.tscn" id="3_attrs"]
 [ext_resource type="PackedScene" path="res://ui/hud/turn_resources_panel/turn_resources_panel.tscn" id="4_turnres"]
@@ -142,3 +146,28 @@ unique_name_in_owner = true
 
 [node name="BannerLayer" parent="." instance=ExtResource("10_banner")]
 unique_name_in_owner = true
+
+[node name="SkillNodeTooltip" parent="." instance=ExtResource("12_tooltip")]
+visible = false
+layout_mode = 1
+offset_right = 180.0
+offset_bottom = 55.0
+
+[node name="SpellTooltip" parent="." instance=ExtResource("13_spell_tt")]
+visible = false
+layout_mode = 1
+offset_right = 200.0
+offset_bottom = 60.0
+
+[node name="StatBoardOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("15_overlay")
+
+[node name="PauseMenu" parent="." instance=ExtResource("14_pause")]
+layout_mode = 1

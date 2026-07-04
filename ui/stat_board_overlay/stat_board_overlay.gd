@@ -1,12 +1,12 @@
 ## Runtime debug overlay: F3 toggles a StatBoardGraph over the game.
 ##
-## Wire by the scene glue (like dev_sandbox.gd wires StatsPanel):
+## Wire by the scene glue (HudRoot.compose does this):
 ##   overlay.board = _player.stat_board
 ##
 ## Falls back to `get_first_node_in_group("player").stat_board` if `board`
 ## is not set — requires the player entity to add_to_group("player").
 ##
-## Mount: add as a child of $UI/UIRoot or any CanvasLayer in your level scene.
+## Mount: add as a child of HudRoot or any CanvasLayer in your level scene.
 ## The internal StatBoardGraph runs a 4 Hz refresh timer; we don't need to
 ## drive it from _process.
 extends Control

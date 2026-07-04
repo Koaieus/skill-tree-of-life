@@ -2,16 +2,13 @@
 class_name HudRoot
 extends Control
 
-## Structural spine of the "Arcane Terminal" HUD (#98/#107) — the replacement
-## for [UIRoot]. Anchors the five design clusters via Control anchor presets
-## + margins (translated from the design's 1440x900 absolute coords, not
-## hardcoded pixel offsets) and hands cross-system deps to each cluster's
-## own scene-local `bind()`/setter, mirroring [UIRoot.compose]'s DI contract:
+## Structural spine of the "Arcane Terminal" HUD (#98/#107) — the sole UI
+## layer since #118's cutover (replaced the old UIRoot). Anchors the five
+## design clusters via Control anchor presets + margins (translated from the
+## design's 1440x900 absolute coords, not hardcoded pixel offsets) and hands
+## cross-system deps to each cluster's own scene-local `bind()`/setter:
 ## scene-local children via `%UniqueName`, cross-system deps via one
 ## `compose(game_root)` call from GameRoot.
-##
-## Composed side-by-side with UIRoot during the build-out (#107..#117) —
-## GameRoot composes both; only #118 (Cutover) swaps which one is visible.
 
 @onready var turn_tracker_slot: Control = %TurnTrackerSlot
 @onready var left_column_slot: Control = %LeftColumnSlot
@@ -29,6 +26,7 @@ extends Control
 @onready var command_tray: CommandTray = %CommandTray
 @onready var announcer_layer: AnnouncerLayer = %AnnouncerLayer
 @onready var banner_layer: BannerLayer = %BannerLayer
+@onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -37,9 +35,9 @@ var _turn_manager: TurnManager
 var _vision_system: VisionSystem
 
 
-## Injected by [GameRoot] once it and HudRoot are both in the tree. Same
-## discipline as [UIRoot.compose]: every `source.signal.connect(target)` is
-## paired with an immediate call using the source's current value.
+## Injected by [GameRoot] once it and HudRoot are both in the tree. Every
+## `source.signal.connect(target)` is paired with an immediate call using
+## the source's current value.
 func compose(game_root: GameRoot) -> void:
 	_player = game_root.player
 	_input_ctl = game_root.input_ctl
@@ -50,6 +48,8 @@ func compose(game_root: GameRoot) -> void:
 	if _player == null:
 		return
 
+	if stat_board_overlay != null:
+		stat_board_overlay.board = _player.stat_board
 	if hero_sigil_card != null:
 		hero_sigil_card.bind(_player)
 	if attributes_panel != null:

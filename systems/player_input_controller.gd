@@ -49,7 +49,7 @@ signal player_can_act_changed(can_act: bool)
 signal core_move_targeting_changed(source: SkillNode)
 
 ## A node was pinned (right-clicked when no attack plan was eating the click) or
-## unpinned (null). The ContextPanel surfaces the pinned node's details.
+## unpinned (null). [NodeInspectorCard] surfaces the pinned node's details.
 signal node_pinned(node: SkillNode)
 
 ## The player's core node while a click-to-move is in progress. Null between

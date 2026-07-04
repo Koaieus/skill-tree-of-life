@@ -7,10 +7,10 @@ extends Button
 ## just ends the single-phase turn.)
 ##
 ## Confirmation: an inline speech-bubble lives as a child node. When the player
-## would waste action points, UIRoot calls [method show_confirm] instead of
-## ending; the bubble pops above the button and clicking it commits.
-## Ctrl-clicking the button itself skips the bubble entirely (UIRoot decides;
-## we just expose the signals).
+## would waste action points, the owning cluster ([ActionCluster] in HudRoot)
+## calls [method show_confirm] instead of ending; the bubble pops above the
+## button and clicking it commits. Ctrl-clicking the button itself skips the
+## bubble entirely (the owning cluster decides; we just expose the signals).
 
 const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.gdshader")
 const ANIMATION_TIME: float = 0.25

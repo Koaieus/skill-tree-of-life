@@ -16,7 +16,7 @@ extends Button
 ## tweens so transitions are smooth.
 ##
 ## On hover emits [signal Events.spell_hovered] / [signal Events.spell_unhovered]
-## so the floating [SpellTooltip] (mounted in UIRoot) shows a formatted scene
+## so the floating [SpellTooltip] (mounted in HudRoot) shows a formatted scene
 ## with dynamic-value highlighting instead of a plain-text Godot tooltip.
 
 const BG_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button.gdshader")

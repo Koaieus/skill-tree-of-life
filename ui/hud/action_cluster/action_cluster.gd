@@ -77,9 +77,8 @@ func _refresh_end_turn_button() -> void:
 	_end_turn_button.set_enabled(_turn_manager.current_entity == _player)
 
 
-## Same shape as the pre-existing UIRoot._unspent_warning (kept in sync
-## deliberately, not extracted — see #118 Cutover for the dedupe point once
-## UIRoot retires): only AP triggers the confirm/warning, and only while
+## Same shape as the old UIRoot._unspent_warning (retired in #118 — this is
+## now the only copy): only AP triggers the confirm/warning, and only while
 ## there's still a visible enemy node worth spending it on.
 ##
 ## Fades via alpha rather than `.visible` — toggling `.visible` on a
