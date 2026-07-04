@@ -18,7 +18,8 @@ No build step, test runner, or lint tool. Each level scene extends `scenes/game_
 
 ## Architecture
 
-`GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `UIRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content. Spawn entities via `spawn_entity(name, color, core_location, core_class)`.
+`GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `HudRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content. Spawn entities via `spawn_entity(name, color, core_location, core_class)`.
+`HudRoot` (`ui/hud/hud_root.gd`) — the "Arcane Terminal" HUD, sole UI layer since #118 (replaced the old UIRoot/StatsPanel/ContextPanel, all deleted). Anchors five design clusters (Hero/Attributes/TurnResources left column, CombatReadout/NodeInspectorCard right column, CommandTray bottom-center, ActionCluster bottom-right, InitiativeBar top-center) plus AnnouncerLayer/BannerLayer FX and SkillNodeTooltip/SpellTooltip/PauseMenu/StatBoardOverlay mounts. Each cluster gets deps via its own scene-local `bind()`; cross-system deps flow through one `compose(game_root)` call.
 `Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
 `Entity` (`entity/entity.gd`) — players and NPCs use the same class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) that brands the entity with identity modifiers + an `on_turn_started` hook; `BalancedCore` is the +10 STR/DEX/INT baseline.
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` (`entity/entity_navigator.gd`) is the per-entity subgraph mirror used for cut-vertex / islanding queries.
@@ -53,7 +54,7 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 ## Godot conventions
 
 - `@tool` on `SkillNode`, `Entity`, `Graph` — they run in the editor.
-- `%NodeName` (unique name) for child node access in scenes; UIRoot reads systems via `%PlayerInputController`, `%VisionSystem`, etc.
+- `%NodeName` (unique name) for child node access in scenes; GameRoot reads systems via `%PlayerInputController`, `%VisionSystem`, etc.
 - `call_deferred` / `await` for post-ready init.
 
 ## Knowledge accumulation
