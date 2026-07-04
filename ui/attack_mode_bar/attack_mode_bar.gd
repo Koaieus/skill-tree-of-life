@@ -6,26 +6,33 @@ signal attack_mode_requested(mode: BattleSystem.AttackMode)
 
 @onready var _group: ButtonGroup = $MeleeToggleButton.button_group
 
+## Mirrors whatever [method set_active_mode] was last told — NOT derived from
+## button toggle state. Godot's [ButtonGroup] radio-exclusivity silently
+## blocks un-pressing the already-active button on re-click, so we listen to
+## each button's raw `pressed` (fires on every click, toggle-state-change or
+## not) rather than the group's `pressed`/`toggled` signals, and decide
+## cancel-vs-switch ourselves against this tracked value.
+var _active_mode: BattleSystem.AttackMode = BattleSystem.AttackMode.NONE
 
-# Called when the node enters the scene tree for the first time.
+
 func _ready() -> void:
-	_group.pressed.connect(_on_group_pressed)
-	for btn in _group.get_buttons():
-		(btn as Button).toggled.connect(_on_any_toggled)
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
+	for btn: AttackModeButton in _group.get_buttons():
+		btn.pressed.connect(_on_button_pressed.bind(btn))
 
 
-func _on_group_pressed(button: BaseButton) -> void:
-	attack_mode_requested.emit((button as AttackModeButton).attack_mode)
-
-func _on_any_toggled(toggled_on: bool) -> void:
-	if not toggled_on and _group.get_pressed_button() == null:
+## Re-clicking the already-active Melee/Ranged/Magic tab cancels back to
+## Manage instead of doing nothing (the ButtonGroup default). Manage itself
+## has no "active mode" to cancel out of, so it always just (re)requests NONE.
+func _on_button_pressed(btn: AttackModeButton) -> void:
+	var mode := btn.attack_mode
+	if mode == _active_mode and mode != BattleSystem.AttackMode.NONE:
 		attack_mode_requested.emit(BattleSystem.AttackMode.NONE)
+	else:
+		attack_mode_requested.emit(mode)
+
 
 func set_active_mode(mode: BattleSystem.AttackMode) -> void:
+	_active_mode = mode
 	for btn: AttackModeButton in _group.get_buttons():
 		btn.override_toggle(btn.attack_mode == mode)
 
