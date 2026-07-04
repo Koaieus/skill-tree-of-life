@@ -30,6 +30,19 @@ signal wounds_applied(amount: int)
 signal wounds_healed(amount: int)
 signal stake_applied(amount: int)
 signal stake_extracted(amount: int)
+## Fires every turn upkeep with the new [member wound_heal_progress] — the
+## UI's wound-heal sliver binds here rather than polling.
+signal wound_heal_progress_changed(progress: float)
+
+## 0..1 fraction toward the next whole-SP heal tick. Runtime-only (not
+## persisted) — accumulates [code]wound_heal_per_turn[/code] every turn
+## upkeep even at fractional rates (e.g. 0.5/turn takes two turns to heal
+## one SP), which plain `int(rate)` truncation would otherwise silently
+## drop every turn. Held at 1.0 (capped, not wrapped) while [member wounded]
+## is 0 — there's nothing to spend the credit on — so it reads "full" until
+## the entity is wounded again, at which point the very next turn upkeep
+## immediately heals and drains it. See [method _custom_turn_upkeep].
+var wound_heal_progress: float = 0.0
 
 @export var wounded: int = 0:
 	set(v):
@@ -93,13 +106,21 @@ func wound(n: int) -> void:
 ## heal `wound_heal_per_turn` worth of wounds — a bin transfer (wounded →
 ## current), not a pool top-up, which is why it can't be REFILL/ADD. Reads the
 ## rate off the board (the same sibling-stat coupling ADD pays for its companion).
+##
+## Accumulates fractionally (see [member wound_heal_progress]) instead of
+## flooring the rate to an int every turn — a sub-1.0 rate would otherwise
+## never heal anything.
 func _custom_turn_upkeep(board: StatBoard) -> void:
-	var rate := board.get_stat(&"wound_heal_per_turn")
-	if rate == null:
+	var rate_stat := board.get_stat(&"wound_heal_per_turn")
+	var rate: float = float(rate_stat.get_value()) if rate_stat != null else 0.0
+	if rate <= 0.0:
 		return
-	var n := int(rate.get_value())
-	if n > 0:
-		heal(n)
+	wound_heal_progress += rate
+	while wound_heal_progress >= 1.0 and wounded > 0:
+		heal(1)
+		wound_heal_progress -= 1.0
+	wound_heal_progress = minf(wound_heal_progress, 1.0)
+	wound_heal_progress_changed.emit(wound_heal_progress)
 
 
 ## Heal N wounds: transfer wounded → current.

@@ -27,23 +27,22 @@ action = &"ui_select_magic_mode"
 [sub_resource type="Shortcut" id="Shortcut_ei3j1"]
 events = [SubResource("InputEventAction_65xm6")]
 
-[node name="ActionBar" type="HBoxContainer" unique_id=479899127]
-offset_right = 512.0
+[node name="ActionModeBar" type="HBoxContainer" unique_id=479899127]
+offset_right = 524.0
 offset_bottom = 64.0
 size_flags_horizontal = 0
 size_flags_vertical = 0
 script = ExtResource("1_lh5ky")
 
-[node name="ManageToggleButton" parent="." unique_id=3610441884 instance=ExtResource("1_lgd3m")]
+[node name="ManageToggleButton" parent="." unique_id=-684525412 instance=ExtResource("1_lgd3m")]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 0
+button_pressed = true
 shortcut = SubResource("Shortcut_gogxr")
 text = "Manage"
 tint = Color(0.784, 0.824, 0.902, 1)
-attack_mode = 0
 key_hint = "1"
-button_pressed = true
 
 [node name="MeleeToggleButton" parent="." unique_id=1205266549 instance=ExtResource("1_lgd3m")]
 layout_mode = 2

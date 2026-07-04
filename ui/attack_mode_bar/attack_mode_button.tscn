@@ -18,10 +18,10 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pjooi"]
 resource_local_to_scene = true
 shader = ExtResource("3_bsmqx")
-shader_parameter/mouse_uv = Vector2(2.80625, 1.1593761)
+shader_parameter/mouse_uv = Vector2(0.586966, 0.8024349)
 shader_parameter/texture_size = Vector2i(1, 1)
 shader_parameter/tint = Color(0, 0.59229046, 0.65951425, 1)
-shader_parameter/glow_radius = 0.31
+shader_parameter/glow_radius = 0.44
 shader_parameter/glow_strength = 0.0
 shader_parameter/active_strength = 0.0
 shader_parameter/disabled_strength = 0.0
@@ -36,21 +36,21 @@ shader_parameter/disabled_strength = 0.0
 [sub_resource type="LabelSettings" id="LabelSettings_ndpa3"]
 font_size = 30
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_keychip"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yb27n"]
+content_margin_left = 5.0
+content_margin_top = 1.0
+content_margin_right = 5.0
+content_margin_bottom = 1.0
 bg_color = Color(0, 0, 0, 0)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(1, 1, 1, 1)
+border_color = Color(0, 0.59229046, 0.65951425, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
-content_margin_left = 5.0
-content_margin_top = 1.0
-content_margin_right = 5.0
-content_margin_bottom = 1.0
 
 [sub_resource type="LabelSettings" id="LabelSettings_keychip"]
 font_size = 9
@@ -85,31 +85,37 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Label" type="Label" parent="." unique_id=311423691]
-material = SubResource("ShaderMaterial_yol2q")
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1696972518]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 5
+theme_override_constants/margin_bottom = 4
+
+[node name="Label" type="Label" parent="MarginContainer" unique_id=311423691]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_yol2q")
+layout_mode = 2
 label_settings = SubResource("LabelSettings_ndpa3")
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="KeyChip" type="PanelContainer" parent="." unique_id=3610441883]
-layout_mode = 1
-offset_left = 6.0
-offset_top = 5.0
-offset_right = 24.0
-offset_bottom = 19.0
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_keychip")
-
-[node name="KeyLabel" type="Label" parent="KeyChip" unique_id=2846719036]
+[node name="KeyChip" type="PanelContainer" parent="MarginContainer" unique_id=-684525413]
+unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
 mouse_filter = 2
-text = "1"
+theme_override_styles/panel = SubResource("StyleBoxFlat_yb27n")
+
+[node name="KeyLabel" type="Label" parent="MarginContainer/KeyChip" unique_id=-1448248260]
+modulate = Color(0, 0.59229046, 0.65951425, 1)
+layout_mode = 2
 label_settings = SubResource("LabelSettings_keychip")
 horizontal_alignment = 1
 

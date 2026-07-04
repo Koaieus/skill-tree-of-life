@@ -82,10 +82,6 @@ void fragment() {
     float flow   = smoothstep(0.0, 0.12, flow_t) * smoothstep(0.32, 0.12, flow_t);
     col += mix(vec3(1.0), tint, 0.15) * rim * flow * active_strength * 1.8;
 
-    // ── Subtle dithered noise ─────────────────────────────────────────────────
-    vec2 noise_cell = floor(UV * vec2(float(texture_size.x), float(texture_size.y)) * 0.3);
-    col += (hash21(noise_cell) - 0.5) * 0.015;
-
     // ── Disabled: desaturate to dim luma, reduce alpha ────────────────────────
     float luma = dot(col, vec3(0.299, 0.587, 0.114));
     col   = mix(col, vec3(luma * 0.30), disabled_strength * 0.85);

@@ -15,6 +15,18 @@ extends ColorRect
 ## parallelogram "battery" cells, mirroring PoolGauge's shine/cell/skew
 ## uniform-naming convention.
 
+## Which bucket a screen position falls in — same left-to-right draw order
+## as the shader (to-spend, allocated, wounded, staked). Emitted by hover.
+enum Bucket { TO_SPEND, ALLOCATED, WOUNDED, STAKED }
+
+## Fires as the mouse moves over a new segment (bucket changes, not every
+## pixel). Callers typically light up a matching legend entry — see
+## turn_resources_panel.gd for the pattern.
+signal segment_hovered(bucket: Bucket)
+signal segment_unhovered
+
+var _hovered_bucket: int = -1
+
 @export var to_spend: float = 1.0:
 	set(v):
 		to_spend = v
@@ -52,6 +64,15 @@ extends ColorRect
 	set(v):
 		color_staked = v
 		_push(&"color_2", v)
+
+## The "allocated" (headroom already spent into owned nodes) segment —
+## rendered as plain background, not a colored bucket, but still exposed
+## here so legend swatches / hover tooltips share the same color source as
+## the gauge instead of duplicating the shader's default.
+@export var color_allocated: Color = Color(0.588, 0.647, 0.784, 0.30):
+	set(v):
+		color_allocated = v
+		_push(&"color_background", v)
 
 ## Glow tint for the to-spend segment's shine sweep (the "available" bucket
 ## is meant to read as the most eye-catching one — glowy, always drawn first).
@@ -101,6 +122,7 @@ func _ready() -> void:
 	_push(&"color_0", color_to_spend)
 	_push(&"color_1", color_wounded)
 	_push(&"color_2", color_staked)
+	_push(&"color_background", color_allocated)
 	_push(&"glow_color", glow_color)
 	_push(&"corner_radius", corner_radius)
 	_push(&"pulse_speed", pulse_speed)
@@ -108,6 +130,43 @@ func _ready() -> void:
 	_push(&"cell_count", cell_count)
 	_push(&"skew_degrees", skew_degrees)
 	_push(&"cell_gap", cell_gap)
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_exited.connect(_on_mouse_exited)
+
+
+## Hover detection ignores the shader's per-cell skew (a cosmetic lean) and
+## just maps x/width against the same cumulative bucket boundaries the
+## shader colors by — plenty precise for a cursor affordance.
+func _gui_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseMotion) or size.x <= 0.0:
+		return
+	var u: float = clampf(event.position.x / size.x, 0.0, 1.0)
+	var bucket := _bucket_at(u)
+	if bucket == _hovered_bucket:
+		return
+	_hovered_bucket = bucket
+	segment_hovered.emit(bucket)
+
+
+func _on_mouse_exited() -> void:
+	_hovered_bucket = -1
+	segment_unhovered.emit()
+
+
+func _bucket_at(u: float) -> int:
+	var denom := maxf(max_value, to_spend + wounded + staked)
+	if denom <= 0.0:
+		return Bucket.ALLOCATED
+	var b0 := to_spend / denom
+	var b1 := b0 + maxf(0.0, 1.0 - (to_spend + wounded + staked) / denom)
+	var b2 := b1 + wounded / denom
+	if u < b0:
+		return Bucket.TO_SPEND
+	if u < b1:
+		return Bucket.ALLOCATED
+	if u < b2:
+		return Bucket.WOUNDED
+	return Bucket.STAKED
 
 func _push_size() -> void:
 	_push(&"size", size)

@@ -27,10 +27,10 @@ var _active_tweener: Tween
 var _disabled_tweener: Tween
 
 @onready var color_rect: ColorRect = $ColorRect
-@onready var label: Label = $Label
+@onready var label: Label = %Label
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
-@onready var _key_chip: PanelContainer = $KeyChip
-@onready var _key_label: Label = $KeyChip/KeyLabel
+@onready var _key_chip: PanelContainer = %KeyChip
+@onready var _key_label: Label = %KeyChip/KeyLabel
 
 
 var hovered: float = 0.0:

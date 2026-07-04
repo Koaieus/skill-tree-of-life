@@ -89,6 +89,8 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 
 `wound_heal_per_turn` defaults to 1. Tuning lever: raise to recover faster from forced deallocs; drop to make wound damage stickier.
 
+**Fractional rates accumulate, they don't truncate.** `SkillPointStat.wound_heal_progress` (0..1, runtime-only) banks `wound_heal_per_turn` every turn upkeep; once it crosses 1.0 *and* `wounded > 0` it heals 1 SP and drains by 1.0. A rate below 1 (e.g. 0.5 — two turns per healed SP) would silently heal nothing forever under a naive `int(rate)` per-turn call, which is what this replaced. While `wounded == 0` the progress holds at a capped 1.0 instead of wrapping — nothing to spend it on yet — so it reads "full" until the entity is wounded again, at which point the *very next* turn upkeep immediately heals and drains it. `wound_heal_progress_changed(progress)` is what `turn_resources_panel.gd` binds its sliver to; the label showing the rate itself is always visible (not gated on `wounded > 0`) since the rate is a stat a player wants to see even unwounded.
+
 `health` is `NONE` (the core does not auto-heal yet — a future "1/turn" core regen would be `ADD` with a `health_per_turn` companion, or a `CoreClass.on_turn_started` hook for class-specific healing).
 
 ### Then: node refill + class hook

@@ -1,12 +1,22 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://b8r855vwvwcgy"]
 
-[ext_resource type="Script" path="res://ui/theme/glass_panel.gd" id="1_script"]
-[ext_resource type="Shader" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
+[ext_resource type="Script" uid="uid://bttp3lfvyq4y1" path="res://ui/theme/glass_panel.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_glass"]
+resource_local_to_scene = true
 shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(300, 120)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
 
-[node name="GlassPanel" type="ColorRect"]
+[node name="GlassPanel" type="ColorRect" unique_id=747232056]
 material = SubResource("ShaderMaterial_glass")
 offset_right = 300.0
 offset_bottom = 120.0
