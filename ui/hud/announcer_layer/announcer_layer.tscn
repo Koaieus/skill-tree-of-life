@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/announcer_layer/announcer_layer.gd" id="1_script"]
+
+[node name="AnnouncerLayer" type="CanvasLayer"]
+layer = 90
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Bg" type="Panel" parent="Root"]
+unique_name_in_owner = true
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+mouse_filter = 2
+
+[node name="Text" type="Label" parent="Root"]
+unique_name_in_owner = true
+theme_type_variation = &"CinzelHeader"
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1

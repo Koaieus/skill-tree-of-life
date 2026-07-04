@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/hud_root.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/hud/hero_sigil_card/hero_sigil_card.tscn" id="2_hero"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://ui/initiative_bar.tscn" id="6_initiative"]
 [ext_resource type="PackedScene" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
+[ext_resource type="PackedScene" path="res://ui/hud/announcer_layer/announcer_layer.tscn" id="9_announcer"]
 
 [node name="HudRoot" type="Control"]
 process_mode = 1
@@ -124,3 +125,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="AnnouncerLayer" parent="." instance=ExtResource("9_announcer")]
+unique_name_in_owner = true

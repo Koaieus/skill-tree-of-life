@@ -10,6 +10,10 @@ enum AttackMode {
 }
 
 signal attack_plan_changed(plan: AttackPlan)
+## Fired once a launch commits (resource checks passed, about to resolve).
+## `spell` is the active [MagicAttackPlan]'s spell, null for melee/ranged.
+## Consumed by [AnnouncerLayer] (#117) for the mode-tinted FX callout.
+signal attack_launched(mode: AttackMode, spell: SpellDef)
 ## Fires for both plan swap and plan-internal mutation. Subscribers that
 ## care about lifecycle (mount per-mode UI) use [signal attack_plan_changed];
 ## subscribers that care about content (re-paint highlights) use this one.
@@ -148,6 +152,8 @@ func launch_attack() -> void:
 		ap_pool.deplete(float(outcome.ap_cost))
 	if outcome.mana_cost > 0 and mana_pool != null:
 		mana_pool.deplete(float(outcome.mana_cost))
+	var launched_spell: SpellDef = (attack_plan as MagicAttackPlan).spell if attack_plan is MagicAttackPlan else null
+	attack_launched.emit(attack_plan.mode, launched_spell)
 	# Melee: hand off to the MeleePreview (which has the ghost mounted) for
 	# the live swing + damage application BEFORE clearing the plan, so the
 	# blade can read selection state during the await. Magic uses the spell's

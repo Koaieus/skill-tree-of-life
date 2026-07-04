@@ -26,6 +26,7 @@ extends Control
 @onready var initiative_bar: InitiativeBar = %InitiativeBar
 @onready var action_cluster: ActionCluster = %ActionCluster
 @onready var command_tray: CommandTray = %CommandTray
+@onready var announcer_layer: AnnouncerLayer = %AnnouncerLayer
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -59,6 +60,8 @@ func compose(game_root: GameRoot) -> void:
 		action_cluster.bind(_player, _turn_manager, _input_ctl, _vision_system)
 	if command_tray != null:
 		command_tray.bind(_turn_manager, _battle_system, _input_ctl, _player)
+	if announcer_layer != null:
+		announcer_layer.bind(_battle_system)
 	_bind_initiative_bar()
 
 
