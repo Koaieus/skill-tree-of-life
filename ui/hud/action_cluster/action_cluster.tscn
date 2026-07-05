@@ -3,53 +3,80 @@
 [ext_resource type="Script" uid="uid://yo62frcatw28" path="res://ui/hud/action_cluster/action_cluster.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="2_gauge"]
 [ext_resource type="PackedScene" uid="uid://b3prak7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="3_endturn"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="4_glass"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_u2gvm"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="4_glass"]
+[ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_ouo7o"]
 
-[node name="ActionCluster" type="Control" unique_id=2034688889]
-custom_minimum_size = Vector2(200, 92)
-layout_mode = 3
-anchors_preset = 0
-script = ExtResource("1_script")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xwrd2"]
+resource_local_to_scene = true
+shader = ExtResource("3_u2gvm")
+shader_parameter/size = Vector2(128, 29)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.784, 0.667, 0.353, 0.22)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 10.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
 
-[node name="Content" type="VBoxContainer" parent="." unique_id=1859356125]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aibx0"]
+resource_local_to_scene = true
+shader = ExtResource("5_ouo7o")
+shader_parameter/size = Vector2(32, 17)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 2.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0.9039, 0.7331, 0.2746, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(0.9039, 0.7331, 0.2746, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 2.0
+shader_parameter/skew_degrees = -15.0
+shader_parameter/corner_radius = 2.0
+shader_parameter/cell_gap = 3.0
+
+[node name="Content" type="VBoxContainer" unique_id=1859356125]
+offset_right = 128.0
+offset_bottom = 115.0
+size_flags_horizontal = 0
+size_flags_vertical = 0
 theme_override_constants/separation = 4
 alignment = 2
+script = ExtResource("1_script")
 
-[node name="APPanel" type="MarginContainer" parent="Content" unique_id=3610441882]
+[node name="APPanel" type="MarginContainer" parent="." unique_id=-684525414]
 layout_mode = 2
 
-[node name="GlassPanel" parent="Content/APPanel" unique_id=1471820004 instance=ExtResource("4_glass")]
+[node name="GlassPanel" parent="APPanel" unique_id=1471820004 instance=ExtResource("4_glass")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_xwrd2")
 layout_mode = 2
 border_color = Color(0.784, 0.667, 0.353, 0.22)
 corner_radius = 10.0
 
-[node name="Padded" type="MarginContainer" parent="Content/APPanel" unique_id=2846719035]
+[node name="Padded" type="MarginContainer" parent="APPanel" unique_id=-1448248261]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 6
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 6
 
-[node name="Row" type="HBoxContainer" parent="Content/APPanel/Padded" unique_id=1103728471]
+[node name="Row" type="HBoxContainer" parent="APPanel/Padded" unique_id=1103728471]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="ActionLabel" type="Label" parent="Content/APPanel/Padded/Row" unique_id=2947183615]
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_font_sizes/font_size = 10
+[node name="ActionLabel" type="Label" parent="APPanel/Padded/Row" unique_id=-1347783681]
 modulate = Color(0.9039, 0.7331, 0.2746, 1)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
 text = "ACTION"
 
-[node name="APGauge" parent="Content/APPanel/Padded/Row" unique_id=381413771 instance=ExtResource("2_gauge")]
+[node name="APGauge" parent="APPanel/Padded/Row" unique_id=381413771 instance=ExtResource("2_gauge")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_aibx0")
 custom_minimum_size = Vector2(0, 17)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -60,15 +87,14 @@ cell_count = 2.0
 skew_degrees = -15.0
 corner_radius = 2.0
 
-[node name="ValueLabel" type="Label" parent="Content/APPanel/Padded/Row" unique_id=3298104620]
+[node name="ValueLabel" type="Label" parent="APPanel/Padded/Row" unique_id=-996862676]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
 theme_type_variation = &"ChakraData"
 theme_override_font_sizes/font_size = 13
 text = "2/2"
 
-[node name="WarningLabel" type="Label" parent="Content" unique_id=1284495549]
+[node name="WarningLabel" type="Label" parent="." unique_id=1284495549]
 unique_name_in_owner = true
 modulate = Color(0.95, 0.7, 0.3, 1)
 layout_mode = 2
@@ -76,7 +102,7 @@ theme_override_font_sizes/font_size = 10
 text = "0 unspent Action Points"
 horizontal_alignment = 2
 
-[node name="EndTurnButton" parent="Content" unique_id=355718479 instance=ExtResource("3_endturn")]
+[node name="EndTurnButton" parent="." unique_id=355718479 instance=ExtResource("3_endturn")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 8

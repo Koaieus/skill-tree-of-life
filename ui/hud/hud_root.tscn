@@ -7,7 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://syx2qix6erfj" path="res://ui/hud/combat_readout/combat_readout.tscn" id="5_combat"]
 [ext_resource type="PackedScene" uid="uid://qybxf6lb7hjj" path="res://ui/initiative_bar.tscn" id="6_initiative"]
 [ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
-[ext_resource type="PackedScene" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
+[ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
 [ext_resource type="PackedScene" uid="uid://c3yt4dj2a6x1y" path="res://ui/hud/announcer_layer/announcer_layer.tscn" id="9_announcer"]
 [ext_resource type="PackedScene" path="res://ui/banner_layer/banner_layer.tscn" id="10_banner"]
 [ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
@@ -27,65 +27,64 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_script")
 
-[node name="TurnTrackerSlot" type="Control" parent="." unique_id=1786189160]
-unique_name_in_owner = true
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=896187496]
 layout_mode = 1
-anchors_preset = 10
+anchors_preset = 15
 anchor_right = 1.0
-offset_top = 12.0
-offset_bottom = 44.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="TurnTrackerSlot" type="Control" parent="MarginContainer" unique_id=1786189160]
+unique_name_in_owner = true
+layout_mode = 2
 mouse_filter = 2
 
-[node name="InitiativeBar" parent="TurnTrackerSlot" unique_id=1934973789 instance=ExtResource("6_initiative")]
+[node name="InitiativeBar" parent="MarginContainer/TurnTrackerSlot" unique_id=1934973789 instance=ExtResource("6_initiative")]
 unique_name_in_owner = true
 layout_mode = 1
 
-[node name="LeftColumnSlot" type="VBoxContainer" parent="." unique_id=758516905]
+[node name="LeftColumnSlot" type="VBoxContainer" parent="MarginContainer" unique_id=758516905]
 unique_name_in_owner = true
-layout_mode = 1
-offset_left = 20.0
-offset_top = 20.0
-offset_right = 300.0
-offset_bottom = 620.0
+layout_mode = 2
+size_flags_horizontal = 0
 mouse_filter = 2
 theme_override_constants/separation = 10
 
-[node name="HeroSigilCard" parent="LeftColumnSlot" unique_id=727252485 instance=ExtResource("2_hero")]
+[node name="HeroSigilCard" parent="MarginContainer/LeftColumnSlot" unique_id=727252485 instance=ExtResource("2_hero")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AttributesPanel" parent="LeftColumnSlot" unique_id=309475614 instance=ExtResource("3_attrs")]
+[node name="AttributesPanel" parent="MarginContainer/LeftColumnSlot" unique_id=309475614 instance=ExtResource("3_attrs")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="TurnResourcesPanel" parent="LeftColumnSlot" unique_id=586963688 instance=ExtResource("4_turnres")]
+[node name="TurnResourcesPanel" parent="MarginContainer/LeftColumnSlot" unique_id=586963688 instance=ExtResource("4_turnres")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="RightColumnSlot" type="Control" parent="." unique_id=1978774433]
+[node name="RightColumnSlot" type="Control" parent="MarginContainer" unique_id=1978774433]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+mouse_filter = 2
+
+[node name="CombatReadout" parent="MarginContainer/RightColumnSlot" unique_id=871035065 instance=ExtResource("5_combat")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -300.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = 620.0
-grow_horizontal = 0
-mouse_filter = 2
-
-[node name="CombatReadout" parent="RightColumnSlot" unique_id=871035065 instance=ExtResource("5_combat")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
+offset_left = -211.0
 offset_right = 0.0
-offset_bottom = 84.0
-grow_horizontal = 2
+offset_bottom = 336.0
+grow_horizontal = 0
 
-[node name="NodeInspectorCard" parent="RightColumnSlot" unique_id=108897864 instance=ExtResource("11_inspector")]
+[node name="NodeInspectorCard" parent="MarginContainer/RightColumnSlot" unique_id=108897864 instance=ExtResource("11_inspector")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -95,7 +94,12 @@ offset_top = 490.0
 offset_bottom = 600.0
 grow_horizontal = 2
 
-[node name="CommandTraySlot" type="Control" parent="." unique_id=1568469518]
+[node name="CommandTraySlot" type="Control" parent="MarginContainer" unique_id=1568469518]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CommandTray" parent="MarginContainer/CommandTraySlot" unique_id=32839746 instance=ExtResource("8_tray")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 7
@@ -103,24 +107,19 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -260.0
-offset_top = -160.0
-offset_right = 260.0
-offset_bottom = -12.0
+offset_left = -368.5
+offset_top = -269.0
+offset_right = 368.5
+offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 0
+
+[node name="APEndTurnSlot" type="Control" parent="MarginContainer" unique_id=1011505414]
+unique_name_in_owner = true
+layout_mode = 2
 mouse_filter = 2
 
-[node name="CommandTray" parent="CommandTraySlot" unique_id=32839746 instance=ExtResource("8_tray")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="APEndTurnSlot" type="Control" parent="." unique_id=1011505414]
+[node name="ActionCluster" parent="MarginContainer/APEndTurnSlot" unique_id=1864315621 instance=ExtResource("7_cluster")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 3
@@ -128,22 +127,12 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -220.0
-offset_top = -100.0
-offset_right = -20.0
-offset_bottom = -12.0
+offset_left = -128.0
+offset_top = -115.0
+offset_right = 0.0
+offset_bottom = 0.0
 grow_horizontal = 0
 grow_vertical = 0
-mouse_filter = 2
-
-[node name="ActionCluster" parent="APEndTurnSlot" unique_id=1864315621 instance=ExtResource("7_cluster")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
 
 [node name="AnnouncerLayer" parent="." unique_id=394311347 instance=ExtResource("9_announcer")]
 unique_name_in_owner = true

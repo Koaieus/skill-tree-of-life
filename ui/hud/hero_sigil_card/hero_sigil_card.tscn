@@ -1,10 +1,24 @@
 [gd_scene format=3 uid="uid://c1fl7vqnjwoh5"]
 
 [ext_resource type="Script" uid="uid://duxwarhqbilce" path="res://ui/hud/hero_sigil_card/hero_sigil_card.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_4cef1"]
 [ext_resource type="Script" uid="uid://bfx3nby25prre" path="res://ui/hud/hero_sigil_card/emblem_ring.gd" id="3_ring"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="4_gauge"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_whxag"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ji1wf"]
+resource_local_to_scene = true
+shader = ExtResource("3_4cef1")
+shader_parameter/size = Vector2(272, 119)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_badge"]
 content_margin_left = 4.0
@@ -22,10 +36,10 @@ corner_radius_top_right = 9
 corner_radius_bottom_right = 9
 corner_radius_bottom_left = 9
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_4cef1"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_v86og"]
 resource_local_to_scene = true
 shader = ExtResource("5_whxag")
-shader_parameter/size = Vector2(140, 14)
+shader_parameter/size = Vector2(110, 14)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -40,10 +54,10 @@ shader_parameter/skew_degrees = 0.0
 shader_parameter/corner_radius = 4.0
 shader_parameter/cell_gap = 3.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ji1wf"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_e1y6n"]
 resource_local_to_scene = true
 shader = ExtResource("5_whxag")
-shader_parameter/size = Vector2(140, 14)
+shader_parameter/size = Vector2(110, 14)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -58,10 +72,10 @@ shader_parameter/skew_degrees = 0.0
 shader_parameter/corner_radius = 4.0
 shader_parameter/cell_gap = 3.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_v86og"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lcuaq"]
 resource_local_to_scene = true
 shader = ExtResource("5_whxag")
-shader_parameter/size = Vector2(140, 14)
+shader_parameter/size = Vector2(110, 14)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -85,6 +99,7 @@ position = Vector2(70, 20)
 
 [node name="GlassPanel" parent="." unique_id=465765485 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_ji1wf")
 layout_mode = 2
 
 [node name="Padded" type="MarginContainer" parent="." unique_id=882723540]
@@ -111,7 +126,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-rotation = 34.21158
+rotation = 97.64892
 pivot_offset = Vector2(32, 32)
 script = ExtResource("3_ring")
 
@@ -166,8 +181,8 @@ layout_mode = 2
 
 [node name="HealthGauge" parent="Padded/Content/Vitals/HealthRow" unique_id=560570739 instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_4cef1")
-custom_minimum_size = Vector2(140, 12)
+material = SubResource("ShaderMaterial_v86og")
+custom_minimum_size = Vector2(110, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 fill_color = Color(0.8878, 0.203, 0.2233, 1)
@@ -176,6 +191,7 @@ glow_color = Color(0.8878, 0.203, 0.2233, 0.6)
 [node name="HealthCaption" type="Label" parent="Padded/Content/Vitals/HealthRow" unique_id=1380640812]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0.6)
+custom_minimum_size = Vector2(58, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "0/0"
@@ -185,8 +201,8 @@ layout_mode = 2
 
 [node name="ManaGauge" parent="Padded/Content/Vitals/ManaRow" unique_id=1913829611 instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_ji1wf")
-custom_minimum_size = Vector2(140, 12)
+material = SubResource("ShaderMaterial_e1y6n")
+custom_minimum_size = Vector2(110, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 fill_color = Color(0, 0.72, 0.881, 1)
@@ -195,6 +211,7 @@ glow_color = Color(0, 0.72, 0.881, 0.6)
 [node name="ManaCaption" type="Label" parent="Padded/Content/Vitals/ManaRow" unique_id=1503455658]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0.6)
+custom_minimum_size = Vector2(58, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "0/0"
@@ -204,8 +221,8 @@ layout_mode = 2
 
 [node name="XPGauge" parent="Padded/Content/Vitals/XPRow" unique_id=1552507735 instance=ExtResource("4_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_v86og")
-custom_minimum_size = Vector2(140, 12)
+material = SubResource("ShaderMaterial_lcuaq")
+custom_minimum_size = Vector2(110, 12)
 layout_mode = 2
 size_flags_horizontal = 3
 fill_color = Color(0.8909, 0.7204, 0.2596, 1)
@@ -214,6 +231,7 @@ glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
 [node name="XPCaption" type="Label" parent="Padded/Content/Vitals/XPRow" unique_id=198810305]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0.6)
+custom_minimum_size = Vector2(58, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "0/0"

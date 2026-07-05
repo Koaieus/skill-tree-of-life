@@ -1,45 +1,70 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://f33t8yww1r8b"]
 
-[ext_resource type="Script" path="res://ui/hud/command_tray/command_tray.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/attack_mode_bar/attack_mode_bar.tscn" id="2_modebar"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="3_glass"]
+[ext_resource type="Script" uid="uid://ck52dihcdf0e" path="res://ui/hud/command_tray/command_tray.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://bvttxdu4jd6se" path="res://ui/attack_mode_bar/attack_mode_bar.tscn" id="2_modebar"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="3_glass"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="4_1f02g"]
 
-[node name="CommandTray" type="VBoxContainer"]
-layout_mode = 3
-anchors_preset = 0
-alignment = 1
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qn1kf"]
+resource_local_to_scene = true
+shader = ExtResource("4_1f02g")
+shader_parameter/size = Vector2(691, 180)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
+
+[node name="CommandTray" type="VBoxContainer" unique_id=444879786]
+offset_right = 691.0
+offset_bottom = 214.0
 theme_override_constants/separation = 0
+alignment = 1
 script = ExtResource("1_script")
 
-[node name="AttackModeBar" parent="." instance=ExtResource("2_modebar")]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=2042390546]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_right = 15
+
+[node name="AttackModeBar" parent="MarginContainer" unique_id=1312138669 instance=ExtResource("2_modebar")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 1
 
-[node name="Chrome" type="Control" parent="."]
-custom_minimum_size = Vector2(0, 120)
+[node name="ManageToggleButton" parent="MarginContainer/AttackModeBar" index="0" unique_id=-684525412]
+size_flags_horizontal = 3
+button_pressed = false
+
+[node name="MeleeToggleButton" parent="MarginContainer/AttackModeBar" index="1" unique_id=1205266549]
+size_flags_horizontal = 3
+
+[node name="RangedToggleButton" parent="MarginContainer/AttackModeBar" index="2" unique_id=2083894384]
+size_flags_horizontal = 3
+
+[node name="MagicToggleButton" parent="MarginContainer/AttackModeBar" index="3" unique_id=900054164]
+size_flags_horizontal = 3
+
+[node name="Chrome" type="MarginContainer" parent="." unique_id=1147082960]
+custom_minimum_size = Vector2(0, 180)
 layout_mode = 2
 
-[node name="GlassPanel" parent="Chrome" instance=ExtResource("3_glass")]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="GlassPanel" parent="Chrome" unique_id=1802552914 instance=ExtResource("3_glass")]
+material = SubResource("ShaderMaterial_qn1kf")
+layout_mode = 2
 
-[node name="Padded" type="MarginContainer" parent="Chrome"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="Padded" type="MarginContainer" parent="Chrome" unique_id=1259643228]
+layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 13
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 13
 
-[node name="BodySlot" type="MarginContainer" parent="Chrome/Padded"]
+[node name="BodySlot" type="HBoxContainer" parent="Chrome/Padded" unique_id=2094750369]
 unique_name_in_owner = true
 layout_mode = 2
+
+[editable path="MarginContainer/AttackModeBar"]

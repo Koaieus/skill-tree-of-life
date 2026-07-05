@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://cuaufaq7oxl8e"]
+
+[ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="1_hppep"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_xc21f"]
+[ext_resource type="PackedScene" uid="uid://dpqhkltveiwtk" path="res://ui/hud/command_tray/bodies/magic_body.tscn" id="3_xc21f"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aoolv"]
+resource_local_to_scene = true
+shader = ExtResource("2_xc21f")
+shader_parameter/size = Vector2(524, 120)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
+
+[node name="CommandTray" unique_id=444879786 instance=ExtResource("1_hppep")]
+
+[node name="GlassPanel" parent="Chrome" parent_id_path=PackedInt32Array(1327060860) index="0" unique_id=1802552914]
+material = SubResource("ShaderMaterial_aoolv")
+
+[node name="MagicBody" parent="Chrome/Padded/BodySlot" parent_id_path=PackedInt32Array(2094750369) index="0" unique_id=631294482 instance=ExtResource("3_xc21f")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[editable path="Chrome/Padded/BodySlot/MagicBody"]

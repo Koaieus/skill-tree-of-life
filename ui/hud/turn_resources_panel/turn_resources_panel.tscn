@@ -7,10 +7,10 @@
 [ext_resource type="PackedScene" uid="uid://ep57rx7ojh8t" path="res://ui/gauges/composite_bar_gauge.tscn" id="4_composite"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="4_d4wth"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8cjsq"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7rqcp"]
 resource_local_to_scene = true
 shader = ExtResource("3_7rqcp")
-shader_parameter/size = Vector2(280, 125)
+shader_parameter/size = Vector2(275, 155)
 shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
@@ -20,10 +20,10 @@ shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(1, 1, 1, 0)
 shader_parameter/glow_strength = 0.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_q3w8c"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8cjsq"]
 resource_local_to_scene = true
 shader = ExtResource("4_d4wth")
-shader_parameter/size = Vector2(78, 16)
+shader_parameter/size = Vector2(77, 16)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -38,10 +38,10 @@ shader_parameter/skew_degrees = -15.0
 shader_parameter/corner_radius = 4.0
 shader_parameter/cell_gap = 3.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dyvt3"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_q3w8c"]
 resource_local_to_scene = true
 shader = ExtResource("4_d4wth")
-shader_parameter/size = Vector2(79, 16)
+shader_parameter/size = Vector2(77, 16)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -49,6 +49,24 @@ shader_parameter/drain_from = 1.0
 shader_parameter/fill_color = Color(0.6935, 0.4045, 0.9676, 1)
 shader_parameter/empty_color = Color(1, 1, 1, 0.08)
 shader_parameter/glow_color = Color(0.6935, 0.4045, 0.9676, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 3.0
+shader_parameter/skew_degrees = -15.0
+shader_parameter/corner_radius = 4.0
+shader_parameter/cell_gap = 3.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dyvt3"]
+resource_local_to_scene = true
+shader = ExtResource("4_d4wth")
+shader_parameter/size = Vector2(77, 16)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 5.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0.3187, 0.7773, 0.4484, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)
 shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
 shader_parameter/shine_speed = 0.6
 shader_parameter/cell_count = 3.0
@@ -70,33 +88,15 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_xrmgi"]
-resource_local_to_scene = true
-shader = ExtResource("4_d4wth")
-shader_parameter/size = Vector2(79, 16)
-shader_parameter/current = 1.0
-shader_parameter/min_value = 0.0
-shader_parameter/max_value = 5.0
-shader_parameter/drain_from = 1.0
-shader_parameter/fill_color = Color(0.3187, 0.7773, 0.4484, 1)
-shader_parameter/empty_color = Color(1, 1, 1, 0.08)
-shader_parameter/glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)
-shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
-shader_parameter/shine_speed = 0.6
-shader_parameter/cell_count = 3.0
-shader_parameter/skew_degrees = -15.0
-shader_parameter/corner_radius = 4.0
-shader_parameter/cell_gap = 3.0
-
 [node name="TurnResourcesPanel" type="Control" unique_id=1656903064]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 280.0
-offset_bottom = 125.0
+offset_right = 275.0
+offset_bottom = 155.0
 script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." unique_id=1957706385 instance=ExtResource("2_glass")]
-material = SubResource("ShaderMaterial_8cjsq")
+material = SubResource("ShaderMaterial_7rqcp")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -139,7 +139,7 @@ text = "ACTION"
 
 [node name="APGauge" parent="Margin/Content/Batteries/APColumn" unique_id=619827120 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_q3w8c")
+material = SubResource("ShaderMaterial_8cjsq")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -160,7 +160,7 @@ text = "DEALLOC"
 
 [node name="DPGauge" parent="Margin/Content/Batteries/DPColumn" unique_id=349639421 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_dyvt3")
+material = SubResource("ShaderMaterial_q3w8c")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -181,7 +181,7 @@ text = "MOVE"
 
 [node name="MPGauge" parent="Margin/Content/Batteries/MPColumn" unique_id=1476870951 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_xrmgi")
+material = SubResource("ShaderMaterial_dyvt3")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -217,6 +217,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 0
 color_wounded = Color(0.87, 0.23489998, 0.24548484, 0.54901963)
 color_staked = Color(0.91, 0.66612, 0.3003, 0.54901963)
 shine_speed = 0.7
@@ -237,8 +238,6 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(8, 10)
 layout_mode = 2
 size_flags_vertical = 4
-rotation_degrees = -15.0
-pivot_offset = Vector2(4, 5)
 color = Color(0.2606, 0.6387, 0.9922, 1)
 
 [node name="ToSpendLabel" type="Label" parent="Margin/Content/SPSection/Legend/ToSpend" unique_id=2003760465]
@@ -246,7 +245,7 @@ unique_name_in_owner = true
 modulate = Color(0.2606, 0.6387, 0.9922, 0.75)
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
-text = "to-spend 0"
+text = "unused 0"
 
 [node name="Allocated" type="HBoxContainer" parent="Margin/Content/SPSection/Legend" unique_id=2003760466]
 unique_name_in_owner = true
@@ -257,8 +256,6 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(8, 10)
 layout_mode = 2
 size_flags_vertical = 4
-rotation_degrees = -15.0
-pivot_offset = Vector2(4, 5)
 color = Color(0.588, 0.647, 0.784, 0.6)
 
 [node name="AllocatedLabel" type="Label" parent="Margin/Content/SPSection/Legend/Allocated" unique_id=2003760468]
@@ -277,8 +274,6 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(8, 10)
 layout_mode = 2
 size_flags_vertical = 4
-rotation_degrees = -15.0
-pivot_offset = Vector2(4, 5)
 color = Color(0.8725, 0.2322, 0.2404, 1)
 
 [node name="WoundedLabel" type="Label" parent="Margin/Content/SPSection/Legend/Wounded" unique_id=2003760471]
@@ -297,8 +292,6 @@ theme_override_constants/separation = 4
 custom_minimum_size = Vector2(8, 10)
 layout_mode = 2
 size_flags_vertical = 4
-rotation_degrees = -15.0
-pivot_offset = Vector2(4, 5)
 color = Color(0.9084, 0.6684, 0.3042, 1)
 
 [node name="StakedLabel" type="Label" parent="Margin/Content/SPSection/Legend/Staked" unique_id=2003760474]
@@ -327,13 +320,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 9
 text = "◷ wound heal 0/turn"
+horizontal_alignment = 2
 
 [node name="Progress" type="ProgressBar" parent="Margin/Content/SPSection/SPWoundHeal" unique_id=2003760477]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(48, 3)
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 4
 theme_override_styles/background = SubResource("StyleBoxFlat_woundheal_bg")
 theme_override_styles/fill = SubResource("StyleBoxFlat_woundheal_fill")
-step = 0.01
+max_value = 1.0
 show_percentage = false
