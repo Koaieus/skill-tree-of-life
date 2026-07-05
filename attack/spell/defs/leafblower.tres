@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b6ecc584ysaku"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Texture2D" uid="uid://c4hrvqjri8jbd" path="res://assets/icons/Icon set 1/1x/Asset 70.png" id="1_y0ifm"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
@@ -54,6 +55,7 @@ range_finder = SubResource("range")
 script = ExtResource("1_spell")
 name = "Leafblower"
 description = "Trickles downhill: at each hop only flows into neighbours of strictly lower degree. Damage compounds (×1.8 per hop) so the leaf at the end of the chain eats the payload while intermediate hubs barely register. Perfect for sniping dangling addon-leaves through fortified topology."
+icon = ExtResource("1_y0ifm")
 min_degree = 2
 mana_cost = 3
 base_damage = 2.0

@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://hi2w3tufav8y"]
 
+[ext_resource type="Texture2D" uid="uid://d2hsdy5ohifi1" path="res://assets/icons/Icon set 1/1x/Asset 5.png" id="1_6qevb"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
@@ -32,6 +33,7 @@ range_finder = SubResource("range_3hop")
 script = ExtResource("1_spell")
 name = "Spark"
 description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source via the live graph (allocation status irrelevant — hops route through whatever's connected)."
+icon = ExtResource("1_6qevb")
 mana_cost = 1
 base_damage = 5.0
 propagation = SubResource("prop_spark")

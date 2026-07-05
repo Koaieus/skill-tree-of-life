@@ -30,7 +30,7 @@ func _payload(damage: float, current: SkillNode, hops: int = 5) -> CastSpell:
 
 
 ## The production filter shape: enemy-owned AND absolute degree >= 2.
-func _line_killer_config(opts: Dictionary = {}) -> PropagationConfig:
+func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var deg2 := ExpressionFilter.new()
 	deg2.expression = "to_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
@@ -113,7 +113,7 @@ func test_walks_string_and_slams_junction_end_to_end() -> void:
 	h.assign_owner(graph, attacker, [8, 9])
 
 	var effects: Array[OnHitEffect] = [DamageEffect.new()]
-	var spell := h.make_spell(_line_killer_config(), effects, 1.0)
+	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
 	var nodes := graph.get_skill_nodes()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1

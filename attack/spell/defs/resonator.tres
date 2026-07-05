@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://d0h7eqtdcesey"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Texture2D" uid="uid://ot7ed7da8p0d" path="res://assets/icons/Icon set 1/1x/Asset 12.png" id="1_uku7o"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
@@ -45,6 +46,7 @@ range_finder = SubResource("range")
 script = ExtResource("1_spell")
 name = "Resonator"
 description = "Fans to every enemy neighbour, doubling damage each hop. Converging branches ADD — diamond shoulders and self-loops compound massively. The signature spell for graphs with self-loops: a self-looped enemy node becomes a kill setup, because the loop's two return-incidents sum into one doubled hit, then double again next hop."
+icon = ExtResource("1_uku7o")
 min_degree = 3
 mana_cost = 5
 base_damage = 4.0

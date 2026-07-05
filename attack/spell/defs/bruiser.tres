@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b56spbwfkkese"]
 
+[ext_resource type="Texture2D" uid="uid://cpalje5wl2qql" path="res://assets/icons/Icon set 1/1x/Asset 73.png" id="1_bm58y"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
@@ -48,6 +49,7 @@ range_finder = SubResource("range")
 script = ExtResource("1_spell")
 name = "Bruiser"
 description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and nicks it for low damage. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
+icon = ExtResource("1_bm58y")
 min_degree = 2
 mana_cost = 2
 base_damage = 4.0

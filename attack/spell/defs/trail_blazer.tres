@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://vgrgi0u2ij56"]
 
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="1_p8d3l"]
+[ext_resource type="Texture2D" uid="uid://dpesu4r1gfqii" path="res://assets/icons/Icon set 1/1x/Asset 58.png" id="1_x1qvp"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="2_x1qvp"]
 [ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="3_ef7vp"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="4_bn2u6"]
@@ -47,8 +48,9 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("9_en1rl")
-name = "The Line Killer"
+name = "The Trailblazer"
 description = "Walks a single path from the target: each degree-2 node it passes through adds +2 damage before the spell hops onward; when it reaches a junction (degree >2) it deals double the accumulated total and stops. Cast on a node at the end of a long string for maximum devastation."
+icon = ExtResource("1_x1qvp")
 min_degree = 3
 mana_cost = 3
 base_damage = 1.0
