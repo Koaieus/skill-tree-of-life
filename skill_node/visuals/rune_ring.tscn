@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://8p2jfvxkgscr"]
 
-[ext_resource type="Script" path="res://skill_node/visuals/rune_ring.gd" id="1_rune"]
+[ext_resource type="Script" uid="uid://bm8nuq87rmq0k" path="res://skill_node/visuals/rune_ring.gd" id="1_rune"]
 
-[node name="RuneRing" type="Node2D"]
+[node name="RuneRing" type="Node2D" unique_id=41727208]
 script = ExtResource("1_rune")
+rune_ring = 3
+rune_ring_blend = 2

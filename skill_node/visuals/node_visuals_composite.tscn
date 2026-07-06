@@ -2,50 +2,61 @@
 
 [ext_resource type="Script" uid="uid://b35hxda7mbfnk" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/weld_symbol.tscn" id="3_weld"]
-[ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/ring_wall.tscn" id="4_wall"]
+[ext_resource type="PackedScene" uid="uid://bham0ohukm64e" path="res://skill_node/visuals/weld_symbol.tscn" id="3_weld"]
+[ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="4_wall"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="6_halos"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
+[ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
 
 [node name="NodeVisualsComposite" type="Node2D" unique_id=1855738635]
 script = ExtResource("1_comp")
+tint_color = Color(0.4181052, 0.55996686, 1, 1)
+allocated = true
+stake_cap = 3
+ring_gap = 0.0
+metadata/_edit_vertical_guides_ = [24.0, 32.0, 28.0]
 
 [node name="InnerDisk" parent="." unique_id=1575818134 instance=ExtResource("2_disk")]
 unique_name_in_owner = true
+tint_mix = 0.66
 
 [node name="WeldSymbol" parent="." unique_id=1225374733 instance=ExtResource("3_weld")]
 unique_name_in_owner = true
+weld_k = 1.0
 
-[node name="RingWall" parent="." unique_id=346168876 instance=ExtResource("4_wall")]
+[node name="RimRing" parent="." unique_id=346168876 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 
-[node name="RingWall2" parent="." unique_id=2024234688 instance=ExtResource("4_wall")]
-unique_name_in_owner = true
-visible = false
-
-[node name="RingWall3" parent="." unique_id=314972897 instance=ExtResource("4_wall")]
+[node name="RimRing2" parent="." unique_id=2024234688 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
 
-[node name="RingWall4" parent="." unique_id=1028791272 instance=ExtResource("4_wall")]
+[node name="RimRing3" parent="." unique_id=314972897 instance=ExtResource("4_wall")]
+unique_name_in_owner = true
+visible = false
+
+[node name="RimRing4" parent="." unique_id=1028791272 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
 
 [node name="RimBonuses" parent="." unique_id=2113377826 instance=ExtResource("5_rim")]
 unique_name_in_owner = true
+allocated = true
 
 [node name="CoreHalos" parent="." unique_id=141306435 instance=ExtResource("6_halos")]
 unique_name_in_owner = true
 
 [node name="RuneRing" parent="." unique_id=946472652 instance=ExtResource("7_rune")]
 unique_name_in_owner = true
+outer_edge_r = 32.0
 
 [node name="StakeLabel" type="Label" parent="." unique_id=1327804308]
 unique_name_in_owner = true
 visible = false
 offset_left = -40.0
+offset_top = 46.0
 offset_right = 40.0
-offset_bottom = 20.0
+offset_bottom = 66.0
+text = "0/3"
 horizontal_alignment = 1
 vertical_alignment = 1

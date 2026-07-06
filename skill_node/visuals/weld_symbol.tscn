@@ -1,6 +1,10 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bham0ohukm64e"]
 
-[ext_resource type="Script" path="res://skill_node/visuals/weld_symbol.gd" id="1_weld"]
+[ext_resource type="Script" uid="uid://c1tvsbwx11lsy" path="res://skill_node/visuals/weld_symbol.gd" id="1_weld"]
 
-[node name="WeldSymbol" type="Node2D"]
+[node name="WeldSymbol" type="Node2D" unique_id=115473965]
 script = ExtResource("1_weld")
+weld_k = 0.88
+tint_color = Color(0.31701082, 0.6682456, 0.55449355, 1)
+glow_mode = 2
+glow_amt = 0.45

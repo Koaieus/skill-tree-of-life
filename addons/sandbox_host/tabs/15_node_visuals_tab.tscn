@@ -1,9 +1,18 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://bpf8ni7ufgabw"]
 
-[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_tab"]
+[ext_resource type="Script" uid="uid://blcyvcrm6o4og" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_tab"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/panel/node_visuals_panel.tscn" id="2_panel"]
 
-[node name="NodeVisuals" type="MarginContainer"]
+[node name="NodeVisuals" type="MarginContainer" unique_id=1897592593]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
 script = ExtResource("1_tab")
 tab_title = "Node Visuals"
 tab_id = &"node_visuals"

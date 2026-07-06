@@ -8,7 +8,7 @@ its own.
 
 `skill_node/visuals/` holds a new component family (`SkillNodeVisual` /
 `SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`,
-`weld_symbol`, `ring_wall`, `rim_bonuses`, `core_halos`, `rune_ring`,
+`weld_symbol`, `rim_ring`, `rim_bonuses`, `core_halos`, `rune_ring`,
 `node_visuals_composite`) implementing the 6 locked-pick visuals from
 `docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`. It lives
 **alongside** `base_circle.gd` / `hover_ring.gd` / `core_marker.gd`, not in
@@ -21,7 +21,7 @@ explicit future decision, not part of this milestone. Preview all components
 
 ### Shader materials: shared + `instance uniform`, not `resource_local_to_scene`, when possible
 
-`inner_disk` and `ring_wall` (on its 4 built-in presets) each use ONE shared
+`inner_disk` and `rim_ring` (on its 4 built-in presets) each use ONE shared
 `ShaderMaterial` (built lazily, cached in a `static var`) across every node
 instance, varying per-node via `instance uniform`s in the shader +
 `CanvasItem.set_instance_shader_parameter()` in the script. This keeps every
@@ -29,20 +29,38 @@ node on screen batching into a single draw call. **Prefer this over
 `resource_local_to_scene = true` on a per-node-duplicated material** whenever
 every varying value is a plain scalar/vector/color — samplers can't be
 instance uniforms, that's the only thing that forces the duplicate-material
-escape hatch (see `ring_wall`'s custom-Curve fallback, gated on
+escape hatch (see `rim_ring`'s custom-Curve fallback, gated on
 `_use_custom_curve`, which bakes a small LUT texture into a dedicated
 `resource_local_to_scene` material for just that one instance).
 
-`weld_symbol`'s `CanvasItemMaterial` has no per-node state at all (blend mode
-is always MUL) — it's a single shared static material, no instance uniforms
-needed.
+`rim_ring` carries NO knowledge of the disk beneath it — it only owns its own
+`inner_radius`/`outer_radius` band (base class) plus an interior `crest_r`
+control point marking where the flat floor ends and the bevel to the rim
+begins. `node_visuals_composite.gd` is the one layer that knows both InnerDisk
+and RimRing exist; it lines `RimRing.inner_radius` up with `InnerDisk.disk_radius`
+so the two abut, rather than RimRing reaching for disk-shaped exports itself.
+
+`weld_symbol` does NOT use a blend-mode material — an earlier version drew a
+flat white fill under `CanvasItemMaterial.BLEND_MODE_MUL`, which read as a
+black sticker whenever the underlying disk was dark (unallocated), since MUL
+against a dark destination just darkens further. It now evaluates the SAME
+shading formula as `inner_disk.gdshader` per-vertex (`_disk_shade()` in
+`weld_symbol.gd`) and fills via `draw_polygon`'s Gouraud-interpolated vertex
+colors — no shader material needed for the fill, and no risk of it also
+recoloring the flat hairline-stroke/glow layers drawn in the same `_draw()`
+(a real material would apply to every draw call on the node, not just the
+fill). `node_visuals_composite.gd._sync_shared()` mirrors ALL of InnerDisk's
+shading inputs onto WeldSymbol (`tint_color`, `tint_mix`, `allocated`,
+`highlight_position`, `highlight_intensity`), not just `tint_color` — the
+design intent is that the weld reads as sunk into the same metal, not an
+independently-lit sticker, so drift in any one of those inputs breaks that.
 
 **Gotcha that motivated all this:** an `@tool` script that builds a `Resource`
 in `_ready()` and assigns it to an `@export`ed field can get that result baked
 as the scene's *default* value by an editor save pass (same family of bug as
-the class-cache/editor-mutation gotcha in `godot-workflow.md`). `ring_wall`'s
+the class-cache/editor-mutation gotcha in `godot-workflow.md`). `rim_ring`'s
 old CPU-banded design built a `Curve` this way without marking it
-`resource_local_to_scene` — the editor baked ONE Curve into `ring_wall.tscn`'s
+`resource_local_to_scene` — the editor baked ONE Curve into `rim_ring.tscn`'s
 default, and since a non-local-to-scene default Resource is shared by
 reference across every instance of a PackedScene, all 4 stacked rings in the
 composite (#126's ring-stacking stake mode) pointed at the same Curve. Any
@@ -53,7 +71,7 @@ instance uniforms instead.
 
 Performance note for future components in this family: canvas_item fragment
 shaders are cheap per-pixel (a skill node is tiny on screen); the real cost to
-watch is draw calls, not shader complexity. `ring_wall`'s old approach issued
+watch is draw calls, not shader complexity. `rim_ring`'s old approach issued
 28 `draw_circle` calls per ring to fake shading via CPU-side banding — a
 single shader-drawn ring with a real height-function bumpmap is both cheaper
 (1 draw call) and higher quality (continuous, not banded).

@@ -48,18 +48,18 @@ const RUNES_PER_BAND := 8
 		rune_ring_pad = value
 		queue_redraw()
 ## Radial offset from the node's current actual outer edge.
-@export var rune_ring_gap: float = 6.0:
+@export_range(0.0, 32.0, 0.5) var rune_ring_gap: float = 6.0:
 	set(value):
 		rune_ring_gap = value
 		queue_redraw()
-@export var rune_ring_spacing: float = 8.0:
+@export_range(0.0, 32.0, 0.5) var rune_ring_spacing: float = 8.0:
 	set(value):
 		rune_ring_spacing = value
 		queue_redraw()
 
 ## Node's current actual outer edge (post stake-growth). 0 -> fall back to
 ## [member radius] (standalone preview / not yet wired by a composite).
-@export var outer_edge_r: float = 0.0:
+@export_range(0.0, 128.0, 0.5) var outer_edge_r: float = 0.0:
 	set(value):
 		outer_edge_r = value
 		queue_redraw()

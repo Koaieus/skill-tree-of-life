@@ -1,14 +1,21 @@
 @tool
 extends SkillNodeRingVisual
-## Ring wall (#125): single structural wall ring built from 4 radii — pit
-## (recessed floor), disc (flush with pit), crest (bevel inset), rim (outer
-## edge). The crest->rim bevel look is a REAL height(radius) bumpmap lit by
-## ring_wall.gdshader (fragment-side, not a CPU-banded fake) —
+## Rim ring (#125): the raised chrome/gem-holder band around a SkillNode's
+## disk — NOT a "wall" (renamed from RingWall), and it knows nothing about
+## the disk beneath it. It only owns its own band: [member inner_radius]
+## (base class) to [member outer_radius] (base class), with [member crest_r]
+## as an *interior* control point marking where the flat floor ends and the
+## bevel to the rim begins. The composite is responsible for lining
+## [member inner_radius] up with whatever disk radius it's wrapping.
+##
+## The crest->rim bevel is a REAL height(radius) bumpmap lit by
+## rim_ring.gdshader (fragment-side, not a CPU-banded fake) —
 ## level/terrace/smooth/sharpen are 4 closed-form presets baked into the
-## shader itself, so every built-in-preset ring_wall shares ONE
+## shader itself, so every built-in-preset rim_ring shares ONE
 ## ShaderMaterial (batches into one draw call) while still varying per-node
-## via `instance uniform`s. "No crest" = crest_r == rim_r; that alone
-## collapses the band to nothing, no separate code path needed.
+## via `instance uniform`s. "No bevel" = crest_r == outer_radius, which
+## collapses the whole band to a flat plateau; crest_r == inner_radius
+## bevels the entire band with no flat floor segment.
 ##
 ## Assigning a genuinely custom [Curve] to [member rim_height_style] (a
 ## 5th/6th profile) opts THIS instance out of the shared/batched material —
@@ -24,31 +31,18 @@ enum HeightPreset { LEVEL, TERRACE, SMOOTH, SHARPEN }
 const CUSTOM_PRESET_INDEX := 4
 const LUT_SAMPLES := 64
 
-const SHADER := preload("res://skill_node/visuals/ring_wall.gdshader")
+const SHADER := preload("res://skill_node/visuals/rim_ring.gdshader")
 const BASE_COLOR := Color(0.65, 0.67, 0.72)
 
-## Shared across every ring_wall using a built-in preset — see the class
+## Shared across every rim_ring using a built-in preset — see the class
 ## doc. Built lazily so @tool previews and runtime both get it.
 static var _shared_material: ShaderMaterial
 
-## Recessed floor radius (informational at this layer — the inner disk owns
-## the actual pit/disc rendering; carried here so the composite can read a
-## single source of truth for all 4 rim radii).
-@export var geom_pit_r: float = 24.0:
+## Interior control point (inner_radius < crest_r <= outer_radius): where
+## the flat floor ends and the bevel toward the rim begins.
+@export_range(0.0, 128.0, 0.5) var crest_r: float = 28.0:
 	set(value):
-		geom_pit_r = value
-		queue_redraw()
-@export var geom_disc_r: float = 24.0:
-	set(value):
-		geom_disc_r = value
-		queue_redraw()
-@export var geom_crest_r: float = 28.0:
-	set(value):
-		geom_crest_r = value
-		_sync_material()
-@export var geom_rim_r: float = 32.0:
-	set(value):
-		geom_rim_r = value
+		crest_r = value
 		_sync_material()
 
 ## Assigning a Curve here that ISN'T one of the 4 built-in presets opts this
@@ -68,13 +62,17 @@ static var _shared_material: ShaderMaterial
 		rim_height_style = null
 		_sync_material()
 
-@export var wall_color: Color = BASE_COLOR:
+@export var ring_tint: Color = BASE_COLOR:
 	set(value):
-		wall_color = value
+		ring_tint = value
 		_sync_material()
 
 var _use_custom_curve: bool = false
 var _custom_material: ShaderMaterial
+
+
+func _on_ring_radius_changed() -> void:
+	_sync_material()
 
 
 func _ready() -> void:
@@ -94,15 +92,17 @@ func _sync_material() -> void:
 			_custom_material.shader = SHADER
 		material = _custom_material
 		_custom_material.set_shader_parameter(&"height_lut", _bake_lut(rim_height_style))
-		_custom_material.set_shader_parameter(&"crest_r", geom_crest_r)
-		_custom_material.set_shader_parameter(&"rim_r", geom_rim_r)
-		_custom_material.set_shader_parameter(&"wall_tint", wall_color)
+		_custom_material.set_shader_parameter(&"inner_r", inner_radius)
+		_custom_material.set_shader_parameter(&"crest_r", crest_r)
+		_custom_material.set_shader_parameter(&"outer_r", outer_radius)
+		_custom_material.set_shader_parameter(&"ring_tint", ring_tint)
 		_custom_material.set_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX)
 	else:
 		material = _shared_material
-		set_instance_shader_parameter(&"crest_r", geom_crest_r)
-		set_instance_shader_parameter(&"rim_r", geom_rim_r)
-		set_instance_shader_parameter(&"wall_tint", wall_color)
+		set_instance_shader_parameter(&"inner_r", inner_radius)
+		set_instance_shader_parameter(&"crest_r", crest_r)
+		set_instance_shader_parameter(&"outer_r", outer_radius)
+		set_instance_shader_parameter(&"ring_tint", ring_tint)
 		set_instance_shader_parameter(&"height_preset", int(height_preset))
 	queue_redraw()
 
@@ -121,6 +121,6 @@ static func _bake_lut(curve: Curve) -> ImageTexture:
 func _draw() -> void:
 	# The shader draws the actual ring band; this quad just needs to cover
 	# it (material is applied to whatever this draws).
-	if geom_rim_r <= geom_crest_r:
+	if outer_radius <= inner_radius:
 		return
-	draw_rect(Rect2(Vector2(-geom_rim_r, -geom_rim_r), Vector2.ONE * geom_rim_r * 2.0), Color.WHITE)
+	draw_rect(Rect2(Vector2(-outer_radius, -outer_radius), Vector2.ONE * outer_radius * 2.0), Color.WHITE)

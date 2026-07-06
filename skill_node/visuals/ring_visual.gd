@@ -6,15 +6,25 @@ extends SkillNodeVisual
 ## `SkillNode.ring_centerline` static rather than re-deriving the arithmetic —
 ## one formula, per .claude/rules/skill-node-visuals.md.
 
-@export var inner_radius: float = 24.0:
+@export_range(0.0, 128.0, 0.5) var inner_radius: float = 24.0:
 	set(value):
 		inner_radius = value
 		queue_redraw()
+		_on_ring_radius_changed()
 
-@export var outer_radius: float = 32.0:
+@export_range(0.0, 128.0, 0.5) var outer_radius: float = 32.0:
 	set(value):
 		outer_radius = value
 		queue_redraw()
+		_on_ring_radius_changed()
+
+
+## Virtual hook: subclasses with extra per-radius state to resync (e.g.
+## RimRing pushing radii into its shader) override this instead of
+## redeclaring inner_radius/outer_radius (which would shadow the base
+## property).
+func _on_ring_radius_changed() -> void:
+	pass
 
 
 ## Stroke centerline for a ring specified as (inner_offset, width) relative to

@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_composite"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/inner_disk.tscn" id="3_disk"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/weld_symbol.tscn" id="4_weld"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/ring_wall.tscn" id="5_wall"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/rim_ring.tscn" id="5_wall"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="6_rim"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="7_halos"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rune_ring.tscn" id="8_rune"]
@@ -39,7 +39,7 @@ position = Vector2(150, 210)
 scale = Vector2(2.2, 2.2)
 
 [node name="Composite" parent="ViewportContainer/World/CompositeSlot" instance=ExtResource("2_composite")]
-hue = 145.0
+tint_color = Color(0.36, 0.9, 0.585, 1)
 allocated = true
 rim_growth = true
 stake_cap = 3
@@ -67,10 +67,10 @@ glow_mode = 3
 glow_amt = 0.6
 arch = 2
 
-[node name="RingWallSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="RimRingSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(770, 90)
 
-[node name="RingWall" parent="ViewportContainer/World/RingWallSlot" instance=ExtResource("5_wall")]
+[node name="RimRing" parent="ViewportContainer/World/RimRingSlot" instance=ExtResource("5_wall")]
 height_preset = 2
 
 [node name="RimBonusesSlot" type="Node2D" parent="ViewportContainer/World"]

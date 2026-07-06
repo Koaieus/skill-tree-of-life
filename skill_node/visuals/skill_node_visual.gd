@@ -16,7 +16,7 @@ extends Node2D
 ## in the sandbox panel.
 @export var skill_node: SkillNode = null
 
-@export var radius: float = 32.0:
+@export_range(0.0, 128.0, 0.5) var radius: float = 32.0:
 	set(value):
 		radius = value
 		queue_redraw()

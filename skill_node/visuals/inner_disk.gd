@@ -16,10 +16,13 @@ const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 
 static var _shared_material: ShaderMaterial
 
-## Archetype hue in degrees (0-360). Only visible when [member allocated].
-@export_range(0.0, 360.0, 1.0) var hue: float = 220.0:
+## The allocating entity's color (or the archetype color in a standalone
+## preview). Only visible when [member allocated] — unallocated nodes stay
+## neutral-dark regardless of this value, so there's no hue-extraction step
+## anywhere: the color IS what gets drawn, not a derived hint.
+@export var tint_color: Color = Color(0.291, 0.5892, 1.0):
 	set(value):
-		hue = value
+		tint_color = value
 		_sync_material()
 
 ## Saturation of the metal/disk tint (0 = grey, 1 = fully saturated).
@@ -37,7 +40,7 @@ static var _shared_material: ShaderMaterial
 
 ## Disk radius. Defaults to SkillNode.inner_radius (24) — see
 ## .claude/rules/skill-node-visuals.md.
-@export var disk_radius: float = 24.0:
+@export_range(1.0, 128.0, 0.5) var disk_radius: float = 24.0:
 	set(value):
 		disk_radius = value
 		queue_redraw()
@@ -72,7 +75,7 @@ func configure(new_radius: float) -> void:
 func _sync_material() -> void:
 	if not is_node_ready():
 		return
-	set_instance_shader_parameter(&"hue", hue)
+	set_instance_shader_parameter(&"tint_color", tint_color)
 	set_instance_shader_parameter(&"tint_mix", tint_mix)
 	set_instance_shader_parameter(&"allocated", allocated)
 	set_instance_shader_parameter(&"highlight_position", highlight_position)

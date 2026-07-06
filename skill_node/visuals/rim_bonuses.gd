@@ -13,11 +13,11 @@ const MARK_COUNT := 8
 const NEUTRAL_CHROME := Color(0.72, 0.74, 0.78)
 const GROOVE_COLOR := Color(0.05, 0.05, 0.07, 0.85)
 
-@export var geom_crest_r: float = 28.0:
+@export_range(0.0, 128.0, 0.5) var geom_crest_r: float = 28.0:
 	set(value):
 		geom_crest_r = value
 		queue_redraw()
-@export var geom_rim_r: float = 32.0:
+@export_range(0.0, 128.0, 0.5) var geom_rim_r: float = 32.0:
 	set(value):
 		geom_rim_r = value
 		queue_redraw()
