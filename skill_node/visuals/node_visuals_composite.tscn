@@ -20,6 +20,18 @@ unique_name_in_owner = true
 [node name="RingWall" parent="." instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 
+[node name="RingWall2" parent="." instance=ExtResource("4_wall")]
+unique_name_in_owner = true
+visible = false
+
+[node name="RingWall3" parent="." instance=ExtResource("4_wall")]
+unique_name_in_owner = true
+visible = false
+
+[node name="RingWall4" parent="." instance=ExtResource("4_wall")]
+unique_name_in_owner = true
+visible = false
+
 [node name="RimBonuses" parent="." instance=ExtResource("5_rim")]
 unique_name_in_owner = true
 

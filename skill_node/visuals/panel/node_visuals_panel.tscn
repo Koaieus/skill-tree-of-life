@@ -39,6 +39,11 @@ position = Vector2(150, 210)
 scale = Vector2(2.2, 2.2)
 
 [node name="Composite" parent="ViewportContainer/World/CompositeSlot" instance=ExtResource("2_composite")]
+hue = 145.0
+allocated = true
+rim_growth = true
+stake_cap = 3
+stake_alloc = 2
 
 [node name="CompositeLabel" type="Label" parent="ViewportContainer/World"]
 offset_left = 60.0
