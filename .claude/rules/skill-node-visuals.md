@@ -4,6 +4,21 @@ How the concentric rings around a `SkillNode` are sized. One convention, one
 formula, so radii stay legible "going forward" instead of each ring re-deriving
 its own.
 
+## SkillNode-visuals-v2 (milestone #16) — a parallel system, not a cutover
+
+`skill_node/visuals/` holds a new component family (`SkillNodeVisual` /
+`SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`,
+`weld_symbol`, `ring_wall`, `rim_bonuses`, `core_halos`, `rune_ring`,
+`node_visuals_composite`) implementing the 6 locked-pick visuals from
+`docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`. It lives
+**alongside** `base_circle.gd` / `hover_ring.gd` / `core_marker.gd`, not in
+place of them — cutting the live SkillNode render path over to it is an
+explicit future decision, not part of this milestone. Preview all components
++ the composite together via the sandbox host's "Node Visuals" tab
+(`addons/sandbox_host/tabs/15_node_visuals_tab.tscn` → `skill_node/visuals/panel/node_visuals_panel.tscn`).
+`SkillNodeRingVisual.ring_centerline()` delegates to `SkillNode.ring_centerline`
+(this file's formula) rather than forking it — keep it that way.
+
 ## The one formula
 
 Every **stroked ring** is specified as `(inner_offset, width)` relative to the

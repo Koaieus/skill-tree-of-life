@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_tab"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/panel/node_visuals_panel.tscn" id="2_panel"]
+
+[node name="NodeVisuals" type="MarginContainer"]
+script = ExtResource("1_tab")
+tab_title = "Node Visuals"
+tab_id = &"node_visuals"
+panel_scene = ExtResource("2_panel")

@@ -1,0 +1,30 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/weld_symbol.tscn" id="3_weld"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/ring_wall.tscn" id="4_wall"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="6_halos"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
+
+[node name="NodeVisualsComposite" type="Node2D"]
+script = ExtResource("1_comp")
+
+[node name="InnerDisk" parent="." instance=ExtResource("2_disk")]
+unique_name_in_owner = true
+
+[node name="WeldSymbol" parent="." instance=ExtResource("3_weld")]
+unique_name_in_owner = true
+
+[node name="RingWall" parent="." instance=ExtResource("4_wall")]
+unique_name_in_owner = true
+
+[node name="RimBonuses" parent="." instance=ExtResource("5_rim")]
+unique_name_in_owner = true
+
+[node name="CoreHalos" parent="." instance=ExtResource("6_halos")]
+unique_name_in_owner = true
+
+[node name="RuneRing" parent="." instance=ExtResource("7_rune")]
+unique_name_in_owner = true

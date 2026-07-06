@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/core_halos.gd" id="1_halos"]
+
+[node name="CoreHalos" type="Node2D"]
+script = ExtResource("1_halos")
