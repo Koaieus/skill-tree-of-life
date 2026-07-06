@@ -57,6 +57,7 @@ const MAX_STAKE_CAP := 4
 	%RimBonuses, %CoreHalos, %RuneRing,
 ]
 @onready var _ring_walls: Array[SkillNodeRingVisual] = [%RingWall, %RingWall2, %RingWall3, %RingWall4]
+@onready var _stake_label: Label = %StakeLabel
 
 
 func _ready() -> void:
@@ -103,6 +104,18 @@ func _sync_stake() -> void:
 		rw.wall_color = _stake_hue_color(filled)
 		max_rim_r = maxf(max_rim_r, rim)
 	%RuneRing.outer_edge_r = max_rim_r
+	_sync_stake_label(max_rim_r)
+
+
+## "alloc/cap" under the node, only once stake_cap > 1 — a cap of 1 has
+## nothing to count (matches ring_wall's own "single wedge reads as
+## nothing" rule for the segmented-dial approach).
+func _sync_stake_label(max_rim_r: float) -> void:
+	_stake_label.visible = rim_growth and stake_cap > 1
+	if not _stake_label.visible:
+		return
+	_stake_label.text = "%d/%d" % [stake_alloc, stake_cap]
+	_stake_label.position.y = max_rim_r + 6.0
 
 
 ## Filled rings read as the bright archetype hue; unfilled rings dim to a

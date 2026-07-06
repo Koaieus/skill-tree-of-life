@@ -40,3 +40,13 @@ unique_name_in_owner = true
 
 [node name="RuneRing" parent="." instance=ExtResource("7_rune")]
 unique_name_in_owner = true
+
+[node name="StakeLabel" type="Label" parent="."]
+unique_name_in_owner = true
+offset_left = -40.0
+offset_right = 40.0
+offset_top = 0.0
+offset_bottom = 20.0
+horizontal_alignment = 1
+vertical_alignment = 1
+visible = false
