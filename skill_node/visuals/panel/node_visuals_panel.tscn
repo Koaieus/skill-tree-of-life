@@ -63,6 +63,7 @@ allocated = true
 position = Vector2(600, 90)
 
 [node name="WeldSymbol" parent="ViewportContainer/World/WeldSymbolSlot" instance=ExtResource("4_weld")]
+show_weld = true
 glow_mode = 3
 glow_amt = 0.6
 arch = 2

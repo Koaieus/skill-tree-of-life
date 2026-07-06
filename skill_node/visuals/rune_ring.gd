@@ -10,8 +10,15 @@ enum RuneCount { NONE, SINGLE, DOUBLE, TRIPLE }
 enum RuneStyle { FLUSH, ORNATE, MIXED }
 enum RuneBlend { CUTOUT, INK, GLOW }
 
-const BAND_COLOR := Color(0.55, 0.35, 0.85)
 const RUNES_PER_BAND := 8
+
+## Band color — shared with InnerDisk/WeldSymbol/RimRing's tint_color (#132)
+## rather than a private fixed hue, so the whole node reads as one archetype
+## color under a single control.
+@export var tint_color: Color = Color(0.55, 0.35, 0.85):
+	set(value):
+		tint_color = value
+		queue_redraw()
 
 @export var rune_ring: RuneCount = RuneCount.NONE:
 	set(value):
@@ -116,11 +123,11 @@ func _draw() -> void:
 
 
 func _draw_band(r: float, width: float, rune_scale: float, rotation: float) -> void:
-	var fill_color := Color(BAND_COLOR.r, BAND_COLOR.g, BAND_COLOR.b, rune_ring_fill)
+	var fill_color := Color(tint_color.r, tint_color.g, tint_color.b, rune_ring_fill)
 	var rune_len := width * (1.0 - rune_ring_pad) * rune_scale
 
 	if rune_ring_glow > 0.0:
-		draw_circle(Vector2.ZERO, r, Color(BAND_COLOR.r, BAND_COLOR.g, BAND_COLOR.b, rune_ring_glow * 0.3), false, width * 1.6, true)
+		draw_circle(Vector2.ZERO, r, Color(tint_color.r, tint_color.g, tint_color.b, rune_ring_glow * 0.3), false, width * 1.6, true)
 
 	if rune_ring_blend == RuneBlend.CUTOUT:
 		_draw_cutout_band(r, width, rune_len, rotation, fill_color)

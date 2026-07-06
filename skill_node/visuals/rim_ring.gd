@@ -67,6 +67,14 @@ static var _shared_material: ShaderMaterial
 		ring_tint = value
 		_sync_material()
 
+## Same value as InnerDisk.highlight_position — see #130. The composite
+## forwards InnerDisk's value here so the disk and its rim stay lit from one
+## source; a standalone preview just keeps the default.
+@export var light_dir: Vector2 = Vector2(-0.35, -0.35):
+	set(value):
+		light_dir = value
+		_sync_material()
+
 var _use_custom_curve: bool = false
 var _custom_material: ShaderMaterial
 
@@ -97,6 +105,7 @@ func _sync_material() -> void:
 		_custom_material.set_shader_parameter(&"outer_r", outer_radius)
 		_custom_material.set_shader_parameter(&"ring_tint", ring_tint)
 		_custom_material.set_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX)
+		_custom_material.set_shader_parameter(&"light_dir_xy", light_dir)
 	else:
 		material = _shared_material
 		set_instance_shader_parameter(&"inner_r", inner_radius)
@@ -104,6 +113,7 @@ func _sync_material() -> void:
 		set_instance_shader_parameter(&"outer_r", outer_radius)
 		set_instance_shader_parameter(&"ring_tint", ring_tint)
 		set_instance_shader_parameter(&"height_preset", int(height_preset))
+		set_instance_shader_parameter(&"light_dir_xy", light_dir)
 	queue_redraw()
 
 

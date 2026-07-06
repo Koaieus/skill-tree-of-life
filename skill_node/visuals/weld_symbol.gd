@@ -31,7 +31,11 @@ const ARCH_SIDES := {
 const NEUTRAL_DARK := Color(0.16, 0.17, 0.20)
 const NEUTRAL_LIGHT := Color(0.38, 0.40, 0.45)
 
-@export var show_weld: bool = true:
+## Off by default per the locked design ("showWeld — off is the new default;
+## empty center. on restores the archetype shape" — Rim Forge Lab): the disk's
+## own semi-sphere shading + specular highlight is the baseline read, the
+## glyph is an opt-in accent.
+@export var show_weld: bool = false:
 	set(value):
 		show_weld = value
 		queue_redraw()

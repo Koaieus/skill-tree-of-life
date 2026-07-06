@@ -104,6 +104,9 @@ func _sync_shared() -> void:
 	%WeldSymbol.highlight_intensity = %InnerDisk.highlight_intensity
 	%RimBonuses.hue = tint_color.h * 360.0
 	%RimBonuses.allocated = allocated
+	%RuneRing.tint_color = tint_color
+	for rw in _rim_rings:
+		rw.light_dir = %InnerDisk.highlight_position
 
 
 ## Positions the (up to 4) pre-placed rim_ring instances outward per stake

@@ -30,7 +30,11 @@ instance uniform int height_preset = 0; // 0 level, 1 terrace, 2 smooth, 3 sharp
 // own per-instance material — see rim_ring.gd::_sync_material.
 uniform sampler2D height_lut;
 
-const vec3 LIGHT_DIR = vec3(-0.35, -0.35, 0.65);
+// #130 — matches inner_disk.gdshader's highlight_position instance uniform
+// (same xy, same fixed z=0.65) instead of a private hardcoded constant, so
+// the composite can drive both from the ONE InnerDisk value and the disk +
+// rim never drift onto two different light sources.
+instance uniform vec2 light_dir_xy = vec2(-0.35, -0.35);
 
 float height_level(float t) {
 	return t;
@@ -80,7 +84,8 @@ void fragment() {
 
 	vec2 radial_dir = r > 0.0001 ? p / r : vec2(0.0, 1.0);
 	vec3 normal = normalize(vec3(-radial_dir * slope, 1.0));
-	float diffuse = max(dot(normal, normalize(LIGHT_DIR)), 0.0);
+	vec3 light_dir = normalize(vec3(light_dir_xy, 0.65));
+	float diffuse = max(dot(normal, light_dir), 0.0);
 	vec3 shaded = ring_tint.rgb * (0.35 + 0.65 * diffuse);
 
 	float inside = step(inner_r, r) * step(r, outer_r);
