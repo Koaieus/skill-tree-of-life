@@ -52,28 +52,39 @@ text = "Composite"
 position = Vector2(430, 90)
 
 [node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" instance=ExtResource("3_disk")]
+allocated = true
 
 [node name="WeldSymbolSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(600, 90)
 
 [node name="WeldSymbol" parent="ViewportContainer/World/WeldSymbolSlot" instance=ExtResource("4_weld")]
+glow_mode = 3
+glow_amt = 0.6
+arch = 2
 
 [node name="RingWallSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(770, 90)
 
 [node name="RingWall" parent="ViewportContainer/World/RingWallSlot" instance=ExtResource("5_wall")]
+height_preset = 2
 
 [node name="RimBonusesSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(430, 280)
 
 [node name="RimBonuses" parent="ViewportContainer/World/RimBonusesSlot" instance=ExtResource("6_rim")]
+allocated = true
+rim_tone = 2
+rim_holder = 1
 
 [node name="CoreHalosSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(600, 280)
 
 [node name="CoreHalos" parent="ViewportContainer/World/CoreHalosSlot" instance=ExtResource("7_halos")]
+core = 1
 
 [node name="RuneRingSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(770, 280)
 
 [node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" instance=ExtResource("8_rune")]
+rune_ring = 2
+rune_ring_blend = 2
