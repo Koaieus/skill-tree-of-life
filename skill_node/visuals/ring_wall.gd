@@ -62,6 +62,14 @@ func _ready() -> void:
 
 static func _build_preset(preset: HeightPreset) -> Curve:
 	var curve := Curve.new()
+	# Without this, an @tool _ready() build like this one gets its result
+	# baked as the scene's *default* value by an editor save pass — and an
+	# un-local-to-scene default Resource is shared by reference across every
+	# instance of ring_wall.tscn (the 4 stacked rings in the composite all
+	# pointed at the same Curve until this was set). See
+	# .claude/rules/godot-workflow.md for the sibling gotcha (editor passes
+	# silently mutating hand-authored .tscn/.tres state).
+	curve.resource_local_to_scene = true
 	match preset:
 		HeightPreset.LEVEL:
 			curve.add_point(Vector2(0.0, 0.0))
