@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — lab · anatomy reference</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Anatomy lab</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1200px;line-height:1.65;">A named, labeled cutaway of every concentric layer — so feedback can point at "the crest highlight" or "chrome ring 2" instead of "that one ring, you know...". Every radius here is a live Tweaks-panel slider, so both diagrams (labels included) react in real time.</div>
+  </div>
+
+  <!-- diagram 1: base crater -->
+  <div style="{{ card }}padding:34px;margin-bottom:24px;">
+    <div style="{{ H2 }}margin-bottom:6px;">1. Base crater — the core cross-section</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;max-width:1100px;">Twirl <b style="color:oklch(0.82 0.13 88);">baseRimR / baseCrestR / basePitR / baseDiscR</b> in Tweaks — the node, the leader lines, and the height chart below all update together.</div>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="position:relative;width:{{ baseBox }}px;height:{{ baseBox }}px;flex:none;">
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);">
+          <dc-import name="ArcheNode" size="{{ baseD }}" variant="well" arch="int" hue="265" geomRimR="{{ baseRimR }}" geomCrestR="{{ baseCrestR }}" geomPitR="{{ basePitR }}" geomDiscR="{{ baseDiscR }}" hint-size="{{ baseD }}px,{{ baseD }}px" style="width:{{ baseD }}px;height:{{ baseD }}px;"></dc-import>
+        </div>
+        <svg width="{{ baseBox }}" height="{{ baseBox }}" viewBox="0 0 {{ baseBox }} {{ baseBox }}" style="position:absolute;inset:0;overflow:visible;pointer-events:none;">
+          <sc-for list="{{ baseLines }}" as="l" hint-placeholder-count="9">
+            <line x1="{{ l.x1 }}" y1="{{ l.y1 }}" x2="{{ l.x2 }}" y2="{{ l.y2 }}" stroke="oklch(0.75 0.14 88)" stroke-width="1.3" stroke-dasharray="1 3.5"></line>
+            <circle cx="{{ l.x1 }}" cy="{{ l.y1 }}" r="3" fill="oklch(0.85 0.15 88)"></circle>
+          </sc-for>
+        </svg>
+        <sc-for list="{{ baseLabels }}" as="l" hint-placeholder-count="9">
+          <div style="position:absolute;left:{{ l.px }}px;top:{{ l.py }}px;width:190px;text-align:{{ l.align }};">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:#eef0f6;">{{ l.name }}</div>
+            <div style="font-size:10px;color:rgba(190,200,225,0.6);margin-top:2px;line-height:1.4;">{{ l.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;min-width:420px;">
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;margin-bottom:10px;">Radial height cut-through (readonly)</div>
+        <svg width="100%" height="170" viewBox="0 0 480 170" style="overflow:visible;">
+          <line x1="0" y1="150" x2="480" y2="150" stroke="rgba(255,255,255,0.15)" stroke-width="1"></line>
+          <polyline points="{{ heightPoints }}" fill="none" stroke="oklch(0.78 0.15 265)" stroke-width="2.5" stroke-linejoin="round" style="filter:drop-shadow(0 0 4px oklch(0.7 0.2 265));"></polyline>
+          <sc-for list="{{ heightTicks }}" as="t" hint-placeholder-count="4">
+            <line x1="{{ t.x }}" y1="6" x2="{{ t.x }}" y2="150" stroke="rgba(255,255,255,0.1)" stroke-dasharray="2 3"></line>
+          </sc-for>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:9.5px;color:rgba(190,200,225,0.55);margin-top:2px;">
+          <sc-for list="{{ heightTicks }}" as="t" hint-placeholder-count="4">
+            <span>{{ t.label }}</span>
+          </sc-for>
+        </div>
+        <div style="font-size:10.5px;color:rgba(180,190,215,0.5);margin-top:14px;line-height:1.5;">Height, not color — this is the bevel's implied surface profile: flat disc, recessed pit floor, wall rising to the crest peak, ramp back down to the outer rim.</div>
+
+        <!-- persistent component grid -->
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;margin:22px 0 10px;">All layers</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;">
+          <sc-for list="{{ baseItems }}" as="it" hint-placeholder-count="9">
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 10px;background:rgba(255,255,255,0.03);border-radius:6px;">
+              <span style="font-size:11px;color:#eef0f6;">{{ it.name }}</span>
+              <span style="font-size:10.5px;color:oklch(0.8 0.12 88);white-space:nowrap;">r = {{ it.rLabel }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- diagram 2: growth zones -->
+  <div style="{{ card }}padding:34px;">
+    <div style="{{ H2 }}margin-bottom:6px;">2. Growth zones — everything built outward from the rim</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;max-width:1100px;">Rendered at cap 3 / alloc 2, with the lifeline addon and a rune ring active. Twirl <b style="color:oklch(0.82 0.13 88);">growRuneGap / growRuneSpacing</b> — the rune ring is positioned relative to the node's actual outer edge, so it clears the chrome rings instead of colliding with them.</div>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="position:relative;width:{{ growBox }}px;height:{{ growBox }}px;flex:none;">
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);">
+          <dc-import name="ArcheNode" size="{{ growD }}" variant="well" arch="int" hue="265" stakeStyle="chrome" stakeCap="3" stakeAlloc="2" addonLifeline="{{ true }}" runeRing="single" runeRingStyle="flush" runeRingGap="{{ growRuneGap }}" runeRingSpacing="{{ growRuneSpacing }}" core="rings" haloScale="1.15" hint-size="{{ growD }}px,{{ growD }}px" style="width:{{ growD }}px;height:{{ growD }}px;"></dc-import>
+        </div>
+        <svg width="{{ growBox }}" height="{{ growBox }}" viewBox="0 0 {{ growBox }} {{ growBox }}" style="position:absolute;inset:0;overflow:visible;pointer-events:none;">
+          <sc-for list="{{ growLines }}" as="l" hint-placeholder-count="7">
+            <line x1="{{ l.x1 }}" y1="{{ l.y1 }}" x2="{{ l.x2 }}" y2="{{ l.y2 }}" stroke="oklch(0.75 0.14 88)" stroke-width="1.3" stroke-dasharray="1 3.5"></line>
+            <circle cx="{{ l.x1 }}" cy="{{ l.y1 }}" r="3" fill="oklch(0.85 0.15 88)"></circle>
+          </sc-for>
+        </svg>
+        <sc-for list="{{ growLabels }}" as="l" hint-placeholder-count="7">
+          <div style="position:absolute;left:{{ l.px }}px;top:{{ l.py }}px;width:210px;text-align:{{ l.align }};">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:#eef0f6;">{{ l.name }}</div>
+            <div style="font-size:10px;color:rgba(190,200,225,0.6);margin-top:2px;line-height:1.4;">{{ l.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;min-width:360px;">
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;margin-bottom:10px;">All layers</div>
+        <div style="display:grid;grid-template-columns:1fr;gap:8px;">
+          <sc-for list="{{ growItems }}" as="it" hint-placeholder-count="7">
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;background:rgba(255,255,255,0.03);border-radius:6px;">
+              <span style="font-size:11.5px;color:#eef0f6;">{{ it.name }}</span>
+              <span style="font-size:10.5px;color:oklch(0.8 0.12 88);white-space:nowrap;">r &asymp; {{ it.rLabel }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;baseRimR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:32,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:22,&quot;max&quot;:40,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base crater&quot;},&quot;baseCrestR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:28,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:18,&quot;max&quot;:36,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base crater&quot;},&quot;basePitR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:24,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:14,&quot;max&quot;:30,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base crater&quot;},&quot;baseDiscR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:24,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:10,&quot;max&quot;:26,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base crater&quot;},&quot;growRuneGap&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:20,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Growth zones&quot;},&quot;growRuneSpacing&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:9,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:3,&quot;max&quot;:20,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Growth zones&quot;},&quot;tintMix&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.9,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Node&quot;},&quot;weldK&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.76,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0.4,&quot;max&quot;:1.15,&quot;step&quot;:0.01,&quot;section&quot;:&quot;Shape&quot;},&quot;rimStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;single&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;single&quot;,&quot;double&quot;],&quot;section&quot;:&quot;Shape&quot;},&quot;glowAmt&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.4,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;haloScale&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1.8,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:4,&quot;step&quot;:0.1,&quot;section&quot;:&quot;Core presence&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;rings&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;rings&quot;,&quot;cog&quot;,&quot;orbit&quot;,&quot;spikes&quot;,&quot;gimbal&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRing&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;single&quot;,&quot;double&quot;,&quot;triple&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;addonPlates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+
+  // items: {r, angle (deg, 0=east/90=south), name, note}. Builds leader-line + label geometry for a
+  // node of screen diameter D centered in a boxSize×boxSize box, labels pushed out to labelR.
+  layout(items, D, boxSize, labelR){
+    const cx=boxSize/2, cy=boxSize/2, unit=D/100;
+    const lines=[], labels=[];
+    items.forEach(it=>{
+      const rad=it.angle*Math.PI/180;
+      const x1=cx+it.r*unit*Math.cos(rad), y1=cy+it.r*unit*Math.sin(rad);
+      const x2=cx+labelR*unit*Math.cos(rad), y2=cy+labelR*unit*Math.sin(rad);
+      lines.push({x1:x1.toFixed(1), y1:y1.toFixed(1), x2:x2.toFixed(1), y2:y2.toFixed(1)});
+      const rightSide = Math.cos(rad) >= 0;
+      const px = rightSide ? x2+10 : x2-10-190;
+      labels.push({ px:px.toFixed(1), py:(y2-16).toFixed(1), align: rightSide?'left':'right', name:it.name, note:it.note });
+    });
+    return { lines, labels };
+  }
+
+  renderVals(){
+    const p=this.props;
+    const baseD=340, baseBox=560;
+    const baseRimR=p.baseRimR??31.5, baseCrestR=p.baseCrestR??27.5, basePitR=p.basePitR??23, baseDiscR=p.baseDiscR??20;
+    const weldR = +(baseDiscR*0.7).toFixed(1);
+    const baseItems=[
+      {r:baseRimR+5.5, angle:-160, name:'Aura glow',        note:'owner-tint halo, allocated only', rLabel:(baseRimR+5.5).toFixed(1)},
+      {r:baseRimR+0.2, angle:-120, name:'Outer rim edge',   note:'dark boundary stroke', rLabel:baseRimR.toFixed(1)},
+      {r:(baseRimR+baseCrestR)/2, angle:-80,  name:'Ramp / bevel', note:'shaded slope: sheen top, shadow bottom', rLabel:((baseRimR+baseCrestR)/2).toFixed(1)},
+      {r:baseCrestR, angle:-40,   name:'Crest highlight',  note:'ramp peak', rLabel:baseCrestR.toFixed(1)},
+      {r:(baseCrestR+basePitR)/2, angle:0,   name:'Cliff wall', note:'drops from crest to the pit floor', rLabel:((baseCrestR+basePitR)/2).toFixed(1)},
+      {r:basePitR, angle:40,   name:'Pit floor',       note:'recessed dark floor', rLabel:basePitR.toFixed(1)},
+      {r:baseDiscR, angle:80,   name:'Central disc',     note:'the skill point — glows if allocated', rLabel:baseDiscR.toFixed(1)},
+      {r:weldR,  angle:120,  name:'Welded shape',     note:'archetype silhouette at rC × weldK (0.88 default)', rLabel:weldR+' (=rC×0.88)'},
+      {r:Math.max(2,weldR*0.5), angle:160,  name:'Sigil (alt.)', note:'replaces the welded shape when sigil = true', rLabel:'—'}
+    ];
+    const {lines:baseLines, labels:baseLabels} = this.layout(baseItems, baseD, baseBox, 58);
+
+    // height cut-through chart, driven by the same tweaked radii
+    const chartR = baseRimR+8; // widest radius shown
+    const xScale = 460/chartR, x0=10;
+    const X = r => (x0 + r*xScale).toFixed(1);
+    const Y = h => (150 - h*140).toFixed(1);
+    const pts = [
+      [0,0.55],[baseDiscR,0.55],[baseDiscR,0.18],[basePitR,0.18],[basePitR,1.0],
+      [baseCrestR,1.0],[baseCrestR,0.62],[baseRimR,0.46],[baseRimR+6,0.12]
+    ];
+    const heightPoints = pts.map(([r,h])=>`${X(r)},${Y(h)}`).join(' ');
+    const heightTicks=[
+      {x:X(baseDiscR), label:'disc '+baseDiscR.toFixed(0)},
+      {x:X(basePitR), label:'pit '+basePitR.toFixed(0)},
+      {x:X(baseCrestR), label:'crest '+baseCrestR.toFixed(0)},
+      {x:X(baseRimR), label:'rim '+baseRimR.toFixed(0)}
+    ];
+
+    const growD=380, growBox=680;
+    const growRuneGap=p.growRuneGap??4, growRuneSpacing=p.growRuneSpacing??9;
+    // mirrors ArcheNode's own math: cap3/alloc2 chrome adds 2 extra rings of width 4.2 beyond rOut=31.5
+    const rimOuterFinal = 31.5 + 2*4.2;
+    const runeBase = rimOuterFinal + growRuneGap + 3;
+    const lifelineR = rimOuterFinal+13;
+    const haloLo = 35*1.15, haloHi = 39*1.15;
+    const growItems=[
+      {r:31.5,        angle:-160, name:'Ring 0 — base bevel',    note:'always present, the un-staked look', rLabel:'31.5'},
+      {r:35.7,        angle:-120, name:'Chrome ring — filled',   note:'+1 stake point invested, bright hue-tinted', rLabel:'35.7'},
+      {r:lifelineR,   angle:-90,  name:'Lifeline addon',         note:'pulsing tether + antenna, straight up from the disc', rLabel:lifelineR.toFixed(1)},
+      {r:39.9,        angle:-50,  name:'Chrome ring — potential',note:'capacity raised, not yet invested: thin & flat', rLabel:'39.9'},
+      {r:haloHi,      angle:0,    name:'Core halo',              note:'rings / cog / orbit / spikes / gimbal, scales with haloScale', rLabel:haloLo.toFixed(1)+'–'+haloHi.toFixed(1)},
+      {r:runeBase,    angle:50,   name:'Ring of runes',          note:'gap+spacing relative to the node\u2019s real outer edge, so it clears stake rings', rLabel:runeBase.toFixed(1)},
+      {r:0,           angle:100,  name:'Ports (not shown)',      note:'socket marks at graph-edge angles, drawn on the outermost rim', rLabel:'—'}
+    ];
+    const {lines:growLines, labels:growLabels} = this.layout(growItems, growD, growBox, 64);
+
+    return { H2:this.H2, card:this.card,
+      baseD, baseBox, baseLines, baseLabels, baseItems,
+      baseRimR, baseCrestR, basePitR, baseDiscR,
+      heightPoints, heightTicks,
+      growD, growBox, growLines, growLabels, growItems,
+      growRuneGap, growRuneSpacing
+    };
+  }
+}
+
+</script>
+</body>
+</html>

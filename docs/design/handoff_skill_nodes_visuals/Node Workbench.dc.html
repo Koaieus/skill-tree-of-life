@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1900px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <div style="display:flex;gap:16px;margin-bottom:22px;">
+    <a href="Lab Index.dc.html" style="{{ navLink }}">&larr; Lab Index</a>
+    <a href="Rim Forge Lab.dc.html" style="{{ navLink }}">Rim Forge Lab</a>
+    <a href="Core Node Spin-off.dc.html" style="{{ navLink }}">Core Node Spin-off (history)</a>
+  </div>
+
+  <div style="margin-bottom:30px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — single-node workbench</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Node Workbench</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1300px;line-height:1.7;">One node, every rim/weld/glow knob in the Tweaks panel — twirl there instead of hunting through grid labs. Everything below (the stake matrix, the radius readout) reads live off the same props, so a single twirl updates the whole page. Stake states are always shown as the full <b style="color:#eef0f6;">0/cap .. cap/cap</b> matrix, never a cherry-picked subset.</div>
+  </div>
+
+  <!-- SECTION A: the workbench itself -->
+  <div style="{{ card }}padding:36px;margin-bottom:26px;display:flex;gap:48px;align-items:flex-start;">
+    <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <div style="{{ labelStyle }}text-transform:uppercase;letter-spacing:2px;">Live node</div>
+      <div style="position:relative;width:220px;height:220px;">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <dc-import name="ArcheNode" size="220" variant="well" arch="{{ arch }}" hue="{{ hue }}" tintMix="{{ tintMix }}" allocated="{{ allocated }}" stakeCap="{{ stakeCap }}" stakeAlloc="{{ stakeAlloc }}" rimGrowth="{{ rimGrowth }}" rimSegments="{{ rimSegments }}" rimHeightStyle="{{ rimHeightStyle }}" ringGap="{{ ringGap }}" rimTone="{{ rimTone }}" showWeld="{{ showWeld }}" weldK="{{ weldK }}" vividDisk="{{ vividDisk }}" glowMode="{{ glowMode }}" glowAmt="{{ glowAmt }}" sigil="{{ sigil }}" sigilStyle="{{ sigilStyle }}" spin="{{ true }}" hint-size="220px,220px" style="width:220px;height:220px;"></dc-import>
+        </div>
+      </div>
+      <div style="{{ labelStyle }}text-align:center;">{{ stakeAlloc }}/{{ stakeCap }} allocated</div>
+      <div style="font-size:10.5px;color:rgba(190,200,225,0.55);text-align:center;">outer radius: <b style="color:#eef0f6;">{{ radiusReadout }}</b> svg units{{ radiusFormula }}</div>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="{{ labelStyle }}text-transform:uppercase;letter-spacing:2px;margin-bottom:14px;">Full stake matrix — 0/{{ stakeCap }} .. {{ stakeCap }}/{{ stakeCap }} (same props as the live node, only alloc varies)</div>
+      <div style="display:flex;gap:22px;flex-wrap:wrap;">
+        <sc-for list="{{ matrixCells }}" as="m" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="position:relative;width:130px;height:130px;">
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                <dc-import name="ArcheNode" size="130" variant="well" arch="{{ arch }}" hue="{{ hue }}" tintMix="{{ tintMix }}" allocated="{{ m.allocated }}" stakeCap="{{ stakeCap }}" stakeAlloc="{{ m.alloc }}" rimGrowth="{{ rimGrowth }}" rimSegments="{{ rimSegments }}" rimHeightStyle="{{ rimHeightStyle }}" ringGap="{{ ringGap }}" rimTone="{{ rimTone }}" showWeld="{{ showWeld }}" weldK="{{ weldK }}" vividDisk="{{ vividDisk }}" glowMode="{{ glowMode }}" glowAmt="{{ glowAmt }}" sigil="{{ sigil }}" sigilStyle="{{ sigilStyle }}" spin="{{ true }}" hint-size="130px,130px" style="width:130px;height:130px;"></dc-import>
+              </div>
+            </div>
+            <div style="{{ labelStyle }}">{{ m.alloc }}/{{ stakeCap }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION B: the 1/1 exception -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;border-color:rgba(150,220,180,0.24);">
+    <div style="{{ H2 }}margin-bottom:6px;color:oklch(0.85 0.12 150);">1b check — a 1/1 node never shows a notch</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1150px;line-height:1.6;">Segmented-dial rim (<b>rimSegments</b> on, <b>rimGrowth</b> off): cap 1 always collapses to a plain full ring — a single "wedge" is indistinguishable from no wedge, so it's drawn as one. Cap 2+ is where the dial reads: an unlit gap is unmistakably "unclaimed capacity", and it slowly rotates.</div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <sc-for list="{{ oneOneCells }}" as="c" hint-placeholder-count="7">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:120px;height:120px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="120" variant="well" arch="str" hue="25" tintMix="0.95" allocated="{{ c.allocated }}" stakeCap="{{ c.cap }}" stakeAlloc="{{ c.alloc }}" rimSegments="{{ true }}" rimGrowth="{{ false }}" spin="{{ true }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}">{{ c.alloc }}/{{ c.cap }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SECTION C: ring-width-scales-with-cap -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">Alternative growth: widen instead of stack</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1200px;line-height:1.6;">Instead of adding concentric rings, the <em>same single ring</em> gets thicker as cap increases (segment count = cap, central glow held constant for any alloc&gt;0 — per the "most nodes are */1" note, a claimed node should read at a glance regardless of cap). Row 1: ring alone widens. Row 2: disk grows with it too.</div>
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <sc-for list="{{ widenRows }}" as="row" hint-placeholder-count="2">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div style="width:170px;flex:none;font-size:11.5px;color:#eef0f6;font-weight:600;">{{ row.label }}</div>
+          <div style="display:flex;gap:22px;">
+            <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <div style="position:relative;width:150px;height:150px;">
+                  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                    <dc-import name="ArcheNode" size="150" variant="well" arch="con" hue="305" tintMix="0.92" allocated="{{ true }}" stakeCap="{{ c.cap }}" stakeAlloc="{{ c.cap }}" rimSegments="{{ true }}" rimGrowth="{{ false }}" geomRimR="{{ c.rimR }}" geomCrestR="{{ c.crestR }}" geomDiscR="{{ c.discR }}" vividDisk="{{ true }}" spin="{{ true }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+                  </div>
+                </div>
+                <div style="{{ labelStyle }}">cap {{ c.cap }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SECTION D: archetype as rim gems -->
+  <div style="{{ card }}padding:34px;border-color:rgba(255,220,180,0.28);">
+    <div style="{{ H2 }}margin-bottom:6px;color:oklch(0.88 0.13 42);">Archetype identity moved to the rim (rimTone: overlay)</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1250px;line-height:1.7;">A constant metal band carries small archetype-shaped inset gems, dark until allocated, then lit in the owner's tint. Pairs with a tinted rim + tinted glow + tinted outgoing edges: zoomed out, a strip of one owner's nodes reads as a color, and each node's rim shape still says STR/DEX/INT/etc. The center disc stays the <em>owner's</em> color regardless of archetype — archetype lives entirely in the rim.</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:18px;">
+      <sc-for list="{{ archGems }}" as="g" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <div style="display:flex;gap:12px;">
+            <dc-import name="ArcheNode" size="110" variant="well" arch="{{ g.arch }}" hue="265" tintMix="0" allocated="{{ false }}" stakeCap="1" rimTone="overlay" showWeld="{{ false }}" spin="{{ false }}" hint-size="110px,110px" style="width:110px;height:110px;"></dc-import>
+            <dc-import name="ArcheNode" size="110" variant="well" arch="{{ g.arch }}" hue="265" tintMix="0.95" allocated="{{ true }}" stakeCap="1" rimTone="overlay" showWeld="{{ false }}" vividDisk="{{ true }}" spin="{{ false }}" hint-size="110px,110px" style="width:110px;height:110px;"></dc-import>
+          </div>
+          <div style="{{ labelStyle }}text-transform:uppercase;">{{ g.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1900,&quot;height&quot;:1100},&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;con&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;],&quot;section&quot;:&quot;Archetype&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:305,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Archetype&quot;},&quot;tintMix&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.92,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.01,&quot;section&quot;:&quot;Archetype&quot;},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Archetype&quot;},&quot;stakeCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:4,&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;stakeAlloc&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:4,&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;rimGrowth&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;rimSegments&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;rimHeightStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;level&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;level&quot;,&quot;terrace&quot;,&quot;smooth&quot;,&quot;sharpen&quot;],&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;ringGap&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:6,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;rimTone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;groove&quot;,&quot;braces&quot;,&quot;filigree&quot;,&quot;overlay&quot;],&quot;section&quot;:&quot;Rim &amp; stake&quot;},&quot;showWeld&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Weld &amp; glow&quot;},&quot;weldK&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.88,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0.4,&quot;max&quot;:1.15,&quot;step&quot;:0.01,&quot;section&quot;:&quot;Weld &amp; glow&quot;},&quot;vividDisk&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Weld &amp; glow&quot;},&quot;glowMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;always&quot;,&quot;hover&quot;,&quot;pulse&quot;,&quot;sweep&quot;],&quot;section&quot;:&quot;Weld &amp; glow&quot;},&quot;glowAmt&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.55,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Weld &amp; glow&quot;},&quot;sigil&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Sigil&quot;},&quot;sigilStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;shape&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;shape&quot;,&quot;astroid&quot;,&quot;star8&quot;,&quot;occult&quot;,&quot;rune&quot;,&quot;kanji&quot;],&quot;section&quot;:&quot;Sigil&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  labelStyle = "font:600 10.5px/1.3 'Chakra Petch',monospace;color:rgba(255,255,255,.5);letter-spacing:.03em;";
+  navLink = "display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);text-decoration:none;";
+
+  renderVals(){
+    const p = this.props;
+    const arch = p.arch ?? 'con';
+    const hue = p.hue ?? 305;
+    const tintMix = p.tintMix ?? 0.92;
+    const allocated = p.allocated !== false;
+    const stakeCap = Math.max(1, Math.round(p.stakeCap ?? 3));
+    const stakeAlloc = Math.max(0, Math.min(stakeCap, Math.round(p.stakeAlloc ?? 2)));
+    const rimGrowth = p.rimGrowth !== false;
+    const rimSegments = !!p.rimSegments;
+    const rimHeightStyle = p.rimHeightStyle ?? 'level';
+    const ringGap = p.ringGap ?? 0;
+    const rimTone = p.rimTone ?? 'none';
+    const showWeld = !!p.showWeld;
+    const weldK = p.weldK ?? 0.88;
+    const vividDisk = p.vividDisk !== false;
+    const glowMode = p.glowMode ?? 'none';
+    const glowAmt = p.glowAmt ?? 0.55;
+    const sigil = !!p.sigil;
+    const sigilStyle = p.sigilStyle ?? 'shape';
+
+    // full 0..cap matrix — always the whole range, never a cherry-picked subset
+    const matrixCells = [];
+    for(let i=0;i<=stakeCap;i++) matrixCells.push({ alloc:i, allocated: i>0 });
+
+    // radius readout — mirrors ArcheNode's own math: base rOut=32, ring width = rOut-rC = 8
+    const baseRout=32, baseRc=24, ringW0=baseRout-baseRc;
+    const radius = rimGrowth ? baseRout + Math.max(0,stakeCap-1)*(ringW0+ringGap) : baseRout;
+    const radiusReadout = radius.toFixed(1);
+    const radiusFormula = rimGrowth
+      ? ` (32 + ${Math.max(0,stakeCap-1)}\u00d7(8+${ringGap}))`
+      : ' (rimGrowth off — fixed)';
+
+    // 1/1 exception check: cap 1 (0/1,1/1), cap 2 (0/2,1/2,2/2), cap 3 (0/3..3/3) minus dupes trimmed for width
+    const oneOneCells = [
+      {cap:1, alloc:0, allocated:false}, {cap:1, alloc:1, allocated:true},
+      {cap:2, alloc:0, allocated:false}, {cap:2, alloc:1, allocated:true}, {cap:2, alloc:2, allocated:true},
+      {cap:3, alloc:1, allocated:true}, {cap:3, alloc:3, allocated:true}
+    ];
+
+    // widen-instead-of-stack exploration — ring alone grows vs ring+disk grow together
+    const capsList = [1,2,3,4];
+    const widenRows = [
+      { label: 'Ring widens only', cells: capsList.map(cap => ({ cap, rimR: 24+cap*4, crestR: 20+cap*4, discR: 24 })) },
+      { label: 'Ring + disk grow', cells: capsList.map(cap => ({ cap, rimR: 24+cap*5, crestR: 20+cap*5, discR: 18+cap*2.5 })) }
+    ];
+
+    const archGems = [
+      {arch:'str', name:'STR'}, {arch:'dex', name:'DEX'}, {arch:'wis', name:'WIS'},
+      {arch:'int', name:'INT'}, {arch:'per', name:'PER'}, {arch:'con', name:'CON'}
+    ];
+
+    return {
+      H2:this.H2, card:this.card, labelStyle:this.labelStyle, navLink:this.navLink,
+      arch, hue, tintMix, allocated, stakeCap, stakeAlloc, rimGrowth, rimSegments, rimHeightStyle,
+      ringGap, rimTone, showWeld, weldK, vividDisk, glowMode, glowAmt, sigil, sigilStyle,
+      matrixCells, radiusReadout, radiusFormula, oneOneCells, widenRows, archGems
+    };
+  }
+}
+
+</script>
+</body>
+</html>

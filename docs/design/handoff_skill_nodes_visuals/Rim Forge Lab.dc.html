@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1820px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <div style="display:flex;gap:16px;margin-bottom:22px;">
+    <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+    <a href="Skill Node Encodings v2.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Encodings v2</a>
+    <a href="ArcheNode V1 (backup).dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);transition:color 0.15s;" style-hover="color:#eef0f6;">ArcheNode V1 (backup)</a>
+  </div>
+
+  <div style="margin-bottom:30px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">ArcheNode rim rewrite — real rings, real segments</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Rim Forge Lab</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1240px;line-height:1.7;">ArcheNode itself changed (backed up as <a href="ArcheNode V1 (backup).dc.html" style="color:#9fd8ff;">V1</a>): added rings are now full copies of the wall's own bevel — solid, matched-width, no more dashed "ghost" rings. Segments and growth are now <b style="color:#eef0f6;">independent toggles</b> (rimSegments, rimGrowth), the weld shape is an explicit <b style="color:#eef0f6;">showWeld</b> on/off, disk glow has a <b style="color:#eef0f6;">vividDisk</b> boost, and the rim can carry a second tone (<b style="color:#eef0f6;">rimTone</b>).</div>
+  </div>
+
+  <!-- 1: bevel height sweep -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">1. Bevel relationship — how do added rings relate to the first?</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1150px;line-height:1.6;">Same cap/alloc, four <b>rimHeightStyle</b> values. Top row: 2 of 4 lit (compare filled vs. dim rings). Bottom row: all 4 lit (compare the fully-grown silhouette).</div>
+    <div style="display:flex;flex-direction:column;gap:22px;">
+      <sc-for list="{{ bevelRows }}" as="row" hint-placeholder-count="2">
+        <div style="display:flex;align-items:center;gap:20px;">
+          <div style="width:120px;flex:none;font-size:11.5px;color:#eef0f6;font-weight:600;">{{ row.label }}</div>
+          <div style="display:flex;gap:26px;">
+            <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <dc-import name="ArcheNode" size="140" variant="well" arch="int" hue="210" rimGrowth="{{ true }}" rimSegments="{{ false }}" rimHeightStyle="{{ c.style }}" stakeCap="4" stakeAlloc="{{ row.alloc }}" tintMix="0.95" vividDisk="{{ true }}" allocated="{{ true }}" spin="{{ false }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+                <div style="{{ labelStyle }}">{{ c.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 2: independent toggles -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;border-color:rgba(150,220,180,0.28);">
+    <div style="{{ H2 }}margin-bottom:6px;color:oklch(0.88 0.13 150);">2. Segments × growth — independent toggles</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1150px;line-height:1.6;">Same 2/3 state, all four combinations of <b>rimSegments</b> and <b>rimGrowth</b>. Neither = the untouched original crater. Segments-only = the dial lives directly in the wall. Growth-only = fixed chrome (real rings now, not half-rims). Both = each grown ring is itself wedge-styled.</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px;">
+      <sc-for list="{{ toggleGrid }}" as="t" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="int" hue="265" rimGrowth="{{ t.growth }}" rimSegments="{{ t.segments }}" rimHeightStyle="level" stakeCap="3" stakeAlloc="2" tintMix="0.92" vividDisk="{{ true }}" allocated="{{ true }}" spin="{{ true }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <div style="{{ labelStyle }}text-align:center;">{{ t.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 3: rim two-tone gallery -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">3. Rim two-tone — groove options</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1150px;line-height:1.6;">Constant metal band, archetype-tinted groove cut near the outer edge. <b>Braces</b> and <b>filigree</b> stay metal-neutral under any tint; <b>overlay</b> stamps the archetype shape into the groove and lights it only when allocated — "energy" reads directly in the rim.</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;">
+      <sc-for list="{{ toneCols }}" as="tc" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div style="{{ labelStyle }}text-transform:uppercase;letter-spacing:1.5px;">{{ tc.name }}</div>
+          <div style="display:flex;gap:10px;">
+            <sc-for list="{{ tc.cells }}" as="c" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <dc-import name="ArcheNode" size="120" variant="well" arch="str" hue="25" rimTone="{{ tc.tone }}" stakeCap="1" stakeAlloc="{{ c.alloc }}" tintMix="0.9" vividDisk="{{ true }}" allocated="{{ c.allocBool }}" spin="{{ false }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+                <div style="{{ labelStyle }}">{{ c.label }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 4: weld + glow toggles -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">4. Weld toggle &amp; disk glow</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1150px;line-height:1.6;"><b>showWeld</b> — off is the new default (empty center); on restores the archetype shape. <b>vividDisk</b> — the glow boost, off vs on.</div>
+    <div style="display:flex;gap:36px;flex-wrap:wrap;">
+      <sc-for list="{{ weldGlowCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="140" variant="well" arch="dex" hue="145" showWeld="{{ c.weld }}" vividDisk="{{ c.vivid }}" stakeCap="1" stakeAlloc="1" tintMix="0.9" allocated="{{ true }}" spin="{{ false }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+          <div style="{{ labelStyle }}text-align:center;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 5: prime candidates -->
+  <div style="{{ card }}padding:34px;border-color:rgba(255,220,180,0.32);">
+    <div style="{{ H2 }}margin-bottom:6px;color:oklch(0.88 0.13 42);">5. Prime candidates — best of both worlds</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:24px;max-width:1150px;line-height:1.6;">ArcheNode's disk sizing/flush-fit/elevation, now glowier (vividDisk), weld off by default, each split into a no-two-tone and a groove-two-tone sub-version.</div>
+    <div style="display:grid;grid-template-columns:140px repeat(2,1fr);gap:20px;align-items:center;">
+      <div></div>
+      <sc-for list="{{ toneHeaders }}" as="th" hint-placeholder-count="2">
+        <div style="text-align:center;font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:rgba(200,208,228,0.75);">{{ th }}</div>
+      </sc-for>
+      <sc-for list="{{ primeRows }}" as="pr" hint-placeholder-count="2">
+        <div style="font-size:12.5px;color:#eef0f6;font-weight:600;line-height:1.4;">{{ pr.label }}</div>
+        <sc-for list="{{ pr.cells }}" as="c" hint-placeholder-count="2">
+          <div style="display:flex;justify-content:center;gap:14px;">
+            <sc-for list="{{ c.states }}" as="s" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <dc-import name="ArcheNode" size="130" variant="well" arch="con" hue="305" rimGrowth="{{ pr.growth }}" rimSegments="{{ pr.segments }}" rimTone="{{ c.tone }}" stakeCap="3" stakeAlloc="{{ s.alloc }}" tintMix="0.92" vividDisk="{{ true }}" allocated="{{ s.allocBool }}" spin="{{ true }}" hint-size="130px,130px" style="width:130px;height:130px;"></dc-import>
+                <div style="{{ labelStyle }}">{{ s.alloc }}/3</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  labelStyle = "font:600 10.5px/1.3 'Chakra Petch',monospace;color:rgba(255,255,255,.5);letter-spacing:.03em;";
+
+  renderVals(){
+    const styles = [
+      {style:'level', name:'Level'},
+      {style:'terrace', name:'Terrace up'},
+      {style:'smooth', name:'Smooth out'},
+      {style:'sharpen', name:'Sharpen out'}
+    ];
+    const bevelRows = [
+      { label:'Cap 4 · 2/4', alloc:2, cells: styles },
+      { label:'Cap 4 · 4/4', alloc:4, cells: styles }
+    ];
+
+    const toggleGrid = [
+      { growth:false, segments:false, label:'Neither\n(original crater)' },
+      { growth:false, segments:true,  label:'Segments only\n(dial in the wall)' },
+      { growth:true,  segments:false, label:'Growth only\n(fixed chrome rings)' },
+      { growth:true,  segments:true,  label:'Both\n(wedge-styled rings)' }
+    ];
+
+    const toneCols = ['none','groove','braces','filigree','overlay'].map(tone=>({
+      tone, name: tone,
+      cells: [ {alloc:0,label:'unalloc',allocBool:false}, {alloc:1,label:'alloc',allocBool:true} ]
+    }));
+
+    const weldGlowCells = [
+      { weld:false, vivid:false, label:'showWeld off\nvividDisk off' },
+      { weld:false, vivid:true,  label:'showWeld off\nvividDisk on' },
+      { weld:true,  vivid:false, label:'showWeld on\nvividDisk off' },
+      { weld:true,  vivid:true,  label:'showWeld on\nvividDisk on' }
+    ];
+
+    const toneHeaders = ['No two-tone (rimTone: none)', 'Groove two-tone (rimTone: groove)'];
+    const states = [ {alloc:1,allocBool:true}, {alloc:3,allocBool:true} ];
+    const primeRows = [
+      { label:'Segmented-dial rim\n(segments only)', growth:false, segments:true,
+        cells:[ {tone:'none', states}, {tone:'groove', states} ] },
+      { label:'N-rim growth\n(growth only)', growth:true, segments:false,
+        cells:[ {tone:'none', states}, {tone:'groove', states} ] }
+    ];
+
+    return { H2:this.H2, card:this.card, labelStyle:this.labelStyle, bevelRows, toggleGrid, toneCols, weldGlowCells, toneHeaders, primeRows };
+  }
+}
+
+</script>
+</body>
+</html>

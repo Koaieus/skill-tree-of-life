@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — lab · stake / cap depth</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Stake lab</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1200px;line-height:1.65;">How deep is this entity invested? <b style="color:#eef0f6;">alloc / cap</b> — 1/1, 1/2, 2/3, 3/3. <b style="color:oklch(0.85 0.14 150);">Chrome</b> is the new lead reading: instead of marks bolted outside the crater, staking grows/reshapes the crater's own inner rim — the metal you're already looking at gets visibly thicker and more built-up, which reads as "this node got twice as powerful" far better than a badge stuck on the side. Ticks/arc (bottom) are kept only as reference — good UI, wrong metaphor for stake; they read as timers/meters, not permanent growth.</div>
+  </div>
+
+  <div style="display:flex;gap:22px;align-items:stretch;flex-wrap:wrap;margin-bottom:22px;">
+    <div style="{{ card }}flex:1;min-width:420px;padding:34px;display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="{{ H2 }}align-self:flex-start;">Live — twirl stakeStyle / rimProfile / cap / alloc</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 0;">
+        <dc-import name="ArcheNode" size="280" variant="well" arch="{{ arch }}" hue="{{ hue }}" stakeStyle="{{ stakeStyle }}" rimProfile="{{ rimProfile }}" stakeCap="{{ stakeCap }}" stakeAlloc="{{ stakeAlloc }}" hint-size="280px,280px" style="width:280px;height:280px;"></dc-import>
+      </div>
+    </div>
+    <div style="{{ card }}flex:1.5;min-width:640px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Reading the depth</div>
+      <div style="font-size:12px;color:rgba(190,200,225,0.7);line-height:1.8;margin-top:8px;">
+        <b style="color:oklch(0.85 0.14 150);">Chrome</b> (new, default) — the crater rim splits into nested metal rings; filled rings are bright owner-tinted chrome, unfilled ones sit flat and dim as unrealized capacity. Grows the node itself, no bolt-on.<br>
+        <b style="color:#eef0f6;">rimProfile</b> — the cut of each ring's cross-section: smooth (soft bevel, today's default), stepped, grooved, terraced. Applies whether or not you're staked.<br>
+        <span style="opacity:0.55;"><b style="color:#eef0f6;">Pips / Rims / Unison</b> — earlier outside-the-rim explorations, kept below for comparison.<br>
+        <b style="color:#eef0f6;">Ticks / Arc</b> — excellent UI, but reads as a cooldown or a resource gauge, not growth. Filed away for that future use instead.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHROME × rimProfile grid — the recommended combo -->
+  <div style="{{ card }}padding:24px 30px;margin-bottom:18px;border-color:rgba(150,220,180,0.28);">
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:18px;">
+      <div style="{{ H2 }}margin:0;color:oklch(0.88 0.13 150);">Chrome — every rim profile</div>
+      <div style="font-size:11px;color:rgba(180,190,215,0.55);">same 4 stake states, four cut-through styles</div>
+    </div>
+    <div style="display:grid;grid-template-columns:120px repeat(4,1fr);gap:16px;align-items:center;">
+      <div></div>
+      <sc-for list="{{ cells }}" as="c" hint-placeholder-count="4">
+        <div style="text-align:center;font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;color:rgba(200,208,228,0.7);">{{ c.label }}</div>
+      </sc-for>
+      <sc-for list="{{ profiles }}" as="pr" hint-placeholder-count="4">
+        <div style="font-size:12px;color:#eef0f6;font-weight:600;">{{ pr.name }}</div>
+        <sc-for list="{{ cells }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex;justify-content:center;">
+            <dc-import name="ArcheNode" size="120" variant="well" arch="int" hue="265" stakeStyle="chrome" rimProfile="{{ pr.s }}" stakeCap="{{ c.cap }}" stakeAlloc="{{ c.alloc }}" spin="{{ false }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+          </div>
+        </sc-for>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- legacy outside-the-rim marks, for reference -->
+  <div style="{{ H2 }}margin-bottom:16px;opacity:0.55;">Earlier explorations — outside-the-rim marks (reference only)</div>
+  <sc-for list="{{ rows }}" as="row" hint-placeholder-count="5">
+    <div style="{{ card }}padding:22px 30px;margin-bottom:16px;opacity:0.7;">
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px;">
+        <div style="{{ H2 }}margin:0;font-size:16px;">{{ row.name }}</div>
+        <div style="font-size:11px;color:rgba(180,190,215,0.55);">{{ row.note }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;justify-items:center;">
+        <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <dc-import name="ArcheNode" size="120" variant="well" arch="str" hue="150" allocated="{{ c.on }}" stakeStyle="{{ row.s }}" stakeCap="{{ c.cap }}" stakeAlloc="{{ c.alloc }}" spin="{{ false }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+            <div style="text-align:center;">
+              <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:#eef0f6;">{{ c.label }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-for>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;int&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;],&quot;section&quot;:&quot;Node&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:265,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Node&quot;},&quot;stakeStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;chrome&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;chrome&quot;,&quot;pips&quot;,&quot;rims&quot;,&quot;unison&quot;,&quot;ticks&quot;,&quot;arc&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;rimProfile&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;smooth&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;smooth&quot;,&quot;stepped&quot;,&quot;grooved&quot;,&quot;terraced&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;stakeCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;stakeAlloc&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  renderVals(){
+    const p=this.props;
+    const cells=[
+      {label:'1 / 1', cap:1, alloc:1},
+      {label:'1 / 2', cap:2, alloc:1},
+      {label:'2 / 3', cap:3, alloc:2},
+      {label:'3 / 3', cap:3, alloc:3}
+    ];
+    const profiles=[
+      {s:'smooth',   name:'Smooth'},
+      {s:'stepped',  name:'Stepped'},
+      {s:'grooved',  name:'Grooved'},
+      {s:'terraced', name:'Terraced'}
+    ];
+    const legacyCells=[
+      {label:'1 / 1', on:true, cap:1, alloc:1},
+      {label:'1 / 2', on:true, cap:2, alloc:1},
+      {label:'2 / 3', on:true, cap:3, alloc:2},
+      {label:'3 / 3', on:true, cap:3, alloc:3}
+    ];
+    const styles=[
+      {s:'pips',   name:'Pips',   note:'gold beads on the rim'},
+      {s:'rims',   name:'Rims',   note:'concentric owner-tint rings, outside'},
+      {s:'unison', name:'Unison', note:'lit rings pulse together'},
+      {s:'ticks',  name:'Ticks',  note:'rim split into cap arcs — reads as a cooldown'},
+      {s:'arc',    name:'Arc',    note:'segmented gauge — reads as a resource meter'}
+    ];
+    const rows=styles.map(st=>({ name:st.name, note:st.note, s:st.s, cells:legacyCells }));
+    return { H2:this.H2, card:this.card, cells, profiles, rows,
+      arch:p.arch??'int', hue:p.hue??265, stakeStyle:p.stakeStyle??'chrome', rimProfile:p.rimProfile??'smooth', stakeCap:p.stakeCap??3, stakeAlloc:p.stakeAlloc??2 };
+  }
+}
+
+</script>
+</body>
+</html>

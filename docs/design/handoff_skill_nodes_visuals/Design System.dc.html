@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}
+  @keyframes ember{0%,100%{filter:brightness(1);}50%{filter:brightness(1.3);}}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes woundPulse{0%,100%{opacity:.72;}50%{opacity:1;}}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;min-height:100%;background:radial-gradient(120% 90% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);font-family:'Chakra Petch',sans-serif;color:#dbe1ee;padding:56px 64px 100px;">
+
+  <!-- HEADER -->
+  <div style="margin-bottom:44px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:42px;letter-spacing:3px;color:#eef0f6;text-transform:uppercase;text-shadow:0 0 24px oklch(0.70 0.10 88 / 0.35);">Arcane Terminal</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.6);margin-top:8px;max-width:780px;line-height:1.5;">Design system extracted from the in-game HUD prototype — tokens and component patterns for near-black glass panels, arcane-serif headers, and techy tabular data.</div>
+  </div>
+
+  <!-- FONTS -->
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Typography</div>
+    <div style="display:flex;gap:16px;">
+      <div style="{{ cardStyle }}flex:1;padding:22px 24px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:10px;">Display / Headers — Cinzel 700/800</div>
+        <div style="font-family:'Cinzel',serif;font-weight:800;font-size:34px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Phantom Blade</div>
+        <div style="font-size:11px;color:rgba(170,182,210,0.55);margin-top:10px;">Used for: panel titles, entity name, mode tabs, announcer text, End Turn button. Arcane serif gives ceremonial weight to key moments.</div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;padding:22px 24px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:10px;">Data / Numbers — Chakra Petch 400–700</div>
+        <div style="font-family:'Chakra Petch';font-weight:700;font-size:34px;letter-spacing:1px;color:#eef0f6;">128 / 240</div>
+        <div style="font-size:11px;color:rgba(170,182,210,0.55);margin-top:10px;">Used for: all stat values, labels, tooltips, body copy. Techy/tabular, reads fast at small sizes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COLOR TOKENS -->
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Attribute &amp; Vital Colors</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <sc-for list="{{ attrSwatches }}" as="s" hint-placeholder-count="6">
+        <div style="{{ cardStyle }}width:172px;padding:16px;">
+          <div style="width:100%;height:44px;border-radius:8px;background:{{ s.color }};box-shadow:0 0 20px -4px {{ s.color }};margin-bottom:10px;"></div>
+          <div style="font-family:'Chakra Petch';font-weight:700;font-size:13px;color:#eef0f6;">{{ s.name }}</div>
+          <div style="font-size:10px;color:rgba(170,182,210,0.55);margin-top:2px;">{{ s.role }}</div>
+          <div style="font-size:9.5px;font-family:monospace;color:rgba(160,172,200,0.5);margin-top:6px;word-break:break-all;">{{ s.color }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Skill-Point Buckets</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <sc-for list="{{ spSwatches }}" as="s" hint-placeholder-count="4">
+        <div style="{{ cardStyle }}width:172px;padding:16px;">
+          <div style="width:100%;height:44px;border-radius:8px;background:{{ s.color }};box-shadow:0 0 20px -4px {{ s.color }};margin-bottom:10px;"></div>
+          <div style="font-family:'Chakra Petch';font-weight:700;font-size:13px;color:#eef0f6;">{{ s.name }}</div>
+          <div style="font-size:9.5px;font-family:monospace;color:rgba(160,172,200,0.5);margin-top:6px;word-break:break-all;">{{ s.color }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SURFACES -->
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Surfaces &amp; Background</div>
+    <div style="display:flex;gap:16px;">
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:8px;">Glass panel</div>
+        <div style="font-size:11px;color:rgba(190,200,225,0.75);line-height:1.7;">background: linear-gradient(158deg, rgba(22,25,38,.94), rgba(10,11,19,.95))<br>border: 1px solid rgba(120,140,190,.16)<br>radius: 13–14px · backdrop-filter: blur(7px)<br>shadow: 0 10px 34px -14px rgba(0,0,0,.85)</div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:8px;">Gold-accented panel (variant)</div>
+        <div style="font-size:11px;color:rgba(190,200,225,0.75);line-height:1.7;">Same glass recipe + border rgba(200,170,90,.28)<br>+ inset glow: 0 0 26px -18px oklch(.78 .12 88)<br>Used for: hero sigil card, sandbox/utility panels</div>
+      </div>
+      <div style="width:280px;flex:none;border-radius:13px;height:96px;background:radial-gradient(120% 90% at 50% 42%, #0b0d16 0%, #06070d 55%, #030409 100%);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:10px;letter-spacing:1px;color:rgba(170,182,210,0.5);text-transform:uppercase;">page background</div>
+    </div>
+  </div>
+
+  <!-- BARS + BATTERY CELLS -->
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Progress Bars &amp; Battery Cells</div>
+    <div style="display:flex;gap:16px;">
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Vital bar (Health)</div>
+        <div style="display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:0.5px;margin-bottom:4px;"><span style="color:rgba(220,150,150,0.85);text-transform:uppercase;font-weight:600;">Health</span><span style="color:#f0d8d8;">72<span style="color:rgba(255,255,255,0.35);">/100</span></span></div>
+        <div style="height:8px;border-radius:5px;background:rgba(255,255,255,0.06);overflow:hidden;border:1px solid rgba(255,255,255,0.06);"><div style="height:100%;border-radius:5px;background:linear-gradient(90deg,oklch(0.55 0.20 22),oklch(0.66 0.21 30));box-shadow:0 0 12px -1px oklch(0.60 0.21 25);width:72%;"></div></div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:14px;">Progress-to-breakpoint sliver: 3px tall, no border, dim fill at 60% opacity.</div>
+        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;margin-top:6px;"><div style="height:100%;background:oklch(0.62 0.18 27);opacity:0.6;width:40%;"></div></div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Battery cells (Action/Move/Dealloc)</div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:600;margin-bottom:6px;"><span style="color:oklch(0.80 0.09 88);">Action</span><span style="color:rgba(255,255,255,0.5);">2/4</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          <sc-for list="{{ battCells }}" as="c" hint-placeholder-count="4"><div style="flex:1 1 12px;min-width:12px;height:17px;transform:skewX(-15deg);border-radius:2px;border:1px solid {{ c.border }};background:{{ c.bg }};box-shadow:{{ c.glow }};"></div></sc-for>
+        </div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:14px;">skewX(-15deg) parallelogram, wraps to new rows via flex-wrap at high counts.</div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Composition bar (Skill Points)</div>
+        <div style="display:flex;height:14px;border-radius:5px;overflow:hidden;border:1px solid rgba(255,255,255,0.09);background:rgba(255,255,255,0.03);">
+          <sc-for list="{{ spZonesDemo }}" as="z" hint-placeholder-count="4"><div style="height:100%;background:{{ z.c }};width:{{ z.w }}%;"></div></sc-for>
+        </div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:14px;">Stacked segments by proportion: to-spend / wounded (pulses) / staked / allocated.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUTTONS + CHIPS + TABS -->
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Buttons, Chips &amp; Tabs</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <div style="{{ cardStyle }}flex:1;min-width:340px;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Buttons</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button style="cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:12px;letter-spacing:0.5px;padding:9px 16px;border-radius:8px;border:1px solid oklch(0.60 0.20 25);background:linear-gradient(160deg,oklch(0.40 0.15 25),oklch(0.28 0.12 25));color:#ffdede;text-transform:uppercase;box-shadow:0 0 16px -6px oklch(0.60 0.20 25);">▶ Primary (danger)</button>
+          <button style="cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:12px;letter-spacing:0.5px;padding:9px 16px;border-radius:8px;border:1px solid rgba(150,160,190,0.3);background:linear-gradient(160deg,rgba(40,44,58,0.9),rgba(24,26,36,0.9));color:#c8d0e0;text-transform:uppercase;">↺ Secondary</button>
+          <button style="cursor:pointer;font-family:'Cinzel',serif;font-weight:800;font-size:15px;letter-spacing:2px;padding:13px 26px;border-radius:16px;text-transform:uppercase;color:#1a1405;border:1px solid oklch(0.82 0.13 88);background:linear-gradient(160deg,oklch(0.82 0.14 88),oklch(0.66 0.14 80));box-shadow:0 0 24px -6px oklch(0.80 0.14 88),inset 0 1px 0 rgba(255,255,255,0.4);">End Turn ⟫⟫</button>
+        </div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:12px;">Pattern: dark linear-gradient fill in the action's color, matching border + outer glow. Serif for high-ceremony CTAs, sans for utility.</div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;min-width:260px;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Delta chips</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:10.5px;font-weight:700;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);color:oklch(0.80 0.17 150);">▲ +6</span>
+          <span style="font-size:10.5px;font-weight:700;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,0.06);color:oklch(0.68 0.20 25);">▼ −2</span>
+        </div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:12px;">Green = gain, red = loss. Lingers ~2.7s next to the changed value.</div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;min-width:340px;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Mode tabs</div>
+        <div style="display:flex;gap:6px;">
+          <sc-for list="{{ tabDemo }}" as="tb" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:8px;font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 14px 6px;border-radius:9px 9px 0 0;border:{{ tb.border }};border-bottom:none;background:{{ tb.bg }};color:{{ tb.color }};">{{ tb.label }}</div>
+          </sc-for>
+        </div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:12px;">Active tab attaches to a fixed-height content tray below (no reflow between modes).</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXTENDED STAT VOCABULARY -->
+  <div style="margin-bottom:40px;">
+    <div style="{{ sectionLabelStyle }}">Extended Stat Vocabulary — tint_color</div>
+    <div style="font-size:12px;color:rgba(190,200,225,0.65);line-height:1.6;max-width:920px;margin-bottom:20px;">Proposed <span style="font-family:monospace;color:#e6ebf5;">tint_color</span> values for every <span style="font-family:monospace;color:#e6ebf5;">StatDef</span> in <span style="font-family:monospace;color:#e6ebf5;">docs/design/stat_system.md</span>'s canonical vocabulary — extending the six attribute hues rather than inventing a new palette. Rule: a derived/combat stat inherits the hue of the attribute that scales it (blade stats → STR red, ranged → DEX green, magic → INT blue); pools keep their established vital colors; turn-budget scalars keep the hues the HUD already committed to; a handful of stats with no attribute owner (aura, crit, rare/prestige) get new but chroma-matched hues. Hex + Godot <span style="font-family:monospace;color:#e6ebf5;">Color()</span> given for direct paste into the <span style="font-family:monospace;color:#e6ebf5;">.tres</span> files.</div>
+
+    <sc-for list="{{ statGroups }}" as="grp" hint-placeholder-count="7">
+      <div style="margin-bottom:26px;">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
+          <span style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:1.5px;color:#eef0f6;text-transform:uppercase;">{{ grp.title }}</span>
+          <span style="font-size:10.5px;color:rgba(170,182,210,0.55);">{{ grp.note }}</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <sc-for list="{{ grp.stats }}" as="s" hint-placeholder-count="3">
+            <div style="{{ cardStyle }}width:230px;padding:14px 15px;">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <span style="width:26px;height:26px;border-radius:7px;flex:none;background:{{ s.hex }};box-shadow:0 0 14px -3px {{ s.hex }};"></span>
+                <div style="min-width:0;">
+                  <div style="font-family:monospace;font-size:12px;color:#eef0f6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ s.id }}</div>
+                  <div style="font-size:10px;color:rgba(170,182,210,0.55);">{{ s.name }}</div>
+                </div>
+              </div>
+              <div style="font-size:9.5px;color:rgba(190,200,225,0.7);line-height:1.5;margin-bottom:8px;">{{ s.rationale }}</div>
+              <div style="font-size:9px;font-family:monospace;color:rgba(160,172,200,0.55);">{{ s.hex }}</div>
+              <div style="font-size:9px;font-family:monospace;color:rgba(160,172,200,0.55);">{{ s.godot }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- GLOW SCALE + EFFECTS -->
+  <div style="margin-bottom:8px;">
+    <div style="{{ sectionLabelStyle }}">Effects</div>
+    <div style="display:flex;gap:16px;">
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Magnitude glow scale</div>
+        <div style="display:flex;gap:20px;align-items:baseline;">
+          <sc-for list="{{ glowDemo }}" as="g" hint-placeholder-count="4"><span style="font-family:'Chakra Petch';font-weight:700;font-size:24px;color:oklch(0.64 0.21 27);text-shadow:{{ g.shadow }};animation:{{ g.anim }};">{{ g.v }}</span></sc-for>
+        </div>
+        <div style="font-size:10px;color:rgba(170,182,210,0.5);margin-top:14px;">text-shadow blur = 4 + (v/60)×10px. Values ≥40 add an "ember" brightness flicker (1.6s loop).</div>
+      </div>
+      <div style="{{ cardStyle }}flex:1;padding:20px 22px;">
+        <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.5);text-transform:uppercase;margin-bottom:12px;">Tooltip / callout panel</div>
+        <div style="border-radius:10px;border:1px solid oklch(0.64 0.21 27);background:linear-gradient(158deg,rgba(28,31,46,0.98),rgba(13,14,23,0.99));box-shadow:0 14px 34px -12px rgba(0,0,0,0.9),0 0 22px -10px oklch(0.64 0.21 27);padding:10px 12px;width:220px;">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:oklch(0.64 0.21 27);margin-bottom:6px;">STR drives</div>
+          <div style="font-size:11px;color:#dbe1ee;display:flex;justify-content:space-between;"><span>Blade size</span><span style="font-family:'Chakra Petch';font-weight:700;color:oklch(0.64 0.21 27);">3</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  COL = {
+    str:'oklch(0.64 0.21 27)', dex:'oklch(0.74 0.16 150)', int:'oklch(0.68 0.18 258)',
+    wis:'oklch(0.81 0.14 88)', per:'oklch(0.66 0.21 305)', con:'oklch(0.92 0.02 250)',
+    health:'oklch(0.60 0.21 25)', mana:'oklch(0.72 0.14 220)', xp:'oklch(0.80 0.14 88)'
+  };
+  cardStyle = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:13px;box-shadow:0 10px 34px -14px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);backdrop-filter:blur(7px);";
+  sectionLabelStyle = "font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:3px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:16px;";
+
+  renderVals(){
+    const attrSwatches = [
+      {name:'STR', role:'Strength — Red', color:this.COL.str},
+      {name:'DEX', role:'Dexterity — Green', color:this.COL.dex},
+      {name:'INT', role:'Intelligence — Blue', color:this.COL.int},
+      {name:'WIS', role:'Wisdom — Gold', color:this.COL.wis},
+      {name:'PER', role:'Perception — Purple', color:this.COL.per},
+      {name:'CON', role:'Constitution — White (reserved)', color:this.COL.con},
+      {name:'Health', role:'Vital — Crimson', color:this.COL.health},
+      {name:'Mana', role:'Vital — Cyan', color:this.COL.mana},
+      {name:'XP / Gold', role:'Vital — Gold accent', color:this.COL.xp},
+    ];
+    const spSwatches = [
+      {name:'To spend', color:'oklch(0.70 0.16 250)'},
+      {name:'Wounded', color:'oklch(0.60 0.20 25)'},
+      {name:'Staked', color:'oklch(0.78 0.13 75)'},
+      {name:'Allocated', color:'rgba(150,165,200,0.30)'},
+    ];
+    const battCells = [1,1,0,0].map(v=>({
+      bg: v? this.COL.wis : 'rgba(255,255,255,0.05)',
+      glow: v? '0 0 9px -1px '+this.COL.wis : 'none',
+      border: v? this.COL.wis : 'rgba(255,255,255,0.14)'
+    }));
+    const spZonesDemo = [
+      {c:'oklch(0.70 0.16 250)', w:10},
+      {c:'oklch(0.60 0.20 25)', w:20},
+      {c:'oklch(0.78 0.13 75)', w:10},
+      {c:'rgba(150,165,200,0.30)', w:60},
+    ];
+    const tabDemo = [
+      {label:'Manage', border:'1px solid rgba(255,255,255,0.08)', bg:'rgba(14,16,24,0.55)', color:'rgba(190,198,220,0.5)'},
+      {label:'Melee', border:'1px solid '+this.COL.str, bg:'linear-gradient(0deg,rgba(18,20,30,0.95),rgba(40,44,60,0.95))', color:'#eef1f6'},
+      {label:'Magic', border:'1px solid rgba(255,255,255,0.08)', bg:'rgba(14,16,24,0.55)', color:'rgba(190,198,220,0.5)'},
+    ];
+    const glowDemo = [12,28,44,58].map(v=>{
+      const t=Math.min(1,v/60);
+      return { v, shadow:`0 0 ${4+Math.round(t*10)}px ${this.COL.str}, 0 0 ${Math.round(t*24)}px ${this.COL.str}`, anim: v>=40?'ember 1.6s ease-in-out infinite':'none' };
+    });
+    const st = (id, name, hex, godot, rationale) => ({ id, name, hex, godot, rationale });
+    const statGroups = [
+      { title:'Core Attributes', note:'unchanged — canonical', stats:[
+        st('strength','Strength · STR','#f1453f','Color(0.945, 0.269, 0.245)','Melee. Red, per stat_system.md canon.'),
+        st('dexterity','Dexterity · DEX','#51c672','Color(0.319, 0.777, 0.448)','Ranged. Green, per canon.'),
+        st('intelligence','Intelligence · INT','#4a96ff','Color(0.291, 0.589, 1.000)','Magic. Blue, per canon.'),
+        st('wisdom','Wisdom · WIS','#e6bb46','Color(0.904, 0.733, 0.275)','Economy/XP. Gold, per canon.'),
+        st('perception','Perception · PER','#b167f7','Color(0.694, 0.404, 0.968)','Vision/sensing. Purple, per canon.'),
+        st('constitution','Constitution · CON','#dbe6f2','Color(0.859, 0.902, 0.948)','Durability. White, per canon.'),
+      ]},
+      { title:'Vitals & Pools', note:'inherit established vital colors', stats:[
+        st('health / health_max','Health pool','#e23439','Color(0.888, 0.203, 0.223)','Persistent death clock — crimson, distinct from STR red (cooler, more saturated).'),
+        st('health_per_turn','HP regen','#e23439','Color(0.888, 0.203, 0.223)','Same family as health — it\'s the same bar\'s +N/t caption.'),
+        st('skill_points / _max','Skill Points pool','#42a3fd','Color(0.261, 0.639, 0.992)','Matches HUD\'s existing "to‑spend" SP‑bucket blue.'),
+        st('sp_per_turn','SP income','#42a3fd','Color(0.261, 0.639, 0.992)','Same family as skill_points.'),
+        st('xp / xp_per_turn','XP pool','#e3b842','Color(0.891, 0.720, 0.260)','WIS-family gold — WIS is the stat that drives XP/turn.'),
+      ]},
+      { title:'Per-Node Combat Layer', note:'new — needs to read as distinct from the persistent health pool', stats:[
+        st('node_health / _max','Node HP (shield)','#db703b','Color(0.859, 0.438, 0.231)','Warm ember between STR-red and WIS-gold — signals "regenerating focus-soak shield," not the persistent crimson health pool.'),
+      ]},
+      { title:'Turn Resources', note:'kept — hues already committed in the HUD prototype', stats:[
+        st('action_points','Action Points','#d6bb79','Color(0.839, 0.733, 0.474)','Muted WIS-gold — matches HUD\'s Action battery.'),
+        st('deallocation_points','Dealloc Points','#bc88f4','Color(0.738, 0.533, 0.957)','PER-family purple — matches HUD\'s Dealloc battery.'),
+        st('movement_speed','Movement','#51c672','Color(0.319, 0.777, 0.448)','DEX-family green — matches HUD\'s Move battery; speed reads as DEX-adjacent.'),
+        st('initiative','Initiative','#e7bf57','Color(0.906, 0.749, 0.340)','Matches the turn-tracker pill\'s gold in the HUD.'),
+      ]},
+      { title:'Combat Derived', note:'inherit the hue of the attribute that scales them', stats:[
+        st('attack_range','Ranged attack range','#54b66e','Color(0.331, 0.715, 0.432)','DEX-driven (ranged-only stat) — softer green than DEX core so it reads as "derived."'),
+        st('pressure_capacity','Buffer reach budget','#c0d0e1','Color(0.751, 0.815, 0.883)','Cross-mode (melee/ranged/magic taps) — neutral CON-family steel rather than any one attack color.'),
+        st('crit_chance','Crit chance','#fb7c00','Color(0.985, 0.488, 0.000)','New flame-orange — crit is universal across attack types, deliberately not any of the six.'),
+        st('crit_mult','Crit multiplier','#fb7c00','Color(0.985, 0.488, 0.000)','Same family as crit_chance — the pair should always read together.'),
+        st('armor','Armor','#ced9e5','Color(0.808, 0.850, 0.896)','CON-family steel — matches HUD Defense card values.'),
+        st('resist_r','Resist · Red','#f1453f','Color(0.945, 0.269, 0.245)','Triangle slot vs. Melee — same red as STR.'),
+        st('resist_g','Resist · Green','#51c672','Color(0.319, 0.777, 0.448)','Triangle slot vs. Ranged — same green as DEX.'),
+        st('resist_b','Resist · Blue','#4a96ff','Color(0.291, 0.589, 1.000)','Triangle slot vs. Magic — same blue as INT.'),
+      ]},
+      { title:'Core', note:'a field/radius concept the six attributes don\'t cover — new teal family', stats:[
+        st('core_charge_capacity','Extraction charges','#d7b355','Color(0.844, 0.701, 0.333)','WIS-family gold — charges are a banked-economy resource (kills → charges).'),
+        st('aura_range','Aura range','#00c3cb','Color(0.000, 0.764, 0.796)','New teal — "protective field radius" has no attribute owner; teal reads as shield/field across UI conventions generally.'),
+        st('aura_strength','Aura strength','#00b4bf','Color(0.000, 0.705, 0.749)','Same teal family, one step darker/deeper than range — mirrors the SP-bucket pattern of same-hue tonal siblings.'),
+      ]},
+      { title:'Rare & Prestige', note:'ultra-rare / no-mechanical-effect stats get their own family, deliberately outside the core six', stats:[
+        st('bonus_hop_count','Magic reach (rare)','#ee75e6','Color(0.933, 0.457, 0.901)','Matches the HUD\'s existing "rare" magenta tag color used next to Hop Reach.'),
+        st('luck','Luck','#ff85db','Color(1.000, 0.520, 0.859)','Same rare-magenta family as bonus_hop_count — both are lottery-flavored, sit outside the attribute wheel.'),
+        st('coolness','Coolness (prestige)','#e2d8b3','Color(0.884, 0.846, 0.702)','Pale champagne — deliberately closer to white than any gold/xp color, since it has zero mechanical weight; a vanity plaque, not a resource.'),
+      ]},
+    ];
+    return { attrSwatches, spSwatches, battCells, spZonesDemo, tabDemo, glowDemo, cardStyle:this.cardStyle, sectionLabelStyle:this.sectionLabelStyle, statGroups };
+  }
+}
+
+</script>
+</body>
+</html>

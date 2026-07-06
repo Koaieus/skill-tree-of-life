@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+@keyframes archespin { to { transform: rotate(360deg); } }
+@keyframes archeglow { 0%,100% { opacity: 0.35; } 50% { opacity: 0.95; } }
+*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}
+</style>
+</helmet>
+
+<div style="width:1960px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 80px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — core node spin-off</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Node core: glow × weld × sweep-ticks</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1200px;line-height:1.65;">Isolating the node itself — exploring tweakable glow modes (shape vs. disc), welded archetype shapes at configurable scale, and a new <b>sweep-tick stake cap</b> system where <b>n/m</b> (e.g. 1/2) renders <b>n</b> full-circle tick arcs that rotate at the metallic rim radius. Unallocated capacity (0/2, 0/3) sits at the node's edge like a waiting hotel ready to be claimed.</div>
+  </div>
+
+  <!-- SECTION 1: Glow modes — shape vs. disc -->
+  <div style="{{ card }}padding:34px;margin-bottom:28px;">
+    <div style="{{ H2 }}margin-bottom:6px;">1. Glow targeting — where does the light bloom?</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:24px;max-width:1100px;">Three zones: shape alone, disc alone, or both. The rim beneath them tints with owner color and glows when allocated.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+      <sc-for list="{{ glowModes }}" as="gm" hint-placeholder-count="3">
+        <div style="{{ card }}padding:20px;display:flex;flex-direction:column;align-items:center;gap:14px;border-color:{{ gm.borderColor }};">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;text-align:center;">{{ gm.label }}</div>
+          <div style="position:relative;width:200px;height:200px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="200" variant="well" arch="int" hue="265" weldK="{{ gm.weldK }}" sigil="{{ false }}" glowMode="{{ gm.glowMode }}" glowAmt="{{ shapeGlow }}" tintMix="1" allocated="{{ true }}" hint-size="200px,200px" style="width:200px;height:200px;"></dc-import>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(190,200,225,0.6);text-align:center;line-height:1.5;">{{ gm.desc }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Weld size × glyph toggles -->
+  <div style="{{ card }}padding:34px;margin-bottom:28px;">
+    <div style="{{ H2 }}margin-bottom:6px;">2. Welded shape scale &amp; glyph presence</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:24px;max-width:1100px;"><b>weldK</b> = radius multiplier on the archetype shape (0.4–1.15). <b>showGlyph</b> adds a small centered icon (spammy stacked; off by default).</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+      <sc-for list="{{ weldCases }}" as="wc" hint-placeholder-count="4">
+        <div style="{{ card }}padding:18px;display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;color:#eef0f6;text-align:center;">{{ wc.label }}</div>
+          <div style="position:relative;width:180px;height:180px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="180" variant="well" arch="dex" hue="145" weldK="{{ wc.weldK }}" sigil="{{ false }}" showGlyph="{{ showGlyph }}" glowMode="always" glowAmt="{{ diskGlow }}" allocated="{{ true }}" hint-size="180px,180px" style="width:180px;height:180px;"></dc-import>
+            </div>
+          </div>
+          <div style="font-size:9.5px;color:rgba(190,200,225,0.65);text-align:center;">weldK={{ wc.weldK }}<br>{{ wc.glyphLabel }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SECTION 3: Rim tint & profile -->
+  <div style="{{ card }}padding:34px;margin-bottom:28px;">
+    <div style="{{ H2 }}margin-bottom:6px;">3. Metallic rim — tint mix &amp; profile</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:24px;max-width:1100px;"><b>tintMix</b> blends neutral silver (0) to owner-hue saturated metal (1). <b>rimProfile</b> changes the cross-section cut: smooth (soft), stepped, grooved, terraced. Each grid row is a profile; columns shift the tint.</div>
+    <div style="display:grid;grid-template-columns:120px repeat(5,1fr);gap:14px;align-items:center;margin-bottom:20px;">
+      <div></div>
+      <sc-for list="{{ tintSteps }}" as="ts" hint-placeholder-count="5">
+        <div style="text-align:center;font-family:'Cinzel',serif;font-weight:700;font-size:11px;color:rgba(200,208,228,0.7);">{{ ts }}</div>
+      </sc-for>
+      <sc-for list="{{ rimProfiles }}" as="rp" hint-placeholder-count="4">
+        <div style="font-size:11.5px;color:#eef0f6;font-weight:600;">{{ rp }}</div>
+        <sc-for list="{{ tintSteps }}" as="ts" hint-placeholder-count="5">
+          <div style="display:flex;justify-content:center;">
+            <dc-import name="ArcheNode" size="120" variant="well" arch="con" hue="305" rimProfile="{{ rp }}" tintMix="{{ ts }}" stakeStyle="none" allocated="{{ true }}" spin="{{ false }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+          </div>
+        </sc-for>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SECTION 4: SWEEP-TICK system — the core new mechanic -->
+  <div style="{{ card }}padding:34px;margin-bottom:28px;border-color:rgba(255,220,180,0.32);">
+    <div style="{{ H2 }}margin-bottom:6px;color:oklch(0.88 0.13 42);">4. Sweep-tick stake cap — rotating arcs at the rim</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:24px;max-width:1100px;"><b>Concept:</b> <b>alloc / cap</b> (e.g., 1/2) = <b>alloc</b> full-circle arcs sweeping at the metallic rim, <b>cap</b> defines total capacity. 0/2 = no ticks visible but the arc is drawn and rotating, waiting to be claimed. When a player allocates this node, their tint blooms where the allocated tick reaches. Below: single-row variations of 0..cap with fixed 1/cap layout.</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:16px;">
+      <sc-for list="{{ sweepTickSingle }}" as="st" hint-placeholder-count="6">
+        <div style="{{ card }}padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;border-color:{{ st.unalloc?'rgba(150,160,182,0.24)':'rgba(100,200,150,0.28)' }};">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:11px;color:#eef0f6;text-align:center;">{{ st.label }}</div>
+          <div style="position:relative;width:160px;height:160px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="160" variant="well" arch="str" hue="25" weldK="0.87" stakeStyle="{{ st.stakeStyle }}" stakeCap="{{ st.cap }}" stakeAlloc="{{ st.alloc }}" glowMode="always" glowAmt="{{ glyphGlow }}" allocated="{{ st.alloc>0 }}" tintMix="0.95" spin="{{ true }}" hint-size="160px,160px" style="width:160px;height:160px;"></dc-import>
+            </div>
+          </div>
+          <div style="font-size:9px;color:rgba(190,200,225,0.6);text-align:center;">{{ st.alloc }}/{{ st.cap }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- SECTION 5: MATRIX — stake cap grid -->
+  <div style="{{ card }}padding:34px;margin-bottom:28px;">
+    <div style="{{ H2 }}margin-bottom:6px;">5. Stake cap matrix — all allocation states</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:24px;">Three cap levels (1, 2, 3). Each column shows alloc 0..cap. Unallocated capacity sits faint at the rim, ready to be claimed.</div>
+    
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+      <sc-for list="{{ stakeMatrices }}" as="matrix" hint-placeholder-count="3">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;margin-bottom:14px;text-align:center;">Cap {{ matrix.cap }}</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <sc-for list="{{ matrix.rows }}" as="row" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <div style="position:relative;width:120px;height:120px;">
+                  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                    <dc-import name="ArcheNode" size="120" variant="well" arch="int" hue="265" weldK="0.87" stakeStyle="ticks-sweep" stakeCap="{{ matrix.cap }}" stakeAlloc="{{ row.alloc }}" arcWidthScale="{{ arcWidthScale }}" glowMode="always" glowAmt="{{ glyphGlow }}" allocated="{{ allocated&&row.alloc>0 }}" tintMix="0.92" spin="{{ true }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+                  </div>
+                </div>
+                <div style="font-family:'Cinzel',serif;font-weight:700;font-size:10px;color:#eef0f6;">{{ row.alloc }}/{{ matrix.cap }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1960,&quot;height&quot;:1200},&quot;shapeGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Glow&quot;},&quot;diskGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Glow&quot;},&quot;showShape&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Shape&quot;},&quot;showGlyph&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Glyph&quot;},&quot;glyphGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Glyph&quot;},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;},&quot;arcWidthScale&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1.0,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0.6,&quot;max&quot;:2.0,&quot;step&quot;:0.1,&quot;section&quot;:&quot;Sweep-tick&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+
+  renderVals(){
+    const p = this.props;
+    const shapeGlow = p.shapeGlow ?? 0;
+    const diskGlow = p.diskGlow ?? 0;
+    const showShape = p.showShape !== false;
+    const showGlyph = p.showGlyph === true;
+    const glyphGlow = p.glyphGlow ?? 0.5;
+    const allocated = p.allocated !== false;
+    const arcWidthScale = p.arcWidthScale ?? 1.0;
+    
+    // Glow modes: where the light lives
+    const glowModes = [
+      { label: 'Shape glow', glowMode: 'always', weldK: 0.87, borderColor: 'rgba(220,150,100,0.28)', desc: 'Welded archetype shape lights up in owner hue. Disc stays quiet.' },
+      { label: 'Disc glow', glowMode: 'always', weldK: 0.55, borderColor: 'rgba(150,220,200,0.28)', desc: 'Central disc blazes (smaller weld). Shape fades into shadow.' },
+      { label: 'Both glow', glowMode: 'always', weldK: 0.78, borderColor: 'rgba(180,180,220,0.28)', desc: 'Shape + disc both light. Most readable, busiest.' }
+    ];
+
+    // Weld scale variations + glyph toggle
+    const weldCases = [
+      { label: 'Tiny (0.50)', weldK: 0.50, glyph: false, glyphLabel: 'no glyph' },
+      { label: 'Small (0.68)', weldK: 0.68, glyph: false, glyphLabel: 'no glyph' },
+      { label: 'Default (0.87)', weldK: 0.87, glyph: false, glyphLabel: 'no glyph' },
+      { label: 'Large + icon', weldK: 1.05, glyph: true, glyphLabel: '+ glyph' }
+    ];
+
+    // Tint sweep: from neutral silver to owner-hue
+    const tintSteps = [0, 0.25, 0.5, 0.75, 1.0];
+    const rimProfiles = ['smooth', 'stepped', 'grooved', 'terraced'];
+
+    // Stake cap matrix: clean layout
+    const stakeMatrices = [
+      {
+        cap: 1,
+        rows: [
+          { alloc: 0 },
+          { alloc: 1 }
+        ]
+      },
+      {
+        cap: 2,
+        rows: [
+          { alloc: 0 },
+          { alloc: 1 },
+          { alloc: 2 }
+        ]
+      },
+      {
+        cap: 3,
+        rows: [
+          { alloc: 0 },
+          { alloc: 1 },
+          { alloc: 2 },
+          { alloc: 3 }
+        ]
+      }
+    ];
+
+    return {
+      H2: this.H2,
+      card: this.card,
+      glowModes,
+      weldCases,
+      tintSteps,
+      rimProfiles,
+      stakeMatrices,
+      shapeGlow,
+      diskGlow,
+      showShape,
+      showGlyph,
+      glyphGlow,
+      allocated,
+      arcWidthScale
+    };
+  }
+}
+
+</script>
+</body>
+</html>

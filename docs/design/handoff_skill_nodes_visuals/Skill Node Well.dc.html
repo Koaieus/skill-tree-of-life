@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:42px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — socket well · v4</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">The crater node</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1160px;line-height:1.65;">POE2 anatomy — outward to inward: <b style="color:#eef0f6;">small metal rim &rarr; ramp up &rarr; cliff down &rarr; recessed pit</b>. The pit holds a circular <b style="color:oklch(0.82 0.13 88);">skill-point disc</b> that dominates the surface and <b style="color:oklch(0.82 0.13 88);">glows when allocated</b>. The archetype shape is welded onto that disc — the circle stays canonical, the shape adds identity. Chrome is down to a frame. Renditions below, large.</div>
+  </div>
+
+  <!-- HERO: allocated vs not -->
+  <div style="{{ card }}padding:30px 34px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:20px;">Allocated glows · empty is dark</div>
+    <div style="display:flex;gap:56px;align-items:flex-end;justify-content:center;flex-wrap:wrap;">
+      <sc-for list="{{ heroCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <dc-import name="ArcheNode" size="{{ c.size }}" variant="well" arch="{{ c.arch }}" hue="{{ c.hue }}" allocated="{{ c.on }}" hint-size="{{ c.size }}px,{{ c.size }}px" style="width:{{ c.size }}px;height:{{ c.size }}px;"></dc-import>
+          <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- WELD MODES -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">How the shape welds to the disc</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;">Three ways to seat the archetype shape on the constant-brightness disc. Shown on the triangle (most extreme) — pick the balance of canonical-circle vs shape identity.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+      <sc-for list="{{ weldCells }}" as="c" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <div style="display:flex;gap:22px;align-items:center;">
+            <dc-import name="ArcheNode" size="150" variant="well" weld="{{ c.weld }}" arch="str" hue="150" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+            <dc-import name="ArcheNode" size="150" variant="well" weld="{{ c.weld }}" arch="int" hue="265" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ c.name }}</div>
+            <div style="font-size:10px;color:rgba(180,190,215,0.55);margin-top:2px;">{{ c.note }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- RIM + FINISH -->
+  <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:22px;">
+    <div style="{{ card }}flex:1;min-width:340px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Single vs double rim</div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">The double rim is the fancier frame — now that the disc dominates, it reads as jewelry, not chrome.</div>
+      <div style="display:flex;gap:36px;justify-content:center;">
+        <sc-for list="{{ rimCells }}" as="c" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <dc-import name="ArcheNode" size="156" variant="well" rimStyle="{{ c.rim }}" arch="con" hue="305" hint-size="156px,156px" style="width:156px;height:156px;"></dc-import>
+            <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="{{ card }}flex:1;min-width:340px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Bevel vs facet disc</div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">Facet reserved for keystones / rare rolls — the welded shape cuts into gem planes.</div>
+      <div style="display:flex;gap:36px;justify-content:center;">
+        <sc-for list="{{ finishCells }}" as="c" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <dc-import name="ArcheNode" size="156" variant="well" holder="{{ c.holder }}" arch="dex" hue="150" hint-size="156px,156px" style="width:156px;height:156px;"></dc-import>
+            <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL ALPHABET, big -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">The alphabet, welded &amp; glowing</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;">All six, inscribe weld, allocated. Same disc size &rarr; equal brightness; shape carries archetype.</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;justify-items:center;">
+      <sc-for list="{{ alpha }}" as="c" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="{{ c.arch }}" hue="210" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ENTITY CORE HALOS, bigger + renditions -->
+  <div style="{{ card }}padding:26px 30px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Entity-core halos — bigger, more renditions</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;max-width:1180px;">All surrounding the node and animating live. <b style="color:#eef0f6;">Spikes</b> doubles as a preview of the spike addon — slow spin now, could seesaw or twitch on idle. Bigger halos read as cores from across the map.</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;">
+      <sc-for list="{{ coreCells }}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <dc-import name="ArcheNode" size="150" variant="well" core="{{ c.core }}" arch="{{ c.arch }}" hue="{{ c.hue }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <div style="text-align:center;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ c.name }}</div>
+            <div style="font-size:9.5px;color:rgba(180,190,215,0.5);margin-top:2px;">{{ c.note }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  renderVals(){
+    const heroCells = [
+      { name:'Allocated', arch:'str', hue:150, on:true,  size:190 },
+      { name:'Empty', arch:'str', hue:150, on:false, size:190 },
+      { name:'Allocated', arch:'int', hue:265, on:true,  size:190 },
+      { name:'Empty', arch:'int', hue:265, on:false, size:190 }
+    ];
+    const weldCells = [
+      { weld:'inscribe', name:'Inscribe', note:'shape fits the disc — canonical circle wins' },
+      { weld:'equal',    name:'Equal-area', note:'shape pokes onto the pit — strongest identity' },
+      { weld:'emblem',   name:'Emblem', note:'small shape sits on the disc' }
+    ];
+    const rimCells = [ { rim:'single', name:'Single rim' }, { rim:'double', name:'Double rim' } ];
+    const finishCells = [ { holder:'bevel', name:'Bevel' }, { holder:'facet', name:'Facet' } ];
+    const alpha = [
+      { arch:'str', name:'STR' }, { arch:'dex', name:'DEX' }, { arch:'wis', name:'WIS' },
+      { arch:'int', name:'INT' }, { arch:'per', name:'PER' }, { arch:'con', name:'CON' }
+    ];
+    const coreCells = [
+      { core:'rings',  name:'Ring halo',    note:'spinning broken rings', arch:'str', hue:150 },
+      { core:'cog',    name:'Tick halo',    note:'fine mechanical ticks', arch:'con', hue:305 },
+      { core:'orbit',  name:'Orbit motes',  note:'3 dots circling',       arch:'int', hue:265 },
+      { core:'spikes', name:'Spikes',       note:'= spike addon preview',  arch:'str', hue:25 },
+      { core:'none',   name:'Plain (ref)',  note:'no halo',               arch:'per', hue:150 }
+    ];
+    return { H2:this.H2, card:this.card, heroCells, weldCells, rimCells, finishCells, alpha, coreCells };
+  }
+}
+</script>
+</body>
+</html>

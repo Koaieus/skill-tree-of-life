@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}
+</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <div style="margin-bottom:44px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — Archetype Encoding · broad options</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:40px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Encoding archetype without color</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1120px;line-height:1.65;">Color belongs to the <b style="color:#eef0f6;">owner</b> — every player and enemy claims a hue, so the disk fill can be anything. That frees color entirely but leaves <b style="color:oklch(0.82 0.13 88);">archetype</b> (STR / DEX / WIS / INT / PER / CON) needing a channel that survives any fill color. Below, nine ways to carry it — icons, silhouettes, and ring profiles — each rendered across all six archetypes on the <b style="color:#eef0f6;">same canonical disk</b>. Every option keeps the round node as the default read; the differences are deliberately restrained so a whole tree still scans as one family.</div>
+  </div>
+
+  <!-- FAMILY GRID -->
+  <div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:20px;">
+    <sc-for list="{{ families }}" as="f" hint-placeholder-count="9">
+      <div style="{{ card }}width:556px;padding:22px 24px 24px;">
+        <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:3px;">
+          <span style="font-family:'Cinzel',serif;font-weight:800;font-size:12px;letter-spacing:1px;color:#04050a;background:{{ f.badge }};padding:2px 8px;border-radius:6px;">{{ f.id }}</span>
+          <span style="font-family:'Cinzel',serif;font-weight:700;font-size:15px;letter-spacing:0.8px;color:#eef0f6;">{{ f.name }}</span>
+          <span style="font-size:9.5px;letter-spacing:1.5px;color:{{ f.tagColor }};text-transform:uppercase;margin-left:auto;">{{ f.tag }}</span>
+        </div>
+        <div style="font-size:11px;color:rgba(190,200,225,0.62);line-height:1.55;min-height:46px;margin-bottom:10px;">{{ f.desc }}</div>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;align-items:end;">
+          <sc-for list="{{ archs }}" as="a" hint-placeholder-count="6">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;">
+              <dc-import name="ArcheNode" size="80" variant="{{ f.variant }}" arch="{{ a }}" hue="{{ f.hue }}" hint-size="80px,80px" style="width:80px;height:80px;"></dc-import>
+              <span style="font-size:8.5px;letter-spacing:1px;color:rgba(180,190,215,0.5);text-transform:uppercase;">{{ a }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- COLOR INDEPENDENCE -->
+  <div style="margin-top:36px;margin-bottom:16px;display:flex;align-items:baseline;gap:14px;">
+    <div style="{{ H2 }}">Reads on any owner color</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.55);">Same archetype (DEX), five owners — three players + two enemies. If the shape/icon holds across all of them, the encoding is color-independent.</div>
+  </div>
+  <div style="{{ card }}padding:26px 30px;margin-bottom:40px;">
+    <sc-for list="{{ proofRows }}" as="row" hint-placeholder-count="3">
+      <div style="display:flex;align-items:center;gap:26px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <div style="width:150px;flex:none;">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ row.name }}</div>
+          <div style="font-size:10px;color:rgba(185,195,220,0.55);margin-top:2px;">{{ row.note }}</div>
+        </div>
+        <div style="display:flex;gap:22px;">
+          <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:92px;">
+              <dc-import name="ArcheNode" size="82" variant="{{ row.variant }}" arch="dex" hue="{{ c.hue }}" chroma="{{ c.chroma }}" hostile="{{ c.hostile }}" hint-size="82px,82px" style="width:82px;height:82px;"></dc-import>
+              <span style="font-size:9px;color:{{ c.label }};text-align:center;line-height:1.3;">{{ c.name }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- SYNTHESIS -->
+  <div style="margin-top:8px;margin-bottom:16px;display:flex;align-items:baseline;gap:14px;">
+    <div style="{{ H2 }}">Where this points</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.55);">Early read — condense from here.</div>
+  </div>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;">
+    <sc-for list="{{ picks }}" as="pk" hint-placeholder-count="3">
+      <div style="{{ card }}flex:1;min-width:400px;padding:24px 26px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+          <dc-import name="ArcheNode" size="72" variant="{{ pk.variant }}" arch="{{ pk.arch }}" hue="{{ pk.hue }}" hint-size="72px,72px" style="width:72px;height:72px;flex:none;"></dc-import>
+          <div>
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:{{ pk.color }};">{{ pk.name }}</div>
+            <div style="font-size:9.5px;letter-spacing:1.5px;color:rgba(180,190,215,0.5);text-transform:uppercase;margin-top:2px;">{{ pk.tag }}</div>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:rgba(195,205,228,0.72);line-height:1.6;">{{ pk.desc }}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="margin-top:26px;font-size:11px;color:rgba(180,190,215,0.5);line-height:1.6;max-width:1120px;">Note on <b style="color:rgba(210,218,235,0.8);">addon stacking</b> — kept from v2: silhouette addons (spikes, plating, brace ring, relay ticks) live in the band <i>outside</i> the disk, so they compose freely with whichever archetype channel you pick here. Icon &amp; ring-profile encodings leave that outer band fully free; shape encodings (D–E) share it, so those pair best with badge-style addons.</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:20px;letter-spacing:1.5px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+
+  renderVals(){
+    const archs = ['str','dex','wis','int','per','con'];
+    const families = [
+      { id:'A', name:'Planetary glyph', variant:'planet', hue:220, badge:'rgba(200,208,225,0.85)', tag:'icon', tagColor:'oklch(0.78 0.13 220)',
+        desc:'Canonical disk, an alchemical mark debossed into it (Mars=STR, Mercury=DEX, Sun=WIS, Saturn=INT, Moon=PER, Earth=CON). Carved, not colored — reads on any fill. Culturally loaded, zero new art.' },
+      { id:'B', name:'Geometric mark', variant:'geoicon', hue:200, badge:'rgba(200,208,225,0.85)', tag:'icon', tagColor:'oklch(0.78 0.13 220)',
+        desc:'Same idea, bespoke pictograms (chevrons=STR, arrow=DEX, sun=WIS, crystal=INT, star=PER, shield=CON). Legible tiny, fully ownable art direction, no letter/color conflict.' },
+      { id:'C', name:'Inner-shape cut', variant:'innercut', hue:170, badge:'oklch(0.82 0.13 145)', tag:'shape · inner', tagColor:'oklch(0.82 0.13 145)',
+        desc:'Round frame stays canonical; the allocated disk inside is cut to a per-archetype polygon. Round-outer / shaped-inner contrast keeps the tree cohesive while the cut carries meaning.' },
+      { id:'D', name:'Outer silhouette', variant:'outer', hue:305, badge:'oklch(0.72 0.16 305)', tag:'shape · outer', tagColor:'oklch(0.72 0.16 305)',
+        desc:'The whole node takes the archetype polygon. Strongest at-a-glance grouping and tiny-zoom read — but the boldest departure from the round default, and it fights radial addons.' },
+      { id:'E', name:'Faceted gem', variant:'facet', hue:88, badge:'oklch(0.82 0.13 88)', tag:'shape · profile', tagColor:'oklch(0.82 0.13 88)',
+        desc:'Disk cut as an N-fold gem — facet count encodes archetype, and the cut catches light like the 3D disk you liked. Premium feel; subtler than a full silhouette swap.' },
+      { id:'F', name:'Cog teeth', variant:'teeth', hue:45, badge:'oklch(0.75 0.15 55)', tag:'ring · profile', tagColor:'oklch(0.75 0.15 55)',
+        desc:'Disk untouched; the metal border grows N teeth. Mechanical, addon-friendly, and the tooth count is countable up close yet reads as texture at distance.' },
+      { id:'G', name:'Scalloped lobes', variant:'lobes', hue:150, badge:'oklch(0.82 0.13 145)', tag:'ring · profile', tagColor:'oklch(0.82 0.13 145)',
+        desc:'Softer cousin of teeth — the rim swells into N rounded lobes. Organic, less aggressive than a cog, still color-free and countable.' },
+      { id:'H', name:'Rim notches', variant:'notch', hue:258, badge:'oklch(0.7 0.15 258)', tag:'ring · subtle', tagColor:'oklch(0.7 0.15 258)',
+        desc:'Most restrained: N small bites taken out of an otherwise solid rim. Nearly invisible at a glance, precise up close — a whisper-level cue that never competes with owner color.' },
+      { id:'I', name:'Segmented band', variant:'segring', hue:25, badge:'oklch(0.7 0.2 30)', tag:'ring · count', tagColor:'oklch(0.7 0.2 30)',
+        desc:'The border splits into N arc segments. Count-based like teeth but flatter; doubles naturally as a slot for future per-segment state (charges, cooldown pips).' }
+    ];
+    const proofRows = [
+      { name:'A · Planetary', note:'debossed glyph', variant:'planet' },
+      { name:'C · Inner cut', note:'diamond disk', variant:'innercut' },
+      { name:'G · Lobes', note:'6 lobes', variant:'lobes' }
+    ].map(r => ({ ...r, cells:[
+      { hue:220, chroma:0.14, hostile:false, name:'Player · azure', label:'oklch(0.78 0.13 220)' },
+      { hue:150, chroma:0.13, hostile:false, name:'Player · jade', label:'oklch(0.78 0.13 150)' },
+      { hue:305, chroma:0.15, hostile:false, name:'Player · violet', label:'oklch(0.72 0.16 305)' },
+      { hue:25,  chroma:0.16, hostile:true,  name:'Enemy · crimson', label:'oklch(0.7 0.2 30)' },
+      { hue:75,  chroma:0.14, hostile:true,  name:'Enemy · amber', label:'oklch(0.78 0.13 75)' }
+    ] }));
+    const picks = [
+      { name:'Icon + subtle profile', tag:'recommended synthesis', arch:'int', variant:'geoicon', hue:220, color:'oklch(0.85 0.14 145)',
+        desc:'Carry the primary read on a debossed icon (A/B) and let a whisper-level ring cue (H notches) back it up for tiny zoom. Both leave the outer band free for stacked addons, both are color-proof, both keep every node round.' },
+      { name:'Inner-cut, if bolder', tag:'strong alternative', arch:'per', variant:'innercut', hue:170, color:'oklch(0.82 0.13 88)',
+        desc:'If you want archetype legible with zero focus, the shaped inner disk (C) is the most instant non-color cue that still keeps the round frame — the best middle ground before going full silhouette.' },
+      { name:'Facet, for feel', tag:'wildcard', arch:'con', variant:'facet', hue:305, color:'oklch(0.72 0.16 305)',
+        desc:'The gem cut (E) is the most tactile — it extends the 3D disk you already favour and would shine hardest under a Godot reflection shader. Weakest at tiny zoom, so pair with an icon.' }
+    ];
+    return { H2:this.H2, card:this.card, archs, families, proofRows, picks };
+  }
+}
+</script>
+</body>
+</html>

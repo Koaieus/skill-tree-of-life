@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1720px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <div style="margin-bottom:42px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — gem-set nodes · v3</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Equal-area gems · entity cores</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1140px;line-height:1.65;"><b style="color:#eef0f6;">Locked:</b> gem is always the owner color; shapes are now size-normalised so every archetype gem has the <b style="color:oklch(0.82 0.13 88);">same surface area</b> (triangle grows, circle shrinks). Glyphs redrawn to sit inside every shape. Bevel is the default finish; facet reserved for keystones / rare rolls. Open: where archetype color goes, and the surrounding entity-core treatment.</div>
+  </div>
+
+  <!-- SHAPE ALPHABET -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Equal-area alphabet</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">All one owner hue so shape alone carries archetype. Every gem holds the same area — no shape hogs or starves its holder.</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:16px;">
+      <sc-for list="{{ shapeCells }}" as="c" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:9px;">
+          <dc-import name="ArcheNode" size="124" variant="gem" arch="{{ c.arch }}" hue="210" hint-size="124px,124px" style="width:124px;height:124px;"></dc-import>
+          <div style="text-align:center;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</div>
+            <div style="font-size:9.5px;color:rgba(180,190,215,0.55);margin-top:2px;">{{ c.shape }} · {{ c.glyph }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- Q1 ARCHETYPE COLOR -->
+  <div style="{{ card }}padding:24px 30px;margin-bottom:22px;">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;"><span style="{{ q }}">Q1</span><div style="{{ H2 }}">Where archetype color goes</div></div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;max-width:1000px;">Gem stays owner-colored — so archetype color (if we add it) needs its own channel. Tint the metal holder, or run it as a ring around the node. Each column: one owner hue (azure), the six archetypes carrying their own identity color.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+      <sc-for list="{{ tintCols }}" as="col" hint-placeholder-count="3">
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:18px 16px;">
+          <div style="text-align:center;margin-bottom:14px;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;">{{ col.name }}</div>
+            <div style="font-size:10px;color:rgba(180,190,215,0.55);margin-top:3px;min-height:26px;">{{ col.note }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;justify-items:center;">
+            <sc-for list="{{ archList }}" as="a" hint-placeholder-count="6">
+              <dc-import name="ArcheNode" size="82" variant="gem" archTint="{{ col.tint }}" arch="{{ a }}" hue="215" hint-size="82px,82px" style="width:82px;height:82px;"></dc-import>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- Q2 ENTITY CORE HALO -->
+  <div style="{{ card }}padding:24px 30px;margin-bottom:22px;">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;"><span style="{{ q }}">Q2</span><div style="{{ H2 }}">Entity-core halo</div></div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;max-width:1000px;">Glyph stays the center marker; the &ldquo;core&rdquo; read comes from a secondary layer <b style="color:#eef0f6;">surrounding</b> the node — spinning rings, a tick/cog halo, or orbiting motes. From a distance: &ldquo;that&rsquo;s an entity core, no doubt.&rdquo; All animate live.</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;">
+      <sc-for list="{{ coreCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <dc-import name="ArcheNode" size="128" variant="gem" core="{{ c.core }}" arch="{{ c.arch }}" hue="{{ c.hue }}" hint-size="128px,128px" style="width:128px;height:128px;"></dc-import>
+          <div style="text-align:center;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ c.name }}</div>
+            <div style="font-size:9.5px;color:rgba(180,190,215,0.5);margin-top:2px;">{{ c.note }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- Q3 HOLDER + Q4 STATUS -->
+  <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:22px;">
+    <div style="{{ card }}flex:1;min-width:320px;padding:24px 28px;">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;"><span style="{{ q }}">Q3</span><div style="{{ H2 }}">Finish tiers</div></div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;min-height:32px;">Bevel = the everyday node. Facet = keystones, rare rolls, special editions.</div>
+      <div style="display:flex;gap:30px;justify-content:center;">
+        <sc-for list="{{ holderCells }}" as="c" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:9px;">
+            <dc-import name="ArcheNode" size="118" variant="gem" holder="{{ c.holder }}" arch="con" hue="305" hint-size="118px,118px" style="width:118px;height:118px;"></dc-import>
+            <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</span>
+            <span style="font-size:9.5px;color:rgba(180,190,215,0.5);">{{ c.tag }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="{{ card }}flex:2;min-width:440px;padding:24px 28px;">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:2px;"><span style="{{ q }}">Q4</span><div style="{{ H2 }}">State &amp; targeting</div></div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">Layered outside the frame. Targeting reticle is larger with extended crosshairs and spins (live).</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;">
+        <sc-for list="{{ statusCells }}" as="c" hint-placeholder-count="5">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:9px;padding:12px 0;background:{{ c.bg }};border-radius:12px;border:1px solid rgba(255,255,255,0.05);">
+            <dc-import name="ArcheNode" size="96" variant="gem" arch="{{ c.arch }}" hue="{{ c.hue }}" status="{{ c.status }}" hostile="{{ c.hostile }}" hint-size="96px,96px" style="width:96px;height:96px;"></dc-import>
+            <span style="font-family:'Cinzel',serif;font-size:11px;color:#eef0f6;letter-spacing:0.5px;">{{ c.name }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAR ZOOM READ TEST -->
+  <div style="{{ card }}padding:26px 30px;">
+    <div style="{{ H2 }}margin-bottom:4px;">The far-zoom read test</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;max-width:1180px;">A contested region at map zoom — jade &amp; violet owners plus a hostile pocket. The two spinning halos are <b style="color:oklch(0.85 0.14 145)">entity cores</b> — instantly findable. Elsewhere you read ownership (aura), the jade build being triangle-heavy (<b style="color:oklch(0.82 0.13 88)">STR</b>), dim un-owned nodes, and warning rings.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px 10px;max-width:1200px;">
+      <sc-for list="{{ cluster }}" as="n" hint-placeholder-count="54">
+        <dc-import name="ArcheNode" size="58" variant="gem" arch="{{ n.arch }}" hue="{{ n.hue }}" allocated="{{ n.on }}" hostile="{{ n.hostile }}" core="{{ n.core }}" hint-size="58px,58px" style="width:58px;height:58px;"></dc-import>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  q = "font-family:'Cinzel',serif;font-weight:800;font-size:12px;color:#04050a;background:oklch(0.82 0.13 88);padding:2px 9px;border-radius:6px;letter-spacing:0.5px;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+
+  renderVals(){
+    const shapeCells = [
+      { arch:'str', name:'STR', shape:'triangle', glyph:'chevrons' },
+      { arch:'dex', name:'DEX', shape:'diamond',  glyph:'arrow' },
+      { arch:'wis', name:'WIS', shape:'circle',   glyph:'sun' },
+      { arch:'int', name:'INT', shape:'pentagram',glyph:'eye' },
+      { arch:'per', name:'PER', shape:'hexagon',  glyph:'crescent' },
+      { arch:'con', name:'CON', shape:'square',   glyph:'shield' }
+    ];
+    const archList = ['str','dex','wis','int','per','con'];
+    const tintCols = [
+      { tint:'none',   name:'No archetype color', note:'shape alone — cleanest, one color channel', },
+      { tint:'holder', name:'Tinted holder', note:'metal rim shifts toward the archetype hue' },
+      { tint:'ring',   name:'Archetype ring', note:'a colored ring frames the node' }
+    ];
+    const coreCells = [
+      { core:'none',  name:'Normal node', note:'glyph only', arch:'per', hue:150 },
+      { core:'rings', name:'Ring halo',   note:'spinning broken rings', arch:'str', hue:150 },
+      { core:'cog',   name:'Tick / cog halo', note:'mechanical, addon-flavored', arch:'con', hue:305 },
+      { core:'orbit', name:'Orbiting motes', note:'3 dots circling', arch:'int', hue:265 }
+    ];
+    const holderCells = [
+      { holder:'bevel', name:'Beveled', tag:'default' },
+      { holder:'facet', name:'Faceted', tag:'keystone · rare' }
+    ];
+    const statusCells = [
+      { status:'none',     name:'Default',  arch:'wis', hue:150, hostile:false, bg:'rgba(255,255,255,0.02)' },
+      { status:'hover',    name:'Hover',    arch:'wis', hue:150, hostile:false, bg:'rgba(255,255,255,0.035)' },
+      { status:'selected', name:'Selected', arch:'wis', hue:150, hostile:false, bg:'rgba(150,130,40,0.08)' },
+      { status:'targeted', name:'Targeted', arch:'str', hue:150, hostile:false, bg:'rgba(150,40,40,0.08)' },
+      { status:'none',     name:'Warning',  arch:'str', hue:25,  hostile:true,  bg:'rgba(150,40,40,0.08)' }
+    ];
+    const shapes = ['str','dex','wis','int','per','con'];
+    const cluster = [];
+    for(let i=0;i<56;i++){
+      const r=(i*13+7)%100; let hue, on=true, hostile=false, arch, core='none';
+      if(r<44){ hue=150; arch=(i%3===0||i%7===1)?'str':shapes[(i*5)%6]; if(i%4===0) arch='str'; }
+      else if(r<74){ hue=305; arch=shapes[(i*3+2)%6]; }
+      else if(r<86){ hue=25; hostile=true; arch=shapes[(i*7)%6]; }
+      else { hue=150; on=false; arch=shapes[(i*11)%6]; }
+      cluster.push({ arch, hue, on, hostile, core });
+    }
+    if(cluster[10]){ cluster[10].core='rings'; cluster[10].hue=150; cluster[10].on=true; cluster[10].hostile=false; cluster[10].arch='str'; }
+    if(cluster[33]){ cluster[33].core='rings'; cluster[33].hue=305; cluster[33].on=true; cluster[33].hostile=false; cluster[33].arch='con'; }
+    return { H2:this.H2, q:this.q, card:this.card, shapeCells, archList, tintCols, coreCells, holderCells, statusCells, cluster };
+  }
+}
+</script>
+</body>
+</html>

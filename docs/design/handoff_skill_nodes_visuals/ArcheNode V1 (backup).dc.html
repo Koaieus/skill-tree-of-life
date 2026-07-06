@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Runic&family=Noto+Serif+JP:wght@700&display=swap" rel="stylesheet">
+<style>@keyframes archespin{to{transform:rotate(360deg);}}@keyframes archepulse{0%,100%{opacity:0.75;}50%{opacity:1;}}@keyframes archeglow{0%,100%{opacity:0.35;}50%{opacity:0.95;}}</style>
+</helmet>
+<div style="{{ wrapperStyle }}" onMouseEnter="{{ onEnter }}" onMouseLeave="{{ onLeave }}">
+  <svg viewBox="0 0 100 100" width="{{ size }}" height="{{ size }}" style="overflow:visible;">
+    <defs>
+      <radialGradient id="{{ uid }}-d" cx="36%" cy="30%" r="72%">
+        <stop offset="0%" stop-color="{{ disk.hi }}"></stop>
+        <stop offset="52%" stop-color="{{ disk.mid }}"></stop>
+        <stop offset="100%" stop-color="{{ disk.lo }}"></stop>
+      </radialGradient>
+      <radialGradient id="{{ uid }}-m" cx="38%" cy="30%" r="78%">
+        <stop offset="0%" stop-color="{{ metalG.hi }}"></stop>
+        <stop offset="55%" stop-color="{{ metalG.mid }}"></stop>
+        <stop offset="100%" stop-color="{{ metalG.lo }}"></stop>
+      </radialGradient>
+      <radialGradient id="{{ uid }}-a" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="{{ aura.mid }}" stop-opacity="0.5"></stop>
+        <stop offset="52%" stop-color="{{ aura.mid }}" stop-opacity="0.2"></stop>
+        <stop offset="100%" stop-color="{{ aura.mid }}" stop-opacity="0"></stop>
+      </radialGradient>
+      <sc-for list="{{ runeMasks }}" as="rm" hint-placeholder-count="0">
+        <mask id="{{ rm.id }}" maskUnits="userSpaceOnUse" x="{{ rm.boxX }}" y="{{ rm.boxX }}" width="{{ rm.boxW }}" height="{{ rm.boxW }}">
+          <circle cx="50" cy="50" r="{{ rm.rOuter }}" fill="white"></circle>
+          <circle cx="50" cy="50" r="{{ rm.rInner }}" fill="black"></circle>
+          <sc-for list="{{ rm.marks }}" as="g" hint-placeholder-count="0">
+            <path d="{{ g.d }}" fill="none" stroke="black" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" transform="{{ g.transform }}"></path>
+          </sc-for>
+        </mask>
+      </sc-for>
+    </defs>
+    <sc-for list="{{ ops }}" as="op" hint-placeholder-count="5">
+      <sc-if value="{{ op.isEllipse }}" hint-placeholder-val="{{ false }}">
+        <ellipse cx="{{ op.cx }}" cy="{{ op.cy }}" rx="{{ op.rx }}" ry="{{ op.ry }}" fill="{{ op.fill }}" opacity="{{ op.opacity }}" transform="{{ op.transform }}" style="{{ op.style }}"></ellipse>
+      </sc-if>
+      <sc-if value="{{ op.isPath }}" hint-placeholder-val="{{ true }}">
+        <path d="{{ op.d }}" fill="{{ op.fill }}" stroke="{{ op.stroke }}" stroke-width="{{ op.sw }}" stroke-linecap="{{ op.linecap }}" stroke-linejoin="round" stroke-dasharray="{{ op.dash }}" opacity="{{ op.opacity }}" transform="{{ op.transform }}" style="{{ op.style }}"></path>
+      </sc-if>
+      <sc-if value="{{ op.isLine }}" hint-placeholder-val="{{ false }}">
+        <line x1="{{ op.x1 }}" y1="{{ op.y1 }}" x2="{{ op.x2 }}" y2="{{ op.y2 }}" stroke="{{ op.stroke }}" stroke-width="{{ op.sw }}" stroke-linecap="round" opacity="{{ op.opacity }}" style="{{ op.style }}"></line>
+      </sc-if>
+    </sc-for>
+  </svg>
+  <sc-for list="{{ spinLayers }}" as="sl" hint-placeholder-count="0">
+    <svg viewBox="0 0 100 100" width="{{ size }}" height="{{ size }}" style="position:absolute;inset:0;overflow:visible;transform-origin:50% 50%;animation:archespin {{ sl.dur }} linear infinite {{ sl.dir }};">
+      <sc-for list="{{ sl.ops }}" as="op" hint-placeholder-count="0">
+        <sc-if value="{{ op.isEllipse }}" hint-placeholder-val="{{ false }}">
+          <ellipse cx="{{ op.cx }}" cy="{{ op.cy }}" rx="{{ op.rx }}" ry="{{ op.ry }}" fill="{{ op.fill }}" opacity="{{ op.opacity }}" transform="{{ op.transform }}" style="{{ op.style }}"></ellipse>
+        </sc-if>
+        <sc-if value="{{ op.isPath }}" hint-placeholder-val="{{ true }}">
+          <path d="{{ op.d }}" fill="{{ op.fill }}" stroke="{{ op.stroke }}" stroke-width="{{ op.sw }}" stroke-linecap="{{ op.linecap }}" stroke-linejoin="round" stroke-dasharray="{{ op.dash }}" opacity="{{ op.opacity }}" transform="{{ op.transform }}" style="{{ op.style }}"></path>
+        </sc-if>
+        <sc-if value="{{ op.isLine }}" hint-placeholder-val="{{ false }}">
+          <line x1="{{ op.x1 }}" y1="{{ op.y1 }}" x2="{{ op.x2 }}" y2="{{ op.y2 }}" stroke="{{ op.stroke }}" stroke-width="{{ op.sw }}" stroke-linecap="round" opacity="{{ op.opacity }}" style="{{ op.style }}"></line>
+        </sc-if>
+      </sc-for>
+    </svg>
+  </sc-for>
+  <sc-if value="{{ glyph.on }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+      <span style="{{ glyph.style }}">{{ glyph.char }}</span>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:160,&quot;height&quot;:160},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:160,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:40,&quot;max&quot;:340},&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;str&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;]},&quot;variant&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;well&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;well&quot;,&quot;gem&quot;,&quot;planet&quot;,&quot;geoicon&quot;,&quot;innercut&quot;,&quot;outer&quot;,&quot;teeth&quot;,&quot;lobes&quot;,&quot;notch&quot;,&quot;segring&quot;,&quot;facet&quot;]},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:210,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Owner tint&quot;},&quot;chroma&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.14,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:0.2,&quot;step&quot;:0.01,&quot;section&quot;:&quot;Owner tint&quot;},&quot;weldK&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.88,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0.4,&quot;max&quot;:1.15,&quot;step&quot;:0.01,&quot;section&quot;:&quot;Shape&quot;},&quot;sigil&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Shape&quot;},&quot;sigilStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;shape&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;shape&quot;,&quot;astroid&quot;,&quot;star8&quot;,&quot;occult&quot;,&quot;rune&quot;,&quot;kanji&quot;],&quot;section&quot;:&quot;Shape&quot;},&quot;showGlyph&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Shape&quot;},&quot;rimStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;single&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;single&quot;,&quot;double&quot;],&quot;section&quot;:&quot;Shape&quot;},&quot;holder&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;bevel&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;bevel&quot;,&quot;facet&quot;],&quot;section&quot;:&quot;Shape&quot;},&quot;geomRimR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:31.5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:22,&quot;max&quot;:40,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base geometry&quot;},&quot;geomCrestR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:27.5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:18,&quot;max&quot;:36,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base geometry&quot;},&quot;geomPitR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:23,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:14,&quot;max&quot;:30,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base geometry&quot;},&quot;geomDiscR&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:20,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:10,&quot;max&quot;:26,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Base geometry&quot;},&quot;tintMix&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;glowMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;hover&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;always&quot;,&quot;hover&quot;,&quot;pulse&quot;,&quot;sweep&quot;],&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;glowAmt&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.55,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;rings&quot;,&quot;cog&quot;,&quot;orbit&quot;,&quot;spikes&quot;,&quot;gimbal&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;haloScale&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:4,&quot;step&quot;:0.1,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRing&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;single&quot;,&quot;double&quot;,&quot;triple&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;flush&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;flush&quot;,&quot;ornate&quot;,&quot;mixed&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingBlend&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;cutout&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;cutout&quot;,&quot;ink&quot;,&quot;glow&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingFill&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingRuneGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingPad&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:0.6,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingGap&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:4,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:20,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingSpacing&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:9,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:3,&quot;max&quot;:20,&quot;step&quot;:0.5,&quot;section&quot;:&quot;Core presence&quot;},&quot;stakeCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;stakeAlloc&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;stakeStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;chrome&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;chrome&quot;,&quot;pips&quot;,&quot;rims&quot;,&quot;unison&quot;,&quot;ticks&quot;,&quot;arc&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;rimProfile&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;smooth&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;smooth&quot;,&quot;stepped&quot;,&quot;grooved&quot;,&quot;terraced&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;status&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;hover&quot;,&quot;selected&quot;,&quot;targeted&quot;],&quot;section&quot;:&quot;State&quot;},&quot;hostile&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;},&quot;aura&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;},&quot;spin&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;State&quot;},&quot;addonPlates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonFortify&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonBridge&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonLifeline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonClamp&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;ports&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;weld&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;inscribe&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;archTint&quot;:{&quot;editor&quot;:null,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  // style-hover (CSS pseudo-class) doesn't reliably pick up dynamically-computed values in this
+  // runtime, so real hover is tracked as component state and applied via a plain style hole instead.
+  state = { hovering: false };
+  _onEnter = () => this.setState({ hovering: true });
+  _onLeave = () => this.setState({ hovering: false });
+  ARCH = {
+    str:{ poly:3, rot:-90, n:3,  planet:'\u2642', label:'STR' },
+    dex:{ poly:4, rot:-90, n:4,  planet:'\u263f', label:'DEX' },
+    wis:{ poly:0, rot:0,   n:12, planet:'\u2609', label:'WIS' },
+    int:{ poly:8, rot:-90, n:8,  planet:'\u2644', label:'INT' },
+    per:{ poly:5, rot:-90, n:5,  planet:'\u263d', label:'PER' },
+    con:{ poly:6, rot:-90, n:6,  planet:'\u2641', label:'CON' }
+  };
+  _uid = 'an' + Math.random().toString(36).slice(2,8);
+
+  P(r,a){ const rad=a*Math.PI/180; return [50+r*Math.cos(rad), 50+r*Math.sin(rad)]; }
+  fmt(pts,close){ return 'M '+pts.map((p,i)=>(i?'L ':'')+p[0].toFixed(2)+' '+p[1].toFixed(2)).join(' ')+(close===false?'':' Z'); }
+  circle(r){ return `M ${(50-r).toFixed(2)} 50 A ${r} ${r} 0 1 0 ${(50+r).toFixed(2)} 50 A ${r} ${r} 0 1 0 ${(50-r).toFixed(2)} 50 Z`; }
+  poly(r,n,rot){ const p=[]; for(let i=0;i<n;i++) p.push(this.P(r,rot+i*360/n)); return this.fmt(p); }
+  star(rO,rI,n,rot){ const p=[]; for(let i=0;i<2*n;i++) p.push(this.P(i%2?rI:rO, rot+i*180/n)); return this.fmt(p); }
+  radial(fn,s){ s=s||220; const p=[]; for(let i=0;i<s;i++){ const th=i/s*360; p.push(this.P(fn(th),th)); } return this.fmt(p); }
+  arc(r,a0,a1){ const [x0,y0]=this.P(r,a0),[x1,y1]=this.P(r,a1); const lg=(a1-a0)>180?1:0; return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; }
+
+  mk(o){ return Object.assign({isPath:false,isEllipse:false,isLine:false,d:'',fill:'none',stroke:'none',sw:0,linecap:'round',dash:'none',opacity:1,style:'',transform:'',cx:0,cy:0,rx:0,ry:0,x1:0,y1:0,x2:0,y2:0}, o); }
+  F(d,fill,style,op){ return this.mk({isPath:true,d,fill,style:style||'',opacity:op==null?1:op}); }
+  S(d,stroke,sw,style,op,dash){ return this.mk({isPath:true,d,stroke,sw,style:style||'',opacity:op==null?1:op,dash:dash||'none'}); }
+  E(cx,cy,rx,ry,fill,style,op){ return this.mk({isEllipse:true,cx,cy,rx,ry,fill,style:style||'',opacity:op==null?1:op}); }
+  L(x1,y1,x2,y2,stroke,sw,style,op){ return this.mk({isLine:true,x1,y1,x2,y2,stroke,sw,style:style||'',opacity:op==null?1:op}); }
+  dot(cx,cy,r){ return `M ${(cx-r).toFixed(2)} ${cy.toFixed(2)} a ${r} ${r} 0 1 0 ${(2*r).toFixed(2)} 0 a ${r} ${r} 0 1 0 ${(-2*r).toFixed(2)} 0`; }
+
+  // --- rim band: ring 0 is the untouched original bevel (identical to the un-staked look — the
+  // default stays exactly as it always was). Each additional stake point ADDS a whole new concentric
+  // ring OUTSIDE the crater, growing the node's actual footprint — filled rings are bold hue-tinted
+  // chrome (brighter with each ring out), unfilled/potential rings sit thin, flat and dim so you can
+  // see there's room to grow. This reads as real growth, not a decoration bolted on the side.
+  ringBandOps(rOut, crest, profile, cap, alloc, aHue, tintMix){
+    const ops=[];
+    // ring 0 — original smooth bevel, unchanged
+    ops.push(this.S(this.arc(rOut-1,22,158),'rgba(0,0,0,0.3)',3,'filter:blur(1.6px);'));
+    ops.push(this.S(this.arc(rOut-1,202,338),'rgba(255,255,255,0.16)',2,'filter:blur(1px);'));
+    ops.push(this.S(this.circle(crest),'rgba(255,255,255,0.32)',1.5,'filter:blur(0.4px);'));
+
+    const n = Math.max(1, Math.round(cap));
+    const ringW = profile==='terraced' ? 5.4 : profile==='stepped' ? 5.0 : profile==='grooved' ? 4.6 : 4.2;
+    let edge = rOut;
+    for(let i=1;i<n;i++){
+      const rInner=edge, rOuterI=edge+ringW, rMid=(rInner+rOuterI)/2;
+      const filled = i<alloc;
+      if(filled){
+        const litL=(0.62+i*0.07).toFixed(3), litC=(0.09+0.16*tintMix).toFixed(3);
+        const hi=`oklch(${(0.9-0.015*i).toFixed(3)} ${(0.07+0.14*tintMix).toFixed(3)} ${aHue})`;
+        const mid=`oklch(${litL} ${litC} ${aHue})`;
+        const lo=`oklch(${(0.4-0.015*i).toFixed(3)} ${(0.05+0.1*tintMix).toFixed(3)} ${aHue})`;
+        if(profile==='terraced'){
+          ops.push(this.S(this.circle(rMid), mid, ringW*0.97, '', 1));
+          ops.push(this.S(this.circle(rOuterI), 'rgba(255,255,255,0.4)', 1, '', 0.85));
+          ops.push(this.S(this.circle(rInner), 'rgba(0,0,0,0.4)', 0.9, '', 0.55));
+        } else if(profile==='stepped'){
+          ops.push(this.S(this.circle(rMid), mid, ringW*0.92, '', 1));
+          ops.push(this.S(this.arc(rMid,208,332), hi, ringW*0.4, '', 0.6));
+          ops.push(this.S(this.circle(rOuterI), 'rgba(0,0,0,0.48)', 0.9, '', 0.75));
+          ops.push(this.S(this.circle(rInner), 'rgba(255,255,255,0.22)', 0.7, '', 0.5));
+        } else if(profile==='grooved'){
+          ops.push(this.S(this.circle(rMid), mid, ringW*0.7, '', 1));
+          ops.push(this.S(this.circle(rInner), 'rgba(0,0,0,0.6)', 0.9, '', 0.65));
+          ops.push(this.S(this.circle(rOuterI), 'rgba(0,0,0,0.6)', 0.9, '', 0.65));
+          ops.push(this.S(this.arc(rMid,208,332), hi, ringW*0.32, '', 0.55));
+        } else {
+          ops.push(this.S(this.circle(rMid), mid, ringW*0.94, '', 1));
+          ops.push(this.S(this.arc(rMid,200,340), hi, ringW*0.6, 'filter:blur(1px);', 0.55));
+          ops.push(this.S(this.arc(rMid,20,160), lo, ringW*0.6, 'filter:blur(1px);', 0.5));
+          ops.push(this.S(this.circle(rOuterI), 'rgba(0,0,0,0.4)', 0.8, '', 0.55));
+        }
+        if(i===alloc-1) ops.push(this.S(this.circle(rOuterI+0.3), `oklch(0.88 0.19 ${aHue})`, 1.4, `filter:drop-shadow(0 0 5px oklch(0.8 0.22 ${aHue}));`, 0.95));
+      } else {
+        // unfilled — thin, flat, ghost outline: capacity that could still be built
+        ops.push(this.S(this.circle(rMid), 'rgba(150,160,182,0.14)', ringW*0.5, '', 1));
+        ops.push(this.S(this.circle(rOuterI), 'rgba(150,160,182,0.3)', 0.7, '', 0.55, '2.5 3.5'));
+        ops.push(this.S(this.circle(rInner), 'rgba(0,0,0,0.28)', 0.5, '', 0.4));
+      }
+      edge = rOuterI;
+    }
+    return ops;
+  }
+
+  // simple stroke-built rune-tick glyphs, local -3..3 box — SVG <text> can't host interpolated content
+  // (the template wraps hole text in a span, invalid inside <text>), so cutouts are drawn as paths instead.
+  runeGlyphPaths(){
+    return [
+      'M 0 -3 L 0 3 M 0 -1 L 2 -3 M 0 1 L -2 3',
+      'M 0 -3 L 0 3 M -2 -1 L 2 -1 M -2 1.4 L 2 1.4',
+      'M -2 -3 L 2 3 M 2 -3 L -2 3',
+      'M 0 -3 L 0 3 M 0 0 L 2.2 -2',
+      'M -2 -2 L 2 2 M -2 2 L 2 -2 M 0 -3 L 0 3',
+      'M 0 -3 L 0 3 M -1.8 -3 L 1.8 -1',
+      'M -2 0 L 2 0 M 0 -3 L 0 3',
+      'M 0 -3 L -1.6 0 L 0 3 L 1.6 0 Z'
+    ];
+  }
+
+  // one spinning band. style 'flush' = runes sit neatly inside a slim band; 'ornate' = wider band,
+  // runes flow closer to the rim, extra framing lines. blend picks how the runes read: 'cutout' punches
+  // them to true 0 alpha via an SVG mask (light/scene shows through); 'ink' keeps the ring solid and
+  // inks the glyphs on top as dark engraving; 'glow' keeps the ring solid and lights the glyphs on top
+  // instead, so they read as the brightest part of the band. ringGlow/ringFill control the shared inner+
+  // outer rim edges and the band's own strength together, so both edges always move in lockstep.
+  runeRingBand(uid, idx, rMid, count, hue, dur, dir, style, blend, ringGlow, ringFill, runeGlow, runePad){
+    blend = blend||'cutout'; ringGlow = ringGlow==null?0.5:ringGlow; ringFill = ringFill==null?1:ringFill; runeGlow = runeGlow==null?0.5:runeGlow; runePad = runePad==null?0:runePad;
+    const glyphPaths=this.runeGlyphPaths();
+    const ornate = style==='ornate';
+    const sw = ornate ? 6.4 : 5.0;
+    const rOuter=rMid+sw/2, rInner=rMid-sw/2;
+    // runePad shrinks the glyph radially, opening a gap to the inner/outer ring edges
+    const scale=(((ornate?6.2:3.6))/6) * Math.max(0.15, 1-runePad*1.4);
+    const marks=[];
+    for(let i=0;i<count;i++){
+      const a=i/count*360-90; const [x,y]=this.P(rMid,a);
+      const d=glyphPaths[(i+idx*3)%glyphPaths.length];
+      marks.push({ d, transform:`translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${(a+90).toFixed(1)}) scale(${scale.toFixed(3)})` });
+    }
+    const maskId=`${uid}-rm${idx}`;
+    const isCutout = blend==='cutout';
+    const maskStyle = isCutout ? `mask:url(#${maskId});` : '';
+    // ringFill = the band's own opaque core. runeGlow (separate!) = how much the rune cut/marks glow —
+    // for cutout this is a blurred colored layer behind the crisp cut edges; can be cranked with fill low
+    // for a "faint band, blazing runes" look.
+    const glowOp = this.S(this.circle(rMid), `oklch(0.72 0.22 ${hue})`, sw+2+runeGlow*3, `${maskStyle}filter:blur(${(1.6+runeGlow*3.5).toFixed(1)}px);`, Math.min(1,0.15+runeGlow*0.75));
+    const crispOp = this.S(this.circle(rMid), `oklch(0.9 0.17 ${hue})`, sw, maskStyle, 0.98*ringFill);
+    const ops=[glowOp, crispOp];
+    // glyph overlay for ink/glow — drawn directly on top, not through the mask
+    if(!isCutout){
+      const glyphCol = blend==='glow' ? 'oklch(0.99 0.02 95)' : 'rgba(6,7,12,0.92)';
+      const glyphBlur = (1+runeGlow*7).toFixed(1);
+      const glyphStyle = (blend==='glow')
+        ? `filter:drop-shadow(0 0 ${glyphBlur}px oklch(0.95 0.1 ${hue})) drop-shadow(0 0 ${(1+runeGlow*3).toFixed(1)}px white);`
+        : (runeGlow>0.05 ? `filter:drop-shadow(0 0 ${glyphBlur}px oklch(0.75 0.2 ${hue}));` : '');
+      marks.forEach(m=>{ ops.push(this.mk({isPath:true, d:m.d, stroke:glyphCol, sw:2.1, linecap:'round', style:glyphStyle, opacity:1, transform:m.transform})); });
+    }
+    // ringGlow — the shared inner+outer rim edge lines, full 0..1 dynamic range (invisible to blazing)
+    const edgeBlur = (ringGlow*9).toFixed(1);
+    const edgeSw = (0.4+ringGlow*2.2).toFixed(2);
+    const edgeOpacity = Math.min(1, ringGlow*1.05);
+    const edgeL = (0.72+ringGlow*0.22).toFixed(3);
+    if(ornate){
+      ops.push(this.S(this.circle(rOuter+1.1), `oklch(${edgeL} 0.17 ${hue})`, edgeSw, `filter:drop-shadow(0 0 ${edgeBlur}px oklch(0.76 0.2 ${hue}));`, edgeOpacity));
+      ops.push(this.S(this.circle(rInner-1.1), `oklch(${edgeL} 0.17 ${hue})`, edgeSw, `filter:drop-shadow(0 0 ${edgeBlur}px oklch(0.76 0.2 ${hue}));`, edgeOpacity*0.85));
+    } else {
+      ops.push(this.S(this.circle(rOuter+0.2), `oklch(${edgeL} 0.13 ${hue})`, edgeSw, `filter:drop-shadow(0 0 ${edgeBlur}px oklch(0.8 0.2 ${hue}));`, edgeOpacity));
+      ops.push(this.S(this.circle(rInner-0.2), `oklch(${edgeL} 0.13 ${hue})`, edgeSw, `filter:drop-shadow(0 0 ${edgeBlur}px oklch(0.8 0.2 ${hue}));`, edgeOpacity*0.85));
+    }
+    const boxHalf = rOuter+4, boxX=(50-boxHalf).toFixed(2), boxW=(boxHalf*2).toFixed(2);
+    return { mask:{id:maskId, rOuter:rOuter.toFixed(2), rInner:rInner.toFixed(2), marks, boxX, boxW}, layer:{ops, dur, dir}, rInner };
+  }
+
+  // clusters raw angles that are close together (within maxGap degrees) into single wider spans,
+  // so a clamp/etc addon can merge overlapping ports into one bigger fixture instead of colliding copies
+  clusterAngles(angles, maxGap){
+    if(!angles.length) return [];
+    const norm=angles.map(a=>((a%360)+360)%360).sort((a,b)=>a-b);
+    const clusters=[[norm[0]]];
+    for(let i=1;i<norm.length;i++){
+      const prev=clusters[clusters.length-1];
+      if(norm[i]-prev[prev.length-1]<=maxGap) prev.push(norm[i]); else clusters.push([norm[i]]);
+    }
+    // wraparound: merge first/last cluster if they're adjacent across 0/360
+    if(clusters.length>1){
+      const first=clusters[0], last=clusters[clusters.length-1];
+      if(360-last[last.length-1]+first[0]<=maxGap){ clusters[0]=last.concat(first); clusters.pop(); }
+    }
+    return clusters.map(c=>({ center: c.reduce((s,a)=>s+a,0)/c.length, span: Math.max(20, (c[c.length-1]-c[0])+16) }));
+  }
+
+  addonOps(a, rOut, hue, portAngles){
+    const o=[];
+    const metalHi='rgba(220,226,238,0.96)', metalMd='rgba(150,158,175,0.92)', metalLo='rgba(74,80,98,0.95)', edge='rgba(0,0,0,0.6)';
+    const gcol=(l,c)=>`oklch(${l} ${c} ${hue})`;
+    if(a.plates){
+      [45,135,225,315].forEach(ang=>{
+        const c1=this.P(rOut+1.2,ang-9), c2=this.P(rOut+1.2,ang+9), c3=this.P(rOut+8.2,ang+10.5), c4=this.P(rOut+8.2,ang-10.5);
+        const d=this.fmt([c1,c2,c3,c4]);
+        o.push(this.F(d, metalHi, 'filter:drop-shadow(0 1.5px 2px rgba(0,0,0,0.6));'));
+        o.push(this.S(d, edge, 0.9));
+        o.push(this.S(this.arc(rOut+1.2,ang-9,ang+9), 'rgba(255,255,255,0.35)', 0.6, '', 0.6));
+        const [bx,by]=this.P(rOut+4.7,ang);
+        o.push(this.F(this.dot(bx,by,1.05), 'rgba(8,10,16,0.85)'));
+        o.push(this.S(this.dot(bx,by,1.05), 'rgba(255,255,255,0.3)', 0.4));
+      });
+    }
+    if(a.fortify){
+      // a thick reinforced band hugging the base — bright metal, hue-glow edge, symmetric about due-south
+      o.push(this.S(this.arc(rOut+3.4,58,122), metalLo, 9, 'filter:drop-shadow(0 2px 3px rgba(0,0,0,0.6));', 1));
+      o.push(this.S(this.arc(rOut+3.4,60,120), metalHi, 1.4, `filter:drop-shadow(0 0 2px ${gcol(0.75,0.18)});`, 0.85));
+      o.push(this.S(this.arc(rOut-0.4,61,119), gcol(0.8,0.18), 1, `filter:drop-shadow(0 0 3px ${gcol(0.72,0.2)});`, 0.8));
+      for(let i=0;i<5;i++){ const a0=68+i*11; const [x1,y1]=this.P(rOut-0.4,a0),[x2,y2]=this.P(rOut+7.7,a0); o.push(this.L(x1,y1,x2,y2,'rgba(0,0,0,0.5)',0.9)); }
+    }
+    if(a.bridge){
+      const iL=this.P(rOut-1.5,-13), iR=this.P(rOut-1.5,13), oR=this.P(rOut+9,6), oL=this.P(rOut+9,-6);
+      const d=this.fmt([iL,iR,oR,oL]);
+      o.push(this.F(d, metalMd, 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55));'));
+      o.push(this.S(d, edge, 0.9));
+      o.push(this.L(iL[0],iL[1],oL[0],oL[1], metalHi, 0.9, '', 0.7));
+      o.push(this.L(oL[0],oL[1],oR[0],oR[1], gcol(0.85,0.18), 1.4, `filter:drop-shadow(0 0 4px ${gcol(0.78,0.2)});`));
+    }
+    if(a.lifeline){
+      const [x1,y1]=this.P(22,-90), [x2,y2]=this.P(rOut+13,-90);
+      o.push(this.S(`M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`, gcol(0.84,0.19), 2.3, `filter:drop-shadow(0 0 4px ${gcol(0.76,0.2)});animation:archepulse 2.2s ease-in-out infinite;`, 0.95));
+      // a small prominent antenna cap: crossbar + bead, so the tip reads clearly at a glance
+      const [cx1,cy1]=this.P(rOut+11,-96), [cx2,cy2]=this.P(rOut+11,-84);
+      o.push(this.L(cx1,cy1,cx2,cy2, gcol(0.86,0.18), 1.6, `filter:drop-shadow(0 0 3px ${gcol(0.78,0.2)});`, 0.9));
+      o.push(this.F(this.dot(x2,y2,3.4), gcol(0.92,0.17), `filter:drop-shadow(0 0 7px ${gcol(0.82,0.2)});`));
+      o.push(this.F(this.dot(x2,y2,1.5), 'rgba(255,255,255,0.9)'));
+    }
+    if(a.clamp){
+      // one pincer per port, angles close together merge into a single wider clamp
+      const clusters = (portAngles&&portAngles.length) ? this.clusterAngles(portAngles,26) : [{center:0,span:36},{center:180,span:36}];
+      clusters.forEach(({center:ang,span})=>{
+        const half=span/2;
+        o.push(this.S(this.arc(rOut+3,ang-half,ang+half), metalMd, 4.8, 'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55));', 1));
+        o.push(this.S(this.arc(rOut+3,ang-half,ang+half), metalHi, 1, '', 0.7));
+        [-half+4,half-4].forEach(off=>{ const [x1,y1]=this.P(rOut+0.6,ang+off), [x2,y2]=this.P(rOut+6.2,ang+off); o.push(this.L(x1,y1,x2,y2,edge,1)); });
+      });
+    }
+    return o;
+  }
+
+  pal(hue,c){ c=c||0.14; return { hi:`oklch(0.9 ${(c*0.55).toFixed(3)} ${hue})`, mid:`oklch(0.66 ${c} ${hue})`, lo:`oklch(0.34 ${(c*0.9).toFixed(3)} ${hue})`, rim:`oklch(0.82 ${c} ${hue})` }; }
+
+  iconOps(arch, scale, styleOverride){
+    const dk='rgba(12,15,22,0.62)', emb='filter:drop-shadow(0 0.6px 0 rgba(255,255,255,0.3));';
+    const o=[];
+    if(arch==='str'){ o.push(this.S('M 44.5 51 L 50 45.4 L 55.5 51',dk,1.8,emb)); o.push(this.S('M 44.5 56 L 50 50.4 L 55.5 56',dk,1.8,emb)); }
+    else if(arch==='dex'){ o.push(this.L(45,55,55.4,44.6,dk,1.8,emb)); o.push(this.S('M 55.4 44.6 L 49.8 45.1 M 55.4 44.6 L 54.9 50.2',dk,1.8,emb)); }
+    else if(arch==='wis'){ o.push(this.S(this.circle(2.8),dk,1.5,emb)); for(let i=0;i<8;i++){ const [x1,y1]=this.P(4.6,i*45),[x2,y2]=this.P(7.4,i*45); o.push(this.L(x1,y1,x2,y2,dk,1.3,emb)); } }
+    else if(arch==='int'){ o.push(this.S('M 43.8 50 Q 50 45.4 56.2 50 Q 50 54.6 43.8 50 Z',dk,1.5,emb)); o.push(this.F(this.circle(1.9),dk,emb)); }
+    else if(arch==='per'){ o.push(this.F('M 51.6 44 A 6.4 6.4 0 1 0 51.6 56 A 5 5 0 1 1 51.6 44 Z',dk,emb)); }
+    else if(arch==='con'){ o.push(this.S('M 44 45 L 56 45 L 56 50.5 Q 56 56.5 50 58.6 Q 44 56.5 44 50.5 Z',dk,1.6,emb)); }
+    if((scale && scale!==1) || styleOverride){
+      const tf = (scale && scale!==1) ? `translate(50 50) scale(${scale}) translate(-50 -50)` : '';
+      return o.map(x=>Object.assign({}, x, tf?{transform:tf}:{}, styleOverride?{style:styleOverride}:{}));
+    }
+    return o;
+  }
+
+  areaK(arch){ return {wis:Math.PI, str:1.299, dex:2, con:2, per:2.598, int:1.352}[arch] ?? 2; }
+  shapeR(arch){ return Math.sqrt(745/this.areaK(arch)); }
+  tintMetal(h){ return { hi:`oklch(0.82 0.055 ${h})`, mid:`oklch(0.52 0.05 ${h})`, lo:`oklch(0.3 0.045 ${h})` }; }
+  metalMix(h,mix){ mix=Math.max(0,Math.min(1,mix)); return { hi:`oklch(${(0.82-0.07*mix).toFixed(3)} ${(0.125*mix).toFixed(3)} ${h})`, mid:`oklch(${(0.54-0.07*mix).toFixed(3)} ${(0.155*mix).toFixed(3)} ${h})`, lo:`oklch(${(0.30-0.02*mix).toFixed(3)} ${(0.12*mix).toFixed(3)} ${h})` }; }
+  shapeVerts(arch,r){
+    if(arch==='wis') return null;
+    if(arch==='int'){ const p=[]; for(let i=0;i<10;i++) p.push(this.P(i%2?r*0.46:r, -90+i*36)); return p; }
+    const m={str:[3,-90],dex:[4,-90],con:[4,-45],per:[6,-90]};
+    const [n,rot]=m[arch]||[4,-90]; const p=[]; for(let i=0;i<n;i++) p.push(this.P(r,rot+i*360/n)); return p;
+  }
+  innerShape(arch,r){
+    if(arch==='wis') return this.circle(r);
+    if(arch==='int') return this.star(r, r*0.46, 5, -90);
+    return this.fmt(this.shapeVerts(arch,r));
+  }
+  statusOps(status){
+    const stat=[], spin=[];
+    if(status==='hover'){
+      stat.push(this.S(this.circle(29.5),'rgba(255,255,255,0.55)',1.2,'filter:drop-shadow(0 0 4px rgba(255,255,255,0.4));'));
+    } else if(status==='selected'){
+      stat.push(this.S(this.circle(30),'oklch(0.88 0.15 92)',2,'filter:drop-shadow(0 0 5px oklch(0.8 0.16 92));'));
+      stat.push(this.S(this.circle(32.6),'oklch(0.88 0.15 92)',0.7,'',0.55));
+    } else if(status==='targeted'){
+      const glow='filter:drop-shadow(0 0 4px oklch(0.62 0.22 28));';
+      spin.push(this.S(this.circle(34),'oklch(0.7 0.2 28)',1.5,glow));
+      spin.push(this.S(this.circle(37.5),'oklch(0.72 0.2 28)',0.7,'',0.5));
+      for(let i=0;i<4;i++){ const a=45+i*90; const [x1,y1]=this.P(30,a),[x2,y2]=this.P(41,a); spin.push(this.L(x1,y1,x2,y2,'oklch(0.88 0.16 28)',1.6,glow)); }
+    }
+    return { stat, spin };
+  }
+
+  renderVals(){
+    const p=this.props;
+    const size=p.size??104;
+    const arch=p.arch??'str';
+    const A=this.ARCH[arch]||this.ARCH.str;
+    const variant=p.variant??'planet';
+    const allocated=p.allocated===undefined?true:!!p.allocated;
+    const hostile=!!p.hostile;
+    const hue=p.hue??220, chroma=p.chroma??0.14;
+    const disk = allocated ? this.pal(hue,chroma) : { hi:'rgba(255,255,255,0.06)', mid:'rgba(30,33,44,0.92)', lo:'rgba(8,9,14,0.97)', rim:'rgba(255,255,255,0.14)' };
+    const metalDefault = { hi:'#b7bfce', mid:'#727a8d', lo:'#3a4052' };
+
+    if(variant==='well'){
+      const rimStyle=p.rimStyle??'single', weld=p.weld??'inscribe', holder=p.holder??'bevel';
+      const status=p.status??'none', core=p.core??'none', aura=(p.aura!==false), spinCore=(p.spin!==false);
+      const archTint=p.archTint??'none';
+      const aHue={str:25,dex:145,wis:88,int:265,per:200,con:305}[arch]??hue;
+      // --- continuous / tweakable params ---
+      const weldDefault = weld==='emblem'?0.66:0.88;
+      const weldK = p.weldK!=null ? +p.weldK : weldDefault;
+      const tintMix = p.tintMix!=null ? +p.tintMix : 1;
+      const glowMode = p.glowMode ?? (archTint==='ring'?'always':'none');
+      const glowAmt = p.glowAmt!=null ? +p.glowAmt : 0.55;
+      const haloScale = p.haloScale!=null ? Math.max(1,+p.haloScale) : 1;
+      const stakeCap = Math.max(1, Math.round(p.stakeCap!=null ? +p.stakeCap : 1));
+      const stakeAlloc = Math.max(0, Math.min(stakeCap, Math.round(p.stakeAlloc!=null ? +p.stakeAlloc : (allocated?1:0))));
+      const arcWidthScale = p.arcWidthScale!=null ? +p.arcWidthScale : 1.0;
+      const sigil = !!p.sigil;
+      const sigStyle = p.sigilStyle ?? 'shape';
+      const stakeStyle = p.stakeStyle ?? 'chrome';
+      const rimProfile = p.rimProfile ?? 'smooth';
+      const showGlyph = p.showGlyph!==undefined ? !!p.showGlyph : false;
+      const metalUse = this.metalMix(aHue, tintMix);
+      const uid=this._uid, sh=(r)=>this.innerShape(arch,r);
+      // base geometry — tweakable (defaults match the original crater exactly, so every other lab is unaffected)
+      const rOut=p.geomRimR!=null?+p.geomRimR:31.5, crest=p.geomCrestR!=null?+p.geomCrestR:27.5,
+            rPit=p.geomPitR!=null?+p.geomPitR:23, rC=p.geomDiscR!=null?+p.geomDiscR:20;
+      // if chrome stake will extend the rim outward, grow the aura/glow rings to match so they still
+      // wrap the whole assembly instead of sitting inside it
+      const ringW = rimProfile==='terraced' ? 5.4 : rimProfile==='stepped' ? 5.0 : rimProfile==='grooved' ? 4.6 : 4.2;
+      const rimOuterFinal = stakeStyle==='chrome' ? rOut + Math.max(0,stakeCap-1)*ringW : rOut;
+      const o=[], spin=[];
+      o.push(this.E(50,80,20,4.5,'rgba(0,0,0,0.4)','filter:blur(3px);'));
+      if(aura&&allocated) o.push(this.F(this.circle(Math.max(37,rimOuterFinal+5.5)),`url(#${uid}-a)`));
+      if((glowMode==='always'||glowMode==='pulse') && glowAmt>0){
+        const blur=(2+glowAmt*6).toFixed(1);
+        const gs=`filter:drop-shadow(0 0 ${blur}px oklch(0.68 0.2 ${aHue}));`+(glowMode==='pulse'?'animation:archeglow 2.6s ease-in-out infinite;':'');
+        o.push(this.S(this.circle(Math.max(33.4,rimOuterFinal+1.9)),`oklch(0.76 0.18 ${aHue})`, 1.1+glowAmt*2.4, gs, glowAmt));
+      }
+      // crater metal body + edge
+      o.push(this.F(this.circle(rOut),`url(#${uid}-m)`));
+      o.push(this.S(this.circle(rOut+0.2),'rgba(0,0,0,0.55)',1.4));
+      // rim band — the crater wall itself. 1 ring by default (today's smooth bevel); when stake reads via
+      // the rim, this same band subdivides into nested chrome rings that fill in as points are invested.
+      const rimIsStake = stakeStyle==='chrome';
+      const ringCap = rimIsStake ? stakeCap : 1;
+      const ringAlloc = rimIsStake ? stakeAlloc : ringCap;
+      this.ringBandOps(rOut, crest, rimProfile, ringCap, ringAlloc, aHue, tintMix).forEach(x=>o.push(x));
+      // double rim option
+      if(rimStyle==='double'){ o.push(this.S(this.circle(rOut-2.6),'rgba(0,0,0,0.42)',0.9)); o.push(this.S(this.circle(rOut-3.9),'rgba(255,255,255,0.2)',0.9)); }
+      // cliff wall + pit floor (recessed)
+      o.push(this.F(this.circle(rPit+1.6),'rgba(0,0,0,0.5)','filter:blur(0.6px);'));
+      o.push(this.F(this.circle(rPit),'#0b0d14'));
+      o.push(this.S(this.arc(rPit,202,338),'rgba(255,255,255,0.14)',1.2));
+      o.push(this.S(this.arc(rPit,22,158),'rgba(0,0,0,0.5)',1.4,'filter:blur(0.5px);'));
+      // central disc (the skill point) — glows if allocated
+      const glow = allocated ? `filter:drop-shadow(0 0 6px ${disk.mid}) drop-shadow(0 0 2px ${disk.hi});` : '';
+      o.push(this.F(this.circle(rC),`url(#${uid}-d)`,glow));
+      o.push(this.S(this.circle(rC),'rgba(0,0,0,0.35)',0.8));
+      o.push(this.E(50-rC*0.32,50-rC*0.34,rC*0.42,rC*0.3,'rgba(255,255,255,0.4)','filter:blur(1.6px);',allocated?1:0.35));
+      // welded archetype shape (continuous size) OR big core sigil (many styles)
+      const gcol=(l,c)=>`oklch(${l} ${c} ${hue})`;
+      let sigGlyph={on:false,char:'',style:''};
+      if(sigil){
+        if(sigStyle==='rune'||sigStyle==='kanji'){
+          const runes={str:'\u16A0',dex:'\u16B1',wis:'\u16C1',int:'\u16DF',per:'\u16D2',con:'\u16A8'};
+          const kanji={str:'\u529B',dex:'\u901F',wis:'\u667A',int:'\u9B54',per:'\u898B',con:'\u5805'};
+          const ch=(sigStyle==='kanji'?kanji:runes)[arch]||'\u16A0';
+          const fam=sigStyle==='kanji'?"'Noto Serif JP','Noto Sans','Segoe UI',serif":"'Noto Sans Runic','Segoe UI Symbol','Noto Sans Symbols',serif";
+          sigGlyph={on:true,char:ch,style:`font-family:${fam};font-weight:700;font-size:${(size*0.32).toFixed(1)}px;color:#04050a;line-height:1;text-shadow:0 0 7px ${gcol(0.85,0.22)},0 0 3px ${gcol(0.92,0.18)},0 1px 0 rgba(255,255,255,0.28);`};
+        } else if(sigStyle==='astroid'){
+          const pts=[]; for(let i=0;i<=120;i++){ const t=i/120*Math.PI*2, r=rC*0.92; pts.push([50+r*Math.pow(Math.cos(t),3),50+r*Math.pow(Math.sin(t),3)]); }
+          const d=this.fmt(pts);
+          o.push(this.F(d,gcol(0.86,0.16),`filter:blur(2px) drop-shadow(0 0 7px ${gcol(0.8,0.2)});`,0.5));
+          o.push(this.F(d,'#05060c'));
+          o.push(this.S(d,gcol(0.92,0.16),1.1,`filter:drop-shadow(0 0 4px ${gcol(0.84,0.22)});`));
+          o.push(this.F(this.circle(1.8),gcol(0.96,0.12),`filter:blur(0.8px) drop-shadow(0 0 5px ${gcol(0.86,0.22)});`));
+        } else if(sigStyle==='star8'){
+          const d=this.star(rC*0.88, rC*0.32, 8, -90);
+          o.push(this.F(d,gcol(0.86,0.16),`filter:blur(2px) drop-shadow(0 0 7px ${gcol(0.8,0.2)});`,0.5));
+          o.push(this.F(d,'#05060c'));
+          o.push(this.S(d,gcol(0.92,0.16),1.0,`filter:drop-shadow(0 0 4px ${gcol(0.84,0.22)});`));
+          o.push(this.F(this.circle(2.4),gcol(0.96,0.12),`filter:blur(0.8px) drop-shadow(0 0 5px ${gcol(0.86,0.22)});`));
+        } else if(sigStyle==='occult'){
+          const rr=rC*0.86;
+          o.push(this.S(this.circle(rr),gcol(0.9,0.16),1.0,`filter:drop-shadow(0 0 4px ${gcol(0.82,0.22)});`));
+          o.push(this.S(this.circle(rr*0.72),gcol(0.85,0.14),0.55,'',0.7));
+          const vs=[]; for(let i=0;i<5;i++) vs.push(this.P(rr*0.7,-90+i*72));
+          const ord=[0,2,4,1,3,0]; let d='M '+vs[0][0].toFixed(2)+' '+vs[0][1].toFixed(2);
+          for(let i=1;i<ord.length;i++) d+=' L '+vs[ord[i]][0].toFixed(2)+' '+vs[ord[i]][1].toFixed(2);
+          o.push(this.S(d,gcol(0.9,0.16),0.9,`filter:drop-shadow(0 0 3px ${gcol(0.82,0.22)});`));
+          for(let i=0;i<12;i++){ const a=i*30; const [x1,y1]=this.P(rr,a),[x2,y2]=this.P(rr*0.88,a); o.push(this.L(x1,y1,x2,y2,gcol(0.85,0.14),0.55,'',0.7)); }
+        } else if(sigStyle==='shape' && arch!=='wis'){
+          const rSig=rC*0.86;
+          o.push(this.F(sh(rSig*1.18),gcol(0.86,0.16),`filter:blur(2.4px) drop-shadow(0 0 7px ${gcol(0.8,0.2)});`,0.6));
+          o.push(this.F(sh(rSig),'#05060c'));
+          o.push(this.S(sh(rSig),gcol(0.92,0.15),1.2,`filter:drop-shadow(0 0 4px ${gcol(0.84,0.22)});`));
+          o.push(this.F(sh(rSig*0.42),gcol(0.95,0.11),`filter:blur(1.6px) drop-shadow(0 0 6px ${gcol(0.86,0.22)});`));
+          o.push(this.S(sh(rSig*0.72),gcol(0.7,0.16),0.5,'',0.5));
+        } else {
+          const rSig=rC*0.8;
+          o.push(this.F(this.circle(rSig),'#05060c'));
+          o.push(this.S(this.circle(rSig),gcol(0.92,0.15),1.2,`filter:drop-shadow(0 0 4px ${gcol(0.84,0.22)});`));
+          o.push(this.F(this.circle(rSig*0.42),gcol(0.95,0.11),`filter:blur(1.6px) drop-shadow(0 0 6px ${gcol(0.86,0.22)});`));
+        }
+      } else if(arch!=='wis'){
+        const rS = rC*weldK;
+        o.push(this.F(sh(rS),`url(#${uid}-d)`));
+        if(holder==='facet'){ const v=this.shapeVerts(arch,rS); for(let i=0;i<v.length;i++){ const a=v[i],b=v[(i+1)%v.length]; o.push(this.F(`M 50 50 L ${a[0].toFixed(2)} ${a[1].toFixed(2)} L ${b[0].toFixed(2)} ${b[1].toFixed(2)} Z`,i%2?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.14)')); o.push(this.L(50,50,a[0],a[1],'rgba(255,255,255,0.13)',0.5)); } }
+        o.push(this.S(sh(rS),'rgba(255,255,255,0.32)',0.9));
+        o.push(this.S(sh(rS),'rgba(0,0,0,0.28)',0.5));
+      }
+      // optional small disc glyph (default off \u2014 reads spammy stacked on the shape)
+      if(showGlyph){
+        const gGlow = allocated ? `filter:drop-shadow(0 0 2px ${disk.hi}) drop-shadow(0 0.6px 0 rgba(255,255,255,0.4));` : 'filter:drop-shadow(0 0.6px 0 rgba(255,255,255,0.3));';
+        this.iconOps(arch,1.0,gGlow).forEach(x=>o.push(x));
+      }
+      // stake \u2014 alloc / cap, several styles to compare (chrome instead grows the rim band itself, above)
+      if(stakeCap>1 && stakeStyle!=='none' && stakeStyle!=='chrome'){
+        const oc=`oklch(0.86 0.15 ${hue})`, og=`filter:drop-shadow(0 0 3px oklch(0.82 0.18 ${hue}));`, dimc='rgba(120,132,155,0.28)';
+        if(stakeStyle==='pips'){
+          const span=Math.min(84,(stakeCap-1)*26);
+          for(let i=0;i<stakeCap;i++){ const a=-90-span/2+i*span/(stakeCap-1); const [x,y]=this.P(rOut+3,a); const dot=`M ${(x-1.7).toFixed(2)} ${y.toFixed(2)} a 1.7 1.7 0 1 0 3.4 0 a 1.7 1.7 0 1 0 -3.4 0`; const f=i<stakeAlloc; o.push(this.F(dot,f?'oklch(0.86 0.15 90)':'rgba(16,19,28,0.92)',f?`filter:drop-shadow(0 0 3px oklch(0.82 0.16 90));`:'')); o.push(this.S(dot,f?'rgba(255,255,255,0.45)':'oklch(0.62 0.1 90)',0.6)); }
+        } else if(stakeStyle==='rims'){
+          for(let i=0;i<stakeCap;i++){ const r=rOut+2.4+i*2.7; const f=i<stakeAlloc; o.push(this.S(this.circle(r), f?oc:dimc, f?1.5:0.9, f?og:'', f?0.95:0.6)); }
+        } else if(stakeStyle==='unison'){
+          for(let i=0;i<stakeCap;i++){ const r=rOut+2.4+i*2.5; const f=i<stakeAlloc; o.push(this.S(this.circle(r), f?oc:dimc, f?1.6:0.8, f?`${og}animation:archeglow 2.2s ease-in-out ${(i*0.2).toFixed(2)}s infinite;`:'', f?0.9:0.5)); }
+        } else if(stakeStyle==='ticks'){
+          for(let i=0;i<stakeCap;i++){ const a0=-90+i*360/stakeCap+6, a1=-90+(i+1)*360/stakeCap-6; const f=i<stakeAlloc; o.push(this.S(this.arc(rOut+2.6,a0,a1), f?oc:dimc, f?2.6:1.4, f?og:'', f?0.95:0.55)); }
+        } else if(stakeStyle==='ticks-sweep'){
+          // sweep-tick: N arc segments evenly spaced around the circle, rotating as a unified group.
+          // alloc determines how many glow bright; cap sets total (unallocated ones sit faint, rotating, waiting to be claimed).
+          // arc width scales with cap — higher cap = thicker arcs for readability.
+          const arcSweepDur = (9-stakeCap*0.8).toFixed(1)+'s';
+          const arcPerTickDeg = 360/stakeCap;
+          const tickGapDeg = Math.min(8, 360/(stakeCap*6));
+          const arcStartDeg = arcPerTickDeg*0.15;
+          const arcEndDeg = arcPerTickDeg - arcStartDeg;
+          const arcWidthBase = 2.2 + stakeCap*0.5;
+          const arcWidth = (arcWidthBase * arcWidthScale).toFixed(2);
+          for(let i=0;i<stakeCap;i++){
+            const a0 = -90+i*arcPerTickDeg+tickGapDeg;
+            const a1 = a0+arcEndDeg;
+            const f = i<stakeAlloc;
+            const col = f?oc:dimc;
+            const sw = f?arcWidth:(arcWidth*0.5).toFixed(2);
+            const op = f?0.95:0.45;
+            spin.push(this.S(this.arc(rOut+2.8, a0, a1), col, sw, f?og:'', op, 'none'));
+          }
+        } else if(stakeStyle==='arc'){
+          for(let i=0;i<stakeCap;i++){ const a0=50+i*80/stakeCap+3, a1=50+(i+1)*80/stakeCap-3; const f=i<stakeAlloc; o.push(this.S(this.arc(rOut+3.2,a0,a1), f?oc:dimc, f?3.2:1.8, f?og:'', f?1:0.5)); }
+        }
+      }
+      // entity-core halo (bigger, outside crater) \u2014 scaled for core presence
+      if(core!=='none'){
+        const hs=haloScale;
+        const nc=`oklch(0.9 0.19 ${hue})`, ng=`filter:drop-shadow(0 0 ${(3.5*Math.min(2,hs)).toFixed(1)}px oklch(0.82 0.22 ${hue}));`;
+        if(core==='rings'){ spin.push(this.S(this.circle(35*hs),nc,1.6,ng,0.9,'13 8')); spin.push(this.S(this.circle(39*hs),nc,1.1,ng,0.7,'5 11')); }
+        else if(core==='cog'){ for(let i=0;i<18;i++){ const a=i*20; const [x1,y1]=this.P(34*hs,a),[x2,y2]=this.P(38.5*hs,a); spin.push(this.L(x1,y1,x2,y2,nc,1.6,ng,0.9)); } spin.push(this.S(this.circle(33.5*hs),nc,0.9,ng,0.5)); }
+        else if(core==='orbit'){ spin.push(this.S(this.circle(37*hs),nc,1,ng,0.5)); for(let i=0;i<3;i++){ const [x,y]=this.P(37*hs,i*120-90); spin.push(this.F(`M ${(x-2.2).toFixed(2)} ${y.toFixed(2)} a 2.2 2.2 0 1 0 4.4 0 a 2.2 2.2 0 1 0 -4.4 0`,nc,ng)); } }
+        else if(core==='spikes'){ for(let i=0;i<8;i++){ const a=i*45; const t=this.P(39.5*hs,a),l=this.P(33.5*hs,a-5.5),r=this.P(33.5*hs,a+5.5); spin.push(this.F(`M ${l[0].toFixed(2)} ${l[1].toFixed(2)} L ${t[0].toFixed(2)} ${t[1].toFixed(2)} L ${r[0].toFixed(2)} ${r[1].toFixed(2)} Z`,nc,ng,0.9)); } }
+        else if(core==='gimbal'){ const R=34*hs; [[0,0.34],[62,0.62],[124,0.9]].forEach(([rot,rk])=>{ spin.push(this.mk({isEllipse:true,cx:50,cy:50,rx:R,ry:R*rk,fill:'none',transform:`rotate(${rot} 50 50)`,style:`stroke:${nc};stroke-width:1.3;filter:drop-shadow(0 0 3px oklch(0.8 0.22 ${hue}));`,opacity:0.85})); }); }
+      }
+      if(glowMode==='sweep' && glowAmt>0){
+        const bl=(3+glowAmt*6).toFixed(1);
+        spin.push(this.S(this.arc(33.4,-42,42),`oklch(0.86 0.2 ${aHue})`,1.6+glowAmt*1.8,`filter:drop-shadow(0 0 ${bl}px oklch(0.72 0.22 ${aHue}));`,0.95));
+      }
+      // addons \u2014 stackable, subtle attachments (armor plates / fortified base / bridge gate / lifeline / clamp)
+      const addons = { plates:!!p.addonPlates, fortify:!!p.addonFortify, bridge:!!p.addonBridge, lifeline:!!p.addonLifeline, clamp:!!p.addonClamp };
+      const portAngles = p.ports ? String(p.ports).split(',').map(s=>parseFloat(s)).filter(n=>!isNaN(n)) : [];
+      if(addons.plates||addons.fortify||addons.bridge||addons.lifeline||addons.clamp){ this.addonOps(addons, rimOuterFinal, hue, portAngles).forEach(x=>o.push(x)); }
+      // ring of runes \u2014 the boss mark, now available to any entity. Concentric spinning bands with the
+      // runes cut to 0 alpha via an SVG mask (true cutout — light/scene shows through, not an overpaint).
+      const runeRing = p.runeRing ?? 'none';
+      const runeRingStyle = p.runeRingStyle ?? 'flush';
+      const runeRingBlend = p.runeRingBlend ?? 'cutout';
+      const runeRingGlow = p.runeRingGlow!=null ? +p.runeRingGlow : 0.5;
+      const runeRingFill = p.runeRingFill!=null ? +p.runeRingFill : 1;
+      const runeRingRuneGlow = p.runeRingRuneGlow!=null ? +p.runeRingRuneGlow : 0.5;
+      const runeRingPad = p.runeRingPad!=null ? +p.runeRingPad : 0;
+      // gap/spacing are relative to the node's ACTUAL current outer edge (rimOuterFinal, which already
+      // accounts for chrome stake growth) so the rune ring auto-clears the stake rings instead of
+      // hardcoding an absolute radius that can collide once stake grows the rim outward.
+      const runeRingGap = p.runeRingGap!=null ? +p.runeRingGap : 4;
+      const runeRingSpacing = p.runeRingSpacing!=null ? +p.runeRingSpacing : 9;
+      const runeMasks=[]; const runeLayers=[]; let runeInnermost=null;
+      if(runeRing!=='none'){
+        const rb = rimOuterFinal + runeRingGap;
+        const bandDefs = {
+          single:[{r:rb+3, cnt:16,dur:'52s',dir:'normal'}],
+          double:[{r:rb+2, cnt:13,dur:'46s',dir:'normal'},{r:rb+2+runeRingSpacing, cnt:18,dur:'62s',dir:'reverse'}],
+          triple:[{r:rb, cnt:11,dur:'40s',dir:'normal'},{r:rb+runeRingSpacing, cnt:15,dur:'56s',dir:'reverse'},{r:rb+runeRingSpacing*2, cnt:20,dur:'32s',dir:'normal'}]
+        }[runeRing] || [];
+        bandDefs.forEach((b,idx)=>{
+          const bandStyle = runeRingStyle==='mixed' ? (idx%2===0?'flush':'ornate') : runeRingStyle;
+          const {mask,layer,rInner}=this.runeRingBand(uid, idx, b.r, b.cnt, hue, b.dur, b.dir, bandStyle, runeRingBlend, runeRingGlow, runeRingFill, runeRingRuneGlow, runeRingPad);
+          runeMasks.push(mask); runeLayers.push(layer);
+          if(runeInnermost==null || rInner<runeInnermost) runeInnermost=rInner;
+        });
+      }
+      // faint tinted wash bleeding onto the node face from inside the innermost rune band
+      if(runeInnermost!=null) o.push(this.F(this.circle(runeInnermost-0.6), `oklch(0.6 0.16 ${hue})`, 'filter:blur(3px);', 0.07));
+      // ports — small sockets on the rim where a graph edge attaches (comma-separated angles, degrees)
+      if(portAngles.length){
+        portAngles.forEach(ang=>{
+          const [x,y]=this.P(rimOuterFinal+0.4,ang);
+          o.push(this.F(this.dot(x,y,3.1),'#05060c'));
+          o.push(this.S(this.dot(x,y,3.1),`oklch(0.82 0.16 ${hue})`,0.9,`filter:drop-shadow(0 0 3px oklch(0.75 0.2 ${hue}));`));
+          o.push(this.F(this.dot(x,y,1.1),`oklch(0.88 0.15 ${hue})`,`filter:drop-shadow(0 0 3px oklch(0.8 0.2 ${hue}));`));
+        });
+      }
+      if(hostile) o.push(this.S(this.circle(34.5),'oklch(0.62 0.22 25)',2.4,'filter:drop-shadow(0 0 3px oklch(0.55 0.22 25));',1,'2.4 3.4'));
+      const st=this.statusOps(status); st.stat.forEach(x=>o.push(x)); st.spin.forEach(x=>spin.push(x));
+      const spinActive=spin.length>0&&(spinCore||status==='targeted'||glowMode==='sweep');
+      const auraCol={mid:(aura&&allocated)?disk.mid:'transparent'};
+      // hover: a real interactive reveal, hue-matched, tracked as state (see note on style-hover above).
+      // glowMode 'hover' makes it the main event (dim at rest, blooms on cursor); other modes still get
+      // a soft ambient hue-matched touch so hover never feels dead.
+      const hoverBoost = glowMode==='hover' ? Math.min(1,0.5+glowAmt*0.6) : 0.22;
+      const hoverBlur = glowMode==='hover' ? (9+glowAmt*13) : 6;
+      const hovering = !!this.state.hovering;
+      const wrapperStyle = `position:relative;width:${size}px;height:${size}px;transition:filter 0.2s ease;`
+        + (hovering ? `filter:brightness(${(1+hoverBoost*0.2).toFixed(2)}) drop-shadow(0 0 ${hoverBlur.toFixed(1)}px oklch(0.74 0.2 ${aHue} / ${(0.4+hoverBoost*0.5).toFixed(2)}));` : '');
+      const spinLayers=[];
+      if(spinActive) spinLayers.push({ops:spin, dur:(status==='targeted'?'16s':(glowMode==='sweep'?'6s':(core==='spikes'?'34s':'24s'))), dir:'normal'});
+      runeLayers.forEach(l=>spinLayers.push(l));
+      return { uid, size, disk, aura:auraCol, metalG:metalUse, ops:o, spinLayers, runeMasks, glyph:sigGlyph, wrapperStyle, onEnter:this._onEnter, onLeave:this._onLeave };
+    }
+
+    if(variant==='gem'){
+      const holder=p.holder??'bevel', status=p.status??'none';
+      const core=p.core??'none', aura=(p.aura!==false), spinCore=(p.spin!==false);
+      const archTint=p.archTint??'none';
+      const aHue={str:25,dex:145,wis:88,int:265,per:200,con:305}[arch]??hue;
+      const gemPal = disk; // owner color is always the gem
+      const base=this.shapeR(arch), uid=this._uid, sh=(r)=>this.innerShape(arch,r);
+      const metalUse = (archTint==='holder') ? this.tintMetal(aHue) : metalDefault;
+      const o=[], spin=[];
+      // drop shadow
+      o.push(this.E(50,78,20,4.5,'rgba(0,0,0,0.4)','filter:blur(3px);'));
+      // aura glow for allocated (owner tint)
+      if(aura && allocated) o.push(this.F(this.circle(35),`url(#${uid}-a)`));
+      // archetype outer ring
+      if(archTint==='ring') o.push(this.S(this.circle(27.6),`oklch(0.72 0.17 ${aHue})`,2.2,`filter:drop-shadow(0 0 3px oklch(0.62 0.2 ${aHue}));`));
+      // thin holder rim — gem dominates
+      o.push(this.F(this.circle(25.8),`url(#${uid}-m)`));
+      o.push(this.S(this.circle(26),'rgba(0,0,0,0.5)',1.2));
+      o.push(this.S(this.circle(24.4),'rgba(255,255,255,0.2)',0.7));
+      // seat lip (thin, equal-area gem)
+      o.push(this.F(sh(base*1.05),'rgba(0,0,0,0.42)'));
+      o.push(this.S(sh(base*1.05),'rgba(255,255,255,0.2)',0.6));
+      // gem fill
+      o.push(this.F(sh(base), `url(#${uid}-d)`));
+      // facets or bevel sheen
+      if(holder==='facet' && arch!=='wis'){
+        const v=this.shapeVerts(arch,base);
+        for(let i=0;i<v.length;i++){ const a=v[i],b=v[(i+1)%v.length];
+          o.push(this.F(`M 50 50 L ${a[0].toFixed(2)} ${a[1].toFixed(2)} L ${b[0].toFixed(2)} ${b[1].toFixed(2)} Z`, i%2?'rgba(255,255,255,0.09)':'rgba(0,0,0,0.13)'));
+          o.push(this.L(50,50,a[0],a[1],'rgba(255,255,255,0.12)',0.5)); }
+      }
+      // specular + rim
+      o.push(this.E(46,44,7,4,'rgba(255,255,255,0.38)','filter:blur(1.4px);',allocated?1:0.4));
+      o.push(this.S(sh(base),'rgba(255,255,255,0.3)',0.9));
+      o.push(this.S(sh(base),'rgba(0,0,0,0.28)',0.5));
+      // embossed glyph — always the center marker
+      const gGlow = allocated ? `filter:drop-shadow(0 0 1.5px ${disk.hi}) drop-shadow(0 0.6px 0 rgba(255,255,255,0.35));` : 'filter:drop-shadow(0 0.6px 0 rgba(255,255,255,0.3));';
+      this.iconOps(arch, 1.1, gGlow).forEach(x=>o.push(x));
+      // entity-core surrounding halo (outside the node)
+      if(core!=='none'){
+        const nc=`oklch(0.9 0.19 ${hue})`, ng=`filter:drop-shadow(0 0 3px oklch(0.82 0.22 ${hue}));`;
+        if(core==='rings'){
+          spin.push(this.S(this.circle(29),nc,1.4,ng,0.9,'11 7'));
+          spin.push(this.S(this.circle(32.5),nc,1,ng,0.7,'4 9'));
+        } else if(core==='cog'){
+          for(let i=0;i<16;i++){ const a=i*22.5; const [x1,y1]=this.P(28.5,a),[x2,y2]=this.P(32.5,a); spin.push(this.L(x1,y1,x2,y2,nc,1.5,ng,0.9)); }
+          spin.push(this.S(this.circle(28),nc,0.8,ng,0.55));
+        } else if(core==='orbit'){
+          spin.push(this.S(this.circle(31),nc,0.9,ng,0.5));
+          for(let i=0;i<3;i++){ const [x,y]=this.P(31,i*120-90); spin.push(this.F(`M ${(x-1.9).toFixed(2)} ${y.toFixed(2)} a 1.9 1.9 0 1 0 3.8 0 a 1.9 1.9 0 1 0 -3.8 0`,nc,ng)); }
+        }
+      }
+      // warning ring
+      if(hostile) o.push(this.S(this.circle(29),'oklch(0.62 0.22 25)',2.4,'filter:drop-shadow(0 0 3px oklch(0.55 0.22 25));',1,'2.2 3.2'));
+      // status fx
+      const st=this.statusOps(status); st.stat.forEach(x=>o.push(x)); st.spin.forEach(x=>spin.push(x));
+      const spinActive = spin.length>0 && (spinCore || status==='targeted');
+      const spinDur = status==='targeted' ? '16s' : '24s';
+      const auraCol = { mid: (aura && allocated) ? disk.mid : 'transparent' };
+      const spinLayers = spinActive ? [{ops:spin, dur:spinDur, dir:'normal'}] : [];
+      const wrapperStyle = `position:relative;width:${size}px;height:${size}px;transition:filter 0.2s ease;`
+        + (this.state.hovering ? 'filter:brightness(1.08) drop-shadow(0 0 8px rgba(255,255,255,0.3));' : '');
+      return { uid, size, disk:gemPal, aura:auraCol, metalG:metalUse, ops:o, spinLayers, runeMasks:[], glyph:{on:false,char:'',style:''}, wrapperStyle, onEnter:this._onEnter, onLeave:this._onLeave };
+    }
+
+    const metal='rgba(150,160,182,0.92)', metalDk='rgba(52,58,74,0.9)', neutral='rgba(210,218,235,0.32)';
+    const ops=[];
+    ops.push(this.E(50,70,15.5,4.2,'rgba(0,0,0,0.42)','filter:blur(2px);'));
+
+    let diskD, isRound=true, rDisk=21;
+    const polyShape=(r)=> A.poly>0 ? this.poly(r,A.poly,A.rot) : this.circle(r);
+
+    if(variant==='planet'||variant==='geoicon'){
+      rDisk=21; diskD=this.circle(rDisk);
+      ops.push(this.S(this.circle(23),neutral,1.3));
+    } else if(variant==='teeth'){
+      rDisk=20; diskD=this.circle(rDisk);
+      ops.push(this.F(this.radial(th=>22+5*(Math.cos((th-A.rot)*Math.PI/180*A.n)>=0?1:0)),metal));
+      ops.push(this.S(this.circle(22),metalDk,0.6));
+    } else if(variant==='lobes'){
+      rDisk=20; diskD=this.circle(rDisk);
+      ops.push(this.F(this.radial(th=>24+3*Math.cos((th-A.rot)*Math.PI/180*A.n)),metal));
+    } else if(variant==='notch'){
+      rDisk=21; diskD=this.circle(rDisk);
+      ops.push(this.F(this.radial(th=>26-4.2*Math.pow(Math.max(0,Math.cos((th-A.rot)*Math.PI/180*A.n)),10)),metal));
+    } else if(variant==='segring'){
+      rDisk=21; diskD=this.circle(rDisk);
+      const gap=A.n>6?14:22;
+      for(let i=0;i<A.n;i++){ const a0=A.rot+i*360/A.n+gap/2, a1=A.rot+(i+1)*360/A.n-gap/2; ops.push(this.S(this.arc(24.5,a0,a1),metal,3.2)); }
+    } else if(variant==='innercut'){
+      rDisk=18.5; diskD=polyShape(rDisk); isRound=(A.poly===0);
+      ops.push(this.S(this.circle(25),neutral,2.2));
+      ops.push(this.S(this.circle(25),metalDk,0.6));
+    } else if(variant==='outer'){
+      rDisk=26; diskD=polyShape(rDisk); isRound=(A.poly===0);
+    } else if(variant==='facet'){
+      rDisk=23; diskD=polyShape(rDisk); isRound=(A.poly===0);
+    }
+
+    // disk fill + rim
+    ops.push(this.F(diskD,`url(#${this._uid}-d)`));
+    ops.push(this.S(diskD,disk.rim,1.3));
+    // facet shading
+    if(variant==='facet'){
+      const n=A.poly||10;
+      for(let i=0;i<n;i++){
+        const [vx,vy]=this.P(rDisk,A.rot+i*360/n);
+        ops.push(this.L(50,50,vx,vy,'rgba(255,255,255,0.13)',0.6));
+        const [v2x,v2y]=this.P(rDisk,A.rot+(i+1)*360/n);
+        ops.push(this.F(`M 50 50 L ${vx.toFixed(2)} ${vy.toFixed(2)} L ${v2x.toFixed(2)} ${v2y.toFixed(2)} Z`, i%2?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.1)'));
+      }
+    }
+    // 3D shading
+    ops.push(this.E(44.5,41,9.2,5,'rgba(255,255,255,0.32)','filter:blur(0.6px);',allocated?1:0.3));
+    if(isRound) ops.push(this.S(this.arc(rDisk-1,22,158),'rgba(0,0,0,0.26)',3,'filter:blur(1px);'));
+    ops.push(this.S(diskD,'rgba(255,255,255,0.22)',0.8));
+
+    // geoicon layer
+    if(variant==='geoicon') this.iconOps(arch).forEach(o=>ops.push(o));
+
+    // hostile hazard ring
+    if(hostile) ops.push(this.S(this.circle(29.5),'oklch(0.62 0.22 25)',2.4,'filter:drop-shadow(0 0 3px oklch(0.55 0.22 25));',1,'2.2 3.2'));
+
+    const glyph = variant==='planet'
+      ? { on:true, char:A.planet, style:`font-family:'Segoe UI Symbol','Noto Sans Symbols',serif;font-weight:700;font-size:${(size*0.3).toFixed(1)}px;color:rgba(14,17,25,0.6);text-shadow:0 1px 0 rgba(255,255,255,0.32);line-height:1;` }
+      : { on:false, char:'', style:'' };
+
+    const wrapperStyle = `position:relative;width:${size}px;height:${size}px;transition:filter 0.2s ease;`
+      + (this.state.hovering ? 'filter:brightness(1.08) drop-shadow(0 0 8px rgba(255,255,255,0.3));' : '');
+    return { uid:this._uid, size, disk, aura:{mid:'transparent'}, metalG:metalDefault, ops, spinLayers:[], runeMasks:[], glyph, wrapperStyle, onEnter:this._onEnter, onLeave:this._onLeave };
+  }
+}
+</script>
+</body>
+</html>

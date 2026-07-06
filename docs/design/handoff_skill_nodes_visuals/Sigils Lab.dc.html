@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Runic&family=Noto+Serif+JP:wght@700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — lab · entity core sigils</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Sigils lab</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1180px;line-height:1.65;">The core carries a <b style="color:#eef0f6;">sigil</b> — its own mark, not the archetype shape. All render as a glowing chasm (dark cut, light pouring out). Twirl <b style="color:oklch(0.82 0.13 88);">sigilStyle</b> in Tweaks on the hero. Below: every style, then the tone-setter — <b style="color:oklch(0.82 0.13 88);">burnt-in runes</b>, LotR-style.</div>
+  </div>
+
+  <div style="display:flex;gap:22px;align-items:stretch;flex-wrap:wrap;margin-bottom:22px;">
+    <div style="{{ card }}flex:1;min-width:460px;padding:34px;display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="{{ H2 }}align-self:flex-start;">Live core — twirl sigilStyle / runeRing / runeRingStyle</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20px 0;">
+        <dc-import name="ArcheNode" size="300" variant="well" sigil="{{ true }}" arch="{{ arch }}" hue="{{ hue }}" sigilStyle="{{ sigilStyle }}" core="{{ core }}" runeRing="{{ runeRing }}" runeRingStyle="{{ runeRingStyle }}" haloScale="1.8" hint-size="300px,300px" style="width:300px;height:300px;"></dc-import>
+      </div>
+    </div>
+    <div style="{{ card }}flex:1.4;min-width:600px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Every sigil style</div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;">Same node, six marks. <b style="color:#eef0f6;">Shape</b> = archetype form. The rest are entity-identity sigils, independent of archetype.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;justify-items:center;">
+        <sc-for list="{{ styleCells }}" as="c" hint-placeholder-count="6">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;width:100%;">
+            <dc-import name="ArcheNode" size="140" variant="well" sigil="{{ true }}" arch="int" hue="265" sigilStyle="{{ c.s }}" spin="{{ false }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+            <div style="text-align:center;">
+              <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ c.name }}</div>
+              <div style="font-size:9px;color:rgba(180,190,215,0.5);margin-top:1px;">{{ c.note }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- runes across archetypes -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Burnt-in runes — per archetype, per owner</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;">Engraved dark glyph, magic glowing out of the cut. Rune varies by archetype; glow color = owner tint.</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;justify-items:center;">
+      <sc-for list="{{ runeCells }}" as="c" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="140" variant="well" sigil="{{ true }}" sigilStyle="rune" arch="{{ c.arch }}" hue="{{ c.hue }}" spin="{{ false }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+          <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">{{ c.name }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+<!-- ring-of-runes — now a real ArcheNode feature, not boss-only -->
+  <div style="{{ card }}padding:30px 34px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Ring of runes — now default-available, not just boss</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:6px;max-width:1180px;">Canonicalized as the <b style="color:#eef0f6;">runeRing</b> prop: one, two, or three concentric bands, each spinning at its own speed and direction. The runes are cut to true 0 alpha through an SVG mask — light and scene show through the gaps, not an overpainted glyph. Any entity can wear one now, from a single thin band to the full triple-ring boss treatment.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;justify-items:center;padding:20px 0 6px;">
+      <sc-for list="{{ runeRingCells }}" as="c" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+          <dc-import name="ArcheNode" size="240" variant="well" sigil="{{ true }}" sigilStyle="occult" arch="int" hue="265" core="gimbal" haloScale="1.4" runeRing="{{ c.r }}" hint-size="240px,240px" style="width:240px;height:240px;"></dc-import>
+          <div style="text-align:center;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;">{{ c.name }}</div>
+            <div style="font-size:10px;color:rgba(180,190,215,0.5);margin-top:2px;">{{ c.note }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- runeRingStyle — flush vs ornate vs mixed -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Ring style — flush / ornate / mixed</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;max-width:1180px;"><b style="color:#eef0f6;">Flush</b> — slim band, runes sit neatly inside with a bright edge line top and bottom, faint tinted wash bleeding onto the node face. <b style="color:#eef0f6;">Ornate</b> — wider band, runes flow closer to the rim, extra framing lines — an incantation-circle feel. <b style="color:#eef0f6;">Mixed</b> — alternates style band-to-band, so a triple ring can pair a slim inner band with an ornate outer one.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;justify-items:center;">
+      <sc-for list="{{ ringStyleCells }}" as="c" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+          <dc-import name="ArcheNode" size="240" variant="well" sigil="{{ true }}" sigilStyle="astroid" arch="wis" hue="88" runeRing="triple" runeRingStyle="{{ c.s }}" hint-size="240px,240px" style="width:240px;height:240px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;">{{ c.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="{{ card }}padding:26px 30px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Style routes to decide</div>
+    <div style="font-size:12px;color:rgba(190,200,225,0.7);line-height:1.7;max-width:1180px;">
+      <b style="color:#eef0f6;">Astroid / star8</b> — clean arcane geometry, reads at any zoom.<br>
+      <b style="color:#eef0f6;">Occult</b> — pentagram + ticks, ritual feel.<br>
+      <b style="color:#eef0f6;">Rune / kanji</b> — engraved language, most "entity has a name".<br>
+      <b style="color:#eef0f6;">Ring of runes</b> — now a dial, not a boss flag: single for a light touch, triple for maximal presence.
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;int&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;],&quot;section&quot;:&quot;Core&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:265,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Core&quot;},&quot;sigilStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;astroid&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;shape&quot;,&quot;astroid&quot;,&quot;star8&quot;,&quot;occult&quot;,&quot;rune&quot;,&quot;kanji&quot;],&quot;section&quot;:&quot;Core&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;rings&quot;,&quot;cog&quot;,&quot;orbit&quot;,&quot;spikes&quot;,&quot;gimbal&quot;],&quot;section&quot;:&quot;Core&quot;},&quot;runeRing&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;single&quot;,&quot;double&quot;,&quot;triple&quot;],&quot;section&quot;:&quot;Core&quot;},&quot;runeRingStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;flush&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;flush&quot;,&quot;ornate&quot;,&quot;mixed&quot;],&quot;section&quot;:&quot;Core&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  renderVals(){
+    const p=this.props;
+    const styleCells=[
+      {s:'shape',   name:'Shape',   note:'archetype form'},
+      {s:'astroid', name:'Astroid', note:'4-cusp arcane'},
+      {s:'star8',   name:'Star-8',  note:'eight-point'},
+      {s:'occult',  name:'Occult',  note:'pentagram + ticks'},
+      {s:'rune',    name:'Rune',    note:'engraved futhark'},
+      {s:'kanji',   name:'Kanji',   note:'stamped symbol'}
+    ];
+    const runeCells=[
+      {arch:'str',name:'STR',hue:25},{arch:'dex',name:'DEX',hue:145},{arch:'wis',name:'WIS',hue:88},
+      {arch:'int',name:'INT',hue:265},{arch:'per',name:'PER',hue:200},{arch:'con',name:'CON',hue:305}
+    ];
+    const runeRingCells=[
+      {r:'single', name:'Single band', note:'a light touch — any entity'},
+      {r:'double', name:'Double band', note:'two bands, counter-spinning'},
+      {r:'triple', name:'Triple band', note:'the full boss treatment'}
+    ];
+    const ringStyleCells=[
+      {s:'flush',  name:'Flush'},
+      {s:'ornate', name:'Ornate'},
+      {s:'mixed',  name:'Mixed'}
+    ];
+    return { H2:this.H2, card:this.card, styleCells, runeCells, runeRingCells, ringStyleCells,
+      arch:p.arch??'int', hue:p.hue??265, sigilStyle:p.sigilStyle??'astroid', core:p.core??'none', runeRing:p.runeRing??'none', runeRingStyle:p.runeRingStyle??'flush' };
+  }
+}
+</script>
+</body>
+</html>

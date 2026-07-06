@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  @keyframes nt-in{0%{opacity:0;transform:translateY(4px) scale(.98);}100%{opacity:1;transform:none;}}
+</style>
+</helmet>
+<div style="width:242px;background:linear-gradient(158deg,rgba(28,31,46,0.98),rgba(13,14,23,0.99));border:1px solid {{ archColor }};border-radius:11px;box-shadow:0 16px 38px -14px rgba(0,0,0,0.9),0 0 24px -10px {{ archColor }};padding:12px 14px 13px;font-family:'Chakra Petch',sans-serif;animation:nt-in .16s ease;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:{{ headerGap }};">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+      <span style="width:10px;height:10px;border-radius:50%;flex:none;background:{{ archColor }};box-shadow:0 0 7px {{ archColor }};"></span>
+      <span style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:1.5px;color:#eef0f6;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ title }}</span>
+    </div>
+    <sc-if value="{{ core }}" hint-placeholder-val="{{ false }}">
+      <span style="font-family:'Cinzel',serif;font-weight:800;font-size:9px;letter-spacing:1px;color:#1a1405;background:linear-gradient(160deg,oklch(0.82 0.14 88),oklch(0.66 0.14 80));padding:2px 6px;border-radius:5px;flex:none;">CORE</span>
+    </sc-if>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+    <sc-if value="{{ allocated }}" hint-placeholder-val="{{ false }}">
+      <span style="width:8px;height:8px;border-radius:2px;flex:none;background:{{ ownerColor }};box-shadow:0 0 5px {{ ownerColor }};"></span>
+      <span style="font-size:10.5px;letter-spacing:0.3px;color:rgba(200,208,225,0.8);">Owner: <b style="color:#eef0f6;">{{ ownerName }}</b></span>
+    </sc-if>
+    <sc-if value="{{ notAllocated }}" hint-placeholder-val="{{ false }}">
+      <span style="width:8px;height:8px;border-radius:2px;flex:none;border:1px dashed rgba(200,208,225,0.4);"></span>
+      <span style="font-size:10.5px;letter-spacing:0.5px;color:rgba(200,208,225,0.5);text-transform:uppercase;">Unallocated</span>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ allocated }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-bottom:11px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:10px;letter-spacing:0.5px;margin-bottom:3px;">
+        <span style="color:rgba(220,150,150,0.85);text-transform:uppercase;font-weight:600;">Node HP</span>
+        <span style="font-family:'Chakra Petch';font-weight:600;color:#f0d8d8;">{{ hpCur }}<span style="color:rgba(255,255,255,0.35);">/{{ hpMax }}</span></span>
+      </div>
+      <div style="height:6px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;border:1px solid rgba(255,255,255,0.06);">
+        <div style="height:100%;border-radius:4px;background:linear-gradient(90deg,oklch(0.55 0.20 22),oklch(0.66 0.21 30));box-shadow:0 0 8px -1px oklch(0.60 0.21 25);width:{{ hpPct }}%;"></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasMods }}" hint-placeholder-val="{{ false }}">
+    <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:9px;margin-bottom:{{ modsBottomGap }};">
+      <div style="font-size:9px;letter-spacing:1.5px;color:rgba(170,182,210,0.55);text-transform:uppercase;margin-bottom:6px;">Stat Modifiers</div>
+      <sc-for list="{{ mods }}" as="m" hint-placeholder-count="2">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">
+          <span style="font-size:11px;color:#dbe1ee;">{{ m.label }}</span>
+          <span style="font-family:'Chakra Petch';font-weight:700;font-size:12px;color:{{ m.color }};">{{ m.text }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasAddons }}" hint-placeholder-val="{{ false }}">
+    <div style="border-top:1px solid rgba(255,255,255,0.07);padding-top:9px;">
+      <div style="font-size:9px;letter-spacing:1.5px;color:rgba(170,182,210,0.55);text-transform:uppercase;margin-bottom:7px;">Addons</div>
+      <sc-for list="{{ addons }}" as="a" hint-placeholder-count="1">
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;">
+          <span style="width:18px;height:18px;flex:none;border-radius:5px;background:rgba(255,255,255,0.04);border:1px solid {{ a.tint }};display:flex;align-items:center;justify-content:center;font-size:10px;color:{{ a.tint }};box-shadow:0 0 5px -1px {{ a.tint }};">{{ a.glyph }}</span>
+          <div style="min-width:0;">
+            <div style="font-size:11px;font-weight:600;color:#eef0f6;">{{ a.name }}</div>
+            <div style="font-size:9.5px;color:rgba(180,190,215,0.6);line-height:1.35;">{{ a.desc }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:260,&quot;height&quot;:260},&quot;archetype&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;str&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;int&quot;,&quot;wis&quot;,&quot;per&quot;,&quot;con&quot;]},&quot;title&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;STR Node&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;owner&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;player&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;player&quot;,&quot;enemy&quot;]},&quot;ownerName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;You&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;hpCur&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:8,&quot;tsType&quot;:&quot;number&quot;},&quot;hpMax&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:10,&quot;tsType&quot;:&quot;number&quot;},&quot;mods&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;{label:string,text:string,color:string}[]&quot;},&quot;addons&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;{glyph:string,tint:string,name:string,desc:string}[]&quot;}}">
+class Component extends DCLogic {
+  ARCH = { str:'oklch(0.64 0.21 27)', dex:'oklch(0.74 0.16 150)', int:'oklch(0.68 0.18 258)', wis:'oklch(0.81 0.14 88)', per:'oklch(0.66 0.21 305)', con:'oklch(0.92 0.02 250)' };
+  OWNER_COLOR = { player:'oklch(0.72 0.13 220)', enemy:'oklch(0.60 0.20 25)' };
+
+  renderVals(){
+    const p = this.props;
+    const archetype = p.archetype ?? 'str';
+    const archColor = this.ARCH[archetype] || this.ARCH.str;
+    const allocated = !!p.allocated;
+    const owner = p.owner ?? 'player';
+    const mods = p.mods || [];
+    const addons = p.addons || [];
+    const hpCur = p.hpCur ?? 0, hpMax = p.hpMax ?? 1;
+
+    return {
+      archColor, title: p.title ?? (archetype.toUpperCase() + ' Node'),
+      core: !!p.core, headerGap: (!!p.core) ? '8px' : '2px',
+      allocated, notAllocated: !allocated,
+      ownerColor: this.OWNER_COLOR[owner] || this.OWNER_COLOR.player,
+      ownerName: p.ownerName ?? (owner === 'enemy' ? 'Enemy' : 'You'),
+      hpCur, hpMax, hpPct: Math.max(0, Math.min(100, hpMax ? (hpCur/hpMax*100) : 0)),
+      hasMods: mods.length > 0, mods, modsBottomGap: addons.length ? '9px' : '0px',
+      hasAddons: addons.length > 0, addons
+    };
+  }
+}
+
+</script>
+</body>
+</html>

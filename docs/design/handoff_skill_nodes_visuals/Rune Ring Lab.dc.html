@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — lab · ring of runes, dedicated bench</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Rune ring lab</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1200px;line-height:1.65;">Every knob for the ring-of-runes, isolated. <b style="color:#eef0f6;">runeRingGlow</b> and <b style="color:#eef0f6;">runeRingFill</b> move the inner and outer rim edges together — one control for the whole band. <b style="color:#eef0f6;">runeRingBlend</b> switches how the runes themselves read: <b style="color:#eef0f6;">cutout</b> (true 0 alpha, light/scene shows through), <b style="color:#eef0f6;">ink</b> (solid band, dark engraved glyphs on top), <b style="color:#eef0f6;">glow</b> (solid band, the glyphs are the brightest part).</div>
+  </div>
+
+  <div style="display:flex;gap:22px;align-items:stretch;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="{{ card }}flex:1;min-width:460px;padding:34px;display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div style="{{ H2 }}align-self:flex-start;">Live — twirl every rune-ring knob</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px 0;">
+        <dc-import name="ArcheNode" size="320" variant="well" sigil="{{ true }}" sigilStyle="{{ sigilStyle }}" arch="{{ arch }}" hue="{{ hue }}" core="{{ core }}" runeRing="{{ runeRing }}" runeRingStyle="{{ runeRingStyle }}" runeRingBlend="{{ runeRingBlend }}" runeRingGlow="{{ runeRingGlow }}" runeRingFill="{{ runeRingFill }}" runeRingRuneGlow="{{ runeRingRuneGlow }}" runeRingPad="{{ runeRingPad }}" hint-size="320px,320px" style="width:320px;height:320px;"></dc-import>
+      </div>
+    </div>
+    <div style="{{ card }}flex:1.2;min-width:520px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">What each knob does</div>
+      <div style="font-size:12px;color:rgba(190,200,225,0.7);line-height:1.85;margin-top:10px;">
+        <b style="color:#eef0f6;">runeRing</b> — band count: none / single / double / triple.<br>
+        <b style="color:#eef0f6;">runeRingStyle</b> — band width &amp; density: flush (slim) / ornate (wide) / mixed (alternate per band).<br>
+        <b style="color:#eef0f6;">runeRingBlend</b> — cutout / ink / glow, see above.<br>
+        <b style="color:#eef0f6;">runeRingGlow</b> — inner+outer rim edge brightness, moved together.<br>
+        <b style="color:#eef0f6;">runeRingFill</b> — the band's own opacity/strength, independent of the edges.<br>
+        <b style="color:#eef0f6;">runeRingRuneGlow</b> — glow on the runes themselves (the cut/ink/glow marks) — independent of band fill, so a faint band can still carry blazing runes.<br>
+        <b style="color:#eef0f6;">runeRingPad</b> — radial gap between the runes and the ring's own inner/outer edge.
+      </div>
+    </div>
+  </div>
+
+  <!-- blend comparison -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Blend — cutout / ink / glow</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">Same triple ring, three ways to read the runes. runeRingRuneGlow=0.7 here, so ink picks up a subtle glow too.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;justify-items:center;">
+      <sc-for list="{{ blendCells }}" as="c" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+          <dc-import name="ArcheNode" size="220" variant="well" sigil="{{ true }}" sigilStyle="astroid" arch="wis" hue="88" runeRing="triple" runeRingStyle="flush" runeRingBlend="{{ c.b }}" runeRingGlow="0.6" runeRingFill="1" runeRingRuneGlow="0.7" hint-size="220px,220px" style="width:220px;height:220px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:#eef0f6;">{{ c.name }}</div>
+          <div style="font-size:10px;color:rgba(180,190,215,0.5);text-align:center;max-width:200px;">{{ c.note }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- the requested combo: faint band, blazing runes -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;border-color:rgba(150,220,180,0.28);">
+    <div style="{{ H2 }}margin-bottom:4px;color:oklch(0.88 0.13 150);">Faint band, blazing runes — fill 0.15 + glow maxed</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;max-width:900px;">runeRingFill and runeRingGlow/runeRingRuneGlow are fully independent now — a thin, barely-there band can still carry brilliant runes and a bright rim.</div>
+    <div style="display:flex;gap:30px;justify-content:center;">
+      <sc-for list="{{ comboCells }}" as="c" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="220" variant="well" arch="int" hue="265" runeRing="single" runeRingStyle="flush" runeRingBlend="{{ c.b }}" runeRingGlow="1" runeRingFill="0.15" runeRingRuneGlow="1" hint-size="220px,220px" style="width:220px;height:220px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-size:12.5px;color:#eef0f6;">{{ c.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- glow sweep -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">runeRingGlow — 0 to 1</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">Inner and outer rim edges brighten together as the value climbs — invisible at 0, blazing at 1.</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;justify-items:center;">
+      <sc-for list="{{ glowSweep }}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="int" hue="265" runeRing="single" runeRingStyle="flush" runeRingBlend="cutout" runeRingGlow="{{ c.v }}" runeRingFill="1" spin="{{ false }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- fill sweep -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">runeRingFill — 0 to 1</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">The band's own strength — fades out independent of the rim edges.</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;justify-items:center;">
+      <sc-for list="{{ fillSweep }}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="per" hue="200" runeRing="single" runeRingStyle="flush" runeRingBlend="cutout" runeRingGlow="0.6" runeRingFill="{{ c.v }}" spin="{{ false }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- pad sweep -->
+  <div style="{{ card }}padding:26px 30px;">
+    <div style="{{ H2 }}margin-bottom:4px;">runeRingPad — radial gap</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">Opens up breathing room between the runes and the ring's own inner/outer edge.</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;justify-items:center;">
+      <sc-for list="{{ padSweep }}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="con" hue="305" runeRing="single" runeRingStyle="ornate" runeRingBlend="cutout" runeRingGlow="0.6" runeRingFill="1" runeRingPad="{{ c.v }}" spin="{{ false }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;int&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;],&quot;section&quot;:&quot;Node&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:255,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Node&quot;},&quot;sigilStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;astroid&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;shape&quot;,&quot;astroid&quot;,&quot;star8&quot;,&quot;occult&quot;,&quot;rune&quot;,&quot;kanji&quot;],&quot;section&quot;:&quot;Node&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;rings&quot;,&quot;cog&quot;,&quot;orbit&quot;,&quot;spikes&quot;,&quot;gimbal&quot;],&quot;section&quot;:&quot;Node&quot;},&quot;runeRing&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;triple&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;single&quot;,&quot;double&quot;,&quot;triple&quot;],&quot;section&quot;:&quot;Ring&quot;},&quot;runeRingStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;flush&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;flush&quot;,&quot;ornate&quot;,&quot;mixed&quot;],&quot;section&quot;:&quot;Ring&quot;},&quot;runeRingBlend&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;ink&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;cutout&quot;,&quot;ink&quot;,&quot;glow&quot;],&quot;section&quot;:&quot;Ring&quot;},&quot;runeRingGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.25,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Ring&quot;},&quot;runeRingFill&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Ring&quot;},&quot;runeRingRuneGlow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Ring&quot;},&quot;runeRingPad&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:0.6,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Ring&quot;},&quot;stakeStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;chrome&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;chrome&quot;,&quot;pips&quot;,&quot;rims&quot;,&quot;unison&quot;,&quot;ticks&quot;,&quot;arc&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;stakeCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;stakeAlloc&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;rimProfile&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;smooth&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;smooth&quot;,&quot;stepped&quot;,&quot;grooved&quot;,&quot;terraced&quot;],&quot;section&quot;:&quot;Stake&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  renderVals(){
+    const p=this.props;
+    const blendCells=[
+      {b:'cutout', name:'Cutout', note:'true 0 alpha — light/scene shows through the gaps'},
+      {b:'ink',    name:'Ink',    note:'solid band, dark engraved glyphs on top'},
+      {b:'glow',   name:'Glow',   note:'solid band, glyphs are the brightest part'}
+    ];
+    const glowSweep=[0,0.25,0.5,0.75,1].map(v=>({v, label:v.toFixed(2)}));
+    const fillSweep=[0.15,0.4,0.6,0.8,1].map(v=>({v, label:v.toFixed(2)}));
+    const padSweep=[0,0.15,0.3,0.45,0.6].map(v=>({v, label:v.toFixed(2)}));
+    const comboCells=[
+      {b:'cutout', name:'Cutout'},
+      {b:'ink',    name:'Ink'},
+      {b:'glow',   name:'Glow'}
+    ];
+    return { H2:this.H2, card:this.card, blendCells, glowSweep, fillSweep, padSweep, comboCells,
+      arch:p.arch??'int', hue:p.hue??265, core:p.core??'none', sigilStyle:p.sigilStyle??'astroid',
+      runeRing:p.runeRing??'triple', runeRingStyle:p.runeRingStyle??'flush', runeRingBlend:p.runeRingBlend??'cutout',
+      runeRingGlow:p.runeRingGlow??0.5, runeRingFill:p.runeRingFill??1,
+      runeRingRuneGlow:p.runeRingRuneGlow??0.5, runeRingPad:p.runeRingPad??0 };
+  }
+}
+
+</script>
+</body>
+</html>

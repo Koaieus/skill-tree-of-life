@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1280px;padding:48px 52px 60px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 50%, #030409 100%);color:#dbe1ee;">
+  <div style="margin-bottom:26px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — graph edges</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:34px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Archetype-tinted edges</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:10px;max-width:1000px;line-height:1.6;">One owner (azure gems); holders tinted by archetype. Each edge picks up the archetype color of its two nodes and <b style="color:#eef0f6;">lerps</b> between them — so same-archetype clusters glow one solid color and cross-links show the blend. The graph's <b style="color:oklch(0.82 0.13 88);">regions</b> read at a glance.</div>
+  </div>
+
+  <div style="position:relative;width:1176px;height:660px;background:radial-gradient(90% 70% at 50% 42%, rgba(20,24,36,0.6), rgba(6,8,14,0.4));border:1px solid rgba(120,140,190,0.14);border-radius:16px;overflow:hidden;">
+    <svg width="1176" height="660" style="position:absolute;inset:0;overflow:visible;">
+      <defs>
+        <sc-for list="{{ edges }}" as="e" hint-placeholder-count="14">
+          <linearGradient id="{{ e.gid }}" gradientUnits="userSpaceOnUse" x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}">
+            <stop offset="0" stop-color="{{ e.c1 }}"></stop>
+            <stop offset="1" stop-color="{{ e.c2 }}"></stop>
+          </linearGradient>
+        </sc-for>
+      </defs>
+      <sc-for list="{{ edges }}" as="e" hint-placeholder-count="14">
+        <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="url(#{{ e.gid }})" stroke-width="9" opacity="0.16" style="filter:blur(3px);"></line>
+      </sc-for>
+      <sc-for list="{{ edges }}" as="e" hint-placeholder-count="14">
+        <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="url(#{{ e.gid }})" stroke-width="2.6" opacity="0.92" stroke-linecap="round"></line>
+      </sc-for>
+    </svg>
+    <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="14">
+      <div style="position:absolute;left:{{ n.left }}px;top:{{ n.top }}px;width:74px;height:74px;">
+        <dc-import name="ArcheNode" size="74" variant="gem" archTint="holder" arch="{{ n.arch }}" hue="210" core="{{ n.core }}" hint-size="74px,74px" style="width:74px;height:74px;"></dc-import>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;gap:24px;margin-top:20px;flex-wrap:wrap;">
+    <sc-for list="{{ legend }}" as="l" hint-placeholder-count="6">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:22px;height:4px;border-radius:2px;background:{{ l.color }};box-shadow:0 0 6px {{ l.color }};"></span>
+        <span style="font-size:11px;color:rgba(200,208,228,0.7);letter-spacing:0.5px;">{{ l.name }}</span>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals(){
+    const H={str:25,dex:145,wis:88,int:265,per:200,con:305};
+    const col=(h)=>`oklch(0.74 0.18 ${h})`;
+    // id, x, y, arch  — clustered into archetype regions
+    const N = [
+      { x:180, y:180, arch:'str' }, //0
+      { x:300, y:130, arch:'str' }, //1
+      { x:250, y:280, arch:'str' }, //2
+      { x:150, y:340, arch:'str' }, //3
+      { x:420, y:210, arch:'con' }, //4 bridge
+      { x:470, y:360, arch:'wis' }, //5 hub
+      { x:640, y:150, arch:'dex' }, //6
+      { x:770, y:120, arch:'dex' }, //7
+      { x:830, y:250, arch:'dex' }, //8
+      { x:690, y:280, arch:'dex' }, //9
+      { x:960, y:180, arch:'per' }, //10 bridge
+      { x:600, y:470, arch:'int' }, //11
+      { x:740, y:520, arch:'int' }, //12
+      { x:490, y:540, arch:'int' }, //13
+      { x:940, y:430, arch:'per' }, //14
+      { x:1010,y:330, arch:'per' }  //15
+    ];
+    const E = [
+      [0,1],[0,2],[1,2],[2,3],[0,3],[1,4], // str region + bridge
+      [6,7],[7,8],[8,9],[6,9],[9,10],[8,10], // dex region + bridge
+      [11,12],[11,13],[12,13], // int region
+      [4,5],[5,2],[5,6],[5,11],[9,11],[10,15],[14,15],[12,14],[8,15] // cross links (lerp)
+    ];
+    const nodes = N.map((n,i)=>({ left:n.x-37, top:n.y-37, arch:n.arch, core: (i===5?'rings':'none') }));
+    const edges = E.map((e,i)=>{ const a=N[e[0]], b=N[e[1]]; return {
+      gid:'eg'+i, x1:a.x, y1:a.y, x2:b.x, y2:b.y, c1:col(H[a.arch]), c2:col(H[b.arch]) }; });
+    const legend = [
+      { name:'STR', color:col(H.str) }, { name:'DEX', color:col(H.dex) }, { name:'WIS', color:col(H.wis) },
+      { name:'INT', color:col(H.int) }, { name:'PER', color:col(H.per) }, { name:'CON', color:col(H.con) }
+    ];
+    return { nodes, edges, legend };
+  }
+}
+</script>
+</body>
+</html>

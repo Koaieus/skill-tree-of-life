@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1960px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 130px;">
+
+  <div style="display:flex;gap:16px;margin-bottom:22px;">
+    <a href="Lab Index.dc.html" style="{{ navLink }}">&larr; Lab Index</a>
+    <a href="Node Workbench.dc.html" style="{{ navLink }}">Node Workbench</a>
+    <a href="Rim Forge Lab.dc.html" style="{{ navLink }}">Rim Forge Lab (history)</a>
+  </div>
+
+  <div style="margin-bottom:36px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — handoff prep, not the export itself</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Node Handoff — Locked Picks Only</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1300px;line-height:1.7;">Every system below is a <b style="color:#eef0f6;">real pick</b> headed for Claude Code / Godot — dead ends from the labs are excluded. Each section shows the visual + the parameters to expose as tweakable in Godot. Composable systems (rim height function, the 3 stake-depth approaches) are called out explicitly so they get built as swappable pieces, not baked-in choices.</div>
+  </div>
+
+  <!-- 1. DISK -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">1. The inner disk (core)</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1200px;line-height:1.65;">Semi-sphere 3D shading (offset radial highlight), player-tinted when allocated, neutral-dark when not. The weld symbol is an <b>optional, composable</b> bonus layer — its styling/blend is locked in, the glyph itself is still open (see note).</div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:16px;">
+      <sc-for list="{{ diskCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:140px;height:140px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="140" variant="well" arch="con" hue="305" tintMix="0.92" allocated="{{ c.alloc }}" showWeld="{{ c.weld }}" weldK="0.88" glowMode="{{ c.glowMode }}" glowAmt="{{ c.glowAmt }}" vividDisk="{{ c.vivid }}" stakeCap="1" spin="{{ false }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}text-align:center;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ paramBox }}">
+      <b style="color:#eef0f6;">Params:</b> hue (0\u2013360) + tintMix (0\u20131, saturation of the metal/disk tint) &middot; allocated (bool, swaps tinted\u2192neutral-dark gradient + enables aura) &middot; showWeld (bool) + weldK (0.4\u20131.15, glyph scale relative to disk radius rC) &middot; glowMode (none/always/hover/pulse/sweep) + glowAmt (0\u20131) drives the weld/disk's own glow independent of vividDisk &middot; vividDisk (bool, adds bloom halo + boosts blur radius on allocation glow).
+      <div style="margin-top:8px;color:oklch(0.82 0.13 88);"><b>Open decision:</b> weld glyph is currently a geometric polygon per archetype. Mechanism also supports a rune or kanji glyph (same blend/glow rules, different character) \u2014 not locked, pick later without touching the render pipeline.</div>
+    </div>
+  </div>
+
+  <!-- 2. FIRST RIM -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">2. First rim \u2014 the structural wall</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1250px;line-height:1.65;">Built from 4 radii: <b>pit 24</b> (recessed floor) &middot; <b>disc 24</b> (same radius as pit, the point sits flush) &middot; <b>crest 28</b> (bevel inset) &middot; <b>rim 32</b> (outer edge). The bevel look between crest and rim is a <b>height(radius) function</b>, not a fixed shape \u2014 level/terrace/smooth/sharpen below are just 4 presets of it. "No crest" is simply crest=rim (shown last) \u2014 the function should stay swappable in Godot, not hardcoded to these 5.</div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <sc-for list="{{ rimHeightCells }}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:140px;height:140px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="140" variant="well" arch="int" hue="210" tintMix="0.9" allocated="{{ true }}" rimHeightStyle="{{ c.style }}" geomRimR="{{ c.rimR }}" geomCrestR="{{ c.crestR }}" stakeCap="1" spin="{{ false }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}text-align:center;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ paramBox }}">
+      <b style="color:#eef0f6;">Params:</b> geomPitR (default 24) &middot; geomDiscR (default 24) &middot; geomCrestR (default 28) &middot; geomRimR (default 32) \u2014 all independently tweakable in Godot. rimHeightStyle selects the height(radius) preset (level/terrace/smooth/sharpen); build it as a real function slot so a 5th/6th profile (or "no crest") drops in without new code paths.
+    </div>
+  </div>
+
+  <!-- 3. RIM BONUSES -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">3. Rim bonuses \u2014 tinted gems + fixed-tone holder (composable, independent)</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1250px;line-height:1.65;"><b>rimTone</b> (archetype-tinted, dims like the disk when unallocated): a groove line, optionally with small archetype-shaped inset gems (<b>overlay</b>). <b>rimHolder</b> (always neutral chrome, ignores tint/allocation \u2014 the "stable basket" pinning things down): rivets (<b>braces</b>) or wire scrollwork (<b>filigree</b>). The two are independent layers \u2014 <b>rimHolderAlign</b> sets whether the holder marks sit staggered between gems or joined right on top of them.</div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <sc-for list="{{ rimBonusCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:150px;height:150px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="150" variant="well" arch="str" hue="25" tintMix="0.9" allocated="{{ c.alloc }}" rimTone="{{ c.tone }}" rimHolder="{{ c.holder }}" rimHolderAlign="{{ c.align }}" stakeCap="1" spin="{{ false }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}text-align:center;">{{ c.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ paramBox }}">
+      <b style="color:#eef0f6;">Params:</b> rimTone (none/groove/overlay) &middot; rimHolder (none/braces/filigree, independent of rimTone) &middot; rimHolderAlign (staggered/joined). Gem size is currently a fixed absolute radius \u2014 <b style="color:oklch(0.82 0.13 88);">handoff note:</b> make it relative to rim width (rim\u2013crest) so it scales with node size instead of a fixed px value.
+    </div>
+  </div>
+
+  <!-- 4. STAKE / CAP DEPTH -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;border-color:rgba(255,220,180,0.3);">
+    <div style="{{ H2 }}margin-bottom:6px;color:oklch(0.88 0.13 42);">4. Stake / cap depth \u2014 3 composable approaches, all exported</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1300px;line-height:1.65;">Not a single decision \u2014 three independent mechanisms to compose from in Godot. All three at <b>cap 3, alloc 2</b> below (full 0/3..3/3 matrix underneath the middle one, since stake states must always render as the complete matrix).</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-bottom:22px;">
+      <sc-for list="{{ stakeApproaches }}" as="s" hint-placeholder-count="3">
+        <div style="{{ card }}padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:#eef0f6;text-align:center;">{{ s.name }}</div>
+          <div style="position:relative;width:170px;height:170px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="170" variant="well" arch="int" hue="210" tintMix="0.92" allocated="{{ true }}" stakeCap="3" stakeAlloc="2" rimGrowth="{{ s.rimGrowth }}" rimSegments="{{ s.rimSegments }}" rimWell="{{ s.rimWell }}" rimWellGrow="{{ s.rimWellGrow }}" spin="{{ true }}" hint-size="170px,170px" style="width:170px;height:170px;"></dc-import>
+            </div>
+          </div>
+          <div style="font-size:10.5px;color:rgba(190,200,225,0.6);text-align:center;line-height:1.5;">{{ s.desc }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ paramBox }}">
+      <b style="color:#eef0f6;">A \u2014 ring stacking</b> (rimGrowth): N concentric copies of the wall, N = rC + cap\u00d7(ringWidth+ringGap). rimHeightStyle applies per ring (level/terrace/smooth/sharpen \u2014 all 4 export). Unfilled rings dim to the archetype hue (never flat gray). Params: stakeCap(1\u20134), ringGap(0\u20136), rimHeightStyle.<br><br>
+      <b style="color:#eef0f6;">B \u2014 segmented dial</b> (rimSegments): the wall splits into cap wedges, alloc of them lit, rotating slowly. Cap 1 always collapses to a plain ring (no notch \u2014 a single wedge reads as "nothing"). Composes with A (grown rings can each be their own dial).<br><br>
+      <b style="color:#eef0f6;">C \u2014 well / groove</b> (rimWell, needs rimSegments on): the wall keeps ONE fixed M-profile (raised outer+inner lip framing a recessed groove); the segmented fill sits inside the well instead of spanning the whole rim. rimWellGrow: <b>fillOnly</b> = groove fixed, fill consumes more of it as cap rises; <b>both</b> = groove (and the wall's outer edge) grows outward with cap too. Params: rimWellDepth(4\u201316), rimWellGrow.
+    </div>
+  </div>
+
+  <!-- full stake matrix reference -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">Full stake matrix reference \u2014 always 0/cap .. cap/cap</div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <sc-for list="{{ fullMatrix }}" as="m" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:120px;height:120px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="120" variant="well" arch="int" hue="210" tintMix="0.92" allocated="{{ m.allocated }}" stakeCap="3" stakeAlloc="{{ m.alloc }}" rimGrowth="{{ true }}" rimHeightStyle="level" spin="{{ true }}" hint-size="120px,120px" style="width:120px;height:120px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}">{{ m.alloc }}/3</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- 5. CORE PRESENCE HALOS -->
+  <div style="{{ card }}padding:34px;margin-bottom:26px;">
+    <div style="{{ H2 }}margin-bottom:6px;">5. Core presence halos</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1250px;line-height:1.65;">Concentric halo marks scaled for "this is a nucleus" presence. <b>spikes excluded</b> \u2014 that mark is reserved for the addons system (fortify/plates), not core identity.</div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;">
+      <sc-for list="{{ coreCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:150px;height:150px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="150" variant="well" arch="int" hue="265" tintMix="0.9" allocated="{{ true }}" core="{{ c.core }}" haloScale="1.2" stakeCap="1" spin="{{ true }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}text-transform:uppercase;">{{ c.core }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ paramBox }}">
+      <b style="color:#eef0f6;">Params:</b> core (rings/orbit/gimbal/cog) &middot; haloScale (1\u20132, scales the halo radius outward from the rim).
+    </div>
+  </div>
+
+  <!-- 6. RUNE RING -->
+  <div style="{{ card }}padding:34px;">
+    <div style="{{ H2 }}margin-bottom:6px;">6. Rune ring \u2014 parametrization</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.62);margin-bottom:22px;max-width:1300px;line-height:1.7;">A spinning band (or 2\u20133 concentric bands) with rune-like marks written into it, positioned auto-clear of whatever the rim currently occupies (gap/spacing measured from the node's actual current outer edge, so it never collides with grown stake rings). Three ways the marks can read: <b>cutout</b> \u2014 the band is a solid ring with the runes punched to true 0 alpha (the scene/glow behind shows through the gaps); <b>ink</b> \u2014 band stays solid, runes engraved as dark marks on top; <b>glow</b> \u2014 band stays solid, runes are the brightest part, lit instead of inked.</div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <sc-for list="{{ runeCells }}" as="c" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="position:relative;width:170px;height:170px;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <dc-import name="ArcheNode" size="170" variant="well" arch="wis" hue="88" tintMix="0.9" allocated="{{ true }}" stakeCap="1" runeRing="single" runeRingBlend="{{ c.blend }}" runeRingGlow="0.55" runeRingFill="1" runeRingRuneGlow="0.6" spin="{{ true }}" hint-size="170px,170px" style="width:170px;height:170px;"></dc-import>
+            </div>
+          </div>
+          <div style="{{ labelStyle }}text-transform:uppercase;">{{ c.blend }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ paramBox }}">
+      <b style="color:#eef0f6;">Params:</b> runeRing (none/single/double/triple bands) &middot; runeRingStyle (flush/ornate/mixed \u2014 band width + rune scale) &middot; runeRingBlend (cutout/ink/glow) &middot; runeRingGlow (0\u20131, shared inner+outer edge glow) &middot; runeRingFill (0\u20131, band's own opaque core strength) &middot; runeRingRuneGlow (0\u20131, glyph-specific glow/blur, independent of ringGlow) &middot; runeRingPad (0\u20131, shrinks glyphs off the inner/outer edge) &middot; runeRingGap/runeRingSpacing (radial offsets, measured from the current outer edge so it auto-clears stake growth).
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1960,&quot;height&quot;:1400}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  labelStyle = "font:600 10.5px/1.3 'Chakra Petch',monospace;color:rgba(255,255,255,.5);letter-spacing:.03em;";
+  navLink = "display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);text-decoration:none;";
+  paramBox = "font-size:11px;color:rgba(190,200,225,0.7);line-height:1.75;background:rgba(0,0,0,0.22);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px 18px;margin-top:18px;";
+
+  renderVals(){
+    const diskCells = [
+      { label:'Unallocated', alloc:false, weld:false, glowMode:'none', glowAmt:0, vivid:false },
+      { label:'Allocated', alloc:true, weld:false, glowMode:'always', glowAmt:0.4, vivid:true },
+      { label:'Weld, mild glow', alloc:true, weld:true, glowMode:'always', glowAmt:0.25, vivid:false },
+      { label:'Weld, vivid glow', alloc:true, weld:true, glowMode:'always', glowAmt:0.9, vivid:true }
+    ];
+
+    const rimHeightCells = [
+      { label:'Level', style:'level', rimR:32, crestR:28 },
+      { label:'Terrace up', style:'terrace', rimR:32, crestR:28 },
+      { label:'Smooth out', style:'smooth', rimR:32, crestR:28 },
+      { label:'Sharpen out', style:'sharpen', rimR:32, crestR:28 },
+      { label:'No crest\n(crest=rim)', style:'level', rimR:32, crestR:32 }
+    ];
+
+    const rimBonusCells = [
+      { label:'overlay only\n(gems, no holder)', alloc:true, tone:'overlay', holder:'none', align:'staggered' },
+      { label:'overlay + braces\nstaggered', alloc:true, tone:'overlay', holder:'braces', align:'staggered' },
+      { label:'overlay + braces\njoined', alloc:true, tone:'overlay', holder:'braces', align:'joined' },
+      { label:'groove + filigree', alloc:true, tone:'groove', holder:'filigree', align:'staggered' }
+    ];
+
+    const stakeApproaches = [
+      { name:'A \u2014 ring stacking', rimGrowth:true, rimSegments:false, rimWell:false, rimWellGrow:'fillOnly', desc:'Concentric copies of the wall, each a real ring. Node visibly grows outward with cap.' },
+      { name:'B \u2014 segmented dial', rimGrowth:false, rimSegments:true, rimWell:false, rimWellGrow:'fillOnly', desc:'One wall, split into cap wedges. Alloc wedges lit, rotating. Same footprint at any cap.' },
+      { name:'C \u2014 well / groove', rimGrowth:false, rimSegments:true, rimWell:true, rimWellGrow:'fillOnly', desc:'Fixed M-profile wall; segmented fill sits in its groove, widening as cap rises.' }
+    ];
+
+    const fullMatrix = [0,1,2,3].map(i=>({ alloc:i, allocated: i>0 }));
+
+    const coreCells = ['rings','orbit','gimbal','cog'].map(core=>({core}));
+
+    const runeCells = ['cutout','ink','glow'].map(blend=>({blend}));
+
+    return {
+      H2:this.H2, card:this.card, labelStyle:this.labelStyle, navLink:this.navLink, paramBox:this.paramBox,
+      diskCells, rimHeightCells, rimBonusCells, stakeApproaches, fullMatrix, coreCells, runeCells
+    };
+  }
+}
+
+</script>
+</body>
+</html>

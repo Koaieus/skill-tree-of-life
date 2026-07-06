@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}
+</style>
+</helmet>
+<div style="width:1720px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);font-family:'Chakra Petch',sans-serif;color:#dbe1ee;padding:56px 60px 120px;">
+
+  <!-- HEADER -->
+  <div style="margin-bottom:46px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — Node Design · v2</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:40px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Two Colors, One Node</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1040px;line-height:1.65;">Your feedback, made visual. The hard problem is a <b style="color:#eef0f6;">2-dimensional color space</b> — every node carries an <b style="color:oklch(0.74 0.16 150);">archetype</b> (STR/DEX/INT/WIS/PER, fixed for life) <i>and</i> an <b style="color:oklch(0.78 0.13 220);">owner</b> (one hue per player, enemies included). Fat saturated rings for both = a clash matrix. Below: three ways to resolve it, the 3D button kept as the color anchor, enemy identity that isn't just "all red," addons that actually <i>look</i> like what they do, and self-loops.</div>
+  </div>
+
+  <!-- SECTION 1: THE ENCODING OPTIONS -->
+  <div style="margin-bottom:20px;display:flex;align-items:baseline;gap:14px;">
+    <div style="{{ H2 }}">1 · Resolving the archetype × owner matrix</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.55);">Same 9 nodes — 3 archetypes down, 3 owners across (2 players + 1 enemy) — rendered three ways. Watch where colors fight.</div>
+  </div>
+  <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:52px;">
+    <sc-for list="{{ encodings }}" as="enc" hint-placeholder-count="3">
+      <div style="{{ enc.cardStyle }}width:540px;padding:22px 24px 24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+          <span style="font-family:'Cinzel',serif;font-weight:800;font-size:13px;letter-spacing:1px;color:#04050a;background:{{ enc.badgeBg }};padding:2px 9px;border-radius:6px;">{{ enc.id }}</span>
+          <span style="font-family:'Cinzel',serif;font-weight:700;font-size:15px;letter-spacing:1px;color:#eef0f6;">{{ enc.name }}</span>
+          <sc-if value="{{ enc.recommended }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:9px;letter-spacing:1.5px;color:oklch(0.85 0.15 145);border:1px solid oklch(0.6 0.15 150);padding:2px 7px;border-radius:20px;text-transform:uppercase;">Recommended</span>
+          </sc-if>
+        </div>
+        <div style="font-size:11px;color:rgba(190,200,225,0.62);line-height:1.55;min-height:52px;margin-bottom:16px;">{{ enc.desc }}</div>
+
+        <div style="display:grid;grid-template-columns:76px repeat(3,1fr);gap:6px 4px;align-items:center;">
+          <div></div>
+          <sc-for list="{{ enc.owners }}" as="o" hint-placeholder-count="3">
+            <div style="text-align:center;font-size:9px;letter-spacing:0.5px;color:{{ o.label }};text-transform:uppercase;line-height:1.3;">{{ o.name }}</div>
+          </sc-for>
+          <sc-for list="{{ enc.cells }}" as="c" hint-placeholder-count="12">
+            <sc-if value="{{ c.isLabel }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:10px;letter-spacing:1px;color:{{ c.color }};text-transform:uppercase;font-weight:600;text-align:right;padding-right:8px;">{{ c.text }}</div>
+            </sc-if>
+            <sc-if value="{{ c.isNode }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;justify-content:center;">
+                <dc-import name="SkillNode2" size="88" archetype="{{ c.archetype }}" encoding="{{ c.encoding }}" allocated="true" owner-hue="{{ c.ownerHue }}" owner-chroma="{{ c.ownerChroma }}" hostile="{{ c.hostile }}" hint-size="88px,88px" style="width:88px;height:88px;"></dc-import>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+        <div style="margin-top:16px;padding-top:13px;border-top:1px solid rgba(255,255,255,0.07);display:flex;gap:8px;">
+          <span style="font-size:9px;letter-spacing:1px;color:{{ enc.verdictColor }};text-transform:uppercase;font-weight:700;flex:none;">{{ enc.verdictTag }}</span>
+          <span style="font-size:10.5px;color:rgba(190,200,225,0.6);line-height:1.5;">{{ enc.verdict }}</span>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- SECTION 2: THE 3D BUTTON -->
+  <div style="margin-bottom:18px;display:flex;align-items:baseline;gap:14px;">
+    <div style="{{ H2 }}">2 · The allocated disk — kept &amp; promoted</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.55);">Your favorite. Now the primary color anchor: it holds the owner hue.</div>
+  </div>
+  <div style="{{ card }}padding:30px 34px;margin-bottom:52px;display:flex;gap:44px;align-items:center;flex-wrap:wrap;">
+    <div style="display:flex;gap:26px;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <dc-import name="SkillNode2" size="150" archetype="wis" encoding="bevel" allocated="false" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+        <div style="font-size:10.5px;color:rgba(190,200,225,0.6);">Unallocated — dark glass</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <dc-import name="SkillNode2" size="150" archetype="wis" encoding="bevel" allocated="true" owner-hue="220" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+        <div style="font-size:10.5px;color:rgba(190,200,225,0.6);">Allocated — owner-tinted</div>
+      </div>
+    </div>
+    <div style="max-width:560px;">
+      <div style="font-family:'Cinzel',serif;font-weight:700;font-size:14px;letter-spacing:1px;color:oklch(0.82 0.12 88);margin-bottom:10px;">Built to catch light — and later, a Godot shader</div>
+      <div style="font-size:12px;color:rgba(195,205,228,0.72);line-height:1.7;">The disk is a glass cabochon: top-left specular, a radial body that darkens to the base, a contact shadow beneath, and a bottom-inner occlusion crescent. It reads as a physical, pressable object even flat in SVG. In Godot this is exactly the surface you described — a spherical <code style="color:#c8d2e8;">SphereMesh</code>/shader dome that can pick up <b style="color:#eef0f6;">environment reflections</b>: passing projectiles, lit edges, the cursor glow, all mirrored across its curvature. The design here just makes sure the 2D fallback already feels three-dimensional so the shader is an enhancement, not a crutch.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: PLAYER & ENEMY IDENTITY -->
+  <div style="margin-bottom:18px;display:flex;align-items:baseline;gap:14px;">
+    <div style="{{ H2 }}">3 · Player &amp; enemy identity</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.55);">Owner = free hue. Hostility = a shared texture, not a shared color.</div>
+  </div>
+  <div style="{{ card }}padding:28px 32px;margin-bottom:16px;">
+    <div style="font-size:12px;color:rgba(195,205,228,0.7);line-height:1.65;max-width:1080px;margin-bottom:22px;">Each player owns a hue — no fixed "blue = you." Enemies keep their own hue too (so two enemies never blur together), but wear a <b style="color:oklch(0.7 0.2 30);">serrated hazard ring</b> and a shared <b style="color:oklch(0.7 0.2 30);">red danger aura</b>. Result: "this is hostile" reads instantly from the texture; "which enemy" reads from the hue. No "all enemies are red" collision.</div>
+    <div style="display:flex;gap:40px;flex-wrap:wrap;">
+      <div>
+        <div style="{{ groupLabel }}color:oklch(0.78 0.13 220);">Allies — clean rim</div>
+        <div style="display:flex;gap:22px;">
+          <sc-for list="{{ allies }}" as="a" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:9px;width:104px;">
+              <dc-import name="SkillNode2" size="104" archetype="{{ a.archetype }}" encoding="bevel" allocated="true" owner-hue="{{ a.hue }}" hint-size="104px,104px" style="width:104px;height:104px;"></dc-import>
+              <div style="font-size:10px;color:rgba(190,200,225,0.65);text-align:center;line-height:1.35;">{{ a.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="width:1px;background:rgba(255,255,255,0.08);align-self:stretch;"></div>
+      <div>
+        <div style="{{ groupLabel }}color:oklch(0.7 0.2 30);">Enemies — hazard ring + red aura, distinct hues</div>
+        <div style="display:flex;gap:22px;">
+          <sc-for list="{{ enemies }}" as="e" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:9px;width:104px;">
+              <dc-import name="SkillNode2" size="104" archetype="{{ e.archetype }}" encoding="bevel" allocated="true" owner-hue="{{ e.hue }}" hostile="true" hint-size="104px,104px" style="width:104px;height:104px;"></dc-import>
+              <div style="font-size:10px;color:rgba(190,200,225,0.65);text-align:center;line-height:1.35;">{{ e.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: REPRESENTATIONAL ADDONS -->
+  <div style="margin-top:52px;margin-bottom:18px;display:flex;align-items:baseline;gap:14px;">
+    <div style="{{ H2 }}">4 · Addons that look like what they do</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.55);">Per the design doc: "an addon should be legible from the node's visual." Silhouette, not a badge.</div>
+  </div>
+  <div style="{{ card }}padding:28px 32px;margin-bottom:24px;">
+    <div style="display:flex;gap:26px;flex-wrap:wrap;justify-content:flex-start;">
+      <sc-for list="{{ addonDemos }}" as="ad" hint-placeholder-count="6">
+        <div style="width:210px;display:flex;gap:14px;align-items:flex-start;">
+          <dc-import name="SkillNode2" size="96" archetype="{{ ad.archetype }}" encoding="bevel" allocated="true" owner-hue="220" addons="{{ ad.addons }}" hint-size="96px,96px" style="width:96px;height:96px;flex:none;"></dc-import>
+          <div style="padding-top:6px;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:0.5px;color:#eef0f6;">{{ ad.name }}</div>
+            <div style="font-size:10px;color:rgba(185,195,220,0.62);line-height:1.5;margin-top:4px;">{{ ad.desc }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.07);">
+      <div style="font-size:10px;letter-spacing:1.5px;color:rgba(170,182,210,0.55);text-transform:uppercase;margin-bottom:12px;">Non-silhouette addons — badge fallback (utility / topological, no natural shape)</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <sc-for list="{{ badgeAddons }}" as="b" hint-placeholder-count="4">
+          <div style="display:flex;gap:9px;align-items:center;width:250px;">
+            <span style="width:22px;height:22px;flex:none;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid {{ b.tint }};display:flex;align-items:center;justify-content:center;font-size:11px;color:{{ b.tint }};">{{ b.glyph }}</span>
+            <div><div style="font-size:11px;font-weight:600;color:#eef0f6;">{{ b.name }}</div><div style="font-size:9.5px;color:rgba(180,190,215,0.58);line-height:1.4;">{{ b.desc }}</div></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: SELF-LOOPS + STACKING -->
+  <div style="display:flex;gap:22px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:520px;">
+      <div style="margin-top:28px;margin-bottom:18px;display:flex;align-items:baseline;gap:14px;">
+        <div style="{{ H2 }}">5 · Self-loops (degree +2)</div>
+      </div>
+      <div style="{{ card }}padding:28px 32px;height:calc(100% - 64px);">
+        <div style="font-size:12px;color:rgba(195,205,228,0.7);line-height:1.65;margin-bottom:22px;">An edge from a node to itself — mathematically +2 degree, with real gameplay weight (cast tier, blade joints). Drawn as a small loop tangent to the node, dropped into the <b style="color:#eef0f6;">least-occupied angular sector</b> so it never collides with outgoing edges. A degree pip keeps the count honest.</div>
+        <div style="display:flex;gap:34px;align-items:center;flex-wrap:wrap;">
+          <sc-for list="{{ loopDemos }}" as="l" hint-placeholder-count="3">
+            <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;width:150px;">
+              <div style="position:relative;width:150px;height:150px;">
+                <sc-for list="{{ l.edges }}" as="ed" hint-placeholder-count="0">
+                  <div style="position:absolute;left:75px;top:75px;width:{{ ed.len }}px;height:2px;background:rgba(255,217,140,0.55);transform-origin:0 50%;transform:rotate({{ ed.deg }}deg);"></div>
+                </sc-for>
+                <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);">
+                  <dc-import name="SkillNode2" size="98" archetype="{{ l.archetype }}" encoding="bevel" allocated="true" owner-hue="220" self-loop="{{ l.selfLoop }}" loop-angle="{{ l.loopAngle }}" hint-size="98px,98px" style="width:98px;height:98px;"></dc-import>
+                </div>
+                <div style="position:absolute;right:8px;bottom:8px;font-family:'Chakra Petch';font-weight:700;font-size:11px;color:#04050a;background:oklch(0.82 0.13 88);padding:2px 7px;border-radius:20px;">deg {{ l.degree }}</div>
+              </div>
+              <div style="font-size:10px;color:rgba(190,200,225,0.62);text-align:center;line-height:1.35;">{{ l.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 6: CORE NODES -->
+    <div style="flex:1;min-width:520px;">
+      <div style="margin-top:28px;margin-bottom:18px;display:flex;align-items:baseline;gap:14px;">
+        <div style="{{ H2 }}">6 · Core nodes — the class glyph</div>
+      </div>
+      <div style="{{ card }}padding:28px 32px;height:calc(100% - 64px);">
+        <div style="font-size:12px;color:rgba(195,205,228,0.7);line-height:1.65;margin-bottom:22px;">The core keeps the in-game convention: a large <b style="color:#eef0f6;">class glyph</b> embossed on the disk, tinted to its archetype. Same planetary-emblem set every node uses at small scale — so a core reads as "the big version of this discipline," not a separate visual language.</div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          <sc-for list="{{ cores }}" as="c" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:9px;width:98px;">
+              <dc-import name="SkillNode2" size="98" archetype="{{ c.archetype }}" encoding="bevel" allocated="true" owner-hue="220" core="true" hint-size="98px,98px" style="width:98px;height:98px;"></dc-import>
+              <div style="font-size:10px;color:rgba(190,200,225,0.65);text-align:center;">{{ c.name }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  ARCH = {
+    str:{ color:'oklch(0.64 0.21 27)', glyph:'♂', name:'STR' },
+    dex:{ color:'oklch(0.74 0.16 150)', glyph:'☿', name:'DEX' },
+    int:{ color:'oklch(0.62 0.17 258)', glyph:'♄', name:'INT' },
+    wis:{ color:'oklch(0.81 0.14 88)', glyph:'☉', name:'WIS' },
+    per:{ color:'oklch(0.62 0.20 305)', glyph:'☽', name:'PER' }
+  };
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:20px;letter-spacing:1.5px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  groupLabel = "font-family:'Cinzel',serif;font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;";
+
+  buildCells(encoding){
+    const rows = ['str','dex','per'];
+    const owners = [
+      { hue:220, chroma:0.14, hostile:false },
+      { hue:305, chroma:0.15, hostile:false },
+      { hue:25,  chroma:0.16, hostile:true }
+    ];
+    const cells = [];
+    rows.forEach(a => {
+      cells.push({ isLabel:true, isNode:false, text:this.ARCH[a].name, color:this.ARCH[a].color });
+      owners.forEach(o => {
+        cells.push({ isLabel:false, isNode:true, archetype:a, encoding, ownerHue:o.hue, ownerChroma:o.chroma, hostile:o.hostile });
+      });
+    });
+    return cells;
+  }
+
+  renderVals(){
+    const ownerLabels = [
+      { name:'Player · blue', label:'oklch(0.78 0.13 220)' },
+      { name:'Player · violet', label:'oklch(0.72 0.16 305)' },
+      { name:'Enemy · crimson', label:'oklch(0.7 0.2 30)' }
+    ];
+    const encodings = [
+      {
+        id:'1a', name:'Classic', badgeBg:'rgba(200,208,225,0.85)', recommended:false,
+        desc:'Fat archetype ring + owner-tinted disk — today’s scheme. Both dimensions saturated, fighting for the same color budget.',
+        verdictTag:'✕ Clash', verdictColor:'oklch(0.7 0.2 30)',
+        verdict:'Blue disk under a red ring, violet under green — the two hues collide and the eye can’t rank them. Worsens with every new player color.'
+      },
+      {
+        id:'1b', name:'Owner owns color', badgeBg:'oklch(0.78 0.13 220)', recommended:false,
+        desc:'Color belongs entirely to the owner (disk + thin rim). Archetype drops to a glyph + one small pip. Scales to infinite player hues, zero clash.',
+        verdictTag:'~ Trade', verdictColor:'oklch(0.82 0.13 88)',
+        verdict:'Bulletproof on owner clarity, but archetype now leans on a glyph — slightly harder to scan a whole tree’s disciplines at a glance / tiny zoom.'
+      },
+      {
+        id:'1c', name:'Bevel split', badgeBg:'oklch(0.82 0.13 145)', recommended:true,
+        desc:'Owner hue fills the 3D disk (the anchor); archetype rides the raised bevel as a light rim-light + embossed glyph. One object, both dimensions, harmonized.',
+        verdictTag:'✓ Best', verdictColor:'oklch(0.82 0.13 145)',
+        verdict:'Archetype stays a color (readable), owner stays dominant (the disk), and a light bevel never fights a saturated fill. Recommended starting point.'
+      }
+    ];
+    encodings.forEach(e => { e.cardStyle = this.card; e.owners = ownerLabels; e.cells = this.buildCells(e.id === '1a' ? 'classic' : e.id === '1b' ? 'ownerColor' : 'bevel'); });
+
+    const allies = [
+      { archetype:'str', hue:220, name:'You · azure' },
+      { archetype:'dex', hue:170, name:'Ally · teal' },
+      { archetype:'wis', hue:140, name:'Ally · jade' }
+    ];
+    const enemies = [
+      { archetype:'per', hue:25,  name:'Reaver · crimson' },
+      { archetype:'int', hue:60,  name:'Warden · amber' },
+      { archetype:'str', hue:330, name:'Cabal · magenta' }
+    ];
+
+    const addonDemos = [
+      { name:'Spikes', archetype:'str', addons:[{kind:'spikes'}], desc:'Vertex-spike damage when swung in a phantom blade — so the node literally bristles with outward spikes.' },
+      { name:'Armor Ring', archetype:'str', addons:[{kind:'armor_ring'}], desc:'Damage reduction — segmented metal plating clads the border band.' },
+      { name:'Reinforcement', archetype:'con', addons:[{kind:'reinforcement'}], desc:'Higher max HP — a second heavy brace ring doubles the wall.' },
+      { name:'Relay', archetype:'int', addons:[{kind:'relay'}], desc:'Projects a cast origin — broadcast antenna ticks radiate from the top.' },
+      { name:'Buffer', archetype:'dex', addons:[{kind:'buffer'}], desc:'Temporary reach taps — two utility ports sit at the node’s poles.' },
+      { name:'Stacked', archetype:'str', addons:[{kind:'armor_ring'},{kind:'reinforcement'},{kind:'spikes'}], desc:'Addons compose — plating + brace + spikes read together on one carrier.' }
+    ];
+    const badgeAddons = [
+      { glyph:'⇌', tint:'oklch(0.78 0.13 200)', name:'Winch', desc:'Reels a neighbor closer (distance math).' },
+      { glyph:'⊥', tint:'oklch(0.78 0.10 75)', name:'Clamp', desc:'Welds one blade joint rigid.' },
+      { glyph:'⚓', tint:'oklch(0.75 0.17 340)', name:'Lifelink', desc:'Topological anchor — sustains an island.' },
+      { glyph:'⧓', tint:'oklch(0.82 0.13 88)', name:'Gate', desc:'Lives on an EDGE, not a node — drawn at the edge midpoint.' }
+    ];
+
+    // self-loop demos: outgoing edges + the loop dropped in the biggest gap
+    const loopDemos = [
+      { archetype:'wis', selfLoop:true, loopAngle:-45, degree:2, label:'Isolated + loop → degree 2', edges:[] },
+      { archetype:'str', selfLoop:true, loopAngle:200, degree:4,
+        label:'2 edges busy top/right → loop drops bottom-left',
+        edges:[ { deg:-60, len:60 }, { deg:20, len:60 } ] },
+      { archetype:'int', selfLoop:true, loopAngle:-90, degree:6,
+        label:'Edges fan the lower arc → loop takes the open top',
+        edges:[ { deg:200, len:58 }, { deg:150, len:58 }, { deg:340, len:58 } ] }
+    ];
+
+    const cores = Object.keys(this.ARCH).map(k => ({ archetype:k, name:this.ARCH[k].name + ' core' }));
+
+    return {
+      H2:this.H2, card:this.card, groupLabel:this.groupLabel,
+      encodings, allies, enemies, addonDemos, badgeAddons, loopDemos, cores
+    };
+  }
+}
+
+</script>
+</body>
+</html>

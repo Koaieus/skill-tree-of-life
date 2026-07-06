@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}
+  @keyframes skn-floatUp{0%{opacity:0;transform:translateY(4px) scale(.85);}16%{opacity:1;}100%{opacity:0;transform:translateY(-46px) scale(1.02);}}
+  @keyframes skn-travel{from{offset-distance:0%;}to{offset-distance:100%;}}
+</style>
+</helmet>
+<div style="position:relative;width:1600px;min-height:100%;background:radial-gradient(120% 90% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);font-family:'Chakra Petch',sans-serif;color:#dbe1ee;padding:56px 64px 110px;">
+
+  <!-- HEADER -->
+  <div style="margin-bottom:44px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — Arcane Terminal</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:42px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;text-shadow:0 0 24px oklch(0.70 0.10 88 / 0.35);">Skill Node System</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.65);margin-top:10px;max-width:920px;line-height:1.6;">The node is the game's bread and butter — every screen is built from hundreds of these. This is a visual design pass on its anatomy, states, addon carriers, health, and the allocate / deallocate / signal-pulse VFX, grounded in the real ring geometry (<code style="color:#e6ebf5;">.claude/rules/skill-node-visuals.md</code>'s <code style="color:#e6ebf5;">ring_centerline</code> convention) and the live <code style="color:#e6ebf5;">AllocationVFX</code> coordinator. Everything below is interactive — click it.</div>
+  </div>
+
+  <!-- ANATOMY -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Anatomy</div>
+    <div style="{{ cardStyle }}padding:28px 32px;display:flex;gap:44px;align-items:flex-start;">
+      <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:14px;">
+        <dc-import name="SkillNode" size="220" archetype="wis" allocated="true" owner="player" hp-pct="68" context-state="target-valid" addons="{{ anatomyAddons }}" show-context="{{ layers.context }}" show-archetype="{{ layers.archetype }}" show-health="{{ layers.health }}" show-disk="{{ layers.disk }}" show-addons="{{ layers.addons }}" hint-size="220px,220px" style="width:220px;height:220px;"></dc-import>
+        <div style="font-size:9.5px;letter-spacing:1px;color:rgba(160,172,200,0.45);text-transform:uppercase;">click a layer to isolate it</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;">
+        <sc-for list="{{ layerRows }}" as="lr" hint-placeholder-count="5">
+          <div onClick="{{ lr.toggle }}" style="cursor:pointer;display:flex;gap:12px;align-items:flex-start;padding:10px 14px;border-radius:10px;border:1px solid {{ lr.border }};background:{{ lr.bg }};transition:all .15s;">
+            <span style="width:9px;height:9px;border-radius:50%;flex:none;margin-top:4px;background:{{ lr.dot }};box-shadow:0 0 6px {{ lr.dot }};"></span>
+            <div style="min-width:0;">
+              <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;letter-spacing:1px;color:#eef0f6;">{{ lr.name }}</span><span style="font-size:9px;font-family:monospace;color:rgba(160,172,200,0.5);">{{ lr.src }}</span></div>
+              <div style="font-size:11px;color:rgba(190,200,225,0.68);line-height:1.5;margin-top:3px;">{{ lr.desc }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALLOCATION & OWNER STATES -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Allocation &amp; Owner States</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:900px;line-height:1.6;">The disk (<code style="color:#c8d2e8;">inner_radius</code>) answers <b style="color:#eef0f6;">who</b> — empty glass when unowned, tinted to the owner's colour once allocated. The border ring always answers <b style="color:#eef0f6;">what discipline</b>, dimmed until owned.</div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;">
+      <sc-for list="{{ ownerStates }}" as="n" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:108px;">
+          <dc-import name="SkillNode" size="{{ n.size }}" archetype="{{ n.archetype }}" allocated="{{ n.allocated }}" owner="{{ n.owner }}" core="{{ n.core }}" force-hover="{{ n.forceHover }}" hint-size="108px,108px" style="width:108px;height:108px;"></dc-import>
+          <div style="font-size:10.5px;color:rgba(190,200,225,0.7);text-align:center;line-height:1.4;">{{ n.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- HEALTH -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Node Health</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:900px;line-height:1.6;">Proposed: a thin crimson arc riding the gap between the archetype border and the selection band (same <code style="color:#c8d2e8;">ring_centerline</code> formula). Reads glance-only — hidden at full HP, fades in on damage or hover, exactly matching the brief.</div>
+    <div style="display:flex;gap:36px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <dc-import name="SkillNode" size="132" archetype="str" allocated="true" owner="player" hp-pct="{{ healthDemo }}" hint-size="132px,132px" style="width:132px;height:132px;"></dc-import>
+        <div style="font-size:10.5px;color:rgba(190,200,225,0.7);">Live demo — {{ healthDemo }}/100</div>
+        <div style="display:flex;gap:8px;">
+          <button onClick="{{ healthDown }}" style="{{ btnSecondary }}">−10 HP</button>
+          <button onClick="{{ healthUp }}" style="{{ btnSecondary }}">+10 HP</button>
+        </div>
+      </div>
+      <sc-for list="{{ healthStatics }}" as="n" hint-placeholder-count="2">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:132px;">
+          <dc-import name="SkillNode" size="132" archetype="str" allocated="true" owner="player" hp-pct="{{ n.hp }}" force-hover="{{ n.forceHover }}" hint-size="132px,132px" style="width:132px;height:132px;"></dc-import>
+          <div style="font-size:10.5px;color:rgba(190,200,225,0.7);text-align:center;line-height:1.4;">{{ n.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- CONTEXT / TARGETING -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Context &amp; Targeting Rings</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:900px;line-height:1.6;">Per <code style="color:#c8d2e8;">skill-node-visuals.md</code> #73: hover is a soft glow halo, never a stroke — it's a different register from the crisp selection ring, so the two <b style="color:#eef0f6;">layer for free</b> instead of clashing. The ring itself is free real estate for attack-planning semantics.</div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;">
+      <sc-for list="{{ contextStates }}" as="n" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:108px;">
+          <dc-import name="SkillNode" size="108" archetype="{{ n.archetype }}" allocated="{{ n.allocated }}" owner="{{ n.owner }}" context-state="{{ n.contextState }}" force-hover="{{ n.forceHover }}" sensed="{{ n.sensed }}" hint-size="108px,108px" style="width:108px;height:108px;"></dc-import>
+          <div style="font-size:10.5px;color:rgba(190,200,225,0.7);text-align:center;line-height:1.4;">{{ n.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ADDONS -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Addon Carriers</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:900px;line-height:1.6;">Addons are ECS-style components stacked onto a node (<code style="color:#c8d2e8;">docs/design/skill_node_addons.md</code>) — the node is the carrier, badges are the read-out. Up to 3 corner chips; a 4th slot becomes a <code style="color:#c8d2e8;">+N</code> overflow so the ring never gets fenced in.</div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;margin-bottom:24px;">
+      <sc-for list="{{ addonCounts }}" as="n" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;width:108px;">
+          <dc-import name="SkillNode" size="108" archetype="{{ n.archetype }}" allocated="true" owner="player" addons="{{ n.addons }}" hint-size="108px,108px" style="width:108px;height:108px;"></dc-import>
+          <div style="font-size:10.5px;color:rgba(190,200,225,0.7);text-align:center;">{{ n.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="{{ cardStyle }}padding:20px 24px;display:flex;gap:28px;flex-wrap:wrap;">
+      <sc-for list="{{ addonLegend }}" as="a" hint-placeholder-count="8">
+        <div style="display:flex;gap:10px;width:230px;align-items:flex-start;">
+          <span style="width:22px;height:22px;flex:none;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid {{ a.tint }};display:flex;align-items:center;justify-content:center;font-size:11px;color:{{ a.tint }};">{{ a.glyph }}</span>
+          <div><div style="font-size:11.5px;font-weight:600;color:#eef0f6;">{{ a.name }}</div><div style="font-size:10px;color:rgba(180,190,215,0.6);line-height:1.4;margin-top:2px;">{{ a.desc }}</div></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- GATE special callout -->
+    <div style="margin-top:22px;{{ cardStyle }}padding:20px 24px;display:flex;gap:26px;align-items:center;">
+      <div style="position:relative;width:220px;height:100px;flex:none;">
+        <svg viewBox="0 0 220 100" style="position:absolute;inset:0;width:220px;height:100px;">
+          <line x1="40" y1="50" x2="180" y2="50" stroke="rgba(255,215,140,0.85)" stroke-width="2"></line>
+          <circle cx="110" cy="50" r="9" fill="rgba(10,11,18,0.95)" stroke="oklch(0.78 0.13 88)" stroke-width="1.6"></circle>
+          <text x="110" y="53" text-anchor="middle" font-size="10" fill="oklch(0.85 0.13 88)">⧓</text>
+        </svg>
+        <div style="position:absolute;left:40px;top:50px;transform:translate(-50%,-50%);"><dc-import name="SkillNode" size="72" archetype="dex" allocated="true" owner="player" hint-size="72px,72px" style="width:72px;height:72px;"></dc-import></div>
+        <div style="position:absolute;left:180px;top:50px;transform:translate(-50%,-50%);"><dc-import name="SkillNode" size="72" archetype="int" allocated="true" owner="player" hint-size="72px,72px" style="width:72px;height:72px;"></dc-import></div>
+      </div>
+      <div style="min-width:0;">
+        <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12px;letter-spacing:1.5px;color:oklch(0.85 0.13 88);text-transform:uppercase;margin-bottom:5px;">Gate — the one addon that lives on an edge</div>
+        <div style="font-size:11.5px;color:rgba(190,200,225,0.7);line-height:1.6;max-width:560px;">A 2-endpoint addon spanning an edge rather than a node — toggles it powered/depowered. Drawn as a diamond chip <b style="color:#eef0f6;">at the edge midpoint</b>, not a corner badge, so its "this is an edge-thing" identity reads at a glance.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALLOCATE / DEALLOCATE VFX -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Allocate / Deallocate VFX</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:920px;line-height:1.6;">The live <code style="color:#c8d2e8;">AllocationVFX</code> needle-spike ("skill point from the heavens") already reads well — kept as-is, shown here as the disk's charge-in flash. The redesign targets the two flagged as so-so: <b style="color:#eef0f6;">voluntary deallocation</b> now closes with an expanding ring at the empty socket (not just a fade), and <b style="color:#eef0f6;">forced deallocation</b> pairs the particle shatter with a shockwave so the kill reads as an impact, not just a puff.</div>
+    <div style="{{ cardStyle }}padding:26px 30px;display:flex;gap:34px;align-items:center;flex-wrap:wrap;">
+      <dc-import name="SkillNode" size="140" archetype="int" allocated="{{ allocDemo.allocated }}" owner="player" alloc-tick="{{ allocDemo.allocTick }}" deallo-tick="{{ allocDemo.dealloTick }}" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button onClick="{{ doAllocate }}" style="{{ btnPrimary }}">▶ Allocate</button>
+        <button onClick="{{ doDeallocate }}" style="{{ btnSecondary }}">↺ Deallocate</button>
+      </div>
+      <div style="max-width:480px;font-size:11px;color:rgba(180,190,215,0.6);line-height:1.6;">
+        <div style="margin-bottom:8px;"><b style="color:oklch(0.80 0.17 150);">Allocate</b> — needle spike (Lorentzian profile, <code style="color:#c8d2e8;">SPIKE_NEEDLE_GAMMA</code>) collapses into the disk as it charge-fills to the owner colour; ring brightens once.</div>
+        <div><b style="color:oklch(0.68 0.20 25);">Deallocate</b> — disk drains and dims; a thin ring expands outward from the socket as the last of the colour leaves, marking the spot as empty again instead of just vanishing.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNAL PULSE -->
+  <div style="margin-bottom:48px;">
+    <div style="{{ sectionLabelStyle }}">Signal Pulse — Modifiers Travelling to Core</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:920px;line-height:1.6;">The live coordinator (<code style="color:#c8d2e8;">GlowingDot</code>, <code style="color:#c8d2e8;">PULSE_PER_HOP</code> cadence) is a plain dot with a fading trail — legible but generic. Redesign: the comet now carries the <b style="color:#eef0f6;">source stat's colour</b> (so a STR pulse reads red even mid-flight), each edge it crosses lights up in step (an edge is only ever gold when <i>both</i> ends share an owner — watch edge 1 flip live), and arrival at the core fires a real impact ring instead of nothing. Timing slowed ~3× here for legibility.</div>
+    <div style="{{ cardStyle }}padding:26px 30px 20px;">
+      <div style="position:relative;width:900px;height:200px;">
+        <svg viewBox="0 0 900 200" style="position:absolute;inset:0;width:900px;height:200px;overflow:visible;">
+          <sc-for list="{{ pulseEdges }}" as="e" hint-placeholder-count="3">
+            <line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="{{ e.color }}" stroke-width="{{ e.width }}" opacity="{{ e.opacity }}" style="transition:all .2s ease;"></line>
+          </sc-for>
+          <sc-if value="{{ cometVisible }}" hint-placeholder-val="{{ false }}">
+            <circle key="{{ cometKey }}" r="9" fill="{{ cometColor }}" style="filter:drop-shadow(0 0 8px {{ cometColor }});offset-path:path('{{ cometPath }}');animation:skn-travel {{ hopDurationMs }}ms linear forwards;"></circle>
+            <circle key="{{ cometKey }}t1" r="5.5" fill="{{ cometColor }}" opacity="0.5" style="offset-path:path('{{ cometPath }}');animation:skn-travel {{ hopDurationMs }}ms linear forwards;animation-delay:-60ms;"></circle>
+            <circle key="{{ cometKey }}t2" r="3" fill="{{ cometColor }}" opacity="0.28" style="offset-path:path('{{ cometPath }}');animation:skn-travel {{ hopDurationMs }}ms linear forwards;animation-delay:-120ms;"></circle>
+          </sc-if>
+        </svg>
+        <sc-for list="{{ pulseNodes }}" as="n" hint-placeholder-count="4">
+          <div style="position:absolute;left:{{ n.x }}px;top:{{ n.y }}px;transform:translate(-50%,-50%);">
+            <dc-import name="SkillNode" size="{{ n.size }}" archetype="{{ n.archetype }}" allocated="{{ n.allocated }}" owner="player" core="{{ n.core }}" pulse-tick="{{ n.pulseTick }}" hint-size="90px,90px" style="width:{{ n.size }}px;height:{{ n.size }}px;"></dc-import>
+          </div>
+        </sc-for>
+        <sc-for list="{{ pulseToasts }}" as="t" hint-placeholder-count="0">
+          <div style="position:absolute;left:{{ t.x }}px;top:{{ t.y }}px;font-family:'Chakra Petch';font-weight:700;font-size:15px;letter-spacing:0.5px;white-space:nowrap;animation:skn-floatUp 1.7s ease-out forwards;color:{{ t.color }};text-shadow:0 0 10px {{ t.color }},0 1px 2px rgba(0,0,0,0.9);">{{ t.text }}</div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button onClick="{{ sendPulse }}" style="{{ btnPrimary }}">⚡ Allocate Leaf &amp; Send Pulse</button>
+        <button onClick="{{ resetPulse }}" style="{{ btnSecondary }}">↺ Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOVER INSPECTOR -->
+  <div>
+    <div style="{{ sectionLabelStyle }}">Hover Inspector</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:16px;max-width:920px;line-height:1.6;">Contents, owner, health, and addons in one glass card — matches the HUD's existing tooltip language (colour-bordered, Cinzel label header). Shown pinned open here; in-game it appears on hover, gated by vision/fog-of-war.</div>
+    <div style="display:flex;gap:40px;flex-wrap:wrap;">
+      <sc-for list="{{ tooltipDemos }}" as="d" hint-placeholder-count="2">
+        <div style="display:flex;gap:18px;align-items:flex-start;">
+          <dc-import name="SkillNode" size="96" archetype="{{ d.archetype }}" allocated="true" owner="{{ d.owner }}" core="{{ d.core }}" hp-pct="{{ d.hpPct }}" addons="{{ d.addons }}" force-hover="true" hint-size="96px,96px" style="width:96px;height:96px;"></dc-import>
+          <dc-import name="NodeTooltip" archetype="{{ d.archetype }}" title="{{ d.title }}" core="{{ d.core }}" allocated="true" owner="{{ d.owner }}" owner-name="{{ d.ownerName }}" hp-cur="{{ d.hpCur }}" hp-max="{{ d.hpMax }}" mods="{{ d.mods }}" addons="{{ d.tooltipAddons }}" hint-size="242px,220px" style="width:242px;"></dc-import>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  ARCH = { str:'oklch(0.64 0.21 27)', dex:'oklch(0.74 0.16 150)', int:'oklch(0.68 0.18 258)', wis:'oklch(0.81 0.14 88)', per:'oklch(0.66 0.21 305)', con:'oklch(0.92 0.02 250)' };
+  cardStyle = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:13px;box-shadow:0 10px 34px -14px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);backdrop-filter:blur(7px);";
+  sectionLabelStyle = "font-family:'Cinzel',serif;font-weight:700;font-size:13px;letter-spacing:3px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:16px;";
+  btnPrimary = "cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:12px;letter-spacing:0.5px;padding:9px 16px;border-radius:8px;border:1px solid oklch(0.60 0.20 25);background:linear-gradient(160deg,oklch(0.40 0.15 25),oklch(0.28 0.12 25));color:#ffdede;text-transform:uppercase;box-shadow:0 0 16px -6px oklch(0.60 0.20 25);";
+  btnSecondary = "cursor:pointer;font-family:'Chakra Petch';font-weight:600;font-size:12px;letter-spacing:0.5px;padding:9px 16px;border-radius:8px;border:1px solid rgba(150,160,190,0.3);background:linear-gradient(160deg,rgba(40,44,58,0.9),rgba(24,26,36,0.9));color:#c8d0e0;text-transform:uppercase;";
+
+  state = {
+    layers: { context:true, archetype:true, health:true, disk:true, addons:true },
+    healthDemo: 62,
+    allocDemo: { allocated:false, allocTick:0, dealloTick:0 },
+    pulse: { node0Allocated:false, activeHop:-1, coreTick:0, cometSeq:0, toasts:[] }
+  };
+  _tid = 0;
+  _hopDuration = 420;
+
+  toggleLayer(key){ this.setState(s => ({ layers: { ...s.layers, [key]: !s.layers[key] } })); }
+  healthUp(){ this.setState(s => ({ healthDemo: Math.min(100, s.healthDemo + 10) })); }
+  healthDown(){ this.setState(s => ({ healthDemo: Math.max(0, s.healthDemo - 10) })); }
+
+  doAllocate(){
+    this.setState(s => ({ allocDemo: { ...s.allocDemo, allocated:true, allocTick: s.allocDemo.allocTick + 1 } }));
+  }
+  doDeallocate(){
+    if (!this.state.allocDemo.allocated) return;
+    this.setState(s => ({ allocDemo: { ...s.allocDemo, dealloTick: s.allocDemo.dealloTick + 1 } }));
+    clearTimeout(this._dT);
+    this._dT = setTimeout(() => this.setState(s => ({ allocDemo: { ...s.allocDemo, allocated:false } })), 680);
+  }
+
+  pushToast(text, color, x, y){
+    const id = ++this._tid;
+    this.setState(s => ({ pulse: { ...s.pulse, toasts: [...s.pulse.toasts, { id, text, color, x, y }] } }));
+    setTimeout(() => this.setState(s => ({ pulse: { ...s.pulse, toasts: s.pulse.toasts.filter(t => t.id !== id) } })), 1700);
+  }
+
+  sendPulse(){
+    if (this.state.pulse.node0Allocated) return;
+    clearTimeout(this._p1); clearTimeout(this._p2); clearTimeout(this._p3); clearTimeout(this._p4);
+    this.setState(s => ({ pulse: { ...s.pulse, node0Allocated:true } }));
+    const D = this._hopDuration;
+    this._p1 = setTimeout(() => this.setState(s => ({ pulse: { ...s.pulse, activeHop:0, cometSeq: s.pulse.cometSeq+1 } })), 260);
+    this._p2 = setTimeout(() => this.setState(s => ({ pulse: { ...s.pulse, activeHop:1, cometSeq: s.pulse.cometSeq+1 } })), 260+D);
+    this._p3 = setTimeout(() => this.setState(s => ({ pulse: { ...s.pulse, activeHop:2, cometSeq: s.pulse.cometSeq+1 } })), 260+D*2);
+    this._p4 = setTimeout(() => {
+      this.setState(s => ({ pulse: { ...s.pulse, activeHop:-1, coreTick: s.pulse.coreTick + 1 } }));
+      this.pushToast('+6 STR', 'oklch(0.80 0.17 150)', 700, 30);
+    }, 260+D*3);
+  }
+  resetPulse(){
+    clearTimeout(this._p1); clearTimeout(this._p2); clearTimeout(this._p3); clearTimeout(this._p4);
+    this.setState({ pulse: { node0Allocated:false, activeHop:-1, coreTick:0, cometSeq:0, toasts:[] } });
+  }
+
+  renderVals(){
+    const layers = this.state.layers;
+    const layerDefs = [
+      { key:'disk', name:'Allocation Disk', src:'base_circle.gd · inner_radius', dot:'oklch(0.68 0.13 220)', desc:'WHO owns it. Empty dark glass when unallocated; owner-tinted radial fill once claimed.' },
+      { key:'archetype', name:'Archetype Border', src:'base_circle.gd · BORDER_WIDTH', dot:'oklch(0.64 0.21 27)', desc:'WHAT discipline. Flush with the outer boundary, one of the five stat hues. Dims until owned.' },
+      { key:'health', name:'Health Ring (proposed)', src:'new · rides the ring_centerline gap', dot:'oklch(0.60 0.21 25)', desc:'HOW close to death. Hidden at full HP; fades in on damage or hover.' },
+      { key:'context', name:'Context / Selection Ring', src:'node_highlight_overlay.gd', dot:'oklch(0.82 0.13 88)', desc:'YOUR interaction with it right now — hover glow, attack source, valid/invalid target, threat.' },
+      { key:'addons', name:'Addon Badges (proposed)', src:'new · docs/design/skill_node_addons.md', dot:'oklch(0.75 0.14 200)', desc:'WHAT components are attached. Up to 3 corner chips, 4th+ collapses to a +N overflow.' }
+    ];
+    const layerRows = layerDefs.map(l => ({
+      name:l.name, src:l.src, desc:l.desc, dot:l.dot,
+      border: layers[l.key] ? 'rgba(150,165,210,0.28)' : 'rgba(255,255,255,0.06)',
+      bg: layers[l.key] ? 'rgba(255,255,255,0.035)' : 'transparent',
+      toggle: () => this.toggleLayer(l.key)
+    }));
+    const anatomyAddons = [{kind:'armor_ring'},{kind:'reinforcement'}];
+
+    const ownerStates = [
+      { archetype:'str', allocated:false, owner:'none', label:'Unallocated' },
+      { archetype:'str', allocated:false, owner:'none', forceHover:true, label:'Unallocated · hover' },
+      { archetype:'str', allocated:true, owner:'player', label:'Allocated · You' },
+      { archetype:'str', allocated:true, owner:'player', forceHover:true, label:'Allocated · You · hover' },
+      { archetype:'per', allocated:true, owner:'enemy', label:'Allocated · Enemy' },
+      { archetype:'wis', allocated:true, owner:'player', core:true, label:'Core node' }
+    ].map(n => ({ size:108, ...n }));
+
+    const healthStatics = [
+      { hp:100, label:'Full HP — ring hidden' },
+      { hp:100, forceHover:true, label:'Full HP · hovered — ring reveals' },
+      { hp:15, label:'Critical — pulsing warning' }
+    ];
+
+    const contextStates = [
+      { archetype:'dex', allocated:true, owner:'player', forceHover:true, label:'Hover glow (halo, not a ring)' },
+      { archetype:'dex', allocated:true, owner:'player', contextState:'source', label:'Selected as attack source' },
+      { archetype:'dex', allocated:true, owner:'player', contextState:'source', forceHover:true, label:'Source + hover — coexist, no clash' },
+      { archetype:'per', allocated:true, owner:'enemy', contextState:'target-valid', label:'Valid target in range' },
+      { archetype:'per', allocated:true, owner:'enemy', contextState:'target-invalid', label:'Invalid / out of range' },
+      { archetype:'int', allocated:true, owner:'player', contextState:'threat', label:'Threatened by enemy reach' },
+      { archetype:'wis', allocated:true, owner:'player', sensed:true, label:'Sensed only (fog of war)' }
+    ];
+
+    const AD = {
+      armor_ring:{glyph:'⛨',tint:'oklch(0.88 0.02 250)',name:'Armor Ring',desc:"Reduces damage taken by this specific node."},
+      reinforcement:{glyph:'✚',tint:'oklch(0.70 0.15 48)',name:'Reinforcement',desc:"Raises this node's max HP."},
+      buffer:{glyph:'⇌',tint:'oklch(0.75 0.14 200)',name:'Buffer',desc:'Taps to temporarily borrow reach across the real graph for one attack.'},
+      clamp:{glyph:'⊥',tint:'oklch(0.78 0.10 75)',name:'Clamp',desc:'Welds one blade joint rigid without needing a triangle.'},
+      lifeline:{glyph:'⟐',tint:'oklch(0.75 0.14 200)',name:'Lifeline',desc:'Grants a 1-turn grace period before a cut-off island dissolves.'},
+      relay:{glyph:'⇉',tint:'oklch(0.75 0.14 258)',name:'Relay',desc:"Projects a spell's cast origin down a chain to a better-connected node."},
+      lifelink:{glyph:'⚓',tint:'oklch(0.75 0.17 340)',name:'Lifelink',desc:'Sustains a cut-off island indefinitely — a topological anchor. Very rare.'},
+      spikes:{glyph:'▲',tint:'oklch(0.70 0.19 48)',name:'Spikes',desc:"Raises this node's vertex-spike damage when swung in a phantom blade."}
+    };
+    const addonLegend = Object.values(AD);
+    const addonCounts = [
+      { archetype:'str', addons:[], label:'0 addons' },
+      { archetype:'str', addons:[{kind:'armor_ring'}], label:'1 addon' },
+      { archetype:'str', addons:[{kind:'armor_ring'},{kind:'reinforcement'}], label:'2 addons' },
+      { archetype:'str', addons:[{kind:'armor_ring'},{kind:'reinforcement'},{kind:'clamp'}], label:'3 addons' },
+      { archetype:'str', addons:[{kind:'armor_ring'},{kind:'reinforcement'},{kind:'clamp'},{kind:'spikes'}], label:'4 addons (+1 overflow)' }
+    ];
+
+    // pulse chain demo
+    const p = this.state.pulse;
+    const nodeDefs = [
+      { x:70, y:150, archetype:'str', size:80 },
+      { x:330, y:60, archetype:'str', size:80 },
+      { x:590, y:150, archetype:'str', size:80 },
+      { x:830, y:60, archetype:'wis', size:88, core:true }
+    ];
+    const nodeAllocated = [p.node0Allocated, true, true, true];
+    const pulseNodes = nodeDefs.map((n,i) => ({ ...n, allocated:nodeAllocated[i], core:!!n.core, pulseTick: i===3 ? p.coreTick : 0 }));
+    const edgeDefs = [[0,1],[1,2],[2,3]];
+    const litColor = 'rgba(255,217,140,0.95)', unlitColor = 'rgba(150,155,170,0.4)';
+    const pulseEdges = edgeDefs.map(([a,b]) => {
+      const lit = nodeAllocated[a] && nodeAllocated[b];
+      return { x1:nodeDefs[a].x, y1:nodeDefs[a].y, x2:nodeDefs[b].x, y2:nodeDefs[b].y, color: lit?litColor:unlitColor, width: lit?2.4:1.6, opacity: lit?1:0.7 };
+    });
+    const hop = p.activeHop;
+    const cometVisible = hop >= 0 && hop < 3;
+    let cometPath = '', cometColor = this.ARCH.str;
+    if (cometVisible) {
+      const a = nodeDefs[edgeDefs[hop][0]], b = nodeDefs[edgeDefs[hop][1]];
+      cometPath = `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
+      cometColor = this.ARCH[pulseNodes[edgeDefs[hop][0]].archetype] || this.ARCH.str;
+    }
+    const pulseToasts = p.toasts;
+
+    // tooltip demos
+    const tooltipDemos = [
+      {
+        archetype:'str', owner:'player', ownerName:'You', title:'STR Node', core:false, hpPct:70, hpCur:7, hpMax:10,
+        addons:[{kind:'armor_ring'}],
+        mods:[ {label:'Strength', text:'+6', color:this.ARCH.str}, {label:'Blade Damage', text:'+1 /contact', color:this.ARCH.str} ],
+        tooltipAddons:[ { glyph:AD.armor_ring.glyph, tint:AD.armor_ring.tint, name:AD.armor_ring.name, desc:AD.armor_ring.desc } ]
+      },
+      {
+        archetype:'wis', owner:'player', ownerName:'You', title:'Core', core:true, hpPct:100, hpCur:10, hpMax:10,
+        addons:[{kind:'reinforcement'},{kind:'relay'}],
+        mods:[ {label:'Wisdom', text:'+10', color:this.ARCH.wis}, {label:'XP / turn', text:'+1', color:this.ARCH.wis} ],
+        tooltipAddons:[
+          { glyph:AD.reinforcement.glyph, tint:AD.reinforcement.tint, name:AD.reinforcement.name, desc:AD.reinforcement.desc },
+          { glyph:AD.relay.glyph, tint:AD.relay.tint, name:AD.relay.name, desc:AD.relay.desc }
+        ]
+      }
+    ];
+
+    return {
+      cardStyle:this.cardStyle, sectionLabelStyle:this.sectionLabelStyle, btnPrimary:this.btnPrimary, btnSecondary:this.btnSecondary,
+      layers, layerRows, anatomyAddons,
+      ownerStates, healthDemo: this.state.healthDemo, healthStatics,
+      healthUp: () => this.healthUp(), healthDown: () => this.healthDown(),
+      contextStates, addonLegend, addonCounts,
+      allocDemo: this.state.allocDemo, doAllocate: () => this.doAllocate(), doDeallocate: () => this.doDeallocate(),
+      pulseNodes, pulseEdges, cometVisible, cometPath, cometColor, cometKey:'c'+p.cometSeq, hopDurationMs: this._hopDuration,
+      pulseToasts, sendPulse: () => this.sendPulse(), resetPulse: () => this.resetPulse(),
+      tooltipDemos
+    };
+  }
+}
+
+</script>
+</body>
+</html>

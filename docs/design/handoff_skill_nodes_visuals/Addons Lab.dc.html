@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — lab · addons</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">Addons lab</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1200px;line-height:1.65;">Stackable, subtle attachments — first pass. Each reads as a small mechanical/magical fixture bolted to the node, independent of archetype or stake. Twirl <b style="color:oklch(0.82 0.13 88);">addonPlates / addonFortify / addonBridge / addonLifeline / addonClamp</b> on the hero to build any combo.</div>
+  </div>
+
+  <div style="{{ card }}padding:34px;display:flex;gap:40px;align-items:center;margin-bottom:24px;">
+    <dc-import name="ArcheNode" size="300" variant="well" arch="{{ arch }}" hue="{{ hue }}" addonPlates="{{ addonPlates }}" addonFortify="{{ addonFortify }}" addonBridge="{{ addonBridge }}" addonLifeline="{{ addonLifeline }}" addonClamp="{{ addonClamp }}" hint-size="300px,300px" style="width:300px;height:300px;flex:none;"></dc-import>
+    <div>
+      <div style="{{ H2 }}margin-bottom:10px;">Live — twirl any combination</div>
+      <div style="font-size:12px;color:rgba(190,200,225,0.7);line-height:1.8;">
+        <b style="color:#eef0f6;">Plates</b> — four bolted armor plates at the diagonals. Reads as "reinforced", cosmetic.<br>
+        <b style="color:#eef0f6;">Fortify</b> — a thick reinforced band across the base, like a bunker footing.<br>
+        <b style="color:#eef0f6;">Bridge</b> — a small ramp/gate nub on one side, a hint this node connects onward.<br>
+        <b style="color:#eef0f6;">Lifeline</b> — a pulsing tether from the core to the rim, like life support.<br>
+        <b style="color:#eef0f6;">Clamp</b> — mechanical pincers gripping left and right, like it's held in place.
+      </div>
+    </div>
+  </div>
+
+  <!-- individually, at large scale -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:20px;">Each addon, alone</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:18px;">
+      <sc-for list="{{ singleCells }}" as="c" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 0 22px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <dc-import name="ArcheNode" size="170" variant="well" arch="con" hue="305" addonPlates="{{ c.plates }}" addonFortify="{{ c.fortify }}" addonBridge="{{ c.bridge }}" addonLifeline="{{ c.lifeline }}" addonClamp="{{ c.clamp }}" spin="{{ false }}" hint-size="170px,170px" style="width:170px;height:170px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:#eef0f6;">{{ c.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- stacked combos -->
+  <div style="{{ card }}padding:26px 30px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Stacked combos</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">Any addon can layer with any other — they claim different angles/zones around the rim, so they don't collide.</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;">
+      <sc-for list="{{ comboCells }}" as="c" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 0 22px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <dc-import name="ArcheNode" size="170" variant="well" arch="{{ c.arch }}" hue="{{ c.hue }}" addonPlates="{{ c.plates }}" addonFortify="{{ c.fortify }}" addonBridge="{{ c.bridge }}" addonLifeline="{{ c.lifeline }}" addonClamp="{{ c.clamp }}" spin="{{ false }}" hint-size="170px,170px" style="width:170px;height:170px;"></dc-import>
+          <div style="text-align:center;">
+            <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13.5px;color:#eef0f6;">{{ c.name }}</div>
+            <div style="font-size:9.5px;color:rgba(180,190,215,0.5);margin-top:2px;">{{ c.note }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;con&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;],&quot;section&quot;:&quot;Node&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:305,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Node&quot;},&quot;addonPlates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonFortify&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonBridge&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonLifeline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonClamp&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  renderVals(){
+    const p=this.props;
+    const singleCells=[
+      {name:'Plates',   plates:true,  fortify:false, bridge:false, lifeline:false, clamp:false},
+      {name:'Fortify',  plates:false, fortify:true,  bridge:false, lifeline:false, clamp:false},
+      {name:'Bridge',   plates:false, fortify:false, bridge:true,  lifeline:false, clamp:false},
+      {name:'Lifeline', plates:false, fortify:false, bridge:false, lifeline:true,  clamp:false},
+      {name:'Clamp',    plates:false, fortify:false, bridge:false, lifeline:false, clamp:true}
+    ];
+    const comboCells=[
+      {name:'Fortified bastion', note:'plates + fortify', arch:'con', hue:305, plates:true, fortify:true, bridge:false, lifeline:false, clamp:false},
+      {name:'Waystation',        note:'bridge + clamp',   arch:'per', hue:200, plates:false, fortify:false, bridge:true, lifeline:false, clamp:true},
+      {name:'Life-bound',        note:'lifeline + plates',arch:'wis', hue:88,  plates:true, fortify:false, bridge:false, lifeline:true, clamp:false},
+      {name:'Everything',        note:'all five, for stress-test', arch:'str', hue:25, plates:true, fortify:true, bridge:true, lifeline:true, clamp:true}
+    ];
+    return { H2:this.H2, card:this.card, singleCells, comboCells,
+      arch:p.arch??'con', hue:p.hue??305,
+      addonPlates:!!p.addonPlates, addonFortify:!!p.addonFortify, addonBridge:!!p.addonBridge,
+      addonLifeline:!!p.addonLifeline, addonClamp:!!p.addonClamp };
+  }
+}
+
+</script>
+</body>
+</html>

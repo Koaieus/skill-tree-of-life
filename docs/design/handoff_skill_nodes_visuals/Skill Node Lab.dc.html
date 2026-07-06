@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;}body{margin:0;background:#04050a;font-family:'Chakra Petch',sans-serif;}</style>
+</helmet>
+<div style="width:1760px;background:radial-gradient(120% 80% at 50% 0%, #0b0d16 0%, #06070d 45%, #030409 100%);color:#dbe1ee;padding:56px 60px 120px;">
+
+  <a href="Lab Index.dc.html" style="display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(190,200,225,0.6);margin-bottom:22px;transition:color 0.15s;" style-hover="color:#eef0f6;">&larr; Lab Index</a>
+
+  <div style="margin-bottom:34px;">
+    <div style="font-size:10.5px;letter-spacing:4px;color:oklch(0.80 0.10 88);text-transform:uppercase;margin-bottom:8px;">Skill Tree of Life — node lab · twirl the tweaks</div>
+    <div style="font-family:'Cinzel',serif;font-weight:800;font-size:38px;letter-spacing:2px;color:#eef0f6;text-transform:uppercase;">The tweak bench</div>
+    <div style="font-size:13px;color:rgba(190,200,225,0.68);margin-top:12px;max-width:1200px;line-height:1.65;">Open the <b style="color:#eef0f6;">Tweaks panel</b> and twirl every aspect at once. Stake now grows the crater's own inner rim (<b style="color:oklch(0.85 0.14 150);">chrome</b>) instead of bolting marks outside it — <b style="color:#eef0f6;">rimProfile</b> picks the cut. <b style="color:#eef0f6;">runeRing</b> brings the boss ring-of-runes to any node. Addons are stackable attachments. Glow mode <b style="color:#eef0f6;">hover</b> is now a real cursor-triggered reveal — hover the hero to see it bloom; <b style="color:#eef0f6;">pulse</b> breathes on its own regardless of the cursor.</div>
+  </div>
+
+  <div style="display:flex;gap:22px;align-items:stretch;flex-wrap:wrap;margin-bottom:22px;">
+    <!-- HERO driven by tweaks -->
+    <div style="{{ card }}flex:1;min-width:520px;padding:34px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+      <div style="{{ H2 }}align-self:flex-start;">Live node — driven by the Tweaks panel</div>
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:30px 0;">
+        <dc-import name="ArcheNode" size="340" variant="well" arch="{{ arch }}" hue="{{ hue }}" allocated="{{ allocated }}" weldK="{{ weldK }}" sigil="{{ sigil }}" showGlyph="{{ showGlyph }}" tintMix="{{ tintMix }}" glowMode="{{ glowMode }}" glowAmt="{{ glowAmt }}" core="{{ core }}" haloScale="{{ haloScale }}" runeRing="{{ runeRing }}" runeRingStyle="{{ runeRingStyle }}" rimStyle="{{ rimStyle }}" rimProfile="{{ rimProfile }}" stakeStyle="{{ stakeStyle }}" stakeCap="{{ stakeCap }}" stakeAlloc="{{ stakeAlloc }}" addonPlates="{{ addonPlates }}" addonFortify="{{ addonFortify }}" addonBridge="{{ addonBridge }}" addonLifeline="{{ addonLifeline }}" addonClamp="{{ addonClamp }}" hint-size="340px,340px" style="width:340px;height:340px;"></dc-import>
+      </div>
+      <div style="font-size:11px;color:rgba(180,190,215,0.55);text-align:center;">Hover the node — with glow mode <b style="color:#eef0f6;">hover</b> it blooms on cursor; <b style="color:#eef0f6;">pulse</b> breathes always.</div>
+    </div>
+
+    <!-- STAKE states -->
+    <div style="{{ card }}flex:1;min-width:520px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Stake — alloc / cap, chrome rim</div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:20px;">The crater's own rim splits into nested rings; filled = bright owner-tinted chrome, unfilled = flat unrealized capacity. 3/3 visibly outbuilds 1/1 — no bolt-on badge needed.</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;justify-items:center;">
+        <sc-for list="{{ stakeCells }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:9px;">
+            <dc-import name="ArcheNode" size="130" variant="well" arch="int" hue="265" allocated="{{ c.on }}" stakeStyle="chrome" stakeCap="{{ c.cap }}" stakeAlloc="{{ c.alloc }}" spin="{{ false }}" hint-size="130px,130px" style="width:130px;height:130px;"></dc-import>
+            <div style="text-align:center;">
+              <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ c.name }}</div>
+              <div style="font-size:9px;color:rgba(180,190,215,0.5);margin-top:1px;">{{ c.note }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDONS -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Addons — stackable attachments</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;max-width:1200px;">Subtle, independent attachments — mix any combination. Twirl <b style="color:oklch(0.82 0.13 88);">addonPlates / addonFortify / addonBridge / addonLifeline / addonClamp</b> on the hero to build your own combo.</div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:16px;">
+      <sc-for list="{{ addonCells }}" as="c" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:28px 0 20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <dc-import name="ArcheNode" size="130" variant="well" arch="con" hue="305" addonPlates="{{ c.plates }}" addonFortify="{{ c.fortify }}" addonBridge="{{ c.bridge }}" addonLifeline="{{ c.lifeline }}" addonClamp="{{ c.clamp }}" spin="{{ false }}" hint-size="130px,130px" style="width:130px;height:130px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:12.5px;color:#eef0f6;">{{ c.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- CORE PRESENCE -->
+  <div style="{{ card }}padding:26px 30px;margin-bottom:22px;">
+    <div style="{{ H2 }}margin-bottom:4px;">Core presence — halos at haloScale {{ haloScale }}</div>
+    <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;max-width:1200px;">The nucleus of a living entity has to broadcast itself. Twirl <b style="color:oklch(0.82 0.13 88);">haloScale</b> on the hero above — every card here scales with it, so halo geometry never gets clipped. <b style="color:#eef0f6;">Gimbal</b> is the enveloping gyroscope-ring option; <b style="color:#eef0f6;">Rune ring</b> is the boss mark, now available to anyone.</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+      <sc-for list="{{ coreCells }}" as="c" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:{{ cardPad }}px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:12px;">
+          <dc-import name="ArcheNode" size="{{ coreCardSize }}" variant="well" arch="{{ c.arch }}" hue="{{ c.hue }}" core="{{ c.core }}" runeRing="{{ c.runeRing }}" haloScale="{{ haloScale }}" sigil="{{ true }}" hint-size="{{ coreCardSize }}px,{{ coreCardSize }}px" style="width:{{ coreCardSize }}px;height:{{ coreCardSize }}px;"></dc-import>
+          <div style="font-family:'Cinzel',serif;font-weight:700;font-size:13px;color:#eef0f6;">{{ c.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- GLOW MODES + SIGIL -->
+  <div style="display:flex;gap:22px;flex-wrap:wrap;">
+    <div style="{{ card }}flex:2;min-width:560px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Archetype rim glow — modes</div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;">Same STR node, five glow behaviours. <b style="color:#eef0f6;">Always</b> is a fixed baked-in ring. <b style="color:#eef0f6;">Pulse</b> breathes on its own. <b style="color:#eef0f6;">Hover</b> is dim at rest and blooms only on real cursor hover — try it below. <b style="color:#eef0f6;">Sweep</b> rotates a bright arc.</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;justify-items:center;">
+        <sc-for list="{{ glowCells }}" as="c" hint-placeholder-count="5">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:9px;">
+            <dc-import name="ArcheNode" size="140" variant="well" arch="str" hue="25" glowMode="{{ c.mode }}" glowAmt="0.7" tintMix="0.5" hint-size="140px,140px" style="width:140px;height:140px;"></dc-import>
+            <div style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">{{ c.name }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="{{ card }}flex:1;min-width:300px;padding:26px 30px;">
+      <div style="{{ H2 }}margin-bottom:4px;">Weld vs sigil</div>
+      <div style="font-size:11.5px;color:rgba(190,200,225,0.6);margin-bottom:22px;">Left: continuous weld (shape as the disc). Right: sigil — a glowing chasm with light pouring out, for an entity core.</div>
+      <div style="display:flex;gap:26px;justify-content:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="int" hue="265" weldK="0.92" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">Weld</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <dc-import name="ArcheNode" size="150" variant="well" arch="int" hue="265" sigil="{{ true }}" hint-size="150px,150px" style="width:150px;height:150px;"></dc-import>
+          <span style="font-family:'Cinzel',serif;font-size:12px;color:#eef0f6;">Sigil</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;arch&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;str&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;wis&quot;,&quot;int&quot;,&quot;per&quot;,&quot;con&quot;],&quot;section&quot;:&quot;Node&quot;},&quot;hue&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:210,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360,&quot;step&quot;:1,&quot;section&quot;:&quot;Node&quot;},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Node&quot;},&quot;weldK&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.88,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0.4,&quot;max&quot;:1.15,&quot;step&quot;:0.01,&quot;section&quot;:&quot;Shape&quot;},&quot;sigil&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Shape&quot;},&quot;showGlyph&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Shape&quot;},&quot;rimStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;single&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;single&quot;,&quot;double&quot;],&quot;section&quot;:&quot;Shape&quot;},&quot;tintMix&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;glowMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;hover&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;always&quot;,&quot;hover&quot;,&quot;pulse&quot;,&quot;sweep&quot;],&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;glowAmt&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0.6,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:1,&quot;step&quot;:0.05,&quot;section&quot;:&quot;Metal &amp; glow&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;rings&quot;,&quot;cog&quot;,&quot;orbit&quot;,&quot;spikes&quot;,&quot;gimbal&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;haloScale&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:4,&quot;step&quot;:0.1,&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRing&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;single&quot;,&quot;double&quot;,&quot;triple&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;runeRingStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;flush&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;flush&quot;,&quot;ornate&quot;,&quot;mixed&quot;],&quot;section&quot;:&quot;Core presence&quot;},&quot;stakeStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;chrome&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;chrome&quot;,&quot;pips&quot;,&quot;rims&quot;,&quot;unison&quot;,&quot;ticks&quot;,&quot;arc&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;rimProfile&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;smooth&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;smooth&quot;,&quot;stepped&quot;,&quot;grooved&quot;,&quot;terraced&quot;],&quot;section&quot;:&quot;Stake&quot;},&quot;stakeCap&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:1,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;stakeAlloc&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:3,&quot;section&quot;:&quot;Stake&quot;},&quot;addonPlates&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonFortify&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonBridge&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonLifeline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;},&quot;addonClamp&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Addons&quot;}}">
+class Component extends DCLogic {
+  H2 = "font-family:'Cinzel',serif;font-weight:700;font-size:19px;letter-spacing:1.3px;color:#eef0f6;text-transform:uppercase;";
+  card = "background:linear-gradient(158deg,rgba(22,25,38,0.94),rgba(10,11,19,0.95));border:1px solid rgba(120,140,190,0.16);border-radius:14px;box-shadow:0 12px 36px -16px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.045);";
+  renderVals(){
+    const p=this.props;
+    const stakeCells=[
+      {name:'1 / 1', note:'baseline',       on:true, cap:1, alloc:1},
+      {name:'1 / 2', note:'cap raised',     on:true, cap:2, alloc:1},
+      {name:'2 / 3', note:'outmatches 1/1', on:true, cap:3, alloc:2},
+      {name:'3 / 3', note:'5 SP — max',     on:true, cap:3, alloc:3}
+    ];
+    const addonCells=[
+      {name:'None',     plates:false, fortify:false, bridge:false, lifeline:false, clamp:false},
+      {name:'Plates',   plates:true,  fortify:false, bridge:false, lifeline:false, clamp:false},
+      {name:'Fortify',  plates:false, fortify:true,  bridge:false, lifeline:false, clamp:false},
+      {name:'Bridge',   plates:false, fortify:false, bridge:true,  lifeline:false, clamp:false},
+      {name:'Lifeline', plates:false, fortify:false, bridge:false, lifeline:true,  clamp:false},
+      {name:'Clamp',    plates:false, fortify:false, bridge:false, lifeline:false, clamp:true}
+    ];
+    const coreCells=[
+      {name:'Rings',    core:'rings',  arch:'str', hue:150, runeRing:'none'},
+      {name:'Gimbal',   core:'gimbal', arch:'int', hue:265, runeRing:'none'},
+      {name:'Tick',     core:'cog',    arch:'con', hue:305, runeRing:'none'},
+      {name:'Orbit',    core:'orbit',  arch:'per', hue:200, runeRing:'none'},
+      {name:'Spikes',   core:'spikes', arch:'str', hue:25,  runeRing:'none'},
+      {name:'Rune ring',core:'none',   arch:'wis', hue:88,  runeRing:'triple'}
+    ];
+    const glowCells=[
+      {name:'None',   mode:'none'},
+      {name:'Always', mode:'always'},
+      {name:'Hover',  mode:'hover'},
+      {name:'Pulse',  mode:'pulse'},
+      {name:'Sweep',  mode:'sweep'}
+    ];
+    const haloScale = p.haloScale??1;
+    const coreCardSize = Math.round(150 + 45*(haloScale-1));
+    const cardPad = Math.round(40 + 22*(haloScale-1));
+    return {
+      H2:this.H2, card:this.card, stakeCells, addonCells, coreCells, glowCells, coreCardSize, cardPad,
+      arch:p.arch??'str', hue:p.hue??210, allocated:p.allocated!==false,
+      weldK:p.weldK??0.88, sigil:!!p.sigil, showGlyph:!!p.showGlyph,
+      tintMix:p.tintMix??1, glowMode:p.glowMode??'hover', glowAmt:p.glowAmt??0.6,
+      core:p.core??'none', haloScale:p.haloScale??1, rimStyle:p.rimStyle??'single',
+      runeRing:p.runeRing??'none', runeRingStyle:p.runeRingStyle??'flush',
+      stakeStyle:p.stakeStyle??'chrome', rimProfile:p.rimProfile??'smooth',
+      stakeCap:p.stakeCap??3, stakeAlloc:p.stakeAlloc??2,
+      addonPlates:!!p.addonPlates, addonFortify:!!p.addonFortify, addonBridge:!!p.addonBridge,
+      addonLifeline:!!p.addonLifeline, addonClamp:!!p.addonClamp
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  @keyframes s2-ringPulse{0%,100%{opacity:.5}50%{opacity:1}}
+  @keyframes s2-ringSpin{to{transform:rotate(360deg)}}
+  @keyframes s2-ringSpinR{to{transform:rotate(-360deg)}}
+  @keyframes s2-diskAlloc{0%{r:0;filter:brightness(1)}55%{r:23;filter:brightness(2.3)}100%{r:21;filter:brightness(1)}}
+  @keyframes s2-diskDealloc{0%{r:21;filter:brightness(1) saturate(1)}100%{r:12;filter:brightness(.35) saturate(0)}}
+  @keyframes s2-shock{0%{r:19;opacity:.9;stroke-width:3}100%{r:42;opacity:0;stroke-width:.5}}
+  @keyframes s2-critFlash{0%,100%{opacity:.72}50%{opacity:1}}
+  @keyframes s2-hoverGlow{0%,100%{opacity:.82}50%{opacity:1}}
+</style>
+</helmet>
+<div style="position:relative;width:{{ size }}px;height:{{ size }}px;display:flex;align-items:center;justify-content:center;cursor:{{ cursorStyle }};" onMouseEnter="{{ onEnter }}" onMouseLeave="{{ onLeave }}" onClick="{{ onClickH }}">
+  <svg viewBox="0 0 100 100" width="{{ size }}" height="{{ size }}" style="overflow:visible;">
+    <defs>
+      <radialGradient id="{{ uid }}-disk" cx="36%" cy="30%" r="72%">
+        <stop offset="0%" stop-color="{{ disk.hi }}"></stop>
+        <stop offset="52%" stop-color="{{ disk.mid }}"></stop>
+        <stop offset="100%" stop-color="{{ disk.lo }}"></stop>
+      </radialGradient>
+      <radialGradient id="{{ uid }}-hover" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(255,255,255,0)"></stop>
+        <stop offset="60%" stop-color="rgba(255,255,255,0)"></stop>
+        <stop offset="70%" stop-color="{{ hoverTint }}"></stop>
+        <stop offset="100%" stop-color="rgba(235,242,255,0)"></stop>
+      </radialGradient>
+      <linearGradient id="{{ uid }}-plate" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(214,222,238,0.95)"></stop>
+        <stop offset="45%" stop-color="rgba(150,160,180,0.9)"></stop>
+        <stop offset="100%" stop-color="rgba(70,78,96,0.92)"></stop>
+      </linearGradient>
+    </defs>
+
+    <!-- hover glow halo (register: pointer-is-here) -->
+    <sc-if value="{{ hoverActive }}" hint-placeholder-val="{{ false }}">
+      <circle cx="50" cy="50" r="44" fill="url(#{{ uid }}-hover)" style="animation:s2-hoverGlow 2.2s ease-in-out infinite;"></circle>
+    </sc-if>
+
+    <!-- hostile hazard ring (register: this is an enemy) -->
+    <sc-if value="{{ hostile }}" hint-placeholder-val="{{ false }}">
+      <circle cx="50" cy="50" r="34" fill="none" stroke="{{ disk.mid }}" stroke-width="2.6" stroke-dasharray="2.2 3.2" stroke-linecap="round" style="filter:drop-shadow(0 0 4px oklch(0.55 0.22 25));animation:s2-ringSpinR 14s linear infinite;transform-origin:50px 50px;"></circle>
+    </sc-if>
+
+    <!-- context / targeting ring (register: mechanical role) -->
+    <sc-if value="{{ ctx.on }}" hint-placeholder-val="{{ false }}">
+      <circle cx="50" cy="50" r="33" fill="none" stroke="{{ ctx.stroke }}" stroke-width="{{ ctx.width }}" stroke-dasharray="{{ ctx.dash }}" stroke-linecap="round" opacity="{{ ctx.opacity }}" style="animation:{{ ctx.anim }};transform-origin:50px 50px;"></circle>
+    </sc-if>
+
+    <!-- self-loop edge (degree +2) -->
+    <sc-if value="{{ loop.on }}" hint-placeholder-val="{{ false }}">
+      <circle cx="{{ loop.cx }}" cy="{{ loop.cy }}" r="{{ loop.r }}" fill="none" stroke="{{ loop.color }}" stroke-width="2" opacity="0.92"></circle>
+      <polygon points="{{ loop.arrow }}" fill="{{ loop.color }}"></polygon>
+    </sc-if>
+
+    <!-- health arc -->
+    <sc-if value="{{ healthVisible }}" hint-placeholder-val="{{ false }}">
+      <circle cx="50" cy="50" r="29.6" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2.4"></circle>
+      <circle cx="50" cy="50" r="29.6" fill="none" stroke="{{ hpColor }}" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="186" stroke-dashoffset="{{ hpOffset }}" transform="rotate(-90 50 50)" style="filter:drop-shadow(0 0 3px {{ hpColor }});animation:{{ hpAnim }};"></circle>
+    </sc-if>
+
+    <!-- representational addon: spikes (offensive vertex-spike) -->
+    <sc-if value="{{ deco.spikes }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ spikePolys }}" as="sp" hint-placeholder-count="0">
+        <polygon points="{{ sp }}" fill="oklch(0.68 0.18 45)" stroke="oklch(0.82 0.14 60)" stroke-width="0.5" style="filter:drop-shadow(0 0 2px oklch(0.6 0.19 40));"></polygon>
+      </sc-for>
+    </sc-if>
+
+    <!-- representational addon: reinforcement (raised max HP → doubled brace ring) -->
+    <sc-if value="{{ deco.reinforcement }}" hint-placeholder-val="{{ false }}">
+      <circle cx="50" cy="50" r="27.4" fill="none" stroke="oklch(0.72 0.13 45)" stroke-width="2.6" opacity="0.9"></circle>
+      <circle cx="50" cy="50" r="27.4" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.7"></circle>
+    </sc-if>
+
+    <!-- structural / archetype rings (encoding-dependent) -->
+    <sc-for list="{{ structRings }}" as="r" hint-placeholder-count="1">
+      <circle cx="50" cy="50" r="{{ r.r }}" fill="none" stroke="{{ r.color }}" stroke-width="{{ r.width }}" opacity="{{ r.opacity }}" style="filter:{{ r.glow }};"></circle>
+    </sc-for>
+
+    <!-- representational addon: armor plating (segmented metal over the border) -->
+    <sc-if value="{{ deco.armor }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ plateSegs }}" as="pl" hint-placeholder-count="0">
+        <path d="{{ pl.d }}" fill="url(#{{ uid }}-plate)" stroke="rgba(20,24,32,0.7)" stroke-width="0.5"></path>
+        <path d="{{ pl.hi }}" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="0.7"></path>
+      </sc-for>
+    </sc-if>
+
+    <!-- representational addon: relay antenna (broadcast origin) -->
+    <sc-if value="{{ deco.relay }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ relayTicks }}" as="rt" hint-placeholder-count="0">
+        <line x1="{{ rt.x1 }}" y1="{{ rt.y1 }}" x2="{{ rt.x2 }}" y2="{{ rt.y2 }}" stroke="oklch(0.78 0.13 258)" stroke-width="1.6" stroke-linecap="round"></line>
+        <circle cx="{{ rt.tx }}" cy="{{ rt.ty }}" r="1.5" fill="oklch(0.82 0.14 258)"></circle>
+      </sc-for>
+    </sc-if>
+
+    <!-- representational addon: buffer ports (temporary-reach taps) -->
+    <sc-if value="{{ deco.buffer }}" hint-placeholder-val="{{ false }}">
+      <sc-for list="{{ bufferPorts }}" as="bp" hint-placeholder-count="0">
+        <circle cx="{{ bp.x }}" cy="{{ bp.y }}" r="3.2" fill="rgba(10,14,20,0.95)" stroke="oklch(0.78 0.13 200)" stroke-width="1.5"></circle>
+        <circle cx="{{ bp.x }}" cy="{{ bp.y }}" r="1.1" fill="oklch(0.82 0.14 200)"></circle>
+      </sc-for>
+    </sc-if>
+
+    <!-- the 3D allocation disk (the keeper) -->
+    <sc-if value="{{ showDisk }}" hint-placeholder-val="{{ true }}">
+      <ellipse cx="50" cy="72" rx="16" ry="4.5" fill="rgba(0,0,0,0.5)" style="filter:blur(2px);"></ellipse>
+      <circle key="{{ diskKey }}" cx="50" cy="50" r="21" fill="url(#{{ uid }}-disk)" stroke="{{ disk.rim }}" stroke-width="1.3" style="animation:{{ diskAnim }};"></circle>
+      <ellipse cx="44.5" cy="41" rx="9.5" ry="5.2" fill="rgba(255,255,255,0.32)" opacity="{{ specularOpacity }}" style="filter:blur(0.6px);"></ellipse>
+      <path d="M 33 54 A 21 21 0 0 0 67 54" fill="none" stroke="rgba(0,0,0,0.28)" stroke-width="3" style="filter:blur(1px);"></path>
+    </sc-if>
+
+    <!-- archetype pip (owner-color encoding: the only archetype color cue) -->
+    <sc-if value="{{ pip.on }}" hint-placeholder-val="{{ false }}">
+      <circle cx="{{ pip.x }}" cy="{{ pip.y }}" r="3.4" fill="{{ pip.color }}" stroke="rgba(8,9,14,0.9)" stroke-width="0.8" style="filter:drop-shadow(0 0 2px {{ pip.color }});"></circle>
+    </sc-if>
+
+    <!-- one-shot FX -->
+    <sc-if value="{{ fxAlloc }}" hint-placeholder-val="{{ false }}">
+      <circle key="{{ fxKey }}" cx="50" cy="50" r="19" fill="none" stroke="{{ fxColor }}" stroke-width="3" style="animation:s2-shock .55s ease-out forwards;"></circle>
+    </sc-if>
+    <sc-if value="{{ fxDealloc }}" hint-placeholder-val="{{ false }}">
+      <circle key="{{ fxKey }}d" cx="50" cy="50" r="19" fill="none" stroke="rgba(200,205,220,0.8)" stroke-width="2" style="animation:s2-shock .6s ease-out forwards;"></circle>
+    </sc-if>
+    <sc-if value="{{ fxPulse }}" hint-placeholder-val="{{ false }}">
+      <circle key="{{ pulseKey }}" cx="50" cy="50" r="19" fill="none" stroke="{{ archColor }}" stroke-width="3.2" style="animation:s2-shock .48s ease-out forwards;"></circle>
+    </sc-if>
+  </svg>
+  <sc-if value="{{ glyph.show }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;top:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+      <span style="{{ glyph.style }}">{{ glyph.char }}</span>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:140,&quot;height&quot;:140},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:120,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:40,&quot;max&quot;:260},&quot;archetype&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;str&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;str&quot;,&quot;dex&quot;,&quot;int&quot;,&quot;wis&quot;,&quot;per&quot;,&quot;con&quot;]},&quot;encoding&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;bevel&quot;,&quot;tsType&quot;:&quot;'classic'|'ownerColor'|'bevel'&quot;,&quot;options&quot;:[&quot;classic&quot;,&quot;ownerColor&quot;,&quot;bevel&quot;]},&quot;allocated&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;ownerHue&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:220,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:360},&quot;ownerChroma&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:0.14,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:0.24,&quot;step&quot;:0.01},&quot;hostile&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;core&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;hpPct&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:100,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0,&quot;max&quot;:100},&quot;contextState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;source&quot;,&quot;target-valid&quot;,&quot;target-invalid&quot;,&quot;threat&quot;]},&quot;forceHover&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;selfLoop&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;loopAngle&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:-45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:-180,&quot;max&quot;:180},&quot;addons&quot;:{&quot;editor&quot;:null,&quot;default&quot;:[],&quot;tsType&quot;:&quot;{kind:string}[]&quot;},&quot;showDisk&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;allocTick&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;dealloTick&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;pulseTick&quot;:{&quot;editor&quot;:null,&quot;default&quot;:0,&quot;tsType&quot;:&quot;number&quot;},&quot;onNodeClick&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;() =&gt; void&quot;},&quot;onHoverChange&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(v:boolean) =&gt; void&quot;}}">
+class Component extends DCLogic {
+  ARCH = {
+    str:{ color:'oklch(0.64 0.21 27)',  hue:27,  glyph:'S', name:'Strength' },
+    dex:{ color:'oklch(0.74 0.16 150)', hue:150, glyph:'D', name:'Dexterity' },
+    int:{ color:'oklch(0.62 0.17 258)', hue:258, glyph:'I', name:'Intellect' },
+    wis:{ color:'oklch(0.81 0.14 88)',  hue:88,  glyph:'W', name:'Wisdom' },
+    per:{ color:'oklch(0.62 0.20 305)', hue:305, glyph:'P', name:'Perception' },
+    con:{ color:'oklch(0.90 0.02 250)', hue:250, glyph:'C', name:'Constitution' }
+  };
+
+  state = { hoverLocal:false, fx:null, fxKey:0, pulseActive:false, pulseKey:0 };
+  _uid = 's2' + Math.random().toString(36).slice(2,9);
+
+  componentDidUpdate(prev){
+    if (this.props.allocTick !== undefined && this.props.allocTick !== prev.allocTick) this._trigger('alloc');
+    if (this.props.dealloTick !== undefined && this.props.dealloTick !== prev.dealloTick) this._trigger('dealloc');
+    if (this.props.pulseTick !== undefined && this.props.pulseTick !== prev.pulseTick) this._pulse();
+  }
+  componentWillUnmount(){ clearTimeout(this._t); clearTimeout(this._pt); }
+  _trigger(k){ this.setState(s => ({ fx:k, fxKey:s.fxKey+1 })); clearTimeout(this._t); this._t = setTimeout(()=>this.setState({fx:null}), 620); }
+  _pulse(){ this.setState(s => ({ pulseActive:true, pulseKey:s.pulseKey+1 })); clearTimeout(this._pt); this._pt = setTimeout(()=>this.setState({pulseActive:false}), 520); }
+
+  polar(a, r){ const rad=a*Math.PI/180; return { x:+(50+r*Math.cos(rad)).toFixed(2), y:+(50+r*Math.sin(rad)).toFixed(2) }; }
+
+  ownerPalette(hue, chroma){
+    const c = chroma ?? 0.14;
+    return {
+      hi:`oklch(0.9 ${(c*0.55).toFixed(3)} ${hue})`,
+      mid:`oklch(0.66 ${c} ${hue})`,
+      lo:`oklch(0.34 ${(c*0.9).toFixed(3)} ${hue})`,
+      rim:`oklch(0.82 ${c} ${hue})`
+    };
+  }
+
+  renderVals(){
+    const p = this.props;
+    const size = p.size ?? 108;
+    const archetype = p.archetype ?? 'str';
+    const A = this.ARCH[archetype] || this.ARCH.str;
+    const archColor = A.color;
+    const allocated = !!p.allocated;
+    const core = !!p.core;
+    const hostile = allocated && !!p.hostile;
+    const encoding = p.encoding ?? 'bevel';           // 'classic' | 'ownerColor' | 'bevel'
+    const hpPct = p.hpPct ?? 100;
+    const critical = allocated && hpPct <= 30;
+
+    const showDisk = p.showDisk ?? true;
+    const hoverActive = this.state.hoverLocal || !!p.forceHover;
+    const hoverTint = 'rgba(235,242,255,0.4)';
+
+    // owner palette (arbitrary hue per player; enemies just = any hue + hostile flag)
+    const ownerHue = p.ownerHue ?? 220;
+    const ownerChroma = p.ownerChroma ?? 0.14;
+    const disk = allocated
+      ? { ...this.ownerPalette(ownerHue, ownerChroma) }
+      : { hi:'rgba(255,255,255,0.06)', mid:'rgba(30,33,44,0.92)', lo:'rgba(8,9,14,0.97)', rim:'rgba(255,255,255,0.12)' };
+    const ownerRim = allocated ? disk.rim : 'rgba(200,208,225,0.4)';
+
+    // ---- structural / archetype rings per encoding ----
+    let structRings = [], pip = { on:false }, glyph;
+    const archGlow = allocated ? `drop-shadow(0 0 3px ${archColor})` : 'none';
+    if (encoding === 'classic') {
+      structRings = [{ r:24.5, width:7, color:archColor, opacity: allocated?1:0.42, glow:archGlow }];
+      glyph = { show: core || !allocated, char:A.glyph, big:core, color: core?archColor:'rgba(255,255,255,0.9)', opacity: core?0.95:0.14 };
+    } else if (encoding === 'ownerColor') {
+      structRings = [{ r:25, width:2.4, color:ownerRim, opacity:1, glow:'none' }];
+      const pp = this.polar(-90, 24.5);
+      pip = { on:true, x:pp.x, y:pp.y, color:archColor };
+      glyph = { show:true, char:A.glyph, big:core, color: core?archColor:'rgba(245,248,255,0.96)', opacity: allocated?(core?0.98:0.94):0.5 };
+    } else { // bevel (recommended): owner owns disk, archetype rides the raised bevel rim-light + glyph
+      const bevel = allocated ? `oklch(0.84 0.11 ${A.hue})` : `oklch(0.7 0.02 ${A.hue})`;
+      structRings = [
+        { r:25.6, width:1.1, color:'rgba(210,218,235,0.22)', opacity:1, glow:'none' },
+        { r:24, width:4.2, color:bevel, opacity: allocated?0.95:0.4, glow: allocated?`drop-shadow(0 0 2px ${bevel})`:'none' }
+      ];
+      glyph = { show:true, char:A.glyph, big:core, color: core?archColor:'rgba(245,248,255,0.96)', opacity: allocated?(core?0.98:0.92):0.42 };
+    }
+    const gpx = glyph.big ? (size*0.24).toFixed(1) : (size*0.15).toFixed(1);
+    const gShadow = glyph.big ? `0 0 ${(size*0.05).toFixed(1)}px ${archColor}` : '0 1px 1px rgba(0,0,0,0.75)';
+    glyph.style = `font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:${gpx}px;letter-spacing:0.5px;line-height:1;color:${glyph.color};opacity:${glyph.opacity};text-shadow:${gShadow};`;
+
+    // ---- context / targeting ring ----
+    const cs = p.contextState ?? 'none';
+    const CTX = {
+      none:{ on:false },
+      source:{ on:true, stroke:archColor, width:2.6, dash:'3 3.5', opacity:1, anim:'s2-ringSpin 5s linear infinite' },
+      'target-valid':{ on:true, stroke:'oklch(0.80 0.17 150)', width:2.6, dash:'5 3', opacity:1, anim:'s2-ringPulse 1.1s ease-in-out infinite' },
+      'target-invalid':{ on:true, stroke:'oklch(0.66 0.20 25)', width:2, dash:'2 4', opacity:0.85, anim:'none' },
+      threat:{ on:true, stroke:'oklch(0.74 0.16 55)', width:2.6, dash:'none', opacity:1, anim:'s2-ringPulse .75s ease-in-out infinite' }
+    };
+    const ctx = CTX[cs] || CTX.none;
+
+    // ---- health ----
+    const CIRC = 186;
+    const hpColor = critical ? 'oklch(0.68 0.19 30)' : 'oklch(0.60 0.21 25)';
+    const hpOffset = (CIRC * (1 - Math.max(0,Math.min(100,hpPct))/100)).toFixed(2);
+    const healthVisible = allocated && (hpPct < 100 || hoverActive);
+    const hpAnim = critical ? 's2-critFlash .9s ease-in-out infinite' : 'none';
+
+    // ---- representational addons ----
+    const addons = (p.addons || []).map(a => a.kind || a);
+    const deco = {
+      spikes: addons.includes('spikes'),
+      reinforcement: addons.includes('reinforcement'),
+      armor: addons.includes('armor_ring'),
+      relay: addons.includes('relay'),
+      buffer: addons.includes('buffer')
+    };
+    // spikes: outward triangles
+    const spikePolys = [];
+    if (deco.spikes) {
+      const N = 12, base = 24, tip = 30.5, hw = 360/N/2 * 0.5;
+      for (let i=0;i<N;i++){ const a=i*360/N - 90;
+        const t = this.polar(a, tip), l = this.polar(a-hw, base), r = this.polar(a+hw, base);
+        spikePolys.push(`${l.x},${l.y} ${t.x},${t.y} ${r.x},${r.y}`);
+      }
+    }
+    // armor plating: segmented annulus sectors over the border band
+    const annSector = (a0,a1,rin,rout) => {
+      const A0=a0*Math.PI/180, A1=a1*Math.PI/180;
+      const P=(r,a)=>[+(50+r*Math.cos(a)).toFixed(2), +(50+r*Math.sin(a)).toFixed(2)];
+      const [xoa,yoa]=P(rout,A0), [xob,yob]=P(rout,A1), [xib,yib]=P(rin,A1), [xia,yia]=P(rin,A0);
+      const large=(a1-a0)>180?1:0;
+      return { d:`M ${xoa} ${yoa} A ${rout} ${rout} 0 ${large} 1 ${xob} ${yob} L ${xib} ${yib} A ${rin} ${rin} 0 ${large} 0 ${xia} ${yia} Z`,
+               hi:`M ${xoa} ${yoa} A ${rout} ${rout} 0 ${large} 1 ${xob} ${yob}` };
+    };
+    const plateSegs = [];
+    if (deco.armor) { const seg=5, span=360/seg, gap=11;
+      for (let i=0;i<seg;i++){ const a0=i*span - 90 + gap/2, a1=(i+1)*span - 90 - gap/2; plateSegs.push(annSector(a0,a1,22.2,27.6)); }
+    }
+    // relay antenna ticks (top)
+    const relayTicks = [];
+    if (deco.relay) { [-108,-90,-72].forEach(a=>{ const i=this.polar(a,25), o=this.polar(a,31.5); relayTicks.push({x1:i.x,y1:i.y,x2:o.x,y2:o.y,tx:o.x,ty:o.y}); }); }
+    // buffer ports (3 & 9 o'clock)
+    const bufferPorts = [];
+    if (deco.buffer) { [0,180].forEach(a=>{ const q=this.polar(a,25); bufferPorts.push({x:q.x,y:q.y}); }); }
+
+    // ---- self-loop ----
+    let loop = { on:false };
+    if (p.selfLoop) {
+      const la = p.loopAngle ?? -45;
+      const c = this.polar(la, 30);
+      const arrowBase = this.polar(la-14, 30);
+      const a1 = this.polar(la-20, 26.5), a2 = this.polar(la-8, 26.5), a3 = this.polar(la-14, 33.5);
+      loop = { on:true, cx:c.x, cy:c.y, r:8.5, color: p.loopColor ?? 'rgba(255,217,140,0.9)',
+               arrow:`${a1.x},${a1.y} ${a2.x},${a2.y} ${a3.x},${a3.y}` };
+    }
+
+    // ---- disk fx ----
+    const fx = this.state.fx;
+    const diskAnim = fx==='alloc' ? 's2-diskAlloc .55s cubic-bezier(.2,.9,.3,1) forwards'
+                    : fx==='dealloc' ? 's2-diskDealloc .6s ease-in forwards' : 'none';
+    const diskKey = 'd'+this.state.fxKey+'-'+allocated+'-'+ownerHue;
+
+    return {
+      uid:this._uid, size, archColor, disk, hoverTint,
+      hoverActive, hostile,
+      ctx, loop, healthVisible, hpColor, hpOffset, hpAnim,
+      deco, spikePolys, plateSegs, relayTicks, bufferPorts,
+      structRings, pip, glyph,
+      showDisk, specularOpacity: allocated?1:0.35, diskAnim, diskKey,
+      fxAlloc: fx==='alloc', fxDealloc: fx==='dealloc', fxColor: allocated?disk.mid:archColor, fxKey:'k'+this.state.fxKey,
+      fxPulse: this.state.pulseActive, pulseKey:'p'+this.state.pulseKey,
+      cursorStyle: p.onNodeClick ? 'pointer' : 'default',
+      onEnter: () => { this.setState({hoverLocal:true}); if(p.onHoverChange) p.onHoverChange(true); },
+      onLeave: () => { this.setState({hoverLocal:false}); if(p.onHoverChange) p.onHoverChange(false); },
+      onClickH: () => { if(p.onNodeClick) p.onNodeClick(); }
+    };
+  }
+}
+
+</script>
+</body>
+</html>
