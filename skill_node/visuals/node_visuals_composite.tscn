@@ -3,71 +3,34 @@
 [ext_resource type="Script" uid="uid://b35hxda7mbfnk" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/weld_symbol.tscn" id="3_weld"]
-[ext_resource type="Shader" uid="uid://btb3idp57soy7" path="res://skill_node/visuals/inner_disk.gdshader" id="3_xoj54"]
 [ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/ring_wall.tscn" id="4_wall"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="6_halos"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_yu0fw"]
-resource_local_to_scene = true
-shader = ExtResource("3_xoj54")
-shader_parameter/hue = 220.0
-shader_parameter/tint_mix = 0.6
-shader_parameter/allocated = false
-shader_parameter/highlight_position = Vector2(-0.35, -0.35)
-shader_parameter/highlight_intensity = 0.85
-
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_pg2qw"]
-resource_local_to_scene = true
-blend_mode = 3
-
-[sub_resource type="Curve" id="Curve_sggpr"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 2
-
-[sub_resource type="Curve" id="Curve_ao17l"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 2
-
-[sub_resource type="Curve" id="Curve_ft2au"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 2
-
-[sub_resource type="Curve" id="Curve_85irg"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 2
 
 [node name="NodeVisualsComposite" type="Node2D" unique_id=1855738635]
 script = ExtResource("1_comp")
 
 [node name="InnerDisk" parent="." unique_id=1575818134 instance=ExtResource("2_disk")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_yu0fw")
 
 [node name="WeldSymbol" parent="." unique_id=1225374733 instance=ExtResource("3_weld")]
 unique_name_in_owner = true
-material = SubResource("CanvasItemMaterial_pg2qw")
 
 [node name="RingWall" parent="." unique_id=346168876 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
-rim_height_style = SubResource("Curve_sggpr")
-wall_color = Color(0.39, 0.42666668, 0.5, 1)
 
 [node name="RingWall2" parent="." unique_id=2024234688 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
-rim_height_style = SubResource("Curve_ao17l")
 
 [node name="RingWall3" parent="." unique_id=314972897 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
-rim_height_style = SubResource("Curve_ft2au")
 
 [node name="RingWall4" parent="." unique_id=1028791272 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
-rim_height_style = SubResource("Curve_85irg")
 
 [node name="RimBonuses" parent="." unique_id=2113377826 instance=ExtResource("5_rim")]
 unique_name_in_owner = true
@@ -77,7 +40,6 @@ unique_name_in_owner = true
 
 [node name="RuneRing" parent="." unique_id=946472652 instance=ExtResource("7_rune")]
 unique_name_in_owner = true
-outer_edge_r = 32.0
 
 [node name="StakeLabel" type="Label" parent="." unique_id=1327804308]
 unique_name_in_owner = true

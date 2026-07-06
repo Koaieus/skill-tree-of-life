@@ -58,17 +58,19 @@ const ARCH_SIDES := {
 		arch = value
 		queue_redraw()
 
-var _material: CanvasItemMaterial
+## blend_mode never varies per node (always multiply), so — unlike
+## inner_disk/ring_wall's shader uniforms — there's no per-instance state
+## to protect here at all: every weld_symbol shares this ONE material.
+static var _shared_material: CanvasItemMaterial
+
 var _t: float = 0.0
 
 
 func _ready() -> void:
-	# resource_local_to_scene — one material per node instance; see
-	# .claude/rules/godot-workflow.md.
-	_material = CanvasItemMaterial.new()
-	_material.resource_local_to_scene = true
-	_material.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
-	material = _material
+	if _shared_material == null:
+		_shared_material = CanvasItemMaterial.new()
+		_shared_material.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
+	material = _shared_material
 	set_process(glow_mode in [GlowMode.HOVER, GlowMode.PULSE, GlowMode.SWEEP])
 
 

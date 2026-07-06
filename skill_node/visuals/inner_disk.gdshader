@@ -2,15 +2,17 @@ shader_type canvas_item;
 
 // #123 — semi-sphere shading for the SkillNode inner disk: an offset radial
 // highlight fakes a lit hemisphere. Player-tinted when allocated,
-// neutral-dark otherwise. See skill_node/visuals/inner_disk.gd for the
-// exported knobs this is driven by (resource_local_to_scene — one material
-// instance per node, uniforms never bleed across nodes).
+// neutral-dark otherwise. `instance uniform`s mean every inner_disk shares
+// ONE ShaderMaterial (batches into one draw call) while still varying
+// per-node via CanvasItem.set_instance_shader_parameter() — see
+// skill_node/visuals/inner_disk.gd. Light direction matches
+// ring_wall.gdshader so the disk and its rim read as lit from one source.
 
-uniform float hue = 220.0;
-uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;
-uniform bool allocated = false;
-uniform vec2 highlight_position = vec2(-0.35, -0.35);
-uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
+instance uniform float hue = 220.0;
+instance uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;
+instance uniform bool allocated = false;
+instance uniform vec2 highlight_position = vec2(-0.35, -0.35);
+instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
 
 const vec3 NEUTRAL_DARK = vec3(0.16, 0.17, 0.20);
 const vec3 NEUTRAL_LIGHT = vec3(0.38, 0.40, 0.45);

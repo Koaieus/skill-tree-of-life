@@ -3,8 +3,18 @@ extends SkillNodeVisual
 ## Inner disk: semi-sphere `canvas_item` shader (#123). Filled circle with an
 ## offset radial highlight, player-tinted when allocated, neutral-dark when
 ## not. See inner_disk.gdshader for the fragment logic.
+##
+## ONE shared ShaderMaterial across every inner_disk instance (built lazily,
+## cached in the static [member _shared_material]) — per-node values ride as
+## the shader's `instance uniform`s via
+## [method CanvasItem.set_instance_shader_parameter], so many disks on
+## screen still batch into a single draw call instead of costing one
+## draw call each (which a per-node `resource_local_to_scene` duplicate
+## material would). See docs/domain/skill-node-visuals-shaders.md.
 
 const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
+
+static var _shared_material: ShaderMaterial
 
 ## Archetype hue in degrees (0-360). Only visible when [member allocated].
 @export_range(0.0, 360.0, 1.0) var hue: float = 220.0:
@@ -45,17 +55,12 @@ const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 		highlight_intensity = value
 		_sync_material()
 
-var _material: ShaderMaterial
-
 
 func _ready() -> void:
-	# resource_local_to_scene: without it every node instance shares one
-	# ShaderMaterial and per-node uniforms (tint, highlight, allocated) bleed
-	# across all of them — see .claude/rules/godot-workflow.md.
-	_material = ShaderMaterial.new()
-	_material.resource_local_to_scene = true
-	_material.shader = SHADER
-	material = _material
+	if _shared_material == null:
+		_shared_material = ShaderMaterial.new()
+		_shared_material.shader = SHADER
+	material = _shared_material
 	_sync_material()
 
 
@@ -65,13 +70,13 @@ func configure(new_radius: float) -> void:
 
 
 func _sync_material() -> void:
-	if _material == null:
+	if not is_node_ready():
 		return
-	_material.set_shader_parameter(&"hue", hue)
-	_material.set_shader_parameter(&"tint_mix", tint_mix)
-	_material.set_shader_parameter(&"allocated", allocated)
-	_material.set_shader_parameter(&"highlight_position", highlight_position)
-	_material.set_shader_parameter(&"highlight_intensity", highlight_intensity)
+	set_instance_shader_parameter(&"hue", hue)
+	set_instance_shader_parameter(&"tint_mix", tint_mix)
+	set_instance_shader_parameter(&"allocated", allocated)
+	set_instance_shader_parameter(&"highlight_position", highlight_position)
+	set_instance_shader_parameter(&"highlight_intensity", highlight_intensity)
 	queue_redraw()
 
 

@@ -2,11 +2,5 @@
 
 [ext_resource type="Script" uid="uid://ctct4epql5dad" path="res://skill_node/visuals/ring_wall.gd" id="1_wall"]
 
-[sub_resource type="Curve" id="Curve_wcrro"]
-resource_local_to_scene = true
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 2
-
 [node name="RingWall" type="Node2D" unique_id=679133823]
 script = ExtResource("1_wall")
-rim_height_style = SubResource("Curve_wcrro")
