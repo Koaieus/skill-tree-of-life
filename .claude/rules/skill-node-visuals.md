@@ -1,23 +1,56 @@
+---
+description: SkillNode visuals
+globs: skill_node/visuals/**
+---
 # SkillNode visuals — ring band convention (#67)
 
 How the concentric rings around a `SkillNode` are sized. One convention, one
 formula, so radii stay legible "going forward" instead of each ring re-deriving
 its own.
 
-## SkillNode-visuals-v2 (milestone #16) — a parallel system, not a cutover
+## SkillNode-visuals-v2 (milestone #16) — cut over; SkillNode composes it
 
-`skill_node/visuals/` holds a new component family (`SkillNodeVisual` /
-`SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`,
-`weld_symbol`, `rim_ring`, `rim_bonuses`, `core_halos`, `rune_ring`,
-`node_visuals_composite`) implementing the 6 locked-pick visuals from
-`docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`. It lives
-**alongside** `base_circle.gd` / `hover_ring.gd` / `core_marker.gd`, not in
-place of them — cutting the live SkillNode render path over to it is an
-explicit future decision, not part of this milestone. Preview all components
-+ the composite together via the sandbox host's "Node Visuals" tab
-(`addons/sandbox_host/tabs/15_node_visuals_tab.tscn` → `skill_node/visuals/panel/node_visuals_panel.tscn`).
+`skill_node/visuals/` holds the component family (`SkillNodeVisual` /
+`SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`
+(which composes `weld_symbol` as its own child — see below), `rim_ring`,
+`rim_bonuses`, `core_halos`, `rune_ring`, `node_visuals_composite`)
+implementing the 6 locked-pick visuals from
+`docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`.
+`SkillNode` (`skill_node.tscn`) instances `node_visuals_composite.tscn` as
+`%NodeVisualsComposite` and `_sync_visuals()` is what actually drives it —
+this **is** the live disk/rim render, not a parallel preview. `base_circle.gd`
+/ `hover_ring.gd` / `core_marker.gd` stay, but `base_circle.gd` was slimmed to
+just the always-on legibility wash + the sensed-fog outline; the border ring
+and the allocated inner-disk draw retired in favor of RimRing/InnerDisk.
+Preview all components + the composite together via the sandbox host's
+"Node Visuals" tab (`addons/sandbox_host/tabs/15_node_visuals_tab.tscn` →
+`skill_node/visuals/panel/node_visuals_panel.tscn`).
 `SkillNodeRingVisual.ring_centerline()` delegates to `SkillNode.ring_centerline`
 (this file's formula) rather than forking it — keep it that way.
+
+### Two tints, two jobs (`node_visuals_composite.gd`)
+
+`entity_tint` (the allocating entity's/"player's" color) and `archetype_tint`
+(the node's persistent type identity, `SkillNode.base_type_color`) are
+separate exports — never collapse them back into one `tint_color`.
+`entity_tint` drives InnerDisk (+ its composed WeldSymbol) and CoreHalos —
+things that read as "this is MINE". `archetype_tint` drives RimRing's
+`tint_mix` (mixed toward the ring's own bronze/gold metal at low mix),
+RuneRing, and RimBonuses — structural reads that stay legible whether or not
+the node is owned. `allocation_level` (0 = unowned, 1 = baseline, 2+ = staked,
+capped by `stake_level`) is the single source of truth for `allocated`
+(`allocation_level > 0`, a getter — never set directly); InnerDisk hides
+entirely when unallocated rather than showing a dimmed disk, and BaseCircle's
+wash is what carries the unallocated node's footprint instead.
+
+### WeldSymbol lives inside InnerDisk's own scene, not as a composite sibling
+
+`weld_symbol.tscn` is scene-composed as `%WeldSymbol` **inside**
+`inner_disk.tscn`, not instanced separately by `node_visuals_composite.tscn`.
+`inner_disk.gd` mirrors its own `disk_radius` and `shading` straight onto the
+weld child — the composite only ever talks to `%InnerDisk`. This matches the
+"compose together" call: the weld is engraved into the disk, not a sibling a
+higher-level orchestrator has to keep in sync by hand.
 
 ### Shader materials: shared + `instance uniform`, not `resource_local_to_scene`, when possible
 
