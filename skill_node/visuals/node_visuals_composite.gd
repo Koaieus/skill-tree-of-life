@@ -152,7 +152,7 @@ func _sync_stake() -> void:
 		var outer := inner + ring_width
 		rw.inner_radius = inner
 		rw.outer_radius = outer
-		rw.crest_r = inner + (geom_crest_r - geom_inner_r)
+		#rw.crest_r = inner + (geom_crest_r - geom_inner_r)
 		var filled := i < stake_alloc
 		rw.ring_tint = _stake_tint_color(filled)
 		max_outer_r = maxf(max_outer_r, outer)

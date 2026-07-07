@@ -49,6 +49,9 @@ vec3 sn_dome_normal(vec2 p_pos) {
 // not, plus the specular term. Matches the pre-include inner_disk fragment.
 vec3 sn_disk_color(vec3 p_normal, vec3 p_light_dir, vec3 p_tint, float p_tint_mix,
 		bool p_allocated, float p_highlight_intensity) {
+	if (!p_allocated) {
+		return SN_NEUTRAL_DARK;
+	}
 	float diffuse = sn_diffuse(p_normal, p_light_dir);
 	float spec = sn_specular(diffuse, p_highlight_intensity);
 	vec3 tinted = mix(vec3(0.5), p_tint, p_tint_mix);

@@ -27,7 +27,7 @@ extends SkillNodeRingVisual
 ## Reusable building block: the composite scene (#126) instances this 1x
 ## for the basic rim, or Nx for ring-stacking stake mode.
 
-enum HeightPreset { LEVEL, TERRACE, SMOOTH, SHARPEN }
+enum HeightPreset { LEVEL, TERRACE, SMOOTH, SHARPEN, CUSTOM }
 const CUSTOM_PRESET_INDEX := 4
 const LUT_SAMPLES := 64
 
@@ -51,12 +51,11 @@ static var _shared_material: ShaderMaterial
 ## We connect to the Curve's own `changed` signal so dragging its points in the
 ## inspector re-bakes the LUT live (the Curve edits in place — the setter here
 ## only fires on a whole-resource swap, not per point-drag).
-@export var rim_height_style: Curve = null:
+@export var rim_height_style: Curve:
 	set(value):
 		if rim_height_style != null and rim_height_style.changed.is_connected(_on_curve_changed):
 			rim_height_style.changed.disconnect(_on_curve_changed)
 		rim_height_style = value
-		_use_custom_curve = value != null
 		if rim_height_style != null and not rim_height_style.changed.is_connected(_on_curve_changed):
 			rim_height_style.changed.connect(_on_curve_changed)
 		_rebake_lut()
@@ -66,7 +65,6 @@ static var _shared_material: ShaderMaterial
 @export var height_preset: HeightPreset = HeightPreset.LEVEL:
 	set(value):
 		height_preset = value
-		_use_custom_curve = false
 		rim_height_style = null
 		_sync_material()
 
@@ -97,7 +95,10 @@ var shading: ShadingStyle = null:
 			shading.changed.connect(_apply_shading)
 		_apply_shading()
 
-var _use_custom_curve: bool = false
+var _use_custom_curve: bool:
+	get(): 
+		return height_preset == CUSTOM_PRESET_INDEX and rim_height_style != null
+	
 var _custom_material: ShaderMaterial
 
 
