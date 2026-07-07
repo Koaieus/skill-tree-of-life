@@ -48,10 +48,18 @@ static var _shared_material: ShaderMaterial
 ## Assigning a Curve here that ISN'T one of the 4 built-in presets opts this
 ## instance out of the shared/batched material (see class doc). Set back to
 ## null (or change [member height_preset]) to return to the fast path.
+## We connect to the Curve's own `changed` signal so dragging its points in the
+## inspector re-bakes the LUT live (the Curve edits in place — the setter here
+## only fires on a whole-resource swap, not per point-drag).
 @export var rim_height_style: Curve = null:
 	set(value):
+		if rim_height_style != null and rim_height_style.changed.is_connected(_on_curve_changed):
+			rim_height_style.changed.disconnect(_on_curve_changed)
 		rim_height_style = value
 		_use_custom_curve = value != null
+		if rim_height_style != null and not rim_height_style.changed.is_connected(_on_curve_changed):
+			rim_height_style.changed.connect(_on_curve_changed)
+		_rebake_lut()
 		_sync_material()
 
 ## Selects one of the 4 locked presets — the fast, batched path.
@@ -99,6 +107,27 @@ func _apply_shading() -> void:
 	light_dir = shading.highlight_position
 
 
+## Live-update hook for in-place Curve edits (dragging points in the inspector).
+## Re-bakes the LUT only — radii/tint/preset are untouched, so this stays cheap.
+func _on_curve_changed() -> void:
+	_rebake_lut()
+	queue_redraw()
+
+
+## (Re)bakes the custom Curve into the per-instance material's height_lut. No-op
+## unless a custom Curve is active. Kept OUT of _sync_material so the heavy
+## texture rebuild only happens when the Curve itself changes — not on every
+## crest_r / radius / tint tweak (that churn was interrupting inspector drags).
+func _rebake_lut() -> void:
+	if not _use_custom_curve or rim_height_style == null:
+		return
+	if _custom_material == null:
+		_custom_material = ShaderMaterial.new()
+		_custom_material.resource_local_to_scene = true
+		_custom_material.shader = SHADER
+	_custom_material.set_shader_parameter(&"height_lut", _bake_lut(rim_height_style))
+
+
 func _on_ring_radius_changed() -> void:
 	_sync_material()
 
@@ -123,16 +152,14 @@ func _sync_material() -> void:
 	# height_preset never reached CUSTOM_PRESET_INDEX so the LUT was never
 	# sampled). The custom material exists ONLY to carry `height_lut`, a real
 	# sampler uniform, which genuinely can't ride an instance uniform.
+	# The LUT is (re)baked separately in _rebake_lut() — only on Curve change,
+	# never here. Bind the right material, but ONLY reassign when it actually
+	# changes: reassigning `material` every call churns a property the inspector
+	# watches and interrupts slider drags (crest_r could only move in 0.5 steps).
 	var use_custom := _use_custom_curve and rim_height_style != null
-	if use_custom:
-		if _custom_material == null:
-			_custom_material = ShaderMaterial.new()
-			_custom_material.resource_local_to_scene = true
-			_custom_material.shader = SHADER
-		material = _custom_material
-		_custom_material.set_shader_parameter(&"height_lut", _bake_lut(rim_height_style))
-	else:
-		material = _shared_material
+	var target_mat: ShaderMaterial = _custom_material if use_custom else _shared_material
+	if target_mat != null and material != target_mat:
+		material = target_mat
 	set_instance_shader_parameter(&"inner_r", inner_radius)
 	set_instance_shader_parameter(&"crest_r", crest_r)
 	set_instance_shader_parameter(&"outer_r", outer_radius)

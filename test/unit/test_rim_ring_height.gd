@@ -47,3 +47,20 @@ func test_clearing_curve_returns_to_shared_material() -> void:
 	rim.height_preset = 0  # LEVEL — setter clears rim_height_style
 	assert_false(rim.material.resource_local_to_scene,
 		"selecting a preset returns to the shared batched material")
+
+
+func test_editing_curve_points_live_rebakes_lut() -> void:
+	var rim = add_child_autofree(RimScene.instantiate())
+	await get_tree().process_frame
+
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.0))
+	curve.add_point(Vector2(1.0, 1.0))
+	rim.rim_height_style = curve
+	var lut_before = rim.material.get_shader_parameter("height_lut")
+
+	# In-place edit (what dragging a point in the inspector does) → Curve emits
+	# `changed` → the rim re-bakes a fresh LUT without a whole-resource reassign.
+	curve.add_point(Vector2(0.5, 0.5))
+	var lut_after = rim.material.get_shader_parameter("height_lut")
+	assert_ne(lut_before, lut_after, "editing the Curve re-bakes a new LUT live")
