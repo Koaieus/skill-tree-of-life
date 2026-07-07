@@ -75,8 +75,28 @@ static var _shared_material: ShaderMaterial
 		light_dir = value
 		_sync_material()
 
+## Shared shading source (see [ShadingStyle]) — runtime-injected plain `var`
+## (NOT `@export`, per the @tool scene-baking gotcha). The rim only reads the
+## light direction from it (its band color is stake-driven, not
+## archetype-tinted), so the disk and its rim stay lit from ONE source. Null in
+## a standalone preview.
+var shading: ShadingStyle = null:
+	set(value):
+		if shading != null and shading.changed.is_connected(_apply_shading):
+			shading.changed.disconnect(_apply_shading)
+		shading = value
+		if shading != null and not shading.changed.is_connected(_apply_shading):
+			shading.changed.connect(_apply_shading)
+		_apply_shading()
+
 var _use_custom_curve: bool = false
 var _custom_material: ShaderMaterial
+
+
+func _apply_shading() -> void:
+	if shading == null:
+		return
+	light_dir = shading.highlight_position
 
 
 func _on_ring_radius_changed() -> void:

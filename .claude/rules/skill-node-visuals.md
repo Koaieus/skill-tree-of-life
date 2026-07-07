@@ -33,6 +33,17 @@ escape hatch (see `rim_ring`'s custom-Curve fallback, gated on
 `_use_custom_curve`, which bakes a small LUT texture into a dedicated
 `resource_local_to_scene` material for just that one instance).
 
+**Shared lighting math lives in `lighting.gdshaderinc`** (`#include`d by both
+`inner_disk.gdshader` and `rim_ring.gdshader`). The faked main-light direction
+(`sn_light_dir` — `normalize(vec3(dir_xy, SN_LIGHT_Z=0.65))`), Lambert
+(`sn_diffuse`), specular (`sn_specular`), the dome normal (`sn_dome_normal`), and
+the full disk color (`sn_disk_color`) are defined once there, so the disk and its
+rim can't drift onto two different light models. `weld_symbol.gd`'s CPU twin
+(`_disk_shade()`) still hand-mirrors the same numbers — GDScript can't `#include`
+a `.gdshaderinc` — so that remains the ONE duplicate until weld is reworked into a
+real height feature (see the plan / #16 follow-up); keep it in sync with the
+include until then.
+
 `rim_ring` carries NO knowledge of the disk beneath it — it only owns its own
 `inner_radius`/`outer_radius` band (base class) plus an interior `crest_r`
 control point marking where the flat floor ends and the bevel to the rim
@@ -49,11 +60,26 @@ shading formula as `inner_disk.gdshader` per-vertex (`_disk_shade()` in
 colors — no shader material needed for the fill, and no risk of it also
 recoloring the flat hairline-stroke/glow layers drawn in the same `_draw()`
 (a real material would apply to every draw call on the node, not just the
-fill). `node_visuals_composite.gd._sync_shared()` mirrors ALL of InnerDisk's
-shading inputs onto WeldSymbol (`tint_color`, `tint_mix`, `allocated`,
-`highlight_position`, `highlight_intensity`), not just `tint_color` — the
-design intent is that the weld reads as sunk into the same metal, not an
-independently-lit sticker, so drift in any one of those inputs breaks that.
+fill). All five shading inputs (`tint_color`, `tint_mix`, `allocated`,
+`highlight_position`, `highlight_intensity`) must stay identical on the disk and
+the weld — the design intent is that the weld reads as sunk into the same metal,
+not an independently-lit sticker, so drift in any one breaks that.
+
+**How those five are delivered: a shared `ShadingStyle` resource, NOT imperative
+mirroring.** `node_visuals_composite.gd` holds ONE `ShadingStyle`
+(`skill_node/visuals/shading_style.gd`, a Resource — the [GlowStyle] pattern) and
+assigns it to InnerDisk, WeldSymbol, and every RimRing via their `shading` var.
+That var is a **plain `var`, deliberately NOT `@export`** — it holds a
+composite-built runtime resource, and an exported field assigned inside a @tool
+`_sync_shared()` gets baked into the scene by an editor save (the same
+Resource-in-`_ready` gotcha this file documents below). Each consumer connects
+ONCE to `changed` and copies the fields in
+(`_apply_shading()`); RimRing reads only `highlight_position` → its `light_dir`
+(its band color is stake-driven). `_sync_shared()` therefore edits the one object
+instead of poking five props per child — adding a new shaded consumer is one
+`child.shading = _shading` line, and a single source object makes drift
+impossible. A null `shading` (standalone preview) falls back to the child's own
+`@export`s. Guarded by `test/unit/test_node_visuals_shading.gd`.
 
 **Gotcha that motivated all this:** an `@tool` script that builds a `Resource`
 in `_ready()` and assigns it to an `@export`ed field can get that result baked

@@ -58,6 +58,32 @@ static var _shared_material: ShaderMaterial
 		highlight_intensity = value
 		_sync_material()
 
+## Shared shading source (see [ShadingStyle]), INJECTED AT RUNTIME by the
+## composite — a plain `var`, deliberately NOT `@export`: it holds a
+## composite-built resource, and an exported field assigned in a @tool context
+## gets baked into the scene by an editor save (the gotcha in
+## .claude/rules/skill-node-visuals.md). When set its fields drive the five
+## knobs above via one `changed` connection; when null (standalone preview) the
+## local @exports are edited directly.
+var shading: ShadingStyle = null:
+	set(value):
+		if shading != null and shading.changed.is_connected(_apply_shading):
+			shading.changed.disconnect(_apply_shading)
+		shading = value
+		if shading != null and not shading.changed.is_connected(_apply_shading):
+			shading.changed.connect(_apply_shading)
+		_apply_shading()
+
+
+func _apply_shading() -> void:
+	if shading == null:
+		return
+	tint_color = shading.tint_color
+	tint_mix = shading.tint_mix
+	allocated = shading.allocated
+	highlight_position = shading.highlight_position
+	highlight_intensity = shading.highlight_intensity
+
 
 func _ready() -> void:
 	if _shared_material == null:

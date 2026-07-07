@@ -77,6 +77,19 @@ const NEUTRAL_LIGHT := Color(0.38, 0.40, 0.45)
 		highlight_intensity = value
 		queue_redraw()
 
+## Shared shading source (see [ShadingStyle]) — same contract as InnerDisk:
+## runtime-injected plain `var` (NOT `@export`, to avoid the @tool scene-baking
+## gotcha), so the composite drives the weld off the same object and the two
+## surfaces can't drift apart. Null in a standalone preview.
+var shading: ShadingStyle = null:
+	set(value):
+		if shading != null and shading.changed.is_connected(_apply_shading):
+			shading.changed.disconnect(_apply_shading)
+		shading = value
+		if shading != null and not shading.changed.is_connected(_apply_shading):
+			shading.changed.connect(_apply_shading)
+		_apply_shading()
+
 @export var glow_mode: GlowMode = GlowMode.NONE:
 	set(value):
 		glow_mode = value
@@ -100,6 +113,16 @@ const NEUTRAL_LIGHT := Color(0.38, 0.40, 0.45)
 		queue_redraw()
 
 var _t: float = 0.0
+
+
+func _apply_shading() -> void:
+	if shading == null:
+		return
+	tint_color = shading.tint_color
+	tint_mix = shading.tint_mix
+	allocated = shading.allocated
+	highlight_position = shading.highlight_position
+	highlight_intensity = shading.highlight_intensity
 
 
 func _ready() -> void:

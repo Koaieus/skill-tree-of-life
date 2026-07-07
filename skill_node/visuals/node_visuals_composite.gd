@@ -76,6 +76,13 @@ const MAX_STAKE_CAP := 4
 @onready var _rim_rings: Array[SkillNodeRingVisual] = [%RimRing, %RimRing2, %RimRing3, %RimRing4]
 @onready var _stake_label: Label = %StakeLabel
 
+## The ONE shared shading source handed to every shaded child (InnerDisk,
+## WeldSymbol, all RimRings). The composite edits this object instead of poking
+## each child's five shading properties — see [ShadingStyle]. Seeded from
+## InnerDisk's scene-authored tint_mix / highlight_* (until a global light
+## framework owns those) so the render is unchanged.
+var _shading := ShadingStyle.new()
+
 
 func _ready() -> void:
 	_sync_shared()
@@ -95,18 +102,24 @@ func configure(new_radius: float) -> void:
 func _sync_shared() -> void:
 	if not is_node_ready():
 		return
-	%InnerDisk.tint_color = tint_color
-	%InnerDisk.allocated = allocated
-	%WeldSymbol.tint_color = tint_color
-	%WeldSymbol.tint_mix = %InnerDisk.tint_mix
-	%WeldSymbol.allocated = allocated
-	%WeldSymbol.highlight_position = %InnerDisk.highlight_position
-	%WeldSymbol.highlight_intensity = %InnerDisk.highlight_intensity
+	# Composite owns the shared archetype identity; tint_mix / highlight_* are
+	# seeded from InnerDisk's scene-authored values until a global light
+	# framework takes them over (render unchanged either way).
+	_shading.tint_color = tint_color
+	_shading.allocated = allocated
+	_shading.tint_mix = %InnerDisk.tint_mix
+	_shading.highlight_position = %InnerDisk.highlight_position
+	_shading.highlight_intensity = %InnerDisk.highlight_intensity
+	# ONE object → every shaded child. Drift is impossible; adding a consumer is
+	# one line, not "remember to mirror five props."
+	%InnerDisk.shading = _shading
+	%WeldSymbol.shading = _shading
+	for rw in _rim_rings:
+		rw.shading = _shading
+	# Non-shaded derivations off the same archetype color.
 	%RimBonuses.hue = tint_color.h * 360.0
 	%RimBonuses.allocated = allocated
 	%RuneRing.tint_color = tint_color
-	for rw in _rim_rings:
-		rw.light_dir = %InnerDisk.highlight_position
 
 
 ## Positions the (up to 4) pre-placed rim_ring instances outward per stake
