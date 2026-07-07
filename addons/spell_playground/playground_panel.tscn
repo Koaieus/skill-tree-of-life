@@ -1,150 +1,531 @@
-[gd_scene format=3 load_steps=6]
+[gd_scene format=3 uid="uid://dmd408awbmra6"]
 
-[ext_resource type="Script" path="res://addons/spell_playground/playground_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://btdhqut7m6s10" path="res://addons/spell_playground/playground_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="2_sn"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="3_ent"]
-[ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="4_board"]
-[ext_resource type="Script" path="res://graph/graph.gd" id="5_graph"]
+[ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="3_rr351"]
+[ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="4_lgeib"]
+[ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="5_jotj6"]
+[ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="6_0p68j"]
+[ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="7_gnwdd"]
+[ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="8_2psax"]
+[ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="9_sdf20"]
+[ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="10_dsd85"]
+[ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="11_kt55k"]
+[ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="12_f1bso"]
+[ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="13_imfmt"]
+[ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="14_jdqbf"]
+[ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="15_uvjkt"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="16_fd1bc"]
+[ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="17_mcljf"]
+[ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="18_2ld0y"]
+[ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="19_5dmfi"]
+[ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="20_lftbw"]
+[ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="21_36wyl"]
+[ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="22_3o1h6"]
+[ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="23_8pejx"]
+[ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="24_bl0g4"]
+[ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="25_68ort"]
+[ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="26_dk7li"]
+[ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="27_jxucb"]
+[ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="28_rgchn"]
+[ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="29_tk688"]
+[ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="30_4620p"]
+[ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="31_fof4b"]
+[ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="32_gd887"]
+[ext_resource type="Resource" path="res://stats_system/defs/wisdom.tres" id="33_uagdk"]
+[ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="34_0crsu"]
+[ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="35_t3rmt"]
+[ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="36_3dnei"]
+[ext_resource type="Script" uid="uid://bv71o73jcthj3" path="res://entity/core/balanced_core.gd" id="37_oknoy"]
+[ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="38_x1xyy"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="39_dcn82"]
+[ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="40_ut4r8"]
+[ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="41_21cp1"]
+[ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="42_mxixh"]
+[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="43_xa118"]
+[ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="44_5fdyx"]
+[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="45_oqsv1"]
+[ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="47_eagb3"]
 
-[node name="SpellPlaygroundPanel" type="PanelContainer"]
+[sub_resource type="Resource" id="pool_ap"]
+resource_name = "action_points"
+script = ExtResource("4_lgeib")
+current = 2.0
+definition = ExtResource("3_rr351")
+base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_armor"]
+resource_name = "armor"
+script = ExtResource("6_0p68j")
+definition = ExtResource("5_jotj6")
+
+[sub_resource type="Resource" id="scalar_blade_damage"]
+resource_name = "blade_damage"
+script = ExtResource("6_0p68j")
+definition = ExtResource("7_gnwdd")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_blade_size"]
+resource_name = "blade_size"
+script = ExtResource("6_0p68j")
+definition = ExtResource("8_2psax")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_dealloc_damage"]
+resource_name = "dealloc_damage"
+script = ExtResource("6_0p68j")
+definition = ExtResource("9_sdf20")
+base_value = 1.0
+
+[sub_resource type="Resource" id="pool_dealloc"]
+resource_name = "deallocation_points"
+script = ExtResource("4_lgeib")
+current = 3.0
+definition = ExtResource("10_dsd85")
+base_value = 3.0
+
+[sub_resource type="Resource" id="scalar_dexterity"]
+resource_name = "dexterity"
+script = ExtResource("6_0p68j")
+definition = ExtResource("11_kt55k")
+base_value = 10.0
+
+[sub_resource type="Resource" id="pool_health"]
+resource_name = "health"
+script = ExtResource("4_lgeib")
+current = 10.0
+definition = ExtResource("12_f1bso")
+base_value = 10.0
+
+[sub_resource type="Resource" id="pool_initiative"]
+resource_name = "initiative"
+script = ExtResource("4_lgeib")
+definition = ExtResource("13_imfmt")
+base_value = 100.0
+
+[sub_resource type="Resource" id="scalar_initiative_speed"]
+resource_name = "initiative_speed"
+script = ExtResource("6_0p68j")
+definition = ExtResource("14_jdqbf")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_intelligence"]
+resource_name = "intelligence"
+script = ExtResource("6_0p68j")
+definition = ExtResource("15_uvjkt")
+base_value = 10.0
+
+[sub_resource type="Resource" id="formula_per_to_vision"]
+script = ExtResource("17_mcljf")
+source_stat_id = &"perception"
+
+[sub_resource type="Resource" id="mod_per_to_vision"]
+script = ExtResource("16_fd1bc")
+stat_id = &"vision_range"
+operation = 1
+value = 2.0
+formula = SubResource("formula_per_to_vision")
+
+[sub_resource type="Resource" id="formula_int_to_mana"]
+script = ExtResource("18_2ld0y")
+formula = "floor(float(intelligence) / 10.0)"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="mod_int_to_mana"]
+script = ExtResource("16_fd1bc")
+stat_id = &"mana"
+formula = SubResource("formula_int_to_mana")
+
+[sub_resource type="Resource" id="formula_int_to_mana_pt"]
+script = ExtResource("18_2ld0y")
+formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
+inputs = Array[StringName]([&"intelligence"])
+
+[sub_resource type="Resource" id="mod_int_to_mana_pt"]
+script = ExtResource("16_fd1bc")
+stat_id = &"mana_per_turn"
+formula = SubResource("formula_int_to_mana_pt")
+
+[sub_resource type="Resource" id="formula_wis_to_xp_pt"]
+script = ExtResource("18_2ld0y")
+formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
+inputs = Array[StringName]([&"wisdom"])
+
+[sub_resource type="Resource" id="mod_wis_to_xp_pt"]
+script = ExtResource("16_fd1bc")
+stat_id = &"xp_per_turn"
+formula = SubResource("formula_wis_to_xp_pt")
+
+[sub_resource type="Resource" id="formula_dex_to_sensor"]
+script = ExtResource("18_2ld0y")
+formula = "floor(float(dexterity) / 10.0)"
+inputs = Array[StringName]([&"dexterity"])
+
+[sub_resource type="Resource" id="mod_dex_to_sensor"]
+script = ExtResource("16_fd1bc")
+stat_id = &"sensor_range"
+formula = SubResource("formula_dex_to_sensor")
+
+[sub_resource type="Resource" id="formula_str_to_blade_damage"]
+script = ExtResource("18_2ld0y")
+formula = "floor(float(strength) / 10.0)"
+inputs = Array[StringName]([&"strength"])
+
+[sub_resource type="Resource" id="mod_str_to_blade_damage"]
+script = ExtResource("16_fd1bc")
+stat_id = &"blade_damage"
+formula = SubResource("formula_str_to_blade_damage")
+
+[sub_resource type="Resource" id="formula_str_to_blade_size"]
+script = ExtResource("18_2ld0y")
+formula = "floor(strength / 20.)"
+inputs = Array[StringName]([&"strength"])
+
+[sub_resource type="Resource" id="mod_str_to_blade_size"]
+script = ExtResource("16_fd1bc")
+stat_id = &"blade_size"
+formula = SubResource("formula_str_to_blade_size")
+
+[sub_resource type="Resource" id="formula_dex_to_range"]
+script = ExtResource("17_mcljf")
+source_stat_id = &"dexterity"
+
+[sub_resource type="Resource" id="mod_dex_to_range"]
+script = ExtResource("16_fd1bc")
+stat_id = &"range"
+operation = 1
+formula = SubResource("formula_dex_to_range")
+
+[sub_resource type="Resource" id="formula_int_to_spell_range"]
+script = ExtResource("17_mcljf")
+source_stat_id = &"intelligence"
+
+[sub_resource type="Resource" id="mod_int_to_spell_range"]
+script = ExtResource("16_fd1bc")
+stat_id = &"spell_range"
+formula = SubResource("formula_int_to_spell_range")
+
+[sub_resource type="Resource" id="pool_mana"]
+resource_name = "mana"
+script = ExtResource("4_lgeib")
+current = 10.0
+definition = ExtResource("19_5dmfi")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_mana_per_turn"]
+resource_name = "mana_per_turn"
+script = ExtResource("6_0p68j")
+definition = ExtResource("20_lftbw")
+
+[sub_resource type="Resource" id="scalar_min_dmg_taken"]
+resource_name = "min_damage_taken"
+script = ExtResource("6_0p68j")
+definition = ExtResource("21_36wyl")
+base_value = 3.0
+
+[sub_resource type="Resource" id="pool_movement_points"]
+resource_name = "movement_points"
+script = ExtResource("4_lgeib")
+current = 3.0
+definition = ExtResource("22_3o1h6")
+base_value = 3.0
+
+[sub_resource type="Resource" id="scalar_node_health"]
+resource_name = "node_health"
+script = ExtResource("6_0p68j")
+definition = ExtResource("23_8pejx")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_perception"]
+resource_name = "perception"
+script = ExtResource("6_0p68j")
+definition = ExtResource("24_bl0g4")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_range"]
+resource_name = "range"
+script = ExtResource("6_0p68j")
+definition = ExtResource("25_68ort")
+base_value = 400.0
+
+[sub_resource type="Resource" id="scalar_sensor_range"]
+resource_name = "sensor_range"
+script = ExtResource("6_0p68j")
+definition = ExtResource("27_jxucb")
+base_value = 2.0
+
+[sub_resource type="Resource" id="sp_skill_points"]
+resource_name = "skill_points"
+script = ExtResource("29_tk688")
+current = 3.0
+definition = ExtResource("28_rgchn")
+base_value = 3.0
+
+[sub_resource type="Resource" id="scalar_spell_range"]
+resource_name = "spell_range"
+script = ExtResource("6_0p68j")
+definition = ExtResource("30_4620p")
+
+[sub_resource type="Resource" id="scalar_strength"]
+resource_name = "strength"
+script = ExtResource("6_0p68j")
+definition = ExtResource("31_fof4b")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_vision_range"]
+resource_name = "vision_range"
+script = ExtResource("6_0p68j")
+definition = ExtResource("32_gd887")
+base_value = 420.0
+
+[sub_resource type="Resource" id="scalar_wisdom"]
+resource_name = "wisdom"
+script = ExtResource("6_0p68j")
+definition = ExtResource("33_uagdk")
+base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_wound_heal_per_turn"]
+resource_name = "wound_heal_per_turn"
+script = ExtResource("6_0p68j")
+definition = ExtResource("34_0crsu")
+base_value = 1.0
+
+[sub_resource type="Resource" id="pool_xp"]
+resource_name = "xp"
+script = ExtResource("4_lgeib")
+definition = ExtResource("35_t3rmt")
+base_value = 5.0
+
+[sub_resource type="Resource" id="scalar_xp_per_turn"]
+resource_name = "xp_per_turn"
+script = ExtResource("6_0p68j")
+definition = ExtResource("36_3dnei")
+
+[sub_resource type="Resource" id="Resource_t7f1t"]
+resource_local_to_scene = true
+script = ExtResource("26_dk7li")
+strength = SubResource("scalar_strength")
+dexterity = SubResource("scalar_dexterity")
+intelligence = SubResource("scalar_intelligence")
+wisdom = SubResource("scalar_wisdom")
+perception = SubResource("scalar_perception")
+health = SubResource("pool_health")
+node_health = SubResource("scalar_node_health")
+armor = SubResource("scalar_armor")
+min_damage_taken = SubResource("scalar_min_dmg_taken")
+dealloc_damage = SubResource("scalar_dealloc_damage")
+xp = SubResource("pool_xp")
+xp_per_turn = SubResource("scalar_xp_per_turn")
+skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+deallocation_points = SubResource("pool_dealloc")
+action_points = SubResource("pool_ap")
+movement_points = SubResource("pool_movement_points")
+initiative = SubResource("pool_initiative")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+range = SubResource("scalar_range")
+mana = SubResource("pool_mana")
+mana_per_turn = SubResource("scalar_mana_per_turn")
+spell_range = SubResource("scalar_spell_range")
+blade_size = SubResource("scalar_blade_size")
+blade_damage = SubResource("scalar_blade_damage")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
+
+[sub_resource type="Resource" id="Resource_jjc7h"]
+resource_local_to_scene = true
+script = ExtResource("37_oknoy")
+metadata/_custom_type_script = "uid://bv71o73jcthj3"
+
+[sub_resource type="Resource" id="Resource_v2xo6"]
+resource_local_to_scene = true
+script = ExtResource("38_x1xyy")
+spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
+
+[sub_resource type="Resource" id="Resource_4bpll"]
+resource_local_to_scene = true
+script = ExtResource("26_dk7li")
+strength = SubResource("scalar_strength")
+dexterity = SubResource("scalar_dexterity")
+intelligence = SubResource("scalar_intelligence")
+wisdom = SubResource("scalar_wisdom")
+perception = SubResource("scalar_perception")
+health = SubResource("pool_health")
+node_health = SubResource("scalar_node_health")
+armor = SubResource("scalar_armor")
+min_damage_taken = SubResource("scalar_min_dmg_taken")
+dealloc_damage = SubResource("scalar_dealloc_damage")
+xp = SubResource("pool_xp")
+xp_per_turn = SubResource("scalar_xp_per_turn")
+skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+deallocation_points = SubResource("pool_dealloc")
+action_points = SubResource("pool_ap")
+movement_points = SubResource("pool_movement_points")
+initiative = SubResource("pool_initiative")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+range = SubResource("scalar_range")
+mana = SubResource("pool_mana")
+mana_per_turn = SubResource("scalar_mana_per_turn")
+spell_range = SubResource("scalar_spell_range")
+blade_size = SubResource("scalar_blade_size")
+blade_damage = SubResource("scalar_blade_damage")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
+
+[sub_resource type="Resource" id="Resource_wtgei"]
+resource_local_to_scene = true
+script = ExtResource("37_oknoy")
+metadata/_custom_type_script = "uid://bv71o73jcthj3"
+
+[sub_resource type="Resource" id="Resource_wppij"]
+resource_local_to_scene = true
+script = ExtResource("38_x1xyy")
+spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
+
+[node name="SpellPlaygroundPanel" type="PanelContainer" unique_id=962694820]
 custom_minimum_size = Vector2(0, 380)
 script = ExtResource("1_panel")
 
-[node name="HBox" type="HBoxContainer" parent="."]
+[node name="HBox" type="HBoxContainer" parent="." unique_id=1076162723]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="ControlsColumn" type="VBoxContainer" parent="HBox"]
+[node name="ControlsColumn" type="VBoxContainer" parent="HBox" unique_id=407683008]
 custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="HeaderRow" type="HBoxContainer" parent="HBox/ControlsColumn"]
+[node name="HeaderRow" type="HBoxContainer" parent="HBox/ControlsColumn" unique_id=909456759]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="CastButton" type="Button" parent="HBox/ControlsColumn/HeaderRow"]
+[node name="CastButton" type="Button" parent="HBox/ControlsColumn/HeaderRow" unique_id=976121071]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
+disabled = true
 text = "Cast"
 
-[node name="StatusLabel" type="Label" parent="HBox/ControlsColumn/HeaderRow"]
+[node name="StatusLabel" type="Label" parent="HBox/ControlsColumn/HeaderRow" unique_id=564385645]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
-text = "No spell loaded"
+text = "No spell loaded — select a SpellDef in the inspector to sync it here."
 autowrap_mode = 2
 
-[node name="HSep" type="HSeparator" parent="HBox/ControlsColumn"]
+[node name="HSep" type="HSeparator" parent="HBox/ControlsColumn" unique_id=169957761]
 layout_mode = 2
 
-[node name="ValuesLabel" type="RichTextLabel" parent="HBox/ControlsColumn"]
+[node name="ValuesLabel" type="RichTextLabel" parent="HBox/ControlsColumn" unique_id=2134430016]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 bbcode_enabled = true
-scroll_active = true
 
-[node name="HintLabel" type="Label" parent="HBox/ControlsColumn"]
+[node name="HintLabel" type="Label" parent="HBox/ControlsColumn" unique_id=1856713664]
+modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
 text = "Edit the spell's exports in the inspector. Left-click a node to seed; Cast to fire."
 autowrap_mode = 2
-modulate = Color(1, 1, 1, 0.55)
 
-[node name="WorldContainer" type="SubViewportContainer" parent="HBox"]
+[node name="WorldContainer" type="SubViewportContainer" parent="HBox" unique_id=1417011098]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 stretch = true
 
-[node name="World" type="SubViewport" parent="HBox/WorldContainer"]
+[node name="World" type="SubViewport" parent="HBox/WorldContainer" unique_id=2092270938]
 unique_name_in_owner = true
-size = Vector2i(900, 380)
-render_target_update_mode = 4
+handle_input_locally = false
 physics_object_picking = true
+size = Vector2i(2, 380)
+render_target_update_mode = 4
 
-[node name="Background" type="ColorRect" parent="HBox/WorldContainer/World"]
+[node name="Background" type="ColorRect" parent="HBox/WorldContainer/World" unique_id=389234317]
 unique_name_in_owner = true
-offset_right = 900.0
+offset_right = 2.0
 offset_bottom = 380.0
-color = Color(0.07, 0.07, 0.1, 1)
 mouse_filter = 2
+color = Color(0.07, 0.07, 0.1, 1)
 
-[node name="CasterEntity" parent="HBox/WorldContainer/World" instance=ExtResource("3_ent")]
+[node name="CasterEntity" parent="HBox/WorldContainer/World" unique_id=565079321 instance=ExtResource("3_ent")]
 unique_name_in_owner = true
 display_name = "Caster"
 color = Color(0.4, 0.8, 0.55, 1)
-stat_board = ExtResource("4_board")
+stat_board = SubResource("Resource_t7f1t")
+core_class = SubResource("Resource_jjc7h")
+spellbook = SubResource("Resource_v2xo6")
 
-[node name="DefenderEntity" parent="HBox/WorldContainer/World" instance=ExtResource("3_ent")]
+[node name="DefenderEntity" parent="HBox/WorldContainer/World" unique_id=345963501 instance=ExtResource("3_ent")]
 unique_name_in_owner = true
 display_name = "Defender"
 color = Color(0.85, 0.4, 0.3, 1)
-stat_board = ExtResource("4_board")
+stat_board = SubResource("Resource_4bpll")
+core_class = SubResource("Resource_wtgei")
+spellbook = SubResource("Resource_wppij")
 
-[node name="CasterNode" parent="HBox/WorldContainer/World" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="CasterNode" parent="HBox/WorldContainer/World" unique_id=1567387689 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 unique_name_in_owner = true
+position = Vector2(65, 190)
 owned_by = NodePath("../CasterEntity")
 
-[node name="Graph" type="Node2D" parent="HBox/WorldContainer/World" node_paths=PackedStringArray("skill_nodes_container", "edges_container")]
+[node name="Graph" parent="HBox/WorldContainer/World" unique_id=1726628961 instance=ExtResource("47_eagb3")]
+
+[node name="T_00" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="0" unique_id=1120853937 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_01" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="1" unique_id=1056889480 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_02" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="2" unique_id=1697755299 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_03" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="3" unique_id=1232758408 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_10" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="4" unique_id=1718383906 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_11" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="5" unique_id=1083574726 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_12" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="6" unique_id=1260902422 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_13" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="7" unique_id=652399749 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_20" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="8" unique_id=1523931166 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_21" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="9" unique_id=760718367 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_22" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="10" unique_id=955374995 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_23" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="11" unique_id=1262088768 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_30" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="12" unique_id=1772789795 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_31" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="13" unique_id=1314036275 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_32" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="14" unique_id=301008163 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="T_33" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="15" unique_id=1220020722 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+owned_by = NodePath("../../../DefenderEntity")
+
+[node name="VFXLayer" type="Node2D" parent="HBox/WorldContainer/World" unique_id=98385627]
 unique_name_in_owner = true
-script = ExtResource("5_graph")
-skill_nodes_container = NodePath("SkillNodes")
-edges_container = NodePath("Edges")
 
-[node name="SkillNodes" type="Node2D" parent="HBox/WorldContainer/World/Graph"]
-
-[node name="T_00" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_01" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_02" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_03" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_10" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_11" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_12" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_13" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_20" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_21" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_22" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_23" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_30" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_31" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_32" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="T_33" parent="HBox/WorldContainer/World/Graph/SkillNodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
-owned_by = NodePath("../../../DefenderEntity")
-
-[node name="Edges" type="Node2D" parent="HBox/WorldContainer/World/Graph"]
-
-[node name="VFXLayer" type="Node2D" parent="HBox/WorldContainer/World"]
-unique_name_in_owner = true
+[editable path="HBox/WorldContainer/World/Graph"]
