@@ -19,6 +19,11 @@ shader_type canvas_item;
 // per-instance material + a small baked LUT texture for that case
 // (height_preset == 4), an intentional, documented, opt-in cost. See
 // skill_node/visuals/rim_ring.gd.
+//
+// Light math (sn_light_dir / sn_diffuse) is shared with inner_disk.gdshader via
+// lighting.gdshaderinc so the disk and its rim can never drift onto two lights.
+
+#include "res://skill_node/visuals/lighting.gdshaderinc"
 
 instance uniform float inner_r = 24.0;
 instance uniform float crest_r = 28.0;
@@ -84,8 +89,8 @@ void fragment() {
 
 	vec2 radial_dir = r > 0.0001 ? p / r : vec2(0.0, 1.0);
 	vec3 normal = normalize(vec3(-radial_dir * slope, 1.0));
-	vec3 light_dir = normalize(vec3(light_dir_xy, 0.65));
-	float diffuse = max(dot(normal, light_dir), 0.0);
+	vec3 light_dir = sn_light_dir(light_dir_xy);
+	float diffuse = sn_diffuse(normal, light_dir);
 	vec3 shaded = ring_tint.rgb * (0.35 + 0.65 * diffuse);
 
 	float inside = step(inner_r, r) * step(r, outer_r);
