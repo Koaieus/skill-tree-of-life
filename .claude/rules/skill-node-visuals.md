@@ -1,6 +1,7 @@
 ---
 description: SkillNode visuals
-globs: skill_node/visuals/**
+paths:
+  - "skill_node/visuals/**"
 ---
 # SkillNode visuals — ring band convention (#67)
 

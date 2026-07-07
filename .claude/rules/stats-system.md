@@ -1,5 +1,8 @@
 ---
 description: Stat system quick-reference — pipeline, stat IDs (grep), intrinsic scaling, gotchas
+paths:
+  - "stats_system/**"
+  - "entity/default_entity_board.tres"
 ---
 
 # Stat system reference

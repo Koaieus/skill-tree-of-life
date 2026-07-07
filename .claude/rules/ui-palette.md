@@ -1,3 +1,10 @@
+---
+description: UI color palette ("Arcane Terminal") — source of truth per stat, OKLCH→sRGB values
+paths:
+  - "stats_system/defs/*.tres"
+  - "ui/hud/**"
+---
+
 # UI color palette ("Arcane Terminal")
 
 Canonical colors from `docs/design/design_handoff_game_ui/README.md`, converted OKLCH → sRGB once at authoring time (Godot `Color` has no OKLCH constructor). Source of truth for attribute/vital colors is **`StatDef.tint_color`** on the matching `.tres` in `stats_system/defs/` — don't introduce a second palette resource for those. SP-bucket colors aren't per-stat (SkillPointStat is one pool with internal buckets), so they live as `@export` defaults on the Skill Points gauge component instead.

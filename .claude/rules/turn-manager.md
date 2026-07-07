@@ -1,5 +1,9 @@
 ---
 description: Turn manager quick-reference — single-phase turn, initiative, turn-start hooks
+paths:
+  - "systems/turn_manager.gd"
+  - "entity/controller/**"
+  - "scenes/game_root.gd"
 ---
 
 # Turn manager

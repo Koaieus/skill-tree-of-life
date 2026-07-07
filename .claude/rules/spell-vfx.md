@@ -1,3 +1,10 @@
+---
+description: Spell VFX explanation
+paths:
+  - "attack/spell/defs/**"
+  - "ui/vfx/**"
+---
+
 # Spell VFX
 
 ## Coordinator zoo

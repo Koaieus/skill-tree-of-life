@@ -1,3 +1,12 @@
+---
+description: Entity death sequencing — health-depletion trigger, two-phase Events bus, synchronous cleanup ordering
+paths:
+  - "systems/allocation_system.gd"
+  - "systems/battle_system.gd"
+  - "systems/loot_system.gd"
+  - "scenes/game_root.gd"
+---
+
 # Entity death (#18)
 
 How an entity dies and gets cleaned up. Touches Entity, AllocationSystem,

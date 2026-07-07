@@ -1,6 +1,9 @@
 ---
 description: GUT testing framework — how to run, where tests live, common pitfalls
-globs: test/**, addons/gut/**, .gutconfig.json
+paths:
+  - "test/**"
+  - "addons/gut/**"
+  - ".gutconfig.json"
 ---
 
 # Testing (GUT)
