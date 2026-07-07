@@ -68,6 +68,33 @@ WITHOUT a new `class_name`) don't need a refresh — the runtime parses
 those fresh. Only `class_name` introduction / rename / removal requires
 the cache to be rebuilt.
 
+## Verifying `.gdshader` changes — headless import does NOT compile GLSL*
+
+`godot --headless --editor --quit` (and GUT) run under the **dummy renderer**,
+which never compiles shader GLSL. A `.gdshader` edit that produces invalid
+generated GLSL (e.g. an `#include`d function whose parameter name collides with
+a `uniform` — Godot's codegen rewrites the uniform *token* even inside the
+function body, silently miscompiling to something like `mix(vec3, vec4, float)`)
+**passes a clean headless import and a green test suite**, then fails at driver
+compile only under a real renderer:
+
+```
+ERROR: ... Fragment shader compilation failed / no matching function ...
+  compile_stages() servers/rendering/renderer_rd/shader_rd.cpp
+```
+
+The node just renders its untextured fallback (a white quad). To actually
+compile shaders headlessly, drive a real backend under a virtual display:
+
+```bash
+xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
+  res://path/to/scene_using_the_shader.tscn 2>&1 | grep -iE 'compilation failed|no matching'
+```
+
+opengl3 (mesa/llvmpipe) needs no GPU and surfaces the codegen error even though
+production uses the RD/Vulkan backend — the bug is in Godot's shader codegen, so
+it reproduces on either backend. Empty grep = compiles clean.
+
 ## Hand-authoring `.tres` — UID mismatch silently nulls the field*
 
 `[ext_resource type="Script" uid="uid://..." path="res://foo/bar.gd" id="x"]`
