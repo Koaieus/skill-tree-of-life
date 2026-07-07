@@ -113,27 +113,32 @@ func _ready() -> void:
 func _sync_material() -> void:
 	if not is_node_ready():
 		return
-	if _use_custom_curve and rim_height_style != null:
+	# The two paths differ ONLY in which material is bound (shared vs a
+	# per-instance one carrying the custom LUT) and the height_preset value.
+	# EVERYTHING varying per node — inner_r/crest_r/outer_r/ring_tint/
+	# height_preset/light_dir_xy — is an `instance uniform`, so it MUST be set
+	# via set_instance_shader_parameter() on the CanvasItem, NOT
+	# material.set_shader_parameter() (that silently no-ops for instance
+	# uniforms — the bug that made a custom rim_height_style Curve do nothing:
+	# height_preset never reached CUSTOM_PRESET_INDEX so the LUT was never
+	# sampled). The custom material exists ONLY to carry `height_lut`, a real
+	# sampler uniform, which genuinely can't ride an instance uniform.
+	var use_custom := _use_custom_curve and rim_height_style != null
+	if use_custom:
 		if _custom_material == null:
 			_custom_material = ShaderMaterial.new()
 			_custom_material.resource_local_to_scene = true
 			_custom_material.shader = SHADER
 		material = _custom_material
 		_custom_material.set_shader_parameter(&"height_lut", _bake_lut(rim_height_style))
-		_custom_material.set_shader_parameter(&"inner_r", inner_radius)
-		_custom_material.set_shader_parameter(&"crest_r", crest_r)
-		_custom_material.set_shader_parameter(&"outer_r", outer_radius)
-		_custom_material.set_shader_parameter(&"ring_tint", ring_tint)
-		_custom_material.set_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX)
-		_custom_material.set_shader_parameter(&"light_dir_xy", light_dir)
 	else:
 		material = _shared_material
-		set_instance_shader_parameter(&"inner_r", inner_radius)
-		set_instance_shader_parameter(&"crest_r", crest_r)
-		set_instance_shader_parameter(&"outer_r", outer_radius)
-		set_instance_shader_parameter(&"ring_tint", ring_tint)
-		set_instance_shader_parameter(&"height_preset", int(height_preset))
-		set_instance_shader_parameter(&"light_dir_xy", light_dir)
+	set_instance_shader_parameter(&"inner_r", inner_radius)
+	set_instance_shader_parameter(&"crest_r", crest_r)
+	set_instance_shader_parameter(&"outer_r", outer_radius)
+	set_instance_shader_parameter(&"ring_tint", ring_tint)
+	set_instance_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX if use_custom else int(height_preset))
+	set_instance_shader_parameter(&"light_dir_xy", light_dir)
 	queue_redraw()
 
 
