@@ -19,6 +19,13 @@ extends SkillNodeVisual
 
 const MAX_STAKE_CAP := 4
 
+## The disk is sized this many px LARGER than geom_inner_r so its faded outer
+## edge tucks UNDER the innermost rim (drawn above it), instead of leaving a ~1px
+## transparent seam where the disk has faded out but the rim's inner AA hasn't
+## filled in yet — the dark background was peeking through that ring. The rim
+## hides the overlap, so the disk still reads as ending at geom_inner_r.
+const DISK_RIM_OVERLAP := 1.5
+
 ## Entity/archetype tint — see inner_disk.gd. Drives InnerDisk, WeldSymbol,
 ## and (desaturated per stake index) the RimRing band coloring. RimBonuses
 ## still runs on its own `hue` float (unconverted, out of this pass's
@@ -129,6 +136,10 @@ func _sync_shared() -> void:
 func _sync_stake() -> void:
 	if not is_node_ready():
 		return
+	# Disk tucks under the innermost rim (see DISK_RIM_OVERLAP); the weld stays
+	# sized to the visible disk edge so its glyph doesn't grow with the overlap.
+	%InnerDisk.disk_radius = geom_inner_r + DISK_RIM_OVERLAP
+	%WeldSymbol.disk_radius = geom_inner_r
 	var ring_width := geom_outer_r - geom_inner_r
 	var visible_count := stake_cap if rim_growth else 1
 	var max_outer_r := geom_outer_r
