@@ -123,6 +123,12 @@ var self_loop_count: int:
 
 func _ready() -> void:
 	_sync_collision()
+	# owned_by may already be non-null here — set as a scene-baked @export
+	# (dev_sandbox.tscn's pre-owned nodes), which assigns the property (and
+	# emits owner_changed into the void) before any listener is connected.
+	# Refresh the derived allocation_level explicitly so the first
+	# _sync_visuals below doesn't push a stale 0 into NodeVisualsComposite.
+	_refresh_alloc_count()
 	_sync_visuals()
 	radius_changed.connect(_sync_visuals)
 	# _refresh_alloc_count must run BEFORE _sync_visuals — the latter reads
