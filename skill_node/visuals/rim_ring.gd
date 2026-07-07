@@ -58,6 +58,11 @@ static var _shared_material: ShaderMaterial
 		rim_height_style = value
 		if rim_height_style != null and not rim_height_style.changed.is_connected(_on_curve_changed):
 			rim_height_style.changed.connect(_on_curve_changed)
+		# Assigning a real Curve directly (not via height_preset) is itself
+		# what makes this instance custom — keep height_preset's inspector
+		# display in sync rather than requiring both to be set by hand.
+		if rim_height_style != null:
+			height_preset = CUSTOM_PRESET_INDEX
 		_rebake_lut()
 		_sync_material()
 

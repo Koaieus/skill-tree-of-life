@@ -72,6 +72,7 @@ signal depleted
 @onready var core_marker: Node2D = $Visuals/CoreMarker
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar # TODO: pull through vision system
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
+@onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
 @onready var _addon_anchor: Node2D = $Visuals/AddonAnchor
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -95,14 +96,15 @@ var sensed: bool = false:
 ## [method StatBoard._ensure_stat].
 var node_board: StatBoard = null
 
-## Per-node allocation cap. `alloc_cap_max` defaults to 1 (single allocation
+## Per-node allocation cap. `stake_level` defaults to 1 (single allocation
 ## slot); raise by 1 per stake via the entity's `skill_points.stake(1)` action.
-## `alloc_count` mirrors live allocation: 0 = unowned, 1 = baseline, 2+ = staked.
+## `allocation_level` mirrors live allocation: 0 = unowned, 1 = baseline,
+## 2+ = staked (e.g. stake_level=3 + allocation_level=1 reads as a 1/3 node).
 ## Pure node-local — these are not Stats and must never be registered with
 ## an entity StatBoard. If you want to scale modifier contributions by the
 ## stake count, read it directly off the SkillNode.
-var alloc_cap_max: int = 1
-var alloc_count: int = 0
+var stake_level: int = 1
+var allocation_level: int = 0
 
 # Track the entity node_health stat so we can re-sync the node's combat health
 # base_value when the entity baseline changes. Swap on owner_changed.
@@ -123,10 +125,13 @@ func _ready() -> void:
 	_sync_collision()
 	_sync_visuals()
 	radius_changed.connect(_sync_visuals)
+	# _refresh_alloc_count must run BEFORE _sync_visuals — the latter reads
+	# allocation_level to push into NodeVisualsComposite, and connections fire
+	# in connect() order.
+	owner_changed.connect(_refresh_alloc_count)
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_marker)
 	owner_changed.connect(_refresh_hp_binding)
-	owner_changed.connect(_refresh_alloc_count)
 	damaged.connect(play_hit_flash.unbind(2))
 	_addon_anchor.child_entered_tree.connect(_on_addon_added)
 	_addon_anchor.child_exiting_tree.connect(_on_addon_removed)
@@ -166,6 +171,8 @@ func _apply_sensed_state() -> void:
 		return
 	if _base_circle != null:
 		_base_circle.sensed = sensed
+	if _node_visuals != null:
+		_node_visuals.visible = not sensed
 	z_as_relative = not sensed
 	z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
 	var _is_core := owned_by != null and owned_by.core_location == self
@@ -184,20 +191,27 @@ func _sync_collision() -> void:
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
-	# Border = base-type identity (persistent). Fill = owner colour when
-	# allocated, dim-grey idle otherwise. Two channels so allocation status
-	# never wipes the type read.
+	# BaseCircle keeps only the faint always-on wash (legibility background
+	# for unallocated nodes, per .claude/rules/skill-node-visuals.md) and the
+	# sensed-fog outline — NodeVisualsComposite (disk + rim + rune/halo dress)
+	# is the real disk/allocation render now.
 	_base_circle._radius = radius
-	_base_circle.inner_radius = inner_radius
-	_base_circle.border_color = base_type_color
 	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
-	_base_circle.allocated = is_allocated()
+	_base_circle.border_color = base_type_color
 	_base_circle.sensed = sensed
 	_base_circle.queue_redraw()
 	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)
 	for a in get_addons():
 		a.configure_visual(radius)
+	_node_visuals.configure(radius)
+	_node_visuals.geom_inner_r = inner_radius
+	_node_visuals.geom_outer_r = radius
+	_node_visuals.entity_tint = get_owner_color()
+	_node_visuals.archetype_tint = base_type_color
+	_node_visuals.stake_level = stake_level
+	_node_visuals.allocation_level = allocation_level
+	_node_visuals.visible = not sensed
 
 
 func is_allocated() -> bool:
@@ -464,9 +478,9 @@ func _init_node_board() -> void:
 
 func _refresh_alloc_count() -> void:
 	if owned_by == null:
-		alloc_count = 0
-	elif alloc_count == 0:
-		alloc_count = 1
+		allocation_level = 0
+	elif allocation_level == 0:
+		allocation_level = 1
 
 
 # Addon plumbing. Carrier owns its `modifiers` array as the source-of-truth

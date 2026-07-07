@@ -16,4 +16,5 @@ instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
 instance_shader_parameters/tint_mix = 0.6
 script = ExtResource("1_disk")
 
-[node name="WeldSymbol" parent="." unique_name_in_owner=true instance=ExtResource("2_weld")]
+[node name="WeldSymbol" parent="." instance=ExtResource("2_weld")]
+unique_name_in_owner = true

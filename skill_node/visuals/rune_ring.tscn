@@ -4,5 +4,5 @@
 
 [node name="RuneRing" type="Node2D" unique_id=41727208]
 script = ExtResource("1_rune")
-rune_ring = 3
-rune_ring_blend = 2
+band_count = 3
+blend = 2

@@ -36,10 +36,10 @@ func test_composite_shares_one_shading_across_shaded_children() -> void:
 	await get_tree().process_frame
 
 	var disk = comp.get_node("%InnerDisk")
-	var weld = comp.get_node("%WeldSymbol")
+	var weld = disk.get_node("%WeldSymbol")
 	var rim = comp.get_node("%RimRing")
 	assert_not_null(disk.shading, "InnerDisk received a shading source")
-	assert_same(disk.shading, weld.shading, "WeldSymbol shares the SAME object")
+	assert_same(disk.shading, weld.shading, "WeldSymbol (composed inside InnerDisk) shares the SAME object")
 	assert_same(disk.shading, rim.shading, "RimRing shares the SAME object")
 
 
@@ -47,8 +47,8 @@ func test_composite_tint_propagates_to_shaded_children() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
 
-	comp.tint_color = Color(0.1, 0.7, 0.3)
+	comp.entity_tint = Color(0.1, 0.7, 0.3)
 	var disk = comp.get_node("%InnerDisk")
-	var weld = comp.get_node("%WeldSymbol")
-	assert_eq(disk.tint_color, Color(0.1, 0.7, 0.3), "disk tint follows composite")
-	assert_eq(weld.tint_color, Color(0.1, 0.7, 0.3), "weld tint follows composite")
+	var weld = disk.get_node("%WeldSymbol")
+	assert_eq(disk.tint_color, Color(0.1, 0.7, 0.3), "disk tint follows composite's entity_tint")
+	assert_eq(weld.tint_color, Color(0.1, 0.7, 0.3), "weld tint follows composite's entity_tint")

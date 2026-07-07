@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dgo4gx2kxagct"]
 
-[ext_resource type="Script" path="res://skill_node/visuals/rim_bonuses.gd" id="1_rim"]
+[ext_resource type="Script" uid="uid://bel0ve8mrtua6" path="res://skill_node/visuals/rim_bonuses.gd" id="1_rim"]
 
-[node name="RimBonuses" type="Node2D"]
+[node name="RimBonuses" type="Node2D" unique_id=1898218237]
 script = ExtResource("1_rim")
