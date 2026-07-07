@@ -39,11 +39,11 @@ position = Vector2(150, 210)
 scale = Vector2(2.2, 2.2)
 
 [node name="Composite" parent="ViewportContainer/World/CompositeSlot" instance=ExtResource("2_composite")]
-tint_color = Color(0.36, 0.9, 0.585, 1)
-allocated = true
+entity_tint = Color(0.36, 0.9, 0.585, 1)
+archetype_tint = Color(0.36, 0.9, 0.585, 1)
 rim_growth = true
-stake_cap = 3
-stake_alloc = 2
+stake_level = 3
+allocation_level = 2
 
 [node name="CompositeLabel" type="Label" parent="ViewportContainer/World"]
 offset_left = 60.0
@@ -92,5 +92,5 @@ core = 1
 position = Vector2(770, 280)
 
 [node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" instance=ExtResource("8_rune")]
-rune_ring = 2
-rune_ring_blend = 2
+band_count = 2
+blend = 2

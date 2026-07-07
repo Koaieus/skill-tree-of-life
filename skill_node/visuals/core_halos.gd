@@ -6,7 +6,14 @@ extends SkillNodeRingVisual
 
 enum CoreStyle { NONE, RINGS, ORBIT, GIMBAL, COG }
 
-const HALO_COLOR := Color(0.85, 0.9, 1.0, 0.8)
+## The entity/owner's color — core presence marks "this is your nucleus", so
+## it tracks the allocating entity's tint rather than a private fixed hue.
+## The composer syncs this to entity_tint; a standalone preview keeps the
+## default.
+@export var halo_color: Color = Color(0.85, 0.9, 1.0, 0.8):
+	set(value):
+		halo_color = value
+		queue_redraw()
 
 @export var core: CoreStyle = CoreStyle.NONE:
 	set(value):
@@ -53,32 +60,38 @@ func _draw_rings(base_r: float) -> void:
 	for i in 3:
 		var r := base_r * (1.0 + i * 0.18)
 		var rate := 1.0 + i * 0.5
-		_draw_dashed_circle(r, _t * rate, 10, HALO_COLOR)
+		_draw_dashed_circle(r, _t * rate, 10, halo_color)
 
 
 func _draw_orbit(base_r: float) -> void:
+	draw_circle(Vector2.ZERO, base_r, halo_color, false, 1.0)
 	var dot_count := 4
 	for i in dot_count:
 		var theta := _t + (TAU / dot_count) * i
-		var r := base_r * (1.0 + 0.1 * sin(_t * 0.7 + i))
-		draw_circle(polar_point(r, theta), 2.5, HALO_COLOR)
+		#var r := base_r * (1.0 + 0.1 * sin(_t * 0.7 + i))
+		var r = base_r
+		var halo_col_no_alpha = halo_color
+		halo_col_no_alpha.a = 1.0
+		draw_circle(polar_point(r, theta), 2.5, halo_col_no_alpha)
 
 
 ## 3 ring-arcs tilted ~45 degrees apart, each spinning at its own rate.
+# TODO: this is not at all what they should look like wtf
 func _draw_gimbal(base_r: float) -> void:
 	for i in 3:
 		var tilt := i * PI / 4.0
 		var rate := 0.6 + i * 0.3
 		var theta_start := _t * rate + tilt
-		draw_arc(Vector2.ZERO, base_r * (1.0 + i * 0.05), theta_start, theta_start + PI * 1.4, 24, HALO_COLOR, 1.5, true)
+		draw_arc(Vector2.ZERO, base_r * (1.0 + i * 0.05), theta_start, theta_start + PI * 1.4, 24, halo_color, 1.5, true)
 
 
 func _draw_cog(base_r: float) -> void:
+	draw_circle(Vector2.ZERO, base_r, halo_color, false, 1.0)
 	var teeth := 10
 	var tooth_len := base_r * 0.12
 	for i in teeth:
 		var theta := _t * 0.3 + (TAU / teeth) * i
-		draw_line(polar_point(base_r, theta), polar_point(base_r + tooth_len, theta), HALO_COLOR, 2.0, true)
+		draw_line(polar_point(base_r, theta), polar_point(base_r + tooth_len, theta), halo_color, 2.0, true)
 
 
 func _draw_dashed_circle(r: float, offset: float, dash_count: int, color: Color) -> void:

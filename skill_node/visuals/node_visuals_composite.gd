@@ -3,15 +3,24 @@ extends SkillNodeVisual
 ## Orchestration scene composing all SkillNode-visual components (#126,
 ## milestone #16). Children are scene-composed in
 ## node_visuals_composite.tscn (not instantiated in code) — this script
-## forwards the knobs that must stay in sync *across* children (tint_color,
-## allocated, the rim radii, stake cap/alloc) and computes the node's
-## current actual outer edge so [RuneRing] auto-clears grown stake rings.
-## Z-order in the .tscn already matches the final draw order: disk -> weld
-## -> rim ring(s) -> rim bonuses -> halos -> rune ring.
+## forwards the knobs that must stay in sync *across* children (entity_tint,
+## archetype_tint, allocation_level, the rim radii, stake level/alloc) and
+## computes the node's current actual outer edge so [RuneRing] auto-clears
+## grown stake rings.
 ##
 ## This is also the ONLY layer that knows both InnerDisk and RimRing exist:
 ## [member geom_inner_r] is handed to both, so the disk's edge and the
 ## ring's floor line up — RimRing itself carries no disk knowledge at all.
+##
+## Two tints, two jobs — never merge them back into one:
+##   entity_tint    — the allocating entity's color ("player tint"). Drives
+##                     InnerDisk (and its composed WeldSymbol) and CoreHalos,
+##                     which read as "this is MINE", only visible/meaningful
+##                     once allocated.
+##   archetype_tint — the node's persistent type identity. Drives RimRing's
+##                     tint_mix (mixed toward the ring's own bronze/gold at
+##                     low mix), RuneRing, and RimBonuses — structural reads
+##                     that stay legible whether or not the node is owned.
 ##
 ## Stake/cap depth: only approach A (ring stacking / rim_growth) is wired.
 ## Segmented dial (rimSegments) and well/groove (rimWell) are follow-up —
@@ -26,23 +35,48 @@ const MAX_STAKE_CAP := 4
 ## hides the overlap, so the disk still reads as ending at geom_inner_r.
 const DISK_RIM_OVERLAP := 1.5
 
-## Entity/archetype tint — see inner_disk.gd. Drives InnerDisk, WeldSymbol,
-## and (desaturated per stake index) the RimRing band coloring. RimBonuses
-## still runs on its own `hue` float (unconverted, out of this pass's
-## scope); we derive it from tint_color.h rather than carrying two
-## independent color exports.
-@export var tint_color: Color = Color(0.291, 0.5892, 1.0):
+## Mix pushed into a filled vs. unfilled stake ring's [member RimRing.tint_mix]
+## — filled reads as fully the archetype identity, unfilled mostly reads as
+## the rim's own bronze/gold metal with only a hint of tint.
+const FILLED_TINT_MIX := 1.0
+const UNFILLED_TINT_MIX := 0.3
+
+## The allocating entity's color ("player tint") — see class doc. Drives
+## InnerDisk/WeldSymbol/CoreHalos.
+@export var entity_tint: Color = Color(0.291, 0.5892, 1.0):
 	set(value):
-		tint_color = value
-		_sync_shared()
-@export var allocated: bool = false:
-	set(value):
-		allocated = value
+		entity_tint = value
 		_sync_shared()
 
-## Pit/disc edge — shared by InnerDisk.disk_radius, WeldSymbol.disk_radius,
-## and RimRing.inner_radius (base ring only; stacked rings grow outward
-## from here, see _sync_stake).
+## Persistent type/archetype identity color — see class doc. Drives RimRing/
+## RuneRing/RimBonuses.
+@export var archetype_tint: Color = Color(0.65, 0.67, 0.72):
+	set(value):
+		archetype_tint = value
+		_sync_shared()
+
+## Max allocation slots for this node — 1 for the ~99% common case;
+## staked nodes go up to [const MAX_STAKE_CAP].
+@export_range(1, MAX_STAKE_CAP, 1) var stake_level: int = 1:
+	set(value):
+		stake_level = value
+		_sync_stake()
+## Current fill count (0..stake_level). [member allocated] is just
+## `allocation_level > 0`.
+@export_range(0, MAX_STAKE_CAP, 1) var allocation_level: int = 0:
+	set(value):
+		allocation_level = value
+		_sync_stake()
+		_sync_shared()
+
+## `allocation_level > 0` — never set directly, so there's exactly one
+## source of truth for "is this node owned" driving the visuals.
+var allocated: bool:
+	get(): return allocation_level > 0
+
+## Pit/disc edge — shared by InnerDisk.disk_radius (WeldSymbol mirrors it
+## internally) and RimRing.inner_radius (base ring only; stacked rings grow
+## outward from here, see _sync_stake).
 @export_range(0.0, 128.0, 0.5) var geom_inner_r: float = 24.0:
 	set(value):
 		geom_inner_r = value
@@ -63,31 +97,24 @@ const DISK_RIM_OVERLAP := 1.5
 	set(value):
 		rim_growth = value
 		_sync_stake()
-@export_range(1, MAX_STAKE_CAP, 1) var stake_cap: int = 1:
-	set(value):
-		stake_cap = value
-		_sync_stake()
-@export_range(0, MAX_STAKE_CAP, 1) var stake_alloc: int = 0:
-	set(value):
-		stake_alloc = value
-		_sync_stake()
 @export_range(0.0, 6.0, 0.1) var ring_gap: float = 2.0:
 	set(value):
 		ring_gap = value
 		_sync_stake()
 
 @onready var _children: Array[SkillNodeVisual] = [
-	%InnerDisk, %WeldSymbol, %RimRing, %RimRing2, %RimRing3, %RimRing4,
+	%InnerDisk, %RimRing, %RimRing2, %RimRing3, %RimRing4,
 	%RimBonuses, %CoreHalos, %RuneRing,
 ]
 @onready var _rim_rings: Array[SkillNodeRingVisual] = [%RimRing, %RimRing2, %RimRing3, %RimRing4]
 @onready var _stake_label: Label = %StakeLabel
 
-## The ONE shared shading source handed to every shaded child (InnerDisk,
-## WeldSymbol, all RimRings). The composite edits this object instead of poking
-## each child's five shading properties — see [ShadingStyle]. Seeded from
-## InnerDisk's scene-authored tint_mix / highlight_* (until a global light
-## framework owns those) so the render is unchanged.
+## The ONE shared shading source handed to every shaded child (InnerDisk —
+## which forwards it to its own composed WeldSymbol — and every RimRing).
+## The composite edits this object instead of poking each child's five
+## shading properties — see [ShadingStyle]. Seeded from InnerDisk's
+## scene-authored tint_mix / highlight_* (until a global light framework
+## owns those) so the render is unchanged.
 var _shading := ShadingStyle.new()
 
 
@@ -103,16 +130,13 @@ func configure(new_radius: float) -> void:
 			child.configure(new_radius)
 
 
-## InnerDisk is the source of truth for the shared gradient; WeldSymbol
-## mirrors every one of its shading inputs (not just tint_color) so the two
-## surfaces read as one continuous lit material — see weld_symbol.gd.
+## InnerDisk (and its composed WeldSymbol) is the source of truth for the
+## shared gradient; RimRing only reads the light direction off the same
+## object so the ring never drifts onto a second light.
 func _sync_shared() -> void:
 	if not is_node_ready():
 		return
-	# Composite owns the shared archetype identity; tint_mix / highlight_* are
-	# seeded from InnerDisk's scene-authored values until a global light
-	# framework takes them over (render unchanged either way).
-	_shading.tint_color = tint_color
+	_shading.tint_color = entity_tint
 	_shading.allocated = allocated
 	_shading.tint_mix = %InnerDisk.tint_mix
 	_shading.highlight_position = %InnerDisk.highlight_position
@@ -120,28 +144,29 @@ func _sync_shared() -> void:
 	# ONE object → every shaded child. Drift is impossible; adding a consumer is
 	# one line, not "remember to mirror five props."
 	%InnerDisk.shading = _shading
-	%WeldSymbol.shading = _shading
+	%InnerDisk.visible = allocated
 	for rw in _rim_rings:
 		rw.shading = _shading
-	# Non-shaded derivations off the same archetype color.
-	%RimBonuses.hue = tint_color.h * 360.0
+	# Non-shaded derivations off the archetype identity color.
+	%RimBonuses.hue = archetype_tint.h * 360.0
 	%RimBonuses.allocated = allocated
-	%RuneRing.tint_color = tint_color
+	%RuneRing.tint_color = archetype_tint
+	# Entity identity, not archetype — the halo marks "this is YOUR core".
+	%CoreHalos.halo_color = entity_tint
 
 
 ## Positions the (up to 4) pre-placed rim_ring instances outward per stake
-## cap, dims unfilled rings to the archetype tint (never flat gray — the
-## design doc is explicit about that), then hands RuneRing the node's real
-## current outer edge so it clears whatever the stake growth occupies.
+## level, mixes unfilled rings mostly toward the rim's own bronze/gold metal
+## (never flat gray — the design doc is explicit about that), then hands
+## RuneRing the node's real current outer edge so it clears whatever the
+## stake growth occupies.
 func _sync_stake() -> void:
 	if not is_node_ready():
 		return
-	# Disk tucks under the innermost rim (see DISK_RIM_OVERLAP); the weld stays
-	# sized to the visible disk edge so its glyph doesn't grow with the overlap.
+	# Disk tucks under the innermost rim (see DISK_RIM_OVERLAP).
 	%InnerDisk.disk_radius = geom_inner_r + DISK_RIM_OVERLAP
-	%WeldSymbol.disk_radius = geom_inner_r
 	var ring_width := geom_outer_r - geom_inner_r
-	var visible_count := stake_cap if rim_growth else 1
+	var visible_count := stake_level if rim_growth else 1
 	var max_outer_r := geom_outer_r
 	for i in MAX_STAKE_CAP:
 		var rw := _rim_rings[i]
@@ -153,27 +178,20 @@ func _sync_stake() -> void:
 		rw.inner_radius = inner
 		rw.outer_radius = outer
 		#rw.crest_r = inner + (geom_crest_r - geom_inner_r)
-		var filled := i < stake_alloc
-		rw.ring_tint = _stake_tint_color(filled)
+		var filled := i < allocation_level
+		rw.archetype_tint = archetype_tint
+		rw.tint_mix = FILLED_TINT_MIX if filled else UNFILLED_TINT_MIX
 		max_outer_r = maxf(max_outer_r, outer)
 	%RuneRing.outer_edge_r = max_outer_r
 	_sync_stake_label(max_outer_r)
 
 
-## "alloc/cap" under the node, only once stake_cap > 1 — a cap of 1 has
+## "alloc/cap" under the node, only once stake_level > 1 — a level of 1 has
 ## nothing to count (matches rim_ring's own "single wedge reads as
 ## nothing" rule for the segmented-dial approach).
 func _sync_stake_label(max_outer_r: float) -> void:
-	_stake_label.visible = rim_growth and stake_cap > 1
+	_stake_label.visible = rim_growth and stake_level > 1
 	if not _stake_label.visible:
 		return
-	_stake_label.text = "%d/%d" % [stake_alloc, stake_cap]
+	_stake_label.text = "%d/%d" % [allocation_level, stake_level]
 	_stake_label.position.y = max_outer_r + 6.0
-
-
-## Filled rings read as the bright tint; unfilled rings dim to a
-## desaturated version of the SAME hue rather than flat gray.
-func _stake_tint_color(filled: bool) -> Color:
-	if filled:
-		return Color.from_hsv(tint_color.h, 0.6, 0.9)
-	return Color.from_hsv(tint_color.h, 0.22, 0.5)

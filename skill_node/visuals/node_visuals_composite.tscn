@@ -2,110 +2,86 @@
 
 [ext_resource type="Script" uid="uid://b35hxda7mbfnk" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
 [ext_resource type="PackedScene" uid="uid://bkwwvwb1433d1" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
-[ext_resource type="PackedScene" uid="uid://bham0ohukm64e" path="res://skill_node/visuals/weld_symbol.tscn" id="3_weld"]
 [ext_resource type="Shader" uid="uid://btb3idp57soy7" path="res://skill_node/visuals/inner_disk.gdshader" id="3_yu0fw"]
 [ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="4_wall"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
+[ext_resource type="PackedScene" uid="uid://dgo4gx2kxagct" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="6_halos"]
-[ext_resource type="Shader" uid="uid://c8nrnm8qi4kl3" path="res://skill_node/visuals/rim_ring.gdshader" id="6_yu0fw"]
+[ext_resource type="Curve" uid="uid://du76mdn4less4" path="res://skill_node/visuals/rim_ring_curve.tres" id="7_pg2qw"]
 [ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_pg2qw"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yu0fw"]
 shader = ExtResource("3_yu0fw")
-
-[sub_resource type="Image" id="Image_yu0fw"]
-data = {
-"data": PackedByteArray(0, 0, 0, 0, 139, 162, 70, 62, 223, 68, 184, 62, 239, 172, 255, 62, 209, 45, 29, 63, 140, 145, 52, 63, 189, 106, 70, 63, 121, 34, 83, 63, 203, 33, 91, 63, 208, 209, 94, 63, 151, 155, 94, 63, 50, 232, 90, 63, 181, 32, 84, 63, 47, 174, 74, 63, 187, 249, 62, 63, 102, 108, 49, 63, 69, 111, 34, 63, 104, 107, 18, 63, 231, 201, 1, 63, 166, 231, 225, 62, 124, 164, 192, 62, 118, 156, 160, 62, 188, 161, 130, 62, 230, 12, 79, 62, 124, 57, 32, 62, 35, 219, 244, 61, 216, 154, 190, 61, 176, 250, 160, 61, 37, 185, 157, 61, 3, 159, 170, 61, 3, 75, 196, 61, 174, 172, 233, 61, 197, 217, 12, 62, 137, 167, 41, 62, 106, 183, 74, 62, 40, 129, 111, 62, 66, 190, 139, 62, 162, 16, 161, 62, 151, 115, 183, 62, 254, 162, 206, 62, 186, 90, 230, 62, 172, 86, 254, 62, 92, 41, 11, 63, 92, 5, 23, 63, 76, 157, 34, 63, 24, 207, 45, 63, 178, 120, 56, 63, 12, 120, 66, 63, 22, 171, 75, 63, 192, 239, 83, 63, 250, 35, 91, 63, 182, 37, 97, 63, 227, 210, 101, 63, 116, 9, 105, 63, 88, 167, 106, 63, 61, 247, 105, 63, 75, 3, 100, 63, 88, 25, 88, 63, 138, 224, 69, 63, 11, 0, 45, 63, 0, 31, 13, 63, 20, 201, 203, 62, 75, 223, 91, 62, 0, 0, 0, 0),
-"format": "RFloat",
-"height": 1,
-"mipmaps": false,
-"width": 64
-}
-
-[sub_resource type="ImageTexture" id="ImageTexture_pg2qw"]
-image = SubResource("Image_yu0fw")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_sggpr"]
-resource_local_to_scene = true
-shader = ExtResource("6_yu0fw")
-shader_parameter/height_lut = SubResource("ImageTexture_pg2qw")
-
-[sub_resource type="Curve" id="Curve_85irg"]
-_data = [Vector2(0, 0), 0.0, 13.138213, 0, 0, Vector2(0.4375, 0.07635212), 0.0, 0.0, 0, 0, Vector2(0.86413044, 0.9172853), 0.0, 0.0, 0, 0, Vector2(1, 0), -14.545483, 0.0, 0, 0]
-point_count = 4
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_7jnpi"]
-shader = ExtResource("6_yu0fw")
 
 [node name="NodeVisualsComposite" type="Node2D" unique_id=1855738635]
 script = ExtResource("1_comp")
-allocated = true
-stake_cap = 3
+stake_level = 3
+allocation_level = 2
 ring_gap = 0.0
 metadata/_edit_vertical_guides_ = [24.0, 32.0, 28.0]
 
 [node name="InnerDisk" parent="." unique_id=1575818134 instance=ExtResource("2_disk")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_pg2qw")
+material = SubResource("ShaderMaterial_yu0fw")
 instance_shader_parameters/allocated = true
-instance_shader_parameters/tint_mix = 0.66
-tint_mix = 0.66
 allocated = true
 disk_radius = 25.5
 
-[node name="WeldSymbol" parent="InnerDisk" unique_id=1225374733 instance=ExtResource("3_weld")]
-unique_name_in_owner = true
-visible = false
-show_weld = true
-tint_color = Color(0.291, 0.5892, 1, 1)
-tint_mix = 0.66
-allocated = true
-
 [node name="RimRing" parent="." unique_id=346168876 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_sggpr")
-instance_shader_parameters/height_preset = 4
-instance_shader_parameters/ring_tint = Color(0.39, 0.43626517, 0.5, 1)
-rim_height_style = SubResource("Curve_85irg")
-height_preset = 4
-ring_tint = Color(0.39, 0.43626517, 0.5, 1)
+instance_shader_parameters/height_preset = 3
+height_preset = 3
+
+[node name="RimBonuses" parent="RimRing" unique_id=2113377826 instance=ExtResource("5_rim")]
+unique_name_in_owner = true
+visible = false
+hue = 191.0
+allocated = true
+rim_tone = 1
 
 [node name="RimRing2" parent="." unique_id=2024234688 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
-material = SubResource("ShaderMaterial_7jnpi")
+instance_shader_parameters/height_preset = 4
+instance_shader_parameters/inner_r = 32.0
+instance_shader_parameters/outer_r = 40.0
+height_preset = 4
+inner_radius = 32.0
+outer_radius = 40.0
 
 [node name="RimRing3" parent="." unique_id=314972897 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
-material = SubResource("ShaderMaterial_7jnpi")
+instance_shader_parameters/height_preset = 4
+instance_shader_parameters/inner_r = 40.0
+instance_shader_parameters/outer_r = 48.0
+height_preset = 4
+inner_radius = 40.0
+outer_radius = 48.0
 
 [node name="RimRing4" parent="." unique_id=1028791272 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
 visible = false
-material = SubResource("ShaderMaterial_7jnpi")
-
-[node name="RimBonuses" parent="." unique_id=2113377826 instance=ExtResource("5_rim")]
-unique_name_in_owner = true
-hue = 214.7644543647766
-allocated = true
+rim_height_style = ExtResource("7_pg2qw")
 
 [node name="CoreHalos" parent="." unique_id=141306435 instance=ExtResource("6_halos")]
 unique_name_in_owner = true
+visible = false
+core = 4
+halo_scale = 1.8
 
 [node name="RuneRing" parent="." unique_id=946472652 instance=ExtResource("7_rune")]
 unique_name_in_owner = true
+visible = false
 tint_color = Color(0.291, 0.5892, 1, 1)
-rune_ring = 1
 outer_edge_r = 32.0
 
 [node name="StakeLabel" type="Label" parent="." unique_id=1327804308]
 unique_name_in_owner = true
 visible = false
 offset_left = -40.0
-offset_top = 46.0
+offset_top = 54.0
 offset_right = 40.0
-offset_bottom = 66.0
-text = "0/3"
+offset_bottom = 74.0
+text = "2/3"
 horizontal_alignment = 1
 vertical_alignment = 1

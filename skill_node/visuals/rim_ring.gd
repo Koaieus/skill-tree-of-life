@@ -61,17 +61,39 @@ static var _shared_material: ShaderMaterial
 		_rebake_lut()
 		_sync_material()
 
-## Selects one of the 4 locked presets — the fast, batched path.
+## Selects one of the 4 locked presets — the fast, batched path. Only clears
+## [member rim_height_style] for non-custom presets: on scene load, exported
+## props apply in declaration order, so [member rim_height_style] (declared
+## above) is assigned BEFORE this setter runs (deserialized as CUSTOM when a
+## custom curve was saved) — unconditionally nulling here wiped the just-loaded
+## curve on every "reload saved scene" (bug: curve set, saved, reload → gone).
 @export var height_preset: HeightPreset = HeightPreset.LEVEL:
 	set(value):
 		height_preset = value
-		rim_height_style = null
+		if value != CUSTOM_PRESET_INDEX:
+			rim_height_style = null
 		_sync_material()
 
-@export var ring_tint: Color = BASE_COLOR:
+## Archetype/entity tint fed by the composer (0..1 mixed in, see [member
+## tint_mix]) — the rim never owns a private tint the composer's identity
+## color can't reach.
+@export var archetype_tint: Color = BASE_COLOR:
 	set(value):
-		ring_tint = value
+		archetype_tint = value
 		_sync_material()
+
+## 0 = the ring's own metal color ([const BASE_COLOR], bronze/gold-ish); 1 =
+## maximally mixed toward [member archetype_tint]. Lets the composer read as
+## "mostly its own material, tinted by archetype" instead of a flat hue swap.
+@export_range(0.0, 1.0, 0.01) var tint_mix: float = 0.0:
+	set(value):
+		tint_mix = value
+		_sync_material()
+
+## The actual color pushed to the shader — [const BASE_COLOR] lerped toward
+## [member archetype_tint] by [member tint_mix].
+var _effective_tint: Color:
+	get(): return BASE_COLOR.lerp(archetype_tint, tint_mix)
 
 ## Same value as InnerDisk.highlight_position — see #130. The composite
 ## forwards InnerDisk's value here so the disk and its rim stay lit from one
@@ -164,7 +186,7 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"inner_r", inner_radius)
 	set_instance_shader_parameter(&"crest_r", crest_r)
 	set_instance_shader_parameter(&"outer_r", outer_radius)
-	set_instance_shader_parameter(&"ring_tint", ring_tint)
+	set_instance_shader_parameter(&"ring_tint", _effective_tint)
 	set_instance_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX if use_custom else int(height_preset))
 	set_instance_shader_parameter(&"light_dir_xy", light_dir)
 	queue_redraw()

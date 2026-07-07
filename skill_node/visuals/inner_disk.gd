@@ -11,10 +11,17 @@ extends SkillNodeVisual
 ## screen still batch into a single draw call instead of costing one
 ## draw call each (which a per-node `resource_local_to_scene` duplicate
 ## material would). See docs/domain/skill-node-visuals-shaders.md.
+##
+## Composes its own WeldSymbol child (scene-composed in inner_disk.tscn,
+## `%WeldSymbol`) — the weld is engraved into this same disk, not a sibling
+## a composite has to wire up separately. [member disk_radius] and
+## [member shading] are mirrored straight onto it.
 
 const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 
 static var _shared_material: ShaderMaterial
+
+@onready var _weld: Node = %WeldSymbol
 
 ## The allocating entity's color (or the archetype color in a standalone
 ## preview). Only visible when [member allocated] — unallocated nodes stay
@@ -39,10 +46,15 @@ static var _shared_material: ShaderMaterial
 		_sync_material()
 
 ## Disk radius. Defaults to SkillNode.inner_radius (24) — see
-## .claude/rules/skill-node-visuals.md.
+## .claude/rules/skill-node-visuals.md. Mirrored straight onto the composed
+## WeldSymbol child (see class doc) — the couple-px difference from any
+## disk/rim overlap trick a composer applies is imperceptible at weld's own
+## `weld_k` inset, so InnerDisk doesn't carry a second "true" disk edge.
 @export_range(1.0, 128.0, 0.5) var disk_radius: float = 24.0:
 	set(value):
 		disk_radius = value
+		if _weld != null:
+			_weld.disk_radius = value
 		queue_redraw()
 
 ## Offset of the specular highlight in the disk's normalized (-1..1) local
@@ -73,6 +85,8 @@ var shading: ShadingStyle = null:
 		if shading != null and not shading.changed.is_connected(_apply_shading):
 			shading.changed.connect(_apply_shading)
 		_apply_shading()
+		if _weld != null:
+			_weld.shading = value
 
 
 func _apply_shading() -> void:
@@ -91,6 +105,9 @@ func _ready() -> void:
 		_shared_material.shader = SHADER
 	material = _shared_material
 	_sync_material()
+	_weld.disk_radius = disk_radius
+	if shading != null:
+		_weld.shading = shading
 
 
 func configure(new_radius: float) -> void:
