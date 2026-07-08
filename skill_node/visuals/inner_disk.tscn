@@ -2,13 +2,12 @@
 
 [ext_resource type="Script" uid="uid://ba7k8pq2mv2fg" path="res://skill_node/visuals/inner_disk.gd" id="1_disk"]
 [ext_resource type="Shader" uid="uid://btb3idp57soy7" path="res://skill_node/visuals/inner_disk.gdshader" id="1_fjp0c"]
-[ext_resource type="PackedScene" uid="uid://bham0ohukm64e" path="res://skill_node/visuals/weld_symbol.tscn" id="2_weld"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_jfepy"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pg2qw"]
 shader = ExtResource("1_fjp0c")
 
 [node name="InnerDisk" type="Node2D" unique_id=1698059834]
-material = SubResource("ShaderMaterial_jfepy")
+material = SubResource("ShaderMaterial_pg2qw")
 instance_shader_parameters/allocated = true
 instance_shader_parameters/highlight_intensity = 0.85
 instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
@@ -16,7 +15,4 @@ instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
 instance_shader_parameters/tint_mix = 0.6
 script = ExtResource("1_disk")
 allocated = true
-
-[node name="WeldSymbol" parent="." unique_id=489607401 instance=ExtResource("2_weld")]
-unique_name_in_owner = true
 show_weld = true

@@ -13,7 +13,7 @@ its own.
 
 `skill_node/visuals/` holds the component family (`SkillNodeVisual` /
 `SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`
-(which composes `weld_symbol` as its own child — see below), `rim_ring`,
+(whose weld glyph is a height-field dent in its own shader — see below), `rim_ring`,
 `rim_bonuses`, `core_halos`, `rune_ring`, `node_visuals_composite`)
 implementing the 6 locked-pick visuals from
 `docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`.
@@ -34,7 +34,7 @@ Preview all components + the composite together via the sandbox host's
 `entity_tint` (the allocating entity's/"player's" color) and `archetype_tint`
 (the node's persistent type identity, `SkillNode.base_type_color`) are
 separate exports — never collapse them back into one `tint_color`.
-`entity_tint` drives InnerDisk (+ its composed WeldSymbol) and CoreHalos —
+`entity_tint` drives InnerDisk (weld glyph included) and CoreHalos —
 things that read as "this is MINE". `archetype_tint` drives RimRing's
 `tint_mix` (mixed toward the ring's own bronze/gold metal at low mix),
 RuneRing, and RimBonuses — structural reads that stay legible whether or not
@@ -69,14 +69,15 @@ technique as `core_halos.gd`/`rune_ring.gd`'s `edge_glow`) rather than a
 shader — there's no project-wide glow/bloom `WorldEnvironment` to justify one,
 and the layered-stroke fake reads convincingly at this node's on-screen size.
 
-### WeldSymbol lives inside InnerDisk's own scene, not as a composite sibling
+### The weld glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
 
-`weld_symbol.tscn` is scene-composed as `%WeldSymbol` **inside**
-`inner_disk.tscn`, not instanced separately by `node_visuals_composite.tscn`.
-`inner_disk.gd` mirrors its own `disk_radius` and `shading` straight onto the
-weld child — the composite only ever talks to `%InnerDisk`. This matches the
-"compose together" call: the weld is engraved into the disk, not a sibling a
-higher-level orchestrator has to keep in sync by hand.
+There is no `WeldSymbol` node anymore. The glyph is `show_weld`/`weld_k`/
+`weld_sides` (via `arch`)/`well_depth`/`hairline_*` `instance uniform`s on
+`inner_disk.gdshader` itself, set from `@export`s on `inner_disk.gd` in the
+same `_sync_material()` pass as the dome's own tint/highlight uniforms. The
+composite only ever talks to `%InnerDisk`; there's nothing else to keep in
+sync. See "Weld: a regular-polygon bowl dent in the dome's own height field"
+below for the geometry.
 
 ### Shader materials: shared + `instance uniform`, not `resource_local_to_scene`, when possible
 
@@ -97,11 +98,11 @@ escape hatch (see `rim_ring`'s custom-Curve fallback, gated on
 (`sn_light_dir` — `normalize(vec3(dir_xy, SN_LIGHT_Z=0.65))`), Lambert
 (`sn_diffuse`), specular (`sn_specular`), the dome normal (`sn_dome_normal`), and
 the full disk color (`sn_disk_color`) are defined once there, so the disk and its
-rim can't drift onto two different light models. `weld_symbol.gd`'s CPU twin
-(`_disk_shade()`) still hand-mirrors the same numbers — GDScript can't `#include`
-a `.gdshaderinc` — so that remains the ONE duplicate until weld is reworked into a
-real height feature (see the plan / #16 follow-up); keep it in sync with the
-include until then.
+rim can't drift onto two different light models. The weld glyph's math
+(`sn_polygon_facet`/`sn_bowl_drop`, see below) lives there too now — the CPU
+twin this section used to warn about (`weld_symbol.gd`'s `_disk_shade()`) is
+gone; the glyph is lit by the exact same `sn_disk_color` call as the dome, fed
+a different normal, so it cannot drift from it by construction.
 
 `rim_ring` carries NO knowledge of the disk beneath it — it only owns its own
 `inner_radius`/`outer_radius` band (base class) plus an interior `crest_r`
@@ -110,38 +111,63 @@ begins. `node_visuals_composite.gd` is the one layer that knows both InnerDisk
 and RimRing exist; it lines `RimRing.inner_radius` up with `InnerDisk.disk_radius`
 so the two abut, rather than RimRing reaching for disk-shaped exports itself.
 
-`weld_symbol` does NOT use a blend-mode material — an earlier version drew a
-flat white fill under `CanvasItemMaterial.BLEND_MODE_MUL`, which read as a
-black sticker whenever the underlying disk was dark (unallocated), since MUL
-against a dark destination just darkens further. It now evaluates the SAME
-shading formula as `inner_disk.gdshader` per-vertex (`_disk_shade()` in
-`weld_symbol.gd`) and fills via `draw_polygon`'s Gouraud-interpolated vertex
-colors — no shader material needed for the fill, and no risk of it also
-recoloring the flat hairline-stroke/glow layers drawn in the same `_draw()`
-(a real material would apply to every draw call on the node, not just the
-fill). All five shading inputs (`tint_color`, `tint_mix`, `allocated`,
-`highlight_position`, `highlight_intensity`) must stay identical on the disk and
-the weld — the design intent is that the weld reads as sunk into the same metal,
-not an independently-lit sticker, so drift in any one breaks that.
+### Weld: a regular-polygon bowl dent in the dome's own height field
 
-The glyph reads as a well etched into the disk (not a raised sticker): the fill
-polygon (`floor_points`) is inset from the true glyph boundary (`well_inset`)
-and darkened a touch (`floor_darken`); the ring this exposes between the floor
-and the true boundary is deliberately left unpainted — it's the bare disk
-showing through, already lit correctly by `_disk_shade`/the shader, so no
-second shading pass is needed there — with a low-alpha black AO tint
-(`well_shadow`) over it to read as a wall rather than a narrower glyph. A
-single exported-width/opacity hairline (`hairline_width`/`hairline_opacity`)
-traces the true (outer) boundary as the well's lip, replacing an earlier fixed
-white+black stroke pair. `GlowMode.HOVER` was removed (`weld_symbol.gd`) — an
-outward glow halo on hover read as the glyph *rising off* the disk, which
-fights the sunk-in read; `ALWAYS`/`PULSE`/`SWEEP` remain since those aren't
-tied to the "pointer is here" affordance that hover implies.
+Earlier versions faked the glyph with a CPU twin of the disk's shading
+formula (flat-shaded via `draw_polygon`'s Gouraud vertex colors, a separately
+inset "floor" polygon, an AO tint on the exposed wall, a hardcoded glow/sweep
+overlay). All of that is gone — the glyph is now a **real height-field dent**
+carved into `inner_disk.gdshader`'s own dome, lit by the exact same
+`sn_disk_color`/`sn_diffuse`/`sn_specular` call as the rest of the disk (see
+`sn_polygon_facet`/`sn_bowl_drop` in `lighting.gdshaderinc`).
+
+**Profile: a bowl, not a stamped pit.** Depth is 0 at the glyph's own
+boundary and ramps up to the full `well_depth` export at the glyph's own
+visual center — literally the SAME `sqrt(1-t²)` dome shape the main disk
+uses, just re-centered/rescaled to the glyph's local footprint (a mini
+inverted dome nested in the big one, not a new shape to invent).
+
+**Regular polygons only, decomposed into `weld_sides` flat facets** (the
+`arch`/`ARCH_SIDES` sides-per-archetype placeholder mapping is unchanged —
+still not wired to the node's real archetype, a pre-existing gap). Each
+facet's gradient is a CONSTANT vector — that flatness is deliberate, it's
+what reads as crease "depth lines toward the visual center" rather than a
+smooth continuous bowl. **Arbitrary glyphs (rune/kanji) are explicitly
+deferred**: passing an arbitrary polygon per-instance would need a
+per-instance LUT texture (baked SDF or vertex data), which forces the
+`resource_local_to_scene` duplicate-material escape hatch documented above
+(samplers can't be `instance uniform`s) — breaking every InnerDisk's shared
+single-draw-call batching for a feature not yet used. Regular polygons stay
+on the analytic-SDF path and keep batching intact.
+
+**Normal: analytic gradient, not screen-space derivatives.** The combined
+height is `H(p) = z_dome(p) - drop(p)`; its gradient is computed in closed
+form (`∇z_dome = -p/z_dome`, `∇drop` from the bowl's own chain rule) and fed
+through `normalize(vec3(-∇H, 1))` — NOT `dFdx`/`dFdy`. Screen-space
+derivatives alias badly at this node's on-screen size (~48-64px, computed
+per 2×2 pixel quad) and specifically misbehave at the facet crease lines,
+which is exactly the feature. **Backward-compat proof**: when `well_depth`
+is 0 or `p` is outside the glyph, `∇drop = 0`, so `∇H = ∇z_dome`, and
+`normalize(vec3(-∇z_dome, 1))` reduces algebraically to the existing
+`sn_dome_normal(p)` (scaling by `1/z_dome` doesn't change a normalized
+direction) — so `show_weld = false` (or any pixel outside the glyph) renders
+byte-identical to the plain dome; the shader only branches into the new path
+when the sampled point is actually inside the bowl (`bowl.x > 0.0`).
+
+A hairline (`hairline_width`/`hairline_opacity`, now expressed as a fraction
+of the disk radius rather than a pixel width) traces the glyph's true
+boundary as a thin additive brightening, independent of the height field.
+Glow/pulse/sweep FX (the old `GlowMode` enum) were dropped entirely — an
+outward glow on hover fought the sunk-in read and was never the right call;
+a *full-shape* glow/bloom is a possible follow-up for more elaborate emblems
+(a lit sword, a shimmering dragon) but isn't part of this small gem-indent
+look.
 
 **How those five are delivered: a shared `ShadingStyle` resource, NOT imperative
 mirroring.** `node_visuals_composite.gd` holds ONE `ShadingStyle`
 (`skill_node/visuals/shading_style.gd`, a Resource — the [GlowStyle] pattern) and
-assigns it to InnerDisk, WeldSymbol, and every RimRing via their `shading` var.
+assigns it to InnerDisk (weld glyph included, since it's the same node/material
+now) and every RimRing via their `shading` var.
 That var is a **plain `var`, deliberately NOT `@export`** — it holds a
 composite-built runtime resource, and an exported field assigned inside a @tool
 `_sync_shared()` gets baked into the scene by an editor save (the same

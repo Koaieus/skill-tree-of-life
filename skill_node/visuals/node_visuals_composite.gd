@@ -14,7 +14,7 @@ extends SkillNodeVisual
 ##
 ## Two tints, two jobs — never merge them back into one:
 ##   entity_tint    — the allocating entity's color ("player tint"). Drives
-##                     InnerDisk (and its composed WeldSymbol) and CoreHalos,
+##                     InnerDisk (weld glyph folded into its own shader) and CoreHalos,
 ##                     which read as "this is MINE", only visible/meaningful
 ##                     once allocated.
 ##   archetype_tint — the node's persistent type identity. Drives RimRing's
@@ -45,7 +45,7 @@ const FILLED_TINT_MIX := 1.0
 const UNFILLED_TINT_MIX := 0.3
 
 ## The allocating entity's color ("player tint") — see class doc. Drives
-## InnerDisk/WeldSymbol/CoreHalos.
+## InnerDisk (weld glyph included)/CoreHalos.
 @export var entity_tint: Color = Color(0.291, 0.5892, 1.0):
 	set(value):
 		entity_tint = value
@@ -77,9 +77,9 @@ const UNFILLED_TINT_MIX := 0.3
 var allocated: bool:
 	get(): return allocation_level > 0
 
-## Pit/disc edge — shared by InnerDisk.disk_radius (WeldSymbol mirrors it
-## internally) and RimRing.inner_radius (base ring only; stacked rings grow
-## outward from here, see _sync_stake).
+## Pit/disc edge — shared by InnerDisk.disk_radius (the weld glyph scales its
+## own weld_k relative to this same radius) and RimRing.inner_radius (base
+## ring only; stacked rings grow outward from here, see _sync_stake).
 @export_range(0.0, 128.0, 0.5) var geom_inner_r: float = 24.0:
 	set(value):
 		geom_inner_r = value
@@ -113,7 +113,8 @@ var allocated: bool:
 @onready var _stake_label: Label = %StakeLabel
 
 ## The ONE shared shading source handed to every shaded child (InnerDisk —
-## which forwards it to its own composed WeldSymbol — and every RimRing).
+## whose weld glyph is folded into its own shader, so it rides the same
+## uniforms, not a second object — and every RimRing).
 ## The composite edits this object instead of poking each child's five
 ## shading properties — see [ShadingStyle]. Seeded from InnerDisk's
 ## scene-authored tint_mix / highlight_* (until a global light framework
@@ -133,7 +134,7 @@ func configure(new_radius: float) -> void:
 			child.configure(new_radius)
 
 
-## InnerDisk (and its composed WeldSymbol) is the source of truth for the
+## InnerDisk (weld glyph folded into its own shader) is the source of truth for the
 ## shared gradient; RimRing only reads the light direction off the same
 ## object so the ring never drifts onto a second light.
 func _sync_shared() -> void:

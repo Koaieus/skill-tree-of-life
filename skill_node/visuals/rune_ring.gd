@@ -12,7 +12,7 @@ enum RuneBlend { CUTOUT, INK, GLOW }
 
 const RUNES_PER_BAND := 8
 
-## Band color — shared with InnerDisk/WeldSymbol/RimRing's tint_color (#132)
+## Band color — shared with InnerDisk (weld glyph included)/RimRing's tint_color (#132)
 ## rather than a private fixed hue, so the whole node reads as one archetype
 ## color under a single control.
 @export var tint_color: Color = Color(0.55, 0.35, 0.85):

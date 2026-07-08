@@ -12,16 +12,28 @@ extends SkillNodeVisual
 ## draw call each (which a per-node `resource_local_to_scene` duplicate
 ## material would). See docs/domain/skill-node-visuals-shaders.md.
 ##
-## Composes its own WeldSymbol child (scene-composed in inner_disk.tscn,
-## `%WeldSymbol`) — the weld is engraved into this same disk, not a sibling
-## a composite has to wire up separately. [member disk_radius] and
-## [member shading] are mirrored straight onto it.
+## Composes the weld glyph directly as a height-field dent in its own shader
+## (see inner_disk.gdshader's show_weld/weld_* uniforms and
+## lighting.gdshaderinc's sn_polygon_facet/sn_bowl_drop) rather than as a
+## separate WeldSymbol node — the glyph used to be a sibling Node2D with its
+## own CPU twin of this shading formula; folding it into this same fragment
+## shader means it can't drift from the disk's own lighting, by
+## construction. See .claude/rules/skill-node-visuals.md.
 
 const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 
-static var _shared_material: ShaderMaterial
+## Placeholder glyph = a regular polygon with this many sides per archetype.
+enum Archetype { STR, DEX, INT, WIS, PER, CON }
+const ARCH_SIDES := {
+	Archetype.STR: 3,
+	Archetype.DEX: 4,
+	Archetype.INT: 6,
+	Archetype.WIS: 5,
+	Archetype.PER: 8,
+	Archetype.CON: 12,
+}
 
-@onready var _weld: Node = %WeldSymbol
+static var _shared_material: ShaderMaterial
 
 ## The allocating entity's color (or the archetype color in a standalone
 ## preview). Only visible when [member allocated] — unallocated nodes stay
@@ -46,15 +58,10 @@ static var _shared_material: ShaderMaterial
 		_sync_material()
 
 ## Disk radius. Defaults to SkillNode.inner_radius (24) — see
-## .claude/rules/skill-node-visuals.md. Mirrored straight onto the composed
-## WeldSymbol child (see class doc) — the couple-px difference from any
-## disk/rim overlap trick a composer applies is imperceptible at weld's own
-## `weld_k` inset, so InnerDisk doesn't carry a second "true" disk edge.
+## .claude/rules/skill-node-visuals.md.
 @export_range(1.0, 128.0, 0.5) var disk_radius: float = 24.0:
 	set(value):
 		disk_radius = value
-		if _weld != null:
-			_weld.disk_radius = value
 		queue_redraw()
 
 ## Offset of the specular highlight in the disk's normalized (-1..1) local
@@ -68,6 +75,46 @@ static var _shared_material: ShaderMaterial
 @export_range(0.0, 1.0, 0.01) var highlight_intensity: float = 0.85:
 	set(value):
 		highlight_intensity = value
+		_sync_material()
+
+## Off by default per the locked design ("showWeld — off is the new default;
+## empty center. on restores the archetype shape" — Rim Forge Lab): the disk's
+## own semi-sphere shading + specular highlight is the baseline read, the
+## glyph is an opt-in accent.
+@export var show_weld: bool = false:
+	set(value):
+		show_weld = value
+		_sync_material()
+
+@export var arch: Archetype = Archetype.STR:
+	set(value):
+		arch = value
+		_sync_material()
+
+## Glyph circumradius relative to the disk radius. At 1.0 the glyph's
+## vertices sit exactly on the disk's circle.
+@export_range(0.4, 1.15, 0.01) var weld_k: float = 0.75:
+	set(value):
+		weld_k = value
+		_sync_material()
+
+## Max depth of the glyph's bowl dent at its own visual center — see
+## inner_disk.gdshader/lighting.gdshaderinc's sn_bowl_drop.
+@export_range(0.0, 1.0, 0.01) var well_depth: float = 0.35:
+	set(value):
+		well_depth = value
+		_sync_material()
+
+## Width of the hairline traced at the glyph's true (outer) boundary, as a
+## fraction of the disk radius.
+@export_range(0.0, 0.05, 0.001) var hairline_width: float = 0.015:
+	set(value):
+		hairline_width = value
+		_sync_material()
+
+@export_range(0.0, 1.0, 0.01) var hairline_opacity: float = 0.35:
+	set(value):
+		hairline_opacity = value
 		_sync_material()
 
 ## Shared shading source (see [ShadingStyle]), INJECTED AT RUNTIME by the
@@ -85,8 +132,6 @@ var shading: ShadingStyle = null:
 		if shading != null and not shading.changed.is_connected(_apply_shading):
 			shading.changed.connect(_apply_shading)
 		_apply_shading()
-		if _weld != null:
-			_weld.shading = value
 
 
 func _apply_shading() -> void:
@@ -105,9 +150,6 @@ func _ready() -> void:
 		_shared_material.shader = SHADER
 	material = _shared_material
 	_sync_material()
-	_weld.disk_radius = disk_radius
-	if shading != null:
-		_weld.shading = shading
 
 
 func configure(new_radius: float) -> void:
@@ -123,6 +165,12 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"allocated", allocated)
 	set_instance_shader_parameter(&"highlight_position", highlight_position)
 	set_instance_shader_parameter(&"highlight_intensity", highlight_intensity)
+	set_instance_shader_parameter(&"show_weld", show_weld)
+	set_instance_shader_parameter(&"weld_sides", float(ARCH_SIDES.get(arch, 6)))
+	set_instance_shader_parameter(&"weld_k", weld_k)
+	set_instance_shader_parameter(&"well_depth", well_depth)
+	set_instance_shader_parameter(&"hairline_width", hairline_width)
+	set_instance_shader_parameter(&"hairline_opacity", hairline_opacity)
 	queue_redraw()
 
 

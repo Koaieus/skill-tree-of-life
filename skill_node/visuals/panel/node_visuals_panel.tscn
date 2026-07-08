@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://skill_node/visuals/panel/node_visuals_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_composite"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/inner_disk.tscn" id="3_disk"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/weld_symbol.tscn" id="4_weld"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rim_ring.tscn" id="5_wall"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="6_rim"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="7_halos"]
@@ -59,14 +58,14 @@ position = Vector2(430, 90)
 [node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" instance=ExtResource("3_disk")]
 allocated = true
 
-[node name="WeldSymbolSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="WeldDiskSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(600, 90)
 
-[node name="WeldSymbol" parent="ViewportContainer/World/WeldSymbolSlot" instance=ExtResource("4_weld")]
+[node name="WeldDisk" parent="ViewportContainer/World/WeldDiskSlot" instance=ExtResource("3_disk")]
+allocated = true
 show_weld = true
-glow_mode = 2
-glow_amt = 0.6
 arch = 2
+well_depth = 0.5
 
 [node name="RimRingSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(770, 90)

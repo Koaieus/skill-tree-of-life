@@ -4,7 +4,7 @@ extends Resource
 
 ## Shared per-node shading inputs for the SkillNode-visuals height-field+light
 ## model (milestone #16). Bundled as a Resource — the same pattern as
-## [GlowStyle] — so InnerDisk / WeldSymbol / RimRing each hold ONE object and
+## [GlowStyle] — so InnerDisk (weld glyph included) / RimRing each hold ONE object and
 ## connect ONCE to [signal Resource.changed], instead of the composite
 ## imperatively mirroring five separate properties onto each child in
 ## `_sync_shared()` (the exact drift risk .claude/rules/skill-node-visuals.md

@@ -1,11 +1,12 @@
 // Shared shading model for the SkillNode-visuals family (milestone #16).
 //
-// ONE source of truth for the "height-field + one light" model: rim, disk (and
-// later weld) stop each re-deriving the same `normalize(vec3(dir, LIGHT_Z))`
-// light + Lambert/specular math and #include these helpers instead. Keep the
-// numbers here identical to the CPU twin in weld_symbol.gd::_disk_shade() until
-// that component is reworked into a real height feature (then it drops its copy
-// and the duplication is fully gone).
+// ONE source of truth for the "height-field + one light" model: rim, disk, and
+// the weld glyph (folded into the disk's own dome height field, see
+// sn_polygon_facet/sn_bowl_drop below) all #include these helpers instead of
+// re-deriving the same `normalize(vec3(dir, LIGHT_Z))` light + Lambert/specular
+// math. The weld used to keep a CPU twin of this math (weld_symbol.gd's
+// _disk_shade()) — that's gone now that it's a real height feature lit by
+// this same code, not a separately-maintained approximation.
 //
 // LIGHT_Z is the fixed height of the faked light above the node plane. A later
 // global-uniform light framework can replace the per-shader `*_dir_xy` inputs
@@ -59,4 +60,56 @@ vec3 sn_disk_color(vec3 p_normal, vec3 p_light_dir, vec3 p_tint, float p_tint_mi
 	vec3 base_tint = tinted * (0.45 + 0.65 * diffuse);
 	vec3 base = p_allocated ? base_tint : base_dark;
 	return base + vec3(spec);
+}
+
+// --- Weld glyph: a regular-polygon "gem facet" bowl dent folded into the
+// disk's own dome height field ---
+//
+// Each of the polygon's `p_sides` sectors is a flat facet with a CONSTANT
+// gradient. That flatness is deliberate: it's what reads as crease "depth
+// lines toward the visual center", not something to smooth away. Regular
+// polygons only (no arbitrary glyph support) — an arbitrary rune/kanji shape
+// would need a per-instance LUT-texture escape hatch (breaking the
+// shared-material batching every component in this family relies on,
+// see .claude/rules/skill-node-visuals.md); deferred, not attempted here.
+
+// Signed perpendicular ("apothem-space") distance from p_pos to the nearest
+// edge of a point-up regular N-gon (p_sides) with circumradius p_radius,
+// plus that sector's fixed inward unit normal and the local normalized
+// radius `t` (0 at the glyph's own center, 1 at its boundary). Packed as
+// vec4(n_sector.x, n_sector.y, t, edge_dist) so callers don't redo the
+// angle-fold to get each piece.
+vec4 sn_polygon_facet(vec2 p_pos, float p_sides, float p_radius) {
+	float sector = TAU / p_sides;
+	float raw_angle = atan(p_pos.y, p_pos.x) + PI * 0.5; // point-up, matches the glyph's placeholder orientation
+	float a = mod(raw_angle, sector) - sector * 0.5;
+	float apothem = p_radius * cos(sector * 0.5);
+	float edge_dist = length(p_pos) * cos(a) - apothem; // <= 0 inside the polygon
+	float bisector_angle = raw_angle - a - PI * 0.5; // back to standard atan2 space
+	vec2 n_sector = vec2(cos(bisector_angle), sin(bisector_angle));
+	float t = clamp(edge_dist / apothem + 1.0, 0.0, 1.0);
+	return vec4(n_sector, t, edge_dist);
+}
+
+// Bowl height drop + its analytic xy-gradient at p_pos, for a regular-polygon
+// dent of circumradius p_radius and max depth p_depth. Zero outside the
+// polygon (or when p_depth <= 0). The bowl reuses the SAME sqrt(1-t^2)
+// profile as the main dome, just re-centered/rescaled to the glyph's own
+// footprint — a mini inverted dome nested in the big one, not a new shape.
+// Returned as vec3(drop, grad.x, grad.y).
+vec3 sn_bowl_drop(vec2 p_pos, float p_sides, float p_radius, float p_depth) {
+	vec4 facet = sn_polygon_facet(p_pos, p_sides, p_radius);
+	vec2 n_sector = facet.xy;
+	float t = facet.z;
+	float edge_dist = facet.w;
+	if (edge_dist > 0.0 || p_depth <= 0.0) {
+		return vec3(0.0);
+	}
+	float apothem = p_radius * cos(PI / p_sides);
+	float s = sqrt(max(0.0001, 1.0 - t * t));
+	// Fade only the outer rim (t near 1) for AA — interior facet creases stay sharp.
+	float fade = 1.0 - smoothstep(0.92, 1.0, t);
+	float drop = p_depth * s * fade;
+	vec2 grad = -(p_depth * t / (s * apothem)) * n_sector * fade;
+	return vec3(drop, grad);
 }
