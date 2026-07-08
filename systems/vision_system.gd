@@ -282,38 +282,37 @@ func _recompute() -> void:
 		# docs/domain/vision-system.md for future booster/blocker hooks).
 		# Cost is O(E + N log N) worst case; in practice the dominance
 		# check collapses most of the work.
-		var frontier: Array = []  # entries: {"node": SkillNode, "budget": int}
+		# Budgets are small non-negative ints and every hop spends exactly 1,
+		# so "highest budget first" is a bucket sort, not a heap: bucket[b]
+		# holds the nodes reached with b hops left. Walking b from max down
+		# to 1 pops in the same dominance order the old linear-scan max did,
+		# in O(V + E) instead of O(frontier²).
 		var best_remaining: Dictionary = {}  # SkillNode → int
 		var owned_set: Dictionary = {}  # SkillNode → true
+		var buckets: Array = []  # budget → Array[SkillNode]
 		for own_node in all_owned:
 			owned_set[own_node] = true
 			var budget := int((own_node as SkillNode).get_local_value(&"sensor_range"))
 			if budget <= 0:
 				continue
-			frontier.append({"node": own_node, "budget": budget})
-		while not frontier.is_empty():
-			# Linear-scan max — graph sizes are small (~20–200 nodes); a
-			# binary heap isn't worth the extra surface here.
-			var top := 0
-			for i in frontier.size():
-				if frontier[i].budget > frontier[top].budget:
-					top = i
-			var cur: Dictionary = frontier[top]
-			frontier.remove_at(top)
-			var n: SkillNode = cur.node
-			var b: int = cur.budget
-			if best_remaining.get(n, -1) >= b:
-				continue
-			best_remaining[n] = b
-			if not _visible.has(n) and not owned_set.has(n):
-				_sensed[n] = true
-			if b <= 0:
-				continue
-			for nb in graph.get_neighbours(n):
-				var nb_budget := b - 1
-				if best_remaining.get(nb, -1) >= nb_budget:
+			while buckets.size() <= budget:
+				buckets.append([])
+			buckets[budget].append(own_node)
+		for b in range(buckets.size() - 1, -1, -1):
+			for n: SkillNode in buckets[b]:
+				# A node already reached with budget ≥ b can't be improved by
+				# this weaker probe — skip without expanding it.
+				if best_remaining.get(n, -1) >= b:
 					continue
-				frontier.append({"node": nb, "budget": nb_budget})
+				best_remaining[n] = b
+				if not _visible.has(n) and not owned_set.has(n):
+					_sensed[n] = true
+				if b <= 0:
+					continue
+				for nb in graph.get_neighbours(n):
+					if best_remaining.get(nb, -1) >= b - 1:
+						continue
+					buckets[b - 1].append(nb)
 
 		_rebind_local_stats(all_owned)
 

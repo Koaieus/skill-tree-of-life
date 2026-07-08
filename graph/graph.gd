@@ -27,8 +27,19 @@ signal edge_removed(edge: Edge)
 @onready var skill_nodes_container: Node2D = $Nodes
 @onready var edges_container: Node2D = $Edges
 
+# Adjacency index for get_neighbours. Rebuilt lazily whenever either container
+# gains or loses a child, so it stays correct for procgen, remove_skill_node,
+# and any direct add_child. Not used in the editor: an inspector edit to
+# `Edge.from` / `Edge.to` mutates topology without touching the child lists,
+# and no editor path is hot enough to care.
+var _adjacency: Dictionary[SkillNode, Array] = {}
+var _adjacency_dirty: bool = true
+
 
 func _ready() -> void:
+	for c: Node in [skill_nodes_container, edges_container]:
+		c.child_entered_tree.connect(_mark_adjacency_dirty.unbind(1))
+		c.child_exiting_tree.connect(_mark_adjacency_dirty.unbind(1))
 	if Engine.is_editor_hint():
 		return
 	# Re-emit signals for content already authored into the scene so
@@ -61,12 +72,35 @@ func get_edges() -> Array[Edge]:
 
 
 ## Direct neighbours of [param node] — every other endpoint that shares an
-## edge with it. Walks edges, no AStar dependency, so it works in editor
-## context (spell playground, validation).
+## edge with it. Reads a cached adjacency index, no AStar dependency, so it
+## works in editor context (spell playground, validation).
+##
+## Hot path: the vision system's sensed traversal calls this once per pop, so
+## it must not be O(edges). Returns a fresh array — callers may mutate it.
 func get_neighbours(node: SkillNode) -> Array[SkillNode]:
-	var out: Array[SkillNode] = []
 	if edges_container == null or node == null:
-		return out
+		return [] as Array[SkillNode]
+	if Engine.is_editor_hint():
+		# Inspector edits to `Edge.from` / `Edge.to` don't dirty the index.
+		var adj: Array = _build_adjacency().get(node, [])
+		return adj.duplicate()
+	if _adjacency_dirty:
+		_adjacency = _build_adjacency()
+		_adjacency_dirty = false
+	var cached: Array = _adjacency.get(node, [])
+	return cached.duplicate()
+
+
+func _mark_adjacency_dirty() -> void:
+	_adjacency_dirty = true
+
+
+## One pass over the edges, appending each endpoint to the other's list. Order
+## within a node's list matches edge child order, as the old per-node walk did.
+func _build_adjacency() -> Dictionary[SkillNode, Array]:
+	var adj: Dictionary[SkillNode, Array] = {}
+	for n in get_skill_nodes():
+		adj[n] = [] as Array[SkillNode]
 	for e in get_edges():
 		if e.from == null or e.to == null:
 			continue
@@ -75,14 +109,16 @@ func get_neighbours(node: SkillNode) -> Array[SkillNode]:
 		# Consumers that BFS already dedupe via their own visited sets; this
 		# keeps spell propagation (FanAllStep etc.) consistent with the
 		# "self-loop weaponisable by SUM merger" mechanic. See Resonator.
-		if e.from == node and e.to == node:
-			out.append(node)
-			out.append(node)
-		elif e.from == node:
-			out.append(e.to)
-		elif e.to == node:
-			out.append(e.from)
-	return out
+		if e.from == e.to:
+			if adj.has(e.from):
+				adj[e.from].append(e.from)
+				adj[e.from].append(e.from)
+			continue
+		if adj.has(e.from):
+			adj[e.from].append(e.to)
+		if adj.has(e.to):
+			adj[e.to].append(e.from)
+	return adj
 
 
 func add_skill_node(node: SkillNode) -> void:
