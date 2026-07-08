@@ -1,5 +1,7 @@
 shader_type canvas_item;
 
+#include "res://ui/overlay_field.gdshaderinc"
+
 // World-space "owned territory" wash. One circle per owned SkillNode, tagged
 // with its owning entity's index; one colour per entity.
 //
@@ -26,6 +28,9 @@ uniform float intensity : hint_range(0.0, 1.0) = 0.6;
 // Fraction of radius the alpha fades over, INSIDE the edge: full strength
 // out to (1-falloff)*r, linear fade to 0 between that and r, nothing beyond.
 uniform float falloff : hint_range(0.01, 1.0) = 0.6;
+// Blend width of the same-entity smooth union, in normalized-distance units.
+// Cross-entity boundaries are unaffected — those stay a hard argmax cut.
+uniform float union_smoothness : hint_range(0.0, 0.5) = 0.12;
 
 varying vec2 world_pos;
 
@@ -43,19 +48,23 @@ void fragment() {
 		vec4 c = circles[i];
 		int e = int(c.w);
 		float d = distance(world_pos, c.xy) / max(c.z, 1.0);
-		if (d < min_d[e]) {
-			min_d[e] = d;
-		}
+		// Same-entity union is smoothed: plain min() creases along the seam
+		// between two of this entity's circles, reading as a Mach band.
+		min_d[e] = field_smin(min_d[e], d, union_smoothness);
 	}
 
-	float fade_start = 1.0 - falloff;
+	// Smoothstep (not a linear ramp) so the alpha slope is continuous at both
+	// ends of the fade — a slope discontinuity there is a Mach band.
+	float fade_start = 1.0 - max(falloff, 1e-4);
 	float best_alpha = 0.0;
 	int best_entity = -1;
 	for (int e = 0; e < MAX_ENTITIES; e++) {
 		if (e >= entity_count) break;
 		float d = min_d[e];
 		if (d > 1.0) continue;
-		float a = 1.0 - clamp((d - fade_start) / max(falloff, 1e-4), 0.0, 1.0);
+		float a = 1.0 - smoothstep(fade_start, 1.0, d);
+		// Strongest claim wins outright — a hard Voronoi territory line, not
+		// a blend. Deliberate (#74); do NOT smooth across entities.
 		if (a > best_alpha) {
 			best_alpha = a;
 			best_entity = e;
@@ -66,6 +75,10 @@ void fragment() {
 		COLOR = vec4(0.0);
 	} else {
 		vec4 tint = entity_colors[best_entity];
-		COLOR = vec4(tint.rgb, best_alpha * tint.a * intensity);
+		float alpha = best_alpha * tint.a * intensity;
+		// Dither by ±half an 8-bit step to break up quantization banding in
+		// the long shallow tail of the fade.
+		alpha += (field_dither(FRAGCOORD.xy) - 0.5) / 255.0;
+		COLOR = vec4(tint.rgb, clamp(alpha, 0.0, 1.0));
 	}
 }

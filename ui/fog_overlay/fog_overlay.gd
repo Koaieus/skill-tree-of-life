@@ -35,6 +35,14 @@ const _VISIBLE_DIM_FLOOR := 0.30
 		falloff = value
 		if material is ShaderMaterial:
 			(material as ShaderMaterial).set_shader_parameter(&"falloff", falloff)
+## Blend width of the smooth union between overlapping vision circles, in
+## normalized-distance units. 0 = plain min(), which creases along each seam
+## and reads as a band. Also feeds `_sample_dark`, so it must reach the shader.
+@export_range(0.0, 0.5, 0.01) var union_smoothness: float = 0.12:
+	set(value):
+		union_smoothness = value
+		if material is ShaderMaterial:
+			(material as ShaderMaterial).set_shader_parameter(&"union_smoothness", union_smoothness)
 ## World-space rect to paint. Should engulf the playable graph; over-sizing
 ## costs nothing meaningful (one ColorRect draw, fragment cost is per-pixel
 ## but those pixels were already on screen).
@@ -44,7 +52,9 @@ const _VISIBLE_DIM_FLOOR := 0.30
 func _ready() -> void:
 	_apply_shader_intensity()
 	if material is ShaderMaterial:
-		(material as ShaderMaterial).set_shader_parameter(&"falloff", falloff)
+		var mat: ShaderMaterial = material
+		mat.set_shader_parameter(&"falloff", falloff)
+		mat.set_shader_parameter(&"union_smoothness", union_smoothness)
 	_connect_vision()
 	_refresh()
 
@@ -128,21 +138,33 @@ func _apply_per_element_dimming(sources: Array) -> void:
 			e.z_index = ZLayers.GRAPH_DEFAULT
 
 
-## Mirrors the shader's darkness math (fog.gdshader): linear ramp 0 → 1
-## across the fade zone [(1-falloff)·r .. r], pinned at 1 beyond. Sampling
-## once per element at its center gives uniform per-element dimming.
+## Mirrors the shader's darkness math (fog.gdshader): smooth union of the
+## circle fields, then a smoothstep ramp 0 → 1 across the fade zone
+## [(1-falloff)·r .. r], pinned at 1 beyond. Sampling once per element at its
+## center gives uniform per-element dimming. Keep in lockstep with the shader
+## — a mismatch makes a node's dimming disagree with the fog behind it.
 func _sample_dark(world_pos: Vector2, sources: Array) -> float:
 	if sources.is_empty():
 		return 1.0
-	var min_d: float = INF
+	# Finite sentinel, matching the shader. INF would make `lerp` produce
+	# INF * 0.0 == NaN on the first fold.
+	var min_d: float = 1e9
 	for s in sources:
 		var pos: Vector2 = s.pos
 		var r: float = max(s.radius, 1.0)
 		var d: float = world_pos.distance_to(pos) / r
-		if d < min_d:
-			min_d = d
-	var fade_start: float = 1.0 - falloff
-	return clamp((min_d - fade_start) / max(falloff, 1e-4), 0.0, 1.0)
+		min_d = _smin(min_d, d, union_smoothness)
+	var fade_start: float = 1.0 - max(falloff, 1e-4)
+	return smoothstep(fade_start, 1.0, min_d)
+
+
+## Polynomial smooth-minimum. GDScript twin of `field_smin` in
+## res://ui/overlay_field.gdshaderinc.
+func _smin(a: float, b: float, k: float) -> float:
+	if k <= 0.0:
+		return min(a, b)
+	var h: float = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+	return lerp(b, a, h) - k * h * (1.0 - h)
 
 
 func _apply_shader_intensity() -> void:

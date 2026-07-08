@@ -37,6 +37,13 @@ const _MAX_ENTITIES := 8
 		falloff = value
 		if material is ShaderMaterial:
 			(material as ShaderMaterial).set_shader_parameter(&"falloff", falloff)
+## Blend width of the same-entity smooth union, in normalized-distance units.
+## Cross-entity boundaries stay a hard cut regardless.
+@export_range(0.0, 0.5, 0.01) var union_smoothness: float = 0.12:
+	set(value):
+		union_smoothness = value
+		if material is ShaderMaterial:
+			(material as ShaderMaterial).set_shader_parameter(&"union_smoothness", union_smoothness)
 ## How far the aura reaches past a node's own visual radius.
 @export var radius_multiplier: float = 1.5:
 	set(value):
@@ -53,6 +60,7 @@ func _ready() -> void:
 		var mat: ShaderMaterial = material
 		mat.set_shader_parameter(&"intensity", intensity)
 		mat.set_shader_parameter(&"falloff", falloff)
+		mat.set_shader_parameter(&"union_smoothness", union_smoothness)
 	if Engine.is_editor_hint():
 		return
 	_connect_allocation()
