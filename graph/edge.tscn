@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="1_25cad"]
 
 [sub_resource type="Gradient" id="Gradient_edge"]
+resource_local_to_scene = true
 colors = PackedColorArray(0.55, 0.55, 0.6, 0.55, 0.55, 0.55, 0.6, 0.55)
 
 [node name="Edge" type="Node2D" unique_id=609108157]
