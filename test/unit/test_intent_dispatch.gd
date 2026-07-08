@@ -1,4 +1,5 @@
 extends GutTest
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Intent-by-channel dispatch (issue #60). With turn phases gone,
 ## PlayerInputController disambiguates player intent by INPUT CHANNEL, each
@@ -82,7 +83,7 @@ func before_each() -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = a
 	e.to = b
 	_graph.edges_container.add_child(e)

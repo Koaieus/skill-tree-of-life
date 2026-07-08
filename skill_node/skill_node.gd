@@ -6,6 +6,7 @@ const ZLayers = preload("res://ui/z_layers.gd")
 
 signal radius_changed
 signal owner_changed
+signal archetype_changed
 signal left_clicked(skill_node: SkillNode)
 signal right_clicked(skill_node: SkillNode)
 ## Emitted on every take_damage call (even at 0 effective). Local twin of
@@ -42,6 +43,7 @@ signal depleted
 @export var base_type_color: Color = Color.DIM_GRAY:
 	set(value):
 		base_type_color = value
+		archetype_changed.emit()
 		if is_node_ready():
 			_sync_visuals()
 

@@ -1,4 +1,5 @@
 extends GutTest
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Core-move visuals (#21 step 5/6 support): the reachability + path helpers on
 ## AllocationSystem that drive the CoreMoveHighlightProvider and the drag commit.
@@ -50,7 +51,7 @@ func before_each() -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = a
 	e.to = b
 	_graph.edges_container.add_child(e)

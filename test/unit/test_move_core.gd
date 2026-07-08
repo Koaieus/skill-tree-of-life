@@ -1,4 +1,5 @@
 extends GutTest
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Core movement (#21). `AllocationSystem.move_core` hops an entity's
 ## `core_location` along an adjacent edge over an owned subgraph, spends
@@ -60,7 +61,7 @@ func before_each() -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = a
 	e.to = b
 	_graph.edges_container.add_child(e)

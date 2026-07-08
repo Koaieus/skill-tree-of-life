@@ -100,19 +100,20 @@ func remove_skill_node(node: SkillNode) -> void:
 	node_removed.emit(node)
 	node.queue_free()
 
+const EDGE = preload("res://graph/edge.tscn")
 
 func add_edge(from: SkillNode, to: SkillNode) -> Edge:
-	var edge := Edge.new()
+	var edge := EDGE.instantiate() as Edge
 	edge.from = from
 	edge.to = to
 	edges_container.add_child(edge)
-	if from == to:  # it's a self-loop!
-		from.self_loops.append(edge)
 	edge_added.emit(edge)
 	return edge
 
 
 func remove_edge(edge: Edge) -> void:
+	if edge.from != null:
+		edge.from.self_loops.erase(edge)
 	edges_container.remove_child(edge)
 	edge_removed.emit(edge)
 	edge.queue_free()

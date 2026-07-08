@@ -9,6 +9,7 @@
 ## to the VFX coordinator (DamageInstance on arrival), matching gameplay.
 @tool
 extends PanelContainer
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 const _GRID_COLS: int = 4
 const _GRID_ROWS: int = 4
@@ -131,7 +132,7 @@ func _is_skipped(a: int, b: int) -> bool:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = a
 	e.to = b
 	graph.edges_container.add_child(e)

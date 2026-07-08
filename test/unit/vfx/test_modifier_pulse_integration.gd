@@ -1,4 +1,5 @@
 extends GutTest
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## #70 + #71 wiring, end-to-end through AllocationVFX:
 ##   - a VOLUNTARY allocation of a node carrying a modifier sends a pulse that,
@@ -35,7 +36,7 @@ func before_each() -> void:
 	_leaf.name = "Leaf"
 	_graph.skill_nodes_container.add_child(_leaf)
 
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = _core
 	e.to = _leaf
 	_graph.edges_container.add_child(e)
@@ -96,7 +97,7 @@ func test_forced_allocation_does_not_float() -> void:
 	var leaf2 := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	leaf2.name = "Leaf2"
 	_graph.skill_nodes_container.add_child(leaf2)
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = _core
 	e.to = leaf2
 	_graph.edges_container.add_child(e)

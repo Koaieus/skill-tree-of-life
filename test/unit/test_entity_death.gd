@@ -1,4 +1,5 @@
 extends GutTest
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Entity death (#18). When an entity's core HP reaches 0 it dies: emits `died`
 ## + `Events.entity_died`, and every node it owns is force-deallocated off the
@@ -73,7 +74,7 @@ func _count_death(_e: Entity) -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = a
 	e.to = b
 	_graph.edges_container.add_child(e)

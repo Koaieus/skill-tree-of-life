@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://2d6x3xbm2fai" path="res://scenes/dev_sandbox.gd" id="1_dev"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
-[ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="4_edge"]
+[ext_resource type="PackedScene" uid="uid://dgog4rl3yb7mh" path="res://graph/edge.tscn" id="4_edge_scene"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="7_qrijo"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="8_umwfs"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="9_o5a17"]
@@ -27,12 +27,20 @@
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="27_4oa4u"]
 [ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="28_3dypl"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="29_d7bkb"]
-[ext_resource type="Resource" path="res://stats_system/defs/range.tres" id="29_sdhs6"]
+[ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="29_sdhs6"]
 [ext_resource type="Resource" path="res://stats_system/defs/wisdom.tres" id="30_jc1be"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="31_54w3d"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="32_v0kkn"]
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="33_woundheal"]
+[ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="34_sdhs6"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="35_8r5xj"]
+[ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="36_k8amt"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="36_vybhe"]
+[ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="37_f58km"]
+[ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="38_arms0"]
+[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="39_3ogaa"]
+[ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="40_sybeb"]
+[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="41_df164"]
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="42_core"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="43_init"]
 
@@ -243,7 +251,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
-[sub_resource type="Resource" id="Resource_pyapo"]
+[sub_resource type="Resource" id="Resource_11lpl"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
 strength = SubResource("scalar_strength")
@@ -269,6 +277,12 @@ mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
 blade_size = SubResource("scalar_blade_size")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])
+
+[sub_resource type="Resource" id="Resource_85b6y"]
+resource_local_to_scene = true
+script = ExtResource("34_sdhs6")
+spells = Array[ExtResource("35_8r5xj")]([ExtResource("36_k8amt"), ExtResource("37_f58km"), ExtResource("38_arms0"), ExtResource("39_3ogaa"), ExtResource("40_sybeb"), ExtResource("41_df164")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [sub_resource type="Resource" id="Resource_ubc5n"]
 resource_name = "action_points"
@@ -461,7 +475,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("11_uulnk")
 definition = ExtResource("32_v0kkn")
 
-[sub_resource type="Resource" id="Resource_qrijo"]
+[sub_resource type="Resource" id="Resource_3w3l3"]
 resource_local_to_scene = true
 script = ExtResource("24_qk0se")
 strength = SubResource("Resource_l68re")
@@ -486,6 +500,12 @@ mana = SubResource("Resource_d7bkb")
 mana_per_turn = SubResource("Resource_jc1be")
 blade_size = SubResource("Resource_8d6i3")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_3ogaa"), SubResource("Resource_df164"), SubResource("Resource_qk0se"), SubResource("Resource_lwubc"), SubResource("Resource_3dypl"), SubResource("Resource_piqb8")])
+
+[sub_resource type="Resource" id="Resource_hhwjj"]
+resource_local_to_scene = true
+script = ExtResource("34_sdhs6")
+spells = Array[ExtResource("35_8r5xj")]([ExtResource("36_k8amt"), ExtResource("37_f58km"), ExtResource("38_arms0"), ExtResource("39_3ogaa"), ExtResource("40_sybeb"), ExtResource("41_df164")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [sub_resource type="Resource" id="mod_dex_2"]
 script = ExtResource("2_mod")
@@ -589,15 +609,17 @@ viewers = [NodePath("../../Graph/Entities/Player")]
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_pyapo")
+stat_board = SubResource("Resource_11lpl")
 core_class = ExtResource("42_core")
+spellbook = SubResource("Resource_85b6y")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" parent_id_path=PackedInt32Array(1851662701, 1129644954) index="1" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
 display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
-stat_board = SubResource("Resource_qrijo")
+stat_board = SubResource("Resource_3w3l3")
 core_class = ExtResource("42_core")
+spellbook = SubResource("Resource_hhwjj")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Core" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="0" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -766,229 +788,196 @@ position = Vector2(750, 120)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2")])
 
-[node name="Edge_Core_Up" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="0" unique_id=709243764 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Up" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="0" unique_id=709243764 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Up")
 
-[node name="Edge_Core_Right" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="1" unique_id=504798742 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Right" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="1" unique_id=504798742 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Right")
 
-[node name="Edge_Core_Down" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="2" unique_id=1248232282 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Down" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="2" unique_id=1248232282 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Down")
 
-[node name="Edge_Core_Left" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="3" unique_id=1825049266 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Core_Left" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="3" unique_id=1825049266 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Core")
 to = NodePath("../../Nodes/Left")
 
-[node name="Edge_Up_NE" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="4" unique_id=603224024 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Up_NE" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="4" unique_id=603224024 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up")
 to = NodePath("../../Nodes/NE")
 
-[node name="Edge_Right_NE" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="5" unique_id=1760779239 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Right_NE" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="5" unique_id=1760779239 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Right")
 to = NodePath("../../Nodes/NE")
 
-[node name="Edge_Up_UpOut" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="6" unique_id=1453757900 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Up_UpOut" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="6" unique_id=1453757900 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up")
 to = NodePath("../../Nodes/Up_Out")
 
-[node name="Edge_Right_RightOut" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="7" unique_id=1347815492 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Right_RightOut" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="7" unique_id=1347815492 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Right")
 to = NodePath("../../Nodes/Right_Out")
 
-[node name="Edge_Down_DownOut" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="8" unique_id=8800101 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Down_DownOut" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="8" unique_id=8800101 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Down")
 to = NodePath("../../Nodes/Down_Out")
 
-[node name="Edge_Left_LeftOut" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="9" unique_id=8800102 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Left_LeftOut" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="9" unique_id=8800102 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Left")
 to = NodePath("../../Nodes/Left_Out")
 
-[node name="Edge_Left_SW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="10" unique_id=8800103 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Left_SW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="10" unique_id=8800103 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Left")
 to = NodePath("../../Nodes/SW")
 
-[node name="Edge_Down_SW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="11" unique_id=8800104 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Down_SW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="11" unique_id=8800104 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Down")
 to = NodePath("../../Nodes/SW")
 
-[node name="Edge_RightOut_BridgeE" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="12" unique_id=8800105 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_RightOut_BridgeE" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="12" unique_id=8800105 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Right_Out")
 to = NodePath("../../Nodes/Bridge_E")
 
-[node name="Edge_DownOut_BridgeS" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="13" unique_id=8800106 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_DownOut_BridgeS" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="13" unique_id=8800106 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Down_Out")
 to = NodePath("../../Nodes/Bridge_S")
 
-[node name="Edge_BridgeE_EnemyW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="14" unique_id=8800107 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_BridgeE_EnemyW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="14" unique_id=8800107 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Bridge_E")
 to = NodePath("../../Nodes/Enemy_W")
 
-[node name="Edge_BridgeS_EnemyW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="15" unique_id=8800108 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_BridgeS_EnemyW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="15" unique_id=8800108 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Bridge_S")
 to = NodePath("../../Nodes/Enemy_W")
 
-[node name="Edge_EnemyCore_EnemyN" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="16" unique_id=8800109 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_EnemyCore_EnemyN" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="16" unique_id=8800109 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.48904088)
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_N")
 
-[node name="Edge_EnemyCore_EnemyE" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="17" unique_id=8800110 node_paths=PackedStringArray("from", "to")]
-script = ExtResource("4_edge")
+[node name="Edge_EnemyCore_EnemyE" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="17" unique_id=8800110 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_E")
 
-[node name="Edge_EnemyCore_EnemyS" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="18" unique_id=8800111 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_EnemyCore_EnemyS" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="18" unique_id=8800111 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.67547023)
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_S")
 
-[node name="Edge_EnemyCore_EnemyW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="19" unique_id=8800112 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_EnemyCore_EnemyW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="19" unique_id=8800112 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_W")
 
-[node name="Edge_EnemyS_EnemyE" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="20" unique_id=8800113 node_paths=PackedStringArray("from", "to")]
-script = ExtResource("4_edge")
+[node name="Edge_EnemyS_EnemyE" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="20" unique_id=8800113 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 from = NodePath("../../Nodes/Enemy_S")
 to = NodePath("../../Nodes/Enemy_E")
 
-[node name="Edge_EnemyS_EnemyW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="21" unique_id=8800114 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_EnemyS_EnemyW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="21" unique_id=8800114 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Enemy_S")
 to = NodePath("../../Nodes/Enemy_W")
 
-[node name="Edge_NE_Watchtower" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="22" unique_id=9000101 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_NE_Watchtower" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="22" unique_id=9000101 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/NE")
 to = NodePath("../../Nodes/Watchtower")
 
-[node name="Edge_UpOut_Watchtower" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="23" unique_id=9000102 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_UpOut_Watchtower" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="23" unique_id=9000102 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.56919986)
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up_Out")
 to = NodePath("../../Nodes/Watchtower")
 
-[node name="Edge_UpOut_Juggler" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="24" unique_id=9000103 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_UpOut_Juggler" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="24" unique_id=9000103 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Up_Out")
 to = NodePath("../../Nodes/Juggler")
 
-[node name="Edge_LeftOut_Spyglass" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="25" unique_id=9000104 node_paths=PackedStringArray("from", "to")]
-script = ExtResource("4_edge")
+[node name="Edge_LeftOut_Spyglass" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="25" unique_id=9000104 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 from = NodePath("../../Nodes/Left_Out")
 to = NodePath("../../Nodes/Spyglass")
 
-[node name="Edge_Left_Library" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="26" unique_id=9000105 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Left_Library" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="26" unique_id=9000105 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Left")
 to = NodePath("../../Nodes/Library")
 
-[node name="Edge_LeftOut_Library" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="27" unique_id=9000106 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_LeftOut_Library" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="27" unique_id=9000106 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.5606428)
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Left_Out")
 to = NodePath("../../Nodes/Library")
 
-[node name="Edge_SW_Forge" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="28" unique_id=9000107 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_SW_Forge" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="28" unique_id=9000107 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.7059601)
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/SW")
 to = NodePath("../../Nodes/Forge")
 
-[node name="Edge_BridgeE_Crossroads" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="29" unique_id=9000108 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_BridgeE_Crossroads" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="29" unique_id=9000108 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Bridge_E")
 to = NodePath("../../Nodes/Crossroads")
 
-[node name="Edge_Crossroads_EnemyW" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="30" unique_id=9000109 node_paths=PackedStringArray("from", "to")]
+[node name="Edge_Crossroads_EnemyW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="30" unique_id=9000109 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 1001
 z_as_relative = false
-script = ExtResource("4_edge")
 from = NodePath("../../Nodes/Crossroads")
 to = NodePath("../../Nodes/Enemy_W")
 
-[node name="Edge_EnemyN_EnemyTower" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="31" unique_id=9000110 node_paths=PackedStringArray("from", "to")]
-script = ExtResource("4_edge")
+[node name="Edge_EnemyN_EnemyTower" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="31" unique_id=9000110 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 from = NodePath("../../Nodes/Enemy_N")
 to = NodePath("../../Nodes/Enemy_Tower")
 
-[node name="Edge_EnemyE_EnemyRecon" type="Node2D" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="32" unique_id=9000111 node_paths=PackedStringArray("from", "to")]
-script = ExtResource("4_edge")
+[node name="Edge_EnemyE_EnemyRecon" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="32" unique_id=9000111 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 from = NodePath("../../Nodes/Enemy_E")
 to = NodePath("../../Nodes/Enemy_Recon")
 

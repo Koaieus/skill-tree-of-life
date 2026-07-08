@@ -25,6 +25,7 @@ extends RefCounted
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 
 func make_graph(adjacency: Array, gut: GutTest) -> Graph:
@@ -41,7 +42,7 @@ func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 	for pair in adjacency:
 		var a: SkillNode = graph.get_skill_nodes()[int(pair[0])]
 		var b: SkillNode = graph.get_skill_nodes()[int(pair[1])]
-		var e := Edge.new()
+		var e := _EDGE_SCENE.instantiate() as Edge
 		e.from = a
 		e.to = b
 		graph.edges_container.add_child(e)

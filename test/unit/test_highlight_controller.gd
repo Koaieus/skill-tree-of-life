@@ -1,4 +1,5 @@
 extends GutTest
+const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## HighlightController: single active provider, priority resolver (attack plan >
 ## core-move > none), and the state_changed rebind that lets internal provider
@@ -25,7 +26,7 @@ func before_each() -> void:
 		sn.name = "N%d" % i
 		_graph.skill_nodes_container.add_child(sn)
 		_nodes.append(sn)
-	var e := Edge.new()
+	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = _nodes[0]
 	e.to = _nodes[1]
 	_graph.edges_container.add_child(e)
