@@ -302,7 +302,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("6_0p68j")
 definition = ExtResource("36_3dnei")
 
-[sub_resource type="Resource" id="Resource_t7f1t"]
+[sub_resource type="Resource" id="Resource_rr351"]
 resource_local_to_scene = true
 script = ExtResource("26_dk7li")
 strength = SubResource("scalar_strength")
@@ -334,18 +334,18 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
 
-[sub_resource type="Resource" id="Resource_jjc7h"]
+[sub_resource type="Resource" id="Resource_lgeib"]
 resource_local_to_scene = true
 script = ExtResource("37_oknoy")
 metadata/_custom_type_script = "uid://bv71o73jcthj3"
 
-[sub_resource type="Resource" id="Resource_v2xo6"]
+[sub_resource type="Resource" id="Resource_jotj6"]
 resource_local_to_scene = true
 script = ExtResource("38_x1xyy")
 spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
 metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
-[sub_resource type="Resource" id="Resource_4bpll"]
+[sub_resource type="Resource" id="Resource_0p68j"]
 resource_local_to_scene = true
 script = ExtResource("26_dk7li")
 strength = SubResource("scalar_strength")
@@ -377,12 +377,12 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
 
-[sub_resource type="Resource" id="Resource_wtgei"]
+[sub_resource type="Resource" id="Resource_gnwdd"]
 resource_local_to_scene = true
 script = ExtResource("37_oknoy")
 metadata/_custom_type_script = "uid://bv71o73jcthj3"
 
-[sub_resource type="Resource" id="Resource_wppij"]
+[sub_resource type="Resource" id="Resource_2psax"]
 resource_local_to_scene = true
 script = ExtResource("38_x1xyy")
 spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
@@ -458,17 +458,17 @@ color = Color(0.07, 0.07, 0.1, 1)
 unique_name_in_owner = true
 display_name = "Caster"
 color = Color(0.4, 0.8, 0.55, 1)
-stat_board = SubResource("Resource_t7f1t")
-core_class = SubResource("Resource_jjc7h")
-spellbook = SubResource("Resource_v2xo6")
+stat_board = SubResource("Resource_rr351")
+core_class = SubResource("Resource_lgeib")
+spellbook = SubResource("Resource_jotj6")
 
 [node name="DefenderEntity" parent="HBox/WorldContainer/World" unique_id=345963501 instance=ExtResource("3_ent")]
 unique_name_in_owner = true
 display_name = "Defender"
 color = Color(0.85, 0.4, 0.3, 1)
-stat_board = SubResource("Resource_4bpll")
-core_class = SubResource("Resource_wtgei")
-spellbook = SubResource("Resource_wppij")
+stat_board = SubResource("Resource_0p68j")
+core_class = SubResource("Resource_gnwdd")
+spellbook = SubResource("Resource_2psax")
 
 [node name="CasterNode" parent="HBox/WorldContainer/World" unique_id=1567387689 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 unique_name_in_owner = true
@@ -476,6 +476,7 @@ position = Vector2(65, 190)
 owned_by = NodePath("../CasterEntity")
 
 [node name="Graph" parent="HBox/WorldContainer/World" unique_id=1726628961 instance=ExtResource("47_eagb3")]
+unique_name_in_owner = true
 
 [node name="T_00" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="0" unique_id=1120853937 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 owned_by = NodePath("../../../DefenderEntity")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://dgog4rl3yb7mh"]
+[gd_scene format=3 uid="uid://dgog4rl3yb7mh"]
 
 [ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="1_25cad"]
 
@@ -7,6 +7,7 @@ resource_local_to_scene = true
 colors = PackedColorArray(0.55, 0.55, 0.6, 0.55, 0.55, 0.55, 0.6, 0.55)
 
 [node name="Edge" type="Node2D" unique_id=609108157]
+z_index = -10
 script = ExtResource("1_25cad")
 metadata/_custom_type_script = "uid://5igfp33erkyn"
 

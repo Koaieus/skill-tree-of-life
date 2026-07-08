@@ -1,21 +1,27 @@
 @tool
 extends SkillNodeVisual
-## Weld symbol (#124): a glyph overlay engraved into the same disk gradient
+## Weld symbol (#124): a glyph overlay etched into the same disk gradient
 ## as inner_disk.gd, not composited on top of it. The fill is NOT a flat
 ## color under a blend mode — that read as a black sticker whenever the
 ## disk itself was dark (unallocated). Instead the glyph is filled with a
 ## per-vertex evaluation of the identical disk shading formula (same
 ## tint_color/tint_mix/allocated/highlight terms as inner_disk.gdshader),
-## so it darkens/lightens exactly like the disk itself. On top, a
-## white-then-black hairline pair traces the glyph outline — the classic
-## engraved-bevel cue (light line reads as a raised catch-light, the darker
-## line right against it reads as the shadowed underside of a groove) via
-## plain alpha compositing, no blend mode involved.
+## so it darkens/lightens exactly like the disk itself.
+##
+## Read as a well sunk into the disk's hemisphere, not a sticker on top:
+## the floor polygon is inset from the true glyph boundary (`well_inset`)
+## and darkened a touch (`floor_darken`); the strip of bare disk this
+## exposes between the floor and the rim IS the wall of the pit — already
+## correctly lit because it's just the underlying disk showing through, no
+## separate shading needed — and gets a thin AO tint (`well_shadow`) to
+## read as recessed rather than merely narrower. A single hairline traces
+## the true (outer) boundary — the lip of the well — at an exported
+## width/opacity instead of a hardcoded light/dark pair.
 ##
 ## Currently a placeholder regular polygon per archetype, swappable later
 ## (rune/kanji) without touching the shading pipeline.
 
-enum GlowMode { NONE, ALWAYS, HOVER, PULSE, SWEEP }
+enum GlowMode { NONE, ALWAYS, PULSE, SWEEP }
 enum Archetype { STR, DEX, INT, WIS, PER, CON }
 
 ## Placeholder glyph = a regular polygon with this many sides per archetype.
@@ -52,6 +58,39 @@ const NEUTRAL_LIGHT := Color(0.38, 0.40, 0.45)
 @export_range(1.0, 128.0, 0.5) var disk_radius: float = 24.0:
 	set(value):
 		disk_radius = value
+		queue_redraw()
+
+## How far the floor sits in from the true glyph boundary, as a fraction of
+## the glyph radius — the width of the exposed "wall" ring. See class doc.
+@export_range(0.0, 0.3, 0.01) var well_inset: float = 0.07:
+	set(value):
+		well_inset = value
+		queue_redraw()
+
+## Fraction the floor is darkened relative to the plain disk shade — kept
+## small ("darken slightly, tiny bit"), not a separate light model.
+@export_range(0.0, 0.3, 0.01) var floor_darken: float = 0.1:
+	set(value):
+		floor_darken = value
+		queue_redraw()
+
+## Opacity of the ambient-occlusion tint painted under the exposed wall
+## strip — reads the floor as sunk in rather than just narrower.
+@export_range(0.0, 1.0, 0.01) var well_shadow: float = 0.35:
+	set(value):
+		well_shadow = value
+		queue_redraw()
+
+## Width of the rim hairline traced at the true (outer) glyph boundary.
+@export_range(0.0, 4.0, 0.1) var hairline_width: float = 1.0:
+	set(value):
+		hairline_width = value
+		queue_redraw()
+
+## Opacity of the rim hairline.
+@export_range(0.0, 1.0, 0.01) var hairline_opacity: float = 0.35:
+	set(value):
+		hairline_opacity = value
 		queue_redraw()
 
 ## Same shading inputs as inner_disk.gd — kept identical so the weld reads
@@ -93,7 +132,7 @@ var shading: ShadingStyle = null:
 @export var glow_mode: GlowMode = GlowMode.NONE:
 	set(value):
 		glow_mode = value
-		set_process(glow_mode in [GlowMode.HOVER, GlowMode.PULSE, GlowMode.SWEEP])
+		set_process(glow_mode in [GlowMode.PULSE, GlowMode.SWEEP])
 		queue_redraw()
 
 @export_range(0.0, 1.0, 0.01) var glow_amt: float = 0.4:
@@ -126,7 +165,7 @@ func _apply_shading() -> void:
 
 
 func _ready() -> void:
-	set_process(glow_mode in [GlowMode.HOVER, GlowMode.PULSE, GlowMode.SWEEP])
+	set_process(glow_mode in [GlowMode.PULSE, GlowMode.SWEEP])
 
 
 func configure(new_radius: float) -> void:
@@ -139,18 +178,12 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func _is_hovering() -> bool:
-	return get_local_mouse_position().length() <= disk_radius
-
-
 func _current_glow() -> float:
 	match glow_mode:
 		GlowMode.NONE:
 			return 0.0
 		GlowMode.ALWAYS:
 			return glow_amt
-		GlowMode.HOVER:
-			return glow_amt if _is_hovering() else 0.0
 		GlowMode.PULSE:
 			return glow_amt * (0.5 + 0.5 * sin(_t * 2.5))
 		GlowMode.SWEEP:
@@ -183,10 +216,14 @@ func _draw() -> void:
 	if not show_weld:
 		return
 	var glyph_r := disk_radius * weld_k
+	var floor_r := glyph_r * (1.0 - well_inset)
 	var sides: int = ARCH_SIDES.get(arch, 6)
 	var points := PackedVector2Array()
+	var floor_points := PackedVector2Array()
 	for theta in polar_steps(sides):
-		points.append(polar_point(glyph_r, theta - PI / 2.0))
+		var angle := theta - PI / 2.0
+		points.append(polar_point(glyph_r, angle))
+		floor_points.append(polar_point(floor_r, angle))
 
 	var glow := _current_glow()
 	if vivid_disk:
@@ -202,12 +239,20 @@ func _draw() -> void:
 		var sweep_theta := fmod(_t * 1.5, TAU)
 		draw_line(Vector2.ZERO, polar_point(glyph_r * 1.4, sweep_theta), Color(1.0, 1.0, 1.0, glow * 0.6), 2.0, true)
 
-	var colors := PackedColorArray()
-	for p in points:
-		colors.append(_disk_shade(p))
-	draw_polygon(points, colors)
+	# The strip between `points` (rim) and `floor_points` (floor) is left
+	# unpainted — it's the bare disk showing through, already correctly lit
+	# by inner_disk's own shader. A soft AO tint over that strip is what
+	# reads it as a wall rather than just a narrower glyph.
+	if well_shadow > 0.0:
+		draw_colored_polygon(points, Color(0.0, 0.0, 0.0, well_shadow * 0.5))
 
-	var outline := points.duplicate()
-	outline.append(points[0])
-	draw_polyline(outline, Color(1.0, 1.0, 1.0, 0.32), 0.9, true)
-	draw_polyline(outline, Color(0.0, 0.0, 0.0, 0.28), 0.5, true)
+	var colors := PackedColorArray()
+	for p in floor_points:
+		var shade := _disk_shade(p)
+		colors.append(Color(shade.r * (1.0 - floor_darken), shade.g * (1.0 - floor_darken), shade.b * (1.0 - floor_darken), 1.0))
+	draw_polygon(floor_points, colors)
+
+	if hairline_opacity > 0.0 and hairline_width > 0.0:
+		var outline := points.duplicate()
+		outline.append(points[0])
+		draw_polyline(outline, Color(1.0, 1.0, 1.0, hairline_opacity), hairline_width, true)

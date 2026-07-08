@@ -6,5 +6,3 @@
 script = ExtResource("1_weld")
 weld_k = 0.88
 tint_color = Color(0.31701082, 0.6682456, 0.55449355, 1)
-glow_mode = 2
-glow_amt = 0.45

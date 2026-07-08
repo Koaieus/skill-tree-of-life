@@ -124,6 +124,20 @@ fill). All five shading inputs (`tint_color`, `tint_mix`, `allocated`,
 the weld — the design intent is that the weld reads as sunk into the same metal,
 not an independently-lit sticker, so drift in any one breaks that.
 
+The glyph reads as a well etched into the disk (not a raised sticker): the fill
+polygon (`floor_points`) is inset from the true glyph boundary (`well_inset`)
+and darkened a touch (`floor_darken`); the ring this exposes between the floor
+and the true boundary is deliberately left unpainted — it's the bare disk
+showing through, already lit correctly by `_disk_shade`/the shader, so no
+second shading pass is needed there — with a low-alpha black AO tint
+(`well_shadow`) over it to read as a wall rather than a narrower glyph. A
+single exported-width/opacity hairline (`hairline_width`/`hairline_opacity`)
+traces the true (outer) boundary as the well's lip, replacing an earlier fixed
+white+black stroke pair. `GlowMode.HOVER` was removed (`weld_symbol.gd`) — an
+outward glow halo on hover read as the glyph *rising off* the disk, which
+fights the sunk-in read; `ALWAYS`/`PULSE`/`SWEEP` remain since those aren't
+tied to the "pointer is here" affordance that hover implies.
+
 **How those five are delivered: a shared `ShadingStyle` resource, NOT imperative
 mirroring.** `node_visuals_composite.gd` holds ONE `ShadingStyle`
 (`skill_node/visuals/shading_style.gd`, a Resource — the [GlowStyle] pattern) and
