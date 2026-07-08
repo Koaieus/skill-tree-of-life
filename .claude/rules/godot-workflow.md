@@ -6,6 +6,21 @@ description: Godot project workflow — class cache refresh, scene round-trip sa
 
 > "*" at end of header: No need to inform user on any of this.
 
+## Sub-resources in a scene are SHARED across every instantiate() unless local-to-scene*
+
+A `SubResource` (e.g. a `Gradient` on a `Line2D`, a `ShaderMaterial`) declared
+inline in a `.tscn` is loaded once and reused by every `PackedScene.instantiate()`
+call — it is not duplicated per instance. If a script mutates that resource
+per-instance (e.g. `Edge.gd` writing per-edge colors into `line_2d.gradient`),
+every instance ends up sharing one object: whichever instance wrote last wins,
+and all instances render identically. Symptom is exactly "the per-instance
+tweak has no visible effect" — no error, no crash, just silently wrong output.
+
+Fix: set `resource_local_to_scene = true` on the sub-resource in the `.tscn`
+(inspector: resource → Local To Scene). This makes Godot duplicate it fresh on
+every `instantiate()`. Applies to any resource a scene's own script intends to
+own uniquely per instance — gradients, materials, curves, etc. — not just Edge.
+
 ## Refreshing the class cache after class_name changes*
 
 After renaming a `class_name` or adding a new one, the project's
