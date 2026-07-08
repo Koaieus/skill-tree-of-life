@@ -17,9 +17,9 @@ shader_type canvas_item;
 // black. Halo rides the outer edge — its inner side dips into the fade
 // zone, its outer side dips into the dark zone, brightening both.
 
-const int MAX_CIRCLES = 256;
+const int MAX_CIRCLES = 512;
 
-uniform int circle_count : hint_range(0, 256) = 0;
+uniform int circle_count : hint_range(0, 512) = 0;
 uniform vec4 circles[MAX_CIRCLES];
 uniform float intensity : hint_range(0.0, 1.0) = 1.0;
 // Fraction of radius the gradient extends BEYOND the edge. 0 = hard cut,

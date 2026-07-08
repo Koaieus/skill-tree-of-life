@@ -12,7 +12,14 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## [b]Intensity slider[/b] is the debug knob: 0 = invisible, 1 = full black.
 ## Falloff softens the circle edge.
 
-const _MAX_CIRCLES := 256
+## Uniform-array bound, mirrored by `MAX_CIRCLES` in fog.gdshader. A *memory*
+## bound, not a cost: the fragment loop breaks at `circle_count`, so an unused
+## slot costs nothing per pixel. 512 vec4 ≈ 8KB of uniform storage.
+const _MAX_CIRCLES := 512
+
+# Truncation is loud, but only on the rising edge — _refresh runs on every
+# vision tick, and a warning per frame would bury the log.
+var _warned_overflow: bool = false
 # Visible elements in the fade zone dim toward this floor instead of being
 # bisected by the per-fragment fog gradient. Matches the sensed-outline
 # alpha so a node transitioning visible → sensed has no brightness jump.
@@ -76,18 +83,26 @@ func _refresh() -> void:
 		return
 	var mat: ShaderMaterial = material
 	var sources: Array = vision_system.get_vision_sources() if vision_system != null else []
+	# Truncation here is worse than dropping a circle: `_apply_per_element_dimming`
+	# reads the FULL list, so a node lit by a dropped circle would render bright
+	# against fog the shader still paints black. Clamp both to the same set.
+	if sources.size() > _MAX_CIRCLES:
+		_warn_once("FogOverlay: %d vision sources exceeds the %d-circle cap; %d are not rendered and the graph will look wrong. See #133."
+			% [sources.size(), _MAX_CIRCLES, sources.size() - _MAX_CIRCLES])
+		sources = sources.slice(0, _MAX_CIRCLES)
+	else:
+		_warned_overflow = false
+
 	var packed: Array = []
 	for s in sources:
 		packed.append(Vector4(s.pos.x, s.pos.y, s.radius, s.get("motion", 0.0)))
-		if packed.size() >= _MAX_CIRCLES:
-			break
 	# Pad to MAX so the uniform array always has a defined length — Godot's
 	# canvas_item shader needs the array fully populated even when unused
 	# slots are skipped via the count guard.
 	while packed.size() < _MAX_CIRCLES:
 		packed.append(Vector4.ZERO)
 	mat.set_shader_parameter(&"circles", packed)
-	mat.set_shader_parameter(&"circle_count", min(sources.size(), _MAX_CIRCLES))
+	mat.set_shader_parameter(&"circle_count", sources.size())
 	_apply_per_element_dimming(sources)
 
 
@@ -156,6 +171,13 @@ func _sample_dark(world_pos: Vector2, sources: Array) -> float:
 		min_d = _smin(min_d, d, union_smoothness)
 	var fade_start: float = 1.0 - max(falloff, 1e-4)
 	return smoothstep(fade_start, 1.0, min_d)
+
+
+func _warn_once(message: String) -> void:
+	if _warned_overflow:
+		return
+	_warned_overflow = true
+	push_warning(message)
 
 
 ## Polynomial smooth-minimum. GDScript twin of `field_smin` in

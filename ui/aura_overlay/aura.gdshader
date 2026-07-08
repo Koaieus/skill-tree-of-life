@@ -16,10 +16,10 @@ shader_type canvas_item;
 // matches the issue's lean toward cuts over blends for enemy-vs-owned
 // boundaries (#74).
 
-const int MAX_CIRCLES = 256;
+const int MAX_CIRCLES = 512;
 const int MAX_ENTITIES = 8;
 
-uniform int circle_count : hint_range(0, 256) = 0;
+uniform int circle_count : hint_range(0, 512) = 0;
 // vec4(world_x, world_y, radius, entity_index)
 uniform vec4 circles[MAX_CIRCLES];
 uniform int entity_count : hint_range(0, 8) = 0;

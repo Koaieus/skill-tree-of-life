@@ -10,8 +10,16 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## entity. See aura.gdshader for the blend rules (same-entity union,
 ## cross-entity hard cut).
 
-const _MAX_CIRCLES := 256
+## Uniform-array bound, mirrored by `MAX_CIRCLES` in aura.gdshader. This is a
+## *memory* bound, not a cost: the fragment loop breaks at `circle_count`, so an
+## unused slot costs nothing per pixel. 512 vec4 ≈ 8KB of uniform storage.
+const _MAX_CIRCLES := 512
 const _MAX_ENTITIES := 8
+
+# Truncation is loud, but only once per onset — _refresh runs on every
+# allocation, and a warning per node would bury the log.
+var _warned_circle_overflow: bool = false
+var _warned_entity_overflow: bool = false
 
 @export var enabled: bool = true:
 	set(value):
@@ -96,12 +104,18 @@ func _refresh() -> void:
 			owned_by_entity[owner] = []
 		(owned_by_entity[owner] as Array).append(sn)
 
+	var total_owned := 0
+	for owner in owned_by_entity:
+		total_owned += (owned_by_entity[owner] as Array).size()
+
 	var packed_circles: Array = []
 	var packed_colors: Array = []
 	var entity_idx := 0
 	for owner in owned_by_entity:
 		if entity_idx >= _MAX_ENTITIES:
-			push_warning("AuraOverlay: more than %d owning entities; extras are not rendered" % _MAX_ENTITIES)
+			_warn_once(&"_warned_entity_overflow",
+				"AuraOverlay: %d owning entities exceeds the %d-colour cap; the extras render no aura."
+					% [owned_by_entity.size(), _MAX_ENTITIES])
 			break
 		for sn in owned_by_entity[owner]:
 			if packed_circles.size() >= _MAX_CIRCLES:
@@ -112,6 +126,15 @@ func _refresh() -> void:
 			))
 		packed_colors.append((owner as Entity).color)
 		entity_idx += 1
+
+	# Truncation silently deletes territory from the board — whichever entity is
+	# packed last simply stops rendering. Never let that pass unremarked.
+	if total_owned > _MAX_CIRCLES:
+		_warn_once(&"_warned_circle_overflow",
+			"AuraOverlay: %d owned nodes exceeds the %d-circle cap; %d nodes render no aura. See #133."
+				% [total_owned, _MAX_CIRCLES, total_owned - _MAX_CIRCLES])
+	else:
+		_warned_circle_overflow = false
 
 	var circle_count := packed_circles.size()
 	var entity_count := packed_colors.size()
@@ -124,6 +147,15 @@ func _refresh() -> void:
 	mat.set_shader_parameter(&"circle_count", circle_count)
 	mat.set_shader_parameter(&"entity_colors", packed_colors)
 	mat.set_shader_parameter(&"entity_count", entity_count)
+
+
+## Warn on the rising edge only. `_refresh` runs on every allocation, so an
+## unguarded push_warning would emit once per node for the rest of the match.
+func _warn_once(flag: StringName, message: String) -> void:
+	if get(flag):
+		return
+	set(flag, true)
+	push_warning(message)
 
 
 func _on_entity_died(_entity: Entity) -> void:
