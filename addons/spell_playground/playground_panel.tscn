@@ -47,7 +47,6 @@
 [ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="44_5fdyx"]
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="45_oqsv1"]
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="47_eagb3"]
-[ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="48_float"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -549,8 +548,6 @@ owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_33" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="15" unique_id=1220020722 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 owned_by = NodePath("../../../DefenderEntity")
-
-[node name="FloaterDirector" parent="HBox/WorldContainer/World/Graph" instance=ExtResource("48_float")]
 
 [node name="VFXLayer" type="Node2D" parent="HBox/WorldContainer/World" unique_id=98385627]
 unique_name_in_owner = true
