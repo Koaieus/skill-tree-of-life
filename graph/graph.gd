@@ -27,19 +27,21 @@ signal edge_removed(edge: Edge)
 @onready var skill_nodes_container: Node2D = $Nodes
 @onready var edges_container: Node2D = $Edges
 
-# Adjacency index for get_neighbours. Rebuilt lazily whenever either container
-# gains or loses a child, so it stays correct for procgen, remove_skill_node,
-# and any direct add_child. Not used in the editor: an inspector edit to
-# `Edge.from` / `Edge.to` mutates topology without touching the child lists,
-# and no editor path is hot enough to care.
+# Topology index. Rebuilt lazily whenever either container gains or loses a
+# child, so it stays correct for procgen, remove_skill_node, and any direct
+# add_child. Not used in the editor: an inspector edit to `Edge.from` /
+# `Edge.to` mutates topology without touching the child lists, and no editor
+# path is hot enough to care.
+var _nodes: Array[SkillNode] = []
+var _edges: Array[Edge] = []
 var _adjacency: Dictionary[SkillNode, Array] = {}
-var _adjacency_dirty: bool = true
+var _topology_dirty: bool = true
 
 
 func _ready() -> void:
 	for c: Node in [skill_nodes_container, edges_container]:
-		c.child_entered_tree.connect(_mark_adjacency_dirty.unbind(1))
-		c.child_exiting_tree.connect(_mark_adjacency_dirty.unbind(1))
+		c.child_entered_tree.connect(_mark_topology_dirty.unbind(1))
+		c.child_exiting_tree.connect(_mark_topology_dirty.unbind(1))
 	if Engine.is_editor_hint():
 		return
 	# Re-emit signals for content already authored into the scene so
@@ -51,24 +53,21 @@ func _ready() -> void:
 		edge_added.emit(e)
 
 
+## Every [SkillNode] in the graph. Returns a private copy — callers may mutate
+## it (the spell playground appends the caster's node to the result).
 func get_skill_nodes() -> Array[SkillNode]:
-	var out: Array[SkillNode] = []
 	if skill_nodes_container == null:
-		return out
-	for c in skill_nodes_container.get_children():
-		if c is SkillNode:
-			out.append(c)
-	return out
+		return [] as Array[SkillNode]
+	_ensure_topology()
+	return _nodes.duplicate()
 
 
+## Every [Edge] in the graph. Returns a private copy — see [method get_skill_nodes].
 func get_edges() -> Array[Edge]:
-	var out: Array[Edge] = []
 	if edges_container == null:
-		return out
-	for c in edges_container.get_children():
-		if c is Edge:
-			out.append(c)
-	return out
+		return [] as Array[Edge]
+	_ensure_topology()
+	return _edges.duplicate()
 
 
 ## Direct neighbours of [param node] — every other endpoint that shares an
@@ -80,28 +79,42 @@ func get_edges() -> Array[Edge]:
 func get_neighbours(node: SkillNode) -> Array[SkillNode]:
 	if edges_container == null or node == null:
 		return [] as Array[SkillNode]
-	if Engine.is_editor_hint():
-		# Inspector edits to `Edge.from` / `Edge.to` don't dirty the index.
-		var adj: Array = _build_adjacency().get(node, [])
-		return adj.duplicate()
-	if _adjacency_dirty:
-		_adjacency = _build_adjacency()
-		_adjacency_dirty = false
-	var cached: Array = _adjacency.get(node, [])
-	return cached.duplicate()
+	_ensure_topology()
+	var adj: Array = _adjacency.get(node, [])
+	return adj.duplicate()
 
 
-func _mark_adjacency_dirty() -> void:
-	_adjacency_dirty = true
+func _mark_topology_dirty() -> void:
+	_topology_dirty = true
 
 
-## One pass over the edges, appending each endpoint to the other's list. Order
-## within a node's list matches edge child order, as the old per-node walk did.
-func _build_adjacency() -> Dictionary[SkillNode, Array]:
-	var adj: Dictionary[SkillNode, Array] = {}
-	for n in get_skill_nodes():
-		adj[n] = [] as Array[SkillNode]
-	for e in get_edges():
+## Rebuild the node list, edge list, and adjacency index from the containers.
+##
+## Always rebuilds in the editor: an inspector edit to `Edge.from` / `Edge.to`
+## re-points an edge without touching either container's child list, so the
+## dirty flag would never fire. No editor path is hot enough to care.
+func _ensure_topology() -> void:
+	if skill_nodes_container == null or edges_container == null:
+		return
+	if not _topology_dirty and not Engine.is_editor_hint():
+		return
+	_topology_dirty = false
+
+	_nodes = []
+	for c in skill_nodes_container.get_children():
+		if c is SkillNode:
+			_nodes.append(c)
+	_edges = []
+	for c in edges_container.get_children():
+		if c is Edge:
+			_edges.append(c)
+
+	# One pass over the edges, appending each endpoint to the other's list.
+	# Order within a node's list matches edge child order.
+	_adjacency = {}
+	for n in _nodes:
+		_adjacency[n] = [] as Array[SkillNode]
+	for e in _edges:
 		if e.from == null or e.to == null:
 			continue
 		# Self-loop: per graph theory each endpoint counts independently, so a
@@ -110,15 +123,14 @@ func _build_adjacency() -> Dictionary[SkillNode, Array]:
 		# keeps spell propagation (FanAllStep etc.) consistent with the
 		# "self-loop weaponisable by SUM merger" mechanic. See Resonator.
 		if e.from == e.to:
-			if adj.has(e.from):
-				adj[e.from].append(e.from)
-				adj[e.from].append(e.from)
+			if _adjacency.has(e.from):
+				_adjacency[e.from].append(e.from)
+				_adjacency[e.from].append(e.from)
 			continue
-		if adj.has(e.from):
-			adj[e.from].append(e.to)
-		if adj.has(e.to):
-			adj[e.to].append(e.from)
-	return adj
+		if _adjacency.has(e.from):
+			_adjacency[e.from].append(e.to)
+		if _adjacency.has(e.to):
+			_adjacency[e.to].append(e.from)
 
 
 func add_skill_node(node: SkillNode) -> void:
