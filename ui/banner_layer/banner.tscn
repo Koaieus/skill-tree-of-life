@@ -19,3 +19,14 @@ mouse_filter = 2
 mouse_filter = 2
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="CountBadge" type="Label" parent="Label"]
+custom_minimum_size = Vector2(120, 70)
+mouse_filter = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_colors/font_color = Color(0.9451, 0.2689, 0.2453, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 60
+horizontal_alignment = 1
+vertical_alignment = 1

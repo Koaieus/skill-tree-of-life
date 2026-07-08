@@ -12,9 +12,8 @@ extends Control
 ##     (main: L → drift → R; sub mirrors).
 ##
 ## The widget is purely view: it doesn't know about events, queues, or
-## styles beyond translating text + style into a tween. The owner
-## ([BannerLayer]) feeds it [BannerRequest]s and listens for
-## [signal finished].
+## styles beyond translating a request into a tween. The owner ([TitleBand])
+## feeds it [AnnouncementRequest]s and listens for [signal finished].
 ##
 ## [b]@tool[/b] — the [Banner] scene runs in the editor so designers can
 ## tweak layout / styling with live visual feedback. Hit the
@@ -29,6 +28,7 @@ const SLIDE_IN_TIME: float = 0.30
 const HOLD_TIME: float = 1.20
 const SLIDE_OUT_TIME: float = 0.30
 const DRIFT_OFFSET: float = 60.0  # px past center on entry side, drifts back to 0
+const BADGE_STAMP_TIME: float = 0.18
 
 ## Mirrors animation direction (R → L instead of L → R) and selects the
 ## sub-band font/height. Set on the scene instance, not at runtime.
@@ -43,6 +43,7 @@ const DRIFT_OFFSET: float = 60.0  # px past center on entry side, drifts back to
 
 @onready var _bg: Panel = $Bg
 @onready var _label: Label = $Label
+@onready var _count_badge: Label = $Label/CountBadge
 
 var _tween: Tween
 
@@ -54,16 +55,18 @@ func _ready() -> void:
 	_collapse_bg()
 	_bg.visible = false
 	_label.visible = false
+	_count_badge.visible = false
 
 
-func play(text: String, style: BannerRequest.Style) -> void:
+func play(request: AnnouncementRequest) -> void:
 	if not is_node_ready():
 		await ready
 	if _tween and _tween.is_valid():
 		_tween.kill()
-	_label.text = text
-	_apply_style(style)
+	_label.text = request.main_text if not is_sub else request.sub_text
+	_apply_style(request.style)
 	_size_label()
+	_prepare_count_badge(request.stack_count)
 
 	var w := size.x
 	var entry_x := -_label.size.x if not is_sub else w
@@ -81,6 +84,8 @@ func play(text: String, style: BannerRequest.Style) -> void:
 	_tween.tween_method(_set_bg_open, 0.0, 1.0, BG_OPEN_TIME).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	# Phase 2-4: text slides in, drifts, slides out (bg stays open).
 	_tween.tween_property(_label, "position:x", hold_x, SLIDE_IN_TIME).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	# Stamp the ×N badge in right as the slide-in settles into the hold.
+	_tween.tween_callback(_stamp_badge)
 	_tween.tween_property(_label, "position:x", drift_x, HOLD_TIME).set_trans(Tween.TRANS_LINEAR)
 	_tween.tween_property(_label, "position:x", exit_x, SLIDE_OUT_TIME).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
 	# Phase 5: text is gone — bg collapses back to a line, then hides.
@@ -92,8 +97,10 @@ func play(text: String, style: BannerRequest.Style) -> void:
 ## Editor preview entry point — wired to the inspector tool button. Plays a
 ## representative banner so designers see live changes (font, color, timing).
 func _preview() -> void:
-	var sample := "SUB SAMPLE" if is_sub else "MAIN SAMPLE"
-	play(sample, BannerRequest.Style.DEFAULT)
+	var sample := AnnouncementRequest.make(
+			"MAIN SAMPLE", "SUB SAMPLE", AnnouncementRequest.Style.DEFAULT)
+	sample.stack_count = 3
+	play(sample)
 
 
 func _band_height() -> int:
@@ -120,6 +127,39 @@ func _size_label() -> void:
 	_label.position.y = 0.0
 
 
+## Only the main band stamps a count badge — the sub line already carries
+## the merged data (e.g. "+3 Skill Points — Level 8") via
+## AnnouncementRequest.absorb(), so a second badge there would be redundant.
+func _prepare_count_badge(stack_count: int) -> void:
+	if is_sub or stack_count <= 1:
+		_count_badge.visible = false
+		return
+	_count_badge.text = "×%d" % stack_count
+	_count_badge.visible = true
+	_count_badge.scale = Vector2.ZERO
+	_count_badge.rotation_degrees = 0.0
+	_count_badge.pivot_offset = _count_badge.size * 0.5
+	# Anchor near the trailing (right) edge of the label's text box, at the
+	# vertical midline — "stamped on" near the end of the main text.
+	_count_badge.position = Vector2(_label.size.x, _label.size.y * 0.5) - _count_badge.size * 0.5
+
+
+## One-shot "stamped on" flourish: scale-overshoot + a tiny rotation snap.
+## Not a live-updating counter — the badge text is already final by the time
+## this plays (see AnnouncementLayer's deferred-pump coalescing).
+func _stamp_badge() -> void:
+	if not _count_badge.visible:
+		return
+	_count_badge.scale = Vector2(1.6, 1.6)
+	_count_badge.rotation_degrees = -6.0
+	var badge_tween := create_tween()
+	badge_tween.set_parallel(true)
+	badge_tween.tween_property(_count_badge, "scale", Vector2.ONE, BADGE_STAMP_TIME) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	badge_tween.tween_property(_count_badge, "rotation_degrees", 0.0, BADGE_STAMP_TIME) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
 ## Drive both offset_top and offset_bottom symmetrically from t∈[0,1].
 ## At t=0 the bg is a zero-height line on the midline; at t=1 it fills
 ## the band vertically.
@@ -134,20 +174,20 @@ func _collapse_bg() -> void:
 	_bg.offset_bottom = 0.0
 
 
-func _apply_style(style: BannerRequest.Style) -> void:
+func _apply_style(style: AnnouncementRequest.Style) -> void:
 	var bg_color: Color
 	var text_color: Color
 	match style:
-		BannerRequest.Style.PHASE:
+		AnnouncementRequest.Style.PHASE:
 			bg_color = Color(0.06, 0.10, 0.18, 0.78)
 			text_color = Color(0.55, 0.95, 1.0)
-		BannerRequest.Style.LEVEL_UP:
+		AnnouncementRequest.Style.LEVEL_UP:
 			bg_color = Color(0.20, 0.14, 0.04, 0.82)
 			text_color = Color(1.0, 0.85, 0.30)
-		BannerRequest.Style.KILL:
+		AnnouncementRequest.Style.KILL:
 			bg_color = Color(0.18, 0.04, 0.04, 0.82)
 			text_color = Color(1.0, 0.45, 0.35)
-		BannerRequest.Style.DEATH:
+		AnnouncementRequest.Style.DEATH:
 			bg_color = Color(0.04, 0.02, 0.02, 0.92)
 			text_color = Color(0.75, 0.20, 0.20)
 		_:

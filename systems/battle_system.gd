@@ -12,7 +12,7 @@ enum AttackMode {
 signal attack_plan_changed(plan: AttackPlan)
 ## Fired once a launch commits (resource checks passed, about to resolve).
 ## `spell` is the active [MagicAttackPlan]'s spell, null for melee/ranged.
-## Consumed by [AnnouncerLayer] (#117) for the mode-tinted FX callout.
+## Consumed by [AnnouncementLayer] (#117, #135) for the mode-tinted CALLOUT FX.
 signal attack_launched(mode: AttackMode, spell: SpellDef)
 ## Fires for both plan swap and plan-internal mutation. Subscribers that
 ## care about lifecycle (mount per-mode UI) use [signal attack_plan_changed];

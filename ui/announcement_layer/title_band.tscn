@@ -1,18 +1,15 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://ui/banner_layer/banner_layer.gd" id="1_layer"]
+[ext_resource type="Script" path="res://ui/announcement_layer/title_band.gd" id="1_title_band"]
 [ext_resource type="PackedScene" path="res://ui/banner_layer/banner.tscn" id="2_banner"]
 
-[node name="BannerLayer" type="CanvasLayer"]
-layer = 100
-script = ExtResource("1_layer")
-
-[node name="Root" type="Control" parent="."]
+[node name="TitleBand" type="Control"]
 anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
+script = ExtResource("1_title_band")
 
-[node name="MainBanner" parent="Root" instance=ExtResource("2_banner")]
+[node name="MainBanner" parent="." instance=ExtResource("2_banner")]
 unique_name_in_owner = true
 anchor_left = 0.0
 anchor_right = 1.0
@@ -22,7 +19,7 @@ offset_top = -132.0
 offset_bottom = 8.0
 is_sub = false
 
-[node name="SubBanner" parent="Root" instance=ExtResource("2_banner")]
+[node name="SubBanner" parent="." instance=ExtResource("2_banner")]
 unique_name_in_owner = true
 anchor_left = 0.0
 anchor_right = 1.0

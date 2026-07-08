@@ -1,0 +1,21 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://ui/announcement_layer/announcement_layer.gd" id="1_layer"]
+[ext_resource type="Script" path="res://ui/announcement_layer/announcement_variant_binding.gd" id="2_binding"]
+[ext_resource type="PackedScene" path="res://ui/announcement_layer/title_band.tscn" id="3_title"]
+[ext_resource type="PackedScene" path="res://ui/announcement_layer/callout_band.tscn" id="4_callout"]
+
+[sub_resource type="Resource" id="Resource_title_binding"]
+script = ExtResource("2_binding")
+kind = 0
+scene = ExtResource("3_title")
+
+[sub_resource type="Resource" id="Resource_callout_binding"]
+script = ExtResource("2_binding")
+kind = 1
+scene = ExtResource("4_callout")
+
+[node name="AnnouncementLayer" type="CanvasLayer"]
+layer = 95
+script = ExtResource("1_layer")
+variant_bindings = Array[ExtResource("2_binding")]([SubResource("Resource_title_binding"), SubResource("Resource_callout_binding")])

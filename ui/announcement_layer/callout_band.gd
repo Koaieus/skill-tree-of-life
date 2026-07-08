@@ -1,35 +1,32 @@
 @tool
-class_name AnnouncerLayer
-extends CanvasLayer
+class_name CalloutBand
+extends AnnouncementBand
 
-## Full-viewport FX layer (#117): fired on [signal BattleSystem.attack_launched].
-## A full-width bar grows from the screen's vertical midline while big Cinzel
-## text flies in from the left, settles, nudges back toward center, then
-## continues off-screen right — mode-tinted (melee red / ranged green /
-## magic = spell color, per `.claude/rules/ui-palette.md`).
+## Top-anchored, narrower single-line CALLOUT variant (#117, reworked): big
+## Cinzel text flies in from the left, settles, nudges back toward center,
+## then continues off-screen right — mode-tinted (melee red / ranged green /
+## magic blue, per `.claude/rules/ui-palette.md`). Deliberately kept off the
+## screen's vertical midline (unlike [TitleBand]) so it no longer covers the
+## action it's announcing.
 ##
-## Distinct visual register from [BannerLayer]/[Banner] (turn/level/kill
-## toasts) — see #117: the growing-bar geometry overlaps on paper but the
-## close behavior differs (snap-off, not eased) and the trigger/owner is
-## combat launches, not turn/game-state events. Kept as a sibling rather
-## than folding into Banner's semantic Style enum, which is intentionally
-## visual-agnostic ("LEVEL_UP", not "gold-tinted").
+## Close behavior stays a fast "TV-turnoff" snap, distinct from TitleBand's
+## symmetric eased close — a styling choice of this variant, not a
+## structural difference AnnouncementLayer needs to know about.
 
 const OPEN_TIME: float = 0.25
 const SLIDE_IN_TIME: float = 0.35
 const HOLD_TIME: float = 1.5
 const SLIDE_OUT_TIME: float = 0.35
 const SNAP_CLOSE_TIME: float = 0.15
-const DRIFT_OFFSET: float = 70.0
+const DRIFT_OFFSET: float = 40.0
 
-@export var bar_height: float = 134.0
-@export var font_size: int = 96
+@export var bar_height: float = 64.0
+@export var font_size: int = 44
 
 @onready var _bg: Panel = %Bg
 @onready var _label: Label = %Text
 
 var _tween: Tween
-var _battle_system: BattleSystem
 
 ## Inspector button: fire a sample announcement for live editor preview.
 @export_tool_button("Preview") var _preview_button: Callable = _preview
@@ -42,47 +39,13 @@ func _ready() -> void:
 	_label.visible = false
 
 
-func bind(battle_system: BattleSystem) -> void:
-	if _battle_system != null and _battle_system.attack_launched.is_connected(_on_attack_launched):
-		_battle_system.attack_launched.disconnect(_on_attack_launched)
-	_battle_system = battle_system
-	if _battle_system != null:
-		_battle_system.attack_launched.connect(_on_attack_launched)
-
-
-func _on_attack_launched(mode: BattleSystem.AttackMode, spell: SpellDef) -> void:
-	announce(_mode_text(mode, spell), _mode_color(mode))
-
-
-func _mode_text(mode: BattleSystem.AttackMode, spell: SpellDef) -> String:
-	match mode:
-		BattleSystem.AttackMode.MELEE: return "MELEE"
-		BattleSystem.AttackMode.RANGED: return "RANGED"
-		BattleSystem.AttackMode.MAGIC: return spell.name.to_upper() if spell != null else "MAGIC"
-		_: return ""
-
-
-## STR red / DEX green / INT blue — see .claude/rules/ui-palette.md. Magic
-## uses the generic spell/INT blue rather than per-spell color; a per-spell
-## tint would need a SpellDef.tint_color field, not added here (YAGNI).
-func _mode_color(mode: BattleSystem.AttackMode) -> Color:
-	match mode:
-		BattleSystem.AttackMode.MELEE: return Color(0.9451, 0.2689, 0.2453, 1)
-		BattleSystem.AttackMode.RANGED: return Color(0.3187, 0.7773, 0.4484, 1)
-		BattleSystem.AttackMode.MAGIC: return Color(0.291, 0.5892, 1.0, 1)
-		_: return Color(0.95, 0.85, 1.0)
-
-
-## Play the growing-bar + flying-text FX once. Not queued — launches are
-## already serialized by BattleSystem.launch_attack's VFX await, so overlap
-## can't happen; a queue here would be dead weight (see #117 discussion).
-func announce(text: String, color: Color) -> void:
+func play(request: AnnouncementRequest) -> void:
 	if not is_node_ready():
 		await ready
 	if _tween and _tween.is_valid():
 		_tween.kill()
-	_label.text = text
-	_apply_color(color)
+	_label.text = request.main_text
+	_apply_style(request.style)
 	_size_label()
 
 	var w := _bg.size.x
@@ -103,13 +66,14 @@ func announce(text: String, color: Color) -> void:
 	_tween.tween_property(_label, "position:x", exit_x, SLIDE_OUT_TIME).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
 	_tween.tween_callback(func() -> void: _label.visible = false)
 	# "TV-turnoff" snap: hold at full height then collapse fast, unlike
-	# Banner's symmetric eased close.
+	# TitleBand's symmetric eased close.
 	_tween.tween_method(_set_bg_open, 1.0, 0.0, SNAP_CLOSE_TIME).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
 	_tween.tween_callback(_on_done)
 
 
 func _preview() -> void:
-	announce("MELEE", Color(0.9451, 0.2689, 0.2453, 1))
+	play(AnnouncementRequest.make(
+			"MELEE", "", AnnouncementRequest.Style.MELEE, AnnouncementRequest.Kind.CALLOUT))
 
 
 func _set_bg_open(t: float) -> void:
@@ -136,7 +100,17 @@ func _size_label() -> void:
 	_label.position.y = -bar_height * 0.5
 
 
-func _apply_color(color: Color) -> void:
+## STR red / DEX green / INT blue — see .claude/rules/ui-palette.md. Magic
+## uses the generic spell/INT blue rather than per-spell color; a per-spell
+## tint would need a SpellDef.tint_color field, not added here (YAGNI).
+func _apply_style(style: AnnouncementRequest.Style) -> void:
+	var color: Color
+	match style:
+		AnnouncementRequest.Style.MELEE: color = Color(0.9451, 0.2689, 0.2453, 1)
+		AnnouncementRequest.Style.RANGED: color = Color(0.3187, 0.7773, 0.4484, 1)
+		AnnouncementRequest.Style.MAGIC: color = Color(0.291, 0.5892, 1.0, 1)
+		_: color = Color(0.95, 0.85, 1.0)
+
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.05, 0.05, 0.08, 0.82)
 	_bg.add_theme_stylebox_override("panel", sb)
@@ -149,3 +123,4 @@ func _apply_color(color: Color) -> void:
 
 func _on_done() -> void:
 	_bg.visible = false
+	finished.emit()
