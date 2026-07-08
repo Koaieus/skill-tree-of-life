@@ -47,6 +47,7 @@
 [ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="44_5fdyx"]
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="45_oqsv1"]
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="47_eagb3"]
+[ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="48_float"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -401,6 +402,21 @@ custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="SpellRow" type="HBoxContainer" parent="HBox/ControlsColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpellList" type="OptionButton" parent="HBox/ControlsColumn/SpellRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="BrowseButton" type="Button" parent="HBox/ControlsColumn/SpellRow"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Reveal attack/spell/defs/ in the FileSystem dock"
+text = "Defs…"
+
 [node name="HeaderRow" type="HBoxContainer" parent="HBox/ControlsColumn" unique_id=909456759]
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -411,6 +427,13 @@ custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 disabled = true
 text = "Cast"
+
+[node name="ResetButton" type="Button" parent="HBox/ControlsColumn/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 36)
+layout_mode = 2
+tooltip_text = "Refill every node's health — clears damage from previous casts"
+text = "Reset"
 
 [node name="StatusLabel" type="Label" parent="HBox/ControlsColumn/HeaderRow" unique_id=564385645]
 unique_name_in_owner = true
@@ -449,6 +472,7 @@ render_target_update_mode = 4
 
 [node name="Background" type="ColorRect" parent="HBox/WorldContainer/World" unique_id=389234317]
 unique_name_in_owner = true
+z_index = -100
 offset_right = 2.0
 offset_bottom = 380.0
 mouse_filter = 2
@@ -525,6 +549,8 @@ owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_33" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="15" unique_id=1220020722 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 owned_by = NodePath("../../../DefenderEntity")
+
+[node name="FloaterDirector" parent="HBox/WorldContainer/World/Graph" instance=ExtResource("48_float")]
 
 [node name="VFXLayer" type="Node2D" parent="HBox/WorldContainer/World" unique_id=98385627]
 unique_name_in_owner = true

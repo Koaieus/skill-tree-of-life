@@ -19,6 +19,7 @@ const _SELECTED_TINT: Color = Color(1.0, 0.7, 0.7, 1.0)
 const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 
 @onready var cast_button: Button = %CastButton
+@onready var reset_button: Button = %ResetButton
 @onready var status_label: Label = %StatusLabel
 @onready var values_label: RichTextLabel = %ValuesLabel
 @onready var world: SubViewport = %World
@@ -28,21 +29,35 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 @onready var caster_entity: Entity = %CasterEntity
 @onready var defender_entity: Entity = %DefenderEntity
 @onready var caster_node: SkillNode = %CasterNode
+@onready var spell_list: OptionButton = %SpellList
+@onready var browse_button: Button = %BrowseButton
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 
 var _spell: SpellDef = null
 var _selected_target: SkillNode = null
+## Populated from the caster's own spellbook (the same 6 spells the .tscn
+## already preloads for CasterEntity) — no separate directory scan needed.
+var _listed_spells: Array[SpellDef] = []
 
 
 func _ready() -> void:
 	cast_button.pressed.connect(_cast)
+	reset_button.pressed.connect(_reset_state)
 	world.size_changed.connect(_layout_world)
+	_populate_spell_list()
+	spell_list.item_selected.connect(_on_spell_list_selected)
+	browse_button.pressed.connect(_on_browse_pressed)
 	# Belt and suspenders: SkillNode's Area2D wires `input_event → left_clicked`
 	# via signal, but Godot only routes the pick through a SubViewport when
 	# the viewport opts in to physics picking. Set it here too in case the
 	# panel scene was authored / cached without it.
 	world.physics_object_picking = true
 	world.handle_input_locally = true
+	# Layout must run before edges are wired: Edge captures its Line2D
+	# endpoints at connect-time and only redraws on owner/radius/archetype
+	# changes, not position — building edges first would freeze them at the
+	# nodes' pre-layout (overlapping) .tscn positions.
+	_layout_world()
 	_build_grid_edges()
 	# Hit-test clicks directly on the SubViewportContainer rather than relying
 	# on Area2D pickup through the SubViewport. In editor bottom-panel context
@@ -60,7 +75,6 @@ func _ready() -> void:
 	var nodes := graph.get_skill_nodes()
 	if nodes.size() > 9:
 		_selected_target = nodes[9]
-	_layout_world()
 	_refresh_status()
 
 
@@ -72,7 +86,58 @@ func load_spell(spell: SpellDef) -> void:
 		_refresh_status()
 		return
 	_spell = spell
+	_sync_spell_list_selection()
 	_refresh_status()
+
+
+## Fills the dropdown from the caster's spellbook so any of the 6 shipped
+## spells can be previewed without leaving the Sandbox screen or round-
+## tripping through the Inspector.
+func _populate_spell_list() -> void:
+	_listed_spells.clear()
+	spell_list.clear()
+	spell_list.add_item("Pick a spell…")
+	spell_list.set_item_disabled(0, true)
+	if caster_entity == null or caster_entity.spellbook == null:
+		return
+	for spell in caster_entity.spellbook.spells:
+		if spell == null:
+			continue
+		_listed_spells.append(spell)
+		spell_list.add_item(spell.name if spell.name != "" else spell.resource_path.get_file())
+	# OptionButton auto-selects the first enabled item if left untouched,
+	# which would show e.g. "Spark" while the panel still has no spell
+	# loaded. Pin it to the disabled placeholder until something is picked.
+	spell_list.select(0)
+
+
+func _on_spell_list_selected(index: int) -> void:
+	var spell_index := index - 1  # slot 0 is the disabled placeholder
+	if spell_index < 0 or spell_index >= _listed_spells.size():
+		return
+	load_spell(_listed_spells[spell_index])
+
+
+## Keeps the dropdown showing whichever spell is actually loaded, including
+## when it arrived via the Inspector "Open Spell Playground" sync rather than
+## a dropdown pick.
+func _sync_spell_list_selection() -> void:
+	var idx := _listed_spells.find(_spell)
+	spell_list.select(idx + 1 if idx >= 0 else 0)
+
+
+## Reveals attack/spell/defs/ in the editor's FileSystem dock — a shortcut to
+## authoring a new SpellDef .tres alongside the existing six.
+func _on_browse_pressed() -> void:
+	if not Engine.is_editor_hint():
+		return
+	var dock := EditorInterface.get_file_system_dock()
+	if dock == null:
+		return
+	var target := "res://attack/spell/defs/"
+	if not _listed_spells.is_empty() and _listed_spells[0].resource_path != "":
+		target = _listed_spells[0].resource_path
+	dock.navigate_to_path(target)
 
 
 ## Called by the EditorPlugin on `property_edited` — the spell reference
@@ -262,7 +327,20 @@ func _layout_world() -> void:
 		var dy := (float(r) - (_GRID_ROWS - 1) * 0.5) * pitch
 		nodes[i].position = grid_center + Vector2(dx, dy)
 	for e in graph.get_edges():
-		e.queue_redraw()
+		e.refresh_endpoints()
+
+
+## Refills every node's health — the same upkeep `_cast` already does before
+## resolving a new spell, exposed standalone so a broken-in board can be
+## cleared without having to fire another attack to trigger it.
+func _reset_state() -> void:
+	_refill_all_nodes()
+	_refresh_status()
+
+
+func _refill_all_nodes() -> void:
+	for sn in graph.get_skill_nodes():
+		sn.refill()
 
 
 func _cast() -> void:
@@ -274,8 +352,7 @@ func _cast() -> void:
 		# Wire a coord scene on the SpellDef.
 		push_warning("Spell Playground: spell has no vfx_coordinator_scene — Cast skipped")
 		return
-	for sn in graph.get_skill_nodes():
-		sn.refill()
+	_refill_all_nodes()
 	var outcome := SpellResolver.resolve(
 			_spell, _selected_target, caster_node, caster_entity, graph)
 	if outcome.hits.is_empty():

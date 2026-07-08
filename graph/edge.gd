@@ -99,6 +99,15 @@ func is_lit() -> bool:
 		and from.owned_by != null \
 		and from.owned_by == to.owned_by
 
+## Recomputes rendering from current endpoint positions. Call after moving an
+## endpoint node directly (bypassing the `from`/`to` setters) — e.g. a
+## sandbox/playground layout pass — since Edge only listens for owner/radius/
+## archetype changes, not position, and would otherwise keep rendering the
+## segment at the endpoints' positions as of connect-time.
+func refresh_endpoints() -> void:
+	_update_endpoints()
+	queue_redraw()
+
 func _update_endpoints() -> void:
 	if not is_node_ready() or line_2d == null:
 		return
