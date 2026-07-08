@@ -4,3 +4,6 @@
 
 [node name="RimBonuses" type="Node2D" unique_id=1898218237]
 script = ExtResource("1_rim")
+inner_radius = 28.0
+outer_radius = 32.0
+rim_tone = 1

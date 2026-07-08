@@ -22,9 +22,12 @@ extends SkillNodeVisual
 ##                     low mix), RuneRing, and RimBonuses — structural reads
 ##                     that stay legible whether or not the node is owned.
 ##
-## Stake/cap depth: only approach A (ring stacking / rim_growth) is wired.
-## Segmented dial (rimSegments) and well/groove (rimWell) are follow-up —
-## rim_ring only draws full rings today, no wedge/arc-span support yet.
+## Stake/cap depth has two wired approaches, both driven off the same
+## stake_level/allocation_level: approach A (ring stacking / rim_growth,
+## RimRing2-4) and approach B (RimBonuses' segmented glow dial, always
+## synced but visible=false in this scene by default — flip it on a node
+## when you want the dial instead of/alongside stacked rings). Well/groove
+## (rimWell) remains a follow-up.
 
 const MAX_STAKE_CAP := 4
 
@@ -148,11 +151,13 @@ func _sync_shared() -> void:
 	for rw in _rim_rings:
 		rw.shading = _shading
 	# Non-shaded derivations off the archetype identity color.
-	%RimBonuses.hue = archetype_tint.h * 360.0
+	%RimBonuses.tone_tint = archetype_tint
 	%RimBonuses.allocated = allocated
 	%RuneRing.tint_color = archetype_tint
 	# Entity identity, not archetype — the halo marks "this is YOUR core".
 	%CoreHalos.halo_color = entity_tint
+	# Stake-fill dial glows with entity color, same as a lit edge.
+	%RimBonuses.fill_glow_tint = entity_tint
 
 
 ## Positions the (up to 4) pre-placed rim_ring instances outward per stake
@@ -184,6 +189,14 @@ func _sync_stake() -> void:
 		max_outer_r = maxf(max_outer_r, outer)
 	%RuneRing.outer_edge_r = max_outer_r
 	_sync_stake_label(max_outer_r)
+
+	# Stake-fill dial (approach B) — current/max mirrors allocation_level/
+	# stake_level directly; band sits at the same crest->outer span as the
+	# base rim's own bevel-to-edge zone (see class doc's geom_crest_r).
+	%RimBonuses.inner_radius = geom_crest_r
+	%RimBonuses.outer_radius = geom_outer_r
+	%RimBonuses.fill_max = stake_level
+	%RimBonuses.fill_current = allocation_level
 
 
 ## "alloc/cap" under the node, only once stake_level > 1 — a level of 1 has

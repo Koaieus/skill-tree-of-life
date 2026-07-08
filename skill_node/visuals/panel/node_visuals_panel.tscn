@@ -64,7 +64,7 @@ position = Vector2(600, 90)
 
 [node name="WeldSymbol" parent="ViewportContainer/World/WeldSymbolSlot" instance=ExtResource("4_weld")]
 show_weld = true
-glow_mode = 3
+glow_mode = 2
 glow_amt = 0.6
 arch = 2
 
@@ -81,6 +81,9 @@ position = Vector2(430, 280)
 allocated = true
 rim_tone = 2
 rim_holder = 1
+fill_current = 2
+fill_max = 3
+fill_glow_tint = Color(0.36, 0.9, 0.585, 1)
 
 [node name="CoreHalosSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(600, 280)

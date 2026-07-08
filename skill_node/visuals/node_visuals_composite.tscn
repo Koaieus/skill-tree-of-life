@@ -34,7 +34,6 @@ height_preset = 3
 [node name="RimBonuses" parent="RimRing" unique_id=2113377826 instance=ExtResource("5_rim")]
 unique_name_in_owner = true
 visible = false
-hue = 191.0
 allocated = true
 rim_tone = 1
 

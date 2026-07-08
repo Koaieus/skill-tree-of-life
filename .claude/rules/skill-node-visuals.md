@@ -44,6 +44,31 @@ capped by `stake_level`) is the single source of truth for `allocated`
 entirely when unallocated rather than showing a dimmed disk, and BaseCircle's
 wash is what carries the unallocated node's footprint instead.
 
+### RimBonuses' stake-fill dial (#127 follow-up) is a second, independent stake visualization
+
+Exception to the tint rule above: RimBonuses' current/max glow dial
+(`fill_current`/`fill_max`, synced from `allocation_level`/`stake_level`) is
+tinted with `entity_tint`, NOT `archetype_tint` — it's rendering "how much of
+MINE is filled in", the same ownership read as InnerDisk/CoreHalos, just
+expressed as a ring instead of a disk. `tone_tint` (RimTone.OVERLAY's gems)
+stays archetype-tinted; don't conflate the two RimBonuses tint exports.
+
+This is approach B for stake/cap depth, alongside approach A (ring-stacking,
+`rim_growth`) — both wired off the same `allocation_level`/`stake_level`,
+picked per-node by toggling which one is `visible` (default: RimBonuses stays
+`visible = false` in `node_visuals_composite.tscn`, approach A is the
+default look). `0/*` draws nothing at all (no backdrop either); `M/N` with
+`N > 1` divides the circle into `N` **evenly-gapped** slots (gap size an
+export, applied uniformly whether a slot is filled or not, so a partial fill
+still reads as evenly spaced) and lights the first `M`; `M == N == 1` is a
+special case — a single full ring with zero gap, not a 1-slot dial (a 1-slot
+dial would just be "almost a full circle minus one gap", which isn't the same
+read as "fully lit"). The glow itself is faked via 3 stacked
+`draw_arc`/`draw_circle` strokes at shrinking width + rising alpha (same CPU
+technique as `core_halos.gd`/`rune_ring.gd`'s `edge_glow`) rather than a
+shader — there's no project-wide glow/bloom `WorldEnvironment` to justify one,
+and the layered-stroke fake reads convincingly at this node's on-screen size.
+
 ### WeldSymbol lives inside InnerDisk's own scene, not as a composite sibling
 
 `weld_symbol.tscn` is scene-composed as `%WeldSymbol` **inside**
