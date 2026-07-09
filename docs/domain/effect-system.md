@@ -116,13 +116,19 @@ The pure-stat path already works and authors cleanly, so `Effect` is additive:
 | Carrier | Field | Granted by |
 |---|---|---|
 | `CoreClass` | `effects` | `CoreClass.apply()`, from `Entity._ready` |
-| `Keystone` | `effects` + implicit `StatEffect` wrapping `modifiers` | `AllocationSystem`, keyed by carrier node |
+| `Keystone` | `effects` | `AllocationSystem`, keyed by carrier node |
 | `SkillNodeAddon` | `effects` | same, via `SkillNode.get_node_effects()` |
 | `SkillNode` | `effects` | same |
 
 `Keystone` is now actually wired — its docstring advertised "runtime wiring into
 AllocationSystem is a follow-up" since it was written. Its `keystone` reference was
 also promoted from `set_meta("keystone", …)` to a real `SkillNode.keystone` export.
+
+`Keystone` used to carry its own `modifiers` array, wrapped lazily into an implicit
+`StatEffect`, and a `StatKeystone` subclass existed as the "just a stat bundle"
+concrete pick. Both are gone (#149): the fields were field-for-field `Effect`'s, so
+a keystone's stat payload is now simply a `StatEffect` in its `effects` array, and
+`Keystone` is pure identity + payload.
 
 Node-borne effects register against the **owning entity** with `source_node` set,
 and `revoke_effects_from(node)` strips exactly those on deallocation. An unowned

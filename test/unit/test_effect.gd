@@ -241,10 +241,12 @@ func test_revoke_all_clears_every_target() -> void:
 
 # ── AllocationSystem wiring (the stub Keystone advertised for months) ────────
 
-func _make_keystone(value: float) -> StatKeystone:
-	var ks := StatKeystone.new()
+func _make_keystone(value: float) -> Keystone:
+	var fx := StatEffect.new()
+	fx.modifiers = [_mod(&"strength", value)]
+	var ks := Keystone.new()
 	ks.display_name = "K"
-	ks.modifiers = [_mod(&"strength", value)]
+	ks.effects = [fx]
 	return ks
 
 

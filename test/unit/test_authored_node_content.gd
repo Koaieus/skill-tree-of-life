@@ -30,11 +30,14 @@ func _make_node() -> SkillNode:
 # ── Keystone: XP Anchor ──────────────────────────────────────────────────────
 
 func test_xp_anchor_keystone_still_carries_its_modifier() -> void:
-	var ks: Keystone = _XP_ANCHOR
-	assert_true(ks is StatKeystone, "xp_anchor_keystone.tres must keep its script")
+	var ks = _XP_ANCHOR
+	assert_true(ks is Keystone, "xp_anchor_keystone.tres must keep its script")
 	assert_eq(ks.display_name, "XP Anchor")
-	assert_eq(ks.modifiers.size(), 1, "authored modifier bundle was stripped")
-	var m: StatModifier = ks.modifiers[0]
+	assert_eq(ks.effects.size(), 1, "authored effect payload was stripped")
+	var fx: Effect = ks.effects[0]
+	assert_true(fx is StatEffect, "payload entry lost its script")
+	assert_eq(fx.modifiers.size(), 1, "authored modifier bundle was stripped")
+	var m: StatModifier = fx.modifiers[0]
 	assert_not_null(m, "modifier entry lost its script")
 	assert_eq(m.stat_id, &"xp_per_turn")
 	assert_eq(m.value, 4.0)

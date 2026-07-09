@@ -25,8 +25,8 @@ func _ctx(n: int) -> PlacementContext:
 	return ctx
 
 
-func _stat_keystone() -> StatKeystone:
-	var ks := StatKeystone.new()
+func _stat_keystone() -> Keystone:
+	var ks := Keystone.new()
 	ks.display_name = "Test"
 	return ks
 

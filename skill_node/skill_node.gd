@@ -442,7 +442,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 func get_node_effects() -> Array[Effect]:
 	var out: Array[Effect] = effects.duplicate()
 	if keystone != null:
-		out.append_array(keystone.get_effects())
+		out.append_array(keystone.effects)
 	for a in get_addons():
 		out.append_array(a.effects)
 	return out
