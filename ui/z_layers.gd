@@ -4,6 +4,7 @@
 ##
 ## Bands (bottom → top):
 ##   AURA        -100    absolute — owned-node territory wash, behind everything on the graph
+##   EDGE        -10     absolute — edges always draw below graph nodes
 ##   GRAPH_DEFAULT  0     relative — scene-tree order governs draw order within the band
 ##   CORE_MOVE    100     relative — core ghost/badge above graph siblings during a move
 ##   FOG         1000     absolute — FogOverlay shader covers all graph content
@@ -17,6 +18,7 @@
 ## (e.g. AllocationVFX._ready) need not repeat it in the scene file.
 
 const AURA: int = -100
+const EDGE: int = -10
 const GRAPH_DEFAULT: int = 0
 const CORE_MOVE: int = 100
 const FOG: int = 1000

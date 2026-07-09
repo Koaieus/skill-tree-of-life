@@ -15,4 +15,3 @@ graph = NodePath("..")
 [node name="Nodes" type="Node2D" parent="." unique_id=1428063024]
 
 [node name="Edges" type="Node2D" parent="." unique_id=983028403]
-z_index = -1

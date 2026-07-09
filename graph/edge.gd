@@ -73,8 +73,8 @@ var sensed: bool = false:
 		if sensed == value:
 			return
 		sensed = value
-		z_as_relative = not sensed
-		z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
+		z_as_relative = false
+		z_index = ZLayers.SENSED if sensed else ZLayers.EDGE
 		_update_visual()
 
 var is_self_loop: bool:
@@ -168,9 +168,10 @@ func _display_color(base: Color, lit: bool) -> Color:
 
 ## Self-loop glyph: a circular ring sunk slightly into the node so its near
 ## tangent point sits *under* the node body instead of kissing the rim from
-## outside — SkillNode draws above edges (z_index 10 vs edge's -10), so the
-## overlapped arc is occluded and the ring reads as emerging from / vanishing
-## into the node rather than floating next to it as a separate lollipop.
+## outside — the edge sits on the absolute ZLayers.EDGE band, below the
+## graph-default band SkillNode draws on, so the overlapped arc is occluded
+## and the ring reads as emerging from / vanishing into the node rather than
+## floating next to it as a separate lollipop.
 ##
 ## Direction is the bisector of the LARGEST angular gap between the node's
 ## other edges — keeps the self-loop visually clear of existing edges
