@@ -136,6 +136,51 @@ func test_revoking_the_aura_clears_every_node() -> void:
 	assert_almost_eq(_armor(_nodes[1]), 0.0, 0.001)
 
 
+# ── Production spawn path ───────────────────────────────────────────────────
+
+## The one that matters: mimic `GameRoot.spawn_entity` exactly — assign
+## `core_class`, add to tree (so `_ready` grants its effects), THEN force_allocate
+## and set `core_location`. No manual `grant_effect`.
+##
+## The aura's `_on_granted` runs during `_ready`, when core_location is still null
+## and the mirror is empty. Nothing would ever re-fire it unless the core_location
+## setter itself dispatches `_on_core_moved` — `AllocationSystem.move_core` is not
+## on this path. Without that, a core-class aura buffs nothing, forever, and every
+## hand-ordered test still passes.
+func test_core_class_aura_populates_via_the_spawn_entity_order() -> void:
+	var core_class := CoreClass.new()
+	core_class.effects = [_bulwark()]
+
+	var ent := autofree(Entity.new()) as Entity
+	ent.display_name = "Spawned"
+	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.core_class = core_class
+	_graph.add_child(ent)                       # _ready → core_class.apply → grant
+	await get_tree().process_frame
+
+	_alloc.force_allocate(ent, _nodes[0])       # core node
+	ent.core_location = _nodes[0]               # ← must re-derive the aura
+	ent.stat_board.armor.base_value = 0.0
+	_alloc.force_allocate(ent, _nodes[1])
+
+	assert_almost_eq(_armor(_nodes[0]), 5.0, 0.001,
+		"core-class aura must populate on the real spawn path")
+	assert_almost_eq(_armor(_nodes[1]), 5.0, 0.001, "1 hop from core: buffed")
+	assert_almost_eq(_armor(_nodes[2]), 0.0, 0.001, "unowned: untouched")
+
+
+## Assigning core_location is what re-derives the aura — not move_core, which is
+## only one caller of the setter.
+func test_assigning_core_location_directly_recomputes_the_aura() -> void:
+	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
+	ent.grant_effect(_bulwark())
+	assert_almost_eq(_armor(_nodes[2]), 0.0, 0.001)
+
+	ent.core_location = _nodes[2]               # bypasses AllocationSystem entirely
+	assert_almost_eq(_armor(_nodes[2]), 5.0, 0.001)
+	assert_almost_eq(_armor(_nodes[0]), 0.0, 0.001, "old core position dropped")
+
+
 # ── Shared-resource state trap ──────────────────────────────────────────────
 
 ## An AuraEffect .tres is shared across every entity of its class. A buffed-set

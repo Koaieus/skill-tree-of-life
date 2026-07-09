@@ -96,6 +96,9 @@ func register_scene_authored_ownership() -> void:
 			continue
 		if n.owned_by.stat_board.skill_points != null:
 			n.owned_by.stat_board.skill_points.claim(1)
+		# This path bypasses force_allocate, so it must grant node-borne effects
+		# itself — otherwise a hand-authored keystone node is silently inert.
+		_grant_node_effects(n, n.owned_by)
 
 
 func can_allocate(node: SkillNode, entity: Entity) -> bool:
@@ -252,10 +255,9 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 	var board := entity.stat_board
 	if board != null and board.movement_points != null:
 		board.movement_points.deplete(1)
+	# The setter dispatches `_on_core_moved` — it's the one point that catches
+	# every core placement, including the opening one. Don't dispatch again here.
 	entity.core_location = target
-	# After core_location lands — an aura recomputing here measures from the
-	# new core, which is the whole point of the hook.
-	entity.dispatch(&"_on_core_moved", [from_node, target])
 	core_moved.emit(entity, from_node, target)
 	return true
 

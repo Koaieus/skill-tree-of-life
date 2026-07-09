@@ -31,8 +31,17 @@ signal died
 	set(value):
 		if core_location == value:
 			return
+		var previous := core_location
 		core_location = value
 		core_location_changed.emit()
+		# EVERY core placement re-derives auras, not just `AllocationSystem.move_core`.
+		# The opening placement — `spawn_entity` assigning core_location after
+		# `_ready` already granted the core class's effects, or scene-export
+		# deserialization — never passes through move_core. Dispatching from the
+		# setter is the only point that catches all of them. (No recursion: in
+		# GDScript, assigning a property to its own backing field inside its setter
+		# does not re-enter the setter.)
+		dispatch(&"_on_core_moved", [previous, value])
 
 ## Current level. Bumps on every xp pool fill via `_on_xp_replenished`.
 ## Tracked here (not on the stat board) so the signal payload is meaningful
