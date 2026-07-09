@@ -36,6 +36,15 @@ signal depleted
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
 @export var modifiers: Array[StatModifier] = []
 
+## Special-effect content this node carries. Allocating grants its effects to
+## the owner; deallocating revokes them. Placed by [KeystonePlacement].
+@export var keystone: Keystone = null
+
+## Effects granted directly by this node, independent of a keystone. The
+## hand-authored escape hatch — most content should go through a [Keystone] or
+## a [SkillNodeAddon].
+@export var effects: Array[Effect] = []
+
 ## Persistent base-type identity colour (e.g. procgen's NodeTypeDef colour).
 ## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
 ## a hand-placed node in dev_sandbox.tscn looks the same as before any procgen
@@ -353,6 +362,93 @@ func _ensure_local_stat(stat_id: StringName) -> Stat:
 	return node_board._ensure_stat(stat_id)
 
 
+#region Modifier plumbing
+## Add an [b]entity-scoped[/b] modifier to this node: it joins [member modifiers]
+## and, if the node is currently allocated, is mirrored onto the owner's stat
+## board immediately. Deallocating strips it; reallocating re-applies it.
+##
+## This is the single path for entity-scoped node modifiers — addons, effects,
+## and loot all route here rather than touching [member modifiers] plus the
+## owner's board by hand. [AllocationSystem] drives the ownership transitions via
+## [method apply_entity_modifiers_to] / [method remove_entity_modifiers_from].
+func add_entity_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	modifiers.append(m)
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	if board != null:
+		board.add_modifier(m)
+
+
+## Remove an entity-scoped modifier added by [method add_entity_modifier],
+## detaching it from the owner's board if allocated. Removal is by identity.
+func remove_entity_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	modifiers.erase(m)
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	if board != null:
+		board.remove_modifier(m)
+
+
+## Mirror every entity-scoped modifier this node carries onto [param board].
+## Called by [AllocationSystem] when the node becomes owned.
+func apply_entity_modifiers_to(board: StatBoard) -> void:
+	if board == null:
+		return
+	for m in modifiers:
+		board.add_modifier(m)
+
+
+## Strip this node's entity-scoped modifiers from [param board]. Called by
+## [AllocationSystem] when the node stops being owned.
+func remove_entity_modifiers_from(board: StatBoard) -> void:
+	if board == null:
+		return
+	for m in modifiers:
+		board.remove_modifier(m)
+
+
+## Apply [param m] to this node's [member node_board] — a node-scoped modifier,
+## never reaching the owning entity's board. The public target for [Effect]
+## grants (via [method EffectContext.grant]) and for addon `local_modifiers`.
+##
+## Node-local values are read back with [method get_local_value], which merges
+## the node's bins with the owner's through one [method ModifierBins.compute]
+## without allocating.
+##
+## Note the modifier is NOT bound to the board (unlike [method StatBoard.add_modifier]),
+## so a formula-driven node-local modifier will not track its source stats.
+## No caller needs that today; it's the same contract addons have always had.
+func add_local_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	_ensure_local_stat(m.stat_id).add_modifier(m)
+
+
+## Remove a modifier previously applied by [method add_local_modifier]. Removal
+## is by object identity, so callers must hand back the same instance.
+func remove_local_modifier(m: StatModifier) -> void:
+	if m == null or node_board == null:
+		return
+	var s: Stat = node_board.get_stat(m.stat_id)
+	if s != null:
+		s.remove_modifier(m)
+
+
+## Every [Effect] this node grants to an owner: its own, its keystone's, and
+## any carried by its addons. [AllocationSystem] grants these on allocate and
+## revokes them (keyed by this node) on deallocate.
+func get_node_effects() -> Array[Effect]:
+	var out: Array[Effect] = effects.duplicate()
+	if keystone != null:
+		out.append_array(keystone.get_effects())
+	for a in get_addons():
+		out.append_array(a.effects)
+	return out
+#endregion
+
+
 func get_addons() -> Array[SkillNodeAddon]:
 	var out: Array[SkillNodeAddon] = []
 	if _addon_anchor == null:
@@ -506,14 +602,10 @@ func _on_addon_added(c: Node) -> void:
 				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_script().resource_path, name])
 				a.queue_free()
 				return
-	var board: StatBoard = owned_by.stat_board if owned_by != null else null
 	for m in a.entity_modifiers:
-		modifiers.append(m)
-		if board != null:
-			board.add_modifier(m)
+		add_entity_modifier(m)
 	for m in a.local_modifiers:
-		var s := _ensure_local_stat(m.stat_id)
-		s.add_modifier(m)
+		add_local_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
 
@@ -522,15 +614,10 @@ func _on_addon_removed(c: Node) -> void:
 	if not (c is SkillNodeAddon):
 		return
 	var a := c as SkillNodeAddon
-	var board: StatBoard = owned_by.stat_board if owned_by != null else null
 	for m in a.entity_modifiers:
-		modifiers.erase(m)
-		if board != null:
-			board.remove_modifier(m)
+		remove_entity_modifier(m)
 	for m in a.local_modifiers:
-		var s: Stat = node_board.get_stat(m.stat_id) if node_board != null else null
-		if s != null:
-			s.remove_modifier(m)
+		remove_local_modifier(m)
 
 
 ## Core-movement slide-in (#21). Called on the *new* core slot after

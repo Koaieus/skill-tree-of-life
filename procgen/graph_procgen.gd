@@ -159,9 +159,10 @@ static func generate(
 			# Persist role tags for downstream inspection / debug overlays.
 			if not placement_ctx.role_tags[i].is_empty():
 				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
-			# Keystone reference (consumed by future allocation-hook wiring).
+			# Consumed by AllocationSystem: allocating grants the keystone's
+			# effects to the owner, deallocating revokes them (#4).
 			if placement_ctx.keystones[i] != null:
-				sn.set_meta("keystone", placement_ctx.keystones[i])
+				sn.keystone = placement_ctx.keystones[i]
 		graph.add_skill_node(sn)
 		_roll_and_attach_addons(sn, config, rng)
 		nodes.append(sn)

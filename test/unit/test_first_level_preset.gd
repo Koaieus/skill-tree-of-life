@@ -80,6 +80,6 @@ func test_procgen_generates_full_level() -> void:
 	# Keystone placement: at least one node carries the xp_anchor keystone.
 	var keystone_count := 0
 	for n in nodes:
-		if n.has_meta("keystone"):
+		if n.keystone != null:
 			keystone_count += 1
 	assert_eq(keystone_count, 1, "expected 1 keystone node; got %d" % keystone_count)

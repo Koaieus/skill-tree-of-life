@@ -137,9 +137,11 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 	node.owned_by = entity
 	if entity.navigator != null:
 		entity.navigator.mirror_add(node)
-	if board != null:
-		for m in node.modifiers:
-			board.add_modifier(m)
+	node.apply_entity_modifiers_to(board)
+	_grant_node_effects(node, entity)
+	# After the mirror update: an aura recomputing off this hook must see the
+	# new node in the owned subgraph, not the stale one.
+	entity.dispatch(&"_on_node_allocated", [node, false])
 	allocated.emit(node, entity, false)
 	return true
 
@@ -159,11 +161,11 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 	if entity.navigator != null:
 		entity.navigator.mirror_add(node)
 	var board := entity.stat_board
-	if board != null:
-		if board.skill_points != null:
-			board.skill_points.claim(1)
-		for m in node.modifiers:
-			board.add_modifier(m)
+	if board != null and board.skill_points != null:
+		board.skill_points.claim(1)
+	node.apply_entity_modifiers_to(board)
+	_grant_node_effects(node, entity)
+	entity.dispatch(&"_on_node_allocated", [node, true])
 	allocated.emit(node, entity, true)
 
 
@@ -174,12 +176,14 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 	if previous == null:
 		return false
 	var board := previous.stat_board
-	if board != null:
-		for m in node.modifiers:
-			board.remove_modifier(m)
+	_revoke_node_effects(node, previous)
+	node.remove_entity_modifiers_from(board)
 	if previous.navigator != null:
 		previous.navigator.mirror_remove(node)
 	node.owned_by = null
+	# After the mirror drops the node and ownership clears — an aura recomputing
+	# here must not still see the node as its own.
+	previous.dispatch(&"_on_node_deallocated", [node, false])
 
 	if board != null:
 		if board.deallocation_points != null:
@@ -204,12 +208,12 @@ func force_deallocate(node: SkillNode) -> Entity:
 	if previous == null:
 		return null
 	var board := previous.stat_board
-	if board != null:
-		for m in node.modifiers:
-			board.remove_modifier(m)
+	_revoke_node_effects(node, previous)
+	node.remove_entity_modifiers_from(board)
 	if previous.navigator != null:
 		previous.navigator.mirror_remove(node)
 	node.owned_by = null
+	previous.dispatch(&"_on_node_deallocated", [node, true])
 	force_deallocated.emit(node, previous)
 	return previous
 
@@ -249,8 +253,29 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 	if board != null and board.movement_points != null:
 		board.movement_points.deplete(1)
 	entity.core_location = target
+	# After core_location lands — an aura recomputing here measures from the
+	# new core, which is the whole point of the hook.
+	entity.dispatch(&"_on_core_moved", [from_node, target])
 	core_moved.emit(entity, from_node, target)
 	return true
+
+
+## Grant every [Effect] a node carries to its new owner (#4). Covers the node's
+## [Keystone] — whose runtime wiring its own docstring has advertised as a
+## follow-up since it was written — and any addon-borne effects.
+func _grant_node_effects(node: SkillNode, entity: Entity) -> void:
+	if node == null or entity == null:
+		return
+	for e in node.get_node_effects():
+		entity.grant_effect(e, node)
+
+
+## Symmetric strip. Keyed by source node, so a node losing ownership takes only
+## its own effects with it.
+func _revoke_node_effects(node: SkillNode, entity: Entity) -> void:
+	if node == null or entity == null:
+		return
+	entity.revoke_effects_from(node)
 
 
 func _is_adjacent_via_real_edge(a: SkillNode, b: SkillNode) -> bool:

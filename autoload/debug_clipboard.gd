@@ -51,8 +51,8 @@ static func _format(node: SkillNode) -> String:
 	var role_tags: Array = node.get_meta("role_tags", [])
 	if not role_tags.is_empty():
 		lines.append("  role_tags: %s" % str(role_tags))
-	if node.get_meta("keystone", null) != null:
-		lines.append("  keystone: yes")
+	if node.keystone != null:
+		lines.append("  keystone: %s" % node.keystone.display_name)
 	lines.append("  modifiers (%d):" % node.modifiers.size())
 	for m in node.modifiers:
 		lines.append("    %s" % _format_modifier(m))

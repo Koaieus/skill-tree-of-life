@@ -54,6 +54,15 @@ const GROUP := &"entities"
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
 
+## Live [Effect] attachments, in grant order. Each holds its own grant ledger,
+## so revocation is exact without a provenance field on [StatModifier].
+var _effect_instances: Array[EffectInstance] = []
+
+## `hook name -> Array[EffectInstance]`. Bucketed once at grant time by asking
+## each effect which optional hooks it implements, so `dispatch` touches only
+## interested effects rather than walking every attachment on every event.
+var _hook_buckets: Dictionary[StringName, Array] = {}
+
 ## Latched once `die()` runs, so death cleanup happens exactly once even if the
 ## `health` pool re-emits `depleted` mid-cascade. Systems read this to skip a
 ## corpse (TurnManager initiative, AI targeting).
@@ -104,6 +113,66 @@ func _ready() -> void:
 	var tm := _find_turn_manager()
 	if tm != null:
 		tm.turn_started.connect(_on_turn_started)
+		tm.turn_ended.connect(_on_turn_ended)
+
+
+#region Effects
+## Attach [param effect] to this entity, optionally sourced from [param source_node]
+## (a keystone or addon carrier). Runs `_on_granted`, which by default applies the
+## effect's modifiers and — for an [AuraEffect] — computes its first buffed set.
+##
+## Call only once the entity's world is coherent: `navigator` live, `core_location`
+## set, `stat_board` duplicated. An aura granted before then reads an empty subgraph.
+func grant_effect(effect: Effect, source_node: SkillNode = null) -> EffectInstance:
+	if effect == null:
+		return null
+	var inst := EffectInstance.new()
+	inst.effect = effect
+	inst.source_node = source_node
+	inst.context = EffectContext.new(self, inst)
+	_effect_instances.append(inst)
+	for hook in effect.implemented_hooks():
+		if not _hook_buckets.has(hook):
+			_hook_buckets[hook] = []
+		_hook_buckets[hook].append(inst)
+	effect._on_granted(inst.context)
+	return inst
+
+
+## Detach an effect, reverting every modifier it granted (wherever it landed —
+## this entity's board or any node's `node_board`).
+func revoke_effect(inst: EffectInstance) -> void:
+	if inst == null or not _effect_instances.has(inst):
+		return
+	inst.effect._on_revoked(inst.context)
+	for hook in _hook_buckets:
+		_hook_buckets[hook].erase(inst)
+	_effect_instances.erase(inst)
+
+
+## Revoke every effect a given node granted — the deallocation path. Node-bound
+## effects are dormant while the node is unowned.
+func revoke_effects_from(source_node: SkillNode) -> void:
+	for inst in _effect_instances.duplicate():
+		if inst.source_node == source_node:
+			revoke_effect(inst)
+
+
+## Fire [param hook] on every effect that implements it, passing its context
+## first. Iterates a copy: a hook may grant or revoke effects re-entrantly.
+func dispatch(hook: StringName, args: Array = []) -> void:
+	var bucket: Array = _hook_buckets.get(hook, [])
+	if bucket.is_empty():
+		return
+	for inst: EffectInstance in bucket.duplicate():
+		var call_args: Array = [inst.context]
+		call_args.append_array(args)
+		inst.effect.callv(hook, call_args)
+
+
+func get_effects() -> Array[EffectInstance]:
+	return _effect_instances.duplicate()
+#endregion
 
 
 ## Listens for TurnManager.turn_started. Each entity self-handles its own
@@ -125,6 +194,15 @@ func _on_turn_started(entity: Entity) -> void:
 			n.refill()
 	if core_class != null:
 		core_class.on_turn_started(self)
+	dispatch(&"_on_turn_start")
+
+
+## Listens for TurnManager.turn_ended. Nothing but effect dispatch today — the
+## entity has no end-of-turn upkeep of its own (budgets refill on turn *start*).
+func _on_turn_ended(entity: Entity) -> void:
+	if entity != self:
+		return
+	dispatch(&"_on_turn_end")
 
 
 ## Listens for initiative.replenished (clock crossed its cap). Joins the ready
@@ -145,6 +223,7 @@ func _on_xp_replenished() -> void:
 		stat_board.skill_points.grant(1)
 	level += 1
 	leveled_up.emit(level)
+	dispatch(&"_on_level_up", [level])
 
 ## Listens for health.depleted (Entity's core health reduced to 0) → entity dies.
 func _on_health_depleted() -> void:
@@ -161,6 +240,9 @@ func die() -> void:
 		return
 	is_dead = true
 	died.emit()
+	# Before the bus phases: effects see the corpse fully intact (nodes still
+	# owned, modifiers still applied), same pre-strip world LootSystem relies on.
+	dispatch(&"_on_entity_dying")
 	# Two-phase, in order: `entity_dying` fires with the corpse still intact
 	# (LootSystem snapshots loot + awards XP here), THEN `entity_died` drives
 	# cleanup (AllocationSystem strips nodes, GameRoot despawns). emit() is

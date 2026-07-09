@@ -101,6 +101,24 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 - (for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max.
 - `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster mana flourishes, rage decay, etc.). Default hook is a no-op.
 
+## Effect-granted modifiers (#4)
+
+`Effect`s grant modifiers through `EffectContext.grant(mod, target)`, which
+`.duplicate(true)`s once and records the handle in the `EffectInstance` ledger.
+`target` is null (entity board) or a `SkillNode` (its `node_board`).
+
+**Provenance is the retained handle, not a field.** `StatModifier` still has no
+`source`, and `ModifierBinding.Kind` stays dormant — the ledger makes `revoke_all`
+exact without changing the schema. Don't add a source field for this.
+
+**Never store runtime state on an `Effect`** — a single `.tres` is shared across
+every entity carrying it. State goes on the per-grant `EffectInstance`.
+
+Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
+`apply_entity_modifiers_to(board)` rather than callers hand-rolling
+`modifiers.append(m)` + `board.add_modifier(m)`. Node-scoped ones go through
+`add_local_modifier` / `remove_local_modifier`. See `docs/domain/effect-system.md`.
+
 ## Class identity modifiers (CoreClass)
 
 Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which `duplicate(true)`s every entry in `CoreClass.modifiers` before installing — same `.tres` is safe across many entities. `BalancedCore` is the +10 STR/DEX/INT baseline against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
@@ -139,6 +157,19 @@ final = max(min_damage_taken, raw.amount - armor)
 - `raw.amount <= 0` returns 0 — the floor only triggers on a real hit.
 - `armor` scalar (default 0) and `min_damage_taken` scalar (default 3) are both standard board stats — modifiers / intrinsics apply normally. Defensive cores (e.g. Bulwark) can drive `min_damage_taken` below 0, allowing damage to *heal* nodes if the underflow is large enough.
 - Rare procgen modifier `-1 min_damage_taken` is a high-tier exotic roll.
+
+> **KNOWN BUG (fix scheduled in #4 phase 2): node-local `armor` never reaches this
+> formula.** `SkillNode.take_damage` passes `owned_by.stat_board` — the *entity*
+> board — so any `armor` on `node_board` is ignored. `bunker_addon.tscn`
+> (`local_modifiers = [armor ADD_BONUS +5]`) has therefore never done anything,
+> while `combat_readout_card.gd` *displays* the node-local value via
+> `get_local_value`. Tooltip says +5, combat disagrees; no error either way.
+> Fix is `Mitigation.apply(raw, node)` reading `node.get_local_value(&"armor")` and
+> `get_local_value(&"min_damage_taken")`. Every armor aura depends on it.
+>
+> Note the floor is a floor, not a cap: negative armor pushes damage *above* raw,
+> but only once `raw - armor > min_damage_taken` (default 3). At `raw=1, armor=-1`
+> you take 3, not 2.
 
 ## Forced-dealloc damage
 

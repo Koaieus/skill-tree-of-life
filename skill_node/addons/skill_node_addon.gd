@@ -25,6 +25,10 @@ extends Node2D
 
 @export var entity_modifiers: Array[StatModifier] = []
 @export var local_modifiers: Array[StatModifier] = []
+## Behavioural effects this addon grants to the carrier's owner while the
+## carrier is allocated. Collected by [method SkillNode.get_node_effects].
+## Sits alongside the modifier arrays — a pure stat bundle needs no effect.
+@export var effects: Array[Effect] = []
 ## When true, at most one of this exact script class may sit on a carrier
 ## (enforced by SkillNode at child_entered_tree — duplicate is rejected).
 @export var unique: bool = false

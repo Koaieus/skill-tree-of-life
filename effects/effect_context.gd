@@ -1,0 +1,108 @@
+class_name EffectContext
+extends RefCounted
+
+## The payload every [Effect] hook receives, and the only channel through which
+## an effect touches the world. Effects never reach for autoloads or walk the
+## scene tree — everything they need arrives here.
+##
+## [b]Grants are mid-life, not boundary-only.[/b] An effect may call [method grant]
+## and [method revoke] from any hook, not just `_on_granted` — [AuraEffect] does
+## exactly that as its buffed set shifts. The ledger on [member instance] tracks
+## what is currently applied, so [method revoke_all] is always exact.
+
+var entity: Entity
+var instance: EffectInstance
+
+
+func _init(p_entity: Entity, p_instance: EffectInstance) -> void:
+	entity = p_entity
+	instance = p_instance
+
+
+## The node that carries this effect (keystone / addon), or null for
+## entity-wide effects such as a core class.
+var source_node: SkillNode:
+	get: return instance.source_node
+
+## The entity's owned-subgraph mirror. The right scope for aura hop-distance:
+## a path may not shortcut through territory the entity doesn't own.
+var navigator: EntityNavigator:
+	get: return entity.navigator if entity != null else null
+
+var core_location: SkillNode:
+	get: return entity.core_location if entity != null else null
+
+
+## Duplicate [param mod], apply it to [param target], and record the handle.
+##
+## [param target] is null for the entity's stat board, or a [SkillNode] for a
+## node-local (`node_board`) modifier. Returns the applied handle — the token
+## [method revoke] takes back.
+##
+## The `.duplicate(true)` is done here, once, so the "formula-driven modifiers
+## carry mutable per-entity binding state and must never be shared" gotcha
+## (.claude/rules/stats-system.md) is impossible to get wrong from an effect.
+func grant(mod: StatModifier, target: Variant = null) -> StatModifier:
+	if mod == null or entity == null:
+		return null
+	var handle: StatModifier = mod.duplicate(true)
+	if target == null:
+		if entity.stat_board == null:
+			return null
+		entity.stat_board.add_modifier(handle)
+	else:
+		var node: SkillNode = target
+		if not is_instance_valid(node):
+			return null
+		node.add_local_modifier(handle)
+	instance.record(handle, target)
+	return handle
+
+
+## Scale a modifier's value before granting it — the aura path. Equivalent to
+## grant() on a copy whose `value` is multiplied by [param scale].
+func grant_scaled(mod: StatModifier, scale: float, target: Variant = null) -> StatModifier:
+	if mod == null:
+		return null
+	var handle: StatModifier = grant(mod, target)
+	if handle != null:
+		handle.value = mod.value * scale
+	return handle
+
+
+## Remove a previously granted handle from wherever it landed.
+func revoke(handle: StatModifier) -> void:
+	if handle == null:
+		return
+	var row: Dictionary = instance.forget(handle)
+	if row.is_empty():
+		return
+	_detach(handle, row[&"target"])
+
+
+## Revoke every grant, or (when [param target] is given) only those on that
+## target. Pass the sentinel `false` to mean "all targets".
+func revoke_all(target: Variant = false) -> void:
+	for row in instance.grants(target):
+		var handle: StatModifier = row[&"handle"]
+		instance.forget(handle)
+		_detach(handle, row[&"target"])
+
+
+## Handles currently granted to [param target] — the aura's diff read. Keeps
+## the effect resource stateless.
+func handles_for(target: Variant) -> Array[StatModifier]:
+	return instance.handles_for(target)
+
+
+func _detach(handle: StatModifier, target: Variant) -> void:
+	if target == null:
+		if entity != null and entity.stat_board != null:
+			entity.stat_board.remove_modifier(handle)
+		return
+	# Untyped read before validity check — a typed assignment of a freed
+	# instance crashes first. See .claude/rules/godot-workflow.md.
+	if not is_instance_valid(target):
+		return
+	var node: SkillNode = target
+	node.remove_local_modifier(handle)
