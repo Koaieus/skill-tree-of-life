@@ -9,6 +9,11 @@
 ## to the VFX coordinator (DamageInstance on arrival), matching gameplay.
 @tool
 extends PanelContainer
+## Emitted when the panel wants the host to discard and re-instantiate it
+## (#144) — e.g. a stuck `_casting` lock or leftover VFXLayer children from
+## an interrupted cast that Reset (health refill only) can't clear.
+signal reload_requested
+
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 const _GRID_COLS: int = 4
@@ -20,6 +25,7 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 
 @onready var cast_button: Button = %CastButton
 @onready var reset_button: Button = %ResetButton
+@onready var reload_button: Button = %ReloadButton
 @onready var status_label: Label = %StatusLabel
 @onready var values_label: RichTextLabel = %ValuesLabel
 @onready var world: SubViewport = %World
@@ -48,6 +54,7 @@ var _listed_spells: Array[SpellDef] = []
 func _ready() -> void:
 	cast_button.pressed.connect(_cast)
 	reset_button.pressed.connect(_reset_state)
+	reload_button.pressed.connect(reload_requested.emit)
 	world.size_changed.connect(_layout_world)
 	_populate_spell_list()
 	spell_list.item_selected.connect(_on_spell_list_selected)

@@ -435,6 +435,13 @@ layout_mode = 2
 tooltip_text = "Refill every node's health — clears damage from previous casts"
 text = "Reset"
 
+[node name="ReloadButton" type="Button" parent="HBox/ControlsColumn/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 36)
+layout_mode = 2
+tooltip_text = "Recreate this panel from scratch — clears stuck cast state or leftover VFX that Reset can't"
+text = "Reload"
+
 [node name="StatusLabel" type="Label" parent="HBox/ControlsColumn/HeaderRow" unique_id=564385645]
 unique_name_in_owner = true
 layout_mode = 2
