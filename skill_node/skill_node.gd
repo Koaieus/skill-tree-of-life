@@ -502,7 +502,9 @@ func take_damage(amount: float, source: Variant) -> void:
 	else:
 		raw = DamageInstance.new()
 		raw.amount = amount
-	var effective: float = Mitigation.apply(raw, owned_by.stat_board)
+	# Node-local: `armor` / `min_damage_taken` merge this node's board with its
+	# owner's, so addon + aura defensive modifiers actually land.
+	var effective: float = Mitigation.apply(raw, self)
 	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
 	if hp == null:
 		return
