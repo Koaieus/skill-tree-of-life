@@ -69,7 +69,19 @@ recomputes against a stale mirror:
 
 - `allocate` / `force_allocate` → after `mirror_add(node)`
 - `deallocate` / `force_deallocate` → after `mirror_remove(node)` and `owned_by = null`
-- `move_core` → after `entity.core_location = target`
+
+**`_on_core_moved` is dispatched from the `Entity.core_location` setter, not from
+`AllocationSystem.move_core`.** `move_core` is only one caller. `GameRoot.spawn_entity`
+assigns `core_location` *after* `_ready` has already granted the core class's
+effects — so an aura's `_on_granted` runs against a null core and an empty mirror,
+and without a setter dispatch nothing ever re-fires it. The aura then buffs nothing,
+forever, while every hand-ordered test passes. The setter is the one point that
+catches spawn, scene-export deserialization, and `move_core` alike.
+
+There are **four** ownership-claim paths, and all four must grant node effects:
+`allocate`, `force_allocate`, the death/attack `force_deallocate` inverse, and
+`register_scene_authored_ownership` (dev_sandbox `owned_by` NodePaths), which
+bypasses `force_allocate` entirely.
 
 ## Provenance is the retained handle, not a field
 
