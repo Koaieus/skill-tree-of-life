@@ -29,6 +29,13 @@ class InertEffect extends Effect:
 	pass
 
 
+class DamageSpyEffect extends Effect:
+	var hits: Array[float] = []
+
+	func _on_node_damaged(_ctx: EffectContext, _node: SkillNode, amount: float) -> void:
+		hits.append(amount)
+
+
 ## Grants a node-local modifier mid-life, from a hook rather than at boundary.
 class MidLifeEffect extends Effect:
 	func _on_turn_start(ctx: EffectContext) -> void:
@@ -262,6 +269,27 @@ func test_allocate_grants_node_effects_and_deallocate_revokes() -> void:
 	assert_eq(int(ent.stat_board.strength.value), int(base),
 		"deallocating revokes them")
 	assert_eq(ent.get_effects().size(), 0)
+
+
+## `_on_node_damaged` carries the POST-mitigation amount, so a defensive effect
+## reacts to what actually landed rather than the attacker's claim.
+func test_taking_damage_dispatches_node_damaged_post_mitigation() -> void:
+	var ent := _make_entity()
+	var node := _make_node()
+	add_child(ent)
+	add_child(node)
+	await get_tree().process_frame
+	node.owned_by = ent
+	ent.core_location = node          # core: overflow routes to health, no depletion
+	ent.stat_board.armor.base_value = 4.0
+	ent.stat_board.min_damage_taken.base_value = 0.0
+
+	var spy := DamageSpyEffect.new()
+	ent.grant_effect(spy)
+	node.take_damage(10.0, null)
+
+	assert_eq(spy.hits.size(), 1)
+	assert_almost_eq(spy.hits[0], 6.0, 0.001, "10 raw - 4 armor = 6 effective")
 
 
 func test_allocation_dispatches_node_allocated_after_ownership_lands() -> void:

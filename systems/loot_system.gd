@@ -62,8 +62,13 @@ func _ready() -> void:
 func _on_entity_dying(victim: Entity) -> void:
 	if victim == null:
 		return
-	_award_kill_xp(victim, _resolve_killer(victim))
+	var killer := _resolve_killer(victim)
+	_award_kill_xp(victim, killer)
 	_drop_skill_dust(victim)
+	# Still the pre-strip world: the corpse owns its nodes, so an effect can
+	# inspect the territory it just took (the Predator's BLITZ will want this).
+	if killer != null:
+		killer.dispatch(&"_on_killing_blow", [victim])
 
 
 ## The entity holding the turn at the synchronous death is the killer. Guarded

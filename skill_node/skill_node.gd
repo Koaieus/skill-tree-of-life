@@ -513,6 +513,8 @@ func take_damage(amount: float, source: Variant) -> void:
 	var soaked: float = before - hp.current
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
+	# Post-mitigation amount, so a defensive effect reacts to what actually landed.
+	owned_by.dispatch(&"_on_node_damaged", [self, effective])
 	var overflow: float = effective - soaked
 	if owned_by.core_location == self:
 		if overflow > 0.0 and owned_by.stat_board != null and owned_by.stat_board.health != null:

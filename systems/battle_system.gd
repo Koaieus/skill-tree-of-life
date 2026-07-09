@@ -154,6 +154,10 @@ func launch_attack() -> void:
 		mana_pool.deplete(float(outcome.mana_cost))
 	var launched_spell: SpellDef = (attack_plan as MagicAttackPlan).spell if attack_plan is MagicAttackPlan else null
 	attack_launched.emit(attack_plan.mode, launched_spell)
+	# Costs are already deducted; the plan is still live, so an effect can read
+	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
+	if attack_plan.attacker != null:
+		attack_plan.attacker.dispatch(&"_on_attack_launched", [attack_plan.mode, launched_spell])
 	# Melee: hand off to the MeleePreview (which has the ghost mounted) for
 	# the live swing + damage application BEFORE clearing the plan, so the
 	# blade can read selection state during the await. Magic uses the spell's
