@@ -8,9 +8,9 @@ extends SkillNodeRingVisual
 ## dark backdrop across this ring's own [inner_radius, outer_radius] band
 ## (see [SkillNodeRingVisual]), independent of rim_tone/rim_holder.
 ##
-## Everything drawn here is rim, so everything drawn here is archetype-tinted
-## ([member tone_tint]) — the glow dial included. Entity color belongs to the
-## central disk, not to the rim.
+## Everything drawn here is rim, so everything drawn here reads the archetype
+## identity ([member SkillNodeVisual.archetype_tint]) — the glow dial included.
+## Entity color belongs to the central disk, not to the rim.
 
 enum RimTone { NONE, GROOVE, OVERLAY }
 enum RimHolder { NONE, BRACES, FILIGREE }
@@ -18,25 +18,10 @@ enum HolderAlign { STAGGERED, JOINED }
 
 const MARK_COUNT := 8
 const NEUTRAL_CHROME := Color(0.72, 0.74, 0.78)
+const UNALLOCATED_GREY := Color(0.5, 0.5, 0.55)
 const GROOVE_COLOR := Color(0.05, 0.05, 0.07, 0.85)
 ## Arc resolution: draw_arc points per full TAU sweep, scaled by span.
 const FULL_CIRCLE_SEGMENTS := 64
-
-## Archetype-tinted tone color for RimTone.OVERLAY gems, direct from the
-## composing SkillNode (mirrors rune_ring.gd's tint_color — no lossy
-## hue-only round trip). Dims to neutral grey when unallocated, same as
-## the inner disk.
-@export var tone_tint: Color = Color(0.5, 0.5, 0.55):
-	set(value):
-		tone_tint = value
-		queue_redraw()
-
-## Dims to a neutral grey when false — same dims-when-unallocated behavior
-## as the inner disk (rimTone is archetype-tinted, not rimHolder).
-@export var allocated: bool = false:
-	set(value):
-		allocated = value
-		queue_redraw()
 
 @export var rim_tone: RimTone = RimTone.NONE:
 	set(value):
@@ -87,10 +72,13 @@ const FULL_CIRCLE_SEGMENTS := 64
 var _t: float = 0.0
 
 
+## RimTone gems and the stake dial both read the archetype identity, dimmed to
+## neutral grey while unallocated — the same "switched off" read as the disk.
+## RimHolder is deliberately exempt: it stays chrome, tint or no tint.
 func _tone_color() -> Color:
 	if not allocated:
-		return Color(0.5, 0.5, 0.55)
-	return tone_tint
+		return UNALLOCATED_GREY
+	return archetype_tint
 
 
 func _ready() -> void:

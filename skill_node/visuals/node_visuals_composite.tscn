@@ -54,7 +54,6 @@ tint_mix = 1.0
 
 [node name="RimBonuses" parent="RimRing" unique_id=2113377826 instance=ExtResource("5_rim")]
 unique_name_in_owner = true
-tone_tint = Color(0.65, 0.67, 0.72, 1)
 inner_radius = 27.0
 
 [node name="RimRing2" parent="." unique_id=2024234688 instance=ExtResource("4_wall")]
@@ -90,14 +89,12 @@ height_preset = 4
 [node name="CoreHalos" parent="." unique_id=141306435 instance=ExtResource("6_halos")]
 unique_name_in_owner = true
 visible = false
-halo_color = Color(0.291, 0.5892, 1, 1)
 core = 1
 halo_scale = 1.8
 
 [node name="RuneRing" parent="." unique_id=946472652 instance=ExtResource("7_rune")]
 unique_name_in_owner = true
 visible = false
-tint_color = Color(0.65, 0.67, 0.72, 1)
 outer_edge_r = 32.0
 
 [node name="StakeLabel" type="Label" parent="." unique_id=1327804308]

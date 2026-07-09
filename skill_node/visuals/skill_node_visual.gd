@@ -7,19 +7,57 @@ extends Node2D
 ## exposes its own @export knobs following the `set(v): field = v;
 ## queue_redraw()` pattern, and draws itself in `_draw()`.
 ##
-## Lives alongside the existing base_circle/hover_ring render path, not in
-## place of it — cutover is a future, separate decision.
-
-## Optional back-reference to the owning SkillNode, for a future cutover from
-## the legacy base_circle/hover_ring render path (see
-## .claude/rules/skill-node-visuals.md). Left null when previewed standalone
-## in the sandbox panel.
-@export var skill_node: SkillNode = null
+## ## The identity contract
+##
+## Every component in this family is *provided* the node's [member radius] and
+## its two identity colors — [member entity_tint], [member archetype_tint] —
+## plus whether the node is [member allocated]. The composite
+## (node_visuals_composite.gd) is the SOLE authority on all four: it pushes
+## them into every child uniformly, so a component can never be added and then
+## silently forgotten in a fan-out (the bug that left RimBonuses' glow dial
+## rendering in entity color long after rims went archetype-colored).
+##
+## Children then consume these **freely**, as they see fit — that's the point
+## of provide/inject rather than a rigid mapping. A component may read one, the
+## other, both, or neither; it may mix either against a private color of its
+## own (RimRing blends its bronze metal toward `archetype_tint`; InnerDisk
+## blends grey toward `entity_tint`). Private colors stay private @exports on
+## the child — "these rune glyphs are gold regardless" is a legitimate design,
+## and it doesn't need the base class's permission. What the base class
+## guarantees is only that the two identities are *reachable* and *in sync*, so
+## flipping a component from one to the other is a one-line edit, not a
+## re-plumbing.
 
 @export_range(0.0, 128.0, 0.5) var radius: float = 32.0:
 	set(value):
 		radius = value
 		queue_redraw()
+
+## The allocating entity's color ("this is MINE"). Provided by the composite.
+@export var entity_tint: Color = Color(0.291, 0.5892, 1.0):
+	set(value):
+		entity_tint = value
+		_on_identity_changed()
+
+## The node's persistent type identity — red-ish STR, green-ish DEX, ... .
+## Provided by the composite; legible whether or not the node is owned.
+@export var archetype_tint: Color = Color(0.65, 0.67, 0.72):
+	set(value):
+		archetype_tint = value
+		_on_identity_changed()
+
+## Whether the owning node is allocated. Provided by the composite.
+@export var allocated: bool = false:
+	set(value):
+		allocated = value
+		_on_identity_changed()
+
+
+## Virtual hook: fires when any identity input above changes. The default
+## redraws; components whose identity feeds a shader override this to resync
+## their uniforms instead.
+func _on_identity_changed() -> void:
+	queue_redraw()
 
 
 ## Virtual hook: subclasses override to react to an externally-driven radius

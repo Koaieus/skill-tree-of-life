@@ -1,8 +1,10 @@
 @tool
 extends SkillNodeVisual
 ## Inner disk: semi-sphere `canvas_item` shader (#123). Filled circle with an
-## offset radial highlight, player-tinted when allocated, neutral-dark when
-## not. See inner_disk.gdshader for the fragment logic.
+## offset radial highlight, lit in the entity's color when allocated and in a
+## dark neutral when not — the dome, its shine and its weld dent draw either
+## way, so allocation is a color change, not a topology change. See
+## inner_disk.gdshader for the fragment logic.
 ##
 ## ONE shared ShaderMaterial across every inner_disk instance (built lazily,
 ## cached in the static [member _shared_material]) — per-node values ride as
@@ -35,26 +37,12 @@ const ARCH_SIDES := {
 
 static var _shared_material: ShaderMaterial
 
-## The allocating entity's color (or the archetype color in a standalone
-## preview). Only visible when [member allocated] — unallocated nodes stay
-## neutral-dark regardless of this value, so there's no hue-extraction step
-## anywhere: the color IS what gets drawn, not a derived hint.
-@export var tint_color: Color = Color(0.291, 0.5892, 1.0):
-	set(value):
-		tint_color = value
-		_sync_material()
-
-## Saturation of the metal/disk tint (0 = grey, 1 = fully saturated).
+## Saturation of the disk tint (0 = grey, 1 = fully saturated) — the private
+## mix against which [member SkillNodeVisual.entity_tint] is blended, the
+## disk's counterpart to RimRing's bronze metal.
 @export_range(0.0, 1.0, 0.01) var tint_mix: float = 0.6:
 	set(value):
 		tint_mix = value
-		_sync_material()
-
-## Swaps tinted gradient (true) vs neutral-dark gradient (false); allocated
-## nodes also read as "owned" via the brighter tint.
-@export var allocated: bool = false:
-	set(value):
-		allocated = value
 		_sync_material()
 
 ## Disk radius. Defaults to SkillNode.inner_radius (24) — see
@@ -117,31 +105,32 @@ static var _shared_material: ShaderMaterial
 		hairline_opacity = value
 		_sync_material()
 
-## Shared shading source (see [ShadingStyle]), INJECTED AT RUNTIME by the
+## Shared light source (see [LightingStyle]), INJECTED AT RUNTIME by the
 ## composite — a plain `var`, deliberately NOT `@export`: it holds a
 ## composite-built resource, and an exported field assigned in a @tool context
 ## gets baked into the scene by an editor save (the gotcha in
-## .claude/rules/skill-node-visuals.md). When set its fields drive the five
-## knobs above via one `changed` connection; when null (standalone preview) the
-## local @exports are edited directly.
-var shading: ShadingStyle = null:
+## .claude/rules/skill-node-visuals.md). When null (standalone preview) the
+## local highlight_* @exports are edited directly.
+var lighting: LightingStyle = null:
 	set(value):
-		if shading != null and shading.changed.is_connected(_apply_shading):
-			shading.changed.disconnect(_apply_shading)
-		shading = value
-		if shading != null and not shading.changed.is_connected(_apply_shading):
-			shading.changed.connect(_apply_shading)
-		_apply_shading()
+		if lighting != null and lighting.changed.is_connected(_apply_lighting):
+			lighting.changed.disconnect(_apply_lighting)
+		lighting = value
+		if lighting != null and not lighting.changed.is_connected(_apply_lighting):
+			lighting.changed.connect(_apply_lighting)
+		_apply_lighting()
 
 
-func _apply_shading() -> void:
-	if shading == null:
+func _apply_lighting() -> void:
+	if lighting == null:
 		return
-	tint_color = shading.tint_color
-	tint_mix = shading.tint_mix
-	allocated = shading.allocated
-	highlight_position = shading.highlight_position
-	highlight_intensity = shading.highlight_intensity
+	highlight_position = lighting.highlight_position
+	highlight_intensity = lighting.highlight_intensity
+
+
+## The disk is the node's ownership read, so it draws in the entity's color.
+func _on_identity_changed() -> void:
+	_sync_material()
 
 
 func _ready() -> void:
@@ -160,7 +149,7 @@ func configure(new_radius: float) -> void:
 func _sync_material() -> void:
 	if not is_node_ready():
 		return
-	set_instance_shader_parameter(&"tint_color", tint_color)
+	set_instance_shader_parameter(&"tint_color", entity_tint)
 	set_instance_shader_parameter(&"tint_mix", tint_mix)
 	set_instance_shader_parameter(&"allocated", allocated)
 	set_instance_shader_parameter(&"highlight_position", highlight_position)

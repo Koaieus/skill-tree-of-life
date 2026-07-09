@@ -29,18 +29,57 @@ Preview all components + the composite together via the sandbox host's
 `SkillNodeRingVisual.ring_centerline()` delegates to `SkillNode.ring_centerline`
 (this file's formula) rather than forking it — keep it that way.
 
-### Two tints, two jobs (`node_visuals_composite.gd`)
+### The identity contract: provided by the base class, consumed freely
 
-`entity_tint` (the allocating entity's/"player's" color) and `archetype_tint`
-(the node's persistent type identity, `SkillNode.base_type_color`) are
-separate exports — never collapse them back into one `tint_color`.
-`entity_tint` drives InnerDisk (weld glyph included) and CoreHalos —
-things that read as "this is MINE". `archetype_tint` drives RimRing's
-`tint_mix` (mixed toward the ring's own bronze/gold metal at low mix),
-RuneRing, and RimBonuses — structural reads that stay legible whether or not
-the node is owned. `allocation_level` (0 = unowned, 1 = baseline, 2+ = staked,
-capped by `stake_level`) is the single source of truth for `allocated`
-(`allocation_level > 0`, a getter — never set directly).
+`SkillNodeVisual` **provides** four things to every component in the family:
+`radius`, `entity_tint`, `archetype_tint`, `allocated`. The composite is the
+sole authority on all four and loop-sets them over `_children` in
+`_sync_shared()` — it does NOT poke named properties on named children. That
+hand-written fan-out is exactly what let RimBonuses' glow dial keep rendering
+in entity color for months after rims went archetype-colored: adding a tint
+export doesn't fail loudly when nobody wires it, it just silently renders its
+default forever.
+
+Children then **consume freely**. A component reads one identity, the other,
+both, or neither, and may mix either against a private color of its own:
+RimRing blends its bronze `BASE_COLOR` metal toward `archetype_tint` by
+`tint_mix`; InnerDisk blends grey toward `entity_tint` by its own `tint_mix`;
+CoreHalos reads `entity_tint` and keeps only its `halo_opacity` private. **A
+private color is legitimate** — "these rune glyphs are gold regardless" needs
+no permission from the base class. What the contract guarantees is only that
+both identities are *reachable* and *in sync*, so flipping a component from
+one to the other is a one-line edit rather than a re-plumbing.
+
+Never collapse the two tints into one. `entity_tint` says "this is MINE" (the
+central disk, the core halos); `archetype_tint` says "this is what I AM" (every
+rim, the rune ring) and stays legible whether or not the node is owned.
+`allocation_level` (0 = unowned, 1 = baseline, 2+ = staked, capped by
+`stake_level`) is the single source of truth for `allocated` — the composite's
+`allocation_level` setter derives it; nothing else assigns it.
+
+### Identity is loop-set; the light is a shared object. Two flows, on purpose
+
+`LightingStyle` (`lighting_style.gd`, the [GlowStyle] pattern) carries the
+faked main light — `highlight_position` / `highlight_intensity` — and nothing
+else. InnerDisk is its source of truth; the composite hands the SAME object to
+InnerDisk and every RimRing, each connecting once to `changed`, so disk and rim
+cannot drift onto two different lights.
+
+That's a different mechanism from identity on purpose, and the difference is
+real rather than stylistic: **a light is one shared thing many surfaces
+sample** (so: one object, by reference), while **an identity color is a
+per-component choice between two provided values** (so: two fields, pushed to
+all). Don't force them through one channel. `LightingStyle` used to also carry
+`tint_color`/`allocated`/`tint_mix` back when it was called `ShadingStyle`;
+those left when the identity contract landed — `tint_mix` in particular is
+per-component (the disk's saturation vs. the rim's stake-driven metal blend
+share a name and mean different things), so it never belonged in a shared
+object.
+
+`shading`/`lighting` stays a plain `var`, deliberately NOT `@export`: it holds
+a composite-built resource, and an exported field assigned inside a `@tool`
+`_sync_shared()` gets baked into the scene by an editor save (the
+Resource-in-`_ready` gotcha below).
 
 **InnerDisk always draws.** Allocation is a color change, not a topology
 change: `sn_disk_color()` lights the same dome with the same normal and the
@@ -169,22 +208,14 @@ a *full-shape* glow/bloom is a possible follow-up for more elaborate emblems
 (a lit sword, a shimmering dragon) but isn't part of this small gem-indent
 look.
 
-**How those five are delivered: a shared `ShadingStyle` resource, NOT imperative
-mirroring.** `node_visuals_composite.gd` holds ONE `ShadingStyle`
-(`skill_node/visuals/shading_style.gd`, a Resource — the [GlowStyle] pattern) and
-assigns it to InnerDisk (weld glyph included, since it's the same node/material
-now) and every RimRing via their `shading` var.
-That var is a **plain `var`, deliberately NOT `@export`** — it holds a
-composite-built runtime resource, and an exported field assigned inside a @tool
-`_sync_shared()` gets baked into the scene by an editor save (the same
-Resource-in-`_ready` gotcha this file documents below). Each consumer connects
-ONCE to `changed` and copies the fields in
-(`_apply_shading()`); RimRing reads only `highlight_position` → its `light_dir`
-(its band color is stake-driven). `_sync_shared()` therefore edits the one object
-instead of poking five props per child — adding a new shaded consumer is one
-`child.shading = _shading` line, and a single source object makes drift
-impossible. A null `shading` (standalone preview) falls back to the child's own
-`@export`s. Guarded by `test/unit/test_node_visuals_shading.gd`.
+**How the light is delivered: the shared `LightingStyle` resource** — see "two
+flows" above. Each consumer connects ONCE to `changed` and copies the fields in
+(`_apply_lighting()`); RimRing reads only `highlight_position` → its
+`light_dir`. A null `lighting` (standalone preview) falls back to the child's
+own `@export`s. Both flows are guarded by
+`test/unit/test_node_visuals_contract.gd`, whose identity test walks EVERY
+`SkillNodeVisual` descendant rather than a hand-listed few — that's the
+assertion that would have caught the dial.
 
 **Gotcha that motivated all this:** an `@tool` script that builds a `Resource`
 in `_ready()` and assigns it to an `@export`ed field can get that result baked

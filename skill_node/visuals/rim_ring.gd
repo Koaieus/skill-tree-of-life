@@ -79,24 +79,17 @@ static var _shared_material: ShaderMaterial
 			rim_height_style = null
 		_sync_material()
 
-## Archetype/entity tint fed by the composer (0..1 mixed in, see [member
-## tint_mix]) — the rim never owns a private tint the composer's identity
-## color can't reach.
-@export var archetype_tint: Color = BASE_COLOR:
-	set(value):
-		archetype_tint = value
-		_sync_material()
-
 ## 0 = the ring's own metal color ([const BASE_COLOR], bronze/gold-ish); 1 =
-## maximally mixed toward [member archetype_tint]. Lets the composer read as
-## "mostly its own material, tinted by archetype" instead of a flat hue swap.
+## maximally mixed toward [member SkillNodeVisual.archetype_tint]. Lets the
+## composer read as "mostly its own material, tinted by archetype" instead of a
+## flat hue swap. The rim is structure, so it never reads `entity_tint`.
 @export_range(0.0, 1.0, 0.01) var tint_mix: float = 0.0:
 	set(value):
 		tint_mix = value
 		_sync_material()
 
 ## The actual color pushed to the shader — [const BASE_COLOR] lerped toward
-## [member archetype_tint] by [member tint_mix].
+## the archetype identity by [member tint_mix].
 var _effective_tint: Color:
 	get(): return BASE_COLOR.lerp(archetype_tint, tint_mix)
 
@@ -108,31 +101,33 @@ var _effective_tint: Color:
 		light_dir = value
 		_sync_material()
 
-## Shared shading source (see [ShadingStyle]) — runtime-injected plain `var`
-## (NOT `@export`, per the @tool scene-baking gotcha). The rim only reads the
-## light direction from it (its band color is stake-driven, not
-## archetype-tinted), so the disk and its rim stay lit from ONE source. Null in
-## a standalone preview.
-var shading: ShadingStyle = null:
+## Shared light source (see [LightingStyle]) — runtime-injected plain `var`
+## (NOT `@export`, per the @tool scene-baking gotcha), so the disk and its rim
+## stay lit from ONE source. Null in a standalone preview.
+var lighting: LightingStyle = null:
 	set(value):
-		if shading != null and shading.changed.is_connected(_apply_shading):
-			shading.changed.disconnect(_apply_shading)
-		shading = value
-		if shading != null and not shading.changed.is_connected(_apply_shading):
-			shading.changed.connect(_apply_shading)
-		_apply_shading()
+		if lighting != null and lighting.changed.is_connected(_apply_lighting):
+			lighting.changed.disconnect(_apply_lighting)
+		lighting = value
+		if lighting != null and not lighting.changed.is_connected(_apply_lighting):
+			lighting.changed.connect(_apply_lighting)
+		_apply_lighting()
 
 var _use_custom_curve: bool:
-	get(): 
+	get():
 		return height_preset == CUSTOM_PRESET_INDEX and rim_height_style != null
-	
+
 var _custom_material: ShaderMaterial
 
 
-func _apply_shading() -> void:
-	if shading == null:
+func _apply_lighting() -> void:
+	if lighting == null:
 		return
-	light_dir = shading.highlight_position
+	light_dir = lighting.highlight_position
+
+
+func _on_identity_changed() -> void:
+	_sync_material()
 
 
 ## Live-update hook for in-place Curve edits (dragging points in the inspector).
@@ -184,7 +179,7 @@ func _sync_material() -> void:
 	# never here. Bind the right material, but ONLY reassign when it actually
 	# changes: reassigning `material` every call churns a property the inspector
 	# watches and interrupts slider drags (crest_r could only move in 0.5 steps).
-	var use_custom := _use_custom_curve and rim_height_style != null
+	var use_custom := _use_custom_curve
 	var target_mat: ShaderMaterial = _custom_material if use_custom else _shared_material
 	if target_mat != null and material != target_mat:
 		material = target_mat

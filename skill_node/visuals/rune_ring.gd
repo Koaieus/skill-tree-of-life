@@ -1,24 +1,19 @@
 @tool
-extends SkillNodeRingVisual
+extends SkillNodeVisual
 ## Rune ring (#129): 1-3 spinning concentric rune-glyph bands, auto-clearing
 ## the node's CURRENT actual outer edge — [member outer_edge_r] is fed by
 ## the composite as stake rings grow it; a standalone preview falls back to
 ## [member radius] so gap/spacing are always measured from the real
 ## boundary, never a fixed one.
 
+## The bands read the archetype identity (see [SkillNodeVisual]) — a rune ring
+## is structure, not ownership. Its ink/glyph colors below are private and
+## deliberately identity-free.
 enum RuneCount { NONE, SINGLE, DOUBLE, TRIPLE }
 enum RuneStyle { FLUSH, ORNATE, MIXED }
 enum RuneBlend { CUTOUT, INK, GLOW }
 
 const RUNES_PER_BAND := 8
-
-## Band color — shared with InnerDisk (weld glyph included)/RimRing's tint_color (#132)
-## rather than a private fixed hue, so the whole node reads as one archetype
-## color under a single control.
-@export var tint_color: Color = Color(0.55, 0.35, 0.85):
-	set(value):
-		tint_color = value
-		queue_redraw()
 
 @export var band_count: RuneCount = RuneCount.NONE:
 	set(value):
@@ -123,11 +118,11 @@ func _draw() -> void:
 
 
 func _draw_band(r: float, width: float, rune_scale: float, rotation: float) -> void:
-	var fill_color := Color(tint_color.r, tint_color.g, tint_color.b, fill_amount)
+	var fill_color := Color(archetype_tint.r, archetype_tint.g, archetype_tint.b, fill_amount)
 	var rune_len := width * (1.0 - glyph_pad) * rune_scale
 
 	if edge_glow > 0.0:
-		draw_circle(Vector2.ZERO, r, Color(tint_color.r, tint_color.g, tint_color.b, edge_glow * 0.3), false, width * 1.6, true)
+		draw_circle(Vector2.ZERO, r, Color(archetype_tint.r, archetype_tint.g, archetype_tint.b, edge_glow * 0.3), false, width * 1.6, true)
 
 	if blend == RuneBlend.CUTOUT:
 		_draw_cutout_band(r, width, rune_len, rotation, fill_color)
