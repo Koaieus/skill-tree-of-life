@@ -32,6 +32,12 @@ var _toasters: Dictionary = {}
 func spawn(request: FloaterRequest) -> void:
 	if request == null or request.text.is_empty():
 		return
+	# A renderer outside the SceneTree can't render — and add_child on a
+	# detached manager never fires the toaster's _ready, so bail rather than
+	# orphan a toaster that will never drain. Happens for editor 2D-canvas
+	# preview copies of a scene that embeds this manager.
+	if not is_inside_tree():
+		return
 	var key := request.stack_key()
 	if key == 0:
 		var t: FloaterToaster = _TOASTER_SCENE.instantiate()
