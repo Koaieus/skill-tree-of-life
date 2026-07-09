@@ -69,3 +69,23 @@ func test_disk_renders_the_entity_identity_through_its_shader() -> void:
 		"the weld glyph rides the disk's OWN shader uniforms now (folded into inner_disk.gdshader) — " +
 		"it can't drift from the disk's tint because there's only one material to drift from"
 	)
+
+
+## Declaring `_process` on the base class makes Godot enable processing on every
+## subclass by default. Only components that asked for the clock may tick.
+func test_only_animating_components_are_on_the_process_list() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+
+	assert_false(comp.get_node("%InnerDisk").is_processing(), "a static disk never ticks")
+	assert_false(comp.get_node("%RimRing").is_processing(), "a static rim never ticks")
+	assert_true(comp.get_node("%RuneRing").is_processing(), "the rune ring spins (band_count > NONE)")
+
+
+func test_animating_component_accumulates_shared_clock() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	var rune = comp.get_node("%RuneRing")
+	var before: float = rune.anim_time
+	await get_tree().process_frame
+	assert_gt(rune.anim_time, before, "anim_time advances while animating")

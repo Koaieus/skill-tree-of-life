@@ -51,7 +51,7 @@ const FULL_CIRCLE_SEGMENTS := 64
 @export_range(0, 8, 1) var fill_current: int = 0:
 	set(value):
 		fill_current = value
-		set_process(fill_current > 0)
+		set_animating(fill_current > 0)
 		queue_redraw()
 ## Max slots (N). Synced by the composing SkillNode to its stake_level.
 ## fill_max == 1 is the special "single glowing ring" case (no segments).
@@ -69,9 +69,6 @@ const FULL_CIRCLE_SEGMENTS := 64
 ## How fast the filled arcs spin around the groove, radians/sec.
 @export_range(0.0, 2.0, 0.01) var fill_spin_speed: float = 0.2
 
-var _t: float = 0.0
-
-
 ## RimTone gems and the stake dial both read the archetype identity, dimmed to
 ## neutral grey while unallocated — the same "switched off" read as the disk.
 ## RimHolder is deliberately exempt: it stays chrome, tint or no tint.
@@ -79,15 +76,6 @@ func _tone_color() -> Color:
 	if not allocated:
 		return UNALLOCATED_GREY
 	return archetype_tint
-
-
-func _ready() -> void:
-	set_process(fill_current > 0)
-
-
-func _process(delta: float) -> void:
-	_t += delta
-	queue_redraw()
 
 
 func _draw() -> void:
@@ -172,7 +160,7 @@ func _draw_stake_fill(rim_width: float) -> void:
 	var gap_rad := deg_to_rad(fill_gap_deg)
 	var slot_width := maxf((TAU - fill_max * gap_rad) / float(fill_max), 0.0)
 	var filled := mini(fill_current, fill_max)
-	var spin := _t * fill_spin_speed
+	var spin := anim_time * fill_spin_speed
 	for i in filled:
 		var start := spin + i * (slot_width + gap_rad)
 		_draw_glow_arc(r, rim_width, start, start + slot_width)
@@ -187,10 +175,9 @@ func _draw_glow_arc(r: float, rim_width: float, start: float, end: float) -> voi
 		return
 	var points: int = maxi(int(FULL_CIRCLE_SEGMENTS * span / TAU), 4)
 	var color := _tone_color()
-	var halo := Color(color.r, color.g, color.b, 0.22)
-	var mid := Color(color.r, color.g, color.b, 0.5)
-	var core := color.lightened(0.35)
-	core.a = 0.95
+	var halo := Color(color, 0.22)
+	var mid := Color(color, 0.5)
+	var core := Color(color.lightened(0.35), 0.95)
 	draw_arc(Vector2.ZERO, r, start, end, points, halo, rim_width * 1.8, true)
 	draw_arc(Vector2.ZERO, r, start, end, points, mid, rim_width * 1.1, true)
 	draw_arc(Vector2.ZERO, r, start, end, points, core, rim_width * 0.55, true)

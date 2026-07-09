@@ -18,7 +18,7 @@ const RUNES_PER_BAND := 8
 @export var band_count: RuneCount = RuneCount.NONE:
 	set(value):
 		band_count = value
-		set_process(band_count != RuneCount.NONE)
+		set_animating(band_count != RuneCount.NONE)
 		queue_redraw()
 ## flush/ornate/mixed — band width + rune scale preset.
 @export var style: RuneStyle = RuneStyle.FLUSH:
@@ -66,17 +66,6 @@ const RUNES_PER_BAND := 8
 		outer_edge_r = value
 		queue_redraw()
 
-var _t: float = 0.0
-
-
-func _ready() -> void:
-	set_process(band_count != RuneCount.NONE)
-
-
-func _process(delta: float) -> void:
-	_t += delta
-	queue_redraw()
-
 
 func _band_count() -> int:
 	match band_count:
@@ -113,16 +102,16 @@ func _draw() -> void:
 	for b in count:
 		var r := start_r + b * (band_width + spacing)
 		var spin_dir := 1.0 if b % 2 == 0 else -1.0
-		var rotation := _t * (0.4 + b * 0.25) * spin_dir
+		var rotation := anim_time * (0.4 + b * 0.25) * spin_dir
 		_draw_band(r, band_width, rune_scale, rotation)
 
 
 func _draw_band(r: float, width: float, rune_scale: float, rotation: float) -> void:
-	var fill_color := Color(archetype_tint.r, archetype_tint.g, archetype_tint.b, fill_amount)
+	var fill_color := Color(archetype_tint, fill_amount)
 	var rune_len := width * (1.0 - glyph_pad) * rune_scale
 
 	if edge_glow > 0.0:
-		draw_circle(Vector2.ZERO, r, Color(archetype_tint.r, archetype_tint.g, archetype_tint.b, edge_glow * 0.3), false, width * 1.6, true)
+		draw_circle(Vector2.ZERO, r, Color(archetype_tint, edge_glow * 0.3), false, width * 1.6, true)
 
 	if blend == RuneBlend.CUTOUT:
 		_draw_cutout_band(r, width, rune_len, rotation, fill_color)

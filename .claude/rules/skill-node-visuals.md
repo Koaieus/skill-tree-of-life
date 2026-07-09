@@ -57,6 +57,25 @@ rim, the rune ring) and stays legible whether or not the node is owned.
 `stake_level`) is the single source of truth for `allocated` — the composite's
 `allocation_level` setter derives it; nothing else assigns it.
 
+### One animation clock, on the base class
+
+CoreHalos, RuneRing and RimBonuses each used to carry `var _t`, a `_process`
+that accumulated it, a `queue_redraw()`, and a `set_process(cond)` in both a
+setter and `_ready`. That's now `SkillNodeVisual.anim_time` +
+`set_animating(bool)`. Scale the clock where you read it (`anim_time *
+spin_speed`), not where you accumulate it, so turning a speed knob doesn't jump
+the phase.
+
+**The trap the base class has to work around:** declaring `_process` on a base
+makes Godot auto-enable processing on *every* subclass, static ones included —
+and it does so *after* `_enter_tree`, so re-asserting the flag there is too
+early. `SkillNodeVisual` therefore hooks `NOTIFICATION_READY` via
+`_notification`, not `_ready`: a subclass with its own `_ready` (InnerDisk,
+RimRing) would shadow the base's without a `super()` call, while `_notification`
+reaches the whole chain. `test_node_visuals_contract.gd` asserts a static disk
+and rim are off the process list — it caught this exact bug when the gate was
+in `_enter_tree`.
+
 ### Identity is loop-set; the light is a shared object. Two flows, on purpose
 
 `LightingStyle` (`lighting_style.gd`, the [GlowStyle] pattern) carries the
@@ -97,8 +116,10 @@ composite is hidden entirely when `sensed`).
 
 Its current/max glow dial (`fill_current`/`fill_max`, synced from
 `allocation_level`/`stake_level`) is archetype-tinted like every other rim
-element — it reads through RimBonuses' single `tone_tint`, no second tint
-export. This is approach B for stake/cap depth, alongside approach A (ring-stacking,
+element — it reads the inherited `archetype_tint` through `_tone_color()`, the
+same as the RimTone gems, and owns no tint export of its own. RimHolder is the
+one exempt layer: it stays neutral chrome regardless of tint or allocation.
+This is approach B for stake/cap depth, alongside approach A (ring-stacking,
 `rim_growth`) — both wired off the same `allocation_level`/`stake_level`,
 picked per-node by toggling which one is `visible` (default: RimBonuses stays
 `visible = false` in `node_visuals_composite.tscn`, approach A is the

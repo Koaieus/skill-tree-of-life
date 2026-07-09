@@ -26,7 +26,7 @@ var _halo_color: Color:
 @export var core: CoreStyle = CoreStyle.NONE:
 	set(value):
 		core = value
-		set_process(core != CoreStyle.NONE)
+		set_animating(core != CoreStyle.NONE)
 		queue_redraw()
 
 ## Scales the halo radius outward from the rim.
@@ -37,16 +37,10 @@ var _halo_color: Color:
 
 @export_range(0.5, 3.0, 0.01) var spin_speed: float = 1.0
 
-var _t: float = 0.0
 
-
-func _ready() -> void:
-	set_process(core != CoreStyle.NONE)
-
-
-func _process(delta: float) -> void:
-	_t += delta * spin_speed
-	queue_redraw()
+## Shared clock, scaled at read time so a spin_speed tweak never jumps the phase.
+func _spin() -> float:
+	return anim_time * spin_speed
 
 
 func _draw() -> void:
@@ -69,7 +63,7 @@ func _draw_rings(base_r: float, halo_color: Color) -> void:
 	for i in 3:
 		var r := base_r * (1.0 + i * 0.18)
 		var rate := 1.0 + i * 0.5
-		_draw_dashed_circle(r, _t * rate, 10, halo_color)
+		_draw_dashed_circle(r, _spin() * rate, 10, halo_color)
 
 
 func _draw_orbit(base_r: float, halo_color: Color) -> void:
@@ -78,7 +72,7 @@ func _draw_orbit(base_r: float, halo_color: Color) -> void:
 	var dot_color := Color(halo_color, 1.0)
 	var dot_count := 4
 	for i in dot_count:
-		var theta := _t + (TAU / dot_count) * i
+		var theta := _spin() + (TAU / dot_count) * i
 		draw_circle(polar_point(base_r, theta), 2.5, dot_color)
 
 
@@ -88,7 +82,7 @@ func _draw_gimbal(base_r: float, halo_color: Color) -> void:
 	for i in 3:
 		var tilt := i * PI / 4.0
 		var rate := 0.6 + i * 0.3
-		var theta_start := _t * rate + tilt
+		var theta_start := _spin() * rate + tilt
 		draw_arc(Vector2.ZERO, base_r * (1.0 + i * 0.05), theta_start, theta_start + PI * 1.4, 24, halo_color, 1.5, true)
 
 
@@ -97,7 +91,7 @@ func _draw_cog(base_r: float, halo_color: Color) -> void:
 	var teeth := 10
 	var tooth_len := base_r * 0.12
 	for i in teeth:
-		var theta := _t * 0.3 + (TAU / teeth) * i
+		var theta := _spin() * 0.3 + (TAU / teeth) * i
 		draw_line(polar_point(base_r, theta), polar_point(base_r + tooth_len, theta), halo_color, 2.0, true)
 
 

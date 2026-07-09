@@ -53,6 +53,39 @@ extends Node2D
 		_on_identity_changed()
 
 
+## Seconds this component has been animating. Components that spin or pulse
+## read this instead of each keeping a private accumulator: call
+## [method set_animating] to start/stop the clock, then use `anim_time` in
+## `_draw()`. Scale it there (`anim_time * spin_speed`) rather than scaling the
+## accumulator, so changing a speed knob doesn't jump the phase.
+var anim_time: float = 0.0
+
+var _animating: bool = false
+
+
+## Starts/stops [member anim_time] and the per-frame redraw that goes with it.
+## A component with nothing moving stays entirely off the process list.
+func set_animating(active: bool) -> void:
+	_animating = active
+	set_process(active)
+
+
+## Declaring `_process` here makes Godot auto-enable processing on EVERY
+## subclass, static ones included — and it does so after `_enter_tree`, so
+## re-asserting the flag there is too early. Hook the READY notification
+## instead of `_ready`: a subclass that defines its own `_ready` (InnerDisk,
+## RimRing) would shadow ours without a `super()` call, whereas `_notification`
+## is delivered to the whole chain. Guarded by test_node_visuals_contract.gd.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_READY:
+		set_process(_animating)
+
+
+func _process(delta: float) -> void:
+	anim_time += delta
+	queue_redraw()
+
+
 ## Virtual hook: fires when any identity input above changes. The default
 ## redraws; components whose identity feeds a shader override this to resync
 ## their uniforms instead.
