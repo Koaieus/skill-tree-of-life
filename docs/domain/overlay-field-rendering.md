@@ -19,20 +19,42 @@ radius is animating.
 
 | sources / elements | before | after |
 |---|---|---|
-| 150 / 300 | 8.9 ms | 1.06 ms |
-| 512 / 800 | 81.7 ms | 3.60 ms |
-| 2000 / 1500 | 598 ms | 14.3 ms |
+| 150 / 300 | 17.8 ms | 1.21 ms |
+| 512 / 800 | 150.9 ms | 4.59 ms |
+| 2000 / 1500 | 1087.7 ms | 21.9 ms |
 
 Fixed by `VisionSourceIndex` (`ui/fog_overlay/vision_source_index.gd`), a
 uniform grid over the sources. This is the **second** time this subsystem's
 symptom was blamed on the shader and turned out to be a CPU walk — see
 [graph.md](../../.claude/rules/graph.md), c5f3e42. **Measure the CPU first.**
 
-The cull is exact, not a heuristic: `field_smin(m, d, k)` returns `m`
-*identically* once `d >= m + k` (the `h` term clamps and the polynomial vanishes).
-Folding in **ascending distance order** makes the early-out sound, and as a
-bonus pins down a result that used to depend on the iteration order of
-`VisionSystem._circles`, a Dictionary.
+The cull is exact, not a heuristic. `field_smin(a, b, k)` returns `b`
+*identically* when `b <= a - k` — the blend factor clamps and the polynomial
+term vanishes. Call that **erasure**. The dimming pass only samples elements it
+already knows are *visible*, so some source sits at `d <= 1`; any source at
+`d >= 1 + k` is erased by that nearest one and contributes nothing at all.
+
+## Don't "improve" the CPU fold's order. It is pinned to the shader's.
+
+`field_smin` is **not associative**, so the fold's result depends on the order it
+visits distances. The fragment shader has no choice: it walks its `circles`
+uniform array front to back, because distance is per-pixel and a GPU cannot
+sort. So the CPU fold must walk **the same array in the same order** — that's
+why `VisionSourceIndex.distances_near` sorts candidate *indices* and never
+candidate *distances*.
+
+Sorting by distance is tempting (it enables an early `break`, and it makes the
+result independent of `VisionSystem._circles`'s Dictionary iteration order). It
+was measured: it drifts the darkness by up to **0.061**, against a visible
+threshold of `1/255 = 0.0039`. A node in the fade zone would dim by a different
+amount than the fog painted behind it — the exact mismatch the `_sample_dark`
+docstring has always warned about. Order-independence is a *non-*requirement:
+reordering the Dictionary changes CPU and GPU identically.
+
+The `break` was redundant anyway. The grid already culls exactly, so the
+candidate set is small and every omitted source is a provable no-op.
+`test_indexed_fold_stays_in_lockstep_with_the_shader` pins this against an
+independent transcription of the shader's fold.
 
 ## The GPU cost cannot be measured in CI — use the harness
 

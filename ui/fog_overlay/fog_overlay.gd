@@ -141,7 +141,7 @@ func _apply_per_element_dimming() -> void:
 			n.modulate.a = 1.0
 			continue
 		if vision_system.is_visible(n):
-			var dark := _dark_from_sorted(_source_index.distances_near(n.global_position))
+			var dark := _dark_from_distances(_source_index.distances_near(n.global_position))
 			n.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			n.z_as_relative = false
 			n.z_index = ZLayers.SENSED
@@ -160,7 +160,7 @@ func _apply_per_element_dimming() -> void:
 		var to_vis: bool = vision_system.is_visible(e.to)
 		if from_vis and to_vis:
 			var mid: Vector2 = (e.from.global_position + e.to.global_position) * 0.5
-			var dark := _dark_from_sorted(_source_index.distances_near(mid))
+			var dark := _dark_from_distances(_source_index.distances_near(mid))
 			e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			e.z_as_relative = false
 			e.z_index = ZLayers.SENSED
@@ -183,26 +183,24 @@ func _sample_dark(world_pos: Vector2, sources: Array) -> float:
 	var ds := PackedFloat32Array()
 	for s in sources:
 		ds.append(world_pos.distance_to(s.pos) / max(s.radius, 1.0))
-	ds.sort()
-	return _dark_from_sorted(ds)
+	return _dark_from_distances(ds)
 
 
-## Fold ascending normalized distances into a darkness in [0,1].
+## Fold normalized distances into a darkness in [0,1].
 ##
-## The fold visits distances in ascending order so it can stop early: `min_d`
-## only ever decreases, and the remaining `d`s only increase, so once
-## `d >= min_d + k` every source left is a provable no-op (see
-## VisionSourceIndex's header for the algebra). Sorting also pins down a result
-## that used to depend on `get_vision_sources()`'s Dictionary iteration order.
-func _dark_from_sorted(sorted_distances: PackedFloat32Array) -> float:
-	if sorted_distances.is_empty():
+## `distances` must arrive in the same order the shader walks its `circles`
+## uniform array. `field_smin` is not perfectly associative, so a different
+## order gives a different answer — and the shader cannot reorder, because
+## distance is per-pixel. Folding by ascending distance instead drifts by up to
+## 0.061, against a visible threshold of 1/255; the node would then dim by a
+## different amount than the fog painted behind it.
+func _dark_from_distances(distances: PackedFloat32Array) -> float:
+	if distances.is_empty():
 		return 1.0
 	# Finite sentinel, matching the shader. INF would make `lerp` produce
 	# INF * 0.0 == NaN on the first fold.
 	var min_d: float = 1e9
-	for d in sorted_distances:
-		if d >= min_d + union_smoothness:
-			break
+	for d in distances:
 		min_d = _smin(min_d, d, union_smoothness)
 	var fade_start: float = 1.0 - max(falloff, 1e-4)
 	return smoothstep(fade_start, 1.0, min_d)

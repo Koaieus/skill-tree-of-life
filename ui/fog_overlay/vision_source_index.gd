@@ -12,17 +12,23 @@ extends RefCounted
 ## Measured before this index: 16.8 ms per refresh at 150 sources / 300
 ## elements, 140 ms at 512 / 800. See #133.
 ##
-## [b]Why the cull is exact, not an approximation.[/b] The fold is
-## [code]m = field_smin(m, d, k)[/code]. Expand it for [code]d >= m + k[/code]:
-## [code]h = clamp(0.5 + 0.5*(d - m)/k, 0, 1)[/code] hits 1, so the result is
-## [code]mix(d, m, 1) - k*1*(1-1) == m[/code]. A source that far away does not
-## contribute a small amount — it contributes [i]nothing[/i]. So dropping it
-## changes no bit of the result, provided the fold visits distances in
-## ascending order (see [method distances_near]).
+## [b]Why the cull is exact, not an approximation.[/b] `field_smin(a, b, k)`
+## returns [code]b[/code] [i]identically[/i] when [code]b <= a - k[/code]: the
+## blend factor [code]h = clamp(0.5 + 0.5*(b - a)/k, 0, 1)[/code] hits 0, so the
+## result is [code]mix(b, a, 0) - k*0*(1-0) == b[/code]. Call that [i]erasure[/i]:
+## folding in a distance at least `k` below the running minimum discards every
+## contribution before it.
 ##
-## Every source that can matter has its centre within
-## [code](1 + k) * max_radius[/code] of the query point, so a grid of that cell
-## size answers any query from its 3×3 neighbourhood.
+## `_apply_per_element_dimming` only samples elements it has already decided are
+## [i]visible[/i], so some source has [code]d <= 1[/code] at the query point.
+## Any source with [code]d >= 1 + k[/code] is therefore erased by that nearest
+## one, whichever order the fold happens to reach them in — it contributes
+## nothing, not a little. Dropping it changes no bit of the result.
+##
+## And a source can only reach [code]d < 1 + k[/code] if its centre is within
+## [code](1 + k) * its own radius[/code], which [code]max_radius[/code] bounds
+## over the whole set — so a grid of that cell size answers any query from its
+## 3×3 neighbourhood.
 
 # Grid cell → PackedInt32Array of indices into `_sources`.
 var _cells: Dictionary = {}
@@ -67,29 +73,27 @@ func build(sources: Array, union_smoothness: float) -> void:
 
 
 ## Normalized distances (`|p - centre| / radius`) to every source that can
-## affect the fold at `world_pos`, sorted ascending.
+## affect the fold at `world_pos`, in [b]ascending source-index order[/b].
 ##
-## Ascending order is load-bearing, not a convenience. The fold's early-out
-## ("stop once `d >= m + k`, since `m` only decreases and later `d`s only grow")
-## is only sound on a sorted sequence — and sorting also makes the result
-## independent of the source array's order, which it previously was not
-## ([method VisionSystem.get_vision_sources] iterates a Dictionary).
+## The order is load-bearing. `field_smin` is not perfectly associative, so the
+## fold's result depends on the order it visits distances — and the fragment
+## shader has no choice but to walk its uniform array front to back (distance is
+## per-pixel; the GPU cannot sort). If the CPU folds in any other order, a node
+## sitting in the fade zone dims by a different amount than the fog painted
+## behind it. Measured drift for a value-sorted fold: 0.061, against a visible
+## threshold of 1/255 = 0.0039.
+##
+## So: same order as `FogOverlay`'s packed uniform array, which is `_sources`.
 func distances_near(world_pos: Vector2) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
-	if _degenerate:
-		for s in _sources:
-			out.append(world_pos.distance_to(s.pos) / _effective_radius(s))
-		out.sort()
-		return out
-
-	var centre := _cell_of(world_pos)
-	for dx in [-1, 0, 1]:
-		for dy in [-1, 0, 1]:
-			var bucket: PackedInt32Array = _cells.get(centre + Vector2i(dx, dy), PackedInt32Array())
-			for i in bucket:
-				var s = _sources[i]
-				out.append(world_pos.distance_to(s.pos) / _effective_radius(s))
-	out.sort()
+	var candidates := _candidates(world_pos)
+	# Cells are visited in grid order, so the gathered indices are not in
+	# source order until sorted. Sorting *indices* preserves the shader's
+	# traversal; sorting *distances* would not.
+	candidates.sort()
+	for i in candidates:
+		var s = _sources[i]
+		out.append(world_pos.distance_to(s.pos) / _effective_radius(s))
 	return out
 
 
@@ -108,13 +112,13 @@ func closest_motion(world_pos: Vector2) -> float:
 	return best_motion
 
 
+## Indices of every source that can contribute at `world_pos`. Unordered.
 func _candidates(world_pos: Vector2) -> PackedInt32Array:
-	if _degenerate:
-		var all := PackedInt32Array()
-		for i in _sources.size():
-			all.append(i)
-		return all
 	var out := PackedInt32Array()
+	if _degenerate:
+		for i in _sources.size():
+			out.append(i)
+		return out
 	var centre := _cell_of(world_pos)
 	for dx in [-1, 0, 1]:
 		for dy in [-1, 0, 1]:
