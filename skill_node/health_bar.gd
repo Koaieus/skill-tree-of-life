@@ -1,8 +1,15 @@
+@tool
 extends ProgressBar
 
 ## Node combat health bar — shows the SkillNode's per-node HP pool (max vs
 ## current) via [method SkillNode.node_board]. Wires in _ready; visibility is
 ## automatic: hidden when unallocated or at full HP, fades in on hover or damage.
+##
+## [b]@tool[/b] so the editor-hosted Spell Playground shows live HP. That means
+## `_ready` runs while `skill_node.tscn` itself is open — every property it
+## writes there is a serialization candidate, so `modulate` and `value` are
+## baked in the scene to match what `_ready` sets (see the @tool scene-baking
+## gotcha in `.claude/rules/godot-workflow.md`).
 
 const _FADE_IN_DURATION  := 0.12
 const _FADE_OUT_DURATION := 0.45
@@ -109,7 +116,9 @@ func _on_unhovered() -> void:
 func _update_visibility() -> void:
 	if _pool == null:
 		return _fade_to(0.0)
-	var damaged: bool = _pool.current > 0.0 and _pool.current < _pool.value
+	# `current == 0` counts as damaged: a depleted node must read as an empty
+	# bar, not as no bar at all. Only a node at full HP hides itself.
+	var damaged: bool = _pool.current < _pool.value
 	_fade_to(1.0 if (_hovered or damaged) else 0.0)
 
 

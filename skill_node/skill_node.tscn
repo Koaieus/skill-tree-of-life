@@ -98,14 +98,15 @@ max_lines_visible = 1
 [node name="AddonAnchor" type="Node2D" parent="Visuals" unique_id=1119406181]
 
 [node name="HealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922168]
+modulate = Color(1, 1, 1, 0)
 z_index = 10
 offset_left = -31.0
 offset_top = -59.0
 offset_right = 31.0
 offset_bottom = -46.0
+mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
 theme_override_styles/fill = SubResource("StyleBoxFlat_mcbms")
-value = 45.0
 show_percentage = false
 script = ExtResource("6_r2qlo")
 
@@ -124,6 +125,7 @@ script = ExtResource("7_corehb")
 
 [node name="FloatAnchor" type="Marker2D" parent="." unique_id=2130772427]
 unique_name_in_owner = true
+visible = false
 position = Vector2(0, -50)
 
 [connection signal="input_event" from="." to="." method="_on_input_event"]

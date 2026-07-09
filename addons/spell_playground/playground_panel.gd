@@ -35,6 +35,11 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 
 var _spell: SpellDef = null
 var _selected_target: SkillNode = null
+## True from Cast until the coordinator finishes playing. Damage lands on VFX
+## arrival, so a refill (or a second cast) during that window would be undone
+## by a hit still in the air. Both buttons are gated on it rather than trying
+## to cancel in-flight damage.
+var _casting: bool = false
 ## Populated from the caster's own spellbook (the same 6 spells the .tscn
 ## already preloads for CasterEntity) — no separate directory scan needed.
 var _listed_spells: Array[SpellDef] = []
@@ -257,7 +262,7 @@ func _refresh_status() -> void:
 		return
 	var target_name: String = _selected_target.name if _selected_target != null else "—"
 	status_label.text = "%s · seed → %s" % [_spell.name, target_name]
-	cast_button.disabled = (_selected_target == null)
+	cast_button.disabled = (_selected_target == null) or _casting
 	values_label.text = _build_values_text(_spell)
 
 
@@ -330,9 +335,10 @@ func _layout_world() -> void:
 		e.refresh_endpoints()
 
 
-## Refills every node's health — the same upkeep `_cast` already does before
-## resolving a new spell, exposed standalone so a broken-in board can be
-## cleared without having to fire another attack to trigger it.
+## The one and only place node health is restored. Casts deliberately do NOT
+## auto-refill: damage accumulates across casts, so a node that no single spell
+## can kill still dies to three of them — which is most of what this harness is
+## for. Press Reset to get a pristine board back.
 func _reset_state() -> void:
 	_refill_all_nodes()
 	_refresh_status()
@@ -343,7 +349,17 @@ func _refill_all_nodes() -> void:
 		sn.refill()
 
 
+## Gate Cast + Reset for the duration of a coordinator's play. Both would
+## otherwise interleave with damage that only lands when the VFX arrives.
+func _set_casting(value: bool) -> void:
+	_casting = value
+	reset_button.disabled = value
+	_refresh_status()
+
+
 func _cast() -> void:
+	if _casting:
+		return
 	if not is_instance_valid(_spell) or _selected_target == null:
 		return
 	if _spell.vfx_coordinator_scene == null:
@@ -352,7 +368,6 @@ func _cast() -> void:
 		# Wire a coord scene on the SpellDef.
 		push_warning("Spell Playground: spell has no vfx_coordinator_scene — Cast skipped")
 		return
-	_refill_all_nodes()
 	var outcome := SpellResolver.resolve(
 			_spell, _selected_target, caster_node, caster_entity, graph)
 	if outcome.hits.is_empty():
@@ -371,5 +386,10 @@ func _cast() -> void:
 		arc.apex_height = 70.0
 		mbc.projectile_path = arc
 	vfx_layer.add_child(coord)
+	_set_casting(true)
 	await coord.play(outcome)
 	coord.queue_free()
+	# The panel can be torn down mid-play (plugin disabled, tab rebuilt); its
+	# buttons are gone by then and re-enabling them would crash.
+	if is_inside_tree():
+		_set_casting(false)
