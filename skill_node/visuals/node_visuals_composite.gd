@@ -148,7 +148,6 @@ func _sync_shared() -> void:
 	# ONE object → every shaded child. Drift is impossible; adding a consumer is
 	# one line, not "remember to mirror five props."
 	%InnerDisk.shading = _shading
-	%InnerDisk.visible = allocated
 	for rw in _rim_rings:
 		rw.shading = _shading
 	# Non-shaded derivations off the archetype identity color.

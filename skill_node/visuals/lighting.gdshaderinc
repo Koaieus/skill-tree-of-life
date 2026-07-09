@@ -46,13 +46,13 @@ vec3 sn_dome_normal(vec2 p_pos) {
 	return normalize(vec3(p_pos, z));
 }
 
-// Full inner-disk shaded color: tinted-lit when allocated, neutral-dark when
-// not, plus the specular term. Matches the pre-include inner_disk fragment.
+// Full inner-disk shaded color. The dome is ALWAYS lit and always shaded;
+// allocation only chooses which base the light falls on — the entity tint when
+// owned, a dark neutral when not. So an unallocated node still reads as a
+// physical hemisphere with its own shine, just switched OFF, instead of
+// disappearing into the background.
 vec3 sn_disk_color(vec3 p_normal, vec3 p_light_dir, vec3 p_tint, float p_tint_mix,
 		bool p_allocated, float p_highlight_intensity) {
-	if (!p_allocated) {
-		return SN_NEUTRAL_DARK;
-	}
 	float diffuse = sn_diffuse(p_normal, p_light_dir);
 	float spec = sn_specular(diffuse, p_highlight_intensity);
 	vec3 tinted = mix(vec3(0.5), p_tint, p_tint_mix);

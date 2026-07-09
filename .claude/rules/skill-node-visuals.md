@@ -40,9 +40,19 @@ things that read as "this is MINE". `archetype_tint` drives RimRing's
 RuneRing, and RimBonuses — structural reads that stay legible whether or not
 the node is owned. `allocation_level` (0 = unowned, 1 = baseline, 2+ = staked,
 capped by `stake_level`) is the single source of truth for `allocated`
-(`allocation_level > 0`, a getter — never set directly); InnerDisk hides
-entirely when unallocated rather than showing a dimmed disk, and BaseCircle's
-wash is what carries the unallocated node's footprint instead.
+(`allocation_level > 0`, a getter — never set directly).
+
+**InnerDisk always draws.** Allocation is a color change, not a topology
+change: `sn_disk_color()` lights the same dome with the same normal and the
+same specular either way, and only swaps which base the light falls on
+(`base_tint` when owned, `base_dark` when not). So an unallocated node reads as
+a physical hemisphere that is switched OFF — still shiny, just dark — and
+allocation animates for free, because it's a lerp between two colors rather
+than a pop between two shapes. Don't reintroduce an `InnerDisk.visible =
+allocated` gate or an early `return SN_NEUTRAL_DARK` in the shader; both
+amputate the lit-dark branch that already exists. BaseCircle's wash is fully
+occluded by the disk+rim now and carries only the **sensed-fog** read (the
+composite is hidden entirely when `sensed`).
 
 ### RimBonuses' stake-fill dial (#127 follow-up) is a second, independent stake visualization
 
