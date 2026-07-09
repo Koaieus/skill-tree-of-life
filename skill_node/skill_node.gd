@@ -513,8 +513,7 @@ func _on_addon_added(c: Node) -> void:
 			board.add_modifier(m)
 	for m in a.local_modifiers:
 		var s := _ensure_local_stat(m.stat_id)
-		if not s.has_modifier(m):
-			s.add_modifier(m)
+		s.add_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
 

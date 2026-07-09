@@ -78,11 +78,13 @@ func has_modifier(m: StatModifier) -> bool:
 
 
 func add_modifier(m: StatModifier) -> void:
+	if m in _modifiers:
+		return
 	_modifiers.append(m)
 	# Resource.changed fires from the value setter, from any other emit_changed
 	# call on the modifier, and from formula-source updates (StatModifier's
 	# _on_source_changed re-emits `changed`). One subscription covers all three.
-	m.changed.connect(_on_dependent_modifier_changed.bind(m)) # TODO: guard this, getting errors of multiple connections
+	m.changed.connect(_on_dependent_modifier_changed.bind(m))
 	match m.operation:
 		StatModifier.Operation.SET:
 			if bins.winning_set == null or m.priority >= bins.winning_set.priority:
