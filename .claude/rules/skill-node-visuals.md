@@ -46,14 +46,10 @@ wash is what carries the unallocated node's footprint instead.
 
 ### RimBonuses' stake-fill dial (#127 follow-up) is a second, independent stake visualization
 
-Exception to the tint rule above: RimBonuses' current/max glow dial
-(`fill_current`/`fill_max`, synced from `allocation_level`/`stake_level`) is
-tinted with `entity_tint`, NOT `archetype_tint` — it's rendering "how much of
-MINE is filled in", the same ownership read as InnerDisk/CoreHalos, just
-expressed as a ring instead of a disk. `tone_tint` (RimTone.OVERLAY's gems)
-stays archetype-tinted; don't conflate the two RimBonuses tint exports.
-
-This is approach B for stake/cap depth, alongside approach A (ring-stacking,
+Its current/max glow dial (`fill_current`/`fill_max`, synced from
+`allocation_level`/`stake_level`) is archetype-tinted like every other rim
+element — it reads through RimBonuses' single `tone_tint`, no second tint
+export. This is approach B for stake/cap depth, alongside approach A (ring-stacking,
 `rim_growth`) — both wired off the same `allocation_level`/`stake_level`,
 picked per-node by toggling which one is `visible` (default: RimBonuses stays
 `visible = false` in `node_visuals_composite.tscn`, approach A is the

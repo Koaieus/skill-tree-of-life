@@ -7,6 +7,10 @@ extends SkillNodeRingVisual
 ## stake-fill dial (#127 follow-up): a current/max glow ring drawn over a
 ## dark backdrop across this ring's own [inner_radius, outer_radius] band
 ## (see [SkillNodeRingVisual]), independent of rim_tone/rim_holder.
+##
+## Everything drawn here is rim, so everything drawn here is archetype-tinted
+## ([member tone_tint]) — the glow dial included. Entity color belongs to the
+## central disk, not to the rim.
 
 enum RimTone { NONE, GROOVE, OVERLAY }
 enum RimHolder { NONE, BRACES, FILIGREE }
@@ -69,13 +73,6 @@ const FULL_CIRCLE_SEGMENTS := 64
 @export_range(1, 8, 1) var fill_max: int = 1:
 	set(value):
 		fill_max = maxi(value, 1)
-		queue_redraw()
-## Glow tint — the allocating entity's color, matching the lit-edge glow
-## (see graph/edge.gd's `is_lit` treatment). Synced by the composing
-## SkillNode to entity_tint.
-@export var fill_glow_tint: Color = Color(0.291, 0.5892, 1.0):
-	set(value):
-		fill_glow_tint = value
 		queue_redraw()
 ## Angular gap between adjacent fill slots, in degrees. Applies uniformly
 ## across all N slots (filled or not), so partially-filled dials still read
@@ -201,9 +198,10 @@ func _draw_glow_arc(r: float, rim_width: float, start: float, end: float) -> voi
 	if span <= 0.0:
 		return
 	var points: int = maxi(int(FULL_CIRCLE_SEGMENTS * span / TAU), 4)
-	var halo := Color(fill_glow_tint.r, fill_glow_tint.g, fill_glow_tint.b, 0.22)
-	var mid := Color(fill_glow_tint.r, fill_glow_tint.g, fill_glow_tint.b, 0.5)
-	var core := fill_glow_tint.lightened(0.35)
+	var color := _tone_color()
+	var halo := Color(color.r, color.g, color.b, 0.22)
+	var mid := Color(color.r, color.g, color.b, 0.5)
+	var core := color.lightened(0.35)
 	core.a = 0.95
 	draw_arc(Vector2.ZERO, r, start, end, points, halo, rim_width * 1.8, true)
 	draw_arc(Vector2.ZERO, r, start, end, points, mid, rim_width * 1.1, true)

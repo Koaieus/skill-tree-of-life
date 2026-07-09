@@ -91,7 +91,7 @@ height_preset = 4
 unique_name_in_owner = true
 visible = false
 halo_color = Color(0.291, 0.5892, 1, 1)
-core = 4
+core = 1
 halo_scale = 1.8
 
 [node name="RuneRing" parent="." unique_id=946472652 instance=ExtResource("7_rune")]

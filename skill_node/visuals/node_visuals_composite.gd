@@ -157,8 +157,6 @@ func _sync_shared() -> void:
 	%RuneRing.tint_color = archetype_tint
 	# Entity identity, not archetype — the halo marks "this is YOUR core".
 	%CoreHalos.halo_color = entity_tint
-	# Stake-fill dial glows with entity color, same as a lit edge.
-	%RimBonuses.fill_glow_tint = entity_tint
 
 
 ## Positions the (up to 4) pre-placed rim_ring instances outward per stake
