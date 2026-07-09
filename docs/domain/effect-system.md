@@ -131,11 +131,50 @@ One public API, used by addons, effects, and `AllocationSystem` alike:
 Previously `_on_addon_added` and `AllocationSystem.allocate` each hand-rolled the
 "append to `modifiers` + push to the owner's board" dance.
 
+## Auras
+
+`AuraEffect` has three orthogonal knobs, and keeping them separate is the whole design:
+
+| Knob | Question | `null` means |
+|---|---|---|
+| `reach: RangeFinder` | *which* nodes | flood the whole scope |
+| `metric: DistanceMetric` | *how far* each is | reuse the distances `reach` reported |
+| `distance_scale: DistanceScale` | multiplier at that distance | flat |
+
+Several designed auras answer "which" and "how far" with **different metrics** —
+the Serpent's penalty applies to every node the core can reach (topological) but
+scales by euclidean distance (spatial). Collapsing that into one
+`EuclideanRangeFinder` forces `max_distance` past the map diagonal and makes the
+bound a trap: too small a value silently lets distant nodes escape the *penalty*.
+`reach: null` removes the sentinel entirely.
+
+**Sign lives on the modifier, shape lives on the scale.** A negative `value` makes
+a debuff aura; a rising scale grows its magnitude with distance. They compose
+freely, which is why `DistanceScale` is not called "falloff" — the return is an
+unbounded scalar, not an attenuation. (`Gradient` was also rejected: Godot ships
+one, and `Edge.gd` holds one.)
+
+| Class | `reach` | `metric` | `distance_scale` |
+|---|---|---|---|
+| Bulwark | `EuclideanRangeFinder` / `HopRangeFinder` | inherited | `FlatScale` |
+| Halo | `HopRangeFinder(shell+1)` | inherited | `ShellScale` |
+| Ninja | `null` | `HopMetric` | `ProportionalScale` |
+| Serpent A | `null` | `HopMetric` | `ProportionalScale` (positive mods) |
+| Serpent B | `null` | `EuclideanMetric` | `ProportionalScale` (negative mods) |
+
+Serpent's two components land on the same stat as `ADD_BONUS` and sum through one
+`ModifierBins.compute` — `Array[Effect]` *is* the composite.
+
+`recompute` is a **full rebuild** (`revoke_all`, then re-grant), not an incremental
+diff: an owned subgraph is tens of nodes, it runs on allocation events rather than
+per frame, `revoke_all` also purges ledger rows whose node a cascade freed, and a
+rebuild cannot drift out of sync with the buffed set the way a diff can.
+
+Reach queries go through `RangeFinder.gather`, never `in_range` in a loop — see
+`.claude/rules/graph.md`.
+
 ## Deferred
 
-- **Auras** (phase 2) — `RangeFinder.gather` + `AuraEffect` + `DistanceScale`.
-  Blocked on a real bug: `Mitigation.apply` reads the *entity* board, so node-local
-  `armor` never reaches the damage formula (`bunker_addon` has never worked).
 - **LifeLine** — "kept alive despite being islanded" overrides the islanding rule.
   It needs a **query hook with a return value** inside
   `nodes_islanded_by_removing_set` / the cascade, not a fire-and-forget notification

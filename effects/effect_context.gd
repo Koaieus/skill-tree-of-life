@@ -32,6 +32,13 @@ var navigator: EntityNavigator:
 var core_location: SkillNode:
 	get: return entity.core_location if entity != null else null
 
+## The whole-graph mirror — reach through anyone's territory. Only what an aura
+## with GLOBAL scope wants; owned-scope work goes through [member navigator].
+var graph: Graph:
+	get:
+		var nav := navigator
+		return nav.graph if nav != null else null
+
 
 ## Duplicate [param mod], apply it to [param target], and record the handle.
 ##

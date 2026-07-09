@@ -34,6 +34,23 @@ func _effective_max_hops(attacker: Entity) -> int:
 	return int(round(float(max_hops) * spell_range_multiplier(attacker)))
 
 
+## One BFS over [param mirror], not one AStar query per candidate. Pass the
+## entity's own [EntityNavigator] to measure hops through owned territory only.
+## Reach is unscaled (no `spell_range`) — auras don't inherit a caster stat.
+func gather(source: SkillNode, mirror: GraphMirror) -> Dictionary[SkillNode, float]:
+	var out: Dictionary[SkillNode, float] = {}
+	if source == null or mirror == null:
+		return out
+	var depths: Dictionary[SkillNode, int] = mirror.nodes_within(source, max_hops)
+	for node in depths:
+		out[node] = float(depths[node])
+	return out
+
+
+func max_reach() -> float:
+	return float(max_hops)
+
+
 func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
 	var max_hops := _effective_max_hops(attacker)

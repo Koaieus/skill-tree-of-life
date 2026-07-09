@@ -46,6 +46,37 @@ list. Every current caller sets the endpoints *before* `add_child` (see
 cache entirely for exactly this reason — an inspector edit to `from`/`to` would
 otherwise go unnoticed.
 
+## Reach queries: `gather()`, never `in_range()` in a loop
+
+`RangeFinder.in_range(attacker, source, candidate)` is a per-candidate predicate,
+and `HopRangeFinder`'s implementation runs an **AStar query per candidate**. Asking
+it "which of my N nodes are in reach?" is N × AStar — the same quadratic shape this
+file already documents twice.
+
+`RangeFinder.gather(source, mirror) -> Dictionary[SkillNode, float]` is the
+set-shaped sibling: one BFS (hops) or one linear scan (euclidean), and it returns
+the **distance**, which a bool predicate can't (auras need it for `DistanceScale`).
+
+**`gather` and `in_range` are not interchangeable, by design.** `in_range` on
+`HopRangeFinder` hardwires the *global* `graph.navigator` (reach through anyone's
+territory); `gather` traverses whatever mirror it's handed. That divergence is the
+point — an aura's hop distance must be measured over the *owned* subgraph
+(`entity.navigator`), or a path shortcuts through enemy land. Never "simplify"
+`gather` to read `graph.navigator` for consistency.
+
+## Populate a Graph through `add_skill_node` / `add_edge`, not the containers
+
+`Graph.add_skill_node(sn)` and `Graph.add_edge(a, b)` emit `node_added` /
+`edge_added`. Adding a child straight to `skill_nodes_container` /
+`edges_container` does **not** — so the Graph's `Navigator` never mirrors it and
+every global-mirror query silently returns empty (`vertex_id` → -1,
+`nodes_within` → `{}`). No error.
+
+`test/unit/test_move_core.gd` builds its fixture by adding to the containers
+directly; it gets away with it only because it reads `entity.navigator` (populated
+explicitly by `AllocationSystem.force_allocate` → `mirror_add`) and never touches
+`graph.navigator`. Don't copy that shortcut into a fixture that does.
+
 ## Accessors return a private copy; callers may mutate it
 
 `playground_panel.gd` does `var candidates := graph.get_skill_nodes()` then

@@ -12,6 +12,24 @@ func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 	return source.global_position.distance_to(candidate.global_position) <= _effective_distance(attacker)
 
 
+## One linear scan. Deliberately not a spatial index: an aura recompute runs on
+## allocation events over a tens-of-nodes owned subgraph, not per frame over the
+## whole graph (which is what earns VisionSystem its index). Reach is unscaled.
+func gather(source: SkillNode, mirror: GraphMirror) -> Dictionary[SkillNode, float]:
+	var out: Dictionary[SkillNode, float] = {}
+	if source == null or mirror == null:
+		return out
+	for n in mirror.get_mirrored_nodes():
+		var d := source.global_position.distance_to(n.global_position)
+		if d <= max_distance:
+			out[n] = d
+	return out
+
+
+func max_reach() -> float:
+	return max_distance
+
+
 func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
 	var dist := _effective_distance(attacker)
