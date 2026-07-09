@@ -55,3 +55,53 @@ func test_caps_cover_a_realistic_late_game_board() -> void:
 	autofree(fog)
 	assert_gte(fog._MAX_CIRCLES, 4 * 100,
 		"four entities at 100 owned nodes must not truncate")
+
+
+## `set_field` / `set_sources` are the entry points both the game and
+## `scenes/overlay_perf_harness.tscn` drive (#133). They must pad the uniform
+## arrays to the shader's declared length: a short array leaves the tail reading
+## whatever the previous frame wrote, with no error.
+
+func test_aura_set_field_pads_to_the_shader_array_length() -> void:
+	var overlay: AuraOverlay = _AURA_SCENE.instantiate()
+	autofree(overlay)
+	overlay.set_field([Vector4(1.0, 2.0, 3.0, 0.0)], [Color.RED])
+	var mat: ShaderMaterial = overlay.material
+	assert_eq((mat.get_shader_parameter(&"circles") as Array).size(), overlay._MAX_CIRCLES,
+		"circles must be padded to MAX_CIRCLES")
+	assert_eq((mat.get_shader_parameter(&"entity_colors") as Array).size(), overlay._MAX_ENTITIES,
+		"entity_colors must be padded to MAX_ENTITIES")
+	assert_eq(mat.get_shader_parameter(&"circle_count"), 1)
+	assert_eq(mat.get_shader_parameter(&"entity_count"), 1)
+
+
+func test_aura_set_field_pads_with_transparent_black() -> void:
+	# resize() on a typed Array[Color] yields OPAQUE black. If that leaks into
+	# the padding, an unused entity slot is a solid colour waiting to render.
+	var overlay: AuraOverlay = _AURA_SCENE.instantiate()
+	autofree(overlay)
+	overlay.set_field([Vector4(1.0, 2.0, 3.0, 0.0)], [Color.RED])
+	var colors: Array = (overlay.material as ShaderMaterial).get_shader_parameter(&"entity_colors")
+	assert_eq(colors[1], Color(0.0, 0.0, 0.0, 0.0), "padding must be fully transparent")
+
+
+func test_aura_set_field_clamps_an_oversized_field() -> void:
+	var overlay: AuraOverlay = _AURA_SCENE.instantiate()
+	autofree(overlay)
+	var circles: Array = []
+	for i in overlay._MAX_CIRCLES + 50:
+		circles.append(Vector4(float(i), 0.0, 10.0, 0.0))
+	overlay.set_field(circles, [Color.RED])
+	var mat: ShaderMaterial = overlay.material
+	assert_eq((mat.get_shader_parameter(&"circles") as Array).size(), overlay._MAX_CIRCLES)
+	assert_eq(mat.get_shader_parameter(&"circle_count"), overlay._MAX_CIRCLES,
+		"count must never exceed the shader's array bound")
+
+
+func test_fog_set_sources_pads_to_the_shader_array_length() -> void:
+	var overlay: FogOverlay = _FOG_SCENE.instantiate()
+	autofree(overlay)
+	overlay.set_sources([{"pos": Vector2.ZERO, "radius": 100.0, "motion": 0.0}])
+	var mat: ShaderMaterial = overlay.material
+	assert_eq((mat.get_shader_parameter(&"circles") as Array).size(), overlay._MAX_CIRCLES)
+	assert_eq(mat.get_shader_parameter(&"circle_count"), 1)

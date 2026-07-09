@@ -136,16 +136,39 @@ func _refresh() -> void:
 	else:
 		_warned_circle_overflow = false
 
-	var circle_count := packed_circles.size()
-	var entity_count := packed_colors.size()
-	while packed_circles.size() < _MAX_CIRCLES:
-		packed_circles.append(Vector4.ZERO)
-	while packed_colors.size() < _MAX_ENTITIES:
-		packed_colors.append(Color(0.0, 0.0, 0.0, 0.0))
+	set_field(packed_circles, packed_colors)
 
-	mat.set_shader_parameter(&"circles", packed_circles)
+
+## Upload a territory field directly. `circles` are unpadded
+## `Vector4(world_x, world_y, radius, entity_index)`; `colors` are unpadded, one
+## per entity, indexed by that `entity_index`.
+##
+## Split out from [method _refresh] so the render path can be driven without a
+## live Graph — see `scenes/overlay_perf_harness.gd`, which must exercise the
+## same entry point the game does for its numbers to mean anything.
+func set_field(circles: Array, colors: Array) -> void:
+	if material == null or not material is ShaderMaterial:
+		return
+	var mat: ShaderMaterial = material
+	var circle_count := mini(circles.size(), _MAX_CIRCLES)
+	var entity_count := mini(colors.size(), _MAX_ENTITIES)
+	# Pad explicitly rather than resize()-then-patch: resize() fills a *typed*
+	# array with the type's default (Color(0,0,0,1) — opaque black), not null,
+	# so a null-check pass would silently leave opaque padding behind.
+	var padded_circles: Array = []
+	padded_circles.resize(_MAX_CIRCLES)
+	padded_circles.fill(Vector4.ZERO)
+	for i in circle_count:
+		padded_circles[i] = circles[i]
+	var padded_colors: Array = []
+	padded_colors.resize(_MAX_ENTITIES)
+	padded_colors.fill(Color(0.0, 0.0, 0.0, 0.0))
+	for i in entity_count:
+		padded_colors[i] = colors[i]
+
+	mat.set_shader_parameter(&"circles", padded_circles)
 	mat.set_shader_parameter(&"circle_count", circle_count)
-	mat.set_shader_parameter(&"entity_colors", packed_colors)
+	mat.set_shader_parameter(&"entity_colors", padded_colors)
 	mat.set_shader_parameter(&"entity_count", entity_count)
 
 

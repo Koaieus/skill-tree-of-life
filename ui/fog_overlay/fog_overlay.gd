@@ -81,11 +81,21 @@ func _refresh() -> void:
 	visible = enabled and (vision_system == null or vision_system.should_render_fog())
 	if not visible:
 		return
+	set_sources(vision_system.get_vision_sources() if vision_system != null else [])
+
+
+## Upload a vision-source set and re-dim the elements sitting in it. Each entry:
+## `{ pos: Vector2, radius: float, motion: float }`, matching
+## [method VisionSystem.get_vision_sources].
+##
+## Split out from [method _refresh] so the render path can be driven without a
+## live VisionSystem — see `scenes/overlay_perf_harness.gd`, which must exercise
+## the same entry point the game does for its numbers to mean anything.
+func set_sources(sources: Array) -> void:
 	queue_redraw()
 	if material == null or not material is ShaderMaterial:
 		return
 	var mat: ShaderMaterial = material
-	var sources: Array = vision_system.get_vision_sources() if vision_system != null else []
 	# Truncation here is worse than dropping a circle: `_apply_per_element_dimming`
 	# reads the FULL list, so a node lit by a dropped circle would render bright
 	# against fog the shader still paints black. Clamp both to the same set.

@@ -1,0 +1,16 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/overlay_perf_harness.gd" id="1_harness"]
+[ext_resource type="PackedScene" path="res://ui/fog_overlay/fog_overlay.tscn" id="2_fog"]
+[ext_resource type="PackedScene" path="res://ui/aura_overlay/aura_overlay.tscn" id="3_aura"]
+
+[node name="OverlayPerfHarness" type="Node2D" node_paths=PackedStringArray("fog", "aura")]
+script = ExtResource("1_harness")
+fog = NodePath("FogOverlay")
+aura = NodePath("AuraOverlay")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="FogOverlay" parent="." instance=ExtResource("2_fog")]
+
+[node name="AuraOverlay" parent="." instance=ExtResource("3_aura")]
