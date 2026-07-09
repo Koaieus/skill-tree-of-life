@@ -14,6 +14,8 @@ uniform vec4 fill_color : source_color = vec4(0.7, 0.75, 0.95, 1.0);
 uniform vec4 empty_color : source_color = vec4(1.0, 1.0, 1.0, 0.08);
 uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 0.6);
 uniform vec4 drain_color : source_color = vec4(0.9, 0.3, 0.3, 0.5);
+uniform float preview_gain = 0.0;
+uniform vec4 preview_color : source_color = vec4(1.0, 1.0, 1.0, 0.25);
 uniform float shine_speed = 0.6;
 uniform float cell_count = 0.0;
 uniform float skew_degrees = 0.0;
@@ -29,6 +31,7 @@ void fragment() {
 	float value_range = max(0.0001, max_value - min_value);
 	float fill_frac = clamp((current - min_value) / value_range, 0.0, 1.0);
 	float drain_frac = clamp((drain_from - min_value) / value_range, 0.0, 1.0);
+	float preview_frac = clamp((current + preview_gain - min_value) / value_range, 0.0, 1.0);
 	vec2 px = UV * size;
 
 	if (cell_count < 0.5) {
@@ -38,11 +41,14 @@ void fragment() {
 
 		bool filled = UV.x <= fill_frac;
 		bool draining = UV.x > fill_frac && UV.x <= drain_frac;
+		bool previewing = !draining && UV.x > fill_frac && UV.x <= preview_frac;
 
 		vec4 col = filled ? fill_color : empty_color;
 		if (draining) {
 			float trail_t = (UV.x - fill_frac) / max(0.001, drain_frac - fill_frac);
 			col = mix(drain_color, empty_color, trail_t);
+		} else if (previewing) {
+			col = preview_color;
 		}
 		if (filled) {
 			float shine = sin((UV.x - TIME * shine_speed) * 18.0) * 0.5 + 0.5;
@@ -78,12 +84,16 @@ void fragment() {
 
 		float filled_upto = fill_frac * n;
 		float drain_upto = drain_frac * n;
+		float preview_upto = preview_frac * n;
 		bool filled = idx < filled_upto - 0.001;
 		bool draining = !filled && idx < drain_upto - 0.001;
+		bool previewing = !filled && !draining && idx < preview_upto - 0.001;
 
 		vec4 col = filled ? fill_color : empty_color;
 		if (draining) {
 			col = drain_color;
+		} else if (previewing) {
+			col = preview_color;
 		}
 		if (filled) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;

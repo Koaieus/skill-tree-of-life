@@ -59,6 +59,21 @@ const DRAIN_FADE_TIME := 0.9
 		drain_color = v
 		_push(&"drain_color", v)
 
+## Next-turn gain preview — mirror of [member drain_from], but rendered
+## *above* `current` instead of below it. Band spans `current` to
+## `current + preview_gain`, clamped at `max_value`, in **stat units** (not
+## a fraction — the shader derives the fraction itself). `0.0` disables the
+## band, which is the resting state, so existing gauges are unaffected.
+@export var preview_gain: float = 0.0:
+	set(v):
+		preview_gain = v
+		_push(&"preview_gain", v)
+
+@export var preview_color: Color = Color(1.0, 1.0, 1.0, 0.25):
+	set(v):
+		preview_color = v
+		_push(&"preview_color", v)
+
 @export_range(0.0, 4.0, 0.05) var shine_speed: float = 0.6:
 	set(v):
 		shine_speed = v
@@ -106,6 +121,8 @@ func _push_all() -> void:
 	_push(&"empty_color", empty_color)
 	_push(&"glow_color", glow_color)
 	_push(&"drain_color", drain_color)
+	_push(&"preview_gain", preview_gain)
+	_push(&"preview_color", preview_color)
 	_push(&"shine_speed", shine_speed)
 	_push(&"cell_count", cell_count)
 	_push(&"skew_degrees", skew_degrees)

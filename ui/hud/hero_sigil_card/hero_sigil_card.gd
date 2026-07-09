@@ -65,6 +65,8 @@ func bind(entity: Entity) -> void:
 	var board := _entity.stat_board
 	if board == null:
 		return
+	# No health-per-turn stat exists yet (wound_heal_per_turn is a different
+	# concept, not wired here) — health gets no preview band until one is.
 	_bind_pool(_health_gauge, _health_caption, board.health, null)
 	_bind_pool(_mana_gauge, _mana_caption, board.mana, board.mana_per_turn)
 	_bind_pool(_xp_gauge, _xp_caption, board.xp, board.xp_per_turn)
@@ -85,8 +87,11 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 	gauge.min_value = 0.0
 	gauge.max_value = float(pool.value)
 	gauge.current = float(pool.current)
+	gauge.preview_gain = float(per_turn.value) if per_turn != null else 0.0
 	pool.current_changed.connect(func(v): gauge.current = float(v))
 	pool.value_changed.connect(func(): gauge.max_value = float(pool.value))
+	if per_turn != null:
+		per_turn.value_changed.connect(func(): gauge.preview_gain = float(per_turn.value))
 	if caption != null:
 		var refresh_caption := func():
 			if per_turn != null and float(per_turn.value) > 0.0:
