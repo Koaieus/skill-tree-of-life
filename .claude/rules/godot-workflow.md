@@ -178,6 +178,13 @@ instead of editing the main checkout directly. The `warp` skill
 (`.claude/skills/warp/SKILL.md`) drives the full issue → worktree →
 implement → approval → merge → close → teardown cycle on top of these tasks.
 
+For a pre-planned issue that splits into file-disjoint units, the `swarm` skill
+(`.claude/skills/swarm/SKILL.md`) fans that cycle out across parallel subagents —
+Opus orchestrates, Sonnet/Haiku execute, each following `drone`
+(`.claude/skills/drone/SKILL.md`). Those workers get their worktrees from the
+harness (`isolation: "worktree"` → `.claude/worktrees/agent-<id>/` on branch
+`worktree-agent-<id>`), not from `mise run worktree:new`.
+
 Each worktree has its own gitignored `.godot/` — confirmed empirically (#86
 spike) that a fresh worktree's cold `godot --headless --editor` import
 neither touches nor corrupts the main checkout's `.godot/`, and is fully
