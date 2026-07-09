@@ -75,6 +75,37 @@ Read the **delta** (overlay-on minus overlay-off GPU ms) as circle count grows.
 Linear growth ⇒ the loop is the ceiling. Flat ⇒ it never was, and the silent
 256-circle cap (fixed in bd8b169) was the whole bug.
 
+### Measured: the loop is linear, and the constant is small
+
+AMD Radeon RX 7900 XTX (RADV NAVI31), Vulkan / Forward+, 1440×960, GPU ms/frame:
+
+| circles | fog Δ | aura Δ | both |
+|---|---|---|---|
+| 0 | 0.018 | 0.018 | 0.039 |
+| 15 | 0.060 | 0.072 | 0.132 |
+| 100 | 0.290 | 0.259 | 0.371 |
+| 250 | 0.406 | 0.497 | 0.878 |
+| 512 | 0.799 | 0.971 | 1.724 |
+
+**Linear, as predicted.** 250 → 512 circles is 2.05×; the fog delta goes
+0.406 → 0.799 ms, i.e. 1.97×. The sublinearity below ~100 is fixed overhead plus
+sparse circles not covering the screen, not a saving.
+
+**But the constant is ~1.6 µs per circle per frame at 1440×960.** A realistic
+late-game board — one viewer at ~100 owned nodes (fog) and four entities at ~100
+each (aura, which packs *every* owner's nodes) — costs about **1 ms/frame on
+this card**. Roughly 6% of a 60 Hz budget, for two overlays.
+
+So #133's GPU half is **real but not urgent**. Note this is a top-end discrete
+GPU; the cost is pure fill, so it scales roughly with fill rate. An integrated
+GPU or a handheld is plausibly 8–15× slower, which turns 1 ms into most of a
+frame. Re-run the harness before assuming.
+
+**Trigger conditions for actually building the fix:** targeting integrated /
+handheld hardware, or circle counts pushing past ~1000, or the overlays
+acquiring a second full-screen pass. Until one of those lands, the 256-cap
+(bd8b169) and the CPU quadratic (below) were the bugs that mattered.
+
 ## ⚠ Additive blending cannot compute a minimum. Don't bake the field.
 
 The tempting design: give each circle **one quad** instead of making every pixel
