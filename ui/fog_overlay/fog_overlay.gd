@@ -20,6 +20,9 @@ const _MAX_CIRCLES := 512
 # Truncation is loud, but only on the rising edge — _refresh runs on every
 # vision tick, and a warning per frame would bury the log.
 var _warned_overflow: bool = false
+# Spatial index over the current vision sources, rebuilt each _refresh. Turns
+# the per-element dimming pass from O(elements × sources) into O(elements).
+var _source_index := VisionSourceIndex.new()
 # Visible elements in the fade zone dim toward this floor instead of being
 # bisected by the per-fragment fog gradient. Matches the sensed-outline
 # alpha so a node transitioning visible → sensed has no brightness jump.
@@ -103,7 +106,11 @@ func _refresh() -> void:
 		packed.append(Vector4.ZERO)
 	mat.set_shader_parameter(&"circles", packed)
 	mat.set_shader_parameter(&"circle_count", sources.size())
-	_apply_per_element_dimming(sources)
+	# Built once per refresh, queried once per element. Without it the dimming
+	# pass below is O(elements × sources) and runs every frame while circles
+	# animate — 16.8ms at 150 sources / 300 elements. See #133.
+	_source_index.build(sources, union_smoothness)
+	_apply_per_element_dimming()
 
 
 ## Lift visible nodes/edges above the fog overlay and modulate their alpha
@@ -113,7 +120,7 @@ func _refresh() -> void:
 ## same node appears DARKER than a sensed neighbour in pitch black (sensed
 ## elements already z-promote above the fog). Sensed elements are left to
 ## their own render path (BaseCircle/Edge draw at a fixed sensed alpha).
-func _apply_per_element_dimming(sources: Array) -> void:
+func _apply_per_element_dimming() -> void:
 	if vision_system == null or vision_system.graph == null:
 		return
 	var graph := vision_system.graph
@@ -124,7 +131,7 @@ func _apply_per_element_dimming(sources: Array) -> void:
 			n.modulate.a = 1.0
 			continue
 		if vision_system.is_visible(n):
-			var dark := _sample_dark(n.global_position, sources)
+			var dark := _dark_from_sorted(_source_index.distances_near(n.global_position))
 			n.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			n.z_as_relative = false
 			n.z_index = ZLayers.SENSED
@@ -143,7 +150,7 @@ func _apply_per_element_dimming(sources: Array) -> void:
 		var to_vis: bool = vision_system.is_visible(e.to)
 		if from_vis and to_vis:
 			var mid: Vector2 = (e.from.global_position + e.to.global_position) * 0.5
-			var dark := _sample_dark(mid, sources)
+			var dark := _dark_from_sorted(_source_index.distances_near(mid))
 			e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			e.z_as_relative = false
 			e.z_index = ZLayers.SENSED
@@ -158,16 +165,34 @@ func _apply_per_element_dimming(sources: Array) -> void:
 ## [(1-falloff)·r .. r], pinned at 1 beyond. Sampling once per element at its
 ## center gives uniform per-element dimming. Keep in lockstep with the shader
 ## — a mismatch makes a node's dimming disagree with the fog behind it.
+##
+## Reference implementation: folds the whole source set. `_apply_per_element_dimming`
+## uses the indexed path instead, which is required to agree with this one
+## (test_vision_source_index.gd pins that).
 func _sample_dark(world_pos: Vector2, sources: Array) -> float:
-	if sources.is_empty():
+	var ds := PackedFloat32Array()
+	for s in sources:
+		ds.append(world_pos.distance_to(s.pos) / max(s.radius, 1.0))
+	ds.sort()
+	return _dark_from_sorted(ds)
+
+
+## Fold ascending normalized distances into a darkness in [0,1].
+##
+## The fold visits distances in ascending order so it can stop early: `min_d`
+## only ever decreases, and the remaining `d`s only increase, so once
+## `d >= min_d + k` every source left is a provable no-op (see
+## VisionSourceIndex's header for the algebra). Sorting also pins down a result
+## that used to depend on `get_vision_sources()`'s Dictionary iteration order.
+func _dark_from_sorted(sorted_distances: PackedFloat32Array) -> float:
+	if sorted_distances.is_empty():
 		return 1.0
 	# Finite sentinel, matching the shader. INF would make `lerp` produce
 	# INF * 0.0 == NaN on the first fold.
 	var min_d: float = 1e9
-	for s in sources:
-		var pos: Vector2 = s.pos
-		var r: float = max(s.radius, 1.0)
-		var d: float = world_pos.distance_to(pos) / r
+	for d in sorted_distances:
+		if d >= min_d + union_smoothness:
+			break
 		min_d = _smin(min_d, d, union_smoothness)
 	var fade_start: float = 1.0 - max(falloff, 1e-4)
 	return smoothstep(fade_start, 1.0, min_d)
