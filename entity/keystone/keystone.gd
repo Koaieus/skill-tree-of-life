@@ -28,3 +28,53 @@ extends Resource
 ## [AllocationSystem] grants each against the carrier, so deallocating the node
 ## revokes exactly these.
 @export var effects: Array[Effect] = []
+
+@export_group("Presentation")
+## Overrides the carrier's [member SkillNode.base_type_color] at stamp time, so
+## a landmark reads as one on the board. Fully transparent (the default) means
+## "leave the archetype colour alone".
+@export var color: Color = Color(0, 0, 0, 0)
+## Overrides the carrier's [member SkillNode.radius] at stamp time. `0.0` means
+## "leave it alone".
+@export var radius: float = 0.0
+## [SkillNodeAddon] scenes minted onto the carrier at stamp time — a keystone
+## that wants a visual gizmo or a node-local stat bundle brings its own.
+@export var addon_scenes: Array[PackedScene] = []
+
+
+## Author this keystone onto [param node] — the blueprint half (#149).
+##
+## [b]Presentation is baked, the payload stays live.[/b] Colour, radius and
+## addons are copied onto the node and the keystone is not consulted for them
+## again; [member effects] are left as a reference, read at every allocation. So
+## editing a keystone `.tres` still propagates its mechanics to every node
+## already carrying it, while its looks are a generation-time decision like any
+## other archetype stamp.
+##
+## Call this [b]after[/b] the node is in the tree: [SkillNode] connects its
+## addon-anchor signals in `_ready`, so an addon parented earlier would never
+## hand its modifiers over. [GraphProcgen] calls it right after `add_skill_node`.
+func stamp(node: SkillNode) -> void:
+	if node == null:
+		return
+	node.keystone = self
+	if color.a > 0.0:
+		node.base_type_color = color
+	if radius > 0.0:
+		node.radius = radius
+	if addon_scenes.is_empty():
+		return
+	if not node.is_inside_tree():
+		# The anchor's child_entered_tree hookup happens in SkillNode._ready, so
+		# an addon parented before then attaches visibly and stays mechanically
+		# inert — no error, just a silently missing modifier. Verified.
+		push_warning("Keystone '%s': stamp() called before %s entered the tree; "
+			% [display_name, node.name] + "addons would be inert. Skipping them.")
+		return
+	var anchor := node.get_node_or_null("Visuals/AddonAnchor")
+	if anchor == null:
+		push_warning("Keystone '%s': no AddonAnchor on %s; addons dropped." % [display_name, node.name])
+		return
+	for scene in addon_scenes:
+		if scene != null:
+			anchor.add_child(scene.instantiate())

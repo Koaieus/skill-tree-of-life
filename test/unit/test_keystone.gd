@@ -34,6 +34,65 @@ func test_empty_keystone_grants_nothing() -> void:
 	assert_eq(ks.effects.size(), 0, "no payload, nothing to grant")
 
 
+# ── stamp(): presentation is baked, the payload stays live ───────────────────
+
+func _stamped_node(ks: Keystone) -> SkillNode:
+	var node: SkillNode = _NODE_SCENE.instantiate()
+	autofree(node)
+	add_child(node)
+	await get_tree().process_frame
+	ks.stamp(node)
+	await get_tree().process_frame
+	return node
+
+
+func test_stamp_overrides_presentation() -> void:
+	var ks := Keystone.new()
+	ks.color = Color.MAGENTA
+	ks.radius = 48.0
+	var node: SkillNode = await _stamped_node(ks)
+	assert_eq(node.keystone, ks, "stamp records the identity reference")
+	assert_eq(node.base_type_color, Color.MAGENTA)
+	assert_eq(node.radius, 48.0)
+
+
+func test_stamp_leaves_unset_presentation_alone() -> void:
+	var untouched: SkillNode = _NODE_SCENE.instantiate()
+	autofree(untouched)
+	var ks := Keystone.new()  # transparent colour, zero radius
+	var node: SkillNode = await _stamped_node(ks)
+	assert_eq(node.base_type_color, untouched.base_type_color,
+		"a transparent keystone colour must not repaint the archetype")
+	assert_eq(node.radius, untouched.radius, "radius 0.0 means 'leave it alone'")
+
+
+func test_stamp_mints_addons_that_reach_the_node_board() -> void:
+	var ks := Keystone.new()
+	ks.addon_scenes = [preload("res://skill_node/addons/bunker_addon.tscn")]
+	var node: SkillNode = await _stamped_node(ks)
+	assert_eq(node.get_addons().size(), 1, "stamp mints the keystone's addons")
+	assert_eq(float(node.get_local_value(&"armor")), 5.0,
+		"a stamped addon's local_modifiers must reach node_board — the anchor "
+		+ "only listens once the node is in the tree")
+
+
+## The bake/live split: a keystone edited after stamping still changes what its
+## already-stamped nodes grant, because effects are read at allocation time.
+func test_payload_is_read_live_not_baked() -> void:
+	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
+	var ent := _make_entity()
+	add_child(alloc)
+	add_child(ent)
+	var ks := Keystone.new()
+	var node: SkillNode = await _stamped_node(ks)
+
+	ks.effects = _stat_keystone(&"strength", StatModifier.Operation.ADD_BASE, 7.0).effects
+	var base: float = ent.stat_board.strength.value
+	alloc.force_allocate(ent, node)
+	assert_eq(int(ent.stat_board.strength.value), int(base + 7),
+		"a payload added after the stamp still lands")
+
+
 func test_payload_reaches_the_carriers_owner() -> void:
 	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
 	var node: SkillNode = _NODE_SCENE.instantiate()

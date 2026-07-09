@@ -4,11 +4,9 @@ extends GuaranteedPlacement
 
 ## Places a [Keystone] on the node nearest a designer-specified position.
 ## The placement stores the keystone reference on the [PlacementContext]; the
-## per-node loop pins it on the resulting [SkillNode] as `meta("keystone")`.
-##
-## Runtime wiring (allocation → keystone.apply) is a follow-up; this step
-## just establishes the procgen-side placement contract so designers can
-## start authoring keystone catalogs.
+## per-node loop hands the resulting [SkillNode] to [method Keystone.stamp],
+## which bakes the keystone's presentation onto it and leaves its effects as a
+## live reference for [AllocationSystem] to grant on allocate.
 ##
 ## Future placement-rule subclasses might target highest-degree nodes,
 ## random within a region, exact node index, etc. For now: one rule.

@@ -159,11 +159,14 @@ static func generate(
 			# Persist role tags for downstream inspection / debug overlays.
 			if not placement_ctx.role_tags[i].is_empty():
 				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
-			# Consumed by AllocationSystem: allocating grants the keystone's
-			# effects to the owner, deallocating revokes them (#4).
-			if placement_ctx.keystones[i] != null:
-				sn.keystone = placement_ctx.keystones[i]
 		graph.add_skill_node(sn)
+		# After add_skill_node, so the node is in the tree and its addon anchor is
+		# listening. Outside the archetype gate, so a keystone lands even on a node
+		# procgen rolled no archetype for. The stamp overwrites the archetype colour
+		# by design — a landmark outranks its terrain. Effects stay a live reference
+		# on `sn.keystone`, granted by AllocationSystem on allocate.
+		if placement_ctx.keystones[i] != null:
+			placement_ctx.keystones[i].stamp(sn)
 		_roll_and_attach_addons(sn, config, rng)
 		nodes.append(sn)
 		if i > 0 and i % yield_every == 0:

@@ -19,8 +19,7 @@ var starter_indices: PackedInt32Array = PackedInt32Array()
 ## are visible to future weight profiles.
 var role_tags: Array = []
 ## Per-node [Keystone] reference (or null). Set by [KeystonePlacement];
-## the per-node loop pins it on the resulting [SkillNode] as meta `keystone`
-## so a future allocation hook can pick it up.
+## the per-node loop applies it via [method Keystone.stamp].
 var keystones: Array = []
 var rng: RandomNumberGenerator = null
 var config: GraphProcgenConfig = null
