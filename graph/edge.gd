@@ -166,10 +166,11 @@ func _display_color(base: Color, lit: bool) -> Color:
 		c.a = sensed_alpha
 	return c
 
-## Self-loop glyph: a circular ring tangent to the outside of the node,
-## sized relative to node radius. The loop center sits at `r + loop_radius`
-## from node center along the chosen direction, so the ring's interior
-## just kisses the node circumference and never overlaps the node body.
+## Self-loop glyph: a circular ring sunk slightly into the node so its near
+## tangent point sits *under* the node body instead of kissing the rim from
+## outside — SkillNode draws above edges (z_index 10 vs edge's -10), so the
+## overlapped arc is occluded and the ring reads as emerging from / vanishing
+## into the node rather than floating next to it as a separate lollipop.
 ##
 ## Direction is the bisector of the LARGEST angular gap between the node's
 ## other edges — keeps the self-loop visually clear of existing edges
@@ -178,16 +179,18 @@ func _display_color(base: Color, lit: bool) -> Color:
 ## but nest at growing radii (indexed via `from.self_loops`) so they read
 ## as concentric rings instead of stacking on top of each other.
 ## Recomputed each draw (cheap; degree ≪ 16 in practice).
+const SELF_LOOP_SINK: float = 4.0
+
 func _draw_self_loop() -> void:
 	var node_center := from.global_position - global_position
 	var r: float = from.radius
 	var idx: int = max(from.self_loops.find(self), 0)
 	var loop_radius: float = r * 0.55 * (1.0 + idx * 0.4)
 	var angle := _self_loop_bisector_angle()
-	var loop_center := node_center + Vector2.from_angle(angle) * (r + loop_radius)
+	var loop_center := node_center + Vector2.from_angle(angle) * (r + loop_radius - SELF_LOOP_SINK)
 	var c := _display_color(from.base_type_color, is_lit())
 	var w := width * (sensed_width_scale if sensed else 1.0)
-	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, w, true)
+	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, w, false)
 
 
 ## Registers `self` into `from.self_loops` the moment both endpoints make
