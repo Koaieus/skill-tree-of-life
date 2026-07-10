@@ -30,7 +30,8 @@ func get_def(id: StringName) -> StatDef:
 
 
 ## All registered StatDefs. Order is filesystem-walk order — callers that need
-## a stable presentation (e.g. the stats panel) should sort by `display_order`.
+## a stable presentation must impose their own sort (the `display_order` field
+## was retired in #120 along with the generic StatsPanel that consumed it).
 func get_all_defs() -> Array[StatDef]:
 	var out: Array[StatDef] = []
 	for def in _defs.values():

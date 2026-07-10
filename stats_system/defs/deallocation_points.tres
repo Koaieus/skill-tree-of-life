@@ -10,7 +10,4 @@ id = &"deallocation_points"
 display_name = "Deallocation Points"
 description = "Per-turn reshape budget (apparent movement). Resets to max at turn start; unspent are wasted."
 default_value = 3.0
-display_order = 7
-display_type = 2
 tint_color = Color(0.7, 0.5, 0.9, 1)
-display_group = &"overview"

@@ -8,6 +8,4 @@ id = &"range"
 display_name = "Range"
 description = "Ranged firing distance in scene pixels — distance from a leaf node to an enemy node it can fire on. Read per-leaf as a LocalStat, so node-level modifiers (sniper posts, scopes) extend reach on specific firing positions. Scales with DEX via an intrinsic formula modifier (+1% per DEX)."
 default_value = 400.0
-display_order = 70
 tint_color = Color(0.95, 0.55, 0.35, 1)
-display_group = &"combat"

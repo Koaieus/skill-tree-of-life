@@ -9,7 +9,4 @@ display_name = "Node Health"
 description = "Scaffold scalar: seeds the max HP of owned nodes. The per-node ephemeral pool lives on each TreeNode's combat component."
 value_type = 0
 default_value = 10.0
-display_order = 2
-display_type = 4
 tint_color = Color(0.8, 0.5, 0.5, 1)
-display_group = &"body"

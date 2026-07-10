@@ -8,7 +8,4 @@ per_turn_mode = 2
 id = &"mana"
 display_name = "Mana"
 description = "Magic resource pool. Used for casting spells. Max = base + INT//10; regen = floor(log(INT)) per turn."
-display_order = 30
-display_type = 2
 tint_color = Color(0.0, 0.72, 0.881, 1)
-display_group = &"overview"

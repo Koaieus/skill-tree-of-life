@@ -7,30 +7,10 @@ extends Resource
 ## See docs/design/stat_system.md.
 
 enum ValueType { INT, FLOAT, BOOL }
-## Picks the widget the stats panel renders for this stat.
-## BASIC   — single Label. Default for scalars.
-## BAR     — scalar as a bar against an implicit ceiling. Reserved; not authored yet.
-## PROGRESS— pool with current/max as a ProgressBar. Default for pool stats.
-## INLINE  — sub-row rendered immediately under parent_stat_id, dimmed. Use for
-##            per-turn stats and other derivatives that belong visually with a parent.
-## HIDDEN  — omitted from the panel entirely. Use for internal scratch stats.
-enum DisplayType { BASIC, BAR, PROGRESS, INLINE, HIDDEN }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export_multiline var description: String = ""
 @export var value_type: ValueType = ValueType.INT
 @export var default_value: float = 0.0
-@export var display_order: int = 0
-@export var display_type: DisplayType = DisplayType.BASIC
 @export var tint_color: Color = Color.WHITE
-## Tab a generic stat panel would route this stat into (legacy — the old
-## StatsPanel that consumed this was retired in #118; HudRoot's cards bind
-## specific stat ids directly instead of enumerating by display_group. Kept
-## as still-valid metadata pending a decision on whether a generic consumer
-## returns — see the #118 follow-up issue). Empty defaults to the catch-all
-## tab. Ignored for INLINE stats — those inherit their parent's tab.
-@export var display_group: StringName = &""
-## For INLINE display_type: the id of the stat this renders under as a sub-row.
-## The panel inserts the inline row immediately after the named parent's row.
-@export var parent_stat_id: StringName = &""

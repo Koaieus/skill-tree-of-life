@@ -10,5 +10,3 @@ description = "Per-node combat HP pool. Max is entity.node_health baseline + nod
 value_type = 1
 default_value = 10.0
 minimum_value = 0.0
-display_type = 4
-display_group = &"body"

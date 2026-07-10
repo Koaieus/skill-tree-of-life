@@ -9,7 +9,4 @@ display_name = "Blade Damage"
 description = "Base damage per node contact in a melee attack. Base 1, +1 per 10 STR. Addons (e.g. spikes) add on top via vertex_spikes."
 value_type = 0
 default_value = 1.0
-display_order = 51
-display_type = 0
 tint_color = Color(0.85, 0.3, 0.3, 1)
-display_group = &"combat"
