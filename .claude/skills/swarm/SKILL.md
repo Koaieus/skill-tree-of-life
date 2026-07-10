@@ -162,3 +162,21 @@ formality to `--force` past.
 - **Relay, don't paste.** The whole point is your context stays small. Summarize
   worker reports for the user in your own words; a swarm whose orchestrator pastes
   N diffs has spent its context anyway and saved nothing.
+- **Always `git -C <path>`, never bare `git` after a `cd`.** Bash's working
+  directory persists across tool calls. `cd` into a worktree to run its tests and
+  every later `git` command silently targets *that* worktree — a `merge --ff-only`
+  aimed at master will cheerfully report "Already up to date" while merging a
+  branch into itself. Nothing errors. Spell out the repo path on every git call.
+- **A worker's fresh worktree cold-imports and dirties tracked `.import` files**,
+  which makes `git rebase` refuse with "cannot rebase: You have unstaged changes."
+  Run `git -C <worktree> checkout -- .` first. Same for the main checkout after a
+  real-backend (`opengl3`) shader check — it re-imports every texture.
+- **`master` can move under you mid-swarm.** Another agent may land commits in the
+  shared main checkout while your workers run. That's fine — it's why step 6
+  rebases each branch immediately before its own merge — but *re-read `master`*
+  before concluding a merge misbehaved.
+- **Untracked files in the main checkout are invisible to worktrees**, so a test
+  count taken there won't match a worker's. Compare tracked-only totals, and when
+  a count is off, `git ls-files --error-unmatch <path>` before suspecting a worker.
+  A file present in the main checkout's suite but absent from every worktree's is
+  almost certainly untracked, not deleted by a worker.
