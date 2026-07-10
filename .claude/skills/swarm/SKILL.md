@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Direct a team of parallel subagents through one pre-planned, parallelizable issue — decompose into file-disjoint units, dispatch each to an isolated worktree agent, then review and fast-forward each branch into master. Use when the user says "swarm #<n>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as Opus, or as Sonnet when the plan is already written down.
+description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into file-disjoint units, or several small independent issues at once. Dispatch each unit to an isolated worktree agent, then review and fast-forward each branch into master. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as Opus, or as Sonnet when the plan is already written down.
 ---
 
 # Swarm
@@ -26,7 +26,13 @@ costs *more* than doing it yourself, because you pay decomposition + N merges an
 still end up reading the diffs.
 
 1. **Pre-decided.** Every design question is already answered — in the issue, in a
-   plan you just wrote, or in `docs/`. Workers cannot ask the user anything.
+   plan you just wrote, or in `docs/`. Workers cannot ask the user anything. An
+   issue that floats alternatives ("…or some other way to show it") is *not* yet
+   pre-decided: pick one, write it into the worker's prompt as settled, and tell
+   the worker not to redesign it. Descope the issue's speculative asides ("maybe
+   we can drop the trimming too?") to a `NOTES:` line — a second decision must not
+   ride along on a bug fix. Pinning those forks is the orchestrator's job; needing
+   the *user* to pin one is what fails this gate.
 2. **Parallelizable into file-disjoint units.** See below. This is the hard one.
 3. **Mechanical enough for a smaller model**, given red-green instructions: a
    failing test (or an exact spec) defines done.
@@ -41,12 +47,25 @@ decomposition is already written down — not when it must be derived.
 ### 1. Resolve and plan
 
 ```bash
-gh issue view <n> --comments
+gh issue view <n> --comments        # once per issue
 ```
+
+A swarm comes in two shapes, and they differ only in step 6:
+
+- **One issue, N units.** Split it yourself onto disjoint files.
+- **N independent issues, one unit each.** Small parallel issues; the partition
+  comes free, since separate issues rarely share files. Verify that anyway — if
+  two issues *do* overlap a file, they are not independent, and you run them
+  sequentially or as one unit.
 
 Then **think hard, before dispatching anything.** This is the step no worker can
 do for you, and the step that decides whether the swarm succeeds. Produce, for
 each unit: the files it owns, the acceptance test, and the exact instruction text.
+
+Diagnosing the bug *before* you dispatch is usually worth it. A worker handed
+"here is the root cause, implement exactly this" is a Sonnet doing mechanical
+work — the thing this skill is for. A worker handed "figure out why edges render
+above nodes" is a Sonnet doing the hard part alone, without your context.
 
 ### 2. Decompose onto disjoint files
 
@@ -108,6 +127,14 @@ git diff master...<worktreeBranch>            # then read it
 Verify the ownership boundary actually held (`--stat` shows any file a worker
 shouldn't have touched) before you look at content. Nothing merges unreviewed.
 
+A green suite proves the worker's *mechanism*, not the *outcome*. That gap is
+widest on visual work: a z-index assertion fully determines draw order, but no
+assertion tells you a semitransparent band is legible on screen, and a shader
+that compiles can still render nothing. When a unit changes what the game looks
+like, either drive it (`mise run play`, `/verify`) or say plainly to the user
+that you confirmed the plumbing and not the pixels. Don't let "tests pass, shader
+compiles" quietly stand in for "it looks right."
+
 ### 6. Merge, one branch at a time
 
 Per branch, in sequence, exactly as `warp` step 6 describes: rebase the branch
@@ -121,9 +148,20 @@ breaks, you want to know which branch did it.
 If the units were file-disjoint, every rebase is clean. A conflict here means the
 decomposition leaked — fix the decomposition's consequence, not just the conflict.
 
-**Closing the issue:** worker commits must not carry `Closes #<n>` (whichever
-merged first would close it early). Put it on your integration commit; if there
-is none, amend it onto the final branch's tip commit before that branch's rebase.
+**Closing the issue(s).** Workers never write `Closes #<n>` themselves — you add
+it, because only you know which branch is last. Amend it on before that branch's
+rebase, while you're still upstream of the merge:
+
+- **One issue, N units** — one `Closes #<n>`, on your integration commit, or
+  amended onto the *final* branch's tip. Not on the others: whichever merged
+  first would close the issue while the rest of the work is still in flight.
+- **N independent issues** — one `Closes #<n>` per branch, each naming its own
+  issue. Every branch is the last one for its issue.
+
+`Closes` fires on **push**, not on the local fast-forward. So merging does not
+close anything. Check `git status -sb` before you claim an issue is done, and
+remember `master` may carry unrelated commits (yours, or another agent's) that a
+push would ship alongside your work — surface that and let the user decide.
 
 ### 7. Teardown
 
