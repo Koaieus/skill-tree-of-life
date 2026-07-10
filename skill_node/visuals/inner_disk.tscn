@@ -3,16 +3,23 @@
 [ext_resource type="Script" uid="uid://ba7k8pq2mv2fg" path="res://skill_node/visuals/inner_disk.gd" id="1_disk"]
 [ext_resource type="Shader" uid="uid://btb3idp57soy7" path="res://skill_node/visuals/inner_disk.gdshader" id="1_fjp0c"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_pg2qw"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fjp0c"]
 shader = ExtResource("1_fjp0c")
 
 [node name="InnerDisk" type="Node2D" unique_id=1698059834]
-material = SubResource("ShaderMaterial_pg2qw")
-instance_shader_parameters/allocated = true
+material = SubResource("ShaderMaterial_fjp0c")
+instance_shader_parameters/allocated = false
+instance_shader_parameters/hairline_opacity = 0.0
+instance_shader_parameters/hairline_width = 0.015
 instance_shader_parameters/highlight_intensity = 0.85
 instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/show_weld = true
 instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
 instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/weld_k = 0.8200000000000001
+instance_shader_parameters/weld_sides = 3.0
+instance_shader_parameters/well_depth = 0.35
 script = ExtResource("1_disk")
-allocated = true
 show_weld = true
+weld_k = 0.8200000000000001
+hairline_opacity = 0.0

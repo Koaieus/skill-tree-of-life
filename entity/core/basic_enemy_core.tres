@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="CoreClass" format=3 uid="uid://dr6op7u70t3y"]
 
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="1_5r1b0"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="1_agu68"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="2_5r1b0"]
 
