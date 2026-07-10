@@ -81,7 +81,7 @@ signal depleted
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_marker: Node2D = $Visuals/CoreMarker
-@onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar # TODO: pull through vision system
+@onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
 @onready var _addon_anchor: Node2D = $Visuals/AddonAnchor
@@ -99,6 +99,20 @@ var sensed: bool = false:
 		if sensed == value:
 			return
 		sensed = value
+		_apply_sensed_state()
+
+## Fully-visible flag, written by VisionSystem on every recompute (mirrors
+## [member sensed], but for the "inside a vision radius" set rather than the
+## "sensed-only blip" set). Fog gates readable detail — the core HP bar shows
+## only when its node is actually revealed, not merely not-sensed (a fully-fogged
+## node also has `sensed == false`, so `not sensed` would leak an enemy core's HP
+## through darkness — #94). Defaults `true` so fog-less scenes/tests still read
+## the bar. Not a stat — a per-frame render hint.
+var revealed: bool = true:
+	set(value):
+		if revealed == value:
+			return
+		revealed = value
 		_apply_sensed_state()
 
 ## Sparse [StatBoard] for per-node localized stats. All fields start null;
@@ -173,7 +187,8 @@ func _refresh_core_health_bar(is_core: bool) -> void:
 	if is_core and owned_by != null and owned_by.stat_board != null:
 		pool = owned_by.stat_board.health
 	core_health_bar.bind_health(pool)
-	core_health_bar.visible = (not sensed) and is_core
+	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one, #94).
+	core_health_bar.visible = revealed and is_core
 
 
 ## Mirror the `sensed` flag onto the visual stack. Three things shift:
@@ -194,7 +209,7 @@ func _apply_sensed_state() -> void:
 	z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
 	var _is_core := owned_by != null and owned_by.core_location == self
 	core_marker.visible = (not sensed) and _is_core
-	core_health_bar.visible = (not sensed) and _is_core
+	core_health_bar.visible = revealed and _is_core
 	for a in get_addons():
 		a.visible = not sensed
 

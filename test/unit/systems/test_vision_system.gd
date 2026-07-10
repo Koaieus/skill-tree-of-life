@@ -178,6 +178,18 @@ func test_input_pickable_tracks_visibility() -> void:
 	assert_false(_nodes[4].input_pickable, "an unreached node is not clickable")
 
 
+func test_revealed_tracks_full_visibility_not_just_sensed() -> void:
+	# own N0 (visible), sense N1, N2..N4 unreached (darkness).
+	_sensed_names(1)
+	assert_true(_nodes[0].revealed, "the visible owned node is revealed")
+	assert_false(_nodes[1].revealed, "a sensed-only node is not revealed")
+	# Regression (#94): a fully-fogged node has sensed == false too, so gating
+	# readable detail (the core HP bar) on `not sensed` would leak it through
+	# darkness. `revealed` is the correct gate — it stays false here.
+	assert_false(_nodes[4].sensed, "an unreached node is not even sensed")
+	assert_false(_nodes[4].revealed, "an unreached (darkness) node is not revealed")
+
+
 # ── Edge sensing ──────────────────────────────────────────────────────────
 
 func _edge_between(a: SkillNode, b: SkillNode) -> Edge:

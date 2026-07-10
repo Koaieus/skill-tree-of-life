@@ -322,6 +322,7 @@ func _recompute() -> void:
 	for n in nodes:
 		n.input_pickable = _visible.has(n)
 		n.sensed = _sensed.has(n)
+		n.revealed = _visible.has(n)
 
 	# Edges follow the same logic as nodes but with stricter reveal: an
 	# edge is sensed iff BOTH endpoints are reached AND at least one is
