@@ -27,6 +27,11 @@ var _skill_node: SkillNode = null
 var _hovered: bool = false
 var _fade_tween: Tween = null
 var _value_tween: Tween = null
+## The alpha the current fade is committed to. Tracked separately from the live
+## `modulate.a` because a fade tween can be mid-flight — comparing against the
+## momentary alpha would let `_fade_to` early-return while a tween still drives
+## alpha toward the *opposite* target, leaving the bar stuck (#147).
+var _fade_target: float = 0.0
 
 
 func _ready() -> void:
@@ -123,8 +128,9 @@ func _update_visibility() -> void:
 
 
 func _fade_to(target_alpha: float) -> void:
-	if is_equal_approx(modulate.a, target_alpha):
+	if is_equal_approx(_fade_target, target_alpha):
 		return
+	_fade_target = target_alpha
 	if _fade_tween:
 		_fade_tween.kill()
 	_fade_tween = create_tween()

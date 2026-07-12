@@ -20,6 +20,9 @@ var _fill_style: StyleBoxFlat = null
 var _pool: PoolStat = null
 var _fade_tween: Tween = null
 var _value_tween: Tween = null
+## Committed fade target — see the same field in health_bar.gd (#147). Guards
+## against early-returning while a fade tween is still driving alpha the other way.
+var _fade_target: float = 0.0
 
 
 func _ready() -> void:
@@ -78,8 +81,9 @@ func _sync() -> void:
 # ── Fade ──────────────────────────────────────────────────────────────────────
 
 func _fade_to(target_alpha: float) -> void:
-	if is_equal_approx(modulate.a, target_alpha):
+	if is_equal_approx(_fade_target, target_alpha):
 		return
+	_fade_target = target_alpha
 	if _fade_tween:
 		_fade_tween.kill()
 	_fade_tween = create_tween()
