@@ -69,7 +69,9 @@ func bind(entity: Entity) -> void:
 	# concept, not wired here) — health gets no preview band until one is.
 	_bind_pool(_health_gauge, _health_caption, board.health, null)
 	_bind_pool(_mana_gauge, _mana_caption, board.mana, board.mana_per_turn)
-	_bind_pool(_xp_gauge, _xp_caption, board.xp, board.xp_per_turn)
+	# XP gets its own binding so a level-up plays a fill→wrap→fill animation
+	# instead of the raw pool edits collapsing into a downward jump (#154).
+	_bind_xp(board.xp, board.xp_per_turn)
 
 
 func _disconnect_entity() -> void:
@@ -79,6 +81,75 @@ func _disconnect_entity() -> void:
 
 func _on_leveled_up(new_level: int) -> void:
 	_level_badge.text = str(new_level)
+
+
+# ── XP gauge (#154): level-up-aware binding ──────────────────────────────────
+
+var _xp_pool: PoolStat
+var _xp_per_turn: ScalarStat
+## The gauge's last settled state — the "before" of a level-up, since the pool
+## already holds the "after" by the time the level-up is observable.
+var _xp_shown_current: float = 0.0
+var _xp_shown_max: float = 0.0
+var _xp_apply_queued: bool = false
+var _xp_leveled: bool = false
+
+
+func _bind_xp(pool: PoolStat, per_turn: ScalarStat) -> void:
+	if _xp_gauge == null or pool == null:
+		return
+	_xp_pool = pool
+	_xp_per_turn = per_turn
+	_xp_shown_current = float(pool.current)
+	_xp_shown_max = float(pool.value)
+	_xp_gauge.min_value = 0.0
+	_xp_gauge.max_value = _xp_shown_max
+	_xp_gauge.current = _xp_shown_current
+	_xp_gauge.preview_gain = float(per_turn.value) if per_turn != null else 0.0
+	pool.current_changed.connect(func(_v): _on_xp_changed())
+	pool.value_changed.connect(_on_xp_changed)
+	# `replenished` fires once per level-up (pool crossed its cap), after the
+	# synchronous grow+reset — a reliable flag for the coalesced apply below.
+	pool.replenished.connect(func(): _xp_leveled = true)
+	if per_turn != null:
+		per_turn.value_changed.connect(func(): _xp_gauge.preview_gain = float(per_turn.value))
+		per_turn.value_changed.connect(_refresh_xp_caption)
+	_refresh_xp_caption()
+
+
+func _on_xp_changed() -> void:
+	_refresh_xp_caption()
+	# Coalesce the level-up's fill→grow→reset burst (three synchronous edits) into
+	# one deferred apply, so we compare the settled "before" to the final "after".
+	if _xp_apply_queued:
+		return
+	_xp_apply_queued = true
+	_apply_xp.call_deferred()
+
+
+func _apply_xp() -> void:
+	_xp_apply_queued = false
+	if _xp_pool == null or _xp_gauge == null:
+		return
+	var new_current := float(_xp_pool.current)
+	var new_max := float(_xp_pool.value)
+	if _xp_leveled:
+		_xp_leveled = false
+		_xp_gauge.play_level_up(_xp_shown_current, _xp_shown_max, new_current, new_max)
+	else:
+		_xp_gauge.max_value = new_max
+		_xp_gauge.current = new_current
+	_xp_shown_current = new_current
+	_xp_shown_max = new_max
+
+
+func _refresh_xp_caption() -> void:
+	if _xp_caption == null or _xp_pool == null:
+		return
+	if _xp_per_turn != null and float(_xp_per_turn.value) > 0.0:
+		_xp_caption.text = "%d/%d (+%d/t)" % [int(_xp_pool.current), int(_xp_pool.value), int(_xp_per_turn.value)]
+	else:
+		_xp_caption.text = "%d/%d" % [int(_xp_pool.current), int(_xp_pool.value)]
 
 
 func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: ScalarStat) -> void:

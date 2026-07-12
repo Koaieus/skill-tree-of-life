@@ -13,7 +13,11 @@ const DRAIN_FADE_TIME := 0.9
 	set(v):
 		var old := current
 		current = v
-		if v < old:
+		if _suppress_drain:
+			# A scripted animation (e.g. the level-up wrap) owns the motion;
+			# never spawn a drain trail that would fight it.
+			drain_from = v
+		elif v < old:
 			# Freeze the ghost at the old value, then tween it down to the
 			# new one so the loss reads as a fading trail, not a snap.
 			drain_from = old
@@ -100,7 +104,16 @@ const DRAIN_FADE_TIME := 0.9
 		cell_gap = v
 		_push(&"cell_gap", v)
 
+## Level-up animation timings (#154). Fill = each rise (to old cap, then to the
+## overflow amount at the new cap); wrap = the snap-to-empty between them.
+@export_range(0.0, 1.5, 0.01) var level_up_fill_time: float = 0.35
+@export_range(0.0, 0.6, 0.01) var level_up_wrap_time: float = 0.10
+
 var _drain_tween: Tween
+var _level_tween: Tween
+## Set while a scripted level-up animation drives `current`, to disable the
+## drain-trail branch of its setter.
+var _suppress_drain: bool = false
 
 func _ready() -> void:
 	if material == null:
@@ -128,6 +141,36 @@ func _push_all() -> void:
 	_push(&"skew_degrees", skew_degrees)
 	_push(&"corner_radius", corner_radius)
 	_push(&"cell_gap", cell_gap)
+
+## Play the XP-style level-up sequence (#154): fill from the pre-level fraction
+## up to the OLD cap, snap-empty at the NEW cap, then fill to the overflow amount
+## the new level started with. Without this the pool's three synchronous signal
+## edits (fill → grow-cap → reset-to-overflow) collapse into one frame and the
+## bar reads as jumping *down*. Caller passes the pre-level and post-level state
+## because by the time a level-up is observable the pool already holds the final.
+func play_level_up(old_current: float, old_max: float, new_current: float, new_max: float) -> void:
+	if not is_inside_tree():
+		max_value = new_max
+		current = new_current
+		return
+	if _level_tween:
+		_level_tween.kill()
+	_suppress_drain = true
+	max_value = old_max
+	current = old_current
+	_level_tween = create_tween()
+	# Phase 1 — fill to full at the old cap.
+	_level_tween.tween_property(self, ^"current", old_max, level_up_fill_time) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+	# Phase 2 — grow the cap and empty the bar (the "wrap").
+	_level_tween.tween_callback(func() -> void: max_value = new_max)
+	_level_tween.tween_property(self, ^"current", float(min_value), level_up_wrap_time) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	# Phase 3 — fill to the overflow the new level opened with.
+	_level_tween.tween_property(self, ^"current", new_current, level_up_fill_time) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_level_tween.tween_callback(func() -> void: _suppress_drain = false)
+
 
 func _animate_drain_to(target: float) -> void:
 	if not is_inside_tree():
