@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://dgog4rl3yb7mh" path="res://graph/edge.tscn" id="4_edge_scene"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="7_qrijo"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="8_umwfs"]
+[ext_resource type="Script" uid="uid://f73t1rkb44ye" path="res://stats_system/surplus_pool_stat.gd" id="8_surplus"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="9_o5a17"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="9_skill"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="10_entity"]
@@ -59,7 +60,7 @@ base_value = 3.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
 resource_name = "deallocation_points"
-script = ExtResource("8_umwfs")
+script = ExtResource("8_surplus")
 current = 3.0
 definition = ExtResource("9_o5a17")
 base_value = 3.0
@@ -180,7 +181,7 @@ definition = ExtResource("20_3ogaa")
 
 [sub_resource type="Resource" id="pool_movement_points"]
 resource_name = "movement_points"
-script = ExtResource("8_umwfs")
+script = ExtResource("8_surplus")
 current = 1.0
 definition = ExtResource("21_sybeb")
 base_value = 1.0
@@ -299,7 +300,7 @@ base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_0clpu"]
 resource_name = "deallocation_points"
-script = ExtResource("8_umwfs")
+script = ExtResource("8_surplus")
 current = 3.0
 definition = ExtResource("9_o5a17")
 base_value = 3.0
@@ -410,7 +411,7 @@ definition = ExtResource("20_3ogaa")
 
 [sub_resource type="Resource" id="Resource_54w3d"]
 resource_name = "movement_points"
-script = ExtResource("8_umwfs")
+script = ExtResource("8_surplus")
 current = 1.0
 definition = ExtResource("21_sybeb")
 base_value = 1.0

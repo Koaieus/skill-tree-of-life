@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"ap_transfer_rate"
+display_name = "AP Transfer Rate"
+description = "Each unused action point at turn end converts into this many bonus deallocation + movement surplus points for the following turn (#152). Default 2. A class-identity knob: a Pacifist raises it, a Berserker drops it to 0."
+value_type = 1
+default_value = 2.0
+tint_color = Color(0.9084, 0.6684, 0.3042, 1)

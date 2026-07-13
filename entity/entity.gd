@@ -59,11 +59,10 @@ const READY_GROUP := &"ready_to_act"
 ## initiative and serve turns; death cleanup removes the corpse so it's skipped.
 const GROUP := &"entities"
 
-## #152: each unused action point at turn end grants this many surplus DP/MP
-## for the *following* turn (burn-it-or-lose-it). Flat 1:1 for now — the tuning
-## (stat-scaled, DEX-weighted, initiative knob) is an open design question, kept
-## a single knob so it's a one-line change. See SurplusPoolStat.
-const SURPLUS_TRANSFER_FACTOR := 1
+## #152: fallback AP→surplus conversion used only when a board carries no
+## `ap_transfer_rate` stat (sparse / test boards). The live knob is the
+## `ap_transfer_rate` ScalarStat — see `_transfer_unused_ap_to_surplus`.
+const DEFAULT_AP_TRANSFER_RATE := 2.0
 
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
@@ -228,7 +227,11 @@ func _on_turn_ended(entity: Entity) -> void:
 func _transfer_unused_ap_to_surplus() -> void:
 	if stat_board == null or stat_board.action_points == null:
 		return
-	var boost := roundi(stat_board.action_points.current) * SURPLUS_TRANSFER_FACTOR
+	# `ap_transfer_rate` is a real board stat, so class identity (Pacifist ↑,
+	# Berserker → 0) and future DEX scaling tune it via modifiers, no code change.
+	# roundi the *product* so a fractional rate doesn't truncate the unused AP.
+	var rate: float = stat_board.ap_transfer_rate.get_value() if stat_board.ap_transfer_rate != null else DEFAULT_AP_TRANSFER_RATE
+	var boost := roundi(stat_board.action_points.current * rate)
 	if stat_board.deallocation_points != null:
 		stat_board.deallocation_points.set_surplus(boost)
 	if stat_board.movement_points != null:

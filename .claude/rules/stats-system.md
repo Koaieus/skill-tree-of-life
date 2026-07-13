@@ -114,7 +114,7 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 
 ### Turn-*end*: unused-AP → DP/MP surplus (#152)
 
-`Entity._on_turn_ended` transfers each unused action point 1:1 into next turn's `deallocation_points`/`movement_points` **surplus** (`SURPLUS_TRANSFER_FACTOR`, flat 1 for now — tuning is an open design question). This lives at turn *end*, not start, because unused AP is only known then; turn-start REFILL then leaves the surplus untouched (it's outside the cap). `set_surplus` **overwrites**, so a turn ending with all AP spent writes 0 and self-clears the prior boost. See the `SurplusPoolStat` note under "Pool stats".
+`Entity._on_turn_ended` transfers each unused action point into next turn's `deallocation_points`/`movement_points` **surplus**, scaled by the **`ap_transfer_rate`** ScalarStat (default 2 — see "Turn Budget" board field). `boost = roundi(unused_ap × rate)`; the product is rounded so a future fractional/DEX-scaled rate doesn't truncate. Because `ap_transfer_rate` is an ordinary board stat, **class identity tunes it with no bespoke mechanism** — a Pacifist raises it, a Berserker drops it to 0 (see `PacifistCore`). `Entity.DEFAULT_AP_TRANSFER_RATE` is the fallback only for sparse/test boards that carry no such stat. This lives at turn *end*, not start, because unused AP is only known then; turn-start REFILL then leaves the surplus untouched (it's outside the cap). `set_surplus` **overwrites**, so a turn ending with all AP spent writes 0 and self-clears the prior boost. See the `SurplusPoolStat` note under "Pool stats".
 
 ### Then: node refill + class hook
 

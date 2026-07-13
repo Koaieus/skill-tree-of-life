@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
+[ext_resource type="Resource" path="res://stats_system/defs/ap_transfer_rate.tres" id="def_ap_transfer_rate"]
 [ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="def_blade_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
@@ -279,6 +280,12 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_wound_heal_per_turn")
 base_value = 1.0
 
+[sub_resource type="Resource" id="scalar_ap_transfer_rate"]
+resource_name = "ap_transfer_rate"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_ap_transfer_rate")
+base_value = 2.0
+
 [sub_resource type="Resource" id="pool_xp"]
 resource_name = "xp"
 script = ExtResource("3_pool")
@@ -310,6 +317,7 @@ wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
 movement_points = SubResource("pool_movement_points")
+ap_transfer_rate = SubResource("scalar_ap_transfer_rate")
 initiative = SubResource("pool_initiative")
 initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")

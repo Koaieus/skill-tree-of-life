@@ -58,6 +58,10 @@ extends Resource
 @export var deallocation_points: SurplusPoolStat  ## Default 3/3 — reshape budget. Surplus bin for #152 transient boost.
 @export var action_points: PoolStat        	## Default 2/2 — attacks per turn.
 @export var movement_points: SurplusPoolStat	## Default 1/1 — moves Core along edges. Surplus bin for #152 transient boost.
+## Default 2 — each unused AP at turn end grants this many bonus DP + MP surplus
+## next turn (#152). A modifier target like any other stat, so class identity
+## tunes it (Pacifist raises, Berserker → 0) with no bespoke mechanism.
+@export var ap_transfer_rate: ScalarStat
 
 @export_group("Turn Order")
 @export var initiative: PoolStat				## Turn clock; cap = action threshold (100). Cyclic — carries overshoot.
