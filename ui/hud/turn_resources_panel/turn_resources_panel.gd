@@ -98,12 +98,19 @@ func _bind_cells(gauge: PoolGauge, pool: PoolStat) -> void:
 	if gauge == null or pool == null:
 		return
 	gauge.min_value = 0.0
+	var surplus_gauge := gauge as SurplusPoolGauge
+	var surplus_pool := pool as SurplusPoolStat
 	var sync := func():
 		gauge.max_value = float(pool.value)
 		gauge.cell_count = float(pool.value)
 		gauge.current = float(pool.current)
+		# DP/MP carry a transient surplus bin (#152) shown as trailing cells.
+		if surplus_gauge != null and surplus_pool != null:
+			surplus_gauge.surplus = float(surplus_pool.surplus)
 	pool.current_changed.connect(sync.unbind(1))
 	pool.value_changed.connect(sync)
+	if surplus_pool != null:
+		surplus_pool.surplus_changed.connect(sync)
 	sync.call()
 
 

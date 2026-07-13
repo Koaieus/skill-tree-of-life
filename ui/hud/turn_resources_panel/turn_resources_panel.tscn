@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
 [ext_resource type="PackedScene" uid="uid://ep57rx7ojh8t" path="res://ui/gauges/composite_bar_gauge.tscn" id="4_composite"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="4_d4wth"]
+[ext_resource type="Script" path="res://ui/gauges/surplus_pool_gauge.gd" id="5_surplus"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_7rqcp"]
 resource_local_to_scene = true
@@ -164,6 +165,7 @@ material = SubResource("ShaderMaterial_q3w8c")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
+script = ExtResource("5_surplus")
 fill_color = Color(0.6935, 0.4045, 0.9676, 1)
 glow_color = Color(0.6935, 0.4045, 0.9676, 0.6)
 cell_count = 3.0
@@ -185,6 +187,7 @@ material = SubResource("ShaderMaterial_dyvt3")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
+script = ExtResource("5_surplus")
 max_value = 5.0
 fill_color = Color(0.3187, 0.7773, 0.4484, 1)
 glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)

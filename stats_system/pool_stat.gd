@@ -80,6 +80,14 @@ func set_current(v: float) -> void:
 		replenished.emit()
 
 
+## Spendable-this-turn budget. On a plain pool this is just `current`; the
+## [SurplusPoolStat] subclass adds its out-of-cap surplus bin on top. Gates and
+## budgets should read this (not `current`) so a transient surplus is honoured
+## polymorphically without the caller knowing which subclass it holds.
+func available() -> int:
+	return roundi(current)
+
+
 func deplete(amount: float) -> void:
 	set_current(current - amount)
 

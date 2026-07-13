@@ -24,5 +24,6 @@ Canonical colors from `docs/design/design_handoff_game_ui/README.md`, converted 
 | SP wounded | `oklch(0.60 0.20 25)` | `Color(0.8725, 0.2322, 0.2404, 1)` | Skill Points gauge component `@export` default |
 | SP staked | `oklch(0.78 0.13 75)` | `Color(0.9084, 0.6684, 0.3042, 1)` | Skill Points gauge component `@export` default |
 | SP allocated | `rgba(150,165,200,.30)` | `Color(0.588, 0.647, 0.784, 0.30)` | Skill Points gauge component `@export` default |
+| Pool surplus (#152) | — (reuses SP-staked gold) | `Color(0.9084, 0.6684, 0.3042, 0.85)` | `SurplusPoolGauge.surplus_color` `@export` default + `pool_gauge.gdshader` uniform default |
 
 Conversion script (Björn Ottosson's OKLab formulas) used to derive these: `/tmp/.../oklch2srgb.py` in the session that authored this table — re-derive with the same math if more design colors need converting; don't eyeball new ones.

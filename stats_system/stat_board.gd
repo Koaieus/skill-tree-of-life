@@ -55,9 +55,9 @@ extends Resource
 @export var wound_heal_per_turn: ScalarStat
 
 @export_group("Turn Budget")
-@export var deallocation_points: PoolStat  ## Default 3/3 — reshape budget.
+@export var deallocation_points: SurplusPoolStat  ## Default 3/3 — reshape budget. Surplus bin for #152 transient boost.
 @export var action_points: PoolStat        	## Default 2/2 — attacks per turn.
-@export var movement_points: PoolStat		## Default 1/1 — moves Core along edges.
+@export var movement_points: SurplusPoolStat	## Default 1/1 — moves Core along edges. Surplus bin for #152 transient boost.
 
 @export_group("Turn Order")
 @export var initiative: PoolStat				## Turn clock; cap = action threshold (100). Cyclic — carries overshoot.

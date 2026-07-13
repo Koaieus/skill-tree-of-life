@@ -121,7 +121,7 @@ func can_deallocate(node: SkillNode, entity: Entity) -> bool:
 	if node.is_core():
 		return false
 	var board := entity.stat_board
-	if board != null and board.deallocation_points != null and board.deallocation_points.current < 1:
+	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
 		return false
 	if entity.navigator != null and entity.navigator.would_disconnect_from(node, entity.core_location):
 		return false
@@ -239,7 +239,7 @@ func can_move_core(entity: Entity, target: SkillNode) -> bool:
 	if not _is_adjacent_via_real_edge(source, target):
 		return false
 	var board := entity.stat_board
-	if board != null and board.movement_points != null and board.movement_points.current < 1:
+	if board != null and board.movement_points != null and board.movement_points.available() < 1:
 		return false
 	return true
 
@@ -307,7 +307,7 @@ func _movement_budget(entity: Entity) -> int:
 		return 0
 	var board := entity.stat_board
 	if board != null and board.movement_points != null:
-		return int(board.movement_points.current)
+		return board.movement_points.available()
 	return 0
 
 

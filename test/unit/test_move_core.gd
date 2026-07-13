@@ -113,6 +113,31 @@ func test_zero_mp_rejected() -> void:
 			"zero MP must reject even on a valid landing")
 
 
+func test_surplus_only_budget_allows_move() -> void:
+	# #152: current MP drained to 0 but a transient surplus of 1 — the gate reads
+	# available() (current + surplus), so the move is allowed and spends surplus
+	# first (burn-it-or-lose-it), leaving current untouched at 0.
+	var mp := _mp() as SurplusPoolStat
+	mp.deplete(int(mp.current))  # current -> 0
+	mp.set_surplus(1)
+	assert_eq(mp.current, 0.0, "precondition: no ordinary MP")
+	assert_true(_alloc.can_move_core(_player, _nodes[1]),
+			"surplus alone must satisfy the move gate")
+	assert_true(_alloc.move_core(_player, _nodes[1]), "move should commit on surplus budget")
+	assert_eq(mp.surplus, 0, "surplus is spent first")
+	assert_eq(mp.current, 0.0, "ordinary MP untouched — the surplus covered the hop")
+
+
+func test_exhausted_surplus_then_rejects() -> void:
+	var mp := _mp() as SurplusPoolStat
+	mp.deplete(int(mp.current))
+	mp.set_surplus(1)
+	assert_true(_alloc.move_core(_player, _nodes[1]))  # spends the 1 surplus
+	# Core is now on N1; a further hop has no budget (current 0, surplus 0).
+	assert_false(_alloc.can_move_core(_player, _nodes[2]),
+			"once surplus is burned and current is 0, further moves reject")
+
+
 # ── move_core side effects ────────────────────────────────────────────────
 
 func test_move_core_commits_location_and_spends_mp() -> void:

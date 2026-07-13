@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="1_board"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="2_scalar"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="3_pool"]
+[ext_resource type="Script" uid="uid://f73t1rkb44ye" path="res://stats_system/surplus_pool_stat.gd" id="3_surplus"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
@@ -67,7 +68,7 @@ base_value = 1.0
 
 [sub_resource type="Resource" id="pool_dealloc"]
 resource_name = "deallocation_points"
-script = ExtResource("3_pool")
+script = ExtResource("3_surplus")
 current = 3.0
 definition = ExtResource("def_dealloc")
 base_value = 3.0
@@ -213,7 +214,7 @@ base_value = 3.0
 
 [sub_resource type="Resource" id="pool_movement_points"]
 resource_name = "movement_points"
-script = ExtResource("3_pool")
+script = ExtResource("3_surplus")
 current = 3.0
 definition = ExtResource("def_movement_points")
 base_value = 3.0

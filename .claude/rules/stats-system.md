@@ -70,6 +70,22 @@ Growth math: `new_max = stat._coerce(old_max * growth_factor + growth_flat)` —
 
 Modifiers on `skill_points` behave like modifiers on any other PoolStat — they bump max via the pipeline, and `heal_on_max_increase=true` on the def causes modifier-driven max changes to also bump current. `claim()` bypasses the modifier path (writes base_value directly) so heal_on_max_increase does NOT fire — that's exactly what distinguishes it from grant.
 
+`deallocation_points` and `movement_points` are `SurplusPoolStat` (PoolStat subclass, #152/#156). Unlike SkillPointStat's bins which sit *inside* max, its one extra bin — `surplus: int` — sits **outside** the cap:
+
+```
+available() == roundi(current) + surplus     # may exceed .value
+```
+
+Surplus is a **transient budget boost** (extra DP/MP for one turn). It's deliberately outside two systems that would otherwise stomp it:
+- **`restore_to_full()`** only moves `current` against the cap, so a turn-start REFILL leaves surplus untouched (that's the whole point — a turn-start cap-modifier boost would arrive *after* the refill that fills it).
+- **The modifier pipeline** never consults it — no `heal_on_max_increase`, and crucially it survives a `SET`-short-circuit. A `SET cap = 0` pool with nonzero surplus is a legal, meaningful state (an entity whose entire DP/MP budget is bought with unspent AP); a cap-modifier design can't represent it.
+
+Contract: **overwritten each turn, never accumulated** — write it with `set_surplus(n)` (never an `add_surplus`, which would let an idle entity compound it). `deplete()` draws **surplus-first** (burn-it-or-lose-it: the boost is spent on travel or wasted; ordinary budget survives an idle turn). Cap changes never clamp surplus.
+
+**Gates and budgets must read `available()`, not `.current`.** `PoolStat.available()` (base) returns `roundi(current)`; `SurplusPoolStat` overrides it to add the bin. So `AllocationSystem.can_deallocate` / `can_move_core` / `_movement_budget`, `HighlightController`, and `PlayerInputController` all read `available()` and honour surplus polymorphically without knowing the subclass. A gate reading `.current` would grant cells the player can't spend.
+
+**Negative caps are undefined — don't reach for them.** `PoolStat.set_current` does `clamp(v, _min_value(), cap)`; with `cap = -1` the range inverts and `clamp` returns the cap, so `current` lands at `-1` (below floor) and `depleted` fires on *every* write, including every turn-start `restore_to_full()`. Harmless for DP/MP (nothing listens), fatal for `health` (`depleted` → `die()`). Express a penalty as a debt bin with real semantics, or clamp caps at zero — a real `min_value` change is its own issue.
+
 Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't go through `force_allocate`, so `AllocationSystem.register_scene_authored_ownership()` walks the graph at GameRoot._ready and claims for each pre-owned node. Procgen content runs later and claims via force_allocate — no double-count.
 
 ## Turn-start upkeep
@@ -95,6 +111,10 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 **Fractional rates accumulate, they don't truncate.** `SkillPointStat.wound_heal_progress` (0..1, runtime-only) banks `wound_heal_per_turn` every turn upkeep; once it crosses 1.0 *and* `wounded > 0` it heals 1 SP and drains by 1.0. A rate below 1 (e.g. 0.5 — two turns per healed SP) would silently heal nothing forever under a naive `int(rate)` per-turn call, which is what this replaced. While `wounded == 0` the progress holds at a capped 1.0 instead of wrapping — nothing to spend it on yet — so it reads "full" until the entity is wounded again, at which point the *very next* turn upkeep immediately heals and drains it. `wound_heal_progress_changed(progress)` is what `turn_resources_panel.gd` binds its sliver to; the label showing the rate itself is always visible (not gated on `wounded > 0`) since the rate is a stat a player wants to see even unwounded.
 
 `health` is `NONE` (the core does not auto-heal yet — a future "1/turn" core regen would be `ADD` with a `health_per_turn` companion, or a `CoreClass.on_turn_started` hook for class-specific healing).
+
+### Turn-*end*: unused-AP → DP/MP surplus (#152)
+
+`Entity._on_turn_ended` transfers each unused action point 1:1 into next turn's `deallocation_points`/`movement_points` **surplus** (`SURPLUS_TRANSFER_FACTOR`, flat 1 for now — tuning is an open design question). This lives at turn *end*, not start, because unused AP is only known then; turn-start REFILL then leaves the surplus untouched (it's outside the cap). `set_surplus` **overwrites**, so a turn ending with all AP spent writes 0 and self-clears the prior boost. See the `SurplusPoolStat` note under "Pool stats".
 
 ### Then: node refill + class hook
 

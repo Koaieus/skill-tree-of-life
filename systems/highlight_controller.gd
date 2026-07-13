@@ -79,7 +79,7 @@ func _build_core_provider() -> CoreMoveHighlightProvider:
 	var entity: Entity = src.owned_by if src != null and src.owned_by != null else player
 	var budget := 0
 	if entity != null and entity.stat_board != null and entity.stat_board.movement_points != null:
-		budget = int(entity.stat_board.movement_points.current)
+		budget = entity.stat_board.movement_points.available()
 	var reach: Dictionary = {}
 	if allocation_system != null and entity != null:
 		reach = allocation_system.reachable_core_landings(entity, budget)

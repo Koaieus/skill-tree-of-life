@@ -59,6 +59,12 @@ const READY_GROUP := &"ready_to_act"
 ## initiative and serve turns; death cleanup removes the corpse so it's skipped.
 const GROUP := &"entities"
 
+## #152: each unused action point at turn end grants this many surplus DP/MP
+## for the *following* turn (burn-it-or-lose-it). Flat 1:1 for now — the tuning
+## (stat-scaled, DEX-weighted, initiative knob) is an open design question, kept
+## a single knob so it's a one-line change. See SurplusPoolStat.
+const SURPLUS_TRANSFER_FACTOR := 1
+
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
@@ -206,12 +212,27 @@ func _on_turn_started(entity: Entity) -> void:
 	dispatch(&"_on_turn_start")
 
 
-## Listens for TurnManager.turn_ended. Nothing but effect dispatch today — the
-## entity has no end-of-turn upkeep of its own (budgets refill on turn *start*).
+## Listens for TurnManager.turn_ended. Transfers unused action points into next
+## turn's DP/MP surplus (#152), then runs effect dispatch. Surplus is written
+## here — not on turn start — because unused AP is only known once the turn is
+## over; turn-start REFILL then leaves the surplus untouched (it sits outside the
+## cap). set_surplus *overwrites*, so a turn ending with 0 unused AP self-clears
+## last turn's boost.
 func _on_turn_ended(entity: Entity) -> void:
 	if entity != self:
 		return
+	_transfer_unused_ap_to_surplus()
 	dispatch(&"_on_turn_end")
+
+
+func _transfer_unused_ap_to_surplus() -> void:
+	if stat_board == null or stat_board.action_points == null:
+		return
+	var boost := roundi(stat_board.action_points.current) * SURPLUS_TRANSFER_FACTOR
+	if stat_board.deallocation_points != null:
+		stat_board.deallocation_points.set_surplus(boost)
+	if stat_board.movement_points != null:
+		stat_board.movement_points.set_surplus(boost)
 
 
 ## Listens for initiative.replenished (clock crossed its cap). Joins the ready

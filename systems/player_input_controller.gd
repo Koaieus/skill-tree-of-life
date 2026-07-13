@@ -336,7 +336,7 @@ func _movement_points_current() -> int:
 	if player == null or player.stat_board == null:
 		return 0
 	var mp: PoolStat = player.stat_board.movement_points
-	return int(mp.current) if mp != null else 0
+	return mp.available() if mp != null else 0
 
 
 ## Mirror the drag's snapped landing into the active core-move highlight provider
@@ -391,7 +391,7 @@ func _player_has_movement_points() -> bool:
 	if player == null or player.stat_board == null:
 		return false
 	var mp: PoolStat = player.stat_board.movement_points
-	return mp != null and mp.current >= 1
+	return mp != null and mp.available() >= 1
 
 
 func _set_move_targeting_source(value: SkillNode) -> void:

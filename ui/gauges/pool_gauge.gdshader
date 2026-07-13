@@ -16,6 +16,12 @@ uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 0.6);
 uniform vec4 drain_color : source_color = vec4(0.9, 0.3, 0.3, 0.5);
 uniform float preview_gain = 0.0;
 uniform vec4 preview_color : source_color = vec4(1.0, 1.0, 1.0, 0.25);
+// Transient budget bin sitting OUTSIDE the cap (#152 / SurplusPoolStat). Drawn
+// as `surplus` extra battery cells appended past the cap-count cells, in
+// surplus_color. 0 = disabled (resting state), so plain PoolGauges are
+// unaffected. Cell branch only — surplus is a battery concept (DP/MP).
+uniform float surplus = 0.0;
+uniform vec4 surplus_color : source_color = vec4(0.91, 0.67, 0.30, 0.85);
 uniform float shine_speed = 0.6;
 uniform float cell_count = 0.0;
 uniform float skew_degrees = 0.0;
@@ -56,7 +62,13 @@ void fragment() {
 		}
 		COLOR = vec4(col.rgb, col.a * shape_alpha);
 	} else {
-		float n = max(1.0, floor(cell_count + 0.5));
+		// base_n = the cap's cells (fill math anchors here); the surplus bin
+		// appends `surp` more cells past the cap. Geometry (cell width, index,
+		// discard) uses the total so every cell fits the fixed widget width and
+		// the strip re-widens once surplus clears.
+		float base_n = max(1.0, floor(cell_count + 0.5));
+		float surp = max(0.0, floor(surplus + 0.5));
+		float n = base_n + surp;
 		// Shearing the whole cell strip by skew_degrees would push the
 		// top or bottom edge of the outermost cells past the texture
 		// bounds (clipped off) for any nonzero skew. Instead of shearing
@@ -82,20 +94,24 @@ void fragment() {
 		float local_x = mod(sheared_x, cell_w);
 		float gap_mask = step(cell_gap * 0.5, local_x) * step(local_x, cell_w - cell_gap * 0.5);
 
-		float filled_upto = fill_frac * n;
-		float drain_upto = drain_frac * n;
-		float preview_upto = preview_frac * n;
-		bool filled = idx < filled_upto - 0.001;
-		bool draining = !filled && idx < drain_upto - 0.001;
-		bool previewing = !filled && !draining && idx < preview_upto - 0.001;
+		// Fill fractions are relative to the cap, so multiply by base_n.
+		float filled_upto = fill_frac * base_n;
+		float drain_upto = drain_frac * base_n;
+		float preview_upto = preview_frac * base_n;
+		bool is_surplus = idx >= base_n - 0.001;
+		bool filled = !is_surplus && idx < filled_upto - 0.001;
+		bool draining = !is_surplus && !filled && idx < drain_upto - 0.001;
+		bool previewing = !is_surplus && !filled && !draining && idx < preview_upto - 0.001;
 
 		vec4 col = filled ? fill_color : empty_color;
-		if (draining) {
+		if (is_surplus) {
+			col = surplus_color;  // trailing surplus cell — available, spent first
+		} else if (draining) {
 			col = drain_color;
 		} else if (previewing) {
 			col = preview_color;
 		}
-		if (filled) {
+		if (filled || is_surplus) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb += glow_color.rgb * glow_color.a * pow(shine, 6.0) * 0.4;
 		}
