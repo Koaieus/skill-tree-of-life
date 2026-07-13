@@ -15,6 +15,9 @@ extends Resource
 ## field keeps the Entity contract uniform across runs.
 
 @export var display_name: String = ""
+
+@export_multiline var description: String = ""
+
 ## Persistent modifiers granted by this class. Applied once during
 ## Entity._ready via `apply()`. Formula-driven entries are duplicated
 ## automatically — same .tres can sit on many entities safely.
@@ -29,6 +32,11 @@ extends Resource
 ## so effects must keep runtime state on their [EffectInstance], never on
 ## themselves.
 @export var effects: Array[Effect] = []
+
+## Visual identity mark rendered on the HUD hero card ([HeroSigilCard]). `null`
+## falls back to the card's default glyph — existing classes without one
+## (Pacifist, basic enemy) keep working unchanged. See [Sigil].
+@export var sigil: Sigil = null
 
 
 ## Wire this class onto the given entity. Default applies the modifier set and

@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="CoreClass" format=3 uid="uid://oo7fcspevd4s"]
+
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Script" uid="uid://n522mioa0d4q" path="res://effects/aura_effect.gd" id="3_aura"]
+[ext_resource type="Script" uid="uid://b6apvlm4x1tgu" path="res://effects/metric/hop_metric.gd" id="4_hop"]
+[ext_resource type="Script" uid="uid://br6ngcebah1at" path="res://effects/metric/euclidean_metric.gd" id="5_euclid"]
+[ext_resource type="Script" uid="uid://cfjomnv7kdqqh" path="res://effects/distance_scale/proportional_scale.gd" id="6_prop"]
+[ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="7_7hpuy"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="8_effect"]
+
+[sub_resource type="Resource" id="scale_hop"]
+script = ExtResource("6_prop")
+
+[sub_resource type="Resource" id="metric_hop"]
+script = ExtResource("4_hop")
+
+[sub_resource type="Resource" id="mod_hop_buff"]
+script = ExtResource("2_mod")
+stat_id = &"armor"
+operation = 3
+
+[sub_resource type="Resource" id="aura_hop_buff"]
+script = ExtResource("3_aura")
+metric = SubResource("metric_hop")
+distance_scale = SubResource("scale_hop")
+display_name = "Coil (hops)"
+description = "The further a node winds from the core in hops, the more armor it gains."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hop_buff")])
+
+[sub_resource type="Resource" id="scale_euclid"]
+script = ExtResource("6_prop")
+per_unit = 0.005
+
+[sub_resource type="Resource" id="metric_euclid"]
+script = ExtResource("5_euclid")
+
+[sub_resource type="Resource" id="mod_euclid_penalty"]
+script = ExtResource("2_mod")
+stat_id = &"armor"
+operation = 3
+value = -1.0
+
+[sub_resource type="Resource" id="aura_euclid_penalty"]
+script = ExtResource("3_aura")
+metric = SubResource("metric_euclid")
+distance_scale = SubResource("scale_euclid")
+display_name = "Coil (space)"
+description = "The further a node sits from the core in space, the more armor it loses."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_euclid_penalty")])
+
+[sub_resource type="Resource" id="mod_str"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_dex"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_int"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 10.0
+
+[resource]
+script = ExtResource("7_7hpuy")
+display_name = "Serpent"
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
+effects = Array[ExtResource("8_effect")]([SubResource("aura_hop_buff"), SubResource("aura_euclid_penalty")])

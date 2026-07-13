@@ -176,9 +176,17 @@ one, and `Edge.gd` holds one.)
 |---|---|---|---|
 | Bulwark | `EuclideanRangeFinder` / `HopRangeFinder` | inherited | `FlatScale` |
 | Halo | `HopRangeFinder(shell+1)` | inherited | `ShellScale` |
-| Ninja | `null` | `HopMetric` | `ProportionalScale` |
+| Ninja | `HopRangeFinder(2)` | inherited | `LinearScale` (falling, `strength` buff) |
 | Serpent A | `null` | `HopMetric` | `ProportionalScale` (positive mods) |
 | Serpent B | `null` | `EuclideanMetric` | `ProportionalScale` (negative mods) |
+
+Ninja shipped bounded rather than the unbounded-debuff shape this table used to
+show (that shape lives on as `test_aura_effect.gd`'s generic direction-agnostic
+`ProportionalScale` demo, not as the class) — the design doc calls for an
+*intense, very-short-range buff*, and an unbounded `ProportionalScale` can't
+express "bounded": pairing it with a bounded reach is the trap the scale's own
+docstring warns about. `NinjaCore`/`ninja_core.tres` and `SerpentCore`/
+`serpent_core.tres` (#39) are the reference implementations for this table now.
 
 Serpent's two components land on the same stat as `ADD_BONUS` and sum through one
 `ModifierBins.compute` — `Array[Effect]` *is* the composite.

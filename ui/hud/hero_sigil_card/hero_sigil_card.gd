@@ -17,6 +17,7 @@ extends MarginContainer
 @onready var _panel: GlassPanel = %GlassPanel
 @onready var _emblem_ring: Control = %EmblemRing
 @onready var _emblem_glyph: Label = %EmblemGlyph
+@onready var _sigil_glyph: SigilGlyph = %SigilGlyph
 @onready var _level_badge: Label = %LevelBadge
 @onready var _name_label: Label = %NameLabel
 @onready var _class_label: Label = %ClassLabel
@@ -58,7 +59,10 @@ func bind(entity: Entity) -> void:
 
 	_name_label.text = _entity.display_name
 	_class_label.text = _entity.core_class.display_name if _entity.core_class != null else "Allround"
-	_emblem_glyph.text = "✦"  # ✦
+	var sigil: Sigil = _entity.core_class.sigil if _entity.core_class != null else null
+	_sigil_glyph.sigil = sigil
+	_sigil_glyph.visible = sigil != null
+	_emblem_glyph.visible = sigil == null  # fallback glyph for classes with no sigil authored
 	_level_badge.text = str(_entity.level)
 	_entity.leveled_up.connect(_on_leveled_up)
 
