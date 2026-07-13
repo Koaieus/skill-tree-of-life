@@ -104,6 +104,61 @@ Give each worker its acceptance test up front. A worker that can run
 `mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is done;
 one that can't will report "looks right" and be wrong.
 
+### 3a. Teammates & a shared task board (preferred coordination surface)
+
+Spawn workers as **teammates** rather than fire-and-forget subagents. A teammate
+is spawned via the `Agent` tool's `name` parameter and joins the session's
+implicit **agent team** — which gives two things a bare background subagent does
+not: a shared **task list** (`TaskCreate` / `TaskList` / `TaskUpdate`) and a
+mailbox (`SendMessage`). The task board is the coordination surface — you see
+each unit's status flip live instead of blocking on final reports, and the board
+*is* the shared plan the user asked to see.
+
+**Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`** read at launch (env var, or
+an `env` block in `settings.json` — the durable home, since it applies regardless
+of cwd/shell). Check it first — `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. When
+it's unset the `name` parameter is inert: workers spawn isolated, cannot see the
+task board, and report only via their final message. You cannot enable it
+mid-session; it's a relaunch. If it's off and the user wants teammates, say so and
+let them relaunch — don't seed a board that the workers will never see (see the
+gotcha below).
+
+**Launch-timing trap:** the `echo` reads your Bash shell, not the running
+Claude process. If the user adds the flag mid-session, a fresh Bash shows `1`
+while the session that decided team-membership at *its* startup still has teams
+off. So a value that flipped `unset → 1` partway through the session is **not**
+proof teams is live — confirm with a relaunch before seeding a board you're
+betting the swarm on.
+
+Flow when teams is on:
+
+1. **Seed the board before dispatch.** One `TaskCreate` per unit; put the
+   ownership boundary (the exact paths it owns) and the acceptance test right in
+   the `description`. Any shared-file integration step you own becomes its own
+   task, with `addBlockedBy` naming the unit tasks that must land first — the
+   dependency is now explicit on the board instead of living only in your head.
+2. **Spawn with `name`.** Still `isolation: "worktree"`, `model: "sonnet"` (or
+   `"haiku"`), `run_in_background: true`. Give each teammate a stable `name`
+   (`field-noise`, `field-gaussian`) and tell it in its prompt **which task id it
+   owns** and to `TaskUpdate` it: `in_progress` on start, `completed` only on
+   green. `drone` still governs its flow.
+3. **Watch, don't poll narratively.** `TaskList` shows the live board. A teammate
+   stuck on a blocker is unblocked by `SendMessage` to its name — worktree and
+   context intact, far cheaper than a cold respawn (same as the Collect rule).
+
+Gotchas:
+
+- **The board is team-scoped.** Tasks are shared only among teammates on the same
+  team. Seed a board, then spawn plain (nameless / teams-off) subagents, and they
+  won't see it — you've built a plan nobody reads. Board and teammates go together
+  or not at all.
+- **A teammate still cannot see this conversation.** The task `description` is its
+  briefing — everything the fire-and-forget prompt would carry (owned files,
+  acceptance test, "done" definition) goes there or in the spawn prompt, not left
+  implicit because "it's on the board."
+- Teardown, review, and merge (steps 5–7) are unchanged — a teammate's worktree
+  and branch behave exactly like a background worker's.
+
 ### 4. Collect
 
 `drone` mandates a terse structured report. Read those, not the diffs. If a
