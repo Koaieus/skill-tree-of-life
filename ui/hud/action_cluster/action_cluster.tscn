@@ -102,6 +102,17 @@ theme_override_font_sizes/font_size = 10
 text = "0 unspent Action Points"
 horizontal_alignment = 2
 
+[node name="ConversionLabel" type="RichTextLabel" parent="." unique_id=1284495550]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_override_font_sizes/normal_font_size = 10
+bbcode_enabled = true
+text = "[right]⇒ +0 move · +0 dealloc[/right]"
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+
 [node name="EndTurnButton" parent="." unique_id=355718479 instance=ExtResource("3_endturn")]
 unique_name_in_owner = true
 layout_mode = 2

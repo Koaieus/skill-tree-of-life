@@ -19,6 +19,11 @@ extends PoolGauge
 
 
 func _ready() -> void:
+	# A surplus pool is always a battery — even at cap 0 (Pacifist), where its
+	# entire budget is the out-of-cap surplus. Set before super() so _push_all
+	# carries it. Without it, cell_count 0 would route to the smooth branch that
+	# never draws surplus.
+	force_cells = true
 	super()
 	# _push_all() on the base doesn't know about these; push them after the
 	# base wiring (and material duplicate) is done.

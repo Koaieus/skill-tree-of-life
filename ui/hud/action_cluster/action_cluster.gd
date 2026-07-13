@@ -14,6 +14,7 @@ extends Control
 @onready var _ap_gauge: PoolGauge = %APGauge
 @onready var _value_label: Label = %ValueLabel
 @onready var _warning_label: Label = %WarningLabel
+@onready var _conversion_label: RichTextLabel = %ConversionLabel
 @onready var _end_turn_button: EndTurnButton = %EndTurnButton
 
 var _player: Entity
@@ -40,6 +41,7 @@ func bind(player: Entity, turn_manager: TurnManager, input_ctl: PlayerInputContr
 			if _value_label != null:
 				_value_label.text = "%d/%d" % [int(ap.current), int(ap.value)]
 			_refresh_warning()
+			_refresh_conversion()
 		ap.current_changed.connect(sync.unbind(1))
 		ap.value_changed.connect(sync)
 		sync.call()
@@ -62,6 +64,7 @@ func _on_turn_started(entity: Entity) -> void:
 	_end_turn_button.hide_confirm()
 	_refresh_end_turn_button()
 	_refresh_warning()
+	_refresh_conversion()
 
 
 func _on_turn_ended(entity: Entity) -> void:
@@ -94,6 +97,37 @@ func _refresh_warning() -> void:
 		return
 	_warning_label.modulate.a = 1.0
 	_warning_label.text = "%d unspent Action Point%s" % [int(ap.current), "" if int(ap.current) == 1 else "s"]
+
+
+## The positive framing of the same unspent AP: what it converts into next turn
+## (#152 — each unused AP becomes `ap_transfer_rate` surplus DP *and* MP). Shown
+## whenever there's a nonzero conversion, independent of the warning's
+## enemy-visible gate — a wandering Pacifist with no enemy in sight is exactly
+## when this matters most. move/dealloc are tinted with their stats' own colors.
+func _refresh_conversion() -> void:
+	if _conversion_label == null or _player == null or _player.stat_board == null:
+		return
+	var board := _player.stat_board
+	var ap: PoolStat = board.action_points
+	if ap == null or ap.current <= 0:
+		_conversion_label.modulate.a = 0.0
+		return
+	var rate: float = board.ap_transfer_rate.get_value() if board.ap_transfer_rate != null else Entity.DEFAULT_AP_TRANSFER_RATE
+	var boost := roundi(ap.current * rate)
+	if boost <= 0:
+		_conversion_label.modulate.a = 0.0
+		return
+	var mp_col := _stat_tint(board.movement_points)
+	var dp_col := _stat_tint(board.deallocation_points)
+	_conversion_label.modulate.a = 1.0
+	_conversion_label.text = "[right]⇒ [color=#%s]+%d move[/color] · [color=#%s]+%d dealloc[/color][/right]" % [mp_col, boost, dp_col, boost]
+
+
+## Hex (RRGGBB) of a stat's authored tint, for bbcode. Falls back to white.
+func _stat_tint(stat: Stat) -> String:
+	if stat != null and stat.definition != null:
+		return stat.definition.tint_color.to_html(false)
+	return "ffffff"
 
 
 func _warning_showing() -> bool:

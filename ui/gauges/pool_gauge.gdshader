@@ -22,6 +22,12 @@ uniform vec4 preview_color : source_color = vec4(1.0, 1.0, 1.0, 0.25);
 // unaffected. Cell branch only — surplus is a battery concept (DP/MP).
 uniform float surplus = 0.0;
 uniform vec4 surplus_color : source_color = vec4(0.91, 0.67, 0.30, 0.85);
+// Force the battery (cell) branch even when cell_count is 0. A SurplusPoolStat
+// pool whose cap is SET to 0 (Pacifist) still wants cells — its whole budget is
+// the out-of-cap surplus. Without this, cell_count == 0 routes to the smooth
+// branch, which never reads `surplus`, so the boost renders as an empty bar.
+// Plain smooth bars (Health/Mana/XP) leave this 0.
+uniform float force_cells = 0.0;
 uniform float shine_speed = 0.6;
 uniform float cell_count = 0.0;
 uniform float skew_degrees = 0.0;
@@ -40,7 +46,12 @@ void fragment() {
 	float preview_frac = clamp((current + preview_gain - min_value) / value_range, 0.0, 1.0);
 	vec2 px = UV * size;
 
-	if (cell_count < 0.5) {
+	// Battery mode when we have real cells, a nonzero surplus to append, or a
+	// pool that always wants cells (force_cells). Otherwise a smooth bar.
+	float surp = max(0.0, floor(surplus + 0.5));
+	bool cell_mode = cell_count >= 0.5 || surp >= 0.5 || force_cells >= 0.5;
+
+	if (!cell_mode) {
 		vec2 centered = px - size * 0.5;
 		float d = sd_round_rect(centered, size * 0.5, corner_radius);
 		float shape_alpha = 1.0 - smoothstep(-1.0, 1.0, d);
@@ -65,10 +76,11 @@ void fragment() {
 		// base_n = the cap's cells (fill math anchors here); the surplus bin
 		// appends `surp` more cells past the cap. Geometry (cell width, index,
 		// discard) uses the total so every cell fits the fixed widget width and
-		// the strip re-widens once surplus clears.
-		float base_n = max(1.0, floor(cell_count + 0.5));
-		float surp = max(0.0, floor(surplus + 0.5));
-		float n = base_n + surp;
+		// the strip re-widens once surplus clears. base_n may be 0 (a cap-0
+		// Pacifist pool draws only its surplus cells, no phantom empty cell);
+		// n is floored at 1 so a resting 0/0+0 pool still shows one empty slot.
+		float base_n = max(0.0, floor(cell_count + 0.5));
+		float n = max(1.0, base_n + surp);
 		// Shearing the whole cell strip by skew_degrees would push the
 		// top or bottom edge of the outermost cells past the texture
 		// bounds (clipped off) for any nonzero skew. Instead of shearing
@@ -98,7 +110,9 @@ void fragment() {
 		float filled_upto = fill_frac * base_n;
 		float drain_upto = drain_frac * base_n;
 		float preview_upto = preview_frac * base_n;
-		bool is_surplus = idx >= base_n - 0.001;
+		// Surplus cells are the band [base_n, base_n + surp); past that (the
+		// n>=1 placeholder slot at rest) is an ordinary empty cell, not gold.
+		bool is_surplus = idx >= base_n - 0.001 && idx < base_n + surp - 0.001;
 		bool filled = !is_surplus && idx < filled_upto - 0.001;
 		bool draining = !is_surplus && !filled && idx < drain_upto - 0.001;
 		bool previewing = !is_surplus && !filled && !draining && idx < preview_upto - 0.001;

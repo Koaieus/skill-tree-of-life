@@ -89,6 +89,15 @@ const DRAIN_FADE_TIME := 0.9
 		cell_count = v
 		_push(&"cell_count", v)
 
+## Force battery (cell) rendering even at cell_count 0. A SurplusPoolGauge whose
+## pool cap is SET to 0 (Pacifist) still draws cells for its out-of-cap surplus;
+## without this, cell_count 0 falls into the smooth-bar branch that ignores
+## surplus. Plain vitals bars leave this false.
+@export var force_cells: bool = false:
+	set(v):
+		force_cells = v
+		_push(&"force_cells", 1.0 if v else 0.0)
+
 @export_range(-45.0, 45.0, 0.5) var skew_degrees: float = 0.0:
 	set(v):
 		skew_degrees = v
@@ -138,6 +147,7 @@ func _push_all() -> void:
 	_push(&"preview_color", preview_color)
 	_push(&"shine_speed", shine_speed)
 	_push(&"cell_count", cell_count)
+	_push(&"force_cells", 1.0 if force_cells else 0.0)
 	_push(&"skew_degrees", skew_degrees)
 	_push(&"corner_radius", corner_radius)
 	_push(&"cell_gap", cell_gap)
