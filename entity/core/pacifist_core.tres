@@ -1,0 +1,56 @@
+[gd_resource type="Resource" script_class="PacifistCore" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://entity/core/pacifist_core.gd" id="1_core"]
+[ext_resource type="Script" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+
+[sub_resource type="Resource" id="mod_str"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_dex"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_int"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_armor"]
+script = ExtResource("2_mod")
+stat_id = &"armor"
+operation = 0
+value = 3.0
+
+[sub_resource type="Resource" id="mod_ap"]
+script = ExtResource("2_mod")
+stat_id = &"action_points"
+operation = 0
+value = 2.0
+
+[sub_resource type="Resource" id="mod_transfer"]
+script = ExtResource("2_mod")
+stat_id = &"ap_transfer_rate"
+operation = 0
+value = 2.0
+
+[sub_resource type="Resource" id="mod_mp_zero"]
+script = ExtResource("2_mod")
+stat_id = &"movement_points"
+operation = 4
+value = 0.0
+priority = 100
+
+[sub_resource type="Resource" id="mod_dp_zero"]
+script = ExtResource("2_mod")
+stat_id = &"deallocation_points"
+operation = 4
+value = 0.0
+priority = 100
+
+[resource]
+script = ExtResource("1_core")
+display_name = "Pacifist"
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_armor"), SubResource("mod_ap"), SubResource("mod_transfer"), SubResource("mod_mp_zero"), SubResource("mod_dp_zero")])
