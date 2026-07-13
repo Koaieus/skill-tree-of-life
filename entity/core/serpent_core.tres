@@ -66,5 +66,6 @@ value = 10.0
 [resource]
 script = ExtResource("7_7hpuy")
 display_name = "Serpent"
+description = "The Coil — two auras at once: a node gains armor the further it winds from the core in hops, and loses armor the further it sits from the core in space. The sweet spot is many hops away yet spatially close — a tight coil, or a wind bridging a chasm."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
 effects = Array[ExtResource("8_effect")]([SubResource("aura_hop_buff"), SubResource("aura_euclid_penalty")])

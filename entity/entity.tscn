@@ -5,7 +5,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_8vg6i"]
 [ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="3_s1kue"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="4_ec552"]
-[ext_resource type="Script" uid="uid://bv71o73jcthj3" path="res://entity/core/balanced_core.gd" id="4_f6k7f"]
+[ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="4_f6k7f"]
 [ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="5_whxwk"]
 [ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="6_g2k83"]
 [ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="7_g2k83"]
@@ -16,7 +16,7 @@
 [sub_resource type="Resource" id="Resource_psl4n"]
 resource_local_to_scene = true
 script = ExtResource("4_f6k7f")
-metadata/_custom_type_script = "uid://bv71o73jcthj3"
+metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 
 [sub_resource type="Resource" id="Resource_wrmdn"]
 resource_local_to_scene = true

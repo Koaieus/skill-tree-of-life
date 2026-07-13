@@ -27,6 +27,6 @@ metadata/_custom_type_script = "uid://ddlh35gou7ixj"
 [resource]
 script = ExtResource("3_466st")
 display_name = "Balanced"
-description = null
+description = "The vanilla class: +10 STR / DEX / INT and nothing else. The baseline every other class is tuned against — every class delta is \"vs Balanced\"."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
 sigil = SubResource("Resource_1xoxv")

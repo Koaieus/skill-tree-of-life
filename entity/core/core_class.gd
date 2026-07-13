@@ -7,9 +7,11 @@ extends Resource
 ## tank), plus optional virtual hooks for behaviors that go beyond pure stats
 ## (turn-start upkeep, AI policy, attack-plan tweaks).
 ##
-## Concrete subclasses extend this for compile-time class identity. A `.tres`
-## per concrete class defines the actual modifier set; designers author them
-## via the inspector. Entity composes one as `core_class: CoreClass`, not
+## Most classes are just a `.tres` on this base — a modifier/effect/sigil
+## bundle designers author via the inspector. Only classes that need a
+## behavioural hook (a custom `apply`, `on_turn_started`, AI policy) subclass
+## this; a pure stat/aura class does not (Balanced, Ninja, Serpent all ride
+## the plain resource). Entity composes one as `core_class: CoreClass`, not
 ## subclasses it — the core IS the entity, but the entity is also more than
 ## the core (its owned subgraph, its initiative position), so a swappable
 ## field keeps the Entity contract uniform across runs.

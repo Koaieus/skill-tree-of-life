@@ -37,7 +37,7 @@
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="34_0crsu"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="35_t3rmt"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="36_3dnei"]
-[ext_resource type="Script" uid="uid://bv71o73jcthj3" path="res://entity/core/balanced_core.gd" id="37_oknoy"]
+[ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="37_oknoy"]
 [ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="38_x1xyy"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="39_dcn82"]
 [ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="40_ut4r8"]
@@ -338,7 +338,7 @@ intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vi
 [sub_resource type="Resource" id="Resource_lgeib"]
 resource_local_to_scene = true
 script = ExtResource("37_oknoy")
-metadata/_custom_type_script = "uid://bv71o73jcthj3"
+metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 
 [sub_resource type="Resource" id="Resource_jotj6"]
 resource_local_to_scene = true
@@ -381,7 +381,7 @@ intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vi
 [sub_resource type="Resource" id="Resource_gnwdd"]
 resource_local_to_scene = true
 script = ExtResource("37_oknoy")
-metadata/_custom_type_script = "uid://bv71o73jcthj3"
+metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 
 [sub_resource type="Resource" id="Resource_2psax"]
 resource_local_to_scene = true

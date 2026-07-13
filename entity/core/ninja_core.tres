@@ -58,5 +58,6 @@ value = -1.0
 [resource]
 script = ExtResource("8_mw6me")
 display_name = "Ninja"
+description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_dealloc"), SubResource("mod_sp")])
 effects = Array[ExtResource("7_effect")]([SubResource("aura_strike")])

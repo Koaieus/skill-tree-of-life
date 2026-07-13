@@ -6,8 +6,8 @@ extends Sigil
 ## symmetric in every direction, no axis favored, nothing sharp. Replaces the
 ## "✦" glyph [HeroSigilCard] stood in with for every class before #39.
 
-# TODO: arrange that any concrete sigil has full editor preview support? even editor-composing?
-# TODO: shouldn't this be a .tres?
+# Editor preview, editor-composing, and the .gd-vs-.tres question for concrete
+# sigils are tracked in #167 (Sigil ↔ inner-disk weld unification / rendering).
 
 @export_range(8, 128, 1) var samples: int = 64
 
