@@ -30,6 +30,8 @@ func _initialize() -> void:
 		"res://addons/vfx_playground/playground_panel.tscn", &"load_coordinator")
 	_gen_live("30_statboard_tab", "StatBoard", &"statboard",
 		"res://addons/stat_board_visualizer/stat_board_graph.tscn", &"load_board")
+	_gen_live("35_procgen_tab", "Procgen", &"procgen",
+		"res://procgen/playground/playground_panel.tscn", &"load_config")
 
 	# Played tabs — launch cards.
 	_gen_played("40_allocation_tab", "Allocation VFX",

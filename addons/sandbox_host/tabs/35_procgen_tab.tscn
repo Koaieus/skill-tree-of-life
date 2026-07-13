@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_07t5g"]
+[ext_resource type="PackedScene" path="res://procgen/playground/playground_panel.tscn" id="2_7vf5f"]
+
+[node name="Procgen" type="MarginContainer" unique_id=640303382]
+script = ExtResource("1_07t5g")
+tab_title = "Procgen"
+tab_id = &"procgen"
+panel_scene = ExtResource("2_7vf5f")
+loader_method = &"load_config"
