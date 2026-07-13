@@ -623,7 +623,7 @@ func _on_addon_added(c: Node) -> void:
 				return
 	for m in a.entity_modifiers:
 		add_entity_modifier(m)
-	for m in a.local_modifiers:
+	for m in a.get_local_modifiers():
 		add_local_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
@@ -635,7 +635,7 @@ func _on_addon_removed(c: Node) -> void:
 	var a := c as SkillNodeAddon
 	for m in a.entity_modifiers:
 		remove_entity_modifier(m)
-	for m in a.local_modifiers:
+	for m in a.get_local_modifiers():
 		remove_local_modifier(m)
 
 
