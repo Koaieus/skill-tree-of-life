@@ -13,7 +13,7 @@ paths:
 
 `(base + ADD_BASE) × (1 + INCREASE/100) × MULTIPLY + ADD_BONUS`
 
-- **SET** short-circuits everything; highest `priority` wins, last-in breaks ties at equal priority.
+- **SET** short-circuits everything; highest `priority` wins, last-in breaks ties at equal priority. **Convention:** class-identity SETs (e.g. `pacifist_core.tres` SETting `movement_points`/`deallocation_points` to 0) author `priority = 100` so the anchor sits above any node/keystone/addon SET (those default to 0). Keep class SETs at this tier; leave node content below it.
 - **INCREASE** sums additively (PoE-style). Five +20% = ×2.0, NOT (1.2)⁵.
 
 ## Local stats (per-node overrides)

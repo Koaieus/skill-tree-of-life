@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="PacifistCore" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="CoreClass" format=3 uid="uid://bri0ncfru2o8n"]
 
-[ext_resource type="Script" path="res://entity/core/pacifist_core.gd" id="1_core"]
-[ext_resource type="Script" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="1_core"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="1_pyoar"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 
 [sub_resource type="Resource" id="mod_str"]
 script = ExtResource("2_mod")
@@ -21,19 +22,16 @@ value = 10.0
 [sub_resource type="Resource" id="mod_armor"]
 script = ExtResource("2_mod")
 stat_id = &"armor"
-operation = 0
 value = 3.0
 
 [sub_resource type="Resource" id="mod_ap"]
 script = ExtResource("2_mod")
 stat_id = &"action_points"
-operation = 0
 value = 2.0
 
 [sub_resource type="Resource" id="mod_transfer"]
 script = ExtResource("2_mod")
 stat_id = &"ap_transfer_rate"
-operation = 0
 value = 2.0
 
 [sub_resource type="Resource" id="mod_mp_zero"]
