@@ -44,8 +44,6 @@ static func _make_starting_spellbook() -> SpellBook:
 ## Random-walk expansion steps per entity, after core allocation.
 @export var expansion_steps: int = 6
 
-const SPECIMEN_POOL_SET = preload("res://procgen/pools/specimen_pool_set.tres")
-
 
 func _setup_level() -> void:
 	if preset == null:
@@ -56,7 +54,6 @@ func _setup_level() -> void:
 		cfg.node_count = node_count_override
 	cfg.n_random_starters = n_random_starters
 	cfg.viability_radius = viability_radius
-	cfg.modifier_pool_set = SPECIMEN_POOL_SET.duplicate(true)
 
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.

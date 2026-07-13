@@ -2,9 +2,8 @@
 class_name ArchetypePolicy
 extends Resource
 
-## Per-archetype clustering + identity config (procgen v2). Replaces the
-## clustering+identity half of [NodeTypeDef] when [GraphProcgenConfig.archetypes]
-## is populated and [GraphProcgenConfig.use_archetype_policies] is true.
+## Per-archetype clustering + identity config. Drives the cluster pass +
+## per-node identity when [GraphProcgenConfig.archetypes] is populated.
 ##
 ## - `target_ratio` controls the archetype's share of total nodes. Ratios are
 ##   normalised across all archetypes in the config so they don't need to sum

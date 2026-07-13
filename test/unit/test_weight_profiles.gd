@@ -1,7 +1,37 @@
 extends GutTest
 
 ## Covers ArchetypeWeightProfile + CollisionProfile + their composition through
-## the procgen v2 pick path.
+## the procgen pick path (`GraphProcgen._weighted_pick_from`).
+
+
+## Budget-exhaustion roll loop over the surviving pick primitive. Mirrors how
+## the per-node draw consumes budget: pick → append → subtract cost → repeat.
+## Kept here (rather than in graph_procgen) because the phased v3 draw slices a
+## [ModifierPoolSet] by phase; this exercises the pick pipeline against a flat
+## entry list so collision / archetype-bias / forbid can be asserted in isolation.
+func _roll_pipeline(
+		pool: ModifierPool,
+		profiles: Array[Resource],
+		archetype: StringName,
+		forbid_tags: Array[StringName],
+		budget: int,
+		rng: RandomNumberGenerator,
+) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	var ctx := WeightContext.new()
+	ctx.archetype = archetype
+	ctx.position = Vector2.ZERO
+	ctx.node_index = 0
+	ctx.already_rolled = out  # alias — grows as we append (collision reads it)
+	ctx.forbid_tags = forbid_tags
+	var remaining := budget
+	while remaining > 0:
+		var entry := GraphProcgen._weighted_pick_from(pool.entries, profiles, ctx, remaining, rng)
+		if entry == null:
+			break
+		out.append(entry.roll(rng))
+		remaining -= entry.cost
+	return out
 
 
 func _entry(id: StringName, stat_id: StringName, tags: Array, cost: int = 1, weight: float = 1.0) -> ModifierPoolEntry:
@@ -116,7 +146,7 @@ func test_v2_pipeline_collision_prevents_duplicate_stat_op_on_node() -> void:
 	var profiles: Array[Resource] = [CollisionProfile.new()]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 42
-	var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"red", [] as Array[StringName], Vector2.ZERO, 0, 4, rng)
+	var rolled := _roll_pipeline(pool, profiles, &"red", [] as Array[StringName], 4, rng)
 	# Only 2 distinct (stat_id, ADD_BASE) pairs in the pool: strength + dexterity.
 	# Collision blocks repeats → max 2 picks even though budget allows 4.
 	assert_eq(rolled.size(), 2, "collision should cap at one pick per (stat, op) pair")
@@ -149,7 +179,7 @@ func test_v2_pipeline_archetype_steers_picks_red() -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = i + 1
 		# Budget 1 → exactly one draw per call.
-		var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"red", [] as Array[StringName], Vector2.ZERO, 0, 1, rng)
+		var rolled := _roll_pipeline(pool, profiles, &"red", [] as Array[StringName], 1, rng)
 		assert_eq(rolled.size(), 1)
 		if rolled[0].stat_id == &"strength":
 			str_hits += 1
@@ -169,7 +199,7 @@ func test_v2_pipeline_forbid_tags_hard_excludes() -> void:
 	var forbid: Array[StringName] = [&"str", &"dex", &"int"]
 	# Profiles default to [CollisionProfile] so duplicate WIS picks are blocked.
 	var profiles: Array[Resource] = [CollisionProfile.new()]
-	var rolled := GraphProcgen._roll_modifiers_v2(pool, profiles, &"gold", forbid, Vector2.ZERO, 0, 5, RandomNumberGenerator.new())
+	var rolled := _roll_pipeline(pool, profiles, &"gold", forbid, 5, RandomNumberGenerator.new())
 	# Only wisdom can be picked, and collision blocks duplicate (wisdom, ADD_BASE).
 	assert_eq(rolled.size(), 1, "forbid should leave only wisdom; got %d" % rolled.size())
 	assert_eq(rolled[0].stat_id, &"wisdom")
@@ -178,5 +208,5 @@ func test_v2_pipeline_forbid_tags_hard_excludes() -> void:
 func test_v2_pipeline_empty_pool_returns_empty() -> void:
 	var pool := ModifierPool.new()
 	var rng := RandomNumberGenerator.new()
-	var rolled := GraphProcgen._roll_modifiers_v2(pool, [], &"red", [] as Array[StringName], Vector2.ZERO, 0, 5, rng)
+	var rolled := _roll_pipeline(pool, [] as Array[Resource], &"red", [] as Array[StringName], 5, rng)
 	assert_eq(rolled.size(), 0)

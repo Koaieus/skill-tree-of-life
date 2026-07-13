@@ -63,8 +63,10 @@ func _rebind_subs() -> void:
 	var subs: Array[Resource] = []
 	if _config.shape_mask != null:
 		subs.append(_config.shape_mask)
-	if _config.budget_field != null:
-		subs.append(_config.budget_field)
+	if _config.budget_policy != null:
+		subs.append(_config.budget_policy)
+		if _config.budget_policy.budget_field != null:
+			subs.append(_config.budget_policy.budget_field)
 	for sp in _config.starting_points:
 		if sp != null:
 			subs.append(sp)
@@ -86,6 +88,7 @@ func _draw() -> void:
 	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
 		_draw_label(Vector2(8, 16), "shape_mask has empty AABB")
 		return
+	var budget_field: ScalarField = _config.budget_policy.budget_field if _config.budget_policy != null else null
 
 	var margin := 12.0
 	var fit := minf(
@@ -108,7 +111,7 @@ func _draw() -> void:
 			if not _config.shape_mask.contains(wp):
 				values[y * _CELL_RES + x] = NAN
 				continue
-			var v := 1.0 if _config.budget_field == null else _config.budget_field.sample(wp)
+			var v := 1.0 if budget_field == null else budget_field.sample(wp)
 			values[y * _CELL_RES + x] = v
 			vmin = minf(vmin, v)
 			vmax = maxf(vmax, v)

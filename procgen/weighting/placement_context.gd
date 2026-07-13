@@ -9,8 +9,8 @@ var positions: Array[Vector2] = []
 var edge_pairs: Array[Vector2i] = []
 ## Per-node adjacency list (populated from `edge_pairs`).
 var adjacency: Array[PackedInt32Array] = []
-## Archetype index per node; indexes into either `config.archetypes` (v2) or
-## `config.node_types` (v1). -1 if no archetype was assigned.
+## Archetype index per node; indexes into `config.archetypes`. -1 if no
+## archetype was assigned.
 var type_assignments: PackedInt32Array = PackedInt32Array()
 ## Position indices of starting points (manual + random), in starter order.
 var starter_indices: PackedInt32Array = PackedInt32Array()

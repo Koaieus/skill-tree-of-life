@@ -9,9 +9,11 @@ Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` 
 1. **Starting-point assembly** — `config.starting_points` (hand-authored) come first; `_place_random_starters()` rejection-samples up to `n_random_starters` more, each ≥ `viability_radius` from existing anchors. Manual entries always precede random entries in the returned list, so callers can split them by index if needed.
 2. **Poisson-disk sample** — `PoissonDiskSampler.sample(shape_mask, min_dist, node_count, anchors, rng)` seeds positions inside the `ShapeMask`, honouring starter anchors. `min_dist = 2·node_radius + node_padding`.
 3. **Delaunay triangulate + prune** — `_triangulate_and_prune(positions, connectivity)` builds the planar candidate edge set, then trims to MST + a `connectivity`-controlled share of shortest extras (0 = MST only, 1 = full triangulation).
-4. **Type assignment** — `_assign_types()` does Voronoi-on-cluster-seeds with `cluster_jitter`. Each node lands in one of `config.node_types` (`NodeTypeDef`).
-5. **Modifier roll** — `_roll_modifiers(type_def, budget_scale, rng)` draws from the type's `ModifierPool`. `budget_scale` is `config.budget_field.sample(position)` if set, else 1.0 — so a `RadialGradientField` etc. can make the centre richer than the rim.
-6. **Instantiate** — instances `skill_node/skill_node.tscn` for each position, applies position/radius/modifiers/base_type_color, and adds it (plus edges) to the `Graph` via the structural-signal API.
+4. **Archetype assignment** — `_assign_archetypes()` runs a target-driven BFS-grow: `config.archetypes` (`ArchetypePolicy`) each claim a `target_ratio` share of nodes, seeds are placed greedily, then grown through the pruned adjacency; leftovers inherit their nearest claimed neighbour. `cluster_jitter` (per-policy) rerolls afterwards to soften borders. Empty `archetypes` → every node stays archetype-less (and content-less).
+5. **Budget + modifier roll** — `config.budget_policy.compute_budget(archetype, position, role_tags, rng)` rolls each node's modifier budget (base range × archetype × positional `budget_field` × role bonuses). `_roll_modifiers_v3()` then draws content from `config.modifier_pool_set` in phases (primary → cost-capped off-attribute → defensive → rare), sliced per archetype `primary_stat`. See [procgen-v3.md](procgen-v3.md) for the draw model.
+6. **Instantiate** — instances `skill_node/skill_node.tscn` for each position, applies position/radius/modifiers/base_type_color, stamps keystones + rolls addons, and adds it (plus edges) to the `Graph` via the structural-signal API.
+
+> **One content pipeline.** The older v1 (`node_types` + per-`NodeTypeDef` pools) and v2 (config-level universal `modifier_pool`) generations were retired in #161 — `graph_procgen.gd` now runs a single v3 path (`archetypes` + `budget_policy` + `modifier_pool_set`). `docs/domain/procgen-v2.md` is kept only for design history.
 
 ## Return value
 
@@ -38,17 +40,18 @@ for n in starting_nodes:
 
 Levels that override fields on the preset (`procgen_play_sandbox` overrides `node_count`, `n_random_starters`, `viability_radius`) duplicate the preset before mutating it — otherwise the on-disk `.tres` resource accumulates the overrides across sessions (since Godot caches resources by path). One preset can then serve multiple sandboxes at different sizes without leaking state.
 
-## Extending — adding a field theme
+## Extending — adding an archetype theme
 
-1. New `NodeTypeDef` (`.tres`) with id, colour, and a `ModifierPool` of `ModifierPoolEntry` rows.
-2. Append to the preset's `node_types`.
-3. (Optional) Give it a non-uniform `budget_field` (any `ScalarField` subclass — `RadialGradientField`, `ConstantField`, custom).
+1. New `ArchetypePolicy` (`.tres` or sub-resource) with `id`, `color`, `primary_stat`, a `target_ratio`, and `cluster_size_weights`.
+2. Append it to the preset's `archetypes`.
+3. Make sure `modifier_pool_set` carries `StatPack`s whose `primary` pools match the new `primary_stat`, so the phased draw has content to pull for that archetype.
+4. (Optional) Shape budget via `budget_policy` — `archetype_multiplier[id]` for a per-archetype scale, or a positional `budget_field` (any `ScalarField` subclass) for a spatial gradient.
 
 No code change in `graph_procgen.gd` is required for new themes — the pipeline reads everything off the config.
 
 ## Caveats
 
-- Generation is **synchronous** in `_setup_level` — no progress UI. Node counts past ~2000 may take >100ms; chunk or defer if that becomes a problem.
+- Generation is **synchronous by default**; pass a `progress_cb` Callable to `generate()` to make it a coroutine that emits `[0,1]` progress and yields a frame per stage (see `procgen_play_sandbox` driving `SceneTransition.progress_bar`). Callers that pass `progress_cb` must `await`.
 - `shape_mask` is required; the assert fires immediately if null.
 - `seed = 0` reseeds randomly per run (`randi()`), so non-zero seeds are reproducible.
 - The pipeline depends on `Graph.add_skill_node` / `add_edge` emitting signals — Navigator and any other structural listener will fire `node_count + edge_count` times during a single `generate()` call. Acceptable for level boot; not for hot path.

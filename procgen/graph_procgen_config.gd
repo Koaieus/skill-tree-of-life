@@ -57,37 +57,12 @@ extends Resource
 ## Bounded retry per random anchor. Hit it without placing → warn and skip.
 @export var random_starter_max_tries: int = 200
 
-# ── Base types + modifiers ────────────────────────────────────────────────
+# ── Content: archetypes + modifiers ───────────────────────────────────────
 
-@export var node_types: Array[NodeTypeDef] = []
-## Number of cluster seeds. Each seed picks a type weighted by
-## [member NodeTypeDef.weight]; each generated node inherits its nearest
-## seed's type. Higher = smaller, more fragmented clusters.
-@export var cluster_count: int = 6
-## 0 = pure Voronoi (hard cluster borders). 1 = ignore clustering, each
-## node rolls a type independently. Mix in between for soft edges.
-@export_range(0.0, 1.0) var cluster_jitter: float = 0.15
-
-# ── Spatial modulation ────────────────────────────────────────────────────
-
-## Multiplies each node's rolled modifier budget by `field.sample(position)`.
-## 1.0 anywhere = no modulation (matches the unset / ConstantField default).
-## Pair a [RadialGradientField] with a circular shape for the classic
-## "weak center, strong rim" gradient. Unset = neutral.
-@export var budget_field: ScalarField
-
-# ── v2 universal pool (optional) ──────────────────────────────────────────
-
-## Procgen v2 (see docs/domain/procgen-v2.md). When set, the per-node modifier
-## pass draws from this universal pool instead of the per-[NodeTypeDef] pools.
-## `weight_profiles` provide per-entry sampling biases (archetype-affinity,
-## collision-block, radial-band, etc.) composed multiplicatively. Leave unset
-## to keep v1 behaviour — the per-type pools on `node_types` are used.
-@export var modifier_pool: ModifierPool
-## v3 phased-draw modifier content. When set, takes priority over
-## `modifier_pool`: the draw loop runs as primary → off-attribute (cost-capped)
-## → universal → rare, reading `archetype_stat` / `role` off each [TierPool]
-## to slice the set per phase. Unset = falls back to `modifier_pool`.
+## Phased-draw modifier content. The per-node draw runs as primary →
+## off-attribute (cost-capped) → defensive → rare, reading `archetype_stat` /
+## `role` off each [TierPool] to slice the set per phase. Unset = nodes roll
+## no modifiers. See docs/domain/procgen-v3.md.
 @export var modifier_pool_set: ModifierPoolSet
 ## Typed as Array[Resource] because Godot's TypedArray check rejects
 ## subclasses of an abstract base — concrete profiles (Archetype/Collision/Radial)
@@ -95,17 +70,15 @@ extends Resource
 ## [method WeightProfile.multiplier_for] duck-typing.
 @export var weight_profiles: Array[Resource] = []
 
-## Per-node budget knobs. When non-null, overrides the v1
-## [NodeTypeDef.budget_max] + `budget_field` combo and uses its own
-## archetype/role/field multipliers instead. Unset = v1 fallback.
+## Per-node budget knobs — the base range plus archetype / role / positional
+## multipliers that decide each node's modifier budget. Unset = budget 0
+## (nodes roll no modifiers). See [BudgetPolicy].
 @export var budget_policy: BudgetPolicy
 
-## v2 archetype policies. When [member use_archetype_policies] is true (and
-## this array is non-empty), the cluster pass switches from v1 Voronoi-on-
-## NodeTypeDef to v2 cluster-planned BFS-grow using these per-archetype
-## target ratios + size distributions.
+## Archetype policies. When non-empty, the cluster pass runs cluster-planned
+## BFS-grow using these per-archetype target ratios + size distributions;
+## empty leaves every node archetype-less (and content-less).
 @export var archetypes: Array[ArchetypePolicy] = []
-@export var use_archetype_policies: bool = false
 
 ## Second-pass addon roll. Unset = no addons attached by procgen.
 @export var addon_policy: AddonPolicy

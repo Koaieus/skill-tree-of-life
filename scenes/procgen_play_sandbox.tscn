@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bki8jbn5yvk7u" path="res://scenes/procgen_play_sandbox.gd" id="2_script"]
-[ext_resource type="Resource" uid="uid://drdxdv4lm7sgr" path="res://procgen/presets/circle_default.tres" id="3_preset"]
+[ext_resource type="Resource" uid="uid://chf1rstvlgexn" path="res://procgen/presets/first_level/first_level.tres" id="3_preset"]
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="4_0xw0k"]
 [ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="5_12m0o"]
 

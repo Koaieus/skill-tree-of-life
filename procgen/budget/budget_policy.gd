@@ -2,10 +2,9 @@
 class_name BudgetPolicy
 extends Resource
 
-## Per-node modifier budget knobs, factored out of [NodeTypeDef]. Promotes
-## budget to its own subresource so the same policy can serve many archetypes
-## and so the spatial scalar field + per-role bonus compose cleanly with the
-## archetype multiplier.
+## Per-node modifier budget knobs. A single policy serves every archetype:
+## the spatial scalar field + per-role bonus compose cleanly with the
+## per-archetype multiplier.
 ##
 ## Budget formula:
 ##   raw     = lerp(base_min, base_max, rng.randf())
@@ -21,9 +20,8 @@ extends Resource
 ## floor/ceiling split would (outer_min = base_min × outer_scale can exceed
 ## inner_max = base_max × inner_scale) without a second field to keep in sync.
 ##
-## Set [member modifier_pool] on the config and leave [member NodeTypeDef.budget_max]
-## in place — when [GraphProcgenConfig.budget_policy] is non-null it overrides the
-## per-type value. Unset = falls back to per-type.
+## Assigned to [member GraphProcgenConfig.budget_policy]; unset there means
+## every node rolls a budget of 0 (no modifiers).
 
 @export var base_min: int = 2
 @export var base_max: int = 5

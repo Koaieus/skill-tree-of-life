@@ -7,8 +7,9 @@ extends RefCounted
 ##   1. Poisson-disk sample positions inside the [ShapeMask] (with anchors).
 ##   2. Delaunay triangulate the points; that's our planar candidate edge set.
 ##   3. Prune to MST + a `connectivity`-controlled share of shortest extras.
-##   4. Cluster-assign a [NodeTypeDef] per node (Voronoi seeds + jitter).
-##   5. Per node, roll a budget and draw modifiers from the type's pool.
+##   4. Cluster-assign an [ArchetypePolicy] per node (target-driven BFS-grow).
+##   5. Per node, roll a budget ([BudgetPolicy]) and draw modifiers from the
+##      archetype-sliced [ModifierPoolSet] (phased v3 draw).
 ##   6. Instantiate SkillNodes + Edges under the [Graph].
 ##
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
@@ -78,12 +79,14 @@ static func generate(
 	await _emit_progress(progress_cb, 0.25, "Connecting edges")
 	var edge_pairs := _triangulate_and_prune(positions, config.connectivity)
 	await _emit_progress(progress_cb, 0.30, "Planning clusters")
-	var use_v2_clusters := config.use_archetype_policies and not config.archetypes.is_empty()
 	var type_assignments: PackedInt32Array
-	if use_v2_clusters:
-		type_assignments = _assign_archetypes_v2(positions, edge_pairs, config, rng)
+	if not config.archetypes.is_empty():
+		type_assignments = _assign_archetypes(positions, edge_pairs, config, rng)
 	else:
-		type_assignments = _assign_types(positions, config, rng)
+		# No archetypes → no clustering source. Leave every node unassigned;
+		# the per-node loop skips content for a -1 assignment.
+		type_assignments.resize(positions.size())
+		type_assignments.fill(-1)
 
 	# Pre-roll pass: GuaranteedPlacements decorate nodes with role tags.
 	# starting_points were placed first into the position list (by index).
@@ -110,45 +113,28 @@ static func generate(
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []
 		var archetype_primary_stat: StringName = &""
-		var type_def: NodeTypeDef = null
-		if use_v2_clusters:
+		if type_assignments[i] >= 0:
 			var policy: ArchetypePolicy = config.archetypes[type_assignments[i]]
 			if policy != null:
 				archetype_id = policy.id
 				archetype_color = policy.color
 				archetype_forbid = policy.forbid_tags
 				archetype_primary_stat = policy.primary_stat
-		elif not config.node_types.is_empty():
-			type_def = config.node_types[type_assignments[i]]
-			if type_def != null:
-				archetype_id = type_def.id
-				archetype_color = type_def.color
 		if archetype_id != &"":
-			var field_scale := 1.0 if config.budget_field == null else config.budget_field.sample(positions[i])
 			var fp := {"archetype": archetype_id, "primary_stat": archetype_primary_stat}
 			if not placement_ctx.role_tags[i].is_empty():
 				fp["role_tags"] = placement_ctx.role_tags[i].duplicate()
-			if config.modifier_pool_set != null:
-				var role_tags: Array = placement_ctx.role_tags[i]
-				var budget := _compute_v2_budget(
-						config.budget_policy, type_def, field_scale,
+			var role_tags: Array = placement_ctx.role_tags[i]
+			var budget := 0
+			if config.budget_policy != null:
+				budget = config.budget_policy.compute_budget(
 						archetype_id, positions[i], role_tags, rng)
-				fp["budget"] = budget
+			fp["budget"] = budget
+			if config.modifier_pool_set != null:
 				sn.modifiers = _roll_modifiers_v3(
 						config.modifier_pool_set, config.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
 						positions[i], i, budget, rng, fp)
-			elif config.modifier_pool != null:
-				var role_tags: Array = placement_ctx.role_tags[i]
-				var budget := _compute_v2_budget(
-						config.budget_policy, type_def, field_scale,
-						archetype_id, positions[i], role_tags, rng)
-				fp["budget"] = budget
-				sn.modifiers = _roll_modifiers_v2(
-						config.modifier_pool, config.weight_profiles,
-						archetype_id, archetype_forbid, positions[i], i, budget, rng, fp)
-			elif type_def != null:
-				sn.modifiers = _roll_modifiers(type_def, field_scale, rng, fp)
 			sn.set_meta("procgen_footprint", fp)
 			# Border-channel stamp on BaseCircle (persistent type identity).
 			# Owner colour stays free to drive the fill channel via SkillNode.
@@ -308,77 +294,12 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 	return kept
 
 
-# ── Clustering ────────────────────────────────────────────────────────────
+# ── Clustering: target-driven BFS-grow ───────────────────────────────────
 
 
-## Returns an int per position, indexing into [member GraphProcgenConfig.node_types].
-## Voronoi-style: `cluster_count` seed points each pick a weighted type; every
-## node inherits its nearest seed's type. `cluster_jitter` rerolls per-node
-## independently to soften cluster borders.
-static func _assign_types(
-		positions: Array[Vector2],
-		config: GraphProcgenConfig,
-		rng: RandomNumberGenerator,
-) -> PackedInt32Array:
-	var out := PackedInt32Array()
-	out.resize(positions.size())
-	if config.node_types.is_empty():
-		return out
-
-	# Build weight CDF once.
-	var weights: Array[float] = []
-	var total_weight := 0.0
-	for t in config.node_types:
-		var w := maxf(0.0, t.weight if t != null else 0.0)
-		weights.append(w)
-		total_weight += w
-	if total_weight <= 0.0:
-		# Degenerate: all zero — uniform fallback.
-		for i in weights.size():
-			weights[i] = 1.0
-		total_weight = float(weights.size())
-
-	var pick_type := func() -> int:
-		var r := rng.randf() * total_weight
-		for i in weights.size():
-			r -= weights[i]
-			if r <= 0.0:
-				return i
-		return weights.size() - 1
-
-	# Seed clusters at random sampled positions.
-	var seed_count := mini(maxi(1, config.cluster_count), positions.size())
-	var seed_positions: Array[Vector2] = []
-	var seed_types: Array[int] = []
-	var used := {}
-	while seed_positions.size() < seed_count:
-		var pi := rng.randi() % positions.size()
-		if used.has(pi):
-			continue
-		used[pi] = true
-		seed_positions.append(positions[pi])
-		seed_types.append(pick_type.call())
-
-	for i in positions.size():
-		if rng.randf() < config.cluster_jitter:
-			out[i] = pick_type.call()
-			continue
-		var best := 0
-		var best_sq := INF
-		for s in seed_positions.size():
-			var d := positions[i].distance_squared_to(seed_positions[s])
-			if d < best_sq:
-				best_sq = d
-				best = s
-		out[i] = seed_types[best]
-	return out
-
-
-# ── Clustering v2: target-driven BFS-grow ────────────────────────────────
-
-
-## v2 cluster assignment. Returns an int per position, indexing into
-## [GraphProcgenConfig.archetypes]. Algorithm (see docs/domain/procgen-v2.md):
+## Cluster assignment. Returns an int per position, indexing into
+## [GraphProcgenConfig.archetypes]. Algorithm (BFS-grow; see the clustering
+## section of docs/domain/procgen-v2.md):
 ##  1. Compute target node count per archetype from target_ratio shares.
 ##  2. Per archetype, sample cluster sizes from cluster_size_weights until
 ##     Σ sizes ≥ target_count. Build a flat plan list.
@@ -390,7 +311,7 @@ static func _assign_types(
 ##  6. Any unclaimed leftovers: graph-BFS outward until a claimed neighbour
 ##     is found, inherit its archetype.
 ##  7. Per-node cluster_jitter reroll using the assigned archetype's policy.
-static func _assign_archetypes_v2(
+static func _assign_archetypes(
 		positions: Array[Vector2],
 		edge_pairs: Array[Vector2i],
 		config: GraphProcgenConfig,
@@ -642,7 +563,7 @@ static func _build_placement_context(
 	return ctx
 
 
-# ── Addon roll (procgen v2 second pass) ──────────────────────────────────
+# ── Addon roll (second pass) ─────────────────────────────────────────────
 
 
 static func _roll_and_attach_addons(
@@ -704,111 +625,6 @@ static func _weighted_pick_addon(
 # ── Modifier roll ─────────────────────────────────────────────────────────
 
 
-static func _roll_modifiers(type_def: NodeTypeDef, budget_scale: float, rng: RandomNumberGenerator, fp: Dictionary = {}) -> Array[StatModifier]:
-	if type_def.modifier_pool == null:
-		return []
-	var budget := maxi(1, int(round(type_def.budget_max * budget_scale)))
-	fp["phase"] = "v1"
-	fp["budget"] = budget
-	return type_def.modifier_pool.roll(budget, rng)
-
-
-# ── v2: universal pool + weight profile pipeline ─────────────────────────
-
-
-## Budget for the v2 pass. If [BudgetPolicy] is set, it owns the formula
-## (archetype × field × role). Otherwise falls back to v1's per-type
-## budget_max + `config.budget_field` for compatibility.
-static func _compute_v2_budget(
-		policy: BudgetPolicy,
-		type_def: NodeTypeDef,
-		field_scale: float,
-		archetype: StringName,
-		position: Vector2,
-		role_tags: Array,
-		rng: RandomNumberGenerator,
-) -> int:
-	if policy != null:
-		return policy.compute_budget(archetype, position, role_tags, rng)
-	if type_def == null:
-		return 0
-	return maxi(1, int(round(type_def.budget_max * field_scale)))
-
-
-## v2 modifier roll. Draws from a single universal pool with weight profiles
-## composed multiplicatively. See docs/domain/procgen-v2.md.
-static func _roll_modifiers_v2(
-		pool: ModifierPool,
-		profiles: Array[Resource],
-		archetype: StringName,
-		forbid_tags: Array[StringName],
-		position: Vector2,
-		node_index: int,
-		budget: int,
-		rng: RandomNumberGenerator,
-		fp: Dictionary = {},
-) -> Array[StatModifier]:
-	var out: Array[StatModifier] = []
-	fp["phase"] = "v2"
-	if pool == null or pool.entries.is_empty() or budget <= 0:
-		return out
-	var ctx := WeightContext.new()
-	ctx.archetype = archetype
-	ctx.position = position
-	ctx.node_index = node_index
-	ctx.already_rolled = out  # alias — grows as we append
-	ctx.forbid_tags = forbid_tags
-	var remaining := budget
-	while true:
-		var entry := _weighted_pick_v2(pool, profiles, ctx, remaining, rng)
-		if entry == null:
-			break
-		out.append(entry.roll(rng))
-		remaining -= entry.cost
-		if remaining <= 0:
-			break
-	return out
-
-
-static func _weighted_pick_v2(
-		pool: ModifierPool,
-		profiles: Array[Resource],
-		context: WeightContext,
-		budget: int,
-		rng: RandomNumberGenerator,
-) -> ModifierPoolEntry:
-	var affordable: Array[ModifierPoolEntry] = []
-	var weights: Array[float] = []
-	var total := 0.0
-	for e in pool.entries:
-		if e == null or e.cost > budget or e.weight <= 0.0:
-			continue
-		# Hard-exclusion check (ArchetypePolicy.forbid_tags). Brick wall —
-		# bypasses the weight profile pipeline entirely.
-		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
-			continue
-		var w := e.weight
-		for p in profiles:
-			if p == null:
-				continue
-			w *= p.multiplier_for(e, context)
-			if w <= 0.0:
-				break
-		if w <= 0.0:
-			continue
-		affordable.append(e)
-		weights.append(w)
-		total += w
-	if total <= 0.0:
-		return null
-	var r := rng.randf() * total
-	for i in affordable.size():
-		r -= weights[i]
-		if r <= 0.0:
-			return affordable[i]
-	return affordable.back()
-
-
 static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringName]) -> bool:
 	for t in entry.tags:
 		if t in forbid:
@@ -824,7 +640,7 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ##   3. Phase 3: fill off slots from off-attribute PRIMARY (cost-capped),
 ##      DEFENSIVE, and RARE pools (defensive/rare uncapped).
 ##
-## See docs/domain/procgen-v2.md (forthcoming v3 section) for design rationale.
+## See docs/domain/procgen-v3.md for design rationale.
 static func _roll_modifiers_v3(
 		pool_set: ModifierPoolSet,
 		profiles: Array[Resource],
@@ -958,9 +774,10 @@ static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
 	if resolved_radius <= 0.0:
 		return
 	# Budget field
-	var bf := config.budget_policy.budget_field if config.budget_policy != null else config.budget_field
-	if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
-		(bf as RadialGradientField).outer_radius = resolved_radius
+	if config.budget_policy != null:
+		var bf := config.budget_policy.budget_field
+		if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
+			(bf as RadialGradientField).outer_radius = resolved_radius
 	# RadialBandProfile (any in the weight pipeline)
 	for p in config.weight_profiles:
 		if p is RadialBandProfile and (p as RadialBandProfile).outer_radius <= 0.0:
