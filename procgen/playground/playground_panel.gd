@@ -3,33 +3,56 @@ extends Control
 ## Procgen playground panel (#166) — a live-edit sandbox tab for tuning what
 ## procgen rolls, without booting a level.
 ##
+## Layout: a left sidebar (preset folder access + the sampling controls shared
+## by both sub-tabs) beside a [TabContainer] with "Map Sample" / "Node Graph".
+##
+## Sidebar:
+## - "Open Presets Folder" reveals `res://procgen/presets/` in the editor's
+##   FileSystem dock, creating the folder first if this is a fresh checkout.
+## - "Sample as:" (archetype) + "Reseed" are shared sampling state — both
+##   sub-tabs roll through the same [member _rng] and [method _sample_once],
+##   so they belong here once, not duplicated per tab.
+##
+## Inspector live-sync (#166): [method load_config] (the [SandboxLiveTab]
+## loader hook) fires when a [GraphProcgenConfig] becomes the inspected
+## object — a fresh duplicate is taken as the working `_config` (never mutate
+## the on-disk resource) and `_source_config` remembers the *live* reference.
+## [method refresh_from_config] is what the editor plugin calls on every
+## `property_edited` (including edits on nested sub-resources like
+## `budget_policy` or a [ScalarField] child) — it re-duplicates
+## `_source_config` and re-renders both sub-tabs in place: the map keeps its
+## clicked marker and re-samples at it, the graph keeps its node positions
+## (same seed) and just re-colours/re-samples. Tweaking a field preset in the
+## inspector is meant to feel instant, not like re-opening the tab.
+##
 ## Sub-tab "Map Sample": renders a [GraphProcgenConfig]'s budget-field heatmap
 ## ([FieldMapView]); clicking a spot rolls a batch of independent draws there
 ## (budget via [BudgetPolicy] + content via the phased v3 draw) and lays them
 ## out as cards, so a designer gets an at-a-glance feel of what a node in that
-## territory tends to roll. Pick the archetype to sample as from the dropdown.
+## territory tends to roll. Each card also shows the roll's factor breakdown
+## (raw draw + whichever multipliers departed from neutral) via
+## [method _breakdown_text]. Hovering the map shows the field value + base
+## range at that point before you commit to a click.
 ##
-## Sub-tab "Node Graph": generates a small preview graph via [GraphProcgen] on
-## a private [Graph] and renders it via [NodeGraphView] — nodes heat-coloured
-## by rolled budget (RED HOT = high), archetype-colour ring, hover tooltip
-## (budget + this graph's min/max + the policy's base range), click rolls the
-## same 5-card sample at that node's already-rolled budget (fixed, not
-## resampled) so a RED HOT node visibly draws richer content.
-##
-## Composable field overlay (#162): "Map Sample" already painted the
-## [BudgetPolicy.budget_field] as its base heatmap from the start (it's a
-## generic [ScalarField] sample, agnostic to which subclass). "Node Graph"
-## additionally draws the field as a translucent background layer under the
-## nodes ([method NodeGraphView._draw_field_overlay]) — the continuous field
-## topography, distinct from each node's discretised rolled-budget fill.
+## Sub-tab "Node Graph": generates a small preview graph via [NodeGraphView] —
+## positions + edges only (`archetypes` stripped, no content rolled at
+## generation time). A node here is a *location* to sample, not a baked
+## result: clicking one runs the exact same [method _sample_once] roll a map
+## click does, just anchored at that node's position. Node fill + the
+## translucent background layer both show the continuous
+## [BudgetPolicy.budget_field] value, so a designer can see the field's
+## topography independent of any one sample. Stamp simulation (paint a stamp,
+## see which nodes/how much budget it would touch, + a reset button) is
+## planned for once #163 (archetype territory stamping) lands an actual stamp
+## primitive to simulate — see #166.
 ##
 ## Self-contained: defaults to a duplicated `first_level.tres` so it works with
-## nothing inspected. `load_config` (the SandboxLiveTab loader hook) swaps in a
-## different config when one is routed from the inspector.
+## nothing inspected.
 
 const _DEFAULT_PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 const _FieldMapView := preload("res://procgen/playground/field_map_view.gd")
 const _NodeGraphView := preload("res://procgen/playground/node_graph_view.gd")
+const _PRESETS_DIR := "res://procgen/presets/"
 
 const _SAMPLE_COUNT := 5
 ## Kept modest — see #172. The SkillNode visual composite registers instance
@@ -42,13 +65,23 @@ const _SAMPLE_COUNT := 5
 const _GRAPH_PREVIEW_NODE_COUNT := 16
 
 var _config: GraphProcgenConfig
+## The live (un-duplicated) resource routed in from the inspector — kept only
+## to re-duplicate fresh on every [method refresh_from_config]. Never read for
+## anything else; `_config` is the working copy everything else uses.
+var _source_config: GraphProcgenConfig
 var _rng := RandomNumberGenerator.new()
+## Node Graph's own seed, held stable across a live-edit refresh so a
+## property tweak re-colours the same layout instead of reshuffling it.
+## Reset to a fresh random value on an explicit Regenerate.
+var _last_graph_seed := 0
 
+var _bound_label: Label
 var _arch_option: OptionButton
+var _seed_label: Label
+
 var _map: Control
 var _cards_row: HBoxContainer
 var _cards: Array[VBoxContainer] = []
-var _seed_label: Label
 
 var _graph_view: Control
 var _graph_node_count_spin: SpinBox
@@ -58,6 +91,7 @@ var _graph_cards: Array[VBoxContainer] = []
 
 func _ready() -> void:
 	_build_ui()
+	_source_config = _DEFAULT_PRESET
 	_set_config(_DEFAULT_PRESET.duplicate(true))
 
 
@@ -68,7 +102,38 @@ func _ready() -> void:
 ## resource). No-op for anything that isn't a GraphProcgenConfig.
 func load_config(obj: Object) -> void:
 	if obj is GraphProcgenConfig:
-		_set_config((obj as GraphProcgenConfig).duplicate(true))
+		_source_config = obj as GraphProcgenConfig
+		_set_config(_source_config.duplicate(true))
+
+
+## Called by the editor plugin on `property_edited` — `_source_config`'s
+## identity hasn't changed but one of its (possibly nested) exports has.
+## Re-duplicates and re-renders in place; see the class doc for what "in
+## place" preserves (marker, node layout).
+func refresh_from_config() -> void:
+	if _source_config == null or not is_instance_valid(_source_config):
+		return
+
+	var had_marker: bool = _map != null and _map.has_marker()
+	var marker_pos: Vector2 = _map.marker_world() if had_marker else Vector2.ZERO
+	var preferred_id: StringName = &""
+	if _arch_option != null and _arch_option.selected >= 0:
+		var meta = _arch_option.get_item_metadata(_arch_option.selected)
+		if meta is ArchetypePolicy:
+			preferred_id = (meta as ArchetypePolicy).id
+
+	_config = _source_config.duplicate(true)
+	GraphProcgen._propagate_mask_radius(_config)
+	_populate_archetypes(preferred_id)
+	_update_bound_label()
+
+	if _map != null:
+		_map.refresh_config(_config)
+	if had_marker:
+		_on_map_clicked(marker_pos)
+
+	if _graph_view != null and _graph_view.has_nodes():
+		_regenerate_graph(true)
 
 
 # ── UI ────────────────────────────────────────────────────────────────────
@@ -76,9 +141,18 @@ func load_config(obj: Object) -> void:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var root := HBoxContainer.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override(&"separation", 10)
+	add_child(root)
+
+	root.add_child(_build_sidebar())
+	root.add_child(VSeparator.new())
+
 	var tabs := TabContainer.new()
-	tabs.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(tabs)
+	tabs.size_flags_horizontal = SIZE_EXPAND_FILL
+	tabs.size_flags_vertical = SIZE_EXPAND_FILL
+	root.add_child(tabs)
 
 	var map_tab := _build_map_tab()
 	tabs.add_child(map_tab)
@@ -89,32 +163,51 @@ func _build_ui() -> void:
 	tabs.set_tab_title(graph_tab.get_index(), "Node Graph")
 
 
-func _build_map_tab() -> VBoxContainer:
-	var tab := VBoxContainer.new()
-	tab.add_theme_constant_override(&"separation", 6)
+func _build_sidebar() -> VBoxContainer:
+	var sidebar := VBoxContainer.new()
+	sidebar.custom_minimum_size = Vector2(190, 0)
+	sidebar.add_theme_constant_override(&"separation", 6)
 
-	# Control bar.
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override(&"separation", 10)
-	tab.add_child(bar)
+	var header := _make_label("Procgen Playground")
+	header.add_theme_font_size_override(&"font_size", 13)
+	sidebar.add_child(header)
 
-	bar.add_child(_make_label("Sample as:"))
+	var open_folder := Button.new()
+	open_folder.text = "Open Presets Folder"
+	open_folder.tooltip_text = "Reveal res://procgen/presets/ in the FileSystem dock (created first if it doesn't exist yet)."
+	open_folder.pressed.connect(_on_open_presets_folder_pressed)
+	sidebar.add_child(open_folder)
+
+	_bound_label = _make_label("")
+	_bound_label.modulate = Color(1, 1, 1, 0.55)
+	_bound_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sidebar.add_child(_bound_label)
+
+	sidebar.add_child(HSeparator.new())
+
+	sidebar.add_child(_make_label("Sample as:"))
 	_arch_option = OptionButton.new()
-	_arch_option.custom_minimum_size = Vector2(160, 0)
-	bar.add_child(_arch_option)
+	sidebar.add_child(_arch_option)
 
 	var reseed := Button.new()
 	reseed.text = "Reseed"
 	reseed.pressed.connect(_on_reseed_pressed)
-	bar.add_child(reseed)
+	sidebar.add_child(reseed)
 
 	_seed_label = _make_label("")
-	_seed_label.modulate = Color(1, 1, 1, 0.6)
-	bar.add_child(_seed_label)
+	_seed_label.modulate = Color(1, 1, 1, 0.55)
+	_seed_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sidebar.add_child(_seed_label)
 
 	var spacer := Control.new()
-	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
-	bar.add_child(spacer)
+	spacer.size_flags_vertical = SIZE_EXPAND_FILL
+	sidebar.add_child(spacer)
+	return sidebar
+
+
+func _build_map_tab() -> VBoxContainer:
+	var tab := VBoxContainer.new()
+	tab.add_theme_constant_override(&"separation", 6)
 
 	# Map.
 	_map = _FieldMapView.new()
@@ -173,7 +266,7 @@ func _build_graph_tab() -> VBoxContainer:
 	tab.add_child(_graph_view)
 
 	# Sample cards.
-	var cards_label := _make_label("%d samples for the clicked node (fixed budget):" % _SAMPLE_COUNT)
+	var cards_label := _make_label("%d samples for the clicked node:" % _SAMPLE_COUNT)
 	cards_label.modulate = Color(1, 1, 1, 0.7)
 	tab.add_child(cards_label)
 
@@ -187,6 +280,25 @@ func _build_graph_tab() -> VBoxContainer:
 		_graph_cards_row.add_child(card.get_parent())
 	_clear_cards(_graph_cards, "Regenerate, then click a node.")
 	return tab
+
+
+## Compact "why this budget" line from a [method BudgetPolicy.compute_budget_breakdown]
+## dict — the roll's raw draw + whichever multipliers actually departed from
+## neutral (1.0). Neutral factors are omitted so an unmodulated preset doesn't
+## clutter every card with "×1.0 ×1.0 ×1.0".
+func _breakdown_text(b: Dictionary) -> String:
+	var parts: Array[String] = []
+	parts.append("raw %.1f of %d–%d" % [float(b.get("raw", 0.0)), int(b.get("base_min", 0)), int(b.get("base_max", 0))])
+	var arch_mult := float(b.get("arch_mult", 1.0))
+	if not is_equal_approx(arch_mult, 1.0):
+		parts.append("arch ×%.2f" % arch_mult)
+	var field_scale := float(b.get("field_scale", 1.0))
+	if not is_equal_approx(field_scale, 1.0):
+		parts.append("field ×%.2f" % field_scale)
+	var role_mult := float(b.get("role_mult", 1.0))
+	if not is_equal_approx(role_mult, 1.0):
+		parts.append("role ×%.2f" % role_mult)
+	return "  ·  ".join(parts)
 
 
 func _make_label(text: String) -> Label:
@@ -207,6 +319,22 @@ func _make_card() -> VBoxContainer:
 	return box
 
 
+## Reveals `_PRESETS_DIR` in the editor's FileSystem dock, creating it first
+## if this is a fresh checkout without any authored presets yet.
+func _on_open_presets_folder_pressed() -> void:
+	if not Engine.is_editor_hint():
+		return
+	if not DirAccess.dir_exists_absolute(_PRESETS_DIR):
+		DirAccess.make_dir_recursive_absolute(_PRESETS_DIR)
+		var fs := EditorInterface.get_resource_filesystem()
+		if fs != null:
+			fs.scan()
+	var dock := EditorInterface.get_file_system_dock()
+	if dock == null:
+		return
+	dock.navigate_to_path(_PRESETS_DIR)
+
+
 # ── Config ────────────────────────────────────────────────────────────────
 
 
@@ -217,14 +345,31 @@ func _set_config(cfg: GraphProcgenConfig) -> void:
 	if _config != null:
 		GraphProcgen._propagate_mask_radius(_config)
 	_populate_archetypes()
+	_update_bound_label()
 	if _map != null:
 		_map.set_config(_config)
 	_update_seed_label()
 	_clear_cards(_cards, "Click the map to roll.")
+	_last_graph_seed = 0
 	_regenerate_graph()
 
 
-func _populate_archetypes() -> void:
+func _update_bound_label() -> void:
+	if _bound_label == null:
+		return
+	if _source_config == null or not is_instance_valid(_source_config):
+		_bound_label.text = "(default preset)"
+	elif _source_config.resource_path != "":
+		_bound_label.text = "bound: %s" % _source_config.resource_path.get_file()
+	else:
+		_bound_label.text = "bound: (unsaved config)"
+
+
+## `preferred_id` re-selects the same archetype after a rebuild (used by
+## [method refresh_from_config] so a live-edit doesn't silently reset the
+## dropdown); left empty for a genuinely new config, where defaulting to the
+## first real archetype is the useful behaviour (see below).
+func _populate_archetypes(preferred_id: StringName = &"") -> void:
 	if _arch_option == null:
 		return
 	_arch_option.clear()
@@ -232,15 +377,20 @@ func _populate_archetypes() -> void:
 	_arch_option.set_item_metadata(0, null)
 	if _config == null:
 		return
+	var preferred_idx := -1
 	for policy in _config.archetypes:
 		if policy == null:
 			continue
 		var idx := _arch_option.item_count
 		_arch_option.add_item(String(policy.id))
 		_arch_option.set_item_metadata(idx, policy)
+		if preferred_id != &"" and policy.id == preferred_id:
+			preferred_idx = idx
+	if preferred_idx >= 0:
+		_arch_option.select(preferred_idx)
 	# Default to the first real archetype if there is one — a bare "none" sample
 	# only ever draws off-attribute/defensive/rare content, which reads oddly.
-	if _arch_option.item_count > 1:
+	elif _arch_option.item_count > 1:
 		_arch_option.select(1)
 
 
@@ -277,21 +427,24 @@ func _on_map_clicked(world_pos: Vector2) -> void:
 
 
 ## One node's worth of rolls at `world_pos`: budget via BudgetPolicy, content
-## via the phased v3 draw — the same two calls GraphProcgen's per-node loop makes.
+## via the phased v3 draw — the same two calls GraphProcgen's per-node loop
+## makes. Shared by both sub-tabs — the Node Graph tab treats a node click as
+## just another `world_pos` to sample, same as a Map Sample click. Stashes the
+## budget roll's factor breakdown (#166) on the result so the card can show
+## *why* it landed there, not just the final number.
 func _sample_once(world_pos: Vector2, policy: ArchetypePolicy) -> Dictionary:
 	var archetype_id: StringName = policy.id if policy != null else &""
-	var primary_stat: StringName = policy.primary_stat if policy != null else &""
-	var forbid: Array[StringName] = policy.forbid_tags if policy != null else ([] as Array[StringName])
 	var budget := 0
+	var breakdown := {}
 	if _config.budget_policy != null:
-		budget = _config.budget_policy.compute_budget(archetype_id, world_pos, [], _rng)
-	return _sample_with_budget(world_pos, policy, budget)
+		breakdown = _config.budget_policy.compute_budget_breakdown(archetype_id, world_pos, [], _rng)
+		budget = breakdown.budget
+	var sample := _sample_with_budget(world_pos, policy, budget)
+	sample["breakdown"] = breakdown
+	return sample
 
 
-## Same content draw as [method _sample_once], but `budget` is fixed rather
-## than rolled — used by the Node Graph tab so a click samples *that node's*
-## already-rolled budget instead of a fresh one (so a RED HOT node visibly
-## draws richer content).
+## Content draw only, for a caller that already has a `budget` in hand.
 func _sample_with_budget(world_pos: Vector2, policy: ArchetypePolicy, budget: int) -> Dictionary:
 	var archetype_id: StringName = policy.id if policy != null else &""
 	var primary_stat: StringName = policy.primary_stat if policy != null else &""
@@ -304,15 +457,6 @@ func _sample_with_budget(world_pos: Vector2, policy: ArchetypePolicy, budget: in
 	return {"budget": budget, "mods": mods}
 
 
-func _find_archetype(id: StringName) -> ArchetypePolicy:
-	if _config == null or id == &"":
-		return null
-	for policy in _config.archetypes:
-		if policy != null and policy.id == id:
-			return policy
-	return null
-
-
 # ── Node Graph sub-tab ────────────────────────────────────────────────────
 
 
@@ -323,7 +467,12 @@ func _on_regenerate_graph_pressed() -> void:
 ## Async (awaits [method NodeGraphView.generate], which awaits [method
 ## GraphProcgen.generate]) — fired without an `await` at the call site since
 ## nothing here needs the result synchronously.
-func _regenerate_graph() -> void:
+##
+## `reuse_seed` keeps the same layout across a live-edit refresh
+## ([method refresh_from_config]) instead of reshuffling node positions on
+## every keystroke; an explicit Regenerate (or the first generation) always
+## rolls a fresh one.
+func _regenerate_graph(reuse_seed: bool = false) -> void:
 	if _config == null or _graph_view == null:
 		return
 	var cfg: GraphProcgenConfig = _config.duplicate(true)
@@ -336,21 +485,21 @@ func _regenerate_graph() -> void:
 	# so the preview skips them entirely (same rationale as zeroing
 	# n_random_starters above — this graph previews the field, not placements).
 	cfg.guaranteed_placements = []
-	cfg.seed = randi()
+	cfg.seed = _last_graph_seed if reuse_seed and _last_graph_seed != 0 else randi()
+	_last_graph_seed = cfg.seed
 	_clear_cards(_graph_cards, "Generating…")
 	await _graph_view.generate(cfg)
 	_clear_cards(_graph_cards, "Click a node to sample it.")
 
 
+## A node is a location, not a baked result — sample it exactly like a Map
+## Sample click would at that world position.
 func _on_graph_node_clicked(node: SkillNode) -> void:
 	if _config == null or not is_instance_valid(node):
 		return
-	var fp: Dictionary = node.get_meta("procgen_footprint", {})
-	var budget: int = fp.get("budget", 0)
-	var archetype_id: StringName = node.get_meta("base_type", &"")
-	var policy := _find_archetype(archetype_id)
+	var policy := _selected_archetype()
 	for i in _SAMPLE_COUNT:
-		_fill_card(_graph_cards[i], i, _sample_with_budget(node.position, policy, budget))
+		_fill_card(_graph_cards[i], i, _sample_once(node.position, policy))
 
 
 # ── Cards ─────────────────────────────────────────────────────────────────
@@ -380,6 +529,13 @@ func _fill_card(card: VBoxContainer, index: int, sample: Dictionary) -> void:
 	header.add_theme_font_size_override(&"font_size", 12)
 	header.modulate = Color(0.85, 0.9, 1.0)
 	card.add_child(header)
+	var breakdown: Dictionary = sample.get("breakdown", {})
+	if not breakdown.is_empty():
+		var why := _make_label(_breakdown_text(breakdown))
+		why.add_theme_font_size_override(&"font_size", 10)
+		why.modulate = Color(1, 1, 1, 0.55)
+		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card.add_child(why)
 	var sep := HSeparator.new()
 	card.add_child(sep)
 	var mods: Array = sample.get("mods", [])

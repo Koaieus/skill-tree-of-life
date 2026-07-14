@@ -1,22 +1,27 @@
 @tool
 extends Control
 ## Small live-generated graph for the procgen playground's "Node Graph" sub-tab
-## (#166). Runs [GraphProcgen] at a preview node count on a private, invisible
-## [Graph] instance, then draws the result colour-coded by each node's rolled
-## budget (blue → red heatmap, matching [FieldMapView]'s gradient) with a thin
-## archetype-colour ring per node.
+## (#166). Runs [GraphProcgen] at a preview node count — with `archetypes`
+## stripped so it places positions/edges only, no content — on a private,
+## invisible [Graph] instance, then draws the result.
 ##
-## Also paints the [BudgetPolicy.budget_field] itself as a translucent
-## background heatmap under the edges/nodes — the composable-field overlay
-## from #166's refined spec. Node fill colour is the *rolled* budget (one RNG
-## draw, discretised by base_min/base_max); the background is the *continuous*
-## field value, so a designer can see the raw field topography a preset
-## produces independently of any one node's roll landing near it.
+## Node fill + the translucent background layer are both the same continuous
+## [BudgetPolicy.budget_field] value (blue → red, matching [FieldMapView]'s
+## gradient) — the composable-field overlay from #166's refined spec, now that
+## nodes carry no baked-in roll to color by instead.
+##
+## A node isn't a generation result to inspect here — it's a *location* to
+## sample, exactly like a click on the Map Sample tab. `node_clicked` hands the
+## panel the node's position; the panel runs the same [method
+## ProcgenPlaygroundPanel._sample_once] roll either surface uses, so "click a
+## node" and "click the map at that spot" agree by construction.
 ##
 ## Hover uses Godot's native tooltip ([method _get_tooltip]) rather than a
 ## hand-rolled popup — cheap, positioned by the engine, no z-order bookkeeping.
-## Click emits `node_clicked` so the panel can roll sample cards at that node's
-## already-rolled budget.
+##
+## Stamp simulation (paint a stamp, see which nodes/how much budget it would
+## touch) is planned for once #163 (archetype territory stamping) lands a
+## stamp primitive to simulate — see #166.
 
 signal node_clicked(node: SkillNode)
 
@@ -33,8 +38,8 @@ var _generating := false
 
 var _fit := 1.0
 var _draw_origin := Vector2.ZERO
-var _budget_min := 0.0
-var _budget_max := 0.0
+var _field_min := 0.0
+var _field_max := 0.0
 
 # Screen-space cache rebuilt each _draw; used by hover/click hit-testing.
 var _node_screen: Dictionary = {}   # SkillNode -> Vector2
@@ -57,6 +62,13 @@ func _ready() -> void:
 ## previous node set, and matches the instantiate-per-run pattern the procgen
 ## tests + sandbox already use.
 ##
+## `archetypes` is cleared on a private copy before running — this view wants
+## positions + edges only ("just nodes, at a location"); content belongs to
+## the click-to-sample flow, not to generation. Stripping it here (rather than
+## trusting every caller to do it) also skips the cluster-assign + budget +
+## modifier-roll stages entirely, so the preview stays cheap regardless of
+## `node_count`.
+##
 ## Guarded against overlapping calls: a second `generate()` firing while the
 ## first is still awaiting `GraphProcgen.generate` would free the `_graph` the
 ## first call is actively populating (queue_free is deferred, so the in-flight
@@ -73,12 +85,14 @@ func generate(cfg: GraphProcgenConfig) -> void:
 	add_child(_graph)
 	await get_tree().process_frame
 
-	_budget_policy = cfg.budget_policy
-	_shape_mask = cfg.shape_mask
-	var result: Dictionary = await GraphProcgen.generate(cfg, _graph)
+	var positions_cfg: GraphProcgenConfig = cfg.duplicate(true)
+	positions_cfg.archetypes = []
+	_budget_policy = positions_cfg.budget_policy
+	_shape_mask = positions_cfg.shape_mask
+	var result: Dictionary = await GraphProcgen.generate(positions_cfg, _graph)
 	_nodes = result.get("nodes", [])
-	_bounds = cfg.shape_mask.aabb() if cfg.shape_mask != null else Rect2()
-	_compute_budget_range()
+	_bounds = positions_cfg.shape_mask.aabb() if positions_cfg.shape_mask != null else Rect2()
+	_compute_field_range()
 	_generating = false
 	queue_redraw()
 
@@ -87,23 +101,24 @@ func has_nodes() -> bool:
 	return not _nodes.is_empty()
 
 
-func _compute_budget_range() -> void:
-	_budget_min = INF
-	_budget_max = -INF
+func _compute_field_range() -> void:
+	_field_min = INF
+	_field_max = -INF
+	var field: ScalarField = null if _budget_policy == null else _budget_policy.budget_field
 	for sn in _nodes:
-		var b := _node_budget(sn)
-		_budget_min = minf(_budget_min, b)
-		_budget_max = maxf(_budget_max, b)
-	if _budget_min > _budget_max:
-		_budget_min = 0.0
-		_budget_max = 0.0
-	elif is_equal_approx(_budget_min, _budget_max):
-		_budget_max = _budget_min + 1.0
+		var v := 1.0 if field == null else field.sample(sn.position)
+		_field_min = minf(_field_min, v)
+		_field_max = maxf(_field_max, v)
+	if _field_min > _field_max:
+		_field_min = 1.0
+		_field_max = 1.0
+	elif is_equal_approx(_field_min, _field_max):
+		_field_max = _field_min + 1e-3
 
 
-func _node_budget(sn: SkillNode) -> float:
-	var fp: Dictionary = sn.get_meta("procgen_footprint", {})
-	return float(fp.get("budget", 0))
+func _node_field_value(sn: SkillNode) -> float:
+	var field: ScalarField = null if _budget_policy == null else _budget_policy.budget_field
+	return 1.0 if field == null else field.sample(sn.position)
 
 
 # ── Interaction ───────────────────────────────────────────────────────────
@@ -120,17 +135,11 @@ func _get_tooltip(at_position: Vector2) -> String:
 	var sn := _nearest_node(at_position)
 	if sn == null:
 		return ""
-	var fp: Dictionary = sn.get_meta("procgen_footprint", {})
-	var archetype := String(sn.get_meta("base_type", &""))
-	var primary_stat := String(sn.get_meta("primary_stat", &""))
-	var budget := int(fp.get("budget", 0))
 	var lines: Array[String] = []
-	lines.append("archetype: %s" % (archetype if archetype != "" else "(none)"))
-	if primary_stat != "":
-		lines.append("primary stat: %s" % primary_stat)
-	lines.append("budget: %d   (this graph: %d–%d)" % [budget, int(_budget_min), int(_budget_max)])
+	lines.append("field ×%.2f" % _node_field_value(sn))
 	if _budget_policy != null:
-		lines.append("policy base range: %d–%d" % [_budget_policy.base_min, _budget_policy.base_max])
+		lines.append("base range %d–%d" % [_budget_policy.base_min, _budget_policy.base_max])
+	lines.append("click to sample")
 	return "\n".join(lines)
 
 
@@ -181,17 +190,18 @@ func _draw() -> void:
 	for sn in _nodes:
 		var p := _to_screen(sn.position)
 		var r := clampf(sn.radius * _fit, 4.0, 14.0)
-		var t := 0.0 if is_equal_approx(_budget_max, _budget_min) else \
-				(_node_budget(sn) - _budget_min) / (_budget_max - _budget_min)
+		var t := 0.0 if is_equal_approx(_field_max, _field_min) else \
+				(_node_field_value(sn) - _field_min) / (_field_max - _field_min)
 		draw_circle(p, r, _heat(t))
-		draw_arc(p, r, 0.0, TAU, 16, sn.base_type_color, 1.5)
+		draw_arc(p, r, 0.0, TAU, 16, Color(1, 1, 1, 0.6), 1.5)
 		_node_screen[sn] = p
 		_node_screen_radius[sn] = r
 
 	draw_rect(Rect2(_draw_origin, draw_size), Color(1, 1, 1, 0.18), false, 1.0)
-	var field_note := "" if _budget_policy == null or _budget_policy.budget_field == null else "   ·   field overlay on"
-	_label(Vector2(8, 14), "budget %d–%d over %d nodes   ·   hover for details, click to sample%s" %
-			[int(_budget_min), int(_budget_max), _nodes.size(), field_note])
+	var field_note := "" if _budget_policy == null or _budget_policy.budget_field == null else \
+			"   ·   field ×%.2f–%.2f" % [_field_min, _field_max]
+	_label(Vector2(8, 14), "%d nodes%s   ·   hover for details, click to sample" %
+			[_nodes.size(), field_note])
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:

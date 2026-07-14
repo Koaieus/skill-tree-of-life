@@ -18,11 +18,13 @@ const _ICON: Texture2D = preload("res://addons/sandbox_host/icon.svg")
 const _SPELL_INSPECTOR := preload("res://addons/spell_playground/spell_def_inspector.gd")
 const _VFX_INSPECTOR := preload("res://addons/vfx_playground/coordinator_inspector.gd")
 const _STATBOARD_INSPECTOR := preload("res://addons/stat_board_visualizer/stat_board_inspector.gd")
+const _PROCGEN_INSPECTOR := preload("res://procgen/playground/graph_procgen_config_inspector.gd")
 
 var _host: Control
 var _spell_inspector: EditorInspectorPlugin
 var _vfx_inspector: EditorInspectorPlugin
 var _statboard_inspector: EditorInspectorPlugin
+var _procgen_inspector: EditorInspectorPlugin
 
 
 func _enter_tree() -> void:
@@ -54,6 +56,15 @@ func _enter_tree() -> void:
 	_statboard_inspector.visualize_requested.connect(func(board: Object) -> void: _route(&"statboard", board, true))
 	add_inspector_plugin(_statboard_inspector)
 
+	# Procgen: selecting a GraphProcgenConfig passively syncs the tab (like
+	# spell); the inspector button reveals the screen. Live property edits
+	# (including on nested sub-resources like budget_policy / shape_mask /
+	# ScalarField children) re-render the tab in place via _on_property_edited.
+	_procgen_inspector = _PROCGEN_INSPECTOR.new()
+	_procgen_inspector.config_inspected.connect(func(cfg: Object) -> void: _route(&"procgen", cfg, false))
+	_procgen_inspector.reveal_panel_requested.connect(func() -> void: _reveal(&"procgen"))
+	add_inspector_plugin(_procgen_inspector)
+
 
 func _exit_tree() -> void:
 	var insp := EditorInterface.get_inspector()
@@ -65,6 +76,8 @@ func _exit_tree() -> void:
 		remove_inspector_plugin(_vfx_inspector)
 	if _statboard_inspector != null:
 		remove_inspector_plugin(_statboard_inspector)
+	if _procgen_inspector != null:
+		remove_inspector_plugin(_procgen_inspector)
 	if is_instance_valid(_host):
 		_host.queue_free()
 
@@ -106,3 +119,4 @@ func _reveal(id: StringName) -> void:
 func _on_property_edited(_property: String) -> void:
 	if is_instance_valid(_host):
 		_host.refresh(&"spell", &"refresh_from_spell")
+		_host.refresh(&"procgen", &"refresh_from_config")

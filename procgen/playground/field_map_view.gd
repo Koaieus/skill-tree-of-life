@@ -9,6 +9,10 @@ extends Control
 ## Drawing is adapted from `addons/procgen_preview/preview_control.gd` (the
 ## inspector heatmap); kept as a private copy on purpose — the two surfaces
 ## diverge (this one is clickable + marks the sampled point).
+##
+## Hover shows a tooltip with the field value + budget policy's base range at
+## that point ([method _get_tooltip]); the panel's sample cards additionally
+## show each roll's full factor breakdown after a click (#166).
 
 signal map_clicked(world_pos: Vector2)
 
@@ -36,6 +40,14 @@ func _init() -> void:
 func set_config(c: GraphProcgenConfig) -> void:
 	_config = c
 	_has_marker = false
+	queue_redraw()
+
+
+## Swap in a re-rolled copy of the *same* config (inspector live-edit, #166)
+## without resetting the marker — the whole point is to see the clicked spot's
+## heatmap update in place while a designer tweaks the field in the inspector.
+func refresh_config(c: GraphProcgenConfig) -> void:
+	_config = c
 	queue_redraw()
 
 
@@ -71,6 +83,26 @@ func _budget_field() -> ScalarField:
 	if _config != null and _config.budget_policy != null:
 		return _config.budget_policy.budget_field
 	return null
+
+
+## Hover readout of the factors a click-to-sample would roll with at this
+## point — field value + the policy's base range — so a designer can scout
+## the field before committing to a click. The roll's exact "raw" draw is
+## per-click RNG and shown on the sample cards instead (see
+## [method ProcgenPlaygroundPanel._breakdown_text]).
+func _get_tooltip(at_position: Vector2) -> String:
+	if not _has_transform or _fit <= 0.0 or _config == null:
+		return ""
+	var world := _bounds.position + (at_position - _draw_origin) / _fit
+	if _config.shape_mask != null and not _config.shape_mask.contains(world):
+		return ""
+	var lines: Array[String] = []
+	var field := _budget_field()
+	lines.append("field ×%.2f" % (1.0 if field == null else field.sample(world)))
+	var policy := _config.budget_policy
+	if policy != null:
+		lines.append("base range %d–%d" % [policy.base_min, policy.base_max])
+	return "\n".join(lines)
 
 
 func _draw() -> void:

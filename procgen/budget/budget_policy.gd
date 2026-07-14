@@ -46,6 +46,20 @@ func compute_budget(
 		role_tags: Array,
 		rng: RandomNumberGenerator,
 ) -> int:
+	return compute_budget_breakdown(archetype, position, role_tags, rng).budget as int
+
+
+## Same roll as [method compute_budget], but returns every factor that went
+## into it instead of just the final int — used by the procgen playground
+## (#166) to show a designer *why* a sample landed where it did, not just the
+## number. `compute_budget` calls this and discards everything but `budget` so
+## the two never drift and the RNG is drawn exactly once either way.
+func compute_budget_breakdown(
+		archetype: StringName,
+		position: Vector2,
+		role_tags: Array,
+		rng: RandomNumberGenerator,
+) -> Dictionary:
 	var raw := lerpf(float(base_min), float(base_max), rng.randf())
 	var arch_mult := float(archetype_multiplier.get(archetype, 1.0))
 	var field_scale := 1.0 if budget_field == null else budget_field.sample(position)
@@ -54,4 +68,13 @@ func compute_budget(
 		if role_bonus.has(t):
 			role_mult *= float(role_bonus[t])
 	var scaled := raw * arch_mult * field_scale * role_mult
-	return maxi(1, int(round(scaled)))
+	var budget := maxi(1, int(round(scaled)))
+	return {
+		"raw": raw,
+		"base_min": base_min,
+		"base_max": base_max,
+		"arch_mult": arch_mult,
+		"field_scale": field_scale,
+		"role_mult": role_mult,
+		"budget": budget,
+	}
