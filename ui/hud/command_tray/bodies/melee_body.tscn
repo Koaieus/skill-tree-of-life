@@ -1,29 +1,30 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3]
 
-[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/melee_body.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://coykc218j64qq" path="res://ui/gauges/capacity_blips.tscn" id="2_blips"]
-[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/command_tray_body_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/melee_body.gd" id="2_script"]
+[ext_resource type="PackedScene" uid="uid://coykc218j64qq" path="res://ui/gauges/capacity_blips.tscn" id="3_blips"]
+[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="4_launch"]
 
-[node name="MeleeBody" type="MarginContainer"]
-script = ExtResource("1_script")
+[node name="MeleeBody" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
 
-[node name="Row" type="HBoxContainer" parent="."]
+[node name="Row" type="HBoxContainer" parent="BodyContent"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Info" type="VBoxContainer" parent="Row"]
+[node name="Info" type="VBoxContainer" parent="BodyContent/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="Title" type="Label" parent="Row/Info"]
+[node name="Title" type="Label" parent="BodyContent/Row/Info"]
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 12
 modulate = Color(0.9066, 0.4841, 0.302, 1)
 text = "⚔ Phantom Blade"
 
-[node name="Hint" type="Label" parent="Row/Info"]
+[node name="Hint" type="Label" parent="BodyContent/Row/Info"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
@@ -31,44 +32,44 @@ modulate = Color(0.784, 0.824, 0.902, 0.75)
 autowrap_mode = 2
 text = "Right-click a pivot, left-click to grow the blade up to N connected nodes. The shape is copied and swung once."
 
-[node name="BladeRow" type="HBoxContainer" parent="Row/Info"]
+[node name="BladeRow" type="HBoxContainer" parent="BodyContent/Row/Info"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="BladeLabel" type="Label" parent="Row/Info/BladeRow"]
+[node name="BladeLabel" type="Label" parent="BodyContent/Row/Info/BladeRow"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.667, 0.714, 0.824, 0.6)
 text = "Blade:"
 
-[node name="Blips" parent="Row/Info/BladeRow" instance=ExtResource("2_blips")]
+[node name="Blips" parent="BodyContent/Row/Info/BladeRow" instance=ExtResource("3_blips")]
 unique_name_in_owner = true
 layout_mode = 2
 fill_color = Color(0.9451, 0.2689, 0.2453, 1)
 
-[node name="CountLabel" type="Label" parent="Row/Info/BladeRow"]
+[node name="CountLabel" type="Label" parent="BodyContent/Row/Info/BladeRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.725, 0.765, 0.863, 0.6)
 text = "pivot + 0"
 
-[node name="Actions" type="VBoxContainer" parent="Row"]
+[node name="Actions" type="VBoxContainer" parent="BodyContent/Row"]
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 8
 
-[node name="SwingButton" type="Button" parent="Row/Actions"]
+[node name="SwingButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "↻ Swing CCW"
 
-[node name="ResetButton" type="Button" parent="Row/Actions"]
+[node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "⟲ Reset"
 
-[node name="LaunchButton" parent="Row/Actions" instance=ExtResource("3_launch")]
+[node name="LaunchButton" parent="BodyContent/Row/Actions" instance=ExtResource("4_launch")]
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(150, 44)

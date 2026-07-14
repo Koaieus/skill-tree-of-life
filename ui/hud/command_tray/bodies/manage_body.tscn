@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/manage_body.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/command_tray_body_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/manage_body.gd" id="2_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
 bg_color = Color(1, 1, 1, 0.02)
@@ -18,84 +19,84 @@ content_margin_top = 9.0
 content_margin_right = 11.0
 content_margin_bottom = 9.0
 
-[node name="ManageBody" type="MarginContainer"]
-script = ExtResource("1_script")
+[node name="ManageBody" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
 
-[node name="Content" type="VBoxContainer" parent="."]
+[node name="Content" type="VBoxContainer" parent="BodyContent"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Hint" type="Label" parent="Content"]
+[node name="Hint" type="Label" parent="BodyContent/Content"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 modulate = Color(0.745, 0.784, 0.882, 0.75)
 text = "No attack mode — clicking the graph shapes your constellation."
 autowrap_mode = 2
 
-[node name="Cards" type="HBoxContainer" parent="Content"]
+[node name="Cards" type="HBoxContainer" parent="BodyContent/Content"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="AllocateCard" type="PanelContainer" parent="Content/Cards"]
+[node name="AllocateCard" type="PanelContainer" parent="BodyContent/Content/Cards"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
-[node name="AllocateBox" type="VBoxContainer" parent="Content/Cards/AllocateCard"]
+[node name="AllocateBox" type="VBoxContainer" parent="BodyContent/Content/Cards/AllocateCard"]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="Title" type="Label" parent="Content/Cards/AllocateCard/AllocateBox"]
+[node name="Title" type="Label" parent="BodyContent/Content/Cards/AllocateCard/AllocateBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 modulate = Color(0.2606, 0.6387, 0.9922, 1)
 text = "◆ Allocate"
 
-[node name="Hint" type="Label" parent="Content/Cards/AllocateCard/AllocateBox"]
+[node name="Hint" type="Label" parent="BodyContent/Content/Cards/AllocateCard/AllocateBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.725, 0.765, 0.863, 0.65)
 autowrap_mode = 2
 text = "Left-click an adjacent node · costs 1 SP"
 
-[node name="MoveCard" type="PanelContainer" parent="Content/Cards"]
+[node name="MoveCard" type="PanelContainer" parent="BodyContent/Content/Cards"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
-[node name="MoveBox" type="VBoxContainer" parent="Content/Cards/MoveCard"]
+[node name="MoveBox" type="VBoxContainer" parent="BodyContent/Content/Cards/MoveCard"]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="Title" type="Label" parent="Content/Cards/MoveCard/MoveBox"]
+[node name="Title" type="Label" parent="BodyContent/Content/Cards/MoveCard/MoveBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 modulate = Color(0.9039, 0.7331, 0.2746, 1)
 text = "✦ Move Core"
 
-[node name="Hint" type="Label" parent="Content/Cards/MoveCard/MoveBox"]
+[node name="Hint" type="Label" parent="BodyContent/Content/Cards/MoveCard/MoveBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.725, 0.765, 0.863, 0.65)
 autowrap_mode = 2
 text = "Click core then destination, or drag · costs Move"
 
-[node name="DeallocCard" type="PanelContainer" parent="Content/Cards"]
+[node name="DeallocCard" type="PanelContainer" parent="BodyContent/Content/Cards"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
-[node name="DeallocBox" type="VBoxContainer" parent="Content/Cards/DeallocCard"]
+[node name="DeallocBox" type="VBoxContainer" parent="BodyContent/Content/Cards/DeallocCard"]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="Title" type="Label" parent="Content/Cards/DeallocCard/DeallocBox"]
+[node name="Title" type="Label" parent="BodyContent/Content/Cards/DeallocCard/DeallocBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 modulate = Color(0.6935, 0.4045, 0.9676, 1)
 text = "⌫ Deallocate"
 
-[node name="Hint" type="Label" parent="Content/Cards/DeallocCard/DeallocBox"]
+[node name="Hint" type="Label" parent="BodyContent/Content/Cards/DeallocCard/DeallocBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.725, 0.765, 0.863, 0.65)

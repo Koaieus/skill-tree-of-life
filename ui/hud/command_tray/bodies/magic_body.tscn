@@ -1,20 +1,21 @@
 [gd_scene format=3 uid="uid://dpqhkltveiwtk"]
 
-[ext_resource type="Script" uid="uid://blwjte35hv0dj" path="res://ui/hud/command_tray/bodies/magic_body.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="2_launch"]
-[ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="3_spellbar"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/command_tray_body_base.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://blwjte35hv0dj" path="res://ui/hud/command_tray/bodies/magic_body.gd" id="2_script"]
+[ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
+[ext_resource type="PackedScene" uid="uid://dqlt773tgviy7" path="res://ui/spell_picker_bar/spell_picker_bar.tscn" id="4_spellbar"]
 
-[node name="MagicBody" type="MarginContainer" unique_id=1713938138]
-script = ExtResource("1_script")
+[node name="MagicBody" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
 
-[node name="Content" type="VBoxContainer" parent="." unique_id=333665761]
+[node name="Content" type="VBoxContainer" parent="BodyContent" unique_id=333665761]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Header" type="HBoxContainer" parent="Content" unique_id=266619087]
+[node name="Header" type="HBoxContainer" parent="BodyContent/Content" unique_id=266619087]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Content/Header" unique_id=1144342937]
+[node name="Title" type="Label" parent="BodyContent/Content/Header" unique_id=1144342937]
 modulate = Color(0.291, 0.5892, 1, 1)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -22,30 +23,30 @@ theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 12
 text = "✴ Spells"
 
-[node name="ContextLabel" type="Label" parent="Content/Header" unique_id=1069517415]
+[node name="ContextLabel" type="Label" parent="BodyContent/Content/Header" unique_id=1069517415]
 unique_name_in_owner = true
 modulate = Color(0.784, 0.824, 0.902, 0.75)
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "source degree 0 · mana 0"
 
-[node name="SpellRow" type="HBoxContainer" parent="Content" unique_id=13126492]
+[node name="SpellRow" type="HBoxContainer" parent="BodyContent/Content" unique_id=13126492]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SpellPickerBar" parent="Content/SpellRow" unique_id=364794123 instance=ExtResource("3_spellbar")]
+[node name="SpellPickerBar" parent="BodyContent/Content/SpellRow" unique_id=364794123 instance=ExtResource("4_spellbar")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="ResetButton" type="Button" parent="Content/SpellRow" unique_id=1850223647]
+[node name="ResetButton" type="Button" parent="BodyContent/Content/SpellRow" unique_id=1850223647]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "⟲ Reset"
 
-[node name="LaunchButton" parent="Content/SpellRow" unique_id=1287195377 instance=ExtResource("2_launch")]
+[node name="LaunchButton" parent="BodyContent/Content/SpellRow" unique_id=1287195377 instance=ExtResource("3_launch")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 44)
 layout_mode = 2
@@ -53,7 +54,7 @@ size_flags_vertical = 4
 text = "Cast"
 tint = Color(0.291, 0.5892, 1, 1)
 
-[node name="Footer" type="Label" parent="Content" unique_id=2037564272]
+[node name="Footer" type="Label" parent="BodyContent/Content" unique_id=2037564272]
 modulate = Color(0.667, 0.714, 0.824, 0.5)
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
