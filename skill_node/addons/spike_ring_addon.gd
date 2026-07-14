@@ -22,6 +22,8 @@ const default_color = Color(0.95, 0.55, 0.4, 0.95)
 	get():
 		if carrier and carrier.owned_by:
 			return carrier.owned_by.color
+		if carrier:
+			return carrier.base_type_color
 		return default_color
 ## How far out the spike tips reach beyond the carrier's radius.
 @export_range(0.0, 1.0, 0.05) var spike_overshoot: float = 0.45
