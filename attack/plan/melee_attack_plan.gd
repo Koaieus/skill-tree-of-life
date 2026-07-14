@@ -204,35 +204,19 @@ func resolve() -> AttackOutcome:
 	var exclude := collect_target_excludes()
 	var events := BladeHitScan.scan(
 			trajectory, blade_state, space_state, 0xFFFFFFFF, exclude)
-	var base_damage := _blade_damage_value()
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.
 		if ev.is_edge_hit():
 			continue
 		var di := DamageInstance.new()
-		di.amount = base_damage + blade_state.vertex_spikes[ev.particle_idx]
+		di.amount = blade_state.vertex_damage[ev.particle_idx]
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
 		di.origin = source
 		di.source = self
 		outcome.hits.append(di)
 	return outcome
-
-
-## Per-contact base damage from the attacker's board. Reads blade_damage stat
-## when available; falls back to SkillBlade.NODE_DAMAGE + STR//10.
-func _blade_damage_value() -> float:
-	if attacker != null and attacker.stat_board != null:
-		var s := attacker.stat_board.get_stat(&"blade_damage")
-		if s != null:
-			return float(s.value)
-	if attacker == null or attacker.stat_board == null:
-		return SkillBlade.NODE_DAMAGE
-	var str_stat := attacker.stat_board.get_stat(&"strength")
-	if str_stat == null:
-		return SkillBlade.NODE_DAMAGE
-	return SkillBlade.NODE_DAMAGE + floor(float(str_stat.value) / 10.0)
 
 
 ## Build a fresh BladeState from the current selection. Public so the
@@ -257,7 +241,13 @@ func build_blade_state() -> BladeState:
 	var edge_indices: Array[Vector2i] = []
 	for pair in induced_edges:
 		edge_indices.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
-	return BladeState.build(positions, pivot_idx, edge_indices, radii)
+	var blade_state := BladeState.build(positions, pivot_idx, edge_indices, radii)
+	# Per-vertex damage from each source node's own blade_damage (wielder base
+	# merged with node-local spike modifiers) — keeps preview/AI scoring in step
+	# with the live swing in skill_blade.gd.
+	for i in selection.size():
+		blade_state.vertex_damage[i] = selection[i].get_local_value(&"blade_damage")
+	return blade_state
 
 
 ## [SkillNode, SkillNode] pairs over the live graph, restricted to the

@@ -42,6 +42,18 @@ func _ready() -> void:
 
 # ─── Virtual hooks (override per addon type) ───────────────────────────────
 
+## Node-local stat modifiers this addon contributes to its carrier's
+## node_board. Defaults to the authored [member local_modifiers] array; addons
+## whose contribution is computed from a scalar export (e.g. SpikeRing's
+## `damage` → a blade_damage modifier) override to synthesize one.
+##
+## SkillNode routes these on add (via [method SkillNode.add_local_modifier]) and
+## reclaims them on remove BY IDENTITY — so overrides MUST return the same
+## StatModifier instance across calls (build once, cache, return the cached one).
+func get_local_modifiers() -> Array[StatModifier]:
+	return local_modifiers
+
+
 ## Called by SkillNode._sync_visuals whenever the carrier's radius changes.
 ## Override to redraw at the new size.
 func configure_visual(_radius: float) -> void:

@@ -15,11 +15,6 @@ const SCENE := preload("res://attack/melee/skill_blade.tscn")
 const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
 const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
 
-## Edges deal no damage in the MVP melee model — only blade-nodes (the copied
-## vertices) hit. See docs/design/mvp_decisions.md §D-1.
-const NODE_DAMAGE: float = 1.0
-const _STR_DIVISOR: int = 10
-
 @export var owned_by: Entity
 
 ## Mirror of [member MeleeAttackPlan.swing_cw]. Set by [MeleePreview] before
@@ -86,10 +81,13 @@ func build_from_skill_nodes(
 	for pair in induced_edges:
 		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
 	state = BladeState.build(positions, pivot_idx, edges_idx, radii)
+	# Per-vertex damage is the node's own blade_damage (wielder base merged with
+	# any node-local spike modifier) — one localized read per source node.
+	for i in skill_nodes.size():
+		state.vertex_damage[i] = skill_nodes[i].get_local_value(&"blade_damage")
 	# Dispatch to addons after BladeState is built so they can append
-	# constraints (Clamp's phantom brace) and per-particle damage
-	# contributions (SpikeRing's vertex_spikes). SkillBlade never learns
-	# specific addon types — pure virtual dispatch.
+	# constraints (Clamp's phantom brace). SkillBlade never learns specific
+	# addon types — pure virtual dispatch.
 	for i in skill_nodes.size():
 		for addon in skill_nodes[i].get_addons():
 			addon.apply_to_blade(state, i)
@@ -150,27 +148,8 @@ func _apply_playback_frame(
 			# floaters or stat-tracking noise leaks through.
 			if ev.is_edge_hit():
 				continue
-			var damage := _blade_damage_value() + state.vertex_spikes[ev.particle_idx]
+			var damage := state.vertex_damage[ev.particle_idx]
 			hit.emit(ev.particle_idx, false, ev.target as SkillNode, ev.t, damage)
-
-
-## Per-contact base damage. Reads the blade_damage stat when available; falls
-## back to NODE_DAMAGE + STR//10 so legacy boards without the stat still work.
-func _blade_damage_value() -> float:
-	if owned_by != null and owned_by.stat_board != null:
-		var s := owned_by.stat_board.get_stat(&"blade_damage")
-		if s != null:
-			return float(s.value)
-	return NODE_DAMAGE + _str_bonus_fallback()
-
-
-func _str_bonus_fallback() -> float:
-	if owned_by == null or owned_by.stat_board == null:
-		return 0.0
-	var s := owned_by.stat_board.get_stat(&"strength")
-	if s == null:
-		return 0.0
-	return floor(float(s.value) / _STR_DIVISOR)
 
 
 ## Stop any in-flight playback. Emits playback_finished so awaiters wake up.
