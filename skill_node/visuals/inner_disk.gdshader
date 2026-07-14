@@ -30,11 +30,34 @@ instance uniform float well_depth : hint_range(0.0, 1.0, 0.01) = 0.35;
 //instance uniform float hairline_width : hint_range(0.0, 0.05, 0.001) = 0.015; // TODO: Remove
 //instance uniform float hairline_opacity : hint_range(0.0, 1.0, 0.01) = 0.35; // TODO: Remove
 
+// Loot relic gem cut (#168) — see sn_diamond_bump in lighting.gdshaderinc.
+// `diamond_lut` is deliberately a PLAIN uniform (not `instance uniform`): the
+// shape is fixed and identical for every relic, so one shared texture on the
+// shared ShaderMaterial costs nothing against the family's batching, unlike
+// a per-instance-varying sampler would. Mutually exclusive with show_weld at
+// the InnerDisk.gd level (only one glyph shows at a time).
+// filter_linear_mipmap (trilinear), not plain filter_linear: the 128px LUT
+// is higher-res than the disk's on-screen footprint, so sampling it is a
+// MINIFICATION — mip-aware filtering is what actually antialiases the
+// facet creases instead of aliasing them (see _build_diamond_lut in
+// inner_disk.gd, which bakes the matching mip chain).
+uniform sampler2D diamond_lut : filter_linear_mipmap, hint_default_black;
+instance uniform bool show_diamond = false;
+
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0;
 	vec3 normal = sn_dome_normal(p);
 
-	if (show_weld) {
+	if (show_diamond) {
+		vec4 lut = texture(diamond_lut, UV);
+		if (lut.a > 0.5) {
+			vec3 bump = sn_diamond_bump(lut);
+			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
+			vec2 grad_dome = -p / z_dome;
+			vec2 grad_total = grad_dome - bump.yz;
+			normal = normalize(vec3(-grad_total, 1.0));
+		}
+	} else if (show_weld) {
 		vec3 bowl = sn_bowl_drop(p, weld_sides, weld_k, well_depth);
 		if (bowl.x > 0.0) {
 			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));

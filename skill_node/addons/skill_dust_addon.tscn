@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://cqf3n8g0xhqte"]
+
+[ext_resource type="Script" uid="uid://dc2gtxusql0iq" path="res://skill_node/addons/skill_dust_addon.gd" id="1_dust"]
+[ext_resource type="PackedScene" uid="uid://bkwwvwb1433d1" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
+
+[node name="SkillDustAddon" type="Node2D"]
+script = ExtResource("1_dust")
+
+[node name="InnerDisk" parent="." instance=ExtResource("2_disk")]
+show_weld = false
+show_diamond = true

@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" uid="uid://eqnsntb3dows" path="res://ui/fog_overlay/fog_overlay.tscn" id="11_fog"]
 [ext_resource type="PackedScene" path="res://ui/aura_overlay/aura_overlay.tscn" id="11_aura"]
 [ext_resource type="Script" uid="uid://b5ivx78jchujx" path="res://systems/loot_system.gd" id="12_loot"]
+[ext_resource type="PackedScene" uid="uid://cqf3n8g0xhqte" path="res://skill_node/addons/skill_dust_addon.tscn" id="12_dust"]
 [ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="12_ywsqi"]
 [ext_resource type="Script" uid="uid://bi6xivsbbn0gu" path="res://ui/edge_highlight_overlay/edge_highlight_overlay.gd" id="13_i7pw8"]
 [ext_resource type="Script" uid="uid://c6mtnkcuktwte" path="res://ui/node_highlight_overlay/node_highlight_overlay.gd" id="14_x5456"]
@@ -54,6 +55,7 @@ metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
 unique_name_in_owner = true
 script = ExtResource("12_loot")
 turn_manager = NodePath("../TurnManager")
+skill_dust_scene = ExtResource("12_dust")
 
 [node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
 unique_name_in_owner = true

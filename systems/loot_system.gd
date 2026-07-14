@@ -113,6 +113,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 	if dust == null:
 		dust = SkillDustAddon.new()
 	dust.payload = payload
+	dust.victim_color = victim.color
 	_attach_addon(core, dust)
 
 

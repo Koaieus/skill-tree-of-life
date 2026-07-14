@@ -113,3 +113,39 @@ vec3 sn_bowl_drop(vec2 p_pos, float p_sides, float p_radius, float p_depth) {
 	vec2 grad = -(p_depth * t / (s * apothem)) * n_sector * fade;
 	return vec3(drop, grad);
 }
+
+// --- Diamond crown: a PRECOMPUTED height-field, not a per-pixel facet
+// formula ---
+//
+// Unlike the weld glyph above (recomputed analytically per pixel because its
+// shape varies per node — different archetype, different sides), the loot
+// relic's gem cut is the exact same fixed table+crown geometry on every
+// instance (#168). Baking it once into a small shared LUT texture (built in
+// inner_disk.gd's _build_diamond_lut(), sampled here) trades a per-pixel
+// atan2/mod/cos facet computation — repeated identically on every relic on
+// screen, every frame — for one texture fetch. The LUT is a plain (non
+// `instance uniform`) sampler2D: same object bound once on the shared
+// ShaderMaterial, so it costs nothing against the family's single-draw-call
+// batching (see .claude/rules/skill-node-visuals.md — only PER-INSTANCE
+// samplers force the resource_local_to_scene escape hatch; a LUT that's
+// identical across every instance doesn't).
+//
+// This is NOT the "CPU twin of the shading formula" anti-pattern the weld
+// glyph retired (weld_symbol.gd's old _disk_shade()) — there is no second,
+// independently-authored GPU implementation of the same geometry to drift
+// from. The GDScript bake IS the sole source of truth; the shader only
+// decodes it.
+//
+// Encoding (written by InnerDisk._build_diamond_lut, must stay in lock-step
+// with SN_DIAMOND_DEPTH_SCALE / SN_DIAMOND_GRAD_SCALE below):
+//   R = drop / SN_DIAMOND_DEPTH_SCALE, clamped 0..1
+//   GB = grad / SN_DIAMOND_GRAD_SCALE, remapped -1..1 -> 0..1
+//   A = 1 inside the gem's girdle, 0 outside (cheap "skip the bump" gate)
+const float SN_DIAMOND_DEPTH_SCALE = 0.35;
+const float SN_DIAMOND_GRAD_SCALE = 3.0;
+
+vec3 sn_diamond_bump(vec4 p_lut) {
+	float drop = p_lut.r * SN_DIAMOND_DEPTH_SCALE;
+	vec2 grad = (p_lut.gb * 2.0 - 1.0) * SN_DIAMOND_GRAD_SCALE;
+	return vec3(drop, grad);
+}

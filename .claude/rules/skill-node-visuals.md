@@ -259,6 +259,54 @@ watch is draw calls, not shader complexity. `rim_ring`'s old approach issued
 single shader-drawn ring with a real height-function bumpmap is both cheaper
 (1 draw call) and higher quality (continuous, not banded).
 
+### The diamond crown (loot relic, #168): a precomputed LUT, not per-pixel facet math — because every instance is IDENTICAL
+
+`InnerDisk.show_diamond` (the `SkillDustAddon` relic's gem-cut glyph) is a
+second height-field glyph alongside the weld, but built differently on
+purpose. The weld's shape varies per node (different archetype → different
+`weld_sides`/`weld_k`), so it has to stay an analytic per-pixel formula
+(`sn_polygon_facet`/`sn_bowl_drop`). The diamond crown is the SAME shape on
+every relic — no per-instance parameter varies it — so recomputing its
+`atan2`/`mod`/facet math per pixel, per instance, every frame, buys nothing.
+Instead `InnerDisk._build_diamond_lut()` (lazy `static var _diamond_lut`,
+same caching shape as `_shared_material`) bakes a small texture (table
+flat-depth region + 8 linear-ramp crown facets, computed with a GDScript
+twin of the facet math — see below for why that's fine here) ONCE, and
+`sn_diamond_bump()` (`lighting.gdshaderinc`) just decodes it per pixel.
+
+**Why the LUT doesn't break batching, when the rule elsewhere says samplers
+force `resource_local_to_scene`:** that constraint is specifically about a
+sampler that VARIES per instance (rim_ring's custom-curve escape hatch). This
+LUT is identical for every `InnerDisk`, so it's bound as a plain
+`uniform sampler2D diamond_lut` (NOT `instance uniform`) on the one shared
+`ShaderMaterial`, set once in `_ready()` — every instance samples the same
+texture object, same as every instance already shares the one
+`ShaderMaterial` itself. Only a per-instance-varying sampler would force the
+duplicate-material path.
+
+**Why the GDScript bake isn't the "CPU twin of the shading formula"
+anti-pattern the weld glyph retired** (`weld_symbol.gd`'s old
+`_disk_shade()`, warned about above): that anti-pattern was two independently
+*maintained* implementations of the same formula drifting apart over time.
+Here there is only ONE implementation — the GDScript bake — and the shader
+never re-derives the geometry, only decodes the baked texel. There's nothing
+for it to drift from.
+
+Encoding: R = `drop / DIAMOND_DEPTH` (0..1), GB = `grad / DIAMOND_GRAD_SCALE`
+remapped -1..1 → 0..1, A = 1 inside the girdle else 0 (cheap "skip the bump"
+gate, and keeps bilinear sampling from bleeding a dark ring across the
+boundary). The bake constants in `inner_disk.gd` and the decode constants in
+`lighting.gdshaderinc` (`SN_DIAMOND_DEPTH_SCALE`/`SN_DIAMOND_GRAD_SCALE`)
+must stay numerically in lock-step — they're two halves of one encoding, not
+independently tunable.
+
+**When to reach for this vs. the weld's per-pixel formula:** if a future
+glyph needs per-instance variation (different archetype, different sides,
+different depth), it has to be the analytic per-pixel path like the weld —
+a LUT can't vary per instance without becoming a per-instance sampler (the
+exact escape hatch this section says the LUT avoids). Reach for a baked LUT
+only when the shape truly is fixed across every instance that shows it.
+
 ## The one formula
 
 Every **stroked ring** is specified as `(inner_offset, width)` relative to the
