@@ -60,6 +60,8 @@ func _swap_body(mode: BattleSystem.AttackMode) -> void:
 		_current_body.teardown()
 		_current_body.queue_free()
 		_current_body = null
+	for child in _body_slot.get_children():
+		child.queue_free()
 	var scene := _scene_for(mode)
 	if scene == null or _body_slot == null:
 		return
