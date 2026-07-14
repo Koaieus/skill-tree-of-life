@@ -70,15 +70,15 @@ func get_visual(_attacker: Entity, _source: SkillNode) -> RangeVisual:
 	return RangeVisual.new()
 
 
-## Per-attacker reach multiplier sourced from the `spell_range` stat
-## (interpreted as a percent bonus). Returns 1.0 if no attacker / stat board
-## (including a null attacker — the deliberate "no scaling" path).
+## Per-source reach multiplier sourced from the `spell_range` stat
+## (interpreted as a percent bonus), read node-locally off [param source] —
+## wielder baseline merged with node-local addons, e.g. a range-extender
+## granting local spell_range (#171). Returns 1.0 if no attacker / source
+## (including a null attacker — the deliberate "no scaling" path, e.g. a
+## [CoreClass] aura that should not scale with the caster's `spell_range`).
 ## Subclasses scale their base reach by this value so INT-driven boosts
 ## propagate uniformly across hop and euclidean finders.
-static func spell_range_multiplier(attacker: Entity) -> float:
-	if attacker == null or attacker.stat_board == null:
+static func spell_range_multiplier(attacker: Entity, source: SkillNode) -> float:
+	if attacker == null or source == null:
 		return 1.0
-	var s := attacker.stat_board.get_stat(&"spell_range")
-	if s == null:
-		return 1.0
-	return 1.0 + float(s.value) / 100.0
+	return 1.0 + float(source.get_local_value(&"spell_range")) / 100.0

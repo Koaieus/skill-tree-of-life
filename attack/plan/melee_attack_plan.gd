@@ -98,16 +98,14 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	return HighlightRole.NONE
 
 
-## Current cap on `blade_nodes.size()` — reads `blade_size` from the
-## attacker's stat board. Defaults to 1 when the board / stat is missing
-## (e.g. a stat-less test entity).
+## Current cap on `blade_nodes.size()` — reads `blade_size` node-locally off
+## the pivot (wielder baseline merged with node-local addons, e.g. a
+## "greatsword pivot" granting local blade_size). Defaults to 1 when there's
+## no pivot yet (e.g. a stat-less test entity).
 func max_blades() -> int:
-	if attacker == null or attacker.stat_board == null:
+	if source == null:
 		return 1
-	var s := attacker.stat_board.get_stat(_BLADE_SIZE_ID)
-	if s == null:
-		return 1
-	return int(s.value)
+	return int(source.get_local_value(_BLADE_SIZE_ID))
 
 
 # ── State mutations (all assume legitimacy already gated) ──────────────────

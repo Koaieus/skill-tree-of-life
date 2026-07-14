@@ -25,13 +25,13 @@ func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 	var path := nav.astar.get_id_path(src_id, dst_id)
 	if path.is_empty():
 		return false
-	return path.size() - 1 <= _effective_max_hops(attacker)
+	return path.size() - 1 <= _effective_max_hops(attacker, source)
 
 
 ## Round-to-nearest scaling so a single +20% from INT pushes a 3-hop spell
 ## to 4 hops (3 × 1.2 ≈ 3.6 → 4) rather than getting eaten by truncation.
-func _effective_max_hops(attacker: Entity) -> int:
-	return int(round(float(max_hops) * spell_range_multiplier(attacker)))
+func _effective_max_hops(attacker: Entity, source: SkillNode) -> int:
+	return int(round(float(max_hops) * spell_range_multiplier(attacker, source)))
 
 
 ## One BFS over [param mirror], not one AStar query per candidate. Pass the
@@ -53,7 +53,7 @@ func max_reach() -> float:
 
 func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
-	var max_hops := _effective_max_hops(attacker)
+	var max_hops := _effective_max_hops(attacker, source)
 	if source == null or max_hops <= 0:
 		return visual
 	if attacker == null or attacker.navigator == null:
