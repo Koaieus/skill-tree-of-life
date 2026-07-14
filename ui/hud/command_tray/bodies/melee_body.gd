@@ -10,11 +10,13 @@ extends CommandTrayBodyBase
 @onready var _blips: CapacityBlips = %Blips
 @onready var _count_label: Label = %CountLabel
 @onready var _swing_button: Button = %SwingButton
+@onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
 
 func _on_bound() -> void:
 	_swing_button.pressed.connect(_on_swing_pressed)
+	_reset_button.pressed.connect(_battle_system.reset_plan)
 	_launch_button.pressed.connect(_battle_system.launch_attack)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:

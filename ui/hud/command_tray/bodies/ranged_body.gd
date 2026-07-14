@@ -9,10 +9,12 @@ extends CommandTrayBodyBase
 
 @onready var _leaves_value: Label = %LeavesValue
 @onready var _damage_range_label: Label = %DamageRangeLabel
+@onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
 
 func _on_bound() -> void:
+	_reset_button.pressed.connect(_battle_system.reset_plan)
 	_launch_button.pressed.connect(_battle_system.launch_attack)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:

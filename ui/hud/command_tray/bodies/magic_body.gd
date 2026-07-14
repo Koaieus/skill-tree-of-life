@@ -8,6 +8,7 @@ extends CommandTrayBodyBase
 
 @onready var _context_label: Label = %ContextLabel
 @onready var _spell_bar: SpellPickerBar = %SpellPickerBar
+@onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
 
@@ -15,6 +16,7 @@ func _on_bound() -> void:
 	_spell_bar.bind_spellbook(_player.spellbook)
 	_spell_bar.spell_selected.connect(_on_spell_selected)
 	_battle_system.selected_spell_changed.connect(_spell_bar.sync_selected)
+	_reset_button.pressed.connect(_battle_system.reset_plan)
 	_launch_button.pressed.connect(_battle_system.launch_attack)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
 	if _input_ctl != null:

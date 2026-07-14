@@ -63,6 +63,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "↻ Swing CCW"
 
+[node name="ResetButton" type="Button" parent="Row/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⟲ Reset"
+
 [node name="LaunchButton" parent="Row/Actions" instance=ExtResource("3_launch")]
 unique_name_in_owner = true
 layout_mode = 2
