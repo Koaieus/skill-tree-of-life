@@ -48,6 +48,13 @@ on a new branch of the same name, and prints the `cd` path. `cd` into it —
 **all implementation work happens inside the worktree**, never in the main
 checkout.
 
+**2.5. Claim the issue on the kanban board**
+```bash
+mise gh-project -- status <n> in-progress
+```
+(Project is linked to the repo — issues appear automatically.)
+Move the issue out of Backlog/Ready so other agents don't pick it up.
+
 **3. Implement**
 Same repo, same rules — `.claude/rules/*` apply unchanged inside a worktree.
 Two things specific to running in a *fresh* worktree:
@@ -97,6 +104,11 @@ commands, run from wherever, and the git safety net does the rest.
 Ensure your commit message contains `Closes #<n>` (see `CLAUDE.md` → Git) so
 GitHub auto-closes the issue — amend it now if needed (`git commit --amend`),
 you're still in the worktree.
+
+Optionally, move the kanban card to reflect the new state:
+```bash
+mise gh-project -- status <n> done          # or in-review
+```
 
 **a. Rebase the worktree branch onto master** (from *inside* the worktree —
 refs are shared across worktrees, so this sees master's real tip; the rebase

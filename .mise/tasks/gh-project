@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT=${GH_PROJECT_NUMBER:-1}
+OWNER=${GH_PROJECT_OWNER:-@me}
+PROJECT_ID=${GH_PROJECT_ID:-PVT_kwHOAExWR84BcS99}
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "Koaieus/skill-tree-of-life")
+
+FIELD_STATUS="PVTSSF_lAHOAExWR84BcS99zhW81wo"
+FIELD_PRIORITY="PVTSSF_lAHOAExWR84BcS99zhW82Ck"
+FIELD_SIZE="PVTSSF_lAHOAExWR84BcS99zhW82Co"
+
+item_id() {
+  local issue=$1
+  gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+    | jq -r '.items[] | select(.content.number == '$issue') | .id' | head -1
+}
+
+ensure_item() {
+  local issue=$1
+  local id
+  id=$(item_id "$issue")
+  if [ -z "$id" ]; then
+    gh project item-add "$PROJECT" --owner "$OWNER" --url "https://github.com/$REPO/issues/$issue" >/dev/null
+    id=$(item_id "$issue")
+  fi
+  echo "$id"
+}
+
+cmd_add() {
+  local issue=$1
+  local id
+  id=$(item_id "$issue")
+  [ -n "$id" ] && { echo "✓ issue #$issue already in project"; return; }
+  gh project item-add "$PROJECT" --owner "$OWNER" --url "https://github.com/$REPO/issues/$issue"
+  echo "✓ issue #$issue added to project"
+}
+
+cmd_status() {
+  local issue=$1 status=${2:-}
+  local id
+  id=$(ensure_item "$issue")
+  [ -n "$id" ] || exit 1
+
+  if [ -z "$status" ]; then
+    gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+      | jq -r '.items[] | select(.content.number == '$issue') | .status // empty'
+    return
+  fi
+
+  local option
+  case "$status" in
+    backlog)        option="f75ad846" ;;
+    ready)          option="61e4505c" ;;
+    in-progress|ip)  option="47fc9ee4" ;;
+    in-review|ir)    option="df73e18b" ;;
+    done)           option="98236657" ;;
+    *) echo "✗ unknown status: $status (backlog|ready|in-progress|in-review|done)"; exit 1 ;;
+  esac
+  gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_STATUS" --single-select-option-id "$option"
+  echo "✓ issue #$issue status → $status"
+}
+
+cmd_priority() {
+  local issue=$1 priority=${2:-}
+  local id option
+  id=$(ensure_item "$issue") || exit 1
+
+  if [ -z "$priority" ]; then
+    gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .Priority // "—"'
+    return
+  fi
+
+  case "$priority" in
+    p0|P0) option="79628723" ;;
+    p1|P1) option="0a877460" ;;
+    p2|P2) option="da944a9c" ;;
+    *) echo "✗ unknown priority: $priority (p0|p1|p2)"; exit 1 ;;
+  esac
+  gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_PRIORITY" --single-select-option-id "$option"
+  echo "✓ issue #$issue priority → $priority"
+}
+
+cmd_size() {
+  local issue=$1 size=${2:-}
+  local id option
+  id=$(ensure_item "$issue") || exit 1
+
+  if [ -z "$size" ]; then
+    gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .Size // "—"'
+    return
+  fi
+
+  case "$size" in
+    xs|XS) option="6c6483d2" ;;
+    s|S)   option="f784b110" ;;
+    m|M)   option="7515a9f1" ;;
+    l|L)   option="817d0097" ;;
+    xl|XL) option="db339eb2" ;;
+    *) echo "✗ unknown size: $size (xs|s|m|l|xl)"; exit 1 ;;
+  esac
+  gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_SIZE" --single-select-option-id "$option"
+  echo "✓ issue #$issue size → $size"
+}
+
+usage() {
+  cat <<EOF
+Usage: mise gh-project -- <cmd> [args...]
+
+Commands:
+  add <n>                      Add issue to project (idempotent)
+  status <n> [<status>]        Read or set status (backlog|ready|in-progress|in-review|done)
+  priority <n> [<p0|p1|p2>]    Read or set priority
+  size <n> [<xs|s|m|l|xl>]    Read or set size
+
+Examples:
+  mise gh-project -- add 173
+  mise gh-project -- status 173
+  mise gh-project -- status 173 in-progress
+  mise gh-project -- priority 173 p1
+EOF
+  exit 0
+}
+
+CMD=${1:-}
+case "$CMD" in
+  add)      cmd_add "${2:-}" ;;
+  status)   cmd_status "${2:-}" "${3:-}" ;;
+  priority) cmd_priority "${2:-}" "${3:-}" ;;
+  size)     cmd_size "${2:-}" "${3:-}" ;;
+  -h|--help|help) usage ;;
+  *) usage ;;
+esac

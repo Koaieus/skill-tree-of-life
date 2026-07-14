@@ -49,7 +49,7 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 ## Issue tracking
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, plus defaults.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, plus defaults. Project board (kanban): `mise gh-project -- add|status|priority|size`. See `.mise/tasks/gh-project`.
 
 ## Godot conventions
 

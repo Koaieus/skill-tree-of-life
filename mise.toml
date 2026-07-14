@@ -1,6 +1,11 @@
 # Project tasks for Skill Tree of Life (Godot 4.6).
 # `godot` is the system install (4.6.2), not mise-managed — these are just tasks.
 # Usage: `mise tasks` to list, `mise run check`, `mise run playground`, ...
+# Project board identifiers — consumed by `.mise/tasks/gh-project`.
+[env]
+GH_PROJECT_NUMBER = "1"
+GH_PROJECT_OWNER = "@me"
+GH_PROJECT_ID = "PVT_kwHOAExWR84BcS99"
 
 [tasks.check]
 description = "Headless compile-check of all project scripts (Godot editor import)"
