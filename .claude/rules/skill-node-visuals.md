@@ -112,18 +112,23 @@ amputate the lit-dark branch that already exists. BaseCircle's wash is fully
 occluded by the disk+rim now and carries only the **sensed-fog** read (the
 composite is hidden entirely when `sensed`).
 
-### RimBonuses' stake-fill dial (#127 follow-up) is a second, independent stake visualization
+### RimBonuses' stake-fill dial (#127) is the stake visualization
 
 Its current/max glow dial (`fill_current`/`fill_max`, synced from
 `allocation_level`/`stake_level`) is archetype-tinted like every other rim
 element — it reads the inherited `archetype_tint` through `_tone_color()`, the
 same as the RimTone gems, and owns no tint export of its own. RimHolder is the
 one exempt layer: it stays neutral chrome regardless of tint or allocation.
-This is approach B for stake/cap depth, alongside approach A (ring-stacking,
-`rim_growth`) — both wired off the same `allocation_level`/`stake_level`,
-picked per-node by toggling which one is `visible` (default: RimBonuses stays
-`visible = false` in `node_visuals_composite.tscn`, approach A is the
-default look). `0/*` draws nothing at all (no backdrop either); `M/N` with
+
+**This is the sole stake/cap depth visualization since #172.** There used to be
+a second approach — ring-stacking (`rim_growth` grew RimRing2/3/4 outward per
+stake level) — but those extra rings were `visible = false` placeholders on
+*every* node, and each still cost a shared-instance-uniform-buffer slot (see the
+buffer section below). At 2000+ nodes/level that per-node tax wasn't worth a
+rarely-used alternate look, so RimRing2-4 + `rim_growth`/`ring_gap` + the
+`StakeLabel` were removed and RimBonuses is now the only stake read. Growing the
+node's actual `radius` with stake (it's already wired through collision/fog/reach)
+is a possible visual follow-up (#178). `0/*` draws nothing at all (no backdrop either); `M/N` with
 `N > 1` divides the circle into `N` **evenly-gapped** slots (gap size an
 export, applied uniformly whether a slot is filled or not, so a partial fill
 still reads as evenly spaced) and lights the first `M`; `M == N == 1` is a
@@ -158,6 +163,36 @@ instance uniforms, that's the only thing that forces the duplicate-material
 escape hatch (see `rim_ring`'s custom-Curve fallback, gated on
 `_use_custom_curve`, which bakes a small LUT texture into a dedicated
 `resource_local_to_scene` material for just that one instance).
+
+**Two things keep this cheap, and BOTH are load-bearing (#172):**
+
+1. **The scene must NOT bake `material` or `instance_shader_parameters/*`.** Each
+   CanvasItem that has an instance-uniform material bound (or any instance param
+   set) claims a slot in the *shared global* instance-uniform buffer — allocated
+   at load, and independent of whether the item is visible. Because these are
+   `@tool` scripts, an editor save serializes the live-preview `material =
+   SubResource(...)` + a full `instance_shader_parameters/*` block into the
+   scene (same round-trip family as `godot-workflow.md`'s "editor mutates
+   scenes"). That bakes a slot onto *every* instance — fog-hidden nodes, the
+   invisible procgen Node-Graph-preview graph, all of it — and the software
+   rasterizer's cap is only 4096 items ("Too many instances using shader
+   instance variables"). `SkillNodeVisual._validate_property()` clears
+   `PROPERTY_USAGE_STORAGE` on `material` and any `instance_shader_parameters/*`
+   so the script still sets them live but the editor can never re-bake them.
+   **Don't re-add a `material =` line to `inner_disk.tscn`/`rim_ring.tscn`** —
+   the script owns the shared static material; a scene-baked one isn't even the
+   shared instance (it breaks batching *and* costs the slot).
+
+2. **`_sync_material()` gates on `is_visible_in_tree()`** and binds the material
+   only past that gate, with a `visibility_changed` re-sync to set the uniforms
+   the frame the node is shown. So a node whose whole composite is hidden claims
+   zero slots — that covers **sensed-fog** nodes (`skill_node.gd`'s
+   `_apply_sensed_state` sets `_node_visuals.visible = not sensed`) and every
+   node on the procgen Node-Graph-preview's invisible graph (the measured win).
+   `is_visible_in_tree()` (not local `visible`) is deliberate — it's what makes a
+   whole hidden composite free, not just a locally-hidden child. Guarded by
+   `test_node_visuals_contract.gd` (`*_ship_no_baked_material`,
+   `*_fog_hidden_*`, `*_unfogged_*`).
 
 **Shared lighting math lives in `lighting.gdshaderinc`** (`#include`d by both
 `inner_disk.gdshader` and `rim_ring.gdshader`). The faked main-light direction

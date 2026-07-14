@@ -1,18 +1,7 @@
 [gd_scene format=3 uid="uid://dqstbewbfivft"]
 
-[ext_resource type="Shader" uid="uid://c8nrnm8qi4kl3" path="res://skill_node/visuals/rim_ring.gdshader" id="1_rtclf"]
 [ext_resource type="Script" uid="uid://ctct4epql5dad" path="res://skill_node/visuals/rim_ring.gd" id="1_wall"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_rtclf"]
-shader = ExtResource("1_rtclf")
-
 [node name="RimRing" type="Node2D" unique_id=679133823]
-material = SubResource("ShaderMaterial_rtclf")
-instance_shader_parameters/crest_r = 0.0
-instance_shader_parameters/height_preset = 0
-instance_shader_parameters/inner_r = 24.0
-instance_shader_parameters/light_dir_xy = Vector2(-0.35, -0.35)
-instance_shader_parameters/outer_r = 32.0
-instance_shader_parameters/ring_tint = Color(0.65, 0.67, 0.72, 1)
 script = ExtResource("1_wall")
 crest_r = 0.0

@@ -159,11 +159,24 @@ func _ready() -> void:
 	if _shared_material == null:
 		_shared_material = ShaderMaterial.new()
 		_shared_material.shader = SHADER
+	# Re-sync when this ring is shown after being hidden — see the visibility
+	# gate in _sync_material (#172). visibility_changed also fires on this node
+	# when an ancestor (the composite, a fogged SkillNode) toggles, so a ring
+	# revealed with its uniforms unset gets them the frame it becomes visible.
+	visibility_changed.connect(_sync_material)
 	_sync_material()
 
 
 func _sync_material() -> void:
 	if not is_node_ready():
+		return
+	# Registering instance-shader-parameter slots costs a global instance-buffer
+	# item even on a hidden CanvasItem (#172). Whole composites go invisible
+	# under fog / in the procgen Node Graph preview — so gate registration on
+	# actual tree visibility and defer it to the visibility_changed re-sync
+	# above. is_visible_in_tree (not local `visible`) drops the footprint of
+	# every fog-hidden node's disk+rim.
+	if not is_visible_in_tree():
 		return
 	# The two paths differ ONLY in which material is bound (shared vs a
 	# per-instance one carrying the custom LUT) and the height_preset value.

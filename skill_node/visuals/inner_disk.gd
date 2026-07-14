@@ -167,9 +167,14 @@ func _ready() -> void:
 	if _diamond_lut == null:
 		_diamond_lut = _build_diamond_lut()
 	# Plain (non-instance) uniform — the LUT is identical for every InnerDisk,
-	# so it's set ONCE on the shared material rather than per-instance.
+	# so it's set ONCE on the shared material rather than per-instance. (This is
+	# on the SHARED material, so it does NOT claim a per-instance buffer slot —
+	# binding `material` on THIS CanvasItem is what does, hence the gate below.)
 	_shared_material.set_shader_parameter(&"diamond_lut", _diamond_lut)
-	material = _shared_material
+	# Re-sync when the disk is shown after being hidden — see the visibility gate
+	# in _sync_material (#172). Fires on this node too when an ancestor (a fogged
+	# SkillNode, the invisible Node Graph preview graph) toggles visibility.
+	visibility_changed.connect(_sync_material)
 	_sync_material()
 
 
@@ -181,6 +186,19 @@ func configure(new_radius: float) -> void:
 func _sync_material() -> void:
 	if not is_node_ready():
 		return
+	# Each set_instance_shader_parameter below claims a slot in the shared global
+	# instance-uniform buffer — even on a CanvasItem that never renders (#172).
+	# A disk on a fog-hidden SkillNode, or on the procgen Node Graph preview's
+	# invisible graph, has no reason to hold one; gate on tree visibility and let
+	# the visibility_changed re-sync above set the uniforms the frame it shows.
+	if not is_visible_in_tree():
+		return
+	# Bind the shared material HERE (not in _ready): the bind is itself what
+	# allocates this instance's uniform-buffer slot, so a hidden/fogged disk that
+	# never reaches this line never claims one. Guard the reassign so we don't
+	# churn `material` (a property the inspector watches) on every resync.
+	if material != _shared_material:
+		material = _shared_material
 	set_instance_shader_parameter(&"tint_color", entity_tint)
 	set_instance_shader_parameter(&"tint_mix", tint_mix)
 	set_instance_shader_parameter(&"allocated", allocated)

@@ -40,7 +40,6 @@ scale = Vector2(2.2, 2.2)
 [node name="Composite" parent="ViewportContainer/World/CompositeSlot" instance=ExtResource("2_composite")]
 entity_tint = Color(0.36, 0.9, 0.585, 1)
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
-rim_growth = true
 stake_level = 3
 allocation_level = 2
 

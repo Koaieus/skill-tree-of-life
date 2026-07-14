@@ -86,6 +86,21 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Keep the per-instance shader state OUT of the saved scene (#172). The shader
+## components in this family (InnerDisk, RimRing) bind ONE shared static
+## ShaderMaterial and write their `instance uniform`s from `_sync_material()` —
+## for runtime AND for the in-editor `@tool` preview. Without this, an editor
+## save serializes that preview state (`material = SubResource(...)` plus a full
+## `instance_shader_parameters/*` block) into the scene, and every instance —
+## even a hidden RimRing or a fog-hidden node — then claims a slot in the shared
+## global instance-uniform buffer at load, independent of the visibility gate in
+## `_sync_material`. Stripping STORAGE here is what makes the un-bake durable:
+## the script still sets these live, the editor just never writes them back.
+func _validate_property(property: Dictionary) -> void:
+	if property.name == "material" or (property.name as String).begins_with("instance_shader_parameters/"):
+		property.usage = (property.usage as int) & ~PROPERTY_USAGE_STORAGE
+
+
 ## Virtual hook: fires when any identity input above changes. The default
 ## redraws; components whose identity feeds a shader override this to resync
 ## their uniforms instead.

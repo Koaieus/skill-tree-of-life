@@ -2,119 +2,31 @@
 
 [ext_resource type="Script" uid="uid://b35hxda7mbfnk" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
 [ext_resource type="PackedScene" uid="uid://bkwwvwb1433d1" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
-[ext_resource type="Shader" uid="uid://btb3idp57soy7" path="res://skill_node/visuals/inner_disk.gdshader" id="3_yu0fw"]
 [ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="4_wall"]
 [ext_resource type="PackedScene" uid="uid://dgo4gx2kxagct" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
-[ext_resource type="Shader" uid="uid://c8nrnm8qi4kl3" path="res://skill_node/visuals/rim_ring.gdshader" id="5_yu0fw"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="6_halos"]
-[ext_resource type="Curve" uid="uid://du76mdn4less4" path="res://skill_node/visuals/rim_ring_curve.tres" id="7_pg2qw"]
 [ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_yu0fw"]
-shader = ExtResource("3_yu0fw")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_pg2qw"]
-shader = ExtResource("5_yu0fw")
-
-[sub_resource type="Image" id="Image_sggpr"]
-data = {
-"data": PackedByteArray(0, 0, 0, 0, 171, 120, 157, 62, 218, 94, 7, 63, 20, 35, 45, 63, 148, 68, 67, 63, 236, 255, 76, 63, 43, 146, 80, 63, 200, 187, 81, 63, 132, 172, 80, 63, 33, 148, 77, 63, 98, 162, 72, 63, 3, 7, 66, 63, 204, 241, 57, 63, 122, 146, 48, 63, 209, 24, 38, 63, 147, 180, 26, 63, 128, 149, 14, 63, 90, 235, 1, 63, 194, 203, 233, 62, 179, 105, 207, 62, 7, 16, 181, 62, 66, 30, 155, 62, 225, 243, 129, 62, 224, 224, 83, 62, 219, 230, 38, 62, 121, 113, 251, 61, 13, 43, 178, 61, 247, 240, 102, 61, 188, 175, 1, 61, 201, 57, 94, 60, 34, 147, 56, 59, 98, 11, 95, 57, 9, 204, 10, 60, 244, 95, 228, 60, 36, 141, 106, 61, 214, 128, 195, 61, 50, 177, 16, 62, 104, 67, 70, 62, 108, 162, 128, 62, 169, 65, 160, 62, 78, 102, 193, 62, 66, 119, 227, 62, 182, 237, 2, 63, 218, 252, 19, 63, 124, 156, 36, 63, 19, 128, 52, 63, 14, 91, 67, 63, 230, 224, 80, 63, 4, 197, 92, 63, 230, 186, 102, 63, 250, 117, 110, 63, 178, 169, 115, 63, 129, 9, 118, 63, 220, 72, 117, 63, 53, 27, 113, 63, 254, 51, 105, 63, 171, 70, 93, 63, 173, 6, 77, 63, 121, 39, 56, 63, 129, 92, 30, 63, 124, 178, 254, 62, 50, 162, 181, 62, 34, 222, 65, 62, 0, 0, 0, 0),
-"format": "RFloat",
-"height": 1,
-"mipmaps": false,
-"width": 64
-}
-
-[sub_resource type="ImageTexture" id="ImageTexture_ao17l"]
-image = SubResource("Image_sggpr")
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ft2au"]
-resource_local_to_scene = true
-shader = ExtResource("5_yu0fw")
-shader_parameter/height_lut = SubResource("ImageTexture_ao17l")
 
 [node name="NodeVisualsComposite" type="Node2D" unique_id=1855738635]
 script = ExtResource("1_comp")
-stake_level = 3
-allocation_level = 2
-ring_gap = 0.0
-allocated = true
 metadata/_edit_vertical_guides_ = [24.0, 32.0, 28.0]
 
 [node name="InnerDisk" parent="." unique_id=1575818134 instance=ExtResource("2_disk")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_yu0fw")
-instance_shader_parameters/allocated = true
-disk_radius = 25.5
-allocated = true
 
 [node name="RimRing" parent="." unique_id=346168876 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_pg2qw")
-instance_shader_parameters/height_preset = 3
 height_preset = 3
-tint_mix = 1.0
-allocated = true
 
 [node name="RimBonuses" parent="RimRing" unique_id=2113377826 instance=ExtResource("5_rim")]
 unique_name_in_owner = true
-fill_current = 2
-fill_max = 3
-allocated = true
-
-[node name="RimRing2" parent="." unique_id=2024234688 instance=ExtResource("4_wall")]
-unique_name_in_owner = true
-visible = false
-material = SubResource("ShaderMaterial_pg2qw")
-instance_shader_parameters/height_preset = 4
-instance_shader_parameters/inner_r = 32.0
-instance_shader_parameters/outer_r = 40.0
-height_preset = 4
-inner_radius = 32.0
-outer_radius = 40.0
-allocated = true
-
-[node name="RimRing3" parent="." unique_id=314972897 instance=ExtResource("4_wall")]
-unique_name_in_owner = true
-visible = false
-material = SubResource("ShaderMaterial_pg2qw")
-instance_shader_parameters/height_preset = 4
-instance_shader_parameters/inner_r = 40.0
-instance_shader_parameters/outer_r = 48.0
-height_preset = 4
-inner_radius = 40.0
-outer_radius = 48.0
-allocated = true
-
-[node name="RimRing4" parent="." unique_id=1028791272 instance=ExtResource("4_wall")]
-unique_name_in_owner = true
-visible = false
-material = SubResource("ShaderMaterial_ft2au")
-instance_shader_parameters/height_preset = 4
-rim_height_style = ExtResource("7_pg2qw")
-height_preset = 4
-allocated = true
 
 [node name="CoreHalos" parent="." unique_id=141306435 instance=ExtResource("6_halos")]
 unique_name_in_owner = true
 visible = false
 core = 1
 halo_scale = 1.8
-allocated = true
 
 [node name="RuneRing" parent="." unique_id=946472652 instance=ExtResource("7_rune")]
 unique_name_in_owner = true
 visible = false
-outer_edge_r = 32.0
-allocated = true
-
-[node name="StakeLabel" type="Label" parent="." unique_id=1327804308]
-unique_name_in_owner = true
-visible = false
-offset_left = -40.0
-offset_top = 54.0
-offset_right = 40.0
-offset_bottom = 74.0
-text = "2/3"
-horizontal_alignment = 1
-vertical_alignment = 1
