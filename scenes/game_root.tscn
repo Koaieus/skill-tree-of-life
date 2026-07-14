@@ -20,9 +20,12 @@
 [ext_resource type="Script" uid="uid://8bt4s2ii2hx2" path="res://ui/vfx/attack_vfx.gd" id="15_6puu6"]
 [ext_resource type="Script" uid="uid://db27minejvsw1" path="res://ui/vfx/allocation_vfx.gd" id="16_k6861"]
 [ext_resource type="Script" uid="uid://bfj2swvcuavon" path="res://attack/melee/melee_preview.gd" id="17_x42w8"]
+[ext_resource type="PackedScene" path="res://ui/space_background/space_background.tscn" id="19_space"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
+
+[node name="SpaceBackground" parent="." instance=ExtResource("19_space")]
 
 [node name="Systems" type="Node" parent="." unique_id=896007769]
 
@@ -87,6 +90,7 @@ script = ExtResource("4_cam")
 unique_name_in_owner = true
 z_index = 1000
 vision_system = NodePath("../../Systems/VisionSystem")
+intensity = 0.88
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
 

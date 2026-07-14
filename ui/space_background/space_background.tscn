@@ -1,0 +1,99 @@
+[gd_scene format=3 uid="uid://cyi3ic8oopgqf"]
+
+[ext_resource type="Script" uid="uid://d00w625p5if37" path="res://ui/space_background/space_background.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://gqmnu5o4x3u3" path="res://ui/space_background/nebula.gdshader" id="2_nebula"]
+[ext_resource type="Shader" uid="uid://dk2feutkiukiq" path="res://ui/space_background/starfield.gdshader" id="3_star"]
+
+[sub_resource type="ShaderMaterial" id="mat_nebula"]
+shader = ExtResource("2_nebula")
+shader_parameter/color_a = Color(0.13, 0.05, 0.3, 1)
+shader_parameter/color_b = Color(0.02, 0.11, 0.22, 1)
+shader_parameter/strength = 0.65
+shader_parameter/scale = 2.5
+shader_parameter/threshold = 0.34
+
+[sub_resource type="PlaceholderTexture2D" id="tex_nebula"]
+size = Vector2(2048, 2048)
+
+[sub_resource type="ShaderMaterial" id="mat_star_far"]
+shader = ExtResource("3_star")
+shader_parameter/cells_across = 26.0
+shader_parameter/density = 0.32
+shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
+shader_parameter/brightness = 0.6
+shader_parameter/twinkle_speed = 0.5
+shader_parameter/seed = 11.0
+
+[sub_resource type="PlaceholderTexture2D" id="tex_tile"]
+size = Vector2(1024, 1024)
+
+[sub_resource type="ShaderMaterial" id="mat_star_mid"]
+shader = ExtResource("3_star")
+shader_parameter/cells_across = 21.0
+shader_parameter/density = 0.45
+shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
+shader_parameter/brightness = 1.15
+shader_parameter/twinkle_speed = 0.8
+shader_parameter/seed = 47.0
+
+[sub_resource type="ShaderMaterial" id="mat_star_near"]
+shader = ExtResource("3_star")
+shader_parameter/cells_across = 13.0
+shader_parameter/density = 0.32
+shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
+shader_parameter/brightness = 1.6
+shader_parameter/twinkle_speed = 1.1
+shader_parameter/seed = 83.0
+
+[node name="SpaceBackground" type="CanvasLayer" unique_id=401631453]
+layer = -100
+script = ExtResource("1_script")
+
+[node name="Base" type="ColorRect" parent="." unique_id=1815455479]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.015, 0.017, 0.035, 1)
+
+[node name="Nebula" type="Parallax2D" parent="." unique_id=1354393592]
+scroll_scale = Vector2(0.02, 0.02)
+repeat_size = Vector2(2048, 2048)
+repeat_times = 6
+
+[node name="Cloud" type="Sprite2D" parent="Nebula" unique_id=2090391698]
+texture_repeat = 2
+material = SubResource("mat_nebula")
+texture = SubResource("tex_nebula")
+
+[node name="StarsFar" type="Parallax2D" parent="." unique_id=1096780804]
+scroll_scale = Vector2(0.04, 0.04)
+repeat_size = Vector2(1024, 1024)
+repeat_times = 10
+
+[node name="Tile" type="Sprite2D" parent="StarsFar" unique_id=320870643]
+texture_repeat = 2
+material = SubResource("mat_star_far")
+texture = SubResource("tex_tile")
+
+[node name="StarsMid" type="Parallax2D" parent="." unique_id=1693328196]
+scroll_scale = Vector2(0.08, 0.08)
+repeat_size = Vector2(1024, 1024)
+repeat_times = 10
+
+[node name="Tile" type="Sprite2D" parent="StarsMid" unique_id=860263625]
+texture_repeat = 2
+material = SubResource("mat_star_mid")
+texture = SubResource("tex_tile")
+
+[node name="StarsNear" type="Parallax2D" parent="." unique_id=315505731]
+scroll_scale = Vector2(0.15, 0.15)
+repeat_size = Vector2(1024, 1024)
+repeat_times = 10
+
+[node name="Tile" type="Sprite2D" parent="StarsNear" unique_id=1686549142]
+texture_repeat = 2
+material = SubResource("mat_star_near")
+texture = SubResource("tex_tile")

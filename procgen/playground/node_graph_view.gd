@@ -6,6 +6,13 @@ extends Control
 ## budget (blue → red heatmap, matching [FieldMapView]'s gradient) with a thin
 ## archetype-colour ring per node.
 ##
+## Also paints the [BudgetPolicy.budget_field] itself as a translucent
+## background heatmap under the edges/nodes — the composable-field overlay
+## from #166's refined spec. Node fill colour is the *rolled* budget (one RNG
+## draw, discretised by base_min/base_max); the background is the *continuous*
+## field value, so a designer can see the raw field topography a preset
+## produces independently of any one node's roll landing near it.
+##
 ## Hover uses Godot's native tooltip ([method _get_tooltip]) rather than a
 ## hand-rolled popup — cheap, positioned by the engine, no z-order bookkeeping.
 ## Click emits `node_clicked` so the panel can roll sample cards at that node's
@@ -15,10 +22,12 @@ signal node_clicked(node: SkillNode)
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _HOVER_RADIUS := 14.0
+const _FIELD_CELL_RES := 40
 
 var _graph: Graph
 var _nodes: Array[SkillNode] = []
 var _bounds := Rect2()
+var _shape_mask: ShapeMask
 var _budget_policy: BudgetPolicy
 var _generating := false
 
@@ -65,6 +74,7 @@ func generate(cfg: GraphProcgenConfig) -> void:
 	await get_tree().process_frame
 
 	_budget_policy = cfg.budget_policy
+	_shape_mask = cfg.shape_mask
 	var result: Dictionary = await GraphProcgen.generate(cfg, _graph)
 	_nodes = result.get("nodes", [])
 	_bounds = cfg.shape_mask.aabb() if cfg.shape_mask != null else Rect2()
@@ -159,6 +169,8 @@ func _draw() -> void:
 	var draw_size := _bounds.size * _fit
 	_draw_origin = (ctrl_size - draw_size) * 0.5
 
+	_draw_field_overlay(draw_size)
+
 	# Edges first so node dots sit on top.
 	var edges := _graph.get_edges()
 	for e in edges:
@@ -177,12 +189,58 @@ func _draw() -> void:
 		_node_screen_radius[sn] = r
 
 	draw_rect(Rect2(_draw_origin, draw_size), Color(1, 1, 1, 0.18), false, 1.0)
-	_label(Vector2(8, 14), "budget %d–%d over %d nodes   ·   hover for details, click to sample" %
-			[int(_budget_min), int(_budget_max), _nodes.size()])
+	var field_note := "" if _budget_policy == null or _budget_policy.budget_field == null else "   ·   field overlay on"
+	_label(Vector2(8, 14), "budget %d–%d over %d nodes   ·   hover for details, click to sample%s" %
+			[int(_budget_min), int(_budget_max), _nodes.size(), field_note])
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
 	return _draw_origin + (world_pos - _bounds.position) * _fit
+
+
+## Background heatmap of the raw [ScalarField] value (not the rolled per-node
+## budget) under the graph — same cell-grid technique as [FieldMapView], drawn
+## at reduced alpha so edges/node dots stay legible on top. No-op when the
+## policy has no field assigned (nothing composed yet).
+func _draw_field_overlay(draw_size: Vector2) -> void:
+	var field: ScalarField = null if _budget_policy == null else _budget_policy.budget_field
+	if field == null:
+		return
+	var values := PackedFloat32Array()
+	values.resize(_FIELD_CELL_RES * _FIELD_CELL_RES)
+	var vmin := INF
+	var vmax := -INF
+	var any_inside := false
+	for y in _FIELD_CELL_RES:
+		for x in _FIELD_CELL_RES:
+			var wp := _bounds.position + Vector2(
+					(x + 0.5) / _FIELD_CELL_RES * _bounds.size.x,
+					(y + 0.5) / _FIELD_CELL_RES * _bounds.size.y)
+			if _shape_mask != null and not _shape_mask.contains(wp):
+				values[y * _FIELD_CELL_RES + x] = NAN
+				continue
+			var v := field.sample(wp)
+			values[y * _FIELD_CELL_RES + x] = v
+			vmin = minf(vmin, v)
+			vmax = maxf(vmax, v)
+			any_inside = true
+	if not any_inside:
+		return
+	if is_equal_approx(vmin, vmax):
+		vmax = vmin + 1e-3
+
+	var cell_w := draw_size.x / float(_FIELD_CELL_RES)
+	var cell_h := draw_size.y / float(_FIELD_CELL_RES)
+	for y in _FIELD_CELL_RES:
+		for x in _FIELD_CELL_RES:
+			var v: float = values[y * _FIELD_CELL_RES + x]
+			if is_nan(v):
+				continue
+			var t := (v - vmin) / (vmax - vmin)
+			var top_left := _draw_origin + Vector2(x * cell_w, y * cell_h)
+			var c := _heat(t)
+			c.a = 0.45
+			draw_rect(Rect2(top_left, Vector2(cell_w + 1.0, cell_h + 1.0)), c)
 
 
 ## Blue → teal → yellow → red. Kept identical to [FieldMapView]'s gradient

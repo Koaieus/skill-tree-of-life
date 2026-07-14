@@ -16,8 +16,12 @@ extends Control
 ## same 5-card sample at that node's already-rolled budget (fixed, not
 ## resampled) so a RED HOT node visibly draws richer content.
 ##
-## Composable field overlay (#162) — painting composed ScalarFields over
-## either sub-tab — lands after #162's fields exist; not started.
+## Composable field overlay (#162): "Map Sample" already painted the
+## [BudgetPolicy.budget_field] as its base heatmap from the start (it's a
+## generic [ScalarField] sample, agnostic to which subclass). "Node Graph"
+## additionally draws the field as a translucent background layer under the
+## nodes ([method NodeGraphView._draw_field_overlay]) — the continuous field
+## topography, distinct from each node's discretised rolled-budget fill.
 ##
 ## Self-contained: defaults to a duplicated `first_level.tres` so it works with
 ## nothing inspected. `load_config` (the SandboxLiveTab loader hook) swaps in a
