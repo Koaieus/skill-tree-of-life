@@ -4,4 +4,6 @@
 
 [node name="RimBonuses" type="Node2D" unique_id=1898218237]
 script = ExtResource("1_rim")
+fill_gap_deg = 14.0
+fill_spin_speed = 0.23
 inner_radius = 28.0

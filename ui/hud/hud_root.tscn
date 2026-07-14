@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://qybxf6lb7hjj" path="res://ui/initiative_bar.tscn" id="6_initiative"]
 [ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/manage_body.tscn" id="9_a825u"]
 [ext_resource type="PackedScene" path="res://ui/announcement_layer/announcement_layer.tscn" id="9_announcement"]
 [ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
 [ext_resource type="PackedScene" uid="uid://dpj3mxbk7h5nq" path="res://ui/skill_node_tooltip.tscn" id="12_tooltip"]
@@ -112,6 +113,8 @@ offset_right = 368.5
 offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 0
+
+[node name="ManageBody" parent="MarginContainer/CommandTraySlot/CommandTray" unique_id=351131193 instance=ExtResource("9_a825u")]
 
 [node name="APEndTurnSlot" type="Control" parent="MarginContainer" unique_id=1011505414]
 unique_name_in_owner = true

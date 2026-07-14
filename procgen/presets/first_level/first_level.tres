@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/fortification_addon.tscn" id="4_xg7iw"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="5_qrpdt"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/bunker_addon.tscn" id="5_x1g7b"]
+[ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="8_rg3kx"]
 [ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetypes/archetype_policy.gd" id="ap"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="awp"]
 [ext_resource type="Script" uid="uid://h1ade1x6qd2g" path="res://procgen/budget/budget_policy.gd" id="bp"]
