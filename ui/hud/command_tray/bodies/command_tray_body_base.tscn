@@ -6,6 +6,7 @@
 [node name="BodyPanel" type="MarginContainer"]
 custom_minimum_size = Vector2(700, 180)
 layout_mode = 2
+size_flags_horizontal = 3
 script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
