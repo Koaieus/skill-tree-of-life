@@ -56,6 +56,11 @@ signal depleted
 		if is_node_ready():
 			_sync_visuals()
 
+## Constant pixel inset from [member radius] to the rim's interior bevel
+## control point (geom_crest_r). Kept small and constant so the rim width
+## doesn't balloon when radius grows via stake.
+const RIM_CREST_INSET := 4.0
+
 @export var radius: float = 32.0:
 	set(value):
 		if is_equal_approx(radius, value):
@@ -64,6 +69,22 @@ signal depleted
 		radius_changed.emit()
 		_sync_collision()
 		_sync_visuals()
+
+## Authored radius before stake scaling. Captured on first [_ready].
+## Never write this directly — use [member radius] to set the base.
+var _base_radius: float = -1.0
+
+## Authored inner_radius before stake scaling. Captured on first [_ready].
+var _base_inner_radius: float = -1.0
+
+## Pixels of radius growth per additional stake level above 1.
+## stake_level=1 → radius = base (no growth). stake_level=N → radius = base + (N-1) × delta.
+@export var stake_radius_delta: float = 6.0:
+	set(value):
+		if is_equal_approx(stake_radius_delta, value):
+			return
+		stake_radius_delta = value
+		_apply_stake_radius()
 
 ## Radius of the inner fill disk — what reads as "ownership" when allocated,
 ## and what VFX sizes effects against. Authored per-node so future archetypes
@@ -128,7 +149,14 @@ var node_board: StatBoard = null
 ## Pure node-local — these are not Stats and must never be registered with
 ## an entity StatBoard. If you want to scale modifier contributions by the
 ## stake count, read it directly off the SkillNode.
-var stake_level: int = 1
+var stake_level: int = 1:
+	set(value):
+		if stake_level == value:
+			return
+		stake_level = value
+		_apply_stake_radius()
+		if is_node_ready():
+			_sync_visuals()
 var allocation_level: int = 0
 
 # Track the entity node_health stat so we can re-sync the node's combat health
@@ -147,6 +175,9 @@ var self_loop_count: int:
 	get(): return self_loops.size()
 
 func _ready() -> void:
+	if _base_radius < 0.0:
+		_base_radius = radius
+		_base_inner_radius = inner_radius
 	_sync_collision()
 	# owned_by may already be non-null here — set as a scene-baked @export
 	# (dev_sandbox.tscn's pre-owned nodes), which assigns the property (and
@@ -238,6 +269,7 @@ func _sync_visuals() -> void:
 		a.configure_visual(radius)
 	_node_visuals.configure(radius)
 	_node_visuals.geom_inner_r = inner_radius
+	_node_visuals.geom_crest_r = radius - RIM_CREST_INSET
 	_node_visuals.geom_outer_r = radius
 	_node_visuals.entity_tint = get_owner_color()
 	_node_visuals.archetype_tint = base_type_color
@@ -604,6 +636,16 @@ func _refresh_alloc_count() -> void:
 		allocation_level = 0
 	elif allocation_level == 0:
 		allocation_level = 1
+
+
+func _apply_stake_radius() -> void:
+	if not is_inside_tree():
+		return
+	if _base_radius < 0.0:
+		return
+	var growth := (stake_level - 1) * stake_radius_delta
+	radius = _base_radius + growth
+	inner_radius = _base_inner_radius + growth
 
 
 # Addon plumbing. Carrier owns its `modifiers` array as the source-of-truth

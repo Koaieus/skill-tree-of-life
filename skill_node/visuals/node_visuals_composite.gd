@@ -42,6 +42,11 @@ const DISK_RIM_OVERLAP := 1.5
 const FILLED_TINT_MIX := 1.0
 const UNFILLED_TINT_MIX := 0.3
 
+## Base width of the RimBonuses segmented-glow band when stake_level == 1.
+## The band sits anchored at [member geom_outer_r] (outer rim edge) and extends
+## inward; this is the default inward extent in pixels.
+const RIM_BONUS_DEFAULT_WIDTH := 4.0
+
 ## Max allocation slots for this node — 1 for the ~99% common case;
 ## staked nodes go up to [const MAX_STAKE_CAP].
 @export_range(1, MAX_STAKE_CAP, 1) var stake_level: int = 1:
@@ -72,6 +77,15 @@ const UNFILLED_TINT_MIX := 0.3
 @export_range(0.0, 128.0, 0.5) var geom_outer_r: float = 32.0:
 	set(value):
 		geom_outer_r = value
+		_sync_stake()
+
+## Extra inward growth (pixels per stake level above 1) applied to the
+## RimBonuses segmented-glow band. The band's outer edge stays anchored at
+## [member geom_outer_r]; only the inner edge moves inward, widening the glow.
+## 0.0 = constant band width regardless of stake.
+@export_range(0.0, 6.0, 0.5) var bonus_inward_growth: float = 2.0:
+	set(value):
+		bonus_inward_growth = value
 		_sync_stake()
 
 @onready var _children: Array[SkillNodeVisual] = [
@@ -137,9 +151,11 @@ func _sync_stake() -> void:
 	%RimRing.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
 	%RuneRing.outer_edge_r = geom_outer_r
 
-	# Stake-fill dial: current/max mirrors allocation_level/stake_level; band
-	# sits at the crest->outer span as the rim's own bevel-to-edge zone.
-	%RimBonuses.inner_radius = geom_crest_r
+	# Stake-fill dial: outer edge stays anchored at geom_outer_r (grows outward
+	# with radius), inner edge shifts inward by bonus_inward_growth per stake level
+	# above 1 for a more pronounced glow as the node physically expands (#178).
+	var bonus_inner := geom_outer_r - RIM_BONUS_DEFAULT_WIDTH - float(stake_level - 1) * bonus_inward_growth
+	%RimBonuses.inner_radius = maxf(bonus_inner, 0.0)
 	%RimBonuses.outer_radius = geom_outer_r
 	%RimBonuses.fill_max = stake_level
 	%RimBonuses.fill_current = allocation_level
