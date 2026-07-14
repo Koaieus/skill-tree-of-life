@@ -18,6 +18,49 @@ extends RefCounted
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
+## Poisson-disk auto-scale sizing (issue #164). The area a ShapeMask needs to
+## comfortably hold `node_count` points at spacing `min_dist` is derived from
+## two factors, kept separate so each is individually inspectable/testable:
+##   - `_POISSON_PACKING_EFFICIENCY`: Bridson-style rejection sampling reaches
+##     roughly this fraction of the theoretical hexagonal packing density
+##     (hex cell area at spacing d is `(√3/2)·d²`; dividing by efficiency
+##     gives the area Poisson actually needs per point).
+##   - `_POISSON_SAFETY_MARGIN`: extra headroom on top of that so the
+##     active-list random walk doesn't bail out near the shape's rim before
+##     reaching `node_count` (boundary rejection wastes tries at the edge).
+## Combined they give ~1.8× the raw hex-cell area per point. #163 (territory
+## stamping) depends on this ratio staying accurate — a stamp's node count is
+## *predicted* from it, not resampled locally — so don't retune without
+## re-checking test_procgen_sizing.gd.
+const _POISSON_PACKING_EFFICIENCY := 0.69
+const _POISSON_SAFETY_MARGIN := 1.434
+const _HEX_CELL_AREA_FACTOR := 0.866  # √3 / 2
+
+
+## Area (in world units²) a ShapeMask needs so Poisson can comfortably place
+## `node_count` points at `min_dist` spacing. Shape-agnostic — pair with a
+## shape's own area→extent conversion (e.g. [method CircularShapeMask.size_for]).
+static func target_area_for_node_count(node_count: int, min_dist: float) -> float:
+	var area_per_point := _HEX_CELL_AREA_FACTOR / _POISSON_PACKING_EFFICIENCY * _POISSON_SAFETY_MARGIN
+	return float(maxi(1, node_count)) * min_dist * min_dist * area_per_point
+
+
+## Inverse of [method target_area_for_node_count]: how many points Poisson is
+## expected to place in a region of `area` at `min_dist` spacing. Used by
+## consumers that need to predict a count from a region size instead of the
+## other way around (e.g. #163's "how many nodes does this stamp cover").
+static func node_count_for_area(area: float, min_dist: float) -> int:
+	if min_dist <= 0.0:
+		return 0
+	var area_per_point := _HEX_CELL_AREA_FACTOR / _POISSON_PACKING_EFFICIENCY * _POISSON_SAFETY_MARGIN
+	return int(floor(maxf(0.0, area) / (min_dist * min_dist * area_per_point)))
+
+
+## Convenience for circular regions (stamps): expected node count within a
+## disc of `radius` at `min_dist` spacing.
+static func node_count_for_radius(radius: float, min_dist: float) -> int:
+	return node_count_for_area(PI * radius * radius, min_dist)
+
 
 ## When `progress_cb` is a valid Callable, `generate` becomes a coroutine —
 ## it emits progress in [0, 1] with a short label between stages and yields
@@ -42,12 +85,10 @@ static func generate(
 	var min_dist := 2.0 * config.node_radius + config.node_padding
 	await _emit_progress(progress_cb, 0.02, "Preparing shape")
 	# Auto-size the shape mask so Poisson can fit node_count at the requested
-	# spacing without under-filling. Packing factor: Poisson approaches ~0.69
-	# of hexagonal density (2/(√3·d²)). We use 1.8× as a comfortable safety
-	# margin — leaves room for the active-list random walks to keep finding
-	# valid candidates instead of bailing early at the rim.
+	# spacing without under-filling. See _POISSON_PACKING_EFFICIENCY /
+	# _POISSON_SAFETY_MARGIN above for the derivation.
 	if config.shape_mask != null and config.shape_mask.auto_scale:
-		var target_area := float(maxi(1, config.node_count)) * min_dist * min_dist * 1.8
+		var target_area := target_area_for_node_count(config.node_count, min_dist)
 		config.shape_mask.size_for(target_area, min_dist * 4.0)
 	# Now that the mask is sized, propagate its outer radius to any radial
 	# fields/profiles that opted in (outer_radius ≤ 0).
