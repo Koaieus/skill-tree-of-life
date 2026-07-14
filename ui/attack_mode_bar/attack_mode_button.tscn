@@ -53,7 +53,7 @@ corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
 [sub_resource type="LabelSettings" id="LabelSettings_keychip"]
-font_size = 9
+font_size = 12
 
 [node name="ActionToggleButton" type="Button" unique_id=1205266549]
 custom_minimum_size = Vector2(128, 64)
