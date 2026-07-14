@@ -94,3 +94,10 @@ extends Resource
 ## See [ArchetypeBalancer]. Off by default; set + flip `enabled` to dampen RNG
 ## streaks against the target ratios.
 @export var archetype_balancer: ArchetypeBalancer
+
+## Post-clustering territory stamps. After BFS-grow archetype assignment
+## ([member archetypes]), each stamp overrides the archetype of nodes inside
+## its region — a euclidean disc or a topological BFS flood. Stamps run
+## before the content-roll loop, so overridden nodes get the new archetype's
+## colour, primary-stat bias, and budget multipliers. See [ArchetypeStamp].
+@export var archetype_stamps: Array[ArchetypeStamp] = []

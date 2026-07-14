@@ -129,6 +129,12 @@ static func generate(
 		type_assignments.resize(positions.size())
 		type_assignments.fill(-1)
 
+	# Post-clustering territory stamps (#163). Override archetype assignments
+	# for nodes inside each stamp's region — before building the placement
+	# context so the updated assignments flow into guaranteed placements too.
+	if not config.archetype_stamps.is_empty():
+		_apply_archetype_stamps(positions, edge_pairs, type_assignments, config)
+
 	# Pre-roll pass: GuaranteedPlacements decorate nodes with role tags.
 	# starting_points were placed first into the position list (by index).
 	await _emit_progress(progress_cb, 0.40, "Placing guarantees")
@@ -564,6 +570,80 @@ static func _pick_archetype_by_ratio(
 		if r <= 0.0:
 			return k
 	return archetypes.size() - 1
+
+
+# ── Territory stamping (#163) ─────────────────────────────────────────────
+
+
+static func _apply_archetype_stamps(
+		positions: Array[Vector2],
+		edge_pairs: Array[Vector2i],
+		type_assignments: PackedInt32Array,
+		config: GraphProcgenConfig,
+) -> void:
+	var n := positions.size()
+	for stamp in config.archetype_stamps:
+		if stamp == null:
+			continue
+		if stamp.archetype_idx < 0 or stamp.archetype_idx >= config.archetypes.size():
+			push_warning("ArchetypeStamp: archetype_idx %d out of range (archetypes has %d entries); skipping."
+				% [stamp.archetype_idx, config.archetypes.size()])
+			continue
+
+		match stamp.mode:
+			ArchetypeStamp.RegionMode.EUCLIDEAN:
+				var rsq := stamp.radius * stamp.radius
+				if rsq <= 0.0:
+					continue
+				for i in n:
+					if positions[i].distance_squared_to(stamp.position) <= rsq:
+						type_assignments[i] = stamp.archetype_idx
+
+			ArchetypeStamp.RegionMode.TOPOLOGICAL:
+				if stamp.seed_node_index < 0 or stamp.seed_node_index >= n:
+					push_warning("ArchetypeStamp: seed_node_index %d out of range (0..%d); skipping."
+						% [stamp.seed_node_index, n - 1])
+					continue
+				var indices := _region_indices_from_hops(stamp.seed_node_index, stamp.max_hops, edge_pairs, n)
+				for i in indices:
+					type_assignments[i] = stamp.archetype_idx
+
+
+## BFS flood: returns all node indices reachable from [param start] in at most
+## [param max_hops] hops (including [param start] itself). Uses [param edge_pairs]
+## to build the adjacency list lazily. Shared by [method _apply_archetype_stamps]
+## (stamp region) and available for any future non-PlacementContext BFS needs.
+static func _region_indices_from_hops(
+		start: int,
+		max_hops: int,
+		edge_pairs: Array[Vector2i],
+		node_count: int,
+) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	if start < 0 or start >= node_count or max_hops < 0:
+		return out
+	var adj: Array[PackedInt32Array] = []
+	for i in node_count:
+		adj.append(PackedInt32Array())
+	for e in edge_pairs:
+		adj[e.x].append(e.y)
+		adj[e.y].append(e.x)
+	var seen := {start: true}
+	var frontier: Array[int] = [start]
+	out.append(start)
+	var hops := 0
+	while hops < max_hops and not frontier.is_empty():
+		var next: Array[int] = []
+		for n_idx in frontier:
+			for nb in adj[n_idx]:
+				if seen.has(nb):
+					continue
+				seen[nb] = true
+				next.append(nb)
+				out.append(nb)
+		frontier = next
+		hops += 1
+	return out
 
 
 # ── GuaranteedPlacement pre-pass ─────────────────────────────────────────

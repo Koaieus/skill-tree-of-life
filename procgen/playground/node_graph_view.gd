@@ -1,27 +1,28 @@
 @tool
 extends Control
 ## Small live-generated graph for the procgen playground's "Node Graph" sub-tab
-## (#166). Runs [GraphProcgen] at a preview node count — with `archetypes`
-## stripped so it places positions/edges only, no content — on a private,
-## invisible [Graph] instance, then draws the result.
+## (#166). Runs [GraphProcgen] at a preview node count on a private, invisible
+## [Graph] instance, then draws the result.
 ##
-## Node fill + the translucent background layer are both the same continuous
-## [BudgetPolicy.budget_field] value (blue → red, matching [FieldMapView]'s
-## gradient) — the composable-field overlay from #166's refined spec, now that
-## nodes carry no baked-in roll to color by instead.
+## Archetypes are kept for node coloring (BFS-grow cluster assignment) but
+## [modifier_pool_set] and [guaranteed_placements] are stripped so content isn't
+## rolled — the preview stays cheap. Node fill uses the continuous
+## [BudgetPolicy.budget_field] value (blue → red heatmap, matching
+## [FieldMapView]'s gradient); node border shows its assigned archetype colour.
 ##
 ## A node isn't a generation result to inspect here — it's a *location* to
 ## sample, exactly like a click on the Map Sample tab. `node_clicked` hands the
-## panel the node's position; the panel runs the same [method
-## ProcgenPlaygroundPanel._sample_once] roll either surface uses, so "click a
-## node" and "click the map at that spot" agree by construction.
+## panel the node's position; the panel runs the same
+## [method ProcgenPlaygroundPanel._sample_once] roll either surface uses.
 ##
-## Hover uses Godot's native tooltip ([method _get_tooltip]) rather than a
-## hand-rolled popup — cheap, positioned by the engine, no z-order bookkeeping.
+## Stamp simulation (#166): [method paint_stamp] creates an [ArchetypeStamp] at
+## the clicked node's position, then re-assigns archetype colours for every node
+## inside the stamp region (post-hoc, without re-running the pipeline).
+## [method clear_stamps] restores the original BFS-grow assignments. Stamp
+## regions are drawn as translucent circles on top of the graph.
 ##
-## Stamp simulation (paint a stamp, see which nodes/how much budget it would
-## touch) is planned for once #163 (archetype territory stamping) lands a
-## stamp primitive to simulate — see #166.
+## Hover uses Godot's native tooltip ([method _get_tooltip]) — shows field
+## value, archetype name, base budget range, and budget prediction.
 
 signal node_clicked(node: SkillNode)
 
@@ -34,16 +35,27 @@ var _nodes: Array[SkillNode] = []
 var _bounds := Rect2()
 var _shape_mask: ShapeMask
 var _budget_policy: BudgetPolicy
+var _archetypes: Array[ArchetypePolicy] = []
 var _generating := false
+
+## Per-node original BFS-grow archetype index (into _archetypes). Saved during
+## generation; stamps override the live colour on _nodes but this is the
+## restore target for [method clear_stamps].
+var _original_arch_idx: Dictionary = {}   # SkillNode -> int (-1 = none)
 
 var _fit := 1.0
 var _draw_origin := Vector2.ZERO
 var _field_min := 0.0
 var _field_max := 0.0
 
-# Screen-space cache rebuilt each _draw; used by hover/click hit-testing.
 var _node_screen: Dictionary = {}   # SkillNode -> Vector2
 var _node_screen_radius: Dictionary = {}   # SkillNode -> float
+
+## Active stamps painted during this session. Reset on [method clear_stamps]
+## and on [method generate].
+var _stamps: Array[ArchetypeStamp] = []
+
+var _tooltip_rng := RandomNumberGenerator.new()
 
 
 func _init() -> void:
@@ -57,23 +69,6 @@ func _ready() -> void:
 	add_child(_graph)
 
 
-## Regenerates the preview graph from `cfg` (already sized down by the caller)
-## on a fresh [Graph] instance — simpler and safer than diffing/removing the
-## previous node set, and matches the instantiate-per-run pattern the procgen
-## tests + sandbox already use.
-##
-## `archetypes` is cleared on a private copy before running — this view wants
-## positions + edges only ("just nodes, at a location"); content belongs to
-## the click-to-sample flow, not to generation. Stripping it here (rather than
-## trusting every caller to do it) also skips the cluster-assign + budget +
-## modifier-roll stages entirely, so the preview stays cheap regardless of
-## `node_count`.
-##
-## Guarded against overlapping calls: a second `generate()` firing while the
-## first is still awaiting `GraphProcgen.generate` would free the `_graph` the
-## first call is actively populating (queue_free is deferred, so the in-flight
-## `add_skill_node` calls would land on a graph mid-teardown). Callers should
-## avoid firing a regenerate while one is in flight anyway; this is the backstop.
 func generate(cfg: GraphProcgenConfig) -> void:
 	if _generating:
 		return
@@ -86,11 +81,29 @@ func generate(cfg: GraphProcgenConfig) -> void:
 	await get_tree().process_frame
 
 	var positions_cfg: GraphProcgenConfig = cfg.duplicate(true)
-	positions_cfg.archetypes = []
+	# Keep archetypes so the BFS-grow assigns cluster colours — we only strip
+	# content so no modifiers/addons are rolled per node.
 	_budget_policy = positions_cfg.budget_policy
 	_shape_mask = positions_cfg.shape_mask
+	_archetypes = positions_cfg.archetypes.duplicate()
+	positions_cfg.modifier_pool_set = null
+	positions_cfg.guaranteed_placements = []
+	# Full generate — archetypes are populated so nodes get base_type_color.
 	var result: Dictionary = await GraphProcgen.generate(positions_cfg, _graph)
 	_nodes = result.get("nodes", [])
+	_stamps.clear()
+	_original_arch_idx.clear()
+	# Snapshot each node's original BFS-grow archetype index for restore.
+	for i in _nodes.size():
+		var sn: SkillNode = _nodes[i]
+		if sn.has_meta("base_type"):
+			var bt: StringName = sn.get_meta("base_type")
+			for k in _archetypes.size():
+				if _archetypes[k] != null and _archetypes[k].id == bt:
+					_original_arch_idx[sn] = k
+					break
+		else:
+			_original_arch_idx[sn] = -1
 	_bounds = positions_cfg.shape_mask.aabb() if positions_cfg.shape_mask != null else Rect2()
 	_compute_field_range()
 	_generating = false
@@ -99,6 +112,45 @@ func generate(cfg: GraphProcgenConfig) -> void:
 
 func has_nodes() -> bool:
 	return not _nodes.is_empty()
+
+
+## Paint a stamp: create an [ArchetypeStamp] centred at the clicked node's
+## position with the panel's chosen archetype + radius, then re-assign every
+## node inside the stamp region to the new archetype. The stamp persists until
+## [method clear_stamps] or the next [method generate].
+func paint_stamp(center_world: Vector2, radius: float, archetype_idx: int) -> void:
+	if archetype_idx < 0 or archetype_idx >= _archetypes.size():
+		return
+	var stamp := ArchetypeStamp.new()
+	stamp.mode = ArchetypeStamp.RegionMode.EUCLIDEAN
+	stamp.position = center_world
+	stamp.radius = radius
+	stamp.archetype_idx = archetype_idx
+	_stamps.append(stamp)
+
+	var policy: ArchetypePolicy = _archetypes[archetype_idx]
+	for sn in _nodes:
+		if sn.position.distance_squared_to(center_world) <= radius * radius:
+			sn.base_type_color = policy.color
+			sn.set_meta("base_type", policy.id)
+	queue_redraw()
+
+
+## Remove all active stamps and restore every node to its original BFS-grow
+## archetype colour.
+func clear_stamps() -> void:
+	_stamps.clear()
+	for sn in _nodes:
+		var idx: int = _original_arch_idx.get(sn, -1)
+		if idx >= 0 and idx < _archetypes.size():
+			var policy: ArchetypePolicy = _archetypes[idx]
+			sn.base_type_color = policy.color
+			sn.set_meta("base_type", policy.id)
+	queue_redraw()
+
+
+func has_stamps() -> bool:
+	return not _stamps.is_empty()
 
 
 func _compute_field_range() -> void:
@@ -136,9 +188,13 @@ func _get_tooltip(at_position: Vector2) -> String:
 	if sn == null:
 		return ""
 	var lines: Array[String] = []
+	var arch_name := String(sn.get_meta("base_type", &"?"))
+	lines.append(arch_name)
 	lines.append("field ×%.2f" % _node_field_value(sn))
 	if _budget_policy != null:
 		lines.append("base range %d–%d" % [_budget_policy.base_min, _budget_policy.base_max])
+		var breakdown := _budget_policy.compute_budget_breakdown(arch_name, sn.position, [], _tooltip_rng)
+		lines.append("budget ~%d" % breakdown.budget)
 	lines.append("click to sample")
 	return "\n".join(lines)
 
@@ -179,6 +235,7 @@ func _draw() -> void:
 	_draw_origin = (ctrl_size - draw_size) * 0.5
 
 	_draw_field_overlay(draw_size)
+	_draw_stamp_regions()
 
 	# Edges first so node dots sit on top.
 	var edges := _graph.get_edges()
@@ -190,9 +247,15 @@ func _draw() -> void:
 	for sn in _nodes:
 		var p := _to_screen(sn.position)
 		var r := clampf(sn.radius * _fit, 4.0, 14.0)
+		# Fill: budget-field heatmap.
 		var t := 0.0 if is_equal_approx(_field_max, _field_min) else \
 				(_node_field_value(sn) - _field_min) / (_field_max - _field_min)
 		draw_circle(p, r, _heat(t))
+		# Border: archetype colour.
+		var arch_color := sn.base_type_color
+		if arch_color.a < 0.01:
+			arch_color = Color(0.4, 0.4, 0.4)
+		draw_arc(p, r - 1.0, 0.0, TAU, 16, arch_color, 1.5)
 		draw_arc(p, r, 0.0, TAU, 16, Color(1, 1, 1, 0.6), 1.5)
 		_node_screen[sn] = p
 		_node_screen_radius[sn] = r
@@ -200,18 +263,32 @@ func _draw() -> void:
 	draw_rect(Rect2(_draw_origin, draw_size), Color(1, 1, 1, 0.18), false, 1.0)
 	var field_note := "" if _budget_policy == null or _budget_policy.budget_field == null else \
 			"   ·   field ×%.2f–%.2f" % [_field_min, _field_max]
-	_label(Vector2(8, 14), "%d nodes%s   ·   hover for details, click to sample" %
-			[_nodes.size(), field_note])
+	var stamp_note := "" if _stamps.is_empty() else "   ·   %d stamp%s" % [_stamps.size(), "s" if _stamps.size() != 1 else ""]
+	_label(Vector2(8, 14), "%d nodes%s%s   ·   hover for details, click to sample" %
+			[_nodes.size(), field_note, stamp_note])
 
 
 func _to_screen(world_pos: Vector2) -> Vector2:
 	return _draw_origin + (world_pos - _bounds.position) * _fit
 
 
-## Background heatmap of the raw [ScalarField] value (not the rolled per-node
-## budget) under the graph — same cell-grid technique as [FieldMapView], drawn
-## at reduced alpha so edges/node dots stay legible on top. No-op when the
-## policy has no field assigned (nothing composed yet).
+## Draw translucent circles for each euclidean stamp region.
+func _draw_stamp_regions() -> void:
+	for stamp in _stamps:
+		if stamp == null or stamp.mode != ArchetypeStamp.RegionMode.EUCLIDEAN:
+			continue
+		var screen_center := _to_screen(stamp.position)
+		var screen_radius := stamp.radius * _fit
+		if screen_radius <= 0.0:
+			continue
+		var arch_color := Color(1, 1, 1, 0.3)
+		if stamp.archetype_idx >= 0 and stamp.archetype_idx < _archetypes.size():
+			arch_color = _archetypes[stamp.archetype_idx].color
+			arch_color.a = 0.25
+		draw_circle(screen_center, screen_radius, arch_color)
+		draw_arc(screen_center, screen_radius, 0.0, TAU, 32, Color(1, 1, 1, 0.4), 1.0)
+
+
 func _draw_field_overlay(draw_size: Vector2) -> void:
 	var field: ScalarField = null if _budget_policy == null else _budget_policy.budget_field
 	if field == null:
@@ -253,9 +330,6 @@ func _draw_field_overlay(draw_size: Vector2) -> void:
 			draw_rect(Rect2(top_left, Vector2(cell_w + 1.0, cell_h + 1.0)), c)
 
 
-## Blue → teal → yellow → red. Kept identical to [FieldMapView]'s gradient
-## (private copy, same rationale — the two surfaces are allowed to diverge)
-## so heat reads consistently between the map and graph sub-tabs.
 func _heat(t: float) -> Color:
 	t = clampf(t, 0.0, 1.0)
 	if t < 0.5:

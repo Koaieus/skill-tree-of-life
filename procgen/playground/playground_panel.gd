@@ -35,16 +35,13 @@ extends Control
 ## range at that point before you commit to a click.
 ##
 ## Sub-tab "Node Graph": generates a small preview graph via [NodeGraphView] —
-## positions + edges only (`archetypes` stripped, no content rolled at
-## generation time). A node here is a *location* to sample, not a baked
-## result: clicking one runs the exact same [method _sample_once] roll a map
-## click does, just anchored at that node's position. Node fill + the
-## translucent background layer both show the continuous
-## [BudgetPolicy.budget_field] value, so a designer can see the field's
-## topography independent of any one sample. Stamp simulation (paint a stamp,
-## see which nodes/how much budget it would touch, + a reset button) is
-## planned for once #163 (archetype territory stamping) lands an actual stamp
-## primitive to simulate — see #166.
+## positions + edges + archetypes (coloured borders) but no content rolled.
+## A node here is a *location* to sample; clicking one runs the same
+## [method _sample_once] roll a map click does. Node fill + the translucent
+## background layer both show the continuous [BudgetPolicy.budget_field] value.
+## Stamp simulation (#166): toggle "Paint Mode", pick an archetype + radius,
+## click a node to stamp — nodes inside the region get the stamp's archetype
+## colour; "Clear Stamps" restores the original BFS-grow assignments.
 ##
 ## Self-contained: defaults to a duplicated `first_level.tres` so it works with
 ## nothing inspected.
@@ -88,6 +85,13 @@ var _graph_node_count_spin: SpinBox
 var _graph_cards_row: HBoxContainer
 var _graph_cards: Array[VBoxContainer] = []
 
+# Stamp controls (#166)
+var _stamp_paint_toggle: Button
+var _stamp_arch_option: OptionButton
+var _stamp_radius_spin: SpinBox
+var _stamp_clear_btn: Button
+var _paint_mode := false
+
 
 func _ready() -> void:
 	_build_ui()
@@ -125,6 +129,7 @@ func refresh_from_config() -> void:
 	_config = _source_config.duplicate(true)
 	GraphProcgen._propagate_mask_radius(_config)
 	_populate_archetypes(preferred_id)
+	_populate_stamp_archetypes()
 	_update_bound_label()
 
 	if _map != null:
@@ -254,6 +259,33 @@ func _build_graph_tab() -> VBoxContainer:
 	regen.pressed.connect(_on_regenerate_graph_pressed)
 	bar.add_child(regen)
 
+	# Stamp controls — paint a territory onto the preview graph (#166).
+	bar.add_child(VSeparator.new())
+	bar.add_child(_make_label("Stamp:"))
+	_stamp_arch_option = OptionButton.new()
+	bar.add_child(_stamp_arch_option)
+
+	bar.add_child(_make_label("r:"))
+	_stamp_radius_spin = SpinBox.new()
+	_stamp_radius_spin.min_value = 50.0
+	_stamp_radius_spin.max_value = 800.0
+	_stamp_radius_spin.step = 10.0
+	_stamp_radius_spin.value = 200.0
+	bar.add_child(_stamp_radius_spin)
+
+	_stamp_paint_toggle = Button.new()
+	_stamp_paint_toggle.text = "Paint Mode"
+	_stamp_paint_toggle.toggle_mode = true
+	_stamp_paint_toggle.tooltip_text = "Toggle on: clicking a node paints a stamp. Toggle off: clicking a node samples its content."
+	_stamp_paint_toggle.pressed.connect(_on_paint_mode_toggled)
+	bar.add_child(_stamp_paint_toggle)
+
+	_stamp_clear_btn = Button.new()
+	_stamp_clear_btn.text = "Clear Stamps"
+	_stamp_clear_btn.tooltip_text = "Remove all painted stamps and restore original archetype colours."
+	_stamp_clear_btn.pressed.connect(_on_clear_stamps_pressed)
+	bar.add_child(_stamp_clear_btn)
+
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	bar.add_child(spacer)
@@ -345,6 +377,7 @@ func _set_config(cfg: GraphProcgenConfig) -> void:
 	if _config != null:
 		GraphProcgen._propagate_mask_radius(_config)
 	_populate_archetypes()
+	_populate_stamp_archetypes()
 	_update_bound_label()
 	if _map != null:
 		_map.set_config(_config)
@@ -497,9 +530,65 @@ func _regenerate_graph(reuse_seed: bool = false) -> void:
 func _on_graph_node_clicked(node: SkillNode) -> void:
 	if _config == null or not is_instance_valid(node):
 		return
+	if _paint_mode:
+		_paint_stamp_at(node)
+	else:
+		_sample_at_node(node)
+
+
+func _sample_at_node(node: SkillNode) -> void:
 	var policy := _selected_archetype()
 	for i in _SAMPLE_COUNT:
 		_fill_card(_graph_cards[i], i, _sample_once(node.position, policy))
+
+
+func _paint_stamp_at(node: SkillNode) -> void:
+	if _graph_view == null:
+		return
+	var arch_idx := _selected_stamp_archetype_idx()
+	if arch_idx < 0:
+		return
+	var radius := _stamp_radius_spin.value if _stamp_radius_spin != null else 200.0
+	_graph_view.paint_stamp(node.position, radius, arch_idx)
+	_sample_at_node(node)
+
+
+func _on_paint_mode_toggled(pressed: bool) -> void:
+	_paint_mode = pressed
+	if _stamp_paint_toggle != null:
+		_stamp_paint_toggle.text = "Painting…" if pressed else "Paint Mode"
+	if _graph_cards != null:
+		_clear_cards(_graph_cards, "Painting: click a node to stamp." if pressed else "Click a node to sample it.")
+
+
+func _on_clear_stamps_pressed() -> void:
+	if _graph_view != null:
+		_graph_view.clear_stamps()
+	_clear_cards(_graph_cards, "Stamps cleared.")
+
+
+func _populate_stamp_archetypes() -> void:
+	if _stamp_arch_option == null:
+		return
+	_stamp_arch_option.clear()
+	if _config == null or _config.archetypes.is_empty():
+		_stamp_arch_option.add_item("(no archetypes)")
+		return
+	for k in _config.archetypes.size():
+		var policy: ArchetypePolicy = _config.archetypes[k]
+		if policy == null:
+			continue
+		_stamp_arch_option.add_item(String(policy.id))
+		_stamp_arch_option.set_item_metadata(_stamp_arch_option.item_count - 1, k)
+	if _stamp_arch_option.item_count > 0:
+		_stamp_arch_option.select(0)
+
+
+func _selected_stamp_archetype_idx() -> int:
+	if _stamp_arch_option == null or _stamp_arch_option.selected < 0:
+		return -1
+	var meta = _stamp_arch_option.get_item_metadata(_stamp_arch_option.selected)
+	return meta as int if meta is int else -1
 
 
 # ── Cards ─────────────────────────────────────────────────────────────────

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_base"]
+
+[node name="KeystoneSkillNode" instance=ExtResource("1_base")]
+base_type_color = Color(1, 0.84, 0.0, 1)
+radius = 38.0
+inner_radius = 28.0

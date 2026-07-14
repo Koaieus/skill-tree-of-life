@@ -112,26 +112,18 @@ func _populate() -> void:
 	var addon_sections := _node.get_addon_tooltip_sections()
 
 	var has_procgen := _node.has_meta("procgen_footprint")
-	if _node.modifiers.is_empty() and addon_sections.is_empty() and not has_procgen:
-		var empty := Label.new()
-		empty.mouse_filter = MOUSE_FILTER_IGNORE
-		empty.text = "(no modifiers)"
-		empty.modulate = Color(0.5, 0.5, 0.5)
-		empty.add_theme_font_size_override("font_size", 11)
-		_modifiers_box.add_child(empty)
+	var has_keystone := _node.keystone != null
+	if _node.modifiers.is_empty() and addon_sections.is_empty() and not has_procgen and not has_keystone:
+		_modifiers_box.add_child(_empty_label("(no modifiers)"))
 		return
-	if _node.modifiers.is_empty() and addon_sections.is_empty():
-		var empty := Label.new()
-		empty.mouse_filter = MOUSE_FILTER_IGNORE
-		empty.text = "(no modifiers)"
-		empty.modulate = Color(0.5, 0.5, 0.5)
-		empty.add_theme_font_size_override("font_size", 11)
-		_modifiers_box.add_child(empty)
+	if _node.modifiers.is_empty() and addon_sections.is_empty() and not has_keystone:
+		_modifiers_box.add_child(_empty_label("(no modifiers)"))
 
 	for m: StatModifier in _node.modifiers:
 		_add_modifier_label(_modifiers_box, m)
 
 	_populate_procgen_debug()
+	_populate_keystone()
 
 	# Addon-contributed sections (e.g. SkillDust loot payload) below the node's
 	# own modifiers — each a heading + its modifier lines.
@@ -186,6 +178,36 @@ func _populate_procgen_debug() -> void:
 		lbl.modulate = dim
 		lbl.add_theme_font_size_override("font_size", 10)
 		_modifiers_box.add_child(lbl)
+
+
+func _populate_keystone() -> void:
+	if _node == null or _node.keystone == null:
+		return
+	var k: Keystone = _node.keystone
+
+	var heading := Label.new()
+	heading.mouse_filter = MOUSE_FILTER_IGNORE
+	heading.text = k.display_name
+	heading.modulate = Color(1.0, 0.84, 0.0)
+	heading.add_theme_font_size_override("font_size", 13)
+	_modifiers_box.add_child(heading)
+
+	if not k.description.is_empty():
+		var desc := Label.new()
+		desc.mouse_filter = MOUSE_FILTER_IGNORE
+		desc.text = k.description
+		desc.modulate = Color(0.7, 0.7, 0.75)
+		desc.add_theme_font_size_override("font_size", 10)
+		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_modifiers_box.add_child(desc)
+
+	if not k.effects.is_empty():
+		var efx_label := Label.new()
+		efx_label.mouse_filter = MOUSE_FILTER_IGNORE
+		efx_label.text = "%d effect%s" % [k.effects.size(), "s" if k.effects.size() != 1 else ""]
+		efx_label.modulate = Color(0.55, 0.55, 0.6)
+		efx_label.add_theme_font_size_override("font_size", 10)
+		_modifiers_box.add_child(efx_label)
 
 
 ## One tinted modifier line, formatted per the StatModifier pipeline conventions
@@ -276,3 +298,12 @@ func _reposition() -> void:
 	if pos.y + sz.y > vp_size.y - 4.0:
 		pos.y = mouse.y - sz.y - 8.0
 	set_position(pos)
+
+
+func _empty_label(text: String) -> Label:
+	var l := Label.new()
+	l.mouse_filter = MOUSE_FILTER_IGNORE
+	l.text = text
+	l.modulate = Color(0.5, 0.5, 0.5)
+	l.add_theme_font_size_override("font_size", 11)
+	return l

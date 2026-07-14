@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="Keystone" format=3]
+
+[ext_resource type="Script" uid="uid://5rpq45w87mlx" path="res://entity/keystone/keystone.gd" id="1_ks"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="2_fxbase"]
+[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="3_fx"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
+
+[sub_resource type="Resource" id="m_xp_per_turn"]
+script = ExtResource("4_mod")
+stat_id = &"xp_per_turn"
+value = 10.0
+
+[sub_resource type="Resource" id="m_wisdom"]
+script = ExtResource("4_mod")
+stat_id = &"wisdom"
+value = 10.0
+
+[sub_resource type="Resource" id="fx_natural_xp"]
+script = ExtResource("3_fx")
+modifiers = Array[ExtResource("4_mod")]([SubResource("m_xp_per_turn"), SubResource("m_wisdom")])
+
+[resource]
+script = ExtResource("1_ks")
+display_name = "Natural XP Node"
+description = "Grants steady growth. +10 XP per turn, +10 Wisdom."
+effects = Array[ExtResource("2_fxbase")]([SubResource("fx_natural_xp")])
