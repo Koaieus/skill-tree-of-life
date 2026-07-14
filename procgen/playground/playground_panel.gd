@@ -325,6 +325,13 @@ func _regenerate_graph() -> void:
 	var cfg: GraphProcgenConfig = _config.duplicate(true)
 	cfg.node_count = int(_graph_node_count_spin.value) if _graph_node_count_spin != null else _GRAPH_PREVIEW_NODE_COUNT
 	cfg.n_random_starters = 0
+	# Guaranteed placements (e.g. RandomBudgetBoost's fixed `count`) are
+	# calibrated for the preset's full node_count — first_level.tres rolls a
+	# fixed 10 anomalous nodes for 800, which would be ~60% of a 16-node
+	# preview. That drowns the budget-field gradient this tab exists to show,
+	# so the preview skips them entirely (same rationale as zeroing
+	# n_random_starters above — this graph previews the field, not placements).
+	cfg.guaranteed_placements = []
 	cfg.seed = randi()
 	_clear_cards(_graph_cards, "Generating…")
 	await _graph_view.generate(cfg)
