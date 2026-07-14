@@ -44,6 +44,12 @@ current = 2.0
 definition = ExtResource("def_ap")
 base_value = 2.0
 
+[sub_resource type="Resource" id="scalar_ap_transfer_rate"]
+resource_name = "ap_transfer_rate"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_ap_transfer_rate")
+base_value = 2.0
+
 [sub_resource type="Resource" id="scalar_armor"]
 resource_name = "armor"
 script = ExtResource("2_scalar")
@@ -279,12 +285,6 @@ resource_name = "wound_heal_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wound_heal_per_turn")
 base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_ap_transfer_rate"]
-resource_name = "ap_transfer_rate"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_ap_transfer_rate")
-base_value = 2.0
 
 [sub_resource type="Resource" id="pool_xp"]
 resource_name = "xp"

@@ -4,3 +4,4 @@
 
 [node name="SpikeRingAddon" type="Node2D" unique_id=1569558765]
 script = ExtResource("1_spike")
+spike_color = Color(0.95, 0.55, 0.4, 0.95)
