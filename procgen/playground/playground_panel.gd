@@ -9,17 +9,33 @@ extends Control
 ## out as cards, so a designer gets an at-a-glance feel of what a node in that
 ## territory tends to roll. Pick the archetype to sample as from the dropdown.
 ##
+## Sub-tab "Node Graph": generates a small preview graph via [GraphProcgen] on
+## a private [Graph] and renders it via [NodeGraphView] — nodes heat-coloured
+## by rolled budget (RED HOT = high), archetype-colour ring, hover tooltip
+## (budget + this graph's min/max + the policy's base range), click rolls the
+## same 5-card sample at that node's already-rolled budget (fixed, not
+## resampled) so a RED HOT node visibly draws richer content.
+##
+## Composable field overlay (#162) — painting composed ScalarFields over
+## either sub-tab — lands after #162's fields exist; not started.
+##
 ## Self-contained: defaults to a duplicated `first_level.tres` so it works with
 ## nothing inspected. `load_config` (the SandboxLiveTab loader hook) swaps in a
 ## different config when one is routed from the inspector.
-##
-## Node-graph sub-tab (heat-by-budget nodes, click-to-sample, stamps, composable
-## field overlay) lands next — see #166 / #162.
 
 const _DEFAULT_PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 const _FieldMapView := preload("res://procgen/playground/field_map_view.gd")
+const _NodeGraphView := preload("res://procgen/playground/node_graph_view.gd")
 
 const _SAMPLE_COUNT := 5
+## Kept modest — see #172. The SkillNode visual composite registers instance
+## shader-uniform slots for 4 RimRings + CoreHalos + RuneRing per node
+## regardless of visibility (only ~2 are ever drawn), so stacking this preview
+## graph on top of the other always-resident sandbox_host panels can trip a
+## software-rasterizer instance-uniform cap well before it would on real GPU
+## hardware. 16 measured clean in that combined host; the spinbox still goes
+## higher for anyone who wants to push it.
+const _GRAPH_PREVIEW_NODE_COUNT := 16
 
 var _config: GraphProcgenConfig
 var _rng := RandomNumberGenerator.new()
@@ -29,6 +45,11 @@ var _map: Control
 var _cards_row: HBoxContainer
 var _cards: Array[VBoxContainer] = []
 var _seed_label: Label
+
+var _graph_view: Control
+var _graph_node_count_spin: SpinBox
+var _graph_cards_row: HBoxContainer
+var _graph_cards: Array[VBoxContainer] = []
 
 
 func _ready() -> void:
@@ -51,15 +72,27 @@ func load_config(obj: Object) -> void:
 
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override(&"separation", 6)
-	add_child(root)
+	var tabs := TabContainer.new()
+	tabs.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(tabs)
+
+	var map_tab := _build_map_tab()
+	tabs.add_child(map_tab)
+	tabs.set_tab_title(map_tab.get_index(), "Map Sample")
+
+	var graph_tab := _build_graph_tab()
+	tabs.add_child(graph_tab)
+	tabs.set_tab_title(graph_tab.get_index(), "Node Graph")
+
+
+func _build_map_tab() -> VBoxContainer:
+	var tab := VBoxContainer.new()
+	tab.add_theme_constant_override(&"separation", 6)
 
 	# Control bar.
 	var bar := HBoxContainer.new()
 	bar.add_theme_constant_override(&"separation", 10)
-	root.add_child(bar)
+	tab.add_child(bar)
 
 	bar.add_child(_make_label("Sample as:"))
 	_arch_option = OptionButton.new()
@@ -84,22 +117,72 @@ func _build_ui() -> void:
 	_map.size_flags_horizontal = SIZE_EXPAND_FILL
 	_map.size_flags_vertical = SIZE_EXPAND_FILL
 	_map.connect(&"map_clicked", _on_map_clicked)
-	root.add_child(_map)
+	tab.add_child(_map)
 
 	# Sample cards.
 	var cards_label := _make_label("%d samples at the clicked spot:" % _SAMPLE_COUNT)
 	cards_label.modulate = Color(1, 1, 1, 0.7)
-	root.add_child(cards_label)
+	tab.add_child(cards_label)
 
 	_cards_row = HBoxContainer.new()
 	_cards_row.add_theme_constant_override(&"separation", 6)
 	_cards_row.custom_minimum_size = Vector2(0, 168)
-	root.add_child(_cards_row)
+	tab.add_child(_cards_row)
 	for i in _SAMPLE_COUNT:
 		var card := _make_card()
 		_cards.append(card)
 		_cards_row.add_child(card.get_parent())
-	_clear_cards("Click the map to roll.")
+	_clear_cards(_cards, "Click the map to roll.")
+	return tab
+
+
+func _build_graph_tab() -> VBoxContainer:
+	var tab := VBoxContainer.new()
+	tab.add_theme_constant_override(&"separation", 6)
+
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override(&"separation", 10)
+	tab.add_child(bar)
+
+	bar.add_child(_make_label("Preview nodes:"))
+	_graph_node_count_spin = SpinBox.new()
+	_graph_node_count_spin.min_value = 8
+	_graph_node_count_spin.max_value = 80
+	_graph_node_count_spin.step = 1
+	_graph_node_count_spin.value = _GRAPH_PREVIEW_NODE_COUNT
+	bar.add_child(_graph_node_count_spin)
+
+	var regen := Button.new()
+	regen.text = "Regenerate graph"
+	regen.pressed.connect(_on_regenerate_graph_pressed)
+	bar.add_child(regen)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
+	bar.add_child(spacer)
+
+	# Graph.
+	_graph_view = _NodeGraphView.new()
+	_graph_view.size_flags_horizontal = SIZE_EXPAND_FILL
+	_graph_view.size_flags_vertical = SIZE_EXPAND_FILL
+	_graph_view.connect(&"node_clicked", _on_graph_node_clicked)
+	tab.add_child(_graph_view)
+
+	# Sample cards.
+	var cards_label := _make_label("%d samples for the clicked node (fixed budget):" % _SAMPLE_COUNT)
+	cards_label.modulate = Color(1, 1, 1, 0.7)
+	tab.add_child(cards_label)
+
+	_graph_cards_row = HBoxContainer.new()
+	_graph_cards_row.add_theme_constant_override(&"separation", 6)
+	_graph_cards_row.custom_minimum_size = Vector2(0, 168)
+	tab.add_child(_graph_cards_row)
+	for i in _SAMPLE_COUNT:
+		var card := _make_card()
+		_graph_cards.append(card)
+		_graph_cards_row.add_child(card.get_parent())
+	_clear_cards(_graph_cards, "Regenerate, then click a node.")
+	return tab
 
 
 func _make_label(text: String) -> Label:
@@ -133,7 +216,8 @@ func _set_config(cfg: GraphProcgenConfig) -> void:
 	if _map != null:
 		_map.set_config(_config)
 	_update_seed_label()
-	_clear_cards("Click the map to roll.")
+	_clear_cards(_cards, "Click the map to roll.")
+	_regenerate_graph()
 
 
 func _populate_archetypes() -> void:
@@ -181,7 +265,7 @@ func _update_seed_label() -> void:
 
 func _on_map_clicked(world_pos: Vector2) -> void:
 	if _config == null:
-		_clear_cards("no config")
+		_clear_cards(_cards, "no config")
 		return
 	var policy := _selected_archetype()
 	for i in _SAMPLE_COUNT:
@@ -197,25 +281,78 @@ func _sample_once(world_pos: Vector2, policy: ArchetypePolicy) -> Dictionary:
 	var budget := 0
 	if _config.budget_policy != null:
 		budget = _config.budget_policy.compute_budget(archetype_id, world_pos, [], _rng)
+	return _sample_with_budget(world_pos, policy, budget)
+
+
+## Same content draw as [method _sample_once], but `budget` is fixed rather
+## than rolled — used by the Node Graph tab so a click samples *that node's*
+## already-rolled budget instead of a fresh one (so a RED HOT node visibly
+## draws richer content).
+func _sample_with_budget(world_pos: Vector2, policy: ArchetypePolicy, budget: int) -> Dictionary:
+	var archetype_id: StringName = policy.id if policy != null else &""
+	var primary_stat: StringName = policy.primary_stat if policy != null else &""
+	var forbid: Array[StringName] = policy.forbid_tags if policy != null else ([] as Array[StringName])
 	var mods: Array[StatModifier] = []
-	if _config.modifier_pool_set != null:
+	if _config != null and _config.modifier_pool_set != null:
 		mods = GraphProcgen._roll_modifiers_v3(
 				_config.modifier_pool_set, _config.weight_profiles,
 				archetype_id, primary_stat, forbid, world_pos, 0, budget, _rng, {})
 	return {"budget": budget, "mods": mods}
 
 
+func _find_archetype(id: StringName) -> ArchetypePolicy:
+	if _config == null or id == &"":
+		return null
+	for policy in _config.archetypes:
+		if policy != null and policy.id == id:
+			return policy
+	return null
+
+
+# ── Node Graph sub-tab ────────────────────────────────────────────────────
+
+
+func _on_regenerate_graph_pressed() -> void:
+	_regenerate_graph()
+
+
+## Async (awaits [method NodeGraphView.generate], which awaits [method
+## GraphProcgen.generate]) — fired without an `await` at the call site since
+## nothing here needs the result synchronously.
+func _regenerate_graph() -> void:
+	if _config == null or _graph_view == null:
+		return
+	var cfg: GraphProcgenConfig = _config.duplicate(true)
+	cfg.node_count = int(_graph_node_count_spin.value) if _graph_node_count_spin != null else _GRAPH_PREVIEW_NODE_COUNT
+	cfg.n_random_starters = 0
+	cfg.seed = randi()
+	_clear_cards(_graph_cards, "Generating…")
+	await _graph_view.generate(cfg)
+	_clear_cards(_graph_cards, "Click a node to sample it.")
+
+
+func _on_graph_node_clicked(node: SkillNode) -> void:
+	if _config == null or not is_instance_valid(node):
+		return
+	var fp: Dictionary = node.get_meta("procgen_footprint", {})
+	var budget: int = fp.get("budget", 0)
+	var archetype_id: StringName = node.get_meta("base_type", &"")
+	var policy := _find_archetype(archetype_id)
+	for i in _SAMPLE_COUNT:
+		_fill_card(_graph_cards[i], i, _sample_with_budget(node.position, policy, budget))
+
+
 # ── Cards ─────────────────────────────────────────────────────────────────
 
 
-func _clear_cards(msg: String) -> void:
-	for i in _cards.size():
-		_clear_card_rows(_cards[i])
+func _clear_cards(cards: Array[VBoxContainer], msg: String) -> void:
+	for i in cards.size():
+		_clear_card_rows(cards[i])
 		if i == 0:
 			var l := _make_label(msg)
 			l.modulate = Color(1, 1, 1, 0.55)
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			_cards[i].add_child(l)
+			cards[i].add_child(l)
 
 
 func _clear_card_rows(card: VBoxContainer) -> void:
