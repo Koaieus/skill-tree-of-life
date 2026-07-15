@@ -12,10 +12,10 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## [b]Intensity slider[/b] is the debug knob: 0 = invisible, 1 = full black.
 ## Falloff softens the circle edge.
 
-## Uniform-array bound, mirrored by `MAX_CIRCLES` in fog.gdshader. A *memory*
-## bound, not a cost: the fragment loop breaks at `circle_count`, so an unused
-## slot costs nothing per pixel. 512 vec4 ≈ 8KB of uniform storage.
-const _MAX_CIRCLES := 512
+## Sanity ceiling, not an array bound (#177 moved circle storage to data
+## textures — see OverlayFieldTileIndex). Loud-or-none guard against a
+## pathological source count silently eating GPU memory.
+const _MAX_CIRCLES := 20000
 
 # Truncation is loud, but only on the rising edge — _refresh runs on every
 # vision tick, and a warning per frame would bury the log.
@@ -106,20 +106,21 @@ func set_sources(sources: Array) -> void:
 	else:
 		_warned_overflow = false
 
-	var packed: Array = []
-	for s in sources:
-		packed.append(Vector4(s.pos.x, s.pos.y, s.radius, s.get("motion", 0.0)))
-	# Pad to MAX so the uniform array always has a defined length — Godot's
-	# canvas_item shader needs the array fully populated even when unused
-	# slots are skipped via the count guard.
-	while packed.size() < _MAX_CIRCLES:
-		packed.append(Vector4.ZERO)
-	mat.set_shader_parameter(&"circles", packed)
-	mat.set_shader_parameter(&"circle_count", sources.size())
 	# Built once per refresh, queried once per element. Without it the dimming
 	# pass below is O(elements × sources) and runs every frame while circles
-	# animate — 16.8ms at 150 sources / 300 elements. See #133.
+	# animate — 16.8ms at 150 sources / 300 elements. See #133. It also owns
+	# the world-space tile grid (#177) that both this CPU pass and the GPU
+	# fragment shader read, via `set_shader_parameter` below.
 	_source_index.build(sources, union_smoothness)
+	var tiles := _source_index.tile_index()
+	mat.set_shader_parameter(&"circle_count", tiles.circle_count)
+	mat.set_shader_parameter(&"grid_origin", tiles.grid_origin)
+	mat.set_shader_parameter(&"cell_size", tiles.cell_size)
+	mat.set_shader_parameter(&"grid_cols", tiles.grid_cols)
+	mat.set_shader_parameter(&"grid_rows", tiles.grid_rows)
+	mat.set_shader_parameter(&"circles_tex", tiles.circles_texture)
+	mat.set_shader_parameter(&"tile_index_tex", tiles.tile_index_texture)
+	mat.set_shader_parameter(&"tile_indices_tex", tiles.tile_circle_indices_texture)
 	_apply_per_element_dimming()
 
 

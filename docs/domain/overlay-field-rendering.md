@@ -160,28 +160,150 @@ Canvas `blend_add` is `dst += src * src.a`, **componentwise, including alpha**
 So with `COLOR.a = 1.0` the RGB channels add cleanly, but **alpha is not usable
 as a data channel** — that's 3 payload channels per target, not 4.
 
-## If the harness says the loop is real: tile the circles, don't bake them
+## Shipped: world-space tiled binning (#177)
 
-Bin circles into a **world-space** uniform grid (the same grid `VisionSourceIndex`
-already builds on the CPU) and have the shader read only its own 3×3
-neighbourhood. Per-pixel cost becomes local circle *density*, independent of both
-total circle count and zoom.
+Circles are binned into a **world-space** uniform grid, and both fragment
+shaders read only their own 3×3 tile neighbourhood instead of looping every
+circle. Per-pixel cost is local circle *density*, independent of both total
+circle count and zoom. `field_smin` itself is untouched — no new precision
+surface, no bias, no blur — it's the same fold this file already documents;
+only which circles get folded, and their traversal order, changed.
 
-This keeps `field_smin` exactly as-is, so the look is bit-identical — no new
-precision surface, no bias, no blur. It's also what real engines do for many
-overlapping lights, for the same reason: when the blender can't express your
-union operator, make the loop short instead of eliminating it.
+**Architecture: data textures, not a bigger uniform array.** `OverlayFieldTileIndex`
+(`ui/overlay_field_tile_index.gd`) is the shared CPU-side grid builder, used by
+both `FogOverlay` (wrapped by `VisionSourceIndex`, which also needs the CPU-side
+per-element dimming pass to stay in lockstep — see below) and `AuraOverlay`
+directly. It packs three `ImageTexture`s per build:
+
+- `circles_tex` — one `vec4(x, y, radius, tag)` texel per circle (`tag` is
+  `motion` for fog, `entity_index` for aura).
+- `tile_index_tex` — one `vec2(offset, count)` texel per grid tile, into the
+  flat index buffer below.
+- `tile_indices_tex` — a flat `circle_count`-length buffer of circle indices,
+  grouped by tile.
+
+The fragment shader computes its own tile coordinate from `world_pos`,
+`texelFetch`s the 3×3 neighbourhood's `(offset, count)` pairs, and walks a
+genuinely **dynamic-count** inner loop (`for (int j = 0; j < count; j++)`) —
+this is the standard tiled/clustered-shading pattern, not a `MAX_CIRCLES`-style
+fixed cap with an early break. This is why circle count is no longer an array
+bound: `_MAX_CIRCLES` on both overlay scripts is now a 20000-circle *sanity
+ceiling* (loud-or-none per #133's acceptance bar), not a shader array size.
+`AuraOverlay.MAX_ENTITIES` raised `8 → 32` (target scale is 20 entities); it's
+still a real array bound (`entity_colors`, and the per-fragment `min_d[32]`
+local array) because that data is genuinely small.
+
+Proven with a spike before building the rest: a minimal canvas_item shader
+`texelFetch`ing a data texture, compiled and run under
+`xvfb-run … --rendering-driver opengl3` (headless never compiles GLSL — see
+`.claude/rules/godot-workflow.md`). Confirmed read-back matched to within one
+8-bit framebuffer quantization step before committing to the architecture.
+
+### Compiling clean is not rendering correctly — verify pixels, not just GLSL
+
+Everything above (spike, xvfb compile checks, `test_indexed_fold_stays_in_lockstep_with_the_shader`)
+proves the shader *compiles* and that two *CPU* implementations agree with
+each other — none of it ever runs the real `fog.gdshader`/`aura.gdshader` and
+checks the pixels it paints. `scenes/overlay_shader_verify.tscn` closes that
+gap: it renders the real `FogOverlay`/`AuraOverlay` scenes under opengl3 (a
+correct, if slow, rasterizer for pixel output — unlike llvmpipe's *timings*,
+its *pixels* are trustworthy), captures the viewport, and compares sampled
+pixels against the same CPU reference math the overlays trust internally.
+Covers both single-circle and multi-tile-gather cases (three circles scattered
+across distinct grid cells, proving the 3×3 neighbourhood read finds the right
+circles from the right tiles and that distant tiles don't leak in).
+
+```
+xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
+  res://scenes/overlay_shader_verify.tscn
+```
+
+Building it caught one real bug in the shipped code and one in the test
+harness itself — worth separating, because only one says anything about
+`OverlayFieldTileIndex`:
+
+- **Pixel-center vs. pixel-corner sampling (test-harness bug, not a shader
+  bug).** The fragment shader samples `world_pos` at the pixel CENTER (screen
+  pixel N is world N+0.5, standard rasterizer convention); `Image.get_pixel(x,
+  y)` reads the integer corner. Comparing the two without a +0.5 offset
+  drifted a few percent in a steep gradient (fog's default falloff=0.25 fade
+  zone) even though flatter regions happened to agree closely by coincidence.
+  Worth remembering if a future pixel-level check "mysteriously" disagrees by
+  a small amount in the fade zone specifically.
+- **Missing `await` on a coroutine call, not a rendering bug at all.** The
+  verify script's first draft called `_verify_fog()` (which itself `await`s
+  mid-body) without `await`ing it — `_ready()` moved on immediately, freed the
+  `FogOverlay` node while `_verify_fog`'s suspended coroutine still held a
+  reference to it, and resumed into a use-after-free segfault. This produced a
+  crash that, while debugging it, looked suspiciously like it could be a real
+  renderer limitation (a null `sampler2D` uniform, or single/dual-channel
+  float `Image` formats). **Both of those hypotheses were tested in isolation
+  after fixing the `await` bug and neither reproduced the crash** — the
+  RF/RGF `Image` formats work fine, and a `null` texture on an empty circle
+  set does NOT crash the compatibility renderer. Don't trust a crash's
+  proximate symptom over an isolated repro; a coroutine call missing `await`
+  is a mundane, easy-to-miss bug that can masquerade as something far more
+  exotic.
+
+### "Bit-identical to today" does NOT hold — measured, and it's small
+
+This was this issue's own optimistic framing, and it's wrong for a documented
+reason: `field_smin` is **not associative** (see the fade-zone drift already
+on this page). The old shader walked circles in **global array order**; the
+tiled shader walks tiles in `(dx, dy)` scan order and, within a tile, circles
+in build order — a different traversal, so a numerically different fold.
+
+Measured in `test/unit/ui/test_tile_gather_fold_order_drift.gd`: **max drift
+0.0026** across 3000 random probes (dense random fields, `union_smoothness =
+0.12`), against the visible threshold of `1/255 = 0.0039` used everywhere else
+on this page. Under threshold, but only by ~30% headroom — dense clusters with
+larger `union_smoothness` could plausibly exceed it. This is a real, if minor,
+visual behavior change, not a bug; it was surfaced to the user rather than
+silently shipped as "no visible change."
+
+**CPU/GPU lockstep is unaffected.** `VisionSourceIndex.distances_near` used to
+sort candidates back into global array order specifically to match the old
+shader; it now returns tile-gather order instead — the same reorder the shader
+itself uses — so `FogOverlay._apply_per_element_dimming` and the fragment
+shader still agree with each other exactly
+(`test_indexed_fold_stays_in_lockstep_with_the_shader`, tolerance `1e-5`). What
+changed is only the *old-vs-new absolute value*, not CPU/GPU agreement.
+
+### A floating-point trap in the grid origin — and why the margin is there
+
+`OverlayFieldTileIndex.grid_origin` is derived from the circle set's own
+bounding box (`min_pos - cell_size`). Without a safety margin, that puts the
+bounding box's OWN extremal circle **exactly on a cell boundary**: its distance
+from `grid_origin` is exactly one `cell_size`, so `floor(distance / cell_size)`
+lands on precisely `1.0`. Floating-point rounding at that knife-edge is
+order-of-operations-dependent — two algebraically identical but differently
+coded computations of the same floor can round to *different* cells for that
+one circle, silently moving it in or out of a query's 3×3 neighbourhood.
+
+Caught empirically while writing `test_vision_source_index.gd`'s independent
+shader transcription: it disagreed with the real index by `0.0022` on one probe
+out of 1200, traced to exactly this. Fixed by nudging `grid_origin` an extra
+`cell_size * 1e-4` further out, so every real circle's cell coordinate sits
+strictly away from any boundary. Any future reimplementation of this grid math
+(a shader-side rewrite, a different language) needs the same margin, or the
+same class of 1-in-thousands mismatch reappears.
 
 World-space bins beat a screen-space viewport cull (the "cheap interim step" in
 #133): the cull does nothing when zoomed out to the whole graph, and needs a
 refresh on every camera move.
 
-Give the shader an offset+count into a flat, tile-sorted index buffer so there is
-no per-tile cap. If you do cap per tile, #133's acceptance criterion binds:
-**loud, or none.**
-
 ## Known limit, deliberately
 
-`AuraOverlay.MAX_ENTITIES = 8` is a *colour-array* bound, not a circle bound.
-The 9th owning entity renders no aura. Neither the tiling above nor the depth
--test sketch in #133 lifts it. It warns on overflow.
+`AuraOverlay.MAX_ENTITIES = 32` is a *colour-array* bound, not a circle bound
+(circles moved to data textures in #177 and have no such limit up to the
+20000-circle sanity ceiling). The 33rd owning entity renders no aura. It warns
+on overflow.
+
+## Re-measuring GPU cost at #177's target scale
+
+`scenes/overlay_perf_harness.tscn`'s default sweep now includes 1000, 2000, and
+4000 circles (previously topped out at 512). Re-run it **on real hardware**
+(not llvmpipe — see above) to confirm the delta stays sublinear in total circle
+count at these scales; this repo's agents cannot do this themselves and it is
+the actual acceptance criterion for #177, not just "it compiles and the tests
+pass."

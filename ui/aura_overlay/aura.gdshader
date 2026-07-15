@@ -16,13 +16,24 @@ shader_type canvas_item;
 // matches the issue's lean toward cuts over blends for enemy-vs-owned
 // boundaries (#74).
 
-const int MAX_CIRCLES = 512;
-const int MAX_ENTITIES = 8;
+const int MAX_ENTITIES = 32;
 
-uniform int circle_count : hint_range(0, 512) = 0;
-// vec4(world_x, world_y, radius, entity_index)
-uniform vec4 circles[MAX_CIRCLES];
-uniform int entity_count : hint_range(0, 8) = 0;
+// World-space tile binning (#177): circles and the tile→(offset,count) lookup
+// live in data textures instead of a fixed-size uniform array, so the
+// per-pixel loop only visits its own 3x3 tile neighbourhood — local circle
+// DENSITY, not total circle count. See OverlayFieldTileIndex and
+// docs/domain/overlay-field-rendering.md.
+uniform sampler2D circles_tex : filter_nearest, repeat_disable;
+// vec4(world_x, world_y, radius, entity_index) per circle, sampled via the
+// tile lookup above.
+uniform sampler2D tile_index_tex : filter_nearest, repeat_disable;
+uniform sampler2D tile_indices_tex : filter_nearest, repeat_disable;
+uniform vec2 grid_origin = vec2(0.0);
+uniform float cell_size = 0.0;
+uniform int grid_cols = 0;
+uniform int grid_rows = 0;
+uniform int circle_count : hint_range(0, 100000) = 0;
+uniform int entity_count : hint_range(0, 32) = 0;
 uniform vec4 entity_colors[MAX_ENTITIES] : source_color;
 uniform float intensity : hint_range(0.0, 1.0) = 0.6;
 // Fraction of radius the alpha fades over, INSIDE the edge: full strength
@@ -43,14 +54,29 @@ void fragment() {
 	for (int e = 0; e < MAX_ENTITIES; e++) {
 		min_d[e] = 1e9;
 	}
-	for (int i = 0; i < MAX_CIRCLES; i++) {
-		if (i >= circle_count) break;
-		vec4 c = circles[i];
-		int e = int(c.w);
-		float d = distance(world_pos, c.xy) / max(c.z, 1.0);
-		// Same-entity union is smoothed: plain min() creases along the seam
-		// between two of this entity's circles, reading as a Mach band.
-		min_d[e] = field_smin(min_d[e], d, union_smoothness);
+	if (circle_count > 0 && cell_size > 0.0) {
+		ivec2 centre_tile = ivec2(floor((world_pos - grid_origin) / cell_size));
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				ivec2 tile = centre_tile + ivec2(dx, dy);
+				if (tile.x < 0 || tile.x >= grid_cols || tile.y < 0 || tile.y >= grid_rows) {
+					continue;
+				}
+				vec2 oc = texelFetch(tile_index_tex, tile, 0).rg;
+				int offset = int(oc.x);
+				int count = int(oc.y);
+				for (int j = 0; j < count; j++) {
+					int idx = int(texelFetch(tile_indices_tex, ivec2(offset + j, 0), 0).r);
+					vec4 c = texelFetch(circles_tex, ivec2(idx, 0), 0);
+					int e = int(c.w);
+					float d = distance(world_pos, c.xy) / max(c.z, 1.0);
+					// Same-entity union is smoothed: plain min() creases along
+					// the seam between two of this entity's circles, reading
+					// as a Mach band.
+					min_d[e] = field_smin(min_d[e], d, union_smoothness);
+				}
+			}
+		}
 	}
 
 	// Smoothstep (not a linear ramp) so the alpha slope is continuous at both

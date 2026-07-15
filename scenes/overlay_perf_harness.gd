@@ -32,8 +32,9 @@ extends Node2D
 ## separately and fixed (VisionSourceIndex).
 
 ## Circle counts to sweep. 15 ≈ today; 400–512 ≈ four entities at ~100 owned
-## nodes, the scale the issue is written against.
-@export var circle_counts: Array[int] = [0, 15, 100, 250, 512]
+## nodes (#133's scale); 1000–4000 ≈ #177's target — 1000-2000 node graphs,
+## up to 20 entities × 200 owned nodes for AuraOverlay's worst case.
+@export var circle_counts: Array[int] = [0, 15, 100, 250, 512, 1000, 2000, 4000]
 ## Frames discarded per configuration before sampling — lets the driver settle
 ## and the shader variant compile.
 @export var warmup_frames: int = 20

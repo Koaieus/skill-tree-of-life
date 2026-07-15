@@ -17,10 +17,19 @@ shader_type canvas_item;
 // black. Halo rides the outer edge — its inner side dips into the fade
 // zone, its outer side dips into the dark zone, brightening both.
 
-const int MAX_CIRCLES = 512;
-
-uniform int circle_count : hint_range(0, 512) = 0;
-uniform vec4 circles[MAX_CIRCLES];
+// World-space tile binning (#177): circles and the tile→(offset,count) lookup
+// live in data textures instead of a fixed-size uniform array, so the
+// per-pixel loop only visits its own 3x3 tile neighbourhood — local circle
+// DENSITY, not total circle count. See OverlayFieldTileIndex and
+// docs/domain/overlay-field-rendering.md.
+uniform sampler2D circles_tex : filter_nearest, repeat_disable;
+uniform sampler2D tile_index_tex : filter_nearest, repeat_disable;
+uniform sampler2D tile_indices_tex : filter_nearest, repeat_disable;
+uniform vec2 grid_origin = vec2(0.0);
+uniform float cell_size = 0.0;
+uniform int grid_cols = 0;
+uniform int grid_rows = 0;
+uniform int circle_count = 0;
 uniform float intensity : hint_range(0.0, 1.0) = 1.0;
 // Fraction of radius the gradient extends BEYOND the edge. 0 = hard cut,
 // 0.5 = fade zone equal to half the radius, etc.
@@ -47,14 +56,28 @@ void fragment() {
 	float min_d = 1e9;
 	float hard_min = 1e9;
 	float closest_motion = 0.0;
-	for (int i = 0; i < MAX_CIRCLES; i++) {
-		if (i >= circle_count) break;
-		vec4 c = circles[i];
-		float d = distance(world_pos, c.xy) / max(c.z, 1.0);
-		min_d = field_smin(min_d, d, union_smoothness);
-		if (d < hard_min) {
-			hard_min = d;
-			closest_motion = c.w;
+	if (circle_count > 0 && cell_size > 0.0) {
+		ivec2 centre_tile = ivec2(floor((world_pos - grid_origin) / cell_size));
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				ivec2 tile = centre_tile + ivec2(dx, dy);
+				if (tile.x < 0 || tile.x >= grid_cols || tile.y < 0 || tile.y >= grid_rows) {
+					continue;
+				}
+				vec2 oc = texelFetch(tile_index_tex, tile, 0).rg;
+				int offset = int(oc.x);
+				int count = int(oc.y);
+				for (int j = 0; j < count; j++) {
+					int idx = int(texelFetch(tile_indices_tex, ivec2(offset + j, 0), 0).r);
+					vec4 c = texelFetch(circles_tex, ivec2(idx, 0), 0);
+					float d = distance(world_pos, c.xy) / max(c.z, 1.0);
+					min_d = field_smin(min_d, d, union_smoothness);
+					if (d < hard_min) {
+						hard_min = d;
+						closest_motion = c.w;
+					}
+				}
+			}
 		}
 	}
 	// Darkness: 0 inside the clear zone, smooth 0→1 ramp across the fade zone

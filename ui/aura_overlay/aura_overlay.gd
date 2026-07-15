@@ -10,16 +10,20 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## entity. See aura.gdshader for the blend rules (same-entity union,
 ## cross-entity hard cut).
 
-## Uniform-array bound, mirrored by `MAX_CIRCLES` in aura.gdshader. This is a
-## *memory* bound, not a cost: the fragment loop breaks at `circle_count`, so an
-## unused slot costs nothing per pixel. 512 vec4 ≈ 8KB of uniform storage.
-const _MAX_CIRCLES := 512
-const _MAX_ENTITIES := 8
+## Sanity ceiling, not an array bound (#177 moved circle storage to data
+## textures — see OverlayFieldTileIndex). Loud-or-none guard against a
+## pathological owned-node count silently eating GPU memory.
+const _MAX_CIRCLES := 20000
+## `entity_colors` stays a plain uniform array — genuinely small (one Color
+## per owning entity) — so this IS a real array bound. Target scale is 20
+## entities; 32 leaves headroom.
+const _MAX_ENTITIES := 32
 
 # Truncation is loud, but only once per onset — _refresh runs on every
 # allocation, and a warning per node would bury the log.
 var _warned_circle_overflow: bool = false
 var _warned_entity_overflow: bool = false
+var _tile_index := OverlayFieldTileIndex.new()
 
 @export var enabled: bool = true:
 	set(value):
@@ -152,22 +156,27 @@ func set_field(circles: Array, colors: Array) -> void:
 	var mat: ShaderMaterial = material
 	var circle_count := mini(circles.size(), _MAX_CIRCLES)
 	var entity_count := mini(colors.size(), _MAX_ENTITIES)
-	# Pad explicitly rather than resize()-then-patch: resize() fills a *typed*
-	# array with the type's default (Color(0,0,0,1) — opaque black), not null,
-	# so a null-check pass would silently leave opaque padding behind.
-	var padded_circles: Array = []
-	padded_circles.resize(_MAX_CIRCLES)
-	padded_circles.fill(Vector4.ZERO)
-	for i in circle_count:
-		padded_circles[i] = circles[i]
+	# `entity_colors` stays a plain uniform array — small, so pad explicitly
+	# rather than resize()-then-patch: resize() fills a *typed* array with the
+	# type's default (Color(0,0,0,1) — opaque black), not null, so a
+	# null-check pass would silently leave opaque padding behind.
 	var padded_colors: Array = []
 	padded_colors.resize(_MAX_ENTITIES)
 	padded_colors.fill(Color(0.0, 0.0, 0.0, 0.0))
 	for i in entity_count:
 		padded_colors[i] = colors[i]
 
-	mat.set_shader_parameter(&"circles", padded_circles)
-	mat.set_shader_parameter(&"circle_count", circle_count)
+	# Circles go through the world-space tile index (#177) instead of a
+	# fixed-size uniform array — see OverlayFieldTileIndex.
+	_tile_index.build(circles.slice(0, circle_count), union_smoothness)
+	mat.set_shader_parameter(&"circle_count", _tile_index.circle_count)
+	mat.set_shader_parameter(&"grid_origin", _tile_index.grid_origin)
+	mat.set_shader_parameter(&"cell_size", _tile_index.cell_size)
+	mat.set_shader_parameter(&"grid_cols", _tile_index.grid_cols)
+	mat.set_shader_parameter(&"grid_rows", _tile_index.grid_rows)
+	mat.set_shader_parameter(&"circles_tex", _tile_index.circles_texture)
+	mat.set_shader_parameter(&"tile_index_tex", _tile_index.tile_index_texture)
+	mat.set_shader_parameter(&"tile_indices_tex", _tile_index.tile_circle_indices_texture)
 	mat.set_shader_parameter(&"entity_colors", padded_colors)
 	mat.set_shader_parameter(&"entity_count", entity_count)
 
