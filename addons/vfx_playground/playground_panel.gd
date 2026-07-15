@@ -160,6 +160,16 @@ func _fire() -> void:
 		hit.origin = origin
 		hit.target = t
 		outcome.hits.append(hit)
+		# Also populate the timeline so MagicBounceCoordinator (which reads it,
+		# not `hits`) renders. No propagation here — one JUMP event per target
+		# on beat 0. ArrowVolleyCoordinator ignores the timeline and reads hits.
+		var ev := PropagationEvent.new()
+		ev.beat = 0
+		ev.verb = PropagationEvent.Verb.JUMP
+		ev.origin = origin
+		ev.target = t
+		ev.damage = hit
+		outcome.timeline.append(ev)
 	# `duplicate()` with default flags (15) copies signals + groups + scripts +
 	# uses instantiation. `duplicate(true)` would coerce the bool to int 1 =
 	# DUPLICATE_SIGNALS only, dropping the script — the cast then returns null

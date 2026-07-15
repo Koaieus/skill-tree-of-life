@@ -2,9 +2,9 @@
 class_name MagicBounceCoordinator
 extends VFXCoordinator
 
-## Plays a multi-hop spell's visual sequence. Groups [member AttackOutcome.hits]
-## by [member CastSpell.hop_index] (read off [member DamageInstance.source])
-## and fires one wave per hop on a fixed clock: hop N spawns at
+## Plays a multi-hop spell's visual sequence. Walks [member AttackOutcome.timeline]
+## ([PropagationEvent]s), groups it by [member PropagationEvent.beat], and fires
+## one wave per beat on a fixed clock: beat N spawns at
 ## [code]t = N * per_hop_duration[/code] relative to [method play].
 ##
 ## ## The clock is the ground truth
@@ -19,9 +19,11 @@ extends VFXCoordinator
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
 
-## Fired immediately before each hop wave's projectiles are spawned.
-## Tests assert the emission cadence here; gameplay can use it for SFX cues.
-signal wave_started(hop_index: int, hits_in_wave: int)
+## Fired immediately before each beat's events are played. Tests assert the
+## emission cadence here; gameplay can use it for SFX cues. `events_in_wave`
+## counts every [PropagationEvent] on the beat (landings + CANCELs), which
+## equals the hit count whenever every event lands damage.
+signal wave_started(hop_index: int, events_in_wave: int)
 
 @export var projectile_path: ProjectilePath
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
@@ -39,43 +41,42 @@ signal wave_started(hop_index: int, hits_in_wave: int)
 # coordinator before its children drain.
 func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
-	if outcome == null or outcome.hits.is_empty():
+	# Guard on the timeline, not `hits`: a pure-utility spell (base_damage 0)
+	# lands zero-damage events that carry no hit — it must still render its path.
+	if outcome == null or outcome.timeline.is_empty():
 		return
-	var waves := _group_by_hop(outcome.hits)
-	var hop_indices: Array = waves.keys()
-	hop_indices.sort()
+	var waves := _group_by_beat(outcome.timeline)
+	var beats: Array = waves.keys()
+	beats.sort()
 	var pending: Array[int] = [0]
-	for i in hop_indices.size():
-		var hop := int(hop_indices[i])
-		var wave: Array = waves[hop]
-		wave_started.emit(hop, wave.size())
-		for hit_v in wave:
-			var hit: DamageInstance = hit_v
-			_spawn_projectile(hit, pending)
-		if i < hop_indices.size() - 1:
+	for i in beats.size():
+		var beat := int(beats[i])
+		var wave: Array = waves[beat]
+		wave_started.emit(beat, wave.size())
+		for ev_v in wave:
+			_play_event(ev_v, pending)
+		if i < beats.size() - 1:
 			await get_tree().create_timer(per_hop_duration).timeout
 	while pending[0] > 0:
 		await get_tree().process_frame
 
 
-# Groups hits by `hit.source.hop_index` (the CastSpell carries it). Hits
-# whose source isn't a CastSpell (defensive — shouldn't happen for spells)
-# bucket into hop 0 so they still play in the first wave.
-func _group_by_hop(hits: Array[DamageInstance]) -> Dictionary:
+func _group_by_beat(timeline: Array[PropagationEvent]) -> Dictionary:
 	var waves: Dictionary = {}
-	for hit in hits:
-		var hop := 0
-		var src: Variant = hit.source
-		if src is CastSpell:
-			hop = (src as CastSpell).hop_index
-		if not waves.has(hop):
-			waves[hop] = []
-		waves[hop].append(hit)
+	for ev in timeline:
+		if not waves.has(ev.beat):
+			waves[ev.beat] = []
+		waves[ev.beat].append(ev)
 	return waves
 
 
-func _spawn_projectile(hit: DamageInstance, pending: Array[int]) -> void:
-	if hit.origin == null or hit.target == null:
+# Plays one event: a projectile travels origin→target and applies the event's
+# hit (if any) on arrival. CANCEL events land no projectile this cut — the
+# dissipate visual and the verb→ProjectilePath mapping are follow-on work.
+func _play_event(ev: PropagationEvent, pending: Array[int]) -> void:
+	if ev.verb == PropagationEvent.Verb.CANCEL:
+		return
+	if ev.origin == null or ev.target == null:
 		return
 	var proj := Projectile.new()
 	proj.path = _resolved_path()
@@ -84,12 +85,13 @@ func _spawn_projectile(hit: DamageInstance, pending: Array[int]) -> void:
 	proj.face_velocity = face_velocity
 	add_child(proj)
 	pending[0] += 1
+	var hit: DamageInstance = ev.damage
 	proj.arrived.connect(func() -> void:
-		if hit.target != null:
+		if hit != null and hit.target != null:
 			hit.target.take_damage(hit.amount, hit))
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
-	proj.launch(hit.origin.global_position, hit.target.global_position, 0.0)
+	proj.launch(ev.origin.global_position, ev.target.global_position, 0.0)
 
 
 func _resolved_path() -> ProjectilePath:

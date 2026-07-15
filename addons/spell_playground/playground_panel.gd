@@ -377,7 +377,9 @@ func _cast() -> void:
 		return
 	var outcome := SpellResolver.resolve(
 			_spell, _selected_target, caster_node, caster_entity, graph)
-	if outcome.hits.is_empty():
+	# Guard on the timeline, not `hits`: a zero-damage utility spell still has
+	# a path to render (the coordinator reads the timeline).
+	if outcome.timeline.is_empty():
 		return
 	var coord := _spell.vfx_coordinator_scene.instantiate() as VFXCoordinator
 	if coord == null:

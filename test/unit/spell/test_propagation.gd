@@ -209,6 +209,15 @@ func test_self_loop_sum_merger_compounds_returns() -> void:
 	var hits_on_1: Array = helper.hits_by_node(outcome).get(n[1], [])
 	assert_eq(hits_on_1.size(), 2, "node 1 hit twice (seed + merged self-loop return)")
 	assert_almost_eq(helper.total_damage_on(outcome, n[1]), 30.0, 0.001)
+	# The wave-1 return arrives via the self-loop edge (target == predecessor),
+	# so the resolver stamps it SELF_LOOP — the one verb branch geometry can't
+	# recover (origin == target). Locks the a/b/e/d vocabulary's `e` case.
+	var self_loops: Array[PropagationEvent] = []
+	for ev in outcome.timeline:
+		if ev.verb == PropagationEvent.Verb.SELF_LOOP:
+			self_loops.append(ev)
+	assert_eq(self_loops.size(), 1, "wave-1 return stamped SELF_LOOP")
+	assert_eq(self_loops[0].target, n[1], "self-loop lands back on node 1")
 
 
 # ── Filter dispatch ────────────────────────────────────────────────────────

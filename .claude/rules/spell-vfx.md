@@ -40,6 +40,24 @@ Outbound:
 
 Tint hook: `ArrowVolleyCoordinator` stamps `tint: Color` on the visual right after `proj.launch()` (when `_visual` is already a child). Visuals without a `tint` field ignore it.
 
+## The coordinator reads `outcome.timeline`, not `outcome.hits` (#46)
+
+`MagicBounceCoordinator` walks `AttackOutcome.timeline: Array[PropagationEvent]`
+(grouped by `beat`), not `_group_by_hop(hits)`. Each event carries a movement
+`verb` (`JUMP`/`EDGE`/`SELF_LOOP`/`CANCEL` — the a/b/e/d vocabulary), its
+`origin`/`target` nodes, a **nullable** `damage` (shared ref into `hits`; null for
+`CANCEL` and zero-damage landings), and `crit_tier` (0 until crits ship).
+
+**Why the guard is `timeline.is_empty()`, not `hits.is_empty()`:** a pure-utility
+spell (base_damage 0) produces events with no damage — it must still render its
+path. Gating on `hits` would silently no-op it.
+
+`hits` is still the universal flat list every attack type appends to (melee /
+ranged / spell); the timeline is **additive spell structure over the same
+`DamageInstance` objects**, not a replacement. Apply HP only when
+`event.damage != null`. Full rationale + the verb table live in
+[docs/domain/spell-propagation.md](../../docs/domain/spell-propagation.md).
+
 ## Spell-playground gotcha
 
 The playground's viewport is small; production `BezierArcPath.apex_height = 420` sends the projectile off-screen. `addons/spell_playground/playground_panel.gd` typechecks for `MagicBounceCoordinator` and overrides the arc to `apex_height = 70`. If you add a new coordinator type for the playground, repeat the override or projectiles disappear.

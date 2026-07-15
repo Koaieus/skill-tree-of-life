@@ -126,24 +126,27 @@ func test_hung_visual_does_not_delay_subsequent_waves() -> void:
 	assert_eq(events, [0, 1, 2, 3])
 
 
-func test_hits_in_wave_grouped_by_hop_index() -> void:
-	# Hand-built outcome: 4 hits at hops [0, 1, 1, 2]. The coordinator
-	# must emit 3 wave_started events with hits_in_wave = [1, 2, 1].
+func test_events_in_wave_grouped_by_beat() -> void:
+	# Hand-built timeline: 4 events at beats [0, 1, 1, 2]. The coordinator
+	# must emit 3 wave_started events with events_in_wave = [1, 2, 1].
 	var nodes := _graph.get_skill_nodes()
-	var hops := [0, 1, 1, 2]
+	var beats := [0, 1, 1, 2]
 	var outcome := AttackOutcome.new()
-	for i in hops.size():
-		var hop: int = int(hops[i])
+	for i in beats.size():
+		var beat: int = int(beats[i])
+		var ev := PropagationEvent.new()
+		ev.beat = beat
+		# Origin/target just need to be non-null SkillNodes; the coordinator
+		# reads positions but doesn't care about the topology.
+		ev.origin = nodes[0]
+		ev.target = nodes[1]
 		var hit := DamageInstance.new()
-		# Origin/target just need to be non-null SkillNodes; the
-		# coordinator reads positions but doesn't care about the topology.
 		hit.origin = nodes[0]
 		hit.target = nodes[1]
 		hit.amount = 1.0
-		var cs := CastSpell.new()
-		cs.hop_index = hop
-		hit.source = cs
+		ev.damage = hit
 		outcome.hits.append(hit)
+		outcome.timeline.append(ev)
 	var coord := _mount_coord(0.04, 0.03)
 	var events: Array = []
 	coord.wave_started.connect(func(hop: int, count: int) -> void:
@@ -154,3 +157,39 @@ func test_hits_in_wave_grouped_by_hop_index() -> void:
 	assert_eq(events[0], [0, 1])
 	assert_eq(events[1], [1, 2])
 	assert_eq(events[2], [2, 1])
+
+
+func test_arrival_applies_event_damage_and_null_event_applies_none() -> void:
+	# The render path, not just the cadence: a projectile flies and applies
+	# `ev.damage` on arrival. A null-damage (utility) event still spawns a
+	# projectile but applies no HP. Projectile timing is CPU, so this runs
+	# under the dummy renderer.
+	var nodes := _graph.get_skill_nodes()
+	var hp1_before := nodes[1].get_current_hp()
+	var hp2_before := nodes[2].get_current_hp()
+	var outcome := AttackOutcome.new()
+	var hit := DamageInstance.new()
+	hit.origin = nodes[0]
+	hit.target = nodes[1]
+	hit.amount = 5.0
+	hit.type = DamageInstance.Type.MAGIC
+	outcome.hits.append(hit)
+	var ev1 := PropagationEvent.new()
+	ev1.beat = 0
+	ev1.origin = nodes[0]
+	ev1.target = nodes[1]
+	ev1.damage = hit
+	outcome.timeline.append(ev1)
+	var ev2 := PropagationEvent.new()  # utility landing: no damage
+	ev2.beat = 0
+	ev2.origin = nodes[0]
+	ev2.target = nodes[2]
+	ev2.damage = null
+	outcome.timeline.append(ev2)
+	var coord := _mount_coord(0.05, 0.03)
+	coord.play(outcome)
+	await get_tree().create_timer(0.25).timeout
+	assert_true(nodes[1].get_current_hp() < hp1_before,
+			"damage-bearing arrival dropped node 1's HP")
+	assert_eq(nodes[2].get_current_hp(), hp2_before,
+			"null-damage event applied no HP to node 2")

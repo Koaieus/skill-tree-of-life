@@ -64,15 +64,36 @@ static func resolve(
 				incidents.append(inc)
 			var resolved: CastSpell = _apply_reducer(config.reducer, incidents, node, ctx)
 			if resolved == null:
-				_record_cancel(outcome, node, ctx.wave_index, incidents.size())
+				_record_cancel(outcome, node, ctx.wave_index, incidents)
 				continue
 			merged.append(resolved)
 
-		# 3. Apply effects, bump global visit counter.
+		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		for state in merged:
+			# `hits` produced by this landing's effects belong to this event.
+			# Today only DamageEffect appends, and exactly one per landing — so
+			# the first new hit is the event's damage (null if the landing was
+			# zero-damage / utility, which still gets an event so it animates).
+			var pre := outcome.hits.size()
 			for eff in spell.on_hit_effects:
 				if eff != null:
 					eff.apply(state, outcome)
+			# Parity invariant: the headless path applies ALL of `hits`, but the
+			# VFX path applies only the first hit per landing (`ev.damage` below).
+			# They agree only while a landing appends ≤1 hit. Trip loudly if a
+			# future two-damage effect breaks that — teach the coordinator to
+			# apply every hit before shipping it.
+			assert(outcome.hits.size() - pre <= 1,
+					"landing appended >1 hit; VFX applies only the first")
+			var ev := PropagationEvent.new()
+			ev.beat = state.hop_index
+			ev.predecessor = state.predecessor
+			ev.origin = state.predecessor if state.predecessor != null else state.source
+			ev.target = state.current_node
+			ev.verb = _verb_for(state)
+			if outcome.hits.size() > pre:
+				ev.damage = outcome.hits[pre]
+			outcome.timeline.append(ev)
 			ctx.bump_visit(state.current_node)
 
 		# 4. Expand next wave through filter + step.
@@ -108,12 +129,35 @@ static func _apply_reducer(
 	return reducer.reduce(incidents, node, ctx)
 
 
-static func _record_cancel(outcome: AttackOutcome, node: SkillNode, wave: int, count: int) -> void:
+## Stamps the movement verb from the landed state — never from geometry (a
+## self-loop's origin == target, so positions can't tell them apart).
+static func _verb_for(state: CastSpell) -> PropagationEvent.Verb:
+	if state.predecessor == null:
+		return PropagationEvent.Verb.JUMP           # a — the seed
+	if state.current_node == state.predecessor:
+		return PropagationEvent.Verb.SELF_LOOP      # e — returned via self-loop
+	return PropagationEvent.Verb.EDGE               # b — stepped across an edge
+
+
+static func _record_cancel(
+		outcome: AttackOutcome, node: SkillNode, wave: int,
+		incidents: Array[CastSpell]) -> void:
 	var rec := SpellCancellation.new()
 	rec.node = node
 	rec.wave_index = wave
-	rec.incident_count = count
+	rec.incident_count = incidents.size()
 	outcome.cancellations.append(rec)
+	# Fold the fizzle into the timeline as a CANCEL event (damage null) so the
+	# coordinator can dissipate on the right beat — `cancellations` above stays
+	# as the replay projection.
+	var first: CastSpell = incidents[0]
+	var cancel_ev := PropagationEvent.new()
+	cancel_ev.beat = wave
+	cancel_ev.verb = PropagationEvent.Verb.CANCEL
+	cancel_ev.predecessor = first.predecessor
+	cancel_ev.origin = first.predecessor if first.predecessor != null else first.source
+	cancel_ev.target = node
+	outcome.timeline.append(cancel_ev)
 	# Global signal — VFX hooks subscribe once, no need to scan the list.
 	# Guard for headless / playground calls where /root/Events may not exist.
 	var ml := Engine.get_main_loop()

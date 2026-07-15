@@ -302,6 +302,81 @@ and after step 8; `git diff` the editor-touched scenes/.tres as per
 
 ---
 
+## The outcome → VFX seam: the `PropagationEvent` timeline (#46)
+
+The resolver's job ends at a **pure `AttackOutcome`** — no world state touched
+(damage is applied later, by the VFX layer, on projectile arrival). That purity
+is load-bearing: it's why `resolve()` doubles as a preview for AI scoring and
+tooltips. The question #46 answers is *what shape* that outcome hands to VFX.
+
+### Two projections over one resolution
+
+- **`hits: Array[DamageInstance]`** — the **primary, universal** flat list.
+  *Every* attack type appends to it: spell `DamageEffect`, `RangedAttackPlan`,
+  `MeleeAttackPlan`. It is **not** derived from anything; it is producer-populated.
+- **`timeline: Array[PropagationEvent]`** — **additive, spell-only** structure.
+  The `SpellResolver` builds it; melee/ranged leave it empty. Each event
+  *references* the same `DamageInstance` object already in `hits` (shared, not
+  copied) via `event.damage`, which is **nullable** — a zero-damage / utility
+  landing still gets a probe event so it animates.
+- **`cancellations: Array[SpellCancellation]`** — kept as a replay projection
+  *alongside* the new `Verb.CANCEL` events. Additive, not replaced.
+
+The old path had `MagicBounceCoordinator._group_by_hop()` **re-derive** wave
+structure by grouping `hits` on `hop_index` — throwing away the predecessor
+chain and never reading `cancellations`. The timeline promotes what the resolver
+already knew at emission time. `hits` stays as the compatibility surface so the
+~15 existing readers (battle_system, both coordinators, tests) don't churn.
+
+### `PropagationEvent`
+
+```gdscript
+class_name PropagationEvent extends RefCounted
+enum Verb { JUMP, EDGE, SELF_LOOP, CANCEL }   # a, b, e, d
+var beat: int                        # = CastSpell.hop_index (== wave_index; the two stay lockstep)
+var verb: Verb
+var origin: SkillNode                # probe travels FROM here (predecessor ?? source)
+var target: SkillNode                # lands here (current_node)
+var predecessor: SkillNode = null    # NODE ref this pass — event→event fork-tree link deferred
+var damage: DamageInstance = null    # shared ref into `hits`; null for CANCEL / zero-damage
+var crit_tier: int = 0               # always 0 until crits land (#195 / #197)
+```
+
+**Verb is resolver-stamped, not geometry-inferred** — it *cannot* be recovered
+from positions (a self-loop's origin == target). The resolver knows it at
+emission:
+
+| condition (at the landed `CastSpell`)     | verb        |
+|-------------------------------------------|-------------|
+| `predecessor == null` (the seed)          | `JUMP` (a)  |
+| `target == predecessor` (self-loop edge)  | `SELF_LOOP` (e) |
+| otherwise (stepped across an edge)        | `EDGE` (b)  |
+| reducer returned `null` (fizzle)          | `CANCEL` (d)|
+
+There is deliberately **no `HIT` verb**. "Hit the node" (c) is the *arrival
+phase* every non-`CANCEL` event performs — it maps to the visual contract's
+existing `_on_arrival()`, not to a distinct event kind. Reserve a `HIT` verb only
+if a genuine no-travel case (aura / in-place application) ever needs it.
+
+`SELF_LOOP` is defined but **untestable until self-loops are procgen-seeded and
+rendered** (see Open Question #4 below and `spells.md` OQ#10). Don't claim it
+verified this pass.
+
+### What the coordinator does with it
+
+`MagicBounceCoordinator` walks the timeline grouped by `beat` instead of
+`_group_by_hop`. Its `is_empty()` guard flips from `hits` to `timeline` — a net
+improvement: a **pure-utility spell (base_damage 0) now renders its path**
+instead of no-op'ing on an empty `hits`. The fixed wave clock is untouched:
+`wave_started(beat, count)` still fires per beat regardless of lingering visuals
+(the load-bearing contract in `.claude/rules/spell-vfx.md`).
+
+The **movement verb → `ProjectilePath`** mapping and the impact-pinned
+three-clocks lifetime (windup / linger past 1) are **follow-on work**, not this
+cut. This issue lands the *shape*; the VFX-timing rework builds on it.
+
+---
+
 ## Open questions / queue
 
 1. **Should `seed_damage_fraction` move into the Step?** Today it's a

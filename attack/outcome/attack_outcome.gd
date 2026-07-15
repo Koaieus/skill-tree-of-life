@@ -19,8 +19,15 @@ var mana_cost: int = 0
 ## returning negative). VFX coordinators can render a dissipate effect at
 ## each entry's [member SpellCancellation.node].
 var cancellations: Array[SpellCancellation] = []
+## Spell-only structure over the same resolution, ordered by wave. Populated
+## by [SpellResolver]; melee/ranged plans leave it empty. Each event's
+## [member PropagationEvent.damage] is a shared reference into [member hits]
+## (never a copy). The VFX layer ([MagicBounceCoordinator]) walks this — grouped
+## by [member PropagationEvent.beat] — rather than re-deriving waves from [member
+## hits]. See [code]docs/domain/spell-propagation.md[/code].
+var timeline: Array[PropagationEvent] = []
 
 
 func _to_string() -> String:
-	return "<AttackOutcome %d hit(s), %d cancel(s), %d AP, %d mana>" % [
-		hits.size(), cancellations.size(), ap_cost, mana_cost]
+	return "<AttackOutcome %d hit(s), %d event(s), %d cancel(s), %d AP, %d mana>" % [
+		hits.size(), timeline.size(), cancellations.size(), ap_cost, mana_cost]
