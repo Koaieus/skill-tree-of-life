@@ -50,6 +50,13 @@ signal entity_dying(entity: Entity)
 ## AllocationSystem, so the despawn never races the node strip.
 signal entity_died(entity: Entity)
 
+## Emitted when a claimed SkillDust relic offers a node-mod pick-N-from-M choice
+## (#173). Carries a [LootPickRequest]; a UI consumer sets `handled = true`
+## SYNCHRONOUSLY to take over the pick, otherwise the emitter auto-resolves a
+## random pick — so NPCs and headless tests never need a listener. Only the
+## human player's relics reach a picker (the HUD filters on `request.collector`).
+signal loot_pick_requested(request: LootPickRequest)
+
 ## Emitted when a spell's [IncidentReducer] resolves to null at a node
 ## (overlap-cancel, even-cancel, custom-cancel) — the spell visibly fizzles
 ## there. VFX hooks listen to pop a dissipate effect; battle log can record.

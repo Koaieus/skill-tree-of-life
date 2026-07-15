@@ -8,11 +8,13 @@ extends SkillNodeAddon
 ## death the carrier core is neutralised (force-dealloc'd to unowned), so the
 ## dust sits on a claimable relic.
 ##
-## When ANY entity allocates that relic node, the dust consumes itself and pours
-## its payload onto the ALLOCATOR'S CORE — STEAL semantics (permanent, portable
-## core modifiers), not onto the relic node itself. This is the MVP slice of the
-## design doc's Loot Resolution; STEAL/PROLIFERATE choice, staining, and the
-## picker UI are deferred (see docs/domain/loot-system.md).
+## When ANY entity allocates that relic node, the dust pours its loot onto the
+## ALLOCATOR'S CORE — STEAL semantics (permanent, portable core modifiers), not
+## onto the relic node itself. The loot is a pick-N-from-M choice over the dead
+## entity's CORE modifiers (#173) — the only mods lost when it dies; its owned
+## nodes merely return to the graph, so looting those would duplicate live mods.
+## The player picks via the HUD loot picker; NPCs auto-pick at random.
+## STEAL/PROLIFERATE choice and staining stay deferred (see loot-system.md).
 ##
 ## Visual (#168): scene-composed (skill_dust_addon.tscn) with a child InnerDisk
 ## instance, per .claude/rules/scene-composition.md — the gold/mix knobs below
@@ -26,9 +28,17 @@ extends SkillNodeAddon
 ## `skill_dust_scene` on LootSystem) — that bare fallback has no InnerDisk
 ## child, so it's intentionally visual-lite (sparkles only), not a bug.
 
-## The drawn modifiers, already `duplicate(true)`d by LootSystem (independent
-## copies — formula-mod binding-state safety, see the stats-system rule).
-@export var payload: Array[StatModifier] = []
+## The M core-mod candidates offered as a pick-N-from-M choice (#173) — the dead
+## entity's class identity + core-accreted mods, the only ones lost on its death.
+## The human player picks `pick_count` of these via the HUD's loot picker; NPCs /
+## headless get a random auto-pick. Already `duplicate(true)`d by LootSystem
+## (independent copies — formula-mod binding-state safety, see the stats rule).
+@export var candidates: Array[StatModifier] = []
+
+## N — how many of `candidates` the collector keeps. When
+## `candidates.size() <= pick_count` there's no real choice, so the whole set is
+## auto-granted without ever popping the picker.
+@export var pick_count: int = 0
 
 ## The dying entity's color, injected by LootSystem before this addon enters
 ## the tree (same timing as `payload`) — mixed into the gold tint below so a
@@ -110,35 +120,64 @@ func get_tooltip_title() -> String:
 
 
 func get_tooltip_modifiers() -> Array[StatModifier]:
-	return payload
+	return candidates
 
 
+## Pickup == the carrier gaining an owner. Routes the core-mod candidates through
+## the pick-N-from-M handshake (#173):
+##   * no real choice (empty, pick_count ≤ 0, or supply ≤ pick_count) →
+##     auto-grant everything and free — the picker never pops for a non-choice.
+##   * otherwise emit a [LootPickRequest]. A UI consumer sets `handled = true`
+##     SYNCHRONOUSLY to take over (player); if nobody does, auto-resolve a random
+##     pick right here (NPC / headless). Either way the resolver grants + frees.
+## The addon only frees once resolved — which for the player picker can be
+## seconds later (it stays on the now-owned relic until then).
 func _on_carrier_owner_changed() -> void:
 	if Engine.is_editor_hint() or carrier == null:
 		return
 	var collector := carrier.owned_by
 	if collector == null:
 		return  # death-strip / deallocation — not a pickup
-	_grant_to(collector)
+
+	if candidates.is_empty() or pick_count <= 0 or candidates.size() <= pick_count:
+		_grant_mods(collector, candidates)
+		candidates = []
+		queue_free()
+		return
+
+	var request := LootPickRequest.new(
+			collector, candidates, pick_count, _on_pick_resolved)
+	Events.loot_pick_requested.emit(request)
+	if not request.handled:
+		# NPC / headless / no-HUD path — the DEFAULT branch. Random N of M.
+		var pool := candidates.duplicate()
+		pool.shuffle()
+		request.resolve(pool.slice(0, pick_count))
+
+
+func _on_pick_resolved(chosen: Array[StatModifier]) -> void:
+	# Fires possibly seconds later (player took time) — re-validate the collector.
+	if carrier != null and is_instance_valid(carrier.owned_by):
+		_grant_mods(carrier.owned_by, chosen)
+	candidates = []
 	queue_free()
 
 
-## Pour the payload onto the collector's core node: each modifier becomes a
-## permanent core modifier — appended to the core node's `modifiers` array AND
-## pushed live onto the board, mirroring how an allocated node grants modifiers,
-## but targeting the collector's CORE rather than this relic node.
-func _grant_to(collector: Entity) -> void:
+## Pour `mods` onto the collector's core node: each becomes a permanent core
+## modifier — appended to the core node's `modifiers` array AND pushed live onto
+## the board, mirroring how an allocated node grants modifiers, but targeting
+## the collector's CORE rather than this relic node.
+func _grant_mods(collector: Entity, mods: Array[StatModifier]) -> void:
 	var core := collector.core_location
 	if core == null:
 		return
 	var board := collector.stat_board
-	for m in payload:
+	for m in mods:
 		core.modifiers.append(m)
 		if board != null:
 			board.add_modifier(m)
 		# #70: core-held modifier looted — the build-defining "mythic" floater.
 		Events.stat_modifier_changed.emit(collector, m, ModifierBinding.Kind.CORE, true)
-	payload.clear()
 
 
 ## Shimmering sparkle ring (#168) — richer than the old static 8-dot draw:

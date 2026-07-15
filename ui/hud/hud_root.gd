@@ -26,12 +26,21 @@ extends Control
 @onready var command_tray: CommandTray = %CommandTray
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
+@onready var loot_picker: LootPicker = %LootPicker
 
 var _player: Entity
 var _input_ctl: PlayerInputController
 var _battle_system: BattleSystem
 var _turn_manager: TurnManager
 var _vision_system: VisionSystem
+
+
+func _ready() -> void:
+	# Loot picks route over the global bus; the handler filters to the player
+	# (set in compose, well before any relic is claimed in play). Runtime only —
+	# the editor @tool pass has no player and no live combat.
+	if not Engine.is_editor_hint():
+		Events.loot_pick_requested.connect(_on_loot_pick_requested)
 
 
 ## Injected by [GameRoot] once it and HudRoot are both in the tree. Every
@@ -68,6 +77,16 @@ func compose(game_root: GameRoot) -> void:
 		announcement_layer.bind(_battle_system)
 	_bind_announcement_layer()
 	_bind_initiative_bar()
+
+
+## Pick-N-from-M loot claim (#173). Only the PLAYER's relics get the picker —
+## claim `handled` SYNCHRONOUSLY (before emit() returns) so SkillDustAddon won't
+## auto-resolve behind us; NPC relics fall through untouched to their auto-pick.
+func _on_loot_pick_requested(request: LootPickRequest) -> void:
+	if loot_picker == null or _player == null or request.collector != _player:
+		return
+	request.handled = true
+	loot_picker.present(request)
 
 
 ## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the

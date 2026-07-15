@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" uid="uid://byuujrcff7ex7" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
 [ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="15_overlay"]
+[ext_resource type="PackedScene" uid="uid://d0lootpicker173a" path="res://ui/loot_picker/loot_picker.tscn" id="16_loot"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -162,5 +163,10 @@ grow_vertical = 2
 script = ExtResource("15_overlay")
 
 [node name="PauseMenu" parent="." unique_id=1576476463 instance=ExtResource("14_pause")]
+visible = false
+layout_mode = 1
+
+[node name="LootPicker" parent="." instance=ExtResource("16_loot")]
+unique_name_in_owner = true
 visible = false
 layout_mode = 1

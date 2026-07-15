@@ -50,6 +50,10 @@ func before_each() -> void:
 	# split guarantees the snapshot reads still-owned nodes before the strip.
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm  # killer attribution source
+	# Existing XP tests isolate the base (per-level) term; the empire (per-held-
+	# node) term is opted into by the dedicated test below. Core loot draw is
+	# level-scaled — tests that pin the keep-count set the knobs explicitly.
+	_loot.xp_per_held_node = 0.0
 	add_child_autofree(_loot)
 
 	_alloc = AllocationSystem.new()
@@ -131,6 +135,19 @@ func test_self_death_grants_no_xp() -> void:
 	assert_eq(_killer.stat_board.xp.current, before, "no killer → no XP")
 
 
+func test_xp_empire_term_scales_with_held_nodes() -> void:
+	# #173: territory held at death is rewarded as XP (not looted stats). Victim
+	# holds one non-core node (N2), so the empire term adds xp_per_held_node.
+	_loot.xp_per_victim_level = 0.0  # isolate the empire term
+	_loot.xp_per_held_node = 2.0
+	_loot.held_node_xp_power = 1.0
+	_victim.level = 1
+	var before := _killer.stat_board.xp.current
+	_kill_victim()
+	assert_eq(_killer.stat_board.xp.current, before + 2.0,
+		"empire XP = xp_per_held_node * held_count^power (1 held node)")
+
+
 # ── Per-side-effect kill-switches (sandbox modularity) ───────────────────────
 
 func test_drop_skill_dust_off_suppresses_relic() -> void:
@@ -153,42 +170,38 @@ func test_award_xp_off_suppresses_xp() -> void:
 	assert_not_null(_find_dust(_nodes[1]), "dust still drops when only XP is off")
 
 
-# ── #69: SkillDust loot drop ─────────────────────────────────────────────────
+# ── #69/#173: SkillDust loot drop (CORE-ONLY) ────────────────────────────────
 
 func test_skilldust_dropped_on_former_core() -> void:
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])  # victim's former core
 	assert_not_null(dust, "former core should carry a SkillDustAddon relic")
-	assert_false(dust.payload.is_empty(), "dust should hold a payload")
+	assert_false(dust.candidates.is_empty(), "dust holds the core-mod candidates")
 
 
-func test_payload_total_caps_core_and_includes_node_mods() -> void:
-	_victim.level = 5
-	_loot.max_core_picks = 2
-	_kill_victim()
-	var dust := _find_dust(_nodes[1])
-	# 2 capped core picks + 1 available node mod (N2 armor) = 3 (supply-limited).
-	assert_eq(dust.payload.size(), 3, "draw = capped core (2) + available node mods (1)")
-	var core_count := 0
-	var has_node_mod := false
-	for m in dust.payload:
-		if m.stat_id in [&"strength", &"dexterity", &"intelligence"]:
-			core_count += 1
-		elif m.stat_id == &"armor":
-			has_node_mod = true
-	assert_eq(core_count, 2, "core picks capped at max_core_picks")
-	assert_true(has_node_mod, "node-granted mod (set X) included in the draw")
-
-
-func test_cascade_killed_nodes_excluded_from_draw() -> void:
-	# N2 is deallocated BEFORE death here, so its modifiers must not appear in
-	# the loot — mirrors a finishing-blow cascade stripping nodes pre-death.
-	_alloc.force_deallocate(_nodes[2])
+func test_loot_draws_only_core_mods_never_node_mods() -> void:
+	# The #173 correction: node mods are LENT by the graph and return to it on
+	# death, so looting them would duplicate live, re-claimable mods. N2's armor
+	# (a node mod) must NEVER appear in the draw; only core-identity mods do.
 	_victim.level = 5
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	for m in dust.payload:
-		assert_ne(m.stat_id, &"armor", "a pre-stripped node's mods are not lootable")
+	for m in dust.candidates:
+		assert_true(m.stat_id in [&"strength", &"dexterity", &"intelligence"],
+			"candidates are core-identity mods only")
+		assert_ne(m.stat_id, &"armor", "node-granted mods are not lootable")
+
+
+func test_keep_count_scales_with_victim_level() -> void:
+	# N = round(core_keep_base + core_keep_per_level * level), clamped to the core
+	# supply (3 identity mods). M is always the full core set.
+	_loot.core_keep_base = 1.0
+	_loot.core_keep_per_level = 0.5
+	_victim.level = 2
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	assert_eq(dust.candidates.size(), 3, "M = full core supply")
+	assert_eq(dust.pick_count, 2, "N = round(1 + 0.5*2) = 2")
 
 
 func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
@@ -209,7 +222,7 @@ func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
 
 func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
 	# The hover-tooltip content contract: a node aggregates its addons' tooltip
-	# sections; SkillDust contributes its drawn payload under a titled section.
+	# sections; SkillDust contributes its candidate list under a titled section.
 	_victim.level = 3
 	_kill_victim()
 	var sections := _nodes[1].get_addon_tooltip_sections()
@@ -217,25 +230,90 @@ func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
 	assert_eq(sections[0]["title"], "SkillDust loot", "section is titled")
 	var dust := _find_dust(_nodes[1])
 	var mods: Array = sections[0]["modifiers"]
-	assert_eq(mods.size(), dust.payload.size(), "section mirrors the drawn payload")
-	assert_false(mods.is_empty(), "payload is listed for the tooltip")
+	assert_eq(mods.size(), dust.candidates.size(), "section mirrors the candidates")
+	assert_false(mods.is_empty(), "candidates are listed for the tooltip")
 
 
-func test_pickup_grants_payload_to_collector_core() -> void:
-	_victim.level = 5
+func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
+	# No HUD in this harness → the pick auto-resolves (random N of M). Exactly
+	# pick_count core mods land on the collector core — the DEFAULT path (#173).
+	_loot.core_keep_base = 2.0
+	_loot.core_keep_per_level = 0.0  # N = 2, M = 3 → a real choice
+	_victim.level = 1
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	var payload_size := dust.payload.size()
+	assert_eq(dust.candidates.size(), 3, "M = full core (3 identity mods)")
+	assert_eq(dust.pick_count, 2, "N = 2")
 	_killer.stat_board.skill_points.grant(5)  # ensure SP to afford the allocation
 	var attr_before := _attr_sum(_killer)
 	# Killer allocates the neutral relic (adjacent to its N0 core).
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer can allocate the neutral relic node")
-	assert_eq(_killer.core_location.modifiers.size(), payload_size,
-		"looted mods land on the collector's core node")
+	assert_eq(_killer.core_location.modifiers.size(), 2,
+		"collector core gains exactly N picked core mods (a strict subset of M)")
 	assert_gt(_attr_sum(_killer), attr_before, "looted core mods raised the killer's stats")
 	await get_tree().process_frame  # queue_free is deferred to frame end
 	assert_null(_find_dust(_nodes[1]), "dust consumes itself on pickup")
+
+
+# ── #173: the pick-N-from-M handshake at claim time ──────────────────────────
+# Exercise the branch a trivial core can't: a REAL choice (M > N) where
+# SkillDustAddon actually emits `loot_pick_requested`.
+
+## Pad the victim's core with `extra` accreted mods (supply = 3 identity + extra)
+## and pin N so M > N. Accreted mods sit on the core NODE (core_location.modifiers)
+## — exactly the "previously-looted" mods the relic loop is meant to re-draw.
+func _arm_real_choice(extra: int, keep: int) -> void:
+	var mods: Array[StatModifier] = _nodes[1].modifiers.duplicate()
+	for i in extra:
+		mods.append(_mk_mod(&"armor", float(i + 1)))
+	_nodes[1].modifiers = mods
+	_loot.core_keep_base = float(keep)
+	_loot.core_keep_per_level = 0.0
+	_victim.level = 1
+
+
+func test_no_handler_auto_resolves_a_strict_subset() -> void:
+	# Real NPC play: nobody claims the pick → SkillDustAddon auto-resolves a
+	# RANDOM N of M. Exactly N mods must land (not all M, not zero).
+	_arm_real_choice(2, 2)  # supply 3 identity + 2 accreted = 5 → M = 5, N = 2
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	assert_eq(dust.candidates.size(), 5, "M candidates offered (full core)")
+	assert_eq(dust.pick_count, 2, "N to keep")
+	_killer.stat_board.skill_points.grant(5)
+	var ok := _alloc.allocate(_nodes[1], _killer)
+	assert_true(ok, "killer allocates the relic")
+	assert_eq(_killer.core_location.modifiers.size(), 2,
+		"auto-resolve grants exactly N mods (a strict subset of the 5 offered)")
+
+
+func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> void:
+	# A UI consumer sets `handled = true` synchronously → the addon must NOT
+	# auto-resolve. The loot stays pending until the picker calls resolve().
+	_arm_real_choice(2, 2)
+	var captured: Array[LootPickRequest] = []
+	var handler := func(req: LootPickRequest) -> void:
+		req.handled = true
+		captured.append(req)
+	Events.loot_pick_requested.connect(handler)
+
+	_kill_victim()
+	_killer.stat_board.skill_points.grant(5)
+	var ok := _alloc.allocate(_nodes[1], _killer)
+	assert_true(ok, "killer allocates the relic")
+	assert_eq(captured.size(), 1, "the pick request reached the handler")
+	# Nothing granted yet — auto-resolve was suppressed, the pick is pending.
+	assert_eq(_killer.core_location.modifiers.size(), 0,
+		"handled → loot still pending, nothing granted")
+	assert_false(captured[0].is_resolved(), "request awaits the player's pick")
+
+	# Now the "picker" resolves with the player's chosen N (2) → mods land.
+	var chosen: Array[StatModifier] = [captured[0].candidates[0], captured[0].candidates[1]]
+	captured[0].resolve(chosen)
+	assert_eq(_killer.core_location.modifiers.size(), 2,
+		"resolving the pick grants the chosen mods onto the collector core")
+	Events.loot_pick_requested.disconnect(handler)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

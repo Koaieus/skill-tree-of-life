@@ -1,18 +1,38 @@
-# Loot system (#68 XP reward + #69 SkillDust)
+# Loot system (#68 XP reward + #69/#173 SkillDust)
 
 `systems/loot_system.gd` is the authority for **killing-blow rewards**. It reacts
-to `Events.entity_died(victim)` and does two things:
+to `Events.entity_dying(victim)` and does two things:
 
-1. **XP reward (#68)** — the killer gains XP scaled by the victim's level.
-2. **SkillDust drop (#69)** — the victim's former core node becomes a claimable
-   relic carrying a `SkillDustAddon` whose payload is a snapshot of the victim's
-   modifiers.
+1. **XP reward (#68, extended #173)** — the killer gains XP for the victim's
+   **level** *plus* the **territory** it held at death (the "empire term").
+2. **SkillDust drop (#69/#173)** — the victim's former core node becomes a
+   claimable relic carrying a `SkillDustAddon`, a **pick-N-from-M** choice over
+   the victim's **core** modifiers.
+
+## Why loot draws from the core ONLY (the #173 correction)
+
+The original #69 slice also drew from the victim's **node** modifiers. That was a
+**duplication bug**: node modifiers are only *lent* by the graph — granted when a
+node is allocated, and released back to neutral when the entity dies. So a dead
+entity's node mods are **still on the battlefield**, re-claimable by whoever
+allocates those now-neutral nodes next. Copying them into loot mints a second
+copy of something that already exists and is still available.
+
+A **core** modifier (class identity + anything permanently accreted onto the
+core, e.g. previously-looted mods) is the *only* thing genuinely lost when the
+entity vanishes. So that — and only that — is the loot source. A consequence
+that's also the *just* behaviour: killing a level-20 giant by **sniping its
+core** vs. **whittling its limbs first** yields comparable loot, because both
+just read the core, not the transient territory.
+
+**Territory scale is rewarded as XP instead** (the empire term), so "you slew a
+sprawling empire" still pays out — just not as duplicated stats.
 
 This is the MVP slice of the design doc's *Killing Blow Resolution* /
-*Loot Resolution* (`docs/design/combat_system.md`). Deferred for now:
-STEAL/PROLIFERATE choice, the picker UI, node staining (`last_owner`),
-proliferation, the DAP bonus, BLITZ. **Staining is shelved indefinitely** —
-"find something better" before reviving it.
+*Loot Resolution* (`docs/design/combat_system.md`). The **pick-N-from-M picker**
+now exists (#173, below). Deferred for now: STEAL/PROLIFERATE choice, node
+staining (`last_owner`), proliferation, the DAP bonus, BLITZ. **Staining is
+shelved indefinitely** — "find something better" before reviving it.
 
 ## Killer attribution — resolved here, not on Entity or the bus
 
@@ -47,8 +67,8 @@ Death is a **two-phase** announcement (`Entity.die`), so consumers pick a phase
 instead of racing on connection order:
 
 ```
-Events.entity_dying  → LootSystem: snapshot victim modifiers + attach SkillDust,
-                        award kill XP        (corpse STILL owns its nodes)
+Events.entity_dying  → LootSystem: draw core mods + attach SkillDust, award kill
+                        XP (base + empire)   (corpse STILL owns its nodes)
 Events.entity_died   → AllocationSystem: force-deallocate every owned node
                         (incl. core → neutral relic)
                      → GameRoot: player game-over / NPC despawn
@@ -56,53 +76,99 @@ Events.entity_died   → AllocationSystem: force-deallocate every owned node
 
 `emit()` is synchronous, so **every `entity_dying` handler finishes before any
 `entity_died` handler runs** — the phases sequence themselves. LootSystem needs
-the pre-strip world because its node-modifier source (set X) reads the victim's
-still-owned subgraph (`navigator.get_mirrored_nodes()`), gone once
-AllocationSystem strips it. Subscribing to `entity_dying` makes that guarantee
-explicit; LootSystem's position in the scene tree is **irrelevant** (this is why
-the two-phase split exists — the editor is free to reorder `Systems` children).
+the pre-strip world for the **XP empire term**, which counts the territory the
+victim still owns (`navigator.get_mirrored_nodes()`), gone once AllocationSystem
+strips it. (The loot draw itself reads only `core_class` + the core node, which
+survive the strip — but sharing the `entity_dying` phase keeps both reads in one
+place.) Subscribing to `entity_dying` makes the guarantee explicit; LootSystem's
+position in the scene tree is **irrelevant** (this is why the two-phase split
+exists — the editor is free to reorder `Systems` children).
 
 Within the `entity_died` phase, AllocationSystem-before-GameRoot still holds, but
 on the *stronger* child-before-parent ready order (GameRoot is the root, so its
 `_ready` connects last and fires last) — not the fragile sibling order.
 
-The XP grant and the dust *attach* are themselves order-independent anyway — the
-addon survives the strip (`force_deallocate` only pops `node.modifiers`, not addon
-children), and the core-mod source comes off the `core_class` resource, not live
-state. Only **set X** needs the pre-strip read.
+The XP grant and the dust *attach* are order-independent w.r.t. the strip anyway
+— the addon survives it (`force_deallocate` only pops `node.modifiers`, not addon
+children), and the core-mod source comes off `core_class` + the core node, not
+the wider live subgraph. What DOES need the pre-strip world is the XP **empire
+term**, which counts the territory still owned at death.
 
-## The loot draw (`_draw_payload`)
+## The XP reward (`_award_kill_xp`)
 
-Total payload size = **victim level**. Composed from two sources:
+Two summed components:
 
-| Source | What | Order |
-|---|---|---|
-| **Core** | `core_class.modifiers` (class identity, e.g. BalancedCore +10 STR/DEX/INT) + the core node's own `modifiers` (so previously-looted mods re-enter the loop) | First, **shuffled**, capped at `max_core_picks` (default 2) |
-| **Node (set X)** | union of `modifiers` over every non-core node the victim still owns | Fills the remainder, **shuffled** |
+```
+base   = xp_per_victim_level(5) · victim.level               (killing the core)
+empire = xp_per_held_node(1) · held_count ^ held_node_xp_power(1)   (its empire)
+```
 
-`max_core_picks` is the key tuning knob: capping core picks below the full core
-set means you don't always get the whole `+10/+10/+10` dump — more varied loot.
-`xp_per_victim_level` (default 5) is the XP slope.
+`held_count` = non-core nodes the victim still owned at death (`_held_node_count`,
+read off the pre-strip navigator mirror). The empire term is where territory
+scale is paid out — **as XP, deliberately not as looted stats** (see the #173
+correction above). `held_node_xp_power > 1` makes big empires super-linearly
+juicy; leave it at 1 for linear. All three are `@export` knobs.
 
-Every drawn modifier is `duplicate(true)`d so the dust owns independent copies
+> The complementary half — a small XP trickle for **each node destroyed** on the
+> way in (so a whittling kill totals near a snipe kill) — is **#182**; it needs a
+> node-destruction hook with killer attribution, broader than this file.
+
+## The loot draw (`_draw_payload`, #173) — core-only
+
+The candidate pool is the victim's **whole core modifier set** — `_core_modifiers`
+= `core_class.modifiers` (class identity, e.g. BalancedCore +10 STR/DEX/INT) +
+the core node's own `modifiers` (previously-looted mods, so the relic loop
+closes). Node mods are **not** drawn (they return to the graph — see above).
+
+Offered as **pick-N-from-M**: M = the full core supply, N (keep-count) scales
+with victim level so a higher-level kill lets you keep more of their identity:
+
+```
+N = round(core_keep_base(1.0) + core_keep_per_level(0.25) · victim.level)
+    clamped to [0, core supply]        (N ≥ M ⇒ no real choice, auto-grant all)
+```
+
+At `per_level = 0.25` you keep +1 of the core per 4 levels, so you only walk off
+with a whole core from a much higher-level victim. Both knobs are `@export`.
+
+The returned `{ candidates, pick_count }` is written straight onto the addon.
+Every candidate is `duplicate(true)`d so the dust owns independent copies
 (formula-mod binding-state safety — see `.claude/rules/stats-system.md`).
 
-Cascade-killed nodes are naturally excluded: they left the navigator mirror when
-the finishing blow stripped them, so their mods don't enter the draw. (The
-design alternative — snapshot enemy boards at *player turn start* — is shelved;
-revive it if playtest wants "the spirit at turn start is what died".)
+## SkillDust pickup + the pick-N-from-M picker (#173)
 
-## SkillDust pickup (`skill_node/addons/skill_dust_addon.gd`)
+`SkillDustAddon extends SkillNodeAddon` sits on the neutralised relic core and
+subscribes to `carrier.owner_changed`. When **any** entity allocates the relic
+(owner goes non-null — the `owned_by == null` guard skips the death-strip so only
+a real pickup fires), it routes the `candidates` through the pick-N-from-M flow;
+the chosen mods land on the **collector's core** (`core.modifiers` append +
+`board.add_modifier` — STEAL semantics: permanent, portable core modifiers):
 
-`SkillDustAddon extends SkillNodeAddon`. It sits on the neutralised relic core
-and subscribes to `carrier.owner_changed`. When **any** entity allocates the
-relic (owner goes non-null), it pours its payload onto the **collector's core**
-(appends to `core.modifiers` + `board.add_modifier` — STEAL semantics: permanent,
-portable core modifiers) and `queue_free`s itself.
+- **no real choice** (empty, `pick_count ≤ 0`, or `candidates.size() ≤
+  pick_count`) → auto-grant everything, `queue_free`. The picker never pops for a
+  non-choice.
+- **real choice** → emit `Events.loot_pick_requested(LootPickRequest)`.
 
-The `owner_changed` handler guards `owned_by == null` so the death-strip
-(victim → null) doesn't trigger a premature grant — only a real pickup
-(null → collector) does.
+### The handshake (load-bearing)
+
+`emit()` is synchronous. `LootPickRequest.handled` is the pre-emption flag:
+
+- **HudRoot** listens, filters `request.collector == _player`, sets
+  `handled = true` **synchronously** and shows `LootPicker` (a modal — it
+  **pauses the tree** and runs at `process_mode = ALWAYS`, the `PauseMenu`
+  idiom; a mouse-filter alone wouldn't stop the `D`-key deallocate, which rides
+  `_unhandled_input`). On confirm it unpauses and calls `request.resolve(chosen)`.
+- **If nobody set `handled`** (NPC relic, headless test, no HUD mounted) the
+  addon **auto-resolves a random N-of-M** right after emit returns.
+
+That single rule keeps NPCs, headless tests, and the no-HUD path all on the
+auto-resolve branch — **the default the test suite exercises**. Only the human
+player's relic reaches the picker.
+
+`resolve()` is **idempotent** and fires possibly seconds later (the player takes
+time), so the resolver re-validates the collector (`is_instance_valid`) before
+granting, then `queue_free`s. The addon lingers on the now-owned relic until
+resolved.
 
 ## XP must route through the pool
 

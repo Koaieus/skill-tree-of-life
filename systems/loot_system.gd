@@ -2,18 +2,20 @@
 class_name LootSystem
 extends Node
 
-## Authority for killing-blow rewards (#68 XP, #69 SkillDust loot). Reacts to
+## Authority for killing-blow rewards (#68 XP, #69/#173 SkillDust loot). Reacts to
 ## `Events.entity_dying(victim)` — the PRE-cleanup phase, while the corpse still
-## owns its nodes (the loot draw reads the still-owned subgraph). The phase split
-## is what guarantees this runs before AllocationSystem's `entity_died` strip; no
-## tree-order / connection-order dependency. On the bus:
-##   * XP reward — the killer gains XP scaled by the victim's level, fed through
-##     the normal `xp` pool so it converts to SP / levels via the existing
-##     replenished cascade (Entity._on_xp_replenished). Don't bypass the pool —
-##     a raw `set_current` would skip the level-up.
-##   * SkillDust drop — a snapshot of the victim's modifiers is attached to its
-##     former core node as a [SkillDustAddon], turning the neutralised core into
-##     a claimable relic. See docs/domain/loot-system.md.
+## owns its nodes (so the XP empire term can count the territory held at death).
+## The phase split guarantees this runs before AllocationSystem's `entity_died`
+## strip; no tree-order / connection-order dependency. On the bus:
+##   * XP reward — the killer gains XP for the victim's level PLUS its territory
+##     size at death (the empire term), fed through the normal `xp` pool so it
+##     converts to SP / levels via the existing replenished cascade
+##     (Entity._on_xp_replenished). Don't bypass the pool — a raw `set_current`
+##     would skip the level-up.
+##   * SkillDust drop — the victim's CORE modifiers (the only ones lost on death)
+##     are attached to its former core node as a [SkillDustAddon], a pick-N-from-M
+##     relic. Node mods are NOT looted — they return to the graph. See
+##     docs/domain/loot-system.md.
 ##
 ## KILLER ATTRIBUTION lives here, not on the entity or the bus: death fires
 ## SYNCHRONOUSLY inside the attacker's turn (core-HP overflow + cascade chip
@@ -38,15 +40,47 @@ extends Node
 @export var award_xp_on_kill: bool = true
 @export var drop_skill_dust_on_death: bool = true
 
+## ── XP reward (#68, extended #173) ────────────────────────────────────────────
+## Two components, summed onto the killer's xp pool:
+##   base   = xp_per_victim_level * victim.level        (killing the core itself)
+##   empire = xp_per_held_node * held_count ^ held_node_xp_power
+##                                                      (its territory at death)
+## The EMPIRE term is where "you slew a sprawling lv20 giant" is rewarded —
+## deliberately as XP, NOT as looted stats. Territory modifiers are only LENT by
+## the graph (granted on allocation, released back to neutral on death), so
+## copying them into loot would duplicate mods that are still on the battlefield
+## and re-claimable. XP is the honest reward for the scale of the kill; the stat
+## loot draws strictly from the core (see `_draw_payload`). See #173 discussion.
+
 ## XP awarded per level of the victim. Tuning knob — design says "XP proportional
 ## to the dead entity's level"; this is the slope.
 @export var xp_per_victim_level: float = 5.0
 
-## Cap on how many modifiers the drop pulls from the victim's CORE (class
-## identity). The remainder of the `level`-sized draw is filled from the victim's
-## node-granted mods. Lower = more varied loot (you don't always get the full
-## core dump). Tuning knob.
-@export var max_core_picks: int = 2
+## XP per node the victim still held at death — the territory-scale reward. A
+## snipe-the-core kill (many nodes still held) and a whittle-the-limbs kill
+## should land near the same total; this term rewards the held-at-death count.
+## (The complementary per-node-kill trickle for the whittling path is #182.)
+@export var xp_per_held_node: float = 1.0
+## Exponent on held-count for the empire term. 1.0 = linear; >1 super-linear
+## (e.g. 1.5 makes big empires disproportionately juicy). Tuning knob.
+@export var held_node_xp_power: float = 1.0
+
+## ── Core loot draw (#173) ─────────────────────────────────────────────────────
+## The SkillDust draw is CORE-ONLY: the victim's class-identity mods plus
+## whatever was permanently accreted onto its core (previously-looted mods).
+## These are the modifiers that VANISH with the entity — everything on its owned
+## nodes merely returns to the graph, so drawing those would duplicate live mods.
+## The whole core set is offered as pick-N-from-M candidates (M = core supply);
+## N (keep-count) scales with victim level, so a higher-level kill lets you keep
+## more of their identity. When N >= M there's no real choice → auto-grant all.
+##
+##   N = round(core_keep_base + core_keep_per_level * victim.level), clamp [0, M]
+
+## Flat baseline keep-count — how much of the core you keep off a level-1 kill.
+@export var core_keep_base: float = 1.0
+## Keep-count slope on victim level. Small: at 0.25 you keep +1 per 4 levels, so
+## you only walk away with a whole core from a much higher-level victim. Knob.
+@export var core_keep_per_level: float = 0.25
 
 ## Optional packed scene for the dust addon (inspector-set). Falls back to a bare
 ## `SkillDustAddon.new()` when unset — the addon's visual is script-driven, so the
@@ -92,11 +126,15 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	if board == null or board.xp == null:
 		return
 	var amount := xp_per_victim_level * float(maxi(1, victim.level))
+	var held := _held_node_count(victim)
+	if held > 0 and xp_per_held_node > 0.0:
+		# Empire term: territory scale rewarded as XP, not as looted stats.
+		amount += xp_per_held_node * pow(float(held), maxf(0.0, held_node_xp_power))
 	if amount > 0.0:
 		board.xp.replenish(amount)  # routes through on_pool_filled → level-up
 
 
-# ── #69: SkillDust loot drop ─────────────────────────────────────────────────
+# ── #69/#173: SkillDust loot drop (core-only) ─────────────────────────────────
 
 func _drop_skill_dust(victim: Entity) -> void:
 	if not drop_skill_dust_on_death:
@@ -104,42 +142,53 @@ func _drop_skill_dust(victim: Entity) -> void:
 	var core := victim.core_location
 	if core == null:
 		return
-	var payload := _draw_payload(victim)
-	if payload.is_empty():
+	var draw := _draw_payload(victim)
+	var candidates: Array[StatModifier] = draw["candidates"]
+	if candidates.is_empty():
 		return
 	var dust: SkillDustAddon = null
 	if skill_dust_scene != null:
 		dust = skill_dust_scene.instantiate() as SkillDustAddon
 	if dust == null:
 		dust = SkillDustAddon.new()
-	dust.payload = payload
+	dust.candidates = candidates
+	dust.pick_count = draw["pick_count"]
 	dust.victim_color = victim.color
 	_attach_addon(core, dust)
 
 
-## Build the loot payload — total size = victim level. Core-class identity mods
-## first (shuffled, capped at `max_core_picks`), then random node-granted mods
-## (a copy of what its still-owned non-core nodes offer) to fill the rest. Every
-## entry is `duplicate(true)`d so the dust owns independent copies.
-func _draw_payload(victim: Entity) -> Array[StatModifier]:
-	var total := maxi(0, victim.level)
-	var payload: Array[StatModifier] = []
-	if total == 0:
-		return payload
-
+## Build the CORE-ONLY loot draw. The candidate pool is the victim's whole core
+## modifier set (class identity + core-accreted mods) — the only modifiers that
+## are permanently lost when the entity dies. Offered as pick-N-from-M: M = the
+## full core supply, N (keep-count) scales with victim level. When N >= M the
+## picker won't pop (no real choice) and the addon auto-grants all. Every entry
+## is `duplicate(true)`d so the dust owns independent copies.
+## Returns { "candidates": Array[StatModifier], "pick_count": int }.
+func _draw_payload(victim: Entity) -> Dictionary:
 	var core_mods := _core_modifiers(victim)
-	core_mods.shuffle()
-	var core_take := mini(mini(max_core_picks, core_mods.size()), total)
-	for i in core_take:
-		payload.append(core_mods[i].duplicate(true))
+	var supply := core_mods.size()
+	var keep := core_keep_base + core_keep_per_level * float(maxi(0, victim.level))
+	var pick_count := clampi(roundi(keep), 0, supply)
 
-	var node_mods := _node_modifiers(victim)
-	node_mods.shuffle()
-	for m in node_mods:
-		if payload.size() >= total:
-			break
-		payload.append(m.duplicate(true))
-	return payload
+	core_mods.shuffle()
+	var candidates: Array[StatModifier] = []
+	for m in core_mods:
+		candidates.append(m.duplicate(true))
+	return {"candidates": candidates, "pick_count": pick_count}
+
+
+## Count of non-core nodes the victim still owns at death — the TERRITORY signal,
+## now feeding the XP empire term (was the loot draw pre-#173-rework). Reads the
+## owned-subgraph mirror, so cascade-stripped nodes are already excluded.
+func _held_node_count(victim: Entity) -> int:
+	if victim.navigator == null:
+		return 0
+	var core := victim.core_location
+	var count := 0
+	for n in victim.navigator.get_mirrored_nodes():
+		if n != null and n != core:
+			count += 1
+	return count
 
 
 ## Core source: class identity mods (+10 STR/DEX/INT for BalancedCore, etc.) plus
@@ -151,21 +200,6 @@ func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 		out.append_array(victim.core_class.modifiers)
 	if victim.core_location != null:
 		out.append_array(victim.core_location.modifiers)
-	return out
-
-
-## Node-granted source (the design doc's "set X"): the modifiers offered by every
-## non-core node the victim still owns. Reads the owned-subgraph mirror, so nodes
-## already force-dealloc'd by the finishing-blow cascade are naturally excluded —
-## they left the mirror when they were stripped.
-func _node_modifiers(victim: Entity) -> Array[StatModifier]:
-	var out: Array[StatModifier] = []
-	if victim.navigator == null:
-		return out
-	var core := victim.core_location
-	for n in victim.navigator.get_mirrored_nodes():
-		if n != null and n != core:
-			out.append_array(n.modifiers)
 	return out
 
 
