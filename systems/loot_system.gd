@@ -194,6 +194,13 @@ func _held_node_count(victim: Entity) -> int:
 ## Core source: class identity mods (+10 STR/DEX/INT for BalancedCore, etc.) plus
 ## anything sitting on the core node itself (e.g. previously looted mods — the
 ## relic loop closes).
+##
+## #185 caveat: the class-identity half lives on the resource/board (never on a
+## node's `.modifiers`), so it's clean — only the dust steals it. The accreted
+## half lives in `core_location.modifiers`, which `force_deallocate` retains, so
+## a collector holding the relic gets it BOTH lent (allocation) and stolen (dust)
+## — a transient double for that sub-portion until they deallocate. Rare (needs a
+## loot chain) and minor; the move-don't-copy fix is tracked in #185.
 func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	if victim.core_class != null:

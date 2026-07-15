@@ -21,8 +21,10 @@ implementing the 6 locked-pick visuals from
 `%NodeVisualsComposite` and `_sync_visuals()` is what actually drives it —
 this **is** the live disk/rim render, not a parallel preview. `base_circle.gd`
 / `hover_ring.gd` / `core_marker.gd` stay, but `base_circle.gd` was slimmed to
-just the always-on legibility wash + the sensed-fog outline; the border ring
-and the allocated inner-disk draw retired in favor of RimRing/InnerDisk.
+just the always-on legibility wash + the hit-flash/deny tint channel; the
+border ring and the allocated inner-disk draw retired in favor of
+RimRing/InnerDisk, and the sensed-fog outline moved onto the composite's own
+[SensedOutline] component (#141 — see the sensed section below).
 Preview all components + the composite together via the sandbox host's
 "Node Visuals" tab (`addons/sandbox_host/tabs/15_node_visuals_tab.tscn` →
 `skill_node/visuals/panel/node_visuals_panel.tscn`).
@@ -109,8 +111,32 @@ allocation animates for free, because it's a lerp between two colors rather
 than a pop between two shapes. Don't reintroduce an `InnerDisk.visible =
 allocated` gate or an early `return SN_NEUTRAL_DARK` in the shader; both
 amputate the lit-dark branch that already exists. BaseCircle's wash is fully
-occluded by the disk+rim now and carries only the **sensed-fog** read (the
-composite is hidden entirely when `sensed`).
+occluded by the disk+rim on a visible node and is hidden outright when `sensed`
+(its wash carries the OWNER colour, which must not leak through fog).
+
+### Sensed (#141): a real composite state, not "hide the stack and let a legacy renderer stand in"
+
+`NodeVisualsComposite.sensed` is the archetype-only fog representation. When
+true it hides the `ShaderStack` grouping node (the parent of InnerDisk / RimRing
+/ RimBonuses / CoreHalos / RuneRing) and shows [SensedOutline] — a **non-shader**
+`SkillNodeVisual` that `_draw`s a faint archetype-tinted ring. Two properties are
+load-bearing:
+
+1. **Archetype-only is STRUCTURAL, not enforced by `visible=false`.** SensedOutline
+   reads only `archetype_tint`, never `entity_tint` — so a sensed node *cannot*
+   draw its owner by construction. That's the property the per-viewer info gate
+   (next layer up, see `docs/domain/vision-system.md`) is meant to build on.
+2. **Zero instance-uniform slots (#172), same gate as fog-hidden.** Hiding the
+   `ShaderStack` — not each child — flips every shader child's
+   `is_visible_in_tree()` false in one move, while CoreHalos/RuneRing keep their
+   own default-hidden `visible` flags. `_apply_sensed()` resolves ShaderStack by
+   **direct child path**, NOT a `%`-unique-name `@onready`, so the `sensed` setter
+   works before the node enters the tree: `instantiate()` then `sensed = true`
+   hides the stack *before* the shader children's `_ready` runs, so they never
+   bind a material. A `%`-name returns null until in-tree, which would leave the
+   stack visible through the children's `_ready` and claim a slot. `SkillNode`
+   also hides `BaseCircle` when sensed (owner-coloured wash). Guarded by
+   `test_node_visuals_contract.gd`'s `*_sensed_*` tests.
 
 ### RimBonuses' stake-fill dial (#127) is the stake visualization
 
@@ -186,13 +212,13 @@ escape hatch (see `rim_ring`'s custom-Curve fallback, gated on
 2. **`_sync_material()` gates on `is_visible_in_tree()`** and binds the material
    only past that gate, with a `visibility_changed` re-sync to set the uniforms
    the frame the node is shown. So a node whose whole composite is hidden claims
-   zero slots — that covers **sensed-fog** nodes (`skill_node.gd`'s
-   `_apply_sensed_state` sets `_node_visuals.visible = not sensed`) and every
-   node on the procgen Node-Graph-preview's invisible graph (the measured win).
+   zero slots — that covers **sensed-fog** nodes (`NodeVisualsComposite.sensed`
+   hides the `ShaderStack`, see the sensed section above) and every node on the
+   procgen Node-Graph-preview's invisible graph (the measured win).
    `is_visible_in_tree()` (not local `visible`) is deliberate — it's what makes a
-   whole hidden composite free, not just a locally-hidden child. Guarded by
+   whole hidden stack free, not just a locally-hidden child. Guarded by
    `test_node_visuals_contract.gd` (`*_ship_no_baked_material`,
-   `*_fog_hidden_*`, `*_unfogged_*`).
+   `*_fog_hidden_*`, `*_unfogged_*`, `*_sensed_*`).
 
 **Shared lighting math lives in `lighting.gdshaderinc`** (`#include`d by both
 `inner_disk.gdshader` and `rim_ring.gdshader`). The faked main-light direction

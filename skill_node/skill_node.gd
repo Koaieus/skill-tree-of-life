@@ -232,10 +232,14 @@ func _refresh_core_health_bar(is_core: bool) -> void:
 func _apply_sensed_state() -> void:
 	if not is_node_ready():
 		return
+	# Sensed hides BaseCircle entirely — its wash carries the OWNER colour, which
+	# must not leak through fog — and hands the archetype-only read to the
+	# composite's own sensed state (SensedOutline), rather than the old "hide the
+	# whole V2 stack and let BaseCircle stand in" path (#141).
 	if _base_circle != null:
-		_base_circle.sensed = sensed
+		_base_circle.visible = not sensed
 	if _node_visuals != null:
-		_node_visuals.visible = not sensed
+		_node_visuals.sensed = sensed
 	z_as_relative = not sensed
 	z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
 	var _is_core := owned_by != null and owned_by.core_location == self
@@ -254,14 +258,14 @@ func _sync_collision() -> void:
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
-	# BaseCircle keeps only the faint always-on wash (legibility background
-	# for unallocated nodes, per .claude/rules/skill-node-visuals.md) and the
-	# sensed-fog outline — NodeVisualsComposite (disk + rim + rune/halo dress)
-	# is the real disk/allocation render now.
+	# BaseCircle keeps only the faint always-on wash (legibility background for
+	# unallocated nodes, per .claude/rules/skill-node-visuals.md) plus the
+	# hit-flash / deny-tint channel — the sensed-fog outline moved onto the
+	# composite's SensedOutline (#141), and NodeVisualsComposite (disk + rim +
+	# rune/halo dress) is the real disk/allocation render.
 	_base_circle._radius = radius
 	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
-	_base_circle.border_color = base_type_color
-	_base_circle.sensed = sensed
+	_base_circle.visible = not sensed
 	_base_circle.queue_redraw()
 	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)
@@ -275,7 +279,7 @@ func _sync_visuals() -> void:
 	_node_visuals.archetype_tint = base_type_color
 	_node_visuals.stake_level = stake_level
 	_node_visuals.allocation_level = allocation_level
-	_node_visuals.visible = not sensed
+	_node_visuals.sensed = sensed
 
 
 func is_allocated() -> bool:

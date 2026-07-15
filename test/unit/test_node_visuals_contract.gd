@@ -152,3 +152,40 @@ func test_unfogged_composite_syncs_on_becoming_visible() -> void:
 	await get_tree().process_frame
 	assert_not_null(disk.material, "revealed disk binds the shared material")
 	assert_not_null(disk.get_instance_shader_parameter("tint_color"), "and gets its uniforms")
+
+
+## #141: a sensed node draws its own archetype-only outline while the shader
+## children stay hidden — so a sensed node claims ZERO instance-uniform slots
+## (the same #172 gate as fog-hidden) AND the sensed representation is a real,
+## structural part of the composite, not a legacy renderer standing in. Hiding
+## the shader stack (a grouping node) rather than each child keeps CoreHalos /
+## RuneRing on their own visibility flags.
+func test_sensed_composite_hides_shader_children_and_shows_outline() -> void:
+	var comp = CompositeScene.instantiate()
+	comp.sensed = true
+	add_child_autofree(comp)
+	await get_tree().process_frame
+
+	var disk = comp.get_node("%InnerDisk")
+	var rim = comp.get_node("%RimRing")
+	assert_false(disk.is_visible_in_tree(), "sensed: InnerDisk hidden — claims no buffer slot")
+	assert_false(rim.is_visible_in_tree(), "sensed: RimRing hidden")
+	assert_null(disk.material, "sensed disk binds no material (zero buffer slot, like fog-hidden)")
+	assert_true(comp.get_node("%SensedOutline").visible, "sensed: the archetype outline is shown")
+
+
+## #141: un-sensing restores the shader stack and re-binds materials — sensed is
+## a reversible display state, not a one-way teardown.
+func test_unsensing_restores_shader_stack_and_hides_outline() -> void:
+	var comp = CompositeScene.instantiate()
+	comp.sensed = true
+	add_child_autofree(comp)
+	await get_tree().process_frame
+
+	comp.sensed = false
+	await get_tree().process_frame
+
+	var disk = comp.get_node("%InnerDisk")
+	assert_true(disk.is_visible_in_tree(), "un-sensed: InnerDisk visible again")
+	assert_not_null(disk.material, "and re-binds the shared material")
+	assert_false(comp.get_node("%SensedOutline").visible, "outline hidden when not sensed")

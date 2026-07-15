@@ -89,8 +89,18 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 		_sync_stake()
 
 @onready var _children: Array[SkillNodeVisual] = [
-	%InnerDisk, %RimRing, %RimBonuses, %CoreHalos, %RuneRing,
+	%InnerDisk, %RimRing, %RimBonuses, %CoreHalos, %RuneRing, %SensedOutline,
 ]
+
+## Sensed-but-not-visible: the node reads as an archetype-only outline
+## ([SensedOutline]) with the full shader stack hidden — a real display state on
+## the composite, not "hide everything and let a legacy renderer stand in" (the
+## #141 bug this fixes). The archetype-only guarantee is structural: SensedOutline
+## can only draw `archetype_tint`, so no owner info can leak through the fog.
+var sensed: bool = false:
+	set(value):
+		sensed = value
+		_apply_sensed()
 
 ## The ONE shared light handed to every lit child (InnerDisk — whose weld glyph
 ## is folded into its own shader, so it rides the same uniforms, not a second
@@ -108,6 +118,24 @@ func _on_identity_changed() -> void:
 func _ready() -> void:
 	_sync_shared()
 	_sync_stake()
+	_apply_sensed()
+
+
+## Swaps between the full shader stack and the archetype-only outline. Resolves
+## the two nodes by DIRECT child path (not a `%`-unique-name `@onready`) so the
+## `sensed` setter works before this node is in the tree: a caller can
+## `instantiate()` then set `sensed = true` and have ShaderStack already hidden
+## when the shader children's `_ready` runs — so they never bind a material and
+## a start-sensed node claims ZERO instance-uniform slots (#172), the same gate
+## as a fog-hidden `visible = false` node. A `%`-name would return null until the
+## node enters the tree, leaving the stack visible through the children's `_ready`.
+func _apply_sensed() -> void:
+	var stack := get_node_or_null(^"ShaderStack") as Node2D
+	var outline := get_node_or_null(^"SensedOutline") as Node2D
+	if stack == null or outline == null:
+		return
+	stack.visible = not sensed
+	outline.visible = sensed
 
 
 func configure(new_radius: float) -> void:
