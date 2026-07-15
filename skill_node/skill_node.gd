@@ -474,7 +474,11 @@ func remove_entity_modifiers_from(board: StatBoard) -> void:
 func add_local_modifier(m: StatModifier) -> void:
 	if m == null:
 		return
-	_ensure_local_stat(m.stat_id).add_modifier(m)
+	# flatten() so a CompositeStatModifier lands its children on node_board;
+	# a plain modifier is its own singleton. Mirrors StatBoard.add_modifier —
+	# the node-local channel is bundle-aware too (#183). No bind, as before.
+	for leaf in m.flatten():
+		_ensure_local_stat(leaf.stat_id).add_modifier(leaf)
 
 
 ## Remove a modifier previously applied by [method add_local_modifier]. Removal
@@ -482,9 +486,12 @@ func add_local_modifier(m: StatModifier) -> void:
 func remove_local_modifier(m: StatModifier) -> void:
 	if m == null or node_board == null:
 		return
-	var s: Stat = node_board.get_stat(m.stat_id)
-	if s != null:
-		s.remove_modifier(m)
+	# Symmetric with add_local_modifier: flatten() returns the same stable child
+	# instances, so a composite added earlier is removed leaf-for-leaf.
+	for leaf in m.flatten():
+		var s: Stat = node_board.get_stat(leaf.stat_id)
+		if s != null:
+			s.remove_modifier(leaf)
 
 
 ## Every [Effect] this node grants to an owner: its own, its keystone's, and

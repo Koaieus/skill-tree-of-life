@@ -121,6 +121,48 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 - (for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max.
 - `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster mana flourishes, rage decay, etc.). Default hook is a no-op.
 
+## Composite (bundled) modifiers (#183)
+
+`CompositeStatModifier extends StatModifier` bundles several child modifiers
+into **one atom** for the storage / authoring / loot layer, while flattening
+into its children wherever a modifier is actually **applied** or fully
+**listed**. Motivating case: a class-identity buff/debuff pair balanced only as
+a unit — authored as one `CoreClass.modifiers` entry, it loots all-or-nothing so
+a collector can't cherry-pick the buff (see `ninja_core.tres`'s `mod_budget_pack`
+= +2 DP / −1 SP).
+
+**The whole feature is one virtual: `StatModifier.flatten() -> Array[StatModifier]`.**
+A leaf returns `[self]`; the composite returns its children (recursively). Two
+worlds:
+
+- **Keep whole (storage/authoring/loot):** `CoreClass.modifiers`,
+  `core_location.modifiers`, loot `candidates` — a composite is ONE entry / ONE
+  pick-N-from-M candidate.
+- **Flatten (application/full-listing):** two apply seams flatten and route
+  each leaf — `StatBoard.add_modifier`/`remove_modifier` (entity board:
+  allocation, addons' `entity_modifiers`, effects, intrinsics, loot grant) and
+  `SkillNode.add_local_modifier`/`remove_local_modifier` (node board: addons'
+  `local_modifiers`, node-scoped effect grants). So **every** application path
+  gets bundle support for free. Display / per-mod-floater sites that list every
+  leaf flatten too: `SkillNodeTooltip._add_modifier_label`, `LootPicker._make_card`
+  (one card per candidate, body lists the leaves), `SkillDustAddon._grant_mods`
+  and `AllocationVfx` (the #70 floaters — **one per leaf**, honest about each
+  stat gained). `StatModifier.flatten_all(mods)` is the list-level helper for
+  the per-entry iterators.
+
+**INERT container:** the composite's own `stat_id`/`operation`/`value`/`formula`/
+`priority` are vestigial (hidden via `_validate_property`); only leaves bind and
+apply. Because add_modifier flattens, a child's `emit_changed()` reaches its Stat
+through the normal wiring — the container never proxies signals. `duplicate(true)`
+deep-copies the `children` array (verified — Godot recurses into an exported
+Array of Resources), so no `duplicate()` override is needed and the per-element
+dup discipline for formula-bound mods holds for a bundle too.
+
+**Gotcha:** iterating a typed `Array[StatModifier]` and testing `m is
+CompositeStatModifier` is a parse error (the element type resolves by script
+*path*, the class by *class_name*, and the analyzer won't narrow between them).
+Copy into an untyped `var mods: Array` first. See `test_composite_stat_modifier.gd`.
+
 ## Effect-granted modifiers (#4)
 
 `Effect`s grant modifiers through `EffectContext.grant(mod, target)`, which

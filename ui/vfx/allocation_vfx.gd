@@ -126,7 +126,7 @@ func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 	_spawn_lift(node.global_position, node.inner_radius, previous_owner.color)
 	# #70: voluntary dealloc only (force-dealloc / death use force_deallocated,
 	# so the death-strip flurry is suppressed by construction).
-	for m in node.modifiers:
+	for m in StatModifier.flatten_all(node.modifiers):  # bundles → one floater per leaf (#183)
 		Events.stat_modifier_changed.emit(previous_owner, m, ModifierBinding.Kind.NODE, false)
 
 
@@ -176,7 +176,8 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 ## visual catching up. The #70→#71 seam: the floater emit now waits for arrival
 ## instead of firing in `_on_allocated` directly.
 func _spawn_modifier_pulses(node: SkillNode, entity: Entity) -> void:
-	var mods := node.modifiers
+	# Flatten so a CompositeStatModifier pulses one floater per leaf (#183).
+	var mods := StatModifier.flatten_all(node.modifiers)
 	if mods.is_empty():
 		return
 	var route := _core_route(node, entity)

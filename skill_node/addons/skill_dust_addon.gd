@@ -173,11 +173,15 @@ func _grant_mods(collector: Entity, mods: Array[StatModifier]) -> void:
 		return
 	var board := collector.stat_board
 	for m in mods:
+		# A composite is stored WHOLE on the core (stays a lootable unit if this
+		# collector later dies) but flattens onto the board via add_modifier.
 		core.modifiers.append(m)
 		if board != null:
 			board.add_modifier(m)
-		# #70: core-held modifier looted — the build-defining "mythic" floater.
-		Events.stat_modifier_changed.emit(collector, m, ModifierBinding.Kind.CORE, true)
+		# #70: emit per LEAF — honest about each stat gained. A bundle's buff and
+		# debuff are separate floaters; either alone may be no "mythic" at all.
+		for leaf in m.flatten():
+			Events.stat_modifier_changed.emit(collector, leaf, ModifierBinding.Kind.CORE, true)
 
 
 ## Shimmering sparkle ring (#168) — richer than the old static 8-dot draw:

@@ -86,6 +86,37 @@ func test_confirm_resolves_with_the_chosen_subset() -> void:
 	assert_false(_picker.visible, "picker hides after confirm")
 
 
+## #183: a CompositeStatModifier candidate is ONE card whose body lists every
+## bundled leaf — the player sees the whole pack, picks it all-or-nothing.
+func test_composite_candidate_is_one_card_listing_its_leaves() -> void:
+	var bundle := CompositeStatModifier.new()
+	bundle.children = [_mk_mod(&"deallocation_points", 2), _mk_mod(&"skill_points", -1)]
+	var cands: Array[StatModifier] = [bundle, _mk_mod(&"armor", 5)]
+	var sink: Array = []
+	_picker.present(_request(cands, 1, sink))
+	assert_eq(_picker._cards.size(), 2, "the bundle is a single card, not one per leaf")
+	var text: String = _picker._cards[0].text
+	assert_true(text.contains("+2") and text.contains("-1"),
+			"the bundle card lists both leaf contributions")
+	assert_true(text.contains("\n"), "leaves are stacked on separate lines")
+
+
+func test_confirm_resolves_a_composite_as_a_single_unit() -> void:
+	var bundle := CompositeStatModifier.new()
+	bundle.children = [_mk_mod(&"deallocation_points", 2), _mk_mod(&"skill_points", -1)]
+	var plain := _mk_mod(&"armor", 5)
+	var cands: Array[StatModifier] = [bundle, plain]
+	var sink: Array = []
+	var req := _request(cands, 1, sink)
+	_picker.present(req)
+	_picker._cards[0].button_pressed = true
+	_picker._cards[0].toggled.emit(true)
+	_picker._on_confirm()
+	assert_eq(sink.size(), 1, "one pick == the whole bundle, not its leaf count")
+	assert_true(sink.has(bundle), "the composite is resolved whole (all-or-nothing)")
+	assert_false(sink.has(plain))
+
+
 func test_resolve_is_idempotent() -> void:
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2)]
 	var sink: Array = []

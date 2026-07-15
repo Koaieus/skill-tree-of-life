@@ -57,16 +57,28 @@ func present(request: LootPickRequest) -> void:
 	get_tree().paused = true  # modal: freeze the board until a pick is confirmed
 
 
+## One card per candidate — a [CompositeStatModifier] is a SINGLE all-or-nothing
+## pick that lists every bundled stat in its body (#183). A plain modifier
+## flattens to one line, so both share this path.
 func _make_card(m: StatModifier) -> Button:
-	var def := StatRegistry.get_def(m.stat_id)
-	var stat_name := def.display_name if def != null else String(m.stat_id)
-	var tint := def.tint_color if def != null else Color.WHITE
+	var leaves := m.flatten()
+	var lines: Array[String] = []
+	for leaf in leaves:
+		var leaf_def := StatRegistry.get_def(leaf.stat_id)
+		var leaf_name := leaf_def.display_name if leaf_def != null else String(leaf.stat_id)
+		lines.append("%s %s" % [leaf.contribution_text(), leaf_name])
+	# A single-stat card takes that stat's tint; a bundle mixes several stats,
+	# so it reads in a neutral bundle tint rather than an arbitrary one.
+	var tint := Color(0.9, 0.9, 0.95)
+	if leaves.size() == 1:
+		var def := StatRegistry.get_def(leaves[0].stat_id)
+		tint = def.tint_color if def != null else Color.WHITE
 	var card := Button.new()
 	card.toggle_mode = true
 	card.custom_minimum_size = Vector2(150, 90)
 	card.clip_text = true
 	card.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card.text = "%s\n%s" % [m.contribution_text(), stat_name]
+	card.text = "\n".join(lines)
 	card.add_theme_color_override("font_color", tint)
 	card.add_theme_color_override("font_hover_color", tint)
 	card.add_theme_color_override("font_pressed_color", tint)

@@ -213,7 +213,14 @@ func _populate_keystone() -> void:
 ## One tinted modifier line, formatted per the StatModifier pipeline conventions
 ## documented at the class top. Shared by the node's own modifiers and any
 ## addon-contributed sections.
+## Flatten-aware: a plain modifier renders one line; a [CompositeStatModifier]
+## renders one line per leaf (the #183 "5 entries, not 3" listing context).
 func _add_modifier_label(parent: Node, m: StatModifier) -> void:
+	for leaf in m.flatten():
+		_add_leaf_label(parent, leaf)
+
+
+func _add_leaf_label(parent: Node, m: StatModifier) -> void:
 	var def := StatRegistry.get_def(m.stat_id)
 	var stat_name := def.display_name if def != null else String(m.stat_id)
 	var tint := def.tint_color if def != null else Color.WHITE

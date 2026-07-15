@@ -91,6 +91,30 @@ func get_effective_value() -> float:
 	return value
 
 
+## The concrete leaf modifier(s) this stands for when it is APPLIED to a board
+## or listed in a fully-expanded UI context. A plain modifier is its own
+## singleton; [CompositeStatModifier] overrides this to expand its children
+## (recursively). This is the seam the #183 bundle feature turns on:
+## StatBoard.add_modifier / remove_modifier and the flattening display sites
+## call it, while the STORAGE/authoring/loot arrays keep a composite whole (one
+## entry, one lootable unit). A leaf pays nothing — one-element array, no state.
+func flatten() -> Array[StatModifier]:
+	return [self]
+
+
+## List-level flatten: expand every [CompositeStatModifier] in `mods` into its
+## leaves (recursively), leaving plain modifiers as-is and skipping nulls. For
+## "touch every leaf" contexts that iterate a STORED `Array[StatModifier]` and
+## apply/emit per entry (per-modifier floaters, node-local apply). `mods` is
+## untyped so an `Array[StatModifier]` passes without a cast.
+static func flatten_all(mods: Array) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	for m in mods:
+		if m != null:
+			out.append_array(m.flatten())
+	return out
+
+
 ## A short, op-aware string for THIS modifier's own contribution — "+10",
 ## "+20%", "×1.5", "=13". The stat label is NOT included (callers append the
 ## StatDef display name). Uses get_effective_value() so a formula-bound mod

@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://bqx5b6e0rrtb2" path="res://effects/distance_scale/linear_scale.gd" id="5_scale"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="7_effect"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="8_mw6me"]
+[ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="9_comp"]
 
 [sub_resource type="Resource" id="scale_falling"]
 script = ExtResource("5_scale")
@@ -55,9 +56,13 @@ script = ExtResource("2_mod")
 stat_id = &"skill_points"
 value = -1.0
 
+[sub_resource type="Resource" id="mod_budget_pack"]
+script = ExtResource("9_comp")
+children = Array[ExtResource("2_mod")]([SubResource("mod_dealloc"), SubResource("mod_sp")])
+
 [resource]
 script = ExtResource("8_mw6me")
 display_name = "Ninja"
 description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_dealloc"), SubResource("mod_sp")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_budget_pack")])
 effects = Array[ExtResource("7_effect")]([SubResource("aura_strike")])

@@ -145,20 +145,26 @@ func get_value(id: StringName) -> Variant:
 ## Always calls bind() — no-op for modifiers without a formula, subscribes to
 ## source stats for formula-driven ones.
 func add_modifier(m: StatModifier) -> void:
-	m.bind(self)
-	var s := get_stat(m.stat_id)
-	if s == null:
-		push_warning("StatBoard has no stat for id %s" % m.stat_id)
-		return
-	s.add_modifier(m)
+	# flatten() expands a CompositeStatModifier into its leaves; a plain
+	# modifier is its own singleton, so the leaf path below is unchanged (#183).
+	for leaf in m.flatten():
+		leaf.bind(self)
+		var s := get_stat(leaf.stat_id)
+		if s == null:
+			push_warning("StatBoard has no stat for id %s" % leaf.stat_id)
+			continue
+		s.add_modifier(leaf)
 
 
 func remove_modifier(m: StatModifier) -> void:
-	m.unbind()
-	var s := get_stat(m.stat_id)
-	if s == null:
-		return
-	s.remove_modifier(m)
+	# Symmetric with add_modifier: flatten() returns the same stable child
+	# instances, so a composite added earlier is removed leaf-for-leaf.
+	for leaf in m.flatten():
+		leaf.unbind()
+		var s := get_stat(leaf.stat_id)
+		if s == null:
+			continue
+		s.remove_modifier(leaf)
 
 
 ## Apply intrinsic_modifiers. Call once from Entity._ready() after the board
