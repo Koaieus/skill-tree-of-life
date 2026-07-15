@@ -15,6 +15,13 @@ var _ghost: SkillBlade
 # selection changes underneath them. Bump on every spawn/teardown.
 var _gen: int = 0
 
+# #170 live-swing pop state, valid only during a launch()ed swing. `_dead_at`
+# gates which hits actually land; `_pending_pops` (particle_idx -> Pop) fires the
+# pop VFX/signal once, at the killing contact. Reset each launch().
+var _dead_at: Dictionary = {}
+var _pending_pops: Dictionary = {}
+var _attacker: Entity
+
 
 func _ready() -> void:
 	if battle_system != null:
@@ -48,6 +55,13 @@ func launch(plan: MeleeAttackPlan) -> void:
 	var exclude := plan.collect_target_excludes()
 	var events := BladeHitScan.scan(
 			traj, blade.state, space_state, 0xFFFFFFFF, exclude)
+	# #170: resolve defensive spike pops once, off the same scan resolve() uses.
+	var pops := BladePopResolver.resolve(events, blade.state, plan.attacker)
+	_dead_at = pops.dead_at
+	_pending_pops = {}
+	for pop in pops.pops:
+		_pending_pops[pop.particle_idx] = pop
+	_attacker = plan.attacker
 	blade.hit.connect(_on_live_hit)
 	await blade.play(traj, events, false)
 	if gen != _gen or blade != _ghost:
@@ -98,12 +112,20 @@ func _run_preview_loop(gen: int) -> void:
 
 
 func _on_live_hit(
-		_hitter_idx: int,
+		hitter_idx: int,
 		_is_edge: bool,
 		target: SkillNode,
-		_t: float,
+		t: float,
 		damage: float) -> void:
 	if target == null:
+		return
+	# #170: a popped/disintegrated vertex deals no more damage. The first such
+	# event for a killed vertex is its killing contact — pop the spike there.
+	if _dead_at.has(hitter_idx) and t >= _dead_at[hitter_idx]:
+		var pop = _pending_pops.get(hitter_idx)
+		if pop != null:
+			_pending_pops.erase(hitter_idx)
+			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
 		return
 	var di := DamageInstance.new()
 	di.amount = damage

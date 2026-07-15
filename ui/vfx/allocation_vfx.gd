@@ -44,6 +44,14 @@ const SHATTER_PARTICLE_COUNT: int = 24
 const SHATTER_PARTICLE_LIFETIME: float = 0.35
 const SHATTER_OUTWARD_SPEED: float = 220.0
 
+# Blade-pop burst (#170): a sharp, short radial spray where a defender's spike
+# pops an incoming enemy blade vertex. Reuses the shatter burst idiom; tighter
+# and faster than a node shatter. Radius scales mildly with spike power.
+const POP_BURST_DURATION: float = 0.5
+const POP_BASE_RADIUS: float = 6.0
+const POP_RADIUS_PER_POWER: float = 2.0
+const POP_MAX_RADIUS: float = 22.0
+
 # Per-layer delay between cascade rings. 0.09s reads as a quick crackle —
 # tune up for slower domino, down for snap.
 const CASCADE_STEP: float = 0.35
@@ -93,6 +101,10 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 	if _battle_system != null:
 		battle_system = _battle_system
 		battle_system.cascade_started.connect(_on_cascade_started)
+	# #170: bus-driven, not system-bound — a spike pop is a world event, not an
+	# allocation. Connect once (idempotent guard for repeat bind() calls).
+	if not Events.blade_vertex_popped.is_connected(_on_blade_vertex_popped):
+		Events.blade_vertex_popped.connect(_on_blade_vertex_popped)
 
 
 # --- Signal handlers ---------------------------------------------------------
@@ -126,6 +138,17 @@ func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 		return
 	# Standalone forced dealloc (no cascade) — single shatter at impact.
 	_spawn_shatter(node.global_position, node.inner_radius, previous_owner.color, 0.0)
+
+
+func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, position: Vector2) -> void:
+	if muted or defender == null:
+		return
+	# Pop in the defender's colour (the node whose spikes did the popping).
+	var color: Color = defender.owned_by.color if defender.owned_by != null \
+			else Color(0.95, 0.55, 0.4, 0.95)
+	var power := defender.get_spike_power()
+	var radius := minf(POP_MAX_RADIUS, POP_BASE_RADIUS + power * POP_RADIUS_PER_POWER)
+	_spawn_pop_burst(position, radius, color)
 
 
 func _on_cascade_started(layers: Array, defender: Entity) -> void:
@@ -306,6 +329,17 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 		disk.visible = false
 		_emit_burst(stage, disk_radius, color))
 	tween.tween_interval(SHATTER_BURST_DURATION)
+	tween.tween_callback(stage.queue_free)
+
+
+## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point.
+func _spawn_pop_burst(world_pos: Vector2, radius: float, color: Color) -> void:
+	var stage := Node2D.new()
+	stage.global_position = world_pos
+	add_child(stage)
+	_emit_burst(stage, radius, color)
+	var tween := create_tween()
+	tween.tween_interval(POP_BURST_DURATION)
 	tween.tween_callback(stage.queue_free)
 
 

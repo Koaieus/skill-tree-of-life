@@ -202,11 +202,17 @@ func resolve() -> AttackOutcome:
 	var exclude := collect_target_excludes()
 	var events := BladeHitScan.scan(
 			trajectory, blade_state, space_state, 0xFFFFFFFF, exclude)
+	# #170: defensive spikes pop the attacker's own vertices (and disintegrate
+	# whatever they sever from the handle). Gate hits by the same resolution the
+	# live swing uses so AI scoring / AP estimation matches what actually lands.
+	var pops := BladePopResolver.resolve(events, blade_state, attacker)
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.
 		if ev.is_edge_hit():
 			continue
+		if pops.is_dead(ev.particle_idx, ev.t):
+			continue  # this vertex was popped / disintegrated by now
 		var di := DamageInstance.new()
 		di.amount = blade_state.vertex_damage[ev.particle_idx]
 		di.type = DamageInstance.Type.PHYSICAL

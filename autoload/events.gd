@@ -63,6 +63,14 @@ signal loot_pick_requested(request: LootPickRequest)
 ## Also lives on [member AttackOutcome.cancellations] as a list for replay.
 signal spell_incident_cancelled(cancellation: SpellCancellation)
 
+## A defender's spike popped an incoming enemy blade vertex (#170) — the hostile
+## vertex died on contact (and severed whatever it dragged off the handle). Fired
+## from the live swing at the contact moment. [param defender] is the spiked node
+## that popped it, [param attacker] whose blade it was, [param position] the
+## contact point. VFX hooks listen to play the pop burst; a future spike-reload
+## system (#189) can count charges off this without touching the detection.
+signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vector2)
+
 ## Floating-tooltip signals for SpellPickerButton hover. [SpellTooltip]
 ## subscribes to both; the button emits on mouse_entered / mouse_exited.
 ## [param caster] is the player entity whose stats may modify spell values.
