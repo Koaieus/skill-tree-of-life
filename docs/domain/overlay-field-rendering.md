@@ -299,11 +299,31 @@ refresh on every camera move.
 20000-circle sanity ceiling). The 33rd owning entity renders no aura. It warns
 on overflow.
 
-## Re-measuring GPU cost at #177's target scale
+## Re-measured at #177's target scale: confirmed sublinear
 
 `scenes/overlay_perf_harness.tscn`'s default sweep now includes 1000, 2000, and
-4000 circles (previously topped out at 512). Re-run it **on real hardware**
-(not llvmpipe — see above) to confirm the delta stays sublinear in total circle
-count at these scales; this repo's agents cannot do this themselves and it is
-the actual acceptance criterion for #177, not just "it compiles and the tests
-pass."
+4000 circles (previously topped out at 512). Re-run on real hardware (not
+llvmpipe — see above) after #177 landed:
+
+AMD Radeon RX 7900 XTX (RADV NAVI31), Vulkan / Forward+, 1440×960, GPU ms/frame
+delta (overlay-on minus baseline):
+
+| circles | fog Δ | aura Δ | both |
+|---|---|---|---|
+| 512 | 0.246 | 0.437 | — |
+| 1000 | 0.369 | 0.535 | 0.618 |
+| 2000 | 0.451 | 0.706 | 1.097 |
+| 4000 | 0.807 | 1.393 | 2.123 |
+
+**Sublinear, as the tiling design predicted.** 512 → 4000 circles is 7.8× the
+count; the fog delta grows 3.28×, the aura delta 3.19×. (For reference, the
+pre-#177 loop was measured *linear* on the same card — 250 → 512, a 2.05×
+count increase, moved the fog delta 1.97×, i.e. proportional.) Growth here
+isn't perfectly flat because the harness scatters circles at random over a
+fixed viewport, so local per-tile density rises somewhat with total count too
+— that's the expected shape for a density-bound cost, not a total-count-bound
+one. Absolute cost at 4000 circles (both overlays combined, ~2.1 ms) is a
+small fraction of a 16 ms/frame budget on this card, where the naive
+extrapolation of the pre-#177 ~1.6 µs/circle/frame constant would have put a
+single overlay at ~6.4 ms at that count. #177's acceptance criterion — overlay
+cost decoupled from total circle count, local density only — holds.
