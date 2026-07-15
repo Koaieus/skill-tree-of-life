@@ -40,6 +40,7 @@ const ROLE_COLORS: Dictionary[HighlightProvider.HighlightRole, Color] = {
 	HighlightProvider.HighlightRole.REACHABLE:       Color(0.3, 0.9, 0.85, 0.7),
 	HighlightProvider.HighlightRole.PATH:            Color(0.3, 0.9, 0.85, 0.55),
 	HighlightProvider.HighlightRole.PROPAGATION:     Color(1.0, 0.25, 0.2, 0.85),
+	HighlightProvider.HighlightRole.ALLOCATABLE:    Color(1.0, 0.75, 0.3, 0.65),
 }
 
 

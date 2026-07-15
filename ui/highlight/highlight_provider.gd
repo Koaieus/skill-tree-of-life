@@ -25,6 +25,7 @@ enum HighlightRole {
 	REACHABLE,        ## Core-move: an owned node reachable within the MP budget.
 	PATH,             ## Edge role: a reachable / on-route edge (core-move).
 	PROPAGATION,      ## RESERVED: spell propagation preview (red). Not yet driven — see issue.
+	ALLOCATABLE,      ## Manage mode: unowned node the player can allocate (adjacent + SP gated).
 }
 
 ## Fires whenever the provider's internal state shifts (pivot picked, blade

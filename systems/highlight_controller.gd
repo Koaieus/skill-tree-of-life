@@ -8,7 +8,8 @@ extends Node
 ## subscribe here, not to each provider, so a new highlight source is wired by
 ## teaching this resolver about it — the overlays never change.
 ##
-## Priority (highest first): active attack plan > core-move targeting > none.
+## Priority (highest first): active attack plan > core-move targeting >
+## manage-mode allocation (#176) > none.
 ## Mirrors the old ContextPanel resolver's shape (now retired, #118) —
 ## same priority-resolve pattern, different output.
 ##
@@ -30,10 +31,22 @@ signal provider_state_changed
 @export var input_ctl: PlayerInputController
 @export var allocation_system: AllocationSystem
 @export var graph: Graph
+@export var turn_manager: TurnManager
 ## The entity whose core moves (the human player) — fallback when a core node's
 ## owner can't be read. Set by GameRoot once the player resolves (it's spawned at
 ## runtime, so it can't be a scene NodePath); only read during a live core-move.
-var player: Entity
+var player: Entity:
+	set(value):
+		if player == value:
+			return
+		if player != null and player.stat_board != null and player.stat_board.skill_points != null \
+				and player.stat_board.skill_points.current_changed.is_connected(_on_player_sp_changed):
+			player.stat_board.skill_points.current_changed.disconnect(_on_player_sp_changed)
+		player = value
+		if player != null and player.stat_board != null and player.stat_board.skill_points != null \
+				and not player.stat_board.skill_points.current_changed.is_connected(_on_player_sp_changed):
+			player.stat_board.skill_points.current_changed.connect(_on_player_sp_changed)
+		_resolve()
 
 ## The active provider. Setter rebinds its [signal HighlightProvider.state_changed]
 ## so internal mutations re-emit as [signal provider_state_changed].
@@ -42,6 +55,7 @@ var provider: HighlightProvider = null:
 
 # Reused across core-move sessions so we don't churn instances every drag.
 var _core_provider: CoreMoveHighlightProvider = null
+var _allocation_provider: ManagerHighlightProvider = null
 
 
 func _enter_tree() -> void:
@@ -56,6 +70,10 @@ func _ready() -> void:
 		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
 	if input_ctl != null:
 		input_ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
+	if allocation_system != null:
+		allocation_system.allocated.connect(_on_source_changed.unbind(3))
+		allocation_system.deallocated.connect(_on_source_changed.unbind(2))
+		allocation_system.force_deallocated.connect(_on_source_changed.unbind(2))
 	_resolve()
 
 
@@ -71,6 +89,8 @@ func _resolve() -> void:
 		next = battle_system.attack_plan
 	elif input_ctl != null and input_ctl.move_targeting_source() != null:
 		next = _build_core_provider()
+	elif _is_player_managing():
+		next = _build_allocation_provider()
 	provider = next
 
 
@@ -108,3 +128,19 @@ func _set_provider(value: HighlightProvider) -> void:
 
 func _on_provider_state_changed() -> void:
 	provider_state_changed.emit()
+
+
+func _on_player_sp_changed(_new_current: Variant) -> void:
+	_resolve()
+
+
+func _is_player_managing() -> bool:
+	return player != null and turn_manager != null \
+			and turn_manager.current_entity == player
+
+
+func _build_allocation_provider() -> ManagerHighlightProvider:
+	if _allocation_provider == null:
+		_allocation_provider = ManagerHighlightProvider.new()
+	_allocation_provider.configure(player, allocation_system, graph)
+	return _allocation_provider
