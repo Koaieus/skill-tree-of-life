@@ -1,53 +1,51 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://cpatx7dmbmx7c"]
 
-[ext_resource type="Script" path="res://ui/hud/combat_readout/combat_value_row.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/gauges/delta_chip.tscn" id="2_chip"]
+[ext_resource type="Script" uid="uid://cq7s4kyhlx5hm" path="res://ui/hud/combat_readout/combat_value_row.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://c13qfmy7f747n" path="res://ui/gauges/delta_chip.tscn" id="2_chip"]
 
-[node name="CombatValueRow" type="HBoxContainer"]
-layout_mode = 3
-anchors_preset = 0
-offset_right = 220.0
-offset_bottom = 32.0
+[node name="CombatValueRow" type="HBoxContainer" unique_id=1270874012]
+offset_right = 191.0
+offset_bottom = 17.0
+theme_override_constants/separation = 0
 script = ExtResource("1_script")
 
-[node name="Main" type="VBoxContainer" parent="."]
+[node name="Main" type="VBoxContainer" parent="." unique_id=1679455918]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="TopRow" type="HBoxContainer" parent="Main"]
+[node name="TopRow" type="HBoxContainer" parent="Main" unique_id=1825641438]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="Main/TopRow"]
+[node name="Label" type="Label" parent="Main/TopRow" unique_id=603724322]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.65)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 11
-modulate = Color(1, 1, 1, 0.65)
-text = "Stat"
 
-[node name="Value" type="Label" parent="Main/TopRow"]
+[node name="Value" type="Label" parent="Main/TopRow" unique_id=803155181]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "0"
 
-[node name="OverrideBadge" type="Label" parent="Main/TopRow"]
+[node name="OverrideBadge" type="Label" parent="Main/TopRow" unique_id=1973551007]
 unique_name_in_owner = true
 visible = false
-layout_mode = 2
-theme_override_font_sizes/font_size = 8
 modulate = Color(0.9, 0.75, 0.4, 0.9)
+layout_mode = 2
 tooltip_text = "This node overrides the entity baseline"
+theme_override_font_sizes/font_size = 8
 text = "NODE"
 
-[node name="Sliver" type="Label" parent="Main"]
+[node name="Sliver" type="Label" parent="Main" unique_id=625145560]
 unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0.4)
 layout_mode = 2
 theme_override_font_sizes/font_size = 9
-modulate = Color(1, 1, 1, 0.4)
-text = ""
 
-[node name="DeltaChip" parent="." instance=ExtResource("2_chip")]
+[node name="DeltaChip" parent="." unique_id=3506753786 instance=ExtResource("2_chip")]
 unique_name_in_owner = true
 layout_mode = 2

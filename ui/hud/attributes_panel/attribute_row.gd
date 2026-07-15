@@ -34,8 +34,12 @@ signal row_unhovered(attr_id: StringName)
 @onready var _dot: ColorRect = %Dot
 @onready var _label: Label = %Label
 @onready var _value: Label = %Value
+@onready var _chip: DeltaChip = %DeltaChip
 
 var _tween: Tween
+var _last_value: float = NAN
+var _delta_baseline: float = NAN
+var _delta_pending: bool = false
 
 
 func _ready() -> void:
@@ -51,12 +55,26 @@ func _ready() -> void:
 
 
 func set_value(v: float) -> void:
+	if not _delta_pending:
+		_delta_baseline = _last_value
+		_delta_pending = true
+		call_deferred("_flush_delta")
+	_last_value = v
 	if _value == null:
 		return
 	_value.text = str(int(v))
 	var glow: int = int(clamp(4.0 + (v / MAX_GLOW_VALUE) * 10.0, 4.0, 14.0))
 	_value.add_theme_constant_override(&"shadow_outline_size", glow)
 	_set_ember(v >= EMBER_THRESHOLD)
+
+
+func _flush_delta() -> void:
+	_delta_pending = false
+	if is_nan(_delta_baseline) or _chip == null:
+		return
+	var delta := _last_value - _delta_baseline
+	if delta != 0.0:
+		_chip.pop(delta)
 
 
 func _set_ember(active: bool) -> void:

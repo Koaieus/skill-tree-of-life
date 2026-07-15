@@ -31,6 +31,9 @@ var _last_suffix: String = ""
 var _override_active: bool = false
 var _override_value: float = 0.0
 
+var _delta_baseline: float = NAN
+var _delta_pending: bool = false
+
 func _ready() -> void:
 	if _label != null:
 		_label.text = row_label
@@ -41,11 +44,22 @@ func _ready() -> void:
 
 
 func set_value(v: float, suffix: String = "") -> void:
-	if not is_nan(_last_value) and v != _last_value and not _override_active and _chip != null:
-		_chip.pop(v - _last_value)
+	if not _delta_pending:
+		_delta_baseline = _last_value
+		_delta_pending = true
+		call_deferred("_flush_delta")
 	_last_value = v
 	_last_suffix = suffix
 	_render()
+
+
+func _flush_delta() -> void:
+	_delta_pending = false
+	if is_nan(_delta_baseline) or _override_active or _chip == null:
+		return
+	var delta := _last_value - _delta_baseline
+	if delta != 0.0:
+		_chip.pop(delta)
 
 
 func set_sliver(text: String) -> void:

@@ -13,17 +13,31 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[node name="DeltaChip" type="PanelContainer" unique_id=459902308]
-visible = false
-modulate = Color(1, 1, 1, 0)
-offset_right = 40.0
-offset_bottom = 16.0
+[node name="DeltaChip" type="Control" unique_id=459902308]
+layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_chip")
 script = ExtResource("1_script")
 
-[node name="Label" type="Label" parent="." unique_id=657243743]
+[node name="Panel" type="PanelContainer" parent="." unique_id=2136344580]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_top = -8.5
+offset_right = 30.0
+offset_bottom = 8.5
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_chip")
+
+[node name="Label" type="Label" parent="Panel" unique_id=657243743]
+unique_name_in_owner = true
+modulate = Color(0.55, 0.85, 0.6, 1)
 layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
 theme_override_font_sizes/font_size = 11
-text = "▲+0"
+text = "▲+3"

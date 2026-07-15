@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/attributes_panel/attribute_row.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://c13qfmy7f747n" path="res://ui/gauges/delta_chip.tscn" id="2_chip"]
 
 [node name="AttributeRow" type="HBoxContainer"]
 layout_mode = 3
@@ -32,3 +33,8 @@ theme_override_constants/shadow_outline_size = 4
 theme_type_variation = &"CinzelHeader"
 horizontal_alignment = 2
 text = "0"
+
+[node name="DeltaChip" parent="." instance=ExtResource("2_chip")]
+unique_name_in_owner = true
+layout_mode = 2
+font_size = 13
