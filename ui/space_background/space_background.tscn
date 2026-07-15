@@ -93,7 +93,7 @@ mouse_filter = 2
 color = Color(0.015, 0.017, 0.035, 1)
 
 [node name="Nebula" type="Parallax2D" parent="." unique_id=1354393592]
-scroll_scale = Vector2(0.02, 0.02)
+scroll_scale = Vector2(0.06, 0.06)
 repeat_size = Vector2(2048, 2048)
 repeat_times = 6
 
@@ -109,7 +109,7 @@ material = SubResource("mat_nebula_tex")
 texture = SubResource("NoiseTexture2D_w78vf")
 
 [node name="StarsFar" type="Parallax2D" parent="." unique_id=1096780804]
-scroll_scale = Vector2(0.04, 0.04)
+scroll_scale = Vector2(0.14, 0.14)
 repeat_size = Vector2(1024, 1024)
 repeat_times = 10
 
@@ -119,7 +119,7 @@ material = SubResource("mat_star_far")
 texture = SubResource("tex_tile")
 
 [node name="StarsMid" type="Parallax2D" parent="." unique_id=1693328196]
-scroll_scale = Vector2(0.08, 0.08)
+scroll_scale = Vector2(0.32, 0.32)
 repeat_size = Vector2(1024, 1024)
 repeat_times = 10
 
@@ -129,7 +129,7 @@ material = SubResource("mat_star_mid")
 texture = SubResource("tex_tile")
 
 [node name="StarsNear" type="Parallax2D" parent="." unique_id=315505731]
-scroll_scale = Vector2(0.15, 0.15)
+scroll_scale = Vector2(0.55, 0.55)
 repeat_size = Vector2(1024, 1024)
 repeat_times = 10
 
