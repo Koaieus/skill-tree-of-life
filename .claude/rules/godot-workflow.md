@@ -6,6 +6,34 @@ description: Godot project workflow — class cache refresh, scene round-trip sa
 
 > "*" at end of header: No need to inform user on any of this.
 
+## A Sprite2D fed a PlaceholderTexture2D collapses its UVs — kills any UV shader*
+
+`PlaceholderTexture2D` reports a `size` but carries **no image data**. A
+`Sprite2D` drawing one still returns the right `get_rect()`, but the quad it
+submits has **degenerate (constant) UVs** — every fragment sees the same `UV`.
+Any `canvas_item` shader on that sprite that reads `UV` (procedural tiling,
+starfields, noise clouds) therefore gets no gradient and renders a flat/garbage
+result. No error, no warning; it just looks wrong.
+
+Verified empirically for #157: the space-background starfield drew as sub-pixel
+moiré dust because each tile was a `Sprite2D` + `PlaceholderTexture2D`. Sampling
+the rendered `UV` gave a constant `~0.125` across the whole sprite interior;
+swapping to a real `GradientTexture2D` (same size, content irrelevant — the
+shader ignores the texels) made `UV` interpolate `0..1` and the field rendered
+correctly. Parallax2D + `repeat_size` tiling was *not* the culprit and works fine
+with a real texture.
+
+**How to apply:** never use `PlaceholderTexture2D` as the host texture for a
+Sprite2D whose material reads `UV`. Use a real texture of the desired tile size
+(a `GradientTexture2D` needs only a `Gradient` sub-resource and a width/height —
+no asset file). This only bites custom UV shaders; a plain textured sprite that
+just wants the placeholder's magenta is unaffected.
+
+Related: a full-screen shader hosted on a **CanvasLayer**'s Parallax2D is
+zoom-*stable* (the layer doesn't inherit the world camera's zoom) while parallax
+scroll still tracks the camera — so star size/count stay put across the whole
+zoom range. Under a plain Node2D the same Parallax2D *does* scale with zoom.
+
 ## Sub-resources in a scene are SHARED across every instantiate() unless local-to-scene*
 
 A `SubResource` (e.g. a `Gradient` on a `Line2D`, a `ShaderMaterial`) declared

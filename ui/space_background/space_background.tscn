@@ -4,46 +4,58 @@
 [ext_resource type="Shader" uid="uid://gqmnu5o4x3u3" path="res://ui/space_background/nebula.gdshader" id="2_nebula"]
 [ext_resource type="Shader" uid="uid://dk2feutkiukiq" path="res://ui/space_background/starfield.gdshader" id="3_star"]
 
+[sub_resource type="Gradient" id="grad_tile"]
+
 [sub_resource type="ShaderMaterial" id="mat_nebula"]
 shader = ExtResource("2_nebula")
 shader_parameter/color_a = Color(0.13, 0.05, 0.3, 1)
 shader_parameter/color_b = Color(0.02, 0.11, 0.22, 1)
 shader_parameter/strength = 0.65
-shader_parameter/scale = 2.5
+shader_parameter/scale = 3.0
 shader_parameter/threshold = 0.34
 
-[sub_resource type="PlaceholderTexture2D" id="tex_nebula"]
-size = Vector2(2048, 2048)
+[sub_resource type="GradientTexture2D" id="tex_nebula"]
+gradient = SubResource("grad_tile")
+width = 2048
+height = 2048
+
+[sub_resource type="GradientTexture2D" id="tex_tile"]
+gradient = SubResource("grad_tile")
+width = 1024
+height = 1024
 
 [sub_resource type="ShaderMaterial" id="mat_star_far"]
 shader = ExtResource("3_star")
-shader_parameter/cells_across = 26.0
-shader_parameter/density = 0.32
+shader_parameter/cells_across = 24.0
+shader_parameter/density = 0.13
 shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
 shader_parameter/brightness = 0.6
 shader_parameter/twinkle_speed = 0.5
 shader_parameter/seed = 11.0
-
-[sub_resource type="PlaceholderTexture2D" id="tex_tile"]
-size = Vector2(1024, 1024)
+shader_parameter/star_size_min = 0.0012
+shader_parameter/star_size_max = 0.0035
 
 [sub_resource type="ShaderMaterial" id="mat_star_mid"]
 shader = ExtResource("3_star")
-shader_parameter/cells_across = 21.0
-shader_parameter/density = 0.45
+shader_parameter/cells_across = 18.0
+shader_parameter/density = 0.16
 shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
 shader_parameter/brightness = 1.15
 shader_parameter/twinkle_speed = 0.8
 shader_parameter/seed = 47.0
+shader_parameter/star_size_min = 0.0018
+shader_parameter/star_size_max = 0.005
 
 [sub_resource type="ShaderMaterial" id="mat_star_near"]
 shader = ExtResource("3_star")
-shader_parameter/cells_across = 13.0
-shader_parameter/density = 0.32
+shader_parameter/cells_across = 12.0
+shader_parameter/density = 0.22
 shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
 shader_parameter/brightness = 1.6
 shader_parameter/twinkle_speed = 1.1
 shader_parameter/seed = 83.0
+shader_parameter/star_size_min = 0.0025
+shader_parameter/star_size_max = 0.008
 
 [node name="SpaceBackground" type="CanvasLayer" unique_id=401631453]
 layer = -100
