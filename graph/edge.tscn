@@ -6,11 +6,27 @@
 resource_local_to_scene = true
 colors = PackedColorArray(0.55, 0.55, 0.6, 0.55, 0.55, 0.55, 0.6, 0.55)
 
+[sub_resource type="Gradient" id="Gradient_glow"]
+resource_local_to_scene = true
+colors = PackedColorArray(0.55, 0.55, 0.6, 0.25, 0.55, 0.55, 0.6, 0.25)
+
+[sub_resource type="CanvasItemMaterial" id="Mat_glow_add"]
+blend_mode = 1
+
 [node name="Edge" type="Node2D" unique_id=609108157]
 z_index = -10
 z_as_relative = false
 script = ExtResource("1_25cad")
 metadata/_custom_type_script = "uid://5igfp33erkyn"
+
+[node name="Glow" type="Line2D" parent="." unique_id=288435285]
+material = SubResource("Mat_glow_add")
+points = PackedVector2Array(169, 0, 0, 0)
+width = 8.0
+gradient = SubResource("Gradient_glow")
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
 
 [node name="Line2D" type="Line2D" parent="." unique_id=288435284]
 points = PackedVector2Array(169, 0, 0, 0)
