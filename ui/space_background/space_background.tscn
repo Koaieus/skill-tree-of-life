@@ -13,6 +13,7 @@ shader_parameter/color_b = Color(0.02, 0.11, 0.22, 1)
 shader_parameter/strength = 0.65
 shader_parameter/scale = 3.0
 shader_parameter/threshold = 0.34
+shader_parameter/edge_fade = 0.06
 
 [sub_resource type="GradientTexture2D" id="tex_nebula"]
 gradient = SubResource("grad_tile")

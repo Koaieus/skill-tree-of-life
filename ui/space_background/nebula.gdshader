@@ -16,9 +16,14 @@ uniform vec4 color_b : source_color = vec4(0.02, 0.11, 0.22, 1.0);
 uniform float strength : hint_range(0.0, 1.5) = 0.5;
 // Cloud feature count across the tile. Rounded to an integer internally so the
 // lattice wraps exactly at the tile edge — keep it whole for a clean look.
-uniform float scale : hint_range(1.0, 8.0) = 3.0;
+// Higher = more / smaller features across the tile (visual zoom).
+uniform float scale : hint_range(1.0, 16.0) = 3.0;
 // Below this the cloud fades to transparent; above, it saturates.
 uniform float threshold : hint_range(0.0, 1.0) = 0.35;
+// Feathers alpha to zero near tile edges so adjacent tile copies blend
+// seamlessly. 0 = no fade (sharp seam possible), 0.15 = ~300 px zone on a 2048
+// tile. Increase if the seam is still visible.
+uniform float edge_fade : hint_range(0.0, 0.5) = 0.06;
 
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -50,11 +55,17 @@ float fbm(vec2 p, float period) {
 }
 
 void fragment() {
-	// Integer period => the noise lattice closes exactly at UV = 1 (tile edge).
 	float period = max(1.0, floor(scale + 0.5));
 	vec2 p = UV * period;
 	float mask = smoothstep(threshold, threshold + 0.28, fbm(p, period));
 	vec3 tint = mix(color_a.rgb, color_b.rgb, fbm(p * 2.0, period * 2.0));
 	float a = clamp(mask * strength, 0.0, 1.0);
+
+	if (edge_fade > 0.0) {
+		float ef = edge_fade;
+		float edge = smoothstep(0.0, ef, UV.x) * smoothstep(0.0, ef, UV.y) * smoothstep(0.0, ef, 1.0 - UV.x) * smoothstep(0.0, ef, 1.0 - UV.y);
+		a *= edge;
+	}
+
 	COLOR = vec4(tint, a);
 }
