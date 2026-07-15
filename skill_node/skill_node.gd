@@ -241,7 +241,7 @@ func _apply_sensed_state() -> void:
 	if _node_visuals != null:
 		_node_visuals.sensed = sensed
 	z_as_relative = not sensed
-	z_index = ZLayers.SENSED if sensed else ZLayers.GRAPH_DEFAULT
+	z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED if sensed else 0
 	var _is_core := owned_by != null and owned_by.core_location == self
 	core_marker.visible = (not sensed) and _is_core
 	core_health_bar.visible = revealed and _is_core

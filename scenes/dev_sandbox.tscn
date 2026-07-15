@@ -871,7 +871,7 @@ to = NodePath("../../Nodes/Enemy_W")
 
 [node name="Edge_EnemyCore_EnemyN" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="16" unique_id=8800109 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.5594698)
-z_index = 1001
+z_index = 0
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_N")
 
@@ -883,12 +883,12 @@ to = NodePath("../../Nodes/Enemy_E")
 
 [node name="Edge_EnemyCore_EnemyS" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="18" unique_id=8800111 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 modulate = Color(1, 1, 1, 0.7533716)
-z_index = 1001
+z_index = 0
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_S")
 
 [node name="Edge_EnemyCore_EnemyW" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="19" unique_id=8800112 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
-z_index = 1001
+z_index = 0
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_W")
 
@@ -964,7 +964,7 @@ z_as_relative = true
 from = NodePath("../../Nodes/Enemy_E")
 to = NodePath("../../Nodes/Enemy_Recon")
 
-[node name="UI" parent="." index="2" unique_id=2075892469]
+[node name="UI" parent="." index="3" unique_id=2075892469]
 visible = false
 
 [editable path="Graph"]

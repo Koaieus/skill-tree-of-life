@@ -31,7 +31,7 @@ func test_sensed_round_trip_returns_to_edge_band_absolute() -> void:
 	await get_tree().process_frame
 
 	edge.sensed = true
-	assert_eq(edge.z_index, ZLayers.SENSED)
+	assert_eq(edge.z_index, ZLayers.EDGE + ZLayers.SENSED)
 
 	# sensed's setter early-returns when unchanged, so go true -> false to
 	# actually exercise the un-sensed path (this is the regression path).

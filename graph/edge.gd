@@ -78,13 +78,12 @@ signal endpoints_changed
 ## through the darkness — a topology breadcrumb, not a full reveal.
 ## See docs/design/info_gating.md for the broader info dimensions this
 ## flag will eventually plug into.
-var sensed: bool = false:
+@export var sensed: bool = false:
 	set(value):
 		if sensed == value:
 			return
 		sensed = value
-		z_as_relative = false
-		z_index = ZLayers.SENSED if sensed else ZLayers.EDGE
+		z_index = ZLayers.EDGE + ZLayers.SENSED if sensed else ZLayers.EDGE
 		_update_visual()
 
 var is_self_loop: bool:

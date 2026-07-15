@@ -144,7 +144,7 @@ func _apply_per_element_dimming() -> void:
 			var dark := _dark_from_distances(_source_index.distances_near(n.global_position))
 			n.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			n.z_as_relative = false
-			n.z_index = ZLayers.SENSED
+			n.z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED
 		else:
 			# Fully hidden: back to default z so the fog at z=FOG covers it.
 			n.modulate.a = 1.0
@@ -163,11 +163,11 @@ func _apply_per_element_dimming() -> void:
 			var dark := _dark_from_distances(_source_index.distances_near(mid))
 			e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			e.z_as_relative = false
-			e.z_index = ZLayers.SENSED
+			e.z_index = ZLayers.EDGE + ZLayers.SENSED
 		else:
 			e.modulate.a = 1.0
 			e.z_as_relative = true
-			e.z_index = ZLayers.GRAPH_DEFAULT
+			e.z_index = ZLayers.EDGE
 
 
 ## Mirrors the shader's darkness math (fog.gdshader): smooth union of the
