@@ -18,10 +18,15 @@ const DIM_OPACITY := 0.55
 const FLASH_TIME := 0.35
 
 @export var mode_color: Color = Color(0.9, 0.75, 0.4, 1.0)
+@export var _active: bool = false:
+	set(v):
+		if _active != v:
+			_active = v
+			_apply_active(_active)
 
 @onready var _panel: GlassPanel = %GlassPanel
 
-var _active: bool = false
+
 var _flash_tween: Tween
 
 ## #119 — node-local stat override preview. Set by [CombatReadout] off
