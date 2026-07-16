@@ -5,10 +5,10 @@
 [ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="3_row"]
 
 [node name="CombatCardDefense" type="MarginContainer"]
+script = ExtResource("1_script")
 layout_mode = 3
 anchors_preset = 0
 mode_color = Color(0.8586, 0.9018, 0.9482, 1)
-script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
 unique_name_in_owner = true

@@ -6,6 +6,45 @@ description: Godot project workflow — class cache refresh, scene round-trip sa
 
 > "*" at end of header: No need to inform user on any of this.
 
+## `.tscn` root node: `script = ExtResource(...)` MUST come before any `@export` override*
+
+Godot 4 deserializes node properties in file order. If `script = ExtResource(...)`
+is listed **after** an `@export var` override on the root node, the script
+attachment silently reinitialises the exported var to its GDScript default,
+discarding the scene override. Confirmed empirically: `mode_color = red` →
+instantiate → property reads gold (class default) because `script` was last.
+
+```gdshader
+# WRONG — mode_color will always read gold
+[node name="Foo" type="MarginContainer"]
+mode_color = Color(0.945, 0.269, 0.245, 1)   # ↓ this override is LOST
+script = ExtResource("1_script")
+
+# CORRECT
+[node name="Foo" type="MarginContainer"]
+script = ExtResource("1_script")             # script goes FIRST
+mode_color = Color(0.945, 0.269, 0.245, 1)   # then export overrides
+```
+
+Children inside the same scene are unaffected — this only bites the root node
+of the `.tscn` itself. A test that instantiates the scene and asserts the
+property catches regressions immediately.
+
+## `@tool` scripts must guard `_ready()` with `Engine.is_editor_hint()` when they write to node properties*
+
+`@tool` scripts that modify `modulate`, child-instanced `@export` vars, or
+shader parameters during `_ready()` dirty the scene on every editor load.
+Godot serialises those writes back into the `.tscn` as property overrides,
+which can accumulate cruft and lose intentional values over save/reload cycles.
+Guard anything that isn't pure visual setup:
+
+```gdscript
+func _ready() -> void:
+    if Engine.is_editor_hint():
+        return   # don't modify the scene during editor load
+    _apply_active(false)
+```
+
 ## A Sprite2D fed a PlaceholderTexture2D collapses its UVs — kills any UV shader*
 
 `PlaceholderTexture2D` reports a `size` but carries **no image data**. A

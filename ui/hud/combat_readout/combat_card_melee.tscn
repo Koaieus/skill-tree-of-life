@@ -1,19 +1,34 @@
 [gd_scene format=3 uid="uid://dmj2jqr613yck"]
 
 [ext_resource type="Script" uid="uid://dn3nngslqm21" path="res://ui/hud/combat_readout/combat_card_melee.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" uid="uid://coykc218j64qq" path="res://ui/gauges/capacity_blips.tscn" id="3_blips"]
-[ext_resource type="PackedScene" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="4_row"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_mlvef"]
+[ext_resource type="PackedScene" uid="uid://cpatx7dmbmx7c" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="4_row"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mlvef"]
+resource_local_to_scene = true
+shader = ExtResource("3_mlvef")
+shader_parameter/size = Vector2(105, 87)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(0.9451, 0.2689, 0.2453, 0)
+shader_parameter/glow_strength = 0.0
 
 [node name="CombatCardMelee" type="MarginContainer" unique_id=316532540]
-modulate = Color(1, 1, 1, 0.55)
-mode_color = Color(0.9451, 0.2689, 0.2453, 1)
+modulate = Color(1, 1, 1, 0.72)
 script = ExtResource("1_script")
+mode_color = Color(0.9451, 0.2689, 0.2453, 1)
 
 [node name="GlassPanel" parent="." unique_id=2110722895 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_mlvef")
 layout_mode = 2
-glow_color = Color(0.9, 0.7488, 0.396, 0)
+glow_color = Color(0.9451, 0.2689, 0.2453, 0)
 
 [node name="Padded" type="MarginContainer" parent="." unique_id=1353360010]
 layout_mode = 2
