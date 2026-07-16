@@ -2,16 +2,14 @@
 class_name TrailBlazerStep
 extends PropagationStep
 
-## Single-path "string walker" for The Trail Blazer, a true "Line Killer". From the seed it walks to
-## each degree-2 node, adding [member per_hop_increment] to the damage at
-## each hop, until it reaches a junction (graph degree > 2) — the *slam* node —
+## Single-path "string walker" for The Trail Blazer, a true "Line Killer". From the seed it
+## fans to every degree-2 candidate, adding [member per_hop_increment] to the
+## running total, until it reaches a junction (graph degree > 2) — the *slam* node —
 ## where it applies [member terminal_mode] and stops.
 ##
-## The filter is expected to keep only eligible neighbours (enemy-owned,
-## degree >= 2); the resolver's own [member PropagationConfig.max_visits_per_node]
-## cap (default 1) excludes the predecessor, so on a pure string there is exactly
-## one candidate per hop and the walk never doubles back. If several candidates
-## survive (a branch at the seed), one is picked at random via the threaded RNG.
+## On a pure string the filter + visit cap leave exactly one candidate per hop
+## (the unvisited next node); when multiple candidates survive, all of them get
+## minted in parallel — no random pick.
 ##
 ## Example — seed A, string B-C-D-E, junction F (degree 3), with the stock
 ## `per_hop_increment = 2`, `terminal_mode = MULTIPLY_CONSTANT` (×2):
@@ -39,24 +37,22 @@ func step(
 		ctx: PropagationContext) -> Array[CastSpell]:
 	if candidates.is_empty() or ctx.graph == null:
 		return []
-	var rng := payload.rng
-	if rng == null:
-		rng = RandomNumberGenerator.new()
-	var pick: SkillNode = candidates[rng.randi_range(0, candidates.size() - 1)]
 
 	# Running total this next node accumulates. Graph degree is the ONLY degree
 	# that matters here — it decides continue-vs-slam.
 	var accumulated := payload.damage + per_hop_increment
-	var degree := ctx.graph.get_neighbours(pick).size()
-
-	var next := _propagate_to(pick, payload, config)
-	if degree > 2:
-		# Junction reached — slam and terminate the walk.
-		next.damage = _terminal_damage(accumulated, degree)
-		next.hops_remaining = 0
-	else:
-		next.damage = accumulated
-	return [next]
+	var result: Array[CastSpell] = []
+	for candidate in candidates:
+		var degree := ctx.graph.get_neighbours(candidate).size()
+		var next := _propagate_to(candidate, payload, config)
+		if degree > 2:
+			# Junction reached — slam and terminate the walk.
+			next.damage = _terminal_damage(accumulated, degree)
+			next.hops_remaining = 0
+		else:
+			next.damage = accumulated
+		result.append(next)
+	return result
 
 
 func _terminal_damage(accumulated: float, degree: int) -> float:
