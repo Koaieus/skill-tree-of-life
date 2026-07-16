@@ -273,10 +273,3 @@ func _focus_camera_on_player() -> void:
 		return
 	var target: Vector2 = player.core_location.global_position if player.core_location != null else player.position
 	camera.position = target
-
-
-
-func _mount_allocation_vfx() -> void:
-	# TODO: Keep here? I moved bind() call to AllocationVFX._ready() [noop if exports are off]
-	#allocation_vfx.bind(allocation_system, battle_system)
-	pass
