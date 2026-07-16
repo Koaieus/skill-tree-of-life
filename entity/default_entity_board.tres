@@ -18,6 +18,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="def_initiative"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="def_initiative_speed"]
 [ext_resource type="Resource" path="res://stats_system/defs/intelligence.tres" id="def_intelligence"]
+[ext_resource type="Resource" path="res://stats_system/defs/level.tres" id="def_level"]
 [ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="def_mana"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="def_mana_per_turn"]
 [ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="def_min_dmg_taken"]
@@ -110,6 +111,12 @@ resource_name = "intelligence"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_intelligence")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_level"]
+resource_name = "level"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_level")
+base_value = 1.0
 
 [sub_resource type="Resource" id="formula_per_to_vision"]
 script = ExtResource("script_linear")
@@ -312,6 +319,7 @@ min_damage_taken = SubResource("scalar_min_dmg_taken")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
+level = SubResource("scalar_level")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 deallocation_points = SubResource("pool_dealloc")

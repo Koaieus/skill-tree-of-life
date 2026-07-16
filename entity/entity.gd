@@ -43,11 +43,23 @@ signal died
 		# does not re-enter the setter.)
 		dispatch(&"_on_core_moved", [previous, value])
 
-## Current level. Bumps on every xp pool fill via `_on_xp_replenished`.
-## Tracked here (not on the stat board) so the signal payload is meaningful
-## without a dedicated `level` Stat — promote to a real stat if level-scaling
-## modifiers start showing up.
-var level: int = 1
+## Current level. A proxy onto the `level` ScalarStat on the stat board — that's
+## the canonical store (#200) so level-scaling formula modifiers can bind to it.
+## Bumped (+1 base_value) on each xp fill in `_on_xp_replenished`; the getter's
+## `.value` folds in any level modifiers and coerces to INT, the setter forwards
+## to base_value. Falls back to 1 / no-ops for sparse boards with no `level` stat.
+var level: int:
+	get:
+		if stat_board != null and stat_board.level != null:
+			return int(stat_board.level.value)
+		return 1
+	set(v):
+		# Convenience mutator — forwards to the one canonical store (the stat's
+		# base_value), so there's no second source of truth. No-ops on sparse
+		# boards. The level-up path writes base_value directly (see
+		# `_on_xp_replenished`); this exists for scripted/test setup.
+		if stat_board != null and stat_board.level != null:
+			stat_board.level.base_value = v
 
 ## The initiative clock lives on the stat board as the `initiative` PoolStat
 ## (cap = this entity's action threshold). It fills by `initiative_speed` each
@@ -248,13 +260,16 @@ func _on_initiative_ready() -> void:
 
 ## Listens for xp.replenished (pool crossed into full). Pool growth + current
 ## carry-over are handled by the def when it's a `GrowablePoolStatDef`; here
-## we just mint 1 SP via grant() (bumps both max and current) and emit leveled_up.
+## we mint 1 SP via grant() (bumps both max and current), bump the `level` stat,
+## and emit leveled_up. Writing base_value auto-emits value_changed, so any
+## level-scaling formula modifier bound to `level` recalculates (#200/#194).
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
 	if stat_board.skill_points != null:
 		stat_board.skill_points.grant(1)
-	level += 1
+	if stat_board.level != null:
+		stat_board.level.base_value += 1
 	leveled_up.emit(level)
 	dispatch(&"_on_level_up", [level])
 

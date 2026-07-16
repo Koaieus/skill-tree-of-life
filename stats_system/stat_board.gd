@@ -44,6 +44,11 @@ extends Resource
 @export_group("Economy")
 @export var xp: PoolStat            ## XP pool; fires Entity.leveled_up on fill.
 @export var xp_per_turn: ScalarStat
+## Entity level. Written (+1) on each XP-pool fill by Entity._on_xp_replenished;
+## a plain ScalarStat (not a bespoke derived class) so level-scaling formula
+## modifiers can bind to it and auto-recalc via base_value's value_changed, and
+## so it stays moddable like every other stat. `Entity.level` proxies `.value`.
+@export var level: ScalarStat
 
 @export_group( "Allocation")
 ## Allocation budget — careful tracking via SkillPointStat (current/wounded/max

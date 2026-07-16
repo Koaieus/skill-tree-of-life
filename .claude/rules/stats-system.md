@@ -192,6 +192,15 @@ Run to list all current stat IDs:
 grep -h "^id = " stats_system/defs/*.tres | sort
 ```
 
+## `level` is a plain ScalarStat, written imperatively (#200)
+
+`level` lives on the board as an ordinary `ScalarStat` (id `level`, INT, default 1) — **not** a bespoke derived/read-only class and **not** a `fill_count` on `PoolStat`. It exists so level-scaling formula modifiers (`+level × 1 STR`, #194) can `board.get_stat(&"level")` and auto-recalc: `Entity._on_xp_replenished` does `stat_board.level.base_value += 1`, and `base_value`'s setter emits `value_changed`, which walks the same reactive path as any formula source (PER→vision, etc.). No new mechanism.
+
+Consequences to respect:
+- **`Entity.level` is a proxy** onto `stat_board.level.value` (getter) / `.base_value` (setter), with a `1` fallback for sparse/test boards that carry no `level` stat. There's no separate `int` counter — the stat is the single store. Don't reintroduce one.
+- Level stays **moddable** like every other stat (a `+2 level` modifier is legal and lifts effective level). That's deliberate — don't special-case it read-only.
+- The level-up path writes `base_value` (not effective value) so it never double-counts any level modifiers.
+
 ## Intrinsic scaling (entity/default_entity_board.tres)
 
 These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). Effective contribution = `modifier.value × formula.compute(board)`; with `value = 1` the formula reads through. **Update this table when adding or changing one.**
