@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://d0h7eqtdcesey"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
-[ext_resource type="Texture2D" uid="uid://ot7ed7da8p0d" path="res://assets/icons/Icon set 1/1x/Asset 12.png" id="1_uku7o"]
+[ext_resource type="Texture2D" uid="uid://dv1fcbldx0ptl" path="res://assets/icons/spells/resonator.png" id="1_uku7o"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
 [ext_resource type="Script" uid="uid://cxhpk80bw8mxd" path="res://attack/spell/crit/self_loop_crit_condition.gd" id="2_crit_self_loop"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]

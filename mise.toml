@@ -109,6 +109,69 @@ echo "  cd $dir"
 description = "List active worktrees with their branches"
 run = "git worktree list"
 
+[tasks."icons:update"]
+description = "Reprocess all spell/skill icons from game-icons.net SVGs (clone → recolor → rasterize → import)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
+MAPPING="$PROJECT_ROOT/assets/icons/spells/mapping.txt"
+DEST="$PROJECT_ROOT/assets/icons/spells"
+REPO_URL="https://github.com/game-icons/icons"
+REPO_DIR="/tmp/opencode/game-icons"
+FG_COLOR="${GAME_ICONS_FG:-#8CD9FF}"
+ICON_SIZE="${GAME_ICONS_SIZE:-256}"
+
+if [ ! -f "$MAPPING" ]; then
+  echo "✗ mapping file not found: $MAPPING"
+  exit 1
+fi
+
+if ! command -v rsvg-convert &>/dev/null; then
+  echo "✗ rsvg-convert not found (install librsvg)"
+  exit 1
+fi
+
+# Clone / update the repo once
+if [ ! -d "$REPO_DIR" ]; then
+  echo "→ cloning game-icons/icons (shallow)…"
+  git clone --depth 1 "$REPO_URL" "$REPO_DIR"
+else
+  echo "→ updating game-icons/icons…"
+  git -C "$REPO_DIR" pull --ff-only 2>/dev/null || true
+fi
+
+echo "→ recoloring @ $FG_COLOR, rasterizing @ ${ICON_SIZE}×${ICON_SIZE}"
+mkdir -p "$DEST"
+
+count=0
+while IFS=$'\t' read -r name source_path; do
+  # Skip comments and blank lines
+  [[ -z "$name" || "$name" == \#* ]] && continue
+  svg="$REPO_DIR/$source_path"
+  if [ ! -f "$svg" ]; then
+    echo "  ✗ missing: $source_path → skipping $name"
+    continue
+  fi
+  tmp_svg="$(mktemp /tmp/icon_XXXXXX.svg)"
+  # Recolor foreground, strip background rect for transparency
+  sed -e "s/fill=\"#fff\"/fill=\"$FG_COLOR\"/g" \
+      -e 's|<path d="M0 0h512v512H0z"/>||g' \
+      "$svg" > "$tmp_svg"
+  rsvg-convert -w "$ICON_SIZE" -h "$ICON_SIZE" "$tmp_svg" -o "$DEST/${name}.png"
+  rm "$tmp_svg"
+  echo "  ✓ $name  ←  $source_path"
+  count=$((count + 1))
+done < "$MAPPING"
+
+echo ""
+echo "✓ $count icons rasterized → $DEST/"
+echo "→ running godot --headless --import to regenerate .import files…"
+godot --headless --import 2>&1 | grep -E "reimport|DONE|ERROR" || true
+echo "✓ import complete — all UIDs regenerated"
+'''
+
 [tasks."worktree:rm"]
 description = "Remove a worktree: `mise run worktree:rm -- 86` (fuzzy-matches dir/branch name via fzf if ambiguous)"
 run = '''
