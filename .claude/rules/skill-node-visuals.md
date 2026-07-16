@@ -169,7 +169,7 @@ and the layered-stroke fake reads convincingly at this node's on-screen size.
 ### The weld glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
 
 There is no `WeldSymbol` node anymore. The glyph is `show_weld`/`weld_k`/
-`weld_sides` (via `arch`)/`well_depth`/`hairline_*` `instance uniform`s on
+`weld_sides` (via `arch`)/`well_depth` `instance uniform`s on
 `inner_disk.gdshader` itself, set from `@export`s on `inner_disk.gd` in the
 same `_sync_material()` pass as the dome's own tint/highlight uniforms. The
 composite only ever talks to `%InnerDisk`; there's nothing else to keep in
@@ -281,10 +281,12 @@ direction) — so `show_weld = false` (or any pixel outside the glyph) renders
 byte-identical to the plain dome; the shader only branches into the new path
 when the sampled point is actually inside the bowl (`bowl.x > 0.0`).
 
-A hairline (`hairline_width`/`hairline_opacity`, now expressed as a fraction
-of the disk radius rather than a pixel width) traces the glyph's true
-boundary as a thin additive brightening, independent of the height field.
-Glow/pulse/sweep FX (the old `GlowMode` enum) were dropped entirely — an
+There is **no hairline**. An additive `hairline_width`/`hairline_opacity`
+stroke tracing the glyph's boundary was tried and removed — the height-field
+dent already reads as an edge, so the stroke only fought the sunk-in look. It
+had been disabled (`hairline_opacity = 0.0`) and commented out of the shader
+long before the exports came out; don't re-add it without a reason the dent
+can't serve. Glow/pulse/sweep FX (the old `GlowMode` enum) were dropped too — an
 outward glow on hover fought the sunk-in read and was never the right call;
 a *full-shape* glow/bloom is a possible follow-up for more elaborate emblems
 (a lit sword, a shimmering dragon) but isn't part of this small gem-indent

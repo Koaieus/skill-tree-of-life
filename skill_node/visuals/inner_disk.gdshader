@@ -27,8 +27,6 @@ instance uniform bool show_weld = false;
 instance uniform float weld_sides : hint_range(3.0, 16.0, 1.0) = 6.0;
 instance uniform float weld_k : hint_range(0.4, 1.15, 0.01) = 0.75;
 instance uniform float well_depth : hint_range(0.0, 1.0, 0.01) = 0.35;
-//instance uniform float hairline_width : hint_range(0.0, 0.05, 0.001) = 0.015; // TODO: Remove
-//instance uniform float hairline_opacity : hint_range(0.0, 1.0, 0.01) = 0.35; // TODO: Remove
 
 // Loot relic gem cut (#168) — see sn_diamond_bump in lighting.gdshaderinc.
 // `diamond_lut` is deliberately a PLAIN uniform (not `instance uniform`): the
@@ -69,12 +67,6 @@ void fragment() {
 
 	vec3 light_dir = sn_light_dir(highlight_position);
 	vec3 final_color = sn_disk_color(normal, light_dir, tint_color.rgb, tint_mix, allocated, highlight_intensity);
-
-	//if (show_weld && hairline_opacity > 0.0) {
-		//float edge_dist = sn_polygon_facet(p, weld_sides, weld_k).w;
-		//float hairline = 1.0 - smoothstep(0.0, max(hairline_width, 0.0001), abs(edge_dist));
-		//final_color += vec3(hairline * hairline_opacity);
-	//}
 
 	float r2 = dot(p, p);
 	float edge_alpha = 1.0 - smoothstep(0.96, 1.0, r2);

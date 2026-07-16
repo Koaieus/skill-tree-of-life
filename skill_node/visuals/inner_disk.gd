@@ -120,18 +120,6 @@ static var _diamond_lut: ImageTexture
 		well_depth = value
 		_sync_material()
 
-## Width of the hairline traced at the glyph's true (outer) boundary, as a
-## fraction of the disk radius.
-@export_range(0.0, 0.05, 0.001) var hairline_width: float = 0.015:
-	set(value):
-		hairline_width = value
-		_sync_material()
-
-@export_range(0.0, 1.0, 0.01) var hairline_opacity: float = 0.35:
-	set(value):
-		hairline_opacity = value
-		_sync_material()
-
 ## Shared light source (see [LightingStyle]), INJECTED AT RUNTIME by the
 ## composite — a plain `var`, deliberately NOT `@export`: it holds a
 ## composite-built resource, and an exported field assigned in a @tool context
@@ -209,8 +197,6 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"weld_sides", float(ARCH_SIDES.get(arch, 6)))
 	set_instance_shader_parameter(&"weld_k", weld_k)
 	set_instance_shader_parameter(&"well_depth", well_depth)
-	set_instance_shader_parameter(&"hairline_width", hairline_width)
-	set_instance_shader_parameter(&"hairline_opacity", hairline_opacity)
 	queue_redraw()
 
 

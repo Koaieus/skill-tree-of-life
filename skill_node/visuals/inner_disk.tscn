@@ -6,4 +6,3 @@
 script = ExtResource("1_disk")
 show_weld = true
 weld_k = 0.8200000000000001
-hairline_opacity = 0.0
