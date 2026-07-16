@@ -1,10 +1,13 @@
 extends GutTest
 
 ## Clock-contract tests for [MagicBounceCoordinator]. The propagation clock
-## is fixed (one wave per [member MagicBounceCoordinator.per_hop_duration])
+## is fixed (one wave per [member MagicBounceCoordinator.beat_interval])
 ## and animations may NOT gate it — so these tests assert on the
 ## [signal MagicBounceCoordinator.wave_started] emission cadence, not on
 ## projectile completion.
+##
+## Tests cover: three-clocks scheduling (#201), verb→ProjectilePath mapping,
+## CANCEL dissipate, and the legacy fallback path.
 
 const STUB_NEVER_FINISH := preload("res://test/unit/vfx/stub_never_finish_visual.tscn")
 
@@ -38,10 +41,10 @@ func _build_4hop_outcome() -> AttackOutcome:
 	return SpellResolver.resolve(spell, nodes[1], nodes[0], _attacker, _graph)
 
 
-func _mount_coord(per_hop: float, flight: float, visual: PackedScene = null) -> MagicBounceCoordinator:
+func _mount_coord(beat_interval: float, launch_to_impact: float, visual: PackedScene = null) -> MagicBounceCoordinator:
 	var coord := MagicBounceCoordinator.new()
-	coord.per_hop_duration = per_hop
-	coord.flight_time = flight
+	coord.beat_interval = beat_interval
+	coord.launch_to_impact = launch_to_impact
 	if visual != null:
 		coord.visual_scene = visual
 	add_child_autofree(coord)
@@ -77,7 +80,7 @@ func test_wave_started_fires_once_per_hop_in_order() -> void:
 				"line-graph wave %d should have exactly one hit" % i)
 
 
-func test_wave_intervals_match_per_hop_duration() -> void:
+func test_wave_intervals_match_beat_interval() -> void:
 	# We assert TOTAL elapsed time (first → last emission) rather than
 	# per-interval deltas: the first emission has variable startup delay
 	# (the play() coroutine is launched bare, picked up by the message
@@ -193,3 +196,166 @@ func test_arrival_applies_event_damage_and_null_event_applies_none() -> void:
 			"damage-bearing arrival dropped node 1's HP")
 	assert_eq(nodes[2].get_current_hp(), hp2_before,
 			"null-damage event applied no HP to node 2")
+
+
+# -- Verb → path mapping ------------------------------------------------------
+
+func test_verb_jump_uses_jump_path() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var jump_path := BezierArcPath.new()
+	jump_path.apex_height = 999.0
+	var coord := _mount_coord(0.05, 0.03)
+	coord.jump_path = jump_path
+	coord.edge_path = LinearPath.new()
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.JUMP)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	var projectiles := _find_projectiles(coord)
+	assert_eq(projectiles.size(), 1, "one projectile for JUMP event")
+	assert_eq(projectiles[0].path, jump_path, "JUMP uses jump_path")
+
+
+func test_verb_edge_uses_edge_path() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var edge_path := LinearPath.new()
+	var coord := _mount_coord(0.05, 0.03)
+	coord.edge_path = edge_path
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	var projectiles := _find_projectiles(coord)
+	assert_eq(projectiles.size(), 1, "one projectile for EDGE event")
+	assert_eq(projectiles[0].path, edge_path, "EDGE uses edge_path")
+
+
+func test_verb_self_loop_uses_self_loop_path() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var slp := SelfLoopPath.new()
+	slp.loop_height = 80.0
+	var coord := _mount_coord(0.05, 0.03)
+	coord.self_loop_path = slp
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.SELF_LOOP)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	var projectiles := _find_projectiles(coord)
+	assert_eq(projectiles.size(), 1, "one projectile for SELF_LOOP event")
+	assert_eq(projectiles[0].path, slp, "SELF_LOOP uses self_loop_path")
+
+
+func test_unset_verb_path_falls_back_to_projectile_path() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var fallback := BezierArcPath.new()
+	fallback.apex_height = 500.0
+	var coord := _mount_coord(0.05, 0.03)
+	coord.projectile_path = fallback
+	# Don't set edge_path — should fall back.
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	var projectiles := _find_projectiles(coord)
+	assert_eq(projectiles.size(), 1, "one projectile for EDGE event")
+	assert_eq(projectiles[0].path, fallback, "EDGE falls back to projectile_path")
+
+
+# -- CANCEL dissipate ---------------------------------------------------------
+
+func test_cancel_event_spawns_dissipate_visual() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var coord := _mount_coord(0.05, 0.03)
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	# A CANCEL event should spawn a non-Projectile child (a CancelDissipate).
+	var has_dissipate := false
+	for child in coord.get_children():
+		if not child is Projectile:
+			has_dissipate = true
+			break
+	assert_true(has_dissipate, "CANCEL spawns a non-projectile dissipate visual")
+
+
+func test_cancel_dissipate_is_at_target_position() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var coord := _mount_coord(0.05, 0.03)
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	for child in coord.get_children():
+		if not child is Projectile:
+			assert_eq(child.global_position, nodes[1].global_position,
+					"dissipate is at the target node")
+			break
+
+
+func test_cancel_event_with_null_visual_does_not_spawn() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var coord := _mount_coord(0.05, 0.03)
+	coord.cancel_visual = null
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
+	coord.play(outcome)
+	await get_tree().create_timer(0.15).timeout
+
+	var non_projectile_count := 0
+	for child in coord.get_children():
+		if not child is Projectile:
+			non_projectile_count += 1
+	assert_eq(non_projectile_count, 0, "null cancel_visual spawns nothing")
+
+
+# -- Three-clocks: wave_started still fires at beat cadence -------------------
+
+func test_three_clocks_impact_pinned_to_beat() -> void:
+	# With beat_interval=0.10 and launch_to_impact=0.04, wave_started fires
+	# at t=0, t=0.10, t=0.20, t=0.30 for 4 beats. This is the same cadence
+	# as before the rename — the three-clocks scheduling doesn't change the
+	# wave clock, only when projectiles are spawned (which is internal).
+	var outcome := _build_4hop_outcome()
+	var coord := _mount_coord(0.10, 0.04)
+	var events: Array = []
+	coord.wave_started.connect(func(hop: int, _c: int) -> void:
+		events.append(hop))
+	coord.play(outcome)
+	await get_tree().create_timer(0.10 * 5).timeout
+	assert_eq(events.size(), 4, "all 4 waves fire on three-clocks schedule")
+	assert_eq(events, [0, 1, 2, 3])
+
+
+# -- Helpers ------------------------------------------------------------------
+
+func _make_single_event_outcome(nodes: Array, verb: PropagationEvent.Verb) -> AttackOutcome:
+	var outcome := AttackOutcome.new()
+	var ev := PropagationEvent.new()
+	ev.beat = 0
+	ev.verb = verb
+	ev.origin = nodes[0]
+	ev.target = nodes[1]
+	if verb != PropagationEvent.Verb.CANCEL:
+		var hit := DamageInstance.new()
+		hit.origin = nodes[0]
+		hit.target = nodes[1]
+		hit.amount = 1.0
+		ev.damage = hit
+		outcome.hits.append(hit)
+	outcome.timeline.append(ev)
+	return outcome
+
+
+func _find_projectiles(coord: MagicBounceCoordinator) -> Array[Projectile]:
+	var result: Array[Projectile] = []
+	for child in coord.get_children():
+		if child is Projectile:
+			result.append(child)
+	return result
