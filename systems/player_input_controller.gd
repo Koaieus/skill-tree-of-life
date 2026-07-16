@@ -424,8 +424,6 @@ func _emit_gate_changed() -> void:
 
 
 func _set_player(value: Entity) -> void:
-	if player == value:
-		return
 	if player != null and player.stat_board != null:
 		var prev_ap: PoolStat = player.stat_board.action_points
 		if prev_ap != null and prev_ap.current_changed.is_connected(_on_ap_changed):
@@ -433,7 +431,7 @@ func _set_player(value: Entity) -> void:
 	player = value
 	if player != null and player.stat_board != null:
 		var ap: PoolStat = player.stat_board.action_points
-		if ap != null:
+		if ap != null and not ap.current_changed.is_connected(_on_ap_changed):
 			ap.current_changed.connect(_on_ap_changed)
 
 

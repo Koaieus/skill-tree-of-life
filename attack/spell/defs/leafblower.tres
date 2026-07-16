@@ -2,9 +2,9 @@
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Texture2D" uid="uid://c4hrvqjri8jbd" path="res://assets/icons/Icon set 1/1x/Asset 70.png" id="1_y0ifm"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
+[ext_resource type="Script" uid="uid://dstw6u8cyytog" path="res://attack/spell/crit/leaf_crit_condition.gd" id="2_crit_leaf"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
-[ext_resource type="Script" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
-[ext_resource type="Script" path="res://attack/spell/crit/leaf_crit_condition.gd" id="2_crit_leaf"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="5_filter_base"]
@@ -18,6 +18,9 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="12_y0ifm"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="15_l5r25"]
+
+[sub_resource type="Resource" id="crit_leaf"]
+script = ExtResource("2_crit_leaf")
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
@@ -45,9 +48,6 @@ step = SubResource("step_fan")
 reducer = SubResource("reducer_max")
 max_hops = 3
 damage_multiplier_per_hop = 1.8
-
-[sub_resource type="Resource" id="crit_leaf"]
-script = ExtResource("2_crit_leaf")
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("12_range")
