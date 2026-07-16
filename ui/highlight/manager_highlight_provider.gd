@@ -16,6 +16,7 @@ func configure(p_player: Entity, p_alloc: AllocationSystem, p_graph: Graph) -> v
 	player = p_player
 	allocation_system = p_alloc
 	graph = p_graph
+	state_changed.emit()
 
 
 func get_node_role(node: SkillNode) -> HighlightRole:
