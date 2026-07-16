@@ -1,12 +1,12 @@
 # Allocation system — engineering reference
 
-Code: `systems/allocation_system.gd`. Owns who-owns-what on the graph and the three side-effects that make ownership "real" for the rest of the codebase.
+Code: `systems/allocation_system.gd`. Owns who-owns-what on the graph and the four side-effects that make ownership "real" for the rest of the codebase.
 
 ## Four side-effects of allocation
 
 Allocating a node `n` to entity `e` always does these four things:
 
-1. **`n.owned_by = e`** — drives all visuals (owner-tint disk, addon visibility), `SkillNode.refill()` at owner turn-start, and per-node LocalStat rebinds (`get_local_stat()` reads its `entity_stat` from `owned_by.stat_board`).
+1. **`n.owned_by = e`** — drives all visuals (owner-tint disk, addon visibility), `SkillNode.refill()` at owner turn-start, and node-local stat reads: `get_local_value(id)` merges the owner's board with the node's sparse `node_board` via `ModifierBins.compute(es.base_value, [es.bins, ns.bins])`, falling back to the node board alone (then the StatDef default) when unowned. There is no `LocalStat` class — see `.claude/rules/stats-system.md`.
 2. **`e.navigator.mirror_add(n)`** — the EntityNavigator AStar mirror of *this entity's* subgraph picks up the node. Cut-vertex / islanding queries (`would_disconnect_from`, `nodes_islanded_by_removing`) read this mirror.
 3. **For each `m` in `n.modifiers`: `e.stat_board.add_modifier(m)`** — pushes the node's intrinsic modifiers onto the entity's stat pipeline. DerivedStatModifiers are auto-bound to the board by `add_modifier`.
 4. **`e.stat_board.skill_points.claim(1)`** (force_allocate only) — mints 1 SP into the `used` bucket, bumping max. Required so subsequent voluntary deallocation can refund into current without overflowing max and silently clamping away the SP. See `.claude/rules/stats-system.md` for the four-bucket SP model.

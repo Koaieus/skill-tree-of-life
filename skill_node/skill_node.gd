@@ -45,7 +45,7 @@ signal depleted
 ## a [SkillNodeAddon].
 @export var effects: Array[Effect] = []
 
-## Persistent base-type identity colour (e.g. procgen's NodeTypeDef colour).
+## Persistent base-type identity colour (e.g. procgen's archetype colour).
 ## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
 ## a hand-placed node in dev_sandbox.tscn looks the same as before any procgen
 ## stamping.
