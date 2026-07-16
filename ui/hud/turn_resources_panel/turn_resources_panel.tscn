@@ -6,12 +6,12 @@
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
 [ext_resource type="PackedScene" uid="uid://ep57rx7ojh8t" path="res://ui/gauges/composite_bar_gauge.tscn" id="4_composite"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="4_d4wth"]
-[ext_resource type="Script" path="res://ui/gauges/surplus_pool_gauge.gd" id="5_surplus"]
+[ext_resource type="Script" uid="uid://bn5knqrjna2lo" path="res://ui/gauges/surplus_pool_gauge.gd" id="5_surplus"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_7rqcp"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8cjsq"]
 resource_local_to_scene = true
 shader = ExtResource("3_7rqcp")
-shader_parameter/size = Vector2(275, 155)
+shader_parameter/size = Vector2(275, 239)
 shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
@@ -21,10 +21,10 @@ shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(1, 1, 1, 0)
 shader_parameter/glow_strength = 0.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8cjsq"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_q3w8c"]
 resource_local_to_scene = true
 shader = ExtResource("4_d4wth")
-shader_parameter/size = Vector2(77, 16)
+shader_parameter/size = Vector2(251, 16)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -33,16 +33,21 @@ shader_parameter/fill_color = Color(0.9039, 0.7331, 0.2746, 1)
 shader_parameter/empty_color = Color(1, 1, 1, 0.08)
 shader_parameter/glow_color = Color(0.9039, 0.7331, 0.2746, 0.6)
 shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/preview_gain = 0.0
+shader_parameter/preview_color = Color(1, 1, 1, 0.25)
+shader_parameter/surplus = 0.0
+shader_parameter/surplus_color = Color(0.91, 0.67, 0.3, 0.85)
+shader_parameter/force_cells = 0.0
 shader_parameter/shine_speed = 0.6
 shader_parameter/cell_count = 2.0
 shader_parameter/skew_degrees = -15.0
 shader_parameter/corner_radius = 4.0
 shader_parameter/cell_gap = 3.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_q3w8c"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dyvt3"]
 resource_local_to_scene = true
 shader = ExtResource("4_d4wth")
-shader_parameter/size = Vector2(77, 16)
+shader_parameter/size = Vector2(251, 16)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 2.0
@@ -51,16 +56,21 @@ shader_parameter/fill_color = Color(0.6935, 0.4045, 0.9676, 1)
 shader_parameter/empty_color = Color(1, 1, 1, 0.08)
 shader_parameter/glow_color = Color(0.6935, 0.4045, 0.9676, 0.6)
 shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/preview_gain = 0.0
+shader_parameter/preview_color = Color(1, 1, 1, 0.25)
+shader_parameter/surplus = 0.0
+shader_parameter/surplus_color = Color(0.9084, 0.6684, 0.3042, 0.85)
+shader_parameter/force_cells = 1.0
 shader_parameter/shine_speed = 0.6
 shader_parameter/cell_count = 3.0
 shader_parameter/skew_degrees = -15.0
 shader_parameter/corner_radius = 4.0
 shader_parameter/cell_gap = 3.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dyvt3"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xrmgi"]
 resource_local_to_scene = true
 shader = ExtResource("4_d4wth")
-shader_parameter/size = Vector2(77, 16)
+shader_parameter/size = Vector2(251, 16)
 shader_parameter/current = 1.0
 shader_parameter/min_value = 0.0
 shader_parameter/max_value = 5.0
@@ -69,6 +79,11 @@ shader_parameter/fill_color = Color(0.3187, 0.7773, 0.4484, 1)
 shader_parameter/empty_color = Color(1, 1, 1, 0.08)
 shader_parameter/glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)
 shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/preview_gain = 0.0
+shader_parameter/preview_color = Color(1, 1, 1, 0.25)
+shader_parameter/surplus = 0.0
+shader_parameter/surplus_color = Color(0.9084, 0.6684, 0.3042, 0.85)
+shader_parameter/force_cells = 1.0
 shader_parameter/shine_speed = 0.6
 shader_parameter/cell_count = 3.0
 shader_parameter/skew_degrees = -15.0
@@ -97,7 +112,7 @@ offset_bottom = 155.0
 script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." unique_id=1957706385 instance=ExtResource("2_glass")]
-material = SubResource("ShaderMaterial_7rqcp")
+material = SubResource("ShaderMaterial_8cjsq")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -124,23 +139,19 @@ theme_override_constants/margin_bottom = 10
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Batteries" type="HBoxContainer" parent="Margin/Content" unique_id=1235118986]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="APColumn" type="VBoxContainer" parent="Margin/Content/Batteries" unique_id=51809994]
+[node name="APColumn" type="VBoxContainer" parent="Margin/Content" unique_id=51809994]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="APLabel" type="Label" parent="Margin/Content/Batteries/APColumn" unique_id=1635168543]
+[node name="APLabel" type="Label" parent="Margin/Content/APColumn" unique_id=1635168543]
 modulate = Color(0.9039, 0.7331, 0.2746, 1)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "ACTION"
 
-[node name="APGauge" parent="Margin/Content/Batteries/APColumn" unique_id=619827120 instance=ExtResource("3_gauge")]
+[node name="APGauge" parent="Margin/Content/APColumn" unique_id=619827120 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_8cjsq")
+material = SubResource("ShaderMaterial_q3w8c")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -149,27 +160,34 @@ glow_color = Color(0.9039, 0.7331, 0.2746, 0.6)
 cell_count = 2.0
 skew_degrees = -15.0
 
-[node name="DPColumn" type="VBoxContainer" parent="Margin/Content/Batteries" unique_id=112284244]
+[node name="DPColumn" type="VBoxContainer" parent="Margin/Content" unique_id=112284244]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="DPLabel" type="Label" parent="Margin/Content/Batteries/DPColumn" unique_id=1335071874]
+[node name="DPLabel" type="Label" parent="Margin/Content/DPColumn" unique_id=1335071874]
 modulate = Color(0.6935, 0.4045, 0.9676, 1)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "DEALLOC"
 
-[node name="DPGauge" parent="Margin/Content/Batteries/DPColumn" unique_id=349639421 instance=ExtResource("3_gauge")]
+[node name="DPGauge" parent="Margin/Content/DPColumn" unique_id=349639421 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_q3w8c")
+material = SubResource("ShaderMaterial_dyvt3")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("5_surplus")
+surplus = 0.0
+surplus_color = Color(0.9084, 0.6684, 0.3042, 0.85)
 fill_color = Color(0.6935, 0.4045, 0.9676, 1)
 glow_color = Color(0.6935, 0.4045, 0.9676, 0.6)
 cell_count = 3.0
+force_cells = true
 skew_degrees = -15.0
+
+[node name="Batteries" type="HBoxContainer" parent="Margin/Content" unique_id=1235118986]
+layout_mode = 2
+theme_override_constants/separation = 10
 
 [node name="MPColumn" type="VBoxContainer" parent="Margin/Content/Batteries" unique_id=1549832273]
 layout_mode = 2
@@ -183,15 +201,18 @@ text = "MOVE"
 
 [node name="MPGauge" parent="Margin/Content/Batteries/MPColumn" unique_id=1476870951 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_dyvt3")
+material = SubResource("ShaderMaterial_xrmgi")
 custom_minimum_size = Vector2(0, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("5_surplus")
+surplus = 0.0
+surplus_color = Color(0.9084, 0.6684, 0.3042, 0.85)
 max_value = 5.0
 fill_color = Color(0.3187, 0.7773, 0.4484, 1)
 glow_color = Color(0.3187, 0.7773, 0.4484, 0.6)
 cell_count = 3.0
+force_cells = true
 skew_degrees = -15.0
 
 [node name="SPSection" type="VBoxContainer" parent="Margin/Content" unique_id=1763363362]
