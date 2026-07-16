@@ -1,9 +1,12 @@
 extends GutTest
 
-## TrailBlazerStep: the single-path "string walker". Two layers of coverage —
+## TrailBlazerStep: the "string walker". Three layers of coverage —
 ##   1. step() branch logic in isolation (continue vs slam, each terminal mode);
-##   2. an end-to-end resolve through SpellResolver on a real string graph,
-##      asserting the stock +2-ramp / ×2-slam damage sequence.
+##   2. fan-out — every surviving candidate propagates, no random single pick
+##      (cb1caa0). A string can't distinguish the two, so these use branches;
+##   3. an end-to-end resolve through SpellResolver on a real string graph,
+##      asserting the stock +2-ramp / ×2-slam damage sequence — including a
+##      mid-string seed, which splits into two probes walking opposite ways.
 
 var h: SpellTestHelper
 
@@ -99,6 +102,56 @@ func test_empty_candidates_ends_walk() -> void:
 	assert_eq(out.size(), 0, "no candidate → no branch")
 
 
+# ── fan-out: every surviving candidate propagates (cb1caa0) ──────────────
+# The walk used to rng.randi_range a SINGLE candidate. On a pure string that's
+# indistinguishable (the filter + visit cap leave exactly one candidate per
+# hop), so the string tests above pass either way — these are the only tests
+# that can tell the two apart.
+
+func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
+	# 1 and 2 both hang off seed 0 and both have degree 2 → both continue.
+	var graph := h.make_graph([[0, 1], [1, 3], [0, 2], [2, 4]], self)
+	var nodes := graph.get_skill_nodes()
+	var step := TrailBlazerStep.new()
+	step.per_hop_increment = 2.0
+	var config := h.make_config(step, null, null, {max_hops = 5})
+	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
+
+	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
+
+	assert_eq(out.size(), 2, "both candidates propagate — no random single pick")
+	var landed := [out[0].current_node, out[1].current_node]
+	assert_true(landed.has(nodes[1]), "branch to node 1 minted")
+	assert_true(landed.has(nodes[2]), "branch to node 2 minted")
+	for cast in out:
+		assert_almost_eq(cast.damage, 5.0, 0.001, "each branch carries 3 + 2")
+
+
+func test_branch_slams_the_junction_and_continues_the_string_in_parallel() -> void:
+	# Off seed 0: node 1 is degree 2 (continue), node 2 is degree 4 (junction).
+	# Both must be minted, each resolving on its own branch rule.
+	var graph := h.make_graph(
+		[[0, 1], [1, 3], [0, 2], [2, 4], [2, 5], [2, 6]], self)
+	var nodes := graph.get_skill_nodes()
+	var step := TrailBlazerStep.new()
+	step.per_hop_increment = 2.0
+	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
+	step.terminal_multiplier = 2.0
+	var config := h.make_config(step, null, null, {max_hops = 5})
+	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
+
+	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
+
+	assert_eq(out.size(), 2, "continuation and junction both minted")
+	for cast in out:
+		if cast.current_node == nodes[1]:
+			assert_almost_eq(cast.damage, 5.0, 0.001, "continuation: 3 + 2")
+			assert_eq(cast.hops_remaining, 4, "continuation keeps walking")
+		else:
+			assert_almost_eq(cast.damage, 10.0, 0.001, "junction slam: (3 + 2) × 2")
+			assert_eq(cast.hops_remaining, 0, "junction terminates its branch")
+
+
 # ── end-to-end through the resolver ──────────────────────────────────────
 
 func test_walks_string_and_slams_junction_end_to_end() -> void:
@@ -128,3 +181,41 @@ func test_walks_string_and_slams_junction_end_to_end() -> void:
 	assert_almost_eq(h.total_damage_on(out, nodes[5]), 22.0, 0.001, "F: (9 + 2) × 2 slam")
 	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, walk stopped")
 	assert_almost_eq(h.total_damage_on(out, nodes[7]), 0.0, 0.001, "past junction, walk stopped")
+
+
+func test_seeded_mid_string_splits_into_two_probes_walking_both_ways() -> void:
+	# Seeded in the MIDDLE of a string, the walk has a candidate on each side
+	# and must probe BOTH ways — the natural read of "fans to every candidate".
+	#
+	#   A(0) — B(1) — C(2) — D(3) — E(4) < F(5)
+	#                 seed                \ G(6)
+	#
+	# The two probes are deliberately ASYMMETRIC, so they can't both be
+	# explained by one walk: the left probe dead-ends at the degree-1 leaf A
+	# (the `to_degree >= 2` filter stops it), while the right probe ramps on
+	# and slams the degree-3 junction E. Attacker casts from a disjoint 7-8.
+	var graph := h.make_graph(
+		[[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [4, 6], [7, 8]], self)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	h.assign_owner(graph, defender, [0, 1, 2, 3, 4, 5, 6])
+	h.assign_owner(graph, attacker, [7, 8])
+
+	var effects: Array[OnHitEffect] = [DamageEffect.new()]
+	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
+	var nodes := graph.get_skill_nodes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+
+	var out := SpellResolver.resolve(spell, nodes[2], nodes[7], attacker, graph, rng)
+
+	assert_almost_eq(h.total_damage_on(out, nodes[2]), 1.0, 0.001, "C: seed base")
+	# Both probes leave the seed on the same beat, so both carry 1 + 2.
+	assert_almost_eq(h.total_damage_on(out, nodes[1]), 3.0, 0.001, "B: left probe, 1 + 2")
+	assert_almost_eq(h.total_damage_on(out, nodes[3]), 3.0, 0.001, "D: right probe, 1 + 2")
+	# Left probe dies at the leaf; right probe carries on and slams.
+	assert_almost_eq(h.total_damage_on(out, nodes[0]), 0.0, 0.001, "A: leaf, filtered out")
+	assert_almost_eq(h.total_damage_on(out, nodes[4]), 10.0, 0.001, "E: (3 + 2) × 2 slam")
+	assert_almost_eq(h.total_damage_on(out, nodes[5]), 0.0, 0.001, "past junction, stopped")
+	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, stopped")

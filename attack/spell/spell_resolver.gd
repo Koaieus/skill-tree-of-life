@@ -142,7 +142,9 @@ static func _resolve_crit(
 		var cc_val: float = cc_stat.get_value() if cc_stat != null else 0.0
 		if cc_val > 0.0:
 			# Use a fresh RNG for crit rolls to avoid consuming values from
-			# the shared propagation RNG (e.g. TrailBlazerStep's random-pick).
+			# the shared propagation RNG, keeping the walk reproducible under
+			# a caller's seed. NOTE: this also makes the crit itself
+			# unreproducible — see #213 for the replay/determinism tradeoff.
 			var crit_rng := RandomNumberGenerator.new()
 			crit_rng.randomize()
 			if crit_rng.randf() < cc_val:
