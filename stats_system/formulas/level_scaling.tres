@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ExpressionFormula" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="1_expr"]
+
+[resource]
+script = ExtResource("1_expr")
+formula = "level - 1"
+inputs = Array[StringName]([&"level"])

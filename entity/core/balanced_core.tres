@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="3_466st"]
 [ext_resource type="Script" uid="uid://ddlh35gou7ixj" path="res://entity/core/sigil/astroid_sigil.gd" id="3_sigil"]
+[ext_resource type="Resource" path="res://stats_system/formulas/level_scaling.tres" id="4_lvl"]
 
 [sub_resource type="Resource" id="mod_str"]
 script = ExtResource("2_mod")
@@ -20,6 +21,24 @@ script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 10.0
 
+[sub_resource type="Resource" id="mod_str_per_level"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+value = 1.0
+formula = ExtResource("4_lvl")
+
+[sub_resource type="Resource" id="mod_dex_per_level"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 1.0
+formula = ExtResource("4_lvl")
+
+[sub_resource type="Resource" id="mod_int_per_level"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 1.0
+formula = ExtResource("4_lvl")
+
 [sub_resource type="Resource" id="Resource_1xoxv"]
 script = ExtResource("3_sigil")
 metadata/_custom_type_script = "uid://ddlh35gou7ixj"
@@ -27,6 +46,6 @@ metadata/_custom_type_script = "uid://ddlh35gou7ixj"
 [resource]
 script = ExtResource("3_466st")
 display_name = "Balanced"
-description = "The vanilla class: +10 STR / DEX / INT and nothing else. The baseline every other class is tuned against — every class delta is \"vs Balanced\"."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
+description = "The vanilla class: +10 STR / DEX / INT, +1 each per level gained. The baseline every other class is tuned against — every class delta is \"vs Balanced\"."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_str_per_level"), SubResource("mod_dex_per_level"), SubResource("mod_int_per_level")])
 sigil = SubResource("Resource_1xoxv")

@@ -165,7 +165,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 ## is `duplicate(true)`d so the dust owns independent copies.
 ## Returns { "candidates": Array[StatModifier], "pick_count": int }.
 func _draw_payload(victim: Entity) -> Dictionary:
-	var core_mods := _core_modifiers(victim)
+	var core_mods := _core_modifiers(victim).filter(_is_lootable)
 	var supply := core_mods.size()
 	var keep := core_keep_base + core_keep_per_level * float(maxi(0, victim.level))
 	var pick_count := clampi(roundi(keep), 0, supply)
@@ -189,6 +189,20 @@ func _held_node_count(victim: Entity) -> int:
 		if n != null and n != core:
 			count += 1
 	return count
+
+
+## Level-scaled identity mods are lost on death like the rest of the core set,
+## but they are NOT lootable (#194). A `+1 STR per level` entry describes the
+## victim's *progression*, not a transferable trinket — and since `duplicate(true)`
+## keeps the shared formula, a looted copy would silently rebind to the LOOTER's
+## level and grant a scaling relic nobody designed. Filtered in [method _draw_payload]
+## rather than in [method _core_modifiers], which stays an honest answer to
+## "what vanishes on death".
+##
+## Only `level` scaling is excluded — a plain formula mod ("+2 vision per PER")
+## is ordinary class identity and stays lootable.
+func _is_lootable(m: StatModifier) -> bool:
+	return not m.scales_with(&"level")
 
 
 ## Core source: class identity mods (+10 STR/DEX/INT for BalancedCore, etc.) plus

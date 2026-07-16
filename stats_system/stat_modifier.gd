@@ -115,6 +115,23 @@ static func flatten_all(mods: Array) -> Array[StatModifier]:
 	return out
 
 
+## True when this modifier's value is derived from `source_id` through its
+## formula — i.e. `source_id` is one of the stats the formula reads. Answers
+## "which of these scale with X?" without a marker field: the formula's declared
+## inputs already are the answer, and they survive `duplicate(true)`.
+##
+## Asks every leaf via flatten(), so a [CompositeStatModifier] reports true when
+## ANY child scales — matching the way a bundle is applied and looted as a unit.
+##
+## The `level` case drives both sides of #194: the HUD lists level-scaled
+## modifiers, LootSystem excludes them.
+func scales_with(source_id: StringName) -> bool:
+	for leaf in flatten():
+		if leaf.formula != null and leaf.formula.get_input_ids().has(source_id):
+			return true
+	return false
+
+
 ## A short, op-aware string for THIS modifier's own contribution — "+10",
 ## "+20%", "×1.5", "=13". The stat label is NOT included (callers append the
 ## StatDef display name). Uses get_effective_value() so a formula-bound mod

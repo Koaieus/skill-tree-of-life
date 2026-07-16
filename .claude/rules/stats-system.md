@@ -187,7 +187,7 @@ Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
 
 ## Class identity modifiers (CoreClass)
 
-Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which `duplicate(true)`s every entry in `CoreClass.modifiers` before installing — same `.tres` is safe across many entities. `BalancedCore` is the +10 STR/DEX/INT baseline against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
+Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which `duplicate(true)`s every entry in `CoreClass.modifiers` before installing — same `.tres` is safe across many entities. `BalancedCore` is the +10 STR/DEX/INT baseline (plus +1 each per level — see "Per-level class bonuses" below) against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
 
 ## Stat IDs
 
@@ -204,6 +204,20 @@ Consequences to respect:
 - **`Entity.level` is a proxy** onto `stat_board.level.value` (getter) / `.base_value` (setter), with a `1` fallback for sparse/test boards that carry no `level` stat. There's no separate `int` counter — the stat is the single store. Don't reintroduce one.
 - Level stays **moddable** like every other stat (a `+2 level` modifier is legal and lifts effective level). That's deliberate — don't special-case it read-only.
 - The level-up path writes `base_value` (not effective value) so it never double-counts any level modifiers.
+
+## Per-level class bonuses ride the ordinary `modifiers` array (#194)
+
+There is **no `level_up_modifiers` field and no per-level-up mutation.** A "+1 STR per level" class bonus is one ordinary `StatModifier` in `CoreClass.modifiers` with `value = 1.0` (the coefficient) and `formula = level_scaling.tres`. Level-up writes `level.base_value`, that emits `value_changed`, the bound modifier recomputes — the reactive chain is the one every other formula uses. Adding a fresh `+1 STR` modifier on each level-up is the anti-pattern: N modifier instances, N subscriptions, and cleanup on death.
+
+**The curve is shared and lives in one file:** `stats_system/formulas/level_scaling.tres` is `ExpressionFormula("level - 1")`. Every class references that same file, so retuning the level curve is a one-file edit. It's `level - 1`, not `level`, so a level-1 entity sits exactly on its authored baseline (Balanced reads +10, not +11) and each level-up adds the coefficient.
+
+**Keep the formula in its own `.tres` — never inline it into a class.** `Resource.duplicate(true)` **preserves the identity of a file-backed sub-resource and copies an inline one** (verified empirically under Godot 4.4, both directions). That asymmetry is load-bearing here: `CoreClass.apply()` deep-duplicates every modifier, and the duplicate must keep pointing at the *shared* curve. Inlining the formula into `balanced_core.tres` would silently fork it per entity — the class would still work, but the shared-tuning property (and any identity check against the resource) would quietly die with no error. It also explains why `composite_stat_modifier.gd` can claim `duplicate(true)` deep-copies its `children`: those are inline.
+
+Sharing one formula instance across entities is safe because `StatFormula` is stateless — all binding state (`_board`, `_bound_sources`) lives on the *modifier*, which does get duplicated. The "MUST NOT be shared" warning in `stat_modifier.gd` is about the modifier, not its formula.
+
+**Query level bonuses with `StatModifier.scales_with(&"level")`**, not a marker field or resource identity. The formula's declared `get_input_ids()` already answer "does this scale with level?", the answer survives duplication, and it stays true for a class that authors its own `ExpressionFormula("(level - 1) * dexterity")` instead of the shared curve. It asks every leaf via `flatten()`, so a composite reports true when any child scales. Two call sites use it with opposite signs — the #199 HUD listing (include) and `LootSystem._is_lootable` (exclude). Route any third through the same predicate.
+
+**Level-scaled mods are not lootable.** They vanish with the entity like the rest of the core set, but the loot draw excludes them: a looted copy keeps the shared formula and would rebind to the *looter's* level, granting a scaling relic nobody designed. Lootable relics that scale with the holder's level are a real feature — if wanted, design it deliberately, don't let it fall out of the draw.
 
 ## Intrinsic scaling (entity/default_entity_board.tres)
 
