@@ -29,6 +29,10 @@ var rng: RandomNumberGenerator = null
 ## Wave index of the current expansion (0 = seed wave). Filters / steps may
 ## read it for wave-dependent behaviour (rare; provided for completeness).
 var wave_index: int = 0
+## Lazily-built crit RNG, derived from [member rng] when a seed is present
+## so crits reproduce without consuming the propagation stream (#213).
+## Null = fresh RNG per call (match the documented fallback for [member rng]).
+var crit_rng: RandomNumberGenerator = null
 
 
 func visit_count(node: SkillNode) -> int:
@@ -37,3 +41,14 @@ func visit_count(node: SkillNode) -> int:
 
 func bump_visit(node: SkillNode) -> void:
 	global_visit_count[node] = visit_count(node) + 1
+
+
+func rng_for_crits() -> RandomNumberGenerator:
+	if crit_rng != null:
+		return crit_rng
+	crit_rng = RandomNumberGenerator.new()
+	if rng != null:
+		crit_rng.seed = rng.seed ^ 0xC217
+	else:
+		crit_rng.randomize()
+	return crit_rng

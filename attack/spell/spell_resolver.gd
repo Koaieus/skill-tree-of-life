@@ -141,13 +141,10 @@ static func _resolve_crit(
 		var cc_stat: Stat = board.get_stat(&"crit_chance")
 		var cc_val: float = cc_stat.get_value() if cc_stat != null else 0.0
 		if cc_val > 0.0:
-			# Use a fresh RNG for crit rolls to avoid consuming values from
-			# the shared propagation RNG, keeping the walk reproducible under
-			# a caller's seed. NOTE: this also makes the crit itself
-			# unreproducible — see #213 for the replay/determinism tradeoff.
-			var crit_rng := RandomNumberGenerator.new()
-			crit_rng.randomize()
-			if crit_rng.randf() < cc_val:
+			# Derived crit RNG — seeded from the cast's RNG without consuming
+			# its stream, so the propagation walk reproduces and crits
+			# reproduce (#213).
+			if ctx.rng_for_crits().randf() < cc_val:
 				tier += 1
 
 	# --- Condition path ---

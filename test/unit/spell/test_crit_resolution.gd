@@ -134,11 +134,9 @@ func test_stat_path_multiplies_damage_on_crit() -> void:
 	assert_almost_eq(hit.amount, 30.0, 0.001)
 
 
-func test_stat_path_uses_independent_rng_for_crits() -> void:
-	# Crits use an independent, time-seeded RNG — they never consume values
-	# from the propagation RNG (which TrailBlazerStep etc. depend on for
-	# deterministic walk behavior). Verifying: crit_chance=0.5 → roughly
-	# half the hits crit over a large batch (non-deterministic, but stable).
+func test_stat_path_reproduces_crits_under_seed() -> void:
+	# Crits are derived from the caller's seed without consuming the
+	# propagation stream — same seed → same crit outcome every run.
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)
 	var atk := helper.make_entity(graph, "A")
@@ -146,13 +144,22 @@ func test_stat_path_uses_independent_rng_for_crits() -> void:
 	helper.give_big_hp(def)
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
-	atk.stat_board.get_stat(&"crit_chance").base_value = 0.999  # nearly always
+	atk.stat_board.get_stat(&"crit_chance").base_value = 0.5
 	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
-	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
-	assert_true(outcome.hits[0].is_crit, "crit_chance 0.999 → overwhelmingly likely to crit")
+
+	var rng1 := RandomNumberGenerator.new()
+	rng1.seed = 42
+	var outcome1 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng1)
+
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = 42
+	var outcome2 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng2)
+
+	assert_eq(outcome1.hits[0].is_crit, outcome2.hits[0].is_crit, "same seed → same crit flag")
+	assert_eq(outcome1.timeline[0].crit_tier, outcome2.timeline[0].crit_tier, "same seed → same crit_tier")
+	assert_eq(outcome1.hits[0].amount, outcome2.hits[0].amount, "same seed → same damage")
 
 
 # ── Condition-path crit via SpellResolver ───────────────────────────────────

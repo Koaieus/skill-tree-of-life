@@ -51,12 +51,10 @@ func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 
 ## Zero `crit_chance`, so a test that pins damage MATH isn't rolling dice.
 ##
-## The default board ships a 5% baseline crit (`crit_chance.tres`), and the
-## stat-path roll uses a time-seeded RNG (see SpellResolver._resolve_crit), so
-## a caller's seed can NOT make it reproduce. Left at 5%, every damage
-## assertion in this suite fails ~5% of runs with exactly 2× the expected
-## value — intermittent enough to read as noise. A crit test wants its own
-## value anyway and sets it explicitly (see test_crit_resolution.gd). See #213.
+## The default board ships a 5% baseline crit (`crit_chance.tres`). A seeded
+## test *can* reproduce crits (see #213), but damage-math tests shouldn't
+## need to manage a seed just to avoid noise. A crit test sets its own value
+## explicitly (see test_crit_resolution.gd).
 func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE) -> Entity:
 	var ent := Entity.new()
 	ent.display_name = display_name
@@ -65,6 +63,9 @@ func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE)
 	var cc: Stat = ent.stat_board.get_stat(&"crit_chance")
 	if cc != null:
 		cc.base_value = 0.0
+		# If core-class / other tests run into crit-triggered flakiness despite
+		# this zeroing (e.g. a modifier adds crit_chance after construction),
+		# switch to a high-priority SET=0 StatModifier on the Stat instead.
 	graph.add_child(ent)
 	return ent
 
