@@ -19,6 +19,8 @@ extends Node2D
 ##     * `_on_launch()`        — once when flight begins (post-delay).
 ##     * `_on_progress(t)`     — each frame, t ∈ [0, 1].
 ##     * `_on_arrival()`       — once on impact, before the linger / free.
+##     * `_on_crit(tier)`       — called immediately after `_on_launch` when
+##       [member crit_tier] > 0, so the visual can scale/tint/shake.
 ##   outbound (Visual → Projectile)
 ##     * `finished` signal     — visual says "I'm fully done draining" so
 ##       the projectile (and the BattleSystem await chain it feeds) waits
@@ -39,6 +41,11 @@ signal arrived
 ## signal. With the default [GlowingDot] visual (which DOES emit `finished`)
 ## this is unused — the projectile waits for the trail to fully drain.
 @export var linger_seconds: float = 0.1
+
+## Set by the coordinator when the hit is a critical strike; forwarded to
+## the visual via duck-typed `_on_crit(tier)` so it can add emphasis
+## (scale, screenshake, color pop). 0 = normal hit; 1+ = crit tier.
+var crit_tier: int = 0
 
 var _origin_pos: Vector2
 var _target_pos: Vector2
@@ -84,6 +91,8 @@ func _process(delta: float) -> void:
 	if not _flying:
 		_flying = true
 		_call_visual(&"_on_launch", [])
+		if crit_tier > 0:
+			_call_visual(&"_on_crit", [crit_tier])
 	if path == null:
 		# Mis-configured projectile — fall through to target immediately so
 		# the volley counter still ticks. Warn once.

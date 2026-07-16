@@ -85,12 +85,16 @@ static func resolve(
 			# apply every hit before shipping it.
 			assert(outcome.hits.size() - pre <= 1,
 					"landing appended >1 hit; VFX applies only the first")
+			var crit_tier: int = 0
+			if outcome.hits.size() > pre:
+				crit_tier = _resolve_crit(spell, state, outcome.hits[pre], ctx)
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
 			ev.verb = _verb_for(state)
+			ev.crit_tier = crit_tier
 			if outcome.hits.size() > pre:
 				ev.damage = outcome.hits[pre]
 			outcome.timeline.append(ev)
@@ -115,6 +119,60 @@ static func resolve(
 		ctx.wave_index += 1
 		wave = next_wave
 	return outcome
+
+
+## Evaluates both crit paths for one landing and applies the crit to [param hit]
+## when either (or both) fire. Returns [member PropagationEvent.crit_tier]:
+## 0 = normal hit, 1 = one path crit, 2 = both paths fired.
+## Stat path: rolls [code]crit_chance[/code] from the caster's board.
+## Condition path: evaluates every [member SpellDef.crit_conditions] as OR.
+static func _resolve_crit(
+		spell: SpellDef,
+		state: CastSpell,
+		hit: DamageInstance,
+		ctx: PropagationContext) -> int:
+	if hit == null or hit.amount <= 0.0:
+		return 0
+	var tier: int = 0
+
+	# --- Stat path ---
+	var board: StatBoard = ctx.caster.stat_board if ctx.caster != null else null
+	if board != null:
+		var cc_stat: Stat = board.get_stat(&"crit_chance")
+		var cc_val: float = cc_stat.get_value() if cc_stat != null else 0.0
+		if cc_val > 0.0:
+			# Use a fresh RNG for crit rolls to avoid consuming values from
+			# the shared propagation RNG (e.g. TrailBlazerStep's random-pick).
+			var crit_rng := RandomNumberGenerator.new()
+			crit_rng.randomize()
+			if crit_rng.randf() < cc_val:
+				tier += 1
+
+	# --- Condition path ---
+	for cond in spell.crit_conditions:
+		if cond != null and cond.evaluate(state, state.current_node, null):
+			tier += 1
+			# One condition passing is enough to count the condition path;
+			# additional conditions don't stack the tier further.
+			break
+
+	if tier > 0:
+		var cm_val: float = _crit_multiplier(board, 2.0)
+		hit.amount *= cm_val
+		hit.is_crit = true
+		hit.crit_multiplier = cm_val
+	return tier
+
+
+## Reads the [code]crit_multiplier[/code] from the caster's stat board, falling
+## back to [param fallback] when the board or stat is missing.
+static func _crit_multiplier(board: StatBoard, fallback: float = 2.0) -> float:
+	if board == null:
+		return fallback
+	var cm_stat: Stat = board.get_stat(&"crit_multiplier")
+	if cm_stat == null:
+		return fallback
+	return cm_stat.get_value()
 
 
 ## Reducer is optional: null defaults to "first-wins" without instantiating

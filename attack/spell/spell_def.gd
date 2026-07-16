@@ -36,6 +36,12 @@ extends Resource
 ## the standard first entry via [DamageEffect].
 @export var on_hit_effects: Array[OnHitEffect] = []
 
+## Spell-specific crit conditions. Evaluated per landing in addition to
+## the universal [code]crit_chance[/code] stat roll. Multiple conditions
+## run as OR — if ANY returns true, the hit crits. Follows the same
+## composed-resource pattern as [member on_hit_effects].
+@export var crit_conditions: Array[CritCondition] = []
+
 ## The visual coordinator scene the battle layer plays once resolution
 ## produces an outcome. Scene root must be a [VFXCoordinator] subclass.
 @export var vfx_coordinator_scene: PackedScene = null

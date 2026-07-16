@@ -24,7 +24,17 @@ var target: SkillNode = null
 ## Optional; used by VFX (tracer spawn point) and future range-falloff math.
 var origin: SkillNode = null
 
+## Whether this hit was elevated to a critical strike. Set by the
+## resolver's crit pass (stat roll + condition check). The VFX layer
+## reads this for emphasis visuals.
+var is_crit: bool = false
+
+## The effective multiplier applied on a crit (default 1.0 = normal hit).
+## Set by the resolver from the caster's crit_multiplier stat.
+var crit_multiplier: float = 1.0
+
 
 func _to_string() -> String:
 	var type_name: String = Type.keys()[type]
-	return "<DamageInstance %s %.1f → %s>" % [type_name, amount, target]
+	var suffix: String = " CRIT" if is_crit else ""
+	return "<DamageInstance %s %.1f → %s%s>" % [type_name, amount, target, suffix]

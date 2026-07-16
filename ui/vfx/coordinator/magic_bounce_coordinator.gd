@@ -83,6 +83,7 @@ func _play_event(ev: PropagationEvent, pending: Array[int]) -> void:
 	proj.visual_scene = visual_scene
 	proj.flight_time = flight_time
 	proj.face_velocity = face_velocity
+	proj.crit_tier = ev.crit_tier
 	add_child(proj)
 	pending[0] += 1
 	var hit: DamageInstance = ev.damage

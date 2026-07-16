@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Texture2D" uid="uid://ot7ed7da8p0d" path="res://assets/icons/Icon set 1/1x/Asset 12.png" id="1_uku7o"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
+[ext_resource type="Script" path="res://attack/spell/crit/self_loop_crit_condition.gd" id="2_crit_self_loop"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
@@ -35,6 +37,9 @@ max_hops = 2
 max_visits_per_node = 4
 damage_multiplier_per_hop = 2.0
 
+[sub_resource type="Resource" id="crit_self_loop"]
+script = ExtResource("2_crit_self_loop")
+
 [sub_resource type="Resource" id="range"]
 script = ExtResource("9_range")
 
@@ -45,12 +50,13 @@ range_finder = SubResource("range")
 [resource]
 script = ExtResource("1_spell")
 name = "Resonator"
-description = "Fans to every enemy neighbour, doubling damage each hop. Converging branches ADD — diamond shoulders and self-loops compound massively. The signature spell for graphs with self-loops: a self-looped enemy node becomes a kill setup, because the loop's two return-incidents sum into one doubled hit, then double again next hop."
+description = "Fans to every enemy neighbour, doubling damage each hop. Converging branches ADD — diamond shoulders and self-loops compound massively. CRIT on nodes with self-loops (×2 base, stacks with crit_chance stat)."
 icon = ExtResource("1_uku7o")
 min_degree = 3
 mana_cost = 5
 base_damage = 4.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_self_loop")])
 vfx_coordinator_scene = ExtResource("12_ww832")
 targeting = SubResource("targeting")

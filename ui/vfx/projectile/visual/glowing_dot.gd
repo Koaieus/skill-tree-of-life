@@ -8,7 +8,7 @@ extends Node2D
 ## the whole thing popping out the instant of impact.
 ##
 ## Implements the visual contract:
-##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`
+##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`, `_on_crit(tier)`
 ##   outbound — [signal finished] (fired once the last trail segment expires)
 
 signal finished
@@ -22,12 +22,22 @@ signal finished
 @export var head_color: Color = Color(1.0, 0.85, 0.3, 0.95)
 @export var head_glow_color: Color = Color(1.0, 0.85, 0.3, 0.18)
 
-# Vector3 per segment: (pos.x, pos.y, born_at_seconds). Packed array keeps
-# the per-frame churn allocation-free.
 var _segments: PackedVector3Array = []
 var _emitting: bool = false
 var _arrived: bool = false
 var _done_emitted: bool = false
+var _crit_scale: float = 1.0
+var _crit_color: Color = Color.WHITE
+
+
+func _on_crit(tier: int) -> void:
+	var t: float = clampf(tier, 1, 2)
+	_crit_scale = lerpf(1.0, 1.8, t / 2.0)
+	_crit_color = Color.ORANGE_RED.lerp(Color.RED, (t - 1.0))
+	head_radius *= _crit_scale
+	head_glow_radius *= _crit_scale
+	head_color = _crit_color
+	head_glow_color = Color(_crit_color.r, _crit_color.g, _crit_color.b, head_glow_color.a)
 
 
 func _ready() -> void:
