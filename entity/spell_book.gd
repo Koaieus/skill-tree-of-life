@@ -11,8 +11,70 @@ extends Resource
 ## spellbook…) and assigned to [member Entity.spellbook]; runtime sandboxes
 ## that don't bother with a .tres can build one with [code]SpellBook.new()[/code]
 ## + push spells into [member spells].
+##
+## [b]Dynamic spellbook.[/b] Spells can be granted and revoked at runtime via
+## [SpellGrant] effects on allocated nodes. Each spell tracks its sources; a
+## spell is only removed from [member spells] when the last source drops. The
+## [signal changed] signal (inherited from [Resource]) is emitted on every
+## membership change so UI can react.
+
+## Emitted whenever [member spells] changes — a spell is added or removed.
+## Distinct from the inherited [signal Resource.changed] only so consumers give
+## it a descriptive name.
+signal membership_changed()
 
 @export var spells: Array[SpellDef] = []
+
+var _sources: Dictionary = {}
+
+
+## Add [param spell] from [param source]. When [param source] is a node, the
+## same source re-granting the same spell is a no-op — refcount stays at 1.
+## A null [param source] means "innate / permanent" — the spell enters
+## [member spells] immediately with no ref-counting and is never removed by
+## [method remove_spell] (the caller — the core class — handles its own
+## revocation at death).
+func add_spell(spell: SpellDef, source: Variant) -> void:
+	if spell == null:
+		return
+	if source == null:
+		if spell in spells:
+			return
+		spells.append(spell)
+		_notify_changed()
+		return
+	if not _sources.has(spell):
+		_sources[spell] = []
+		spells.append(spell)
+	var source_list: Array = _sources[spell]
+	if source in source_list:
+		return
+	source_list.append(source)
+	_notify_changed()
+
+
+## Remove [param spell] from [param source]. When the last source is gone the
+## spell leaves [member spells]. A null [param source] is a no-op (permanent
+## spells are revoked when the granting core class is dismantled, not here).
+## A source that never granted the spell is a safe no-op.
+func remove_spell(spell: SpellDef, source: Variant) -> void:
+	if spell == null or source == null:
+		return
+	if not _sources.has(spell):
+		return
+	var source_list: Array = _sources[spell]
+	source_list.erase(source)
+	if source_list.is_empty():
+		_sources.erase(spell)
+		spells.erase(spell)
+	_notify_changed()
+
+
+## Number of active grants for [param spell]. Mainly for tests.
+func source_count(spell: SpellDef) -> int:
+	if not _sources.has(spell):
+		return 0
+	return _sources[spell].size()
 
 
 ## Spells whose source-side constraints are satisfied at [param source] for
@@ -57,4 +119,9 @@ func learn(spell: SpellDef) -> void:
 	if spell == null or spell in spells:
 		return
 	spells.append(spell)
+	_notify_changed()
+
+
+func _notify_changed() -> void:
 	emit_changed()
+	membership_changed.emit()

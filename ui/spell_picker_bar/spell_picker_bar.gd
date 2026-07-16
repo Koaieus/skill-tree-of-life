@@ -33,7 +33,15 @@ func _ready() -> void:
 
 ## Bind to the player's spellbook. Replaces any previous binding.
 func bind_spellbook(book: SpellBook) -> void:
+	if _book != null and _book.membership_changed.is_connected(_on_spellbook_changed):
+		_book.membership_changed.disconnect(_on_spellbook_changed)
 	_book = book
+	if _book != null:
+		_book.membership_changed.connect(_on_spellbook_changed)
+	_rebuild()
+
+
+func _on_spellbook_changed() -> void:
 	_rebuild()
 
 
