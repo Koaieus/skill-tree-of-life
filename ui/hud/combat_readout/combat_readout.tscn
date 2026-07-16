@@ -18,18 +18,12 @@ layout_mode = 2
 
 [node name="RangedCard" parent="." unique_id=1595133741 instance=ExtResource("3_ranged")]
 unique_name_in_owner = true
-modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
-mode_color = Color(0.9, 0.75, 0.4, 1)
 
 [node name="MagicCard" parent="." unique_id=64631164 instance=ExtResource("4_magic")]
 unique_name_in_owner = true
-modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
-mode_color = Color(0.9, 0.75, 0.4, 1)
 
 [node name="DefenseCard" parent="." unique_id=1210075918 instance=ExtResource("5_defense")]
 unique_name_in_owner = true
-modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
-mode_color = Color(0.9, 0.75, 0.4, 1)

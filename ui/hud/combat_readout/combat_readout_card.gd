@@ -14,7 +14,7 @@ extends MarginContainer
 ## the shell's VBoxContainer. GlassPanel is a sibling of Padded at the same
 ## 0-margin level so it fills the exact same rect as the card, behind it.
 
-const DIM_OPACITY := 0.55
+const DIM_OPACITY := 0.72
 const FLASH_TIME := 0.35
 
 @export var mode_color: Color = Color(0.9, 0.75, 0.4, 1.0)
@@ -76,8 +76,9 @@ func set_active(active: bool) -> void:
 func _apply_active(active: bool) -> void:
 	if _panel != null:
 		_panel.border_color = mode_color if active else Color(0.47, 0.55, 0.75, 0.16)
-		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, 0.5 if active else 0.0)
-		_panel.glow_strength = 18.0 if active else 0.0
+		_panel.border_width = 1.8 if active else 1.0
+		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, 0.7 if active else 0.0)
+		_panel.glow_strength = 4.0 if active else 0.0
 	modulate.a = 1.0 if active else DIM_OPACITY
 
 

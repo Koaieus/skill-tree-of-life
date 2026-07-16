@@ -7,6 +7,7 @@
 
 [node name="CombatCardMelee" type="MarginContainer" unique_id=316532540]
 modulate = Color(1, 1, 1, 0.55)
+mode_color = Color(0.9451, 0.2689, 0.2453, 1)
 script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." unique_id=2110722895 instance=ExtResource("2_glass")]
