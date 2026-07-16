@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+#MISE description="Manage the kanban board: `mise gh-project -- add|status|priority|size <issue> [value]`"
 set -euo pipefail
 
 PROJECT=${GH_PROJECT_NUMBER:-1}
@@ -67,8 +68,9 @@ cmd_priority() {
   id=$(ensure_item "$issue") || exit 1
 
   if [ -z "$priority" ]; then
+    # gh emits custom single-select fields lowercased (`priority`, not `Priority`).
     gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
-      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .Priority // "—"'
+      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .priority // .Priority // "—"'
     return
   fi
 
@@ -89,7 +91,7 @@ cmd_size() {
 
   if [ -z "$size" ]; then
     gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
-      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .Size // "—"'
+      | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .size // .Size // "—"'
     return
   fi
 
@@ -105,27 +107,101 @@ cmd_size() {
   echo "✓ issue #$issue size → $size"
 }
 
+# Map a CLI status token to the board's display label. Empty = no filter.
+status_label() {
+  case "$1" in
+    backlog)        echo "Backlog" ;;
+    ready)          echo "Ready" ;;
+    in-progress|ip) echo "In progress" ;;
+    in-review|ir)   echo "In review" ;;
+    done)           echo "Done" ;;
+    all)            echo "" ;;
+    *) return 1 ;;
+  esac
+}
+
+# List board items in a column, so an agent can pick work up off it.
+# Defaults to `ready` — the column agents claim from.
+cmd_list() {
+  local want="ready" as_json=false arg
+  for arg in "$@"; do
+    case "$arg" in
+      --json) as_json=true ;;
+      "") ;;
+      *) want="$arg" ;;
+    esac
+  done
+
+  local label
+  if ! label=$(status_label "$want"); then
+    echo "✗ unknown status: $want (backlog|ready|in-progress|in-review|done|all)"
+    exit 1
+  fi
+
+  local items
+  items=$(gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+    | jq --arg label "$label" '
+        [ .items[]
+          | select(.content.type == "Issue")
+          | select($label == "" or (.status // "") == $label)
+          | { number: .content.number,
+              title:  .title,
+              status: (.status // "—"),
+              priority: (.priority // .Priority // "—"),
+              size:   (.size // .Size // "—"),
+              labels: (.labels // []),
+              url:    .content.url } ]
+        | sort_by(.priority, .number)')
+
+  if [ "$as_json" = true ]; then
+    printf '%s\n' "$items"
+    return
+  fi
+
+  local count
+  count=$(printf '%s' "$items" | jq 'length')
+  if [ "$count" -eq 0 ]; then
+    echo "— no issues in ${label:-any column}"
+    return
+  fi
+
+  printf '%s\n' "$items" | jq -r '.[]
+    | "#\(.number)\t[\(.priority)/\(.size)]\t\(.status)\t\(.title)"' \
+    | column -t -s $'\t'
+  echo ""
+  echo "$count issue(s) in ${label:-all columns}"
+}
+
 usage() {
   cat <<EOF
 Usage: mise gh-project -- <cmd> [args...]
 
 Commands:
+  list [<status>] [--json]     List issues in a column (default: ready).
+                               status: backlog|ready|in-progress|in-review|done|all
   add <n>                      Add issue to project (idempotent)
   status <n> [<status>]        Read or set status (backlog|ready|in-progress|in-review|done)
   priority <n> [<p0|p1|p2>]    Read or set priority
   size <n> [<xs|s|m|l|xl>]    Read or set size
 
 Examples:
+  mise gh-project -- list                 # what's ready to pick up
+  mise gh-project -- list in-review
   mise gh-project -- add 173
-  mise gh-project -- status 173
   mise gh-project -- status 173 in-progress
   mise gh-project -- priority 173 p1
+
+Agents — machine-readable listing:
+  mise run --quiet gh-project -- list ready --json | jq -r '.[].number'
+  (mise's task banner goes to STDERR; don't merge it with 2>&1 or you'll
+   corrupt the JSON on stdout.)
 EOF
   exit 0
 }
 
 CMD=${1:-}
 case "$CMD" in
+  list)     shift; cmd_list "$@" ;;
   add)      cmd_add "${2:-}" ;;
   status)   cmd_status "${2:-}" "${3:-}" ;;
   priority) cmd_priority "${2:-}" "${3:-}" ;;

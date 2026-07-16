@@ -14,7 +14,16 @@ godot --path . scenes/dev_sandbox.tscn    # hand-authored sandbox (player + smal
 godot --path . scenes/procgen_play_sandbox.tscn   # procgen level + player + AI starters
 ```
 
-No build step, test runner, or lint tool. Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
+No build step or lint tool. Tests are GUT, driven through mise:
+
+```
+mise run test                                  # full suite, headless (reads .gutconfig.json)
+mise run test:one -- res://test/unit/test_smoke.gd   # a single script
+mise run test:dir -- res://test/unit/          # a directory
+mise run check                                 # headless compile-check of every script
+```
+
+Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 
 ## Architecture
 
@@ -37,8 +46,9 @@ Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call 
 
 | Singleton | Purpose |
 |---|---|
+| `Boot` | Release-build entry point — on `OS.has_feature("release")` swaps to `first_level_sandbox`. No-op in the editor. |
 | `SceneTransition` | Fade in/out + loading progress bar |
-| `SceneLoader` | Async scene loading |
+| `SceneLoader` | Async scene loading. **Currently has no callers** — scaffolding, see #212 |
 | `Events` | Global signal bus (`skill_node_depleted`, etc.) |
 | `StatRegistry` | StatDef lookup by id |
 | `DebugClipboard` | Press `c` while hovering a SkillNode to copy its full state (archetype, owner, hp, modifiers, addons) to the system clipboard |
@@ -49,7 +59,7 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 ## Issue tracking
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, plus defaults. Project board (kanban): `mise gh-project -- add|status|priority|size`. See `.mise/tasks/gh-project`.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, plus defaults. Project board (kanban): `mise gh-project -- list|add|status|priority|size`. `list [ready|in-progress|in-review|backlog|done|all]` shows a column — that's how an agent finds work to pick up; add `--json` (with `mise run --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
 
 ## Godot conventions
 

@@ -119,7 +119,7 @@ PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || ec
 MAPPING="$PROJECT_ROOT/assets/icons/spells/mapping.txt"
 DEST="$PROJECT_ROOT/assets/icons/spells"
 REPO_URL="https://github.com/game-icons/icons"
-REPO_DIR="/tmp/opencode/game-icons"
+REPO_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/skill-tree-of-life/game-icons"
 FG_COLOR="${GAME_ICONS_FG:-#8CD9FF}"
 ICON_SIZE="${GAME_ICONS_SIZE:-256}"
 
