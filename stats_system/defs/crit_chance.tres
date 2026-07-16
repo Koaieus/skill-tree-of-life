@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"crit_chance"
+display_name = "Crit Chance"
+description = "Probability (0..1) that a successful hit becomes a critical strike, multiplying damage by crit_multiplier. Baseline 5%."
+value_type = 1
+default_value = 0.05
+tint_color = Color(0.3, 0.8, 0.25, 1)

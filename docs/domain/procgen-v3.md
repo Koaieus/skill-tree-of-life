@@ -63,7 +63,7 @@ Convention: one .tres per archetype in `procgen/pools/`.
 | File | archetype_stat | Notable contents |
 |---|---|---|
 | `strength.tres` | `&"strength"` | strength add_base/increase/multiply |
-| `dexterity.tres` | `&"dexterity"` | dexterity add_base/increase/multiply |
+| `dexterity.tres` | `&"dexterity"` | dexterity add_base/increase/multiply, crit_chance + crit_multiplier INCREASE pools (3 tiers each). Rationale: DEX is precision/finesse — crit chance reads as "precision strike" and multiplier as "finding the gap." Both are INCREASE (percent-scaled) targets; low weight (2/4/6), premium cost (3/9/27) keeps crit growth restrained. |
 | `intelligence.tres` | `&"intelligence"` | intelligence + mana + mana_per_turn pools, INCREASE includes negative tiers |
 | `wisdom.tres` | `&"wisdom"` | wisdom + xp_per_turn (flat-primary, INCREASE secondary). `off_phase_op_weights = {ADD_BASE:0.2, INCREASE:0.05, MULTIPLY:0.0, ADD_BONUS:0.05}` |
 | `perception.tres` | `&"perception"` | perception + vision_range INCREASE/ADD_BONUS + sensor_range. Same suppression as wisdom |

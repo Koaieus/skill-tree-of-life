@@ -103,8 +103,70 @@ archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"multiply"])
 tiers = Array[ExtResource("3_td")]([SubResource("mul_t1"), SubResource("mul_t2")])
 
+[sub_resource type="Resource" id="cc_inc_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(10, 25)
+cost = 3
+weight = 2.0
+extra_tags = Array[StringName]([&"tier_1", &"crit"])
+
+[sub_resource type="Resource" id="cc_inc_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(35, 60)
+cost = 9
+weight = 4.0
+extra_tags = Array[StringName]([&"tier_2", &"crit"])
+
+[sub_resource type="Resource" id="cc_inc_t3"]
+script = ExtResource("3_td")
+tier = 3
+value_range = Vector2(75, 100)
+cost = 27
+weight = 6.0
+extra_tags = Array[StringName]([&"tier_3", &"crit"])
+
+[sub_resource type="Resource" id="cc_inc"]
+script = ExtResource("2_tp")
+stat_id = &"crit_chance"
+operation = 1
+archetype_stat = &"dexterity"
+tags = Array[StringName]([&"dex", &"percent", &"crit"])
+tiers = Array[ExtResource("3_td")]([SubResource("cc_inc_t1"), SubResource("cc_inc_t2"), SubResource("cc_inc_t3")])
+
+[sub_resource type="Resource" id="cm_inc_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(10, 25)
+cost = 3
+weight = 2.0
+extra_tags = Array[StringName]([&"tier_1", &"crit"])
+
+[sub_resource type="Resource" id="cm_inc_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(35, 60)
+cost = 9
+weight = 4.0
+extra_tags = Array[StringName]([&"tier_2", &"crit"])
+
+[sub_resource type="Resource" id="cm_inc_t3"]
+script = ExtResource("3_td")
+tier = 3
+value_range = Vector2(75, 100)
+cost = 27
+weight = 6.0
+extra_tags = Array[StringName]([&"tier_3", &"crit"])
+
+[sub_resource type="Resource" id="cm_inc"]
+script = ExtResource("2_tp")
+stat_id = &"crit_multiplier"
+operation = 1
+archetype_stat = &"dexterity"
+tags = Array[StringName]([&"dex", &"percent", &"crit"])
+tiers = Array[ExtResource("3_td")]([SubResource("cm_inc_t1"), SubResource("cm_inc_t2"), SubResource("cm_inc_t3")])
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex"])
-pools = Array[ExtResource("2_tp")]([SubResource("ab"), SubResource("inc"), SubResource("mul")])
+pools = Array[ExtResource("2_tp")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc")])

@@ -88,6 +88,10 @@ extends Resource
 @export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.
 @export var blade_damage: ScalarStat	## Damage per node contact. Base 1, +1 per 10 STR. Node-local addons (e.g. SpikeRing) add on top per-node via node_board.
 
+@export_group("Crit")
+@export var crit_chance: ScalarStat		## Probability (0..1) a hit crits. Baseline 5%.
+@export var crit_multiplier: ScalarStat	## Damage multiplier on crit. Baseline 2.0 (double damage).
+
 ## Scaling rules intrinsic to this board — formula-driven StatModifiers that
 ## describe how stats on this board relate to each other (e.g. PER scales
 ## vision_range). Applied once by Entity._ready() via apply_intrinsics(). These

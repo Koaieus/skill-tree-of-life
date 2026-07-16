@@ -11,6 +11,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="def_blade_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
+[ext_resource type="Resource" path="res://stats_system/defs/crit_chance.tres" id="def_crit_chance"]
+[ext_resource type="Resource" path="res://stats_system/defs/crit_multiplier.tres" id="def_crit_multiplier"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
 [ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="def_dealloc_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="def_dexterity"]
@@ -67,6 +69,18 @@ resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_crit_chance"]
+resource_name = "crit_chance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_crit_chance")
+base_value = 0.05
+
+[sub_resource type="Resource" id="scalar_crit_multiplier"]
+resource_name = "crit_multiplier"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_crit_multiplier")
+base_value = 2.0
 
 [sub_resource type="Resource" id="scalar_dealloc_damage"]
 resource_name = "dealloc_damage"
@@ -336,4 +350,6 @@ mana_per_turn = SubResource("scalar_mana_per_turn")
 spell_range = SubResource("scalar_spell_range")
 blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
+crit_chance = SubResource("scalar_crit_chance")
+crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
