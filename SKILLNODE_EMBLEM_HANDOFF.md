@@ -35,7 +35,10 @@ Children of epic **#237**:
 4. `InnerDisk` consumes the resolved CARVE; retire `show_weld`/`show_diamond`
    bools + local `ARCH_SIDES` dup (read `ArchetypeShape.SIDES`). **Contract-tested
    — mind `test_node_visuals_contract.gd`.**
-5. **#128 — Register-3 + core-presence travel.** Group `CoreSigilBloom` + the
+5. **#128 — Register-3 + core-presence travel.** DONE so far: the `core_active`
+   gate — `composite.gd` hides CoreHalos unless SkillNode's `is_core` is true
+   (the gimbal pass had dropped this, halo-ing every node + tanking fps; gimbal
+   perf itself tracked in **#239**). REMAINING: group `CoreSigilBloom` + the
    existing `CoreHalos` into one **`CorePresence`** node **nested under
    `NodeVisualsComposite/ShaderStack`** (where `CoreHalos` already is), gated on
    `is_core`; move it by tweening its local `position` — retarget the `CoreMarker`
