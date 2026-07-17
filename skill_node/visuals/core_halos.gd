@@ -44,8 +44,9 @@ var _halo_color: Color:
 		gimbal_ring_count = value
 		_redraw_all()
 
-## GIMBAL only: each ring's band half-width as a fraction of its own radius —
-## controls how much it reads as a flat strip/band vs. a thin wire.
+## GIMBAL only: each ring's hoop wall half-width (along its own spin axis) as
+## a fraction of its own radius — controls how much it reads as a tube/band
+## vs. a thin wire.
 @export_range(0.02, 0.3, 0.01) var gimbal_band_width: float = 0.12:
 	set(value):
 		gimbal_band_width = value
@@ -65,6 +66,8 @@ const GIMBAL_SEGMENTS := 48
 const GIMBAL_AXES: Array[Vector3] = [Vector3.RIGHT, Vector3.UP, Vector3.RIGHT, Vector3.UP, Vector3.RIGHT]
 const GIMBAL_RATE_BASE := 0.35
 const GIMBAL_GLOW_WIDTH := 3.0
+## Per-ring radius stagger (inner/mid/outer), same shape as RINGS' 0.18 step.
+const GIMBAL_RADIUS_STEP := 0.22
 
 
 ## Shared clock, scaled at read time so a spin_speed tweak never jumps the phase.
@@ -128,11 +131,12 @@ func _draw_orbit(base_r: float, halo_color: Color) -> void:
 		draw_circle(polar_point(base_r, theta), 2.5, dot_color)
 
 
-## Real gyroscope, not a faked tilt: each ring is a flat annulus (band) in
-## its own local plane; ring i's orientation is ring (i-1)'s orientation
-## composed with ring i's own local spin (a quaternion chain), so the outer
-## ring spins independently and every inner ring's pivot is mounted on the
-## one outside it — the literal mechanism of a gimbal, not a phase offset.
+## Real gyroscope, not a faked tilt: each ring is a hoop (uncapped cylinder
+## slice) at its own staggered radius; ring i's orientation is ring (i-1)'s
+## orientation composed with ring i's own local spin (a quaternion chain), so
+## the outer ring spins independently and every inner ring's pivot is
+## mounted on the one outside it — the literal mechanism of a gimbal, not a
+## phase offset.
 ## See _gimbal_runs()/_draw_run_on() for the shared geometry this and
 ## core_halos_back.gd (the "passes behind the disk" layer) both draw from.
 func _draw_gimbal(base_r: float, halo_color: Color) -> void:
@@ -161,16 +165,23 @@ func _draw_dashed_circle(r: float, offset: float, dash_count: int, color: Color)
 ## the back layer (core_halos_back.gd) can call it and always agree, instead
 ## of one recomputing and the other reading stale/duplicated math. Returns
 ## {"front": [run, ...], "back": [run, ...]}, each run a Dictionary of
-## parallel point/color arrays for the ring's inner and outer band edges,
-## split into contiguous runs wherever the ring's rotated Z crosses 0 (the
-## SkillNode's own disk sits at the screen plane, so Z>0 is in front of it,
-## Z<0 is behind).
+## parallel point/color arrays for the ring's two rim edges, split into
+## contiguous runs wherever the ring's rotated Z crosses 0 (the SkillNode's
+## own disk sits at the screen plane, so Z>0 is in front of it, Z<0 is
+## behind).
+##
+## Each ring is a HOOP (an uncapped cylinder slice), not a flat washer: the
+## band's thickness runs along the ring's OWN spin axis (local Z, offset
+## before rotation), not radially in-plane. A radial offset would make every
+## ring a flat annulus that reads as a disc with a hole — foreshortening
+## into a thin ellipse ring when tilted, never a band with real surface
+## facing outward. An axial offset is what makes it a genuine tube wall: at
+## rest (face-on) the two rims nearly coincide (a tube seen end-on is just a
+## ring), and as the ring tilts you see its actual wall width, the same way
+## a real bracelet or a Halo ringworld segment reads.
 func _gimbal_runs(base_r: float, halo_color: Color) -> Dictionary:
 	var front: Array = []
 	var back: Array = []
-	var half_w := base_r * gimbal_band_width
-	var r_in := base_r - half_w
-	var r_out := base_r + half_w
 	var chain := Quaternion.IDENTITY
 	for i in gimbal_ring_count:
 		var axis: Vector3 = GIMBAL_AXES[i % GIMBAL_AXES.size()]
@@ -181,26 +192,32 @@ func _gimbal_runs(base_r: float, halo_color: Color) -> Dictionary:
 		var base_tilt := PI * float(i) / float(gimbal_ring_count)
 		var rate := GIMBAL_RATE_BASE * (1.0 + i * 0.4)
 		chain = chain * Quaternion(axis, base_tilt + _spin() * rate)
-		var pts_in := PackedVector3Array()
-		var pts_out := PackedVector3Array()
-		pts_in.resize(GIMBAL_SEGMENTS)
-		pts_out.resize(GIMBAL_SEGMENTS)
+		# Staggered radii (inner/mid/outer), not concentric-but-coincident
+		# rings — each successive ring sits further out, same as RINGS.
+		var ring_r := base_r * (1.0 + i * GIMBAL_RADIUS_STEP)
+		var half_w := ring_r * gimbal_band_width
+		var pts_a := PackedVector3Array()  # rim at local Z = -half_w
+		var pts_b := PackedVector3Array()  # rim at local Z = +half_w
+		pts_a.resize(GIMBAL_SEGMENTS)
+		pts_b.resize(GIMBAL_SEGMENTS)
 		for s in GIMBAL_SEGMENTS:
 			var t := TAU * float(s) / float(GIMBAL_SEGMENTS)
-			var local_dir := Vector3(cos(t), sin(t), 0.0)
-			pts_in[s] = chain * (local_dir * r_in)
-			pts_out[s] = chain * (local_dir * r_out)
-		_split_ring_runs(pts_in, pts_out, halo_color, front, back)
+			var rim := Vector2.from_angle(t) * ring_r
+			pts_a[s] = chain * Vector3(rim.x, rim.y, -half_w)
+			pts_b[s] = chain * Vector3(rim.x, rim.y, half_w)
+		_split_ring_runs(pts_a, pts_b, halo_color, front, back)
 	return {"front": front, "back": back}
 
 
 ## Walks a ring's sampled points and groups consecutive segments (quads
-## between point s and s+1 on the inner/outer edge) by which side of the
-## disk plane their average Z falls on. A planar ring generically crosses
-## Z=0 at exactly two points per revolution, so this is normally one front
-## run + one back run; a near-face-on ring may produce only one (or, at this
+## between point s and s+1 on the hoop's two rims) by which side of the disk
+## plane their average Z falls on. A planar ring generically crosses Z=0 at
+## exactly two points per revolution, so this is normally one front run +
+## one back run; a near-face-on ring may produce only one (or, at this
 ## segment resolution, an extra sliver run right at the crossing — harmless,
-## just one more draw call).
+## just one more draw call). `pts_in`/`pts_out` name which of the hoop's two
+## rims each array is (arbitrary since the hoop is symmetric) — not an
+## inner/outer radius, that's `_gimbal_runs`' `half_w` offset now.
 func _split_ring_runs(pts_in: PackedVector3Array, pts_out: PackedVector3Array, halo_color: Color, front: Array, back: Array) -> void:
 	var n := pts_in.size()
 	var run_indices: Array = []
@@ -252,19 +269,28 @@ func _depth_color(base: Color, z: float) -> Color:
 ## accepts draw_* commands for a CanvasItem while that item is the one
 ## currently drawing). Fakes the glow via a stacked translucent stroke, same
 ## CPU technique as rim_bonuses.gd's _draw_glow_arc / rune_ring.gd's edge_glow.
+##
+## Fills per-SEGMENT quad (draw_primitive, 4 points), not one draw_polygon
+## over the whole run: the hoop's two rims are offset along the ring's OWN
+## spin axis, not radially, so a heavily tilted ring's projected band can
+## fold over itself in 2D — a single ear-clipped polygon over that
+## silhouette can fail Godot's triangulator ("Invalid polygon data").
+## draw_primitive takes explicit quads, so there's no triangulation to fail;
+## each quad between two adjacent samples stays well-formed regardless of
+## what the overall run's silhouette looks like.
 func _draw_run_on(target: CanvasItem, run: Dictionary, halo_color: Color) -> void:
 	var in_pts: PackedVector2Array = run["in_pts"]
 	var in_colors: PackedColorArray = run["in_colors"]
 	var out_pts: PackedVector2Array = run["out_pts"]
 	var out_colors: PackedColorArray = run["out_colors"]
-	if in_pts.size() < 2:
+	var count := in_pts.size()
+	if count < 2:
 		return
-	var fill_pts := PackedVector2Array(in_pts)
-	var fill_colors := PackedColorArray(in_colors)
-	for i in range(out_pts.size() - 1, -1, -1):
-		fill_pts.append(out_pts[i])
-		fill_colors.append(out_colors[i])
-	target.draw_polygon(fill_pts, fill_colors)
+	var empty_uvs := PackedVector2Array()
+	for i in count - 1:
+		var quad_pts := PackedVector2Array([in_pts[i], out_pts[i], out_pts[i + 1], in_pts[i + 1]])
+		var quad_colors := PackedColorArray([in_colors[i], out_colors[i], out_colors[i + 1], in_colors[i + 1]])
+		target.draw_primitive(quad_pts, quad_colors, empty_uvs)
 
 	var glow_colors := PackedColorArray()
 	for c in out_colors:

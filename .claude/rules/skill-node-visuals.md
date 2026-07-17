@@ -102,15 +102,43 @@ own: without it every ring starts coincident (all spins are 0 at
 persistent orthogonal "cage" read needs a standing per-ring offset, not just
 differing speeds.
 
-**Each ring is a flat annulus (inner + outer radius) in its own local plane,
-not a 1D loop** — sampled as two concentric circles, both rotated by the same
-`chain[i]`, then orthographically projected (drop Z). Because both edges
-undergo the *identical* linear map, they always project to two concentric,
-same-orientation ellipses — a true elliptical annulus that can't visually
-decouple into two independent ellipses. This is what gives the "flat strip
-bent and connected end to end" ring-band read instead of a thin wireframe
-outline, and it's still not "faking a tilted ellipse": an ellipse is the
-correct emergent shape of an actual flat 3D ring under rotation + projection.
+**Each ring is a HOOP (an uncapped cylinder slice) at its own staggered
+radius, not a flat washer and not a 1D loop.** Two mistakes were tried and
+corrected here, both worth knowing before touching this again:
+
+- *Same radius for every ring* reads as one gyroscope cage where every ring
+  is the same size, not "inner/mid/outer" — `_gimbal_runs()` staggers radius
+  per ring (`ring_r = base_r * (1 + i * GIMBAL_RADIUS_STEP)`), same shape as
+  RINGS' own radius step.
+- *Radial band offset* (two concentric circles at `r ± half_w`, both in the
+  ring's own Z=0 local plane) makes every ring a flat annulus — a disc with a
+  hole, which foreshortens into a thin ellipse-shaped OUTLINE when tilted,
+  never a band with real surface facing outward. The fix is an **axial**
+  offset: the two rim loops are offset along the ring's OWN spin axis
+  (`Vector3(cos t, sin t, 0) * r` shifted by `±half_w` in local Z, *before*
+  rotation), so the band is a genuine tube wall. Face-on, the two rims nearly
+  coincide (a tube seen end-on is just a ring); tilted, you see the actual
+  wall width — the same way a real bracelet or a Halo ringworld segment
+  reads. This is the literal "flat strip bent and connected end to end" /
+  "uncapped cylinder slice" read that was asked for; a flat annulus is not
+  the same shape as a hoop, even though both are legitimate (non-"faked")
+  projections of *something* real in 3D — the point is which 3D shape.
+
+Both rim loops are rotated by the same `chain[i]` and orthographically
+projected (drop Z) — because they undergo the *identical* linear map, they
+can't decouple into two disagreeing curves.
+
+**Fill each segment as its own quad (`draw_primitive`), never the whole run
+as one `draw_polygon`.** Because the band offset is axial rather than
+radial, a heavily tilted ring's projected band can fold over itself in 2D —
+Godot's ear-clipping triangulator can throw "Invalid polygon data,
+triangulation failed" on that silhouette (hit empirically once the hoop
+offset landed; the earlier radial-offset annulus never had this problem,
+since a purely radial offset can't fold). `draw_primitive` takes an explicit
+quad (4 points, no triangulation step), so each small quad between two
+adjacent samples stays well-formed regardless of what the overall run's
+silhouette looks like — the fix is per-segment primitives, not "reduce the
+segment count and hope."
 
 **The ring must pass over AND under the SkillNode's own disk — this needs a
 second CanvasItem, not draw order.** A point on the ring is in front of the
