@@ -10,6 +10,8 @@ extends Control
 signal axis_hovered(index: int)
 signal axis_unhovered
 
+# TODO: 3 arrays of equal size? in *MY* OBJECT ORIENTED PROGRAMMING LANGUAGE? refactor dat shit
+
 @export var axis_labels: Array[String] = ["STR", "DEX", "INT", "WIS", "PER"]:
 	set(v):
 		axis_labels = v
@@ -40,7 +42,7 @@ signal axis_unhovered
 		fill_color = v
 		queue_redraw()
 
-@export var ring_count: int = 3:
+@export var ring_count: int = 4:
 	set(v):
 		ring_count = max(1, v)
 		queue_redraw()
