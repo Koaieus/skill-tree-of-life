@@ -10,12 +10,20 @@ extends ColorRect
 		glow = v
 		_push(&"glow", v)
 
+## Which borders the glow lights. Bit flags (Top=1, Right=2, Bottom=4,
+## Left=8); default 15 = all four, matching the original uniform rim.
+@export_flags("Top", "Right", "Bottom", "Left") var glow_edges: int = 15:
+	set(v):
+		glow_edges = v
+		_push(&"glow_edges", v)
+
 func _ready() -> void:
 	if material == null:
 		material = preload("res://ui/theme/holo_panel_material.tres").duplicate()
 	resized.connect(_push_size)
 	_push_size()
 	_push(&"glow", glow)
+	_push(&"glow_edges", glow_edges)
 
 func _push_size() -> void:
 	_push(&"size", size)
