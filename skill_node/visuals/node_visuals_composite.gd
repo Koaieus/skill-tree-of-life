@@ -97,6 +97,7 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 @onready var _rim_ring := %RimRing
 @onready var _rim_bonuses := %RimBonuses
 @onready var _rune_ring := %RuneRing
+@onready var _core_halos := %CoreHalos
 
 @onready var _children: Array[SkillNodeVisual] = [
 	%InnerDisk, %RimRing, %RimBonuses, %CoreHalos, %RuneRing, %SensedOutline,
@@ -111,6 +112,17 @@ var sensed: bool = false:
 	set(value):
 		sensed = value
 		_apply_sensed()
+
+## Whether this node currently hosts its owner's core. Gates the core-only
+## presence visuals — CoreHalos today (CoreSigilBloom next, #128) — so they draw
+## on the ONE core node, not every node (the gimbal pass dropped this gate, which
+## put a halo on all nodes and tanked fps: each gimbal is hundreds of draw calls).
+## Fed by SkillNode. Nested under ShaderStack, so `sensed` still hides it for free.
+var core_active: bool = false:
+	set(value):
+		core_active = value
+		if is_node_ready():
+			_apply_core_active()
 
 ## The ONE shared light handed to every lit child (InnerDisk — whose weld glyph
 ## is folded into its own shader, so it rides the same uniforms, not a second
@@ -129,6 +141,13 @@ func _ready() -> void:
 	_sync_shared()
 	_sync_stake()
 	_apply_sensed()
+	_apply_core_active()
+
+
+## Gate the core-only presence visuals on `core_active`. Nested inside ShaderStack,
+## so `sensed` (which hides the whole stack) still wins — a fogged core shows no halo.
+func _apply_core_active() -> void:
+	_core_halos.visible = core_active
 
 
 ## Swaps between the full shader stack and the archetype-only outline. Resolves

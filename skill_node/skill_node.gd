@@ -210,6 +210,10 @@ func _refresh_core_marker() -> void:
 			_bound_owner.core_location_changed.connect(_refresh_core_marker)
 	var is_core := owned_by != null and owned_by.core_location == self
 	core_marker.visible = (not sensed) and is_core
+	# Gate the composite's core-only presence visuals (CoreHalos, #128) to the
+	# one core node — otherwise every node draws a gimbal (fps sink).
+	if _node_visuals != null:
+		_node_visuals.core_active = is_core
 	_refresh_core_health_bar(is_core)
 
 

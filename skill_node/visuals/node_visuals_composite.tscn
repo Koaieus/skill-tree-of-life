@@ -29,6 +29,7 @@ unique_name_in_owner = true
 
 [node name="CoreHalos" parent="ShaderStack" unique_id=141306435 instance=ExtResource("6_halos")]
 unique_name_in_owner = true
+visible = false
 halo_style = 3
 halo_scale = 1.8
 gimbal_ring_count = 3
