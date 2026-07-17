@@ -205,7 +205,9 @@ They were flagged as "way more than we can fake in 2D without building some
 WILD machinery" (a 2D `_draw()` has no UVs; a per-instance glyph would force
 baked per-instance textures). The real-3D gimbal (`skill_node/visuals/gimbal_3d/`,
 see next section) gets them for free — a `TorusMesh` has real UVs, so the
-`SOLID_GLYPH` style scrolls an emissive rune strip on the tube's inward v-band.
+`SOLID_GLYPH` style scrolls an emissive rune strip along a v-band of the tube
+(currently the camera-facing wall, so the runes read; the inner face would be
+mostly hidden — the `inner_lo`/`inner_hi` uniforms place it).
 Don't try to reintroduce this on the 2D path.
 
 ### 3D gimbal showcase (#239): the boss-tier looks, on a real SubViewport
