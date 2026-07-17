@@ -57,7 +57,7 @@ var _halo_color: Color:
 ## rather than duplicating them, so front and back can't drift apart.
 @onready var _back_layer: Node2D = $GimbalBack
 
-const GIMBAL_SEGMENTS := 48
+const GIMBAL_SEGMENTS := 28
 ## Local spin axis per ring, expressed in its PARENT ring's frame (composed
 ## via quaternion multiplication below) — never the ring's own normal (Z),
 ## which would just be an invisible in-plane spin. Alternating RIGHT/UP is
@@ -141,8 +141,7 @@ func _draw_orbit(base_r: float, halo_color: Color) -> void:
 ## core_halos_back.gd (the "passes behind the disk" layer) both draw from.
 func _draw_gimbal(base_r: float, halo_color: Color) -> void:
 	var runs := _gimbal_runs(base_r, halo_color)
-	for run in runs["front"]:
-		_draw_run_on(self, run, halo_color)
+	_draw_batch(self, _gimbal_batch(runs["front"]))
 
 
 func _draw_cog(base_r: float, halo_color: Color) -> void:
@@ -262,23 +261,52 @@ func _depth_color(base: Color, z: float) -> Color:
 	return Color(base.r, base.g, base.b, lerpf(base.a * 0.35, base.a, t))
 
 
-## Draws one run's filled band plus a glow stroke on BOTH hoop rims, on
-## whichever CanvasItem `target` is — this only works correctly when called
-## from INSIDE `target`'s own _draw(), which is why core_halos_back.gd calls
-## this itself rather than asking CoreHalos to draw on its behalf (Godot only
-## accepts draw_* commands for a CanvasItem while that item is the one
-## currently drawing). Fakes the glow via a stacked translucent stroke, same
-## CPU technique as rim_bonuses.gd's _draw_glow_arc / rune_ring.gd's edge_glow.
+## Draws a whole layer's runs (front OR back) in ONE draw call — the #239 perf
+## fix. `target` is whichever CanvasItem is currently drawing (this node for the
+## front half, core_halos_back.gd for the back half), and this only works
+## correctly when called from INSIDE `target`'s own _draw() — which is why
+## core_halos_back.gd calls it itself rather than asking CoreHalos to draw on
+## its behalf (Godot only accepts draw_* / canvas_item_add_* for a CanvasItem
+## while that item is the one currently drawing).
 ##
-## Fills per-SEGMENT quad (draw_primitive, 4 points), not one draw_polygon
-## over the whole run: the hoop's two rims are offset along the ring's OWN
-## spin axis, not radially, so a heavily tilted ring's projected band can
-## fold over itself in 2D — a single ear-clipped polygon over that
-## silhouette can fail Godot's triangulator ("Invalid polygon data").
-## draw_primitive takes explicit quads, so there's no triangulation to fail;
-## each quad between two adjacent samples stays well-formed regardless of
-## what the overall run's silhouette looks like.
-func _draw_run_on(target: CanvasItem, run: Dictionary, halo_color: Color) -> void:
+## `canvas_item_add_triangle_array` submits the entire pre-triangulated buffer
+## (band fills + both glow strips, for every ring's runs) as a single command,
+## replacing the old ~384-call-per-gimbal loop of per-segment `draw_primitive`s
+## plus two `draw_polyline_colors` per run. See _gimbal_batch for why we can
+## fold everything into one buffer safely.
+func _draw_batch(target: CanvasItem, batch: Dictionary) -> void:
+	var points: PackedVector2Array = batch["points"]
+	if points.is_empty():
+		return
+	RenderingServer.canvas_item_add_triangle_array(
+		target.get_canvas_item(), batch["indices"], points, batch["colors"])
+
+
+## Builds one flat, pre-triangulated vertex/color/index buffer for a layer's
+## runs. We supply our OWN 2-tris-per-quad indices, so Godot's ear-clipping
+## triangulator never runs — which is what made the old per-segment
+## `draw_primitive` necessary: the hoop's two rims are offset along the ring's
+## own spin axis (not radially), so a heavily tilted ring's projected band can
+## fold over itself in 2D, and a single ear-clipped `draw_polygon` over that
+## silhouette could fail ("Invalid polygon data"). Explicit indices sidestep
+## triangulation entirely, so the fold is moot and the whole layer collapses
+## into one `canvas_item_add_triangle_array` call (see _draw_batch).
+func _gimbal_batch(runs: Array) -> Dictionary:
+	var points := PackedVector2Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	for run in runs:
+		_append_run(run, points, colors, indices)
+	return {"points": points, "colors": colors, "indices": indices}
+
+
+## Appends one run's band fill (a quad per segment between the two rims) plus a
+## glow strip along BOTH rims into the shared buffer. The glow — a faked bloom,
+## same CPU technique as rim_bonuses.gd / rune_ring.gd — is folded in as thin
+## quads rather than a separate `draw_polyline_colors`, so it costs zero extra
+## draw calls (the polylines would otherwise dominate once the fills batch, see
+## #239).
+func _append_run(run: Dictionary, points: PackedVector2Array, colors: PackedColorArray, indices: PackedInt32Array) -> void:
 	var in_pts: PackedVector2Array = run["in_pts"]
 	var in_colors: PackedColorArray = run["in_colors"]
 	var out_pts: PackedVector2Array = run["out_pts"]
@@ -286,14 +314,54 @@ func _draw_run_on(target: CanvasItem, run: Dictionary, halo_color: Color) -> voi
 	var count := in_pts.size()
 	if count < 2:
 		return
-	var empty_uvs := PackedVector2Array()
 	for i in count - 1:
-		var quad_pts := PackedVector2Array([in_pts[i], out_pts[i], out_pts[i + 1], in_pts[i + 1]])
-		var quad_colors := PackedColorArray([in_colors[i], out_colors[i], out_colors[i + 1], in_colors[i + 1]])
-		target.draw_primitive(quad_pts, quad_colors, empty_uvs)
+		_append_quad(points, colors, indices,
+			in_pts[i], out_pts[i], out_pts[i + 1], in_pts[i + 1],
+			in_colors[i], out_colors[i], out_colors[i + 1], in_colors[i + 1])
+	_append_glow_strip(points, colors, indices, in_pts, _glow_colors(in_colors))
+	_append_glow_strip(points, colors, indices, out_pts, _glow_colors(out_colors))
 
-	target.draw_polyline_colors(in_pts, _glow_colors(in_colors), GIMBAL_GLOW_WIDTH, true)
-	target.draw_polyline_colors(out_pts, _glow_colors(out_colors), GIMBAL_GLOW_WIDTH, true)
+
+## One quad = two triangles (0-1-2, 0-2-3), indices supplied so no triangulator
+## runs. Canvas items don't backface-cull, so winding order is irrelevant.
+func _append_quad(points: PackedVector2Array, colors: PackedColorArray, indices: PackedInt32Array,
+		p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2,
+		c0: Color, c1: Color, c2: Color, c3: Color) -> void:
+	var base := points.size()
+	points.push_back(p0)
+	points.push_back(p1)
+	points.push_back(p2)
+	points.push_back(p3)
+	colors.push_back(c0)
+	colors.push_back(c1)
+	colors.push_back(c2)
+	colors.push_back(c3)
+	indices.push_back(base)
+	indices.push_back(base + 1)
+	indices.push_back(base + 2)
+	indices.push_back(base)
+	indices.push_back(base + 2)
+	indices.push_back(base + 3)
+
+
+## A GIMBAL_GLOW_WIDTH-wide strip of quads tracing a rim polyline — the
+## triangle-buffer equivalent of the old `draw_polyline_colors` glow stroke.
+## Miterless (no corner join) — at this on-screen size with a translucent glow
+## the tiny gaps/overlaps at joints are invisible.
+func _append_glow_strip(points: PackedVector2Array, colors: PackedColorArray, indices: PackedInt32Array,
+		rim: PackedVector2Array, glow: PackedColorArray) -> void:
+	var count := rim.size()
+	var half_w := GIMBAL_GLOW_WIDTH * 0.5
+	for i in count - 1:
+		var a := rim[i]
+		var b := rim[i + 1]
+		var dir := b - a
+		if dir.length_squared() < 0.0001:
+			continue
+		var n := dir.orthogonal().normalized() * half_w
+		_append_quad(points, colors, indices,
+			a - n, a + n, b + n, b - n,
+			glow[i], glow[i], glow[i + 1], glow[i + 1])
 
 
 ## Both hoop rims glow — it's a symmetric band, not a one-sided ring.

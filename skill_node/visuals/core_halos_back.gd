@@ -8,7 +8,7 @@ extends Node2D
 ## (both default z_index = 0) within this node's own stacking.
 ##
 ## Owns no geometry/rotation math of its own — it borrows CoreHalos'
-## _gimbal_runs()/_draw_run_on() (untyped access; this class stays duck-typed
+## _gimbal_runs()/_gimbal_batch()/_draw_batch() (untyped access; this class stays duck-typed
 ## against its parent rather than declaring `class_name CoreHalos`, matching
 ## every other leaf component in this family) so the front and back halves
 ## can never drift into disagreeing geometry.
@@ -26,5 +26,4 @@ func _draw() -> void:
 	var halo_color: Color = _halos._halo_color
 	var base_r: float = _halos.radius * _halos.halo_scale
 	var runs: Dictionary = _halos._gimbal_runs(base_r, halo_color)
-	for run in runs["back"]:
-		_halos._draw_run_on(self, run, halo_color)
+	_halos._draw_batch(self, _halos._gimbal_batch(runs["back"]))
