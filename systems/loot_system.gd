@@ -157,9 +157,10 @@ func _drop_skill_dust(victim: Entity) -> void:
 	_attach_addon(core, dust)
 
 
-## Build the CORE-ONLY loot draw. The candidate pool is the victim's whole core
-## modifier set (class identity + core-accreted mods) — the only modifiers that
-## are permanently lost when the entity dies. Offered as pick-N-from-M: M = the
+## Build the CORE-ONLY loot draw. The candidate pool is the victim's core_class
+## modifier set (class-identity template) — the only modifiers genuinely lost when
+## the entity dies. Previously-looted mods are permanent board additions and are
+## not individually re-lootable (#185). Offered as pick-N-from-M: M = the
 ## full core supply, N (keep-count) scales with victim level. When N >= M the
 ## picker won't pop (no real choice) and the addon auto-grants all. Every entry
 ## is `duplicate(true)`d so the dust owns independent copies.
@@ -205,22 +206,14 @@ func _is_lootable(m: StatModifier) -> bool:
 	return not m.scales_with(&"level")
 
 
-## Core source: class identity mods (+10 STR/DEX/INT for BalancedCore, etc.) plus
-## anything sitting on the core node itself (e.g. previously looted mods — the
-## relic loop closes).
-##
-## #185 caveat: the class-identity half lives on the resource/board (never on a
-## node's `.modifiers`), so it's clean — only the dust steals it. The accreted
-## half lives in `core_location.modifiers`, which `force_deallocate` retains, so
-## a collector holding the relic gets it BOTH lent (allocation) and stolen (dust)
-## — a transient double for that sub-portion until they deallocate. Rare (needs a
-## loot chain) and minor; the move-don't-copy fix is tracked in #185.
+## Core source: class identity mods (+10 STR/DEX/INT for BalancedCore, etc.).
+## Previously-looted mods are permanent board additions (no node storage since
+## #185) — they're not individually re-lootable; the loot chain starts fresh
+## from each entity's core_class template.
 func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	if victim.core_class != null:
 		out.append_array(victim.core_class.modifiers)
-	if victim.core_location != null:
-		out.append_array(victim.core_location.modifiers)
 	return out
 
 

@@ -236,7 +236,7 @@ func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
 
 func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	# No HUD in this harness → the pick auto-resolves (random N of M). Exactly
-	# pick_count core mods land on the collector core — the DEFAULT path (#173).
+	# pick_count core mods land on the collector's board, not its core node (#185).
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0  # N = 2, M = 3 → a real choice
 	_victim.level = 1
@@ -249,9 +249,8 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	# Killer allocates the neutral relic (adjacent to its N0 core).
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer can allocate the neutral relic node")
-	assert_eq(_killer.core_location.modifiers.size(), 2,
-		"collector core gains exactly N picked core mods (a strict subset of M)")
-	assert_gt(_attr_sum(_killer), attr_before, "looted core mods raised the killer's stats")
+	var attr_gain := _attr_sum(_killer) - attr_before
+	assert_eq(attr_gain, 20.0, "exactly 2 of 3 BalancedCore mods (+10 each) were granted")
 	await get_tree().process_frame  # queue_free is deferred to frame end
 	assert_null(_find_dust(_nodes[1]), "dust consumes itself on pickup")
 
@@ -260,59 +259,53 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 # Exercise the branch a trivial core can't: a REAL choice (M > N) where
 # SkillDustAddon actually emits `loot_pick_requested`.
 
-## Pad the victim's core with `extra` accreted mods (supply = 3 identity + extra)
-## and pin N so M > N. Accreted mods sit on the core NODE (core_location.modifiers)
-## — exactly the "previously-looted" mods the relic loop is meant to re-draw.
-func _arm_real_choice(extra: int, keep: int) -> void:
-	var mods: Array[StatModifier] = _nodes[1].modifiers.duplicate()
-	for i in extra:
-		mods.append(_mk_mod(&"armor", float(i + 1)))
-	_nodes[1].modifiers = mods
-	_loot.core_keep_base = float(keep)
-	_loot.core_keep_per_level = 0.0
-	_victim.level = 1
-
 
 func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	# Real NPC play: nobody claims the pick → SkillDustAddon auto-resolves a
-	# RANDOM N of M. Exactly N mods must land (not all M, not zero).
-	_arm_real_choice(2, 2)  # supply 3 identity + 2 accreted = 5 → M = 5, N = 2
+	# RANDOM N of M. Exactly N mods must land on the board (not all M, not zero).
+	_loot.core_keep_base = 2.0
+	_loot.core_keep_per_level = 0.0
+	_victim.level = 1
+	var attr_before := _attr_sum(_killer)
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 5, "M candidates offered (full core)")
+	assert_eq(dust.candidates.size(), 3, "M candidates offered (core identity)")
 	assert_eq(dust.pick_count, 2, "N to keep")
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer allocates the relic")
-	assert_eq(_killer.core_location.modifiers.size(), 2,
-		"auto-resolve grants exactly N mods (a strict subset of the 5 offered)")
+	var attr_gain := _attr_sum(_killer) - attr_before
+	assert_eq(attr_gain, 20.0, "auto-resolve grants exactly N=2 mods onto the board (+10 each)")
 
 
 func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> void:
 	# A UI consumer sets `handled = true` synchronously → the addon must NOT
 	# auto-resolve. The loot stays pending until the picker calls resolve().
-	_arm_real_choice(2, 2)
+	_loot.core_keep_base = 2.0
+	_loot.core_keep_per_level = 0.0
+	_victim.level = 1
 	var captured: Array[LootPickRequest] = []
 	var handler := func(req: LootPickRequest) -> void:
 		req.handled = true
 		captured.append(req)
 	Events.loot_pick_requested.connect(handler)
 
+	var attr_before := _attr_sum(_killer)
 	_kill_victim()
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer allocates the relic")
 	assert_eq(captured.size(), 1, "the pick request reached the handler")
 	# Nothing granted yet — auto-resolve was suppressed, the pick is pending.
-	assert_eq(_killer.core_location.modifiers.size(), 0,
-		"handled → loot still pending, nothing granted")
+	assert_eq(_attr_sum(_killer), attr_before,
+		"handled → loot still pending, no stats granted")
 	assert_false(captured[0].is_resolved(), "request awaits the player's pick")
 
-	# Now the "picker" resolves with the player's chosen N (2) → mods land.
+	# Now the "picker" resolves with the player's chosen N (2) → stats land.
 	var chosen: Array[StatModifier] = [captured[0].candidates[0], captured[0].candidates[1]]
 	captured[0].resolve(chosen)
-	assert_eq(_killer.core_location.modifiers.size(), 2,
-		"resolving the pick grants the chosen mods onto the collector core")
+	assert_eq(_attr_sum(_killer), attr_before + 20.0,
+		"resolving the pick grants exactly N=2 mods onto the board (+10 each)")
 	Events.loot_pick_requested.disconnect(handler)
 
 

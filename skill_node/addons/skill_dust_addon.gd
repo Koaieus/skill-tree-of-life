@@ -163,10 +163,10 @@ func _on_pick_resolved(chosen: Array[StatModifier]) -> void:
 	queue_free()
 
 
-## Pour `mods` onto the collector's core node: each becomes a permanent core
-## modifier — appended to the core node's `modifiers` array AND pushed live onto
-## the board, mirroring how an allocated node grants modifiers, but targeting
-## the collector's CORE rather than this relic node.
+## Pour `mods` onto the collector's stat board — permanent additions (no removal
+## like lent node modifiers). Loot is not stored on the core node (#185); it
+## lives only on the board as an earned stat. If a provenance tag is needed later
+## (innate vs gained), add a source-type field to StatModifier.
 func _grant_mods(collector: Entity, mods: Array[StatModifier]) -> void:
 	var core := collector.core_location
 	if core == null:
@@ -175,7 +175,6 @@ func _grant_mods(collector: Entity, mods: Array[StatModifier]) -> void:
 	for m in mods:
 		# A composite is stored WHOLE on the core (stays a lootable unit if this
 		# collector later dies) but flattens onto the board via add_modifier.
-		core.modifiers.append(m)
 		if board != null:
 			board.add_modifier(m)
 		# #70: emit per LEAF — honest about each stat gained. A bundle's buff and

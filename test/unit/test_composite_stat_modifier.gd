@@ -162,10 +162,10 @@ func test_composite_contribution_text_joins_leaves() -> void:
 
 # --- Ninja integration: the repackaged +2 DP / -1 SP pair still lands -------
 
-## The end-to-end "lootable as a unit" contract: granting a composite onto a
-## collector's core stores it WHOLE on core.modifiers (one re-lootable entry)
-## while applying it FLATTENED onto the board — both at once (#183).
-func test_looted_composite_stored_whole_but_applied_flattened() -> void:
+## The end-to-end "lootable as a unit" contract: granting a composite bundle
+## applies it FLATTENED onto the board. No node-side storage since #185 — loot
+## is permanent board-only, not lent-on-allocate like node archetype mods (#183).
+func test_looted_composite_applied_flattened_to_board() -> void:
 	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(core)
 	var collector := Entity.new()
@@ -185,12 +185,11 @@ func test_looted_composite_stored_whole_but_applied_flattened() -> void:
 	var mods: Array[StatModifier] = [bundle]
 	dust._grant_mods(collector, mods)
 
-	var stored: Array = core.modifiers  # untyped: element `is` narrows cleanly
-	assert_eq(stored.size(), 1, "the bundle is ONE re-lootable entry on the core")
-	assert_true(stored[0] is CompositeStatModifier, "stored whole, never flattened on the core")
 	assert_eq(collector.stat_board.deallocation_points.get_value(), dp_before + 2.0,
-			"yet applied flattened onto the board")
+			"bundle applied flattened onto the board")
 	assert_eq(collector.stat_board.skill_points.get_value(), sp_before - 1.0)
+	assert_eq(core.modifiers.size(), 0,
+			"nothing stored on the core node (#185 — loot is board-only)")
 
 
 func test_ninja_budget_pack_applies_both_stats_through_the_bundle() -> void:
