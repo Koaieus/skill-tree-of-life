@@ -3,7 +3,7 @@
 > *What if you opened the skill tree of an RPG — and got trapped inside it?
 > And what if the skill tree **is** the game?*
 
-A turn-based, roguelite, PvP-on-a-skill-tree game in Godot 4.4. Player and enemies are **entities** — connected subgraphs of allocated nodes — living on a shared procedurally generated skill tree. You expand your subgraph by allocating nodes (claiming their stat modifiers and territory), and you attack enemies by *severing* theirs: hit a **cut vertex** to break an entity into pieces and watch the orphaned arms dissolve. Kill the **Apex** (a vast ring at the top of the level), break out, compress the entire level into a single node one fractal layer up, and do it again.
+A turn-based, roguelite, PvP-on-a-skill-tree game in Godot 4.8. Player and enemies are **entities** — connected subgraphs of allocated nodes — living on a shared procedurally generated skill tree. You expand your subgraph by allocating nodes (claiming their stat modifiers and territory), and you attack enemies by *severing* theirs: hit a **cut vertex** to break an entity into pieces and watch the orphaned arms dissolve. Kill the **Apex** (a vast ring at the top of the level), break out, compress the entire level into a single node one fractal layer up, and do it again.
 
 **Status:** design-heavy prototype. The Godot project is a sandbox for ideas — many systems are stubbed, none are balanced. The design (`docs/`) leads; the code follows. Expect the implementation to be rebuilt once the design lands. See [docs/GDD.md](docs/GDD.md) for the full pitch.
 
