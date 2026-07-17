@@ -101,6 +101,33 @@ card/tooltip draws the fully shaded sigil. Same sigil, two fidelities — never
 absent. This is what resolved the batching tension in #167: the on-graph sigil
 is a shared additive glow, not a per-instance arbitrary carve.
 
+### Core-presence movement — the BLOOM replaces the star, and travels (#128)
+
+The BLOOM (+ `CoreHalos` gimbal) **replaces the old "star emoji" core marker**
+(`skill_node/core_marker.gd`, a `$Visuals/CoreMarker` Node2D holding a star
+`Label`). That marker already fakes travel: on a core move, `core_location`
+flips to the new node, the new node's `CoreMarker` becomes visible and is
+**offset to start at the old node's relative position, then tweened to
+`Vector2.ZERO`** — it "glides into place" (`skill_node.gd`). This per-node
+offset-glide is the seam to ride, not to replace.
+
+The clean mechanism (decided, #128): the core-only visuals now number several
+(BLOOM sigil + gimbal halos), so group them under **one `CorePresence` mover**
+gated visible by `is_core`, and **retarget the existing glide tween** from the
+lone `CoreMarker` onto that group — all core visuals glide together. The
+core-move **drag ghost** reuses the same group (a `modulate`-alpha'd copy at the
+hovered target). `CoreMarker` + its star `Label` are then deleted.
+
+**The structural cost, made explicit:** `CoreHalos` already lives in the
+SkillNodeVisual family under `NodeVisualsComposite/ShaderStack` (so it gets the
+composite's `entity_tint` fan-out and the wholesale sensed-hide), while
+`CoreMarker` is a Visuals-level outlier. So `CorePresence` is a *refactor* that
+consolidates both into one group — and because that group sits outside
+`ShaderStack`, it needs its **own sensed gate** (core presence must stay hidden
+on a fogged/enemy node). Rejected as heavier: a single per-entity CorePresence
+*follower* decoupled from nodes — cleaner "one thing moves" but duplicates the
+render path and diverges from the per-node visual family.
+
 ## The `preload`-not-`class_name` gotcha
 
 Emblem cross-references use `const Foo = preload("res://…/foo.gd")`, **not** the
@@ -126,10 +153,11 @@ done with the editor closed):
    `show_diamond` mutually-exclusive shader bools and its local `ARCH_SIDES`
    duplicate (read `ArchetypeShape.SIDES`). **Contract-tested — mind
    `test_node_visuals_contract.gd`.**
-5. Instance `CoreSigilBloom` in `node_visuals_composite.tscn`, feed it
-   `entity.core_class.sigil` + `entity_tint`, gate visibility on `node.is_core()`
-   via the composite's `_sync_*`. Draw values are first-guesses — tune in the
-   Node Visuals sandbox tab.
+5. Register-3 integration + core-presence travel (**#128**, child of the emblem
+   epic **#237**): the `CorePresence` group (BLOOM + halos), `is_core` gate,
+   glide-tween retarget, drag ghost, and `CoreMarker` deletion — see the
+   core-presence movement section above. Draw values are first-guesses — tune in
+   the Node Visuals sandbox tab.
 6. Bake substrate (later, gated on a slots-per-node spike): CARVE = shared
    `sampler2DArray` of baked normals indexed by a cheap instance-uniform; BLOOM =
    shared additive glow texture, `modulate`-tinted. The payoff is the #172
@@ -138,9 +166,14 @@ done with the editor closed):
 
 ## Related issues
 
-Design decisions recorded against #167 (sigil-as-bloom, not sigil-as-carve),
+- **#237** — the emblem tracking epic (register/priority resolver). Parent of #128.
+- **#238** — "prune stacked encoders" (sibling to #215): folds the central-glyph
+  zoo into this one resolver; forces the #132 rune-vs-diamond decision.
+- **#128** — Register-3 (BLOOM) integration + core-presence travel (see the
+  movement section above). Child of #237.
+
+Design decisions were recorded against #167 (sigil-as-bloom, not sigil-as-carve),
 #207 (spell grant = SPELL carve), #131 (empty-dome default, archetype demoted to
-fallback), #132 (rune ring vs rim diamonds — fold into the encoder prune), #168
-(loot glyph = LOOT carve via `SkillDustAddon.get_emblem()`). A "prune stacked
-encoders" issue (sibling to #215) folds the central-glyph zoo into this one
-resolver. See `SKILLNODE_EMBLEM_HANDOFF.md` for the full framing while it exists.
+fallback), #132 (rune ring vs rim diamonds — fold into the prune), #168 (loot
+glyph = LOOT carve via `SkillDustAddon.get_emblem()`). `SKILLNODE_EMBLEM_HANDOFF.md`
+holds the remaining-implementation pickup notes.
