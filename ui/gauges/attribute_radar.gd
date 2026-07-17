@@ -47,6 +47,17 @@ signal axis_unhovered
 
 var _hovered_axis: int = -1
 
+## Half the draw_string width used for axis labels (see LABEL_TEXT_WIDTH) —
+## reserved outside the label ring so a label's text box can't spill past
+## the Control's rect. Kept as a margin against the Control's half-extent,
+## not against _get_radius(), so it doesn't compound with ring/plot sizing.
+const LABEL_MARGIN := 22.0
+## Total width passed to draw_string for axis labels (HORIZONTAL_ALIGNMENT_CENTER).
+const LABEL_TEXT_WIDTH := 40.0
+## Visual gap between the plotted ring (_get_radius) and the label ring
+## (_get_label_radius) so labels don't crowd the outermost ring line.
+const LABEL_RING_GAP := 10.0
+
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	if not resized.is_connected(queue_redraw):
@@ -55,13 +66,31 @@ func _ready() -> void:
 func _get_center() -> Vector2:
 	return size * 0.5
 
+## Effective plot radius for rings/polygon/dots/axis-lines. Derived from the
+## label ring (see _get_label_radius) minus LABEL_RING_GAP, so the plot never
+## grows into space reserved for labels.
 func _get_radius() -> float:
-	return min(size.x, size.y) * 0.5 - 4.0
+	return max(4.0, _get_label_radius() - LABEL_RING_GAP)
+
+## Radius of the ring axis labels are anchored on. Kept LABEL_MARGIN inside
+## the Control's half-extent so `label_pos ± LABEL_TEXT_WIDTH/2` (the
+## draw_string box, see _draw) never crosses Rect2(Vector2.ZERO, size).
+func _get_label_radius() -> float:
+	return max(0.0, min(size.x, size.y) * 0.5 - LABEL_MARGIN)
 
 func _axis_point(i: int, frac: float) -> Vector2:
 	var n := axis_labels.size()
 	var angle := -PI / 2.0 + (TAU / float(n)) * i
 	return _get_center() + Vector2(cos(angle), sin(angle)) * _get_radius() * frac
+
+## Anchor for axis label i, on the label ring — outside the plotted radius,
+## but bounded so it (plus the draw_string offset applied in _draw) stays
+## inside the Control's rect. Extracted so a test can assert the bound
+## without needing a live _draw() pass.
+func _label_anchor(i: int) -> Vector2:
+	var n := axis_labels.size()
+	var angle := -PI / 2.0 + (TAU / float(n)) * i
+	return _get_center() + Vector2(cos(angle), sin(angle)) * _get_label_radius()
 
 func _draw() -> void:
 	var n := axis_labels.size()
@@ -98,9 +127,9 @@ func _draw() -> void:
 		draw_circle(_axis_point(i, frac), dot_radius, col)
 
 	for i in n:
-		var label_pos := _axis_point(i, 1.16)
+		var label_pos := _label_anchor(i)
 		var col: Color = axis_colors[i] if i < axis_colors.size() else Color.WHITE
-		draw_string(ThemeDB.fallback_font, label_pos - Vector2(20, -4), axis_labels[i], HORIZONTAL_ALIGNMENT_CENTER, 40, 12, col)
+		draw_string(ThemeDB.fallback_font, label_pos - Vector2(LABEL_TEXT_WIDTH * 0.5, -4), axis_labels[i], HORIZONTAL_ALIGNMENT_CENTER, LABEL_TEXT_WIDTH, 12, col)
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
