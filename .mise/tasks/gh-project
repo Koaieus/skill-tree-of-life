@@ -11,10 +11,78 @@ FIELD_STATUS="PVTSSF_lAHOAExWR84BcS99zhW81wo"
 FIELD_PRIORITY="PVTSSF_lAHOAExWR84BcS99zhW82Ck"
 FIELD_SIZE="PVTSSF_lAHOAExWR84BcS99zhW82Co"
 
+# --- GraphQL budget hygiene --------------------------------------------------
+# GitHub bills GraphQL by the *requested* connection sizes, not rows returned.
+# `gh project item-list --format json` asks for items(first:100){ fieldValues
+# (first:100){…} } — that nested fieldValues expansion is what makes each page
+# cost ~100+ points. (`--limit 999` is a red herring: gh stops paginating at the
+# first short page, so a sub-100-item board fetches ONE page regardless.) A burst
+# of commands for one issue (add+status+size+priority) used to run four such
+# queries; bulk-wiring a dozen issues ran dozens and repeatedly exhausted the
+# 5000-pt budget.
+#
+# Two fixes:
+#  1. `ids_json` — a LEAN custom query for the hot path (issue# → item-id, all a
+#     set-field call needs). It requests only id + content.number, no
+#     fieldValues, so each page costs ~1 point instead of ~100+, and --paginate
+#     makes it correct at any board size (no magic limit to guess).
+#  2. A short-lived tempfile cache on the ID MAP ONLY. A set-burst
+#     (add+status+size+priority for one issue) reuses one lean fetch instead of
+#     one-per-command. item-add invalidates it (membership changed); field edits
+#     don't (item-ids are stable), so id lookups stay correct.
+#
+# The FULL item-list (field values) is deliberately NOT cached — `list` and
+# read-mode must reflect the live board. Parallel agents use `list` to find work
+# to pick up, so a stale read there risks two agents claiming the same issue.
+# Reads are infrequent; the burst problem was writes, and (1)+(2) already fix it.
+CACHE_TTL=${GH_PROJECT_CACHE_TTL:-15}
+CACHE_TMP="${TMPDIR:-/tmp}/gh-project-${PROJECT}-items.tmp"
+ID_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-ids.txt"
+
+# Lean "<number> <item-id>" map — cheap query, the hot path for field edits.
+ids_json() {
+  if [ -f "$ID_CACHE" ]; then
+    local age=$(( $(date +%s) - $(stat -c %Y "$ID_CACHE" 2>/dev/null || echo 0) ))
+    if [ "$age" -ge 0 ] && [ "$age" -lt "$CACHE_TTL" ]; then cat "$ID_CACHE"; return 0; fi
+  fi
+  local tmp="${ID_CACHE}.tmp.$$"
+  if gh api graphql --paginate -f id="$PROJECT_ID" -f query='
+      query($id: ID!, $endCursor: String) {
+        node(id: $id) {
+          ... on ProjectV2 {
+            items(first: 100, after: $endCursor) {
+              nodes { id content { ... on Issue { number } ... on PullRequest { number } } }
+              pageInfo { hasNextPage endCursor }
+            }
+          }
+        }
+      }' \
+      --jq '.data.node.items.nodes[] | select(.content.number != null) | "\(.content.number) \(.id)"' \
+      > "$tmp" && [ -s "$tmp" ]; then
+    mv -f "$tmp" "$ID_CACHE"; cat "$ID_CACHE"
+  else
+    rm -f "$tmp"
+    [ -f "$ID_CACHE" ] && cat "$ID_CACHE" || true   # stale fallback / empty
+  fi
+}
+
+# Full item-list JSON (with field values) — read/list display paths. Always
+# fetched fresh (see the "NOT cached" note above): correctness over cost here.
+items_json() {
+  local tmp="${CACHE_TMP}.$$"
+  if gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json > "$tmp" && [ -s "$tmp" ]; then
+    cat "$tmp"; rm -f "$tmp"
+  else
+    rm -f "$tmp"
+    echo '{"items":[]}'   # query failed (e.g. rate-limited) → empty, not partial
+  fi
+}
+
+# Membership changed (item added) → drop the id map so the next lookup refetches.
+invalidate_cache() { rm -f "$ID_CACHE" "${ID_CACHE}.tmp.$$"; }
+
 item_id() {
-  local issue=$1
-  gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
-    | jq -r '.items[] | select(.content.number == '$issue') | .id' | head -1
+  ids_json | awk -v n="$1" '$1==n {print $2; exit}'
 }
 
 ensure_item() {
@@ -23,6 +91,7 @@ ensure_item() {
   id=$(item_id "$issue")
   if [ -z "$id" ]; then
     gh project item-add "$PROJECT" --owner "$OWNER" --url "https://github.com/$REPO/issues/$issue" >/dev/null
+    invalidate_cache
     id=$(item_id "$issue")
   fi
   echo "$id"
@@ -34,6 +103,7 @@ cmd_add() {
   id=$(item_id "$issue")
   [ -n "$id" ] && { echo "✓ issue #$issue already in project"; return; }
   gh project item-add "$PROJECT" --owner "$OWNER" --url "https://github.com/$REPO/issues/$issue"
+  invalidate_cache
   echo "✓ issue #$issue added to project"
 }
 
@@ -44,7 +114,7 @@ cmd_status() {
   [ -n "$id" ] || exit 1
 
   if [ -z "$status" ]; then
-    gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+    items_json \
       | jq -r '.items[] | select(.content.number == '$issue') | .status // empty'
     return
   fi
@@ -69,7 +139,7 @@ cmd_priority() {
 
   if [ -z "$priority" ]; then
     # gh emits custom single-select fields lowercased (`priority`, not `Priority`).
-    gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+    items_json \
       | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .priority // .Priority // "—"'
     return
   fi
@@ -90,7 +160,7 @@ cmd_size() {
   id=$(ensure_item "$issue") || exit 1
 
   if [ -z "$size" ]; then
-    gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+    items_json \
       | jq -r --arg i "$issue" '.items[] | select(.content.number == ($i|tonumber)) | .size // .Size // "—"'
     return
   fi
@@ -139,7 +209,7 @@ cmd_list() {
   fi
 
   local items
-  items=$(gh project item-list "$PROJECT" --owner "$OWNER" --limit 999 --format json \
+  items=$(items_json \
     | jq --arg label "$label" '
         [ .items[]
           | select(.content.type == "Issue")
