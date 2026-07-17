@@ -133,17 +133,28 @@ Both rim loops are rotated by the same `chain[i]` and orthographically
 projected (drop Z) — because they undergo the *identical* linear map, they
 can't decouple into two disagreeing curves.
 
-**Fill each segment as its own quad (`draw_primitive`), never the whole run
-as one `draw_polygon`.** Because the band offset is axial rather than
-radial, a heavily tilted ring's projected band can fold over itself in 2D —
-Godot's ear-clipping triangulator can throw "Invalid polygon data,
-triangulation failed" on that silhouette (hit empirically once the hoop
-offset landed; the earlier radial-offset annulus never had this problem,
-since a purely radial offset can't fold). `draw_primitive` takes an explicit
-quad (4 points, no triangulation step), so each small quad between two
-adjacent samples stays well-formed regardless of what the overall run's
-silhouette looks like — the fix is per-segment primitives, not "reduce the
-segment count and hope."
+**Batch the whole layer into ONE `canvas_item_add_triangle_array`, with our
+own indices (#239).** The band offset is axial rather than radial, so a
+heavily tilted ring's projected band can fold over itself in 2D — Godot's
+ear-clipping triangulator can throw "Invalid polygon data, triangulation
+failed" on that silhouette (hit empirically once the hoop offset landed; the
+earlier radial-offset annulus never had this problem, since a purely radial
+offset can't fold). The original fix was a per-segment `draw_primitive` (an
+explicit 4-point quad, no triangulation step). That worked but cost ~384
+`draw_*` calls per gimbal plus two `draw_polyline_colors` per run — at 22
+gimbals it dropped a high-end GPU to ~43fps (#239). `_gimbal_batch()` now
+accumulates every run's fill quads **and** both glow strips into one flat
+vertex/color/index buffer (each quad = two triangles we index ourselves, so
+the triangulator still never runs — the fold stays moot), and `_draw_batch()`
+submits it as a single `canvas_item_add_triangle_array`. Measured 8963→340
+draw calls for 200 three-ring gimbals (~26×). Two things to keep:
+- **Supply the indices; never fall back to `draw_polygon` over a run.** The
+  whole point is that explicit indices sidestep triangulation — a `draw_polygon`
+  would re-introduce the fold failure.
+- **Fold the glow into the same buffer, not separate `draw_polyline_colors`.**
+  Post-fill-collapse the polylines would dominate (≈12/gimbal × 200 = 2400
+  calls); `_append_glow_strip` rebuilds them as thin miterless quads for zero
+  extra draw calls.
 
 **The ring must pass over AND under the SkillNode's own disk — this needs a
 second CanvasItem, not draw order.** A point on the ring is in front of the
@@ -165,15 +176,15 @@ ring, since a planar ring crosses Z=0 at exactly two points per revolution.
 `CoreHalos._gimbal_runs()` is **pure geometry, no `draw_*` calls** — both
 layers call it and always agree, instead of one recomputing and the other
 reading stale data. **Both layers must recompute every redraw, and both must
-be told to redraw every tick**: Godot only accepts `draw_*` calls for a
-CanvasItem while *that* item is the one currently drawing, so a shared
-drawing helper (`_draw_run_on(target, run, color)`) takes the target
-CanvasItem explicitly rather than assuming `self` — calling
-`some_other_node.draw_polygon(...)` from inside a method still binds
-correctly to `some_other_node`'s own canvas item, but only works if
-`some_other_node` is presently inside its own `_draw()`. `core_halos_back.gd`
-therefore calls `_halos._gimbal_runs()` (data) then draws the result itself
-in its own `_draw()`, rather than asking `CoreHalos` to draw on its behalf.
+be told to redraw every tick**: Godot only accepts `draw_*` /
+`canvas_item_add_*` calls for a CanvasItem while *that* item is the one
+currently drawing, so the shared draw helper (`_draw_batch(target, batch)`,
+fed by `_gimbal_batch(runs)`) takes the target CanvasItem explicitly rather
+than assuming `self` — `target.get_canvas_item()` binds correctly to the
+target's own canvas item, but only works if that item is presently inside its
+own `_draw()`. `core_halos_back.gd` therefore calls `_halos._gimbal_runs()` +
+`_halos._gimbal_batch()` (data) then draws the result itself in its own
+`_draw()`, rather than asking `CoreHalos` to draw on its behalf.
 And `CoreHalos._process()`/`_redraw_all()` explicitly call
 `_back_layer.queue_redraw()` alongside `queue_redraw()` on itself — the base
 class's shared clock (`SkillNodeVisual._process`) only redraws the node it's
@@ -189,13 +200,46 @@ component in this family — only the base classes declare one), so
 typing (`_halos.is_gimbal_active()`, `_halos._gimbal_runs(...)`) rather than
 a static `CoreHalos` type reference.
 
-**Out of scope on purpose:** inner-face glyphs/arcane symbols on the ring
-band — flagged by the issue owner as "way more than we can fake in 2D
-without building some WILD machinery." A per-instance glyph would force the
-`resource_local_to_scene` duplicate-material escape hatch documented above
-for the weld glyph (samplers can't be `instance uniform`s), which doesn't
-even apply here since CoreHalos is plain `_draw()`, not a shader — it would
-mean baking per-instance textures instead. Possible follow-up, not attempted.
+**Inner-face glyphs live in the 3D substrate, not the 2D `_draw()` path.**
+They were flagged as "way more than we can fake in 2D without building some
+WILD machinery" (a 2D `_draw()` has no UVs; a per-instance glyph would force
+baked per-instance textures). The real-3D gimbal (`skill_node/visuals/gimbal_3d/`,
+see next section) gets them for free — a `TorusMesh` has real UVs, so the
+`SOLID_GLYPH` style scrolls an emissive rune strip on the tube's inward v-band.
+Don't try to reintroduce this on the 2D path.
+
+### 3D gimbal showcase (#239): the boss-tier looks, on a real SubViewport
+
+`skill_node/visuals/gimbal_3d/` is a real-3D rebuild of the gimbal for boss
+differentiation — same quaternion chain (identical `AXES`/`RATE_BASE`/
+`RADIUS_STEP` constants, so it reads as the same gyroscope) driving actual
+`TorusMesh` rings whose `Basis` is set per-frame, inside a `SubViewport` world
+with a glow `Environment`. The over/under interleave is the depth buffer, not a
+hand-split front/back CanvasItem, and the look is emissive shaders (the CPU
+stacked-stroke fake can't reach neon/glass/glyph).
+
+- **Same contract by intent:** consumes `tint` (ownership, like CoreHalos'
+  `entity_tint`) + `ring_count` + `spin_speed`; the three looks are one `Style`
+  enum swap (UNIFORM_GLOW / HOLO_GLASS / SOLID_GLYPH), so a boss tier is an enum
+  pick.
+- **One shared `ShaderMaterial` per style, tint as an `instance uniform`** —
+  same batching discipline as inner_disk/rim_ring. The `SOLID_GLYPH` glyph strip
+  is a plain (non-instance) `uniform sampler2D` baked once into a `static var`
+  (identical for every rig, like the diamond LUT), so it doesn't force the
+  duplicate-material escape hatch.
+- **The glow lives in the SubViewport's own `Environment`**, not a global
+  `WorldEnvironment` — that isolated world is why these can bloom even though the
+  main game has no project-wide glow, and it's the actual reason 3D beats the 2D
+  stacked-stroke fake here.
+- **Not yet wired into the live SkillNode pipeline** — it's a showcase
+  (`gimbal_3d_showcase.tscn`, auto-discovered as the sandbox "Gimbal 3D" tab) for
+  evaluating the look. Lifting the whole node visual into 3D / MultiMesh scaling
+  was explicitly de-scoped while halos are core-gated (see #239).
+- **Shaders are verified under `xvfb-run … --rendering-driver opengl3`**, never
+  headless alone — GLSL doesn't compile under the dummy renderer (see
+  `godot-workflow.md`). `test_gimbal_3d.gd` covers only what GDScript can assert
+  (ring count, material/shader resolves, clock-driven re-orient); the look is a
+  screenshot.
 
 ### Identity is loop-set; the light is a shared object. Two flows, on purpose
 
