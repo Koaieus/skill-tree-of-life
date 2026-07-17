@@ -1,11 +1,15 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://ex5cfonh5qyp"]
 
-[ext_resource type="Script" path="res://skill_node/visuals/core_halos.gd" id="1_halos"]
-[ext_resource type="Script" path="res://skill_node/visuals/core_halos_back.gd" id="2_back"]
+[ext_resource type="Script" uid="uid://cy5bcqwnidpe4" path="res://skill_node/visuals/core_halos.gd" id="1_halos"]
+[ext_resource type="Script" uid="uid://cot3js6xrb1dj" path="res://skill_node/visuals/core_halos_back.gd" id="2_back"]
 
-[node name="CoreHalos" type="Node2D"]
+[node name="CoreHalos" type="Node2D" unique_id=439182307]
 script = ExtResource("1_halos")
+halo_style = 3
+halo_scale = 1.5
+gimbal_ring_count = 2
+archetype_tint = Color(0.56203544, 0.7386474, 0.31942812, 1)
 
-[node name="GimbalBack" type="Node2D" parent="."]
+[node name="GimbalBack" type="Node2D" parent="." unique_id=1074649842]
 z_index = -1
 script = ExtResource("2_back")

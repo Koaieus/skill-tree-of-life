@@ -8,7 +8,7 @@ extends SkillNodeVisual
 ## nucleus", so it carries ownership, not archetype. Only the halo's own
 ## translucency is private ([member halo_opacity]).
 
-enum CoreStyle { NONE, RINGS, ORBIT, GIMBAL, COG }
+enum CoreHaloStyle { NONE, RINGS, ORBIT, GIMBAL, COG }
 
 ## Alpha the halo marks are drawn at — the halo's own material property, kept
 ## private so the identity color it reads stays a plain opaque tint.
@@ -23,10 +23,10 @@ var _halo_color: Color:
 		c.a = halo_opacity
 		return c
 
-@export var core: CoreStyle = CoreStyle.NONE:
+@export var halo_style: CoreHaloStyle = CoreHaloStyle.NONE:
 	set(value):
-		core = value
-		set_animating(core != CoreStyle.NONE)
+		halo_style = value
+		set_animating(halo_style != CoreHaloStyle.NONE)
 		_redraw_all()
 
 ## Scales the halo radius outward from the rim.
@@ -80,13 +80,13 @@ func _spin() -> float:
 ## arcs freeze mid-spin while the front half keeps animating.
 func _process(delta: float) -> void:
 	super._process(delta)
-	if core == CoreStyle.GIMBAL and is_instance_valid(_back_layer):
+	if halo_style == CoreHaloStyle.GIMBAL and is_instance_valid(_back_layer):
 		_back_layer.queue_redraw()
 
 
 func _redraw_all() -> void:
 	queue_redraw()
-	if core == CoreStyle.GIMBAL and is_instance_valid(_back_layer):
+	if halo_style == CoreHaloStyle.GIMBAL and is_instance_valid(_back_layer):
 		_back_layer.queue_redraw()
 
 
@@ -95,22 +95,22 @@ func _redraw_all() -> void:
 ## doesn't need a `class_name`, matching every other leaf component in this
 ## family.
 func is_gimbal_active() -> bool:
-	return core == CoreStyle.GIMBAL
+	return halo_style == CoreHaloStyle.GIMBAL
 
 
 func _draw() -> void:
-	if core == CoreStyle.NONE:
+	if halo_style == CoreHaloStyle.NONE:
 		return
 	var halo_color := _halo_color
 	var base_r := radius * halo_scale
-	match core:
-		CoreStyle.RINGS:
+	match halo_style:
+		CoreHaloStyle.RINGS:
 			_draw_rings(base_r, halo_color)
-		CoreStyle.ORBIT:
+		CoreHaloStyle.ORBIT:
 			_draw_orbit(base_r, halo_color)
-		CoreStyle.GIMBAL:
+		CoreHaloStyle.GIMBAL:
 			_draw_gimbal(base_r, halo_color)
-		CoreStyle.COG:
+		CoreHaloStyle.COG:
 			_draw_cog(base_r, halo_color)
 
 

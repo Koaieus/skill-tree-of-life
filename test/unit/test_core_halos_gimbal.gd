@@ -14,7 +14,7 @@ const HalosScene := preload("res://skill_node/visuals/core_halos.tscn")
 func test_gimbal_draws_without_error_and_has_a_back_layer() -> void:
 	var halos := HalosScene.instantiate()
 	add_child_autofree(halos)
-	halos.core = halos.CoreStyle.GIMBAL
+	halos.halo_style = halos.CoreHaloStyle.GIMBAL
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -27,7 +27,7 @@ func test_gimbal_draws_without_error_and_has_a_back_layer() -> void:
 func test_gimbal_geometry_splits_into_front_and_back_runs() -> void:
 	var halos := HalosScene.instantiate()
 	add_child_autofree(halos)
-	halos.core = halos.CoreStyle.GIMBAL
+	halos.halo_style = halos.CoreHaloStyle.GIMBAL
 	await get_tree().process_frame
 
 	var runs: Dictionary = halos._gimbal_runs(halos.radius * halos.halo_scale, halos._halo_color)
@@ -38,7 +38,7 @@ func test_gimbal_geometry_splits_into_front_and_back_runs() -> void:
 func test_gimbal_geometry_recomputes_from_anim_time() -> void:
 	var halos := HalosScene.instantiate()
 	add_child_autofree(halos)
-	halos.core = halos.CoreStyle.GIMBAL
+	halos.halo_style = halos.CoreHaloStyle.GIMBAL
 	await get_tree().process_frame
 
 	halos.anim_time = 0.0

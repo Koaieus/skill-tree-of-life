@@ -88,6 +88,16 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 		bonus_inward_growth = value
 		_sync_stake()
 
+# Cached child refs — `%Name` compiles to a scene-tree lookup, and the _sync_*
+# paths below run on every radius / owner / allocation change, so resolve once.
+# NOTE: these are `@onready` (null until in-tree) and so must NOT be used by
+# `_apply_sensed`, which runs pre-tree — it resolves by direct child path, see
+# there.
+@onready var _inner_disk := %InnerDisk
+@onready var _rim_ring := %RimRing
+@onready var _rim_bonuses := %RimBonuses
+@onready var _rune_ring := %RuneRing
+
 @onready var _children: Array[SkillNodeVisual] = [
 	%InnerDisk, %RimRing, %RimBonuses, %CoreHalos, %RuneRing, %SensedOutline,
 ]
@@ -160,10 +170,10 @@ func _sync_shared() -> void:
 		child.allocated = allocated
 	# InnerDisk is the source of truth for the faked light; ONE object carries
 	# it to every surface lit by it, so disk and rim can't drift apart.
-	_lighting.highlight_position = %InnerDisk.highlight_position
-	_lighting.highlight_intensity = %InnerDisk.highlight_intensity
-	%InnerDisk.lighting = _lighting
-	%RimRing.lighting = _lighting
+	_lighting.highlight_position = _inner_disk.highlight_position
+	_lighting.highlight_intensity = _inner_disk.highlight_intensity
+	_inner_disk.lighting = _lighting
+	_rim_ring.lighting = _lighting
 
 
 ## Lines the base rim up with the disk edge, clears the rune ring past the rim,
@@ -173,17 +183,17 @@ func _sync_stake() -> void:
 	if not is_node_ready():
 		return
 	# Disk tucks under the rim (see DISK_RIM_OVERLAP).
-	%InnerDisk.disk_radius = geom_inner_r + DISK_RIM_OVERLAP
-	%RimRing.inner_radius = geom_inner_r
-	%RimRing.outer_radius = geom_outer_r
-	%RimRing.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
-	%RuneRing.outer_edge_r = geom_outer_r
+	_inner_disk.disk_radius = geom_inner_r + DISK_RIM_OVERLAP
+	_rim_ring.inner_radius = geom_inner_r
+	_rim_ring.outer_radius = geom_outer_r
+	_rim_ring.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
+	_rune_ring.outer_edge_r = geom_outer_r
 
 	# Stake-fill dial: outer edge stays anchored at geom_outer_r (grows outward
 	# with radius), inner edge shifts inward by bonus_inward_growth per stake level
 	# above 1 for a more pronounced glow as the node physically expands (#178).
 	var bonus_inner := geom_outer_r - RIM_BONUS_DEFAULT_WIDTH - float(stake_level - 1) * bonus_inward_growth
-	%RimBonuses.inner_radius = maxf(bonus_inner, 0.0)
-	%RimBonuses.outer_radius = geom_outer_r
-	%RimBonuses.fill_max = stake_level
-	%RimBonuses.fill_current = allocation_level
+	_rim_bonuses.inner_radius = maxf(bonus_inner, 0.0)
+	_rim_bonuses.outer_radius = geom_outer_r
+	_rim_bonuses.fill_max = stake_level
+	_rim_bonuses.fill_current = allocation_level

@@ -86,7 +86,7 @@ fill_max = 3
 position = Vector2(600, 280)
 
 [node name="CoreHalos" parent="ViewportContainer/World/CoreHalosSlot" instance=ExtResource("7_halos")]
-core = 1
+halo_style = 1
 
 [node name="RuneRingSlot" type="Node2D" parent="ViewportContainer/World"]
 position = Vector2(770, 280)
