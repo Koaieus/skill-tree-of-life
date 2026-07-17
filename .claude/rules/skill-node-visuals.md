@@ -78,6 +78,92 @@ reaches the whole chain. `test_node_visuals_contract.gd` asserts a static disk
 and rim are off the process list — it caught this exact bug when the gate was
 in `_enter_tree`.
 
+### CoreHalos GIMBAL (#138): a real quaternion-composed nested-ring gyroscope
+
+The old `_draw_gimbal()` drew three co-planar `draw_arc` sweeps at increasing
+radii with phase offsets — angular offset within one plane, never a tilt, so
+it never read as a gyroscope. The issue owner rejected "faked tilted
+ellipses" and asked for a real gyroscope: N rings where the outer ring spins
+independently and each inner ring's orientation *depends on* the one outside
+it, like an actual gimbal mount. This is the first use of `Quaternion`/3D
+math anywhere in `skill_node/visuals/` — worth knowing before reaching for a
+2D-only trick on the next "reads as 3D" component.
+
+**The mechanism is quaternion chain composition, not per-ring phase math.**
+Each ring's local spin axis (alternating `Vector3.RIGHT`/`Vector3.UP` — never
+the ring's own normal/Z, which would just be an invisible in-plane spin) is
+composed onto the *previous* ring's accumulated rotation:
+`chain[i] = chain[i-1] * Quaternion(axis_i, base_tilt_i + spin_i)`. That's
+the literal physical mechanism of a gimbal (child pivot mounted on the parent
+ring), which is what makes "inner depends on outer" true by construction
+rather than by a hand-tuned offset. The `base_tilt_i` constant matters on its
+own: without it every ring starts coincident (all spins are 0 at
+`anim_time == 0`) and can re-coincide whenever rates line up — the
+persistent orthogonal "cage" read needs a standing per-ring offset, not just
+differing speeds.
+
+**Each ring is a flat annulus (inner + outer radius) in its own local plane,
+not a 1D loop** — sampled as two concentric circles, both rotated by the same
+`chain[i]`, then orthographically projected (drop Z). Because both edges
+undergo the *identical* linear map, they always project to two concentric,
+same-orientation ellipses — a true elliptical annulus that can't visually
+decouple into two independent ellipses. This is what gives the "flat strip
+bent and connected end to end" ring-band read instead of a thin wireframe
+outline, and it's still not "faking a tilted ellipse": an ellipse is the
+correct emergent shape of an actual flat 3D ring under rotation + projection.
+
+**The ring must pass over AND under the SkillNode's own disk — this needs a
+second CanvasItem, not draw order.** A point on the ring is in front of the
+disk when its rotated Z is positive (the disk sits at the screen plane,
+Z=0) and behind it when negative. One CanvasItem's `_draw()` can't interleave
+with `InnerDisk`/`RimRing` at two different z-levels, so `core_halos.tscn`
+carries a child, `GimbalBack` (`core_halos_back.gd`), with `z_index = -1`
+left `z_as_relative = true` (the default) — that's a *relative* offset that
+nudges it behind `InnerDisk`/`RimRing` (both default `z_index = 0`) within
+this node's own stacking, without fighting the SkillNode root's own
+absolute/graph-level `z_index` (`skill_node.gd` toggles that for
+sensed-fog ordering — ride that chain, don't override it). `CoreHalos`
+itself stays the front layer, unchanged in tree position, so RINGS/ORBIT/COG
+keep drawing on top exactly as before.
+
+Each ring's sampled points are split into contiguous runs by the sign of
+rotated Z (`_split_ring_runs`) — generically one front run + one back run per
+ring, since a planar ring crosses Z=0 at exactly two points per revolution.
+`CoreHalos._gimbal_runs()` is **pure geometry, no `draw_*` calls** — both
+layers call it and always agree, instead of one recomputing and the other
+reading stale data. **Both layers must recompute every redraw, and both must
+be told to redraw every tick**: Godot only accepts `draw_*` calls for a
+CanvasItem while *that* item is the one currently drawing, so a shared
+drawing helper (`_draw_run_on(target, run, color)`) takes the target
+CanvasItem explicitly rather than assuming `self` — calling
+`some_other_node.draw_polygon(...)` from inside a method still binds
+correctly to `some_other_node`'s own canvas item, but only works if
+`some_other_node` is presently inside its own `_draw()`. `core_halos_back.gd`
+therefore calls `_halos._gimbal_runs()` (data) then draws the result itself
+in its own `_draw()`, rather than asking `CoreHalos` to draw on its behalf.
+And `CoreHalos._process()`/`_redraw_all()` explicitly call
+`_back_layer.queue_redraw()` alongside `queue_redraw()` on itself — the base
+class's shared clock (`SkillNodeVisual._process`) only redraws the node it's
+declared on, so without this the back layer draws once and freezes mid-spin
+while the front half keeps animating. A "does it crash" test won't catch
+that; only watching it animate will (`test_core_halos_gimbal.gd` covers the
+crash/split/pure-function-of-time properties it *can* assert; the visible
+motion still needs an eyeball pass in the sandbox).
+
+`CoreHalos` deliberately has no `class_name` (matching every other leaf
+component in this family — only the base classes declare one), so
+`core_halos_back.gd` accesses its parent via untyped `get_parent()` and duck
+typing (`_halos.is_gimbal_active()`, `_halos._gimbal_runs(...)`) rather than
+a static `CoreHalos` type reference.
+
+**Out of scope on purpose:** inner-face glyphs/arcane symbols on the ring
+band — flagged by the issue owner as "way more than we can fake in 2D
+without building some WILD machinery." A per-instance glyph would force the
+`resource_local_to_scene` duplicate-material escape hatch documented above
+for the weld glyph (samplers can't be `instance uniform`s), which doesn't
+even apply here since CoreHalos is plain `_draw()`, not a shader — it would
+mean baking per-instance textures instead. Possible follow-up, not attempted.
+
 ### Identity is loop-set; the light is a shared object. Two flows, on purpose
 
 `LightingStyle` (`lighting_style.gd`, the [GlowStyle] pattern) carries the

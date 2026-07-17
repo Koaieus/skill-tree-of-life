@@ -15,7 +15,7 @@ enum CoreStyle { NONE, RINGS, ORBIT, GIMBAL, COG }
 @export_range(0.0, 1.0, 0.01) var halo_opacity: float = 0.8:
 	set(value):
 		halo_opacity = value
-		queue_redraw()
+		_redraw_all()
 
 var _halo_color: Color:
 	get():
@@ -27,20 +27,72 @@ var _halo_color: Color:
 	set(value):
 		core = value
 		set_animating(core != CoreStyle.NONE)
-		queue_redraw()
+		_redraw_all()
 
 ## Scales the halo radius outward from the rim.
 @export_range(1.0, 2.0, 0.01) var halo_scale: float = 1.3:
 	set(value):
 		halo_scale = value
-		queue_redraw()
+		_redraw_all()
 
 @export_range(0.5, 3.0, 0.01) var spin_speed: float = 1.0
+
+## GIMBAL only: how many nested rings the gyroscope has. The owner asked for
+## this to be tunable ("a real gyroscope with N spin axis").
+@export_range(2, 5, 1) var gimbal_ring_count: int = 3:
+	set(value):
+		gimbal_ring_count = value
+		_redraw_all()
+
+## GIMBAL only: each ring's band half-width as a fraction of its own radius —
+## controls how much it reads as a flat strip/band vs. a thin wire.
+@export_range(0.02, 0.3, 0.01) var gimbal_band_width: float = 0.12:
+	set(value):
+		gimbal_band_width = value
+		_redraw_all()
+
+## GIMBAL's back layer (see core_halos.tscn) draws whatever passes BEHIND the
+## SkillNode's own disk. It borrows this node's geometry/draw helpers below
+## rather than duplicating them, so front and back can't drift apart.
+@onready var _back_layer: Node2D = $GimbalBack
+
+const GIMBAL_SEGMENTS := 48
+## Local spin axis per ring, expressed in its PARENT ring's frame (composed
+## via quaternion multiplication below) — never the ring's own normal (Z),
+## which would just be an invisible in-plane spin. Alternating RIGHT/UP is
+## what makes nested rings read as orthogonal/interlocking rather than
+## parallel, like the reference armillary-sphere read.
+const GIMBAL_AXES: Array[Vector3] = [Vector3.RIGHT, Vector3.UP, Vector3.RIGHT, Vector3.UP, Vector3.RIGHT]
+const GIMBAL_RATE_BASE := 0.35
+const GIMBAL_GLOW_WIDTH := 3.0
 
 
 ## Shared clock, scaled at read time so a spin_speed tweak never jumps the phase.
 func _spin() -> float:
 	return anim_time * spin_speed
+
+
+## Keeps the GIMBAL back layer's own redraw in lockstep with this node's —
+## without this, the back layer only redraws once (or never) and the far
+## arcs freeze mid-spin while the front half keeps animating.
+func _process(delta: float) -> void:
+	super._process(delta)
+	if core == CoreStyle.GIMBAL and is_instance_valid(_back_layer):
+		_back_layer.queue_redraw()
+
+
+func _redraw_all() -> void:
+	queue_redraw()
+	if core == CoreStyle.GIMBAL and is_instance_valid(_back_layer):
+		_back_layer.queue_redraw()
+
+
+## Whether GIMBAL is the active preset — the back layer checks this via duck
+## typing (it doesn't statically type its parent as CoreHalos) so this class
+## doesn't need a `class_name`, matching every other leaf component in this
+## family.
+func is_gimbal_active() -> bool:
+	return core == CoreStyle.GIMBAL
 
 
 func _draw() -> void:
@@ -76,14 +128,17 @@ func _draw_orbit(base_r: float, halo_color: Color) -> void:
 		draw_circle(polar_point(base_r, theta), 2.5, dot_color)
 
 
-## 3 ring-arcs tilted ~45 degrees apart, each spinning at its own rate.
-# TODO: this is not at all what they should look like wtf
+## Real gyroscope, not a faked tilt: each ring is a flat annulus (band) in
+## its own local plane; ring i's orientation is ring (i-1)'s orientation
+## composed with ring i's own local spin (a quaternion chain), so the outer
+## ring spins independently and every inner ring's pivot is mounted on the
+## one outside it — the literal mechanism of a gimbal, not a phase offset.
+## See _gimbal_runs()/_draw_run_on() for the shared geometry this and
+## core_halos_back.gd (the "passes behind the disk" layer) both draw from.
 func _draw_gimbal(base_r: float, halo_color: Color) -> void:
-	for i in 3:
-		var tilt := i * PI / 4.0
-		var rate := 0.6 + i * 0.3
-		var theta_start := _spin() * rate + tilt
-		draw_arc(Vector2.ZERO, base_r * (1.0 + i * 0.05), theta_start, theta_start + PI * 1.4, 24, halo_color, 1.5, true)
+	var runs := _gimbal_runs(base_r, halo_color)
+	for run in runs["front"]:
+		_draw_run_on(self, run, halo_color)
 
 
 func _draw_cog(base_r: float, halo_color: Color) -> void:
@@ -100,3 +155,118 @@ func _draw_dashed_circle(r: float, offset: float, dash_count: int, color: Color)
 	for i in dash_count:
 		var a0 := i * step + offset
 		draw_arc(Vector2.ZERO, r, a0, a0 + step * 0.5, 4, color, 1.5, true)
+
+
+## Pure geometry — no draw_* calls — so both the front layer (this node) and
+## the back layer (core_halos_back.gd) can call it and always agree, instead
+## of one recomputing and the other reading stale/duplicated math. Returns
+## {"front": [run, ...], "back": [run, ...]}, each run a Dictionary of
+## parallel point/color arrays for the ring's inner and outer band edges,
+## split into contiguous runs wherever the ring's rotated Z crosses 0 (the
+## SkillNode's own disk sits at the screen plane, so Z>0 is in front of it,
+## Z<0 is behind).
+func _gimbal_runs(base_r: float, halo_color: Color) -> Dictionary:
+	var front: Array = []
+	var back: Array = []
+	var half_w := base_r * gimbal_band_width
+	var r_in := base_r - half_w
+	var r_out := base_r + half_w
+	var chain := Quaternion.IDENTITY
+	for i in gimbal_ring_count:
+		var axis: Vector3 = GIMBAL_AXES[i % GIMBAL_AXES.size()]
+		# Fixed per-ring phase offset — without it every ring starts spin=0
+		# and they're all coincident at rest (and whenever rates line up),
+		# so the persistent orthogonal "cage" read needs a standing offset,
+		# not just differing spin rates.
+		var base_tilt := PI * float(i) / float(gimbal_ring_count)
+		var rate := GIMBAL_RATE_BASE * (1.0 + i * 0.4)
+		chain = chain * Quaternion(axis, base_tilt + _spin() * rate)
+		var pts_in := PackedVector3Array()
+		var pts_out := PackedVector3Array()
+		pts_in.resize(GIMBAL_SEGMENTS)
+		pts_out.resize(GIMBAL_SEGMENTS)
+		for s in GIMBAL_SEGMENTS:
+			var t := TAU * float(s) / float(GIMBAL_SEGMENTS)
+			var local_dir := Vector3(cos(t), sin(t), 0.0)
+			pts_in[s] = chain * (local_dir * r_in)
+			pts_out[s] = chain * (local_dir * r_out)
+		_split_ring_runs(pts_in, pts_out, halo_color, front, back)
+	return {"front": front, "back": back}
+
+
+## Walks a ring's sampled points and groups consecutive segments (quads
+## between point s and s+1 on the inner/outer edge) by which side of the
+## disk plane their average Z falls on. A planar ring generically crosses
+## Z=0 at exactly two points per revolution, so this is normally one front
+## run + one back run; a near-face-on ring may produce only one (or, at this
+## segment resolution, an extra sliver run right at the crossing — harmless,
+## just one more draw call).
+func _split_ring_runs(pts_in: PackedVector3Array, pts_out: PackedVector3Array, halo_color: Color, front: Array, back: Array) -> void:
+	var n := pts_in.size()
+	var run_indices: Array = []
+	var run_is_front := true
+	for s in n:
+		var s2 := (s + 1) % n
+		var avg_z := (pts_in[s].z + pts_out[s].z + pts_in[s2].z + pts_out[s2].z) * 0.25
+		var seg_front := avg_z >= 0.0
+		if not run_indices.is_empty() and seg_front != run_is_front:
+			var target: Array = front if run_is_front else back
+			target.append(_build_run(run_indices, pts_in, pts_out, halo_color))
+			run_indices = []
+		run_is_front = seg_front
+		run_indices.append(s)
+	if not run_indices.is_empty():
+		var target: Array = front if run_is_front else back
+		target.append(_build_run(run_indices, pts_in, pts_out, halo_color))
+
+
+func _build_run(indices: Array, pts_in: PackedVector3Array, pts_out: PackedVector3Array, halo_color: Color) -> Dictionary:
+	var idx: Array = indices.duplicate()
+	idx.append((int(indices[-1]) + 1) % pts_in.size())
+	var in_pts := PackedVector2Array()
+	var in_colors := PackedColorArray()
+	var out_pts := PackedVector2Array()
+	var out_colors := PackedColorArray()
+	for i in idx:
+		var p_in: Vector3 = pts_in[i]
+		var p_out: Vector3 = pts_out[i]
+		in_pts.append(Vector2(p_in.x, p_in.y))
+		in_colors.append(_depth_color(halo_color, p_in.z))
+		out_pts.append(Vector2(p_out.x, p_out.y))
+		out_colors.append(_depth_color(halo_color, p_out.z))
+	return {"in_pts": in_pts, "in_colors": in_colors, "out_pts": out_pts, "out_colors": out_colors}
+
+
+## Depth cue: far side of the band dims, near side stays at full halo_color
+## alpha — a per-vertex alpha lerp costs nothing extra (the color array is
+## already required for draw_polygon) and sells the 3D read without a shader.
+func _depth_color(base: Color, z: float) -> Color:
+	var t := clampf((z + 1.0) * 0.5, 0.0, 1.0)
+	return Color(base.r, base.g, base.b, lerpf(base.a * 0.35, base.a, t))
+
+
+## Draws one run's filled band plus a glow rim on its outer edge, on
+## whichever CanvasItem `target` is — this only works correctly when called
+## from INSIDE `target`'s own _draw(), which is why core_halos_back.gd calls
+## this itself rather than asking CoreHalos to draw on its behalf (Godot only
+## accepts draw_* commands for a CanvasItem while that item is the one
+## currently drawing). Fakes the glow via a stacked translucent stroke, same
+## CPU technique as rim_bonuses.gd's _draw_glow_arc / rune_ring.gd's edge_glow.
+func _draw_run_on(target: CanvasItem, run: Dictionary, halo_color: Color) -> void:
+	var in_pts: PackedVector2Array = run["in_pts"]
+	var in_colors: PackedColorArray = run["in_colors"]
+	var out_pts: PackedVector2Array = run["out_pts"]
+	var out_colors: PackedColorArray = run["out_colors"]
+	if in_pts.size() < 2:
+		return
+	var fill_pts := PackedVector2Array(in_pts)
+	var fill_colors := PackedColorArray(in_colors)
+	for i in range(out_pts.size() - 1, -1, -1):
+		fill_pts.append(out_pts[i])
+		fill_colors.append(out_colors[i])
+	target.draw_polygon(fill_pts, fill_colors)
+
+	var glow_colors := PackedColorArray()
+	for c in out_colors:
+		glow_colors.append(Color(c.r, c.g, c.b, c.a * 0.4))
+	target.draw_polyline_colors(out_pts, glow_colors, GIMBAL_GLOW_WIDTH, true)
