@@ -3,9 +3,8 @@ class_name RangedBody
 extends CommandTrayBodyBase
 ## Ranged tab content (#114): target hint + firing-leaves count, Launch.
 ##
-## TODO: promote to formula-driven StatDef (stats-system.md direction) —
-## mirrors [CombatCardRanged]'s same TODO: `RangedDamageFormula.compute()`
-## is floor(DEX/10)+1 and isn't a board stat yet, so it's re-derived here.
+## Reads `ranged_damage` and `range` from the player's StatBoard — both
+## are formula-driven StatDefs, so the tray stays dumb and just displays.
 
 @onready var _leaves_value: Label = %LeavesValue
 @onready var _damage_range_label: Label = %DamageRangeLabel
@@ -32,9 +31,9 @@ func teardown() -> void:
 func _refresh() -> void:
 	var plan := _battle_system.attack_plan as RangedAttackPlan
 	var board := _player.stat_board if _player != null else null
-	var dex: float = float(board.dexterity.value) if board != null and board.dexterity != null else 0.0
+	var dmg: float = float(board.ranged_damage.value) if board != null and board.ranged_damage != null else 0.0
 	var range_v: float = float(board.range.value) if board != null and board.range != null else 0.0
-	_damage_range_label.text = "%d dmg/leaf · %d px" % [int(floor(dex / 10.0) + 1.0), int(range_v)]
+	_damage_range_label.text = "%d dmg/leaf · %d px" % [int(dmg), int(range_v)]
 	var leaves := plan.get_reaching_firing_positions().size() if plan != null else 0
 	_leaves_value.text = str(leaves)
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()

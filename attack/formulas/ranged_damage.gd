@@ -6,23 +6,15 @@ class_name RangedDamageFormula
 ## Per-shot model deliberately: lets future flat armour reduce each impact
 ## instead of one big number, and supports staggered VFX hits.
 ##
-## Formula: `floor(DEX / DEX_DIVISOR) + BASE_DAMAGE`. PHYSICAL.
-##
-## DEX is read node-locally off [param firing_node] (wielder baseline merged
-## with node-local addons, e.g. a "sniper nest" granting local DEX) — see
-## `.claude/rules/graph.md` and #171.
-
-const BASE_DAMAGE: float = 1.0
-const DEX_DIVISOR: float = 10.0
-
+## Reads `ranged_damage` from the firing node's local stat board — the
+## entity board intrinsic formula (`floor(DEX / 10.0)`) plus any node-local
+## addons contribute to the value, so the UI and resolver stay dumb.
 
 static func compute(_attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
 	var hit := DamageInstance.new()
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
-	var dex: float = 0.0
 	if firing_node != null:
-		dex = float(firing_node.get_local_value(&"dexterity"))
-	hit.amount = floor(dex / DEX_DIVISOR) + BASE_DAMAGE
+		hit.amount = float(firing_node.get_local_value(&"ranged_damage"))
 	return hit

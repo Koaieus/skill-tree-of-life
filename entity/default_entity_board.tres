@@ -37,6 +37,7 @@
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
+[ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 
@@ -222,6 +223,16 @@ script = ExtResource("12_3edt8")
 stat_id = &"spell_range"
 formula = SubResource("formula_int_to_spell_range")
 
+[sub_resource type="Resource" id="formula_dex_to_ranged_damage"]
+script = ExtResource("script_expr")
+formula = "floor(float(dexterity) / 10.0)"
+inputs = Array[StringName]([&"dexterity"])
+
+[sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
+script = ExtResource("12_3edt8")
+stat_id = &"ranged_damage"
+formula = SubResource("formula_dex_to_ranged_damage")
+
 [sub_resource type="Resource" id="pool_mana"]
 resource_name = "mana"
 script = ExtResource("3_pool")
@@ -264,6 +275,12 @@ resource_name = "range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_range")
 base_value = 400.0
+
+[sub_resource type="Resource" id="scalar_ranged_damage"]
+resource_name = "ranged_damage"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_ranged_damage")
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -345,6 +362,7 @@ initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
 range = SubResource("scalar_range")
+ranged_damage = SubResource("scalar_ranged_damage")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
 spell_range = SubResource("scalar_spell_range")
@@ -352,4 +370,4 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_dex_to_ranged_damage")])

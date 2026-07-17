@@ -78,6 +78,7 @@ extends Resource
 
 @export_group("Ranged")
 @export var range: ScalarStat			## Per-leaf firing distance in scene pixels. Localized on leaves.
+@export var ranged_damage: ScalarStat	## Damage per shot. Base 1, +1 per 10 DEX. Node-local addons add on top per-node via node_board.
 
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
