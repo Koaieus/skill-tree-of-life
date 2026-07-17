@@ -204,21 +204,35 @@ a static `CoreHalos` type reference.
 They were flagged as "way more than we can fake in 2D without building some
 WILD machinery" (a 2D `_draw()` has no UVs; a per-instance glyph would force
 baked per-instance textures). The real-3D gimbal (`skill_node/visuals/gimbal_3d/`,
-see next section) gets them for free — a `TorusMesh` has real UVs, so the
-`SOLID_GLYPH` style scrolls an emissive rune strip along a v-band of the tube
-(currently the camera-facing wall, so the runes read; the inner face would be
-mostly hidden — the `inner_lo`/`inner_hi` uniforms place it).
-Don't try to reintroduce this on the 2D path.
+see next section) gets them for free — each band is an uncapped `CylinderMesh`
+whose wall has real UVs (u around, v across the band), so the `SOLID_GLYPH`
+style scrolls an emissive rune strip across the band and it wraps the whole
+hoop. Don't try to reintroduce this on the 2D path.
 
 ### 3D gimbal showcase (#239): the boss-tier looks, on a real SubViewport
 
 `skill_node/visuals/gimbal_3d/` is a real-3D rebuild of the gimbal for boss
-differentiation — same quaternion chain (identical `AXES`/`RATE_BASE`/
-`RADIUS_STEP` constants, so it reads as the same gyroscope) driving actual
-`TorusMesh` rings whose `Basis` is set per-frame, inside a `SubViewport` world
-with a glow `Environment`. The over/under interleave is the depth buffer, not a
-hand-split front/back CanvasItem, and the look is emissive shaders (the CPU
-stacked-stroke fake can't reach neon/glass/glyph).
+differentiation — the same quaternion chain (shared `AXES`/`RATE_BASE` + the
+per-ring standing tilts) driving uncapped `CylinderMesh` bands ("cylinder
+slices", not round `TorusMesh` donuts) whose `Basis` is set per-frame, inside a
+`SubViewport` world with a glow `Environment`. The over/under interleave is the
+depth buffer, not a hand-split front/back CanvasItem, and the look is emissive
+shaders (the CPU stacked-stroke fake can't reach neon/glass/glyph).
+
+- **Chain index 0 is the OUTERMOST band (the parent).** The chain composes each
+  inner ring's spin onto the accumulated outer rotation, so radius must *shrink*
+  with chain depth — otherwise spinning the outer ring wouldn't carry the inner
+  ones and the gimbal dependency reads backwards. Outer rings also spin slowest
+  (rate grows with depth), so the inheritance is legible: inner rings whirl fast
+  within the slowly-reorienting outer frame. (The 2D CoreHalos GIMBAL still maps
+  radius the *other* way — smallest at the chain root — a latent inversion not
+  yet backported; it's tiny/core-gated so nobody's called it.)
+- **`CylinderMesh` axis is Y**, so a constant `MESH_CORR` (90° about X) rotates
+  the wall into the ring plane (axis → local Z, matching the 2D hoop) before the
+  chain `Basis` is applied: `basis = Basis(chain) * MESH_CORR`.
+- **`facets` (radial_segments) is the angular/PCB dial** — low is faceted, high
+  is smooth. The de-donut win is the open cylinder wall (zero radial thickness),
+  independent of facet count.
 
 - **Same contract by intent:** consumes `tint` (ownership, like CoreHalos'
   `entity_tint`) + `ring_count` + `spin_speed`; the three looks are one `Style`
@@ -235,8 +249,12 @@ stacked-stroke fake can't reach neon/glass/glyph).
   stacked-stroke fake here.
 - **Not yet wired into the live SkillNode pipeline** — it's a showcase
   (`gimbal_3d_showcase.tscn`, auto-discovered as the sandbox "Gimbal 3D" tab) for
-  evaluating the look. Lifting the whole node visual into 3D / MultiMesh scaling
-  was explicitly de-scoped while halos are core-gated (see #239).
+  evaluating the look. The intended integration is **one small `SubViewport` per
+  boss** (a `TextureRect`/`Sprite2D` composited at the node), NOT per node —
+  bosses are rare, and the whole 3-gimbal showcase (9 bands + glow) measured
+  **11 draw calls / ~cheap**, so a handful of tiny per-boss viewports is
+  affordable. Lifting *every* node into 3D / MultiMesh scaling stays de-scoped
+  while halos are core-gated (see #239).
 - **Shaders are verified under `xvfb-run … --rendering-driver opengl3`**, never
   headless alone — GLSL doesn't compile under the dummy renderer (see
   `godot-workflow.md`). `test_gimbal_3d.gd` covers only what GDScript can assert

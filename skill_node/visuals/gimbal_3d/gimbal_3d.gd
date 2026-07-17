@@ -46,18 +46,28 @@ enum Style { UNIFORM_GLOW, HOLO_GLASS, SOLID_GLYPH }
 		base_radius = value
 		_rebuild()
 
-## Each ring's tube half-thickness as a fraction of its own radius — the 3D twin
-## of CoreHalos.gimbal_band_width (how much it reads as a band vs. a wire).
-@export_range(0.03, 0.35, 0.01) var band_width: float = 0.13:
+## Each band's axial width as a fraction of its own radius — how tall the
+## "cylinder slice" reads (the 3D twin of CoreHalos.gimbal_band_width).
+@export_range(0.03, 0.45, 0.01) var band_width: float = 0.22:
 	set(value):
 		band_width = value
 		_rebuild()
 
-# Matches the 2D CoreHalos constants so both substrates read as the same gimbal.
+## Sides around each band. Low = angular/faceted (techy/PCB read); high = smooth.
+@export_range(6, 48, 1) var facets: int = 24:
+	set(value):
+		facets = value
+		_rebuild()
+
+# The quaternion chain (axes + rates + standing tilts) is the "same gimbal" the
+# 2D CoreHalos GIMBAL uses; the radius layout is substrate-specific (thin 3D
+# bands need more separation than the 2D hoops).
 const AXES: Array[Vector3] = [Vector3.RIGHT, Vector3.UP, Vector3.RIGHT, Vector3.UP, Vector3.RIGHT]
 const RATE_BASE := 0.35
-const RADIUS_STEP := 0.22
-const TUBE_SIDES := 20
+const RADIUS_STEP := 0.34
+# CylinderMesh's wall runs around its Y axis; rotate it so the axis is the ring's
+# own normal (local Z), i.e. the band lies in the ring plane like the 2D hoop.
+const MESH_CORR := Basis(Vector3(1, 0, 0), PI * 0.5)
 
 # One shared ShaderMaterial per style (tint is an instance uniform, so every
 # ring/rig still batches) — same "shared material, vary by instance uniform"
@@ -77,17 +87,19 @@ func _process(delta: float) -> void:
 	if _rings.is_empty():
 		return
 	_t += delta * spin_speed
-	# The gimbal chain: ring i's orientation is ring (i-1)'s composed with ring
-	# i's own local spin about an alternating axis — inner mounted on outer, the
-	# literal mechanism (see skill-node-visuals.md). Identical to the 2D path,
-	# only here the quaternion drives a real Basis instead of projected points.
+	# The gimbal chain: chain index 0 is the OUTERMOST ring (the base/parent);
+	# each successive inner ring composes its own spin ONTO the accumulated outer
+	# rotation, so spinning an outer ring bodily carries every ring inside it —
+	# the literal mechanism (see skill-node-visuals.md). Outer rings spin slowest
+	# (rate grows with depth into the chain), so the inheritance reads: inner
+	# rings whirl fast within the slowly-reorienting frame of the outer ones.
 	var chain := Quaternion.IDENTITY
 	for i in _rings.size():
 		var axis: Vector3 = AXES[i % AXES.size()]
 		var base_tilt := PI * float(i) / float(ring_count)
-		var rate := RATE_BASE * (1.0 + i * 0.4)
+		var rate := RATE_BASE * (1.0 + i * 0.55)
 		chain = chain * Quaternion(axis, base_tilt + _t * rate)
-		_rings[i].transform.basis = Basis(chain)
+		_rings[i].transform.basis = Basis(chain) * MESH_CORR
 
 
 func _rebuild() -> void:
@@ -98,13 +110,20 @@ func _rebuild() -> void:
 		return
 	var mat := _style_material(style)
 	for i in ring_count:
-		var ring_r := base_radius * (1.0 + i * RADIUS_STEP)
-		var tube := ring_r * band_width
-		var mesh := TorusMesh.new()
-		mesh.inner_radius = ring_r - tube
-		mesh.outer_radius = ring_r + tube
-		mesh.rings = 48
-		mesh.ring_segments = TUBE_SIDES
+		# Chain index 0 = outermost. Radius shrinks as we go deeper into the
+		# chain, so the parent ring is the big outer one (matches _process).
+		var depth := ring_count - 1 - i
+		var ring_r := base_radius * (1.0 + depth * RADIUS_STEP)
+		# An UNCAPPED cylinder = a flat band ("cylinder slice"), not a round
+		# donut tube — the axial wall is the surface, zero radial thickness.
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = ring_r
+		mesh.bottom_radius = ring_r
+		mesh.height = ring_r * band_width
+		mesh.radial_segments = facets
+		mesh.rings = 1
+		mesh.cap_top = false
+		mesh.cap_bottom = false
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		mi.material_override = mat

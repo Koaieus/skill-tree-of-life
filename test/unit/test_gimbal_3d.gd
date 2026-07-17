@@ -23,10 +23,22 @@ func test_builds_one_mesh_per_ring() -> void:
 	var g := _make(Gimbal3D.Style.UNIFORM_GLOW, 3)
 	await get_tree().process_frame
 	var meshes := g.find_children("*", "MeshInstance3D", false, false)
-	assert_eq(meshes.size(), 3, "one TorusMesh MeshInstance3D per ring")
+	assert_eq(meshes.size(), 3, "one band MeshInstance3D per ring")
 	for m in meshes:
-		assert_true(m.mesh is TorusMesh, "each ring is a TorusMesh")
+		assert_true(m.mesh is CylinderMesh, "each ring is an (uncapped) cylinder band")
+		assert_false(m.mesh.cap_top or m.mesh.cap_bottom, "band is open — a cylinder slice, not a capped drum")
 		assert_not_null(m.material_override, "each ring has a style material")
+
+
+func test_chain_root_is_the_outermost_ring() -> void:
+	# The gimbal's parent (chain index 0, whose rotation propagates to every
+	# inner ring) must be the OUTERMOST band, or "spin the outer, the inner
+	# rides along" reads backwards. Radius therefore shrinks with chain index.
+	var g := _make(Gimbal3D.Style.UNIFORM_GLOW, 3)
+	await get_tree().process_frame
+	var meshes := g.find_children("*", "MeshInstance3D", false, false)
+	assert_gt(meshes[0].mesh.top_radius, meshes[2].mesh.top_radius,
+		"ring 0 (chain root / parent) is the largest, outermost band")
 
 
 func test_every_style_resolves_a_loadable_shader() -> void:
