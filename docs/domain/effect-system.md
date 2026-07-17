@@ -204,5 +204,7 @@ Reach queries go through `RangeFinder.gather`, never `in_range` in a loop — se
 - **LifeLine** — "kept alive despite being islanded" overrides the islanding rule.
   It needs a **query hook with a return value** inside
   `nodes_islanded_by_removing_set` / the cascade, not a fire-and-forget notification
-  and not a modifier grant. Different hook shape; its own issue.
+  and not a modifier grant. Different hook shape; its own issue. Design sketch
+  (including the broader "status tags" grant channel this implies) now lives in
+  [status-tags.md](status-tags.md).
 - **Presentation** — icon + `get_description()` rendering in the HUD.

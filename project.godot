@@ -28,6 +28,10 @@ Events="*res://autoload/events.gd"
 StatRegistry="*res://autoload/stat_registry.gd"
 DebugClipboard="*res://autoload/debug_clipboard.gd"
 
+[debug]
+
+settings/stdout/print_fps=true
+
 [display]
 
 window/size/viewport_width=1440

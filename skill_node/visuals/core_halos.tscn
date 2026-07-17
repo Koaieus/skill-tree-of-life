@@ -5,7 +5,6 @@
 
 [node name="CoreHalos" type="Node2D" unique_id=439182307]
 script = ExtResource("1_halos")
-halo_style = 3
 halo_scale = 1.5
 gimbal_ring_count = 2
 archetype_tint = Color(0.56203544, 0.7386474, 0.31942812, 1)

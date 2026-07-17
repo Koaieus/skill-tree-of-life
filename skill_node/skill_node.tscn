@@ -30,7 +30,7 @@ corner_radius_bottom_left = 6
 corner_detail = 6
 shadow_size = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mcbms"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_58fw3"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -66,8 +66,11 @@ metadata/_edit_lock_ = true
 metadata/_edit_lock_ = true
 
 [node name="NodeVisualsComposite" parent="Visuals" unique_id=1855738635 instance=ExtResource("2_58fw3")]
+entity_tint = Color(1, 1, 1, 1)
+archetype_tint = Color(0.4117647, 0.4117647, 0.4117647, 1)
 
 [node name="BaseCircle" type="Node2D" parent="Visuals" unique_id=215651254]
+visible = false
 script = ExtResource("2_base")
 
 [node name="HoverRing" type="Node2D" parent="Visuals" unique_id=670952446]
@@ -106,11 +109,12 @@ offset_right = 31.0
 offset_bottom = -46.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_mcbms")
+theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
 show_percentage = false
 script = ExtResource("6_r2qlo")
 
 [node name="CoreHealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922170]
+visible = false
 modulate = Color(1, 1, 1, 0)
 z_index = 10
 offset_left = -35.0
