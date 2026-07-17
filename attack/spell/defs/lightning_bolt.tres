@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://22735wciupcm"]
 
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_p8lud"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Texture2D" uid="uid://nvp2eq6dv11i" path="res://assets/icons/spells/lightning_bolt.png" id="1_vajd0"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]

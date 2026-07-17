@@ -28,6 +28,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
+[ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
@@ -37,7 +38,6 @@
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
-[ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 
@@ -126,12 +126,6 @@ resource_name = "intelligence"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_intelligence")
 base_value = 10.0
-
-[sub_resource type="Resource" id="scalar_level"]
-resource_name = "level"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_level")
-base_value = 1.0
 
 [sub_resource type="Resource" id="formula_per_to_vision"]
 script = ExtResource("script_linear")
@@ -232,6 +226,12 @@ inputs = Array[StringName]([&"dexterity"])
 script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
+
+[sub_resource type="Resource" id="scalar_level"]
+resource_name = "level"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_level")
+base_value = 1.0
 
 [sub_resource type="Resource" id="pool_mana"]
 resource_name = "mana"

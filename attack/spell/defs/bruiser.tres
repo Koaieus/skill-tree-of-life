@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b56spbwfkkese"]
 
 [ext_resource type="Texture2D" uid="uid://dvmxe1fnf6sfw" path="res://assets/icons/spells/bruiser.png" id="1_bm58y"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_js5d8"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]

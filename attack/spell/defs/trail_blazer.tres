@@ -1,5 +1,6 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://vgrgi0u2ij56"]
 
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_ef7vp"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="1_p8d3l"]
 [ext_resource type="Texture2D" uid="uid://dl1u6tr2mv3ay" path="res://assets/icons/spells/trailblazer.png" id="1_x1qvp"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="2_x1qvp"]

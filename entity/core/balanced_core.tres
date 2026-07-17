@@ -24,19 +24,16 @@ value = 10.0
 [sub_resource type="Resource" id="mod_str_per_level"]
 script = ExtResource("2_mod")
 stat_id = &"strength"
-value = 1.0
 formula = ExtResource("4_lvl")
 
 [sub_resource type="Resource" id="mod_dex_per_level"]
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
-value = 1.0
 formula = ExtResource("4_lvl")
 
 [sub_resource type="Resource" id="mod_int_per_level"]
 script = ExtResource("2_mod")
 stat_id = &"intelligence"
-value = 1.0
 formula = ExtResource("4_lvl")
 
 [sub_resource type="Resource" id="Resource_1xoxv"]
