@@ -5,6 +5,11 @@ paths:
 ---
 # SkillNode visuals — ring band convention (#67)
 
+> The **central emblem** (CARVE / BLOOM registers, priority ladder, the
+> contribute→resolve architecture that keeps SkillNode ignorant of
+> loot/spell/keystone sources) is its own contract:
+> [docs/domain/skillnode-emblem.md](../../docs/domain/skillnode-emblem.md).
+
 How the concentric rings around a `SkillNode` are sized. One convention, one
 formula, so radii stay legible "going forward" instead of each ring re-deriving
 its own.
