@@ -36,13 +36,16 @@ Children of epic **#237**:
    bools + local `ARCH_SIDES` dup (read `ArchetypeShape.SIDES`). **Contract-tested
    — mind `test_node_visuals_contract.gd`.**
 5. **#128 — Register-3 + core-presence travel.** Group `CoreSigilBloom` + the
-   existing `CoreHalos` (currently under `NodeVisualsComposite/ShaderStack`) into
-   one **`CorePresence`** mover gated on `is_core`; retarget the `CoreMarker`
-   glide tween (`skill_node.gd`) onto that group; drag-ghost reuses it; **delete
-   `CoreMarker` + its star `Label`**. Give `CorePresence` its own **sensed gate**
-   (it's leaving ShaderStack's wholesale hide). Full rationale + the rejected
-   per-entity-follower alternative: the "Core-presence movement" section of
-   `docs/domain/skillnode-emblem.md`.
+   existing `CoreHalos` into one **`CorePresence`** node **nested under
+   `NodeVisualsComposite/ShaderStack`** (where `CoreHalos` already is), gated on
+   `is_core`; move it by tweening its local `position` — retarget the `CoreMarker`
+   glide (`skill_node.gd`) onto it; drag-ghost reuses it; **delete `CoreMarker` +
+   its star `Label`**. Nesting under `ShaderStack` gives sensed-hide for free (no
+   own gate) and keeps the composite's `%`-name `entity_tint` fan-out (add
+   `%CoreSigilBloom` to `_children`). Mind `GimbalBack` relative-z (wrapper at
+   rel-z 0) + compute the glide offset in the composite's local frame. Full
+   rationale + rejected per-entity-follower: the "Core-presence movement" section
+   of `docs/domain/skillnode-emblem.md`.
 6. Bake substrate (later, gated on the #172 instance-uniform slot spike): CARVE =
    shared `sampler2DArray` of baked normals; BLOOM = shared additive glow texture,
    `modulate`-tinted. Payoff = slot ceiling + authorability + arbitrary art, NOT fps.

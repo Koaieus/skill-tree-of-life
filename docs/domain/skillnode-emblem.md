@@ -118,15 +118,29 @@ lone `CoreMarker` onto that group — all core visuals glide together. The
 core-move **drag ghost** reuses the same group (a `modulate`-alpha'd copy at the
 hovered target). `CoreMarker` + its star `Label` are then deleted.
 
-**The structural cost, made explicit:** `CoreHalos` already lives in the
-SkillNodeVisual family under `NodeVisualsComposite/ShaderStack` (so it gets the
-composite's `entity_tint` fan-out and the wholesale sensed-hide), while
-`CoreMarker` is a Visuals-level outlier. So `CorePresence` is a *refactor* that
-consolidates both into one group — and because that group sits outside
-`ShaderStack`, it needs its **own sensed gate** (core presence must stay hidden
-on a fogged/enemy node). Rejected as heavier: a single per-entity CorePresence
-*follower* decoupled from nodes — cleaner "one thing moves" but duplicates the
-render path and diverges from the per-node visual family.
+**Compose `CorePresence` *inside* the visual family — under
+`NodeVisualsComposite/ShaderStack`, where `CoreHalos` already lives — and move it
+as a whole by tweening its local `position`.** A subtree glides at any nesting
+depth (`position` is parent-local), so nesting costs nothing for the move, and it
+buys two things for free:
+
+- **Sensed-hide comes free.** `_apply_sensed()` hides the whole `ShaderStack`
+  node, so core visuals nested there vanish on a fogged/enemy node with **no
+  separate sensed gate**. (This is why nesting beats a Visuals-level group or a
+  decoupled follower — those would each need their own fog gate.)
+- **`entity_tint` fan-out survives the reparent.** The composite loop-sets
+  `entity_tint` over its `%`-unique-named `_children`; unique names resolve
+  anywhere in the owner's tree, so wrapping `%CoreHalos` (+ adding
+  `%CoreSigilBloom`) under `CorePresence` keeps the fan-out intact.
+
+So `CorePresence` is a *consolidating refactor*, not new machinery: fold the
+star-era `CoreMarker` role and the already-in-family `CoreHalos` into one nested,
+`is_core`-gated, position-tweenable group. Mind only the `GimbalBack` relative-z
+(keep the wrapper at relative z 0) and compute the glide offset in the composite's
+local frame. Rejected as heavier: a single per-entity CorePresence *follower*
+decoupled from nodes — cleaner "one thing moves" but duplicates the render path,
+diverges from the per-node visual family, and re-introduces the fog gate nesting
+gives for free.
 
 ## The `preload`-not-`class_name` gotcha
 
