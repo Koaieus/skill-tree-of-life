@@ -23,9 +23,13 @@ free** (nice-to-have, not required).
 4. `InnerDisk`: consume the resolved CARVE (retire `show_weld`/`show_diamond` bools); read
    `ArchetypeShape.SIDES` instead of its local `ARCH_SIDES` dup. **Contract-tested — mind
    `test_node_visuals_contract.gd`.**
-5. **BLOOM render** — a `CoreSigilBloom` Node2D in the composite that draws the owner core-class
-   sigil (`entity.core_class.sigil.points()`) as an additive, entity-tinted, pulsing glow, shown
-   when `node.is_core()`. This is the GLOW payoff; additive, doesn't disturb the carve.
+5. **BLOOM render** — ✅ COMPONENT BUILT: `skill_node/visuals/emblem/core_sigil_bloom.{gd,tscn}`
+   (`CoreSigilBloom extends SkillNodeVisual`) draws a `Sigil` as an additive, entity-tinted, pulsing
+   glow; shared add-blend material; tested (`test/unit/test_core_sigil_bloom.gd`). **REMAINING (needs
+   editor closed):** instance it in `node_visuals_composite.tscn`, feed it the owner
+   `entity.core_class.sigil` + `entity_tint`, and gate its visibility on `node.is_core()` via the
+   composite's `_sync_*`. Draw values (glow_layers/spread/whiteness/pulse) are first-guesses — tune
+   live in the Node Visuals sandbox tab. Additive, so it doesn't disturb the carve.
 6. Bake substrate (later, gated on a slots-per-node spike): carve = shared `sampler2DArray` of
    baked normals indexed by a cheap instance-uniform; bloom = shared additive glow texture,
    `modulate`-tinted. Not fps — the #172 instance-uniform slot ceiling is the real driver.
