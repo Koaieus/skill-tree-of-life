@@ -1,0 +1,98 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/gimbal_3d/gimbal_3d_showcase.gd" id="1_panel"]
+[ext_resource type="Script" path="res://skill_node/visuals/gimbal_3d/gimbal_3d.gd" id="2_gimbal"]
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.04, 0.045, 0.06, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.5, 0.55, 0.65, 1)
+ambient_light_energy = 0.35
+tonemap_mode = 3
+glow_enabled = true
+glow_normalized = true
+glow_intensity = 1.0
+glow_strength = 1.1
+glow_bloom = 0.1
+glow_blend_mode = 0
+glow_hdr_threshold = 1.0
+
+[sub_resource type="CameraAttributesPractical" id="CamAttr"]
+
+[node name="GimbalShowcase" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_panel")
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+stretch = true
+
+[node name="World" type="SubViewport" parent="ViewportContainer"]
+own_world_3d = true
+handle_input_locally = false
+msaa_3d = 2
+size = Vector2i(1152, 480)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="ViewportContainer/World"]
+environment = SubResource("Env")
+
+[node name="Camera3D" type="Camera3D" parent="ViewportContainer/World"]
+transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, 1.4, 8.2)
+attributes = SubResource("CamAttr")
+fov = 42.0
+
+[node name="KeyLight" type="DirectionalLight3D" parent="ViewportContainer/World"]
+transform = Transform3D(0.86, -0.35, 0.37, 0, 0.72, 0.69, -0.5, -0.6, 0.62, 0, 0, 0)
+light_energy = 1.2
+
+[node name="Uniform" type="Node3D" parent="ViewportContainer/World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.3, 0, 0)
+script = ExtResource("2_gimbal")
+style = 0
+tint = Color(0.25, 0.85, 0.95, 1)
+
+[node name="Glass" type="Node3D" parent="ViewportContainer/World"]
+script = ExtResource("2_gimbal")
+style = 1
+tint = Color(0.72, 0.5, 1, 1)
+
+[node name="Glyph" type="Node3D" parent="ViewportContainer/World"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.3, 0, 0)
+script = ExtResource("2_gimbal")
+style = 2
+tint = Color(1, 0.78, 0.3, 1)
+
+[node name="Labels" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -34.0
+grow_horizontal = 2
+grow_vertical = 0
+alignment = 1
+theme_override_constants/separation = 120
+
+[node name="L0" type="Label" parent="Labels"]
+layout_mode = 2
+text = "UNIFORM_GLOW"
+horizontal_alignment = 1
+
+[node name="L1" type="Label" parent="Labels"]
+layout_mode = 2
+text = "HOLO_GLASS"
+horizontal_alignment = 1
+
+[node name="L2" type="Label" parent="Labels"]
+layout_mode = 2
+text = "SOLID_GLYPH"
+horizontal_alignment = 1

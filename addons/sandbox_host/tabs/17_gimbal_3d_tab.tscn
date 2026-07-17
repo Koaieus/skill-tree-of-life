@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://blcyvcrm6o4og" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_tab"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/gimbal_3d/gimbal_3d_showcase.tscn" id="2_panel"]
+
+[node name="Gimbal3D" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+script = ExtResource("1_tab")
+tab_title = "Gimbal 3D"
+tab_id = &"gimbal_3d"
+panel_scene = ExtResource("2_panel")
+loader_method = &"noop"
