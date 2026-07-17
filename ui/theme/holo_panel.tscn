@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/theme/holo_panel.gd" id="1_script"]
+[ext_resource type="Shader" path="res://ui/theme/holo_panel.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_holo"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(300, 120)
+shader_parameter/tint_color = Color(0.35, 0.85, 0.95, 0.12)
+shader_parameter/corner_radius = 13.0
+shader_parameter/scanline_count = 60.0
+shader_parameter/scanline_speed = 0.35
+shader_parameter/scanline_intensity = 0.18
+shader_parameter/glow_color = Color(0.4, 0.95, 1.0, 1.0)
+shader_parameter/glow = 0.0
+
+[node name="HoloPanel" type="ColorRect"]
+material = SubResource("ShaderMaterial_holo")
+offset_right = 300.0
+offset_bottom = 120.0
+mouse_filter = 2
+script = ExtResource("1_script")
