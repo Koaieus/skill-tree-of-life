@@ -262,7 +262,7 @@ func _depth_color(base: Color, z: float) -> Color:
 	return Color(base.r, base.g, base.b, lerpf(base.a * 0.35, base.a, t))
 
 
-## Draws one run's filled band plus a glow rim on its outer edge, on
+## Draws one run's filled band plus a glow stroke on BOTH hoop rims, on
 ## whichever CanvasItem `target` is — this only works correctly when called
 ## from INSIDE `target`'s own _draw(), which is why core_halos_back.gd calls
 ## this itself rather than asking CoreHalos to draw on its behalf (Godot only
@@ -292,7 +292,13 @@ func _draw_run_on(target: CanvasItem, run: Dictionary, halo_color: Color) -> voi
 		var quad_colors := PackedColorArray([in_colors[i], out_colors[i], out_colors[i + 1], in_colors[i + 1]])
 		target.draw_primitive(quad_pts, quad_colors, empty_uvs)
 
+	target.draw_polyline_colors(in_pts, _glow_colors(in_colors), GIMBAL_GLOW_WIDTH, true)
+	target.draw_polyline_colors(out_pts, _glow_colors(out_colors), GIMBAL_GLOW_WIDTH, true)
+
+
+## Both hoop rims glow — it's a symmetric band, not a one-sided ring.
+func _glow_colors(rim_colors: PackedColorArray) -> PackedColorArray:
 	var glow_colors := PackedColorArray()
-	for c in out_colors:
+	for c in rim_colors:
 		glow_colors.append(Color(c.r, c.g, c.b, c.a * 0.4))
-	target.draw_polyline_colors(out_pts, glow_colors, GIMBAL_GLOW_WIDTH, true)
+	return glow_colors
