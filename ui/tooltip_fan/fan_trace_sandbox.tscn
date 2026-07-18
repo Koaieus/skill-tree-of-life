@@ -1,36 +1,221 @@
-[gd_scene format=3 uid="uid://cymv3jedgr28a"]
+[gd_scene load_steps=4 format=3 uid="uid://cymv3jedgr28a"]
 
 [ext_resource type="Script" uid="uid://cjemlwykoedmv" path="res://ui/tooltip_fan/fan_trace_sandbox.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://d0w41dfe3cu3y" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_fan"]
+[ext_resource type="PackedScene" uid="uid://cepou0jp2dr5y" path="res://ui/theme/holo_panel.tscn" id="3_holo"]
 
-[node name="FanTraceSandbox" type="Node2D" unique_id=1786024385]
+[node name="FanTraceSandbox" type="Node2D"]
 script = ExtResource("1_script")
-draw_in_duration = 0.30000000000000004
-erase_duration = 0.15000000000000002
-trace_paths = Array[NodePath]([NodePath("Trace0"), NodePath("Trace1"), NodePath("Trace2")])
-target_paths = Array[NodePath]([NodePath("Target0"), NodePath("Target1"), NodePath("Target2")])
+trace_paths = Array[NodePath]([NodePath("Trace0"), NodePath("Trace1"), NodePath("Trace2"), NodePath("Trace3"), NodePath("Trace4")])
+marker_paths = Array[NodePath]([NodePath("Marker0"), NodePath("Marker1"), NodePath("Marker2"), NodePath("Marker3"), NodePath("Marker4")])
+dest_paths = Array[NodePath]([NodePath("Dest0"), NodePath("Dest1"), NodePath("Dest2"), NodePath("Dest3"), NodePath("Dest4")])
 
-[node name="Trace0" parent="." unique_id=697221681 instance=ExtResource("2_fan")]
-position = Vector2(-5, 0)
-to_point = Vector2(-155, -200)
-bend_start = 0.684
+[node name="Trace0" parent="." instance=ExtResource("2_fan")]
+to_point = Vector2(0, -300)
+bend_start = 0.85
+
+[node name="Trace1" parent="." instance=ExtResource("2_fan")]
+position = Vector2(-4, 0)
+to_point = Vector2(-266, -280)
+bend_start = 0.5
 line_color = Color(1, 0.62, 0.32, 0.9)
 tip_color = Color(1, 0.85, 0.6, 1)
 
-[node name="Trace1" parent="." unique_id=620519489 instance=ExtResource("2_fan")]
-to_point = Vector2(10, -260)
-
-[node name="Trace2" parent="." unique_id=1040772946 instance=ExtResource("2_fan")]
-position = Vector2(5, 0)
-to_point = Vector2(167, -202)
+[node name="Trace2" parent="." instance=ExtResource("2_fan")]
+position = Vector2(4, 0)
+to_point = Vector2(266, -280)
+bend_start = 0.5
 line_color = Color(0.55, 1, 0.55, 0.9)
 tip_color = Color(0.8, 1, 0.8, 1)
 
-[node name="Target0" type="Marker2D" parent="." unique_id=827740853]
-position = Vector2(-160, -200)
+[node name="Trace3" parent="." instance=ExtResource("2_fan")]
+position = Vector2(-8, 0)
+to_point = Vector2(-332, -150)
+bend_start = 0.3
+line_color = Color(0.72, 0.55, 1, 0.9)
+tip_color = Color(0.85, 0.78, 1, 1)
 
-[node name="Target1" type="Marker2D" parent="." unique_id=1221694825]
-position = Vector2(10, -260)
+[node name="Trace4" parent="." instance=ExtResource("2_fan")]
+position = Vector2(8, 0)
+to_point = Vector2(332, -150)
+bend_start = 0.3
+line_color = Color(1, 0.85, 0.35, 0.9)
+tip_color = Color(1, 0.95, 0.7, 1)
 
-[node name="Target2" type="Marker2D" parent="." unique_id=1017976160]
-position = Vector2(172, -202)
+[node name="Marker0" type="Marker2D" parent="."]
+position = Vector2(0, -300)
+
+[node name="Marker1" type="Marker2D" parent="."]
+position = Vector2(-270, -280)
+
+[node name="Marker2" type="Marker2D" parent="."]
+position = Vector2(270, -280)
+
+[node name="Marker3" type="Marker2D" parent="."]
+position = Vector2(-340, -150)
+
+[node name="Marker4" type="Marker2D" parent="."]
+position = Vector2(340, -150)
+
+[node name="Dest0" type="Node2D" parent="."]
+position = Vector2(0, -300)
+
+[node name="Header" type="Label" parent="Dest0"]
+offset_left = -150.0
+offset_top = -52.0
+offset_right = 150.0
+offset_bottom = -36.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "GRANTED MODIFIERS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Tile0" type="ColorRect" parent="Dest0"]
+offset_left = -150.0
+offset_top = -30.0
+offset_right = -54.0
+offset_bottom = -8.0
+mouse_filter = 2
+color = Color(0.32, 0.78, 0.45, 0.4)
+
+[node name="Label" type="Label" parent="Dest0/Tile0"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_right = -6.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "+12 STR"
+vertical_alignment = 1
+
+[node name="Tile1" type="ColorRect" parent="Dest0"]
+offset_left = -48.0
+offset_top = -38.0
+offset_right = 48.0
+offset_bottom = -16.0
+mouse_filter = 2
+color = Color(0.29, 0.59, 1, 0.4)
+
+[node name="Label" type="Label" parent="Dest0/Tile1"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_right = -6.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "+40% DEX"
+vertical_alignment = 1
+
+[node name="Tile2" type="ColorRect" parent="Dest0"]
+offset_left = 54.0
+offset_top = -30.0
+offset_right = 150.0
+offset_bottom = -8.0
+mouse_filter = 2
+color = Color(0.69, 0.4, 0.97, 0.4)
+
+[node name="Label" type="Label" parent="Dest0/Tile2"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 6.0
+offset_right = -6.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 11
+text = "×1.2 INT"
+vertical_alignment = 1
+
+[node name="Dest1" type="Node2D" parent="."]
+position = Vector2(-270, -280)
+
+[node name="HoloPanel" parent="Dest1" instance=ExtResource("3_holo")]
+offset_left = -90.0
+offset_top = -96.0
+offset_right = 90.0
+offset_bottom = 0.0
+glow = 0.3
+
+[node name="Label" type="Label" parent="Dest1/HoloPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.8, 0.95, 1, 0.9)
+theme_override_font_sizes/font_size = 13
+text = "OWNER"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Dest2" type="Node2D" parent="."]
+position = Vector2(270, -280)
+
+[node name="HoloPanel" parent="Dest2" instance=ExtResource("3_holo")]
+offset_left = -90.0
+offset_top = -96.0
+offset_right = 90.0
+offset_bottom = 0.0
+glow = 0.3
+
+[node name="Label" type="Label" parent="Dest2/HoloPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.8, 0.95, 1, 0.9)
+theme_override_font_sizes/font_size = 13
+text = "ADDONS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Dest3" type="Node2D" parent="."]
+position = Vector2(-340, -150)
+
+[node name="HoloPanel" parent="Dest3" instance=ExtResource("3_holo")]
+offset_left = -95.0
+offset_top = -84.0
+offset_right = 95.0
+offset_bottom = 0.0
+glow = 0.3
+
+[node name="Label" type="Label" parent="Dest3/HoloPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.8, 0.95, 1, 0.9)
+theme_override_font_sizes/font_size = 13
+text = "NODE-LOCAL"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Dest4" type="Node2D" parent="."]
+position = Vector2(340, -150)
+
+[node name="HoloPanel" parent="Dest4" instance=ExtResource("3_holo")]
+offset_left = -95.0
+offset_top = -84.0
+offset_right = 95.0
+offset_bottom = 0.0
+glow = 0.3
+
+[node name="Label" type="Label" parent="Dest4/HoloPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.8, 0.95, 1, 0.9)
+theme_override_font_sizes/font_size = 13
+text = "CORE"
+horizontal_alignment = 1
+vertical_alignment = 1

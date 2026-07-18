@@ -23,6 +23,7 @@ func _ready() -> void:
 	%EraseButton.pressed.connect(_sandbox.play_erase)
 	%ResetButton.pressed.connect(_sandbox.reset_settled)
 	%LoopButton.toggled.connect(_sandbox.set_looping)
+	%HoverButton.toggled.connect(_sandbox.set_hover_driven)
 
 
 func _process(_delta: float) -> void:
