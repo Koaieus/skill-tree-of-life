@@ -19,7 +19,7 @@ extends SkillNodeAddon
 ## Visual (#168): scene-composed (skill_dust_addon.tscn) with a child InnerDisk
 ## instance, per .claude/rules/scene-composition.md — the gold/mix knobs below
 ## are only actually inspector-tunable because they live on a scene, not a
-## script that's always bare `.new()`'d. InnerDisk's `show_diamond` (see
+## script that's always bare `.new()`'d. InnerDisk's `carve_kind = GEM` (see
 ## inner_disk.gd) etches the loot gem cut; this script forces `allocated =
 ## true` on it — the "hijack the allocation-state render" option from #168,
 ## scoped to this addon's OWN disk instance so nothing needs to be faked on
@@ -61,6 +61,9 @@ extends SkillNodeAddon
 
 const _SPARKLE_COLOR := Color(1.0, 0.95, 0.75, 1.0)
 const _SPARKLE_COUNT := 10
+## Preload (not bare InnerDisk, which has no class_name) just to reach its
+## CarveKind enum below.
+const _InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 
 ## Null when this addon was `.new()`'d directly instead of instanced from
 ## skill_dust_addon.tscn (LootSystem's headless/no-scene fallback) — every
@@ -68,7 +71,7 @@ const _SPARKLE_COUNT := 10
 ## and keeps the sparkle-only look.
 ## Deliberately untyped: statically typing this as Node2D would make GDScript
 ## complain about the InnerDisk-specific properties set below (disk_radius,
-## show_diamond, entity_tint, ...) — node_visuals_composite.gd sidesteps the
+## carve_kind, entity_tint, ...) — node_visuals_composite.gd sidesteps the
 ## same issue by reading its InnerDisk child through the `%InnerDisk` unique-
 ## name accessor, which Godot resolves to the attached script's type; a plain
 ## get_node_or_null() return is statically just Node, so this stays Variant.
@@ -87,7 +90,7 @@ func _ready() -> void:
 		if not carrier.owner_changed.is_connected(_on_carrier_owner_changed):
 			carrier.owner_changed.connect(_on_carrier_owner_changed)
 	if _inner_disk != null:
-		_inner_disk.show_diamond = true
+		_inner_disk.carve_kind = _InnerDiskScript.CarveKind.GEM
 		_inner_disk.allocated = true
 		_inner_disk.configure(_radius)
 	_sync_gold_tint()
@@ -126,16 +129,15 @@ func get_tooltip_modifiers() -> Array[StatModifier]:
 # ─── Central-emblem contract (docs/domain/skillnode-emblem.md) ────────────
 
 ## LOOT-priority carve — a consumed one-off, so it outranks a spell grant until
-## allocation consumes the relic (see the class doc above). No Texture2D art
-## exists for this glyph yet; the carve's actual look is the diamond-crown
-## height-field dent InnerDisk already bakes via [member show_diamond] (#168) —
-## the null [param tex] + `&"loot"` [member EmblemSpec.source_kind] is what lets
-## the (not-yet-built) InnerDisk carve consumer special-case this source rather
-## than expecting arbitrary bitmap art.
+## allocation consumes the relic (see the class doc above). The carve's actual
+## look is the gem-cut height-field dent InnerDisk already bakes
+## ([member InnerDisk.CarveKind.GEM], #168) — [method EmblemSpec.gem_carve] is
+## what routes a LOOT carve to that renderer instead of the (not-yet-built)
+## arbitrary-bitmap TEXTURE path.
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 func get_emblem() -> Variant:
-	return EmblemSpec.texture_carve(null, EmblemSpec.PRIORITY_LOOT, &"loot")
+	return EmblemSpec.gem_carve(EmblemSpec.PRIORITY_LOOT, &"loot")
 
 
 ## Pickup == the carrier gaining an owner. Routes the core-mod candidates through

@@ -62,3 +62,16 @@ func test_archetype_shape_owns_its_sides() -> void:
 	var con_carve := ArchetypeShape.carve(ArchetypeShape.Archetype.CON)
 	assert_eq(con_carve.polygon_sides, 12, "CON is a dodecagon")
 	assert_eq(str_carve.priority, EmblemSpec.PRIORITY_ARCHETYPE, "archetype carve sits at the fallback priority")
+
+
+func test_dex_shape_is_a_squished_diamond() -> void:
+	var dex_carve := ArchetypeShape.carve(ArchetypeShape.Archetype.DEX)
+	assert_eq(dex_carve.polygon_sides, 4, "DEX is a diamond (a squished 4-gon)")
+	assert_lt(dex_carve.polygon_squish, 1.0, "squished from the sides, not a plain square")
+
+
+func test_gem_carve_is_its_own_carve_style() -> void:
+	var gem := EmblemSpec.gem_carve(EmblemSpec.PRIORITY_LOOT, &"loot")
+	assert_eq(gem.carve_style, EmblemSpec.CarveStyle.GEM)
+	var res := EmblemResolver.resolve([gem])
+	assert_eq(res.carve.source_kind, &"loot")

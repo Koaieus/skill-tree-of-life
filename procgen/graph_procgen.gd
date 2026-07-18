@@ -160,6 +160,7 @@ static func generate(
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []
 		var archetype_primary_stat: StringName = &""
+		var archetype_carve_shape: CarveShape = null
 		if type_assignments[i] >= 0:
 			var policy: ArchetypePolicy = config.archetypes[type_assignments[i]]
 			if policy != null:
@@ -167,6 +168,7 @@ static func generate(
 				archetype_color = policy.color
 				archetype_forbid = policy.forbid_tags
 				archetype_primary_stat = policy.primary_stat
+				archetype_carve_shape = policy.carve_shape
 		if archetype_id != &"":
 			var fp := {"archetype": archetype_id, "primary_stat": archetype_primary_stat}
 			if not placement_ctx.role_tags[i].is_empty():
@@ -186,6 +188,10 @@ static func generate(
 			# Border-channel stamp on BaseCircle (persistent type identity).
 			# Owner colour stays free to drive the fill channel via SkillNode.
 			sn.base_type_color = archetype_color
+			# The archetype's own emblem shape (docs/domain/skillnode-emblem.md) —
+			# wins over SkillNode.archetype's fixed six-way quick-pick default.
+			if archetype_carve_shape != null:
+				sn.carve_shape = archetype_carve_shape
 			sn.set_meta("base_type", archetype_id)
 			if archetype_primary_stat != &"":
 				sn.set_meta("primary_stat", archetype_primary_stat)

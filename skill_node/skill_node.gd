@@ -7,6 +7,7 @@ const ZLayers = preload("res://ui/z_layers.gd")
 # refresh; see docs/domain/skillnode-emblem.md's "preload-not-class_name" note.
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
+const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
 
 signal radius_changed
@@ -50,14 +51,20 @@ signal depleted
 ## a [SkillNodeAddon].
 @export var effects: Array[Effect] = []
 
-## Which regular-polygon shape this node's archetype carves as the emblem
-## fallback (see [ArchetypeShape], [method get_emblem_contributions]). NOT yet
-## wired to procgen's real archetype identity (an [ArchetypePolicy]-driven
-## StringName + [member base_type_color], a richer model than this placeholder
-## six-way enum) — a pre-existing gap this field doesn't attempt to close, only
-## gives the emblem protocol something concrete to read today. See
-## docs/domain/skillnode-emblem.md.
+## Hand-authoring quick-pick: which of [ArchetypeShape]'s fixed six shapes
+## this node's archetype carves as the emblem fallback, when no
+## [member carve_shape] override is stamped. See
+## [method get_emblem_contributions] / docs/domain/skillnode-emblem.md.
 @export var archetype: ArchetypeShape.Archetype = ArchetypeShape.Archetype.STR
+
+## The resolved [CarveShape] this node's archetype actually carves, when set —
+## WINS over [member archetype]. Procgen stamps this from the node's
+## [ArchetypePolicy.carve_shape] (an open, content-defined shape, richer than
+## the fixed six-way [member archetype] enum); null means "no policy stamped
+## it", so hand-authored content (dev_sandbox, tests) keeps using the simple
+## enum quick-pick instead. SkillNode never interprets what the shape IS
+## (polygon vs. gem vs., later, arbitrary art) — it just holds the reference.
+@export var carve_shape: CarveShape = null
 
 ## Persistent base-type identity colour (e.g. procgen's archetype colour).
 ## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
@@ -575,8 +582,17 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 ## interprets these — [EmblemResolver] picks the winning CARVE and collects the
 ## BLOOMs; this is purely aggregation, mirroring [method get_node_effects] /
 ## [method get_addon_tooltip_sections].
+##
+## The archetype fallback prefers [member carve_shape] (procgen's real,
+## content-defined shape) over the [member archetype] quick-pick enum — see
+## both fields' docs.
 func get_emblem_contributions() -> Array:
-	var out: Array = [ArchetypeShape.carve(archetype)]
+	var archetype_spec: EmblemSpec
+	if carve_shape != null:
+		archetype_spec = carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
+	else:
+		archetype_spec = ArchetypeShape.carve(archetype)
+	var out: Array = [archetype_spec]
 	if keystone != null:
 		out.append(EmblemSpec.texture_carve(keystone.icon, EmblemSpec.PRIORITY_KEYSTONE, &"keystone"))
 	for effect in get_node_effects():

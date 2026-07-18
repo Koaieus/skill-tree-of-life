@@ -30,6 +30,14 @@ extends Resource
 
 @export var id: StringName = &""
 @export var color: Color = Color.WHITE
+## This archetype's central-emblem CARVE shape (docs/domain/skillnode-emblem.md)
+## — the archetype names its own shape, so `SkillNode` just carries a
+## reference (`SkillNode.carve_shape`), never a mapping table keyed off this
+## policy's open StringName `id`. Null = the node falls back to
+## [ArchetypeShape]'s fixed six-way quick-pick (dev_sandbox / no-policy nodes).
+## A `PolygonCarveShape`/`GemCarveShape` today; a future arbitrary-art shape
+## (#245/#246) swaps in here with no changes anywhere else.
+@export var carve_shape: CarveShape = null
 ## The stat this archetype's nodes are themed around. Used by the phased
 ## modifier draw to weight primary vs off-attribute rolls.
 @export var primary_stat: StringName = &""

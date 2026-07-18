@@ -632,6 +632,7 @@ owned_by = NodePath("../../Entities/Player")
 z_index = 1001
 z_as_relative = false
 position = Vector2(58, -136)
+archetype = 1
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 base_type_color = Color(0.13917014, 0.4724126, 0.4210909, 1)
 
@@ -653,18 +654,21 @@ modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 z_index = 1001
 z_as_relative = false
 position = Vector2(-150, -23)
+archetype = 2
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 
 [node name="NE" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="5" unique_id=1041223297 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(163, -64)
+archetype = 4
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
 [node name="Up_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="6" unique_id=1748015269 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(145, -232)
+archetype = 1
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
 
 [node name="Right_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="7" unique_id=1524370075 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -686,12 +690,14 @@ modulate = Color(1, 1, 1, 0.9073149)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-283, -107)
+archetype = 4
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 
 [node name="SW" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="10" unique_id=8800203 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(-203, 103)
+archetype = 2
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 
 [node name="Bridge_E" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="11" unique_id=8800204 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -699,6 +705,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(299, 99)
 owned_by = NodePath("../../Entities/Enemy")
+archetype = 1
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
 
 [node name="Bridge_S" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="12" unique_id=8800205 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -720,6 +727,7 @@ modulate = Color(1, 1, 1, 0.5045217)
 z_index = 1001
 z_as_relative = false
 position = Vector2(467, -47)
+archetype = 5
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_E" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="15" unique_id=8800208 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -732,6 +740,7 @@ modulate = Color(1, 1, 1, 0.8422355)
 z_index = 1001
 z_as_relative = false
 position = Vector2(507, 213)
+archetype = 5
 owned_by = NodePath("../../Entities/Enemy")
 
 [node name="Enemy_W" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="17" unique_id=8800210 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
@@ -745,6 +754,7 @@ modulate = Color(1, 1, 1, 0.3)
 z_index = 1001
 z_as_relative = false
 position = Vector2(300, -260)
+archetype = 4
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 
 [node name="Juggler" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="19" unique_id=9000002 instance=ExtResource("9_skill")]
@@ -752,11 +762,13 @@ modulate = Color(1, 1, 1, 0.9608937)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-50, -290)
+archetype = 1
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
 
 [node name="Spyglass" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="20" unique_id=9000003 instance=ExtResource("9_skill")]
 position = Vector2(-380, -180)
 input_pickable = false
+archetype = 4
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
 
 [node name="Library" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="21" unique_id=9000004 instance=ExtResource("9_skill")]
@@ -764,6 +776,7 @@ modulate = Color(1, 1, 1, 0.3)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-380, 50)
+archetype = 2
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
 
 [node name="Forge" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="22" unique_id=9000005 instance=ExtResource("9_skill")]
@@ -777,16 +790,19 @@ modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("
 z_index = 1001
 z_as_relative = false
 position = Vector2(359, -28)
+archetype = 3
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1"), SubResource("mod_mp_1")])
 
 [node name="Enemy_Tower" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="24" unique_id=9000007 instance=ExtResource("9_skill")]
 position = Vector2(650, -80)
 input_pickable = false
+archetype = 4
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_50")])
 
 [node name="Enemy_Recon" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="25" unique_id=9000008 instance=ExtResource("9_skill")]
 position = Vector2(750, 120)
 input_pickable = false
+archetype = 4
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2")])
 
 [node name="Edge_Core_Up" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="0" unique_id=709243764 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]

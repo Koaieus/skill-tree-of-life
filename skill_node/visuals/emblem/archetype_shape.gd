@@ -1,33 +1,63 @@
 class_name ArchetypeShape
 extends RefCounted
-## The canonical archetype → carve-shape mapping. The archetype owns its own
-## shape; a SkillNode never needs to know the side count. This feeds the
-## lowest-priority (fallback) CARVE contribution, so an ordinary node shows its
-## archetype shape only when nothing higher-priority (keystone / loot / spell)
-## claims the carve — and disabling archetype shapes entirely is just declining
-## to contribute this one spec.
+## The canonical archetype → carve-shape mapping for the six hand-authored
+## archetypes (dev_sandbox content, tests). Procgen content doesn't use this
+## at all — an open, StringName-keyed [ArchetypePolicy] names its OWN
+## [CarveShape] directly (see [ArchetypePolicy.carve_shape] /
+## [SkillNode.carve_shape]); this enum/dict pair only exists as the quick-pick
+## default for hand-authored nodes that never got a policy stamped onto them.
 ##
-## [InnerDisk] still keeps a local copy of these sides for its legacy weld path;
-## fold that onto this once the resolver drives the carve (see
-## SKILLNODE_EMBLEM_HANDOFF.md).
+## Each shape is meant to be recognisable at a glance, at a distance, on an
+## otherwise-empty node (the "ordinary nodes should still read as something"
+## design intent — see docs/domain/skillnode-emblem.md's ARCHETYPE priority):
+## STR = a plain triangle, DEX = a squished diamond (agile, angular), INT = a
+## pentagon, WIS = a placeholder hexagon pending a bespoke "exudes wealth"
+## motif (#246 — the first real target for the arbitrary-art bake pipeline),
+## PER = an octagon (many-faceted, sensory), CON = a dodecagon (many-sided,
+## sturdy).
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
+const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 
 enum Archetype { STR, DEX, INT, WIS, PER, CON }
 
-## Regular-polygon side count per archetype (STR = triangle … CON = dodecagon).
-## These are the batch-friendly analytic shapes the dome shader can carve.
-const SIDES := {
-	Archetype.STR: 3,
-	Archetype.DEX: 4,
-	Archetype.WIS: 5,
-	Archetype.INT: 6,
-	Archetype.PER: 8,
-	Archetype.CON: 12,
-}
+## Per-archetype [CarveShape]. Built once, lazily, on first access — a plain
+## dictionary literal can't call `PolygonCarveShape.new()` at const-eval time.
+static var _shapes: Dictionary
+
+
+static func _ensure_shapes() -> void:
+	if not _shapes.is_empty():
+		return
+	_shapes = {
+		Archetype.STR: _polygon(3),
+		# Squished from the sides — a diamond read, not a plain square.
+		Archetype.DEX: _polygon(4, 0.62),
+		Archetype.INT: _polygon(5),
+		# TODO(#246): replace with a bespoke "exudes wealth" motif (coin/laurel/
+		# sunburst) once the arbitrary-art bake pipeline lands. Hexagon is a
+		# placeholder distinct from every other archetype's shape, not a
+		# deliberate design pick.
+		Archetype.WIS: _polygon(6),
+		Archetype.PER: _polygon(8),
+		Archetype.CON: _polygon(12),
+	}
+
+
+static func _polygon(sides: int, squish: float = 1.0) -> PolygonCarveShape:
+	var shape := PolygonCarveShape.new()
+	shape.sides = sides
+	shape.squish_x = squish
+	return shape
+
+
+## This archetype's [CarveShape] — the shape it owns, not a bare side count.
+static func shape_for(arch: Archetype) -> CarveShape:
+	_ensure_shapes()
+	return _shapes[arch]
 
 
 ## The fallback CARVE this archetype contributes.
-static func carve(arch: Archetype) -> EmblemSpec:
-	var sides: int = SIDES.get(arch, 6)
-	return EmblemSpec.polygon_carve(sides, EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
+static func carve(arch: Archetype, priority: int = EmblemSpec.PRIORITY_ARCHETYPE, source: StringName = &"archetype") -> EmblemSpec:
+	return shape_for(arch).carve(priority, source)

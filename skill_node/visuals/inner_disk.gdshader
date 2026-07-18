@@ -18,46 +18,55 @@ instance uniform bool allocated = false;
 instance uniform vec2 highlight_position = vec2(-0.35, -0.35);
 instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
 
+// Which CARVE shape family the dome etches — replaces the old
+// show_weld/show_diamond mutually-exclusive bool pair with one selector
+// (0 = NONE, 1 = POLYGON, 2 = GEM; see InnerDisk.CarveKind). All scalar so
+// the shared ShaderMaterial keeps batching every InnerDisk into one draw call.
+instance uniform int carve_kind = 0;
+
 // Weld glyph (#124 rework) — a regular-polygon "gem facet" bowl dent folded
 // into this same dome height field. See sn_polygon_facet/sn_bowl_drop in
 // lighting.gdshaderinc for the math and skill-node-visuals.md for the design
-// intent. All scalar so the shared ShaderMaterial keeps batching every
-// InnerDisk into one draw call.
-instance uniform bool show_weld = false;
+// intent.
 instance uniform float weld_sides : hint_range(3.0, 16.0, 1.0) = 6.0;
+// Anisotropic X-squish (1.0 = regular; < 1.0 narrows the shape, e.g. DEX's
+// diamond read) — applied as a warp of the sampled position before the facet
+// math, so the analytic gradient just needs a chain-rule rescale back.
+instance uniform float weld_squish : hint_range(0.3, 1.0, 0.01) = 1.0;
 instance uniform float weld_k : hint_range(0.4, 1.15, 0.01) = 0.75;
 instance uniform float well_depth : hint_range(0.0, 1.0, 0.01) = 0.35;
 
-// Loot relic gem cut (#168) — see sn_diamond_bump in lighting.gdshaderinc.
-// `diamond_lut` is deliberately a PLAIN uniform (not `instance uniform`): the
-// shape is fixed and identical for every relic, so one shared texture on the
-// shared ShaderMaterial costs nothing against the family's batching, unlike
-// a per-instance-varying sampler would. Mutually exclusive with show_weld at
-// the InnerDisk.gd level (only one glyph shows at a time).
+// Loot relic gem cut (#168), viewed from the side — see sn_gem_bump in
+// lighting.gdshaderinc. `gem_lut` is deliberately a PLAIN uniform (not
+// `instance uniform`): the shape is fixed and identical for every relic, so
+// one shared texture on the shared ShaderMaterial costs nothing against the
+// family's batching, unlike a per-instance-varying sampler would.
 // filter_linear_mipmap (trilinear), not plain filter_linear: the 128px LUT
 // is higher-res than the disk's on-screen footprint, so sampling it is a
 // MINIFICATION — mip-aware filtering is what actually antialiases the
-// facet creases instead of aliasing them (see _build_diamond_lut in
+// facet creases instead of aliasing them (see _build_gem_lut in
 // inner_disk.gd, which bakes the matching mip chain).
-uniform sampler2D diamond_lut : filter_linear_mipmap, hint_default_black;
-instance uniform bool show_diamond = false;
+uniform sampler2D gem_lut : filter_linear_mipmap, hint_default_black;
 
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0;
 	vec3 normal = sn_dome_normal(p);
 
-	if (show_diamond) {
-		vec4 lut = texture(diamond_lut, UV);
+	if (carve_kind == 2) {
+		vec4 lut = texture(gem_lut, UV);
 		if (lut.a > 0.5) {
-			vec3 bump = sn_diamond_bump(lut);
+			vec3 bump = sn_gem_bump(lut);
 			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
 			vec2 grad_dome = -p / z_dome;
 			vec2 grad_total = grad_dome - bump.yz;
 			normal = normalize(vec3(-grad_total, 1.0));
 		}
-	} else if (show_weld) {
-		vec3 bowl = sn_bowl_drop(p, weld_sides, weld_k, well_depth);
+	} else if (carve_kind == 1) {
+		vec2 wp = vec2(p.x / weld_squish, p.y);
+		vec3 bowl = sn_bowl_drop(wp, weld_sides, weld_k, well_depth);
 		if (bowl.x > 0.0) {
+			// Chain rule: q.x = p.x / weld_squish, so d/d(p.x) = d/d(q.x) / weld_squish.
+			bowl.y /= weld_squish;
 			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
 			vec2 grad_dome = -p / z_dome;
 			vec2 grad_total = grad_dome - bowl.yz;

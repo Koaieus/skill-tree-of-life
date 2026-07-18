@@ -6,6 +6,7 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
+const InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 
 var _graph: Graph
 var _node: SkillNode
@@ -27,26 +28,23 @@ func _disk() -> Node:
 
 func test_default_node_carves_its_archetype_shape() -> void:
 	var disk := _disk()
-	assert_true(disk.show_weld, "no higher-priority carve -> archetype fallback wins")
-	assert_false(disk.show_diamond)
-	assert_eq(disk.weld_sides, ArchetypeShape.SIDES[ArchetypeShape.Archetype.STR])
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON, "no higher-priority carve -> archetype fallback wins")
+	assert_eq(disk.weld_sides, ArchetypeShape.shape_for(ArchetypeShape.Archetype.STR).sides)
 
 
 func test_keystone_outranks_archetype_and_renders_empty_dome() -> void:
 	_node.keystone = Keystone.new()
 	_node._sync_visuals()
 	var disk := _disk()
-	assert_false(disk.show_weld, "keystone wins the carve, but has no dedicated renderer yet -> empty dome")
-	assert_false(disk.show_diamond)
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "keystone wins the carve, but has no dedicated renderer yet -> empty dome")
 
 
-func test_skill_dust_addon_carves_the_loot_diamond() -> void:
+func test_skill_dust_addon_carves_the_loot_gem() -> void:
 	var anchor := _node.get_node("Visuals/AddonAnchor")
 	var dust := SkillDustAddon.new()
 	anchor.add_child(dust)
 	await get_tree().process_frame
 	_node._sync_visuals()
 	var disk := _disk()
-	assert_true(disk.show_diamond, "SkillDustAddon.get_emblem() -> LOOT carve -> diamond dent")
-	assert_false(disk.show_weld)
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.GEM, "SkillDustAddon.get_emblem() -> LOOT carve -> gem dent")
 	dust.queue_free()

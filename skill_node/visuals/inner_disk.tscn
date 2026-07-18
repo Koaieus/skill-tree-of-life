@@ -4,5 +4,5 @@
 
 [node name="InnerDisk" type="Node2D" unique_id=1698059834]
 script = ExtResource("1_disk")
-show_weld = true
+carve_kind = 1
 weld_k = 0.8200000000000001
