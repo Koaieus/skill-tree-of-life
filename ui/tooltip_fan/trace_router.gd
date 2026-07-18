@@ -6,7 +6,7 @@
 class_name TraceRouter
 extends RefCounted
 
-enum Style { STRAIGHT, ELBOW, TREE }
+enum Style { STRAIGHT, ELBOW, TREE, PCB }
 
 
 ## Returns the ordered points of the trace from `from` to `to` for `style`.
@@ -19,6 +19,8 @@ static func compute_trace_points(from: Vector2, to: Vector2, style: int, params:
 			return _elbow(from, to, params)
 		Style.TREE:
 			return _tree(from, to, params)
+		Style.PCB:
+			return _pcb(from, to, params)
 		_:
 			return _straight(from, to)
 
@@ -63,3 +65,48 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 	var squared_point := Vector2(to.x, trunk_top.y)
 	var route_point := diagonal_point.lerp(squared_point, bend)
 	return PackedVector2Array([from, trunk_top, route_point, to])
+
+
+## True PCB / 45°-only route: a cardinal trunk out of `from`, then an exact 45°
+## diagonal, then a cardinal run into `to` — every turn is 0°/45°/90°.
+##
+## `params.trunk_dir` (default up, `(0,-1)`) is the cardinal direction the trunk
+## leaves along; `params.trunk` (default 0.382 ≈ φ) is the fraction of the trunk
+## axis' span covered before the 45° break. That single fraction spans the whole
+## family:
+##   trunk == 0   → a pure 45° diagonal straight from `from`, then a cardinal leg
+##   trunk ≈ φ    → trunk, 45° diagonal, cardinal leg (the classic sprout)
+##   trunk == 1   → full cardinal leg then a squared 90° corner (no diagonal)
+##
+## The diagonal consumes `min(|rem.x|, |rem.y|)` on both axes, which snaps one
+## axis onto `to`, so the closing leg is exactly cardinal. Consecutive duplicate
+## points (produced at the 0 and 1 extremes) are removed so the polyline carries
+## no zero-length segment.
+static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
+	var trunk_frac: float = params.get("trunk", 0.382)
+	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
+	if trunk_dir == Vector2.ZERO:
+		trunk_dir = Vector2(0.0, -1.0)
+	trunk_dir = trunk_dir.normalized()
+	var d := to - from
+	var trunk_len := trunk_frac * absf(d.dot(trunk_dir))
+	var trunk_top := from + trunk_dir * trunk_len
+	var rem := to - trunk_top
+	var diag := minf(absf(rem.x), absf(rem.y))
+	var diag_end := trunk_top + Vector2(signf(rem.x), signf(rem.y)) * diag
+	return _dedup(PackedVector2Array([from, trunk_top, diag_end, to]))
+
+
+## Drops consecutive points that are equal (approx), preserving order and always
+## keeping the first and last. Guards the reveal's arc-length walk against
+## zero-length segments.
+static func _dedup(points: PackedVector2Array) -> PackedVector2Array:
+	if points.size() < 2:
+		return points
+	var out := PackedVector2Array([points[0]])
+	for i in range(1, points.size()):
+		if not points[i].is_equal_approx(out[out.size() - 1]):
+			out.append(points[i])
+	if out.size() < 2:
+		out.append(points[points.size() - 1])
+	return out

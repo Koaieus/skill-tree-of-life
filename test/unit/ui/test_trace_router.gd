@@ -96,3 +96,58 @@ func test_tree_default_params_use_sprout_24_and_bend_half() -> void:
 	var squared_point := Vector2(to.x, trunk_top.y)
 	var expected_route: Vector2 = diagonal_point.lerp(squared_point, 0.5)
 	assert_eq(pts[2], expected_route, "default bend is 0.5")
+
+
+# --- PCB (#215's true 45°-only family) --------------------------------------
+# These assert the turn ANGLES, not just endpoints — the check that was missing
+# when the earlier styles shipped a non-45° shape past a green endpoint test.
+
+func test_pcb_route_is_trunk_then_exact_45_then_cardinal() -> void:
+	var from := Vector2.ZERO
+	var to := Vector2(-155, -200)
+	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {"trunk": 0.382})
+	assert_eq(pts.size(), 4, "PCB is [from, trunk_top, diag_end, to] for a bent route")
+	assert_eq(pts[0], from)
+	assert_eq(pts[3], to)
+	assert_almost_eq(pts[1].x, from.x, 0.001, "trunk leaves straight up: x unchanged")
+	var diag := pts[2] - pts[1]
+	assert_almost_eq(absf(diag.x), absf(diag.y), 0.001, "the middle segment is exactly 45°")
+	var closing := pts[3] - pts[2]
+	assert_true(is_zero_approx(closing.x) or is_zero_approx(closing.y),
+		"the closing leg is cardinal (one axis aligned with `to`)")
+
+
+func test_pcb_trunk_zero_starts_on_the_45_diagonal() -> void:
+	var pts := TraceRouter.compute_trace_points(
+		Vector2.ZERO, Vector2(-155, -200), TraceRouter.Style.PCB, {"trunk": 0.0})
+	assert_eq(pts[0], Vector2.ZERO)
+	assert_eq(pts[pts.size() - 1], Vector2(-155, -200))
+	var first := pts[1] - pts[0]
+	assert_almost_eq(absf(first.x), absf(first.y), 0.001,
+		"trunk=0 has no trunk: it starts on the 45° diagonal from the anchor")
+
+
+func test_pcb_trunk_one_is_a_squared_90_corner() -> void:
+	var from := Vector2.ZERO
+	var to := Vector2(-155, -200)
+	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {"trunk": 1.0})
+	assert_eq(pts.size(), 3, "trunk=1 squares off (no diagonal), deduped to a corner")
+	assert_eq(pts[1], Vector2(from.x, to.y), "corner sits at from.x / to.y")
+
+
+func test_pcb_dedups_zero_length_segments_on_a_straight_up_target() -> void:
+	# to directly above from: rem.x == 0 so diag_end coincides with trunk_top.
+	var pts := TraceRouter.compute_trace_points(
+		Vector2.ZERO, Vector2(0, -120), TraceRouter.Style.PCB, {"trunk": 0.5})
+	for i in range(pts.size() - 1):
+		assert_false(pts[i].is_equal_approx(pts[i + 1]),
+			"no consecutive duplicate points (no zero-length segment)")
+
+
+func test_pcb_trunk_dir_can_leave_sideways() -> void:
+	var from := Vector2.ZERO
+	var to := Vector2(200, -40)
+	var pts := TraceRouter.compute_trace_points(
+		from, to, TraceRouter.Style.PCB, {"trunk": 0.5, "trunk_dir": Vector2(1, 0)})
+	assert_almost_eq(pts[1].y, from.y, 0.001,
+		"trunk_dir=(1,0) leaves straight right: y unchanged along the trunk")

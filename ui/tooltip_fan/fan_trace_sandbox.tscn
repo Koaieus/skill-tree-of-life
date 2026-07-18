@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cymv3jedgr28a"]
+
+[ext_resource type="Script" uid="uid://cjemlwykoedmv" path="res://ui/tooltip_fan/fan_trace_sandbox.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://d0w41dfe3cu3y" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_fan"]
+
+[node name="FanTraceSandbox" type="Node2D" unique_id=1786024385]
+script = ExtResource("1_script")
+draw_in_duration = 0.30000000000000004
+erase_duration = 0.15000000000000002
+trace_paths = Array[NodePath]([NodePath("Trace0"), NodePath("Trace1"), NodePath("Trace2")])
+target_paths = Array[NodePath]([NodePath("Target0"), NodePath("Target1"), NodePath("Target2")])
+
+[node name="Trace0" parent="." unique_id=697221681 instance=ExtResource("2_fan")]
+position = Vector2(-5, 0)
+to_point = Vector2(-155, -200)
+bend_start = 0.684
+line_color = Color(1, 0.62, 0.32, 0.9)
+tip_color = Color(1, 0.85, 0.6, 1)
+
+[node name="Trace1" parent="." unique_id=620519489 instance=ExtResource("2_fan")]
+to_point = Vector2(10, -260)
+
+[node name="Trace2" parent="." unique_id=1040772946 instance=ExtResource("2_fan")]
+position = Vector2(5, 0)
+to_point = Vector2(167, -202)
+line_color = Color(0.55, 1, 0.55, 0.9)
+tip_color = Color(0.8, 1, 0.8, 1)
+
+[node name="Target0" type="Marker2D" parent="." unique_id=827740853]
+position = Vector2(-160, -200)
+
+[node name="Target1" type="Marker2D" parent="." unique_id=1221694825]
+position = Vector2(10, -260)
+
+[node name="Target2" type="Marker2D" parent="." unique_id=1017976160]
+position = Vector2(172, -202)
