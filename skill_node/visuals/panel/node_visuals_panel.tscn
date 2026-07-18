@@ -63,7 +63,7 @@ position = Vector2(600, 90)
 [node name="WeldDisk" parent="ViewportContainer/World/WeldDiskSlot" instance=ExtResource("3_disk")]
 allocated = true
 show_weld = true
-arch = 2
+weld_sides = 6
 well_depth = 0.5
 
 [node name="RimRingSlot" type="Node2D" parent="ViewportContainer/World"]

@@ -7,6 +7,7 @@ const ZLayers = preload("res://ui/z_layers.gd")
 # refresh; see docs/domain/skillnode-emblem.md's "preload-not-class_name" note.
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
+const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
 
 signal radius_changed
 signal owner_changed
@@ -297,6 +298,7 @@ func _sync_visuals() -> void:
 	_node_visuals.stake_level = stake_level
 	_node_visuals.allocation_level = allocation_level
 	_node_visuals.sensed = sensed
+	_node_visuals.set_carve(EmblemResolver.resolve(get_emblem_contributions()).carve)
 
 
 func is_allocated() -> bool:

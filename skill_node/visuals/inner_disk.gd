@@ -24,17 +24,6 @@ extends SkillNodeVisual
 
 const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 
-## Placeholder glyph = a regular polygon with this many sides per archetype.
-enum Archetype { STR, DEX, INT, WIS, PER, CON }
-const ARCH_SIDES := {
-	Archetype.STR: 3,
-	Archetype.DEX: 4,
-	Archetype.INT: 6,
-	Archetype.WIS: 5,
-	Archetype.PER: 8,
-	Archetype.CON: 12,
-}
-
 static var _shared_material: ShaderMaterial
 
 ## Loot relic gem cut (#168). Baked ONCE into a small shared LUT (see
@@ -101,9 +90,16 @@ static var _diamond_lut: ImageTexture
 			show_weld = false
 		_sync_material()
 
-@export var arch: Archetype = Archetype.STR:
+## Regular-polygon side count for the weld dent. STANDALONE PREVIEW ONLY —
+## once [method set_carve] receives an archetype carve it overwrites this from
+## the resolved [EmblemSpec.polygon_sides] (see [ArchetypeShape], the canonical
+## archetype -> sides mapping; this file no longer keeps its own copy). Exists
+## so the disk still previews a shape in the sandbox / node_visuals_panel.tscn
+## before a carve has been injected — same "local export as offline fallback"
+## precedent as [member lighting] below.
+@export_range(3, 16, 1) var weld_sides: int = 3:
 	set(value):
-		arch = value
+		weld_sides = value
 		_sync_material()
 
 ## Glyph circumradius relative to the disk radius. At 1.0 the glyph's
@@ -194,10 +190,31 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"highlight_intensity", highlight_intensity)
 	set_instance_shader_parameter(&"show_diamond", show_diamond)
 	set_instance_shader_parameter(&"show_weld", show_weld)
-	set_instance_shader_parameter(&"weld_sides", float(ARCH_SIDES.get(arch, 6)))
+	set_instance_shader_parameter(&"weld_sides", float(weld_sides))
 	set_instance_shader_parameter(&"weld_k", weld_k)
 	set_instance_shader_parameter(&"well_depth", well_depth)
 	queue_redraw()
+
+
+## Consumes a resolved central-emblem CARVE (docs/domain/skillnode-emblem.md) —
+## the sanctioned entry point once a caller has an [EmblemResolver.Resolution],
+## replacing hand-toggling [member show_weld]/[member show_diamond] separately.
+## `carve` is the winning [EmblemSpec] (an [EmblemResolver] Resolution's
+## `.carve`), or null for an empty dome.
+##
+## - archetype carve -> the weld height-field bowl, sized to the carve's own
+##   `polygon_sides` (no per-instance re-derivation — the winning spec already
+##   carries the number [ArchetypeShape] assigned it).
+## - loot carve -> the diamond-crown LUT dent (#168).
+## - keystone / spell (arbitrary bitmap art) -> no carve renderer exists yet;
+##   the bake substrate for that art is deferred (see the emblem doc's item 6),
+##   so an empty dome is the honest fallback rather than misrepresenting the
+##   node as its archetype shape when a higher-priority carve actually won.
+func set_carve(carve: Variant) -> void:
+	show_weld = carve != null and carve.source_kind == &"archetype"
+	show_diamond = carve != null and carve.source_kind == &"loot"
+	if show_weld:
+		weld_sides = carve.polygon_sides
 
 
 func _draw() -> void:

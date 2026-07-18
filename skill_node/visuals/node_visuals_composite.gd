@@ -167,6 +167,14 @@ func _apply_sensed() -> void:
 	outline.visible = sensed
 
 
+## Forwards a resolved central-emblem CARVE (see [method SkillNode.get_emblem_contributions],
+## [EmblemResolver], docs/domain/skillnode-emblem.md) to [InnerDisk] — the
+## composite doesn't interpret it, same as it doesn't interpret entity_tint
+## for its children; it just routes to the one child that renders the dome.
+func set_carve(carve: Variant) -> void:
+	_inner_disk.set_carve(carve)
+
+
 func configure(new_radius: float) -> void:
 	super.configure(new_radius)
 	for child in _children:
