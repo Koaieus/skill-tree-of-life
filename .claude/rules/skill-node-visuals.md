@@ -256,6 +256,26 @@ reach neon/glass/glyph).
   outer wall anyway, so you read the *far* inner face lit through the near gap).
   `HOLO_GLASS` stays `cull_disabled` — a transparent hoop wants both walls'
   fresnel visible through each other.
+- **Gotcha that shipped with #239's initial landing: Godot's front face is
+  clockwise as seen from the camera, not counter-clockwise.** `_quad()`'s
+  corners were originally emitted in the order that reads CCW when you trace
+  `a→b→c→d` looking at the intended outward normal — the OpenGL-textbook
+  convention — but Godot culls that winding as a *back* face. Confirmed
+  empirically: a minimal `SurfaceTool` quad facing the camera rendered
+  invisible under `cull_back` with that ordering, and rendered lit as soon as
+  two corners per triangle were swapped. Symptom was specific to `SOLID_GLYPH`
+  (the only style whose shading isn't sign-invariant — `UNIFORM_GLOW`'s
+  `abs(dot(NORMAL, VIEW))` rim term and `HOLO_GLASS`'s `cull_disabled` both
+  mask a flipped winding): the hoop rendered as a flat, unlit black band with
+  no metal sheen, and the ring read as a solid disc instead of an open hoop —
+  because the *far* wall (whose outward normal now pointed away from both
+  camera and light) was surviving the cull instead of the near one. Fixed by
+  swapping the two non-shared vertices in each emitted triangle in `_quad()`;
+  `a`/`b`/`c`/`d` and their per-corner normals/UVs are untouched, so no caller
+  changed. **Don't re-derive winding by eyeballing "does this look CCW" —
+  Godot's actual convention is CW-from-camera; verify empirically
+  (`SurfaceTool` + `cull_back` + sample a pixel) before trusting the geometric
+  intuition.**
 
 - **Same contract by intent:** consumes `tint` (ownership, like CoreHalos'
   `entity_tint`) + `ring_count` + `spin_speed`; the three looks are one `Style`

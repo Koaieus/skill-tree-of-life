@@ -193,13 +193,17 @@ func _build_band_mesh(outer_r: float, height: float, thick: float, seg: int) -> 
 	return st.commit()
 
 
-# Two triangles (a,b,c)+(a,c,d) with per-vertex normals and UVs. Corners are
-# given front-facing CCW so a solid ring reads right-side-out under cull_back.
+# Two triangles (a,c,b)+(a,d,c) with per-vertex normals and UVs. Corners are
+# given front-facing CW (Godot's actual front-face winding, confirmed
+# empirically — see #239 follow-up) so a solid ring reads right-side-out under
+# cull_back. The a/b/c/d corners + their normals/UVs still describe the
+# quad in the caller's original (CCW-looking) order; only the emitted
+# triangle vertex order is swapped, so callers need no changes.
 func _quad(st: SurfaceTool,
 		a: Vector3, b: Vector3, c: Vector3, d: Vector3,
 		na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3,
 		ua: Vector2, ub: Vector2, uc: Vector2, ud: Vector2) -> void:
-	for v in [[a, na, ua], [b, nb, ub], [c, nc, uc], [a, na, ua], [c, nc, uc], [d, nd, ud]]:
+	for v in [[a, na, ua], [c, nc, uc], [b, nb, ub], [a, na, ua], [d, nd, ud], [c, nc, uc]]:
 		st.set_normal(v[1])
 		st.set_uv(v[2])
 		st.add_vertex(v[0])
