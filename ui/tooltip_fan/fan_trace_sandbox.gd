@@ -18,10 +18,13 @@ extends Node2D
 ## Nothing here ships — it's the authoring surface for choosing a trace look
 ## (bend_start, bend, colors) against real motion.
 
-@export_tool_button("▶  Play draw-in") var _play_action: Callable = _play_draw_in
-@export_tool_button("⟲  Play erase") var _erase_action: Callable = _play_erase
-@export_tool_button("∞  Toggle loop") var _loop_action: Callable = _toggle_loop
-@export_tool_button("■  Reset to settled") var _reset_action: Callable = _reset_settled
+## Inspector buttons for driving the preview when this scene is opened directly.
+## The FanTrace host tab (fan_trace_panel) drives the same public methods from
+## on-screen buttons.
+@export_tool_button("▶  Play draw-in") var _play_action: Callable = play_draw_in
+@export_tool_button("⟲  Play erase") var _erase_action: Callable = play_erase
+@export_tool_button("∞  Toggle loop") var _loop_action: Callable = toggle_loop
+@export_tool_button("■  Reset to settled") var _reset_action: Callable = reset_settled
 
 @export_range(0.1, 3.0, 0.05) var draw_in_duration := 0.7
 @export_range(0.1, 3.0, 0.05) var erase_duration := 0.45
@@ -99,22 +102,27 @@ func _enter(phase: int) -> void:
 	_clock = 0.0
 
 
-func _play_draw_in() -> void:
+func play_draw_in() -> void:
 	_looping = false
 	_resolve_pairs()
 	_set_progress(0.0)
 	_enter(_Phase.DRAW_IN)
 
 
-func _play_erase() -> void:
+func play_erase() -> void:
 	_looping = false
 	_resolve_pairs()
 	_set_progress(1.0)
 	_enter(_Phase.ERASE)
 
 
-func _toggle_loop() -> void:
-	_looping = not _looping
+func toggle_loop() -> void:
+	set_looping(not _looping)
+
+
+## Turn the draw-in ⇄ erase loop on or off (drives the host tab's Loop toggle).
+func set_looping(on: bool) -> void:
+	_looping = on
 	_resolve_pairs()
 	if _looping:
 		_set_progress(0.0)
@@ -123,7 +131,7 @@ func _toggle_loop() -> void:
 		_enter(_Phase.IDLE)
 
 
-func _reset_settled() -> void:
+func reset_settled() -> void:
 	_looping = false
 	_resolve_pairs()
 	_enter(_Phase.IDLE)

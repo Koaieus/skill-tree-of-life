@@ -1,0 +1,66 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/tooltip_fan/fan_trace_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_trace_sandbox.tscn" id="2_sandbox"]
+
+[node name="FanTracePanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_panel")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="VBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" type="SubViewport" parent="VBox/ViewportContainer"]
+handle_input_locally = false
+size = Vector2i(600, 400)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="VBox/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="Sandbox" parent="VBox/ViewportContainer/World" instance=ExtResource("2_sandbox")]
+unique_name_in_owner = true
+
+[node name="Controls" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PlayButton" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶  Play draw-in"
+
+[node name="EraseButton" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⟲  Erase"
+
+[node name="LoopButton" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "∞  Loop"
+
+[node name="ResetButton" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "■  Reset"

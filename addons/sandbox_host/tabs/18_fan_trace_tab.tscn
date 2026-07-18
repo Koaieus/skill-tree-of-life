@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_tab"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_trace_panel.tscn" id="2_panel"]
+
+[node name="FanTrace" type="MarginContainer"]
+script = ExtResource("1_tab")
+tab_title = "Fan Trace"
+tab_id = &"fan_trace"
+panel_scene = ExtResource("2_panel")
+loader_method = &"noop"
