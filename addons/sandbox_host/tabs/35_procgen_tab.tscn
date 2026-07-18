@@ -1,9 +1,13 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://be0blwo0sxp2r"]
 
-[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_07t5g"]
+[ext_resource type="Script" uid="uid://blcyvcrm6o4og" path="res://addons/sandbox_host/sandbox_live_tab.gd" id="1_07t5g"]
 [ext_resource type="PackedScene" path="res://procgen/playground/playground_panel.tscn" id="2_7vf5f"]
 
 [node name="Procgen" type="MarginContainer" unique_id=640303382]
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
 script = ExtResource("1_07t5g")
 tab_title = "Procgen"
 tab_id = &"procgen"

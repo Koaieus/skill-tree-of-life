@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://brdfdoojj157m"]
 
-[ext_resource type="Script" path="res://procgen/playground/playground_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://cp61lcj1j7drd" path="res://procgen/playground/playground_panel.gd" id="1_panel"]
 
-[node name="ProcgenPlaygroundPanel" type="Control"]
+[node name="ProcgenPlaygroundPanel" type="Control" unique_id=988273800]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
