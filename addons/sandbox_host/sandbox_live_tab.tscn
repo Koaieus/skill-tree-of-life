@@ -51,7 +51,19 @@ layout_mode = 2
 tooltip_text = "Discard and rebuild the embedded panel from scratch"
 text = "⟳  Reload"
 
-[node name="PanelHost" type="MarginContainer" parent="Layout"]
+[node name="Split" type="HSplitContainer" parent="Layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+split_offset = 220
+
+[node name="Sidebar" type="VBoxContainer" parent="Layout/Split"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PanelHost" type="MarginContainer" parent="Layout/Split"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

@@ -48,6 +48,10 @@ extends SandboxTab
 @onready var _title_label: Label = get_node_or_null(^"%TitleLabel")
 @onready var _breadcrumb: HBoxContainer = get_node_or_null(^"%Breadcrumb")
 @onready var _reload_button: Button = get_node_or_null(^"%ReloadButton")
+## Optional left column (collapsed by default). A tab that wants a directory
+## browser drops a `DirectoryCardList`-shaped node in here and flips it visible;
+## `_wire_sidebar` self-connects its `selected_resource` to `load_object`.
+@onready var _sidebar: Control = get_node_or_null(^"%Sidebar")
 
 var _panel: Control
 var _last_loaded_object: Object
@@ -57,7 +61,8 @@ func _ready() -> void:
 	for side in [&"margin_left", &"margin_right", &"margin_top", &"margin_bottom"]:
 		add_theme_constant_override(side, 4)
 	_wire_chrome()
-	_instantiate_panel()
+	_mount_panel()
+	_wire_sidebar()
 
 
 ## Wires the base scene's toolbar to the back-ref actions and labels it. No-ops
@@ -117,32 +122,74 @@ func _open_source(target: String, is_file: bool) -> void:
 		EditorInterface.get_file_system_dock().navigate_to_path(target)
 
 
-func _instantiate_panel() -> void:
+## Adopt-or-instance (#254): if the tab authored a panel *scenically* under
+## `%PanelHost` (so it previews non-empty in the editor), adopt that child;
+## otherwise instance `panel_scene`. Adoption is only ever done in the dedicated
+## `%PanelHost` slot — the legacy `self` fallback holds chrome children, so it
+## always instances rather than mistaking the toolbar for the panel.
+func _mount_panel() -> void:
+	if _panel_host != null:
+		_panel = _find_baked_panel(_panel_host)
+		if _panel == null:
+			_panel = _instance_panel(_panel_host)
+	else:
+		_panel = _instance_panel(self)
+	_finish_panel_setup()
+
+
+## The first Control child of the panel slot, authored at edit time. Null when the
+## slot is empty (the common case today — no tab bakes its panel in yet).
+func _find_baked_panel(host: Node) -> Control:
+	for child in host.get_children():
+		if child is Control:
+			return child
+	return null
+
+
+func _instance_panel(host: Node) -> Control:
 	if panel_scene == null:
+		return null
+	var panel: Control = panel_scene.instantiate()
+	host.add_child(panel)
+	return panel
+
+
+func _finish_panel_setup() -> void:
+	if _panel == null:
 		return
-	_panel = panel_scene.instantiate()
 	_panel.size_flags_horizontal = SIZE_EXPAND_FILL
 	_panel.size_flags_vertical = SIZE_EXPAND_FILL
-	# Scenic tabs drop the panel into the base's %PanelHost (under the toolbar);
-	# legacy bare-node tabs fall back to self.
-	var host: Node = _panel_host if _panel_host != null else self
-	host.add_child(_panel)
 	if _panel.has_signal(&"reload_requested"):
 		_panel.reload_requested.connect(_on_panel_reload_requested)
 	if is_instance_valid(_last_loaded_object) and loader_method != &"" and _panel.has_method(loader_method):
 		_panel.call(loader_method, _last_loaded_object)
 
 
-## Discard the panel instance and rebuild it fresh from `panel_scene` — the
-## only way to clear state a scene-recreate is meant to fix (see class doc).
+## Self-wire a directory browser dropped into `%Sidebar`: any child exposing a
+## `selected_resource` signal routes its selection through `load_object`. No-op
+## when the sidebar is empty/collapsed (every shipped tab today).
+func _wire_sidebar() -> void:
+	if _sidebar == null:
+		return
+	for child in _sidebar.get_children():
+		if child.has_signal(&"selected_resource"):
+			child.selected_resource.connect(load_object)
+
+
+## Discard the panel instance and rebuild it fresh from `panel_scene` — the only
+## way to clear state a scene-recreate is meant to fix (see class doc). Reload
+## always re-instances (never re-adopts): the authored child is gone after the
+## first discard, and a fresh `panel_scene` copy is the whole point.
 func _on_panel_reload_requested() -> void:
 	if _panel == null:
 		return
+	var host := _panel.get_parent()
 	var old := _panel
 	_panel = null
-	old.get_parent().remove_child(old)
+	host.remove_child(old)
 	old.queue_free()
-	_instantiate_panel()
+	_panel = _instance_panel(host)
+	_finish_panel_setup()
 
 
 func get_tab_title() -> String:
