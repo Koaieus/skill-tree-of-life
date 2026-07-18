@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, shadows_disabled, specular_disabled;
+render_mode cull_back, shadows_disabled, specular_disabled;
 // Uniform-glow gimbal ring: evenly emissive, the 3D echo of the 2D CoreHalos
 // halo. The glow Environment turns the >1.0 emission into neon bloom.
 

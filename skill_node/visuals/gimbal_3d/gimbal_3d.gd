@@ -47,10 +47,20 @@ enum Style { UNIFORM_GLOW, HOLO_GLASS, SOLID_GLYPH }
 		_rebuild()
 
 ## Each band's axial width as a fraction of its own radius — how tall the
-## "cylinder slice" reads (the 3D twin of CoreHalos.gimbal_band_width).
+## band reads (the 3D twin of CoreHalos.gimbal_band_width).
 @export_range(0.03, 0.45, 0.01) var band_width: float = 0.22:
 	set(value):
 		band_width = value
+		_rebuild()
+
+## Radial thickness of the band as a fraction of its radius — a NUDGE of depth so
+## the hoop reads as a solid ring (outer wall + inner wall + two rims) rather than
+## a zero-thickness cylinder slice. Tweakable independently of [member band_width]
+## (axial). 0 collapses back to the thin single wall. The SOLID_GLYPH inscription
+## lives on the inner wall and the rims stay bare — see gimbal_glyph.gdshader.
+@export_range(0.0, 0.4, 0.005) var thickness: float = 0.06:
+	set(value):
+		thickness = value
 		_rebuild()
 
 ## Sides around each band. Low = angular/faceted (techy/PCB read); high = smooth.
@@ -114,22 +124,85 @@ func _rebuild() -> void:
 		# chain, so the parent ring is the big outer one (matches _process).
 		var depth := ring_count - 1 - i
 		var ring_r := base_radius * (1.0 + depth * RADIUS_STEP)
-		# An UNCAPPED cylinder = a flat band ("cylinder slice"), not a round
-		# donut tube — the axial wall is the surface, zero radial thickness.
-		var mesh := CylinderMesh.new()
-		mesh.top_radius = ring_r
-		mesh.bottom_radius = ring_r
-		mesh.height = ring_r * band_width
-		mesh.radial_segments = facets
-		mesh.rings = 1
-		mesh.cap_top = false
-		mesh.cap_bottom = false
+		# A rectangular-cross-section ring ("annular prism") — a flat band with a
+		# nudge of radial thickness, NOT a round donut tube. Outer + inner walls +
+		# two rims; the SOLID_GLYPH runes ride the inner wall (v across it), rims
+		# bare. thickness == 0 degenerates to the old zero-thickness single wall.
 		var mi := MeshInstance3D.new()
-		mi.mesh = mesh
+		mi.mesh = _build_band_mesh(ring_r, ring_r * band_width, ring_r * thickness, facets)
 		mi.material_override = mat
+		# The band's outer radius, for tests / callers (a custom ArrayMesh has no
+		# top_radius the way CylinderMesh did).
+		mi.set_meta(&"outer_radius", ring_r)
 		add_child(mi)
 		_rings.append(mi)
 	_apply_tint()
+
+
+# Builds one band as a rectangular-cross-section ring around the Y axis (so
+# MESH_CORR still swings the axis to local Z, matching the 2D hoop). Four
+# surfaces: outer wall (r=outer_r), inner wall (r=outer_r-thick), and top/bottom
+# rims closing the ends. UV convention is what makes the glyph "rim-aware": the
+# INNER wall carries v in [0,1] (the glyph band); every other surface is parked
+# at v = OUTER_V (>1), where gimbal_glyph.gdshader's band mask is 0 — so runes
+# only ever inscribe the inner face and the rims stay bare metal. thick <= 0
+# collapses to a single wall (no inner wall / rims), the old thin slice.
+const OUTER_V := 2.0
+
+func _build_band_mesh(outer_r: float, height: float, thick: float, seg: int) -> ArrayMesh:
+	var hy := height * 0.5
+	var up := Vector3.UP
+	var inner_r: float = maxf(outer_r - thick, 0.0)
+	var solid := thick > 0.0001 and inner_r > 0.0
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in seg:
+		var a0 := TAU * float(i) / float(seg)
+		var a1 := TAU * float(i + 1) / float(seg)
+		var d0 := Vector3(cos(a0), 0.0, sin(a0))
+		var d1 := Vector3(cos(a1), 0.0, sin(a1))
+		var u0 := float(i) / float(seg)
+		var u1 := float(i + 1) / float(seg)
+		# Outer wall — normal points radially out; parked at OUTER_V (bare metal).
+		_quad(st,
+			d0 * outer_r + up * hy, d1 * outer_r + up * hy,
+			d1 * outer_r - up * hy, d0 * outer_r - up * hy,
+			d0, d1, d1, d0,
+			Vector2(u0, OUTER_V), Vector2(u1, OUTER_V), Vector2(u1, OUTER_V), Vector2(u0, OUTER_V))
+		if not solid:
+			continue
+		# Inner wall — normal points radially IN; carries the glyph band v in [0,1]
+		# (top rim v=0, bottom rim v=1). Wound opposite the outer wall so its front
+		# face looks inward (you read the far inner face through the near gap).
+		_quad(st,
+			d1 * inner_r + up * hy, d0 * inner_r + up * hy,
+			d0 * inner_r - up * hy, d1 * inner_r - up * hy,
+			-d1, -d0, -d0, -d1,
+			Vector2(u1, 0.0), Vector2(u0, 0.0), Vector2(u0, 1.0), Vector2(u1, 1.0))
+		# Top rim (y=+hy, normal +Y) and bottom rim (y=-hy, normal -Y), both bare.
+		_quad(st,
+			d0 * inner_r + up * hy, d1 * inner_r + up * hy,
+			d1 * outer_r + up * hy, d0 * outer_r + up * hy,
+			up, up, up, up,
+			Vector2(u0, OUTER_V), Vector2(u1, OUTER_V), Vector2(u1, OUTER_V), Vector2(u0, OUTER_V))
+		_quad(st,
+			d0 * outer_r - up * hy, d1 * outer_r - up * hy,
+			d1 * inner_r - up * hy, d0 * inner_r - up * hy,
+			-up, -up, -up, -up,
+			Vector2(u0, OUTER_V), Vector2(u1, OUTER_V), Vector2(u1, OUTER_V), Vector2(u0, OUTER_V))
+	return st.commit()
+
+
+# Two triangles (a,b,c)+(a,c,d) with per-vertex normals and UVs. Corners are
+# given front-facing CCW so a solid ring reads right-side-out under cull_back.
+func _quad(st: SurfaceTool,
+		a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+		na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3,
+		ua: Vector2, ub: Vector2, uc: Vector2, ud: Vector2) -> void:
+	for v in [[a, na, ua], [b, nb, ub], [c, nc, uc], [a, na, ua], [c, nc, uc], [d, nd, ud]]:
+		st.set_normal(v[1])
+		st.set_uv(v[2])
+		st.add_vertex(v[0])
 
 
 func _apply_tint() -> void:

@@ -204,20 +204,21 @@ a static `CoreHalos` type reference.
 They were flagged as "way more than we can fake in 2D without building some
 WILD machinery" (a 2D `_draw()` has no UVs; a per-instance glyph would force
 baked per-instance textures). The real-3D gimbal (`skill_node/visuals/gimbal_3d/`,
-see next section) gets them for free — each band is an uncapped `CylinderMesh`
-whose wall has real UVs (u around, v across the band), so the `SOLID_GLYPH`
-style scrolls an emissive rune strip across the band and it wraps the whole
-hoop. Don't try to reintroduce this on the 2D path.
+see next section) gets them for free — each band is a real mesh with authored
+UVs (u around the ring, v across the inner wall), so the `SOLID_GLYPH` style
+scrolls an emissive rune strip down the inner face and it wraps the whole hoop.
+Don't try to reintroduce this on the 2D path.
 
 ### 3D gimbal showcase (#239): the boss-tier looks, on a real SubViewport
 
 `skill_node/visuals/gimbal_3d/` is a real-3D rebuild of the gimbal for boss
 differentiation — the same quaternion chain (shared `AXES`/`RATE_BASE` + the
-per-ring standing tilts) driving uncapped `CylinderMesh` bands ("cylinder
-slices", not round `TorusMesh` donuts) whose `Basis` is set per-frame, inside a
-`SubViewport` world with a glow `Environment`. The over/under interleave is the
-depth buffer, not a hand-split front/back CanvasItem, and the look is emissive
-shaders (the CPU stacked-stroke fake can't reach neon/glass/glyph).
+per-ring standing tilts) driving hand-built **annular-prism bands** (flat
+rectangular-cross-section rings, not round `TorusMesh` donuts) whose `Basis` is
+set per-frame, inside a `SubViewport` world with a glow `Environment`. The
+over/under interleave is the depth buffer, not a hand-split front/back
+CanvasItem, and the look is emissive shaders (the CPU stacked-stroke fake can't
+reach neon/glass/glyph).
 
 - **Chain index 0 is the OUTERMOST band (the parent).** The chain composes each
   inner ring's spin onto the accumulated outer rotation, so radius must *shrink*
@@ -227,12 +228,34 @@ shaders (the CPU stacked-stroke fake can't reach neon/glass/glyph).
   within the slowly-reorienting outer frame. (The 2D CoreHalos GIMBAL still maps
   radius the *other* way — smallest at the chain root — a latent inversion not
   yet backported; it's tiny/core-gated so nobody's called it.)
-- **`CylinderMesh` axis is Y**, so a constant `MESH_CORR` (90° about X) rotates
-  the wall into the ring plane (axis → local Z, matching the 2D hoop) before the
-  chain `Basis` is applied: `basis = Basis(chain) * MESH_CORR`.
-- **`facets` (radial_segments) is the angular/PCB dial** — low is faceted, high
-  is smooth. The de-donut win is the open cylinder wall (zero radial thickness),
-  independent of facet count.
+- **The band is built around the Y axis** (`_build_band_mesh`), so the same
+  constant `MESH_CORR` (90° about X) rotates its axis into local Z (matching the
+  2D hoop) before the chain `Basis` is applied: `basis = Basis(chain) * MESH_CORR`.
+- **`facets` (segments) is the angular/PCB dial** — low is faceted, high is
+  smooth. The de-donut win is the *flat* rectangular cross-section, independent
+  of facet count.
+- **`thickness` (#239) is a NUDGE of radial depth, tweakable independently of
+  `band_width` (axial).** The band went from a zero-thickness cylinder slice to a
+  hollow ring — `_build_band_mesh` emits an outer wall + inner wall + two rims.
+  No stock primitive gives flat walls with radial thickness decoupled from axial
+  width (a `TorusMesh` locks the two equal and is round), so it's a hand-built
+  `ArrayMesh` (via `SurfaceTool`). `thickness == 0` degenerates to the single
+  outer wall (the old thin slice). The band's outer radius rides in an
+  `outer_radius` meta on the `MeshInstance3D` (a custom mesh has no
+  `CylinderMesh.top_radius` to read) — see `test_chain_root_is_the_outermost_ring`.
+- **The `SOLID_GLYPH` runes inscribe only the inner wall, and are rim-aware by
+  UV.** `_build_band_mesh` hands the inner wall clean `v ∈ [0,1]` (the glyph
+  band, so runes run centered down it) and parks the outer wall + both rims at
+  `v = OUTER_V (2.0)`, where `gimbal_glyph.gdshader`'s band mask is 0 — so the
+  rims stay bare metal. **Gotcha this fixed:** a stock `CylinderMesh` side wall
+  maps `v` to `[0, 0.5]` (caps would take `[0.5, 1]`), which is why the glyphs
+  drew off-center before the re-mesh — the shader assumed `v ∈ [0,1]`. Owning the
+  mesh's UVs is what makes both "centered" and "rim-aware" true by construction.
+- **Culling is per-style (#239).** `SOLID_GLYPH` and `UNIFORM_GLOW` are solid
+  bodies → `cull_back` (on the glyph, the near inner wall is occluded by the near
+  outer wall anyway, so you read the *far* inner face lit through the near gap).
+  `HOLO_GLASS` stays `cull_disabled` — a transparent hoop wants both walls'
+  fresnel visible through each other.
 
 - **Same contract by intent:** consumes `tint` (ownership, like CoreHalos'
   `entity_tint`) + `ring_count` + `spin_speed`; the three looks are one `Style`
