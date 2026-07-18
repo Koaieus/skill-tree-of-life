@@ -75,7 +75,8 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 When you learn something non-obvious — a gotcha, a hidden constraint, a workflow surprise — **proactively offer to write it down**.
 
-- **Rule files** live in `.claude/rules/<module>.md`. If you hit a gotcha while working on a module, check if a rule file exists; create or update it. Keep rules current — a stale rule is worse than no rule.
+- **Rule files** live in `.claude/rules/<module>.md`. If you hit a gotcha while working on a module, check if a rule file exists; create or update it. Keep rules current — a stale rule is worse than no rule. **Scope it** with a `paths:` glob so it loads only when its files are read — a rule with no `paths:` is always-on and taxes every session. See `docs/domain/breadcrules.md`.
 - **Small gotchas (<200 tokens):** inline in the relevant rule file. Lead with the rule, then **Why:** / **How to apply:**.
+- **Breadcrule** — when a pointer must sit in the always-on tier, make it one line that states the claim *and* links the doc (`Breadcrule: <claim>. See docs/domain/<topic>.md`); never a paragraph. See `docs/domain/breadcrules.md`.
 - **Larger context** (multi-paragraph, decision trees, code samples): `docs/domain/<topic>.md` (engineering knowledge, distinct from `docs/design/` which is game design).
 - Game-design knowledge belongs in `docs/design/` or as a GitHub Issue (`design` label) — not inline here.
