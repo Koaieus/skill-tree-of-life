@@ -61,6 +61,8 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, plus defaults. Project board (kanban): `mise gh-project -- list|add|status|priority|size`. `list [ready|in-progress|in-review|backlog|done|all]` shows a column — that's how an agent finds work to pick up; add `--json` (with `mise run --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
 
+**Sub-issues:** the repo uses the parent/sub-issue model. File a child under its epic with `gh issue create --parent <parent-number> …` (gh ≥ 2.9x) — this nests it, distinct from a `Closes #` trailer.
+
 **RTFC — read the fucking comments.** When working an issue, read its comments, not just the body: they often hold the actual decisions, pointers, new direction, or bug reports that outweigh the original body.
 
 ## Godot conventions
