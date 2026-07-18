@@ -156,17 +156,19 @@ Files:
   reference migration). Tree stays scenic (per `scene-composition.md`); the
   script only wires + acts, and the breadcrumb — being path-length-variable — is
   built into the scenic `%Breadcrumb` container in code.
-  - **Backward-compatible:** a legacy bare-node tab (root = `MarginContainer` +
-    this script, no chrome children) still works — the panel falls back onto
-    `self` and every chrome hook null-guards to a no-op. The 9 un-migrated tabs
-    run on this path; migrating each to the inherited base is mechanical work.
-  - **Generator is now legacy-shaped.** `tools/gen_sandbox_tabs.gd` `_gen_live`
-    still emits the *bare single-node* form (`SandboxLiveTab.new()` + save) — the
-    original "generate to dodge uid landmines" approach, and the very reason tabs
-    opened empty with no back-ref. Its roster covers spell/vfx/statboard/procgen +
-    the played showcases; it does **not** include fan_trace/gimbal/node_visuals
-    (hand-added later), so it won't clobber the migration. Update it to emit
-    inherited scenes of the base (or retire it) as part of the migration.
+  - **All live tabs are now migrated** (#250): spell / vfx / statboard / procgen /
+    node_visuals / gimbal_3d / fan_trace are each a one-node inherited scene of
+    the base, so every live tab carries the breadcrumb chrome. The
+    backward-compatibility path — a legacy bare-node tab (root = `MarginContainer`
+    + this script, no chrome children) where the panel falls back onto `self` and
+    every chrome hook null-guards to a no-op — still exists in the script as a
+    safety net, but no shipped tab uses it.
+  - **Generator no longer emits live tabs** (#250). `tools/gen_sandbox_tabs.gd`
+    now generates only the host scene + the *played* launch cards. Live tabs moved
+    to hand-authored inherited scenes because an inherited scene can't be expressed
+    via `PackedScene.pack`, and it hand-authors cleanly (path-resolved
+    ext_resources, no uid landmines). To add a live tab, copy an existing one under
+    `addons/sandbox_host/tabs/` and swap the four exports.
 - `sandbox_played_tab.gd` (`SandboxPlayedTab`) — a launch card (title +
   description + optional `preview: Texture2D` + ▶ Run → `play_custom_scene`).
   Played scenes are non-`@tool` and can't run in-editor, so the host never

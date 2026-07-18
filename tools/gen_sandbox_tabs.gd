@@ -1,19 +1,27 @@
 extends SceneTree
 ## One-off generator for the sandbox host scenes (#77). Builds the host scene +
-## each tab scene programmatically and saves them, so the .tscn files are
-## engine-serialized (no hand-authored uid-mismatch / field-strip pitfalls — see
-## .claude/rules/godot-workflow.md). Re-run after changing the tab roster:
+## the *played* launch-card tabs programmatically and saves them, so the .tscn
+## files are engine-serialized (no hand-authored uid-mismatch / field-strip
+## pitfalls — see .claude/rules/godot-workflow.md). Re-run after changing the
+## played-tab roster:
 ##
 ##     godot --headless --script res://tools/gen_sandbox_tabs.gd
 ##
 ## It does NOT add nodes to the tree, so the @tool _ready bodies (which build the
 ## panel / card) don't fire — only the exported config is packed, exactly what
 ## the runtime host expects to instance.
+##
+## Live-edit tabs are NOT generated here anymore (#250). A live tab is now a
+## one-node **inherited scene** of `sandbox_live_tab.tscn` (the scenic base with
+## the breadcrumb toolbar + %PanelHost slot) overriding only tab_title / tab_id /
+## panel_scene / loader_method. Inherited scenes can't be expressed via
+## PackedScene.pack, and they hand-author cleanly (path-resolved ext_resources,
+## no uid landmines), so to add a live tab: copy an existing one under
+## `addons/sandbox_host/tabs/` (e.g. `18_fan_trace_tab.tscn`) and swap the values.
 
 const _DIR := "res://addons/sandbox_host/"
 const _TABS := "res://addons/sandbox_host/tabs/"
 
-const _LIVE := preload("res://addons/sandbox_host/sandbox_live_tab.gd")
 const _PLAYED := preload("res://addons/sandbox_host/sandbox_played_tab.gd")
 const _HOST := preload("res://addons/sandbox_host/sandbox_host.gd")
 
@@ -22,16 +30,6 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_TABS))
 
 	_gen_host()
-
-	# Live-edit tabs — numeric prefixes fix the tab order.
-	_gen_live("10_spell_tab", "Spell", &"spell",
-		"res://addons/spell_playground/playground_panel.tscn", &"load_spell")
-	_gen_live("20_vfx_tab", "VFX", &"vfx",
-		"res://addons/vfx_playground/playground_panel.tscn", &"load_coordinator")
-	_gen_live("30_statboard_tab", "StatBoard", &"statboard",
-		"res://addons/stat_board_visualizer/stat_board_graph.tscn", &"load_board")
-	_gen_live("35_procgen_tab", "Procgen", &"procgen",
-		"res://procgen/playground/playground_panel.tscn", &"load_config")
 
 	# Played tabs — launch cards.
 	_gen_played("40_allocation_tab", "Allocation VFX",
@@ -61,17 +59,6 @@ func _gen_host() -> void:
 	tabs.owner = root
 	tabs.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_save(root, _DIR + "sandbox_host.tscn")
-
-
-func _gen_live(file: String, title: String, id: StringName, panel: String, loader: StringName) -> void:
-	var tab := MarginContainer.new()
-	tab.set_script(_LIVE)
-	tab.name = title
-	tab.tab_title = title
-	tab.tab_id = id
-	tab.panel_scene = load(panel)
-	tab.loader_method = loader
-	_save(tab, _TABS + file + ".tscn")
 
 
 func _gen_played(file: String, title: String, scene: String, description: String) -> void:

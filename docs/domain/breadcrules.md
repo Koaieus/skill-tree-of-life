@@ -8,8 +8,18 @@ than meets the eye — the full story is over there."* Interested agents follow 
 crumb and get everything they need; uninterested agents skip one line instead of
 wading through a page they didn't want.
 
+**A breadcrule is its own rule *file*, not a line bolted into `CLAUDE.md`.** The
+file *is* the breadcrumb rule — its content doesn't announce itself with a
+literal `Breadcrule:` label; it's simply the tiny hint plus a "read more" crumb.
+Create `.claude/rules/<topic>.md` whose entire body is the one line, with **no
+`paths:` frontmatter** (no frontmatter at all) — that absence is exactly what
+makes it always-on. Keeping each breadcrule a separate file keeps `CLAUDE.md`
+itself lean and lets a stale crumb be deleted or re-scoped without touching the
+seed. Don't paste the line into `CLAUDE.md`.
+
 ```
-Breadcrule: <the one-line claim / pointer>. See docs/domain/<topic>.md
+# .claude/rules/<topic>.md  — entire file, no frontmatter, no "Breadcrule:" label:
+<the one-line claim / pointer>. See docs/domain/<topic>.md
 ```
 
 ## Why: the always-on tier costs context every turn
@@ -101,13 +111,13 @@ paths:
 The line does two things: **state the claim** (so an agent knows whether to care)
 and **point to the payload** (so a caring agent can dive). Both, in one line.
 
-- **Bad:** `Breadcrule: see docs/domain/foo.md` — no claim; every agent has to
-  open the doc just to learn it's irrelevant. That's the spam the breadcrule was
-  supposed to avoid.
+- **Bad:** `see docs/domain/foo.md` — no claim; every agent has to open the doc
+  just to learn it's irrelevant. That's the spam the breadcrule was supposed to
+  avoid.
 - **Bad:** a full paragraph — that's just an always-on rule wearing a hat.
-- **Good:** `Breadcrule: node HP is stored on the addon, not the SkillNode —
-  reads through the carrier lie. See docs/domain/node-hp.md` — the claim alone
-  saves an uninterested agent the click, and hooks an interested one.
+- **Good:** `node HP is stored on the addon, not the SkillNode — reads through
+  the carrier lie. See docs/domain/node-hp.md` — the claim alone saves an
+  uninterested agent the click, and hooks an interested one.
 
 Same small-rule discipline as everywhere else: **lead with the rule.** The
 difference is only *length* and *placement* — a breadcrule is a rule compressed
