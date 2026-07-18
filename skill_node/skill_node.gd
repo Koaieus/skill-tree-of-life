@@ -3,6 +3,10 @@ class_name SkillNode
 extends Area2D
 
 const ZLayers = preload("res://ui/z_layers.gd")
+# preload, not the bare class_name — parses before an editor class-cache
+# refresh; see docs/domain/skillnode-emblem.md's "preload-not-class_name" note.
+const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
 
 signal radius_changed
 signal owner_changed
@@ -44,6 +48,15 @@ signal depleted
 ## hand-authored escape hatch — most content should go through a [Keystone] or
 ## a [SkillNodeAddon].
 @export var effects: Array[Effect] = []
+
+## Which regular-polygon shape this node's archetype carves as the emblem
+## fallback (see [ArchetypeShape], [method get_emblem_contributions]). NOT yet
+## wired to procgen's real archetype identity (an [ArchetypePolicy]-driven
+## StringName + [member base_type_color], a richer model than this placeholder
+## six-way enum) — a pre-existing gap this field doesn't attempt to close, only
+## gives the emblem protocol something concrete to read today. See
+## docs/domain/skillnode-emblem.md.
+@export var archetype: ArchetypeShape.Archetype = ArchetypeShape.Archetype.STR
 
 ## Persistent base-type identity colour (e.g. procgen's archetype colour).
 ## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
@@ -546,6 +559,27 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 		if mods.is_empty():
 			continue
 		out.append({"title": a.get_tooltip_title(), "modifiers": mods})
+	return out
+
+
+## Aggregates this node's [EmblemSpec] candidates for the central-emblem
+## resolver (see docs/domain/skillnode-emblem.md): the archetype fallback
+## carve, a keystone carve, a SPELL carve per granted [SpellGrant], and every
+## addon's own [method SkillNodeAddon.get_emblem] contribution. SkillNode never
+## interprets these — [EmblemResolver] picks the winning CARVE and collects the
+## BLOOMs; this is purely aggregation, mirroring [method get_node_effects] /
+## [method get_addon_tooltip_sections].
+func get_emblem_contributions() -> Array:
+	var out: Array = [ArchetypeShape.carve(archetype)]
+	if keystone != null:
+		out.append(EmblemSpec.texture_carve(keystone.icon, EmblemSpec.PRIORITY_KEYSTONE, &"keystone"))
+	for effect in get_node_effects():
+		if effect is SpellGrant and effect.spell_def != null:
+			out.append(EmblemSpec.texture_carve(effect.spell_def.icon, EmblemSpec.PRIORITY_SPELL, &"spell"))
+	for a in get_addons():
+		var spec = a.get_emblem()
+		if spec != null:
+			out.append(spec)
 	return out
 
 

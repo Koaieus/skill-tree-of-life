@@ -123,6 +123,21 @@ func get_tooltip_modifiers() -> Array[StatModifier]:
 	return candidates
 
 
+# ─── Central-emblem contract (docs/domain/skillnode-emblem.md) ────────────
+
+## LOOT-priority carve — a consumed one-off, so it outranks a spell grant until
+## allocation consumes the relic (see the class doc above). No Texture2D art
+## exists for this glyph yet; the carve's actual look is the diamond-crown
+## height-field dent InnerDisk already bakes via [member show_diamond] (#168) —
+## the null [param tex] + `&"loot"` [member EmblemSpec.source_kind] is what lets
+## the (not-yet-built) InnerDisk carve consumer special-case this source rather
+## than expecting arbitrary bitmap art.
+const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+
+func get_emblem() -> Variant:
+	return EmblemSpec.texture_carve(null, EmblemSpec.PRIORITY_LOOT, &"loot")
+
+
 ## Pickup == the carrier gaining an owner. Routes the core-mod candidates through
 ## the pick-N-from-M handshake (#173):
 ##   * no real choice (empty, pick_count ≤ 0, or supply ≤ pick_count) →

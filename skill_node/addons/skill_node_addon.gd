@@ -88,6 +88,19 @@ func get_tooltip_modifiers() -> Array[StatModifier]:
 	return []
 
 
+# ─── Central-emblem contract (docs/domain/skillnode-emblem.md) ────────────
+# Addons contribute an EmblemSpec CARVE/BLOOM candidate the same way they
+# contribute tooltip content above: aggregated by SkillNode.get_emblem_contributions,
+# arbitrated by EmblemResolver. SkillNode never learns what a loot relic or a
+# spell icon is — it just collects specs.
+
+## This addon's central-emblem contribution, or null (the default) to
+## contribute nothing. Override to return an [EmblemSpec] (e.g.
+## [SkillDustAddon] → a LOOT-priority carve).
+func get_emblem() -> Variant:
+	return null
+
+
 # Future hooks (add only when a concrete addon demands them):
 #   on_damage_taken(amount, source) -> void
 #   on_incoming_blade_contact(blade, edge_or_particle_idx) -> void
