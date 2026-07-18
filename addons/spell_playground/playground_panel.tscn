@@ -10,7 +10,6 @@
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="7_gnwdd"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="8_2psax"]
 [ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="9_sdf20"]
-[ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="10_dsd85"]
 [ext_resource type="Resource" path="res://stats_system/defs/dexterity.tres" id="11_kt55k"]
 [ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="12_f1bso"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="13_imfmt"]
@@ -22,7 +21,6 @@
 [ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="19_5dmfi"]
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="20_lftbw"]
 [ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="21_36wyl"]
-[ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="22_3o1h6"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="23_8pejx"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="24_bl0g4"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="25_68ort"]
@@ -35,6 +33,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="32_gd887"]
 [ext_resource type="Resource" path="res://stats_system/defs/wisdom.tres" id="33_uagdk"]
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="34_0crsu"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="35_rr351"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="35_t3rmt"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="36_3dnei"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="37_oknoy"]
@@ -78,13 +77,6 @@ resource_name = "dealloc_damage"
 script = ExtResource("6_0p68j")
 definition = ExtResource("9_sdf20")
 base_value = 1.0
-
-[sub_resource type="Resource" id="pool_dealloc"]
-resource_name = "deallocation_points"
-script = ExtResource("4_lgeib")
-current = 3.0
-definition = ExtResource("10_dsd85")
-base_value = 3.0
 
 [sub_resource type="Resource" id="scalar_dexterity"]
 resource_name = "dexterity"
@@ -225,13 +217,6 @@ script = ExtResource("6_0p68j")
 definition = ExtResource("21_36wyl")
 base_value = 3.0
 
-[sub_resource type="Resource" id="pool_movement_points"]
-resource_name = "movement_points"
-script = ExtResource("4_lgeib")
-current = 3.0
-definition = ExtResource("22_3o1h6")
-base_value = 3.0
-
 [sub_resource type="Resource" id="scalar_node_health"]
 resource_name = "node_health"
 script = ExtResource("6_0p68j")
@@ -303,7 +288,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("6_0p68j")
 definition = ExtResource("36_3dnei")
 
-[sub_resource type="Resource" id="Resource_rr351"]
+[sub_resource type="Resource" id="Resource_lgeib"]
 resource_local_to_scene = true
 script = ExtResource("26_dk7li")
 strength = SubResource("scalar_strength")
@@ -320,9 +305,7 @@ xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
-deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
-movement_points = SubResource("pool_movement_points")
 initiative = SubResource("pool_initiative")
 initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")
@@ -335,18 +318,18 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
 
-[sub_resource type="Resource" id="Resource_lgeib"]
+[sub_resource type="Resource" id="Resource_jotj6"]
 resource_local_to_scene = true
 script = ExtResource("37_oknoy")
 metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 
-[sub_resource type="Resource" id="Resource_jotj6"]
+[sub_resource type="Resource" id="Resource_0p68j"]
 resource_local_to_scene = true
 script = ExtResource("38_x1xyy")
 spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
 metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
-[sub_resource type="Resource" id="Resource_0p68j"]
+[sub_resource type="Resource" id="Resource_gnwdd"]
 resource_local_to_scene = true
 script = ExtResource("26_dk7li")
 strength = SubResource("scalar_strength")
@@ -363,9 +346,7 @@ xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
-deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
-movement_points = SubResource("pool_movement_points")
 initiative = SubResource("pool_initiative")
 initiative_speed = SubResource("scalar_initiative_speed")
 vision_range = SubResource("scalar_vision_range")
@@ -378,12 +359,12 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range")])
 
-[sub_resource type="Resource" id="Resource_gnwdd"]
+[sub_resource type="Resource" id="Resource_2psax"]
 resource_local_to_scene = true
 script = ExtResource("37_oknoy")
 metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 
-[sub_resource type="Resource" id="Resource_2psax"]
+[sub_resource type="Resource" id="Resource_sdf20"]
 resource_local_to_scene = true
 script = ExtResource("38_x1xyy")
 spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
@@ -391,6 +372,10 @@ metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [node name="SpellPlaygroundPanel" type="PanelContainer" unique_id=962694820]
 custom_minimum_size = Vector2(0, 380)
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 292.0
+grow_vertical = 2
 script = ExtResource("1_panel")
 
 [node name="HBox" type="HBoxContainer" parent="." unique_id=1076162723]
@@ -402,16 +387,33 @@ custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SpellRow" type="HBoxContainer" parent="HBox/ControlsColumn"]
+[node name="SpellRow" type="HBoxContainer" parent="HBox/ControlsColumn" unique_id=667068810]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="SpellList" type="OptionButton" parent="HBox/ControlsColumn/SpellRow"]
+[node name="SpellList" type="OptionButton" parent="HBox/ControlsColumn/SpellRow" unique_id=1606243921]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+selected = 0
+item_count = 7
+popup/item_0/text = "Pick a spell…"
+popup/item_0/id = 0
+popup/item_0/disabled = true
+popup/item_1/text = "Spark"
+popup/item_1/id = 1
+popup/item_2/text = "Lightning Bolt"
+popup/item_2/id = 2
+popup/item_3/text = "Bruiser"
+popup/item_3/id = 3
+popup/item_4/text = "Leafblower"
+popup/item_4/id = 4
+popup/item_5/text = "Resonator"
+popup/item_5/id = 5
+popup/item_6/text = "The Trailblazer"
+popup/item_6/id = 6
 
-[node name="BrowseButton" type="Button" parent="HBox/ControlsColumn/SpellRow"]
+[node name="BrowseButton" type="Button" parent="HBox/ControlsColumn/SpellRow" unique_id=1111716376]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Reveal attack/spell/defs/ in the FileSystem dock"
@@ -428,21 +430,21 @@ layout_mode = 2
 disabled = true
 text = "Cast"
 
-[node name="ResetButton" type="Button" parent="HBox/ControlsColumn/HeaderRow"]
+[node name="ResetButton" type="Button" parent="HBox/ControlsColumn/HeaderRow" unique_id=21932576]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 tooltip_text = "Refill every node's health — clears damage from previous casts"
 text = "Reset"
 
-[node name="ReloadButton" type="Button" parent="HBox/ControlsColumn/HeaderRow"]
+[node name="ReloadButton" type="Button" parent="HBox/ControlsColumn/HeaderRow" unique_id=1031300535]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 36)
 layout_mode = 2
 tooltip_text = "Recreate this panel from scratch — clears stuck cast state or leftover VFX that Reset can't"
 text = "Reload"
 
-[node name="StatusLabel" type="Label" parent="HBox/ControlsColumn/HeaderRow" unique_id=564385645]
+[node name="StatusLabel" type="Label" parent="HBox/ControlsColumn" unique_id=564385645]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -472,16 +474,15 @@ stretch = true
 
 [node name="World" type="SubViewport" parent="HBox/WorldContainer" unique_id=2092270938]
 unique_name_in_owner = true
-handle_input_locally = false
 physics_object_picking = true
-size = Vector2i(2, 380)
+size = Vector2i(2, 960)
 render_target_update_mode = 4
 
 [node name="Background" type="ColorRect" parent="HBox/WorldContainer/World" unique_id=389234317]
 unique_name_in_owner = true
 z_index = -100
 offset_right = 2.0
-offset_bottom = 380.0
+offset_bottom = 960.0
 mouse_filter = 2
 color = Color(0.07, 0.07, 0.1, 1)
 
@@ -489,75 +490,92 @@ color = Color(0.07, 0.07, 0.1, 1)
 unique_name_in_owner = true
 display_name = "Caster"
 color = Color(0.4, 0.8, 0.55, 1)
-stat_board = SubResource("Resource_rr351")
-core_class = SubResource("Resource_lgeib")
-spellbook = SubResource("Resource_jotj6")
+stat_board = SubResource("Resource_lgeib")
+core_class = SubResource("Resource_jotj6")
+spellbook = SubResource("Resource_0p68j")
 
 [node name="DefenderEntity" parent="HBox/WorldContainer/World" unique_id=345963501 instance=ExtResource("3_ent")]
 unique_name_in_owner = true
 display_name = "Defender"
 color = Color(0.85, 0.4, 0.3, 1)
-stat_board = SubResource("Resource_0p68j")
-core_class = SubResource("Resource_gnwdd")
-spellbook = SubResource("Resource_2psax")
+stat_board = SubResource("Resource_gnwdd")
+core_class = SubResource("Resource_2psax")
+spellbook = SubResource("Resource_sdf20")
 
 [node name="CasterNode" parent="HBox/WorldContainer/World" unique_id=1567387689 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 unique_name_in_owner = true
-position = Vector2(65, 190)
+position = Vector2(65, 480)
 owned_by = NodePath("../CasterEntity")
 
 [node name="Graph" parent="HBox/WorldContainer/World" unique_id=1726628961 instance=ExtResource("47_eagb3")]
 unique_name_in_owner = true
 
 [node name="T_00" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="0" unique_id=1120853937 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(130, 470)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_01" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="1" unique_id=1056889480 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(136.66667, 470)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_02" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="2" unique_id=1697755299 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(143.33333, 470)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_03" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="3" unique_id=1232758408 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(150, 470)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_10" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="4" unique_id=1718383906 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(130, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_11" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="5" unique_id=1083574726 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(136.66667, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_12" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="6" unique_id=1260902422 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(143.33333, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_13" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="7" unique_id=652399749 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(150, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_20" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="8" unique_id=1523931166 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(130, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_21" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="9" unique_id=760718367 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+modulate = Color(1, 0.7, 0.7, 1)
+position = Vector2(136.66667, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_22" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="10" unique_id=955374995 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(143.33333, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_23" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="11" unique_id=1262088768 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(150, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_30" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="12" unique_id=1772789795 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(130, 490)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_31" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="13" unique_id=1314036275 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(136.66667, 490)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_32" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="14" unique_id=301008163 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(143.33333, 490)
 owned_by = NodePath("../../../DefenderEntity")
 
 [node name="T_33" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="15" unique_id=1220020722 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(150, 490)
 owned_by = NodePath("../../../DefenderEntity")
 
-[node name="FloaterDirector" parent="HBox/WorldContainer/World/Graph" instance=ExtResource("48_float")]
+[node name="FloaterDirector" parent="HBox/WorldContainer/World/Graph" unique_id=15107582 instance=ExtResource("48_float")]
 
 [node name="VFXLayer" type="Node2D" parent="HBox/WorldContainer/World" unique_id=98385627]
 unique_name_in_owner = true

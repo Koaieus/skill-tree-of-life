@@ -36,9 +36,9 @@ script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
 step = SubResource("step_fan")
 reducer = SubResource("reducer_sum")
-max_hops = 2
-max_visits_per_node = 4
-damage_multiplier_per_hop = 2.0
+max_hops = 5
+max_visits_per_node = 6
+damage_multiplier_per_hop = 1.5
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("9_range")
@@ -54,7 +54,7 @@ description = "Fans to every enemy neighbour, doubling damage each hop. Convergi
 icon = ExtResource("1_uku7o")
 min_degree = 3
 mana_cost = 5
-base_damage = 4.0
+base_damage = 1.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_self_loop")])
