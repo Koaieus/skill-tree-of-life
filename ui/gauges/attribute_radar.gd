@@ -10,26 +10,25 @@ extends Control
 signal axis_hovered(index: int)
 signal axis_unhovered
 
-# TODO: 3 arrays of equal size? in *MY* OBJECT ORIENTED PROGRAMMING LANGUAGE? refactor dat shit
-
-@export var axis_labels: Array[String] = ["STR", "DEX", "INT", "WIS", "PER"]:
-	set(v):
-		axis_labels = v
-		queue_redraw()
-
-@export var axis_values: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0]:
-	set(v):
-		axis_values = v
-		queue_redraw()
-
-@export var axis_colors: Array[Color] = [
-	Color(0.9451, 0.2689, 0.2453, 1), Color(0.3187, 0.7773, 0.4484, 1),
-	Color(0.291, 0.5892, 1.0, 1), Color(0.9039, 0.7331, 0.2746, 1),
-	Color(0.6935, 0.4045, 0.9676, 1),
+## Per-axis label + color (#241). Drive it via [method configure] rather than
+## poking parallel arrays. Plotted values are separate runtime state — see
+## [member _values] / [method set_value].
+@export var axes: Array[AxisSpec] = [
+	AxisSpec.new("STR", Color(0.9451, 0.2689, 0.2453, 1)),
+	AxisSpec.new("DEX", Color(0.3187, 0.7773, 0.4484, 1)),
+	AxisSpec.new("INT", Color(0.291, 0.5892, 1.0, 1)),
+	AxisSpec.new("WIS", Color(0.9039, 0.7331, 0.2746, 1)),
+	AxisSpec.new("PER", Color(0.6935, 0.4045, 0.9676, 1)),
 ]:
 	set(v):
-		axis_colors = v
+		axes = v
+		_resize_values()
 		queue_redraw()
+
+## Plotted value per axis, normalized against [member max_value] when drawn.
+## Runtime state (not exported / not spec) — sized to [member axes] and
+## written through [method set_value].
+var _values: PackedFloat32Array = PackedFloat32Array()
 
 ## Axis values are normalized against this before plotting.
 @export var max_value: float = 60.0:
@@ -62,8 +61,30 @@ const LABEL_RING_GAP := 10.0
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_resize_values()  # ensure _values matches axes even if the setter didn't fire on default init
 	if not resized.is_connected(queue_redraw):
 		resized.connect(queue_redraw)
+
+
+## Replace the axis set (labels + colors) in one call and reset all plotted
+## values to zero. The Attributes Panel drives this instead of poking parallel
+## arrays (#241).
+func configure(specs: Array[AxisSpec]) -> void:
+	axes = specs  # setter resizes _values + redraws
+	_values.fill(0.0)
+	queue_redraw()
+
+
+## Set the plotted value for one axis; out-of-range indices are ignored.
+func set_value(index: int, value: float) -> void:
+	if index < 0 or index >= _values.size():
+		return
+	_values[index] = value
+	queue_redraw()
+
+
+func _resize_values() -> void:
+	_values.resize(axes.size())
 
 func _get_center() -> Vector2:
 	return size * 0.5
@@ -81,7 +102,7 @@ func _get_label_radius() -> float:
 	return max(0.0, min(size.x, size.y) * 0.5 - LABEL_MARGIN)
 
 func _axis_point(i: int, frac: float) -> Vector2:
-	var n := axis_labels.size()
+	var n := axes.size()
 	var angle := -PI / 2.0 + (TAU / float(n)) * i
 	return _get_center() + Vector2(cos(angle), sin(angle)) * _get_radius() * frac
 
@@ -90,12 +111,12 @@ func _axis_point(i: int, frac: float) -> Vector2:
 ## inside the Control's rect. Extracted so a test can assert the bound
 ## without needing a live _draw() pass.
 func _label_anchor(i: int) -> Vector2:
-	var n := axis_labels.size()
+	var n := axes.size()
 	var angle := -PI / 2.0 + (TAU / float(n)) * i
 	return _get_center() + Vector2(cos(angle), sin(angle)) * _get_label_radius()
 
 func _draw() -> void:
-	var n := axis_labels.size()
+	var n := axes.size()
 	if n < 3:
 		return
 	var radius := _get_radius()
@@ -114,7 +135,7 @@ func _draw() -> void:
 
 	var data_pts := PackedVector2Array()
 	for i in n:
-		var frac: float = clamp(axis_values[i] / max_value, 0.0, 1.0) if i < axis_values.size() else 0.0
+		var frac: float = clamp(_values[i] / max_value, 0.0, 1.0) if i < _values.size() else 0.0
 		data_pts.append(_axis_point(i, frac))
 	if data_pts.size() >= 3:
 		draw_colored_polygon(data_pts, fill_color)
@@ -123,15 +144,15 @@ func _draw() -> void:
 		draw_polyline(outline, Color(0.82, 0.72, 0.53, 0.9), 1.6, true)
 
 	for i in n:
-		var frac: float = clamp(axis_values[i] / max_value, 0.0, 1.0) if i < axis_values.size() else 0.0
-		var col: Color = axis_colors[i] if i < axis_colors.size() else Color.WHITE
+		var frac: float = clamp(_values[i] / max_value, 0.0, 1.0) if i < _values.size() else 0.0
+		var col: Color = axes[i].color if i < axes.size() else Color.WHITE
 		var dot_radius := 5.0 if i == _hovered_axis else 3.2
 		draw_circle(_axis_point(i, frac), dot_radius, col)
 
 	for i in n:
 		var label_pos := _label_anchor(i)
-		var col: Color = axis_colors[i] if i < axis_colors.size() else Color.WHITE
-		draw_string(ThemeDB.fallback_font, label_pos - Vector2(LABEL_TEXT_WIDTH * 0.5, -4), axis_labels[i], HORIZONTAL_ALIGNMENT_CENTER, LABEL_TEXT_WIDTH, 12, col)
+		var col: Color = axes[i].color if i < axes.size() else Color.WHITE
+		draw_string(ThemeDB.fallback_font, label_pos - Vector2(LABEL_TEXT_WIDTH * 0.5, -4), axes[i].label, HORIZONTAL_ALIGNMENT_CENTER, LABEL_TEXT_WIDTH, 12, col)
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
@@ -145,7 +166,7 @@ func _gui_input(event: InputEvent) -> void:
 				axis_unhovered.emit()
 
 func _hit_test_axis(pos: Vector2) -> int:
-	var n := axis_labels.size()
+	var n := axes.size()
 	var center := _get_center()
 	var to_pos := pos - center
 	if to_pos.length() < 6.0:

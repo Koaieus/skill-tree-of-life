@@ -19,7 +19,7 @@ func test_label_anchors_stay_within_control_rect() -> void:
 	await get_tree().process_frame
 
 	var rect := Rect2(Vector2.ZERO, radar.size)
-	var n := radar.axis_labels.size()
+	var n := radar.axes.size()
 	for i in n:
 		var anchor: Vector2 = radar._label_anchor(i)
 		# Mirror _draw()'s draw_string offset/width so this test reflects the
@@ -58,3 +58,34 @@ func test_small_control_size_does_not_produce_negative_radius() -> void:
 
 	assert_true(radar._get_radius() >= 0.0)
 	assert_true(radar._get_label_radius() >= 0.0)
+
+
+func test_configure_replaces_axes_and_resets_values() -> void:
+	# #241: configure() swaps the AxisSpec set (label + color) in one call and
+	# zeroes the plotted values, replacing the old parallel-array poking.
+	var radar := AttributeRadar.new()
+	add_child(radar)
+	autofree(radar)
+
+	radar.configure([AxisSpec.new("A", Color.RED), AxisSpec.new("B", Color.BLUE), AxisSpec.new("C", Color.GREEN)])
+	assert_eq(radar.axes.size(), 3, "configure() should set the axis count")
+	assert_eq(radar.axes[1].label, "B")
+	assert_eq(radar.axes[2].color, Color.GREEN)
+
+	radar.set_value(1, 42.0)
+	assert_almost_eq(radar._values[1], 42.0, 0.001, "set_value() should update the plotted value")
+
+	# Re-configuring with the same count still resets stale values to zero.
+	radar.configure([AxisSpec.new("X", Color.WHITE), AxisSpec.new("Y", Color.WHITE), AxisSpec.new("Z", Color.WHITE)])
+	assert_almost_eq(radar._values[1], 0.0, 0.001, "configure() should reset plotted values")
+
+
+func test_set_value_ignores_out_of_range_index() -> void:
+	var radar := AttributeRadar.new()
+	add_child(radar)
+	autofree(radar)
+
+	radar.configure([AxisSpec.new("A", Color.RED)])
+	radar.set_value(5, 10.0)   # out of range — must be a no-op, not a crash
+	radar.set_value(-1, 10.0)
+	assert_eq(radar._values.size(), 1)

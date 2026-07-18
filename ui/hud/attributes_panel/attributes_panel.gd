@@ -66,15 +66,22 @@ func bind(board: StatBoard) -> void:
 	var stats: Array[ScalarStat] = [
 		_board.strength, _board.dexterity, _board.intelligence, _board.wisdom, _board.perception,
 	]
+	var specs: Array[AxisSpec] = []
 	for i in _rows.size():
 		var id := ATTR_IDS[i]
 		var def := StatRegistry.get_def(id)
+		var axis_label := String(id).substr(0, 3).to_upper()
+		var axis_color := Color.WHITE
 		if def != null:
 			_rows[i].attr_label = def.display_name
 			_rows[i].tint_color = def.tint_color
-			_radar.axis_labels[i] = def.display_name.substr(0, 3).to_upper()
-			_radar.axis_colors[i] = def.tint_color
+			axis_label = def.display_name.substr(0, 3).to_upper()
+			axis_color = def.tint_color
 		_rows[i].attr_id = id
+		specs.append(AxisSpec.new(axis_label, axis_color))
+	_radar.configure(specs)
+
+	for i in _rows.size():
 		var stat := stats[i]
 		if stat == null:
 			continue
