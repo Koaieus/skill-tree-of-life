@@ -65,12 +65,17 @@ var _hovered_node: SkillNode = null
 ## the click). Null when nothing is pinned.
 var _pinned_node: SkillNode = null
 
-## Core-move drag state (#21). `_core_drag_started` flips once the cursor leaves
-## the core past CORE_DRAG_THRESHOLD; `_core_drag_landing` is the currently
-## snapped landing (committed on release). Ghost + badge are lazily built.
+const _CORE_PRESENCE_SCENE := preload("res://skill_node/visuals/core_presence.tscn")
+
+## Core-move drag state (#21, #128). `_core_drag_started` flips once the
+## cursor leaves the core past CORE_DRAG_THRESHOLD; `_core_drag_landing` is the
+## currently snapped landing (committed on release). Ghost + badge are lazily
+## built. `_core_ghost` is a standalone CorePresence instance (same scene the
+## live in-node one uses) — halo always shown, bloom shown only while snapped
+## to a valid landing (see the locked #128 drag-ghost design).
 var _core_drag_started := false
 var _core_drag_landing: SkillNode = null
-var _core_ghost: Control = null
+var _core_ghost: Node2D = null
 var _core_badge: Label = null
 
 
@@ -290,14 +295,17 @@ func _update_core_drag() -> void:
 		_ensure_core_drag_visuals()
 	var landing := _nearest_reachable_landing(world)
 	_core_drag_landing = landing
+	# Bloom glyph joins the ghost only once snapped to a valid target (#128) —
+	# the halo alone follows the cursor otherwise.
+	_core_ghost.get_node(^"CoreSigilBloom").visible = landing != null
 	if landing != null:
 		var hops := maxi(0, allocation_system.core_path(player, landing).size() - 1)
 		var mp := _movement_points_current()
-		_center_ghost_at(landing.global_position)
+		_core_ghost.global_position = landing.global_position
 		_core_ghost.modulate.a = 0.85
 		_core_badge.text = "%d hop%s · %d MP left" % [hops, "" if hops == 1 else "s", maxi(0, mp - hops)]
 	else:
-		_center_ghost_at(world)
+		_core_ghost.global_position = world
 		_core_ghost.modulate.a = 0.4
 		_core_badge.text = "—"
 	_core_badge.global_position = world + Vector2(18, -10)
@@ -351,22 +359,28 @@ func _set_drag_preview_target(landing: SkillNode) -> void:
 		core_provider.set_target(landing)
 
 
-## Center the ghost star on a world point. The ghost is a Label (parented to a
-## Node2D), and a Control positions by its top-left corner — so a bare
-## `global_position = center` renders the glyph down-and-right of the node (the
-## #21 "sits at bottom-right" report). Snap to minimum size, then offset by half.
-func _center_ghost_at(world: Vector2) -> void:
-	_core_ghost.reset_size()
-	_core_ghost.global_position = world - _core_ghost.size * 0.5
-
-
+## Builds the drag-ghost lazily: a standalone [CorePresence] instance (the
+## same scene the live in-node core presence uses, #128) rather than the old
+## hardcoded star Label. It's a Node2D, so it centers on a world point with a
+## bare `global_position` assignment — no Control top-left correction needed.
 func _ensure_core_drag_visuals() -> void:
 	if _core_ghost == null:
-		_core_ghost = Label.new()
-		_core_ghost.text = "⭐"
-		_core_ghost.add_theme_font_size_override("font_size", 40)
+		_core_ghost = _CORE_PRESENCE_SCENE.instantiate()
 		_core_ghost.z_index = ZLayers.CORE_MOVE
 		graph.add_child(_core_ghost)
+		var tint := player.color if player != null else Color.WHITE
+		var r := _move_targeting_source.radius if _move_targeting_source != null else 32.0
+		var sigil: Sigil = null
+		if player != null and player.core_class != null:
+			sigil = player.core_class.sigil
+		for child_name in [&"CoreHalos", &"CoreSigilBloom"]:
+			var child := _core_ghost.get_node(NodePath(child_name)) as SkillNodeVisual
+			child.entity_tint = tint
+			child.radius = r
+		_core_ghost.get_node(^"CoreHalos").visible = true
+		var bloom := _core_ghost.get_node(^"CoreSigilBloom")
+		bloom.sigil = sigil
+		bloom.visible = false  # joins the ghost only once snapped to a target
 	if _core_badge == null:
 		_core_badge = Label.new()
 		_core_badge.add_theme_font_size_override("font_size", 18)

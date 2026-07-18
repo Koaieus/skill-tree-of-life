@@ -94,6 +94,16 @@ func _redraw_all() -> void:
 ## typing (it doesn't statically type its parent as CoreHalos) so this class
 ## doesn't need a `class_name`, matching every other leaf component in this
 ## family.
+## CorePresence travel hook (#128, docs/domain/skillnode-emblem.md): the halo
+## physically glides — offset in from `local_offset`, tween back to
+## Vector2.ZERO. See core_presence.gd for the duck-typed contract.
+func on_core_travel_start(local_offset: Vector2, duration: float) -> void:
+	position = local_offset
+	var tw := create_tween()
+	tw.tween_property(self, "position", Vector2.ZERO, duration) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
 func is_gimbal_active() -> bool:
 	return halo_style == CoreHaloStyle.GIMBAL
 

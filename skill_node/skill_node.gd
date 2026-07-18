@@ -115,7 +115,6 @@ var _base_inner_radius: float = -1.0
 
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
-@onready var core_marker: Node2D = $Visuals/CoreMarker
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
@@ -206,28 +205,33 @@ func _ready() -> void:
 	# in connect() order.
 	owner_changed.connect(_refresh_alloc_count)
 	owner_changed.connect(_sync_visuals)
-	owner_changed.connect(_refresh_core_marker)
+	owner_changed.connect(_refresh_core_presence)
 	owner_changed.connect(_refresh_hp_binding)
 	damaged.connect(play_hit_flash.unbind(2))
 	_addon_anchor.child_entered_tree.connect(_on_addon_added)
 	_addon_anchor.child_exiting_tree.connect(_on_addon_removed)
-	_refresh_core_marker()
+	_refresh_core_presence()
 	_refresh_hp_binding()
 
 
-func _refresh_core_marker() -> void:
+func _refresh_core_presence() -> void:
 	if _bound_owner != owned_by:
-		if _bound_owner != null and _bound_owner.core_location_changed.is_connected(_refresh_core_marker):
-			_bound_owner.core_location_changed.disconnect(_refresh_core_marker)
+		if _bound_owner != null and _bound_owner.core_location_changed.is_connected(_refresh_core_presence):
+			_bound_owner.core_location_changed.disconnect(_refresh_core_presence)
 		_bound_owner = owned_by
 		if _bound_owner != null:
-			_bound_owner.core_location_changed.connect(_refresh_core_marker)
+			_bound_owner.core_location_changed.connect(_refresh_core_presence)
 	var is_core := owned_by != null and owned_by.core_location == self
-	core_marker.visible = (not sensed) and is_core
-	# Gate the composite's core-only presence visuals (CoreHalos, #128) to the
-	# one core node — otherwise every node draws a gimbal (fps sink).
+	# Gate the composite's core-only presence visuals (CorePresence: CoreHalos +
+	# CoreSigilBloom, #128) to the one core node — otherwise every node draws a
+	# gimbal (fps sink). `sensed` hiding the whole ShaderStack (CorePresence's
+	# parent) is what keeps a fogged core hidden — no separate check needed here.
 	if _node_visuals != null:
 		_node_visuals.core_active = is_core
+		var sigil: Sigil = null
+		if is_core and owned_by.core_class != null:
+			sigil = owned_by.core_class.sigil
+		_node_visuals.set_core_sigil(sigil)
 	_refresh_core_health_bar(is_core)
 
 
@@ -260,8 +264,9 @@ func _apply_sensed_state() -> void:
 		_node_visuals.sensed = sensed
 	z_as_relative = not sensed
 	z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED if sensed else 0
+	# CorePresence needs no explicit hide here — it's nested under ShaderStack,
+	# which `_node_visuals.sensed` above already hid wholesale.
 	var _is_core := owned_by != null and owned_by.core_location == self
-	core_marker.visible = (not sensed) and _is_core
 	core_health_bar.visible = revealed and _is_core
 	for a in get_addons():
 		a.visible = not sensed
@@ -285,7 +290,6 @@ func _sync_visuals() -> void:
 	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
 	_base_circle.visible = not sensed
 	_base_circle.queue_redraw()
-	core_marker.configure(radius, get_owner_color())
 	hover_ring.configure(radius)
 	for a in get_addons():
 		a.configure_visual(radius)
@@ -745,23 +749,23 @@ func _on_addon_removed(c: Node) -> void:
 		remove_local_modifier(m)
 
 
-## Core-movement slide-in (#21). Called on the *new* core slot after
-## AllocationSystem.move_core commits; offsets the CoreMarker to start at
-## the previous slot's world position and tweens it back to local zero so
-## the star reads as gliding into place. The underlying `core_location` has
-## already flipped (and CoreMarker.visible was refreshed) — this is purely
-## the visual catch-up. No-op if the marker isn't ready or the offset is
-## degenerate (same node, fog-hidden marker).
+## Core-movement slide-in (#21, #128). Called on the *new* core slot after
+## AllocationSystem.move_core commits; retargets the old CoreMarker glide onto
+## [CorePresence] (CoreHalos + CoreSigilBloom) — the halo offsets to the
+## previous slot's world position and tweens back to local zero, while the
+## bloom extinguishes for the travel and bursts back in on arrival (see
+## core_presence.gd). The underlying `core_location` has already flipped (and
+## `core_active`/the sigil were refreshed) — this is purely the visual
+## catch-up. No-op if this isn't actually the core node, it's sensed (its
+## whole ShaderStack — and CorePresence with it — is hidden), or the offset is
+## degenerate (same node).
 func play_core_slide_from(world_pos: Vector2, duration: float = 0.25) -> void:
-	if not is_node_ready() or core_marker == null or not core_marker.visible:
+	if not is_node_ready() or not is_core() or sensed:
 		return
 	var offset := world_pos - global_position
 	if offset.is_zero_approx():
 		return
-	core_marker.position = offset
-	var tw := create_tween()
-	tw.tween_property(core_marker, "position", Vector2.ZERO, duration) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_node_visuals.glide_core_presence(offset, duration)
 
 
 ## Brief white pulse on the BaseCircle. Auto-runs on the `damaged` signal;

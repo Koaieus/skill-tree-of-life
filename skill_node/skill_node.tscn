@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_58fw3"]
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
-[ext_resource type="Script" uid="uid://cf2g8u0e7gw33" path="res://skill_node/core_marker.gd" id="3_0y6o7"]
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
@@ -12,10 +11,6 @@
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
 radius = 32.0
-
-[sub_resource type="LabelSettings" id="LabelSettings_0y6o7"]
-line_spacing = 0.0
-font_size = 40
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_r2qlo"]
 content_margin_left = 2.0
@@ -77,26 +72,6 @@ script = ExtResource("2_base")
 visible = false
 script = ExtResource("4_hover")
 style = ExtResource("5_glow")
-
-[node name="CoreMarker" type="Node2D" parent="Visuals" unique_id=1043477974]
-visible = false
-script = ExtResource("3_0y6o7")
-
-[node name="Label" type="Label" parent="Visuals/CoreMarker" unique_id=1873155182]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -25.5
-offset_top = -42.0
-offset_right = 25.5
-offset_bottom = 31.5
-grow_horizontal = 2
-grow_vertical = 2
-text = "⭐"
-label_settings = SubResource("LabelSettings_0y6o7")
-horizontal_alignment = 1
-vertical_alignment = 1
-max_lines_visible = 1
 
 [node name="AddonAnchor" type="Node2D" parent="Visuals" unique_id=1119406181]
 

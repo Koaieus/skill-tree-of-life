@@ -59,9 +59,29 @@ static var _add_material: CanvasItemMaterial
 @export_range(0.05, 4.0, 0.05) var pulse_speed: float = 0.9
 
 
+var _travel_tween: Tween
+
+
 func _ready() -> void:
 	if material == null:
 		material = _shared_add_material()
+
+
+## CorePresence travel hooks (#128, docs/domain/skillnode-emblem.md): the
+## bloom does NOT glide — it extinguishes at the source and reignites/bursts
+## at the destination once the halo arrives (see core_presence.gd for the
+## duck-typed contract). `local_offset` is unused here; the hook signature is
+## shared with CoreHalos' physical glide.
+func on_core_travel_start(_local_offset: Vector2, _duration: float) -> void:
+	if _travel_tween != null:
+		_travel_tween.kill()
+	modulate.a = 0.0
+
+
+func on_core_travel_arrived() -> void:
+	_travel_tween = create_tween()
+	_travel_tween.tween_property(self, "modulate:a", 1.0, 0.18) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _draw() -> void:

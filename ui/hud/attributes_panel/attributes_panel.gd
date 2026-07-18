@@ -102,8 +102,7 @@ func _disconnect_board() -> void:
 func _refresh(i: int, stat: ScalarStat) -> void:
 	var v := float(stat.value)
 	_rows[i].set_value(v)
-	_radar.axis_values[i] = v
-	_radar.queue_redraw()
+	_radar.set_value(i, v)
 
 
 func _refresh_senses() -> void:

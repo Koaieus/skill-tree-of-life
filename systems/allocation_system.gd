@@ -40,8 +40,8 @@ signal deallocated(node: SkillNode, previous_owner: Entity)
 signal force_deallocated(node: SkillNode, previous_owner: Entity)
 ## Core movement (#21). Emitted after `move_core` commits the new
 ## `core_location`. `from_node` is the previous core slot, `to_node` the new
-## one. Slide-tween consumers (SkillNode's CoreMarker) subscribe here rather
-## than to `core_location_changed` so they get the previous position too.
+## one. Slide-tween consumers (SkillNode's CorePresence, #128) subscribe here
+## rather than to `core_location_changed` so they get the previous position too.
 signal core_moved(entity: Entity, from_node: SkillNode, to_node: SkillNode)
 
 @export var graph: Graph
@@ -246,7 +246,7 @@ func can_move_core(entity: Entity, target: SkillNode) -> bool:
 
 ## Core movement (#21). Hops `entity.core_location` to an adjacent owned node,
 ## spends 1 movement_points, and emits `core_moved` (for slide-tween VFX) plus
-## the existing `core_location_changed` (for the CoreMarker swap, vision
+## the existing `core_location_changed` (for the CorePresence swap, vision
 ## recompute, etc.). No cut-vertex check: the owned subgraph is unchanged.
 func move_core(entity: Entity, target: SkillNode) -> bool:
 	if not can_move_core(entity, target):

@@ -97,10 +97,17 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 @onready var _rim_ring := %RimRing
 @onready var _rim_bonuses := %RimBonuses
 @onready var _rune_ring := %RuneRing
-@onready var _core_halos := %CoreHalos
+# CorePresence is now its own reusable scene (core_presence.tscn, shared with
+# the core-move drag ghost) rather than inline nodes here, so CoreHalos/
+# CoreSigilBloom's unique names are scoped to CorePresence's OWN root, not
+# this composite's — resolve them by direct child path off _core_presence,
+# not `%Name`.
+@onready var _core_presence := %CorePresence
+@onready var _core_halos := _core_presence.get_node(^"CoreHalos")
+@onready var _core_sigil_bloom := _core_presence.get_node(^"CoreSigilBloom")
 
 @onready var _children: Array[SkillNodeVisual] = [
-	%InnerDisk, %RimRing, %RimBonuses, %CoreHalos, %RuneRing, %SensedOutline,
+	%InnerDisk, %RimRing, %RimBonuses, _core_halos, _core_sigil_bloom, %RuneRing, %SensedOutline,
 ]
 
 ## Sensed-but-not-visible: the node reads as an archetype-only outline
@@ -144,10 +151,11 @@ func _ready() -> void:
 	_apply_core_active()
 
 
-## Gate the core-only presence visuals on `core_active`. Nested inside ShaderStack,
-## so `sensed` (which hides the whole stack) still wins — a fogged core shows no halo.
+## Gate the core-only presence visuals ([CorePresence]: halos + bloom) on
+## `core_active`. Nested inside ShaderStack, so `sensed` (which hides the whole
+## stack) still wins — a fogged core shows no halo/bloom.
 func _apply_core_active() -> void:
-	_core_halos.visible = core_active
+	_core_presence.visible = core_active
 
 
 ## Swaps between the full shader stack and the archetype-only outline. Resolves
@@ -173,6 +181,20 @@ func _apply_sensed() -> void:
 ## for its children; it just routes to the one child that renders the dome.
 func set_carve(carve: Variant) -> void:
 	_inner_disk.set_carve(carve)
+
+
+## The core-class [Sigil] to BLOOM on [CoreSigilBloom] (Register 3, #128) —
+## null when this node isn't the owner's core. Fed by SkillNode alongside
+## `core_active`.
+func set_core_sigil(sigil: Sigil) -> void:
+	_core_sigil_bloom.sigil = sigil
+
+
+## Retargets the old CoreMarker glide-in tween onto [CorePresence]: slides the
+## halo in from `local_offset` while the bloom extinguishes/reignites in
+## lockstep (see core_presence.gd). Called by SkillNode.play_core_slide_from.
+func glide_core_presence(local_offset: Vector2, duration: float) -> void:
+	_core_presence.glide_from(local_offset, duration)
 
 
 func configure(new_radius: float) -> void:
