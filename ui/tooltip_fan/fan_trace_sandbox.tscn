@@ -4,6 +4,8 @@
 [ext_resource type="PackedScene" uid="uid://d0w41dfe3cu3y" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_fan"]
 [ext_resource type="PackedScene" uid="uid://cepou0jp2dr5y" path="res://ui/theme/holo_panel.tscn" id="3_holo"]
 [ext_resource type="Shader" uid="uid://cxvn17hc7s0ax" path="res://ui/theme/holo_panel.gdshader" id="4_r4sab"]
+[ext_resource type="Script" path="res://ui/tooltip_fan/fan_panel.gd" id="5_fanpanel"]
+[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="6_glass"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_c0xh2"]
 resource_local_to_scene = true
@@ -22,19 +24,6 @@ shader_parameter/glow_edges = 15
 resource_local_to_scene = true
 shader = ExtResource("4_r4sab")
 shader_parameter/size = Vector2(180, 96)
-shader_parameter/tint_color = Color(0.35, 0.85, 0.95, 0.12)
-shader_parameter/corner_radius = 13.0
-shader_parameter/scanline_count = 60.0
-shader_parameter/scanline_speed = 0.35
-shader_parameter/scanline_intensity = 0.18
-shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
-shader_parameter/glow = 0.3
-shader_parameter/glow_edges = 15
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_5vx2t"]
-resource_local_to_scene = true
-shader = ExtResource("4_r4sab")
-shader_parameter/size = Vector2(190, 84)
 shader_parameter/tint_color = Color(0.35, 0.85, 0.95, 0.12)
 shader_parameter/corner_radius = 13.0
 shader_parameter/scanline_count = 60.0
@@ -195,6 +184,7 @@ vertical_alignment = 1
 
 [node name="Dest1" type="Node2D" parent="." unique_id=523228772]
 position = Vector2(-167, -219)
+script = ExtResource("5_fanpanel")
 metadata/_edit_lock_ = true
 
 [node name="HoloPanel" parent="Dest1" unique_id=2067552451 instance=ExtResource("3_holo")]
@@ -229,6 +219,7 @@ metadata/_edit_lock_ = true
 
 [node name="Dest2" type="Node2D" parent="." unique_id=1396827888]
 position = Vector2(181, -269)
+script = ExtResource("5_fanpanel")
 metadata/_edit_lock_ = true
 
 [node name="HoloPanel" parent="Dest2" unique_id=463643133 instance=ExtResource("3_holo")]
@@ -259,10 +250,10 @@ metadata/_edit_lock_ = true
 
 [node name="Dest3" type="Node2D" parent="." unique_id=1361521079]
 position = Vector2(-121, -81)
+script = ExtResource("5_fanpanel")
 metadata/_edit_lock_ = true
 
-[node name="HoloPanel" parent="Dest3" unique_id=1484046303 instance=ExtResource("3_holo")]
-material = SubResource("ShaderMaterial_5vx2t")
+[node name="GlassPanel" parent="Dest3" unique_id=1484046303 instance=ExtResource("6_glass")]
 anchors_preset = 6
 anchor_left = 1.0
 anchor_top = 0.5
@@ -274,10 +265,9 @@ offset_right = 0.0
 offset_bottom = 42.0
 grow_horizontal = 0
 grow_vertical = 2
-glow = 0.3
 metadata/_edit_lock_ = true
 
-[node name="Label" type="Label" parent="Dest3/HoloPanel" unique_id=781084274]
+[node name="Label" type="Label" parent="Dest3/GlassPanel" unique_id=781084274]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -293,6 +283,7 @@ metadata/_edit_lock_ = true
 
 [node name="Dest4" type="Node2D" parent="." unique_id=1284372791]
 position = Vector2(113, -76)
+script = ExtResource("5_fanpanel")
 metadata/_edit_lock_ = true
 
 [node name="HoloPanel" parent="Dest4" unique_id=49153993 instance=ExtResource("3_holo")]

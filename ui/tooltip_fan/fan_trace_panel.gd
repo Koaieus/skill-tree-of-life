@@ -5,9 +5,10 @@ extends Control
 ## Frames the FanTrace sandbox in a 2D [SubViewport] with on-screen play
 ## controls, so the draw-in → extinguish choreography is drivable from the
 ## unified sandbox host (a LIVE_EDIT tab) without opening the scene. This is the
-## seam meant to grow with the other tooltip-fan components (FanPanel, FanUnit)
-## as they land — add them to the embedded sandbox and surface their controls
-## here beside these buttons.
+## seam meant to grow with the other tooltip-fan components (FanUnit) as they
+## land — add them to the embedded sandbox and surface their controls here
+## beside these buttons. The four corner destinations already use [FanPanel]
+## (#223) for skin + glow + reveal.
 ##
 ## Satisfies [SandboxLiveTab]'s loader contract with [method noop] — there is no
 ## inspected resource, same as node_visuals_panel / gimbal_3d_showcase.

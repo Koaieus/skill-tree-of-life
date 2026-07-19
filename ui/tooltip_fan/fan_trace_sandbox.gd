@@ -166,6 +166,9 @@ func _apply(clock: float) -> void:
 		if dest == null:
 			continue
 		var raw := clampf((local - draw_time) / maxf(panel_time, 0.001), 0.0, 1.0)
+		if dest is FanPanel:
+			(dest as FanPanel).set_progress(raw)
+			continue
 		var e := _ease_out(raw)
 		dest.scale = Vector2.ONE * lerpf(panel_start_scale, 1.0, e)
 		var m := dest.modulate
