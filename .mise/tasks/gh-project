@@ -10,6 +10,11 @@ REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "
 FIELD_STATUS="PVTSSF_lAHOAExWR84BcS99zhW81wo"
 FIELD_PRIORITY="PVTSSF_lAHOAExWR84BcS99zhW82Ck"
 FIELD_SIZE="PVTSSF_lAHOAExWR84BcS99zhW82Co"
+# Roadmap fields (DATE / NUMBER). Milestone is a native issue field, edited via
+# `gh issue edit`, not a project item-edit — see cmd_milestone.
+FIELD_ESTIMATE="PVTF_lAHOAExWR84BcS99zhW82Cs"
+FIELD_START="PVTF_lAHOAExWR84BcS99zhW82Cw"
+FIELD_TARGET="PVTF_lAHOAExWR84BcS99zhW82C0"
 
 # --- GraphQL budget hygiene --------------------------------------------------
 # GitHub bills GraphQL by the *requested* connection sizes, not rows returned.
@@ -242,6 +247,179 @@ cmd_list() {
   echo "$count issue(s) in ${label:-all columns}"
 }
 
+# --- Roadmap: dates, estimate, milestone -------------------------------------
+# Set (or clear, with the literal `clear`) a DATE project field.
+_set_date_field() {
+  local issue=$1 field=$2 value=$3 label=$4
+  local id
+  id=$(ensure_item "$issue") || exit 1
+  [ -n "$id" ] || exit 1
+  if [ "$value" = "clear" ] || [ -z "$value" ]; then
+    gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$field" --clear
+    echo "✓ issue #$issue $label → (cleared)"
+    return
+  fi
+  if ! [[ "$value" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+    echo "✗ $label must be YYYY-MM-DD (or 'clear'), got: $value"; exit 1
+  fi
+  gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$field" --date "$value"
+  echo "✓ issue #$issue $label → $value"
+}
+
+# Read a project field value by (lowercased) json key for one issue.
+_read_field() {
+  local issue=$1 key=$2
+  items_json | jq -r --arg i "$issue" --arg k "$key" \
+    '.items[] | select(.content.number == ($i|tonumber)) | .[$k] // "—"'
+}
+
+cmd_start()  { local i=$1 v=${2:-}; [ -z "$v" ] && { _read_field "$i" "start date";  return; }; _set_date_field "$i" "$FIELD_START"  "$v" "start date"; }
+cmd_target() { local i=$1 v=${2:-}; [ -z "$v" ] && { _read_field "$i" "target date"; return; }; _set_date_field "$i" "$FIELD_TARGET" "$v" "target date"; }
+
+cmd_estimate() {
+  local issue=$1 value=${2:-}
+  local id
+  if [ -z "$value" ]; then _read_field "$issue" "estimate"; return; fi
+  id=$(ensure_item "$issue") || exit 1
+  if [ "$value" = "clear" ]; then
+    gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_ESTIMATE" --clear
+    echo "✓ issue #$issue estimate → (cleared)"; return
+  fi
+  if ! [[ "$value" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    echo "✗ estimate must be a number (or 'clear'), got: $value"; exit 1
+  fi
+  gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_ESTIMATE" --number "$value"
+  echo "✓ issue #$issue estimate → $value"
+}
+
+# Milestone is a native ISSUE field — set via `gh issue edit`, which also mirrors
+# into the project's Milestone field automatically. Accepts a milestone title or
+# number; `none` clears it.
+cmd_milestone() {
+  local issue=$1 ms=${2:-}
+  if [ -z "$ms" ]; then
+    gh issue view "$issue" --json milestone -q '.milestone.title // "—"'
+    return
+  fi
+  if [ "$ms" = "none" ] || [ "$ms" = "clear" ]; then
+    gh issue edit "$issue" --remove-milestone >/dev/null
+    echo "✓ issue #$issue milestone → (cleared)"; return
+  fi
+  # Resolve a numeric arg to its title (gh issue edit wants the title).
+  if [[ "$ms" =~ ^[0-9]+$ ]]; then
+    local title
+    title=$(gh api "repos/$REPO/milestones/$ms" --jq '.title' 2>/dev/null || true)
+    [ -n "$title" ] && ms="$title"
+  fi
+  gh issue edit "$issue" --milestone "$ms" >/dev/null
+  echo "✓ issue #$issue milestone → $ms"
+}
+
+# --- Labels: swarmable / blocked / design flips ------------------------------
+cmd_label() {
+  local issue=$1 op=${2:-} label=${3:-}
+  if [ -z "$op" ]; then
+    gh issue view "$issue" --json labels -q '[.labels[].name] | join(", ")'
+    return
+  fi
+  case "$op" in
+    add) gh issue edit "$issue" --add-label "$label" >/dev/null;    echo "✓ issue #$issue +$label" ;;
+    rm|remove) gh issue edit "$issue" --remove-label "$label" >/dev/null; echo "✓ issue #$issue -$label" ;;
+    *) echo "✗ usage: label <n> <add|rm> <label>"; exit 1 ;;
+  esac
+}
+
+# --- swarmq: the swarm feeder ------------------------------------------------
+# Issues carrying `swarmable`, in a given column (default Ready), priority-sorted.
+# This is the queue the `swarm` skill picks from — everything here has passed the
+# design gate (forks resolved, acceptance written). --json for machine reads.
+cmd_swarmq() {
+  local want="ready" as_json=false arg
+  for arg in "$@"; do
+    case "$arg" in
+      --json) as_json=true ;;
+      "") ;;
+      *) want="$arg" ;;
+    esac
+  done
+  local label
+  if ! label=$(status_label "$want"); then
+    echo "✗ unknown status: $want (backlog|ready|in-progress|in-review|done|all)"; exit 1
+  fi
+
+  local items
+  items=$(items_json \
+    | jq --arg label "$label" '
+        [ .items[]
+          | select(.content.type == "Issue")
+          | select(($label == "") or ((.status // "") == $label))
+          | select((.labels // []) | index("swarmable"))
+          | { number: .content.number, title: .title,
+              status: (.status // "—"),
+              priority: (.priority // .Priority // "—"),
+              size: (.size // .Size // "—"),
+              milestone: (.milestone.title // "—"),
+              url: .content.url } ]
+        | sort_by(.priority, .number)')
+
+  if [ "$as_json" = true ]; then printf '%s\n' "$items"; return; fi
+
+  local count; count=$(printf '%s' "$items" | jq 'length')
+  if [ "$count" -eq 0 ]; then
+    echo "— no swarmable issues in ${label:-any column}"
+    echo "  (label one with: mise gh-project -- label <n> add swarmable)"
+    return
+  fi
+  printf '%s\n' "$items" | jq -r '.[]
+    | "#\(.number)\t[\(.priority)/\(.size)]\t\(.milestone)\t\(.title)"' \
+    | column -t -s $'\t'
+  echo ""
+  echo "$count swarmable issue(s) in ${label:-all columns} — ready for: swarm"
+}
+
+# --- roadmap: milestone swim-lanes with progress -----------------------------
+# ONE lean GraphQL query (no per-issue fan-out — see the budget note up top):
+# open issues with milestone + sub-issue summary + labels, grouped by milestone
+# ordered by native due date. Epics (sub-issues > 0) show a progress bar; the
+# swarmable count per lane tells you where a swarm can start today. Per-issue
+# Target dates live in the project's web Roadmap view; this is the planning digest.
+cmd_roadmap() {
+  local as_json=${1:-}
+  local data
+  data=$(gh api graphql --paginate -f query='
+    query($endCursor: String) {
+      repository(owner: "Koaieus", name: "skill-tree-of-life") {
+        issues(first: 100, after: $endCursor, states: OPEN) {
+          nodes {
+            number title
+            milestone { title dueOn }
+            labels(first: 20) { nodes { name } }
+            subIssuesSummary { total completed }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }' --jq '.data.repository.issues.nodes[]' 2>/dev/null | jq -s '.')
+
+  if [ "$as_json" = "--json" ]; then printf '%s\n' "$data"; return; fi
+
+  printf '%s\n' "$data" | jq -r '
+    def bar(c; t): (if t == 0 then "" else
+      ((10 * c / t) | floor) as $f
+      | (([range(0; $f) | "█"] | add) // "") + (([range($f; 10) | "░"] | add) // "") end);
+    group_by(.milestone.title // "‹no milestone›")
+    | sort_by((.[0].milestone.dueOn // "9999") )
+    | .[]
+    | ( .[0].milestone.title // "‹no milestone›" ) as $ms
+    | ( .[0].milestone.dueOn // "" ) as $due
+    | ( [ .[] | select((.labels.nodes // []) | any(.name == "swarmable")) ] | length ) as $sw
+    | "\n▸ \($ms)\($due | if . == "" or . == null then "" else "  (due \(.[0:10]))" end)   [\(length) open, \($sw) swarmable]",
+      ( .[]
+        | select(.subIssuesSummary.total > 0)
+        | "   #\(.number)  \(bar(.subIssuesSummary.completed; .subIssuesSummary.total)) \(.subIssuesSummary.completed)/\(.subIssuesSummary.total)  \(.title)" )
+  '
+}
+
 usage() {
   cat <<EOF
 Usage: mise gh-project -- <cmd> [args...]
@@ -254,15 +432,28 @@ Commands:
   priority <n> [<p0|p1|p2>]    Read or set priority
   size <n> [<xs|s|m|l|xl>]    Read or set size
 
+Roadmap (milestone spine + target dates):
+  milestone <n> [<title|num>]  Read or set milestone (native issue field). 'none' clears.
+  target <n> [<YYYY-MM-DD>]     Read or set target date. 'clear' clears.
+  start <n> [<YYYY-MM-DD>]      Read or set start date. 'clear' clears.
+  estimate <n> [<points>]      Read or set estimate. 'clear' clears.
+  roadmap [--json]             Milestone swim-lanes: epics + progress + swarmable count
+
+Swarm pipeline (design gate):
+  label <n> [<add|rm> <name>]  Read or flip a label (swarmable|blocked|design|…)
+  swarmq [<status>] [--json]   swarmable issues in a column (default ready) → feeds swarm
+
 Examples:
   mise gh-project -- list                 # what's ready to pick up
-  mise gh-project -- list in-review
-  mise gh-project -- add 173
-  mise gh-project -- status 173 in-progress
-  mise gh-project -- priority 173 p1
+  mise gh-project -- roadmap              # planning digest, by milestone
+  mise gh-project -- milestone 198 1      # → "MVP playable loop"
+  mise gh-project -- target 240 2026-08-15
+  mise gh-project -- label 240 add swarmable
+  mise gh-project -- swarmq               # queue ready for the swarm skill
 
 Agents — machine-readable listing:
   mise run --quiet gh-project -- list ready --json | jq -r '.[].number'
+  mise run --quiet gh-project -- swarmq --json | jq -r '.[].number'
   (mise's task banner goes to STDERR; don't merge it with 2>&1 or you'll
    corrupt the JSON on stdout.)
 EOF
@@ -276,6 +467,13 @@ case "$CMD" in
   status)   cmd_status "${2:-}" "${3:-}" ;;
   priority) cmd_priority "${2:-}" "${3:-}" ;;
   size)     cmd_size "${2:-}" "${3:-}" ;;
+  milestone) cmd_milestone "${2:-}" "${3:-}" ;;
+  target)   cmd_target "${2:-}" "${3:-}" ;;
+  start)    cmd_start "${2:-}" "${3:-}" ;;
+  estimate) cmd_estimate "${2:-}" "${3:-}" ;;
+  label)    cmd_label "${2:-}" "${3:-}" "${4:-}" ;;
+  swarmq)   shift; cmd_swarmq "$@" ;;
+  roadmap)  cmd_roadmap "${2:-}" ;;
   -h|--help|help) usage ;;
   *) usage ;;
 esac

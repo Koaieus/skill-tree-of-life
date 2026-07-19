@@ -59,7 +59,9 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 ## Issue tracking
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, plus defaults. Project board (kanban): `mise gh-project -- list|add|status|priority|size`. `list [ready|in-progress|in-review|backlog|done|all]` shows a column — that's how an agent finds work to pick up; add `--json` (with `mise run --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `design`, `blocked` (open upstream fork), `swarmable` (design-resolved, drone-ready), plus defaults. Project board (kanban): `mise gh-project -- list|add|status|priority|size`. `list [ready|in-progress|in-review|backlog|done|all]` shows a column — that's how an agent finds work to pick up; add `--json` (with `mise run --quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
+
+**Roadmap + swarm pipeline.** `mise gh-project -- roadmap` prints milestone swim-lanes with epic progress + per-lane swarmable count; `milestone|target|start|estimate <n> [val]` set roadmap fields; `label <n> add|rm <name>` flips a label; `swarmq [--json]` lists `swarmable` issues ready to pick up. The design gate: `design`/`blocked` issue → `/swarmify #n` (settle forks *with the user*, write acceptance, split hubs into file-disjoint children, apply `swarmable`) → `swarmq` → `swarm`/`warp` executes. **A drone never touches a non-`swarmable` issue.** Standing hub queue: issue **#261**.
 
 **Sub-issues:** the repo uses the parent/sub-issue model. File a child under its epic with `gh issue create --parent <parent-number> …` (gh ≥ 2.9x) — this nests it, distinct from a `Closes #` trailer.
 
