@@ -17,6 +17,7 @@ func _on_granted(ctx: EffectContext) -> void:
 	super._on_granted(ctx)
 	if spell_def == null or ctx.entity == null:
 		return
+	# TODO: maybe if no spellbook then "granting" should be a no-op?
 	_ensure_spellbook(ctx.entity).add_spell(spell_def, ctx.source_node)
 
 

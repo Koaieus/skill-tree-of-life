@@ -183,6 +183,11 @@ const _SKIP_CARDINAL_EDGES: Array[Vector2i] = [
 # Connect cardinal neighbours in the grid via Edge nodes added to
 # graph.edges_container. Grid ordering matches the .tscn — row-major,
 # 4 columns wide.
+# TODO: cardinal neighbours? you mean CARDINAL SIN. THIS IS SUPPOSED TO BE A PRE-AUTHORED SCENE, ADJUSTABLE WHEN NEEDED
+# 		e.g. i need to test more stuff: parts where 2-degree nodes chain for a bit. like at least 3 links even. 
+#		parts with degree 1, like a cardinal grid is one of the worst setups imaginable compared to real/procgen graphs
+#		ideally we also get a context menu for adding/removing edges instead of "finding" the Edge node instance (sitting at.. 0,0) and
+#		then setting its exports to the two ends -- very backward and annoying.
 func _build_grid_edges() -> void:
 	var nodes := graph.get_skill_nodes()
 	if nodes.size() < _GRID_COLS * _GRID_ROWS:

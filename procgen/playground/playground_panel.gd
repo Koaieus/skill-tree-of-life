@@ -145,6 +145,7 @@ func refresh_from_config() -> void:
 
 
 func _build_ui() -> void:
+	# TODO: "build UI"? but playground_panel.tscn EXISTS? SHAME SHAME SHAME
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var root := HBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
