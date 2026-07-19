@@ -16,6 +16,44 @@ func test_base_exposes_collapsed_sidebar_and_panel_host() -> void:
 	tab.free()
 
 
+## The collapsed HSplit must not steal width from %PanelHost — this is what keeps
+## the 4 sidebar-less tabs (vfx/statboard/node_visuals/gimbal_3d) visually
+## unchanged after the base gained the split. Headless-computable layout fact.
+func test_collapsed_split_leaves_panel_full_width() -> void:
+	var holder := Control.new()
+	holder.size = Vector2(800, 600)
+	add_child(holder)
+	var tab: SandboxLiveTab = load(_BASE).instantiate()
+	holder.add_child(tab)
+	await get_tree().process_frame
+
+	var split: Control = tab.get_node(^"Layout/Split")
+	var host: Control = tab.get_node(^"%PanelHost")
+	assert_almost_eq(host.size.x, split.size.x, 4.0,
+		"collapsed HSplit must not offset the panel")
+	holder.queue_free()
+
+
+## And a shown sidebar with content actually shrinks the panel — locks the
+## expectation for a future card tab.
+func test_visible_sidebar_shrinks_panel() -> void:
+	var holder := Control.new()
+	holder.size = Vector2(800, 600)
+	add_child(holder)
+	var tab: SandboxLiveTab = load(_BASE).instantiate()
+	holder.add_child(tab)
+	var sidebar: Control = tab.get_node(^"%Sidebar")
+	sidebar.custom_minimum_size = Vector2(150, 0)
+	sidebar.visible = true
+	await get_tree().process_frame
+
+	var split: Control = tab.get_node(^"Layout/Split")
+	var host: Control = tab.get_node(^"%PanelHost")
+	assert_lt(host.size.x, split.size.x - 100.0,
+		"a shown 150px sidebar must take width from the panel")
+	holder.queue_free()
+
+
 ## A tab that authors a panel scenically under %PanelHost has it *adopted*, not
 ## re-instanced on top — so the slot ends with exactly the one authored child.
 func test_baked_panel_child_is_adopted_not_duplicated() -> void:
