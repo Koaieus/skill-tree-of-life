@@ -26,3 +26,15 @@ func test_spell_tab_shows_sidebar_wired_to_loader() -> void:
 	assert_true(list.is_connected("selected_resource", Callable(tab, "load_object")),
 		"base must self-wire the card list to load_object")
 	tab.queue_free()
+
+
+func test_procgen_tab_shows_sidebar_of_configs() -> void:
+	var tab := _load("res://addons/sandbox_host/tabs/35_procgen_tab.tscn")
+	await get_tree().process_frame
+	assert_true(tab.get_node(^"%Sidebar").visible, "procgen tab sidebar should be visible")
+	var list := _card_list(tab)
+	assert_not_null(list, "procgen tab should carry a DirectoryCardList in %Sidebar")
+	assert_gt(list.entries().size(), 0, "recursive scan should find the nested preset config(s)")
+	assert_true(list.is_connected("selected_resource", Callable(tab, "load_object")),
+		"base must self-wire the card list to load_object")
+	tab.queue_free()
