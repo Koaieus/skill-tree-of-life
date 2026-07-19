@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/sandbox_host/components/directory_card_list.gd" id="1_dcl"]
+
+[node name="DirectoryCardList" type="ScrollContainer"]
+horizontal_scroll_mode = 0
+script = ExtResource("1_dcl")
+
+[node name="Cards" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
