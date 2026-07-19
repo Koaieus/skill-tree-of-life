@@ -137,26 +137,10 @@ func _despawn_npc(entity: Entity) -> void:
 
 ## Game-over placeholder (#18). The full screen lives in the Metagame milestone;
 ## for now a dim overlay + label is enough to make player-death visible and stop
-## the level reading as "still playable". Idempotent via the unique node name.
+## the level reading as "still playable". Emits the [signal Events.game_over] bus
+## signal; HudRoot listens and toggles its pre-composed overlay visible.
 func _show_game_over() -> void:
-	if has_node("GameOverStub"):
-		return
-	# TODO: this is visual composition -> should be a SCENE
-	var layer := CanvasLayer.new()
-	layer.name = "GameOverStub"
-	layer.layer = 100
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.6)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	layer.add_child(dim)
-	var label := Label.new()
-	label.text = "GAME OVER"
-	label.add_theme_font_size_override("font_size", 64)
-	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	layer.add_child(label)
-	add_child(layer)
+	Events.game_over.emit()
 
 
 ## Wire a (possibly late-resolved) human player into the *player-interaction*

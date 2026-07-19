@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
 [ext_resource type="Script" uid="uid://co6nsf5jw2yo6" path="res://ui/stat_board_overlay/stat_board_overlay.gd" id="15_overlay"]
 [ext_resource type="PackedScene" uid="uid://lnsqiwcwk82o" path="res://ui/loot_picker/loot_picker.tscn" id="16_loot"]
+[ext_resource type="PackedScene" path="res://ui/game_over_overlay.tscn" id="17_game_over"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -168,3 +169,7 @@ layout_mode = 1
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
+
+[node name="GameOverOverlay" parent="." unique_id=1595584225 instance=ExtResource("17_game_over")]
+unique_name_in_owner = true
+visible = false

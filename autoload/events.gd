@@ -76,3 +76,7 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 ## [param caster] is the player entity whose stats may modify spell values.
 signal spell_hovered(spell: SpellDef, caster: Entity)
 signal spell_unhovered
+
+## Fired by GameRoot when the player entity dies — the HUD shows the game-over
+## overlay. No payload; the single overlay is pre-composed and just toggles visible.
+signal game_over

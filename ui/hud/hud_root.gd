@@ -27,6 +27,7 @@ extends Control
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 @onready var loot_picker: LootPicker = %LootPicker
+@onready var game_over_overlay: CanvasLayer = %GameOverOverlay
 
 var _player: Entity
 var _input_ctl: PlayerInputController
@@ -41,6 +42,7 @@ func _ready() -> void:
 	# the editor @tool pass has no player and no live combat.
 	if not Engine.is_editor_hint():
 		Events.loot_pick_requested.connect(_on_loot_pick_requested)
+		Events.game_over.connect(_on_game_over)
 
 
 ## Injected by [GameRoot] once it and HudRoot are both in the tree. Every
@@ -142,3 +144,8 @@ func _on_turn_ended_for_initiative(entity: Entity) -> void:
 		var init_pool := _player.stat_board.initiative if _player.stat_board != null else null
 		if init_pool != null:
 			initiative_bar._on_owner_turn_ended(float(init_pool.current))
+
+
+func _on_game_over() -> void:
+	if game_over_overlay != null:
+		game_over_overlay.visible = true

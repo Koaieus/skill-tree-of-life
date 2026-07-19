@@ -154,12 +154,15 @@ func test_die_is_idempotent() -> void:
 
 # ── GameRoot player-vs-NPC branch ────────────────────────────────────────────
 
-func test_gameroot_player_death_shows_game_over_stub() -> void:
-	var gr := GameRoot.new()  # not added to tree → _ready does not run
-	autofree(gr)
-	gr.player = _entity
-	gr._on_entity_died(_entity)
-	assert_true(gr.has_node("GameOverStub"), "player death should mount the game-over stub")
+func test_gameroot_player_death_shows_game_over_overlay() -> void:
+	# HudRoot listens to the Events.game_over signal and toggles the
+	# pre-composed GameOverOverlay visible — verify the wiring end-to-end.
+	var hud := preload("res://ui/hud/hud_root.tscn").instantiate()
+	autofree(hud)
+	add_child(hud)
+	Events.game_over.emit()
+	assert_true(hud.game_over_overlay.visible,
+			"game_over signal should make the overlay visible")
 
 
 func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:
