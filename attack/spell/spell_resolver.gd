@@ -215,11 +215,3 @@ static func _record_cancel(
 	cancel_ev.origin = first.predecessor if first.predecessor != null else first.source
 	cancel_ev.target = node
 	outcome.timeline.append(cancel_ev)
-	# Global signal — VFX hooks subscribe once, no need to scan the list.
-	# Guard for headless / playground calls where /root/Events may not exist.
-	var ml := Engine.get_main_loop()
-	if ml is SceneTree:
-		var tree: SceneTree = ml
-		var ev: Node = tree.root.get_node_or_null("/root/Events")
-		if ev != null:
-			ev.spell_incident_cancelled.emit(rec)

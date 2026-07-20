@@ -57,12 +57,6 @@ signal entity_died(entity: Entity)
 ## human player's relics reach a picker (the HUD filters on `request.collector`).
 signal loot_pick_requested(request: LootPickRequest)
 
-## Emitted when a spell's [IncidentReducer] resolves to null at a node
-## (overlap-cancel, even-cancel, custom-cancel) — the spell visibly fizzles
-## there. VFX hooks listen to pop a dissipate effect; battle log can record.
-## Also lives on [member AttackOutcome.cancellations] as a list for replay.
-signal spell_incident_cancelled(cancellation: SpellCancellation)
-
 ## A defender's spike popped an incoming enemy blade vertex (#170) — the hostile
 ## vertex died on contact (and severed whatever it dragged off the handle). Fired
 ## from the live swing at the contact moment. [param defender] is the spiked node
