@@ -47,8 +47,7 @@ extends Control
 ## nothing inspected.
 
 const _DEFAULT_PRESET := preload("res://procgen/presets/first_level/first_level.tres")
-const _FieldMapView := preload("res://procgen/playground/field_map_view.gd")
-const _NodeGraphView := preload("res://procgen/playground/node_graph_view.gd")
+const _ProcgenCard := preload("res://procgen/playground/procgen_card.tscn")
 const _PRESETS_DIR := "res://procgen/presets/"
 
 const _SAMPLE_COUNT := 5
@@ -72,29 +71,34 @@ var _rng := RandomNumberGenerator.new()
 ## Reset to a fresh random value on an explicit Regenerate.
 var _last_graph_seed := 0
 
-var _bound_label: Label
-var _arch_option: OptionButton
-var _seed_label: Label
+@onready var _bound_label: Label = %BoundLabel
+@onready var _arch_option: OptionButton = %ArchOption
+@onready var _seed_label: Label = %SeedLabel
 
-var _map: Control
-var _cards_row: HBoxContainer
-var _cards: Array[VBoxContainer] = []
+@onready var _map: Control = %Map
+@onready var _cards_row: HBoxContainer = %CardsRow
+var _cards: Array[ProcgenCard] = []
 
-var _graph_view: Control
-var _graph_node_count_spin: SpinBox
-var _graph_cards_row: HBoxContainer
-var _graph_cards: Array[VBoxContainer] = []
+@onready var _graph_view: Control = %GraphView
+@onready var _graph_node_count_spin: SpinBox = %GraphNodeCountSpin
+@onready var _graph_cards_row: HBoxContainer = %GraphCardsRow
+var _graph_cards: Array[ProcgenCard] = []
 
 # Stamp controls (#166)
-var _stamp_paint_toggle: Button
-var _stamp_arch_option: OptionButton
-var _stamp_radius_spin: SpinBox
-var _stamp_clear_btn: Button
+@onready var _stamp_paint_toggle: Button = %StampPaintToggle
+@onready var _stamp_arch_option: OptionButton = %StampArchOption
+@onready var _stamp_radius_spin: SpinBox = %StampRadiusSpin
+@onready var _stamp_clear_btn: Button = %StampClearButton
 var _paint_mode := false
 
 
 func _ready() -> void:
-	_build_ui()
+	%CardsLabel.text = "%d samples at the clicked spot:" % _SAMPLE_COUNT
+	%GraphCardsLabel.text = "%d samples for the clicked node:" % _SAMPLE_COUNT
+	_cards = _spawn_cards(_cards_row)
+	_graph_cards = _spawn_cards(_graph_cards_row)
+	_clear_cards(_cards, "Click the map to roll.")
+	_clear_cards(_graph_cards, "Regenerate, then click a node.")
 	_source_config = _DEFAULT_PRESET
 	_set_config(_DEFAULT_PRESET.duplicate(true))
 
@@ -144,175 +148,17 @@ func refresh_from_config() -> void:
 # ── UI ────────────────────────────────────────────────────────────────────
 
 
-func _build_ui() -> void:
-	# TODO: "build UI"? but playground_panel.tscn EXISTS? SHAME SHAME SHAME
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var root := HBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_theme_constant_override(&"separation", 10)
-	add_child(root)
-
-	root.add_child(_build_sidebar())
-	root.add_child(VSeparator.new())
-
-	var tabs := TabContainer.new()
-	tabs.size_flags_horizontal = SIZE_EXPAND_FILL
-	tabs.size_flags_vertical = SIZE_EXPAND_FILL
-	root.add_child(tabs)
-
-	var map_tab := _build_map_tab()
-	tabs.add_child(map_tab)
-	tabs.set_tab_title(map_tab.get_index(), "Map Sample")
-
-	var graph_tab := _build_graph_tab()
-	tabs.add_child(graph_tab)
-	tabs.set_tab_title(graph_tab.get_index(), "Node Graph")
-
-
-func _build_sidebar() -> VBoxContainer:
-	var sidebar := VBoxContainer.new()
-	sidebar.custom_minimum_size = Vector2(190, 0)
-	sidebar.add_theme_constant_override(&"separation", 6)
-
-	var header := _make_label("Procgen Playground")
-	header.add_theme_font_size_override(&"font_size", 13)
-	sidebar.add_child(header)
-
-	var open_folder := Button.new()
-	open_folder.text = "Open Presets Folder"
-	open_folder.tooltip_text = "Reveal res://procgen/presets/ in the FileSystem dock (created first if it doesn't exist yet)."
-	open_folder.pressed.connect(_on_open_presets_folder_pressed)
-	sidebar.add_child(open_folder)
-
-	_bound_label = _make_label("")
-	_bound_label.modulate = Color(1, 1, 1, 0.55)
-	_bound_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sidebar.add_child(_bound_label)
-
-	sidebar.add_child(HSeparator.new())
-
-	sidebar.add_child(_make_label("Sample as:"))
-	_arch_option = OptionButton.new()
-	sidebar.add_child(_arch_option)
-
-	var reseed := Button.new()
-	reseed.text = "Reseed"
-	reseed.pressed.connect(_on_reseed_pressed)
-	sidebar.add_child(reseed)
-
-	_seed_label = _make_label("")
-	_seed_label.modulate = Color(1, 1, 1, 0.55)
-	_seed_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	sidebar.add_child(_seed_label)
-
-	var spacer := Control.new()
-	spacer.size_flags_vertical = SIZE_EXPAND_FILL
-	sidebar.add_child(spacer)
-	return sidebar
-
-
-func _build_map_tab() -> VBoxContainer:
-	var tab := VBoxContainer.new()
-	tab.add_theme_constant_override(&"separation", 6)
-
-	# Map.
-	_map = _FieldMapView.new()
-	_map.size_flags_horizontal = SIZE_EXPAND_FILL
-	_map.size_flags_vertical = SIZE_EXPAND_FILL
-	_map.connect(&"map_clicked", _on_map_clicked)
-	tab.add_child(_map)
-
-	# Sample cards.
-	var cards_label := _make_label("%d samples at the clicked spot:" % _SAMPLE_COUNT)
-	cards_label.modulate = Color(1, 1, 1, 0.7)
-	tab.add_child(cards_label)
-
-	_cards_row = HBoxContainer.new()
-	_cards_row.add_theme_constant_override(&"separation", 6)
-	_cards_row.custom_minimum_size = Vector2(0, 168)
-	tab.add_child(_cards_row)
+## Instantiates [constant _ProcgenCard] `_SAMPLE_COUNT` times into `row` — the
+## one piece of "UI construction" that legitimately stays in code, since the
+## repeat count is a const rather than authored structure. Everything static
+## (labels, buttons, the map/graph views) lives in the scene now (#264).
+func _spawn_cards(row: HBoxContainer) -> Array[ProcgenCard]:
+	var cards: Array[ProcgenCard] = []
 	for i in _SAMPLE_COUNT:
-		var card := _make_card()
-		_cards.append(card)
-		_cards_row.add_child(card.get_parent())
-	_clear_cards(_cards, "Click the map to roll.")
-	return tab
-
-
-func _build_graph_tab() -> VBoxContainer:
-	var tab := VBoxContainer.new()
-	tab.add_theme_constant_override(&"separation", 6)
-
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override(&"separation", 10)
-	tab.add_child(bar)
-
-	bar.add_child(_make_label("Preview nodes:"))
-	_graph_node_count_spin = SpinBox.new()
-	_graph_node_count_spin.min_value = 8
-	_graph_node_count_spin.max_value = 80
-	_graph_node_count_spin.step = 1
-	_graph_node_count_spin.value = _GRAPH_PREVIEW_NODE_COUNT
-	bar.add_child(_graph_node_count_spin)
-
-	var regen := Button.new()
-	regen.text = "Regenerate graph"
-	regen.pressed.connect(_on_regenerate_graph_pressed)
-	bar.add_child(regen)
-
-	# Stamp controls — paint a territory onto the preview graph (#166).
-	bar.add_child(VSeparator.new())
-	bar.add_child(_make_label("Stamp:"))
-	_stamp_arch_option = OptionButton.new()
-	bar.add_child(_stamp_arch_option)
-
-	bar.add_child(_make_label("r:"))
-	_stamp_radius_spin = SpinBox.new()
-	_stamp_radius_spin.min_value = 50.0
-	_stamp_radius_spin.max_value = 800.0
-	_stamp_radius_spin.step = 10.0
-	_stamp_radius_spin.value = 200.0
-	bar.add_child(_stamp_radius_spin)
-
-	_stamp_paint_toggle = Button.new()
-	_stamp_paint_toggle.text = "Paint Mode"
-	_stamp_paint_toggle.toggle_mode = true
-	_stamp_paint_toggle.tooltip_text = "Toggle on: clicking a node paints a stamp. Toggle off: clicking a node samples its content."
-	_stamp_paint_toggle.pressed.connect(_on_paint_mode_toggled)
-	bar.add_child(_stamp_paint_toggle)
-
-	_stamp_clear_btn = Button.new()
-	_stamp_clear_btn.text = "Clear Stamps"
-	_stamp_clear_btn.tooltip_text = "Remove all painted stamps and restore original archetype colours."
-	_stamp_clear_btn.pressed.connect(_on_clear_stamps_pressed)
-	bar.add_child(_stamp_clear_btn)
-
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
-	bar.add_child(spacer)
-
-	# Graph.
-	_graph_view = _NodeGraphView.new()
-	_graph_view.size_flags_horizontal = SIZE_EXPAND_FILL
-	_graph_view.size_flags_vertical = SIZE_EXPAND_FILL
-	_graph_view.connect(&"node_clicked", _on_graph_node_clicked)
-	tab.add_child(_graph_view)
-
-	# Sample cards.
-	var cards_label := _make_label("%d samples for the clicked node:" % _SAMPLE_COUNT)
-	cards_label.modulate = Color(1, 1, 1, 0.7)
-	tab.add_child(cards_label)
-
-	_graph_cards_row = HBoxContainer.new()
-	_graph_cards_row.add_theme_constant_override(&"separation", 6)
-	_graph_cards_row.custom_minimum_size = Vector2(0, 168)
-	tab.add_child(_graph_cards_row)
-	for i in _SAMPLE_COUNT:
-		var card := _make_card()
-		_graph_cards.append(card)
-		_graph_cards_row.add_child(card.get_parent())
-	_clear_cards(_graph_cards, "Regenerate, then click a node.")
-	return tab
+		var card: ProcgenCard = _ProcgenCard.instantiate()
+		row.add_child(card)
+		cards.append(card)
+	return cards
 
 
 ## Compact "why this budget" line from a [method BudgetPolicy.compute_budget_breakdown]
@@ -332,24 +178,6 @@ func _breakdown_text(b: Dictionary) -> String:
 	if not is_equal_approx(role_mult, 1.0):
 		parts.append("role ×%.2f" % role_mult)
 	return "  ·  ".join(parts)
-
-
-func _make_label(text: String) -> Label:
-	var l := Label.new()
-	l.text = text
-	return l
-
-
-## A card is a VBox inside a PanelContainer; we keep the VBox reference (for
-## repopulating rows) and add the PanelContainer to the row.
-func _make_card() -> VBoxContainer:
-	var frame := PanelContainer.new()
-	frame.size_flags_horizontal = SIZE_EXPAND_FILL
-	frame.size_flags_vertical = SIZE_EXPAND_FILL
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override(&"separation", 2)
-	frame.add_child(box)
-	return box
 
 
 ## Reveals `_PRESETS_DIR` in the editor's FileSystem dock, creating it first
@@ -595,46 +423,18 @@ func _selected_stamp_archetype_idx() -> int:
 # ── Cards ─────────────────────────────────────────────────────────────────
 
 
-func _clear_cards(cards: Array[VBoxContainer], msg: String) -> void:
+## Matches the previous per-tab behaviour: only card slot 0 shows the
+## placeholder message, the rest just go blank — a [ProcgenCard] cleared via
+## [method ProcgenCard.clear] with no rows added.
+func _clear_cards(cards: Array[ProcgenCard], msg: String) -> void:
 	for i in cards.size():
-		_clear_card_rows(cards[i])
 		if i == 0:
-			var l := _make_label(msg)
-			l.modulate = Color(1, 1, 1, 0.55)
-			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			cards[i].add_child(l)
+			cards[i].show_placeholder(msg)
+		else:
+			cards[i].clear()
 
 
-func _clear_card_rows(card: VBoxContainer) -> void:
-	# remove_child before queue_free so a same-frame refill doesn't briefly
-	# stack the old rows (placeholder) under the new ones.
-	for c in card.get_children():
-		card.remove_child(c)
-		c.queue_free()
-
-
-func _fill_card(card: VBoxContainer, index: int, sample: Dictionary) -> void:
-	_clear_card_rows(card)
-	var header := _make_label("#%d · budget %d" % [index + 1, int(sample.get("budget", 0))])
-	header.add_theme_font_size_override(&"font_size", 12)
-	header.modulate = Color(0.85, 0.9, 1.0)
-	card.add_child(header)
+func _fill_card(card: ProcgenCard, index: int, sample: Dictionary) -> void:
 	var breakdown: Dictionary = sample.get("breakdown", {})
-	if not breakdown.is_empty():
-		var why := _make_label(_breakdown_text(breakdown))
-		why.add_theme_font_size_override(&"font_size", 10)
-		why.modulate = Color(1, 1, 1, 0.55)
-		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		card.add_child(why)
-	var sep := HSeparator.new()
-	card.add_child(sep)
-	var mods: Array = sample.get("mods", [])
-	if mods.is_empty():
-		var empty := _make_label("(nothing)")
-		empty.modulate = Color(1, 1, 1, 0.45)
-		card.add_child(empty)
-		return
-	for m in mods:
-		var row := _make_label("%s %s" % [String(m.stat_id), m.contribution_text()])
-		row.add_theme_font_size_override(&"font_size", 11)
-		card.add_child(row)
+	var breakdown_text := _breakdown_text(breakdown) if not breakdown.is_empty() else ""
+	card.fill(index, sample, breakdown_text)

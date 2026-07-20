@@ -1,6 +1,8 @@
-[gd_scene format=3 uid="uid://brdfdoojj157m"]
+[gd_scene load_steps=4 format=3 uid="uid://brdfdoojj157m"]
 
 [ext_resource type="Script" uid="uid://cp61lcj1j7drd" path="res://procgen/playground/playground_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://dwg5wcgsdy1nr" path="res://procgen/playground/field_map_view.gd" id="2_fieldmap"]
+[ext_resource type="Script" uid="uid://dfl4k1q3plgno" path="res://procgen/playground/node_graph_view.gd" id="3_nodegraph"]
 
 [node name="ProcgenPlaygroundPanel" type="Control" unique_id=988273800]
 layout_mode = 3
@@ -10,3 +12,180 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_panel")
+
+[node name="Root" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="Sidebar" type="VBoxContainer" parent="Root"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="Root/Sidebar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Procgen Playground"
+
+[node name="OpenFolderButton" type="Button" parent="Root/Sidebar"]
+layout_mode = 2
+tooltip_text = "Reveal res://procgen/presets/ in the FileSystem dock (created first if it doesn't exist yet)."
+text = "Open Presets Folder"
+
+[node name="BoundLabel" type="Label" parent="Root/Sidebar"]
+unique_name_in_owner = true
+layout_mode = 2
+modulate = Color(1, 1, 1, 0.55)
+autowrap_mode = 3
+
+[node name="HSeparator" type="HSeparator" parent="Root/Sidebar"]
+layout_mode = 2
+
+[node name="SampleAsLabel" type="Label" parent="Root/Sidebar"]
+layout_mode = 2
+text = "Sample as:"
+
+[node name="ArchOption" type="OptionButton" parent="Root/Sidebar"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ReseedButton" type="Button" parent="Root/Sidebar"]
+layout_mode = 2
+text = "Reseed"
+
+[node name="SeedLabel" type="Label" parent="Root/Sidebar"]
+unique_name_in_owner = true
+layout_mode = 2
+modulate = Color(1, 1, 1, 0.55)
+autowrap_mode = 3
+
+[node name="Spacer" type="Control" parent="Root/Sidebar"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="VSeparator" type="VSeparator" parent="Root"]
+layout_mode = 2
+
+[node name="Tabs" type="TabContainer" parent="Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Map Sample" type="VBoxContainer" parent="Root/Tabs"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Map" type="Control" parent="Root/Tabs/Map Sample"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 340)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 0
+script = ExtResource("2_fieldmap")
+
+[node name="CardsLabel" type="Label" parent="Root/Tabs/Map Sample"]
+unique_name_in_owner = true
+layout_mode = 2
+modulate = Color(1, 1, 1, 0.7)
+
+[node name="CardsRow" type="HBoxContainer" parent="Root/Tabs/Map Sample"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 168)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Node Graph" type="VBoxContainer" parent="Root/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Bar" type="HBoxContainer" parent="Root/Tabs/Node Graph"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PreviewNodesLabel" type="Label" parent="Root/Tabs/Node Graph/Bar"]
+layout_mode = 2
+text = "Preview nodes:"
+
+[node name="GraphNodeCountSpin" type="SpinBox" parent="Root/Tabs/Node Graph/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 8.0
+max_value = 80.0
+value = 16.0
+
+[node name="RegenerateButton" type="Button" parent="Root/Tabs/Node Graph/Bar"]
+layout_mode = 2
+text = "Regenerate graph"
+
+[node name="VSeparator" type="VSeparator" parent="Root/Tabs/Node Graph/Bar"]
+layout_mode = 2
+
+[node name="StampLabel" type="Label" parent="Root/Tabs/Node Graph/Bar"]
+layout_mode = 2
+text = "Stamp:"
+
+[node name="StampArchOption" type="OptionButton" parent="Root/Tabs/Node Graph/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="RLabel" type="Label" parent="Root/Tabs/Node Graph/Bar"]
+layout_mode = 2
+text = "r:"
+
+[node name="StampRadiusSpin" type="SpinBox" parent="Root/Tabs/Node Graph/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 50.0
+max_value = 800.0
+step = 10.0
+value = 200.0
+
+[node name="StampPaintToggle" type="Button" parent="Root/Tabs/Node Graph/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Toggle on: clicking a node paints a stamp. Toggle off: clicking a node samples its content."
+toggle_mode = true
+text = "Paint Mode"
+
+[node name="StampClearButton" type="Button" parent="Root/Tabs/Node Graph/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Remove all painted stamps and restore original archetype colours."
+text = "Clear Stamps"
+
+[node name="Spacer" type="Control" parent="Root/Tabs/Node Graph/Bar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="GraphView" type="Control" parent="Root/Tabs/Node Graph"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("3_nodegraph")
+
+[node name="GraphCardsLabel" type="Label" parent="Root/Tabs/Node Graph"]
+unique_name_in_owner = true
+layout_mode = 2
+modulate = Color(1, 1, 1, 0.7)
+
+[node name="GraphCardsRow" type="HBoxContainer" parent="Root/Tabs/Node Graph"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 168)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[connection signal="pressed" from="Root/Sidebar/OpenFolderButton" to="." method="_on_open_presets_folder_pressed"]
+[connection signal="pressed" from="Root/Sidebar/ReseedButton" to="." method="_on_reseed_pressed"]
+[connection signal="map_clicked" from="Root/Tabs/Map Sample/Map" to="." method="_on_map_clicked"]
+[connection signal="pressed" from="Root/Tabs/Node Graph/Bar/RegenerateButton" to="." method="_on_regenerate_graph_pressed"]
+[connection signal="pressed" from="Root/Tabs/Node Graph/Bar/StampPaintToggle" to="." method="_on_paint_mode_toggled"]
+[connection signal="pressed" from="Root/Tabs/Node Graph/Bar/StampClearButton" to="." method="_on_clear_stamps_pressed"]
+[connection signal="node_clicked" from="Root/Tabs/Node Graph/GraphView" to="." method="_on_graph_node_clicked"]
