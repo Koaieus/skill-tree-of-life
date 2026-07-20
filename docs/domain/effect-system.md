@@ -206,5 +206,36 @@ Reach queries go through `RangeFinder.gather`, never `in_range` in a loop — se
   `nodes_islanded_by_removing_set` / the cascade, not a fire-and-forget notification
   and not a modifier grant. Different hook shape; its own issue. Design sketch
   (including the broader "status tags" grant channel this implies) now lives in
-  [status-tags.md](status-tags.md).
+  [status-tags.md](../design/status-tags.md) (it moved to `docs/design/` while
+  unimplemented; it moves back here once shipped).
 - **Presentation** — icon + `get_description()` rendering in the HUD.
+- **Node-local effect bin** — a coherent-but-empty sibling to `node_board`. The
+  stat side is symmetric (entity `stat_board` ↔ per-node `node_board`, combined on
+  read); the effect side is not, and deliberately so. **Effects are push, stats are
+  pull**: a `node_board` hosts anywhere because "combine on read" needs no
+  dispatcher, but an effect instance's home is decided by *who fires its hooks*, and
+  every hook today (`_on_turn_start`, `_on_node_allocated`, `_on_core_moved`,
+  `_on_level_up`, `_on_killing_blow`) is an **entity/subgraph** event. So even a
+  node-granted effect is *hosted* at the entity (instance keyed by `source_node`).
+  Note the two axes are orthogonal: an aura may *radiate from* its carrier node
+  (geometry — the `source_node ?? core_location` origin rule, #240) while still being
+  *dispatched by* the entity (host). **Trigger to fill this cell:** the first effect
+  authored to react to a node's *own* lifecycle (`skill_node_depleted`, addon
+  stamped, node damaged) and mutate *only* node-local state. That effect belongs
+  hosted on the `SkillNode`, which then grows its own `_on_*` dispatch + a per-node
+  `EffectInstance` bin. Until such content exists, don't build the node-as-dispatch-host
+  machinery — it's speculative double-plumbing.
+
+## Known limits — file an issue to extend
+
+This is the boundary of what the effect system can express **today**. Hitting one
+of these is the signal to file (or revisit) an issue, not to work around it locally:
+
+| You want… | Status | Extend via |
+|---|---|---|
+| An effect that reacts to a **node's own** lifecycle and mutates only that node | Not supported (all dispatch is entity-scoped) | Node-local effect bin — see Deferred above |
+| A **non-numeric marker** on a node/entity (`poisoned`, `has_lifeline`, `marked`) | Not supported (only grant target is `StatModifier`) | Status tags — [#240](../design/status-tags.md) |
+| An aura that **radiates from its carrier node**, not core | Not supported (`recompute` hardcodes `core_location`) | Origin rule `source_node ?? core_location` — [#240](../design/status-tags.md) |
+| A hook that **returns a value** to change *whether* something happens (LifeLine veto) | Not supported (hooks are fire-and-forget `void`) | Query hook — LifeLine, Deferred above |
+| An effect on an **unallocated** node (map/environment hazard) | Not supported (node effects are dormant until owned) | A distinct `NodeHazardEffect` feature — no issue yet |
+| A spell/tag grant that **survives its granting node** on death | Handled *outside* the ledger (`SpellBook` innate/permanent add) | Spellbook looting — [#204](https://github.com/Koaieus/skill-tree-of-life/issues/204) |

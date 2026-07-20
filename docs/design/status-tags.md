@@ -75,10 +75,29 @@ modifiers — source-tracked, ledgered, revoked by `revoke_all()`:
   in one carrier's `Array[Effect]` — same pattern as Serpent's two
   `AuraEffect`s composing without a `CompositeEffect`.
 
+## LifeLine radiates from the addon node, NOT from core
+
+An earlier draft said "grant `&"lifeline"` to nodes within N hops **of core**."
+That is wrong for LifeLine and would never fire: the mechanic triggers exactly
+when a component is **islanded** — cut off from core — so at the decision point
+those nodes are at infinite core-hop-distance and a core-sourced `HopRangeFinder`
+can't reach them. Worse, the deallocation that islands them fires
+`_on_node_deallocated → recompute → revoke_all`, stripping a core-sourced tag at
+the very moment the cascade needs to read it.
+
+LifeLine must radiate from its **carrier node** (the node holding the lifeline
+addon), i.e. `EffectContext.source_node`, not `core_location`. This is the
+general "origin" question for auras, resolved without a new knob: an aura's
+source is `ctx.source_node if ctx.source_node != null else ctx.core_location`
+— a node-carried effect radiates from its own node; an entity-wide (core-class)
+effect falls back to the core. `AuraEffect.recompute` currently hardcodes
+`ctx.core_location`; the tag-aura sibling (and `AuraEffect` itself) should adopt
+the fallback rule so a node-carried aura sources from where it lives.
+
 ## LifeLine specifically: the tag is necessary, not sufficient
 
-Granting `&"lifeline"` to nodes within N hops of core is the easy 80% and
-fits the shape above exactly. The actual "survive disconnection for one
+Granting `&"lifeline"` to nodes within N hops of the carrier node is the easy
+80% and fits the shape above exactly. The actual "survive disconnection for one
 turn" behavior needs new work **outside** the tag system, because it changes
 *when* death happens, not just *what data* a node carries:
 
@@ -114,6 +133,11 @@ turn" behavior needs new work **outside** the tag system, because it changes
 - New `LifelineEffect` (or `TagAuraEffect` base + concrete resource): recomputes on
   `_on_granted`/`_on_node_allocated`/`_on_node_deallocated`/`_on_core_moved`, same
   shape as `AuraEffect.recompute`, granting/revoking the tag instead of a modifier.
+- `AuraEffect` origin rule: resolve the radiation source as
+  `ctx.source_node if ctx.source_node != null else ctx.core_location` (replacing
+  the current hardcoded `ctx.core_location`). Node-carried auras (lifeline addon)
+  then radiate from their own node; core-class auras are unchanged. No new
+  `@export` — a resolution rule, not a knob.
 - `BattleSystem`: grace-period dictionary, cascade-loop consult, turn-boundary tick,
   reconnection cancel.
 - Tests: tag ledger revocation (two sources, one revoked, tag persists), the
