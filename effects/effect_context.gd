@@ -80,23 +80,46 @@ func grant_scaled(mod: StatModifier, scale: float, target: Variant = null) -> St
 	return handle
 
 
-## Remove a previously granted handle from wherever it landed.
-func revoke(handle: StatModifier) -> void:
+## Grant [param tag] to [param target] (null = entity-wide, a [SkillNode] =
+## node-scoped). Refcounted on the carrier ([method SkillNode.add_tag] /
+## [method Entity.add_tag]) — granting the same tag twice and revoking once
+## leaves it active, because a second source is still relying on it. Ledgered
+## alongside modifier grants (same [EffectInstance]), so [method revoke_all]
+## sweeps both channels in one pass. Returns the token [method revoke] takes back.
+func grant_tag(tag: StringName, target: Variant = null) -> Variant:
+	if entity == null:
+		return null
+	if not _apply_tag(target, tag, 1):
+		return null
+	return instance.record_tag(tag, target)
+
+
+## Remove a previously granted handle from wherever it landed — a [StatModifier]
+## from [method grant], or a tag token from [method grant_tag]. Kind-polymorphic
+## so callers don't need to remember which channel a handle came from.
+func revoke(handle: Variant) -> void:
 	if handle == null:
 		return
 	var row: Dictionary = instance.forget(handle)
 	if row.is_empty():
 		return
-	_detach(handle, row[&"target"])
+	if row.get(&"kind", &"modifier") == &"tag":
+		_apply_tag(row[&"target"], row[&"tag"], -1)
+	else:
+		_detach(handle, row[&"target"])
 
 
 ## Revoke every grant, or (when [param target] is given) only those on that
-## target. Pass the sentinel `false` to mean "all targets".
+## target. Pass the sentinel `false` to mean "all targets". Sweeps modifier
+## and tag rows alike — one ledger, one pass.
 func revoke_all(target: Variant = false) -> void:
 	for row in instance.grants(target):
-		var handle: StatModifier = row[&"handle"]
+		var handle: Variant = row[&"handle"]
 		instance.forget(handle)
-		_detach(handle, row[&"target"])
+		if row.get(&"kind", &"modifier") == &"tag":
+			_apply_tag(row[&"target"], row[&"tag"], -1)
+		else:
+			_detach(handle, row[&"target"])
 
 
 ## Handles currently granted to [param target] — the aura's diff read. Keeps
@@ -116,3 +139,26 @@ func _detach(handle: StatModifier, target: Variant) -> void:
 		return
 	var node: SkillNode = target
 	node.remove_local_modifier(handle)
+
+
+## Apply [param delta] (±1) to [param tag]'s refcount on [param target] (null =
+## entity-wide). Returns false (and does nothing) if the target is gone —
+## mirrors [method _detach]'s freed-node guard, since a cascade can free a node
+## between grant and revoke.
+func _apply_tag(target: Variant, tag: StringName, delta: int) -> bool:
+	if target == null:
+		if entity == null:
+			return false
+		if delta > 0:
+			entity.add_tag(tag)
+		else:
+			entity.remove_tag(tag)
+		return true
+	if not is_instance_valid(target):
+		return false
+	var node: SkillNode = target
+	if delta > 0:
+		node.add_tag(tag)
+	else:
+		node.remove_tag(tag)
+	return true

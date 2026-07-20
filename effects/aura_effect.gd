@@ -2,8 +2,10 @@
 class_name AuraEffect
 extends Effect
 
-## A buff (or debuff) radiating from the entity's core to nodes around it,
-## re-evaluated whenever the world moves under it.
+## A buff (or debuff) radiating from a source node to nodes around it,
+## re-evaluated whenever the world moves under it. The source is the carrier
+## node for a node-granted aura (keystone/addon), falling back to the entity's
+## core for an entity-wide one (core class) — see [method recompute]'s origin rule.
 ##
 ## Three orthogonal knobs:
 ##
@@ -72,7 +74,10 @@ func recompute(ctx: EffectContext) -> void:
 	ctx.revoke_all()
 	if modifiers.is_empty():
 		return
-	var source := ctx.core_location
+	# Origin rule: a node-carried aura (keystone/addon) radiates from its own
+	# node; an entity-wide aura (core class) falls back to the core. No new
+	# knob — resolved once here, see docs/design/status-tags.md.
+	var source := ctx.source_node if ctx.source_node != null else ctx.core_location
 	var mirror := _mirror(ctx)
 	if source == null or mirror == null:
 		return

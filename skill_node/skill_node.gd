@@ -162,6 +162,14 @@ var revealed: bool = true:
 ## [method StatBoard._ensure_stat].
 var node_board: StatBoard = null
 
+## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
+## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
+## an entry exists only while at least one source has granted it. Refcounted,
+## not a bool, because multiplicity is real — two effects granting the same
+## tag must both need to revoke before it clears. Granted/revoked through
+## [method EffectContext.grant_tag] / `revoke`, never written to directly.
+var _tags: Dictionary[StringName, int] = {}
+
 ## Per-node allocation cap. `stake_level` defaults to 1 (single allocation
 ## slot); raise by 1 per stake via the entity's `skill_points.stake(1)` action.
 ## `allocation_level` mirrors live allocation: 0 = unowned, 1 = baseline,
@@ -522,6 +530,34 @@ func remove_local_modifier(m: StatModifier) -> void:
 		var s: Stat = node_board.get_stat(leaf.stat_id)
 		if s != null:
 			s.remove_modifier(leaf)
+
+
+## Increment [param tag]'s refcount, creating the entry at 1 if new.
+func add_tag(tag: StringName) -> void:
+	_tags[tag] = _tags.get(tag, 0) + 1
+
+
+## Decrement [param tag]'s refcount; drops the entry entirely at 0 so
+## [method get_active_tags] only ever reports what's actually live.
+func remove_tag(tag: StringName) -> void:
+	var count: int = _tags.get(tag, 0) - 1
+	if count <= 0:
+		_tags.erase(tag)
+	else:
+		_tags[tag] = count
+
+
+func has_tag(tag: StringName) -> bool:
+	return _tags.get(tag, 0) > 0
+
+
+## The live tag set — no [StatRegistry] entry, no board slot. Tooltips /
+## [DebugClipboard] read this for a generic "what's currently active" listing.
+func get_active_tags() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for t in _tags:
+		out.append(t)
+	return out
 
 
 ## Every [Effect] this node grants to an owner: its own, its keystone's, and

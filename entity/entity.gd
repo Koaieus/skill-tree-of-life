@@ -94,6 +94,11 @@ var _hook_buckets: Dictionary[StringName, Array] = {}
 ## corpse (TurnManager initiative, AI targeting).
 var is_dead: bool = false
 
+## Refcounted status markers, entity-wide twin of [member SkillNode._tags] — see
+## docs/design/status-tags.md. Granted/revoked through [method EffectContext.grant_tag]
+## / `revoke`, never written to directly.
+var _tags: Dictionary[StringName, int] = {}
+
 
 func _ready() -> void:
 	# Group membership is editor-safe and lets @tool consumers (e.g.
@@ -198,6 +203,33 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 
 func get_effects() -> Array[EffectInstance]:
 	return _effect_instances.duplicate()
+
+
+## Increment [param tag]'s refcount, creating the entry at 1 if new.
+func add_tag(tag: StringName) -> void:
+	_tags[tag] = _tags.get(tag, 0) + 1
+
+
+## Decrement [param tag]'s refcount; drops the entry entirely at 0 so
+## [method get_active_tags] only ever reports what's actually live.
+func remove_tag(tag: StringName) -> void:
+	var count: int = _tags.get(tag, 0) - 1
+	if count <= 0:
+		_tags.erase(tag)
+	else:
+		_tags[tag] = count
+
+
+func has_tag(tag: StringName) -> bool:
+	return _tags.get(tag, 0) > 0
+
+
+## The live tag set — no [StatRegistry] entry, no board slot.
+func get_active_tags() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for t in _tags:
+		out.append(t)
+	return out
 #endregion
 
 
