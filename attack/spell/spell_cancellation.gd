@@ -3,8 +3,9 @@ extends RefCounted
 
 ## Telemetry record emitted when an [IncidentReducer] resolves to null,
 ## fizzling the spell at a node. Lands on [member AttackOutcome.cancellations]
-## and (globally) on the [code]Events.spell_incident_cancelled[/code] signal
-## so VFX coordinators can hook a pop/dissipate effect.
+## for replay/battle-log. Cancel VFX is driven by the PropagationEvent timeline
+## ([code]Verb.CANCEL[/code] → [code]MagicBounceCoordinator.cancel_visual[/code]),
+## not by this record.
 
 var node: SkillNode = null
 var wave_index: int = 0
