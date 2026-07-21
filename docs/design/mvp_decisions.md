@@ -148,19 +148,27 @@ Each decision lists: the question, the resolution, the rationale, and the implem
 
 **Consequence to watch:** TTK stops meaning "within one turn" and starts meaning "across turns." Every balance readout in #248 must be reframed accordingly.
 
+**Known and accepted — the dealloc/realloc refill:** `SkillNode.refill()` still fires on allocation, so a 1-HP node can be deallocated and reallocated to come back full. **This is accepted, not patched.** It costs 1 DP, requires topology that permits the dealloc without islanding, and costs 2 MP more if the core sits on the node — a real turn-budget price for healing exactly one node. We are *aware* of it and may revisit much later; if the cost turns out to be genuinely real, it isn't an exploit but a situational playstyle, and it can be made less attractive with tweaks rather than a rule. **Do not "fix" this without a decision here first.**
+
 **Impl status:** Not built. `node_healing` / `node_healing_ramp` / `regen_stacks` all net-new. Child issue under #248.
 
 ---
 
 ## D-10 — CoreClass healing aura semantics
 
-**Question:** aura healing emanating from the core's node — flat or % of max HP? Does it respect the D-9 damage gate? Does it feed the ramp? (#248)
+**Question:** aura healing emanating from the core's node — flat or % of max HP? Does it respect the D-9 damage gate? Does it feed the ramp? Where do its parameters live? (#248)
 
-**Resolution:** **Flat HP per turn. Heals through combat, but grants no ramp. Additive, outside the ramp term.**
+**Resolution:** **Flat HP per turn, linear per-hop falloff, parameters authored on the concrete `AuraEffect` definition resource. Heals through combat, but grants no ramp. Additive, outside the ramp term.**
+
+**Shape:** heal 5 at the core's node, 4 at one hop, 3 at two hops, … clamping at 0 — so range is implicit in base ÷ falloff rather than a separate stat. `BalancedCore` carries a modest baseline aura; every other core class may author more, less, or a different topology/falloff entirely. Hop distance is measured over the **owned subgraph** (`entity.navigator`), per the hard rule in `.claude/rules/graph.md` — never the global navigator, or an aura would reach through enemy territory.
+
+**Parameters live on the AuraEffect resource, not the stat board.** Putting `aura_heal_base` / `aura_heal_falloff` on the board would mean canonicalising core healing as board stats — and it isn't clear that's the right shape (it would also need a node-local meaning it doesn't obviously have). Authoring them per-effect keeps each aura self-describing and lets future authored auras implement whatever logic they want without first negotiating a stat vocabulary.
 
 Total per-turn heal = `(node_healing + regen_stacks × node_healing_ramp) + aura_flat`, where the `regen_stacks` term is subject to the D-9 gate and `aura_flat` is not. Taking damage still resets `regen_stacks` to 0 — so a node under sustained fire inside the aura receives a small constant trickle and never reaches the ramp payoff.
 
-**Rationale:** Flat (not %) deliberately avoids compounding with `node_health` investment — it makes healing relatively stronger on cheap nodes and weaker on beefy ones, which is the healthier balance direction and costs no fractional-accumulation UI. Healing through combat is what gives the core's neighbourhood a fortress identity and makes aura *range* a load-bearing class decision. Denying the ramp under fire is the stalemate guard: a besieged node cannot out-regenerate incoming damage indefinitely. Keeping the aura outside the ramp term keeps two independent, tooltip-readable numbers instead of one compounding one.
+**Rationale:** Flat (not %) deliberately avoids compounding with `node_health` investment — it makes healing relatively stronger on cheap nodes and weaker on beefy ones, which is the healthier balance direction and costs no fractional-accumulation UI. Healing through combat is what gives the core's neighbourhood a fortress identity and makes aura *range* a load-bearing class decision. Denying the ramp under fire is the stalemate guard: a besieged node cannot out-regenerate incoming damage indefinitely. Keeping the aura outside the ramp term keeps two independent, tooltip-readable numbers instead of one compounding one. Linear falloff gives the "gradient of safety" a flat radius can't.
+
+**Follow-up (noted, not scoped):** a **NodeAddon that provides a healing aura** — small, but better than nothing — is a prime candidate once the AuraEffect parameterisation lands. It gives non-core territory a way to buy local regen.
 
 **Impl status:** Not built. Depends on D-9. Same child issue.
 
@@ -170,9 +178,19 @@ Total per-turn heal = `(node_healing + regen_stacks × node_healing_ramp) + aura
 
 **Question:** is `CON` real, and what does it own? (#248)
 
-**Resolution:** **Full fifth attribute**, alongside STR/DEX/INT/WIS: `constitution.tres`, on the default entity board, with its own procgen pool and archetype. Defensive stats derive intrinsic scaling from it — starting with `node_health`.
+**Resolution:** **Full fifth attribute**, alongside STR/DEX/INT/WIS: `constitution.tres`, on the default entity board, with its own procgen pool and archetype. It owns the defensive axis — but not uniformly:
 
-**Rationale:** The defensive stats (`node_health`, `armor`, `min_damage_taken`, the D-9/D-10 healing stats) had no archetype home, so power in that axis could only be expressed by spreading direct `node_health` modifiers around. A CON attribute lets a single stat carry that investment and lets us lean far less on direct-stat mods — the same relationship STR already has with `blade_damage`.
+| Stat | Scaling from CON | Shape |
+|---|---|---|
+| `node_health` | yes | **linear** |
+| `armor` | yes | **linear** |
+| `min_damage_taken` | **no** | — |
+
+**`min_damage_taken` deliberately does NOT scale with CON.** It stays a **rare** stat: you find it as a board draw, or a core class grants it innately. Its role is to make your armor *effective*, and it is the counter to flood-style attacks — spells designed to hit every enemy node for 1 damage live or die on the defender's floor.
+
+**Rationale for the split shapes:** a point of `armor` is worth one damage against one hit; a point off the floor is worth one damage against *every* hit, forever, including hits armor can't reach. Letting a linearly-growing attribute drive the floor would zero it out long before armor became interesting, and would hand out the flood-attack counter for free. Keeping it rare preserves both the draw's excitement and armor's relevance. More broadly: the defensive stats had no archetype home, so power on that axis could only be expressed by spreading direct `node_health` modifiers around. CON gives them the same relationship STR already has with `blade_damage`.
+
+**On the infinite-armor / negative-floor build:** accepted, and already answerable. `mitigation.gd` gives **TRUE-typed damage a bypass of both `armor` and `min_damage_taken`** — the escape hatch exists today. An entity that stacks that hard has spent its whole budget on defence and will have no offensive capability to speak of; that's a legitimate way to play, not a balance failure.
 
 **Impl status:** Not built — no `constitution.tres`, not on the board, not referenced in code. CON currently exists only as prose in `docs/design/` and `docs/GDD.md`. Child issue under #248. Follow the `manage-stats` skill checklist.
 
@@ -187,6 +205,22 @@ Total per-turn heal = `(node_healing + regen_stacks × node_healing_ramp) + aura
 **Rationale:** A hard migration would make defensive draws CON-gated and starve every other archetype of survivability. Straight duplication muddies where a stat "lives." Softening the off-archetype penalty specifically for defence keeps armor and health available as the common filler/pity draw #248 wants, while still making CON nodes the concentrated source.
 
 **Impl status:** Not built. Requires a per-archetype off-archetype weight with a defensive-family exception. Depends on D-11.
+
+---
+
+## D-14 — Durability scales with level, through CON
+
+**Question:** `min_damage_taken` (3) exceeds baseline `blade_damage` (2 at STR 10) while `node_health` is 10 — so early hits are *buffed* by the mitigation floor, `armor` is inert below STR ~30, and every node dies in 4 hits regardless of build. Lower the floor, or raise health? (#248)
+
+**Resolution:** **Raise durability, and make it scale with level — via CON.** Levelling grants CON; CON grants `node_health` and `armor` linearly (D-11). The floor stays at 3.
+
+Target shape: a level 20 entity's nodes sit around ~30 HP rather than 10. At 3 damage per hit that's 10 hits to drop a node instead of 3⅓ — and such an entity has most likely also picked up a `−1 min damage taken` draw by then, which is exactly when armor starts mattering. Healing (D-9/D-10) deliberately does **not** scale as fast, so attrition stays real and nodes and entities stay killable.
+
+**Rationale:** Lowering the floor to 1 would have made armor matter immediately but tripled baseline TTK and demoted the floor from a real mechanic to an anti-zero guard. Scaling durability up instead keeps 3 a meaningful number *and* fixes the asymmetry — offense already scales with STR/DEX/INT, so defence needed a growth channel or high-level combat would collapse into one-shots. Routing it through CON rather than a direct `node_health`-per-level modifier means one channel carries the whole defensive axis, and `armor` grows with it for free.
+
+**Watch:** CON growing automatically with level makes it partly a level proxy, so *invested* CON competes against a number that rises for free. If CON investment stops feeling meaningful, the per-level grant is the dial to turn down — measure it via #268 before adjusting.
+
+**Impl status:** Not built. Depends on D-11. The per-level CON rate and the CON→`node_health`/`armor` rates are **tuning values** pending #268.
 
 ---
 
