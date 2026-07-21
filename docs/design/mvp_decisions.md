@@ -351,9 +351,193 @@ At `sp_gain = 2` plus the milestone: level 20 ≈ 42 nodes, **level 50 ≈ 108 n
 
 ---
 
+## D-18 — INT is the runaway attribute: utility compresses, damage does not
+
+**Question:** D-17 floated "INT is the deliberately multiplicative runaway (thousands of it) while WIS stays linear and bounded" but left it unpinned. Take it? (#248)
+
+**Resolution:** **Taken. INT runs to the thousands — and that forces a shape on everything INT drives.**
+
+The pin is not "INT gets big." It is a **three-part package that cannot be split:**
+
+1. **INT's band is multiplicative and unbounded.** Thousands is a real outcome, not an accident. (WIS stays linear and bounded at 100–200 per D-17.)
+2. **Everything INT drives for *utility* is compressed or hard-capped.** Reach, mana — none may ride the runaway linearly.
+3. **Spell damage is the linear payoff.** This is what makes the thousands *mean* something. Without it the runaway is cosmetic and no player would chase it.
+
+**The finding that forced the package.** `spell_range` is a **percent** stat (`spell_range.tres`, default 0%) driven by a `LinearFormula` on INT whose modifier `value` defaults to 1.0 — so `spell_range% = INT`, exactly. That is fine at INT 20 (+20%) and catastrophic at INT 1000 (**+1000% → 11× reach**): a 3-hop spell reaches 33 hops, which on any real graph is the entire map. Combined with the linear damage payoff, board impact would run ~11× damage × ~121× area ≈ **1300× baseline**. Under the capped curve below it is ~11× × ~4× ≈ **44×** — still a runaway, and survivable.
+
+This is D-10's lesson at entity scale. D-10 already separated aura `base` from aura `range` precisely because covered nodes grow roughly quadratically in radius, so payload and radius must be independent knobs and **radius must be bounded.** Reach is the dangerous axis; damage is the safe one. Same reasoning, same conclusion.
+
+**Pinned — `spell_range`: a hard cap at ×2.**
+
+```
+spell_range_multiplier = clamp(100 + INT/10, 100, 200)   # percent
+```
+
+100% at INT 0, 200% at INT 1000, **and never beyond.** The formula shape is the same `INT/10` already used by mana, `blade_damage` and `ranged_damage` — **the clamp is the whole innovation**, no new formula vocabulary. The cap applies to **both** hop-based and euclidean reach: one stat, one curve, one cap, one tooltip.
+
+*Noted, not pinned — the dumb-caster nerf:* a later variant could start the curve at 50% and reach 100% only at INT 100, so low-INT casters are actively penalised rather than merely unrewarded. Deferred; the flat 100% floor ships first.
+
+**Pinned — hops do not auto-scale beyond that cap.** Extra hops are **battlefield-found**: a rare procgen roll or a core-class specialty, never a level-curve derivative. This is D-11's treatment of `armor` / `min_damage_taken`, applied to reach — *you do not level into hops, you go and get them.* And `bonus_hops` is genuinely a **bonus: it adds after the multiplier, not into the base.**
+
+```
+effective_hops = round(base_hops × spell_range_multiplier) + bonus_hops
+```
+
+So a rare +1 hop is worth exactly +1 hop, never amplified by INT into +2. The ADD_BASE reading was rejected for exactly that compounding.
+
+**Open — `mana`.** Currently `floor(INT/10)`, which at INT 1000 gives a 100-point pool. That may already be adequate: `mana_per_turn` is `log10(INT)` ≈ 3/turn at the same INT, so *throughput* is compressed even though the *pool* is not — a big burst reservoir that refills slowly is a legitimate shape. **The compression principle is pinned; the mana curve is a #268 tuning value, not a design pin.** Do not invent one.
+
+**Consequence — the radar cannot draw this (#273).** With INT in the thousands, WIS in the hundreds and STR/DEX/CON in the tens, `AttributeRadar` spans **three orders of magnitude**. That settles the *substance* of #273 — a linear plot is unreadable, so log scale is forced. It does **not** close the issue: static-log vs. per-entity-dynamic remains a genuine UX fork.
+
+**Impl status:** Not built. `entity/default_entity_board.tres` (the `spell_range` formula + clamp), `stats_system/defs/` (a `bonus_hops` def), the range finders + `spell_tooltip.gd` (bonus applied post-multiplier).
+
+---
+
+## D-19 — Enemies are levelled but landless, and they carry the clock
+
+**Question:** procgen takes no level or depth input. What is the level dial, and where does it live? (#248)
+
+**Resolution:** **Level is an *entity* property, not a map property.** The player always starts at level 1. An enemy's level is set by the territory it spawns holding:
+
+```
+enemy_level = starting_nodes        (the /1 reading)
+```
+
+Under D-16 a player at level *L* owns ≈ 2.2*L* nodes, so `/1` means an enemy holds **roughly half the territory a player of its level would** — it carries level-appropriate attributes from the BalancedCore-style per-level grant (+10 base, +1/level to STR/DEX/INT/CON) on half the land. A 40-node enemy is level 40 with ~49 in each of four attributes, where a 40-node *player* would be level ~18 with ~28. It hits far harder per node and is faster to kill: fewer nodes to chip, a smaller cascade buffer, and less terrain-sourced stat. **A glass elite** — a legible archetype, deliberately chosen over the `/2` "statistically identical to a player" reading because an on-curve enemy is just a mirror match.
+
+**Enemies get elevated WIS, and that is the difficulty dial.** A landless enemy *cannot* source WIS from territory (D-15: income comes from WIS-bearing nodes it doesn't own), so the grant must be non-territorial — it lives on the **enemy CoreClass**, alongside the rest of its identity, reusing the existing `entity/core/` pipeline. Difficulty becomes "which class did you spawn it with."
+
+**Why this matters: the player is on a clock.** With `xp_per_turn = WIS//2` and level *L* costing `5L` (D-15), a stagnant entity's cumulative turns to level *L* is `5L²/W`. Setting both to the same turn count *T*:
+
+```
+level_ratio(enemy : stagnant player) = √(W_enemy / W_player)      W_player = 20
+```
+
+So enemy WIS 80 → the enemy runs **2× the player's level**; WIS 180 → 3×. One number, one square root, the whole difficulty curve.
+
+**⚠ This ratio is a spawn-time handicap, not a standing invariant.** It holds only while *both* sides are stagnant — and D-15's entire thesis is that neither is. The player escapes by occupying WIS-bearing territory; a competent AI does the same. So `√(W/20)` is **the head start the player must out-expand**, and enemy WIS is the *target* the player's economy has to reach. That is the loop, expressed as a number: camp and the enemy outgrows you; expand and you close the gap. Do not quote this ratio as a steady-state property of play.
+
+**Watch — the landless identity decays.** An enemy that levels up mints SP like anyone else (`sp_gain_on_levelup`, D-16), so it drifts from the `/1` line back toward the `/2` curve the longer the game runs. The archetype is a *starting condition*, not a permanent state.
+
+**Impl status:** Territory seeding **already exists** — `ProcgenPlaySandbox._expand()` (`scenes/procgen_play_sandbox.gd`) random-walks `force_allocate` outward from each core. Two problems: it is a private method on one sandbox subclass rather than an injectable strategy (per `.claude/rules/scene-composition.md` it should be a DI'd Resource), and **it expands the player too** (`expansion_steps = 6`), which directly contradicts D-16's pinned "starting nodes: 1 (the core)". Child issue under #248.
+
+---
+
+## D-20 — Spell damage scales with INT: board stat × per-spell coefficient, evaluated at seed
+
+**Question:** no INT scaling on spell damage exists anywhere in code. Where does it live? (#248)
+
+**Resolution:** **Both halves — a board stat carries the global INT multiplier, a per-`SpellDef` coefficient tunes or opts out.**
+
+- **Board stat `spell_damage`**, driven by an intrinsic INT formula, mirroring `STR → blade_damage` and `DEX → ranged_damage`. Being a board stat means node-local addons, auras and keystones reach it through the normal pipeline. **Linear in INT** — this is D-18's payoff, the thing that makes the runaway worth chasing. Follow the `manage-stats` checklist.
+- **`SpellDef.int_scaling: float = 1.0`** — a plain multiplier. `0.0` is a pure flat spell that opts out of INT entirely; `2.0` is a hyper-scaling glass spell.
+- **`SpellDef.damage_formula: StatFormula = null`** — optional escape hatch reusing the existing `stats_system/formulas/` vocabulary, for a signature spell needing real math over multiple stats. Null = the standard path.
+
+**Read the *caster's* node, not the target's — this is the trap.** `SkillNode.get_local_value()` merges the node's own board with **`owned_by`'s** board (`skill_node/skill_node.gd:412`). Reading `spell_damage` off `state.current_node` would therefore read the **defender's** board and let an enemy's territory buff the spell landing on it. The correct read is the **cast-from node**, `state.source` — exactly the pattern `RangedDamageFormula` already uses with `firing_node.get_local_value(&"ranged_damage")`.
+
+**Evaluated once, at seed.** `CastSpell.damage` is a *running product*: `SpellResolver` sets `seed_state.damage = spell.base_damage × config.seed_damage_fraction`, then each `PropagationStep` does `next.damage = payload.damage × config.damage_multiplier_per_hop`. `DamageEffect` only reads it. So the INT term belongs in the seed expression:
+
+```
+seed.damage = base_damage × int_scaling × spell_damage(source_node) × seed_damage_fraction
+```
+
+Re-evaluating per hop would **compound INT** — INT² by hop 2, INT³ by hop 3 — which no one wants, and would also break `damage_multiplier_per_hop`'s job of decaying the payload with distance.
+
+**Impl status:** Not built. `attack/spell/spell_def.gd`, `attack/spell/spell_resolver.gd`, `stats_system/defs/spell_damage.tres` (net-new), `entity/default_entity_board.tres`. Child issue under #248.
+
+---
+
+## D-21 — The entity health pool scales with CON; `dealloc_damage` is the class knob
+
+**Question:** does the entity `health` pool — the death clock — get a growth channel? (#248)
+
+**Resolution:** **Yes: `health` scales with CON, and `dealloc_damage` becomes the paired per-class lever.**
+
+**The finding.** `health.tres` is `default_value = 10.0` and **nothing anywhere scales it** — not CON, not level, not territory. Meanwhile the forced-dealloc cascade chips it 1 unmitigable HP per depleted-or-islanded node, and D-10 leans on exactly that as the structural anti-camping clock:
+
+| | L1 | L20 | L100 |
+|---|---|---|---|
+| owned nodes (D-16) | ~1 | ~42 | ~218 |
+| `node_health` (CON, D-14) | 10 | ~30 | ~110 |
+| **entity `health`** | **10** | **10** | **10** |
+| cascade size that kills | n/a | 10 nodes = **24% of territory** | 10 nodes = **4.6%** |
+
+D-14's own rationale — *"defence needed a growth channel or high-level combat would collapse into one-shots"* — was applied to `node_health` and **missed the pool that actually kills you.** Nodes get 11× tankier while the entity's own bar never moves, so the death clock accelerates relative to territory at every level. Same shape as the round-2 armor finding, one level up.
+
+**Two knobs, and class identity lives in their ratio:**
+
+- `health = base + CON` (linear) — the bucket. One channel (CON) now carries the whole defensive axis, as D-14 argued it should.
+- `dealloc_damage` (default 1) — the chip rate, **the per-class lever**, suitable for playable classes *and* for authoring enemies. A glass core at 3 re-creates the cliff deliberately; a bulwark at 0.5 doubles the buffer.
+
+```
+nodes lost before death = health / dealloc_damage
+Balanced : 119 hp ÷ 1   = 119      Glass : 119 ÷ 3 = 40      Bulwark : 119 ÷ 0.5 = 238
+```
+
+**The core also takes damage directly** — this already works: `SkillNode.take_damage` routes overflow past a depleted core node into `owned_by.stat_board.health`. So the pool has two drains (cascade chip, core overflow) and, per D-22, essentially one meaningful heal.
+
+**Implementation note:** `health_per_con` is plausibly its own stat, but the simpler home is a `StatFormula` on the innate `intrinsic_modifiers` list, exactly like the other four derived stats. Prefer that unless a class needs to modify the *rate*.
+
+**⚠ Pinned — allocating CON grants the max-HP delta as current HP.** Take +40 CON, gain +40 current HP. This is the intuitive reading and consistent with D-9 having accepted the analogous node dealloc/realloc refill. **It is knowingly exploitable and that is accepted** — in a game where the skill graph *is* the mechanics, engineering your graph to move your numbers is legitimate play. The bar is not "loophole-free"; it is **"doesn't take the fun out of the game or make it too easy."**
+
+**The one failure mode to guard, named now:** a node that rolls **big CON *and* +1 max deallocation points** is an infinite heal — *if and only if* allocating it grants an immediately-spendable DP alongside the raised maximum. **The guard is to raise the maximum without granting the point.** That closes the loop at its actual source and costs nothing elsewhere. Two fallbacks if it still misbehaves: cap per-turn healing from this channel at `N × core_healing`, or reconsider the grant entirely (see D-22 — the two decisions are coupled).
+
+**Impl status:** Not built. `stats_system/defs/health.tres`, `entity/default_entity_board.tres`, and the DP-grant path. Child issue under #248.
+
+---
+
+## D-22 — `core_healing` is a sliver, because CON expansion is the real heal
+
+**Question:** `core_healing` was descoped from #270 and exists nowhere in code. What is it? (#248)
+
+**Resolution:** **It regenerates the *entity* `health` pool — not node HP — and it stays deliberately small (a sub-1/turn sliver, fractionally accumulated).**
+
+It is **not** a duplicate of D-10's aura. The aura heals `node_health` on the core's own node; `core_healing` heals `stat_board.health`, the pool the cascade chips and core-overflow drains. Before this, **nothing healed that pool at all.**
+
+**Why a sliver, and why that is the interesting part.** `core_healing` magnitude and D-21's grant-the-delta decision are **coupled and near-exclusive:**
+
+- **Sliver (pinned).** The pool barely self-regenerates, so the *only* meaningful way to heal your death clock is **to grow your CON territory.** That is a real, legible strategic answer to being chipped — and it pairs exactly with D-10's anti-camping cascade: **you are chipped by camping and you heal by expanding.** The core loop, expressed in the death clock.
+- **Substantial (1–10/turn, or CON-scaling) — rejected for now.** If the pool heals itself briskly, granting the CON delta on top is both redundant and genuinely exploitable, and expansion stops being the answer to attrition. Taking this branch would require **reversing D-21's grant.**
+
+Pinning the sliver keeps one heal channel meaningful instead of two overlapping ones, and preserves the loop.
+
+**Open (a #268 tuning value):** the exact rate, whether it obeys a D-9-style damage gate, and its UI sliver. **The interaction that must be measured, not guessed:** if `core_healing` ever meets or exceeds the cascade chip rate (`dealloc_damage` × nodes lost per turn), **camping becomes viable again and D-10's structural guarantee is silently undone.** That invariant belongs in #268.
+
+**Impl status:** Not built. Own issue, `design` until the rate and gate are pinned.
+
+---
+
+## D-23 — Procgen needs no level input; map content is radial and already built
+
+**Question:** "procgen has no level or depth input at all — the dial has to be invented." (#248, open since round 1)
+
+**Resolution:** **It does not need one. The item closes.** Two mechanisms already cover what a `depth` parameter would have bought:
+
+- **Entity level is the difficulty dial** (D-19) — "a level 20 map" means *the enemies on it are level 20*, expressed as the territory they spawn holding. Nothing about the graph itself has to know.
+- **Map content difficulty is radial, and the plumbing exists and is in use.** `procgen/placement/radial_gradient_field.gd` is wired as the `budget_field` in `procgen/presets/first_level/first_level.tres`, alongside `radial_band_profile.gd`. Content richness already rises with distance from the start. Since enemies are placed at `viability_radius` from the player, the rich terrain and the danger already coincide.
+
+A map-level `content_depth: int` was considered and rejected: it would gate tiers *uniformly*, making the node beside your core as rich as the far corner, which is strictly worse than the gradient already shipping.
+
+**Correction to a round-4 note — keystones are not uniformly high-tier.** The basic keystone should be a **simple +20 WIS**, scattered broadly rather than reserved for tier 4–5 placement. At D-15's `xp_per_turn = WIS//2` that is **+10 XP/turn — a doubling of the pinned baseline income of 10**, and by D-19's identity it shifts the player's level ratio by √2. A large, legible reward from one common node, and exactly the "go out and occupy WIS-bearing territory" pull D-15's positional taper depends on.
+
+**⚠ Caveat on the placement mechanism itself:** keystone placement may still be **v1**. The v2 notion — *keystones as pre-authored nodes, or constellations of them, stitched into the generated graph* — remains open and is **#180's** business (the stitch-marker / arc contract). This decision says what the basic keystone *is* and how widely it scatters; it does not claim the machinery to place it is finished.
+
+**Impl status:** Radial gradient — built and in use. Basic WIS keystone + scatter — #180.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
 - 2026-07-21: D-9 … D-13 resolved in the #248 balancing design session. Numeric values deliberately **not** pinned here — they live in `.tres` / the stat board, gated on the #268 harness. Starting SP / starting allocated node count remains **open** (see #248).
 - 2026-07-21: D-14 added, D-10/D-11 revised (round 2–3) — durability scales through CON; CON drives `node_health` only; the aura is an authored `base`/`range` channel.
 - 2026-07-21: **D-15 … D-17 resolved — the progression cluster.** XP economy, SP gain, attribute bands. Starting SP / starting node count now **closed** (D-16). Still open on #248: procgen↔level linkage · INT→spell damage · `core_healing` · the node-local `armor` mitigation bug · per-attribute numeric personalities (D-17).
+- 2026-07-21: **D-18 … D-23 resolved — the INT / durability / level-dial cluster (round 5).** Every remaining #248 hub item is now closed or has a home:
+  - **D-18** INT is the runaway; utility compresses (`spell_range` hard-capped at ×2), damage is the linear payoff; `bonus_hops` is battlefield-found and adds *after* the multiplier. Settles the substance of **#273** (log scale forced) without closing its UX fork.
+  - **D-19** enemy level = starting nodes (`/1`, levelled-but-landless); elevated enemy WIS lives on the CoreClass and is the difficulty dial, `level_ratio = √(W/20)` — a **spawn-time handicap, not a standing invariant**.
+  - **D-20** spell damage: board stat × per-spell coefficient, read from the **cast-from** node, evaluated **once at seed**.
+  - **D-21** entity `health` scales with CON; `dealloc_damage` is the paired class knob; the CON max-HP delta **is** granted, guarded by not granting the DP alongside a raised DP maximum.
+  - **D-22** `core_healing` heals the *entity* pool and stays a sliver — CON expansion is the real heal.
+  - **D-23** procgen needs no level input: entity level + the already-shipping radial gradient cover it. Basic keystone = **+20 WIS scattered broadly**; placement machinery (v1 vs v2 stitching) stays #180's.
+  - **Retired as stale:** the node-local `armor` mitigation bug was fixed in **be477f5** — `Mitigation.apply` reads `defender.get_local_value(&"armor")`. Only a stale `KNOWN BUG` block in `.claude/rules/stats-system.md` survived it.
+  - Still open, each with its own issue: the **spell-balance pass** (mana cost × degree requirement × hops-vs-euclidean reach — hop distance ignores edge length, so the two range kinds are not interchangeable) · **enemy CoreClass composability** (every enemy needs a mostly-similar batch of modifiers; the authoring architecture is unsettled) · `core_healing` rate + gate.

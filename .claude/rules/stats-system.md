@@ -247,18 +247,23 @@ final = max(min_damage_taken, raw.amount - armor)
 - `armor` scalar (default 0) and `min_damage_taken` scalar (default 3) are both standard board stats — modifiers / intrinsics apply normally. Defensive cores (e.g. Bulwark) can drive `min_damage_taken` below 0, allowing damage to *heal* nodes if the underflow is large enough.
 - Rare procgen modifier `-1 min_damage_taken` is a high-tier exotic roll.
 
-> **KNOWN BUG (fix scheduled in #4 phase 2): node-local `armor` never reaches this
-> formula.** `SkillNode.take_damage` passes `owned_by.stat_board` — the *entity*
-> board — so any `armor` on `node_board` is ignored. `bunker_addon.tscn`
-> (`local_modifiers = [armor ADD_BONUS +5]`) has therefore never done anything,
-> while `combat_readout_card.gd` *displays* the node-local value via
-> `get_local_value`. Tooltip says +5, combat disagrees; no error either way.
-> Fix is `Mitigation.apply(raw, node)` reading `node.get_local_value(&"armor")` and
-> `get_local_value(&"min_damage_taken")`. Every armor aura depends on it.
->
-> Note the floor is a floor, not a cap: negative armor pushes damage *above* raw,
-> but only once `raw - armor > min_damage_taken` (default 3). At `raw=1, armor=-1`
-> you take 3, not 2.
+**Both stats are read node-locally.** `Mitigation.apply(raw, defender)` takes the
+`SkillNode` and reads `defender.get_local_value(&"armor")` /
+`get_local_value(&"min_damage_taken")`, which merges the node's `node_board` bins
+with the owner's board through one `ModifierBins.compute`. So a node-scoped
+defensive modifier — `bunker_addon.tscn`'s `armor ADD_BONUS +5`, or a core-class
+aura — actually reaches the damage formula.
+
+> This was broken until **be477f5**: `take_damage` passed `owned_by.stat_board`,
+> the *entity* board, so every node-local `armor` was silently discarded while
+> `combat_readout_card.gd` happily displayed it. Tooltip said +5, combat
+> disagreed, no error either way. Recorded because the failure mode — a
+> node-local stat that displays correctly and computes wrong — is easy to
+> reintroduce in any new formula that takes a board instead of a node.
+
+Note the floor is a floor, not a cap: negative armor pushes damage *above* raw,
+but only once `raw - armor > min_damage_taken` (default 3). At `raw=1, armor=-1`
+you take 3, not 2.
 
 ## Forced-dealloc damage
 

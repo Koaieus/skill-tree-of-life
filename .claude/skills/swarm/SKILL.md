@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into file-disjoint units, or several small independent issues at once. Dispatch each unit to an isolated worktree agent, then review and fast-forward each branch into master. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as Opus, or as Sonnet when the plan is already written down.
+description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into units, or several small issues at once. Hold the dependency graph, dispatch each unit to an isolated worktree agent in waves, then review and fast-forward each branch into master yourself. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as Opus, or as Sonnet when the plan is already written down.
 ---
 
 # Swarm
@@ -33,7 +33,11 @@ still end up reading the diffs.
    we can drop the trimming too?") to a `NOTES:` line — a second decision must not
    ride along on a bug fix. Pinning those forks is the orchestrator's job; needing
    the *user* to pin one is what fails this gate.
-2. **Parallelizable into file-disjoint units.** See below. This is the hard one.
+2. **Decomposable into units a worker can hold.** Prefer file-disjoint units —
+   they parallelize with clean rebases. But overlap is a **sequencing** fact, not
+   a disqualification: two units on one file run in order, and a unit blocked on
+   another can ride the same swarm behind it. Maintaining that DAG is your job
+   (see below). What fails this gate is work that won't come apart at all.
 3. **Mechanical enough for a smaller model**, given red-green instructions: a
    failing test (or an exact spec) defines done.
 4. **No human input mid-flight.** If the user must weigh in halfway, the swarm
@@ -67,20 +71,40 @@ Diagnosing the bug *before* you dispatch is usually worth it. A worker handed
 work — the thing this skill is for. A worker handed "figure out why edges render
 above nodes" is a Sonnet doing the hard part alone, without your context.
 
-### 2. Decompose onto disjoint files
+### 2. Decompose, and own the DAG
 
-**Two workers must never touch the same file.** Parallel edits to one file mean
-the second rebase conflicts, and you've moved the work rather than saved it.
+**Two workers must never touch the same file *at the same time*.** Parallel edits
+to one file mean the second rebase conflicts, and you've moved the work rather
+than saved it.
 
-Partition by file, not by feature — features overlap, files don't. Write the file
-list into each worker's prompt as an ownership boundary: *"you own exactly these
-paths; if the task seems to need a file you don't own, stop and report it."*
+The fix is **sequencing, not exclusion.** Overlapping units are legitimate work —
+dispatch them in waves: wave 1 goes out in parallel, you review and merge it,
+then wave 2 dispatches from the new `master` tip. A unit that *blocks* another
+belongs in the same swarm, one wave ahead of it. Holding the dependency graph and
+deciding those waves is the orchestrator's core job; nobody upstream of you
+should be distorting an issue's scope to keep files apart.
+
+Write each worker's file list into its prompt as an ownership boundary: *"you own
+exactly these paths; if the task seems to need a file you don't own, stop and
+report it."* Within a wave that boundary is absolute.
 
 Shared-file work (one `.tres` every unit must touch, a registry every unit
 appends to) is **yours**. Do it in the main checkout before you dispatch, or as
-an integration commit after you merge. Never hand it to two workers.
+an integration commit after you merge. Never hand it to two workers in one wave.
 
-If the units don't come apart cleanly, that's a real answer: run `warp`.
+If the work won't come apart into units at all, that's a real answer: run `warp`.
+
+### The merge contract — never make a deep-context drone merge
+
+A drone **commits inside its own worktree and stops** (`drone` mandates exactly
+this: commit before reporting, never rebase, never merge, never touch `master`).
+Its commits are the handoff.
+
+You then rebase and fast-forward. Do not message a worker to "rebase and merge
+your branch" — a drone 150k tokens deep costs a fortune per turn, and the work is
+already committed and reachable by branch name. You have the cheap context for
+merging; spend yours, not theirs. If a rebase conflicts, resolve it yourself
+upstream of the merge.
 
 ### 3. Dispatch
 
