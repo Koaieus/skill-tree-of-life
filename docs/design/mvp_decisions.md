@@ -369,11 +369,16 @@ This is D-10's lesson at entity scale. D-10 already separated aura `base` from a
 
 **Pinned — `spell_range`: a hard cap at ×2.**
 
+**Mind the stat's semantics:** `spell_range` is a **0-based percent *bonus***, and `RangeFinder.spell_range_multiplier()` computes `1.0 + spell_range/100.0` (`attack/range_finder/range_finder.gd:81`). So the *stat* must be clamped to `[0, 100]`, not `[100, 200]`:
+
 ```
-spell_range_multiplier = clamp(100 + INT/10, 100, 200)   # percent
+spell_range        = clamp(INT/10, 0, 100)          # the stat: a percent BONUS
+→ reach multiplier = 1.0 + spell_range/100.0        # ×1.0 at INT 0, ×2.0 at INT 1000
 ```
 
-100% at INT 0, 200% at INT 1000, **and never beyond.** The formula shape is the same `INT/10` already used by mana, `blade_damage` and `ranged_damage` — **the clamp is the whole innovation**, no new formula vocabulary. The cap applies to **both** hop-based and euclidean reach: one stat, one curve, one cap, one tooltip.
+×1.0 at INT 0, **×2.0 at INT 1000, and never beyond.** The formula shape is the same `INT/10` already used by mana, `blade_damage` and `ranged_damage` — **the clamp is the whole innovation**, no new formula vocabulary. The cap applies to **both** hop-based and euclidean reach: one stat, one curve, one cap, one tooltip.
+
+Note `spell_range_multiplier` reads `source.get_local_value(&"spell_range")` — the **cast-from node**, the same caster-side read D-20 pins for `spell_damage`. Consistent by construction; keep it that way.
 
 *Noted, not pinned — the dumb-caster nerf:* a later variant could start the curve at 50% and reach 100% only at INT 100, so low-INT casters are actively penalised rather than merely unrewarded. Deferred; the flat 100% floor ships first.
 

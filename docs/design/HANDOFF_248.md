@@ -145,7 +145,8 @@ node_health      = linear in CON         L100 ≈ 110
 entity health    = base + CON  (D-21)    L100 ≈ 119
 nodes before death = health / dealloc_damage
 
-spell_range%     = clamp(100 + INT/10, 100, 200)        hard cap ×2
+spell_range      = clamp(INT/10, 0, 100)   # 0-based BONUS
+reach multiplier = 1.0 + spell_range/100  → hard cap ×2
 effective_hops   = round(base × mult) + bonus_hops      bonus adds AFTER
 
 enemy level      = starting_nodes        (/1, levelled-but-landless)
