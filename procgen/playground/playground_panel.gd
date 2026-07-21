@@ -5,6 +5,8 @@ extends Control
 ##
 ## Layout: a left sidebar (preset folder access + the sampling controls shared
 ## by both sub-tabs) beside a [TabContainer] with "Map Sample" / "Node Graph".
+## The tree itself is fully authored in `playground_panel.tscn` (#264) — this
+## script resolves it via `%unique_name` and keeps only behaviour.
 ##
 ## Sidebar:
 ## - "Open Presets Folder" reveals `res://procgen/presets/` in the editor's
@@ -47,8 +49,13 @@ extends Control
 ## nothing inspected.
 
 const _DEFAULT_PRESET := preload("res://procgen/presets/first_level/first_level.tres")
-const _ProcgenCard := preload("res://procgen/playground/procgen_card.tscn")
 const _PRESETS_DIR := "res://procgen/presets/"
+
+## Scriptless leaf components (#264) — a card frame and a single stat-row line,
+## both authored in `components/`. Neither needs behaviour of its own, so
+## neither carries a script; this file owns populating them.
+const _CARD_SCENE := preload("res://procgen/playground/components/procgen_card.tscn")
+const _CARD_ROW_SCENE := preload("res://procgen/playground/components/procgen_card_row.tscn")
 
 const _SAMPLE_COUNT := 5
 ## Kept modest — see #172. The SkillNode visual composite registers instance
@@ -71,18 +78,19 @@ var _rng := RandomNumberGenerator.new()
 ## Reset to a fresh random value on an explicit Regenerate.
 var _last_graph_seed := 0
 
+@onready var _tabs: TabContainer = %Tabs
 @onready var _bound_label: Label = %BoundLabel
 @onready var _arch_option: OptionButton = %ArchOption
 @onready var _seed_label: Label = %SeedLabel
 
-@onready var _map: Control = %Map
-@onready var _cards_row: HBoxContainer = %CardsRow
-var _cards: Array[ProcgenCard] = []
+@onready var _map: Control = %MapView
+@onready var _cards_row: HBoxContainer = %MapCardsRow
+var _cards: Array[VBoxContainer] = []
 
 @onready var _graph_view: Control = %GraphView
 @onready var _graph_node_count_spin: SpinBox = %GraphNodeCountSpin
 @onready var _graph_cards_row: HBoxContainer = %GraphCardsRow
-var _graph_cards: Array[ProcgenCard] = []
+var _graph_cards: Array[VBoxContainer] = []
 
 # Stamp controls (#166)
 @onready var _stamp_paint_toggle: Button = %StampPaintToggle
@@ -93,8 +101,17 @@ var _paint_mode := false
 
 
 func _ready() -> void:
-	%CardsLabel.text = "%d samples at the clicked spot:" % _SAMPLE_COUNT
-	%GraphCardsLabel.text = "%d samples for the clicked node:" % _SAMPLE_COUNT
+	_tabs.set_tab_title(%MapTab.get_index(), "Map Sample")
+	_tabs.set_tab_title(%GraphTab.get_index(), "Node Graph")
+
+	%OpenPresetsFolderButton.pressed.connect(_on_open_presets_folder_pressed)
+	%ReseedButton.pressed.connect(_on_reseed_pressed)
+	%RegenerateGraphButton.pressed.connect(_on_regenerate_graph_pressed)
+	_stamp_paint_toggle.pressed.connect(_on_paint_mode_toggled)
+	_stamp_clear_btn.pressed.connect(_on_clear_stamps_pressed)
+	_map.map_clicked.connect(_on_map_clicked)
+	_graph_view.node_clicked.connect(_on_graph_node_clicked)
+
 	_cards = _spawn_cards(_cards_row)
 	_graph_cards = _spawn_cards(_graph_cards_row)
 	_clear_cards(_cards, "Click the map to roll.")
@@ -145,20 +162,31 @@ func refresh_from_config() -> void:
 		_regenerate_graph(true)
 
 
-# ── UI ────────────────────────────────────────────────────────────────────
+# ── Cards (component spawning) ───────────────────────────────────────────
 
 
-## Instantiates [constant _ProcgenCard] `_SAMPLE_COUNT` times into `row` — the
+## Instantiates [constant _CARD_SCENE] `_SAMPLE_COUNT` times into `row` — the
 ## one piece of "UI construction" that legitimately stays in code, since the
 ## repeat count is a const rather than authored structure. Everything static
-## (labels, buttons, the map/graph views) lives in the scene now (#264).
-func _spawn_cards(row: HBoxContainer) -> Array[ProcgenCard]:
-	var cards: Array[ProcgenCard] = []
+## (labels, buttons, the map/graph views) lives in the scene (#264). Returns
+## each card's `%Box` — the VBoxContainer `_fill_card`/`_clear_card_rows`
+## populate rows into.
+func _spawn_cards(row: HBoxContainer) -> Array[VBoxContainer]:
+	var boxes: Array[VBoxContainer] = []
 	for i in _SAMPLE_COUNT:
-		var card: ProcgenCard = _ProcgenCard.instantiate()
+		var card: Control = _CARD_SCENE.instantiate()
 		row.add_child(card)
-		cards.append(card)
-	return cards
+		boxes.append(card.get_node("%Box") as VBoxContainer)
+	return boxes
+
+
+## A single stat-row line (#264 addendum) — instantiates the thin
+## `procgen_card_row.tscn` component instead of `Label.new()`. Kept as a
+## one-line seam so a later swap to #263's locked stat-row only touches here.
+func _spawn_row(text: String) -> Label:
+	var row: Label = _CARD_ROW_SCENE.instantiate()
+	row.text = text
+	return row
 
 
 ## Compact "why this budget" line from a [method BudgetPolicy.compute_budget_breakdown]
@@ -420,21 +448,49 @@ func _selected_stamp_archetype_idx() -> int:
 	return meta as int if meta is int else -1
 
 
-# ── Cards ─────────────────────────────────────────────────────────────────
+# ── Cards (row population) ────────────────────────────────────────────────
 
 
-## Matches the previous per-tab behaviour: only card slot 0 shows the
-## placeholder message, the rest just go blank — a [ProcgenCard] cleared via
-## [method ProcgenCard.clear] with no rows added.
-func _clear_cards(cards: Array[ProcgenCard], msg: String) -> void:
+func _clear_cards(cards: Array[VBoxContainer], msg: String) -> void:
 	for i in cards.size():
+		_clear_card_rows(cards[i])
 		if i == 0:
-			cards[i].show_placeholder(msg)
-		else:
-			cards[i].clear()
+			var l := _spawn_row(msg)
+			l.modulate = Color(1, 1, 1, 0.55)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			cards[i].add_child(l)
 
 
-func _fill_card(card: ProcgenCard, index: int, sample: Dictionary) -> void:
+func _clear_card_rows(card: VBoxContainer) -> void:
+	# remove_child before queue_free so a same-frame refill doesn't briefly
+	# stack the old rows (placeholder) under the new ones.
+	for c in card.get_children():
+		card.remove_child(c)
+		c.queue_free()
+
+
+func _fill_card(card: VBoxContainer, index: int, sample: Dictionary) -> void:
+	_clear_card_rows(card)
+	var header := _spawn_row("#%d · budget %d" % [index + 1, int(sample.get("budget", 0))])
+	header.add_theme_font_size_override(&"font_size", 12)
+	header.modulate = Color(0.85, 0.9, 1.0)
+	card.add_child(header)
 	var breakdown: Dictionary = sample.get("breakdown", {})
-	var breakdown_text := _breakdown_text(breakdown) if not breakdown.is_empty() else ""
-	card.fill(index, sample, breakdown_text)
+	if not breakdown.is_empty():
+		var why := _spawn_row(_breakdown_text(breakdown))
+		why.add_theme_font_size_override(&"font_size", 10)
+		why.modulate = Color(1, 1, 1, 0.55)
+		why.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card.add_child(why)
+	var sep := HSeparator.new()
+	card.add_child(sep)
+	var mods: Array = sample.get("mods", [])
+	if mods.is_empty():
+		var empty := _spawn_row("(nothing)")
+		empty.modulate = Color(1, 1, 1, 0.45)
+		card.add_child(empty)
+		return
+	for m in mods:
+		var row := _spawn_row("%s %s" % [String(m.stat_id), m.contribution_text()])
+		row.add_theme_font_size_override(&"font_size", 11)
+		card.add_child(row)

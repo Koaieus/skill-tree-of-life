@@ -1,9 +1,7 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" uid="uid://bgb8ufdvmjwb8" path="res://procgen/playground/procgen_card.gd" id="1_card"]
+[gd_scene load_steps=1 format=3]
 
 [node name="ProcgenCard" type="PanelContainer"]
-script = ExtResource("1_card")
+layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 

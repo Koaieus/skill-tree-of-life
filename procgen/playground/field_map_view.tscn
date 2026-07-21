@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://dwg5wcgsdy1nr" path="res://procgen/playground/field_map_view.gd" id="1_script"]
+
+[node name="FieldMapView" type="Control"]
+layout_mode = 3
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_script")
