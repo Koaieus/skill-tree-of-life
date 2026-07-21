@@ -8,7 +8,7 @@ extends PanelContainer
 ## adjustable interval slider (0.5–5.0 s).
 
 const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
-const _TOASTER_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_toaster.tscn")
+const _TOAST_CELL_SCENE: PackedScene = preload("res://addons/toast_sandbox/toast_cell.tscn")
 const _CELLS_W: int = 3
 const _CELLS_H: int = 3
 const _CELL_COUNT: int = _CELLS_W * _CELLS_H
@@ -38,7 +38,7 @@ const _CELL_TINTS: Array[Color] = [
 @onready var _per_cell_placeholder: HBoxContainer = %PerCellRow
 
 var _gallery: Array
-var _cell_toasters: Array[FloaterToaster] = []
+var _cells: Array[ToastCell] = []
 var _playing: bool = false
 
 
@@ -66,47 +66,12 @@ func _build_cells() -> void:
 		var entry: Dictionary = _gallery[i] if i < _gallery.size() else {}
 		var cell_name: String = entry.get("name", "Random") if not entry.is_empty() else "Random"
 
-		var svc := SubViewportContainer.new()
-		svc.name = "Cell_%d" % i
-		svc.stretch = true
-		svc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		svc.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		_cell_grid.add_child(svc)
-
-		var sv := SubViewport.new()
-		sv.name = "Viewport"
-		sv.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
-		sv.transparent_bg = true
-		svc.add_child(sv)
-
-		var tint: Color = _CELL_TINTS[i] if i < _CELL_TINTS.size() else _CELL_TINTS[0]
-		var bg := ColorRect.new()
-		bg.z_index = -1000
-		bg.color = tint
-		bg.anchors_preset = Control.PRESET_FULL_RECT
-		sv.add_child(bg)
-		sv.size_changed.connect(_on_cell_resized.bind(sv, bg))
-
-		var label := Label.new()
-		label.text = cell_name
-		label.add_theme_font_size_override("font_size", 11)
-		label.modulate = Color(0.55, 0.55, 0.55, 1.0)
-		label.position = Vector2(4, 3)
-		sv.add_child(label)
-
-		var anchor := Control.new()
-		anchor.name = "ToastAnchor"
-		anchor.anchors_preset = Control.PRESET_CENTER
-		sv.add_child(anchor)
-
-		var toaster := _TOASTER_SCENE.instantiate()
-		toaster.max_queue_size = 16
-		anchor.add_child(toaster)
-		_cell_toasters.append(toaster)
-
-
-func _on_cell_resized(sv: SubViewport, bg: ColorRect) -> void:
-	bg.size = Vector2(sv.size)
+		var cell: ToastCell = _TOAST_CELL_SCENE.instantiate()
+		cell.name = "Cell_%d" % i
+		cell.tint = _CELL_TINTS[i] if i < _CELL_TINTS.size() else _CELL_TINTS[0]
+		cell.label_text = cell_name
+		_cell_grid.add_child(cell)
+		_cells.append(cell)
 
 
 func _build_per_cell_buttons() -> void:
@@ -125,11 +90,9 @@ func _build_per_cell_buttons() -> void:
 
 
 func _toast_cell(index: int, count: int) -> void:
-	if index < 0 or index >= _cell_toasters.size():
+	if index < 0 or index >= _cells.size():
 		return
-	var toaster := _cell_toasters[index]
-	if not is_instance_valid(toaster) or not toaster.is_inside_tree():
-		toaster = _remake_toaster(index)
+	var toaster := _cells[index].get_or_remake_toaster()
 
 	var entry: Dictionary
 	if index < _gallery.size():
@@ -144,23 +107,8 @@ func _toast_cell(index: int, count: int) -> void:
 		toaster.add_toast(req)
 
 
-func _remake_toaster(index: int) -> FloaterToaster:
-	var sv: SubViewport = _cell_grid.get_child(index).get_node("Viewport")
-	var anchor := sv.get_node_or_null("ToastAnchor") as Control
-	if anchor == null:
-		anchor = Control.new()
-		anchor.name = "ToastAnchor"
-		anchor.anchors_preset = Control.PRESET_CENTER
-		sv.add_child(anchor)
-	var toaster := _TOASTER_SCENE.instantiate()
-	toaster.max_queue_size = 16
-	anchor.add_child(toaster)
-	_cell_toasters[index] = toaster
-	return toaster
-
-
 func _toast_all(count: int) -> void:
-	if _cell_toasters.is_empty():
+	if _cells.is_empty():
 		return
 	for i in _CELL_COUNT:
 		_toast_cell(i, count)
