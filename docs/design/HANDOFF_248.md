@@ -1,6 +1,6 @@
 # #248 — session handoff (after round 5)
 
-**State as of commit `f5e185b`.** Rounds 1–5 are done; `docs/design/mvp_decisions.md`
+**State as of commit `0d6bf77`+.** Rounds 1–5 are done; `docs/design/mvp_decisions.md`
 carries D-1 … D-23 and is authoritative. **#248's own open list is exhausted** —
 every remaining fork lives on a child issue with the fork written down.
 
@@ -51,14 +51,25 @@ either), a layered base+delta CoreClass, a template+override pair. Unsettled.
 Worth taking **before** more enemy classes get hand-authored — each one added
 first makes the refactor bigger. Does **not** block #275.
 
-### 4. #273 — `AttributeRadar` scale
+### 4. #280 — AI allocation behaviour
+
+D-24 pinned the shared `AllocationPolicy` seam and "the AI spends all its SP".
+Open here: the **scoring heuristic** (weighted growth — was mis-filed as a #275
+follow-up, it's the same work as AI v2 scoring) · **AP-aware candidate horizon**
+(N unspent AP = N hops worth checking) · **beelining vs. stretching thin** ·
+whether tactical attack-allocation needs its own policy rather than an
+`objective` arg · whether v2 restricts candidates to the **sensed** subgraph.
+
+⚠ Tuning the AI now reshapes every spawn — same policy runs both.
+
+### 5. #273 — `AttributeRadar` scale
 
 D-18 settled the substance (INT in the thousands next to CON in the tens ⇒ three
 orders of magnitude ⇒ **log is forced**). The surviving fork is pure UX: static
 log · per-entity dynamic · log with a fixed floor/ceiling · a toggle. Blocks
 nothing.
 
-### 5. #180 — keystone placement v1 → v2
+### 6. #180 — keystone placement v1 → v2
 
 D-23 pinned what the basic keystone *is* (**+20 WIS, scattered broadly** — a
 doubling of baseline income, √2 on the level ratio). It did **not** claim the

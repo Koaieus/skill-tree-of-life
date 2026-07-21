@@ -531,6 +531,37 @@ A map-level `content_depth: int` was considered and rejected: it would gate tier
 
 ---
 
+## D-24 — Territory selection is one policy: spawn seeding and the AI share it
+
+**Question:** D-19 needs a territory-seeding strategy for spawned enemies. The AI needs to choose which node to allocate each turn. Are these the same thing? (#248, #275)
+
+**Resolution:** **The same thing, at different call rates. One shared policy resource, `pick_next(entity, candidates) -> SkillNode`.**
+
+`AIController._pick_frontier_node()` is already a degenerate seeder — its own docstring says *"Frontier = unowned node adjacent to a node this entity already owns. **Picks the first match — no scoring heuristic at v1.**"* The greedy BFS ball pinned for #275 differs only in tiebreak (nearest vs. first-edge-found) and call rate (N times at spawn vs. once per turn). The "weighted growth" follow-up filed against #275 — score by modifier value × archetype match — *is* the AI v2 scoring heuristic that comment is asking for. It was filed twice by accident.
+
+**Callers supply the candidate set; the policy never reaches for `graph` itself.** This is the load-bearing part. The seeder picks from the **whole** graph; the AI at v2 picks from its **sensed** subgraph (`AIController` notes vision is deliberately unconsulted at v1 — *"a proper per-entity vision pass is post-MVP"*). Identical to the rule `.claude/rules/graph.md` already pins for `RangeFinder.gather(source, mirror)`: *"gather traverses whatever mirror it's handed. That divergence is the point."* Same pattern, same reason.
+
+**Gating stays with the caller too.** Seeding applies via `force_allocate` (ungated); the AI via `allocate` (SP/AP-gated). The policy only *picks* — it never applies.
+
+**⚠ Tactical objectives must be switchable off.** If the AI ever allocates as an *attack maneuver* — a directed run of allocations to bring a target into range — that objective must not leak into spawn seeding, which wants plausible built-out territory rather than a spear aimed at nobody. **The shared entry point takes an objective/tactics argument the seeder passes as neutral.** If that proves insufficient, split the policy rather than letting the seeder inherit combat intent.
+
+**Pinned — the AI spends *all* available SP each turn, not one node.** `AIController._try_allocate_frontier()` currently allocates exactly one. There is no current reason to hold SP; loop while `skill_points.current > 0`.
+
+*Why this is structural, not polish:* SP income per turn is `sp_gain / turns_per_level = W / (5L)`, so an entity banks unspent SP whenever `L < W/5` — at a D-19 enemy's WIS 80, every level below **16**. That is precisely the early window where a high-WIS enemy is designed to out-level the player, so a one-per-turn cap would strand its economy and leave it landless for the wrong reason. (A future core class that *scales with unspent SP* would be the first legitimate reason to hold — none exists today.)
+
+**Payoff.** A spawned enemy's territory becomes exactly what that AI would have built, which makes D-19's landless-elite legible rather than arbitrary, and gives #268 fixtures policy-generated territory instead of hand-waved shapes.
+
+**Consequence to watch:** tuning the AI now reshapes every spawn. A #268 fixture pinned against policy v1 will shift when v2 scoring lands — that coupling is the price of the shared policy and is worth it, but it must be *known*, not discovered.
+
+**Open — floated, not pinned** (see the AI-allocation issue):
+
+- **AP-aware candidate horizon.** N unspent AP means N hops worth checking, so the candidate set could widen with banked AP rather than staying at the immediate frontier.
+- **Beelining.** An elite AI should head for a special node when it can, offset against stretching-too-thin danger — unless its core class *demands* a thin-stretched playstyle, which is its own design thread.
+
+**Impl status:** Policy resource + seeder — #275. AI-side adoption, spend-all-SP, and the open items — own issue.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
@@ -545,4 +576,5 @@ A map-level `content_depth: int` was considered and rejected: it would gate tier
   - **D-22** `core_healing` heals the *entity* pool and stays a sliver — CON expansion is the real heal.
   - **D-23** procgen needs no level input: entity level + the already-shipping radial gradient cover it. Basic keystone = **+20 WIS scattered broadly**; placement machinery (v1 vs v2 stitching) stays #180's.
   - **Retired as stale:** the node-local `armor` mitigation bug was fixed in **be477f5** — `Mitigation.apply` reads `defender.get_local_value(&"armor")`. Only a stale `KNOWN BUG` block in `.claude/rules/stats-system.md` survived it.
+  - **D-24** territory selection is ONE policy — `pick_next(entity, candidates)` — shared by spawn seeding and the AI, with the candidate set injected by the caller (the `RangeFinder.gather(source, mirror)` pattern) and tactical objectives switchable off. The AI spends **all** available SP each turn, not one node.
   - Still open, each with its own issue: the **spell-balance pass** (mana cost × degree requirement × hops-vs-euclidean reach — hop distance ignores edge length, so the two range kinds are not interchangeable) · **enemy CoreClass composability** (every enemy needs a mostly-similar batch of modifiers; the authoring architecture is unsettled) · `core_healing` rate + gate.
