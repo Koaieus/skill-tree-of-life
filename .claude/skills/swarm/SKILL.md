@@ -261,6 +261,26 @@ formality to `--force` past.
 
 ## Gotchas
 
+### A worker's green run does not transfer — refresh the class cache after you land
+
+If a worker introduced a new `class_name`, it ran
+`godot --headless --editor --quit` **in its own worktree** and went green there.
+The main checkout has its own `.godot/`, so right after your cherry-pick master
+fails with `Could not find type "X" in the current scope` — plus a cascade of
+"Parse error" / "Cannot infer the type of …" from every file that touches it.
+Nothing is wrong with the diff; the cache is stale. Refresh it on master, then
+re-run.
+
+That refresh is also what generates the `.uid` for a worker's new test file, so
+until you run it **GUT silently does not collect the new test** — the suite looks
+green at the *old* script count. Compare `Scripts` / `Tests` totals before and
+after; if the totals didn't move, the new test never ran.
+
+Per `.claude/rules/godot-workflow.md`, an editor pass can silently round-trip any
+scene it touches — and master is a shared checkout that usually carries the
+user's uncommitted WIP. `md5sum` the modified files before and after, and restore
+from a copy if anything moved.
+
 - **Worker worktrees live under `.claude/worktrees/agent-<id>/`, on branch
   `worktree-agent-<id>`** — not under `.worktrees/`, and not from
   `mise run worktree:new`. The harness creates them, branched from `master`'s tip
