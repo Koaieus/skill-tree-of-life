@@ -1,6 +1,6 @@
 # #248 — session handoff (after round 5)
 
-**State as of commit `e42d3cf`.** Rounds 1–5 are done; `docs/design/mvp_decisions.md`
+**State as of commit `f5e185b`.** Rounds 1–5 are done; `docs/design/mvp_decisions.md`
 carries D-1 … D-23 and is authoritative. **#248's own open list is exhausted** —
 every remaining fork lives on a child issue with the fork written down.
 
@@ -10,28 +10,7 @@ Read this, then `gh issue view 248 --comments` (round 5 comment is the index).
 
 ## The forks still open, in the order they're worth taking
 
-### 1. #275 — seeded-territory node selection *(unblocks a swarmable issue immediately)*
-
-The **only** thing standing between #275 and `swarmable`. Everything else in
-D-19 is pinned.
-
-**Question:** when an enemy spawns holding N nodes, how are those N chosen?
-
-- **Greedy BFS ball** — nearest unowned neighbour until N. Compact, minimal
-  perimeter, no cut vertices by construction, trivially testable.
-- **Weighted growth** — same frontier, pick highest-value / archetype-matching.
-  Territory reflects the build; straggly perimeter → more chip surface, bigger
-  cascades.
-- **Keep the random walk** (what `ProcgenPlaySandbox._expand()` does today).
-
-Cheapest fork on the list. Pin it and #275 dispatches.
-
-**Ships with it either way:** `_expand()` currently expands the **player** too
-(`expansion_steps = 6`), contradicting D-16's pinned "starting nodes: 1 (the
-core)". And it wants extracting from the sandbox subclass into a DI'd strategy
-Resource per `.claude/rules/scene-composition.md`.
-
-### 2. #277 — `core_healing` rate + gate
+### 1. #277 — `core_healing` rate + gate
 
 Shape is pinned (heals the **entity** pool, stays a sliver). Open:
 
@@ -45,7 +24,7 @@ camping becomes viable and D-10's structural anti-camping guarantee is silently
 undone. And a substantial rate would require **reversing D-21's grant-the-delta**
 decision — the two are near-exclusive. Don't settle this one in isolation.
 
-### 3. #278 — the spell balance pass *(the big one)*
+### 2. #278 — the spell balance pass *(the big one)*
 
 Deliberately deferred out of round 5. Balances the whole spell surface together,
 per-`SpellDef`: `mana_cost` × `min_degree` × reach (hops vs euclidean) ×
@@ -62,7 +41,7 @@ perfect spell choice a one-shot may legitimately happen, as a rare tail.
 D-18 already pinned the INT half (×2 cap, `bonus_hops` battlefield-found and
 added *after* the multiplier). Don't reopen that here.
 
-### 4. #279 — enemy CoreClass composability
+### 3. #279 — enemy CoreClass composability
 
 Every enemy needs a mostly-similar batch of offensive/defensive/attribute/WIS
 modifiers. Hand-authoring one `.tres` per enemy duplicates the shared 80%.
@@ -72,14 +51,14 @@ either), a layered base+delta CoreClass, a template+override pair. Unsettled.
 Worth taking **before** more enemy classes get hand-authored — each one added
 first makes the refactor bigger. Does **not** block #275.
 
-### 5. #273 — `AttributeRadar` scale
+### 4. #273 — `AttributeRadar` scale
 
 D-18 settled the substance (INT in the thousands next to CON in the tens ⇒ three
 orders of magnitude ⇒ **log is forced**). The surviving fork is pure UX: static
 log · per-entity dynamic · log with a fixed floor/ceiling · a toggle. Blocks
 nothing.
 
-### 6. #180 — keystone placement v1 → v2
+### 5. #180 — keystone placement v1 → v2
 
 D-23 pinned what the basic keystone *is* (**+20 WIS, scattered broadly** — a
 doubling of baseline income, √2 on the level ratio). It did **not** claim the
@@ -94,12 +73,15 @@ arc contract are still this issue's.
 | # | What | Label |
 |---|---|---|
 | **#274** | INT → spell damage (D-20) | `swarmable`, ready |
-| **#276** | entity `health` scales with CON (D-21) | `swarmable`, ready |
+| **#275** | enemy spawn levelling (D-19) — greedy BFS ball | `swarmable`, ready |
+| **#276** | entity `health` scales with CON (D-21) | `swarmable` — **after #269** |
 | #269 · #270 · #271 · #272 | earlier rounds | `swarmable` |
 | #268 | balance harness | `swarmable` |
 
 **On sequencing:** #269, #270, #271, #274, #276 all touch
-`entity/default_entity_board.tres`. That is a **DAG fact for the swarm
+`entity/default_entity_board.tres`, and **#276 additionally has a semantic
+dependency on #269** — `health = base + CON` needs the `constitution` stat to
+exist. #275 shares no files with that lane and can run alongside it. That is a **DAG fact for the swarm
 orchestrator to wave**, not a reason to defer anything — see the reworked
 `swarm` skill (§2, "Decompose, and own the DAG"). Drones commit in their
 worktrees and stop; the orchestrator rebases and fast-forwards.
