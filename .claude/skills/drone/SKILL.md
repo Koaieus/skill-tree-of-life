@@ -60,6 +60,31 @@ Do **not** write `Closes #<n>` in your commit message. The orchestrator closes t
 issue after every branch lands; a `Closes` in your commit would close it early.
 Do not rebase, do not merge, do not touch `master`. That's the orchestrator's step.
 
+## Post findings that must outlive you
+
+Your report goes into the orchestrator's context and nowhere else. If the
+orchestrator compacts, hits a limit, or dies, everything you observed is gone —
+this has happened. So anything a *future* worker would need to know goes on the
+issue itself, where it survives:
+
+```bash
+gh issue comment <n> --body "..."
+```
+
+Comment when, and only when, you have one of these:
+
+- **A blocker** — you stopped early, and why.
+- **A spec deviation** — the issue body says X, the code says Y, you did Z.
+- **A stale spec** — a path in the issue doesn't exist, or the work is already done.
+- **An out-of-scope discovery** worth its own issue.
+
+Do **not** comment to say you finished, to paste your diff, or to narrate. A
+green run needs no comment — that's what `TESTS:` in your report is for. The bar
+is "would the next person redo my investigation without this?"
+
+Claiming the issue (`in-progress`) and closing it stay the orchestrator's job —
+don't touch issue status or labels.
+
 ## Do not
 
 - **Do not call `advisor`.** The orchestrator is a larger model holding the whole
@@ -88,4 +113,6 @@ NOTES:  none
 
 `NOTES:` is where blockers, surprises, ambiguities, and out-of-scope observations
 go — one line each, or `none`. If you stopped early, say why there and set
-`TESTS:` to what you actually observed.
+`TESTS:` to what you actually observed. Anything you put in `NOTES:` that a
+future worker would need should *also* be a comment on the issue (see above) —
+`NOTES:` is for the orchestrator, the comment is for posterity.

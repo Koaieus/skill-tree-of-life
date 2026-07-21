@@ -84,6 +84,17 @@ If the units don't come apart cleanly, that's a real answer: run `warp`.
 
 ### 3. Dispatch
 
+**Claim every issue on the kanban before you spawn anything:**
+
+```bash
+mise gh-project -- status <n> in-progress    # once per issue, at dispatch
+```
+
+This is the *persistent* board (`mise gh-project`), not the in-session task list
+of §3a — they are different surfaces and only this one survives the session. An
+unclaimed issue looks free, so a later swarm (or the user) picks it up and
+duplicates the work. Flip it back to `ready` if you dispatch nothing.
+
 Spawn every worker **in a single message** — that is what makes them run in
 parallel. Per `Agent` call:
 
@@ -217,6 +228,18 @@ rebase, while you're still upstream of the merge:
 close anything. Check `git status -sb` before you claim an issue is done, and
 remember `master` may carry unrelated commits (yours, or another agent's) that a
 push would ship alongside your work — surface that and let the user decide.
+
+Because the close is deferred to the push, move the issue on the kanban as each
+one lands, so the board reflects reality even though the issue is still open:
+
+```bash
+mise gh-project -- status <n> in-review     # branch landed on master, awaiting push
+```
+
+If a worker reported a blocker and stopped, put the issue back to `ready` (or
+`backlog`) with a comment saying what blocked it — never leave it `in-progress`
+with nobody on it. A stuck `in-progress` is the one state that silently blocks
+the next swarm.
 
 ### 7. Teardown
 
