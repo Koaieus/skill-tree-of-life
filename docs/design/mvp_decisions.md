@@ -166,7 +166,11 @@ Each decision lists: the question, the resolution, the rationale, and the implem
 
 Total per-turn heal = `(node_healing + regen_stacks × node_healing_ramp) + aura_flat`, where the `regen_stacks` term is subject to the D-9 gate and `aura_flat` is not. Taking damage still resets `regen_stacks` to 0 — so a node under sustained fire inside the aura receives a small constant trickle and never reaches the ramp payoff.
 
-**Rationale:** Flat (not %) deliberately avoids compounding with `node_health` investment — it makes healing relatively stronger on cheap nodes and weaker on beefy ones, which is the healthier balance direction and costs no fractional-accumulation UI. Healing through combat is what gives the core's neighbourhood a fortress identity and makes aura *range* a load-bearing class decision. Denying the ramp under fire is the stalemate guard: a besieged node cannot out-regenerate incoming damage indefinitely. Keeping the aura outside the ramp term keeps two independent, tooltip-readable numbers instead of one compounding one. Linear falloff gives the "gradient of safety" a flat radius can't.
+**Rationale:** Flat (not %) deliberately avoids compounding with `node_health` investment — it makes healing relatively stronger on cheap nodes and weaker on beefy ones, which is the healthier balance direction and costs no fractional-accumulation UI. Healing through combat is what gives the core's neighbourhood a fortress identity and makes aura *range* a load-bearing class decision. Denying the ramp under fire caps how fast regen *grows* under sustained pressure. Keeping the aura outside the ramp term keeps two independent, tooltip-readable numbers instead of one compounding one. Linear falloff gives the "gradient of safety" a flat radius can't.
+
+**⚠ The sanctuary bubble — open, must be watched.** Denying the ramp does *not* prevent a besieged node out-healing its attacker, because the **flat** aura term is unaffected by the gate. At the sketch values it dominates: a hop-0 node takes 3 (the floor) and heals 5 → back to full every round; hop-1 heals 4 vs 3 taken = net +1; hop-2 heals 3 vs 3 = exact stall. So a single baseline attacker can only make progress **3+ hops from any enemy core** — every core gets a radius-2 sanctuary.
+
+That may well be what we want (cores as fortresses; taking one demands focus-fire, burst, or TRUE damage rather than chip). But it is a *consequence of the numbers*, not a property of the mechanic, and the only real guard is the tuning relationship **`aura_flat` < typical incoming damage**. Tracked as a named invariant in #268; do not treat the ramp denial as a stalemate guarantee.
 
 **Follow-up (noted, not scoped):** a **NodeAddon that provides a healing aura** — small, but better than nothing — is a prime candidate once the AuraEffect parameterisation lands. It gives non-core territory a way to buy local regen.
 
@@ -218,7 +222,11 @@ Target shape: a level 20 entity's nodes sit around ~30 HP rather than 10. At 3 d
 
 **Rationale:** Lowering the floor to 1 would have made armor matter immediately but tripled baseline TTK and demoted the floor from a real mechanic to an anti-zero guard. Scaling durability up instead keeps 3 a meaningful number *and* fixes the asymmetry — offense already scales with STR/DEX/INT, so defence needed a growth channel or high-level combat would collapse into one-shots. Routing it through CON rather than a direct `node_health`-per-level modifier means one channel carries the whole defensive axis, and `armor` grows with it for free.
 
-**Watch:** CON growing automatically with level makes it partly a level proxy, so *invested* CON competes against a number that rises for free. If CON investment stops feeling meaningful, the per-level grant is the dial to turn down — measure it via #268 before adjusting.
+**Watch — CON as level proxy:** CON growing automatically with level makes it partly a level proxy, so *invested* CON competes against a number that rises for free. If CON investment stops feeling meaningful, the per-level grant is the dial to turn down — measure it via #268 before adjusting.
+
+**⚠ Watch — armor outpaces uninvested offense.** Armor now scales **free with level** (level → CON → armor, both linear), while offense scales only with *investment* in STR/DEX and `min_damage_taken` doesn't scale at all. At the placeholder rates (+10 CON/level, +1 armor/10 CON ≈ +1 armor/level) a level-100 entity carries ~100 armor; an attacker who never sank SP into STR does `max(3, 2 − 100)` = **3**, the floor, forever. Default melee/ranged effectively locks to floor damage against any high-level defender.
+
+This may be the intended high-level game — topology, TRUE damage, and burst matter, while chip damage stops mattering. Or it may be a dead zone where the only viable answer is TRUE damage. **The rates decide which**, and this is exactly the kind of thing feel can't adjudicate at level 100. Tracked as a named invariant plus a matched-level high-level fixture in #268.
 
 **Impl status:** Not built. Depends on D-11. The per-level CON rate and the CON→`node_health`/`armor` rates are **tuning values** pending #268.
 
