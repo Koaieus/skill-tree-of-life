@@ -187,12 +187,14 @@ That may well be what we want (cores as fortresses; taking one demands focus-fir
 | Stat | Scaling from CON | Shape |
 |---|---|---|
 | `node_health` | yes | **linear** |
-| `armor` | yes | **linear** |
+| `armor` | **no** | — |
 | `min_damage_taken` | **no** | — |
 
-**`min_damage_taken` deliberately does NOT scale with CON.** It stays a **rare** stat: you find it as a board draw, or a core class grants it innately. Its role is to make your armor *effective*, and it is the counter to flood-style attacks — spells designed to hit every enemy node for 1 damage live or die on the defender's floor.
+**CON drives `node_health` and nothing else.** Both **`armor` and `min_damage_taken` stay battlefield-found** — board draws, or an innate core-class grant. You do not level into mitigation; you have to go and get it, or accept being chipped down fast.
 
-**Rationale for the split shapes:** a point of `armor` is worth one damage against one hit; a point off the floor is worth one damage against *every* hit, forever, including hits armor can't reach. Letting a linearly-growing attribute drive the floor would zero it out long before armor became interesting, and would hand out the flood-attack counter for free. Keeping it rare preserves both the draw's excitement and armor's relevance. More broadly: the defensive stats had no archetype home, so power on that axis could only be expressed by spreading direct `node_health` modifiers around. CON gives them the same relationship STR already has with `blade_damage`.
+**Rationale.** CON is a *bulk* stat: it buys you a bigger bucket, which is the one defensive quality it makes sense to grow simply by surviving. Mitigation is different in kind — it changes the *shape* of every incoming hit, not its budget, so it stays scarce and positional. Keeping both mitigation stats off the level curve also produces the damage profile we want: since damage instances rise well above any `min_damage_taken` a player realistically holds, **small chips still land for the floor** (they always do *something*) while **big hits stay fully effective** (they're never absorbed away). Mitigation compresses the middle of the range, which is exactly where it should bite.
+
+**Why the floor specifically must stay rare:** a point of `armor` is worth one damage against one hit; a point off the floor is worth one damage against *every* hit, forever, including hits armor can't reach. It is also the counter to flood-style attacks — spells that hit every enemy node for 1 live or die on the defender's floor.
 
 **On the infinite-armor / negative-floor build:** accepted, and already answerable. `mitigation.gd` gives **TRUE-typed damage a bypass of both `armor` and `min_damage_taken`** — the escape hatch exists today. An entity that stacks that hard has spent its whole budget on defence and will have no offensive capability to speak of; that's a legitimate way to play, not a balance failure.
 
@@ -224,9 +226,7 @@ Target shape: a level 20 entity's nodes sit around ~30 HP rather than 10. At 3 d
 
 **Watch — CON as level proxy:** CON growing automatically with level makes it partly a level proxy, so *invested* CON competes against a number that rises for free. If CON investment stops feeling meaningful, the per-level grant is the dial to turn down — measure it via #268 before adjusting.
 
-**⚠ Watch — armor outpaces uninvested offense.** Armor now scales **free with level** (level → CON → armor, both linear), while offense scales only with *investment* in STR/DEX and `min_damage_taken` doesn't scale at all. At the placeholder rates (+10 CON/level, +1 armor/10 CON ≈ +1 armor/level) a level-100 entity carries ~100 armor; an attacker who never sank SP into STR does `max(3, 2 − 100)` = **3**, the floor, forever. Default melee/ranged effectively locks to floor damage against any high-level defender.
-
-This may be the intended high-level game — topology, TRUE damage, and burst matter, while chip damage stops mattering. Or it may be a dead zone where the only viable answer is TRUE damage. **The rates decide which**, and this is exactly the kind of thing feel can't adjudicate at level 100. Tracked as a named invariant plus a matched-level high-level fixture in #268.
+**Resolved — armor does not ride the level curve.** An earlier draft had CON drive `armor` linearly too, which would have made mitigation scale *free* with level while offense scaled only with investment: a level-100 defender at ~100 armor takes `max(3, 2 − 100)` = 3 from any uninvested attacker, forever — a dead zone where TRUE damage is the only answer. **D-11 was corrected in response:** CON drives `node_health` only, and `armor` is battlefield-found. Only the *bucket* grows with level; mitigation stays scarce. The high-level matched fixture in #268 still exists to confirm no equivalent shape re-forms via node_health alone.
 
 **Impl status:** Not built. Depends on D-11. The per-level CON rate and the CON→`node_health`/`armor` rates are **tuning values** pending #268.
 
