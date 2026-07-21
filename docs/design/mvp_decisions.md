@@ -132,6 +132,84 @@ Each decision lists: the question, the resolution, the rationale, and the implem
 
 ---
 
+## D-9 — Node attrition model
+
+**Question:** owned nodes snap to full HP at every turn start (`entity/entity.gd`). Where does a `node_healing` stat fit on top of that? (#248)
+
+**Resolution:** **Turn-start refill-to-full is removed.** Damage persists across turns; nodes recover through a gated, ramping regen. Per owned node, at that entity's turn start:
+
+- took damage since its last turn start → `regen_stacks = 0`, no heal
+- else if HP < max → heal `node_healing + regen_stacks × node_healing_ramp`, then `regen_stacks += 1`
+- else (at full) → `regen_stacks = 0`
+
+`regen_stacks` is runtime state on `SkillNode` (like node HP — see `docs/domain/node-hp.md`), **not** a stat. `node_healing` and `node_healing_ramp` are node-local stats. No cap stat: the ramp self-limits because it stops at max HP and resets. `SkillNode.refill()` survives, but only for the allocation path.
+
+**Rationale:** Layering a regen stat onto refill-to-full is meaningless — the stat would never be observable. Removing refill makes whittling a real strategy: chip damage accumulates, and disengaging to recover becomes a genuine tactical choice. The ramp specifically rewards *sustained* disengagement rather than a one-turn step-back, and gives frontline vs. rear territory materially different economics. `node_healing_ramp` is the designed lever for CoreClass differentiation — a class that zeroes the ramp (in exchange for something else) is a real, legible identity.
+
+**Consequence to watch:** TTK stops meaning "within one turn" and starts meaning "across turns." Every balance readout in #248 must be reframed accordingly.
+
+**Impl status:** Not built. `node_healing` / `node_healing_ramp` / `regen_stacks` all net-new. Child issue under #248.
+
+---
+
+## D-10 — CoreClass healing aura semantics
+
+**Question:** aura healing emanating from the core's node — flat or % of max HP? Does it respect the D-9 damage gate? Does it feed the ramp? (#248)
+
+**Resolution:** **Flat HP per turn. Heals through combat, but grants no ramp. Additive, outside the ramp term.**
+
+Total per-turn heal = `(node_healing + regen_stacks × node_healing_ramp) + aura_flat`, where the `regen_stacks` term is subject to the D-9 gate and `aura_flat` is not. Taking damage still resets `regen_stacks` to 0 — so a node under sustained fire inside the aura receives a small constant trickle and never reaches the ramp payoff.
+
+**Rationale:** Flat (not %) deliberately avoids compounding with `node_health` investment — it makes healing relatively stronger on cheap nodes and weaker on beefy ones, which is the healthier balance direction and costs no fractional-accumulation UI. Healing through combat is what gives the core's neighbourhood a fortress identity and makes aura *range* a load-bearing class decision. Denying the ramp under fire is the stalemate guard: a besieged node cannot out-regenerate incoming damage indefinitely. Keeping the aura outside the ramp term keeps two independent, tooltip-readable numbers instead of one compounding one.
+
+**Impl status:** Not built. Depends on D-9. Same child issue.
+
+---
+
+## D-11 — CON as the fifth attribute
+
+**Question:** is `CON` real, and what does it own? (#248)
+
+**Resolution:** **Full fifth attribute**, alongside STR/DEX/INT/WIS: `constitution.tres`, on the default entity board, with its own procgen pool and archetype. Defensive stats derive intrinsic scaling from it — starting with `node_health`.
+
+**Rationale:** The defensive stats (`node_health`, `armor`, `min_damage_taken`, the D-9/D-10 healing stats) had no archetype home, so power in that axis could only be expressed by spreading direct `node_health` modifiers around. A CON attribute lets a single stat carry that investment and lets us lean far less on direct-stat mods — the same relationship STR already has with `blade_damage`.
+
+**Impl status:** Not built — no `constitution.tres`, not on the board, not referenced in code. CON currently exists only as prose in `docs/design/` and `docs/GDD.md`. Child issue under #248. Follow the `manage-stats` skill checklist.
+
+---
+
+## D-12 — Cross-archetype procgen rolls
+
+**Question:** when defensive modifiers get a CON home, do they leave the STR/DEX/INT pools? (#248)
+
+**Resolution:** **Neither migrate nor duplicate — pools stay cross-rollable.** An archetype node may roll modifiers outside its own archetype at a reduced chance, and **that reduction is less severe for CON / defensive modifiers** than for other off-archetype draws.
+
+**Rationale:** A hard migration would make defensive draws CON-gated and starve every other archetype of survivability. Straight duplication muddies where a stat "lives." Softening the off-archetype penalty specifically for defence keeps armor and health available as the common filler/pity draw #248 wants, while still making CON nodes the concentrated source.
+
+**Impl status:** Not built. Requires a per-archetype off-archetype weight with a defensive-family exception. Depends on D-11.
+
+---
+
+## D-13 — How #248 balancing gets done
+
+**Question:** how do we balance anything without either guessing or drowning in a parameter space with a dozen dimensions? (#248)
+
+**Resolution:** **A harness that evaluates pinned points and reports deltas — it never searches the space and never renders a verdict.** Four rules:
+
+- **Scenario fixtures**, ~6–10 named, each pinning *every* dimension. No sweeps.
+- **Ratio invariants**, not absolute numbers — `melee_dpa / ranged_dpa`, `hits_to_drop_node`, `sp_income(level)`. Pinned once by feel, then enforced coldly forever. This is what collapses N dimensions to something a human can hold.
+- **Sensitivity mode** is the isolation tool: hold one scenario fixed, vary one stat, print the column. A 1-D slice through a pinned point.
+- **Tripwire, not judge.** Output is a committed snapshot table. It reports *what changed* and *what crossed a named threshold*. The human supplies "this plays nice."
+
+Thresholds are **human-supplied**; the harness ships with `TBD` placeholders and an implementing agent must never invent balance ranges.
+
+**Rationale:** The dimensionality objection is correct and fatal to any sweep-based approach. It dissolves once the harness stops trying to *find* good values and only *checks* proposed ones. Feel stays a human judgement; the arithmetic organising it does not.
+
+**Impl status:** #268 (swarmable). Runs at entity/scene level (real fixtures), not raw formulas, because `SkillNode.take_damage` bypasses `attack/formulas/mitigation.gd` today — a formula-level harness would report balance that doesn't match play.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
+- 2026-07-21: D-9 … D-13 resolved in the #248 balancing design session. Numeric values deliberately **not** pinned here — they live in `.tres` / the stat board, gated on the #268 harness. Starting SP / starting allocated node count remains **open** (see #248).
