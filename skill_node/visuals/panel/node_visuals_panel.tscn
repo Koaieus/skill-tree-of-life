@@ -1,103 +1,144 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3 uid="uid://c1suwssydhyjb"]
 
-[ext_resource type="Script" path="res://skill_node/visuals/panel/node_visuals_panel.gd" id="1_panel"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_composite"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/inner_disk.tscn" id="3_disk"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/rim_ring.tscn" id="5_wall"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/rim_bonuses.tscn" id="6_rim"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/core_halos.tscn" id="7_halos"]
-[ext_resource type="PackedScene" path="res://skill_node/visuals/rune_ring.tscn" id="8_rune"]
+[ext_resource type="Script" uid="uid://culik78rongr3" path="res://skill_node/visuals/panel/node_visuals_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_composite"]
+[ext_resource type="PackedScene" uid="uid://bkwwvwb1433d1" path="res://skill_node/visuals/inner_disk.tscn" id="3_disk"]
+[ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="5_wall"]
+[ext_resource type="PackedScene" uid="uid://dgo4gx2kxagct" path="res://skill_node/visuals/rim_bonuses.tscn" id="6_rim"]
+[ext_resource type="PackedScene" uid="uid://ex5cfonh5qyp" path="res://skill_node/visuals/core_halos.tscn" id="7_halos"]
+[ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="8_rune"]
 
-[node name="NodeVisualsPanel" type="Control"]
+[node name="NodeVisualsPanel" type="Control" unique_id=435717486]
 custom_minimum_size = Vector2(0, 420)
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_panel")
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="."]
+[node name="ViewportContainer" type="SubViewportContainer" parent="." unique_id=890927549]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 stretch = true
 
-[node name="World" type="SubViewport" parent="ViewportContainer"]
-size = Vector2i(1140, 420)
+[node name="World" type="SubViewport" parent="ViewportContainer" unique_id=1611450065]
+handle_input_locally = false
+size = Vector2i(1440, 960)
 render_target_update_mode = 4
 
-[node name="Background" type="ColorRect" parent="ViewportContainer/World"]
+[node name="Background" type="ColorRect" parent="ViewportContainer/World" unique_id=2009892777]
 offset_right = 1140.0
 offset_bottom = 420.0
-color = Color(0.07, 0.07, 0.1, 1)
 mouse_filter = 2
+color = Color(0.07, 0.07, 0.1, 1)
 
-[node name="CompositeSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="CompositeSlot" type="Node2D" parent="ViewportContainer/World" unique_id=767952996]
 position = Vector2(150, 210)
 scale = Vector2(2.2, 2.2)
 
-[node name="Composite" parent="ViewportContainer/World/CompositeSlot" instance=ExtResource("2_composite")]
-entity_tint = Color(0.36, 0.9, 0.585, 1)
-archetype_tint = Color(0.36, 0.9, 0.585, 1)
+[node name="Composite" parent="ViewportContainer/World/CompositeSlot" unique_id=1332182309 instance=ExtResource("2_composite")]
 stake_level = 3
 allocation_level = 2
+entity_tint = Color(0.36, 0.9, 0.585, 1)
+archetype_tint = Color(0.36, 0.9, 0.585, 1)
+allocated = true
 
-[node name="CompositeLabel" type="Label" parent="ViewportContainer/World"]
+[node name="CompositeLabel" type="Label" parent="ViewportContainer/World" unique_id=1522921681]
 offset_left = 60.0
 offset_top = 380.0
 offset_right = 240.0
 offset_bottom = 404.0
-horizontal_alignment = 1
 text = "Composite"
+horizontal_alignment = 1
 
-[node name="InnerDiskSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="InnerDiskSlot" type="Node2D" parent="ViewportContainer/World" unique_id=343411235]
 position = Vector2(430, 90)
 
-[node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" instance=ExtResource("3_disk")]
+[node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" unique_id=1635794154 instance=ExtResource("3_disk")]
+instance_shader_parameters/allocated = true
+instance_shader_parameters/carve_kind = 1
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/weld_k = 0.8400000000000001
+instance_shader_parameters/weld_sides = 3.0
+instance_shader_parameters/weld_squish = 1.0
+instance_shader_parameters/well_depth = 0.35
+weld_k = 0.8400000000000001
 allocated = true
 
-[node name="WeldDiskSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="WeldDiskSlot" type="Node2D" parent="ViewportContainer/World" unique_id=442887499]
 position = Vector2(600, 90)
 
-[node name="WeldDisk" parent="ViewportContainer/World/WeldDiskSlot" instance=ExtResource("3_disk")]
-allocated = true
-carve_kind = 1
+[node name="WeldDisk" parent="ViewportContainer/World/WeldDiskSlot" unique_id=899407512 instance=ExtResource("3_disk")]
+instance_shader_parameters/allocated = true
+instance_shader_parameters/carve_kind = 1
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/weld_k = 0.8200000000000001
+instance_shader_parameters/weld_sides = 6.0
+instance_shader_parameters/weld_squish = 1.0
+instance_shader_parameters/well_depth = 0.5
 weld_sides = 6
 well_depth = 0.5
+allocated = true
 
-[node name="GemDiskSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="GemDiskSlot" type="Node2D" parent="ViewportContainer/World" unique_id=1391868247]
 position = Vector2(770, 90)
 
-[node name="GemDisk" parent="ViewportContainer/World/GemDiskSlot" instance=ExtResource("3_disk")]
-allocated = true
+[node name="GemDisk" parent="ViewportContainer/World/GemDiskSlot" unique_id=1924193309 instance=ExtResource("3_disk")]
+instance_shader_parameters/allocated = true
+instance_shader_parameters/carve_kind = 2
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/weld_k = 0.8200000000000001
+instance_shader_parameters/weld_sides = 3.0
+instance_shader_parameters/weld_squish = 1.0
+instance_shader_parameters/well_depth = 0.35
 carve_kind = 2
+allocated = true
 
-[node name="RimRingSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="RimRingSlot" type="Node2D" parent="ViewportContainer/World" unique_id=272790891]
 position = Vector2(940, 90)
 
-[node name="RimRing" parent="ViewportContainer/World/RimRingSlot" instance=ExtResource("5_wall")]
+[node name="RimRing" parent="ViewportContainer/World/RimRingSlot" unique_id=1228394251 instance=ExtResource("5_wall")]
+instance_shader_parameters/crest_r = 0.0
+instance_shader_parameters/height_preset = 2
+instance_shader_parameters/inner_r = 24.0
+instance_shader_parameters/light_dir_xy = Vector2(-0.35, -0.35)
+instance_shader_parameters/outer_r = 32.0
+instance_shader_parameters/ring_tint = Color(0.65, 0.67, 0.72, 1)
 height_preset = 2
 
-[node name="RimBonusesSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="RimBonusesSlot" type="Node2D" parent="ViewportContainer/World" unique_id=782957647]
 position = Vector2(430, 280)
 
-[node name="RimBonuses" parent="ViewportContainer/World/RimBonusesSlot" instance=ExtResource("6_rim")]
-allocated = true
+[node name="RimBonuses" parent="ViewportContainer/World/RimBonusesSlot" unique_id=1223461258 instance=ExtResource("6_rim")]
 rim_tone = 2
 rim_holder = 1
 fill_current = 2
 fill_max = 3
+allocated = true
 
-[node name="CoreHalosSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="CoreHalosSlot" type="Node2D" parent="ViewportContainer/World" unique_id=659451673]
 position = Vector2(600, 280)
 
-[node name="CoreHalos" parent="ViewportContainer/World/CoreHalosSlot" instance=ExtResource("7_halos")]
+[node name="CoreHalos" parent="ViewportContainer/World/CoreHalosSlot" unique_id=64243075 instance=ExtResource("7_halos")]
 halo_style = 1
 
-[node name="RuneRingSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="RuneRingSlot" type="Node2D" parent="ViewportContainer/World" unique_id=1909632436]
 position = Vector2(770, 280)
 
-[node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" instance=ExtResource("8_rune")]
+[node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" unique_id=775407811 instance=ExtResource("8_rune")]
 band_count = 2
-blend = 2

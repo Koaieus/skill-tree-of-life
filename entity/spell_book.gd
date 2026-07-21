@@ -25,7 +25,7 @@ signal membership_changed()
 
 @export var spells: Array[SpellDef] = []
 
-var _sources: Dictionary = {}
+var _sources: Dictionary[SpellDef, Array] = {}
 
 
 ## Add [param spell] from [param source]. When [param source] is a node, the
