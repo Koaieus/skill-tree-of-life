@@ -242,6 +242,8 @@ Target shape: a level 20 entity's nodes sit around ~30 HP rather than 10. At 3 d
 
 **Resolved — armor does not ride the level curve.** An earlier draft had CON drive `armor` linearly too, which would have made mitigation scale *free* with level while offense scaled only with investment: a level-100 defender at ~100 armor takes `max(3, 2 − 100)` = 3 from any uninvested attacker, forever — a dead zone where TRUE damage is the only answer. **D-11 was corrected in response:** CON drives `node_health` only, and `armor` is battlefield-found. Only the *bucket* grows with level; mitigation stays scarce. The high-level matched fixture in #268 still exists to confirm no equivalent shape re-forms via node_health alone.
 
+**The per-level CON grant has a home:** D-15 puts it on `BalancedCore` alongside STR/DEX/INT (`+1 each per level`, WIS excluded). Before that it was stated intent with nowhere to live — `balanced_core.tres` carried per-level modifiers for three attributes only.
+
 **Impl status:** Not built. Depends on D-11. The per-level CON rate and the CON→`node_health`/`armor` rates are **tuning values** pending #268.
 
 ---
@@ -265,7 +267,93 @@ Thresholds are **human-supplied**; the harness ships with `TBD` placeholders and
 
 ---
 
+## D-15 — The XP economy: level cost, income channels, and the stall
+
+**Question:** levelling is 5×–50× slower than the "+1 level/turn early" the #248 body asks for, and nothing makes it taper. Change the cost curve, the income, or both? (#248)
+
+**Resolution:** **The cost curve does not change. Income does.** `xp.tres` keeps `base 5, growth_flat 5, growth_factor 1.0` — level *L* costs `5L`. The whole economy reduces to one identity:
+
+```
+turns_per_level = 5L / income        and with income = WIS/2:
+
+turns_per_level = 10 × level / WIS
+```
+
+So **WIS ≈ 10 × level is one level per turn; WIS ≈ level is ten turns per level.** Pace is governed by the *ratio* `WIS / level`, not by either number alone. That ratio is the progression invariant #268 watches.
+
+**The four pinned changes:**
+
+| | Was | Is |
+|---|---|---|
+| `xp_per_turn` intrinsic | `floor(log10(WIS))` | **`WIS // 2`** (integer division) |
+| BalancedCore base | +10 STR/DEX/INT | **+10 to all five** (STR/DEX/INT/CON/WIS) |
+| BalancedCore per level | +1 STR/DEX/INT | **+1 STR/DEX/INT/CON — WIS excluded** |
+| Level cost curve | `5L` | **unchanged** |
+
+**The taper is positional, not mathematical.** Because WIS is excluded from the per-level grant, baseline income is a **constant 10/turn forever**, so a player who never expands their economy sits at `turns_per_level = L/2` — 5 turns at level 10, 10 at level 20, 25 at level 50. That is the stall, and the only cure is to go out and occupy WIS-bearing territory. `growth_factor` stays 1.0 precisely because the curve doesn't need to bend: **stagnation is punished by the map, not by the maths.**
+
+Including WIS in the per-level grant was the rejected alternative. It makes income self-grow, so pace degrades gently (0.5 → 8.5 turns/level across 100 levels) and never bites. That's a softer game and it undermines the loop — a free economy is exactly the thing that lets you skip the expansion the design is built around.
+
+**Rationale — why the income side, and why divisor 2.** `floor(log10(WIS))` is a step function: WIS 10 and WIS 99 both yield 1, so ninety points of investment buy literally nothing, and no other attribute behaves that way (`blade_damage` is `STR/10`, linear). Divisor 2 is what makes the run playable: cumulative turns to level 100 is **~600 at divisor 2 versus >2000 at divisor 10**. It also lets `xp_per_turn` recede as a procgen concern — with WIS itself worth half an XP each, procgen can distribute **WIS** and largely stop distributing `xp_per_turn` directly, collapsing two channels into one.
+
+**Why not the cost side.** A cost-curve fix (cheap base, or `growth_factor > 1`) was considered and rejected once the territory coupling was traced: income scales with WIS-bearing nodes, nodes scale with level (D-16), so cost and income share an exponent and any cost-curve taper is cancelled by an economy build anyway. Only *flat* baseline income produces a real stall — which is what excluding WIS from the per-level grant delivers, at zero curve complexity.
+
+**Impl status:** Not built. `entity/default_entity_board.tres` carries the `log10` formula; `entity/core/balanced_core.tres` carries the three-attribute grants. Child issue under #248, **sequenced after #269/#270** — all three edit `default_entity_board.tres`.
+
+---
+
+## D-16 — SP gain scales with level; territory is the real axis
+
+**Question:** starting SP, starting allocated nodes, and whether level-up mints more than 1 SP. (#248)
+
+**Resolution:** **Start with the core node only and more than 1 spendable SP; mint more than 1 SP per level, through a stat.**
+
+- **Starting nodes: 1** (the core). Pre-allocated starting nodes are *not* an economy knob — they move starting HP, territory and degree at once. Held as a possible CoreClass trait, not the baseline.
+- **Starting SP: a default > 1** (exact value TBD, #268). At 1 SP / 1 node the early game is **agency-free**, not merely slow: the mass-dealloc-for-refund → reallocate-to-bridge maneuver this design leans on needs ~4–5 invested SP to be *possible at all*, so turn 1 has no decision in it. CoreClass may deviate from the default.
+- **`sp_gain_on_levelup`: a new stat, default 2**, replacing the hardcoded `grant(1)` in `Entity._on_xp_replenished`. Plus a **milestone bonus: +1 extra every 5th level.**
+
+**Territory is the balance axis, and it is now decoupled from level.** Allocation costs exactly 1 SP always (`allocation_system.gd:139`), SP is minted only by level-up and `force_allocate`'s claim, and **no procgen pool grants `skill_points`** — so:
+
+```
+owned_nodes = starting_SP + sp_gain × (level − 1) + milestones − wounded − staked
+```
+
+At `sp_gain = 2` plus the milestone: level 20 ≈ 42 nodes, **level 50 ≈ 108 nodes**, level 100 ≈ 218. That is the point of the change — **100–150 node entities should arrive around level 50, not level 100–150.** Tall entities are where the game gets serious: topology, (de)allocation choices, and matching attack mode against enemy stats start mattering enormously, and that shouldn't be gated behind triple the levelling.
+
+**Why a stat rather than a constant.** A CoreClass needs to deviate from it — plausibly sooner for AI enemies than for the player. Making it a board stat means a core class, a keystone, or a node modifier can all move it through the normal pipeline instead of special-casing the level-up path.
+
+**Consequence for #268:** this **redefines every matrix axis.** "Level 20" now means ~42 nodes, "level 50" ~108. It also feeds back into D-15 — more nodes means room for more WIS-bearing territory, which is what lets WIS reach the 100–200 mid-game band. And it enlarges the D-9/D-14 surfaces in both directions at once: a bigger total HP bucket, but also more chip surface and a larger forced-dealloc cascade to island.
+
+**Impl status:** Not built. `Entity._on_turn_started` / `_on_xp_replenished` hardcodes `grant(1)`; `sp_gain_on_levelup.tres` is net-new; starting SP lives on `skill_points.tres` / the board. Same child issue as D-15 (they collide on `default_entity_board.tres`).
+
+---
+
+## D-17 — Attribute numeric bands, and what procgen ops may do to them
+
+**Question:** with `xp_per_turn = WIS // 2`, what magnitude should WIS reach, and what should procgen roll to get it there? (#248)
+
+**Resolution:** **WIS keeps all three operations (ADD / INCREASE / MULTIPLY), rescaled hard so the band holds but the tail survives.**
+
+- **Target band: 100–200 WIS is a mid-game achievement.** Not an end state, a milestone.
+- **INCREASE rolls drop to a few percent**, ~10% for the most expensive roll.
+- **MULTIPLY rolls drop to 1.05–1.10**, with **×1.5 as the mythic-rarest** draw.
+- Exact tier values TBD — a #268 concern, not a design one.
+
+**Rationale:** the current `procgen/pools/wisdom.tres` is authored for a world where WIS barely mattered — an additive **tier 5 grants +150–250 WIS from a single node**, INCREASE reaches +60%, MULTIPLY reaches ×1.7. At divisor 2 one such node is +75–125 XP/turn, which is the entire economy in one draw. Keeping all three ops preserves build variety on the economy axis; the rescale is what keeps most runs inside the band. **Things can still get wildly out of hand — that's the fun,** it just has to be a rare tail rather than the median outcome.
+
+**Purpose:** these are the settings that make a *properly thought-out* playtest possible. Until the bands are pinned, playtest feedback measures the authoring accident rather than the design.
+
+**Open — a numeric personality per attribute.** The idea that **INT is the deliberately multiplicative, runaway attribute** (players ending up with thousands of it) while WIS stays linear and bounded is floated but **not pinned.** If taken, each attribute gets a distinct numeric character and the balance surface becomes much easier to reason about. Needs its own pass.
+
+**Consequence — the gauges can't draw this.** `ui/gauges/axis_spec.gd` carries only `label` and `color`; `AttributeRadar` has **no scale concept at all**. One attribute in the hundreds next to others in the tens already skews the plot, and any runaway-INT decision makes it unreadable. Log scale — as the default, an option, or dynamically chosen — is a real UI decision. **Its own issue; it must not ride the balance work.**
+
+**Impl status:** Not built. `procgen/pools/wisdom.tres` only — file-disjoint from the D-15/D-16 child, so it may run in parallel.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
 - 2026-07-21: D-9 … D-13 resolved in the #248 balancing design session. Numeric values deliberately **not** pinned here — they live in `.tres` / the stat board, gated on the #268 harness. Starting SP / starting allocated node count remains **open** (see #248).
+- 2026-07-21: D-14 added, D-10/D-11 revised (round 2–3) — durability scales through CON; CON drives `node_health` only; the aura is an authored `base`/`range` channel.
+- 2026-07-21: **D-15 … D-17 resolved — the progression cluster.** XP economy, SP gain, attribute bands. Starting SP / starting node count now **closed** (D-16). Still open on #248: procgen↔level linkage · INT→spell damage · `core_healing` · the node-local `armor` mitigation bug · per-attribute numeric personalities (D-17).
