@@ -562,6 +562,68 @@ A map-level `content_depth: int` was considered and rejected: it would gate tier
 
 ---
 
+## D-25 — `core_healing` is an integer per-turn heal, ungated and unramped
+
+**Question:** D-22 pinned `core_healing` as a sub-1/turn sliver but left the rate, the gate, and the UI open. (#277)
+
+**Resolution:** **An integer heal on the entity `health` pool, placeholder `1`/turn. No damage gate, no ramp.**
+
+**Integer, not a sliver — and the UI decides it.** The main gauges already render an *"incoming next turn"* segment (mana/turn, xp/turn), so an integer `health`/turn costs **zero new UI**. A sub-1 sliver needs net-new fractional-accumulation rendering on the core bar, for a value that may not survive tuning. Ship the integer.
+
+**No ramp, and this one is structural.** A D-9-style ramping out-of-combat heal rewards sitting still — and sitting still is exactly what D-10's forced-dealloc cascade is engineered to punish. The ramp is right for *nodes* (a held node recovering is territory you are defending); it is wrong for the death clock, because it hands camping back the thing the cascade takes away. No gate either: the gate exists to make the ramp meaningful, and there is no ramp.
+
+**⚠ `1` is the break-even point — this is a placeholder, per D-13.**
+
+```
+L100:  CON ~110  →  health ~120
+core_healing = 1/turn  =  0.83%/turn  =  50 HP over a 50-turn level  =  42% of the pool
+cascade chip = dealloc_damage (default 1) x nodes lost per turn
+```
+
+At a 1-node-per-turn chip, `core_healing = 1` **cancels D-10's clock exactly.** Whether that matters depends entirely on the real chip rate under sustained pressure — a committed attacker very likely depletes more than one node per turn, in which case `1` softens the clock rather than stopping it. **That is a #268 measurement, not a design call.**
+
+**Corrected from an earlier draft:** `dealloc_damage` is a **curse/debuff knob** — a balancing lever, later raisable by a Hex/Curse effect — **not** a scaling base. `core_healing` must not be *expressed* as a fraction of it. The relationship survives only as a **named #268 invariant**: if `core_healing >= dealloc_damage x nodes_lost_per_turn`, camping is viable again and D-10's structural guarantee is silently undone.
+
+**Impl status:** Not built. `stats_system/defs/core_healing.tres` (net-new), `entity/default_entity_board.tres`, turn-start hook. #277.
+
+---
+
+## D-26 — `health = 10 + core_health_scaling x CON`, and some stats are entity-only
+
+**Question:** D-21 pinned `health = base + CON` with both terms hardcoded. Should either be a knob? (#248 round 6)
+
+**Resolution:** **The CON coefficient becomes a knob, `core_health_scaling`, defaulting to `1.0`. The flat `+10` stays baked for now.**
+
+Same shape as `dealloc_damage` being a class lever (D-21): a class can trade pool size against something else, and the ratio is where identity lives. Default `1.0` keeps every number D-21 published valid (L100 ~119).
+
+**The flat `+10`:** could become a base stat, or an innate `StatModifier` granting an unscaling flat bonus. **Bake it for now** and revisit — it is a small instance of the same authoring problem #279 exists to solve.
+
+**⚠ New fork surfaced, not settled — entity-only stats.** `core_health_scaling` is meaningful **only on the entity**. As a node-local stat it has zero meaning, or worse, a counterintuitive one. The stat system localises stats per node; there is currently no way to say *"this stat is entity-scope only."* That gap is now real and needs its own decision — see the entity-scope stat issue.
+
+**Impl status:** Not built. Rides with D-21 on #276.
+
+---
+
+## D-27 — CoreClass composes by reference, not by duplication
+
+**Question:** every enemy needs a mostly-similar batch of offensive/defensive/attribute/WIS modifiers, and each `.tres` hand-declares them. What is the authoring architecture? (#279)
+
+**Resolution:** **`CoreClass` gains `@export var inherits: CoreClass`. `apply()` walks the base first, then its own. Pure append.**
+
+The requirement, in the user's words: *author stuff and plug it into any enemy, reuse it across multiple enemy **definitions**, and if it needs to change — change 1 `.tres` and every class composing it gets the change.* That is composition **by reference**, which rules out both factory helpers (moves duplication into code, loses inspector authorability) and any copy-on-author scheme.
+
+**Pure append, not override-by-`stat_id`.** The stat pipeline already stacks modifiers — multiple modifiers on one stat is the native semantic, not a conflict. So "make this enemy weaker than the base" is a **negative modifier**, not an override rule. Adding override semantics would fight the pipeline.
+
+**Safe today:** `CoreClass.apply()` already duplicates each modifier before installing it on the entity board, so sharing one `.tres` across many classes and many runtime entities is already sound. Whatever lands must preserve that.
+
+**Needs a cycle guard** (A inherits B inherits A).
+
+**Evidence this is real, not speculative:** `balanced_core.tres` and `basic_enemy_core.tres` each hand-declare identical `+10 STR / +10 DEX / +10 INT` SubResource blocks. Five classes exist already; every one authored before this lands makes the migration bigger.
+
+**Impl status:** Not built. `entity/core/core_class.gd` + the existing `.tres` files. #279.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
@@ -578,3 +640,4 @@ A map-level `content_depth: int` was considered and rejected: it would gate tier
   - **Retired as stale:** the node-local `armor` mitigation bug was fixed in **be477f5** — `Mitigation.apply` reads `defender.get_local_value(&"armor")`. Only a stale `KNOWN BUG` block in `.claude/rules/stats-system.md` survived it.
   - **D-24** territory selection is ONE policy — `pick_next(entity, candidates)` — shared by spawn seeding and the AI, with the candidate set injected by the caller (the `RangeFinder.gather(source, mirror)` pattern) and tactical objectives switchable off. The AI spends **all** available SP each turn, not one node.
   - Still open, each with its own issue: the **spell-balance pass** (mana cost × degree requirement × hops-vs-euclidean reach — hop distance ignores edge length, so the two range kinds are not interchangeable) · **enemy CoreClass composability** (every enemy needs a mostly-similar batch of modifiers; the authoring architecture is unsettled) · `core_healing` rate + gate.
+- 2026-07-22: **D-25 … D-27 resolved (round 6).** `core_healing` is an **integer** heal (placeholder 1/turn), **ungated and unramped** — a ramp would reward the camping D-10 punishes, and the existing "incoming next turn" gauge segment makes integer free while a sliver is net-new UI. `dealloc_damage` corrected to a **curse/debuff knob**, not a scaling base. `core_health_scaling` added as the CON coefficient (default 1.0); the flat +10 stays baked. **D-21's asymmetric ratchet is kept as pinned** — the voluntary-vs-forced dealloc split (voluntary subtracts the delta and is gated as illegal if lethal; forced reduces max only) is recorded as a **good split to think along**, not adopted: the ratchet is probably strong, but DP is not free, and if it misbehaves there are a thousand ways to mitigate it. **The requirement that came with that:** the delta grant must live in a **named method**, never inlined, so the toggle is findable when we do change it. D-27 settles #279 by reference-composition. **#273 settled** — static log, fixed floor/ceiling, bounds shared across entities so an enemy's radar is comparable to your own (#228 renders them side by side). **New fork surfaced:** entity-only stats have no scope marker (D-26).
