@@ -1,0 +1,1 @@
+Session handoff files live at `docs/handoffs/<topic>.md` (never the repo root), only ever *point* at decisions whose durable home is an issue/design doc/rule/commit, and are deleted once spent. See `.claude/skills/handoff/SKILL.md`.

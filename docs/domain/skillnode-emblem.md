@@ -5,11 +5,10 @@ How a SkillNode's central identity glyph is decided and drawn. The throughline:
 can host a core *and* grant a spell *and* be a keystone), so they're assigned to
 independent **visual registers** rather than fighting over one slot.
 
-This is the durable contract. It was hashed out in a working session and first
-captured in `SKILLNODE_EMBLEM_HANDOFF.md` — a **temp file slated for deletion**
-once its issue-actions are applied, which is exactly why the contract lives here
-instead. Design rationale + open issue-actions stay in the handoff while it
-exists; the code-facing model lives here.
+This is the durable contract. It was hashed out in a working session, first
+captured in a temporary root-level handoff file; that file's issue-actions have
+all been applied and it has been deleted, which is exactly why the contract
+lives here instead.
 
 Code: `skill_node/visuals/emblem/` — `emblem_spec.gd`, `emblem_resolver.gd`,
 `archetype_shape.gd`, `core_sigil_bloom.{gd,tscn}`. Tests:
@@ -189,5 +188,8 @@ done with the editor closed):
 Design decisions were recorded against #167 (sigil-as-bloom, not sigil-as-carve),
 #207 (spell grant = SPELL carve), #131 (empty-dome default, archetype demoted to
 fallback), #132 (rune ring vs rim diamonds — fold into the prune), #168 (loot
-glyph = LOOT carve via `SkillDustAddon.get_emblem()`). `SKILLNODE_EMBLEM_HANDOFF.md`
-holds the remaining-implementation pickup notes.
+glyph = LOOT carve via `SkillDustAddon.get_emblem()`). 
+The protocol foundation and the BLOOM / CorePresence work landed under #237 and
+#128 (both closed). What did **not** land — the archetype→shape mapping, and
+retiring the `show_diamond` / `show_weld` boolean exemptions in favour of one
+uniform SDF vocabulary — is tracked in **#285**.
