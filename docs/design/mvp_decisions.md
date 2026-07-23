@@ -624,6 +624,107 @@ The requirement, in the user's words: *author stuff and plug it into any enemy, 
 
 ---
 
+## D-28 — A node survives by being inside a *life source's reach*, not by touching core
+
+**Question:** LifeLine grants islanded nodes a one-turn reprieve. How is "protected" actually decided, and does building it now paint us into a corner for the planned **lifelink** addon? (#240)
+
+**Resolution:** **Generalize the survival rule to life sources with a reach.** A node stays allocated iff it is within the reach of at least one *surviving* life source.
+
+| Source | Reach | Duration |
+|---|---|---|
+| **core** | ∞ over the owned subgraph | permanent |
+| **lifeline addon carrier** | **2 hops** (self + 2), tunable | 1 turn of grace |
+
+"Connected to core" is not a separate rule — it is core's infinite-reach case, and stays implemented by the existing single-anchor `nodes_islanded_by_removing_set(D, core)`. Nothing about life sources enters `GraphMirror`.
+
+**Grace spares *would-be islanding* kills only.** A node that is itself depleted always deallocates, tagged or not — LifeLine protects against *structural* loss, never against damage. Corollary, and the reason it must be stated: if the depleted node **is** the lifeline carrier, it dies, its island loses its tag source, and the whole island collapses in the same resolution step. That is intended.
+
+**Protection is `has_tag(&"lifeline")` recomputed on the POST-cut subgraph.** This supersedes the earlier "snapshot the spare-set before the dealloc loop" decision, which is wrong — not merely inelegant. Config C4 below is the counterexample: a lifeline node hanging off the cut vertex carries the tag *before* the cut (it reaches the carrier through the cut vertex) and loses it *after*. A pre-cut snapshot spares it; it must die. Reading `has_tag` mid-cascade is equally wrong for the reason the original decision gave (`_on_node_deallocated → recompute → revoke_all` tears the tag set down mid-loop). The only correct read is a fresh `gather` from each surviving source over `owned − D`.
+
+**The seam is one shared function, and it is the deliverable of #240:**
+
+```
+apply_depletions(entity, D: Array[SkillNode]) -> { died, graced }
+    surviving_sources = all lifeline sources − D
+    islanded  = navigator.nodes_islanded_by_removing_set(D, core)      # topology
+    sustained = ⋃ gather(s, owned − D) for s in surviving_sources      # effect layer
+    died   = D ∪ (islanded − sustained)
+    graced = islanded ∩ sustained                                       # 1-turn countdown
+```
+
+Both the speculative resolvers (spell propagation, the melee blade sim — which precompute deliberately, so the AI can score moves) and real playback call the same function. That is what keeps preview and result honest, and it is why grace does **not** live in `BattleSystem`'s cascade loop as the earlier draft assumed. It also drops the previously-proposed relocation of the cascade into `AllocationSystem` — neither system owns this.
+
+**Consequence — the voluntary-dealloc gate uses the same predicate.** `AllocationSystem.deallocate` today blocks any move that would island a node from core (`allocation_system.gd:126`). Once an island is held by a lifeline, the anchor inside that island is the *carrier*, not core. Calling `apply_depletions(entity, [candidate])` and denying on a non-empty `died` makes the gate and the cascade agree by construction. The worked example: `…-(core)-a-b-c-(lifeline)`, enemy snipes `a`; voluntary dealloc is legal in dependency order `b → c → lifeline`, illegal out of order.
+
+**Reconnection cancels grace favorably.** Each tick, if the graced node is reachable from core again, drop the countdown — no dealloc. Only expire when still unsustained *and* the counter hit 0.
+
+**Lifeline and lifelink are orthogonal — this forecloses nothing.** LifeLine is entirely effect-layer (bounded tag + countdown + a filter on the islanding result). **Lifelink** (the planned permanent, unbounded variant) is topology — a *virtual edge* in the mirror, which makes core-reachability literally true and needs no life-source machinery at all. The filter composes on top of whatever the islanding query returns, so neither model constrains the other. Lifelink's design, its emergent consequences, and its balance live in its own issue; do not build for it here.
+
+**Acceptance configs (RED — LifeLine is not built).** All at reach 2, `X` = the depleted node, `L` = lifeline carrier. Build fixtures by instantiating scenes and `force_allocate`, never by adding to containers directly, or `entity.navigator` stays empty and every islanding query silently returns `{}`.
+
+| # | Topology | Deplete | Expected |
+|---|---|---|---|
+| C1 | `core—X—L—A—B` | `X` | `X` dies; `L,A,B` graced (all ≤2 hops from `L`) |
+| C2 | `core—X—L—A—B—C` | `X` | `X` dies; `L,A,B` graced; **`C` dies** (3 hops — out of reach) |
+| C3 | `core—A—X—L—B` | `X` | `X` dies; `A` untouched (still core-connected); `L,B` graced |
+| C4 | `core—A—X—L—B` plus `X—C` | `X` | `X` dies; `L,B` graced; **`C` dies** — tagged pre-cut, untagged post-cut. *This is the config that falsifies the snapshot approach.* |
+| C5 | `core—X—L—B` | **`L`** | `L` dies (depletion beats grace); **`B` dies** — no surviving source |
+| C6 | cycle `core—X—M—Y—core`, plus `M—L—B` | `X` **and** `Y` in one step | `X,Y` die; `M,L,B` graced. Neither cut alone islands anything — a per-node sequential cascade cannot express this. |
+
+Plus: C1 followed by the owner re-allocating `X` on their turn → grace dropped, nothing deallocates.
+
+**Impl status:** Not built. #240. Unblocked — #267 (tag channel + `TagAuraEffect` + the aura-origin fallback rule) landed. Melee/ranged grace can ship on the batch alone; **magic** correctness additionally needs D-29's wave interleaving, so #240 is not done until both.
+
+---
+
+## D-29 — Depletions resolve as a set, and the resolver owns deaths
+
+**Question:** damage currently lands per projectile *arrival*, and each depletion runs its own full cascade synchronously. What decides who dies, and when? (#240, spell propagation)
+
+**Resolution:** **Deaths are decided during resolution, as a set, per wave. Playback animates a decided outcome and decides nothing.**
+
+**The bug this fixes.** `SkillNode.take_damage` emits `Events.skill_node_depleted` synchronously (`skill_node.gd:692`), and `BattleSystem` runs the *entire* islanding cascade on that signal (`battle_system.gd:116`). Damage is applied in `Projectile.arrived` callbacks (`arrow_volley_coordinator.gd:41-43`, `magic_bounce_coordinator.gd:153-156`), so depletion order is projectile *arrival* order — flight time, i.e. **euclidean screen distance between nodes**. Under LifeLine that would let node positions decide which nodes survive. The headless path (`battle_system.gd:186`) interleaves differently again, so tests would not reproduce shipped behavior.
+
+**The resolver can decide deaths without applying damage.** It already knows every `DamageInstance` and every node's HP, so it carries a speculative HP ledger through the wave loop and calls D-28's `apply_depletions` per wave. Preview stays exactly equal to the result, AI move-scoring still works, and the projectile-ordering nondeterminism disappears because playback stops deciding anything.
+
+**Three resolution clocks** (distinct from `spell-vfx.md`'s beat/travel/visual *playback* clocks):
+
+1. **Route topology lags one wave.** Next-wave candidates are selected against the topology as of the *start* of the current wave, before its own kills land.
+2. **The HP ledger is live within the resolve.** Damage accumulates across waves; deaths are known immediately.
+3. **Defensive stats are a cast-time snapshot.** Every landing in one cast resolves against the defender's board as of the cast.
+
+**Why (3) — and it is the load-bearing constraint.** `_on_node_damaged` has *zero* handlers today (`effects/effect.gd:48` declares the hook; no subclass implements it), so nothing reactively changes HP mid-cast and the ledger really can be just HP. But `_on_node_deallocated` **does** have handlers — `aura_effect.gd:59` and `tag_aura_effect.gd:43` both recompute — and `Mitigation.apply` merges the node board with the owner's, so killing node A can strip an aura granting armor to node B and change B's mitigation later in the same cast. Rather than shadow-run the whole modifier pipeline (which would duplicate it and drift), a cast resolves against the board the caster saw. It is the rule a player can reason about and an AI can score. The user's framing: *if the first node to die is one that adds HP, deducting that before the next wave is not intuitive at all.*
+
+**Why (1).** Worked through TrailBlazer on a long string: each hop deals `N, 2N, 3N…`, so eventually a hop is a killing blow, and the node ahead was eligible because it had degree 2. If the kill were applied before candidate selection, the dead node behind would drop the node ahead to degree 1 and disqualify it — the spell would stop for a reason the player cannot see. Selecting candidates *before* applying the wave's kills gives the plain, intuitive "keeps blasting down the string." **Stop-on-kill remains a legitimate per-spell knob** for a spell whose fantasy is expending itself on the kill — a config option, not a global law.
+
+**A killed node counts as unallocated for propagation filters.** Whether a spell continues through it is then just its existing filter config — a spell that allows propagation to unallocated nodes naturally continues, one that doesn't naturally stops. No new concept. Exception: a core node is not "killed-unallocated" — `take_damage` routes core overflow to the entity health pool and returns early (`skill_node.gd:686-689`), so the node only vacates when the entity dies.
+
+**Impl status:** Not built. Melee and ranged batching is pure cleanup (order-independent, target set fixed). Magic is the substantive part: `SpellResolver.resolve` (`spell_resolver.gd:55-120`) currently precomputes every wave up-front against frozen cast-time state, so wave-reactive propagation is a **new feature**, not something batching preserves — the wave loop must interleave resolve → ledger → `apply_depletions` → next wave.
+
+---
+
+## D-30 — Degree has three disagreeing definitions, and Resonator is authored against the wrong step
+
+**Question:** Resonator should propagate to the largest-degree node(s) each hop (ties → more than one). It doesn't. What is "degree" when propagation targets by it? (#240 spinoff)
+
+**Resolution (settled):** **Resonator propagates to the highest-degree neighbour(s), ties included.** `attack/spell/defs/resonator.tres:37` wires `step_fan` (`FanAllStep` — "goes everywhere the filter allowed"), which contradicts both the intent and `DegreeRanker`'s own docstring (*"Drives Silencing Bolt / Resonator targeting (max-degree fan)"*). The machinery already exists: `TakeTopNStep` + `DegreeRanker`. Two gaps: the `.tres` must be rewired, and `TakeTopNStep` takes exactly `take_count` after a stable sort — it has **no tie-inclusive mode**, so "the largest degree node(s)" with three-way tie currently yields one. Needs an `include_ties` option. This needs a test; it is the explicitly-requested deliverable.
+
+**Open fork — which degree does propagation targeting read?** Three definitions are live and they disagree:
+
+| Definition | Self-loops | Scope |
+|---|---|---|
+| `GraphMirror.get_degree` (`:115-119`) | counted, **×2** | mirrored subgraph |
+| `GraphMirror.get_nodes_by_degree` (`:122-128`) | **ignored** | mirrored subgraph |
+| `DegreeRanker.score` | via `graph.get_neighbours` | **true graph degree** |
+
+The first two disagree with each other outright — a self-loop-heavy node is high-degree to *gating* and invisible to *selection*. That is a plain bug independent of any spell. The third contradicts **D-4**, which settled degree-for-gating as *allocated*-degree via `EntityNavigator.get_degree`; propagation targeting reads true graph degree instead. D-4's scope was cast-source gating, so this is not strictly a reversal — but propagation targeting needs its own explicit answer rather than inheriting one by accident.
+
+This is load-bearing for Resonator specifically, whose crit condition keys on self-loops (`crit_self_loop`) while its targeting would key on a degree notion that may not count them. Reconcile the accessors before any degree-*selection* ships.
+
+**Impl status:** Not built. `resonator.tres`, `take_top_n_step.gd`, `graph_mirror.gd`. Filed separately from #240.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
@@ -640,4 +741,5 @@ The requirement, in the user's words: *author stuff and plug it into any enemy, 
   - **Retired as stale:** the node-local `armor` mitigation bug was fixed in **be477f5** — `Mitigation.apply` reads `defender.get_local_value(&"armor")`. Only a stale `KNOWN BUG` block in `.claude/rules/stats-system.md` survived it.
   - **D-24** territory selection is ONE policy — `pick_next(entity, candidates)` — shared by spawn seeding and the AI, with the candidate set injected by the caller (the `RangeFinder.gather(source, mirror)` pattern) and tactical objectives switchable off. The AI spends **all** available SP each turn, not one node.
   - Still open, each with its own issue: the **spell-balance pass** (mana cost × degree requirement × hops-vs-euclidean reach — hop distance ignores edge length, so the two range kinds are not interchangeable) · **enemy CoreClass composability** (every enemy needs a mostly-similar batch of modifiers; the authoring architecture is unsettled) · `core_healing` rate + gate.
+- 2026-07-23: **D-28 … D-30 resolved — the LifeLine / death-resolution cluster (round 7).** Survival generalized to **life sources with a reach** (core = ∞, lifeline addon = 2 hops); "connected to core" is just core's case, and nothing about it enters `GraphMirror`. **Two earlier #240 decisions are superseded:** the pre-cut spare-set *snapshot* (wrong — config C4 falsifies it; protection must be `has_tag` recomputed on the **post-cut** subgraph) and the relocation of the depletion cascade into `AllocationSystem` (dropped — the seam is a shared `apply_depletions` function called by both speculative resolvers and real playback, owned by neither system). Depletion always beats grace, including for the carrier itself. **D-29** moves death decisions out of playback entirely: today damage lands in `Projectile.arrived` callbacks, so survival would depend on euclidean screen distance. **Still open:** which degree definition propagation targeting reads (D-30) — three live definitions disagree, two of them outright. **Deliberately not an MVP decision:** the **lifelink** addon (permanent, unbounded, virtual-edge) — explored and found orthogonal to D-28, parked in its own backlog issue.
 - 2026-07-22: **D-25 … D-27 resolved (round 6).** `core_healing` is an **integer** heal (placeholder 1/turn), **ungated and unramped** — a ramp would reward the camping D-10 punishes, and the existing "incoming next turn" gauge segment makes integer free while a sliver is net-new UI. `dealloc_damage` corrected to a **curse/debuff knob**, not a scaling base. `core_health_scaling` added as the CON coefficient (default 1.0); the flat +10 stays baked. **D-21's asymmetric ratchet is kept as pinned** — the voluntary-vs-forced dealloc split (voluntary subtracts the delta and is gated as illegal if lethal; forced reduces max only) is recorded as a **good split to think along**, not adopted: the ratchet is probably strong, but DP is not free, and if it misbehaves there are a thousand ways to mitigate it. **The requirement that came with that:** the delta grant must live in a **named method**, never inlined, so the toggle is findable when we do change it. D-27 settles #279 by reference-composition. **#273 settled** — static log, fixed floor/ceiling, bounds shared across entities so an enemy's radar is comparable to your own (#228 renders them side by side). **New fork surfaced:** entity-only stats have no scope marker (D-26).

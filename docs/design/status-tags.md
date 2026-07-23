@@ -99,32 +99,31 @@ the fallback rule so a node-carried aura sources from where it lives.
 Granting `&"lifeline"` to nodes within N hops of the carrier node is the easy
 80% and fits the shape above exactly. The actual "survive disconnection for one
 turn" behavior needs new work **outside** the tag system, because it changes
-*when* death happens, not just *what data* a node carries:
+*when* death happens, not just *what data* a node carries.
 
-1. **A query hook with a return value at the cascade decision point.**
-   `BattleSystem._on_node_depleted`'s cascade loop
-   (`systems/battle_system.gd:222-230`) currently unconditionally
-   `force_deallocate`s every node in the islanded set. It needs, per
-   candidate, to check `n.has_tag(&"lifeline")` before that call — and if
-   true, skip the immediate dealloc and register a grace period instead of
-   dispatching a fire-and-forget hook.
-2. **Grace-period bookkeeping belongs to `BattleSystem`, not to the effect or
-   the tag system.** Something like `_grace: Dictionary[SkillNode, int]`,
-   ticked down on turn boundaries (`_on_turn_start` or an `Events` signal),
-   force-deallocating a node only once its counter expires *and* it's still
-   disconnected. This mirrors the codebase's existing split — `Effect`
-   declares generic intent (here: "this node is protected"), the system that
-   owns the actual mutation (`BattleSystem` owns forced dealloc) interprets
-   and enforces the consequence. Don't let `LifelineEffect` reach into
-   `BattleSystem` itself, same reason no `Effect` reaches into any other
-   system directly today.
-3. **Reconnection must cancel the reprieve.** If a graced node reconnects to
-   core before its counter expires (owner reallocates the cut vertex, etc.),
-   the grace entry should be dropped rather than left to expire and then
-   re-check — otherwise a node that's actually safe again could still get
-   swept by a stale countdown. Whatever ticks the countdown needs to
-   re-verify connectivity (`nodes_islanded_by_removing` or equivalent) each
-   tick, not just trust the original cascade snapshot.
+> **Superseded — see `mvp_decisions.md` D-28/D-29 for the current design.**
+> Two claims this section originally made are now known wrong, and are kept
+> here only so the reasoning that replaced them is legible:
+>
+> - *"snapshot `has_tag` before the dealloc loop."* Wrong, not merely
+>   inelegant. A lifeline node hanging off the cut vertex carries the tag
+>   **before** the cut and loses it **after**; a pre-cut snapshot spares a node
+>   that must die (config C4 in D-28). Protection is `has_tag` recomputed on the
+>   **post-cut** subgraph.
+> - *"grace bookkeeping belongs to `BattleSystem`."* Dropped, along with the
+>   later proposal to relocate the cascade into `AllocationSystem`. Both the
+>   speculative resolvers (spell propagation, melee blade sim) and real playback
+>   must reach the same verdict, so the decision lives in one shared
+>   `apply_depletions(entity, D) -> { died, graced }` owned by neither system.
+>
+> What survives unchanged: **reconnection cancels the reprieve** — if a graced
+> node is reachable from core again before its counter expires, drop the entry
+> rather than let a stale countdown sweep a node that is actually safe.
+>
+> The generalization that replaced all of it: a node survives iff it is inside
+> some **surviving life source's reach** — core with infinite reach, a lifeline
+> carrier with 2 hops. "Connected to core" is core's case of one rule, not a
+> separate rule.
 
 ## Touch points (once this gets scheduled)
 
