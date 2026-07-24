@@ -27,6 +27,7 @@ extends Control
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 @onready var loot_picker: LootPicker = %LootPicker
+@onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
 @onready var game_over_overlay: CanvasLayer = %GameOverOverlay
 
 var _player: Entity
@@ -35,6 +36,17 @@ var _battle_system: BattleSystem
 var _turn_manager: TurnManager
 var _vision_system: VisionSystem
 
+## Pending-pick queue (#204): a kill can fire BOTH the dust pick and the spell
+## draft synchronously (both routed off `Events.entity_dying` inside
+## LootSystem). Both modals pause the tree, so they must be serialized rather
+## than both calling `present()` — the second `present()` would just stomp the
+## first's card grid. Each entry is a zero-arg Callable that shows one request;
+## `_drain_pending_picks` shows the next only once the current picker's
+## `closed` signal fires. Dust always queues before the spell draft because
+## LootSystem dispatches `_drop_skill_dust` before `_award_spell_loot`.
+var _pending_picks: Array[Callable] = []
+var _picker_busy: bool = false
+
 
 func _ready() -> void:
 	# Loot picks route over the global bus; the handler filters to the player
@@ -42,7 +54,12 @@ func _ready() -> void:
 	# the editor @tool pass has no player and no live combat.
 	if not Engine.is_editor_hint():
 		Events.loot_pick_requested.connect(_on_loot_pick_requested)
+		Events.spell_loot_requested.connect(_on_spell_loot_requested)
 		Events.game_over.connect(_on_game_over)
+		if loot_picker != null:
+			loot_picker.closed.connect(_on_picker_closed)
+		if spell_loot_picker != null:
+			spell_loot_picker.closed.connect(_on_picker_closed)
 
 
 ## Injected by [GameRoot] once it and HudRoot are both in the tree. Every
@@ -88,7 +105,34 @@ func _on_loot_pick_requested(request: LootPickRequest) -> void:
 	if loot_picker == null or _player == null or request.collector != _player:
 		return
 	request.handled = true
-	loot_picker.present(request)
+	_enqueue_pick(func() -> void: loot_picker.present(request))
+
+
+## Pick-1-from-M spell draft (#204). Same filter + handshake as the dust pick
+## above, queued behind it (see `_pending_picks`).
+func _on_spell_loot_requested(request: SpellLootRequest) -> void:
+	if spell_loot_picker == null or _player == null or request.collector != _player:
+		return
+	request.handled = true
+	_enqueue_pick(func() -> void: spell_loot_picker.present(request))
+
+
+func _enqueue_pick(show_request: Callable) -> void:
+	_pending_picks.append(show_request)
+	_drain_pending_picks()
+
+
+func _drain_pending_picks() -> void:
+	if _picker_busy or _pending_picks.is_empty():
+		return
+	_picker_busy = true
+	var show_request: Callable = _pending_picks.pop_front()
+	show_request.call()
+
+
+func _on_picker_closed() -> void:
+	_picker_busy = false
+	_drain_pending_picks()
 
 
 ## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the

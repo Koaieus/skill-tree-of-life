@@ -17,6 +17,12 @@ extends Resource
 ## spell is only removed from [member spells] when the last source drops. The
 ## [signal changed] signal (inherited from [Resource]) is emitted on every
 ## membership change so UI can react.
+##
+## [b]#198 invariant.[/b] SpellGrants are granted/revoked only as whole-node
+## batches ([code]_grant_node_effects[/code] <-> [code]revoke_effects_from[/code]),
+## so keying [member _sources] by [code]source_node[/code] can't collide. If a
+## mid-life single-effect revoke is ever added, rekey [member _sources] by
+## [EffectInstance] instead.
 
 ## Emitted whenever [member spells] changes — a spell is added or removed.
 ## Distinct from the inherited [signal Resource.changed] only so consumers give
@@ -120,6 +126,23 @@ func learn(spell: SpellDef) -> void:
 		return
 	spells.append(spell)
 	_notify_changed()
+
+
+## Spells that persist across topology changes for the owner of `core`:
+## innate (null-sourced / scene-baked, in `spells` but never ref-counted)
+## + spells granted by the core node. `core in _sources[spell]` keeps a spell
+## sourced by core AND a territory node (acceptance #5). At `entity_dying` the
+## strip hasn't run, so core grants are still present in `_sources`. See #204.
+func permanent_spells(core: SkillNode) -> Array[SpellDef]:
+	var out: Array[SpellDef] = []
+	for spell in spells:
+		if spell == null:
+			continue
+		if not _sources.has(spell):
+			out.append(spell)          # innate — permanent by definition
+		elif core in _sources[spell]:
+			out.append(spell)          # core-node-sourced
+	return out
 
 
 func _notify_changed() -> void:

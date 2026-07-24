@@ -20,6 +20,12 @@ extends Control
 ## not baked into the scene. Confirm enables only at exactly N selected; once N
 ## are picked the remaining cards disable so you can't overshoot.
 
+## Fired after the pick closes (confirmed) so HudRoot's pending-pick queue
+## (#204) can present the next queued request. LootPicker predates the queue
+## (#173 shipped it as the sole modal); this signal is what let #204 add a
+## second modal (SpellLootPicker) behind it without hand-wiring order.
+signal closed()
+
 @onready var _title: Label = %Title
 @onready var _subtitle: Label = %Subtitle
 @onready var _card_row: HBoxContainer = %CardRow
@@ -122,3 +128,4 @@ func _on_confirm() -> void:
 	hide()
 	get_tree().paused = false  # release the board before granting
 	request.resolve(chosen)
+	closed.emit()

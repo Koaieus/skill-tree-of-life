@@ -2,11 +2,13 @@
 class_name LootSystem
 extends Node
 
-## Authority for killing-blow rewards (#68 XP, #69/#173 SkillDust loot). Reacts to
-## `Events.entity_dying(victim)` — the PRE-cleanup phase, while the corpse still
-## owns its nodes (so the XP empire term can count the territory held at death).
-## The phase split guarantees this runs before AllocationSystem's `entity_died`
-## strip; no tree-order / connection-order dependency. On the bus:
+## Authority for killing-blow rewards (#68 XP, #69/#173 SkillDust loot,
+## #204 spellbook draft). Reacts to `Events.entity_dying(victim)` — the
+## PRE-cleanup phase, while the corpse still owns its nodes (so the XP empire
+## term can count the territory held at death, and the spell draft can still
+## read core-sourced spells before the strip). The phase split guarantees this
+## runs before AllocationSystem's `entity_died` strip; no tree-order /
+## connection-order dependency. On the bus:
 ##   * XP reward — the killer gains XP for the victim's level PLUS its territory
 ##     size at death (the empire term), fed through the normal `xp` pool so it
 ##     converts to SP / levels via the existing replenished cascade
@@ -16,6 +18,10 @@ extends Node
 ##     are attached to its former core node as a [SkillDustAddon], a pick-N-from-M
 ##     relic. Node mods are NOT looted — they return to the graph. See
 ##     docs/domain/loot-system.md.
+##   * Spell draft (#204) — the victim's PERMANENT (core ∪ innate) spells,
+##     minus what the killer already knows permanently, offered pick-1-from-M;
+##     the chosen spell lands on the killer's core via a [SpellGrant]. See the
+##     "#204: Spellbook loot draft" section below.
 ##
 ## KILLER ATTRIBUTION lives here, not on the entity or the bus: death fires
 ## SYNCHRONOUSLY inside the attacker's turn (core-HP overflow + cascade chip
@@ -39,6 +45,7 @@ extends Node
 ## NodePaths, swapped logic. See docs/domain/sandbox-framework.md.)
 @export var award_xp_on_kill: bool = true
 @export var drop_skill_dust_on_death: bool = true
+@export var award_spell_loot_on_death: bool = true
 
 ## ── XP reward (#68, extended #173) ────────────────────────────────────────────
 ## Two components, summed onto the killer's xp pool:
@@ -99,6 +106,7 @@ func _on_entity_dying(victim: Entity) -> void:
 	var killer := _resolve_killer(victim)
 	_award_kill_xp(victim, killer)
 	_drop_skill_dust(victim)
+	_award_spell_loot(victim, killer)
 	# Still the pre-strip world: the corpse owns its nodes, so an effect can
 	# inspect the territory it just took (the Predator's BLITZ will want this).
 	if killer != null:
@@ -223,3 +231,80 @@ func _attach_addon(node: SkillNode, addon: SkillNodeAddon) -> void:
 		anchor.add_child(addon)
 	else:
 		node.add_child(addon)  # headless fallback (no Visuals subtree)
+
+
+# ── #204: Spellbook loot draft (core-permanent spells) ───────────────────────
+## The draft draws from the victim's PERMANENT spellbook — core-node-sourced ∪
+## innate (both survive a dealloc, both vanish with the entity; territory-node
+## spells already left the book when their node was cascade-stripped, so
+## looting them would duplicate a spell that's still live on the battlefield —
+## same anti-duplication reasoning as the core-only SkillDust draw above).
+## Fires SYNCHRONOUSLY on the same `entity_dying` phase as the dust drop, so
+## both requests reach HudRoot in the same call stack — HudRoot queues them
+## (dust first, since it's dispatched first here).
+
+## Offer is capped at this many candidates (M = min(this, remaining)).
+const _SPELL_OFFER_CAP: int = 3
+## Fixed keep-count for #204's MVP — see the issue NOTES on keep-count scaling.
+const _SPELL_PICK_COUNT: int = 1
+
+
+func _award_spell_loot(victim: Entity, killer: Entity) -> void:
+	if not award_spell_loot_on_death:
+		return
+	if killer == null or killer.is_dead:
+		return
+	var victim_book := victim.spellbook
+	if victim_book == null or victim.core_location == null:
+		return
+	var candidates := victim_book.permanent_spells(victim.core_location)
+	candidates = _exclude_known(candidates, killer)
+	if candidates.is_empty():
+		return
+
+	candidates.shuffle()
+	var offer_count := mini(_SPELL_OFFER_CAP, candidates.size())
+	var offered: Array[SpellDef] = []
+	for i in offer_count:
+		offered.append(candidates[i])
+
+	var request := SpellLootRequest.new(
+			killer, offered, _SPELL_PICK_COUNT, _make_spell_resolver(killer))
+	Events.spell_loot_requested.emit(request)
+	if not request.handled:
+		# NPC / headless / no-HUD path — the DEFAULT branch. Random N of M.
+		var pool := offered.duplicate()
+		pool.shuffle()
+		var auto_pick: Array[SpellDef] = []
+		for i in mini(_SPELL_PICK_COUNT, pool.size()):
+			auto_pick.append(pool[i])
+		request.resolve(auto_pick)
+
+
+## Territory-known (temporary) spells stay offerable as an upgrade — only
+## PERMANENTLY-known spells are excluded, so the offer is a genuine addition.
+func _exclude_known(candidates: Array[SpellDef], killer: Entity) -> Array[SpellDef]:
+	if killer.spellbook == null or killer.core_location == null:
+		return candidates
+	var known := killer.spellbook.permanent_spells(killer.core_location)
+	var out: Array[SpellDef] = []
+	for s in candidates:
+		if not known.has(s):
+			out.append(s)
+	return out
+
+
+## Learn mechanism (#204): a [SpellGrant] placed on the killer's CORE node,
+## same mechanism as an authored/earned core spell — symmetric, and re-lootable
+## when the killer later dies (the draw reads core-sourced spells).
+func _make_spell_resolver(killer: Entity) -> Callable:
+	return func(chosen: Array[SpellDef]) -> void:
+		if not is_instance_valid(killer) or killer.is_dead or killer.core_location == null:
+			return
+		for spell in chosen:
+			if spell == null:
+				continue
+			var grant := SpellGrant.new()
+			grant.spell_def = spell
+			killer.core_location.effects.append(grant)       # persist on the node
+			killer.grant_effect(grant, killer.core_location) # → book.add_spell(spell, core_node)

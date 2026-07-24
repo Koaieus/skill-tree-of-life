@@ -57,6 +57,14 @@ signal entity_died(entity: Entity)
 ## human player's relics reach a picker (the HUD filters on `request.collector`).
 signal loot_pick_requested(request: LootPickRequest)
 
+## Emitted when a killing blow drafts a spell off the victim's permanent
+## (core) spellbook (#204). Carries a [SpellLootRequest]; a UI consumer sets
+## `handled = true` SYNCHRONOUSLY to take over the pick, otherwise the emitter
+## (LootSystem) auto-resolves a random pick — so NPCs and headless tests never
+## need a listener. Only the human player's drafts reach a picker (the HUD
+## filters on `request.collector`).
+signal spell_loot_requested(request: SpellLootRequest)
+
 ## A defender's spike popped an incoming enemy blade vertex (#170) — the hostile
 ## vertex died on contact (and severed whatever it dragged off the handle). Fired
 ## from the live swing at the contact moment. [param defender] is the spiked node
