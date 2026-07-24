@@ -123,7 +123,10 @@ func test_xp_award_routes_through_level_up() -> void:
 	var sp_before := _killer.stat_board.skill_points.current
 	_kill_victim()
 	assert_eq(_killer.level, lvl_before + 1, "kill XP filling the pool levels the killer")
-	assert_eq(_killer.stat_board.skill_points.current, sp_before + 1.0, "level-up mints 1 SP")
+	# #271: a level-up mints `sp_gain_on_levelup` (default 2), not a hardcoded 1.
+	var sp_gain := float(_killer.stat_board.get_value(&"sp_gain_on_levelup"))
+	assert_eq(_killer.stat_board.skill_points.current, sp_before + sp_gain,
+			"level-up mints sp_gain_on_levelup SP")
 
 
 func test_self_death_grants_no_xp() -> void:
@@ -187,20 +190,21 @@ func test_loot_draws_only_core_mods_never_node_mods() -> void:
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	for m in dust.candidates:
-		assert_true(m.stat_id in [&"strength", &"dexterity", &"intelligence"],
+		assert_true(m.stat_id in [&"strength", &"dexterity", &"intelligence",
+				&"constitution", &"wisdom"],
 			"candidates are core-identity mods only")
 		assert_ne(m.stat_id, &"armor", "node-granted mods are not lootable")
 
 
 func test_keep_count_scales_with_victim_level() -> void:
 	# N = round(core_keep_base + core_keep_per_level * level), clamped to the core
-	# supply (3 identity mods). M is always the full core set.
+	# supply (5 identity mods since #271). M is always the full core set.
 	_loot.core_keep_base = 1.0
 	_loot.core_keep_per_level = 0.5
 	_victim.level = 2
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 3, "M = full core supply")
+	assert_eq(dust.candidates.size(), 5, "M = full core supply")
 	assert_eq(dust.pick_count, 2, "N = round(1 + 0.5*2) = 2")
 
 
@@ -238,11 +242,11 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	# No HUD in this harness → the pick auto-resolves (random N of M). Exactly
 	# pick_count core mods land on the collector's board, not its core node (#185).
 	_loot.core_keep_base = 2.0
-	_loot.core_keep_per_level = 0.0  # N = 2, M = 3 → a real choice
+	_loot.core_keep_per_level = 0.0  # N = 2, M = 5 → a real choice
 	_victim.level = 1
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 3, "M = full core (3 identity mods)")
+	assert_eq(dust.candidates.size(), 5, "M = full core (5 identity mods)")
 	assert_eq(dust.pick_count, 2, "N = 2")
 	_killer.stat_board.skill_points.grant(5)  # ensure SP to afford the allocation
 	var attr_before := _attr_sum(_killer)
@@ -250,7 +254,7 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer can allocate the neutral relic node")
 	var attr_gain := _attr_sum(_killer) - attr_before
-	assert_eq(attr_gain, 20.0, "exactly 2 of 3 BalancedCore mods (+10 each) were granted")
+	assert_eq(attr_gain, 20.0, "exactly 2 of 5 BalancedCore mods (+10 each) were granted")
 	await get_tree().process_frame  # queue_free is deferred to frame end
 	assert_null(_find_dust(_nodes[1]), "dust consumes itself on pickup")
 
@@ -263,13 +267,18 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	# Real NPC play: nobody claims the pick → SkillDustAddon auto-resolves a
 	# RANDOM N of M. Exactly N mods must land on the board (not all M, not zero).
+	# XP is zeroed to isolate the loot grant: since #271 a level-up also moves
+	# CON (+1/level, via the board's mod_level_to_con intrinsic), which would
+	# otherwise drift _attr_sum by the killer's levels gained on this kill.
+	_loot.xp_per_victim_level = 0.0
+	_loot.xp_per_held_node = 0.0
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0
 	_victim.level = 1
 	var attr_before := _attr_sum(_killer)
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 3, "M candidates offered (core identity)")
+	assert_eq(dust.candidates.size(), 5, "M candidates offered (core identity)")
 	assert_eq(dust.pick_count, 2, "N to keep")
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
@@ -281,6 +290,9 @@ func test_no_handler_auto_resolves_a_strict_subset() -> void:
 func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> void:
 	# A UI consumer sets `handled = true` synchronously → the addon must NOT
 	# auto-resolve. The loot stays pending until the picker calls resolve().
+	# XP zeroed for the same reason as above — a level-up would move CON.
+	_loot.xp_per_victim_level = 0.0
+	_loot.xp_per_held_node = 0.0
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0
 	_victim.level = 1
@@ -312,8 +324,12 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 func _attr_sum(e: Entity) -> float:
+	# All FIVE attributes — BalancedCore grants +10 to each since #271. Summing
+	# only STR/DEX/INT would under-report whenever the random draw picks CON or
+	# WIS, which reads as "fewer mods granted" rather than "wrong sum".
 	var b := e.stat_board
-	return b.strength.value + b.dexterity.value + b.intelligence.value
+	return (b.strength.value + b.dexterity.value + b.intelligence.value
+			+ b.constitution.value + b.wisdom.value)
 
 
 func _find_dust(node: SkillNode) -> SkillDustAddon:
