@@ -16,7 +16,7 @@ Canonical colors from `docs/design/design_handoff_game_ui/README.md`, converted 
 | INT (Blue) | `oklch(0.68 0.18 258)` | `Color(0.291, 0.5892, 1.0, 1)` | `stats_system/defs/intelligence.tres` |
 | WIS (Gold) | `oklch(0.81 0.14 88)` | `Color(0.9039, 0.7331, 0.2746, 1)` | `stats_system/defs/wisdom.tres` |
 | PER (Purple) | `oklch(0.66 0.21 305)` | `Color(0.6935, 0.4045, 0.9676, 1)` | `stats_system/defs/perception.tres` |
-| CON (White, reserved 6th axis) | `oklch(0.92 0.02 250)` | `Color(0.8586, 0.9018, 0.9482, 1)` | not a live stat yet — reserve for when/if CON ships |
+| CON (White) | `oklch(0.92 0.02 250)` | `Color(0.8586, 0.9018, 0.9482, 1)` | `stats_system/defs/constitution.tres` — **live since #269**; also the `ap_white` archetype color in `procgen/presets/first_level/first_level.tres` |
 | Health (crimson) | `oklch(0.60 0.21 25)` | `Color(0.8878, 0.203, 0.2233, 1)` | `stats_system/defs/health.tres` |
 | Mana (cyan) | `oklch(0.72 0.14 220)` | `Color(0.0, 0.72, 0.881, 1)` | `stats_system/defs/mana.tres` — was previously the same blue as INT; now differentiated |
 | XP/gold | `oklch(0.80 0.14 88)` | `Color(0.8909, 0.7204, 0.2596, 1)` | `stats_system/defs/xp.tres` |

@@ -14,7 +14,7 @@ func test_preset_loads() -> void:
 	var cfg: GraphProcgenConfig = load(_PRESET_PATH)
 	assert_not_null(cfg, "first_level.tres should load as GraphProcgenConfig")
 	assert_gt(cfg.node_count, 0, "node_count should be set")
-	assert_eq(cfg.archetypes.size(), 5, "expected 5 archetypes (red/green/blue/gold/purple)")
+	assert_eq(cfg.archetypes.size(), 6, "expected 6 archetypes (red/green/blue/white/gold/purple)")
 	assert_not_null(cfg.modifier_pool_set, "modifier_pool_set should be set")
 	assert_gt(cfg.modifier_pool_set.packs.size(), 0, "pool set should carry StatPacks")
 	assert_eq(cfg.weight_profiles.size(), 3, "profiles: archetype + radial + collision")

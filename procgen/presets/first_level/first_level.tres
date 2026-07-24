@@ -79,6 +79,19 @@ cluster_size_weights = {
 6: 0.2
 }
 
+[sub_resource type="Resource" id="ap_white"]
+script = ExtResource("ap")
+id = &"white"
+color = Color(0.8586, 0.9018, 0.9482, 1)
+primary_stat = &"constitution"
+target_ratio = 0.3
+cluster_size_weights = {
+3: 1.0,
+4: 1.0,
+5: 0.6,
+6: 0.2
+}
+
 [sub_resource type="Resource" id="ap_green"]
 script = ExtResource("ap")
 id = &"green"
@@ -251,6 +264,6 @@ viability_radius = 300.0
 modifier_pool_set = ExtResource("pool_set")
 weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_main"), SubResource("cp_main")])
 budget_policy = SubResource("bp_main")
-archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_gold"), SubResource("ap_purple")])
+archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 addon_policy = SubResource("Resource_c6pvu")
 guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
