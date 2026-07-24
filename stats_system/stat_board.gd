@@ -21,6 +21,7 @@ extends Resource
 @export var intelligence: ScalarStat    ## INT / Blue — magic potency.
 @export var wisdom: ScalarStat          ## WIS / Gold — XP / economy.
 @export var perception: ScalarStat      ## PER / Purple — vision / sensing.
+@export var constitution: ScalarStat    ## CON / White — defensive bulk; scales node_health only (D-11).
 
 @export_group("Survivability")
 ## Entity's **Core** health, entity dies if it reaches 0.

@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="def_blade_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" path="res://stats_system/defs/crit_chance.tres" id="def_crit_chance"]
+[ext_resource type="Resource" path="res://stats_system/defs/constitution.tres" id="def_constitution"]
 [ext_resource type="Resource" path="res://stats_system/defs/crit_multiplier.tres" id="def_crit_multiplier"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
 [ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="def_dealloc_damage"]
@@ -40,6 +41,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
+[ext_resource type="Resource" path="res://stats_system/formulas/level_scaling.tres" id="formula_level_scaling"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -70,6 +72,12 @@ resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_constitution"]
+resource_name = "constitution"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_constitution")
+base_value = 0.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
 resource_name = "crit_chance"
@@ -227,6 +235,22 @@ script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
 
+[sub_resource type="Resource" id="formula_con_to_node_health"]
+script = ExtResource("script_expr")
+formula = "floor(float(constitution) / 10.0)"
+inputs = Array[StringName]([&"constitution"])
+
+[sub_resource type="Resource" id="mod_con_to_node_health"]
+script = ExtResource("12_3edt8")
+stat_id = &"node_health"
+formula = SubResource("formula_con_to_node_health")
+
+[sub_resource type="Resource" id="mod_level_to_con"]
+script = ExtResource("12_3edt8")
+stat_id = &"constitution"
+value = 10.0
+formula = ExtResource("formula_level_scaling")
+
 [sub_resource type="Resource" id="scalar_level"]
 resource_name = "level"
 script = ExtResource("2_scalar")
@@ -343,6 +367,7 @@ dexterity = SubResource("scalar_dexterity")
 intelligence = SubResource("scalar_intelligence")
 wisdom = SubResource("scalar_wisdom")
 perception = SubResource("scalar_perception")
+constitution = SubResource("scalar_constitution")
 health = SubResource("pool_health")
 node_health = SubResource("scalar_node_health")
 armor = SubResource("scalar_armor")
@@ -370,4 +395,4 @@ blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_dex_to_ranged_damage")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_level_to_con")])

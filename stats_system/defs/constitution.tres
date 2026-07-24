@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"constitution"
+display_name = "Constitution"
+description = "Defensive attribute (White/reserved). Scales node_health only; CON//10 per contact. Does not touch armor or min_damage_taken — those stay battlefield-found (D-11). Default 0 (not 10 like the other four): no CoreClass grants a CON baseline yet (D-15's BalancedCore +10 CON is out of this issue's file ownership — entity/core/** — so a bare board must not shift the level-1 node_health baseline away from today's flat 10)."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.8586, 0.9018, 0.9482, 1)

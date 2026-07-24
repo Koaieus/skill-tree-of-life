@@ -233,6 +233,20 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `strength` | `blade_size` | ADD_BASE | 1 | `floor(strength / 10.0)` |
 | `strength` | `blade_damage` | ADD_BASE | 1 | `floor(strength / 10.0)` |
+| `constitution` | `node_health` | ADD_BASE | 1 | `floor(constitution / 10.0)` — TBD (#268), idiom-matched to strength→blade_damage |
+| `level` | `constitution` | ADD_BASE | 10 | `level_scaling.tres` (`level - 1`) — TBD (#268), placeholder per-level CON grant landing ~29 HP node_health at level 20 |
+
+**CON (D-11/D-12/D-14, #269) — why the level→CON intrinsic lives on the board, not on `CoreClass`.** D-15 names `BalancedCore` as the eventual home for a per-level CON grant (mirroring the existing `+1 STR/DEX/INT per level`), but #269's file ownership excluded `entity/core/**`. So the level→CON channel above is a **board intrinsic** using the same shared `stats_system/formulas/level_scaling.tres` curve, not a `CoreClass.modifiers` entry. **Watch for double-counting**: if a future issue adds a CON grant to `BalancedCore` per D-15, reconcile against this board intrinsic first — don't just stack both.
+
+`constitution.tres`'s `default_value` is **0**, not 10 like the other four attributes — deliberately, so a level-1 entity's `node_health` baseline stays at today's flat 10 (no `CoreClass` grants a CON baseline yet). If/when D-15's BalancedCore +10 CON lands, revisit whether 0 is still right.
+
+CON does **not** get an intrinsic targeting `armor` or `min_damage_taken` — D-11 decision 3 is load-bearing (a prior draft that let CON drive `armor` produced a permanent dead zone against uninvested attackers). `test_constitution.gd` guards this explicitly.
+
+**Procgen home:** `procgen/pools/constitution.tres` is CON's own `StatPack` (PRIMARY role, `archetype_stat = &"constitution"`, mirrors `strength.tres`'s ADD_BASE/INCREASE/MULTIPLY tier structure targeting the `constitution` stat itself — not `node_health` directly). Its `off_phase_op_weights` (`{ADD_BASE:0.5, INCREASE:0.3, MULTIPLY:0.1, ADD_BONUS:0.3}`) is the **explicit, named exception** D-12 asks for: less severe than `wisdom.tres`/`perception.tres`'s suppression (`0.2/0.05/0.0/0.05`), so a non-CON node's off-archetype roll into CON content fades less than into WIS/PER content. `defensive.tres` (unchanged) remains the other half of "less severe for CON/defensive" — its `TierPool.Role.DEFENSIVE` pools bypass `off_phase_op_weights` (and the cost cap) entirely, drawn every time regardless of the node's `primary_stat`.
+
+**Known gap:** `constitution.tres` is **not** yet bundled into `procgen/pools/specimen_pool_set.tres` — adding it would bump `test_specimen_pool_set.gd`'s hardcoded `packs.size() == 8` / arch_id assertions, and that file was out of #269's ownership. A follow-up issue needs to add CON to the live set (and that test) before CON nodes actually appear in generated levels. Also not wired: an `ArchetypePolicy` for CON (color, weight profile, `procgen/presets/first_level/first_level.tres`) — that lives outside `procgen/pools/**` and was likewise out of scope.
+
+**HUD gap (#289/#228):** `ui/hud/attributes_panel/attributes_panel.gd` hardcodes the 5-attribute list and `ui/hud/attribute_rules.gd`'s `match` has no `&"constitution"` case — CON's Attributes Panel hover text is blank until one of those issues lands. Not fixed here (`ui/**` out of #269's ownership).
 
 ## Damage mitigation
 

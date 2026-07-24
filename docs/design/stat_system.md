@@ -474,7 +474,7 @@ This table is the **source of truth** for stat IDs; the combat doc mirrors a com
 | `strength` | INT | Scalar | — | Melee (R/Red). `STR//10` per contact; blade size `STR//10+1` nodes. |
 | `dexterity` | INT | Scalar | — | Ranged (G/Green). `DEX//10` per firing leaf. Possibly dodge. |
 | `intelligence` | INT | Scalar | — | Magic (B/Blue). `INT//10` per damage instance — **potency, never reach**. |
-| `constitution` | INT | Scalar | — | **CON (White).** Durability — scales node/core HP (replaces degree-defense); weights armor affixes. No attack. |
+| `constitution` | INT | Scalar | — | **CON (White).** Durability — drives `node_health` only, linearly (`+1 per 10 CON`, TBD #268). Does **not** touch `armor` or `min_damage_taken` — those stay battlefield-found (D-11). Levelling grants CON (D-14), so durability scales with level. No attack. Implemented #269. |
 | `wisdom` | INT | Scalar | — | **WIS (Gold).** XP-gain rate; carries growth modifiers. The economy attribute (supersedes White=XP). |
 | `perception` | INT | Scalar | — | **PER (Purple).** Vision + sensor range. `+1 sense_range / 10 PER`, `+2% vision_range / PER`. |
 | `bonus_hop_count` | INT | Scalar | — | Magic **reach** (the only source). Ultra-rare (~1–2 on the map). Default 0. |
