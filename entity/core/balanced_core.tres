@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="3_466st"]
 [ext_resource type="Script" uid="uid://ddlh35gou7ixj" path="res://entity/core/sigil/astroid_sigil.gd" id="3_sigil"]
 [ext_resource type="Resource" path="res://stats_system/formulas/level_scaling.tres" id="4_lvl"]
+[ext_resource type="Script" path="res://effects/heal_aura.gd" id="5_heal_aura"]
 
 [sub_resource type="Resource" id="mod_str"]
 script = ExtResource("2_mod")
@@ -40,9 +41,15 @@ formula = ExtResource("4_lvl")
 script = ExtResource("3_sigil")
 metadata/_custom_type_script = "uid://ddlh35gou7ixj"
 
+[sub_resource type="Resource" id="heal_aura_balanced"]
+script = ExtResource("5_heal_aura")
+base = 5.0
+range = 3.0
+
 [resource]
 script = ExtResource("3_466st")
 display_name = "Balanced"
 description = "The vanilla class: +10 STR / DEX / INT, +1 each per level gained. The baseline every other class is tuned against — every class delta is \"vs Balanced\"."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_str_per_level"), SubResource("mod_dex_per_level"), SubResource("mod_int_per_level")])
 sigil = SubResource("Resource_1xoxv")
+aura = SubResource("heal_aura_balanced")

@@ -187,6 +187,18 @@ var stake_level: int = 1:
 			_sync_visuals()
 var allocation_level: int = 0
 
+## Consecutive turns this node has regenerated without taking damage, feeding
+## `node_healing_ramp` (D-9). Runtime state, not a stat — same rationale as
+## node HP itself: see docs/domain/node-hp.md. Reset to 0 on damage taken and
+## on reaching full HP; incremented by [method apply_turn_regen] each time it
+## grants a ramped heal.
+var regen_stacks: int = 0
+
+## Set by [method take_damage] whenever a hit actually reduces this node's
+## HP; cleared by [method apply_turn_regen]. Gates the D-9 base heal — a node
+## hit since its last upkeep gets no base heal this turn and its ramp resets.
+var _damaged_since_upkeep: bool = false
+
 # Track the entity node_health stat so we can re-sync the node's combat health
 # base_value when the entity baseline changes. Swap on owner_changed.
 var _bound_entity_node_health: Stat = null
@@ -641,8 +653,16 @@ func get_emblem_contributions() -> Array:
 	return out
 
 
-## Reset node combat health to full. Called on allocation (silent) and at
-## turn-start upkeep (not silent — emits healed signal).
+## Reset node combat health to full. D-9 removed the turn-start refill sweep
+## (see [method apply_turn_regen]) — this now fires only on allocation, from
+## [method _refresh_hp_binding].
+##
+## Known and accepted interaction (D-9): because this still fires on
+## allocation, a low-HP node can be deallocated and reallocated to come back
+## full. That costs 1 DP (+2 MP if the core sits there) and requires topology
+## that permits the dealloc without islanding — a real turn-budget price, not
+## a bug. Do not "fix" this without a design decision first — see D-9 in
+## docs/design/mvp_decisions.md.
 func refill(silent: bool = false) -> void:
 	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
 	if hp == null:
@@ -654,6 +674,39 @@ func refill(silent: bool = false) -> void:
 		if delta > 0.0:
 			healed.emit(delta, null)
 			Events.skill_node_healed.emit(self, delta, null)
+
+
+## Turn-start regen upkeep (D-9), called once per owned node from
+## [code]Entity._on_turn_started[/code]. Gated, ramping heal:
+##
+## - took damage since the last upkeep -> [member regen_stacks] resets to 0,
+##   no base heal;
+## - else if below max HP -> heal [code]node_healing + regen_stacks *
+##   node_healing_ramp[/code], then bump the stack;
+## - else (already full) -> reset the stack.
+##
+## Aura healing (D-10) is [i]not[/i] computed here — it ignores this gate and
+## grants no ramp, so the caller applies it separately via
+## [method CoreAura.apply] / [method heal_damage] on top of whatever this
+## method does. Folding it in here would wrongly gate it on damage-this-turn.
+func apply_turn_regen() -> void:
+	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	if hp == null:
+		return
+	var took_damage := _damaged_since_upkeep
+	_damaged_since_upkeep = false
+	if took_damage:
+		regen_stacks = 0
+		return
+	if hp.current >= hp.value:
+		regen_stacks = 0
+		return
+	var base_heal: float = get_local_value(&"node_healing")
+	var ramp: float = get_local_value(&"node_healing_ramp")
+	var amount: float = base_heal + float(regen_stacks) * ramp
+	regen_stacks += 1
+	if amount > 0.0:
+		heal_damage(amount, null)
 
 
 ## Apply an incoming hit. Mitigation runs here so attackers don't need to know
@@ -678,6 +731,10 @@ func take_damage(amount: float, source: Variant) -> void:
 	var before := hp.current
 	hp.deplete(effective)
 	var soaked: float = before - hp.current
+	if soaked > 0.0:
+		# D-9: any actual HP loss marks this node "damaged since last
+		# upkeep" — apply_turn_regen() reads and clears this at turn start.
+		_damaged_since_upkeep = true
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
 	# Post-mitigation amount, so a defensive effect reacts to what actually landed.

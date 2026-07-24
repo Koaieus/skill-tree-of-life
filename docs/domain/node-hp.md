@@ -1,69 +1,92 @@
 # Node HP
 
-Per-node combat HP lives as a plain `current_hp: float` field on `SkillNode`,
-*not* as a stat in the modifier pipeline. This is a deliberate scaffolding
-choice for the ranged-attack proof-of-concept; the document below explains
-the reasoning and the seam for promoting it later.
+Per-node combat HP is a `PoolStat` (id `node_health`, def `node_combat_health`)
+on `SkillNode.node_board` — see `.claude/rules/stats-system.md` → "Local
+stats" → "Node combat health" for the board-level mechanics. This document
+covers the parts that live outside the stat pipeline: `regen_stacks` and how
+turn-start regen (D-9) and the CoreClass aura (D-10) apply on top of it.
 
 ## Current shape
 
-- `SkillNode.current_hp: float` — ephemeral game state.
-- `SkillNode.get_max_hp() -> float` — reads `owned_by.stat_board.get_value(&"node_health")`.
-- `SkillNode.refill()` — sets `current_hp = get_max_hp()`. Called on:
-  - first allocation (`owner_changed` → not null),
-  - turn start of the owning entity (`Entity._on_turn_started`).
+- `SkillNode.get_max_hp()` / `get_current_hp()` — thin reads of the
+  `node_health` PoolStat's `.value` / `.current`.
+- `SkillNode.refill()` — restores the pool to full. Fires **only** on
+  allocation (`_refresh_hp_binding`, silent) now — see "Turn-start regen"
+  below for why the turn-start call was removed.
 - `SkillNode.take_damage(amount, source)` — applies `Mitigation.apply`, soaks
-  against `current_hp`, routes overflow to `owned_by.stat_board.health` iff
-  this is a core node, emits `damaged` + `Events.skill_node_damaged`, emits
-  `depleted` + `Events.skill_node_depleted` on zero.
+  against the pool, routes overflow to `owned_by.stat_board.health` iff this
+  is a core node, emits `damaged` + `Events.skill_node_damaged`, emits
+  `depleted` + `Events.skill_node_depleted` on zero. Also sets
+  `_damaged_since_upkeep = true` whenever a hit actually reduces HP (soaked
+  > 0) — this is what gates the next turn's regen.
+- `SkillNode.heal_damage(amount, source)` — restores HP, clamped at max,
+  emits `healed` + `Events.skill_node_healed`.
 
-A `Stat.value_changed` subscription on the bound `node_health` stat clamps
-`current_hp` to the new cap if max drops mid-turn.
+## Turn-start regen (D-9) — replaces refill-to-full
 
-## Why not in the modifier pipeline yet
+`Entity._on_turn_started` no longer refills owned nodes to full. Instead,
+per owned node, `SkillNode.apply_turn_regen()` runs:
 
-`DerivedStatModifier` (`stats_system/derived_modifier_def.gd`) binds to **one
-StatBoard** and looks source stats up on that same board
-(`board.get_stat(id)` at `derived_modifier_def.gd:37`). `StatFormula.compute`
-takes a single board argument.
+- took damage since the last upkeep → `regen_stacks = 0`, no base heal;
+- else if HP < max → heal `node_healing + regen_stacks × node_healing_ramp`,
+  then `regen_stacks += 1`;
+- else (already at max) → `regen_stacks = 0`.
 
-A faithful "node-local + owner stats → node max HP" derivation would need:
+`node_healing` and `node_healing_ramp` are ordinary node-local stats (same
+mechanism as `range` — see `.claude/rules/stats-system.md` → "Local stats"),
+read via `get_local_value`. There is deliberately **no cap stat**: the ramp
+self-limits because it stops the moment the node reaches max HP and resets.
 
-- Either a **second StatBoard on SkillNode** (overkill: would carry the full
-  pool/scalar plumbing for one stat),
-- Or **cross-board derivation** (a new formula kind that knows about an owner
-  board alongside the local board — not a supported pattern today).
+### `regen_stacks` is runtime state, not a stat
 
-And critically: **there are no node-local stats yet**. Building the
-infrastructure for state that doesn't exist would be premature.
+`SkillNode.regen_stacks: int` — same reasoning as node HP's own promotion
+history below: it's per-node ephemeral game state (how many consecutive
+undamaged turns this node has regenerated), not something the modifier
+pipeline needs to derive or that other systems scale. It resets to 0 on
+damage and on reaching full HP, and increments by exactly 1 each turn
+`apply_turn_regen` grants a ramped heal. A future `CoreClass` that wants to
+zero the ramp (D-9's named differentiation lever) reads/writes
+`node_healing_ramp = 0` on the stat, not this field — `regen_stacks` just
+counts how many times the ramp has paid out.
 
-## Promotion path (when node-local stats arrive)
+### The dealloc/realloc refill is accepted, not a bug
 
-1. Introduce a minimal per-node board (e.g. `NodeStatBoard`) that holds the
-   small handful of stats nodes actually carry — likely `node_health_local`,
-   `node_armour_local`, etc.
-2. Add a `CrossBoardStatFormula` (or generalise `StatFormula`) that takes an
-   owner-board reference via constructor / sidecar lookup.
-3. Replace `SkillNode.get_max_hp()` with a `PoolStat`-style max read off
-   the local board, whose `node_health` stat carries a derived modifier
-   computed from `owner_board.node_health + node_board.node_health_local`.
-4. `current_hp` becomes `PoolStat.current` — the bare-field/`refill()` API
-   collapses into existing PoolStat machinery (`restore_to_full`, etc.).
+`refill()` still runs on allocation (`_refresh_hp_binding`), so a low-HP node
+can be deallocated and reallocated to come back full. This is a **known,
+accepted interaction** (D-9): it costs 1 DP (+2 MP if the core sits on that
+node) and requires topology that permits the dealloc without islanding — a
+real turn-budget price. Do not "fix" this without a design decision first;
+see D-9 in `docs/design/mvp_decisions.md`.
 
-The current single-stat lookup at the `get_max_hp` boundary is the seam: any
-future change should be confined to that method (and the `_refresh_hp_binding`
-subscription) without rippling into `take_damage` or callers.
+## The CoreClass healing aura (D-10)
 
-## Why not `PoolStat` on SkillNode now
+A `CoreClass` may carry a `CoreAura` (`effects/core_aura.gd`) — e.g.
+`HealAura` (`effects/heal_aura.gd`) — radiating from the entity's
+`core_location`. `Entity._on_turn_started` computes
+`aura.values_from(core_location, navigator)` once per turn (one BFS over the
+**owned** subgraph via `HopRangeFinder.gather`, never `graph.navigator` — see
+`.claude/rules/graph.md` "Reach queries"), then calls `aura.apply(node,
+value)` for every node the aura reaches.
 
-`PoolStat` works fine in isolation, but its modifier-pipeline hooks
-(`add_modifier`, `_apply_max_change`) implicitly assume the stat lives on
-some StatBoard that routes modifier changes through it. Mounting one on
-`SkillNode` with no surrounding board is half a system. We'd lose the
-`current ≤ cap` invariant on max changes only by piggybacking the existing
-`value_changed` signal of the entity board's `node_health` stat — which is
-exactly what `_refresh_hp_binding` does, but cleaner as a flat float for
-now.
+This runs **outside** `apply_turn_regen`'s gate: the aura heals through
+combat (applies even to a node that took damage this turn) and grants no
+ramp (never touches `regen_stacks`). `base` and `range` are authored
+directly on the `CoreAura` resource, not board stats — see D-10 in
+`docs/design/mvp_decisions.md` for the full rationale (why two independent
+knobs, why flat-not-percent, why the aura doesn't need to bribe the core
+forward).
+
+## Promotion history (why the pool, not a bare field)
+
+Node HP used to be a plain `current_hp: float` field with no modifier
+pipeline underneath it, for a `DerivedStatModifier`-era reason that no longer
+applies (see git history around #149/#171 for the original writeup). It was
+promoted to the `node_combat_health` `PoolStat` on `node_board` once
+node-local stats existed as infrastructure (addons, keystones). The
+`get_max_hp()` / `get_current_hp()` boundary is still the seam: any future
+change to how the cap or current are derived should stay confined to those
+two methods (plus `_refresh_hp_binding`) without rippling into `take_damage`
+/ `heal_damage` / `apply_turn_regen` callers.
 
 ## Test entities without stat boards
 
@@ -71,4 +94,5 @@ now.
 `owned_by.stat_board == null` (max → 0, no overflow routing). Cascade dealloc
 in `BattleSystem._on_node_depleted` skips the wound + core-HP-loss steps if
 the defender has no board. So a test entity with no board still participates
-in the highlight / plan flow; it just can't take meaningful damage.
+in the highlight / plan flow; it just can't take meaningful damage, and
+`apply_turn_regen` no-ops (no `node_health` pool to read).

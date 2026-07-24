@@ -236,7 +236,8 @@ func get_active_tags() -> Array[StringName]:
 ## Listens for TurnManager.turn_started. Each entity self-handles its own
 ## start-of-turn upkeep so we don't grow a god-mode TurnManager. Per-turn
 ## bookkeeping today: replenish pools (per each pool's per_turn_mode, including
-## skill_points' CUSTOM wound-heal), refill owned-node HP, run the class hook.
+## skill_points' CUSTOM wound-heal), run the gated node regen sweep (D-9) plus
+## the class aura (D-10), run the class hook.
 func _on_turn_started(entity: Entity) -> void:
 	if entity != self or stat_board == null:
 		return
@@ -244,12 +245,22 @@ func _on_turn_started(entity: Entity) -> void:
 	# per_turn_mode (AP/DP/movement REFILL, mana/xp ADD, skill_points CUSTOM
 	# wound-heal). New pools opt in via their def; nothing is wired here.
 	stat_board.apply_per_turn_upkeep()
-	# Per-node combat HP refill — every node owned by this entity returns to
-	# full. Lives here rather than on the node itself so a single sweep on
-	# turn start beats every node subscribing to a turn-manager signal.
+	# D-9: turn-start refill-to-full is gone. Every owned node instead runs a
+	# gated, ramping regen (SkillNode.apply_turn_regen) — damage persists
+	# across turns. D-10's class aura is layered on top, computed once per
+	# turn over the OWNED subgraph (never graph.navigator — see
+	# .claude/rules/graph.md "Reach queries") and applied outside the D-9
+	# gate: it heals through combat and grants no ramp.
 	if navigator != null:
+		var aura: CoreAura = core_class.aura if core_class != null else null
+		var aura_values: Dictionary[SkillNode, float] = {}
+		if aura != null and core_location != null:
+			aura_values = aura.values_from(core_location, navigator)
 		for n in navigator.get_mirrored_nodes():
-			n.refill()
+			n.apply_turn_regen()
+			var aura_value: float = aura_values.get(n, 0.0)
+			if aura_value > 0.0:
+				aura.apply(n, aura_value)
 	if core_class != null:
 		core_class.on_turn_started(self)
 	dispatch(&"_on_turn_start")

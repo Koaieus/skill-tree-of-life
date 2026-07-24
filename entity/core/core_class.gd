@@ -40,6 +40,12 @@ extends Resource
 ## (Pacifist, basic enemy) keep working unchanged. See [Sigil].
 @export var sigil: Sigil = null
 
+## The class's turn-start aura radiating from the core's node (D-10). `null`
+## means no aura. Applied by [method Entity._on_turn_started], not by
+## [method apply] — an aura is re-evaluated every turn against the current
+## owned subgraph, not granted once as a static modifier.
+@export var aura: CoreAura = null
+
 
 ## Wire this class onto the given entity. Default applies the modifier set and
 ## grants the effects; override for classes whose behaviour needs custom signal

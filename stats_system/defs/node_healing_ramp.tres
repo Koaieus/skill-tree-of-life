@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"node_healing_ramp"
+display_name = "Node Healing Ramp"
+description = "Extra HP node_healing gains per consecutive undamaged turn (SkillNode.regen_stacks), reset by damage or reaching full HP (D-9). Self-limiting, no cap stat. Node-local, same read path as node_healing. # TBD (#268)"
+value_type = 1
+default_value = 0.5
+tint_color = Color(0.45, 0.8, 0.65, 1)

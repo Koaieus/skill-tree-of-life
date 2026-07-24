@@ -27,6 +27,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="def_min_dmg_taken"]
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
+[ext_resource type="Resource" path="res://stats_system/defs/node_healing.tres" id="def_node_healing"]
+[ext_resource type="Resource" path="res://stats_system/defs/node_healing_ramp.tres" id="def_node_healing_ramp"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
@@ -288,6 +290,18 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_node_health")
 base_value = 10.0
 
+[sub_resource type="Resource" id="scalar_node_healing"]
+resource_name = "node_healing"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_node_healing")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_node_healing_ramp"]
+resource_name = "node_healing_ramp"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_node_healing_ramp")
+base_value = 0.5
+
 [sub_resource type="Resource" id="scalar_perception"]
 resource_name = "perception"
 script = ExtResource("2_scalar")
@@ -370,6 +384,8 @@ perception = SubResource("scalar_perception")
 constitution = SubResource("scalar_constitution")
 health = SubResource("pool_health")
 node_health = SubResource("scalar_node_health")
+node_healing = SubResource("scalar_node_healing")
+node_healing_ramp = SubResource("scalar_node_healing_ramp")
 armor = SubResource("scalar_armor")
 min_damage_taken = SubResource("scalar_min_dmg_taken")
 dealloc_damage = SubResource("scalar_dealloc_damage")

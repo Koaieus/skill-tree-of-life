@@ -31,6 +31,14 @@ extends Resource
 ## "Per-Node Health" section of the design doc); this is the aggregate itw
 ## reads from.
 @export var node_health: ScalarStat
+## Base HP a node regenerates at its owner's turn start (D-9). Node-local —
+## read per-node via SkillNode.get_local_value, gated by whether the node
+## took damage since the last turn start. See docs/domain/node-hp.md.
+@export var node_healing: ScalarStat
+## Extra node_healing per consecutive undamaged turn (SkillNode.regen_stacks,
+## D-9). Self-limiting: the ramp stops at max HP and resets, so there is no
+## cap stat. Node-local, same read path as node_healing.
+@export var node_healing_ramp: ScalarStat
 ## Flat damage reduction. Applied by Mitigation.apply before the
 ## min_damage_taken floor. Default 0.
 @export var armor: ScalarStat
