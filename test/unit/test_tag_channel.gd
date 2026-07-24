@@ -105,8 +105,11 @@ func test_revoking_one_of_two_tokens_from_the_same_instance_leaves_the_other() -
 	node.owned_by = ent
 
 	var inst := ent.grant_effect(InertEffect.new(), node)
-	var t1 := inst.context.grant_tag(&"x", node)
-	var _t2 := inst.context.grant_tag(&"x", node)
+	# `grant_tag` returns Variant, so `:=` would INFER Variant — which GUT's
+	# custom warning settings treat as a parse error and then silently skips
+	# the whole file. Annotate explicitly. See .claude/rules/testing.md.
+	var t1: Variant = inst.context.grant_tag(&"x", node)
+	var _t2: Variant = inst.context.grant_tag(&"x", node)
 
 	assert_true(node.has_tag(&"x"))
 	inst.context.revoke(t1)
@@ -127,7 +130,7 @@ func test_get_active_tags_reports_the_live_set() -> void:
 
 	var inst := ent.grant_effect(InertEffect.new(), node)
 	inst.context.grant_tag(&"a", node)
-	var token_b := inst.context.grant_tag(&"b", node)
+	var token_b: Variant = inst.context.grant_tag(&"b", node)
 
 	var active := node.get_active_tags()
 	assert_true(active.has(&"a"))
