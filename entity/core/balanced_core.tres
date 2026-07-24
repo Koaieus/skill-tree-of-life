@@ -22,6 +22,16 @@ script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 10.0
 
+[sub_resource type="Resource" id="mod_con"]
+script = ExtResource("2_mod")
+stat_id = &"constitution"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_wis"]
+script = ExtResource("2_mod")
+stat_id = &"wisdom"
+value = 10.0
+
 [sub_resource type="Resource" id="mod_str_per_level"]
 script = ExtResource("2_mod")
 stat_id = &"strength"
@@ -49,7 +59,7 @@ range = 3.0
 [resource]
 script = ExtResource("3_466st")
 display_name = "Balanced"
-description = "The vanilla class: +10 STR / DEX / INT, +1 each per level gained. The baseline every other class is tuned against — every class delta is \"vs Balanced\"."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_str_per_level"), SubResource("mod_dex_per_level"), SubResource("mod_int_per_level")])
+description = "The vanilla class: +10 to all five attributes (STR/DEX/INT/CON/WIS), +1 STR/DEX/INT per level gained. CON's per-level grant lives on the board intrinsic (mod_level_to_con), not here — every entity's durability scales with level regardless of core class (D-11/D-14/#269). WIS is deliberately excluded from the per-level grant (D-15): baseline xp_per_turn income stays flat forever unless the entity expands into WIS-bearing territory, which is the stall the design leans on. The baseline every other class is tuned against — every class delta is \"vs Balanced\"."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_con"), SubResource("mod_wis"), SubResource("mod_str_per_level"), SubResource("mod_dex_per_level"), SubResource("mod_int_per_level")])
 sigil = SubResource("Resource_1xoxv")
 aura = SubResource("heal_aura_balanced")

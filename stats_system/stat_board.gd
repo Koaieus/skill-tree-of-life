@@ -67,6 +67,11 @@ extends Resource
 ## that many from `wounded` back into `current`. Consumed by
 ## Entity._on_turn_started.
 @export var wound_heal_per_turn: ScalarStat
+## SP minted on each level-up (D-16, #271), read by Entity._on_xp_replenished
+## in place of the old hardcoded grant(1). Default 2 — #268-tunable, not a
+## pinned balance value. A milestone bonus (+1) applies on every 5th level,
+## computed in Entity, not stored here.
+@export var sp_gain_on_levelup: ScalarStat
 
 @export_group("Turn Budget")
 @export var deallocation_points: SurplusPoolStat  ## Default 3/3 — reshape budget. Surplus bin for #152 transient boost.

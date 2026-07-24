@@ -309,10 +309,19 @@ func _on_initiative_ready() -> void:
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
-	if stat_board.skill_points != null:
-		stat_board.skill_points.grant(1)
 	if stat_board.level != null:
 		stat_board.level.base_value += 1
+	if stat_board.skill_points != null:
+		# D-16 (#271): SP minted per level-up is a stat, not a hardcoded 1 —
+		# lets a CoreClass/keystone/node deviate through the normal modifier
+		# pipeline. Falls back to 1 for sparse boards with no such stat.
+		var sp_gain := 1
+		if stat_board.sp_gain_on_levelup != null:
+			sp_gain = roundi(stat_board.sp_gain_on_levelup.value)
+		# Milestone bonus: +1 extra SP on every 5th level (5, 10, 15, ...).
+		if level % 5 == 0:
+			sp_gain += 1
+		stat_board.skill_points.grant(sp_gain)
 	leveled_up.emit(level)
 	dispatch(&"_on_level_up", [level])
 

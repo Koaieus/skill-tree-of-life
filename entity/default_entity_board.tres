@@ -34,6 +34,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
+[ext_resource type="Resource" path="res://stats_system/defs/sp_gain_on_levelup.tres" id="def_sp_gain_on_levelup"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="def_strength"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
@@ -170,9 +171,11 @@ formula = SubResource("formula_int_to_mana_pt")
 
 [sub_resource type="Resource" id="formula_wis_to_xp_pt"]
 script = ExtResource("script_expr")
-formula = "floor(log(max(1e-5, float(wisdom))) / log(10.0))"
+formula = "floor(float(wisdom) / 2.0)"
 inputs = Array[StringName]([&"wisdom"])
 
+; xp_per_turn = WIS // 2 (D-15). Divisor 2 is pinned by D-15's math but
+; flagged #268-tunable — do not retune without a balance pass.
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
 script = ExtResource("12_3edt8")
 stat_id = &"xp_per_turn"
@@ -333,6 +336,12 @@ current = 3.0
 definition = ExtResource("def_skill_points")
 base_value = 3.0
 
+[sub_resource type="Resource" id="scalar_sp_gain_on_levelup"]
+resource_name = "sp_gain_on_levelup"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_sp_gain_on_levelup")
+base_value = 2.0
+
 [sub_resource type="Resource" id="scalar_spell_range"]
 resource_name = "spell_range"
 script = ExtResource("2_scalar")
@@ -394,6 +403,7 @@ xp_per_turn = SubResource("scalar_xp_per_turn")
 level = SubResource("scalar_level")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+sp_gain_on_levelup = SubResource("scalar_sp_gain_on_levelup")
 deallocation_points = SubResource("pool_dealloc")
 action_points = SubResource("pool_ap")
 movement_points = SubResource("pool_movement_points")

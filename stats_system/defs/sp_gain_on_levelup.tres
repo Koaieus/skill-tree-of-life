@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"sp_gain_on_levelup"
+display_name = "SP Gain / Level"
+description = "Skill Points minted on each level-up (Entity._on_xp_replenished), replacing the old hardcoded grant(1) (D-16, #271). Plus a milestone bonus: +1 extra on every 5th level (5, 10, 15, ...). Default 2 is a #268-tunable placeholder, not a pinned balance value."
+value_type = 0
+default_value = 2.0
+tint_color = Color(0.2606, 0.6387, 0.9922, 1)
