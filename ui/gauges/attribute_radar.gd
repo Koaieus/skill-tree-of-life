@@ -25,16 +25,42 @@ signal axis_unhovered
 		_resize_values()
 		queue_redraw()
 
-## Plotted value per axis, normalized against [member max_value] when drawn.
-## Runtime state (not exported / not spec) — sized to [member axes] and
-## written through [method set_value].
+## Plotted value per axis, normalized via [method _value_frac] (log scale
+## bounded by [member log_floor] / [member log_ceiling]) when drawn. Runtime
+## state (not exported / not spec) — sized to [member axes] and written
+## through [method set_value].
 var _values: PackedFloat32Array = PackedFloat32Array()
 
-## Axis values are normalized against this before plotting.
-@export var max_value: float = 60.0:
+## Log-scale floor/ceiling axis values are normalized against before
+## plotting (#273). D-18 makes INT a deliberate runaway (thousands) while
+## CON/STR/DEX sit in the tens and WIS is bounded 100-200 -- three orders of
+## magnitude on one polygon, so a linear plot is unreadable and log scale is
+## forced. Bounds are static and SHARED across every entity's radar (not
+## per-entity dynamic) because the radar exists for cross-entity comparison
+## (#228 renders an enemy's radar against your own) -- a per-entity scale
+## would draw two different entities as visually identical shapes.
+##
+## PLACEHOLDER TUNING VALUES: 1 -> 10_000 spans the designed attribute range
+## (D-18) with headroom above CON/STR/DEX (tens) and WIS (100-200), and below
+## INT's runaway (thousands+). Revisit once real endgame INT values are known.
+@export var log_floor: float = 1.0:
 	set(v):
-		max_value = max(0.0001, v)
+		log_floor = max(0.0001, v)
 		queue_redraw()
+@export var log_ceiling: float = 10000.0:
+	set(v):
+		log_ceiling = v
+		queue_redraw()
+
+## Maps a plotted value onto [0, 1] on a log scale bounded by
+## [member log_floor] / [member log_ceiling]. Values at or below the floor
+## (including 0 -- log(0) is -inf, the obvious trap) clamp to the floor and
+## render at frac 0.0 rather than erroring or producing -inf/NaN.
+func _value_frac(value: float) -> float:
+	var lo: float = log(log_floor)
+	var hi: float = log(maxf(log_ceiling, log_floor * 1.0001))
+	var clamped: float = clampf(value, log_floor, log_ceiling)
+	return clampf((log(clamped) - lo) / (hi - lo), 0.0, 1.0)
 
 @export var fill_color: Color = Color(0.82, 0.75, 0.47, 0.14):
 	set(v):
@@ -135,7 +161,7 @@ func _draw() -> void:
 
 	var data_pts := PackedVector2Array()
 	for i in n:
-		var frac: float = clamp(_values[i] / max_value, 0.0, 1.0) if i < _values.size() else 0.0
+		var frac: float = _value_frac(_values[i]) if i < _values.size() else 0.0
 		data_pts.append(_axis_point(i, frac))
 	if data_pts.size() >= 3:
 		draw_colored_polygon(data_pts, fill_color)
@@ -144,7 +170,7 @@ func _draw() -> void:
 		draw_polyline(outline, Color(0.82, 0.72, 0.53, 0.9), 1.6, true)
 
 	for i in n:
-		var frac: float = clamp(_values[i] / max_value, 0.0, 1.0) if i < _values.size() else 0.0
+		var frac: float = _value_frac(_values[i]) if i < _values.size() else 0.0
 		var col: Color = axes[i].color if i < axes.size() else Color.WHITE
 		var dot_radius := 5.0 if i == _hovered_axis else 3.2
 		draw_circle(_axis_point(i, frac), dot_radius, col)
