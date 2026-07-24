@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="TerritorySeeder" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://procgen/placement/territory_seeder.gd" id="1_seeder"]
+[ext_resource type="Resource" path="res://procgen/placement/greedy_bfs_ball.tres" id="2_policy"]
+
+[resource]
+script = ExtResource("1_seeder")
+policy = ExtResource("2_policy")

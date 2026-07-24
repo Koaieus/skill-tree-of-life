@@ -5,14 +5,20 @@ extends GameRoot
 ## [method GameRoot._setup_level] so generation runs *after* the systems
 ## are in the tree but *before* HudRoot composes (it reads player stats).
 ##
-## Random-walk territory expansion below skips [AllocationSystem.allocate]
-## because that's gated on SP/AP — fine in-game, hostile to one-shot setup.
-## Uses [method AllocationSystem.force_allocate], the same primitive
+## Enemy territory is grown by [member territory_seeder] (#275, D-19/D-24) —
+## a shared, injectable [TerritorySeeder] / [AllocationPolicy] pair, not a
+## private random walk. It skips [AllocationSystem.allocate] because that's
+## gated on SP/AP -- fine in-game, hostile to one-shot setup -- and uses
+## [method AllocationSystem.force_allocate], the same primitive
 ## [method GameRoot.spawn_entity] composes for the initial core.
+##
+## The player is seeded with the core node ONLY (D-16's pinned "starting
+## nodes: 1") -- it is never handed to [member territory_seeder].
 
 const _STARTER_GROUP := &"procgen_starter"
 const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_ENEMY_CORE_CLASS := preload("res://entity/core/basic_enemy_core.tres")
+const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_seeder.tres")
 const _STARTING_SPELLS: Array[SpellDef] = [
 	preload("res://attack/spell/defs/spark.tres"),
 	preload("res://attack/spell/defs/lightning_bolt.tres"),
@@ -41,8 +47,16 @@ static func _make_starting_spellbook() -> SpellBook:
 @export var n_random_starters: int = 1
 @export var viability_radius: float = 400.0
 
-## Random-walk expansion steps per entity, after core allocation.
-@export var expansion_steps: int = 6
+## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
+## Injectable so a different level scene can swap in another AllocationPolicy
+## without touching this script.
+@export var territory_seeder: TerritorySeeder = _DEFAULT_TERRITORY_SEEDER
+
+## Target owned-node count for each spawned enemy (core included). D-19:
+## enemy level == starting nodes, so this also becomes each enemy's spawn
+## level once seeding completes. The player is NEVER expanded — D-16 pins
+## player starting nodes at 1 (the core only).
+@export var enemy_territory_size: int = 20
 
 
 func _setup_level() -> void:
@@ -72,6 +86,7 @@ func _setup_level() -> void:
 	for n in starting_nodes:
 		(n as Node).add_to_group(_STARTER_GROUP)
 
+	# Player: core only. D-16 pins starting nodes at 1 — no seeding call here.
 	player = spawn_entity("Player", player_color, starting_nodes[0], core_class)
 	#player.spellbook = _make_starting_spellbook()
 
@@ -83,37 +98,21 @@ func _setup_level() -> void:
 	# Wire the player into the interaction layer (input / vision / highlight /
 	# faction) now that it exists — edit-time NodePaths can't bind to a node
 	# spawned at runtime. `_ready` calls `bind_player` again idempotently; doing
-	# it here too sets vision before `_expand` + the fade so the initial fog is
-	# correct.
+	# it here too sets vision before territory seeding + the fade so the
+	# initial fog is correct.
 	bind_player(player)
 
-	# Derive expansion RNG from the config seed so identical `preset.seed`
-	# produces identical content + starter walks. Salting with a constant
-	# keeps the expansion stream independent of the procgen content stream
-	# (so adding/removing modifier rolls upstream doesn't shift expansion).
+	# Derive seeding RNG from the config seed so identical `preset.seed`
+	# produces identical content + enemy territory. Salting with a constant
+	# keeps the seeding stream independent of the procgen content stream
+	# (so adding/removing modifier rolls upstream doesn't shift seeding).
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (cfg.seed if cfg.seed != 0 else hash("procgen_play_sandbox")) ^ 0x57AB02D
-	_expand(player, rng, expansion_steps)
 	for e in enemies:
-		_expand(e, rng, expansion_steps)
+		var achieved := territory_seeder.seed_territory(e, graph, allocation_system, enemy_territory_size, rng)
+		# D-19: enemy_level = starting_nodes. Uses the ACTUAL claimed count —
+		# a graph that runs dry before `enemy_territory_size` still yields a
+		# self-consistent level rather than an inflated one.
+		e.level = achieved
 
 	SceneTransition.fade_in()
-
-
-func _expand(ent: Entity, rng: RandomNumberGenerator, steps: int) -> void:
-	for _i in steps:
-		var owned: Array[SkillNode] = []
-		for n in graph.get_skill_nodes():
-			if n.owned_by == ent:
-				owned.append(n)
-		if owned.is_empty():
-			return
-		var pick: SkillNode = owned[rng.randi() % owned.size()]
-		var candidates: Array[SkillNode] = []
-		for nb in graph.get_neighbours(pick):
-			if nb.owned_by == null:
-				candidates.append(nb)
-		if candidates.is_empty():
-			continue
-		var target: SkillNode = candidates[rng.randi() % candidates.size()]
-		allocation_system.force_allocate(ent, target)

@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="GreedyBfsBallPolicy" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://procgen/placement/greedy_bfs_ball_policy.gd" id="1_policy"]
+
+[resource]
+script = ExtResource("1_policy")
