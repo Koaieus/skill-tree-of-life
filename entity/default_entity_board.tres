@@ -238,19 +238,19 @@ stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
 
 [sub_resource type="Resource" id="formula_con_to_node_health"]
-script = ExtResource("script_expr")
-formula = "floor(float(constitution) / 10.0)"
-inputs = Array[StringName]([&"constitution"])
+script = ExtResource("script_linear")
+source_stat_id = &"constitution"
 
 [sub_resource type="Resource" id="mod_con_to_node_health"]
 script = ExtResource("12_3edt8")
 stat_id = &"node_health"
+value = 1.0
 formula = SubResource("formula_con_to_node_health")
 
 [sub_resource type="Resource" id="mod_level_to_con"]
 script = ExtResource("12_3edt8")
 stat_id = &"constitution"
-value = 10.0
+value = 1.0
 formula = ExtResource("formula_level_scaling")
 
 [sub_resource type="Resource" id="scalar_level"]

@@ -30,6 +30,23 @@ Read side: `SkillNode.get_local_value(id)` returns the combined value without al
 
 For entity-absent fallback: `get_local_value(id)` uses `StatRegistry.get_def(id).default_value` when neither board carries the stat.
 
+### Node regen stats (`node_healing` / `node_healing_ramp`, D-9 #270)
+
+Two **node-local** scalars read through `get_local_value` — so a single node can be tuned to regen faster than its owner's baseline. `node_healing` is the flat per-turn heal; `node_healing_ramp` is the extra granted per consecutive undamaged turn.
+
+The stack counter itself is **runtime state on `SkillNode` (`regen_stacks`), not a stat** — same reasoning as node HP: it's per-node combat bookkeeping that resets constantly and nothing should be able to modify it. **There is deliberately no cap stat**; the ramp self-limits by stopping at max HP and resetting. Don't add one.
+
+Turn-start refill-to-full is **gone** (D-9) — damage persists across turns. `SkillNode.refill()` survives for the allocation path only, and the resulting dealloc/realloc full-heal is an **accepted interaction, not a bug** (it costs DP/MP and needs topology permitting the dealloc without islanding). See `docs/domain/node-hp.md`.
+
+### CoreClass auras (D-10, #270)
+
+`CoreClass.aura` holds a `CoreAura` resource; `HealAura` is the first concrete one. `value_at_hop(h) = base × (1 − h/range)`, clamped at 0, with **both `base` and `range` authored — never derived**. Deriving range from base would make a strong aura automatically a wide one, and covered-node count grows ~quadratically in radius; bounding coverage is the whole point, since an aura blanketing most of an entity's territory out-heals the chip damage driving the forced-dealloc death clock.
+
+- **Aura parameters live on the resource, NOT the stat board.** Don't add `aura_heal_base`/`aura_heal_range` as stats.
+- **Hop distance is measured over the OWNED subgraph** (`entity.navigator`) via `RangeFinder.gather`, never the global navigator and never `in_range` in a loop — see `.claude/rules/graph.md`.
+- The aura heals **through** the damage gate but **grants no ramp**; it's additive outside the ramp term: `total = (node_healing + stacks × ramp) + aura_at_hop`.
+- The resource is a **channel, not a payload** — armor/damage auras are equally valid. Don't hardcode "aura == healing" into its shape.
+
 ### Node combat health
 
 The node's health is a `PoolStat` on `node_board` with id `"node_combat_health"` (`StandardPoolStatDef`, `heal_on_max_increase = true`). On allocation, `base_value` is synced from the owning entity's `node_health` ScalarStat baseline and re-syncs on `value_changed`. `current` tracks damage; `deplete()` / `restore_to_full()` replace the old `current_hp` float. See `skill_node/skill_node.gd:_refresh_hp_binding`.
@@ -233,12 +250,14 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `strength` | `blade_size` | ADD_BASE | 1 | `floor(strength / 10.0)` |
 | `strength` | `blade_damage` | ADD_BASE | 1 | `floor(strength / 10.0)` |
-| `constitution` | `node_health` | ADD_BASE | 1 | `floor(constitution / 10.0)` — TBD (#268), idiom-matched to strength→blade_damage |
-| `level` | `constitution` | ADD_BASE | 10 | `level_scaling.tres` (`level - 1`) — TBD (#268), placeholder per-level CON grant landing ~29 HP node_health at level 20 |
+| `constitution` | `node_health` | ADD_BASE | 1 | LinearFormula(constitution) — TBD (#268): the rate **is** this coefficient, +1 HP per CON |
+| `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — TBD (#268), +1 CON per level |
 
-**CON (D-11/D-12/D-14, #269) — why the level→CON intrinsic lives on the board, not on `CoreClass`.** D-15 names `BalancedCore` as the eventual home for a per-level CON grant (mirroring the existing `+1 STR/DEX/INT per level`), but #269's file ownership excluded `entity/core/**`. So the level→CON channel above is a **board intrinsic** using the same shared `stats_system/formulas/level_scaling.tres` curve, not a `CoreClass.modifiers` entry. **Watch for double-counting**: if a future issue adds a CON grant to `BalancedCore` per D-15, reconcile against this board intrinsic first — don't just stack both.
+**Put a rate in `value`, not in the formula string.** Most expression-formula intrinsics above bake their rate into the expression (`floor(strength / 10.0)`) and leave `value` at its 1.0 default. That still works — the knob exists on every modifier — but it splits the rate across two places, and turning `value` up on a `floor(X/10)` formula scales the already-*stepped* output rather than the rate. CON→`node_health` deliberately does it the other way: a `LinearFormula` passthrough of `constitution` with the rate as the modifier's `value`, so #268 retunes it in exactly one field. Prefer that shape for new intrinsics; `mod_per_to_vision` (2.0 × PER) and every `level_scaling` class bonus already follow it.
 
-`constitution.tres`'s `default_value` is **0**, not 10 like the other four attributes — deliberately, so a level-1 entity's `node_health` baseline stays at today's flat 10 (no `CoreClass` grants a CON baseline yet). If/when D-15's BalancedCore +10 CON lands, revisit whether 0 is still right.
+**CON (D-11/D-12/D-14, #269) — the level→CON grant lives on the board, and only there (user decision, 2026-07-24).** D-15 originally named `BalancedCore` as its home, mirroring `+1 STR/DEX/INT per level`. It was settled the other way: the board intrinsic means **every** entity's durability scales with level regardless of core class, which is the asymmetry #269 existed to fix. **`BalancedCore` therefore contributes the +10 CON *base* grant (#271) but must NOT get a per-level CON entry in its `level_scaling` modifiers** — that would double-count against the board intrinsic. CON is the one attribute whose level channel is board-side; STR/DEX/INT remain class-side.
+
+`constitution.tres`'s `default_value` is **0**, not 10 like the other four attributes — deliberately, so a level-1 *bare* board's `node_health` baseline stays at flat 10. The +10 baseline arrives as BalancedCore's class grant (#271), matching how the other attributes get theirs.
 
 CON does **not** get an intrinsic targeting `armor` or `min_damage_taken` — D-11 decision 3 is load-bearing (a prior draft that let CON drive `armor` produced a permanent dead zone against uninvested attackers). `test_constitution.gd` guards this explicitly.
 

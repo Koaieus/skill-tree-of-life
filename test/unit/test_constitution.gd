@@ -39,9 +39,11 @@ func test_con_0_vs_30_node_health_differs_by_intrinsic_rate() -> void:
 	board_hi.apply_intrinsics()
 	board_hi.constitution.base_value = 30.0
 
-	# Idiom: floor(CON / 10), same shape as strength -> blade_damage.
-	# TBD (#268): placeholder rate, "+1 per 10 CON".
-	var expected_rate := 3.0  # floor(30/10) - floor(0/10)
+	# node_health += CON, i.e. the `value` coefficient on mod_con_to_node_health
+	# times a LinearFormula passthrough of constitution. The rate lives in that
+	# coefficient, NOT in a formula string, so #268 can tune it in one place.
+	# TBD (#268): placeholder coefficient, 1.0.
+	var expected_rate := 30.0  # 1.0 * (30 - 0)
 	var diff: float = float(board_hi.node_health.get_value()) - float(board_lo.node_health.get_value())
 	assert_almost_eq(diff, expected_rate, 0.001, "node_health delta should equal the CON intrinsic rate exactly")
 
