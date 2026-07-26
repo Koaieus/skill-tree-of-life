@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://d00w625p5if37" path="res://ui/space_background/space_background.gd" id="1_script"]
 [ext_resource type="Shader" uid="uid://gqmnu5o4x3u3" path="res://ui/space_background/nebula.gdshader" id="2_nebula"]
 [ext_resource type="Shader" uid="uid://dk2feutkiukiq" path="res://ui/space_background/starfield.gdshader" id="3_star"]
-[ext_resource type="Shader" path="res://ui/space_background/nebula_texture.gdshader" id="4_nebula_tex"]
+[ext_resource type="Shader" uid="uid://c5ybo2cl2dx1b" path="res://ui/space_background/nebula_texture.gdshader" id="4_nebula_tex"]
 
 [sub_resource type="ShaderMaterial" id="mat_nebula"]
 shader = ExtResource("2_nebula")
@@ -21,25 +21,22 @@ gradient = SubResource("grad_tile")
 width = 2048
 height = 2048
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_vtidm"]
-frequency = 0.0026
-fractal_type = 1
-fractal_octaves = 4
-fractal_lacunarity = 2.0
-fractal_gain = 0.5
-
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_w78vf"]
-width = 2048
-height = 2048
-noise = SubResource("FastNoiseLite_vtidm")
-seamless = true
-
 [sub_resource type="ShaderMaterial" id="mat_nebula_tex"]
 shader = ExtResource("4_nebula_tex")
 shader_parameter/color_a = Color(0.13, 0.05, 0.3, 1)
 shader_parameter/color_b = Color(0.02, 0.11, 0.22, 1)
 shader_parameter/strength = 0.65
 shader_parameter/threshold = 0.34
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_vtidm"]
+frequency = 0.0026
+fractal_octaves = 4
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_w78vf"]
+width = 2048
+height = 2048
+noise = SubResource("FastNoiseLite_vtidm")
+seamless = true
 
 [sub_resource type="ShaderMaterial" id="mat_star_far"]
 shader = ExtResource("3_star")
@@ -93,7 +90,7 @@ mouse_filter = 2
 color = Color(0.015, 0.017, 0.035, 1)
 
 [node name="Nebula" type="Parallax2D" parent="." unique_id=1354393592]
-scroll_scale = Vector2(0.06, 0.06)
+scroll_scale = Vector2(0.02, 0.02)
 repeat_size = Vector2(2048, 2048)
 repeat_times = 6
 
@@ -109,7 +106,7 @@ material = SubResource("mat_nebula_tex")
 texture = SubResource("NoiseTexture2D_w78vf")
 
 [node name="StarsFar" type="Parallax2D" parent="." unique_id=1096780804]
-scroll_scale = Vector2(0.14, 0.14)
+scroll_scale = Vector2(0.08, 0.08)
 repeat_size = Vector2(1024, 1024)
 repeat_times = 10
 
@@ -119,7 +116,7 @@ material = SubResource("mat_star_far")
 texture = SubResource("tex_tile")
 
 [node name="StarsMid" type="Parallax2D" parent="." unique_id=1693328196]
-scroll_scale = Vector2(0.32, 0.32)
+scroll_scale = Vector2(0.16, 0.16)
 repeat_size = Vector2(1024, 1024)
 repeat_times = 10
 
@@ -129,7 +126,7 @@ material = SubResource("mat_star_mid")
 texture = SubResource("tex_tile")
 
 [node name="StarsNear" type="Parallax2D" parent="." unique_id=315505731]
-scroll_scale = Vector2(0.55, 0.55)
+scroll_scale = Vector2(0.4, 0.4)
 repeat_size = Vector2(1024, 1024)
 repeat_times = 10
 
