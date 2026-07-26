@@ -79,19 +79,6 @@ cluster_size_weights = {
 6: 0.2
 }
 
-[sub_resource type="Resource" id="ap_white"]
-script = ExtResource("ap")
-id = &"white"
-color = Color(0.8586, 0.9018, 0.9482, 1)
-primary_stat = &"constitution"
-target_ratio = 0.3
-cluster_size_weights = {
-3: 1.0,
-4: 1.0,
-5: 0.6,
-6: 0.2
-}
-
 [sub_resource type="Resource" id="ap_green"]
 script = ExtResource("ap")
 id = &"green"
@@ -110,6 +97,19 @@ script = ExtResource("ap")
 id = &"blue"
 color = Color(0.4, 0.55, 0.95, 1)
 primary_stat = &"intelligence"
+target_ratio = 0.3
+cluster_size_weights = {
+3: 1.0,
+4: 1.0,
+5: 0.6,
+6: 0.2
+}
+
+[sub_resource type="Resource" id="ap_white"]
+script = ExtResource("ap")
+id = &"white"
+color = Color(0.8586, 0.9018, 0.9482, 1)
+primary_stat = &"constitution"
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,

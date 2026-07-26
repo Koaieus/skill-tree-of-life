@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="StatPack" format=3]
+[gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://beujgqh26xswl"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/tier_pool.gd" id="2_tp"]
-[ext_resource type="Script" path="res://procgen/pools/tier_def.gd" id="3_td"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://dyuijs3vfl8j8" path="res://procgen/pools/tier_pool.gd" id="2_tp"]
+[ext_resource type="Script" uid="uid://cf6t6jrkg5k23" path="res://procgen/pools/tier_def.gd" id="3_td"]
 
 [sub_resource type="Resource" id="ab_t1"]
 script = ExtResource("3_td")
