@@ -199,6 +199,20 @@ func apply_intrinsics() -> void:
 		add_modifier(m.duplicate(true))
 
 
+## The ids of every dynamically-created stat currently on this board (i.e. the
+## sparse [member _extra_stats] set — hardcoded @export fields are never
+## included). For a sparse board like [member SkillNode.node_board] this is the
+## only way to enumerate "what's actually on it" — read-only, creates nothing.
+## Sorted lexicographically so repeated calls return the same order (Dictionary
+## iteration order isn't a contract to lean on for UI row stability).
+func get_dynamic_stat_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for id in _extra_stats:
+		ids.append(id)
+	ids.sort()
+	return ids
+
+
 ## Every PoolStat field on this board, discovered by introspection so adding a
 ## new pool needs no registration here. Includes SkillPointStat (a PoolStat).
 func get_pool_stats() -> Array[PoolStat]:

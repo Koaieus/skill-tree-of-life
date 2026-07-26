@@ -5,3 +5,4 @@
 [node name="ClampAddon" type="Node2D"]
 script = ExtResource("1_clamp")
 unique = true
+description = "Welds this joint rigid — two arms meeting here hold their angle under blade impact instead of hinging free."

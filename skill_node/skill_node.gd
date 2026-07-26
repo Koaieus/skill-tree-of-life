@@ -585,6 +585,41 @@ func get_node_effects() -> Array[Effect]:
 #endregion
 
 
+## Tooltip identity — [member Keystone.display_name] when this node carries a
+## keystone, [code]""[/code] otherwise. Deliberately no fabricated id, no scene
+## node name, no hash: an empty string means "no name to show", and callers
+## render nothing (#288's name composer later fills the empty branch). See
+## Tooltip V2 (#294).
+func get_display_name() -> String:
+	if keystone != null:
+		return keystone.display_name
+	return ""
+
+
+## True vertex degree in [param graph] — every node sharing an edge with this
+## one, regardless of ownership. O(degree): reads [method Graph.get_neighbours]'s
+## cached adjacency index. NEVER walk [method Graph.get_edges] per node — see
+## `.claude/rules/graph.md`.
+func get_graph_degree(graph: Graph) -> int:
+	if graph == null:
+		return 0
+	return graph.get_neighbours(self).size()
+
+
+## Degree within the induced subgraph of [param entity]'s owned nodes: how many
+## of this node's neighbours are also owned by [param entity]. Always
+## `<= get_graph_degree(graph)`; meaningless (but harmless — reads 0) on a node
+## [param entity] doesn't own.
+func get_entity_degree(graph: Graph, entity: Entity) -> int:
+	if graph == null or entity == null:
+		return 0
+	var count := 0
+	for n in graph.get_neighbours(self):
+		if n.owned_by == entity:
+			count += 1
+	return count
+
+
 func get_addons() -> Array[SkillNodeAddon]:
 	var out: Array[SkillNodeAddon] = []
 	if _addon_anchor == null:
@@ -609,17 +644,19 @@ func get_spike_power() -> float:
 
 
 ## Tooltip sections contributed by attached addons. Each entry is
-## `{ "title": String, "modifiers": Array[StatModifier] }`; SkillNodeTooltip
-## renders them below the node's own modifier list. Addons opt in by overriding
-## [method SkillNodeAddon.get_tooltip_modifiers] (e.g. SkillDust lists its loot
-## payload). Addons that contribute nothing are skipped.
+## `{ "title": String, "modifiers": Array[StatModifier], "description": String }`;
+## SkillNodeTooltip renders them below the node's own modifier list. Addons opt
+## in by overriding [method SkillNodeAddon.get_tooltip_modifiers] (e.g. SkillDust
+## lists its loot payload) or authoring [member SkillNodeAddon.description] for a
+## behaviour-only addon with no modifiers (e.g. Clamp). Addons that contribute
+## neither are skipped.
 func get_addon_tooltip_sections() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for a in get_addons():
 		var mods := a.get_tooltip_modifiers()
-		if mods.is_empty():
+		if mods.is_empty() and a.description.is_empty():
 			continue
-		out.append({"title": a.get_tooltip_title(), "modifiers": mods})
+		out.append({"title": a.get_tooltip_title(), "modifiers": mods, "description": a.description})
 	return out
 
 

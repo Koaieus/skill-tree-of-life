@@ -25,6 +25,11 @@ extends Node2D
 
 @export var entity_modifiers: Array[StatModifier] = []
 @export var local_modifiers: Array[StatModifier] = []
+## Free-text tooltip description — lets a behaviour-only addon (no modifiers,
+## e.g. Clamp) still describe itself on the carrier's hover tooltip. Empty by
+## default; [method SkillNode.get_addon_tooltip_sections] surfaces a section
+## whenever either this or [method get_tooltip_modifiers] is non-empty.
+@export_multiline var description: String = ""
 ## Behavioural effects this addon grants to the carrier's owner while the
 ## carrier is allocated. Collected by [method SkillNode.get_node_effects].
 ## Sits alongside the modifier arrays — a pure stat bundle needs no effect.
@@ -76,16 +81,61 @@ func apply_to_blade(_state: BladeState, _particle_idx: int) -> void:
 # per-stat tint — SkillDust lists its loot payload); a richer text contract can
 # extend this later. Default: no contribution.
 
-## Heading for this addon's tooltip section. Only shown when
-## [method get_tooltip_modifiers] is non-empty.
+## Own global class name — comparing a carried script's global name against
+## this catches the "no real subclass" case (Bunker/Fortification attach this
+## base script directly onto a scene node named e.g. "BunkerAddon" rather than
+## authoring a dedicated .gd), which reads as "there is no global name" for
+## THIS addon's purposes even though the base class itself has one.
+const _BASE_CLASS_NAME := "SkillNodeAddon"
+
+
+## Heading for this addon's tooltip section. Default derives a readable name
+## from the attached script's global class name (or, when there is none — a
+## scene-composed addon like Bunker/Fortification that reuses this base script
+## directly — the scene node's own name), stripping a trailing "Addon" and
+## splitting PascalCase: "BunkerAddon" -> "Bunker", "SpikeRingAddon" ->
+## "Spike Ring". Subclass overrides win (SpikeRing -> "Spikes", SkillDust ->
+## "SkillDust loot").
 func get_tooltip_title() -> String:
-	return ""
+	var scr: Script = get_script()
+	var raw := ""
+	if scr != null:
+		raw = scr.get_global_name()
+	if raw.is_empty() or raw == _BASE_CLASS_NAME:
+		raw = name
+	return _humanize_addon_name(raw)
 
 
-## Modifiers this addon contributes to the carrier's hover tooltip. Empty (the
-## default) means the addon adds no tooltip section.
+## Modifiers this addon contributes to the carrier's hover tooltip. Default
+## returns [member local_modifiers] + [member entity_modifiers] — every stat
+## bundle this addon carries, entity- or node-scoped. Subclasses that synthesize
+## their contribution from a scalar export (e.g. SpikeRing's `damage`) override
+## this instead of authoring it directly into the arrays.
 func get_tooltip_modifiers() -> Array[StatModifier]:
-	return []
+	var out: Array[StatModifier] = local_modifiers.duplicate()
+	out.append_array(entity_modifiers)
+	return out
+
+
+## "BunkerAddon" -> "Bunker"; "SpikeRingAddon" -> "Spike Ring". Strips a
+## trailing "Addon" suffix, then inserts a space before every uppercase letter
+## that immediately follows a lowercase one.
+static func _humanize_addon_name(raw: String) -> String:
+	var trimmed := raw
+	const _SUFFIX := "Addon"
+	if trimmed.ends_with(_SUFFIX):
+		trimmed = trimmed.substr(0, trimmed.length() - _SUFFIX.length())
+	var out := ""
+	for i in trimmed.length():
+		var ch := trimmed[i]
+		if i > 0 and _is_upper_letter(ch) and not _is_upper_letter(trimmed[i - 1]):
+			out += " "
+		out += ch
+	return out
+
+
+static func _is_upper_letter(ch: String) -> bool:
+	return ch == ch.to_upper() and ch != ch.to_lower()
 
 
 # ─── Central-emblem contract (docs/domain/skillnode-emblem.md) ────────────
