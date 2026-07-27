@@ -155,7 +155,7 @@ static func generate(
 	for i in positions.size():
 		var sn: SkillNode = _SKILL_NODE_SCENE.instantiate()
 		sn.position = positions[i]
-		sn.radius = config.node_radius
+		sn.base_radius = config.node_radius
 		var archetype_id: StringName = &""
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []

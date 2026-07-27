@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_base"]
+
+[node name="SkillNodeLab" instance=ExtResource("1_base")]
+base_type_color = Color(0.36, 0.9, 0.585, 1)
+stake_level = 3

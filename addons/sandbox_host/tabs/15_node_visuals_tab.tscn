@@ -7,4 +7,4 @@
 tab_title = "Node Visuals"
 tab_id = &"node_visuals"
 panel_scene = ExtResource("2_panel")
-loader_method = &"noop"
+loader_method = &"load_carve_shape"

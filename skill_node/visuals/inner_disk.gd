@@ -42,22 +42,66 @@ static var _shared_material: ShaderMaterial
 ## mirror lighting.gdshaderinc's SN_GEM_DEPTH_SCALE / SN_GEM_GRAD_SCALE (the
 ## bake and the decode are two halves of one encoding).
 const GEM_LUT_SIZE := 128
-const GEM_TOP_Y := 0.55
-const GEM_GIRDLE_Y := -0.05
-const GEM_POINT_Y := -0.85
-const GEM_TOP_HALF_WIDTH := 0.32
-const GEM_GIRDLE_HALF_WIDTH := 0.78
+
+# --- Cut proportions -------------------------------------------------------
+# A gem's side-view silhouette is fully specified by three ratios against the
+# girdle DIAMETER — table width, crown height, pavilion depth. Deriving the
+# vertices from those (rather than hardcoding y-coordinates, as this did until
+# the gem pass) is what makes the shape tunable and self-documenting: the old
+# numbers gave a 41%-wide table, which is what made it read as a kite rather
+# than a gem.
+#
+# These defaults target the DIAMOND-EMOJI read (wide table, modest crown, deep
+# pointed pavilion, near-square aspect) rather than gemology's Tolkowsky ideal
+# cut (table 53-58%, crown 16.2%, pavilion 43.1% — a real brilliant is far
+# squatter than the icon everyone pictures). If you want the true ideal cut,
+# those are the three numbers to drop in; the geometry needs no other change.
+#
+# Everything below is in DISK SPACE: the -1..1 square the shader's `p` spans,
+# with +Y DOWN (Godot screen convention, matching the LUT image rows the bake
+# writes and the `UV` the shader samples with). Author y-values here as they
+# should APPEAR — the table on top, the culet below. See _build_gem_lut.
+## Girdle (widest point) half-width. The one free scale knob; everything else
+## is a ratio off it. Sized so the girdle corners sit at ~0.85 of the disk
+## radius, leaving the dome's edge falloff room to breathe.
+const GEM_GIRDLE_HALF_WIDTH := 0.82
+## Table (flat top facet) width as a fraction of girdle diameter.
+const GEM_TABLE_RATIO := 0.58
+## Crown height (table→girdle) as a fraction of girdle diameter.
+const GEM_CROWN_RATIO := 0.25
+## Pavilion depth (girdle→culet) as a fraction of girdle diameter. Much deeper
+## than the crown is tall — that asymmetry is most of what makes a shape read
+## as "gem" rather than "hexagon".
+const GEM_PAVILION_RATIO := 0.60
+
+const GEM_TABLE_HALF_WIDTH := GEM_GIRDLE_HALF_WIDTH * GEM_TABLE_RATIO
+const GEM_CROWN_HEIGHT := 2.0 * GEM_GIRDLE_HALF_WIDTH * GEM_CROWN_RATIO
+const GEM_PAVILION_DEPTH := 2.0 * GEM_GIRDLE_HALF_WIDTH * GEM_PAVILION_RATIO
+## Vertically centred on the disk: half the total depth sits above y=0.
+const GEM_TABLE_Y := -(GEM_CROWN_HEIGHT + GEM_PAVILION_DEPTH) * 0.5
+const GEM_GIRDLE_Y := GEM_TABLE_Y + GEM_CROWN_HEIGHT
+const GEM_CULET_Y := GEM_GIRDLE_Y + GEM_PAVILION_DEPTH
+
 ## Fraction of the interior→boundary ramp that stays flat (the table facet).
 const GEM_TABLE_T := 0.15
 const GEM_DEPTH := 0.35
 const GEM_GRAD_SCALE := 3.0
-## The side-view silhouette: flat top edge (the table), tapering shoulders out
-## to the girdle (widest point), then a pavilion tapering to a single point.
+## Width (in LUT texels) of the antialiasing band smeared across the
+## silhouette's edge by the alpha channel. The LUT is minified ~2x on screen
+## (128px LUT, ~48-64px disk), so ~2.5 texels lands at roughly one screen
+## pixel of coverage falloff. See _build_gem_lut's alpha and the shader's
+## blend (inner_disk.gdshader) — a HARD alpha here plus a `> 0.5` branch there
+## is what made the gem's outline stair-step.
+const GEM_EDGE_AA_TEXELS := 2.5
+
+## The side-view silhouette: flat TOP edge (the table), tapering shoulders out
+## to the girdle (widest point), then a pavilion tapering down to the culet
+## point. +Y is down, so the table's y is the most negative.
 const GEM_VERTICES := [
-	Vector2(GEM_TOP_HALF_WIDTH, GEM_TOP_Y),
-	Vector2(-GEM_TOP_HALF_WIDTH, GEM_TOP_Y),
+	Vector2(GEM_TABLE_HALF_WIDTH, GEM_TABLE_Y),
+	Vector2(-GEM_TABLE_HALF_WIDTH, GEM_TABLE_Y),
 	Vector2(-GEM_GIRDLE_HALF_WIDTH, GEM_GIRDLE_Y),
-	Vector2(0.0, GEM_POINT_Y),
+	Vector2(0.0, GEM_CULET_Y),
 	Vector2(GEM_GIRDLE_HALF_WIDTH, GEM_GIRDLE_Y),
 ]
 static var _gem_lut: ImageTexture
@@ -260,8 +304,18 @@ func _draw() -> void:
 ## class doc above and lighting.gdshaderinc.
 ##
 ## Encoding (must match sn_gem_bump's decode): R = drop/GEM_DEPTH, GB =
-## grad/GEM_GRAD_SCALE remapped -1..1 -> 0..1, A = 1 inside the gem's outline
-## else 0.
+## grad/GEM_GRAD_SCALE remapped -1..1 -> 0..1, A = the silhouette's ANTIALIASED
+## coverage (1 well inside, ramping to 0 just outside — see [method
+## _gem_coverage]), which the shader uses as a BLEND WEIGHT, never as a
+## `> 0.5` cutoff.
+##
+## The bake walks image rows top-to-bottom, so `p` here is already in the
+## same +Y-down space as the shader's `UV`-derived `p` — which is why
+## [constant GEM_VERTICES] is authored with the table at NEGATIVE y. Feeding
+## it math-convention (+Y up) vertices renders the gem culet-up; that was a
+## real shipped bug, and it survived because the geometry unit tests all work
+## in the same flipped space and are self-consistent inside it. The regression
+## test that actually catches it measures the baked LUT's per-row alpha span.
 ##
 ## Baked WITH mipmaps: the LUT (128px) is higher-resolution than the disk's
 ## on-screen footprint (~48-64px), so sampling it is a MINIFICATION, not a
@@ -281,8 +335,7 @@ static func _build_gem_lut() -> ImageTexture:
 			var r := hg.x / GEM_DEPTH
 			var g := clampf(hg.y / GEM_GRAD_SCALE * 0.5 + 0.5, 0.0, 1.0)
 			var b := clampf(hg.z / GEM_GRAD_SCALE * 0.5 + 0.5, 0.0, 1.0)
-			var a := 1.0 if hg.x > 0.0 or _gem_inside(p) else 0.0
-			img.set_pixel(x, y, Color(r, g, b, a))
+			img.set_pixel(x, y, Color(r, g, b, _gem_coverage(p)))
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)
 
@@ -361,3 +414,22 @@ static func _gem_inside(p: Vector2) -> bool:
 	var centroid := _gem_centroid()
 	var edge: Dictionary = _gem_nearest_edge(p, centroid)
 	return (edge["dist"] as float) <= 0.0
+
+
+## Antialiased silhouette coverage at `p`: 1 well inside the outline, 0 well
+## outside, with a [constant GEM_EDGE_AA_TEXELS]-wide smoothstep across the
+## boundary. This is the LUT's alpha channel, and the shader multiplies the
+## gem's normal perturbation by it.
+##
+## A hard 0/1 alpha here was the gem's stair-stepped-outline bug: the mip
+## chain does soften a binary edge, but the shader then threw that away with
+## `if (lut.a > 0.5)`, snapping every partially-covered pixel back to fully
+## in or fully out. Coverage must be smooth on BOTH sides of that boundary —
+## a soft bake with a hard branch antialiases nothing.
+static func _gem_coverage(p: Vector2) -> float:
+	var centroid := _gem_centroid()
+	var edge: Dictionary = _gem_nearest_edge(p, centroid)
+	var dist: float = edge["dist"]
+	# One LUT texel spans 2.0 / GEM_LUT_SIZE in the -1..1 disk space `p` uses.
+	var band := GEM_EDGE_AA_TEXELS * 2.0 / float(GEM_LUT_SIZE)
+	return smoothstep(band * 0.5, -band * 0.5, dist)

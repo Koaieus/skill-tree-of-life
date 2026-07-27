@@ -54,11 +54,15 @@ void fragment() {
 
 	if (carve_kind == 2) {
 		vec4 lut = texture(gem_lut, UV);
-		if (lut.a > 0.5) {
+		// lut.a is antialiased COVERAGE (see InnerDisk._gem_coverage), so it
+		// scales the perturbation instead of gating it. A `> 0.5` branch here
+		// snapped every partially-covered pixel fully in or fully out and
+		// stair-stepped the gem's outline — the soft bake was being discarded.
+		if (lut.a > 0.0) {
 			vec3 bump = sn_gem_bump(lut);
 			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
 			vec2 grad_dome = -p / z_dome;
-			vec2 grad_total = grad_dome - bump.yz;
+			vec2 grad_total = grad_dome - bump.yz * lut.a;
 			normal = normalize(vec3(-grad_total, 1.0));
 		}
 	} else if (carve_kind == 1) {

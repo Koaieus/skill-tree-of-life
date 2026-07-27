@@ -55,7 +55,14 @@ signal depleted
 ## this node's archetype carves as the emblem fallback, when no
 ## [member carve_shape] override is stamped. See
 ## [method get_emblem_contributions] / docs/domain/skillnode-emblem.md.
-@export var archetype: ArchetypeShape.Archetype = ArchetypeShape.Archetype.STR
+@export var archetype: ArchetypeShape.Archetype = ArchetypeShape.Archetype.STR:
+	set(value):
+		if archetype == value:
+			return
+		archetype = value
+		archetype_changed.emit()
+		if is_node_ready():
+			_sync_visuals()
 
 ## The resolved [CarveShape] this node's archetype actually carves, when set —
 ## WINS over [member archetype]. Procgen stamps this from the node's
@@ -64,7 +71,14 @@ signal depleted
 ## it", so hand-authored content (dev_sandbox, tests) keeps using the simple
 ## enum quick-pick instead. SkillNode never interprets what the shape IS
 ## (polygon vs. gem vs., later, arbitrary art) — it just holds the reference.
-@export var carve_shape: CarveShape = null
+@export var carve_shape: CarveShape = null:
+	set(value):
+		if carve_shape == value:
+			return
+		carve_shape = value
+		archetype_changed.emit()
+		if is_node_ready():
+			_sync_visuals()
 
 ## Persistent base-type identity colour (e.g. procgen's archetype colour).
 ## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
@@ -82,21 +96,35 @@ signal depleted
 ## doesn't balloon when radius grows via stake.
 const RIM_CREST_INSET := 4.0
 
-@export var radius: float = 32.0:
+## THE authored size knob — the node's outer radius at `stake_level == 1`.
+## [member radius] is DERIVED from this plus stake growth and is read-only;
+## anything that wants to resize a node writes here.
+##
+## Why the split: this class is `@tool`, so if stake growth wrote back into an
+## exported `radius` the editor would serialize the GROWN value into the
+## `.tscn` — and the next load would grow it again from there, compounding on
+## every save. Keeping the authored value and the derived value in separate
+## properties, with only the authored one exported, makes that impossible
+## rather than merely unlikely.
+@export var base_radius: float = 32.0:
 	set(value):
-		if is_equal_approx(radius, value):
+		if is_equal_approx(base_radius, value):
 			return
-		radius = value
-		radius_changed.emit()
-		_sync_collision()
-		_sync_visuals()
+		base_radius = value
+		_refresh_radius()
 
-## Authored radius before stake scaling. Captured on first [_ready].
-## Never write this directly — use [member radius] to set the base.
-var _base_radius: float = -1.0
-
-## Authored inner_radius before stake scaling. Captured on first [_ready].
-var _base_inner_radius: float = -1.0
+## Authored radius of the inner fill disk at `stake_level == 1` — what reads as
+## "ownership" when allocated, and what VFX sizes effects against. Authored per
+## node so future archetypes can run flush (inner == outer) or extra-recessed;
+## pushed down to BaseCircle in _sync_visuals so BaseCircle has no inset policy
+## of its own. Same authored/derived split as [member base_radius] →
+## [member radius].
+@export var base_inner_radius: float = 24.0:
+	set(value):
+		if is_equal_approx(base_inner_radius, value):
+			return
+		base_inner_radius = value
+		_refresh_radius()
 
 ## Pixels of radius growth per additional stake level above 1.
 ## stake_level=1 → radius = base (no growth). stake_level=N → radius = base + (N-1) × delta.
@@ -105,18 +133,18 @@ var _base_inner_radius: float = -1.0
 		if is_equal_approx(stake_radius_delta, value):
 			return
 		stake_radius_delta = value
-		_apply_stake_radius()
+		_refresh_radius()
 
-## Radius of the inner fill disk — what reads as "ownership" when allocated,
-## and what VFX sizes effects against. Authored per-node so future archetypes
-## can run flush (inner_radius == radius) or extra-recessed; pushed down to
-## BaseCircle in _sync_visuals so BaseCircle has no inset policy of its own.
-@export var inner_radius: float = 24.0:
-	set(value):
-		if is_equal_approx(inner_radius, value):
-			return
-		inner_radius = value
-		_sync_visuals()
+## Live outer radius, INCLUDING stake growth. Read-only and never serialized —
+## a pure function of [member base_radius], [member stake_level] and
+## [member stake_radius_delta]. Gameplay geometry (the collision shape, reach
+## queries, VFX sizing) reads this; nothing writes it.
+var radius: float:
+	get: return base_radius + _stake_growth()
+
+## Live inner-disk radius, including stake growth. Read-only, see [member radius].
+var inner_radius: float:
+	get: return base_inner_radius + _stake_growth()
 
 @export var self_loops: Array[Edge] = []
 
@@ -177,14 +205,15 @@ var _tags: Dictionary[StringName, int] = {}
 ## Pure node-local — these are not Stats and must never be registered with
 ## an entity StatBoard. If you want to scale modifier contributions by the
 ## stake count, read it directly off the SkillNode.
-var stake_level: int = 1:
+## Exported so it's authorable (and previewable) in the inspector — a staked
+## node is content, not just runtime state. Safe to serialize precisely because
+## [member radius] is derived rather than written back; see [member base_radius].
+@export_range(1, 4, 1, "or_greater") var stake_level: int = 1:
 	set(value):
 		if stake_level == value:
 			return
 		stake_level = value
-		_apply_stake_radius()
-		if is_node_ready():
-			_sync_visuals()
+		_refresh_radius()
 var allocation_level: int = 0
 
 ## Consecutive turns this node has regenerated without taking damage, feeding
@@ -215,9 +244,10 @@ var self_loop_count: int:
 	get(): return self_loops.size()
 
 func _ready() -> void:
-	if _base_radius < 0.0:
-		_base_radius = radius
-		_base_inner_radius = inner_radius
+	# No authored-radius capture here any more: `radius` is a getter over
+	# `base_radius` + stake growth, so it's correct from construction onward —
+	# including for a `stake_level` set before the node entered the tree, which
+	# the old capture-then-apply scheme silently dropped.
 	_sync_collision()
 	# owned_by may already be non-null here — set as a scene-baked @export
 	# (dev_sandbox.tscn's pre-owned nodes), which assigns the property (and
@@ -852,14 +882,22 @@ func _refresh_alloc_count() -> void:
 		allocation_level = 1
 
 
-func _apply_stake_radius() -> void:
-	if not is_inside_tree():
+## Pixels of radius added by the current stake level. Level 1 (the ~99% case)
+## adds nothing.
+func _stake_growth() -> float:
+	return (stake_level - 1) * stake_radius_delta
+
+
+## Republishes the derived [member radius] / [member inner_radius] after any of
+## their three inputs changed. There is no cached value to update — the point
+## of the getters is that there can't be one to go stale — so this only has to
+## notify and resync.
+func _refresh_radius() -> void:
+	radius_changed.emit()
+	if not is_node_ready():
 		return
-	if _base_radius < 0.0:
-		return
-	var growth := (stake_level - 1) * stake_radius_delta
-	radius = _base_radius + growth
-	inner_radius = _base_inner_radius + growth
+	_sync_collision()
+	_sync_visuals()
 
 
 # Addon plumbing. Carrier owns its `modifiers` array as the source-of-truth

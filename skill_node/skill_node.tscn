@@ -25,7 +25,7 @@ corner_radius_bottom_left = 6
 corner_detail = 6
 shadow_size = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_58fw3"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3po0j"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -37,7 +37,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 corner_detail = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1vuw"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_58fw3"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -84,7 +84,7 @@ offset_right = 31.0
 offset_bottom = -46.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
+theme_override_styles/fill = SubResource("StyleBoxFlat_3po0j")
 show_percentage = false
 script = ExtResource("6_r2qlo")
 
@@ -98,7 +98,7 @@ offset_right = 35.0
 offset_bottom = -28.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_i1vuw")
+theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
 show_percentage = false
 script = ExtResource("7_corehb")
 

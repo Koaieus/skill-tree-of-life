@@ -34,7 +34,8 @@ extends Resource
 ## a landmark reads as one on the board. Fully transparent (the default) means
 ## "leave the archetype colour alone".
 @export var color: Color = Color(0, 0, 0, 0)
-## Overrides the carrier's [member SkillNode.radius] at stamp time. `0.0` means
+## Overrides the carrier's [member SkillNode.base_radius] at stamp time (the
+## authored knob — `radius` itself is derived and read-only). `0.0` means
 ## "leave it alone".
 @export var radius: float = 0.0
 ## [SkillNodeAddon] scenes minted onto the carrier at stamp time — a keystone
@@ -61,7 +62,7 @@ func stamp(node: SkillNode) -> void:
 	if color.a > 0.0:
 		node.base_type_color = color
 	if radius > 0.0:
-		node.radius = radius
+		node.base_radius = radius
 	if addon_scenes.is_empty():
 		return
 	if not node.is_inside_tree():

@@ -45,6 +45,27 @@ func _ready() -> void:
     _apply_active(false)
 ```
 
+## In a `@tool` script, never write a DERIVED value back into an `@export`*
+
+If `@export var x` is both the authored knob and where computed growth lands,
+the editor serializes the *computed* value into the `.tscn` — and the next load
+computes again from there. It compounds on every save, silently.
+
+**How to apply:** split the property. Export the authored input, expose the
+derived value as a plain `var` with only a getter:
+
+```gdscript
+@export var base_radius: float = 32.0        # authored, serialized
+var radius: float:                            # derived, never serialized
+    get: return base_radius + _stake_growth()
+```
+
+Callers keep reading `radius`; only writers move to `base_radius`. This also
+kills the usual companion bugs — the "capture the authored value on `_ready`"
+dance, and its pre-tree-write blind spot. Note `.tscn` files must be migrated
+by hand: Godot drops unknown properties **silently**, so a stale `radius = 38`
+line reverts that node to the class default with no error.
+
 ## A Sprite2D fed a PlaceholderTexture2D collapses its UVs — kills any UV shader*
 
 `PlaceholderTexture2D` reports a `size` but carries **no image data**. A
@@ -133,15 +154,20 @@ For `.tres` files specifically: also boot and exercise the resource's
 behaviour if you can — silent strip won't cause a parse error, so the
 diff is your only signal until the bug surfaces in gameplay.
 
-## Don't refresh while the user is editing
+## Refreshing while the user has the editor open — just do it
 
-If the user has the editor open and is actively saving, a second
-`--editor --quit` invocation can race their autosave and lose work.
-Either:
+Don't stall work waiting for the user to close the editor. A refresh pass
+alongside an open editor is normal: worst case it regenerates `.uid` files
+and import metadata, which are git-tracked and need committing anyway, and
+which the open editor would have produced itself on its next start.
 
-- Wait until they confirm they're done, or
-- Leave the parse error visible — they'll see it next time they open
-  the editor, which triggers its own refresh.
+The real hazard is not the refresh, it's the **round-trip damage** the section
+above documents (dropped node instances, stripped `.tres` fields). That risk
+is the same whether or not an editor is open, and `git diff` after the pass is
+the mitigation for both. So: run it, then diff.
+
+Only pause for confirmation if the user is mid-save on the very files you're
+about to touch.
 
 ### When the refresh is safe to skip
 

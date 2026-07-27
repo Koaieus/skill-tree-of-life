@@ -24,6 +24,8 @@ extends SkillNodeVisual
 ## per-node cost we didn't want at 2000+ nodes/level). Growing the node radius
 ## with stake is a possible visual follow-up (#178).
 
+const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+
 const MAX_STAKE_CAP := 4
 
 ## The disk is sized this many px LARGER than geom_inner_r so its faded outer
@@ -78,6 +80,26 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 	set(value):
 		geom_outer_r = value
 		_sync_stake()
+
+## The central-emblem shape this composite carves — the ONE knob for previewing
+## a shape, on the node you'd expect to find it on. Authoring this in
+## skill_node.tscn or the node-visuals panel gives live in-editor feedback;
+## before it existed the only shape controls were [InnerDisk]'s
+## `carve_kind`/`weld_sides`/`weld_squish`, which are documented as
+## standalone-preview fallbacks that [method set_carve] overwrites — so a
+## designer's inspector edit silently reverted the moment anything resynced.
+##
+## RUNTIME PRECEDENCE: [SkillNode] pushes a fully RESOLVED carve through
+## [method set_carve] on every `_sync_visuals()`, and that resolution (archetype
+## vs. keystone vs. spell, by priority — see [EmblemResolver]) wins. This export
+## is the authored default that stands in when nothing has resolved a carve yet,
+## which is exactly the in-editor and standalone-panel case.
+@export var carve_shape: CarveShape = null:
+	set(value):
+		if carve_shape == value:
+			return
+		carve_shape = value
+		_apply_carve_shape()
 
 ## Extra inward growth (pixels per stake level above 1) applied to the
 ## RimBonuses segmented-glow band. The band's outer edge stays anchored at
@@ -147,6 +169,7 @@ func _on_identity_changed() -> void:
 func _ready() -> void:
 	_sync_shared()
 	_sync_stake()
+	_apply_carve_shape()
 	_apply_sensed()
 	_apply_core_active()
 
@@ -181,6 +204,23 @@ func _apply_sensed() -> void:
 ## for its children; it just routes to the one child that renders the dome.
 func set_carve(carve: Variant) -> void:
 	_inner_disk.set_carve(carve)
+
+
+## Renders [member carve_shape] as the authored-default carve. Kept separate
+## from [method set_carve] so the resolved-runtime path and the authored-default
+## path stay distinguishable — this one asks the shape to build its own
+## [EmblemSpec] at ARCHETYPE priority, exactly as SkillNode's fallback does.
+func _apply_carve_shape() -> void:
+	if not is_node_ready():
+		return
+	if carve_shape == null:
+		# Null means "nothing authored here", NOT "carve nothing" — leave
+		# InnerDisk's own carve_kind/weld_* standalone-preview knobs alone.
+		# Pushing set_carve(null) here would flatten the dome on every
+		# composite at _ready and silently override the panel's authored
+		# preview shape.
+		return
+	set_carve(carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"authored"))
 
 
 ## The core-class [Sigil] to BLOOM on [CoreSigilBloom] (Register 3, #128) —

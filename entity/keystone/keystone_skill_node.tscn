@@ -3,5 +3,5 @@
 
 [node name="KeystoneSkillNode" instance=ExtResource("1_base")]
 base_type_color = Color(1, 0.84, 0.0, 1)
-radius = 38.0
-inner_radius = 28.0
+base_radius = 38.0
+base_inner_radius = 28.0

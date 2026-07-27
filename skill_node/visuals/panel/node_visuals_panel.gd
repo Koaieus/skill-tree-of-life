@@ -7,9 +7,35 @@ extends Control
 ## code in this script builds or wires anything.
 
 
-## Unlike the spell/vfx/statboard live tabs, this panel isn't driven by an
-## inspected resource — every slot is a permanent scene child. No-op that
-## exists solely to satisfy SandboxLiveTab.loader_method's contract (see
-## test_sandbox_host_tabs.gd::test_tab_scene_exports_resolve).
-func noop(_obj: Object) -> void:
-	pass
+const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
+
+@onready var _composite := $ViewportContainer/World/CompositeSlot/Composite
+## A whole `SkillNode` — an inherited scene of the real `skill_node.tscn`, so
+## the Inspector you get on it is the REAL one, on the real exports
+## (`base_radius`, `stake_level`, `archetype`, `carve_shape`), with the
+## composite selectable underneath. No knob surface is reimplemented here.
+##
+## The point of it being INHERITED: overrides you make while tweaking land in
+## `skill_node_lab.tscn`, so `skill_node.tscn` ships pristine. Tweak leaf
+## components through this panel or the lab — never by opening and saving a
+## leaf component's own scene, which is how baked `instance_shader_parameters`
+## end up committed (see test_node_visuals_contract).
+@onready var _lab: SkillNode = $ViewportContainer/World/LabSlot/SkillNodeLab
+
+
+## The [SandboxLiveTab] loader hook: select a [CarveShape] `.tres` in the
+## FileSystem dock and the composite slot carves it immediately. This is the
+## one-click shape preview the panel was missing — until this existed the tab
+## was wired to a `noop` loader, so previewing a shape meant drilling into a
+## leaf [InnerDisk]'s `carve_kind`/`weld_sides`, which are documented
+## standalone-preview fallbacks that any resync silently overwrites.
+##
+## Non-CarveShape selections are ignored rather than clearing the preview —
+## clicking a `.png` in the dock shouldn't wipe the shape you're looking at.
+func load_carve_shape(obj: Object) -> void:
+	if obj is CarveShape:
+		_composite.carve_shape = obj
+		# The lab is a real SkillNode, so it resolves the shape through the
+		# actual emblem pipeline rather than taking it pre-resolved — that
+		# difference is worth seeing side by side.
+		_lab.carve_shape = obj

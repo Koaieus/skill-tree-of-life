@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dgo4gx2kxagct" path="res://skill_node/visuals/rim_bonuses.tscn" id="6_rim"]
 [ext_resource type="PackedScene" uid="uid://ex5cfonh5qyp" path="res://skill_node/visuals/core_halos.tscn" id="7_halos"]
 [ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="8_rune"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/panel/skill_node_lab.tscn" id="9_lab"]
 
 [node name="NodeVisualsPanel" type="Control" unique_id=435717486]
 custom_minimum_size = Vector2(0, 420)
@@ -63,14 +64,8 @@ position = Vector2(430, 90)
 [node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" unique_id=1635794154 instance=ExtResource("3_disk")]
 instance_shader_parameters/allocated = true
 instance_shader_parameters/carve_kind = 1
-instance_shader_parameters/highlight_intensity = 0.85
-instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
-instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
-instance_shader_parameters/tint_mix = 0.6
 instance_shader_parameters/weld_k = 0.8400000000000001
-instance_shader_parameters/weld_sides = 3.0
-instance_shader_parameters/weld_squish = 1.0
-instance_shader_parameters/well_depth = 0.35
+carve_kind = 1
 weld_k = 0.8400000000000001
 allocated = true
 
@@ -79,14 +74,7 @@ position = Vector2(600, 90)
 
 [node name="WeldDisk" parent="ViewportContainer/World/WeldDiskSlot" unique_id=899407512 instance=ExtResource("3_disk")]
 instance_shader_parameters/allocated = true
-instance_shader_parameters/carve_kind = 1
-instance_shader_parameters/highlight_intensity = 0.85
-instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
-instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
-instance_shader_parameters/tint_mix = 0.6
-instance_shader_parameters/weld_k = 0.8200000000000001
 instance_shader_parameters/weld_sides = 6.0
-instance_shader_parameters/weld_squish = 1.0
 instance_shader_parameters/well_depth = 0.5
 weld_sides = 6
 well_depth = 0.5
@@ -98,14 +86,6 @@ position = Vector2(770, 90)
 [node name="GemDisk" parent="ViewportContainer/World/GemDiskSlot" unique_id=1924193309 instance=ExtResource("3_disk")]
 instance_shader_parameters/allocated = true
 instance_shader_parameters/carve_kind = 2
-instance_shader_parameters/highlight_intensity = 0.85
-instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
-instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
-instance_shader_parameters/tint_mix = 0.6
-instance_shader_parameters/weld_k = 0.8200000000000001
-instance_shader_parameters/weld_sides = 3.0
-instance_shader_parameters/weld_squish = 1.0
-instance_shader_parameters/well_depth = 0.35
 carve_kind = 2
 allocated = true
 
@@ -142,3 +122,17 @@ position = Vector2(770, 280)
 
 [node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" unique_id=775407811 instance=ExtResource("8_rune")]
 band_count = 2
+
+[node name="LabSlot" type="Node2D" parent="ViewportContainer/World"]
+position = Vector2(970, 210)
+scale = Vector2(2.2, 2.2)
+
+[node name="SkillNodeLab" parent="ViewportContainer/World/LabSlot" instance=ExtResource("9_lab")]
+
+[node name="LabLabel" type="Label" parent="ViewportContainer/World"]
+offset_left = 880.0
+offset_top = 380.0
+offset_right = 1060.0
+offset_bottom = 404.0
+text = "SkillNode (lab)"
+horizontal_alignment = 1
