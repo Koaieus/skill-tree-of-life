@@ -220,7 +220,13 @@ cmd_list() {
           | select(.content.type == "Issue")
           | select($label == "" or (.status // "") == $label)
           | { number: .content.number,
-              title:  .title,
+              # .content.title, NOT .title — a project item carries its own
+              # Title field, snapshotted when the item was added, and it does
+              # NOT follow a later `gh issue edit --title`. Reading it served
+              # "#232 ID chip + HP integration" to swarmq long after HP was
+              # descoped and the issue retitled. Beware apostrophes in this jq
+              # program: it is single-quoted in bash.
+              title:  .content.title,
               status: (.status // "—"),
               priority: (.priority // .Priority // "—"),
               size:   (.size // .Size // "—"),
@@ -354,7 +360,7 @@ cmd_swarmq() {
           | select(.content.type == "Issue")
           | select(($label == "") or ((.status // "") == $label))
           | select((.labels // []) | index("swarmable"))
-          | { number: .content.number, title: .title,
+          | { number: .content.number, title: .content.title,   # live title — see `list`
               status: (.status // "—"),
               priority: (.priority // .Priority // "—"),
               size: (.size // .Size // "—"),

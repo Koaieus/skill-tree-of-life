@@ -73,10 +73,21 @@ readable as a chain of completions rather than as arithmetic on a normalized
 **Interrupt = kill and reverse.** A hover→unhover mid-reveal kills the running
 tweens and plays OUT from the **current** progress — a half-drawn trace
 retracts from half-drawn; it never pops to full first, and never hard-cuts.
-Scale the reverse duration by the progress actually travelled, and skip the
-panel-fade leg entirely when the panel never got above 0. `FanUnit._generation`
-stays: a tween that finishes on the same frame as the interrupt would otherwise
-resume a stale continuation.
+`FanUnit._generation` stays: a tween that finishes on the same frame as the
+interrupt would otherwise resume a stale continuation.
+
+Two implementation facts that contract implies:
+
+- **`FanPanel` is write-only** — `set_progress(t)` is a method, with no getter
+  (`FanTrace.progress` *is* readable). `FanUnit` caches the last `t` it pushed.
+  Don't add a panel getter and don't read the Tween's elapsed time: the leaf
+  stays a pure sink, and the unit already owns the tween that produced the value.
+- **Each leg scales its reverse duration by its own progress** — panel fade by
+  the cached panel progress, trace erase by `_trace.progress`. Not a composite:
+  the legs run sequentially and each retracts its own thing. A zero panel
+  progress then degenerates to a zero-length panel leg, which *is* the "skip the
+  fade leg when the panel never opened" rule — no `if` needed. Floor both at
+  ~0.03s so a near-zero leg still yields a frame.
 
 `fan_trace_sandbox.gd` drives its five trace+destination pairs off one `_clock`
 var. That is a **preview scrubber**, not the shipped drive model — it exists so
