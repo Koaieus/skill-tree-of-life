@@ -11,9 +11,11 @@ extends Node2D
 ##
 ## Anchor resolution: when creating a toaster, this manager inspects the
 ## request's target for a [Marker2D] child named [code]FloatAnchor[/code]
-## (unique-name lookup). If found, that marker's world position is used and
-## stored on the toaster's [member FloaterToaster._anchor] so
-## [method FloaterToaster._on_target_moved] can re-read it on movement.
+## (unique-name lookup). If found, that marker is handed to
+## [method FloaterToaster.bind_anchor], which places the toaster and keeps the
+## reference so [method FloaterToaster._on_target_moved] can re-read it on
+## movement. Placement goes through viewport space, so an anchor in another
+## CanvasLayer (the HUD's Hero Sigil Card) lands where it visually should.
 ## If the target emits [code]position_changed[/code], the manager connects it
 ## so the toaster tracks position without a _process loop. The connection
 ## dissolves automatically if the target is freed before the toaster.
@@ -71,8 +73,9 @@ func _wire_anchor(toaster: FloaterToaster, target: Node2D) -> void:
 	var anchor: Node2D = target.get_node_or_null(^"%FloatAnchor") as Node2D
 	if anchor == null:
 		anchor = target
-	toaster._anchor = anchor
-	toaster.global_position = anchor.global_position
+	# bind_anchor does the placement, including the cross-CanvasLayer conversion
+	# a HUD anchor needs — see [method FloaterToaster._on_target_moved].
+	toaster.bind_anchor(anchor)
 	# Duck-typed position tracking: connect if the target advertises movement.
 	# The connection dissolves for free when target is freed before the toaster.
 	if target.has_signal(&"position_changed"):

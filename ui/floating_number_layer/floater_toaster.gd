@@ -7,9 +7,10 @@ extends Node2D
 ## so rapid bursts read as a sequence rather than simultaneous noise, and
 ## self-destructs when the queue is empty and the last toast has exited.
 ##
-## Position is set once by [FloaterToasterManager] at creation time. If the
-## target emits [code]position_changed[/code], the manager connects it to
-## [method _on_target_moved] so the toaster tracks without a _process loop.
+## Position is set once by [FloaterToasterManager] at creation time (via
+## [method bind_anchor]). If the target emits [code]position_changed[/code], the
+## manager connects it to [method _on_target_moved] so the toaster tracks
+## without a _process loop.
 
 
 ## Cap on the waiting queue (not counting the currently-displayed toast).
@@ -37,13 +38,35 @@ func _ready() -> void:
 		_pop_toast()
 
 
+## Adopt [param anchor] as the position source and snap to it. Called by
+## [FloaterToasterManager] right after this toaster enters the tree.
+func bind_anchor(anchor: Node2D) -> void:
+	_anchor = anchor
+	_on_target_moved()
+
+
 ## Called by [FloaterToasterManager] when the target signals that it moved.
-## Re-reads the anchor's current global_position rather than receiving it as
-## an argument, so any signal signature (or a no-arg signal) can be adapted
-## by the manager with [method Callable.bind].
+## Re-reads the anchor's current position rather than receiving it as an
+## argument, so any signal signature (or a no-arg signal) can be adapted by the
+## manager with [method Callable.bind].
+##
+## The anchor may live in a DIFFERENT canvas than this toaster: the Hero Sigil
+## Card's FloatAnchor sits under the HUD's CanvasLayer, while the toaster hangs
+## off the world-space FloaterDirector under Graph. Copying `global_position`
+## straight across put the toast at a *world* point whose coordinates happened
+## to equal a screen pixel — visibly wrong the moment the camera left the origin
+## (i.e. always, `GameRoot._focus_camera_on_player` sees to that). Round-trip
+## through the shared viewport space instead: exactly identity for a world-space
+## anchor (SkillNode / core), correct for a HUD one.
 func _on_target_moved() -> void:
-	if is_instance_valid(_anchor):
-		global_position = _anchor.global_position
+	if not is_instance_valid(_anchor):
+		return
+	# `get_canvas_transform()` is exactly the prefix `get_global_transform_with_canvas()`
+	# applies, so the two compose into a clean round-trip. (`get_viewport_transform()`
+	# is NOT interchangeable — it folds in the viewport's stretch transform, which
+	# the other side doesn't, and the mismatch shows up as a scaled offset.)
+	var canvas_pos: Vector2 = _anchor.get_global_transform_with_canvas().origin
+	global_position = get_canvas_transform().affine_inverse() * canvas_pos
 
 
 func add_toast(request: FloaterRequest) -> void:
