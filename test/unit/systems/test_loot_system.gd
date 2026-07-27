@@ -208,6 +208,21 @@ func test_keep_count_scales_with_victim_level() -> void:
 	assert_eq(dust.pick_count, 2, "N = round(1 + 0.5*2) = 2")
 
 
+func test_keep_count_never_saturates_the_core_supply() -> void:
+	# A keep-count that reaches M turns pick-N-from-M into "take everything" —
+	# SkillDustAddon's no-choice branch auto-grants and the picker never pops.
+	# That's what a D-19 level-20 enemy did against a 5-mod core (1 + 0.25*20 = 6),
+	# and it's why the loot modal looked absent in first_level. The draw now
+	# always leaves at least one modifier on the table.
+	_loot.core_keep_base = 100.0  # absurdly generous — still must not saturate
+	_loot.core_keep_per_level = 1.0
+	_victim.level = 20
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	assert_eq(dust.candidates.size(), 5, "M = full core supply")
+	assert_eq(dust.pick_count, 4, "N is capped at M-1 so the choice survives")
+
+
 func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
 	# Deplete N2 (a leaf) with health at 1 and dealloc_damage 1: the forced-dealloc
 	# cascade's chip damage drops health to 0, so die() — and thus LootSystem —

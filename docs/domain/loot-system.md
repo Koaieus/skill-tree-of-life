@@ -124,12 +124,26 @@ Offered as **pick-N-from-M**: M = the full core supply, N (keep-count) scales
 with victim level so a higher-level kill lets you keep more of their identity:
 
 ```
-N = round(core_keep_base(1.0) + core_keep_per_level(0.25) · victim.level)
-    clamped to [0, core supply]        (N ≥ M ⇒ no real choice, auto-grant all)
+N = round(core_keep_base(1.0) + core_keep_per_level(0.1) · victim.level)
+    clamped to [0, core supply], then to M-1 whenever M ≥ 2
 ```
 
-At `per_level = 0.25` you keep +1 of the core per 4 levels, so you only walk off
-with a whole core from a much higher-level victim. Both knobs are `@export`.
+At `per_level = 0.1` you keep +1 of the core per 10 levels, so you only walk off
+with a near-whole core from a much higher-level victim. Both knobs are `@export`.
+
+**Why N is capped at M-1.** `N ≥ M` is the addon's explicit *no-choice* branch:
+it auto-grants everything and the picker never pops. That's correct for a
+one-modifier core, but it also means a keep-count that merely *saturates* the
+supply silently deletes the whole pick-N-from-M feature. It did: D-19 pins an
+enemy's level to its starting node count (`enemy_territory_size`, 20), and the
+old `per_level = 0.25` gave `1 + 0.25·20 = 6` against a 5-modifier core — so
+**every** first_level kill auto-granted the full core at random and the loot
+modal never appeared. The slope retune fixes the immediate numbers; the M-1 cap
+is the structural guarantee that a choice survives any future retune.
+
+> Open question: keep-count is still the only reward term scaling off
+> `victim.level`, now that kill XP scales off node count instead (below). If
+> level stops being a meaningful axis, this should follow.
 
 The returned `{ candidates, pick_count }` is written straight onto the addon.
 Every candidate is `duplicate(true)`d so the dust owns independent copies

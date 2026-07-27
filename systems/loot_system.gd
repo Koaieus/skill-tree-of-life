@@ -85,9 +85,16 @@ extends Node
 
 ## Flat baseline keep-count — how much of the core you keep off a level-1 kill.
 @export var core_keep_base: float = 1.0
-## Keep-count slope on victim level. Small: at 0.25 you keep +1 per 4 levels, so
-## you only walk away with a whole core from a much higher-level victim. Knob.
-@export var core_keep_per_level: float = 0.25
+## Keep-count slope on victim level. Small: at 0.1 you keep +1 per 10 levels, so
+## you only walk away with a near-whole core from a much higher-level victim.
+##
+## Was 0.25, tuned when enemies were low-level. D-19 then pinned enemy level to
+## its starting node count (`ProcgenPlaySandbox.enemy_territory_size`, 20 by
+## default), so EVERY first_level kill computed keep = 1 + 0.25*20 = 6 against a
+## 5-modifier core — N >= M, the picker's explicit no-choice branch. The modal
+## never appeared and the player just received the whole core at random, which
+## read as "the new loot system isn't wired up". Knob.
+@export var core_keep_per_level: float = 0.1
 
 ## Optional packed scene for the dust addon (inspector-set). Falls back to a bare
 ## `SkillDustAddon.new()` when unset — the addon's visual is script-driven, so the
@@ -178,6 +185,13 @@ func _draw_payload(victim: Entity) -> Dictionary:
 	var supply := core_mods.size()
 	var keep := core_keep_base + core_keep_per_level * float(maxi(0, victim.level))
 	var pick_count := clampi(roundi(keep), 0, supply)
+	# Keep the draw a genuine choice whenever one is possible. N == M is a
+	# no-choice by construction (the addon auto-grants and the picker skips it),
+	# so a keep-count that saturates the supply silently deletes the entire
+	# pick-N-from-M feature — which is exactly what a high-level victim did.
+	# Leaving at least one modifier on the table is what makes it a decision.
+	if supply >= 2:
+		pick_count = mini(pick_count, supply - 1)
 
 	core_mods.shuffle()
 	var candidates: Array[StatModifier] = []
