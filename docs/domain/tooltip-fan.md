@@ -43,51 +43,55 @@ pruned that down. **Locked decisions:**
 | A concrete panel's own job | `statChart`, `coreDetail` |
 | Dropped entirely | `fanRadius`/`fanSpread`, `simpleCore`, `playMode`, `sprout`, `straight` trace style, the sync enum |
 
-## The `progress(0..1)` contract — and who owns the Tween (settled #226)
+## Three tiers of composition (settled #226, #303)
 
-Every reveal in this system is expressed as **`progress(0..1)`**: a component
-renders whatever `t` it is handed and never animates itself. That is why #223
-(`FanPanel`) doesn't build the four entry-anim Tween recipes #215 left TBD —
-the clock-driven scale+fade reveal (cubic ease-out) already does the job, and
-`FanPanel.set_progress(t)` just makes it reusable instead of hand-rolled per
-destination.
+The fan is **components composed into a unit, composed into a coordinator**.
+Each tier does exactly one job, and each tier is a scene you can open and watch
+on its own.
 
-An earlier phrasing of this rule ("one fixed clock … never a per-component
-Tween chain") was read as mandating a single **fan-wide** clock, and #224's
-`FanUnit` was flagged as violating it. It does not. The line meant *leaf
-components own no Tween* — it never meant the fan is one timeline. Settled:
-
-**Tween ownership stops at `FanUnit`.** Three tiers, no ambiguity:
-
-| Tier | Owns a Tween? | Contract |
+| Tier | Job | Contract |
 |---|---|---|
-| Leaf components — `FanPanel`, `ModSlabRow`, `PanelHeader`, `StatValueRow`, `AddonItem` | **No** | Expose `set_progress(t)` (or a `progress` property). Render `t`, nothing else. Rest state is `t = 0`; never set your own alpha as a side effect of an entry call. |
-| `FanUnit` (+ `FanTrace`'s `play_draw_in`/`play_erase`) | **Yes** | One independent, sequential chain per unit: line draws out → completes → panel animates in → completes → holds. OUT is the reverse read: panel fades → completes → trace erases (no glowing tip) → completes. |
-| `TooltipFan` coordinator | **No** | Owns *only* a per-index start delay. It fires N independent unit sequences and awaits them; whether that's 2 units or 6 changes nothing but the delays. |
+| **Component** — `FanTrace`, `FanPanel` | Animate itself | `play_in()` / `play_out() -> Tween`, plus a **readable `progress`**. Knows how to reveal itself, how to reverse itself, and how long that should take. |
+| **Unit** — `FanUnit` | Sequence two components | `await _trace.play_in().finished` then `await _panel.play_in().finished`; OUT is the reverse read. Owns **no** Tween of its own — it holds ordering and state, nothing else. |
+| **Coordinator** — `TooltipFan` | Fire N units | A per-index start delay, and nothing else. Whether the variant has 2 units or 6 changes only the delays. |
 
-**There is no fan-wide clock.** Independent tweens with a variable delay are
-the simple form of exactly the choreography wanted, and they keep the sequence
-readable as a chain of completions rather than as arithmetic on a normalized
-`t`.
+Below the components sit the **content rows** — `ModSlabRow`, `PanelHeader`,
+`StatValueRow`, `AddonItem`. These are *not* fan participants: they take
+`set_progress(t)` and are driven by the panel they live in, from inside that
+panel's own reveal tween. Rest state is `t = 0`, set at bind — never as a side
+effect of an entry call.
+
+**There is no fan-wide clock.** Independent components with a variable start
+delay are the simple form of exactly the choreography wanted, and they keep the
+sequence readable as a chain of completions rather than as arithmetic on a
+normalized `t`. An earlier phrasing here ("one fixed clock … never a
+per-component Tween chain") was read as mandating a single fan-wide timeline and
+got #224's `FanUnit` flagged as violating it. That reading was wrong, and the
+rule that produced it is gone.
 
 **Interrupt = kill and reverse.** A hover→unhover mid-reveal kills the running
-tweens and plays OUT from the **current** progress — a half-drawn trace
-retracts from half-drawn; it never pops to full first, and never hard-cuts.
+tweens; each component then plays OUT **from its own current progress**. A
+half-drawn trace retracts from half-drawn — it never pops to full first and
+never hard-cuts. Because a component owns its `progress`, it also owns the
+arithmetic: **each scales its reverse duration by how far it actually got**, and
+a component sitting at `progress == 0` yields a zero-length leg, which *is* the
+"skip the panel fade when the panel never opened" rule — no `if`, and no cache
+of someone else's state. Floor each leg at ~0.03s so a near-zero one still
+yields a frame.
+
 `FanUnit._generation` stays: a tween that finishes on the same frame as the
 interrupt would otherwise resume a stale continuation.
 
-Two implementation facts that contract implies:
+### Why `FanPanel` gained `play_in`/`play_out` (#303)
 
-- **`FanPanel` is write-only** — `set_progress(t)` is a method, with no getter
-  (`FanTrace.progress` *is* readable). `FanUnit` caches the last `t` it pushed.
-  Don't add a panel getter and don't read the Tween's elapsed time: the leaf
-  stays a pure sink, and the unit already owns the tween that produced the value.
-- **Each leg scales its reverse duration by its own progress** — panel fade by
-  the cached panel progress, trace erase by `_trace.progress`. Not a composite:
-  the legs run sequentially and each retracts its own thing. A zero panel
-  progress then degenerates to a zero-length panel leg, which *is* the "skip the
-  fade leg when the panel never opened" rule — no `if` needed. Floor both at
-  ~0.03s so a near-zero leg still yields a frame.
+It shipped (#223) as a pure sink — `set_progress(t)` and no getter — while
+`FanTrace` shipped self-animating. That asymmetry meant `FanUnit` sequenced one
+component and *puppeted* the other, holding a tween on the panel's behalf and
+caching `_panel_progress` so it could compute the reverse. The cache existed only
+because the panel could not answer "how far in am I?". Making the panel a peer
+deletes the cache, the puppet tween, and the duration arithmetic from `FanUnit`
+in one move. `set_progress(t)` survives as the content-row contract, where a
+pure sink is the right shape.
 
 `fan_trace_sandbox.gd` drives its five trace+destination pairs off one `_clock`
 var. That is a **preview scrubber**, not the shipped drive model — it exists so
@@ -99,14 +103,16 @@ contradict the table above.
 - **`FanTrace`** (`ui/tooltip_fan/fan_trace.gd`, #222) — one circuit-trace
   connector: `Line2D` + glowing `Sprite2D` tip, geometry from `TraceRouter`
   (PCB-elbow only, per decision 3). `progress` (0..1) truncates the drawn
-  arc-length. `play_draw_in()`/`play_erase()` return a `Tween` to `await`.
-- **`FanPanel`** (`ui/tooltip_fan/fan_panel.gd`, #223) — thin wrapper around
-  a hand-placed skin child (`GlassPanel` or `HoloPanel`, swapped by editing
-  which scene is instanced under it — decision 6, not a runtime enum).
-  Forwards a single `glow` (0..1) to whichever skin is present, and exposes
-  `set_progress(t)` implementing the clock-driven scale+fade reveal described
-  above. **Does not own Tween entry-anim recipes** — entry-anim ownership is
-  still TBD per decision 7's "owned by the animation setup" bucket.
+  arc-length. `play_in()`/`play_out()` return a `Tween` to `await` (named
+  `play_draw_in`/`play_erase` until #303 unified the component contract).
+- **`FanPanel`** (`ui/tooltip_fan/fan_panel.gd`, #223 + #303) — thin wrapper
+  around a hand-placed skin child (`GlassPanel` or `HoloPanel`, swapped by
+  editing which scene is instanced under it — decision 6, not a runtime enum).
+  Forwards a single `glow` (0..1) to whichever skin is present. Since #303 it is
+  a **peer of `FanTrace`**: owns a readable `progress`, and `play_in()` /
+  `play_out()` returning a `Tween` — the scale+fade reveal (cubic ease-out) it
+  already had, now self-driven. Drives its content rows' `set_progress` from
+  inside its own tween.
 - **`fan_trace_sandbox.gd`/`.tscn`** (#233) — in-editor preview harness,
   reachable from the sandbox host's "Fan Trace" tab. Five `FanTrace`s sprout
   from a mock node to four corner `FanPanel` destinations (mixed glass/holo
@@ -115,10 +121,10 @@ contradict the table above.
 
 - **`FanUnit`** (`ui/tooltip_fan/fan_unit.gd`, #224) — pairs one `FanTrace` +
   one `FanPanel` under a `HIDDEN → IN → LOOP → OUT → HIDDEN` state machine;
-  trace→panel ordering is baked sequential per decision 4. The sole Tween owner
-  (see the table above).
+  trace→panel ordering is baked sequential per decision 4. Owns **no** Tween
+  since #303 — it sequences its two components and holds state.
 - **Shared rows** (`panel_header`, `stat_value_row`, `addon_item`, #293) —
-  leaf components on the `set_progress(t)` contract. `AddonItem.bind()` takes an
+  content rows on the `set_progress(t)` contract, driven by their panel. `AddonItem.bind()` takes an
   optional `icon` override and carries a real `GradientTexture2D` placeholder
   (never `PlaceholderTexture2D`, per `.claude/rules/godot-workflow.md`).
 
