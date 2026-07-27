@@ -16,6 +16,12 @@ extends ScalarStat
 signal depleted
 signal replenished
 signal current_changed(new_current: Variant)
+## An explicit [method replenish] call, carrying the amount ASKED FOR — the one
+## thing `current_changed` can't tell you, since a pool at (or crossing) its cap
+## swallows the difference. Deliberately not emitted for `restore_to_full` or a
+## direct `set_current`: this is the "you gained N" fact a UI wants to announce,
+## not a value-changed notification. See [FloaterDirector]'s XP toast.
+signal replenished_by(amount: float)
 
 @export var current: float = 0.0
 
@@ -94,6 +100,10 @@ func deplete(amount: float) -> void:
 
 func replenish(amount: float) -> void:
 	set_current(current + amount)
+	if amount > 0.0:
+		# AFTER set_current, so a listener that re-reads the pool sees the result
+		# (and any level-up the fill cascaded into) rather than the old state.
+		replenished_by.emit(amount)
 
 
 func restore_to_full() -> void:

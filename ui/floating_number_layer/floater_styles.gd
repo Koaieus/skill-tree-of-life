@@ -19,6 +19,8 @@ const COLOR_WOUND  := Color(1.0, 0.55, 0.55, 1.0)
 const COLOR_HEAL   := Color(0.65, 1.0, 0.7, 1.0)
 ## Gold blended into a stat tint for the CORE-bound "build-defining" toast (#70).
 const COLOR_MYTHIC := Color(1.0, 0.84, 0.3, 1.0)
+## XP: a cooler, paler gold — reads as reward without competing with MYTHIC.
+const COLOR_XP     := Color(1.0, 0.93, 0.62, 1.0)
 
 const _STRIKETHROUGH_SCENE: PackedScene = preload(
 		"res://ui/floating_number_layer/strikethrough_toast/strikethrough_toast.tscn")
@@ -51,6 +53,18 @@ static func entity_heal() -> FloaterStyle:
 
 static func plain() -> FloaterStyle:
 	return FloaterStyle.new()
+
+
+## XP gained — the reward register: gold and glowing, but smaller than a mythic
+## modifier, because the per-turn income fires every single turn and must not
+## shout as loud as a build-defining pickup.
+static func xp_gain() -> FloaterStyle:
+	var s := FloaterStyle.new()
+	s.fill_color = COLOR_XP
+	s.glow = true
+	s.glow_color = COLOR_XP
+	s.font_size = 32
+	return s
 
 
 ## A NODE-bound modifier gained — plain stat tint (#70/#82).
@@ -107,5 +121,6 @@ static func gallery() -> Array[Dictionary]:
 		{"name": "Modifier (node)", "text": "+10 Strength","style": modifier_node(Color(0.9, 0.5, 0.4))},
 		{"name": "Modifier (core)", "text": "+10 Strength","style": modifier_core(mythic_tint)},
 		{"name": "Modifier removed","text": "+10 STR",     "style": modifier_removed(Color(0.9, 0.5, 0.4))},
+		{"name": "XP gain",         "text": "+40 XP",      "style": xp_gain()},
 		{"name": "Plain",           "text": "LEVEL UP",    "style": plain()},
 	]

@@ -18,13 +18,14 @@ extends Node2D
 ## the renderer stays free of any vision dependency.
 @export var vision_system: VisionSystem = null
 
-## #91/#108 — when set, entity-level toasts (wound/heal, stat-modifier gain)
-## for THIS entity render at [member player_anchor] (the Hero Sigil Card's
-## FloatAnchor) instead of the world-space core. A plain Node2D works
-## unmodified as a [FloaterRequest.target] — CanvasItem global transforms
-## compose across the Control/Node2D boundary, so it resolves to screen
-## pixels exactly like the HUD Control it lives under. AI entities have no
-## HUD card, so they keep rising from their core.
+## #91/#108 — when set, entity-level toasts (wound/heal, stat-modifier gain,
+## XP gain) for THIS entity render at [member player_anchor] (the Hero Sigil
+## Card's FloatAnchor) instead of the world-space core. A plain Node2D works
+## unmodified as a [FloaterRequest.target]: the anchor lives under the HUD's
+## CanvasLayer while the toaster is world-space, and
+## [method FloaterToaster._on_target_moved] maps between the two canvases —
+## copying `global_position` across is NOT valid and was a real placement bug.
+## AI entities have no HUD card, so they keep rising from their core.
 @export var player: Entity = null
 @export var player_anchor: Node2D = null
 
@@ -36,6 +37,7 @@ func _ready() -> void:
 	Events.skill_node_healed.connect(_on_skill_node_healed)
 	Events.entity_wounded.connect(_on_entity_wounded)
 	Events.entity_healed.connect(_on_entity_healed)
+	Events.entity_xp_gained.connect(_on_entity_xp_gained)
 	Events.stat_modifier_changed.connect(_on_stat_modifier_changed)
 
 
@@ -62,21 +64,29 @@ func _on_entity_healed(entity: Entity, amount: int) -> void:
 	_spawn_at_core(entity, "+%d SP" % amount, FloaterStyles.entity_heal())
 
 
+## XP gained — kill rewards and the per-turn income alike. Routed like any other
+## entity-level fact: the player's lands on the Hero Sigil Card, an AI's rises
+## from its core (and is fog-gated there).
+##
+## No hit flash: XP is a reward, not something happening *to* the core, and the
+## per-turn income would strobe every core on the board once a turn.
+func _on_entity_xp_gained(entity: Entity, amount: float) -> void:
+	if amount <= 0.0:
+		return
+	_emit_at_entity(entity, "+%d XP" % int(round(amount)), FloaterStyles.xp_gain())
+
+
 ## #70/#79 — a stat modifier became visible on an entity. Render its op-aware
 ## contribution (e.g. "+10 Strength") at the core, styled by binding + gain/loss.
 func _on_stat_modifier_changed(
 		entity: Entity, modifier: StatModifier, binding: ModifierBinding.Kind, added: bool) -> void:
 	if entity == null or modifier == null or entity.core_location == null:
 		return
-	var core := entity.core_location
-	var target := _resolve_target(entity, core)
-	if target == core and not _node_visible(core):
-		return
 	var def := StatRegistry.get_def(modifier.stat_id)
 	var label: String = def.display_name if def != null else String(modifier.stat_id)
 	var text := "%s %s" % [modifier.contribution_text(), label]
 	var tint: Color = def.tint_color if def != null else Color.WHITE
-	_emit(target, text, FloaterStyles.for_modifier(tint, binding, added))
+	_emit_at_entity(entity, text, FloaterStyles.for_modifier(tint, binding, added))
 
 
 # --- Helpers ----------------------------------------------------------------
@@ -96,14 +106,24 @@ func _emit(target: Node2D, text: String, style: FloaterStyle) -> void:
 ## then route the actual toast to [method _resolve_target] (Hero Sigil Card
 ## anchor for the bound player, core for everyone else).
 func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle) -> void:
+	if _emit_at_entity(entity, text, style):
+		entity.core_location.play_hit_flash()
+
+
+## Route one entity-level fact to wherever that entity's toasts belong: the Hero
+## Sigil Card anchor for the bound player, its world-space core for everyone
+## else — where the fog gate also applies (a toast on a core you can't see would
+## leak the AI's position). Returns whether anything was actually shown, so a
+## caller can keep an accompanying effect in step with it.
+func _emit_at_entity(entity: Entity, text: String, style: FloaterStyle) -> bool:
 	if entity == null or entity.core_location == null:
-		return
+		return false
 	var core := entity.core_location
 	var target := _resolve_target(entity, core)
 	if target == core and not _node_visible(core):
-		return
-	core.play_hit_flash()
+		return false
 	_emit(target, text, style)
+	return true
 
 
 func _resolve_target(entity: Entity, core: Node2D) -> Node2D:

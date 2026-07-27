@@ -36,6 +36,14 @@ signal skill_node_destroyed(node: SkillNode, defender: Entity)
 signal entity_wounded(entity: Entity, amount: int)
 signal entity_healed(entity: Entity, amount: int)
 
+## An entity gained XP — kill rewards, the per-turn WIS income, anything that
+## calls `xp.replenish`. Re-emitted by Entity off [signal PoolStat.replenished_by]
+## for the same reason as the wound/heal pair above: the stat doesn't know its
+## owner, and a UI layer shouldn't have to bind per-entity. `amount` is the XP
+## asked for, not the amount that fit under the cap — a fill carries its excess
+## into the next level, so the honest number to show the player is the grant.
+signal entity_xp_gained(entity: Entity, amount: float)
+
 ## A stat modifier became visible on an entity (#70/#79). A PURE domain fact —
 ## no presentation: `binding` is how the modifier is held ([enum
 ## ModifierBinding.Kind]), `added` is gained-vs-lost. The [FloaterDirector]

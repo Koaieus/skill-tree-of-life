@@ -124,6 +124,9 @@ func _ready() -> void:
 			core_class.apply(self)
 		if stat_board.xp != null:
 			stat_board.xp.replenished.connect(_on_xp_replenished)
+			# Re-emit XP grants on the bus keyed by self — same rationale as the
+			# SP wound/heal forwards below (a stat doesn't know its owner).
+			stat_board.xp.replenished_by.connect(_emit_entity_xp_gained)
 		# Initiative clock crossed its cap → this entity is ready to act.
 		# TurnManager serves from READY_GROUP; it removes us again on start_turn.
 		if stat_board.initiative != null:
@@ -357,6 +360,10 @@ func _emit_entity_wounded(amount: int) -> void:
 
 func _emit_entity_healed(amount: int) -> void:
 	Events.entity_healed.emit(self, amount)
+
+
+func _emit_entity_xp_gained(amount: float) -> void:
+	Events.entity_xp_gained.emit(self, amount)
 
 
 ## Group lookup, not tree walk: TurnManager lives at `GameRoot/Systems/...`,
