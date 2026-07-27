@@ -192,3 +192,19 @@ func test_composite_null_carve_shape_leaves_the_disks_own_knobs_alone() -> void:
 	assert_eq(composite.carve_shape, null, "default is null")
 	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON, "the disk's authored carve survives")
 	assert_eq(disk.weld_sides, 6)
+
+
+## ...but once a shape HAS been applied, clearing the export back to null must
+## actually clear the carve, not leave the stale one stuck on the disk.
+func test_composite_clearing_an_applied_carve_shape_clears_the_disk() -> void:
+	var composite = _COMPOSITE_SCENE.instantiate()
+	autofree(composite)
+	add_child(composite)
+	await get_tree().process_frame
+	var shape := PolygonCarveShape.new()
+	shape.sides = 5
+	composite.carve_shape = shape
+	var disk = composite.get_node("ShaderStack/InnerDisk")
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON, "applied")
+	composite.carve_shape = null
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "and cleared again")

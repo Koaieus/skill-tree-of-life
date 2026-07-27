@@ -101,6 +101,11 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 		carve_shape = value
 		_apply_carve_shape()
 
+## Whether [method _apply_carve_shape] has pushed a carve down to InnerDisk.
+## Distinguishes "never authored a shape" (leave the disk's own preview knobs
+## alone) from "authored one, then cleared it" (actually clear the carve).
+var _applied_a_shape: bool = false
+
 ## Extra inward growth (pixels per stake level above 1) applied to the
 ## RimBonuses segmented-glow band. The band's outer edge stays anchored at
 ## [member geom_outer_r]; only the inner edge moves inward, widening the glow.
@@ -216,10 +221,15 @@ func _apply_carve_shape() -> void:
 	if carve_shape == null:
 		# Null means "nothing authored here", NOT "carve nothing" — leave
 		# InnerDisk's own carve_kind/weld_* standalone-preview knobs alone.
-		# Pushing set_carve(null) here would flatten the dome on every
-		# composite at _ready and silently override the panel's authored
-		# preview shape.
+		# Pushing set_carve(null) unconditionally would flatten the dome on
+		# every composite at _ready and silently override the panel's authored
+		# preview shape. But once we HAVE applied a shape, clearing the export
+		# back to null must actually clear it, or the stale carve sticks.
+		if _applied_a_shape:
+			_applied_a_shape = false
+			set_carve(null)
 		return
+	_applied_a_shape = true
 	set_carve(carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"authored"))
 
 
