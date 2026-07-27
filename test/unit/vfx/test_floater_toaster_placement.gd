@@ -15,6 +15,7 @@ extends GutTest
 
 const _TOASTER_SCENE := preload("res://ui/floating_number_layer/floater_toaster.tscn")
 const _MANAGER_SCENE := preload("res://ui/floating_number_layer/floater_director.tscn")
+const _HUD_SCENE := preload("res://ui/hud/hud_root.tscn")
 
 var _manager: FloaterToasterManager
 
@@ -82,3 +83,33 @@ func test_hud_anchor_is_converted_out_of_its_canvas_layer() -> void:
 	assert_almost_eq(toaster.global_position.y, expected.y, 0.01, "HUD anchor mapped through the camera")
 	assert_ne(toaster.global_position, Vector2(300, 200),
 			"the raw screen coordinate is NOT a valid world position here")
+
+
+func test_the_real_hero_sigil_anchor_resolves_through_the_hud_chain() -> void:
+	# The synthetic case above uses a bare CanvasLayer > Node2D. The shipping
+	# chain is UI(CanvasLayer) > HudRoot > ...Controls... > FloatAnchor(Node2D),
+	# which is what `GameRoot._wire_hud_floater_anchor` hands the director. Assert
+	# the composed transform, not just the two-node model of it.
+	var canvas_xform := Transform2D(0.0, Vector2(1.7, 1.7), 0.0, Vector2(-410, -260))
+	get_viewport().canvas_transform = canvas_xform
+
+	var layer := CanvasLayer.new()
+	add_child_autofree(layer)
+	var hud := _HUD_SCENE.instantiate() as HudRoot
+	layer.add_child(hud)
+	await get_tree().process_frame
+	await get_tree().process_frame  # Control layout settles
+
+	var anchor: Node2D = hud.hero_sigil_card.float_anchor
+	assert_not_null(anchor, "the hero sigil card exposes its float anchor")
+
+	var toaster := _spawn_at(anchor)
+	assert_not_null(toaster)
+	var expected := canvas_xform.affine_inverse() * anchor.get_global_transform_with_canvas().origin
+	assert_almost_eq(toaster.global_position.x, expected.x, 0.01, "lands on the sigil")
+	assert_almost_eq(toaster.global_position.y, expected.y, 0.01, "lands on the sigil")
+	# And the toast must render back at the anchor's on-screen pixel.
+	var rendered := canvas_xform * toaster.global_position
+	var on_screen := anchor.get_global_transform_with_canvas().origin
+	assert_almost_eq(rendered.x, on_screen.x, 0.01, "round-trips to the anchor's screen pixel")
+	assert_almost_eq(rendered.y, on_screen.y, 0.01, "round-trips to the anchor's screen pixel")

@@ -118,11 +118,27 @@ D-19 pins an enemy's level to its starting node count — so "level" and
 Node count is the honest axis: it's what the player actually had to fight
 through.
 
-**Whittle vs. snipe.** Each node you destroy pays `xp_per_node_killed` on the
-spot (#182), and the killing blow pays for whatever territory is *left*. So
-dismantling an empire limb-by-limb and sniping its core total out close, with
-the `entity_kill_bonus` premium favouring the throat. Held **at death**, not
-before the attack — the nodes you already broke have already paid.
+**Whittle vs. snipe — the snipe pays roughly double, by construction.** Each
+node you destroy pays `xp_per_node_killed` on the spot (#182), and the killing
+blow pays for whatever territory is *left*, held **at death** (not before the
+attack — the nodes you already broke have already paid their own trickle). At
+defaults against a 20-node enemy:
+
+| path | trickle | killing blow | total |
+|---|---|---|---|
+| snipe the core first | 0 | `20 · 5 · 2` | **200** |
+| break all 19 limbs, then the core | `19 · 5` = 95 | `1 · 5 · 2` = 10 | **105** |
+
+That gap **is** `entity_kill_bonus`: only territory still standing at the moment
+of death earns the multiplier. Whether ~2× is the right premium is a balance
+question (#248) — lower `entity_kill_bonus` toward 1.0 to close it, raise it to
+push harder toward decapitation. What the shape guarantees is that neither path
+pays *nothing*, and that the two are one knob apart.
+
+> Open alternative the design hasn't taken: paying the killing blow for the
+> victim's **high-water** node count rather than its count at death, which would
+> make whittle and snipe pay identically. Rejected for now — it erases the
+> tactical distinction the bonus exists to create.
 
 **Cascade nodes pay nothing.** Only the node you actually deplete fires
 `skill_node_destroyed`; the nodes it islands off are collateral, and the entity
