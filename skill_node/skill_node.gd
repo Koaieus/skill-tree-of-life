@@ -783,9 +783,6 @@ func take_damage(amount: float, source: Variant) -> void:
 		return
 	if hp.current <= 0.0:
 		depleted.emit()
-		# Destroyed-with-owner goes first: skill_node_depleted's handler strips
-		# `owned_by`, so anything needing the defender must be told, not asked.
-		Events.skill_node_destroyed.emit(self, owned_by)
 		Events.skill_node_depleted.emit(self)
 
 ## Restore HP by [param amount], clamped at max. Emits [signal healed] (and

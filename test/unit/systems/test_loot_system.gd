@@ -3,10 +3,10 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## LootSystem (#68 XP reward + #69 SkillDust loot). On `Events.entity_died`:
 ##   * the killing-blow entity (attributed via TurnManager.current_entity at the
-##     synchronous death) gains XP scaled by the TERRITORY the victim held at
-##     death (core included) — never by its level — fed through the normal xp
-##     pool (so it converts to SP / levels), plus a per-node trickle off
-##     `Events.skill_node_destroyed`;
+##     synchronous death) gains XP scaled by every node the attack REMOVED from
+##     the victim, core included — never by its level — fed through the normal xp
+##     pool (so it converts to SP / levels), with a per-node trickle paid off
+##     BattleSystem's `cascade_started` as the attack goes;
 ##   * the victim's former core node becomes a relic carrying a SkillDustAddon
 ##     whose payload is a snapshot of the victim's modifiers; allocating that
 ##     relic pours the payload onto the collector's core.
@@ -66,6 +66,12 @@ func before_each() -> void:
 	_battle.allocation_system = _alloc
 	_battle.graph = _graph
 	add_child_autofree(_battle)
+	# The removal ledger rides BattleSystem's cascade/attack signals. LootSystem
+	# is already in the tree, so wire it the way game_root.tscn's NodePath does
+	# and re-run the hookup.
+	_loot.battle_system = _battle
+	_battle.attack_launched.connect(_loot._on_attack_launched)
+	_battle.cascade_started.connect(_loot._on_cascade_started)
 
 	_killer = autofree(Entity.new())
 	_killer.display_name = "Killer"
@@ -179,10 +185,9 @@ func test_self_death_grants_no_xp() -> void:
 
 
 func test_destroying_a_node_pays_the_trickle() -> void:
-	# #182: whittling a limb pays per node, without an entity dying. Riding
-	# `skill_node_destroyed` (not `skill_node_depleted`) is what makes the
-	# defender readable — BattleSystem's cascade handler has already cleared
-	# `owned_by` by the time a depleted-listener would run.
+	# #182: whittling a limb pays per node, without an entity dying. Riding the
+	# cascade (not `skill_node_depleted`) is what makes the defender readable —
+	# the strip clears `owned_by` in that same loop.
 	_loot.xp_per_node_killed = 3.0
 	_tm.current_entity = _killer
 	var before := _killer.stat_board.xp.current

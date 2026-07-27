@@ -97,20 +97,27 @@ the wider live subgraph. What DOES need the pre-strip world is the XP
 
 ## The XP reward (`_award_kill_xp`)
 
-XP is paid for **territory destroyed**, and for nothing else. One axis, two
+XP is paid for **territory removed**, and for nothing else. One axis, two
 payment points:
 
 ```
-per node destroyed  = xp_per_node_killed(5)                          (the trickle)
-entity killing blow = xp_per_node_killed(5) · (held_count + 1)
-                      · entity_kill_bonus(2)                         (the payout)
+per node removed    = xp_per_node_killed(5)                        (the trickle)
+entity killing blow = xp_per_node_killed(5)
+                      · (|removed_this_attack ∪ held_at_death| + 1)
+                      · entity_kill_bonus(2)
+                      − the trickle already paid on the ledger      (the payout)
 ```
 
-`held_count` = non-core nodes the victim still owned at death (`_held_node_count`,
-read off the pre-strip navigator mirror); `+ 1` counts the core it died on, so a
-landless D-19 elite is still worth something. Territory scale is paid out **as
-XP, deliberately not as looted stats** (see the #173 correction above). Both
-terms are `@export` knobs.
+- `removed_this_attack` — the **attack-scoped removal ledger**: every node the
+  current attack has taken off this defender. Fed by BattleSystem's
+  `cascade_started` (the depleted node **plus everything it islands**), cleared
+  on every `attack_launched`.
+- `held_at_death` — non-core nodes the victim still owns when it dies
+  (`_held_nodes`, off the pre-strip navigator mirror).
+- `+ 1` — the core it died on, so a landless D-19 elite isn't worth zero.
+
+Both knobs are `@export`. Territory scale is paid **as XP, deliberately not as
+looted stats** (see the #173 correction above).
 
 **Why `level` is gone.** The old base term was `xp_per_victim_level · victim.level`.
 D-19 pins an enemy's level to its starting node count — so "level" and
@@ -118,40 +125,69 @@ D-19 pins an enemy's level to its starting node count — so "level" and
 Node count is the honest axis: it's what the player actually had to fight
 through.
 
-**Whittle vs. snipe — the snipe pays roughly double, by construction.** Each
-node you destroy pays `xp_per_node_killed` on the spot (#182), and the killing
-blow pays for whatever territory is *left*, held **at death** (not before the
-attack — the nodes you already broke have already paid their own trickle). At
-defaults against a 20-node enemy:
+### Why the ledger exists — the ordering bug it fixes
+
+The payout originally read **only** `held_at_death`. BattleSystem's cascade
+strips nodes one at a time and chips `dealloc_damage` off the defender's core HP
+per node, so the core can die **anywhere inside that loop** — and everything
+already stripped had vanished from the count. Measured on a 5-node victim, same
+attack, differing only in the defender's starting health:
+
+| core dies… | old payout |
+|---|---|
+| early in the cascade (2 nodes still unstripped) | **35** |
+| on the last cascade node (0 unstripped) | **15** |
+
+It paid you *less the more of the victim you actually destroyed*, decided by
+chip-damage arithmetic no player can see. The magic path had the same defect from
+the other end: once a forking spell kills the core mid-propagation,
+`entity_died` strips the corpse and every later hop lands on neutral nodes where
+`take_damage` returns early on `owned_by == null` — so a 6-hop spell that killed
+on hop 2 paid less than the same spell killing on hop 6.
+
+The ledger makes the payout a function of **what the attack removed** instead of
+of loop ordering. The two sets **overlap** mid-cascade (the ledger is recorded
+before the strip loop walks it), so they are **unioned, not summed** — and that
+union is invariant: a node moves from one side to the other as the loop
+progresses and the total doesn't move. Pinned by
+`test/unit/systems/test_kill_xp_ledger.gd`.
+
+**Scope is one attack, not one turn.** The bonus means "this blow". A node broken
+in an earlier attack already collected its trickle and is not re-counted at bonus
+rate later.
+
+### Whittle vs. snipe — still ~2×, now for a legible reason
+
+At defaults against a 20-node enemy:
 
 | path | trickle | killing blow | total |
 |---|---|---|---|
-| snipe the core first | 0 | `20 · 5 · 2` | **200** |
-| break all 19 limbs, then the core | `19 · 5` = 95 | `1 · 5 · 2` = 10 | **105** |
+| kill in one attack (snipe, or cut the arm out from under it) | — | `20 · 5 · 2` | **200** |
+| break 19 limbs over earlier attacks, then the core | `19 · 5` = 95 | `1 · 5 · 2` = 10 | **105** |
 
-That gap **is** `entity_kill_bonus`: only territory still standing at the moment
-of death earns the multiplier. Whether ~2× is the right premium is a balance
-question (#248) — lower `entity_kill_bonus` toward 1.0 to close it, raise it to
-push harder toward decapitation. What the shape guarantees is that neither path
-pays *nothing*, and that the two are one knob apart.
+The gap **is** `entity_kill_bonus`: only what *this* attack removes earns the
+multiplier. Whether ~2× is the right premium is a balance question (#248) — lower
+`entity_kill_bonus` toward 1.0 to close it, raise it to push harder toward
+decapitation. What the shape guarantees is that neither path pays nothing, the
+two are one knob apart, and nothing in between is ambiguous.
 
-> Open alternative the design hasn't taken: paying the killing blow for the
-> victim's **high-water** node count rather than its count at death, which would
-> make whittle and snipe pay identically. Rejected for now — it erases the
-> tactical distinction the bonus exists to create.
+> Alternative not taken: paying off the victim's **high-water** node count, which
+> would make whittle and snipe pay identically. Rejected — it erases the tactical
+> distinction the bonus exists to create.
 
-**Cascade nodes pay nothing.** Only the node you actually deplete fires
-`skill_node_destroyed`; the nodes it islands off are collateral, and the entity
-term already covers the territory an entity held.
+### Why the trickle rides `cascade_started`
 
-### The `skill_node_destroyed` phase
+It can't ride `Events.skill_node_depleted`: that signal's own handler
+(BattleSystem's cascade) clears `owned_by`, and connection order is tree order —
+so a second consumer has no safe way to read whose node it was.
+`BattleSystem.cascade_started(layers, defender)` fires **before** the strip,
+carries the defender, and carries the *whole* removal set rather than just the
+impact node. LootSystem takes an `@export var battle_system` NodePath for it
+(DI per `.claude/rules/scene-composition.md`, wired in `game_root.tscn`).
 
-The trickle can't ride `Events.skill_node_depleted`: BattleSystem's handler for
-*that* signal runs the forced-dealloc cascade, which clears `owned_by`, and
-connection order is tree order — so a second consumer has no safe way to read
-whose node it was. `Events.skill_node_destroyed(node, defender)` fires from the
-same instant in `SkillNode.take_damage` and **carries** the defender. Same
-reasoning as the `entity_dying` / `entity_died` split, one scale down.
+The ledger is deliberately **plain state on LootSystem, not a payload on the
+bus** — it's transient per-attack bookkeeping, not a domain fact anyone else
+should be reading.
 
 ## The loot draw (`_draw_payload`, #173) — core-only
 

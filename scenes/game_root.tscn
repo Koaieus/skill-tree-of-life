@@ -55,10 +55,11 @@ graph = NodePath("../../Graph")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
 
-[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager")]
+[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system")]
 unique_name_in_owner = true
 script = ExtResource("12_loot")
 turn_manager = NodePath("../TurnManager")
+battle_system = NodePath("../BattleSystem")
 skill_dust_scene = ExtResource("12_dust")
 
 [node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]

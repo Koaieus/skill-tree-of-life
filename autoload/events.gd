@@ -16,19 +16,6 @@ signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
 signal skill_node_depleted(node: SkillNode)
 
-## The same instant as [signal skill_node_depleted], but carrying the owner the
-## node is about to lose. Both fire from `SkillNode.take_damage`; this one exists
-## because `skill_node_depleted`'s own handler (BattleSystem's cascade) CLEARS
-## `owned_by`, and connection order is tree order — so a second consumer that
-## needs to know *whose* node died cannot safely read it off the node. Carry the
-## fact on the signal instead of racing for it. (Same reasoning as the
-## entity_dying / entity_died phase split, one scale down.)
-##
-## Fires for the destroyed node ONLY — never for the nodes the cascade islands
-## off it. LootSystem pays per-node kill XP off this, and collateral islanding
-## is not a kill.
-signal skill_node_destroyed(node: SkillNode, defender: Entity)
-
 ## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
 ## keyed by the owning entity. Entity itself does the re-emit so the global
 ## bus carries the entity reference (a stat doesn't know its owner). UI floater
