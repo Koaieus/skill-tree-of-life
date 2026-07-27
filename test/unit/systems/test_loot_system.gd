@@ -3,8 +3,10 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## LootSystem (#68 XP reward + #69 SkillDust loot). On `Events.entity_died`:
 ##   * the killing-blow entity (attributed via TurnManager.current_entity at the
-##     synchronous death) gains XP scaled by the victim's level, fed through the
-##     normal xp pool (so it converts to SP / levels);
+##     synchronous death) gains XP scaled by the TERRITORY the victim held at
+##     death (core included) — never by its level — fed through the normal xp
+##     pool (so it converts to SP / levels), plus a per-node trickle off
+##     `Events.skill_node_destroyed`;
 ##   * the victim's former core node becomes a relic carrying a SkillDustAddon
 ##     whose payload is a snapshot of the victim's modifiers; allocating that
 ##     relic pours the payload onto the collector's core.
@@ -50,10 +52,8 @@ func before_each() -> void:
 	# split guarantees the snapshot reads still-owned nodes before the strip.
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm  # killer attribution source
-	# Existing XP tests isolate the base (per-level) term; the empire (per-held-
-	# node) term is opted into by the dedicated test below. Core loot draw is
-	# level-scaled — tests that pin the keep-count set the knobs explicitly.
-	_loot.xp_per_held_node = 0.0
+	# XP tests set `xp_per_node_killed` / `entity_kill_bonus` explicitly; the
+	# core loot draw is level-scaled, so keep-count tests pin its knobs too.
 	add_child_autofree(_loot)
 
 	_alloc = AllocationSystem.new()
@@ -99,26 +99,49 @@ func _kill_victim() -> void:
 # ── #68: XP reward ───────────────────────────────────────────────────────────
 
 func test_killer_gains_xp_on_kill() -> void:
-	_loot.xp_per_victim_level = 2.0
-	_victim.level = 1
+	# Victim holds N1 (core) + N2 → 2 nodes destroyed by the killing blow.
+	_loot.xp_per_node_killed = 2.0
+	_loot.entity_kill_bonus = 1.0  # isolate the node term
 	var before := _killer.stat_board.xp.current
 	_kill_victim()
-	assert_eq(_killer.stat_board.xp.current, before + 2.0, "killer xp += per_level * victim.level")
+	assert_eq(_killer.stat_board.xp.current, before + 4.0,
+			"kill XP = per_node * (held + core)")
 
 
-func test_xp_scales_with_victim_level() -> void:
-	_loot.xp_per_victim_level = 1.0
-	_victim.level = 3  # 3 < cap (5) → no level-up, stays as current
+func test_kill_xp_ignores_victim_level() -> void:
+	# The rework: level is no longer an axis. D-19 already pins enemy level to
+	# starting node count, so paying for both double-counted one fact.
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 1.0
+	_victim.level = 17
 	_kill_victim()
-	assert_eq(_killer.stat_board.xp.current, 3.0, "award scales by victim level")
+	assert_eq(_killer.stat_board.xp.current, 2.0,
+			"a level-17 victim holding 2 nodes pays exactly the 2 nodes")
+
+
+func test_kill_xp_scales_with_territory_held_at_death() -> void:
+	# Strip N2 first: the same victim, one node smaller, pays proportionally less.
+	_alloc.force_deallocate(_nodes[2])
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 1.0
+	_kill_victim()
+	assert_eq(_killer.stat_board.xp.current, 1.0, "core-only victim pays for its core alone")
+
+
+func test_entity_kill_bonus_multiplies_the_payout() -> void:
+	# The premium that makes going for the throat worth more than grinding limbs.
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 2.0
+	_kill_victim()
+	assert_eq(_killer.stat_board.xp.current, 4.0, "2 nodes * 1 XP * 2.0 bonus")
 
 
 func test_xp_award_routes_through_level_up() -> void:
 	# Award >= xp cap (5) → fills the pool → the normal replenished cascade
 	# levels the killer and mints 1 SP (proves we go through the pool, not a
 	# raw set_current that would skip it).
-	_loot.xp_per_victim_level = 5.0
-	_victim.level = 1
+	_loot.xp_per_node_killed = 5.0
+	_loot.entity_kill_bonus = 1.0
 	var lvl_before := _killer.level
 	var sp_before := _killer.stat_board.skill_points.current
 	_kill_victim()
@@ -138,25 +161,42 @@ func test_self_death_grants_no_xp() -> void:
 	assert_eq(_killer.stat_board.xp.current, before, "no killer → no XP")
 
 
-func test_xp_empire_term_scales_with_held_nodes() -> void:
-	# #173: territory held at death is rewarded as XP (not looted stats). Victim
-	# holds one non-core node (N2), so the empire term adds xp_per_held_node.
-	_loot.xp_per_victim_level = 0.0  # isolate the empire term
-	_loot.xp_per_held_node = 2.0
-	_loot.held_node_xp_power = 1.0
-	_victim.level = 1
+func test_destroying_a_node_pays_the_trickle() -> void:
+	# #182: whittling a limb pays per node, without an entity dying. Riding
+	# `skill_node_destroyed` (not `skill_node_depleted`) is what makes the
+	# defender readable — BattleSystem's cascade handler has already cleared
+	# `owned_by` by the time a depleted-listener would run.
+	_loot.xp_per_node_killed = 3.0
+	_tm.current_entity = _killer
 	var before := _killer.stat_board.xp.current
-	_kill_victim()
-	assert_eq(_killer.stat_board.xp.current, before + 2.0,
-		"empire XP = xp_per_held_node * held_count^power (1 held node)")
+	_nodes[2].take_damage(10000.0, null)  # leaf, victim survives
+	assert_false(_victim.is_dead, "the victim is only losing a limb here")
+	assert_eq(_killer.stat_board.xp.current, before + 3.0, "one destroyed node → one trickle")
+
+
+func test_destroying_your_own_node_pays_nothing() -> void:
+	_loot.xp_per_node_killed = 3.0
+	_tm.current_entity = _victim  # the victim is the one acting
+	var before := _victim.stat_board.xp.current
+	_nodes[2].take_damage(10000.0, null)
+	assert_eq(_victim.stat_board.xp.current, before, "no XP for destroying your own territory")
+
+
+func test_node_kill_switch_suppresses_the_trickle() -> void:
+	_loot.award_xp_on_node_kill = false
+	_loot.xp_per_node_killed = 3.0
+	_tm.current_entity = _killer
+	var before := _killer.stat_board.xp.current
+	_nodes[2].take_damage(10000.0, null)
+	assert_eq(_killer.stat_board.xp.current, before, "trickle disabled → no XP")
 
 
 # ── Per-side-effect kill-switches (sandbox modularity) ───────────────────────
 
 func test_drop_skill_dust_off_suppresses_relic() -> void:
 	_loot.drop_skill_dust_on_death = false
-	_loot.xp_per_victim_level = 2.0  # sub-cap → no level-up reset, current is observable
-	_victim.level = 1
+	_loot.xp_per_node_killed = 1.0  # sub-cap → no level-up reset, current is observable
+	_loot.entity_kill_bonus = 1.0
 	var before := _killer.stat_board.xp.current
 	_kill_victim()
 	assert_null(_find_dust(_nodes[1]), "dust drop disabled → no relic on former core")
@@ -228,13 +268,14 @@ func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
 	# cascade's chip damage drops health to 0, so die() — and thus LootSystem —
 	# fires RE-ENTRANTLY while BattleSystem is still iterating the cascade loop.
 	# The rewards must still land (and not crash) on this real combat trigger.
-	_loot.xp_per_victim_level = 2.0
-	_victim.level = 1
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 1.0
 	_tm.current_entity = _killer
 	var xp_before := _killer.stat_board.xp.current
 	_victim.stat_board.health.set_current(1.0)
 	_nodes[2].take_damage(10000.0, null)  # deplete N2 → cascade → chip kill
 	assert_true(_victim.is_dead, "chip damage should kill the victim mid-cascade")
+	# 1 (N2 destroyed, the trickle) + 1 (the kill: core only, N2 already gone).
 	assert_eq(_killer.stat_board.xp.current, xp_before + 2.0, "XP awarded despite re-entrant death")
 	assert_not_null(_find_dust(_nodes[1]), "SkillDust dropped on the former core mid-cascade")
 
@@ -285,8 +326,7 @@ func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	# XP is zeroed to isolate the loot grant: since #271 a level-up also moves
 	# CON (+1/level, via the board's mod_level_to_con intrinsic), which would
 	# otherwise drift _attr_sum by the killer's levels gained on this kill.
-	_loot.xp_per_victim_level = 0.0
-	_loot.xp_per_held_node = 0.0
+	_loot.xp_per_node_killed = 0.0
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0
 	_victim.level = 1
@@ -306,8 +346,7 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	# A UI consumer sets `handled = true` synchronously → the addon must NOT
 	# auto-resolve. The loot stays pending until the picker calls resolve().
 	# XP zeroed for the same reason as above — a level-up would move CON.
-	_loot.xp_per_victim_level = 0.0
-	_loot.xp_per_held_node = 0.0
+	_loot.xp_per_node_killed = 0.0
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0
 	_victim.level = 1

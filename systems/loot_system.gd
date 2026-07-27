@@ -4,16 +4,17 @@ extends Node
 
 ## Authority for killing-blow rewards (#68 XP, #69/#173 SkillDust loot,
 ## #204 spellbook draft). Reacts to `Events.entity_dying(victim)` — the
-## PRE-cleanup phase, while the corpse still owns its nodes (so the XP empire
-## term can count the territory held at death, and the spell draft can still
+## PRE-cleanup phase, while the corpse still owns its nodes (so the XP payout
+## can count the territory held at death, and the spell draft can still
 ## read core-sourced spells before the strip). The phase split guarantees this
 ## runs before AllocationSystem's `entity_died` strip; no tree-order /
 ## connection-order dependency. On the bus:
-##   * XP reward — the killer gains XP for the victim's level PLUS its territory
-##     size at death (the empire term), fed through the normal `xp` pool so it
-##     converts to SP / levels via the existing replenished cascade
+##   * XP reward — the killer gains XP for the territory the victim held at
+##     death (core included), fed through the normal `xp` pool so it converts to
+##     SP / levels via the existing replenished cascade
 ##     (Entity._on_xp_replenished). Don't bypass the pool — a raw `set_current`
-##     would skip the level-up.
+##     would skip the level-up. The complementary per-node trickle rides
+##     `Events.skill_node_destroyed` instead of this phase.
 ##   * SkillDust drop — the victim's CORE modifiers (the only ones lost on death)
 ##     are attached to its former core node as a [SkillDustAddon], a pick-N-from-M
 ##     relic. Node mods are NOT looted — they return to the graph. See
@@ -44,33 +45,41 @@ extends Node
 ## `DevLootSystem extends LootSystem` in the inherited scene instead — same
 ## NodePaths, swapped logic. See docs/domain/sandbox-framework.md.)
 @export var award_xp_on_kill: bool = true
+@export var award_xp_on_node_kill: bool = true
 @export var drop_skill_dust_on_death: bool = true
 @export var award_spell_loot_on_death: bool = true
 
-## ── XP reward (#68, extended #173) ────────────────────────────────────────────
-## Two components, summed onto the killer's xp pool:
-##   base   = xp_per_victim_level * victim.level        (killing the core itself)
-##   empire = xp_per_held_node * held_count ^ held_node_xp_power
-##                                                      (its territory at death)
-## The EMPIRE term is where "you slew a sprawling lv20 giant" is rewarded —
-## deliberately as XP, NOT as looted stats. Territory modifiers are only LENT by
-## the graph (granted on allocation, released back to neutral on death), so
-## copying them into loot would duplicate mods that are still on the battlefield
-## and re-claimable. XP is the honest reward for the scale of the kill; the stat
-## loot draws strictly from the core (see `_draw_payload`). See #173 discussion.
+## ── XP reward (#68, #173, reworked off `level`) ───────────────────────────────
+## XP is paid for TERRITORY DESTROYED and nothing else. One currency, one axis:
+##
+##   per node destroyed  = xp_per_node_killed                    (the trickle)
+##   entity killing blow = xp_per_node_killed * (held_at_death + 1)
+##                         * entity_kill_bonus                   (the payout)
+##
+## `level` used to be the base term's axis (`xp_per_victim_level * victim.level`)
+## and it was a double-count dressed as a second signal: D-19 pins an enemy's
+## level to its starting node count, so "level" and "territory" were already the
+## same number, and killing a grown empire paid twice for one fact. Node count is
+## the honest axis — it's what the player actually fought through — so the level
+## term is gone and the territory term is the whole reward.
+##
+## Why XP and not looted stats: territory modifiers are only LENT by the graph
+## (granted on allocation, released back to neutral on death), so copying them
+## into loot would duplicate mods still on the battlefield and re-claimable. XP
+## is the honest reward for the scale of the kill; the stat loot draws strictly
+## from the core (see `_draw_payload`). See #173 discussion.
 
-## XP awarded per level of the victim. Tuning knob — design says "XP proportional
-## to the dead entity's level"; this is the slope.
-@export var xp_per_victim_level: float = 5.0
+## XP for destroying one node — the whittling trickle (#182). Paid per node the
+## killer actually depletes; nodes that merely island off the cascade pay
+## nothing (they're collateral, not kills, and the entity term already covers the
+## territory an entity held).
+@export var xp_per_node_killed: float = 5.0
 
-## XP per node the victim still held at death — the territory-scale reward. A
-## snipe-the-core kill (many nodes still held) and a whittle-the-limbs kill
-## should land near the same total; this term rewards the held-at-death count.
-## (The complementary per-node-kill trickle for the whittling path is #182.)
-@export var xp_per_held_node: float = 1.0
-## Exponent on held-count for the empire term. 1.0 = linear; >1 super-linear
-## (e.g. 1.5 makes big empires disproportionately juicy). Tuning knob.
-@export var held_node_xp_power: float = 1.0
+## Multiplier on the entity killing blow, on top of the per-node rate. The kill
+## is worth strictly more than dismantling the same territory node by node —
+## that premium is what makes going for the throat a real alternative to
+## grinding the limbs.
+@export var entity_kill_bonus: float = 2.0
 
 ## ── Core loot draw (#173) ─────────────────────────────────────────────────────
 ## The SkillDust draw is CORE-ONLY: the victim's class-identity mods plus
@@ -104,6 +113,10 @@ extends Node
 
 func _ready() -> void:
 	Events.entity_dying.connect(_on_entity_dying)
+	# NOT skill_node_depleted: that signal's other handler (BattleSystem's
+	# cascade) clears `owned_by`, and connection order is tree order. The
+	# destroyed-phase signal carries the defender instead. See Events.
+	Events.skill_node_destroyed.connect(_on_skill_node_destroyed)
 
 
 ## Pre-cleanup phase — corpse still owns its nodes (see Events.entity_dying).
@@ -137,16 +150,40 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 		return
 	if killer == null or killer.is_dead:
 		return
-	var board := killer.stat_board
+	# `+ 1` counts the core the victim died on. `_held_node_count` deliberately
+	# excludes it (it answers "territory"), but for the reward the core IS a node
+	# the killer had to destroy — and without it a landless enemy (D-19's core-only
+	# elite) would be worth a flat zero.
+	#
+	# ASSUMPTION — held AT DEATH, not before the attack that killed. Whittling the
+	# limbs first shrinks this term, but each of those nodes already paid
+	# `xp_per_node_killed` on its own destruction, so the two paths stay
+	# comparable instead of double-counting the same territory.
+	var nodes := _held_node_count(victim) + 1
+	_grant_xp(killer, xp_per_node_killed * float(nodes) * entity_kill_bonus)
+
+
+## Per-node kill trickle (#182). Reacts to the destroyed-phase signal so the
+## defender is known even though BattleSystem's cascade handler has already
+## stripped the node by the time a `skill_node_depleted` listener would run.
+func _on_skill_node_destroyed(node: SkillNode, defender: Entity) -> void:
+	if not award_xp_on_node_kill or node == null or defender == null:
+		return
+	var killer := _resolve_killer(defender)
+	if killer == null or killer.is_dead:
+		return
+	_grant_xp(killer, xp_per_node_killed)
+
+
+## Pour `amount` XP onto `entity`'s pool. Always through `replenish` — a raw
+## `set_current` would skip `on_pool_filled` and thus the level-up cascade.
+func _grant_xp(entity: Entity, amount: float) -> void:
+	if amount <= 0.0 or entity == null:
+		return
+	var board := entity.stat_board
 	if board == null or board.xp == null:
 		return
-	var amount := xp_per_victim_level * float(maxi(1, victim.level))
-	var held := _held_node_count(victim)
-	if held > 0 and xp_per_held_node > 0.0:
-		# Empire term: territory scale rewarded as XP, not as looted stats.
-		amount += xp_per_held_node * pow(float(held), maxf(0.0, held_node_xp_power))
-	if amount > 0.0:
-		board.xp.replenish(amount)  # routes through on_pool_filled → level-up
+	board.xp.replenish(amount)
 
 
 # ── #69/#173: SkillDust loot drop (core-only) ─────────────────────────────────
@@ -200,8 +237,8 @@ func _draw_payload(victim: Entity) -> Dictionary:
 	return {"candidates": candidates, "pick_count": pick_count}
 
 
-## Count of non-core nodes the victim still owns at death — the TERRITORY signal,
-## now feeding the XP empire term (was the loot draw pre-#173-rework). Reads the
+## Count of non-core nodes the victim still owns at death — the TERRITORY signal
+## feeding the kill-XP payout (was the loot draw pre-#173-rework). Reads the
 ## owned-subgraph mirror, so cascade-stripped nodes are already excluded.
 func _held_node_count(victim: Entity) -> int:
 	if victim.navigator == null:

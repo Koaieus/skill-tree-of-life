@@ -44,7 +44,7 @@ func before_each() -> void:
 
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm
-	_loot.xp_per_held_node = 0.0
+	_loot.xp_per_node_killed = 0.0
 	_loot.drop_skill_dust_on_death = false  # isolate the spell draft
 	add_child_autofree(_loot)
 

@@ -76,7 +76,8 @@ func _build_systems() -> void:
 	# Sub-cap award (xp cap is 5): keeps the kill XP observable as a delta without
 	# triggering a level-up, which would grow the xp cap + mint SP permanently and
 	# make the per-phase reset drift. The showcase is about loot landing, not levels.
-	_loot.xp_per_victim_level = 1.0
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 1.0
 
 
 ## Attacker (left) + victim (right). The victim carries a core class + STR-bearing

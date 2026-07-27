@@ -3,8 +3,9 @@
 `systems/loot_system.gd` is the authority for **killing-blow rewards**. It reacts
 to `Events.entity_dying(victim)` and does two things:
 
-1. **XP reward (#68, extended #173)** — the killer gains XP for the victim's
-   **level** *plus* the **territory** it held at death (the "empire term").
+1. **XP reward (#68, #173, #182)** — the killer gains XP for the **territory**
+   the victim held at death (its core included). Never for its level. A
+   per-node trickle rides `Events.skill_node_destroyed` alongside this.
 2. **SkillDust drop (#69/#173)** — the victim's former core node becomes a
    claimable relic carrying a `SkillDustAddon`, a **pick-N-from-M** choice over
    the victim's **core** modifiers.
@@ -68,7 +69,7 @@ instead of racing on connection order:
 
 ```
 Events.entity_dying  → LootSystem: draw core mods + attach SkillDust, award kill
-                        XP (base + empire)   (corpse STILL owns its nodes)
+                        XP (territory-scaled)  (corpse STILL owns its nodes)
 Events.entity_died   → AllocationSystem: force-deallocate every owned node
                         (incl. core → neutral relic)
                      → GameRoot: player game-over / NPC despawn
@@ -76,7 +77,7 @@ Events.entity_died   → AllocationSystem: force-deallocate every owned node
 
 `emit()` is synchronous, so **every `entity_dying` handler finishes before any
 `entity_died` handler runs** — the phases sequence themselves. LootSystem needs
-the pre-strip world for the **XP empire term**, which counts the territory the
+the pre-strip world for the **XP payout**, which counts the territory the
 victim still owns (`navigator.get_mirrored_nodes()`), gone once AllocationSystem
 strips it. (The loot draw itself reads only `core_class` + the core node, which
 survive the strip — but sharing the `entity_dying` phase keeps both reads in one
@@ -91,27 +92,50 @@ on the *stronger* child-before-parent ready order (GameRoot is the root, so its
 The XP grant and the dust *attach* are order-independent w.r.t. the strip anyway
 — the addon survives it (`force_deallocate` only pops `node.modifiers`, not addon
 children), and the core-mod source comes off `core_class` + the core node, not
-the wider live subgraph. What DOES need the pre-strip world is the XP **empire
-term**, which counts the territory still owned at death.
+the wider live subgraph. What DOES need the pre-strip world is the XP
+**payout**, which counts the territory still owned at death.
 
 ## The XP reward (`_award_kill_xp`)
 
-Two summed components:
+XP is paid for **territory destroyed**, and for nothing else. One axis, two
+payment points:
 
 ```
-base   = xp_per_victim_level(5) · victim.level               (killing the core)
-empire = xp_per_held_node(1) · held_count ^ held_node_xp_power(1)   (its empire)
+per node destroyed  = xp_per_node_killed(5)                          (the trickle)
+entity killing blow = xp_per_node_killed(5) · (held_count + 1)
+                      · entity_kill_bonus(2)                         (the payout)
 ```
 
 `held_count` = non-core nodes the victim still owned at death (`_held_node_count`,
-read off the pre-strip navigator mirror). The empire term is where territory
-scale is paid out — **as XP, deliberately not as looted stats** (see the #173
-correction above). `held_node_xp_power > 1` makes big empires super-linearly
-juicy; leave it at 1 for linear. All three are `@export` knobs.
+read off the pre-strip navigator mirror); `+ 1` counts the core it died on, so a
+landless D-19 elite is still worth something. Territory scale is paid out **as
+XP, deliberately not as looted stats** (see the #173 correction above). Both
+terms are `@export` knobs.
 
-> The complementary half — a small XP trickle for **each node destroyed** on the
-> way in (so a whittling kill totals near a snipe kill) — is **#182**; it needs a
-> node-destruction hook with killer attribution, broader than this file.
+**Why `level` is gone.** The old base term was `xp_per_victim_level · victim.level`.
+D-19 pins an enemy's level to its starting node count — so "level" and
+"territory" were already the same fact, and the two terms double-counted it.
+Node count is the honest axis: it's what the player actually had to fight
+through.
+
+**Whittle vs. snipe.** Each node you destroy pays `xp_per_node_killed` on the
+spot (#182), and the killing blow pays for whatever territory is *left*. So
+dismantling an empire limb-by-limb and sniping its core total out close, with
+the `entity_kill_bonus` premium favouring the throat. Held **at death**, not
+before the attack — the nodes you already broke have already paid.
+
+**Cascade nodes pay nothing.** Only the node you actually deplete fires
+`skill_node_destroyed`; the nodes it islands off are collateral, and the entity
+term already covers the territory an entity held.
+
+### The `skill_node_destroyed` phase
+
+The trickle can't ride `Events.skill_node_depleted`: BattleSystem's handler for
+*that* signal runs the forced-dealloc cascade, which clears `owned_by`, and
+connection order is tree order — so a second consumer has no safe way to read
+whose node it was. `Events.skill_node_destroyed(node, defender)` fires from the
+same instant in `SkillNode.take_damage` and **carries** the defender. Same
+reasoning as the `entity_dying` / `entity_died` split, one scale down.
 
 ## The loot draw (`_draw_payload`, #173) — core-only
 
