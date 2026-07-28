@@ -26,6 +26,22 @@ extends Control
 @onready var _label: Label = %Label
 
 
+func _ready() -> void:
+	if Engine.is_editor_hint():
+		# Author-time: show the row fully revealed so its content is
+		# witnessable while editing. Pure visual setup, safe under @tool
+		# (mirrors FanPanel's / FanTrace's own editor-hint branch).
+		set_progress(1.0)
+		return
+	# Rest state is t = 0 (#221 §4) — the caller drives the reveal, and it is
+	# NOT a side effect of an entry call. Without this a freshly instantiated
+	# row sits at full scale/alpha until something ticks it, so a consumer
+	# animating 0 → 1 pops to full for a frame first. That is the exact bug
+	# this issue closes for AddonItem; the row must not reintroduce it for
+	# bare consumers like #306's toast.
+	set_progress(0.0)
+
+
 ## Renders `m.format()` (the full sentence, stat name included — #305) into
 ## the slab's Label, and tints the slab background by the target stat's
 ## [member StatDef.tint_color], read raw. Falls back to [constant Color.WHITE]

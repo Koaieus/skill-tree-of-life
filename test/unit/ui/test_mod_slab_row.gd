@@ -81,3 +81,15 @@ func test_set_progress_at_one_is_fully_revealed() -> void:
 	row.set_progress(1.0)
 	assert_almost_eq(row.scale.x, 1.0, 0.001)
 	assert_almost_eq(row.modulate.a, 1.0, 0.001)
+
+
+func test_freshly_instantiated_row_rests_at_zero() -> void:
+	# #221 §4 — "rest state is t = 0, set at _ready/bind, NOT as a side effect
+	# of an entry call". Without this a bare row sits at full scale/alpha until
+	# something ticks it, so a consumer animating 0 -> 1 (#306's toast) pops to
+	# full for a frame first. Regression guard for exactly that.
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(_make_modifier(StatModifier.Operation.ADD_BASE, 4.0, &"armor"))
+	assert_almost_eq(row.modulate.a, 0.0, 0.001)
+	assert_almost_eq(row.scale.x, row.start_scale, 0.001)
