@@ -93,6 +93,7 @@ func _ready() -> void:
 		if hud_root != null:
 			hud_root.compose(self)
 		_wire_hud_floater_anchor()
+		_wire_gained_modifier_toast()
 	else:
 		$UI.visible = false
 
@@ -250,6 +251,38 @@ func _wire_hud_floater_anchor() -> void:
 		return
 	floater_director.player = player
 	floater_director.player_anchor = hud_root.hero_sigil_card.float_anchor
+
+
+## #306 — "you just got these": on a voluntary player allocation, slab the
+## node's granted modifiers beside the Hero avatar, then absorb them into it.
+##
+## Its own layer, deliberately NOT the floater queue (different dwell, anchor
+## and exit). Mounted in HudRoot rather than under Graph like FloaterDirector,
+## so it sits in the HUD canvas and does not scale with camera zoom.
+##
+## Two gates, neither of which the toast decides for itself:
+##   - `entity == player` — this is the HERO avatar's surface; an NPC
+##     allocating a node must not toast on it.
+##   - `not forced` — mirrors the existing convention for cosmetic gain
+##     reactions (see AllocationSystem's `allocated` docstring: #70 floaters
+##     and #71 pulses gate the same way), so a level's setup/procgen
+##     allocations don't fire a flurry at startup.
+func _wire_gained_modifier_toast() -> void:
+	if allocation_system == null or hud_root == null or player == null:
+		return
+	if hud_root.hero_sigil_card == null or hud_root.gained_modifier_toast == null:
+		return
+	hud_root.gained_modifier_toast.float_anchor = hud_root.hero_sigil_card.float_anchor
+	if not allocation_system.allocated.is_connected(_on_node_allocated_for_toast):
+		allocation_system.allocated.connect(_on_node_allocated_for_toast)
+
+
+func _on_node_allocated_for_toast(node: SkillNode, entity: Entity, forced: bool) -> void:
+	if forced or entity != player or node == null:
+		return
+	if hud_root == null or hud_root.gained_modifier_toast == null:
+		return
+	hud_root.gained_modifier_toast.show_gains(node.modifiers)
 
 
 func _focus_camera_on_player() -> void:

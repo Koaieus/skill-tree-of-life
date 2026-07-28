@@ -30,6 +30,7 @@ extends Control
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
 @onready var game_over_overlay: CanvasLayer = %GameOverOverlay
 @onready var tooltip_fan: TooltipFan = %TooltipFan
+@onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
 
 var _player: Entity
 var _input_ctl: PlayerInputController
