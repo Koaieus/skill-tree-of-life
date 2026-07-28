@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://ui/theme/holo_scanline_overlay.gdshader" id="1_shader"]
+
+[resource]
+resource_local_to_scene = true
+shader = ExtResource("1_shader")
+shader_parameter/size = Vector2(220, 160)
+shader_parameter/corner_radius = 13.0
+shader_parameter/line_color = Color(0.4, 0.95, 1.0, 1.0)
+shader_parameter/scanline_count = 90.0
+shader_parameter/scanline_speed = 0.4
+shader_parameter/scanline_intensity = 0.22

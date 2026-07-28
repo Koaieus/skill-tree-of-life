@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/tooltip_fan/panels/granted_modifiers_root.gd" id="1_script"]
+
+[node name="GrantedModifiersRoot" type="Node2D" groups=["fan_unit"]]
+script = ExtResource("1_script")
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+offset_left = -60.0
+offset_top = 0.0
+offset_right = 60.0
+offset_bottom = 80.0
+alignment = 0

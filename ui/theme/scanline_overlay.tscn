@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/theme/scanline_overlay.gd" id="1_script"]
+
+[node name="ScanlineOverlay" type="ColorRect"]
+script = ExtResource("1_script")
+offset_right = 220.0
+offset_bottom = 160.0
+mouse_filter = 2
+z_index = 1

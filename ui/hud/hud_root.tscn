@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" uid="uid://lnsqiwcwk82o" path="res://ui/loot_picker/loot_picker.tscn" id="16_loot"]
 [ext_resource type="PackedScene" path="res://ui/game_over_overlay.tscn" id="17_game_over"]
 [ext_resource type="PackedScene" path="res://ui/loot_picker/spell_loot_picker.tscn" id="18_spell_loot"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/tooltip_fan.tscn" id="19_tooltip_fan"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -144,6 +145,9 @@ visible = false
 layout_mode = 1
 offset_right = 180.0
 offset_bottom = 55.0
+
+[node name="TooltipFan" parent="." instance=ExtResource("19_tooltip_fan")]
+unique_name_in_owner = true
 
 [node name="SpellTooltip" parent="." unique_id=556906459 instance=ExtResource("13_spell_tt")]
 visible = false
