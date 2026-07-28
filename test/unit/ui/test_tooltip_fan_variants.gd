@@ -91,11 +91,36 @@ func test_owned_core_variant_adds_the_core_panel_over_owned() -> void:
 	assert_eq(owned_core_panels.size(), owned_panels.size() + 1, "owned_core.tscn adds exactly the Core panel")
 
 
+func _edge_name(anchor: Vector2, rect: Rect2) -> String:
+	if is_equal_approx(anchor.x, rect.position.x):
+		return "left"
+	if is_equal_approx(anchor.x, rect.position.x + rect.size.x):
+		return "right"
+	if is_equal_approx(anchor.y, rect.position.y):
+		return "top"
+	return "bottom"
+
+
+func _actual_edge_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float) -> String:
+	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
+		"trunk": trunk_frac, "trunk_dir": trunk_dir,
+	})
+	var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
+	if absf(leg.x) >= absf(leg.y):
+		return "left" if leg.x >= 0.0 else "right"
+	return "top" if leg.y >= 0.0 else "bottom"
+
+
 ## Decision 4 must hold for every shipped unit, not just synthetic
-## quadrants: the route TraceRouter actually draws to a FanTrace's CURRENT
-## `to_point` must arrive on the same edge that point sits on. Runs the
-## driver once (rather than depending on a live `_process` frame) so this
-## stays deterministic regardless of frame timing.
+## quadrants: (1) the trace's CURRENT `to_point` must equal what
+## [FanAnchor.derive_anchor] derives fresh from the panel's live position —
+## i.e. nothing here is a stale/hand-authored value masquerading as derived —
+## and (2) the route TraceRouter actually draws to that point must arrive on
+## the SAME edge the point sits on (the exact bug review caught: a
+## centre-only guess can name an edge the drawn route doesn't agree with).
+## `no-overshoot` alone can't catch that bug — a leg can slide along a
+## panel's edge without ever reading as "inside" it — so it isn't asserted
+## here as a substitute for the edge check.
 func test_every_fan_traces_terminus_is_self_consistent_in_every_variant() -> void:
 	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
 		var inst := _instantiate(scene)
@@ -106,6 +131,15 @@ func test_every_fan_traces_terminus_is_self_consistent_in_every_variant() -> voi
 			if trace == null or panel == null:
 				continue
 			var rect := FanAnchor.panel_rect_of(panel)
+			var expected := FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start)
+			assert_eq(trace.to_point, expected,
+				"%s/%s: to_point must equal a fresh derive_anchor() of the panel's current position" % [scene.resource_path, unit.name])
+
+			var chosen_edge := _edge_name(trace.to_point, rect)
+			var routed_edge := _actual_edge_of_route(trace.from_point, trace.to_point, trace.trunk_dir, trace.bend_start)
+			assert_eq(routed_edge, chosen_edge,
+				"%s/%s: the route actually drawn to to_point must arrive on the edge to_point sits on" % [scene.resource_path, unit.name])
+
 			var pts := TraceRouter.compute_trace_points(trace.from_point, trace.to_point,
 				TraceRouter.Style.PCB, {"trunk": trace.bend_start, "trunk_dir": trace.trunk_dir})
 			assert_eq(pts[pts.size() - 1], trace.to_point,

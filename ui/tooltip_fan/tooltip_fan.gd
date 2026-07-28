@@ -58,10 +58,15 @@ func _on_hovered(node: SkillNode) -> void:
 	if node == _hovered_node and _current_variant != null:
 		return
 	_hovered_node = node
-	global_position = node.get_global_transform_with_canvas().origin
+	# Retire the OLD variant while `global_position` still reads the OLD
+	# node's anchor — `_retire` freezes it there. Reassigning
+	# `global_position` to the new node FIRST would freeze the outgoing fan
+	# at the new node's spot instead of where it actually was (a static
+	# teleport rather than the tracking bug `top_level` alone fixes).
 	if _current_variant != null:
 		_retire(_current_variant)
 		_current_variant = null
+	global_position = node.get_global_transform_with_canvas().origin
 	var scene := _pick_variant(node)
 	if scene == null:
 		return

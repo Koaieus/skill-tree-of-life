@@ -92,9 +92,52 @@ func test_unhovering_eventually_frees_the_variant_and_hides_the_fan() -> void:
 	assert_null(_fan._current_variant, "variant should be freed once every member settles to HIDDEN")
 
 
+func test_hovering_a_second_node_retires_the_first_variant_frozen_in_place() -> void:
+	# Regression guard for two bugs found in review:
+	#  1. `_play_in_one` not checking the `retiring` meta -> a still-pending
+	#     delayed play_in() fires on a member of a variant already being torn
+	#     down, and `_all_settled` never turns true again (permanent leak).
+	#  2. Freezing the outgoing variant's position using `global_position`
+	#     AFTER it had already been reassigned to the NEW node -> the old
+	#     fan teleports to the new node's spot instead of fading where it
+	#     actually was.
+	_node.global_position = Vector2(0.0, 0.0)
+	Events.skill_node_hovered.emit(_node)
+	await get_tree().process_frame
+
+	var node_b := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child(node_b)
+	autofree(node_b)
+	node_b.global_position = Vector2(500.0, 500.0)
+
+	var old_variant := _fan._current_variant
+	assert_not_null(old_variant, "A's fan should have spawned a variant")
+	var expected_a_pos: Vector2 = _node.get_global_transform_with_canvas().origin
+
+	Events.skill_node_hovered.emit(node_b)
+	await get_tree().process_frame
+
+	assert_ne(_fan._current_variant, old_variant, "B's hover should spawn its own variant")
+	assert_true(is_instance_valid(old_variant), "A's variant should still be retiring, not yet freed")
+	assert_almost_eq((old_variant as Node2D).global_position.x, expected_a_pos.x, 0.5,
+		"A's outgoing fan must stay frozen at A's spot, not jump to B's")
+	assert_almost_eq((old_variant as Node2D).global_position.y, expected_a_pos.y, 0.5)
+
+	var frames := 0
+	while is_instance_valid(old_variant) and frames < 240:
+		await get_tree().process_frame
+		frames += 1
+	assert_false(is_instance_valid(old_variant),
+		"A's variant must eventually be freed, not leak forever behind the retiring guard")
+
+
 # --- per-index stagger --------------------------------------------------------
 
 func test_members_are_fired_with_an_increasing_per_index_delay() -> void:
+	# A generous delay, not the fixture's 0.01s default: a single
+	# process_frame on a slow/headless run can exceed 10ms on its own, which
+	# would flake this assertion for reasons unrelated to the stagger logic.
+	_fan.stagger_delay = 5.0
 	Events.skill_node_hovered.emit(_node)
 	await get_tree().process_frame
 	var members := _fan._collect_members(_fan._current_variant)
