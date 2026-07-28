@@ -107,6 +107,15 @@ func _play_in_one(variant: Node, member: Node, delay: float) -> void:
 		await get_tree().create_timer(delay).timeout
 	if not is_instance_valid(variant) or variant.is_queued_for_deletion():
 		return
+	# `_retire()` marks a variant "retiring" the instant a new hover supersedes
+	# it — synchronously, before any of ITS OWN members have necessarily
+	# reached HIDDEN yet. Without this check, a still-pending delayed
+	# play_in() (queued before the retire) would fire play_in() on a member
+	# `_retire()` already decided to tear down, and nothing would ever call
+	# play_out() on it again — `_all_settled` never turns true and the
+	# variant leaks forever instead of being freed.
+	if variant.get_meta(&"retiring", false):
+		return
 	if not is_instance_valid(member):
 		return
 	member.play_in()
@@ -119,6 +128,17 @@ func _play_in_one(variant: Node, member: Node, delay: float) -> void:
 ## hadn't fired yet) is skipped rather than animated for nothing.
 func _retire(variant: Node) -> void:
 	variant.set_meta(&"retiring", true)
+	# Freeze the retiring variant at THIS coordinator's current screen spot
+	# before it can change. `variant` stays a child of this Node2D — if a
+	# new hover reassigns `global_position` to a different node while this
+	# variant is still mid-play_out, it would otherwise be dragged along to
+	# the new node's position instead of fading out where it actually is.
+	# `top_level` makes it ignore the parent transform from here on.
+	if variant is Node2D:
+		var v2d := variant as Node2D
+		var frozen := global_position
+		v2d.top_level = true
+		v2d.global_position = frozen
 	var members := _collect_members(variant)
 	if members.is_empty():
 		variant.queue_free()

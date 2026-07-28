@@ -87,6 +87,63 @@ func test_boundary_tie_is_deterministic_and_flips_with_a_nudge() -> void:
 		"nudging past the tie flips the arrival edge to vertical (bottom)")
 
 
+# --- self-consistency: the ROUTED edge must match the CHOSEN edge -----------
+# Regression guard for the bug the orchestrator's review caught: picking the
+# edge from a route to the panel's CENTRE, then handing back a different
+# point (the edge), can be wrong — moving `to` from centre to the edge changes
+# `rem`, which can flip which axis is actually dominant once the route is
+# drawn to the edge instead of the centre. A naive centre-only guess is not
+# guaranteed to agree with the route TraceRouter actually draws to its own
+# answer. This is exactly the shipped NodeStats unit's real geometry.
+
+func _actual_edge_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float) -> String:
+	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
+		"trunk": trunk_frac, "trunk_dir": trunk_dir,
+	})
+	var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
+	if absf(leg.x) >= absf(leg.y):
+		return "left" if leg.x >= 0.0 else "right"
+	return "top" if leg.y >= 0.0 else "bottom"
+
+
+func _edge_name(anchor: Vector2, rect: Rect2) -> String:
+	if is_equal_approx(anchor.x, rect.position.x):
+		return "left"
+	if is_equal_approx(anchor.x, rect.position.x + rect.size.x):
+		return "right"
+	if is_equal_approx(anchor.y, rect.position.y):
+		return "top"
+	return "bottom"
+
+
+func test_derived_anchor_is_self_consistent_with_the_actually_drawn_route() -> void:
+	# The exact geometry shipped in ui/tooltip_fan/units/node_stats_unit.tscn.
+	var from := Vector2(-6.0, 0.0)
+	var rect := Rect2(Vector2(-345.0, -230.0), Vector2(170.0, 200.0))
+	var dir := Vector2(0.0, -1.0)
+	var frac := 0.382
+
+	var anchor := FanAnchor.derive_anchor(from, rect, dir, frac)
+	var chosen_edge := _edge_name(anchor, rect)
+	var routed_edge := _actual_edge_of_route(from, anchor, dir, frac)
+	assert_eq(routed_edge, chosen_edge,
+		"the route TraceRouter actually draws to the returned anchor must arrive on the SAME edge the anchor sits on")
+
+
+func test_derived_anchor_is_self_consistent_for_the_mirrored_addons_unit() -> void:
+	# Same shape, mirrored: ui/tooltip_fan/units/addons_unit.tscn's geometry.
+	var from := Vector2(6.0, 0.0)
+	var rect := Rect2(Vector2(185.0, -165.0), Vector2(150.0, 130.0))
+	var dir := Vector2(0.0, -1.0)
+	var frac := 0.382
+
+	var anchor := FanAnchor.derive_anchor(from, rect, dir, frac)
+	var chosen_edge := _edge_name(anchor, rect)
+	var routed_edge := _actual_edge_of_route(from, anchor, dir, frac)
+	assert_eq(routed_edge, chosen_edge,
+		"self-consistency must hold for the mirrored (right-side) unit too")
+
+
 # --- structural guarantees: exact terminus, no overshoot ---------------------
 
 func test_final_route_terminates_exactly_at_the_derived_anchor() -> void:

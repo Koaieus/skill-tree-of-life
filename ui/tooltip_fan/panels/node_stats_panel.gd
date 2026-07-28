@@ -14,6 +14,9 @@ const _ENVELOPE_ROWS := 8
 
 func _ready() -> void:
 	super._ready()
+	# See owner_panel.gd's _ready for why this skips in-editor entirely.
+	if Engine.is_editor_hint():
+		return
 	_header.bind("Node Stats")
 	_build_placeholder_rows()
 

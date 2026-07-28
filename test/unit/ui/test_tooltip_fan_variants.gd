@@ -91,6 +91,30 @@ func test_owned_core_variant_adds_the_core_panel_over_owned() -> void:
 	assert_eq(owned_core_panels.size(), owned_panels.size() + 1, "owned_core.tscn adds exactly the Core panel")
 
 
+## Decision 4 must hold for every shipped unit, not just synthetic
+## quadrants: the route TraceRouter actually draws to a FanTrace's CURRENT
+## `to_point` must arrive on the same edge that point sits on. Runs the
+## driver once (rather than depending on a live `_process` frame) so this
+## stays deterministic regardless of frame timing.
+func test_every_fan_traces_terminus_is_self_consistent_in_every_variant() -> void:
+	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
+		var inst := _instantiate(scene)
+		await get_tree().process_frame
+		for unit in inst.find_children("*", "FanUnit", true, false):
+			var trace: FanTrace = unit.get_node_or_null("%Trace")
+			var panel: FanPanel = unit.get_node_or_null("%Panel")
+			if trace == null or panel == null:
+				continue
+			var rect := FanAnchor.panel_rect_of(panel)
+			var pts := TraceRouter.compute_trace_points(trace.from_point, trace.to_point,
+				TraceRouter.Style.PCB, {"trunk": trace.bend_start, "trunk_dir": trace.trunk_dir})
+			assert_eq(pts[pts.size() - 1], trace.to_point,
+				"%s/%s: trace must terminate exactly at its own to_point" % [scene.resource_path, unit.name])
+			for p in pts:
+				assert_false(FanAnchor.is_inside(p, rect),
+					"%s/%s: no route point may overshoot into the panel" % [scene.resource_path, unit.name])
+
+
 func test_every_fan_unit_carries_the_fan_unit_group() -> void:
 	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
 		var inst := _instantiate(scene)

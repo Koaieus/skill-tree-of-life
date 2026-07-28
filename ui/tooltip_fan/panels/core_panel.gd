@@ -16,6 +16,10 @@ const _ENVELOPE_ROWS := 12
 
 func _ready() -> void:
 	super._ready()
+	# See owner_panel.gd's _ready for why this skips in-editor entirely
+	# (header text is a real serializable property, not just ownerless rows).
+	if Engine.is_editor_hint():
+		return
 	_header.bind("Core")
 	_build_placeholder_rows()
 

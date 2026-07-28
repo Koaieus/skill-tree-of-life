@@ -15,4 +15,8 @@ extends FanPanel
 
 func _ready() -> void:
 	super._ready()
+	# See owner_panel.gd's _ready — Label.text is a real serializable
+	# property, so skip writing it during an editor load.
+	if Engine.is_editor_hint():
+		return
 	_label.text = "#-- · deg -"

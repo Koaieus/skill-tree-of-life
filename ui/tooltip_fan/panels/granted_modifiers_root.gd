@@ -35,7 +35,10 @@ var _tween: Tween = null
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
-		_rebuild_placeholder_rows()
+		# Skip populating placeholder rows in-editor (consistent with the
+		# stub FanPanel subclasses) — the root's own size is content-driven
+		# by design (unbounded, growing downward), so an empty %Rows during
+		# editor load doesn't hide any authored envelope.
 		return
 	_rebuild_placeholder_rows()
 	progress = 0.0
