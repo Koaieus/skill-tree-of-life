@@ -82,14 +82,14 @@ func test_line_color_and_width_are_constant_across_lifecycle() -> void:
 	var color_before := trace._trace.default_color
 	var width_before := trace._trace.width
 
-	trace.play_draw_in()
+	trace.play_in()
 	assert_eq(trace._trace.default_color, color_before, "draw-in must not tint the line")
 	assert_eq(trace._trace.width, width_before, "draw-in must not fatten the line")
 
 	trace._on_draw_in_finished() # jump to settled
 	assert_eq(trace._trace.default_color, color_before, "settled must not dim the line")
 
-	trace.play_erase()
+	trace.play_out()
 	assert_eq(trace._trace.default_color, color_before, "erase must not tint the line")
 	assert_eq(trace._trace.width, width_before)
 
@@ -114,18 +114,18 @@ func test_progress_full_parks_tip_at_endpoint() -> void:
 
 # --- lifecycle tweens --------------------------------------------------------
 
-func test_play_draw_in_returns_a_running_tween() -> void:
+func test_play_in_returns_a_running_tween() -> void:
 	var trace := _make()
 	await get_tree().process_frame
-	var tw := trace.play_draw_in()
-	assert_not_null(tw, "play_draw_in returns its Tween for sequencing")
+	var tw := trace.play_in()
+	assert_not_null(tw, "play_in returns its Tween for sequencing")
 	assert_true(tw.is_valid(), "the draw-in tween is live")
 
 
-func test_play_erase_returns_a_running_tween() -> void:
+func test_play_out_returns_a_running_tween() -> void:
 	var trace := _make()
 	await get_tree().process_frame
-	var tw := trace.play_erase()
+	var tw := trace.play_out()
 	assert_not_null(tw)
 	assert_true(tw.is_valid())
 

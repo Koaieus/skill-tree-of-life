@@ -119,7 +119,7 @@ func _ready() -> void:
 		# witnessable while dragging. Pure visual setup, safe under @tool.
 		progress = 1.0
 		return
-	# Runtime: start hidden; the coordinator/FanUnit calls play_draw_in().
+	# Runtime: start hidden; the coordinator/FanUnit calls play_in().
 	progress = 0.0
 	_tip.visible = false
 
@@ -198,7 +198,7 @@ static func _polyline_at(points: PackedVector2Array, t: float) -> Dictionary:
 ## Animates the trace drawing itself in (progress 0 → 1) with the tip travelling
 ## along it, then settles (tip parks, optional idle pulse). Returns the Tween so
 ## a caller (FanUnit) can `await tween.finished` to sequence the panel unfurl.
-func play_draw_in() -> Tween:
+func play_in() -> Tween:
 	_kill_idle()
 	_stop_lifecycle()
 	_is_animating = true
@@ -213,7 +213,7 @@ func play_draw_in() -> Tween:
 
 
 ## Animates the trace erasing (progress 1 → 0). Returns the Tween for sequencing.
-func play_erase() -> Tween:
+func play_out() -> Tween:
 	_kill_idle()
 	_stop_lifecycle()
 	_is_animating = true

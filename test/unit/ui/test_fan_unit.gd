@@ -1,16 +1,22 @@
 extends GutTest
 
-## Tooltip V2 (#159, #224): FanUnit pairs a FanTrace with a FanPanel under a
-## HIDDEN -> IN -> LOOP -> OUT -> HIDDEN state machine. Trace->panel ordering
+## Tooltip V2 (#159, #224, #303): FanUnit pairs a FanTrace with a FanPanel under
+## a HIDDEN -> IN -> LOOP -> OUT -> HIDDEN state machine. Trace->panel ordering
 ## is sequential only (#215's rescope dropped the sync_in/sync_out enum): the
 ## trace draws in, its tip arrives, THEN the panel unfurls; OUT reverses that
 ## read (panel fades, then trace erases).
 ##
-## Per the acceptance spec, these tests use immediate state checks by calling
-## the private continuations directly (mirroring test_fan_trace.gd's
-## `_on_draw_in_finished()` pattern) rather than awaiting real Tween durations.
+## Since #303, FanUnit owns no Tween of its own — [method FanUnit.play_in] /
+## [method FanUnit.play_out] just `await` each component's own `play_in()` /
+## `play_out()` Tween in sequence. These tests force each component's own
+## lifecycle tween to completion with `Tween.custom_step(1000.0)` (which fires
+## `finished` synchronously, resuming FanUnit's awaiting coroutine inline)
+## instead of waiting on real Tween durations or calling private
+## continuations — there are none left to call.
 
 const _SCENE := preload("res://ui/tooltip_fan/fan_unit.tscn")
+const _TRACE_SCENE := preload("res://ui/tooltip_fan/fan_trace.tscn")
+const _PANEL_SCENE := preload("res://ui/tooltip_fan/fan_panel.tscn")
 
 
 func _make() -> FanUnit:
@@ -20,18 +26,12 @@ func _make() -> FanUnit:
 	return unit
 
 
-## Drives a unit from HIDDEN all the way to LOOP using immediate continuation
-## calls (no real Tween waits). Also force-settles FanTrace's own real
-## draw-in tween (kicked, but never awaited, by play_in()) so its
-## `_is_animating` flag doesn't leak into later OUT-sequence assertions —
-## mirrors test_fan_trace.gd's own `_on_draw_in_finished()` jump pattern.
+## Drives a unit from HIDDEN all the way to LOOP by force-completing each
+## component's own lifecycle tween in sequence (no real Tween waits).
 func _advance_to_loop(unit: FanUnit) -> void:
 	unit.play_in()
-	unit._on_trace_drawn_in()
-	if unit._trace._lifecycle_tween != null:
-		unit._trace._lifecycle_tween.kill()
-	unit._trace._on_draw_in_finished()
-	unit._on_panel_unfurled()
+	unit._trace._lifecycle_tween.custom_step(1000.0)
+	unit._panel._lifecycle_tween.custom_step(1000.0)
 
 
 # --- initial state -------------------------------------------------------------
@@ -63,12 +63,13 @@ func test_play_in_does_not_start_the_panel_unfurl_yet() -> void:
 		"panel must not unfurl until the trace's tip arrives")
 
 
-func test_trace_drawn_in_starts_panel_unfurl_while_still_in() -> void:
+func test_trace_arriving_starts_panel_unfurl_while_still_in() -> void:
 	var unit := _make()
 	await get_tree().process_frame
 	unit.play_in()
-	unit._on_trace_drawn_in()
+	unit._trace._lifecycle_tween.custom_step(1000.0) # trace's tip arrives
 	assert_eq(unit.state, FanUnit.State.IN, "still IN while the panel unfurl runs")
+	assert_not_null(unit._panel._lifecycle_tween, "panel's own unfurl tween has started")
 
 
 func test_panel_unfurled_settles_into_loop() -> void:
@@ -103,7 +104,7 @@ func test_panel_faded_starts_trace_erase_while_still_out() -> void:
 	await get_tree().process_frame
 	_advance_to_loop(unit)
 	unit.play_out()
-	unit._on_panel_faded()
+	unit._panel._lifecycle_tween.custom_step(1000.0) # panel finishes fading
 	assert_eq(unit.state, FanUnit.State.OUT, "still OUT while the trace erases")
 	assert_true(unit._trace._is_animating, "trace erase tween is now running")
 
@@ -113,8 +114,8 @@ func test_trace_erased_returns_to_hidden_and_invisible() -> void:
 	await get_tree().process_frame
 	_advance_to_loop(unit)
 	unit.play_out()
-	unit._on_panel_faded()
-	unit._on_trace_erased()
+	unit._panel._lifecycle_tween.custom_step(1000.0)
+	unit._trace._lifecycle_tween.custom_step(1000.0)
 	assert_eq(unit.state, FanUnit.State.HIDDEN)
 	assert_false(unit.visible)
 
@@ -160,3 +161,32 @@ func test_trace_idle_export_forwards_to_the_trace() -> void:
 	await get_tree().process_frame
 	unit.trace_idle = true
 	assert_true(unit._trace.trace_idle)
+
+
+# --- shared component contract (#303) --------------------------------------------
+
+## FanUnit's whole sequencing model depends on FanTrace and FanPanel answering
+## to the exact same duck-typed surface: play_in()/play_out() -> Tween, plus a
+## readable progress that settles at 1.0/0.0. Assert both components pass the
+## same calls.
+func test_trace_and_panel_share_identical_play_in_play_out_progress_surface() -> void:
+	var trace := _TRACE_SCENE.instantiate()
+	add_child(trace)
+	autofree(trace)
+	var panel := _PANEL_SCENE.instantiate()
+	add_child(panel)
+	autofree(panel)
+	await get_tree().process_frame
+
+	for component in [trace, panel]:
+		var tw_in: Tween = component.play_in()
+		assert_not_null(tw_in, "%s.play_in() returns a Tween" % component.get_class())
+		tw_in.custom_step(1000.0)
+		assert_almost_eq(component.progress, 1.0, 0.001,
+			"%s.progress settles at 1.0 after play_in()" % component.get_class())
+
+		var tw_out: Tween = component.play_out()
+		assert_not_null(tw_out, "%s.play_out() returns a Tween" % component.get_class())
+		tw_out.custom_step(1000.0)
+		assert_almost_eq(component.progress, 0.0, 0.001,
+			"%s.progress settles at 0.0 after play_out()" % component.get_class())
