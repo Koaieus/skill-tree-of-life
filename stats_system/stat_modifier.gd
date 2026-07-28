@@ -133,10 +133,13 @@ func scales_with(source_id: StringName) -> bool:
 
 
 ## A short, op-aware string for THIS modifier's own contribution — "+10",
-## "+20%", "×1.5", "=13". The stat label is NOT included (callers append the
-## StatDef display name). Uses get_effective_value() so a formula-bound mod
-## shows its real contribution rather than the bare coefficient. Drives the
-## #70 floaters; see the "Value scales" table above for the op semantics.
+## "+20%", "×1.5", "=13". The stat label is NOT included — this is the value
+## fragment only. Contrast with [method format], which returns the FULL
+## sentence (stat name included) and is the single home for that grammar;
+## this method's own op-formatting and tests are unchanged by that split.
+## Uses get_effective_value() so a formula-bound mod shows its real
+## contribution rather than the bare coefficient. Drives the #70 floaters;
+## see the "Value scales" table above for the op semantics.
 func contribution_text() -> String:
 	var v := get_effective_value()
 	match operation:
@@ -148,6 +151,53 @@ func contribution_text() -> String:
 			return "×%s" % _trim(v)
 		Operation.SET:
 			return "=%s" % _trim(v)
+	return ""
+
+
+## The FULL sentence for this modifier — stat name included. The single home
+## for modifier-to-words grammar (#305): every UI that used to hand-append a
+## StatDef label to [method contribution_text] now calls this instead.
+##
+## Stat name comes from [member StatDef.modifier_name] (falls back to
+## [member StatDef.display_name], then to the bare `stat_id` when the def
+## can't be resolved — StatRegistry is @tool + autoload so this works
+## in-editor too). [member StatDef.display_as_percent] scales the value ×100
+## with a "%" suffix, but ONLY for ADD_BASE / ADD_BONUS / SET — INCREASE and
+## MULTIPLY values are already percent-points / raw multipliers and must not
+## be rescaled (see the field's own docstring).
+##
+## | Op | Renders as |
+## |---|---|
+## | ADD_BASE  | "+4 Intelligence" |
+## | INCREASE  | "+18% increased Intelligence" |
+## | MULTIPLY  | "×1.3 Magic Potency" |
+## | ADD_BONUS | "+3 bonus Armor" |
+## | SET       | "Armor is 3" |
+func format() -> String:
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	var name: String = String(stat_id)
+	var as_percent := false
+	if def != null:
+		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
+		as_percent = def.display_as_percent
+	var v := get_effective_value()
+	match operation:
+		Operation.ADD_BASE:
+			if as_percent:
+				return "%+d%% %s" % [roundi(v * 100.0), name]
+			return "%+d %s" % [roundi(v), name]
+		Operation.INCREASE:
+			return "%+d%% increased %s" % [roundi(v), name]
+		Operation.MULTIPLY:
+			return "×%s %s" % [_trim(v), name]
+		Operation.ADD_BONUS:
+			if as_percent:
+				return "%+d%% bonus %s" % [roundi(v * 100.0), name]
+			return "%+d bonus %s" % [roundi(v), name]
+		Operation.SET:
+			if as_percent:
+				return "%s is %d%%" % [name, roundi(v * 100.0)]
+			return "%s is %s" % [name, _trim(v)]
 	return ""
 
 

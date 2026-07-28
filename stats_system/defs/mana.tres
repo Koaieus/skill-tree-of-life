@@ -9,3 +9,4 @@ id = &"mana"
 display_name = "Mana"
 description = "Magic resource pool. Used for casting spells. Max = base + INT//10; regen = floor(log(INT)) per turn."
 tint_color = Color(0.0, 0.72, 0.881, 1)
+modifier_name = "Max Mana"

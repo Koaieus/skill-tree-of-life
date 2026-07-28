@@ -10,3 +10,4 @@ display_name = "Action Points"
 description = "Attacks per turn. Default 2; resets each turn via TurnManager (wire-up TBD)."
 default_value = 2.0
 tint_color = Color(0.4, 0.7, 0.9, 1)
+modifier_name = "Max Action Points"

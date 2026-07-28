@@ -91,18 +91,14 @@ func get_description() -> String:
 	return describe_modifiers(modifiers)
 
 
-## "+10 Strength, +20% Armor" — reuses [method StatModifier.contribution_text]
-## (the shared modifier-to-words helper [FloaterDirector] already composes with).
+## "+10 Strength, +20% increased Armor" — thin join over [method
+## StatModifier.format] (#305), the single shared modifier-to-sentence home.
 static func describe_modifiers(mods: Array[StatModifier]) -> String:
 	var parts: PackedStringArray = []
 	for m in mods:
 		if m == null:
 			continue
-		var label: String = String(m.stat_id)
-		var def: StatDef = StatRegistry.get_def(m.stat_id)
-		if def != null:
-			label = def.display_name
-		parts.append("%s %s" % [m.contribution_text(), label])
+		parts.append(m.format())
 	return ", ".join(parts)
 
 

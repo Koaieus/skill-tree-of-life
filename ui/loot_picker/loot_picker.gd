@@ -70,9 +70,7 @@ func _make_card(m: StatModifier) -> Button:
 	var leaves := m.flatten()
 	var lines: Array[String] = []
 	for leaf in leaves:
-		var leaf_def := StatRegistry.get_def(leaf.stat_id)
-		var leaf_name := leaf_def.display_name if leaf_def != null else String(leaf.stat_id)
-		lines.append("%s %s" % [leaf.contribution_text(), leaf_name])
+		lines.append(leaf.format())
 	# A single-stat card takes that stat's tint; a bundle mixes several stats,
 	# so it reads in a neutral bundle tint rather than an arbitrary one.
 	var tint := Color(0.9, 0.9, 0.95)

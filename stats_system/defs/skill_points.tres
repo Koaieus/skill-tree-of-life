@@ -10,3 +10,4 @@ display_name = "Skill Points"
 description = "Allocation budget — the mana bar. Spent on allocation, refunded on normal deallocation, wounded by forced deallocation (see SkillPointStat). heal_on_max_increase=true so level-up's +N max also gifts +N current (auto-bookkeeping); revisit if non-level sources start raising max SP. Starting SP default 3 — # TBD (#268): D-16 asks for \"a default > 1\" because 1 SP / 1 node is agency-free (no dealloc-for-refund maneuver possible turn 1); the exact value is a balance pass, not pinned here."
 default_value = 3.0
 tint_color = Color(0.35, 0.85, 0.95, 1)
+modifier_name = "Max Skill Points"

@@ -67,26 +67,7 @@ static func _format(node: SkillNode) -> String:
 static func _format_modifier(m: StatModifier) -> String:
 	if m == null:
 		return "(null)"
-	var def: StatDef = StatRegistry.get_def(m.stat_id) if StatRegistry != null else null
-	var stat_name := def.display_name if def != null else String(m.stat_id)
-	match m.operation:
-		StatModifier.Operation.ADD_BASE:
-			return "+%s %s" % [_fmt_num(m.value), stat_name]
-		StatModifier.Operation.INCREASE:
-			return "+%s%% %s" % [_fmt_num(m.value), stat_name]
-		StatModifier.Operation.MULTIPLY:
-			return "×%s %s" % [_fmt_num(m.value), stat_name]
-		StatModifier.Operation.ADD_BONUS:
-			return "+%s %s (flat)" % [_fmt_num(m.value), stat_name]
-		StatModifier.Operation.SET:
-			return "= %s %s" % [_fmt_num(m.value), stat_name]
-	return "? %s %s" % [_fmt_num(m.value), stat_name]
-
-
-static func _fmt_num(v: float) -> String:
-	if v == floor(v):
-		return "%d" % int(v)
-	return "%.2f" % v
+	return m.format()
 
 
 static func _collect_addons(node: SkillNode) -> PackedStringArray:

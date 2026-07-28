@@ -9,3 +9,4 @@ display_name = "Health"
 description = "Entity HP pool. Persistent — does not reset; the death clock. Depleted by arm-loss and core-shield overflow."
 default_value = 10.0
 tint_color = Color(0.8878, 0.203, 0.2233, 1)
+modifier_name = "Max Health"

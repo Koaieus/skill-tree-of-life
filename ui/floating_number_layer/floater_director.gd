@@ -83,8 +83,7 @@ func _on_stat_modifier_changed(
 	if entity == null or modifier == null or entity.core_location == null:
 		return
 	var def := StatRegistry.get_def(modifier.stat_id)
-	var label: String = def.display_name if def != null else String(modifier.stat_id)
-	var text := "%s %s" % [modifier.contribution_text(), label]
+	var text := modifier.format()
 	var tint: Color = def.tint_color if def != null else Color.WHITE
 	_emit_at_entity(entity, text, FloaterStyles.for_modifier(tint, binding, added))
 

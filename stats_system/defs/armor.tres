@@ -9,4 +9,4 @@ display_name = "Armor"
 description = "Flat damage reduction. Incoming damage is reduced by Armor, floored by Min Damage Taken."
 value_type = 0
 default_value = 0.0
-tint_color = Color(0.55, 0.6, 0.7, 1)
+tint_color = Color(0.72, 0.8, 0.92, 1)

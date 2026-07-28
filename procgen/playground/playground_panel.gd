@@ -491,6 +491,6 @@ func _fill_card(card: VBoxContainer, index: int, sample: Dictionary) -> void:
 		card.add_child(empty)
 		return
 	for m in mods:
-		var row := _spawn_row("%s %s" % [String(m.stat_id), m.contribution_text()])
+		var row := _spawn_row(m.format())
 		row.add_theme_font_size_override(&"font_size", 11)
 		card.add_child(row)

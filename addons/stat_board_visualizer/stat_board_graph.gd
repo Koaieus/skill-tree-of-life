@@ -414,6 +414,14 @@ func _formula_text(m: StatModifier) -> String:
 	return "<formula>"
 
 
+## NOTE (#305): can't delegate to [method StatModifier.format] here — this
+## editor tool previews disk-backed [StatBoard] resources that were never
+## `add_modifier()`'d into a live board, so `m`'s own binding
+## (`get_effective_value`'s `_board`) is null even though the visualizer's
+## own `_board` (this panel's loaded resource) is the correct formula source.
+## This stays a local effective-value computation against `_board`, not the
+## modifier's; the row shows the bare contribution value ("= 5"), not a
+## sentence — the stat name is already the node's own title.
 func _contribution_text(m: StatModifier) -> String:
 	return "= %s" % _trim_float(_contribution_value(m))
 

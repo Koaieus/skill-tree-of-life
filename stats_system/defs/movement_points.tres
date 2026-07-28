@@ -10,4 +10,5 @@ display_name = "Movement"
 description = "How many hops an entity's Core can do per turn."
 default_value = 1.0
 tint_color = Color(0.043137256, 1, 0.3764706, 1)
+modifier_name = "Max Movement"
 metadata/_custom_type_script = "uid://tpd28s10cxxv"

@@ -9,4 +9,4 @@ display_name = "Min Damage Taken"
 description = "Floor on post-armor damage. A successful hit always lands at least this much, unless overridden (e.g. Bulwark)."
 value_type = 0
 default_value = 3.0
-tint_color = Color(0.45, 0.5, 0.6, 1)
+tint_color = Color(0.66, 0.72, 0.86, 1)

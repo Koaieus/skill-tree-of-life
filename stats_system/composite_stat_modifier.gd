@@ -54,6 +54,17 @@ func contribution_text() -> String:
 	return " · ".join(parts)
 
 
+## Same idea as [method contribution_text] but for the full sentence: joins
+## each leaf's [method StatModifier.format] output. Uses ", " (matching
+## [method Effect.describe_modifiers]'s join), NOT contribution_text's " · "
+## — a bundle of full sentences reads as a list, not a compact value stack.
+func format() -> String:
+	var parts: Array[String] = []
+	for c in flatten():
+		parts.append(c.format())
+	return ", ".join(parts)
+
+
 ## Hide the inherited leaf fields — they are vestigial on a container (a
 ## designer authoring a composite tunes [member children], nothing else).
 ## Mirrors PoolStatDef hiding the BOOL `value_type`.

@@ -11,3 +11,4 @@ display_name = "Deallocation Points"
 description = "Per-turn reshape budget (apparent movement). Resets to max at turn start; unspent are wasted."
 default_value = 3.0
 tint_color = Color(0.7, 0.5, 0.9, 1)
+modifier_name = "Max Deallocation Points"
