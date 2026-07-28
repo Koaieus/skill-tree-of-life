@@ -1,74 +1,83 @@
 extends GutTest
 
-## Tooltip V2 (epic #159 Phase 0) — glass-slab row acceptance test.
-## Covers: per-operator text formatting + tint (bind), and the staggered
-## entry delay schedule (play_entry), without awaiting tween playback.
+## Tooltip V2 (epic #159, #221) — glass-slab row acceptance test.
+## Covers: text is StatModifier.format() verbatim (no reimplemented grammar),
+## background tint reads StatDef.tint_color raw, and set_progress(t) drives
+## scale/fade directly (no Tween to await). Also proves the row renders
+## correctly instantiated bare, with nothing else in the scene (#221 §4 — the
+## standalone contract #306's toast depends on).
 
 const _SCENE := preload("res://ui/tooltip_fan/mod_slab_row.tscn")
 
-const _RED := Color(0.85, 0.30, 0.30)
-const _GREEN := Color(0.32, 0.78, 0.45)
-const _BLUE := Color(0.29, 0.59, 1.0)
-const _PURPLE := Color(0.69, 0.40, 0.97)
-const _GOLD := Color(0.90, 0.73, 0.27)
 
-
-func _make_modifier(op: StatModifier.Operation, value: float) -> StatModifier:
+func _make_modifier(op: StatModifier.Operation, value: float, stat_id: StringName = &"armor") -> StatModifier:
 	var m := StatModifier.new()
+	m.stat_id = stat_id
 	m.operation = op
 	m.value = value
 	return m
 
 
-func test_add_base_formats_and_tints() -> void:
+func test_bind_renders_format_text_verbatim() -> void:
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.bind(_make_modifier(StatModifier.Operation.ADD_BASE, 4.0), "stat")
-	assert_eq(row._label.text, "+4 stat")
-	assert_eq(row.operator_tint, _GREEN)
+	var m := _make_modifier(StatModifier.Operation.ADD_BASE, 4.0, &"armor")
+	row.bind(m)
+	assert_eq(row._label.text, m.format())
 
 
-func test_increase_formats_and_tints() -> void:
+func test_bind_tints_background_from_stat_def_raw() -> void:
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.bind(_make_modifier(StatModifier.Operation.INCREASE, 20.0), "stat")
-	assert_eq(row._label.text, "+20% stat")
-	assert_eq(row.operator_tint, _BLUE)
+	var m := _make_modifier(StatModifier.Operation.INCREASE, 20.0, &"armor")
+	row.bind(m)
+	var def := StatRegistry.get_def(&"armor")
+	assert_eq(row._background.color, def.tint_color)
 
 
-func test_multiply_formats_and_tints() -> void:
+func test_bind_falls_back_to_white_when_def_unresolved() -> void:
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.bind(_make_modifier(StatModifier.Operation.MULTIPLY, 1.5), "stat")
-	assert_eq(row._label.text, "×1.50 stat")
-	assert_eq(row.operator_tint, _PURPLE)
+	var m := _make_modifier(StatModifier.Operation.ADD_BASE, 4.0, &"not_a_real_stat")
+	row.bind(m)
+	assert_eq(row._background.color, Color.WHITE)
 
 
-func test_add_bonus_formats_and_tints() -> void:
+func test_bind_renders_correctly_with_no_parent_panel() -> void:
+	# #221 §4 — the row must work standalone, bound and revealed with nothing
+	# else present (no FanPanel, no AddonItem driving it).
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.bind(_make_modifier(StatModifier.Operation.ADD_BONUS, 5.0), "stat")
-	assert_eq(row._label.text, "+5 stat (flat)")
-	assert_eq(row.operator_tint, _GOLD)
+	var m := _make_modifier(StatModifier.Operation.SET, 3.0, &"armor")
+	row.bind(m)
+	row.set_progress(1.0)
+	assert_eq(row._label.text, m.format())
+	assert_almost_eq(row.modulate.a, 1.0, 0.001)
+	assert_almost_eq(row.scale.x, 1.0, 0.001)
 
 
-func test_set_formats_and_tints() -> void:
+func test_set_progress_at_zero_is_rest_state() -> void:
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.bind(_make_modifier(StatModifier.Operation.SET, 13.0), "stat")
-	assert_eq(row._label.text, "= 13 stat")
-	assert_eq(row.operator_tint, _RED)
+	row.start_scale = 0.9
+	row.set_progress(0.0)
+	assert_almost_eq(row.scale.x, 0.9, 0.001)
+	assert_almost_eq(row.modulate.a, 0.0, 0.001)
 
 
-func test_negative_value_keeps_its_own_sign() -> void:
+func test_set_progress_at_half_is_partial() -> void:
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.bind(_make_modifier(StatModifier.Operation.ADD_BASE, -3.0), "stat")
-	assert_eq(row._label.text, "-3 stat")
+	row.start_scale = 0.9
+	row.set_progress(0.5)
+	assert_true(row.modulate.a > 0.0 and row.modulate.a < 1.0)
+	assert_true(row.scale.x > 0.9 and row.scale.x < 1.0)
 
 
-func test_play_entry_computes_staggered_delay() -> void:
+func test_set_progress_at_one_is_fully_revealed() -> void:
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
-	row.play_entry(2, 0.05)
-	assert_true(is_equal_approx(row.entry_delay, 0.10))
+	row.start_scale = 0.9
+	row.set_progress(1.0)
+	assert_almost_eq(row.scale.x, 1.0, 0.001)
+	assert_almost_eq(row.modulate.a, 1.0, 0.001)

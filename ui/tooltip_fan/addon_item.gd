@@ -14,9 +14,10 @@ extends VBoxContainer
 ##     named item — presence is itself the information
 ##
 ## Modifier rows reuse [ModSlabRow] (#221) rather than re-implementing its
-## per-operator formatting/tint — one [ModSlabRow] per [StatModifier], stat
-## names resolved via `StatRegistry`, mirroring `skill_node_tooltip.gd`'s
-## `StatRegistry.get_def(m.stat_id).display_name` pattern.
+## formatting/tint — one [ModSlabRow] per [StatModifier]; [method
+## StatModifier.format] (#305) resolves the stat name itself, so this item
+## passes the modifier straight through with no `StatRegistry` lookup of its
+## own.
 ##
 ## Icon uses a placeholder texture until #281 lands. Per
 ## `.claude/rules/godot-workflow.md`, a bare [PlaceholderTexture2D] collapses
@@ -37,6 +38,11 @@ const _MOD_SLAB_ROW_SCENE := preload("res://ui/tooltip_fan/mod_slab_row.tscn")
 @onready var _modifier_rows: VBoxContainer = %ModifierRows
 @onready var _description_label: Label = %DescriptionLabel
 
+## Last progress applied via [method set_progress] — reapplied to freshly
+## instantiated modifier rows on [method bind] so a rebind mid-reveal doesn't
+## pop them in at full opacity for a frame before the next external tick.
+var _progress: float = 0.0
+
 
 ## Binds this item's title, modifier rows (one [ModSlabRow] per modifier,
 ## empty array hides the block entirely), optional description, and optional
@@ -50,11 +56,10 @@ func bind(title: String, modifiers: Array[StatModifier], description: String = "
 		_modifier_rows.remove_child(child)
 		child.queue_free()
 	for m in modifiers:
-		var def := StatRegistry.get_def(m.stat_id)
-		var stat_name := def.display_name if def != null else String(m.stat_id)
 		var row := _MOD_SLAB_ROW_SCENE.instantiate()
 		_modifier_rows.add_child(row)
-		row.bind(m, stat_name)
+		row.bind(m)
+		row.set_progress(_progress)
 	_modifier_rows.visible = not modifiers.is_empty()
 
 	_description_label.text = description
@@ -62,13 +67,19 @@ func bind(title: String, modifiers: Array[StatModifier], description: String = "
 
 
 ## Applies the fan reveal at clock position `t` (0..1): cubic ease-out driving
-## scale (start_scale → 1.0) and fade (0 → 1). Matches [method FanPanel.set_progress].
+## scale (start_scale → 1.0) and fade (0 → 1) on this item itself, AND forwards
+## `t` to every child [ModSlabRow] so the modifier rows fade in step with the
+## item rather than sitting at full alpha (the #221 bug — `bind()` used to
+## instantiate rows and never drive their reveal at all).
 func set_progress(t: float) -> void:
-	var eased := _ease_out(clampf(t, 0.0, 1.0))
+	_progress = clampf(t, 0.0, 1.0)
+	var eased := _ease_out(_progress)
 	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)
 	var m := modulate
 	m.a = eased
 	modulate = m
+	for row in _modifier_rows.get_children():
+		row.set_progress(_progress)
 
 
 static func _ease_out(t: float) -> float:

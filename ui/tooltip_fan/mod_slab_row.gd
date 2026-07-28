@@ -2,112 +2,54 @@
 class_name ModSlabRow
 extends Control
 
-## One `StatModifier` rendered as its own mini "glass slab" — a tinted
-## background plus a single formatted Label. Part of Tooltip V2 (epic #159
-## Phase 0): the fanned-slab layout replaces the tooltip's single scrolling
-## modifier list with individually staggered rows, one slab per modifier.
+## One `StatModifier` rendered as its own mini "glass slab" — a single Label
+## carrying the full sentence from [method StatModifier.format] (#305), on a
+## background tinted by the target stat's [member StatDef.tint_color], read
+## RAW (no row-local saturate/lift). The operator carries no color of its
+## own — it lives entirely in the text (`+18% increased`, `bonus`, `Max `,
+## ...). Content row for Tooltip V2 (epic #159, #221).
 ##
-## Formatting mirrors `_format_modifier` in `ui/skill_node_tooltip.gd` exactly
-## (read-only reference; not shared code — GDScript has no private-function
-## import, so keep the two in sync by hand if that convention ever changes):
-##   ADD_BASE  -> "+N stat"
-##   INCREASE  -> "+N% stat"
-##   MULTIPLY  -> "×N stat"
-##   ADD_BONUS -> "+N stat (flat)"
-##   SET       -> "= N stat"
-## Negative values keep their own sign (no leading "+"), e.g. "-3 stat".
+## Reused standalone (#306's "you gained these" toast instantiates slabs with
+## nothing driving them) as well as inside [AddonItem]'s modifier list (#293).
+## Must render correctly the moment [method bind] is called, with no
+## assumption about whether/when [method set_progress] is ever invoked.
+##
+## Reveal is driven externally via [method set_progress] against the shared
+## fixed-clock / progress(0..1) contract (see fan_panel.gd / docs/domain/
+## tooltip-fan.md) — this row owns no Tween, matching the other #293 rows
+## (PanelHeader, StatValueRow, AddonItem).
 
-## Background tint per operator — the slab's identity color, independent of
-## the stat's own `tint_color` (which `skill_node_tooltip.gd` uses for its
-## flat list; this is the V2 fan's operator-coded read).
-const OPERATOR_TINT: Dictionary = {
-	StatModifier.Operation.ADD_BASE: Color(0.32, 0.78, 0.45),
-	StatModifier.Operation.INCREASE: Color(0.29, 0.59, 1.0),
-	StatModifier.Operation.MULTIPLY: Color(0.69, 0.40, 0.97),
-	StatModifier.Operation.ADD_BONUS: Color(0.90, 0.73, 0.27),
-	StatModifier.Operation.SET: Color(0.85, 0.30, 0.30),
-}
-
-## Subtle "3D-ish" rise: starts slightly small, offset down, and transparent;
-## tweens up into resting scale/position/opacity. Kept small on purpose — this
-## is a stat-row accent, not a hero animation.
-const _ENTRY_START_SCALE := 0.92
-const _ENTRY_OFFSET_Y := 10.0
-const _ENTRY_DURATION := 0.22
+## Scale the row starts at when [method set_progress]'s `t` is 0.
+@export_range(0.5, 1.0, 0.01) var start_scale: float = 0.92
 
 @onready var _background: ColorRect = %Background
 @onready var _label: Label = %Label
 
-## Resolved by bind() — exposed so a test can assert the tint without
-## re-deriving the per-operator dict lookup itself.
-var operator_tint: Color = Color.WHITE
-## Resolved by play_entry() — exposed so a test can assert the stagger
-## schedule synchronously, without awaiting tween playback.
-var entry_delay: float = 0.0
 
-var _entry_tween: Tween = null
-
-
-## Formats `m` (targeting `stat_name`) into the slab's Label and tints the
-## slab background by `m.operation`. See the class docstring for the exact
-## per-operator string conventions.
-func bind(m: StatModifier, stat_name: String) -> void:
-	_label.text = _format_modifier(m, stat_name)
-	operator_tint = OPERATOR_TINT.get(m.operation, Color.WHITE)
-	_background.color = operator_tint
-
-
-## Starts this row's staggered entry: waits `index * stagger` seconds, then
-## tweens from a slightly scaled-down, offset-down, transparent start into
-## resting scale/position/opacity. `entry_delay` is stored up front so a
-## headless test can assert the schedule without awaiting playback.
+## Renders `m.format()` (the full sentence, stat name included — #305) into
+## the slab's Label, and tints the slab background by the target stat's
+## [member StatDef.tint_color], read raw. Falls back to [constant Color.WHITE]
+## only if the def can't be resolved (not expected for a real stat_id).
 ##
-## The tween is finite (no `set_loops()`) and targets `self`, so it is bound
-## to this node's lifetime — nothing here can hang a test that doesn't await
-## it, and a freed row takes its tween with it.
-func play_entry(index: int, stagger: float) -> void:
-	entry_delay = index * stagger
-
-	pivot_offset = size / 2.0
-	var rest_position := position
-	var rest_scale := scale
-	scale = rest_scale * _ENTRY_START_SCALE
-	position = rest_position + Vector2(0.0, _ENTRY_OFFSET_Y)
-	modulate.a = 0.0
-
-	if _entry_tween != null and _entry_tween.is_valid():
-		_entry_tween.kill()
-
-	_entry_tween = create_tween()
-	_entry_tween.tween_interval(entry_delay)
-	_entry_tween.set_parallel(true)
-	_entry_tween.tween_property(self, "scale", rest_scale, _ENTRY_DURATION) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_entry_tween.tween_property(self, "position", rest_position, _ENTRY_DURATION) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_entry_tween.tween_property(self, "modulate:a", 1.0, _ENTRY_DURATION)
+## `m` is assumed to be a leaf modifier — a [CompositeStatModifier] has no
+## single meaningful `stat_id`; callers are specified to flatten before
+## binding one row per leaf (see `.claude/rules/stats-system.md` §Composite).
+func bind(m: StatModifier) -> void:
+	_label.text = m.format()
+	var def := StatRegistry.get_def(m.stat_id)
+	_background.color = def.tint_color if def != null else Color.WHITE
 
 
-## Mirrors `SkillNodeTooltip._format_modifier` — see the class docstring.
-func _format_modifier(m: StatModifier, stat_name: String) -> String:
-	var _sign := "+" if m.value >= 0.0 else ""
-	var val := _val(m.value)
-	match m.operation:
-		StatModifier.Operation.ADD_BASE:
-			return _sign + val + " " + stat_name
-		StatModifier.Operation.INCREASE:
-			return _sign + val + "% " + stat_name
-		StatModifier.Operation.MULTIPLY:
-			return "×" + val + " " + stat_name
-		StatModifier.Operation.ADD_BONUS:
-			return _sign + val + " " + stat_name + " (flat)"
-		StatModifier.Operation.SET:
-			return "= " + val + " " + stat_name
-	return val + " " + stat_name
+## Applies the fan reveal at clock position `t` (0..1): cubic ease-out driving
+## scale (start_scale → 1.0) and fade (0 → 1). Matches [method FanPanel.set_progress].
+func set_progress(t: float) -> void:
+	var eased := _ease_out(clampf(t, 0.0, 1.0))
+	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)
+	var m := modulate
+	m.a = eased
+	modulate = m
 
 
-## Mirrors `SkillNodeTooltip._val`.
-func _val(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return str(int(v))
-	return "%.2f" % v
+static func _ease_out(t: float) -> float:
+	var inv := 1.0 - t
+	return 1.0 - inv * inv * inv
