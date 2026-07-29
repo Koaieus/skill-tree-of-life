@@ -192,9 +192,11 @@ func test_owned_core_fan_order_is_not_tree_order() -> void:
 		"owned_core's tree order differs from its spatial order — that's what the sort is for")
 
 
-func test_pin_origins_run_left_to_right_and_never_cross() -> void:
-	# Fan order left-to-right must produce clock pins left-to-right too;
-	# otherwise two traces would swap sides at the node and cross immediately.
+func test_pin_origins_run_left_to_right() -> void:
+	# Pin ORDER only. This is what units_in_fan_order() guarantees: two traces
+	# never swap sides at the node itself. It says nothing about whether their
+	# routes cross further out — see the crossing test below, which is the one
+	# that actually measures that.
 	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
 		var inst := _instantiate(scene)
 		await get_tree().process_frame
@@ -208,3 +210,73 @@ func test_pin_origins_run_left_to_right_and_never_cross() -> void:
 		for i in range(xs.size() - 1):
 			assert_lt(xs[i], xs[i + 1],
 				"%s: pin %d must sit left of pin %d (%s)" % [scene.resource_path, i, i + 1, xs])
+
+
+func _route_in_variant_space(unit: Node) -> PackedVector2Array:
+	var trace: FanTrace = unit.get_node_or_null("%Trace")
+	var pts := TraceRouter.compute_trace_points(trace.from_point, trace.to_point,
+		TraceRouter.Style.PCB, {
+			"trunk": trace.bend_start, "trunk_dir": trace.trunk_dir,
+			"trunk_px": trace.trunk_length,
+		})
+	var offset: Vector2 = trace.position + (unit as Node2D).position
+	var out := PackedVector2Array()
+	for p in pts:
+		out.append(p + offset)
+	return out
+
+
+func _crossings(variant: Node) -> int:
+	var routes: Array[PackedVector2Array] = []
+	for unit in (variant as FanAnchorDriver).units_in_fan_order():
+		routes.append(_route_in_variant_space(unit))
+	var n := 0
+	for i in range(routes.size()):
+		for j in range(i + 1, routes.size()):
+			for a in range(routes[i].size() - 1):
+				for b in range(routes[j].size() - 1):
+					var p1 := routes[i][a]
+					var p2 := routes[i][a + 1]
+					var q1 := routes[j][b]
+					var q2 := routes[j][b + 1]
+					# Shared endpoints are touching, not crossing.
+					if p1.is_equal_approx(q1) or p1.is_equal_approx(q2) \
+							or p2.is_equal_approx(q1) or p2.is_equal_approx(q2):
+						continue
+					if Geometry2D.segment_intersects_segment(p1, p2, q1, q2) != null:
+						n += 1
+	return n
+
+
+## Measures ACTUAL polyline intersections, not pin order — the previous version
+## of this test was named "...and never cross" while only checking that pin
+## x-coordinates were monotonic, which passes with crossings present.
+##
+## `unowned` is genuinely crossing-free and must stay that way. `owned` and
+## `owned_core` are not, and the fan-order sort cannot fix them: their crossings
+## are a LAYOUT property, not an ordering one. Owner sits both further left and
+## much higher than NodeStats, so any single-bend PCB route to Owner has to pass
+## through the horizontal band NodeStats' closing leg occupies. No trunk length
+## or arc width removes it (scanned empirically); it needs either a panel layout
+## where the far panel is not "beyond" the near one on the same side, or the
+## authored waypoints of #308.
+##
+## So this asserts the counts do not GROW. It is a regression guard that tells
+## the truth about today, not a claim the fan is crossing-free.
+func test_route_crossings_do_not_increase() -> void:
+	var known := {
+		_UNOWNED: 0,   # must stay 0 — ordering guarantees it
+		_OWNED: 1,     # Owner x NodeStats  (layout, see #308)
+		_OWNED_CORE: 2, # + the mirrored Addons x Core
+	}
+	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
+		var inst := _instantiate(scene)
+		await get_tree().process_frame
+		assert_lte(_crossings(inst), int(known[scene]),
+			"%s: route crossings must not increase beyond the known %d" % [scene.resource_path, known[scene]])
+
+
+func test_the_unowned_variant_is_genuinely_crossing_free() -> void:
+	var inst := _instantiate(_UNOWNED)
+	await get_tree().process_frame
+	assert_eq(_crossings(inst), 0, "unowned's three traces must never cross")

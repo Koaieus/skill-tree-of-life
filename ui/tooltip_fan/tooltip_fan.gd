@@ -51,14 +51,8 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	if _hovered_node != null and is_instance_valid(_hovered_node):
-		var xform := _hovered_node.get_global_transform_with_canvas()
-		global_position = xform.origin
-		# The SAME transform that makes the anchor zoom-independent also carries
-		# the zoom factor, so the clock pins can ride the node's VISIBLE rim
-		# without this class ever knowing a camera exists (#307 A).
-		if _current_variant is FanAnchorDriver:
-			(_current_variant as FanAnchorDriver).node_radius = \
-				_hovered_node.radius * xform.get_scale().x
+		global_position = _hovered_node.get_global_transform_with_canvas().origin
+		_feed_pin_radius()
 
 
 func _on_hovered(node: SkillNode) -> void:
@@ -81,7 +75,27 @@ func _on_hovered(node: SkillNode) -> void:
 	var instance := scene.instantiate()
 	add_child(instance)
 	_current_variant = instance
+	# BEFORE the first play_in: the variant's own `_process` would otherwise
+	# derive its clock pins from `preview_pin_radius` for one frame — i.e. from
+	# the editor fallback, at whatever the real zoom happens to be — and only
+	# correct on the next frame. That's a visible pop at any zoom != 1.
+	_feed_pin_radius()
 	_play_in_all(instance)
+
+
+## Pushes the hovered node's SCREEN-space radius into the active variant's
+## [FanAnchorDriver], which is what makes the clock pins zoom-reactive.
+##
+## The same `get_global_transform_with_canvas()` that makes the anchor
+## zoom-independent also carries the zoom factor in its scale — so this class
+## never needs to know a camera exists.
+func _feed_pin_radius() -> void:
+	if not (_current_variant is FanAnchorDriver):
+		return
+	if _hovered_node == null or not is_instance_valid(_hovered_node):
+		return
+	var scale_x := _hovered_node.get_global_transform_with_canvas().get_scale().x
+	(_current_variant as FanAnchorDriver).node_radius = _hovered_node.radius * scale_x
 
 
 func _on_unhovered() -> void:

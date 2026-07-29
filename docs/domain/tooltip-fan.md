@@ -175,6 +175,25 @@ authoring problem this design exists to fix.
 The fan is **not** dismissed on camera motion. With the zoom tween, tracking is
 smooth, and dismissing would read as twitchy.
 
+### What the ordering does NOT fix: layout-induced crossings
+
+Sorting by panel x removes *ordering*-induced crossings — two traces swapping
+sides at the node. `unowned` is crossing-free because of it. It does **not** make
+the fan crossing-free in general, and `owned` / `owned_core` each still have one
+(mirrored) crossing.
+
+Those are a **layout** property. Owner sits both further left *and* much higher
+than NodeStats, so any single-bend PCB route out to Owner has to pass through
+the horizontal band NodeStats' closing leg occupies. The two constraints fight
+directly: Owner's trunk must be tall enough to clear NodeStats' panel, and short
+enough that NodeStats' diagonal doesn't cut across it. Scanned empirically
+across trunk lengths 0–130px and arcs 70–120° — no combination removes it.
+
+The fixes available are a panel layout where a far panel is not "beyond" a near
+one on the same side (cheap now that units are draggable), or the authored
+waypoints of #308. `test_route_crossings_do_not_increase` guards the counts
+rather than pretending they are zero.
+
 ### The terminus end — derived edge, authored slide
 
 `FanAnchor` derives **which** panel edge a trace lands on, from the closing leg
