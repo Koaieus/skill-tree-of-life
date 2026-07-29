@@ -144,7 +144,7 @@ neighbours, symmetric about 12 o'clock. Three traces sit at 11/12/1, four at
 compresses* rather than the arc widening — beyond roughly ±60° a straight-up
 `trunk_dir` starts reading wrong, and squeezing beats tilting the trunks.
 
-Slots are handed out in **left-to-right panel order, never tree order**. The
+Slots are handed out in **angular order around the node, never tree order**. The
 variants are inherited scenes (`owned` appends Owner to `unowned`, `owned_core`
 appends Core to `owned`), so tree order permanently puts the newest unit last
 regardless of where its panel actually sits. Assigning by tree order would
@@ -175,24 +175,26 @@ authoring problem this design exists to fix.
 The fan is **not** dismissed on camera motion. With the zoom tween, tracking is
 smooth, and dismissing would read as twitchy.
 
-### What the ordering does NOT fix: layout-induced crossings
+### Order by ANGLE, not by x
 
-Sorting by panel x removes *ordering*-induced crossings — two traces swapping
-sides at the node. `unowned` is crossing-free because of it. It does **not** make
-the fan crossing-free in general, and `owned` / `owned_core` each still have one
-(mirrored) crossing.
+The sort key is the clock angle of a panel's centre around the node — the same
+convention `pin_offset` uses — so the panel sitting at 10 o'clock gets the
+10 o'clock pin.
 
-Those are a **layout** property. Owner sits both further left *and* much higher
-than NodeStats, so any single-bend PCB route out to Owner has to pass through
-the horizontal band NodeStats' closing leg occupies. The two constraints fight
-directly: Owner's trunk must be tall enough to clear NodeStats' panel, and short
-enough that NodeStats' diagonal doesn't cut across it. Scanned empirically
-across trunk lengths 0–130px and arcs 70–120° — no combination removes it.
+Sorting by **x** looks equivalent and isn't. A panel can be further left while
+being *angularly* nearer to vertical, because it also sits much higher: Owner at
+`(-320,-340)` is 43° west of vertical, NodeStats at `(-195,-150)` is 52°.
+NodeStats is the NWW one and must take the outer pin, but x-order hands it to
+Owner — so the two outermost traces start on each other's side and have to cross
+to reach their panels. Switching to angular order removed both structural
+crossings in `owned`/`owned_core` (3 → 1 across the variants).
 
-The fixes available are a panel layout where a far panel is not "beyond" a near
-one on the same side (cheap now that units are draggable), or the authored
-waypoints of #308. `test_route_crossings_do_not_increase` guards the counts
-rather than pretending they are zero.
+What remains is placement, not structure: IdChip's panel sits ~17px right of
+centre while its pin is at 12 o'clock, so its closing diagonal clips Core's
+trunk. That closes with a hand-authored pass — nudge the panel, or tune that
+unit's own `bend_start` (it is a per-unit `@export` on `FanTrace`, authored in
+each unit scene). `test_route_crossings_do_not_increase` guards the counts at
+0/0/1 meanwhile.
 
 ### The terminus end — derived edge, authored slide
 

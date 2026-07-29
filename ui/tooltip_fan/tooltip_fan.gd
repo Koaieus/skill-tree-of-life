@@ -218,15 +218,15 @@ func _all_settled(members: Array[Node]) -> bool:
 ## a member may be a [FanUnit] (trace + panel) or [GrantedModifiersRoot] (no
 ## containing panel, per Decision 1); both duck-type `play_in()`/`play_out()`.
 ##
-## Returned in LEFT-TO-RIGHT screen order, the same order [FanAnchorDriver]
-## hands out clock pins in — so the per-index stagger sweeps across the arc
-## instead of popping in whatever order the (inherited) scene tree happens to
-## list the units. See [method FanAnchorDriver.units_in_fan_order].
+## Returned in the same ANGULAR order [FanAnchorDriver] hands out clock pins in
+## — so the per-index stagger sweeps across the arc instead of popping in
+## whatever order the (inherited) scene tree happens to list the units. See
+## [method FanAnchorDriver.units_in_fan_order].
 func _collect_members(variant: Node) -> Array[Node]:
 	var out: Array[Node] = []
 	for n in variant.find_children("*", "", true, false):
 		if n.is_in_group(_GROUP) and n.has_method(&"play_in") and n.has_method(&"play_out"):
 			out.append(n)
 	out.sort_custom(func(a: Node, b: Node) -> bool:
-		return FanAnchorDriver.fan_sort_x(a) < FanAnchorDriver.fan_sort_x(b))
+		return FanAnchorDriver.fan_sort_angle(a) < FanAnchorDriver.fan_sort_angle(b))
 	return out

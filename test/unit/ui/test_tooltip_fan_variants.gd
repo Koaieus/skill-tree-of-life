@@ -170,13 +170,13 @@ func _tree_order_units(variant: Node) -> Array[Node]:
 	return out
 
 
-func test_fan_order_is_left_to_right_by_panel_centre_in_every_variant() -> void:
+func test_fan_order_is_angular_around_the_node_in_every_variant() -> void:
 	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
 		var inst := _instantiate(scene)
 		var ordered: Array[Node] = (inst as FanAnchorDriver).units_in_fan_order()
 		assert_gt(ordered.size(), 1, "%s should have several units" % scene.resource_path)
 		for i in range(ordered.size() - 1):
-			assert_lt(FanAnchorDriver.fan_sort_x(ordered[i]), FanAnchorDriver.fan_sort_x(ordered[i + 1]),
+			assert_lt(FanAnchorDriver.fan_sort_angle(ordered[i]), FanAnchorDriver.fan_sort_angle(ordered[i + 1]),
 				"%s: %s must sort left of %s" % [scene.resource_path, ordered[i].name, ordered[i + 1].name])
 
 
@@ -252,22 +252,21 @@ func _crossings(variant: Node) -> int:
 ## of this test was named "...and never cross" while only checking that pin
 ## x-coordinates were monotonic, which passes with crossings present.
 ##
-## `unowned` is genuinely crossing-free and must stay that way. `owned` and
-## `owned_core` are not, and the fan-order sort cannot fix them: their crossings
-## are a LAYOUT property, not an ordering one. Owner sits both further left and
-## much higher than NodeStats, so any single-bend PCB route to Owner has to pass
-## through the horizontal band NodeStats' closing leg occupies. No trunk length
-## or arc width removes it (scanned empirically); it needs either a panel layout
-## where the far panel is not "beyond" the near one on the same side, or the
-## authored waypoints of #308.
+## Sorting the fan ANGULARLY (rather than by panel x) removed both structural
+## crossings — a panel can sit further left while being angularly nearer to
+## vertical, and x-order then starts the two outermost traces on each other's
+## side. See FanAnchorDriver.fan_sort_angle.
 ##
-## So this asserts the counts do not GROW. It is a regression guard that tells
-## the truth about today, not a claim the fan is crossing-free.
+## What survives is a placement detail, not a structural one: IdChip's panel
+## sits ~17px right of centre while its pin is at 12 o'clock, so its closing
+## diagonal clips Core's trunk. A hand-authored pass (nudging the panel, or its
+## per-unit `bend_start`) closes it — which is why this guards the count rather
+## than asserting zero.
 func test_route_crossings_do_not_increase() -> void:
 	var known := {
-		_UNOWNED: 0,   # must stay 0 — ordering guarantees it
-		_OWNED: 1,     # Owner x NodeStats  (layout, see #308)
-		_OWNED_CORE: 2, # + the mirrored Addons x Core
+		_UNOWNED: 0,    # ordering guarantees it
+		_OWNED: 0,      # was 1 before angular ordering
+		_OWNED_CORE: 1, # IdChip's panel offset clips Core's trunk — authoring
 	}
 	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
 		var inst := _instantiate(scene)

@@ -18,7 +18,7 @@ progress.
 
 **Geometry: one authored quantity per unit — where its panel sits
 (`FanUnit.position`).** Trace origins are computed clock pins around 12 o'clock,
-assigned in left-to-right panel order (never tree order — the variants are
+assigned in angular order around the node (never tree order — the variants are
 inherited scenes); the terminus edge is derived by `FanAnchor` for a
 perpendicular arrival, with `anchor_slide` picking where along it. Pins ride the
 node's *screen-space* rim so the fan is zoom-reactive while panels stay

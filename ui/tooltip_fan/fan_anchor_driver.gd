@@ -134,8 +134,8 @@ func _reroute(unit: Node) -> void:
 	trace.to_point = FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start, slide)
 
 
-## The units in LEFT-TO-RIGHT screen order, which is the order clock pins are
-## handed out in (and, via [TooltipFan], the order the fan staggers in).
+## The units in ANGULAR order around the node — the order clock pins are handed
+## out in (and, via [TooltipFan], the order the fan staggers in).
 ##
 ## Deliberately NOT tree order. The variants are inherited scenes — `owned`
 ## appends Owner to `unowned`, `owned_core` appends Core to `owned` — so tree
@@ -144,25 +144,35 @@ func _reroute(unit: Node) -> void:
 ## traces in `owned_core`.
 func units_in_fan_order() -> Array[Node]:
 	var out := _units()
-	out.sort_custom(func(a: Node, b: Node) -> bool: return fan_sort_x(a) < fan_sort_x(b))
+	out.sort_custom(func(a: Node, b: Node) -> bool: return fan_sort_angle(a) < fan_sort_angle(b))
 	return out
 
 
-## Horizontal sort key for one fan member: the centre of its panel in variant
-## space, falling back to the member's own position for a panel-less member
-## (GrantedModifiersRoot, which duck-types the fan contract without a FanPanel).
+## Sort key for one fan member: the CLOCK ANGLE of its panel centre around the
+## node, in the same convention [method pin_offset] uses (radians clockwise from
+## 12 o'clock). So the panel sitting at 10 o'clock gets the 10 o'clock pin.
 ##
-## That fallback deliberately puts `Roots` MID-sequence in [TooltipFan]'s
-## stagger rather than first (it was first only by accident of tree order): it
-## keys on `position.x == 0`, and it hangs straight down at 6 o'clock, outside
-## the arc the other members sweep. It takes no clock pin — [method _units]
-## excludes it for having no `%Trace`/`%Panel`.
-static func fan_sort_x(member: Node) -> float:
-	var base: float = (member as Node2D).position.x if member is Node2D else 0.0
+## Angle, not x — that distinction is the whole point. Sorting by x hands the
+## leftmost pin to whichever panel is furthest LEFT, but a panel can be further
+## left while being ANGULARLY nearer to vertical because it also sits much
+## higher. Owner (-320,-340) is 43° west of vertical; NodeStats (-195,-150) is
+## 52°. NodeStats is the NWW one and must take the outer pin, yet x-order gives
+## it to Owner — the two outermost traces start on each other's side and have to
+## cross to reach their panels.
+##
+## Falls back to the member's own position for a panel-less member
+## (GrantedModifiersRoot, which duck-types the fan contract without a FanPanel).
+## That parks `Roots` at the end of [TooltipFan]'s stagger: it hangs straight
+## down at 6 o'clock, so its angle is ±π — outside the arc the others sweep. It
+## takes no clock pin either, [method _units] excludes it for having no
+## `%Trace`/`%Panel`.
+static func fan_sort_angle(member: Node) -> float:
+	var centre: Vector2 = (member as Node2D).position if member is Node2D else Vector2.ZERO
 	var panel: FanPanel = member.get_node_or_null("%Panel")
-	if panel == null:
-		return base
-	return base + FanAnchor.panel_rect_of(panel).get_center().x
+	if panel != null:
+		centre += FanAnchor.panel_rect_of(panel).get_center()
+	# Mirrors pin_offset's Vector2(sin, -cos): 0 = straight up, +ve clockwise.
+	return atan2(centre.x, -centre.y)
 
 
 func _units() -> Array[Node]:
