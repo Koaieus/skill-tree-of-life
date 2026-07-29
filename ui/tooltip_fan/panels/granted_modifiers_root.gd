@@ -23,6 +23,13 @@ extends Node2D
 ## issue's chrome decisions). No separate addon-modifier traversal: addon
 ## `entity_modifiers` already land in [member SkillNode.modifiers] via
 ## [method SkillNode._on_addon_added], so flattening that one array is enough.
+##
+## Deliberately EXEMPT from the fan's [method FanPanel.has_content]
+## suppression contract — see [method _add_empty_row]. A node with nothing to
+## show renders one muted "no modifiers" row instead of vanishing: this root
+## is the common hover's primary readout, unbounded and un-boxed, and an
+## absence here would read as a broken tooltip rather than a clean omission.
+## Do not add `has_content()` to this file.
 
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.9
 
@@ -53,6 +60,17 @@ const _MOD_SLAB_SCENE: PackedScene = preload("res://ui/tooltip_fan/mod_slab_row.
 ## Keystone gold — matches [CorePanel]'s "deliberate gold skin" tone. Granted
 ## spells read as a keystone-tier fact, never as an ordinary stat operator.
 const _KEYSTONE_GOLD := Color(0.95, 0.85, 0.55)
+
+## Muted tone for the "no modifiers" empty-state row — deliberately lower
+## contrast than every other row here (spell grants are gold, modifier slabs
+## carry their stat's tint): this line reports an absence, not a boon, and
+## must read as quieter than the content it stands in for.
+const _EMPTY_MUTED := Color(0.55, 0.58, 0.65)
+
+## Wording for the empty state (#227 follow-up). Lowercase, sentence-register,
+## matching the boons-list grammar (`+4 Intelligence`, `Grants Spark`) rather
+## than a shouty header — this stack has no header at all by design.
+const _EMPTY_TEXT := "no modifiers"
 
 ## Per-index reveal delay, expressed as a fraction of the shared `progress`
 ## range (0..1) — there is no per-row delay knob, so this component owns the
@@ -99,12 +117,28 @@ func _rebuild_rows() -> void:
 			_add_spell_line(effect.spell_def)
 	for m in StatModifier.flatten_all(_bound_node.modifiers):
 		_add_mod_row(m)
+	if _row_setters.is_empty():
+		_add_empty_row()
 
 
 func _add_spell_line(spell_def: SpellDef) -> void:
 	var label := Label.new()
 	label.text = "Grants %s" % spell_def.name
 	label.modulate = _KEYSTONE_GOLD
+	_rows.add_child(label)
+	_row_setters.append(func(t: float) -> void: _apply_control_reveal(label, t))
+
+
+## Empty state (#227 follow-up): a node with no granted spells and no
+## modifier leaves renders one muted row rather than an invisible stack — see
+## this class's own doc comment for why suppression (the [FanPanel] contract)
+## is wrong here. Goes through the same `_row_setters` stagger as every other
+## row, so it fades in and reverses on interrupt like any content row; it is
+## not special-cased outside that mechanism.
+func _add_empty_row() -> void:
+	var label := Label.new()
+	label.text = _EMPTY_TEXT
+	label.modulate = _EMPTY_MUTED
 	_rows.add_child(label)
 	_row_setters.append(func(t: float) -> void: _apply_control_reveal(label, t))
 

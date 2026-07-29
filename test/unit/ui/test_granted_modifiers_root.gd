@@ -105,7 +105,14 @@ func test_spell_grant_with_no_spell_def_is_skipped() -> void:
 	add_child_autofree(root)
 	root.bind(_node)
 
-	assert_eq(root._rows.get_children().size(), 0)
+	# A skipped grant + no modifiers leaves nothing real to show — the roots
+	# render the muted empty-state row instead of an invisible stack (#227
+	# follow-up: GrantedModifiersRoot is deliberately exempt from FanPanel's
+	# has_content() suppression contract).
+	var rows := root._rows.get_children()
+	assert_eq(rows.size(), 1, "empty-state row only, the skipped grant adds nothing")
+	assert_true(rows[0] is Label)
+	assert_eq((rows[0] as Label).text, "no modifiers")
 
 
 func test_bind_adds_no_header_no_legend_no_frame() -> void:
