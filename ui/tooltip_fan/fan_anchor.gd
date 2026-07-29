@@ -35,6 +35,22 @@ extends RefCounted
 
 enum Edge { LEFT, RIGHT, TOP, BOTTOM }
 
+## Which way a trace is REQUIRED to enter its panel, authored per unit
+## ([member FanUnit.arrival_axis]).
+##
+## [code]AUTO[/code] forces nothing — it is [method derive_anchor]'s existing
+## behaviour verbatim, and the default everywhere. The other two are a
+## constraint the author states, which [method solve_route] then satisfies by
+## solving for a trunk length (see its doc for why that's exact rather than a
+## nudge).
+enum Axis { AUTO, HORIZONTAL, VERTICAL }
+
+## Shortest closing leg a FORCED arrival is allowed to settle for, in pixels.
+## The constraint alone only needs the arrival axis to *win*, which at the
+## boundary means winning by a fraction of a pixel and reading as a corner. This
+## is the margin that keeps a forced arrival visibly perpendicular.
+const MIN_ARRIVAL_LEG := 12.0
+
 ## Bounds the candidate<->actual iteration below. Two edges are ever in play
 ## (the tie is always between one horizontal and one vertical candidate), so
 ## a fixed point — when one exists — is found within 2 tries; further tries
@@ -43,11 +59,96 @@ enum Edge { LEFT, RIGHT, TOP, BOTTOM }
 const _MAX_ITER := 4
 
 
+## Solves one unit's whole route: WHERE it lands on the panel and HOW LONG its
+## trunk runs. Returns `{anchor: Vector2, trunk_px: float, edge: Edge}`.
+##
+## This is the entry point [FanAnchorDriver] uses; [method derive_anchor] is the
+## `AUTO` half of it, kept as its own function because it is also the pure
+## anchor-only question a dozen tests ask directly.
+##
+## `params` is a [TraceRouter] param dict (see [method FanTrace.route_params]) —
+## only `trunk_dir` and `trunk` are read. **Its `trunk_px` is ignored**: trunk
+## length is an OUTPUT here. That's what makes re-solving a fixed point, since
+## the solver never reads back the value the driver wrote last frame.
+##
+## `desired_trunk_px` is the author's preference ([member FanUnit.trunk_length],
+## 0 = "use the bend fraction"). Under a forced axis it is a preference WITHIN
+## the constraint — clamped, not honoured blindly.
+##
+## [b]Why forcing an axis is exact, not a nudge.[/b] After a trunk of length L,
+## `_pcb`'s remainders are `span - L` along the trunk axis and `perp` across it,
+## and it closes along whichever is larger. So the arrival axis is a pure
+## inequality in L — perpendicular-to-trunk arrival iff `L > span - perp`, along
+## trunk iff `L < span - perp`. Solving it means the EDGE is determined outright
+## (the one facing `from`), so there is no candidate->actual iteration and the
+## 2-cycle [method derive_anchor] documents cannot occur at all.
+##
+## Falls back to `AUTO` with a warning when the constraint is unsatisfiable: a
+## panel with almost no sideways offset can't be entered horizontally, one
+## almost beside the pin can't be entered vertically, and neither can be entered
+## at all from a `from` that isn't on the trunk's side of it.
+static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary, axis: Axis = Axis.AUTO, slide: float = 0.5, desired_trunk_px: float = 0.0) -> Dictionary:
+	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
+	if trunk_dir == Vector2.ZERO:
+		trunk_dir = Vector2(0.0, -1.0)
+	trunk_dir = trunk_dir.normalized()
+	var trunk_frac: float = params.get("trunk", FanTrace.PHI_FRACTION)
+
+	if axis == Axis.AUTO:
+		var derived := derive_anchor(from, panel_rect, trunk_dir, trunk_frac, slide)
+		return {
+			"anchor": derived,
+			"trunk_px": desired_trunk_px,
+			"edge": _edge_of_route_to(from, derived, trunk_dir, trunk_frac),
+		}
+
+	var want_horizontal := axis == Axis.HORIZONTAL
+	var centre := panel_rect.get_center()
+	var edge: FanAnchor.Edge
+	if want_horizontal:
+		edge = Edge.LEFT if from.x < centre.x else Edge.RIGHT
+	else:
+		edge = Edge.BOTTOM if from.y > centre.y else Edge.TOP
+	var anchor := _point_on_edge(edge, panel_rect, slide)
+
+	# Decompose the run in the trunk's own frame: `span` along it, `perp` across.
+	var d := anchor - from
+	var perp_dir := Vector2(-trunk_dir.y, trunk_dir.x)
+	var span := d.dot(trunk_dir)
+	var perp := absf(d.dot(perp_dir))
+	# The requested axis is the trunk's own only when trunk and request line up
+	# (a vertical trunk asked for a VERTICAL arrival); otherwise it's the
+	# perpendicular one. Written out rather than assuming an upward trunk, since
+	# `Roots` already points the other way and a radial variant may point anywhere.
+	var trunk_is_vertical := absf(trunk_dir.y) >= absf(trunk_dir.x)
+	var arrival_is_perp := want_horizontal == trunk_is_vertical
+
+	var lo := 0.0
+	var hi := span
+	if arrival_is_perp:
+		lo = span - perp + MIN_ARRIVAL_LEG
+	else:
+		hi = span - perp - MIN_ARRIVAL_LEG
+	if span <= 0.0 or lo > hi:
+		push_warning(("FanAnchor: %s arrival is unsatisfiable for panel %s from %s "
+			% ["horizontal" if want_horizontal else "vertical", panel_rect, from])
+			+ "(span %.1f, perpendicular offset %.1f) — falling back to AUTO. Move the panel further %s."
+				% [span, perp, "sideways" if arrival_is_perp else "along the trunk"])
+		return solve_route(from, panel_rect, params, Axis.AUTO, slide, desired_trunk_px)
+
+	var desired := desired_trunk_px if desired_trunk_px > 0.0 else trunk_frac * span
+	return {"anchor": anchor, "trunk_px": clampf(desired, maxf(lo, 0.0), hi), "edge": edge}
+
+
 ## Returns the point on `panel_rect`'s boundary where a PCB trace from `from`
 ## (leaving along `trunk_dir`, breaking to 45° at `trunk_frac` of the trunk
 ## axis) ACTUALLY arrives, per the route [TraceRouter] itself would draw to
 ## get there — not an approximation of it. See the class doc for why a
 ## single guess from the rect's centre isn't enough.
+##
+## This is [method solve_route]'s `AUTO` case: it forces nothing and derives
+## everything, which is what every unit does unless it authors an
+## [enum Axis].
 static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION, slide: float = 0.5) -> Vector2:
 	var edge := _edge_of_route_to(from, panel_rect.get_center(), trunk_dir, trunk_frac)
 	for _i in range(_MAX_ITER):

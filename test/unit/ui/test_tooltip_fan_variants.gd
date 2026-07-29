@@ -101,10 +101,18 @@ func _edge_name(anchor: Vector2, rect: Rect2) -> String:
 	return "bottom"
 
 
-func _actual_edge_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float) -> String:
-	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
-		"trunk": trunk_frac, "trunk_dir": trunk_dir,
-	})
+## The route a trace ACTUALLY draws, rebuilt through the trace's own
+## [method FanTrace.route_params] — never a hand-built param dict. A copy that
+## omits `trunk_px` describes a different line than the one on screen, and since
+## the driver now SOLVES that value for any unit with an `arrival_axis`, such a
+## copy would quietly assert against a route nobody draws.
+func _route_of(trace: FanTrace) -> PackedVector2Array:
+	return TraceRouter.compute_trace_points(
+		trace.from_point, trace.to_point, TraceRouter.Style.PCB, trace.route_params())
+
+
+func _actual_edge_of_route(trace: FanTrace) -> String:
+	var pts := _route_of(trace)
 	var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
 	if absf(leg.x) >= absf(leg.y):
 		return "left" if leg.x >= 0.0 else "right"
@@ -113,7 +121,7 @@ func _actual_edge_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk
 
 ## Decision 4 must hold for every shipped unit, not just synthetic
 ## quadrants: (1) the trace's CURRENT `to_point` must equal what
-## [FanAnchor.derive_anchor] derives fresh from the panel's live position —
+## [FanAnchor.solve_route] derives fresh from the panel's live position —
 ## i.e. nothing here is a stale/hand-authored value masquerading as derived —
 ## and (2) the route TraceRouter actually draws to that point must arrive on
 ## the SAME edge the point sits on (the exact bug review caught: a
@@ -121,6 +129,11 @@ func _actual_edge_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk
 ## `no-overshoot` alone can't catch that bug — a leg can slide along a
 ## panel's edge without ever reading as "inside" it — so it isn't asserted
 ## here as a substitute for the edge check.
+##
+## Goes through `solve_route` rather than `derive_anchor` because the driver
+## derives BOTH endpoints and the trunk length now: a unit with an
+## `arrival_axis` gets a solved trunk, and re-deriving from `bend_start` alone
+## would compare against a route that isn't the one drawn.
 func test_every_fan_traces_terminus_is_self_consistent_in_every_variant() -> void:
 	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
 		var inst := _instantiate(scene)
@@ -131,23 +144,53 @@ func test_every_fan_traces_terminus_is_self_consistent_in_every_variant() -> voi
 			if trace == null or panel == null:
 				continue
 			var rect := FanAnchor.panel_rect_of(panel)
-			var slide: float = (unit as FanUnit).anchor_slide
-			var expected := FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start, slide)
-			assert_eq(trace.to_point, expected,
-				"%s/%s: to_point must equal a fresh derive_anchor() of the panel's current position" % [scene.resource_path, unit.name])
+			var fan_unit := unit as FanUnit
+			var solved := FanAnchor.solve_route(trace.from_point, rect, trace.route_params(),
+				fan_unit.arrival_axis, fan_unit.anchor_slide, fan_unit.trunk_length)
+			assert_eq(trace.to_point, solved.anchor,
+				"%s/%s: to_point must equal a fresh solve_route() of the panel's current position" % [scene.resource_path, unit.name])
+			assert_almost_eq(trace.trunk_length, float(solved.trunk_px), 0.01,
+				"%s/%s: the trace's trunk length must be the solver's, not a stale write" % [scene.resource_path, unit.name])
 
 			var chosen_edge := _edge_name(trace.to_point, rect)
-			var routed_edge := _actual_edge_of_route(trace.from_point, trace.to_point, trace.trunk_dir, trace.bend_start)
+			var routed_edge := _actual_edge_of_route(trace)
 			assert_eq(routed_edge, chosen_edge,
 				"%s/%s: the route actually drawn to to_point must arrive on the edge to_point sits on" % [scene.resource_path, unit.name])
 
-			var pts := TraceRouter.compute_trace_points(trace.from_point, trace.to_point,
-				TraceRouter.Style.PCB, {"trunk": trace.bend_start, "trunk_dir": trace.trunk_dir})
+			var pts := _route_of(trace)
 			assert_eq(pts[pts.size() - 1], trace.to_point,
 				"%s/%s: trace must terminate exactly at its own to_point" % [scene.resource_path, unit.name])
 			for p in pts:
 				assert_false(FanAnchor.is_inside(p, rect),
 					"%s/%s: no route point may overshoot into the panel" % [scene.resource_path, unit.name])
+
+
+## An authored [member FanUnit.arrival_axis] is a promise about the SHIPPED
+## line, not just about the solver: whatever the driver ends up writing, the
+## last segment TraceRouter draws must run on the requested axis. This is what
+## makes the knob trustworthy for authoring — you set it and stop checking.
+func test_units_with_a_forced_arrival_axis_actually_arrive_on_that_axis() -> void:
+	var checked := 0
+	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
+		var inst := _instantiate(scene)
+		await get_tree().process_frame
+		for unit in inst.find_children("*", "FanUnit", true, false):
+			var fan_unit := unit as FanUnit
+			if fan_unit.arrival_axis == FanAnchor.Axis.AUTO:
+				continue
+			var trace: FanTrace = unit.get_node_or_null("%Trace")
+			var pts := _route_of(trace)
+			var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
+			checked += 1
+			if fan_unit.arrival_axis == FanAnchor.Axis.HORIZONTAL:
+				assert_gt(absf(leg.x), absf(leg.y),
+					"%s/%s: HORIZONTAL arrival must close on x (leg %s)" % [scene.resource_path, unit.name, leg])
+			else:
+				assert_gt(absf(leg.y), absf(leg.x),
+					"%s/%s: VERTICAL arrival must close on y (leg %s)" % [scene.resource_path, unit.name, leg])
+			assert_gte(leg.length(), FanAnchor.MIN_ARRIVAL_LEG - 0.01,
+				"%s/%s: a forced arrival must clear MIN_ARRIVAL_LEG, not win by a hair" % [scene.resource_path, unit.name])
+	assert_gt(checked, 0, "no shipped unit authors an arrival_axis — this test would be vacuous")
 
 
 func test_every_fan_unit_carries_the_fan_unit_group() -> void:
@@ -214,11 +257,7 @@ func test_pin_origins_run_left_to_right() -> void:
 
 func _route_in_variant_space(unit: Node) -> PackedVector2Array:
 	var trace: FanTrace = unit.get_node_or_null("%Trace")
-	var pts := TraceRouter.compute_trace_points(trace.from_point, trace.to_point,
-		TraceRouter.Style.PCB, {
-			"trunk": trace.bend_start, "trunk_dir": trace.trunk_dir,
-			"trunk_px": trace.trunk_length,
-		})
+	var pts := _route_of(trace)
 	var offset: Vector2 = trace.position + (unit as Node2D).position
 	var out := PackedVector2Array()
 	for p in pts:

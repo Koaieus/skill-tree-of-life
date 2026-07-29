@@ -60,7 +60,7 @@ func test_full_progress_line_matches_trace_router_pcb() -> void:
 	await get_tree().process_frame
 	trace.progress = 1.0
 	var expected := TraceRouter.compute_trace_points(
-		trace.from_point, trace.to_point, TraceRouter.Style.PCB, trace._router_params())
+		trace.from_point, trace.to_point, TraceRouter.Style.PCB, trace.route_params())
 	assert_eq(trace._trace.points, expected, "settled line is exactly TraceRouter's PCB polyline")
 
 
@@ -69,7 +69,7 @@ func test_router_params_carry_trunk_fraction_and_direction() -> void:
 	trace.bend_start = 0.382
 	trace.trunk_dir = Vector2(0, -1)
 	await get_tree().process_frame
-	var params := trace._router_params()
+	var params := trace.route_params()
 	assert_almost_eq(params.trunk, 0.382, 0.001, "trunk fraction is bend_start")
 	assert_eq(params.trunk_dir, Vector2(0, -1), "trunk_dir passes through to the router")
 

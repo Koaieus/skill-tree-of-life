@@ -19,4 +19,5 @@ position = Vector2(-25, -169)
 position = Vector2(-179, -136)
 
 [node name="Addons" parent="." unique_id=488659636 instance=ExtResource("5_addons")]
-position = Vector2(125, -125)
+position = Vector2(120, -115)
+arrival_axis = 1

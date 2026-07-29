@@ -24,13 +24,16 @@ extends Node2D
 ## [member FanUnit.anchor_slide]. So a unit's `position` — where its panel
 ## sits — is the only thing an author places.
 ##
-## SERIALIZATION INVARIANT: this driver may READ `unit.position` but must never
-## WRITE it. `godot-workflow.md` forbids a @tool script writing a derived value
-## into an `@export`, and the only reason the existing per-frame `to_point`
-## write doesn't dirty the variant scenes is that `Trace` is a NON-EDITABLE
-## descendant of an instanced scene, so Godot never serializes it. A unit's
-## `position` is a direct, editable child property of the variant and has no
-## such protection.
+## SERIALIZATION INVARIANT: this driver may READ a unit's own authored
+## properties (`position`, `anchor_slide`, `arrival_axis`, `trunk_length`) but
+## must never WRITE them. `godot-workflow.md` forbids a @tool script writing a
+## derived value into an `@export`, and the only reason the per-frame
+## `from_point` / `to_point` / `trunk_length` writes don't dirty the variant
+## scenes is that `Trace` is a NON-EDITABLE descendant of an instanced scene, so
+## Godot never serializes them. A unit's own properties are direct, editable
+## child properties of the variant and have no such protection — which is also
+## why the route knobs live on the unit and the derived results live on the
+## trace, never the reverse.
 
 const _GROUP := &"fan_unit"
 
@@ -131,7 +134,15 @@ func _reroute(unit: Node) -> void:
 		return
 	var rect := FanAnchor.panel_rect_of(panel)
 	var slide: float = unit.anchor_slide if unit is FanUnit else 0.5
-	trace.to_point = FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start, slide)
+	var axis: FanAnchor.Axis = unit.arrival_axis if unit is FanUnit else FanAnchor.Axis.AUTO
+	var desired_trunk: float = unit.trunk_length if unit is FanUnit else 0.0
+	var route := FanAnchor.solve_route(trace.from_point, rect, trace.route_params(), axis, slide, desired_trunk)
+	trace.to_point = route.anchor
+	# The solver's answer, not an echo of what's already on the trace — it reads
+	# only `trunk`/`trunk_dir` out of route_params() and treats trunk length as an
+	# output, so writing it back here can't feed itself. Under AUTO this is just
+	# the unit's authored length passed through (0 = keep the bend fraction).
+	trace.trunk_length = route.trunk_px
 
 
 ## The units in ANGULAR order around the node — the order clock pins are handed

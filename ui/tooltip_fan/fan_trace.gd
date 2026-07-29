@@ -86,8 +86,17 @@ const PHI_FRACTION := 0.382
 ## fixed length makes every trace leave the node in a uniform bundle before
 ## diverging — which is what makes the chip read as a chip. 0 keeps the
 ## fractional behaviour.
+##
+## Usually DERIVED rather than authored here: [FanAnchorDriver] solves it every
+## frame from the unit's [member FanUnit.arrival_axis] /
+## [member FanUnit.trunk_length]. Hence the equality skip — same reason
+## `from_point`/`to_point` carry one (a rewrite of an unchanged value would
+## re-run TraceRouter and re-slice the Line2D every frame), and same
+## non-reason: assigning a property inside its own setter doesn't recurse.
 @export_range(0.0, 200.0, 1.0, "or_greater") var trunk_length := 0.0:
 	set(value):
+		if is_equal_approx(trunk_length, value):
+			return
 		trunk_length = value
 		_rebuild_geometry()
 
@@ -208,13 +217,19 @@ func _rebuild_geometry() -> void:
 	if _trace == null:
 		return
 	_full_points = TraceRouter.compute_trace_points(
-		from_point, to_point, TraceRouter.Style.PCB, _router_params())
+		from_point, to_point, TraceRouter.Style.PCB, route_params())
 	_apply_progress()
 
 
 ## Translates this scene's exports into the params [TraceRouter]'s PCB route
-## expects: the trunk fraction and the trunk direction.
-func _router_params() -> Dictionary:
+## expects: the trunk fraction, the trunk direction, and the fixed trunk length.
+##
+## Public because it is the ONE place a route is specified — [FanAnchor] and the
+## tests both reconstruct this trace's route through it rather than hand-building
+## the dict. Hand-built copies drift (one omits `trunk_px` and silently describes
+## a different line than the one on screen), which is exactly the bug that made
+## it public.
+func route_params() -> Dictionary:
 	return {
 		"trunk": bend_start,
 		"trunk_dir": trunk_dir,
