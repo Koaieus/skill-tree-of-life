@@ -159,3 +159,52 @@ func test_every_fan_unit_carries_the_fan_unit_group() -> void:
 			assert_true(n.is_in_group(&"fan_unit"),
 				"%s: %s must carry the fan_unit group (bindings resolve by group, not NodePath)" % [scene.resource_path, n.name])
 		assert_true(found_any, "%s should contain at least one FanUnit" % scene.resource_path)
+
+
+# --- #307 A/B: clock pins are handed out in left-to-right order ---------------
+
+func _tree_order_units(variant: Node) -> Array[Node]:
+	var out: Array[Node] = []
+	for n in variant.find_children("*", "FanUnit", true, false):
+		out.append(n)
+	return out
+
+
+func test_fan_order_is_left_to_right_by_panel_centre_in_every_variant() -> void:
+	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
+		var inst := _instantiate(scene)
+		var ordered: Array[Node] = (inst as FanAnchorDriver).units_in_fan_order()
+		assert_gt(ordered.size(), 1, "%s should have several units" % scene.resource_path)
+		for i in range(ordered.size() - 1):
+			assert_lt(FanAnchorDriver.fan_sort_x(ordered[i]), FanAnchorDriver.fan_sort_x(ordered[i + 1]),
+				"%s: %s must sort left of %s" % [scene.resource_path, ordered[i].name, ordered[i + 1].name])
+
+
+func test_owned_core_fan_order_is_not_tree_order() -> void:
+	# The load-bearing reason units_in_fan_order() exists: the variants are
+	# inherited scenes, so tree order puts the newest unit LAST regardless of
+	# where its panel sits. If this ever coincides again the sort is still
+	# correct — but the hazard it guards is real today, so assert it.
+	var inst := _instantiate(_OWNED_CORE)
+	var tree_names := _tree_order_units(inst).map(func(n: Node) -> String: return n.name)
+	var fan_names: Array = (inst as FanAnchorDriver).units_in_fan_order().map(func(n: Node) -> String: return n.name)
+	assert_ne(tree_names, fan_names,
+		"owned_core's tree order differs from its spatial order — that's what the sort is for")
+
+
+func test_pin_origins_run_left_to_right_and_never_cross() -> void:
+	# Fan order left-to-right must produce clock pins left-to-right too;
+	# otherwise two traces would swap sides at the node and cross immediately.
+	for scene in [_UNOWNED, _OWNED, _OWNED_CORE]:
+		var inst := _instantiate(scene)
+		await get_tree().process_frame
+		var driver := inst as FanAnchorDriver
+		var ordered: Array[Node] = driver.units_in_fan_order()
+		var xs: Array[float] = []
+		for unit in ordered:
+			var trace: FanTrace = unit.get_node_or_null("%Trace")
+			# Back to variant space — from_point is trace-local.
+			xs.append(trace.from_point.x + trace.position.x + (unit as Node2D).position.x)
+		for i in range(xs.size() - 1):
+			assert_lt(xs[i], xs[i + 1],
+				"%s: pin %d must sit left of pin %d (%s)" % [scene.resource_path, i, i + 1, xs])

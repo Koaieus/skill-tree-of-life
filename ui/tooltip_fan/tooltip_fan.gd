@@ -51,7 +51,14 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	if _hovered_node != null and is_instance_valid(_hovered_node):
-		global_position = _hovered_node.get_global_transform_with_canvas().origin
+		var xform := _hovered_node.get_global_transform_with_canvas()
+		global_position = xform.origin
+		# The SAME transform that makes the anchor zoom-independent also carries
+		# the zoom factor, so the clock pins can ride the node's VISIBLE rim
+		# without this class ever knowing a camera exists (#307 A).
+		if _current_variant is FanAnchorDriver:
+			(_current_variant as FanAnchorDriver).node_radius = \
+				_hovered_node.radius * xform.get_scale().x
 
 
 func _on_hovered(node: SkillNode) -> void:
@@ -196,9 +203,16 @@ func _all_settled(members: Array[Node]) -> bool:
 ## Collects every fan-tier member of `variant` by GROUP membership, not type —
 ## a member may be a [FanUnit] (trace + panel) or [GrantedModifiersRoot] (no
 ## containing panel, per Decision 1); both duck-type `play_in()`/`play_out()`.
+##
+## Returned in LEFT-TO-RIGHT screen order, the same order [FanAnchorDriver]
+## hands out clock pins in — so the per-index stagger sweeps across the arc
+## instead of popping in whatever order the (inherited) scene tree happens to
+## list the units. See [method FanAnchorDriver.units_in_fan_order].
 func _collect_members(variant: Node) -> Array[Node]:
 	var out: Array[Node] = []
 	for n in variant.find_children("*", "", true, false):
 		if n.is_in_group(_GROUP) and n.has_method(&"play_in") and n.has_method(&"play_out"):
 			out.append(n)
+	out.sort_custom(func(a: Node, b: Node) -> bool:
+		return FanAnchorDriver.fan_sort_x(a) < FanAnchorDriver.fan_sort_x(b))
 	return out

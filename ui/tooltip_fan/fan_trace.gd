@@ -31,12 +31,21 @@ const PHI_FRACTION := 0.382
 
 ## Local-space endpoints of the trace. Authored live in the editor (the panel
 ## anchor drives `to_point`); the coordinator (#226) sets them at runtime.
+##
+## Both guard on equality — not against recursion (assigning a property inside
+## its own setter doesn't recurse), but because [FanAnchorDriver] rewrites them
+## every frame for every trace. Without the skip, a settled fan would re-run
+## TraceRouter and re-slice the Line2D continuously for values that never moved.
 @export var from_point := Vector2.ZERO:
 	set(value):
+		if from_point.is_equal_approx(value):
+			return
 		from_point = value
 		_rebuild_geometry()
 @export var to_point := Vector2(0.0, -120.0):
 	set(value):
+		if to_point.is_equal_approx(value):
+			return
 		to_point = value
 		_rebuild_geometry()
 
@@ -54,6 +63,19 @@ const PHI_FRACTION := 0.382
 @export_range(0.0, 1.0, 0.001) var bend_start := PHI_FRACTION:
 	set(value):
 		bend_start = value
+		_rebuild_geometry()
+## Fixed trunk length in pixels. When > 0 it REPLACES [member bend_start] —
+## the trunk is this long regardless of how far the panel is (clamped so it
+## can't overshoot the trunk axis).
+##
+## The difference matters for a fan: `bend_start` is a *fraction* of the trunk
+## axis span, so a near panel gets a short trunk and a far one a long trunk. A
+## fixed length makes every trace leave the node in a uniform bundle before
+## diverging — which is what makes the chip read as a chip. 0 keeps the
+## fractional behaviour.
+@export_range(0.0, 200.0, 1.0, "or_greater") var trunk_length := 0.0:
+	set(value):
+		trunk_length = value
 		_rebuild_geometry()
 
 @export_group("Look")
@@ -141,6 +163,7 @@ func _router_params() -> Dictionary:
 	return {
 		"trunk": bend_start,
 		"trunk_dir": trunk_dir,
+		"trunk_px": trunk_length,
 	}
 
 

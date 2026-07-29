@@ -78,6 +78,11 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 ##   trunk ≈ φ    → trunk, 45° diagonal, cardinal leg (the classic sprout)
 ##   trunk == 1   → full cardinal leg then a squared 90° corner (no diagonal)
 ##
+## `params.trunk_px` (default 0 = off) overrides `trunk` with a FIXED trunk
+## length in pixels, clamped to the trunk axis' span. A fraction gives near
+## panels short trunks and far panels long ones; a fixed length makes every
+## trace in a fan leave its origin in a uniform bundle before diverging.
+##
 ## The diagonal consumes `min(|rem.x|, |rem.y|)` on both axes, which snaps one
 ## axis onto `to`, so the closing leg is exactly cardinal. Consecutive duplicate
 ## points (produced at the 0 and 1 extremes) are removed so the polyline carries
@@ -89,7 +94,11 @@ static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector
 		trunk_dir = Vector2(0.0, -1.0)
 	trunk_dir = trunk_dir.normalized()
 	var d := to - from
-	var trunk_len := trunk_frac * absf(d.dot(trunk_dir))
+	var span := absf(d.dot(trunk_dir))
+	# `trunk_px` (when > 0) overrides the fraction with a fixed length, clamped
+	# so it can't overshoot the trunk axis and force the diagonal to double back.
+	var trunk_px: float = params.get("trunk_px", 0.0)
+	var trunk_len := minf(trunk_px, span) if trunk_px > 0.0 else trunk_frac * span
 	var trunk_top := from + trunk_dir * trunk_len
 	var rem := to - trunk_top
 	var diag := minf(absf(rem.x), absf(rem.y))
