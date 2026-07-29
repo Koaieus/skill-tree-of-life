@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://c5jp7qweypa2k"]
 
 [ext_resource type="Script" uid="uid://dtuqlxd63xtr4" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
+[ext_resource type="PackedScene" uid="uid://cfjoysc2u6djv" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
+[ext_resource type="PackedScene" uid="uid://4ugis0fif3r8" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
 
@@ -13,10 +13,10 @@ script = ExtResource("1_driver")
 position = Vector2(0, 90)
 
 [node name="IdChip" parent="." unique_id=189934243 instance=ExtResource("3_chip")]
-position = Vector2(0, -90)
+position = Vector2(17, -161)
 
 [node name="NodeStats" parent="." unique_id=274966726 instance=ExtResource("4_stats")]
-position = Vector2(-260, -130)
+position = Vector2(-195, -150)
 
 [node name="Addons" parent="." unique_id=488659636 instance=ExtResource("5_addons")]
-position = Vector2(260, -100)
+position = Vector2(197, -119)
