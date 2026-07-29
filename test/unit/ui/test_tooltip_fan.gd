@@ -105,6 +105,19 @@ func test_hovering_a_second_node_retires_the_first_variant_frozen_in_place() -> 
 	Events.skill_node_hovered.emit(_node)
 	await get_tree().process_frame
 
+	# Wait until the fan is ACTUALLY up before superseding it. Both bugs this
+	# guards are about tearing down a fan mid-animation, so a variant with
+	# every member still HIDDEN doesn't exercise either — and that is now a
+	# reachable state: `FanPanel.has_content()` suppresses panels with nothing
+	# to show, and this fixture's bare SkillNode has no addons and no
+	# node-local stats, so those panels legitimately never play in. Whichever
+	# member is first in angular order, poll until something is animating.
+	var fired := 0
+	while not _any_member_active() and fired < 120:
+		await get_tree().process_frame
+		fired += 1
+	assert_true(_any_member_active(), "A's fan should have at least one member animating")
+
 	var node_b := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child(node_b)
 	autofree(node_b)
@@ -163,3 +176,21 @@ func test_coordinator_owns_no_tween() -> void:
 func test_coordinator_has_no_fan_wide_progress_variable() -> void:
 	var src := FileAccess.get_file_as_string("res://ui/tooltip_fan/tooltip_fan.gd")
 	assert_false(src.contains("var progress"), "TooltipFan must not own a fan-wide progress clock")
+
+
+# --- helpers -----------------------------------------------------------------
+
+## True once any member of the current variant has left HIDDEN — i.e. the fan
+## is actually animating. Used instead of "wait one frame and assume", which
+## only held while every panel unconditionally played in.
+func _any_member_active() -> bool:
+	var variant: Node = _fan._current_variant
+	if variant == null or not is_instance_valid(variant):
+		return false
+	for m in _fan._collect_members(variant):
+		if m is FanUnit:
+			if (m as FanUnit).state != FanUnit.State.HIDDEN:
+				return true
+		elif m.visible:
+			return true
+	return false
