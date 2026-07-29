@@ -18,14 +18,23 @@ extends Node2D
 ## the renderer stays free of any vision dependency.
 @export var vision_system: VisionSystem = null
 
-## #91/#108 — when set, entity-level toasts (wound/heal, stat-modifier gain,
-## XP gain) for THIS entity render at [member player_anchor] (the Hero Sigil
-## Card's FloatAnchor) instead of the world-space core. A plain Node2D works
-## unmodified as a [FloaterRequest.target]: the anchor lives under the HUD's
-## CanvasLayer while the toaster is world-space, and
-## [method FloaterToaster._on_target_moved] maps between the two canvases —
-## copying `global_position` across is NOT valid and was a real placement bug.
-## AI entities have no HUD card, so they keep rising from their core.
+## #91/#108 — when set, entity-level toasts (wound/heal, XP gain) for THIS
+## entity render at [member player_anchor] (the Hero Sigil Card's FloatAnchor)
+## instead of the world-space core. A plain Node2D works unmodified as a
+## [FloaterRequest.target]: the anchor lives under the HUD's CanvasLayer while
+## the toaster is world-space, and [method FloaterToaster._on_target_moved]
+## maps between the two canvases — copying `global_position` across is NOT
+## valid and was a real placement bug. AI entities have no HUD card, so they
+## keep rising from their core.
+##
+## Stat-modifier-gain floaters are the deliberate exception (#306): the modifier
+## pulse (`AllocationVFX._launch_modifier_pulse`) already flies node → core in
+## world space, and [GainedModifierToast] now owns "you just got these" at the
+## sigil. Redirecting the pulse's landing floater there too just teleported it
+## across canvases (rendering behind the opaque Hero Sigil Card, since the
+## world layer draws under the HUD's CanvasLayer) on top of being visually
+## redundant. So [method _on_stat_modifier_changed] always targets the core,
+## player or not — see [method _emit_at_entity]'s `route_to_player_anchor` arg.
 @export var player: Entity = null
 @export var player_anchor: Node2D = null
 
@@ -78,6 +87,8 @@ func _on_entity_xp_gained(entity: Entity, amount: float) -> void:
 
 ## #70/#79 — a stat modifier became visible on an entity. Render its op-aware
 ## contribution (e.g. "+10 Strength") at the core, styled by binding + gain/loss.
+## Always the world-space core, even for the player (#306) — see the
+## `player_anchor` docstring's "deliberate exception".
 func _on_stat_modifier_changed(
 		entity: Entity, modifier: StatModifier, binding: ModifierBinding.Kind, added: bool) -> void:
 	if entity == null or modifier == null or entity.core_location == null:
@@ -85,7 +96,7 @@ func _on_stat_modifier_changed(
 	var def := StatRegistry.get_def(modifier.stat_id)
 	var text := modifier.format()
 	var tint: Color = def.tint_color if def != null else Color.WHITE
-	_emit_at_entity(entity, text, FloaterStyles.for_modifier(tint, binding, added))
+	_emit_at_entity(entity, text, FloaterStyles.for_modifier(tint, binding, added), false)
 
 
 # --- Helpers ----------------------------------------------------------------
@@ -112,21 +123,25 @@ func _spawn_at_core(entity: Entity, text: String, style: FloaterStyle) -> void:
 ## Route one entity-level fact to wherever that entity's toasts belong: the Hero
 ## Sigil Card anchor for the bound player, its world-space core for everyone
 ## else — where the fog gate also applies (a toast on a core you can't see would
-## leak the AI's position). Returns whether anything was actually shown, so a
-## caller can keep an accompanying effect in step with it.
-func _emit_at_entity(entity: Entity, text: String, style: FloaterStyle) -> bool:
+## leak the AI's position). [param route_to_player_anchor] lets a caller opt out
+## of the sigil redirect even for the player (stat-modifier gains, #306 — see
+## the `player_anchor` docstring). Returns whether anything was actually shown,
+## so a caller can keep an accompanying effect in step with it.
+func _emit_at_entity(
+		entity: Entity, text: String, style: FloaterStyle,
+		route_to_player_anchor: bool = true) -> bool:
 	if entity == null or entity.core_location == null:
 		return false
 	var core := entity.core_location
-	var target := _resolve_target(entity, core)
+	var target := _resolve_target(entity, core, route_to_player_anchor)
 	if target == core and not _node_visible(core):
 		return false
 	_emit(target, text, style)
 	return true
 
 
-func _resolve_target(entity: Entity, core: Node2D) -> Node2D:
-	if entity == player and is_instance_valid(player_anchor):
+func _resolve_target(entity: Entity, core: Node2D, route_to_player_anchor: bool) -> Node2D:
+	if route_to_player_anchor and entity == player and is_instance_valid(player_anchor):
 		return player_anchor
 	return core
 

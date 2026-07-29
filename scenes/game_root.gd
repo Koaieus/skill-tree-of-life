@@ -94,6 +94,15 @@ func _ready() -> void:
 			hud_root.compose(self)
 		_wire_hud_floater_anchor()
 		_wire_gained_modifier_toast()
+		# Container layout (HeroSigilCard's MarginContainer/VBoxContainer chain)
+		# is resolved via a queued `sort_children`, which hasn't flushed yet this
+		# far into the same synchronous _ready — Controls still report their
+		# pre-layout (0,0)-ish rects. `start_turn` below fires synchronously and
+		# can trigger a same-frame XP gain toast at the Hero Sigil Card's
+		# FloatAnchor; reading its position before layout settles popped that
+		# toast at the viewport's top-left corner instead of the card. One frame
+		# is enough for the deferred sort to flush.
+		await get_tree().process_frame
 	else:
 		$UI.visible = false
 
