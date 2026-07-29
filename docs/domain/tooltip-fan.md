@@ -128,6 +128,83 @@ contradict the table above.
   optional `icon` override and carries a real `GradientTexture2D` placeholder
   (never `PlaceholderTexture2D`, per `.claude/rules/godot-workflow.md`).
 
+## Fan geometry: what is derived vs. what is authored (#307)
+
+**Exactly one quantity is authored per unit: where its panel sits.** That is the
+`FanUnit`'s own `position` in the variant scene — drag it and everything else
+re-derives. Two smaller knobs sit on top (`anchor_slide`, `bend_start`); both
+have defaults that need no attention.
+
+### The origin end — clock pins
+
+The skill node is a **chip** and the trace origins are its **pins**.
+`FanAnchorDriver` spreads them on an analog clock face: a uniform step between
+neighbours, symmetric about 12 o'clock. Three traces sit at 11/12/1, four at
+10:30/11:30/12:30/1:30, five at 10 through 2. Past `max_arc_degrees` the *step
+compresses* rather than the arc widening — beyond roughly ±60° a straight-up
+`trunk_dir` starts reading wrong, and squeezing beats tilting the trunks.
+
+Slots are handed out in **left-to-right panel order, never tree order**. The
+variants are inherited scenes (`owned` appends Owner to `unowned`, `owned_core`
+appends Core to `owned`), so tree order permanently puts the newest unit last
+regardless of where its panel actually sits. Assigning by tree order would
+*guarantee* crossed traces in `owned_core`. `TooltipFan` staggers on the same
+sort key, so the fan sweeps across the arc instead of popping in scene order.
+
+### How the fan reacts to camera zoom
+
+**Pins ride the node's screen-space rim; panels stay screen-constant.** The fan
+lives in the HUD canvas, so its anchor was always zoom-independent — what made
+zooming feel broken was the camera stepping `zoom` by a hard ±0.25, since the
+anchor teleported. That is fixed at the camera (`scenes/camera_2d.gd` tweens to
+a `_target_zoom`), not here.
+
+`TooltipFan` already reads `get_global_transform_with_canvas()` for the anchor
+origin; **the same transform's `get_scale()` carries the zoom factor**, so the
+coordinator feeds `node.radius * scale.x` to the driver without ever knowing a
+camera exists. Pins then sit on the node's *visible* rim at every zoom while the
+panels keep their pixel size (they are UI, and at `MIN_ZOOM = 0.25` a
+world-scaled panel is unreadable). Trace length changes as a *consequence* of
+the origin moving — not as a rule of its own.
+
+The plain editor has neither a camera nor a hovered node, so the driver falls
+back to `preview_pin_radius`. That fallback is load-bearing: without it, opening
+a variant scene standalone renders every trace from (0,0), which is exactly the
+authoring problem this design exists to fix.
+
+The fan is **not** dismissed on camera motion. With the zoom tween, tracking is
+smooth, and dismissing would read as twitchy.
+
+### The terminus end — derived edge, authored slide
+
+`FanAnchor` derives **which** panel edge a trace lands on, from the closing leg
+of the route `TraceRouter` would actually draw (see the self-consistency note in
+`fan_anchor.gd`). That derivation is what guarantees the arrival leg is
+**perpendicular** to the border it meets — a horizontal leg running alongside a
+panel's bottom edge and simply stopping is the failure mode it prevents.
+
+`FanUnit.anchor_slide` (0..1, default 0.5 = edge centre) picks **where along**
+that edge. Top→bottom on a vertical edge, left→right on a horizontal one; 0 and
+1 are the corners, which are legal precisely because a corner belongs to both
+edges. Because the edge still flips automatically when a unit crosses the fan's
+centreline, a slide stays meaningful wherever it lands — so dragging a unit
+across the fan needs no re-authoring. This is why the panel offset is one
+scalar and not a hand-tuned `Vector2`.
+
+### The serialization invariant
+
+`FanAnchorDriver` writes derived values into `@export`s from `_process` in a
+`@tool` script — which `.claude/rules/godot-workflow.md` forbids outright. It
+gets away with it for exactly one reason: `Trace` is a **non-editable descendant
+of an instanced scene**, so Godot never serializes those writes back into the
+variant `.tscn`. Verified empirically — open a variant, save, `git diff` is clean
+but for format churn.
+
+A unit's `position` has no such cover: it is a direct, editable child property of
+the variant. **The driver reads it and must never write it.** Any future derived
+quantity has to land on the non-editable side of that line, or be split into an
+authored `@export` plus a getter-only `var` per the workflow rule.
+
 ## What's still open
 
 - `TooltipFan` coordinator (#226) — the real node-anchored fan, driving
