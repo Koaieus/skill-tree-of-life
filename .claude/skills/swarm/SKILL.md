@@ -296,6 +296,11 @@ resuming a stopped worker cannot land it in a sibling's checkout.
   teammates are always async. **So dispatch is two steps** — spawn with a minimal
   prompt, then `SendMessage` the actual brief. Budget for that; a swarm that assumes
   the spawn prompt ran will stall silently with N idle workers.
+- **Each idle transition costs the orchestrator a turn.** A teammate emits an
+  `idle_notification` when it has nothing to do — including right after delivering a
+  report, so you get woken twice per unit. Harmless with 3 workers, but it is a real
+  per-worker tax on the orchestrator's context, and it argues for the same batching
+  rule as everything else: fewer, fatter workers.
 - **Confirmed: teammates start in the main checkout's cwd** (`/home/bramh/skill-tree-of-life`),
   so there is a window before step 2 completes where a careless edit lands on shared
   state. Since the brief now arrives by `SendMessage` anyway, make "create your
