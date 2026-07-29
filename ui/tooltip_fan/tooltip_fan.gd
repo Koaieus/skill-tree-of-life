@@ -52,20 +52,19 @@ func _process(_delta: float) -> void:
 		return
 	if _hovered_node != null and is_instance_valid(_hovered_node):
 		global_position = _hovered_node.get_global_transform_with_canvas().origin
-		_feed_pin_radius()
+		_feed_pin_radius(_current_variant, _hovered_node)
 
 
 func _on_hovered(node: SkillNode) -> void:
 	if node == _hovered_node and _current_variant != null:
 		return
+	# Capture the OLD node before `_hovered_node` is reassigned — `_retire`
+	# needs it to keep the outgoing fan tracking where it actually was, not
+	# where the newly-hovered node happens to be.
+	var previous_node := _hovered_node
 	_hovered_node = node
-	# Retire the OLD variant while `global_position` still reads the OLD
-	# node's anchor — `_retire` freezes it there. Reassigning
-	# `global_position` to the new node FIRST would freeze the outgoing fan
-	# at the new node's spot instead of where it actually was (a static
-	# teleport rather than the tracking bug `top_level` alone fixes).
 	if _current_variant != null:
-		_retire(_current_variant)
+		_retire(_current_variant, previous_node)
 		_current_variant = null
 	global_position = node.get_global_transform_with_canvas().origin
 	var scene := _pick_variant(node)
@@ -79,29 +78,43 @@ func _on_hovered(node: SkillNode) -> void:
 	# derive its clock pins from `preview_pin_radius` for one frame — i.e. from
 	# the editor fallback, at whatever the real zoom happens to be — and only
 	# correct on the next frame. That's a visible pop at any zoom != 1.
-	_feed_pin_radius()
+	_feed_pin_radius(instance, node)
+	_bind_content(instance, node)
 	_play_in_all(instance)
 
 
-## Pushes the hovered node's SCREEN-space radius into the active variant's
-## [FanAnchorDriver], which is what makes the clock pins zoom-reactive.
+## Pushes `node`'s SCREEN-space radius into `variant`'s [FanAnchorDriver],
+## which is what makes the clock pins zoom-reactive. Shared by the active
+## variant ([method _process]) and every retiring one ([method
+## _anchor_retiring]) — each just supplies its own (variant, node) pair.
 ##
 ## The same `get_global_transform_with_canvas()` that makes the anchor
 ## zoom-independent also carries the zoom factor in its scale — so this class
 ## never needs to know a camera exists.
-func _feed_pin_radius() -> void:
-	if not (_current_variant is FanAnchorDriver):
+func _feed_pin_radius(variant: Node, node: SkillNode) -> void:
+	if not (variant is FanAnchorDriver):
 		return
-	if _hovered_node == null or not is_instance_valid(_hovered_node):
+	if node == null or not is_instance_valid(node):
 		return
-	var scale_x := _hovered_node.get_global_transform_with_canvas().get_scale().x
-	(_current_variant as FanAnchorDriver).node_radius = _hovered_node.radius * scale_x
+	var scale_x := node.get_global_transform_with_canvas().get_scale().x
+	(variant as FanAnchorDriver).node_radius = node.radius * scale_x
+
+
+## Feeds the hovered [SkillNode] into content-holding members that need real
+## data rather than static placeholder text. Currently just
+## [GrantedModifiersRoot] (found by type, not group — `fan_unit` mixes it with
+## [FanUnit]s that don't have a `bind(SkillNode)` contract at all).
+func _bind_content(variant: Node, node: SkillNode) -> void:
+	for n in variant.find_children("*", "", true, false):
+		if n is GrantedModifiersRoot:
+			(n as GrantedModifiersRoot).bind(node)
 
 
 func _on_unhovered() -> void:
+	var previous_node := _hovered_node
 	_hovered_node = null
 	if _current_variant != null:
-		_retire(_current_variant)
+		_retire(_current_variant, previous_node)
 		_current_variant = null
 
 
@@ -152,27 +165,34 @@ func _play_in_one(variant: Node, member: Node, delay: float) -> void:
 ## contract), then frees the variant once every member has settled to HIDDEN.
 ## A member that never started (still HIDDEN — its coordinator-side delay
 ## hadn't fired yet) is skipped rather than animated for nothing.
-func _retire(variant: Node) -> void:
+func _retire(variant: Node, node: SkillNode) -> void:
 	variant.set_meta(&"retiring", true)
-	# Freeze the retiring variant at THIS coordinator's current screen spot
-	# before it can change. `variant` stays a child of this Node2D — if a
-	# new hover reassigns `global_position` to a different node while this
-	# variant is still mid-play_out, it would otherwise be dragged along to
-	# the new node's position instead of fading out where it actually is.
-	# `top_level` makes it ignore the parent transform from here on.
+	# Detach the retiring variant from THIS coordinator's transform. `variant`
+	# stays a child of this Node2D — if a new hover reassigns `global_position`
+	# to a different node while this variant is still mid-play_out, it would
+	# otherwise be dragged along to the new node's position instead of fading
+	# out where it actually is. `top_level` makes it ignore the parent
+	# transform from here on. A non-Node2D variant has no transform to detach
+	# and none to re-derive: [method _anchor_retiring] no-ops on it too, so
+	# both halves stay consistent rather than one tracking and one riding.
 	if variant is Node2D:
+		# `top_level` reinterprets the CURRENT local `position` as a global one,
+		# so re-assert the global spot across the flip. `_anchor_retiring`
+		# overwrites it immediately whenever `node` is still alive; this is the
+		# fallback that keeps a variant whose node vanished from teleporting.
 		var v2d := variant as Node2D
-		var frozen := global_position
+		var frozen := v2d.global_position
 		v2d.top_level = true
 		v2d.global_position = frozen
+	_anchor_retiring(variant, node)
 	var members := _collect_members(variant)
 	if members.is_empty():
 		variant.queue_free()
 		return
-	_await_retire(variant, members)
+	_await_retire(variant, node, members)
 
 
-func _await_retire(variant: Node, members: Array[Node]) -> void:
+func _await_retire(variant: Node, node: SkillNode, members: Array[Node]) -> void:
 	# Fire every member's own play_out() in parallel (each is a coroutine that
 	# runs to its first await then yields control back here) ...
 	for member in members:
@@ -180,10 +200,32 @@ func _await_retire(variant: Node, members: Array[Node]) -> void:
 	# ... then poll until every member has actually settled. Polling rather
 	# than awaiting a per-type signal keeps this uniform across FanUnit
 	# (`state_changed`) and GrantedModifiersRoot (no signal — just `visible`).
+	#
+	# This loop is also where the retiring variant keeps tracking its OWN node,
+	# and it's why there's no bookkeeping of "currently retiring" variants
+	# anywhere: the coroutine already is a per-variant scope that lives exactly
+	# as long as the OUT animation, so the anchor update belongs in it rather
+	# than in a coordinator-wide `_process` pass. A ONE-TIME freeze in
+	# [method _retire] would desync the trace the moment the camera panned or
+	# zoomed mid-play_out.
 	while not _all_settled(members):
+		_anchor_retiring(variant, node)
 		await get_tree().process_frame
 	if is_instance_valid(variant):
 		variant.queue_free()
+
+
+## Re-derives a retiring variant's screen anchor and clock-pin radius from
+## `node` — the node it was hovering when it got superseded, NOT `_hovered_node`
+## (which has already moved on to whatever is hovered now, if anything).
+## The active variant gets the same treatment in [method _process].
+func _anchor_retiring(variant: Node, node: SkillNode) -> void:
+	if not (variant is Node2D):
+		return
+	if node == null or not is_instance_valid(node):
+		return
+	(variant as Node2D).global_position = node.get_global_transform_with_canvas().origin
+	_feed_pin_radius(variant, node)
 
 
 ## Plays one member out, awaiting its own full OUT sequence — but is itself

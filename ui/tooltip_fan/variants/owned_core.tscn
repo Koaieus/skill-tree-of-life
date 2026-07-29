@@ -1,9 +1,23 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://xm4djg5n8lqc"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/variants/owned.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://gi0a1ar8hyip" path="res://ui/tooltip_fan/variants/owned.tscn" id="1_base"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/core_unit.tscn" id="2_core"]
 
-[node name="OwnedCore" instance=ExtResource("1_base")]
+[node name="OwnedCore" unique_id=2050065934 instance=ExtResource("1_base")]
 
-[node name="Core" parent="." instance=ExtResource("2_core")]
-position = Vector2(340, -370)
+[node name="IdChip" parent="." index="1" unique_id=189934243]
+position = Vector2(3, -151)
+
+[node name="NodeStats" parent="." index="2" unique_id=274966726]
+position = Vector2(-161, -55)
+
+[node name="Addons" parent="." index="3" unique_id=488659636]
+position = Vector2(146, -60)
+
+[node name="Owner" parent="." index="4" unique_id=2117197821]
+position = Vector2(-109, -232)
+anchor_slide = 0.8
+
+[node name="Core" parent="." index="5" unique_id=2079562034 instance=ExtResource("2_core")]
+position = Vector2(134, -311)
+anchor_slide = 0.18

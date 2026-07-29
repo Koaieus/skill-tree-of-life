@@ -26,7 +26,6 @@ enum State { HIDDEN, IN, LOOP, OUT }
 ## (LOOP after IN, HIDDEN after OUT).
 signal state_changed(new_state: State)
 
-@export_group("Anchor")
 ## Where along the panel edge the trace lands, 0 → 1 in reading order
 ## (top→bottom on a vertical edge, left→right on a horizontal one). 0.5 is the
 ## edge centre; 0 and 1 are its corners.
@@ -36,7 +35,6 @@ signal state_changed(new_state: State)
 ## one authored degree of freedom on top of that.
 @export_range(0.0, 1.0, 0.01) var anchor_slide := 0.5
 
-@export_group("Motion")
 ## Forwarded to [member FanTrace.trace_idle] — whether the settled trace tip
 ## keeps a soft idle pulse through LOOP. Panel idle motion is out of scope
 ## here (#234).
