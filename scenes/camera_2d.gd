@@ -4,8 +4,24 @@ extends Camera2D
 
 @export_range(0, 1500, 1.0, 'or_greater') var pan_speed: float = 800.0
 
+## How long one scroll step takes to settle. Short enough to stay responsive,
+## long enough that anything tracking a canvas position (the tooltip fan, the
+## floater toaster) glides instead of teleporting.
+@export_range(0.0, 1.0, 0.01) var zoom_duration: float = 0.15
+@export var zoom_step: float = 0.25
+
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 2.00
+
+## The authoritative zoom the wheel accumulates into. `zoom` itself is only the
+## tween's output and is fractional mid-flight — accumulating on it would read a
+## half-applied value and silently drop steps during fast scrolling.
+var _target_zoom: float = 1.0
+var _zoom_tween: Tween = null
+
+
+func _ready() -> void:
+	_target_zoom = zoom.x
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -15,11 +31,38 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Zooming: scroll wheel
 	if event is InputEventMouseButton:
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_WHEEL_UP):
-			zoom = Vector2(MAX_ZOOM, MAX_ZOOM).min(zoom + Vector2.ONE * 0.25)
+			_zoom_by(zoom_step)
 		elif Input.is_mouse_button_pressed(MOUSE_BUTTON_WHEEL_DOWN):
-			zoom = Vector2(MIN_ZOOM, MIN_ZOOM).max(zoom - Vector2.ONE * 0.25)
+			_zoom_by(-zoom_step)
 
 func _process(delta: float) -> void:
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir != Vector2.ZERO:
 		global_position += input_dir * pan_speed * delta
+
+
+## Advances the zoom target by one step and retargets the tween. Killing the
+## previous tween first is what makes rapid scrolling accumulate instead of
+## having two tweens fight over `zoom`; because the new tween starts from
+## wherever the old one got to, the steps chain into one continuous glide.
+##
+## Takes a STEP, not an absolute target, so the caller never has to read
+## `_target_zoom` before the resync below has had a chance to run.
+func _zoom_by(step: float) -> void:
+	if _zoom_tween != null and _zoom_tween.is_valid():
+		_zoom_tween.kill()
+	else:
+		# Nothing in flight, so `zoom` is authoritative — honour any external
+		# write since the last step. Level setup (`loot_showcase.gd`,
+		# `allocation_vfx_showcase.gd`) assigns `zoom` directly from
+		# `_setup_level()`, which runs AFTER this node's `_ready`; without this
+		# resync `_target_zoom` would still hold the stale value and the first
+		# scroll tick would teleport.
+		_target_zoom = zoom.x
+	_target_zoom = clampf(_target_zoom + step, MIN_ZOOM, MAX_ZOOM)
+	if zoom_duration <= 0.0:
+		zoom = Vector2(_target_zoom, _target_zoom)
+		return
+	_zoom_tween = create_tween()
+	_zoom_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_zoom_tween.tween_property(self, ^"zoom", Vector2(_target_zoom, _target_zoom), zoom_duration)
