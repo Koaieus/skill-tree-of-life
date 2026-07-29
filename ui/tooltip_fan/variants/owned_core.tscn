@@ -15,7 +15,7 @@ position = Vector2(-161, -55)
 position = Vector2(146, -60)
 
 [node name="Owner" parent="." index="4" unique_id=2117197821]
-position = Vector2(-109, -232)
+position = Vector2(-100, -330)
 anchor_slide = 0.8
 
 [node name="Core" parent="." index="5" unique_id=2079562034 instance=ExtResource("2_core")]

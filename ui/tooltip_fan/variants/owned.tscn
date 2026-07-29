@@ -9,4 +9,4 @@
 position = Vector2(156, -97)
 
 [node name="Owner" parent="." index="4" unique_id=2117197821 instance=ExtResource("2_owner")]
-position = Vector2(55, -270)
+position = Vector2(55, -350)
