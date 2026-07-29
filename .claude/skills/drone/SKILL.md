@@ -112,6 +112,12 @@ don't touch issue status or labels.
 - **`git add` by explicit path — never `-A`, never `-a`.** You may, through a
   harness quirk, be sharing a worktree with another live worker; a blanket add
   would commit their unfinished work.
+- **If your brief says to make your own worktree, do that FIRST.** A worker spawned
+  as a teammate (rather than with harness `isolation`) starts in the **shared main
+  checkout**, where the user may have WIP and siblings are working. Run
+  `mise run worktree:new -- <your-unit>` as your first action and use absolute
+  paths into `.worktrees/<slug>/` from then on. Don't edit anything before that
+  worktree exists.
 - **Do not spawn subagents to do your work.** You are the leaf for *implementation*.
   Delegating a broad read-only search ("where is X handled across the repo") to an
   `Explore` subagent is fine and often cheaper — the orientation cost lands in a

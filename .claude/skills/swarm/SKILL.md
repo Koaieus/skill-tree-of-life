@@ -254,6 +254,46 @@ Gotchas:
 
 </details>
 
+### 3a-next. Try this next run: teammates that make their OWN worktrees
+
+The §3a dead end is only a dead end for **harness** isolation. The two features
+conflict because `isolation: "worktree"` is a harness feature — but this project
+already has its own, independent of it:
+
+```bash
+mise run worktree:new -- <issue|name>     # -> .worktrees/<slug>/, own branch
+```
+
+`warp` drives its whole single-issue cycle on that task. A **teammate** can run it
+too. So the shape worth trying is:
+
+1. Spawn workers as teammates — `name`, **no `isolation` parameter**.
+2. Each worker's first action is `mise run worktree:new -- <its-unit>`, then it
+   works there via absolute paths for the rest of its run.
+3. It reads its spec off the shared task board and flips its own status.
+
+If that holds, it is strictly better than what this run did: the task board and
+mailbox come back, the orchestrator stops spending context on three
+fully-specified prompts, **and** the harness worktree-reclamation trap disappears
+entirely — a `mise` worktree is not auto-removed when its agent exits, so
+resuming a stopped worker cannot land it in a sibling's checkout.
+
+**Unverified, so treat the first run as an experiment and record the result here:**
+
+- Whether teammates get the `Agent` tool — i.e. whether a worker can delegate a
+  broad read-only sweep to an `Explore` subagent. Probably yes (teammates keep the
+  standard set plus the task/cron tools), but nobody has checked.
+- Teammates start in the **main checkout's** cwd, so there is a window before step
+  2 completes where a careless edit lands on shared state. Make "create your
+  worktree first, then absolute paths only" the first line of the prompt, and keep
+  the explicit-path `git add` rule regardless.
+- `EnterWorktree` may refuse a `.worktrees/` path (its contract names
+  `.claude/worktrees/` for switching). Working via absolute paths without entering
+  is proven — a worker did exactly that successfully this run — so don't block on
+  `EnterWorktree` if it refuses.
+- Teams still needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` **at launch**, and
+  `TaskCreate` must still be serialized, not called in parallel.
+
 ### 3b. Token economy — the binding constraint, and how to actually respect it
 
 A swarm is throttled by the **5-hour rate-limit window**, not by anything you can
