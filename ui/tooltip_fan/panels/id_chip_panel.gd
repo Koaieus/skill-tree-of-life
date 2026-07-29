@@ -39,6 +39,20 @@ extends FanPanel
 const _HALF_WIDTH := 34.0
 const _V_PADDING := 10.0
 
+## Keystone mode widens the chip at RUNTIME only. A keystone description is
+## prose, not a label — `xp_anchor_keystone.tres`'s is 95 characters, which
+## autowraps into a ~12-line noodle inside the 68px normal-mode envelope. The
+## authored (pre-bind) width stays [constant _HALF_WIDTH] so the structural
+## overlap test still measures the narrow chip; only a node that actually
+## carries a keystone ever pays the extra width, and there are two such
+## resources in the game.
+const _KEYSTONE_HALF_WIDTH := 84.0
+
+## Horizontal padding between the widened envelope and the wrapped description
+## text, so autowrap has a real column to work with rather than the label's
+## authored `custom_minimum_size`.
+const _H_PADDING := 8.0
+
 @onready var _holo: Control = %HoloPanel
 @onready var _rows: VBoxContainer = %Rows
 @onready var _name_label: Label = %NameLabel
@@ -84,21 +98,30 @@ func bind(node: SkillNode, graph: Graph) -> void:
 		degree_text += " · yours %d" % entity_degree
 	_degree_label.text = degree_text
 
-	_resize_to_content()
+	_resize_to_content(keystone != null)
 
 
-## Fixed width, height fit to whichever rows [method bind] left visible —
-## [VBoxContainer] skips invisible children when computing its combined
-## minimum size (same mechanism [PanelHeader]'s empty-subheader collapse
-## relies on), so this just reads that off and applies it to the HoloPanel
-## background. Horizontally centred, so the fixed-width envelope never
-## shifts the panel's authored anchor position.
-func _resize_to_content() -> void:
+## Height fits whichever rows [method bind] left visible — [VBoxContainer]
+## skips invisible children when computing its combined minimum size (same
+## mechanism [PanelHeader]'s empty-subheader collapse relies on), so this just
+## reads that off and applies it to the HoloPanel background. Width is one of
+## two envelopes, [param keystone_mode] picking the wide one; see
+## [constant _KEYSTONE_HALF_WIDTH]. Both are centred, so neither shifts the
+## panel's authored anchor position.
+##
+## The description label's wrap column is driven from the same half-width
+## rather than left at its authored `custom_minimum_size` — otherwise widening
+## the background alone would leave the prose still wrapped to the narrow
+## column, which is the bug this exists to fix.
+func _resize_to_content(keystone_mode: bool) -> void:
 	if _rows == null or _holo == null:
 		return
+	var half_width: float = _KEYSTONE_HALF_WIDTH if keystone_mode else _HALF_WIDTH
+	if _description_label != null:
+		_description_label.custom_minimum_size.x = half_width * 2.0 - _H_PADDING * 2.0
 	var content_height: float = _rows.get_combined_minimum_size().y
 	var half_height: float = maxf(content_height, _degree_label.get_minimum_size().y) * 0.5 + _V_PADDING
-	_holo.offset_left = -_HALF_WIDTH
-	_holo.offset_right = _HALF_WIDTH
+	_holo.offset_left = -half_width
+	_holo.offset_right = half_width
 	_holo.offset_top = -half_height
 	_holo.offset_bottom = half_height
