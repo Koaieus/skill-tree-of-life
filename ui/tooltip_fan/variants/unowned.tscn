@@ -13,7 +13,10 @@ script = ExtResource("1_driver")
 position = Vector2(0, 90)
 
 [node name="IdChip" parent="." unique_id=189934243 instance=ExtResource("3_chip")]
+position = Vector2(0, -90)
 
 [node name="NodeStats" parent="." unique_id=274966726 instance=ExtResource("4_stats")]
+position = Vector2(-260, -130)
 
 [node name="Addons" parent="." unique_id=488659636 instance=ExtResource("5_addons")]
+position = Vector2(260, -100)

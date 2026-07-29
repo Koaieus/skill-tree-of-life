@@ -9,11 +9,8 @@ script = ExtResource("1_script")
 
 [node name="Trace" parent="." instance=ExtResource("2_trace")]
 unique_name_in_owner = true
-from_point = Vector2(0, 0)
-to_point = Vector2(0, -90)
 trunk_dir = Vector2(0, -1)
 bend_start = 0.382
 
 [node name="Panel" parent="." instance=ExtResource("3_panel")]
 unique_name_in_owner = true
-position = Vector2(0, -90)

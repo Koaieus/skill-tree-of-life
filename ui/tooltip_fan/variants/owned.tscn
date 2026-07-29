@@ -6,3 +6,4 @@
 [node name="Owned" instance=ExtResource("1_base")]
 
 [node name="Owner" parent="." instance=ExtResource("2_owner")]
+position = Vector2(-320, -340)
