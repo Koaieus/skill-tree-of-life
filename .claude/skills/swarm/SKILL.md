@@ -92,6 +92,23 @@ Shared-file work (one `.tres` every unit must touch, a registry every unit
 appends to) is **yours**. Do it in the main checkout before you dispatch, or as
 an integration commit after you merge. Never hand it to two workers in one wave.
 
+**Find the shared contract before you dispatch, and commit it first.** N units
+implementing "the same kind of thing" almost always need one seam none of them
+owns — a base-class method they all override, a registration call, a way to say
+"I have nothing to show". Left undiscovered, each worker invents its own and none
+of them merge cleanly. Grep for the *consumer* of the units' output and see what
+it actually calls; that is where the seam hides. Write it, test it, commit it to
+`master`, and only then spawn — workers branch from the tip, so a seam committed
+after dispatch is invisible to them.
+
+**Pre-flight the units' envelopes against real content.** A stub sized for
+placeholder text is not evidence the real thing fits. One unit in this run was
+blocked at the finish line because its panel's authored size had only ever held
+five dummy labels, and growing it collided with positions authored in files no
+content unit was allowed to touch. That was foreseeable in one minute of looking
+before dispatch, and cost a full escalation round afterwards. When units fill a
+layout you own, check the worst-case content fits *first*.
+
 If the work won't come apart into units at all, that's a real answer: run `warp`.
 
 ### The merge contract — never make a deep-context drone merge
@@ -139,15 +156,56 @@ Give each worker its acceptance test up front. A worker that can run
 `mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is done;
 one that can't will report "looks right" and be wrong.
 
-### 3a. Teammates & a shared task board (preferred coordination surface)
+**Put a hard stop in every prompt. This is the single highest-value line in a
+worker's briefing** — three prior runs died with workers grinding silently on test
+problems, and the run that carried this rule had all three workers escalate
+correctly at a cost of one message each:
 
-Spawn workers as **teammates** rather than fire-and-forget subagents. A teammate
-is spawned via the `Agent` tool's `name` parameter and joins the session's
-implicit **agent team** — which gives two things a bare background subagent does
-not: a shared **task list** (`TaskCreate` / `TaskList` / `TaskUpdate`) and a
-mailbox (`SendMessage`). The task board is the coordination surface — you see
-each unit's status flip live instead of blocking on final reports, and the board
-*is* the shared plan the user asked to see.
+> If the same failure repeats twice, or you need a file you don't own, or the spec
+> is ambiguous: `SendMessage` the orchestrator with the specific question and
+> **stop**. Do not attempt a third fix.
+
+Say explicitly that *you* are its advisor, that asking is cheaper for the team than
+grinding, and that **a question is a success, not a failure**. A soft "ask if
+unsure" does not work; workers read it as permission to keep trying. Also tell it
+not to call `advisor` itself — you are the larger model and you hold the plan.
+
+### 3a. There is NO shared task board for a worktree swarm — the prompt is the only briefing
+
+**Verified empirically 2026-07-29 at the cost of one wasted dispatch round. Do
+not re-derive this, and do not seed a board.**
+
+`isolation: "worktree"` and the shared task board are **mutually exclusive**, so
+for a swarm as this skill defines it the board is simply not available:
+
+- The `Agent` tool spawns **subagents**, not teammates. `name` makes one
+  addressable by `SendMessage`; it does **not** enrol it in an agent team.
+- **Subagents have no `TaskCreate` / `TaskGet` / `TaskList` / `TaskUpdate`.**
+  Those are teammate-only. A worker told to read its spec off the board finds the
+  tools absent and stops, having paid its full startup cost for nothing.
+- Teammates, conversely, **do not get worktree isolation**. You cannot have both.
+
+So **everything a worker needs goes in its spawn prompt**: owned paths, settled
+decisions, acceptance criteria. Budget for it — three fully-specified prompts is a
+real slice of orchestrator context and it is not optional.
+
+`SendMessage` **does** work both ways for background subagents (worker → `main`,
+`main` → worker by name), despite docs implying teammates-only. That is the
+escalation channel and it is what makes the hard-stop rule work. Same session,
+verified.
+
+If you ever run a genuine agent team (no worktrees): **`TaskCreate` is unsafe in
+parallel** — two calls in one message both read the same stale max id, and the
+second pair silently overwrites the first (six creates produced four tasks).
+Serialize them. The board is also team-scoped, so plain subagents never see it.
+
+<details>
+<summary>Superseded teammate/board guidance (kept for the API shapes only)</summary>
+
+A teammate is spawned via the `Agent` tool's `name` parameter and joins the
+session's implicit **agent team** — which gives two things a bare background
+subagent does not: a shared **task list** (`TaskCreate` / `TaskList` /
+`TaskUpdate`) and a mailbox (`SendMessage`).
 
 **Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`** read at launch (env var, or
 an `env` block in `settings.json` — the durable home, since it applies regardless
@@ -194,6 +252,61 @@ Gotchas:
 - Teardown, review, and merge (steps 5–7) are unchanged — a teammate's worktree
   and branch behave exactly like a background worker's.
 
+</details>
+
+### 3b. Token economy — the binding constraint, and how to actually respect it
+
+A swarm is throttled by the **5-hour rate-limit window**, not by anything you can
+read from inside the session. You cannot query your own remaining budget, so a
+"stop at 95%" guard is not implementable. Bound the *work* instead.
+
+**Measured, one run, three workers each doing two units:**
+
+| Worker | Tokens | Tool calls | Notes |
+|---|---|---|---|
+| cheapest | 147k | 64 | clean run, no escalation |
+| middle | ~197k | 65 | one escalation + one forced worktree move |
+| dearest | 199k | 93 | ran the full suite repeatedly + `xvfb` shader boots |
+
+The spread tracks **tool calls, not units of work.** The dearest worker did the
+same amount of code as the cheapest and cost 35% more, entirely in verification
+it was never asked for. That is the lever.
+
+**Bound verification explicitly in every prompt.** Left open, a worker will build
+a test harness for a panel whose acceptance is "it looks right", then re-run the
+whole suite after each tweak:
+
+- Name the fast loop (`mise run check`) and say it is the loop.
+- Cap the full suite: run it **once** before reporting, not per edit.
+- **Forbid authoring new test suites** unless you name one. Visual acceptance does
+  not get a GUT harness.
+- Forbid `xvfb`/real-backend boots unless the unit touches a `.gdshader`.
+
+**Batch units per worker — validated, keep doing it.** Two units in one hot
+worktree cost 147k total, against the 150–200k a *single*-unit worker cost in
+earlier runs. Startup and codebase orientation is the fixed cost; the second unit
+rides nearly free. Batch by **shared context** (both units read the same
+subsystem), not by issue size. 2–3 workers × 2 units beats 6 × 1 outright.
+
+**Have workers delegate broad searches downward.** A worker with the full tool set
+can spawn its own `Explore` subagent, which reads excerpts rather than whole files
+and returns only the conclusion. Worth instructing when a unit needs "where is X
+handled across the repo" — the orientation cost lands in a cheap throwaway context
+instead of the worker's. *Not verified in this run;* try it on the next one and
+record whether nesting is permitted and what it saved.
+
+**Plan for running out.** Assume the window may close mid-swarm, and make that
+survivable rather than catastrophic:
+
+- Workers commit **after each unit**, never only at the end. A killed worker then
+  loses one unit, not two.
+- Merge each branch as it lands. Do not batch merges to the end — four merged
+  units beat six unmerged ones.
+- When a worker dies mid-unit, **commit its uncommitted worktree state yourself**
+  as an explicit `wip(...)` commit that says what is unfinished, and write the
+  blocker onto the issue. Never leave work as loose worktree state, and never
+  leave the issue `in-progress` with nobody on it.
+
 ### 4. Collect
 
 `drone` mandates a terse structured report. Read those, not the diffs. If a
@@ -216,6 +329,18 @@ git diff master...<worktreeBranch>            # then read it
 
 Verify the ownership boundary actually held (`--stat` shows any file a worker
 shouldn't have touched) before you look at content. Nothing merges unreviewed.
+
+**Do not accept a worker's claim that a failure is pre-existing.** Two workers in
+one run reported "975/976, the failure is a pre-existing baseline flake, confirmed
+by stashing my changes." Both were wrong: their baseline included a *sibling
+worker's* commit that had landed in the shared worktree. `master` was green at
+976/976 the whole time. Check the baseline yourself with a real `master` run — it
+is one command, and it is the difference between merging a genuine regression and
+not.
+
+The regression in that case was in the orchestrator's own pre-dispatch seam, and
+only became reachable once a worker implemented the first real override of it.
+**Expect your seam's bugs to surface at merge, not when you wrote it.**
 
 A green suite proves the worker's *mechanism*, not the *outcome*. That gap is
 widest on visual work: a z-index assertion fully determines draw order, but no
@@ -310,6 +435,24 @@ from a copy if anything moved.
   `mise run worktree:new`. The harness creates them, branched from `master`'s tip
   at spawn time, and returns the path and branch in the tool result. That's the
   substrate; `mise`'s worktree tasks are for `warp`'s single-checkout cycle.
+- **Resuming a worker that stopped clean can drop it into ANOTHER worker's
+  worktree.** The harness reclaims an `isolation: "worktree"` worktree when its
+  agent exits without changes. `SendMessage` then resumes that agent from its
+  transcript — but with no worktree of its own, and it can land in a *sibling
+  worker's* checkout. Observed: a worker stopped to ask a question, was resumed
+  with the answer, and committed onto another live worker's branch while that
+  worker's uncommitted WIP sat in the same tree. Nothing errored.
+
+  The blast radius is real: one `git add -A` there would have committed half of
+  another agent's unfinished work.
+
+  **Before resuming any worker that reported and stopped, create it a fresh
+  worktree** (`git worktree add .claude/worktrees/agent-<name>-2 -b <branch> master`)
+  and name the absolute path in your message. Tell every worker to `git add`
+  **by explicit path, never `-A` or `-a`** — that is the standing mitigation, since
+  you will not always notice the swap. If a stray commit does land on the wrong
+  branch, leave it: if it is file-disjoint it merges fine from there, and telling a
+  deep-context worker to disentangle git history is the most expensive possible fix.
 - **Workers branch from `master` as it was when they spawned.** Merging branch A
   moves `master`; branch B is now behind. That's why step 6 rebases each branch
   immediately before its own merge, not all of them up front.

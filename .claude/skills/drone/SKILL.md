@@ -91,9 +91,31 @@ don't touch issue status or labels.
   plan — it *is* the advisor, and it reviews your diff. Calling advisor spends
   time re-deriving context you don't have.
 - **Do not ask the user anything** (`AskUserQuestion`). A swarm runs unattended.
-  Ambiguity goes in your report; the orchestrator resolves it and may send you
-  a follow-up message with your context still warm.
-- **Do not spawn subagents.** You are the leaf.
+  Ambiguity goes to the *orchestrator* — `SendMessage` to `main` — and it may send
+  you a follow-up with your context still warm.
+- **Do not grind.** If the same failure repeats twice, or you need a file you don't
+  own, or the spec is genuinely ambiguous: message the orchestrator with the
+  specific question and **stop**. Do not attempt a third fix. Asking costs the team
+  one message; grinding costs it your whole remaining context, and a swarm is
+  bounded by a shared rate-limit window — your loop is spending everyone's budget.
+  **A question is a success.**
+- **Do not over-verify.** Your fast loop is the project's compile check. Run the
+  full suite **once** before reporting, not after every edit — verification you were
+  not asked for is where workers burn 35% more than their peers for identical code.
+  Don't author new test suites unless your brief names one; visual acceptance
+  ("does it look right") does not get a test harness. Don't do real-backend /
+  `xvfb` boots unless you changed a shader.
+- **Do not trust a "pre-existing" failure.** If the suite is red and you suspect it
+  predates you, say so in `NOTES:` and let the orchestrator confirm against real
+  `master`. Your worktree may contain a sibling worker's commit, which makes a
+  stash-based baseline lie.
+- **`git add` by explicit path — never `-A`, never `-a`.** You may, through a
+  harness quirk, be sharing a worktree with another live worker; a blanket add
+  would commit their unfinished work.
+- **Do not spawn subagents to do your work.** You are the leaf for *implementation*.
+  Delegating a broad read-only search ("where is X handled across the repo") to an
+  `Explore` subagent is fine and often cheaper — the orientation cost lands in a
+  throwaway context instead of yours.
 - **Do not expand scope.** Adjacent cleanup you noticed goes in the report as a
   note, not in the diff. Your diff has to survive someone else's rebase.
 
