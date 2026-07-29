@@ -85,6 +85,22 @@ var state: State = State.HIDDEN
 var _generation := 0
 
 
+## Passthrough to this unit's panel (#159 panel wave) — [TooltipFan] collects
+## units by group and cannot reach `_panel`, which is private by design. A unit
+## whose panel reports no content is never played in; see
+## [method FanPanel.has_content].
+func has_content() -> bool:
+	return _panel == null or _panel.has_content()
+
+
+## Passthrough to this unit's panel. Kept here (rather than letting the
+## coordinator reach into `_panel`) so the unit stays the only thing that knows
+## its own composition — same reason [method has_content] exists.
+func bind(node: SkillNode, graph: Graph) -> void:
+	if _panel != null:
+		_panel.bind(node, graph)
+
+
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		# Author-time: leave whatever's on-scene visible so trace/panel

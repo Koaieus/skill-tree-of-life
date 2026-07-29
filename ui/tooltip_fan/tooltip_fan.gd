@@ -35,8 +35,22 @@ extends Node2D
 
 const _GROUP := &"fan_unit"
 
+## The level's [Graph], injected by [method HudRoot.compose] via [method bind].
+## Not an `@export` NodePath: the HUD is a CanvasLayer composed independently of
+## the level content, so there is no authored path from here to the Graph — it
+## resolves at compose time like every other GameRoot-owned dependency
+## (`.claude/rules/scene-composition.md`). Panels receive it through
+## [method FanPanel.bind] rather than walking the tree for it.
+var graph: Graph = null
+
 var _hovered_node: SkillNode = null
 var _current_variant: Node = null
+
+
+## Injects the level [Graph]. Called by [method HudRoot.compose]; safe to leave
+## unbound in a sandbox, where degree readouts simply render 0.
+func bind(level_graph: Graph) -> void:
+	graph = level_graph
 
 
 func _ready() -> void:
@@ -100,13 +114,19 @@ func _feed_pin_radius(variant: Node, node: SkillNode) -> void:
 	(variant as FanAnchorDriver).node_radius = node.radius * scale_x
 
 
-## Feeds the hovered [SkillNode] into content-holding members that need real
-## data rather than static placeholder text. Currently just
-## [GrantedModifiersRoot] (found by type, not group — `fan_unit` mixes it with
-## [FanUnit]s that don't have a `bind(SkillNode)` contract at all).
+## Feeds the hovered [SkillNode] into every content-holding member, BEFORE any
+## `play_in()` — so [method FanPanel.has_content] is answered against real data
+## rather than against a panel that hasn't seen the node yet.
+##
+## Two bind shapes, matched by type rather than duck-typed on `has_method`,
+## because they genuinely differ: a [FanUnit] forwards `(node, graph)` to its
+## panel, while [GrantedModifiersRoot] is not panel-shaped at all (no containing
+## box, unbounded height) and takes the node alone.
 func _bind_content(variant: Node, node: SkillNode) -> void:
 	for n in variant.find_children("*", "", true, false):
-		if n is GrantedModifiersRoot:
+		if n is FanUnit:
+			(n as FanUnit).bind(node, graph)
+		elif n is GrantedModifiersRoot:
 			(n as GrantedModifiersRoot).bind(node)
 
 
@@ -135,10 +155,21 @@ func _pick_variant(node: SkillNode) -> PackedScene:
 ## retired, or the whole fan freed) never calls play_in — checked via
 ## `variant.is_queued_for_deletion()` rather than a generation counter, since
 ## each variant instance is its own scope (no shared fan-wide state to guard).
+## A suppressed member (its panel has nothing to show for this node) keeps its
+## INDEX — and therefore its stagger slot and its authored clock pin — it just
+## never plays in. Skipping it in the enumeration instead would shift every
+## later member's pin, so which panels are present would silently move the
+## traces of the panels that are. Absence must leave the fan balanced, not
+## reshuffled. See [method FanPanel.has_content].
 func _play_in_all(variant: Node) -> void:
 	var members := _collect_members(variant)
 	for i in range(members.size()):
-		_play_in_one(variant, members[i], i * stagger_delay)
+		var member := members[i]
+		# `has_content` is optional on a member — GrantedModifiersRoot has no
+		# such contract (it renders an explicit empty state instead of vanishing).
+		if member.has_method(&"has_content") and not member.has_content():
+			continue
+		_play_in_one(variant, member, i * stagger_delay)
 
 
 func _play_in_one(variant: Node, member: Node, delay: float) -> void:

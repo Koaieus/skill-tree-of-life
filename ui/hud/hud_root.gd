@@ -74,6 +74,11 @@ func compose(game_root: GameRoot) -> void:
 	_turn_manager = game_root.turn_manager
 	_vision_system = game_root.vision_system
 
+	# Before the `_player == null` bail: the fan is hover-driven and renders for
+	# unowned nodes too, so it stays useful in a level with no player entity.
+	if tooltip_fan != null:
+		tooltip_fan.bind(game_root.graph)
+
 	if _player == null:
 		return
 

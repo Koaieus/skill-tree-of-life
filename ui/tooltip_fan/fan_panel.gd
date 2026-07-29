@@ -62,6 +62,37 @@ func _ready() -> void:
 	progress = 0.0
 
 
+# --- Content contract (#159 panel wave) ---------------------------------------
+
+## Render `node`'s data into this panel. Base implementation is a deliberate
+## no-op: a panel with static authored content (or a stub awaiting its content
+## issue) needs nothing here. [TooltipFan] calls this on every FanPanel in the
+## active variant, BEFORE any `play_in()`, so [method has_content] can be
+## queried against real data.
+##
+## [param graph] is passed because two of the facts panels render — graph degree
+## and entity degree ([method SkillNode.get_graph_degree] /
+## [method SkillNode.get_entity_degree]) — need it, and a panel must NOT go
+## hunting for it up the tree. The owning [Entity] is `node.owned_by`; it is
+## null on an unowned node, which is the common case.
+func bind(_node: SkillNode, _graph: Graph) -> void:
+	pass
+
+
+## Whether this panel has anything worth showing for the node it was last
+## [method bind]ed to. Base implementation says yes — a panel only overrides
+## this if it can legitimately be empty (no addons, no node-local stats).
+##
+## A panel answering `false` is suppressed by [TooltipFan]: its [FanUnit] stays
+## HIDDEN and never plays in, so the fan shows no empty bordered box. What it
+## does NOT do is give up its clock pin — pin assignment stays keyed to the
+## variant's authored member order, so a present panel's trace lands in the same
+## place whether or not its neighbours happened to be suppressed. Absence leaves
+## the fan balanced, never gap-toothed, and never reshuffles the survivors.
+func has_content() -> bool:
+	return true
+
+
 ## First Control child, whichever skin scene was hand-placed under this node.
 func get_skin() -> Control:
 	for child in get_children():
