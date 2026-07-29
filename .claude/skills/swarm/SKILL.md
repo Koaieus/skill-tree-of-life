@@ -278,14 +278,28 @@ fully-specified prompts, **and** the harness worktree-reclamation trap disappear
 entirely — a `mise` worktree is not auto-removed when its agent exits, so
 resuming a stopped worker cannot land it in a sibling's checkout.
 
-**Unverified, so treat the first run as an experiment and record the result here:**
+**Verified 2026-07-30** (haiku teammate, `name` + no `isolation`, probed directly):
 
-- Whether teammates get the `Agent` tool — i.e. whether a worker can delegate a
-  broad read-only sweep to an `Explore` subagent. Probably yes (teammates keep the
-  standard set plus the task/cron tools), but nobody has checked.
-- Teammates start in the **main checkout's** cwd, so there is a window before step
-  2 completes where a careless edit lands on shared state. Make "create your
-  worktree first, then absolute paths only" the first line of the prompt, and keep
+- **Teammates DO get the `Agent` tool, and nesting actually works.** Full tool set
+  observed: `Agent, Artifact, Bash, Edit, Read, Skill, ToolSearch, Write, advisor,
+  Cron*, EnterWorktree, ExitWorktree, Monitor, NotebookEdit, SendMessage, Task*,
+  WebFetch, WebSearch`. It called `Agent`/`Explore` and got the right answer back.
+  So the "delegate broad searches downward" advice below is live, not aspirational.
+  Tool access is decided by the **agent definition's `tools` field**, not by
+  teammate-ness — `Explore`/`Plan` are the capped ones (`Agent` explicitly removed),
+  `general-purpose`/`claude` are `*`. Don't go past worker → Explore; that grandchild
+  is a leaf by definition and deeper nesting buys nothing.
+- **A named teammate does NOT run the `Agent` call's `prompt`.** Spawning with `name`
+  returns "will receive instructions via mailbox" and the agent sits **idle** — it
+  posted an `idle_notification` without touching the brief. The work only started
+  after an explicit `SendMessage`. `run_in_background: false` is also ignored: named
+  teammates are always async. **So dispatch is two steps** — spawn with a minimal
+  prompt, then `SendMessage` the actual brief. Budget for that; a swarm that assumes
+  the spawn prompt ran will stall silently with N idle workers.
+- **Confirmed: teammates start in the main checkout's cwd** (`/home/bramh/skill-tree-of-life`),
+  so there is a window before step 2 completes where a careless edit lands on shared
+  state. Since the brief now arrives by `SendMessage` anyway, make "create your
+  worktree first, then absolute paths only" the first line of *that* message, and keep
   the explicit-path `git add` rule regardless.
 - `EnterWorktree` may refuse a `.worktrees/` path (its contract names
   `.claude/worktrees/` for switching). Working via absolute paths without entering
@@ -332,8 +346,8 @@ subsystem), not by issue size. 2–3 workers × 2 units beats 6 × 1 outright.
 can spawn its own `Explore` subagent, which reads excerpts rather than whole files
 and returns only the conclusion. Worth instructing when a unit needs "where is X
 handled across the repo" — the orientation cost lands in a cheap throwaway context
-instead of the worker's. *Not verified in this run;* try it on the next one and
-record whether nesting is permitted and what it saved.
+instead of the worker's. **Nesting is confirmed permitted** (see §3a-next) for both
+harness-isolated workers and teammates; what remains unmeasured is what it saves.
 
 **Plan for running out.** Assume the window may close mid-swarm, and make that
 survivable rather than catastrophic:

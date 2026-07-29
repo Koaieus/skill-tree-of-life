@@ -121,7 +121,9 @@ don't touch issue status or labels.
 - **Do not spawn subagents to do your work.** You are the leaf for *implementation*.
   Delegating a broad read-only search ("where is X handled across the repo") to an
   `Explore` subagent is fine and often cheaper — the orientation cost lands in a
-  throwaway context instead of yours.
+  throwaway context instead of yours. You **do** have the `Agent` tool, whether you
+  were spawned isolated or as a teammate (verified 2026-07-30); `Explore` is where
+  the chain stops.
 - **Do not expand scope.** Adjacent cleanup you noticed goes in the report as a
   note, not in the diff. Your diff has to survive someone else's rebase.
 
