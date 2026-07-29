@@ -151,6 +151,12 @@ func units_in_fan_order() -> Array[Node]:
 ## Horizontal sort key for one fan member: the centre of its panel in variant
 ## space, falling back to the member's own position for a panel-less member
 ## (GrantedModifiersRoot, which duck-types the fan contract without a FanPanel).
+##
+## That fallback deliberately puts `Roots` MID-sequence in [TooltipFan]'s
+## stagger rather than first (it was first only by accident of tree order): it
+## keys on `position.x == 0`, and it hangs straight down at 6 o'clock, outside
+## the arc the other members sweep. It takes no clock pin — [method _units]
+## excludes it for having no `%Trace`/`%Panel`.
 static func fan_sort_x(member: Node) -> float:
 	var base: float = (member as Node2D).position.x if member is Node2D else 0.0
 	var panel: FanPanel = member.get_node_or_null("%Panel")
