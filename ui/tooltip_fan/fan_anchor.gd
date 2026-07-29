@@ -48,10 +48,10 @@ const _MAX_ITER := 4
 ## axis) ACTUALLY arrives, per the route [TraceRouter] itself would draw to
 ## get there — not an approximation of it. See the class doc for why a
 ## single guess from the rect's centre isn't enough.
-static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION) -> Vector2:
+static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION, slide: float = 0.5) -> Vector2:
 	var edge := _edge_of_route_to(from, panel_rect.get_center(), trunk_dir, trunk_frac)
 	for _i in range(_MAX_ITER):
-		var anchor := _point_on_edge(edge, panel_rect)
+		var anchor := _point_on_edge(edge, panel_rect, slide)
 		var actual := _edge_of_route_to(from, anchor, trunk_dir, trunk_frac)
 		if actual == edge:
 			return anchor
@@ -61,7 +61,12 @@ static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, 
 	# where the panel needs more separation from the node on one axis). Land
 	# on whichever candidate this loop last computed rather than looping
 	# forever or crashing; a human moving the panel a few pixels resolves it.
-	return _point_on_edge(edge, panel_rect)
+	#
+	# At `slide` 0 or 1 the anchor IS a corner, which belongs to both edges at
+	# once — so a 2-cycle there is not a failure to resolve, it's two equally
+	# correct answers naming the same point. The fallback lands on the right
+	# place either way.
+	return _point_on_edge(edge, panel_rect, slide)
 
 
 ## Asks [TraceRouter] for the real route to `to` and reads off which edge its
@@ -79,17 +84,27 @@ static func _edge_of_route_to(from: Vector2, to: Vector2, trunk_dir: Vector2, tr
 	return Edge.TOP if leg.y >= 0.0 else Edge.BOTTOM
 
 
-static func _point_on_edge(edge: FanAnchor.Edge, rect: Rect2) -> Vector2:
-	var center := rect.get_center()
+## Where on `edge` the anchor sits. `slide` runs 0 → 1 along the edge in
+## reading order — top→bottom for the vertical (LEFT/RIGHT) edges, left→right
+## for the horizontal (TOP/BOTTOM) ones. 0.5 is the edge centre, i.e. the
+## behaviour before `slide` existed; 0 and 1 are the edge's two corners.
+##
+## Which edge is derived (that's what guarantees the arrival leg is
+## perpendicular to it); only WHERE along it is authored. So a unit that moves
+## across the fan's centreline flips edges automatically and its slide stays
+## meaningful — nothing needs re-authoring.
+static func _point_on_edge(edge: FanAnchor.Edge, rect: Rect2, slide: float = 0.5) -> Vector2:
+	var t := clampf(slide, 0.0, 1.0)
+	var far := rect.position + rect.size
 	match edge:
 		Edge.LEFT:
-			return Vector2(rect.position.x, center.y)
+			return Vector2(rect.position.x, lerpf(rect.position.y, far.y, t))
 		Edge.RIGHT:
-			return Vector2(rect.position.x + rect.size.x, center.y)
+			return Vector2(far.x, lerpf(rect.position.y, far.y, t))
 		Edge.TOP:
-			return Vector2(center.x, rect.position.y)
+			return Vector2(lerpf(rect.position.x, far.x, t), rect.position.y)
 		_:
-			return Vector2(center.x, rect.position.y + rect.size.y)
+			return Vector2(lerpf(rect.position.x, far.x, t), far.y)
 
 
 ## The panel rect in the coordinate space `panel.position` lives in (i.e. its

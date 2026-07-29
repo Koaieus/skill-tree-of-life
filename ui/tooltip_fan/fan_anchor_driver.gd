@@ -47,7 +47,8 @@ func _reroute(unit: Node) -> void:
 	if trace == null or panel == null:
 		return
 	var rect := FanAnchor.panel_rect_of(panel)
-	trace.to_point = FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start)
+	var slide: float = unit.anchor_slide if unit is FanUnit else 0.5
+	trace.to_point = FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start, slide)
 
 
 func _units() -> Array[Node]:

@@ -131,7 +131,8 @@ func test_every_fan_traces_terminus_is_self_consistent_in_every_variant() -> voi
 			if trace == null or panel == null:
 				continue
 			var rect := FanAnchor.panel_rect_of(panel)
-			var expected := FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start)
+			var slide: float = (unit as FanUnit).anchor_slide
+			var expected := FanAnchor.derive_anchor(trace.from_point, rect, trace.trunk_dir, trace.bend_start, slide)
 			assert_eq(trace.to_point, expected,
 				"%s/%s: to_point must equal a fresh derive_anchor() of the panel's current position" % [scene.resource_path, unit.name])
 

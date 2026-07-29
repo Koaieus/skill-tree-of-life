@@ -192,3 +192,60 @@ func test_panel_rect_of_reads_the_skins_own_offsets() -> void:
 	var skin := panel.get_skin()
 	assert_eq(rect.position, panel.position + skin.position)
 	assert_eq(rect.size, skin.size)
+
+
+# --- #307 C: the edge is derived, WHERE ALONG IT is authored -------------------
+
+func test_slide_moves_the_anchor_along_the_edge_without_changing_which_edge() -> void:
+	var from := Vector2.ZERO
+	# Clear of the tie boundary, so derive_anchor CONVERGES rather than landing
+	# on its documented 2-cycle fallback (which the nearer rect above does).
+	var rect := Rect2(Vector2(200.0, -260.0), Vector2(160.0, 120.0))
+	for slide in [0.0, 0.25, 0.5, 0.75, 1.0]:
+		var anchor := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, slide)
+		assert_almost_eq(anchor.x, rect.position.x, 0.01,
+			"slide %s must stay on the derived LEFT edge" % slide)
+		assert_almost_eq(anchor.y, lerpf(rect.position.y, rect.position.y + rect.size.y, slide), 0.01,
+			"slide %s must sit that fraction down the edge (top->bottom)" % slide)
+
+
+func test_slide_default_reproduces_the_edge_centre() -> void:
+	# The whole point of defaulting to 0.5: every call site that predates
+	# `slide` keeps its exact previous result.
+	var from := Vector2.ZERO
+	for rect in [
+		Rect2(Vector2(100.0, -260.0), Vector2(160.0, 120.0)),
+		Rect2(Vector2(-260.0, -260.0), Vector2(160.0, 120.0)),
+		Rect2(Vector2(-45.0, -300.0), Vector2(90.0, 80.0)),
+		Rect2(Vector2(-40.0, 120.0), Vector2(80.0, 60.0)),
+	]:
+		assert_eq(
+			FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC),
+			FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, 0.5),
+			"omitting slide must equal slide == 0.5 for %s" % rect)
+
+
+func test_slide_on_a_horizontal_edge_runs_left_to_right() -> void:
+	var from := Vector2.ZERO
+	# Almost directly above -> arrives DOWNWARD is impossible; a panel below the
+	# node is the TOP-edge case, where slide must run left->right.
+	var rect := Rect2(Vector2(-40.0, 120.0), Vector2(80.0, 60.0))
+	var lo := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, 0.0)
+	var hi := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, 1.0)
+	assert_almost_eq(lo.y, hi.y, 0.01, "both stay on the same horizontal edge")
+	assert_almost_eq(lo.x, rect.position.x, 0.01, "slide 0 -> left corner")
+	assert_almost_eq(hi.x, rect.position.x + rect.size.x, 0.01, "slide 1 -> right corner")
+
+
+func test_slid_anchor_is_still_reached_by_a_perpendicular_closing_leg() -> void:
+	# The guarantee that must survive sliding: the arrival leg is perpendicular
+	# to the edge it lands on, never running alongside it.
+	var from := Vector2.ZERO
+	var rect := Rect2(Vector2(200.0, -260.0), Vector2(160.0, 120.0))
+	for slide in [0.15, 0.5, 0.85]:
+		var anchor := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, slide)
+		var pts := _route_to(from, anchor)
+		var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
+		assert_almost_eq(leg.y, 0.0, 0.01,
+			"slide %s: closing leg into a vertical edge must be horizontal" % slide)
+		assert_true(leg.x > 0.0, "slide %s: and must arrive rightward into the LEFT edge" % slide)
