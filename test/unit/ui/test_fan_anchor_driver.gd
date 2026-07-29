@@ -31,8 +31,13 @@ func test_moving_a_panel_rederives_its_trace_terminus() -> void:
 	panel.position = Vector2(220.0, -300.0)
 	await get_tree().process_frame
 
+	# `slide` is NOT optional here even though it defaults: the driver always
+	# passes the unit's authored `anchor_slide`, so omitting it only agrees
+	# with the driver for units that happen to sit at the 0.5 default. That
+	# made this a coincidence, not an assertion.
 	var expected := FanAnchor.derive_anchor(
-		trace.from_point, FanAnchor.panel_rect_of(panel), trace.trunk_dir, trace.bend_start)
+		trace.from_point, FanAnchor.panel_rect_of(panel), trace.trunk_dir, trace.bend_start,
+		(unit as FanUnit).anchor_slide)
 	assert_ne(trace.to_point, original_to, "moving the panel must change the derived terminus")
 	assert_almost_eq(trace.to_point.x, expected.x, 0.01)
 	assert_almost_eq(trace.to_point.y, expected.y, 0.01)
@@ -52,9 +57,10 @@ func test_reroute_can_be_called_directly_without_waiting_a_frame() -> void:
 	(inst as FanAnchorDriver).reroute(unit)
 
 	var expected := FanAnchor.derive_anchor(
-		trace.from_point, FanAnchor.panel_rect_of(panel), trace.trunk_dir, trace.bend_start)
-	assert_almost_eq(trace.to_point.x, expected.x, 0.01)
-	assert_almost_eq(trace.to_point.y, expected.y, 0.01)
+		trace.from_point, FanAnchor.panel_rect_of(panel), trace.trunk_dir, trace.bend_start,
+		(unit as FanUnit).anchor_slide)
+	assert_almost_eq(trace.to_point.x, expected.x, 0.01, "reroute() must match a fresh derive")
+	assert_almost_eq(trace.to_point.y, expected.y, 0.01, "reroute() must match a fresh derive")
 
 
 # --- #307 A/B: clock pins + spatial ordering ----------------------------------

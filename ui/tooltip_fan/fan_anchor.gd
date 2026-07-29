@@ -66,6 +66,18 @@ static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, 
 	# once — so a 2-cycle there is not a failure to resolve, it's two equally
 	# correct answers naming the same point. The fallback lands on the right
 	# place either way.
+	#
+	# Anywhere else the returned point is still ON a real edge and the route
+	# still reaches it — what got traded away is PERPENDICULARITY: the closing
+	# leg runs alongside that edge instead of into it. That's tolerated rather
+	# than warned about, because it's a legitimate resting place for synthetic
+	# geometry (`test_fan_anchor.gd`'s up-and-right quadrant case lands here and
+	# asserts the edge is still the correct one). What must not tolerate it is a
+	# SHIPPED unit — `test_tooltip_fan_variants.gd`'s self-consistency test is
+	# the guard, and the fix there is authoring, not code: raise the unit's
+	# `anchor_slide` toward the corner the trace approaches from (the reachable
+	# window shrinks to that end of the edge), or give the panel more
+	# separation from the pin on the tied axis.
 	return _point_on_edge(edge, panel_rect, slide)
 
 
