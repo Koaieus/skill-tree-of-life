@@ -14,8 +14,26 @@ fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
 
+[sub_resource type="Gradient" id="Gradient_pad"]
+offsets = PackedFloat32Array(0, 0.42, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.85, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_pad"]
+gradient = SubResource("Gradient_pad")
+width = 16
+height = 16
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
 [node name="FanTrace" type="Node2D" unique_id=2039905775]
 script = ExtResource("1_script")
+
+[node name="Pad" type="Sprite2D" parent="." unique_id=1730637914]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+self_modulate = Color(0.7, 1, 1, 1)
+texture = SubResource("GradientTexture2D_pad")
 
 [node name="Trace" type="Line2D" parent="." unique_id=138168346]
 unique_name_in_owner = true

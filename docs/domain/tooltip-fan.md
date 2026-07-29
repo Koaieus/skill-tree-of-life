@@ -105,6 +105,31 @@ contradict the table above.
   (PCB-elbow only, per decision 3). `progress` (0..1) truncates the drawn
   arc-length. `play_in()`/`play_out()` return a `Tween` to `await` (named
   `play_draw_in`/`play_erase` until #303 unified the component contract).
+
+  **Ignition.** A trace doesn't start, it ignites. The first `ignite_fraction`
+  (default 0.22) of `progress` is a lead-in where the line is still zero-length
+  and only an **origin pad** — a solder-pad dot at the clock pin — blooms past
+  its steady size, then relaxes as the line shoots out of it. Staggered across
+  the rim, that reads as the chip's pins energizing before the callouts fly out,
+  and it gives every trace a visible *somewhere* to come from instead of a line
+  materializing out of the node's edge.
+
+  The pad is folded **into `progress`**, not prepended as its own tween leg.
+  That's the load-bearing part: the whole reveal stays a pure function of one
+  scalar, so editor scrubbing, reverse-from-half-open, and `enter_hidden()`'s
+  hard `progress = 0` keep working with no extra state and no duration
+  arithmetic leaking into `FanUnit`. `play_in`/`play_out` split into two tween
+  legs at the band edge purely so each band keeps its own easing — total
+  duration is unchanged, and the split is invisible to the tier above.
+
+  **The tip is an arrival head — IN only.** It is lit while the line draws in and
+  suppressed for the entire retraction (`_erasing`), including the frame an
+  interrupt catches it mid-flight. On the way out there is nothing to arrive at:
+  the line retracts into its pad, and the pad extinguishing is the closing beat.
+  Nothing replaces it. Direction is set by the two entry points rather than
+  inferred from a `progress` delta, so the sandbox scrubber still shows the tip
+  in both directions — deliberately, since it is an authoring surface, not the
+  shipped read.
 - **`FanPanel`** (`ui/tooltip_fan/fan_panel.gd`, #223 + #303) — thin wrapper
   around a hand-placed skin child (`GlassPanel` or `HoloPanel`, swapped by
   editing which scene is instanced under it — decision 6, not a runtime enum).

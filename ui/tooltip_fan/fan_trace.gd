@@ -23,6 +23,19 @@ extends Node2D
 ## drawn, and the tip position, change. That satisfies the "never dim the
 ## settled/loop state" rule structurally. Idle life (when [member trace_idle])
 ## pulses the *tip* alone, never the line.
+##
+## The trace does not simply "start": it IGNITES. The first
+## [member ignite_fraction] of `progress` is a lead-in during which the line is
+## still zero-length and only the origin pad blooms — a solder-pad dot at the
+## clock pin that pops bright, then relaxes to a small steady marker while the
+## line shoots out of it. With N traces staggered around the node's rim, that
+## reads as the chip's pins energizing before the callouts fly out.
+##
+## The pad is folded into `progress` rather than prepended as its own tween leg,
+## and that is the load-bearing choice: everything stays a pure function of
+## `progress`, so scrubbing (the sandbox), reversing from a half-open state, and
+## [method FanUnit.enter_hidden]'s hard `progress = 0` all keep working with no
+## extra bookkeeping and no duration arithmetic in [FanUnit].
 
 ## φ ≈ 0.382 — the seeded default for [member bend_start]. Asymmetric; usually
 ## reads better than a flat ⅓. A good starting point for live tuning, not a
@@ -100,6 +113,34 @@ const PHI_FRACTION := 0.382
 		if _tip and not _is_animating:
 			_tip.scale = Vector2.ONE * value
 
+@export_group("Origin pad")
+## Fraction of `progress` spent igniting the origin pad before the line starts
+## drawing. 0 disables the lead-in entirely (the pad snaps to its settled look
+## and the reveal is exactly the pre-#-pad behaviour); ~0.2 of a 0.28s draw is
+## the ~55ms pop this is tuned for. Above ~0.4 the pause before the line moves
+## starts reading as a hitch rather than an ignition.
+@export_range(0.0, 0.6, 0.01) var ignite_fraction := 0.22:
+	set(value):
+		ignite_fraction = value
+		_apply_progress()
+@export var pad_color := Color(0.7, 1.0, 1.0, 1.0):
+	set(value):
+		pad_color = value
+		if _pad:
+			_pad.self_modulate = value
+## Size of the pad once the line is on its way — the steady "this trace starts
+## here" marker that stays for the whole settled state.
+@export_range(0.0, 3.0, 0.01) var pad_scale := 0.75:
+	set(value):
+		pad_scale = value
+		_apply_progress()
+## Size the pad overshoots to at the peak of ignition, before relaxing to
+## [member pad_scale]. The bloom: > pad_scale is the whole point.
+@export_range(0.0, 4.0, 0.01) var pad_flash_scale := 1.6:
+	set(value):
+		pad_flash_scale = value
+		_apply_progress()
+
 @export_group("Motion")
 @export var draw_in_duration := 0.28
 @export var erase_duration := 0.18
@@ -122,6 +163,7 @@ const PHI_FRACTION := 0.382
 
 @onready var _trace: Line2D = %Trace
 @onready var _tip: Sprite2D = %Tip
+@onready var _pad: Sprite2D = %Pad
 
 ## Full computed polyline (progress == 1). Cached so reveal truncation doesn't
 ## re-run TraceRouter every frame of the tween.
@@ -130,11 +172,24 @@ var _lifecycle_tween: Tween = null
 var _idle_tween: Tween = null
 var _is_animating := false
 
+## True while an OUT sequence owns the lifecycle tween. The tip is the *arrival*
+## head — it exists to say "the signal is going somewhere". On the way out
+## there's nothing to arrive at, so it's suppressed and the line simply retracts
+## into its pad; the pad extinguishing is the closing beat. Nothing replaces it.
+##
+## Direction can't be inferred from `progress` alone (the setter sees one value,
+## not a delta), and inferring it from a delta would misread the editor's
+## scrubber. So it's set explicitly by the two entry points — which also means
+## a scrubbed preview still shows the tip in both directions, on purpose: the
+## sandbox is an authoring surface, not the shipped read.
+var _erasing := false
+
 
 func _ready() -> void:
 	_trace.default_color = line_color
 	_trace.width = line_width
 	_tip.self_modulate = tip_color
+	_pad.self_modulate = pad_color
 	_rebuild_geometry()
 	if Engine.is_editor_hint():
 		# Author-time: show the whole trace so panel/anchor placement is
@@ -167,22 +222,59 @@ func _router_params() -> Dictionary:
 	}
 
 
-## Truncates the cached polyline to the current `progress` (by arc length) and
-## parks the tip at the drawn head. Constant line color/width throughout — only
-## the drawn extent and tip move.
+## Splits `progress` into the two bands the reveal is made of — ignition, then
+## draw — and applies both. Truncates the cached polyline to the draw band's
+## share (by arc length) and parks the tip at the drawn head. Constant line
+## color/width throughout: only the drawn extent, the tip, and the pad move.
 func _apply_progress() -> void:
 	if _trace == null:
 		return
-	var slice := _polyline_at(_full_points, progress)
+	# `line_t` is progress renormalized over the post-ignition band, so the line
+	# still covers its full length in whatever time is left. Everything below is
+	# a pure function of these two — which is what makes reverse-from-anywhere
+	# and editor scrubbing fall out for free.
+	var ignite_t := 1.0 if ignite_fraction <= 0.0 else clampf(progress / ignite_fraction, 0.0, 1.0)
+	var line_t := progress if ignite_fraction >= 1.0 \
+		else clampf((progress - ignite_fraction) / (1.0 - ignite_fraction), 0.0, 1.0)
+	var slice := _polyline_at(_full_points, line_t)
 	_trace.points = slice.points
 	if _tip:
 		_tip.position = slice.head
 		# The tip is the traveling head: lit only while the trace is being
-		# drawn (0 < progress < 1). At progress == 1 it auto-extinguishes — the
-		# settled state is the constant-lit line alone. Applies in editor too,
-		# so the sandbox host (#233) animates in the viewport. The idle option
-		# (below) re-lights it explicitly.
-		_tip.visible = progress > 0.0 and progress < 1.0
+		# drawn IN (0 < line_t < 1). At line_t == 1 it auto-extinguishes — the
+		# settled state is the constant-lit line alone — and it never lights at
+		# all on the way out (see `_erasing`). Applies in editor too, so the
+		# sandbox host (#233) animates in the viewport. The idle option (below)
+		# re-lights it explicitly.
+		_tip.visible = line_t > 0.0 and line_t < 1.0 and not _erasing
+	_apply_pad(ignite_t, line_t)
+
+
+## The origin pad: blooms to [member pad_flash_scale] across the ignition band,
+## then relaxes to [member pad_scale] as the line draws. Alpha rides ignition
+## alone, so the pad is fully lit by the time the line leaves it and stays lit
+## for the whole settled state — the trace visibly comes FROM somewhere.
+func _apply_pad(ignite_t: float, line_t: float) -> void:
+	if _pad == null:
+		return
+	# Sits at the polyline's own head-of-tail, not `from_point`, so a router that
+	# ever insets its first point keeps the pad on the line rather than beside it.
+	_pad.position = _full_points[0] if not _full_points.is_empty() else from_point
+	var bloom := _ease_out(ignite_t)
+	var peak := lerpf(0.0, pad_flash_scale, bloom)
+	# The relax leg is deliberately front-loaded against the line's own ease-out:
+	# the flash is spent in the first third of the draw, so what remains for the
+	# settled state is the small steady marker, not a lingering blob.
+	var settle := _ease_out(minf(line_t * 3.0, 1.0))
+	_pad.scale = Vector2.ONE * lerpf(peak, pad_scale, settle)
+	_pad.modulate.a = bloom
+	_pad.visible = bloom > 0.0
+
+
+## Cubic ease-out. Shared by the pad's bloom and relax legs.
+static func _ease_out(t: float) -> float:
+	var inv := 1.0 - clampf(t, 0.0, 1.0)
+	return 1.0 - inv * inv * inv
 
 
 ## Returns {points, head}: the sub-polyline of `points` from its start up to the
@@ -221,29 +313,54 @@ static func _polyline_at(points: PackedVector2Array, t: float) -> Dictionary:
 ## Animates the trace drawing itself in (progress 0 → 1) with the tip travelling
 ## along it, then settles (tip parks, optional idle pulse). Returns the Tween so
 ## a caller (FanUnit) can `await tween.finished` to sequence the panel unfurl.
+## Animates the trace igniting and drawing itself in (progress 0 → 1) with the
+## tip travelling along it, then settles (tip parks, optional idle pulse).
+## Returns the Tween so a caller (FanUnit) can `await tween.finished` to sequence
+## the panel unfurl.
+##
+## Two legs, split at [member ignite_fraction], so each band gets its own
+## easing: the pad ignites at a constant rate (its own cubic bloom does the
+## shaping) and the line still lands decelerating. Total duration is exactly
+## `draw_in_duration` either way — the split is invisible to FanUnit.
 func play_in() -> Tween:
 	_kill_idle()
 	_stop_lifecycle()
 	_is_animating = true
-	_tip.visible = true
+	_erasing = false
 	_tip.scale = Vector2.ONE * tip_scale
 	progress = 0.0
 	_lifecycle_tween = create_tween()
-	_lifecycle_tween.tween_property(self, "progress", 1.0, draw_in_duration) \
+	if ignite_fraction > 0.0:
+		_lifecycle_tween.tween_property(self, "progress", ignite_fraction,
+			draw_in_duration * ignite_fraction).set_trans(Tween.TRANS_LINEAR)
+	_lifecycle_tween.tween_property(self, "progress", 1.0,
+		draw_in_duration * (1.0 - ignite_fraction)) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_lifecycle_tween.tween_callback(_on_draw_in_finished)
 	return _lifecycle_tween
 
 
-## Animates the trace erasing (progress 1 → 0). Returns the Tween for sequencing.
+## Animates the trace erasing (progress 1 → 0) — the mirror read: the line
+## retracts into the pad, then the pad itself extinguishes. Returns the Tween for
+## sequencing.
 func play_out() -> Tween:
 	_kill_idle()
 	_stop_lifecycle()
 	_is_animating = true
-	_tip.visible = true
+	# Suppress the arrival tip for the whole retraction — including the frame
+	# this is called on, if an interrupt caught it mid-flight.
+	_erasing = true
+	_tip.visible = false
 	_lifecycle_tween = create_tween()
-	_lifecycle_tween.tween_property(self, "progress", 0.0, erase_duration) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	if ignite_fraction > 0.0 and progress > ignite_fraction:
+		_lifecycle_tween.tween_property(self, "progress", ignite_fraction,
+			erase_duration * (1.0 - ignite_fraction)) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		_lifecycle_tween.tween_property(self, "progress", 0.0,
+			erase_duration * ignite_fraction).set_trans(Tween.TRANS_LINEAR)
+	else:
+		_lifecycle_tween.tween_property(self, "progress", 0.0, erase_duration) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	_lifecycle_tween.tween_callback(func() -> void:
 		_is_animating = false
 		_tip.visible = false)

@@ -130,6 +130,120 @@ func test_play_out_returns_a_running_tween() -> void:
 	assert_true(tw.is_valid())
 
 
+# --- ignition band (origin pad) ---------------------------------------------
+
+func test_ignition_band_blooms_the_pad_before_the_line_moves() -> void:
+	var trace := _make()
+	trace.from_point = Vector2.ZERO
+	trace.to_point = Vector2(0, -120)
+	trace.ignite_fraction = 0.25
+	await get_tree().process_frame
+	# Halfway through ignition: pad is lighting up, line has NOT left the pad.
+	trace.progress = 0.125
+	assert_true(trace._pad.visible, "pad is lit during ignition")
+	assert_gt(trace._pad.modulate.a, 0.0, "pad alpha rides the ignition band")
+	assert_lt(trace._pad.modulate.a, 1.0, "pad is only part-way lit at half ignition")
+	assert_almost_eq(_drawn_length(trace), 0.0, 0.001, "line stays zero-length until ignition ends")
+
+
+func test_line_starts_exactly_when_ignition_completes() -> void:
+	var trace := _make()
+	trace.from_point = Vector2.ZERO
+	trace.to_point = Vector2(0, -120)
+	trace.ignite_fraction = 0.25
+	await get_tree().process_frame
+	trace.progress = 0.25
+	assert_almost_eq(trace._pad.modulate.a, 1.0, 0.001, "pad fully lit when the line sets off")
+	assert_almost_eq(_drawn_length(trace), 0.0, 0.001, "line has not travelled yet at the band edge")
+	trace.progress = 0.625 # half of the remaining 0.75 band
+	assert_almost_eq(_drawn_length(trace), 60.0, 0.5, "line covers half its length at half the draw band")
+
+
+func test_progress_zero_extinguishes_the_pad() -> void:
+	var trace := _make()
+	trace.ignite_fraction = 0.25
+	await get_tree().process_frame
+	trace.progress = 0.0
+	assert_false(trace._pad.visible, "nothing started -> no pad")
+
+
+func test_settled_pad_relaxes_to_its_steady_size() -> void:
+	var trace := _make()
+	trace.ignite_fraction = 0.25
+	trace.pad_scale = 0.75
+	trace.pad_flash_scale = 1.6
+	await get_tree().process_frame
+	trace.progress = 1.0
+	assert_almost_eq(trace._pad.scale.x, 0.75, 0.001, "settled pad is the steady marker, not the flash")
+	assert_almost_eq(trace._pad.modulate.a, 1.0, 0.001, "settled pad stays lit")
+
+
+func test_pad_overshoots_the_settled_size_at_the_flash() -> void:
+	var trace := _make()
+	trace.ignite_fraction = 0.25
+	trace.pad_scale = 0.75
+	trace.pad_flash_scale = 1.6
+	await get_tree().process_frame
+	trace.progress = 0.25 # peak of ignition, before the relax leg
+	assert_gt(trace._pad.scale.x, 0.75, "the bloom overshoots the steady size")
+
+
+func test_zero_ignite_fraction_reveals_the_line_from_progress_zero() -> void:
+	# The knob is a lead-in, not a requirement: 0 restores the plain reveal.
+	var trace := _make()
+	trace.from_point = Vector2.ZERO
+	trace.to_point = Vector2(0, -120)
+	trace.ignite_fraction = 0.0
+	await get_tree().process_frame
+	trace.progress = 0.5
+	assert_almost_eq(_drawn_length(trace), 60.0, 0.5, "progress maps straight to arc length")
+
+
+## Total arc length currently drawn by the Line2D.
+func _drawn_length(trace: FanTrace) -> float:
+	var pts := trace._trace.points
+	var total := 0.0
+	for i in range(pts.size() - 1):
+		total += pts[i].distance_to(pts[i + 1])
+	return total
+
+
+# --- the tip is an ARRIVAL head: in only, never out --------------------------
+
+func test_erase_never_lights_the_tip() -> void:
+	var trace := _make()
+	trace.from_point = Vector2.ZERO
+	trace.to_point = Vector2(0, -120)
+	await get_tree().process_frame
+	trace.progress = 1.0
+	trace.play_out()
+	assert_false(trace._tip.visible, "no arrival head on the way out")
+	# ... and it stays dark all the way down, not just on the first frame.
+	trace.progress = 0.6
+	assert_false(trace._tip.visible, "still dark mid-retraction")
+	trace.progress = 0.1
+	assert_false(trace._tip.visible, "still dark inside the ignition band")
+
+
+func test_interrupt_mid_draw_drops_the_tip_immediately() -> void:
+	var trace := _make()
+	await get_tree().process_frame
+	trace.play_in()
+	trace.progress = 0.6
+	assert_true(trace._tip.visible, "drawing in -> tip lit")
+	trace.play_out() # hover -> unhover mid-reveal
+	assert_false(trace._tip.visible, "the interrupt drops the tip on the same frame")
+
+
+func test_replaying_in_relights_the_tip() -> void:
+	var trace := _make()
+	await get_tree().process_frame
+	trace.play_out()
+	trace.play_in()
+	trace.progress = 0.6
+	assert_true(trace._tip.visible, "erase suppression must not stick across a new IN")
+
+
 func test_idle_pulse_only_touches_the_tip_never_the_line() -> void:
 	var trace := _make()
 	trace.trace_idle = true
