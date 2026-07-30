@@ -77,13 +77,6 @@ mise run check              # if any class_name changed
 Don't skip this to save time — the approval step in #5 assumes tests already
 pass; surfacing red tests at approval time wastes the review.
 
-> **`mise run check` is currently red repo-wide** (60 `SCRIPT ERROR`s from a
-> `CoreHealthBar` placeholder-binding issue, confirmed during #86 to
-> reproduce identically in a clean clone — likely #94, not your regression).
-> Compare your worktree's `check` output against a baseline clean-clone run
-> before concluding *you* broke something; don't chase this pre-existing
-> failure inside an unrelated warp cycle.
-
 **5. Pending approval — stop and ask**
 Present the diff/summary to the user. **Do not merge without explicit
 go-ahead.** This is the same "risky action" confirmation the top-level agent
