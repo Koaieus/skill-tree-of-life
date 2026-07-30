@@ -13,7 +13,7 @@ extends VBoxContainer
 ##
 ## #119 — also owns the node-local stat override preview: subscribes to the
 ## global hover bus (Events.skill_node_hovered/unhovered — the same source
-## SkillNodeTooltip/DebugClipboard already use) and forwards the hovered
+## TooltipFan/DebugClipboard already use) and forwards the hovered
 ## node to the three stat-bearing cards, gated to nodes owned by the bound
 ## player (see CombatReadoutCard._local_override_or_null).
 

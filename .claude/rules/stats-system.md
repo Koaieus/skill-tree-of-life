@@ -165,7 +165,7 @@ worlds:
   `SkillNode.add_local_modifier`/`remove_local_modifier` (node board: addons'
   `local_modifiers`, node-scoped effect grants). So **every** application path
   gets bundle support for free. Display / per-mod-floater sites that list every
-  leaf flatten too: `SkillNodeTooltip._add_modifier_label`, `LootPicker._make_card`
+  leaf flatten too: `GrantedModifiersRoot._rebuild_rows`, `LootPicker._make_card`
   (one card per candidate, body lists the leaves), `SkillDustAddon._grant_mods`
   and `AllocationVfx` (the #70 floaters — **one per leaf**, honest about each
   stat gained). `StatModifier.flatten_all(mods)` is the list-level helper for

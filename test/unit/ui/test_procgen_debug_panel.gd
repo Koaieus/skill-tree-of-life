@@ -1,8 +1,8 @@
 extends GutTest
 
 ## Tooltip V2 (#292) — the procgen debug panel: substance parity with the V1
-## `skill_node_tooltip.gd::_populate_procgen_debug` block that #235 deletes,
-## absence when the meta is absent, and the removability #292 makes an explicit
+## `skill_node_tooltip.gd::_populate_procgen_debug` block #235 deleted, absence
+## when the meta is absent, and the removability #292 makes an explicit
 ## acceptance criterion rather than a design aspiration.
 
 const _FAN := preload("res://ui/tooltip_fan/fan.tscn")
@@ -22,15 +22,12 @@ const _FULL_FOOTPRINT := {
 	"role_tags": ["bruiser", "anchor"],
 }
 
-## Files under `ui/` allowed to mention `procgen_footprint`.
+## Files under `ui/` allowed to mention `procgen_footprint` — just this panel.
 ##
-## `skill_node_tooltip.gd` is the V1 tooltip's `_populate_procgen_debug` block —
-## the very code this panel replaces. It is still on disk only because #235 (the
-## cutover) deletes it in the next commit. **Drop that entry as part of #235**;
-## if it outlives the file, this list is lying about what reads the meta.
+## Held a temporary allowance for `skill_node_tooltip.gd` between #292 and #235;
+## that file is now deleted, so the list is back to being the real answer.
 const _META_READERS_ALLOWED: Array[String] = [
 	"res://ui/tooltip_fan/panels/procgen_debug_panel.gd",
-	"res://ui/skill_node_tooltip.gd",
 ]
 
 var _panel: ProcgenDebugPanel

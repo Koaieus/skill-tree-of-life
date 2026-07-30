@@ -659,7 +659,7 @@ func get_spike_power() -> float:
 
 ## Tooltip sections contributed by attached addons. Each entry is
 ## `{ "title": String, "modifiers": Array[StatModifier], "description": String }`;
-## SkillNodeTooltip renders them below the node's own modifier list. Addons opt
+## The tooltip fan's AddonsPanel renders them per addon. Addons opt
 ## in by overriding [method SkillNodeAddon.get_tooltip_modifiers] (e.g. SkillDust
 ## lists its loot payload) or authoring [member SkillNodeAddon.description] for a
 ## behaviour-only addon with no modifiers (e.g. Clamp). Addons that contribute

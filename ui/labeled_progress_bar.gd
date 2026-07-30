@@ -3,7 +3,7 @@ class_name LabeledProgressBar
 extends ProgressBar
 
 ## A ProgressBar with a centred Label child showing arbitrary text. Used by
-## the stats panel for pool-stat rows and by SkillNodeTooltip for HP bars.
+## the stats panel for pool-stat rows and by HpReadout for HP bars.
 ##
 ## Layout (anchors + offsets) lives in the .tscn so the editor and runtime
 ## resolve identical rects — earlier script-driven layout left the label

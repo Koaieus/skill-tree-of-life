@@ -15,7 +15,7 @@ extends FanPanel
 ## - keystone (`node.keystone != null`): the keystone's gold [member
 ##   Keystone.display_name], an optional description block (collapses when
 ##   empty, same convention as [PanelHeader]'s subheader), an effect count,
-##   then degree. Parity with the old `skill_node_tooltip.gd::_populate_keystone`
+##   then degree. Parity with V1's `skill_node_tooltip.gd::_populate_keystone`
 ##   so #235's cutover drops nothing.
 ##
 ## Degree itself is always graph degree; entity degree is appended — and

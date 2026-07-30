@@ -81,7 +81,7 @@ func _rebuild_rows() -> void:
 
 
 ## Substance parity with `skill_node_tooltip.gd::_populate_procgen_debug`, the
-## V1 block #235 deletes: budget, the slot count with its primary/off split,
+## V1 block #235 deleted: budget, the slot count with its primary/off split,
 ## the peak/off_cap pair when present, phase, and role tags.
 func _footprint_lines(fp: Dictionary) -> Array[String]:
 	var lines: Array[String] = []

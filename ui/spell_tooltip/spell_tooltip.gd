@@ -2,7 +2,7 @@ class_name SpellTooltip
 extends PanelContainer
 
 ## Floating tooltip shown on [SpellPickerButton] hover. Follows the
-## [SkillNodeTooltip] pattern: subscribes to global [code]Events[/code]
+## [TooltipFan] pattern: subscribes to global [code]Events[/code]
 ## signals, auto-positions at the mouse cursor, and formats all
 ## [SpellDef] fields. Values that change based on the caster's stats
 ## (e.g. hops scaled by [code]spell_range[/code]) are highlighted in

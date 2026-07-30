@@ -3,8 +3,9 @@ extends GutTest
 ## Tooltip V2 Phase 0 (#159): HpReadout wraps the shared LabeledProgressBar
 ## behind set_hp() + a placement enum. Assert (a) each placement mode
 ## produces visibly distinct layout state, and (b) set_hp() tints using the
-## EXISTING node-HP red->green ramp from SkillNodeTooltip._populate_hp(),
-## replicated exactly: Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0).
+## node-HP red->green ramp the V1 tooltip used (deleted by #235), replicated
+## exactly: Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0). See hp_readout.gd
+## on why the widget itself is currently unmounted.
 
 const _SCENE := preload("res://ui/tooltip_fan/hp_readout.tscn")
 

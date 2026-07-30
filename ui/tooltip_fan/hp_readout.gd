@@ -4,14 +4,19 @@ extends Control
 ## Tooltip V2 (epic #159 Phase 0) HP readout widget.
 ##
 ## Wraps the shared LabeledProgressBar (res://ui/labeled_progress_bar.gd —
-## same bar SkillNodeTooltip/StatsPanel use) behind a single `set_hp()` entry
+## same bar StatsPanel uses) behind a single `set_hp()` entry
 ## point, and exposes a `placement` enum so the same widget can be dropped
 ## into four different tooltip-fan spots (header row, above-node caption,
 ## ID-chip corner, node-ring badge) without a bespoke bar per spot.
 ##
-## Tint ramp is the EXISTING node-HP red->green ramp from
-## SkillNodeTooltip._populate_hp() — replicated exactly, not re-derived:
-## `Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0)`.
+## Tint ramp is the node-HP red->green ramp the V1 tooltip used
+## (`skill_node_tooltip.gd::_populate_hp`, deleted by #235) — replicated
+## exactly, not re-derived: `Color.from_hsv(lerpf(0.0, 0.33, ratio), 0.9, 1.0)`.
+##
+## NOTE (#235): no panel or unit in `fan.tscn` mounts this widget — it is
+## unreferenced Phase-0 work (#220). Kept deliberately: #314 gave the fan live HP
+## updates rendered as numeric rows, and this is the pre-built bar if a future
+## issue wants the bar form back. Delete it, don't adopt it half-way.
 
 enum Placement { HEADER, ABOVE, CHIP, RING }
 
