@@ -100,9 +100,15 @@ func _build_breadcrumb() -> void:
 			var sep := Label.new()
 			sep.text = "/"
 			sep.add_theme_color_override(&"font_color", Color(0.5, 0.6, 0.68, 0.5))
+			# Shrink-center, don't fill: a stretched Label draws its text
+			# top-aligned while LinkButton centres its own, which is what
+			# knocks the "/" off the segments' baseline.
+			sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			sep.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			_breadcrumb.add_child(sep)
 		var seg := LinkButton.new()
 		seg.text = part
+		seg.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		seg.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
 		seg.tooltip_text = "Open %s" % target if is_file else "Reveal %s" % target
 		seg.pressed.connect(_open_source.bind(target, is_file))
