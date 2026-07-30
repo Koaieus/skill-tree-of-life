@@ -1,9 +1,9 @@
-[gd_resource type="Resource" script_class="ExpressionFormula" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ExpressionFormula" format=3 uid="uid://cwt1ufgl40t82"]
 
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="1_expr"]
 
 [resource]
 script = ExtResource("1_expr")
-per_phrase = "level after the 1st"
 formula = "level - 1"
 inputs = Array[StringName]([&"level"])
+per_phrase = null

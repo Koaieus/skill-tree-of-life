@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://vtw8ktmktkgq"]
 
 [ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
 
@@ -7,6 +7,5 @@ script = ExtResource("1_stat_def")
 id = &"strength"
 display_name = "Strength"
 description = "Melee attribute (R/Red). Scales phantom-blade damage; +1 damage per 10 STR, +1 blade size per 20 STR."
-value_type = 0
 default_value = 10.0
 tint_color = Color(0.9451, 0.2689, 0.2453, 1)
