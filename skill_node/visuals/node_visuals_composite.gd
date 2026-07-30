@@ -65,8 +65,8 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 		_sync_stake()
 		_sync_shared()
 
-## Pit/disc edge — shared by InnerDisk.disk_radius (the weld glyph scales its
-## own weld_k relative to this same radius) and RimRing.inner_radius.
+## Pit/disc edge — shared by InnerDisk.disk_radius (the carve glyph scales its
+## own circumradius relative to this same radius) and RimRing.inner_radius.
 @export_range(0.0, 128.0, 0.5) var geom_inner_r: float = 24.0:
 	set(value):
 		geom_inner_r = value
@@ -85,7 +85,7 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 ## a shape, on the node you'd expect to find it on. Authoring this in
 ## skill_node.tscn or the node-visuals panel gives live in-editor feedback;
 ## before it existed the only shape controls were [InnerDisk]'s
-## `carve_kind`/`weld_sides`/`weld_squish`, which are documented as
+## `carve_kind`/`carve_sides`/`carve_squish`, which are documented as
 ## standalone-preview fallbacks that [method set_carve] overwrites — so a
 ## designer's inspector edit silently reverted the moment anything resynced.
 ##
@@ -158,7 +158,7 @@ var core_active: bool = false:
 		if is_node_ready():
 			_apply_core_active()
 
-## The ONE shared light handed to every lit child (InnerDisk — whose weld glyph
+## The ONE shared light handed to every lit child (InnerDisk — whose carve glyph
 ## is folded into its own shader, so it rides the same uniforms, not a second
 ## object — and the RimRing). See [LightingStyle]. Seeded from InnerDisk's
 ## scene-authored highlight_* until a global light framework owns them.
@@ -220,7 +220,7 @@ func _apply_carve_shape() -> void:
 		return
 	if carve_shape == null:
 		# Null means "nothing authored here", NOT "carve nothing" — leave
-		# InnerDisk's own carve_kind/weld_* standalone-preview knobs alone.
+		# InnerDisk's own carve_kind/carve_* standalone-preview knobs alone.
 		# Pushing set_carve(null) unconditionally would flatten the dome on
 		# every composite at _ready and silently override the panel's authored
 		# preview shape. But once we HAVE applied a shape, clearing the export

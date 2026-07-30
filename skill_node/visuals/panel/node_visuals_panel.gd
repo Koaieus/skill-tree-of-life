@@ -27,7 +27,7 @@ const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 ## FileSystem dock and the composite slot carves it immediately. This is the
 ## one-click shape preview the panel was missing — until this existed the tab
 ## was wired to a `noop` loader, so previewing a shape meant drilling into a
-## leaf [InnerDisk]'s `carve_kind`/`weld_sides`, which are documented
+## leaf [InnerDisk]'s `carve_kind`/`carve_sides`, which are documented
 ## standalone-preview fallbacks that any resync silently overwrites.
 ##
 ## Non-CarveShape selections are ignored rather than clearing the preview —

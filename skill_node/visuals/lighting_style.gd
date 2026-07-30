@@ -4,7 +4,7 @@ extends Resource
 
 ## The one faked light every SkillNode-visuals component is lit by (milestone
 ## #16). Bundled as a Resource — the same pattern as [GlowStyle] — so InnerDisk
-## (weld glyph included) and every RimRing hold ONE object and connect ONCE to
+## (carve glyph included) and every RimRing hold ONE object and connect ONCE to
 ## [signal Resource.changed], and the disk and its rim can't drift onto two
 ## different light directions.
 ##

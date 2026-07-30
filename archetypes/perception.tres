@@ -1,14 +1,11 @@
-[gd_resource type="Resource" script_class="Archetype" format=3 uid="uid://b8tbru5xba2lw"]
+[gd_resource type="Resource" script_class="Archetype" load_steps=3 format=3 uid="uid://b8tbru5xba2lw"]
 
 [ext_resource type="Script" uid="uid://cr6yvdiuavfam" path="res://archetypes/archetype.gd" id="1_archetype"]
-[ext_resource type="Script" uid="uid://vw4w7omwawrb" path="res://skill_node/visuals/emblem/polygon_carve_shape.gd" id="2_shape"]
+[ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/octagon.tres" id="2_shape"]
 
-[sub_resource type="Resource" id="Resource_per_shape"]
-script = ExtResource("2_shape")
-sides = 8
 
 [resource]
 script = ExtResource("1_archetype")
 id = &"purple"
 primary_stat = &"perception"
-carve_shape = SubResource("Resource_per_shape")
+carve_shape = ExtResource("2_shape")

@@ -5,4 +5,4 @@
 [node name="InnerDisk" type="Node2D" unique_id=1698059834]
 script = ExtResource("1_disk")
 carve_kind = 1
-weld_k = 0.8200000000000001
+carve_radius = 0.8200000000000001

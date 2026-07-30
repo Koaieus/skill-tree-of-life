@@ -1,15 +1,11 @@
-[gd_resource type="Resource" script_class="Archetype" format=3 uid="uid://ws3nejquyeii"]
+[gd_resource type="Resource" script_class="Archetype" load_steps=3 format=3 uid="uid://ws3nejquyeii"]
 
 [ext_resource type="Script" uid="uid://cr6yvdiuavfam" path="res://archetypes/archetype.gd" id="1_archetype"]
-[ext_resource type="Script" uid="uid://vw4w7omwawrb" path="res://skill_node/visuals/emblem/polygon_carve_shape.gd" id="2_shape"]
+[ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/diamond.tres" id="2_shape"]
 
-[sub_resource type="Resource" id="Resource_dex_shape"]
-script = ExtResource("2_shape")
-sides = 4
-squish_x = 0.62
 
 [resource]
 script = ExtResource("1_archetype")
 id = &"green"
 primary_stat = &"dexterity"
-carve_shape = SubResource("Resource_dex_shape")
+carve_shape = ExtResource("2_shape")

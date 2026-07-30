@@ -66,7 +66,7 @@ func test_disk_renders_the_entity_identity_through_its_shader() -> void:
 	var disk = comp.get_node("%InnerDisk")
 	assert_eq(
 		disk.get_instance_shader_parameter("tint_color"), Color(0.1, 0.7, 0.3),
-		"the weld glyph rides the disk's OWN shader uniforms now (folded into inner_disk.gdshader) — " +
+		"the carve glyph rides the disk's OWN shader uniforms now (folded into inner_disk.gdshader) — " +
 		"it can't drift from the disk's tint because there's only one material to drift from"
 	)
 

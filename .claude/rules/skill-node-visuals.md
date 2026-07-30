@@ -18,7 +18,7 @@ its own.
 
 `skill_node/visuals/` holds the component family (`SkillNodeVisual` /
 `SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`
-(whose weld glyph is a height-field dent in its own shader — see below), `rim_ring`,
+(whose polygon carve is a height-field dent in its own shader — see below), `rim_ring`,
 `rim_bonuses`, `core_halos`, `rune_ring`, `node_visuals_composite`)
 implementing the 6 locked-pick visuals from
 `docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`.
@@ -392,15 +392,33 @@ technique as `core_halos.gd`/`rune_ring.gd`'s `edge_glow`) rather than a
 shader — there's no project-wide glow/bloom `WorldEnvironment` to justify one,
 and the layered-stroke fake reads convincingly at this node's on-screen size.
 
-### The weld glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
+### The carve glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
 
-There is no `WeldSymbol` node anymore. The glyph is `carve_kind`/`weld_k`/
-`weld_sides` (via `arch`)/`well_depth` `instance uniform`s on
-`inner_disk.gdshader` itself, set from `@export`s on `inner_disk.gd` in the
-same `_sync_material()` pass as the dome's own tint/highlight uniforms. The
+There is no `WeldSymbol` node anymore. The glyph is
+`carve_kind`/`carve_sides`/`carve_squish`/`carve_radius`/`well_depth`
+`instance uniform`s on `inner_disk.gdshader` itself, pushed in the same
+`_sync_material()` pass as the dome's own tint/highlight uniforms. The
 composite only ever talks to `%InnerDisk`; there's nothing else to keep in
-sync. See "Weld: a regular-polygon bowl dent in the dome's own height field"
-below for the geometry.
+sync. See "The polygon carve: a regular-polygon bowl dent in the dome's own
+height field" below for the geometry.
+
+**Authored vs. effective (#285).** The five knobs above are `@export`s ONLY as
+standalone-preview defaults. `set_carve()` stores the resolved [CarveShape]
+itself and writes NOTHING exported; `_sync_material()` pushes the getter-only
+`effective_carve_*` / `effective_well_depth` derivations, which read off the
+shape when one has resolved and off the authored exports otherwise. That split
+is the `@tool`-script rule in `godot-workflow.md` ("never write a DERIVED value
+back into an `@export`") — `inner_disk.tscn`'s stray `carve_kind = 1` is a
+fossil of the version that did. The geometry itself lives on
+`PolygonCarveShape` (`sides` / `squish_x` / `radius` / `well_depth`), not on
+the `CarveShape` base: only the polygon path reads it, so a base-class field
+would be one `GemCarveShape`/`TextureCarveShape` have to document as ignored.
+
+**`PolygonCarveShape.well_depth` uses a NEGATIVE "inherit" sentinel**, resolved
+on the CPU in `InnerDisk.effective_well_depth`. It must never reach
+`set_instance_shader_parameter` — the uniform is `hint_range(0.0, 1.0)` and
+would clamp a negative to `0.0`, i.e. "no dent", silently flattening every
+shape that inherits. A deliberate `0.0` stays meaningful and distinct.
 
 ### Shader materials: shared + `instance uniform`, not `resource_local_to_scene`, when possible
 
@@ -451,7 +469,7 @@ escape hatch (see `rim_ring`'s custom-Curve fallback, gated on
 (`sn_light_dir` — `normalize(vec3(dir_xy, SN_LIGHT_Z=0.65))`), Lambert
 (`sn_diffuse`), specular (`sn_specular`), the dome normal (`sn_dome_normal`), and
 the full disk color (`sn_disk_color`) are defined once there, so the disk and its
-rim can't drift onto two different light models. The weld glyph's math
+rim can't drift onto two different light models. The polygon carve's math
 (`sn_polygon_facet`/`sn_bowl_drop`, see below) lives there too now — the CPU
 twin this section used to warn about (`weld_symbol.gd`'s `_disk_shade()`) is
 gone; the glyph is lit by the exact same `sn_disk_color` call as the dome, fed
@@ -464,7 +482,7 @@ begins. `node_visuals_composite.gd` is the one layer that knows both InnerDisk
 and RimRing exist; it lines `RimRing.inner_radius` up with `InnerDisk.disk_radius`
 so the two abut, rather than RimRing reaching for disk-shaped exports itself.
 
-### Weld: a regular-polygon bowl dent in the dome's own height field
+### The polygon carve: a regular-polygon bowl dent in the dome's own height field
 
 Earlier versions faked the glyph with a CPU twin of the disk's shading
 formula (flat-shaded via `draw_polygon`'s Gouraud vertex colors, a separately
@@ -480,9 +498,9 @@ visual center — literally the SAME `sqrt(1-t²)` dome shape the main disk
 uses, just re-centered/rescaled to the glyph's local footprint (a mini
 inverted dome nested in the big one, not a new shape to invent).
 
-**Regular polygons only, decomposed into `weld_sides` flat facets** (the
-`arch`/`ARCH_SIDES` sides-per-archetype placeholder mapping is unchanged —
-still not wired to the node's real archetype, a pre-existing gap). Each
+**Regular polygons only, decomposed into `carve_sides` flat facets** — the
+side count comes from the node's real archetype, via the `carve_shape` `.tres`
+it references in `skill_node/visuals/emblem/shapes/`. Each
 facet's gradient is a CONSTANT vector — that flatness is deliberate, it's
 what reads as crease "depth lines toward the visual center" rather than a
 smooth continuous bowl. **Arbitrary glyphs (rune/kanji) are explicitly
@@ -552,9 +570,9 @@ single shader-drawn ring with a real height-function bumpmap is both cheaper
 ### The gem crown (loot relic, #168): a precomputed LUT, not per-pixel facet math — because every instance is IDENTICAL
 
 `InnerDisk`'s `carve_kind == CarveKind.GEM` (the `SkillDustAddon` relic's
-gem-cut glyph) is a second height-field glyph alongside the weld, but built
-differently on purpose. The weld's shape varies per node (different
-archetype → different `weld_sides`/`weld_k`), so it has to stay an analytic
+gem-cut glyph) is a second height-field glyph alongside the polygon carve, but
+built differently on purpose. The polygon's shape varies per node (different
+archetype → different `sides`/`radius`), so it has to stay an analytic
 per-pixel formula (`sn_polygon_facet`/`sn_bowl_drop`). The gem crown is the
 SAME shape on every relic — no per-instance parameter varies it — so
 recomputing its `atan2`/`mod`/facet math per pixel, per instance, every
@@ -576,7 +594,7 @@ texture object, same as every instance already shares the one
 duplicate-material path.
 
 **Why the GDScript bake isn't the "CPU twin of the shading formula"
-anti-pattern the weld glyph retired** (`weld_symbol.gd`'s old
+anti-pattern the polygon carve retired** (`weld_symbol.gd`'s old
 `_disk_shade()`, warned about above): that anti-pattern was two independently
 *maintained* implementations of the same formula drifting apart over time.
 Here there is only ONE implementation — the GDScript bake — and the shader
@@ -599,9 +617,9 @@ in `inner_disk.gd` and the decode constants in `lighting.gdshaderinc`
 (`SN_GEM_DEPTH_SCALE`/`SN_GEM_GRAD_SCALE`) must stay numerically in
 lock-step — they're two halves of one encoding, not independently tunable.
 
-**When to reach for this vs. the weld's per-pixel formula:** if a future
+**When to reach for this vs. the polygon's per-pixel formula:** if a future
 glyph needs per-instance variation (different archetype, different sides,
-different depth), it has to be the analytic per-pixel path like the weld —
+different depth), it has to be the analytic per-pixel path like the polygon —
 a LUT can't vary per instance without becoming a per-instance sampler (the
 exact escape hatch this section says the LUT avoids). Reach for a baked LUT
 only when the shape truly is fixed across every instance that shows it.

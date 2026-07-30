@@ -18,22 +18,22 @@ instance uniform bool allocated = false;
 instance uniform vec2 highlight_position = vec2(-0.35, -0.35);
 instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
 
-// Which CARVE shape family the dome etches — replaces the old
-// show_weld/show_diamond mutually-exclusive bool pair with one selector
+// Which CARVE shape family the dome etches — one selector rather than the
+// retired pair of mutually-exclusive "show this glyph" bools
 // (0 = NONE, 1 = POLYGON, 2 = GEM; see InnerDisk.CarveKind). All scalar so
 // the shared ShaderMaterial keeps batching every InnerDisk into one draw call.
 instance uniform int carve_kind = 0;
 
-// Weld glyph (#124 rework) — a regular-polygon "gem facet" bowl dent folded
+// Polygon carve (#124 rework) — a regular-polygon "gem facet" bowl dent folded
 // into this same dome height field. See sn_polygon_facet/sn_bowl_drop in
 // lighting.gdshaderinc for the math and skill-node-visuals.md for the design
-// intent.
-instance uniform float weld_sides : hint_range(3.0, 16.0, 1.0) = 6.0;
+// intent. Every default here MUST match the matching InnerDisk export's.
+instance uniform float carve_sides : hint_range(3.0, 16.0, 1.0) = 3.0;
 // Anisotropic X-squish (1.0 = regular; < 1.0 narrows the shape, e.g. DEX's
 // diamond read) — applied as a warp of the sampled position before the facet
 // math, so the analytic gradient just needs a chain-rule rescale back.
-instance uniform float weld_squish : hint_range(0.3, 1.0, 0.01) = 1.0;
-instance uniform float weld_k : hint_range(0.4, 1.15, 0.01) = 0.75;
+instance uniform float carve_squish : hint_range(0.3, 1.0, 0.01) = 1.0;
+instance uniform float carve_radius : hint_range(0.4, 1.15, 0.01) = 0.75;
 instance uniform float well_depth : hint_range(0.0, 1.0, 0.01) = 0.35;
 
 // Loot relic gem cut (#168), viewed from the side — see sn_gem_bump in
@@ -66,11 +66,11 @@ void fragment() {
 			normal = normalize(vec3(-grad_total, 1.0));
 		}
 	} else if (carve_kind == 1) {
-		vec2 wp = vec2(p.x / weld_squish, p.y);
-		vec3 bowl = sn_bowl_drop(wp, weld_sides, weld_k, well_depth);
+		vec2 wp = vec2(p.x / carve_squish, p.y);
+		vec3 bowl = sn_bowl_drop(wp, carve_sides, carve_radius, well_depth);
 		if (bowl.x > 0.0) {
-			// Chain rule: q.x = p.x / weld_squish, so d/d(p.x) = d/d(q.x) / weld_squish.
-			bowl.y /= weld_squish;
+			// Chain rule: q.x = p.x / carve_squish, so d/d(p.x) = d/d(q.x) / carve_squish.
+			bowl.y /= carve_squish;
 			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
 			vec2 grad_dome = -p / z_dome;
 			vec2 grad_total = grad_dome - bowl.yz;

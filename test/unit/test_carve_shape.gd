@@ -54,9 +54,9 @@ func test_inner_disk_set_carve_polygon() -> void:
 	shape.sides = 7
 	shape.squish_x = 0.8
 	disk.set_carve(shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON)
-	assert_eq(disk.weld_sides, 7)
-	assert_eq(disk.weld_squish, 0.8)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.POLYGON)
+	assert_eq(disk.effective_carve_sides, 7)
+	assert_eq(disk.effective_carve_squish, 0.8)
 
 
 func test_inner_disk_set_carve_gem() -> void:
@@ -65,7 +65,7 @@ func test_inner_disk_set_carve_gem() -> void:
 	add_child(disk)
 	await get_tree().process_frame
 	disk.set_carve(GemCarveShape.SHARED.carve(EmblemSpec.Priority.LOOT, &"loot"))
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.GEM)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.GEM)
 
 
 func test_inner_disk_set_carve_texture_falls_back_to_none() -> void:
@@ -74,7 +74,7 @@ func test_inner_disk_set_carve_texture_falls_back_to_none() -> void:
 	add_child(disk)
 	await get_tree().process_frame
 	disk.set_carve(TextureCarveShape.new().carve(EmblemSpec.Priority.SPELL, &"spell"))
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "no renderer yet for TEXTURE carves -> empty dome")
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE, "no renderer yet for TEXTURE carves -> empty dome")
 
 
 ## A spec whose shape is null is NOT the same as no contribution: the source
@@ -86,7 +86,8 @@ func test_inner_disk_set_carve_shapeless_spec_is_none() -> void:
 	await get_tree().process_frame
 	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
 	disk.set_carve(EmblemSpec.carve(null, EmblemSpec.Priority.KEYSTONE, &"keystone"))
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE,
+		"a spec with no shape claims its rung and reads as an empty dome — it does NOT fall back to the preview export")
 
 
 func test_inner_disk_set_carve_null_is_none() -> void:
@@ -96,7 +97,7 @@ func test_inner_disk_set_carve_null_is_none() -> void:
 	await get_tree().process_frame
 	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
 	disk.set_carve(null)
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE)
 
 
 # ── Gem LUT bake geometry sanity (side-view kite, not the old top-view crown) ──
@@ -196,9 +197,9 @@ func test_composite_carve_shape_export_reaches_the_disk() -> void:
 	shape.squish_x = 0.7
 	composite.carve_shape = shape
 	var disk = composite.get_node("ShaderStack/InnerDisk")
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON)
-	assert_eq(disk.weld_sides, 5)
-	assert_almost_eq(disk.weld_squish, 0.7, 0.001)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.POLYGON)
+	assert_eq(disk.effective_carve_sides, 5)
+	assert_almost_eq(disk.effective_carve_squish, 0.7, 0.001)
 
 
 ## Null must mean "nothing authored", NOT "carve nothing" — clearing it to
@@ -208,12 +209,12 @@ func test_composite_null_carve_shape_leaves_the_disks_own_knobs_alone() -> void:
 	autofree(composite)
 	var disk = composite.get_node("ShaderStack/InnerDisk")
 	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
-	disk.weld_sides = 6
+	disk.carve_sides = 6
 	add_child(composite)
 	await get_tree().process_frame
 	assert_eq(composite.carve_shape, null, "default is null")
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON, "the disk's authored carve survives")
-	assert_eq(disk.weld_sides, 6)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.POLYGON, "the disk's authored carve survives")
+	assert_eq(disk.effective_carve_sides, 6)
 
 
 ## ...but once a shape HAS been applied, clearing the export back to null must
@@ -227,6 +228,105 @@ func test_composite_clearing_an_applied_carve_shape_clears_the_disk() -> void:
 	shape.sides = 5
 	composite.carve_shape = shape
 	var disk = composite.get_node("ShaderStack/InnerDisk")
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON, "applied")
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.POLYGON, "applied")
 	composite.carve_shape = null
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "and cleared again")
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE, "and cleared again")
+
+
+# ── #285: the geometry lives on the shape, and the disk's exports stay authored ──
+
+func _disk_in_tree() -> Node:
+	var disk := _INNER_DISK_SCENE.instantiate()
+	autofree(disk)
+	add_child(disk)
+	return disk
+
+
+func test_shape_radius_reaches_the_disk() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	var small := PolygonCarveShape.new()
+	small.radius = 0.5
+	var big := PolygonCarveShape.new()
+	big.radius = 1.1
+
+	disk.set_carve(small.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
+	var small_r: float = disk.effective_carve_radius
+	disk.set_carve(big.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
+	var big_r: float = disk.effective_carve_radius
+
+	assert_almost_eq(small_r, 0.5, 0.001)
+	assert_almost_eq(big_r, 1.1, 0.001)
+	assert_ne(small_r, big_r, "two shapes differing only in radius must carve at different sizes")
+
+
+func test_negative_shape_well_depth_inherits_the_disks_own() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	disk.well_depth = 0.42
+	var shape := PolygonCarveShape.new()
+	assert_almost_eq(shape.well_depth, -1.0, 0.001, "shapes inherit the disk's depth by default")
+	disk.set_carve(shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
+	assert_almost_eq(disk.effective_well_depth, 0.42, 0.001)
+
+
+func test_shape_may_override_well_depth() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	disk.well_depth = 0.42
+	var shape := PolygonCarveShape.new()
+	shape.well_depth = 0.5
+	disk.set_carve(shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
+	assert_almost_eq(disk.effective_well_depth, 0.5, 0.001)
+
+
+## The sentinel must be resolved on the CPU: the shader's uniform is
+## hint_range(0.0, 1.0), so a negative would clamp to 0.0 — "no dent" — and
+## silently flatten every shape that inherits.
+func test_the_inherit_sentinel_never_reaches_the_shader() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	disk.well_depth = 0.42
+	disk.set_carve(PolygonCarveShape.new().carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
+	var pushed = disk.get_instance_shader_parameter(&"well_depth")
+	assert_not_null(pushed, "the uniform must actually have been pushed, or this asserts nothing")
+	assert_almost_eq(float(pushed), 0.42, 0.001, "the -1.0 sentinel resolved to the disk's own depth")
+
+
+## set_carve() writing an @export is the "@tool script writes a derived value
+## into an @export" trap — the editor then serialises it into the .tscn and the
+## next load computes again from there. See .claude/rules/godot-workflow.md.
+func test_set_carve_writes_no_exported_property() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	disk.carve_kind = InnerDiskScript.CarveKind.NONE
+	disk.carve_sides = 3
+	disk.carve_squish = 1.0
+	disk.carve_radius = 0.75
+	disk.well_depth = 0.35
+
+	var shape := PolygonCarveShape.new()
+	shape.sides = 9
+	shape.squish_x = 0.4
+	shape.radius = 1.1
+	shape.well_depth = 0.8
+	disk.set_carve(shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
+
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "authored carve_kind untouched")
+	assert_eq(disk.carve_sides, 3, "authored carve_sides untouched")
+	assert_almost_eq(disk.carve_squish, 1.0, 0.001, "authored carve_squish untouched")
+	assert_almost_eq(disk.carve_radius, 0.75, 0.001, "authored carve_radius untouched")
+	assert_almost_eq(disk.well_depth, 0.35, 0.001, "authored well_depth untouched")
+	assert_eq(disk.effective_carve_sides, 9, "...while the resolved shape is what renders")
+
+
+## Lints the silent-.tres-strip / UID-mismatch failure mode: a broken
+## ext_resource resolves to null with no error at all (godot-workflow.md).
+func test_every_archetype_references_a_standalone_shape() -> void:
+	for name in ["strength", "dexterity", "intelligence", "wisdom", "perception", "constitution"]:
+		var arch: Archetype = load("res://archetypes/%s.tres" % name)
+		assert_not_null(arch, "%s.tres loads" % name)
+		assert_not_null(arch.carve_shape, "%s.tres carries a carve_shape" % name)
+		assert_true(arch.carve_shape is PolygonCarveShape, "%s carves a polygon" % name)
+		assert_ne(arch.carve_shape.resource_path, "",
+			"%s's shape is a standalone .tres, not an inline sub_resource" % name)

@@ -3,7 +3,7 @@ class_name SkillNodeVisual
 extends Node2D
 ## Base class for the SkillNode-visuals-v2 component family (milestone #16,
 ## see docs/design/handoff_skill_nodes_visuals/). Each component (inner disk,
-## weld symbol, ring wall, ...) subclasses this or [SkillNodeRingVisual],
+## carve glyph, ring wall, ...) subclasses this or [SkillNodeRingVisual],
 ## exposes its own @export knobs following the `set(v): field = v;
 ## queue_redraw()` pattern, and draws itself in `_draw()`.
 ##

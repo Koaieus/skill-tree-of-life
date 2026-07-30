@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="PolygonCarveShape" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/polygon_carve_shape.gd" id="1_shape"]
+
+[resource]
+script = ExtResource("1_shape")
+sides = 6
+radius = 0.8200000000000001

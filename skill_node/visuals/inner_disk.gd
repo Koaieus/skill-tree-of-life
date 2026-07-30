@@ -2,7 +2,7 @@
 extends SkillNodeVisual
 ## Inner disk: semi-sphere `canvas_item` shader (#123). Filled circle with an
 ## offset radial highlight, lit in the entity's color when allocated and in a
-## dark neutral when not — the dome, its shine and its weld dent draw either
+## dark neutral when not — the dome, its shine and its carve dent draw either
 ## way, so allocation is a color change, not a topology change. See
 ## inner_disk.gdshader for the fragment logic.
 ##
@@ -14,19 +14,19 @@ extends SkillNodeVisual
 ## draw call each (which a per-node `resource_local_to_scene` duplicate
 ## material would). See docs/domain/skill-node-visuals-shaders.md.
 ##
-## Composes the weld glyph directly as a height-field dent in its own shader
-## (see inner_disk.gdshader's carve_kind/weld_* uniforms and
+## Composes the carve glyph directly as a height-field dent in its own shader
+## (see inner_disk.gdshader's carve_kind/carve_* uniforms and
 ## lighting.gdshaderinc's sn_polygon_facet/sn_bowl_drop) rather than as a
-## separate WeldSymbol node — the glyph used to be a sibling Node2D with its
-## own CPU twin of this shading formula; folding it into this same fragment
-## shader means it can't drift from the disk's own lighting, by
-## construction. See .claude/rules/skill-node-visuals.md.
+## separate sibling node — the glyph used to be a Node2D with its own CPU twin
+## of this shading formula; folding it into this same fragment shader means it
+## can't drift from the disk's own lighting, by construction. See
+## .claude/rules/skill-node-visuals.md.
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 
 ## Which CARVE shape family the disk etches — the single selector replacing
-## the old show_weld/show_diamond mutually-exclusive bool pair (see
+## the retired pair of mutually-exclusive "show this glyph" bools (see
 ## .claude/rules/skill-node-visuals.md and [method set_carve]).
 enum CarveKind { NONE, POLYGON, GEM }
 
@@ -36,7 +36,7 @@ static var _shared_material: ShaderMaterial
 ## tapering shoulders down to the widest girdle, then a pavilion tapering to a
 ## single point at the bottom (not the top-down radially-symmetric crown this
 ## used to bake). Baked ONCE into a small shared LUT (see _build_gem_lut)
-## rather than recomputed per-pixel per-instance like the weld glyph — every
+## rather than recomputed per-pixel per-instance like the polygon carve — every
 ## relic wants the exact same cut, so there's nothing to gain from re-deriving
 ## it analytically on every node, every frame. Geometry constants here MUST
 ## mirror lighting.gdshaderinc's SN_GEM_DEPTH_SCALE / SN_GEM_GRAD_SCALE (the
@@ -138,48 +138,113 @@ static var _gem_lut: ImageTexture
 ## ("showWeld — off is the new default; empty center. on restores the
 ## archetype shape" — Rim Forge Lab): the disk's own semi-sphere shading +
 ## specular highlight is the baseline read, a carve is an opt-in accent. This
-## replaces the old show_weld/show_diamond mutually-exclusive bool pair with
+## replaces the retired pair of mutually-exclusive "show this glyph" bools with
 ## one selector — see .claude/rules/skill-node-visuals.md and [method set_carve].
+##
+## STANDALONE PREVIEW ONLY, like the four knobs below: once [method set_carve]
+## has run, [member effective_carve_kind] reads off the resolved shape instead
+## and this authored value is left untouched.
 @export var carve_kind: CarveKind = CarveKind.NONE:
 	set(value):
 		carve_kind = value
 		_sync_material()
 
 ## Regular-polygon side count for the POLYGON carve. STANDALONE PREVIEW ONLY —
-## once [method set_carve] receives an archetype carve it overwrites this from
-## the resolved shape's [member PolygonCarveShape.sides] (see
-## [Archetype.carve_shape], the canonical archetype -> sides mapping; this file
-## no longer keeps its own copy). Exists
+## superseded by [member PolygonCarveShape.sides] once a carve is pushed. Exists
 ## so the disk still previews a shape in the sandbox / node_visuals_panel.tscn
 ## before a carve has been injected — same "local export as offline fallback"
 ## precedent as [member lighting] below.
-@export_range(3, 16, 1) var weld_sides: int = 3:
+@export_range(3, 16, 1) var carve_sides: int = 3:
 	set(value):
-		weld_sides = value
+		carve_sides = value
 		_sync_material()
 
 ## Anisotropic X-squish for the POLYGON carve (see [PolygonCarveShape]) — 1.0
 ## is regular, < 1.0 narrows the shape (DEX's "diamond squished from the
-## sides"). STANDALONE PREVIEW default; [method set_carve] overwrites it from
-## the resolved shape's [member PolygonCarveShape.squish_x].
-@export_range(0.3, 1.0, 0.01) var weld_squish: float = 1.0:
+## sides"). STANDALONE PREVIEW default; superseded by
+## [member PolygonCarveShape.squish_x].
+@export_range(0.3, 1.0, 0.01) var carve_squish: float = 1.0:
 	set(value):
-		weld_squish = value
+		carve_squish = value
 		_sync_material()
 
 ## Glyph circumradius relative to the disk radius. At 1.0 the glyph's
-## vertices sit exactly on the disk's circle.
-@export_range(0.4, 1.15, 0.01) var weld_k: float = 0.75:
+## vertices sit exactly on the disk's circle. STANDALONE PREVIEW default;
+## superseded by [member PolygonCarveShape.radius].
+@export_range(0.4, 1.15, 0.01) var carve_radius: float = 0.75:
 	set(value):
-		weld_k = value
+		carve_radius = value
 		_sync_material()
 
 ## Max depth of the glyph's bowl dent at its own visual center — see
-## inner_disk.gdshader/lighting.gdshaderinc's sn_bowl_drop.
+## inner_disk.gdshader/lighting.gdshaderinc's sn_bowl_drop. Unlike the knobs
+## above this one is a genuine STYLE dial ("how carved does this game look"),
+## so a carved shape only supersedes it when it explicitly opts in — see
+## [member PolygonCarveShape.well_depth].
 @export_range(0.0, 1.0, 0.01) var well_depth: float = 0.35:
 	set(value):
 		well_depth = value
 		_sync_material()
+
+# ── Resolved carve: runtime state, deliberately NOT exported ──────────────────
+#
+# [method set_carve] writes ONLY these. Writing the resolved shape back into the
+# @exports above is the "a @tool script must never write a DERIVED value into an
+# @export" trap (.claude/rules/godot-workflow.md) — the editor serialises the
+# computed value into the .tscn, and the next load computes again from there.
+# (inner_disk.tscn's stray `carve_kind = 1` is a fossil of exactly that.)
+
+## The shape of the last resolved carve — the [CarveShape] itself (#315), so a
+## new shape parameter is one edit on the shape rather than another copy hop
+## here. Null is meaningful: "a carve resolved, and it has no shape" (an empty
+## dome), which is why [member _has_carve] is a separate flag.
+var _carved_shape: CarveShape = null
+## Whether [method set_carve] has ever run. Distinguishes "nothing has resolved
+## a carve yet" (fall back to the authored preview exports) from "a carve
+## resolved to nothing" (an honest empty dome).
+var _has_carve: bool = false
+
+
+## The carve family actually rendered: the resolved shape's own family once a
+## carve has been pushed, else the authored [member carve_kind] preview.
+## Mapping a shape family to a [enum CarveKind] is THIS renderer's job —
+## `skill_node/visuals/emblem/` deliberately knows nothing about InnerDisk.
+var effective_carve_kind: CarveKind:
+	get:
+		if not _has_carve:
+			return carve_kind
+		if _carved_shape is PolygonCarveShape:
+			return CarveKind.POLYGON
+		if _carved_shape is GemCarveShape:
+			return CarveKind.GEM
+		# Including a null shape and TextureCarveShape: no renderer yet (#247),
+		# so an empty dome is the honest fallback rather than misrepresenting
+		# the node as its archetype shape when a higher-priority carve won.
+		return CarveKind.NONE
+
+var effective_carve_sides: int:
+	get:
+		return (_carved_shape as PolygonCarveShape).sides if _carved_shape is PolygonCarveShape else carve_sides
+
+var effective_carve_squish: float:
+	get:
+		return (_carved_shape as PolygonCarveShape).squish_x if _carved_shape is PolygonCarveShape else carve_squish
+
+var effective_carve_radius: float:
+	get:
+		return (_carved_shape as PolygonCarveShape).radius if _carved_shape is PolygonCarveShape else carve_radius
+
+## Resolves [member PolygonCarveShape.well_depth]'s negative "inherit" sentinel
+## on the CPU. This getter is the ONLY thing standing between that sentinel and
+## a `hint_range(0.0, 1.0)` uniform that would clamp it to 0.0 — i.e. silently
+## flatten the dent on every shape that inherits.
+var effective_well_depth: float:
+	get:
+		if _carved_shape is PolygonCarveShape:
+			var override: float = (_carved_shape as PolygonCarveShape).well_depth
+			if override >= 0.0:
+				return override
+		return well_depth
 
 ## Shared light source (see [LightingStyle]), INJECTED AT RUNTIME by the
 ## composite — a plain `var`, deliberately NOT `@export`: it holds a
@@ -253,44 +318,29 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"allocated", allocated)
 	set_instance_shader_parameter(&"highlight_position", highlight_position)
 	set_instance_shader_parameter(&"highlight_intensity", highlight_intensity)
-	set_instance_shader_parameter(&"carve_kind", carve_kind)
-	set_instance_shader_parameter(&"weld_sides", float(weld_sides))
-	set_instance_shader_parameter(&"weld_squish", weld_squish)
-	set_instance_shader_parameter(&"weld_k", weld_k)
-	set_instance_shader_parameter(&"well_depth", well_depth)
+	set_instance_shader_parameter(&"carve_kind", effective_carve_kind)
+	set_instance_shader_parameter(&"carve_sides", float(effective_carve_sides))
+	set_instance_shader_parameter(&"carve_squish", effective_carve_squish)
+	set_instance_shader_parameter(&"carve_radius", effective_carve_radius)
+	set_instance_shader_parameter(&"well_depth", effective_well_depth)
 	queue_redraw()
 
 
 ## Consumes a resolved central-emblem CARVE (docs/domain/skillnode-emblem.md) —
-## the sanctioned entry point once a caller has an [EmblemResolver.Resolution],
-## replacing hand-toggling [member show_weld]/[member show_diamond] separately
-## (retired — see .claude/rules/skill-node-visuals.md). `carve` is the winning
-## [EmblemSpec] (an [EmblemResolver] Resolution's `.carve`), or null for an
-## empty dome. Dispatches on the [member EmblemSpec.shape]'s own TYPE, not on
-## `source_kind` (purely descriptive — tie-break debugging, tooltip copy) and
-## not on a style enum echoing the shape (#315 deleted that duplicate). Mapping
-## a shape family to a [enum CarveKind] is THIS renderer's job and lives here;
-## `skill_node/visuals/emblem/` deliberately knows nothing about InnerDisk.
+## the sanctioned entry point once a caller has an [EmblemResolver.Resolution].
+## `carve` is the winning [EmblemSpec] (an [EmblemResolver] Resolution's
+## `.carve`), or null for an empty dome.
 ##
-## - [PolygonCarveShape] (the archetype fallback, or any analytic polygon
-##   source) -> the weld height-field bowl, reading `sides`/`squish_x` straight
-##   off the shape.
-## - [GemCarveShape] (the loot relic's cut, #168) -> the gem LUT dent.
-## - Anything else, including a null shape ([TextureCarveShape], or a keystone /
-##   spell with no `carve_shape` authored) -> no carve renderer exists yet
-##   (#247), so an empty dome is the honest fallback rather than
-##   misrepresenting the node as its archetype shape when a higher-priority
-##   carve actually won.
+## Keeps the [member EmblemSpec.shape] itself rather than copying its fields
+## anywhere: every rendered value is derived from it on read (the `effective_*`
+## getters above), which is both why adding a shape parameter costs one edit on
+## the shape and how this stays clear of the "@tool script writes a derived
+## value into an @export" trap. NOTHING exported is written here — see
+## [member _carved_shape].
 func set_carve(carve: Variant) -> void:
-	var shape: CarveShape = carve.shape if carve != null else null
-	if shape is PolygonCarveShape:
-		carve_kind = CarveKind.POLYGON
-		weld_sides = shape.sides
-		weld_squish = shape.squish_x
-	elif shape is GemCarveShape:
-		carve_kind = CarveKind.GEM
-	else:
-		carve_kind = CarveKind.NONE
+	_carved_shape = carve.shape if carve != null else null
+	_has_carve = true
+	_sync_material()
 
 
 func _draw() -> void:
