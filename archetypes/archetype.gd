@@ -10,9 +10,14 @@ extends Resource
 ## are siblings of e.g. `crit_chance` on the same stat board, so a crit-chance
 ## territory is just `primary_stat = &"crit_chance"`.
 @export var primary_stat: StringName = &""
+## The central shape carved into the node's dome — meant to be recognisable at
+## a glance, at a distance, on an otherwise-empty node. Archetype never
+## interprets WHAT the shape is (polygon vs. gem vs., later, arbitrary art); it
+## just holds the reference.
+##
 ## TODO(#246): wisdom.tres's hexagon is a placeholder pending a bespoke
 ## "exudes wealth" motif (coin/laurel/sunburst) once the arbitrary-art bake
-## pipeline lands — not a deliberate design pick. Carried over verbatim from
+## pipeline lands — not a deliberate design pick. Carried over from
 ## ArchetypeShape's equivalent note.
 @export var carve_shape: CarveShape = null
 
