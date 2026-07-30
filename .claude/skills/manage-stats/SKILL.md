@@ -16,7 +16,7 @@ These are the full picture. Read the files, not their surrounding directories.
 ```
 stats_system/stat_board.gd          # canonical list of all stats + their @export_groups
 stats_system/stat.gd                # runtime Stat base (modifier pipeline)
-stats_system/stat_def.gd            # StatDef blueprint: id, display_type, display_group, parent_stat_id
+stats_system/stat_def.gd            # StatDef blueprint: id, display_name, description, value_type, default_value, tint_color
 stats_system/stat_modifier.gd       # StatModifier — the ONE modifier class (static OR formula-driven)
 entity/default_entity_board.tres    # runtime instances of every stat — the live board
 .claude/rules/stats-system.md       # authoritative reference (IDs, display contract, pool behavior, intrinsics)
@@ -91,14 +91,11 @@ display_name = "My Stat"
 description = "One sentence: what it does and what scales it."
 value_type = 0          # 0=INT  1=FLOAT  2=BOOL
 default_value = 10.0
-display_order = 99      # higher = lower in the list
-display_type = 0        # 0=BASIC 1=BAR 2=PROGRESS 3=INLINE 4=HIDDEN
 tint_color = Color(0.5, 0.5, 0.5, 1)
-display_group = &"combat"   # tab routing; see the display contract in stats-system.md
-# parent_stat_id = &"..."   # ONLY for display_type=3 INLINE — the stat to render under
+modifier_name = "My Stat"   # noun phrase for "+5 My Stat"; empty falls back to display_name
 ```
 
-See `.claude/rules/stats-system.md` → "Display contract" for the tab taxonomy (`overview` / `combat` / `magic`), and when to use `display_group` vs `parent_stat_id` (INLINE).
+**There are no `display_*` fields.** `display_type` / `display_group` / `display_order` / `parent_stat_id` and the `DisplayType` enum were **retired in #120** when the only consumer (`ui/stats_panel.gd`) was deleted — don't author them, they're silently dropped. HudRoot's cards hardcode the stat ids they bind, so **making a stat visible means wiring it into a specific card** (`attributes_panel.gd`, `combat_readout.gd`, `hero_sigil_card.gd`, …) by id. See `.claude/rules/stats-system.md` → "Display contract — RETIRED in #120" and `docs/domain/stat-ui-visibility.md`.
 
 **2. Add `@export var` to `stat_board.gd`** — inside the right `@export_group`. Current groups: Attributes, Survivability, Economy, Allocation, Turn Budget, Turn Order, Vision, Ranged, Magic, Melee, Scaling Rules. The property name **must equal** the StatDef `id` (`get_stat(id)` is `Object.get(id)`).
 
@@ -155,17 +152,14 @@ display_name = "My Pool"
 description = "..."
 value_type = 0
 default_value = 10.0
-display_order = 99
-display_type = 2          # PROGRESS — default for pools
 tint_color = Color(0.3, 0.5, 0.9, 1)
-display_group = &"overview"
 min_value = 0
 heal_on_max_increase = true
 ```
 
 (For a growable pool: `script_class="GrowablePoolStatDef"`, the growable script, and add `growth_flat` / `growth_factor` / `post_grow_mode`.)
 
-Set **`per_turn_mode`** if the pool replenishes at turn start: `1` (REFILL → to cap, like AP/movement), `2` (ADD → gains its auto-derived `<id>_per_turn` companion stat, like mana/xp), or `3` (CUSTOM → the pool's `PoolStat` subclass overrides `_custom_turn_upkeep(board)`, like `skill_points`' wound-heal). Leave unset (`0` NONE) for pools with no turn-start upkeep. This is the *only* wiring needed — `StatBoard.apply_per_turn_upkeep()` sweeps every pool and each replenishes itself; do NOT edit `Entity._on_turn_started`. ADD needs the companion `<id>_per_turn` scalar to exist (a separate StatDef); CUSTOM needs a `PoolStat` subclass with the override. See `.claude/rules/stats-system.md` → "Turn-start upkeep".
+Set **`per_turn_mode`** if the pool replenishes at turn start: `1` (REFILL → to cap, like AP/movement), `2` (ADD → gains its auto-derived `<id>_per_turn` companion stat, like mana/xp), or `3` (CUSTOM → the pool's `PoolStat` subclass overrides `_custom_turn_upkeep(board)`, like `skill_points`' wound-heal). Leave unset (`0` NONE) for pools with no turn-start upkeep. This is the *only* wiring needed — `StatBoard.apply_per_turn_upkeep()` sweeps every pool and each replenishes itself; do NOT edit `Entity._on_turn_started`. ADD needs a rate scalar to exist (a separate StatDef): `<id>_per_turn` by convention, or set **`per_turn_stat_id`** on the def to name one that has its own identity (`health` reads `core_healing`, D-25 — the mechanic's name is the one the design and #268's invariant are written against). CUSTOM needs a `PoolStat` subclass with the override. See `.claude/rules/stats-system.md` → "Turn-start upkeep".
 
 **3. Add to `stat_board.gd`** — a single field, no max getter:
 
@@ -253,7 +247,8 @@ intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vi
 
 `default_entity_board.tres` is **not the only board.** Hand-authored level scenes embed their *own* `StatBoard` sub-resources inline (so the scene is self-contained / tweakable per-entity) — and those do **not** inherit a new stat you added to the default board. Known offenders:
 
-- `scenes/dev_sandbox.tscn` — **two** inline boards (one per entity: Player + Enemy). Each is a `[sub_resource ... script=stat_board.gd]` with its own pool/scalar sub-resources.
+- `scenes/dev_sandbox.tscn` — **two** inline boards (one per entity: Player + Enemy). Each is a `[sub_resource ... script=stat_board.gd]` with its own pool/scalar sub-resources, **and its own `intrinsic_modifiers` array** — a new board intrinsic doesn't reach them either.
+  - ⚠ Both have drifted well behind the default board (no `constitution`, `level`, `node_healing`, `dealloc_damage`, crit stats — #269/#270/#271 all left them). So "add my stat here too" is now a judgement call, not a reflex: matching the drift is consistent, closing it is a separate cleanup. Either way **say which you did**, and don't let a sandbox-only symptom get misread as a bug in your stat.
 - `scenes/first_level_sandbox.tscn` and any other hand-authored scene — grep before assuming: `grep -rl 'script_class="StatBoard"\|stat_board.gd' scenes/`.
 
 For each such board, add the same `[sub_resource]` + `[ext_resource]` for the def + the `[resource]`-block assignment you added to the default board. **Each entity needs its own pool `[sub_resource]`** — pools carry per-entity ephemeral `current`, so they can't be shared between two boards.
@@ -276,7 +271,7 @@ Adding the stat to the board makes it *exist and scale*. A new stat is often a c
 
 Don't reinvent the mechanics here — read **`docs/domain/procgen-v3.md`** (phased draw, StatPack structure, cost caps, `off_phase_op_weights`) and copy an existing pool as the template. This is the gap the skill historically missed: a new stat that's good build content but never gets a procgen pool.
 
-**2. Per-node localization.** *"Should this stat vary per skill node, not just per entity?"* (Currently `node_health` and `range` do.) If yes, it can be localized via `SkillNode._ensure_local_stat(id)` / `node_board` — the node's sparse `StatBoard` creates the stat on demand; procgen pools that target it become per-node overrides. See `.claude/rules/stats-system.md` → "Local stats".
+**2. Per-node localization.** *"Should this stat vary per skill node, not just per entity?"* (Currently `node_health` and `range` do.) The inverse also needs an answer: a stat that is **entity-scope only** (a pool coefficient like `core_health_scaling`, say) is meaningless or misleading read node-locally, and the system has **no way to declare that** — #287 is the open decision. Don't invent a marker; just keep such a stat out of every procgen pool and say so in its description. If yes, it can be localized via `SkillNode._ensure_local_stat(id)` / `node_board` — the node's sparse `StatBoard` creates the stat on demand; procgen pools that target it become per-node overrides. See `.claude/rules/stats-system.md` → "Local stats".
 
 ---
 
@@ -285,12 +280,13 @@ Don't reinvent the mechanics here — read **`docs/domain/procgen-v3.md`** (phas
 Request: *"Add mana (INT pool) and mana_per_turn, with +floor(INT/10) to the mana cap and mana_per_turn base = floor(log10(INT))."* (This is what's actually in the repo today.)
 
 1. **Two StatDef files** in `stats_system/defs/`:
-   - `mana.tres` — `StandardPoolStatDef`, `display_type=2` (PROGRESS), `display_group=&"overview"`, blue tint. **No `mana_max.tres`** — the pool is the cap.
-   - `mana_per_turn.tres` — `StatDef` INT scalar, `display_type=3` (INLINE), `parent_stat_id=&"mana"` so it renders as a dimmed sub-row under mana.
+   - `mana.tres` — `StandardPoolStatDef`, blue tint. **No `mana_max.tres`** — the pool is the cap.
+   - `mana_per_turn.tres` — `StatDef` INT scalar (the ADD-mode rate).
 2. **`stat_board.gd`** (Magic group): `@export var mana: PoolStat` and `@export var mana_per_turn: ScalarStat`. No max getter.
 3. **`default_entity_board.tres`**: a `pool_mana` sub_resource (`script=3_pool`, `current`/`base_value`) and a `scalar_mana_per_turn`. Wire both in `[resource]`.
 4. **Two intrinsic `StatModifier`s** targeting `&"mana"` and `&"mana_per_turn"` directly, each with an `ExpressionFormula` (`floor(float(intelligence)/10.0)` and `floor(log(max(1e-5, float(intelligence)))/log(10.0))`), `value` omitted (1.0). Add both to `intrinsic_modifiers`.
 5. **Turn upkeep**: `mana.tres` sets `per_turn_mode = 2` (ADD) → the upkeep sweep replenishes `mana` by `mana_per_turn` automatically. No `_on_turn_started` edit. (CoreClass `on_turn_started` is the hook for caster-specific regen on top.)
+6. **Display**: nothing metadata-driven — `hero_sigil_card.gd` binds `board.mana` + `board.mana_per_turn` explicitly, which is what renders the gauge and its "incoming next turn" band. A new pool with a rate stat gets that band by binding the same way (`health` ← `core_healing` does).
 6. **Downstream**: mana lives in `intelligence.tres` StatPack as procgen content — a new magic stat would likely join it.
 
 ---
@@ -313,7 +309,7 @@ Request: *"Add mana (INT pool) and mana_per_turn, with +floor(INT/10) to the man
 ## Quick reference: file paths
 
 ```
-stats_system/stat_def.gd                    # StatDef blueprint (id, display_type, display_group, parent_stat_id)
+stats_system/stat_def.gd                    # StatDef blueprint (id, display_name, value_type, default_value, tint_color)
 stats_system/pool_stat_def.gd               # abstract PoolStatDef (+ two virtuals)
 stats_system/standard_pool_stat_def.gd      # fixed-cap pool def
 stats_system/growable_pool_stat_def.gd      # fill-and-level pool def (+ PostGrowMode)
