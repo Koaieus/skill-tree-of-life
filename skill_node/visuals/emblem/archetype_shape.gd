@@ -20,6 +20,11 @@ const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 
+## NOTE: every reference to this enum — including from inside this very class —
+## must be written `ArchetypeShape.Archetype`. The bare name now resolves to the
+## global `Archetype` resource class (#310), which shadows it and yields
+## "argument 1 should be Archetype but is ArchetypeShape.Archetype". Moot once
+## #312 retires this enum outright.
 enum Archetype { STR, DEX, INT, WIS, PER, CON }
 
 ## Per-archetype [CarveShape]. Built once, lazily, on first access — a plain
@@ -31,17 +36,17 @@ static func _ensure_shapes() -> void:
 	if not _shapes.is_empty():
 		return
 	_shapes = {
-		Archetype.STR: _polygon(3),
+		ArchetypeShape.Archetype.STR: _polygon(3),
 		# Squished from the sides — a diamond read, not a plain square.
-		Archetype.DEX: _polygon(4, 0.62),
-		Archetype.INT: _polygon(5),
+		ArchetypeShape.Archetype.DEX: _polygon(4, 0.62),
+		ArchetypeShape.Archetype.INT: _polygon(5),
 		# TODO(#246): replace with a bespoke "exudes wealth" motif (coin/laurel/
 		# sunburst) once the arbitrary-art bake pipeline lands. Hexagon is a
 		# placeholder distinct from every other archetype's shape, not a
 		# deliberate design pick.
-		Archetype.WIS: _polygon(6),
-		Archetype.PER: _polygon(8),
-		Archetype.CON: _polygon(12),
+		ArchetypeShape.Archetype.WIS: _polygon(6),
+		ArchetypeShape.Archetype.PER: _polygon(8),
+		ArchetypeShape.Archetype.CON: _polygon(12),
 	}
 
 
@@ -53,11 +58,11 @@ static func _polygon(sides: int, squish: float = 1.0) -> PolygonCarveShape:
 
 
 ## This archetype's [CarveShape] — the shape it owns, not a bare side count.
-static func shape_for(arch: Archetype) -> CarveShape:
+static func shape_for(arch: ArchetypeShape.Archetype) -> CarveShape:
 	_ensure_shapes()
 	return _shapes[arch]
 
 
 ## The fallback CARVE this archetype contributes.
-static func carve(arch: Archetype, priority: int = EmblemSpec.PRIORITY_ARCHETYPE, source: StringName = &"archetype") -> EmblemSpec:
+static func carve(arch: ArchetypeShape.Archetype, priority: int = EmblemSpec.PRIORITY_ARCHETYPE, source: StringName = &"archetype") -> EmblemSpec:
 	return shape_for(arch).carve(priority, source)
