@@ -53,7 +53,7 @@ on its own.
 |---|---|---|
 | **Component** — `FanTrace`, `FanPanel` | Animate itself | `play_in()` / `play_out() -> Tween`, plus a **readable `progress`**. Knows how to reveal itself, how to reverse itself, and how long that should take. |
 | **Unit** — `FanUnit` | Sequence two components | `await _trace.play_in().finished` then `await _panel.play_in().finished`; OUT is the reverse read. Owns **no** Tween of its own — it holds ordering and state, nothing else. |
-| **Coordinator** — `TooltipFan` | Fire N units | A per-index start delay, and nothing else. Whether the variant has 2 units or 6 changes only the delays. |
+| **Coordinator** — `TooltipFan` | Fire N units | A per-index start delay, and nothing else. Whether the fan shows 2 units or 6 changes only the delays. |
 
 Below the components sit the **content rows** — `ModSlabRow`, `PanelHeader`,
 `StatValueRow`, `AddonItem`. These are *not* fan participants: they take
@@ -153,10 +153,57 @@ contradict the table above.
   optional `icon` override and carries a real `GradientTexture2D` placeholder
   (never `PlaceholderTexture2D`, per `.claude/rules/godot-workflow.md`).
 
+## One fan scene, gated per unit (#314 — reverses #226 Decision 2)
+
+#226 shipped **three occupancy-class variant scenes** — `unowned.tscn`,
+`owned.tscn` (adds Owner), `owned_core.tscn` (adds Core), an inheritance chain —
+selected on hover by `TooltipFan._pick_variant` branching on `is_allocated()` /
+`is_core()`. #314 collapsed them into one `fan.tscn` carrying every unit.
+
+**What forced it.** `owner_changed` — the signal V1's tooltip used to keep its
+owner line live — *flips `is_allocated()`*, which is the very predicate the
+variant was chosen by. So the single most ordinary live-update case, **allocating
+the node you are already hovering**, invalidated the whole mounted scene rather
+than one panel's contents. Under a variant design the only available response is
+to tear the fan down and re-fan, which is exactly the visual the fan exists to
+avoid. Gating per unit means the panels already open stay open and the
+newly-eligible ones sprout alongside them.
+
+**What replaced the variant branch.** `FanPanel.has_content()` is now the fan's
+only gate, re-answered on every live update rather than once per hover, and
+cached per unit in `FanUnit.participating` (written by `TooltipFan._bind_content`
+in the same pass that binds the panel, so the flag can never lag the content by a
+frame). `OwnerPanel` and `CorePanel` gained the overrides they had never needed —
+their old docstrings said outright that being mounted in the right variant *was*
+their gate.
+
+**The pin rule reversed with it.** Pre-#314 a suppressed panel kept its clock pin,
+on the theory that a present panel's trace should land in the same place
+regardless of its neighbours — "absence leaves the fan balanced, never
+gap-toothed". That is now inverted: pins redistribute over the participating units
+only. A fan with a hole in it reads as *a panel failed to load*, not as a
+deliberate omission, and positional constancy isn't worth buying with that.
+Stagger indexes over the same participating set, because the sweep would otherwise
+visibly skip positions the fan isn't using.
+
+**Deferred, deliberately:** authored per-panel clock pins, which would let a panel
+arrive from an arbitrary angle (the #292 procgen debug panel entering from 3
+o'clock, say) instead of taking the next auto-flowed slot. Revisit only if the
+auto-flow proves insufficient; until then panels flow neatly and nobody authors an
+angle.
+
+**One consequence worth knowing:** panel *positions* are now fixed per panel
+rather than re-authored per occupancy class. `owned_core`'s layout was adopted
+wholesale, since it was the only one that had to accommodate all six members. An
+unowned node's three panels therefore sit where the six-member layout put them —
+further out than `unowned.tscn` placed them. That is a real trade (the common case
+pays for the crowded case) bought for a real gain: a panel is always in the same
+place, so you learn where Addons lives. Retuning is now a single-scene job.
+
 ## Fan geometry: what is derived vs. what is authored (#307)
 
 **Exactly one quantity is authored per unit: where its panel sits.** That is the
-`FanUnit`'s own `position` in the variant scene — drag it and everything else
+`FanUnit`'s own `position` in `fan.tscn` — drag it and everything else
 re-derives. Two smaller knobs sit on top (`anchor_slide`, `bend_start`); both
 have defaults that need no attention.
 
@@ -169,12 +216,20 @@ neighbours, symmetric about 12 o'clock. Three traces sit at 11/12/1, four at
 compresses* rather than the arc widening — beyond roughly ±60° a straight-up
 `trunk_dir` starts reading wrong, and squeezing beats tilting the trunks.
 
-Slots are handed out in **angular order around the node, never tree order**. The
-variants are inherited scenes (`owned` appends Owner to `unowned`, `owned_core`
-appends Core to `owned`), so tree order permanently puts the newest unit last
-regardless of where its panel actually sits. Assigning by tree order would
-*guarantee* crossed traces in `owned_core`. `TooltipFan` staggers on the same
-sort key, so the fan sweeps across the arc instead of popping in scene order.
+Slots are handed out in **angular order around the node, never tree order**.
+Tree order is authoring order and says nothing about where a panel sits, so
+assigning by it would start two traces on each other's side of the node and force
+them to cross. `TooltipFan` staggers on the same sort key, so the fan sweeps
+across the arc instead of popping in scene order.
+
+**Slots are shared out among the PARTICIPATING units only, and slot changes are
+eased (#314).** `n` in `pin_angle(i, n, …)` is how many panels currently have
+content, not how many are authored — so an unowned node's three live panels sit
+at 11/12/1 rather than at three of five wider slots with holes between them. When
+a panel becomes eligible mid-hover, every neighbour's target slot moves and each
+one *slides* to it (`pin_slide_rate`, exponential decay, no Tween — the fan's
+"nobody holds a shared clock" rule holds). `refresh()` snaps instead of easing,
+which is what makes the geometry assertable and what the editor uses.
 
 ### How the fan reacts to camera zoom
 
@@ -194,7 +249,7 @@ the origin moving — not as a rule of its own.
 
 The plain editor has neither a camera nor a hovered node, so the driver falls
 back to `preview_pin_radius`. That fallback is load-bearing: without it, opening
-a variant scene standalone renders every trace from (0,0), which is exactly the
+the fan scene standalone renders every trace from (0,0), which is exactly the
 authoring problem this design exists to fix.
 
 The fan is **not** dismissed on camera motion. With the zoom tween, tracking is
@@ -212,14 +267,16 @@ being *angularly* nearer to vertical, because it also sits much higher: Owner at
 NodeStats is the NWW one and must take the outer pin, but x-order hands it to
 Owner — so the two outermost traces start on each other's side and have to cross
 to reach their panels. Switching to angular order removed both structural
-crossings in `owned`/`owned_core` (3 → 1 across the variants).
+crossings (3 → 1).
 
 What remains is placement, not structure: IdChip's panel sits ~17px right of
 centre while its pin is at 12 o'clock, so its closing diagonal clips Core's
 trunk. That closes with a hand-authored pass — nudge the panel, or tune that
 unit's own `bend_start` (it is a per-unit `@export` on `FanTrace`, authored in
-each unit scene). `test_route_crossings_do_not_increase` guards the counts at
-0/0/1 meanwhile.
+each unit scene). Meanwhile `test_route_crossings_do_not_increase_on_the_full_fan`
+caps the six-member fan at 1, and
+`test_an_unowned_nodes_fan_is_genuinely_crossing_free` requires zero for the
+common case — the participation subset an unowned node actually shows.
 
 ### The terminus end — derived edge, authored slide
 
@@ -243,13 +300,19 @@ scalar and not a hand-tuned `Vector2`.
 `@tool` script — which `.claude/rules/godot-workflow.md` forbids outright. It
 gets away with it for exactly one reason: `Trace` is a **non-editable descendant
 of an instanced scene**, so Godot never serializes those writes back into the
-variant `.tscn`. Verified empirically — open a variant, save, `git diff` is clean
+`fan.tscn`. Verified empirically — open the fan scene, save, `git diff` is clean
 but for format churn.
 
 A unit's `position` has no such cover: it is a direct, editable child property of
-the variant. **The driver reads it and must never write it.** Any future derived
+`fan.tscn`. **The driver reads it and must never write it.** Any future derived
 quantity has to land on the non-editable side of that line, or be split into an
 authored `@export` plus a getter-only `var` per the workflow rule.
+
+The same rule is why `FanUnit.participating` and `FanUnit.pin_angle` (#314) are
+plain runtime `var`s and not `@export`s: both are derived per hover. Storing the
+eased angle on the unit rather than in a driver-side Dictionary also means it dies
+with the instance — fans are created and freed on every hover, and a keyed cache
+would either leak entries or hold freed references.
 
 ## What's still open
 

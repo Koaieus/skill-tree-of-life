@@ -2,8 +2,9 @@
 class_name CorePanel
 extends FanPanel
 
-## Tooltip V2 (#226/#231) — crown, FAR rung (entity-scoped), CORE nodes only
-## (`owned_core.tscn` mounts this unit; no other variant does). Envelope sized
+## Tooltip V2 (#226/#231) — crown, FAR rung (entity-scoped), CORE nodes only,
+## enforced by this panel's own [method has_content] since #314 (before that,
+## being mounted solely by `owned_core.tscn` was the gate). Envelope sized
 ## to the worst case per the "Crown envelope inputs" issue comment: 8
 ## modifier leaves (`pacifist_core.tres`) + 1 core-HP row = 9, with headroom
 ## to 12 rows. Deliberate gold skin exception — a [GlassPanel] child with
@@ -27,10 +28,10 @@ extends FanPanel
 ## verbatim once that field lands on `StatFormula` (separate issue, not on
 ## master yet) — not blocked on it, behind one small helper.
 ##
-## No [method has_content] override: this unit only mounts in `owned_core.tscn`,
-## which is only instanced for a hovered node that IS the entity's core — the
-## suppression contract exists for panels that can be empty on a node they DO
-## mount for, which never applies here.
+## [method has_content] answers false unless the hovered node IS a core. That
+## used to be guaranteed structurally — `owned_core.tscn` was the only variant
+## mounting this unit — but #314 mounts every unit for every hover, so the
+## condition has to be stated rather than assumed.
 
 const _ENVELOPE_ROWS := 12
 
@@ -61,13 +62,18 @@ func _ready() -> void:
 		return
 
 
-## Public entry point (#231). `node` is expected to be this entity's core —
-## `owned_core.tscn` (the only variant mounting this unit) is only instanced
-## for a hover that already satisfies that, so no `is_core()` re-check here.
+## Public entry point (#231). Binds unconditionally; whether the panel is shown
+## at all is [method has_content]'s call.
 func bind(node: SkillNode, _graph: Graph) -> void:
 	_bound_node = node
 	_rebuild_rows()
 	_apply_row_stagger()
+
+
+## False unless the hovered node is its entity's core — see the class doc for
+## why this is an explicit check rather than a structural guarantee.
+func has_content() -> bool:
+	return _bound_node != null and _bound_node.is_core()
 
 
 func _rebuild_rows() -> void:
@@ -109,6 +115,9 @@ func _add_mod_row(m: StatModifier) -> void:
 	var row := _MOD_SLAB_SCENE.instantiate() as ModSlabRow
 	_rows.add_child(row)
 	row.bind(m)
+	# `ModSlabRow._ready` parks itself at progress 0 — invisible — because its
+	# rest state is "the caller drives the reveal" (#221 §4). Registering the
+	# setter is what un-parks it; `_apply_row_stagger` then drives it.
 	_row_setters.append(row.set_progress)
 
 

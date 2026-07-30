@@ -4,20 +4,25 @@ extends Node2D
 
 ## Tooltip V2 (#226) — keeps every [FanUnit]'s trace terminus derived live
 ## from its panel's CURRENT position (Decision 4). Attached as the root
-## script of every variant scene (`unowned.tscn` / `owned.tscn` /
-## `owned_core.tscn`) so a human dragging a panel in the editor sees the
+## script of `fan.tscn` so a human dragging a panel in the editor sees the
 ## trace re-route immediately, without opening [TooltipFan] at all — that is
 ## the whole point of the split (see the #226 issue body).
 ##
 ## Deliberately NOT part of [TooltipFan]: the coordinator only exists at
 ## runtime (mounted under the HUD), but "drag a panel, watch the line follow"
-## has to work with just the variant scene open. Splitting the concern this
+## has to work with just the fan scene open. Splitting the concern this
 ## way means panel position is the only authored quantity in EITHER context.
 ##
 ## Finds its FanUnits by group (`fan_unit`), never by NodePath — the mount
-## contract's "bindings resolve by type/group, not per-variant NodePaths".
-## Every FanUnit instance in a variant scene must carry that group (authored
+## contract's "bindings resolve by type/group, not authored NodePaths".
+## Every FanUnit instance in the fan scene must carry that group (authored
 ## in the .tscn's `groups=` on the node, not in code).
+##
+## Since #314 the clock face is shared out among the PARTICIPATING units only
+## (see [member FanUnit.participating]) and each unit's angle is EASED toward
+## its slot rather than snapped — so a panel igniting mid-hover makes its
+## neighbours slide over instead of teleporting. Standalone in the editor every
+## unit participates, so an author still sees the full spread.
 ##
 ## Since #307 it derives BOTH trace endpoints. The origin end is the clock
 ## spread described below; the terminus end is Decision 4's derived anchor plus
@@ -28,10 +33,10 @@ extends Node2D
 ## properties (`position`, `anchor_slide`, `arrival_axis`, `trunk_length`) but
 ## must never WRITE them. `godot-workflow.md` forbids a @tool script writing a
 ## derived value into an `@export`, and the only reason the per-frame
-## `from_point` / `to_point` / `trunk_length` writes don't dirty the variant
-## scenes is that `Trace` is a NON-EDITABLE descendant of an instanced scene, so
+## `from_point` / `to_point` / `trunk_length` writes don't dirty `fan.tscn`
+## is that `Trace` is a NON-EDITABLE descendant of an instanced scene, so
 ## Godot never serializes them. A unit's own properties are direct, editable
-## child properties of the variant and have no such protection — which is also
+## child properties of the fan scene and have no such protection — which is also
 ## why the route knobs live on the unit and the derived results live on the
 ## trace, never the reverse.
 
@@ -51,9 +56,21 @@ const _GROUP := &"fan_unit"
 @export_range(0.0, 2.0, 0.01) var pin_factor := 0.8
 ## Radius used when there is no live node to measure — i.e. the plain editor,
 ## which has neither a camera nor a hovered [SkillNode]. Keeps trace start→end
-## correct with the variant scene open standalone, which is the whole point of
+## correct with the fan scene open standalone, which is the whole point of
 ## this script existing separately from [TooltipFan].
 @export var preview_pin_radius := 32.0
+
+## How fast a pin slides to a new slot when the participating set changes, as
+## the exponential-decay rate in `1 - exp(-rate * delta)`. Frame-rate
+## independent, and it eases out for free — no Tween, which keeps this class
+## inside the fan's "no clock but your own" contract. ~12 lands the slide in
+## roughly a quarter second, matching the panel unfurl it accompanies.
+@export_range(1.0, 40.0, 0.5) var pin_slide_rate := 12.0
+
+## Below this many radians from its target a pin just snaps — stops the decay
+## from chasing an asymptote forever and re-writing `from_point` every frame
+## for a sub-pixel gain.
+const _PIN_SETTLE_EPSILON := 0.0005
 
 ## The hovered node's radius in SCREEN space, pushed in by [TooltipFan] every
 ## frame (`node.radius * canvas_transform.get_scale().x`). Zero/unset falls back
@@ -70,18 +87,30 @@ func _ready() -> void:
 	set_process(true)
 
 
-func _process(_delta: float) -> void:
-	refresh()
+func _process(delta: float) -> void:
+	_apply(delta)
 
 
-## Re-derives both endpoints for every unit. Public + idempotent so tests can
-## call it directly on a single frame instead of waiting on `_process` —
-## matches the "call the continuation directly" testing pattern already used by
-## fan_trace/fan_unit tests in this epic.
+## Re-derives both endpoints for every unit, with every pin SNAPPED to its slot
+## rather than eased into it. Public + idempotent so tests can call it directly
+## on a single frame instead of waiting on `_process` — matches the "call the
+## continuation directly" testing pattern already used by fan_trace/fan_unit
+## tests in this epic.
+##
+## Snapping is what makes it a usable assertion target: an eased call describes
+## a pin somewhere between two slots, which no test can predict. `_process`
+## goes through [method _apply] with a real delta instead.
 func refresh() -> void:
+	_apply(-1.0)
+
+
+## One pass over the participating units: settle each one's pin angle (eased
+## when `delta >= 0`, snapped otherwise), then re-derive its terminus from the
+## panel's live rect.
+func _apply(delta: float) -> void:
 	var units := units_in_fan_order()
 	for i in range(units.size()):
-		_place_pin(units[i], i, units.size())
+		_place_pin(units[i], i, units.size(), delta)
 		_reroute(units[i])
 
 
@@ -93,13 +122,23 @@ func reroute(unit: Node) -> void:
 ## Parks unit `i` of `n`'s trace origin on the clock face: a uniform step
 ## between neighbours, symmetric about 12 o'clock, at [member pin_factor] of
 ## the node's radius. The skill node is the chip and these are its pins.
-func _place_pin(unit: Node, i: int, n: int) -> void:
+##
+## `n` is the PARTICIPATING count, so the slot a unit gets depends on which of
+## its neighbours currently have content. A negative `delta` snaps to the slot;
+## otherwise the unit's [member FanUnit.pin_angle] decays toward it, which is
+## what turns "Owner just became eligible" into a slide rather than a jump.
+##
+## RADIUS IS NEVER EASED — only the angle is. The radius tracks the node's
+## screen-space rim and therefore the camera zoom; lagging it would make the
+## pins visibly trail the node during a zoom, which is a different (and wrong)
+## behaviour from easing a slot change.
+func _place_pin(unit: Node, i: int, n: int, delta: float) -> void:
 	var trace: FanTrace = unit.get_node_or_null("%Trace")
 	if trace == null:
 		return
 	var radius := (node_radius if node_radius > 0.0 else preview_pin_radius) * pin_factor
-	var pin := pin_offset(i, n, radius, pin_step_degrees, max_arc_degrees)
-	# `pin` is in VARIANT space; `from_point` is read in the trace's own local
+	var pin := offset_at_angle(_settle_pin_angle(unit, i, n, delta), radius)
+	# `pin` is in FAN space; `from_point` is read in the trace's own local
 	# space. The unit carries the panel's offset (#307 D), so subtract the whole
 	# chain back out — this is what keeps the origin nailed to the node while
 	# the unit itself is dragged anywhere.
@@ -114,15 +153,57 @@ func _place_pin(unit: Node, i: int, n: int) -> void:
 ## `(n-1) * step`; if that exceeds `max_arc` the step COMPRESSES to fit rather
 ## than the arc widening past where an upward trunk still reads right.
 static func pin_offset(i: int, n: int, radius: float, step: float, max_arc: float) -> Vector2:
+	return offset_at_angle(pin_angle(i, n, step, max_arc), radius)
+
+
+## The ANGLE half of [method pin_offset], split out because #314 eases the
+## angle while leaving the radius live (see [method _place_pin]). Radians
+## clockwise from 12 o'clock; 0 is straight up.
+static func pin_angle(i: int, n: int, step: float, max_arc: float) -> float:
 	if n <= 1:
-		return Vector2(0.0, -radius)
+		return 0.0
 	var used_step := step
 	if max_arc > 0.0 and (n - 1) * step > max_arc:
 		used_step = max_arc / float(n - 1)
 	# Centre the run on 12 o'clock: index (n-1)/2 lands at exactly 0°.
-	var theta := deg_to_rad((i - (n - 1) * 0.5) * used_step)
-	# +theta is clockwise (toward 1 o'clock) in Godot's y-down space.
+	return deg_to_rad((i - (n - 1) * 0.5) * used_step)
+
+
+## The offset half: an angle (radians clockwise from 12) on a circle of
+## `radius`. +theta is clockwise (toward 1 o'clock) in Godot's y-down space —
+## the convention [method FanAnchorDriver.fan_sort_angle] mirrors.
+static func offset_at_angle(theta: float, radius: float) -> Vector2:
 	return Vector2(sin(theta), -cos(theta)) * radius
+
+
+## Moves `unit`'s stored [member FanUnit.pin_angle] toward the slot `i` of `n`
+## it should occupy, and returns the value to draw this frame.
+##
+## `delta < 0` (or a first sighting, where the stored angle is `NAN`) assigns
+## the target outright. Otherwise it's exponential decay at [member
+## pin_slide_rate] — frame-rate independent, eases out on its own, and owns no
+## Tween, so the fan's "each thing animates itself, nobody holds a shared
+## clock" contract survives intact.
+##
+## A non-[FanUnit] member has nowhere to store an angle and is simply never
+## eased; it reads its target directly. Nothing in the fan scene is in that
+## category today ([method _units] already filters to units carrying a
+## `%Trace`/`%Panel` pair), so this is a guard, not a code path.
+func _settle_pin_angle(unit: Node, i: int, n: int, delta: float) -> float:
+	var target := pin_angle(i, n, pin_step_degrees, max_arc_degrees)
+	var fan_unit := unit as FanUnit
+	if fan_unit == null:
+		return target
+	var current: float = fan_unit.pin_angle
+	if delta < 0.0 or is_nan(current):
+		fan_unit.pin_angle = target
+		return target
+	if absf(target - current) <= _PIN_SETTLE_EPSILON:
+		fan_unit.pin_angle = target
+		return target
+	var t: float = 1.0 - exp(-pin_slide_rate * delta)
+	fan_unit.pin_angle = lerpf(current, target, clampf(t, 0.0, 1.0))
+	return fan_unit.pin_angle
 
 
 func _reroute(unit: Node) -> void:
@@ -145,14 +226,16 @@ func _reroute(unit: Node) -> void:
 	trace.trunk_length = route.trunk_px
 
 
-## The units in ANGULAR order around the node — the order clock pins are handed
-## out in (and, via [TooltipFan], the order the fan staggers in).
+## The PARTICIPATING units in ANGULAR order around the node — the order clock
+## pins are handed out in (and, via [TooltipFan], the order the fan staggers
+## in).
 ##
-## Deliberately NOT tree order. The variants are inherited scenes — `owned`
-## appends Owner to `unowned`, `owned_core` appends Core to `owned` — so tree
-## order permanently puts the newest unit last no matter where its panel
-## actually sits. Handing out clock slots in that order would GUARANTEE crossed
-## traces in `owned_core`.
+## Deliberately NOT tree order: tree order is authoring order, which says
+## nothing about where a panel sits, so handing out clock slots that way would
+## start two traces on each other's side of the node and force them to cross.
+## Sorting angularly is what guarantees they don't. (Pre-#314 this mattered
+## doubly, because the three occupancy variants were inherited scenes and tree
+## order pinned each newly-appended unit last regardless of position.)
 func units_in_fan_order() -> Array[Node]:
 	var out := _units()
 	out.sort_custom(func(a: Node, b: Node) -> bool: return fan_sort_angle(a) < fan_sort_angle(b))
@@ -186,9 +269,23 @@ static func fan_sort_angle(member: Node) -> float:
 	return atan2(centre.x, -centre.y)
 
 
+## Every clock-pin-eligible member: in the group, carrying a `%Trace`/`%Panel`
+## pair, and PARTICIPATING in the current hover.
+##
+## The participation filter (#314) is what makes the spread depend on how many
+## panels actually have content: three eligible units get 11/12/1 rather than
+## three of the six slots a full fan would use, so an unowned node's fan is
+## tight instead of gap-toothed. Every unit defaults to participating, so with
+## `fan.tscn` open standalone in the editor this is still "all of them" and an
+## author sees the widest spread the fan can produce.
 func _units() -> Array[Node]:
 	var out: Array[Node] = []
 	for n in find_children("*", "", true, false):
-		if n.is_in_group(_GROUP) and n.get_node_or_null("%Trace") != null and n.get_node_or_null("%Panel") != null:
-			out.append(n)
+		if not n.is_in_group(_GROUP):
+			continue
+		if n.get_node_or_null("%Trace") == null or n.get_node_or_null("%Panel") == null:
+			continue
+		if n is FanUnit and not (n as FanUnit).participating:
+			continue
+		out.append(n)
 	return out

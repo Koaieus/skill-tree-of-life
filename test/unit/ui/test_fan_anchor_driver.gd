@@ -7,7 +7,7 @@ extends GutTest
 ## authored starting layout — the gap a purely-static test of [FanAnchor]
 ## itself couldn't catch.
 
-const _UNOWNED := preload("res://ui/tooltip_fan/variants/unowned.tscn")
+const _FAN := preload("res://ui/tooltip_fan/fan.tscn")
 
 
 func _find_unit(root: Node, unit_name: String) -> Node:
@@ -15,7 +15,7 @@ func _find_unit(root: Node, unit_name: String) -> Node:
 
 
 func test_moving_a_panel_rederives_its_trace_terminus() -> void:
-	var inst := _UNOWNED.instantiate()
+	var inst := _FAN.instantiate()
 	add_child(inst)
 	autofree(inst)
 	await get_tree().process_frame
@@ -44,7 +44,7 @@ func test_moving_a_panel_rederives_its_trace_terminus() -> void:
 
 
 func test_reroute_can_be_called_directly_without_waiting_a_frame() -> void:
-	var inst := _UNOWNED.instantiate()
+	var inst := _FAN.instantiate()
 	add_child(inst)
 	autofree(inst)
 	await get_tree().process_frame

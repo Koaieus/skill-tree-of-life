@@ -2,10 +2,11 @@
 class_name OwnerPanel
 extends FanPanel
 
-## Tooltip V2 (#226/#228) — crown, FAR rung (entity-scoped). Only mounted by
-## the `owned`/`owned_core` variants (#226 Decision 2), which is exactly when
-## `node.owned_by` is non-null — so unlike [NodeStatsPanel] this panel needs
-## no [method has_content] override.
+## Tooltip V2 (#226/#228) — crown, FAR rung (entity-scoped). Mounted for every
+## hover since #314 collapsed the occupancy-class variants into one `fan.tscn`,
+## and gated by its own [method has_content] instead: there is no owner to
+## render on an unallocated node. Pre-#314 the variant it was mounted in did
+## that job, which is why this override didn't exist.
 ##
 ## [method bind] renders: [PanelHeader] (all-caps owner name, "Lv N  Class"
 ## subtext), the HOSTILE OWNER tag (this panel's, NOT the ID chip's — #232
@@ -70,6 +71,14 @@ func _ready() -> void:
 func bind(node: SkillNode, _graph: Graph) -> void:
 	_bound_node = node
 	_rebuild()
+
+
+## False on an unallocated node: no owning entity, so nothing to disclose.
+## This is the gate that used to be "which variant mounted me" (#314) — and it
+## is what makes allocating a hovered node fan this panel OUT, since the same
+## check is re-run when the node's ownership changes.
+func has_content() -> bool:
+	return _bound_node != null and _bound_node.owned_by != null
 
 
 func _rebuild() -> void:

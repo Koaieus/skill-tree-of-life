@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
+
+[node name="Fan" type="Node2D"]
+script = ExtResource("1_driver")
+
+[node name="Roots" parent="." instance=ExtResource("2_roots")]
+position = Vector2(0, 43)
+
+[node name="IdChip" parent="." instance=ExtResource("3_chip")]
+position = Vector2(3, -151)
+
+[node name="NodeStats" parent="." instance=ExtResource("4_stats")]
+position = Vector2(-161, -55)
+
+[node name="Addons" parent="." instance=ExtResource("5_addons")]
+position = Vector2(146, -60)
+arrival_axis = 1
+
+[node name="Owner" parent="." instance=ExtResource("6_owner")]
+position = Vector2(-100, -330)
+anchor_slide = 0.8
+
+[node name="Core" parent="." instance=ExtResource("7_core")]
+position = Vector2(134, -311)
+anchor_slide = 0.18

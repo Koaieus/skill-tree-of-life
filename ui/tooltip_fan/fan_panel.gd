@@ -81,14 +81,31 @@ func bind(_node: SkillNode, _graph: Graph) -> void:
 
 ## Whether this panel has anything worth showing for the node it was last
 ## [method bind]ed to. Base implementation says yes — a panel only overrides
-## this if it can legitimately be empty (no addons, no node-local stats).
+## this if it can legitimately be empty (no addons, no node-local stats, no
+## owner, not a core).
+##
+## THIS IS THE FAN'S ONLY GATE since #314 collapsed the three occupancy-class
+## variants into one `fan.tscn`. Every unit is mounted for every hover, so a
+## panel that used to be filtered out by *not being in that variant* has to
+## answer for itself here — see [OwnerPanel] and [CorePanel], which gained their
+## overrides in that change.
 ##
 ## A panel answering `false` is suppressed by [TooltipFan]: its [FanUnit] stays
-## HIDDEN and never plays in, so the fan shows no empty bordered box. What it
-## does NOT do is give up its clock pin — pin assignment stays keyed to the
-## variant's authored member order, so a present panel's trace lands in the same
-## place whether or not its neighbours happened to be suppressed. Absence leaves
-## the fan balanced, never gap-toothed, and never reshuffles the survivors.
+## HIDDEN, never plays in, and **gives up its clock pin** — [FanAnchorDriver]
+## shares the arc out among the participating units only, so three live panels
+## sit at 11/12/1 rather than at three of six slots with gaps between them.
+##
+## That reverses the pre-#314 rule, which held a suppressed panel's pin open so
+## a present panel's trace landed in the same place regardless of its
+## neighbours. The reversal is deliberate: a fan with a hole in it reads as "a
+## panel failed to load", not as a deliberate omission, and positional constancy
+## is not worth buying with that. Slot changes are eased rather than snapped
+## ([member FanAnchorDriver.pin_slide_rate]), so a panel igniting mid-hover makes
+## its neighbours slide over.
+##
+## Re-answered on every live update, not only on hover — allocating the node you
+## are hovering is exactly the case this has to get right. The value is cached
+## per unit in [member FanUnit.participating]; never read one without the other.
 func has_content() -> bool:
 	return true
 

@@ -18,10 +18,16 @@ progress.
 
 **Geometry: one authored quantity per unit — where its panel sits
 (`FanUnit.position`).** Trace origins are computed clock pins around 12 o'clock,
-assigned in angular order around the node (never tree order — the variants are
-inherited scenes); the terminus edge is derived by `FanAnchor` for a
-perpendicular arrival, with `anchor_slide` picking where along it. Pins ride the
-node's *screen-space* rim so the fan is zoom-reactive while panels stay
-screen-constant. `FanAnchorDriver` may READ `unit.position`, never write it —
-its other derived writes are only safe because they target non-editable
-descendants of instanced scenes. See docs/domain/tooltip-fan.md.
+assigned in angular order around the node (never tree order); the terminus edge
+is derived by `FanAnchor` for a perpendicular arrival, with `anchor_slide`
+picking where along it. Pins ride the node's *screen-space* rim so the fan is
+zoom-reactive while panels stay screen-constant. `FanAnchorDriver` may READ
+`unit.position`, never write it — its other derived writes are only safe because
+they target non-editable descendants of instanced scenes.
+
+**One `fan.tscn`, gated per unit (#314).** There are no occupancy-class variants;
+every unit mounts on every hover and `FanPanel.has_content()` is the only gate,
+re-answered on every live node change (allocation, damage, core HP) and cached in
+`FanUnit.participating`. Clock pins and stagger are shared out among the
+*participating* units only, easing to their new slots — a suppressed panel gives
+up its pin rather than holding a gap open. See docs/domain/tooltip-fan.md.

@@ -74,6 +74,34 @@ signal state_changed(new_state: State)
 ## assigning this directly.
 var state: State = State.HIDDEN
 
+## Whether this unit is part of the fan for the currently-hovered node — i.e.
+## its panel had something to show at the last [method bind]. Owned by
+## [TooltipFan], which writes it in the same pass that binds the panel, so the
+## classification can never lag a frame behind the content (#314).
+##
+## Two readers, and they must agree: [TooltipFan] decides whether to play the
+## unit in, and [FanAnchorDriver] shares the clock face out among exactly the
+## participating units — a suppressed panel gives up its pin rather than
+## holding a gap open. Defaults to `true` so the driver behaves identically
+## with the fan scene open standalone in the editor, where no coordinator
+## exists to classify anything.
+##
+## A plain runtime var, deliberately not an `@export`: it is derived per hover,
+## and `.claude/rules/godot-workflow.md` forbids a @tool script writing a
+## derived value into an exported property.
+var participating := true
+
+## This unit's CURRENT trace-origin angle, in radians clockwise from 12
+## o'clock — eased toward the target [FanAnchorDriver] computes for it. Lives
+## here rather than in a driver-side Dictionary so it dies with the unit: fan
+## instances are created and freed on every hover, and a keyed cache would
+## either leak entries or hold freed references.
+##
+## `NAN` means "never placed" — the driver snaps to the target on first sight
+## instead of sweeping in from an arbitrary start. Same reason as above: not an
+## `@export`.
+var pin_angle := NAN
+
 @onready var _trace: FanTrace = %Trace
 @onready var _panel: FanPanel = %Panel
 
