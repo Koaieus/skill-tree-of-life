@@ -263,7 +263,7 @@ var t: MyType = stored if is_instance_valid(stored) else null
 
 ### Git
 ## Closing an issue?
-Mention "Closes #{id}" in the commit message.
+Mention "Closes #{id}" in the commit message. Only fires on push — users already know this.
 ## Worktrees (#86)
 Use `mise run worktree:new -- <issue|name>` / `worktree:ls` / `worktree:rm -- <fuzzy>`
 (see `mise.toml`) to get an isolated checkout under `.worktrees/<slug>/`
