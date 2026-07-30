@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"strength"
 display_name = "Strength"
-description = "Melee attribute (R/Red). Scales phantom-blade damage; STR//10 per contact, blade size STR//10+1."
+description = "Melee attribute (R/Red). Scales phantom-blade damage; +1 damage per 10 STR, +1 blade size per 20 STR."
 value_type = 0
 default_value = 10.0
 tint_color = Color(0.9451, 0.2689, 0.2453, 1)

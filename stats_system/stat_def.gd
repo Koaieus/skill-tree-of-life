@@ -28,3 +28,14 @@ enum ValueType { INT, FLOAT, BOOL }
 ## quantities in the stat's own units, so scaling them here would be wrong
 ## (crit_chance INCREASE 18 must stay "+18%", not "+1800%").
 @export var display_as_percent: bool = false
+
+
+## Short axis/inline label — the first three letters of [member display_name],
+## upper-cased ("Strength" → "STR", "Perception" → "PER"). The Attributes
+## Panel already labelled its rows this way; centralised here (#289) so
+## generated formula prose ("+1 Blade Size per 20 STR") reads identically to
+## the panel it sits next to. Falls back to the id when display_name is empty.
+func abbrev() -> String:
+	if display_name.is_empty():
+		return String(id).substr(0, 3).to_upper()
+	return display_name.substr(0, 3).to_upper()

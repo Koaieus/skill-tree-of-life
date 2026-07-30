@@ -75,7 +75,7 @@ func bind(board: StatBoard) -> void:
 		if def != null:
 			_rows[i].attr_label = def.display_name
 			_rows[i].tint_color = def.tint_color
-			axis_label = def.display_name.substr(0, 3).to_upper()
+			axis_label = def.abbrev()
 			axis_color = def.tint_color
 		_rows[i].attr_id = id
 		specs.append(AxisSpec.new(axis_label, axis_color))

@@ -173,6 +173,14 @@ func contribution_text() -> String:
 ## | MULTIPLY  | "×1.3 Magic Potency" |
 ## | ADD_BONUS | "+3 bonus Armor" |
 ## | SET       | "Armor is 3" |
+##
+## A formula-bound modifier appends the formula's own qualifier — "+1 Blade
+## Size **per 20 STR**" (#289) — and renders `value` (the COEFFICIENT) rather
+## than the effective value, because the clause now carries the variable part.
+## Without the clause the coefficient was actively misleading: an unbound
+## keystone modifier printed a bare "+1 Blade Size" that meant nothing, which
+## is what #231's audit found. Use [method contribution_text] when you want
+## the live computed number instead.
 func format() -> String:
 	var def: StatDef = StatRegistry.get_def(stat_id)
 	var name: String = String(stat_id)
@@ -180,7 +188,20 @@ func format() -> String:
 	if def != null:
 		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
 		as_percent = def.display_as_percent
-	var v := get_effective_value()
+	if formula != null:
+		return _with_per_clause(_format_value(name, as_percent, value))
+	return _format_value(name, as_percent, get_effective_value())
+
+
+## Appends " per <phrase>" to `sentence` when the bound formula offers one.
+## An empty phrase (an [ExpressionFormula] nobody authored yet) degrades to
+## the bare sentence rather than to a dangling "per".
+func _with_per_clause(sentence: String) -> String:
+	var phrase := formula.describe_per()
+	return sentence if phrase.is_empty() else "%s per %s" % [sentence, phrase]
+
+
+func _format_value(name: String, as_percent: bool, v: float) -> String:
 	match operation:
 		Operation.ADD_BASE:
 			if as_percent:

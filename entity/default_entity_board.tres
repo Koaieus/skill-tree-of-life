@@ -47,6 +47,7 @@
 [ext_resource type="Resource" path="res://stats_system/formulas/level_scaling.tres" id="formula_level_scaling"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
+[ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -163,9 +164,9 @@ value = 2.0
 formula = SubResource("formula_per_to_vision")
 
 [sub_resource type="Resource" id="formula_int_to_mana"]
-script = ExtResource("script_expr")
-formula = "floor(float(intelligence) / 10.0)"
-inputs = Array[StringName]([&"intelligence"])
+script = ExtResource("script_ratio")
+source_stat_id = &"intelligence"
+divisor = 10.0
 
 [sub_resource type="Resource" id="mod_int_to_mana"]
 script = ExtResource("12_3edt8")
@@ -174,6 +175,7 @@ formula = SubResource("formula_int_to_mana")
 
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
 script = ExtResource("script_expr")
+per_phrase = "×10 INT"
 formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
 inputs = Array[StringName]([&"intelligence"])
 
@@ -183,9 +185,9 @@ stat_id = &"mana_per_turn"
 formula = SubResource("formula_int_to_mana_pt")
 
 [sub_resource type="Resource" id="formula_wis_to_xp_pt"]
-script = ExtResource("script_expr")
-formula = "floor(float(wisdom) / 2.0)"
-inputs = Array[StringName]([&"wisdom"])
+script = ExtResource("script_ratio")
+source_stat_id = &"wisdom"
+divisor = 2.0
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
 script = ExtResource("12_3edt8")
@@ -193,9 +195,9 @@ stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
 
 [sub_resource type="Resource" id="formula_dex_to_sensor"]
-script = ExtResource("script_expr")
-formula = "floor(float(dexterity) / 10.0)"
-inputs = Array[StringName]([&"dexterity"])
+script = ExtResource("script_ratio")
+source_stat_id = &"dexterity"
+divisor = 10.0
 
 [sub_resource type="Resource" id="mod_dex_to_sensor"]
 script = ExtResource("12_3edt8")
@@ -203,9 +205,9 @@ stat_id = &"sensor_range"
 formula = SubResource("formula_dex_to_sensor")
 
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
-script = ExtResource("script_expr")
-formula = "floor(float(strength) / 10.0)"
-inputs = Array[StringName]([&"strength"])
+script = ExtResource("script_ratio")
+source_stat_id = &"strength"
+divisor = 10.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
 script = ExtResource("12_3edt8")
@@ -213,9 +215,9 @@ stat_id = &"blade_damage"
 formula = SubResource("formula_str_to_blade_damage")
 
 [sub_resource type="Resource" id="formula_str_to_blade_size"]
-script = ExtResource("script_expr")
-formula = "floor(strength / 20.)"
-inputs = Array[StringName]([&"strength"])
+script = ExtResource("script_ratio")
+source_stat_id = &"strength"
+divisor = 20.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
 script = ExtResource("12_3edt8")
@@ -242,9 +244,9 @@ stat_id = &"spell_range"
 formula = SubResource("formula_int_to_spell_range")
 
 [sub_resource type="Resource" id="formula_dex_to_ranged_damage"]
-script = ExtResource("script_expr")
-formula = "floor(float(dexterity) / 10.0)"
-inputs = Array[StringName]([&"dexterity"])
+script = ExtResource("script_ratio")
+source_stat_id = &"dexterity"
+divisor = 10.0
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
 script = ExtResource("12_3edt8")
@@ -262,6 +264,7 @@ formula = SubResource("formula_con_to_node_health")
 
 [sub_resource type="Resource" id="formula_con_to_health"]
 script = ExtResource("script_expr")
+per_phrase = "CON × core scaling"
 formula = "core_health_scaling * constitution"
 inputs = Array[StringName]([&"core_health_scaling", &"constitution"])
 

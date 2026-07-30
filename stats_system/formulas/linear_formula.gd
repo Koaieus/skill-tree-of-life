@@ -20,3 +20,11 @@ func get_input_ids() -> Array[StringName]:
 func compute(board: StatBoard) -> float:
 	var s := board.get_stat(source_stat_id)
 	return float(s.get_value()) if s != null else 0.0
+
+
+## "PER" — a passthrough has no divisor, so the phrase is just the source.
+## An authored [member per_phrase] wins when set.
+func describe_per() -> String:
+	if not per_phrase.is_empty():
+		return per_phrase
+	return _abbrev(source_stat_id)

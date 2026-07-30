@@ -4,5 +4,6 @@
 
 [resource]
 script = ExtResource("1_expr")
+per_phrase = "level after the 1st"
 formula = "level - 1"
 inputs = Array[StringName]([&"level"])

@@ -249,16 +249,47 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|
 | `perception` | `vision_range` | INCREASE | 2 | LinearFormula(perception) — at PER=3 → +6% |
-| `intelligence` | `mana` | ADD_BASE | 1 | `floor(intelligence / 10.0)` |
+| `intelligence` | `mana` | ADD_BASE | 1 | RatioFormula(intelligence, 10) |
 | `intelligence` | `mana_per_turn` | ADD_BASE | 1 | `floor(log(max(1e-5, intelligence))/log(10.0))` |
-| `wisdom` | `xp_per_turn` | ADD_BASE | 1 | `floor(log(max(1e-5, wisdom))/log(10.0))` |
-| `dexterity` | `sensor_range` | ADD_BASE | 1 | `floor(dexterity / 10.0)` |
+| `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **2**) |
+| `dexterity` | `sensor_range` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
-| `strength` | `blade_size` | ADD_BASE | 1 | `floor(strength / 10.0)` |
-| `strength` | `blade_damage` | ADD_BASE | 1 | `floor(strength / 10.0)` |
+| `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
+| `intelligence` | `spell_range` | ADD_BASE | 1 | LinearFormula(intelligence) |
+| `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
+| `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, 10) |
 | `constitution` | `node_health` | ADD_BASE | 1 | LinearFormula(constitution) — TBD (#268): the rate **is** this coefficient, +1 HP per CON |
 | `constitution` + `core_health_scaling` | `health` | ADD_BASE | 1 | `core_health_scaling * constitution` (D-21/D-26, #276) — the rate is the **stat**, not the coefficient (see below) |
 | `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — TBD (#268), +1 CON per level |
+
+### Formula classes — pick the narrowest one (#289)
+
+| Class | Shape | Describes itself as |
+|---|---|---|
+| `RatioFormula(source, divisor)` | `floor(source / divisor)` | "per 20 STR" (generated) |
+| `LinearFormula(source)` | `source` | "per PER" (generated) |
+| `ExpressionFormula(text, inputs)` | anything | authored `per_phrase`, or nothing |
+
+**`floor(stat / N)` must be a `RatioFormula`, never an `ExpressionFormula`.**
+Six intrinsics were hand-written expressions until #289; the divisor lived only inside a
+string, so the prose describing it drifted in four separate places at once (the panel said
+`/10` while blade size computed `/20`; this very table said `decade of WIS` while XP regen
+computed `/2`). With `divisor` a typed field, `describe_per()` renders the same number
+`compute()` divides by — they cannot disagree.
+
+**Every formula owes a one-line `per_phrase`.** `StatModifier.format()` appends it —
+"+1 Blade Size **per 20 STR**" — and renders the modifier's `value` (the coefficient)
+rather than the effective value, because the clause now carries the variable part. Ratio
+and Linear generate the phrase; an `ExpressionFormula` must author one on the resource
+(`"×10 INT"`, `"CON × core scaling"`, `"level after the 1st"`). It is deliberately **not
+multiline** — a formula-bound modifier renders as a single-Label glass slab (`ModSlabRow`)
+in a hover tooltip, and prose would blow the line budget. Nothing may derive the phrase by
+parsing the expression string. `test_formula_descriptions.gd` fails on an undescribed
+formula reachable from the shipped boards.
+
+`AttributeRules` (Attributes Panel hover) now **discovers** these lines by scanning
+`intrinsic_modifiers` for `scales_with(attr_id)` — it holds no rule text of its own, so
+this table is documentation, not a second source of truth.
 
 **Put a rate in `value`, not in the formula string.** Most expression-formula intrinsics above bake their rate into the expression (`floor(strength / 10.0)`) and leave `value` at its 1.0 default. That still works — the knob exists on every modifier — but it splits the rate across two places, and turning `value` up on a `floor(X/10)` formula scales the already-*stepped* output rather than the rate. CON→`node_health` deliberately does it the other way: a `LinearFormula` passthrough of `constitution` with the rate as the modifier's `value`, so #268 retunes it in exactly one field. Prefer that shape for new intrinsics; `mod_per_to_vision` (2.0 × PER) and every `level_scaling` class bonus already follow it.
 
@@ -278,7 +309,7 @@ CON does **not** get an intrinsic targeting `armor` or `min_damage_taken` — D-
 
 **Known gap:** `constitution.tres` is **not** yet bundled into `procgen/pools/specimen_pool_set.tres` — adding it would bump `test_specimen_pool_set.gd`'s hardcoded `packs.size() == 8` / arch_id assertions, and that file was out of #269's ownership. A follow-up issue needs to add CON to the live set (and that test) before CON nodes actually appear in generated levels. Also not wired: an `ArchetypePolicy` for CON (color, weight profile, `procgen/presets/first_level/first_level.tres`) — that lives outside `procgen/pools/**` and was likewise out of scope.
 
-**HUD gap (#289/#228):** `ui/hud/attributes_panel/attributes_panel.gd` hardcodes the 5-attribute list and `ui/hud/attribute_rules.gd`'s `match` has no `&"constitution"` case — CON's Attributes Panel hover text is blank until one of those issues lands. Not fixed here (`ui/**` out of #269's ownership).
+**HUD gap (#228, partially closed by #289):** `AttributeRules` no longer has a per-attribute `match`, so CON's hover lines (`node_health`, `health`) now render. `ui/hud/attributes_panel/attributes_panel.gd` still hardcodes the 5-attribute row/radar list, so CON has no row to hover from — that half remains open under #228.
 
 ## Damage mitigation
 
