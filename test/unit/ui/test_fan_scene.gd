@@ -18,11 +18,15 @@ const _FAN := preload("res://ui/tooltip_fan/fan.tscn")
 ## space (the reserved HP band above the node's HealthBar/CoreHealthBar).
 const _BAND := Rect2(Vector2(-45.0, -70.0), Vector2(90.0, 42.0))
 
-## The units an UNOWNED node's fan actually shows — Owner needs an owning
-## entity and Core needs to be one, so both gate themselves out. Kept as names
-## rather than derived from `has_content()` so this test states the expectation
-## instead of restating the implementation.
-const _UNOWNED_SUPPRESSED := ["Owner", "Core"]
+## The units a HAND-AUTHORED, UNOWNED node's fan gates out: Owner needs an
+## owning entity, Core needs to be one, and ProcgenDebug (#292) needs a
+## `procgen_footprint` meta that only `GraphProcgen` stamps. Kept as names rather
+## than derived from `has_content()` so these tests state the expectation instead
+## of restating the implementation.
+##
+## A *procgen* unowned node would additionally show ProcgenDebug; the fixture
+## here is the dev-sandbox / test-graph case.
+const _UNOWNED_SUPPRESSED := ["Owner", "Core", "ProcgenDebug"]
 
 
 func _panel_rects(fan: Node) -> Array[Rect2]:
@@ -109,7 +113,7 @@ func test_the_fan_carries_every_content_panel() -> void:
 	var inst := _instantiate()
 	var names: Array = inst.find_children("*", "FanUnit", true, false).map(
 		func(n: Node) -> String: return n.name)
-	for expected in ["IdChip", "NodeStats", "Addons", "Owner", "Core"]:
+	for expected in ["IdChip", "NodeStats", "Addons", "Owner", "Core", "ProcgenDebug"]:
 		assert_true(names.has(expected), "fan.tscn must mount the %s unit (have %s)" % [expected, names])
 	assert_not_null(inst.find_child("Roots", true, false),
 		"fan.tscn must mount the GrantedModifiersRoot")
@@ -334,7 +338,7 @@ func test_suppressing_units_tightens_the_spread_onto_the_survivors() -> void:
 	# Three participating units get 11/12/1 — the same slots three units would
 	# get in any other configuration. The reversal of the old "a suppressed
 	# panel keeps its pin" rule, stated as an assertion: if pins were held open,
-	# the survivors would sit at three of five wider slots instead.
+	# the survivors would sit at three of six wider slots instead.
 	var inst := _instantiate()
 	await get_tree().process_frame
 	_suppress(inst, _UNOWNED_SUPPRESSED)
@@ -364,18 +368,18 @@ func test_units_participate_by_default_so_the_editor_shows_the_full_spread() -> 
 	for unit in inst.find_children("*", "FanUnit", true, false):
 		assert_true((unit as FanUnit).participating,
 			"%s must default to participating" % unit.name)
-	assert_eq((inst as FanAnchorDriver).units_in_fan_order().size(), 5,
-		"all five panel-bearing units should take a pin by default")
+	assert_eq((inst as FanAnchorDriver).units_in_fan_order().size(), 6,
+		"all six panel-bearing units should take a pin by default")
 
 
 # --- #314: slot changes are eased, not snapped -------------------------------
 
 ## The unit whose slot actually MOVES when Owner and Core are gated out.
 ##
-## Not IdChip: it sits at index 2 of 5 and index 1 of 3, i.e. dead centre on 12
-## o'clock in both configurations, so easing is unobservable there. NodeStats is
-## the outermost survivor — it goes from the -60 degree end of a five-pin spread
-## to the -30 degree end of a three-pin one.
+## Not IdChip: it sits dead centre on 12 o'clock in both the full spread and the
+## three-pin one, so easing is unobservable there. NodeStats is the outermost
+## survivor — it moves from the left end of the full spread to the -30 degree end
+## of a three-pin one.
 const _SLIDING_UNIT := "NodeStats"
 
 
