@@ -34,6 +34,11 @@ const _ATTRIBUTE_IDS: Array[StringName] = [
 
 const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_value_row.tscn")
 
+## Per-index reveal delay (fraction of the panel's own `progress`) — same
+## staggered-reveal shape as [AddonsPanel] / [GrantedModifiersRoot].
+const _ROW_STAGGER_STEP := 0.12
+const _ROW_STAGGER_CAP := 0.85
+
 @onready var _header: PanelHeader = %Header
 @onready var _hostile_tag: Label = %HostileTag
 @onready var _radar: AttributeRadar = %Radar
@@ -41,6 +46,10 @@ const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_va
 
 ## The node currently rendered, if any (set by [method bind]).
 var _bound_node: SkillNode = null
+
+## One entry per rendered row, parallel to `_rows`' children — drives the
+## staggered reveal from [method _apply_progress].
+var _row_setters: Array[Callable] = []
 
 
 func _ready() -> void:
@@ -69,6 +78,7 @@ func _rebuild() -> void:
 	for child in _rows.get_children():
 		_rows.remove_child(child)
 		child.queue_free()
+	_row_setters.clear()
 	var entity: Entity = _bound_node.owned_by if _bound_node != null else null
 	if entity == null:
 		_header.bind("Owner")
@@ -77,6 +87,7 @@ func _rebuild() -> void:
 	_bind_header(entity)
 	_set_hostile(entity.faction != &"player")
 	_bind_radar_and_rows(entity)
+	_apply_row_stagger()
 
 
 func _bind_header(entity: Entity) -> void:
@@ -126,4 +137,21 @@ func _bind_radar_and_rows(entity: Entity) -> void:
 		var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 		_rows.add_child(row)
 		row.bind_scalar(def, values[i])
-		row.set_progress(1.0)
+		_row_setters.append(row.set_progress)
+
+
+## Overrides [FanPanel._apply_progress] to also drive each row's own staggered
+## reveal off this panel's shared `progress` — the base implementation only
+## scales/fades the panel as a whole, which would otherwise pop every row in
+## at full opacity the instant the panel starts revealing.
+func _apply_progress() -> void:
+	super._apply_progress()
+	_apply_row_stagger()
+
+
+func _apply_row_stagger() -> void:
+	for i in _row_setters.size():
+		var delay := clampf(i * _ROW_STAGGER_STEP, 0.0, _ROW_STAGGER_CAP)
+		var span := 1.0 - delay
+		var row_t := clampf((progress - delay) / span, 0.0, 1.0) if span > 0.0 else progress
+		_row_setters[i].call(row_t)

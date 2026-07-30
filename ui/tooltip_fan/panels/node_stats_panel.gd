@@ -35,11 +35,20 @@ const _ALWAYS_SHOWN_STAT_IDS: Array[StringName] = [&"node_health", &"armor", &"m
 
 const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_value_row.tscn")
 
+## Per-index reveal delay (fraction of the panel's own `progress`) — same
+## staggered-reveal shape as [AddonsPanel] / [GrantedModifiersRoot].
+const _ROW_STAGGER_STEP := 0.12
+const _ROW_STAGGER_CAP := 0.85
+
 @onready var _header: PanelHeader = %Header
 @onready var _rows: VBoxContainer = %Rows
 
 ## The node currently rendered, if any (set by [method bind]).
 var _bound_node: SkillNode = null
+
+## One entry per rendered row, parallel to `_rows`' children — drives the
+## staggered reveal from [method _apply_progress].
+var _row_setters: Array[Callable] = []
 
 
 func _ready() -> void:
@@ -55,6 +64,7 @@ func _ready() -> void:
 func bind(node: SkillNode, _graph: Graph) -> void:
 	_bound_node = node
 	_rebuild_rows()
+	_apply_row_stagger()
 
 
 ## False for an unowned node carrying no node-local stats — no combat
@@ -74,6 +84,7 @@ func _rebuild_rows() -> void:
 	for child in _rows.get_children():
 		_rows.remove_child(child)
 		child.queue_free()
+	_row_setters.clear()
 	if _bound_node == null:
 		return
 	if _bound_node.is_allocated():
@@ -91,7 +102,7 @@ func _add_always_shown_rows() -> void:
 		var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 		_rows.add_child(row)
 		row.bind_pool(hp_def, _bound_node.get_current_hp(), _bound_node.get_max_hp())
-		row.set_progress(1.0)
+		_row_setters.append(row.set_progress)
 	var armor_def: StatDef = StatRegistry.get_def(&"armor")
 	if armor_def != null:
 		var armor: float = float(_bound_node.get_local_value(&"armor"))
@@ -99,7 +110,7 @@ func _add_always_shown_rows() -> void:
 		var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 		_rows.add_child(row)
 		row.bind_parenthetical(armor_def, armor, min_damage)
-		row.set_progress(1.0)
+		_row_setters.append(row.set_progress)
 
 
 func _add_scalar_row(id: StringName) -> void:
@@ -109,7 +120,7 @@ func _add_scalar_row(id: StringName) -> void:
 	var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 	_rows.add_child(row)
 	row.bind_scalar(def, float(_bound_node.get_local_value(id)))
-	row.set_progress(1.0)
+	_row_setters.append(row.set_progress)
 
 
 ## Dynamic (node-local) stat ids on [member SkillNode.node_board], minus the
@@ -125,3 +136,20 @@ func _visible_dynamic_ids() -> Array[StringName]:
 			continue
 		result.append(id)
 	return result
+
+
+## Overrides [FanPanel._apply_progress] to also drive each row's own staggered
+## reveal off this panel's shared `progress` — the base implementation only
+## scales/fades the panel as a whole, which would otherwise pop every row in
+## at full opacity the instant the panel starts revealing.
+func _apply_progress() -> void:
+	super._apply_progress()
+	_apply_row_stagger()
+
+
+func _apply_row_stagger() -> void:
+	for i in _row_setters.size():
+		var delay := clampf(i * _ROW_STAGGER_STEP, 0.0, _ROW_STAGGER_CAP)
+		var span := 1.0 - delay
+		var row_t := clampf((progress - delay) / span, 0.0, 1.0) if span > 0.0 else progress
+		_row_setters[i].call(row_t)
