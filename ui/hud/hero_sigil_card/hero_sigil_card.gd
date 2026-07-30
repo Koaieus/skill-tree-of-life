@@ -69,9 +69,10 @@ func bind(entity: Entity) -> void:
 	var board := _entity.stat_board
 	if board == null:
 		return
-	# No health-per-turn stat exists yet (wound_heal_per_turn is a different
-	# concept, not wired here) — health gets no preview band until one is.
-	_bind_pool(_health_gauge, _health_caption, board.health, null)
+	# `core_healing` is health's per-turn companion (D-25) — same "incoming next
+	# turn" band mana and XP already render, which is exactly why D-25 chose an
+	# integer heal over a sub-1 sliver: zero new UI.
+	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing)
 	_bind_pool(_mana_gauge, _mana_caption, board.mana, board.mana_per_turn)
 	# XP gets its own binding so a level-up plays a fill→wrap→fill animation
 	# instead of the raw pool edits collapsing into a downward jump (#154).

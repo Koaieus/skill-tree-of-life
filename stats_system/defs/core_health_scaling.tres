@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"core_health_scaling"
+display_name = "Core Health Scaling"
+description = "How much entity HP one point of CON buys (D-26). health = 10 + core_health_scaling x CON. Default 1.0; a CoreClass trades pool size against something else by moving this."
+value_type = 1
+default_value = 1.0
+tint_color = Color(0.8878, 0.203, 0.2233, 1)
+modifier_name = "Health per CON"

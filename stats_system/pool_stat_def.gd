@@ -23,7 +23,9 @@ extends StatDef
 ## .claude/rules/stats-system.md "Turn-start upkeep" for the verb model.
 ##   NONE   — no automatic upkeep (default).
 ##   REFILL — current restored to the cap. For reset-each-turn budgets (AP, DP, movement).
-##   ADD    — current += the value of the companion stat `&"<id>_per_turn"` (mana, xp).
+##   ADD    — current += the value of the companion stat `&"<id>_per_turn"` (mana, xp),
+##            or of [member per_turn_stat_id] when the rate stat is named
+##            independently (health ← `core_healing`).
 ##   CUSTOM — dispatches to PoolStat._custom_turn_upkeep(board), a virtual the
 ##            *stat* subclass overrides. For upkeep that touches the stat's own
 ##            extra state (skill_points' wound-heal moves the `wounded` bin).
@@ -32,6 +34,21 @@ extends StatDef
 ##            stat's bins — behaviour lives where its data lives.)
 enum PerTurnMode { NONE, REFILL, ADD, CUSTOM }
 @export var per_turn_mode: PerTurnMode = PerTurnMode.NONE
+
+## ADD-mode override: the id of the scalar carrying the per-turn amount. Empty
+## (the default) means the `<id>_per_turn` convention — mana reads
+## `mana_per_turn`, xp reads `xp_per_turn`. Set this only when the rate stat
+## has a name of its own: `health` replenishes by `core_healing` (D-25), which
+## is named for the mechanic rather than for the pool it fills.
+@export var per_turn_stat_id: StringName = &""
+
+
+## The stat id this pool's ADD upkeep reads, resolving the `<id>_per_turn`
+## convention when no explicit [member per_turn_stat_id] is set.
+func resolved_per_turn_stat_id() -> StringName:
+	if per_turn_stat_id != &"":
+		return per_turn_stat_id
+	return StringName("%s_per_turn" % id)
 
 
 ## Called by PoolStat when `current` crosses *up* to the cap (replenish event).

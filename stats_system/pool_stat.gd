@@ -49,9 +49,10 @@ func run_turn_upkeep(board: StatBoard) -> void:
 		PoolStatDef.PerTurnMode.REFILL:
 			restore_to_full()
 		PoolStatDef.PerTurnMode.ADD:
-			var companion := board.get_stat(StringName("%s_per_turn" % definition.id))
+			var companion_id := pool_definition.resolved_per_turn_stat_id()
+			var companion := board.get_stat(companion_id)
 			if companion == null:
-				push_warning("PoolStat '%s' is ADD per-turn but has no '%s_per_turn' companion stat" % [definition.id, definition.id])
+				push_warning("PoolStat '%s' is ADD per-turn but has no '%s' companion stat" % [definition.id, companion_id])
 				return
 			var amount := float(companion.get_value())
 			if amount > 0.0:

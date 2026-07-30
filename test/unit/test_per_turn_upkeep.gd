@@ -69,8 +69,18 @@ func test_custom_pool_heals_wounds() -> void:
 
 
 func test_none_pool_is_untouched() -> void:
-	# health is NONE — the core does not auto-heal (yet); the sweep must skip it.
-	_board.health.deplete(4.0)
-	var health_current := _board.health.current
+	# xp is ADD, mana is ADD, skill_points is CUSTOM — initiative is the NONE
+	# pool: it's tick-driven by TurnManager, never by the turn-start sweep.
+	_board.initiative.deplete(_board.initiative.current)
+	var initiative_current := _board.initiative.current
 	_board.apply_per_turn_upkeep()
-	assert_eq(_board.health.current, health_current, "health (NONE) must not refill on upkeep")
+	assert_eq(_board.initiative.current, initiative_current,
+		"initiative (NONE) must not be touched by the upkeep sweep")
+
+
+func test_add_pool_can_name_its_companion_stat() -> void:
+	# health is ADD via an explicit per_turn_stat_id (`core_healing`, D-25)
+	# rather than the `<id>_per_turn` convention — the override must resolve.
+	assert_eq(_board.health.pool_definition.resolved_per_turn_stat_id(), &"core_healing")
+	assert_eq(_board.mana.pool_definition.resolved_per_turn_stat_id(), &"mana_per_turn",
+		"pools without an override keep the <id>_per_turn convention")

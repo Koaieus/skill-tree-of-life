@@ -487,7 +487,7 @@ Balanced : 119 hp ÷ 1   = 119      Glass : 119 ÷ 3 = 40      Bulwark : 119 ÷ 
 
 **The one failure mode to guard, named now:** a node that rolls **big CON *and* +1 max deallocation points** is an infinite heal — *if and only if* allocating it grants an immediately-spendable DP alongside the raised maximum. **The guard is to raise the maximum without granting the point.** That closes the loop at its actual source and costs nothing elsewhere. Two fallbacks if it still misbehaves: cap per-turn healing from this channel at `N × core_healing`, or reconsider the grant entirely (see D-22 — the two decisions are coupled).
 
-**Impl status:** Not built. `stats_system/defs/health.tres`, `entity/default_entity_board.tres`, and the DP-grant path. Child issue under #248.
+**Impl status:** **Built** — #276. `health = 10 + core_health_scaling x CON` as a board intrinsic; the delta grant is `StandardPoolStatDef.grant_max_increase_delta` (health opts in via `heal_on_max_increase`), and the DP guard is `deallocation_points.tres` opting *out* of the same flag. `dealloc_damage` needed no work: it was already an ordinary board stat, so a CoreClass tunes it with an ordinary modifier. Pinned by `test/unit/test_entity_health_scaling.gd`.
 
 ---
 
@@ -584,7 +584,7 @@ At a 1-node-per-turn chip, `core_healing = 1` **cancels D-10's clock exactly.** 
 
 **Corrected from an earlier draft:** `dealloc_damage` is a **curse/debuff knob** — a balancing lever, later raisable by a Hex/Curse effect — **not** a scaling base. `core_healing` must not be *expressed* as a fraction of it. The relationship survives only as a **named #268 invariant**: if `core_healing >= dealloc_damage x nodes_lost_per_turn`, camping is viable again and D-10's structural guarantee is silently undone.
 
-**Impl status:** Not built. `stats_system/defs/core_healing.tres` (net-new), `entity/default_entity_board.tres`, turn-start hook. #277.
+**Impl status:** **Built** — #277. `core_healing.tres` + the board scalar; `health` is `per_turn_mode = ADD` with `per_turn_stat_id = &"core_healing"` (a new `PoolStatDef` field, so upkeep stayed declarative instead of becoming a hand-wired turn-start hook). `hero_sigil_card.gd` binds the existing incoming-next-turn band. Pinned by `test/unit/test_core_healing.gd`.
 
 ---
 
@@ -600,7 +600,7 @@ Same shape as `dealloc_damage` being a class lever (D-21): a class can trade poo
 
 **⚠ New fork surfaced, not settled — entity-only stats.** `core_health_scaling` is meaningful **only on the entity**. As a node-local stat it has zero meaning, or worse, a counterintuitive one. The stat system localises stats per node; there is currently no way to say *"this stat is entity-scope only."* That gap is now real and needs its own decision — see the entity-scope stat issue.
 
-**Impl status:** Not built. Rides with D-21 on #276.
+**Impl status:** **Built** — rode with D-21 on #276. `core_health_scaling` is a board scalar (default 1.0); the flat +10 stays baked as `pool_health`'s `base_value`. The entity-scope-only fork it surfaced is #287, still open.
 
 ---
 

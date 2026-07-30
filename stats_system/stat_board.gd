@@ -21,11 +21,23 @@ extends Resource
 @export var intelligence: ScalarStat    ## INT / Blue — magic potency.
 @export var wisdom: ScalarStat          ## WIS / Gold — XP / economy.
 @export var perception: ScalarStat      ## PER / Purple — vision / sensing.
-@export var constitution: ScalarStat    ## CON / White — defensive bulk; scales node_health only (D-11).
+@export var constitution: ScalarStat    ## CON / White — defensive bulk; scales node_health (D-11) and the entity health pool (D-21).
 
 @export_group("Survivability")
-## Entity's **Core** health, entity dies if it reaches 0.
+## Entity's **Core** health, entity dies if it reaches 0. Max is
+## `10 + core_health_scaling × CON` (D-21/D-26); the flat 10 is the pool's
+## `base_value`, the CON term is a board intrinsic.
 @export var health: PoolStat
+## Entity HP restored at turn start (D-25) — `health`'s ADD-mode companion,
+## named for the mechanic rather than the `<pool>_per_turn` convention (see
+## PoolStatDef.per_turn_stat_id). Ungated and unramped by design: taking damage
+## never suppresses it. Placeholder 1; the real rate is a #268 measurement.
+@export var core_healing: ScalarStat
+## HP one point of CON buys (D-26). The class-facing half of the D-21 pair —
+## `core_health_scaling` sizes the pool, `dealloc_damage` sizes the chip, and
+## `nodes_lost_before_death = health / dealloc_damage` is where class identity
+## lives. Entity-scope only; meaningless node-locally (see #287).
+@export var core_health_scaling: ScalarStat
 ## Board-level scalar baseline that seeds owned-node max HP. The per-node
 ## ephemeral combat pool lives on each TreeNode's combat component (see the
 ## "Per-Node Health" section of the design doc); this is the aggregate itw

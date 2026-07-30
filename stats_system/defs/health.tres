@@ -4,9 +4,11 @@
 
 [resource]
 script = ExtResource("1_std_pool_def")
+per_turn_mode = 2
+per_turn_stat_id = &"core_healing"
 id = &"health"
 display_name = "Health"
-description = "Entity HP pool. Persistent — does not reset; the death clock. Depleted by arm-loss and core-shield overflow."
+description = "Entity HP pool. Persistent — does not reset; the death clock. Depleted by arm-loss and core-shield overflow. Max is 10 + core_health_scaling x CON (D-21/D-26); regains core_healing per turn (D-25). heal_on_max_increase is left ON deliberately: that is the D-21 ratchet — see StandardPoolStatDef.grant_max_increase_delta."
 default_value = 10.0
 tint_color = Color(0.8878, 0.203, 0.2233, 1)
 modifier_name = "Max Health"

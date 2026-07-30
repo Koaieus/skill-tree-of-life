@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"core_healing"
+display_name = "Core Healing"
+description = "Entity HP restored at turn start. Ungated and unramped (D-25) — taking damage never suppresses it. Placeholder 1/turn; the real value is a #268 measurement."
+value_type = 0
+default_value = 1.0
+tint_color = Color(0.8878, 0.203, 0.2233, 1)
+modifier_name = "Core Healing"
