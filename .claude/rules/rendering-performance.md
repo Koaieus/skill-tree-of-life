@@ -1,0 +1,1 @@
+At sprite/UI scale the fragment shader is free and the **draw call** is not — batching breaks on a different texture *or a different material* (same shader + different uniform values = unbatchable), so per-instance variation belongs in `modulate`/UV/`INSTANCE_CUSTOM`, never in per-node uniforms. See docs/domain/rendering-performance.md
