@@ -92,7 +92,6 @@ script = ExtResource("4_cam")
 unique_name_in_owner = true
 z_index = 1000
 vision_system = NodePath("../../Systems/VisionSystem")
-intensity = 0.88
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
 

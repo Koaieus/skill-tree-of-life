@@ -17,6 +17,13 @@ extends Node2D
 
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 
+## Dev shortcut (#244): `F` flips FogOverlay.intensity between fully opaque
+## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
+## enemy positions through unsensed fog.
+const _FOG_DEBUG_KEY: int = KEY_F
+const _FOG_INTENSITY_SHIP: float = 1.0
+const _FOG_INTENSITY_DEV: float = 0.88
+
 ## Intent flags — let a subclass / inherited scene run a *neutered* GameRoot
 ## (e.g. a live showcase in an editor tab) without the parts a self-driven demo
 ## doesn't want. The owner toggles its own children here; nobody reaches in from
@@ -46,6 +53,7 @@ var player: Entity
 @onready var highlight_controller: HighlightController = %HighlightController
 
 @onready var floater_director: FloaterDirector = %FloaterDirector
+@onready var fog_overlay: FogOverlay = %FogOverlay
 
 # UI
 @onready var camera: Camera2D = %GraphCamera
@@ -81,8 +89,8 @@ func _ready() -> void:
 	_ensure_controllers()
 	bind_player(player)
 	if not enable_fog:
-		if has_node("%FogOverlay"):
-			(get_node("%FogOverlay") as CanvasItem).visible = false
+		if fog_overlay != null:
+			fog_overlay.visible = false
 		# Floaters must not query the (dormant, non-@tool) VisionSystem for
 		# per-node visibility in a no-fog showcase — calling a method on a
 		# non-@tool node from the editor is the boundary-error class. Null it so
@@ -113,6 +121,20 @@ func _ready() -> void:
 			player.stat_board.initiative.restore_to_full()
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key: InputEventKey = event
+	if not key.pressed or key.echo:
+		return
+	if key.keycode != _FOG_DEBUG_KEY:
+		return
+	if fog_overlay == null:
+		return
+	fog_overlay.intensity = _FOG_INTENSITY_DEV if fog_overlay.intensity == _FOG_INTENSITY_SHIP else _FOG_INTENSITY_SHIP
+	get_viewport().set_input_as_handled()
 
 
 ## Entity death consequence (#18). Node-stripping is AllocationSystem's job (it

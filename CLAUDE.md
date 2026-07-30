@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Skill Tree of Life** — a Godot 4.7 game where the skill tree *is* the game. Entities (players, NPCs) live on a graph of skill nodes, allocating nodes to expand territory and stats. Turn-based, initiative-driven. See `docs/GDD.md` for the full pitch and `docs/design/index.md` for design doc reading order.
 
+## Delegating to subagents
+
+Pass `model: "haiku"` on `Explore` agent calls — fast read-only codebase search (finding files, grepping symbols) is what Haiku excels at, and it's cheaper than the default.
+
 ## Running the Game
 
 ```
