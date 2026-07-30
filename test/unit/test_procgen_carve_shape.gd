@@ -62,9 +62,25 @@ func test_every_tagged_node_carries_its_archetypes_shape() -> void:
 	var nodes: Array = result.get("nodes", [])
 	assert_gt(nodes.size(), 0)
 	var found_tagged := false
+	# Side count per archetype id — non-null shapes alone would still pass if
+	# every archetype collapsed back to one shape, which IS the bug (#302: "every
+	# procgen node in the game draws a triangle"). Shape-READABILITY is the
+	# property, so assert the shapes actually differ across territories.
+	var sides_by_archetype: Dictionary = {}
 	for n in nodes:
-		if n.get_meta("archetype", &"") != &"":
+		var arch_id: StringName = n.get_meta("archetype", &"")
+		if arch_id != &"":
 			found_tagged = true
 			assert_not_null(n.archetype, "an archetype-tagged node must carry its Archetype resource")
 			assert_not_null(n.archetype.carve_shape, "every archetype now carves its own shape, not the all-triangles default")
+			var poly := n.archetype.carve_shape as PolygonCarveShape
+			if poly != null:
+				sides_by_archetype[arch_id] = poly.sides
 	assert_true(found_tagged, "expected at least one archetype-tagged node")
+
+	var distinct_sides: Dictionary = {}
+	for sides in sides_by_archetype.values():
+		distinct_sides[sides] = true
+	assert_gt(distinct_sides.size(), 1,
+			"territories must be shape-READABLE: %d archetypes generated but only %d distinct carve shape(s) — %s"
+					% [sides_by_archetype.size(), distinct_sides.size(), sides_by_archetype])
