@@ -108,13 +108,13 @@ func test_bake_is_deterministic() -> void:
 	assert_eq(a.get_data(), b.get_data(), "baking the same source twice must yield byte-identical images")
 
 
-func test_carve_returns_texture_style_spec_carrying_the_baked_lut() -> void:
+func test_carve_returns_a_spec_carrying_the_shape_itself() -> void:
 	var shape := TextureCarveShape.new()
 	shape.source_texture = _load_source()
 	shape.baked_lut = TextureCarveShape.bake_lut(shape.source_texture)
 
-	var spec: EmblemSpec = shape.carve(EmblemSpec.PRIORITY_SPELL, &"spell")
-	assert_eq(spec.carve_style, EmblemSpec.CarveStyle.TEXTURE)
-	assert_eq(spec.texture, shape.baked_lut)
-	assert_eq(spec.priority, EmblemSpec.PRIORITY_SPELL)
+	var spec: EmblemSpec = shape.carve(EmblemSpec.Priority.SPELL, &"spell")
+	assert_same(spec.shape, shape, "the spec carries the shape; #247's decode reads baked_lut off it")
+	assert_eq(spec.shape.baked_lut, shape.baked_lut)
+	assert_eq(spec.priority, EmblemSpec.Priority.SPELL)
 	assert_eq(spec.source_kind, &"spell")

@@ -24,6 +24,15 @@ extends Resource
 @export var display_name: String = ""
 @export_multiline var description: String = ""
 @export var icon: Texture2D = null
+
+## The shape a node carrying this keystone carves into its dome (#315) — a
+## KEYSTONE-priority [EmblemSpec], the top of the ladder. Typed as the BASE
+## class on purpose: a keystone isn't restricted to a baked-icon carve. Distinct
+## from [member icon], which is 2D card art — this is a height-field dent. Null
+## contributes an empty dome at keystone priority (honest: the keystone claims
+## the carve, no shape authored yet) rather than letting the archetype shape
+## stand in.
+@export var carve_shape: CarveShape = null
 ## Everything this keystone grants while its carrier node is allocated.
 ## [AllocationSystem] grants each against the carrier, so deallocating the node
 ## revokes exactly these.

@@ -7,23 +7,27 @@ extends Resource
 ## bare int/enum, so "what does this shape look like" lives with the shape
 ## itself, not scattered across SkillNode/Archetype.
 ##
-## Two producer families, both resolving to the SAME [EmblemSpec] payload
-## contract the resolver/InnerDisk already understand:
-## - Analytic (this epic): [PolygonCarveShape], [GemCarveShape] — a formula,
-##   cheap, batch-friendly.
-## - Arbitrary art (deferred, see #245/#246): a future TextureCarveShape that
-##   bakes authored art (a spell icon, a keystone glyph) into the shared
-##   height+gradient LUT encoding InnerDisk's gem cut already uses. Nothing
-##   here forecloses that — a source swapping its CarveShape from a
-##   PolygonCarveShape to a TextureCarveShape is a one-line content change,
-##   not a re-plumb.
+## Two producer families, both riding the SAME [EmblemSpec] the resolver and
+## InnerDisk already understand — the spec now carries the shape ITSELF (#315),
+## so neither layer re-declares what a shape is:
+## - Analytic: [PolygonCarveShape], [GemCarveShape] — a formula, cheap,
+##   batch-friendly.
+## - Arbitrary art: [TextureCarveShape] (#246) bakes authored art (a spell icon,
+##   a keystone glyph) into the shared height+gradient LUT encoding InnerDisk's
+##   gem cut already uses; its live decode is still deferred (#247). A source
+##   swapping its CarveShape from a PolygonCarveShape to a TextureCarveShape is
+##   a one-line content change, not a re-plumb.
+##
+## Deliberately knows NOTHING about [InnerDisk] — no `shader_kind()`, no
+## `apply_to(disk)`. The renderer dispatches on the shape's type, not the other
+## way round; inverting that is what #302 rejected.
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 
-## Builds this shape's CARVE contribution at the given priority/source. See
-## [method EmblemSpec.polygon_carve] / [method EmblemSpec.gem_carve] for the
-## concrete factories a subclass should delegate to.
-func carve(_priority: int, _source: StringName) -> EmblemSpec:
-	push_error("CarveShape.carve() is abstract — override in a subclass")
-	return null
+## Builds this shape's CARVE contribution at the given priority/source — the
+## entry point every source uses. The base implementation is the whole story
+## for a shape with no per-shape wrapping to do; subclasses that need none
+## (all of them today) inherit it as-is.
+func carve(priority: int, source: StringName) -> EmblemSpec:
+	return EmblemSpec.carve(self, priority, source)

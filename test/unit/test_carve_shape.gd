@@ -2,11 +2,13 @@ extends GutTest
 
 ## CarveShape producers (#237's minimal real interface, see
 ## docs/domain/skillnode-emblem.md): PolygonCarveShape / GemCarveShape ->
-## EmblemSpec, and InnerDisk.set_carve()'s dispatch off EmblemSpec.carve_style.
+## EmblemSpec, and InnerDisk.set_carve()'s dispatch off the spec's own shape
+## TYPE (#315 retired the CarveStyle enum that used to echo it).
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 const GemCarveShape = preload("res://skill_node/visuals/emblem/gem_carve_shape.gd")
+const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
 const InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 const _INNER_DISK_SCENE := preload("res://skill_node/visuals/inner_disk.tscn")
 const _COMPOSITE_SCENE := preload("res://skill_node/visuals/node_visuals_composite.tscn")
@@ -16,26 +18,31 @@ func test_polygon_carve_shape_builds_a_polygon_spec() -> void:
 	var shape := PolygonCarveShape.new()
 	shape.sides = 5
 	shape.squish_x = 0.7
-	var spec: EmblemSpec = shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
-	assert_eq(spec.carve_style, EmblemSpec.CarveStyle.POLYGON)
-	assert_eq(spec.polygon_sides, 5)
-	assert_eq(spec.polygon_squish, 0.7)
-	assert_eq(spec.priority, EmblemSpec.PRIORITY_ARCHETYPE)
+	var spec: EmblemSpec = shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype")
+	assert_same(spec.shape, shape, "the spec carries the SHAPE, not a copy of its fields")
+	assert_eq(spec.shape.sides, 5)
+	assert_eq(spec.shape.squish_x, 0.7)
+	assert_eq(spec.priority, EmblemSpec.Priority.ARCHETYPE)
 	assert_eq(spec.source_kind, &"archetype")
 
 
 func test_polygon_carve_shape_defaults_to_unsquished() -> void:
 	var shape := PolygonCarveShape.new()
 	shape.sides = 3
-	var spec: EmblemSpec = shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
-	assert_eq(spec.polygon_squish, 1.0)
+	var spec: EmblemSpec = shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype")
+	assert_eq(spec.shape.squish_x, 1.0)
 
 
 func test_gem_carve_shape_builds_a_gem_spec() -> void:
 	var shape := GemCarveShape.new()
-	var spec: EmblemSpec = shape.carve(EmblemSpec.PRIORITY_LOOT, &"loot")
-	assert_eq(spec.carve_style, EmblemSpec.CarveStyle.GEM)
-	assert_eq(spec.priority, EmblemSpec.PRIORITY_LOOT)
+	var spec: EmblemSpec = shape.carve(EmblemSpec.Priority.LOOT, &"loot")
+	assert_same(spec.shape, shape)
+	assert_eq(spec.priority, EmblemSpec.Priority.LOOT)
+
+
+func test_gem_carve_shape_has_one_shared_instance() -> void:
+	assert_not_null(GemCarveShape.SHARED, "the parameterless gem shape ships a shared instance (#315)")
+	assert_same(GemCarveShape.SHARED, GemCarveShape.SHARED, "and it is the same object every read")
 
 
 func test_inner_disk_set_carve_polygon() -> void:
@@ -43,7 +50,10 @@ func test_inner_disk_set_carve_polygon() -> void:
 	autofree(disk)
 	add_child(disk)
 	await get_tree().process_frame
-	disk.set_carve(EmblemSpec.polygon_carve(7, EmblemSpec.PRIORITY_ARCHETYPE, &"archetype", 0.8))
+	var shape := PolygonCarveShape.new()
+	shape.sides = 7
+	shape.squish_x = 0.8
+	disk.set_carve(shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
 	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.POLYGON)
 	assert_eq(disk.weld_sides, 7)
 	assert_eq(disk.weld_squish, 0.8)
@@ -54,7 +64,7 @@ func test_inner_disk_set_carve_gem() -> void:
 	autofree(disk)
 	add_child(disk)
 	await get_tree().process_frame
-	disk.set_carve(EmblemSpec.gem_carve(EmblemSpec.PRIORITY_LOOT, &"loot"))
+	disk.set_carve(GemCarveShape.SHARED.carve(EmblemSpec.Priority.LOOT, &"loot"))
 	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.GEM)
 
 
@@ -63,8 +73,20 @@ func test_inner_disk_set_carve_texture_falls_back_to_none() -> void:
 	autofree(disk)
 	add_child(disk)
 	await get_tree().process_frame
-	disk.set_carve(EmblemSpec.texture_carve(null, EmblemSpec.PRIORITY_SPELL, &"spell"))
+	disk.set_carve(TextureCarveShape.new().carve(EmblemSpec.Priority.SPELL, &"spell"))
 	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "no renderer yet for TEXTURE carves -> empty dome")
+
+
+## A spec whose shape is null is NOT the same as no contribution: the source
+## claims its rung and reads as an empty dome. See SkillNode.get_emblem_contributions.
+func test_inner_disk_set_carve_shapeless_spec_is_none() -> void:
+	var disk := _INNER_DISK_SCENE.instantiate()
+	autofree(disk)
+	add_child(disk)
+	await get_tree().process_frame
+	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
+	disk.set_carve(EmblemSpec.carve(null, EmblemSpec.Priority.KEYSTONE, &"keystone"))
+	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE)
 
 
 func test_inner_disk_set_carve_null_is_none() -> void:

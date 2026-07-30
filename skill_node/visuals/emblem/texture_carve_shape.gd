@@ -7,10 +7,11 @@ extends CarveShape
 ## docs/domain/emblem-bake.md for the derivation and the note that #247's
 ## shader decode constants must stay in lock-step with the ones below).
 ##
-## OFFLINE BAKE ONLY. This shape carries the baked LUT, not the raw icon —
-## [method carve] hands [member baked_lut] to [method EmblemSpec.texture_carve].
-## No live-render decode exists yet (#247); until then InnerDisk's TEXTURE
-## branch stays the empty-dome fallback (see .claude/rules/skill-node-visuals.md).
+## OFFLINE BAKE ONLY. This shape carries the baked LUT, not the raw icon, and
+## rides into the [EmblemSpec] as itself (#315) — so #247's decode reads
+## [member baked_lut] straight off the shape. No live-render decode exists yet;
+## until then InnerDisk falls back to an empty dome for this shape family (see
+## .claude/rules/skill-node-visuals.md).
 ##
 ## Source icons (`assets/icons/spells/*.png`) are flat monochrome silhouettes
 ## with the background alpha-stripped — luminance carries no interior height,
@@ -33,16 +34,11 @@ const ALPHA_THRESHOLD := 0.5
 ## The authored icon to bake. Only its ALPHA channel is read (see class doc).
 @export var source_texture: Texture2D
 
-## The baked LUT this shape carries — what [method carve] hands to
-## [method EmblemSpec.texture_carve]. Set by [method _bake_from_source]
-## (the tool button) or assigned directly (e.g. loading a committed asset).
+## The baked LUT this shape carries. Set by [method _bake_from_source] (the tool
+## button) or assigned directly (e.g. loading a committed asset).
 @export var baked_lut: Texture2D
 
 @export_tool_button("Bake") var bake_button: Callable = _bake_from_source
-
-
-func carve(priority: int, source: StringName) -> EmblemSpec:
-	return EmblemSpec.texture_carve(baked_lut, priority, source)
 
 
 func _bake_from_source() -> void:

@@ -7,7 +7,7 @@ extends RefCounted
 ## keystones — sources contribute, this decides.
 
 # Referenced via preload (not the bare class_name) so the resolver runs before
-# the editor rebuilds the global class cache — see SKILLNODE_EMBLEM_HANDOFF.md.
+# the editor rebuilds the global class cache — see docs/domain/skillnode-emblem.md.
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 

@@ -12,7 +12,3 @@ extends CarveShape
 
 ## 1.0 = regular; < 1.0 narrows the shape's X extent.
 @export_range(0.3, 1.0, 0.01) var squish_x: float = 1.0
-
-
-func carve(priority: int, source: StringName) -> EmblemSpec:
-	return EmblemSpec.polygon_carve(sides, priority, source, squish_x)

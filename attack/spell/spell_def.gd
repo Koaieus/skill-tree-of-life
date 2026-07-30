@@ -14,6 +14,15 @@ extends Resource
 ## tooltips. Optional — falls back to a glyph derived from the spell name.
 @export var icon: Texture2D = null
 
+## The shape a node granting this spell carves into its dome (#315) — a
+## SPELL-priority [EmblemSpec], outranking the archetype fallback. Typed as the
+## BASE class on purpose: a spell isn't restricted to a baked-icon carve, it may
+## just as well want a polygon or the gem cut. Distinct from [member icon],
+## which is 2D card art — this is a height-field dent. Null contributes an empty
+## dome at spell priority (honest: the spell claims the carve, no shape authored
+## yet) rather than letting the archetype shape stand in.
+@export var carve_shape: CarveShape = null
+
 ## Required degree for [SkillNodes] to have (how many edges they have) before this spell may be fired
 # 	could also opt for encoding this as an named (int)enum
 @export var min_degree: int = 1

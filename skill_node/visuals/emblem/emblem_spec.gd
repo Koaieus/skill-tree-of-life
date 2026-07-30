@@ -4,7 +4,7 @@ extends RefCounted
 ## (archetype, keystone, spell grant, loot addon, or core presence). Each source
 ## hands back an [EmblemSpec]; an [EmblemResolver] decides which CARVE wins and
 ## which BLOOMs draw — so SkillNode never has to know what a spell, a keystone,
-## or a loot relic is. See SKILLNODE_EMBLEM_HANDOFF.md for the full model.
+## or a loot relic is. See docs/domain/skillnode-emblem.md for the full model.
 
 ## Which visual register this emblem draws in. CARVE = the single height-field
 ## dent in the dome (one winner, chosen by [member priority]). BLOOM = an
@@ -16,74 +16,53 @@ enum Register { CARVE, BLOOM }
 ## How the emblem is tinted at draw time.
 enum TintMode { ARCHETYPE, ENTITY, FIXED }
 
-## Which analytic/authored shape family a CARVE resolves to — the single
-## selector InnerDisk switches on (replacing the old show_weld/show_diamond
-## mutually-exclusive bool pair; see .claude/rules/skill-node-visuals.md).
-## POLYGON/GEM are analytic (batch-friendly, no per-instance texture);
-## TEXTURE is arbitrary art with no renderer yet (#245/#246) — InnerDisk falls
-## back to an empty dome for it.
-enum CarveStyle { POLYGON, GEM, TEXTURE }
-
 ## CARVE priority ladder — higher wins. Ordering per the locked design:
 ## keystone (bespoke) > loot (consumed one-off) > spell grant > archetype shape
 ## (the fallback). BLOOM carries no meaningful priority.
-const PRIORITY_ARCHETYPE := 10
-const PRIORITY_SPELL := 20
-const PRIORITY_LOOT := 30
-const PRIORITY_KEYSTONE := 40
+##
+## A rung is deliberately SHAREABLE — [member source_kind] is a separate field,
+## not this enum's name: `node_visuals_composite.gd` contributes `&"authored"`
+## at [constant Priority.ARCHETYPE], and [EmblemResolver] models `carve_ties`
+## for specs tied at the winning rung. Don't collapse the two.
+enum Priority {
+	ARCHETYPE = 10,
+	SPELL = 20,
+	LOOT = 30,
+	KEYSTONE = 40,
+}
 
 var register: Register = Register.CARVE
-var priority: int = PRIORITY_ARCHETYPE
+## Left as a plain [int] (not [enum Priority]) so a caller may sit between two
+## rungs without minting an enum member; [EmblemResolver] only ever compares it.
+var priority: int = Priority.ARCHETYPE
 var tint_mode: TintMode = TintMode.ARCHETYPE
 var fixed_tint: Color = Color.WHITE
 ## Where this contribution came from — for tie-break debugging and tooltip copy.
 var source_kind: StringName = &""
 
-# --- visual payload: a spec carries whichever field its kind needs ---
-var carve_style: CarveStyle = CarveStyle.TEXTURE
-## Regular-polygon carve (the archetype fallback shape). 0 = not a polygon.
-var polygon_sides: int = 0
-## Anisotropic X-axis squish on the polygon carve (1.0 = regular).
-var polygon_squish: float = 1.0
-## Bitmap/atlas icon carve (spell grant, loot glyph, bespoke keystone).
-var texture: Texture2D = null
-## Parametric mark, drawn as a glow (the core-class sigil bloom).
+## The shape this CARVE etches — the [CarveShape] ITSELF, not a copy of its
+## fields. Whatever renders the emblem dispatches on the shape's own type
+## ([InnerDisk.set_carve]), so adding a parameter to a shape family is one edit
+## on that shape rather than a new payload field here plus a new copy hop there.
+##
+## Null is meaningful and NOT the same as "no contribution": it means this
+## source claims the carve at its rung but has no shape authored yet (a keystone
+## or spell whose `carve_shape` is unset), which renders as an empty dome —
+## honest, rather than letting the archetype fallback misrepresent the node.
+var shape: CarveShape = null
+## Parametric mark, drawn as a glow (the core-class sigil bloom). Its own
+## register — a [Sigil] is not a [CarveShape] and never competes for the carve.
 var sigil: Sigil = null
 
 
-## A regular-polygon CARVE — the shape family the batched dome shader can render
-## as an analytic SDF (see [PolygonCarveShape] / the archetype fallback carved
-## from [Archetype.carve_shape]).
-static func polygon_carve(sides: int, prio: int, source: StringName, squish: float = 1.0) -> EmblemSpec:
+## The one CARVE constructor. Reached through [method CarveShape.carve], which
+## is the entry point every source uses — this stays public for the sources that
+## have no shape to hand over (see [member shape]).
+static func carve(carve_shape: CarveShape, prio: int, source: StringName) -> EmblemSpec:
 	var e := EmblemSpec.new()
 	e.register = Register.CARVE
 	e.priority = prio
-	e.carve_style = CarveStyle.POLYGON
-	e.polygon_sides = sides
-	e.polygon_squish = squish
-	e.source_kind = source
-	return e
-
-
-## The loot relic's gem-cut CARVE (#168) — see [GemCarveShape]. A fixed baked
-## height-field dent, identical on every instance.
-static func gem_carve(prio: int, source: StringName) -> EmblemSpec:
-	var e := EmblemSpec.new()
-	e.register = Register.CARVE
-	e.priority = prio
-	e.carve_style = CarveStyle.GEM
-	e.source_kind = source
-	return e
-
-
-## A bitmap/atlas-icon CARVE (arbitrary art: spell icon, loot glyph, keystone).
-## No renderer exists yet (#245/#246) — InnerDisk falls back to an empty dome.
-static func texture_carve(tex: Texture2D, prio: int, source: StringName) -> EmblemSpec:
-	var e := EmblemSpec.new()
-	e.register = Register.CARVE
-	e.priority = prio
-	e.carve_style = CarveStyle.TEXTURE
-	e.texture = tex
+	e.shape = carve_shape
 	e.source_kind = source
 	return e
 

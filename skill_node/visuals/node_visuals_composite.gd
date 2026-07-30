@@ -230,7 +230,7 @@ func _apply_carve_shape() -> void:
 			set_carve(null)
 		return
 	_applied_a_shape = true
-	set_carve(carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"authored"))
+	set_carve(carve_shape.carve(EmblemSpec.Priority.ARCHETYPE, &"authored"))
 
 
 ## The core-class [Sigil] to BLOOM on [CoreSigilBloom] (Register 3, #128) —

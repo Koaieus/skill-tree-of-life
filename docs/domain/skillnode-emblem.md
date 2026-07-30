@@ -70,7 +70,7 @@ loot, SkillDust, spells, or keystones — it just aggregates specs. This mirrors
 the existing `get_node_effects()` / `get_addon_tooltip_sections()` aggregation.
 
 ```
-each source        -> EmblemSpec (register + priority + payload)
+each source        -> EmblemSpec (register + priority + the CarveShape itself)
 SkillNode          -> get_emblem_contributions() = own(archetype/keystone/effects) + addons' get_emblem()
 EmblemResolver     -> Resolution { carve, carve_ties, blooms }   # pure, scene-free
 renderer           -> draws the one carve + every bloom
@@ -81,10 +81,32 @@ renderer           -> draws the one carve + every bloom
   priority into `carve_ties`, and appends every BLOOM. It does **not** know how
   to combine ties — a multi-spell node's cross-fade/split strategy is the
   *renderer's* job, not the resolver's. Keep it that way.
-- Payload is polymorphic per kind: `polygon_sides` (archetype), `texture`
-  (spell/loot/keystone art), or `sigil` (the core bloom). Factory ctors
-  (`polygon_carve` / `texture_carve` / `sigil_bloom`) set the right register +
-  tint defaults so callers can't mismatch them.
+- **A CARVE spec holds the `CarveShape` itself, not a copy of its fields**
+  (#315). There used to be a union payload — `polygon_sides` / `polygon_squish`
+  / `texture` — plus a `CarveStyle` enum naming which of them was live, plus
+  per-style factories to fill each combination. That was the shape described
+  three times: once by the subclass, once by the enum, once again by
+  `InnerDisk.CarveKind`. Now there is **one** CARVE ctor,
+  `EmblemSpec.carve(shape, priority, source)`, reached through
+  `CarveShape.carve(priority, source)` — so adding a parameter to a shape family
+  is one edit on that shape, not a payload field plus a factory arg plus a copy
+  hop. `sigil` stays its own field: a `Sigil` is a BLOOM, not a `CarveShape`,
+  and `sigil_bloom` still sets the register + tint defaults for it.
+- **`InnerDisk.CarveKind` survives, deliberately.** It is the *shader's* int
+  branch selector and has to exist for the batched instance uniform. The
+  renderer dispatches on the shape's own type (`if shape is PolygonCarveShape`)
+  and maps to its own `CarveKind` locally. `skill_node/visuals/emblem/` knows
+  nothing about `InnerDisk` — no `shader_kind()`, no `apply_to(disk)`; inverting
+  that dependency is what #302 rejected.
+- **A null `shape` is not "no contribution."** A keystone or spell grant with no
+  `carve_shape` authored still contributes at its rung, carrying a null shape,
+  and renders as an empty dome. Contributing nothing instead would let the
+  archetype fallback win and dress a keystone node up as a plain territory node.
+- **`priority` and `source_kind` are two independent fields**, and the ladder
+  (`EmblemSpec.Priority`) is deliberately not 1:1 with the source: a rung is
+  shareable (`node_visuals_composite.gd` contributes `&"authored"` at
+  `Priority.ARCHETYPE`, and `carve_ties` exists precisely to model ties).
+  `source_kind` is purely descriptive — tie-break debugging, tooltip copy.
 
 ## BLOOM rendering — CoreSigilBloom (implemented)
 

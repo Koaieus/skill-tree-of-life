@@ -131,13 +131,14 @@ func get_tooltip_modifiers() -> Array[StatModifier]:
 ## LOOT-priority carve — a consumed one-off, so it outranks a spell grant until
 ## allocation consumes the relic (see the class doc above). The carve's actual
 ## look is the gem-cut height-field dent InnerDisk already bakes
-## ([member InnerDisk.CarveKind.GEM], #168) — [method EmblemSpec.gem_carve] is
-## what routes a LOOT carve to that renderer instead of the (not-yet-built)
-## arbitrary-bitmap TEXTURE path.
+## ([member InnerDisk.CarveKind.GEM], #168) — handing over [GemCarveShape] is
+## what routes a LOOT carve to that renderer. There is nothing to author on that
+## shape (it takes no per-instance parameters), so this rides its shared
+## instance rather than minting an identical Resource per relic.
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 func get_emblem() -> Variant:
-	return EmblemSpec.gem_carve(EmblemSpec.PRIORITY_LOOT, &"loot")
+	return GemCarveShape.SHARED.carve(EmblemSpec.Priority.LOOT, &"loot")
 
 
 ## Pickup == the carrier gaining an owner. Routes the core-mod candidates through

@@ -9,6 +9,8 @@ extends CarveShape
 ## section). Carries no @export knobs on purpose — tune the shape itself in
 ## InnerDisk's GEM_* bake constants, not per-instance here.
 
-
-func carve(priority: int, source: StringName) -> EmblemSpec:
-	return EmblemSpec.gem_carve(priority, source)
+## The one instance every gem carve shares (#315). Because this class carries no
+## per-instance parameters BY DESIGN, a source that just wants "the gem cut"
+## (e.g. [SkillDustAddon]) has nothing to author — it hands this over rather than
+## minting a fresh identical Resource per contribution.
+static var SHARED: GemCarveShape = GemCarveShape.new()

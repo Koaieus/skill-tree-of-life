@@ -147,9 +147,9 @@ static var _gem_lut: ImageTexture
 
 ## Regular-polygon side count for the POLYGON carve. STANDALONE PREVIEW ONLY —
 ## once [method set_carve] receives an archetype carve it overwrites this from
-## the resolved [EmblemSpec.polygon_sides] (see [Archetype.carve_shape], the
-## canonical archetype -> sides mapping; this file no longer keeps its own
-## copy). Exists
+## the resolved shape's [member PolygonCarveShape.sides] (see
+## [Archetype.carve_shape], the canonical archetype -> sides mapping; this file
+## no longer keeps its own copy). Exists
 ## so the disk still previews a shape in the sandbox / node_visuals_panel.tscn
 ## before a carve has been injected — same "local export as offline fallback"
 ## precedent as [member lighting] below.
@@ -161,7 +161,7 @@ static var _gem_lut: ImageTexture
 ## Anisotropic X-squish for the POLYGON carve (see [PolygonCarveShape]) — 1.0
 ## is regular, < 1.0 narrows the shape (DEX's "diamond squished from the
 ## sides"). STANDALONE PREVIEW default; [method set_carve] overwrites it from
-## [member EmblemSpec.polygon_squish].
+## the resolved shape's [member PolygonCarveShape.squish_x].
 @export_range(0.3, 1.0, 0.01) var weld_squish: float = 1.0:
 	set(value):
 		weld_squish = value
@@ -266,31 +266,31 @@ func _sync_material() -> void:
 ## replacing hand-toggling [member show_weld]/[member show_diamond] separately
 ## (retired — see .claude/rules/skill-node-visuals.md). `carve` is the winning
 ## [EmblemSpec] (an [EmblemResolver] Resolution's `.carve`), or null for an
-## empty dome. Switches on [member EmblemSpec.carve_style], not `source_kind` —
-## `source_kind` stays purely descriptive (tie-break debugging, tooltip copy).
+## empty dome. Dispatches on the [member EmblemSpec.shape]'s own TYPE, not on
+## `source_kind` (purely descriptive — tie-break debugging, tooltip copy) and
+## not on a style enum echoing the shape (#315 deleted that duplicate). Mapping
+## a shape family to a [enum CarveKind] is THIS renderer's job and lives here;
+## `skill_node/visuals/emblem/` deliberately knows nothing about InnerDisk.
 ##
-## - POLYGON (the archetype fallback, or any future analytic polygon source) ->
-##   the weld height-field bowl, sized/squished to the carve's own
-##   `polygon_sides`/`polygon_squish` (no per-instance re-derivation — the
-##   winning spec already carries the numbers its [CarveShape] assigned it).
-## - GEM (the loot relic's cut, #168) -> the gem LUT dent.
-## - TEXTURE (keystone / spell / arbitrary bitmap art) -> no carve renderer
-##   exists yet; the bake substrate for that art is deferred (see #245/#246),
-##   so an empty dome is the honest fallback rather than misrepresenting the
-##   node as its archetype shape when a higher-priority carve actually won.
+## - [PolygonCarveShape] (the archetype fallback, or any analytic polygon
+##   source) -> the weld height-field bowl, reading `sides`/`squish_x` straight
+##   off the shape.
+## - [GemCarveShape] (the loot relic's cut, #168) -> the gem LUT dent.
+## - Anything else, including a null shape ([TextureCarveShape], or a keystone /
+##   spell with no `carve_shape` authored) -> no carve renderer exists yet
+##   (#247), so an empty dome is the honest fallback rather than
+##   misrepresenting the node as its archetype shape when a higher-priority
+##   carve actually won.
 func set_carve(carve: Variant) -> void:
-	if carve == null:
+	var shape: CarveShape = carve.shape if carve != null else null
+	if shape is PolygonCarveShape:
+		carve_kind = CarveKind.POLYGON
+		weld_sides = shape.sides
+		weld_squish = shape.squish_x
+	elif shape is GemCarveShape:
+		carve_kind = CarveKind.GEM
+	else:
 		carve_kind = CarveKind.NONE
-		return
-	match carve.carve_style:
-		EmblemSpec.CarveStyle.POLYGON:
-			carve_kind = CarveKind.POLYGON
-			weld_sides = carve.polygon_sides
-			weld_squish = carve.polygon_squish
-		EmblemSpec.CarveStyle.GEM:
-			carve_kind = CarveKind.GEM
-		_:
-			carve_kind = CarveKind.NONE
 
 
 func _draw() -> void:

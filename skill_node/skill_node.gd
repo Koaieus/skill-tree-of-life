@@ -684,15 +684,21 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 ##
 ## A null [member archetype] contributes nothing — the honest empty dome —
 ## rather than silently falling back to a default shape.
+##
+## A keystone / spell grant with no `carve_shape` authored still contributes,
+## with a null [member EmblemSpec.shape]. That's deliberate and NOT the same as
+## contributing nothing: it claims its (higher) rung so the node reads as an
+## empty dome, instead of the archetype fallback winning and dressing a keystone
+## node up as a plain territory node.
 func get_emblem_contributions() -> Array:
 	var out: Array = []
 	if archetype != null:
-		out.append(archetype.carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype"))
+		out.append(archetype.carve_shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
 	if keystone != null:
-		out.append(EmblemSpec.texture_carve(keystone.icon, EmblemSpec.PRIORITY_KEYSTONE, &"keystone"))
+		out.append(EmblemSpec.carve(keystone.carve_shape, EmblemSpec.Priority.KEYSTONE, &"keystone"))
 	for effect in get_node_effects():
 		if effect is SpellGrant and effect.spell_def != null:
-			out.append(EmblemSpec.texture_carve(effect.spell_def.icon, EmblemSpec.PRIORITY_SPELL, &"spell"))
+			out.append(EmblemSpec.carve(effect.spell_def.carve_shape, EmblemSpec.Priority.SPELL, &"spell"))
 	for a in get_addons():
 		var spec = a.get_emblem()
 		if spec != null:

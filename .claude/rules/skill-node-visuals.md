@@ -591,7 +591,7 @@ Encoding: R = `drop / SN_GEM_DEPTH_SCALE` (0..1), GB =
 precisely what stair-stepped the gem's outline; `test/unit/test_carve_shape.gd`
 (`test_gem_edge_coverage_is_antialiased`) covers the fix. **Divergence to
 mind:** `TextureCarveShape.bake_lut()` (#246, arbitrary-art carves,
-`skill_node/visuals/emblem/texture_carve_shape.gd:80`) still writes a hard
+`skill_node/visuals/emblem/texture_carve_shape.gd:76`) still writes a hard
 `1.0`/`0.0` alpha for its mask — same R/GB encoding otherwise, but it will
 reproduce the stair-stepping once #247 wires its shader decode, unless it
 picks up the same antialiased-coverage treatment first. The bake constants
