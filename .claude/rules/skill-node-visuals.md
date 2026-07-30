@@ -394,7 +394,7 @@ and the layered-stroke fake reads convincingly at this node's on-screen size.
 
 ### The weld glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
 
-There is no `WeldSymbol` node anymore. The glyph is `show_weld`/`weld_k`/
+There is no `WeldSymbol` node anymore. The glyph is `carve_kind`/`weld_k`/
 `weld_sides` (via `arch`)/`well_depth` `instance uniform`s on
 `inner_disk.gdshader` itself, set from `@export`s on `inner_disk.gd` in the
 same `_sync_material()` pass as the dome's own tint/highlight uniforms. The
@@ -503,9 +503,10 @@ which is exactly the feature. **Backward-compat proof**: when `well_depth`
 is 0 or `p` is outside the glyph, `∇drop = 0`, so `∇H = ∇z_dome`, and
 `normalize(vec3(-∇z_dome, 1))` reduces algebraically to the existing
 `sn_dome_normal(p)` (scaling by `1/z_dome` doesn't change a normalized
-direction) — so `show_weld = false` (or any pixel outside the glyph) renders
-byte-identical to the plain dome; the shader only branches into the new path
-when the sampled point is actually inside the bowl (`bowl.x > 0.0`).
+direction) — so `carve_kind == CarveKind.NONE` (or any pixel outside the
+glyph) renders byte-identical to the plain dome; the shader only branches
+into the new path when the sampled point is actually inside the bowl
+(`bowl.x > 0.0`).
 
 There is **no hairline**. An additive `hairline_width`/`hairline_opacity`
 stroke tracing the glyph's boundary was tried and removed — the height-field
@@ -548,26 +549,27 @@ watch is draw calls, not shader complexity. `rim_ring`'s old approach issued
 single shader-drawn ring with a real height-function bumpmap is both cheaper
 (1 draw call) and higher quality (continuous, not banded).
 
-### The diamond crown (loot relic, #168): a precomputed LUT, not per-pixel facet math — because every instance is IDENTICAL
+### The gem crown (loot relic, #168): a precomputed LUT, not per-pixel facet math — because every instance is IDENTICAL
 
-`InnerDisk.show_diamond` (the `SkillDustAddon` relic's gem-cut glyph) is a
-second height-field glyph alongside the weld, but built differently on
-purpose. The weld's shape varies per node (different archetype → different
-`weld_sides`/`weld_k`), so it has to stay an analytic per-pixel formula
-(`sn_polygon_facet`/`sn_bowl_drop`). The diamond crown is the SAME shape on
-every relic — no per-instance parameter varies it — so recomputing its
-`atan2`/`mod`/facet math per pixel, per instance, every frame, buys nothing.
-Instead `InnerDisk._build_diamond_lut()` (lazy `static var _diamond_lut`,
-same caching shape as `_shared_material`) bakes a small texture (table
-flat-depth region + 8 linear-ramp crown facets, computed with a GDScript
-twin of the facet math — see below for why that's fine here) ONCE, and
-`sn_diamond_bump()` (`lighting.gdshaderinc`) just decodes it per pixel.
+`InnerDisk`'s `carve_kind == CarveKind.GEM` (the `SkillDustAddon` relic's
+gem-cut glyph) is a second height-field glyph alongside the weld, but built
+differently on purpose. The weld's shape varies per node (different
+archetype → different `weld_sides`/`weld_k`), so it has to stay an analytic
+per-pixel formula (`sn_polygon_facet`/`sn_bowl_drop`). The gem crown is the
+SAME shape on every relic — no per-instance parameter varies it — so
+recomputing its `atan2`/`mod`/facet math per pixel, per instance, every
+frame, buys nothing. Instead `InnerDisk._build_gem_lut()` (lazy
+`static var _gem_lut`, same caching shape as `_shared_material`) bakes a
+small texture (table flat-depth region + tapering shoulders down to the
+girdle then a pavilion to the culet, computed with a GDScript twin of the
+facet math — see below for why that's fine here) ONCE, and
+`sn_gem_bump()` (`lighting.gdshaderinc`) just decodes it per pixel.
 
 **Why the LUT doesn't break batching, when the rule elsewhere says samplers
 force `resource_local_to_scene`:** that constraint is specifically about a
 sampler that VARIES per instance (rim_ring's custom-curve escape hatch). This
 LUT is identical for every `InnerDisk`, so it's bound as a plain
-`uniform sampler2D diamond_lut` (NOT `instance uniform`) on the one shared
+`uniform sampler2D gem_lut` (NOT `instance uniform`) on the one shared
 `ShaderMaterial`, set once in `_ready()` — every instance samples the same
 texture object, same as every instance already shares the one
 `ShaderMaterial` itself. Only a per-instance-varying sampler would force the
@@ -581,13 +583,21 @@ Here there is only ONE implementation — the GDScript bake — and the shader
 never re-derives the geometry, only decodes the baked texel. There's nothing
 for it to drift from.
 
-Encoding: R = `drop / DIAMOND_DEPTH` (0..1), GB = `grad / DIAMOND_GRAD_SCALE`
-remapped -1..1 → 0..1, A = 1 inside the girdle else 0 (cheap "skip the bump"
-gate, and keeps bilinear sampling from bleeding a dark ring across the
-boundary). The bake constants in `inner_disk.gd` and the decode constants in
-`lighting.gdshaderinc` (`SN_DIAMOND_DEPTH_SCALE`/`SN_DIAMOND_GRAD_SCALE`)
-must stay numerically in lock-step — they're two halves of one encoding, not
-independently tunable.
+Encoding: R = `drop / SN_GEM_DEPTH_SCALE` (0..1), GB =
+`grad / SN_GEM_GRAD_SCALE` remapped -1..1 → 0..1, A = the silhouette's
+**antialiased coverage** (1 well inside, ramping to 0 just outside over
+`GEM_EDGE_AA_TEXELS`), which the shader uses as a blend weight, never as a
+`> 0.5` cutoff — a hard 0/1 alpha here plus a hard branch in the shader was
+precisely what stair-stepped the gem's outline; `test/unit/test_carve_shape.gd`
+(`test_gem_edge_coverage_is_antialiased`) covers the fix. **Divergence to
+mind:** `TextureCarveShape.bake_lut()` (#246, arbitrary-art carves,
+`skill_node/visuals/emblem/texture_carve_shape.gd:80`) still writes a hard
+`1.0`/`0.0` alpha for its mask — same R/GB encoding otherwise, but it will
+reproduce the stair-stepping once #247 wires its shader decode, unless it
+picks up the same antialiased-coverage treatment first. The bake constants
+in `inner_disk.gd` and the decode constants in `lighting.gdshaderinc`
+(`SN_GEM_DEPTH_SCALE`/`SN_GEM_GRAD_SCALE`) must stay numerically in
+lock-step — they're two halves of one encoding, not independently tunable.
 
 **When to reach for this vs. the weld's per-pixel formula:** if a future
 glyph needs per-instance variation (different archetype, different sides,

@@ -142,7 +142,9 @@ vec3 sn_bowl_drop(vec2 p_pos, float p_sides, float p_radius, float p_depth) {
 // with SN_GEM_DEPTH_SCALE / SN_GEM_GRAD_SCALE below):
 //   R = drop / SN_GEM_DEPTH_SCALE, clamped 0..1
 //   GB = grad / SN_GEM_GRAD_SCALE, remapped -1..1 -> 0..1
-//   A = 1 inside the gem's outline, 0 outside (cheap "skip the bump" gate)
+//   A = antialiased silhouette coverage (1 well inside the gem's outline,
+//       ramping to 0 just outside), used as a blend weight, never a
+//       `> 0.5` cutoff — see InnerDisk._gem_coverage / GEM_EDGE_AA_TEXELS.
 const float SN_GEM_DEPTH_SCALE = 0.35;
 const float SN_GEM_GRAD_SCALE = 3.0;
 

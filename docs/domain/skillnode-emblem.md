@@ -53,7 +53,8 @@ KEYSTONE (40)  >  LOOT (30)  >  SPELL (20)  >  ARCHETYPE (10)  >  (empty dome)
   glyph until allocation consumes it, then falls back.
 - **SPELL** — a granted spell's icon.
 - **ARCHETYPE** — the fallback shape (regular polygon per archetype, see
-  `ArchetypeShape.SIDES`). Lowest priority and **toggleable by simply declining
+  `ArchetypeShape.shape_for()`/`carve()`, backed by a lazy `_shapes` dict of
+  `CarveShape` resources). Lowest priority and **toggleable by simply declining
   to contribute it** — archetype identity otherwise lives in the rim hue.
 - **empty dome = an ordinary node.** A carve means "this node has a payload worth
   noticing." That default is the design intent, not an accident.
@@ -162,10 +163,12 @@ done with the editor closed):
 1. `SkillNode.get_emblem_contributions()` — aggregate own + addon specs.
 2. `NodeAddon.get_emblem()` virtual; `SkillDustAddon` → loot CARVE.
 3. Spell-grant `Effect` → spell CARVE.
-4. `InnerDisk` consumes the resolved CARVE, retiring the `show_weld` /
-   `show_diamond` mutually-exclusive shader bools and its local `ARCH_SIDES`
-   duplicate (read `ArchetypeShape.SIDES`). **Contract-tested — mind
-   `test_node_visuals_contract.gd`.**
+4. **Landed** — `InnerDisk.set_carve()` consumes the resolved CARVE, having
+   retired the old mutually-exclusive weld/diamond boolean shader pair and
+   its local sides-per-archetype duplicate in favour of the one `carve_kind`
+   (`CarveKind.NONE`/`POLYGON`/`GEM`) selector; archetype shapes now come
+   from `ArchetypeShape.shape_for()`/`carve()`. See
+   `.claude/rules/skill-node-visuals.md`.
 5. Register-3 integration + core-presence travel (**#128**, child of the emblem
    epic **#237**): the `CorePresence` group (BLOOM + halos), `is_core` gate,
    glide-tween retarget, drag ghost, and `CoreMarker` deletion — see the
@@ -190,6 +193,7 @@ Design decisions were recorded against #167 (sigil-as-bloom, not sigil-as-carve)
 fallback), #132 (rune ring vs rim diamonds — fold into the prune), #168 (loot
 glyph = LOOT carve via `SkillDustAddon.get_emblem()`). 
 The protocol foundation and the BLOOM / CorePresence work landed under #237 and
-#128 (both closed). What did **not** land — the archetype→shape mapping, and
-retiring the `show_diamond` / `show_weld` boolean exemptions in favour of one
-uniform SDF vocabulary — is tracked in **#285**.
+#128 (both closed). The archetype→shape mapping and retiring the old
+mutually-exclusive weld/diamond boolean pair in favour of one uniform
+`carve_kind` selector have since landed too; what's left toward one uniform
+SDF vocabulary is tracked in **#285**.
