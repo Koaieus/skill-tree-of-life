@@ -8,6 +8,7 @@ extends GutTest
 const _FAN := preload("res://ui/tooltip_fan/fan.tscn")
 const _PANEL := preload("res://ui/tooltip_fan/panels/procgen_debug_panel.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _PRESET_PATH := "res://procgen/presets/first_level/first_level.tres"
 
 ## A phase-2 footprint with the slot split — the richest shape
 ## `graph_procgen.gd` stamps, and the one V1 rendered in full.
@@ -133,6 +134,47 @@ func test_rebinding_a_metaless_node_clears_the_previous_footprint() -> void:
 	autofree(bare)
 	_panel.bind(bare, null)
 	assert_eq(_rows_text().size(), 0, "a live re-bind (#314) must clear stale rows")
+
+
+# --- against a REAL footprint, not a hand-written one -------------------------
+
+## Every other test here feeds the panel [constant _FULL_FOOTPRINT], which was
+## written from the keys V1 *read* — not from the keys `GraphProcgen` *writes*.
+## That is a fixture that can drift from reality while staying green: a renamed
+## key or a nested value leaves `has_content()` true and the rows empty, and
+## nothing notices.
+##
+## So generate a real graph and bind a real node. This is the test that makes the
+## others trustworthy; if procgen changes the footprint shape, this fails first.
+func test_it_renders_a_footprint_produced_by_real_procgen() -> void:
+	var cfg: GraphProcgenConfig = (load(_PRESET_PATH) as GraphProcgenConfig).duplicate(true)
+	cfg.node_count = 60
+	cfg.n_random_starters = 0
+	cfg.seed = 7
+
+	var graph: Graph = autofree(load("res://graph/graph.tscn").instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+
+	var stamped: SkillNode = null
+	for n in result.get("nodes", []):
+		if (n as SkillNode).has_meta("procgen_footprint"):
+			stamped = n as SkillNode
+			break
+	assert_not_null(stamped, "procgen should stamp a footprint on at least one node")
+
+	_panel.bind(stamped, null)
+	assert_true(_panel.has_content(), "a real generated node must light the panel up")
+	var rows := _rows_text()
+	assert_eq(rows[0], "[procgen]")
+	assert_gt(rows.size(), 1, "the tag alone is not a readout — a real footprint must yield rows")
+	assert_string_contains(_joined(), "budget ",
+		"budget is stamped unconditionally, so it must always render")
+	# The real `fp` also carries `archetype` / `primary_stat`, which neither V1 nor
+	# this panel renders. Asserted so the omission stays a decision, not a bug.
+	assert_true(stamped.get_meta("procgen_footprint").has("archetype"),
+		"fixture sanity: the real footprint carries keys this panel deliberately skips")
 
 
 # --- #292: it must stay cleanly removable -------------------------------------
