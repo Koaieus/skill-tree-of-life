@@ -76,6 +76,14 @@ The base also carries `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM}` �
 
 Growth math: `new_max = stat._coerce(old_max * growth_factor + growth_flat)` — coercion is via the stat's `value_type`, so int pools snap and float pools don't. Growth writes `base_value` directly (bypassing the modifier path) so a growable pool's level-up does NOT trigger StandardPoolStatDef's `heal_on_max_increase` — same deliberate pattern as `SkillPointStat.claim()`. BOOL `value_type` is hidden from the inspector via `_validate_property` on `PoolStatDef` — meaningless for a cap.
 
+### `replenished` fires in REVERSE chronological order across a cascade — `value_changed` doesn't
+
+A single `replenish(huge_amount)` that crosses multiple levels recurses: `set_current` → `on_pool_filled` (grows `base_value`, which fires `value_changed` immediately) → recursive `set_current` for the overflow → ... → only once the recursion bottoms out does control unwind and each frame's `replenished.emit()` fire. So for a 2-level cascade, the **deepest (final, highest) level's `replenished` fires first**, and the first/lowest level's fires last — backwards from the order the levels were actually reached in.
+
+`value_changed` doesn't have this problem: it fires at the point `base_value` is written, which is *before* the recursive call for that frame — so across the cascade it fires in true ascending (chronological) order.
+
+**How to apply:** anything that needs to replay a multi-level cascade in order (e.g. a UI sequencer chaining "fill to old cap → grow → fill to new content" once per level) must build its segment list from `value_changed` snapshots, not from counting/ordering `replenished` calls. Verified by tracing `pool_stat.gd:set_current` against `growable_pool_stat_def.gd:on_pool_filled`; `test_overflow_huge_replenish_cascades_through_levels` (test/unit/test_growable_pool_stat_def.gd) confirms `replenished` fires twice for a 2-level cascade but doesn't assert order — a gap worth closing if a consumer ever depends on it.
+
 `skill_points` is `SkillPointStat` (PoolStat subclass). Max is the canonical PoolStat value (base + modifier pipeline). `current` is the spendable bucket; `wounded` and `staked` are two extra book-keeping buckets sitting *inside* max. **`used` is derived**: `max - current - wounded - staked` — SP locked into currently-allocated nodes. Operations:
 
 | Method | Effect | Mints? |
