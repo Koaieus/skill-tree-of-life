@@ -15,32 +15,29 @@ extends Resource
 ## - `cluster_jitter` is a per-node reroll chance after assignment — softens
 ##   cluster borders. 0 = pure clusters; 1 = ignore clustering entirely.
 ##   Defaults to 0 — clusters stay clean, opt in if you want messy borders.
-## - `primary_stat` is the StatBoard id this archetype maps to (e.g. red →
-##   `&"strength"`). Consumed by the phased modifier draw to bias toward
-##   stat-coherent rolls. Empty = archetype has no primary stat (e.g. a pure
-##   utility or wildcard archetype).
+## - `primary_stat` reads through `archetype.primary_stat` (the StatBoard id
+##   this archetype maps to, e.g. red → `&"strength"`). Consumed by the phased
+##   modifier draw to bias toward stat-coherent rolls. Empty = archetype has no
+##   primary stat (e.g. a pure utility or wildcard archetype).
 ##
 ## Example shape:
 ##   id = &"red"
-##   color = Color.RED
-##   primary_stat = &"strength"
+##   archetype = preload("res://archetypes/strength.tres")
 ##   target_ratio = 0.25
 ##   cluster_size_weights = {3: 1.0, 4: 1.0, 5: 0.6, 6: 0.2}
 ##   cluster_jitter = 0.0
 
 @export var id: StringName = &""
-@export var color: Color = Color.WHITE
-## This archetype's central-emblem CARVE shape (docs/domain/skillnode-emblem.md)
-## — the archetype names its own shape, so `SkillNode` just carries a
-## reference (`SkillNode.carve_shape`), never a mapping table keyed off this
-## policy's open StringName `id`. Null = the node falls back to
-## [ArchetypeShape]'s fixed six-way quick-pick (dev_sandbox / no-policy nodes).
-## A `PolygonCarveShape`/`GemCarveShape` today; a future arbitrary-art shape
-## (#245/#246) swaps in here with no changes anywhere else.
-@export var carve_shape: CarveShape = null
-## The stat this archetype's nodes are themed around. Used by the phased
-## modifier draw to weight primary vs off-attribute rolls.
-@export var primary_stat: StringName = &""
+## The archetype identity this policy clusters — carries color, primary stat,
+## and carve shape (see [Archetype]). This policy layers clustering dials
+## (target_ratio, cluster_size_weights, cluster_jitter, forbid_tags) on top.
+@export var archetype: Archetype = null
+## The stat this archetype's nodes are themed around. Read-through to
+## `archetype.primary_stat` so phased-draw consumers
+## (graph_procgen.gd, modifier_pool_set.gd, tier_pool.gd, stat_pack.gd,
+## playground_panel.gd) need no edits for the Archetype-resource cutover.
+var primary_stat: StringName:
+	get: return archetype.primary_stat if archetype else &""
 @export_range(0.0, 1.0) var target_ratio: float = 0.0
 ## Dictionary[int, float]. Keys are cluster sizes (node counts); values are
 ## sampling weights. Empty = single-node "clusters" only.

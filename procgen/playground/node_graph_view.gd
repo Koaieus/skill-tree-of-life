@@ -96,8 +96,8 @@ func generate(cfg: GraphProcgenConfig) -> void:
 	# Snapshot each node's original BFS-grow archetype index for restore.
 	for i in _nodes.size():
 		var sn: SkillNode = _nodes[i]
-		if sn.has_meta("base_type"):
-			var bt: StringName = sn.get_meta("base_type")
+		if sn.has_meta("archetype"):
+			var bt: StringName = sn.get_meta("archetype")
 			for k in _archetypes.size():
 				if _archetypes[k] != null and _archetypes[k].id == bt:
 					_original_arch_idx[sn] = k
@@ -131,8 +131,9 @@ func paint_stamp(center_world: Vector2, radius: float, archetype_idx: int) -> vo
 	var policy: ArchetypePolicy = _archetypes[archetype_idx]
 	for sn in _nodes:
 		if sn.position.distance_squared_to(center_world) <= radius * radius:
-			sn.base_type_color = policy.color
-			sn.set_meta("base_type", policy.id)
+			if policy.archetype != null:
+				sn.base_type_color = policy.archetype.color
+			sn.set_meta("archetype", policy.id)
 	queue_redraw()
 
 
@@ -144,8 +145,9 @@ func clear_stamps() -> void:
 		var idx: int = _original_arch_idx.get(sn, -1)
 		if idx >= 0 and idx < _archetypes.size():
 			var policy: ArchetypePolicy = _archetypes[idx]
-			sn.base_type_color = policy.color
-			sn.set_meta("base_type", policy.id)
+			if policy.archetype != null:
+				sn.base_type_color = policy.archetype.color
+			sn.set_meta("archetype", policy.id)
 	queue_redraw()
 
 
@@ -188,7 +190,7 @@ func _get_tooltip(at_position: Vector2) -> String:
 	if sn == null:
 		return ""
 	var lines: Array[String] = []
-	var arch_name := String(sn.get_meta("base_type", &"?"))
+	var arch_name := String(sn.get_meta("archetype", &"?"))
 	lines.append(arch_name)
 	lines.append("field ×%.2f" % _node_field_value(sn))
 	if _budget_policy != null:

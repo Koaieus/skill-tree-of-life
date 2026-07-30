@@ -69,4 +69,7 @@ func test_no_archetype_is_null_or_statless() -> void:
 	assert_eq(list.size(), 6, "six archetypes: STR/DEX/INT/CON combat peers + WIS/PER specialists")
 	for a in list:
 		assert_not_null(a, "a null entry means a sub_resource was stripped from the preset")
+		assert_not_null(a.archetype, "every policy must carry its Archetype resource (a stripped ext_resource shows up here)")
 		assert_ne(String(a.primary_stat), "", "every archetype must name a primary_stat")
+		assert_not_null(StatRegistry.get_def(a.primary_stat),
+				"primary_stat %s must resolve in StatRegistry, not just be non-empty" % a.primary_stat)

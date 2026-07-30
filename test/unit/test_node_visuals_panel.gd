@@ -35,7 +35,7 @@ func test_loader_drives_both_the_composite_and_the_lab() -> void:
 	var composite = panel.get_node("ViewportContainer/World/CompositeSlot/Composite")
 	var lab = panel.get_node("ViewportContainer/World/LabSlot/SkillNodeLab")
 	assert_eq(composite.carve_shape, shape, "composite slot takes the shape pre-resolved")
-	assert_eq(lab.carve_shape, shape, "the lab resolves it through the real emblem pipeline")
+	assert_eq(lab.archetype.carve_shape, shape, "the lab resolves it through the real emblem pipeline")
 
 
 func test_loader_ignores_non_carve_shapes() -> void:
@@ -46,4 +46,4 @@ func test_loader_ignores_non_carve_shapes() -> void:
 	panel.load_carve_shape(shape)
 	panel.load_carve_shape(Image.create(2, 2, false, Image.FORMAT_RGBA8))
 	var lab = panel.get_node("ViewportContainer/World/LabSlot/SkillNodeLab")
-	assert_eq(lab.carve_shape, shape, "clicking a non-shape in the dock doesn't wipe the preview")
+	assert_eq(lab.archetype.carve_shape, shape, "clicking a non-shape in the dock doesn't wipe the preview")

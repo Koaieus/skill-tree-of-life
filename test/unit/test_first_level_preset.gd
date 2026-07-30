@@ -63,7 +63,7 @@ func test_procgen_generates_full_level() -> void:
 	# Every archetype represented at least once.
 	var archetype_counts := {}
 	for n in nodes:
-		var arch: StringName = n.get_meta("base_type", &"")
+		var arch: StringName = n.get_meta("archetype", &"")
 		archetype_counts[arch] = archetype_counts.get(arch, 0) + 1
 	for a in [&"red", &"green", &"blue", &"gold", &"purple"]:
 		assert_true(a in archetype_counts, "archetype %s missing" % String(a))

@@ -5,7 +5,6 @@ extends GutTest
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
-const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
 
 
 func test_keystone_outranks_everything() -> void:
@@ -57,15 +56,18 @@ func test_null_contributions_ignored() -> void:
 
 
 func test_archetype_shape_owns_its_sides() -> void:
-	var str_carve := ArchetypeShape.carve(ArchetypeShape.Archetype.STR)
+	var str_arch: Archetype = load("res://archetypes/strength.tres")
+	var str_carve := str_arch.carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
 	assert_eq(str_carve.polygon_sides, 3, "STR is a triangle")
-	var con_carve := ArchetypeShape.carve(ArchetypeShape.Archetype.CON)
+	var con_arch: Archetype = load("res://archetypes/constitution.tres")
+	var con_carve := con_arch.carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
 	assert_eq(con_carve.polygon_sides, 12, "CON is a dodecagon")
 	assert_eq(str_carve.priority, EmblemSpec.PRIORITY_ARCHETYPE, "archetype carve sits at the fallback priority")
 
 
 func test_dex_shape_is_a_squished_diamond() -> void:
-	var dex_carve := ArchetypeShape.carve(ArchetypeShape.Archetype.DEX)
+	var dex_arch: Archetype = load("res://archetypes/dexterity.tres")
+	var dex_carve := dex_arch.carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
 	assert_eq(dex_carve.polygon_sides, 4, "DEX is a diamond (a squished 4-gon)")
 	assert_lt(dex_carve.polygon_squish, 1.0, "squished from the sides, not a plain square")
 

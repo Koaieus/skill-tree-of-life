@@ -12,8 +12,8 @@ const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 @onready var _composite := $ViewportContainer/World/CompositeSlot/Composite
 ## A whole `SkillNode` — an inherited scene of the real `skill_node.tscn`, so
 ## the Inspector you get on it is the REAL one, on the real exports
-## (`base_radius`, `stake_level`, `archetype`, `carve_shape`), with the
-## composite selectable underneath. No knob surface is reimplemented here.
+## (`base_radius`, `stake_level`, `archetype`), with the composite selectable
+## underneath. No knob surface is reimplemented here.
 ##
 ## The point of it being INHERITED: overrides you make while tweaking land in
 ## `skill_node_lab.tscn`, so `skill_node.tscn` ships pristine. Tweak leaf
@@ -37,5 +37,9 @@ func load_carve_shape(obj: Object) -> void:
 		_composite.carve_shape = obj
 		# The lab is a real SkillNode, so it resolves the shape through the
 		# actual emblem pipeline rather than taking it pre-resolved — that
-		# difference is worth seeing side by side.
-		_lab.carve_shape = obj
+		# difference is worth seeing side by side. SkillNode carries an
+		# [Archetype] now (#312), not a bare CarveShape, so wrap the loaded
+		# shape in a throwaway one just to carry it through the pipeline.
+		var arch := Archetype.new()
+		arch.carve_shape = obj
+		_lab.archetype = arch

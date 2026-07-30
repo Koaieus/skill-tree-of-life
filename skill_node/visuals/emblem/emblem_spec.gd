@@ -52,8 +52,8 @@ var sigil: Sigil = null
 
 
 ## A regular-polygon CARVE — the shape family the batched dome shader can render
-## as an analytic SDF (see [PolygonCarveShape] / the archetype fallback in
-## [ArchetypeShape]).
+## as an analytic SDF (see [PolygonCarveShape] / the archetype fallback carved
+## from [Archetype.carve_shape]).
 static func polygon_carve(sides: int, prio: int, source: StringName, squish: float = 1.0) -> EmblemSpec:
 	var e := EmblemSpec.new()
 	e.register = Register.CARVE

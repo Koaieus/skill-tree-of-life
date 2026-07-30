@@ -160,15 +160,15 @@ static func generate(
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []
 		var archetype_primary_stat: StringName = &""
-		var archetype_carve_shape: CarveShape = null
+		var archetype_resource: Archetype = null
 		if type_assignments[i] >= 0:
 			var policy: ArchetypePolicy = config.archetypes[type_assignments[i]]
-			if policy != null:
+			if policy != null and policy.archetype != null:
 				archetype_id = policy.id
-				archetype_color = policy.color
+				archetype_color = policy.archetype.color
 				archetype_forbid = policy.forbid_tags
-				archetype_primary_stat = policy.primary_stat
-				archetype_carve_shape = policy.carve_shape
+				archetype_primary_stat = policy.archetype.primary_stat
+				archetype_resource = policy.archetype
 		if archetype_id != &"":
 			var fp := {"archetype": archetype_id, "primary_stat": archetype_primary_stat}
 			if not placement_ctx.role_tags[i].is_empty():
@@ -189,10 +189,9 @@ static func generate(
 			# Owner colour stays free to drive the fill channel via SkillNode.
 			sn.base_type_color = archetype_color
 			# The archetype's own emblem shape (docs/domain/skillnode-emblem.md) —
-			# wins over SkillNode.archetype's fixed six-way quick-pick default.
-			if archetype_carve_shape != null:
-				sn.carve_shape = archetype_carve_shape
-			sn.set_meta("base_type", archetype_id)
+			# every archetype carries one now, so this always stamps.
+			sn.archetype = archetype_resource
+			sn.set_meta("archetype", archetype_id)
 			if archetype_primary_stat != &"":
 				sn.set_meta("primary_stat", archetype_primary_stat)
 			# Persist role tags for downstream inspection / debug overlays.

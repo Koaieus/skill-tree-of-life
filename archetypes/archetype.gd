@@ -17,8 +17,8 @@ extends Resource
 ##
 ## TODO(#246): wisdom.tres's hexagon is a placeholder pending a bespoke
 ## "exudes wealth" motif (coin/laurel/sunburst) once the arbitrary-art bake
-## pipeline lands — not a deliberate design pick. Carried over from
-## ArchetypeShape's equivalent note.
+## pipeline lands — not a deliberate design pick. Carried over from the note
+## on the retired enum-based predecessor (#312).
 @export var carve_shape: CarveShape = null
 
 var color: Color:

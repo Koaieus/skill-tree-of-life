@@ -41,7 +41,7 @@ static func _format(node: SkillNode) -> String:
 	var lines: PackedStringArray = []
 	lines.append("SkillNode")
 	lines.append("  position: (%.1f, %.1f)" % [node.position.x, node.position.y])
-	lines.append("  archetype: %s" % String(node.get_meta("base_type", &"")))
+	lines.append("  archetype: %s" % String(node.get_meta("archetype", &"")))
 	lines.append("  primary_stat: %s" % String(node.get_meta("primary_stat", &"")))
 	var owner_name := "(unowned)"
 	if node.owned_by != null and node.owned_by is Entity:

@@ -147,8 +147,9 @@ static var _gem_lut: ImageTexture
 
 ## Regular-polygon side count for the POLYGON carve. STANDALONE PREVIEW ONLY —
 ## once [method set_carve] receives an archetype carve it overwrites this from
-## the resolved [EmblemSpec.polygon_sides] (see [ArchetypeShape], the canonical
-## archetype -> sides mapping; this file no longer keeps its own copy). Exists
+## the resolved [EmblemSpec.polygon_sides] (see [Archetype.carve_shape], the
+## canonical archetype -> sides mapping; this file no longer keeps its own
+## copy). Exists
 ## so the disk still previews a shape in the sandbox / node_visuals_panel.tscn
 ## before a carve has been injected — same "local export as offline fallback"
 ## precedent as [member lighting] below.

@@ -3,9 +3,9 @@ class_name CarveShape
 extends Resource
 ## The *input* side of a CARVE (docs/domain/skillnode-emblem.md): whatever
 ## produces the shape a source's fallback carve etches into the dome. A
-## source (today: [ArchetypePolicy]) holds a reference to one of these
-## instead of a bare int/enum, so "what does this shape look like" lives with
-## the shape itself, not scattered across SkillNode/ArchetypeShape.
+## source (today: [Archetype]) holds a reference to one of these instead of a
+## bare int/enum, so "what does this shape look like" lives with the shape
+## itself, not scattered across SkillNode/Archetype.
 ##
 ## Two producer families, both resolving to the SAME [EmblemSpec] payload
 ## contract the resolver/InnerDisk already understand:

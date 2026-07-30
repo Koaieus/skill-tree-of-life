@@ -52,10 +52,11 @@ KEYSTONE (40)  >  LOOT (30)  >  SPELL (20)  >  ARCHETYPE (10)  >  (empty dome)
 - **LOOT** — a consumed one-off; outranks spell so a looted node shows the loot
   glyph until allocation consumes it, then falls back.
 - **SPELL** — a granted spell's icon.
-- **ARCHETYPE** — the fallback shape (regular polygon per archetype, see
-  `ArchetypeShape.shape_for()`/`carve()`, backed by a lazy `_shapes` dict of
-  `CarveShape` resources). Lowest priority and **toggleable by simply declining
-  to contribute it** — archetype identity otherwise lives in the rim hue.
+- **ARCHETYPE** — the fallback shape, read from `SkillNode.archetype`
+  (an [Archetype] resource — `archetype.carve_shape.carve()`; see #312). Lowest
+  priority and **toggleable by simply declining to contribute it**: a null
+  `archetype` contributes nothing, so archetype identity otherwise lives in the
+  rim hue.
 - **empty dome = an ordinary node.** A carve means "this node has a payload worth
   noticing." That default is the design intent, not an accident.
 

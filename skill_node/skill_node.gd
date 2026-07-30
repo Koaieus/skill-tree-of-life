@@ -6,8 +6,6 @@ const ZLayers = preload("res://ui/z_layers.gd")
 # preload, not the bare class_name — parses before an editor class-cache
 # refresh; see docs/domain/skillnode-emblem.md's "preload-not-class_name" note.
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
-const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
-const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
 
 signal radius_changed
@@ -51,31 +49,17 @@ signal depleted
 ## a [SkillNodeAddon].
 @export var effects: Array[Effect] = []
 
-## Hand-authoring quick-pick: which of [ArchetypeShape]'s fixed six shapes
-## this node's archetype carves as the emblem fallback, when no
-## [member carve_shape] override is stamped. See
+## This node's archetype identity — carries the primary stat, colour, and
+## central-emblem [CarveShape] (see [Archetype]). Procgen stamps this from the
+## node's [ArchetypePolicy.archetype]; null means no policy stamped one (e.g.
+## dev_sandbox nodes not wired to an archetype), and the node's emblem
+## contributes no archetype carve at all. See
 ## [method get_emblem_contributions] / docs/domain/skillnode-emblem.md.
-@export var archetype: ArchetypeShape.Archetype = ArchetypeShape.Archetype.STR:
+@export var archetype: Archetype = null:
 	set(value):
 		if archetype == value:
 			return
 		archetype = value
-		archetype_changed.emit()
-		if is_node_ready():
-			_sync_visuals()
-
-## The resolved [CarveShape] this node's archetype actually carves, when set —
-## WINS over [member archetype]. Procgen stamps this from the node's
-## [ArchetypePolicy.carve_shape] (an open, content-defined shape, richer than
-## the fixed six-way [member archetype] enum); null means "no policy stamped
-## it", so hand-authored content (dev_sandbox, tests) keeps using the simple
-## enum quick-pick instead. SkillNode never interprets what the shape IS
-## (polygon vs. gem vs., later, arbitrary art) — it just holds the reference.
-@export var carve_shape: CarveShape = null:
-	set(value):
-		if carve_shape == value:
-			return
-		carve_shape = value
 		archetype_changed.emit()
 		if is_node_ready():
 			_sync_visuals()
@@ -698,16 +682,12 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 ## BLOOMs; this is purely aggregation, mirroring [method get_node_effects] /
 ## [method get_addon_tooltip_sections].
 ##
-## The archetype fallback prefers [member carve_shape] (procgen's real,
-## content-defined shape) over the [member archetype] quick-pick enum — see
-## both fields' docs.
+## A null [member archetype] contributes nothing — the honest empty dome —
+## rather than silently falling back to a default shape.
 func get_emblem_contributions() -> Array:
-	var archetype_spec: EmblemSpec
-	if carve_shape != null:
-		archetype_spec = carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype")
-	else:
-		archetype_spec = ArchetypeShape.carve(archetype)
-	var out: Array = [archetype_spec]
+	var out: Array = []
+	if archetype != null:
+		out.append(archetype.carve_shape.carve(EmblemSpec.PRIORITY_ARCHETYPE, &"archetype"))
 	if keystone != null:
 		out.append(EmblemSpec.texture_carve(keystone.icon, EmblemSpec.PRIORITY_KEYSTONE, &"keystone"))
 	for effect in get_node_effects():

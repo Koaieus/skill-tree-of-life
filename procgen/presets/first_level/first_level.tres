@@ -22,6 +22,12 @@
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
 [ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="sp"]
 [ext_resource type="Resource" uid="uid://byxjrmwf12wt6" path="res://entity/keystone/instances/xp_anchor_keystone.tres" id="xp_keystone"]
+[ext_resource type="Resource" path="res://archetypes/strength.tres" id="arch_str"]
+[ext_resource type="Resource" path="res://archetypes/dexterity.tres" id="arch_dex"]
+[ext_resource type="Resource" path="res://archetypes/intelligence.tres" id="arch_int"]
+[ext_resource type="Resource" path="res://archetypes/constitution.tres" id="arch_con"]
+[ext_resource type="Resource" path="res://archetypes/wisdom.tres" id="arch_wis"]
+[ext_resource type="Resource" path="res://archetypes/perception.tres" id="arch_per"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_ihaem")
@@ -69,8 +75,7 @@ metadata/_custom_type_script = "uid://bi20g047mnsv6"
 [sub_resource type="Resource" id="ap_red"]
 script = ExtResource("ap")
 id = &"red"
-color = Color(0.95, 0.35, 0.35, 1)
-primary_stat = &"strength"
+archetype = ExtResource("arch_str")
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -82,8 +87,7 @@ cluster_size_weights = {
 [sub_resource type="Resource" id="ap_green"]
 script = ExtResource("ap")
 id = &"green"
-color = Color(0.45, 0.8, 0.45, 1)
-primary_stat = &"dexterity"
+archetype = ExtResource("arch_dex")
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -95,8 +99,7 @@ cluster_size_weights = {
 [sub_resource type="Resource" id="ap_blue"]
 script = ExtResource("ap")
 id = &"blue"
-color = Color(0.4, 0.55, 0.95, 1)
-primary_stat = &"intelligence"
+archetype = ExtResource("arch_int")
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -108,8 +111,7 @@ cluster_size_weights = {
 [sub_resource type="Resource" id="ap_white"]
 script = ExtResource("ap")
 id = &"white"
-color = Color(0.8586, 0.9018, 0.9482, 1)
-primary_stat = &"constitution"
+archetype = ExtResource("arch_con")
 target_ratio = 0.3
 cluster_size_weights = {
 3: 1.0,
@@ -121,8 +123,7 @@ cluster_size_weights = {
 [sub_resource type="Resource" id="ap_gold"]
 script = ExtResource("ap")
 id = &"gold"
-color = Color(0.95, 0.78, 0.25, 1)
-primary_stat = &"wisdom"
+archetype = ExtResource("arch_wis")
 target_ratio = 0.05
 cluster_size_weights = {
 1: 1.0,
@@ -134,8 +135,7 @@ forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"per", &"attac
 [sub_resource type="Resource" id="ap_purple"]
 script = ExtResource("ap")
 id = &"purple"
-color = Color(0.65, 0.4, 0.85, 1)
-primary_stat = &"perception"
+archetype = ExtResource("arch_per")
 target_ratio = 0.03
 cluster_size_weights = {
 1: 1.0,

@@ -6,8 +6,6 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
-const ArchetypeShape = preload("res://skill_node/visuals/emblem/archetype_shape.gd")
-const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
 
 var _graph: Graph
@@ -24,20 +22,18 @@ func before_each() -> void:
 	_graph.skill_nodes_container.add_child(_node)
 
 
-func test_default_node_contributes_only_its_archetype_carve() -> void:
+func test_default_node_with_no_archetype_contributes_nothing() -> void:
 	var out := _node.get_emblem_contributions()
-	assert_eq(out.size(), 1, "no keystone/effects/addons → just the archetype fallback")
-	assert_eq(out[0].source_kind, &"archetype")
-	assert_eq(out[0].polygon_sides, ArchetypeShape.shape_for(ArchetypeShape.Archetype.STR).sides)
+	assert_eq(out.size(), 0, "no archetype stamped -> the honest empty dome, no fallback shape")
 
 
-func test_carve_shape_override_wins_over_the_archetype_quick_pick() -> void:
-	var shape := PolygonCarveShape.new()
-	shape.sides = 9
-	_node.carve_shape = shape
+func test_archetype_contributes_its_own_carve_shape() -> void:
+	var str_arch: Archetype = load("res://archetypes/strength.tres")
+	_node.archetype = str_arch
 	var out := _node.get_emblem_contributions()
+	assert_eq(out.size(), 1, "an archetype stamped -> its carve is the sole contribution")
 	assert_eq(out[0].source_kind, &"archetype")
-	assert_eq(out[0].polygon_sides, 9, "carve_shape override wins over the archetype enum quick-pick")
+	assert_eq(out[0].polygon_sides, 3, "STR carves a triangle")
 
 
 func test_keystone_contributes_a_keystone_carve() -> void:
