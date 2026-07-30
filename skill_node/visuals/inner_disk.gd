@@ -28,7 +28,7 @@ const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 ## Which CARVE shape family the disk etches — the single selector replacing
 ## the retired pair of mutually-exclusive "show this glyph" bools (see
 ## .claude/rules/skill-node-visuals.md and [method set_carve]).
-enum CarveKind { NONE, POLYGON, GEM }
+enum CarveKind { NONE, POLYGON, GEM, TEXTURE }
 
 static var _shared_material: ShaderMaterial
 
@@ -217,10 +217,32 @@ var effective_carve_kind: CarveKind:
 			return CarveKind.POLYGON
 		if _carved_shape is GemCarveShape:
 			return CarveKind.GEM
-		# Including a null shape and TextureCarveShape: no renderer yet (#247),
-		# so an empty dome is the honest fallback rather than misrepresenting
-		# the node as its archetype shape when a higher-priority carve won.
+		if _carved_shape is TextureCarveShape:
+			# A baked LUT the atlas doesn't carry degrades to the empty dome
+			# rather than rendering some other node's glyph; set_carve warns.
+			return CarveKind.TEXTURE if effective_carve_slice != CarveAtlas.NO_SLICE else CarveKind.NONE
+		# Including a null shape: an empty dome is the honest fallback rather
+		# than misrepresenting the node as its archetype shape when a
+		# higher-priority carve won.
 		return CarveKind.NONE
+
+## Which [CarveAtlas] slice a TEXTURE carve reads, or [constant
+## CarveAtlas.NO_SLICE]. Derived from the shape's baked LUT rather than
+## authored anywhere: the packing order is the generator's to decide, so a
+## hand-written index is a second copy of it that can silently drift.
+##
+## This is the per-node value that makes arbitrary art possible at all. A
+## sampler can't be an `instance uniform`, so every baked LUT lives in ONE
+## array texture on the shared material and only this int varies — which is
+## what keeps InnerDisk's single-draw-call batching, and why adding shapes
+## costs slices instead of #172's instance-uniform slots.
+var effective_carve_slice: int:
+	get:
+		if _carved_shape is TextureCarveShape:
+			var atlas := CarveAtlas.shared()
+			if atlas != null:
+				return atlas.slice_of((_carved_shape as TextureCarveShape).baked_lut)
+		return CarveAtlas.NO_SLICE
 
 var effective_carve_sides: int:
 	get:
@@ -285,6 +307,12 @@ func _ready() -> void:
 	# on the SHARED material, so it does NOT claim a per-instance buffer slot —
 	# binding `material` on THIS CanvasItem is what does, hence the gate below.)
 	_shared_material.set_shader_parameter(&"gem_lut", _gem_lut)
+	# Same deal for the arbitrary-art atlas (#247): ONE array texture holding
+	# every baked LUT, bound once on the shared material. Per-node variation is
+	# the `carve_slice` index below, not the sampler — see [CarveAtlas].
+	var atlas := CarveAtlas.shared()
+	if atlas != null:
+		_shared_material.set_shader_parameter(&"carve_atlas", atlas.texture())
 	# Re-sync when the disk is shown after being hidden — see the visibility gate
 	# in _sync_material (#172). Fires on this node too when an ancestor (a fogged
 	# SkillNode, the invisible Node Graph preview graph) toggles visibility.
@@ -323,6 +351,7 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"carve_squish", effective_carve_squish)
 	set_instance_shader_parameter(&"carve_radius", effective_carve_radius)
 	set_instance_shader_parameter(&"well_depth", effective_well_depth)
+	set_instance_shader_parameter(&"carve_slice", effective_carve_slice)
 	queue_redraw()
 
 
@@ -336,11 +365,32 @@ func _sync_material() -> void:
 ## getters above), which is both why adding a shape parameter costs one edit on
 ## the shape and how this stays clear of the "@tool script writes a derived
 ## value into an @export" trap. NOTHING exported is written here — see
-## [member _carved_shape].
+## [member _carved_shape]. A [TextureCarveShape] (arbitrary baked art, #246)
+## resolves to its [CarveAtlas] slice the same way, via
+## [member effective_carve_slice].
 func set_carve(carve: Variant) -> void:
 	_carved_shape = carve.shape if carve != null else null
 	_has_carve = true
+	_warn_if_unpacked()
 	_sync_material()
+
+
+## Warns once per resolve when a [TextureCarveShape] carries a baked LUT the
+## [CarveAtlas] doesn't have — an in-memory bake that was never committed, or
+## one committed without re-running `mise run icons:update`. It's a real
+## authoring mistake, and the render silently degrades to an empty dome, so it
+## deserves a word. Lives HERE rather than in [member effective_carve_slice]
+## because that getter is read on every `_sync_material()` and would spam.
+func _warn_if_unpacked() -> void:
+	if not _carved_shape is TextureCarveShape:
+		return
+	if effective_carve_slice != CarveAtlas.NO_SLICE:
+		return
+	var lut: Texture2D = (_carved_shape as TextureCarveShape).baked_lut
+	if CarveAtlas.shared() == null:
+		push_warning("InnerDisk: no CarveAtlas generated — run `mise run icons:update`")
+	else:
+		push_warning("InnerDisk: baked LUT '%s' is not in the CarveAtlas" % (lut.resource_path if lut != null else "<null>"))
 
 
 func _draw() -> void:

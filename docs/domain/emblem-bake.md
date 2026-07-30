@@ -7,13 +7,11 @@ LUT bake, not a per-pixel analytic formula, is the right tool once a shape
 stops being a fixed regular polygon). Lives entirely in
 `skill_node/visuals/emblem/texture_carve_shape.gd` (`TextureCarveShape`).
 
-**Scope: offline-bake only.** This produces the baked LUT asset + the shape
-resource that carries it. It does **not** touch the live render path —
-`InnerDisk`'s `TEXTURE` carve branch still falls back to an empty dome (see
-`skill_node/visuals/inner_disk.gd`'s `set_carve()`). Wiring a per-node-varying
-LUT into InnerDisk's shared-material batching (an instance-uniform sampler
-slice index, `lighting.gdshaderinc` decode, the atlas story) is #247's job,
-which is blocked on this landing.
+**#246 was offline-bake only** — the baked LUT asset + the shape resource that
+carries it, touching no render code. The display half (the atlas packing, the
+`lighting.gdshaderinc` decode, the instance-uniform slice index, and the
+`icons:update` extension that emits it all) landed in **#247**; see
+"Packing + decode" below.
 
 ## Derivation
 
@@ -80,9 +78,62 @@ the headless-callable `static func bake_lut()`; the tool button
 (`@export_tool_button`) is a thin wrapper over it, which is also what lets
 the acceptance test drive the bake without the editor.
 
+## Packing + decode (#247)
+
+The bake above produces one LUT per icon. The display side has to let *many*
+distinct baked shapes coexist on screen without breaking InnerDisk's shared
+`ShaderMaterial` — the thing that batches every node in the level into one draw
+call. A sampler **cannot be an `instance uniform`**, so "one `sampler2D` per
+shape" would force either a per-node duplicate material (batching gone) or one
+plain uniform per shape (and #172's instance-uniform slot ceiling is exactly
+what that spends). So:
+
+- Every baked LUT is stacked into **one** `sampler2DArray` bound as a plain
+  uniform on the shared material.
+- The only per-node value is an **int slice index** — which an `instance
+  uniform` carries fine. Adding the 50th baked shape adds a *slice*, not a
+  *slot*; that's what makes this scale past #172.
+
+Concretely:
+
+| Artifact | What it is |
+|---|---|
+| `assets/emblem_luts/<name>.png` | the per-icon baked LUT — reviewable, and what a `TextureCarveShape.baked_lut` points at |
+| `assets/emblem_luts/carve_atlas.png` (+ `.import`) | all LUTs stacked vertically, imported as a `CompressedTexture2DArray` |
+| `assets/emblem_luts/carve_atlas.tres` | the [CarveAtlas] manifest: slice index → LUT `res://` path |
+| `sn_texture_bump` (`lighting.gdshaderinc`) | the decode; `SN_TEXTURE_DEPTH_SCALE` / `SN_TEXTURE_GRAD_SCALE` are the other half of the encoding contract above |
+
+`InnerDisk.set_carve()` resolves a `TextureCarveShape` to its slice by the
+baked LUT's own `resource_path`, so **no shape carries a hand-authored index**
+that could drift out of step with the packing. A LUT the atlas doesn't carry
+warns and falls back to the empty dome rather than rendering the wrong glyph.
+
+Regenerate with `mise run icons:update` — the bake/pack is the last stage of
+that task rather than a separate one, because an atlas that can go stale
+against the art it's baked from eventually will.
+
+### Two gotchas worth not rediscovering
+
+- **`ResourceSaver.save()` on a `Texture2DArray` is a trap.** It reports `OK`
+  and writes a file that reloads with **zero layers** (verified on 4.7 — the
+  images don't survive serialization). Hence the stacked-PNG + importer route.
+- **The `2d_array_texture` importer is also the *safe* route**, not just the
+  working one: unlike the plain `texture` importer it exposes no
+  `process/fix_alpha_border`, which would rewrite the RGB of fully-transparent
+  texels — and here **RGB is the payload**, alpha is only the mask. With
+  `compress/mode=0` every imported layer is byte-identical to `bake_lut()`'s
+  output (verified under `--rendering-driver opengl3`; `get_layer_data()`
+  returns null under the dummy renderer, so this can't be asserted from GUT —
+  `test/unit/test_carve_atlas.gd` checks the committed PNG instead).
+
 ## Parked for later
 
 - **WIS "exudes wealth" motif:** new archetype art authoring, not this
   pipeline. This bake proves against an existing spell icon; bespoke art is a
   separate future content issue.
-- **Render / empty-dome fallback / atlas / `icons:update` extension:** #247.
+- **Antialiased mask.** `bake_lut()` still writes a hard `1.0`/`0.0` alpha,
+  where the gem LUT writes an antialiased coverage ramp (`_gem_coverage`). The
+  #247 decode already treats alpha as a **blend weight** rather than a
+  `> 0.5` gate, so softening the bake is a one-sided change that antialiases
+  the outline with no shader edit — but until it happens, expect the same
+  stair-stepping the gem had before its fix.

@@ -610,9 +610,11 @@ precisely what stair-stepped the gem's outline; `test/unit/test_carve_shape.gd`
 (`test_gem_edge_coverage_is_antialiased`) covers the fix. **Divergence to
 mind:** `TextureCarveShape.bake_lut()` (#246, arbitrary-art carves,
 `skill_node/visuals/emblem/texture_carve_shape.gd:76`) still writes a hard
-`1.0`/`0.0` alpha for its mask — same R/GB encoding otherwise, but it will
-reproduce the stair-stepping once #247 wires its shader decode, unless it
-picks up the same antialiased-coverage treatment first. The bake constants
+`1.0`/`0.0` alpha for its mask — same R/GB encoding otherwise. #247's decode
+is wired now (next section) and deliberately treats that alpha as a **blend
+weight**, not a `> 0.5` gate, so softening the bake to the same coverage ramp
+is a one-sided change needing no shader edit — but until it happens, the
+arbitrary-art outline stair-steps exactly the way the gem's used to. The bake constants
 in `inner_disk.gd` and the decode constants in `lighting.gdshaderinc`
 (`SN_GEM_DEPTH_SCALE`/`SN_GEM_GRAD_SCALE`) must stay numerically in
 lock-step — they're two halves of one encoding, not independently tunable.

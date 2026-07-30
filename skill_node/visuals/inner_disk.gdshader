@@ -20,8 +20,9 @@ instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
 
 // Which CARVE shape family the dome etches — one selector rather than the
 // retired pair of mutually-exclusive "show this glyph" bools
-// (0 = NONE, 1 = POLYGON, 2 = GEM; see InnerDisk.CarveKind). All scalar so
-// the shared ShaderMaterial keeps batching every InnerDisk into one draw call.
+// (0 = NONE, 1 = POLYGON, 2 = GEM, 3 = TEXTURE; see InnerDisk.CarveKind). All
+// scalar so the shared ShaderMaterial keeps batching every InnerDisk into one
+// draw call.
 instance uniform int carve_kind = 0;
 
 // Polygon carve (#124 rework) — a regular-polygon "gem facet" bowl dent folded
@@ -48,6 +49,16 @@ instance uniform float well_depth : hint_range(0.0, 1.0, 0.01) = 0.35;
 // inner_disk.gd, which bakes the matching mip chain).
 uniform sampler2D gem_lut : filter_linear_mipmap, hint_default_black;
 
+// Arbitrary-art carves (#247) — every baked LUT packed into ONE array texture
+// on the shared material (a plain uniform, like gem_lut), with the per-node
+// choice riding as a cheap int index. A sampler can't be an `instance uniform`,
+// so this indirection is what lets N distinct baked shapes coexist without
+// either duplicating the material per node or burning a uniform slot per shape
+// (#172's ceiling). See sn_texture_bump in lighting.gdshaderinc and [CarveAtlas].
+uniform sampler2DArray carve_atlas : filter_linear_mipmap;
+// Which slice this node reads; < 0 means "no slice", the honest empty dome.
+instance uniform int carve_slice = -1;
+
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0;
 	vec3 normal = sn_dome_normal(p);
@@ -60,6 +71,20 @@ void fragment() {
 		// stair-stepped the gem's outline — the soft bake was being discarded.
 		if (lut.a > 0.0) {
 			vec3 bump = sn_gem_bump(lut);
+			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
+			vec2 grad_dome = -p / z_dome;
+			vec2 grad_total = grad_dome - bump.yz * lut.a;
+			normal = normalize(vec3(-grad_total, 1.0));
+		}
+	} else if (carve_kind == 3 && carve_slice >= 0) {
+		vec4 lut = texture(carve_atlas, vec3(UV, float(carve_slice)));
+		// Same blend-weight treatment as the gem branch above, deliberately:
+		// #246's bake still writes a HARD 0/1 mask here, so today this behaves
+		// as a gate — but weighting rather than branching means the outline
+		// antialiases for free the moment that bake picks up the gem's
+		// coverage ramp, instead of needing this shader changed too.
+		if (lut.a > 0.0) {
+			vec3 bump = sn_texture_bump(lut);
 			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
 			vec2 grad_dome = -p / z_dome;
 			vec2 grad_total = grad_dome - bump.yz * lut.a;

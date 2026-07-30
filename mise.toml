@@ -170,6 +170,20 @@ echo "✓ $count icons rasterized → $DEST/"
 echo "→ running godot --headless --import to regenerate .import files…"
 godot --headless --import 2>&1 | grep -E "reimport|DONE|ERROR" || true
 echo "✓ import complete — all UIDs regenerated"
+
+# Bake each icon into its CARVE LUT and pack the set into the Texture2DArray
+# atlas the live shader samples (#247). Lives in this task rather than a
+# separate one because the atlas is downstream of the icons — splitting them
+# is how the atlas goes stale against the art it's baked from.
+echo ""
+echo "→ baking CARVE LUTs + packing the atlas…"
+cd "$PROJECT_ROOT"
+godot --headless --script res://tools/bake_carve_atlas.gd
+# Second import pass: the stacked atlas PNG and its generated .import only came
+# into existence during the bake above, so the first pass could not have seen
+# them. This is what turns it into the CompressedTexture2DArray.
+godot --headless --import 2>&1 | grep -E "reimport|ERROR" || true
+echo "✓ CARVE atlas packed"
 '''
 
 [tasks."worktree:rm"]

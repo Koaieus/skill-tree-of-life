@@ -153,3 +153,34 @@ vec3 sn_gem_bump(vec4 p_lut) {
 	vec2 grad = (p_lut.gb * 2.0 - 1.0) * SN_GEM_GRAD_SCALE;
 	return vec3(drop, grad);
 }
+
+// --- Arbitrary-art carve: the same decode, over an ATLAS SLICE ---
+//
+// The gem above is ONE fixed shape, so its LUT is a single shared sampler2D.
+// Arbitrary art (#246: a spell icon, a keystone glyph) is N different shapes,
+// and a node has to pick one at draw time — but a sampler can't be an
+// `instance uniform`, so "one sampler per shape" would break InnerDisk's
+// shared-material batching. #247's answer: every baked LUT lives in one
+// sampler2DArray on the shared material, and the only per-node value is a
+// cheap int slice INDEX, which an `instance uniform` carries fine. See
+// [CarveAtlas] and docs/domain/emblem-bake.md.
+//
+// The encoding is #246's, written by TextureCarveShape.bake_lut():
+//   R = drop / SN_TEXTURE_DEPTH_SCALE
+//   GB = grad / SN_TEXTURE_GRAD_SCALE, remapped -1..1 -> 0..1
+//   A = the silhouette mask
+// These two consts are the decode half of that contract and MUST stay
+// numerically identical to TextureCarveShape.DEPTH / .GRAD_SCALE — if they
+// drift, the bake and the decode disagree silently (no error, just a
+// wrong-depth dent). They're kept SEPARATE from the SN_GEM_* pair above
+// despite currently holding the same values: the two are pinned by different
+// bake sites and are independently tunable, so collapsing them would couple
+// two unrelated shapes' depth to one number.
+const float SN_TEXTURE_DEPTH_SCALE = 0.35;
+const float SN_TEXTURE_GRAD_SCALE = 3.0;
+
+vec3 sn_texture_bump(vec4 p_lut) {
+	float drop = p_lut.r * SN_TEXTURE_DEPTH_SCALE;
+	vec2 grad = (p_lut.gb * 2.0 - 1.0) * SN_TEXTURE_GRAD_SCALE;
+	return vec3(drop, grad);
+}
