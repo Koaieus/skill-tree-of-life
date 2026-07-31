@@ -78,13 +78,13 @@ func test_bind_pool_preview_gain_tracks_per_turn_value_changed() -> void:
 	var per_turn := ScalarStat.new()
 	per_turn.base_value = 1.0
 
-	card._bind_pool(card._xp_gauge, card._xp_caption, pool, per_turn)
+	card._bind_pool(card._health_gauge, card._health_caption, pool, per_turn)
 	await get_tree().process_frame
-	assert_eq(card._xp_gauge.preview_gain, 1.0)
+	assert_eq(card._health_gauge.preview_gain, 1.0)
 
 	per_turn.base_value = 4.0
 	await get_tree().process_frame
-	assert_eq(card._xp_gauge.preview_gain, 4.0,
+	assert_eq(card._health_gauge.preview_gain, 4.0,
 		"per_turn.value_changed must re-drive gauge.preview_gain")
 
 

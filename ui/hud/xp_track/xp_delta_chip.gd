@@ -8,12 +8,18 @@ extends Label
 ## eye was already on. NPCs keep their core toast (see [FloaterDirector]), since
 ## they have no gauge.
 ##
-## Anchored INSIDE the gauge (a ColorRect, not a Container) precisely so it
-## can't reflow the XP row: a Control child of a non-container parent takes no
-## part in layout. Never re-parent this into the row's HBoxContainer.
+## Anchored inside a plain (non-container) Control precisely so it can't reflow
+## the row it decorates: a Control child of a non-container parent takes no part
+## in layout. Never re-parent this into a Container.
+##
+## [b]Its host must give it clear, dark space to rise into.[/b] Its first home
+## (#317) anchored it inside the 110×12 XP gauge on the Hero Sigil card, where it
+## rose across the mana row in gold-on-gold at font 11 — firing correctly on
+## every grant and legible on none of them. It now lives on [XpTrack], where the
+## rise crosses the track's own header band.
 
 ## Total rise over the chip's life, in pixels (negative = up).
-@export var rise_distance: float = -14.0
+@export var rise_distance: float = -13.0
 @export_range(0.0, 2.0, 0.05) var hold_time: float = 0.45
 @export_range(0.0, 2.0, 0.05) var fade_time: float = 0.35
 

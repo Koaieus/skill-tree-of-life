@@ -3,7 +3,7 @@ class_name HudRoot
 extends Control
 
 ## Structural spine of the "Arcane Terminal" HUD (#98/#107) — the sole UI
-## layer since #118's cutover (replaced the old UIRoot). Anchors the five
+## layer since #118's cutover (replaced the old UIRoot). Anchors the six
 ## design clusters via Control anchor presets + margins (translated from the
 ## design's 1440x900 absolute coords, not hardcoded pixel offsets) and hands
 ## cross-system deps to each cluster's own scene-local `bind()`/setter:
@@ -22,6 +22,7 @@ extends Control
 @onready var combat_readout: CombatReadout = %CombatReadout
 @onready var node_inspector_card: NodeInspectorCard = %NodeInspectorCard
 @onready var initiative_bar: InitiativeBar = %InitiativeBar
+@onready var xp_track: XpTrack = %XpTrack
 @onready var action_cluster: ActionCluster = %ActionCluster
 @onready var command_tray: CommandTray = %CommandTray
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
@@ -86,6 +87,15 @@ func compose(game_root: GameRoot) -> void:
 		stat_board_overlay.board = _player.stat_board
 	if hero_sigil_card != null:
 		hero_sigil_card.bind(_player)
+	if xp_track != null:
+		xp_track.bind(_player)
+		# The emblem badge is the card's, but the beat that bumps it is the XP
+		# bar's — one source for badge, banner and gauge (#317/#320). It rides
+		# `level_display_changed`, not `level_reached`, so a level granted outside
+		# the XP pool still reaches the badge (see XpTrack's signal docs).
+		if hero_sigil_card != null:
+			xp_track.level_display_changed.connect(hero_sigil_card.show_level)
+			hero_sigil_card.show_level(_player.level)
 	if attributes_panel != null:
 		attributes_panel.bind(_player.stat_board)
 	if turn_resources_panel != null:
@@ -151,11 +161,11 @@ func _bind_announcement_layer() -> void:
 	_turn_manager.turn_started.connect(_on_turn_started_for_banner)
 	# LEVEL UP is paced by the XP bar, not by the model (#317). `Entity.leveled_up`
 	# fires the instant XP lands — every level of a cascade in the same frame, and
-	# seconds before the bar has finished telling that story. HeroSigilCard's
+	# seconds before the bar has finished telling that story. XpTrack's
 	# `level_reached` is the same fact, emitted once per level at the moment the
 	# gauge actually reaches full.
-	if hero_sigil_card != null and not hero_sigil_card.level_reached.is_connected(_on_level_reached):
-		hero_sigil_card.level_reached.connect(_on_level_reached)
+	if xp_track != null and not xp_track.level_reached.is_connected(_on_level_reached):
+		xp_track.level_reached.connect(_on_level_reached)
 
 
 func _on_turn_started_for_banner(entity: Entity) -> void:

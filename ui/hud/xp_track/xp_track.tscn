@@ -1,0 +1,84 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/xp_track/xp_track.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
+[ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_delta_chip.tscn" id="4_chip"]
+
+[node name="XpTrack" type="MarginContainer"]
+script = ExtResource("1_script")
+
+[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+unique_name_in_owner = true
+layout_mode = 2
+gradient_angle_deg = 90.0
+corner_radius = 10.0
+
+[node name="Padded" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 10
+
+[node name="Content" type="VBoxContainer" parent="Padded"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="Header" type="HBoxContainer" parent="Padded/Content"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+
+[node name="LevelLabel" type="Label" parent="Padded/Content/Header"]
+unique_name_in_owner = true
+modulate = Color(0.8909, 0.7204, 0.2596, 0.95)
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 12
+text = "LEVEL 1"
+
+[node name="ChipSlot" type="Control" parent="Padded/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="XPCaption" type="Label" parent="Padded/Content/Header"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.55)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "0 / 0"
+vertical_alignment = 1
+
+[node name="GaugeWrap" type="Control" parent="Padded/Content"]
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="XPGauge" parent="Padded/Content/GaugeWrap" instance=ExtResource("3_gauge")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+fill_color = Color(0.8909, 0.7204, 0.2596, 1)
+glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
+corner_radius = 6.0
+
+[node name="XPDeltaChip" parent="Padded/Content/Header/ChipSlot" instance=ExtResource("4_chip")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -19.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1

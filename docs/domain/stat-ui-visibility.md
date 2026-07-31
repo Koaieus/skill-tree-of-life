@@ -31,9 +31,16 @@ duplication.
 
 | Stat | HeroSigil | Other |
 |---|---|---|
-| `xp` | PoolGauge + level-up anim | |
-| `xp_per_turn` | gauge preview_gain + caption | |
-| `level` | badge | |
+| `xp` | **(none — moved #320)** | XpTrack: PoolGauge + level-up anim + XpDeltaChip |
+| `xp_per_turn` | **(none — moved #320)** | XpTrack: gauge preview_gain + caption |
+| `level` | badge (driven by `XpTrack.level_display_changed`) | XpTrack "LEVEL N" readout |
+
+> **XP left the Hero Sigil card in #320.** It now lives on `XpTrack`
+> (`ui/hud/xp_track/`), the top-center strip — XP is the currency the game is
+> denominated in, and it was reading as third billing under health and mana. The
+> card's `XPRow` survives as **hidden, unbound scenery** while the placement
+> settles; do not re-bind it, a second binder on the `xp` pool double-narrates
+> every level-up. The card keeps the level badge only.
 
 ## Allocation
 

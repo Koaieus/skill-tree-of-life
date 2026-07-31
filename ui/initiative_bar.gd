@@ -132,9 +132,14 @@ func _capture_panel_rest() -> void:
 		_panel_rest_captured = true
 
 
-## Y that parks the panel fully above the top edge.
+## Local Y that parks the panel fully above the SCREEN's top edge — not merely
+## above its own resting spot. Since #320 the bar hangs *below* the XpTrack
+## strip, so a purely relative offset (rest − height − margin) left it peeking
+## back into view; deriving the distance from where local 0 actually lands in
+## global space keeps the exit clean wherever the bar gets anchored.
 func _panel_out_y() -> float:
-	return _panel_rest_y - panel.size.y - PANEL_OUT_MARGIN
+	var parent_origin_y := panel.global_position.y - panel.position.y
+	return -parent_origin_y - panel.size.y - PANEL_OUT_MARGIN
 
 
 ## Dip south a teensy bit (anticipation), then accelerate north out of view.

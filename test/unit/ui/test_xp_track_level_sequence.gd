@@ -1,24 +1,28 @@
 extends GutTest
 
-## HeroSigilCard's XP replay (#317). The model applies a whole multi-level XP
-## grant in one synchronous call; the card replays it as one gauge beat per
-## level, and THAT is what paces the level badge and the LEVEL UP banner.
+## XpTrack's XP replay (#317, relocated in #320). The model applies a whole
+## multi-level XP grant in one synchronous call; the track replays it as one
+## gauge beat per level, and THAT is what paces the level readout, the Hero
+## Sigil's badge and the LEVEL UP banner.
 ##
 ## This is the acceptance criterion most likely to rot silently, because none
 ## of it is visible in a single frame — it only exists as timing.
 
+const _TRACK_SCENE := preload("res://ui/hud/xp_track/xp_track.tscn")
 const _CARD_SCENE := preload("res://ui/hud/hero_sigil_card/hero_sigil_card.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
-var _card: HeroSigilCard
+var _track: XpTrack
 var _entity: Entity
 var _gauge: PoolGauge
 var _levels: Array[int] = []
 
 
 func before_each() -> void:
-	_card = _CARD_SCENE.instantiate() as HeroSigilCard
-	add_child_autofree(_card)
+	_track = _TRACK_SCENE.instantiate() as XpTrack
+	# A real width, so the anchored chip has somewhere to resolve to.
+	_track.custom_minimum_size = Vector2(800, 52)
+	add_child_autofree(_track)
 	await get_tree().process_frame
 
 	_entity = Entity.new()
@@ -28,15 +32,15 @@ func before_each() -> void:
 	add_child(_entity)
 	await get_tree().process_frame  # _ready wires xp.replenished -> level-up
 
-	_gauge = _card.get_node("%XPGauge") as PoolGauge
+	_gauge = _track.get_node("%XPGauge") as PoolGauge
 	# Fast timings: the ordering under test is preserved, the wall-clock isn't.
 	_gauge.level_up_fill_time = 0.05
 	_gauge.level_up_wrap_time = 0.02
 	_gauge.level_up_hold_time = 0.02
 
 	_levels = []
-	_card.bind(_entity)
-	_card.level_reached.connect(func(l: int): _levels.append(l))
+	_track.bind(_entity)
+	_track.level_reached.connect(func(l: int): _levels.append(l))
 
 
 func after_each() -> void:
@@ -70,15 +74,69 @@ func test_a_two_level_cascade_plays_one_beat_per_level_in_order() -> void:
 	assert_almost_eq(_gauge.max_value, 15.0, 0.01, "settled on the final cap")
 
 
-func test_the_badge_follows_the_bar_not_the_model() -> void:
-	var badge := _card.get_node("%LevelBadge") as Label
-	assert_eq(badge.text, "1", "starts where bind() found it")
+func test_the_level_readout_follows_the_bar_not_the_model() -> void:
+	var label := _track.get_node("%LevelLabel") as Label
+	assert_eq(label.text, "LEVEL 1", "starts where bind() found it")
 	_entity.stat_board.xp.replenish(20.0)
 	# The model has already applied BOTH levels synchronously...
 	assert_eq(_entity.level, 3, "model is instant")
-	assert_eq(badge.text, "1", "...but the badge waits for the bar to say so")
+	assert_eq(label.text, "LEVEL 1", "...but the readout waits for the bar to say so")
 	await _settle()
-	assert_eq(badge.text, "3", "and catches up beat by beat")
+	assert_eq(label.text, "LEVEL 3", "and catches up beat by beat")
+
+
+## The Hero Sigil's badge is driven from here by HudRoot (#320), so badge,
+## banner and bar all beat together instead of the badge racing the model.
+func test_the_hero_sigil_badge_rides_the_same_beat() -> void:
+	var card := _CARD_SCENE.instantiate() as HeroSigilCard
+	add_child_autofree(card)
+	await get_tree().process_frame
+	card.bind(_entity)
+	_track.level_reached.connect(card.show_level)
+	var badge := card.get_node("%LevelBadge") as Label
+	assert_eq(badge.text, "1", "starts where bind() found it")
+
+	_entity.stat_board.xp.replenish(20.0)
+	assert_eq(badge.text, "1", "not yanked forward by the model's instant level-up")
+	await _settle()
+	assert_eq(badge.text, "3", "bumped by the gauge's beats")
+
+
+## A level that never crosses an XP cap produces no beat — `level` is an ordinary
+## moddable stat and a `+level` modifier is legal (.claude/rules/stats-system.md).
+## The track's settle-time re-sync catches it; the badge must ride the same edge,
+## or it sits permanently one behind a readout that corrected itself.
+func test_a_level_granted_outside_the_xp_pool_still_reaches_both_readouts() -> void:
+	var card := _CARD_SCENE.instantiate() as HeroSigilCard
+	add_child_autofree(card)
+	await get_tree().process_frame
+	card.bind(_entity)
+	_track.level_display_changed.connect(card.show_level)
+	var badge := card.get_node("%LevelBadge") as Label
+	var label := _track.get_node("%LevelLabel") as Label
+
+	_entity.stat_board.level.base_value += 1  # no XP, no cap crossed, no beat
+	_entity.stat_board.xp.replenish(1.0)      # a plain gain, to force a settle
+	await _settle()
+
+	assert_eq(_levels, [] as Array[int], "no cap crossed, so nothing to narrate")
+	assert_eq(label.text, "LEVEL 2", "the track re-syncs on settle")
+	assert_eq(badge.text, "2", "and the badge rides the same edge, not the beat")
+
+
+## The card must NOT bind XP itself any more (#320) — a second binder on the
+## same pool runs a second sequencer and emits a second `level_reached`, which
+## AnnouncementLayer's coalescing absorbs into one banner stamped "×2" for a
+## single level.
+func test_the_hero_sigil_card_no_longer_binds_the_xp_pool() -> void:
+	var card := _CARD_SCENE.instantiate() as HeroSigilCard
+	add_child_autofree(card)
+	await get_tree().process_frame
+	var xp: PoolStat = _entity.stat_board.xp
+	var before := xp.replenished_by.get_connections().size()
+	card.bind(_entity)
+	assert_eq(xp.replenished_by.get_connections().size(), before,
+			"binding the card must not add a listener to the XP pool")
 
 
 ## The retarget-on-interrupt requirement: passive per-turn XP is the main
@@ -108,7 +166,7 @@ func test_a_late_grant_that_levels_gets_its_own_beat() -> void:
 ## the ONLY "+N XP" the player ever sees — see test_xp_toast.gd for the
 ## matching absence assertion.
 func test_the_chip_announces_the_grant() -> void:
-	var chip := _card.get_node("%XPDeltaChip") as XpDeltaChip
+	var chip := _track.get_node("%XPDeltaChip") as XpDeltaChip
 	assert_almost_eq(chip.modulate.a, 0.0, 0.01, "resting invisible")
 	_entity.stat_board.xp.replenish(3.0)
 	await get_tree().process_frame
@@ -119,7 +177,7 @@ func test_the_chip_announces_the_grant() -> void:
 ## Two sources in one turn (passive income + a kill reward) must read as one
 ## number, not flicker between them.
 func test_a_second_grant_accumulates_into_a_live_chip() -> void:
-	var chip := _card.get_node("%XPDeltaChip") as XpDeltaChip
+	var chip := _track.get_node("%XPDeltaChip") as XpDeltaChip
 	_entity.stat_board.xp.replenish(3.0)
 	await get_tree().process_frame
 	_entity.stat_board.xp.replenish(2.0)
@@ -129,9 +187,9 @@ func test_a_second_grant_accumulates_into_a_live_chip() -> void:
 
 ## The chip is anchor-positioned, and anchors resolve on the layout pass that
 ## follows `_ready` — so its resting position must be captured lazily, or every
-## pop would teleport it to the gauge's top-left corner and stay there.
+## pop would teleport it to the wrap's top-left corner and stay there.
 func test_the_chip_pops_where_it_rests_not_at_the_origin() -> void:
-	var chip := _card.get_node("%XPDeltaChip") as XpDeltaChip
+	var chip := _track.get_node("%XPDeltaChip") as XpDeltaChip
 	await get_tree().process_frame
 	var laid_out := chip.position
 	assert_ne(laid_out, Vector2.ZERO, "anchors resolved it away from the origin")
@@ -139,6 +197,16 @@ func test_the_chip_pops_where_it_rests_not_at_the_origin() -> void:
 	await get_tree().process_frame
 	assert_eq(chip.position.x, laid_out.x, "pops in place horizontally")
 	assert_almost_eq(chip.position.y, laid_out.y, 2.0, "and starts its rise from there")
+
+
+## Where the chip rises MATTERS: its first home (#317) put it inside the 110px
+## gauge on the card, so it rose in gold-on-gold across the mana row and read as
+## nothing at all. On the track it must clear the bar entirely.
+func test_the_chip_rises_clear_of_the_gauge() -> void:
+	var chip := _track.get_node("%XPDeltaChip") as XpDeltaChip
+	await get_tree().process_frame
+	assert_lt(chip.get_global_rect().end.y, _gauge.get_global_rect().position.y + 1.0,
+			"the chip sits above the bar, not on top of it")
 
 
 ## A gain that crosses nothing must still move the bar — it used to hard-cut,

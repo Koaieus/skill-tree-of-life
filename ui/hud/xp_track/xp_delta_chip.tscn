@@ -1,6 +1,6 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://ui/hud/hero_sigil_card/xp_delta_chip.gd" id="1_script"]
+[ext_resource type="Script" path="res://ui/hud/xp_track/xp_delta_chip.gd" id="1_script"]
 
 [node name="XPDeltaChip" type="Label"]
 script = ExtResource("1_script")

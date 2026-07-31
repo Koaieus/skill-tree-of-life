@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://cxy0rep5jo226" path="res://ui/hud/turn_resources_panel/turn_resources_panel.tscn" id="4_turnres"]
 [ext_resource type="PackedScene" uid="uid://syx2qix6erfj" path="res://ui/hud/combat_readout/combat_readout.tscn" id="5_combat"]
 [ext_resource type="PackedScene" uid="uid://qybxf6lb7hjj" path="res://ui/initiative_bar.tscn" id="6_initiative"]
+[ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_track.tscn" id="10_xp_track"]
 [ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
 [ext_resource type="PackedScene" path="res://ui/announcement_layer/announcement_layer.tscn" id="9_announcement"]
@@ -50,6 +51,18 @@ mouse_filter = 2
 [node name="InitiativeBar" parent="MarginContainer/TurnTrackerSlot" unique_id=1934973789 instance=ExtResource("6_initiative")]
 unique_name_in_owner = true
 layout_mode = 1
+offset_top = 62.0
+offset_bottom = 102.0
+
+[node name="XpTrack" parent="MarginContainer/TurnTrackerSlot" instance=ExtResource("10_xp_track")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 300.0
+offset_right = -252.0
+offset_bottom = 52.0
+grow_horizontal = 2
 
 [node name="LeftColumnSlot" type="VBoxContainer" parent="MarginContainer" unique_id=758516905]
 unique_name_in_owner = true
