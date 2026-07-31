@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://d4snnstdg2xj"]
+
+[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+
+[sub_resource type="Resource" id="ab"]
+script = ExtResource("2_pool")
+stat_id = &"perception"
+operation = 0
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"flat"])
+unit_value = 2.0
+pool_weight = 10.0
+min_tier = 1
+max_tier = 4
+
+[sub_resource type="Resource" id="inc"]
+script = ExtResource("2_pool")
+stat_id = &"perception"
+operation = 1
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"percent"])
+unit_value = 7.0
+pool_weight = 3.0
+min_tier = 1
+max_tier = 3
+
+[sub_resource type="Resource" id="mul"]
+script = ExtResource("2_pool")
+stat_id = &"perception"
+operation = 2
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"multiply"])
+unit_value = 0.05
+pool_weight = 1.0
+min_tier = 3
+max_tier = 4
+
+[sub_resource type="Resource" id="vr_inc"]
+script = ExtResource("2_pool")
+stat_id = &"vision_range"
+operation = 1
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"percent", &"vision", &"sense"])
+unit_value = 7.5
+pool_weight = 2.5
+min_tier = 1
+max_tier = 3
+
+[sub_resource type="Resource" id="vr_bn"]
+script = ExtResource("2_pool")
+stat_id = &"vision_range"
+operation = 3
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"vision", &"sense"])
+unit_value = 10.0
+pool_weight = 1.0
+min_tier = 1
+max_tier = 2
+
+[sub_resource type="Resource" id="sr"]
+script = ExtResource("2_pool")
+stat_id = &"sensor_range"
+operation = 0
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"sense", &"vision"])
+unit_value = 1.0
+pool_weight = 2.0
+min_tier = 1
+max_tier = 2
+
+[resource]
+script = ExtResource("1_sp")
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per"])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr")])
