@@ -86,6 +86,61 @@ func test_fill_finished_fires_once_per_call_even_with_nothing_to_do() -> void:
 	assert_eq(fires.size(), 1, "a no-op move still reports done, deferred, exactly once")
 
 
+# ── fill_speed (#320) — constant rate, so the SIZE of a gain is readable ──────
+#
+# Under a flat duration a 2%-of-bar tick and a 60% gain both take the same third
+# of a second, so the big one reads as a snap to full and the animation carries
+# no information. Rate mode makes duration proportional to distance.
+
+func test_a_bigger_gain_takes_proportionally_longer() -> void:
+	_gauge.fill_speed = 1.0  # a full sweep per second
+	_gauge.min_fill_time = 0.0
+	_gauge.max_fill_time = 4.0
+	_gauge.min_value = 0.0
+	assert_almost_eq(_gauge._fill_duration(0.0, 10.0, 10.0), 1.0, 0.001, "full sweep")
+	assert_almost_eq(_gauge._fill_duration(0.0, 1.0, 10.0), 0.1, 0.001, "a tenth of the bar, a tenth of the time")
+	assert_almost_eq(_gauge._fill_duration(4.0, 6.0, 10.0), 0.2, 0.001, "measured on the distance, not the target")
+
+
+func test_the_clamps_keep_a_sliver_visible_and_a_sweep_finite() -> void:
+	_gauge.fill_speed = 1.0
+	_gauge.min_fill_time = 0.12
+	_gauge.max_fill_time = 0.5
+	assert_eq(_gauge._fill_duration(0.0, 0.01, 10.0), 0.12, "a sliver still reads as motion")
+	assert_eq(_gauge._fill_duration(0.0, 10.0, 10.0), 0.5, "and a full sweep still ends")
+
+
+## Feedback bars (health, mana) deliberately stay on the flat duration.
+func test_fill_speed_zero_keeps_the_flat_duration() -> void:
+	_gauge.fill_speed = 0.0
+	_gauge.level_up_fill_time = 0.35
+	assert_eq(_gauge._fill_duration(0.0, 10.0, 10.0), 0.35)
+	assert_eq(_gauge._fill_duration(0.0, 0.1, 10.0), 0.35, "flat means flat, distance ignored")
+
+
+## The reported case: 2/5 + 5 XP crosses the cap, so it runs through
+## `play_level_segment` — the path a flat duration made "shoot to full". Sampling
+## mid-fill is the only honest check that the climb is gradual.
+func test_a_levelling_fill_climbs_gradually_rather_than_snapping() -> void:
+	_gauge.fill_speed = 0.9
+	_gauge.min_fill_time = 0.12
+	_gauge.max_fill_time = 1.1
+	_gauge.max_value = 5.0
+	_gauge.current = 2.0
+	await get_tree().process_frame
+	_gauge.play_level_segment(5.0, 10.0)
+	# 3/5 of the bar at 0.9 bar/s ≈ 0.67s, so a tenth of a second in we should be
+	# nowhere near the top — under the old flat 0.35s cubic we'd be past 80%.
+	await wait_seconds(0.1)
+	var early := _gauge.current
+	assert_lt(early, 4.0, "a tenth of a second in, still climbing (not snapped to full)")
+	assert_gt(early, 2.0, "but moving")
+	for i in 40:
+		await get_tree().process_frame
+		await wait_seconds(0.02)
+	assert_eq(_gauge.max_value, 10.0, "and the segment still completes")
+
+
 func test_a_level_segment_beats_at_full_then_wraps() -> void:
 	_gauge.max_value = 5.0
 	_gauge.current = 3.0

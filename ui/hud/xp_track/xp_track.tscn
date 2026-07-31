@@ -66,6 +66,7 @@ grow_vertical = 2
 fill_color = Color(0.8909, 0.7204, 0.2596, 1)
 glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
 corner_radius = 6.0
+fill_speed = 0.9
 
 [node name="XPDeltaChip" parent="Padded/Content/Header/ChipSlot" instance=ExtResource("4_chip")]
 unique_name_in_owner = true

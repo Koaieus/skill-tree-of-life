@@ -139,6 +139,27 @@ signal level_segment_held(new_max: float)
 ## beats needs a Banner hold-extend — see #320.
 @export_range(0.0, 1.0, 0.01) var level_up_hold_time: float = 0.15
 
+## Constant-rate fills, in **bar fractions per second** (#320). At 0.9, an empty
+## bar sweeps to full in ~1.1s and a gain of a tenth of the bar takes a tenth of
+## that. `0` disables it: every fill then runs for a flat `level_up_fill_time`.
+##
+## [b]Rate, not duration, is what makes a gain's SIZE legible.[/b] Under a fixed
+## time a 2%-of-bar tick crawls invisibly and a 60% gain sweeps in the same third
+## of a second — the animation says nothing about how much you got, and a big
+## gain reads as a snap to full no matter which easing curve you pick. Duration
+## proportional to distance is the reward-bar convention (XP, quest progress),
+## and it's why the climb is worth animating at all.
+##
+## Feedback bars are the opposite case and deliberately stay at `0`: for health
+## and mana you need to know *that* you were hit before you know by how much, so
+## a short front-loaded ease-out beats a legible one. Only the XP gauge opts in.
+@export_range(0.0, 4.0, 0.05) var fill_speed: float = 0.0
+
+## Floor and ceiling on a rate-derived duration — a sliver still reads as motion,
+## a full sweep still ends. Both ignored when [member fill_speed] is 0.
+@export_range(0.0, 1.0, 0.01) var min_fill_time: float = 0.12
+@export_range(0.1, 4.0, 0.05) var max_fill_time: float = 1.1
+
 var _drain_tween: Tween
 var _level_tween: Tween
 ## Set while a scripted level-up animation drives `current`, to disable the
@@ -185,7 +206,11 @@ func _push_all() -> void:
 func animate_to(target_current: float, target_max: float) -> void:
 	if _level_tween and _level_tween.is_valid():
 		_level_tween.kill()
-	if not is_inside_tree() or target_current <= current or level_up_fill_time <= 0.0:
+	# The duration is read against the TARGET span, so `max_value` moves first.
+	var from_value := current
+	var span_max := target_max
+	var duration := _fill_duration(from_value, target_current, span_max)
+	if not is_inside_tree() or target_current <= current or duration <= 0.0:
 		_suppress_drain = false
 		max_value = target_max
 		current = target_current
@@ -194,8 +219,8 @@ func animate_to(target_current: float, target_max: float) -> void:
 	_suppress_drain = true
 	max_value = target_max
 	_level_tween = create_tween()
-	_level_tween.tween_property(self, ^"current", target_current, level_up_fill_time) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_level_tween.tween_property(self, ^"current", target_current, duration) \
+			.set_ease(_fill_ease()).set_trans(_fill_trans())
 	_level_tween.tween_callback(_end_scripted_fill)
 
 
@@ -218,9 +243,12 @@ func play_level_segment(fill_to: float, new_max: float) -> void:
 		return
 	_suppress_drain = true
 	_level_tween = create_tween()
-	# Phase 1 — fill to full at the cap this level reached.
-	_level_tween.tween_property(self, ^"current", fill_to, level_up_fill_time) \
-			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+	# Phase 1 — fill to full at the cap this level reached. Rate-derived like any
+	# other fill: this is the path a levelling gain actually takes, so leaving it
+	# on a flat duration would keep exactly the "shoots to full" it's here to fix.
+	# Measured against the OLD cap, which is what `fill_to` is denominated in.
+	_level_tween.tween_property(self, ^"current", fill_to, _fill_duration(current, fill_to, max_value)) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(_fill_trans())
 	# Phase 2 — beat at full, and announce from there.
 	_level_tween.tween_interval(level_up_hold_time)
 	_level_tween.tween_callback(func() -> void: level_segment_held.emit(new_max))
@@ -251,6 +279,29 @@ func play_level_up(old_current: float, old_max: float, new_current: float, new_m
 	var settle := func() -> void: animate_to(new_current, new_max)
 	fill_finished.connect(settle, CONNECT_ONE_SHOT)
 	play_level_segment(old_max, new_max)
+
+
+## How long a fill covering `from_value` → `to_value` should take, against a bar
+## whose top is `span_max`. Flat `level_up_fill_time` unless [member fill_speed]
+## opts into a constant rate.
+func _fill_duration(from_value: float, to_value: float, span_max: float) -> float:
+	if fill_speed <= 0.0:
+		return level_up_fill_time
+	var span := span_max - min_value
+	if span <= 0.0:
+		return min_fill_time
+	return clampf(absf(to_value - from_value) / span / fill_speed, min_fill_time, max_fill_time)
+
+
+## A constant-rate climb wants a curve that is near-linear through the middle and
+## only softens at the ends — cubic's swoosh would put the speed back in. Fixed
+## duration keeps its original cubic, so health and mana are untouched.
+func _fill_trans() -> Tween.TransitionType:
+	return Tween.TRANS_SINE if fill_speed > 0.0 else Tween.TRANS_CUBIC
+
+
+func _fill_ease() -> Tween.EaseType:
+	return Tween.EASE_IN_OUT if fill_speed > 0.0 else Tween.EASE_OUT
 
 
 ## Close out a scripted fill. The signal is emitted DEFERRED, never inline: the

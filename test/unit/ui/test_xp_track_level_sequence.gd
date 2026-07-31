@@ -33,7 +33,11 @@ func before_each() -> void:
 	await get_tree().process_frame  # _ready wires xp.replenished -> level-up
 
 	_gauge = _track.get_node("%XPGauge") as PoolGauge
-	# Fast timings: the ordering under test is preserved, the wall-clock isn't.
+	# Fast, FIXED timings: the ordering under test is preserved, the wall-clock
+	# isn't. `fill_speed = 0` is what pins that — the shipped gauge is rate-based
+	# (#320), and three real-speed segments would outrun `_settle()`'s frame
+	# budget and leave the ordering assertions reading incomplete state.
+	_gauge.fill_speed = 0.0
 	_gauge.level_up_fill_time = 0.05
 	_gauge.level_up_wrap_time = 0.02
 	_gauge.level_up_hold_time = 0.02
