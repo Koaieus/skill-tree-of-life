@@ -77,6 +77,12 @@ func has_modifier(m: StatModifier) -> bool:
 	return m in _modifiers
 
 
+## Read-only copy of this stat's currently-applied modifiers. Used by
+## StatBoard.would_cycle to build the board's live dependency graph (#322).
+func get_modifiers() -> Array[StatModifier]:
+	return _modifiers.duplicate()
+
+
 func add_modifier(m: StatModifier) -> void:
 	if m in _modifiers:
 		return

@@ -156,6 +156,41 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 - (for each node owned by the entity) `SkillNode.refill()` — node combat HP back to max.
 - `core_class.on_turn_started(self)` — the wired class runs its own per-turn effects (caster mana flourishes, rage decay, etc.). Default hook is a no-op.
 
+## Dependency-cycle rejection (#322)
+
+The formula dependency graph (`stat_id -> formula.get_input_ids()`, i.e. "this stat
+depends on that one") must stay a DAG — `StatModifier._propagating` only guards
+re-entrancy on one modifier's `_on_source_changed`, so a genuine A→B→A cycle doesn't
+error or hang, it just settles on a **silently wrong, evaluation-order-dependent**
+value. `test/unit/test_stat_dependency_graph.gd` statically checks the shipped
+content (board intrinsics + each core class layered on top) is acyclic; it cannot
+cover a modifier added at **runtime** (a looted formula modifier rebinding to the
+looter's board, where its source may already derive from its own target).
+
+`StatBoard.would_cycle(m)` is the runtime half: it flattens `m`, short-circuits
+`false` when every leaf is either static (no formula) or has an empty
+`formula.get_input_ids()` (a formula with no declared inputs can't participate in a
+cycle either), otherwise builds the graph from everything already **applied**
+(`get_all_modifiers()`, which reads `Stat._modifiers` across every field — NOT the
+authored `intrinsic_modifiers` array, which is inert until `apply_intrinsics()`
+actually attaches it) plus the candidate's edges, and runs the same DFS.
+`StatBoard.add_modifier` calls it as a precondition and rejects (`push_warning`,
+no-op) rather than accept-and-corrupt — checked *before* any leaf is bound, so a
+rejection leaves the board provably unchanged.
+
+**The DFS traversal has one home:** `StatBoard.adjacency_from(mods)` /
+`StatBoard.find_cycle(adjacency)` are `static`, shared by both `would_cycle` and
+the test file (which keeps its own synthetic-cycle fixtures as the detector's
+coverage, thin-wrapped over the same two calls). Don't re-derive this traversal a
+third time.
+
+**Scope: entity boards only.** `SkillNode.add_local_modifier` (node boards) calls
+`Stat.add_modifier` directly via `_ensure_local_stat`, not through
+`StatBoard.add_modifier` — node-local formula modifiers are NOT gated by
+`would_cycle`. Matches #322's stated scope (node-local modifiers were already out
+of scope for the static test); worth widening only if a node-local formula ever
+grows the ability to close a loop back onto its own board.
+
 ## Composite (bundled) modifiers (#183)
 
 `CompositeStatModifier extends StatModifier` bundles several child modifiers

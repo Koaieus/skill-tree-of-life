@@ -180,7 +180,16 @@ func get_value(id: StringName) -> Variant:
 ## AllocationSystem: `for m in node.modifiers: entity.stat_board.add_modifier(m)`.
 ## Always calls bind() — no-op for modifiers without a formula, subscribes to
 ## source stats for formula-driven ones.
+##
+## Rejects (push_warning, no-op) a modifier that would close a dependency
+## cycle against everything currently applied — see [method would_cycle] (#322).
+## Checked BEFORE any leaf is bound, so a rejection leaves the board untouched.
 func add_modifier(m: StatModifier) -> void:
+	if would_cycle(m):
+		push_warning(
+			"StatBoard.add_modifier: rejected modifier on '%s' — would close a formula dependency cycle" % m.stat_id
+		)
+		return
 	# flatten() expands a CompositeStatModifier into its leaves; a plain
 	# modifier is its own singleton, so the leaf path below is unchanged (#183).
 	for leaf in m.flatten():
@@ -190,6 +199,102 @@ func add_modifier(m: StatModifier) -> void:
 			push_warning("StatBoard has no stat for id %s" % leaf.stat_id)
 			continue
 		s.add_modifier(leaf)
+
+
+## True if applying [param m] would close a dependency cycle in the formula
+## graph already live on this board (#322 — the runtime half of
+## test_stat_dependency_graph.gd's static DAG check; a looted formula
+## modifier rebinding to a new board is the case that check can't cover).
+##
+## Short-circuits without building any graph when every leaf is either
+## static (no formula) or a formula with no declared inputs (e.g. a bare
+## constant) — neither can ever participate in a cycle.
+func would_cycle(m: StatModifier) -> bool:
+	var leaves := m.flatten()
+	var has_edges := false
+	for leaf in leaves:
+		if leaf.formula != null and not leaf.formula.get_input_ids().is_empty():
+			has_edges = true
+			break
+	if not has_edges:
+		return false
+	var mods := get_all_modifiers()
+	mods.append_array(leaves)
+	return not find_cycle(adjacency_from(mods)).is_empty()
+
+
+## Every modifier currently applied anywhere on this board — hardcoded
+## `@export` stat fields plus dynamically-created ones — flattened to leaves.
+## The "what's already live" half of [method would_cycle]'s graph.
+func get_all_modifiers() -> Array[StatModifier]:
+	var mods: Array[StatModifier] = []
+	for prop in get_property_list():
+		if not (prop.usage & PROPERTY_USAGE_STORAGE):
+			continue
+		var v: Variant = get(prop.name)
+		if v is Stat:
+			mods.append_array(v.get_modifiers())
+	for id in _extra_stats:
+		mods.append_array(_extra_stats[id].get_modifiers())
+	return mods
+
+
+## {stat_id: [depends_on_id, ...]} built from `formula.get_input_ids()` over
+## every formula-bound leaf in `mods` (flattening composites). The single
+## home for this traversal, shared with test_stat_dependency_graph.gd (#322)
+## — [method would_cycle] and the static shipped-content test both build the
+## same shape and hand it to [method find_cycle].
+static func adjacency_from(mods: Array) -> Dictionary:
+	var out := {}
+	for leaf in StatModifier.flatten_all(mods):
+		if leaf.formula == null:
+			continue
+		var deps: Array = out.get(leaf.stat_id, [])
+		for input_id in leaf.formula.get_input_ids():
+			if not deps.has(input_id):
+				deps.append(input_id)
+		out[leaf.stat_id] = deps
+	return out
+
+
+## Depth-first three-colour search over an [method adjacency_from] graph.
+## Returns the offending path ("a -> b -> a") on the first cycle found, or ""
+## when the graph is acyclic.
+static func find_cycle(adjacency: Dictionary) -> String:
+	var done := {}       # fully explored — can never be part of a new cycle
+	var on_stack := {}   # in the current DFS path — a hit here IS the cycle
+	var path: Array[StringName] = []
+	for root in adjacency.keys():
+		var found := _visit_for_cycle(root, adjacency, done, on_stack, path)
+		if not found.is_empty():
+			return found
+	return ""
+
+
+static func _visit_for_cycle(
+	id: StringName,
+	adjacency: Dictionary,
+	done: Dictionary,
+	on_stack: Dictionary,
+	path: Array[StringName]
+) -> String:
+	if done.has(id):
+		return ""
+	if on_stack.has(id):
+		var from := path.find(id)
+		var loop := path.slice(from) if from >= 0 else path.duplicate()
+		loop.append(id)
+		return " -> ".join(loop)
+	on_stack[id] = true
+	path.append(id)
+	for dep in adjacency.get(id, []):
+		var found := _visit_for_cycle(dep, adjacency, done, on_stack, path)
+		if not found.is_empty():
+			return found
+	path.pop_back()
+	on_stack.erase(id)
+	done[id] = true
+	return ""
 
 
 func remove_modifier(m: StatModifier) -> void:

@@ -17,9 +17,11 @@ extends GutTest
 ## so they extend the same graph and can close a loop the board alone can't).
 ## Node-local modifiers are out of scope — they live on per-node boards.
 ##
-## Runtime additions (looted modifiers, #TBD) can't be covered by a static test;
-## they need the same traversal as an `add_modifier` precondition. This file is
-## the shipped-content half.
+## Runtime additions (looted modifiers) are covered by StatBoard.would_cycle
+## (#322), a precondition on `add_modifier` — see the "runtime rejection"
+## section below. The traversal itself (`adjacency_from` / `find_cycle`) has
+## one home, `StatBoard`; this file only wraps it for the synthetic-cycle
+## detector cases and the shipped-content DAG check.
 
 const BOARD := preload("res://entity/default_entity_board.tres")
 
@@ -32,57 +34,15 @@ const CORE_CLASSES := {
 }
 
 
-## `{stat_id: [depends_on_id, ...]}` — one entry per formula-bound leaf.
+## Thin wrappers over the shared StatBoard traversal (#322) — kept as
+## `_adjacency` / `_find_cycle` so the detector + shipped-content tests below
+## didn't need renaming at the call site.
 func _adjacency(mods: Array) -> Dictionary:
-	var out := {}
-	for leaf in StatModifier.flatten_all(mods):
-		if leaf.formula == null:
-			continue
-		var deps: Array = out.get(leaf.stat_id, [])
-		for input_id in leaf.formula.get_input_ids():
-			if not deps.has(input_id):
-				deps.append(input_id)
-		out[leaf.stat_id] = deps
-	return out
+	return StatBoard.adjacency_from(mods)
 
 
-## Depth-first three-colour search. Returns the offending path
-## ("a -> b -> a") on the first cycle found, or "" when the graph is acyclic.
 func _find_cycle(adjacency: Dictionary) -> String:
-	var done := {}       # fully explored — can never be part of a new cycle
-	var on_stack := {}   # in the current DFS path — a hit here IS the cycle
-	var path: Array[StringName] = []
-	for root in adjacency.keys():
-		var found := _visit(root, adjacency, done, on_stack, path)
-		if not found.is_empty():
-			return found
-	return ""
-
-
-func _visit(
-	id: StringName,
-	adjacency: Dictionary,
-	done: Dictionary,
-	on_stack: Dictionary,
-	path: Array[StringName]
-) -> String:
-	if done.has(id):
-		return ""
-	if on_stack.has(id):
-		var from := path.find(id)
-		var loop := path.slice(from) if from >= 0 else path.duplicate()
-		loop.append(id)
-		return " -> ".join(loop)
-	on_stack[id] = true
-	path.append(id)
-	for dep in adjacency.get(id, []):
-		var found := _visit(dep, adjacency, done, on_stack, path)
-		if not found.is_empty():
-			return found
-	path.pop_back()
-	on_stack.erase(id)
-	done[id] = true
-	return ""
+	return StatBoard.find_cycle(adjacency)
 
 
 # --- The detector itself ------------------------------------------------------
@@ -146,3 +106,105 @@ func test_each_core_class_is_acyclic_on_top_of_the_board() -> void:
 			_find_cycle(_adjacency(combined)), "",
 			"%s closes a dependency cycle against the board's intrinsics" % name
 		)
+
+
+# --- Runtime rejection (StatBoard.would_cycle / add_modifier, #322) -----------
+# The static checks above cover shipped content; this is the case they can't —
+# a modifier added at runtime (the #323 loot path) whose formula, once bound to
+# THIS board, closes a loop against something already live. The board's own
+# `mana` intrinsic (mana depends on intelligence, see default_entity_board.tres)
+# is the real edge every case below closes a loop against.
+
+## would_cycle reads what's actually APPLIED (Stat._modifiers via
+## get_all_modifiers), not the authored `intrinsic_modifiers` array — so the
+## fixture must apply_intrinsics() the same way Entity._ready() does, or the
+## board carries the authored edges nowhere would_cycle can see them.
+func _board() -> StatBoard:
+	var board := BOARD.duplicate(true) as StatBoard
+	board.apply_intrinsics()
+	return board
+
+
+## A candidate whose formula reads `mana` and targets `intelligence` closes
+## intelligence -> mana -> intelligence against the board's shipped
+## `mana` intrinsic (mana -> intelligence).
+func _cycle_closing_candidate() -> StatModifier:
+	var lin := LinearFormula.new()
+	lin.source_stat_id = &"mana"
+	var m := StatModifier.new()
+	m.stat_id = &"intelligence"
+	m.formula = lin
+	return m
+
+
+func test_would_cycle_true_for_a_candidate_that_closes_a_loop_against_the_board() -> void:
+	var board := _board()
+	assert_true(
+		board.would_cycle(_cycle_closing_candidate()),
+		"intelligence <- mana closes a loop against the board's mana <- intelligence intrinsic"
+	)
+
+
+func test_would_cycle_true_for_a_composite_bundle_whose_child_closes_the_loop() -> void:
+	# A bundle can close a loop no single leaf does — cover it via a harmless
+	# static sibling leaf alongside the one that actually cycles.
+	var harmless := StatModifier.new()
+	harmless.stat_id = &"strength"
+	harmless.value = 3.0
+	var bundle := CompositeStatModifier.new()
+	bundle.children = [harmless, _cycle_closing_candidate()]
+	var board := _board()
+	assert_true(board.would_cycle(bundle), "a composite is checked leaf-by-leaf via flatten()")
+
+
+func test_add_modifier_rejects_a_cycling_bundle_as_all_or_nothing() -> void:
+	# Rejection must be atomic across the bundle: the innocent `harmless` leaf
+	# must NOT slip through while only the cycling leaf is dropped.
+	var harmless := StatModifier.new()
+	harmless.stat_id = &"strength"
+	harmless.value = 3.0
+	var bundle := CompositeStatModifier.new()
+	bundle.children = [harmless, _cycle_closing_candidate()]
+	var board := _board()
+	var strength_before: float = board.strength.value
+
+	board.add_modifier(bundle)
+
+	assert_eq(board.strength.value, strength_before, "the bundle's harmless leaf must not apply either")
+
+
+func test_would_cycle_false_for_a_static_modifier() -> void:
+	var board := _board()
+	var m := StatModifier.new()
+	m.stat_id = &"strength"
+	m.value = 5.0
+	assert_false(board.would_cycle(m), "a null-formula modifier can never cycle")
+
+
+func test_would_cycle_false_for_a_formula_with_no_declared_inputs() -> void:
+	# An ExpressionFormula authored with no inputs (a bare constant) has a
+	# non-null formula but an empty get_input_ids() — the short-circuit must
+	# catch this shape too, not just the null-formula case.
+	var board := _board()
+	var m := StatModifier.new()
+	m.stat_id = &"strength"
+	var f := ExpressionFormula.new()
+	f.formula = "5"
+	m.formula = f
+	assert_false(board.would_cycle(m))
+
+
+func test_add_modifier_rejects_a_cycle_closing_modifier_and_leaves_the_board_unchanged() -> void:
+	var board := _board()
+	var mana_before: float = board.mana.value
+	var intelligence_before: float = board.intelligence.value
+	var candidate := _cycle_closing_candidate()
+
+	board.add_modifier(candidate)
+
+	assert_eq(board.mana.value, mana_before, "rejected modifier must not perturb mana")
+	assert_eq(board.intelligence.value, intelligence_before, "rejected modifier must not perturb intelligence")
+	assert_false(
+		board.get_stat(&"intelligence").has_modifier(candidate),
+		"rejected modifier must never be attached to its target stat"
+	)
