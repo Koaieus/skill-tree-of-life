@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_base"]
+[ext_resource type="Resource" path="res://entity/keystone/instances/mythic_ward_keystone.tres" id="2_ks"]
+
+[node name="MythicWardNode" instance=ExtResource("1_base")]
+base_type_color = Color(0.3, 0.45, 0.65, 1)
+base_radius = 38.0
+base_inner_radius = 28.0
+keystone = ExtResource("2_ks")

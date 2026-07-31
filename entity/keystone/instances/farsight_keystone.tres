@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="Keystone" format=3]
+
+[ext_resource type="Script" uid="uid://5rpq45w87mlx" path="res://entity/keystone/keystone.gd" id="1_ks"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="2_fxbase"]
+[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="3_fx"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
+
+[sub_resource type="Resource" id="m_vision_range"]
+script = ExtResource("4_mod")
+stat_id = &"vision_range"
+operation = 0
+value = 100.0
+
+[sub_resource type="Resource" id="fx_farsight"]
+script = ExtResource("3_fx")
+display_name = "Farsight Spire"
+description = "A vision landmark: +100 vision range, far-seeing across the whole map."
+modifiers = Array[ExtResource("4_mod")]([SubResource("m_vision_range")])
+
+[resource]
+script = ExtResource("1_ks")
+display_name = "Farsight Spire"
+description = "A vision landmark: +100 vision range, far-seeing across the whole map."
+effects = Array[ExtResource("2_fxbase")]([SubResource("fx_farsight")])

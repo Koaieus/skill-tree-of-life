@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="Keystone" format=3]
+
+[ext_resource type="Script" uid="uid://5rpq45w87mlx" path="res://entity/keystone/keystone.gd" id="1_ks"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="2_fxbase"]
+[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="3_fx"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
+
+[sub_resource type="Resource" id="m_strength"]
+script = ExtResource("4_mod")
+stat_id = &"strength"
+operation = 2
+value = 2.0
+
+[sub_resource type="Resource" id="fx_titan"]
+script = ExtResource("3_fx")
+display_name = "Titan's Forge"
+description = "A mythic strength landmark: ×2.0 Strength multiplier."
+modifiers = Array[ExtResource("4_mod")]([SubResource("m_strength")])
+
+[resource]
+script = ExtResource("1_ks")
+display_name = "Titan's Forge"
+description = "A mythic strength landmark: ×2.0 Strength multiplier."
+effects = Array[ExtResource("2_fxbase")]([SubResource("fx_titan")])
