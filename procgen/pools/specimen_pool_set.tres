@@ -1,9 +1,15 @@
-[gd_resource type="Resource" script_class="ModifierPoolSet" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="ModifierPoolSet" load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://procgen/pools/modifier_pool_set.gd" id="1_mps"]
 [ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="2_sp"]
 [ext_resource type="Resource" path="res://procgen/pools/strength.tres" id="3_str"]
+[ext_resource type="Resource" path="res://procgen/pools/dexterity.tres" id="4_dex"]
+[ext_resource type="Resource" path="res://procgen/pools/intelligence.tres" id="5_int"]
+[ext_resource type="Resource" path="res://procgen/pools/wisdom.tres" id="6_wis"]
+[ext_resource type="Resource" path="res://procgen/pools/perception.tres" id="7_per"]
+[ext_resource type="Resource" path="res://procgen/pools/constitution.tres" id="8_con"]
+[ext_resource type="Resource" path="res://procgen/pools/mobility.tres" id="9_mob"]
 
 [resource]
 script = ExtResource("1_mps")
-packs = Array[ExtResource("2_sp")]([ExtResource("3_str")])
+packs = Array[ExtResource("2_sp")]([ExtResource("3_str"), ExtResource("4_dex"), ExtResource("5_int"), ExtResource("6_wis"), ExtResource("7_per"), ExtResource("8_con"), ExtResource("9_mob")])

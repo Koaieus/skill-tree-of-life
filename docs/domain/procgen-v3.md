@@ -1,5 +1,11 @@
 # Procgen v3 — phased draw + StatPack content
 
+> **SUPERSEDED by [procgen-v4.md](procgen-v4.md) (#321).** v4 replaces the
+> phased `TierPool`+`TierDef` draw (primary → off → defensive → rare) with a
+> flat `StatPool` authoring surface, a spend-until-broke + per-(stat,op)
+> aggregation draw, and deletes the off-archetype phase, slots, and `Role`.
+> This file is kept for design history only.
+
 Successor to [procgen-v2.md](procgen-v2.md). v2 introduced the universal
 ModifierPool + weight-profile pipeline; v3 reorganises **what content exists**
 (per-archetype `StatPack` files) and **how it's drawn** (phased: slot count

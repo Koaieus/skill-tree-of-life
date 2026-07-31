@@ -33,8 +33,8 @@ extends Resource
 ## (target_ratio, cluster_size_weights, cluster_jitter, forbid_tags) on top.
 @export var archetype: Archetype = null
 ## The stat this archetype's nodes are themed around. Read-through to
-## `archetype.primary_stat` so phased-draw consumers
-## (graph_procgen.gd, modifier_pool_set.gd, tier_pool.gd, stat_pack.gd,
+## `archetype.primary_stat` so v4-draw consumers
+## (graph_procgen.gd, modifier_pool_set.gd, stat_pack.gd, stat_pool.gd,
 ## playground_panel.gd) need no edits for the Archetype-resource cutover.
 var primary_stat: StringName:
 	get: return archetype.primary_stat if archetype else &""

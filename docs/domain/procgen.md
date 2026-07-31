@@ -10,10 +10,10 @@ Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` 
 2. **Poisson-disk sample** — `PoissonDiskSampler.sample(shape_mask, min_dist, node_count, anchors, rng)` seeds positions inside the `ShapeMask`, honouring starter anchors. `min_dist = 2·node_radius + node_padding`.
 3. **Delaunay triangulate + prune** — `_triangulate_and_prune(positions, connectivity)` builds the planar candidate edge set, then trims to MST + a `connectivity`-controlled share of shortest extras (0 = MST only, 1 = full triangulation).
 4. **Archetype assignment** — `_assign_archetypes()` runs a target-driven BFS-grow: `config.archetypes` (`ArchetypePolicy`) each claim a `target_ratio` share of nodes, seeds are placed greedily, then grown through the pruned adjacency; leftovers inherit their nearest claimed neighbour. `cluster_jitter` (per-policy) rerolls afterwards to soften borders. Empty `archetypes` → every node stays archetype-less (and content-less).
-5. **Budget + modifier roll** — `config.budget_policy.compute_budget(archetype, position, role_tags, rng)` rolls each node's modifier budget (base range × archetype × positional `budget_field` × role bonuses). `_roll_modifiers_v3()` then draws content from `config.modifier_pool_set` in phases (primary → cost-capped off-attribute → defensive → rare), sliced per archetype `primary_stat`. See [procgen-v3.md](procgen-v3.md) for the draw model.
+5. **Budget + modifier roll** — `config.budget_policy.compute_budget(archetype, position, role_tags, rng)` rolls each node's modifier budget (base range × archetype × positional `budget_field` × role bonuses). `_roll_modifiers_v4()` then spends that budget until broke across the node's archetype + universal pools, aggregating per `(stat_id, operation)` (ADD*/INCREASE sum, MULTIPLY product, SET max). See [procgen-v4.md](procgen-v4.md) for the draw model.
 6. **Instantiate** — instances `skill_node/skill_node.tscn` for each position, applies position/radius/modifiers/base_type_color, stamps keystones + rolls addons, and adds it (plus edges) to the `Graph` via the structural-signal API.
 
-> **One content pipeline.** The older v1 (`node_types` + per-`NodeTypeDef` pools) and v2 (config-level universal `modifier_pool`) generations were retired in #161 — `graph_procgen.gd` now runs a single v3 path (`archetypes` + `budget_policy` + `modifier_pool_set`). `docs/domain/procgen-v2.md` is kept only for design history.
+> **One content pipeline.** The older v1 (`node_types` + per-`NodeTypeDef` pools), v2 (config-level universal `modifier_pool`), and v3 (phased `TierPool` draw) generations were retired — `graph_procgen.gd` now runs a single v4 path (`archetypes` + `budget_policy` + `modifier_pool_set` of flat `StatPool`s, spend-until-broke + per-(stat,op) aggregation). `docs/domain/procgen-v2.md` and `procgen-v3.md` are kept only for design history.
 
 ## Return value
 
@@ -44,7 +44,7 @@ Levels that override fields on the preset (`procgen_play_sandbox` overrides `nod
 
 1. New `ArchetypePolicy` (`.tres` or sub-resource) with `id`, `color`, `primary_stat`, a `target_ratio`, and `cluster_size_weights`.
 2. Append it to the preset's `archetypes`.
-3. Make sure `modifier_pool_set` carries `StatPack`s whose `primary` pools match the new `primary_stat`, so the phased draw has content to pull for that archetype.
+3. Make sure `modifier_pool_set` carries `StatPack`s whose `StatPool`s match the new `primary_stat` (or are universal, `archetype_stat == &""`), so the v4 draw has content to pull for that archetype.
 4. (Optional) Shape budget via `budget_policy` — `archetype_multiplier[id]` for a per-archetype scale, or a positional `budget_field` (any `ScalarField` subclass) for a spatial gradient.
 
 No code change in `graph_procgen.gd` is required for new themes — the pipeline reads everything off the config.

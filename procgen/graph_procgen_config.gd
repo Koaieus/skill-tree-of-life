@@ -59,10 +59,10 @@ extends Resource
 
 # ── Content: archetypes + modifiers ───────────────────────────────────────
 
-## Phased-draw modifier content. The per-node draw runs as primary →
-## off-attribute (cost-capped) → defensive → rare, reading `archetype_stat` /
-## `role` off each [TierPool] to slice the set per phase. Unset = nodes roll
-## no modifiers. See docs/domain/procgen-v3.md.
+## Phased-draw modifier content. The per-node v4 draw spends the rolled
+## budget until broke across pools whose `archetype_stat` matches the node's
+## primary_stat (or is universal `&""`), then aggregates per (stat, op).
+## Unset = nodes roll no modifiers. See docs/domain/procgen-v4.md.
 @export var modifier_pool_set: ModifierPoolSet
 ## Typed as Array[Resource] because Godot's TypedArray check rejects
 ## subclasses of an abstract base — concrete profiles (Archetype/Collision/Radial)

@@ -40,11 +40,9 @@ func test_modifiers_rolled_on_nodes() -> void:
 	for n in nodes:
 		if not n.modifiers.is_empty():
 			with_modifiers += 1
-	# v4 seam state (#321): the specimen set is trimmed to strength during the
-	# engine landing, so only strength-primary (red) nodes roll modifiers —
-	# ~30% of nodes. Restored to the >half assertion in the integration commit
-	# when all archetype packs are reauthored onto StatPool and returned to the set.
-	assert_gt(with_modifiers, nodes.size() / 5, "expected red-primary nodes to roll modifiers; got %d/%d" % [with_modifiers, nodes.size()])
+	# v4 (#321): all 7 packs restored — every archetype's primary pools +
+	# universal defensive/mobility pools are drawable, so most nodes roll.
+	assert_gt(with_modifiers, nodes.size() / 2, "expected most nodes to roll modifiers; got %d/%d" % [with_modifiers, nodes.size()])
 
 
 func test_procgen_generates_full_level() -> void:
