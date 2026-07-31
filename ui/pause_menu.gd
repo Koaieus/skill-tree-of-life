@@ -25,9 +25,13 @@ func _toggle(on: bool) -> void:
 ## Reload the running level from scratch. `paused` is a SceneTree flag that
 ## survives the reload, so clear it first (via `active`) or the fresh scene boots
 ## frozen. No confirmation for now — straight restart.
-func _on_restart_button_pressed() -> void:
+func _restart() -> void:
 	active = false
 	get_tree().reload_current_scene()
+
+
+func _on_restart_button_pressed() -> void:
+	_restart()
 
 
 func _on_save_button_pressed() -> void:
@@ -59,3 +63,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		active = not active
+	elif event is InputEventKey and event.pressed and not event.echo \
+			and event.physical_keycode == KEY_F5:
+		get_viewport().set_input_as_handled()
+		_restart()
