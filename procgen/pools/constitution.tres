@@ -103,11 +103,64 @@ archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"multiply"])
 tiers = Array[ExtResource("3_td")]([SubResource("mul_t1"), SubResource("mul_t2")])
 
+[sub_resource type="Resource" id="nh_inc_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(5, 8)
+cost = 2
+weight = 3.0
+extra_tags = Array[StringName]([&"tier_1", &"common"])
+
+[sub_resource type="Resource" id="nh_inc_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(9, 15)
+cost = 6
+weight = 5.0
+extra_tags = Array[StringName]([&"tier_2"])
+
+[sub_resource type="Resource" id="nh_inc"]
+script = ExtResource("2_tp")
+stat_id = &"node_health"
+operation = 1
+role = 1
+tags = Array[StringName]([&"defense", &"percent"])
+tiers = Array[ExtResource("3_td")]([SubResource("nh_inc_t1"), SubResource("nh_inc_t2")])
+
+[sub_resource type="Resource" id="ar_t1"]
+script = ExtResource("3_td")
+value_range = Vector2(1, 2)
+cost = 2
+weight = 3.0
+extra_tags = Array[StringName]([&"tier_1"])
+
+[sub_resource type="Resource" id="ar_t2"]
+script = ExtResource("3_td")
+tier = 2
+value_range = Vector2(3, 5)
+cost = 4
+weight = 6.0
+extra_tags = Array[StringName]([&"tier_2"])
+
+[sub_resource type="Resource" id="ar_t3"]
+script = ExtResource("3_td")
+tier = 3
+value_range = Vector2(6, 10)
+cost = 10
+weight = 8.0
+extra_tags = Array[StringName]([&"tier_3", &"rare"])
+
+[sub_resource type="Resource" id="ar"]
+script = ExtResource("2_tp")
+stat_id = &"armor"
+role = 1
+tags = Array[StringName]([&"defense", &"flat"])
+tiers = Array[ExtResource("3_td")]([SubResource("ar_t1"), SubResource("ar_t2"), SubResource("ar_t3")])
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense"])
-pools = Array[ExtResource("2_tp")]([SubResource("ab"), SubResource("inc"), SubResource("mul")])
+pools = Array[ExtResource("2_tp")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar")])
 off_phase_op_weights = Dictionary[int, float]({
 0: 0.5,
 1: 0.3,

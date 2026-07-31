@@ -4,7 +4,6 @@ extends GutTest
 ## softened off-archetype rolls. Acceptance for #269 / D-11 / D-12 / D-14.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _DEFENSIVE_PACK := preload("res://procgen/pools/defensive.tres")
 const _WISDOM_PACK := preload("res://procgen/pools/wisdom.tres")
 const _CONSTITUTION_PACK := preload("res://procgen/pools/constitution.tres")
 
@@ -97,7 +96,10 @@ func test_level_20_node_health_materially_above_level_1() -> void:
 
 func test_defensive_off_archetype_chance_exceeds_non_defensive_off_archetype() -> void:
 	var pool_set := ModifierPoolSet.new()
-	pool_set.packs = [_DEFENSIVE_PACK, _WISDOM_PACK, _CONSTITUTION_PACK]
+	# #299: the DEFENSIVE pools moved out of the deleted defensive.tres into
+	# constitution.tres, so _CONSTITUTION_PACK supplies BOTH halves of D-12 —
+	# the softened off_phase_op_weights and the unsuppressed DEFENSIVE pools.
+	pool_set.packs = [_WISDOM_PACK, _CONSTITUTION_PACK]
 
 	# A strength-primary node can still roll defensive content (node_health/armor).
 	var defensive_entries := pool_set.flatten_for_phase(&"defensive", &"strength")
@@ -136,6 +138,38 @@ func test_defensive_off_archetype_chance_exceeds_non_defensive_off_archetype() -
 	var off_entries := pool_set.flatten_for_phase(&"off", &"strength")
 	var con_off_entries := _filter_stat(off_entries, &"constitution")
 	assert_true(con_off_entries.size() > 0, "CON's own off-archetype PRIMARY content should still be rollable by a non-CON node")
+
+
+# --- 6. #299: constitution.tres is a MIXED pack — it serves the primary phase
+#        (CON-PRIMARY pools, archetype-gated) and the defensive phase
+#        (node_health/armor, universal) at once. That is the invariant the
+#        defensive.tres merge relies on: flatten_for_phase filters per-TierPool
+#        on role/archetype_stat, never on the pack's own archetype_stat. If a
+#        future refactor makes pack-level archetype_stat gate the flatten, this
+#        test is what catches it. ---------------------------------------------
+
+func test_constitution_pack_serves_both_primary_and_defensive_phases() -> void:
+	var pool_set := ModifierPoolSet.new()
+	pool_set.packs = [_CONSTITUTION_PACK]
+
+	var primary := pool_set.flatten_for_phase(&"primary", &"constitution")
+	assert_true(_filter_stat(primary, &"constitution").size() > 0,
+			"constitution.tres should still supply CON-PRIMARY content to a CON node")
+
+	# A STRENGTH node — nothing about it matches the pack's archetype_stat —
+	# must still draw the pack's DEFENSIVE pools.
+	var defensive := pool_set.flatten_for_phase(&"defensive", &"strength")
+	assert_true(_filter_stat(defensive, &"node_health").size() > 0,
+			"constitution.tres's node_health pools must stay universal (D-12)")
+	assert_true(_filter_stat(defensive, &"armor").size() > 0,
+			"constitution.tres's armor pools must stay universal — armor is battlefield-found (D-11)")
+
+	# D-11 decision 3 / #299: flat node_health draws are gone. CON's linear
+	# node_health intrinsic already covers that space, so only the percent
+	# channel remains.
+	for e in _filter_stat(defensive, &"node_health"):
+		assert_eq(e.operation, StatModifier.Operation.INCREASE,
+				"node_health ADD_BASE was dropped in #299 — only INCREASE should remain (%s)" % e.id)
 
 
 func _filter_stat(entries: Array[ModifierPoolEntry], stat_id: StringName) -> Array[ModifierPoolEntry]:

@@ -15,7 +15,7 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 
 func test_specimen_loads_and_has_expected_packs() -> void:
 	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	assert_eq(set.packs.size(), 9, "expected 9 packs (6 archetype stats + defensive + rare + mobility)")
+	assert_eq(set.packs.size(), 8, "expected 8 packs (6 archetype stats + rare + mobility)")
 	var arch_ids: Array[StringName] = []
 	for p in set.packs:
 		arch_ids.append(p.archetype_stat)
@@ -24,9 +24,10 @@ func test_specimen_loads_and_has_expected_packs() -> void:
 	assert_true(&"intelligence" in arch_ids)
 	assert_true(&"wisdom" in arch_ids)
 	assert_true(&"perception" in arch_ids)
-	# CON's pack is bundled so its content is reachable as an off-archetype draw
-	# (D-12). There is no CON *ArchetypePolicy* yet — no node has
-	# primary_stat = constitution — so CON currently only ever rolls off-phase.
+	# CON's pack is bundled, and since #299 it is also the home of the DEFENSIVE
+	# pools that used to live in defensive.tres — so it is the one pack that
+	# serves both the primary and defensive phases. A CON ArchetypePolicy
+	# (`ap_white`) does exist in first_level.tres, so CON also rolls on-phase.
 	assert_true(&"constitution" in arch_ids)
 
 

@@ -67,7 +67,7 @@ Convention: one .tres per archetype in `procgen/pools/`.
 | `intelligence.tres` | `&"intelligence"` | intelligence + mana + mana_per_turn pools, INCREASE includes negative tiers |
 | `wisdom.tres` | `&"wisdom"` | wisdom + xp_per_turn (flat-primary, INCREASE secondary). `off_phase_op_weights = {ADD_BASE:0.2, INCREASE:0.05, MULTIPLY:0.0, ADD_BONUS:0.05}` |
 | `perception.tres` | `&"perception"` | perception + vision_range INCREASE/ADD_BONUS + sensor_range. Same suppression as wisdom |
-| `defensive.tres` | `&""` (cross-cutting) | node_health add_base/increase + armor add_base. role=DEFENSIVE |
+| `constitution.tres` | `&"constitution"` **+ cross-cutting** | The one **mixed** pack. role=PRIMARY: constitution add_base/increase/multiply. role=DEFENSIVE: node_health INCREASE (`+5–15%`) + armor add_base — universal, cost-cap-exempt, absorbed from the deleted `defensive.tres` (#299). `off_phase_op_weights = {ADD_BASE:0.5, INCREASE:0.3, MULTIPLY:0.1, ADD_BONUS:0.3}` — softer than WIS/PER, D-12's named exception. Together those are D-12's two halves in one file. Legal because the flatten filters per-`TierPool`, never on the pack's own `archetype_stat` |
 | `rare.tres` | `&""` (cross-cutting) | min_damage_taken −1, vision_range flat additions, ×2 multipliers. role=RARE |
 | `mobility.tres` | `&""` (cross-cutting) | movement_points + deallocation_points add_base, +1/+2/+3 low-integer tiers (#41). role=DEFENSIVE — universal, not DEX-gated, since it always draws off `flatten_for_phase(&"defensive", ...)` regardless of a node's `primary_stat` |
 

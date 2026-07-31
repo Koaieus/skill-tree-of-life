@@ -4,8 +4,14 @@ extends Resource
 
 ## All procgen content belonging to one archetype. The unit of authoring —
 ## one .tres per archetype: strength.tres, dexterity.tres, intelligence.tres,
-## wisdom.tres, perception.tres, plus cross-cutting defensive.tres / rare.tres
-## with `archetype_stat = &""`.
+## wisdom.tres, perception.tres, constitution.tres, plus cross-cutting
+## rare.tres / mobility.tres with `archetype_stat = &""`.
+##
+## A pack MAY mix roles: constitution.tres carries both CON-PRIMARY pools and
+## the universal DEFENSIVE ones (node_health / armor, #299). That is legal
+## because [method ModifierPoolSet.flatten_for_phase] filters on each
+## [TierPool]'s own `role` / `archetype_stat` — the pack-level `archetype_stat`
+## below is documentation, never a gate.
 ##
 ## Why pack content by archetype instead of by stat:
 ##  - Identity lives at the archetype level (a gold/WIS node IS a WIS-themed

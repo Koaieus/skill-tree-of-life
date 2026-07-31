@@ -264,8 +264,8 @@ Why it matters: a board lacking the field leaves it `null`. For a scalar, reads 
 Adding the stat to the board makes it *exist and scale*. A new stat is often a contender for one or both of these downstream systems — **ask before declaring done:**
 
 **1. Procgen content (archetype-flavored stats).** *"Could a generated skill node roll this stat as a bonus?"* If yes, it needs a `TierPool` inside a `StatPack` (`procgen/pools/<archetype>.tres`):
-- Pick the archetype pack (`strength.tres`, `wisdom.tres`, …) or a cross-cutting pack (`defensive.tres`, `rare.tres`, `archetype_stat = &""`).
-- Pick the `role`: `PRIMARY` (stat-coherent, archetype-matched + cost-capped off-attribute), `DEFENSIVE` (always-available, no off-attribute cost cap), or `RARE` (low-weight exotic).
+- Pick the archetype pack (`strength.tres`, `wisdom.tres`, …) or a cross-cutting pack (`rare.tres`, `mobility.tres`, `archetype_stat = &""`). Defensive content (`node_health`, `armor`) lives in `constitution.tres` since #299 — that pack mixes CON-PRIMARY and universal DEFENSIVE pools, which is legal because the flatten filters per-`TierPool`.
+- Pick the `role`: `PRIMARY` (stat-coherent, archetype-matched + cost-capped off-attribute), `DEFENSIVE` (always-available, no off-attribute cost cap), or `RARE` (low-weight exotic). Note `DEFENSIVE` and `RARE` are currently *mechanically identical* — both are universal and cost-cap-exempt; only `PRIMARY` vs. not-`PRIMARY` is load-bearing. Whether `Role` survives at all is an open decision (see #319), so don't build on the distinction.
 - Author `tiers` (value_range / cost / weight) on the `TierPool`.
 - The packs are bundled into `procgen/pools/specimen_pool_set.tres`.
 
