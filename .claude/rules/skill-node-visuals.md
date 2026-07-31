@@ -19,7 +19,8 @@ its own.
 `skill_node/visuals/` holds the component family (`SkillNodeVisual` /
 `SkillNodeRingVisual` base classes in that same directory, plus `inner_disk`
 (whose polygon carve is a height-field dent in its own shader — see below), `rim_ring`,
-`rim_bonuses`, `core_halos`, `rune_ring`, `node_visuals_composite`)
+`core_halos`, `node_visuals_composite`, plus `rim_bonuses` / `rune_ring` —
+shelved out of the composite, see below)
 implementing the 6 locked-pick visuals from
 `docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`.
 `SkillNode` (`skill_node.tscn`) instances `node_visuals_composite.tscn` as
@@ -81,7 +82,10 @@ early. `SkillNodeVisual` therefore hooks `NOTIFICATION_READY` via
 RimRing) would shadow the base's without a `super()` call, while `_notification`
 reaches the whole chain. `test_node_visuals_contract.gd` asserts a static disk
 and rim are off the process list — it caught this exact bug when the gate was
-in `_enter_tree`.
+in `_enter_tree`. Its positive control (a component that *asked* for the clock
+does get it) drives a standalone `rune_ring.tscn`, since #238 shelved the last
+animating child out of the composite; keep a positive control of some kind, the
+`assert_false` half alone can't tell "correctly gated" from "clock broken".
 
 ### CoreHalos GIMBAL (#138): a real quaternion-composed nested-ring gyroscope
 
@@ -344,7 +348,7 @@ occluded by the disk+rim on a visible node and is hidden outright when `sensed`
 
 `NodeVisualsComposite.sensed` is the archetype-only fog representation. When
 true it hides the `ShaderStack` grouping node (the parent of InnerDisk / RimRing
-/ RimBonuses / CoreHalos / RuneRing) and shows [SensedOutline] — a **non-shader**
+/ CorePresence) and shows [SensedOutline] — a **non-shader**
 `SkillNodeVisual` that `_draw`s a faint archetype-tinted ring. Two properties are
 load-bearing:
 
@@ -354,8 +358,8 @@ load-bearing:
    (next layer up, see `docs/domain/vision-system.md`) is meant to build on.
 2. **Zero instance-uniform slots (#172), same gate as fog-hidden.** Hiding the
    `ShaderStack` — not each child — flips every shader child's
-   `is_visible_in_tree()` false in one move, while CoreHalos/RuneRing keep their
-   own default-hidden `visible` flags. `_apply_sensed()` resolves ShaderStack by
+   `is_visible_in_tree()` false in one move, while CorePresence keeps its own
+   default-hidden `visible` flag. `_apply_sensed()` resolves ShaderStack by
    **direct child path**, NOT a `%`-unique-name `@onready`, so the `sensed` setter
    works before the node enters the tree: `instantiate()` then `sensed = true`
    hides the stack *before* the shader children's `_ready` runs, so they never
@@ -364,23 +368,40 @@ load-bearing:
    also hides `BaseCircle` when sensed (owner-coloured wash). Guarded by
    `test_node_visuals_contract.gd`'s `*_sensed_*` tests.
 
-### RimBonuses' stake-fill dial (#127) is the stake visualization
+### SHELVED (#238): RimBonuses and RuneRing are out of the composite
 
-Its current/max glow dial (`fill_current`/`fill_max`, synced from
-`allocation_level`/`stake_level`) is archetype-tinted like every other rim
-element — it reads the inherited `archetype_tint` through `_tone_color()`, the
-same as the RimTone gems, and owns no tint export of its own. RimHolder is the
-one exempt layer: it stays neutral chrome regardless of tint or allocation.
+Both were authored by the design labs as **alternate** looks, not simultaneous
+layers, and they crowded each other out (#132: the rune ring "reads as
+invisible, crowded out by rim_bonuses diamonds"). Verdict, 2026-07-31: **CUT
+both, shelved not deleted.**
 
-**This is the sole stake/cap depth visualization since #172.** There used to be
-a second approach — ring-stacking (`rim_growth` grew RimRing2/3/4 outward per
-stake level) — but those extra rings were `visible = false` placeholders on
-*every* node, and each still cost a shared-instance-uniform-buffer slot (see the
-buffer section below). At 2000+ nodes/level that per-node tax wasn't worth a
-rarely-used alternate look, so RimRing2-4 + `rim_growth`/`ring_gap` + the
-`StakeLabel` were removed and RimBonuses is now the only stake read. Growing the
-node's actual `radius` with stake (it's already wired through collision/fog/reach)
-is a possible visual follow-up (#178). `0/*` draws nothing at all (no backdrop either); `M/N` with
+- `rim_bonuses.tscn` / `rune_ring.tscn` and their scripts stay in the repo, and
+  stay instanced in the sandbox host's Node Visuals tab
+  (`skill_node/visuals/panel/node_visuals_panel.tscn`). **That preview is the
+  shelf** — there's no `shelved/` directory, and adding one would just churn
+  paths.
+- Their instances are gone from `node_visuals_composite.tscn`, and the wiring
+  (`_rim_bonuses` / `_rune_ring`, `bonus_inward_growth`,
+  `RIM_BONUS_DEFAULT_WIDTH`, the `_sync_stake` dial block) is gone from
+  `node_visuals_composite.gd`.
+- **Nothing was left hidden-but-instanced, deliberately.** A level carries
+  ~500-2500 SkillNodes, so an unused child is tree nodes, `_ready` work and
+  potentially an instance-uniform slot on every one of them — the same argument
+  that retired the RimRing2-4 placeholders in #172. See
+  `.claude/rules/skill-node-scale.md`.
+- **What this gives up:** stake/cap depth has no *partial-fill* read anymore.
+  `SkillNode.radius` still grows with `stake_level` (`stake_radius_delta`), so
+  "this node is staked" survives as physical size, but "1/3 vs 3/3 allocated" is
+  unvisualized until #178 or a successor picks it up.
+- Re-adding one is instancing the scene back under `ShaderStack` and restoring
+  its block in `_sync_stake()`. Deleting them permanently is equally live as an
+  option — the decision was explicitly deferred, not made.
+
+The dial's own design, preserved for whoever revives it: `fill_current`/
+`fill_max` synced from `allocation_level`/`stake_level`, archetype-tinted
+through `_tone_color()` like every other rim element (RimHolder is the one
+exempt layer — neutral chrome regardless of tint or allocation).
+`0/*` draws nothing at all (no backdrop either); `M/N` with
 `N > 1` divides the circle into `N` **evenly-gapped** slots (gap size an
 export, applied uniformly whether a slot is filled or not, so a partial fill
 still reads as evenly spaced) and lights the first `M`; `M == N == 1` is a

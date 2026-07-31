@@ -9,6 +9,12 @@ extends GutTest
 
 const CompositeScene := preload("res://skill_node/visuals/node_visuals_composite.tscn")
 const DiskScene := preload("res://skill_node/visuals/inner_disk.tscn")
+## Shelved out of the composite (#238) but still the family's clearest animating
+## component, so the shared-clock tests below drive it standalone. The half of
+## those tests that guards the base-class `_process` auto-enable trap is the
+## `assert_false` on the composite's own static children; this is the positive
+## control that keeps "and a component that ASKED for the clock gets it" honest.
+const RuneRingScene := preload("res://skill_node/visuals/rune_ring.tscn")
 
 
 func test_lighting_style_emits_changed_on_set() -> void:
@@ -79,13 +85,15 @@ func test_only_animating_components_are_on_the_process_list() -> void:
 
 	assert_false(comp.get_node("%InnerDisk").is_processing(), "a static disk never ticks")
 	assert_false(comp.get_node("%RimRing").is_processing(), "a static rim never ticks")
-	assert_true(comp.get_node("%RuneRing").is_processing(), "the rune ring spins (band_count > NONE)")
+
+	var rune = add_child_autofree(RuneRingScene.instantiate())
+	await get_tree().process_frame
+	assert_true(rune.is_processing(), "the rune ring spins (band_count > NONE)")
 
 
 func test_animating_component_accumulates_shared_clock() -> void:
-	var comp = add_child_autofree(CompositeScene.instantiate())
+	var rune = add_child_autofree(RuneRingScene.instantiate())
 	await get_tree().process_frame
-	var rune = comp.get_node("%RuneRing")
 	var before: float = rune.anim_time
 	await get_tree().process_frame
 	assert_gt(rune.anim_time, before, "anim_time advances while animating")
@@ -158,8 +166,8 @@ func test_unfogged_composite_syncs_on_becoming_visible() -> void:
 ## children stay hidden — so a sensed node claims ZERO instance-uniform slots
 ## (the same #172 gate as fog-hidden) AND the sensed representation is a real,
 ## structural part of the composite, not a legacy renderer standing in. Hiding
-## the shader stack (a grouping node) rather than each child keeps CoreHalos /
-## RuneRing on their own visibility flags.
+## the shader stack (a grouping node) rather than each child keeps CorePresence
+## on its own visibility flag.
 func test_sensed_composite_hides_shader_children_and_shows_outline() -> void:
 	var comp = CompositeScene.instantiate()
 	comp.sensed = true

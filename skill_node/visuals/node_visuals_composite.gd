@@ -4,8 +4,7 @@ extends SkillNodeVisual
 ## milestone #16). Children are scene-composed in
 ## node_visuals_composite.tscn (not instantiated in code) — this script
 ## forwards the knobs that must stay in sync *across* children (entity_tint,
-## archetype_tint, allocation_level, the rim radii, stake level/alloc) and
-## computes the node's current actual outer edge so [RuneRing] clears the rim.
+## archetype_tint, allocation_level, the rim radii, stake level/alloc).
 ##
 ## This is also the ONLY layer that knows both InnerDisk and RimRing exist:
 ## [member geom_inner_r] is handed to both, so the disk's edge and the
@@ -15,14 +14,25 @@ extends SkillNodeVisual
 ## `archetype_tint` and `allocated`, all inherited from [SkillNodeVisual] and
 ## pushed into every child by `_sync_shared()`. Never merge the two tints back
 ## into one: entity color says "this is MINE" (the central disk, the core
-## halos), archetype color says "this is what I AM" (every rim, the rune ring),
-## and a component decides for itself which it reads.
+## halos), archetype color says "this is what I AM" (every rim), and a component
+## decides for itself which it reads.
 ##
-## Stake/cap depth is the [RimBonuses] segmented glow dial (driven off
-## stake_level/allocation_level), the sole stake visualization since #172
-## retired the ring-stacking approach (the extra RimRing2-4 placeholders — a
-## per-node cost we didn't want at 2000+ nodes/level). Growing the node radius
-## with stake is a possible visual follow-up (#178).
+## SHELVED ENCODERS (#238, verdict in #132). RimBonuses (rim gems + the
+## segmented stake dial) and RuneRing were instanced here as *alternate* looks
+## the design labs authored, never as simultaneous layers, and they crowded each
+## other out. Both are cut from the production stack — the scenes stay in the
+## repo and stay previewable in the sandbox host's Node Visuals tab, which is
+## the shelf. Nothing hidden-but-instanced was left behind on purpose: a level
+## carries ~500-2500 of these, so an unused child is tree nodes, `_ready` work
+## and potentially an instance-uniform slot (#172) on every one of them (see
+## .claude/rules/skill-node-scale.md).
+##
+## Consequence to know before re-adding one: stake/cap depth now has NO
+## partial-fill read. [member SkillNode.radius] still grows with `stake_level`
+## (`stake_radius_delta`), so "this node is staked" survives as physical size,
+## but "1/3 vs 3/3 allocated" is unvisualized until #178 or a successor picks it
+## up. Re-adding is instancing the scene back under ShaderStack and restoring
+## its block in [method _sync_stake].
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
@@ -43,11 +53,6 @@ const DISK_RIM_OVERLAP := 1.5
 ## independent allocation read alongside the disk lighting up.
 const FILLED_TINT_MIX := 1.0
 const UNFILLED_TINT_MIX := 0.3
-
-## Base width of the RimBonuses segmented-glow band when stake_level == 1.
-## The band sits anchored at [member geom_outer_r] (outer rim edge) and extends
-## inward; this is the default inward extent in pixels.
-const RIM_BONUS_DEFAULT_WIDTH := 4.0
 
 ## Max allocation slots for this node — 1 for the ~99% common case;
 ## staked nodes go up to [const MAX_STAKE_CAP].
@@ -106,15 +111,6 @@ const RIM_BONUS_DEFAULT_WIDTH := 4.0
 ## alone) from "authored one, then cleared it" (actually clear the carve).
 var _applied_a_shape: bool = false
 
-## Extra inward growth (pixels per stake level above 1) applied to the
-## RimBonuses segmented-glow band. The band's outer edge stays anchored at
-## [member geom_outer_r]; only the inner edge moves inward, widening the glow.
-## 0.0 = constant band width regardless of stake.
-@export_range(0.0, 6.0, 0.5) var bonus_inward_growth: float = 2.0:
-	set(value):
-		bonus_inward_growth = value
-		_sync_stake()
-
 # Cached child refs — `%Name` compiles to a scene-tree lookup, and the _sync_*
 # paths below run on every radius / owner / allocation change, so resolve once.
 # NOTE: these are `@onready` (null until in-tree) and so must NOT be used by
@@ -122,8 +118,6 @@ var _applied_a_shape: bool = false
 # there.
 @onready var _inner_disk := %InnerDisk
 @onready var _rim_ring := %RimRing
-@onready var _rim_bonuses := %RimBonuses
-@onready var _rune_ring := %RuneRing
 # CorePresence is now its own reusable scene (core_presence.tscn, shared with
 # the core-move drag ghost) rather than inline nodes here, so CoreHalos/
 # CoreSigilBloom's unique names are scoped to CorePresence's OWN root, not
@@ -134,7 +128,7 @@ var _applied_a_shape: bool = false
 @onready var _core_sigil_bloom := _core_presence.get_node(^"CoreSigilBloom")
 
 @onready var _children: Array[SkillNodeVisual] = [
-	%InnerDisk, %RimRing, %RimBonuses, _core_halos, _core_sigil_bloom, %RuneRing, %SensedOutline,
+	%InnerDisk, %RimRing, _core_halos, _core_sigil_bloom, %SensedOutline,
 ]
 
 ## Sensed-but-not-visible: the node reads as an archetype-only outline
@@ -275,9 +269,10 @@ func _sync_shared() -> void:
 	_rim_ring.lighting = _lighting
 
 
-## Lines the base rim up with the disk edge, clears the rune ring past the rim,
-## and drives the RimBonuses stake dial. RimBonuses is the sole stake/cap depth
-## visualization since #172 retired ring-stacking (approach A).
+## Lines the base rim up with the disk edge and activates its tint on
+## allocation. The RimBonuses stake dial that used to live here is shelved
+## (#238) — `stake_level` is still forwarded from SkillNode and still drives
+## the node's radius there, it just has no dial of its own to drive.
 func _sync_stake() -> void:
 	if not is_node_ready():
 		return
@@ -286,13 +281,3 @@ func _sync_stake() -> void:
 	_rim_ring.inner_radius = geom_inner_r
 	_rim_ring.outer_radius = geom_outer_r
 	_rim_ring.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
-	_rune_ring.outer_edge_r = geom_outer_r
-
-	# Stake-fill dial: outer edge stays anchored at geom_outer_r (grows outward
-	# with radius), inner edge shifts inward by bonus_inward_growth per stake level
-	# above 1 for a more pronounced glow as the node physically expands (#178).
-	var bonus_inner := geom_outer_r - RIM_BONUS_DEFAULT_WIDTH - float(stake_level - 1) * bonus_inward_growth
-	_rim_bonuses.inner_radius = maxf(bonus_inner, 0.0)
-	_rim_bonuses.outer_radius = geom_outer_r
-	_rim_bonuses.fill_max = stake_level
-	_rim_bonuses.fill_current = allocation_level

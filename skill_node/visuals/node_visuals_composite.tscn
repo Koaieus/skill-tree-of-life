@@ -3,8 +3,6 @@
 [ext_resource type="Script" uid="uid://b35hxda7mbfnk" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
 [ext_resource type="PackedScene" uid="uid://bkwwvwb1433d1" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
 [ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="4_wall"]
-[ext_resource type="PackedScene" uid="uid://dgo4gx2kxagct" path="res://skill_node/visuals/rim_bonuses.tscn" id="5_rim"]
-[ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="7_rune"]
 [ext_resource type="Script" uid="uid://6ard2i6vb4br" path="res://skill_node/visuals/sensed_outline.gd" id="8_sensed"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_presence.tscn" id="9_presence"]
 
@@ -24,17 +22,9 @@ unique_name_in_owner = true
 height_preset = 3
 tint_mix = 0.3
 
-[node name="RimBonuses" parent="ShaderStack/RimRing" unique_id=2113377826 instance=ExtResource("5_rim")]
-unique_name_in_owner = true
-
 [node name="CorePresence" parent="ShaderStack" unique_id=3721904512 instance=ExtResource("9_presence")]
 unique_name_in_owner = true
 visible = false
-
-[node name="RuneRing" parent="ShaderStack" unique_id=946472652 instance=ExtResource("7_rune")]
-unique_name_in_owner = true
-visible = false
-outer_edge_r = 32.0
 
 [node name="SensedOutline" type="Node2D" parent="." unique_id=834843408]
 unique_name_in_owner = true
