@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://ctk37d7fbfhud"]
+
+[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+
+[sub_resource type="Resource" id="ab"]
+script = ExtResource("2_pool")
+stat_id = &"wisdom"
+operation = 0
+archetype_stat = &"wisdom"
+tags = Array[StringName]([&"wis", &"flat"])
+unit_value = 2.0
+pool_weight = 10.0
+min_tier = 1
+max_tier = 4
+
+[sub_resource type="Resource" id="inc"]
+script = ExtResource("2_pool")
+stat_id = &"wisdom"
+operation = 1
+archetype_stat = &"wisdom"
+tags = Array[StringName]([&"wis", &"percent"])
+unit_value = 7.0
+pool_weight = 3.0
+min_tier = 1
+max_tier = 3
+
+[sub_resource type="Resource" id="mul"]
+script = ExtResource("2_pool")
+stat_id = &"wisdom"
+operation = 2
+archetype_stat = &"wisdom"
+tags = Array[StringName]([&"wis", &"multiply"])
+unit_value = 0.05
+pool_weight = 1.0
+min_tier = 3
+max_tier = 4
+
+[sub_resource type="Resource" id="xpt_ab"]
+script = ExtResource("2_pool")
+stat_id = &"xp_per_turn"
+operation = 0
+archetype_stat = &"wisdom"
+tags = Array[StringName]([&"wis", &"flat", &"xp_growth", &"growth"])
+unit_value = 10.0
+pool_weight = 2.0
+min_tier = 1
+max_tier = 3
+
+[sub_resource type="Resource" id="xpt_inc"]
+script = ExtResource("2_pool")
+stat_id = &"xp_per_turn"
+operation = 1
+archetype_stat = &"wisdom"
+tags = Array[StringName]([&"wis", &"percent", &"xp_growth", &"growth"])
+unit_value = 7.5
+pool_weight = 0.5
+min_tier = 1
+max_tier = 2
+
+[resource]
+script = ExtResource("1_sp")
+archetype_stat = &"wisdom"
+tags = Array[StringName]([&"wis"])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("xpt_ab"), SubResource("xpt_inc")])
