@@ -289,11 +289,20 @@ computed `/2`). With `divisor` a typed field, `describe_per()` renders the same 
 "+1 Blade Size **per 20 STR**" — and renders the modifier's `value` (the coefficient)
 rather than the effective value, because the clause now carries the variable part. Ratio
 and Linear generate the phrase; an `ExpressionFormula` must author one on the resource
-(`"×10 INT"`, `"CON × core scaling"`, `"level after the 1st"`). It is deliberately **not
+(`"×10 INT"`, `"CON × core scaling"`, `"level"`). It is deliberately **not
 multiline** — a formula-bound modifier renders as a single-Label glass slab (`ModSlabRow`)
 in a hover tooltip, and prose would blow the line budget. Nothing may derive the phrase by
 parsing the expression string. `test_formula_descriptions.gd` fails on an undescribed
 formula reachable from the shipped boards.
+
+**An authored `per_phrase` is the only copy of that prose — an editor round-trip has
+already eaten all three once.** `fe0c625` re-serialized `level_scaling.tres` and
+`default_entity_board.tres` with `per_phrase = null`, silently un-describing three
+`ExpressionFormula`s (4 red tests, no runtime error — it's the stale-class-view strip
+that [godot-workflow.md](godot-workflow.md) documents). Nothing regenerates these strings.
+**How to apply:** after any `godot --headless --editor --quit`, add
+`git diff '*.tres' | grep per_phrase` to the usual post-refresh diff check, and restore
+any line that turned into `null`.
 
 `AttributeRules` (Attributes Panel hover) now **discovers** these lines by scanning
 `intrinsic_modifiers` for `scales_with(attr_id)` — it holds no rule text of its own, so

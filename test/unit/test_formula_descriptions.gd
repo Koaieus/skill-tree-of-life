@@ -119,7 +119,9 @@ func test_every_balanced_core_formula_is_described() -> void:
 
 
 func test_shared_level_curve_is_described() -> void:
-	assert_eq(LEVEL_SCALING.describe_per(), "level after the 1st")
+	# "level", not "level after the 1st" — the -1 is the formula's zero point, not
+	# something a player thinks about; they read the curve as "level up -> +stats".
+	assert_eq(LEVEL_SCALING.describe_per(), "level")
 
 
 # --- 4. The composed sentence -------------------------------------------------

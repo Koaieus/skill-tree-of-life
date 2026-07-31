@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="3_466st"]
 [ext_resource type="Script" uid="uid://ddlh35gou7ixj" path="res://entity/core/sigil/astroid_sigil.gd" id="3_sigil"]
-[ext_resource type="Resource" path="res://stats_system/formulas/level_scaling.tres" id="4_lvl"]
+[ext_resource type="Resource" uid="uid://cwt1ufgl40t82" path="res://stats_system/formulas/level_scaling.tres" id="4_lvl"]
 [ext_resource type="Script" uid="uid://bl2wufmtn1g76" path="res://effects/heal_aura.gd" id="5_heal_aura"]
 
 [sub_resource type="Resource" id="heal_aura_balanced"]

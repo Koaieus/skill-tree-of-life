@@ -8,7 +8,7 @@ extends Resource
 ## a float. All binding/subscription state lives on [StatModifier].
 
 ## The qualifier phrase rendered after "per" by [method StatModifier.format]
-## — "20 STR", "PER", "×10 INT", "level after the 1st". ONE SHORT LINE, never
+## — "20 STR", "PER", "×10 INT", "level". ONE SHORT LINE, never
 ## prose: a formula-bound modifier is displayed as a single-Label glass slab
 ## ([ModSlabRow]) inside a hover tooltip, so "+1 Blade Size per 20 STR" is the
 ## entire budget. Deliberately NOT `@export_multiline` (#289).
