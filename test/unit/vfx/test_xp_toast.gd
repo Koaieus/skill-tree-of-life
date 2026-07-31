@@ -89,9 +89,11 @@ func test_xp_gain_toasts_on_the_core() -> void:
 	assert_eq(_first_toast_text(), "+4 XP", "the XP grant is announced")
 
 
-func test_player_xp_toasts_on_the_hero_sigil_anchor_instead() -> void:
-	# #91's routing: the bound player's entity-level toasts belong on the HUD
-	# card, not out on the map.
+func test_player_xp_does_not_toast_at_all() -> void:
+	# #317 replaced the player's XP toast with a delta chip on the XP gauge
+	# itself. #91's sigil-anchor routing still governs every OTHER entity-level
+	# toast (wounds, heals) — this is an XP-only opt-out, because XP is the one
+	# fact the player is already reading off a HUD gauge.
 	var hud_anchor := Node2D.new()
 	add_child_autofree(hud_anchor)
 	hud_anchor.global_position = Vector2(640, 360)
@@ -100,10 +102,7 @@ func test_player_xp_toasts_on_the_hero_sigil_anchor_instead() -> void:
 
 	_entity.stat_board.xp.replenish(4.0)
 	await get_tree().process_frame
-	var toasters := _toasters()
-	assert_eq(toasters.size(), 1, "one toaster")
-	assert_eq((toasters[0] as FloaterToaster).global_position, Vector2(640, 360),
-			"routed to the hero sigil anchor, not the core")
+	assert_eq(_toasters().size(), 0, "the HUD chip owns the player's XP feedback")
 
 
 func test_zero_grant_is_silent() -> void:

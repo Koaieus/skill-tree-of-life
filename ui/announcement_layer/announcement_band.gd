@@ -14,3 +14,12 @@ signal finished
 ## full display (open + hold + close) completes.
 func play(_request: AnnouncementRequest) -> void:
 	push_error("AnnouncementBand.play() not overridden by %s" % get_script().resource_path)
+
+
+## The request currently on screen absorbed a later one (#317) — refresh what's
+## displayed WITHOUT restarting the animation. Optional: the base no-op just
+## means "this band doesn't visibly update mid-play", which is correct for a
+## band with nothing stack-shaped to show. Never emit [signal finished] from
+## here; the running [method play] still owns that.
+func amend(_request: AnnouncementRequest) -> void:
+	pass

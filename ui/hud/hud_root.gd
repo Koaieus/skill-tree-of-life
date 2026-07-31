@@ -149,8 +149,13 @@ func _bind_announcement_layer() -> void:
 		return
 	announcement_layer.bind_turn_manager(_turn_manager)
 	_turn_manager.turn_started.connect(_on_turn_started_for_banner)
-	if not _player.leveled_up.is_connected(_on_player_leveled_up):
-		_player.leveled_up.connect(_on_player_leveled_up)
+	# LEVEL UP is paced by the XP bar, not by the model (#317). `Entity.leveled_up`
+	# fires the instant XP lands — every level of a cascade in the same frame, and
+	# seconds before the bar has finished telling that story. HeroSigilCard's
+	# `level_reached` is the same fact, emitted once per level at the moment the
+	# gauge actually reaches full.
+	if hero_sigil_card != null and not hero_sigil_card.level_reached.is_connected(_on_level_reached):
+		hero_sigil_card.level_reached.connect(_on_level_reached)
 
 
 func _on_turn_started_for_banner(entity: Entity) -> void:
@@ -159,7 +164,7 @@ func _on_turn_started_for_banner(entity: Entity) -> void:
 				"YOUR TURN", "", AnnouncementRequest.Style.DEFAULT, entity))
 
 
-func _on_player_leveled_up(new_level: int) -> void:
+func _on_level_reached(new_level: int) -> void:
 	announcement_layer.enqueue(LevelUpAnnouncementRequest.make_for_level_up(
 			_player, 1, new_level))
 

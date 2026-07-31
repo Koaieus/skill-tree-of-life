@@ -64,11 +64,17 @@ func bind_turn_manager(tm: TurnManager) -> void:
 
 
 ## Standard FIFO, scoped to `req.kind`'s own queue. If `req.coalesce_key()`
-## matches the queue's current tail, merges into it (via [method
-## AnnouncementRequest.absorb]) instead of appending a second entry. The
-## actual dequeue-and-play step is deferred to end-of-frame so a same-frame
-## burst (e.g. Entity.leveled_up firing N times synchronously) fully merges
-## in the queue before anything displays — see #135.
+## matches the queue's current tail — or the request that is currently
+## PLAYING — merges into it (via [method AnnouncementRequest.absorb]) instead
+## of appending a second entry. The actual dequeue-and-play step is deferred to
+## end-of-frame so a same-frame burst (e.g. Entity.leveled_up firing N times
+## synchronously) fully merges in the queue before anything displays — see #135.
+##
+## Merging into the *playing* request (#317) is what keeps a paced burst from
+## piling up: a banner runs ~2.2s while the XP bar crosses a level in well under
+## one, so a 3-level cascade that enqueues one request per level would otherwise
+## queue three banners back-to-back, narrating a gauge that finished long ago.
+## Absorbed live, it stays one banner that re-stamps its ×N badge.
 func enqueue(req: AnnouncementRequest) -> void:
 	if req == null:
 		return
@@ -79,8 +85,16 @@ func enqueue(req: AnnouncementRequest) -> void:
 	var key: Variant = req.coalesce_key()
 	if key != null and not queue.is_empty() and queue[-1].coalesce_key() == key:
 		queue[-1].absorb(req)
-	else:
-		queue.append(req)
+		call_deferred("_pump", req.kind)
+		return
+	var playing: AnnouncementRequest = _current_by_kind.get(req.kind)
+	if key != null and playing != null and playing.coalesce_key() == key:
+		playing.absorb(req)
+		var band: AnnouncementBand = _bands.get(req.kind)
+		if band != null:
+			band.amend(playing)
+		return
+	queue.append(req)
 	call_deferred("_pump", req.kind)
 
 

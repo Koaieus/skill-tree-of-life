@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/hero_sigil_card/xp_delta_chip.gd" id="1_script"]
+
+[node name="XPDeltaChip" type="Label"]
+script = ExtResource("1_script")
+anchors_preset = -1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -72.0
+offset_top = -15.0
+offset_bottom = -3.0
+grow_horizontal = 0
+mouse_filter = 2
+modulate = Color(0.8909, 0.7204, 0.2596, 0)
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 2
+vertical_alignment = 1
+text = "+0 XP"

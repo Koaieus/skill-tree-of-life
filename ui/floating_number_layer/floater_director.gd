@@ -73,14 +73,18 @@ func _on_entity_healed(entity: Entity, amount: int) -> void:
 	_spawn_at_core(entity, "+%d SP" % amount, FloaterStyles.entity_heal())
 
 
-## XP gained — kill rewards and the per-turn income alike. Routed like any other
-## entity-level fact: the player's lands on the Hero Sigil Card, an AI's rises
-## from its core (and is fog-gated there).
+## XP gained — kill rewards and the per-turn income alike. An AI's rises from
+## its core (and is fog-gated there).
+##
+## The PLAYER gets nothing here (#317): their XP feedback is the delta chip on
+## the XP gauge itself ([XpDeltaChip]). A toast flying off the Hero Sigil anchor
+## was narrating a number the eye was already on, and it competed with the
+## gauge's own level-up replay. NPCs keep the core toast — they have no gauge.
 ##
 ## No hit flash: XP is a reward, not something happening *to* the core, and the
 ## per-turn income would strobe every core on the board once a turn.
 func _on_entity_xp_gained(entity: Entity, amount: float) -> void:
-	if amount <= 0.0:
+	if amount <= 0.0 or entity == player:
 		return
 	_emit_at_entity(entity, "+%d XP" % int(round(amount)), FloaterStyles.xp_gain())
 

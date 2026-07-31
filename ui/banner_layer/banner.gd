@@ -144,9 +144,20 @@ func _prepare_count_badge(stack_count: int) -> void:
 	_count_badge.position = Vector2(_label.size.x, _label.size.y * 0.5) - _count_badge.size * 0.5
 
 
-## One-shot "stamped on" flourish: scale-overshoot + a tiny rotation snap.
-## Not a live-updating counter — the badge text is already final by the time
-## this plays (see AnnouncementLayer's deferred-pump coalescing).
+## Refresh this banner's text and count badge WITHOUT restarting it (#317).
+## The running slide/hold tween is deliberately left alone — re-running
+## [method _size_label] would jerk the label mid-slide, and the label carries
+## 40px of slack for exactly this kind of growth. The badge does re-stamp, so
+## a level absorbed while the banner is up gets its own visible ×N beat.
+func amend(request: AnnouncementRequest) -> void:
+	_label.text = request.main_text if not is_sub else request.sub_text
+	_prepare_count_badge(request.stack_count)
+	_stamp_badge()
+
+
+## "Stamped on" flourish: scale-overshoot + a tiny rotation snap. Plays once as
+## the slide-in settles, and again per [method amend] when a live banner
+## absorbs another request.
 func _stamp_badge() -> void:
 	if not _count_badge.visible:
 		return

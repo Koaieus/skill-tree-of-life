@@ -34,6 +34,16 @@ func play(request: AnnouncementRequest) -> void:
 		finished.emit()
 
 
+## Re-stamp both lines in place (#317) — a second level-up absorbed while this
+## banner is still on screen updates the ×N badge and the "+N Skill Points —
+## Level M" sub-line without the banner sliding out and back in.
+func amend(request: AnnouncementRequest) -> void:
+	if not _main_done:
+		_main.amend(request)
+	if not _sub_done:
+		_sub.amend(request)
+
+
 func _preview() -> void:
 	var sample := AnnouncementRequest.make(
 			"LEVEL UP", "+3 Skill Points — Level 8", AnnouncementRequest.Style.LEVEL_UP)

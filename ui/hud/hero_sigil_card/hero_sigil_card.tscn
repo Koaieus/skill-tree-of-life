@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://b8wckk2m60vj8" path="res://ui/hud/hero_sigil_card/sigil_glyph.gd" id="3_sigil_glyph"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="4_gauge"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_whxag"]
+[ext_resource type="PackedScene" path="res://ui/hud/hero_sigil_card/xp_delta_chip.tscn" id="6_xp_chip"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ji1wf"]
 resource_local_to_scene = true
@@ -253,6 +254,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 fill_color = Color(0.8909, 0.7204, 0.2596, 1)
 glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
+
+[node name="XPDeltaChip" parent="Padded/Content/Vitals/XPRow/XPGauge" instance=ExtResource("6_xp_chip")]
+unique_name_in_owner = true
 
 [node name="XPCaption" type="Label" parent="Padded/Content/Vitals/XPRow" unique_id=198810305]
 unique_name_in_owner = true
