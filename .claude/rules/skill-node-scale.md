@@ -1,0 +1,1 @@
+A level holds ~500–2500 SkillNodes plus their Edges and renders up to a few hundred of each at once, so any per-node or per-edge cost is multiplied that hard — judge visual components at that scale, not one at a time. See docs/domain/rendering-performance.md

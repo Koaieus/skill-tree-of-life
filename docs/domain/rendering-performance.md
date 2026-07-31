@@ -28,6 +28,36 @@ Two consequences worth internalizing:
   A 1080p fullscreen pass is ~2M fragments = 65k waves, a ~250× jump. There is
   no middle ground in practice: things are either negligible or fullscreen.
 
+## The multiplier this project actually runs at
+
+Every cost model below is per-object. What makes them matter here is the count:
+
+- **A level holds roughly 500–2500 `SkillNode`s**, and possibly more — the graph
+  *is* the game, so map size grows with content rather than plateauing.
+- **`Edge`s scale with them**, at a comparable order of magnitude (a connected
+  graph of N nodes carries at least N−1 edges, and these graphs are not trees).
+- **Up to a few hundred of each render on screen at once**, depending on zoom.
+
+So the unit of judgement is never "does this cost much on one node" — it's that
+number times several hundred, every frame. A component that draws 12 strokes is
+a few thousand draw calls at screen scale; a per-node `ShaderMaterial` is a few
+hundred unbatchable draws (see the per-instance-material trap below); an
+`instance uniform` on a shared material is ~free *per draw* but still claims a
+slot in a global buffer whose software-rasterizer cap is 4096 items (#172).
+
+Two consequences that have already shaped the code:
+
+- **An unused component in `node_visuals_composite.tscn` is not free**, even at
+  `visible = false` — it costs tree nodes, `_ready` work, and potentially a
+  uniform slot on every node in the level. That is why #238 shelved RuneRing and
+  RimBonuses out of the composite rather than leaving them hidden, and why #172
+  deleted the RimRing2-4 stake placeholders.
+- **Per-node visual variation belongs in `instance uniform`s on one shared
+  material**, never in a duplicated material. `InnerDisk` and `RimRing` both
+  follow this; see [`.claude/rules/skill-node-visuals.md`](../../.claude/rules/skill-node-visuals.md)
+  for the full contract, including the `is_visible_in_tree()` gate that keeps a
+  fogged or sensed node at zero slots.
+
 ## The three input channels (and why the distinction is the whole point)
 
 | Channel | Varies per | Cost |
