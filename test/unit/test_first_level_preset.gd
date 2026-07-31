@@ -17,7 +17,7 @@ func test_preset_loads() -> void:
 	assert_eq(cfg.archetypes.size(), 6, "expected 6 archetypes (red/green/blue/white/gold/purple)")
 	assert_not_null(cfg.modifier_pool_set, "modifier_pool_set should be set")
 	assert_gt(cfg.modifier_pool_set.packs.size(), 0, "pool set should carry StatPacks")
-	assert_eq(cfg.weight_profiles.size(), 3, "profiles: archetype + radial + collision")
+	assert_eq(cfg.weight_profiles.size(), 2, "profiles: archetype + radial (collision dropped in #321 v4)")
 	assert_not_null(cfg.budget_policy)
 	assert_eq(cfg.guaranteed_placements.size(), 3)
 
@@ -40,7 +40,11 @@ func test_modifiers_rolled_on_nodes() -> void:
 	for n in nodes:
 		if not n.modifiers.is_empty():
 			with_modifiers += 1
-	assert_gt(with_modifiers, nodes.size() / 2, "expected most nodes to roll modifiers; got %d/%d" % [with_modifiers, nodes.size()])
+	# v4 seam state (#321): the specimen set is trimmed to strength during the
+	# engine landing, so only strength-primary (red) nodes roll modifiers —
+	# ~30% of nodes. Restored to the >half assertion in the integration commit
+	# when all archetype packs are reauthored onto StatPool and returned to the set.
+	assert_gt(with_modifiers, nodes.size() / 5, "expected red-primary nodes to roll modifiers; got %d/%d" % [with_modifiers, nodes.size()])
 
 
 func test_procgen_generates_full_level() -> void:

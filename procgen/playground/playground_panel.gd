@@ -341,7 +341,7 @@ func _sample_with_budget(world_pos: Vector2, policy: ArchetypePolicy, budget: in
 	var forbid: Array[StringName] = policy.forbid_tags if policy != null else ([] as Array[StringName])
 	var mods: Array[StatModifier] = []
 	if _config != null and _config.modifier_pool_set != null:
-		mods = GraphProcgen._roll_modifiers_v3(
+		mods = GraphProcgen._roll_modifiers_v4(
 				_config.modifier_pool_set, _config.weight_profiles,
 				archetype_id, primary_stat, forbid, world_pos, 0, budget, _rng, {})
 	return {"budget": budget, "mods": mods}

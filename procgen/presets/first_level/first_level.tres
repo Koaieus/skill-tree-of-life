@@ -18,7 +18,6 @@
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="awp"]
 [ext_resource type="Script" uid="uid://h1ade1x6qd2g" path="res://procgen/budget/budget_policy.gd" id="bp"]
 [ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="cfg"]
-[ext_resource type="Script" uid="uid://clj7kev1ghrfn" path="res://procgen/weighting/collision_profile.gd" id="cp"]
 [ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/placement/radial_gradient_field.gd" id="grad"]
 [ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/placement/keystone_placement.gd" id="kp"]
 [ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/placement/min_near_starting_points.gd" id="mnsp"]
@@ -148,7 +147,7 @@ forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"wis", &"attac
 script = ExtResource("grad")
 outer_radius = 2500.0
 inner_value = 1.0
-outer_value = 5.0
+outer_value = 4.0
 
 [sub_resource type="Resource" id="bp_main"]
 script = ExtResource("bp")
@@ -243,13 +242,10 @@ weights = {
 },
 &"outer": {
 &"common": 0.6,
-&"mythic": 8.0,
+&"mythic": 3.0,
 &"rare": 4.0
 }
 }
-
-[sub_resource type="Resource" id="cp_main"]
-script = ExtResource("cp")
 
 [resource]
 script = ExtResource("cfg")
@@ -262,7 +258,7 @@ starting_points = Array[ExtResource("sp")]([SubResource("sp_core")])
 n_random_starters = 6
 viability_radius = 300.0
 modifier_pool_set = ExtResource("pool_set")
-weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_main"), SubResource("cp_main")])
+weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_main")])
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 addon_policy = SubResource("Resource_c6pvu")

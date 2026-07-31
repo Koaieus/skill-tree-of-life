@@ -180,7 +180,7 @@ static func generate(
 						archetype_id, positions[i], role_tags, rng)
 			fp["budget"] = budget
 			if config.modifier_pool_set != null:
-				sn.modifiers = _roll_modifiers_v3(
+				sn.modifiers = _roll_modifiers_v4(
 						config.modifier_pool_set, config.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
 						positions[i], i, budget, rng, fp)
@@ -758,16 +758,28 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 	return false
 
 
-## v3 phased modifier draw. Replaces the flat budget-exhaustion loop with a
-## slot-count-then-budget model:
-##   1. Roll total slot count, split into primary_share / off_share.
-##   2. Phase 2: fill primary slots from PRIMARY pools matching primary_stat;
-##      track peak_primary_cost.
-##   3. Phase 3: fill off slots from off-attribute PRIMARY (cost-capped),
-##      DEFENSIVE, and RARE pools (defensive/rare uncapped).
+## v4 modifier draw (#321). Spend-until-broke with per-(stat,op) aggregation:
+##   1. Flatten the pools relevant to this node: archetype_stat == primary_stat
+##      OR == &"" (universal). No off-archetype phase, no defensive/rare roles
+##      (#321 D7, D8).
+##   2. Spend `budget` until broke: weighted-pick an affordable entry applying
+##      weight profiles (archetype + radial), subtract its cost, repeat. Debuff
+##      entries (cost < 0) refund budget; `max_refunds = 1` per node (D9).
+##      T1 always costs 1, so leftover budget always drains into T1 filler —
+##      budget is never wasted (D3).
+##   3. Aggregate the rolled modifiers per (stat_id, operation): ADD* and
+##      INCREASE sum, MULTIPLY products, SET max (D3). Line count on a node is
+##      now bounded by the number of distinct (stat, op) pairs it drew — not
+##      by the number of draws.
 ##
-## See docs/domain/procgen-v3.md for design rationale.
-static func _roll_modifiers_v3(
+## NOTE: CollisionProfile does NOT compose with aggregation (it zeroes
+## duplicate (stat,op); v4 wants to combine them), so a v4 preset should not
+## include it in `weight_profiles` — `first_level.tres` dropped it.
+##
+## See docs/domain/procgen-v4.md.
+const _MAX_DEBUFF_REFUNDS := 1
+
+static func _roll_modifiers_v4(
 		pool_set: ModifierPoolSet,
 		profiles: Array[Resource],
 		archetype: StringName,
@@ -780,16 +792,13 @@ static func _roll_modifiers_v3(
 		fp: Dictionary = {},
 ) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
-	fp["phase"] = "v3"
+	fp["phase"] = "v4"
 	if pool_set == null or pool_set.packs.is_empty() or budget <= 0:
 		return out
-	var slots := pool_set.sample_slot_count(rng)
-	var primary_share := int(ceil(float(slots) * pool_set.primary_share_ratio))
-	primary_share = clampi(primary_share, 0, slots)
-	var off_share := slots - primary_share
-	fp["slots"] = slots
-	fp["primary_slots"] = primary_share
-	fp["off_slots"] = off_share
+
+	var entries := pool_set.flatten_for_node(primary_stat)
+	if entries.is_empty():
+		return out
 
 	var ctx := WeightContext.new()
 	ctx.archetype = archetype
@@ -799,54 +808,114 @@ static func _roll_modifiers_v3(
 	ctx.forbid_tags = forbid_tags
 
 	var remaining := budget
-	var peak_primary_cost := 0
+	var refunds_used := 0
+	# Rolled values collected per (stat_id, op) for aggregation. Each entry.roll
+	# already coerces the sampled value (INCREASE → int, ADD by stat value_type,
+	# MULTIPLY/SET raw float), so aggregating the coerced values keeps the
+	# snapping semantics of ModifierPoolEntry._coerce_to_stat_type.
+	var rolled: Array[StatModifier] = []
+	var draws := 0
 
-	# Phase 2: primary slots.
-	if primary_share > 0 and primary_stat != &"":
-		var primary_entries := pool_set.flatten_for_phase(&"primary", primary_stat)
-		for _i in primary_share:
-			var entry := _weighted_pick_from(primary_entries, profiles, ctx, remaining, rng)
-			if entry == null:
-				break
-			out.append(entry.roll(rng))
-			remaining -= entry.cost
-			peak_primary_cost = maxi(peak_primary_cost, entry.cost)
-			if remaining <= 0:
-				break
+	while remaining > 0:
+		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, refunds_used, rng)
+		if entry == null:
+			break
+		rolled.append(entry.roll(rng))
+		remaining -= entry.cost  # cost < 0 → remaining increases (refund)
+		if entry.cost < 0:
+			refunds_used += 1
+		draws += 1
+		# Safety: a pathological refund chain could loop forever; cap draws at a
+		# generous bound so a mis-authored debuff pool can't hang procgen.
+		if draws > 64:
+			break
 
-	# Phase 3: off-attribute + defensive + rare slots.
-	if off_share > 0 and remaining > 0:
-		var off_entries := pool_set.flatten_for_phase(&"off", primary_stat)
-		var defensive_entries := pool_set.flatten_for_phase(&"defensive", primary_stat)
-		var rare_entries := pool_set.flatten_for_phase(&"rare", primary_stat)
-		# Cost-cap off-attribute entries relative to peak primary cost. Defensive
-		# and rare are exempt (see ModifierPoolSet docstring).
-		# Cap formula: floor(peak * factor) - offset.
-		fp["peak_primary_cost"] = peak_primary_cost
-		var cap := int(floor(float(peak_primary_cost) * pool_set.off_cost_cap_factor)) - pool_set.off_cost_cap_offset
-		fp["off_cap"] = cap
-		var off_capped: Array[ModifierPoolEntry] = []
-		if peak_primary_cost > 0:
-			for e in off_entries:
-				if e != null and e.cost <= cap:
-					off_capped.append(e)
+	fp["draws"] = draws
+	fp["refunds_used"] = refunds_used
+	fp["remaining"] = remaining
+
+	# Aggregate per (stat_id, operation). ADD_BASE / ADD_BONUS / INCREASE sum
+	# (PoE-additive); MULTIPLY products (\times1.15 · \times1.15 = \times1.3225,
+	# NOT \times2.30); SET max.
+	# Key by "<stat>|<op>" to dodge StringName/Dictionary quirks; emit in
+	# first-drawn order so tooltips read top-to-bottom as the draw unwound.
+	var acc: Dictionary = {}            # key -> { "stat": StringName, "op": int, "val": float }
+	var order: Array[String] = []       # first-drawn key order
+	for m in rolled:
+		var key := "%s|%d" % [String(m.stat_id), int(m.operation)]
+		if not acc.has(key):
+			acc[key] = {"stat": m.stat_id, "op": int(m.operation), "val": m.value}
+			order.append(key)
 		else:
-			# No primary picks happened (no primary_stat, or empty primary pools).
-			# Don't cap — off-attribute is the only stat content available.
-			off_capped = off_entries
-		var combined: Array[ModifierPoolEntry] = []
-		combined.append_array(off_capped)
-		combined.append_array(defensive_entries)
-		combined.append_array(rare_entries)
-		for _i in off_share:
-			var entry := _weighted_pick_from(combined, profiles, ctx, remaining, rng)
-			if entry == null:
-				break
-			out.append(entry.roll(rng))
-			remaining -= entry.cost
-			if remaining <= 0:
-				break
+			var e: Dictionary = acc[key]
+			match m.operation:
+				StatModifier.Operation.MULTIPLY:
+					e["val"] = float(e["val"]) * m.value
+				StatModifier.Operation.SET:
+					e["val"] = maxf(float(e["val"]), m.value)
+				_:
+					e["val"] = float(e["val"]) + m.value
+	# Emit one StatModifier per aggregated (stat, op), in first-drawn order.
+	for key in order:
+		var e: Dictionary = acc[key]
+		var m := StatModifier.new()
+		m.stat_id = e["stat"]
+		# Enum-typed var accepts an int (enums are int-backed); the `Variant` from
+		# the dict is coerced via int() first.
+		m.operation = int(e["op"])
+		m.value = float(e["val"])
+		out.append(m)
 	return out
+
+
+## v4 weighted pick: affordable filter (debuff-aware + refund-cap) + weight
+## profile multiplication, then a single weighted sample. Mirrors
+## `_weighted_pick_from` but pays its own budget/debuff rules instead of the
+## v3 afford-only filter.
+static func _v4_weighted_pick(
+		entries: Array[ModifierPoolEntry],
+		profiles: Array[Resource],
+		context: WeightContext,
+		remaining: int,
+		refunds_used: int,
+		rng: RandomNumberGenerator,
+) -> ModifierPoolEntry:
+	var affordable: Array[ModifierPoolEntry] = []
+	var weights: Array[float] = []
+	var total := 0.0
+	for e in entries:
+		if e == null or e.weight <= 0.0:
+			continue
+		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
+			continue
+		# Affordability — debuff-aware. A debuff (cost < 0) is affordable only
+		# while there is budget to spend (remaining >= 1) AND the per-node
+		# refund cap has not been reached (#321 D9).
+		if e.cost < 0:
+			if remaining < 1 or refunds_used >= _MAX_DEBUFF_REFUNDS:
+				continue
+		elif e.cost > remaining:
+			continue
+		var w := e.weight
+		for p in profiles:
+			if p == null:
+				continue
+			w *= p.multiplier_for(e, context)
+			if w <= 0.0:
+				break
+		if w <= 0.0:
+			continue
+		affordable.append(e)
+		weights.append(w)
+		total += w
+	if total <= 0.0:
+		return null
+	var r := rng.randf() * total
+	for i in affordable.size():
+		r -= weights[i]
+		if r <= 0.0:
+			return affordable[i]
+	return affordable.back()
 
 
 ## Picks one entry from a pre-filtered list, applying weight profiles. Shared

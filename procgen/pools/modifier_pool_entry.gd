@@ -43,6 +43,12 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 
 
 func is_in_budget(budget: int) -> bool:
+	# v4 (#321): cost can be negative — a debuff entry refunds budget. A
+	# debuff (cost < 0) is "affordable" exactly while there is still budget
+	# to spend (`budget >= 1`); the per-node refund cap is enforced by the
+	# draw loop, not here.
+	if cost < 0:
+		return budget >= 1
 	return cost <= budget
 	
 func has_weight() -> bool:
@@ -81,8 +87,10 @@ func _get_configuration_warnings() -> PackedStringArray:
 		out.append("id should be set — weight profiles key off id for stable lookups.")
 	if stat_id == &"":
 		out.append("stat_id is empty — entry will mint a StatModifier targeting nothing.")
-	if cost < 1:
-		out.append("cost should be ≥ 1 — cost-0 entries break the per-node draw cap.")
+	# v4: cost may be negative (debuff refund) — the old "cost < 1 breaks the
+	# cap" warning no longer applies. A cost of 0 still breaks budget arithmetic.
+	if cost == 0:
+		out.append("cost 0 breaks budget spend/refund arithmetic — use ±1 minimum.")
 	if value_range.x > value_range.y:
 		out.append("value_range.x (%s) > value_range.y (%s) — randf_range will return value_range.x." % [value_range.x, value_range.y])
 	var registry := TagRegistry.canonical()
