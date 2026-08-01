@@ -124,14 +124,21 @@ cmd_status() {
     return
   fi
 
+  # NB: these ids are regenerated whenever the Status field's option LIST is
+  # rewritten (`updateProjectV2Field` replaces all options wholesale — and it
+  # also nulls every item's value, so back the board up before doing that).
+  # Re-read them with:
+  #   gh api graphql -f query='{node(id:"'"$FIELD_STATUS"'"){... on
+  #     ProjectV2SingleSelectField{options{id name}}}}'
   local option
   case "$status" in
-    backlog)        option="f75ad846" ;;
-    ready)          option="61e4505c" ;;
-    in-progress|ip)  option="47fc9ee4" ;;
-    in-review|ir)    option="df73e18b" ;;
-    done)           option="98236657" ;;
-    *) echo "✗ unknown status: $status (backlog|ready|in-progress|in-review|done)"; exit 1 ;;
+    backlog)             option="4acdef0f" ;;
+    needs-design|nd)     option="d73dcce5" ;;
+    ready)               option="8fdb35d1" ;;
+    in-progress|ip)      option="22ac5f18" ;;
+    in-review|ir)        option="c9eae5dc" ;;
+    done)                option="220ac0d8" ;;
+    *) echo "✗ unknown status: $status ($STATUS_NAMES)"; exit 1 ;;
   esac
   gh project item-edit --id "$id" --project-id "$PROJECT_ID" --field-id "$FIELD_STATUS" --single-select-option-id "$option"
   echo "✓ issue #$issue status → $status"
@@ -183,14 +190,30 @@ cmd_size() {
 }
 
 # Map a CLI status token to the board's display label. Empty = no filter.
+# The status ladder, in flow order:
+#
+#   Backlog       not scheduled. someday. NO LIVE PARENT — see `hygiene`.
+#   Needs design  scheduled, but has open forks. this is the /swarmify inbox.
+#   Ready         a drone can take it: no open forks, clear goal and scope.
+#   In progress / In review / Done
+#
+# `Ready` absorbed the old `swarmable` LABEL (retired 2026-08-02). The label was
+# a second source of truth for a fact the status already carried, and it rotted
+# in both directions: issues whose own body read "## Swarmable spec" (#274, #327)
+# never got labelled, while `Ready` accumulated issues with live design forks.
+# One field, one answer. "Swarmable" was never a state anyway — it's a dispatch
+# strategy for whatever is Ready.
+STATUS_NAMES="backlog|needs-design|ready|in-progress|in-review|done"
+
 status_label() {
   case "$1" in
-    backlog)        echo "Backlog" ;;
-    ready)          echo "Ready" ;;
-    in-progress|ip) echo "In progress" ;;
-    in-review|ir)   echo "In review" ;;
-    done)           echo "Done" ;;
-    all)            echo "" ;;
+    backlog)         echo "Backlog" ;;
+    needs-design|nd) echo "Needs design" ;;
+    ready)           echo "Ready" ;;
+    in-progress|ip)  echo "In progress" ;;
+    in-review|ir)    echo "In review" ;;
+    done)            echo "Done" ;;
+    all)             echo "" ;;
     *) return 1 ;;
   esac
 }
@@ -209,7 +232,7 @@ cmd_list() {
 
   local label
   if ! label=$(status_label "$want"); then
-    echo "✗ unknown status: $want (backlog|ready|in-progress|in-review|done|all)"
+    echo "✗ unknown status: $want ($STATUS_NAMES|all)"
     exit 1
   fi
 
@@ -335,52 +358,112 @@ cmd_label() {
   esac
 }
 
-# --- swarmq: the swarm feeder ------------------------------------------------
-# Issues carrying `swarmable`, in a given column (default Ready), priority-sorted.
-# This is the queue the `swarm` skill picks from — everything here has passed the
-# design gate (forks resolved, acceptance written). --json for machine reads.
-cmd_swarmq() {
-  local want="ready" as_json=false arg
-  for arg in "$@"; do
-    case "$arg" in
-      --json) as_json=true ;;
-      "") ;;
-      *) want="$arg" ;;
-    esac
-  done
-  local label
-  if ! label=$(status_label "$want"); then
-    echo "✗ unknown status: $want (backlog|ready|in-progress|in-review|done|all)"; exit 1
-  fi
+# --- hygiene: board invariants, reported not enforced -------------------------
+# Detection over prevention. GitHub's built-in project workflows are a fixed set
+# and none can express "if this item has a parent, set Status" — only a GH Action
+# could, and for a one-dev repo that is infrastructure that fails silently. A
+# rule in an agent instruction file didn't hold either; that is how a 70-item
+# Backlog accumulated. So: one query, prints violations, cannot rot because it
+# reads live state. Run it whenever you look at the board.
+#
+# THE PARENT/CHILD INVARIANT — `Backlog` means "no live parent."
+#
+#   A child may sit at ANY stage of the pipeline (Needs design / Ready / In
+#   progress) while its parent hub is In progress. That IS what grinding a hub
+#   down looks like. The one illegal combination is a child parked in `Backlog`
+#   under an active parent: the parent says "we are doing this", `Backlog` says
+#   "not scheduled", and the child then sits in the one column nobody pulls
+#   from. Repair is a judgement call — promote the child, or demote the parent
+#   if you are not really grinding it — so this reports and never fixes.
+cmd_hygiene() {
+  local as_json=false
+  [ "${1:-}" = "--json" ] && as_json=true
 
-  local items
-  items=$(items_json \
-    | jq --arg label "$label" '
-        [ .items[]
-          | select(.content.type == "Issue")
-          | select(($label == "") or ((.status // "") == $label))
-          | select((.labels // []) | index("swarmable"))
-          | { number: .content.number, title: .content.title,   # live title — see `list`
-              status: (.status // "—"),
-              priority: (.priority // .Priority // "—"),
-              size: (.size // .Size // "—"),
-              milestone: (.milestone.title // "—"),
-              url: .content.url } ]
-        | sort_by(.priority, .number)')
+  local raw
+  raw=$(gh api graphql --paginate -f id="$PROJECT_ID" -f query='
+      query($id: ID!, $endCursor: String) {
+        node(id: $id) { ... on ProjectV2 {
+          items(first: 100, after: $endCursor) {
+            nodes {
+              content { ... on Issue {
+                number title state
+                milestone { title }
+                labels(first: 20) { nodes { name } }
+                parent { number title }
+                subIssuesSummary { total completed }
+              } }
+              fieldValueByName(name: "Status") {
+                ... on ProjectV2ItemFieldSingleSelectValue { name }
+              }
+            }
+            pageInfo { hasNextPage endCursor }
+          }
+        } }
+      }' --jq '.data.node.items.nodes[] | select(.content.number != null)')
 
-  if [ "$as_json" = true ]; then printf '%s\n' "$items"; return; fi
+  local report
+  report=$(printf '%s\n' "$raw" | jq -s '
+      [ .[] | { number: .content.number,
+                title:  .content.title,
+                state:  .content.state,
+                status: (.fieldValueByName.name // "—"),
+                labels: [ .content.labels.nodes[].name ],
+                milestone: (.content.milestone.title // null),
+                parent: (.content.parent.number // null),
+                kids_total: (.content.subIssuesSummary.total // 0),
+                kids_done:  (.content.subIssuesSummary.completed // 0) } ]
+      | map(select(.state == "OPEN"))
+      | . as $all
+      | ($all | map({ (.number|tostring): .status }) | add // {}) as $st
+      | {
+          parked_child:
+            [ $all[] | select(.parent != null and .status == "Backlog")
+              | select(($st[.parent|tostring] // "Backlog") as $p
+                       | $p != "Backlog" and $p != "—")
+              | { number, title, parent, parent_status: ($st[.parent|tostring]),
+                  detail: "parent #\(.parent) is \($st[.parent|tostring])" } ],
+          forked_ready:
+            [ $all[] | select(.status == "Ready")
+              | select(.labels | any(. == "design" or . == "blocked"))
+              | { number, title,
+                  detail: (.labels | map(select(. == "design" or . == "blocked")) | join(",")) } ],
+          unmilestoned_ready:
+            [ $all[] | select(.status == "Ready" and .milestone == null)
+              | { number, title, detail: "" } ],
+          hollow_hub:
+            [ $all[] | select(.kids_total > 0 and .kids_total == .kids_done)
+              | select(.status == "In progress" or .status == "Ready")
+              | { number, title, detail: "\(.status) — all \(.kids_total) child(ren) closed" } ],
+          stale_label:
+            [ $all[] | select(.labels | index("swarmable"))
+              | { number, title, detail: .status } ]
+        }')
 
-  local count; count=$(printf '%s' "$items" | jq 'length')
-  if [ "$count" -eq 0 ]; then
-    echo "— no swarmable issues in ${label:-any column}"
-    echo "  (label one with: mise gh-project -- label <n> add swarmable)"
-    return
-  fi
-  printf '%s\n' "$items" | jq -r '.[]
-    | "#\(.number)\t[\(.priority)/\(.size)]\t\(.milestone)\t\(.title)"' \
-    | column -t -s $'\t'
+  if [ "$as_json" = true ]; then printf '%s\n' "$report"; return; fi
+
+  local total=0 n
+  _section() {  # <jq-key> <heading> <why-it-matters>
+    n=$(printf '%s' "$report" | jq --arg k "$1" '.[$k] | length')
+    [ "$n" -eq 0 ] && return 0
+    total=$((total + n))
+    printf '\n▸ %s  [%s]\n  %s\n' "$2" "$n" "$3"
+    printf '%s' "$report" | jq -r --arg k "$1" '.[$k][]
+      | "  #\(.number)\t\(.title[0:64])\t\(.detail)"' | column -t -s $'\t'
+  }
+
+  _section parked_child "Child parked under an active parent" \
+    "Backlog means not scheduled, but the parent says otherwise. Promote the child, or demote the hub."
+  _section forked_ready "Ready, but still carries design/blocked" \
+    "A drone must not touch an open fork. Move to needs-design, or drop the label if it is settled."
+  _section unmilestoned_ready "Ready with no milestone" \
+    "Invisible to \`roadmap\`. Until this is zero the roadmap cannot be the planning surface."
+  _section hollow_hub "Hub whose children are all closed" \
+    "Nothing is left to grind. Close it, or file what actually remains."
+  _section stale_label "Still carries the retired \`swarmable\` label" \
+    "Ready is the swarm queue now. Drop the label: mise gh-project -- label <n> rm swarmable"
+
   echo ""
-  echo "$count swarmable issue(s) in ${label:-all columns} — ready for: swarm"
+  if [ "$total" -eq 0 ]; then echo "✓ board is clean"; else echo "$total violation(s)"; fi
 }
 
 # --- roadmap: milestone swim-lanes with progress -----------------------------
@@ -445,21 +528,25 @@ Roadmap (milestone spine + target dates):
   estimate <n> [<points>]      Read or set estimate. 'clear' clears.
   roadmap [--json]             Milestone swim-lanes: epics + progress + swarmable count
 
-Swarm pipeline (design gate):
-  label <n> [<add|rm> <name>]  Read or flip a label (swarmable|blocked|design|…)
-  swarmq [<status>] [--json]   swarmable issues in a column (default ready) → feeds swarm
+Board hygiene:
+  label <n> [<add|rm> <name>]  Read or flip a label (blocked|design|…)
+  hygiene [--json]             Report board invariant violations (see below)
+
+The design gate is the STATUS, not a label. `design`/`blocked` issue sits in
+`needs-design` → /swarmify settles the forks → move to `ready` → swarm/warp
+executes. `Ready` IS the swarm queue; the old `swarmable` label is retired.
 
 Examples:
   mise gh-project -- list                 # what's ready to pick up
   mise gh-project -- roadmap              # planning digest, by milestone
   mise gh-project -- milestone 198 1      # → "MVP playable loop"
   mise gh-project -- target 240 2026-08-15
-  mise gh-project -- label 240 add swarmable
-  mise gh-project -- swarmq               # queue ready for the swarm skill
+  mise gh-project -- status 240 ready      # passed the design gate
+  mise gh-project -- hygiene              # what is inconsistent on the board
 
 Agents — machine-readable listing:
   mise run --quiet gh-project -- list ready --json | jq -r '.[].number'
-  mise run --quiet gh-project -- swarmq --json | jq -r '.[].number'
+  mise run --quiet gh-project -- hygiene --json | jq -r '.parked_child[].number'
   (mise's task banner goes to STDERR; don't merge it with 2>&1 or you'll
    corrupt the JSON on stdout.)
 EOF
@@ -478,7 +565,8 @@ case "$CMD" in
   start)    cmd_start "${2:-}" "${3:-}" ;;
   estimate) cmd_estimate "${2:-}" "${3:-}" ;;
   label)    cmd_label "${2:-}" "${3:-}" "${4:-}" ;;
-  swarmq)   shift; cmd_swarmq "$@" ;;
+  hygiene)  shift; cmd_hygiene "$@" ;;
+  swarmq)   echo "✗ swarmq is retired — Ready IS the queue now. Use: mise gh-project -- list ready" >&2; exit 1 ;;
   roadmap)  cmd_roadmap "${2:-}" ;;
   -h|--help|help) usage ;;
   *) usage ;;
