@@ -1,26 +1,26 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cjwsps8ttexc"]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/panel_header.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://c8ksp366vuva5" path="res://ui/tooltip_fan/panel_header.gd" id="1_script"]
 
-[node name="PanelHeader" type="VBoxContainer"]
-script = ExtResource("1_script")
+[node name="PanelHeader" type="VBoxContainer" unique_id=198214596]
 custom_minimum_size = Vector2(120, 0)
-layout_mode = 3
-anchors_preset = 0
+offset_right = 120.0
+offset_bottom = 33.0
 mouse_filter = 2
 theme_override_constants/separation = 2
+script = ExtResource("1_script")
+header = "HEADER"
+subheader = "Subheader"
 
-[node name="HeaderLabel" type="Label" parent="."]
+[node name="HeaderLabel" type="Label" parent="." unique_id=2061231870]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
 theme_override_font_sizes/font_size = 13
-text = ""
+text = "HEADER"
 
-[node name="SubheaderLabel" type="Label" parent="."]
+[node name="SubheaderLabel" type="Label" parent="." unique_id=1779307195]
 unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
 modulate = Color(1, 1, 1, 0.65)
+layout_mode = 2
 theme_override_font_sizes/font_size = 10
-text = ""
+text = "Subheader"

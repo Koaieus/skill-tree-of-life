@@ -21,13 +21,24 @@ extends Control
 @onready var _header_label: Label = %HeaderLabel
 @onready var _subheader_label: Label = %SubheaderLabel
 
+@export_placeholder('Header') var header: String:
+	set(v):
+		header = v.to_upper()
+		if _header_label:
+			_header_label.text = header
+
+@export_placeholder('Subheader') var subheader: String:
+	set(v):
+		subheader = v
+		if _subheader_label:
+			_subheader_label.text = subheader
+			_subheader_label.visible = not subheader.is_empty()
 
 ## Sets the all-caps header text and the optional subheader. An empty (or
 ## whitespace-only) `subheader` collapses the subheader row entirely.
-func bind(header: String, subheader: String = "") -> void:
-	_header_label.text = header.to_upper()
-	_subheader_label.text = subheader
-	_subheader_label.visible = not subheader.is_empty()
+func bind(header_: String, subheader_: String = "") -> void:
+	header = header_
+	subheader = subheader_
 
 
 ## Applies the fan reveal at clock position `t` (0..1): cubic ease-out driving
