@@ -1,23 +1,81 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://cwwbea6n51y5j"]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/owner_panel.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/theme/holo_panel.tscn" id="2_holo"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
+[ext_resource type="Script" uid="uid://b1qxgbe6nmcao" path="res://ui/tooltip_fan/panels/owner_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cepou0jp2dr5y" path="res://ui/theme/holo_panel.tscn" id="2_holo"]
+[ext_resource type="Shader" uid="uid://cxvn17hc7s0ax" path="res://ui/theme/holo_panel.gdshader" id="3_76jw2"]
+[ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
 [ext_resource type="PackedScene" path="res://ui/theme/scanline_overlay.tscn" id="4_scanline"]
-[ext_resource type="PackedScene" path="res://ui/gauges/attribute_radar.tscn" id="5_radar"]
+[ext_resource type="PackedScene" uid="uid://cx536j2yv0u8w" path="res://ui/gauges/attribute_radar.tscn" id="5_radar"]
+[ext_resource type="Script" uid="uid://l7fnpahlcs4d" path="res://ui/gauges/axis_spec.gd" id="6_lxihq"]
+[ext_resource type="Shader" uid="uid://b8xdnesp1yyja" path="res://ui/theme/holo_scanline_overlay.gdshader" id="8_e284t"]
 
-[node name="OwnerPanel" type="Node2D"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_76jw2"]
+resource_local_to_scene = true
+shader = ExtResource("3_76jw2")
+shader_parameter/size = Vector2(210, 320)
+shader_parameter/tint_color = Color(0.35, 0.85, 0.95, 0.12)
+shader_parameter/corner_radius = 13.0
+shader_parameter/scanline_count = 60.0
+shader_parameter/scanline_speed = 0.35
+shader_parameter/scanline_intensity = 0.18
+shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
+shader_parameter/glow = 0.3
+shader_parameter/glow_edges = 15
+
+[sub_resource type="Resource" id="Resource_bkkkd"]
+script = ExtResource("6_lxihq")
+label = "STR"
+color = Color(0.9451, 0.2689, 0.2453, 1)
+
+[sub_resource type="Resource" id="Resource_ts4x1"]
+script = ExtResource("6_lxihq")
+label = "INT"
+color = Color(0.291, 0.5892, 1, 1)
+
+[sub_resource type="Resource" id="Resource_76jw2"]
+script = ExtResource("6_lxihq")
+label = "CON"
+metadata/_custom_type_script = "uid://l7fnpahlcs4d"
+
+[sub_resource type="Resource" id="Resource_k7ih7"]
+script = ExtResource("6_lxihq")
+label = "WIS"
+color = Color(0.9039, 0.7331, 0.2746, 1)
+
+[sub_resource type="Resource" id="Resource_prd5i"]
+script = ExtResource("6_lxihq")
+label = "PER"
+color = Color(0.6935, 0.4045, 0.9676, 1)
+
+[sub_resource type="Resource" id="Resource_0qoe8"]
+script = ExtResource("6_lxihq")
+label = "DEX"
+color = Color(0.3187, 0.7773, 0.4484, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lxihq"]
+resource_local_to_scene = true
+shader = ExtResource("8_e284t")
+shader_parameter/size = Vector2(210, 320)
+shader_parameter/corner_radius = 13.0
+shader_parameter/line_color = Color(0.4, 0.95, 1, 1)
+shader_parameter/scanline_count = 90.0
+shader_parameter/scanline_speed = 0.4
+shader_parameter/scanline_intensity = 0.22
+
+[node name="OwnerPanel" type="Node2D" unique_id=214893897]
 script = ExtResource("1_script")
+progress = 1.0
 
-[node name="HoloPanel" parent="." instance=ExtResource("2_holo")]
+[node name="HoloPanel" parent="." unique_id=880311909 instance=ExtResource("2_holo")]
 z_index = -1
+material = SubResource("ShaderMaterial_76jw2")
 offset_left = -105.0
 offset_top = -160.0
 offset_right = 105.0
 offset_bottom = 160.0
+glow = 0.3
 
-[node name="Content" type="VBoxContainer" parent="."]
-z_index = 0
+[node name="Content" type="VBoxContainer" parent="." unique_id=530180441]
 offset_left = -95.0
 offset_top = -150.0
 offset_right = 95.0
@@ -25,32 +83,31 @@ offset_bottom = 150.0
 mouse_filter = 2
 theme_override_constants/separation = 3
 
-[node name="Header" parent="Content" instance=ExtResource("3_header")]
+[node name="Header" parent="Content" unique_id=248345269 instance=ExtResource("3_header")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="HostileTag" type="Label" parent="Content"]
+[node name="HostileTag" type="Label" parent="Content" unique_id=1549127132]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-mouse_filter = 2
-theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.9451, 0.2689, 0.2453, 1)
+theme_override_font_sizes/font_size = 11
 text = "HOSTILE OWNER"
 
-[node name="Radar" parent="Content" instance=ExtResource("5_radar")]
+[node name="Radar" parent="Content" unique_id=21635536 instance=ExtResource("5_radar")]
 unique_name_in_owner = true
-layout_mode = 2
 custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+axes = Array[ExtResource("6_lxihq")]([SubResource("Resource_bkkkd"), SubResource("Resource_ts4x1"), SubResource("Resource_76jw2"), SubResource("Resource_k7ih7"), SubResource("Resource_prd5i"), SubResource("Resource_0qoe8")])
 
-[node name="Rows" type="VBoxContainer" parent="Content"]
+[node name="Rows" type="VBoxContainer" parent="Content" unique_id=6403283]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="ScanlineOverlay" parent="." instance=ExtResource("4_scanline")]
-z_index = 1
+[node name="ScanlineOverlay" parent="." unique_id=906042441 instance=ExtResource("4_scanline")]
+material = SubResource("ShaderMaterial_lxihq")
 offset_left = -105.0
 offset_top = -160.0
 offset_right = 105.0
-offset_bottom = 160.0

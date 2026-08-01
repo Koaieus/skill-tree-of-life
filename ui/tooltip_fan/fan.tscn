@@ -1,37 +1,43 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b2co3hcp5r1ba"]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
+[ext_resource type="Script" uid="uid://dtuqlxd63xtr4" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
+[ext_resource type="PackedScene" uid="uid://cfjoysc2u6djv" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
+[ext_resource type="PackedScene" uid="uid://4ugis0fif3r8" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/procgen_debug_unit.tscn" id="8_procgen"]
 
-[node name="Fan" type="Node2D"]
+[node name="Fan" type="Node2D" unique_id=689565114]
 script = ExtResource("1_driver")
 
-[node name="Roots" parent="." instance=ExtResource("2_roots")]
+[node name="Roots" parent="." unique_id=1918175935 instance=ExtResource("2_roots")]
 position = Vector2(0, 43)
 
-[node name="IdChip" parent="." instance=ExtResource("3_chip")]
-position = Vector2(3, -151)
+[node name="IdChip" parent="." unique_id=1695165643 instance=ExtResource("3_chip")]
+position = Vector2(0, -114)
 
-[node name="NodeStats" parent="." instance=ExtResource("4_stats")]
-position = Vector2(-161, -55)
-
-[node name="Addons" parent="." instance=ExtResource("5_addons")]
-position = Vector2(146, -60)
+[node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
+position = Vector2(-142, -1)
+anchor_slide = 0.12
 arrival_axis = 1
 
-[node name="Owner" parent="." instance=ExtResource("6_owner")]
-position = Vector2(-100, -330)
-anchor_slide = 0.8
+[node name="Addons" parent="." unique_id=79711224 instance=ExtResource("5_addons")]
+position = Vector2(122, -247)
+arrival_axis = 2
 
-[node name="Core" parent="." instance=ExtResource("7_core")]
-position = Vector2(134, -311)
-anchor_slide = 0.18
+[node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
+position = Vector2(198, 26)
+anchor_slide = 0.12
+arrival_axis = 1
 
-[node name="ProcgenDebug" parent="." instance=ExtResource("8_procgen")]
-position = Vector2(-350, -160)
+[node name="Core" parent="." unique_id=314431141 instance=ExtResource("7_core")]
+position = Vector2(-109, -271)
+anchor_slide = 0.7
+arrival_axis = 2
+
+[node name="ProcgenDebug" parent="." unique_id=1540150391 instance=ExtResource("8_procgen")]
+z_index = -5
+position = Vector2(78, -379)
+anchor_slide = 0.2
