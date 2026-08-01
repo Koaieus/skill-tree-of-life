@@ -449,6 +449,7 @@ Both are emitted per cascaded node in the same loop, so a 5-node cascade with `d
 
 ## Gotchas
 
+- **`PoolStat.set_current` emits `value_changed`, not just `current_changed`** (`pool_stat.gd:81`). Two consequences. (1) A formula modifier sourcing a pool subscribes to `value_changed` and therefore **recomputes on every `current` write** — every hit, every tick — while `compute()` reads `get_value()`, which is the **cap**. So it recomputes constantly and reads the same number: correct subscription, wrong half, no error. That's the whole of #333, and it's why no formula can currently express "scale with how full this pool is". (2) Nothing sources a pool in a formula today, so the recompute cost is latent — the first one to source `initiative` (ticks constantly) or `health` (every hit) makes it live.
 - **Formula-driven modifiers must not be shared across entities.** Each carries mutable `_board` / `_bound_sources` binding state. Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` duplicates every entry.
 - **Pool modifiers target the pool id, not a `_max` suffix.** `"health"` targets the health cap. `"health_max"` doesn't exist.
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)

@@ -25,6 +25,17 @@ Config lives in `.gutconfig.json` at repo root (dirs, log level, exit-on-complet
 - `test/unit/test_*.gd` — unit tests. Filename must start with `test_`; functions must start with `test_`.
 - Class extends `GutTest`. Common asserts: `assert_eq`, `assert_ne`, `assert_null`, `assert_not_null`, `assert_true`, `assert_almost_eq`. Lifecycle: `before_all`, `before_each`, `after_each`, `after_all`.
 
+**`test:one` / `test:dir` silently ran the WHOLE suite until 2026-08-01.** Both
+tasks passed the bare flag (`-gtest`, `-gdir`) with the path as a separate
+positional. GUT's cmdln options are `-gopt=value`, so a valueless option is
+ignored and GUT falls back to `.gutconfig.json`'s `dirs` — 146 scripts, ~28s,
+reported as success. `-gtest=<path>` alone is *still* not enough: it doesn't
+override the config dirs, so `test:one` also passes `-gdir=` to clear them.
+
+**Why it matters beyond the 28s:** an agent iterating on one file sees failures
+and warnings from 145 unrelated scripts and can't tell which are its own. If you
+ever add a GUT flag to these tasks, verify the `Scripts` total actually drops.
+
 ## Gotchas
 
 - **`class_name` cache miss → "GUT class_names have not been imported".** After fresh install, after pulling GUT updates, or after any new `class_name` introduction, run `godot --headless --editor --quit-after 200` once to rebuild `.godot/global_script_class_cache.cfg`. See `.claude/rules/godot-workflow.md` — and `git diff` afterwards, the editor pass can mutate scenes/.tres.

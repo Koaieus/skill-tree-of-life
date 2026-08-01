@@ -153,6 +153,22 @@ can silently mutate them. Observed:
   fields it didn't recognise at that moment. Functionally castrates the
   resource silently — runtime parses it fine, behaves wrong.
 
+**Default-elision is the benign diff — learn to tell it from the strip.** A pass
+over `procgen/pools/*.tres` dropped `operation = 0`, `archetype_stat = &""`,
+`unit_value = 1.0`, `min_tier = 1` and added `uid=` to ext_resources — 95
+deletions across 8 files, alarming at a glance. Every dropped line equalled its
+class default, and non-default values (`max_tier = 2`) were **kept**. That's
+Godot omitting defaults on re-serialize, semantically identical.
+
+**How to tell them apart:** look up each dropped field's default in the script.
+All-defaults-dropped + non-defaults-retained = elision, safe. A *non-default*
+value gone (`damage = 5`, `per_phrase = "×10 INT"`) = the stale-class-view strip,
+restore it. `per_phrase` **moving** below `formula`/`inputs` is also just property
+reordering — the regression to fear is `per_phrase = null`.
+
+These re-appear on every editor pass, so don't fold them into an unrelated
+commit: either revert them, or commit them alone as normalization.
+
 Position/id noise is fine. Dropped instances and stripped fields are not.
 Mandatory pattern:
 
@@ -275,6 +291,15 @@ var t: MyType = stored if is_instance_valid(stored) else null
 ```
 
 ### Git
+## `gh --body "..."` with backticks corrupts the comment — always use `--body-file`
+A double-quoted shell string runs command substitution on backticks. Posting a
+comment containing `` `NodeStatBoard extends StatBoard` `` silently deleted that
+span (zsh ran it as a command, it failed, the empty result was substituted) and
+published the mangled text. No error from `gh` — the corruption is only visible
+by reading the posted comment back. Since issue bodies and comments here are full
+of `` `code` `` spans, write a heredoc to the scratchpad and pass `--body-file`.
+Recoverable with `gh issue comment <n> --edit-last --body-file`.
+
 ## Closing an issue?
 Mention "Closes #{id}" in the commit message. Only fires on push — users already know this.
 ## Worktrees (#86)

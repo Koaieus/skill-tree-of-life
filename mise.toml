@@ -73,11 +73,26 @@ run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd"
 
 [tasks."test:one"]
 description = "Run a single test script: `mise run test:one -- res://test/unit/test_smoke.gd`"
-run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest"
+# Two traps here, both of which silently ran the ENTIRE suite instead of one
+# script: GUT's cmdln options are `-gopt=value` (a bare `-gtest` with the path
+# as a separate positional is valueless and ignored), AND `-gtest` alone does
+# not override .gutconfig.json's `dirs` — `-gdir=` must clear them.
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+script="${1:?usage: mise run test:one -- res://test/unit/test_smoke.gd}"
+godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest="$script" -gdir=
+'''
 
 [tasks."test:dir"]
 description = "Run all tests in a directory: `mise run test:dir -- res://test/unit/`"
-run = "godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir"
+# Same `-gopt=value` requirement as test:one above.
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+dir="${1:?usage: mise run test:dir -- res://test/unit/}"
+godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir="$dir"
+'''
 
 [tasks."worktree:new"]
 description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text)"
