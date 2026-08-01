@@ -127,5 +127,27 @@ func test_get_addons_returns_a_copy() -> void:
 	assert_eq(_node.get_addons().size(), 1, "mutating the returned array left the ledger intact")
 
 
+func test_every_concrete_addon_scene_gets_the_base_z() -> void:
+	# BASE_Z lives on SkillNodeAddon._ready, not on the carrier. Authoring it
+	# into skill_node_addon.tscn would NOT cover these — they are standalone
+	# scenes carrying the base script, not inherited from that template.
+	var scenes: Array[String] = [
+		"res://skill_node/addons/bunker_addon.tscn",
+		"res://skill_node/addons/fortification_addon.tscn",
+		"res://skill_node/addons/clamp_addon.tscn",
+		"res://skill_node/addons/spike_ring_addon.tscn",
+		"res://skill_node/addons/skill_dust_addon.tscn",
+	]
+	add_child(_node)
+	await get_tree().process_frame
+	for path in scenes:
+		var addon: SkillNodeAddon = load(path).instantiate()
+		_node.add_child(addon)
+		await get_tree().process_frame
+		assert_eq(addon.z_index, SkillNodeAddon.BASE_Z, "%s draws above the Visuals subtree" % path)
+		_node.remove_child(addon)
+		addon.free()
+
+
 func test_skill_node_scene_has_no_addon_anchor() -> void:
 	assert_null(_node.get_node_or_null("Visuals/AddonAnchor"), "the AddonAnchor bin is gone (#334)")

@@ -914,14 +914,6 @@ func _refresh_radius() -> void:
 # steps; future validation (slot caps, compatibility) belongs right here, in
 # the `child_entered_tree` handler every path already flows through.
 
-## Relative z of an attached addon — lifts it above the whole `Visuals` subtree
-## regardless of where it lands in child order, so an addon authored *before*
-## Visuals still draws on the disk rather than under it. Uniform across every
-## addon (no per-instance variation → no batching cost, see
-## .claude/rules/rendering-performance.md), and below the health bars' relative 10.
-const ADDON_Z := 1
-
-
 func _on_addon_added(c: Node) -> void:
 	if c is SkillNodeAddon:
 		_attach_addon(c)
@@ -949,13 +941,15 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 					a.queue_free()
 				return
 	_addons.append(a)
-	a.z_index = ADDON_Z
+	# Draw order is the addon's own business — see SkillNodeAddon.BASE_Z. The
+	# carrier deliberately doesn't write it.
+	#
 	# The modifier transfer is runtime-only: `modifiers` is an @export, so doing
 	# this under the editor would serialize addon-derived modifiers into the
 	# .tscn and compound them on every save (see .claude/rules/godot-workflow.md,
 	# "never write a DERIVED value back into an @export"). The editor still gets
-	# the addon's visuals and draw order — it just doesn't get its stats. #335
-	# removes this guard by splitting authored from derived modifiers.
+	# the addon's visuals — it just doesn't get its stats. #335 removes this
+	# guard by splitting authored from derived modifiers.
 	if not Engine.is_editor_hint():
 		for m in a.entity_modifiers:
 			add_entity_modifier(m)

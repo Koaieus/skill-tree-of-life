@@ -90,10 +90,17 @@ Addons render concentric with the carrier at its origin and inherit its
 transform for free. An addon wanting an offset or rotated element bakes it into
 its **child** visuals, never its root transform.
 
-`SkillNode.ADDON_Z` (relative `1`, applied at attach) lifts addons above the
-whole `Visuals` subtree regardless of child order, and stays below the health
-bars' relative `10`. It's uniform across every addon, so it costs no batching
-(see `rendering-performance.md`).
+`SkillNodeAddon.BASE_Z` (relative `1`, set in the addon's own `_ready`) lifts it
+above the carrier's whole `Visuals` subtree regardless of child order, and stays
+below the health bars' relative `10`. It's uniform across every addon, so it
+costs no batching (see `rendering-performance.md`).
+
+**It lives on the addon, not the carrier** — draw order is the addon's own
+presentation concern, and `SkillNode` has no business writing its children's
+z. Note that authoring it into `skill_node_addon.tscn` is *not* sufficient:
+bunker / fortification / clamp / spike_ring / skill_dust are standalone scenes
+that carry this script directly rather than inheriting that template, so a
+scene-level value there reaches none of them. The script `_ready` does.
 
 Don't reach for `Visuals.z_index = -1` as the alternative — a sensed SkillNode
 goes absolute `z = 1001`, which would drop `Visuals` onto the `FOG` band (1000)

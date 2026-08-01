@@ -61,9 +61,22 @@ extends Node2D
 
 var carrier: SkillNode
 
+## Relative z that lifts an addon above the carrier's whole `Visuals` subtree
+## regardless of where it lands in child order, and below the health bars'
+## relative 10. Set here rather than by the carrier — draw order is the addon's
+## own presentation concern, and this way it holds for the concrete addon scenes
+## (bunker, fortification, clamp, spike_ring, skill_dust), which are standalone
+## scenes carrying this script rather than inherited from
+## `skill_node_addon.tscn`, and for code-created addons (`addon_tile.gd`).
+##
+## Uniform across every addon, so it costs no batching — see
+## .claude/rules/rendering-performance.md.
+const BASE_Z := 1
+
 
 func _ready() -> void:
 	carrier = _find_carrier()
+	z_index = BASE_Z
 
 
 # ─── Virtual hooks (override per addon type) ───────────────────────────────
