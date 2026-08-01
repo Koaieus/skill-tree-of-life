@@ -126,7 +126,8 @@ func test_every_authored_core_class_is_acyclic_on_top_of_the_board() -> void:
 # is the real edge every case below closes a loop against.
 
 ## would_cycle reads what's actually APPLIED (Stat._modifiers via
-## get_all_modifiers), not the authored `intrinsic_modifiers` array — so the
+## StatBoard.collect_formula_edges), not the authored `intrinsic_modifiers`
+## array — so the
 ## fixture must apply_intrinsics() the same way Entity._ready() does, or the
 ## board carries the authored edges nowhere would_cycle can see them.
 func _board() -> StatBoard:
