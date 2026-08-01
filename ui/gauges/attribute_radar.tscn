@@ -1,6 +1,37 @@
 [gd_scene format=3 uid="uid://cx536j2yv0u8w"]
 
 [ext_resource type="Script" uid="uid://gmbyyn310hfj" path="res://ui/gauges/attribute_radar.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://l7fnpahlcs4d" path="res://ui/gauges/axis_spec.gd" id="2_y5jgj"]
+
+[sub_resource type="Resource" id="Resource_xg3td"]
+script = ExtResource("2_y5jgj")
+label = "STR"
+color = Color(0.9451, 0.2689, 0.2453, 1)
+
+[sub_resource type="Resource" id="Resource_e8wwk"]
+script = ExtResource("2_y5jgj")
+label = "INT"
+color = Color(0.291, 0.5892, 1, 1)
+
+[sub_resource type="Resource" id="Resource_y5jgj"]
+script = ExtResource("2_y5jgj")
+label = "CON"
+metadata/_custom_type_script = "uid://l7fnpahlcs4d"
+
+[sub_resource type="Resource" id="Resource_6rk3p"]
+script = ExtResource("2_y5jgj")
+label = "WIS"
+color = Color(0.9039, 0.7331, 0.2746, 1)
+
+[sub_resource type="Resource" id="Resource_gdlfo"]
+script = ExtResource("2_y5jgj")
+label = "PER"
+color = Color(0.6935, 0.4045, 0.9676, 1)
+
+[sub_resource type="Resource" id="Resource_aw3dd"]
+script = ExtResource("2_y5jgj")
+label = "DEX"
+color = Color(0.3187, 0.7773, 0.4484, 1)
 
 [node name="AttributeRadar" type="Control" unique_id=1901215656]
 custom_minimum_size = Vector2(150, 150)
@@ -9,3 +40,7 @@ anchors_preset = 0
 offset_right = 150.0
 offset_bottom = 150.0
 script = ExtResource("1_script")
+axes = Array[ExtResource("2_y5jgj")]([SubResource("Resource_xg3td"), SubResource("Resource_e8wwk"), SubResource("Resource_y5jgj"), SubResource("Resource_6rk3p"), SubResource("Resource_gdlfo"), SubResource("Resource_aw3dd")])
+label_margin = 9.0
+label_text_width = 30.0
+label_ring_gap = 1.0

@@ -14,11 +14,13 @@ signal axis_unhovered
 ## poking parallel arrays. Plotted values are separate runtime state — see
 ## [member _values] / [method set_value].
 @export var axes: Array[AxisSpec] = [
+	# TODO: Take these colors from the stats themselves?
 	AxisSpec.new("STR", Color(0.9451, 0.2689, 0.2453, 1)),
-	AxisSpec.new("DEX", Color(0.3187, 0.7773, 0.4484, 1)),
 	AxisSpec.new("INT", Color(0.291, 0.5892, 1.0, 1)),
+	AxisSpec.new("CON", Color(1, 1, 1, 1)),
 	AxisSpec.new("WIS", Color(0.9039, 0.7331, 0.2746, 1)),
 	AxisSpec.new("PER", Color(0.6935, 0.4045, 0.9676, 1)),
+	AxisSpec.new("DEX", Color(0.3187, 0.7773, 0.4484, 1)),
 ]:
 	set(v):
 		axes = v
@@ -74,16 +76,26 @@ func _value_frac(value: float) -> float:
 
 var _hovered_axis: int = -1
 
-## Half the draw_string width used for axis labels (see LABEL_TEXT_WIDTH) —
+## Half the draw_string width used for axis labels (see label_text_width) —
 ## reserved outside the label ring so a label's text box can't spill past
 ## the Control's rect. Kept as a margin against the Control's half-extent,
 ## not against _get_radius(), so it doesn't compound with ring/plot sizing.
-const LABEL_MARGIN := 22.0
+@export var label_margin := 22.0:
+	set(v):
+		label_margin = v
+		queue_redraw()
+		
 ## Total width passed to draw_string for axis labels (HORIZONTAL_ALIGNMENT_CENTER).
-const LABEL_TEXT_WIDTH := 40.0
+@export var label_text_width := 40.0:
+	set(v):
+		label_text_width = v
+		queue_redraw()
 ## Visual gap between the plotted ring (_get_radius) and the label ring
 ## (_get_label_radius) so labels don't crowd the outermost ring line.
-const LABEL_RING_GAP := 10.0
+@export var label_ring_gap := 10.0:
+	set(v):
+		label_ring_gap = v
+		queue_redraw()
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -116,16 +128,16 @@ func _get_center() -> Vector2:
 	return size * 0.5
 
 ## Effective plot radius for rings/polygon/dots/axis-lines. Derived from the
-## label ring (see _get_label_radius) minus LABEL_RING_GAP, so the plot never
+## label ring (see _get_label_radius) minus label_ring_gap, so the plot never
 ## grows into space reserved for labels.
 func _get_radius() -> float:
-	return max(4.0, _get_label_radius() - LABEL_RING_GAP)
+	return max(4.0, _get_label_radius() - label_ring_gap)
 
-## Radius of the ring axis labels are anchored on. Kept LABEL_MARGIN inside
-## the Control's half-extent so `label_pos ± LABEL_TEXT_WIDTH/2` (the
+## Radius of the ring axis labels are anchored on. Kept label_margin inside
+## the Control's half-extent so `label_pos ± label_text_width/2` (the
 ## draw_string box, see _draw) never crosses Rect2(Vector2.ZERO, size).
 func _get_label_radius() -> float:
-	return max(0.0, min(size.x, size.y) * 0.5 - LABEL_MARGIN)
+	return max(0.0, min(size.x, size.y) * 0.5 - label_margin)
 
 func _axis_point(i: int, frac: float) -> Vector2:
 	var n := axes.size()
@@ -178,7 +190,7 @@ func _draw() -> void:
 	for i in n:
 		var label_pos := _label_anchor(i)
 		var col: Color = axes[i].color if i < axes.size() else Color.WHITE
-		draw_string(ThemeDB.fallback_font, label_pos - Vector2(LABEL_TEXT_WIDTH * 0.5, -4), axes[i].label, HORIZONTAL_ALIGNMENT_CENTER, LABEL_TEXT_WIDTH, 12, col)
+		draw_string(ThemeDB.fallback_font, label_pos - Vector2(label_text_width * 0.5, -4), axes[i].label, HORIZONTAL_ALIGNMENT_CENTER, label_text_width, 12, col)
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
