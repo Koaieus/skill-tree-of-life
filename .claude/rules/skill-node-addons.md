@@ -96,11 +96,16 @@ below the health bars' relative `10`. It's uniform across every addon, so it
 costs no batching (see `rendering-performance.md`).
 
 **It lives on the addon, not the carrier** — draw order is the addon's own
-presentation concern, and `SkillNode` has no business writing its children's
-z. Note that authoring it into `skill_node_addon.tscn` is *not* sufficient:
-bunker / fortification / clamp / spike_ring / skill_dust are standalone scenes
-that carry this script directly rather than inheriting that template, so a
-scene-level value there reaches none of them. The script `_ready` does.
+presentation concern, and `SkillNode` has no business writing its children's z.
+
+**In the script, not per-scene.** There is no base addon scene: bunker /
+fortification / clamp / spike_ring / skill_dust are each standalone scenes
+carrying this script, and `addon_tile.gd` builds one in code. A scene-level
+value would have to be repeated in all of them and would be missed by the next
+addon anyone adds. (`skill_node_addon.tscn` used to exist as a one-node
+"template" — a bare `Node2D` + script that nothing inherited. Deleted: a base
+scene earns its keep by packaging internal children every instance needs, and
+that one packaged nothing.)
 
 Don't reach for `Visuals.z_index = -1` as the alternative — a sensed SkillNode
 goes absolute `z = 1001`, which would drop `Visuals` onto the `FOG` band (1000)

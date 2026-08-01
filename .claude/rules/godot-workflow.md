@@ -122,6 +122,25 @@ live" path would put an editable copy of the same answer on every instance.
 **How to apply:** a class-level fact is a `const` (`CoreClass.DIR`). Reach for
 `@export` only when each instance legitimately carries its own value.
 
+## Sweep for orphaned `.uid` files after ANY move or delete*
+
+Godot writes a sidecar `<file>.uid` for scripts (and other importables). Moving
+or deleting the file does not remove the sidecar — you get a tracked `.uid`
+pointing at nothing. Harmless-looking, permanent, and it accumulates.
+
+```bash
+find . -name '*.uid' -not -path './.godot/*' -not -path './.claude/worktrees/*' \
+  | while read u; do [ -e "${u%.uid}" ] || echo "ORPHAN: $u"; done
+```
+
+Run it as part of the same change, not later. Note `.tscn`/`.tres` carry their
+uid **inline** in the `[gd_scene uid="…"]` header, so deleting a scene leaves no
+sidecar — this bites `.gd` (and imported assets), not scenes.
+
+Known pre-existing orphan: `addons/gut/menu_manager.gd.uid`, shipped by vendored
+GUT 9.6.0 (`24da57f`) with no companion script. Left alone deliberately — don't
+diverge from a vendored addon over it.
+
 ## Refreshing the class cache after class_name changes*
 
 After renaming a `class_name` or adding a new one, the project's

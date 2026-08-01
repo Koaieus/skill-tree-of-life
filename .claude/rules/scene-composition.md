@@ -15,6 +15,24 @@ wire, and preview something for you, don't reimplement that in `_ready`.
 | Has an animation / one-shot effect to trigger | Scene + `@export_tool_button` (or `@export` knobs) so it's previewable in-editor. |
 | Variation is identity/runtime-bound (the human player, spawned at runtime) | Can't be a scene NodePath — inject the plain `var` from the composer after it resolves. |
 
+## A base scene earns its keep by packaging children — otherwise delete it
+
+A one-node "template" `.tscn` (bare root + script, no children) is dead weight.
+It carries nothing an instantiator couldn't get from the script alone, so
+nothing inherits it, and any default authored into it silently fails to reach
+the concrete scenes that *don't* inherit it.
+
+The test is the same as the section below: **does every instance need specific
+sub-nodes?** If yes, make the base scene and have the concrete variants be
+**inherited scenes** of it — then structural changes propagate for free. If no,
+there is no base scene to make; put the shared default in the script.
+
+`skill_node/addons/skill_node_addon.tscn` was exactly this and was deleted
+(#334 follow-up): a bare `Node2D` + `SkillNodeAddon` script that nothing
+inherited, while bunker/fortification/clamp/spike_ring/skill_dust were each
+standalone scenes attaching the same script. A `z_index` authored into the
+"template" reached none of them. It belonged in `SkillNodeAddon._ready`.
+
 ## Why "pre-packaged with its deps" matters
 
 A scene's `@onready var nodes := $Nodes` (or pre-wired child NodePaths) only

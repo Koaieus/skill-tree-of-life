@@ -128,9 +128,9 @@ func test_get_addons_returns_a_copy() -> void:
 
 
 func test_every_concrete_addon_scene_gets_the_base_z() -> void:
-	# BASE_Z lives on SkillNodeAddon._ready, not on the carrier. Authoring it
-	# into skill_node_addon.tscn would NOT cover these — they are standalone
-	# scenes carrying the base script, not inherited from that template.
+	# BASE_Z lives on SkillNodeAddon._ready, not on the carrier and not per-scene:
+	# each of these is a standalone scene carrying the base script, so there is
+	# no one .tscn a scene-level value could live in.
 	var scenes: Array[String] = [
 		"res://skill_node/addons/bunker_addon.tscn",
 		"res://skill_node/addons/fortification_addon.tscn",

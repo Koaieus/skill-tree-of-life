@@ -64,10 +64,13 @@ var carrier: SkillNode
 ## Relative z that lifts an addon above the carrier's whole `Visuals` subtree
 ## regardless of where it lands in child order, and below the health bars'
 ## relative 10. Set here rather than by the carrier — draw order is the addon's
-## own presentation concern, and this way it holds for the concrete addon scenes
-## (bunker, fortification, clamp, spike_ring, skill_dust), which are standalone
-## scenes carrying this script rather than inherited from
-## `skill_node_addon.tscn`, and for code-created addons (`addon_tile.gd`).
+## own presentation concern.
+##
+## In the script rather than per-scene because there is no base addon scene to
+## put it in: each concrete addon (bunker, fortification, clamp, spike_ring,
+## skill_dust) is its own standalone scene carrying this script, and
+## `addon_tile.gd` builds one in code. A per-scene value would have to be
+## repeated in each and would be missed by the next addon anyone adds.
 ##
 ## Uniform across every addon, so it costs no batching — see
 ## .claude/rules/rendering-performance.md.
