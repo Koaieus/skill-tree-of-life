@@ -1,18 +1,15 @@
 [gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://cqm1leist0wqk"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
-operation = 0
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"flat"])
 unit_value = 2.0
 pool_weight = 10.0
-min_tier = 1
-max_tier = 4
 
 [sub_resource type="Resource" id="inc"]
 script = ExtResource("2_pool")
@@ -22,7 +19,6 @@ archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = 7.0
 pool_weight = 3.0
-min_tier = 1
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -32,30 +28,22 @@ operation = 2
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"multiply"])
 unit_value = 0.05
-pool_weight = 1.0
 min_tier = 3
-max_tier = 4
 
 [sub_resource type="Resource" id="mana"]
 script = ExtResource("2_pool")
 stat_id = &"mana"
-operation = 0
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 1.5
 pool_weight = 4.0
-min_tier = 1
-max_tier = 4
 
 [sub_resource type="Resource" id="mpt"]
 script = ExtResource("2_pool")
 stat_id = &"mana_per_turn"
-operation = 0
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"flat", &"magic"])
-unit_value = 1.0
 pool_weight = 2.0
-min_tier = 1
 max_tier = 2
 
 [resource]

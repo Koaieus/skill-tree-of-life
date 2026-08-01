@@ -42,6 +42,8 @@ signal depleted
 
 ## Special-effect content this node carries. Allocating grants its effects to
 ## the owner; deallocating revokes them. Placed by [KeystonePlacement].
+# TODO: remove. The concept of a `Keystone` is to come to mean 'hand authored (inherited) .tscn which carry the baked-in modifiers/visuals',
+#				instead of basically mirroring a SkillNode as a dataset
 @export var keystone: Keystone = null
 
 ## Effects granted directly by this node, independent of a keystone. The

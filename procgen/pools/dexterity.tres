@@ -1,18 +1,15 @@
 [gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://cp43eydkqykkg"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
-operation = 0
 archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"flat"])
 unit_value = 2.0
 pool_weight = 10.0
-min_tier = 1
-max_tier = 4
 
 [sub_resource type="Resource" id="inc"]
 script = ExtResource("2_pool")
@@ -22,7 +19,6 @@ archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"percent"])
 unit_value = 7.0
 pool_weight = 3.0
-min_tier = 1
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -32,9 +28,7 @@ operation = 2
 archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"multiply"])
 unit_value = 0.05
-pool_weight = 1.0
 min_tier = 3
-max_tier = 4
 
 [sub_resource type="Resource" id="cc_inc"]
 script = ExtResource("2_pool")
@@ -43,10 +37,11 @@ operation = 1
 archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"percent", &"crit"])
 unit_value = 5.0
-value_overrides = Dictionary[int, float]({3: 50.0, 4: 100.0})
+value_overrides = Dictionary[int, float]({
+3: 50.0,
+4: 100.0
+})
 pool_weight = 1.5
-min_tier = 1
-max_tier = 4
 
 [sub_resource type="Resource" id="cm_inc"]
 script = ExtResource("2_pool")
@@ -56,7 +51,6 @@ archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"percent", &"crit"])
 unit_value = 17.5
 pool_weight = 1.5
-min_tier = 1
 max_tier = 3
 
 [resource]

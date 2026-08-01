@@ -1,20 +1,15 @@
 [gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://wh7nbvd6l5kp"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
 script = ExtResource("2_pool")
 stat_id = &"strength"
-operation = 0
 archetype_stat = &"strength"
 tags = Array[StringName]([&"str", &"flat"])
 unit_value = 2.0
-jitter = 0.25
 pool_weight = 10.0
-tier_bias_k = 1.0
-min_tier = 1
-max_tier = 4
 
 [sub_resource type="Resource" id="inc"]
 script = ExtResource("2_pool")
@@ -23,10 +18,7 @@ operation = 1
 archetype_stat = &"strength"
 tags = Array[StringName]([&"str", &"percent"])
 unit_value = 7.0
-jitter = 0.25
 pool_weight = 3.0
-tier_bias_k = 1.0
-min_tier = 1
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -36,11 +28,7 @@ operation = 2
 archetype_stat = &"strength"
 tags = Array[StringName]([&"str", &"multiply"])
 unit_value = 0.05
-jitter = 0.25
-pool_weight = 1.0
-tier_bias_k = 1.0
 min_tier = 3
-max_tier = 4
 
 [resource]
 script = ExtResource("1_sp")

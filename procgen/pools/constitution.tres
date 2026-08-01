@@ -1,18 +1,15 @@
 [gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://beujgqh26xswl"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
 script = ExtResource("2_pool")
 stat_id = &"constitution"
-operation = 0
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"flat"])
 unit_value = 2.0
 pool_weight = 10.0
-min_tier = 1
-max_tier = 4
 
 [sub_resource type="Resource" id="inc"]
 script = ExtResource("2_pool")
@@ -22,7 +19,6 @@ archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"percent"])
 unit_value = 7.0
 pool_weight = 3.0
-min_tier = 1
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -32,41 +28,31 @@ operation = 2
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"multiply"])
 unit_value = 0.05
-pool_weight = 1.0
 min_tier = 3
-max_tier = 4
 
 [sub_resource type="Resource" id="nh_inc"]
 script = ExtResource("2_pool")
 stat_id = &"node_health"
 operation = 1
-archetype_stat = &""
 tags = Array[StringName]([&"defense", &"percent"])
 unit_value = 6.5
-pool_weight = 1.0
-min_tier = 1
 max_tier = 2
 
 [sub_resource type="Resource" id="ar"]
 script = ExtResource("2_pool")
 stat_id = &"armor"
-operation = 0
-archetype_stat = &""
 tags = Array[StringName]([&"defense", &"flat"])
 unit_value = 1.5
 pool_weight = 2.5
-min_tier = 1
 max_tier = 3
 
 [sub_resource type="Resource" id="int_debuff"]
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1
-archetype_stat = &""
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = -5.0
 pool_weight = 0.5
-min_tier = 1
 max_tier = 1
 
 [resource]

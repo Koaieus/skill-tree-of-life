@@ -218,12 +218,20 @@ class enrols it automatically — the old hand-maintained preload list could go 
 in silence. It carries a `MIN_CORE_CLASSES` vacuity floor because a directory scan
 that matches nothing passes every assertion below it.
 
-**Scope: entity boards only.** `SkillNode.add_local_modifier` (node boards) calls
-`Stat.add_modifier` directly via `_ensure_local_stat`, not through
-`StatBoard.add_modifier` — node-local formula modifiers are NOT gated by
-`would_cycle`. Matches #322's stated scope (node-local modifiers were already out
-of scope for the static test); worth widening only if a node-local formula ever
-grows the ability to close a loop back onto its own board.
+**Scope: entity boards only — and node-local formulas are inert anyway.**
+`SkillNode.add_local_modifier` calls `Stat.add_modifier` directly via
+`_ensure_local_stat`, not through `StatBoard.add_modifier`, so node-local
+modifiers are NOT gated by `would_cycle`. That is currently harmless for a
+stronger reason than scope: `add_local_modifier` **never calls `bind()`**, so a
+formula on a node-local modifier has no board, `get_effective_value()` returns
+the raw `value`, and the formula is silently ignored. There is no node-local
+dependency graph to make cyclic.
+
+**So the gate and the binding are one decision, not two.** Anything that makes
+node-local formulas actually compute (#332 — scaling a node's rolled/addon
+modifiers off its own `allocation_level`) must add the cycle gate in the same
+change. Building the binding and leaving the gate off is the failure mode this
+whole section exists to prevent.
 
 ## Composite (bundled) modifiers (#183)
 

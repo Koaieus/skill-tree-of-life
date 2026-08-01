@@ -174,9 +174,9 @@ formula = SubResource("formula_int_to_mana")
 
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
 script = ExtResource("script_expr")
-per_phrase = "×10 INT"
 formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
 inputs = Array[StringName]([&"intelligence"])
+per_phrase = "×10 INT"
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
 script = ExtResource("12_3edt8")
@@ -260,9 +260,9 @@ formula = SubResource("formula_con_to_node_health")
 
 [sub_resource type="Resource" id="formula_con_to_health"]
 script = ExtResource("script_expr")
-per_phrase = "CON × core scaling"
 formula = "core_health_scaling * constitution"
 inputs = Array[StringName]([&"core_health_scaling", &"constitution"])
+per_phrase = "CON × core scaling"
 
 [sub_resource type="Resource" id="mod_con_to_health"]
 script = ExtResource("12_3edt8")

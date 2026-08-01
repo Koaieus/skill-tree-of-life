@@ -1,32 +1,23 @@
 [gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://b6xdnspb2ash7"]
 
-[ext_resource type="Script" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
-[ext_resource type="Script" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="mv"]
 script = ExtResource("2_pool")
 stat_id = &"movement_points"
-operation = 0
-archetype_stat = &""
 tags = Array[StringName]([&"mobility", &"flat"])
-unit_value = 1.0
 pool_weight = 0.6
-min_tier = 1
 max_tier = 2
 
 [sub_resource type="Resource" id="dp"]
 script = ExtResource("2_pool")
 stat_id = &"deallocation_points"
-operation = 0
-archetype_stat = &""
 tags = Array[StringName]([&"mobility", &"flat"])
-unit_value = 1.0
 pool_weight = 0.8
-min_tier = 1
 max_tier = 2
 
 [resource]
 script = ExtResource("1_sp")
-archetype_stat = &""
 tags = Array[StringName]([&"mobility"])
 pools = Array[ExtResource("2_pool")]([SubResource("mv"), SubResource("dp")])
