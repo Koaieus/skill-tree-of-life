@@ -43,6 +43,16 @@ func flatten() -> Array[StatModifier]:
 	return out
 
 
+## Recurse into the children — a bundle's dependency edges are its leaves'.
+## Overrides [method StatModifier.collect_formula_edges] so a bundle that closes
+## a cycle no single leaf closes is still caught (#322); the container itself is
+## inert and contributes nothing of its own.
+func collect_formula_edges(out: Dictionary) -> void:
+	for c in children:
+		if c != null:
+			c.collect_formula_edges(out)
+
+
 ## Defensive summary for any display path that renders a modifier WITHOUT
 ## flattening first (the intended paths — tooltip, loot card — do flatten).
 ## Joins each leaf's own contribution so a stray render shows the bundle, not

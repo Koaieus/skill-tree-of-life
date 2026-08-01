@@ -77,10 +77,17 @@ func has_modifier(m: StatModifier) -> bool:
 	return m in _modifiers
 
 
-## Read-only copy of this stat's currently-applied modifiers. Used by
-## StatBoard.would_cycle to build the board's live dependency graph (#322).
-func get_modifiers() -> Array[StatModifier]:
-	return _modifiers.duplicate()
+## Fold the dependency edges of every modifier applied to this stat into a
+## `{stat_id: [depends_on_id, ...]}` graph, in place — the live half of
+## [method StatBoard.would_cycle]'s graph (#322).
+##
+## Tell-don't-ask on purpose: `_modifiers` never leaves the Stat, so no caller
+## can append an unbound modifier into it (which would sit in the list without
+## ever contributing to `bins` — silently wrong values, no error), and there is
+## no per-stat array copy on a path that only wants a handful of edges.
+func collect_formula_edges(out: Dictionary) -> void:
+	for m in _modifiers:
+		m.collect_formula_edges(out)
 
 
 func add_modifier(m: StatModifier) -> void:

@@ -115,6 +115,30 @@ static func flatten_all(mods: Array) -> Array[StatModifier]:
 	return out
 
 
+## Fold this modifier's dependency edges — `stat_id -> each formula input` —
+## into a `{stat_id: [depends_on_id, ...]}` graph, IN PLACE (#322). The single
+## definition of "what an edge is"; every consumer (the live board graph, the
+## static shipped-content check, a candidate under test) folds through here.
+##
+## In-place and virtual rather than "return my edges": a plain modifier adds at
+## most one entry and allocates nothing, and [CompositeStatModifier] overrides
+## to recurse into its children — the same seam [method flatten] uses, without
+## flatten's per-leaf array. A modifier with no formula, or a formula with no
+## declared inputs (a bare constant), contributes NO edge and therefore no
+## vertex: it cannot participate in a cycle.
+func collect_formula_edges(out: Dictionary) -> void:
+	if formula == null:
+		return
+	var inputs := formula.get_input_ids()
+	if inputs.is_empty():
+		return
+	var deps: Array = out.get(stat_id, [])
+	for input_id in inputs:
+		if not deps.has(input_id):
+			deps.append(input_id)
+	out[stat_id] = deps
+
+
 ## True when this modifier's value is derived from `source_id` through its
 ## formula — i.e. `source_id` is one of the stats the formula reads. Answers
 ## "which of these scale with X?" without a marker field: the formula's declared

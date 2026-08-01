@@ -182,12 +182,15 @@ func get_value(id: StringName) -> Variant:
 ## source stats for formula-driven ones.
 ##
 ## Rejects (push_warning, no-op) a modifier that would close a dependency
-## cycle against everything currently applied — see [method would_cycle] (#322).
+## cycle against everything currently applied — see [method cycle_from] (#322).
 ## Checked BEFORE any leaf is bound, so a rejection leaves the board untouched.
 func add_modifier(m: StatModifier) -> void:
-	if would_cycle(m):
+	# The offending path, not m.stat_id — a CompositeStatModifier's stat_id is
+	# vestigial (empty), and the bundle is exactly the case worth diagnosing.
+	var cycle := cycle_from(m)
+	if not cycle.is_empty():
 		push_warning(
-			"StatBoard.add_modifier: rejected modifier on '%s' — would close a formula dependency cycle" % m.stat_id
+			"StatBoard.add_modifier: rejected a modifier that would close a formula dependency cycle: %s" % cycle
 		)
 		return
 	# flatten() expands a CompositeStatModifier into its leaves; a plain
@@ -201,70 +204,82 @@ func add_modifier(m: StatModifier) -> void:
 		s.add_modifier(leaf)
 
 
-## True if applying [param m] would close a dependency cycle in the formula
-## graph already live on this board (#322 — the runtime half of
-## test_stat_dependency_graph.gd's static DAG check; a looted formula
-## modifier rebinding to a new board is the case that check can't cover).
-##
-## Short-circuits without building any graph when every leaf is either
-## static (no formula) or a formula with no declared inputs (e.g. a bare
-## constant) — neither can ever participate in a cycle.
+## True if applying [param m] would close a dependency cycle against the formula
+## graph already live on this board. Bool wrapper over [method cycle_from].
 func would_cycle(m: StatModifier) -> bool:
-	var leaves := m.flatten()
-	var has_edges := false
-	for leaf in leaves:
-		if leaf.formula != null and not leaf.formula.get_input_ids().is_empty():
-			has_edges = true
-			break
-	if not has_edges:
-		return false
-	var mods := get_all_modifiers()
-	mods.append_array(leaves)
-	return not find_cycle(adjacency_from(mods)).is_empty()
+	return not cycle_from(m).is_empty()
 
 
-## Every modifier currently applied anywhere on this board — hardcoded
-## `@export` stat fields plus dynamically-created ones — flattened to leaves.
-## The "what's already live" half of [method would_cycle]'s graph.
-func get_all_modifiers() -> Array[StatModifier]:
-	var mods: Array[StatModifier] = []
+## The dependency cycle applying [param m] would close, as a printable path
+## ("intelligence -> mana -> intelligence"), or "" when it closes none (#322 —
+## the runtime half of test_stat_dependency_graph.gd's static DAG check; a
+## looted formula modifier rebinding to a new board is the case that check
+## can't cover).
+##
+## Searches only from the candidate's OWN target stats, not from every vertex.
+## Edges run `stat_id -> formula input`, so any cycle containing a newly added
+## edge is reachable from that edge's tail by construction — rooting there is
+## both sufficient and strictly narrower. That matters for correctness, not just
+## speed: a whole-graph search would report a cycle the candidate had no part in
+## and reject an innocent modifier for it. (Reachable only via a seam that
+## bypasses this method — [method Stat.add_modifier] called directly on an
+## entity board — but the failure would be invisible if it ever happened.)
+##
+## Costs nothing when the candidate has no edges to add: a modifier that is
+## static (no formula) or whose formula declares no inputs (a bare constant)
+## yields no roots, and the live graph is never folded at all.
+func cycle_from(m: StatModifier) -> String:
+	var adjacency := {}
+	m.collect_formula_edges(adjacency)
+	var roots := adjacency.keys()   # captured BEFORE the live edges merge in
+	if roots.is_empty():
+		return ""
+	collect_formula_edges(adjacency)
+	return find_cycle(adjacency, roots)
+
+
+## Fold every formula edge currently APPLIED to this board — hardcoded `@export`
+## stat fields plus dynamically-created ones — into [param out], in place.
+## The "what's already live" half of [method cycle_from]'s graph.
+##
+## Note this reads what is APPLIED (each Stat's modifier list), not the authored
+## [member intrinsic_modifiers] array, which is inert until [method
+## apply_intrinsics] attaches it. Each Stat contributes its own edges, so no
+## intermediate modifier list and no per-stat array copy is built.
+func collect_formula_edges(out: Dictionary) -> void:
 	for prop in get_property_list():
 		if not (prop.usage & PROPERTY_USAGE_STORAGE):
 			continue
 		var v: Variant = get(prop.name)
 		if v is Stat:
-			mods.append_array(v.get_modifiers())
+			v.collect_formula_edges(out)
 	for id in _extra_stats:
-		mods.append_array(_extra_stats[id].get_modifiers())
-	return mods
+		_extra_stats[id].collect_formula_edges(out)
 
 
-## {stat_id: [depends_on_id, ...]} built from `formula.get_input_ids()` over
-## every formula-bound leaf in `mods` (flattening composites). The single
-## home for this traversal, shared with test_stat_dependency_graph.gd (#322)
-## — [method would_cycle] and the static shipped-content test both build the
-## same shape and hand it to [method find_cycle].
+## {stat_id: [depends_on_id, ...]} over an AUTHORED modifier list — the static
+## counterpart to [method collect_formula_edges]'s live read, used by
+## test_stat_dependency_graph.gd to check shipped content (board intrinsics +
+## each CoreClass) BEFORE anything is applied. Composites recurse; the edge rule
+## itself lives on [method StatModifier.collect_formula_edges].
 static func adjacency_from(mods: Array) -> Dictionary:
 	var out := {}
-	for leaf in StatModifier.flatten_all(mods):
-		if leaf.formula == null:
-			continue
-		var deps: Array = out.get(leaf.stat_id, [])
-		for input_id in leaf.formula.get_input_ids():
-			if not deps.has(input_id):
-				deps.append(input_id)
-		out[leaf.stat_id] = deps
+	for m in mods:
+		if m != null:
+			m.collect_formula_edges(out)
 	return out
 
 
-## Depth-first three-colour search over an [method adjacency_from] graph.
-## Returns the offending path ("a -> b -> a") on the first cycle found, or ""
-## when the graph is acyclic.
-static func find_cycle(adjacency: Dictionary) -> String:
+## Depth-first three-colour search over an adjacency graph. Returns the
+## offending path ("a -> b -> a") on the first cycle found, or "" when no cycle
+## is reachable. [param roots] limits the search to cycles reachable from those
+## vertices; empty (the default) searches the whole graph, which is what the
+## static shipped-content check wants.
+static func find_cycle(adjacency: Dictionary, roots: Array = []) -> String:
 	var done := {}       # fully explored — can never be part of a new cycle
 	var on_stack := {}   # in the current DFS path — a hit here IS the cycle
 	var path: Array[StringName] = []
-	for root in adjacency.keys():
+	for root in (roots if not roots.is_empty() else adjacency.keys()):
 		var found := _visit_for_cycle(root, adjacency, done, on_stack, path)
 		if not found.is_empty():
 			return found

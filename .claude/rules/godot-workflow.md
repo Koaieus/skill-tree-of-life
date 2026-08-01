@@ -109,6 +109,19 @@ Fix: set `resource_local_to_scene = true` on the sub-resource in the `.tscn`
 every `instantiate()`. Applies to any resource a scene's own script intends to
 own uniquely per instance — gradients, materials, curves, etc. — not just Edge.
 
+## `@export` cannot be applied to a `static var`*
+
+```
+Parse Error: Annotation "@export" cannot be applied to a static variable.
+```
+
+Verified on 4.7. So there's no "exported class-level constant" — and you wouldn't
+want one: `@export` serializes **per resource/node**, so an exported "where do X
+live" path would put an editable copy of the same answer on every instance.
+
+**How to apply:** a class-level fact is a `const` (`CoreClass.DIR`). Reach for
+`@export` only when each instance legitimately carries its own value.
+
 ## Refreshing the class cache after class_name changes*
 
 After renaming a `class_name` or adding a new one, the project's

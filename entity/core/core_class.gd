@@ -16,6 +16,36 @@ extends Resource
 ## the core (its owned subgraph, its initiative position), so a swappable
 ## field keeps the Entity contract uniform across runs.
 
+## Directory every authored CoreClass `.tres` lives in. A `const`, not an
+## `@export` — where classes live is a fact about the class, not per-resource
+## data, and `@export` cannot be applied to a `static var` at all (parse error
+## in Godot 4; see .claude/rules/godot-workflow.md).
+const DIR := "res://entity/core/"
+
+
+## Every authored CoreClass resource on disk. Discovers rather than enumerates,
+## so a newly authored class is covered by anything that asks — today that is
+## test_stat_dependency_graph.gd's board-vs-class DAG check (#322), which used
+## to carry a hand-maintained preload list that silently went stale.
+##
+## Deliberately does NOT assert the result is non-empty: "there should be about
+## five of these" is a claim about shipped content and belongs in a test, not in
+## a loader that a stripped build or a mod directory could legitimately empty.
+##
+## If a RUNTIME caller ever appears (class-select UI, procgen enemy rolls), note
+## that a project exporting only selected resources would strip any core class
+## no scene references, and this would quietly return a short list.
+static func load_all() -> Array[CoreClass]:
+	var out: Array[CoreClass] = []
+	for file in DirAccess.get_files_at(DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var res := load(DIR.path_join(file))
+		if res is CoreClass:
+			out.append(res)
+	return out
+
+
 @export var display_name: String = ""
 
 @export_multiline var description: String = ""

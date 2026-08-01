@@ -167,22 +167,56 @@ content (board intrinsics + each core class layered on top) is acyclic; it canno
 cover a modifier added at **runtime** (a looted formula modifier rebinding to the
 looter's board, where its source may already derive from its own target).
 
-`StatBoard.would_cycle(m)` is the runtime half: it flattens `m`, short-circuits
-`false` when every leaf is either static (no formula) or has an empty
-`formula.get_input_ids()` (a formula with no declared inputs can't participate in a
-cycle either), otherwise builds the graph from everything already **applied**
-(`get_all_modifiers()`, which reads `Stat._modifiers` across every field — NOT the
-authored `intrinsic_modifiers` array, which is inert until `apply_intrinsics()`
-actually attaches it) plus the candidate's edges, and runs the same DFS.
-`StatBoard.add_modifier` calls it as a precondition and rejects (`push_warning`,
-no-op) rather than accept-and-corrupt — checked *before* any leaf is bound, so a
-rejection leaves the board provably unchanged.
+`StatBoard.cycle_from(m)` is the runtime half (`would_cycle(m)` is its bool
+wrapper): it folds the candidate's edges into a graph, folds everything already
+**applied** on top, and runs a DFS. `StatBoard.add_modifier` calls it as a
+precondition and rejects (`push_warning`, no-op) rather than accept-and-corrupt —
+checked *before* any leaf is bound, so a rejection leaves the board provably
+unchanged. **The warning reports the offending path, never `m.stat_id`** — a
+`CompositeStatModifier`'s `stat_id` is vestigial/empty, and a bundle is the case
+most worth diagnosing.
 
-**The DFS traversal has one home:** `StatBoard.adjacency_from(mods)` /
-`StatBoard.find_cycle(adjacency)` are `static`, shared by both `would_cycle` and
-the test file (which keeps its own synthetic-cycle fixtures as the detector's
-coverage, thin-wrapped over the same two calls). Don't re-derive this traversal a
+**The search is rooted at the candidate's own target stats, not at every vertex.**
+Edges run `stat_id -> input`, so any cycle containing a newly added edge is
+reachable from that edge's tail — rooting there is sufficient *and* strictly
+narrower. That's correctness, not just speed: a whole-graph search reports a cycle
+the candidate had no part in and rejects an innocent modifier for it. It also
+means a candidate with no edges (static, or a formula with no declared inputs)
+yields no roots and the live graph is never folded at all — the short-circuit
+falls out of the shape instead of being a special case.
+
+**Edges are collected in place, never as a modifier list.**
+`StatModifier.collect_formula_edges(out)` is the single definition of what an edge
+is; `CompositeStatModifier` overrides it to recurse (same seam as `flatten()`,
+without the per-leaf array). `Stat.collect_formula_edges(out)` folds its own
+`_modifiers` — tell-don't-ask, so `_modifiers` never leaves the `Stat`. There is
+deliberately **no `Stat.get_modifiers()`**: handing that array out lets a caller
+append an unbound modifier that sits in the list without contributing to `bins`
+(silently wrong values, no error), and a per-stat copy on a path that wants a
+handful of edges is pure churn.
+
+**Live vs. authored are two different reads, on purpose.** `StatBoard.collect_formula_edges`
+reads what is **applied** (`Stat._modifiers` across every field, hardcoded + `_extra_stats`);
+`StatBoard.adjacency_from(mods)` is `static` and reads an **authored** array — the
+board's `intrinsic_modifiers` and a `CoreClass.modifiers` are inert until
+`apply_intrinsics()` / `apply()` attach them. The static test needs the authored
+read because it must fire *before* anything is applied. Don't unify them.
+`StatBoard.find_cycle(adjacency, roots := [])` is shared by both (empty `roots`
+= whole graph, which is what the static check wants). Don't re-derive this DFS a
 third time.
+
+**Runtime rejection has no notion of who *should* win — the static check is what
+makes that safe.** Whichever side arrives second is the one rejected. `Entity._ready`
+runs `stat_board.apply_intrinsics()` **then** `core_class.apply(self)`
+(`entity/entity.gd:122-124`), so today a shipped conflict would drop the *class*
+modifier and keep the board intrinsic. Flip that order and a cycle silently voids a
+board intrinsic instead. Don't reorder it, and don't treat `would_cycle` as
+sufficient on its own: `test_every_authored_core_class_is_acyclic_on_top_of_the_board`
+is what stops shipped content from ever reaching the runtime gate. It discovers
+classes via **`CoreClass.load_all()`** (scans `CoreClass.DIR`), so authoring a new
+class enrols it automatically — the old hand-maintained preload list could go stale
+in silence. It carries a `MIN_CORE_CLASSES` vacuity floor because a directory scan
+that matches nothing passes every assertion below it.
 
 **Scope: entity boards only.** `SkillNode.add_local_modifier` (node boards) calls
 `Stat.add_modifier` directly via `_ensure_local_stat`, not through

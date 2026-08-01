@@ -25,13 +25,13 @@ extends GutTest
 
 const BOARD := preload("res://entity/default_entity_board.tres")
 
-const CORE_CLASSES := {
-	"balanced_core": preload("res://entity/core/balanced_core.tres"),
-	"basic_enemy_core": preload("res://entity/core/basic_enemy_core.tres"),
-	"ninja_core": preload("res://entity/core/ninja_core.tres"),
-	"pacifist_core": preload("res://entity/core/pacifist_core.tres"),
-	"serpent_core": preload("res://entity/core/serpent_core.tres"),
-}
+## How many CoreClass resources the check expects to find at minimum — a
+## vacuity guard, not a count. A directory scan that matches nothing passes
+## every assertion below in silence, so the scan has to prove it found content
+## the same way `test_board_intrinsics_actually_form_a_graph` does. There were
+## 5 authored classes when this was written; the floor sits below that so
+## deleting one isn't a false alarm, but emptying the directory is.
+const MIN_CORE_CLASSES := 3
 
 
 ## Thin wrappers over the shared StatBoard traversal (#322) — kept as
@@ -96,15 +96,25 @@ func test_board_intrinsics_actually_form_a_graph() -> void:
 	)
 
 
-func test_each_core_class_is_acyclic_on_top_of_the_board() -> void:
-	for name in CORE_CLASSES:
-		var core: CoreClass = CORE_CLASSES[name]
+func test_every_authored_core_class_is_acyclic_on_top_of_the_board() -> void:
+	# Discovered from disk via CoreClass.load_all(), not a hand-maintained
+	# preload list — authoring a new class enrols it here automatically. This is
+	# the early warning that a class's modifiers conflict with a board intrinsic,
+	# and it has to fire BEFORE anything is applied: at runtime, add_modifier
+	# rejects whichever side arrives second, and it has no notion of who should
+	# win (see the apply-order note in .claude/rules/stats-system.md).
+	var classes := CoreClass.load_all()
+	assert_gte(
+		classes.size(), MIN_CORE_CLASSES,
+		"found %d CoreClass resources in %s — did they move?" % [classes.size(), CoreClass.DIR]
+	)
+	for core in classes:
 		var combined: Array = []
 		combined.append_array(BOARD.intrinsic_modifiers)
 		combined.append_array(core.modifiers)
 		assert_eq(
 			_find_cycle(_adjacency(combined)), "",
-			"%s closes a dependency cycle against the board's intrinsics" % name
+			"%s closes a dependency cycle against the board's intrinsics" % core.resource_path.get_file()
 		)
 
 
@@ -207,4 +217,58 @@ func test_add_modifier_rejects_a_cycle_closing_modifier_and_leaves_the_board_unc
 	assert_false(
 		board.get_stat(&"intelligence").has_modifier(candidate),
 		"rejected modifier must never be attached to its target stat"
+	)
+
+
+func test_cycle_from_names_the_offending_path() -> void:
+	# The path is what add_modifier reports — m.stat_id can't do the job (it is
+	# empty on a composite, the case most worth diagnosing).
+	var cycle := _board().cycle_from(_cycle_closing_candidate())
+	assert_string_contains(cycle, "intelligence")
+	assert_string_contains(cycle, "mana")
+
+
+func test_cycle_from_diagnoses_a_bundle_whose_stat_id_is_vestigial() -> void:
+	var bundle := CompositeStatModifier.new()
+	bundle.children = [_cycle_closing_candidate()]
+	assert_eq(bundle.stat_id, &"", "a composite's stat_id is inert — nothing to report from")
+	assert_string_contains(_board().cycle_from(bundle), "mana")
+
+
+func test_a_pre_existing_cycle_elsewhere_does_not_condemn_an_unrelated_modifier() -> void:
+	# The search runs from the candidate's own targets, not every vertex. Plant
+	# a strength <-> dexterity cycle through the one seam that bypasses the gate
+	# (Stat.add_modifier direct), then offer an unrelated armor <- constitution
+	# candidate: a whole-graph search would find the planted cycle and reject it.
+	var board := _board()
+	board.get_stat(&"strength").add_modifier(_mod(&"strength", &"dexterity"))
+	board.get_stat(&"dexterity").add_modifier(_mod(&"dexterity", &"strength"))
+
+	# Non-vacuity: armor -> constitution must actually lead somewhere, or the
+	# DFS proves nothing by finding no cycle. The board's level intrinsic gives
+	# constitution -> level, so the walk has real ground to cover before it ends.
+	var live := {}
+	board.collect_formula_edges(live)
+	assert_true(live.has(&"constitution"), "constitution must carry live edges for this to test anything")
+
+	assert_false(
+		board.would_cycle(_mod(&"armor", &"constitution")),
+		"a cycle the candidate is not part of must not reject it"
+	)
+
+
+func test_a_candidate_that_closes_a_loop_is_caught() -> void:
+	# Only ONE direction is planted, so the cycle exists *only* with the
+	# candidate — the assert would still pass on a live graph that was already
+	# cyclic, which is what makes the one-edge fixture the honest one.
+	var board := _board()
+	board.get_stat(&"strength").add_modifier(_mod(&"strength", &"dexterity"))
+
+	assert_false(
+		board.would_cycle(_mod(&"armor", &"dexterity")),
+		"strength -> dexterity alone is not a cycle"
+	)
+	assert_true(
+		board.would_cycle(_mod(&"dexterity", &"strength")),
+		"the candidate closes dexterity -> strength -> dexterity"
 	)
