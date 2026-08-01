@@ -21,7 +21,7 @@
 [ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/placement/radial_gradient_field.gd" id="grad"]
 [ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/placement/keystone_placement.gd" id="kp"]
 [ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/placement/min_near_starting_points.gd" id="mnsp"]
-[ext_resource type="Resource" path="res://procgen/pools/specimen_pool_set.tres" id="pool_set"]
+[ext_resource type="Resource" uid="uid://dfcrol4htjsui" path="res://procgen/pools/specimen_pool_set.tres" id="pool_set"]
 [ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/budget/random_budget_boost.gd" id="rbb"]
 [ext_resource type="Script" uid="uid://deokgpoaxy5db" path="res://procgen/placement/radial_band_profile.gd" id="rbp"]
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
@@ -145,13 +145,14 @@ forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"wis", &"attac
 
 [sub_resource type="Resource" id="budget_field"]
 script = ExtResource("grad")
+inner_radius = 200.0
 outer_radius = 2500.0
 inner_value = 1.0
 outer_value = 4.0
 
 [sub_resource type="Resource" id="bp_main"]
 script = ExtResource("bp")
-base_max = 4
+base_max = 3
 budget_field = SubResource("budget_field")
 role_bonus = {
 &"anomalous": 1.75

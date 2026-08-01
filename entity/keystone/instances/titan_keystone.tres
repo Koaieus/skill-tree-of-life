@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="Keystone" format=3]
+[gd_resource type="Resource" script_class="Keystone" format=3 uid="uid://dvkmjr1byvw0j"]
 
 [ext_resource type="Script" uid="uid://5rpq45w87mlx" path="res://entity/keystone/keystone.gd" id="1_ks"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="2_fxbase"]

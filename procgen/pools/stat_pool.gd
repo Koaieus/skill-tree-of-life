@@ -61,7 +61,7 @@ extends Resource
 
 ## ± jitter applied to the rolled value: `value_range = magnitude × (1 ± jitter)`.
 ## `0.25` → ±25% sample spread. Both ends equal at jitter 0 (fixed value).
-@export_range(0.0, 1.0) var jitter: float = 0.25
+@export_range(0.0, 1.0) var jitter: float = 0.
 
 ## Base sampling weight for this pool (the pool-selection axis). Tier weight
 ## within a pool is `|cost|^tier_bias_k`; the draw multiplies the two.

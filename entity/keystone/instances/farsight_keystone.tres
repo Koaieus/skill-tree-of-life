@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="Keystone" format=3]
+[gd_resource type="Resource" script_class="Keystone" format=3 uid="uid://6yg3j23fwjlq"]
 
 [ext_resource type="Script" uid="uid://5rpq45w87mlx" path="res://entity/keystone/keystone.gd" id="1_ks"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="2_fxbase"]
@@ -8,7 +8,6 @@
 [sub_resource type="Resource" id="m_vision_range"]
 script = ExtResource("4_mod")
 stat_id = &"vision_range"
-operation = 0
 value = 100.0
 
 [sub_resource type="Resource" id="fx_farsight"]
