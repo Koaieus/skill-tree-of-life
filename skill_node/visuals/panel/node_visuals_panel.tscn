@@ -62,7 +62,17 @@ horizontal_alignment = 1
 position = Vector2(430, 90)
 
 [node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" unique_id=1635794154 instance=ExtResource("3_disk")]
-carve_kind = 1
+instance_shader_parameters/allocated = true
+instance_shader_parameters/carve_kind = 1
+instance_shader_parameters/carve_radius = 0.8400000000000001
+instance_shader_parameters/carve_sides = 3.0
+instance_shader_parameters/carve_slice = -1
+instance_shader_parameters/carve_squish = 1.0
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/well_depth = 0.35
 carve_radius = 0.8400000000000001
 allocated = true
 
@@ -70,6 +80,17 @@ allocated = true
 position = Vector2(600, 90)
 
 [node name="PolygonDisk" parent="ViewportContainer/World/PolygonDiskSlot" unique_id=899407512 instance=ExtResource("3_disk")]
+instance_shader_parameters/allocated = true
+instance_shader_parameters/carve_kind = 1
+instance_shader_parameters/carve_radius = 0.8200000000000001
+instance_shader_parameters/carve_sides = 6.0
+instance_shader_parameters/carve_slice = -1
+instance_shader_parameters/carve_squish = 1.0
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/well_depth = 0.5
 carve_sides = 6
 well_depth = 0.5
 allocated = true
@@ -78,6 +99,17 @@ allocated = true
 position = Vector2(770, 90)
 
 [node name="GemDisk" parent="ViewportContainer/World/GemDiskSlot" unique_id=1924193309 instance=ExtResource("3_disk")]
+instance_shader_parameters/allocated = true
+instance_shader_parameters/carve_kind = 2
+instance_shader_parameters/carve_radius = 0.8200000000000001
+instance_shader_parameters/carve_sides = 3.0
+instance_shader_parameters/carve_slice = -1
+instance_shader_parameters/carve_squish = 1.0
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/well_depth = 0.35
 carve_kind = 2
 allocated = true
 
@@ -85,6 +117,12 @@ allocated = true
 position = Vector2(940, 90)
 
 [node name="RimRing" parent="ViewportContainer/World/RimRingSlot" unique_id=1228394251 instance=ExtResource("5_wall")]
+instance_shader_parameters/crest_r = 0.0
+instance_shader_parameters/height_preset = 2
+instance_shader_parameters/inner_r = 24.0
+instance_shader_parameters/light_dir_xy = Vector2(-0.35, -0.35)
+instance_shader_parameters/outer_r = 32.0
+instance_shader_parameters/ring_tint = Color(0.65, 0.67, 0.72, 1)
 height_preset = 2
 
 [node name="RimBonusesSlot" type="Node2D" parent="ViewportContainer/World" unique_id=782957647]
@@ -109,13 +147,13 @@ position = Vector2(770, 280)
 [node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" unique_id=775407811 instance=ExtResource("8_rune")]
 band_count = 2
 
-[node name="LabSlot" type="Node2D" parent="ViewportContainer/World"]
+[node name="LabSlot" type="Node2D" parent="ViewportContainer/World" unique_id=1413119315]
 position = Vector2(970, 210)
 scale = Vector2(2.2, 2.2)
 
-[node name="SkillNodeLab" parent="ViewportContainer/World/LabSlot" instance=ExtResource("9_lab")]
+[node name="SkillNodeLab" parent="ViewportContainer/World/LabSlot" unique_id=195987263 instance=ExtResource("9_lab")]
 
-[node name="LabLabel" type="Label" parent="ViewportContainer/World"]
+[node name="LabLabel" type="Label" parent="ViewportContainer/World" unique_id=1864019419]
 offset_left = 880.0
 offset_top = 380.0
 offset_right = 1060.0

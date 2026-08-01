@@ -26,7 +26,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="25_drqyt"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="26_lwubc"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="27_4oa4u"]
-[ext_resource type="Resource" path="res://stats_system/defs/strength.tres" id="28_3dypl"]
+[ext_resource type="Resource" uid="uid://vtw8ktmktkgq" path="res://stats_system/defs/strength.tres" id="28_3dypl"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="29_d7bkb"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="29_sdhs6"]
 [ext_resource type="Resource" path="res://stats_system/defs/wisdom.tres" id="30_jc1be"]
@@ -44,11 +44,13 @@
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="41_df164"]
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="42_core"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="43_init"]
-[ext_resource type="Resource" path="res://archetypes/dexterity.tres" id="44_arch_dex"]
-[ext_resource type="Resource" path="res://archetypes/intelligence.tres" id="44_arch_int"]
-[ext_resource type="Resource" path="res://archetypes/wisdom.tres" id="44_arch_wis"]
-[ext_resource type="Resource" path="res://archetypes/perception.tres" id="44_arch_per"]
-[ext_resource type="Resource" path="res://archetypes/constitution.tres" id="44_arch_con"]
+[ext_resource type="Resource" uid="uid://lmh5qnv0xocl" path="res://archetypes/constitution.tres" id="44_arch_con"]
+[ext_resource type="Resource" uid="uid://ws3nejquyeii" path="res://archetypes/dexterity.tres" id="44_arch_dex"]
+[ext_resource type="Resource" uid="uid://dw4xgicipm3wp" path="res://archetypes/intelligence.tres" id="44_arch_int"]
+[ext_resource type="Resource" uid="uid://b8tbru5xba2lw" path="res://archetypes/perception.tres" id="44_arch_per"]
+[ext_resource type="Resource" uid="uid://yiu2rf0g04du" path="res://archetypes/wisdom.tres" id="44_arch_wis"]
+[ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="45_df164"]
+[ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/clamp_addon.tscn" id="48_owpne"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -655,6 +657,10 @@ position = Vector2(43, 148)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 
+[node name="SpikeRingAddon" parent="Graph/Nodes/Down" index="3" unique_id=1569558765 instance=ExtResource("45_df164")]
+z_index = 1
+spike_color = Color(0.9, 0.2, 0.2, 1)
+
 [node name="Left" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="4" unique_id=1010139945 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
@@ -704,6 +710,9 @@ z_as_relative = false
 position = Vector2(-203, 103)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 archetype = ExtResource("44_arch_int")
+
+[node name="ClampAddon" parent="Graph/Nodes/SW" index="3" unique_id=442806284 instance=ExtResource("48_owpne")]
+z_index = 1
 
 [node name="Bridge_E" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="11" unique_id=8800204 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -761,6 +770,10 @@ z_as_relative = false
 position = Vector2(300, -260)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 archetype = ExtResource("44_arch_per")
+
+[node name="SpikeRingAddon" parent="Graph/Nodes/Watchtower" index="3" unique_id=1349571620 instance=ExtResource("45_df164")]
+z_index = 1
+spike_color = Color(0.4117647, 0.4117647, 0.4117647, 1)
 
 [node name="Juggler" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="19" unique_id=9000002 instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.9608937)
