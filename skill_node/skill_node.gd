@@ -942,17 +942,21 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 		for existing in _addons:
 			if existing.get_script() == a.get_script():
 				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_script().resource_path, name])
-				a.queue_free()
+				# Refuse it, but never FREE it under the editor — since #334 made
+				# scene authoring the blessed path, freeing here would silently
+				# delete an authored node out of the user's open scene on load.
+				if not Engine.is_editor_hint():
+					a.queue_free()
 				return
 	_addons.append(a)
+	a.z_index = ADDON_Z
 	# The modifier transfer is runtime-only: `modifiers` is an @export, so doing
 	# this under the editor would serialize addon-derived modifiers into the
 	# .tscn and compound them on every save (see .claude/rules/godot-workflow.md,
 	# "never write a DERIVED value back into an @export"). The editor still gets
-	# the addon's visuals below — it just doesn't get its stats. #335 removes
-	# this guard by splitting authored from derived modifiers.
+	# the addon's visuals and draw order — it just doesn't get its stats. #335
+	# removes this guard by splitting authored from derived modifiers.
 	if not Engine.is_editor_hint():
-		a.z_index = ADDON_Z
 		for m in a.entity_modifiers:
 			add_entity_modifier(m)
 		for m in a.get_local_modifiers():
@@ -1035,6 +1039,8 @@ func _reset_feedback() -> void:
 		visuals.position = Vector2.ZERO
 	if hover_ring != null:
 		hover_ring.position = Vector2.ZERO
+	for addon in _addons:
+		addon.position = Vector2.ZERO
 	if _base_circle != null:
 		_base_circle.modulate = Color.WHITE
 
@@ -1070,6 +1076,11 @@ func shake_denied() -> void:
 		shake.tween_property(visuals, "position", off, step).set_trans(Tween.TRANS_SINE)
 		if hover_ring != null:
 			shake.parallel().tween_property(hover_ring, "position", -off, step).set_trans(Tween.TRANS_SINE)
+		# Addons are siblings of `visuals`, not children (#334) — they no longer
+		# ride its offset for free, so shake them alongside it or the node body
+		# jitters out from under a stationary addon sprite.
+		for addon in _addons:
+			shake.parallel().tween_property(addon, "position", off, step).set_trans(Tween.TRANS_SINE)
 	_feedback_tweens.append(shake)
 
 

@@ -7,6 +7,8 @@ extends GutTest
 
 const SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const BUNKER_SCENE := preload("res://skill_node/addons/bunker_addon.tscn")
+const FORTIFICATION_SCENE := preload("res://skill_node/addons/fortification_addon.tscn")
+const BOARD := preload("res://entity/default_entity_board.tres")
 
 var _node: SkillNode
 
@@ -40,6 +42,26 @@ func test_addon_parented_before_the_carrier_enters_the_tree_is_adopted() -> void
 	await get_tree().process_frame
 	assert_eq(_node.get_addons().size(), 1, "_ready adopts the pre-existing addon child")
 	assert_almost_eq(_armor(), 5.0, 0.001, "adoption transfers modifiers, not just visuals")
+
+
+func test_adoption_orders_correctly_against_hp_binding() -> void:
+	# Adoption runs EARLIER in _ready than any addon ever attached before, so a
+	# node_health-carrying addon now mints the combat PoolStat before
+	# _refresh_hp_binding seeds it. Pin that the seeding still wins and the
+	# addon's bonus is included, rather than one clobbering the other.
+	var entity := Entity.new()
+	entity.stat_board = BOARD.duplicate(true) as StatBoard
+	add_child_autofree(entity)
+	_node.add_child(FORTIFICATION_SCENE.instantiate())
+	_node.owned_by = entity
+	add_child(_node)
+	await get_tree().process_frame
+
+	var baseline := float(entity.stat_board.get_stat(&"node_health").get_value())
+	assert_almost_eq(_node.get_max_hp(), baseline + 15.0, 0.001,
+			"fortification's +15 node_health rides on top of the entity baseline")
+	assert_almost_eq(_node.get_current_hp(), _node.get_max_hp(), 0.001,
+			"the refill in _refresh_hp_binding saw the adopted addon's bonus")
 
 
 func test_removing_the_addon_reverts_the_modifier() -> void:
