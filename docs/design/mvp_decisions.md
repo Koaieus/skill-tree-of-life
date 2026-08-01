@@ -265,7 +265,7 @@ Thresholds are **human-supplied**; the harness ships with `TBD` placeholders and
 
 **Rationale:** The dimensionality objection is correct and fatal to any sweep-based approach. It dissolves once the harness stops trying to *find* good values and only *checks* proposed ones. Feel stays a human judgement; the arithmetic organising it does not.
 
-**Impl status:** #268 (swarmable). Runs at entity/scene level (real fixtures), not raw formulas, because `SkillNode.take_damage` bypasses `attack/formulas/mitigation.gd` today — a formula-level harness would report balance that doesn't match play.
+**Impl status:** #268 (`Ready`). Runs at entity/scene level (real fixtures), not raw formulas, because `SkillNode.take_damage` bypasses `attack/formulas/mitigation.gd` today — a formula-level harness would report balance that doesn't match play.
 
 ---
 

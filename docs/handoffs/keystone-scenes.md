@@ -10,7 +10,7 @@ Written against `41c3127`. **Authoritative home is [#336](https://github.com/Koa
 - **② tooltip predicate — settled.** `get_node_effects().size() > 0`, *not* a name/description check. This is what makes it survive #288.
 - **③ placement surface — split.** #330's half is answered (#155: the *placement* carries `node_scene`). Clusters (#165/#180) are genuine remaining design, written up in two long #165 comments.
 
-The hub is therefore **swarmify-ready**, not yet swarmable — children still need filing with acceptance specs.
+The hub is therefore **swarmify-ready**, not yet `Ready` — children still need filing with acceptance specs.
 
 ## Couplings — the part that would be lost
 
@@ -22,7 +22,7 @@ The hub is therefore **swarmify-ready**, not yet swarmable — children still ne
 ## Ready to dispatch
 
 Wave 1, no dependencies, parallel:
-- **#339** — procgen single-component assertion + dropped-anchor warning. Acceptance written; no forks. Not labelled `swarmable` (hasn't been through the gate).
+- **#339** — procgen single-component assertion + dropped-anchor warning. Acceptance written; no forks. Not in `Ready` (hasn't been through the gate) — since resolved: promoted to `Ready` 2026-08-02.
 - Delete `entity/keystone/keystone_skill_node.tscn` — verified zero references.
 
 Wave 2 is sequential and specified in #336's "Dispatch order" section. Wave 3 (clusters) is not ready.

@@ -16,10 +16,10 @@ Read this, then `gh issue view 248 --comments`.
 
 | # | Was | Now |
 |---|---|---|
-| **#277** | `core_healing` rate + gate | **D-25** — integer heal, placeholder 1/turn, **no gate, no ramp**. `swarmable` |
-| **#279** | enemy CoreClass composability | **D-27** — `@export var inherits: CoreClass`, pure append. `swarmable` |
-| **#273** | AttributeRadar scale | static log, fixed floor/ceiling, **bounds shared across entities**. `swarmable` |
-| **#280** | AI allocation, one pile | split into **tiers 0/1/2**; tier 1 is **#286** (`swarmable`), tier 2 stays `design` |
+| **#277** | `core_healing` rate + gate | **D-25** — integer heal, placeholder 1/turn, **no gate, no ramp**. `Ready` |
+| **#279** | enemy CoreClass composability | **D-27** — `@export var inherits: CoreClass`, pure append. `Ready` |
+| **#273** | AttributeRadar scale | static log, fixed floor/ceiling, **bounds shared across entities**. `Ready` |
+| **#280** | AI allocation, one pile | split into **tiers 0/1/2**; tier 1 is **#286** (`Ready`), tier 2 stays `Needs design` |
 
 Also from round 6: **D-26** (`core_health_scaling` knob) rides on **#276**, which
 now also carries the requirement that **the CON delta grant be a named method**.

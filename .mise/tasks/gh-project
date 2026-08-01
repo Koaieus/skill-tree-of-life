@@ -344,7 +344,7 @@ cmd_milestone() {
   echo "✓ issue #$issue milestone → $ms"
 }
 
-# --- Labels: swarmable / blocked / design flips ------------------------------
+# --- Labels: blocked / design / topic flips ----------------------------------
 cmd_label() {
   local issue=$1 op=${2:-} label=${3:-}
   if [ -z "$op" ]; then
@@ -471,14 +471,20 @@ cmd_hygiene() {
 }
 
 # --- roadmap: milestone swim-lanes with progress -----------------------------
-# ONE lean GraphQL query (no per-issue fan-out — see the budget note up top):
-# open issues with milestone + sub-issue summary + labels, grouped by milestone
-# ordered by native due date. Epics (sub-issues > 0) show a progress bar; the
-# swarmable count per lane tells you where a swarm can start today. Per-issue
-# Target dates live in the project's web Roadmap view; this is the planning digest.
+# TWO lean GraphQL queries (no per-issue fan-out — see the budget note up top):
+# open issues with milestone + sub-issue summary, plus the project's issue→Status
+# map. Grouped by milestone, ordered by native due date. Epics (sub-issues > 0)
+# show a progress bar; the READY count per lane tells you where a swarm can start
+# today. Per-issue Target dates live in the project's web Roadmap view; this is
+# the planning digest.
+#
+# The ready count reads the board's Status, NOT a label. It used to count the
+# `swarmable` label; when that label was retired (be8f5c9) every lane silently
+# read "0 swarmable" — a dead column that still looked like an answer. Status is
+# the one source of truth now, so this joins against it.
 cmd_roadmap() {
   local as_json=${1:-}
-  local data
+  local data status_map
   data=$(gh api graphql --paginate -f query='
     query($endCursor: String) {
       repository(owner: "Koaieus", name: "skill-tree-of-life") {
@@ -494,9 +500,26 @@ cmd_roadmap() {
       }
     }' --jq '.data.repository.issues.nodes[]' 2>/dev/null | jq -s '.')
 
+  # issue number → board Status, as a lookup object.
+  status_map=$(gh api graphql --paginate -f id="$PROJECT_ID" -f query='
+    query($id: ID!, $endCursor: String) {
+      node(id: $id) { ... on ProjectV2 {
+        items(first: 100, after: $endCursor) {
+          nodes {
+            content { ... on Issue { number } }
+            fieldValueByName(name: "Status") {
+              ... on ProjectV2ItemFieldSingleSelectValue { name }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      } }
+    }' --jq '.data.node.items.nodes[] | select(.content.number != null)' 2>/dev/null \
+    | jq -s 'map({ (.content.number|tostring): (.fieldValueByName.name // "—") }) | add // {}')
+
   if [ "$as_json" = "--json" ]; then printf '%s\n' "$data"; return; fi
 
-  printf '%s\n' "$data" | jq -r '
+  printf '%s\n' "$data" | jq -r --argjson st "$status_map" '
     def bar(c; t): (if t == 0 then "" else
       ((10 * c / t) | floor) as $f
       | (([range(0; $f) | "█"] | add) // "") + (([range($f; 10) | "░"] | add) // "") end);
@@ -505,8 +528,9 @@ cmd_roadmap() {
     | .[]
     | ( .[0].milestone.title // "‹no milestone›" ) as $ms
     | ( .[0].milestone.dueOn // "" ) as $due
-    | ( [ .[] | select((.labels.nodes // []) | any(.name == "swarmable")) ] | length ) as $sw
-    | "\n▸ \($ms)\($due | if . == "" or . == null then "" else "  (due \(.[0:10]))" end)   [\(length) open, \($sw) swarmable]",
+    | ( [ .[] | select(($st[.number|tostring] // "") == "Ready") ] | length ) as $rdy
+    | ( [ .[] | select(($st[.number|tostring] // "") == "Needs design") ] | length ) as $nd
+    | "\n▸ \($ms)\($due | if . == "" or . == null then "" else "  (due \(.[0:10]))" end)   [\(length) open, \($rdy) ready, \($nd) needs design]",
       ( .[]
         | select(.subIssuesSummary.total > 0)
         | "   #\(.number)  \(bar(.subIssuesSummary.completed; .subIssuesSummary.total)) \(.subIssuesSummary.completed)/\(.subIssuesSummary.total)  \(.title)" )
@@ -530,7 +554,7 @@ Roadmap (milestone spine + target dates):
   target <n> [<YYYY-MM-DD>]     Read or set target date. 'clear' clears.
   start <n> [<YYYY-MM-DD>]      Read or set start date. 'clear' clears.
   estimate <n> [<points>]      Read or set estimate. 'clear' clears.
-  roadmap [--json]             Milestone swim-lanes: epics + progress + swarmable count
+  roadmap [--json]             Milestone swim-lanes: epics + progress + ready count
 
 Board hygiene:
   label <n> [<add|rm> <name>]  Read or flip a label (blocked|design|…)
