@@ -110,7 +110,7 @@ func test_bunker_addon_actually_armors_its_carrier() -> void:
 
 	var addon: SkillNodeAddon = preload("res://skill_node/addons/bunker_addon.tscn").instantiate()
 	assert_eq(addon.local_modifiers.size(), 1, "bunker_addon lost its authored modifier")
-	node.get_node("Visuals/AddonAnchor").add_child(addon)
+	node.add_child(addon)
 	await get_tree().process_frame
 
 	assert_almost_eq(Mitigation.apply(_raw(10.0), node), 5.0, 0.001,

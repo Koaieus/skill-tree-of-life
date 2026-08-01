@@ -51,9 +51,8 @@ func test_keystone_outranks_archetype_and_renders_empty_dome() -> void:
 
 
 func test_skill_dust_addon_carves_the_loot_gem() -> void:
-	var anchor := _node.get_node("Visuals/AddonAnchor")
 	var dust := SkillDustAddon.new()
-	anchor.add_child(dust)
+	_node.add_child(dust)
 	await get_tree().process_frame
 	_node._sync_visuals()
 	var disk := _disk()

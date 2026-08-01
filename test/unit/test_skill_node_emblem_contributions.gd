@@ -62,10 +62,8 @@ func test_spell_grant_effect_contributes_a_spell_carve() -> void:
 
 
 func test_addon_get_emblem_is_aggregated() -> void:
-	var anchor := _node.get_node_or_null("Visuals/AddonAnchor")
-	assert_not_null(anchor, "fixture must have an AddonAnchor to attach the addon under")
 	var dust := SkillDustAddon.new()
-	anchor.add_child(dust)
+	_node.add_child(dust)
 	await get_tree().process_frame
 	var out := _node.get_emblem_contributions()
 	var kinds := out.map(func(s): return s.source_kind)

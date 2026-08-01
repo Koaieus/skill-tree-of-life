@@ -1,27 +1,100 @@
+---
+description: How SkillNodeAddons attach to a carrier — direct-child contract, adoption, idempotence, and the editor modifier guard
+paths:
+  - "skill_node/**"
+  - "procgen/graph_procgen.gd"
+  - "entity/keystone/**"
+  - "systems/loot_system.gd"
+---
+
 # SkillNode addons
 
-## Parent an addon only after the carrier is inside the tree
+## Attaching an addon is `skill_node.add_child(addon)` — nothing else
 
-`SkillNode` connects its `AddonAnchor.child_entered_tree` /
-`child_exiting_tree` signals in `_ready`. Those handlers (`_on_addon_added`) are
-what transfer an addon's `entity_modifiers` / `local_modifiers` onto the carrier.
+There is no anchor node to file into and no `attach_addon()` method to call.
+Procgen, `Keystone.stamp`, `LootSystem`, editor authoring and the future
+player-facing path all use the one call.
 
-So `anchor.add_child(addon)` on a freshly `instantiate()`d SkillNode — before it
-enters the tree — attaches the addon **visibly and mechanically inert**. No
-error, no warning: `get_addons()` reports it, the sprite draws, and
-`get_local_value(&"armor")` reads `0.0`.
-
-Verified empirically while wiring `Keystone.stamp` (#149): stamping a
-bunker_addon pre-tree gave `addons: 1, armor: 0.0`; stamping post-tree gave
-`armor: 5.0`.
+**Why:** the old `Visuals/AddonAnchor` bin (deleted in #334) was a *filing*
+node, not a positioning one — a bare `Node2D` at identity with no offset and no
+z_index. It bought nothing visually while costing real DX: authoring a SkillNode
+scene with an addon needed "editable children" to reach an inner node, and an
+addon added as a plain child was silently ignored. Two valid homes, one of them
+inert.
 
 **How to apply:**
 
-- In procgen, mint addons *after* `graph.add_skill_node(sn)` — that's why both
-  `GraphProcgen._roll_and_attach_addons` and the `Keystone.stamp` call sit there.
-- `Keystone.stamp()` guards this with an `is_inside_tree()` check and a
-  `push_warning`. Any new addon-minting path should do the same rather than
-  trusting call-site discipline.
-- Don't "fix" this by null-guarding in `_ready` and re-scanning the anchor — the
-  ordering is the contract, and a re-scan would double-apply modifiers for
-  addons that *did* go through the signal.
+- `add_child` at any point. Ordering is free — see adoption below.
+- Only **direct** children are adopted. An addon nested under `Visuals` or under
+  another addon resolves `SkillNodeAddon.carrier` (the lookup walks up
+  arbitrarily) but never attaches. That asymmetry is a documented non-contract,
+  not a half-built feature; don't "fix" it by deepening the scan.
+- New behaviour on attach (slot caps, compatibility checks) goes in
+  `SkillNode._attach_addon` — the `child_entered_tree` handler every path
+  already flows through. Don't add a second entry point; that's the anchor
+  rebuilt with extra steps.
+
+## Pre-tree parenting is safe now — `_ready` adopts
+
+`SkillNode._ready` sweeps its existing children and attaches every
+`SkillNodeAddon` it finds, then connects `child_entered_tree` /
+`child_exiting_tree` on **itself**. So an addon parented before the carrier
+enters the tree lands correctly the moment it does.
+
+This **reverses** the rule that used to live here ("parent an addon only after
+the carrier is inside the tree"; `Keystone.stamp` carried an `is_inside_tree()`
+bail-out and a warning, both now deleted). The old objection to a `_ready`
+re-scan was double-application, and it was a fair objection — it's answered
+structurally below, not by ordering discipline.
+
+`child_entered_tree` fires for **direct children only** — verified empirically;
+a grandchild added under `Visuals` never fires it. That's what makes the
+`is SkillNodeAddon` type filter a sufficient contract rather than a heuristic.
+
+## The `_addons` ledger is what makes attach idempotent — not call ordering
+
+`_attach_addon` / `_detach_addon` no-op when membership in `_addons` already
+says so. This is load-bearing, not defensive.
+
+**Why:** a SkillNode re-entering the tree re-fires `child_entered_tree` for
+**every** existing child (verified). So "the adoption sweep runs before the
+signal is connected, therefore no overlap" is true on first `_ready` and wrong
+forever after — any reparent would stack an addon's modifiers a second time.
+Membership decides; ordering doesn't.
+
+`get_addons()` reads that ledger and returns a `duplicate()` (callers mutate
+accessor results — see `graph.md`). Internal loops iterate `_addons` directly.
+
+`test/unit/test_addon_attachment.gd` pins all of this, including the re-entry
+case.
+
+## The modifier transfer is skipped in the editor
+
+`_attach_addon` guards the `entity_modifiers` / `local_modifiers` handoff with
+`not Engine.is_editor_hint()`. Visuals still attach; stats don't.
+
+**Why:** `SkillNode.modifiers` is an `@export` **and** the sink for
+addon-derived modifiers. `SkillNode` is `@tool`, so transferring under the
+editor would serialize those modifiers into the `.tscn` and re-apply them on the
+next load — compounding on every save. That's exactly godot-workflow.md's "never
+write a DERIVED value back into an `@export`". The bug was already reachable via
+editable-children before #334; the pre-tree inertness merely masked it.
+
+**How to apply:** don't remove the guard while `modifiers` stays exported. #335
+tracks splitting authored from derived modifiers, which retires the guard
+properly.
+
+## Positioning: an addon's own transform stays identity
+
+Addons render concentric with the carrier at its origin and inherit its
+transform for free. An addon wanting an offset or rotated element bakes it into
+its **child** visuals, never its root transform.
+
+`SkillNode.ADDON_Z` (relative `1`, applied at attach) lifts addons above the
+whole `Visuals` subtree regardless of child order, and stays below the health
+bars' relative `10`. It's uniform across every addon, so it costs no batching
+(see `rendering-performance.md`).
+
+Don't reach for `Visuals.z_index = -1` as the alternative — a sensed SkillNode
+goes absolute `z = 1001`, which would drop `Visuals` onto the `FOG` band (1000)
+and lose the punch-through.

@@ -204,7 +204,7 @@ things in one pass:
    dimmed into nothing. The exact z is a knob — bump both if the fog
    overlay's z changes, or if some other UI layer wants to live in
    between.
-3. `core_marker` and every `AddonAnchor` child are hidden. The viewer
+3. `core_marker` and every attached addon are hidden. The viewer
    shouldn't learn ownership-vs-not-ownership of the core, nor which
    addons sit on the node, from a sensed read.
 

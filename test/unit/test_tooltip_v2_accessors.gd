@@ -123,7 +123,7 @@ func test_dynamic_stat_ids_does_not_create_a_stat() -> void:
 
 func _attach(node: SkillNode, scene: PackedScene) -> SkillNodeAddon:
 	var addon := scene.instantiate() as SkillNodeAddon
-	node.get_node("Visuals/AddonAnchor").add_child(addon)
+	node.add_child(addon)
 	return addon
 
 
@@ -161,7 +161,7 @@ func test_spike_ring_keeps_its_authored_title_and_payload() -> void:
 	# damage-derived modifier (see SpikeRingAddon._ensure_damage_mod).
 	var addon := _SPIKE_RING_SCENE.instantiate() as SpikeRingAddon
 	addon.damage = 3.0
-	sn.get_node("Visuals/AddonAnchor").add_child(addon)
+	sn.add_child(addon)
 
 	var sections := sn.get_addon_tooltip_sections()
 	assert_eq(sections.size(), 1)

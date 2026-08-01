@@ -72,10 +72,6 @@ static func _format_modifier(m: StatModifier) -> String:
 
 static func _collect_addons(node: SkillNode) -> PackedStringArray:
 	var out: PackedStringArray = []
-	var anchor := node.get_node_or_null("Visuals/AddonAnchor")
-	if anchor == null:
-		return out
-	for child in anchor.get_children():
-		if child is SkillNodeAddon:
-			out.append(child.get_script().resource_path.get_file().get_basename())
+	for addon in node.get_addons():
+		out.append(addon.get_script().resource_path.get_file().get_basename())
 	return out

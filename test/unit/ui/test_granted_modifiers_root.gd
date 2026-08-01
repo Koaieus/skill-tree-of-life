@@ -55,15 +55,13 @@ func test_bind_renders_one_mod_slab_row_per_flattened_leaf() -> void:
 
 
 func test_addon_granted_modifiers_are_included_via_node_modifiers() -> void:
-	var anchor := _node.get_node_or_null("Visuals/AddonAnchor")
-	assert_not_null(anchor, "fixture must have an AddonAnchor to attach the addon under")
 	var addon := SkillNodeAddon.new()
 	var granted := _make_modifier(StatModifier.Operation.ADD_BONUS, 5.0, &"armor")
 	addon.entity_modifiers = [granted]
-	anchor.add_child(addon)
+	_node.add_child(addon)
 	await get_tree().process_frame
 
-	assert_true(_node.modifiers.has(granted), "SkillNode._on_addon_added routed the addon's entity_modifiers onto node.modifiers")
+	assert_true(_node.modifiers.has(granted), "SkillNode._attach_addon routed the addon's entity_modifiers onto node.modifiers")
 
 	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
 	add_child_autofree(root)

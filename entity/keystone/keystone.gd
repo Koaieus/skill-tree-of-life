@@ -61,9 +61,9 @@ extends Resource
 ## already carrying it, while its looks are a generation-time decision like any
 ## other archetype stamp.
 ##
-## Call this [b]after[/b] the node is in the tree: [SkillNode] connects its
-## addon-anchor signals in `_ready`, so an addon parented earlier would never
-## hand its modifiers over. [GraphProcgen] calls it right after `add_skill_node`.
+## Safe to call before or after the node enters the tree (#334): an addon
+## parented early is adopted by [SkillNode]'s `_ready` sweep, so its modifiers
+## land either way. [GraphProcgen] still calls it right after `add_skill_node`.
 func stamp(node: SkillNode) -> void:
 	if node == null:
 		return
@@ -72,19 +72,6 @@ func stamp(node: SkillNode) -> void:
 		node.base_type_color = color
 	if radius > 0.0:
 		node.base_radius = radius
-	if addon_scenes.is_empty():
-		return
-	if not node.is_inside_tree():
-		# The anchor's child_entered_tree hookup happens in SkillNode._ready, so
-		# an addon parented before then attaches visibly and stays mechanically
-		# inert — no error, just a silently missing modifier. Verified.
-		push_warning("Keystone '%s': stamp() called before %s entered the tree; "
-			% [display_name, node.name] + "addons would be inert. Skipping them.")
-		return
-	var anchor := node.get_node_or_null("Visuals/AddonAnchor")
-	if anchor == null:
-		push_warning("Keystone '%s': no AddonAnchor on %s; addons dropped." % [display_name, node.name])
-		return
 	for scene in addon_scenes:
 		if scene != null:
-			anchor.add_child(scene.instantiate())
+			node.add_child(scene.instantiate())

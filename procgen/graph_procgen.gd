@@ -703,9 +703,6 @@ static func _roll_and_attach_addons(
 	var slots := policy.sample_slot_count(rng)
 	if slots <= 0:
 		return
-	var anchor := sn.get_node_or_null("Visuals/AddonAnchor") as Node
-	if anchor == null:
-		return
 	# Track unique-addon scenes already minted on this node so we filter
 	# duplicates out of subsequent slot picks. The scene PackedScene IS the
 	# uniqueness key — same scene → same uniqueness class.
@@ -717,7 +714,7 @@ static func _roll_and_attach_addons(
 		var instance: SkillNodeAddon = entry.mint(rng)
 		if instance == null:
 			break
-		anchor.add_child(instance)
+		sn.add_child(instance)
 		if instance.unique:
 			minted_unique_scenes.append(entry.addon_scene)
 

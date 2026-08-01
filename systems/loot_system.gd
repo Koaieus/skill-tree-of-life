@@ -351,11 +351,7 @@ func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 
 
 func _attach_addon(node: SkillNode, addon: SkillNodeAddon) -> void:
-	var anchor := node.get_node_or_null("Visuals/AddonAnchor")
-	if anchor != null:
-		anchor.add_child(addon)
-	else:
-		node.add_child(addon)  # headless fallback (no Visuals subtree)
+	node.add_child(addon)
 
 
 # ── #204: Spellbook loot draft (core-permanent spells) ───────────────────────

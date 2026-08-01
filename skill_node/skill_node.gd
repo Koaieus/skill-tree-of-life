@@ -139,8 +139,14 @@ var inner_radius: float:
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _base_circle: Node2D = $Visuals/BaseCircle
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
-@onready var _addon_anchor: Node2D = $Visuals/AddonAnchor
 @onready var _collision: CollisionShape2D = $CollisionShape2D
+
+## Attached addons, in child order — the ledger that makes attach/detach
+## idempotent (#334). NOT merely a cache of a child scan: a SkillNode
+## re-entering the tree re-fires `child_entered_tree` for every existing child,
+## so membership here (not call ordering) is what decides whether an addon's
+## modifiers still need transferring. See .claude/rules/skill-node-addons.md.
+var _addons: Array[SkillNodeAddon] = []
 
 # Owner subscription tracking — re-bound whenever `owned_by` changes so the
 # CoreMarker reflects the *current* owner's core_location, not a stale one.
@@ -251,8 +257,16 @@ func _ready() -> void:
 	owner_changed.connect(_refresh_core_presence)
 	owner_changed.connect(_refresh_hp_binding)
 	damaged.connect(play_hit_flash.unbind(2))
-	_addon_anchor.child_entered_tree.connect(_on_addon_added)
-	_addon_anchor.child_exiting_tree.connect(_on_addon_removed)
+	# Addons are plain direct children (#334) — no filing bin. Adopt the ones
+	# already present (scene-authored, or parented before we entered the tree),
+	# then listen for later arrivals. `child_entered_tree` fires for DIRECT
+	# children only — verified empirically, a grandchild never fires it — which
+	# is what makes the type filter a sufficient contract.
+	for c in get_children():
+		if c is SkillNodeAddon:
+			_attach_addon(c)
+	child_entered_tree.connect(_on_addon_added)
+	child_exiting_tree.connect(_on_addon_removed)
 	_refresh_core_presence()
 	_refresh_hp_binding()
 
@@ -311,7 +325,7 @@ func _apply_sensed_state() -> void:
 	# which `_node_visuals.sensed` above already hid wholesale.
 	var _is_core := owned_by != null and owned_by.core_location == self
 	core_health_bar.visible = revealed and _is_core
-	for a in get_addons():
+	for a in _addons:
 		a.visible = not sensed
 
 
@@ -334,7 +348,7 @@ func _sync_visuals() -> void:
 	_base_circle.visible = not sensed
 	_base_circle.queue_redraw()
 	hover_ring.configure(radius)
-	for a in get_addons():
+	for a in _addons:
 		a.configure_visual(radius)
 	_node_visuals.configure(radius)
 	_node_visuals.geom_inner_r = inner_radius
@@ -595,7 +609,7 @@ func get_node_effects() -> Array[Effect]:
 	var out: Array[Effect] = effects.duplicate()
 	if keystone != null:
 		out.append_array(keystone.effects)
-	for a in get_addons():
+	for a in _addons:
 		out.append_array(a.effects)
 	return out
 #endregion
@@ -636,14 +650,15 @@ func get_entity_degree(graph: Graph, entity: Entity) -> int:
 	return count
 
 
+## Addons currently attached to this node, in child order. Reads the `_addons`
+## ledger rather than scanning children, so it's O(addons) — it sits inside
+## `_sync_visuals` and the tooltip/emblem aggregators, both of which run per
+## node at graph scale (see .claude/rules/skill-node-scale.md).
+##
+## Returns a copy: callers may mutate the result (the accessor contract in
+## .claude/rules/graph.md). Internal loops iterate `_addons` directly.
 func get_addons() -> Array[SkillNodeAddon]:
-	var out: Array[SkillNodeAddon] = []
-	if _addon_anchor == null:
-		return out
-	for c in _addon_anchor.get_children():
-		if c is SkillNodeAddon:
-			out.append(c)
-	return out
+	return _addons.duplicate()
 
 
 ## Defensive sharpness of this node — the spike magnitude an enemy melee blade
@@ -653,7 +668,7 @@ func get_addons() -> Array[SkillNodeAddon]:
 ## BladePopResolver during an attacker's swing resolution (#170).
 func get_spike_power() -> float:
 	var total := 0.0
-	for a in get_addons():
+	for a in _addons:
 		if a is SpikeRingAddon:
 			total += (a as SpikeRingAddon).damage
 	return total
@@ -668,7 +683,7 @@ func get_spike_power() -> float:
 ## neither are skipped.
 func get_addon_tooltip_sections() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for a in get_addons():
+	for a in _addons:
 		var mods := a.get_tooltip_modifiers()
 		if mods.is_empty() and a.description.is_empty():
 			continue
@@ -701,7 +716,7 @@ func get_emblem_contributions() -> Array:
 	for effect in get_node_effects():
 		if effect is SpellGrant and effect.spell_def != null:
 			out.append(EmblemSpec.carve(effect.spell_def.carve_shape, EmblemSpec.Priority.SPELL, &"spell"))
-	for a in get_addons():
+	for a in _addons:
 		var spec = a.get_emblem()
 		if spec != null:
 			out.append(spec)
@@ -893,28 +908,65 @@ func _refresh_radius() -> void:
 # While allocated we also push/pop live on the entity board so the effect
 # is immediate — same StatModifier instance, no double-pop because
 # AllocationSystem iterates the (now-updated) array on dealloc.
+#
+# Attaching is `add_child` — there is deliberately no `attach_addon()` wrapper
+# (#334). A second entry point would be the old AddonAnchor rebuilt with extra
+# steps; future validation (slot caps, compatibility) belongs right here, in
+# the `child_entered_tree` handler every path already flows through.
+
+## Relative z of an attached addon — lifts it above the whole `Visuals` subtree
+## regardless of where it lands in child order, so an addon authored *before*
+## Visuals still draws on the disk rather than under it. Uniform across every
+## addon (no per-instance variation → no batching cost, see
+## .claude/rules/rendering-performance.md), and below the health bars' relative 10.
+const ADDON_Z := 1
+
+
 func _on_addon_added(c: Node) -> void:
-	if not (c is SkillNodeAddon):
+	if c is SkillNodeAddon:
+		_attach_addon(c)
+
+
+func _on_addon_removed(c: Node) -> void:
+	if c is SkillNodeAddon:
+		_detach_addon(c)
+
+
+## Idempotent against the `_addons` ledger, NOT against call ordering — see
+## [member _addons]. Attaching twice is a no-op, so tree re-entry can't
+## double-apply an addon's modifiers.
+func _attach_addon(a: SkillNodeAddon) -> void:
+	if _addons.has(a):
 		return
-	var a := c as SkillNodeAddon
 	if a.unique:
-		for existing in get_addons():
-			if existing != a and existing.get_script() == a.get_script():
+		for existing in _addons:
+			if existing.get_script() == a.get_script():
 				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_script().resource_path, name])
 				a.queue_free()
 				return
-	for m in a.entity_modifiers:
-		add_entity_modifier(m)
-	for m in a.get_local_modifiers():
-		add_local_modifier(m)
+	_addons.append(a)
+	# The modifier transfer is runtime-only: `modifiers` is an @export, so doing
+	# this under the editor would serialize addon-derived modifiers into the
+	# .tscn and compound them on every save (see .claude/rules/godot-workflow.md,
+	# "never write a DERIVED value back into an @export"). The editor still gets
+	# the addon's visuals below — it just doesn't get its stats. #335 removes
+	# this guard by splitting authored from derived modifiers.
+	if not Engine.is_editor_hint():
+		a.z_index = ADDON_Z
+		for m in a.entity_modifiers:
+			add_entity_modifier(m)
+		for m in a.get_local_modifiers():
+			add_local_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
 
 
-func _on_addon_removed(c: Node) -> void:
-	if not (c is SkillNodeAddon):
+func _detach_addon(a: SkillNodeAddon) -> void:
+	if not _addons.has(a):
 		return
-	var a := c as SkillNodeAddon
+	_addons.erase(a)
+	if Engine.is_editor_hint():
+		return
 	for m in a.entity_modifiers:
 		remove_entity_modifier(m)
 	for m in a.get_local_modifiers():

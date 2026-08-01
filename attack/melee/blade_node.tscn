@@ -11,5 +11,3 @@ metadata/_edit_lock_ = true
 
 [node name="BladeCircle" type="Node2D" parent="Visuals"]
 script = ExtResource("2_xguwb")
-
-[node name="AddonAnchor" type="Node2D" parent="Visuals"]

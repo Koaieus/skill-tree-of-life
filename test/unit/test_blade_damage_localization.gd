@@ -39,12 +39,10 @@ func _setup() -> Dictionary:
 	alloc.force_allocate(entity, source)
 	alloc.force_allocate(entity, member)
 
-	# Spike goes on `member` only — attach AFTER it's in the tree so the
-	# carrier's AddonAnchor signal transfers the local modifier (see
-	# .claude/rules/skill-node-addons.md).
+	# Spike goes on `member` only — a plain direct child of the carrier (#334).
 	var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
 	spike.damage = _SPIKE_DAMAGE
-	member.get_node("Visuals/AddonAnchor").add_child(spike)
+	member.add_child(spike)
 
 	return {"graph": graph, "entity": entity, "source": source, "member": member}
 
@@ -67,7 +65,7 @@ func test_spike_removed_reverts_blade_damage() -> void:
 	var ctx: Dictionary = await _setup()
 	var member: SkillNode = ctx.member
 	var source: SkillNode = ctx.source
-	var spike := member.get_node("Visuals/AddonAnchor").get_child(0)
+	var spike := member.get_addons()[0]
 	spike.free()
 	await get_tree().process_frame
 	assert_almost_eq(float(member.get_local_value(&"blade_damage")),

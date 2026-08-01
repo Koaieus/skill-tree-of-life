@@ -73,8 +73,6 @@ visible = false
 script = ExtResource("4_hover")
 style = ExtResource("5_glow")
 
-[node name="AddonAnchor" type="Node2D" parent="Visuals" unique_id=1119406181]
-
 [node name="HealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922168]
 modulate = Color(1, 1, 1, 0)
 z_index = 10

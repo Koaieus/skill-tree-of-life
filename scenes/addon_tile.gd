@@ -26,11 +26,10 @@ func configure(addon_script: Script, tile_size: Vector2, node_radius: float) -> 
 	# Visual-only — center the gameplay object inside the Control tile.
 	sn.position = _visual_host.custom_minimum_size * 0.5
 	_visual_host.add_child(sn)
-	var anchor: Node2D = sn.get_node_or_null("Visuals/AddonAnchor")
-	if anchor != null and addon_script != null:
+	if addon_script != null:
 		var addon := Node2D.new()
 		addon.set_script(addon_script)
-		anchor.add_child(addon)
+		sn.add_child(addon)
 	_label.text = _pretty_name(addon_script)
 
 

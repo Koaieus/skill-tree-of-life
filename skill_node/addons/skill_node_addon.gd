@@ -2,15 +2,36 @@
 class_name SkillNodeAddon
 extends Node2D
 
-## Component-as-node attached to a SkillNode under its AddonAnchor. Carries
+## Component-as-node attached to a SkillNode as a plain direct child. Carries
 ## stat modifiers (entity- or node-scoped), a visual, and behavior hooks
 ## that other systems dispatch into (e.g. SkillBlade.apply_to_blade for
 ## phantom-blade modifications).
 ##
-## Lifecycle: when added as a child of a SkillNode's AddonAnchor, the
-## carrier transfers our modifiers into its own arrays and (if allocated)
-## the entity board. Symmetric on removal. The carrier owns the
-## "is-this-mod-attached" truth — addons just hand off and reclaim.
+## [b]Attaching is just [code]skill_node.add_child(addon)[/code][/b] (#334).
+## There is no anchor node to file into and no [code]attach_addon()[/code] to
+## call — procgen, keystone stamping, loot, editor authoring and (eventually)
+## the player all use the one path. Ordering is free: an addon parented before
+## the carrier enters the tree is adopted by the carrier's `_ready` sweep.
+##
+## [b]Positioning contract:[/b] an addon's own transform stays identity. It
+## renders concentric with the carrier, centred on the carrier's origin, and
+## inherits the carrier's transform for free. An addon that wants an offset or
+## rotated element bakes that into its own [i]child[/i] visuals — never into
+## its root transform, which the carrier assumes is neutral.
+##
+## Only DIRECT children are adopted. Nesting an addon under `Visuals` or under
+## another addon resolves [member carrier] (the lookup walks up) but never
+## attaches — an explicit non-contract, not a half-supported arrangement.
+##
+## Lifecycle: on becoming a child of a SkillNode, the carrier transfers our
+## modifiers into its own arrays and (if allocated) the entity board.
+## Symmetric on removal. The carrier owns the "is-this-mod-attached" truth —
+## addons just hand off and reclaim.
+##
+## [b]In the editor the modifier transfer is skipped[/b] — an addon shows its
+## visuals but grants no stats, because [member SkillNode.modifiers] is an
+## `@export` and writing derived modifiers there would serialize them into the
+## `.tscn`. See #335.
 ##
 ## - `entity_modifiers`: appended to carrier.modifiers (the same
 ##   `Array[StatModifier]` AllocationSystem already iterates) on add,

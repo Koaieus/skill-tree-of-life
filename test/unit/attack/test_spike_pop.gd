@@ -48,11 +48,10 @@ func _setup() -> Dictionary:
 	alloc.force_allocate(defender, spike_node)
 	alloc.force_allocate(defender, plain_node)
 
-	# Spike attaches AFTER the carrier is in-tree so the AddonAnchor signal
-	# transfers it (see .claude/rules/skill-node-addons.md).
+	# Spike is a plain direct child of the carrier (#334).
 	var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
 	spike.damage = _SPIKE_POWER
-	spike_node.get_node("Visuals/AddonAnchor").add_child(spike)
+	spike_node.add_child(spike)
 
 	return {
 		"graph": graph, "attacker": attacker, "defender": defender,

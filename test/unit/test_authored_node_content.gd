@@ -80,7 +80,7 @@ func _assert_local_modifier(scene: PackedScene, stat_id: StringName, delta: floa
 	assert_eq(addon.local_modifiers[0].value, delta)
 
 	var before: float = float(node.get_local_value(stat_id))
-	node.get_node("Visuals/AddonAnchor").add_child(addon)
+	node.add_child(addon)
 	await get_tree().process_frame
 	assert_eq(float(node.get_local_value(stat_id)), before + delta,
 		"%s: local modifier never reached node_board" % scene.resource_path)
