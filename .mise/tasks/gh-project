@@ -432,7 +432,7 @@ cmd_hygiene() {
               | { number, title, detail: "" } ],
           hollow_hub:
             [ $all[] | select(.kids_total > 0 and .kids_total == .kids_done)
-              | select(.status == "In progress" or .status == "Ready")
+              | select(.status == "In progress")
               | { number, title, detail: "\(.status) — all \(.kids_total) child(ren) closed" } ],
           stale_label:
             [ $all[] | select(.labels | index("swarmable"))
@@ -457,8 +457,12 @@ cmd_hygiene() {
     "A drone must not touch an open fork. Move to needs-design, or drop the label if it is settled."
   _section unmilestoned_ready "Ready with no milestone" \
     "Invisible to \`roadmap\`. Until this is zero the roadmap cannot be the planning surface."
-  _section hollow_hub "Hub whose children are all closed" \
-    "Nothing is left to grind. Close it, or file what actually remains."
+  # In progress ONLY. A `Ready` parent whose children happen to be closed is
+  # not a violation — it still has its own scope and simply hasn't been picked
+  # up (#240 was the false positive that taught this). The real failure is a hub
+  # still claiming to be actively worked with nothing left under it.
+  _section hollow_hub "Hub still In progress with every child closed" \
+    "Nothing left to grind. Close it, or file what actually remains."
   _section stale_label "Still carries the retired \`swarmable\` label" \
     "Ready is the swarm queue now. Drop the label: mise gh-project -- label <n> rm swarmable"
 

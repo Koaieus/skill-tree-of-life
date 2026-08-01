@@ -97,7 +97,7 @@ Keep it to:
 - **Open forks, ordered by what is worth taking first**, each with its issue
   number. Note couplings — "settling A forces reversing B" is the single most
   valuable line in a handoff.
-- **Ready to dispatch** — what is already swarmable, and any sequencing facts.
+- **Ready to dispatch** — what is already in `Ready`, and any sequencing facts.
 - **Live numbers** the next session needs in hand.
 
 And the two rules that keep the file honest:
