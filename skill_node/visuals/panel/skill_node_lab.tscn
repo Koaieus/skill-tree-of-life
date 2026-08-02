@@ -1,7 +1,69 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://8ar7bikowkhm"]
 
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://vw4w7omwawrb" path="res://skill_node/visuals/emblem/polygon_carve_shape.gd" id="2_i6p60"]
+[ext_resource type="Script" uid="uid://cr6yvdiuavfam" path="res://archetypes/archetype.gd" id="3_v5d4n"]
 
-[node name="SkillNodeLab" instance=ExtResource("1_base")]
+[sub_resource type="Resource" id="Resource_otiot"]
+script = ExtResource("2_i6p60")
+sides = 4
+metadata/_custom_type_script = "uid://vw4w7omwawrb"
+
+[sub_resource type="Resource" id="Resource_u716c"]
+script = ExtResource("3_v5d4n")
+primary_stat = &"wisdom"
+carve_shape = SubResource("Resource_otiot")
+metadata/_custom_type_script = "uid://cr6yvdiuavfam"
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_exfcq"]
+resource_local_to_scene = true
+radius = 44.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8ngnr"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.17630166, 0.79, 0.16589999, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+corner_detail = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gypvs"]
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(1, 0.82, 0.1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+corner_detail = 6
+
+[node name="SkillNodeLab" unique_id=1465153555 instance=ExtResource("1_base")]
+archetype = SubResource("Resource_u716c")
 base_type_color = Color(0.36, 0.9, 0.585, 1)
 stake_level = 3
+
+[node name="CollisionShape2D" parent="." index="0" unique_id=987061496]
+shape = SubResource("CircleShape2D_exfcq")
+
+[node name="NodeVisualsComposite" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="0" unique_id=1855738635]
+stake_level = 3
+geom_inner_r = 36.0
+geom_crest_r = 40.0
+geom_outer_r = 44.0
+radius = 44.0
+archetype_tint = Color(0.36, 0.9, 0.585, 1)
+
+[node name="BaseCircle" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="1" unique_id=215651254]
+visible = true
+
+[node name="HealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="3" unique_id=1764922168]
+theme_override_styles/fill = SubResource("StyleBoxFlat_8ngnr")
+
+[node name="CoreHealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="4" unique_id=1764922170]
+theme_override_styles/fill = SubResource("StyleBoxFlat_gypvs")

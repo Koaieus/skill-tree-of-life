@@ -21,6 +21,14 @@ const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 ## leaf component's own scene, which is how baked `instance_shader_parameters`
 ## end up committed (see test_node_visuals_contract).
 @onready var _lab: SkillNode = $ViewportContainer/World/LabSlot/SkillNodeLab
+# The lab is authored to be tweakable, but two things are missing before that
+# pays off, and both are filed rather than open questions:
+# 1) opening the source scene's inspector from the sandbox tab — #249 (live-tab
+#    scaffolding: scenic base + back-refs) is the vehicle.
+# 2) an inspector edit reflecting in the running tab without an editor restart —
+#    #139 confirmed it does NOT; #251 is the fix.
+# Until those land the lab is a static single-drawn preview, so don't write
+# acceptance criteria against it (see #238).
 
 
 ## The [SandboxLiveTab] loader hook: select a [CarveShape] `.tres` in the

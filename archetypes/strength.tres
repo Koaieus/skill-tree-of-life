@@ -1,8 +1,7 @@
-[gd_resource type="Resource" script_class="Archetype" load_steps=3 format=3 uid="uid://b6s1d32mxke7q"]
+[gd_resource type="Resource" script_class="Archetype" format=3 uid="uid://b6s1d32mxke7q"]
 
 [ext_resource type="Script" uid="uid://cr6yvdiuavfam" path="res://archetypes/archetype.gd" id="1_archetype"]
 [ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/triangle.tres" id="2_shape"]
-
 
 [resource]
 script = ExtResource("1_archetype")
