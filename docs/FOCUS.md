@@ -32,10 +32,14 @@ Priority fields and column drags don't cause work to happen — sequence and WIP
 The hard ordering: **node HP scaling settles before damage is tuned.** Tuning damage
 against wrong node HP means tuning it twice.
 
-- #298 CON→node_health coefficient as a CoreClass genesis param — **first, blocks the rest**
-- (new) ratchet-heal bug: nodes observed sitting at ~1/10 max HP, never damaged
-- #274 INT → spell damage: board stat × per-spell coefficient — *blocked on #298*
-- #278 spell balance pass: mana × degree × reach — *blocked on #298*
+- ~~#298 CON→node_health coefficient~~ — **done 2026-08-02.** Not a genesis param:
+  `node_health_scaling`, a board scalar read as a formula input (D-26 precedent).
+- ~~#346 ratchet-heal bug (~1/10 max HP)~~ — **done 2026-08-02.** The node pool's cap
+  was moved by a raw `base_value` write, outside the ratchet. See D-31.
+- #274 INT → spell damage: board stat × per-spell coefficient — **unblocked**
+- #278 spell balance pass: mana × degree × reach — **unblocked**
+  > Read D-31's warning first: the node ratchet is **territory-wide** (one DP buys
+  > `delta × owned_nodes`), so it is live input to both. Registered on #268.
 - #268 balance harness: scenario fixtures + ratio invariants
 - #248 balancing hub (tracking)
 
