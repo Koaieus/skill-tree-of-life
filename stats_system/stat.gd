@@ -28,6 +28,16 @@ signal value_changed
 ## return a sensible value. They are not coupled: base_value is the
 ## entity's *own* starting point after init; default_value is the system-wide
 ## "if absent" floor.
+##
+## [b]On a [PoolStat], writing this is the RAW door onto the cap[/b]: it emits
+## [signal value_changed] but deliberately does NOT run the cap-change behaviour
+## ([method PoolStat._apply_max_change] is reachable only from the modifier
+## path), so there is no grant on a rise and no clamp of `current` on a fall.
+## That bypass is load-bearing — [method SkillPointStat.claim] and
+## [GrowablePoolStatDef]'s growth are both defined by it. If you want the
+## ratchet, use [method PoolStat.set_base_ratcheted]. See D-31 /
+## docs/domain/stat-knobs-and-bins.md §3 — routing this setter through the
+## ratchet mints a spendable SP on every allocation.
 @export var base_value: float = 0.0:
 	set(v):
 		if v == base_value:

@@ -111,6 +111,28 @@ func restore_to_full() -> void:
 	set_current(float(get_value()))
 
 
+## Move `base_value` **through** the cap-change behaviour — grant the delta on a
+## rise (via the def's [method PoolStatDef.on_max_increased]), clamp `current` on
+## a fall. This is the ratcheted one of the two doors onto a pool's cap:
+##
+##   pool.set_base_ratcheted(v)   # cap change behaves like a modifier's would
+##   pool.base_value = v          # RAW — deliberately skips all of the above
+##
+## The raw door is not a bug and must not be welded shut: [method
+## SkillPointStat.claim] *is* that bypass (it grows max without handing over a
+## spendable point — the whole difference from `grant`, and AllocationSystem
+## calls it on every allocation), and [GrowablePoolStatDef]'s level-up growth
+## relies on it for the same reason.
+##
+## Reach for the raw write only when you can name why the cap should move
+## without `current` following, and leave that reason in a comment. Otherwise
+## use this. See docs/domain/stat-knobs-and-bins.md §3 and D-31.
+func set_base_ratcheted(v: float) -> void:
+	var old_max := float(get_value())
+	base_value = v
+	_apply_max_change(old_max)
+
+
 # --- Modifier overrides (maintain current ≤ cap on every cap change) -------
 
 func add_modifier(m: StatModifier) -> void:

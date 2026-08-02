@@ -161,7 +161,10 @@ func extract(n: int) -> void:
 ##
 ## Writes `base_value` directly rather than going through the modifier path
 ## so heal_on_max_increase doesn't bump current — that's exactly what
-## distinguishes claim from grant.
+## distinguishes claim from grant. This is the deliberate RAW door (D-31); the
+## ratcheted sibling is [method PoolStat.set_base_ratcheted]. `skill_points.tres`
+## opts *into* `heal_on_max_increase`, so this line is the only reason claim is a
+## mint-max-only — don't "tidy" it into the ratcheted call.
 func claim(n: int) -> void:
 	base_value += float(n)
 	value_changed.emit()

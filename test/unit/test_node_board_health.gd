@@ -39,7 +39,12 @@ func _setup_node(entity_base_node_health: float = 10.0) -> Dictionary:
 	add_child_autofree(alloc)
 	alloc.force_allocate(entity, node)
 
-	return {"graph": graph, "entity": entity, "node": node, "board": board, "alloc": alloc}
+	# NOTE: `board` is the entity's LIVE board, not the local we authored above —
+	# Entity._ready does `stat_board = stat_board.duplicate(true)`, so the local
+	# is a detached copy the node never binds to. Handing that copy back made the
+	# re-sync test poke a board nothing was listening to, which is why it used to
+	# hand-write `hp.base_value` to "verify" a signal that never fired.
+	return {"graph": graph, "entity": entity, "node": node, "board": entity.stat_board, "alloc": alloc}
 
 
 # ── Allocation creates health pool ──────────────────────────────────────────
@@ -80,14 +85,82 @@ func test_entity_node_health_change_re_syncs() -> void:
 	var hp := node.node_board.get_stat(&"node_health") as PoolStat
 	assert_almost_eq(hp.value, 10.0, 0.001)
 
-	# Verify the signal path works: entity node_health change → node pool re-syncs
+	# The SIGNAL must do the sync — no manual base_value write here. If this
+	# needs a nudge to pass, _on_entity_node_health_changed is not wired.
 	var entity_nh := board.get_stat(&"node_health") as ScalarStat
 	board.add_modifier(_mod(StatModifier.Operation.ADD_BASE, 30.0, &"node_health"))
-	assert_almost_eq(entity_nh.get_value(), 40.0, 0.001, "entity node_health should now be 40")
-	# Manually trigger sync — the signal _on_entity_node_health_changed should
-	# have fired by now, but verify the pool's value reflects the new baseline
-	hp.base_value = entity_nh.get_value()
+	assert_almost_eq(float(entity_nh.get_value()), 40.0, 0.001, "entity node_health should now be 40")
 	assert_almost_eq(hp.value, 40.0, 0.001, "node combat health must re-sync from entity baseline")
+
+
+# ── D-31: the node pool ratchets like the entity pool (#346) ────────────────
+#
+# Cap rises -> grant the delta into `current`. Cap falls -> clamp only, never
+# subtract. These drive through the ENTITY baseline (the path #346 broke),
+# not through a node-local modifier (already covered above) — the whole bug
+# was that the two took different routes into the cap.
+
+func test_entity_driven_cap_rise_grants_the_delta() -> void:
+	var ctx: Dictionary = await _setup_node(20.0)
+	var node: SkillNode = ctx.node
+	var board: StatBoard = ctx.board
+	var hp := node.node_board.get_stat(&"node_health") as PoolStat
+	hp.deplete(12.0)
+	assert_almost_eq(hp.current, 8.0, 0.001, "damaged to 8/20 before the CON swing")
+
+	board.add_modifier(_mod(StatModifier.Operation.ADD_BASE, 20.0, &"node_health"))
+	assert_almost_eq(hp.value, 40.0, 0.001, "cap follows the entity baseline")
+	assert_almost_eq(hp.current, 28.0, 0.001, "D-21 ratchet: the +20 cap delta lands in current")
+
+
+func test_entity_driven_cap_fall_clamps_but_never_subtracts() -> void:
+	var ctx: Dictionary = await _setup_node(20.0)
+	var node: SkillNode = ctx.node
+	var board: StatBoard = ctx.board
+	var hp := node.node_board.get_stat(&"node_health") as PoolStat
+
+	var m := _mod(StatModifier.Operation.ADD_BASE, 20.0, &"node_health")
+	board.add_modifier(m)
+	assert_almost_eq(hp.value, 40.0, 0.001)
+
+	# Well below the incoming max -> untouched (#276 acceptance criterion 6).
+	hp.set_current(5.0)
+	board.remove_modifier(m)
+	assert_almost_eq(hp.value, 20.0, 0.001, "cap falls back to the baseline")
+	assert_almost_eq(hp.current, 5.0, 0.001, "current below the new max must NOT be subtracted from")
+
+
+func test_entity_driven_cap_fall_clamps_current_above_new_max() -> void:
+	var ctx: Dictionary = await _setup_node(20.0)
+	var node: SkillNode = ctx.node
+	var board: StatBoard = ctx.board
+	var hp := node.node_board.get_stat(&"node_health") as PoolStat
+
+	var m := _mod(StatModifier.Operation.ADD_BASE, 20.0, &"node_health")
+	board.add_modifier(m)
+	hp.restore_to_full()
+	assert_almost_eq(hp.current, 40.0, 0.001)
+
+	board.remove_modifier(m)
+	assert_almost_eq(hp.value, 20.0, 0.001)
+	assert_almost_eq(hp.current, 20.0, 0.001, "current above the new max clamps down to it")
+	assert_true(hp.current <= hp.value, "current must never exceed the cap (health bar over 100%)")
+
+
+func test_repeated_cap_growth_does_not_strand_current_near_empty() -> void:
+	# The #346 symptom: CON climbs with level, the cap follows, `current` stays
+	# frozen, and node regen (~1/turn) cannot close a widening gap — so nodes
+	# drift toward reading permanently near-empty.
+	var ctx: Dictionary = await _setup_node(10.0)
+	var node: SkillNode = ctx.node
+	var board: StatBoard = ctx.board
+	var hp := node.node_board.get_stat(&"node_health") as PoolStat
+
+	for i in 9:
+		board.add_modifier(_mod(StatModifier.Operation.ADD_BASE, 10.0, &"node_health"))
+
+	assert_almost_eq(hp.value, 100.0, 0.001, "cap grew 10 -> 100 across the swings")
+	assert_gt(hp.current / hp.value, 0.9, "fill ratio must not collapse as the cap grows")
 
 
 # ── Node-local modifier ─────────────────────────────────────────────────────

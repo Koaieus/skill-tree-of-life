@@ -866,7 +866,11 @@ func _sync_combat_health_base() -> void:
 	var hp := _ensure_local_stat(&"node_health") as PoolStat
 	if hp == null:
 		return
-	hp.base_value = _bound_entity_node_health.get_value()
+	# Ratcheted, not a raw `base_value` write: the owner's node_health baseline
+	# climbs with CON/level, and a raw write moves the cap *outside* the ratchet —
+	# no grant on a rise, no clamp on a fall. That stranded `current` at its old
+	# value while max grew, which is #346's "nodes sit at ~1/10 max HP". D-31.
+	hp.set_base_ratcheted(float(_bound_entity_node_health.get_value()))
 
 
 func _reset_combat_health() -> void:
