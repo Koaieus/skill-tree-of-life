@@ -47,6 +47,32 @@ the whole reason early design-heavy sessions unlocked autonomous throughput is
 that a *human* pinned the forks. If the user is absent, you may draft proposed
 resolutions, but you do **not** apply the label until they've signed off.
 
+## Read the issue yourself; delegate only the fact-checking
+
+Two different jobs hide inside step 1, and they have opposite delegation answers.
+
+**RTFC is yours.** A hub's comments are where the decisions live, and they argue
+with each other — a later comment routinely *corrects* an earlier one in the same
+thread. A subagent hands you a summary, and the summary is exactly where that
+nuance dies. Never delegate reading the issue.
+
+**Verification is not.** Once you have the issue's claims in hand — "`X` is
+unbuilt", "`Y` has no caller", "placement carries `node_scene`", "that helper was
+deleted in #N" — checking each against `master` is mechanical lookup with no
+judgment in it, and it is most of the tool calls in a pass. Dispatch **one**
+`Explore` agent (`model: "haiku"`) with the claim list and have it report
+verified/false//stale per claim with a `file:line`. One call instead of ten.
+
+This does not contradict "not a spawn" below — that rule is about the *thinking*.
+Fact-checking isn't thinking, and skipping it is how a pass specs work against a
+world two commits stale.
+
+Worked example (2026-08-02, #332/#165): reading two hubs' comment threads was
+irreducible and caught a comment retracting an earlier one's central claim. The
+same pass burned ~8 calls on pure lookup — is #322 closed, is #339 already filed,
+does `keystone_placement.gd` have a `node_scene` field — and that last one is what
+exposed #330 sitting in `Ready` with an open fork in its body.
+
 ## The cycle
 
 ### 1. Read the whole issue — RTFC
