@@ -73,7 +73,7 @@ extends Resource
 ## `mobility` / `deallocation_points` / `rare` wrote by hand).
 @export var tier_bias_k: float = 1.0
 
-## Lowest tier this pool offers (cost = [TierLadder.COSTS][min-1]). Almost
+## Lowest tier this pool offers (cost = [TierLadder.cost] min-1). Almost
 ## always 1 — lowering it is how a pool "starts expensive."
 @export_range(1, 4) var min_tier: int = 1
 

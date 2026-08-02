@@ -18,13 +18,12 @@ extends Resource
 ##   tier_1..tier_4   always
 ##   T1, T2 -> common · T3 -> rare · T4 -> mythic
 
-const COSTS := [1, 2, 4, 8]
 const MIN_TIER := 1
 const MAX_TIER := 4
 
 
 static func cost(tier: int) -> int:
-	return COSTS[clampi(tier - MIN_TIER, 0, COSTS.size() - 1)]
+	return 1 << clampi(tier - MIN_TIER, 0, MAX_TIER - MIN_TIER)
 
 
 static func value(tier: int) -> float:
