@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mise run test*)",
+      "Bash(mise run check*)",
+      "Bash(mise run --quiet gh-project -- list*)",
+      "Bash(mise run --quiet gh-project -- hygiene*)",
+      "Bash(mise run --quiet gh-project -- swarmq*)",
+      "Bash(mise run --quiet gh-project -- roadmap*)",
+      "Bash(gh api rate_limit)"
+    ]
+  }
+}
