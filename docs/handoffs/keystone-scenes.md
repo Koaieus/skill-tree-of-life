@@ -16,7 +16,7 @@ The hub is therefore **swarmify-ready**, not yet `Ready` — children still need
 
 - **#179 gates everything else in #336.** Narrowed to a single `display_name` export, no `description`; it also owns flipping the `id_chip_panel` predicate. The landmark migration and #330 both wait on it.
 - **#288 is why the predicate is effect-based.** Settle these together or the chip breaks silently when generated names land.
-- **#327 was de-swarmified** — its spec builds the `.tres` keystones #336 deletes. Its `Role` deletion half is unaffected and can still proceed. It keeps its #321 parent.
+- **#327 was de-swarmified** — its spec builds the `.tres` keystones #336 deletes. Its `Role` deletion half is unaffected and can still proceed. It keeps its #321 parent. (Briefly promoted to `Ready` in error on 2026-08-02 and moved back to `Needs design` — its `## Swarmable spec` heading reads settled but is stale.)
 - **#339 is independent of all of the above** and can go first.
 
 ## Ready to dispatch
@@ -37,7 +37,7 @@ Wave 2 is sequential and specified in #336's "Dispatch order" section. Wave 3 (c
 
 Not committed, not mine, flagged rather than touched:
 
-- **`skill_node/addons/skill_node_addon.tscn` is back as an untracked file.** `fc124de` deleted it deliberately as dead weight two commits earlier; it has reappeared carrying `z_index = 1` and a `unique_id`, which reads like an editor recreation. It contradicts that commit and `.claude/rules/scene-composition.md`. Decide before it gets committed by accident.
+- ~~`skill_node/addons/skill_node_addon.tscn` is back as an untracked file.~~ **Resolved 2026-08-02** — deleted again, never committed. `fc124de` and `.claude/rules/scene-composition.md` stand.
 - **Live procgen WIP:** `stat_pool.gd`, `wisdom.tres`, `specimen_pool_set.tres`, and `first_level.tres` tuning (`base_max` 4→3, `budget_field.inner_radius` 200). `stat_pool.gd:64` reads `jitter: float = 0.` — looks mid-keystroke. **Don't swarm procgen files onto this checkout until it's settled.**
 - The four `*_keystone.tres` diffs are benign (uid addition + default elision per `godot-workflow.md`) and are about to be deleted anyway.
 
