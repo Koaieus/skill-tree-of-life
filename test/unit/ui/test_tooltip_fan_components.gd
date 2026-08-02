@@ -58,7 +58,15 @@ func test_panel_header_empty_subheader_occupies_header_height_only() -> void:
 	without_sub.bind("owner")
 
 	await get_tree().process_frame
-	assert_true(without_sub.size.y < with_sub.size.y,
+	# Compare MINIMUM size, not `size`. Both headers are parented to the test
+	# node rather than to a container, and Godot only ever grows a free-standing
+	# Control's `size` up to its minimum — it never shrinks it back down. So
+	# both instances kept whatever height they were first laid out at and the
+	# `size.y` comparison could not observe the collapse it was written for.
+	# `get_combined_minimum_size()` is what the VBoxContainer actually reports
+	# to its parent, and it's the quantity the "no reserved blank line" claim
+	# is about: a hidden child contributes nothing to a VBox's minimum.
+	assert_lt(without_sub.get_combined_minimum_size().y, with_sub.get_combined_minimum_size().y,
 		"collapsed subheader must not reserve a blank line's height")
 
 

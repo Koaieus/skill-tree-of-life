@@ -110,11 +110,20 @@ func has_content() -> bool:
 	return true
 
 
-## First Control child, whichever skin scene was hand-placed under this node.
+## The skin scene hand-placed under this node — whichever of the swappable
+## skins ([HoloPanel] / [GlassPanel]) comes first in tree order.
+##
+## Matches on skin TYPE, not on "first Control child". The positional version
+## silently mis-resolved any panel that authored its content above its skin:
+## `core_panel.tscn` lists `Content` (a VBoxContainer) first, so `get_skin()`
+## handed back the content box and [method _push_glow] fell through both of
+## its branches — the core panel's glow never rendered, with no error. Child
+## order inside a panel is a layout decision and must not silently rebind
+## which node is the skin.
 func get_skin() -> Control:
 	for child in get_children():
-		if child is Control:
-			return child
+		if child is HoloPanel or child is GlassPanel:
+			return child as Control
 	return null
 
 

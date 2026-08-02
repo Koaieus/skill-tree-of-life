@@ -7,8 +7,12 @@ extends GutTest
 ## Control's own rect, making the widget hard to position in a layout.
 ##
 ## Fix moved label placement to a dedicated _label_anchor(i) helper, bounded
-## via LABEL_MARGIN so the draw_string box (label_anchor +/- half the text
+## via `label_margin` so the draw_string box (label_anchor +/- half the text
 ## width, horizontally) stays inside Rect2(Vector2.ZERO, size).
+##
+## `label_margin` / `label_text_width` were `const LABEL_MARGIN` /
+## `LABEL_TEXT_WIDTH` when this file was written; they are now inspector
+## knobs, so read them off the instance rather than the class.
 
 
 func test_label_anchors_stay_within_control_rect() -> void:
@@ -24,7 +28,7 @@ func test_label_anchors_stay_within_control_rect() -> void:
 		var anchor: Vector2 = radar._label_anchor(i)
 		# Mirror _draw()'s draw_string offset/width so this test reflects the
 		# actual drawn text box, not just the raw anchor point.
-		var half_width: float = radar.LABEL_TEXT_WIDTH * 0.5
+		var half_width: float = radar.label_text_width * 0.5
 		var box_left := anchor.x - half_width
 		var box_right := anchor.x + half_width
 		assert_true(rect.has_point(anchor),

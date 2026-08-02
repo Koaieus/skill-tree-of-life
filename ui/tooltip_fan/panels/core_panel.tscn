@@ -38,6 +38,7 @@ script = ExtResource("1_script")
 progress = 1.0
 
 [node name="Content" type="VBoxContainer" parent="." unique_id=789891262]
+z_index = 0
 offset_left = -85.0
 offset_top = -121.0
 offset_right = 85.0
@@ -55,6 +56,7 @@ layout_mode = 2
 theme_override_constants/separation = 1
 
 [node name="HoloPanel" parent="." unique_id=769655380 instance=ExtResource("3_unol0")]
+z_index = -1
 material = SubResource("ShaderMaterial_4jmio")
 anchors_preset = 9
 anchor_bottom = 1.0
