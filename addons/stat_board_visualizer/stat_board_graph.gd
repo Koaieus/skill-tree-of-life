@@ -52,6 +52,7 @@ const _GROUP_LAYOUT := [
 		"tint": Color(0.45, 0.40, 0.25, 0.35),
 		"stats": [
 			&"vision_range", &"sensor_range", &"node_health",
+			&"core_health_scaling", &"node_health_scaling",
 			&"xp_per_turn", &"mana_per_turn", &"initiative_speed",
 		],
 	},

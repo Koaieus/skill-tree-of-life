@@ -38,6 +38,13 @@ extends Resource
 ## `nodes_lost_before_death = health / dealloc_damage` is where class identity
 ## lives. Entity-scope only; meaningless node-locally (see #287).
 @export var core_health_scaling: ScalarStat
+## Max node HP one point of CON buys (#298). Same shape as
+## `core_health_scaling` one field up, for the node pool instead of the entity
+## pool: `node_health = 10 + node_health_scaling × CON`. A stat rather than the
+## intrinsic's `value` because a CoreClass must be able to move it with an
+## ordinary modifier — no genesis/class-param mechanism (D-26, D-31).
+## Per-class values are #268's; the default 1.0 is not a blessed number.
+@export var node_health_scaling: ScalarStat
 ## Board-level scalar baseline that seeds owned-node max HP. The per-node
 ## ephemeral combat pool lives on each TreeNode's combat component (see the
 ## "Per-Node Health" section of the design doc); this is the aggregate itw

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"node_health_scaling"
+display_name = "Node Health Scaling"
+description = "How much max HP one point of CON buys on each owned node (#298, D-26 precedent). node_health = 10 + node_health_scaling x CON. Default 1.0; a CoreClass trades node durability against something else by moving this. Per-class values are a #268 tuning pass — do not invent them here."
+value_type = 1
+default_value = 1.0
+tint_color = Color(0.8586, 0.9018, 0.9482, 1)
+modifier_name = "Node HP per CON"

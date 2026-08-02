@@ -38,13 +38,60 @@ func test_con_0_vs_30_node_health_differs_by_intrinsic_rate() -> void:
 	board_hi.apply_intrinsics()
 	board_hi.constitution.base_value = 30.0
 
-	# node_health += CON, i.e. the `value` coefficient on mod_con_to_node_health
-	# times a LinearFormula passthrough of constitution. The rate lives in that
-	# coefficient, NOT in a formula string, so #268 can tune it in one place.
-	# TBD (#268): placeholder coefficient, 1.0.
+	# node_health = 10 + node_health_scaling × CON (#298). The rate lives in the
+	# `node_health_scaling` STAT, not in the modifier's `value` and not in a
+	# formula string — so a CoreClass can move it with an ordinary modifier and
+	# #268 tunes it in one place. TBD (#268): placeholder scaling, 1.0.
 	var expected_rate := 30.0  # 1.0 * (30 - 0)
 	var diff: float = float(board_hi.node_health.get_value()) - float(board_lo.node_health.get_value())
 	assert_almost_eq(diff, expected_rate, 0.001, "node_health delta should equal the CON intrinsic rate exactly")
+
+
+# --- 2b. #298: the rate is a board stat, and it is reactive ----------------
+
+func test_node_health_scaling_present_and_defaults_to_one() -> void:
+	var board := _board()
+	assert_not_null(board.node_health_scaling, "default board should carry node_health_scaling")
+	assert_eq(String(board.node_health_scaling.definition.id), "node_health_scaling")
+	assert_almost_eq(float(board.node_health_scaling.get_value()), 1.0, 0.001,
+		"default 1.0 keeps every previously-published node_health number valid")
+
+
+func test_node_health_scaling_drives_the_con_rate_reactively() -> void:
+	var board := _board()
+	board.apply_intrinsics()
+	board.constitution.base_value = 20.0
+	var at_one: float = float(board.node_health.get_value())
+
+	# A CoreClass tunes durability with an ORDINARY modifier — this is the whole
+	# reason the coefficient is a stat and not the intrinsic's `value`. If the
+	# formula's `inputs` omits node_health_scaling, the modifier never rebinds
+	# and this silently reads the old number.
+	var m := StatModifier.new()
+	m.stat_id = &"node_health_scaling"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = 0.5
+	board.add_modifier(m)
+
+	var at_one_five: float = float(board.node_health.get_value())
+	assert_almost_eq(at_one_five - at_one, 10.0, 0.001,
+		"+0.5 scaling on CON 20 must add 10 node_health, reactively")
+
+
+func test_coreless_entity_still_gets_the_con_rate() -> void:
+	# #298 option 2 (fully class-side) had a real cliff: coreless entities exist
+	# (scenes/dev/_spike_live.gd, test fixtures) and would have got CON -> 0.
+	# Board-stat home means the 1.0 default always applies.
+	var board := _board()
+	board.apply_intrinsics()
+	var entity := Entity.new()
+	entity.stat_board = board
+	autofree(entity)
+	assert_null(entity.core_class, "fixture entity is deliberately coreless")
+
+	board.constitution.base_value = 30.0
+	assert_almost_eq(float(board.node_health.get_value()), 40.0, 0.001,
+		"10 base + 1.0 x 30 CON — no cliff without a CoreClass")
 
 
 # --- 3. Guard on D-11 decision 3: armor and min_damage_taken must NOT move

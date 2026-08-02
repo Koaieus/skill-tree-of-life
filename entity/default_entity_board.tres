@@ -28,6 +28,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="def_mana_per_turn"]
 [ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="def_min_dmg_taken"]
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
+[ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing.tres" id="def_node_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing_ramp.tres" id="def_node_healing_ramp"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
@@ -94,6 +95,12 @@ base_value = 1.0
 resource_name = "core_health_scaling"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_health_scaling")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_node_health_scaling"]
+resource_name = "node_health_scaling"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_node_health_scaling")
 base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
@@ -250,8 +257,10 @@ stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
 
 [sub_resource type="Resource" id="formula_con_to_node_health"]
-script = ExtResource("script_linear")
-source_stat_id = &"constitution"
+script = ExtResource("script_expr")
+formula = "node_health_scaling * constitution"
+inputs = Array[StringName]([&"node_health_scaling", &"constitution"])
+per_phrase = "CON × node scaling"
 
 [sub_resource type="Resource" id="mod_con_to_node_health"]
 script = ExtResource("12_3edt8")
@@ -412,6 +421,7 @@ constitution = SubResource("scalar_constitution")
 health = SubResource("pool_health")
 core_healing = SubResource("scalar_core_healing")
 core_health_scaling = SubResource("scalar_core_health_scaling")
+node_health_scaling = SubResource("scalar_node_health_scaling")
 node_health = SubResource("scalar_node_health")
 node_healing = SubResource("scalar_node_healing")
 node_healing_ramp = SubResource("scalar_node_healing_ramp")
