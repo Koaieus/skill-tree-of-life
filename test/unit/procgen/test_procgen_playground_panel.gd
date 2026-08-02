@@ -79,8 +79,15 @@ func test_load_config_and_refresh_do_not_error() -> void:
 
 	panel.load_config(_PRESET)
 	await get_tree().process_frame
+	# The observable post-condition, not just "it didn't throw": load_config
+	# adopts the inspected resource as the source, and duplicates it so the
+	# panel never mutates the on-disk config (see playground_panel.gd's doc).
+	assert_eq(panel._source_config, _PRESET, "load_config must adopt the inspected config as source")
+	assert_ne(panel._config, _PRESET, "the rendered config must be a duplicate, not the on-disk resource")
+
 	panel.refresh_from_config()
 	await get_tree().process_frame
+	assert_eq(panel._source_config, _PRESET, "refresh must preserve the source config's identity")
+	assert_ne(panel._config, _PRESET, "refresh must re-duplicate rather than adopt the resource itself")
 
-	pass_test("load_config + refresh_from_config completed without error")
 	panel.queue_free()

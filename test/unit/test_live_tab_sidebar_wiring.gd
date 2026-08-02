@@ -5,7 +5,10 @@ extends GutTest
 
 func _load(tab_path: String) -> SandboxLiveTab:
 	var t: SandboxLiveTab = load(tab_path).instantiate()
-	add_child(t)
+	# autofree, not a manual `queue_free()` at the end of the test body: an
+	# assertion that fails mid-test aborts before the manual free ever runs,
+	# leaking the tab (and its whole subtree) for the rest of the suite.
+	add_child_autofree(t)
 	return t
 
 
@@ -25,7 +28,6 @@ func test_spell_tab_shows_sidebar_wired_to_loader() -> void:
 	assert_gt(list.entries().size(), 0, "should list the spell defs")
 	assert_true(list.is_connected("selected_resource", Callable(tab, "load_object")),
 		"base must self-wire the card list to load_object")
-	tab.queue_free()
 
 
 func test_procgen_tab_shows_sidebar_of_configs() -> void:
@@ -37,4 +39,3 @@ func test_procgen_tab_shows_sidebar_of_configs() -> void:
 	assert_gt(list.entries().size(), 0, "recursive scan should find the nested preset config(s)")
 	assert_true(list.is_connected("selected_resource", Callable(tab, "load_object")),
 		"base must self-wire the card list to load_object")
-	tab.queue_free()

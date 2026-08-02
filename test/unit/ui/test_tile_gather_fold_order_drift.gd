@@ -101,7 +101,13 @@ func test_measure_max_drift_between_global_and_tile_gather_order() -> void:
 
 	gut.p("tile-gather vs global-index fold order: max drift = %.6f over %d probes (visible threshold 1/255 = %.6f)"
 		% [max_drift, trials, 1.0 / 255.0])
-	# Not an assertion against a threshold — this test exists to REPORT the
-	# number so a human can decide whether "bit-identical to today" holds.
-	# See docs/domain/overlay-field-rendering.md for where this result is recorded.
-	assert_true(true, "see printed drift measurement")
+	# The measurement this test was written to produce is recorded in
+	# docs/domain/overlay-field-rendering.md: max drift 0.0026 against the
+	# 1/255 = 0.0039 visible threshold — under budget, but by only ~30%.
+	# That headroom is exactly what's worth guarding, so assert it rather than
+	# printing a number nobody re-reads. `field_smin` is not associative, so a
+	# future change to tile size, scan order, or union_smoothness can push this
+	# over; if it does, the drift became VISIBLE and the doc needs updating too.
+	assert_lt(max_drift, 1.0 / 255.0,
+		"tile-order fold drifted past the visible threshold at %s — see docs/domain/overlay-field-rendering.md"
+			% max_drift_at)

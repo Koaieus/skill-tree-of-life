@@ -73,11 +73,25 @@ func test_exclude_starters_picks_next_nearest() -> void:
 	assert_true(placed == 2 or placed == 4, "expected 2 or 4 next-nearest, got %d" % placed)
 
 
-func test_no_keystone_or_no_context_is_noop() -> void:
+func test_no_keystone_is_noop() -> void:
+	var ctx := _ctx(3)
 	var p := KeystonePlacement.new()
-	# No keystone → silent noop.
-	p.apply(_ctx(3))
-	# No context → silent noop.
+	p.target_position = Vector2(1.0, 0.0)
+	p.role_tag = &"keystone"
+	# No keystone assigned → must place nothing AND stamp no tag, rather than
+	# writing a null into the slot it would otherwise have picked.
+	p.apply(ctx)
+	for i in 3:
+		assert_null(ctx.keystones[i], "slot %d must stay empty" % i)
+		assert_eq(ctx.role_tags[i].size(), 0, "slot %d must not be tagged" % i)
+
+
+func test_no_context_is_noop() -> void:
+	var p := KeystonePlacement.new()
 	p.keystone = _stat_keystone()
+	# Passing a null context must return silently, not push an error or crash.
+	# `assert_no_new_orphans` is not the point here — the observable contract is
+	# that the call itself is survivable, so the following assert is what proves
+	# control returned at all.
 	p.apply(null)
-	assert_true(true)
+	assert_not_null(p.keystone, "apply(null) must leave the placement itself untouched")

@@ -37,6 +37,9 @@ func test_multiply_whole_trims_decimals() -> void:
 func test_set_override() -> void:
 	assert_eq(_mod(StatModifier.Operation.SET, 13.0).contribution_text(), "=13")
 
-
-func test_trigger_signal_exists() -> void:
-	assert_true(Events.has_signal("stat_modifier_changed"))
+# `test_trigger_signal_exists` lived here and asserted only that
+# `Events.has_signal("stat_modifier_changed")` — a signal DECLARATION, which
+# passes forever whether or not anything ever emits or connects to it, and
+# which was off-topic for a file about `contribution_text()`. Deleted rather
+# than rewritten: if the emission is worth guarding, it belongs in a test of
+# the emitter, with `watch_signals` + `assert_signal_emitted`.

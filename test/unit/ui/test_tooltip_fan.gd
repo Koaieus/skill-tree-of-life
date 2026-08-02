@@ -325,14 +325,22 @@ func test_members_are_fired_with_an_increasing_per_index_delay() -> void:
 
 # --- structural: no Tween, no fan-wide progress -----------------------------
 
-func test_coordinator_owns_no_tween() -> void:
-	var src := FileAccess.get_file_as_string("res://ui/tooltip_fan/tooltip_fan.gd")
-	assert_false(src.contains("create_tween("), "TooltipFan must not own a Tween")
-
-
+## The coordinator decides WHEN each member starts and nothing else — no
+## fan-wide clock the members read off. Asserted against the real property
+## list, not by grepping the script's source text: a source grep passes just as
+## happily after a rename to `var _progress`, and would fail on a doc comment
+## that merely mentions the name, so it checks neither direction of the thing
+## it claims to check.
+##
+## (Its deleted sibling grepped for `create_tween(`. There is no public "which
+## node bound this Tween" API to replace it with, and the invariant it named is
+## covered behaviourally by the stagger test above — members must start on
+## their own delays, which a shared tween would break.)
 func test_coordinator_has_no_fan_wide_progress_variable() -> void:
-	var src := FileAccess.get_file_as_string("res://ui/tooltip_fan/tooltip_fan.gd")
-	assert_false(src.contains("var progress"), "TooltipFan must not own a fan-wide progress clock")
+	for prop in _fan.get_property_list():
+		if prop["usage"] & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			assert_ne(String(prop["name"]).lstrip("_"), "progress",
+				"TooltipFan must not own a fan-wide progress clock (found `%s`)" % prop["name"])
 
 
 # --- helpers -----------------------------------------------------------------

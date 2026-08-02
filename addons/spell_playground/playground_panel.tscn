@@ -43,7 +43,7 @@
 [ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="41_21cp1"]
 [ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="42_mxixh"]
 [ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="43_xa118"]
-[ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="44_5fdyx"]
+[ext_resource type="Resource" uid="uid://d4cd1vbl585es" path="res://attack/spell/defs/resonator.tres" id="44_5fdyx"]
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="45_oqsv1"]
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="47_eagb3"]
 [ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="48_float"]
