@@ -11,7 +11,7 @@ const _SPARK := preload("res://attack/spell/defs/spark.tres")
 const _LIGHTNING := preload("res://attack/spell/defs/lightning_bolt.tres")
 const _LEAFBLOWER := preload("res://attack/spell/defs/leafblower.tres")
 const _BRUISER := preload("res://attack/spell/defs/bruiser.tres")
-const _RESONATOR := preload("res://attack/spell/defs/resonator.tres")
+const _REVERBERATOR := preload("res://attack/spell/defs/reverberator.tres")
 
 
 func _assert_well_formed(s: SpellDef, label: String) -> void:
@@ -33,7 +33,9 @@ func test_lightning_preset_well_formed() -> void:
 	_assert_well_formed(s, "lightning_bolt.tres")
 	var p := s.propagation as PropagationConfig
 	assert_eq(p.max_hops, 3, "lightning max_hops")
-	assert_almost_eq(p.damage_multiplier_per_hop, 0.5, 0.001)
+	assert_not_null(p.hop_damage, "lightning has a hop_damage ramp")
+	assert_true(p.hop_damage is MultiplyRamp, "lightning uses MultiplyRamp")
+	assert_almost_eq(p.hop_damage.factor, 0.5, 0.001)
 	assert_not_null(p.step, "lightning has a step (FanAll)")
 	assert_true(p.step is FanAllStep)
 	assert_not_null(p.reducer, "lightning has a reducer (MaxDamage)")
@@ -46,7 +48,9 @@ func test_leafblower_preset_well_formed() -> void:
 	var p := s.propagation as PropagationConfig
 	assert_true(p.step is FanAllStep)
 	assert_true(p.filter is CompositeFilter, "leafblower composes owner + degree filter")
-	assert_gt(p.damage_multiplier_per_hop, 1.0, "leafblower ramps up")
+	assert_not_null(p.hop_damage, "leafblower has a hop_damage ramp")
+	assert_true(p.hop_damage is MultiplyRamp, "leafblower uses MultiplyRamp")
+	assert_gt(p.hop_damage.factor, 1.0, "leafblower ramps up")
 
 
 func test_bruiser_preset_well_formed() -> void:
@@ -59,13 +63,15 @@ func test_bruiser_preset_well_formed() -> void:
 	assert_true(step.ranker is StatRanker)
 
 
-func test_resonator_preset_well_formed() -> void:
-	var s: SpellDef = _RESONATOR
-	_assert_well_formed(s, "resonator.tres")
+func test_reverberator_preset_well_formed() -> void:
+	var s: SpellDef = _REVERBERATOR
+	_assert_well_formed(s, "reverberator.tres")
 	var p := s.propagation as PropagationConfig
-	assert_true(p.reducer is SumDamageReducer, "resonator uses SUM merger")
-	assert_gt(p.damage_multiplier_per_hop, 1.0, "resonator ramps up per hop")
-	assert_gt(p.max_visits_per_node, 1, "resonator allows revisits to weaponise self-loops")
+	assert_true(p.reducer is SumDamageReducer, "reverberator uses SUM merger")
+	assert_not_null(p.hop_damage, "reverberator has a hop_damage ramp")
+	assert_true(p.hop_damage is MultiplyRamp, "reverberator ramps multiplicatively")
+	assert_gt(p.hop_damage.factor, 1.0, "reverberator ramps up per hop")
+	assert_gt(p.max_visits_per_node, 1, "reverberator allows revisits to weaponise self-loops")
 
 
 func test_spark_cast_produces_single_seed_hit() -> void:

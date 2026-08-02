@@ -31,6 +31,14 @@ var hops_remaining: int = 0
 ## 0 = seed; +1 per propagation step. Drives VFX stagger order and lets
 ## damage formulas reference "how deep are we?".
 var hop_index: int = 0
+## How many BFS wavefronts converged at this node in the wave that produced
+## this [CastSpell]. Stamped by [SpellResolver] at the grouping pass
+## ([code]spell_resolver.gd[/code] ~L52) — see #352. 1 = single incident
+## (no convergence); 2+ = converging branches. Read by
+## [ConvergenceCritCondition] to gate the convergence crit. Stamped upstream
+## of the reducer so it is set even on the [code]reducer == null[/code]
+## "first-wins" short-circuit path.
+var incident_count: int = 1
 ## Per-branch trail of nodes visited so far. Carried for filters that need
 ## branch-local "have I been here on THIS path" semantics; the canonical
 ## revisit gate is the global ledger on [PropagationContext.global_visit_count]

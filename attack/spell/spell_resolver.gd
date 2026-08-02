@@ -57,6 +57,12 @@ static func resolve(
 			groups[inc.current_node] = bucket
 
 		# 2. Reduce per node; CANCEL → telemetry + drop the node entirely.
+		# After the reducer runs (or short-circuits), stamp the convergence count
+		# onto the resolved state so the crit condition reading
+		# `state.incident_count` sees the right number regardless of which path
+		# was taken (real reducer returning a fresh merged CastSpell would
+		# otherwise default to 1; the null "first-wins" short-circuit returns
+		# incidents[0] raw). See #352.
 		var merged: Array[CastSpell] = []
 		for node in groups:
 			var incidents: Array[CastSpell] = []
@@ -66,6 +72,7 @@ static func resolve(
 			if resolved == null:
 				_record_cancel(outcome, node, ctx.wave_index, incidents)
 				continue
+			resolved.incident_count = incidents.size()
 			merged.append(resolved)
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.

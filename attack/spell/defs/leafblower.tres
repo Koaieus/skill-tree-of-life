@@ -18,6 +18,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="12_y0ifm"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="15_l5r25"]
+[ext_resource type="Script" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="16_ramp"]
 
 [sub_resource type="Resource" id="crit_leaf"]
 script = ExtResource("2_crit_leaf")
@@ -42,13 +43,17 @@ script = ExtResource("10_reducer")
 [sub_resource type="Resource" id="step_fan"]
 script = ExtResource("9_step")
 
+[sub_resource type="Resource" id="ramp_rampup"]
+script = ExtResource("16_ramp")
+factor = 1.5
+
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
 step = SubResource("step_fan")
 reducer = SubResource("reducer_max")
 max_hops = 7
-damage_multiplier_per_hop = 1.5
+hop_damage = SubResource("ramp_rampup")
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("12_range")

@@ -7,6 +7,8 @@ bruiser	lorc/fist.svg
 leafblower	lorc/leaf-swirl.svg
 trailblazer	lorc/spiral-arrow.svg
 resonator	lorc/resonance.svg
+reverberator	lorc/vibrating-ball.svg
+laser_burst	skoll/laser-burst.svg
 mesh_network	delapouite/mesh-network.svg
 elderberry	lorc/elderberry.svg
 skills	delapouite/skills.svg

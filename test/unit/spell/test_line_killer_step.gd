@@ -33,11 +33,12 @@ func _payload(damage: float, current: SkillNode, hops: int = 5) -> CastSpell:
 
 
 ## The production filter shape: enemy-owned AND absolute degree >= 2.
+## Uses AddRamp(2) on the config for the per-hop +2 (moved off the step in #351).
 func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var deg2 := ExpressionFilter.new()
 	deg2.expression = "to_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
-	var o := {max_hops = 20}
+	var o := {max_hops = 20, hop_damage = h.add_ramp(2.0)}
 	o.merge(opts)
 	return h.make_config(TrailBlazerStep.new(), h.composite_filter(children), null, o)
 
@@ -49,8 +50,7 @@ func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 	var graph := h.make_graph([[0, 1], [1, 2]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.per_hop_increment = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), [nodes[1]] as Array[SkillNode], config, _ctx(graph))
 	assert_eq(out.size(), 1, "one branch minted")
 	assert_almost_eq(out[0].damage, 5.0, 0.001, "3 + 2 increment")
@@ -62,10 +62,9 @@ func test_terminal_multiply_constant_slams_and_stops() -> void:
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.per_hop_increment = 2.0
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
 	step.terminal_multiplier = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
 	var out := step.step(nodes[1], _payload(9.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 22.0, 0.001, "(9 + 2) × 2")
 	assert_eq(out[0].hops_remaining, 0, "slam terminates the walk")
@@ -75,9 +74,8 @@ func test_terminal_square() -> void:
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.per_hop_increment = 1.0
 	step.terminal_mode = TrailBlazerStep.TerminalMode.SQUARE
-	var config := h.make_config(step, null, null, {max_hops = 5})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(1.0)})
 	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 36.0, 0.001, "(5 + 1)² = 36")
 
@@ -87,9 +85,8 @@ func test_terminal_multiply_by_degree_scales_with_junction() -> void:
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3], [0, 4]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.per_hop_increment = 1.0
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_BY_DEGREE
-	var config := h.make_config(step, null, null, {max_hops = 5})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(1.0)})
 	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 24.0, 0.001, "(5 + 1) × degree 4")
 
@@ -97,7 +94,7 @@ func test_terminal_multiply_by_degree_scales_with_junction() -> void:
 func test_empty_candidates_ends_walk() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
-	var config := h.make_config(TrailBlazerStep.new(), null, null, {max_hops = 5})
+	var config := h.make_config(TrailBlazerStep.new(), null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
 	var out := TrailBlazerStep.new().step(nodes[0], _payload(3.0, nodes[0]), [] as Array[SkillNode], config, _ctx(graph))
 	assert_eq(out.size(), 0, "no candidate → no branch")
 
@@ -113,8 +110,7 @@ func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
 	var graph := h.make_graph([[0, 1], [1, 3], [0, 2], [2, 4]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.per_hop_increment = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
@@ -134,10 +130,9 @@ func test_branch_slams_the_junction_and_continues_the_string_in_parallel() -> vo
 		[[0, 1], [1, 3], [0, 2], [2, 4], [2, 5], [2, 6]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.per_hop_increment = 2.0
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
 	step.terminal_multiplier = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))

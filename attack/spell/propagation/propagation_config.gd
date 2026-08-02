@@ -33,10 +33,13 @@ extends Resource
 ## large value) effectively uncaps it — Resonator territory.
 @export var max_visits_per_node: int = 1
 
-## Per-step damage multiplier applied by [FanAllStep] (and stock subclasses
-## that opt into it). 0.5 = falloff (Lightning), 2.0 = rampup (Crunch /
-## Resonator), 1.0 = flat (Heavy / Flood).
-@export var damage_multiplier_per_hop: float = 1.0
+## Per-hop damage ramp applied by [PropagationStep._propagate_to]. Null = no
+## scaling (damage carried verbatim — the historical
+## [code]damage_multiplier_per_hop = 1.0[/code] default). Plug a stock
+## [HopDamage] subclass here: [MultiplyRamp] (falloff / rampup),
+## [AddRamp] (flat add per hop), [AffineRamp] (both), [ExpressionRamp]
+## (escape hatch). See #351.
+@export var hop_damage: HopDamage = null
 
 ## One-time multiplier baked into the SEED hit's damage. 0.25 = Crunch's
 ## "1/4 to initial then ramp"; 1.0 = the seed takes full base damage.

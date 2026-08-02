@@ -19,20 +19,54 @@ func test_self_loop_condition_null_target_returns_false() -> void:
 
 
 func test_self_loop_condition_no_self_loops_returns_false() -> void:
+	# N0 connected to N1 (no self-loops in graph). Arriving at N0 via edge
+	# from N1 → predecessor (N1) != target (N0) → no crit, regardless of
+	# self-loop presence on the node (#353: predicate is "did we traverse a
+	# self-loop edge to land here", not "does this node have a self-loop").
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)
 	var c := SelfLoopCritCondition.new()
 	var n := graph.get_skill_nodes()
-	assert_false(c.evaluate(null, n[0], null))
+	var state := CastSpell.new()
+	state.predecessor = n[1]
+	assert_false(c.evaluate(state, n[0], null))
 
 
-func test_self_loop_condition_target_has_self_loop_returns_true() -> void:
+func test_self_loop_condition_seed_landing_on_self_loop_node_returns_false() -> void:
+	# N0 has a self-loop, but the seed landing has predecessor=null → no
+	# crit. The first hit doesn't crit by design (#353).
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 0]], self)  # self-loop on N0
 	var c := SelfLoopCritCondition.new()
 	var n := graph.get_skill_nodes()
-	assert_eq(n[0].self_loop_count, 1)
-	assert_true(c.evaluate(null, n[0], null))
+	var state := CastSpell.new()
+	state.predecessor = null
+	assert_false(c.evaluate(state, n[0], null), "seed (predecessor=null) never crits")
+
+
+func test_self_loop_condition_target_via_self_loop_edge_returns_true() -> void:
+	# N1 has a self-loop. Arriving at N1 with predecessor=N1 means the spell
+	# just traversed the self-loop edge → crit.
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 1]], self)
+	var c := SelfLoopCritCondition.new()
+	var n := graph.get_skill_nodes()
+	var state := CastSpell.new()
+	state.predecessor = n[1]
+	assert_true(c.evaluate(state, n[1], null), "self-loop traversal crits")
+
+
+func test_self_loop_condition_edge_hop_into_self_loop_node_returns_false() -> void:
+	# N1 has a self-loop, but the spell arrived via the N0→N1 edge (not the
+	# self-loop). No crit — the predicate fires on the *traversal*, not the
+	# node's static topology.
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 1]], self)
+	var c := SelfLoopCritCondition.new()
+	var n := graph.get_skill_nodes()
+	var state := CastSpell.new()
+	state.predecessor = n[0]
+	assert_false(c.evaluate(state, n[1], null))
 
 
 func test_leaf_condition_null_target_returns_false() -> void:
@@ -187,28 +221,32 @@ func test_stat_path_reproduces_crits_under_seed() -> void:
 # ── Condition-path crit via SpellResolver ───────────────────────────────────
 
 func test_condition_path_self_loop_crits() -> void:
-	# Graph: 0(atk) -- 1 -- 2(self_loop). Seed the spell on 1, it fans to 2.
-	# Node 2 has a self-loop → SelfLoopCritCondition fires.
+	# Graph: 0(atk) -- 1(self_loop). Seed the spell on 1, max_hops 2, FanAll.
+	# Wave 0: 1 hit (predecessor=null, no crit — first hit doesn't crit, #353).
+	# Wave 1: 1's neighbours after enemy filter: {1, 1} (self-loop contributes
+	# two copies). With reducer=null, first-wins; the surviving state has
+	# predecessor=1 AND current_node=1 → SelfLoopCritCondition fires (#353
+	# predicate: state.predecessor == target).
 	var helper := H.new()
-	var graph := helper.make_graph([[0, 1], [1, 2], [2, 2]], self)
+	var graph := helper.make_graph([[0, 1], [1, 1]], self)  # 1 has a self-loop
 	var atk := helper.make_entity(graph, "A")
 	var def := helper.make_entity(graph, "D")
 	helper.give_big_hp(def)
-	helper.assign_owner(graph, def, [1, 2])
+	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
-	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0  # disable stat path
-	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null, {max_hops = 1})
+	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null,
+			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	spell.crit_conditions = [SelfLoopCritCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var hits_by_node := H.new().hits_by_node(outcome)
-	var hit_n2: Array = hits_by_node[n[2]]
-	assert_eq(hit_n2.size(), 1)
-	assert_true(hit_n2[0].is_crit, "N2 has a self-loop → condition-path crit")
-	var hit_n1: Array = hits_by_node[n[1]]
-	assert_eq(hit_n1.size(), 1)
-	assert_false(hit_n1[0].is_crit, "N1 has no self-loop → no crit")
+	var hits_on_1: Array = hits_by_node[n[1]]
+	# Wave 0 hit (seed) + Wave 1 hit (self-loop traversal, merged from 2 incidents).
+	assert_eq(hits_on_1.size(), 2, "seed + self-loop traversal")
+	assert_false(hits_on_1[0].is_crit, "seed (predecessor=null) never crits")
+	assert_true(hits_on_1[1].is_crit, "self-loop traversal crits (predecessor == target)")
 
 
 func test_condition_path_leaf_crits() -> void:
@@ -239,34 +277,47 @@ func test_condition_path_leaf_crits() -> void:
 # ── Combined paths ──────────────────────────────────────────────────────────
 
 func test_both_paths_can_fire_tier_2() -> void:
-	# Node with a self-loop AND crit_chance 1.0 → both paths fire → tier 2.
+	# Self-loop node 1, seeded there, max_hops 2: wave-1 self-loop traversal
+	# crits via the condition path (predecessor==target); crit_chance 1.0 fires
+	# the stat path on every landing → wave-1 lands at tier 2.
 	var helper := H.new()
-	var graph := helper.make_graph([[0, 1], [1, 2], [2, 2]], self)
+	var graph := helper.make_graph([[0, 1], [1, 1]], self)
 	var atk := helper.make_entity(graph, "A")
 	var def := helper.make_entity(graph, "D")
 	helper.give_big_hp(def)
-	helper.assign_owner(graph, def, [1, 2])
+	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
 	atk.stat_board.get_stat(&"crit_multiplier").base_value = 2.0
-	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null, {max_hops = 1})
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null,
+			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	spell.crit_conditions = [SelfLoopCritCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var hits_by_node := H.new().hits_by_node(outcome)
-	var hit_n2: Array = hits_by_node[n[2]]
-	assert_eq(hit_n2.size(), 1)
-	assert_true(hit_n2[0].is_crit)
-	assert_eq(hit_n2[0].crit_multiplier, 2.0)
-	assert_almost_eq(hit_n2[0].amount, 20.0, 0.001, "base 10 × 2 (multiplier applied once, not stacked)")
-	# Find the event for N2
+	var hits_on_1: Array = hits_by_node[n[1]]
+	# Seed at wave 0 (stat-only → tier 1) + self-loop traversal at wave 1
+	# (stat + condition → tier 2).
+	assert_eq(hits_on_1.size(), 2, "seed + self-loop traversal")
+	assert_true(hits_on_1[1].is_crit)
+	assert_eq(hits_on_1[1].crit_multiplier, 2.0)
+	# Wave-1 hit dmg: seed 10 × mult_per_hop (1.0 default null hop_damage) = 10,
+	# merged from 2 self-loop incidents to 10+10=20 (first-wins null reducer
+	# keeps incidents[0].damage = 10 actually — see _apply_reducer null shortcut).
+	# ×2 crit (caster multiplier) = 20.
+	assert_almost_eq(hits_on_1[1].amount, 20.0, 0.001,
+			"wave-1 self-loop traversal: 10 × 2 (multiplier applied once)")
+	# Find the event for the wave-1 self-loop landing (the SECOND event on n[1]).
 	var event_tier: int = -1
+	var seen_n1_events: int = 0
 	for ev in outcome.timeline:
-		if ev.target == n[2]:
-			event_tier = ev.crit_tier
-			break
-	assert_eq(event_tier, 2, "both stat AND condition path → tier 2")
+		if ev.target == n[1]:
+			seen_n1_events += 1
+			if seen_n1_events == 2:
+				event_tier = ev.crit_tier
+				break
+	assert_eq(event_tier, 2, "wave-1 self-loop traversal: both stat AND condition path → tier 2")
 
 
 func test_zero_damage_landing_never_crits() -> void:
@@ -288,15 +339,26 @@ func test_zero_damage_landing_never_crits() -> void:
 
 
 func test_entity_without_board_still_supports_condition_path() -> void:
+	# Self-loop node 1, seeded there, max_hops 2. Without a stat board, the
+	# stat path is skipped entirely; the condition path alone fires on the
+	# self-loop traversal (predecessor==target, see #353). Crit multiplier
+	# falls back to 2.0.
 	var helper := H.new()
-	var graph := helper.make_graph([[0, 1], [1, 2], [2, 2]], self)
+	var graph := helper.make_graph([[0, 1], [1, 1]], self)
 	var atk := helper.make_entity(graph, "A")
 	atk.stat_board = null  # no board at all
-	var config := helper.make_config(helper.no_step(), helper.owner(OwnerFilter.Scope.ANY), null, {max_hops = 0})
+	helper.assign_owner(graph, atk, [0])
+	var def := helper.make_entity(graph, "D")
+	helper.assign_owner(graph, def, [1])
+	var config := helper.make_config(helper.fan_all(), helper.owner(OwnerFilter.Scope.ANY), null,
+			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	spell.crit_conditions = [SelfLoopCritCondition.new()]
 	var n := graph.get_skill_nodes()
-	var outcome := SpellResolver.resolve(spell, n[2], n[1], atk, graph)
-	assert_eq(outcome.hits.size(), 1)
-	assert_true(outcome.hits[0].is_crit, "condition path works even without a stat board")
-	assert_eq(outcome.hits[0].crit_multiplier, 2.0, "fallback multiplier 2.0")
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	var hits_on_1: Array = H.new().hits_by_node(outcome).get(n[1], [])
+	# Seed hit (no crit) + self-loop traversal (condition-path crit).
+	assert_eq(hits_on_1.size(), 2)
+	assert_false(hits_on_1[0].is_crit, "seed never crits")
+	assert_true(hits_on_1[1].is_crit, "self-loop traversal crits without a stat board")
+	assert_eq(hits_on_1[1].crit_multiplier, 2.0, "fallback multiplier 2.0")

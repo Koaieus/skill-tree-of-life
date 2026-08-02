@@ -90,8 +90,10 @@ func _populate() -> void:
 			hops_text = "%d (base %d)" % [eff_hops, base_hops]
 		_add_stat_row(&"Hops", hops_text, hops_dynamic)
 
-		if not is_equal_approx(prop.damage_multiplier_per_hop, 1.0):
-			_add_stat_row(&"Hop Mult", "×%s" % _format_num(prop.damage_multiplier_per_hop), false)
+		if prop.hop_damage != null:
+			var hd := prop.hop_damage.get_description()
+			if hd != "":
+				_add_stat_row(&"Hop Ramp", hd, false)
 
 		var prop_desc := prop.get_description()
 		if prop_desc != "":

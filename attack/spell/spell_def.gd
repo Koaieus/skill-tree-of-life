@@ -32,7 +32,7 @@ extends Resource
 
 ## Initial damage at the seed target. Multiplied at seed time by
 ## [member PropagationConfig.seed_damage_fraction], then at each propagation
-## step by [member PropagationConfig.damage_multiplier_per_hop].
+## step by [member PropagationConfig.hop_damage] (a [HopDamage] resource).
 @export var base_damage: float = 0.0
 
 ## How this spell propagates from the seed target. Composes

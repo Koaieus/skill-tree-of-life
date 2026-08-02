@@ -96,7 +96,7 @@ func make_spell(prop: PropagationConfig, on_hits: Array[OnHitEffect], base_damag
 
 
 ## Compose a PropagationConfig from parts. `opts` keys: max_hops (int, 0),
-## max_visits_per_node (int, 1), damage_multiplier_per_hop (float, 1.0),
+## max_visits_per_node (int, 1), hop_damage (HopDamage, null),
 ## seed_damage_fraction (float, 1.0).
 func make_config(
 		step: PropagationStep,
@@ -109,7 +109,7 @@ func make_config(
 	c.reducer = reducer
 	c.max_hops = int(opts.get("max_hops", 0))
 	c.max_visits_per_node = int(opts.get("max_visits_per_node", 1))
-	c.damage_multiplier_per_hop = float(opts.get("damage_multiplier_per_hop", 1.0))
+	c.hop_damage = opts.get("hop_damage", null)
 	c.seed_damage_fraction = float(opts.get("seed_damage_fraction", 1.0))
 	return c
 
@@ -177,6 +177,18 @@ func max_reducer() -> MaxDamageReducer:
 
 func cancel_if_multi() -> CancelIfMultiReducer:
 	return CancelIfMultiReducer.new()
+
+
+func multiply_ramp(factor: float = 1.0) -> MultiplyRamp:
+	var r := MultiplyRamp.new()
+	r.factor = factor
+	return r
+
+
+func add_ramp(increment: float = 0.0) -> AddRamp:
+	var r := AddRamp.new()
+	r.increment = increment
+	return r
 
 
 func hits_by_node(outcome: AttackOutcome) -> Dictionary:

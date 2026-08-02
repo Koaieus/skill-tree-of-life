@@ -80,7 +80,7 @@ func test_damage_falls_off_per_hop() -> void:
 	var graph: Graph = ctx[1]
 	var atk: Entity = ctx[2]
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.max_reducer(),
-			{max_hops = 2, damage_multiplier_per_hop = 0.5})
+			{max_hops = 2, hop_damage = helper.multiply_ramp(0.5)})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -198,7 +198,7 @@ func test_self_loop_sum_merger_compounds_returns() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.sum_reducer(),
-			{max_hops = 1, max_visits_per_node = 2, damage_multiplier_per_hop = 1.0})
+			{max_hops = 1, max_visits_per_node = 2, hop_damage = helper.multiply_ramp(1.0)})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
