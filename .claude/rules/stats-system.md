@@ -53,9 +53,24 @@ Turn-start refill-to-full is **gone** (D-9) — damage persists across turns. `S
 
 The node's health is a `PoolStat` on `node_board` with id `"node_combat_health"` (`StandardPoolStatDef`, `heal_on_max_increase = true`). On allocation, `base_value` is synced from the owning entity's `node_health` ScalarStat baseline and re-syncs on `value_changed`. `current` tracks damage; `deplete()` / `restore_to_full()` replace the old `current_hp` float. See `skill_node/skill_node.gd:_refresh_hp_binding`.
 
+**That re-sync goes through `set_base_ratcheted`, not a raw write (D-31, #346)** — the node pool ratchets exactly like the entity pool: cap rise grants the delta, cap fall clamps `current` and never subtracts. See "Two doors onto the cap" under Pool stats for why the raw write was wrong here and right in `claim()`.
+
 ## Pool stats
 
 `PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers always target the pool id directly (e.g. `"health"`, `"mana"`); there are no `*_max` sibling stats or IDs.
+
+### Two doors onto the cap — `set_base_ratcheted` vs a raw `base_value` write (D-31)
+
+`Stat.base_value`'s setter emits `value_changed` but does **NOT** run `PoolStat._apply_max_change()` — that's reachable only from `add_modifier` / `remove_modifier` / `_on_dependent_modifier_changed`. So writing `base_value` on a pool moves the cap *outside* the ratchet: no `on_max_increased` grant on a rise, no clamp of `current` on a fall.
+
+| Door | Cap-change behaviour |
+|---|---|
+| `pool.set_base_ratcheted(v)` | grants the delta on a rise, clamps `current` on a fall |
+| `pool.base_value = v` | **raw** — neither |
+
+**The raw door is deliberate and load-bearing; don't weld it shut.** `SkillPointStat.claim()` *is* that bypass (`skill_points.tres` opts **into** `heal_on_max_increase`, so the raw write is the only thing making claim a mint-max-only), and `AllocationSystem` calls it on **every allocation** — routing the setter through the ratchet would silently mint a spendable SP per allocation. `GrowablePoolStatDef`'s level-up growth relies on it for the same reason.
+
+This shipped as #346: `SkillNode._sync_combat_health_base()` used the raw door to follow the owner's `node_health` baseline, so as CON climbed with level every allocated node's cap grew while `current` stayed frozen, and node regen (~1/turn) couldn't close a widening gap — nodes read permanently near-empty (measured fill ratio: **0.1**, matching the reported "~1/10 max HP"). Fixed by using the ratcheted door there. `test_skill_point_stat.gd` now asserts `heal_on_max_increase` is genuinely on, so the claim test can't pass for the wrong reason.
 
 ### Def hierarchy
 
@@ -345,7 +360,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `intelligence` | `spell_range` | ADD_BASE | 1 | LinearFormula(intelligence) |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, 10) |
-| `constitution` | `node_health` | ADD_BASE | 1 | LinearFormula(constitution) — TBD (#268): the rate **is** this coefficient, +1 HP per CON |
+| `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` (D-26 precedent, #298) — the rate is the **stat**, not the coefficient (see below) |
 | `constitution` + `core_health_scaling` | `health` | ADD_BASE | 1 | `core_health_scaling * constitution` (D-21/D-26, #276) — the rate is the **stat**, not the coefficient (see below) |
 | `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — TBD (#268), +1 CON per level |
 
@@ -387,11 +402,15 @@ any line that turned into `null`.
 `intrinsic_modifiers` for `scales_with(attr_id)` — it holds no rule text of its own, so
 this table is documentation, not a second source of truth.
 
-**Put a rate in `value`, not in the formula string.** Most expression-formula intrinsics above bake their rate into the expression (`floor(strength / 10.0)`) and leave `value` at its 1.0 default. That still works — the knob exists on every modifier — but it splits the rate across two places, and turning `value` up on a `floor(X/10)` formula scales the already-*stepped* output rather than the rate. CON→`node_health` deliberately does it the other way: a `LinearFormula` passthrough of `constitution` with the rate as the modifier's `value`, so #268 retunes it in exactly one field. Prefer that shape for new intrinsics; `mod_per_to_vision` (2.0 × PER) and every `level_scaling` class bonus already follow it.
+**Put a rate in `value`, not in the formula string.** Most expression-formula intrinsics above bake their rate into the expression (`floor(strength / 10.0)`) and leave `value` at its 1.0 default. That still works — the knob exists on every modifier — but it splits the rate across two places, and turning `value` up on a `floor(X/10)` formula scales the already-*stepped* output rather than the rate. Prefer the rate in `value`; `mod_per_to_vision` (2.0 × PER) and every `level_scaling` class bonus follow it.
+
+**…unless something other than #268 must move the rate — then it's a STAT.** `value` is authored-once tuning; a *stat* can be moved at runtime by a CoreClass, relic, addon, aura or curse through the ordinary pipeline. Both CON intrinsics take this branch (see the next two paragraphs), and the decision procedure for which shape a new knob wants is `docs/domain/stat-knobs-and-bins.md` §1.
 
 **CON → `health` puts its rate in a *stat*, not in `value` (D-26, #276).** `health = 10 + core_health_scaling × CON`: the flat 10 is `pool_health`'s `base_value` (baked for now — D-26 defers making it a stat to #279's authoring problem), and the coefficient is `core_health_scaling`, an ordinary board scalar defaulting to `1.0`. It's a stat rather than a modifier `value` because a **CoreClass must be able to move it** — `core_health_scaling` sizes the pool, `dealloc_damage` sizes the chip, and `nodes_lost_before_death = health / dealloc_damage` is where class identity lives (Balanced 119÷1, Glass 119÷3, Bulwark 119÷0.5). Both are plain board stats, so a class tunes either with an ordinary modifier — **no genesis/class-param mechanism is needed or wanted here.** Consequence for the formula: it's an `ExpressionFormula` with **both** ids in `inputs`, or changing the class knob won't rebind.
 
 `core_health_scaling` is **entity-scope only** — as a node-local stat it means nothing (D-26 surfaced this; #287 is the open decision). Don't add it to a procgen pool.
+
+**CON → `node_health` does the same thing, one pool over (#298).** `node_health = 10 + node_health_scaling × CON`, with `node_health_scaling` an ordinary board scalar defaulting to `1.0`. This **settled #298** — its two proposed options (a `CoreClass` genesis param, or a board baseline plus a class delta) were both dropped in favour of the D-26 precedent, because a class tuning it needs no new mechanism and there is **no cliff**: `core_class` is nullable (`GameRoot.spawn_entity` defaults it to null, `Entity._ready` guards on it) and coreless entities really exist (`scenes/dev/_spike_live.gd`, several fixtures), so a fully class-side rate would have silently given them CON → 0. Same `inputs`-must-list-both-ids consequence as `health`. Per-class values remain a #268 pass — don't invent them. `node_health_scaling` is likewise entity-scope only.
 
 **The D-21 ratchet lives in `StandardPoolStatDef.grant_max_increase_delta`.** Allocating CON raises the `health` cap *and* hands you the delta as current HP, so a player can cycle territory to heal. That is **knowingly exploitable and accepted** (D-21) — the graph *is* the mechanics, and DP is not free, so the ratchet is bounded. D-26 requires the grant to stay one named, greppable method rather than being inlined into an allocation path, so the toggle is findable when it's revisited; `health.tres` carries `heal_on_max_increase = true` deliberately and says so in its `description`. The *infinite* version is closed at the other end: `deallocation_points.tres` sets `heal_on_max_increase = false`, so a node granting `+1 max DP` raises the maximum **without** granting a spendable point. Both halves are pinned by `test_entity_health_scaling.gd` — don't "tidy" either flag. The recorded-but-not-adopted alternative (voluntary dealloc subtracts the delta and is illegal if lethal; forced dealloc reduces max only) is the first thing to reach for if the ratchet misbehaves.
 
