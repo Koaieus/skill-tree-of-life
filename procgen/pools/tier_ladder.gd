@@ -19,7 +19,6 @@ extends Resource
 ##   T1, T2 -> common · T3 -> rare · T4 -> mythic
 
 const COSTS := [1, 2, 4, 8]
-const VALUES := [1.0, 3.0, 7.0, 15.0]
 const MIN_TIER := 1
 const MAX_TIER := 4
 
@@ -29,7 +28,7 @@ static func cost(tier: int) -> int:
 
 
 static func value(tier: int) -> float:
-	return VALUES[clampi(tier - MIN_TIER, 0, VALUES.size() - 1)]
+	return 2.0 * cost(tier) - 1.0
 
 
 static func tier_tag(tier: int) -> StringName:
