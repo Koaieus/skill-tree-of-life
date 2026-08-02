@@ -40,6 +40,15 @@ FIELD_TARGET="PVTF_lAHOAExWR84BcS99zhW82C0"
 # read-mode must reflect the live board. Parallel agents use `list` to find work
 # to pick up, so a stale read there risks two agents claiming the same issue.
 # Reads are infrequent; the burst problem was writes, and (1)+(2) already fix it.
+#
+# STILL EXHAUSTIBLE BY BULK WRITES. Restoring 297 items' Status (see the warning
+# in cmd_status) plus a handful of --paginate reads burned the full 5000-point
+# hour in one session. `updateProjectV2ItemFieldValue` is ~1 point but gh's own
+# request overhead is not, so batch aliased mutations into ONE query rather than
+# looping the CLI:
+#   gh api graphql -f query='mutation { m1: updateProjectV2ItemFieldValue(...){...}
+#                                       m2: ... }'   # ~40 per request is comfortable
+# Check before a bulk pass: gh api rate_limit --jq .resources.graphql
 CACHE_TTL=${GH_PROJECT_CACHE_TTL:-15}
 CACHE_TMP="${TMPDIR:-/tmp}/gh-project-${PROJECT}-items.tmp"
 ID_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-ids.txt"
