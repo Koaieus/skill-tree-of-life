@@ -71,7 +71,9 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
   `PropagationConfig.max_visits_per_node`; this is what subsumes both
   the old `revisit_visited` boolean and a future per-node hit cap
 - `DegreeFilter` — strict-less / less-or-equal / strict-greater /
-  greater-or-equal vs. current degree (Leafblower)
+  greater-or-equal vs. current degree, measured inside each node's own
+  territory (Leafblower ships less-or-equal). See `docs/domain/degree.md`
+  for why entity degree and not graph degree.
 - `CoreDistanceFilter` — closer-to-Core / farther-from-Core (Homing
   Decoring, Corifugal Bolt)
 - `CompositeFilter` — AND/OR-combine children (matches `RangeFinder`'s

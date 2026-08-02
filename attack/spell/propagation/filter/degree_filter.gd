@@ -24,9 +24,15 @@ extends PropagationFilter
 ## [method SkillNode.get_entity_degree]) — a fortified node genuinely reads as
 ## higher-degree and turns the walk away.
 
+## NOTE on [constant LESS]: strict-downhill cannot traverse a chain at all —
+## every interior node of a path has degree 2, so the walk stalls one hop past
+## the seed. Leafblower ships [constant LESS_OR_EQUAL] for exactly that reason.
+## Reach for [constant LESS] only when "one hop off a hub, no further" is the
+## intent. Plateau-looping is not a risk either way:
+## [member PropagationConfig.max_visits_per_node] terminates the walk.
 enum Compare {
-	LESS,           ## candidate.degree < current.degree (Leafblower default)
-	LESS_OR_EQUAL,  ## candidate.degree ≤ current.degree (ridge-walker)
+	LESS,           ## candidate.degree < current.degree (hub-adjacent only)
+	LESS_OR_EQUAL,  ## candidate.degree ≤ current.degree (Leafblower)
 	GREATER,        ## candidate.degree > current.degree (climber)
 	GREATER_OR_EQUAL,
 }

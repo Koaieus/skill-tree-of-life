@@ -183,8 +183,10 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 - **target type:** node
 - **power:** medium
 - **range:** medium
-- **mechanics/propagation:** filter = `degree(next) < degree(current)` (strict, so it can't plateau and loop forever) — naturally flows downhill toward leaves. `damage_multiplier_per_hop = ~1.5–2` so the final leaf eats a big payload while intermediate hubs barely register. Merger = MAX (downhill flow rarely converges, but if it does we don't want a freebie).
-- **notes:** the inverse of an anti-hub strike — punishes the enemy's *extremities* by blowing through hubs cheaply and detonating on whatever dangling leaf carries an addon or special node. Counter-play: pull leaves inward (raise their degree) or simply don't dangle valuable leaves.
+- **mechanics/propagation:** filter = `degree(next) <= degree(current)`, where degree is measured inside each node's **own territory** (its owner's induced subgraph), not the whole board. `damage_multiplier_per_hop = 1.5` over `max_hops = 7` so the final leaf eats a big payload while intermediate hubs barely register. Merger = MAX (downhill flow rarely converges, but if it does we don't want a freebie).
+  - **`<=`, not `<`.** Strict-less cannot traverse a chain *at all* — every interior node of a path is degree 2, so the walk stalls one hop past the seed and the promised "payload on the leaf" is topologically unreachable. Plateau-looping isn't a risk: `max_visits_per_node = 1` is what terminates the walk, not the strictness.
+  - **Territory degree, not graph degree.** On a contested board a defender's dangling leaf is routinely adjacent to two *enemy* nodes; whole-board degree reads that as a hub and hides it from the very walk this spell exists to perform.
+- **notes:** the inverse of an anti-hub strike — punishes the enemy's *extremities* by blowing through hubs cheaply and detonating on whatever dangling leaf carries an addon or special node. Counter-play: pull leaves inward (raise their territory degree), or **fortify with self-loops** — a loop counts +2, so two loops lift a degree-2 node to 6 and turn the flow away, taking everything behind it off the table. That's a real defensive line, and it's the one counter that also protects the branch rather than just the node.
 - review: clean configuration-spell, a good early proof that the propagation dials are expressive enough.
 
 ---
@@ -242,7 +244,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 | Aftershock | high | short/med | node | Ghost cast from dead node's position on kill |
 | Detonate | medium | medium | node | Trap (detonates on next incoming hit) |
 | Supernova | ultra | short | AoE | Euclidean blast |
-| Leafblower | medium | medium | node | Strict-downhill degree filter, rampup, payload-on-leaf |
+| Leafblower | medium | medium | node | Downhill territory-degree filter (`<=`), rampup, payload-on-leaf |
 | Bruiser | medium | medium | node | Greedy → max HP, low base damage, single branch |
 | Resonator | high/ultra | medium | node | Max-degree fan, ×2 per hop, **SUM merger** (self-loop killer) |
 | Homing Decoring | TBD | TBD | node | Greedy → toward enemy Core |
@@ -260,6 +262,6 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 6. **Degree Drain metric** — owned degree (mirrors casting power, same metric as spell tier) or total degree (mirrors HP bracing)? These are meaningfully different spells.
 7. **Aftershock recursion** — if the secondary cast also kills a node, does it generate a further aftershock? No by default; build upgrade potentially yes.
 8. **Flood + Lifelink gaps** — can Flood cross Hive pod gaps if graph connectivity exists through the field? Probably yes; intended as the anti-Hive tool.
-9. **Self-loop interactions** — under the new propagation model self-loops are well-defined (the two outbound copies converge in the merger), but each spell still needs to confirm its intent. Resonator *wants* them; Leafblower's strict-downhill filter naturally bottoms out at them; Bruiser is single-branch so merger never fires. Worth a per-spell line.
+9. **Self-loop interactions** — under the new propagation model self-loops are well-defined (the two outbound copies converge in the merger), but each spell still needs to confirm its intent. Resonator *wants* them; Leafblower reads a self-loop as +2 degree, so loops are its designed counter-play (they turn the flow away rather than absorbing it); Bruiser is single-branch so merger never fires. Worth a per-spell line.
 10. **Self-loop rendering & procgen seeding** — Resonator only sings if self-loops actually exist on the board and the player can *see* them. Two prerequisites: (a) procgen should seed at least one self-loop per generated graph (rare, premium node — feels like a fang in the topology), (b) the edge renderer needs a self-loop variant (a small arc/halo glyph around the node, not a degenerate straight line). Neither exists today; both are blockers for Resonator shipping playable rather than just configured.
 11. **Spell slots / economy** — catalogue assumes unlimited access (any spell if degree allows). Is there a selection mechanic, cooldown, or equip-slot model? TBD.

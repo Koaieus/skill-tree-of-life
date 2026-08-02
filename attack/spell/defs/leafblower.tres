@@ -28,13 +28,13 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("6_owner")
 
-[sub_resource type="Resource" id="filter_degree_less"]
+[sub_resource type="Resource" id="filter_degree"]
 script = ExtResource("7_degree")
 compare = 1
 
 [sub_resource type="Resource" id="filter_composite"]
 script = ExtResource("8_composite")
-children = Array[ExtResource("5_filter_base")]([SubResource("filter_enemy"), SubResource("filter_degree_less")])
+children = Array[ExtResource("5_filter_base")]([SubResource("filter_enemy"), SubResource("filter_degree")])
 
 [sub_resource type="Resource" id="reducer_max"]
 script = ExtResource("10_reducer")
