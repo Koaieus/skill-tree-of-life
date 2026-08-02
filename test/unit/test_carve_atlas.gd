@@ -150,6 +150,35 @@ func test_shader_decode_constants_match_the_bake() -> void:
 	assert_eq(_shader_const(src, "SN_TEXTURE_GRAD_SCALE"), TextureCarveShape.GRAD_SCALE)
 
 
+## Constants agreeing is not enough — #318 shipped green past the test above
+## because both halves used the same divisor and disagreed on what the
+## NUMERATOR meant. The bake emitted drop-per-texel, the shader consumed
+## drop-per-unit-p, so every GB texel landed within ~0.002 of neutral 0.5 and
+## every texture carve rendered as a blank dome. A units bug is invisible to a
+## constants assertion; only the MAGNITUDE of the baked payload sees it.
+##
+## Threshold: post-fix the deepest interior gradients reach ~0.09 off neutral;
+## pre-fix they reached ~0.0015. 0.02 sits an order of magnitude clear of the
+## broken encoding without pinning the exact art.
+func test_baked_gradients_are_strong_enough_to_perturb_the_normal() -> void:
+	const MIN_DEVIATION := 0.02
+	var stacked := _stacked()
+	var atlas := _atlas()
+	for slice in atlas.slice_paths.size():
+		var img := _slice_image(stacked, slice)
+		var peak := 0.0
+		for y in img.get_height():
+			for x in img.get_width():
+				var px := img.get_pixel(x, y)
+				if px.a <= 0.0:
+					continue  # outside the silhouette; the shader ignores it
+				peak = maxf(peak, maxf(absf(px.g - 0.5), absf(px.b - 0.5)))
+		assert_gt(peak, MIN_DEVIATION,
+			"slice %d (%s) has a near-neutral GB gradient — it will render as a "
+			% [slice, atlas.slice_paths[slice].get_file().get_basename()]
+			+ "blank dome. Check _gradient_at's unit conversion (#318).")
+
+
 func _shader_const(src: String, name: String) -> float:
 	var re := RegEx.create_from_string("const\\s+float\\s+%s\\s*=\\s*([0-9.]+)" % name)
 	var m := re.search(src)

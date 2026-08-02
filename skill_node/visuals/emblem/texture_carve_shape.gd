@@ -30,6 +30,11 @@ const DEPTH := 0.35
 const GRAD_SCALE := 3.0
 ## Source alpha above this counts as "inside" the silhouette.
 const ALPHA_THRESHOLD := 0.5
+## Texels per unit of `p` — the LUT spans the disk's −1..1 space, so one texel
+## is `2 / LUT_SIZE` wide and there are `LUT_SIZE / 2` of them per unit. This is
+## the unit conversion that makes [method _gradient_at]'s finite differences
+## comparable to the shader's own `-p / z_dome`; see #318.
+const TEXELS_PER_UNIT_P := LUT_SIZE * 0.5
 
 ## The authored icon to bake. Only its ALPHA channel is read (see class doc).
 @export var source_texture: Texture2D
@@ -164,7 +169,15 @@ static func _build_drop_field(mask: PackedByteArray, dist: PackedFloat32Array) -
 
 
 ## Central-difference gradient of the drop field at texel (x, y), one-sided
-## at the LUT's own border. Units: drop-per-texel.
+## at the LUT's own border.
+##
+## Units: **drop-per-unit-p**, matching [code]inner_disk.gdshader[/code]'s own
+## [code]grad_dome = -p / z_dome[/code], which lives in the −1..1 disk space.
+## The finite differences below are naturally drop-per-TEXEL, so they're scaled
+## by [constant TEXELS_PER_UNIT_P] on the way out. Getting this wrong is silent:
+## both halves of the encoding agree on the divisor and disagree on what the
+## numerator means, so the bake stays in range, every GB texel lands on ~0.5
+## (neutral), and the carve renders as a blank dome. See #318.
 static func _gradient_at(drop_field: PackedFloat32Array, x: int, y: int) -> Vector2:
 	var idx := y * LUT_SIZE + x
 	var gx: float
@@ -183,4 +196,4 @@ static func _gradient_at(drop_field: PackedFloat32Array, x: int, y: int) -> Vect
 	else:
 		gy = drop_field[idx] - drop_field[idx - LUT_SIZE]
 
-	return Vector2(gx, gy)
+	return Vector2(gx, gy) * TEXELS_PER_UNIT_P
