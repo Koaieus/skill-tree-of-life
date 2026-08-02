@@ -1,0 +1,1 @@
+A tunable rate is an ordinary board stat read as a formula input (never a genesis param or plain var), a pool's extra bucket is a clamping-setter bin with named transfer methods, and writing `base_value` raw deliberately skips the cap ratchet — use `PoolStat.set_base_ratcheted`. See docs/domain/stat-knobs-and-bins.md

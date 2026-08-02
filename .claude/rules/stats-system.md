@@ -9,7 +9,9 @@ paths:
 # Stat system reference
 
 > **Breadcrumb:** For which stat appears where in the HUD (or doesn't), see
-> `docs/domain/stat-ui-visibility.md`.
+> `docs/domain/stat-ui-visibility.md`. For *adding* a tuning knob or a new pool
+> bin — the authoring decision procedure this file's reference material assumes —
+> see `docs/domain/stat-knobs-and-bins.md`.
 
 **Keep current.** Any change to the stat system — new stat, new formula type, modified pipeline, new pool or modifier class, new intrinsic scaling rule — must be followed by updating this rule.
 
