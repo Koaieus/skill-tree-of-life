@@ -43,7 +43,7 @@ func step(
 	var accumulated := payload.damage + per_hop_increment
 	var result: Array[CastSpell] = []
 	for candidate in candidates:
-		var degree := ctx.graph.get_neighbours(candidate).size()
+		var degree := candidate.get_graph_degree(ctx.graph)
 		var next := _propagate_to(candidate, payload, config)
 		if degree > 2:
 			# Junction reached — slam and terminate the walk.

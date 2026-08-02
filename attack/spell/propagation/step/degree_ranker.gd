@@ -9,7 +9,9 @@ extends NodeRanker
 func score(node: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> float:
 	if ctx.graph == null or node == null:
 		return 0.0
-	return float(ctx.graph.get_neighbours(node).size())
+	# Graph degree deliberately: Silencing Bolt / Resonator fan at whoever is
+	# most connected on the board, not most connected within one territory.
+	return float(node.get_graph_degree(ctx.graph))
 
 
 func get_description() -> String:

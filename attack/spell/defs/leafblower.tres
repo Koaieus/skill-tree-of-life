@@ -30,6 +30,7 @@ script = ExtResource("6_owner")
 
 [sub_resource type="Resource" id="filter_degree_less"]
 script = ExtResource("7_degree")
+compare = 1
 
 [sub_resource type="Resource" id="filter_composite"]
 script = ExtResource("8_composite")
@@ -46,8 +47,8 @@ script = ExtResource("4_config")
 filter = SubResource("filter_composite")
 step = SubResource("step_fan")
 reducer = SubResource("reducer_max")
-max_hops = 3
-damage_multiplier_per_hop = 1.8
+max_hops = 7
+damage_multiplier_per_hop = 1.5
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("12_range")
@@ -59,7 +60,7 @@ range_finder = SubResource("range")
 [resource]
 script = ExtResource("1_spell")
 name = "Leafblower"
-description = "Trickles downhill: at each hop only flows into neighbours of strictly lower degree. Damage compounds (×1.8 per hop) so the leaf at the end of the chain eats the payload while intermediate hubs barely register. CRIT on leaf nodes (degree 1). Perfect for sniping dangling addon-leaves through fortified topology."
+description = "Trickles downhill: at each hop only flows into neighbours whose degree within their owner's territory is no higher than the current node's. Damage compounds (×1.5 per hop) so the leaf at the end of the chain eats the payload while intermediate hubs barely register. CRIT on leaf nodes (territory degree 1). Self-loops count double, so a fortified node turns the flow away. Perfect for sniping dangling addon-leaves through fortified topology."
 icon = ExtResource("1_y0ifm")
 min_degree = 2
 mana_cost = 3

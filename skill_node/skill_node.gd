@@ -648,12 +648,16 @@ func get_graph_degree(graph: Graph) -> int:
 ## `<= get_graph_degree(graph)`, and self-loops count +2 as in
 ## [method get_graph_degree].
 ##
-## On a node [param entity] does NOT own this is meaningless but still
-## nonzero — it counts the node's [param entity]-owned neighbours (an unowned
-## node wedged between two of red's nodes reads 2 for red). Callers that mean
-## "degree inside its own territory" must pass `node.owned_by`, and get 0 for
-## an unallocated node because `entity` is then null.
-func get_entity_degree(graph: Graph, entity: Entity) -> int:
+## [param entity] defaults to this node's own [member owned_by] — that's the
+## "degree inside its own territory" reading almost every caller wants, and an
+## unallocated node correctly reads 0.
+##
+## Passing an [param entity] that does NOT own this node is meaningful only if
+## you mean it: it counts this node's [param entity]-owned neighbours, so an
+## unowned node wedged between two of red's nodes reads 2 for red.
+func get_entity_degree(graph: Graph, entity: Entity = null) -> int:
+	if entity == null:
+		entity = owned_by
 	if graph == null or entity == null:
 		return 0
 	var count := 0

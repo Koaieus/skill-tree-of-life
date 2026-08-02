@@ -8,7 +8,9 @@ extends PropagationFilter
 ## without a whole subclass.
 ##
 ## Available identifiers in the expression:
-##   from_degree, to_degree                — int
+##   from_degree, to_degree                — int, whole-graph degree
+##   from_entity_degree, to_entity_degree  — int, degree inside each node's
+##                                           own territory (0 if unallocated)
 ##   to_owned_by_caster, to_unallocated    — bool
 ##   damage, hops_remaining, hop_index     — payload state
 ##   visit_count                           — ctx.visit_count(to)
@@ -26,6 +28,7 @@ func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: Propagation
 		_expr = Expression.new()
 		var err := _expr.parse(expression, [
 			"from_degree", "to_degree",
+			"from_entity_degree", "to_entity_degree",
 			"to_owned_by_caster", "to_unallocated",
 			"damage", "hops_remaining", "hop_index",
 			"visit_count",
@@ -36,8 +39,10 @@ func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: Propagation
 			return false
 		_last_text = expression
 	var inputs: Array = [
-		ctx.graph.get_neighbours(from).size(),
-		ctx.graph.get_neighbours(to).size(),
+		from.get_graph_degree(ctx.graph),
+		to.get_graph_degree(ctx.graph),
+		from.get_entity_degree(ctx.graph),
+		to.get_entity_degree(ctx.graph),
 		to.owned_by == payload.caster,
 		to.owned_by == null,
 		payload.damage,
