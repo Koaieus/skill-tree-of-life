@@ -5,6 +5,11 @@ Living overview of what's done and what's left. Each theme below is a [GitHub mi
 Status legend: ✅ done · 🚧 in progress · ⬜ todo · ❌ removed/obsolete
 
 > 📍 **Authoritative current state on contested design questions: [docs/design/mvp_decisions.md](design/mvp_decisions.md).** Older per-system design docs may contain superseded sketches; mvp_decisions.md wins.
+>
+> 🎯 **This file is the full inventory, and its ⬜/✅ ticks are stale.** For *what is actually
+> scheduled right now* — the ordered lanes, the WIP limit, and the explicit parked list —
+> see **[docs/FOCUS.md](FOCUS.md)**. FOCUS wins on scheduling; this file wins on "does an
+> issue exist for X".
 
 ## MVP cutline
 
