@@ -49,6 +49,18 @@ func test_con_0_vs_30_node_health_differs_by_intrinsic_rate() -> void:
 
 # --- 2b. #298: the rate is a board stat, and it is reactive ----------------
 
+func test_node_health_scaling_resolves_via_stat_registry() -> void:
+	# The board reaches its def through an ext_resource, which proves nothing
+	# about the autoload. StatRegistry scans stats_system/defs/ and keeps only
+	# what loads as a StatDef — a hand-authored .tres whose script failed to
+	# resolve loads as a bare Resource and is skipped in silence, which would
+	# break every get_local_value fallback for this id.
+	var def := StatRegistry.get_def(&"node_health_scaling")
+	assert_not_null(def, "node_health_scaling StatDef should be registered")
+	assert_eq(def.id, &"node_health_scaling")
+	assert_almost_eq(def.default_value, 1.0, 0.001)
+
+
 func test_node_health_scaling_present_and_defaults_to_one() -> void:
 	var board := _board()
 	assert_not_null(board.node_health_scaling, "default board should carry node_health_scaling")
