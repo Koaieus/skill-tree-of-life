@@ -9,4 +9,8 @@ extends CritCondition
 func evaluate(state: CastSpell, target: SkillNode, _outcome: AttackOutcome) -> bool:
 	if target == null or state == null or state.graph == null:
 		return false
-	return state.graph.get_neighbours(target).size() == 1
+	# TODO(degree-semantics): `owned_by`, not `owner` — `owner` is Godot's scene
+	# owner and would hand a GameRoot to an `entity: Entity` param. Left on
+	# entity degree so the crit agrees with DegreeFilter; see the open question
+	# about whether SkillNode should answer this without the two arguments.
+	return target.get_entity_degree(state.graph, target.owned_by) == 1

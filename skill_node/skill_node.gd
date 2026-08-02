@@ -632,6 +632,11 @@ func get_display_name() -> String:
 ## one, regardless of ownership. O(degree): reads [method Graph.get_neighbours]'s
 ## cached adjacency index. NEVER walk [method Graph.get_edges] per node — see
 ## `.claude/rules/graph.md`.
+## Self-loops ARE counted (+2 each): they are real [Edge] children, and
+## `Graph._adjacency` appends both endpoints — so this already agrees with
+## [method GraphMirror.get_degree]'s explicit `+ 2 * self_loop_count`. The one
+## place the two diverge is **parallel edges**: AStar dedupes them, this
+## doesn't. Nothing emits parallel edges today.
 func get_graph_degree(graph: Graph) -> int:
 	if graph == null:
 		return 0
@@ -640,8 +645,14 @@ func get_graph_degree(graph: Graph) -> int:
 
 ## Degree within the induced subgraph of [param entity]'s owned nodes: how many
 ## of this node's neighbours are also owned by [param entity]. Always
-## `<= get_graph_degree(graph)`; meaningless (but harmless — reads 0) on a node
-## [param entity] doesn't own.
+## `<= get_graph_degree(graph)`, and self-loops count +2 as in
+## [method get_graph_degree].
+##
+## On a node [param entity] does NOT own this is meaningless but still
+## nonzero — it counts the node's [param entity]-owned neighbours (an unowned
+## node wedged between two of red's nodes reads 2 for red). Callers that mean
+## "degree inside its own territory" must pass `node.owned_by`, and get 0 for
+## an unallocated node because `entity` is then null.
 func get_entity_degree(graph: Graph, entity: Entity) -> int:
 	if graph == null or entity == null:
 		return 0

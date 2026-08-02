@@ -53,9 +53,11 @@ func test_leaf_condition_null_state_or_graph_returns_false() -> void:
 
 
 func test_leaf_condition_non_leaf_returns_false() -> void:
-	# N1 is degree 2 (connected to N0 and N2)
+	# N1 is degree 2 within its owner's territory (N0 and N2 are both owned).
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 2]], self)
+	var def := helper.make_entity(graph, "D")
+	helper.assign_owner(graph, def, [0, 1, 2])
 	var c := LeafCritCondition.new()
 	var state := CastSpell.new()
 	state.graph = graph
@@ -67,12 +69,32 @@ func test_leaf_condition_degree_1_returns_true() -> void:
 	# N0 is degree 1 (only connected to N1)
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 2]], self)
+	var def := helper.make_entity(graph, "D")
+	helper.assign_owner(graph, def, [0, 1, 2])
 	var c := LeafCritCondition.new()
 	var state := CastSpell.new()
 	state.graph = graph
 	var n := graph.get_skill_nodes()
 	assert_eq(graph.get_neighbours(n[0]).size(), 1)
 	assert_true(c.evaluate(state, n[0], null))
+
+
+## The leaf test is on the ENTITY-induced subgraph, not the whole graph: a node
+## whose only other neighbour belongs to someone else dangles off its owner's
+## territory and crits, even though its graph degree is 2.
+func test_leaf_condition_reads_entity_degree_not_graph_degree() -> void:
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 2]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.assign_owner(graph, atk, [0])
+	helper.assign_owner(graph, def, [1, 2])
+	var c := LeafCritCondition.new()
+	var state := CastSpell.new()
+	state.graph = graph
+	var n := graph.get_skill_nodes()
+	assert_eq(graph.get_neighbours(n[1]).size(), 2, "N1 graph degree is 2")
+	assert_true(c.evaluate(state, n[1], null), "…but only 1 of those is D's → leaf")
 
 
 # ── Stat-path crit via SpellResolver ───────────────────────────────────────
@@ -190,13 +212,14 @@ func test_condition_path_self_loop_crits() -> void:
 
 
 func test_condition_path_leaf_crits() -> void:
-	# Line: 0(atk) -- 1 -- 2. N2 is degree 1 → leaf.
+	# 0(atk) -- 1 -- {2, 3}, all of 1/2/3 owned by D. N1 has entity degree 2
+	# (N2 + N3); N2 has entity degree 1 → leaf.
 	var helper := H.new()
-	var graph := helper.make_graph([[0, 1], [1, 2]], self)
+	var graph := helper.make_graph([[0, 1], [1, 2], [1, 3]], self)
 	var atk := helper.make_entity(graph, "A")
 	var def := helper.make_entity(graph, "D")
 	helper.give_big_hp(def)
-	helper.assign_owner(graph, def, [1, 2])
+	helper.assign_owner(graph, def, [1, 2, 3])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null, {max_hops = 1})
@@ -207,10 +230,10 @@ func test_condition_path_leaf_crits() -> void:
 	var hits_by_node := H.new().hits_by_node(outcome)
 	var hit_n2: Array = hits_by_node[n[2]]
 	assert_eq(hit_n2.size(), 1)
-	assert_true(hit_n2[0].is_crit, "N2 is a leaf (degree 1) → crit")
+	assert_true(hit_n2[0].is_crit, "N2 is a leaf (entity degree 1) → crit")
 	var hit_n1: Array = hits_by_node[n[1]]
 	assert_eq(hit_n1.size(), 1)
-	assert_false(hit_n1[0].is_crit, "N1 has degree 2 → not a leaf")
+	assert_false(hit_n1[0].is_crit, "N1 has entity degree 2 → not a leaf")
 
 
 # ── Combined paths ──────────────────────────────────────────────────────────
