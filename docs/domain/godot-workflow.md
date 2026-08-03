@@ -1,0 +1,341 @@
+---
+description: Godot project workflow — class cache refresh, scene round-trip safety
+---
+
+# Godot workflow
+
+> "*" at end of header: No need to inform user on any of this.
+
+## `.tscn` root node: `script = ExtResource(...)` MUST come before any `@export` override*
+
+Godot 4 deserializes node properties in file order. If `script = ExtResource(...)`
+is listed **after** an `@export var` override on the root node, the script
+attachment silently reinitialises the exported var to its GDScript default,
+discarding the scene override. Confirmed empirically: `mode_color = red` →
+instantiate → property reads gold (class default) because `script` was last.
+
+```gdshader
+# WRONG — mode_color will always read gold
+[node name="Foo" type="MarginContainer"]
+mode_color = Color(0.945, 0.269, 0.245, 1)   # ↓ this override is LOST
+script = ExtResource("1_script")
+
+# CORRECT
+[node name="Foo" type="MarginContainer"]
+script = ExtResource("1_script")             # script goes FIRST
+mode_color = Color(0.945, 0.269, 0.245, 1)   # then export overrides
+```
+
+Children inside the same scene are unaffected — this only bites the root node
+of the `.tscn` itself. A test that instantiates the scene and asserts the
+property catches regressions immediately.
+
+## `@tool` scripts must guard `_ready()` with `Engine.is_editor_hint()` when they write to node properties*
+
+`@tool` scripts that modify `modulate`, child-instanced `@export` vars, or
+shader parameters during `_ready()` dirty the scene on every editor load.
+Godot serialises those writes back into the `.tscn` as property overrides,
+which can accumulate cruft and lose intentional values over save/reload cycles.
+Guard anything that isn't pure visual setup:
+
+```gdscript
+func _ready() -> void:
+    if Engine.is_editor_hint():
+        return   # don't modify the scene during editor load
+    _apply_active(false)
+```
+
+## In a `@tool` script, never write a DERIVED value back into an `@export`*
+
+If `@export var x` is both the authored knob and where computed growth lands,
+the editor serializes the *computed* value into the `.tscn` — and the next load
+computes again from there. It compounds on every save, silently.
+
+**How to apply:** split the property. Export the authored input, expose the
+derived value as a plain `var` with only a getter:
+
+```gdscript
+@export var base_radius: float = 32.0        # authored, serialized
+var radius: float:                            # derived, never serialized
+    get: return base_radius + _stake_growth()
+```
+
+Callers keep reading `radius`; only writers move to `base_radius`. This also
+kills the usual companion bugs — the "capture the authored value on `_ready`"
+dance, and its pre-tree-write blind spot. Note `.tscn` files must be migrated
+by hand: Godot drops unknown properties **silently**, so a stale `radius = 38`
+line reverts that node to the class default with no error.
+
+## A Sprite2D fed a PlaceholderTexture2D collapses its UVs — kills any UV shader*
+
+`PlaceholderTexture2D` reports a `size` but carries **no image data**. A
+`Sprite2D` drawing one still returns the right `get_rect()`, but the quad it
+submits has **degenerate (constant) UVs** — every fragment sees the same `UV`.
+Any `canvas_item` shader on that sprite that reads `UV` (procedural tiling,
+starfields, noise clouds) therefore gets no gradient and renders a flat/garbage
+result. No error, no warning; it just looks wrong.
+
+Verified empirically for #157: the space-background starfield drew as sub-pixel
+moiré dust because each tile was a `Sprite2D` + `PlaceholderTexture2D`. Sampling
+the rendered `UV` gave a constant `~0.125` across the whole sprite interior;
+swapping to a real `GradientTexture2D` (same size, content irrelevant — the
+shader ignores the texels) made `UV` interpolate `0..1` and the field rendered
+correctly. Parallax2D + `repeat_size` tiling was *not* the culprit and works fine
+with a real texture.
+
+**How to apply:** never use `PlaceholderTexture2D` as the host texture for a
+Sprite2D whose material reads `UV`. Use a real texture of the desired tile size
+(a `GradientTexture2D` needs only a `Gradient` sub-resource and a width/height —
+no asset file). This only bites custom UV shaders; a plain textured sprite that
+just wants the placeholder's magenta is unaffected.
+
+Related: a full-screen shader hosted on a **CanvasLayer**'s Parallax2D is
+zoom-*stable* (the layer doesn't inherit the world camera's zoom) while parallax
+scroll still tracks the camera — so star size/count stay put across the whole
+zoom range. Under a plain Node2D the same Parallax2D *does* scale with zoom.
+
+## Sub-resources in a scene are SHARED across every instantiate() unless local-to-scene*
+
+A `SubResource` (e.g. a `Gradient` on a `Line2D`, a `ShaderMaterial`) declared
+inline in a `.tscn` is loaded once and reused by every `PackedScene.instantiate()`
+call — it is not duplicated per instance. If a script mutates that resource
+per-instance (e.g. `Edge.gd` writing per-edge colors into `line_2d.gradient`),
+every instance ends up sharing one object: whichever instance wrote last wins,
+and all instances render identically. Symptom is exactly "the per-instance
+tweak has no visible effect" — no error, no crash, just silently wrong output.
+
+Fix: set `resource_local_to_scene = true` on the sub-resource in the `.tscn`
+(inspector: resource → Local To Scene). This makes Godot duplicate it fresh on
+every `instantiate()`. Applies to any resource a scene's own script intends to
+own uniquely per instance — gradients, materials, curves, etc. — not just Edge.
+
+## `@export` cannot be applied to a `static var`*
+
+```
+Parse Error: Annotation "@export" cannot be applied to a static variable.
+```
+
+Verified on 4.7. So there's no "exported class-level constant" — and you wouldn't
+want one: `@export` serializes **per resource/node**, so an exported "where do X
+live" path would put an editable copy of the same answer on every instance.
+
+**How to apply:** a class-level fact is a `const` (`CoreClass.DIR`). Reach for
+`@export` only when each instance legitimately carries its own value.
+
+## Sweep for orphaned `.uid` files after ANY move or delete*
+
+Godot writes a sidecar `<file>.uid` for scripts (and other importables). Moving
+or deleting the file does not remove the sidecar — you get a tracked `.uid`
+pointing at nothing. Harmless-looking, permanent, and it accumulates.
+
+```bash
+find . -name '*.uid' -not -path './.godot/*' -not -path './.claude/worktrees/*' \
+  | while read u; do [ -e "${u%.uid}" ] || echo "ORPHAN: $u"; done
+```
+
+Run it as part of the same change, not later. Note `.tscn`/`.tres` carry their
+uid **inline** in the `[gd_scene uid="…"]` header, so deleting a scene leaves no
+sidecar — this bites `.gd` (and imported assets), not scenes.
+
+Known pre-existing orphan: `addons/gut/menu_manager.gd.uid`, shipped by vendored
+GUT 9.6.0 (`24da57f`) with no companion script. Left alone deliberately — don't
+diverge from a vendored addon over it.
+
+## Refreshing the class cache after class_name changes*
+
+After renaming a `class_name` or adding a new one, the project's
+`.godot/global_script_class_cache.cfg` is stale. Runtime parse fails with
+*"Could not find type X"* even though the source is correct. The cache
+only rebuilds when the editor enumerates the project. Force it via:
+
+```bash
+godot --headless --editor --quit
+```
+
+## Always git status after a refresh*
+
+The editor pass round-trips any scene OR `.tres` it briefly touches and
+can silently mutate them. Observed:
+
+- **Dropped node instances** — `[node name="UIRoot" ...]` vanished from
+  `dev_sandbox.tscn` during a refresh, with the matching ext_resource
+  removed too. Runtime then failed on `$UI/UIRoot` lookup.
+- **Regenerated sub_resource ids** — `Resource_umwfs` → `Resource_qrijo`,
+  with the consumer reference updated in lockstep (cosmetic, but noise).
+- **Position normalisation** — node positions tweaked by a few pixels
+  if the editor briefly re-laid out something.
+- **Stripped `.tres` fields + sub-resources** — `spark.tres` lost its
+  `damage = 5` line, its `range_finder` sub-resource, and the
+  `HopRangeFinder` ext_resource entry. The author code (`SpellDef.damage`,
+  `SingleHostileNodeTargeting.range_finder`) was correct; the editor
+  re-serialized with a *stale view* of the class's field set, omitting
+  fields it didn't recognise at that moment. Functionally castrates the
+  resource silently — runtime parses it fine, behaves wrong.
+
+**Default-elision is the benign diff — learn to tell it from the strip.** A pass
+over `procgen/pools/*.tres` dropped `operation = 0`, `archetype_stat = &""`,
+`unit_value = 1.0`, `min_tier = 1` and added `uid=` to ext_resources — 95
+deletions across 8 files, alarming at a glance. Every dropped line equalled its
+class default, and non-default values (`max_tier = 2`) were **kept**. That's
+Godot omitting defaults on re-serialize, semantically identical.
+
+**How to tell them apart:** look up each dropped field's default in the script.
+All-defaults-dropped + non-defaults-retained = elision, safe. A *non-default*
+value gone (`damage = 5`, `per_phrase = "×10 INT"`) = the stale-class-view strip,
+restore it. `per_phrase` **moving** below `formula`/`inputs` is also just property
+reordering — the regression to fear is `per_phrase = null`.
+
+These re-appear on every editor pass, so don't fold them into an unrelated
+commit: either revert them, or commit them alone as normalization.
+
+Position/id noise is fine. Dropped instances and stripped fields are not.
+Mandatory pattern:
+
+```bash
+git status                   # before refresh
+godot --headless --editor --quit
+git diff scenes/ '*.tres'    # immediately after
+# restore anything load-bearing that disappeared
+```
+
+For `.tres` files specifically: also boot and exercise the resource's
+behaviour if you can — silent strip won't cause a parse error, so the
+diff is your only signal until the bug surfaces in gameplay.
+
+## Refreshing while the user has the editor open — just do it
+
+Don't stall work waiting for the user to close the editor. A refresh pass
+alongside an open editor is normal: worst case it regenerates `.uid` files
+and import metadata, which are git-tracked and need committing anyway, and
+which the open editor would have produced itself on its next start.
+
+The real hazard is not the refresh, it's the **round-trip damage** the section
+above documents (dropped node instances, stripped `.tres` fields). That risk
+is the same whether or not an editor is open, and `git diff` after the pass is
+the mitigation for both. So: run it, then diff.
+
+Only pause for confirmation if the user is mid-save on the very files you're
+about to touch.
+
+### When the refresh is safe to skip
+
+Pure script changes (function body edits, new methods, new files
+WITHOUT a new `class_name`) don't need a refresh — the runtime parses
+those fresh. Only `class_name` introduction / rename / removal requires
+the cache to be rebuilt.
+
+## Verifying `.gdshader` changes — headless import does NOT compile GLSL*
+
+`godot --headless --editor --quit` (and GUT) run under the **dummy renderer**,
+which never compiles shader GLSL. A `.gdshader` edit that produces invalid
+generated GLSL (e.g. an `#include`d function whose parameter name collides with
+a `uniform` — Godot's codegen rewrites the uniform *token* even inside the
+function body, silently miscompiling to something like `mix(vec3, vec4, float)`)
+**passes a clean headless import and a green test suite**, then fails at driver
+compile only under a real renderer:
+
+```
+ERROR: ... Fragment shader compilation failed / no matching function ...
+  compile_stages() servers/rendering/renderer_rd/shader_rd.cpp
+```
+
+The node just renders its untextured fallback (a white quad). To actually
+compile shaders headlessly, drive a real backend under a virtual display:
+
+```bash
+xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
+  res://path/to/scene_using_the_shader.tscn 2>&1 | grep -iE 'compilation failed|no matching'
+```
+
+opengl3 (mesa/llvmpipe) needs no GPU and surfaces the codegen error even though
+production uses the RD/Vulkan backend — the bug is in Godot's shader codegen, so
+it reproduces on either backend. Empty grep = compiles clean.
+
+## Hand-authoring `.tres` — UID mismatch silently nulls the field*
+
+`[ext_resource type="Script" uid="uid://..." path="res://foo/bar.gd" id="x"]`
+— if `uid` doesn't match the actual `.uid` file for `path`, Godot does NOT
+error. The ext_resource entry silently fails to resolve; any `SubResource`
+declaring `script = ExtResource("x")` instantiates as a bare `Resource`
+without the script attached; any field referencing that SubResource ends up
+as `null`. Tests that don't probe the field never notice — the broken
+preset just generates empty content downstream.
+
+How to apply: when authoring a multi-script `.tres` by hand, **never trust
+copy-pasted uids**. Either omit the `uid=` attribute (Godot resolves by
+`path=`), or verify each uid against `cat <script>.gd.uid`. Lint by loading
+the preset in a GUT test and asserting every field is non-null.
+
+## Hand-authoring `.tres` — two parser gotchas
+
+- **Array literals must be single-line.** `Array[T]([a, b, c])` works; the
+  same with newlines after `[` gives a "Parse Error: Expected string."
+  Same for `PackedStringArray` contents. Author wide, don't pretty-print.
+- **`PackedStringArray` uses positional args, NOT a bracketed list.**
+  `PackedStringArray("a", "b")` — correct. `PackedStringArray(["a", "b"])`
+  — parses as a single nested-array element and breaks reads. `Array[T]`
+  *does* take `[...]`. Don't conflate them.
+
+## Scene-node systems with injected deps: wire in `initialize()`, not `_ready()`
+
+A system that lives in the scene tree (e.g. `%HighlightController`, sibling of
+the other Systems nodes) has its `_ready()` fire DURING scene instantiation —
+**before** GameRoot's `_ready` can inject its dependency fields. So any signal
+hookup or resolve that reads injected deps must NOT live in the node's own
+`_ready`; it'll run with null deps and silently no-op. Put it in a public
+`initialize()` that GameRoot calls right after assigning the deps. (Group
+membership in `_enter_tree` is fine — it needs nothing injected.) Systems wired
+purely off autoloads (`BattleSystem` → `Events.skill_node_depleted`) can keep
+their hookup in `_ready`; a system reading sibling-system references can't.
+
+## Deferred call with a freed Object argument is silently dropped
+
+`some_method.call_deferred(obj)` — if `obj` (an Object/Node passed as an
+argument) is freed before the MessageQueue flushes, Godot drops the call with no
+error. Bit us in entity-death cleanup: a deferred `deallocate_all_owned(entity)`
+raced `queue_free(entity)` and never ran, orphaning nodes. If you must defer work
+keyed on an object that might be freed the same frame, either do the work
+synchronously or guarantee the free is ordered after it. See
+[entity-death.md](../../.claude/rules/entity-death.md).
+
+### Typed variable + freed dict entry = crash before is_instance_valid*
+
+`var t: FloaterToaster = dict.get(key)` — if the dict holds a freed instance,
+the typed assignment crashes before `is_instance_valid` gets a chance to run.
+Read into an untyped var first:
+
+```gdscript
+var stored = dict.get(key)
+var t: MyType = stored if is_instance_valid(stored) else null
+```
+
+### Git
+## `gh --body "..."` with backticks corrupts the comment — always use `--body-file`
+A double-quoted shell string runs command substitution on backticks. Posting a
+comment containing `` `NodeStatBoard extends StatBoard` `` silently deleted that
+span (zsh ran it as a command, it failed, the empty result was substituted) and
+published the mangled text. No error from `gh` — the corruption is only visible
+by reading the posted comment back. Since issue bodies and comments here are full
+of `` `code` `` spans, write a heredoc to the scratchpad and pass `--body-file`.
+Recoverable with `gh issue comment <n> --edit-last --body-file`.
+
+## Closing an issue?
+Mention "Closes #{id}" in the commit message. Only fires on push — users already know this.
+## Worktrees (#86)
+Use `mise run worktree:new -- <issue|name>` / `worktree:ls` / `worktree:rm -- <fuzzy>`
+(see `mise.toml`) to get an isolated checkout under `.worktrees/<slug>/`
+instead of editing the main checkout directly. The `warp` skill
+(`.claude/skills/warp/SKILL.md`) drives the full issue → worktree →
+implement → approval → merge → close → teardown cycle on top of these tasks.
+
+For a pre-planned issue that splits into file-disjoint units, the `swarm` skill
+(`.claude/skills/swarm/SKILL.md`) fans that cycle out across parallel subagents —
+Opus orchestrates, Sonnet/Haiku execute, each following `drone`
+(`.claude/skills/drone/SKILL.md`). Those workers get their worktrees from the
+harness (`isolation: "worktree"` → `.claude/worktrees/agent-<id>/` on branch
+`worktree-agent-<id>`), not from `mise run worktree:new`.
+
+Each worktree has its own gitignored `.godot/` — confirmed empirically (#86
+spike) that a fresh worktree's cold `godot --headless --editor` import
+neither touches nor corrupts the main checkout's `.godot/`, and is fully
+independent (own import cache, own class cache).

@@ -393,7 +393,7 @@ formula reachable from the shipped boards.
 already eaten all three once.** `fe0c625` re-serialized `level_scaling.tres` and
 `default_entity_board.tres` with `per_phrase = null`, silently un-describing three
 `ExpressionFormula`s (4 red tests, no runtime error — it's the stale-class-view strip
-that [godot-workflow.md](godot-workflow.md) documents). Nothing regenerates these strings.
+that [godot-workflow.md](../../docs/domain/godot-workflow.md) documents). Nothing regenerates these strings.
 **How to apply:** after any `godot --headless --editor --quit`, add
 `git diff '*.tres' | grep per_phrase` to the usual post-refresh diff check, and restore
 any line that turned into `null`.

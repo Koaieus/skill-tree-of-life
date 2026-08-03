@@ -73,6 +73,8 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 **Sub-issues:** the repo uses the parent/sub-issue model. File a child under its epic with `gh issue create --parent <parent-number> …` (gh ≥ 2.9x) — this nests it, distinct from a `Closes #` trailer.
 
+**Never pass `gh --body "..."` with backticks** — the shell runs command substitution and silently deletes the span, publishing mangled text with no error. Write a heredoc to the scratchpad and use `--body-file`.
+
 **RTFC — read the fucking comments.** When working an issue, read its comments, not just the body: they often hold the actual decisions, pointers, new direction, or bug reports that outweigh the original body.
 
 ## Godot conventions
@@ -90,3 +92,17 @@ When you learn something non-obvious — a gotcha, a hidden constraint, a workfl
 - **Breadcrule** — when a pointer must sit in the always-on tier, make it its own `.claude/rules/<topic>.md` file (no `paths:` frontmatter) whose whole body is one line stating the claim *and* linking the doc (`<claim>. See docs/domain/<topic>.md`); never a paragraph, never a line pasted into CLAUDE.md. See `docs/domain/breadcrules.md`.
 - **Larger context** (multi-paragraph, decision trees, code samples): `docs/domain/<topic>.md` (engineering knowledge, distinct from `docs/design/` which is game design).
 - Game-design knowledge belongs in `docs/design/` or as a GitHub Issue (`design` label) — not inline here.
+
+## Working in this repo
+
+The main checkout is a **shared, un-worktree'd surface** — other agents may be
+working there directly, or there may be uncommitted WIP. If tests suddenly start
+failing there, don't sink time into it; you can usually still land another part.
+Fix what's in your scope or is a quick win, but check what was happening first —
+it may be step one of someone's refactor, in which case follow its lead and
+confirm alignment with the user.
+
+Prefer a clean codebase: refactor into scenes, DI via `@export`ed vars, inherited
+scenes where they earn their keep. Take it to the next level rather than the
+minimum. Keep to common conventions for YAGNI's sake — but the opposite of YAGNI
+pays off too, so plan ahead. Case-by-case care works best.
