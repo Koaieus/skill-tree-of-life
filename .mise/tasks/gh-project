@@ -421,10 +421,20 @@ cmd_hygiene() {
                 parent: (.content.parent.number // null),
                 kids_total: (.content.subIssuesSummary.total // 0),
                 kids_done:  (.content.subIssuesSummary.completed // 0) } ]
+      | . as $every
       | map(select(.state == "OPEN"))
       | . as $all
       | ($all | map({ (.number|tostring): .status }) | add // {}) as $st
       | {
+          no_status:
+            [ $every[] | select(.status == "—")
+              | { number, title, detail: .state } ],
+          closed_not_done:
+            [ $every[] | select(.state == "CLOSED" and .status != "Done")
+              | { number, title, detail: "closed, board says \(.status)" } ],
+          done_still_open:
+            [ $every[] | select(.state == "OPEN" and .status == "Done")
+              | { number, title, detail: "board says Done" } ],
           parked_child:
             [ $all[] | select(.parent != null and .status == "Backlog")
               | select(($st[.parent|tostring] // "Backlog") as $p
@@ -460,6 +470,21 @@ cmd_hygiene() {
       | "  #\(.number)\t\(.title[0:64])\t\(.detail)"' | column -t -s $'\t'
   }
 
+  # The three mirror invariants below are the only ones computed over CLOSED
+  # items too ($every, not $all). They exist because the project's built-in
+  # workflows silently died on 2026-08-02 and nothing noticed: `Item added to
+  # project` (status → Backlog) and `Item closed` (status → Done) both stopped
+  # firing, so new items landed in a `No Status` column and closed issues stayed
+  # parked wherever they were — including `Ready`, which IS the swarm queue.
+  # GitHub exposes no API to re-enable a built-in workflow (only
+  # `deleteProjectV2Workflow` exists), so this cannot self-heal: the report is
+  # the smoke alarm, and the fix is manual in Project → ⋯ → Workflows.
+  _section no_status "No Status at all" \
+    "The \`Item added to project\` workflow is off. Re-enable it (Status → Backlog), then: mise gh-project -- status <n> backlog"
+  _section closed_not_done "Closed, but not Done on the board" \
+    "A closed issue sitting in \`Ready\` gets pulled by a drone. Re-enable \`Item closed\` (Status → Done)."
+  _section done_still_open "Done on the board, but still OPEN" \
+    "The board lies about finished work. Either close it, or move it back to a live column."
   _section parked_child "Child parked under an active parent" \
     "Backlog means not scheduled, but the parent says otherwise. Promote the child, or demote the hub."
   _section forked_ready "Ready, but still carries design/blocked" \
