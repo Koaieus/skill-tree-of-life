@@ -4,8 +4,6 @@
 > See `tools/balance/README.md` — including why this snapshot goes stale
 > once #274 lands.
 
-Generated: 2026-08-03T15:46:55
-
 ## mirror_L5
 
 | Readout | Value |

@@ -19,10 +19,16 @@ static func run(root: Node) -> Dictionary:
 	return {
 		"scenarios": scenarios,
 		"invariants": invariants,
-		"generated_at": Time.get_datetime_string_from_system(true),
 	}
 
 
+## Deliberately carries no wall-clock timestamp. The snapshot is a committed
+## artifact specifically so a BALANCE change shows up as a diff (#268 decision
+## 5) — a `Generated: <now>` line would make every re-run noise regardless of
+## whether any reading moved, burying real movement in it. Git already records
+## when the file was committed; that's the timestamp. See README + #268 review
+## (2026-08-03) for the "run it twice, `git status` must stay clean" contract
+## this enforces.
 static func format_table(result: Dictionary) -> String:
 	var lines: PackedStringArray = []
 	lines.append("# Balance Harness Snapshot")
@@ -30,8 +36,6 @@ static func format_table(result: Dictionary) -> String:
 	lines.append("> %s" % _HEADER_NOTE)
 	lines.append("> See `tools/balance/README.md` — including why this snapshot goes stale")
 	lines.append("> once #274 lands.")
-	lines.append("")
-	lines.append("Generated: %s" % str(result.get("generated_at", "?")))
 	lines.append("")
 
 	for s in result["scenarios"]:
