@@ -11,14 +11,22 @@ The headline check is DEAD GLOB: a `paths:` pattern matching zero files makes a
 rule that silently never loads. It looks fine, ships green, and nobody finds out.
 Nothing else in the repo can catch that.
 """
+import fnmatch
 import glob
 import json
+import subprocess
 import os
 import re
 import sys
 
 RULES = ".claude/rules"
-ALWAYS_ON_BUDGET = 4000  # bytes across the whole always-on tier
+ALWAYS_ON_BUDGET = 4000   # bytes across the always-on RULE tier
+CLAUDE_MD_BUDGET = 12000  # CLAUDE.md is always-on too, and is the biggest single payload
+COMBINED_BUDGET = 16000   # what a session actually pays before it reads anything
+# What a scoped rule really costs is share-of-tree x size, not either alone: a
+# tiny rule on a wide glob is cheap, a fat rule on a medium glob is not. Flag the
+# product, in bytes-per-average-session.
+EXPECTED_COST_MAX = 1500
 CRUMB_MAX = 600          # a single always-on rule above this isn't a crumb
 SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's hat
 
@@ -55,6 +63,34 @@ def matches_any(pattern):
     return os.path.isfile(pattern)
 
 
+_SOURCES = None
+
+
+def tracked_sources():
+    global _SOURCES
+    if _SOURCES is None:
+        out = subprocess.run(["git", "ls-files", "*.gd", "*.tscn", "*.tres", "*.gdshader"],
+                             capture_output=True, text=True).stdout
+        _SOURCES = [f for f in out.splitlines()
+                    if not any(d in f + "/" for d in SKIP_DIRS)]
+    return _SOURCES
+
+
+def matched_share(patterns):
+    """Fraction of tracked source files this rule's paths: pulls in."""
+    files = tracked_sources()
+    if not files:
+        return 0.0
+    hit = set()
+    for pat in patterns:
+        for f in files:
+            if f in hit:
+                continue
+            if fnmatch.fnmatch(f, pat) or (pat.endswith("/**") and f.startswith(pat[:-2])):
+                hit.add(f)
+    return len(hit) / len(files)
+
+
 def main():
     as_json = "--json" in sys.argv
     strict = "--strict" in sys.argv
@@ -86,6 +122,16 @@ def main():
                     "msg": f"{lines} lines (>{SCOPED_MAX_LINES}) — a rule this long is a "
                            f"doc; move the narrative to docs/domain/ and keep the gotchas",
                 })
+            share = matched_share(paths)
+            expected = share * size
+            if expected > EXPECTED_COST_MAX:
+                findings.append({
+                    "check": "expensive-scope", "file": path,
+                    "share": round(share, 2), "expected_bytes": int(expected),
+                    "msg": f"~{share:.0%} of tracked source x {size}B = ~{int(expected)}B "
+                           f"per average session (max {EXPECTED_COST_MAX}B) — either "
+                           f"narrow the glob or cut the rule",
+                })
             dead = [p for p in paths if not matches_any(p)]
             for pat in dead:
                 fatal = len(dead) == len(paths)
@@ -111,11 +157,16 @@ def main():
                     "msg": f"crumb points at {bare}, which does not exist",
                 })
 
-    if always_on_total > ALWAYS_ON_BUDGET:
-        findings.append({
-            "check": "tier-over-budget", "bytes": always_on_total,
-            "msg": f"always-on tier is {always_on_total}B (budget {ALWAYS_ON_BUDGET}B)",
-        })
+    claude_md = os.path.getsize("CLAUDE.md") if os.path.isfile("CLAUDE.md") else 0
+    combined = always_on_total + claude_md
+    for label, actual, budget, key in (
+        ("always-on rule tier", always_on_total, ALWAYS_ON_BUDGET, "tier-over-budget"),
+        ("CLAUDE.md", claude_md, CLAUDE_MD_BUDGET, "claude-md-over-budget"),
+        ("combined always-on", combined, COMBINED_BUDGET, "always-on-over-budget"),
+    ):
+        if actual > budget:
+            findings.append({"check": key, "bytes": actual,
+                             "msg": f"{label} is {actual}B (budget {budget}B)"})
 
     known = {os.path.basename(p) for p in glob.glob(f"{RULES}/*.md")}
     for doc in glob.glob("docs/**/*.md", recursive=True) + glob.glob(f"{RULES}/*.md") \
@@ -130,11 +181,16 @@ def main():
                 })
 
     if as_json:
-        print(json.dumps({"always_on_bytes": always_on_total, "findings": findings}, indent=2))
+        print(json.dumps({"always_on_bytes": combined,
+                          "rule_tier_bytes": always_on_total,
+                          "claude_md_bytes": claude_md, "findings": findings}, indent=2))
         return 1 if (findings and strict) else 0
 
-    print(f"Always-on tier: {always_on_total}B / {ALWAYS_ON_BUDGET}B budget "
-          f"({len(always_on)} rules)")
+    print(f"ALWAYS-ON (paid by every session before it reads anything): "
+          f"{combined}B / {COMBINED_BUDGET}B")
+    print(f"  {claude_md:6d}  CLAUDE.md  (budget {CLAUDE_MD_BUDGET}B)")
+    print(f"  {always_on_total:6d}  rule tier, {len(always_on)} crumbs "
+          f"(budget {ALWAYS_ON_BUDGET}B)")
     for n, s in sorted(always_on, key=lambda x: -x[1]):
         print(f"  {s:6d}  {n}")
     print(f"\nScoped: {len(scoped)} rules, {sum(s for _, s, _ in scoped)}B (loaded on demand)")

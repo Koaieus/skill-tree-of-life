@@ -35,6 +35,11 @@ picking up work, **spend one turn reflecting and report to the user**:
 Report honestly, including "it reads fine". A confirmation from a cold context is
 worth more than the author's confidence.
 
+**Done once already** — audit posted to #364 on 2026-08-03. It found the
+`CLAUDE.md` budget blind spot and a real `.gd`-shaped coverage gap (both fixed),
+and overstated two claims that verification disproved. Read it before redoing the
+exercise; a second pass should look for what a *first* cold agent couldn't see.
+
 ## State
 
 Landed 2026-08-03, `113cc88`..`9400d48` (12 commits):
@@ -62,10 +67,13 @@ Neither is scheduled. `docs/FOCUS.md` still wins over anything here.
 
 ## Live numbers
 
-- Always-on: **2,674 B / 4,000 B budget**, 8 rules.
-- Corpus total ~145k B — fine; only the always-on slice is paid by everyone.
-- `rules-hygiene` green except the two #363 entries. That's the expected baseline —
-  **anything else is new**.
+- Always-on **combined: 13,883 B / 16,000 B** — `CLAUDE.md` 11,170 B (the biggest
+  single payload) + rule tier 2,713 B in 8 crumbs. The rule-tier-only figure this
+  file used to quote understated it ~5x; corrected after the ribbon-cutting audit
+  (#364).
+- Corpus total ~146k B — fine; only the always-on slice is paid by everyone.
+- `rules-hygiene` green except **three** entries, all `skill-node-visuals` /
+  `stats-system` = #363. That's the expected baseline — **anything else is new**.
 
 ## Delete this file when
 
