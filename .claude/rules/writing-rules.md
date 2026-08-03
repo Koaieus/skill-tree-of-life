@@ -20,5 +20,36 @@ You're reading or editing a rule / `CLAUDE.md`. Before you add a page:
 - Lead with the rule, then **Why:** / **How to apply:**. Small-rule discipline is
   in `CLAUDE.md` → *Knowledge accumulation*.
 
+## You are carrying this payload, so you may cut it
+
+A rule is not a diary. Every line you add is loaded into future agents who are
+working on something else, and the agent writing a rule is the one worst placed
+to judge it: fresh from hours on one problem, maximum recency bias, and it never
+pays the cost — every *later* session does. So the incentive is broken by
+construction, and the correction has to be a habit, not good intentions.
+
+**When you open a rule to add to it, you have also opened it to cut.** You have
+the source in one hand and the rule in the other; you are, right now, the best-
+qualified reader that file will get. Use it:
+
+- **Delete what's stale or wrong.** A rule describing code that moved is worse
+  than no rule — it actively misleads.
+- **Delete what's now obvious**, enforced by a test, or apparent from the code.
+- **Cut the narrative.** War stories, "we tried X then Y", and debugging
+  chronology are the doc's job. The rule keeps the claim and the fix.
+- **Compress.** A paragraph that survives as one sentence should be one sentence.
+- **Demote by size.** A rule past ~150 lines has stopped being a rule and become
+  a doc wearing a rule's hat. Move the body to `docs/domain/<topic>.md`, leave the
+  gotchas. If it's *also* always-on, leave a breadcrule.
+
+**Adding "just one paragraph" is the failure mode**, because it's true every
+time and it compounds. Treat a rule like a fixed budget: if your paragraph earns
+its place, something else can lose its place. Land net-neutral or smaller unless
+the addition genuinely outweighs what's there.
+
+Ask the deciding question honestly: *will an agent who is not me, working on
+something else, be better off carrying this?* Rules exist for the 99% who never
+hit your bug — not for the one who just did.
+
 Full tiering (inline gotcha → scoped rule → breadcrule+doc → doc), the `paths:`
 mechanism, and how to write the crumb: **`docs/domain/breadcrules.md`**.
