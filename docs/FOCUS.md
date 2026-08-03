@@ -70,7 +70,9 @@ work (`SkillNode.get_entity_degree`, `docs/domain/degree.md`). Rule 3 lost. It's
 set now because pretending otherwise makes this file lie.
 
 - **#356** unify `PropagationContext` across filter / step / reducer / crit. Debt the above
-  created; **gates #355**. `Ready` — pure refactor, named consumer, takeable.
+  created; **gates #355**. `Needs design`, one short `/swarmify` from takeable — the single
+  open fork is "one context object vs. an immutable per-landing view over it", which matters
+  because `crit_rng` / `global_visit_count` live on the long-lived one.
 - **#354** spell preview UI: per-node damage/hit-count chips + skull-on-deplete. Phase 1 only
   (show everything, no gating). Legibility, not fidelity — passes rule 4. `Needs design`:
   chip visual language and the preview-scoped RNG snapshot are both open.
@@ -137,7 +139,11 @@ Named rather than silently fixed, because clearing them is a scheduling decision
   mid-flight. Either finish one or drag the rest back.
 
 Fixed in this pass: #298/#346 were closed but still sat in `Needs design`; #357–#359 and
-#362 had no milestone.
+#362 had no milestone; #354/#355/#356 were board items with no Status at all. `hygiene`
+now reports clean.
+
+**Lane B has nothing `Ready`** — all three of its items need a design gate pass first. That
+is the honest state, and it is why lane A supplies two of the three current units.
 
 ## When this file is wrong
 
