@@ -50,6 +50,14 @@ static func load_all() -> Array[CoreClass]:
 
 @export_multiline var description: String = ""
 
+## Composition by reference (D-27, #279): a shared batch of modifiers/effects
+## authored once and reused across many CoreClass `.tres` — edit the base,
+## every class composing it changes. [method apply] walks the base first, then
+## this class's own `modifiers`/`effects`; PURE APPEND, never override-by-
+## stat_id (the stat pipeline already stacks modifiers natively — "weaker than
+## the base" is a negative modifier, not a replace rule). `null` means no base.
+@export var inherits: CoreClass = null
+
 ## Persistent modifiers granted by this class. Applied once during
 ## Entity._ready via `apply()`. Formula-driven entries are duplicated
 ## automatically — same .tres can sit on many entities safely.
@@ -81,15 +89,56 @@ static func load_all() -> Array[CoreClass]:
 ## grants the effects; override for classes whose behaviour needs custom signal
 ## wiring or scene additions.
 ##
+## Walks the [member inherits] chain base-first (D-27, #279) before applying
+## this class's own modifiers/effects, so a base's grants land first and a
+## child's stack on top of them — pure append, never an override.
+##
 ## Called from `Entity._ready` once `navigator` exists and `core_location` is
 ## set — auras read the owned subgraph the moment they're granted.
 func apply(entity: Entity) -> void:
 	if entity.stat_board == null:
 		return
-	for m in modifiers:
-		entity.stat_board.add_modifier(m.duplicate(true))
-	for e in effects:
-		entity.grant_effect(e)
+	for c in _chain([]):
+		for m in c.modifiers:
+			entity.stat_board.add_modifier(m.duplicate(true))
+		for e in c.effects:
+			entity.grant_effect(e)
+
+
+## Read-only flattened view of the [member inherits] chain's modifiers,
+## base-first (same order [method apply] installs in, so a caller that only
+## needs to inspect the composed set doesn't have to duplicate the walk).
+## UNLIKE [method apply], does NOT duplicate — this is a template a caller
+## reads, not an install. [b]Consumer:[/b] [method LootSystem._core_modifiers]
+## reads this instead of [member modifiers] directly, so the loot draw sees
+## the composed set (e.g. `attribute_baseline_core`'s STR/DEX/INT) rather than
+## just what this `.tres` declares itself (#279). A future change to the chain
+## contract must keep both ends (there and here) in sync.
+func all_modifiers() -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	for c in _chain([]):
+		out.append_array(c.modifiers)
+	return out
+
+
+## Shared walk behind [method apply] and [method all_modifiers]: this class
+## and every ancestor via [member inherits], base-first. `visited` guards
+## against an inheritance cycle (A inherits B inherits A) — detected rather
+## than left to hang, and reported with push_error since a cyclic `.tres`
+## graph is an authoring bug, not a runtime condition to silently swallow.
+func _chain(visited: Array[CoreClass]) -> Array[CoreClass]:
+	if visited.has(self):
+		push_error(
+			"CoreClass.apply: inheritance cycle detected at '%s' — 'inherits' chain never terminates"
+			% resource_path
+		)
+		return []
+	visited.append(self)
+	var out: Array[CoreClass] = []
+	if inherits != null:
+		out.append_array(inherits._chain(visited))
+	out.append(self)
+	return out
 
 
 ## Called from Entity._on_turn_started after the entity's own upkeep.

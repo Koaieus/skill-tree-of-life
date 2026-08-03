@@ -3,24 +3,7 @@
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="1_5r1b0"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="1_agu68"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="2_5r1b0"]
-
-[sub_resource type="Resource" id="Resource_5r1b0"]
-script = ExtResource("1_agu68")
-stat_id = &"strength"
-value = 10.0
-metadata/_custom_type_script = "uid://che6xhl6srqh3"
-
-[sub_resource type="Resource" id="Resource_llumv"]
-script = ExtResource("1_agu68")
-stat_id = &"intelligence"
-value = 10.0
-metadata/_custom_type_script = "uid://che6xhl6srqh3"
-
-[sub_resource type="Resource" id="Resource_h47ey"]
-script = ExtResource("1_agu68")
-stat_id = &"dexterity"
-value = 10.0
-metadata/_custom_type_script = "uid://che6xhl6srqh3"
+[ext_resource type="Resource" path="res://entity/core/attribute_baseline_core.tres" id="3_baseline"]
 
 [sub_resource type="Resource" id="Resource_q2ptp"]
 script = ExtResource("1_agu68")
@@ -38,6 +21,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [resource]
 script = ExtResource("2_5r1b0")
 display_name = "Basic Enemy"
-description = "Landless-elite baseline (D-19): a non-territorial WIS grant so a core-only enemy still has an economy. WIS=80 is a TBD (#268) placeholder difficulty dial, not a tuned value — see D-19/D-24 in docs/design/mvp_decisions.md. xp_per_turn is no longer granted explicitly here: since #271 the board's xp_per_turn intrinsic is WIS // 2 (D-15), so WIS=80 already derives xp_per_turn=40 on its own — an explicit grant would double-count it to 80."
-modifiers = Array[ExtResource("1_agu68")]([SubResource("Resource_5r1b0"), SubResource("Resource_llumv"), SubResource("Resource_h47ey"), SubResource("Resource_q2ptp"), SubResource("Resource_xm0xk")])
+description = "Landless-elite baseline (D-19): a non-territorial WIS grant so a core-only enemy still has an economy. WIS=80 is a TBD (#268) placeholder difficulty dial, not a tuned value — see D-19/D-24 in docs/design/mvp_decisions.md. xp_per_turn is no longer granted explicitly here: since #271 the board's xp_per_turn intrinsic is WIS // 2 (D-15), so WIS=80 already derives xp_per_turn=40 on its own — an explicit grant would double-count it to 80. STR/DEX/INT's flat +10 comes from the shared attribute_baseline_core base (D-27, #279), not hand-declared here."
+inherits = ExtResource("3_baseline")
+modifiers = Array[ExtResource("1_agu68")]([SubResource("Resource_q2ptp"), SubResource("Resource_xm0xk")])
 metadata/_custom_type_script = "uid://ci0mmuifd3c71"

@@ -343,10 +343,17 @@ func _is_lootable(m: StatModifier) -> bool:
 ## Previously-looted mods are permanent board additions (no node storage since
 ## #185) — they're not individually re-lootable; the loot chain starts fresh
 ## from each entity's core_class template.
+##
+## Reads [method CoreClass.all_modifiers] — the FLATTENED [member
+## CoreClass.inherits] chain (D-27, #279) — not [member CoreClass.modifiers]
+## directly, so a class composing a shared base (e.g. balanced_core /
+## basic_enemy_core both inheriting attribute_baseline_core's +10 STR/DEX/INT)
+## still offers its full identity set as loot. A future change to the chain
+## contract must keep both ends (there and here) in sync.
 func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	if victim.core_class != null:
-		out.append_array(victim.core_class.modifiers)
+		out.append_array(victim.core_class.all_modifiers())
 	return out
 
 
