@@ -204,6 +204,12 @@ func get_value(id: StringName) -> Variant:
 ## Rejects (push_warning, no-op) a modifier that would close a dependency
 ## cycle against everything currently applied — see [method cycle_from] (#322).
 ## Checked BEFORE any leaf is bound, so a rejection leaves the board untouched.
+##
+## Cross-reference (#340): [method SkillNode.add_local_modifier] mirrors this
+## cycle-check -> bind -> resolve-target sequence against node_board instead of
+## routing through here (get_stat would silently drop a sparse-board target, or
+## an ensuring variant would leak node-only stats onto an entity board). A
+## future change to "how a modifier is admitted to a board" must update both.
 func add_modifier(m: StatModifier) -> void:
 	# The offending path, not m.stat_id — a CompositeStatModifier's stat_id is
 	# vestigial (empty), and the bundle is exactly the case worth diagnosing.

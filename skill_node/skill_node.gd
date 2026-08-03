@@ -550,16 +550,27 @@ func remove_entity_modifiers_from(board: StatBoard) -> void:
 ## the node's bins with the owner's through one [method ModifierBins.compute]
 ## without allocating.
 ##
-## Note the modifier is NOT bound to the board (unlike [method StatBoard.add_modifier]),
-## so a formula-driven node-local modifier will not track its source stats.
-## No caller needs that today; it's the same contract addons have always had.
+## Mirrors [method StatBoard.add_modifier]'s cycle-check -> bind -> resolve-target
+## sequence (cross-referenced there too — #340), but does NOT route through it:
+## StatBoard.add_modifier resolves its target with plain get_stat, which returns
+## null on a sparse node board (silently dropping the modifier), and making it
+## ensuring instead would let a stray node-only stat id (stake_level,
+## addon_slots) leak onto an entity board. So the three steps are done locally
+## against node_board instead, using the legitimate write path
+## ([method _ensure_local_stat]) for the target.
 func add_local_modifier(m: StatModifier) -> void:
 	if m == null:
 		return
+	_init_node_board()
+	var cycle := node_board.cycle_from(m)
+	if not cycle.is_empty():
+		push_warning("SkillNode.add_local_modifier: rejected a modifier that would close a formula dependency cycle: %s" % cycle)
+		return
 	# flatten() so a CompositeStatModifier lands its children on node_board;
 	# a plain modifier is its own singleton. Mirrors StatBoard.add_modifier —
-	# the node-local channel is bundle-aware too (#183). No bind, as before.
+	# the node-local channel is bundle-aware too (#183).
 	for leaf in m.flatten():
+		leaf.bind(node_board)
 		_ensure_local_stat(leaf.stat_id).add_modifier(leaf)
 
 
@@ -573,6 +584,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 	for leaf in m.flatten():
 		var s: Stat = node_board.get_stat(leaf.stat_id)
 		if s != null:
+			leaf.unbind()
 			s.remove_modifier(leaf)
 
 
