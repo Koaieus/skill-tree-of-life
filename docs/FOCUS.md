@@ -33,7 +33,7 @@ Priority fields and column drags don't cause work to happen — sequence and WIP
 | # | What | Why it's takeable |
 |---|---|---|
 | **#268** | balance harness: scenario fixtures + ratio invariants | Fully specced, file-owned (`tools/balance/**`), invariants pre-named, thresholds ship as `TBD`. Drone-ready as written. |
-| **#274** | INT → spell damage (D-20) | Spec refreshed 2026-08-03 against #351's `HopDamage`. Drone-ready. |
+| **#274** | Spell damage: one `power` × a `spell_damage` stat, ratio-only hop progressions | **Forks settled with the user 2026-08-03 → D-32.** Six knobs collapsed to three layers; `SETTLED` in the body closes every one. Size L. |
 | **#362** | `test_fan_scene` trace test is run-order dependent | S-sized, acceptance + file ownership pinned, and it poisons `test:one` for anyone touching fan geometry — i.e. all of lane E. |
 
 All three are in `Ready`. **`In progress` currently holds five other issues** — starting
@@ -46,8 +46,16 @@ these means clearing slots first (see "Known board violations"), not stacking to
 The hard ordering: **measure, then mechanism, then pin.** Anything else re-tunes twice.
 
 1. **#268** balance harness — the apparatus. Everything below is evaluated against it.
-2. **#274** INT → spell damage: board stat × per-spell coefficient. Ships the mechanism with
-   a placeholder coefficient.
+2. **#274** spell damage — the mechanism, with placeholder rates. **Settled as D-32**: `power`
+   is a spell's only absolute number, every propagation knob is a ratio of the seed, and
+   doubling `spell_damage` doubles every hit without any propagation value changing. Also
+   fixes the dimensional bug that would have made Resonator and Trailblazer decay into flat
+   spells at high INT, and deletes `seed_damage_fraction` + `AffineRamp` (zero users each).
+
+   > **#274 does NOT bounce back to `Needs design`.** It did that five-plus times because its
+   > "open questions" section read as an invitation. There is no such section now — the body
+   > has a `SETTLED` list of ten closed forks. If you think you found a fork, it is answered
+   > there.
 3. **#278** spell balance pass — mana × degree × reach × ramp. **Not a drone unit**: it ships
    numbers, so it runs as a session with the user, after 1 and 2. Body updated 2026-08-03.
 4. **#248** balancing hub (tracking).
@@ -73,6 +81,9 @@ set now because pretending otherwise makes this file lie.
   created; **gates #355**. `Needs design`, one short `/swarmify` from takeable — the single
   open fork is "one context object vs. an immutable per-landing view over it", which matters
   because `crit_rng` / `global_visit_count` live on the long-lived one.
+  **Sequence with lane A: #274 lands first** — it adds a `seed` parameter to a fourth
+  pipeline interface, which is more evidence for the refactor, and #356 absorbs that
+  signature rather than the reverse.
 - **#354** spell preview UI: per-node damage/hit-count chips + skull-on-deplete. Phase 1 only
   (show everything, no gating). Legibility, not fidelity — passes rule 4. `Needs design`:
   chip visual language and the preview-scoped RNG snapshot are both open.
