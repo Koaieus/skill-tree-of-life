@@ -28,10 +28,10 @@
 [ext_resource type="Resource" path="res://stats_system/defs/mana_per_turn.tres" id="def_mana_per_turn"]
 [ext_resource type="Resource" path="res://stats_system/defs/min_damage_taken.tres" id="def_min_dmg_taken"]
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
-[ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing.tres" id="def_node_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing_ramp.tres" id="def_node_healing_ramp"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
+[ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
@@ -95,12 +95,6 @@ base_value = 1.0
 resource_name = "core_health_scaling"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_health_scaling")
-base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_node_health_scaling"]
-resource_name = "node_health_scaling"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_node_health_scaling")
 base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
@@ -331,6 +325,12 @@ resource_name = "node_health"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_node_health")
 base_value = 10.0
+
+[sub_resource type="Resource" id="scalar_node_health_scaling"]
+resource_name = "node_health_scaling"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_node_health_scaling")
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_perception"]
 resource_name = "perception"

@@ -16,7 +16,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_swiy2"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="13_qkgt4"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="14_1jkab"]
-[ext_resource type="Script" path="res://attack/spell/propagation/hop_damage/add_ramp.gd" id="15_ramp"]
+[ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/hop_damage/add_ramp.gd" id="15_ramp"]
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("2_x1qvp")
@@ -32,12 +32,12 @@ expression = "to_degree >= 2"
 script = ExtResource("6_b6rlo")
 children = Array[ExtResource("3_ef7vp")]([SubResource("filter_enemy"), SubResource("filter_deg2")])
 
-[sub_resource type="Resource" id="step_killer"]
-script = ExtResource("8_6uaym")
-
 [sub_resource type="Resource" id="ramp_flat"]
 script = ExtResource("15_ramp")
 increment = 2.0
+
+[sub_resource type="Resource" id="step_killer"]
+script = ExtResource("8_6uaym")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("7_riwgb")

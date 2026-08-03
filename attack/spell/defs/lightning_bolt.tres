@@ -14,7 +14,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_vajd0"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_08wik"]
-[ext_resource type="Script" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="13_ramp"]
+[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="13_ramp"]
 
 [sub_resource type="Resource" id="dmg_lightning"]
 script = ExtResource("3_dmg")
@@ -22,15 +22,15 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
 
+[sub_resource type="Resource" id="ramp_falloff"]
+script = ExtResource("13_ramp")
+factor = 0.5
+
 [sub_resource type="Resource" id="reducer_max"]
 script = ExtResource("7_reducer")
 
 [sub_resource type="Resource" id="step_fan"]
 script = ExtResource("6_step")
-
-[sub_resource type="Resource" id="ramp_falloff"]
-script = ExtResource("13_ramp")
-factor = 0.5
 
 [sub_resource type="Resource" id="prop_lightning"]
 script = ExtResource("4_config")

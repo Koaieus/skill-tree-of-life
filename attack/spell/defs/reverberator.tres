@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://dae6hdb4aq3b3"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
-[ext_resource type="Texture2D" path="res://assets/icons/spells/reverberator.png" id="1_uku7o"]
+[ext_resource type="Texture2D" uid="uid://cb4s28kdpgefr" path="res://assets/icons/spells/reverberator.png" id="1_uku7o"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
 [ext_resource type="Script" uid="uid://cxhpk80bw8mxd" path="res://attack/spell/crit/self_loop_crit_condition.gd" id="2_crit_self_loop"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
@@ -9,8 +9,8 @@
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="6_step"]
+[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="7_ramp"]
 [ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="7_reducer"]
-[ext_resource type="Script" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="7_ramp"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="8_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="8_ww832"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
@@ -26,15 +26,15 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_owner")
 
+[sub_resource type="Resource" id="ramp_rampup"]
+script = ExtResource("7_ramp")
+factor = 1.5
+
 [sub_resource type="Resource" id="reducer_sum"]
 script = ExtResource("7_reducer")
 
 [sub_resource type="Resource" id="step_fan"]
 script = ExtResource("6_step")
-
-[sub_resource type="Resource" id="ramp_rampup"]
-script = ExtResource("7_ramp")
-factor = 1.5
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
@@ -57,7 +57,7 @@ script = ExtResource("1_spell")
 name = "Reverberator"
 description = "Fans to every enemy neighbour, ×1.5 damage per hop. Converging branches ADD — diamond shoulders and self-loops compound massively. CRIT on traversal of a self-loop edge (×2, stacks with crit_chance stat) — the spell feeds back into its own path."
 icon = ExtResource("1_uku7o")
-min_degree = 3
+min_degree = 2
 mana_cost = 5
 base_damage = 1.0
 propagation = SubResource("prop")

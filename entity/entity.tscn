@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://dwxok6qi3pfce" path="res://entity/entity.gd" id="1_entity"]
 [ext_resource type="Resource" uid="uid://ccs1cqdf8r6qt" path="res://entity/default_entity_board.tres" id="2_mckvm"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_8vg6i"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="3_qs5px"]
 [ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="3_s1kue"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="4_ec552"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="4_f6k7f"]
@@ -10,8 +11,9 @@
 [ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="6_g2k83"]
 [ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="7_g2k83"]
 [ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="8_wrmdn"]
-[ext_resource type="Resource" uid="uid://d0h7eqtdcesey" path="res://attack/spell/defs/resonator.tres" id="9_8vg6i"]
+[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="9_8vg6i"]
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="12_f6k7f"]
+[ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="14_k6a8k"]
 
 [sub_resource type="Resource" id="Resource_psl4n"]
 resource_local_to_scene = true
@@ -21,7 +23,7 @@ metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 [sub_resource type="Resource" id="Resource_wrmdn"]
 resource_local_to_scene = true
 script = ExtResource("3_s1kue")
-spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83"), ExtResource("7_g2k83"), ExtResource("8_wrmdn"), ExtResource("9_8vg6i"), ExtResource("12_f6k7f")])
+spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83"), ExtResource("7_g2k83"), ExtResource("8_wrmdn"), ExtResource("9_8vg6i"), ExtResource("12_f6k7f"), ExtResource("14_k6a8k")])
 metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [node name="Entity" type="Node" unique_id=306801215]

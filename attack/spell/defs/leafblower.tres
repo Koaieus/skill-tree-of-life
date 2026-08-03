@@ -18,7 +18,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="12_y0ifm"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="15_l5r25"]
-[ext_resource type="Script" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="16_ramp"]
+[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="16_ramp"]
 
 [sub_resource type="Resource" id="crit_leaf"]
 script = ExtResource("2_crit_leaf")
@@ -37,15 +37,15 @@ compare = 1
 script = ExtResource("8_composite")
 children = Array[ExtResource("5_filter_base")]([SubResource("filter_enemy"), SubResource("filter_degree")])
 
+[sub_resource type="Resource" id="ramp_rampup"]
+script = ExtResource("16_ramp")
+factor = 1.5
+
 [sub_resource type="Resource" id="reducer_max"]
 script = ExtResource("10_reducer")
 
 [sub_resource type="Resource" id="step_fan"]
 script = ExtResource("9_step")
-
-[sub_resource type="Resource" id="ramp_rampup"]
-script = ExtResource("16_ramp")
-factor = 1.5
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")

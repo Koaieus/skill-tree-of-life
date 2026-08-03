@@ -1,16 +1,16 @@
-[gd_resource type="Resource" script_class="SpellDef" format=3]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://d4cd1vbl585es"]
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
-[ext_resource type="Texture2D" path="res://assets/icons/spells/resonator.png" id="1_uku7o"]
+[ext_resource type="Texture2D" uid="uid://dv1fcbldx0ptl" path="res://assets/icons/spells/resonator.png" id="1_uku7o"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
-[ext_resource type="Script" path="res://attack/spell/crit/convergence_crit_condition.gd" id="2_crit_conv"]
+[ext_resource type="Script" uid="uid://bjt2kqqy3bwf6" path="res://attack/spell/crit/convergence_crit_condition.gd" id="2_crit_conv"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="6_step"]
+[ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/hop_damage/add_ramp.gd" id="7_ramp"]
 [ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="7_reducer"]
-[ext_resource type="Script" path="res://attack/spell/propagation/hop_damage/add_ramp.gd" id="7_ramp"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="8_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="8_ww832"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
@@ -26,15 +26,15 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_owner")
 
+[sub_resource type="Resource" id="ramp_flat_add"]
+script = ExtResource("7_ramp")
+increment = 2.0
+
 [sub_resource type="Resource" id="reducer_sum"]
 script = ExtResource("7_reducer")
 
 [sub_resource type="Resource" id="step_fan"]
 script = ExtResource("6_step")
-
-[sub_resource type="Resource" id="ramp_flat_add"]
-script = ExtResource("7_ramp")
-increment = 2.0
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
@@ -42,7 +42,6 @@ filter = SubResource("filter_enemy")
 step = SubResource("step_fan")
 reducer = SubResource("reducer_sum")
 max_hops = 6
-max_visits_per_node = 1
 hop_damage = SubResource("ramp_flat_add")
 
 [sub_resource type="Resource" id="range"]
