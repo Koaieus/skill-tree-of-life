@@ -136,6 +136,14 @@ cmd_status() {
   # NB: these ids are regenerated whenever the Status field's option LIST is
   # rewritten (`updateProjectV2Field` replaces all options wholesale — and it
   # also nulls every item's value, so back the board up before doing that).
+  #
+  # THE THIRD CASUALTY, learned the hard way in be8f5c9: it silently empties
+  # every built-in WORKFLOW's action target too, and GitHub then disables the
+  # workflow. `Item added to project` and `Item closed` both died there and
+  # nobody noticed for a day, because agents set Status explicitly via this
+  # script — the board looked right while nothing automatic was running.
+  # After any option rewrite, walk Project → ⋯ → Workflows and re-point every
+  # disabled one at its column, then `hygiene` to catch what drifted meanwhile.
   # Re-read them with:
   #   gh api graphql -f query='{node(id:"'"$FIELD_STATUS"'"){... on
   #     ProjectV2SingleSelectField{options{id name}}}}'
@@ -471,11 +479,13 @@ cmd_hygiene() {
   }
 
   # The three mirror invariants below are the only ones computed over CLOSED
-  # items too ($every, not $all). They exist because the project's built-in
-  # workflows silently died on 2026-08-02 and nothing noticed: `Item added to
-  # project` (status → Backlog) and `Item closed` (status → Done) both stopped
-  # firing, so new items landed in a `No Status` column and closed issues stayed
-  # parked wherever they were — including `Ready`, which IS the swarm queue.
+  # items too ($every, not $all). They exist because be8f5c9's Status-option
+  # rewrite emptied the built-in workflows' action targets (see cmd_status):
+  # `Item added to project` (status → Backlog) and `Item closed` (status → Done)
+  # both stopped firing, so new items landed in a `No Status` column and closed
+  # issues stayed parked wherever they were — including `Ready`, which IS the
+  # swarm queue. It took a day to notice, because agents set Status explicitly
+  # through this script and the board kept looking plausible.
   # GitHub exposes no API to re-enable a built-in workflow (only
   # `deleteProjectV2Workflow` exists), so this cannot self-heal: the report is
   # the smoke alarm, and the fix is manual in Project → ⋯ → Workflows.
