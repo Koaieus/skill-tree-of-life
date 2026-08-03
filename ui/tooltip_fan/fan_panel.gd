@@ -39,6 +39,29 @@ extends Node2D
 ## there for the floor.
 @export var panel_fade_duration := 0.16
 
+@export_group("Idle")
+## When on, a settled panel (LOOP) keeps a subtle float + glow-pulse loop —
+## the panel-side idle mechanism for #234. Deliberately a SEPARATE mechanism
+## from [member FanTrace.trace_idle]: panels and traces are different
+## elements with different (related) lifecycles, per this issue's own last
+## comment. Static/blink is left to the [HoloPanel] shader's own scanline
+## animation; this only adds the float/glow on top, mirroring how
+## [FanTrace]'s idle pulses the tip alone.
+@export var panel_idle := false:
+	set(value):
+		panel_idle = value
+		if is_node_ready() and not Engine.is_editor_hint():
+			_refresh_idle()
+## Vertical bob amplitude in pixels.
+@export_range(0.0, 12.0, 0.5) var idle_float_amplitude := 4.0
+## How far ABOVE the settled [member glow] the pulse peaks — added, never
+## subtracted, so the loop never dips below the steady-lit settled value (the
+## same constant-brightness rule [FanTrace] enforces for its line, applied
+## here to the panel's own settled glow floor).
+@export_range(0.0, 0.6, 0.01) var idle_glow_amplitude := 0.15
+## Full period (seconds) of one float/glow up-and-back cycle.
+@export var idle_period := 1.6
+
 ## 0 = hidden at [member start_scale], 1 = fully revealed. Assigning it
 ## re-applies the scale+fade reveal directly; [method play_in] / [method
 ## play_out] animate it via their own Tween.
@@ -48,9 +71,21 @@ extends Node2D
 		_apply_progress()
 
 var _lifecycle_tween: Tween = null
+var _idle_tween: Tween = null
+var _idle_glow_tween: Tween = null
+var _is_animating := false
+
+## Authored local position, cached once so the idle float can bob around it
+## without drifting — the float writes `position` directly (progress never
+## touches position, only scale + modulate.a, so the two can't fight).
+var _base_position := Vector2.ZERO
+## The settled `glow` the idle loop was started from — `_kill_idle` restores
+## exactly this, so an idle stop never leaves `glow` parked mid-pulse.
+var _idle_base_glow := 0.0
 
 
 func _ready() -> void:
+	_base_position = position
 	_push_glow()
 	if Engine.is_editor_hint():
 		# Author-time: show the fully revealed panel so placement/skin is
@@ -153,10 +188,13 @@ func _apply_progress() -> void:
 ## the Tween so a caller (FanUnit) can `await tween.finished` to sequence
 ## what comes next.
 func play_in() -> Tween:
+	_kill_idle()
 	_stop_lifecycle()
+	_is_animating = true
 	_lifecycle_tween = create_tween()
 	_lifecycle_tween.tween_property(self, "progress", 1.0, panel_unfurl_duration) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_lifecycle_tween.tween_callback(_on_unfurl_finished)
 	return _lifecycle_tween
 
 
@@ -167,18 +205,67 @@ func play_in() -> Tween:
 ## 0.3` takes ~30% of [member panel_fade_duration]. Returns the Tween for
 ## sequencing.
 func play_out() -> Tween:
+	# Idle dies BEFORE the fade leg starts: whatever point the float/glow loop
+	# was at, `_kill_idle()` snaps both back to their settled floor first, so
+	# the fade's own first frame reads from the steady-lit state, never from
+	# mid-pulse — the LOOP→OUT brightness-floor rule.
+	_kill_idle()
 	_stop_lifecycle()
+	_is_animating = true
 	var duration := maxf(panel_fade_duration * progress, 0.03)
 	_lifecycle_tween = create_tween()
 	_lifecycle_tween.tween_property(self, "progress", 0.0, duration) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_lifecycle_tween.tween_callback(func() -> void: _is_animating = false)
 	return _lifecycle_tween
+
+
+func _on_unfurl_finished() -> void:
+	_is_animating = false
+	_refresh_idle()
+
+
+## (Re)starts or stops the settled-state idle float/glow loop per [member
+## panel_idle]. Two independent loop Tweens (position vs. glow) rather than
+## one parallel tween — simpler to reason about and to kill atomically.
+## Never touches `scale`/`modulate.a` (those are [member progress]'s alone).
+func _refresh_idle() -> void:
+	_kill_idle()
+	if not panel_idle or _is_animating:
+		return
+	_idle_base_glow = glow
+	_idle_tween = create_tween().set_loops()
+	_idle_tween.tween_property(self, "position:y", _base_position.y - idle_float_amplitude, idle_period * 0.5) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_idle_tween.tween_property(self, "position:y", _base_position.y, idle_period * 0.5) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var peak := minf(_idle_base_glow + idle_glow_amplitude, 1.0)
+	_idle_glow_tween = create_tween().set_loops()
+	_idle_glow_tween.tween_property(self, "glow", peak, idle_period * 0.5) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_idle_glow_tween.tween_property(self, "glow", _idle_base_glow, idle_period * 0.5) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _stop_lifecycle() -> void:
 	if _lifecycle_tween != null and _lifecycle_tween.is_valid():
 		_lifecycle_tween.kill()
 	_lifecycle_tween = null
+
+
+## Kills both idle loops and snaps position/glow back to their settled floor
+## — never leaves the panel offset or glow mid-pulse when idle stops.
+func _kill_idle() -> void:
+	var was_running := _idle_glow_tween != null
+	if _idle_tween != null and _idle_tween.is_valid():
+		_idle_tween.kill()
+	_idle_tween = null
+	if _idle_glow_tween != null and _idle_glow_tween.is_valid():
+		_idle_glow_tween.kill()
+	_idle_glow_tween = null
+	position = _base_position
+	if was_running:
+		glow = _idle_base_glow
 
 
 static func _ease_out(t: float) -> float:

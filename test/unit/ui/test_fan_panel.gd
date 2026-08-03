@@ -139,3 +139,52 @@ func test_play_out_from_near_zero_progress_is_floored_not_shorter() -> void:
 	var tw := panel.play_out()
 	tw.custom_step(0.02) # under the floor: must NOT have completed yet
 	assert_gt(panel.progress, 0.0, "the floor keeps the leg alive past its raw (unfloored) duration")
+
+
+# --- panel idle loop (#234) ----------------------------------------------------
+
+func test_idle_starts_only_once_settled_after_play_in() -> void:
+	var panel := _make()
+	await get_tree().process_frame
+	panel.panel_idle = true
+	panel.panel_unfurl_duration = 0.1
+	var tw := panel.play_in()
+	assert_null(panel._idle_tween, "idle must not start mid-unfurl")
+	tw.custom_step(1000.0) # force the unfurl (and its tween_callback) to completion
+	assert_not_null(panel._idle_tween, "idle starts once play_in settles")
+	assert_true(panel._idle_tween.is_valid())
+
+
+func test_idle_is_killed_on_play_out_before_the_fade_leg() -> void:
+	var panel := _make()
+	await get_tree().process_frame
+	panel.panel_idle = true
+	panel.progress = 1.0
+	panel._refresh_idle()
+	assert_not_null(panel._idle_tween, "idle running going into play_out")
+	panel.play_out()
+	assert_null(panel._idle_tween, "play_out kills idle immediately, not after the fade")
+
+
+func test_idle_glow_never_dips_below_the_settled_floor() -> void:
+	var panel := _make()
+	await get_tree().process_frame
+	panel.glow = 0.4
+	panel.panel_idle = true
+	panel.progress = 1.0
+	panel._refresh_idle()
+	panel._idle_glow_tween.custom_step(1000.0) # run the loop through a full cycle
+	assert_gte(panel.glow, 0.4, "the pulse only ever adds above the settled glow, never subtracts")
+
+
+func test_killing_idle_restores_base_position_and_glow() -> void:
+	var panel := _make()
+	await get_tree().process_frame
+	panel.glow = 0.4
+	panel.panel_idle = true
+	panel.progress = 1.0
+	panel._refresh_idle()
+	panel._idle_tween.custom_step(panel.idle_period * 0.25) # mid-pulse
+	panel._kill_idle()
+	assert_almost_eq(panel.position.y, panel._base_position.y, 0.001, "kill snaps position back to base")
+	assert_almost_eq(panel.glow, 0.4, 0.001, "kill snaps glow back to its settled value")

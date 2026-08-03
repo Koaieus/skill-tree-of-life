@@ -61,13 +61,22 @@ signal state_changed(new_state: State)
 @export_range(0.0, 300.0, 1.0, "or_greater") var trunk_length := 0.0
 
 ## Forwarded to [member FanTrace.trace_idle] — whether the settled trace tip
-## keeps a soft idle pulse through LOOP. Panel idle motion is out of scope
-## here (#234).
+## keeps a soft idle pulse through LOOP.
 @export var trace_idle := false:
 	set(value):
 		trace_idle = value
 		if _trace:
 			_trace.trace_idle = value
+
+## Forwarded to [member FanPanel.panel_idle] — whether the settled panel
+## keeps its own float/glow idle loop through LOOP (#234). A SEPARATE
+## mechanism from [member trace_idle]: traces and panels are different
+## elements with different (related) lifecycles.
+@export var panel_idle := false:
+	set(value):
+		panel_idle = value
+		if _panel:
+			_panel.panel_idle = value
 
 ## Current machine state. Read-only from outside — drive transitions through
 ## [method play_in] / [method play_out] / [method enter_hidden], never by
@@ -137,6 +146,7 @@ func _ready() -> void:
 		# scene on every editor load (.claude/rules/godot-workflow.md).
 		return
 	_trace.trace_idle = trace_idle
+	_panel.panel_idle = panel_idle
 	enter_hidden()
 
 

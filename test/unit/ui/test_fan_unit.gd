@@ -163,6 +163,13 @@ func test_trace_idle_export_forwards_to_the_trace() -> void:
 	assert_true(unit._trace.trace_idle)
 
 
+func test_panel_idle_export_forwards_to_the_panel() -> void:
+	var unit := _make()
+	await get_tree().process_frame
+	unit.panel_idle = true
+	assert_true(unit._panel.panel_idle)
+
+
 # --- shared component contract (#303) --------------------------------------------
 
 ## FanUnit's whole sequencing model depends on FanTrace and FanPanel answering
