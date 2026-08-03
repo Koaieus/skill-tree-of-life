@@ -30,10 +30,15 @@ const _KIND_EXPRESSION := 2
 @onready var _linear_row: Control = %LinearRow
 @onready var _expr_row: Control = %ExprRow
 
-# Snapshot of the populating board's stat ids — used for expression
-# validation (Expression.parse against the full set) and input-detection
-# (word-boundary match for the actually-referenced subset).
+# Snapshot of the populating board's stat ids — used as the target / linear
+# source dropdown contents (`_stat_ids`) AND as the validate / detect input
+# candidate base. `_expr_candidates` is the FULL candidate list expression
+# mode sees — `_stat_ids` plus each stat's accessor tokens (`health__current`
+# and friends), so a typed accessor parses instead of failing as an unknown
+# identifier (#333). Decorated tokens are NOT stats and never appear in the
+# dropdowns; they are legal only as expression inputs.
 var _stat_ids: Array = []
+var _expr_candidates: Array = []
 
 
 func _ready() -> void:
@@ -52,9 +57,18 @@ func _ready() -> void:
 
 
 ## Refresh the target / linear-source dropdowns and remember the candidate
-## list for expression-mode validation.
-func populate(stat_ids: Array) -> void:
+## list for expression-mode validation. [param stat_ids] are the board's
+## real stat ids (for the dropdowns); [param accessor_tokens] are the
+## `<stat_id>__<accessor>` variants to ALSO allow as expression inputs
+## (so a typed `health__current` parses instead of failing as an unknown
+## identifier — #333). Callers without accessor tokens may pass an empty
+## array; backwards-compatible with the previous single-arg form via a
+## default of `[]`.
+func populate(stat_ids: Array, accessor_tokens: Array = []) -> void:
 	_stat_ids = stat_ids.duplicate()
+	var candidates: Array = stat_ids.duplicate()
+	candidates.append_array(accessor_tokens)
+	_expr_candidates = candidates
 	_target.clear()
 	_linear_source.clear()
 	for id in stat_ids:
@@ -87,13 +101,13 @@ func _on_kind_changed(idx: int) -> void:
 
 
 func _on_expr_changed(_text: String) -> void:
-	if _stat_ids.is_empty():
+	if _expr_candidates.is_empty():
 		_expr_status.text = "type a formula…"
 		_expr_status.add_theme_color_override(&"font_color", Color(0.7, 0.7, 0.7))
 	else:
-		var err := ExpressionFormula.validate(_expr_formula.text, _stat_ids)
+		var err := ExpressionFormula.validate(_expr_formula.text, _expr_candidates)
 		if err == "":
-			var detected := ExpressionFormula.detect_inputs(_expr_formula.text, _stat_ids)
+			var detected := ExpressionFormula.detect_inputs(_expr_formula.text, _expr_candidates)
 			var names: Array[String] = []
 			for id in detected:
 				names.append(str(id))
@@ -108,8 +122,8 @@ func _on_expr_changed(_text: String) -> void:
 
 func _update_ok_enabled() -> void:
 	var ok := true
-	if _kind.selected == _KIND_EXPRESSION and not _stat_ids.is_empty():
-		ok = ExpressionFormula.validate(_expr_formula.text, _stat_ids) == ""
+	if _kind.selected == _KIND_EXPRESSION and not _expr_candidates.is_empty():
+		ok = ExpressionFormula.validate(_expr_formula.text, _expr_candidates) == ""
 	get_ok_button().disabled = not ok
 
 
@@ -134,7 +148,7 @@ func _on_confirmed() -> void:
 		_KIND_EXPRESSION:
 			var ef := ExpressionFormula.new()
 			ef.formula = _expr_formula.text
-			ef.inputs = ExpressionFormula.detect_inputs(_expr_formula.text, _stat_ids)
+			ef.inputs = ExpressionFormula.detect_inputs(_expr_formula.text, _expr_candidates)
 			mod.value = 1.0
 			mod.formula = ef
 		_:

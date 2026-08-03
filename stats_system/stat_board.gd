@@ -155,12 +155,24 @@ func get_stat(id: StringName) -> Stat:
 	return _extra_stats.get(id, null)
 
 
-## Ensure a Stat exists for [param id], creating one if necessary from
+## Ensure a Stat exists for [param stat_id], creating one if necessary from
 ## [code]StatRegistry[/code]. Returns the existing or newly created Stat,
 ## or [code]null[/code] if the id is unknown to the registry. Use this on
 ## sparse boards (like [member SkillNode.node_board]) where stats are not
 ## pre-populated; entity boards should have all stats already.
+##
+## Rejects decorated accessor tokens (`health__current` and friends): those are
+## formula-read tokens, not stats — no [StatDef], no write path through the
+## modifier pipeline (#333). Letting one through here would happily mint a
+## phantom stat for it on any board, exactly the silent-wrong-state failure
+## this gate exists to prevent.
 func _ensure_stat(stat_id: StringName) -> Stat:
+	if StatFormula.is_accessor_token(stat_id):
+		push_warning(
+			"StatBoard._ensure_stat: '%s' is a formula accessor token, not a stat id"
+			% stat_id
+		)
+		return null
 	var s := get_stat(stat_id)
 	if s != null:
 		return s
@@ -205,6 +217,16 @@ func add_modifier(m: StatModifier) -> void:
 	# modifier is its own singleton, so the leaf path below is unchanged (#183).
 	for leaf in m.flatten():
 		leaf.bind(self)
+		if StatFormula.is_accessor_token(leaf.stat_id):
+			# An accessor token (e.g. `health__current`) is a formula-read handle,
+			# not a stat id — a modifier canTarget one as well as it can target
+			# `min_damage_taken`. The existing get_stat lookup would already miss
+			# it, but the warning below says *why* rather than just "no stat for id".
+			push_warning(
+				"StatBoard.add_modifier: rejected a modifier whose target stat_id '%s' is a formula accessor token, not a stat"
+				% leaf.stat_id
+			)
+			continue
 		var s := get_stat(leaf.stat_id)
 		if s == null:
 			push_warning("StatBoard has no stat for id %s" % leaf.stat_id)

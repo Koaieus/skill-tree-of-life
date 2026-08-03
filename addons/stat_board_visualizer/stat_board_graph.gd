@@ -452,7 +452,7 @@ func _board_display_name() -> String:
 func _on_add_pressed() -> void:
 	if _board == null:
 		return
-	_add_dialog.call(&"populate", _collect_stat_ids())
+	_add_dialog.call(&"populate", _collect_stat_ids(), _collect_accessor_tokens())
 	_add_dialog.popup_centered()
 
 
@@ -461,7 +461,7 @@ func _on_connection_request(from_node: StringName, _from_port: int, to_node: Str
 		return
 	if from_node == to_node:
 		return
-	_add_dialog.call(&"populate", _collect_stat_ids())
+	_add_dialog.call(&"populate", _collect_stat_ids(), _collect_accessor_tokens())
 	_add_dialog.call(&"preset_linear", from_node, to_node)
 	_add_dialog.popup_centered()
 
@@ -473,6 +473,24 @@ func _collect_stat_ids() -> Array:
 			if _board.get_stat(id) != null:
 				ids.append(id)
 	return ids
+
+
+## The `<stat_id>__<accessor>` formula-read tokens for every stat the dialog
+## offers — pooled from each Stat's [method Stat.accessors] map. Lets the
+## expression-mode validator accept `health__current` as a legal input
+## instead of failing it as an unknown identifier; the dialog keeps the
+## bare stat ids in the dropdowns, since a decorated token is not a stat
+## (#333).
+func _collect_accessor_tokens() -> Array:
+	var tokens: Array = []
+	for spec in _GROUP_LAYOUT:
+		for id in spec.stats:
+			var stat := _board.get_stat(id)
+			if stat == null:
+				continue
+			for accessor in stat.accessors():
+				tokens.append(StringName("%s__%s" % [id, accessor]))
+	return tokens
 
 
 func _on_modifier_confirmed(mod: StatModifier) -> void:

@@ -13,6 +13,13 @@ extends StatFormula
 ## string changes at runtime (editor @tool use), call _invalidate() to reparse.
 ## `inputs` must list every stat the formula reads — this is also the subscription
 ## list DerivedStatModifier uses for dirty-tracking.
+##
+## [member inputs] accept bare `<stat_id>` (reads the computed value / cap) or
+## `<stat_id>__<accessor>` tokens (read a named accessor via [method
+## Stat.read_accessor]). The variable name in the expression text is the full
+## (decorated) token — e.g. `health__current + 1` with `inputs = [&"health__current"]`.
+## The engine parses and executes `__`-separated names correctly (see #333);
+## dependency tracking strips to the base id via [method StatFormula.base_of].
 
 @export_multiline var formula: String = ""
 @export var inputs: Array[StringName] = []
@@ -21,7 +28,11 @@ var _expr: Expression = null
 
 
 func get_input_ids() -> Array[StringName]:
-	return inputs
+	var out: Array[StringName] = []
+	out.resize(inputs.size())
+	for i in inputs.size():
+		out[i] = StatFormula.base_of(inputs[i])
+	return out
 
 
 func compute(board: StatBoard) -> float:
@@ -33,8 +44,11 @@ func compute(board: StatBoard) -> float:
 	var values: Array = []
 	for id in inputs:
 		names.append(str(id))
-		var s := board.get_stat(id)
-		values.append(float(s.get_value()) if s != null else 0.0)
+		var s := board.get_stat(StatFormula.base_of(id))
+		if s == null:
+			values.append(0.0)
+		else:
+			values.append(float(s.read_accessor(StatFormula.accessor_of(id))))
 	var result = _expr.execute(values)
 	if _expr.has_execute_failed():
 		push_error("ExpressionFormula execute failed in '%s': %s" % [formula, _expr.get_error_text()])

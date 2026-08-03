@@ -9,17 +9,24 @@ extends StatFormula
 ##
 ## Use ExpressionFormula when you need more than one source or nonlinear math
 ## (e.g. `floor(strength / 10.0)`).
+##
+## [member source_stat_id] accepts a bare `<stat_id>` (reads the computed
+## value / cap — every shipped formula uses this) or a `<stat_id>__<accessor>`
+## token to read a stat's extra state via [method Stat.read_accessor]: e.g.
+## `&"health__current"` reads the pool's `current`. See #333.
 
 @export var source_stat_id: StringName = &""
 
 
 func get_input_ids() -> Array[StringName]:
-	return [source_stat_id]
+	return [StatFormula.base_of(source_stat_id)]
 
 
 func compute(board: StatBoard) -> float:
-	var s := board.get_stat(source_stat_id)
-	return float(s.get_value()) if s != null else 0.0
+	var s := board.get_stat(StatFormula.base_of(source_stat_id))
+	if s == null:
+		return 0.0
+	return float(s.read_accessor(StatFormula.accessor_of(source_stat_id)))
 
 
 ## "PER" — a passthrough has no divisor, so the phrase is just the source.
@@ -27,4 +34,4 @@ func compute(board: StatBoard) -> float:
 func describe_per() -> String:
 	if not per_phrase.is_empty():
 		return per_phrase
-	return _abbrev(source_stat_id)
+	return _abbrev(StatFormula.base_of(source_stat_id))

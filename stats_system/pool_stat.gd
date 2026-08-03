@@ -39,6 +39,18 @@ func _computed_display() -> String:
 	return "%s / %s" % [str(_coerce(current)), str(get_value())]
 
 
+## The ephemeral half of a pool, exposed as a formula accessor (`current`
+## reads `.current`, the cap [method get_value] still read via `&""` — see
+## [method Stat.read_accessor]). Composes through [method Stat.accessors].
+## The lambda parameter is typed `PoolStat` so a typo like `s.currtent` fails
+## at parse time — the silent-wrong-value failure mode this feature exists to
+## prevent (#333, Decision 5).
+func accessors() -> Dictionary[StringName, Callable]:
+	var d := super.accessors()
+	d.merge({&"current": func(s: PoolStat): return s.current})
+	return d
+
+
 ## Apply this pool's start-of-turn replenishment, per its def's per_turn_mode.
 ## Called from StatBoard.apply_per_turn_upkeep() for every pool. `board` is
 ## needed to resolve sibling stats (ADD's companion, CUSTOM's inputs).

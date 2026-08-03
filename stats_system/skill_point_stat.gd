@@ -63,6 +63,21 @@ var wound_heal_progress: float = 0.0
 		value_changed.emit()
 
 
+## The three SP bins, exposed as formula accessors (see [method Stat.accessors]).
+## `used` is derived but a read like the others — there is no write path through
+## the modifier pipeline, and none should be added. Lambda parameters are typed
+## `SkillPointStat` so a typo on `wounded` / `staked` / `used` fails at parse
+## time rather than silently resolving to the wrong half (#333, Decision 5).
+func accessors() -> Dictionary[StringName, Callable]:
+	var d := super.accessors()
+	d.merge({
+		&"wounded": func(s: SkillPointStat): return s.wounded,
+		&"staked": func(s: SkillPointStat): return s.staked,
+		&"used": func(s: SkillPointStat): return s.used,
+	})
+	return d
+
+
 ## SP locked into currently-allocated nodes. Derived so the four buckets can't
 ## drift out of sync — if you find this returning a negative number, an
 ## operation violated the invariant (or someone set wounded/staked past max).

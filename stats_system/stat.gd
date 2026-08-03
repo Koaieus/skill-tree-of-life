@@ -208,6 +208,48 @@ func get_value() -> Variant:
 	return _coerce(ModifierBins.compute(base_value, [bins]))
 
 
+## Read this stat through a formula accessor — the ONLY door the formula
+## layer has into a stat's extra state (#333). `&""` is the computed value /
+## cap (the bare-token form, what every formula reads today). Named
+## accessors are answered by the subclass's [method accessors] override:
+## [PoolStat] answers `current`; [SkillPointStat] adds `wounded` / `staked` /
+## `used`; [SurplusPoolStat] adds `surplus` / `available`. Subclasses expose
+## their own bins by overriding [method accessors]; the formula layer never
+## learns which subclasses exist.
+##
+## An unknown name warns and falls through to [method get_value] — never
+## fails silently, never errors. Same shape as the modifier-pipeline
+## "reject-and-keep-running" rule: a typo in a formula token degrades to the
+## computed value with a warning, not a hard crash mid-pipeline.
+func read_accessor(accessor_name: StringName) -> Variant:
+	if accessor_name == &"":
+		return get_value()
+	var d := accessors()
+	if d.has(accessor_name):
+		return d[accessor_name].call(self)
+	push_warning("Stat '%s' has no accessor '%s'" % [definition.id if definition != null else &"?", accessor_name])
+	return get_value()
+
+
+## The accessor names this stat answers to — `{name: callable(stat) -> Variant}`
+## for [method read_accessor]. A bare scalar returns `{}`; subclasses override
+## and compose through `super.accessors()` + `.merge()`, so an inherited name
+## being shadowed by a subclass is a visible `.merge()` overwrite (the same
+## discoverability posture as [method CoreClass.load_all]'s directory scan:
+## the list lives where the data lives, not in a parallel hand-maintained
+## registry the formula layer would have to track).
+##
+## Each entry's [Callable] is a lambda over the stat instance — `func(s): return
+## s.current` — chosen over `get.bind(...)` because a real member access is
+## statically checked at parse time (a typo `s.wounde` fails the script)
+## where `s.get(&"wounde")` would silently return null. Rebuilding the dict
+## per call is trivially cheap (a handful of entries, resolved on formula
+## bind, not per-frame); the entries cannot live as a `const` because a
+## `Callable` literal is not a constant expression in GDScript 4.7.
+func accessors() -> Dictionary[StringName, Callable]:
+	return {}
+
+
 ## Inspector niceties -------------------------------------------------------
 ##
 ## Synthetic read-only `computed_value` row shows the post-pipeline result

@@ -35,6 +35,20 @@ signal surplus_changed
 		value_changed.emit()
 
 
+## The out-of-cap surplus bin plus the spendable-this-turn `available()` —
+## exposed as formula accessors (see [method Stat.accessors]). Lambda
+## parameters are typed `SurplusPoolStat` so a typo on `surplus` / `available`
+## fails at parse time rather than silently resolving to the wrong half
+## (#333, Decision 5).
+func accessors() -> Dictionary[StringName, Callable]:
+	var d := super.accessors()
+	d.merge({
+		&"surplus": func(s: SurplusPoolStat): return s.surplus,
+		&"available": func(s: SurplusPoolStat): return s.available(),
+	})
+	return d
+
+
 ## Overwrite the surplus bin. Overwrites, never accumulates (see class contract):
 ## a turn ending with 0 unused budget writes 0, clearing last turn's surplus.
 func set_surplus(n: int) -> void:
