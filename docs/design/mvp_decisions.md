@@ -797,7 +797,81 @@ Three layers, each answering exactly one question — *who casts* (`spell_damage
 
 **Naming.** `HopDamage` → `HopDamageProgression` (the `…Damage`/`Propagation` collision was the live confusion), with `MultiplyProgression` / `AddProgression` / `ExpressionProgression` — literally the ratio and the difference of a geometric and an arithmetic progression.
 
-**Impl status:** **Specced, not built** — #274, sized L, `Ready`. Every fork above is closed in the issue body under `SETTLED`; the migration preserves all existing spell goldens by pinning test fixtures at `spell_damage = 1.0`. Numeric rates remain **#278's**, measured on **#268**.
+### ⚠ AMENDED same day — "the dimensional bug" was not a bug
+
+**The text above is left standing because its reasoning is the trap.** Read the amendment before acting on it.
+
+The claim was that `AddRamp`'s absolute increment is a dimensional error because it becomes rounding error at high INT. The arithmetic is right and the conclusion is wrong. **An absolute additive term is a compressive curve, and compression is a legitimate — and needed — spell personality.**
+
+| Caster | seed | `+2`/hop, hop 6 | ratio to seed |
+|---|---|---|---|
+| INT 10 | 2 | 14 | **7.0×** |
+| INT 1000 | 101 | 113 | **1.12×** |
+
+Absolute damage still rises with INT (14 → 113). What collapses is the spell's *edge over its own seed*. So a flat-ramp spell is **strong for a novice and marginal for an archmage** — which is exactly the design target:
+
+> We want spells that scale more and spells that scale less. A 10–50 INT novice should have spells that do real work. A bruiser who spots that one granted spell fits *this particular enemy topology* should be able to wreak havoc with it despite terrible INT. Reading the opportunity is the play.
+
+**What was actually wrong was the invariant, which was stated too strongly.** "Doubling `spell_damage` doubles every hit" holds only for **relative** progressions. It is a per-class property, not a global law:
+
+| Progression | Term | Scales with caster | Invariant |
+|---|---|---|---|
+| `MultiplyProgression(factor)` | geometric | yes | holds |
+| `ScaledAddProgression(seed_fraction_per_hop)` | arithmetic, relative | yes | holds |
+| `FlatAddProgression(increment)` | arithmetic, **absolute** | **no, deliberately** | **does not apply** |
+| `ExpressionProgression` | authored | author's choice | n/a |
+
+`ScaledAddProgression` still earns its place beside `MultiplyProgression`: linear growth is a different shape from geometric, and Trailblazer's `max_hops = 20` makes an exponential ramp unusable. `FlatAddProgression` earns its place because **the compression is the point** — its docstring must say so, or someone will "fix" it again.
+
+**So the layer rule survives, restated honestly:** `power` is the only absolute number a *spell* carries, and a progression declares whether it scales with the caster. What is forbidden is not an absolute term — it is an **undeclared** one. The three classes make the declaration syntactic: you cannot author a ramp without choosing whether it scales.
+
+**Migration is now zero-change**: Resonator and Trailblazer stay flat-additive at `increment = 2.0`, behaviour identical. No fixture pinning trick needed. Whether either *should* be flat or scaled is a **#278** personality call.
+
+**Impl status:** **Specced, not built** — #274, sized L, `Ready`. Every fork is closed in the issue body under `SETTLED`. Numeric rates remain **#278's**, measured on **#268**. The gates that stop high INT from auto-winning are **D-33**, not damage tuning.
+
+---
+
+## D-33 — Spell power is gated by four independent conditions, not by damage tuning
+
+**Question:** D-18 made INT the deliberate runaway and D-32 made spell damage scale linearly with it. What stops a high-INT caster from simply winning? If the answer were "tune damage down", D-18's payoff would be cancelled and the archmage fantasy with it. (#274 round 8 / #278)
+
+**Resolution:** **A spell's power is gated by four independent conditions. Damage tuning is not one of them.** A sick high-INT wizard lobbing a pyroblast *should* feel devastating; the constraint is on **when they get to do it**, not on how hard it lands.
+
+| # | Gate | How it binds |
+|---|---|---|
+| 1 | **Knowing the spell** | Innate in your spellbook, or granted by a node you hold (#206). Not everything is castable. |
+| 2 | **Casting degree** | `SpellDef.min_degree`, read as **entity degree** — incident edges whose far endpoint you *also* own (D-30). This is the primary gate. |
+| 3 | **Mana** | Cost vs. pool and regen. **Currently unsettled** — see below. |
+| 4 | **Range from the cast node** | Hop or euclidean reach to eligible primary targets. Hops and euclidean are *not* interchangeable (#278). |
+
+### The degree ladder
+
+Degree is the load-bearing gate because it is **topological and positional at once** — it cannot be bought with attributes, only built.
+
+| `min_degree` | Tier |
+|---|---|
+| 1–2 | Low. Everyday spells; castable from most of your territory. |
+| 3 | Medium. Wants a deliberate small hub. |
+| 4 | Picky and tricky. Powerful spells live here. |
+| 5+ | Real powerhouses. Endgame. Good luck meeting the condition — but if you do, may god help your enemies. |
+
+**Gates 2 and 4 fight each other, and that tension is the game.** A 6-degree hub in the middle of nowhere casts nothing worth casting. You are pushed to build a *smaller* 3–4 degree hub near the frontline instead of one perfect tower in safety. Reach and degree are a genuine positional trade, not two independent stat checks.
+
+### Every attack channel stays a live tool
+
+Investing heavily in STR, DEX, or INT makes the other two weaker *by comparison* — it must never rule them out. **A high-INT caster should still take a cut vertex with a Ranged attack when they spot the opportunity.** Reading the opportunity is the play, and the three channels are three tools with different topological affinities.
+
+The spellbook is the same idea one level down: **each spell is a tool that thrives against a different topology.** That is why D-32 keeps compressive (flat-ramp) progressions — a low-INT bruiser who recognises that one granted spell fits this enemy's shape gets to wreak havoc with it. Spell selection is pattern recognition, not a damage ladder.
+
+### ⚠ Mana is NOT settled by this decision
+
+Gate 3 is currently the weakest. The mana pool maximum and its regen were **plucked from the air** and have not been thought through, despite looking settled. The bar it must clear:
+
+> If mana never blocks a cast, why have the resource. If it always blocks, why have it.
+
+A `mana_cost` balance pass is meaningless while max and regen are placeholders, so **#278 depends on mana being settled first.** Filed separately; it may need a full overhaul rather than a retune.
+
+**Impl status:** Gates 1, 2 and 4 exist in code (`SpellDef.min_degree`, `Targeting` + `RangeFinder`, spell grants pending #206). Gate 3 needs design. The ladder values are authored per `SpellDef` and pinned by **#278**.
 
 ---
 
@@ -822,4 +896,5 @@ Three layers, each answering exactly one question — *who casts* (`spell_damage
 - 2026-07-31: **D-12 marked built, and #299 closed on the design fork it was blocking.** #299 asked whether CON deserves a full archetype or whether `defensive.tres` expressed "defensive territory" better. Settled on design grounds — **`defensive.tres` was a smell that adding CON solved, so CON keeps its archetype** — without waiting on #268, since the question was about where defence *lives*, not how it is tuned. Consequence: `defensive.tres` is deleted and its `Role.DEFENSIVE` pools moved into `constitution.tres`, giving the defensive axis one authoring home. Provably inert (the flatten filters per-`TierPool`). `node_health` ADD_BASE dropped in the same pass — with base `node_health = 10 + CON`, a flat draw was numerically identical to the percent draw at L1 and decayed after; the percent channel survives, re-ranged to `+5–15%`. **New fork surfaced:** `Role` is a 3-valued enum encoding a 2-valued fact (`DEFENSIVE` and `RARE` are mechanically identical), and it is fully derivable from `archetype_stat` emptiness — filed as **#319** with two live proposals: rejecting off-archetype rolls outright (which would revise D-12 away) and replacing `RARE` with pre-authored keystones.
 - 2026-08-02: **D-31 resolved, and #298 settled without a new mechanism (lane A opening).** The node combat pool ratchets exactly like the entity pool (grant on rise, clamp on fall); #346's "~1/10 max HP" was a raw `base_value` write bypassing the ratchet, not the ratchet misbehaving, and the bypass itself is kept because `SkillPointStat.claim()` depends on it. **#298's fork is dissolved rather than answered:** the CON→`node_health` rate is neither a CoreClass genesis param (option 2 — a real cliff, since coreless entities exist) nor a split board-baseline-plus-class-delta (option 1), but `node_health_scaling`, an ordinary board scalar read as a formula input — the D-26 `core_health_scaling` precedent, which `.claude/rules/stats-system.md` already stated as *"no genesis/class-param mechanism is needed or wanted here"*. **Generalized while it was fresh:** a tunable rate is a board stat; the authoring procedure for that and for pool bins is now `docs/domain/stat-knobs-and-bins.md`. Per-class coefficient *values* remain #268's. Unblocks #274 / #278.
 - 2026-07-31: **D-12 revised away — procgen draw-model v4 lands via #321.** Both of #319's live proposals landed: off-archetype rolling is rejected entirely (this revises D-12 — the "starve survivability" rationale only held while defence had no home; CON + the universal `archetype_stat == &""` pool axis are now that home), and `RARE` is abolished. v4 replaces `TierPool`+`TierDef`+`Role` with one flat `StatPool`, a single `TierLadder` (`value = 2·cost − 1` → costs [1,2,4,8], V [1,3,7,15]), a spend-until-broke + per-`(stat,op)` aggregation draw (ADD*/INCREASE sum, MULTIPLY product, SET max), and an auto-stamped tier→rarity tag map (T1/T2 common, T3 rare, T4 mythic) so the radial band profile finally gates content that can actually be rolled. Rare content (`rare.tres`) becomes 4 pre-authored `Keystone` SkillNode scenes under `entity/keystone/instances/` (placement wiring is a separate open issue). `first_level.tres` budget envelope tuned (field outer 5→4, `rbp_main` outer.mythic 8→3) per the v4 simulation. Retuning from the seed table is #268's job. See `docs/domain/procgen-v4.md`.
+- 2026-08-03: **D-32 AMENDED same day, and D-33 resolved — the gating cluster.** The "AddRamp is a dimensional bug" reasoning in D-32's first draft is **wrong and is left standing as a trap marker**: an absolute additive ramp is a *compressive* curve (7x seed at INT 10, 1.12x at INT 1000), which is exactly the novice-spell / topology-specialist niche the design wants. What was actually too strong was the **invariant** — "doubling spell_damage doubles every hit" is a per-progression property, not a global law. Three progressions now declare their own answer (`Multiply` / `ScaledAdd` relative, `FlatAdd` deliberately absolute); what is forbidden is an *undeclared* absolute, not an absolute. Migration becomes zero-change. **D-33** then answers what actually stops a high-INT caster: four independent gates — knowing the spell, casting degree (the ladder: 1-2 low / 3 medium / 4 picky / 5+ endgame), mana, and range — with degree and range in deliberate tension, so a 6-degree hub in the middle of nowhere casts nothing. Damage tuning is explicitly NOT a gate; the archmage fantasy is the payoff D-18 promised. **Mana is called out as unsettled** (pool max and regen were plucked from the air) and now blocks #278.
 - 2026-08-03: **D-32 resolved — #274's knob stack collapsed (round 8).** Six overlapping spell-damage knobs became three layers and one rule: `power` is the only absolute, every propagation knob is a ratio of the seed. Three knobs deleted for having zero users (`seed_damage_fraction`, `AffineRamp`, and the never-built `int_scaling` / `damage_formula` pair). **The bug that forced it:** `AddRamp`'s absolute increment sat in the ratio layer, so Resonator and Trailblazer would have decayed into flat spells at high INT — latent because nothing scaled with INT yet when the ramps were written. Additive is now a fraction of seed, keeping the ramp linear (so #352's convergence crit stays the sole multiplicative) *and* INT-scaled. #274 promoted to `Ready` with every fork closed in-body; it had bounced back to `Needs design` five-plus times because "open questions" read to agents as an invitation.
