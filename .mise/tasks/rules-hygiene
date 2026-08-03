@@ -24,6 +24,12 @@ SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's h
 
 SKIP_DIRS = (".godot/", ".claude/worktrees/", ".worktrees/", ".git/")
 
+# TODO: a check for prescriptive commands a mise task now owns. When `mise run
+# refresh` landed, six rules/skills still told agents to run the raw command and
+# hand-diff — the task existed but nothing routed to it, so the improvement was
+# inert until someone grepped by hand (9400d48). Detecting "this doc prescribes
+# a command that a task wraps" would catch that class of staleness.
+
 
 def frontmatter(text):
     """Return (paths list, had_frontmatter). No frontmatter => always-on."""
