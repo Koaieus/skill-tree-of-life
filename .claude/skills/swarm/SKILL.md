@@ -43,8 +43,41 @@ still end up reading the diffs.
 4. **No human input mid-flight.** If the user must weigh in halfway, the swarm
    stalls with N worktrees open.
 
+5. **You have the budget for it.** A swarm is the most token-expensive thing in
+   this repo, and the 5-hour window is the binding constraint — see "Size the
+   swarm to the window" below. Six workers dispatched at 81% ran the window to
+   93% *while being told to stop*.
+
 Being Opus is itself part of the gate. Sonnet may drive a swarm only when the
 decomposition is already written down — not when it must be derived.
+
+## Size the swarm to the window — do this BEFORE decomposing
+
+Measured 2026-08-03: **one issue costs roughly 10–20% of a fresh 5-hour window**,
+depending on size and on how many iterations the drone needs. Stopping a running
+worker is **not free** — it costs a turn per worker, and shedding six mid-flight
+workers cost ~10% on its own. So the arithmetic has to happen before dispatch,
+not after:
+
+> **units × 15% + (workers × 2% shutdown reserve) must fit in what's left.**
+
+You cannot query your remaining budget, so **ask the user for the number** if you
+don't already have it — one question is cheaper than a forced break-off. Then:
+
+| Window remaining | What that buys |
+|---|---|
+| < 40% | Don't swarm. Run `warp` on the single highest-value issue. |
+| 40–60% | 2 workers, 1 unit each. |
+| 60–80% | 3 workers, ~2 units each. |
+| > 80% | 4–5 workers. Beyond that you are betting the window. |
+
+**Ten workers is never the answer**, however tempting the backlog looks. A swarm
+that hits 100% mid-flight loses every uncommitted unit *and* the turns needed to
+shut down cleanly — strictly worse than a smaller swarm that finishes.
+
+**Prefer landing 4 issues to starting 12.** The user's goal is issues closed, and
+an unmerged worktree closes nothing. When in doubt, cut the worker count, not the
+per-worker verification — verification is what makes a unit mergeable.
 
 ## The cycle
 
@@ -228,9 +261,14 @@ harness's team-scoped in-session board or nothing.
 
 **`TaskCreate` is still unsafe in parallel** — two calls in one message both read
 the same stale max id and the second pair silently overwrites the first (six
-creates produced four tasks). Serialize them. And teams needs
-`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` **at launch** (it's in
-`~/.claude/settings.json`); you cannot enable it mid-session.
+creates produced four tasks). Serialize them.
+
+**`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is already set in this user's
+`~/.claude/settings.json`. Do not spend a turn echoing it.** It is read at launch
+and cannot be enabled mid-session, so the only case worth handling is the one
+where a spawn *actually* comes back without teammate behaviour — deal with it
+then, reactively. A pre-flight check that has passed every time is a turn you are
+paying for nothing, and turns are the scarce resource here.
 
 `SendMessage` **does** work both ways for background subagents (worker → `main`,
 `main` → worker by name), despite docs implying teammates-only. That is the
@@ -362,11 +400,34 @@ whole suite after each tweak:
   not get a GUT harness.
 - Forbid `xvfb`/real-backend boots unless the unit touches a `.gdshader`.
 
-**Batch units per worker — validated, keep doing it.** Two units in one hot
-worktree cost 147k total, against the 150–200k a *single*-unit worker cost in
-earlier runs. Startup and codebase orientation is the fixed cost; the second unit
-rides nearly free. Batch by **shared context** (both units read the same
-subsystem), not by issue size. 2–3 workers × 2 units beats 6 × 1 outright.
+**Shared context is where the real savings are — partition by it FIRST.** This is
+the single biggest lever in the skill, ahead of everything else in this section.
+
+Every worker pays a large fixed cost before it writes a line: the brief, the issue
+read, orienting in the subsystem, finding the seam. Two issues that touch the same
+files split across two workers pay that cost **twice, for the same reading**. Give
+both to one worker and you pay it once — the second unit rides nearly free.
+
+Measured: two units in one hot worktree cost 147k total, against the 150–200k a
+*single*-unit worker cost in earlier runs. The second unit was approximately free.
+
+So the decomposition order is:
+
+1. **Cluster the issues by subsystem** — which ones read the same files, the same
+   rules, the same docs? That clustering *is* your worker list. One worker per
+   cluster.
+2. **Only then** check file-disjointness *between* clusters, and sequence any
+   cluster pair that overlaps into waves.
+
+Note this inverts the naive read of "two workers must never touch the same file":
+that rule pushes you toward *more* workers, and shared-context batching pushes
+toward fewer. **Fewer wins.** File overlap inside one worker is not a conflict at
+all — it's just sequential edits in one worktree, which is the cheapest thing
+here. Overlap only costs you *across* workers.
+
+2–3 workers × 2–3 units beats 6 × 1 outright, on tokens and on turns (each worker
+also costs you two idle-notification wakeups). If you find yourself with six
+workers, look for the two clusters you failed to merge.
 
 **Have workers delegate broad searches downward.** A worker with the full tool set
 can spawn its own `Explore` subagent, which reads excerpts rather than whole files
