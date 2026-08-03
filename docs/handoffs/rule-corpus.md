@@ -4,6 +4,10 @@
 (doctrine), `docs/domain/breadcrules.md` (tiering), issues **#363** and **#364**.
 This file only points.
 
+> **Ribbon cut 2026-08-03** — reflection done and reported; findings filed as a
+> comment on **#364** (uncounted `CLAUDE.md` always-on payload; unrouted
+> `godot-workflow.md` sections). Don't redo it. Deletion still gated on #364.
+
 ## First task: cut the ribbon — you are the first agent running the new corpus
 
 You booted on a rewritten rule corpus. Nobody has yet observed it from the
