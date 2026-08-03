@@ -104,4 +104,6 @@ func _run() -> void:
 		scenarios_script.free_fixture(defender)
 		v += step_v
 
+	# Let queued frees actually run before exit (see run_balance.gd's note).
+	await process_frame
 	quit(0)

@@ -4,11 +4,11 @@
 	"invariants": [
 		{
 			"name": "melee_dpa_over_ranged_dpa",
-			"scenario": "mirror_L20",
+			"scenario": "asymmetric_snipe_L20_vs_L80",
 			"readout": "melee_dpa_over_ranged_dpa",
 			"min": "TBD",
 			"max": "TBD",
-			"why": "channel parity"
+			"why": "channel parity — read from the sniper fixture (DEX-over-STR skew), not a mirror match: every mirror scenario uses plain BalancedCore where STR==DEX and this would read 1.000 by construction"
 		},
 		{
 			"name": "hits_to_drop_node",

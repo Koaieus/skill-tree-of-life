@@ -74,9 +74,16 @@ static func _matched_zero_invest(root: Node, name: String, level: int) -> Dictio
 
 ## A low-level attacker sniping a much higher-level defender (or vice versa,
 ## depending which side of the table is read) — spans the range the D-16/D-21
-## renormalization was meant to keep sane.
+## renormalization was meant to keep sane. Also the fixture that gives
+## `melee_dpa_over_ranged_dpa` something to actually measure: every other
+## scenario uses plain BalancedCore, where STR == DEX and the ratio would
+## read 1.000 by construction — the sniper's DEX-over-STR skew is what makes
+## the invariant move at all.
 static func _snipe(root: Node, name: String, attacker_level: int, defender_level: int) -> Dictionary:
 	var attacker := await BalanceFixture.build(root, attacker_level, _BALANCED)
+	attacker.entity.stat_board.dexterity.base_value += 30.0
+	attacker.entity.stat_board.strength.base_value = maxf(
+		attacker.entity.stat_board.strength.base_value - 5.0, 0.0)
 	var defender := await BalanceFixture.build(root, defender_level, _BALANCED)
 	var readouts := combat_readouts(attacker, defender)
 	free_fixture(attacker)
@@ -90,6 +97,17 @@ static func _snipe(root: Node, name: String, attacker_level: int, defender_level
 ## (never a hand-rolled `values_from` call standing in for the real mechanic).
 ## Makes both `aura_coverage_fraction` and `core_node_ttk_under_sustained_pressure`
 ## computable.
+##
+## Built on a branching (k-ary tree) topology, NOT the chain the other
+## scenarios use. #268 review: a straight chain caps a range-R aura at
+## exactly R covered nodes forever, so `aura_coverage_fraction` on a chain
+## reports "safe" for a topological reason, never a balance one — D-10's
+## sanctuary bubble is a statement about a hop-ball in BRANCHING territory,
+## where the same range can plausibly cover a large fraction of a
+## 100+-node entity. The branching factor is exactly what makes that
+## fraction move, so it's reported alongside the reading.
+const _AURA_BRANCHING_FACTOR := 3
+
 static func _core_adjacent_aura(root: Node, name: String, level: int) -> Dictionary:
 	var aura_class := CoreClass.new()
 	var aura := HealAura.new()
@@ -98,7 +116,8 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 	aura_class.aura = aura
 
 	var attacker := await BalanceFixture.build(root, level, _BALANCED)
-	var defender := await BalanceFixture.build(root, level, aura_class)
+	var defender := await BalanceFixture.build(
+		root, level, aura_class, BalanceFixture.Topology.TREE, _AURA_BRANCHING_FACTOR)
 
 	var core := defender.core_node()
 	var aura_values := aura.values_from(core, defender.entity.navigator)
@@ -106,6 +125,7 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 	var readouts: Dictionary = {
 		"defender_level": level,
 		"defender_owned_nodes": owned,
+		"topology_branching_factor": _AURA_BRANCHING_FACTOR,
 		"aura_covered_nodes": aura_values.size(),
 		"aura_coverage_fraction": (float(aura_values.size()) / float(owned)) if owned > 0 else 0.0,
 	}
@@ -170,11 +190,19 @@ static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) 
 		"defender_owned_nodes": defender.owned_count(),
 		"ranged_damage_raw": ranged_raw,
 		"melee_damage_raw": melee_raw,
-		"melee_dpa_over_ranged_dpa": (melee_raw / ranged_raw) if ranged_raw > 0.0 else 0.0,
+		# Mitigated, per-AP — NOT raw. Mitigation is non-linear
+		# (max(min_damage_taken, raw - armor)), so a raw-damage ratio and this
+		# one genuinely diverge wherever the floor bites (see
+		# matched_L100_zero_invest, where raw 2 mitigates to 3). AP cost is
+		# read as 1 for both channels because neither attack_plan.gd resolve()
+		# ever sets AttackOutcome.ap_cost away from its default — see
+		# tools/balance/README.md for that assumption in one place, not just
+		# this comment.
+		"damage_per_ap_ranged": mitigated_ranged,
+		"damage_per_ap_melee": mitigated_melee,
+		"melee_dpa_over_ranged_dpa": (mitigated_melee / mitigated_ranged) if mitigated_ranged > 0.0 else 0.0,
 		"mitigated_ranged_damage": mitigated_ranged,
 		"mitigated_melee_damage": mitigated_melee,
-		"damage_per_ap_ranged": mitigated_ranged, # ap_cost defaults to 1 for both channels today
-		"damage_per_ap_melee": mitigated_melee,
 		"defender_node_max_hp": node_max_hp,
 		"hits_to_drop_node": ceili(node_max_hp / mitigated_ranged) if mitigated_ranged > 0.0 else -1,
 		"defender_health_pool": health_max,

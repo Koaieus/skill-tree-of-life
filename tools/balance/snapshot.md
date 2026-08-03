@@ -4,7 +4,7 @@
 > See `tools/balance/README.md` — including why this snapshot goes stale
 > once #274 lands.
 
-Generated: 2026-08-03T15:41:09
+Generated: 2026-08-03T15:46:55
 
 ## mirror_L5
 
@@ -113,31 +113,32 @@ Generated: 2026-08-03T15:41:09
 | attacker_level | 20 |
 | attacker_owned_nodes | 45 |
 | damage_per_ap_melee | 4.000 |
-| damage_per_ap_ranged | 4.000 |
+| damage_per_ap_ranged | 7.000 |
 | defender_health_pool | 99.000 |
 | defender_level | 80 |
 | defender_node_max_hp | 99.000 |
 | defender_owned_nodes | 177 |
-| hits_to_drop_node | 25 |
+| hits_to_drop_node | 15 |
 | melee_damage_raw | 4.000 |
-| melee_dpa_over_ranged_dpa | 1.000 |
+| melee_dpa_over_ranged_dpa | 0.571 |
 | mitigated_melee_damage | 4.000 |
-| mitigated_ranged_damage | 4.000 |
-| ranged_damage_raw | 4.000 |
+| mitigated_ranged_damage | 7.000 |
+| ranged_damage_raw | 7.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 354.000 |
-| turns_to_drop_core_naive | 25 |
+| turns_to_drop_core_naive | 15 |
 
 ## core_adjacent_aura_L50
 
 | Readout | Value |
 |---|---|
-| aura_coverage_fraction | 0.027 |
-| aura_covered_nodes | 3 |
+| aura_coverage_fraction | 0.117 |
+| aura_covered_nodes | 13 |
 | core_node_ttk_pressure_per_turn | 7.000 |
 | core_node_ttk_under_sustained_pressure | -1 |
 | defender_level | 50 |
 | defender_owned_nodes | 111 |
+| topology_branching_factor | 3 |
 
 ## Invariants
 
@@ -147,9 +148,9 @@ _fails this run._
 
 | Invariant | Status | Detail | Why |
 |---|---|---|---|
-| melee_dpa_over_ranged_dpa | TBD | 1.000 (range not yet pinned) | channel parity |
+| melee_dpa_over_ranged_dpa | TBD | 0.571 (range not yet pinned) | channel parity — read from the sniper fixture (DEX-over-STR skew), not a mirror match: every mirror scenario uses plain BalancedCore where STR==DEX and this would read 1.000 by construction |
 | hits_to_drop_node | TBD | 10 (range not yet pinned) | baseline TTK |
 | sp_income_at_level | TBD | 2.000 (range not yet pinned) | progression tempo |
-| aura_coverage_fraction | TBD | 0.027 (range not yet pinned) | D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking |
+| aura_coverage_fraction | TBD | 0.117 (range not yet pinned) | D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking |
 | core_node_ttk_under_sustained_pressure | TBD | -1 (range not yet pinned) | D-10 magnitude — the core-node heal is deliberately not a full reset, so sustained pressure must still grind it down; a reading of -1 (never depleted within the simulated cap) means the aura re-exempted the core from D-9 attrition |
 | baseline_raw_damage_vs_mitigation_at_matched_level | TBD | 1.500 (range not yet pinned) | D-11/D-14 — confirms no dead zone re-forms via bulk alone: a leveled defender should be slower to kill but never effectively immune to an uninvested attacker |

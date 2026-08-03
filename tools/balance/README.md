@@ -56,6 +56,30 @@ numbers. **Refreshing it is a follow-up task, not #274's responsibility** —
 `mise run balance` and commit the new snapshot once #274 lands (and again
 after any future change to a formula this harness reads).
 
+## Assumptions worth knowing, not just reading in a code comment
+
+- **AP cost is read as 1 for both the melee and ranged channel.** Neither
+  `attack/plan/melee_attack_plan.gd` nor `attack/plan/ranged_attack_plan.gd`
+  ever sets `AttackOutcome.ap_cost` away from its class default (`1`), so
+  `damage_per_ap_*` and `melee_dpa_over_ranged_dpa` are computed as plain
+  mitigated per-hit damage. If a future change gives either channel a
+  non-default AP cost, this harness needs to read it from the real
+  `AttackOutcome` a resolved plan produces, not keep assuming 1.
+- **`aura_coverage_fraction` is sensitive to branching factor, on purpose.**
+  `core_adjacent_aura_L50` builds its defender on a k-ary tree (branching
+  factor 3, `topology_branching_factor` in its row), not the straight chain
+  every other scenario uses. A chain caps a range-3 aura at exactly 3 covered
+  nodes forever regardless of level, which would make the fraction decay
+  toward zero as a pure artifact of level rather than of territory shape —
+  see #268 review. Reading the fraction without the branching factor next to
+  it is reading half the number.
+- **`melee_dpa_over_ranged_dpa` needs a fixture with STR ≠ DEX to mean
+  anything.** Every mirror scenario uses plain `BalancedCore`, where the two
+  attributes track together and the ratio reads 1.000 by construction.
+  `asymmetric_snipe_L20_vs_L80`'s attacker gets an explicit DEX+30/STR−5 skew
+  so this invariant (sourced from that scenario in `invariants.json`) has
+  something to actually move against.
+
 ## Known gaps (deliberate — see #268's NOTES)
 
 - No spell/magic-channel readout: `spell_damage` doesn't exist on the board

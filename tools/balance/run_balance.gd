@@ -37,4 +37,8 @@ func _run() -> void:
 	print(table)
 	harness.write_snapshot(result)
 	print("✓ snapshot written to %s" % harness.SNAPSHOT_PATH)
+	# Give every fixture's queue_free() (queued by BalanceScenarios.free_fixture,
+	# never called immediately) a frame to actually run before the process
+	# exits — otherwise they're still pending and print as leaked at exit.
+	await process_frame
 	quit(0)
