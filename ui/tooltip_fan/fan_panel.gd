@@ -256,15 +256,22 @@ func _stop_lifecycle() -> void:
 ## Kills both idle loops and snaps position/glow back to their settled floor
 ## — never leaves the panel offset or glow mid-pulse when idle stops.
 func _kill_idle() -> void:
-	var was_running := _idle_glow_tween != null
+	# Both restores are guarded by "was this loop actually running", so a
+	# `_kill_idle()` on a panel that never idled writes NOTHING. `play_in` /
+	# `play_out` call this unconditionally, and `_base_position` is a
+	# `_ready()` snapshot — an unguarded restore would quietly overwrite any
+	# future runtime positioner with a stale authored value.
+	var was_floating := _idle_tween != null
+	var was_glowing := _idle_glow_tween != null
 	if _idle_tween != null and _idle_tween.is_valid():
 		_idle_tween.kill()
 	_idle_tween = null
 	if _idle_glow_tween != null and _idle_glow_tween.is_valid():
 		_idle_glow_tween.kill()
 	_idle_glow_tween = null
-	position = _base_position
-	if was_running:
+	if was_floating:
+		position = _base_position
+	if was_glowing:
 		glow = _idle_base_glow
 
 
