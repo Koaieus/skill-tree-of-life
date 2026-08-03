@@ -1,0 +1,267 @@
+[gd_scene load_steps=3 format=3 uid="uid://c341archetypelegibility"]
+
+[ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="1_rim"]
+[ext_resource type="Script" path="res://skill_node/visuals/rim_archetype_legibility_matrix.gd" id="2_script"]
+
+[node name="RimArchetypeLegibilityMatrix" type="Node2D"]
+script = ExtResource("2_script")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 300.0
+offset_bottom = 920.0
+color = Color(0.078, 0.086, 0.106, 1)
+mouse_filter = 2
+
+[node name="Caption" type="Label" parent="."]
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 290.0
+offset_bottom = 90.0
+autowrap_mode = 3
+text = "#341 acceptance item 3 — same 6 shipped archetypes, unallocated (0/1) then allocated (1/1, gapless). Row label names the archetype; check your read against it."
+
+[node name="ColHeaderUnallocated" type="Label" parent="."]
+offset_left = 70.0
+offset_top = 100.0
+offset_right = 170.0
+offset_bottom = 120.0
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="ColHeaderAllocated" type="Label" parent="."]
+offset_left = 180.0
+offset_top = 100.0
+offset_right = 280.0
+offset_bottom = 120.0
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="Rim_constitution_0of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(120, 130)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 0
+
+[node name="Rim_constitution_1of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(230, 130)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 1
+
+[node name="Rim_dexterity_0of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(120, 270)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 0
+
+[node name="Rim_dexterity_1of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(230, 270)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 1
+
+[node name="Rim_intelligence_0of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(120, 410)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 0
+
+[node name="Rim_intelligence_1of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(230, 410)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 1
+
+[node name="Rim_perception_0of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(120, 550)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 0
+
+[node name="Rim_perception_1of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(230, 550)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 1
+
+[node name="Rim_strength_0of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(120, 690)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 0
+
+[node name="Rim_strength_1of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(230, 690)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 1
+
+[node name="Rim_wisdom_0of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(120, 830)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 0
+
+[node name="Rim_wisdom_1of1" parent="." instance=ExtResource("1_rim")]
+position = Vector2(230, 830)
+crest_r = 28.0
+tint_mix = 1.0
+fill_max = 1
+fill_current = 1
+
+[node name="Label_constitution_0of1" type="Label" parent="."]
+offset_left = 96
+offset_top = 170
+offset_right = 144
+offset_bottom = 190
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="Label_constitution_1of1" type="Label" parent="."]
+offset_left = 206
+offset_top = 170
+offset_right = 254
+offset_bottom = 190
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="Label_dexterity_0of1" type="Label" parent="."]
+offset_left = 96
+offset_top = 310
+offset_right = 144
+offset_bottom = 330
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="Label_dexterity_1of1" type="Label" parent="."]
+offset_left = 206
+offset_top = 310
+offset_right = 254
+offset_bottom = 330
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="Label_intelligence_0of1" type="Label" parent="."]
+offset_left = 96
+offset_top = 450
+offset_right = 144
+offset_bottom = 470
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="Label_intelligence_1of1" type="Label" parent="."]
+offset_left = 206
+offset_top = 450
+offset_right = 254
+offset_bottom = 470
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="Label_perception_0of1" type="Label" parent="."]
+offset_left = 96
+offset_top = 590
+offset_right = 144
+offset_bottom = 610
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="Label_perception_1of1" type="Label" parent="."]
+offset_left = 206
+offset_top = 590
+offset_right = 254
+offset_bottom = 610
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="Label_strength_0of1" type="Label" parent="."]
+offset_left = 96
+offset_top = 730
+offset_right = 144
+offset_bottom = 750
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="Label_strength_1of1" type="Label" parent="."]
+offset_left = 206
+offset_top = 730
+offset_right = 254
+offset_bottom = 750
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="Label_wisdom_0of1" type="Label" parent="."]
+offset_left = 96
+offset_top = 870
+offset_right = 144
+offset_bottom = 890
+text = "0/1"
+horizontal_alignment = 1
+
+[node name="Label_wisdom_1of1" type="Label" parent="."]
+offset_left = 206
+offset_top = 870
+offset_right = 254
+offset_bottom = 890
+text = "1/1"
+horizontal_alignment = 1
+
+[node name="RowLabel_constitution" type="Label" parent="."]
+offset_left = 10
+offset_top = 124
+offset_right = 100
+offset_bottom = 144
+text = "constitution"
+horizontal_alignment = 2
+
+[node name="RowLabel_dexterity" type="Label" parent="."]
+offset_left = 10
+offset_top = 264
+offset_right = 100
+offset_bottom = 284
+text = "dexterity"
+horizontal_alignment = 2
+
+[node name="RowLabel_intelligence" type="Label" parent="."]
+offset_left = 10
+offset_top = 404
+offset_right = 100
+offset_bottom = 424
+text = "intelligence"
+horizontal_alignment = 2
+
+[node name="RowLabel_perception" type="Label" parent="."]
+offset_left = 10
+offset_top = 544
+offset_right = 100
+offset_bottom = 564
+text = "perception"
+horizontal_alignment = 2
+
+[node name="RowLabel_strength" type="Label" parent="."]
+offset_left = 10
+offset_top = 684
+offset_right = 100
+offset_bottom = 704
+text = "strength"
+horizontal_alignment = 2
+
+[node name="RowLabel_wisdom" type="Label" parent="."]
+offset_left = 10
+offset_top = 824
+offset_right = 100
+offset_bottom = 844
+text = "wisdom"
+horizontal_alignment = 2
