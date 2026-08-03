@@ -46,7 +46,7 @@ def removed_lines(path):
 
 def main():
     before = snapshot()
-    print("Refreshing (godot --headless --editor --quit) …", flush=True)
+    print("Refreshing… ", end="", flush=True)
     r = subprocess.run(["godot", "--headless", "--editor", "--quit"],
                        capture_output=True, text=True)
     if r.returncode not in (0, 1):
@@ -57,14 +57,14 @@ def main():
 
     changed = {p: s for p, s in after.items() if before.get(p) != s}
     if not changed:
-        print("✓ refresh done — nothing changed.")
+        print("✓ nothing changed.")
         return 0
 
     sidecars = [p for p in changed if p.endswith(BENIGN_SUFFIX)]
     authored = [p for p in changed if p.endswith(AUTHORED)]
     other = [p for p in changed if p not in sidecars and p not in authored]
 
-    print(f"✓ refresh done — {len(changed)} file(s) touched.\n")
+    print(f"✓ {len(changed)} file(s) touched.\n")
 
     if sidecars:
         new = [p for p in sidecars if changed[p].strip() == "??"]
