@@ -46,6 +46,9 @@ these means clearing slots first (see "Known board violations"), not stacking to
 The hard ordering: **measure, then mechanism, then pin.** Anything else re-tunes twice.
 
 1. **#268** balance harness — the apparatus. Everything below is evaluated against it.
+   **Informative, never binding** (amended 2026-08-03): real balance is too complex to
+   model, so the harness is an order-of-magnitude smell test for runaway or non-fun
+   values. No invariant may fail a build; `OUT` is an observation, not a gate.
 2. **#274** spell damage — the mechanism, with placeholder rates. **Settled as D-32**:
    `seed = spell_damage(source) × power`, and a progression *declares* whether it scales with
    the caster (`Multiply` / `ScaledAdd` do, `FlatAdd` deliberately does not). Deletes
