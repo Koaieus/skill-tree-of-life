@@ -25,6 +25,7 @@ mise run test                                  # full suite, headless (reads .gu
 mise run test:one -- res://test/unit/test_smoke.gd   # a single script
 mise run test:dir -- res://test/unit/          # a directory
 mise run check                                 # headless compile-check of every script
+mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.

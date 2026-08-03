@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+#MISE description="Headless editor refresh + a verdict on what it changed: `mise run refresh`"
+"""
+Rebuild the class cache, then report what the editor pass actually did.
+
+Exists so an agent doesn't have to read a 95-line diff and adjudicate it. The
+expected verdict is "nothing changed" or "only benign churn"; that answer costs
+you one line instead of a detour. See docs/domain/godot-workflow.md.
+
+Reports; fixes nothing. Pre-existing dirt is excluded — only changes this pass
+caused are reported.
+"""
+import re
+import subprocess
+import sys
+
+BENIGN_SUFFIX = (".uid", ".import")
+AUTHORED = (".tscn", ".tres", ".gd", ".gdshader")
+
+
+def sh(*args):
+    return subprocess.run(args, capture_output=True, text=True).stdout
+
+
+def snapshot():
+    """path -> status code, including untracked."""
+    out = sh("git", "status", "--porcelain", "--untracked-files=all")
+    snap = {}
+    for line in out.splitlines():
+        if len(line) > 3:
+            snap[line[3:].strip().strip('"')] = line[:2]
+    return snap
+
+
+def removed_lines(path):
+    """Non-trivial lines the pass deleted from a tracked file."""
+    diff = sh("git", "diff", "--unified=0", "--", path)
+    out = []
+    for line in diff.splitlines():
+        if line.startswith("-") and not line.startswith("---"):
+            body = line[1:].strip()
+            if body and not body.startswith("uid="):
+                out.append(body)
+    return out
+
+
+def main():
+    before = snapshot()
+    print("Refreshing (godot --headless --editor --quit) …", flush=True)
+    r = subprocess.run(["godot", "--headless", "--editor", "--quit"],
+                       capture_output=True, text=True)
+    if r.returncode not in (0, 1):
+        print(f"✗ godot exited {r.returncode}")
+        print((r.stderr or r.stdout)[-1500:])
+        return r.returncode
+    after = snapshot()
+
+    changed = {p: s for p, s in after.items() if before.get(p) != s}
+    if not changed:
+        print("✓ refresh done — nothing changed.")
+        return 0
+
+    sidecars = [p for p in changed if p.endswith(BENIGN_SUFFIX)]
+    authored = [p for p in changed if p.endswith(AUTHORED)]
+    other = [p for p in changed if p not in sidecars and p not in authored]
+
+    print(f"✓ refresh done — {len(changed)} file(s) touched.\n")
+
+    if sidecars:
+        new = [p for p in sidecars if changed[p].strip() == "??"]
+        print(f"  BENIGN — {len(sidecars)} sidecar(s) ({len(new)} new). "
+              f"Expected; commit them.")
+        for p in sorted(sidecars)[:8]:
+            print(f"    {changed[p].strip():>2} {p}")
+        if len(sidecars) > 8:
+            print(f"    … and {len(sidecars) - 8} more")
+        print()
+
+    verdict = 0
+    if authored:
+        print(f"  REVIEW — {len(authored)} authored file(s) re-serialized:")
+        for p in sorted(authored):
+            drops = removed_lines(p)
+            if not drops:
+                print(f"    {p}\n        additions/reordering only — benign.")
+                continue
+            print(f"    {p}  ({len(drops)} line(s) removed)")
+            for d in drops[:6]:
+                print(f"        - {d}")
+            if len(drops) > 6:
+                print(f"        … and {len(drops) - 6} more")
+            verdict = 1
+        print()
+
+    if other:
+        print(f"  OTHER — {len(other)} file(s): {', '.join(sorted(other)[:5])}\n")
+
+    if verdict:
+        print("Removed lines above are the ONLY thing worth judging. A dropped line")
+        print("that equals its class default is Godot omitting defaults — safe. A")
+        print("dropped NON-default value (damage = 5, per_phrase = \"…\") is the")
+        print("stale-class-view strip — restore it. Look the default up in the script.")
+    else:
+        print("Nothing non-trivial was removed. Commit the churn on its own and move on.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

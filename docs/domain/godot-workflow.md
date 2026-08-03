@@ -205,11 +205,14 @@ Position/id noise is fine. Dropped instances and stripped fields are not.
 The whole protocol:
 
 ```bash
-git status                   # before refresh
-godot --headless --editor --quit
-git diff scenes/ '*.tres'    # immediately after
-# restore anything load-bearing that disappeared
+mise run refresh
 ```
+
+It runs the pass, excludes pre-existing dirt, and hands back a verdict —
+`✓ refresh done — nothing changed`, or a grouped report separating benign
+sidecar/`.import` churn from authored files, listing **only the non-trivial
+lines removed**. That list is the entire judgement call; everything else it
+already classified for you. Don't hand-diff unless it points you somewhere.
 
 For `.tres` files specifically: also boot and exercise the resource's
 behaviour if you can — silent strip won't cause a parse error, so the

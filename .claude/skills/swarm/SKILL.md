@@ -509,9 +509,9 @@ after; if the totals didn't move, the new test never ran.
 
 Per `.claude/rules/godot-workflow.md`, an editor pass re-serializes scenes it
 touches, and master is a shared checkout that may carry the user's uncommitted
-WIP. `git status` before and `git diff` after is the whole check — don't
-`md5sum` or stage copies. Restore anything non-default that vanished; ignore id
-and position noise.
+WIP. `mise run refresh` is the whole check — it excludes pre-existing dirt and hands
+back a verdict. Don't `md5sum` or stage copies. Restore anything non-default it
+flags; ignore id and position noise.
 
 - **Worker worktrees live under `.claude/worktrees/agent-<id>/`, on branch
   `worktree-agent-<id>`** — not under `.worktrees/`, and not from
