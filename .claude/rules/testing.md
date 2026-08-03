@@ -38,7 +38,7 @@ ever add a GUT flag to these tasks, verify the `Scripts` total actually drops.
 
 ## Gotchas
 
-- **`class_name` cache miss → "GUT class_names have not been imported".** After fresh install, after pulling GUT updates, or after any new `class_name` introduction, run `godot --headless --editor --quit-after 200` once to rebuild `.godot/global_script_class_cache.cfg`. See `.claude/rules/godot-workflow.md` — and `git diff` afterwards, the editor pass can mutate scenes/.tres.
+- **`class_name` cache miss → "GUT class_names have not been imported".** After fresh install, after pulling GUT updates, or after any new `class_name` introduction, run **`mise run refresh`** once to rebuild `.godot/global_script_class_cache.cfg`. It runs the pass and reports what it changed, so you don't hand-diff it.
 - **Autoloads are available in tests** (`StatRegistry`, `Events`, etc.) — GUT boots the project normally.
 - **Scene/node tests** must `add_child(node)` and usually `await get_tree().process_frame` before assertions; remember `queue_free()` in `after_each` (or use GUT's `autofree(node)`).
 - **`@tool` scripts** (SkillNode, Entity, Graph) run in-editor; their tests should still operate on runtime instances, not editor-loaded resources, unless that's specifically what you're testing.

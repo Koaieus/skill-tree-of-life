@@ -47,7 +47,11 @@ def removed_lines(path):
 def main():
     before = snapshot()
     print("Refreshing… ", end="", flush=True)
-    r = subprocess.run(["godot", "--headless", "--editor", "--quit"],
+    # --quit-after 200, not --quit: plain --quit exits on the first idle frame,
+    # which can land before a cold scan finishes rebuilding the class cache — a
+    # false "nothing changed". 200 frames is what testing.md already required for
+    # GUT's class_name import to land.
+    r = subprocess.run(["godot", "--headless", "--editor", "--quit-after", "200"],
                        capture_output=True, text=True)
     if r.returncode not in (0, 1):
         print(f"✗ godot exited {r.returncode}")

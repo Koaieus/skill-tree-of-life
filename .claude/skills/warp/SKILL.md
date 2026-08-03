@@ -66,8 +66,7 @@ Two things specific to running in a *fresh* worktree:
   during cold boot" script-error noise as a plain fresh clone at the same
   commit — not a worktree-specific issue.
 - If you introduce or rename a `class_name`, the worktree needs its own cache
-  refresh (`godot --headless --editor --quit`) — the main checkout's refresh
-  doesn't propagate.
+  refresh (`mise run refresh`) — the main checkout's refresh doesn't propagate.
 
 **4. Test before presenting anything**
 ```bash

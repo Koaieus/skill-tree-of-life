@@ -494,8 +494,8 @@ formality to `--force` past.
 
 ### A worker's green run does not transfer — refresh the class cache after you land
 
-If a worker introduced a new `class_name`, it ran
-`godot --headless --editor --quit` **in its own worktree** and went green there.
+If a worker introduced a new `class_name`, it ran `mise run refresh` **in its
+own worktree** and went green there.
 The main checkout has its own `.godot/`, so right after your cherry-pick master
 fails with `Could not find type "X" in the current scope` — plus a cascade of
 "Parse error" / "Cannot infer the type of …" from every file that touches it.

@@ -47,7 +47,7 @@ Two Godot facts that will bite you in a fresh worktree, both in
 - No `.godot/` yet — your first `mise run check` / `mise run test` cold-imports.
   Budget a few seconds; the script-error noise during cold boot is expected.
 - Introduced or renamed a `class_name`? This worktree needs its own
-  `godot --headless --editor --quit`. The main checkout's cache doesn't carry over.
+  `mise run refresh`. The main checkout's cache doesn't carry over.
 
 `mise run check` is red repo-wide already (a `CoreHealthBar` baseline issue, not
 you). Don't chase it. Compare against `master` before blaming your diff.

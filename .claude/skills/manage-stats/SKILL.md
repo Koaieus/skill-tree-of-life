@@ -137,7 +137,7 @@ Wire it in the `[resource]` block: `my_stat = SubResource("scalar_my_stat")`.
 
 Both inherit `min_value: int` from the base. `value_type` is INT/FLOAT only (BOOL hidden — meaningless for a cap). Read `.claude/rules/stats-system.md` → "Pool stats" for the behavior of the two virtuals (`on_pool_filled`, `on_max_increased`) and the growth math before choosing.
 
-**None of the three fit? Author a new subclass.** The behavior split lives on `PoolStatDef` via two virtuals (`on_pool_filled(stat, excess)` fires when `current` crosses *up* to the cap; `on_max_increased(stat, delta)` fires when the pipeline raises the cap). A new pool archetype is a new `.gd` with `class_name FooPoolStatDef extends PoolStatDef` overriding the relevant virtual — that's the whole contract; `PoolStat` stays agnostic. `CyclicPoolStatDef` (third row) was added exactly this way: ~5 lines overriding `on_pool_filled`. A new `class_name` needs a **class-cache refresh** (`godot --headless --editor --quit`, then `git diff scenes/ '*.tres'`) — see gotchas. If the hook needs the stat's *own* extra state (like SP's bins), override `_custom_turn_upkeep` on the `PoolStat` subclass instead — "behaviour lives where its data lives."
+**None of the three fit? Author a new subclass.** The behavior split lives on `PoolStatDef` via two virtuals (`on_pool_filled(stat, excess)` fires when `current` crosses *up* to the cap; `on_max_increased(stat, delta)` fires when the pipeline raises the cap). A new pool archetype is a new `.gd` with `class_name FooPoolStatDef extends PoolStatDef` overriding the relevant virtual — that's the whole contract; `PoolStat` stays agnostic. `CyclicPoolStatDef` (third row) was added exactly this way: ~5 lines overriding `on_pool_filled`. A new `class_name` needs a **class-cache refresh** (`mise run refresh`, which reports what it changed) — see gotchas. If the hook needs the stat's *own* extra state (like SP's bins), override `_custom_turn_upkeep` on the `PoolStat` subclass instead — "behaviour lives where its data lives."
 
 **2. Create one StatDef `.tres`** — `stats_system/defs/<pool_id>.tres` (omit `uid=`):
 
@@ -302,7 +302,7 @@ Request: *"Add mana (INT pool) and mana_per_turn, with +floor(INT/10) to the man
 - **`resource_local_to_scene` duplicates only inline `[sub_resource]` blocks, not `ExtResource` references** — that's why intrinsic modifiers/formulas are inlined in the board, not external files.
 - **`ExpressionFormula._expr` is cached after first `compute()`.** If you edit `formula` at runtime (`@tool`), call `formula._invalidate()` to re-parse.
 - **Pool turn-upkeep is declarative** — set `per_turn_mode` on the def (REFILL/ADD/CUSTOM), don't hand-wire `Entity._on_turn_started` (which lives on the Entity, not the single-phase TurnManager). Even the bespoke SP wound-heal is `CUSTOM` + a `PoolStat` override, so `_on_turn_started` carries no per-pool logic at all.
-- **Class cache after `class_name` changes.** Only relevant if you add a *new* `class_name` (e.g. a new formula or pool-def subclass): run `godot --headless --editor --quit`, then `git diff scenes/ '*.tres'` — see `.claude/rules/godot-workflow.md`. Plain `.tres`/script-body edits don't need it.
+- **Class cache after `class_name` changes.** Only relevant if you add a *new* `class_name` (e.g. a new formula or pool-def subclass): run `mise run refresh` — it does the pass and hands back a verdict. See `.claude/rules/godot-workflow.md`. Plain `.tres`/script-body edits don't need it.
 
 ---
 
