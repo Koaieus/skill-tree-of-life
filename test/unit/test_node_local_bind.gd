@@ -88,9 +88,11 @@ func test_cycle_closing_local_modifier_is_rejected_and_board_untouched() -> void
 			"rejected candidate must not perturb strength")
 	assert_almost_eq(float(node.get_local_value(&"dexterity")), dexterity_before, 0.001,
 			"rejected candidate must not perturb dexterity")
-	var dex_stat := node.node_board.get_stat(&"dexterity")
-	assert_false(dex_stat.has_modifier(closing),
-			"rejected modifier must never be attached to its target stat")
+	# Sparseness: the rejection happens before _ensure_local_stat(leaf.stat_id),
+	# so dexterity (closing's target) was never allocated on node_board at all —
+	# "board untouched" means nothing partially bound, not "bound then reverted".
+	assert_null(node.node_board.get_stat(&"dexterity"),
+			"rejected candidate must not allocate its target stat on the node board")
 
 
 # --- 4. remove_local_modifier unbinds ---------------------------------------
@@ -126,8 +128,12 @@ func test_entity_only_value_passes_through_without_allocating_node_board() -> vo
 	entity.stat_board = board
 	graph.add_child(entity)
 
-	var node := _node()
+	# Not _node(): that helper already parents under the test root via
+	# add_child_autofree, and reparenting it under graph.skill_nodes_container
+	# without detaching first trips Godot's "already has a parent" error.
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(node)
+	autofree(node)
 	var alloc := AllocationSystem.new()
 	alloc.graph = graph
 	add_child_autofree(alloc)
