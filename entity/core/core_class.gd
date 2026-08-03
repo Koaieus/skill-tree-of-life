@@ -50,13 +50,18 @@ static func load_all() -> Array[CoreClass]:
 
 @export_multiline var description: String = ""
 
-## Composition by reference (D-27, #279): a shared batch of modifiers/effects
-## authored once and reused across many CoreClass `.tres` — edit the base,
-## every class composing it changes. [method apply] walks the base first, then
-## this class's own `modifiers`/`effects`; PURE APPEND, never override-by-
-## stat_id (the stat pipeline already stacks modifiers natively — "weaker than
-## the base" is a negative modifier, not a replace rule). `null` means no base.
-@export var inherits: CoreClass = null
+## Composition by reference (D-27, #279): shared batches of modifiers/effects
+## authored once and reused across many CoreClass `.tres` — edit a composed
+## resource, every class composing it changes. Plural because the real
+## authoring need is several independent batches at once (a shared attribute
+## baseline AND a shared "undead" batch, say) — a singular chain would force
+## those into an arbitrary nesting order. [method apply] walks each entry in
+## array order, depth-first, then this class's own `modifiers`/`effects` last;
+## PURE APPEND, never override-by-stat_id (the stat pipeline already stacks
+## modifiers natively — "weaker than the base" is a negative modifier, not a
+## replace rule). Named `composes`, not `extends` — `@export var extends:` is
+## a hard parse error in Godot 4.7 (the class-inheritance keyword).
+@export var composes: Array[CoreClass] = []
 
 ## Persistent modifiers granted by this class. Applied once during
 ## Entity._ready via `apply()`. Formula-driven entries are duplicated
@@ -89,54 +94,72 @@ static func load_all() -> Array[CoreClass]:
 ## grants the effects; override for classes whose behaviour needs custom signal
 ## wiring or scene additions.
 ##
-## Walks the [member inherits] chain base-first (D-27, #279) before applying
-## this class's own modifiers/effects, so a base's grants land first and a
-## child's stack on top of them — pure append, never an override.
+## Walks [member composes] depth-first in array order (D-27, #279) before
+## applying this class's own modifiers/effects, so a composed batch's grants
+## land first and this class's own stack on top of them — pure append, never
+## an override.
 ##
 ## Called from `Entity._ready` once `navigator` exists and `core_location` is
 ## set — auras read the owned subgraph the moment they're granted.
 func apply(entity: Entity) -> void:
 	if entity.stat_board == null:
 		return
-	for c in _chain([]):
+	for c in _chain([], []):
 		for m in c.modifiers:
 			entity.stat_board.add_modifier(m.duplicate(true))
 		for e in c.effects:
 			entity.grant_effect(e)
 
 
-## Read-only flattened view of the [member inherits] chain's modifiers,
-## base-first (same order [method apply] installs in, so a caller that only
-## needs to inspect the composed set doesn't have to duplicate the walk).
+## Read-only flattened view of the composed set's modifiers, in the same
+## depth-first, deduped order [method apply] installs in (so a caller that
+## only needs to inspect the composed set doesn't have to duplicate the walk).
 ## UNLIKE [method apply], does NOT duplicate — this is a template a caller
 ## reads, not an install. [b]Consumer:[/b] [method LootSystem._core_modifiers]
 ## reads this instead of [member modifiers] directly, so the loot draw sees
 ## the composed set (e.g. `attribute_baseline_core`'s STR/DEX/INT) rather than
-## just what this `.tres` declares itself (#279). A future change to the chain
-## contract must keep both ends (there and here) in sync.
+## just what this `.tres` declares itself (#279). A future change to the
+## composition contract must keep both ends (there and here) in sync.
 func all_modifiers() -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
-	for c in _chain([]):
+	for c in _chain([], []):
 		out.append_array(c.modifiers)
 	return out
 
 
 ## Shared walk behind [method apply] and [method all_modifiers]: this class
-## and every ancestor via [member inherits], base-first. `visited` guards
-## against an inheritance cycle (A inherits B inherits A) — detected rather
-## than left to hang, and reported with push_error since a cyclic `.tres`
-## graph is an authoring bug, not a runtime condition to silently swallow.
-func _chain(visited: Array[CoreClass]) -> Array[CoreClass]:
-	if visited.has(self):
+## and every resource reachable via [member composes], depth-first in array
+## order, each CONTRIBUTING AT MOST ONCE.
+##
+## Two arrays because this does two DIFFERENT jobs, not one — collapsing them
+## into a single "visited" set would make a legitimate diamond (two entries
+## both composing the same shared base) misreport as a cycle:
+##  1. `in_progress` — the current DFS stack. A cycle (A composes B composes A)
+##     re-enters a node still on that stack — detected rather than left to
+##     hang, reported with push_error since a cyclic `.tres` graph is an
+##     authoring bug, not a runtime condition to silently swallow.
+##  2. `visited` — every node already fully processed, on ANY branch. Composed
+##     resources form a DAG, not a tree, so the same base reached twice (the
+##     diamond case) must contribute its modifiers exactly once — first visit
+##     wins, depth-first in array order, and every later re-entry is a SILENT
+##     no-op, not an error.
+func _chain(visited: Array[CoreClass], in_progress: Array[CoreClass]) -> Array[CoreClass]:
+	if in_progress.has(self):
 		push_error(
-			"CoreClass.apply: inheritance cycle detected at '%s' — 'inherits' chain never terminates"
+			"CoreClass: cycle detected in 'composes' at '%s' — composition graph never terminates"
 			% resource_path
 		)
 		return []
+	if visited.has(self):
+		return []
+	in_progress.append(self)
 	visited.append(self)
 	var out: Array[CoreClass] = []
-	if inherits != null:
-		out.append_array(inherits._chain(visited))
+	for c in composes:
+		if c == null:
+			continue
+		out.append_array(c._chain(visited, in_progress))
+	in_progress.erase(self)
 	out.append(self)
 	return out
 

@@ -21,5 +21,5 @@ value = 10.0
 [resource]
 script = ExtResource("2_core")
 display_name = "Attribute Baseline"
-description = "Composition base (D-27, #279): the +10 STR/DEX/INT block shared verbatim by every class that hasn't diverged from it. Not a selectable class on its own — other CoreClass .tres files set `inherits` to this resource instead of hand-declaring the same three modifiers. Edit here, every composing class picks it up."
+description = "Composition base (D-27, #279): the +10 STR/DEX/INT block shared verbatim by every class that hasn't diverged from it. Not a selectable class on its own — other CoreClass .tres files add this resource to their `composes` array instead of hand-declaring the same three modifiers. Edit here, every composing class picks it up."
 modifiers = Array[ExtResource("1_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])

@@ -1,9 +1,11 @@
 extends GutTest
 
-## #279 / D-27 — CoreClass composes by reference via @export var inherits.
-## apply() walks the base first, then the class's own modifiers/effects —
-## pure append, never override-by-stat_id. Acceptance bullets from the issue
-## comment (D-27), one test group each.
+## #279 / D-27 — CoreClass composes by reference via @export var composes:
+## Array[CoreClass]. apply() walks each entry depth-first in array order,
+## then the class's own modifiers/effects last — pure append, never
+## override-by-stat_id, each composed resource contributing at most once
+## (dedupe across a diamond). Acceptance bullets from the D-27 revision
+## comment, one test group each.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
@@ -27,13 +29,13 @@ func _mod(id: StringName, value: float) -> StatModifier:
 	return m
 
 
-# --- 1. Base's modifiers AND the child's own both apply --------------------
+# --- 1. Composed modifiers AND the class's own both apply ------------------
 
-func test_inherited_base_and_own_modifiers_both_apply() -> void:
+func test_composed_and_own_modifiers_both_apply() -> void:
 	var base := CoreClass.new()
 	base.modifiers = [_mod(&"strength", 10.0)]
 	var child := CoreClass.new()
-	child.inherits = base
+	child.composes = [base]
 	child.modifiers = [_mod(&"dexterity", 5.0)]
 
 	var ent := _make_entity(child)
@@ -42,18 +44,18 @@ func test_inherited_base_and_own_modifiers_both_apply() -> void:
 
 	var board := ent.stat_board
 	assert_eq(int(board.strength.value), int(board.strength.base_value + 10),
-			"the base's grant must apply")
+			"the composed base's grant must apply")
 	assert_eq(int(board.dexterity.value), int(board.dexterity.base_value + 5),
-			"the child's own grant must also apply")
+			"the class's own grant must also apply")
 
 
-# --- 2. Same-stat_id from base and child both apply (append, not override) --
+# --- 2. Same-stat_id from composed base and own both apply (append) --------
 
-func test_same_stat_id_from_base_and_child_both_apply() -> void:
+func test_same_stat_id_from_composed_base_and_own_both_apply() -> void:
 	var base := CoreClass.new()
 	base.modifiers = [_mod(&"strength", 10.0)]
 	var child := CoreClass.new()
-	child.inherits = base
+	child.composes = [base]
 	child.modifiers = [_mod(&"strength", 3.0)]
 
 	var ent := _make_entity(child)
@@ -61,21 +63,21 @@ func test_same_stat_id_from_base_and_child_both_apply() -> void:
 	await get_tree().process_frame
 
 	assert_eq(int(ent.stat_board.strength.value), int(ent.stat_board.strength.base_value + 13),
-			"both the base's and the child's strength grants must stack, not override")
+			"both the composed base's and the class's own strength grants must stack, not override")
 
 
-# --- 3. Editing the base changes every class composing it ------------------
+# --- 3. Editing a shared composed resource changes every composing class ---
 
-func test_editing_shared_base_changes_every_composing_class() -> void:
+func test_editing_shared_composed_resource_changes_every_composing_class() -> void:
 	var base := CoreClass.new()
 	base.modifiers = [_mod(&"intelligence", 10.0)]
 	var class_a := CoreClass.new()
-	class_a.inherits = base
+	class_a.composes = [base]
 	var class_b := CoreClass.new()
-	class_b.inherits = base
+	class_b.composes = [base]
 
 	# Add a new grant to the shared base BEFORE either class applies —
-	# apply() reads inherits.modifiers live, so this is exactly "change one
+	# apply() reads composes[i].modifiers live, so this is exactly "change one
 	# .tres and every class composing it gets the change."
 	base.modifiers.append(_mod(&"wisdom", 7.0))
 
@@ -97,7 +99,7 @@ func test_installed_modifier_is_a_duplicate_not_shared() -> void:
 	var base := CoreClass.new()
 	base.modifiers = [_mod(&"strength", 10.0)]
 	var child := CoreClass.new()
-	child.inherits = base
+	child.composes = [base]
 
 	var ent_a := _make_entity(child)
 	var ent_b := _make_entity(child)
@@ -119,20 +121,20 @@ func test_installed_modifier_is_a_duplicate_not_shared() -> void:
 			"mutating entity A's clone must not affect entity B")
 
 
-# --- 5. An inheritance cycle is detected and errors, not hangs -------------
+# --- 5. A composition cycle is detected and errors, not hangs --------------
 
-func test_inheritance_cycle_errors_instead_of_hanging() -> void:
+func test_composition_cycle_errors_instead_of_hanging() -> void:
 	var a := CoreClass.new()
 	var b := CoreClass.new()
-	a.inherits = b
-	b.inherits = a
+	a.composes = [b]
+	b.composes = [a]
 
 	var ent := _make_entity(a)
 	add_child(ent)
 	await get_tree().process_frame
 
 	assert_push_error(
-		"CoreClass.apply: inheritance cycle detected at '' — 'inherits' chain never terminates")
+		"CoreClass: cycle detected in 'composes' at '' — composition graph never terminates")
 
 
 # --- 6. balanced_core / basic_enemy_core produce the same stats post-migration
@@ -155,3 +157,30 @@ func test_basic_enemy_core_still_adds_ten_to_str_dex_int_after_migration() -> vo
 	assert_eq(int(board.strength.value), int(board.strength.base_value + 10))
 	assert_eq(int(board.dexterity.value), int(board.dexterity.base_value + 10))
 	assert_eq(int(board.intelligence.value), int(board.intelligence.base_value + 10))
+
+
+# --- 7. Diamond: a resource reached via two composes entries contributes once
+
+func test_diamond_composed_resource_contributes_exactly_once() -> void:
+	# X composes [A, B], and both A and B compose the same shared baseline.
+	# Without dedupe, the baseline's +10 STR would apply twice (once via A,
+	# once via B) — this is the point of the array-shaped composes: it turns
+	# the graph into a DAG, so identity-based dedupe is a real requirement,
+	# not a hypothetical.
+	var baseline := CoreClass.new()
+	baseline.modifiers = [_mod(&"strength", 10.0)]
+	var a := CoreClass.new()
+	a.composes = [baseline]
+	var b := CoreClass.new()
+	b.composes = [baseline]
+	var x := CoreClass.new()
+	x.composes = [a, b]
+
+	var ent := _make_entity(x)
+	add_child(ent)
+	await get_tree().process_frame
+
+	assert_eq(int(ent.stat_board.strength.value), int(ent.stat_board.strength.base_value + 10),
+			"the diamond-shared baseline must contribute its +10 STR exactly once, not twice")
+	assert_eq(ent.stat_board.strength._modifiers.size(), 1,
+			"exactly one strength modifier should have been installed")
