@@ -46,24 +46,30 @@ these means clearing slots first (see "Known board violations"), not stacking to
 The hard ordering: **measure, then mechanism, then pin.** Anything else re-tunes twice.
 
 1. **#268** balance harness — the apparatus. Everything below is evaluated against it.
-2. **#274** spell damage — the mechanism, with placeholder rates. **Settled as D-32**: `power`
-   is a spell's only absolute number, every propagation knob is a ratio of the seed, and
-   doubling `spell_damage` doubles every hit without any propagation value changing. Also
-   fixes the dimensional bug that would have made Resonator and Trailblazer decay into flat
-   spells at high INT, and deletes `seed_damage_fraction` + `AffineRamp` (zero users each).
+2. **#274** spell damage — the mechanism, with placeholder rates. **Settled as D-32**:
+   `seed = spell_damage(source) × power`, and a progression *declares* whether it scales with
+   the caster (`Multiply` / `ScaledAdd` do, `FlatAdd` deliberately does not). Deletes
+   `seed_damage_fraction` + `AffineRamp` (zero users each). Migration is behaviour-preserving.
 
    > **#274 does NOT bounce back to `Needs design`.** It did that five-plus times because its
    > "open questions" section read as an invitation. There is no such section now — the body
    > has a `SETTLED` list of ten closed forks. If you think you found a fork, it is answered
    > there.
-3. **#278** spell balance pass — mana × degree × reach × ramp. **Not a drone unit**: it ships
-   numbers, so it runs as a session with the user, after 1 and 2. Body updated 2026-08-03.
-4. **#248** balancing hub (tracking).
+3. **#365** mana is unsettled — pool max and regen were never designed (**D-33 gate 3**).
+   `Needs design`, P0. Blocks #278: tuning `mana_cost` against placeholder max/regen is
+   tuning against noise. May warrant deletion of the resource rather than a retune.
+4. **#278** spell balance pass — degree × reach × progression-kind × cost. **Not a drone
+   unit**: it ships numbers, so it runs as a session with the user, after 1–3.
+5. **#248** balancing hub (tracking).
 
 Live inputs both #274 and #278 must respect:
 - **D-31**: the node ratchet is **territory-wide** — one DP buys `delta × owned_nodes`.
-- **#351**: per-hop damage is a pluggable `HopDamage` resource, not a scalar. Which ramp a
-  spell wears is itself a balance knob.
+- **D-33**: high INT is gated by **knowing the spell, casting degree, mana, and range** —
+  never by tuning damage down. The degree ladder (1–2 low / 3 medium / 4 picky / 5+ endgame)
+  and the deliberate tension between degree and reach are #278's real subject matter.
+- **D-32**: which progression a spell wears is a *personality* choice, not just a number.
+  `FlatAddProgression` is compressive on purpose — it is how a novice caster, or a bruiser
+  who spots the right topology, gets a spell that does real work.
 - Crits are topological now (Reverberator self-loop, Resonator convergence), so a spell's
   damage is a distribution over graph shapes.
 
