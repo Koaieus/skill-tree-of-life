@@ -484,10 +484,11 @@ until you run it **GUT silently does not collect the new test** — the suite lo
 green at the *old* script count. Compare `Scripts` / `Tests` totals before and
 after; if the totals didn't move, the new test never ran.
 
-Per `.claude/rules/godot-workflow.md`, an editor pass can silently round-trip any
-scene it touches — and master is a shared checkout that usually carries the
-user's uncommitted WIP. `md5sum` the modified files before and after, and restore
-from a copy if anything moved.
+Per `.claude/rules/godot-workflow.md`, an editor pass re-serializes scenes it
+touches, and master is a shared checkout that may carry the user's uncommitted
+WIP. `git status` before and `git diff` after is the whole check — don't
+`md5sum` or stage copies. Restore anything non-default that vanished; ignore id
+and position noise.
 
 - **Worker worktrees live under `.claude/worktrees/agent-<id>/`, on branch
   `worktree-agent-<id>`** — not under `.worktrees/`, and not from

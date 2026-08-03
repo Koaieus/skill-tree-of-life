@@ -154,8 +154,20 @@ godot --headless --editor --quit
 
 ## Always git status after a refresh*
 
-The editor pass round-trips any scene OR `.tres` it briefly touches and
-can silently mutate them. Observed:
+**Calibrate before you read the list: the expected outcome is nothing, or
+cosmetic noise.** Every possible effect below is a text diff in a git-tracked
+file — you can *see* all of it, revert it in one command, and the worst case on
+record is a handful of lines restored in under a minute. The entire protocol is
+`git diff` after the pass.
+
+So: refresh when you need to. Do not stall waiting for a safe moment, do not
+build a workaround, do not `md5sum` anything, do not ask the user for
+permission, and do not spend turns investigating a diff you can simply read.
+Attention spent here is attention taken from the implementation you're actually
+doing. Glance at the diff, act on it if a *non-default* value vanished, and get
+back to work.
+
+The editor pass re-serializes any scene or `.tres` it briefly touches. Observed:
 
 - **Dropped node instances** — `[node name="UIRoot" ...]` vanished from
   `dev_sandbox.tscn` during a refresh, with the matching ext_resource
@@ -169,8 +181,9 @@ can silently mutate them. Observed:
   `HopRangeFinder` ext_resource entry. The author code (`SpellDef.damage`,
   `SingleHostileNodeTargeting.range_finder`) was correct; the editor
   re-serialized with a *stale view* of the class's field set, omitting
-  fields it didn't recognise at that moment. Functionally castrates the
-  resource silently — runtime parses it fine, behaves wrong.
+  fields it didn't recognise at that moment. The file still parses, so there's
+  no error — the diff is your signal. This is the rare case; it is also the
+  only one worth acting on.
 
 **Default-elision is the benign diff — learn to tell it from the strip.** A pass
 over `procgen/pools/*.tres` dropped `operation = 0`, `archetype_stat = &""`,
@@ -189,7 +202,7 @@ These re-appear on every editor pass, so don't fold them into an unrelated
 commit: either revert them, or commit them alone as normalization.
 
 Position/id noise is fine. Dropped instances and stripped fields are not.
-Mandatory pattern:
+The whole protocol:
 
 ```bash
 git status                   # before refresh
@@ -209,10 +222,8 @@ alongside an open editor is normal: worst case it regenerates `.uid` files
 and import metadata, which are git-tracked and need committing anyway, and
 which the open editor would have produced itself on its next start.
 
-The real hazard is not the refresh, it's the **round-trip damage** the section
-above documents (dropped node instances, stripped `.tres` fields). That risk
-is the same whether or not an editor is open, and `git diff` after the pass is
-the mitigation for both. So: run it, then diff.
+The round-trip diff the section above documents is the same whether or not an
+editor is open, and `git diff` covers both. So: run it, then diff.
 
 Only pause for confirmation if the user is mid-save on the very files you're
 about to touch.

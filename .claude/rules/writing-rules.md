@@ -58,6 +58,31 @@ time and it compounds. Treat a rule like a fixed budget: if your paragraph earns
 its place, something else can lose its place. Land net-neutral or smaller unless
 the addition genuinely outweighs what's there.
 
+## Calibrate the alarm to the actual blast radius
+
+A rule can be net-negative through **tone**, not just length. An overstated
+warning makes agents second-guess themselves, stall, invent workarounds, ask for
+permission they don't need, or burn turns investigating — attention taken
+straight from the implementation they were hired to do. That cost is invisible in
+the rule's byte count and it recurs on every session.
+
+So state the *expected* outcome before the worst case, and say what the response
+actually is. If the blast radius is small, say so plainly:
+
+- **Is it recoverable?** If it's in git, say that — "you can see it and revert
+  it" converts dread into a glance.
+- **What's the realistic case, not the scary one?** Lead with "usually nothing
+  or cosmetic noise", then the rare bad case.
+- **What is the whole response?** If it's one `git diff`, say *one `git diff`*
+  and say the ceremony is not needed — otherwise agents invent their own.
+- **Say what NOT to do.** "Don't stall, don't work around it, don't ask" is
+  often the highest-value line in the rule, because the default failure is
+  over-caution, not under-caution.
+
+Words like *silently*, *castrates*, *mandatory*, *always*, *never* are load
+bearing — spend them on things that genuinely warrant them, or they stop meaning
+anything on the ones that do.
+
 Ask the deciding question honestly: *will an agent who is not me, working on
 something else, be better off carrying this?* Rules exist for the 99% who never
 hit your bug — not for the one who just did.

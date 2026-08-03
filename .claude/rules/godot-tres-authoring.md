@@ -34,5 +34,7 @@ computed value lands, the editor serializes the *computed* value into the file
 and the next load computes again from there — compounding on every save. Export
 the authored input; expose the derived value as a plain `var` with a getter only.
 
-An editor pass can also silently strip fields from a `.tres` — always `git diff`
-after one. See **`docs/domain/godot-workflow.md`**.
+An editor pass re-serializes `.tres` files it touches. Nearly always that's
+default-elision (semantically identical); occasionally a non-default value goes
+missing. It's all in `git diff` — glance, restore if needed, move on. See
+**`docs/domain/godot-workflow.md`**.
