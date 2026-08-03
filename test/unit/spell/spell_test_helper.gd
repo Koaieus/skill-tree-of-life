@@ -86,18 +86,17 @@ func assign_owner(graph: Graph, entity: Entity, indices: Array) -> void:
 
 ## Build a SpellDef. `prop` is a PropagationConfig (use [method make_config]
 ## or wire one yourself).
-func make_spell(prop: PropagationConfig, on_hits: Array[OnHitEffect], base_damage: float = 10.0) -> SpellDef:
+func make_spell(prop: PropagationConfig, on_hits: Array[OnHitEffect], power: float = 10.0) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.name = "TestSpell"
-	spell.base_damage = base_damage
+	spell.power = power
 	spell.propagation = prop
 	spell.on_hit_effects = on_hits
 	return spell
 
 
 ## Compose a PropagationConfig from parts. `opts` keys: max_hops (int, 0),
-## max_visits_per_node (int, 1), hop_damage (HopDamage, null),
-## seed_damage_fraction (float, 1.0).
+## max_visits_per_node (int, 1), hop_damage (HopDamageProgression, null).
 func make_config(
 		step: PropagationStep,
 		filter: PropagationFilter,
@@ -110,7 +109,6 @@ func make_config(
 	c.max_hops = int(opts.get("max_hops", 0))
 	c.max_visits_per_node = int(opts.get("max_visits_per_node", 1))
 	c.hop_damage = opts.get("hop_damage", null)
-	c.seed_damage_fraction = float(opts.get("seed_damage_fraction", 1.0))
 	return c
 
 
@@ -179,16 +177,41 @@ func cancel_if_multi() -> CancelIfMultiReducer:
 	return CancelIfMultiReducer.new()
 
 
-func multiply_ramp(factor: float = 1.0) -> MultiplyRamp:
-	var r := MultiplyRamp.new()
-	r.factor = factor
-	return r
+func multiply_progression(factor: float = 1.0) -> MultiplyProgression:
+	var p := MultiplyProgression.new()
+	p.factor = factor
+	return p
 
 
-func add_ramp(increment: float = 0.0) -> AddRamp:
-	var r := AddRamp.new()
-	r.increment = increment
-	return r
+func scaled_add_progression(seed_fraction_per_hop: float = 0.0) -> ScaledAddProgression:
+	var p := ScaledAddProgression.new()
+	p.seed_fraction_per_hop = seed_fraction_per_hop
+	return p
+
+
+func flat_add_progression(increment: float = 0.0) -> FlatAddProgression:
+	var p := FlatAddProgression.new()
+	p.increment = increment
+	return p
+
+
+## The `spell_damage` an entity's node reports — the seed multiplier every
+## damage golden is expressed against (`seed = spell_damage × power`, D-32).
+## Read it instead of hardcoding a number, so a later INT-coefficient retune
+## (#278) doesn't move a single test.
+func seed_multiplier(node: SkillNode) -> float:
+	return float(node.get_local_value(&"spell_damage"))
+
+
+## Raise `spell_damage` on `entity`'s board to exactly `value` — the knob for
+## "what if a stronger caster cast this?". SET (priority 0) so it wins over
+## the board's intrinsic INT formula without having to compute INT backwards.
+func set_spell_damage(entity: Entity, value: float) -> void:
+	var mod := StatModifier.new()
+	mod.stat_id = &"spell_damage"
+	mod.operation = StatModifier.Operation.SET
+	mod.value = value
+	entity.stat_board.get_stat(&"spell_damage").add_modifier(mod)
 
 
 func hits_by_node(outcome: AttackOutcome) -> Dictionary:

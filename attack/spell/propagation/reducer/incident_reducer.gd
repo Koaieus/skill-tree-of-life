@@ -32,6 +32,9 @@ static func _merge_payload_defaults(incidents: Array[CastSpell], node: SkillNode
 	var merged := CastSpell.new()
 	merged.current_node = node
 	merged.seed_node = incidents[0].seed_node
+	# Immutable across the whole cast, like seed_node — a merged payload that
+	# lost it would hand ScaledAddProgression a seed of 0 past a convergence.
+	merged.seed_damage = incidents[0].seed_damage
 	merged.source = incidents[0].source
 	merged.caster = incidents[0].caster
 	merged.graph = incidents[0].graph

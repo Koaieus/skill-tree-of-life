@@ -169,12 +169,56 @@ the scalar knobs that don't deserve their own class:
 @export var reducer: IncidentReducer
 @export var max_hops: int = 0
 @export var max_visits_per_node: int = 1   # 1 = never-revisit; INT_MAX = uncapped
-@export var damage_multiplier_per_hop: float = 1.0
-@export var seed_damage_fraction: float = 1.0
+@export var hop_damage: HopDamageProgression = null   # null = damage carried verbatim
 ```
 
 This replaces `SpellPropagation` entirely. `SpellDef.propagation` retypes
 to `PropagationConfig`.
+
+### Damage: one coefficient × one board stat (D-32, #274)
+
+The scalar damage knobs above are gone. There is exactly one absolute number
+per spell and one per caster:
+
+```
+seed  = spell_damage(state.source) × SpellDef.power
+hop n = f(hop n-1)     f = the spell's HopDamageProgression
+```
+
+- `spell_damage` is an ordinary board stat (base 1, +1 per 10 INT — the same
+  shape as `blade_damage`/STR and `ranged_damage`/DEX), so node-local addons
+  ("mana font") stack on it per-node.
+- It is read from **`state.source`** — the node cast FROM — via
+  `SkillNode.get_local_value`, which merges the node board with its **owner's**
+  board. Reading `state.current_node` would let the defender buff the spell
+  landing on them.
+- It is evaluated **once, at the seed**, and stamped on `CastSpell.seed_damage`
+  (copied verbatim by `_propagate_to`, like `seed_node`). Re-reading per hop
+  would compound INT — INT² by hop 2.
+- `PropagationConfig.seed_damage_fraction` was deleted (`1.0` in every spell;
+  its "¼ power then ramp" case is a lower `power`).
+
+`HopDamageProgression` (the old `HopDamage`, renamed to kill the
+`…Damage`/`Propagation` collision) owns the *shape*, and **each class declares
+whether the spell scales with the caster**:
+
+| Class | Behaviour | Math | Scales with caster |
+|---|---|---|---|
+| `MultiplyProgression` | `damage × factor` | geometric | yes |
+| `ScaledAddProgression` | `damage + seed × seed_fraction_per_hop` | arithmetic, relative | yes |
+| `FlatAddProgression` | `damage + increment` | arithmetic, absolute | **no — deliberately** |
+| `ExpressionProgression` | authored expression | escape hatch | author's choice |
+
+`FlatAddProgression`'s absolute increment is a *compressive* curve (7× its own
+seed at INT 10, 1.12× at INT 1000) — a wanted spell personality, not a
+dimensional bug. What D-32 forbids is an *undeclared* absolute. See the D-32
+amendment in `docs/design/mvp_decisions.md`, and the guard test in
+`test/unit/spell/test_spell_damage_scaling.gd`.
+
+**`ExpressionProgression`'s seed identifier is `seed_damage`, not `seed`** —
+Godot's `Expression` parser reads a bare `seed` as the built-in PRNG function
+and fails to parse with "Expected '('". Same collision that named
+`CastSpell.seed_node`.
 
 ---
 
@@ -368,7 +412,7 @@ verified this pass.
 
 `MagicBounceCoordinator` walks the timeline grouped by `beat` instead of
 `_group_by_hop`. Its `is_empty()` guard flips from `hits` to `timeline` — a net
-improvement: a **pure-utility spell (base_damage 0) now renders its path**
+improvement: a **pure-utility spell (`power` 0) now renders its path**
 instead of no-op'ing on an empty `hits`. The fixed wave clock is untouched:
 `wave_started(beat, count)` still fires per beat regardless of lingering visuals
 (the load-bearing contract in `.claude/rules/spell-vfx.md`).
@@ -381,9 +425,9 @@ cut. This issue lands the *shape*; the VFX-timing rework builds on it.
 
 ## Open questions / queue
 
-1. **Should `seed_damage_fraction` move into the Step?** Today it's a
-   scalar applied once at resolver init. Could be a `SeedStep` injected
-   for the first wave only. Probably overkill — keep as scalar.
+1. ~~Should `seed_damage_fraction` move into the Step?~~ **Closed** — the knob
+   was deleted outright in #274 (D-32): `1.0` in all seven spells, and its
+   motivating case is expressible as a lower `SpellDef.power`.
 2. **Multi-seed targeting.** When RangeFinder eventually returns N
    seeds (AoE / chain-of-N spells), do they share a merger pool (one
    BFS with N starts, merger fires on overlaps) or run as N independent

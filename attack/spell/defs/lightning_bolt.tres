@@ -14,7 +14,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_vajd0"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_08wik"]
-[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="13_ramp"]
+[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="13_prog"]
 
 [sub_resource type="Resource" id="dmg_lightning"]
 script = ExtResource("3_dmg")
@@ -22,8 +22,8 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_filter")
 
-[sub_resource type="Resource" id="ramp_falloff"]
-script = ExtResource("13_ramp")
+[sub_resource type="Resource" id="prog_falloff"]
+script = ExtResource("13_prog")
 factor = 0.5
 
 [sub_resource type="Resource" id="reducer_max"]
@@ -38,7 +38,7 @@ filter = SubResource("filter_enemy")
 step = SubResource("step_fan")
 reducer = SubResource("reducer_max")
 max_hops = 3
-hop_damage = SubResource("ramp_falloff")
+hop_damage = SubResource("prog_falloff")
 
 [sub_resource type="Resource" id="range_lightning"]
 script = ExtResource("9_range")
@@ -54,7 +54,7 @@ description = "Deal full damage to the target, then chain to every enemy neighbo
 icon = ExtResource("1_vajd0")
 min_degree = 2
 mana_cost = 2
-base_damage = 10.0
+power = 10.0
 propagation = SubResource("prop_lightning")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_lightning")])
 vfx_coordinator_scene = ExtResource("12_08wik")

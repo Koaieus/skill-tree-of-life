@@ -81,7 +81,7 @@ signal wave_started(hop_index: int, events_in_wave: int)
 
 func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
-	# Guard on the timeline, not `hits`: a pure-utility spell (base_damage 0)
+	# Guard on the timeline, not `hits`: a pure-utility spell (power 0)
 	# lands zero-damage events that carry no hit — it must still render its path.
 	if outcome == null or outcome.timeline.is_empty():
 		return

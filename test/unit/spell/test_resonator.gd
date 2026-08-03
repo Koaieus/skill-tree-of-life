@@ -5,7 +5,10 @@ extends GutTest
 ## the same node in the same wave they ADD and the landing crits (×2). Single
 ## incidents pass through; no convergence → no crit.
 ##
-## X = base_damage (1), A = increment (2), crit ×2.
+## X = the seed (`spell_damage(cast-from node) × power`, D-32),
+## A = increment (2, absolute — FlatAddProgression), crit ×2. Goldens are
+## written as X/A expressions, never literals, so they pin the SHAPE and
+## survive an INT-coefficient retune (#278).
 ##   T2 single diamond A-{B,D}-C:           crit C = 4X + 8A
 ##   T3 triple-diamond chain (A,C,E crit):   4X+8A, 4X+16A, 4X+24A
 ##   T5 hexagon (3-hop convergence):        crit = 4X + 12A
@@ -31,6 +34,16 @@ func _setup(adjacency: Array, attacker_indices: Array,
 	return [helper, graph, atk, def]
 
 
+## X — the seed damage for this cast: `spell_damage(cast-from node) × power`.
+func _x(helper: SpellTestHelper, source: SkillNode) -> float:
+	return helper.seed_multiplier(source) * _RESONATOR.power
+
+
+## A — the absolute per-hop increment authored on the preset.
+func _a() -> float:
+	return (_RESONATOR.propagation.hop_damage as FlatAddProgression).increment
+
+
 # ── preset sanity ─────────────────────────────────────────────────────────
 
 
@@ -43,8 +56,9 @@ func test_resonator_preset_well_formed() -> void:
 			"Resonator crits on convergence")
 	var p := s.propagation as PropagationConfig
 	assert_true(p.reducer is SumDamageReducer, "Resonator sums incidents")
-	assert_not_null(p.hop_damage, "Resonator has a hop_damage ramp")
-	assert_true(p.hop_damage is AddRamp, "Resonator uses AddRamp (flat per hop)")
+	assert_not_null(p.hop_damage, "Resonator has a hop progression")
+	assert_true(p.hop_damage is FlatAddProgression,
+			"Resonator uses FlatAddProgression (absolute per hop, deliberately)")
 	assert_almost_eq(p.hop_damage.increment, 2.0, 0.001, "Resonator +2 per hop")
 	assert_eq(p.max_hops, 6, "Resonator max_hops 6")
 	assert_eq(p.max_visits_per_node, 1, "Resonator uses default visit cap — clean diamond crit identity")
@@ -86,8 +100,8 @@ func test_convergence_condition_null_state_no_crit() -> void:
 
 func test_diamond_convergence_crits() -> void:
 	# Diamond 1-{2,3}-4. Seed at 1, both shoulders hit 4 in wave 2 →
-	# 2 incidents SUM, ×2 crit. X=1, A=2: each shoulder carries 1+2+2=5,
-	# sum 10, crit → 20.
+	# 2 incidents SUM, ×2 crit. Each incident carries X+2A; sum 2X+4A;
+	# crit → 4X+8A.
 	var ctx := _setup([[0, 1], [1, 2], [1, 3], [2, 4], [3, 4]], [0], [1, 2, 3, 4])
 	var helper: SpellTestHelper = ctx[0]
 	var graph: Graph = ctx[1]
@@ -96,17 +110,19 @@ func test_diamond_convergence_crits() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
 
-	# Wave 0: seed at 1 (1 dmg).
-	# Wave 1: shoulders at 2 and 3 (3 dmg each = 1 + 2).
-	# Wave 2: convergence at 4 — 2 incidents(5+5=10), ×2 crit → 20.
-	assert_almost_eq(helper.total_damage_on(outcome, n[1]), 1.0, 0.001, "seed: base 1")
-	assert_almost_eq(helper.total_damage_on(outcome, n[2]), 3.0, 0.001, "shoulder: 1 + 2")
-	assert_almost_eq(helper.total_damage_on(outcome, n[3]), 3.0, 0.001, "shoulder: 1 + 2")
+	# Wave 0: seed at 1 (X).
+	# Wave 1: shoulders at 2 and 3 (X + A each).
+	# Wave 2: convergence at 4 — 2 incidents of (X+2A), summed, ×2 crit.
+	var x := _x(helper, n[0])
+	var a := _a()
+	assert_almost_eq(helper.total_damage_on(outcome, n[1]), x, 0.001, "seed: X")
+	assert_almost_eq(helper.total_damage_on(outcome, n[2]), x + a, 0.001, "shoulder: X + A")
+	assert_almost_eq(helper.total_damage_on(outcome, n[3]), x + a, 0.001, "shoulder: X + A")
 	var hits_4: Array = helper.hits_by_node(outcome).get(n[4], [])
 	assert_eq(hits_4.size(), 1, "convergence merged into one hit")
 	assert_true(hits_4[0].is_crit, "convergence crits")
-	assert_almost_eq(hits_4[0].amount, 20.0, 0.001,
-			"sum (5+5) × 2 crit = 20")
+	assert_almost_eq(hits_4[0].amount, 4.0 * x + 8.0 * a, 0.001,
+			"sum 2×(X+2A) × 2 crit = 4X + 8A")
 
 
 func test_straight_line_no_crit() -> void:
@@ -127,6 +143,7 @@ func test_triod_converges_but_crits_under_simple_rule() -> void:
 	# A-{B,D,F}-C: 3 incidents converge at C. Under Resonator's simple rule
 	# (>= 2), this SUMS and crits. Parity-rule cancel lives on #355.
 	# Seed 1, shoulders 2/3/4, converge 5.
+	# 3 incidents of (X+2A) → sum 3X+6A → crit ×2 = 6X+12A.
 	var ctx := _setup(
 		[[0, 1], [1, 2], [1, 3], [1, 4], [2, 5], [3, 5], [4, 5]],
 		[0], [1, 2, 3, 4, 5])
@@ -137,17 +154,19 @@ func test_triod_converges_but_crits_under_simple_rule() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
 	var hits_5: Array = helper.hits_by_node(outcome).get(n[5], [])
-	# 3 incidents of (X+2A)=5 each (shoulder +A, apex hop +A) → sum 15 → crit ×2 = 30.
 	# Note: Resonator's simple rule crits on ≥2 incidents; parity-rule cancel
 	# lives on #355 (Chromatic Cascade).
+	var x := _x(helper, n[0])
+	var a := _a()
 	assert_eq(hits_5.size(), 1, "triod merged to one hit")
 	assert_true(hits_5[0].is_crit, "triod crits under simple rule (parity off)")
-	assert_almost_eq(hits_5[0].amount, 30.0, 0.001, "3 incidents × (1+2*2) × crit 2 = 30")
+	assert_almost_eq(hits_5[0].amount, 6.0 * x + 12.0 * a, 0.001,
+			"3 incidents × (X + 2A) × crit 2 = 6X + 12A")
 
 
 func test_hexagon_late_convergence_crits() -> void:
 	# Hexagon 0-1-2-3-4-5-0. Seed at 0; two wavefronts meet at the opposite
-	# node (3) in wave 3. Each wavefront carries (1 + 2*3) = 7; sum 14; crit 28.
+	# node (3) in wave 3. Each wavefront carries X + 3A; sum 2X+6A; crit 4X+12A.
 	var ctx := _setup(
 		[[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0]],
 		[], [0, 1, 2, 3, 4, 5])
@@ -160,8 +179,10 @@ func test_hexagon_late_convergence_crits() -> void:
 	var hits_3: Array = helper.hits_by_node(outcome).get(n[3], [])
 	assert_eq(hits_3.size(), 1, "hexagon opposite node merged to one hit")
 	assert_true(hits_3[0].is_crit, "hexagon convergence crits")
-	# (1 + 2*3) = 7 per incident × 2 incidents × crit 2 = 28.
-	assert_almost_eq(hits_3[0].amount, 28.0, 0.001, "hexagon crit at 3 hops")
+	# (X + 3A) per incident × 2 incidents × crit 2 = 4X + 12A.
+	var x := _x(helper, n[0])
+	var a := _a()
+	assert_almost_eq(hits_3[0].amount, 4.0 * x + 12.0 * a, 0.001, "hexagon crit at 3 hops")
 
 
 func test_double_diamond_compounds_additive_part() -> void:
@@ -170,15 +191,10 @@ func test_double_diamond_compounds_additive_part() -> void:
 	# Edges: 1-2,1-3 wait — need real adjacency. Let's use indices 1..5:
 	#   1 → {2,3} → 4 (diamond 1: crit at 4)
 	#   4 → {5,6} → 7 (diamond 2: crit at 7)
-	# Each diamond's crit doubles the additive part: 1st crit = 4X+8A = 4+16=20;
-	# 2nd crit = 4X+16A = 4+32=36. (Onward merged carries 4X+8A=20 into diamond 2;
-	# each shoulder of diamond 2 = 20 + 2*2 = 24; sum 48; ×2 crit → 96.)
-	# Working: post-diamond-1 merged state.damage = 5+5 = 10 (sum, pre-crit).
-	# Then diamond 2 shoulders each get 10 + 2*2 = 14 (after 2 hops, +A each);
-	# sum 28; crit 56. Wait — seed at 1 means hop 0 = 1; hop 1 = shoulders (3);
-	# hop 2 = diamond 1 crit (10); hop 3 = diamond 2 shoulders (10+2=12 wait no).
-	# Trail: hop0 1, hop1 3 (each shoulder), hop2 5 (sum, before crit), crit x2=10 dealt.
-	# Onward state.damage = 5 (pre-crit). hop3 each shoulder = 5+2 = 7. hop 4 converge = 7+7=14, crit → 28.
+	# The crit does not propagate: what travels onward from diamond 1 is the
+	# merged PRE-crit damage 2X+4A. Diamond 2's shoulders add A (→ 2X+5A) and
+	# its apex hop another A, so each incident at 7 is 2X+6A; sum 4X+12A;
+	# crit ×2 → 8X+24A.
 	var adjacency := [[0, 1],
 		[1, 2], [1, 3], [2, 4], [3, 4],
 		[4, 5], [4, 6], [5, 7], [6, 7]]
@@ -190,18 +206,19 @@ func test_double_diamond_compounds_additive_part() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
 
-	# Diamond 1 crit (node 4): (1+(2*2))*2 = 5 per incident ×2 incidents = 10 sum,
-	# ×2 crit → 20 dealt.
+	# Diamond 1 crit (node 4): (X+2A) per incident × 2 incidents, ×2 crit.
+	var x := _x(helper, n[0])
+	var a := _a()
 	var hits_4: Array = helper.hits_by_node(outcome).get(n[4], [])
 	assert_eq(hits_4.size(), 1, "diamond 1 merges to one hit")
 	assert_true(hits_4[0].is_crit, "diamond 1 crits")
-	assert_almost_eq(hits_4[0].amount, 20.0, 0.001, "diamond 1 crit = 20")
+	assert_almost_eq(hits_4[0].amount, 4.0 * x + 8.0 * a, 0.001, "diamond 1 crit = 4X + 8A")
 
-	# Diamond 2 crit (node 7): onward merged damage from node 4 is 10 (pre-crit).
-	# Shoulders of diamond 2 each carry 10 + A = 12; apex hop adds another +A so
-	# each incident at 7 = 14; sum 28; ×2 crit → 56.
+	# Diamond 2 crit (node 7): onward merged damage from node 4 is 2X+4A
+	# (pre-crit). Shoulders add A, the apex hop another A, so each incident at
+	# 7 is 2X+6A; sum 4X+12A; ×2 crit → 8X+24A.
 	var hits_7: Array = helper.hits_by_node(outcome).get(n[7], [])
 	assert_eq(hits_7.size(), 1, "diamond 2 merges to one hit")
 	assert_true(hits_7[0].is_crit, "diamond 2 crits")
-	assert_almost_eq(hits_7[0].amount, 56.0, 0.001,
-			"diamond 2 crit compounds: (10+2+2)*2 incidents × 2 crit = 56")
+	assert_almost_eq(hits_7[0].amount, 8.0 * x + 24.0 * a, 0.001,
+			"diamond 2 crit compounds: 2×(2X+4A + 2A) × 2 crit = 8X + 24A")

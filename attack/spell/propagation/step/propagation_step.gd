@@ -24,19 +24,24 @@ func get_description() -> String:
 	return ""
 
 
-## Mint a fresh CastSpell propagated from [param payload] into [param to].
-## Damage is scaled by [member PropagationConfig.hop_damage] (a [HopDamage]
-## resource — null falls back to identity, i.e. damage carried verbatim);
-## hops_remaining decrements; hop_index advances. Subclasses with bespoke
-## payload mutations should call this then mutate, or skip it entirely.
+## Mint a fresh CastSpell propagated from [param payload] into [param to] —
+## the hop IS a re-cast. Damage is shaped by
+## [member PropagationConfig.hop_damage] (a [HopDamageProgression] — null falls
+## back to identity, i.e. damage carried verbatim); hops_remaining decrements;
+## hop_index advances. [member CastSpell.seed_damage] is copied verbatim so a
+## seed-relative progression sees the cast's original magnitude. Subclasses
+## with bespoke payload mutations should call this then mutate, or skip it
+## entirely.
 func _propagate_to(to: SkillNode, payload: CastSpell, config: PropagationConfig) -> CastSpell:
 	var next := CastSpell.new()
 	next.seed_node = payload.seed_node
 	next.current_node = to
 	next.predecessor = payload.current_node
 	next.source = payload.source
+	next.seed_damage = payload.seed_damage
 	if config.hop_damage != null:
-		next.damage = config.hop_damage.apply(payload.damage, payload.hop_index)
+		next.damage = config.hop_damage.apply(
+				payload.damage, payload.seed_damage, payload.hop_index)
 	else:
 		next.damage = payload.damage
 	next.hops_remaining = payload.hops_remaining - 1

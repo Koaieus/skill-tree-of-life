@@ -89,7 +89,7 @@ Tint hook: `ArrowVolleyCoordinator` stamps `tint: Color` on the visual right aft
 `CANCEL` and zero-damage landings), and `crit_tier` (0 until crits ship).
 
 **Why the guard is `timeline.is_empty()`, not `hits.is_empty()`:** a pure-utility
-spell (base_damage 0) produces events with no damage — it must still render its
+spell (`power` 0) produces events with no damage — it must still render its
 path. Gating on `hits` would silently no-op it.
 
 `hits` is still the universal flat list every attack type appends to (melee /

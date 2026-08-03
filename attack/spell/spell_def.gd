@@ -30,10 +30,14 @@ extends Resource
 ## Required mana to cast this spell
 @export var mana_cost: int = 0
 
-## Initial damage at the seed target. Multiplied at seed time by
-## [member PropagationConfig.seed_damage_fraction], then at each propagation
-## step by [member PropagationConfig.hop_damage] (a [HopDamage] resource).
-@export var base_damage: float = 0.0
+## The spell's power coefficient — [b]the only absolute number a spell
+## carries[/b] (D-32). The seed hit is
+## [code]spell_damage(cast-from node) × power[/code]: the caster's board stat
+## supplies "who is casting", this supplies "which spell". A low-scaling spell
+## is [code]power = 0.3[/code]; there is no opt-out of INT, just as no melee
+## weapon ignores STR. Every hop after the seed is shaped by
+## [member PropagationConfig.hop_damage] (a [HopDamageProgression]).
+@export var power: float = 0.0
 
 ## How this spell propagates from the seed target. Composes
 ## [PropagationFilter] (what neighbours count), [PropagationStep] (how

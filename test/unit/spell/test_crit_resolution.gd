@@ -187,7 +187,8 @@ func test_stat_path_multiplies_damage_on_crit() -> void:
 	var hit := outcome.hits[0]
 	assert_true(hit.is_crit)
 	assert_eq(hit.crit_multiplier, 3.0)
-	assert_almost_eq(hit.amount, 30.0, 0.001)
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
+	assert_almost_eq(hit.amount, seed_dmg * 3.0, 0.001)
 
 
 func test_stat_path_reproduces_crits_under_seed() -> void:
@@ -302,12 +303,12 @@ func test_both_paths_can_fire_tier_2() -> void:
 	assert_eq(hits_on_1.size(), 2, "seed + self-loop traversal")
 	assert_true(hits_on_1[1].is_crit)
 	assert_eq(hits_on_1[1].crit_multiplier, 2.0)
-	# Wave-1 hit dmg: seed 10 × mult_per_hop (1.0 default null hop_damage) = 10,
-	# merged from 2 self-loop incidents to 10+10=20 (first-wins null reducer
-	# keeps incidents[0].damage = 10 actually — see _apply_reducer null shortcut).
-	# ×2 crit (caster multiplier) = 20.
-	assert_almost_eq(hits_on_1[1].amount, 20.0, 0.001,
-			"wave-1 self-loop traversal: 10 × 2 (multiplier applied once)")
+	# Wave-1 hit dmg: the seed carried verbatim (null hop_damage = identity),
+	# and the first-wins null reducer keeps incidents[0].damage = seed (see
+	# _apply_reducer's null shortcut), ×2 crit (caster multiplier).
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
+	assert_almost_eq(hits_on_1[1].amount, seed_dmg * 2.0, 0.001,
+			"wave-1 self-loop traversal: seed × 2 (multiplier applied once)")
 	# Find the event for the wave-1 self-loop landing (the SECOND event on n[1]).
 	var event_tier: int = -1
 	var seen_n1_events: int = 0

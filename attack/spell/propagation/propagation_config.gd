@@ -33,17 +33,14 @@ extends Resource
 ## large value) effectively uncaps it — Resonator territory.
 @export var max_visits_per_node: int = 1
 
-## Per-hop damage ramp applied by [PropagationStep._propagate_to]. Null = no
-## scaling (damage carried verbatim — the historical
-## [code]damage_multiplier_per_hop = 1.0[/code] default). Plug a stock
-## [HopDamage] subclass here: [MultiplyRamp] (falloff / rampup),
-## [AddRamp] (flat add per hop), [AffineRamp] (both), [ExpressionRamp]
-## (escape hatch). See #351.
-@export var hop_damage: HopDamage = null
-
-## One-time multiplier baked into the SEED hit's damage. 0.25 = Crunch's
-## "1/4 to initial then ramp"; 1.0 = the seed takes full base damage.
-@export var seed_damage_fraction: float = 1.0
+## How damage evolves per hop, applied by [PropagationStep._propagate_to].
+## Null = no progression (damage carried verbatim). Plug a stock
+## [HopDamageProgression] subclass here: [MultiplyProgression] (geometric
+## falloff / rampup), [ScaledAddProgression] (arithmetic, a fraction of the
+## seed per hop), [FlatAddProgression] (arithmetic, absolute — deliberately
+## does not scale with the caster), [ExpressionProgression] (escape hatch).
+## The class states whether the spell scales with the caster; see #274 / D-32.
+@export var hop_damage: HopDamageProgression = null
 
 
 func get_description() -> String:

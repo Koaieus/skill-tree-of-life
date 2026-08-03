@@ -358,6 +358,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
 | `intelligence` | `spell_range` | ADD_BASE | 1 | LinearFormula(intelligence) |
+| `intelligence` | `spell_damage` | ADD_BASE | 1 | RatioFormula(intelligence, 10) — the magic sibling of blade/ranged (D-32, #274) |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, 10) |
 | `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` (D-26 precedent, #298) — the rate is the **stat**, not the coefficient (see below) |

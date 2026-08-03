@@ -9,7 +9,7 @@
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
 [ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="6_step"]
-[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/hop_damage/multiply_ramp.gd" id="7_ramp"]
+[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="7_prog"]
 [ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="7_reducer"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="8_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="8_ww832"]
@@ -26,8 +26,8 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_owner")
 
-[sub_resource type="Resource" id="ramp_rampup"]
-script = ExtResource("7_ramp")
+[sub_resource type="Resource" id="prog_rampup"]
+script = ExtResource("7_prog")
 factor = 1.5
 
 [sub_resource type="Resource" id="reducer_sum"]
@@ -43,7 +43,7 @@ step = SubResource("step_fan")
 reducer = SubResource("reducer_sum")
 max_hops = 5
 max_visits_per_node = 6
-hop_damage = SubResource("ramp_rampup")
+hop_damage = SubResource("prog_rampup")
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("9_range")
@@ -59,7 +59,7 @@ description = "Fans to every enemy neighbour, ×1.5 damage per hop. Converging b
 icon = ExtResource("1_uku7o")
 min_degree = 2
 mana_cost = 5
-base_damage = 1.0
+power = 1.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_self_loop")])

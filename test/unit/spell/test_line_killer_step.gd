@@ -5,7 +5,8 @@ extends GutTest
 ##   2. fan-out — every surviving candidate propagates, no random single pick
 ##      (cb1caa0). A string can't distinguish the two, so these use branches;
 ##   3. an end-to-end resolve through SpellResolver on a real string graph,
-##      asserting the stock +2-ramp / ×2-slam damage sequence — including a
+##      asserting the stock +2-progression / ×2-slam damage sequence, written
+##      as X/A expressions off the seed (`spell_damage × power`) — including a
 ##      mid-string seed, which splits into two probes walking opposite ways.
 
 var h: SpellTestHelper
@@ -33,12 +34,13 @@ func _payload(damage: float, current: SkillNode, hops: int = 5) -> CastSpell:
 
 
 ## The production filter shape: enemy-owned AND absolute degree >= 2.
-## Uses AddRamp(2) on the config for the per-hop +2 (moved off the step in #351).
+## Uses FlatAddProgression(2) on the config for the per-hop +2 (moved off the
+## step in #351; renamed in #274 — the increment is absolute on purpose).
 func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var deg2 := ExpressionFilter.new()
 	deg2.expression = "to_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
-	var o := {max_hops = 20, hop_damage = h.add_ramp(2.0)}
+	var o := {max_hops = 20, hop_damage = h.flat_add_progression(2.0)}
 	o.merge(opts)
 	return h.make_config(TrailBlazerStep.new(), h.composite_filter(children), null, o)
 
@@ -50,7 +52,7 @@ func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 	var graph := h.make_graph([[0, 1], [1, 2]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), [nodes[1]] as Array[SkillNode], config, _ctx(graph))
 	assert_eq(out.size(), 1, "one branch minted")
 	assert_almost_eq(out[0].damage, 5.0, 0.001, "3 + 2 increment")
@@ -64,7 +66,7 @@ func test_terminal_multiply_constant_slams_and_stops() -> void:
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
 	step.terminal_multiplier = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var out := step.step(nodes[1], _payload(9.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 22.0, 0.001, "(9 + 2) × 2")
 	assert_eq(out[0].hops_remaining, 0, "slam terminates the walk")
@@ -75,7 +77,7 @@ func test_terminal_square() -> void:
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.SQUARE
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(1.0)})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(1.0)})
 	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 36.0, 0.001, "(5 + 1)² = 36")
 
@@ -86,7 +88,7 @@ func test_terminal_multiply_by_degree_scales_with_junction() -> void:
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_BY_DEGREE
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(1.0)})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(1.0)})
 	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 24.0, 0.001, "(5 + 1) × degree 4")
 
@@ -94,7 +96,7 @@ func test_terminal_multiply_by_degree_scales_with_junction() -> void:
 func test_empty_candidates_ends_walk() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
-	var config := h.make_config(TrailBlazerStep.new(), null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
+	var config := h.make_config(TrailBlazerStep.new(), null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var out := TrailBlazerStep.new().step(nodes[0], _payload(3.0, nodes[0]), [] as Array[SkillNode], config, _ctx(graph))
 	assert_eq(out.size(), 0, "no candidate → no branch")
 
@@ -110,7 +112,7 @@ func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
 	var graph := h.make_graph([[0, 1], [1, 3], [0, 2], [2, 4]], self)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
@@ -132,7 +134,7 @@ func test_branch_slams_the_junction_and_continues_the_string_in_parallel() -> vo
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
 	step.terminal_multiplier = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.add_ramp(2.0)})
+	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
@@ -168,12 +170,16 @@ func test_walks_string_and_slams_junction_end_to_end() -> void:
 
 	var out := SpellResolver.resolve(spell, nodes[0], nodes[8], attacker, graph, rng)
 
-	assert_almost_eq(h.total_damage_on(out, nodes[0]), 1.0, 0.001, "A: seed base")
-	assert_almost_eq(h.total_damage_on(out, nodes[1]), 3.0, 0.001, "B: 1 + 2")
-	assert_almost_eq(h.total_damage_on(out, nodes[2]), 5.0, 0.001, "C: 3 + 2")
-	assert_almost_eq(h.total_damage_on(out, nodes[3]), 7.0, 0.001, "D: 5 + 2")
-	assert_almost_eq(h.total_damage_on(out, nodes[4]), 9.0, 0.001, "E: 7 + 2")
-	assert_almost_eq(h.total_damage_on(out, nodes[5]), 22.0, 0.001, "F: (9 + 2) × 2 slam")
+	# X = seed (spell_damage on the cast-from node × power), A = 2 per hop.
+	var x: float = h.seed_multiplier(nodes[8]) * spell.power
+	var a := 2.0
+	assert_almost_eq(h.total_damage_on(out, nodes[0]), x, 0.001, "A: seed X")
+	assert_almost_eq(h.total_damage_on(out, nodes[1]), x + a, 0.001, "B: X + A")
+	assert_almost_eq(h.total_damage_on(out, nodes[2]), x + 2.0 * a, 0.001, "C: X + 2A")
+	assert_almost_eq(h.total_damage_on(out, nodes[3]), x + 3.0 * a, 0.001, "D: X + 3A")
+	assert_almost_eq(h.total_damage_on(out, nodes[4]), x + 4.0 * a, 0.001, "E: X + 4A")
+	assert_almost_eq(h.total_damage_on(out, nodes[5]), (x + 5.0 * a) * 2.0, 0.001,
+			"F: (X + 5A) × 2 slam")
 	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, walk stopped")
 	assert_almost_eq(h.total_damage_on(out, nodes[7]), 0.0, 0.001, "past junction, walk stopped")
 
@@ -205,12 +211,15 @@ func test_seeded_mid_string_splits_into_two_probes_walking_both_ways() -> void:
 
 	var out := SpellResolver.resolve(spell, nodes[2], nodes[7], attacker, graph, rng)
 
-	assert_almost_eq(h.total_damage_on(out, nodes[2]), 1.0, 0.001, "C: seed base")
-	# Both probes leave the seed on the same beat, so both carry 1 + 2.
-	assert_almost_eq(h.total_damage_on(out, nodes[1]), 3.0, 0.001, "B: left probe, 1 + 2")
-	assert_almost_eq(h.total_damage_on(out, nodes[3]), 3.0, 0.001, "D: right probe, 1 + 2")
+	var x: float = h.seed_multiplier(nodes[7]) * spell.power
+	var a := 2.0
+	assert_almost_eq(h.total_damage_on(out, nodes[2]), x, 0.001, "C: seed X")
+	# Both probes leave the seed on the same beat, so both carry X + A.
+	assert_almost_eq(h.total_damage_on(out, nodes[1]), x + a, 0.001, "B: left probe, X + A")
+	assert_almost_eq(h.total_damage_on(out, nodes[3]), x + a, 0.001, "D: right probe, X + A")
 	# Left probe dies at the leaf; right probe carries on and slams.
 	assert_almost_eq(h.total_damage_on(out, nodes[0]), 0.0, 0.001, "A: leaf, filtered out")
-	assert_almost_eq(h.total_damage_on(out, nodes[4]), 10.0, 0.001, "E: (3 + 2) × 2 slam")
+	assert_almost_eq(h.total_damage_on(out, nodes[4]), (x + 2.0 * a) * 2.0, 0.001,
+			"E: (X + 2A) × 2 slam")
 	assert_almost_eq(h.total_damage_on(out, nodes[5]), 0.0, 0.001, "past junction, stopped")
 	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, stopped")

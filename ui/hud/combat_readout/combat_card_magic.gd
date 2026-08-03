@@ -5,15 +5,24 @@ extends CombatReadoutCard
 ## when [member PropagationConfig.max_hops] is nonzero). Bound to whichever
 ## spell [BattleSystem.selected_spell] currently points at — null-safe (no
 ## spell selected shows zeros).
+##
+## Potency is the [b]computed seed[/b] — [code]spell_damage × power[/code] for
+## the bound caster — not the raw [member SpellDef.power] coefficient, which is
+## meaningless on its own (D-32). It therefore moves when INT does, which is
+## why the card also listens to the stat.
 
 @onready var _potency_row: CombatValueRow = %PotencyRow
 @onready var _reach_row: CombatValueRow = %ReachRow
 
 var _battle_system: BattleSystem
+var _board: StatBoard
 
 
-func bind(battle_system: BattleSystem) -> void:
+func bind(battle_system: BattleSystem, board: StatBoard = null) -> void:
 	_battle_system = battle_system
+	_board = board
+	if board != null and board.spell_damage != null:
+		board.spell_damage.value_changed.connect(_refresh)
 	if _battle_system == null:
 		return
 	_battle_system.selected_spell_changed.connect(_refresh)
@@ -28,7 +37,16 @@ func _refresh(spell: SpellDef = null) -> void:
 		_reach_row.set_value(0.0)
 		_reach_row.set_sliver("")
 		return
-	_potency_row.set_value(spell.base_damage)
+	_potency_row.set_value(_seed_damage(spell))
 	var hops := spell.propagation.max_hops if spell.propagation != null else 0
 	_reach_row.set_value(float(hops), " hops")
 	_reach_row.set_sliver("rare" if hops > 0 else "")
+
+
+## Seed damage for the bound caster — the same expression [SpellResolver] uses
+## ([code]spell_damage × power[/code]); no board falls back to the spell's own
+## coefficient at a [code]spell_damage[/code] of 1.
+func _seed_damage(spell: SpellDef) -> float:
+	if _board == null or _board.spell_damage == null:
+		return spell.power
+	return float(_board.spell_damage.value) * spell.power

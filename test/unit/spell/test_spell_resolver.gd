@@ -143,7 +143,7 @@ func test_cancel_folds_into_timeline_as_null_damage_event() -> void:
 
 
 func test_zero_damage_utility_landing_still_emits_event() -> void:
-	# base_damage 0 → DamageEffect appends no hit, but the probe must still
+	# power 0 → DamageEffect appends no hit, but the probe must still
 	# render its path, so the landing gets an event with null damage.
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)

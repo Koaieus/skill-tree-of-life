@@ -38,7 +38,7 @@ func bind(player: Entity, battle_system: BattleSystem) -> void:
 		Events.skill_node_hovered.connect(_on_skill_node_hovered)
 		Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
 	if _battle_system != null:
-		_magic_card.bind(_battle_system)
+		_magic_card.bind(_battle_system, board)
 		_battle_system.attack_plan_changed.connect(_on_plan_changed)
 		_on_plan_changed(_battle_system.attack_plan)
 
@@ -49,6 +49,8 @@ func bind(player: Entity, battle_system: BattleSystem) -> void:
 			board.blade_damage.value_changed.connect(_melee_card.flash_unmute)
 		if board.range != null:
 			board.range.value_changed.connect(_ranged_card.flash_unmute)
+		if board.spell_damage != null:
+			board.spell_damage.value_changed.connect(_magic_card.flash_unmute)
 		if board.armor != null:
 			board.armor.value_changed.connect(_defense_card.flash_unmute)
 

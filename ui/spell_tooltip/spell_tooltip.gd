@@ -81,7 +81,8 @@ func _populate() -> void:
 	var eff_hops := _effective_hops()
 	var hops_dynamic := has_prop and eff_hops != base_hops
 
-	_add_stat_row(&"Damage", _format_num(_spell.base_damage), false)
+	var seed := _seed_damage()
+	_add_stat_row(&"Damage", _format_num(seed), not is_equal_approx(seed, _spell.power))
 
 	if has_prop:
 		var prop := _spell.propagation
@@ -93,7 +94,7 @@ func _populate() -> void:
 		if prop.hop_damage != null:
 			var hd := prop.hop_damage.get_description()
 			if hd != "":
-				_add_stat_row(&"Hop Ramp", hd, false)
+				_add_stat_row(&"Progression", hd, false)
 
 		var prop_desc := prop.get_description()
 		if prop_desc != "":
@@ -174,6 +175,17 @@ func _effective_distance_from_finder(rf: EuclideanRangeFinder) -> float:
 
 func _scale_by_spell_range(base: int) -> int:
 	return int(round(float(base) * _spell_range_multiplier()))
+
+
+## Seed damage for the hovered caster — [code]spell_damage × power[/code], the
+## same expression [SpellResolver] seeds with (D-32). The raw
+## [member SpellDef.power] coefficient is meaningless on its own, so the row
+## shows the computed number and goes gold whenever the caster moved it.
+func _seed_damage() -> float:
+	if _caster == null or _caster.stat_board == null:
+		return _spell.power
+	var s := _caster.stat_board.get_stat(&"spell_damage")
+	return _spell.power * (float(s.get_value()) if s != null else 1.0)
 
 
 func _spell_range_multiplier() -> float:

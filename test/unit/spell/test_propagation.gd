@@ -80,13 +80,15 @@ func test_damage_falls_off_per_hop() -> void:
 	var graph: Graph = ctx[1]
 	var atk: Entity = ctx[2]
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.max_reducer(),
-			{max_hops = 2, hop_damage = helper.multiply_ramp(0.5)})
+			{max_hops = 2, hop_damage = helper.multiply_progression(0.5)})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	assert_almost_eq(helper.total_damage_on(outcome, n[1]), 10.0, 0.001)
-	assert_almost_eq(helper.total_damage_on(outcome, n[2]), 5.0, 0.001)
-	assert_almost_eq(helper.total_damage_on(outcome, n[3]), 2.5, 0.001)
+	# Seed = spell_damage(cast-from node) × power; the falloff is a ratio of it.
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
+	assert_almost_eq(helper.total_damage_on(outcome, n[1]), seed_dmg, 0.001)
+	assert_almost_eq(helper.total_damage_on(outcome, n[2]), seed_dmg * 0.5, 0.001)
+	assert_almost_eq(helper.total_damage_on(outcome, n[3]), seed_dmg * 0.25, 0.001)
 
 
 # ── Merger semantics — the headline change ────────────────────────────────
@@ -105,9 +107,10 @@ func test_diamond_sum_reducer_adds_converging_branches() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var by_node := helper.hits_by_node(outcome)
-	# Node 4 hit ONCE (merged), with summed damage 10 + 10 = 20.
+	# Node 4 hit ONCE (merged), with summed damage seed + seed.
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
 	assert_eq((by_node[n[4]] as Array).size(), 1, "node 4 merged into one hit")
-	assert_almost_eq(helper.total_damage_on(outcome, n[4]), 20.0, 0.001)
+	assert_almost_eq(helper.total_damage_on(outcome, n[4]), seed_dmg * 2.0, 0.001)
 
 
 func test_diamond_max_reducer_takes_strongest_only() -> void:
@@ -123,8 +126,9 @@ func test_diamond_max_reducer_takes_strongest_only() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var by_node := helper.hits_by_node(outcome)
 	assert_eq((by_node[n[4]] as Array).size(), 1, "node 4 single merged hit")
-	# Both shoulders arrived with equal damage; max == that damage (10).
-	assert_almost_eq(helper.total_damage_on(outcome, n[4]), 10.0, 0.001)
+	# Both shoulders arrived with equal damage; max == that damage (the seed).
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
+	assert_almost_eq(helper.total_damage_on(outcome, n[4]), seed_dmg, 0.001)
 
 
 func test_cancel_if_multi_fizzles_overlapping_node() -> void:
@@ -198,17 +202,18 @@ func test_self_loop_sum_merger_compounds_returns() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.sum_reducer(),
-			{max_hops = 1, max_visits_per_node = 2, hop_damage = helper.multiply_ramp(1.0)})
+			{max_hops = 1, max_visits_per_node = 2, hop_damage = helper.multiply_progression(1.0)})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
-	# Wave 0: seed at node 1 (10 dmg).
+	# Wave 0: the seed lands at node 1.
 	# Wave 1: node 1 fans to neighbours of itself — self-loop means {1, 1}.
-	# SUM merger collapses to one 20-dmg hit at node 1.
-	# Total: hit at wave 0 (10) + merged hit at wave 1 (20) = 30 across two hits.
+	# SUM merger collapses to one 2×seed hit at node 1.
+	# Total: wave 0 (seed) + merged wave 1 (2×seed) = 3×seed across two hits.
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
 	var hits_on_1: Array = helper.hits_by_node(outcome).get(n[1], [])
 	assert_eq(hits_on_1.size(), 2, "node 1 hit twice (seed + merged self-loop return)")
-	assert_almost_eq(helper.total_damage_on(outcome, n[1]), 30.0, 0.001)
+	assert_almost_eq(helper.total_damage_on(outcome, n[1]), seed_dmg * 3.0, 0.001)
 	# The wave-1 return arrives via the self-loop edge (target == predecessor),
 	# so the resolver stamps it SELF_LOOP — the one verb branch geometry can't
 	# recover (origin == target). Locks the a/b/e/d vocabulary's `e` case.

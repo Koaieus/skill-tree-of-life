@@ -4,7 +4,7 @@ extends PropagationStep
 
 ## Single-path "string walker" for The Trail Blazer, a true "Line Killer". From the seed it
 ## fans to every degree-2 candidate, with the per-hop ramp provided by
-## [member PropagationConfig.hop_damage] (typically [AddRamp] with
+## [member PropagationConfig.hop_damage] (typically [FlatAddProgression] with
 ## [code]increment = 2[/code]), until it reaches a junction (graph degree > 2)
 ## — the *slam* node — where it applies [member terminal_mode] and stops.
 ##
@@ -13,8 +13,8 @@ extends PropagationStep
 ## minted in parallel — no random pick.
 ##
 ## Example — seed A, string B-C-D-E, junction F (degree 3), with the stock
-## `AddRamp(2)` on the propagation config and `terminal_mode =
-## MULTIPLY_CONSTANT` (×2):
+## `FlatAddProgression(2)` on the propagation config, `terminal_mode =
+## MULTIPLY_CONSTANT` (×2) and a seed of 1 (`spell_damage × power`):
 ##   A=1  B=3  C=5  D=7  E=9  →  F = (9 + 2) × 2 = 22 (slam, then stops).
 
 enum TerminalMode {
@@ -38,9 +38,9 @@ func step(
 	if candidates.is_empty() or ctx.graph == null:
 		return []
 
-	# The per-hop ramp runs inside `_propagate_to` (config.hop_damage —
-	# typically AddRamp(2) for the stock Trailblazer). The base `next.damage`
-	# already carries the ramped total; the historical TrailBlazer
+	# The per-hop progression runs inside `_propagate_to` (config.hop_damage —
+	# typically FlatAddProgression(2) for the stock Trailblazer). The base
+	# `next.damage` already carries the progressed total; the historical
 	# `accumulated = payload.damage + per_hop_increment` line is now just
 	# `next.damage` straight out of `_propagate_to`. We only override damage
 	# when the candidate is a junction (the slam case).

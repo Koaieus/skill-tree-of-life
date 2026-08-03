@@ -23,9 +23,15 @@ var predecessor: SkillNode = null
 ## Immutable across hops. Distinct from [member predecessor] so seed-vs-hop
 ## logic stays explicit (a null predecessor unambiguously marks the seed).
 var source: SkillNode = null
-## Effective damage AT this node — already scaled by all prior per-hop
-## multipliers. On-hit effects read this; they don't re-scale.
+## Effective damage AT this node — already shaped by every prior hop's
+## [HopDamageProgression]. On-hit effects read this; they don't re-scale.
 var damage: float = 0.0
+## The damage this cast seeded at ([code]spell_damage(source) × power[/code]).
+## Immutable across hops — same lifecycle as [member seed_node] — so a
+## progression can express itself as a fraction of the seed
+## ([ScaledAddProgression]) instead of an absolute. Stamped once by
+## [SpellResolver]; INT is never re-read per hop (that would compound it).
+var seed_damage: float = 0.0
 ## Recursion budget left. 0 means no further propagation from here.
 var hops_remaining: int = 0
 ## 0 = seed; +1 per propagation step. Drives VFX stagger order and lets

@@ -16,7 +16,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_swiy2"]
 [ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="13_qkgt4"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="14_1jkab"]
-[ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/hop_damage/add_ramp.gd" id="15_ramp"]
+[ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/progression/flat_add_progression.gd" id="15_prog"]
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("2_x1qvp")
@@ -32,8 +32,8 @@ expression = "to_degree >= 2"
 script = ExtResource("6_b6rlo")
 children = Array[ExtResource("3_ef7vp")]([SubResource("filter_enemy"), SubResource("filter_deg2")])
 
-[sub_resource type="Resource" id="ramp_flat"]
-script = ExtResource("15_ramp")
+[sub_resource type="Resource" id="prog_flat"]
+script = ExtResource("15_prog")
 increment = 2.0
 
 [sub_resource type="Resource" id="step_killer"]
@@ -44,7 +44,7 @@ script = ExtResource("7_riwgb")
 filter = SubResource("filter_composite")
 step = SubResource("step_killer")
 max_hops = 20
-hop_damage = SubResource("ramp_flat")
+hop_damage = SubResource("prog_flat")
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("12_swiy2")
@@ -60,7 +60,7 @@ description = "Walks a single path from the target: each degree-2 node it passes
 icon = ExtResource("1_x1qvp")
 min_degree = 3
 mana_cost = 3
-base_damage = 1.0
+power = 1.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("1_p8d3l")]([SubResource("dmg")])
 vfx_coordinator_scene = ExtResource("14_1jkab")

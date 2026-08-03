@@ -39,7 +39,8 @@ static func resolve(
 	seed_state.current_node = target
 	seed_state.predecessor = null
 	seed_state.source = source
-	seed_state.damage = spell.base_damage * config.seed_damage_fraction
+	seed_state.damage = _seed_damage(spell, source)
+	seed_state.seed_damage = seed_state.damage
 	seed_state.hops_remaining = config.max_hops
 	seed_state.hop_index = 0
 	seed_state.visited = [target]
@@ -126,6 +127,25 @@ static func resolve(
 		ctx.wave_index += 1
 		wave = next_wave
 	return outcome
+
+
+## The seed hit: [code]spell_damage(source) × SpellDef.power[/code] (D-32).
+##
+## Read from [param source] — the node the spell is cast FROM — via
+## [method SkillNode.get_local_value], which merges the node board with its
+## [b]owner's[/b] board. Reading the target instead would let the defender buff
+## the spell landing on them; mirrors [RangedDamageFormula]'s
+## [code]firing_node.get_local_value(&"ranged_damage")[/code]. Evaluated ONCE,
+## here: a per-hop re-read would compound INT (INT² by hop 2).
+##
+## No source node (preview / degenerate calls) falls back to the stat's own
+## default rather than the caster's board — one path to the number, per D-32.
+static func _seed_damage(spell: SpellDef, source: SkillNode) -> float:
+	if source != null:
+		return float(source.get_local_value(&"spell_damage")) * spell.power
+	var def: StatDef = StatRegistry.get_def(&"spell_damage")
+	var fallback: float = def.default_value if def != null else 1.0
+	return fallback * spell.power
 
 
 ## Evaluates both crit paths for one landing and applies the crit to [param hit]
