@@ -91,6 +91,9 @@ When you learn something non-obvious — a gotcha, a hidden constraint, a workfl
 - **Small gotchas (<200 tokens):** inline in the relevant rule file. Lead with the rule, then **Why:** / **How to apply:**.
 - **Breadcrule** — when a pointer must sit in the always-on tier, make it its own `.claude/rules/<topic>.md` file (no `paths:` frontmatter) whose whole body is one line stating the claim *and* linking the doc (`<claim>. See docs/domain/<topic>.md`); never a paragraph, never a line pasted into CLAUDE.md. See `docs/domain/breadcrules.md`.
 - **Larger context** (multi-paragraph, decision trees, code samples): `docs/domain/<topic>.md` (engineering knowledge, distinct from `docs/design/` which is game design).
+- **`mise run rules-hygiene`** reports rule-tier violations (always-on budget, oversized
+  scoped rules, dead crumbs, dead `paths:` globs) and fixes nothing — run it whenever you
+  add or edit a rule, same as `gh-project hygiene` for the board.
 - Game-design knowledge belongs in `docs/design/` or as a GitHub Issue (`design` label) — not inline here.
 
 ## Working in this repo

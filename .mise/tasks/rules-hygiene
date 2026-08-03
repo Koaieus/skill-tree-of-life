@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+#MISE description="Report rule-tier invariant violations: `mise run rules-hygiene [-- --json|--strict]`"
+"""
+Rule-tier hygiene. Reports; fixes nothing — same contract as `gh-project hygiene`.
+
+The always-on tier is injected into every turn of every session, so its size is a
+tax on all future work. This checks the invariants that keep it small and the
+scoped tier honest. See docs/domain/breadcrules.md.
+
+The headline check is DEAD GLOB: a `paths:` pattern matching zero files makes a
+rule that silently never loads. It looks fine, ships green, and nobody finds out.
+Nothing else in the repo can catch that.
+"""
+import glob
+import json
+import os
+import re
+import sys
+
+RULES = ".claude/rules"
+ALWAYS_ON_BUDGET = 4000  # bytes across the whole always-on tier
+CRUMB_MAX = 600          # a single always-on rule above this isn't a crumb
+SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's hat
+
+SKIP_DIRS = (".godot/", ".claude/worktrees/", ".worktrees/", ".git/")
+
+
+def frontmatter(text):
+    """Return (paths list, had_frontmatter). No frontmatter => always-on."""
+    if not text.startswith("---"):
+        return [], False
+    end = text.find("\n---", 3)
+    if end == -1:
+        return [], False
+    block = text[3:end]
+    if not re.search(r"^paths:", block, re.M):
+        return [], True
+    return re.findall(r'^\s*-\s*"([^"]+)"', block, re.M), True
+
+
+def matches_any(pattern):
+    """Does this paths: pattern match at least one real file?"""
+    for hit in glob.glob(pattern, recursive=True):
+        if not any(s in hit + "/" for s in SKIP_DIRS) and os.path.isfile(hit):
+            return True
+    # `dir/**` should also count a bare file directly under dir
+    if pattern.endswith("/**"):
+        return matches_any(pattern[:-1] + "*")
+    return os.path.isfile(pattern)
+
+
+def main():
+    as_json = "--json" in sys.argv
+    strict = "--strict" in sys.argv
+    findings = []
+    always_on_total = 0
+    always_on, scoped = [], []
+
+    for path in sorted(glob.glob(f"{RULES}/*.md")):
+        name = os.path.basename(path)
+        text = open(path, encoding="utf-8").read()
+        size = len(text.encode("utf-8"))
+        paths, _ = frontmatter(text)
+
+        if not paths:
+            always_on.append((name, size))
+            always_on_total += size
+            if size > CRUMB_MAX:
+                findings.append({
+                    "check": "fat-crumb", "file": path, "bytes": size,
+                    "msg": f"always-on but {size}B (>{CRUMB_MAX}) — scope it with "
+                           f"paths:, or move the body to docs/domain/ and leave one line",
+                })
+        else:
+            lines = text.count("\n") + 1
+            scoped.append((name, size, lines))
+            if lines > SCOPED_MAX_LINES:
+                findings.append({
+                    "check": "doc-in-a-rule", "file": path, "lines": lines,
+                    "msg": f"{lines} lines (>{SCOPED_MAX_LINES}) — a rule this long is a "
+                           f"doc; move the narrative to docs/domain/ and keep the gotchas",
+                })
+            dead = [p for p in paths if not matches_any(p)]
+            for pat in dead:
+                fatal = len(dead) == len(paths)
+                findings.append({
+                    "check": "dead-glob", "file": path, "pattern": pat, "fatal": fatal,
+                    "msg": f'paths: "{pat}" matches no file'
+                           + (" — ALL patterns dead, this rule NEVER loads"
+                              if fatal else " (other patterns still match)"),
+                })
+
+        for link in re.findall(r"\((?!https?:)([^)\s#]+\.md)\)", text):
+            target = link if link.startswith(("docs/", ".claude/")) else \
+                os.path.normpath(os.path.join(os.path.dirname(path), link))
+            if not os.path.isfile(target):
+                findings.append({
+                    "check": "broken-link", "file": path, "target": link,
+                    "msg": f"links to {link}, which does not exist",
+                })
+        for bare in re.findall(r"See (docs/domain/[\w.-]+\.md)", text):
+            if not os.path.isfile(bare):
+                findings.append({
+                    "check": "dead-crumb", "file": path, "target": bare,
+                    "msg": f"crumb points at {bare}, which does not exist",
+                })
+
+    if always_on_total > ALWAYS_ON_BUDGET:
+        findings.append({
+            "check": "tier-over-budget", "bytes": always_on_total,
+            "msg": f"always-on tier is {always_on_total}B (budget {ALWAYS_ON_BUDGET}B)",
+        })
+
+    known = {os.path.basename(p) for p in glob.glob(f"{RULES}/*.md")}
+    for doc in glob.glob("docs/**/*.md", recursive=True) + glob.glob(f"{RULES}/*.md") \
+            + glob.glob(".claude/skills/**/*.md", recursive=True) + ["CLAUDE.md", "README.md"]:
+        if not os.path.isfile(doc):
+            continue
+        for ref in set(re.findall(r"\.claude/rules/([\w.-]+\.md)", open(doc, encoding="utf-8").read())):
+            if ref not in known:
+                findings.append({
+                    "check": "stale-reference", "file": doc, "target": ref,
+                    "msg": f"references .claude/rules/{ref}, which no longer exists",
+                })
+
+    if as_json:
+        print(json.dumps({"always_on_bytes": always_on_total, "findings": findings}, indent=2))
+        return 1 if (findings and strict) else 0
+
+    print(f"Always-on tier: {always_on_total}B / {ALWAYS_ON_BUDGET}B budget "
+          f"({len(always_on)} rules)")
+    for n, s in sorted(always_on, key=lambda x: -x[1]):
+        print(f"  {s:6d}  {n}")
+    print(f"\nScoped: {len(scoped)} rules, {sum(s for _, s, _ in scoped)}B (loaded on demand)")
+    for n, s, l in sorted(scoped, key=lambda x: -x[1])[:5]:
+        print(f"  {s:6d}  {l:4d}L  {n}")
+
+    if not findings:
+        print("\n✓ no violations")
+        return 0
+    print(f"\n{len(findings)} violation(s):")
+    for f in findings:
+        loc = f.get("file", "-")
+        print(f"  [{f['check']}] {loc}\n      {f['msg']}")
+    return 1 if strict else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
