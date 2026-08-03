@@ -1,3 +1,13 @@
+---
+description: Graph accessors rebuild their result (never call in a loop); reach queries use gather(), not in_range()
+paths:
+  - "graph/**"
+  - "attack/**"
+  - "effects/**"
+  - "systems/**"
+  - "procgen/**"
+---
+
 # Graph (`graph/graph.gd`)
 
 ## Graph accessors rebuild their result — never call them inside a loop
