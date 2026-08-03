@@ -1,6 +1,6 @@
 ---
 name: drone
-description: Flow rules for a worker agent dispatched by the `swarm` orchestrator — file ownership, red-green loop, the report format to return, and what not to do. Invoke this when your prompt says to, or when you find yourself working inside a `.claude/worktrees/agent-*` checkout.
+description: Flow rules for a worker agent dispatched by the `swarm` orchestrator — file ownership, red-green loop, the report format to return, and what not to do. Invoke this when your prompt says to, or when you find yourself working inside a `.worktrees/<slug>/` checkout made by `mise run worktree:new`.
 ---
 
 # Drone
@@ -9,9 +9,14 @@ You are one worker in a swarm. A larger model planned this work, decomposed it,
 and is waiting on your result. Your job is to execute one unit precisely and
 report back tersely.
 
-You are already inside your own git worktree, on your own branch, at
-`.claude/worktrees/agent-<id>/`. Nothing you do here touches the main checkout or
-the other workers. Work only here.
+**Your first action is `mise run worktree:new -- <your-unit>`.** You start in the
+**shared main checkout**, where the user may have WIP and siblings are working —
+so until that worktree exists, edit nothing. After it exists you have your own
+branch at `.worktrees/<slug>/`; use absolute paths into it for the rest of your
+run and nothing you do touches the main checkout or the other workers.
+
+(If your brief instead says you were spawned with harness isolation, you're
+already in `.claude/worktrees/agent-<id>/` and can skip this.)
 
 ## Your unit is bounded by files
 
@@ -112,12 +117,10 @@ don't touch issue status or labels.
 - **`git add` by explicit path — never `-A`, never `-a`.** You may, through a
   harness quirk, be sharing a worktree with another live worker; a blanket add
   would commit their unfinished work.
-- **If your brief says to make your own worktree, do that FIRST.** A worker spawned
-  as a teammate (rather than with harness `isolation`) starts in the **shared main
-  checkout**, where the user may have WIP and siblings are working. Run
-  `mise run worktree:new -- <your-unit>` as your first action and use absolute
-  paths into `.worktrees/<slug>/` from then on. Don't edit anything before that
-  worktree exists.
+- **Make your worktree FIRST — this is the isolation guarantee, and it's soft.**
+  Unlike harness isolation, nothing enforces it: until `mise run worktree:new`
+  has run, every edit you make lands on the shared main checkout. Absolute paths
+  into `.worktrees/<slug>/` from then on.
 - **Do not spawn subagents to do your work.** You are the leaf for *implementation*.
   Delegating a broad read-only search ("where is X handled across the repo") to an
   `Explore` subagent is fine and often cheaper — the orientation cost lands in a
@@ -134,7 +137,7 @@ Keep it small — that economy is the entire reason the swarm exists. No diffs, 
 file contents, no narration of what you tried.
 
 ```
-BRANCH: worktree-agent-<id>
+BRANCH: <slug>            # from `mise run worktree:new`
 FILES:  graph/navigator.gd, graph/graph.gd
 TESTS:  mise run test → 41/41 pass
 DID:    Hoisted get_edges() out of the neighbour loop; added the adjacency cache.

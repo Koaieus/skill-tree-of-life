@@ -136,21 +136,40 @@ of §3a — they are different surfaces and only this one survives the session. 
 unclaimed issue looks free, so a later swarm (or the user) picks it up and
 duplicates the work. Flip it back to `ready` if you dispatch nothing.
 
-Spawn every worker **in a single message** — that is what makes them run in
-parallel. Per `Agent` call:
+**Dispatch is TWO steps, and skipping the second stalls the whole swarm.** A named
+teammate does *not* run the `Agent` call's `prompt` — it returns "will receive
+instructions via mailbox" and sits idle (verified 2026-07-30). So:
 
-- `isolation: "worktree"` — mandatory. Without it, background workers edit the
-  shared main checkout and collide with each other and with the user's WIP.
+**Step 1 — spawn every worker in a single message** (that is what makes them run in
+parallel). Per `Agent` call:
+
+- **`name`, and NO `isolation` parameter.** Workers are teammates; each makes its
+  own worktree via `mise run worktree:new` (§3a). Harness isolation would take the
+  shared task board away.
 - `model: "sonnet"`, or `"haiku"` for ultra-mechanical work (rename, mass
   string-replace, boilerplate).
-- `run_in_background: true`.
-- The prompt must open with: **"Invoke the `drone` skill, then do the following."**
+- `run_in_background: true` (ignored for named teammates — they're always async).
+- A **minimal** prompt. The real brief comes in step 2; anything here is not read.
+
+**Step 2 — `SendMessage` each worker its brief.** The first line must be:
+
+> Run `mise run worktree:new -- <your-unit>` as your FIRST action, then use
+> absolute paths into `.worktrees/<slug>/` for everything after. Do not edit
+> anything before that worktree exists.
+
+That line is the isolation guarantee. Teammates start in the **main checkout's
+cwd**, so until the worktree exists a careless edit lands on shared state.
+
+Then: **"Invoke the `drone` skill, then do the following."**
   `drone` carries the flow rules so you don't restate them N times. (Subagents do
   inherit the skill list — verified. If one ever reports it can't find `drone`,
   tell it to `Read .claude/skills/drone/SKILL.md` instead; it's plain markdown.)
 
-Each `Agent` result hands back `worktreeBranch` and `worktreePath`. Record them —
-they are your merge handles, and they're the only way back to a worker's commits.
+Each worker reports its own `BRANCH:` (the `<slug>` from `worktree:new`). Record
+them — they are your merge handles, and the only way back to a worker's commits.
+Note each idle transition costs you a turn: a teammate emits an
+`idle_notification` when it has nothing to do, including right after reporting,
+so you get woken twice per unit. Another argument for fewer, fatter workers.
 
 Give each worker its acceptance test up front. A worker that can run
 `mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is done;
@@ -170,24 +189,48 @@ grinding, and that **a question is a success, not a failure**. A soft "ask if
 unsure" does not work; workers read it as permission to keep trying. Also tell it
 not to call `advisor` itself — you are the larger model and you hold the plan.
 
-### 3a. There is NO shared task board for a worktree swarm — the prompt is the only briefing
+### 3a. Workers make their OWN worktrees — that is how you get the task board too
 
-**Verified empirically 2026-07-29 at the cost of one wasted dispatch round. Do
-not re-derive this, and do not seed a board.**
+**Verified 2026-07-30. This supersedes the 2026-07-29 finding that the board and
+worktrees were mutually exclusive — they were, for *harness* isolation only.**
 
-`isolation: "worktree"` and the shared task board are **mutually exclusive**, so
-for a swarm as this skill defines it the board is simply not available:
+`isolation: "worktree"` and the shared task board really are exclusive: subagents
+have no `TaskCreate` / `TaskGet` / `TaskList` / `TaskUpdate` (teammate-only), and
+a worker told to read its spec off a board it can't see stops, having paid full
+startup for nothing. But this project has its own worktrees, independent of the
+harness:
 
-- The `Agent` tool spawns **subagents**, not teammates. `name` makes one
-  addressable by `SendMessage`; it does **not** enrol it in an agent team.
-- **Subagents have no `TaskCreate` / `TaskGet` / `TaskList` / `TaskUpdate`.**
-  Those are teammate-only. A worker told to read its spec off the board finds the
-  tools absent and stops, having paid its full startup cost for nothing.
-- Teammates, conversely, **do not get worktree isolation**. You cannot have both.
+```bash
+mise run worktree:new -- <issue|name>     # -> .worktrees/<slug>/, own branch
+```
 
-So **everything a worker needs goes in its spawn prompt**: owned paths, settled
-decisions, acceptance criteria. Budget for it — three fully-specified prompts is a
-real slice of orchestrator context and it is not optional.
+`warp` drives its entire single-issue cycle on that task, and a teammate can run
+it too. So workers spawn as **teammates** (`name`, no `isolation`) and make their
+own worktree as their first action. You get all three: real isolation, the shared
+task board, and the mailbox.
+
+It's strictly better than harness isolation on three counts — the board and
+mailbox come back, the orchestrator stops spending context on N fully-specified
+prompts, and the worktree-reclamation trap disappears (a `mise` worktree is never
+auto-removed, so resuming a stopped worker cannot land it in a sibling's
+checkout).
+
+**The tradeoff, stated plainly:** harness isolation was a hard guarantee; this is
+a convention. The worker is in the shared main checkout until step 2 of its own
+brief completes. The mitigations are the worktree-first line in the `SendMessage`
+brief and `drone`'s explicit-path `git add` rule — both mandatory, neither
+optional.
+
+**The task board is shared by *teammate-ness*, not by the filesystem.** Worktrees
+are separate checkouts and share no working-tree files — so don't put the task
+list in a repo file and expect workers to see each other's updates. It's the
+harness's team-scoped in-session board or nothing.
+
+**`TaskCreate` is still unsafe in parallel** — two calls in one message both read
+the same stale max id and the second pair silently overwrites the first (six
+creates produced four tasks). Serialize them. And teams needs
+`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` **at launch** (it's in
+`~/.claude/settings.json`); you cannot enable it mid-session.
 
 `SendMessage` **does** work both ways for background subagents (worker → `main`,
 `main` → worker by name), despite docs implying teammates-only. That is the
@@ -254,31 +297,9 @@ Gotchas:
 
 </details>
 
-### 3a-next. Try this next run: teammates that make their OWN worktrees
+### 3a-i. Field notes on the teammate path (verified 2026-07-30)
 
-The §3a dead end is only a dead end for **harness** isolation. The two features
-conflict because `isolation: "worktree"` is a harness feature — but this project
-already has its own, independent of it:
-
-```bash
-mise run worktree:new -- <issue|name>     # -> .worktrees/<slug>/, own branch
-```
-
-`warp` drives its whole single-issue cycle on that task. A **teammate** can run it
-too. So the shape worth trying is:
-
-1. Spawn workers as teammates — `name`, **no `isolation` parameter**.
-2. Each worker's first action is `mise run worktree:new -- <its-unit>`, then it
-   works there via absolute paths for the rest of its run.
-3. It reads its spec off the shared task board and flips its own status.
-
-If that holds, it is strictly better than what this run did: the task board and
-mailbox come back, the orchestrator stops spending context on three
-fully-specified prompts, **and** the harness worktree-reclamation trap disappears
-entirely — a `mise` worktree is not auto-removed when its agent exits, so
-resuming a stopped worker cannot land it in a sibling's checkout.
-
-**Verified 2026-07-30** (haiku teammate, `name` + no `isolation`, probed directly):
+Details behind §3a, from a haiku teammate probed directly:
 
 - **Teammates DO get the `Agent` tool, and nesting actually works.** Full tool set
   observed: `Agent, Artifact, Bash, Edit, Read, Skill, ToolSearch, Write, advisor,
@@ -451,14 +472,16 @@ the next swarm.
 
 ### 7. Teardown
 
-An `isolation: "worktree"` worktree is auto-removed only if the worker left it
-unchanged — which is exactly the workers you *don't* need to clean up after.
-Every worker that committed leaves one behind:
+**Teardown is now unconditional and yours.** The semantics inverted with §3a: a
+harness worktree was auto-removed if untouched, but a `mise` worktree is *never*
+auto-removed. That's the point — a stopped worker can be resumed into its own
+checkout — but it means every worker leaves one behind, whether or not it
+committed.
 
 ```bash
-git worktree list                                   # find the survivors
-git worktree remove .claude/worktrees/agent-<id>
-git branch -d worktree-agent-<id>                   # -d, not -D: refuses if unmerged
+mise run worktree:ls                                # find the survivors
+mise run worktree:rm -- <slug>                      # fuzzy-matches; per worker
+git branch -d <slug>                                # -d, not -D: refuses if unmerged
 ```
 
 Both plain forms work on a merged worker branch — reach for `--force` / `-D` only
