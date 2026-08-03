@@ -34,7 +34,10 @@ Priority fields and column drags don't cause work to happen — sequence and WIP
 |---|---|---|
 | **#268** | balance harness: scenario fixtures + ratio invariants | Fully specced, file-owned (`tools/balance/**`), invariants pre-named, thresholds ship as `TBD`. Drone-ready as written. |
 | **#274** | INT → spell damage (D-20) | Spec refreshed 2026-08-03 against #351's `HopDamage`. Drone-ready. |
-| **#362** | `test_fan_scene` trace test is run-order dependent | S-sized, and it poisons `test:one` for anyone touching fan geometry — i.e. all of lane E. |
+| **#362** | `test_fan_scene` trace test is run-order dependent | S-sized, acceptance + file ownership pinned, and it poisons `test:one` for anyone touching fan geometry — i.e. all of lane E. |
+
+All three are in `Ready`. **`In progress` currently holds five other issues** — starting
+these means clearing slots first (see "Known board violations"), not stacking to six.
 
 ## Lanes, in order
 
@@ -67,9 +70,10 @@ work (`SkillNode.get_entity_degree`, `docs/domain/degree.md`). Rule 3 lost. It's
 set now because pretending otherwise makes this file lie.
 
 - **#356** unify `PropagationContext` across filter / step / reducer / crit. Debt the above
-  created; **gates #355**.
+  created; **gates #355**. `Ready` — pure refactor, named consumer, takeable.
 - **#354** spell preview UI: per-node damage/hit-count chips + skull-on-deplete. Phase 1 only
-  (show everything, no gating). Legibility, not fidelity — passes rule 4.
+  (show everything, no gating). Legibility, not fidelity — passes rule 4. `Needs design`:
+  chip visual language and the preview-scoped RNG snapshot are both open.
 - #355 Chromatic Cascade — **parked on two things**: #356, and having actually played
   Resonator. Not takeable.
 
