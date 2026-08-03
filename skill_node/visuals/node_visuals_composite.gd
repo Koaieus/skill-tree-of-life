@@ -27,12 +27,13 @@ extends SkillNodeVisual
 ## and potentially an instance-uniform slot (#172) on every one of them (see
 ## .claude/rules/skill-node-scale.md).
 ##
-## Consequence to know before re-adding one: stake/cap depth now has NO
-## partial-fill read. [member SkillNode.radius] still grows with `stake_level`
-## (`stake_radius_delta`), so "this node is staked" survives as physical size,
-## but "1/3 vs 3/3 allocated" is unvisualized until #178 or a successor picks it
-## up. Re-adding is instancing the scene back under ShaderStack and restoring
-## its block in [method _sync_stake].
+## #341 reclaimed the DIAL'S FUNCTION (not the RimBonuses scene, which stays
+## shelved) as a shader term on [RimRing] itself: [method _sync_stake] forwards
+## `allocation_level`/`stake_level` straight into `%RimRing.fill_current` /
+## `.fill_max`, so "1/3 vs 3/3 allocated" is visualized again without
+## re-instancing anything. `rim_bonuses.tscn`/`rune_ring.tscn` are still the
+## shelf for the OTHER encoders (rim gems, the rune band) that never got a
+## reclaim.
 
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
@@ -51,6 +52,12 @@ const DISK_RIM_OVERLAP := 1.5
 ## is explicit). The disk carries entity color, the rim carries archetype — so
 ## the rim "activating" toward its archetype hue on allocation is a second,
 ## independent allocation read alongside the disk lighting up.
+##
+## #341: kept these two ratios as-is (see test_rim_tint_mix_tracks_allocation,
+## which pins UNFILLED_TINT_MIX == 0.3) — the reopen's "both states need a
+## brightness/glow upgrade" is answered by RimRing._effective_tint's own
+## saturate/brighten step plus the additive fill glow, not by moving this
+## swing's numbers. Flagged for main to confirm; see the issue comment.
 const FILLED_TINT_MIX := 1.0
 const UNFILLED_TINT_MIX := 0.3
 
@@ -269,10 +276,11 @@ func _sync_shared() -> void:
 	_rim_ring.lighting = _lighting
 
 
-## Lines the base rim up with the disk edge and activates its tint on
-## allocation. The RimBonuses stake dial that used to live here is shelved
-## (#238) — `stake_level` is still forwarded from SkillNode and still drives
-## the node's radius there, it just has no dial of its own to drive.
+## Lines the base rim up with the disk edge, activates its tint on allocation,
+## and (#341) drives its current/max dial fill. The RimBonuses stake dial that
+## used to live here as a separate scene is still shelved (#238) — its
+## SEMANTICS are reclaimed by RimRing's own `fill_current`/`fill_max`, forwarded
+## straight from this node's `allocation_level`/`stake_level` below.
 func _sync_stake() -> void:
 	if not is_node_ready():
 		return
@@ -281,3 +289,5 @@ func _sync_stake() -> void:
 	_rim_ring.inner_radius = geom_inner_r
 	_rim_ring.outer_radius = geom_outer_r
 	_rim_ring.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
+	_rim_ring.fill_max = stake_level
+	_rim_ring.fill_current = allocation_level

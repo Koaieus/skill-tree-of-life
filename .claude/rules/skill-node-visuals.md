@@ -389,29 +389,52 @@ both, shelved not deleted.**
   potentially an instance-uniform slot on every one of them — the same argument
   that retired the RimRing2-4 placeholders in #172. See
   `.claude/rules/skill-node-scale.md`.
-- **What this gives up:** stake/cap depth has no *partial-fill* read anymore.
-  `SkillNode.radius` still grows with `stake_level` (`stake_radius_delta`), so
-  "this node is staked" survives as physical size, but "1/3 vs 3/3 allocated" is
-  unvisualized until #178 or a successor picks it up.
-- Re-adding one is instancing the scene back under `ShaderStack` and restoring
-  its block in `_sync_stake()`. Deleting them permanently is equally live as an
-  option — the decision was explicitly deferred, not made.
+- Re-adding the *scene* is instancing it back under `ShaderStack`. Deleting
+  `rim_bonuses.tscn`/`rune_ring.tscn` permanently is equally live as an option —
+  the decision was explicitly deferred, not made.
 
-The dial's own design, preserved for whoever revives it: `fill_current`/
-`fill_max` synced from `allocation_level`/`stake_level`, archetype-tinted
-through `_tone_color()` like every other rim element (RimHolder is the one
-exempt layer — neutral chrome regardless of tint or allocation).
-`0/*` draws nothing at all (no backdrop either); `M/N` with
-`N > 1` divides the circle into `N` **evenly-gapped** slots (gap size an
-export, applied uniformly whether a slot is filled or not, so a partial fill
-still reads as evenly spaced) and lights the first `M`; `M == N == 1` is a
-special case — a single full ring with zero gap, not a 1-slot dial (a 1-slot
-dial would just be "almost a full circle minus one gap", which isn't the same
-read as "fully lit"). The glow itself is faked via 3 stacked
-`draw_arc`/`draw_circle` strokes at shrinking width + rising alpha (same CPU
-technique as `core_halos.gd`/`rune_ring.gd`'s `edge_glow`) rather than a
-shader — there's no project-wide glow/bloom `WorldEnvironment` to justify one,
-and the layered-stroke fake reads convincingly at this node's on-screen size.
+**#341 reclaimed the dial's FUNCTION, not the scene.** Stake/cap depth had no
+*partial-fill* read from #238 until #341: `SkillNode.radius` growing with
+`stake_level` (`stake_radius_delta`) covered "this node is staked" as physical
+size, but "1/3 vs 3/3 allocated" was unvisualized. That gap is now closed as an
+additive term folded straight into `rim_ring.gdshader` (`fill_current`/
+`fill_max`, forwarded from `node_visuals_composite.gd`'s
+`allocation_level`/`stake_level` in `_sync_stake()`) — RimRing draws the dial
+itself; there is no separate CanvasItem for it. `rim_bonuses.tscn`/
+`rune_ring.tscn` stay shelved-but-present for their OTHER encoders (rim gems,
+rune band) that never got a reclaim.
+
+**Two decisions worth pinning, since both get re-litigated as "why isn't this
+animated / why does it start at the top" otherwise:**
+
+- **No spin.** The shelved implementation spun the lit arcs continuously —
+  purely to hide a parked asymmetric fixed-start-angle artifact, not because
+  motion was ever the intended read. RimRing's dial is fully static: no `TIME`
+  in the shader, no `_process` clock on RimRing (`test_node_visuals_contract.gd`
+  asserts a static rim never ticks). The next decision is what actually fixes
+  the artifact the spin used to paper over.
+- **Anchored at 12 o'clock, grows outward symmetrically.** Lit slots are NOT
+  filled contiguously from a fixed start angle (that was the artifact). Slot 0
+  is centered at top; every state reads bilaterally symmetric about the
+  vertical axis for every `M`, not just even `M` — realizing an odd `M`
+  symmetrically needs a small preference order over which self-mirrored slot
+  (top, and for even `N` also bottom) to use, since a single nested
+  "add-the-next-symmetric-unit" growth path provably skips some `M` values (see
+  `rim_ring.gdshader`'s `rim_fill_lit()` for the worked derivation). `y`-asymmetry
+  (top and bottom differing) is accepted and fine; left/right must not.
+
+The dial's semantics, as reclaimed: `fill_current`/`fill_max` synced from
+`allocation_level`/`stake_level`. `0/*` draws nothing at all — not even an
+unlit slot outline. `M/N` with `N > 1` divides the circle into `N`
+**evenly-gapped** slots (gap width a global shared uniform, applied uniformly
+whether a slot is lit or not, so a partial fill still reads as evenly spaced)
+and lights `M` of them, centered up. `M == N == 1` is a special case — a
+single full ring with zero gap, not a 1-slot dial (a 1-slot dial would just be
+"almost a full circle minus one gap", which isn't the same read as "fully
+lit"); only `1/1` is gapless. The lit term is additive across the WHOLE
+`inner_r`..`outer_r` band, strongest at the crest, stacking on top of (not
+replacing) the existing `tint_mix` archetype swing — see `rim_ring.gd` and
+`node_visuals_composite.gd`'s `_sync_stake()`.
 
 ### The carve glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
 

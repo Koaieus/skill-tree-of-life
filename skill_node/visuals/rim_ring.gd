@@ -26,6 +26,13 @@ extends SkillNodeRingVisual
 ##
 ## Reusable building block: the composite scene (#126) instances this 1x
 ## for the basic rim, or Nx for ring-stacking stake mode.
+##
+## #341 folded the shelved RimBonuses allocation dial's semantics in here as
+## an additive shader term ([member fill_current]/[member fill_max]): 0/*
+## draws nothing, N > 1 divides the band into N evenly-gapped slots anchored
+## at 12 o'clock and growing outward symmetrically, and M == N == 1 is the
+## gapless single-ring special case. No spin — see rim_ring.gdshader's class
+## doc for why the shelved version's animation isn't needed here.
 
 enum HeightPreset { LEVEL, TERRACE, SMOOTH, SHARPEN, CUSTOM }
 const CUSTOM_PRESET_INDEX := 4
@@ -88,10 +95,50 @@ static var _shared_material: ShaderMaterial
 		tint_mix = value
 		_sync_material()
 
+## #341: current/max allocation-dial fill, folded into rim_ring.gdshader as its
+## ONE new instance uniform ([code]fill_slots[/code]). Static — no spin; see
+## the shader's class doc. `0` pushes a zero fill, which the shader reads as
+## "draw nothing dial-wise at all" (not even an unlit slot outline).
+##
+## DECLARED BEFORE [member fill_current] on purpose: exported props deserialize
+## in declaration order (same gotcha as [member height_preset]/
+## [member rim_height_style] above), and [member fill_current]'s setter clamps
+## against `fill_max` — declaring `fill_current` first would clamp every scene-
+## authored value against the stale default `fill_max == 1` before this field's
+## own saved value ever loads.
+## `fill_max == 1` is the special "one full unbroken ring" case (see
+## [member is_gapless]) — not a 1-slot dial, which would read as "almost a
+## full circle minus one gap" rather than "fully lit".
+@export_range(1, 8, 1) var fill_max: int = 1:
+	set(value):
+		fill_max = maxi(value, 1)
+		fill_current = mini(fill_current, fill_max) # re-fires fill_current's setter, which syncs
+
+@export_range(0, 8, 1) var fill_current: int = 0:
+	set(value):
+		fill_current = clampi(value, 0, fill_max)
+		_sync_material()
+
+## True only for the [code]M == N == 1[/code] special case — a single
+## unbroken glowing ring, distinct from an ordinary 1-slot dial.
+var is_gapless: bool:
+	get(): return fill_max <= 1 and fill_current > 0
+
 ## The actual color pushed to the shader — [const BASE_COLOR] lerped toward
-## the archetype identity by [member tint_mix].
+## the archetype identity by [member tint_mix]. #341: the archetype hue must
+## stay identifiable from the rim alone in BOTH allocation states, so it's
+## pushed brighter/more saturated before the blend — a straight lerp toward
+## the raw [member SkillNodeVisual.archetype_tint] washed out too fast toward
+## this rim's own bronze metal to read clearly.
 var _effective_tint: Color:
-	get(): return BASE_COLOR.lerp(archetype_tint, tint_mix)
+	get():
+		var boosted := Color.from_hsv(
+			archetype_tint.h,
+			clampf(archetype_tint.s * 1.35, 0.0, 1.0),
+			clampf(archetype_tint.v * 1.15, 0.0, 1.0),
+			archetype_tint.a
+		)
+		return BASE_COLOR.lerp(boosted, tint_mix)
 
 ## Same value as InnerDisk.highlight_position — see #130. The composite
 ## forwards InnerDisk's value here so the disk and its rim stay lit from one
@@ -202,6 +249,7 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"ring_tint", _effective_tint)
 	set_instance_shader_parameter(&"height_preset", CUSTOM_PRESET_INDEX if use_custom else int(height_preset))
 	set_instance_shader_parameter(&"light_dir_xy", light_dir)
+	set_instance_shader_parameter(&"fill_slots", Vector2(float(fill_current), float(fill_max)))
 	queue_redraw()
 
 
