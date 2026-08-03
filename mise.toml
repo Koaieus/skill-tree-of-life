@@ -239,3 +239,15 @@ else
   echo "  kept branch $branch"
 fi
 '''
+
+[tasks.balance]
+description = "Balance harness (#268): full scenario table + ratio invariants, informative only — see tools/balance/README.md"
+run = "godot --headless --path . --script res://tools/balance/run_balance.gd"
+
+[tasks."balance:sensitivity"]
+description = "1-D balance sensitivity slice: `mise run balance:sensitivity -- mirror_L20 dexterity 5 40 5`"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+godot --headless --path . --script res://tools/balance/run_sensitivity.gd -- "$@"
+'''

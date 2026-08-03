@@ -1,0 +1,54 @@
+{
+	"_header": "Informative only — an order-of-magnitude smell test for runaway or non-fun values. Not a source of truth and never a build gate (#268 amendment, 2026-08-03).",
+	"_note": "Every range below is TBD. Filling one in is a #248 pinning-session decision, not a drone's call (D-13) — an implementing agent must never invent balance ranges. Even once pinned, an OUT reading is a prompt to go look, never a gate: `mise run balance` always exits 0, and this checker never fails the GUT test.",
+	"invariants": [
+		{
+			"name": "melee_dpa_over_ranged_dpa",
+			"scenario": "mirror_L20",
+			"readout": "melee_dpa_over_ranged_dpa",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "channel parity"
+		},
+		{
+			"name": "hits_to_drop_node",
+			"scenario": "mirror_L20",
+			"readout": "hits_to_drop_node",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "baseline TTK"
+		},
+		{
+			"name": "sp_income_at_level",
+			"scenario": "mirror_L20",
+			"readout": "sp_income_at_level_marginal",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "progression tempo"
+		},
+		{
+			"name": "aura_coverage_fraction",
+			"scenario": "core_adjacent_aura_L50",
+			"readout": "aura_coverage_fraction",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking"
+		},
+		{
+			"name": "core_node_ttk_under_sustained_pressure",
+			"scenario": "core_adjacent_aura_L50",
+			"readout": "core_node_ttk_under_sustained_pressure",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-10 magnitude — the core-node heal is deliberately not a full reset, so sustained pressure must still grind it down; a reading of -1 (never depleted within the simulated cap) means the aura re-exempted the core from D-9 attrition"
+		},
+		{
+			"name": "baseline_raw_damage_vs_mitigation_at_matched_level",
+			"scenario": "matched_L100_zero_invest",
+			"readout": "baseline_raw_damage_vs_mitigation_at_matched_level",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-11/D-14 — confirms no dead zone re-forms via bulk alone: a leveled defender should be slower to kill but never effectively immune to an uninvested attacker"
+		}
+	]
+}
