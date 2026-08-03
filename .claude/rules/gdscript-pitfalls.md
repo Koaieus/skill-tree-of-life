@@ -28,6 +28,18 @@ Parse error, not a silent failure — but the design answer matters: a class-lev
 fact is a `const`. `@export` serializes *per instance*, so an exported
 "class constant" would put an editable copy on every node.
 
+## Interdependent `@export`s load in declaration order
+
+**Declare the bound ABOVE the value that clamps against it.** A setter that
+clamps one exported property against another (`fill_current` clamped to
+`fill_max`) reads that property's *default* if it is declared later — so every
+scene-authored value is clamped against the default at load, and nothing errors.
+
+**Why:** Godot serializes and restores exports in declaration order.
+**How to apply:** `fill_max` above `fill_current`. Two live cases sit in
+`skill_node/visuals/rim_ring.gd`; both were found by seeing wrong values in a
+scene, not by reading the code.
+
 ## Reading a freed Object
 
 - **A deferred call with a freed Object argument is silently dropped.** No error.

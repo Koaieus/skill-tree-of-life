@@ -76,6 +76,8 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 **Never pass `gh --body "..."` with backticks** — the shell runs command substitution and silently deletes the span, publishing mangled text with no error. Write a heredoc to the scratchpad and use `--body-file`.
 
+**`gh issue view <n>` prints nothing in this environment** — no error, just empty output, so an agent reads it as "the issue is blank". Always `gh issue view <n> --json body,comments -q '.body, (.comments[].body)'`, which also gets you the comments RTFC demands.
+
 **RTFC — read the fucking comments.** When working an issue, read its comments, not just the body: they often hold the actual decisions, pointers, new direction, or bug reports that outweigh the original body.
 
 ## Godot conventions

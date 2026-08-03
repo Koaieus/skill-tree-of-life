@@ -61,6 +61,21 @@ not after:
 
 > **units × 15% + (workers × 2% shutdown reserve) must fit in what's left.**
 
+**Second measurement, 2026-08-03 — a run that SUCCEEDED** (the numbers above came
+from one that didn't). 3 workers, 4 units, one of them a warm worktree resume, two
+escalations each resolved in a single message: **~48% of a fresh window** at the
+point 3 units were merged and the 4th implemented, with review/merge/teardown and
+the knowledge sweep pushing it somewhat past that. Call it **~12% per unit
+including all orchestration** — skill load, 4 issue reads with comments, pre-flight
+audits, 3 diff reviews, 3 rebase+merges, 4 full-suite runs and board upkeep.
+
+The formula predicted 66% for that shape, so it over-estimates by roughly 1.4×.
+**Keep the 15% anyway.** It is a deliberate ceiling covering the case a worker
+grinds instead of asking, and the cheap run only happened because every brief
+capped verification (§3b) and because the orchestrator ran the cross-file audits
+in its own context rather than paying a drone to search. Lower the constant and
+you lose the margin exactly when a run goes badly — which is when it matters.
+
 You cannot query your remaining budget, so **ask the user for the number** if you
 don't already have it — one question is cheaper than a forced break-off. Then:
 
