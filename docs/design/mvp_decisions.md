@@ -763,6 +763,44 @@ This is accepted for now, because the alternative on the table was frozen `curre
 
 ---
 
+## D-32 — A spell has exactly one absolute number; every propagation knob is a ratio
+
+**Question:** D-20 pinned "board stat × per-spell coefficient", but implementing it exposed six overlapping damage knobs — `SpellDef.base_damage`, a proposed `int_scaling`, a proposed `damage_formula`, `PropagationConfig.seed_damage_fraction`, and the per-hop ramp — with no rule for which layer owned what. The complaint that forced this: *"too many layers to pass through from definition to final effect."* (#274, round 8)
+
+**Resolution:** **`power` is the only absolute number in a spell. Everything downstream is a ratio of the seed.**
+
+```
+seed  = spell_damage(source_node) × spell.power
+hop n = f(hop n-1)          f = the spell's HopDamageProgression
+```
+
+Three layers, each answering exactly one question — *who casts* (`spell_damage`, INT-driven board stat), *which spell* (`power`), *how it travels* (the progression). The seam is testable, and that test is the design:
+
+> **Doubling `spell_damage` doubles every hit, and no propagation knob changes value.**
+
+**Why the propagation layer owns shape but never magnitude.** A hop **is a re-cast** — `PropagationStep._propagate_to` mints a fresh `CastSpell` from its predecessor, so "the hit node casts the spell again at its neighbour" is the implementation, not an analogy. Under that reading the geometric factor is *re-cast efficiency*, a property of the walk; `power` is a property of the spell. Different layers, different questions.
+
+**The dimensional bug this exposed.** `AddRamp(increment = 2.0)` put an **absolute** number in the ratio layer. At INT 1000 a Resonator seed is ~100 and the ramp still adds +2 per hop — the ramp decays to rounding error and the spell silently becomes flat at high level. Trailblazer had the same defect. The additive term is therefore a **fraction of seed** (`damage + seed × seed_fraction_per_hop`), which keeps growth **linear in hops** — preserving D-30/#352's "the convergence crit is the only multiplicative source" — while scaling 1:1 with INT. The ramps were authored before anything scaled with INT, so this was latent, not wrong at the time.
+
+**Knobs deleted outright** (each had zero users, verified across all seven spell `.tres`):
+
+| Deleted | Why |
+|---|---|
+| `PropagationConfig.seed_damage_fraction` | `1.0` in every spell. Its motivating case ("¼ power initially, then ramp") is a lower `power`. |
+| `SpellDef.int_scaling` (proposed) | Same number as `base_damage`, spelled twice. Collapsed into `power`. |
+| `SpellDef.damage_formula` (proposed) | A seventh path through one number. Exotic scaling belongs on a `spell_damage` modifier, where the stats system already handles it. |
+| `AffineRamp` | Zero users; its both-terms case is covered by the expression form, which now has `seed` in scope. |
+
+**`spell_damage` is absolute, not a percent.** `default_value = 1.0`, intrinsic linear INT formula, mirroring `blade_damage` (STR) and `ranged_damage` (DEX). Decided on the addon test: a node-local "mana font" must read `+2 spell damage` and behave exactly like a spike addon on `blade_damage`. **`spell_range` being a percent is not a counter-precedent** — it is a percent on a *hop count*, a dimension where no absolute is meaningful.
+
+**No spell opts out of INT.** There is no melee weapon that ignores STR. A low-scaling spell is `power = 0.3`; a fixed-damage utility effect is an `OnHitEffect`, not base damage.
+
+**Naming.** `HopDamage` → `HopDamageProgression` (the `…Damage`/`Propagation` collision was the live confusion), with `MultiplyProgression` / `AddProgression` / `ExpressionProgression` — literally the ratio and the difference of a geometric and an arithmetic progression.
+
+**Impl status:** **Specced, not built** — #274, sized L, `Ready`. Every fork above is closed in the issue body under `SETTLED`; the migration preserves all existing spell goldens by pinning test fixtures at `spell_damage = 1.0`. Numeric rates remain **#278's**, measured on **#268**.
+
+---
+
 ## Decisions log
 
 - 2026-06-25: All 8 D-decisions resolved in roadmap session. Issues to follow.
@@ -784,3 +822,4 @@ This is accepted for now, because the alternative on the table was frozen `curre
 - 2026-07-31: **D-12 marked built, and #299 closed on the design fork it was blocking.** #299 asked whether CON deserves a full archetype or whether `defensive.tres` expressed "defensive territory" better. Settled on design grounds — **`defensive.tres` was a smell that adding CON solved, so CON keeps its archetype** — without waiting on #268, since the question was about where defence *lives*, not how it is tuned. Consequence: `defensive.tres` is deleted and its `Role.DEFENSIVE` pools moved into `constitution.tres`, giving the defensive axis one authoring home. Provably inert (the flatten filters per-`TierPool`). `node_health` ADD_BASE dropped in the same pass — with base `node_health = 10 + CON`, a flat draw was numerically identical to the percent draw at L1 and decayed after; the percent channel survives, re-ranged to `+5–15%`. **New fork surfaced:** `Role` is a 3-valued enum encoding a 2-valued fact (`DEFENSIVE` and `RARE` are mechanically identical), and it is fully derivable from `archetype_stat` emptiness — filed as **#319** with two live proposals: rejecting off-archetype rolls outright (which would revise D-12 away) and replacing `RARE` with pre-authored keystones.
 - 2026-08-02: **D-31 resolved, and #298 settled without a new mechanism (lane A opening).** The node combat pool ratchets exactly like the entity pool (grant on rise, clamp on fall); #346's "~1/10 max HP" was a raw `base_value` write bypassing the ratchet, not the ratchet misbehaving, and the bypass itself is kept because `SkillPointStat.claim()` depends on it. **#298's fork is dissolved rather than answered:** the CON→`node_health` rate is neither a CoreClass genesis param (option 2 — a real cliff, since coreless entities exist) nor a split board-baseline-plus-class-delta (option 1), but `node_health_scaling`, an ordinary board scalar read as a formula input — the D-26 `core_health_scaling` precedent, which `.claude/rules/stats-system.md` already stated as *"no genesis/class-param mechanism is needed or wanted here"*. **Generalized while it was fresh:** a tunable rate is a board stat; the authoring procedure for that and for pool bins is now `docs/domain/stat-knobs-and-bins.md`. Per-class coefficient *values* remain #268's. Unblocks #274 / #278.
 - 2026-07-31: **D-12 revised away — procgen draw-model v4 lands via #321.** Both of #319's live proposals landed: off-archetype rolling is rejected entirely (this revises D-12 — the "starve survivability" rationale only held while defence had no home; CON + the universal `archetype_stat == &""` pool axis are now that home), and `RARE` is abolished. v4 replaces `TierPool`+`TierDef`+`Role` with one flat `StatPool`, a single `TierLadder` (`value = 2·cost − 1` → costs [1,2,4,8], V [1,3,7,15]), a spend-until-broke + per-`(stat,op)` aggregation draw (ADD*/INCREASE sum, MULTIPLY product, SET max), and an auto-stamped tier→rarity tag map (T1/T2 common, T3 rare, T4 mythic) so the radial band profile finally gates content that can actually be rolled. Rare content (`rare.tres`) becomes 4 pre-authored `Keystone` SkillNode scenes under `entity/keystone/instances/` (placement wiring is a separate open issue). `first_level.tres` budget envelope tuned (field outer 5→4, `rbp_main` outer.mythic 8→3) per the v4 simulation. Retuning from the seed table is #268's job. See `docs/domain/procgen-v4.md`.
+- 2026-08-03: **D-32 resolved — #274's knob stack collapsed (round 8).** Six overlapping spell-damage knobs became three layers and one rule: `power` is the only absolute, every propagation knob is a ratio of the seed. Three knobs deleted for having zero users (`seed_damage_fraction`, `AffineRamp`, and the never-built `int_scaling` / `damage_formula` pair). **The bug that forced it:** `AddRamp`'s absolute increment sat in the ratio layer, so Resonator and Trailblazer would have decayed into flat spells at high INT — latent because nothing scaled with INT yet when the ramps were written. Additive is now a fraction of seed, keeping the ramp linear (so #352's convergence crit stays the sole multiplicative) *and* INT-scaled. #274 promoted to `Ready` with every fork closed in-body; it had bounced back to `Needs design` five-plus times because "open questions" read to agents as an invitation.
