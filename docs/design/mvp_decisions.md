@@ -39,7 +39,7 @@ Each decision lists: the question, the resolution, the rationale, and the implem
 
 **Procgen tie-ins (post-MVP):**
 - Add `spell_range` to procgen modifier pool, weighted toward INT-archetype nodes.
-- Self-loop generation today is naive per-node RNG. Want a better draw mechanic that supports rare-but-possible *double* self-loops on a single node (an instant magic powerhouse). Carve as a procgen issue.
+- Self-loop generation: ✅ **Resolved by [#42](https://github.com/Koaieus/skill-tree-of-life/issues/42)** — the 4-tier floor-guaranteed staged self-loop draw (four `self_loop_tierN_rate` knobs) makes rare doubles/triples/quads real at every map scale, replacing the naive per-node RNG roll.
 
 **Impl status:** Cast range is flat per-spell today (`HopRangeFinder.max_hops`, `EuclideanRangeFinder.max_distance`). MVP issue: add `spell_range` stat + intrinsic INT contribution + RangeFinder consumption.
 

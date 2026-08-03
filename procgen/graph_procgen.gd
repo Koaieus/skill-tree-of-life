@@ -216,11 +216,42 @@ static func generate(
 	for pair in edge_pairs:
 		graph.add_edge(nodes[pair.x], nodes[pair.y])
 	
-	# Add self-loops
-	if config.self_loop_rate > 0.0:
-		for node in nodes:
-			if rng.randf() < config.self_loop_rate:
-				graph.add_edge(node, node)
+	# Self-loops — floor-guaranteed staged draw without replacement (#42).
+	# Tier 1 draws floor(N × p1) nodes uniformly from all generated nodes
+	# (partial Fisher-Yates, no replacement); tier k draws floor(K_{k-1} × p_k)
+	# from the previous tier's set. Each tier then does ONE Bernoulli on the
+	# fractional remainder to add +1 (floor + 0-or-1), and a node that hits
+	# tier k gets exactly k self-loops. The number of tier knobs IS the cap
+	# (4) — raising it later means adding a tier-5 knob. Cores are NOT
+	# excluded from the tier-1 pool — a self-loop on a core is a defining
+	# launch condition by design.
+	var tier_rates := [
+			config.self_loop_tier1_rate,
+			config.self_loop_tier2_rate,
+			config.self_loop_tier3_rate,
+			config.self_loop_tier4_rate,
+	]
+	var pool: Array = nodes.duplicate()
+	for tier in tier_rates.size():
+		var rate: float = tier_rates[tier]
+		var count := int(floor(pool.size() * rate))
+		if rng.randf() < pool.size() * rate - float(count):
+			count += 1
+		count = mini(count, pool.size())
+		# Partial Fisher-Yates: the first `count` of the shuffled pool.
+		for i in count:
+			var j := i + rng.randi() % (pool.size() - i)
+			var tmp: Variant = pool[i]
+			pool[i] = pool[j]
+			pool[j] = tmp
+		# Each tier UPGRADES its draw by one loop: a tier-1 node gets 1
+		# self-loop, a tier-2 node 2 (1 from tier 1 + this), ... tier-k nodes
+		# end with exactly k loops — add_edge is called k times total per
+		# tier-k node across the cascade. Cap = 4 follows from 4 knobs.
+		for i in count:
+			var node := pool[i] as SkillNode
+			graph.add_edge(node, node)
+		pool = pool.slice(0, count)
 
 	# Starting points were seeded first into Poisson; they occupy positions[0..n).
 	var starting_nodes: Array[SkillNode] = []

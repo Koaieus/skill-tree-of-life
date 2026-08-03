@@ -23,8 +23,20 @@ extends Resource
 ## (densest planar). Spans shortest-edges-first so the result stays organic.
 @export_range(0.0, 1.0) var connectivity: float = 0.55
 
-## Prevalence of self-loops (1.0 = each node would get one)
-@export_range(0.0, 1.0) var self_loop_rate: float = 0.03
+## 4-tier floor-guaranteed staged self-loop draw (#42). Tier 1 draws
+## `floor(N × p1)` nodes uniformly from all generated nodes (without
+## replacement); tier k draws `floor(K_{k-1} × p_k)` from the previous tier's
+## set. Each tier then does ONE Bernoulli on the fractional remainder to add
+## +1 (floor + 0-or-1), and a node that hits tier k gets exactly k self-loops.
+## Cores are NOT excluded from the tier-1 pool. The number of tier knobs IS
+## the cap (4) — raising it later means adding a tier-5 knob.
+@export_range(0.0, 1.0) var self_loop_tier1_rate: float = 0.10
+## Fraction of the tier-1 set upgraded to exactly 2 self-loops.
+@export_range(0.0, 1.0) var self_loop_tier2_rate: float = 0.17
+## Fraction of the tier-2 set upgraded to exactly 3 self-loops.
+@export_range(0.0, 1.0) var self_loop_tier3_rate: float = 0.30
+## Fraction of the tier-3 set upgraded to exactly 4 self-loops (the cap).
+@export_range(0.0, 1.0) var self_loop_tier4_rate: float = 0.30
 
 
 # ── Shape ─────────────────────────────────────────────────────────────────

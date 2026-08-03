@@ -87,6 +87,48 @@ The set of these is bundled into `specimen_pool_set.tres`.
 - **`off_phase_op_weights`** lives on the StatPack, not on individual TierPools. The same suppression applies to all of a pack's PRIMARY pools when they appear in another archetype's off-phase.
 - **Cross-stat pools in one pack:** wisdom.tres includes both `wisdom` and `xp_per_turn` pools, both with `archetype_stat = &"wisdom"`. The pack's archetype identity is what couples them.
 
+## Self-loop distribution (#42)
+
+Self-loops are placed by a **4-tier floor-guaranteed staged draw without
+replacement** — not per-node RNG (the old `randf() < self_loop_rate` roll).
+Tier 1 draws `floor(N × p1)` nodes uniformly from all generated nodes
+(partial Fisher-Yates); tier 2 draws `floor(K1 × p2)` from the tier-1 set;
+tier 3 `floor(K2 × p3)` from tier-2; tier 4 `floor(K3 × p4)` from tier-3.
+Each tier then does **one** Bernoulli on the fractional remainder to add +1,
+so each tier lands at `floor + 0-or-1` nodes. Each tier **upgrades** its draw
+by one loop, so a node that hits tier k ends with exactly k self-loops
+(`add_edge(node, node)` is called k times total for it across the cascade).
+
+**Knobs** (on `GraphProcgenConfig`, all `@export_range(0.0, 1.0)`):
+
+| Knob | Default | Meaning |
+|---|---|---|
+| `self_loop_tier1_rate` | 0.10 | fraction of all nodes upgraded to ≥1 self-loop |
+| `self_loop_tier2_rate` | 0.17 | fraction of the tier-1 set upgraded to =2 |
+| `self_loop_tier3_rate` | 0.30 | fraction of the tier-2 set upgraded to =3 |
+| `self_loop_tier4_rate` | 0.30 | fraction of the tier-3 set upgraded to =4 |
+
+The number of tier knobs **is** the cap (4). Raising it later = adding a
+tier-5 knob. Cores (`starting_points`) are **not** excluded from the tier-1
+pool — a self-loop on a core is a defining launch condition by design; no
+`allow_self_loop_on_core` knob.
+
+**Floor contract:** the floors are the guarantee — no bad-luck empty maps. At
+the defaults with N generated nodes: at least `floor(N×0.10)` nodes with ≥1
+self-loop, `floor(K1×0.17)` with exactly 2, `floor(K2×0.30)` with exactly 3,
+`floor(K3×0.30)` with exactly 4.
+
+**Map-size framing:** a 300-node map is *extra-extra-extra-small*, not
+"default". Late-game entities hold 100–150 nodes; a 300-node map is cozy for
+low-level entities (holding ~10 nodes), and a knife fight in a phone booth
+for mid/late-game entities wielding ~100+. The self-loop rarity ladder is
+visible at 300 by construction (floors: 30 / 5 / 1 / 0-or-1), and scales
+linearly to 3000 (floors: 300 / 51 / 15 / 4).
+
+Downstream notes: degree counts each self-loop as +2 (`graph/graph.gd`);
+`SelfLoopCritCondition` keys on `state.predecessor == target` (per-traversal),
+so 4 self-loops = 4 crit opportunities per visit, not bigger crits.
+
 ## Print-tool
 
 `@export_tool_button` on `ModifierPoolSet` ("Print pools as tables"). Open
