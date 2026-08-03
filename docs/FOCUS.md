@@ -33,7 +33,7 @@ Priority fields and column drags don't cause work to happen — sequence and WIP
 | # | What | Why it's takeable |
 |---|---|---|
 | **#268** | balance harness: scenario fixtures + ratio invariants | Fully specced, file-owned (`tools/balance/**`), invariants pre-named, thresholds ship as `TBD`. Drone-ready as written. |
-| **#274** | Spell damage: one `power` × a `spell_damage` stat, ratio-only hop progressions | **Forks settled with the user 2026-08-03 → D-32.** Six knobs collapsed to three layers; `SETTLED` in the body closes every one. Size L. |
+| **#274** | Spell damage: one `power` × a `spell_damage` stat, progressions that declare their own scaling | **Forks settled with the user 2026-08-03 → D-32 (+ same-day amendment).** Six knobs collapsed to three layers; `SETTLED` in the body closes every one. Size L. |
 | **#362** | `test_fan_scene` trace test is run-order dependent | S-sized, acceptance + file ownership pinned, and it poisons `test:one` for anyone touching fan geometry — i.e. all of lane E. |
 
 All three are in `Ready`. **`In progress` currently holds five other issues** — starting
