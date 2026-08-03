@@ -60,7 +60,7 @@ Domain notes — `.claude/rules/*.md` and `docs/domain/*.md` carry the gotchas. 
 
 - [`.claude/rules/stats-system.md`](.claude/rules/stats-system.md) — modifier pipeline, pool stats (`current` vs modifier-computed max), SP accounting (`current` / `wounded` / `staked` / derived `used`), intrinsic scaling table.
 - [`.claude/rules/turn-manager.md`](.claude/rules/turn-manager.md) — phase gates, initiative ticking, turn-start upkeep.
-- [`.claude/rules/godot-workflow.md`](.claude/rules/godot-workflow.md) — when to refresh the class cache and what scenes/`.tres` files the editor can silently mutate.
+- [`docs/domain/godot-workflow.md`](docs/domain/godot-workflow.md) — when to refresh the class cache and what scenes/`.tres` files the editor can silently mutate. (Crumbed from [`.claude/rules/godot-workflow.md`](.claude/rules/godot-workflow.md).)
 - [`docs/domain/allocation_system.md`](docs/domain/allocation_system.md), [`docs/domain/attack_plan_system.md`](docs/domain/attack_plan_system.md), [`docs/domain/vision-system.md`](docs/domain/vision-system.md), [`docs/domain/procgen.md`](docs/domain/procgen.md).
 
 ### Autoloads
