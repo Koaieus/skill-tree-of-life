@@ -205,11 +205,34 @@ func test_ninja_budget_pack_applies_both_stats_through_the_bundle() -> void:
 
 
 func test_ninja_budget_pack_is_a_single_lootable_unit() -> void:
-	# The class exposes the pair as ONE modifiers entry, so the pick-N-from-M
-	# loot draw counts it once (all-or-nothing), not two independent picks.
-	var composites := 0
+	# The class exposes the pair as ONE modifiers entry with loots_as_unit
+	# true, so the pick-N-from-M loot draw counts it once (all-or-nothing),
+	# not two independent picks. ninja_core also references the shared
+	# attribute_baseline.tres pack (D-27, #279), a SEPARATE composite entry
+	# with loots_as_unit false — this test is about the budget pack only.
+	var all_or_nothing := 0
 	var mods: Array = _NINJA.modifiers  # untyped: element `is` narrows cleanly
 	for m in mods:
+		if m is CompositeStatModifier and (m as CompositeStatModifier).loots_as_unit:
+			all_or_nothing += 1
+	assert_eq(all_or_nothing, 1, "the buff/debuff pair is authored as one all-or-nothing bundle")
+
+
+# --- loots_as_unit (D-27, #279) ---------------------------------------------
+
+func test_loots_as_unit_defaults_true_preserving_pre_d27_bundle_behaviour() -> void:
+	var pack := CompositeStatModifier.new()
+	assert_true(pack.loots_as_unit,
+			"the default must keep every pre-existing bundle all-or-nothing")
+
+
+func test_ninja_budget_pack_keeps_loots_as_unit_true() -> void:
+	# #183's motivating case — a buff yoked to a real tax, balanced only as a
+	# unit. Nothing about D-27 changes this one.
+	var pack: CompositeStatModifier = null
+	var mods: Array = _NINJA.modifiers
+	for m in mods:
 		if m is CompositeStatModifier:
-			composites += 1
-	assert_eq(composites, 1, "the buff/debuff pair is authored as one bundle")
+			pack = m
+	assert_not_null(pack, "ninja_core must still carry its budget pack")
+	assert_true(pack.loots_as_unit, "ninja's budget pack must stay all-or-nothing")

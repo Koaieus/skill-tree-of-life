@@ -2,16 +2,23 @@
 class_name CompositeStatModifier
 extends StatModifier
 
-## A container that bundles several [StatModifier]s into ONE atom for the
-## storage / authoring / loot layer, while transparently expanding into its
-## children wherever modifiers are actually APPLIED to a board or fully LISTED
-## in the UI (#183).
+## A modifier pack, optionally atomic for loot (D-27, #279): a container that
+## bundles several [StatModifier]s into ONE atom for the storage / authoring
+## layer, while transparently expanding into its children wherever modifiers
+## are actually APPLIED to a board or fully LISTED in the UI (#183).
 ##
-## The motivating case: a class-identity buff/debuff pair that is only balanced
-## as a unit — a strong buff yoked to a real tax. Authored as a single
-## [member CoreClass.modifiers] entry, it loots as a unit (the pick-N-from-M
-## draw counts it once, all-or-nothing) so a collector can't cherry-pick the
-## buff and shed the debuff. Generalises to arbitrary "stat modifier packs".
+## Two independent uses, both by reference — author once, drop the `.tres` into
+## any [member CoreClass.modifiers] array, edit the pack and every class
+## composing it changes:
+##
+## - [b]Plain authoring reuse[/b] ([member loots_as_unit] `false`) — a shared
+##   batch like `+10 STR/DEX/INT` with nothing all-or-nothing about it. The loot
+##   draw offers each child as its own candidate.
+## - [b]A loot bundle[/b] ([member loots_as_unit] `true`, the default) — a
+##   class-identity buff/debuff pair that is only balanced as a unit, a strong
+##   buff yoked to a real tax (`ninja_core`'s `mod_budget_pack`). The
+##   pick-N-from-M loot draw counts it once, all-or-nothing, so a collector
+##   can't cherry-pick the buff and shed the debuff.
 ##
 ## INERT BY DESIGN: it contributes no stat of its own. The inherited
 ## `stat_id` / `operation` / `value` / `formula` / `priority` fields are
@@ -31,6 +38,15 @@ extends StatModifier
 ## The real modifiers this bundle grants. Authored order is preserved through
 ## [method flatten], so a UI listing the leaves keeps that order.
 @export var children: Array[StatModifier] = []
+
+## Whether [LootSystem]'s core loot draw treats this pack as ONE all-or-nothing
+## candidate (`true`, the default — preserves the pre-D-27 behaviour) or
+## expands it into one candidate PER CHILD (`false`) before the draw's
+## lootability filter runs. Apply-time behaviour is unaffected either way —
+## [method StatBoard.add_modifier] always flattens, so this only decides what
+## the loot draw counts as its unit. See [member CoreClass.modifiers] /
+## `attribute_baseline.tres` for the `false` case.
+@export var loots_as_unit: bool = true
 
 
 ## Expand to the leaf modifiers, recursively (a nested composite flattens too).

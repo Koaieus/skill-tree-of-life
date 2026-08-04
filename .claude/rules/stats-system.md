@@ -250,15 +250,34 @@ modifiers off its own `allocation_level`) must add the cycle gate in the same
 change. Building the binding and leaving the gate off is the failure mode this
 whole section exists to prevent.
 
-## Composite (bundled) modifiers (#183)
+## Modifier packs (#183, D-27/#279)
 
-`CompositeStatModifier extends StatModifier` bundles several child modifiers
-into **one atom** for the storage / authoring / loot layer, while flattening
-into its children wherever a modifier is actually **applied** or fully
-**listed**. Motivating case: a class-identity buff/debuff pair balanced only as
-a unit — authored as one `CoreClass.modifiers` entry, it loots all-or-nothing so
-a collector can't cherry-pick the buff (see `ninja_core.tres`'s `mod_budget_pack`
-= +2 DP / −1 SP).
+`CompositeStatModifier extends StatModifier` is **a modifier pack, optionally
+atomic for loot** — not just a loot bundle. It bundles several child modifiers
+into **one atom** for the storage/authoring layer, while flattening into its
+children wherever a modifier is actually **applied** or fully **listed**. Two
+uses, both by reference (author one `.tres`, drop it into any `CoreClass.modifiers`
+array, edit it and every class composing it changes):
+
+- **Plain authoring reuse** (`loots_as_unit = false`) — a shared batch with
+  nothing all-or-nothing about it, e.g. `stats_system/packs/attribute_baseline.tres`
+  (+10 STR/DEX/INT), referenced from `balanced_core`, `basic_enemy_core`, and
+  `ninja_core`. `LootSystem._expand_for_loot` expands these into separate
+  candidates before the lootability filter runs, so a `false` pack with a mixed
+  static/level-scaling child set filters per-leaf instead of excluding the whole
+  pack.
+- **A loot bundle** (`loots_as_unit = true`, the default) — a class-identity
+  buff/debuff pair balanced only as a unit — authored as one `CoreClass.modifiers`
+  entry, it loots all-or-nothing so a collector can't cherry-pick the buff (see
+  `ninja_core.tres`'s `mod_budget_pack` = +2 DP / −1 SP).
+
+**A `CoreClass` `.tres` is a leaf (D-27).** It never references another
+`CoreClass` — shared batches live inside its typed arrays (`modifiers` via a
+pack, `effects` via a shared `Effect`/`CoreAura` `.tres`) instead. Packs live
+outside `entity/core/` (`stats_system/packs/`) so `CoreClass.load_all()` never
+picks one up as a phantom selectable class. Two class-level mechanisms
+(`inherits: CoreClass`, then `composes: Array[CoreClass]`) were built and
+reverted before this landed — see D-27 in `docs/design/mvp_decisions.md` for why.
 
 **The whole feature is one virtual: `StatModifier.flatten() -> Array[StatModifier]`.**
 A leaf returns `[self]`; the composite returns its children (recursively). Two

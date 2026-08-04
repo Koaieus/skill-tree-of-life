@@ -397,6 +397,54 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	Events.loot_pick_requested.disconnect(handler)
 
 
+# ── D-27/#279: loots_as_unit pack expansion ───────────────────────────────────
+
+func test_expand_for_loot_splits_a_false_pack_into_separate_candidates() -> void:
+	var pack := CompositeStatModifier.new()
+	pack.loots_as_unit = false
+	pack.children = [_mk_mod(&"strength", 10.0), _mk_mod(&"dexterity", 10.0)]
+
+	var expanded: Array[StatModifier] = [pack]
+	expanded = _loot._expand_for_loot(expanded)
+
+	assert_eq(expanded.size(), 2, "a false pack expands into one candidate per child")
+	assert_false(expanded[0] is CompositeStatModifier, "expanded entries are the leaves, not the pack")
+
+
+func test_expand_for_loot_keeps_a_true_pack_as_one_candidate() -> void:
+	var pack := CompositeStatModifier.new()
+	pack.loots_as_unit = true
+	pack.children = [_mk_mod(&"deallocation_points", 2.0), _mk_mod(&"skill_points", -1.0)]
+
+	var expanded: Array[StatModifier] = [pack]
+	expanded = _loot._expand_for_loot(expanded)
+
+	assert_eq(expanded.size(), 1, "a true pack stays a single all-or-nothing candidate")
+	assert_same(expanded[0], pack, "the whole pack is the candidate, unflattened")
+
+
+func test_false_pack_with_mixed_level_scaling_children_filters_per_leaf() -> void:
+	# Before D-27, a whole bundle was excluded if any leaf scaled with level
+	# (#194's filter ran on the un-expanded entry). Expanding BEFORE the filter
+	# fixes that: the static sibling stays lootable even though the level-scaled
+	# one is dropped.
+	var scaled := _mk_mod(&"strength", 1.0)
+	var f := LinearFormula.new()
+	f.source_stat_id = &"level"
+	scaled.formula = f
+	var static_mod := _mk_mod(&"dexterity", 10.0)
+
+	var pack := CompositeStatModifier.new()
+	pack.loots_as_unit = false
+	pack.children = [scaled, static_mod]
+
+	var expanded: Array[StatModifier] = [pack]
+	var filtered := _loot._expand_for_loot(expanded).filter(_loot._is_lootable)
+
+	assert_eq(filtered.size(), 1, "only the static child survives the per-leaf filter")
+	assert_eq(filtered[0].stat_id, &"dexterity")
+
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 func _attr_sum(e: Entity) -> float:

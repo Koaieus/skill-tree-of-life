@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="7_effect"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="8_mw6me"]
 [ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="9_comp"]
+[ext_resource type="Resource" path="res://stats_system/packs/attribute_baseline.tres" id="10_baseline"]
 
 [sub_resource type="Resource" id="scale_falling"]
 script = ExtResource("5_scale")
@@ -31,21 +32,6 @@ display_name = "Phantom Strike"
 description = "Nearby owned nodes hit harder — intense at the core, gone by 2 hops out."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_aura_strength")])
 
-[sub_resource type="Resource" id="mod_str"]
-script = ExtResource("2_mod")
-stat_id = &"strength"
-value = 10.0
-
-[sub_resource type="Resource" id="mod_dex"]
-script = ExtResource("2_mod")
-stat_id = &"dexterity"
-value = 10.0
-
-[sub_resource type="Resource" id="mod_int"]
-script = ExtResource("2_mod")
-stat_id = &"intelligence"
-value = 10.0
-
 [sub_resource type="Resource" id="mod_dealloc"]
 script = ExtResource("2_mod")
 stat_id = &"deallocation_points"
@@ -63,6 +49,6 @@ children = Array[ExtResource("2_mod")]([SubResource("mod_dealloc"), SubResource(
 [resource]
 script = ExtResource("8_mw6me")
 display_name = "Ninja"
-description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_budget_pack")])
+description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling. STR/DEX/INT's flat +10 comes from the shared attribute_baseline.tres pack (D-27, #279), not hand-declared here."
+modifiers = Array[ExtResource("2_mod")]([ExtResource("10_baseline"), SubResource("mod_budget_pack")])
 effects = Array[ExtResource("7_effect")]([SubResource("aura_strike")])

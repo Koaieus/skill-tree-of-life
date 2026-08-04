@@ -290,7 +290,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 ## is `duplicate(true)`d so the dust owns independent copies.
 ## Returns { "candidates": Array[StatModifier], "pick_count": int }.
 func _draw_payload(victim: Entity) -> Dictionary:
-	var core_mods := _core_modifiers(victim).filter(_is_lootable)
+	var core_mods := _expand_for_loot(_core_modifiers(victim)).filter(_is_lootable)
 	var supply := core_mods.size()
 	var keep := core_keep_base + core_keep_per_level * float(maxi(0, victim.level))
 	var pick_count := clampi(roundi(keep), 0, supply)
@@ -344,16 +344,34 @@ func _is_lootable(m: StatModifier) -> bool:
 ## #185) — they're not individually re-lootable; the loot chain starts fresh
 ## from each entity's core_class template.
 ##
-## Reads [method CoreClass.all_modifiers] — the FLATTENED [member
-## CoreClass.composes] set (D-27, #279) — not [member CoreClass.modifiers]
-## directly, so a class composing a shared base (e.g. balanced_core /
-## basic_enemy_core both composing attribute_baseline_core's +10 STR/DEX/INT)
-## still offers its full identity set as loot. A future change to the
-## composition contract must keep both ends (there and here) in sync.
+## Reads [member CoreClass.modifiers] directly — a `CoreClass` `.tres` is a
+## leaf (D-27, #279); shared batches like `attribute_baseline.tres` sit inside
+## this array as a [CompositeStatModifier] entry, not via a class-to-class
+## reference.
 func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	if victim.core_class != null:
-		out.append_array(victim.core_class.all_modifiers())
+		out.append_array(victim.core_class.modifiers)
+	return out
+
+
+## Expands each [CompositeStatModifier] whose [member
+## CompositeStatModifier.loots_as_unit] is `false` into its children — separate
+## loot candidates, filtered per-leaf by [method _is_lootable] afterwards — and
+## leaves every other entry (a plain modifier, or a `true` pack) whole as one
+## candidate. Runs BEFORE the lootability filter so a `false` pack whose
+## children mix level-scaling and static entries filters per-leaf instead of
+## excluding the whole pack over one scaling child (D-27, #279).
+func _expand_for_loot(mods: Array[StatModifier]) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	var untyped: Array = mods  # untyped: element `is` narrows cleanly (see stats-system.md)
+	for m in untyped:
+		if m == null:
+			continue
+		if m is CompositeStatModifier and not (m as CompositeStatModifier).loots_as_unit:
+			out.append_array(StatModifier.flatten_all([m]))
+		else:
+			out.append(m)
 	return out
 
 

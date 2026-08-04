@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="CompositeStatModifier" format=3]
+
+[ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="1_comp"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+
+[sub_resource type="Resource" id="mod_str"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_dex"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+value = 10.0
+
+[sub_resource type="Resource" id="mod_int"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 10.0
+
+[resource]
+script = ExtResource("1_comp")
+children = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
+loots_as_unit = false
