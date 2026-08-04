@@ -606,23 +606,65 @@ Same shape as `dealloc_damage` being a class lever (D-21): a class can trade poo
 
 ---
 
-## D-27 — CoreClass composes by reference, not by duplication
+## D-27 — A CoreClass is a leaf; reuse lives inside its typed arrays
 
 **Question:** every enemy needs a mostly-similar batch of offensive/defensive/attribute/WIS modifiers, and each `.tres` hand-declares them. What is the authoring architecture? (#279)
 
-**Resolution:** **`CoreClass` gains `@export var inherits: CoreClass`. `apply()` walks the base first, then its own. Pure append.**
+**Resolution:** **A `CoreClass` `.tres` is a flat leaf. It never references another `CoreClass`. Shared batches are file-backed resources dropped into its existing typed arrays — a `CompositeStatModifier` `.tres` in `modifiers`, an `Effect`/`CoreAura` `.tres` in `effects`. `CompositeStatModifier` gains `@export var loots_as_unit: bool = true` so a pack can declare whether it is one loot atom or several.**
 
-The requirement, in the user's words: *author stuff and plug it into any enemy, reuse it across multiple enemy **definitions**, and if it needs to change — change 1 `.tres` and every class composing it gets the change.* That is composition **by reference**, which rules out both factory helpers (moves duplication into code, loses inspector authorability) and any copy-on-author scheme.
+The requirement, in the user's words: *author stuff and plug it into any enemy, reuse it across multiple enemy **definitions**, and if it needs to change — change 1 `.tres` and every class composing it gets the change.* That is composition **by reference** — which rules out factory helpers (moves duplication into code, loses inspector authorability) and any copy-on-author scheme. It does **not** imply a composition mechanism on `CoreClass` itself.
 
-**Pure append, not override-by-`stat_id`.** The stat pipeline already stacks modifiers — multiple modifiers on one stat is the native semantic, not a conflict. So "make this enemy weaker than the base" is a **negative modifier**, not an override rule. Adding override semantics would fight the pipeline.
+### Revised twice; both earlier resolutions are wrong and are recorded as traps
 
-**Safe today:** `CoreClass.apply()` already duplicates each modifier before installing it on the entity board, so sharing one `.tres` across many classes and many runtime entities is already sound. Whatever lands must preserve that.
+- **First:** `@export var inherits: CoreClass`, base-first append. Shipped in `59d2444`.
+- **Second:** `@export var composes: Array[CoreClass]` with DFS, dedupe-by-identity, and a cycle guard. Shipped in `1ff127e`. Reverted.
+- **Third (this one):** no mechanism on `CoreClass` at all.
 
-**Needs a cycle guard** (A inherits B inherits A).
+The second revision was correct that *"composition, not inheritance"* — but it composed the wrong noun. The unit of reuse is **the modifier array**, not the class.
 
-**Evidence this is real, not speculative:** `balanced_core.tres` and `basic_enemy_core.tres` each hand-declare identical `+10 STR / +10 DEX / +10 INT` SubResource blocks. Five classes exist already; every one authored before this lands makes the migration bigger.
+### Why the arrays, not the class
 
-**Impl status:** Not built. `entity/core/core_class.gd` + the existing `.tres` files. #279.
+**`CompositeStatModifier` already is the container.** It is a `class_name` Resource extending `StatModifier`, so it can be a standalone `.tres` sitting directly in `CoreClass.modifiers`. `StatBoard.add_modifier` flattens before routing, `duplicate(true)` deep-copies `children`, and `scales_with` / `collect_formula_edges` / `format` all recurse. Its own docstring already named `CoreClass.modifiers` as the motivating case. Zero new API.
+
+**`effects: Array[Effect]` already composes by reference.** So half of batch-reuse worked before either revision landed; `modifiers` was simply the array missing the property.
+
+**Each field composes independently, in its own vocabulary.** A class-level mechanism is all-or-nothing per entry: you cannot take a base's modifiers without also taking its effects. Per-array file-backed entries give reuse to every array `CoreClass` ever grows, for free, and never force an authoring order.
+
+**A class-level mechanism pollutes the class registry.** `CoreClass.load_all()` returns every `.tres` in `entity/core/` that `is CoreClass` — so `attribute_baseline_core.tres` became a phantom sixth class visible to #322's board-vs-class DAG check and to any future class-select UI. Fixing that needs a `selectable: bool`. Mechanism begetting mechanism. Packs are not `CoreClass`es and never enter the registry.
+
+### `loots_as_unit`
+
+Composite atomicity is **not** intrinsic. Every consumer flattens — `StatBoard.add_modifier`, `SkillNode`, `AllocationVfx`, `scales_with`, `collect_formula_edges`, `format`, `contribution_text`. Exactly two places treat a composite as one thing: `LootSystem._core_modifiers` (does not flatten) and `loot_picker.gd` (one card per candidate).
+
+So one boolean on the resource settles the only question that differs by pack:
+
+| pack | `loots_as_unit` | why |
+|---|---|---|
+| `ninja_core`'s `+2 deallocation_points / −1 skill_points` | `true` | #183's motivating case — a buff yoked to a real tax, balanced only as a unit |
+| a shared `attribute_baseline` pack | `false` | plain authoring reuse; nothing about `+10 STR/DEX/INT` is all-or-nothing |
+
+The flag reframes `CompositeStatModifier` from *"loot bundle"* to *"modifier pack, optionally atomic for loot"*; its docstring and `.claude/rules/stats-system.md` must be updated to match.
+
+**It costs nothing at apply time**, because apply and the draw read different things. `CoreClass.apply()` expands a **duplicate** onto a board; the authored array is untouched, and the container is never bound to a `Stat` — the board holds leaves, always. `LootSystem._core_modifiers` reads the **source resource**, where the container is still intact. `loots_as_unit` is a flatten decision the draw makes; no apply-time behaviour can answer it.
+
+**Apply-time unwrapping is already unconditional and already reversible.** `add_modifier` flattens; `remove_modifier` flattens the *same stable child instances*, so `remove_modifier(the_composite)` revokes exactly the children it granted. The container is retained by the **granter** (`EffectContext` handle, the node's modifier list, the class `.tres`), never by the board. No `unwrap_on_apply` toggle is needed — that behaviour is the baseline.
+
+### The authoring convention
+
+- **A `CoreClass` `.tres` is a leaf.** It declares its own identity and references shared parts. No class ever references another class.
+- **Shared modifier batches** are file-backed `CompositeStatModifier` `.tres`, `loots_as_unit = false` for plain reuse, `true` when balanced only as a unit.
+- **Shared effects/auras** are file-backed `Effect` / `CoreAura` `.tres` in `effects`. The heal-somewhat-at-turn-start core aura is the first real case — wanted on effectively every core. Every effect in-tree today is an inline `SubResource`; convert on the second consumer, not before.
+- **Packs live outside `entity/core/`** so they never touch `CoreClass.load_all()`.
+
+**Pure append, not override-by-`stat_id`** (carried from the first resolution, still correct). The stat pipeline already stacks modifiers — multiple modifiers on one stat is the native semantic. "Weaker than the base" is a **negative modifier**, not an override rule.
+
+### What this does NOT solve
+
+**Behaviour reuse.** Neither `composes` nor a pack composes `on_turn_started` or an `apply()` override — two enemy families wanting the same turn hook still have no shared home. The likely answer is `Effect` (which already has lifecycle hooks and already composes by reference), which would keep *"a CoreClass is a leaf"* true all the way down. Filed separately; nothing here depends on it.
+
+**Seam, not a bug:** nothing retains a composite container after it is *won* as loot — the addon holds duplicated candidates. Irrelevant until something revokes looted modifiers, and #323's per-entity core-modifier register is where it would land.
+
+**Impl status:** Revert `1ff127e`; `59d2444` is in pushed history so both undos are forward commits. `entity/core/core_class.gd`, `stats_system/composite_stat_modifier.gd`, `systems/loot_system.gd`, the `.tres` set, `.claude/rules/stats-system.md`. #279.
 
 ---
 
@@ -924,3 +966,5 @@ D-34 answers it; **#278 is unblocked** once #268 lands the measurement invariant
 - 2026-08-03: **D-32 AMENDED same day, and D-33 resolved — the gating cluster.** The "AddRamp is a dimensional bug" reasoning in D-32's first draft is **wrong and is left standing as a trap marker**: an absolute additive ramp is a *compressive* curve (7x seed at INT 10, 1.12x at INT 1000), which is exactly the novice-spell / topology-specialist niche the design wants. What was actually too strong was the **invariant** — "doubling spell_damage doubles every hit" is a per-progression property, not a global law. Three progressions now declare their own answer (`Multiply` / `ScaledAdd` relative, `FlatAdd` deliberately absolute); what is forbidden is an *undeclared* absolute, not an absolute. Migration becomes zero-change. **D-33** then answers what actually stops a high-INT caster: four independent gates — knowing the spell, casting degree (the ladder: 1-2 low / 3 medium / 4 picky / 5+ endgame), mana, and range — with degree and range in deliberate tension, so a 6-degree hub in the middle of nowhere casts nothing. Damage tuning is explicitly NOT a gate; the archmage fantasy is the payoff D-18 promised. **Mana** was called out as unsettled here; **settled same day by D-34** (the premise that pool max and regen were "plucked from the air" was stale — they were already INT-derived on `master`; #278 unblocked).
 - 2026-08-03: **D-32 resolved — #274's knob stack collapsed (round 8).** Six overlapping spell-damage knobs became three layers and one rule: `power` is the only absolute, every propagation knob is a ratio of the seed. Three knobs deleted for having zero users (`seed_damage_fraction`, `AffineRamp`, and the never-built `int_scaling` / `damage_formula` pair). **The bug that forced it:** `AddRamp`'s absolute increment sat in the ratio layer, so Resonator and Trailblazer would have decayed into flat spells at high INT — latent because nothing scaled with INT yet when the ramps were written. Additive is now a fraction of seed, keeping the ramp linear (so #352's convergence crit stays the sole multiplicative) *and* INT-scaled. #274 promoted to `Ready` with every fork closed in-body; it had bounced back to `Needs design` five-plus times because "open questions" read to agents as an invitation.
 - 2026-08-03: **D-34 resolved — mana gate settled (D-33 gate 3), #365 closed.** swarmify pass on #365 against `master` found the body's "magic numbers plucked from the air" premise stale: pool max (`10 + INT/10` via `RatioFormula`) and regen (`floor(log10(INT))`) were already INT-derived board-stats-as-formula-inputs — the exact D-26 / `node_health_scaling` shape the body asked for. Decision: **mana kept, INT kept as owning attribute, current shape stands, no code change to land.** Purpose is *across-turn sustain tempo* — at INT 1000 the linear pool stops binding (costs are 1–5) and log-regen becomes the gate (archmage sustains Spark/turn forever, Reverberator only every ~1.7 turns), which is the whole reason the resource exists. The D-18 "quadruple-dip" concern (INT buys damage-linear + reach-capped×2 + pool-linear + regen-log) is **accepted** — compression of the utility terms is what keeps "buy INT" from being "win", damage unbounded per the archmage fantasy. Two invariants registered on #268: `casts_before_dry` (highest-cost spell count from a full pool) and `sustain_rate = regen / cheapest_cost`, per L5/L20/L50/L100 fixture. **#365 → Done, #278 unblocked** (its hops-vs-euclidean premise also stale — all 7 spells wire `HopRangeFinder`, euclidean ladder never wired; re-verified when #278's session runs). #278 stays a user pinning session per its body — not drone work.
+- 2026-08-04: **D-27 revised a third time — the mechanism is deleted, not reshaped.** `inherits: CoreClass` (`59d2444`) then `composes: Array[CoreClass]` (`1ff127e`) both composed the wrong noun: the unit of reuse is the **modifier array**, not the class. Resolution is now *a `CoreClass` `.tres` is a leaf; shared batches are file-backed resources dropped into its existing typed arrays* — a `CompositeStatModifier` `.tres` in `modifiers`, an `Effect`/`CoreAura` `.tres` in `effects` (which already composed by reference all along). Zero new API; `composes` reverted. The one thing the class-level mechanism bought — per-attribute loot granularity — turned out to be a single boolean, `CompositeStatModifier.loots_as_unit`, because composite atomicity is not intrinsic: every consumer flattens except `LootSystem._core_modifiers` and `loot_picker`. Two arguments killed the mechanism outright: it is all-or-nothing per entry (you cannot take a base's modifiers without its effects), and `CoreClass.load_all()` turned every shared base into a phantom class in the registry. **Surfaced and left open:** behaviour reuse (`on_turn_started`, `apply()` overrides) is composed by nothing, and the likely home is `Effect`, not `CoreClass`. Spun out of the same session: #323's re-cut (see below).
+- 2026-08-04: **#323 re-scoped — lootability is which source arrays the draw reads, not a filter over a pool.** There is no `StatBoard.modifiers[]`; modifiers live in a private per-`Stat` `_modifiers`, so "draw from everything unfiltered" is not an available position, and harvesting the board would make an atomic `CompositeStatModifier` **structurally unlootable as a unit** (the board only ever holds flattened leaves). Instead the pool is a union of weighted **provenance buckets**, each one a source array: node grants (`node.modifiers`), class grants, board innates (`StatBoard.intrinsic_modifiers`), looted. This resolves #323's internal contradiction — its section 1 ("innate rules are not trinkets") loses to its section 2 ("stealing a growth curve is the loop"): the provenance *axis* survives, the *exclusion* dies, and **rarity does the work exclusion was doing** (a low-weight innate bucket makes looting `+1 blade_size per 20 STR` funny rather than routine). `_is_lootable`'s `scales_with(&"level")` filter is deleted. Requires a new per-entity **core-modifier register** (`Entity.core_modifiers`, granted-atoms, unflattened) with `grant_core_modifier()` as the *only* grant path so it cannot drift from the board — which is also the only place `loots_as_unit` can survive a loot round-trip, and which fixes a latent bug where the draw read a shared `.tres` template rather than what the entity actually has.
