@@ -1,37 +1,28 @@
 [gd_scene format=3 uid="uid://do0ss4uen1860"]
 
 [ext_resource type="Script" uid="uid://dr8klp6tnwxx8" path="res://ui/tooltip_fan/panels/core_panel.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_gkgmg"]
 [ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
-[ext_resource type="PackedScene" uid="uid://cepou0jp2dr5y" path="res://ui/theme/holo_panel.tscn" id="3_unol0"]
-[ext_resource type="Shader" uid="uid://cxvn17hc7s0ax" path="res://ui/theme/holo_panel.gdshader" id="4_sjex5"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="5_fused"]
+[ext_resource type="Shader" path="res://ui/theme/fused_panel.gdshader" id="6_fused_shader"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_4jmio"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fused"]
 resource_local_to_scene = true
-shader = ExtResource("4_sjex5")
+shader = ExtResource("6_fused_shader")
 shader_parameter/size = Vector2(190, 260)
-shader_parameter/tint_color = Color(0.35, 0.85, 0.95, 0.12)
-shader_parameter/corner_radius = 13.0
+shader_parameter/fill_color = Color(0.086, 0.098, 0.149, 0.9)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/gradient_mix = 0.0
 shader_parameter/scanline_count = 60.0
 shader_parameter/scanline_speed = 0.35
 shader_parameter/scanline_intensity = 0.18
 shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
 shader_parameter/glow = 0.0
 shader_parameter/glow_edges = 15
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_gkgmg"]
-resource_local_to_scene = true
-shader = ExtResource("3_gkgmg")
-shader_parameter/size = Vector2(190, 260)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/glow_width = 2.0
 shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
 shader_parameter/border_width = 1.0
 shader_parameter/corner_radius = 13.0
-shader_parameter/glow_color = Color(0.55, 0.85, 1, 0)
-shader_parameter/glow_strength = 0.0
 
 [node name="CorePanel" type="Node2D" unique_id=928234078]
 script = ExtResource("1_script")
@@ -55,9 +46,9 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 1
 
-[node name="HoloPanel" parent="." unique_id=769655380 instance=ExtResource("3_unol0")]
+[node name="FusedPanel" parent="." instance=ExtResource("5_fused")]
 z_index = -1
-material = SubResource("ShaderMaterial_4jmio")
+material = SubResource("ShaderMaterial_fused")
 anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = -95.0
@@ -65,12 +56,3 @@ offset_top = -130.0
 offset_right = 95.0
 offset_bottom = 130.0
 grow_vertical = 2
-
-[node name="GlassPanel" parent="." unique_id=55829167 instance=ExtResource("2_glass")]
-z_index = -1
-material = SubResource("ShaderMaterial_gkgmg")
-offset_left = -95.0
-offset_top = -130.0
-offset_right = 95.0
-offset_bottom = 130.0
-glow_color = Color(0.55, 0.85, 1, 0)

@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/theme/fused_panel.gd" id="1_script"]
+[ext_resource type="Shader" path="res://ui/theme/fused_panel.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fused"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(300, 120)
+shader_parameter/fill_color = Color(0.086, 0.098, 0.149, 0.9)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/gradient_mix = 0.0
+shader_parameter/scanline_count = 60.0
+shader_parameter/scanline_speed = 0.35
+shader_parameter/scanline_intensity = 0.18
+shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
+shader_parameter/glow = 0.0
+shader_parameter/glow_edges = 15
+shader_parameter/glow_width = 2.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+
+[node name="FusedPanel" type="ColorRect"]
+material = SubResource("ShaderMaterial_fused")
+offset_right = 300.0
+offset_bottom = 120.0
+mouse_filter = 2
+script = ExtResource("1_script")

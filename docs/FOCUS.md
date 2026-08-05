@@ -53,11 +53,11 @@ drone takes one and ships it.
 | **#362** | `test_fan_scene` trace test is run-order dependent | S. Poisons `test:one` for anyone touching fan geometry — i.e. the whole legibility lane. Cheap slot-clearer; do it first. |
 | **#286** | AI allocation v1: spend all SP + shallow scoring | The AI banks unspent SP whenever `L < W/5` (every level below 16 at enemy WIS 80). It structurally under-plays. Biggest "game plays itself" gap on the board. |
 | **#174** | AI: evaluate melee/magic/ranged every turn, not ranged-only | `AIController._try_attack()` hardcodes `RANGED`. The NPC never considers melee or magic. The stepping stone before #47's strategy controller. |
-| **#279** | Enemy CoreClass composability: batch stat/modifier authoring | D-19 puts enemy identity on CoreClass but authoring one `.tres` per enemy duplicates the shared 80%. Blocks content depth. |
+| ~~**#279**~~ | ~~Enemy CoreClass composability: batch stat/modifier authoring~~ | **CLOSED.** |
 | **#337** | Staking mechanics: raise cap with SP+AP, fill, reclaim with extract | The missing combat verb. `SkillPointStat.stake()/extract()` are implemented, the HUD renders the `staked` bucket, the M-of-N dial exists — **nothing in `ui/`, `systems/`, or `entity/` ever calls `stake()`**. Pure wiring. |
 | **#340** | Node-local modifiers: bind() + cycle gate at the node seam | A formula-driven node-local modifier silently drops its formula today (`_board == null`). Gates the whole aura lane (D). No design forks left. |
 
-Six units, all drone-ready as written, all gameplay. Take them in lane order below.
+Five units, all drone-ready as written, all gameplay. Take them in lane order below.
 
 ## Lanes, in order — ship the playable loop
 
@@ -71,7 +71,7 @@ economy and evaluates its options.
 
 1. **#286** AI spends all SP + shallow scoring — drone-ready.
 2. **#174** AI evaluates all three attack modes — drone-ready.
-3. **#279** Enemy CoreClass authoring architecture — drone-ready.
+3. ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
 4. #47 strategy-pattern NPC controller — `Needs design`, lane A's v2. Not this lane's exit.
 
 ### B — The missing combat verb
@@ -89,7 +89,7 @@ economy and evaluates its options.
 
 ### D — Content comes from the map
 
-1. **#324–#329** procgen v4 draw model (TierLadder + StatPool, spend-until-broke draw, migrate content, debuff pools, consumer sweep) — **six sub-issues, all drone-ready, self-contained.** The single biggest content-shaping block on the board.
+1. **#326–#329** procgen v4 draw model (content migration, keystone placement, debuff pools, consumer sweep) — **four sub-issues, all drone-ready, self-contained.** The single biggest content-shaping block on the board. (#324 StatPool and #325 draw loop already closed.)
 2. #330 wire 4 landmark keystone scenes into procgen — `Needs design`.
 3. #336 keystone-as-`.tscn` hub — `Needs design`.
 4. #206 spell grants in procgen pools — `Needs design`. Lane C in the old file.
@@ -100,8 +100,8 @@ economy and evaluates its options.
 Legibility ships, fidelity defers (rule 4). All tooltip-V2 work below is the "show
 everything, no gating" phase — flat placeholders, not carved art.
 
-1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass contrast + corner AA, **#234** idle-loop animations, **#236** trace glow, **#281** addon icon placeholder.
-2. **#341** RimRing: allocation dial into the shader + archetype legibility — drone-ready.
+1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass contrast + corner AA, ~~**#234** idle-loop animations~~ **CLOSED**, **#236** trace glow, **#281** addon icon placeholder.
+2. ~~**#341** RimRing: allocation dial into the shader + archetype legibility — drone-ready.~~ **CLOSED.**
 3. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.
 4. #361 `core_panel.tscn` carries two skins — `Needs design`, blocks nothing but re-bites fan geometry. A *decision*, not a drone unit.
 
@@ -159,8 +159,7 @@ isn't playing these features, so building them now is stalling dressed as progre
 Named, not silently fixed — clearing these is a scheduling decision:
 
 - **Four hubs have been `In progress` for weeks** (#159, #198, #238, #249). #159 is
-  19/20 closed — only #234 remains. #238 is 0/1 — only #341 remains. Both close by
-  shipping one child each; that is the 2026-08-03 evening swarm's first target.
+  20/20 closed. #238 is 1/1 — #341 closed. Both hubs fully shipped.
 - **#176 is OPEN but the board says `Done`.** Hygiene flagged it. Close it or move it back.
 - **Lane A's `In progress` count was wrong in the prior FOCUS** — it listed 5 incl. #248,
   but #248 sits in `Needs design`, not `In progress`. Corrected here.
