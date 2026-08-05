@@ -226,7 +226,7 @@ Verified in `systems/battle_system.gd` — the cascade set is seeded with the **
 
 **Impl status: REMOVED by #321 (v4).** `Procgen v4` deletes `StatPack.off_phase_op_weights`, the off-attribute cost cap, and the `&"off"` phase entirely. All budget now goes to the node's primary archetype; **universal** pools (`archetype_stat == &""` — armor, node_health, movement_points, deallocation_points, the intelligence debuff) are the shared defensive/mobility content, drawn by every node regardless of primary. `Role.DEFENSIVE` / `Role.RARE` and `flatten_for_phase` are gone; `test_constitution.gd`'s cross-rollable sections (the old D-12 acceptance) were removed with the phase. The forward-pointer proposal below landed.
 
-**Forward-pointer — D-12 revised away (was a proposal, now done).** #321 rejected off-archetype rolling entirely, on the grounds that D-12's whole rationale ("a hard migration would starve every other archetype of survivability") only held while defensive modifiers had no natural home — and CON + the universal pool axis are now that home. `off_phase_op_weights`, the off-attribute cost cap and the `&"off"` phase are all deleted; this decision is superseded. See `docs/domain/procgen-v4.md`.
+**Forward-pointer — D-12 revised away (was a proposal, now done).** #321 D7 (no off-archetype phase) rejected off-archetype rolling entirely, on the grounds that D-12's whole rationale ("a hard migration would starve every other archetype of survivability") only held while defensive modifiers had no natural home — and CON + the universal pool axis are now that home. `off_phase_op_weights`, the off-attribute cost cap and the `&"off"` phase are all deleted; this decision is superseded. See `docs/domain/procgen-v4.md`.
 
 ---
 

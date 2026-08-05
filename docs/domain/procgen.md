@@ -13,7 +13,7 @@ Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` 
 5. **Budget + modifier roll** — `config.budget_policy.compute_budget(archetype, position, role_tags, rng)` rolls each node's modifier budget (base range × archetype × positional `budget_field` × role bonuses). `_roll_modifiers_v4()` then spends that budget until broke across the node's archetype + universal pools, aggregating per `(stat_id, operation)` (ADD*/INCREASE sum, MULTIPLY product, SET max). See [procgen-v4.md](procgen-v4.md) for the draw model.
 6. **Instantiate** — instances `skill_node/skill_node.tscn` for each position, applies position/radius/modifiers/base_type_color, stamps keystones + rolls addons, and adds it (plus edges) to the `Graph` via the structural-signal API.
 
-> **One content pipeline.** The older v1 (`node_types` + per-`NodeTypeDef` pools), v2 (config-level universal `modifier_pool`), and v3 (phased `TierPool` draw) generations were retired — `graph_procgen.gd` now runs a single v4 path (`archetypes` + `budget_policy` + `modifier_pool_set` of flat `StatPool`s, spend-until-broke + per-(stat,op) aggregation). `docs/domain/procgen-v2.md` and `procgen-v3.md` are kept only for design history.
+> **One content pipeline.** The older v1 (`node_types` + per-`NodeTypeDef` pools), v2 (config-level universal `modifier_pool`), and v3 (phased pool draw) generations were retired — `graph_procgen.gd` now runs a single v4 path (`archetypes` + `budget_policy` + `modifier_pool_set` of flat `StatPool`s, spend-until-broke + per-(stat,op) aggregation). `docs/domain/procgen-v2.md` is kept only for design history (the v3 doc was deleted along with the v3 files, #329).
 
 ## Return value
 

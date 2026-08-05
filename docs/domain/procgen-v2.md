@@ -4,10 +4,11 @@
 > (which covers the existing geometry/topology pipeline — Poisson, Delaunay,
 > clustering). v2 is about **what fills the nodes**, not where they sit.
 >
-> Status: superseded by **[procgen-v3.md](procgen-v3.md)** — the universal
+> Status: superseded by **[procgen-v4.md](procgen-v4.md)** — the universal
 > `ModifierPool` and weight-profile pipeline from this doc still exist, but
-> v3 layered per-archetype `StatPack` content + a phased draw on top.
-> Kept for design context; the live content authoring surface is in v3.
+> v3 layered per-archetype content + a phased draw on top, and v4 replaced
+> that with flat `StatPool`s and a spend-until-broke draw.
+> Kept for design context; the live content authoring surface is v4.
 
 ## Goal in one paragraph
 

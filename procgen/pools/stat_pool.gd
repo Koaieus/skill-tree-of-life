@@ -2,11 +2,12 @@
 class_name StatPool
 extends Resource
 
-## Authoring unit for procgen modifier content (v4, #321). Replaces the old
-## [TierPool] + [TierDef] pair with one flat resource: ~8 fields per pool, no
-## per-tier sub-resources. The cost/value ladder lives once in [TierLadder] —
-## a pool carries only `unit_value` (the T1 magnitude) and an optional sparse
-## `value_overrides` escape hatch (#321 D11).
+## Authoring unit for procgen modifier content (v4, #321). Replaces the v3
+## two-resource pool shape (a pool plus one sub-resource per tier) with a
+## single flat resource: ~8 fields per pool, no per-tier sub-resources. The
+## cost/value ladder lives once in [TierLadder] — a pool carries only
+## `unit_value` (the T1 magnitude) and an optional sparse `value_overrides`
+## escape hatch (#321 D11).
 ##
 ## Mapping to runtime: [method to_entries] expands this pool into one
 ## [ModifierPoolEntry] per tier in `min_tier..max_tier`, computing each entry's
