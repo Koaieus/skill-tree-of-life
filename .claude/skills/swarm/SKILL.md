@@ -58,7 +58,7 @@ harness today is **opencode**; the Claude Code column is kept for portability.
 | Worker model | `drone` (this repo: `opencode-go/deepseek-v4-flash` @ `reasoningEffort: max`, full tool set incl. `task` for grandchildren) | `sonnet` for code, `haiku` for ultra-mechanical |
 | Read-only leaf | `explore` subagent — verified tool set: `bash, glob, grep, read, webfetch` (NO `task`, so it's a true leaf) | `Explore(model=haiku)` — same shape, capped |
 | Resume a blocked worker | pass the prior `task_id` to the `task` tool — same session, hot context | `SendMessage` to the live `name` — same session, hot context |
-| Worker isolation | worker runs `mise run worktree:new -- <slug>` as its first action, uses absolute paths | same mise worktree convention; or Claude Code harness `isolation: "worktree"` (auto-creation + reclaim semantics, see Gotchas) |
+| Worker isolation | worker runs `mise run worktree:new -- <slug>` as its first action, uses absolute paths | **same mise convention** — swarm spawns teammates without `isolation`, so they start in the shared checkout too. Harness `isolation: "worktree"` exists but is not used here (auto-created, auto-reclaimed when the agent exits unchanged — see Gotchas). |
 | Inter-worker comms | none — workers can't see each other; orchestrator is the relay | shared task board via `TaskCreate`/`List`/`Update` (teammates only) + `SendMessage` mailbox |
 | In-session task board | none — track units in your own session todo list | `TaskCreate` serialized (not parallel — last-write-wins bug verified 2026-07-30) |
 
@@ -350,21 +350,27 @@ the only way back to a worker's commits.
 
 **Dispatch is two steps, and skipping the second stalls the whole swarm.**
 A named teammate does *not* run the `Agent` call's `prompt` — it returns
-"will receive instructions via mailbox" and sits idle (verified
-2026-07-30). So:
+"will receive instructions via mailbox" and sits idle. This is a **field
+observation (2026-07-30), not documented behaviour** — the tool description
+still presents `prompt` as the task — so if a spawn *does* start working off
+its prompt, believe the spawn and skip step 2. So:
 
 **Step 1 — spawn every worker in a single message** (that is what makes them
 run in parallel). Per `Agent` call:
 
 - **`name`, and NO `isolation` parameter.** Workers are teammates; each
   makes its own worktree via `mise run worktree:new`. Harness isolation
-  takes the shared task board away.
+  takes the shared task board away — and a teammate therefore starts in the
+  **shared main checkout**, which is why the worktree-first line leads the
+  brief.
+- `subagent_type: "general-purpose"` (the default if omitted) or `"claude"` —
+  both carry the full tool set. Never `Explore`/`Plan`: they have no
+  `Edit`/`Write`.
 - `model: "sonnet"`, or `"haiku"` for ultra-mechanical work (rename, mass
   string-replace, boilerplate).
-- `run_in_background: true` (ignored for named teammates — they're always
-  async).
 - A **minimal** prompt. The real brief comes in step 2; anything here is
-  not read.
+  not read. (Backgrounding is the default now; don't pass
+  `run_in_background` — named teammates are always async regardless.)
 
 **Step 2 — `SendMessage` each worker its brief.** The first line must be the
 same worktree-first line as above. Then `Invoke the drone skill, then do the
@@ -401,17 +407,22 @@ worker needs to know which one it's in:
 - **opencode**: "Stopping with a question in `NOTES:` *is* asking the
   orchestrator. There is no mid-flight backchannel — your `task` call returns
   one report; I resume you via `task_id` with the answer if recoverable."
-- **Claude Code**: "`SendMessage` me with the specific question and stop.
-  Your context stays warm; I reply and you continue."
+- **Claude Code**: "`SendMessage` `main` with the specific question and stop.
+  Your context stays warm; I reply and you continue." (The tool doc scopes
+  `to: "main"` to *background subagents* — teammates qualify, since spawns
+  background by default. Verified working both ways, worker → `main` and
+  `main` → worker by name.)
 
 That distinction is not in `drone` (it picks the right channel from its
 harness table) — but naming it here costs one line and prevents the worker
 from inventing a channel that does not exist in its harness.
 
-`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (Claude Code only) is already set in
-this user's `~/.claude/settings.json`. Do not spend a turn echoing it. It is
-read at launch and cannot be enabled mid-session, so the only case worth
-handling is the one where a spawn *actually* comes back without teammate
+**`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is on.** It is set in this user's
+`~/.claude/settings.json` (confirmed 2026-08-05) — treat that as given and
+**never spend a turn checking it**: no `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`,
+no `grep` of settings. It is read at launch and cannot be enabled
+mid-session, so a check can only tell you something you can't act on. The one
+case worth handling is a spawn that *actually* comes back without teammate
 behaviour — deal with it then, reactively.
 
 ### 3b. Token economy — the binding constraint, and how to actually respect it
@@ -559,7 +570,7 @@ A green suite proves the worker's *mechanism*, not the *outcome*. That gap is
 widest on visual work: a z-index assertion fully determines draw order, but
 no assertion tells you a semitransparent band is legible on screen, and a
 shader that compiles can still render nothing. When a unit changes what the
-game looks like, either drive it (`mise run play`, `/verify`) or say plainly
+game looks like, either drive it (`mise run play`) or say plainly
 to the user that you confirmed the plumbing and not the pixels. Don't let
 "tests pass, shader compiles" quietly stand in for "it looks right".
 

@@ -18,8 +18,8 @@ report back tersely.
 
 | | opencode (this repo's primary) | Claude Code |
 |---|---|---|
-| Start of run | `mise run worktree:new -- <slug>` — you start in the shared main checkout, nothing enforces isolation until this runs | spawn already puts you in `.claude/worktrees/agent-<id>/` (harness isolation); make a `mise` worktree anyway if the brief tells you to |
-| Mid-flight question to orchestrator | **not possible** — your `task` call returns one final report. Stopping with a question in `NOTES:` *is* the question; the orchestrator resumes you (via `task_id`) with the answer if recoverable. | `SendMessage` to `main` — bidirectional mid-flight, your context stays warm |
+| Start of run | `mise run worktree:new -- <slug>` — you start in the shared main checkout, nothing enforces isolation until this runs | **same** — swarm dispatches you as a named teammate with no `isolation`, so you also start in the shared main checkout and must run `worktree:new`. Only skip it if your brief explicitly says you were spawned harness-isolated into `.claude/worktrees/agent-<id>/`. |
+| Mid-flight question to orchestrator | **not possible** — your `task` call returns one final report. Stopping with a question in `NOTES:` *is* the question; the orchestrator resumes you (via `task_id`) with the answer if recoverable. | `SendMessage` to `main` — bidirectional mid-flight, your context stays warm. (`main` is valid for you: subagents background by default, and the `to: "main"` route is for background subagents.) |
 | Subagent for read-only search | `task` with `subagent_type: "explore"` (you have `task`; `explore` is a leaf, no further nesting) | `Explore(model=haiku)` via the `Agent` tool |
 
 **Your first action is `mise run worktree:new -- <your-unit>`.** You start in the
@@ -28,10 +28,11 @@ so until that worktree exists, edit nothing. After it exists you have your own
 branch at `.worktrees/<slug>/`; use absolute paths into it for the rest of your
 run and nothing you do touches the main checkout or the other workers.
 
-(opencode workers always go through this step — there is no harness isolation
-to skip it. Claude Code harness-isolated workers may already be in a
-`.claude/worktrees/agent-<id>/` checkout; the brief will say so, and in that
-case the `mise` worktree is optional.)
+(**Both harnesses normally go through this step.** opencode has no harness
+isolation at all; Claude Code workers are dispatched as teammates *without*
+`isolation`, which also leaves them in the shared checkout. The only exception
+is a Claude Code worker whose brief says it was spawned harness-isolated into
+`.claude/worktrees/agent-<id>/` — then the `mise` worktree is optional.)
 
 ## Your unit is bounded by files
 
