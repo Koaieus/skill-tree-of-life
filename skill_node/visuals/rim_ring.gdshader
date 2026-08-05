@@ -225,7 +225,14 @@ void fragment() {
 	// #341 — lifted ambient floor (was 0.35 + 0.65 * diffuse): the archetype
 	// hue needs to survive even at low diffuse (unallocated, poorly lit
 	// facets) to stay identifiable from the rim alone.
-	vec3 shaded = ring_tint.rgb * (0.45 + 0.65 * diffuse);
+	// HDR-2D retune (2026-08-05): heavily lowered floor so the unallocated
+	// neutral rim reads as a quiet muted-silver outline against the (now-HDR)
+	// viewport — the inner disk is intentionally much darker than the rim,
+	// so the silhouette still reads. Factor peaks at 0.16 (diffuse=1);
+	// ring_tint is source_color-linearized (~0.48 for neutral silver) so
+	// peak linear ≈0.077 → sRGB display ≈0.30. Allocated-arc additive
+	// (`lit > 0.0` block below) is untouched.
+	vec3 shaded = ring_tint.rgb * (0.08 + 0.08 * diffuse);
 
 	// Allocation dial (#341): additive across the WHOLE band (inner_r ..
 	// outer_r), strongest at the crest — not confined to the flat floor or
@@ -238,6 +245,18 @@ void fragment() {
 		float dist_max = max(max(tc, 1.0 - tc), 0.0001);
 		float radial_w = pow(clamp(1.0 - dist_from_crest / dist_max, 0.0, 1.0), max(fill_crest_bias, 0.001));
 		shaded += ring_tint.rgb * (fill_glow_strength * lit * radial_w);
+		// HDR/bloom TODO (#371, see docs/domain/hdr-color.md): once a glow
+		// Environment is wired into the game viewport, this additive should
+		// author the lit arcs at the +2-stop / "alert" tier (encoded
+		// Color(1.825, 1.825, 1.825), linear 4.0) so they actually bloom —
+		// driven by fill_glow_strength (0..2 → 0..+2 stops), tinted by
+		// ring_tint so each archetype's arc inherits its hue. Currently SDR
+		// (a brighter band, not a flare) because no WorldEnvironment carries
+		// glow_enabled in the playable scenes yet — only the 3D gimbal
+		// showcase has one. Retune this block as the LAST step of #371's
+		// bloom landing. NOTE: canvas_item shader COLOR output is linear
+		// under hdr_2d=true; authored values must be sRGB_decode(target) to
+		// match a desired display brightness.
 	}
 
 	float inside = step(inner_r, r) * step(r, outer_r);

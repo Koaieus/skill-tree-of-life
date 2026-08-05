@@ -23,8 +23,14 @@
 // parameterized and collision-proof against any consumer's uniform names.
 
 const float SN_LIGHT_Z = 0.65;
-const vec3 SN_NEUTRAL_DARK = vec3(0.16, 0.17, 0.20);
-const vec3 SN_NEUTRAL_LIGHT = vec3(0.38, 0.40, 0.45);
+// HDR-2D retune (#371 era, 2026-08-05): darkened the unallocated neutral dome
+// so an unowned node reads as a turned-OFF hemisphere over the (now-HDR) viewport.
+// Values author sRGB-display targets via sRGB_decode(): display 0.04 → linear
+// 0.003, display 0.12 → linear 0.013. The specular highlight (pow(diffuse,24)*0.85)
+// still lands near 1.0 linear at the hot spot, giving a crisp pinprick shine
+// against the dark dome. Allocated base_tint path is untouched.
+const vec3 SN_NEUTRAL_DARK = vec3(0.003, 0.003, 0.004);
+const vec3 SN_NEUTRAL_LIGHT = vec3(0.013, 0.014, 0.018);
 
 // The faked main-light direction from its xy component (z fixed above plane).
 vec3 sn_light_dir(vec2 p_dir_xy) {
