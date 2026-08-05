@@ -10,6 +10,11 @@ Rewritten 2026-08-03 (second time — see "When this file is wrong"). The 2026-0
 morning version listed #268 and #274 as "takeable"; both closed that same afternoon.
 That kind of drift is exactly what this file exists to stop.
 
+Patched 2026-08-05: lane A's drone-ready entries #286 + #174 superseded by the
+design-pass hub #378 (fog-aware tactical loop, MCMC melee, tiered scoring). The two
+units closed as folded-in; their scope is a strict subset of #378's spec. Net Ready
+count: -1 (#286, #174 closed; #378 filed).
+
 ## Why this file exists
 
 The board sprawls. 28 issues in `Ready`, 36 in `Needs design`, 178 open total —
@@ -51,8 +56,9 @@ drone takes one and ships it.
 | # | What | Why it's the next thing to ship |
 |---|---|---|
 | **#362** | `test_fan_scene` trace test is run-order dependent | S. Poisons `test:one` for anyone touching fan geometry — i.e. the whole legibility lane. Cheap slot-clearer; do it first. |
-| **#286** | AI allocation v1: spend all SP + shallow scoring | The AI banks unspent SP whenever `L < W/5` (every level below 16 at enemy WIS 80). It structurally under-plays. Biggest "game plays itself" gap on the board. |
-| **#174** | AI: evaluate melee/magic/ranged every turn, not ranged-only | `AIController._try_attack()` hardcodes `RANGED`. The NPC never considers melee or magic. The stepping stone before #47's strategy controller. |
+| **#378** | AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring | Lane A's v1, design-pass settled 2026-08-05. Supersedes #286 + #174 (both closed as folded-in). Recon (fog short-circuit) → tactical SP-growth (recon-pulled near-miss-enable) → AP×2 attacks with per-candidate EV across all three modes (ranged/magic enumerable, melee = MCMC blade rollouts on WorkerThreadPool — the multicore crunch) → end turn. Tier-gated scorer (`ai_tier: int`). `Events.ai_decision` signal always-emitted + `debug_trace` print toggle. Shape-locked v1 (DP=0, movement=0). Single biggest "game plays itself" gap on the board. |
+| ~~**#286**~~ | ~~AI allocation v1: spend all SP + shallow scoring~~ | **CLOSED.** Superseded by #378 — scope absorbed into tactical SP-growth steps. |
+| ~~**#174**~~ | ~~AI: evaluate melee/magic/ranged every turn~~ | **CLOSED.** Superseded by #378 — scope absorbed into AP×2 attack enumeration with per-candidate EV. |
 | ~~**#279**~~ | ~~Enemy CoreClass composability: batch stat/modifier authoring~~ | **CLOSED.** |
 | **#337** | Staking mechanics: raise cap with SP+AP, fill, reclaim with extract | The missing combat verb. `SkillPointStat.stake()/extract()` are implemented, the HUD renders the `staked` bucket, the M-of-N dial exists — **nothing in `ui/`, `systems/`, or `entity/` ever calls `stake()`**. Pure wiring. |
 | ~~**#340**~~ | ~~Node-local modifiers: bind() + cycle gate at the node seam~~ | **CLOSED.** Lane D's aura work unblocked. |
@@ -60,7 +66,7 @@ drone takes one and ships it.
 | **#375** | `addon_slots = base(0) + allocation_level` as a node-local Stat | First consumer of the node-local scaling plumbing. Reads `allocation_level` through the `stake_level__current` accessor (#333). Depends on #374. |
 | **#376** | Magnitude curve: linear-ladder mutator on SkillNode | The design heart of #332. SkillNode owns its modifiers, entity board holds references, a mutator runs once per al-change writing `value` in place. Linear ladder (`return float(al)`), plug-and-play body. MULTIPLY scales "add the growth part" (`1 + (X−1)×ladder`); SET opts out by default. Composition mutation covered (the "1→2 effects" case). Single-owner-SkillNode precondition asserted; **#377** is the long-term escape. |
 
-Seven units, all drone-ready as written, all gameplay. Take them in lane order below.
+Six units, all drone-ready as written, all gameplay. Take them in lane order below.
 
 ## Lanes, in order — ship the playable loop
 
@@ -72,10 +78,9 @@ lane is done when its scheduled work ships, not when its topic is exhausted.
 The biggest needle. The sandbox is a dollhouse until the AI actually spends its
 economy and evaluates its options.
 
-1. **#286** AI spends all SP + shallow scoring — drone-ready.
-2. **#174** AI evaluates all three attack modes — drone-ready.
-3. ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
-4. #47 strategy-pattern NPC controller — `Needs design`, lane A's v2. Not this lane's exit.
+1. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV).
+2. ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
+3. #47 strategy-pattern NPC controller — `Needs design`, lane A's v2. Not this lane's exit.
 
 ### B — The missing combat verb
 
