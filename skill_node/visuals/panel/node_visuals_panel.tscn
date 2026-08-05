@@ -8,6 +8,9 @@
 [ext_resource type="PackedScene" uid="uid://ex5cfonh5qyp" path="res://skill_node/visuals/core_halos.tscn" id="7_halos"]
 [ext_resource type="PackedScene" uid="uid://8p2jfvxkgscr" path="res://skill_node/visuals/rune_ring.tscn" id="8_rune"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/panel/skill_node_lab.tscn" id="9_lab"]
+[ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/triangle.tres" id="10_tri"]
+[ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/hexagon.tres" id="11_hex"]
+[ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/gem.tres" id="12_gem"]
 
 [node name="NodeVisualsPanel" type="Control" unique_id=435717486]
 custom_minimum_size = Vector2(0, 420)
@@ -62,36 +65,14 @@ horizontal_alignment = 1
 position = Vector2(430, 90)
 
 [node name="InnerDisk" parent="ViewportContainer/World/InnerDiskSlot" unique_id=1635794154 instance=ExtResource("3_disk")]
-instance_shader_parameters/allocated = true
-instance_shader_parameters/carve_kind = 1
-instance_shader_parameters/carve_radius = 0.8400000000000001
-instance_shader_parameters/carve_sides = 3.0
-instance_shader_parameters/carve_slice = -1
-instance_shader_parameters/carve_squish = 1.0
-instance_shader_parameters/highlight_intensity = 0.85
-instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
-instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
-instance_shader_parameters/tint_mix = 0.6
-instance_shader_parameters/well_depth = 0.35
-carve_radius = 0.8400000000000001
+carve_shape = ExtResource("10_tri")
 allocated = true
 
 [node name="PolygonDiskSlot" type="Node2D" parent="ViewportContainer/World" unique_id=442887499]
 position = Vector2(600, 90)
 
 [node name="PolygonDisk" parent="ViewportContainer/World/PolygonDiskSlot" unique_id=899407512 instance=ExtResource("3_disk")]
-instance_shader_parameters/allocated = true
-instance_shader_parameters/carve_kind = 1
-instance_shader_parameters/carve_radius = 0.8200000000000001
-instance_shader_parameters/carve_sides = 6.0
-instance_shader_parameters/carve_slice = -1
-instance_shader_parameters/carve_squish = 1.0
-instance_shader_parameters/highlight_intensity = 0.85
-instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
-instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
-instance_shader_parameters/tint_mix = 0.6
-instance_shader_parameters/well_depth = 0.5
-carve_sides = 6
+carve_shape = ExtResource("11_hex")
 well_depth = 0.5
 allocated = true
 
@@ -99,18 +80,7 @@ allocated = true
 position = Vector2(770, 90)
 
 [node name="GemDisk" parent="ViewportContainer/World/GemDiskSlot" unique_id=1924193309 instance=ExtResource("3_disk")]
-instance_shader_parameters/allocated = true
-instance_shader_parameters/carve_kind = 2
-instance_shader_parameters/carve_radius = 0.8200000000000001
-instance_shader_parameters/carve_sides = 3.0
-instance_shader_parameters/carve_slice = -1
-instance_shader_parameters/carve_squish = 1.0
-instance_shader_parameters/highlight_intensity = 0.85
-instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
-instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
-instance_shader_parameters/tint_mix = 0.6
-instance_shader_parameters/well_depth = 0.35
-carve_kind = 2
+carve_shape = ExtResource("12_gem")
 allocated = true
 
 [node name="RimRingSlot" type="Node2D" parent="ViewportContainer/World" unique_id=272790891]

@@ -35,8 +35,6 @@ extends SkillNodeVisual
 ## shelf for the OTHER encoders (rim gems, the rune band) that never got a
 ## reclaim.
 
-const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
-
 const MAX_STAKE_CAP := 4
 
 ## The disk is sized this many px LARGER than geom_inner_r so its faded outer
@@ -95,11 +93,14 @@ const UNFILLED_TINT_MIX := 0.3
 
 ## The central-emblem shape this composite carves — the ONE knob for previewing
 ## a shape, on the node you'd expect to find it on. Authoring this in
-## skill_node.tscn or the node-visuals panel gives live in-editor feedback;
-## before it existed the only shape controls were [InnerDisk]'s
-## `carve_kind`/`carve_sides`/`carve_squish`, which are documented as
-## standalone-preview fallbacks that [method set_carve] overwrites — so a
-## designer's inspector edit silently reverted the moment anything resynced.
+## skill_node.tscn or the node-visuals panel gives live in-editor feedback.
+## The composite composes and ROUTES it down to the leaf [InnerDisk]'s own
+## authored [member InnerDisk.carve_shape] — it doesn't interpret it, same as it
+## doesn't interpret entity_tint for its children. Before this export existed
+## the only shape control was [InnerDisk]'s scalar carve knobs, which are
+## documented as standalone-preview fallbacks that [method set_carve]
+## overwrites — so a designer's inspector edit silently reverted the moment
+## anything resynced.
 ##
 ## RUNTIME PRECEDENCE: [SkillNode] pushes a fully RESOLVED carve through
 ## [method set_carve] on every `_sync_visuals()`, and that resolution (archetype
@@ -113,9 +114,10 @@ const UNFILLED_TINT_MIX := 0.3
 		carve_shape = value
 		_apply_carve_shape()
 
-## Whether [method _apply_carve_shape] has pushed a carve down to InnerDisk.
-## Distinguishes "never authored a shape" (leave the disk's own preview knobs
-## alone) from "authored one, then cleared it" (actually clear the carve).
+## Whether [method _apply_carve_shape] has pushed a shape down to InnerDisk.
+## Distinguishes "never authored a shape" (leave the disk's own authored
+## [member InnerDisk.carve_shape] alone) from "authored one, then cleared it"
+## (actually clear the carve).
 var _applied_a_shape: bool = false
 
 # Cached child refs — `%Name` compiles to a scene-tree lookup, and the _sync_*
@@ -212,26 +214,28 @@ func set_carve(carve: Variant) -> void:
 	_inner_disk.set_carve(carve)
 
 
-## Renders [member carve_shape] as the authored-default carve. Kept separate
-## from [method set_carve] so the resolved-runtime path and the authored-default
-## path stay distinguishable — this one asks the shape to build its own
-## [EmblemSpec] at ARCHETYPE priority, exactly as SkillNode's fallback does.
+## Routes [member carve_shape] down to the leaf [InnerDisk]'s own authored
+## [member InnerDisk.carve_shape] — the composite composes and routes, it
+## doesn't interpret (see the export's doc). Kept separate from
+## [method set_carve] so the resolved-runtime path and the authored-default
+## path stay distinguishable; the disk's own [member InnerDisk._has_carve] is
+## what lets a runtime resolution outrank this authored value.
 func _apply_carve_shape() -> void:
 	if not is_node_ready():
 		return
 	if carve_shape == null:
-		# Null means "nothing authored here", NOT "carve nothing" — leave
-		# InnerDisk's own carve_kind/carve_* standalone-preview knobs alone.
-		# Pushing set_carve(null) unconditionally would flatten the dome on
-		# every composite at _ready and silently override the panel's authored
-		# preview shape. But once we HAVE applied a shape, clearing the export
-		# back to null must actually clear it, or the stale carve sticks.
+		# Null means "nothing authored HERE", NOT "carve nothing" — leave the
+		# disk's own authored carve_shape alone. Pushing null unconditionally
+		# would flatten the dome on every composite at _ready and silently
+		# override the panel's authored preview shape. But once we HAVE applied
+		# a shape, clearing the export back to null must actually clear it, or
+		# the stale carve sticks.
 		if _applied_a_shape:
 			_applied_a_shape = false
-			set_carve(null)
+			_inner_disk.carve_shape = null
 		return
 	_applied_a_shape = true
-	set_carve(carve_shape.carve(EmblemSpec.Priority.ARCHETYPE, &"authored"))
+	_inner_disk.carve_shape = carve_shape
 
 
 ## The core-class [Sigil] to BLOOM on [CoreSigilBloom] (Register 3, #128) —

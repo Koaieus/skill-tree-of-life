@@ -438,7 +438,7 @@ replacing) the existing `tint_mix` archetype swing — see `rim_ring.gd` and
 
 ### The carve glyph is folded straight into InnerDisk's own shader — not a composite sibling, not even a sibling node
 
-There is no `WeldSymbol` node anymore. The glyph is
+There is no `WeldSymbol` node anymore. The glyph is the
 `carve_kind`/`carve_sides`/`carve_squish`/`carve_radius`/`well_depth`
 `instance uniform`s on `inner_disk.gdshader` itself, pushed in the same
 `_sync_material()` pass as the dome's own tint/highlight uniforms. The
@@ -446,14 +446,23 @@ composite only ever talks to `%InnerDisk`; there's nothing else to keep in
 sync. See "The polygon carve: a regular-polygon bowl dent in the dome's own
 height field" below for the geometry.
 
-**Authored vs. effective (#285).** The five knobs above are `@export`s ONLY as
-standalone-preview defaults. `set_carve()` stores the resolved [CarveShape]
-itself and writes NOTHING exported; `_sync_material()` pushes the getter-only
-`effective_carve_*` / `effective_well_depth` derivations, which read off the
-shape when one has resolved and off the authored exports otherwise. That split
-is the `@tool`-script rule in `godot-workflow.md` ("never write a DERIVED value
-back into an `@export`") — `inner_disk.tscn`'s stray `carve_kind = 1` is a
-fossil of the version that did. The geometry itself lives on
+**Authored vs. effective (#285).** InnerDisk carries NO scalar carve knobs.
+The only authored carve state is `carve_shape: CarveShape` (a shared
+`emblem/shapes/*.tres` or any authored shape; `null` = the empty dome) plus
+the `well_depth` style dial, and the only other entry point is `set_carve()`,
+which stores the RESOLVED [CarveShape] itself and writes nothing exported.
+`_sync_material()` pushes the getter-only `effective_carve_*` /
+`effective_well_depth` derivations, which read off the resolved shape when one
+has arrived and off the authored `carve_shape` otherwise. That split is the
+`@tool`-script rule in `godot-workflow.md` ("never write a DERIVED value back
+into an `@export`") — `inner_disk.tscn`'s old stray `carve_kind = 1` was a
+fossil of the version that did, and the editor-baked
+`instance_shader_parameters/*` mirrors on `node_visuals_composite.tscn` /
+`node_visuals_panel.tscn` are the same class (drop them, don't re-save).
+`NodeVisualsComposite.carve_shape` is the designer-facing knob and ROUTES down
+into the disk's authored slot; the emblem resolver's `set_carve` outranks it
+via `InnerDisk._has_carve` ("resolved to nothing" is an honest empty dome, not
+a fallback to the authored shape). The geometry itself lives on
 `PolygonCarveShape` (`sides` / `squish_x` / `radius` / `well_depth`), not on
 the `CarveShape` base: only the polygon path reads it, so a base-class field
 would be one `GemCarveShape`/`TextureCarveShape` have to document as ignored.
@@ -613,14 +622,14 @@ single shader-drawn ring with a real height-function bumpmap is both cheaper
 
 ### The gem crown (loot relic, #168): a precomputed LUT, not per-pixel facet math — because every instance is IDENTICAL
 
-`InnerDisk`'s `carve_kind == CarveKind.GEM` (the `SkillDustAddon` relic's
-gem-cut glyph) is a second height-field glyph alongside the polygon carve, but
-built differently on purpose. The polygon's shape varies per node (different
-archetype → different `sides`/`radius`), so it has to stay an analytic
-per-pixel formula (`sn_polygon_facet`/`sn_bowl_drop`). The gem crown is the
-SAME shape on every relic — no per-instance parameter varies it — so
-recomputing its `atan2`/`mod`/facet math per pixel, per instance, every
-frame, buys nothing. Instead `InnerDisk._build_gem_lut()` (lazy
+`InnerDisk`'s gem-cut glyph (the `SkillDustAddon` relic's, carried as
+`carve_shape = GemCarveShape.SHARED`) is a second height-field glyph alongside
+the polygon carve, but built differently on purpose. The polygon's shape
+varies per node (different archetype → different `sides`/`radius`), so it has
+to stay an analytic per-pixel formula (`sn_polygon_facet`/`sn_bowl_drop`). The
+gem crown is the SAME shape on every relic — no per-instance parameter varies
+it — so recomputing its `atan2`/`mod`/facet math per pixel, per instance,
+every frame, buys nothing. Instead `InnerDisk._build_gem_lut()` (lazy
 `static var _gem_lut`, same caching shape as `_shared_material`) bakes a
 small texture (table flat-depth region + tapering shoulders down to the
 girdle then a pavilion to the culet, computed with a GDScript twin of the

@@ -84,10 +84,10 @@ func test_inner_disk_set_carve_shapeless_spec_is_none() -> void:
 	autofree(disk)
 	add_child(disk)
 	await get_tree().process_frame
-	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
+	disk.carve_shape = PolygonCarveShape.new()
 	disk.set_carve(EmblemSpec.carve(null, EmblemSpec.Priority.KEYSTONE, &"keystone"))
 	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE,
-		"a spec with no shape claims its rung and reads as an empty dome — it does NOT fall back to the preview export")
+		"a spec with no shape claims its rung and reads as an empty dome — it does NOT fall back to the authored carve_shape")
 
 
 func test_inner_disk_set_carve_null_is_none() -> void:
@@ -95,9 +95,10 @@ func test_inner_disk_set_carve_null_is_none() -> void:
 	autofree(disk)
 	add_child(disk)
 	await get_tree().process_frame
-	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
+	disk.carve_shape = PolygonCarveShape.new()
 	disk.set_carve(null)
-	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE,
+		"set_carve(null) resolves to an honest empty dome, not the authored carve_shape")
 
 
 # ── Gem LUT bake geometry sanity (side-view kite, not the old top-view crown) ──
@@ -203,13 +204,14 @@ func test_composite_carve_shape_export_reaches_the_disk() -> void:
 
 
 ## Null must mean "nothing authored", NOT "carve nothing" — clearing it to
-## null on _ready would flatten InnerDisk's own authored preview knobs.
-func test_composite_null_carve_shape_leaves_the_disks_own_knobs_alone() -> void:
+## null on _ready would flatten InnerDisk's own authored carve_shape.
+func test_composite_null_carve_shape_leaves_the_disks_own_authored_shape_alone() -> void:
 	var composite = _COMPOSITE_SCENE.instantiate()
 	autofree(composite)
 	var disk = composite.get_node("ShaderStack/InnerDisk")
-	disk.carve_kind = InnerDiskScript.CarveKind.POLYGON
-	disk.carve_sides = 6
+	var authored := PolygonCarveShape.new()
+	authored.sides = 6
+	disk.carve_shape = authored
 	add_child(composite)
 	await get_tree().process_frame
 	assert_eq(composite.carve_shape, null, "default is null")
@@ -299,10 +301,9 @@ func test_the_inherit_sentinel_never_reaches_the_shader() -> void:
 func test_set_carve_writes_no_exported_property() -> void:
 	var disk := _disk_in_tree()
 	await get_tree().process_frame
-	disk.carve_kind = InnerDiskScript.CarveKind.NONE
-	disk.carve_sides = 3
-	disk.carve_squish = 1.0
-	disk.carve_radius = 0.75
+	var authored := PolygonCarveShape.new()
+	authored.sides = 4
+	disk.carve_shape = authored
 	disk.well_depth = 0.35
 
 	var shape := PolygonCarveShape.new()
@@ -312,12 +313,73 @@ func test_set_carve_writes_no_exported_property() -> void:
 	shape.well_depth = 0.8
 	disk.set_carve(shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
 
-	assert_eq(disk.carve_kind, InnerDiskScript.CarveKind.NONE, "authored carve_kind untouched")
-	assert_eq(disk.carve_sides, 3, "authored carve_sides untouched")
-	assert_almost_eq(disk.carve_squish, 1.0, 0.001, "authored carve_squish untouched")
-	assert_almost_eq(disk.carve_radius, 0.75, 0.001, "authored carve_radius untouched")
+	assert_same(disk.carve_shape, authored, "authored carve_shape untouched")
 	assert_almost_eq(disk.well_depth, 0.35, 0.001, "authored well_depth untouched")
 	assert_eq(disk.effective_carve_sides, 9, "...while the resolved shape is what renders")
+
+
+## The authored carve_shape is what renders until a carve RESOLVES — the
+## reopen of #285 replaced the four scalar preview knobs with one shape.
+func test_authored_carve_shape_drives_the_effective_carve() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	var shape := PolygonCarveShape.new()
+	shape.sides = 5
+	shape.squish_x = 0.7
+	shape.radius = 0.9
+	disk.carve_shape = shape
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.POLYGON)
+	assert_eq(disk.effective_carve_sides, 5)
+	assert_almost_eq(disk.effective_carve_squish, 0.7, 0.001)
+	assert_almost_eq(disk.effective_carve_radius, 0.9, 0.001)
+
+
+func test_null_authored_carve_shape_is_the_empty_dome() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE)
+	assert_eq(disk.effective_carve_sides, 3, "fallback defaults render, not a phantom shape")
+	assert_almost_eq(disk.effective_carve_squish, 1.0, 0.001)
+	assert_almost_eq(disk.effective_carve_radius, 0.75, 0.001)
+
+
+## A RESOLVED carve outranks the authored shape; resolving to nothing reads as
+## an honest empty dome, not a fallback to the authored carve.
+func test_resolved_carve_outranks_the_authored_shape() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	disk.carve_shape = PolygonCarveShape.new()
+	disk.set_carve(null)
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE,
+		"a resolved empty carve does NOT fall back to the authored carve_shape")
+
+
+## The same inherit/override well_depth dial the resolved path honors, on the
+## authored channel (#285 reopen: a preview shape may bring its own depth).
+func test_authored_shape_may_override_well_depth() -> void:
+	var disk := _disk_in_tree()
+	await get_tree().process_frame
+	disk.well_depth = 0.42
+	var shape := PolygonCarveShape.new()
+	shape.well_depth = 0.5
+	disk.carve_shape = shape
+	assert_almost_eq(disk.effective_well_depth, 0.5, 0.001)
+
+
+## The composite routes its authored shape into the disk's OWN authored slot —
+## it composes and routes, it doesn't interpret, and it doesn't consume the
+## runtime resolution channel.
+func test_composite_carve_shape_routes_into_the_disks_authored_slot() -> void:
+	var composite = _COMPOSITE_SCENE.instantiate()
+	autofree(composite)
+	add_child(composite)
+	await get_tree().process_frame
+	var shape := PolygonCarveShape.new()
+	shape.sides = 5
+	composite.carve_shape = shape
+	var disk = composite.get_node("ShaderStack/InnerDisk")
+	assert_same(disk.carve_shape, shape, "the disk's authored slot holds the composite's shape")
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.POLYGON)
 
 
 ## Lints the silent-.tres-strip / UID-mismatch failure mode: a broken

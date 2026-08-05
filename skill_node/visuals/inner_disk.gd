@@ -134,46 +134,22 @@ static var _gem_lut: ImageTexture
 		highlight_intensity = value
 		_sync_material()
 
-## Which shape family the dome carves — NONE by default per the locked design
-## ("showWeld — off is the new default; empty center. on restores the
-## archetype shape" — Rim Forge Lab): the disk's own semi-sphere shading +
-## specular highlight is the baseline read, a carve is an opt-in accent. This
-## replaces the retired pair of mutually-exclusive "show this glyph" bools with
-## one selector — see .claude/rules/skill-node-visuals.md and [method set_carve].
+## The carve this disk renders when nothing has RESOLVED one yet — the
+## authored default / standalone preview, expressed as the shape itself
+## (a shared `emblem/shapes/*.tres` or any authored [CarveShape]). Null =
+## the empty dome, per the locked design ("showWeld — off is the new default;
+## empty center. on restores the archetype shape" — Rim Forge Lab): the disk's
+## own semi-sphere shading + specular highlight is the baseline read, a carve
+## is an opt-in accent. See .claude/rules/skill-node-visuals.md and
+## [method set_carve].
 ##
-## STANDALONE PREVIEW ONLY, like the four knobs below: once [method set_carve]
-## has run, [member effective_carve_kind] reads off the resolved shape instead
-## and this authored value is left untouched.
-@export var carve_kind: CarveKind = CarveKind.NONE:
+## Once [method set_carve] has run, the resolved shape wins and this authored
+## value is left untouched (see [member _carved_shape]).
+@export var carve_shape: CarveShape = null:
 	set(value):
-		carve_kind = value
-		_sync_material()
-
-## Regular-polygon side count for the POLYGON carve. STANDALONE PREVIEW ONLY —
-## superseded by [member PolygonCarveShape.sides] once a carve is pushed. Exists
-## so the disk still previews a shape in the sandbox / node_visuals_panel.tscn
-## before a carve has been injected — same "local export as offline fallback"
-## precedent as [member lighting] below.
-@export_range(3, 16, 1) var carve_sides: int = 3:
-	set(value):
-		carve_sides = value
-		_sync_material()
-
-## Anisotropic X-squish for the POLYGON carve (see [PolygonCarveShape]) — 1.0
-## is regular, < 1.0 narrows the shape (DEX's "diamond squished from the
-## sides"). STANDALONE PREVIEW default; superseded by
-## [member PolygonCarveShape.squish_x].
-@export_range(0.3, 1.0, 0.01) var carve_squish: float = 1.0:
-	set(value):
-		carve_squish = value
-		_sync_material()
-
-## Glyph circumradius relative to the disk radius. At 1.0 the glyph's
-## vertices sit exactly on the disk's circle. STANDALONE PREVIEW default;
-## superseded by [member PolygonCarveShape.radius].
-@export_range(0.4, 1.15, 0.01) var carve_radius: float = 0.75:
-	set(value):
-		carve_radius = value
+		if carve_shape == value:
+			return
+		carve_shape = value
 		_sync_material()
 
 ## Max depth of the glyph's bowl dent at its own visual center — see
@@ -188,11 +164,11 @@ static var _gem_lut: ImageTexture
 
 # ── Resolved carve: runtime state, deliberately NOT exported ──────────────────
 #
-# [method set_carve] writes ONLY these. Writing the resolved shape back into the
-# @exports above is the "a @tool script must never write a DERIVED value into an
-# @export" trap (.claude/rules/godot-workflow.md) — the editor serialises the
-# computed value into the .tscn, and the next load computes again from there.
-# (inner_disk.tscn's stray `carve_kind = 1` is a fossil of exactly that.)
+# [method set_carve] writes ONLY these. Writing the resolved shape back into an
+# @export (or pushing it into [member carve_shape]) is the "a @tool script must
+# never write a DERIVED value into an @export" trap
+# (.claude/rules/godot-workflow.md) — the editor serialises the computed value
+# into the .tscn, and the next load computes again from there.
 
 ## The shape of the last resolved carve — the [CarveShape] itself (#315), so a
 ## new shape parameter is one edit on the shape rather than another copy hop
@@ -200,24 +176,28 @@ static var _gem_lut: ImageTexture
 ## dome), which is why [member _has_carve] is a separate flag.
 var _carved_shape: CarveShape = null
 ## Whether [method set_carve] has ever run. Distinguishes "nothing has resolved
-## a carve yet" (fall back to the authored preview exports) from "a carve
+## a carve yet" (fall back to the authored [member carve_shape]) from "a carve
 ## resolved to nothing" (an honest empty dome).
 var _has_carve: bool = false
 
+## The shape that actually renders: the resolved runtime carve once
+## [method set_carve] has run, else the authored [member carve_shape].
+func _effective_shape() -> CarveShape:
+	return _carved_shape if _has_carve else carve_shape
+
 
 ## The carve family actually rendered: the resolved shape's own family once a
-## carve has been pushed, else the authored [member carve_kind] preview.
+## carve has been pushed, else the authored [member carve_shape]'s family.
 ## Mapping a shape family to a [enum CarveKind] is THIS renderer's job —
 ## `skill_node/visuals/emblem/` deliberately knows nothing about InnerDisk.
 var effective_carve_kind: CarveKind:
 	get:
-		if not _has_carve:
-			return carve_kind
-		if _carved_shape is PolygonCarveShape:
+		var shape := _effective_shape()
+		if shape is PolygonCarveShape:
 			return CarveKind.POLYGON
-		if _carved_shape is GemCarveShape:
+		if shape is GemCarveShape:
 			return CarveKind.GEM
-		if _carved_shape is TextureCarveShape:
+		if shape is TextureCarveShape:
 			# A baked LUT the atlas doesn't carry degrades to the empty dome
 			# rather than rendering some other node's glyph; set_carve warns.
 			return CarveKind.TEXTURE if effective_carve_slice != CarveAtlas.NO_SLICE else CarveKind.NONE
@@ -238,23 +218,27 @@ var effective_carve_kind: CarveKind:
 ## costs slices instead of #172's instance-uniform slots.
 var effective_carve_slice: int:
 	get:
-		if _carved_shape is TextureCarveShape:
+		var shape := _effective_shape()
+		if shape is TextureCarveShape:
 			var atlas := CarveAtlas.shared()
 			if atlas != null:
-				return atlas.slice_of((_carved_shape as TextureCarveShape).baked_lut)
+				return atlas.slice_of((shape as TextureCarveShape).baked_lut)
 		return CarveAtlas.NO_SLICE
 
 var effective_carve_sides: int:
 	get:
-		return (_carved_shape as PolygonCarveShape).sides if _carved_shape is PolygonCarveShape else carve_sides
+		var shape := _effective_shape()
+		return (shape as PolygonCarveShape).sides if shape is PolygonCarveShape else 3
 
 var effective_carve_squish: float:
 	get:
-		return (_carved_shape as PolygonCarveShape).squish_x if _carved_shape is PolygonCarveShape else carve_squish
+		var shape := _effective_shape()
+		return (shape as PolygonCarveShape).squish_x if shape is PolygonCarveShape else 1.0
 
 var effective_carve_radius: float:
 	get:
-		return (_carved_shape as PolygonCarveShape).radius if _carved_shape is PolygonCarveShape else carve_radius
+		var shape := _effective_shape()
+		return (shape as PolygonCarveShape).radius if shape is PolygonCarveShape else 0.75
 
 ## Resolves [member PolygonCarveShape.well_depth]'s negative "inherit" sentinel
 ## on the CPU. This getter is the ONLY thing standing between that sentinel and
@@ -262,8 +246,9 @@ var effective_carve_radius: float:
 ## flatten the dent on every shape that inherits.
 var effective_well_depth: float:
 	get:
-		if _carved_shape is PolygonCarveShape:
-			var override: float = (_carved_shape as PolygonCarveShape).well_depth
+		var shape := _effective_shape()
+		if shape is PolygonCarveShape:
+			var override: float = (shape as PolygonCarveShape).well_depth
 			if override >= 0.0:
 				return override
 		return well_depth
