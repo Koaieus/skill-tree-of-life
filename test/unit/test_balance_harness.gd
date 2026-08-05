@@ -28,7 +28,7 @@ func test_full_table_runs_and_writes_snapshot() -> void:
 
 	assert_true(result.has("invariants"), "result should carry an invariants report")
 	var invariants: Array = result["invariants"]
-	assert_eq(invariants.size(), 7, "all 7 required invariants should be checked")
+	assert_eq(invariants.size(), 14, "all 14 required invariants should be checked")
 	for inv in invariants:
 		# The amendment's hard constraint: OUT must never surface as a
 		# failure here — only TBD/OK/OUT are legal statuses, and every range

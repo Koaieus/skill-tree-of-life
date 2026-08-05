@@ -57,6 +57,62 @@
 			"min": "TBD",
 			"max": "TBD",
 			"why": "channel parity (#366, sibling of melee_dpa_over_ranged_dpa) — the magic channel's strongest seeded cast (max per-spell spell_dpa across the real pool) against melee, both mitigated at the same defender node, AP read as 1; seed = spell_damage × power (D-32), so the ratio tracks INT-vs-STR/DEX investment"
+		},
+		{
+			"name": "nodes_lost_before_death",
+			"scenario": "mirror_L20",
+			"readout": "nodes_lost_before_death",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-21 round-5 close (comment on #268, 2026-08-01): `health / dealloc_damage` — the count of cascaded nodes the entity's health pool survives — should stay a roughly constant FRACTION of territory across levels; that is what D-21 fixed, watch it not re-break. `nodes_lost_before_death_fraction` printed alongside in every row"
+		},
+		{
+			"name": "core_healing_vs_cascade_chip_rate",
+			"scenario": "core_adjacent_aura_L50",
+			"readout": "core_healing_vs_cascade_chip_rate",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "#277 / D-25 (round-5 comment on #268): if `core_healing >= dealloc_damage × nodes_lost_per_turn`, camping becomes viable and D-10's structural anti-camping guarantee is silently undone. Read from the sustained-pressure fixture; `core_healing` is the real stat the health pool replenishes by per turn, nodes_lost_per_turn read as 1 (one node stripped per turn by a sustained attacker), so the ratio is core_healing / dealloc_damage"
+		},
+		{
+			"name": "armor_saturation_against_floor",
+			"scenario": "bunker_stack_L20",
+			"readout": "armor_saturation_against_floor",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "#332 invariants comment (2026-08-01, NOT the addendum): armor has a hard saturation point at `raw - min_damage_taken` — past it every further point of armor buys literally nothing (invisible wasted investment). Readout = armor − (raw_typical − min_damage_taken); positive means stacked authored armor sits past the floor. The fixture stacks the two real authored channels (bunker addon + node-content grant); note two bunker instances alone do NOT stack — instantiating the same addon .tscn twice shares one StatModifier sub-resource and the second is a no-op (`bunker_stack_armor` prints that reality). Addendum: magnitudes are a tuning knob, not a design problem, but the saturation shape is scale-invariant, so the guard stays meaningful after any retune"
+		},
+		{
+			"name": "min_damage_taken_nonpositive_immortality",
+			"scenario": "mirror_L20",
+			"readout": "defender_min_damage_taken",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "#332 invariants comment (2026-08-01): the `min_damage_taken <= 0` sign-flip half is NOT a number tweak — with a nonpositive min-clamp and armor >= raw, final <= 0, the node never depletes and D-10's cascade guarantee is undone. Asserted per scenario (`defender_min_damage_taken` is a readout in every row): a nonpositive reading means someone imported a negative min-clamp; positive means no immortality flip present"
+		},
+		{
+			"name": "node_hp_ratchet_per_dp",
+			"scenario": "con_node_ratchet",
+			"readout": "node_hp_ratchet_per_dp_L20",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-31 (comment on #268, 2026-08-02): one DP buys `delta × owned_nodes` effective HP across the owned subgraph — SkillNode's re-sync (`_on_entity_node_health_changed` → `PoolStat.set_base_ratcheted`) fans an entity node_health rise to every owned node's current; payoff scales with territory while the cost stays flat. Measured at L1/L20/L100 in the con_node_ratchet row (all three readouts printed); watch it not outrun the forced-dealloc chip rate — same D-10 anti-camping failure mode as core_healing_vs_cascade_chip_rate"
+		},
+		{
+			"name": "casts_before_dry",
+			"scenario": "mirror_L20",
+			"readout": "casts_before_dry",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-34 (Mana invariants comment on #268, 2026-08-03): count of the highest-cost SpellDef (full `_SPELL_POOL`, real mana_cost) a fresh FULL pool sustains from max to empty, ignoring regen. Computed per L5/L20/L50/L100 mirror from the real pool (`mana` = 10 + INT/10); INT comes from real level-up grants (mid-WIS build — D-15 monotone WIS-excluded grants, so INT tracks level). Must never read infinite; should grow meaningfully slower than damage"
+		},
+		{
+			"name": "sustain_rate",
+			"scenario": "mirror_L20",
+			"readout": "sustain_rate",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "D-34 (same Mana invariants comment, 2026-08-03): `regen / cheapest_cost` — sustained casts/turn of the cheapest spell at steady state, regen from the real `mana_per_turn` formula (floor(log10(INT))). Proves log-regen actually binds at high INT: the rate is linear in regen but log in INT, and the curve biting is what the printed value shows. Same L5/L20/L50/L100 mirrors as casts_before_dry"
 		}
 	]
 }
