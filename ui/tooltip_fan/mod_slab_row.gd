@@ -2,12 +2,19 @@
 class_name ModSlabRow
 extends Control
 
-## One `StatModifier` rendered as its own mini "glass slab" — a single Label
-## carrying the full sentence from [method StatModifier.format] (#305), on a
-## background tinted by the target stat's [member StatDef.tint_color], read
-## RAW (no row-local saturate/lift). The operator carries no color of its
-## own — it lives entirely in the text (`+18% increased`, `bonus`, `Max `,
-## ...). Content row for Tooltip V2 (epic #159, #221).
+## One `StatModifier` rendered as its own mini slab — a single Label carrying
+## the full sentence from [method StatModifier.format] (#305) on a [SlabPanel]
+## background tinted by the target stat's [member StatDef.tint_color] (#343
+## visual spec: dark fill, bright tint border reading as glowing, text in the
+## same tint mixable toward pure white — the PoE prefix/suffix-row reading
+## surface). The operator carries no color of its own — it lives entirely in
+## the text (`+18% increased`, `bonus`, `Max `, ...). Content row for Tooltip
+## V2 (epic #159, #221).
+##
+## The row sizes to its label (#343 part 1): [method _get_minimum_size] is the
+## label's height plus the scene's vertical insets, so long text WRAPS (the
+## label autowraps to the container-given width) and the row grows instead of
+## overflowing its rect.
 ##
 ## Reused standalone (#306's "you gained these" toast instantiates slabs with
 ## nothing driving them) as well as inside [AddonItem]'s modifier list (#293).
@@ -22,11 +29,47 @@ extends Control
 ## Scale the row starts at when [method set_progress]'s `t` is 0.
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.92
 
-@onready var _background: ColorRect = %Background
+## Text colour mixes stat-tint → pure white: 0 = raw tint, 1 = full white.
+## Full white is for the highest-emphasis rows; tint-leaning is the default.
+@export_range(0.0, 1.0, 0.01) var text_tint_mix: float = 0.35:
+	set(v):
+		text_tint_mix = v
+		_refresh_label_color()
+
+## How dark the fill is: 0 = raw tint, 1 = near-black. Forwarded to the slab.
+@export_range(0.0, 1.0, 0.01) var fill_darkness: float = 0.88:
+	set(v):
+		fill_darkness = v
+		if _slab:
+			_slab.fill_darkness = v
+
+## Border glow strength. Forwarded to the slab.
+@export_range(0.0, 1.0, 0.01) var glow_strength: float = 0.5:
+	set(v):
+		glow_strength = v
+		if _slab:
+			_slab.glow_strength = v
+
+## Vertical label inset in pixels — must match the Label node's authored
+## top/bottom offsets so [method _get_minimum_size] reports the true height.
+const _V_INSET := 4.0
+
+@onready var _slab: SlabPanel = %Slab
+## Test-compat alias onto the same node: `test_mod_slab_row.gd` reads
+## `_background.color` for the raw-tint contract, so the base [ColorRect]
+## property is kept in sync with the shader's `tint_color` (it is inert under
+## a ShaderMaterial — the shader is what renders).
+@onready var _background: ColorRect = %Slab
 @onready var _label: Label = %Label
 
 
 func _ready() -> void:
+	if _slab:
+		_slab.fill_darkness = fill_darkness
+		_slab.glow_strength = glow_strength
+		# The label wraps when the container changes its width — its min
+		# height then changes, so this row's min height does too.
+		_label.resized.connect(update_minimum_size)
 	if Engine.is_editor_hint():
 		# Author-time: show the row fully revealed so its content is
 		# witnessable while editing. Pure visual setup, safe under @tool
@@ -43,7 +86,7 @@ func _ready() -> void:
 
 
 ## Renders `m.format()` (the full sentence, stat name included — #305) into
-## the slab's Label, and tints the slab background by the target stat's
+## the slab's Label, and drives the slab + text from the target stat's
 ## [member StatDef.tint_color], read raw. Falls back to [constant Color.WHITE]
 ## only if the def can't be resolved (not expected for a real stat_id).
 ##
@@ -53,7 +96,30 @@ func _ready() -> void:
 func bind(m: StatModifier) -> void:
 	_label.text = m.format()
 	var def := StatRegistry.get_def(m.stat_id)
-	_background.color = def.tint_color if def != null else Color.WHITE
+	var tint := def.tint_color if def != null else Color.WHITE
+	_slab.tint_color = tint
+	_background.color = tint
+	_refresh_label_color()
+	# The new sentence may wrap to a different number of lines than the old
+	# one — recompute this row's minimum height now (the parent container
+	# re-sorts on the next layout pass).
+	update_minimum_size()
+
+
+## Text colour = tint mixed `text_tint_mix` toward pure white.
+func _refresh_label_color() -> void:
+	if _label == null or _slab == null:
+		return
+	_label.add_theme_color_override("font_color", _slab.tint_color.lerp(Color.WHITE, text_tint_mix))
+
+
+## The row is exactly its label plus the scene's vertical insets — height is
+## content-driven (#343), so a wrapped sentence grows the row instead of
+## overflowing it. Width is left to the container.
+func _get_minimum_size() -> Vector2:
+	if _label == null:
+		return Vector2.ZERO
+	return Vector2(0.0, _label.get_minimum_size().y + _V_INSET * 2.0)
 
 
 ## Applies the fan reveal at clock position `t` (0..1): cubic ease-out driving

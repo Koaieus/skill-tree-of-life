@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/tooltip_fan/mod_slab_row.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/slab_panel.tscn" id="2_slab"]
 
 [node name="ModSlabRow" type="Control"]
 script = ExtResource("1_script")
@@ -9,14 +10,17 @@ layout_mode = 3
 anchors_preset = 0
 mouse_filter = 1
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Slab" parent="." instance=ExtResource("2_slab")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = -2.0
 mouse_filter = 2
-color = Color(0.32, 0.78, 0.45, 0.35)
 
 [node name="Label" type="Label" parent="."]
 unique_name_in_owner = true
@@ -25,9 +29,12 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 4.0
+offset_top = 4.0
 offset_right = -4.0
+offset_bottom = -4.0
 mouse_filter = 2
 theme_override_font_sizes/font_size = 11
 horizontal_alignment = 0
 vertical_alignment = 1
+autowrap_mode = 3
 text = ""

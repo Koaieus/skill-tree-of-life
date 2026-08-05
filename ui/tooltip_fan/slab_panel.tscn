@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/tooltip_fan/slab_panel.gd" id="1_script"]
+[ext_resource type="Shader" path="res://ui/tooltip_fan/slab_panel.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_slab"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(160, 22)
+shader_parameter/tint_color = Color(0.4, 0.95, 1, 1)
+shader_parameter/fill_darkness = 0.88
+shader_parameter/glow_strength = 0.5
+shader_parameter/border_width = 1.5
+shader_parameter/corner_radius = 4.0
+
+[node name="SlabPanel" type="ColorRect"]
+material = SubResource("ShaderMaterial_slab")
+offset_right = 160.0
+offset_bottom = 22.0
+mouse_filter = 2
+script = ExtResource("1_script")
