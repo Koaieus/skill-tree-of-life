@@ -30,15 +30,13 @@ const _DIM := Color(0.45, 0.45, 0.5)
 const _TAG_FONT_SIZE := 10
 const _ROW_FONT_SIZE := 10
 
-## Authored envelope, kept modest because [method _resize_to_content] grows the
-## background to whatever [method bind] produced. The structural overlap test
-## measures this pre-bind rect, so it also has to be a footprint that genuinely
-## fits where the unit is placed.
+## Authored envelope, kept modest because the [PanelLayout] skin grows to
+## whatever [method bind] produced. The structural overlap test measures this
+## pre-bind rect, so it also has to be a footprint that genuinely fits where
+## the unit is placed.
 const _HALF_WIDTH := 80.0
-const _V_PADDING := 8.0
 const _H_PADDING := 8.0
 
-@onready var _holo: Control = %HoloPanel
 @onready var _rows: VBoxContainer = %Rows
 
 ## The node currently rendered, if any (set by [method bind]).
@@ -55,10 +53,12 @@ func _ready() -> void:
 
 ## Public entry point (#292). Rebuilds from scratch; a node without the meta
 ## renders nothing and [method has_content] then suppresses the whole unit.
+## The skin's size follows whatever rows were rendered structurally — the
+## Content column is a [PanelContent] and the [PanelLayout] skin hugs it
+## (#344), so nothing here sizes anything.
 func bind(node: SkillNode, _graph: Graph) -> void:
 	_bound_node = node
 	_rebuild_rows()
-	_resize_to_content()
 
 
 ## False whenever the node carries no `procgen_footprint` — hand-authored nodes
@@ -111,17 +111,3 @@ func _add_row(text: String, font_size: int) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = _HALF_WIDTH * 2.0 - _H_PADDING * 2.0
 	_rows.add_child(label)
-
-
-## Grows the background to fit whatever [method bind] rendered — same mechanism
-## (and same safety argument) as [method IdChipPanel._resize_to_content]:
-## [FanAnchorDriver] re-derives the trace terminus from the panel's LIVE rect
-## every frame, so a runtime resize is never stale for the trace arriving at it.
-func _resize_to_content() -> void:
-	if _rows == null or _holo == null:
-		return
-	var half_height: float = _rows.get_combined_minimum_size().y * 0.5 + _V_PADDING
-	_holo.offset_left = -_HALF_WIDTH
-	_holo.offset_right = _HALF_WIDTH
-	_holo.offset_top = -half_height
-	_holo.offset_bottom = half_height

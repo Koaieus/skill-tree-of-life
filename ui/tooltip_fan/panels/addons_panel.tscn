@@ -1,41 +1,45 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://ui/tooltip_fan/panels/addons_panel.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/theme/holo_panel.tscn" id="2_holo"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
-[ext_resource type="PackedScene" path="res://ui/theme/scanline_overlay.tscn" id="4_scanline"]
+[ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_layout.gd" id="2_layout"]
+[ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_content.gd" id="3_content"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panel_header.tscn" id="4_header"]
+[ext_resource type="PackedScene" path="res://ui/theme/scanline_overlay.tscn" id="5_scanline"]
 
 [node name="AddonsPanel" type="Node2D"]
 script = ExtResource("1_script")
 
-[node name="HoloPanel" parent="." instance=ExtResource("2_holo")]
+[node name="PanelSkin" type="ColorRect" parent="."]
 z_index = -1
 offset_left = -75.0
 offset_top = -65.0
 offset_right = 75.0
 offset_bottom = 65.0
+mouse_filter = 2
+script = ExtResource("2_layout")
+min_size = Vector2(150, 130)
 
-[node name="Content" type="VBoxContainer" parent="."]
-z_index = 0
-offset_left = -65.0
-offset_top = -56.0
-offset_right = 65.0
-offset_bottom = 56.0
+[node name="Content" type="VBoxContainer" parent="PanelSkin"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 mouse_filter = 2
 theme_override_constants/separation = 3
+script = ExtResource("3_content")
+padding = Vector2(10, 9)
 
-[node name="Header" parent="Content" instance=ExtResource("3_header")]
+[node name="Header" parent="PanelSkin/Content" instance=ExtResource("4_header")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Rows" type="VBoxContainer" parent="Content"]
+[node name="Rows" type="VBoxContainer" parent="PanelSkin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="ScanlineOverlay" parent="." instance=ExtResource("4_scanline")]
-z_index = 1
-offset_left = -75.0
-offset_top = -65.0
-offset_right = 75.0
-offset_bottom = 65.0
+[node name="ScanlineOverlay" parent="PanelSkin" instance=ExtResource("5_scanline")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0

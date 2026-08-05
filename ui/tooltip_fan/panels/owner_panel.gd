@@ -58,9 +58,9 @@ func _ready() -> void:
 	# `_header.bind()` writes into an OWNED node's `Label.text` (a real,
 	# serializable property) — per `.claude/rules/godot-workflow.md`'s @tool
 	# _ready guard convention, skip all placeholder content in the editor.
-	# The panel's size envelope comes from the authored HoloPanel/Content
-	# rects, not from row count or header text, so nothing is lost for
-	# in-editor placement/preview.
+	# The panel's size envelope comes from the [PanelLayout] skin's authored
+	# `min_size` (the crown envelope), not from row count or header text, so
+	# nothing is lost for in-editor placement/preview.
 	if Engine.is_editor_hint():
 		return
 	_header.bind("Owner")

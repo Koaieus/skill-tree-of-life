@@ -24,36 +24,30 @@ extends FanPanel
 ## by definition and is meaningless on a node the hovering entity doesn't own,
 ## so it is never shown there.
 ##
-## The chip's background resizes to its content every [method bind] (width
-## stays fixed; height shrinks/grows with which rows are visible) — safe
-## because [FanAnchorDriver] re-derives the trace terminus from the panel's
-## LIVE skin rect every frame (see `fan_anchor_driver.gd::_reroute`), so a
-## resize here is never stale for the trace that arrives at it.
-
-## Matches the original stub's authored footprint (68x26) exactly — the
-## variant scenes place NodeStats/Addons/Owner close enough that this is the
-## whole safe envelope in the STATIC (pre-[method bind]) state
-## `test_tooltip_fan_variants.gd::test_no_two_panels_overlap_in_any_variant`
-## checks. Growth beyond it only ever happens at runtime, after [method bind],
-## which that structural test never exercises (it never binds a node).
-const _HALF_WIDTH := 34.0
-const _V_PADDING := 10.0
+## The chip's background hugs its content structurally (#344): the Rows column
+## is a [PanelContent] inside the [PanelLayout] skin, so the skin sizes itself
+## to whatever rows [method bind] left visible (width included — the degree
+## line's own text width, or the keystone's widened description column, drives
+## it; there is no fixed normal-mode envelope anymore). Safe because
+## [FanAnchorDriver] re-derives the trace terminus from the panel's LIVE skin
+## rect every frame (see `fan_anchor_driver.gd::_reroute`), so a resize here
+## is never stale for the trace that arrives at it.
 
 ## Keystone mode widens the chip at RUNTIME only. A keystone description is
 ## prose, not a label — `xp_anchor_keystone.tres`'s is 95 characters, which
 ## autowraps into a ~12-line noodle inside the 68px normal-mode envelope. The
-## authored (pre-bind) width stays [constant _HALF_WIDTH] so the structural
-## overlap test still measures the narrow chip; only a node that actually
-## carries a keystone ever pays the extra width, and there are two such
-## resources in the game.
+## authored (pre-bind) width stays the narrow chip (68px, the scene's
+## [PanelLayout] `min_size`) so the structural overlap test still measures the
+## narrow chip; only a node that actually carries a keystone ever pays the
+## extra width, and there are two such resources in the game.
 const _KEYSTONE_HALF_WIDTH := 84.0
 
 ## Horizontal padding between the widened envelope and the wrapped description
-## text, so autowrap has a real column to work with rather than the label's
-## authored `custom_minimum_size`.
-const _H_PADDING := 8.0
+## text — must match the [PanelContent] padding X so the wrap column equals the
+## skin's inner width exactly and the content hugs the authored keystone
+## envelope rather than one text-pixel narrower.
+const _H_PADDING := 6.0
 
-@onready var _holo: Control = %HoloPanel
 @onready var _rows: VBoxContainer = %Rows
 @onready var _name_label: Label = %NameLabel
 @onready var _description_label: Label = %DescriptionLabel
@@ -85,6 +79,8 @@ func bind(node: SkillNode, graph: Graph) -> void:
 	var description := keystone.description if keystone != null else ""
 	_description_label.visible = not description.is_empty()
 	_description_label.text = description
+	if keystone != null:
+		_set_description_wrap_column()
 
 	var effect_count := node.get_node_effects().size() if keystone != null else 0
 	_effects_label.visible = effect_count > 0
@@ -98,30 +94,13 @@ func bind(node: SkillNode, graph: Graph) -> void:
 		degree_text += " · yours %d" % entity_degree
 	_degree_label.text = degree_text
 
-	_resize_to_content(keystone != null)
 
-
-## Height fits whichever rows [method bind] left visible — [VBoxContainer]
-## skips invisible children when computing its combined minimum size (same
-## mechanism [PanelHeader]'s empty-subheader collapse relies on), so this just
-## reads that off and applies it to the HoloPanel background. Width is one of
-## two envelopes, [param keystone_mode] picking the wide one; see
-## [constant _KEYSTONE_HALF_WIDTH]. Both are centred, so neither shifts the
-## panel's authored anchor position.
-##
-## The description label's wrap column is driven from the same half-width
-## rather than left at its authored `custom_minimum_size` — otherwise widening
-## the background alone would leave the prose still wrapped to the narrow
-## column, which is the bug this exists to fix.
-func _resize_to_content(keystone_mode: bool) -> void:
-	if _rows == null or _holo == null:
+## The keystone description's wrap column, driven from the same widened
+## envelope the [PanelLayout] skin hugs — the prose must wrap to the WIDE
+## column or the chip would widen to the full unwrapped text width. In normal
+## (non-keystone) mode the description is invisible and contributes nothing to
+## the layout; the chip then hugs the degree line alone.
+func _set_description_wrap_column() -> void:
+	if _description_label == null:
 		return
-	var half_width: float = _KEYSTONE_HALF_WIDTH if keystone_mode else _HALF_WIDTH
-	if _description_label != null:
-		_description_label.custom_minimum_size.x = half_width * 2.0 - _H_PADDING * 2.0
-	var content_height: float = _rows.get_combined_minimum_size().y
-	var half_height: float = maxf(content_height, _degree_label.get_minimum_size().y) * 0.5 + _V_PADDING
-	_holo.offset_left = -half_width
-	_holo.offset_right = half_width
-	_holo.offset_top = -half_height
-	_holo.offset_bottom = half_height
+	_description_label.custom_minimum_size.x = _KEYSTONE_HALF_WIDTH * 2.0 - _H_PADDING * 2.0
