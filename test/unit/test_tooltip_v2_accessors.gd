@@ -114,7 +114,12 @@ func test_dynamic_stat_ids_order_is_stable_across_calls() -> void:
 func test_dynamic_stat_ids_does_not_create_a_stat() -> void:
 	var sn := _make_node("Sparse")
 	sn._init_node_board()
-	assert_eq(sn.node_board.get_dynamic_stat_ids(), [] as Array[StringName])
+	# #374: the board's init mints the canonical `stake_level` PoolStat (the
+	# reactive home of the M/N pair — formulas and the local-scale mutator bind
+	# it), so the fresh board reports exactly that one dynamic stat. The
+	# read-only promise below is about ENUMERATION: listing ids must never
+	# create more stats.
+	assert_eq(sn.node_board.get_dynamic_stat_ids(), [&"stake_level"] as Array[StringName])
 	assert_null(sn.node_board.get_stat(&"armor"),
 		"enumeration must be read-only — no side-effect stat creation")
 
