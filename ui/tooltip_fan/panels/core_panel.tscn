@@ -3,33 +3,34 @@
 [ext_resource type="Script" uid="uid://dr8klp6tnwxx8" path="res://ui/tooltip_fan/panels/core_panel.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
 [ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="5_fused"]
-[ext_resource type="Shader" path="res://ui/theme/fused_panel.gdshader" id="6_fused_shader"]
+[ext_resource type="Shader" uid="uid://cplgl06jsyxbn" path="res://ui/theme/fused_panel.gdshader" id="6_fused_shader"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_fused"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gkgmg"]
 resource_local_to_scene = true
 shader = ExtResource("6_fused_shader")
 shader_parameter/size = Vector2(190, 260)
 shader_parameter/fill_color = Color(0.086, 0.098, 0.149, 0.9)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/gradient_mix = 0.0
+shader_parameter/gradient_mix = 1.0
 shader_parameter/scanline_count = 60.0
 shader_parameter/scanline_speed = 0.35
 shader_parameter/scanline_intensity = 0.18
 shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
-shader_parameter/glow = 0.0
+shader_parameter/glow = 0.8
 shader_parameter/glow_edges = 15
 shader_parameter/glow_width = 2.0
 shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
 shader_parameter/border_width = 1.0
 shader_parameter/corner_radius = 13.0
+shader_parameter/glow_corner_softness = 0.35
 
 [node name="CorePanel" type="Node2D" unique_id=928234078]
 script = ExtResource("1_script")
+glow = 0.8
 progress = 1.0
 
 [node name="Content" type="VBoxContainer" parent="." unique_id=789891262]
-z_index = 0
 offset_left = -85.0
 offset_top = -121.0
 offset_right = 85.0
@@ -46,9 +47,9 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 1
 
-[node name="FusedPanel" parent="." instance=ExtResource("5_fused")]
+[node name="FusedPanel" parent="." unique_id=284855726 instance=ExtResource("5_fused")]
 z_index = -1
-material = SubResource("ShaderMaterial_fused")
+material = SubResource("ShaderMaterial_gkgmg")
 anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = -95.0
@@ -56,3 +57,4 @@ offset_top = -130.0
 offset_right = 95.0
 offset_bottom = 130.0
 grow_vertical = 2
+glow = 0.8
