@@ -43,7 +43,7 @@ Each level scene extends `scenes/game_root.tscn` (the composition root); subclas
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
 `LootSystem` (`systems/loot_system.gd`) — killing-blow rewards: XP to the killer (#68) + a `SkillDustAddon` relic on the victim's former core (#69). Resolves the killer from its injected `turn_manager`; reacts to the pre-cleanup `Events.entity_dying` phase (corpse still owns its nodes) so it snapshots before AllocationSystem's `entity_died` strip. See `docs/domain/loot-system.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
-`GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology) and `docs/domain/procgen-v3.md` (content: StatPack + phased draw).
+`GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology) and `docs/domain/procgen-v4.md` (content: StatPool + phased draw).
 
 Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)` — it duplicates the default stat board, parents under `graph.entities_container`, force-allocates the core node, and assigns the class. See `scenes/procgen_play_sandbox.gd`.
 

@@ -82,9 +82,23 @@ after any future change to a formula this harness reads).
 
 ## Known gaps (deliberate — see #268's NOTES)
 
-- No spell/magic-channel readout: `spell_damage` doesn't exist on the board
-  yet (#274 is landing it concurrently). Spell reach's ×2 hard cap (D-18) is
-  worth a fixture once that stat exists — not invented here ahead of it.
+- A magic-channel readout now exists (#366): `tools/balance/balance_scenarios.gd`
+  carries a `magic_mirror_L20` fixture, a real `_SPELL_POOL` of `SpellDef`s,
+  and `spell_dpa_best` / `spell_dpa_over_melee_dpa` invariants. Spell reach's
+  ×2 hard cap (D-18) is still worth a dedicated fixture once a scenario
+  exercises it; the existing `mirror_L20` doesn't push the cap.
+- The bunker-stacking observation previously filed on #367 — that two
+  `bunker_addon.tscn` instances on one node do NOT stack because Godot's
+  PackedScene cache reuses the same `StatModifier` sub-resource across
+  instantiations and `Stat.add_modifier` dedupes by instance — has been
+  **resolved as a side-effect of #376**: `_attach_addon` now clones a
+  scene-instantiated addon's modifiers before adding them, so each bunker
+  gets its own modifier and they stack as authored intent (+5 +5 = +10).
+  The `bunker_stack_L20` fixture's `bunker_stack_armor` readout therefore
+  moves 5 → 10 on a #376-headed master. Worth re-pinning the
+  `armor_saturation_against_floor` range against the new stacking baseline
+  once the invariant thresholds get pinned (#248) — and confirming two
+  bunkers stacking is the intended design, not a new regression.
 - XP-curve and procgen↔level readouts are undefined until #248 pins those
   axes.
 - Filling in real threshold values is a #248 pinning-session task, not this

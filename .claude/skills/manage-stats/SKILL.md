@@ -269,7 +269,7 @@ Adding the stat to the board makes it *exist and scale*. A new stat is often a c
 - Author `tiers` (value_range / cost / weight) on the `TierPool`.
 - The packs are bundled into `procgen/pools/specimen_pool_set.tres`.
 
-Don't reinvent the mechanics here — read **`docs/domain/procgen-v3.md`** (phased draw, StatPack structure, cost caps, `off_phase_op_weights`) and copy an existing pool as the template. This is the gap the skill historically missed: a new stat that's good build content but never gets a procgen pool.
+Don't reinvent the mechanics here — read **`docs/domain/procgen-v4.md`** (phased draw, StatPool structure, cost caps, `off_phase_op_weights`) and copy an existing pool as the template. This is the gap the skill historically missed: a new stat that's good build content but never gets a procgen pool.
 
 **2. Per-node localization.** *"Should this stat vary per skill node, not just per entity?"* (Currently `node_health` and `range` do.) The inverse also needs an answer: a stat that is **entity-scope only** (a pool coefficient like `core_health_scaling`, say) is meaningless or misleading read node-locally, and the system has **no way to declare that** — #287 is the open decision. Don't invent a marker; just keep such a stat out of every procgen pool and say so in its description. If yes, it can be localized via `SkillNode._ensure_local_stat(id)` / `node_board` — the node's sparse `StatBoard` creates the stat on demand; procgen pools that target it become per-node overrides. See `.claude/rules/stats-system.md` → "Local stats".
 
@@ -327,7 +327,7 @@ stats_system/defs/                          # one .tres StatDef per stat
 entity/default_entity_board.tres            # default runtime board (all stat instances + intrinsics)
 entity/entity.gd                            # apply_intrinsics() + core_class.apply() on _ready
 entity/core/core_class.gd                   # per-entity class identity bonuses
-procgen/pools/                              # StatPacks (procgen content) — docs/domain/procgen-v3.md
+procgen/pools/                              # StatPools (procgen content) — docs/domain/procgen-v4.md
 skill_node/skill_node.gd                    # node_board + per-node stat override
 .claude/rules/stats-system.md               # authoritative reference — KEEP IN SYNC
 ```
