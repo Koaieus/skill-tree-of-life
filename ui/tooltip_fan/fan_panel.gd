@@ -41,27 +41,23 @@ extends Node2D
 @export var panel_fade_duration := 0.16
 
 @export_group("Idle")
-## When on, a settled panel (LOOP) keeps a subtle float + glow-pulse loop —
-## the panel-side idle mechanism for #234. Deliberately a SEPARATE mechanism
-## from [member FanTrace.trace_idle]: panels and traces are different
-## elements with different (related) lifecycles, per this issue's own last
-## comment. Static/blink is left to the [HoloPanel] shader's own scanline
-## animation; this only adds the float/glow on top, mirroring how
-## [FanTrace]'s idle pulses the tip alone.
-@export var panel_idle := false:
+## The settled-state idle-loop settings for this panel (#234) — or `null` to
+## keep the settled panel a bare, steady-lit one (the default; nothing in the
+## shipped fan assigns one). A self-contained settings object: swap a different
+## [FanAnimation] `.tres` to change the idle, set this to `null` to turn idle
+## off. Deliberately a SEPARATE mechanism from [member FanTrace.idle_anim]:
+## panels and traces are different elements with different (related)
+## lifecycles, per this issue's own last comment. Only
+## [member FanAnimation.period] / [member FanAnimation.float_amplitude] /
+## [member FanAnimation.glow_amplitude] are read; the trace-only
+## [member FanAnimation.pulse_scale] is ignored. Static/blink is left to the
+## skin shader's own scanline animation; this only adds the float/glow on top,
+## mirroring how [FanTrace]'s idle pulses the tip alone.
+@export var idle_anim: FanAnimation = null:
 	set(value):
-		panel_idle = value
+		idle_anim = value
 		if is_node_ready() and not Engine.is_editor_hint():
 			_refresh_idle()
-## Vertical bob amplitude in pixels.
-@export_range(0.0, 12.0, 0.5) var idle_float_amplitude := 4.0
-## How far ABOVE the settled [member glow] the pulse peaks — added, never
-## subtracted, so the loop never dips below the steady-lit settled value (the
-## same constant-brightness rule [FanTrace] enforces for its line, applied
-## here to the panel's own settled glow floor).
-@export_range(0.0, 0.6, 0.01) var idle_glow_amplitude := 0.15
-## Full period (seconds) of one float/glow up-and-back cycle.
-@export var idle_period := 1.6
 
 ## 0 = hidden at [member start_scale], 1 = fully revealed. Assigning it
 ## re-applies the scale+fade reveal directly; [method play_in] / [method
@@ -229,24 +225,27 @@ func _on_unfurl_finished() -> void:
 
 
 ## (Re)starts or stops the settled-state idle float/glow loop per [member
-## panel_idle]. Two independent loop Tweens (position vs. glow) rather than
+## idle_anim]. Two independent loop Tweens (position vs. glow) rather than
 ## one parallel tween — simpler to reason about and to kill atomically.
 ## Never touches `scale`/`modulate.a` (those are [member progress]'s alone).
+## The period is floored (~0.05s) so a stray 0 in the resource can never spin
+## a looped tween per-frame — the #234 `panel_idle` bug class.
 func _refresh_idle() -> void:
 	_kill_idle()
-	if not panel_idle or _is_animating:
+	if idle_anim == null or _is_animating:
 		return
+	var period := maxf(idle_anim.period, 0.05)
 	_idle_base_glow = glow
 	_idle_tween = create_tween().set_loops()
-	_idle_tween.tween_property(self, "position:y", _base_position.y - idle_float_amplitude, idle_period * 0.5) \
+	_idle_tween.tween_property(self, "position:y", _base_position.y - idle_anim.float_amplitude, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_idle_tween.tween_property(self, "position:y", _base_position.y, idle_period * 0.5) \
+	_idle_tween.tween_property(self, "position:y", _base_position.y, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	var peak := minf(_idle_base_glow + idle_glow_amplitude, 1.0)
+	var peak := minf(_idle_base_glow + idle_anim.glow_amplitude, 1.0)
 	_idle_glow_tween = create_tween().set_loops()
-	_idle_glow_tween.tween_property(self, "glow", peak, idle_period * 0.5) \
+	_idle_glow_tween.tween_property(self, "glow", peak, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_idle_glow_tween.tween_property(self, "glow", _idle_base_glow, idle_period * 0.5) \
+	_idle_glow_tween.tween_property(self, "glow", _idle_base_glow, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 

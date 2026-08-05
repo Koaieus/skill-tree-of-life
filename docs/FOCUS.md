@@ -111,7 +111,7 @@ economy and evaluates its options.
 Legibility ships, fidelity defers (rule 4). All tooltip-V2 work below is the "show
 everything, no gating" phase — flat placeholders, not carved art.
 
-1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass migration + scanline fix + holo dial-in, ~~**#234** idle-loop animations~~ **CLOSED**, **#236** trace glow, **#281** addon icon placeholder.
+1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass migration + scanline fix + holo dial-in, **#234** idle-loop animations (REOPENED 2026-08-05 — FanAnimation resource landed; the reopened acceptance — self-contained idle object, null = off, opt-in per unit — is implemented and in review), **#236** trace glow, **#281** addon icon placeholder.
 2. ~~**#341** RimRing: allocation dial into the shader + archetype legibility — drone-ready.~~ **CLOSED.**
 3. **#371** emissive text + composable glow (bloom) — blocked on #345's dark fill landing on every panel. All design forks settled (Layer 0/1/2 architecture; `theme_type_variation` palette; alpha stays fade channel; `background_canvas_max_layer = 100`; viewport-wide bloom deferred as fine-for-now). Breadcrule + doc already in: `.claude/rules/hdr-color.md`, `docs/domain/hdr-color.md`.
 4. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.

@@ -146,7 +146,7 @@ func test_play_out_from_near_zero_progress_is_floored_not_shorter() -> void:
 func test_idle_starts_only_once_settled_after_play_in() -> void:
 	var panel := _make()
 	await get_tree().process_frame
-	panel.panel_idle = true
+	panel.idle_anim = FanAnimation.new()
 	panel.panel_unfurl_duration = 0.1
 	var tw := panel.play_in()
 	assert_null(panel._idle_tween, "idle must not start mid-unfurl")
@@ -158,7 +158,7 @@ func test_idle_starts_only_once_settled_after_play_in() -> void:
 func test_idle_is_killed_on_play_out_before_the_fade_leg() -> void:
 	var panel := _make()
 	await get_tree().process_frame
-	panel.panel_idle = true
+	panel.idle_anim = FanAnimation.new()
 	panel.progress = 1.0
 	panel._refresh_idle()
 	assert_not_null(panel._idle_tween, "idle running going into play_out")
@@ -170,7 +170,7 @@ func test_idle_glow_never_dips_below_the_settled_floor() -> void:
 	var panel := _make()
 	await get_tree().process_frame
 	panel.glow = 0.4
-	panel.panel_idle = true
+	panel.idle_anim = FanAnimation.new()
 	panel.progress = 1.0
 	panel._refresh_idle()
 	panel._idle_glow_tween.custom_step(1000.0) # run the loop through a full cycle
@@ -181,10 +181,38 @@ func test_killing_idle_restores_base_position_and_glow() -> void:
 	var panel := _make()
 	await get_tree().process_frame
 	panel.glow = 0.4
-	panel.panel_idle = true
+	panel.idle_anim = FanAnimation.new()
 	panel.progress = 1.0
 	panel._refresh_idle()
-	panel._idle_tween.custom_step(panel.idle_period * 0.25) # mid-pulse
+	panel._idle_tween.custom_step(panel.idle_anim.period * 0.25) # mid-pulse
 	panel._kill_idle()
 	assert_almost_eq(panel.position.y, panel._base_position.y, 0.001, "kill snaps position back to base")
 	assert_almost_eq(panel.glow, 0.4, 0.001, "kill snaps glow back to its settled value")
+
+
+func test_no_idle_without_an_assigned_animation() -> void:
+	var panel := _make()
+	await get_tree().process_frame
+	panel.progress = 1.0
+	panel._refresh_idle()
+	assert_null(panel._idle_tween, "no assigned FanAnimation -> no idle loop")
+	assert_null(panel._idle_glow_tween, "no assigned FanAnimation -> no glow loop")
+
+
+func test_zero_period_is_floored_not_spun_per_frame() -> void:
+	# #234 reopen: core_panel.tscn shipped idle_period = 0.0, which turned the
+	# set_loops() idle into per-frame snapping (jitter/flicker) instead of an
+	# idle loop. The resource's period must be floored so a stray 0 animates
+	# at the floor rate rather than spinning.
+	var panel := _make()
+	await get_tree().process_frame
+	var anim := FanAnimation.new()
+	anim.period = 0.0
+	panel.idle_anim = anim
+	panel.progress = 1.0
+	panel._refresh_idle()
+	assert_not_null(panel._idle_tween, "idle runs even with a stray 0 period")
+	panel._idle_tween.custom_step(0.02) # half the floored (0.05s) leg
+	var peak := panel._base_position.y - anim.float_amplitude
+	assert_lt(panel.position.y, panel._base_position.y, "the float has started moving")
+	assert_gt(panel.position.y, peak, "and is mid-leg, not snapped through a full cycle")

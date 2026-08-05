@@ -246,7 +246,7 @@ func test_replaying_in_relights_the_tip() -> void:
 
 func test_idle_pulse_only_touches_the_tip_never_the_line() -> void:
 	var trace := _make()
-	trace.trace_idle = true
+	trace.idle_anim = FanAnimation.new()
 	await get_tree().process_frame
 	var color_before := trace._trace.default_color
 	var width_before := trace._trace.width
@@ -255,3 +255,10 @@ func test_idle_pulse_only_touches_the_tip_never_the_line() -> void:
 	await get_tree().create_timer(0.1).timeout
 	assert_eq(trace._trace.default_color, color_before, "idle must never touch the line color")
 	assert_eq(trace._trace.width, width_before, "idle must never touch the line width")
+
+
+func test_no_idle_pulse_without_an_assigned_animation() -> void:
+	var trace := _make()
+	await get_tree().process_frame
+	trace._on_draw_in_finished() # settles
+	assert_null(trace._idle_tween, "no assigned FanAnimation -> the settled trace stays a bare line")

@@ -21,8 +21,8 @@ extends Node2D
 ## [TraceRouter] documents), NOT a dimming brightness ramp: the line keeps a
 ## CONSTANT color and width across in → settled → out — only how much of it is
 ## drawn, and the tip position, change. That satisfies the "never dim the
-## settled/loop state" rule structurally. Idle life (when [member trace_idle])
-## pulses the *tip* alone, never the line.
+## settled/loop state" rule structurally. Idle life (when an idle animation is
+## assigned to [member idle_anim]) pulses the *tip* alone, never the line.
 ##
 ## The trace does not simply "start": it IGNITES. The first
 ## [member ignite_fraction] of `progress` is a lead-in during which the line is
@@ -153,12 +153,19 @@ const PHI_FRACTION := 0.382
 @export_group("Motion")
 @export var draw_in_duration := 0.28
 @export var erase_duration := 0.18
-## When on, the settled trace keeps a soft looping pulse on the *tip* (never on
-## the line — that would break the constant-brightness rule). Kept as a toggle
-## until a favourite idle style lands (#215).
-@export var trace_idle := false:
+
+@export_group("Idle")
+## The settled-state idle-loop settings for this trace (#234) — or `null` to
+## keep the settled trace a bare, constant-lit line (the default; nothing in
+## the shipped fan assigns one). A self-contained settings object: swap a
+## different [FanAnimation] `.tres` to change the pulse, set this to `null` to
+## turn idle off. When on, the settled trace keeps a soft looping pulse on the
+## *tip* (never on the line — that would break the constant-brightness rule).
+## Only [member FanAnimation.period] and [member FanAnimation.pulse_scale] are
+## read; the panel-only knobs are ignored.
+@export var idle_anim: FanAnimation = null:
 	set(value):
-		trace_idle = value
+		idle_anim = value
 		if is_node_ready() and not Engine.is_editor_hint():
 			_refresh_idle()
 
@@ -393,17 +400,20 @@ func _on_draw_in_finished() -> void:
 
 
 ## (Re)starts or stops the settled-state idle pulse on the tip per
-## [member trace_idle]. The line is never touched — only the re-lit tip breathes.
+## [member idle_anim]. The line is never touched — only the re-lit tip breathes.
+## The period is floored (~0.05s) so a stray 0 in the resource can never spin a
+## looped tween per-frame.
 func _refresh_idle() -> void:
 	_kill_idle()
-	if not trace_idle or _is_animating or _tip == null:
+	if idle_anim == null or _is_animating or _tip == null:
 		return
+	var period := maxf(idle_anim.period, 0.05)
 	_tip.position = _full_points[_full_points.size() - 1] if not _full_points.is_empty() else to_point
 	_tip.visible = true
 	_idle_tween = create_tween().set_loops()
-	_idle_tween.tween_property(_tip, "scale", Vector2.ONE * tip_scale * 1.35, 0.7) \
+	_idle_tween.tween_property(_tip, "scale", Vector2.ONE * tip_scale * idle_anim.pulse_scale, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_idle_tween.tween_property(_tip, "scale", Vector2.ONE * tip_scale, 0.7) \
+	_idle_tween.tween_property(_tip, "scale", Vector2.ONE * tip_scale, period * 0.5) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 

@@ -1,42 +1,66 @@
 [gd_scene format=3 uid="uid://do0ss4uen1860"]
 
 [ext_resource type="Script" uid="uid://dr8klp6tnwxx8" path="res://ui/tooltip_fan/panels/core_panel.gd" id="1_script"]
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_layout.gd" id="2_layout"]
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_content.gd" id="3_content"]
+[ext_resource type="Script" uid="uid://d2qj2jlh3sd7" path="res://ui/tooltip_fan/panels/panel_layout.gd" id="2_layout"]
+[ext_resource type="Shader" uid="uid://cplgl06jsyxbn" path="res://ui/theme/fused_panel.gdshader" id="2_mln12"]
+[ext_resource type="Script" uid="uid://cjhdneidxrmsp" path="res://ui/tooltip_fan/panels/panel_content.gd" id="3_content"]
 [ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="4_header"]
 
-[node name="CorePanel" type="Node2D"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_unol0"]
+resource_local_to_scene = true
+shader = ExtResource("2_mln12")
+shader_parameter/size = Vector2(190, 260)
+shader_parameter/fill_color = Color(0.06, 0.13, 0.17, 0.85)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/gradient_mix = 1.0
+shader_parameter/scanline_pitch = 1.6
+shader_parameter/scanline_speed = 0.35
+shader_parameter/scanline_intensity = 0.09
+shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
+shader_parameter/glow = 0.8
+shader_parameter/glow_edges = 15
+shader_parameter/glow_width = 2.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_corner_softness = 0.35
+
+[node name="CorePanel" type="Node2D" unique_id=2133408101]
 script = ExtResource("1_script")
 glow = 0.8
 progress = 1.0
 
-[node name="PanelSkin" type="ColorRect" parent="."]
+[node name="PanelSkin" type="ColorRect" parent="." unique_id=772143444]
 z_index = -1
+material = SubResource("ShaderMaterial_unol0")
 offset_left = -95.0
 offset_top = -130.0
 offset_right = 95.0
 offset_bottom = 130.0
 mouse_filter = 2
 script = ExtResource("2_layout")
-fill_color = Color(0.06, 0.13, 0.17, 0.85)
-gradient_mix = 1.0
 min_size = Vector2(190, 260)
+gradient_mix = 1.0
+glow = 0.8
 
-[node name="Content" type="VBoxContainer" parent="PanelSkin"]
+[node name="Content" type="VBoxContainer" parent="PanelSkin" unique_id=413390779]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/separation = 2
 script = ExtResource("3_content")
 padding = Vector2(10, 9)
 
-[node name="Header" parent="PanelSkin/Content" instance=ExtResource("4_header")]
+[node name="Header" parent="PanelSkin/Content" unique_id=163826742 instance=ExtResource("4_header")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Rows" type="VBoxContainer" parent="PanelSkin/Content"]
+[node name="Rows" type="VBoxContainer" parent="PanelSkin/Content" unique_id=1439372366]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 1

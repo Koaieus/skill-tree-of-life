@@ -20,7 +20,8 @@ pruned that down. **Locked decisions:**
    out → line out`, plus idle-while-open.
 3. **Trace: one style only** — PCB / 45°-elbow family (`straight` dropped;
    `elbow == tree`). `corner`/`bend`/`bend_start` are exports on the line scene
-   (`FanTrace`, #222); `trace_idle` on/off stays until a favorite lands.
+   (`FanTrace`, #222). Idle-while-open is a [FanAnimation] resource (#234):
+   assigned → the settled element idles, `null` → it stays steady-lit.
 4. **`sync_in`/`sync_out` baked to sequential** — line draws in → glowing tip
    arrives → card unfurls at the tip (the "sprout" read). The 3-way
    sequential/simultaneous/reverse enum from #224 is dropped.
@@ -37,9 +38,9 @@ pruned that down. **Locked decisions:**
 | Bucket | Knobs |
 |---|---|
 | Hand-authored in-scene | panel positions, line attach/target, per-unit stagger |
-| Exports on the line scene (`FanTrace`) | `corner`, `bend`, `bend_start`, `trace_idle` |
+| Exports on the line scene (`FanTrace`) | `corner`, `bend`, `bend_start`, `idle_anim` (a [FanAnimation] resource, `null` = off) |
 | "Which packed scene" | `panelSkin` (glass/holo), `modRowStyle` |
-| Owned by the animation setup — TBD | `entryAnim`/`idleAnim`/`leaveAnim`/`loopAnim` |
+| Owned by the animation setup — the [FanAnimation] resource (#234) | `idleAnim` realized; `entryAnim`/`leaveAnim`/`loopAnim` still TBD but the same resource type can carry phase knobs later |
 | A concrete panel's own job | `statChart`, `coreDetail` |
 | Dropped entirely | `fanRadius`/`fanSpread`, `simpleCore`, `playMode`, `sprout`, `straight` trace style, the sync enum |
 
@@ -147,7 +148,22 @@ contradict the table above.
 - **`FanUnit`** (`ui/tooltip_fan/fan_unit.gd`, #224) — pairs one `FanTrace` +
   one `FanPanel` under a `HIDDEN → IN → LOOP → OUT → HIDDEN` state machine;
   trace→panel ordering is baked sequential per decision 4. Owns **no** Tween
-  since #303 — it sequences its two components and holds state.
+  since #303 — it sequences its two components and holds state. Forwards
+  `trace_idle_anim` / `panel_idle_anim` ([FanAnimation] resources) to its two
+  components; both default `null`.
+- **`FanAnimation`** (`ui/tooltip_fan/fan_animation.gd` + example presets in
+  `ui/tooltip_fan/idle/`, #234) — the self-contained idle-loop settings object,
+  one per element rather than one for the whole fan: [FanTrace] reads `period` +
+  `pulse_scale`, [FanPanel] reads `period` + `float_amplitude` +
+  `glow_amplitude`, the other element's knobs are ignored. It is a settings
+  bag, not an animator — the components keep the tween choreography so the
+  constant-brightness rule stays structural (idle only ever adds above the
+  settled floor; `play_out` kills the loop before the fade reads from it).
+  **The resource is the unit of swap and of removal**: assign a different
+  `.tres` to change the idle, set the export to `null` to turn it off. Shipped
+  off by default, opt-in per unit; the components floor `period` (≥ ~0.05s) so
+  a stray 0 can never spin a looped tween per-frame (the original `panel_idle`
+  bug class — `core_panel.tscn` shipped `idle_period = 0.0`).
 - **Shared rows** (`panel_header`, `stat_value_row`, `addon_item`, #293) —
   content rows on the `set_progress(t)` contract, driven by their panel. `AddonItem.bind()` takes an
   optional `icon` override and carries a real `GradientTexture2D` placeholder
@@ -325,3 +341,8 @@ would either leak entries or hold freed references.
   in the sandbox and reports back either way.
 - Entry-anim *style* — which reveal a panel plays is still the "owned by the
   animation setup" bucket of decision 7. *Who owns the Tween* is no longer open.
+- Panel/unit scene duplication — #380: six concrete panels each hand-recompose
+  the same chrome (skin + content + header + padding), and the six unit scenes
+  differ only by which panel they instance (their Trace child is always a bare
+  `fan_trace.tscn`, and per-unit tuning lives at the `fan.tscn` level).
+  Investigating inherited scenes / a unit base — see the issue.

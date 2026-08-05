@@ -60,23 +60,23 @@ signal state_changed(new_state: State)
 ## vertically, while demanding a horizontal arrival, is not.
 @export_range(0.0, 300.0, 1.0, "or_greater") var trunk_length := 0.0
 
-## Forwarded to [member FanTrace.trace_idle] — whether the settled trace tip
-## keeps a soft idle pulse through LOOP.
-@export var trace_idle := false:
+## Forwarded to [member FanTrace.idle_anim] — the settled trace tip's idle-loop
+## settings through LOOP, or `null` to keep the trace a bare constant-lit line.
+@export var trace_idle_anim: FanAnimation = null:
 	set(value):
-		trace_idle = value
+		trace_idle_anim = value
 		if _trace:
-			_trace.trace_idle = value
+			_trace.idle_anim = value
 
-## Forwarded to [member FanPanel.panel_idle] — whether the settled panel
-## keeps its own float/glow idle loop through LOOP (#234). A SEPARATE
-## mechanism from [member trace_idle]: traces and panels are different
-## elements with different (related) lifecycles.
-@export var panel_idle := false:
+## Forwarded to [member FanPanel.idle_anim] — the settled panel's own
+## float/glow idle-loop settings through LOOP (#234), or `null` to keep it
+## steady-lit. A SEPARATE mechanism from [member trace_idle_anim]: traces and
+## panels are different elements with different (related) lifecycles.
+@export var panel_idle_anim: FanAnimation = null:
 	set(value):
-		panel_idle = value
+		panel_idle_anim = value
 		if _panel:
-			_panel.panel_idle = value
+			_panel.idle_anim = value
 
 ## Current machine state. Read-only from outside — drive transitions through
 ## [method play_in] / [method play_out] / [method enter_hidden], never by
@@ -145,8 +145,8 @@ func _ready() -> void:
 		# children — a @tool _ready that sets child properties dirties the
 		# scene on every editor load (.claude/rules/godot-workflow.md).
 		return
-	_trace.trace_idle = trace_idle
-	_panel.panel_idle = panel_idle
+	_trace.idle_anim = trace_idle_anim
+	_panel.idle_anim = panel_idle_anim
 	enter_hidden()
 
 

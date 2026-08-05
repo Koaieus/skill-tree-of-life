@@ -154,20 +154,29 @@ func test_state_changed_does_not_emit_for_a_no_op_transition() -> void:
 	assert_signal_not_emitted(unit, "state_changed")
 
 
-# --- trace_idle forwarding -------------------------------------------------------
+# --- idle animation forwarding (#234) -------------------------------------------
 
-func test_trace_idle_export_forwards_to_the_trace() -> void:
+func test_trace_idle_anim_export_forwards_to_the_trace() -> void:
 	var unit := _make()
 	await get_tree().process_frame
-	unit.trace_idle = true
-	assert_true(unit._trace.trace_idle)
+	var anim := FanAnimation.new()
+	unit.trace_idle_anim = anim
+	assert_same(unit._trace.idle_anim, anim, "the unit forwards its trace idle resource")
 
 
-func test_panel_idle_export_forwards_to_the_panel() -> void:
+func test_panel_idle_anim_export_forwards_to_the_panel() -> void:
 	var unit := _make()
 	await get_tree().process_frame
-	unit.panel_idle = true
-	assert_true(unit._panel.panel_idle)
+	var anim := FanAnimation.new()
+	unit.panel_idle_anim = anim
+	assert_same(unit._panel.idle_anim, anim, "the unit forwards its panel idle resource")
+
+
+func test_idle_exports_null_by_default() -> void:
+	var unit := _make()
+	await get_tree().process_frame
+	assert_null(unit._trace.idle_anim, "idle is opt-in: nothing ships with an idle animation")
+	assert_null(unit._panel.idle_anim, "idle is opt-in: nothing ships with an idle animation")
 
 
 # --- shared component contract (#303) --------------------------------------------

@@ -16,6 +16,13 @@ with a per-index delay. Content rows inside a panel (`ModSlabRow`,
 interrupt kills the running tweens and each component reverses from its own
 progress.
 
+**Idle is a [FanAnimation] resource, not a bool (#234).** `FanTrace.idle_anim`
+and `FanPanel.idle_anim` are `null` by default (nothing in the shipped fan
+idles); assigning a `.tres` opts that element in, `null` turns it off — the
+resource is the swap/removal unit. Components floor `period` (~0.05s) so a
+stray 0 can never spin a looped tween per-frame. Presets live in
+`ui/tooltip_fan/idle/`.
+
 **Geometry: one authored quantity per unit — where its panel sits
 (`FanUnit.position`).** Trace origins are computed clock pins around 12 o'clock,
 assigned in angular order around the node (never tree order); the terminus edge
