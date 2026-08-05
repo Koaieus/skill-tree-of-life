@@ -998,11 +998,15 @@ func _on_stake_level_changed(_new_current: Variant) -> void:
 	pass
 
 
+## Ownership-transition fill writer (#337): a node that stops being owned
+## empties its fill. NO LONGER the fill authority — it never invents a 1 for
+## newly-owned nodes; the allocate path (allocate / force_allocate /
+## register_scene_authored_ownership) owns increments. The old `elif
+## allocation_level == 0: allocation_level = 1` branch was the accident that
+## kept fill writes working; it is gone on purpose.
 func _refresh_alloc_count() -> void:
 	if owned_by == null:
 		allocation_level = 0
-	elif allocation_level == 0:
-		allocation_level = 1
 
 
 ## Pixels of radius added by the current stake level. Level 1 (the ~99% case)

@@ -48,6 +48,11 @@ signal core_moved(entity: Entity, from_node: SkillNode, to_node: SkillNode)
 @export var navigator: Navigator
 @export var turn_manager: TurnManager
 
+## The stake ceiling — the highest `stake_level` a node may reach (#337). One
+## named constant so a balance pass is a one-number edit; the "4 as a special
+## keystone" idea is future scope and gets no mechanism here.
+const STAKE_CEILING := 3
+
 
 func _ready() -> void:
 	Events.entity_died.connect(_on_entity_died)
@@ -94,6 +99,9 @@ func register_scene_authored_ownership() -> void:
 	for n in graph.get_skill_nodes():
 		if n.owned_by == null or n.owned_by.stat_board == null:
 			continue
+		# Fill the first allocation slot — the allocate path owns fill writes
+		# (#337); this bypasses it, so it sets the 1 explicitly.
+		n.allocation_level = 1
 		if n.owned_by.stat_board.skill_points != null:
 			n.owned_by.stat_board.skill_points.claim(1)
 		# This path bypasses force_allocate, so it must grant node-borne effects
@@ -104,12 +112,13 @@ func register_scene_authored_ownership() -> void:
 func can_allocate(node: SkillNode, entity: Entity) -> bool:
 	if entity == null or node == null:
 		return false
-	if node.owned_by != null:
+	if node.owned_by != null and (node.owned_by != entity or node.allocation_level >= node.stake_level):
 		return false
 	var board := entity.stat_board
-	if board != null and board.skill_points != null and board.skill_points.current < 1:
+	if board != null and board.skill_points != null and board.skill_points.available() < 1:
 		return false
-	if _has_any_owned_node(entity) and not _is_adjacent_to_owned(node, entity):
+	# Refills need no adjacency — the node is already in the owned subgraph.
+	if node.owned_by == null and _has_any_owned_node(entity) and not _is_adjacent_to_owned(node, entity):
 		return false
 	return true
 
@@ -137,15 +146,26 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 	var board := entity.stat_board
 	if board != null and board.skill_points != null:
 		board.skill_points.spend(1)
-	node.owned_by = entity
-	if entity.navigator != null:
-		entity.navigator.mirror_add(node)
-	node.apply_entity_modifiers_to(board)
-	_grant_node_effects(node, entity)
-	# After the mirror update: an aura recomputing off this hook must see the
-	# new node in the owned subgraph, not the stale one.
-	entity.dispatch(&"_on_node_allocated", [node, false])
-	allocated.emit(node, entity, false)
+	if node.owned_by == null:
+		# First allocation: 0 → 1. ONLY this transition runs the full side
+		# effect path — a refill must never re-apply modifiers or re-grant
+		# effects (#337), or they would double-stack silently.
+		node.owned_by = entity
+		if entity.navigator != null:
+			entity.navigator.mirror_add(node)
+		node.apply_entity_modifiers_to(board)
+		# Fill AFTER the grants are applied (the local-scale mutator reads the
+		# board when the fill lands — #376).
+		node.allocation_level = 1
+		_grant_node_effects(node, entity)
+		# After the mirror update: an aura recomputing off this hook must see the
+		# new node in the owned subgraph, not the stale one.
+		entity.dispatch(&"_on_node_allocated", [node, false])
+		allocated.emit(node, entity, false)
+	else:
+		# Refill: fill 1 → 2. Only spend + increment + visuals sync — no
+		# re-grant, no mirror, no modifiers, no signal.
+		node.allocation_level += 1
 	return true
 
 
@@ -167,6 +187,11 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 	if board != null and board.skill_points != null:
 		board.skill_points.claim(1)
 	node.apply_entity_modifiers_to(board)
+	# Fill the first allocation slot — the allocate path owns fill writes
+	# (#337); this bypasses it, so it sets the 1 explicitly, after the grants
+	# are applied (the local-scale mutator reads the board when the fill
+	# lands — #376).
+	node.allocation_level = 1
 	_grant_node_effects(node, entity)
 	entity.dispatch(&"_on_node_allocated", [node, true])
 	allocated.emit(node, entity, true)
@@ -178,6 +203,11 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 	var previous := node.owned_by
 	if previous == null:
 		return false
+	# Snapshot the fill BEFORE ownership clears — owner_changed zeroes
+	# allocation_level via _refresh_alloc_count, so a read after would return
+	# 0 and under-refund the SP (the #337 ordering hazard; same shape as
+	# LootSystem's pre-cleanup snapshot). A 2/2 node refunds 2 SP.
+	var fill: int = node.allocation_level
 	var board := previous.stat_board
 	_revoke_node_effects(node, previous)
 	node.remove_entity_modifiers_from(board)
@@ -192,7 +222,7 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 		if board.deallocation_points != null:
 			board.deallocation_points.deplete(1)
 		if board.skill_points != null:
-			board.skill_points.refund(1)
+			board.skill_points.refund(fill)
 	deallocated.emit(node, previous)
 	return true
 
@@ -221,8 +251,106 @@ func force_deallocate(node: SkillNode) -> Entity:
 	return previous
 
 
-## Core movement (#21). Validates `move_core` preconditions without committing.
-## - target must be owned by the entity (you only hop across your own subgraph)
+# ── Staking (#337): raise a node's cap with SP+AP, reclaim with extract ──────
+#
+# `stake_level` is the cap N, `allocation_level` the fill M — a node reads M/N.
+# stake raises the cap (SP current → staked + 1 AP); allocate fills it (SP
+# spend); extract drops the cap back (1 DP, staked SP → current, plus the
+# displaced fill's SP when the node was full). The `staked` bucket is a global
+# per-entity reservation, coupled to caps by convention only — capturing an
+# enemy's staked node and extracting it reclaims YOUR staked SP, not theirs
+# (extract() caps at min(n, staked), so a never-staked entity gains nothing).
+
+## Can this entity stake [param node] — raise its allocation cap by 1?
+## Requires: ownership · core within 1 hop over the OWNED subgraph · ≥ 1 SP ·
+## ≥ 1 AP · cap below the ceiling. Budget gates read `available()`, never
+## `.current` (.claude/rules/stats-system.md).
+func can_stake(node: SkillNode, entity: Entity) -> bool:
+	if entity == null or node == null:
+		return false
+	if node.owned_by != entity:
+		return false
+	if node.stake_level >= STAKE_CEILING:
+		return false
+	if not _core_within_one_hop(node, entity):
+		return false
+	var board := entity.stat_board
+	if board != null and board.skill_points != null and board.skill_points.available() < 1:
+		return false
+	if board != null and board.action_points != null and board.action_points.available() < 1:
+		return false
+	return true
+
+
+## Raise [param node]'s allocation cap by 1: 1 SP moves current → staked,
+## 1 AP is spent.
+func stake(node: SkillNode, entity: Entity) -> bool:
+	if not can_stake(node, entity):
+		return false
+	var board := entity.stat_board
+	if board != null and board.skill_points != null:
+		board.skill_points.stake(1)
+	if board != null and board.action_points != null:
+		board.action_points.deplete(1)
+	node.stake_level += 1
+	return true
+
+
+## Can this entity extract [param node] — drop its cap by 1 and reclaim the
+## staked SP? Requires: ownership · cap above 1 (a 1/1 node is a deallocate,
+## not an extract) · core within 1 hop · ≥ 1 DP · ≥ 1 staked SP.
+func can_extract(node: SkillNode, entity: Entity) -> bool:
+	if entity == null or node == null:
+		return false
+	if node.owned_by != entity:
+		return false
+	if node.stake_level <= 1:
+		return false
+	if not _core_within_one_hop(node, entity):
+		return false
+	var board := entity.stat_board
+	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
+		return false
+	if board != null and board.skill_points != null and board.skill_points.staked < 1:
+		return false
+	return true
+
+
+## Drop [param node]'s cap by 1. Costs 1 DP. Refunds the staked SP; when the
+## node was full (fill == cap) the displaced fill's SP is refunded too, so a
+## 2/2 extract yields 1/1. The fill steps down with the cap through the pool's
+## clamp (cap fall clamps current).
+func extract(node: SkillNode, entity: Entity) -> bool:
+	if not can_extract(node, entity):
+		return false
+	var board := entity.stat_board
+	# Displaced fill: snapshot BEFORE the cap drops — the pool clamps the fill
+	# down on cap fall, and the refunded SP must match.
+	var fill: int = node.allocation_level
+	var displaced := 1 if fill >= node.stake_level else 0
+	if board != null:
+		if board.deallocation_points != null:
+			board.deallocation_points.deplete(1)
+		if board.skill_points != null:
+			board.skill_points.extract(1)
+			if displaced > 0:
+				board.skill_points.refund(displaced)
+	node.stake_level -= 1
+	return true
+
+
+## True when the entity's core is within 1 hop of [param node] over the OWNED
+## subgraph — the core itself (0 hops) or an immediate neighbour. One BFS via
+## the mirror's gather ([method GraphMirror.nodes_within]), never a
+## per-candidate predicate (.claude/rules/graph.md). Fails closed without a
+## navigator.
+func _core_within_one_hop(node: SkillNode, entity: Entity) -> bool:
+	if entity == null or entity.navigator == null or entity.core_location == null:
+		return false
+	return entity.navigator.nodes_within(entity.core_location, 1).has(node)
+
+
+## Core movement (#21). Validates `move_core` preconditions without committing.## - target must be owned by the entity (you only hop across your own subgraph)
 ## - target must differ from the current core slot (self-loops are not landings)
 ## - target must be adjacent via a non-self-loop edge to the current core slot
 ## - entity must have ≥ 1 movement_points

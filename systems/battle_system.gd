@@ -222,12 +222,19 @@ func _on_node_depleted(node: SkillNode) -> void:
 	for n in cascade:
 		if n == null or n.owned_by != defender:
 			continue
+		# Snapshot the fill BEFORE force_deallocate — owner_changed zeroes
+		# allocation_level via _refresh_alloc_count, so any read after the
+		# call returns 0 and the wound count / damage multiplier would silently
+		# collapse (#337; same shape as LootSystem's pre-cleanup snapshot). A
+		# 2/2 node costs 2 wounds and 2x dealloc_damage; the maxi(1, ·) floor
+		# keeps the pre-staking 1/1 costs exactly as they were.
+		var fill: int = n.allocation_level
 		allocation_system.force_deallocate(n)
 		if board != null:
 			if board.skill_points != null:
-				board.skill_points.wound(1)
+				board.skill_points.wound(maxi(fill, 1))
 			if board.health != null and hp_per_node > 0.0:
-				board.health.deplete(hp_per_node)
+				board.health.deplete(hp_per_node * float(maxi(fill, 1)))
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to
