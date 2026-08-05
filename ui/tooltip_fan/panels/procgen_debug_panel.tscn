@@ -6,6 +6,7 @@
 
 [node name="ProcgenDebugPanel" type="Node2D"]
 script = ExtResource("1_script")
+glow = 0.35
 
 [node name="PanelSkin" type="ColorRect" parent="."]
 z_index = -1
@@ -15,6 +16,7 @@ offset_right = 80.0
 offset_bottom = 55.0
 mouse_filter = 2
 script = ExtResource("2_layout")
+fill_color = Color(0.06, 0.13, 0.17, 0.85)
 min_size = Vector2(160, 110)
 hug_down = true
 

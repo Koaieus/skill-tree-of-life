@@ -1,11 +1,12 @@
 @tool
 class_name PanelLayout
-extends HoloPanel
+extends FusedPanel
 
-## Layout skin for a tooltip fan panel (#344): the holo visual AND the layout
-## root in one node. Sits as the FanPanel root's skin child (so FanPanel's
-## glow forwarding and FanAnchor's rect derivation keep working unchanged),
-## hugging a [PanelContent] child's minimum size + its authored padding.
+## Layout skin for a tooltip fan panel (#344 + #345): the fused dark-fill
+## visual AND the layout root in one node. Sits as the FanPanel root's skin
+## child (so FanPanel's glow forwarding and FanAnchor's rect derivation keep
+## working unchanged), hugging a [PanelContent] child's minimum size + its
+## authored padding.
 ##
 ## Before #344 each panel script copied the content's size into the skin's
 ## rect by hand (`_resize_to_content`), and the fixed-envelope panels authored
@@ -13,6 +14,10 @@ extends HoloPanel
 ## drift apart. Here size flows DOWN: the content Controls compute their own
 ## minimum size, this node sizes itself to it (floored at [member min_size]),
 ## and the content (full-rect anchored) re-centres automatically.
+##
+## The base class IS the skin choice — it was HoloPanel before the #345
+## migration landed the whole fan on FusedPanel, and flipping the base class
+## migrates every panel that uses this script, no scene edits needed.
 ##
 ## [member min_size] is the pre-bind envelope authored in the scene — the
 ## footprint the static fan-overlap test measures, and the floor the panel

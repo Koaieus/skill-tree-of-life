@@ -7,13 +7,13 @@
 resource_local_to_scene = true
 shader = ExtResource("2_shader")
 shader_parameter/size = Vector2(300, 120)
-shader_parameter/fill_color = Color(0.086, 0.098, 0.149, 0.9)
+shader_parameter/fill_color = Color(0.06, 0.13, 0.17, 0.85)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
 shader_parameter/gradient_mix = 0.0
-shader_parameter/scanline_count = 60.0
+shader_parameter/scanline_pitch = 3.14159
 shader_parameter/scanline_speed = 0.35
-shader_parameter/scanline_intensity = 0.18
+shader_parameter/scanline_intensity = 0.09
 shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
 shader_parameter/glow = 0.0
 shader_parameter/glow_edges = 15

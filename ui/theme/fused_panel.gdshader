@@ -11,16 +11,27 @@ uniform vec2 size = vec2(300.0, 120.0);
 
 // --- Fill ---
 // Dark base color. Alpha 0.85–0.95 for readability over live game world.
-uniform vec4 fill_color : source_color = vec4(0.086, 0.098, 0.149, 0.90);
+// 0.06,0.13,0.17 is the #345 dial: a hint of hue (cyan-leaning teal) so the
+// world bleeds back through JUST enough that scanlines read as phosphor over
+// a faint world, not wallpaper over a wall.
+uniform vec4 fill_color : source_color = vec4(0.06, 0.13, 0.17, 0.85);
 // Optional gradient second color. gradient_mix = 0 → flat fill, 1 → full gradient.
 uniform vec4 gradient_color_b : source_color = vec4(0.039, 0.043, 0.075, 0.95);
 uniform float gradient_angle_deg = 158.0;
 uniform float gradient_mix : hint_range(0.0, 1.0, 0.01) = 0.0;
 
 // --- Scanlines ---
-uniform float scanline_count = 60.0;
+// Scanlines run in DEVICE PIXEL space, not UV space (#345): the old UV-domain
+// count (60 cycles per panel, whatever its pixel height) beat against the
+// device pixel grid and produced a moire whose apparent motion changed with
+// editor zoom / DPI / resolution. In pixel space one scanline is always the
+// same number of device pixels, so the pattern is stable across zooms; the
+// drift term is unchanged wall-clock TIME, so the roll still reads as a CRT.
+// `scanline_pitch` is radians per device pixel = TAU / N_px (e.g. 3.1416 =
+// one scanline every 2 device pixels).
+uniform float scanline_pitch : hint_range(0.5, 6.0, 0.05) = 3.14159;
 uniform float scanline_speed = 0.35;
-uniform float scanline_intensity = 0.18;
+uniform float scanline_intensity : hint_range(0.0, 1.0, 0.01) = 0.09;
 
 // --- Edge glow ---
 uniform vec4 glow_color : source_color = vec4(0.4, 0.95, 1.0, 1.0);
@@ -55,8 +66,9 @@ void fragment() {
 	vec4 grad = mix(fill_color, gradient_color_b, t);
 	vec4 col = mix(fill_color, grad, gradient_mix);
 
-	// Animated horizontal scanlines, drifting downward over time.
-	float scan = sin(UV.y * scanline_count * TAU - TIME * scanline_speed * TAU);
+	// Animated horizontal scanlines, drifting downward over time — sampled in
+	// device pixels so the pitch never aliases against the pixel grid (#345).
+	float scan = sin(FRAGCOORD.y * scanline_pitch - TIME * scanline_speed * TAU);
 	float scan_mask = smoothstep(0.7, 1.0, scan);
 	col.rgb += scan_mask * scanline_intensity;
 

@@ -11,7 +11,7 @@ extends ColorRect
 
 # --- Fill ---
 
-@export var fill_color: Color = Color(0.086, 0.098, 0.149, 0.90):
+@export var fill_color: Color = Color(0.06, 0.13, 0.17, 0.85):
 	set(v):
 		fill_color = v
 		_push(&"fill_color", v)
@@ -34,17 +34,22 @@ extends ColorRect
 
 # --- Scanlines ---
 
-@export_range(10.0, 200.0, 1.0) var scanline_count: float = 60.0:
+## Radians per device pixel = TAU / N_px: one scanline every N device pixels,
+## regardless of panel size, zoom, or DPI (#345 — UV-domain counts moired
+## against the pixel grid). PI = one scanline every 2 device pixels.
+@export_range(0.5, 6.0, 0.05) var scanline_pitch: float = PI:
 	set(v):
-		scanline_count = v
-		_push(&"scanline_count", v)
+		scanline_pitch = v
+		_push(&"scanline_pitch", v)
 
 @export_range(0.0, 2.0, 0.01) var scanline_speed: float = 0.35:
 	set(v):
 		scanline_speed = v
 		_push(&"scanline_speed", v)
 
-@export_range(0.0, 1.0, 0.01) var scanline_intensity: float = 0.18:
+## Pixel-space scanlines read stronger per unit than UV ones did, so the
+## default dropped to ~half the old value (#345).
+@export_range(0.0, 1.0, 0.01) var scanline_intensity: float = 0.09:
 	set(v):
 		scanline_intensity = v
 		_push(&"scanline_intensity", v)
@@ -123,7 +128,7 @@ func _push_all() -> void:
 	_push(&"gradient_color_b", gradient_color_b)
 	_push(&"gradient_angle_deg", gradient_angle_deg)
 	_push(&"gradient_mix", gradient_mix)
-	_push(&"scanline_count", scanline_count)
+	_push(&"scanline_pitch", scanline_pitch)
 	_push(&"scanline_speed", scanline_speed)
 	_push(&"scanline_intensity", scanline_intensity)
 	_push(&"glow_color", glow_color)

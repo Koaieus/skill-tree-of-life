@@ -4,53 +4,42 @@
 [ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_layout.gd" id="2_layout"]
 [ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_content.gd" id="3_content"]
 [ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="4_header"]
-[ext_resource type="PackedScene" path="res://ui/theme/scanline_overlay.tscn" id="5_scanline"]
-[ext_resource type="PackedScene" uid="uid://cx536j2yv0u8w" path="res://ui/gauges/attribute_radar.tscn" id="6_radar"]
-[ext_resource type="Script" uid="uid://l7fnpahlcs4d" path="res://ui/gauges/axis_spec.gd" id="7_lxihq"]
-[ext_resource type="Shader" uid="uid://b8xdnesp1yyja" path="res://ui/theme/holo_scanline_overlay.gdshader" id="8_e284t"]
+[ext_resource type="PackedScene" uid="uid://cx536j2yv0u8w" path="res://ui/gauges/attribute_radar.tscn" id="5_radar"]
+[ext_resource type="Script" uid="uid://l7fnpahlcs4d" path="res://ui/gauges/axis_spec.gd" id="6_lxihq"]
 
 [sub_resource type="Resource" id="Resource_bkkkd"]
-script = ExtResource("7_lxihq")
+script = ExtResource("6_lxihq")
 label = "STR"
 color = Color(0.9451, 0.2689, 0.2453, 1)
 
 [sub_resource type="Resource" id="Resource_ts4x1"]
-script = ExtResource("7_lxihq")
+script = ExtResource("6_lxihq")
 label = "INT"
 color = Color(0.291, 0.5892, 1, 1)
 
 [sub_resource type="Resource" id="Resource_76jw2"]
-script = ExtResource("7_lxihq")
+script = ExtResource("6_lxihq")
 label = "CON"
 metadata/_custom_type_script = "uid://l7fnpahlcs4d"
 
 [sub_resource type="Resource" id="Resource_k7ih7"]
-script = ExtResource("7_lxihq")
+script = ExtResource("6_lxihq")
 label = "WIS"
 color = Color(0.9039, 0.7331, 0.2746, 1)
 
 [sub_resource type="Resource" id="Resource_prd5i"]
-script = ExtResource("7_lxihq")
+script = ExtResource("6_lxihq")
 label = "PER"
 color = Color(0.6935, 0.4045, 0.9676, 1)
 
 [sub_resource type="Resource" id="Resource_0qoe8"]
-script = ExtResource("7_lxihq")
+script = ExtResource("6_lxihq")
 label = "DEX"
 color = Color(0.3187, 0.7773, 0.4484, 1)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_lxihq"]
-resource_local_to_scene = true
-shader = ExtResource("8_e284t")
-shader_parameter/size = Vector2(210, 320)
-shader_parameter/corner_radius = 13.0
-shader_parameter/line_color = Color(0.4, 0.95, 1, 1)
-shader_parameter/scanline_count = 90.0
-shader_parameter/scanline_speed = 0.4
-shader_parameter/scanline_intensity = 0.22
-
 [node name="OwnerPanel" type="Node2D" unique_id=214893897]
 script = ExtResource("1_script")
+glow = 0.5
 progress = 1.0
 
 [node name="PanelSkin" type="ColorRect" parent="."]
@@ -61,6 +50,7 @@ offset_right = 105.0
 offset_bottom = 160.0
 mouse_filter = 2
 script = ExtResource("2_layout")
+fill_color = Color(0.06, 0.13, 0.17, 0.85)
 min_size = Vector2(210, 320)
 
 [node name="Content" type="VBoxContainer" parent="PanelSkin"]
@@ -85,20 +75,13 @@ theme_override_colors/font_color = Color(0.9451, 0.2689, 0.2453, 1)
 theme_override_font_sizes/font_size = 11
 text = "HOSTILE OWNER"
 
-[node name="Radar" parent="PanelSkin/Content" instance=ExtResource("6_radar")]
+[node name="Radar" parent="PanelSkin/Content" instance=ExtResource("5_radar")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
-axes = Array[ExtResource("7_lxihq")]([SubResource("Resource_bkkkd"), SubResource("Resource_ts4x1"), SubResource("Resource_76jw2"), SubResource("Resource_k7ih7"), SubResource("Resource_prd5i"), SubResource("Resource_0qoe8")])
+axes = Array[ExtResource("6_lxihq")]([SubResource("Resource_bkkkd"), SubResource("Resource_ts4x1"), SubResource("Resource_76jw2"), SubResource("Resource_k7ih7"), SubResource("Resource_prd5i"), SubResource("Resource_0qoe8")])
 
 [node name="Rows" type="VBoxContainer" parent="PanelSkin/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
-
-[node name="ScanlineOverlay" parent="PanelSkin" instance=ExtResource("5_scanline")]
-material = SubResource("ShaderMaterial_lxihq")
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
