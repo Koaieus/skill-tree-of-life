@@ -37,7 +37,7 @@ extends ColorRect
 ## Radians per device pixel = TAU / N_px: one scanline every N device pixels,
 ## regardless of panel size, zoom, or DPI (#345 — UV-domain counts moired
 ## against the pixel grid). PI = one scanline every 2 device pixels.
-@export_range(0.5, 6.0, 0.05) var scanline_pitch: float = PI:
+@export_range(0.5, 6.0, 0.05) var scanline_pitch: float = 1.6:
 	set(v):
 		scanline_pitch = v
 		_push(&"scanline_pitch", v)

@@ -1,40 +1,63 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://b1schaj5l0buh"]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/mod_slab_row.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bso2j0rxvs3w3" path="res://ui/tooltip_fan/mod_slab_row.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/slab_panel.tscn" id="2_slab"]
+[ext_resource type="Shader" uid="uid://u435mfubr7b8" path="res://ui/tooltip_fan/slab_panel.gdshader" id="3_f6h3x"]
 
-[node name="ModSlabRow" type="Control"]
-script = ExtResource("1_script")
-custom_minimum_size = Vector2(120, 22)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_63du3"]
+resource_local_to_scene = true
+shader = ExtResource("3_f6h3x")
+shader_parameter/size = Vector2(100, 25)
+shader_parameter/tint_color = Color(0.4, 0.95, 1, 1)
+shader_parameter/fill_darkness = 0.999999977648
+shader_parameter/glow_strength = 0.0
+shader_parameter/border_width = 1.0
+shader_parameter/glow_width = 5.0
+shader_parameter/corner_radius = 7.0
+
+[node name="ModSlabRow" type="Control" unique_id=1475099272]
+custom_minimum_size = Vector2(100, 22)
 layout_mode = 3
 anchors_preset = 0
+offset_right = 100.0
+offset_bottom = 25.0
 mouse_filter = 1
+script = ExtResource("1_script")
 
-[node name="Slab" parent="." instance=ExtResource("2_slab")]
+[node name="Slab" parent="." unique_id=720400489 instance=ExtResource("2_slab")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_63du3")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 2.0
-offset_top = 2.0
-offset_right = -2.0
-offset_bottom = -2.0
-mouse_filter = 2
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 2
+fill_darkness = 1.0
+glow_strength = 0.0
+border_width = 1.0
+corner_radius = 7.0
 
-[node name="Label" type="Label" parent="."]
-unique_name_in_owner = true
+[node name="MarginContainer" type="MarginContainer" parent="Slab" unique_id=279512814]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 4.0
-offset_top = 4.0
-offset_right = -4.0
-offset_bottom = -4.0
-mouse_filter = 2
-theme_override_font_sizes/font_size = 11
-horizontal_alignment = 0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 3
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 3
+theme_override_constants/margin_bottom = 0
+
+[node name="Label" type="Label" parent="Slab/MarginContainer" unique_id=1550844287]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 10)
+custom_maximum_size = Vector2(-1, 150)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "+123 Strength"
 vertical_alignment = 1
 autowrap_mode = 3
-text = ""

@@ -1,16 +1,14 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://bx7ob3yb6gsd1"]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/fan_unit.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_trace"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/core_panel.tscn" id="3_panel"]
+[ext_resource type="Script" uid="uid://h8fsj632oxi0" path="res://ui/tooltip_fan/fan_unit.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://d0w41dfe3cu3y" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_trace"]
+[ext_resource type="PackedScene" uid="uid://do0ss4uen1860" path="res://ui/tooltip_fan/panels/core_panel.tscn" id="3_panel"]
 
-[node name="CoreUnit" type="Node2D" groups=["fan_unit"]]
+[node name="CoreUnit" type="Node2D" unique_id=1328268327 groups=["fan_unit"]]
 script = ExtResource("1_script")
 
-[node name="Trace" parent="." instance=ExtResource("2_trace")]
+[node name="Trace" parent="." unique_id=991908740 instance=ExtResource("2_trace")]
 unique_name_in_owner = true
-trunk_dir = Vector2(0, -1)
-bend_start = 0.382
 
-[node name="Panel" parent="." instance=ExtResource("3_panel")]
+[node name="Panel" parent="." unique_id=1131675162 instance=ExtResource("3_panel")]
 unique_name_in_owner = true

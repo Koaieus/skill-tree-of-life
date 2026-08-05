@@ -6,7 +6,7 @@
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
+[ext_resource type="PackedScene" uid="uid://bx7ob3yb6gsd1" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/procgen_debug_unit.tscn" id="8_procgen"]
 
 [node name="Fan" type="Node2D" unique_id=689565114]
@@ -19,7 +19,7 @@ position = Vector2(0, 43)
 position = Vector2(0, -114)
 
 [node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
-position = Vector2(-142, -1)
+position = Vector2(-177, -3)
 anchor_slide = 0.12
 arrival_axis = 1
 
