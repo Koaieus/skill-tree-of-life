@@ -86,7 +86,9 @@ func _rebuild_rows() -> void:
 func _add_addon_item(addon: SkillNodeAddon) -> void:
 	var item := _ADDON_ITEM_SCENE.instantiate() as AddonItem
 	_rows.add_child(item)
-	item.bind(addon.get_tooltip_title(), addon.get_tooltip_modifiers(), addon.description)
+	# 4th arg = addon icon (#281 — the icon lives on the addon, mirrored from
+	# SpellDef; null falls back to AddonItem's placeholder).
+	item.bind(addon.get_tooltip_title(), addon.get_tooltip_modifiers(), addon.description, addon.icon)
 	_row_setters.append(item.set_progress)
 
 
