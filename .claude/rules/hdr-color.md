@@ -1,0 +1,1 @@
+`Color` has no I field; the picker's I slider stores `sRGB_encode(base × 2^I)` as plain rgb, so bloom (linear threshold) hinges on I, not on rgb>1. See docs/domain/hdr-color.md
