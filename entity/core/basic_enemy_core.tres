@@ -8,7 +8,7 @@
 [sub_resource type="Resource" id="Resource_q2ptp"]
 script = ExtResource("1_agu68")
 stat_id = &"wisdom"
-operation = 4
+operation = 3
 value = 80.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 

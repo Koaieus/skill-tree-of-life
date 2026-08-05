@@ -7,9 +7,15 @@ extends ColorRect
 ## fill darkness and glow strength — mirrors FusedPanel's push-to-shader
 ## pattern, scaled down for a 22px-tall reading row.
 
+
+@onready var label: Label = %Label
+
+
 @export var tint_color: Color = Color(0.4, 0.95, 1.0):
 	set(v):
 		tint_color = v
+		if label:
+			label.add_theme_color_override(&"font_color", v)
 		_push(&"tint_color", v)
 
 ## 0 = fill is the raw tint, 1 = fill is near-black.

@@ -1,9 +1,20 @@
 [gd_scene format=3 uid="uid://b1addon0spike"]
 
 [ext_resource type="Script" uid="uid://b3a7a3yleuv1a" path="res://skill_node/addons/spike_ring_addon.gd" id="1_spike"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_2tu4f"]
 [ext_resource type="Texture2D" uid="uid://5mumfh4necgo" path="res://assets/icons/addons/addon_spikes.png" id="2_spike"]
 
+[sub_resource type="Resource" id="Resource_arix0"]
+script = ExtResource("2_2tu4f")
+stat_id = &"blade_damage"
+operation = 2
+value = 1.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
 [node name="SpikeRingAddon" type="Node2D" unique_id=1569558765]
+z_index = 1
 script = ExtResource("1_spike")
-spike_color = Color(0.95, 0.55, 0.4, 0.95)
+damage = 1.0
+spike_color = Color(0.95, 0.95, 0.95, 0.9490196)
+local_modifiers = Array[ExtResource("2_2tu4f")]([SubResource("Resource_arix0")])
 icon = ExtResource("2_spike")

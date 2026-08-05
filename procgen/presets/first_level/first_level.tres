@@ -252,7 +252,7 @@ weights = {
 [resource]
 script = ExtResource("cfg")
 node_count = 800
-node_padding = 64.0
+node_padding = 86.0
 connectivity = 0.287
 self_loop_tier1_rate = 0.05
 shape_mask = SubResource("shape_circle")

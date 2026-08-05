@@ -10,11 +10,15 @@ shader_parameter/circles = [Vector4(0, 0, 0, 0), Vector4(0, 0, 0, 0), Vector4(0,
 shader_parameter/entity_count = 0
 shader_parameter/entity_colors = [Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)]
 shader_parameter/intensity = 0.6
+shader_parameter/intensity = 0.15
 shader_parameter/falloff = 0.6
+shader_parameter/union_smoothness = 0.5
 
 [node name="AuraOverlay" type="Node2D" unique_id=1398858785]
 z_index = -100
 z_as_relative = false
 material = SubResource("ShaderMaterial_aura")
 script = ExtResource("1_script")
+intensity = 0.15
+union_smoothness = 0.5
 radius_multiplier = 3.0
