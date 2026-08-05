@@ -947,6 +947,32 @@ func _init_node_board() -> void:
 	if node_board == null:
 		node_board = StatBoard.new()
 	_mint_stake_pool()
+	_mint_addon_slots()
+
+
+## Mint `addon_slots` — base(0) + allocation_level, plain 1:1 — on boards that
+## carry addons (#375). The formula reads the stake pool through the
+## `stake_level__current` accessor, so a fill change recomputes reactively.
+## Sparse: boards without addons never get the stat (nor the formula). The
+## formula is the #376 parallel path — the mutator skips modifiers whose
+## formula reads `stake_level`, so this never double-scales.
+func _mint_addon_slots() -> void:
+	if Engine.is_editor_hint() or _addon_slots_wired:
+		return
+	if _addons.is_empty():
+		return
+	_addon_slots_wired = true
+	var formula := ExpressionFormula.new()
+	formula.formula = "stake_level__current"
+	formula.inputs = [&"stake_level__current"]
+	formula.per_phrase = "allocation level"
+	var m := StatModifier.new()
+	m.stat_id = &"addon_slots"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = 1.0
+	m.formula = formula
+	add_local_modifier(m)
+var _addon_slots_wired: bool = false
 
 
 ## Mint the `stake_level` PoolStat on [member node_board] if absent, then sync
@@ -1065,6 +1091,10 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 					a.queue_free()
 				return
 	_addons.append(a)
+	# Mint the addon_slots stat for addon carriers (#375) — must run after the
+	# ledger append (the mint's sparse check reads it) and before any modifier
+	# transfer below, so a formula-bound addon modifier can bind the pool.
+	_init_node_board()
 	# Draw order is the addon's own business — see SkillNodeAddon.BASE_Z. The
 	# carrier deliberately doesn't write it.
 	#
