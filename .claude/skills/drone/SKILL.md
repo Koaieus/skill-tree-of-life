@@ -1,6 +1,6 @@
 ---
 name: drone
-description: Flow rules for a worker agent dispatched by the `swarm` orchestrator — file ownership, red-green loop, the report format to return, and what not to do. Invoke this when your prompt says to, or when you find yourself working inside a `.worktrees/<slug>/` checkout made by `mise run worktree:new`.
+description: Flow rules for a worker agent dispatched by the `swarm` orchestrator — worktree setup, file ownership, red-green loop, the report format to return, and what not to do. Invoke this when your prompt says to, or when you find yourself working inside a `.worktrees/<slug>/` checkout made by `mise run worktree:new`.
 ---
 
 # Drone
@@ -9,14 +9,29 @@ You are one worker in a swarm. A larger model planned this work, decomposed it,
 and is waiting on your result. Your job is to execute one unit precisely and
 report back tersely.
 
+> The orchestrator's brief trusts this skill to carry the standing rules —
+> worktree-first, hard-stop, explicit-path `git add`, the report format,
+> verification caps. Do not expect the brief to restate them. Read this whole
+> file once, then act.
+
+## Harness — identify once, then follow that column
+
+| | opencode (this repo's primary) | Claude Code |
+|---|---|---|
+| Start of run | `mise run worktree:new -- <slug>` — you start in the shared main checkout, nothing enforces isolation until this runs | spawn already puts you in `.claude/worktrees/agent-<id>/` (harness isolation); make a `mise` worktree anyway if the brief tells you to |
+| Mid-flight question to orchestrator | **not possible** — your `task` call returns one final report. Stopping with a question in `NOTES:` *is* the question; the orchestrator resumes you (via `task_id`) with the answer if recoverable. | `SendMessage` to `main` — bidirectional mid-flight, your context stays warm |
+| Subagent for read-only search | `task` with `subagent_type: "explore"` (you have `task`; `explore` is a leaf, no further nesting) | `Explore(model=haiku)` via the `Agent` tool |
+
 **Your first action is `mise run worktree:new -- <your-unit>`.** You start in the
 **shared main checkout**, where the user may have WIP and siblings are working —
 so until that worktree exists, edit nothing. After it exists you have your own
 branch at `.worktrees/<slug>/`; use absolute paths into it for the rest of your
 run and nothing you do touches the main checkout or the other workers.
 
-(If your brief instead says you were spawned with harness isolation, you're
-already in `.claude/worktrees/agent-<id>/` and can skip this.)
+(opencode workers always go through this step — there is no harness isolation
+to skip it. Claude Code harness-isolated workers may already be in a
+`.claude/worktrees/agent-<id>/` checkout; the brief will say so, and in that
+case the `mise` worktree is optional.)
 
 ## Your unit is bounded by files
 
@@ -92,43 +107,49 @@ don't touch issue status or labels.
 
 ## Do not
 
-- **Do not call `advisor`.** The orchestrator is a larger model holding the whole
-  plan — it *is* the advisor, and it reviews your diff. Calling advisor spends
-  time re-deriving context you don't have.
-- **Do not ask the user anything** (`AskUserQuestion`). A swarm runs unattended.
-  Ambiguity goes to the *orchestrator* — `SendMessage` to `main` — and it may send
-  you a follow-up with your context still warm.
-- **Do not grind.** If the same failure repeats twice, or you need a file you don't
-  own, or the spec is genuinely ambiguous: message the orchestrator with the
-  specific question and **stop**. Do not attempt a third fix. Asking costs the team
-  one message; grinding costs it your whole remaining context, and a swarm is
-  bounded by a shared rate-limit window — your loop is spending everyone's budget.
-  **A question is a success.**
-- **Do not over-verify.** Your fast loop is the project's compile check. Run the
-  full suite **once** before reporting, not after every edit — verification you were
-  not asked for is where workers burn 35% more than their peers for identical code.
-  Don't author new test suites unless your brief names one; visual acceptance
-  ("does it look right") does not get a test harness. Don't do real-backend /
-  `xvfb` boots unless you changed a shader.
-- **Do not trust a "pre-existing" failure.** If the suite is red and you suspect it
-  predates you, say so in `NOTES:` and let the orchestrator confirm against real
-  `master`. Your worktree may contain a sibling worker's commit, which makes a
-  stash-based baseline lie.
+- **Do not call `advisor` (Claude Code only — opencode has no such tool).** The
+  orchestrator is a larger model holding the whole plan — it *is* the advisor,
+  and it reviews your diff. Calling advisor spends time re-deriving context
+  you don't have.
+- **Do not ask the user anything** (Claude Code: `AskUserQuestion`; opencode:
+  `question`). A swarm runs unattended. Ambiguity goes to the *orchestrator*:
+  - **opencode**: stop and put the specific question in `NOTES:`. Your `task`
+    call returns; the orchestrator reads the question and resumes you via
+    `task_id` with the answer if recoverable. (You cannot send mid-flight.)
+  - **Claude Code**: `SendMessage` to `main` and stop. Your context stays
+    warm; the orchestrator sends a follow-up you continue from.
+- **Do not grind.** If the same failure repeats twice, or you need a file you
+  don't own, or the spec is genuinely ambiguous: report the specific question
+  (via the channel above) and **stop**. Do not attempt a third fix. Asking
+  costs the team one message; grinding costs it your whole remaining context,
+  and a swarm is bounded by a shared rate-limit window — your loop is
+  spending everyone's budget. **A question is a success.**
+- **Do not over-verify.** Your fast loop is the project's compile check. Run
+  the full suite **once** before reporting, not after every edit —
+  verification you were not asked for is where workers burn 35% more than
+  their peers for identical code. Don't author new test suites unless your
+  brief names one; visual acceptance ("does it look right") does not get a
+  test harness. Don't do real-backend / `xvfb` boots unless you changed a
+  shader.
+- **Do not trust a "pre-existing" failure.** If the suite is red and you
+  suspect it predates you, say so in `NOTES:` and let the orchestrator
+  confirm against real `master`. Your worktree may contain a sibling worker's
+  commit, which makes a stash-based baseline lie.
 - **`git add` by explicit path — never `-A`, never `-a`.** You may, through a
-  harness quirk, be sharing a worktree with another live worker; a blanket add
-  would commit their unfinished work.
+  harness quirk, be sharing a worktree with another live worker; a blanket
+  add would commit their unfinished work.
 - **Make your worktree FIRST — this is the isolation guarantee, and it's soft.**
   Unlike harness isolation, nothing enforces it: until `mise run worktree:new`
-  has run, every edit you make lands on the shared main checkout. Absolute paths
-  into `.worktrees/<slug>/` from then on.
-- **Do not spawn subagents to do your work.** You are the leaf for *implementation*.
-  Delegating a broad read-only search ("where is X handled across the repo") to an
-  `Explore` subagent is fine and often cheaper — the orientation cost lands in a
-  throwaway context instead of yours. You **do** have the `Agent` tool, whether you
-  were spawned isolated or as a teammate (verified 2026-07-30); `Explore` is where
-  the chain stops.
-- **Do not expand scope.** Adjacent cleanup you noticed goes in the report as a
-  note, not in the diff. Your diff has to survive someone else's rebase.
+  has run, every edit you make lands on the shared main checkout. Absolute
+  paths into `.worktrees/<slug>/` from then on.
+- **Do not spawn subagents to do your work.** You are the leaf for
+  *implementation*. Delegating a broad read-only search ("where is X handled
+  across the repo") to a read-only grandchild is fine and often cheaper — the
+  orientation cost lands in a throwaway context instead of yours. opencode:
+  `task` with `subagent_type: "explore"`. Claude Code: `Explore(model=haiku)`.
+  That grandchild is a leaf either way; don't go deeper.
+- **Do not expand scope.** Adjacent cleanup you noticed goes in the report as
+  a note, not in the diff. Your diff has to survive someone else's rebase.
 
 ## Report format
 

@@ -76,10 +76,15 @@ a read-only grandchild when the unit needs "where is X handled across the
 repo" — but cap depth at worker → leaf. A grandchild past that is wasted.
 
 **Workers cannot see this conversation, the issue, or sibling units.**
-Everything a worker needs — owned files, acceptance test, "done" definition,
-hard-stop rule — goes in its `task` prompt (opencode) or its `SendMessage`
-brief (Claude Code). Leaving it implicit because "it's in the issue" is the
-standard way a swarm goes wrong.
+Everything a worker needs — owned paths, acceptance test, "done" definition,
+harness-aware escalation channel — goes in its `task` prompt (opencode) or
+its `SendMessage` brief (Claude Code). The standing flow rules (worktree
+first, hard-stop, explicit-path `git add`, verification caps, report format)
+do *not* go in the brief — `drone` carries them, and the brief opens with
+`"Invoke the drone skill, then do the following:"`. Leaving the standing
+rules implicit because "drone has them" is correct; leaving the *unit
+specifics* implicit because "it's in the issue" is the standard way a swarm
+goes wrong.
 
 ## Gate — do not swarm the wrong work
 
@@ -367,23 +372,41 @@ following.`
 
 #### Both harnesses — the briefing body
 
-Give each worker its acceptance test up front. A worker that can run
-`mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is
-done; one that can't will report "looks right" and be wrong.
+**Just `"Invoke the drone skill, then do the following:"` and the unit.** The
+`drone` skill carries every standing rule the worker needs — worktree-first,
+hard-stop on repeated failure, explicit-path `git add`, "don't ask the user",
+verification caps, the read-only-grandchild delegation, the terse report format.
+Restating any of those in N briefs is N × (tokens for content the worker
+already loads by invoking `drone`). The brief carries only what is *specific
+to this unit*:
 
-**Put a hard stop in every prompt. This is the single highest-value line in a
-worker's briefing** — three prior runs died with workers grinding silently on
-test problems, and the run that carried this rule had all three workers
-escalate correctly at a cost of one message each:
+- **Owned paths.** The exact file list the worker may edit. Drone's
+  ownership-bounded-editing rule is generic; the path list is per-unit.
+- **Acceptance test.** A worker that can run
+  `mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is
+  done; one that can't will report "looks right" and be wrong.
+- **What "done" means in this unit's own words.** Restating the issue's
+  acceptance in one line, deferring to the issue body for the rest.
 
-> If the same failure repeats twice, or you need a file you don't own, or
-> the spec is ambiguous: report the specific question back to the
-> orchestrator and **stop**. Do not attempt a third fix.
+Hard-stop / verification caps / "ask the orchestrator not the user" /
+explicit-path `git add` / commit-before-report / report-format / delegate-
+read-only-searches — **drone's job, not yours.** If you find yourself writing
+any of those into a brief, stop; you are spending tokens against the point of
+the skill.
 
-Say explicitly that *you* are its advisor, that asking is cheaper for the
-team than grinding, and that **a question is a success, not a failure**. A
-soft "ask if unsure" does not work; workers read it as permission to keep
-trying.
+The one standing rule worth naming in the brief anyway, in one line, is the
+**hard-stop escalation channel** — because it differs by harness and the
+worker needs to know which one it's in:
+
+- **opencode**: "Stopping with a question in `NOTES:` *is* asking the
+  orchestrator. There is no mid-flight backchannel — your `task` call returns
+  one report; I resume you via `task_id` with the answer if recoverable."
+- **Claude Code**: "`SendMessage` me with the specific question and stop.
+  Your context stays warm; I reply and you continue."
+
+That distinction is not in `drone` (it picks the right channel from its
+harness table) — but naming it here costs one line and prevents the worker
+from inventing a channel that does not exist in its harness.
 
 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (Claude Code only) is already set in
 this user's `~/.claude/settings.json`. Do not spend a turn echoing it. It is
@@ -405,22 +428,23 @@ The spread tracks **tool calls, not units of work.** The dearest worker did
 the same amount of code as the cheapest and cost 35% more, entirely in
 verification it was never asked for. That is the lever.
 
-**Bound verification explicitly in every prompt.** Left open, a worker will
-build a test harness for a panel whose acceptance is "it looks right", then
-re-run the whole suite after each tweak:
-
-- Name the fast loop (`mise run check`) and say it is the loop.
-- Cap the full suite: run it **once** before reporting, not per edit.
-- **Forbid authoring new test suites** unless you name one. Visual acceptance
-  does not get a GUT harness.
-- Forbid `xvfb`/real-backend boots unless the unit touches a `.gdshader`.
+**Bound verification explicitly in every prompt.** Drone already carries the
+caps (fast loop = `mise run check`; full suite **once** before reporting, not
+per edit; no new test harnesses unless the brief names one; no `xvfb` unless
+a shader changed). Adding a one-line reminder in the brief is cheap
+insurance; restating the full bullet list is drone's job and wastes tokens.
+The lever itself is real: the dearest worker in the run below cost 35% more
+than the cheapest for *identical code*, entirely in verification it was never
+asked for.
 
 **Have workers delegate broad searches downward too, not just you.** When a
-unit needs "where is X handled across the repo", instruct the worker to
-launch its own read-only grandchild (opencode: `task` with `subagent_type:
-"explore"`; Claude Code: `Explore(model=haiku)`) — the orientation cost lands
-in a cheap throwaway context instead of the worker's. Nesting is confirmed
-permitted in both harnesses; do not go past worker → leaf.
+unit needs "where is X handled across the repo", drone already tells the
+worker to spawn a read-only grandchild (opencode: `task` with
+`subagent_type: "explore"`; Claude Code: `Explore(model=haiku)`) and cap depth
+at worker → leaf. You don't need to instruct it again in the brief — just
+trust the skill. The savings are real: the orientation cost lands in a cheap
+throwaway context instead of the worker's, and nesting is confirmed permitted
+in both harnesses.
 
 **Plan for running out.** Assume the window may close mid-swarm, and make
 that survivable rather than catastrophic:
