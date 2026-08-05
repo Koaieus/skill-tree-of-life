@@ -16,16 +16,17 @@ uniform float glow : hint_range(0.0, 1.0) = 0.0;
 // Which borders the glow lights, as bit flags: 1=top, 2=right, 4=bottom,
 // 8=left (15 = all). Driven by HoloPanel.gd's @export_flags.
 uniform int glow_edges = 15;
+// How wide the glow hands over between two edges meeting at a corner, in
+// boundary-normal space. 0 = hard switch at the 45-degree bisector.
+uniform float glow_corner_softness : hint_range(0.0, 1.0, 0.01) = 0.35;
 
-float sd_round_rect(vec2 p, vec2 half_size, float r) {
-	vec2 q = abs(p) - half_size + r;
-	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
+#include "res://ui/theme/round_rect.gdshaderinc"
 
 void fragment() {
-	vec2 px = UV * size;
-	vec2 centered = px - size * 0.5;
-	float d = sd_round_rect(centered, size * 0.5, corner_radius);
+	vec2 half_size = size * 0.5;
+	vec2 centered = UV * size - half_size;
+	float radius = min(corner_radius, min(half_size.x, half_size.y));
+	float d = rr_distance(centered, half_size, radius);
 
 	vec4 col = tint_color;
 
@@ -37,20 +38,16 @@ void fragment() {
 	// Sharp edge highlight — a thin, crisp border stroke hugging the inner
 	// rounded edge (clean "card" look), NOT a soft bloom. `edge_width` px
 	// thick with a hard falloff; `glow` is the intensity, `glow_edges` picks
-	// which borders light. The per-side selection is measured at the border
-	// so a selected edge lights uniformly and fades into an L-bracket at a
-	// corner when only one of the two meeting edges is on.
+	// which borders light. The per-side selection runs off the BOUNDARY NORMAL,
+	// so it follows the corner arc: a lit edge stays lit around the arc it
+	// shares with another lit edge, and fades out over an arc it doesn't.
 	float edge_width = 2.0;
 	float stroke = 1.0 - smoothstep(0.0, edge_width, -d);
-	float sel = 0.0;
-	if ((glow_edges & 1) != 0) sel = max(sel, 1.0 - smoothstep(0.0, edge_width, px.y));           // top
-	if ((glow_edges & 2) != 0) sel = max(sel, 1.0 - smoothstep(0.0, edge_width, size.x - px.x));  // right
-	if ((glow_edges & 4) != 0) sel = max(sel, 1.0 - smoothstep(0.0, edge_width, size.y - px.y));  // bottom
-	if ((glow_edges & 8) != 0) sel = max(sel, 1.0 - smoothstep(0.0, edge_width, px.x));           // left
+	vec2 n = rr_normal(centered, half_size, radius);
+	float sel = rr_edge_select(n, glow_edges, glow_corner_softness);
 	float g = stroke * sel * glow;
 	col.rgb = mix(col.rgb, glow_color.rgb, g);
 	col.a += g * glow_color.a;
 
-	float shape_alpha = 1.0 - smoothstep(-1.0, 1.0, d);
-	COLOR = vec4(col.rgb, col.a * shape_alpha);
+	COLOR = vec4(col.rgb, col.a * rr_coverage(d));
 }

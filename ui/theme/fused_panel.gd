@@ -93,6 +93,16 @@ extends ColorRect
 		corner_radius = v
 		_push(&"corner_radius", v)
 
+## How wide the edge glow hands over between the two edges meeting at a
+## corner, measured in boundary-normal space. 0 = a hard switch at the corner's
+## 45° bisector; 1 = the hand-over spans the whole arc. Only observable when
+## [member glow_edges] lights some but not all four edges — with all four on,
+## the selection sums to 1 around the whole boundary regardless.
+@export_range(0.0, 1.0, 0.01) var glow_corner_softness: float = 0.35:
+	set(v):
+		glow_corner_softness = v
+		_push(&"glow_corner_softness", v)
+
 
 func _ready() -> void:
 	if material == null:
@@ -123,6 +133,7 @@ func _push_all() -> void:
 	_push(&"border_color", border_color)
 	_push(&"border_width", border_width)
 	_push(&"corner_radius", corner_radius)
+	_push(&"glow_corner_softness", glow_corner_softness)
 
 
 func _push(param: StringName, value: Variant) -> void:

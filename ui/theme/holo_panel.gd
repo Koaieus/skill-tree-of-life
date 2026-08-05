@@ -17,6 +17,14 @@ extends ColorRect
 		glow_edges = v
 		_push(&"glow_edges", v)
 
+## How wide the glow hands over between the two edges meeting at a corner,
+## in boundary-normal space. 0 = a hard switch at the corner's 45° bisector.
+## Only observable when [member glow_edges] lights some but not all four.
+@export_range(0.0, 1.0, 0.01) var glow_corner_softness: float = 0.35:
+	set(v):
+		glow_corner_softness = v
+		_push(&"glow_corner_softness", v)
+
 func _ready() -> void:
 	if material == null:
 		material = preload("res://ui/theme/holo_panel_material.tres").duplicate()
@@ -24,6 +32,7 @@ func _ready() -> void:
 	_push_size()
 	_push(&"glow", glow)
 	_push(&"glow_edges", glow_edges)
+	_push(&"glow_corner_softness", glow_corner_softness)
 
 func _push_size() -> void:
 	_push(&"size", size)

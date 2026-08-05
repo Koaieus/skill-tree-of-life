@@ -13,15 +13,12 @@ uniform float corner_radius = 13.0;
 uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 0.0);
 uniform float glow_strength = 0.0;
 
-float sd_round_rect(vec2 p, vec2 half_size, float r) {
-	vec2 q = abs(p) - half_size + r;
-	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
+#include "res://ui/theme/round_rect.gdshaderinc"
 
 void fragment() {
-	vec2 px = UV * size;
-	vec2 centered = px - size * 0.5;
-	float d = sd_round_rect(centered, size * 0.5, corner_radius);
+	vec2 half_size = size * 0.5;
+	vec2 centered = UV * size - half_size;
+	float d = rr_distance(centered, half_size, min(corner_radius, min(half_size.x, half_size.y)));
 
 	float rad = radians(gradient_angle_deg);
 	vec2 dir = vec2(cos(rad), sin(rad));
@@ -36,6 +33,5 @@ void fragment() {
 	float border_mask = smoothstep(0.0, 1.0, -d) - smoothstep(0.0, 1.0, -d - border_width);
 	vec4 col = mix(fill, border_color, border_mask * border_color.a);
 
-	float shape_alpha = 1.0 - smoothstep(-1.0, 1.0, d);
-	COLOR = vec4(col.rgb, col.a * shape_alpha);
+	COLOR = vec4(col.rgb, col.a * rr_coverage(d));
 }

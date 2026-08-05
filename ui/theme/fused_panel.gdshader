@@ -36,16 +36,17 @@ uniform float border_width : hint_range(0.0, 8.0, 0.1) = 1.0;
 
 // --- Corner ---
 uniform float corner_radius : hint_range(0.0, 40.0, 0.5) = 13.0;
+// How wide the glow hands over between two edges meeting at a corner, in
+// boundary-normal space. 0 = hard switch at the 45-degree bisector.
+uniform float glow_corner_softness : hint_range(0.0, 1.0, 0.01) = 0.35;
 
-float sd_round_rect(vec2 p, vec2 half_size, float r) {
-	vec2 q = abs(p) - half_size + r;
-	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
-}
+#include "res://ui/theme/round_rect.gdshaderinc"
 
 void fragment() {
-	vec2 px = UV * size;
-	vec2 centered = px - size * 0.5;
-	float d = sd_round_rect(centered, size * 0.5, corner_radius);
+	vec2 half_size = size * 0.5;
+	vec2 centered = UV * size - half_size;
+	float radius = min(corner_radius, min(half_size.x, half_size.y));
+	float d = rr_distance(centered, half_size, radius);
 
 	// Fill: flat or gradient, controlled by gradient_mix knob.
 	float rad = radians(gradient_angle_deg);
@@ -63,18 +64,15 @@ void fragment() {
 	float border_mask = smoothstep(0.0, 1.0, -d) - smoothstep(0.0, 1.0, -d - border_width);
 	col = mix(col, border_color, border_mask * border_color.a);
 
-	// Edge glow — per-side selection, driven by glow_width knob.
+	// Edge glow. The stroke follows the SDF inward from the boundary; the
+	// per-side selection runs off the BOUNDARY NORMAL, so both stay in the same
+	// rounded geometry all the way around a corner.
 	float stroke = 1.0 - smoothstep(0.0, glow_width, -d);
-	float sel = 0.0;
-	if ((glow_edges & 1) != 0) sel = max(sel, 1.0 - smoothstep(0.0, glow_width, px.y));           // top
-	if ((glow_edges & 2) != 0) sel = max(sel, 1.0 - smoothstep(0.0, glow_width, size.x - px.x));  // right
-	if ((glow_edges & 4) != 0) sel = max(sel, 1.0 - smoothstep(0.0, glow_width, size.y - px.y));  // bottom
-	if ((glow_edges & 8) != 0) sel = max(sel, 1.0 - smoothstep(0.0, glow_width, px.x));           // left
+	vec2 n = rr_normal(centered, half_size, radius);
+	float sel = rr_edge_select(n, glow_edges, glow_corner_softness);
 	float g = stroke * sel * glow;
 	col.rgb = mix(col.rgb, glow_color.rgb, g);
 	col.a += g * glow_color.a;
 
-	// Corner mask with sharpened AA (1px edge instead of 2px).
-	float shape_alpha = 1.0 - smoothstep(-0.5, 0.5, d);
-	COLOR = vec4(col.rgb, col.a * shape_alpha);
+	COLOR = vec4(col.rgb, col.a * rr_coverage(d));
 }
