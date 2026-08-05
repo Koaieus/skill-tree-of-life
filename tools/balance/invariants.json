@@ -49,6 +49,14 @@
 			"min": "TBD",
 			"max": "TBD",
 			"why": "D-11/D-14 — confirms no dead zone re-forms via bulk alone: a leveled defender should be slower to kill but never effectively immune to an uninvested attacker"
+		},
+		{
+			"name": "spell_dpa_over_melee_dpa",
+			"scenario": "magic_mirror_L20",
+			"readout": "spell_dpa_over_melee_dpa",
+			"min": "TBD",
+			"max": "TBD",
+			"why": "channel parity (#366, sibling of melee_dpa_over_ranged_dpa) — the magic channel's strongest seeded cast (max per-spell spell_dpa across the real pool) against melee, both mitigated at the same defender node, AP read as 1; seed = spell_damage × power (D-32), so the ratio tracks INT-vs-STR/DEX investment"
 		}
 	]
 }

@@ -12,6 +12,20 @@ extends RefCounted
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
+## The full authored spell pool — the real `SpellDef` resources the magic
+## readouts are computed against (#366; "full pool" per D-34). Preloaded so a
+## retune of any spell's `power` / `mana_cost` shows up in the snapshot
+## automatically, without touching this file.
+const _SPELL_POOL := [
+	preload("res://attack/spell/defs/spark.tres"),
+	preload("res://attack/spell/defs/bruiser.tres"),
+	preload("res://attack/spell/defs/leafblower.tres"),
+	preload("res://attack/spell/defs/lightning_bolt.tres"),
+	preload("res://attack/spell/defs/resonator.tres"),
+	preload("res://attack/spell/defs/reverberator.tres"),
+	preload("res://attack/spell/defs/trail_blazer.tres"),
+]
+
 
 ## Ordered scenario names — also the row order of the printed table / snapshot.
 const NAMES: PackedStringArray = [
@@ -21,6 +35,7 @@ const NAMES: PackedStringArray = [
 	"matched_L100_zero_invest",
 	"asymmetric_snipe_L20_vs_L80",
 	"core_adjacent_aura_L50",
+	"magic_mirror_L20",
 ]
 
 
@@ -32,6 +47,7 @@ static func run_all(root: Node) -> Array[Dictionary]:
 	out.append(await _matched_zero_invest(root, "matched_L100_zero_invest", 100))
 	out.append(await _snipe(root, "asymmetric_snipe_L20_vs_L80", 20, 80))
 	out.append(await _core_adjacent_aura(root, "core_adjacent_aura_L50", 50))
+	out.append(await _magic_mirror(root, "magic_mirror_L20", 20))
 	return out
 
 
@@ -157,6 +173,44 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 
 
 # ── Shared readout computation ──────────────────────────────────────────────
+
+## The magic channel (#366, follow-up to #268): the same mirror shape as the
+## physical channels, but the damage readout is the D-32 seed — computed by
+## the REAL production seed path (`SpellResolver._seed_damage`, i.e.
+## `spell_damage(cast-from node) × power`) — run through the real
+## `Mitigation.apply` against the defender's standard target node. AP cost is
+## read as 1 for the magic channel, same as melee/ranged (see README).
+##
+## One row per real SpellDef in the pool: every seed scales with the caster's
+## INT, so no single spell represents "the magic channel". The strongest seed
+## plus the parity ratio against melee are what the invariant reads.
+static func _magic_mirror(root: Node, name: String, level: int) -> Dictionary:
+	var attacker := await BalanceFixture.build(root, level, _BALANCED)
+	var defender := await BalanceFixture.build(root, level, _BALANCED)
+	var readouts := combat_readouts(attacker, defender)
+
+	var atk_core := attacker.core_node()
+	var target: SkillNode = defender.nodes[1] if defender.nodes.size() > 1 else defender.core_node()
+	readouts["spell_damage"] = float(atk_core.get_local_value(&"spell_damage"))
+
+	var best := 0.0
+	for spell in _SPELL_POOL:
+		var seed: float = SpellResolver._seed_damage(spell, atk_core)
+		var hit := DamageInstance.new()
+		hit.amount = seed
+		hit.type = DamageInstance.Type.MAGIC
+		var mitigated: float = Mitigation.apply(hit, target)
+		readouts["spell_dpa_%s" % spell.name] = mitigated
+		best = maxf(best, mitigated)
+
+	readouts["spell_dpa_best"] = best
+	var melee_dpa: float = readouts.get("damage_per_ap_melee", 0.0)
+	readouts["spell_dpa_over_melee_dpa"] = (best / melee_dpa) if melee_dpa > 0.0 else 0.0
+
+	free_fixture(attacker)
+	free_fixture(defender)
+	return {"name": name, "readouts": readouts}
+
 
 static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) -> Dictionary:
 	var atk_core := attacker.core_node()
