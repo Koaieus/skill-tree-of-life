@@ -1,18 +1,44 @@
 ---
 name: swarm
-description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into units, or several small issues at once. Hold the dependency graph, dispatch each unit to an isolated worktree agent in waves, then review and fast-forward each branch into master yourself. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as Opus, or as Sonnet when the plan is already written down.
+description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into units, or several small issues at once. Read the issues ONCE, delegate exploration downward to drone/Explore(haiku) subagents, cluster the work by shared context into a DAG, dispatch each unit as a backgrounded drone, and act on each completion immediately — merge, fix-then-merge, resume, or abandon-to-in-review. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as Opus, or as Sonnet when the plan is already written down.
 ---
 
 # Swarm
 
-One strong orchestrator, many fast workers. You do the thinking — decomposition,
-review, merge. The workers do the typing, each in its own worktree, each with its
-own context window.
+One strong orchestrator, many fast workers. You are the **source of wisdom**,
+the **DAG holder**, and the **reviewer-merger**. The workers do the typing —
+each in its own worktree, each in its own context window — and talk back to you
+when they hit something they can't resolve alone.
 
-The point is **context economy**. A swarm is worth running when the work would
-otherwise fill your context with mechanical edits you don't need to remember. The
-workers absorb that; you keep a lean session, so the user can still converse with
-you while it runs.
+## Why this skill exists — token economy through delegation
+
+The binding constraint is **your context window, not wall-clock.** A 10-issue
+swarm with the orchestrator at 30–50k at launch is vastly cheaper than the
+same swarm launched at 70–80k, because the 10+ downstream turns the swarm
+needs after the last drone finishes (review, rebase, merge, start-next,
+respond to questions) each spend ~15–20k on a context that has *kept growing*
+throughout the run. **Low at launch = late blow-up = the room you need to land
+the last issue cleanly.** Once you're at 150–200k, every merge turn compounds,
+and the last 5% of the swarm costs more than the first 50%.
+
+Two levers, in order of impact:
+
+1. **Delegate exploration downward.** You read the issues ONCE. Then any
+   exploration that follows — verifying the issue's claims, finding what's
+   already landed, grepping the consumer of a unit's output, checking the
+   baseline-test count — runs in throwaway `drone` / `Explore(model=haiku)`
+   subagents that return only the conclusion. The reading and grepping never
+   tax your window; you build the plan on the payloads they hand back.
+2. **Group by shared context, not by file ownership.** Three issues reading
+   the same subsystem, the same rules, the same docs are **one worker doing
+   three units with hot context** — the second rides nearly free and can fix
+   bugs in the first while its context is still loaded. Three workers on the
+   same subsystem pay the orientation cost three times. The cluster map and
+   the DAG of dependencies are yours to hold, before anything dispatches.
+
+That is the swarm in two sentences: **read once, delegate the rest
+downward**, and **keep the orchestrator's context small enough that the late
+merge turns stay cheap.** Everything below is mechanics in service of that.
 
 > This is a **process** skill, and it is [`warp`](../warp/SKILL.md) with a fan-out.
 > Read `warp`'s SKILL.md first — its rebase → `--ff-only` merge discipline applies
@@ -37,7 +63,7 @@ still end up reading the diffs.
    they parallelize with clean rebases. But overlap is a **sequencing** fact, not
    a disqualification: two units on one file run in order, and a unit blocked on
    another can ride the same swarm behind it. Maintaining that DAG is your job
-   (see below). What fails this gate is work that won't come apart at all.
+   (see §2). What fails this gate is work that won't come apart at all.
 3. **Mechanical enough for a smaller model**, given red-green instructions: a
    failing test (or an exact spec) defines done.
 4. **No human input mid-flight.** If the user must weigh in halfway, the swarm
@@ -72,7 +98,7 @@ audits, 3 diff reviews, 3 rebase+merges, 4 full-suite runs and board upkeep.
 The formula predicted 66% for that shape, so it over-estimates by roughly 1.4×.
 **Keep the 15% anyway.** It is a deliberate ceiling covering the case a worker
 grinds instead of asking, and the cheap run only happened because every brief
-capped verification (§3b) and because the orchestrator ran the cross-file audits
+capped verification (§4b) and because the orchestrator ran the cross-file audits
 in its own context rather than paying a drone to search. Lower the constant and
 you lose the margin exactly when a run goes badly — which is when it matters.
 
@@ -96,66 +122,123 @@ per-worker verification — verification is what makes a unit mergeable.
 
 ## The cycle
 
-### 1. Resolve and plan
+### 1. Read the issues ONCE, then delegate exploration downward
 
 ```bash
-gh issue view <n> --comments        # once per issue
+gh issue view <n> --comments        # once per issue, body + every comment
 ```
 
-A swarm comes in two shapes, and they differ only in step 6:
+Read each issue **once**, with comments, full. Do not re-read. Do not page
+through other issues "for context". Do not run a third `gh` call to "double
+check" a number — you will burn `gql` quota before you start, and you gain
+nothing the first read didn't give you. If the previous agent in this seat
+exhausted itself mulling over the same issue four times, do not repeat that
+failure mode: read once, decide, move to §1a.
 
-- **One issue, N units.** Split it yourself onto disjoint files.
-- **N independent issues, one unit each.** Small parallel issues; the partition
-  comes free, since separate issues rarely share files. Verify that anyway — if
-  two issues *do* overlap a file, they are not independent, and you run them
-  sequentially or as one unit.
+**Never spawn anything exploratory in your own context.** The list of things
+the issue may have wrong, glossed over, or already-landed-partially — verify
+those by *delegation*, not by reading more yourself. Drop one of these and
+let it absorb the context:
 
-Then **think hard, before dispatching anything.** This is the step no worker can
-do for you, and the step that decides whether the swarm succeeds. Produce, for
-each unit: the files it owns, the acceptance test, and the exact instruction text.
+- **`drone`** (OpenAI harness) or **`Explore` with `model: "haiku"`** (Claude
+  harness) for: "is the seam the issue names actually present in master?",
+  "has any of this already landed?", "where does X get called from?", "what
+  tests already exist for this subsystem?", "is the reported baseline flake
+  real?". They read excerpts and return only the answer.
+- Run several **in parallel** — one per question, one per probe — they share
+  no context with you and absorb nothing of yours. They are the brunt of the
+  pre-flight context burn.
 
-Diagnosing the bug *before* you dispatch is usually worth it. A worker handed
-"here is the root cause, implement exactly this" is a Sonnet doing mechanical
-work — the thing this skill is for. A worker handed "figure out why edges render
-above nodes" is a Sonnet doing the hard part alone, without your context.
+When they come back, you have the verified picture — claims checked, what's
+already shipped mapped, baseline tests named. That is your substrate for §2.
+You spent one issue-read's worth of tokens to get it, not five.
 
-### 2. Decompose, and own the DAG
+### 1a. The acceptance-parameters preview — and why you delegate this too
 
-**Two workers must never touch the same file *at the same time*.** Parallel edits
-to one file mean the second rebase conflicts, and you've moved the work rather
-than saved it.
+Issues filed by agents (or rushed through design) sometimes sneak in a
+cop-out: a feature quietly descoped to hit "done", a thing removed because it
+was hard, an acceptance that says "write the test" while the spec said
+"wire it into the HUD". You, as orchestrator, should see those before you
+commit workers to the spec — but reading every acceptance line across 10
+issues back into your own window is a big early token spend, and it
+**compounds** through every downstream turn.
 
-The fix is **sequencing, not exclusion.** Overlapping units are legitimate work —
-dispatch them in waves: wave 1 goes out in parallel, you review and merge it,
-then wave 2 dispatches from the new `master` tip. A unit that *blocks* another
-belongs in the same swarm, one wave ahead of it. Holding the dependency graph and
-deciding those waves is the orchestrator's core job; nobody upstream of you
-should be distorting an issue's scope to keep files apart.
+So delegate the precedent to a subagent too:
 
-Write each worker's file list into its prompt as an ownership boundary: *"you own
-exactly these paths; if the task seems to need a file you don't own, stop and
-report it."* Within a wave that boundary is absolute.
+> Have one `Explore`/`drone` tabulate, per issue: (a) the literal acceptance
+> bullet(s), (b) any sibling-issue linkage the body claims, (c) anything
+> descopable that smells like an agent picked the easy way out. One row per
+> issue. Return the table only.
 
-Shared-file work (one `.tres` every unit must touch, a registry every unit
-appends to) is **yours**. Do it in the main checkout before you dispatch, or as
-an integration commit after you merge. Never hand it to two workers in one wave.
+You read the table — 1–2k tokens for a 10-issue swarm, not 15k of reading
+every body twice — and *that* is your one approval pass before dispatch. If
+the subagent flagged a cop-out, push back to the user then; never silently
+inherit a descoped spec into a worker's brief.
 
-**Find the shared contract before you dispatch, and commit it first.** N units
-implementing "the same kind of thing" almost always need one seam none of them
-owns — a base-class method they all override, a registration call, a way to say
-"I have nothing to show". Left undiscovered, each worker invents its own and none
-of them merge cleanly. Grep for the *consumer* of the units' output and see what
-it actually calls; that is where the seam hides. Write it, test it, commit it to
-`master`, and only then spawn — workers branch from the tip, so a seam committed
-after dispatch is invisible to them.
+If the swarm is small (≤3 issues) you can do this pass inline and skip the
+subagent — the delegation gate is for the bulk case where the table is the
+win.
+
+### 2. Build the shared-context DAG, then decompose into units
+
+Two workers must never touch the same file *at the same time*. But that rule
+is downstream of the actual decomposition step, which is **cluster by shared
+context first, partition by file second**.
+
+The fixed cost a worker pays before it writes a line — brief, issue recall,
+orienting in the subsystem, finding the seam — is the dominant token cost of
+a unit. Two issues that touch the same files split across two workers pay
+that cost **twice, for the same reading**. Give both to one worker and you
+pay it once: the second unit rides nearly free, *and* the worker can fix
+bugs in the first unit's code while its context is still hot, *and* anything
+the worker creates in unit 1 that unit 2 needs is already in its window.
+
+**The decomposition order:**
+
+1. **Cluster the issues by subsystem** — which ones read the same files, the
+   same rules, the same docs? That clustering **is** your worker list. One
+   worker per cluster.
+2. **Only then** check file-disjointness *between* clusters, and sequence any
+   cluster pair that overlaps into waves: wave 1 goes out in parallel, you
+   review and merge it, then wave 2 dispatches from the new `master` tip.
+
+Note this inverts the naive read of "two workers must never touch the same
+file": that rule pushes you toward *more* workers, and shared-context batching
+pushes toward fewer. **Fewer wins.** File overlap inside one worker is not a
+conflict at all — it's just sequential edits in one worktree, the cheapest
+thing here. Overlap only costs you *across* workers.
+
+2–3 workers × 2–3 units beats 6 × 1 outright, on tokens and on turns (each
+worker also costs you two idle-notification wakeups). If you find yourself with
+six workers, look for the two clusters you failed to merge.
+
+**Within a wave, the file boundary is absolute.** Write each worker's file
+list into its prompt as an ownership boundary: *"you own exactly these paths;
+if the task seems to need a file you don't own, stop and report it."*
+
+**Shared-file work (one `.tres` every unit must touch, a registry every unit
+appends to) is yours.** Do it in the main checkout before you dispatch, or as
+an integration commit after you merge. Never hand it to two workers in one
+wave.
+
+**Find the shared contract before you dispatch, and commit it first.** N
+units implementing "the same kind of thing" almost always need one seam none
+of them owns — a base-class method they all override, a registration call, a
+way to say "I have nothing to show". Left undiscovered, each worker invents
+its own and none of them merge cleanly. Grep (via the §1 exploration
+subagents, not in your own context) for the *consumer* of the units' output
+and see what it actually calls; that is where the seam hides. Write it, test
+it, commit it to `master`, and only then spawn — workers branch from the tip,
+so a seam committed after dispatch is invisible to them.
 
 **Pre-flight the units' envelopes against real content.** A stub sized for
-placeholder text is not evidence the real thing fits. One unit in this run was
-blocked at the finish line because its panel's authored size had only ever held
-five dummy labels, and growing it collided with positions authored in files no
-content unit was allowed to touch. That was foreseeable in one minute of looking
-before dispatch, and cost a full escalation round afterwards. When units fill a
-layout you own, check the worst-case content fits *first*.
+placeholder text is not evidence the real thing fits. One unit in this run
+was blocked at the finish line because its panel's authored size had only
+ever held five dummy labels, and growing it collided with positions authored
+in files no content unit was allowed to touch. That was foreseeable in one
+minute of looking before dispatch, and cost a full escalation round
+afterwards. When units fill a layout you own, check the worst-case content
+fits *first* (delegate the actual measurement to a subagent — see §1).
 
 If the work won't come apart into units at all, that's a real answer: run `warp`.
 
@@ -171,7 +254,7 @@ already committed and reachable by branch name. You have the cheap context for
 merging; spend yours, not theirs. If a rebase conflicts, resolve it yourself
 upstream of the merge.
 
-### 3. Dispatch
+### 3. Dispatch — one swarm, one message, every worker backgrounded
 
 **Claim every issue on the kanban before you spawn anything:**
 
@@ -184,16 +267,16 @@ of §3a — they are different surfaces and only this one survives the session. 
 unclaimed issue looks free, so a later swarm (or the user) picks it up and
 duplicates the work. Flip it back to `ready` if you dispatch nothing.
 
-**Dispatch is TWO steps, and skipping the second stalls the whole swarm.** A named
-teammate does *not* run the `Agent` call's `prompt` — it returns "will receive
-instructions via mailbox" and sits idle (verified 2026-07-30). So:
+**Dispatch is TWO steps, and skipping the second stalls the whole swarm.** A
+named teammate does *not* run the `Agent` call's `prompt` — it returns "will
+receive instructions via mailbox" and sits idle (verified 2026-07-30). So:
 
-**Step 1 — spawn every worker in a single message** (that is what makes them run in
-parallel). Per `Agent` call:
+**Step 1 — spawn every worker in a single message** (that is what makes them run
+in parallel). Per `Agent` call:
 
-- **`name`, and NO `isolation` parameter.** Workers are teammates; each makes its
-  own worktree via `mise run worktree:new` (§3a). Harness isolation would take the
-  shared task board away.
+- **`name`, and NO `isolation` parameter.** Workers are teammates; each makes
+  its own worktree via `mise run worktree:new` (§3a). Harness isolation would
+  take the shared task board away.
 - `model: "sonnet"`, or `"haiku"` for ultra-mechanical work (rename, mass
   string-replace, boilerplate).
 - `run_in_background: true` (ignored for named teammates — they're always async).
@@ -220,22 +303,22 @@ Note each idle transition costs you a turn: a teammate emits an
 so you get woken twice per unit. Another argument for fewer, fatter workers.
 
 Give each worker its acceptance test up front. A worker that can run
-`mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is done;
-one that can't will report "looks right" and be wrong.
+`mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is
+done; one that can't will report "looks right" and be wrong.
 
 **Put a hard stop in every prompt. This is the single highest-value line in a
-worker's briefing** — three prior runs died with workers grinding silently on test
-problems, and the run that carried this rule had all three workers escalate
-correctly at a cost of one message each:
+worker's briefing** — three prior runs died with workers grinding silently on
+test problems, and the run that carried this rule had all three workers
+escalate correctly at a cost of one message each:
 
 > If the same failure repeats twice, or you need a file you don't own, or the spec
 > is ambiguous: `SendMessage` the orchestrator with the specific question and
 > **stop**. Do not attempt a third fix.
 
-Say explicitly that *you* are its advisor, that asking is cheaper for the team than
-grinding, and that **a question is a success, not a failure**. A soft "ask if
-unsure" does not work; workers read it as permission to keep trying. Also tell it
-not to call `advisor` itself — you are the larger model and you hold the plan.
+Say explicitly that *you* are its advisor, that asking is cheaper for the team
+than grinding, and that **a question is a success, not a failure**. A soft "ask
+if unsure" does not work; workers read it as permission to keep trying. Also tell
+it not to call `advisor` itself — you are the larger model and you hold the plan.
 
 ### 3a. Workers make their OWN worktrees — that is how you get the task board too
 
@@ -282,18 +365,13 @@ creates produced four tasks). Serialize them.
 `~/.claude/settings.json`. Do not spend a turn echoing it.** It is read at launch
 and cannot be enabled mid-session, so the only case worth handling is the one
 where a spawn *actually* comes back without teammate behaviour — deal with it
-then, reactively. A pre-flight check that has passed every time is a turn you are
-paying for nothing, and turns are the scarce resource here.
+then, reactively. A pre-flight check that has passed every time is a turn you
+are paying for nothing, and turns are the scarce resource here.
 
 `SendMessage` **does** work both ways for background subagents (worker → `main`,
 `main` → worker by name), despite docs implying teammates-only. That is the
 escalation channel and it is what makes the hard-stop rule work. Same session,
 verified.
-
-If you ever run a genuine agent team (no worktrees): **`TaskCreate` is unsafe in
-parallel** — two calls in one message both read the same stale max id, and the
-second pair silently overwrites the first (six creates produced four tasks).
-Serialize them. The board is also team-scoped, so plain subagents never see it.
 
 <details>
 <summary>Superseded teammate/board guidance (kept for the API shapes only)</summary>
@@ -308,45 +386,47 @@ an `env` block in `settings.json` — the durable home, since it applies regardl
 of cwd/shell). Check it first — `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. When
 it's unset the `name` parameter is inert: workers spawn isolated, cannot see the
 task board, and report only via their final message. You cannot enable it
-mid-session; it's a relaunch. If it's off and the user wants teammates, say so and
-let them relaunch — don't seed a board that the workers will never see (see the
-gotcha below).
+mid-session; it's a relaunch. If it's off and the user wants teammates, say so
+and let them relaunch — don't seed a board that the workers will never see (see
+the gotcha below).
 
 **Launch-timing trap:** the `echo` reads your Bash shell, not the running
 Claude process. If the user adds the flag mid-session, a fresh Bash shows `1`
-while the session that decided team-membership at *its* startup still has teams
-off. So a value that flipped `unset → 1` partway through the session is **not**
-proof teams is live — confirm with a relaunch before seeding a board you're
-betting the swarm on.
+while the session that decided team-membership at *its* startup still has
+teams off. So a value that flipped `unset → 1` partway through the session is
+**not** proof teams is live — confirm with a relaunch before seeding a board
+you're betting the swarm on.
 
 Flow when teams is on:
 
 1. **Seed the board before dispatch.** One `TaskCreate` per unit; put the
-   ownership boundary (the exact paths it owns) and the acceptance test right in
-   the `description`. Any shared-file integration step you own becomes its own
-   task, with `addBlockedBy` naming the unit tasks that must land first — the
-   dependency is now explicit on the board instead of living only in your head.
+   ownership boundary (the exact paths it owns) and the acceptance test right
+   in the `description`. Any shared-file integration step you own becomes its
+   own task, with `addBlockedBy` naming the unit tasks that must land first —
+   the dependency is now explicit on the board instead of living only in your
+   head.
 2. **Spawn with `name`.** Still `isolation: "worktree"`, `model: "sonnet"` (or
    `"haiku"`), `run_in_background: true`. Give each teammate a stable `name`
-   (`field-noise`, `field-gaussian`) and tell it in its prompt **which task id it
-   owns** and to `TaskUpdate` it: `in_progress` on start, `completed` only on
-   green. `drone` still governs its flow.
-3. **Watch, don't poll narratively.** `TaskList` shows the live board. A teammate
-   stuck on a blocker is unblocked by `SendMessage` to its name — worktree and
-   context intact, far cheaper than a cold respawn (same as the Collect rule).
+   (`field-noise`, `field-gaussian`) and tell it in its prompt **which task id
+   it owns** and to `TaskUpdate` it: `in_progress` on start, `completed` only
+   on green. `drone` still governs its flow.
+3. **Watch, don't poll narratively.** `TaskList` shows the live board. A
+   teammate stuck on a blocker is unblocked by `SendMessage` to its name —
+   worktree and context intact, far cheaper than a cold respawn (same as the
+   Collect rule).
 
 Gotchas:
 
-- **The board is team-scoped.** Tasks are shared only among teammates on the same
-  team. Seed a board, then spawn plain (nameless / teams-off) subagents, and they
-  won't see it — you've built a plan nobody reads. Board and teammates go together
-  or not at all.
-- **A teammate still cannot see this conversation.** The task `description` is its
-  briefing — everything the fire-and-forget prompt would carry (owned files,
-  acceptance test, "done" definition) goes there or in the spawn prompt, not left
-  implicit because "it's on the board."
-- Teardown, review, and merge (steps 5–7) are unchanged — a teammate's worktree
-  and branch behave exactly like a background worker's.
+- **The board is team-scoped.** Tasks are shared only among teammates on the
+  same team. Seed a board, then spawn plain (nameless / teams-off) subagents,
+  and they won't see it — you've built a plan nobody reads. Board and
+  teammates go together or not at all.
+- **A teammate still cannot see this conversation.** The task `description`
+  is its briefing — everything the fire-and-forget prompt would carry (owned
+  files, acceptance test, "done" definition) goes there or in the spawn
+  prompt, not left implicit because "it's on the board."
+- Teardown, review, and merge (steps 5–7) are unchanged — a teammate's
+  worktree and branch behave exactly like a background worker's.
 
 </details>
 
@@ -354,44 +434,48 @@ Gotchas:
 
 Details behind §3a, from a haiku teammate probed directly:
 
-- **Teammates DO get the `Agent` tool, and nesting actually works.** Full tool set
-  observed: `Agent, Artifact, Bash, Edit, Read, Skill, ToolSearch, Write, advisor,
-  Cron*, EnterWorktree, ExitWorktree, Monitor, NotebookEdit, SendMessage, Task*,
-  WebFetch, WebSearch`. It called `Agent`/`Explore` and got the right answer back.
-  So the "delegate broad searches downward" advice below is live, not aspirational.
-  Tool access is decided by the **agent definition's `tools` field**, not by
-  teammate-ness — `Explore`/`Plan` are the capped ones (`Agent` explicitly removed),
-  `general-purpose`/`claude` are `*`. Don't go past worker → Explore; that grandchild
-  is a leaf by definition and deeper nesting buys nothing.
-- **A named teammate does NOT run the `Agent` call's `prompt`.** Spawning with `name`
-  returns "will receive instructions via mailbox" and the agent sits **idle** — it
-  posted an `idle_notification` without touching the brief. The work only started
-  after an explicit `SendMessage`. `run_in_background: false` is also ignored: named
-  teammates are always async. **So dispatch is two steps** — spawn with a minimal
-  prompt, then `SendMessage` the actual brief. Budget for that; a swarm that assumes
-  the spawn prompt ran will stall silently with N idle workers.
+- **Teammates DO get the `Agent` tool, and nesting actually works.** Full
+  tool set observed: `Agent, Artifact, Bash, Edit, Read, Skill, ToolSearch,
+  Write, advisor, Cron*, EnterWorktree, ExitWorktree, Monitor, NotebookEdit,
+  SendMessage, Task*, WebFetch, WebSearch`. It called `Agent`/`Explore` and got
+  the right answer back. So the "delegate broad searches downward" advice
+  below is live, not aspirational. Tool access is decided by the **agent
+  definition's `tools` field**, not by teammate-ness — `Explore`/`Plan` are
+  the capped ones (`Agent` explicitly removed), `general-purpose`/`claude`
+  are `*`. Don't go past worker → Explore; that grandchild is a leaf by
+  definition and deeper nesting buys nothing.
+- **A named teammate does NOT run the `Agent` call's `prompt`.** Spawning with
+  `name` returns "will receive instructions via mailbox" and the agent sits
+  **idle** — it posted an `idle_notification` without touching the brief. The
+  work only started after an explicit `SendMessage`. `run_in_background: false`
+  is also ignored: named teammates are always async. **So dispatch is two
+  steps** — spawn with a minimal prompt, then `SendMessage` the actual brief.
+  Budget for that; a swarm that assumes the spawn prompt ran will stall
+  silently with N idle workers.
 - **Each idle transition costs the orchestrator a turn.** A teammate emits an
-  `idle_notification` when it has nothing to do — including right after delivering a
-  report, so you get woken twice per unit. Harmless with 3 workers, but it is a real
-  per-worker tax on the orchestrator's context, and it argues for the same batching
-  rule as everything else: fewer, fatter workers.
-- **Confirmed: teammates start in the main checkout's cwd** (`/home/bramh/skill-tree-of-life`),
-  so there is a window before step 2 completes where a careless edit lands on shared
-  state. Since the brief now arrives by `SendMessage` anyway, make "create your
-  worktree first, then absolute paths only" the first line of *that* message, and keep
-  the explicit-path `git add` rule regardless.
+  `idle_notification` when it has nothing to do — including right after
+  delivering a report, so you get woken twice per unit. Harmless with 3
+  workers, but it is a real per-worker tax on the orchestrator's context, and
+  it argues for the same batching rule as everything else: fewer, fatter
+  workers.
+- **Confirmed: teammates start in the main checkout's cwd**
+  (`/home/bramh/skill-tree-of-life`), so there is a window before step 2
+  completes where a careless edit lands on shared state. Since the brief now
+  arrives by `SendMessage` anyway, make "create your worktree first, then
+  absolute paths only" the first line of *that* message, and keep the
+  explicit-path `git add` rule regardless.
 - `EnterWorktree` may refuse a `.worktrees/` path (its contract names
-  `.claude/worktrees/` for switching). Working via absolute paths without entering
-  is proven — a worker did exactly that successfully this run — so don't block on
-  `EnterWorktree` if it refuses.
-- Teams still needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` **at launch**, and
-  `TaskCreate` must still be serialized, not called in parallel.
+  `.claude/worktrees/` for switching). Working via absolute paths without
+  entering is proven — a worker did exactly that successfully this run — so
+  don't block on `EnterWorktree` if it refuses.
+- Teams still needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` **at launch**,
+  and `TaskCreate` must still be serialized, not called in parallel.
 
 ### 3b. Token economy — the binding constraint, and how to actually respect it
 
-A swarm is throttled by the **5-hour rate-limit window**, not by anything you can
-read from inside the session. You cannot query your own remaining budget, so a
-"stop at 95%" guard is not implementable. Bound the *work* instead.
+A swarm is throttled by the **5-hour rate-limit window**, not by anything you
+can read from inside the session. You cannot query your own remaining budget,
+so a "stop at 95%" guard is not implementable. Bound the *work* instead.
 
 **Measured, one run, three workers each doing two units:**
 
@@ -401,78 +485,100 @@ read from inside the session. You cannot query your own remaining budget, so a
 | middle | ~197k | 65 | one escalation + one forced worktree move |
 | dearest | 199k | 93 | ran the full suite repeatedly + `xvfb` shader boots |
 
-The spread tracks **tool calls, not units of work.** The dearest worker did the
-same amount of code as the cheapest and cost 35% more, entirely in verification
-it was never asked for. That is the lever.
+The spread tracks **tool calls, not units of work.** The dearest worker did
+the same amount of code as the cheapest and cost 35% more, entirely in
+verification it was never asked for. That is the lever.
 
-**Bound verification explicitly in every prompt.** Left open, a worker will build
-a test harness for a panel whose acceptance is "it looks right", then re-run the
-whole suite after each tweak:
+**Bound verification explicitly in every prompt.** Left open, a worker will
+build a test harness for a panel whose acceptance is "it looks right", then
+re-run the whole suite after each tweak:
 
 - Name the fast loop (`mise run check`) and say it is the loop.
 - Cap the full suite: run it **once** before reporting, not per edit.
-- **Forbid authoring new test suites** unless you name one. Visual acceptance does
-  not get a GUT harness.
+- **Forbid authoring new test suites** unless you name one. Visual acceptance
+  does not get a GUT harness.
 - Forbid `xvfb`/real-backend boots unless the unit touches a `.gdshader`.
 
-**Shared context is where the real savings are — partition by it FIRST.** This is
-the single biggest lever in the skill, ahead of everything else in this section.
-
-Every worker pays a large fixed cost before it writes a line: the brief, the issue
-read, orienting in the subsystem, finding the seam. Two issues that touch the same
-files split across two workers pay that cost **twice, for the same reading**. Give
-both to one worker and you pay it once — the second unit rides nearly free.
-
-Measured: two units in one hot worktree cost 147k total, against the 150–200k a
-*single*-unit worker cost in earlier runs. The second unit was approximately free.
-
-So the decomposition order is:
-
-1. **Cluster the issues by subsystem** — which ones read the same files, the same
-   rules, the same docs? That clustering *is* your worker list. One worker per
-   cluster.
-2. **Only then** check file-disjointness *between* clusters, and sequence any
-   cluster pair that overlaps into waves.
-
-Note this inverts the naive read of "two workers must never touch the same file":
-that rule pushes you toward *more* workers, and shared-context batching pushes
-toward fewer. **Fewer wins.** File overlap inside one worker is not a conflict at
-all — it's just sequential edits in one worktree, which is the cheapest thing
-here. Overlap only costs you *across* workers.
-
-2–3 workers × 2–3 units beats 6 × 1 outright, on tokens and on turns (each worker
-also costs you two idle-notification wakeups). If you find yourself with six
-workers, look for the two clusters you failed to merge.
-
-**Have workers delegate broad searches downward.** A worker with the full tool set
-can spawn its own `Explore` subagent, which reads excerpts rather than whole files
-and returns only the conclusion. Worth instructing when a unit needs "where is X
-handled across the repo" — the orientation cost lands in a cheap throwaway context
-instead of the worker's. **Nesting is confirmed permitted** (see §3a-next) for both
-harness-isolated workers and teammates; what remains unmeasured is what it saves.
+**Have workers delegate broad searches downward too, not just you.** A worker
+with the full tool set can spawn its own `Explore` subagent, which reads
+excerpts rather than whole files and returns only the conclusion. Worth
+instructing when a unit needs "where is X handled across the repo" — the
+orientation cost lands in a cheap throwaway context instead of the worker's.
+**Nesting is confirmed permitted** (see §3a-i) for both harness-isolated
+workers and teammates.
 
 **Plan for running out.** Assume the window may close mid-swarm, and make that
 survivable rather than catastrophic:
 
-- Workers commit **after each unit**, never only at the end. A killed worker then
-  loses one unit, not two.
-- Merge each branch as it lands. Do not batch merges to the end — four merged
-  units beat six unmerged ones.
-- When a worker dies mid-unit, **commit its uncommitted worktree state yourself**
-  as an explicit `wip(...)` commit that says what is unfinished, and write the
-  blocker onto the issue. Never leave work as loose worktree state, and never
-  leave the issue `in-progress` with nobody on it.
+- Workers commit **after each unit**, never only at the end. A killed worker
+  then loses one unit, not two.
+- Merge each branch as it lands. Do not batch merges to the end — four
+  merged units beat six unmerged ones.
+- When a worker dies mid-unit, **commit its uncommitted worktree state
+  yourself** as an explicit `wip(...)` commit that says what is unfinished,
+  and write the blocker onto the issue. Never leave work as loose worktree
+  state, and never leave the issue `in-progress` with nobody on it.
 
-### 4. Collect
+### 4. Collect — act on each completion immediately, do not batch
 
 `drone` mandates a terse structured report. Read those, not the diffs. If a
-worker's report is a wall of text, that's a `drone` violation — don't propagate
-it into your summary to the user.
+worker's report is a wall of text, that's a `drone` violation — don't
+propagate it into your summary to the user.
 
-A worker that reports a blocker (needed a file it didn't own; test won't go green;
-ambiguity in the spec) has done the right thing. Resolve it yourself, or re-dispatch
-with `SendMessage` to that agent id — its worktree and context are still alive, and
-continuing it is far cheaper than a cold respawn.
+**Backgrounded workers report as they finish. Do not wait for the whole
+swarm — act on each report the moment it lands.** The cycle below is per
+unit; running it serially per completion is what keeps `master` moving and
+your context bounded (you review the diff while the other workers keep
+typing — that diff is harvested at peak freshness and never re-read).
+
+For each worker report, run this decision tree:
+
+```bash
+git -C .worktrees/<slug> log master..HEAD --stat   # scope first
+git diff master...<branch> --stat                  # what files it touched
+git diff master...<branch>                         # then content
+```
+
+1. **Ownership check.** Did it touch only its owned paths? If it strayed into
+   a file outside its boundary, that's a bug to understand *before* you read
+   the content — either the worker guessed wrong (resume-and-redirect) or your
+   boundary was wrong (fix the boundary, restate the unit, merge is fine).
+2. **Content check.** Reads as the spec asked? No quiet cop-outs (a feature
+   silently descoped, a thing removed "because the test was hard", a TODO
+   left where the issue asked for code)? Compare against the
+   acceptance-parameters table from §1a — if the worker added an escape that
+   the issue spec rejected, push back.
+3. **Test check.** Run `mise run test` from the merged tip after the
+   fast-forward, not the worker's claim. A green worker is not a green
+   `master`.
+
+Then **branch on quality**, in decreasing order of frequency:
+
+- **Perfect — merge to `master` now.** Rebase onto current `master`, fast-forward,
+  amend `Closes #<n>` (§6), push or queue, run `mise run test`, move the issue
+  to `in-review` on the kanban. Do not let it sit.
+- **Almost perfect — fix it yourself, then merge.** The diff is 95% right and
+  the gap is a one-line thing the worker would burn a full escalation round to
+  arrive at. You are the smart model and the cheap context — make the edit in
+  your window, then merge. Spending a worker turn on a `SendMessage`-then-
+  re-review is *more* tokens than the fix itself.
+- **Badly done but recoverable — resume the drone.** `SendMessage` the same
+  agent id with a sharp diagnosis and the specific re-direction. Its worktree
+  and its context are still alive; continuing it is far cheaper than a cold
+  respawn and it keeps the unit's accumulated reading hot. State clearly what
+  was wrong and what the new target is — the orchestrator is the source of
+  wisdom here, not a passive reviewer.
+- **Genuinely stuck — stop, do not grind.** A worker that reports the same
+  blocker twice after a resume, or surfaces something that is plainly a real
+  design fork the user must settle, is not solvable by more drone turns. Move
+  the issue to `in-review` on the kanban with a one-line comment naming the
+  fork, and **focus on the remainder of the swarm.** Do not let one unsolvable
+  unit stall the merge queue for the other six.
+
+A worker that reported a blocker (needed a file it didn't own; test won't go
+green; ambiguity in the spec) on its *first* report has done the right thing
+under the hard-stop rule — escalate it to "almost perfect" / "badly done"
+paths above. The blocker itself is signal, not a failure of the worker.
 
 ### 5. Review
 
@@ -486,73 +592,77 @@ git diff master...<worktreeBranch>            # then read it
 Verify the ownership boundary actually held (`--stat` shows any file a worker
 shouldn't have touched) before you look at content. Nothing merges unreviewed.
 
-**Do not accept a worker's claim that a failure is pre-existing.** Two workers in
-one run reported "975/976, the failure is a pre-existing baseline flake, confirmed
-by stashing my changes." Both were wrong: their baseline included a *sibling
-worker's* commit that had landed in the shared worktree. `master` was green at
-976/976 the whole time. Check the baseline yourself with a real `master` run — it
-is one command, and it is the difference between merging a genuine regression and
-not.
+**Do not accept a worker's claim that a failure is pre-existing.** Two
+workers in one run reported "975/976, the failure is a pre-existing baseline
+flake, confirmed by stashing my changes." Both were wrong: their baseline
+included a *sibling worker's* commit that had landed in the shared worktree.
+`master` was green at 976/976 the whole time. Check the baseline yourself with
+a real `master` run — it is one command, and it is the difference between
+merging a genuine regression and not.
 
-The regression in that case was in the orchestrator's own pre-dispatch seam, and
-only became reachable once a worker implemented the first real override of it.
-**Expect your seam's bugs to surface at merge, not when you wrote it.**
+The regression in that case was in the orchestrator's own pre-dispatch seam,
+and only became reachable once a worker implemented the first real override of
+it. **Expect your seam's bugs to surface at merge, not when you wrote it.**
 
 A green suite proves the worker's *mechanism*, not the *outcome*. That gap is
 widest on visual work: a z-index assertion fully determines draw order, but no
 assertion tells you a semitransparent band is legible on screen, and a shader
-that compiles can still render nothing. When a unit changes what the game looks
-like, either drive it (`mise run play`, `/verify`) or say plainly to the user
-that you confirmed the plumbing and not the pixels. Don't let "tests pass, shader
-compiles" quietly stand in for "it looks right."
+that compiles can still render nothing. When a unit changes what the game
+looks like, either drive it (`mise run play`, `/verify`) or say plainly to
+the user that you confirmed the plumbing and not the pixels. Don't let "tests
+pass, shader compiles" quietly stand in for "it looks right."
 
 ### 6. Merge, one branch at a time
 
 Per branch, in sequence, exactly as `warp` step 6 describes: rebase the branch
-onto `master` from inside its worktree, then fast-forward `master`. Sequential is
-not a limitation — each rebase re-tests the *next* branch against the merged
-result of the previous ones, which is the only place a cross-unit break surfaces.
+onto `master` from inside its worktree, then fast-forward `master`. Sequential
+is not a limitation — each rebase re-tests the *next* branch against the
+merged result of the previous ones, which is the only place a cross-unit break
+surfaces.
 
 Run `mise run test` after each merge, not only after the last. When something
 breaks, you want to know which branch did it.
 
-If the units were file-disjoint, every rebase is clean. A conflict here means the
-decomposition leaked — fix the decomposition's consequence, not just the conflict.
+If the units were file-disjoint, every rebase is clean. A conflict here means
+the decomposition leaked — fix the decomposition's consequence, not just the
+conflict.
 
-**Closing the issue(s).** Workers never write `Closes #<n>` themselves — you add
-it, because only you know which branch is last. Amend it on before that branch's
-rebase, while you're still upstream of the merge:
+**Closing the issue(s).** Workers never write `Closes #<n>` themselves — you
+add it, because only you know which branch is last. Amend it on before that
+branch's rebase, while you're still upstream of the merge:
 
 - **One issue, N units** — one `Closes #<n>`, on your integration commit, or
   amended onto the *final* branch's tip. Not on the others: whichever merged
   first would close the issue while the rest of the work is still in flight.
-- **N independent issues** — one `Closes #<n>` per branch, each naming its own
-  issue. Every branch is the last one for its issue.
+- **N independent issues** — one `Closes #<n>` per branch, each naming its
+  own issue. Every branch is the last one for its issue.
 
-`Closes` fires on **push**, not on the local fast-forward. So merging does not
-close anything. Check `git status -sb` before you claim an issue is done, and
-remember `master` may carry unrelated commits (yours, or another agent's) that a
-push would ship alongside your work — surface that and let the user decide.
+`Closes` fires on **push**, not on the local fast-forward. So merging does
+not close anything. Check `git status -sb` before you claim an issue is done,
+and remember `master` may carry unrelated commits (yours, or another agent's)
+that a push would ship alongside your work — surface that and let the user
+decide.
 
-Because the close is deferred to the push, move the issue on the kanban as each
-one lands, so the board reflects reality even though the issue is still open:
+Because the close is deferred to the push, move the issue on the kanban as
+each one lands, so the board reflects reality even though the issue is still
+open:
 
 ```bash
 mise gh-project -- status <n> in-review     # branch landed on master, awaiting push
 ```
 
 If a worker reported a blocker and stopped, put the issue back to `ready` (or
-`backlog`) with a comment saying what blocked it — never leave it `in-progress`
-with nobody on it. A stuck `in-progress` is the one state that silently blocks
-the next swarm.
+`backlog`) with a comment saying what blocked it — never leave it
+`in-progress` with nobody on it. A stuck `in-progress` is the one state that
+silently blocks the next swarm.
 
 ### 7. Teardown
 
-**Teardown is now unconditional and yours.** The semantics inverted with §3a: a
-harness worktree was auto-removed if untouched, but a `mise` worktree is *never*
-auto-removed. That's the point — a stopped worker can be resumed into its own
-checkout — but it means every worker leaves one behind, whether or not it
-committed.
+**Teardown is now unconditional and yours.** The semantics inverted with §3a:
+a harness worktree was auto-removed if untouched, but a `mise` worktree is
+*never* auto-removed. That's the point — a stopped worker can be resumed into
+its own checkout — but it means every worker leaves one behind, whether or
+not it committed.
 
 ```bash
 mise run worktree:ls                                # find the survivors
@@ -560,11 +670,11 @@ mise run worktree:rm -- <slug>                      # fuzzy-matches; per worker
 git branch -d <slug>                                # -d, not -D: refuses if unmerged
 ```
 
-Both plain forms work on a merged worker branch — reach for `--force` / `-D` only
-once you know why the plain one refused. `remove` refuses while the worktree is
-still `locked` (the agent hasn't exited) or dirty; `branch -d` refuses when the
-branch isn't in `master`, which means you dropped a worker's work. Neither is a
-formality to `--force` past.
+Both plain forms work on a merged worker branch — reach for `--force` / `-D`
+only once you know why the plain one refused. `remove` refuses while the
+worktree is still `locked` (the agent hasn't exited) or dirty; `branch -d`
+refuses when the branch isn't in `master`, which means you dropped a worker's
+work. Neither is a formality to `--force` past.
 
 ## Gotchas
 
@@ -579,66 +689,73 @@ Nothing is wrong with the diff; the cache is stale. Refresh it on master, then
 re-run.
 
 That refresh is also what generates the `.uid` for a worker's new test file, so
-until you run it **GUT silently does not collect the new test** — the suite looks
-green at the *old* script count. Compare `Scripts` / `Tests` totals before and
-after; if the totals didn't move, the new test never ran.
+until you run it **GUT silently does not collect the new test** — the suite
+looks green at the *old* script count. Compare `Scripts` / `Tests` totals
+before and after; if the totals didn't move, the new test never ran.
 
 Per `.claude/rules/godot-workflow.md`, an editor pass re-serializes scenes it
-touches, and master is a shared checkout that may carry the user's uncommitted
-WIP. `mise run refresh` is the whole check — it excludes pre-existing dirt and hands
-back a verdict. Don't `md5sum` or stage copies. Restore anything non-default it
-flags; ignore id and position noise.
+touches, and master is a shared checkout that may carry the user's
+uncommitted WIP. `mise run refresh` is the whole check — it excludes
+pre-existing dirt and hands back a verdict. Don't `md5sum` or stage copies.
+Restore anything non-default it flags; ignore id and position noise.
 
 - **Worker worktrees live under `.claude/worktrees/agent-<id>/`, on branch
   `worktree-agent-<id>`** — not under `.worktrees/`, and not from
-  `mise run worktree:new`. The harness creates them, branched from `master`'s tip
-  at spawn time, and returns the path and branch in the tool result. That's the
-  substrate; `mise`'s worktree tasks are for `warp`'s single-checkout cycle.
+  `mise run worktree:new`. The harness creates them, branched from `master`'s
+  tip at spawn time, and returns the path and branch in the tool result.
+  That's the substrate; `mise`'s worktree tasks are for `warp`'s single-
+  checkout cycle.
 - **Resuming a worker that stopped clean can drop it into ANOTHER worker's
-  worktree.** The harness reclaims an `isolation: "worktree"` worktree when its
-  agent exits without changes. `SendMessage` then resumes that agent from its
-  transcript — but with no worktree of its own, and it can land in a *sibling
-  worker's* checkout. Observed: a worker stopped to ask a question, was resumed
-  with the answer, and committed onto another live worker's branch while that
-  worker's uncommitted WIP sat in the same tree. Nothing errored.
+  worktree.** The harness reclaims an `isolation: "worktree"` worktree when
+  its agent exits without changes. `SendMessage` then resumes that agent
+  from its transcript — but with no worktree of its own, and it can land in
+  a *sibling worker's* checkout. Observed: a worker stopped to ask a
+  question, was resumed with the answer, and committed onto another live
+  worker's branch while that worker's uncommitted WIP sat in the same tree.
+  Nothing errored.
 
-  The blast radius is real: one `git add -A` there would have committed half of
-  another agent's unfinished work.
+  The blast radius is real: one `git add -A` there would have committed
+  half of another agent's unfinished work.
 
   **Before resuming any worker that reported and stopped, create it a fresh
-  worktree** (`git worktree add .claude/worktrees/agent-<name>-2 -b <branch> master`)
-  and name the absolute path in your message. Tell every worker to `git add`
-  **by explicit path, never `-A` or `-a`** — that is the standing mitigation, since
-  you will not always notice the swap. If a stray commit does land on the wrong
-  branch, leave it: if it is file-disjoint it merges fine from there, and telling a
-  deep-context worker to disentangle git history is the most expensive possible fix.
-- **Workers branch from `master` as it was when they spawned.** Merging branch A
-  moves `master`; branch B is now behind. That's why step 6 rebases each branch
-  immediately before its own merge, not all of them up front.
-- **Don't let a worker call `advisor`.** You are the advisor — you're the larger
-  model and you hold the plan. `drone` tells them this; don't undercut it by
-  suggesting it in a worker prompt.
-- **A worker's context is not yours.** It cannot see this conversation, the issue,
-  or the sibling workers' units. Everything it needs goes in its prompt: the
-  files it owns, the acceptance test, and what "done" means.
-- **Relay, don't paste.** The whole point is your context stays small. Summarize
-  worker reports for the user in your own words; a swarm whose orchestrator pastes
-  N diffs has spent its context anyway and saved nothing.
+  worktree** (`git worktree add .claude/worktrees/agent-<name>-2 -b <branch>
+  master`) and name the absolute path in your message. Tell every worker to
+  `git add` **by explicit path, never `-A` or `-a`** — that is the standing
+  mitigation, since you will not always notice the swap. If a stray commit
+  does land on the wrong branch, leave it: if it is file-disjoint it merges
+  fine from there, and telling a deep-context worker to disentangle git
+  history is the most expensive possible fix.
+- **Workers branch from `master` as it was when they spawned.** Merging
+  branch A moves `master`; branch B is now behind. That's why step 6 rebases
+  each branch immediately before its own merge, not all of them up front.
+- **Don't let a worker call `advisor`.** You are the advisor — you're the
+  larger model and you hold the plan. `drone` tells them this; don't undercut
+  it by suggesting it in a worker prompt.
+- **A worker's context is not yours.** It cannot see this conversation, the
+  issue, or the sibling workers' units. Everything it needs goes in its
+  prompt: the files it owns, the acceptance test, and what "done" means.
+- **Relay, don't paste.** The whole point is your context stays small.
+  Summarize worker reports for the user in your own words; a swarm whose
+  orchestrator pastes N diffs has spent its context anyway and saved
+  nothing.
 - **Always `git -C <path>`, never bare `git` after a `cd`.** Bash's working
-  directory persists across tool calls. `cd` into a worktree to run its tests and
-  every later `git` command silently targets *that* worktree — a `merge --ff-only`
-  aimed at master will cheerfully report "Already up to date" while merging a
-  branch into itself. Nothing errors. Spell out the repo path on every git call.
-- **A worker's fresh worktree cold-imports and dirties tracked `.import` files**,
-  which makes `git rebase` refuse with "cannot rebase: You have unstaged changes."
-  Run `git -C <worktree> checkout -- .` first. Same for the main checkout after a
-  real-backend (`opengl3`) shader check — it re-imports every texture.
-- **`master` can move under you mid-swarm.** Another agent may land commits in the
-  shared main checkout while your workers run. That's fine — it's why step 6
-  rebases each branch immediately before its own merge — but *re-read `master`*
-  before concluding a merge misbehaved.
-- **Untracked files in the main checkout are invisible to worktrees**, so a test
-  count taken there won't match a worker's. Compare tracked-only totals, and when
-  a count is off, `git ls-files --error-unmatch <path>` before suspecting a worker.
-  A file present in the main checkout's suite but absent from every worktree's is
-  almost certainly untracked, not deleted by a worker.
+  directory persists across tool calls. `cd` into a worktree to run its
+  tests and every later `git` command silently targets *that* worktree — a
+  `merge --ff-only` aimed at master will cheerfully report "Already up to
+  date" while merging a branch into itself. Nothing errors. Spell out the
+  repo path on every git call.
+- **A worker's fresh worktree cold-imports and dirties tracked `.import`
+  files**, which makes `git rebase` refuse with "cannot rebase: You have
+  unstaged changes." Run `git -C <worktree> checkout -- .` first. Same for
+  the main checkout after a real-backend (`opengl3`) shader check — it
+  re-imports every texture.
+- **`master` can move under you mid-swarm.** Another agent may land commits
+  in the shared main checkout while your workers run. That's fine — it's
+  why step 6 rebases each branch immediately before its own merge — but
+  *re-read `master`* before concluding a merge misbehaved.
+- **Untracked files in the main checkout are invisible to worktrees**, so a
+  test count taken there won't match a worker's. Compare tracked-only
+  totals, and when a count is off, `git ls-files --error-unmatch <path>`
+  before suspecting a worker. A file present in the main checkout's suite
+  but absent from every worktree's is almost certainly untracked, not
+  deleted by a worker.
