@@ -6,7 +6,7 @@
 [ext_resource type="Script" uid="uid://ddlh35gou7ixj" path="res://entity/core/sigil/astroid_sigil.gd" id="3_sigil"]
 [ext_resource type="Resource" uid="uid://cwt1ufgl40t82" path="res://stats_system/formulas/level_scaling.tres" id="4_lvl"]
 [ext_resource type="Script" uid="uid://bl2wufmtn1g76" path="res://effects/heal_aura.gd" id="5_heal_aura"]
-[ext_resource type="Resource" path="res://stats_system/packs/attribute_baseline.tres" id="6_baseline"]
+[ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="6_baseline"]
 
 [sub_resource type="Resource" id="heal_aura_balanced"]
 script = ExtResource("5_heal_aura")

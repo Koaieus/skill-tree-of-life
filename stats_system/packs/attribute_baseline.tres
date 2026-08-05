@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CompositeStatModifier" format=3]
+[gd_resource type="Resource" script_class="CompositeStatModifier" format=3 uid="uid://cl4uo53xgkvxa"]
 
 [ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="1_comp"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]

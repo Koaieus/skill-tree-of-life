@@ -9,7 +9,7 @@
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="7_effect"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="8_mw6me"]
 [ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="9_comp"]
-[ext_resource type="Resource" path="res://stats_system/packs/attribute_baseline.tres" id="10_baseline"]
+[ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="10_baseline"]
 
 [sub_resource type="Resource" id="scale_falling"]
 script = ExtResource("5_scale")

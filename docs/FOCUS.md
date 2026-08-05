@@ -55,9 +55,12 @@ drone takes one and ships it.
 | **#174** | AI: evaluate melee/magic/ranged every turn, not ranged-only | `AIController._try_attack()` hardcodes `RANGED`. The NPC never considers melee or magic. The stepping stone before #47's strategy controller. |
 | ~~**#279**~~ | ~~Enemy CoreClass composability: batch stat/modifier authoring~~ | **CLOSED.** |
 | **#337** | Staking mechanics: raise cap with SP+AP, fill, reclaim with extract | The missing combat verb. `SkillPointStat.stake()/extract()` are implemented, the HUD renders the `staked` bucket, the M-of-N dial exists — **nothing in `ui/`, `systems/`, or `entity/` ever calls `stake()`**. Pure wiring. |
-| **#340** | Node-local modifiers: bind() + cycle gate at the node seam | A formula-driven node-local modifier silently drops its formula today (`_board == null`). Gates the whole aura lane (D). No design forks left. |
+| ~~**#340**~~ | ~~Node-local modifiers: bind() + cycle gate at the node seam~~ | **CLOSED.** Lane D's aura work unblocked. |
+| **#374** | stake_level as PoolStat + proxy props on SkillNode | Mechanism layer of #332's "we want both" design — cap = stake_level, current = allocation_level, authored via SkillNode-scope proxy properties. Depends only on closed/Ready work (#333, #340, #337). Zero forks. |
+| **#375** | `addon_slots = base(0) + allocation_level` as a node-local Stat | First consumer of the node-local scaling plumbing. Reads `allocation_level` through the `stake_level__current` accessor (#333). Depends on #374. |
+| **#376** | Magnitude curve: linear-ladder mutator on SkillNode | The design heart of #332. SkillNode owns its modifiers, entity board holds references, a mutator runs once per al-change writing `value` in place. Linear ladder (`return float(al)`), plug-and-play body. MULTIPLY scales "add the growth part" (`1 + (X−1)×ladder`); SET opts out by default. Composition mutation covered (the "1→2 effects" case). Single-owner-SkillNode precondition asserted; **#377** is the long-term escape. |
 
-Five units, all drone-ready as written, all gameplay. Take them in lane order below.
+Seven units, all drone-ready as written, all gameplay. Take them in lane order below.
 
 ## Lanes, in order — ship the playable loop
 
@@ -76,15 +79,18 @@ economy and evaluates its options.
 
 ### B — The missing combat verb
 
-1. **#337** Staking — drone-ready (pure wiring, plumbing exists).
-2. #332 node-local formula modifiers scaled off allocation — `Needs design`. Wires onto #340.
+1. **#337** Staking — drone-ready (pure wiring, plumbing exists). Sibling: #338 (player-facing surface, `Needs design`).
+2. **#332** node-local formula modifiers — hub, `Needs design` until its children land. Swarmify 2026-08-05 split out three children:
+   - **#374** stake_level as PoolStat + proxy props — **Ready.**
+   - **#375** `addon_slots = base(0) + allocation_level` as node-local Stat — **Ready.** Depends on #374.
+   - **#376** magnitude curve linear-ladder mutator on SkillNode — **Ready.** Depends on #374 + #337.
 3. #301 bladesmithing: spend blade budget on per-swing upgrades — `Needs design`.
 
 ### C — Node-local and aura mechanics actually compute
 
-1. **#340** bind() + cycle gate — drone-ready. Without this, node-local formulas are silently inert.
+1. ~~**#340** bind() + cycle gate at the node seam — drone-ready.~~ **CLOSED.** Lane B's children build on this.
 2. #316 heal aura falls off per hop — `Needs design` (D-lane in the old file, folded here).
-3. #333 StatFormula can only read a pool cap, not `current` — `Needs design`.
+3. ~~#333 StatFormula accessor for `__current`~~ **CLOSED.** Lane B's children read `allocation_level` through this.
 4. #356 unify `PropagationContext` — `Needs design`. Gates #355.
 
 ### D — Content comes from the map
@@ -100,21 +106,23 @@ economy and evaluates its options.
 Legibility ships, fidelity defers (rule 4). All tooltip-V2 work below is the "show
 everything, no gating" phase — flat placeholders, not carved art.
 
-1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass contrast + corner AA, ~~**#234** idle-loop animations~~ **CLOSED**, **#236** trace glow, **#281** addon icon placeholder.
+1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass migration + scanline fix + holo dial-in, ~~**#234** idle-loop animations~~ **CLOSED**, **#236** trace glow, **#281** addon icon placeholder.
 2. ~~**#341** RimRing: allocation dial into the shader + archetype legibility — drone-ready.~~ **CLOSED.**
-3. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.
-4. #361 `core_panel.tscn` carries two skins — `Needs design`, blocks nothing but re-bites fan geometry. A *decision*, not a drone unit.
+3. **#371** emissive text + composable glow (bloom) — blocked on #345's dark fill landing on every panel. All design forks settled (Layer 0/1/2 architecture; `theme_type_variation` palette; alpha stays fade channel; `background_canvas_max_layer = 100`; viewport-wide bloom deferred as fine-for-now). Breadcrule + doc already in: `.claude/rules/hdr-color.md`, `docs/domain/hdr-color.md`.
+4. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.
+5. #361 `core_panel.tscn` carries two skins — `Needs design`, blocks nothing but re-bites fan geometry. A *decision*, not a drone unit.
 
 ### F — Balance is tuned, not guessed
 
 The harness shipped ( #268, informative-only). #274's spell damage landed. What remains
 is the pinning, not the apparatus.
 
-1. #365 mana pool max + regen — `Needs design`, **P0**. Blocks #278: tuning `mana_cost` against placeholder max/regen is tuning against noise.
-2. #278 spell balance pass — degree × reach × progression-kind × cost. **A session with the user, not a drone unit.** Runs after #365.
-3. #366 harness: magic-channel fixture + `spell_dpa` readout — `Ready`, follow-up to #268 now that #274 landed.
-4. #367 harness: wire the seven comment-registered invariants into `invariants.json` — `Ready`. They're prose on an issue today, not numbers.
-5. #248 balancing hub (tracking, `Needs design`).
+1. #373 CON→health modeling: `floor(CON / divider_stat)` instead of `core_health_scaling × CON` — `Needs design`, **P0**. The D-21/D-26 precedent being revisited: today `health = 10 + core_health_scaling × CON` via `ExpressionFormula` (continuous, no floor) is the only intrinsic not using `RatioFormula`'s threshold shape. Whether to remap as `floor(CON/threshold_stat)`, which formula class (`RatioStatFormula` sibling vs `ExpressionFormula`), and the retune that preserves published #268 numbers all open. A modeling question upstream of what #278 tunes against — sits alongside #365 as gate-on-the-numbers.
+2. #365 mana pool max + regen — `Needs design`, **P0**. Blocks #278: tuning `mana_cost` against placeholder max/regen is tuning against noise.
+3. #278 spell balance pass — degree × reach × progression-kind × cost. **A session with the user, not a drone unit.** Runs after #365 and #373.
+4. #366 harness: magic-channel fixture + `spell_dpa` readout — `Ready`, follow-up to #268 now that #274 landed.
+5. #367 harness: wire the seven comment-registered invariants into `invariants.json` — `Ready`. They're prose on an issue today, not numbers.
+6. #248 balancing hub (tracking, `Needs design`).
 
 ### G — Onboarding (the game teaches itself)
 
@@ -135,6 +143,7 @@ companion to lane B/C. **#362 (lane E's slot-clearer) is listed up top, not here
 - #347 SkillNode lab: `@export_tool_button` entry point, live editor sync, verification readouts — `Ready`. This is the "tweak a value in the editor, see it immediately" tool.
 - #349 procgen authoring DX: top-down knobs instead of six-deep nesting — `Ready`.
 - #331 harden swarm + drone skills to be harness-independent — `Ready`. Meta, but the swarm orchestrator breaks on opencode without it.
+- #377 stateless-formula refactor: drop `StatModifier._board`/`_bound_sources`, move binding to the Stat/Board owning the modifier — `Needs design`. Long-term answer to the binding-state hazard that #376 (lane B) works around with a single-owner precondition + assertion. Not on the critical path until a feature needs shared instances across multiple owning entities.
 
 ## Deliberately parked
 
