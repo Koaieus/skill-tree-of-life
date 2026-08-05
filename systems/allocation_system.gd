@@ -154,10 +154,11 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 		if entity.navigator != null:
 			entity.navigator.mirror_add(node)
 		node.apply_entity_modifiers_to(board)
-		# Fill AFTER the grants are applied (the local-scale mutator reads the
-		# board when the fill lands — #376).
-		node.allocation_level = 1
+		# Effects BEFORE the fill lands: the local-scale mutator (#376) walks
+		# the effects on the 0→1 transition and must find the fresh grant.
 		_grant_node_effects(node, entity)
+		# Fill after the grants are applied (the mutator reads the board).
+		node.allocation_level = 1
 		# After the mirror update: an aura recomputing off this hook must see the
 		# new node in the owned subgraph, not the stale one.
 		entity.dispatch(&"_on_node_allocated", [node, false])
@@ -187,12 +188,13 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 	if board != null and board.skill_points != null:
 		board.skill_points.claim(1)
 	node.apply_entity_modifiers_to(board)
+	# Effects BEFORE the fill lands: the local-scale mutator (#376) walks the
+	# effects on the 0→1 transition and must find the fresh grant.
+	_grant_node_effects(node, entity)
 	# Fill the first allocation slot — the allocate path owns fill writes
 	# (#337); this bypasses it, so it sets the 1 explicitly, after the grants
-	# are applied (the local-scale mutator reads the board when the fill
-	# lands — #376).
+	# are applied (the mutator reads the board when the fill lands).
 	node.allocation_level = 1
-	_grant_node_effects(node, entity)
 	entity.dispatch(&"_on_node_allocated", [node, true])
 	allocated.emit(node, entity, true)
 
@@ -209,6 +211,9 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 	# LootSystem's pre-cleanup snapshot). A 2/2 node refunds 2 SP.
 	var fill: int = node.allocation_level
 	var board := previous.stat_board
+	# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
+	# applied outside the effect ledger and would strand otherwise (#376).
+	node.clear_scaled_effect_sets(board)
 	_revoke_node_effects(node, previous)
 	node.remove_entity_modifiers_from(board)
 	if previous.navigator != null:
@@ -241,6 +246,9 @@ func force_deallocate(node: SkillNode) -> Entity:
 	if previous == null:
 		return null
 	var board := previous.stat_board
+	# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
+	# applied outside the effect ledger and would strand otherwise (#376).
+	node.clear_scaled_effect_sets(board)
 	_revoke_node_effects(node, previous)
 	node.remove_entity_modifiers_from(board)
 	if previous.navigator != null:

@@ -82,6 +82,23 @@ var _bound_sources: Array[Stat] = []
 var _propagating: bool = false
 
 
+## Opt-out / custom-scaling seam for SkillNode's local-scale mutator (#376).
+## Default returns `null` = follow the universal per-operation law. Overrides
+## return one of:
+##   - a Float: the modifier's new `value`, outright;
+##   - [constant UNSCALED]: invariant across allocation_level;
+##   - an Array[StatModifier]: a composition mutation — the scaled leaf-set
+##     that replaces this modifier's applied contribution on the board (the
+##     CompositeStatModifier / Effect "1 effect becomes 2" case, decision 8).
+## Any other return is rejected with a push_warning by the mutator, which
+## falls through to the universal law.
+const UNSCALED := &"unscaled"
+
+
+func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
+	return null
+
+
 ## Returns the modifier's effective value. When a formula is bound, scales it
 ## by `value` so the same field serves both branches: bare-formula reads pass
 ## through (value=1), explicit coefficients show up as the modifier's `value`.

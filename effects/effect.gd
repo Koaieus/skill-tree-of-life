@@ -64,6 +64,17 @@ const LIFECYCLE_HOOKS: Array[StringName] = [&"_on_granted", &"_on_revoked"]
 @export var modifiers: Array[StatModifier] = []
 
 
+## Composition-mutation seam for SkillNode's local-scale mutator (#376,
+## decision 8). Default returns `null` = no composition scaling. An override
+## returns an Array[StatModifier] — the scaled leaf-set that replaces this
+## effect's granted contribution on the entity board — or
+## [constant StatModifier.UNSCALED]. Effects must NOT return a Float: their
+## canonical [member modifiers] are shared .tres instances, so the mutator
+## never value-scales them (a Float override is rejected with a push_warning).
+func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
+	return null
+
+
 ## Called once when the effect attaches to an entity. Default grants
 ## [member modifiers] to the entity's board.
 ##

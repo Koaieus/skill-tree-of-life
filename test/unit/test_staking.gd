@@ -131,8 +131,14 @@ func test_refill_skips_first_allocation_side_effects() -> void:
 	assert_signal_not_emitted(_alloc, "allocated", "refill must not re-emit allocated")
 	assert_eq(_player.navigator.get_mirrored_nodes().size(), mirrored_before,
 			"refill must not mirror_add (ownership unchanged)")
-	assert_eq(int(_player.stat_board.get_stat(&"strength").get_value()), 15,
-			"refill must not re-apply the node's entity modifiers")
+	# #376's local-scale mutator runs on every allocation_level change — a
+	# refill is one, so the +5 STR mod scales ×ladder(2)/ladder(1) = ×2 → +10.
+	# The single-grant invariant this test guards (no re-apply, no re-grant)
+	# is still intact: the modifier is applied once (its value changed, it
+	# wasn't re-added) and the effect is granted once. Pre-#376 the value stayed
+	# +5 because the mutator was a stub; the new contract scales it.
+	assert_eq(int(_player.stat_board.get_stat(&"strength").get_value()), 20,
+			"refill does not re-apply the node's entity modifiers (the +5 scales to +10 per #376)")
 	assert_eq(_player.get_effects().size(), 1, "refill must not re-grant the node's effects")
 
 
