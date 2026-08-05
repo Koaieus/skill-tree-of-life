@@ -13,10 +13,10 @@ shader_type canvas_item;
 #include "res://skill_node/visuals/lighting.gdshaderinc"
 
 instance uniform vec4 tint_color : source_color = vec4(0.291, 0.5892, 1.0, 1.0);
-instance uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;
+instance uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;  // TODO: this one might be a real uniform, we don't tweak it per instance
 instance uniform bool allocated = false;
-instance uniform vec2 highlight_position = vec2(-0.35, -0.35);
-instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
+instance uniform vec2 highlight_position = vec2(-0.35, -0.35); // TODO: this one might be a real uniform, we don't tweak it per instance
+instance uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85; // TODO: this one might be a real uniform, we don't tweak it per instance 
 
 // Which CARVE shape family the dome etches — one selector rather than the
 // retired pair of mutually-exclusive "show this glyph" bools

@@ -69,12 +69,6 @@ resource_name = "armor"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_armor")
 
-[sub_resource type="Resource" id="scalar_spell_damage"]
-resource_name = "spell_damage"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_spell_damage")
-base_value = 1.0
-
 [sub_resource type="Resource" id="scalar_blade_damage"]
 resource_name = "blade_damage"
 script = ExtResource("2_scalar")
@@ -384,6 +378,12 @@ resource_name = "sp_gain_on_levelup"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_sp_gain_on_levelup")
 base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_spell_damage"]
+resource_name = "spell_damage"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_spell_damage")
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_spell_range"]
 resource_name = "spell_range"

@@ -3,4 +3,15 @@
 [ext_resource type="Script" uid="uid://ba7k8pq2mv2fg" path="res://skill_node/visuals/inner_disk.gd" id="1_disk"]
 
 [node name="InnerDisk" type="Node2D" unique_id=1698059834]
+instance_shader_parameters/allocated = false
+instance_shader_parameters/carve_kind = 0
+instance_shader_parameters/carve_radius = 0.75
+instance_shader_parameters/carve_sides = 3.0
+instance_shader_parameters/carve_slice = -1
+instance_shader_parameters/carve_squish = 1.0
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 0.6
+instance_shader_parameters/well_depth = 0.35
 script = ExtResource("1_disk")

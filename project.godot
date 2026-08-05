@@ -45,7 +45,7 @@ version_control/autoload_on_startup=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot-neovim/plugin.cfg", "res://addons/gut/plugin.cfg", "res://addons/procgen_preview/plugin.cfg", "res://addons/sandbox_host/plugin.cfg")
+enabled=PackedStringArray("res://addons/gut/plugin.cfg", "res://addons/procgen_preview/plugin.cfg", "res://addons/sandbox_host/plugin.cfg")
 
 [file_customization]
 
