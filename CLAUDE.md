@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Delegating to subagents
 
-Pass `model: "haiku"` on `Explore` agent calls — fast read-only codebase search (finding files, grepping symbols) is what Haiku excels at, and it's cheaper than the default.
+**Always pass `model: "haiku"` on `Explore` agent calls.** There is no cheap default to fall back on: an omitted `model` inherits the *parent's*, so a forgotten pin makes an Opus orchestrator spawn an Opus grep. Haiku is what read-only search (finding files, grepping symbols) wants anyway.
 
 ## Running the Game
 
