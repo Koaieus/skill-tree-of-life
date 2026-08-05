@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_83r5f"]
 [ext_resource type="Texture2D" uid="uid://b5wr16ekrxx2w" path="res://assets/icons/Icon set 1/1x/Asset 51.png" id="2_83r5f"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_efkvd"]
+[ext_resource type="Texture2D" uid="uid://uc3n7j5e5c1c" path="res://assets/icons/addons/addon_bunker.png" id="3_icon"]
 
 [sub_resource type="Resource" id="Resource_vxeh7"]
 script = ExtResource("2_efkvd")
@@ -14,6 +15,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [node name="BunkerAddon" type="Node2D" unique_id=631414463]
 script = ExtResource("1_83r5f")
 local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7")])
+icon = ExtResource("3_icon")
 metadata/_custom_type_script = "uid://bkf87fqtgkm7a"
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1003430993]

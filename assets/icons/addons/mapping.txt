@@ -1,0 +1,10 @@
+# Icon mapping for game-icons.net → skill node addons (tooltip AddonItems, #281).
+# Format: output_name<TAB>author/source.svg
+# Run `mise run icons:update` to reprocess all.
+# Paths verified against the local game-icons clone — a typo silently ships a
+# placeholder icon instead of failing the run.
+addon_spikes	sbed/spikes.svg
+addon_bunker	quoting/bunker-assault.svg
+addon_fortification	heavenly-dog/defensive-wall.svg
+addon_clamp	delapouite/clamp.svg
+addon_skill_dust	lorc/dust-cloud.svg

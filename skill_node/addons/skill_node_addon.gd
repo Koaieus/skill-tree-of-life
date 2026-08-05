@@ -51,6 +51,13 @@ extends Node2D
 ## default; [method SkillNode.get_addon_tooltip_sections] surfaces a section
 ## whenever either this or [method get_tooltip_modifiers] is non-empty.
 @export_multiline var description: String = ""
+## Tooltip icon for this addon's AddonItem — a game-icons.net sprite rasterized
+## by `mise run icons:update` (assets/icons/addons/). Null falls back to the
+## AddonItem's built-in placeholder, so an unassigned icon ships the same way
+## an unassigned description does: nothing breaks, the slot just shows the
+## default. Mirrors [member SpellDef.icon] — the icon lives on the addon, not
+## in a lookup table.
+@export var icon: Texture2D
 ## Behavioural effects this addon grants to the carrier's owner while the
 ## carrier is allocated. Collected by [method SkillNode.get_node_effects].
 ## Sits alongside the modifier arrays — a pure stat bundle needs no effect.

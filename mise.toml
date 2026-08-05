@@ -125,21 +125,25 @@ description = "List active worktrees with their branches"
 run = "git worktree list"
 
 [tasks."icons:update"]
-description = "Reprocess all spell/skill icons from game-icons.net SVGs (clone → recolor → rasterize → import)"
+description = "Reprocess all icon folders from game-icons.net SVGs (clone → recolor → rasterize → import)"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
-MAPPING="$PROJECT_ROOT/assets/icons/spells/mapping.txt"
-DEST="$PROJECT_ROOT/assets/icons/spells"
+ICONS_ROOT="$PROJECT_ROOT/assets/icons"
 REPO_URL="https://github.com/game-icons/icons"
 REPO_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/skill-tree-of-life/game-icons"
 FG_COLOR="${GAME_ICONS_FG:-#8CD9FF}"
 ICON_SIZE="${GAME_ICONS_SIZE:-256}"
 
-if [ ! -f "$MAPPING" ]; then
-  echo "✗ mapping file not found: $MAPPING"
+# Every folder with a mapping.txt rasterizes its own icons beside the mapping
+# (spells/, addons/, …). Discovered, not hardcoded — adding a folder is just
+# dropping a mapping.txt next to where the PNGs should land.
+shopt -s nullglob
+mappings=("$ICONS_ROOT"/*/mapping.txt)
+if [ ! -f "${mappings[0]}" ]; then
+  echo "✗ no mapping files found under $ICONS_ROOT/*/mapping.txt"
   exit 1
 fi
 
@@ -158,30 +162,38 @@ else
 fi
 
 echo "→ recoloring @ $FG_COLOR, rasterizing @ ${ICON_SIZE}×${ICON_SIZE}"
-mkdir -p "$DEST"
 
-count=0
-while IFS=$'\t' read -r name source_path; do
-  # Skip comments and blank lines
-  [[ -z "$name" || "$name" == \#* ]] && continue
-  svg="$REPO_DIR/$source_path"
-  if [ ! -f "$svg" ]; then
-    echo "  ✗ missing: $source_path → skipping $name"
-    continue
-  fi
-  tmp_svg="$(mktemp /tmp/icon_XXXXXX.svg)"
-  # Recolor foreground, strip background rect for transparency
-  sed -e "s/fill=\"#fff\"/fill=\"$FG_COLOR\"/g" \
-      -e 's|<path d="M0 0h512v512H0z"/>||g' \
-      "$svg" > "$tmp_svg"
-  rsvg-convert -w "$ICON_SIZE" -h "$ICON_SIZE" "$tmp_svg" -o "$DEST/${name}.png"
-  rm "$tmp_svg"
-  echo "  ✓ $name  ←  $source_path"
-  count=$((count + 1))
-done < "$MAPPING"
+total=0
+folders=0
+for mapping in "${mappings[@]}"; do
+  folders=$((folders + 1))
+  dest="$(dirname "$mapping")"
+  mkdir -p "$dest"
+  count=0
+  while IFS=$'\t' read -r name source_path; do
+    # Skip comments and blank lines
+    [[ -z "$name" || "$name" == \#* ]] && continue
+    svg="$REPO_DIR/$source_path"
+    if [ ! -f "$svg" ]; then
+      echo "  ✗ missing: $source_path → skipping $name"
+      continue
+    fi
+    tmp_svg="$(mktemp /tmp/icon_XXXXXX.svg)"
+    # Recolor foreground, strip background rect for transparency
+    sed -e "s/fill=\"#fff\"/fill=\"$FG_COLOR\"/g" \
+        -e 's|<path d="M0 0h512v512H0z"/>||g' \
+        "$svg" > "$tmp_svg"
+    rsvg-convert -w "$ICON_SIZE" -h "$ICON_SIZE" "$tmp_svg" -o "$dest/${name}.png"
+    rm "$tmp_svg"
+    echo "  ✓ $name  ←  $source_path"
+    count=$((count + 1))
+  done < "$mapping"
+  echo "✓ $count icons rasterized → $dest/"
+  total=$((total + count))
+done
 
 echo ""
-echo "✓ $count icons rasterized → $DEST/"
+echo "✓ $total icons rasterized across $folders folder(s)"
 echo "→ running godot --headless --import to regenerate .import files…"
 godot --headless --import 2>&1 | grep -E "reimport|DONE|ERROR" || true
 echo "✓ import complete — all UIDs regenerated"

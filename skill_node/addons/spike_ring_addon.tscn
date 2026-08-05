@@ -1,7 +1,9 @@
 [gd_scene format=3 uid="uid://b1addon0spike"]
 
 [ext_resource type="Script" uid="uid://b3a7a3yleuv1a" path="res://skill_node/addons/spike_ring_addon.gd" id="1_spike"]
+[ext_resource type="Texture2D" uid="uid://5mumfh4necgo" path="res://assets/icons/addons/addon_spikes.png" id="2_spike"]
 
 [node name="SpikeRingAddon" type="Node2D" unique_id=1569558765]
 script = ExtResource("1_spike")
 spike_color = Color(0.95, 0.55, 0.4, 0.95)
+icon = ExtResource("2_spike")

@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="1_3e5dq"]
 [ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_ppux5"]
 [ext_resource type="Texture2D" uid="uid://bht2acpn3022n" path="res://assets/icons/Icon set 1/1x/Asset 71.png" id="2_3e5dq"]
+[ext_resource type="Texture2D" uid="uid://bbcoaaq7xchhg" path="res://assets/icons/addons/addon_fortification.png" id="2_icon"]
 
 [sub_resource type="Resource" id="Resource_kv1mp"]
 script = ExtResource("1_3e5dq")
@@ -14,6 +15,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [node name="FortificationAddon" type="Node2D" unique_id=631414463]
 script = ExtResource("1_ppux5")
 local_modifiers = Array[ExtResource("1_3e5dq")]([SubResource("Resource_kv1mp")])
+icon = ExtResource("2_icon")
 metadata/_custom_type_script = "uid://bkf87fqtgkm7a"
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1003430993]
