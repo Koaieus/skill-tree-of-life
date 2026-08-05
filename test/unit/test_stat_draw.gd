@@ -15,7 +15,6 @@ func _pool(
 		pool_weight: float = 1.0,
 		min_tier: int = 1,
 		max_tier: int = 4,
-		jitter: float = 0.0,
 		tier_bias_k: float = 1.0,
 ) -> StatPool:
 	var p := StatPool.new()
@@ -26,7 +25,6 @@ func _pool(
 	p.pool_weight = pool_weight
 	p.min_tier = min_tier
 	p.max_tier = max_tier
-	p.jitter = jitter
 	p.tier_bias_k = tier_bias_k
 	return p
 

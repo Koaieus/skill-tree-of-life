@@ -10,7 +10,7 @@ extends Resource
 ##
 ## Mapping to runtime: [method to_entries] expands this pool into one
 ## [ModifierPoolEntry] per tier in `min_tier..max_tier`, computing each entry's
-## `cost` (from the ladder), `value_range` (`unit × V[T] × (1 ± jitter)`, or the
+## `cost` (from the ladder), `value_range` (fixed at `unit × V[T]`, or the
 ## override for that tier), `weight` (`pool_weight × |cost|^tier_bias_k`), and
 ## `tags` (this pool's tags + [TierLadder] auto-tags for the tier). The draw
 ## loop ([method GraphProcgen._roll_modifiers_v4]) picks among those entries
@@ -52,16 +52,12 @@ extends Resource
 
 ## Sparse per-tier value override (D11): `tier -> T-magnitude` — the *excess*
 ## for MULTIPLY pools (the +1 is applied by to_entries), the raw value
-## otherwise, always *before jitter*. Most pools carry none — the global V
+## otherwise. Most pools carry none — the global V
 ## curve is the default; the escape hatch exists for pools that want a
 ## steeper/flatter ladder than V (e.g. `crit_chance`). Naive authoring here is
 ## load-bearing, so a test should pin the repo-wide override count under a
 ## budget (seed: ≤ 6).
 @export var value_overrides: Dictionary[int, float] = {}
-
-## ± jitter applied to the rolled value: `value_range = magnitude × (1 ± jitter)`.
-## `0.25` → ±25% sample spread. Both ends equal at jitter 0 (fixed value).
-@export_range(0.0, 1.0) var jitter: float = 0.
 
 ## Base sampling weight for this pool (the pool-selection axis). Tier weight
 ## within a pool is `|cost|^tier_bias_k`; the draw multiplies the two.
@@ -101,22 +97,16 @@ func to_entries() -> Array[ModifierPoolEntry]:
 		var is_debuff := unit_value < 0.0
 		var t_cost := TierLadder.cost(t)
 		e.cost = -t_cost if is_debuff else t_cost
-		# value_range = magnitude * (1 ± jitter), magnitude = override or unit*V[T].
-		# For MULTIPLY, the rolled StatModifier value is `1 + magnitude` (the
-		# "more" excess), so the +1 is folded in here and jitter wobbles the
-		# excess while the ×1 base stays fixed.
+		# value_range = magnitude = override or unit*V[T]. For MULTIPLY, the
+		# rolled StatModifier value is `1 + magnitude` (the "more" excess), so
+		# the +1 is folded in here while the ×1 base stays fixed. No per-roll
+		# jitter (deleted #326): draw count + tier spread are the variance
+		# sources — how many draws a node's budget affords *is* the variability.
 		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t)))
-		var excess := mag
-		var j := clampf(jitter, 0.0, 1.0)
-		var vlo: float
-		var vhi: float
 		if operation == StatModifier.Operation.MULTIPLY:
-			vlo = 1.0 + excess * (1.0 - j)
-			vhi = 1.0 + excess * (1.0 + j)
+			e.value_range = Vector2(1.0 + mag, 1.0 + mag)
 		else:
-			vlo = excess * (1.0 - j)
-			vhi = excess * (1.0 + j)
-		e.value_range = Vector2(vlo, vhi)
+			e.value_range = Vector2(mag, mag)
 		# weight = pool_weight * |cost|^k.
 		e.weight = pool_weight * pow(float(t_cost), tier_bias_k)
 		# tags = pool tags + ladder auto-tags (tier_N + rarity).
@@ -150,17 +140,16 @@ func format_table() -> String:
 	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
 	for t in range(lo, hi + 1):
 		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t)))
-		var excess := mag
 		var tc := TierLadder.cost(t)
 		var w := pool_weight * pow(float(tc), tier_bias_k)
 		var ttags := TierLadder.auto_tags(t)
 		var disp: float
 		if operation == StatModifier.Operation.MULTIPLY:
-			disp = 1.0 + excess
+			disp = 1.0 + mag
 		else:
-			disp = excess
-		lines.append("  T%-3d  %7.2f (±%.0f%%)   %-4d  %7.3f  %s" % [
-				t, disp, jitter * 100.0,
+			disp = mag
+		lines.append("  T%-3d  %7.2f         %-4d  %7.3f  %s" % [
+				t, disp,
 				(-tc if unit_value < 0.0 else tc), w, str(ttags)])
 	return "\n".join(lines)
 
