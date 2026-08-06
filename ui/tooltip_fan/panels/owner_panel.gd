@@ -122,17 +122,12 @@ func _bind_radar_and_rows(entity: Entity) -> void:
 	var values: Array[float] = []
 	for id in _ATTRIBUTE_IDS:
 		var def: StatDef = StatRegistry.get_def(id)
-		var axis_label: String = String(id).substr(0, 3).to_upper()
-		var axis_color := Color.WHITE
 		var value := 0.0
-		if def != null:
-			axis_label = def.display_name.substr(0, 3).to_upper()
-			axis_color = def.tint_color
 		if board != null:
 			var stat := board.get_stat(id)
 			if stat != null:
 				value = float(stat.get_value())
-		specs.append(AxisSpec.new(axis_label, axis_color))
+		specs.append(AxisSpec.for_stat(id))
 		defs.append(def)
 		values.append(value)
 	if _radar != null:

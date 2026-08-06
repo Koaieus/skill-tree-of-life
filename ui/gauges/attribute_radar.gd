@@ -13,14 +13,16 @@ signal axis_unhovered
 ## Per-axis label + color (#241). Drive it via [method configure] rather than
 ## poking parallel arrays. Plotted values are separate runtime state — see
 ## [member _values] / [method set_value].
+## Colours come from each [StatDef]'s `tint_color` via [method AxisSpec.for_stat]
+## — never literals here. This default set only feeds the editor preview; both
+## live callers ([AttributesPanel], [OwnerPanel]) replace it via [method configure].
 @export var axes: Array[AxisSpec] = [
-	# TODO: Take these colors from the stats themselves?
-	AxisSpec.new("STR", Color(0.9451, 0.2689, 0.2453, 1)),
-	AxisSpec.new("INT", Color(0.291, 0.5892, 1.0, 1)),
-	AxisSpec.new("CON", Color(1, 1, 1, 1)),
-	AxisSpec.new("WIS", Color(0.9039, 0.7331, 0.2746, 1)),
-	AxisSpec.new("PER", Color(0.6935, 0.4045, 0.9676, 1)),
-	AxisSpec.new("DEX", Color(0.3187, 0.7773, 0.4484, 1)),
+	AxisSpec.for_stat(&"strength"),
+	AxisSpec.for_stat(&"intelligence"),
+	AxisSpec.for_stat(&"constitution"),
+	AxisSpec.for_stat(&"wisdom"),
+	AxisSpec.for_stat(&"perception"),
+	AxisSpec.for_stat(&"dexterity"),
 ]:
 	set(v):
 		axes = v

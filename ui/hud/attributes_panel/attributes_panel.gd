@@ -70,15 +70,11 @@ func bind(board: StatBoard) -> void:
 	for i in _rows.size():
 		var id := ATTR_IDS[i]
 		var def := StatRegistry.get_def(id)
-		var axis_label := String(id).substr(0, 3).to_upper()
-		var axis_color := Color.WHITE
 		if def != null:
 			_rows[i].attr_label = def.display_name
 			_rows[i].tint_color = def.tint_color
-			axis_label = def.abbrev()
-			axis_color = def.tint_color
 		_rows[i].attr_id = id
-		specs.append(AxisSpec.new(axis_label, axis_color))
+		specs.append(AxisSpec.for_stat(id))
 	_radar.configure(specs)
 
 	for i in _rows.size():
