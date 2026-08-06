@@ -72,6 +72,19 @@ const _GROUP := &"fan_unit"
 ## for a sub-pixel gain.
 const _PIN_SETTLE_EPSILON := 0.0005
 
+## Dev tooling (#309): from the fan scene open in the 2D editor, jump back to
+## the sandbox host's "Tooltip Fan" tab. The tab's panel carries the outbound
+## half ("✎ Open fan.tscn"). Editor-only — a no-op at runtime.
+@export_tool_button("◈  Open in Sandbox") var _open_sandbox: Callable = _jump_to_sandbox
+
+func _jump_to_sandbox() -> void:
+	if not Engine.is_editor_hint():
+		return
+	EditorInterface.set_main_screen_editor("Sandbox")
+	var host := EditorInterface.get_editor_main_screen().get_node_or_null("Sandbox")
+	if host != null and host.has_method(&"reveal_tab"):
+		host.reveal_tab(&"tooltip_fan")
+
 ## The hovered node's radius in SCREEN space, pushed in by [TooltipFan] every
 ## frame (`node.radius * canvas_transform.get_scale().x`). Zero/unset falls back
 ## to [member preview_pin_radius].

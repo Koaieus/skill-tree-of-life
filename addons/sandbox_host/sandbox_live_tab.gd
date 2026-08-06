@@ -87,7 +87,7 @@ func _build_breadcrumb() -> void:
 	var path := panel_scene.resource_path if panel_scene != null else ""
 	if path.is_empty():
 		return
-	# "res://ui/tooltip_fan/fan_trace_panel.tscn" -> ["ui", "tooltip_fan", "file"]
+	# "res://ui/tooltip_fan/fan_live_panel.tscn" -> ["ui", "tooltip_fan", "file"]
 	var rel := path.trim_prefix("res://")
 	var parts := rel.split("/", false)
 	var accum := "res://"

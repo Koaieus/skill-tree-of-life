@@ -75,7 +75,7 @@ func test_baked_panel_child_is_adopted_not_duplicated() -> void:
 ## the common path today (no tab bakes its panel in yet).
 func test_empty_slot_instances_panel_scene() -> void:
 	var tab: SandboxLiveTab = load(_BASE).instantiate()
-	tab.panel_scene = load("res://ui/tooltip_fan/fan_trace_panel.tscn")
+	tab.panel_scene = load("res://ui/tooltip_fan/fan_live_panel.tscn")
 
 	add_child(tab)
 	await get_tree().process_frame

@@ -1,0 +1,285 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/tooltip_fan/fan_live_panel.gd" id="1_panel"]
+[ext_resource type="Script" path="res://ui/tooltip_fan/fan_live_sandbox.gd" id="2_sandbox"]
+
+[node name="FanLivePanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_panel")
+
+[node name="Split" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 640
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" type="SubViewport" parent="Split/ViewportContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(1440, 929)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="Sandbox" type="Node2D" parent="Split/ViewportContainer/World"]
+unique_name_in_owner = true
+position = Vector2(720, 761.78)
+script = ExtResource("2_sandbox")
+
+[node name="Controls" type="ScrollContainer" parent="Split"]
+layout_mode = 2
+custom_minimum_size = Vector2(340, 0)
+
+[node name="VBox" type="VBoxContainer" parent="Split/Controls"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="PresetHeader" type="Label" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "PRESETS"
+
+[node name="Presets" type="GridContainer" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="PresetUnallocated" type="Button" parent="Split/Controls/VBox/Presets"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⌀  Bare node"
+
+[node name="PresetFriendly" type="Button" parent="Split/Controls/VBox/Presets"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "☺  Friendly"
+
+[node name="PresetEnemy" type="Button" parent="Split/Controls/VBox/Presets"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "☠  Enemy"
+
+[node name="PresetCore" type="Button" parent="Split/Controls/VBox/Presets"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "✦  Core"
+
+[node name="FixtureHeader" type="Label" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "FIXTURE"
+
+[node name="OwnedCheck" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Owned by entity"
+
+[node name="CoreCheck" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Core node"
+
+[node name="AddonsRow" type="HBoxContainer" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddonsLabel" type="Label" parent="Split/Controls/VBox/AddonsRow"]
+layout_mode = 2
+text = "Addons"
+
+[node name="AddonsSpin" type="SpinBox" parent="Split/Controls/VBox/AddonsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Real addon scenes attached to the fixture node (0–8)"
+min_value = 0.0
+max_value = 8.0
+value = 8.0
+
+[node name="FootprintCheck" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Procgen footprint"
+
+[node name="ParticipationHeader" type="Label" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "PARTICIPATION"
+
+[node name="PartIdChip" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "IdChip"
+
+[node name="PartNodeStats" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "NodeStats"
+
+[node name="PartAddons" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Addons"
+
+[node name="PartOwner" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Owner"
+
+[node name="PartCore" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Core"
+
+[node name="PartProcgenDebug" type="CheckButton" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "ProcgenDebug"
+
+[node name="ZoomHeader" type="Label" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "ZOOM + CLOCK"
+
+[node name="ZoomSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Screen-space rim the pins ride — the zoom axis (node.radius × this)"
+min_value = 0.25
+max_value = 4.0
+step = 0.05
+value = 1.0
+
+[node name="PinStepSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "pin_step_degrees — degrees between adjacent trace origins (one clock hour)"
+max_value = 90.0
+step = 0.5
+value = 30.0
+
+[node name="MaxArcSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "max_arc_degrees — ceiling on the fan's total spread; past it the step compresses"
+max_value = 360.0
+value = 120.0
+
+[node name="PinFactorSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "pin_factor — fraction of the node's radius the pins sit at"
+max_value = 2.0
+step = 0.01
+value = 0.8
+
+[node name="SlideRateSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "pin_slide_rate — how fast a pin slides to a new slot when the participating set changes"
+max_value = 40.0
+step = 0.5
+value = 12.0
+
+[node name="DriveHeader" type="Label" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "DRIVE"
+
+[node name="DriveRow" type="HBoxContainer" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PlayButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶  Play"
+
+[node name="EraseButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⟲  Erase"
+
+[node name="LoopButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "∞  Loop"
+
+[node name="HoverButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "☌  Hover"
+
+[node name="ResetButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "■  Reset"
+
+[node name="ScrubSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Clock scrub — any frame of the reveal, written straight onto component progress"
+max_value = 1.0
+step = 0.005
+
+[node name="HoverRadiusSlider" type="HSlider" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "hover_radius — radius around the node that counts as hovering in ☌ mode"
+max_value = 200.0
+value = 46.0
+
+[node name="EditorHeader" type="Label" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
+theme_override_font_sizes/font_size = 10
+text = "EDITOR"
+
+[node name="OpenFanButton" type="Button" parent="Split/Controls/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Open the benched fan scene in the 2D editor (fan.tscn has the return button)"
+text = "✎  Open fan.tscn"

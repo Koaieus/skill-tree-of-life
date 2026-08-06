@@ -94,10 +94,12 @@ deletes the cache, the puppet tween, and the duration arithmetic from `FanUnit`
 in one move. `set_progress(t)` survives as the content-row contract, where a
 pure sink is the right shape.
 
-`fan_trace_sandbox.gd` drives its five trace+destination pairs off one `_clock`
-var. That is a **preview scrubber**, not the shipped drive model — it exists so
-an author can drag a slider and see any frame of the reveal, and it does not
-contradict the table above.
+`fan_live_sandbox.gd`'s scrub slider writes each participating member's
+component `progress` directly. That is a **preview scrubber**, not the shipped
+drive model — it exists so an author can drag a slider and see any frame of the
+reveal, and it does not contradict the table above (everything else it drives —
+presets, participation toggles, play-in/erase/loop/hover — goes through the real
+`play_in`/`play_out` contract).
 
 ## Components so far
 
@@ -139,11 +141,19 @@ contradict the table above.
   `play_out()` returning a `Tween` — the scale+fade reveal (cubic ease-out) it
   already had, now self-driven. Drives its content rows' `set_progress` from
   inside its own tween.
-- **`fan_trace_sandbox.gd`/`.tscn`** (#233) — in-editor preview harness,
-  reachable from the sandbox host's "Fan Trace" tab. Five `FanTrace`s sprout
-  from a mock node to four corner `FanPanel` destinations (mixed glass/holo
-  skins, demonstrating the swap) plus a top row of `ModSlabRow` tiles. Drives
-  everything off one clock (`_clock`), matching the contract above.
+- **`fan_live_sandbox.gd`** + **`fan_live_panel.tscn`** (#309) — the LIVE fan
+  bench, reachable from the sandbox host's "Tooltip Fan" tab. Hosts the REAL
+  `fan.tscn` (the same scene `TooltipFan` mounts) over a real `SkillNode` +
+  `Entity` fixture and drives its actual inputs: whole-situation presets
+  (unallocated / friendly / enemy / core), fixture knobs (owned, core, addons
+  0–8, procgen footprint), per-unit participation overrides, the clock/zoom
+  knobs (`node_radius`, `pin_step_degrees`, `max_arc_degrees`, `pin_factor`,
+  `pin_slide_rate`), the drive modes (manual / loop / hover / reset), a scrub
+  slider, and pointer-drag on the real units (FanAnchorDriver re-routes live).
+  Replaced the mock `fan_trace_sandbox` (a second implementation of the fan's
+  layout that nothing kept in sync). The panel also carries the outbound half
+  of the editor round-trip ("✎ Open fan.tscn" → 2D editor); `fan.tscn` itself
+  carries the return half ("◈ Open in Sandbox").
 
 - **`FanUnit`** (`ui/tooltip_fan/fan_unit.gd`, #224) — pairs one `FanTrace` +
   one `FanPanel` under a `HIDDEN → IN → LOOP → OUT → HIDDEN` state machine;

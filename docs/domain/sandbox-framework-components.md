@@ -13,14 +13,14 @@ the embedded panels, and they want *different* reuse:
    folder of resources/scenes and preview it (presets, spell defs, procgen
    configs). Today each re-invents the list. → **#253**
 2. **"The dedicated <aspect> scene."** Most live panels *are* a single authored
-   scene the tab embeds and you tune by hand (fan_trace, node_visuals, gimbal).
+   scene the tab embeds and you tune by hand (tooltip_fan, node_visuals, gimbal).
    The friction is: (a) the tab previews empty in-editor because the panel is
    injected at `_ready`, and (b) there's no in-tab way to swap the main scene for
    an in-progress **v2** while keeping the main one on screen for comparison.
    → **#254** (+ the v2-switch idea)
 
-**Load-bearing finding:** the panels **bundle their own controls** (fan_trace's
-`Controls` HBox lives *inside* `fan_trace_panel.tscn`; node_visuals is a
+**Load-bearing finding:** the panels **bundle their own controls** (tooltip_fan's
+control column lives *inside* `fan_live_panel.tscn`; node_visuals is a
 self-contained `Control`). So a tab-level *controls row* is redundant for today's
 panels — the layout variants of #252 only earn their keep when they host a **new**
 tab-level affordance (the #253 card list, the #254 switcher, a Reset). We should

@@ -169,13 +169,13 @@ Files:
   FileSystem dock; click the file → open the panel scene for tuning, via
   `EditorInterface`, editor-guarded) over a `%PanelHost` slot the panel is
   injected into. A concrete live tab is a one-node **inherited scene** of this
-  base overriding only the four exports (see `tabs/18_fan_trace_tab.tscn`, the
+  base overriding only the four exports (see `tabs/18_tooltip_fan_tab.tscn`, the
   reference migration). Tree stays scenic (per `scene-composition.md`); the
   script only wires + acts, and the breadcrumb — being path-length-variable — is
   built into the scenic `%Breadcrumb` container in code.
   - **All live tabs are now migrated** (#250) and since #260 **every shipped
     tab is live**: spell / vfx / statboard / procgen / node_visuals / gimbal_3d /
-    fan_trace / toasts / allocation / loot are each a one-node inherited scene of
+    tooltip_fan / toasts / allocation / loot are each a one-node inherited scene of
     the base, so every live tab carries the breadcrumb chrome. The
     backward-compatibility path — a legacy bare-node tab (root = `MarginContainer`
     + this script, no chrome children) where the panel falls back onto `self` and

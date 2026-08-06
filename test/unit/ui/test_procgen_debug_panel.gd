@@ -23,12 +23,17 @@ const _FULL_FOOTPRINT := {
 	"role_tags": ["bruiser", "anchor"],
 }
 
-## Files under `ui/` allowed to mention `procgen_footprint` — just this panel.
+## Files under `ui/` allowed to mention `procgen_footprint` — this panel
+## (the only READER) plus the #309 live fan bench, which is the meta's only
+## WRITER: it stamps a fixture footprint so the panel has something to render
+## in the sandbox. The guard's point — deleting the panel takes every consumer
+## with it — is untouched by a dev-tool that produces the meta.
 ##
 ## Held a temporary allowance for `skill_node_tooltip.gd` between #292 and #235;
 ## that file is now deleted, so the list is back to being the real answer.
 const _META_READERS_ALLOWED: Array[String] = [
 	"res://ui/tooltip_fan/panels/procgen_debug_panel.gd",
+	"res://ui/tooltip_fan/fan_live_sandbox.gd",
 ]
 
 var _panel: ProcgenDebugPanel
