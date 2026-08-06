@@ -30,7 +30,7 @@ func _init(p_label: String = "", p_color: Color = Color.WHITE) -> void:
 static func for_stat(id: StringName) -> AxisSpec:
 	var def: StatDef = StatRegistry.get_def(id)
 	var spec := AxisSpec.new(
-			def.abbrev() if def != null else String(id).substr(0, 3).to_upper(),
+			def.get_abbrev() if def != null else String(id).substr(0, 3).to_upper(),
 			def.tint_color if def != null else Color.WHITE)
 	spec.stat_id = id
 	return spec

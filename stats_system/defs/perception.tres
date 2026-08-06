@@ -6,6 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"perception"
 display_name = "Perception"
+abbrev = "PER"
 description = "Sensing attribute (Purple). +1 sense_range / 10 PER, +2% vision_range / PER."
 value_type = 0
 default_value = 10.0

@@ -6,6 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"wisdom"
 display_name = "Wisdom"
+abbrev = "WIS"
 description = "Economic attribute (Gold). XP-gain rate; carries growth modifiers."
 value_type = 0
 default_value = 10.0

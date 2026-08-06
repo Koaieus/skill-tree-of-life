@@ -30,12 +30,21 @@ enum ValueType { INT, FLOAT, BOOL }
 @export var display_as_percent: bool = false
 
 
-## Short axis/inline label — the first three letters of [member display_name],
-## upper-cased ("Strength" → "STR", "Perception" → "PER"). The Attributes
-## Panel already labelled its rows this way; centralised here (#289) so
-## generated formula prose ("+1 Blade Size per 20 STR") reads identically to
-## the panel it sits next to. Falls back to the id when display_name is empty.
-func abbrev() -> String:
+## Short axis/inline label ("Strength" → "STR"). **Authored**, because
+## truncation is not abbreviation: it only produces the right answer when the
+## short form happens to be the first three letters, which is a coincidence of
+## the attributes and not a rule ("Spell Damage" → "SPE", "Constitution" →
+## "CON" only by luck). Leave empty to accept the truncation fallback.
+@export var abbrev: String = ""
+
+
+## [member abbrev] if authored, else the first three letters of
+## [member display_name] upper-cased (or of [member id] when there's no display
+## name). Centralised here (#289) so generated formula prose ("+1 Blade Size
+## per 20 STR") reads identically to the panel it sits next to.
+func get_abbrev() -> String:
+	if not abbrev.is_empty():
+		return abbrev
 	if display_name.is_empty():
 		return String(id).substr(0, 3).to_upper()
 	return display_name.substr(0, 3).to_upper()

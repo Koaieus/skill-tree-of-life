@@ -6,6 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"intelligence"
 display_name = "Intelligence"
+abbrev = "INT"
 description = "Magic attribute (B/Blue). INT//10 per damage instance — potency, never reach."
 value_type = 0
 default_value = 10.0

@@ -6,6 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"dexterity"
 display_name = "Dexterity"
+abbrev = "DEX"
 description = "Ranged attribute (G/Green). DEX//10 per firing leaf."
 value_type = 0
 default_value = 10.0

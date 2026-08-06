@@ -39,10 +39,10 @@ func describe_per() -> String:
 
 ## Abbreviation for a source stat, matching the Attributes Panel's axis
 ## labels (`Strength` → `STR`). Lives here so generated phrases and the
-## panel share one convention — see [method StatDef.abbrev].
+## panel share one convention — see [method StatDef.get_abbrev].
 static func _abbrev(stat_id: StringName) -> String:
 	var def: StatDef = StatRegistry.get_def(stat_id)
-	return def.abbrev() if def != null else String(stat_id)
+	return def.get_abbrev() if def != null else String(stat_id)
 
 
 # --- Accessor-token split (#333) ---------------------------------------------
