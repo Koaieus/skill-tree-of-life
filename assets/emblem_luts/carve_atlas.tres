@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="CarveAtlas" format=3]
+[gd_resource type="Resource" script_class="CarveAtlas" format=3 uid="uid://fjpkjulgggi6"]
 
-[ext_resource type="Script" path="res://skill_node/visuals/emblem/carve_atlas.gd" id="1_1rh4h"]
+[ext_resource type="Script" uid="uid://jgenkjc31hs1" path="res://skill_node/visuals/emblem/carve_atlas.gd" id="1_1rh4h"]
 
 [resource]
 script = ExtResource("1_1rh4h")
-slice_paths = PackedStringArray("res://assets/emblem_luts/spark.png", "res://assets/emblem_luts/lightning_bolt.png", "res://assets/emblem_luts/bruiser.png", "res://assets/emblem_luts/leafblower.png", "res://assets/emblem_luts/trailblazer.png", "res://assets/emblem_luts/resonator.png", "res://assets/emblem_luts/reverberator.png", "res://assets/emblem_luts/laser_burst.png", "res://assets/emblem_luts/mesh_network.png", "res://assets/emblem_luts/elderberry.png", "res://assets/emblem_luts/skills.png", "res://assets/emblem_luts/family_tree.png", "res://assets/emblem_luts/linked_rings.png")
+slice_paths = PackedStringArray("res://assets/emblem_luts/spark.png", "res://assets/emblem_luts/lightning_bolt.png", "res://assets/emblem_luts/bruiser.png", "res://assets/emblem_luts/leafblower.png", "res://assets/emblem_luts/trailblazer.png", "res://assets/emblem_luts/resonator.png", "res://assets/emblem_luts/reverberator.png", "res://assets/emblem_luts/laser_burst.png", "res://assets/emblem_luts/mesh_network.png", "res://assets/emblem_luts/elderberry.png", "res://assets/emblem_luts/skills.png", "res://assets/emblem_luts/family_tree.png", "res://assets/emblem_luts/linked_rings.png", "res://assets/emblem_luts/hospital_cross.png")

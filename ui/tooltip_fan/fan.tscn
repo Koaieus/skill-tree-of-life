@@ -11,6 +11,8 @@
 
 [node name="Fan" type="Node2D" unique_id=689565114]
 script = ExtResource("1_driver")
+metadata/_edit_vertical_guides_ = [-75.0, 180.0]
+metadata/_edit_horizontal_guides_ = [-65.0]
 
 [node name="Roots" parent="." unique_id=1918175935 instance=ExtResource("2_roots")]
 position = Vector2(0, 43)
@@ -19,7 +21,7 @@ position = Vector2(0, 43)
 position = Vector2(0, -114)
 
 [node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
-position = Vector2(-177, -3)
+position = Vector2(-180, -7)
 anchor_slide = 0.12
 arrival_axis = 1
 
@@ -28,7 +30,7 @@ position = Vector2(122, -247)
 arrival_axis = 2
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
-position = Vector2(198, 26)
+position = Vector2(209, 13)
 anchor_slide = 0.12
 arrival_axis = 1
 
@@ -39,5 +41,5 @@ arrival_axis = 2
 
 [node name="ProcgenDebug" parent="." unique_id=1540150391 instance=ExtResource("8_procgen")]
 z_index = -5
-position = Vector2(78, -379)
-anchor_slide = 0.2
+position = Vector2(-294, -174)
+anchor_slide = 0.93

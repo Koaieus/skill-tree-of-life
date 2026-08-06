@@ -1,6 +1,6 @@
 @tool
 class_name CapacityBlips
-extends HBoxContainer
+extends GridContainer
 ## N-of-max pip display — resolves #87 slice 2 ("empty mana crystal"
 ## blips). Used for blade-size pips and the Magic spell bar's degree
 ## icon. Instances CapacityPip children (leaf-level programmatic

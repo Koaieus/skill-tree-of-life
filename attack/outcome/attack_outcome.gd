@@ -9,6 +9,7 @@ extends RefCounted
 ##      then applies each hit's damage.
 
 var hits: Array[DamageInstance] = []
+var heals: Array[HealingInstance] = []
 ## Action points consumed on commit.
 var ap_cost: int = 1
 ## Mana consumed on commit. Spell plans copy from [member SpellDef.mana_cost];
@@ -29,5 +30,5 @@ var timeline: Array[PropagationEvent] = []
 
 
 func _to_string() -> String:
-	return "<AttackOutcome %d hit(s), %d event(s), %d cancel(s), %d AP, %d mana>" % [
-		hits.size(), timeline.size(), cancellations.size(), ap_cost, mana_cost]
+	return "<AttackOutcome %d hit(s), %d heals(s), %d event(s), %d cancel(s), %d AP, %d mana>" % [
+		hits.size(), heals.size(), timeline.size(), cancellations.size(), ap_cost, mana_cost]

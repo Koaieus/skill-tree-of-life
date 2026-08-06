@@ -11,9 +11,10 @@
 [ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="6_g2k83"]
 [ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="7_g2k83"]
 [ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="8_wrmdn"]
-[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="9_8vg6i"]
+[ext_resource type="Resource" uid="uid://d4cd1vbl585es" path="res://attack/spell/defs/resonator.tres" id="9_8vg6i"]
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="12_f6k7f"]
 [ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="14_k6a8k"]
+[ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="15_k6a8k"]
 
 [sub_resource type="Resource" id="Resource_psl4n"]
 resource_local_to_scene = true
@@ -23,7 +24,7 @@ metadata/_custom_type_script = "uid://ci0mmuifd3c71"
 [sub_resource type="Resource" id="Resource_wrmdn"]
 resource_local_to_scene = true
 script = ExtResource("3_s1kue")
-spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83"), ExtResource("7_g2k83"), ExtResource("8_wrmdn"), ExtResource("9_8vg6i"), ExtResource("12_f6k7f"), ExtResource("14_k6a8k")])
+spells = Array[ExtResource("4_ec552")]([ExtResource("5_whxwk"), ExtResource("6_g2k83"), ExtResource("7_g2k83"), ExtResource("8_wrmdn"), ExtResource("9_8vg6i"), ExtResource("12_f6k7f"), ExtResource("14_k6a8k"), ExtResource("15_k6a8k")])
 metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [node name="Entity" type="Node" unique_id=306801215]

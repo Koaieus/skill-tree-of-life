@@ -1,6 +1,6 @@
 @tool
 class_name CombatReadoutCard
-extends MarginContainer
+extends Control
 ## Base for the four Combat Readout cards (#112: Melee/Ranged/Magic/Defense).
 ## Owns only the shared "am I the selected mode" visual language — border
 ## glow when active, dimmed when not, transient un-mute on a stat change even
@@ -14,19 +14,23 @@ extends MarginContainer
 ## the shell's VBoxContainer. GlassPanel is a sibling of Padded at the same
 ## 0-margin level so it fills the exact same rect as the card, behind it.
 
-const DIM_OPACITY := 0.72
-const FLASH_TIME := 0.35
-const GLOW_STRENGTH := 0.375
+@export_range(0.0, 1.0, 0.01) var dim_opacity := 0.72
+@export_range(0.0, 1.0, 0.01) var flash_time := 0.35
+@export_range(0.0, 1.0, 0.01) var glow_strength := 0.07
+
+@export var _board: StatBoard
 
 @export var mode_color: Color = Color(0.9, 0.75, 0.4, 1.0)
 
-@onready var _panel: GlassPanel = %GlassPanel
 
 @export var _active: bool = false:
 	set(v):
 		if v != _active:
 			_active = v
 			_apply_active(v)
+
+@export_placeholder('Panel Title') var title: String = "Panel Title":
+	set = set_title
 
 
 var _flash_tween: Tween
@@ -38,7 +42,17 @@ var _hover_node: SkillNode = null
 var _owner_entity: Entity = null
 
 
+@onready var _title_label: Label = %Title
+@onready var _panel: GlassPanel = %GlassPanel
+
+
+func set_title(v: String) -> void:
+		title = v
+		if _title_label:
+			_title_label.text = title
+
 func _ready() -> void:
+	set_title(title)
 	if Engine.is_editor_hint():
 		return
 	_apply_active(false)
@@ -50,7 +64,22 @@ func set_hover_node(node: SkillNode) -> void:
 	_hover_node = node
 	_refresh()
 
+## Bind this card to stat board so it can start listening for changes
+## Virtual hook `_bind()` can be overridden in concrete classes to set up bindings
+func bind(board: StatBoard, owner_entity: Entity = null) -> void:
+	# TODO: board === owner_entity.board, do we need both args?
+	_board = board
+	_owner_entity = owner_entity
+	if board == null:
+		return
+	# Call subclass-overridable hook, board and entity guaranteed to exist
+	_bind(board, owner_entity)
+	_refresh()
 
+## Virtual — called by `bind()` when entity/stat_board are checked; to set up the real wiring between panel and stat board
+func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
+	return
+	
 ## Virtual — subclasses already define this per their bind()'d stats.
 func _refresh() -> void:
 	pass
@@ -81,9 +110,9 @@ func _apply_active(active: bool) -> void:
 	if _panel != null:
 		_panel.border_color = mode_color if active else Color(0.47, 0.55, 0.75, 0.16)
 		_panel.border_width = 1.8 if active else 1.0
-		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, GLOW_STRENGTH if active else 0.0)
-		_panel.glow_strength = 4.0 if active else 0.0
-	modulate.a = 1.0 if active else DIM_OPACITY
+		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, glow_strength if active else 0.0)
+		_panel.glow_strength = glow_strength if active else 0.0
+	modulate.a = 1.0 if active else dim_opacity
 
 
 ## Briefly un-mutes a non-selected card so a stat change is still noticed —
@@ -96,4 +125,4 @@ func flash_unmute() -> void:
 	modulate.a = 1.0
 	_flash_tween = create_tween()
 	_flash_tween.tween_interval(0.6)
-	_flash_tween.tween_property(self, ^"modulate:a", DIM_OPACITY, FLASH_TIME)
+	_flash_tween.tween_property(self, ^"modulate:a", dim_opacity, flash_time)

@@ -18,7 +18,7 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pjooi"]
 resource_local_to_scene = true
 shader = ExtResource("3_bsmqx")
-shader_parameter/mouse_uv = Vector2(0.586966, 0.8024349)
+shader_parameter/mouse_uv = Vector2(-0.6993815, 1.5637687)
 shader_parameter/texture_size = Vector2i(1, 1)
 shader_parameter/tint = Color(0, 0.59229046, 0.65951425, 1)
 shader_parameter/glow_radius = 0.44

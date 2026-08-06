@@ -1,14 +1,14 @@
-[gd_scene format=3 uid="uid://bu4u7ndt02a17"]
+[gd_scene format=3 uid="uid://cghs3fk5erpxo"]
 
+[ext_resource type="PackedScene" uid="uid://c55r5i8obie7o" path="res://ui/hud/combat_readout/combat_card.tscn" id="1_pu3h8"]
 [ext_resource type="Script" uid="uid://cdkfxuloqw2xw" path="res://ui/hud/combat_readout/combat_card_ranged.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
 [ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_pu3h8"]
 [ext_resource type="PackedScene" uid="uid://cpatx7dmbmx7c" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="3_row"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_to57e"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pu3h8"]
 resource_local_to_scene = true
 shader = ExtResource("3_pu3h8")
-shader_parameter/size = Vector2(104, 75)
+shader_parameter/size = Vector2(105, 87)
 shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
@@ -18,40 +18,19 @@ shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(0.3187, 0.7773, 0.4484, 0)
 shader_parameter/glow_strength = 0.0
 
-[node name="CombatCardRanged" type="MarginContainer" unique_id=1154265351]
-modulate = Color(1, 1, 1, 0.72)
+[node name="CombatCardRanged" unique_id=1766223615 instance=ExtResource("1_pu3h8")]
 script = ExtResource("1_script")
 mode_color = Color(0.3187, 0.7773, 0.4484, 1)
 
-[node name="GlassPanel" parent="." unique_id=2099858754 instance=ExtResource("2_glass")]
-unique_name_in_owner = true
-material = SubResource("ShaderMaterial_to57e")
-layout_mode = 2
-glow_color = Color(0.3187, 0.7773, 0.4484, 0)
+[node name="GlassPanel" parent="." index="0" unique_id=2110722895]
+material = SubResource("ShaderMaterial_pu3h8")
 
-[node name="Padded" type="MarginContainer" parent="." unique_id=1454381440]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="Content" type="VBoxContainer" parent="Padded" unique_id=2139912051]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="Title" type="Label" parent="Padded/Content" unique_id=1354347626]
-layout_mode = 2
-theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 12
-text = "RANGED"
-
-[node name="DamageRow" parent="Padded/Content" unique_id=723701143 instance=ExtResource("3_row")]
+[node name="DamageRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="0" unique_id=1270874012 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Damage / leaf"
 
-[node name="RangeRow" parent="Padded/Content" unique_id=200951052 instance=ExtResource("3_row")]
+[node name="RangeRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=1367928722 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Range"

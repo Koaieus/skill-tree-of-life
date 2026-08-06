@@ -45,6 +45,11 @@ var predecessor: SkillNode = null
 ## NOT a copy. Null for [constant Verb.CANCEL] and for zero-damage / utility
 ## landings (which still get an event so the probe animates).
 var damage: DamageInstance = null
+## The heal this event lands  
+var heal: HealingInstance = null
+# TODO: refactor these two variables to a single var typed to parent type? 
+#		possibly as array too (would allow multiple instances, 
+#		currently not the case but wouldn't limit us either
 
 ## Crit stacking tier — 0 = no crit, 1 = crit, ≥2 = multi-source. Always 0
 ## until crits land (#195 / #197); the VFX layer reads it for emphasis.

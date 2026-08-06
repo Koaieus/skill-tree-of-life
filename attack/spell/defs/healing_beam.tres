@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://dm5qgrlia6ne6"]
+
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_1xhci"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_bsxsi"]
+[ext_resource type="Texture2D" uid="uid://bh7gjwa8gtjwe" path="res://assets/icons/spells/hospital_cross.png" id="3_sdixp"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="3_u10h5"]
+[ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="5_ar4gq"]
+[ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="6_lt0sj"]
+[ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="7_g1pe3"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="8_lbkbe"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_a0ybc"]
+[ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="10_g1pe3"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_55cfo"]
+[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="11_lbkbe"]
+[ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="12_k06ak"]
+
+[sub_resource type="Resource" id="Resource_1sde5"]
+script = ExtResource("5_ar4gq")
+factor = 0.85
+metadata/_custom_type_script = "uid://yfb61eex5i67"
+
+[sub_resource type="Resource" id="Resource_4wewy"]
+script = ExtResource("6_lt0sj")
+metadata/_custom_type_script = "uid://dra06averh54c"
+
+[sub_resource type="Resource" id="Resource_1733n"]
+script = ExtResource("8_lbkbe")
+metadata/_custom_type_script = "uid://bqrga3k1hmfut"
+
+[sub_resource type="Resource" id="Resource_hhwjj"]
+script = ExtResource("7_g1pe3")
+step = SubResource("Resource_1733n")
+reducer = SubResource("Resource_4wewy")
+max_hops = 3
+hop_damage = SubResource("Resource_1sde5")
+metadata/_custom_type_script = "uid://o0v6inqs5wk6"
+
+[sub_resource type="Resource" id="Resource_pu3h8"]
+script = ExtResource("12_k06ak")
+metadata/_custom_type_script = "uid://duy3yt7dr5o8t"
+
+[sub_resource type="Resource" id="Resource_to57e"]
+script = ExtResource("10_g1pe3")
+ownership_filter = 7
+range_finder = SubResource("Resource_pu3h8")
+metadata/_custom_type_script = "uid://btpnit4nenasw"
+
+[resource]
+script = ExtResource("3_u10h5")
+name = "Healing Beam"
+description = "Heals your own nodes"
+icon = ExtResource("3_sdixp")
+min_degree = 3
+mana_cost = 5
+power = 2.0
+propagation = SubResource("Resource_hhwjj")
+on_hit_effects = Array[ExtResource("2_bsxsi")]([null])
+vfx_coordinator_scene = ExtResource("11_lbkbe")
+targeting = SubResource("Resource_to57e")
+metadata/_custom_type_script = "uid://ber34us1t16kb"

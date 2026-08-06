@@ -31,16 +31,19 @@ func bind(player: Entity, battle_system: BattleSystem) -> void:
 	_player = player
 	var board := player.stat_board if player != null else null
 
-	_melee_card.bind(board, player)
-	_ranged_card.bind(board, player)
-	_defense_card.bind(board, player)
+	if _battle_system != null:
+		# Inject battle system prior to binding
+		_magic_card._battle_system = _battle_system
+		
+		_battle_system.attack_plan_changed.connect(_on_plan_changed)
+		_on_plan_changed(_battle_system.attack_plan)
+		
+	for card in [_melee_card, _ranged_card, _magic_card, _defense_card]:
+		card.bind(board, player)
+		
 	if not Events.skill_node_hovered.is_connected(_on_skill_node_hovered):
 		Events.skill_node_hovered.connect(_on_skill_node_hovered)
 		Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
-	if _battle_system != null:
-		_magic_card.bind(_battle_system, board)
-		_battle_system.attack_plan_changed.connect(_on_plan_changed)
-		_on_plan_changed(_battle_system.attack_plan)
 
 	if board != null:
 		if board.blade_size != null:

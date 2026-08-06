@@ -62,7 +62,7 @@ const _ADDON_SCENES: Array[PackedScene] = [
 const _STAGGER_DELAY := 0.05
 const _GROUP := &"fan_unit"
 
-const PRESET_UNALLOCATED := "unallocated"
+const PRESET_UNALLOCATED := "unallocated" # TODO: replace with Enum
 const PRESET_FRIENDLY := "friendly"
 const PRESET_ENEMY := "enemy"
 const PRESET_CORE := "core"
@@ -71,25 +71,26 @@ const PRESET_CORE := "core"
 ## the fixture knobs' values; the entity fields brand the owning [Entity] for
 ## the Owner/Core panels (faction flips the HOSTILE OWNER tag).
 const _PRESETS: Array[Dictionary] = [
-	{
-		"name": PRESET_UNALLOCATED, "owned": false, "core": false, "addons": 0,
-		"footprint": false, "bare": true,
-	},
-	{
-		"name": PRESET_FRIENDLY, "owned": true, "core": false, "addons": 2,
-		"footprint": false, "faction": &"player", "display_name": "Dusk",
-		"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
-	},
-	{
-		"name": PRESET_ENEMY, "owned": true, "core": false, "addons": 8,
-		"footprint": false, "faction": &"npc", "display_name": "Grimjaw",
-		"core_class": _ENEMY_CORE, "level": 7, "color": Color(1.0, 0.45, 0.4),
-	},
-	{
-		"name": PRESET_CORE, "owned": true, "core": true, "addons": 8,
-		"footprint": true, "faction": &"player", "display_name": "Dusk",
-		"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
-	},
+	## TODO: Replace with inner class for typing. no untyped dicts smh.
+	#{
+		#"name": PRESET_UNALLOCATED, "owned": false, "core": false, "addons": 0,
+		#"footprint": false, "bare": true,
+	#},
+	#{
+		#"name": PRESET_FRIENDLY, "owned": true, "core": false, "addons": 2,
+		#"footprint": false, "faction": &"player", "display_name": "Dusk",
+		#"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
+	#},
+	#{
+		#"name": PRESET_ENEMY, "owned": true, "core": false, "addons": 8,
+		#"footprint": false, "faction": &"npc", "display_name": "Grimjaw",
+		#"core_class": _ENEMY_CORE, "level": 7, "color": Color(1.0, 0.45, 0.4),
+	#},
+	#{
+		#"name": PRESET_CORE, "owned": true, "core": true, "addons": 8,
+		#"footprint": true, "faction": &"player", "display_name": "Dusk",
+		#"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
+	#},
 ]
 
 ## A `procgen_footprint` meta shaped like the one [method GraphProcgen] stamps
@@ -149,22 +150,22 @@ func _ready() -> void:
 ## starts hidden — FanUnit/FanPanel `_ready` leave authored content visible
 ## under `@tool`, which is for editor authoring, not for the bench.
 func _mount_world() -> void:
-	_graph = _GRAPH_SCENE.instantiate()
+	_graph = _GRAPH_SCENE.instantiate() # TODO: replace with scene composition
 	add_child(_graph)
 
-	_node = _NODE_SCENE.instantiate()
+	_node = _NODE_SCENE.instantiate() # TODO: replace with scene composition
 	_graph.add_skill_node(_node)
 	for offset in [Vector2(0, 3000), Vector2(3000, 0)]:
-		var dummy := _NODE_SCENE.instantiate()
+		var dummy := _NODE_SCENE.instantiate() # TODO: replace with scene composition
 		dummy.position = offset
 		_graph.add_skill_node(dummy)
 		_graph.add_edge(_node, dummy)
 
-	_entity = Entity.new()
-	_entity.stat_board = _ENTITY_BOARD.duplicate(true) as StatBoard
+	_entity = Entity.new()  # TODO: replace with scene composition (also prefer entity SCENE instantiate >>> Entity.new())
+	_entity.stat_board = _ENTITY_BOARD.duplicate(true) as StatBoard # TODO: would already be included in Entity scene
 	add_child(_entity)
 
-	_fan = _FAN_SCENE.instantiate()
+	_fan = _FAN_SCENE.instantiate()  # TODO: replace with scene composition
 	add_child(_fan)
 	_enter_hidden_all()
 	_apply_zoom()

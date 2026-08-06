@@ -87,13 +87,19 @@ func bind(node: SkillNode, graph: Graph) -> void:
 	if _effects_label.visible:
 		_effects_label.text = "%d effect%s" % [effect_count, "" if effect_count == 1 else "s"]
 
+	_degree_label.text = _make_degree_text(node, graph)
+
+func _make_degree_text(node: SkillNode, graph: Graph) -> String:
 	var graph_degree := node.get_graph_degree(graph)
-	var degree_text := "deg %d" % graph_degree
 	if node.is_allocated():
 		var entity_degree := node.get_entity_degree(graph, node.owned_by)
-		degree_text += " · yours %d" % entity_degree
-	_degree_label.text = degree_text
-
+		return "degree %d · (%d)" % [
+			entity_degree,
+			graph_degree
+		]
+	else:
+		return "graph degree %d" % [graph_degree]
+	#return " · ".join(texts)
 
 ## The keystone description's wrap column, driven from the same widened
 ## envelope the [PanelLayout] skin hugs — the prose must wrap to the WIDE

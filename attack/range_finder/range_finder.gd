@@ -78,6 +78,7 @@ func get_visual(_attacker: Entity, _source: SkillNode) -> RangeVisual:
 ## [CoreClass] aura that should not scale with the caster's `spell_range`).
 ## Subclasses scale their base reach by this value so INT-driven boosts
 ## propagate uniformly across hop and euclidean finders.
+# TODO: should rangefinder know about this? this coupling smells
 static func spell_range_multiplier(attacker: Entity, source: SkillNode) -> float:
 	if attacker == null or source == null:
 		return 1.0

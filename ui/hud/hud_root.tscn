@@ -6,10 +6,10 @@
 [ext_resource type="PackedScene" uid="uid://cxy0rep5jo226" path="res://ui/hud/turn_resources_panel/turn_resources_panel.tscn" id="4_turnres"]
 [ext_resource type="PackedScene" uid="uid://syx2qix6erfj" path="res://ui/hud/combat_readout/combat_readout.tscn" id="5_combat"]
 [ext_resource type="PackedScene" uid="uid://qybxf6lb7hjj" path="res://ui/initiative_bar.tscn" id="6_initiative"]
-[ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_track.tscn" id="10_xp_track"]
 [ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
 [ext_resource type="PackedScene" path="res://ui/announcement_layer/announcement_layer.tscn" id="9_announcement"]
+[ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_track.tscn" id="10_xp_track"]
 [ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
 [ext_resource type="PackedScene" uid="uid://byuujrcff7ex7" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
 [ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
@@ -28,6 +28,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+focus_behavior_recursive = 1
 mouse_filter = 2
 script = ExtResource("1_script")
 
@@ -54,7 +55,7 @@ layout_mode = 1
 offset_top = 62.0
 offset_bottom = 102.0
 
-[node name="XpTrack" parent="MarginContainer/TurnTrackerSlot" instance=ExtResource("10_xp_track")]
+[node name="XpTrack" parent="MarginContainer/TurnTrackerSlot" unique_id=478201650 instance=ExtResource("10_xp_track")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 10
@@ -153,10 +154,10 @@ grow_vertical = 0
 [node name="AnnouncementLayer" parent="." unique_id=394311347 instance=ExtResource("9_announcement")]
 unique_name_in_owner = true
 
-[node name="TooltipFan" parent="." instance=ExtResource("19_tooltip_fan")]
+[node name="TooltipFan" parent="." unique_id=1233274301 instance=ExtResource("19_tooltip_fan")]
 unique_name_in_owner = true
 
-[node name="GainedModifierToast" parent="." instance=ExtResource("20_gain_toast")]
+[node name="GainedModifierToast" parent="." unique_id=549119865 instance=ExtResource("20_gain_toast")]
 unique_name_in_owner = true
 
 [node name="SpellTooltip" parent="." unique_id=556906459 instance=ExtResource("13_spell_tt")]
@@ -185,7 +186,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 1
 
-[node name="SpellLootPicker" parent="." instance=ExtResource("18_spell_loot")]
+[node name="SpellLootPicker" parent="." unique_id=1403640517 instance=ExtResource("18_spell_loot")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

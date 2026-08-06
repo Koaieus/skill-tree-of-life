@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cb4s28kdpgefr"
-path="res://.godot/imported/reverberator.png-b600d1eec6228da59bd56ee665c2f172.ctex"
+uid="uid://bh7gjwa8gtjwe"
+path="res://.godot/imported/hospital_cross.png-8a9b11630f73b1d407fa85db2b12875c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/spells/reverberator.png"
-dest_files=["res://.godot/imported/reverberator.png-b600d1eec6228da59bd56ee665c2f172.ctex"]
+source_file="res://assets/icons/spells/hospital_cross.png"
+dest_files=["res://.godot/imported/hospital_cross.png-8a9b11630f73b1d407fa85db2b12875c.ctex"]
 
 [params]
 

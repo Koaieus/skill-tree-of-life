@@ -1,5 +1,6 @@
 # Icon mapping for game-icons.net → spell / usage.
 # Format: output_name<TAB>author/source.svg
+# WARNING: TAB SPACED
 # Run `mise run icons:update` to reprocess all.
 spark	delapouite/sparkles.svg
 lightning_bolt	willdabeast/chain-lightning.svg
@@ -14,3 +15,4 @@ elderberry	lorc/elderberry.svg
 skills	delapouite/skills.svg
 family_tree	delapouite/family-tree.svg
 linked_rings	lorc/linked-rings.svg
+hospital_cross	lorc/hospital-cross.svg

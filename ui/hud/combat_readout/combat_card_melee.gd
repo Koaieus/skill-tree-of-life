@@ -6,13 +6,13 @@ extends CombatReadoutCard
 ## [AttributeRules] / stats-system.md's intrinsic table — both `blade_size`
 ## and `blade_damage` step every 10 STR).
 
+# TODO: query value from innate modifiers on board, don't reproduce *stale* logic. If needed maybe we should consider adding a system to resolve these kind of values, so this UI element can stay more dumb 
 const STR_STEP := 10.0
 
 @onready var _size_blips: CapacityBlips = %SizeBlips
 @onready var _size_sliver: Label = %SizeSliver
 @onready var _damage_row: CombatValueRow = %DamageRow
 
-var _board: StatBoard
 
 
 func bind(board: StatBoard, owner_entity: Entity = null) -> void:

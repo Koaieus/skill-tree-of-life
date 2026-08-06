@@ -1,9 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://fwyo4is6mfsx"]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/fan_live_panel.gd" id="1_panel"]
-[ext_resource type="Script" path="res://ui/tooltip_fan/fan_live_sandbox.gd" id="2_sandbox"]
+[ext_resource type="Script" uid="uid://c77sys8givvyk" path="res://ui/tooltip_fan/fan_live_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://dmjrs65475ad5" path="res://ui/tooltip_fan/fan_live_sandbox.gd" id="2_sandbox"]
 
-[node name="FanLivePanel" type="Control"]
+[sub_resource type="ButtonGroup" id="ButtonGroup_bb0sd"]
+
+[node name="FanLivePanel" type="Control" unique_id=1189889959]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,169 +14,177 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_panel")
 
-[node name="Split" type="HSplitContainer" parent="."]
+[node name="Split" type="HSplitContainer" parent="." unique_id=1516731560]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+split_offsets = PackedInt32Array(640)
 split_offset = 640
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="Split"]
+[node name="ViewportContainer" type="SubViewportContainer" parent="Split" unique_id=181202991]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 stretch = true
 
-[node name="World" type="SubViewport" parent="Split/ViewportContainer"]
+[node name="World" type="SubViewport" parent="Split/ViewportContainer" unique_id=296469557]
 unique_name_in_owner = true
 handle_input_locally = false
-size = Vector2i(1440, 929)
+size = Vector2i(1088, 960)
 render_target_update_mode = 4
 
-[node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World"]
+[node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World" unique_id=550255330]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0.05, 0.06, 0.08, 1)
 
-[node name="Sandbox" type="Node2D" parent="Split/ViewportContainer/World"]
+[node name="Sandbox" type="Node2D" parent="Split/ViewportContainer/World" unique_id=318413593]
 unique_name_in_owner = true
-position = Vector2(720, 761.78)
+position = Vector2(544, 787.2)
 script = ExtResource("2_sandbox")
 
-[node name="Controls" type="ScrollContainer" parent="Split"]
-layout_mode = 2
+[node name="Controls" type="ScrollContainer" parent="Split" unique_id=439505156]
 custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="Split/Controls"]
+[node name="VBox" type="VBoxContainer" parent="Split/Controls" unique_id=185104057]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
 
-[node name="PresetHeader" type="Label" parent="Split/Controls/VBox"]
+[node name="PresetHeader" type="Label" parent="Split/Controls/VBox" unique_id=945787091]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
 theme_override_font_sizes/font_size = 10
 text = "PRESETS"
 
-[node name="Presets" type="GridContainer" parent="Split/Controls/VBox"]
+[node name="Presets" type="GridContainer" parent="Split/Controls/VBox" unique_id=1327031742]
 layout_mode = 2
 theme_override_constants/h_separation = 4
 theme_override_constants/v_separation = 4
 columns = 2
 
-[node name="PresetUnallocated" type="Button" parent="Split/Controls/VBox/Presets"]
+[node name="PresetUnallocated" type="Button" parent="Split/Controls/VBox/Presets" unique_id=186035780]
 unique_name_in_owner = true
 layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_bb0sd")
 text = "⌀  Bare node"
 
-[node name="PresetFriendly" type="Button" parent="Split/Controls/VBox/Presets"]
+[node name="PresetFriendly" type="Button" parent="Split/Controls/VBox/Presets" unique_id=870747463]
 unique_name_in_owner = true
 layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_bb0sd")
 text = "☺  Friendly"
 
-[node name="PresetEnemy" type="Button" parent="Split/Controls/VBox/Presets"]
+[node name="PresetEnemy" type="Button" parent="Split/Controls/VBox/Presets" unique_id=1242780765]
 unique_name_in_owner = true
 layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_bb0sd")
 text = "☠  Enemy"
 
-[node name="PresetCore" type="Button" parent="Split/Controls/VBox/Presets"]
+[node name="PresetCore" type="Button" parent="Split/Controls/VBox/Presets" unique_id=1588331224]
 unique_name_in_owner = true
 layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_bb0sd")
 text = "✦  Core"
 
-[node name="FixtureHeader" type="Label" parent="Split/Controls/VBox"]
+[node name="FixtureHeader" type="Label" parent="Split/Controls/VBox" unique_id=2131607402]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
 theme_override_font_sizes/font_size = 10
 text = "FIXTURE"
 
-[node name="OwnedCheck" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="OwnedCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1452400563]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Owned by entity"
 
-[node name="CoreCheck" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="CoreCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=66226709]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Core node"
 
-[node name="AddonsRow" type="HBoxContainer" parent="Split/Controls/VBox"]
+[node name="AddonsRow" type="HBoxContainer" parent="Split/Controls/VBox" unique_id=1940329828]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="AddonsLabel" type="Label" parent="Split/Controls/VBox/AddonsRow"]
+[node name="AddonsLabel" type="Label" parent="Split/Controls/VBox/AddonsRow" unique_id=92715644]
 layout_mode = 2
 text = "Addons"
 
-[node name="AddonsSpin" type="SpinBox" parent="Split/Controls/VBox/AddonsRow"]
+[node name="AddonsSpin" type="SpinBox" parent="Split/Controls/VBox/AddonsRow" unique_id=2069701632]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Real addon scenes attached to the fixture node (0–8)"
-min_value = 0.0
 max_value = 8.0
 value = 8.0
 
-[node name="FootprintCheck" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="FootprintCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1965479217]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Procgen footprint"
 
-[node name="ParticipationHeader" type="Label" parent="Split/Controls/VBox"]
+[node name="ParticipationHeader" type="Label" parent="Split/Controls/VBox" unique_id=1096494684]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
 theme_override_font_sizes/font_size = 10
 text = "PARTICIPATION"
 
-[node name="PartIdChip" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="PartIdChip" type="CheckButton" parent="Split/Controls/VBox" unique_id=1524605627]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "IdChip"
 
-[node name="PartNodeStats" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="PartNodeStats" type="CheckButton" parent="Split/Controls/VBox" unique_id=1555817391]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "NodeStats"
 
-[node name="PartAddons" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="PartAddons" type="CheckButton" parent="Split/Controls/VBox" unique_id=280876258]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Addons"
 
-[node name="PartOwner" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="PartOwner" type="CheckButton" parent="Split/Controls/VBox" unique_id=1343436542]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Owner"
 
-[node name="PartCore" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="PartCore" type="CheckButton" parent="Split/Controls/VBox" unique_id=793328350]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "Core"
 
-[node name="PartProcgenDebug" type="CheckButton" parent="Split/Controls/VBox"]
+[node name="PartProcgenDebug" type="CheckButton" parent="Split/Controls/VBox" unique_id=518931543]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
 text = "ProcgenDebug"
 
-[node name="ZoomHeader" type="Label" parent="Split/Controls/VBox"]
+[node name="ZoomHeader" type="Label" parent="Split/Controls/VBox" unique_id=1605091986]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
 theme_override_font_sizes/font_size = 10
 text = "ZOOM + CLOCK"
 
-[node name="ZoomSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="ZoomSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=114795240]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -184,7 +194,7 @@ max_value = 4.0
 step = 0.05
 value = 1.0
 
-[node name="PinStepSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="PinStepSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=1497330344]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -193,7 +203,7 @@ max_value = 90.0
 step = 0.5
 value = 30.0
 
-[node name="MaxArcSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="MaxArcSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=720155952]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -201,7 +211,7 @@ tooltip_text = "max_arc_degrees — ceiling on the fan's total spread; past it t
 max_value = 360.0
 value = 120.0
 
-[node name="PinFactorSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="PinFactorSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=731904792]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -210,7 +220,7 @@ max_value = 2.0
 step = 0.01
 value = 0.8
 
-[node name="SlideRateSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="SlideRateSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=1453479530]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -219,44 +229,44 @@ max_value = 40.0
 step = 0.5
 value = 12.0
 
-[node name="DriveHeader" type="Label" parent="Split/Controls/VBox"]
+[node name="DriveHeader" type="Label" parent="Split/Controls/VBox" unique_id=199534737]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
 theme_override_font_sizes/font_size = 10
 text = "DRIVE"
 
-[node name="DriveRow" type="HBoxContainer" parent="Split/Controls/VBox"]
+[node name="DriveRow" type="HBoxContainer" parent="Split/Controls/VBox" unique_id=1607637726]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="PlayButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+[node name="PlayButton" type="Button" parent="Split/Controls/VBox/DriveRow" unique_id=286164177]
 unique_name_in_owner = true
 layout_mode = 2
 text = "▶  Play"
 
-[node name="EraseButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+[node name="EraseButton" type="Button" parent="Split/Controls/VBox/DriveRow" unique_id=270732787]
 unique_name_in_owner = true
 layout_mode = 2
 text = "⟲  Erase"
 
-[node name="LoopButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+[node name="LoopButton" type="Button" parent="Split/Controls/VBox/DriveRow" unique_id=275369777]
 unique_name_in_owner = true
 layout_mode = 2
 toggle_mode = true
 text = "∞  Loop"
 
-[node name="HoverButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+[node name="HoverButton" type="Button" parent="Split/Controls/VBox/DriveRow" unique_id=1668183852]
 unique_name_in_owner = true
 layout_mode = 2
 toggle_mode = true
 text = "☌  Hover"
 
-[node name="ResetButton" type="Button" parent="Split/Controls/VBox/DriveRow"]
+[node name="ResetButton" type="Button" parent="Split/Controls/VBox/DriveRow" unique_id=113901823]
 unique_name_in_owner = true
 layout_mode = 2
 text = "■  Reset"
 
-[node name="ScrubSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="ScrubSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=484074783]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -264,7 +274,7 @@ tooltip_text = "Clock scrub — any frame of the reveal, written straight onto c
 max_value = 1.0
 step = 0.005
 
-[node name="HoverRadiusSlider" type="HSlider" parent="Split/Controls/VBox"]
+[node name="HoverRadiusSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=2014618880]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -272,13 +282,13 @@ tooltip_text = "hover_radius — radius around the node that counts as hovering 
 max_value = 200.0
 value = 46.0
 
-[node name="EditorHeader" type="Label" parent="Split/Controls/VBox"]
+[node name="EditorHeader" type="Label" parent="Split/Controls/VBox" unique_id=653320868]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.85)
 theme_override_font_sizes/font_size = 10
 text = "EDITOR"
 
-[node name="OpenFanButton" type="Button" parent="Split/Controls/VBox"]
+[node name="OpenFanButton" type="Button" parent="Split/Controls/VBox" unique_id=1427725493]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Open the benched fan scene in the 2D editor (fan.tscn has the return button)"

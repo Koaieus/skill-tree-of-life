@@ -78,6 +78,16 @@ signal wave_started(hop_index: int, events_in_wave: int)
 ## Fallback visual when no per-verb visual is set.
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
 
+class Beat extends RefCounted:
+	var wave: int
+	var events: Array[PropagationEvent]
+	
+	# TODO: think through a class decomposition instead of working with `waves, beats, pending`
+	
+	# static var pending: int = 0
+	# TODO: static.. might not be the solution here. but the `pending int[]` array
+	# seems to be used as some kind of context, this whole thing smells and i think we are
+	# like 1~2 extra inner classes away from could clean this all up a bit typed and well
 
 func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
@@ -151,9 +161,16 @@ func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
 	add_child(proj)
 	pending[0] += 1
 	var hit: DamageInstance = ev.damage
-	proj.arrived.connect(func() -> void:
-		if hit != null and hit.target != null:
-			hit.target.take_damage(hit.amount, hit))
+	var heal: HealingInstance = ev.heal
+	if hit != null:
+		proj.arrived.connect(func() -> void:
+			if hit != null and hit.target != null:
+				hit.target.take_damage(hit.amount, hit))
+	elif heal != null:
+		proj.arrived.connect(func() -> void:
+			if heal != null and heal.target != null:
+				heal.target.heal_damage(heal.amount, heal))
+		
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
 	proj.launch(ev.origin.global_position, ev.target.global_position, 0.0)

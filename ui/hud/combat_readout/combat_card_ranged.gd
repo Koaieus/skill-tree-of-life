@@ -9,21 +9,14 @@ extends CombatReadoutCard
 @onready var _damage_row: CombatValueRow = %DamageRow
 @onready var _range_row: CombatValueRow = %RangeRow
 
-var _board: StatBoard
 
-
-func bind(board: StatBoard, owner_entity: Entity = null) -> void:
-	_board = board
-	_owner_entity = owner_entity
-	if board == null:
-		return
+func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.ranged_damage != null:
 		board.ranged_damage.value_changed.connect(_refresh)
 	if board.range != null:
 		board.range.value_changed.connect(_refresh)
-	_refresh()
-
-
+	
+	
 func _refresh() -> void:
 	if _board == null:
 		return
