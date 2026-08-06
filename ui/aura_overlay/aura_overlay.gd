@@ -101,34 +101,34 @@ func _refresh() -> void:
 
 	var owned_by_entity: Dictionary = {}
 	for sn in graph.get_skill_nodes():
-		var owner: Entity = sn.owned_by
-		if owner == null or owner.is_dead:
+		var _owner: Entity = sn.owned_by
+		if _owner == null or _owner.is_dead:
 			continue
-		if not owned_by_entity.has(owner):
-			owned_by_entity[owner] = []
-		(owned_by_entity[owner] as Array).append(sn)
+		if not owned_by_entity.has(_owner):
+			owned_by_entity[_owner] = []
+		(owned_by_entity[_owner] as Array).append(sn)
 
 	var total_owned := 0
-	for owner in owned_by_entity:
-		total_owned += (owned_by_entity[owner] as Array).size()
+	for _owner in owned_by_entity:
+		total_owned += (owned_by_entity[_owner] as Array).size()
 
 	var packed_circles: Array = []
 	var packed_colors: Array = []
 	var entity_idx := 0
-	for owner in owned_by_entity:
+	for _owner in owned_by_entity:
 		if entity_idx >= _MAX_ENTITIES:
 			_warn_once(&"_warned_entity_overflow",
 				"AuraOverlay: %d owning entities exceeds the %d-colour cap; the extras render no aura."
 					% [owned_by_entity.size(), _MAX_ENTITIES])
 			break
-		for sn in owned_by_entity[owner]:
+		for sn in owned_by_entity[_owner]:
 			if packed_circles.size() >= _MAX_CIRCLES:
 				break
 			packed_circles.append(Vector4(
 				sn.global_position.x, sn.global_position.y,
 				sn.radius * radius_multiplier, float(entity_idx)
 			))
-		packed_colors.append((owner as Entity).color)
+		packed_colors.append((_owner as Entity).color)
 		entity_idx += 1
 
 	# Truncation silently deletes territory from the board — whichever entity is
