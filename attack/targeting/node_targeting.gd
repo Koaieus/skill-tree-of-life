@@ -5,9 +5,15 @@ extends Targeting
 ## optional [member range_finder]'s reach of the source. If `range_finder` is
 ## null, reach is unlimited.
 ##
-## The filter is what makes this general: the default (Hostile) is the offensive
-## spell case; Friendly targets buffs / heals; Any hits everything in reach.
-## For "owned by the attacker" specifically, see [SingleAlliedNodeTargeting].
+## [b]Who a spell can reach is orthogonal to what it does to them.[/b] The filter
+## does not imply the effect's sign: a damage spell may be authored Friendly or
+## Any (friendly fire), and a heal may be authored Hostile or Any (healing the
+## opponent). Both are deliberate design space, not mistakes to be linted out —
+## [code]healing_beam.tres[/code] is Any *on purpose*, so mind your enemies.
+## Hostile is merely the common case, hence the default.
+##
+## For "owned by the attacker" as a hard constraint, see
+## [SingleAlliedNodeTargeting].
 
 
 @export_flags("Neutral:1", "Friendly:2", "Hostile:4", "Allocated:6", "Any:7") var ownership_filter: int = 4
