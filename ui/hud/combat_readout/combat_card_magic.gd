@@ -45,17 +45,7 @@ func _refresh() -> void:
 		_reach_row.set_value(0.0)
 		_reach_row.set_sliver("")
 		return
-	_potency_row.set_value(_seed_damage(spell))
+	_potency_row.set_value(SpellResolver.seed_damage(spell, null, _board))
 	var hops := spell.propagation.max_hops if spell.propagation != null else 0
 	_reach_row.set_value(float(hops), " hops")
 	_reach_row.set_sliver("rare" if hops > 0 else "")
-
-
-## Seed damage for the bound caster — the same expression [SpellResolver] uses
-## ([code]spell_damage × power[/code]); no board falls back to the spell's own
-## coefficient at a [code]spell_damage[/code] of 1.
-# TODO: "the same expression" should be a method call, not having this logic here *too*
-func _seed_damage(spell: SpellDef) -> float:
-	if _board == null or _board.spell_damage == null:
-		return spell.power
-	return float(_board.spell_damage.value) * spell.power

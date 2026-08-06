@@ -39,7 +39,7 @@ static func resolve(
 	seed_state.current_node = target
 	seed_state.predecessor = null
 	seed_state.source = source
-	seed_state.damage = _seed_damage(spell, source)
+	seed_state.damage = seed_damage(spell, source)
 	seed_state.seed_damage = seed_state.damage
 	seed_state.hops_remaining = config.max_hops
 	seed_state.hop_index = 0
@@ -133,20 +133,32 @@ static func resolve(
 	return outcome
 
 
-## The seed hit: [code]spell_damage(source) × SpellDef.power[/code] (D-32).
+## The seed hit: [code]spell_damage × SpellDef.power[/code] (D-32). **The one
+## home for this expression** — UI that shows a spell's damage calls this, it
+## does not re-multiply (three copies of it had already drifted apart).
 ##
-## Read from [param source] — the node the spell is cast FROM — via
-## [method SkillNode.get_local_value], which merges the node board with its
-## [b]owner's[/b] board. Reading the target instead would let the defender buff
-## the spell landing on them; mirrors [RangedDamageFormula]'s
-## [code]firing_node.get_local_value(&"ranged_damage")[/code]. Evaluated ONCE,
-## here: a per-hop re-read would compound INT (INT² by hop 2).
-##
-## No source node (preview / degenerate calls) falls back to the stat's own
-## default rather than the caster's board — one path to the number, per D-32.
-static func _seed_damage(spell: SpellDef, source: SkillNode) -> float:
+## Where the [code]spell_damage[/code] term comes from, in order:
+##   1. [param source] — the node the spell is cast FROM — via
+##      [method SkillNode.get_local_value], which merges the node board with its
+##      [b]owner's[/b] board. Reading the target instead would let the defender
+##      buff the spell landing on them; mirrors [RangedDamageFormula]'s
+##      [code]firing_node.get_local_value(&"ranged_damage")[/code]. Evaluated
+##      ONCE, at cast: a per-hop re-read would compound INT (INT² by hop 2).
+##   2. [param board] — the caster's own board, for previews that have no
+##      cast-from node yet ([SpellTooltip], [CombatCardMagic]). Misses
+##      node-local addons by construction; that's the price of previewing
+##      before a source node is picked.
+##   3. Neither — the stat's own default (1.0), so the row shows the raw
+##      [member SpellDef.power] rather than a zero.
+static func seed_damage(spell: SpellDef, source: SkillNode, board: StatBoard = null) -> float:
+	if spell == null:
+		return 0.0
 	if source != null:
 		return float(source.get_local_value(&"spell_damage")) * spell.power
+	if board != null:
+		var stat: Stat = board.get_stat(&"spell_damage")
+		if stat != null:
+			return float(stat.get_value()) * spell.power
 	var def: StatDef = StatRegistry.get_def(&"spell_damage")
 	var fallback: float = def.default_value if def != null else 1.0
 	return fallback * spell.power

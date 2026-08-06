@@ -177,15 +177,13 @@ func _scale_by_spell_range(base: int) -> int:
 	return int(round(float(base) * _spell_range_multiplier()))
 
 
-## Seed damage for the hovered caster — [code]spell_damage × power[/code], the
-## same expression [SpellResolver] seeds with (D-32). The raw
+## Seed damage for the hovered caster (D-32) — delegated to
+## [method SpellResolver.seed_damage], which owns the expression. The raw
 ## [member SpellDef.power] coefficient is meaningless on its own, so the row
 ## shows the computed number and goes gold whenever the caster moved it.
 func _seed_damage() -> float:
-	if _caster == null or _caster.stat_board == null:
-		return _spell.power
-	var s := _caster.stat_board.get_stat(&"spell_damage")
-	return _spell.power * (float(s.get_value()) if s != null else 1.0)
+	var board: StatBoard = _caster.stat_board if _caster != null else null
+	return SpellResolver.seed_damage(_spell, null, board)
 
 
 func _spell_range_multiplier() -> float:
