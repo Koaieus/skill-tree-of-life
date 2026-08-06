@@ -78,11 +78,13 @@ static func resolve(
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		for state in merged:
-			# `hits` produced by this landing's effects belong to this event.
-			# Today only DamageEffect appends, and exactly one per landing — so
-			# the first new hit is the event's damage (null if the landing was
-			# zero-damage / utility, which still gets an event so it animates).
+			# `hits`/`heals` produced by this landing's effects belong to this
+			# event. Today only DamageEffect and HealingEffect append, each at
+			# most once per landing — so the first new entry in either list is
+			# the event's damage/heal (null if the landing was zero-damage /
+			# utility, which still gets an event so it animates).
 			var pre := outcome.hits.size()
+			var pre_heals := outcome.heals.size()
 			for eff in spell.on_hit_effects:
 				if eff != null:
 					eff.apply(state, outcome)
@@ -105,6 +107,8 @@ static func resolve(
 			ev.crit_tier = crit_tier
 			if outcome.hits.size() > pre:
 				ev.damage = outcome.hits[pre]
+			if outcome.heals.size() > pre_heals:
+				ev.heal = outcome.heals[pre_heals]
 			outcome.timeline.append(ev)
 			ctx.bump_visit(state.current_node)
 
