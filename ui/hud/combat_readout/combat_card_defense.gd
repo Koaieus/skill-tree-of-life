@@ -13,16 +13,11 @@ extends CombatReadoutCard
 @onready var _floor_row: CombatValueRow = %FloorRow
 
 
-func bind(board: StatBoard, owner_entity: Entity = null) -> void:
-	_board = board
-	_owner_entity = owner_entity
-	if board == null:
-		return
+func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.armor != null:
 		board.armor.value_changed.connect(_refresh)
 	if board.min_damage_taken != null:
 		board.min_damage_taken.value_changed.connect(_refresh)
-	_refresh()
 
 
 func _refresh() -> void:

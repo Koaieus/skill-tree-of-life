@@ -15,18 +15,13 @@ const STR_STEP := 10.0
 
 
 
-func bind(board: StatBoard, owner_entity: Entity = null) -> void:
-	_board = board
-	_owner_entity = owner_entity
-	if board == null:
-		return
+func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.blade_size != null:
 		board.blade_size.value_changed.connect(_refresh)
 	if board.blade_damage != null:
 		board.blade_damage.value_changed.connect(_refresh)
 	if board.strength != null:
 		board.strength.value_changed.connect(_refresh)
-	_refresh()
 
 
 func _refresh() -> void:

@@ -22,15 +22,11 @@ var _spell: SpellDef:
 	get = _get_spell, set = _set_spell 
 
 
-#func _bind(battle_system: BattleSystem, board: StatBoard = null) -> void:
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.spell_damage != null:
 		board.spell_damage.value_changed.connect(_refresh)
-	if _battle_system == null:
-		_refresh()
-		return
-	_battle_system.selected_spell_changed.connect(_set_spell)
-	_refresh()
+	if _battle_system != null:
+		_battle_system.selected_spell_changed.connect(_set_spell)
 
 func _get_spell() -> SpellDef:
 	if _spell != null:

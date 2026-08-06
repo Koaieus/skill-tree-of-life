@@ -39,7 +39,7 @@ func bind(player: Entity, battle_system: BattleSystem) -> void:
 		_on_plan_changed(_battle_system.attack_plan)
 		
 	for card in [_melee_card, _ranged_card, _magic_card, _defense_card]:
-		card.bind(board, player)
+		card.bind(player)
 		
 	if not Events.skill_node_hovered.is_connected(_on_skill_node_hovered):
 		Events.skill_node_hovered.connect(_on_skill_node_hovered)

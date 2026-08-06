@@ -64,12 +64,15 @@ func set_hover_node(node: SkillNode) -> void:
 	_hover_node = node
 	_refresh()
 
-## Bind this card to stat board so it can start listening for changes
+## Bind this card to an entity so it can start listening for stat changes.
+## The board is always [member Entity.stat_board] — a card previews that
+## entity's node-local overrides, so a board from anywhere else would make
+## [method _local_override_or_null] compare against a foreign baseline.
 ## Virtual hook `_bind()` can be overridden in concrete classes to set up bindings
-func bind(board: StatBoard, owner_entity: Entity = null) -> void:
-	# TODO: board === owner_entity.board, do we need both args?
-	_board = board
+func bind(owner_entity: Entity) -> void:
 	_owner_entity = owner_entity
+	var board: StatBoard = owner_entity.stat_board if owner_entity != null else null
+	_board = board
 	if board == null:
 		return
 	# Call subclass-overridable hook, board and entity guaranteed to exist
