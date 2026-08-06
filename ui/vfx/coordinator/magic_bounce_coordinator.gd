@@ -162,15 +162,19 @@ func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
 	pending[0] += 1
 	var hit: DamageInstance = ev.damage
 	var heal: HealingInstance = ev.heal
+	# Independent, not `elif`: a landing carrying both must land both. This is
+	# the two-slot shape showing its seams — one `damage` + one `heal` can't
+	# express two damages, and every new effect kind adds a slot and a branch
+	# here. Pending the `Array[HitInstance]` collapse.
 	if hit != null:
 		proj.arrived.connect(func() -> void:
-			if hit != null and hit.target != null:
+			if hit.target != null:
 				hit.target.take_damage(hit.amount, hit))
-	elif heal != null:
+	if heal != null:
 		proj.arrived.connect(func() -> void:
-			if heal != null and heal.target != null:
+			if heal.target != null:
 				heal.target.heal_damage(heal.amount, heal))
-		
+
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
 	proj.launch(ev.origin.global_position, ev.target.global_position, 0.0)

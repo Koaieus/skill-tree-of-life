@@ -179,11 +179,14 @@ func launch_attack() -> void:
 		else:
 			await attack_vfx.play_ranged_volley(outcome)
 	else:
-		# Headless / no-VFX path: apply damage directly so tests can still
-		# observe the outcome without a scene-attached VFX node.
+		# Headless / no-VFX path: apply the outcome directly so tests can
+		# still observe it without a scene-attached VFX node.
 		for hit in outcome.hits:
 			if hit.target != null:
 				hit.target.take_damage(hit.amount, hit)
+		for heal in outcome.heals:
+			if heal.target != null:
+				heal.target.heal_damage(heal.amount, heal)
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the
