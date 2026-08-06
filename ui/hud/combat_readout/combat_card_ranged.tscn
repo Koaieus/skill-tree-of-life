@@ -21,9 +21,13 @@ shader_parameter/glow_strength = 0.0
 [node name="CombatCardRanged" unique_id=1766223615 instance=ExtResource("1_pu3h8")]
 script = ExtResource("1_script")
 mode_color = Color(0.3187, 0.7773, 0.4484, 1)
+title = "Ranged"
 
 [node name="GlassPanel" parent="." index="0" unique_id=2110722895]
 material = SubResource("ShaderMaterial_pu3h8")
+
+[node name="Title" parent="Padded/TitleAndBody" parent_id_path=PackedInt32Array(1458892802) index="0" unique_id=1747116291]
+text = "Ranged"
 
 [node name="DamageRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="0" unique_id=1270874012 instance=ExtResource("3_row")]
 unique_name_in_owner = true

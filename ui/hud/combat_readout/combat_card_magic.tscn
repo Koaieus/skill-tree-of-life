@@ -1,14 +1,14 @@
 [gd_scene format=3 uid="uid://coggurrlonsdx"]
 
+[ext_resource type="PackedScene" uid="uid://c55r5i8obie7o" path="res://ui/hud/combat_readout/combat_card.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bulbyf2avu6mt" path="res://ui/hud/combat_readout/combat_card_magic.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_o8m77"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_shader"]
 [ext_resource type="PackedScene" uid="uid://cpatx7dmbmx7c" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="3_row"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_q0g7p"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_magic"]
 resource_local_to_scene = true
-shader = ExtResource("3_o8m77")
-shader_parameter/size = Vector2(129, 75)
+shader = ExtResource("3_shader")
+shader_parameter/size = Vector2(105, 87)
 shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
@@ -18,40 +18,25 @@ shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(0.291, 0.5892, 1, 0)
 shader_parameter/glow_strength = 0.0
 
-[node name="CombatCardMagic" type="MarginContainer" unique_id=442666570]
+[node name="CombatCardMagic" unique_id=1766223615 instance=ExtResource("1_base")]
 modulate = Color(1, 1, 1, 0.72)
 script = ExtResource("1_script")
 mode_color = Color(0.291, 0.5892, 1, 1)
+title = "Magic"
 
-[node name="GlassPanel" parent="." unique_id=1847155648 instance=ExtResource("2_glass")]
-unique_name_in_owner = true
-material = SubResource("ShaderMaterial_q0g7p")
-layout_mode = 2
+[node name="GlassPanel" parent="." index="0" unique_id=2110722895]
+material = SubResource("ShaderMaterial_magic")
 glow_color = Color(0.291, 0.5892, 1, 0)
 
-[node name="Padded" type="MarginContainer" parent="." unique_id=1462525928]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
+[node name="Title" parent="Padded/TitleAndBody" parent_id_path=PackedInt32Array(1458892802) index="0" unique_id=1747116291]
+text = "Magic"
 
-[node name="Content" type="VBoxContainer" parent="Padded" unique_id=1275539649]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="Title" type="Label" parent="Padded/Content" unique_id=609158348]
-layout_mode = 2
-theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 12
-text = "MAGIC"
-
-[node name="PotencyRow" parent="Padded/Content" unique_id=253036059 instance=ExtResource("3_row")]
+[node name="PotencyRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="0" unique_id=253036059 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Potency / instance"
 
-[node name="ReachRow" parent="Padded/Content" unique_id=2032314071 instance=ExtResource("3_row")]
+[node name="ReachRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=2032314071 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Hop reach"
