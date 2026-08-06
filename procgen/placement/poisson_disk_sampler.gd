@@ -3,8 +3,10 @@ class_name PoissonDiskSampler
 extends RefCounted
 
 ## Bridson Poisson-disk sampling, bounded by a [ShapeMask]. Caller-supplied
-## anchors are seeded first and respected during rejection, so starting
-## locations always land and nothing crowds them.
+## anchors are seeded first and respected during rejection, so generated
+## points never crowd them. An anchor that cannot emit (crowded out by an
+## earlier point, or outside the mask) is dropped WITH a push_warning naming
+## its position — see #339.
 ##
 ## Returns points in graph-local space (centred on 0,0 — see ShapeMask).
 
@@ -49,7 +51,9 @@ static func sample(
 		return true
 
 	for a in anchors:
-		try_emit.call(a)
+		if not try_emit.call(a):
+			push_warning("PoissonDiskSampler: anchor at (%.1f, %.1f) failed to emit — too close to an earlier anchor/point or outside the shape mask"
+					% [a.x, a.y])
 
 	if out.is_empty():
 		# Seed the active list with a random valid point so generation can start.

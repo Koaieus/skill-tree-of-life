@@ -361,6 +361,7 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 
 	var kept: Array[Vector2i] = []
 	var extras: Array[Vector2i] = []
+	var merges := 0
 	for idx in order:
 		var e: Vector2i = edges[idx]
 		var ra: int = find.call(e.x)
@@ -368,8 +369,19 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 		if ra != rb:
 			parent[ra] = rb
 			kept.append(e)
+			merges += 1
 		else:
 			extras.append(e)
+
+	# Connectivity certificate (#339). Kruskal over the Delaunay candidate set
+	# spans every node by construction: n nodes, m successful merges, n - m
+	# components — and a skill tree being ONE component is a hard requirement
+	# resting on that implementation detail. A bad graft (e.g. #165's cluster
+	# stitching, or a degenerate triangulation) islands a region and breaks
+	# this. Debug-only, zero cost.
+	assert(n - merges == 1,
+			"GraphProcgen: Kruskal over Delaunay candidates left %d components for %d nodes — the skill tree must be one connected component"
+			% [n - merges, n])
 
 	var extra_target := int(round(connectivity * extras.size()))
 	for i in extra_target:
