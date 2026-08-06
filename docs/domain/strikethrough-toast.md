@@ -66,8 +66,8 @@ TODO): the label only changes size when its text/font does.
 The **split/unzip animation** (`split_open` UV displacement in the shader +
 `_animate_out`) still needs to cleanly move the two halves apart, and the reliance
 on `TEXTURE` glyph coverage is brittle. The robust redesign to iterate on — **in
-the toast sandbox** (`scenes/dev/toast_showcase.tscn`, the "Toasts" tab, which
-exists precisely to debug this) — is to render the split as scene-graph rather than
+the toast sandbox** (the "Toasts" live tab, `addons/toast_sandbox/toast_sandbox_panel.tscn`,
+which exists precisely to debug this) — is to render the split as scene-graph rather than
 glyph sampling: two `Label` copies alpha-clipped by the diagonal via a discard-only
 shader (no `TEXTURE` sample → no white bug), a drawn beam at the cut for the hot-tip
 sweep, and tween the halves apart perpendicular to the line. This is visual R&D, so

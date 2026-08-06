@@ -91,8 +91,8 @@ func test_node_health_scaling_drives_the_con_rate_reactively() -> void:
 
 
 func test_coreless_entity_still_gets_the_con_rate() -> void:
-	# #298 option 2 (fully class-side) had a real cliff: coreless entities exist
-	# (scenes/dev/_spike_live.gd, test fixtures) and would have got CON -> 0.
+	# (#298 option 2 (fully class-side) had a real cliff: coreless entities exist
+	# (live sandbox fixtures) and would have got CON -> 0.
 	# Board-stat home means the 1.0 default always applies.
 	var board := _board()
 	board.apply_intrinsics()

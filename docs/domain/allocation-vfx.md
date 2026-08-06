@@ -138,18 +138,18 @@ breaking gameplay.
 
 ## Playground
 
-`scenes/dev/allocation_vfx_showcase.tscn` runs a 3×3 grid of self-resetting
-cells, each looping one allocation-flavoured scenario against the **real**
-systems (so #71 pulses + #70 floaters fire for real, unlike the old faked-signal
-loop). Cells: single-node alloc / dealloc / shatter; `O-0-0-0-X` allocate →
-three modifiers travel to core; `X-O-O-O-O` bulk allocate from core; and on a
-fully-allocated row — voluntary dealloc, forced-dealloc, mid-row force-dealloc
-→ islanding cascade, and core death → full cascade. Each cell renders its
-entity's live STRENGTH so the gap between the resolved value and the trailing
-visuals is visible. Two global beats loop: SETUP (silent re-arm, `AllocationVFX.muted`)
-→ PLAY (all cells fire at once). Systems are composed + wired in code exactly as
-`GameRoot._ready` wires them; the grid is generated procedurally. Launch with:
-
-```
-godot --path . scenes/dev/allocation_vfx_showcase.tscn
-```
+The **Allocation VFX** live tab (`addons/sandbox_host/tabs/40_allocation_tab.tscn`,
+embedding `addons/allocation_sandbox/allocation_sandbox_panel.tscn`, #260) runs a
+3×3 grid of self-resetting cells, each looping one allocation-flavoured scenario
+against the **real** systems (so #71 pulses + #70 floaters fire for real, unlike
+the old faked-signal loop). Cells: single-node alloc / dealloc / shatter;
+`O-0-0-0-X` allocate → three modifiers travel to core; `X-O-O-O-O` bulk allocate
+from core; and on a fully-allocated row — voluntary dealloc, forced-dealloc,
+mid-row force-dealloc → islanding cascade, and core death → full cascade. Each
+cell renders its entity's live STRENGTH so the gap between the resolved value
+and the trailing visuals is visible. The old played showcase's infinite
+SETUP→PLAY loop is now one explicit **▶ Play beat** click (auto-tick = played;
+explicit-step = live — see `sandbox-framework.md`); **⟲ Reset** re-arms without
+playing. Systems are composed + wired in code exactly as `GameRoot._ready` wires
+them (via `SandboxWorld`); the grid is generated procedurally. No play step, no
+`godot --path` — the tab runs live in the editor.

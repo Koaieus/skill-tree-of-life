@@ -1,0 +1,72 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/loot_sandbox/loot_sandbox_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="2_graph"]
+
+[node name="LootSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Controls" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RewardsLabel" type="Label" parent="VBox/Controls"]
+layout_mode = 2
+vertical_alignment = 1
+text = "Rewards:"
+
+[node name="PhaseOption" type="OptionButton" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 3
+selected = 0
+popup/item_0/text = "Full rewards (XP + relic)"
+popup/item_1/text = "XP only — no relic"
+popup/item_2/text = "Relic only — no XP"
+
+[node name="KillBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶ Kill victim"
+
+[node name="ResetBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Re-arm both entities (muted teardown)"
+text = "⟲ Reset"
+
+[node name="StatLabel" type="Label" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+vertical_alignment = 1
+text = "—"
+
+[node name="WorldContainer" type="SubViewportContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" type="SubViewport" parent="VBox/WorldContainer"]
+unique_name_in_owner = true
+size = Vector2i(1280, 720)
+
+[node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.08, 0.1, 1)
+
+[node name="Graph" parent="VBox/WorldContainer/World" instance=ExtResource("2_graph")]
+unique_name_in_owner = true

@@ -53,8 +53,7 @@ func _zoom_by(step: float) -> void:
 		_zoom_tween.kill()
 	else:
 		# Nothing in flight, so `zoom` is authoritative — honour any external
-		# write since the last step. Level setup (`loot_showcase.gd`,
-		# `allocation_vfx_showcase.gd`) assigns `zoom` directly from
+		# write since the last step. A level scene assigns `zoom` directly from
 		# `_setup_level()`, which runs AFTER this node's `_ready`; without this
 		# resync `_target_zoom` would still hold the stale value and the first
 		# scroll tick would teleport.

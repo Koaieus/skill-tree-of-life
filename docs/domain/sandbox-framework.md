@@ -28,21 +28,37 @@ edits; eventually it auto-discovers tabs.
 
 ## The load-bearing distinction: two execution modes
 
-"Live in the editor, no reload" is free **only for `@tool`-amenable content** —
-stat-board link graphs, spell-hop tuning, VFX *look*. The allocation / battle /
-loot / death surfaces run **non-`@tool` gameplay systems driven by a sequenced
-`await` loop**; those do not execute live in-editor unless we make
-`BattleSystem`/`AllocationSystem` `@tool` (invasive — and we explicitly do *not*
-want `TurnManager`/AI ticking inside the editor).
+The old line was "allocation / battle / loot are non-`@tool` gameplay systems and
+don't run live in-editor" — **stale since the systems went `@tool`** (Allocation,
+Battle, Loot, Vision are all `@tool` now, #260 audited). The real kernel is
+narrower and holds:
+
+> **auto-tick = played; explicit-step = live.**
+
+`@tool` gates exactly one thing: whether the engine auto-fires a script's
+lifecycle callbacks (`_ready`/`_process`/`_input`) while `Engine.is_editor_hint()`.
+It does **not** gate method dispatch — any method of any system is callable by a
+`@tool` driver in-editor. So a surface is "played" only if it *auto-drives*
+itself (a `_process` + `await create_timer` beat loop, the turn clock, AI); a
+surface whose beats are explicit triggers (a button calling the real system
+methods) runs live for free. The one thing we still deliberately do NOT want
+ticking inside the editor: **`TurnManager` / AI**. Sandbox panels never
+`start_turn` / `end_turn` / `tick` — loot attribution only *writes*
+`turn_manager.current_entity` (a plain var) before a kill.
 
 So the tab base must **declare its mode**:
 
-- **live-edit tab** (`@tool`, reacts to the Inspector instantly): stat
-  visualizer, VFX look, spell hops.
-- **played tab** (runs on play, drives real systems): allocation, melee, ranged,
-  loot, death.
+- **live-edit tab** (`@tool`, runs in-editor): stat visualizer, VFX look, spell
+  hops — and since #260 also the allocation / loot / death surfaces, which drive
+  the real (already-`@tool`) systems from explicit **▶ Play beat** / **▶ Kill**
+  buttons in a `SubViewport` world.
+- **played tab** (launch card, runs on play): only for surfaces that genuinely
+  need the runtime-only machinery to *auto-drive* — melee, ranged, full turn
+  loops. No shipped tab uses played mode since #260; the class is kept for
+  those.
 
-Don't promise "live for everything" — that's exactly where it breaks.
+"Don't promise live for everything" still holds — the line moved from "which
+systems" to "who drives the clock".
 
 ## Why the naive `systems.tscn` extraction is a trap
 
@@ -80,9 +96,9 @@ abstraction.
 
 ## What anti-drift actually needs: a subset-capable, code-level scaffold
 
-The standalone playgrounds need *"a graph + a chosen subset of the real systems,
+The standalone sandboxes need *"a graph + a chosen subset of the real systems,
 wired exactly as the game wires them, in one place."* That's a **`SandboxWorld`
-composition helper** (code), not a scene extraction — each played tab declares
+composition helper** (code), not a scene extraction — each sandbox declares
 which systems it needs and the helper instantiates + `bind`s them with the same
 calls `GameRoot._ready` uses.
 
@@ -112,8 +128,9 @@ inherited overrides) intact.
 |---|---|---|---|
 | 0 ✅ | Allocation VFX showcase as a played scene | low | shipped (`a65bfce`) |
 | ✅ | LootSystem showcase (2nd played sandbox) + per-side-effect kill-switches | low | shipped (`147f7f6`, `def5e3d`) |
-| 2 ✅ | `SandboxWorld` subset-capable system composition (built once the 2nd consumer existed) | low | both showcases share it |
+| 2 ✅ | `SandboxWorld` subset-capable system composition (built once the 2nd consumer existed) | low | both live panels share it |
 | 1 ✅ | Plugin host: main-screen `EditorPlugin` + `TabContainer`; `SandboxTab` base declares mode (live/played); explicit registration. The 3 playground plugins folded into one host (`addons/sandbox_host/`); showcases are played launch cards. | med | loads clean headless; **GUI behaviour pending human verify** |
+| ✅ | Allocate + loot (and toast) played launch cards converted to **live tabs** — `@tool` panels embedding the real systems in a `SubViewport` world, driven by explicit ▶ Play beat / ▶ Kill buttons; the played showcase scenes deleted (standalone sandbox variants are "if-all-else-fails" surfaces, ideally zero of them). | low | shipped (#260) — the panels are `addons/allocation_sandbox/` + `addons/loot_sandbox/` |
 | 3 | (partial — done) Inspector "Open in…" buttons now reveal the host main screen + select the tab (`set_main_screen_editor` + `current_tab`). (remaining) Jump-to-tab `@export_tool_button` on tab-able resource classes + finer live Inspector sync (`_edit`/`_handles` + resource `changed`). | low | button jumps; knob edits reflect w/o reload |
 | 4 ✅ | Auto-discover tabs — **scene-directory scan**, NOT the `get_global_class_list` class scan the issue first sketched (see below: a dedicated `tabs/` dir is a cleaner declaration). Drop a `*.tscn` whose root is a `SandboxTab` in `addons/sandbox_host/tabs/`; the host loads + adds it, ordered by filename. | low | tabs appear without manual registration |
 
@@ -121,10 +138,10 @@ inherited overrides) intact.
 
 One main-screen `EditorPlugin` replacing the three bottom-panel playground
 plugins. **Everything is scene-composed** (per `scene-composition.md`): the host
-is a scene, and every tab is a scene whose root is a `SandboxTab`. The `.tscn`
-files are *generated* by `tools/gen_sandbox_tabs.gd` (run headless), not
-hand-authored — that dodges the uid-mismatch / field-strip landmines in
-`godot-workflow.md`. Re-run it after changing the tab roster.
+is a scene, and every tab is a scene whose root is a `SandboxTab`. Only
+`sandbox_host.tscn` is *generated* by `tools/gen_sandbox_tabs.gd` (run headless)
+— that dodges the uid-mismatch / field-strip landmines in `godot-workflow.md`;
+tab scenes are hand-authored inherited scenes in every mode (see below).
 
 Files:
 
@@ -156,24 +173,30 @@ Files:
   reference migration). Tree stays scenic (per `scene-composition.md`); the
   script only wires + acts, and the breadcrumb — being path-length-variable — is
   built into the scenic `%Breadcrumb` container in code.
-  - **All live tabs are now migrated** (#250): spell / vfx / statboard / procgen /
-    node_visuals / gimbal_3d / fan_trace are each a one-node inherited scene of
+  - **All live tabs are now migrated** (#250) and since #260 **every shipped
+    tab is live**: spell / vfx / statboard / procgen / node_visuals / gimbal_3d /
+    fan_trace / toasts / allocation / loot are each a one-node inherited scene of
     the base, so every live tab carries the breadcrumb chrome. The
     backward-compatibility path — a legacy bare-node tab (root = `MarginContainer`
     + this script, no chrome children) where the panel falls back onto `self` and
     every chrome hook null-guards to a no-op — still exists in the script as a
     safety net, but no shipped tab uses it.
-  - **Generator no longer emits live tabs** (#250). `tools/gen_sandbox_tabs.gd`
-    now generates only the host scene + the *played* launch cards. Live tabs moved
-    to hand-authored inherited scenes because an inherited scene can't be expressed
-    via `PackedScene.pack`, and it hand-authors cleanly (path-resolved
-    ext_resources, no uid landmines). To add a live tab, copy an existing one under
-    `addons/sandbox_host/tabs/` and swap the four exports.
+  - **Generator no longer emits tabs** (#250 live tabs, #260 the last played
+    cards). `tools/gen_sandbox_tabs.gd` now builds only the host scene. Tabs in
+    every mode are hand-authored inherited scenes (an inherited scene can't be
+    expressed via `PackedScene.pack`, and it hand-authors cleanly — path-resolved
+    ext_resources, no uid landmines), and regenerating them would silently
+    clobber hand-authored files (the 60_toast landmine this retired). To add a
+    tab, copy an existing one under `addons/sandbox_host/tabs/` and swap the
+    four exports.
 - `sandbox_played_tab.gd` (`SandboxPlayedTab`) — a launch card (title +
   description + optional `preview: Texture2D` + ▶ Run → `play_custom_scene`).
-  Played scenes are non-`@tool` and can't run in-editor, so the host never
-  embeds them; the showcase *content* stays code-composed (its own docstring
-  defends that), only the tab *wrapper* is a scene.
+  Played scenes can't run in-editor because they *auto-drive* (turn loop / AI /
+  `await` beat cycle) — not because their systems are non-`@tool`, which they
+  aren't anymore (see the modes section above). Kept for genuinely
+  auto-driven surfaces (melee / ranged / full turn loops); **no shipped tab uses
+  played mode since #260**. The showcase *content* stays code-composed (its own
+  docstring defends that), only the tab *wrapper* is a scene.
 - `test/unit/test_sandbox_host_tabs.gd` — lints every tab scene: loads, root is
   a `SandboxTab`, all exports resolve non-null (the `godot-workflow.md` guard
   against a silently-nulled `@export`).
@@ -207,9 +230,21 @@ its world via `graph.tscn` / `SandboxWorld` is its own cleanup.
   `emit_changed()` — `GlowStyle` is the template; see `skill-node-visuals.md`).
 - **Auto-discovery:** `ProjectSettings.get_global_class_list()` exposes each
   script's `base`; filter for the tab base. Cheap, no scene loads.
-- **Reset/mute for played tabs:** `AllocationVFX.muted` (added in phase 0) is the
-  pattern — a played tab's silent SETUP beat replays the real primitives with
-  cosmetics muted. Other VFX layers can grow the same switch as needed.
+- **Live-world panels:** a live tab hosting a 2D gameplay world wraps it in a
+  `SubViewportContainer` + `SubViewport` (`stretch = true` → viewport pixels ARE
+  panel pixels, no camera needed; lay the world out on `world.size_changed`).
+  Reference: `addons/spell_playground/playground_panel.gd`, and the allocation /
+  loot panels built on that pattern (#260).
+- **Explicit-step live beats (#260):** a live panel must never auto-run its
+  scenario — the "auto-tick = played" line. Beats are button-triggered (`▶ Play
+  beat`, `▶ Kill victim`), gated while in flight (`_busy`), and labels refresh
+  on demand instead of `_process` polling.
+- **TurnManager in the editor:** never `start_turn` / `end_turn` / `tick` from a
+  panel. Killer attribution is a plain write to `current_entity` (loot panel),
+  and that slot must be cleared between kills (set to `null` on reset).
+- **Reset/mute:** `AllocationVFX.muted` (added in phase 0) is the pattern — a
+  panel's silent SETUP beat replays the real primitives with cosmetics muted.
+  Other VFX layers can grow the same switch as needed.
 
 ## Cross-refs
 

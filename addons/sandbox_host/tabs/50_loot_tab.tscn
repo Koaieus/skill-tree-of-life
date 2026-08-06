@@ -1,9 +1,10 @@
-[gd_scene format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://addons/sandbox_host/sandbox_played_tab.gd" id="1_wx7fn"]
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://addons/loot_sandbox/loot_sandbox_panel.tscn" id="2_panel"]
 
-[node name="Loot" type="MarginContainer" unique_id=847860251]
-script = ExtResource("1_wx7fn")
+[node name="Loot" instance=ExtResource("1_base")]
 tab_title = "Loot"
-scene_path = "res://scenes/dev/loot_showcase.tscn"
-description = "Kill → XP floater on the killer + a SkillDust relic blooming on the victim's former core, driven by the real LootSystem on a loop."
+tab_id = &"loot"
+panel_scene = ExtResource("2_panel")
+loader_method = &"load_object"

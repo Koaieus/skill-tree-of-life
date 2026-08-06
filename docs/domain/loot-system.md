@@ -270,16 +270,18 @@ upkeep / GrowablePoolStatDef).
 
 ## Playground
 
-`scenes/dev/loot_showcase.tscn` runs a real kill on a loop and shows the rewards
-land: the death cascade, a SkillDust relic blooming on the victim's former core,
-and the killer's live XP/level. Three sequential phases demonstrate the
-per-side-effect kill-switches (`award_xp_on_kill` / `drop_skill_dust_on_death`)
-by toggling one reward off at a time. Single attacker + victim, not a parallel
-grid — LootSystem/AllocationSystem/BattleSystem are singletons (global `Events`
-bus) and killer attribution reads `TurnManager.current_entity` at the
-synchronous death, so kills must be one-at-a-time. See
-`docs/domain/sandbox-framework.md` for the broader sandbox plan.
-
-```
-godot --path . scenes/dev/loot_showcase.tscn
-```
+The **Loot** live tab (`addons/sandbox_host/tabs/50_loot_tab.tscn`, embedding
+`addons/loot_sandbox/loot_sandbox_panel.tscn`, #260) drives a real kill on
+demand and shows the rewards land: the death cascade, a SkillDust relic
+blooming on the victim's former core, and the killer's live XP/level. A phase
+selector demonstrates the per-side-effect kill-switches
+(`award_xp_on_kill` / `drop_skill_dust_on_death`) by toggling one reward off at
+a time. Single attacker + victim, not a parallel grid — LootSystem /
+AllocationSystem / BattleSystem are singletons (global `Events` bus) and killer
+attribution reads `TurnManager.current_entity` at the synchronous death, so
+kills must be one-at-a-time. The victim carries a real CoreClass
+(`balanced_core.tres`) — the #173 core-only draw no-ops without one. **▶ Kill
+victim** writes `current_entity` directly and never ticks the TurnManager
+(auto-tick = played; explicit-step = live — see `sandbox-framework.md`);
+**⟲ Reset** re-arms with muted teardown. No play step, no `godot --path` — the
+tab runs live in the editor.

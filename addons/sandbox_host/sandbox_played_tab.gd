@@ -1,16 +1,21 @@
 @tool
 class_name SandboxPlayedTab
 extends SandboxTab
-## A PLAYED tab: a non-@tool gameplay showcase scene. It can't run in-editor —
-## the systems are deliberately NOT @tool — so this is a launch card: a title,
-## a description, an optional preview thumbnail, and a "▶ Run" button that plays
-## the scene through the editor. (A SubViewport live-embed would dead-end at
-## @tool-ing the systems, the rejected branch — see the design doc.)
+## A PLAYED tab: a launch card for a scene that can't run in-editor because it
+## AUTO-DRIVES — a `_process` + `await` beat cycle, the turn clock, AI — not
+## because its systems are non-`@tool` (they're all `@tool` since #260; any
+## method is callable in-editor, the distinction is who ticks the clock — see
+## docs/domain/sandbox-framework.md). A launch card is a title, a description,
+## an optional preview thumbnail, and a "▶ Run" button that plays the scene
+## through the editor.
 ##
-## Authored as a scene in `addons/sandbox_host/tabs/`; all fields are @exports.
-## `preview` is an optional static screenshot — EditorResourcePreviewGenerator
-## can't help, since the showcase builds its content in _ready (which doesn't
-## run during preview generation), so a thumbnail must be a captured image.
+## **No shipped tab uses this mode since #260** — allocation / loot / toast went
+## live. Kept for genuinely auto-driven surfaces (melee, ranged, full turn
+## loops). Authored as a scene in `addons/sandbox_host/tabs/`; all fields are
+## @exports. `preview` is an optional static screenshot —
+## EditorResourcePreviewGenerator can't help, since the showcase builds its
+## content in _ready (which doesn't run during preview generation), so a
+## thumbnail must be a captured image.
 
 @export var tab_title: String = "Tab"
 @export_file("*.tscn") var scene_path: String

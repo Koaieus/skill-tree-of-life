@@ -1,36 +1,36 @@
-extends Node2D
+@tool
+extends PanelContainer
 
-## Allocation / deallocation / death VFX showcase — a 3×3 grid of self-resetting
-## "animation cells", each looping a single allocation-flavoured scenario against
-## the REAL systems (AllocationSystem + BattleSystem + AllocationVFX +
-## FloaterToasterManager). Because it drives the genuine `allocate` / `deallocate` /
-## `force_deallocate` / `take_damage` paths, the #71 modifier pulses and #70
-## floaters fire for real — the old playground faked the signals and so couldn't.
+## Allocation / deallocation / death VFX LIVE panel (#260) — the played
+## showcase's heir. A 3×3 grid of self-resetting "animation cells", each
+## looping a single allocation-flavoured scenario against the REAL systems
+## (AllocationSystem + BattleSystem + AllocationVFX + FloaterToasterManager).
+## Because it drives the genuine `allocate` / `deallocate` / `force_deallocate` /
+## `take_damage` paths, the #71 modifier pulses and #70 floaters fire for real.
 ##
-## Why code-generated (not a hand-authored 30-node .tscn): the grid is regular
-## and procedural (procgen-shaped). The `.tscn` instances the real `graph.tscn`
-## (so the Graph/Navigator/containers contract is honoured) + a Camera; the cells,
-## entities and systems are composed here. Systems are wired exactly as
-## `GameRoot._ready` wires them — that's the fidelity contract that makes this a
-## trustworthy preview rather than a drifting copy.
+## How it's live (the "auto-tick = played; explicit-step = live" kernel from
+## sandbox-framework.md): the systems are @tool and the panel runs them
+## in-editor, but NOTHING auto-drives. The old showcase ran a `_process` +
+## `await create_timer` SETUP→PLAY loop on an infinite cycle; here the beat is
+## one explicit click of ▶ Play beat (and ⟲ Reset for a setup-only pass).
+## No `_process` label polling either — labels refresh on demand at the end of
+## each beat. The TurnManager is never involved, so the "never tick it in the
+## editor" guardrail is trivially held.
 ##
-## Beat model (user spec): the whole grid runs two global beats on a loop —
-## SETUP (silently reset every cell to its armed state) → PLAY (every cell runs
-## its scenario at once) → SETUP → PLAY → … Setup cosmetics are muted (see
-## `_begin_setup`) so only the PLAY beat shows VFX.
+## The world renders in a SubViewport (SubViewportContainer stretch=true), so
+## container pixels ARE world pixels: the 3×3 grid is laid out against the
+## viewport's live size (spell-playground pattern), no camera needed.
 ##
 ## Each cell renders its entity's live STRENGTH so you can eyeball the gap
-## between the *resolved* gameplay value (updates synchronously on allocate) and
-## the *visual* catching up (pulses/floaters arrive later). That lag is the point.
+## between the *resolved* gameplay value (updates synchronously on allocate)
+## and the *visual* catching up (pulses/floaters arrive later). That lag is
+## the point.
 
 const _SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn")
 const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _DEFAULT_BOARD: Resource = preload("res://entity/default_entity_board.tres")
 
-# --- Tunables (inspector-designable) ----------------------------------------
-@export var col_spacing: float = 520.0     ## px between cell columns
-@export var row_spacing: float = 240.0     ## px between cell rows
-@export var node_spacing: float = 92.0     ## px between nodes within a cell
+# --- Tunables (inspector-designable on the panel scene) ----------------------
 @export var setup_hold: float = 1.1        ## SETUP beat duration (s)
 @export var play_hold: float = 4.2         ## PLAY beat duration (s) — must exceed the longest scenario
 @export var bulk_stagger: float = 0.18     ## s between successive allocations in the bulk-alloc cell
@@ -38,22 +38,35 @@ const _DEFAULT_BOARD: Resource = preload("res://entity/default_entity_board.tres
 @export var sp_base: float = 20.0          ## SP floor re-established every reset (kept high so play never underflows)
 
 # --- Runtime refs ------------------------------------------------------------
-var _graph: Graph
+@onready var graph: Graph = %Graph          ## The embedded world's graph (test/driver hook)
 var _alloc: AllocationSystem
 var _battle: BattleSystem
 var _vfx: AllocationVFX
 var _floaters: FloaterToasterManager
 var _cells: Array[_Cell] = []
-var _beat_label: Label
+var _busy: bool = false
+
+@onready var _play_button: Button = %PlayBeatBtn
+@onready var _reset_button: Button = %ResetBtn
+@onready var _beat_label: Label = %BeatLabel
+@onready var _world: SubViewport = %World
+
+
+## The SandboxLiveTab loader hook. Self-contained — nothing to route in.
+func load_object(_obj: Object) -> void:
+	pass
 
 
 func _ready() -> void:
-	_graph = $Graph
+	_play_button.pressed.connect(play_beat)
+	_reset_button.pressed.connect(reset_world)
+	_world.size_changed.connect(_layout_world)
 	_build_systems()
 	_build_grid()
-	_build_camera()
-	_build_beat_label()
-	_run_loop()
+	_layout_world()
+	# Present the grid ARMED (each cell's initial owned set, muted) so the
+	# scenario topologies are visible before the first beat.
+	reset_world()
 
 
 # --- Composition -------------------------------------------------------------
@@ -64,8 +77,8 @@ func _ready() -> void:
 func _build_systems() -> void:
 	var world = _SANDBOX_WORLD.new()
 	world.name = "SandboxWorld"
-	add_child(world)
-	world.build(_graph)
+	_world.add_child(world)
+	world.build(graph)
 	_alloc = world.allocation_system
 	_battle = world.battle_system
 	_vfx = world.allocation_vfx
@@ -101,14 +114,14 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 	var cell := _Cell.new()
 	cell.kind = kind
 	cell.title = title
+	cell.row = row
+	cell.col = col
 	cell.core_index = _core_index_for(kind)
 	var n_count: int = 1 if kind in ["alloc_single", "dealloc_single", "death_single"] else 5
-	var origin := Vector2(col * col_spacing, row * row_spacing)
 
 	# Nodes (instantiate the real scene — honours the SkillNode contract).
 	for j in n_count:
 		var node: SkillNode = _SKILL_NODE_SCENE.instantiate()
-		node.position = origin + Vector2(j * node_spacing, 0.0)
 		node.base_type_color = color.darkened(0.3)
 		# Every node carries a STR modifier so allocation visibly moves STR; the
 		# modifier-travel target carries three (→ three staggered pulses).
@@ -117,12 +130,12 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 		for _k in mod_count:
 			mods.append(_str_mod(str_per_node))
 		node.modifiers = mods
-		_graph.add_skill_node(node)
+		graph.add_skill_node(node)
 		cell.nodes.append(node)
 
 	# Edges: chain consecutive nodes (single-node cells have none).
 	for j in range(cell.nodes.size() - 1):
-		_graph.add_edge(cell.nodes[j], cell.nodes[j + 1])
+		graph.add_edge(cell.nodes[j], cell.nodes[j + 1])
 
 	# Entity (one per cell → its own EntityNavigator). Parented under the graph's
 	# Entities container so Entity._ready auto-creates the navigator.
@@ -131,63 +144,87 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 	cell.entity.display_name = cell.entity.name
 	cell.entity.color = color
 	cell.entity.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
-	_graph.entities_container.add_child(cell.entity)
+	graph.entities_container.add_child(cell.entity)
 
-	# Per-cell live label (world-space; scales with the camera).
+	# Per-cell live label (world-space; scales with the panel).
 	cell.label = Label.new()
-	cell.label.position = origin + Vector2(-24.0, -86.0)
 	cell.label.add_theme_font_size_override("font_size", 15)
-	add_child(cell.label)
+	_world.add_child(cell.label)
 	return cell
 
 
-func _build_camera() -> void:
-	var cam := $Camera2D as Camera2D
-	if cam == null:
+# --- World layout ------------------------------------------------------------
+
+## Lay the 3×3 grid out against the viewport's live size (SubViewportContainer
+## stretch=true → viewport pixels ARE panel pixels). Cell pitch tracks the
+## smaller axis so the grid never overflows; node spacing scales with it.
+func _layout_world() -> void:
+	var size := _world.size
+	if size.x <= 0.0 or size.y <= 0.0:
 		return
-	# Frame the whole grid: centre on its midpoint, zoom out to fit.
-	var last_col := 2.0
-	var last_row := 2.0
-	var span := Vector2(last_col * col_spacing + 4.0 * node_spacing, last_row * row_spacing)
-	cam.position = span * 0.5
-	cam.zoom = Vector2(0.62, 0.62)
-	cam.make_current()
+	var margin := 40.0
+	var pitch := minf((size.x - 2.0 * margin) / 3.0, (size.y - 2.0 * margin) / 3.0)
+	var node_spacing := pitch * 0.18
+	var origin := Vector2((size.x - 2.0 * pitch) * 0.5, (size.y - 2.0 * pitch) * 0.5)
+	for cell in _cells:
+		var grid_pos := origin + Vector2(cell.col * pitch, cell.row * pitch)
+		for j in cell.nodes.size():
+			cell.nodes[j].position = grid_pos + Vector2(j * node_spacing, 0.0)
+		if cell.label != null:
+			cell.label.position = grid_pos + Vector2(-node_spacing, -pitch * 0.36)
+	for e in graph.get_edges():
+		e.refresh_endpoints()
 
 
-func _build_beat_label() -> void:
-	var layer := CanvasLayer.new()
-	add_child(layer)
-	_beat_label = Label.new()
-	_beat_label.position = Vector2(24, 16)
-	_beat_label.add_theme_font_size_override("font_size", 22)
-	layer.add_child(_beat_label)
+# --- Beats (explicit triggers — nothing auto-runs) ----------------------------
+
+## One full SETUP→PLAY cycle: silently re-arm every cell (muted cosmetics),
+## then run all nine scenarios concurrently. The loop the played showcase ran
+## on an infinite `_process` cycle is now exactly one button press.
+func play_beat() -> void:
+	if _busy or _cells.is_empty():
+		return
+	_busy = true
+	_set_controls_enabled(false)
+
+	_begin_setup()
+	for cell in _cells:
+		_setup_cell(cell)
+	_end_setup()
+	_beat_label.text = "SETUP"
+	await _sleep(setup_hold)
+
+	_beat_label.text = "PLAY"
+	for cell in _cells:
+		# Fire-and-forget: each scenario is its own coroutine so all cells
+		# play concurrently. play_hold must outlast the longest one.
+		_play_cell(cell)
+	await _sleep(play_hold)
+
+	_beat_label.text = "idle — ready"
+	_refresh_labels()
+	_busy = false
+	_set_controls_enabled(true)
 
 
-# --- Beat loop ---------------------------------------------------------------
-
-func _run_loop() -> void:
-	while is_inside_tree():
-		_begin_setup()
-		for cell in _cells:
-			_setup_cell(cell)
-		_end_setup()
-		_beat_label.text = "SETUP"
-		await _sleep(setup_hold)
-
-		_beat_label.text = "PLAY"
-		for cell in _cells:
-			# Fire-and-forget: each scenario is its own coroutine so all cells
-			# play concurrently. play_hold must outlast the longest one.
-			_play_cell(cell)
-		await _sleep(play_hold)
+## Setup beat only — re-arm every cell to its armed state without playing.
+## Synchronous (the full-cycle dust-clearing race is a loot-panel concern).
+func reset_world() -> void:
+	if _busy:
+		return
+	_begin_setup()
+	for cell in _cells:
+		_setup_cell(cell)
+	_end_setup()
+	_beat_label.text = "armed"
+	_refresh_labels()
 
 
 ## Mute cosmetics for the SETUP beat: the silent reset below drives the REAL
 ## force_deallocate / force_allocate primitives (full fidelity), which would
 ## otherwise spew shatters + spikes. `AllocationVFX.muted` early-returns the
-## handlers so nothing spawns at all — cleaner than hiding/freeing transient
-## children (their tweens live on the long-lived VFX node, not the children).
-## Floaters need no muting: setup does no take_damage, so none fire.
+## handlers so nothing spawns at all. Floaters need no muting: setup does no
+## take_damage, so none fire.
 func _begin_setup() -> void:
 	_vfx.muted = true
 
@@ -289,12 +326,17 @@ func _str_mod(v: float) -> StatModifier:
 	return m
 
 
-func _process(_dt: float) -> void:
+func _refresh_labels() -> void:
 	for cell in _cells:
 		if cell.label == null or cell.entity == null or cell.entity.stat_board == null:
 			continue
 		var str_val: Variant = cell.entity.stat_board.get_value(&"strength")
 		cell.label.text = "%s\nSTR %d" % [cell.title, int(str_val) if str_val != null else 0]
+
+
+func _set_controls_enabled(enabled: bool) -> void:
+	_play_button.disabled = not enabled
+	_reset_button.disabled = not enabled
 
 
 func _sleep(seconds: float) -> void:
@@ -306,6 +348,8 @@ func _sleep(seconds: float) -> void:
 class _Cell:
 	var kind: String
 	var title: String
+	var row: int
+	var col: int
 	var nodes: Array[SkillNode] = []
 	var core_index: int = -1
 	var entity: Entity
