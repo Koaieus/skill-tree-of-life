@@ -800,14 +800,16 @@ func get_addons() -> Array[SkillNodeAddon]:
 
 ## Defensive sharpness of this node — the spike magnitude an enemy melee blade
 ## vertex takes when it sweeps in (0 when unspiked). Sums every SpikeRingAddon's
-## `damage` (one quantity drives both the offensive blade_damage and this
-## defensive pop — see docs/design/skill_node_addons.md "Spikes"). Read by
-## BladePopResolver during an attacker's swing resolution (#170).
+## `blade_damage` local modifier (one quantity drives both the offensive
+## blade_damage and this defensive pop — see docs/design/skill_node_addons.md
+## "Spikes"). Read by BladePopResolver during an attacker's swing resolution (#170).
 func get_spike_power() -> float:
 	var total := 0.0
 	for a in _addons:
 		if a is SpikeRingAddon:
-			total += (a as SpikeRingAddon).damage
+			for mod in a.get_local_modifiers():
+				if mod.stat_id == &"blade_damage":
+					total += mod.get_effective_value()
 	return total
 
 

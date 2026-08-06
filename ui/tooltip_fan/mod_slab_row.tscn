@@ -24,6 +24,7 @@ offset_bottom = 22.0
 size_flags_horizontal = 4
 mouse_filter = 1
 script = ExtResource("1_script")
+text_tint_mix = 0.8
 fill_darkness = 1.0
 glow_strength = 0.04
 
@@ -60,6 +61,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 10)
 layout_mode = 2
 size_flags_horizontal = 0
+theme_override_colors/font_color = Color(1.5720325, 1.5720325, 1.5720325, 1)
 theme_override_font_sizes/font_size = 13
 text = "+123 Strength"
 vertical_alignment = 1

@@ -50,7 +50,11 @@ func _setup() -> Dictionary:
 
 	# Spike is a plain direct child of the carrier (#334).
 	var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
-	spike.damage = _SPIKE_POWER
+	var mod := StatModifier.new()
+	mod.stat_id = &"blade_damage"
+	mod.operation = StatModifier.Operation.ADD_BONUS
+	mod.value = _SPIKE_POWER
+	spike.local_modifiers = [mod]
 	spike_node.add_child(spike)
 
 	return {

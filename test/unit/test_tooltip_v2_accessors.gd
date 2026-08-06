@@ -161,11 +161,10 @@ func test_fortification_addon_tooltip_section_regression() -> void:
 
 func test_spike_ring_keeps_its_authored_title_and_payload() -> void:
 	var sn := _make_node("SpikeHost")
-	# damage must be set BEFORE the addon is parented — _on_addon_added reads
-	# get_local_modifiers() synchronously on add_child, which lazily caches the
-	# damage-derived modifier (see SpikeRingAddon._ensure_damage_mod).
+	# The blade_damage contribution is authored on `local_modifiers` in the
+	# addon's own scene — _on_addon_added reads get_local_modifiers()
+	# synchronously on add_child, so it must already be there.
 	var addon := _SPIKE_RING_SCENE.instantiate() as SpikeRingAddon
-	addon.damage = 3.0
 	sn.add_child(addon)
 
 	var sections := sn.get_addon_tooltip_sections()

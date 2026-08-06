@@ -41,7 +41,11 @@ func _setup() -> Dictionary:
 
 	# Spike goes on `member` only — a plain direct child of the carrier (#334).
 	var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
-	spike.damage = _SPIKE_DAMAGE
+	var mod := StatModifier.new()
+	mod.stat_id = &"blade_damage"
+	mod.operation = StatModifier.Operation.ADD_BONUS
+	mod.value = _SPIKE_DAMAGE
+	spike.local_modifiers = [mod]
 	member.add_child(spike)
 
 	return {"graph": graph, "entity": entity, "source": source, "member": member}
