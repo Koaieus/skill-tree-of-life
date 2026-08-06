@@ -27,6 +27,19 @@ signal died
 ## consulted by AI when scoring magic attacks. Promotion of a known spell
 ## into the active slot happens via [member BattleSystem.selected_spell].
 @export var spellbook: SpellBook = null
+
+
+## The entity's spellbook, created empty if it doesn't have one yet. Every
+## entity *has* a book — an empty one is a real state, not an absent one — so
+## granting a spell is never a no-op for lack of somewhere to put it.
+## `entity.tscn` bakes one in; this covers entities built via `Entity.new()`
+## (tests, sandboxes). Prefer this over touching [member spellbook] when you
+## are about to write to the book; reads that tolerate "knows nothing" can
+## still check the field directly.
+func get_spellbook() -> SpellBook:
+	if spellbook == null:
+		spellbook = SpellBook.new()
+	return spellbook
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:

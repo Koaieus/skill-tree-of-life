@@ -17,8 +17,9 @@ func _on_granted(ctx: EffectContext) -> void:
 	super._on_granted(ctx)
 	if spell_def == null or ctx.entity == null:
 		return
-	# TODO: maybe if no spellbook then "granting" should be a no-op?
-	_ensure_spellbook(ctx.entity).add_spell(spell_def, ctx.source_node)
+	# Not a no-op when the entity has no book: every entity *has* one, empty if
+	# it knows nothing — so a grant always has somewhere to land.
+	ctx.entity.get_spellbook().add_spell(spell_def, ctx.source_node)
 
 
 func _on_revoked(ctx: EffectContext) -> void:
@@ -27,9 +28,3 @@ func _on_revoked(ctx: EffectContext) -> void:
 		if book != null:
 			book.remove_spell(spell_def, ctx.source_node)
 	super._on_revoked(ctx)
-
-
-func _ensure_spellbook(entity: Entity) -> SpellBook:
-	if entity.spellbook == null:
-		entity.spellbook = SpellBook.new()
-	return entity.spellbook
