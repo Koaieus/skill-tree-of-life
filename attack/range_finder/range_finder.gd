@@ -70,16 +70,10 @@ func get_visual(_attacker: Entity, _source: SkillNode) -> RangeVisual:
 	return RangeVisual.new()
 
 
-## Per-source reach multiplier sourced from the `spell_range` stat
-## (interpreted as a percent bonus), read node-locally off [param source] —
-## wielder baseline merged with node-local addons, e.g. a range-extender
-## granting local spell_range (#171). Returns 1.0 if no attacker / source
-## (including a null attacker — the deliberate "no scaling" path, e.g. a
-## [CoreClass] aura that should not scale with the caster's `spell_range`).
+## Per-source reach multiplier — delegated to [SpellRangeRules], which owns the
+## rule. A reach model answers "is this within N of that"; deciding what N is
+## for a given caster is a stat question, and used to live here only by accident.
 ## Subclasses scale their base reach by this value so INT-driven boosts
 ## propagate uniformly across hop and euclidean finders.
-# TODO: should rangefinder know about this? this coupling smells
 static func spell_range_multiplier(attacker: Entity, source: SkillNode) -> float:
-	if attacker == null or source == null:
-		return 1.0
-	return 1.0 + float(source.get_local_value(&"spell_range")) / 100.0
+	return SpellRangeRules.multiplier(attacker, source)

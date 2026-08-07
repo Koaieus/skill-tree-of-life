@@ -186,13 +186,13 @@ func _seed_damage() -> float:
 	return SpellResolver.seed_damage(_spell, null, board)
 
 
+## Reach multiplier for the hovered caster — delegated to
+## [method SpellRangeRules.multiplier], which owns the rule. No cast-from node
+## is picked while hovering, so this takes the board path and therefore misses
+## node-local range addons; the finder itself reads them node-locally at cast.
 func _spell_range_multiplier() -> float:
-	if _caster == null or _caster.stat_board == null:
-		return 1.0
-	var s := _caster.stat_board.get_stat(&"spell_range")
-	if s == null:
-		return 1.0
-	return 1.0 + float(s.value) / 100.0
+	var board: StatBoard = _caster.stat_board if _caster != null else null
+	return SpellRangeRules.multiplier(null, null, board)
 
 
 func _resolve_range_finder() -> RangeFinder:
