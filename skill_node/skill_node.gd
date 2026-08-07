@@ -161,12 +161,21 @@ var _bound_owner: Entity = null
 ## [method add_local_modifier] / emptied by [method remove_local_modifier].
 var _local_modifiers: Array[StatModifier] = []
 
+## [b]The four ledgers below are a workaround with a known expiry — see #377.[/b]
+## They all exist for one reason: [StatModifier] carries binding state
+## (`_board` / `_bound_sources`), so a modifier instance cannot be shared across
+## owners. Every grant path that reaches a board from a SHARED source must
+## therefore clone the modifier and then remember the clone in order to detach it
+## again. Three grant paths, three ledgers. #377 removes the binding state, which
+## removes the clone requirement, which leaves these with nothing to remember —
+## its acceptance names all four as deletions, not tidy-ups. Don't refactor them
+## in isolation; the smell is downstream of `StatModifier`, not of `SkillNode`.
+
 ## Composition-swap ledger (#376, decision 8): parent modifier -> the scaled
 ## leaf-set currently applied in its place on its contribution board. Only
-## populated while an override returns an Array; the value path is drif-free
+## populated while an override returns an Array; the value path is drift-free
 ## by construction and keeps no state.
 var _scaled_sets: Dictionary[StatModifier, Array] = {}
-# TODO: wth is this? this smells so bad. 
 
 ## Per-addon clone ledgers (#376). An addon's [member SkillNodeAddon.local_modifiers]
 ## / [member SkillNodeAddon.entity_modifiers] are sub-resources of the addon
@@ -183,12 +192,10 @@ var _scaled_sets: Dictionary[StatModifier, Array] = {}
 ## carrier never held the original).
 var _addon_local_clones: Dictionary[SkillNodeAddon, Array] = {}
 var _addon_entity_clones: Dictionary[SkillNodeAddon, Array] = {}
-# TODO: this doesn't smell, this STINKS
 
 ## Same ledger for the effect path: effect -> scaled leaf-set applied in
 ## place of the effect's granted modifiers on the entity board.
 var _scaled_effect_sets: Dictionary[Effect, Array] = {}
-# TODO: same ledger? same smell.
 
 ## Old fill for the mutator's (old_al, new_al) pair — PoolStat.current_changed
 ## only carries the new value.
