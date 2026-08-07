@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://addons/loot_sandbox/loot_sandbox_panel.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="2_graph"]
-[ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="env_glow"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="bloom_vp"]
 
 [node name="LootSandboxPanel" type="PanelContainer"]
 anchors_preset = 15
@@ -56,14 +56,9 @@ layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 
-[node name="World" type="SubViewport" parent="VBox/WorldContainer"]
-own_world_3d = true
-use_hdr_2d = true
+[node name="World" parent="VBox/WorldContainer" instance=ExtResource("bloom_vp")]
 unique_name_in_owner = true
 size = Vector2i(1280, 720)
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="VBox/WorldContainer/World"]
-environment = ExtResource("env_glow")
 
 [node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
 layout_mode = 1

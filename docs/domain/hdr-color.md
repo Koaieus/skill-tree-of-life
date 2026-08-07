@@ -100,9 +100,20 @@ alpha through the conversion.
 
 - **Root viewport:** the `WorldEnvironment` in `scenes/game_root.tscn`. All three
   level scenes inherit it from the composition root.
-- **SubViewports** (the seven sandbox panels that render into their own `%World`)
-  need **all three** of `own_world_3d = true`, `use_hdr_2d = true`, and a
-  `WorldEnvironment` child. Copy any of them, or `gimbal_3d_showcase.tscn`.
+- **SubViewports:** instance **`ui/theme/bloom_viewport.tscn`** in place of a plain
+  `SubViewport`. It is a `SubViewport` root carrying `own_world_3d`, `use_hdr_2d`
+  and the `WorldEnvironment` — all three of which are required, and all three of
+  which fail *silently* when missed. Because the root of an instanced scene accepts
+  new children without Editable Children, panel content goes straight under it and
+  the `WorldEnvironment` stays invisible inside the instance. Per-panel `size` /
+  `render_target_update_mode` / `unique_name_in_owner` override normally.
+  (`gimbal_3d_showcase.tscn` predates this and rolls its own — leave it.)
+
+  **Gotcha:** the packaged `WorldEnvironment` is internal, so `%WorldEnvironment`
+  does **not** resolve from the instancing scene. Don't reach for it — resources are
+  cached by path, so `load("res://ui/theme/default_game_env.tres")` returns the very
+  instance the packaged scene references, which is how the Bloom tab's sliders drive
+  the live pass.
 - **Tuning surface:** the **Bloom** tab in the sandbox host
   (`addons/bloom_sandbox/`). Its sliders edit the shared resource *in place*, and
   its Save button writes it back — so tuning there is tuning the real dial.

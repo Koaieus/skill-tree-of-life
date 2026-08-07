@@ -48,7 +48,7 @@
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="45_oqsv1"]
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="47_eagb3"]
 [ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_director.tscn" id="48_float"]
-[ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="env_glow"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="bloom_vp"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -491,17 +491,12 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 stretch = true
 
-[node name="World" type="SubViewport" parent="HBox/WorldContainer" unique_id=2092270938]
-own_world_3d = true
-use_hdr_2d = true
+[node name="World" parent="HBox/WorldContainer" unique_id=2092270938 instance=ExtResource("bloom_vp")]
 unique_name_in_owner = true
 handle_input_locally = false
 physics_object_picking = true
 size = Vector2i(2, 960)
 render_target_update_mode = 4
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="HBox/WorldContainer/World"]
-environment = ExtResource("env_glow")
 
 [node name="Background" type="ColorRect" parent="HBox/WorldContainer/World" unique_id=389234317]
 unique_name_in_owner = true

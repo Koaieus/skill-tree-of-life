@@ -131,8 +131,12 @@ func load_object(_obj: Object) -> void:
 
 
 func _ready() -> void:
+	# The packaged `bloom_viewport.tscn` already carries the WorldEnvironment, and
+	# that node is internal to the instance — unreachable by unique name from here.
+	# It doesn't need to be reached: resources are cached by path, so this `load()`
+	# hands back the very instance the scene references. Mutating it from the
+	# sliders therefore drives the live pass.
 	_env = load(_ENV_PATH)
-	%WorldEnvironment.environment = _env
 
 	_build_chart()
 	_build_knobs()
