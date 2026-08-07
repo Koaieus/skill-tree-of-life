@@ -104,6 +104,13 @@ lane is done when its scheduled work ships, not when its topic is exhausted.
 #371's bloom pass is live, so every one of these can be judged against real light
 instead of guessed at. They are file-disjoint from each other — this lane swarms.
 
+> **Blocker on the judging surface, 2026-08-07:** the sandbox host's **Bloom** tab
+> shows no bloom *in the editor* and its sliders are inert (diagnosis on #371;
+> #371 is back to `In progress`). The pass itself is verified working in a running
+> game — this is a tab/editor problem, not an Environment problem, so **don't
+> retune `default_game_env.tres` chasing it.** Until it's fixed, judge glow work by
+> running `scenes/procgen_play_sandbox.tscn`, not in the editor.
+
 1. **#389** RimRing lit-slot arcs at the alert tier — **Ready.** *The* payoff. The
    SDR baseline was already darkened so the unallocated node reads right without
    glow; these arcs are the one thing meant to punch through. Take it first even
