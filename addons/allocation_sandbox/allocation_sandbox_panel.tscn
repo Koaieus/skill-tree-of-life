@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://addons/allocation_sandbox/allocation_sandbox_panel.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="2_graph"]
+[ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="env_glow"]
 
 [node name="AllocationSandboxPanel" type="PanelContainer"]
 anchors_preset = 15
@@ -42,8 +43,13 @@ size_flags_vertical = 3
 stretch = true
 
 [node name="World" type="SubViewport" parent="VBox/WorldContainer"]
+own_world_3d = true
+use_hdr_2d = true
 unique_name_in_owner = true
 size = Vector2i(1280, 720)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="VBox/WorldContainer/World"]
+environment = ExtResource("env_glow")
 
 [node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
 layout_mode = 1

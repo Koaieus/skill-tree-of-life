@@ -1,6 +1,7 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://addons/toast_sandbox/toast_cell.gd" id="1_script"]
+[ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="env_glow"]
 
 [node name="ToastCell" type="SubViewportContainer"]
 script = ExtResource("1_script")
@@ -9,8 +10,13 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="Viewport" type="SubViewport" parent="."]
+own_world_3d = true
+use_hdr_2d = true
 transparent_bg = true
 render_target_update_mode = 2
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Viewport"]
+environment = ExtResource("env_glow")
 
 [node name="Background" type="ColorRect" parent="Viewport"]
 z_index = -1000
