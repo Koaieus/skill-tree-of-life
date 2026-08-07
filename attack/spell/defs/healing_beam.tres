@@ -15,6 +15,9 @@
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="11_lbkbe"]
 [ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="12_k06ak"]
 
+[sub_resource type="Resource" id="heal_beam"]
+script = ExtResource("2_heal")
+
 [sub_resource type="Resource" id="Resource_1sde5"]
 script = ExtResource("5_ar4gq")
 factor = 0.85
@@ -39,9 +42,6 @@ metadata/_custom_type_script = "uid://o0v6inqs5wk6"
 [sub_resource type="Resource" id="Resource_pu3h8"]
 script = ExtResource("12_k06ak")
 metadata/_custom_type_script = "uid://duy3yt7dr5o8t"
-
-[sub_resource type="Resource" id="heal_beam"]
-script = ExtResource("2_heal")
 
 [sub_resource type="Resource" id="Resource_to57e"]
 script = ExtResource("10_g1pe3")
