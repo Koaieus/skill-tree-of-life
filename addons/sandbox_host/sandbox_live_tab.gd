@@ -60,8 +60,10 @@ var _last_loaded_object: Object
 func _ready() -> void:
 	for side in [&"margin_left", &"margin_right", &"margin_top", &"margin_bottom"]:
 		add_theme_constant_override(side, 4)
-	_wire_chrome()
+	# Mount first: a scenically composed tab has no `panel_scene`, so the toolbar's
+	# breadcrumb has to read the source path off the adopted panel itself.
 	_mount_panel()
+	_wire_chrome()
 	_wire_sidebar()
 
 
@@ -84,7 +86,7 @@ func _build_breadcrumb() -> void:
 		return
 	for child in _breadcrumb.get_children():
 		child.queue_free()
-	var path := panel_scene.resource_path if panel_scene != null else ""
+	var path := _panel_source_path()
 	if path.is_empty():
 		return
 	# "res://ui/tooltip_fan/fan_live_panel.tscn" -> ["ui", "tooltip_fan", "file"]
@@ -115,6 +117,15 @@ func _build_breadcrumb() -> void:
 		_breadcrumb.add_child(seg)
 		if not is_file:
 			accum += "/"
+
+
+## The panel's source `.tscn`, for the back-ref toolbar. A scenically composed tab
+## carries no `panel_scene`, so the adopted child's own `scene_file_path` is the
+## authority; the export is only the fallback for tabs not yet migrated.
+func _panel_source_path() -> String:
+	if _panel != null and not _panel.scene_file_path.is_empty():
+		return _panel.scene_file_path
+	return panel_scene.resource_path if panel_scene != null else ""
 
 
 ## Back-ref jump: open the scene (file) or reveal the folder in the FileSystem
@@ -182,20 +193,48 @@ func _wire_sidebar() -> void:
 			child.selected_resource.connect(load_object)
 
 
-## Discard the panel instance and rebuild it fresh from `panel_scene` — the only
-## way to clear state a scene-recreate is meant to fix (see class doc). Reload
-## always re-instances (never re-adopts): the authored child is gone after the
-## first discard, and a fresh `panel_scene` copy is the whole point.
+## Rebuild from scratch — the only way to clear state a scene-recreate is meant to
+## fix (stuck cast state, leftover VFX children, a build-once guard).
+##
+## **The whole tab is the unit of reload**, not the panel. A scenically composed
+## tab has no `panel_scene` to re-instance, and re-instancing was never right
+## anyway: rebuilding the tab from its own `.tscn` puts reload on exactly the same
+## path as a cold open, so a panel can't behave differently after a reload than it
+## did on first mount. That difference is not cosmetic — a panel `add_child`ed
+## after the fact is what stopped the Bloom tab's glow pass from ever running
+## (#371).
+##
+## Falls back to swapping just the panel for a legacy tab that still injects a
+## `panel_scene` and is not hosted by a `SandboxHost`.
 func _on_panel_reload_requested() -> void:
-	if _panel == null:
+	var host := _find_host()
+	if host != null:
+		host.reload_tab(self)
 		return
-	var host := _panel.get_parent()
+	if _panel == null or panel_scene == null:
+		return
+	var panel_host := _panel.get_parent()
 	var old := _panel
 	_panel = null
-	host.remove_child(old)
+	panel_host.remove_child(old)
 	old.queue_free()
-	_panel = _instance_panel(host)
+	_panel = _instance_panel(panel_host)
 	_finish_panel_setup()
+
+
+func _find_host() -> SandboxHost:
+	var node := get_parent()
+	while node != null:
+		if node is SandboxHost:
+			return node
+		node = node.get_parent()
+	return null
+
+
+## The last resource routed in from the Inspector, so a tab rebuild can re-deliver
+## it instead of dropping the user's context on the floor.
+func get_last_loaded_object() -> Object:
+	return _last_loaded_object
 
 
 func get_tab_title() -> String:

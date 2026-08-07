@@ -16,24 +16,6 @@ extends SubViewport
 ## rather than silent.
 
 
-func _ready() -> void:
-	# A viewport's environment mode defaults to INHERIT — it takes the setting from
-	# its PARENT viewport rather than deciding for itself. In a game the parent
-	# chain ends at the root, environments are on, and everything works. Inside an
-	# editor dock the parent is the editor's own main window, which has
-	# environments disabled (the editor UI must not be post-processed) — so the
-	# SubViewport silently inherits "no environment" and the glow pass never runs,
-	# while `own_world_3d`, `use_hdr_2d`, the registered Environment and the HDR
-	# render target all still read perfectly correct. Force it on.
-	#
-	# This is why the same scene blooms on the 2D screen (parented under the
-	# editor's scene-root SubViewport, environments enabled) and not in the
-	# sandbox dock. See `docs/domain/hdr-color.md`.
-	RenderingServer.viewport_set_environment_mode(
-		get_viewport_rid(), RenderingServer.VIEWPORT_ENVIRONMENT_ENABLED
-	)
-
-
 ## The `Environment` this viewport's glow pass is running. Mutate it to drive the
 ## live pass; it is the shared `default_game_env.tres`, never a copy.
 func get_environment_resource() -> Environment:

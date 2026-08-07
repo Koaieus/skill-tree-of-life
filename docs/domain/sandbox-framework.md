@@ -161,9 +161,22 @@ Files:
   (`Mode {LIVE_EDIT, PLAYED}`) every tab scene roots on. The directory-scan
   contract replaces the issue's class-list scan; the `class_name` survives only
   as the runtime `is SandboxTab` guard, not a discovery mechanism.
+> **Bake the panel into the tab scene — `panel_scene` is the legacy path.**
+> A tab should *instance its panel scene inside its own `.tscn`*, under
+> `%PanelHost`, and leave `panel_scene` null. `_mount_panel()` adopts that child
+> (#254). Handing a `PackedScene` to the `@export` and letting `_ready`
+> `add_child` it is **not** equivalent: a `SubViewport` added that way does not
+> run its `WorldEnvironment`'s post-processing inside an editor dock, which cost
+> #371 an entire debugging session with every diagnostic reading green (see
+> `docs/domain/hdr-color.md`, failure mode 5). `70_bloom_tab.tscn` is the
+> reference for the baked form; the rest are still on the export and should be
+> migrated. Reload rebuilds the **whole tab** from its `.tscn` via
+> `SandboxHost.reload_tab()`, so reload and cold open take the same path.
+
 - `sandbox_live_tab.gd` (`SandboxLiveTab`) + `sandbox_live_tab.tscn` (the
-  **scenic base**) — embeds an `@tool` panel via the `panel_scene` `@export`
-  (DI); forwards the inspected resource to its `loader_method` by name. `tab_id`
+  **scenic base**) — embeds an `@tool` panel, either baked scenically under
+  `%PanelHost` (preferred) or via the legacy `panel_scene` `@export` (DI);
+  forwards the inspected resource to its `loader_method` by name. `tab_id`
   is the host's routing key. The base `.tscn` carries the shared chrome: a
   toolbar with a **source-path breadcrumb** (click a folder → reveal it in the
   FileSystem dock; click the file → open the panel scene for tuning, via

@@ -130,7 +130,7 @@ alpha through the conversion.
   `PROPERTY_USAGE_STORAGE` properties *onto* the live object; reassigning your own
   reference just orphans you from the one the viewport holds.
 
-### Four ways glow silently does nothing
+### Five ways glow silently does nothing
 
 All three fail with no error and no warning. In diagnosis order:
 
@@ -163,6 +163,37 @@ All three fail with no error and no warning. In diagnosis order:
    `glow_intensity`, so it runs at Godot's default `0.3` — low. Intensity is the
    knob for *bloom present but weak*; threshold is the knob that makes it
    **absent**. Reaching for the wrong one is how a threshold ends up at 1.53.
+5. **The viewport was `add_child`ed at runtime instead of instanced in a scene.**
+   A `SubViewport` that enters the tree as part of its `.tscn` runs its glow pass.
+   The same node, built by handing a `PackedScene` to an `@export` and
+   `add_child`ing it from `_ready`, does not — inside an editor dock. Found
+   2026-08-07 on the Bloom tab: nulling `panel_scene` on `70_bloom_tab.tscn` and
+   instancing the panel scene *inside* the tab scene fixed it outright, with no
+   other change.
+
+   It is the most expensive of the five to diagnose because **every reading you
+   can take is green**: `use_hdr_2d`, `own_world_3d`, `render_target_update_mode`,
+   `glow_enabled`, `forward_plus/vulkan`, the Environment registered on the
+   viewport's `World3D`, an HDR (`RGBH`) render target, and matching Environment
+   instance ids. Toggling `glow_enabled` does nothing, because the pass is not
+   running at all.
+
+   **The discriminator:** open the panel `.tscn` and look at it on the editor's
+   **2D screen**. Same scene, same process, same `Environment` — if it blooms
+   there and not in the dock, this is your bug, and nothing about the Environment
+   is at fault. (The 2D screen parents the scene under `EditorNode`'s scene-root
+   SubViewport; the dock lives in the editor's main window viewport.)
+
+   **Ruled out empirically, so nobody re-derives them:** parent-viewport
+   `use_hdr_2d`, root-viewport `use_hdr_2d`, nine simultaneous bloom viewports
+   sharing one `Environment` resource, and the editor's redraw schedule
+   (**Update Continuously** changes nothing). All four bloom identically in a
+   game run — and a game run cannot reproduce this at all, which is the trap:
+   the original #371 verification passed for exactly that reason.
+
+   This is the concrete cost of non-scenic sandbox composition, and the reason
+   `.claude/rules/sandbox-host.md` insists a tab be an inherited scene that
+   *instances* its panel. See `docs/domain/sandbox-framework.md`.
 
 Debug in that order, and **debug the Environment through the root viewport, never
 through a SubViewport** — a SubViewport has two extra ways to render inert, so a

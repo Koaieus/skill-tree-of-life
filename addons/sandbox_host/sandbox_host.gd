@@ -44,6 +44,59 @@ func _register_tabs() -> void:
 			_live_tabs[tab.tab_id] = tab
 
 
+## Rebuild one tab from its own `.tscn`, in place.
+##
+## This is the reload path for a **scenically composed** tab — one that instances
+## its panel inside its own scene rather than handing a `PackedScene` to an
+## `@export` for `_ready` to `add_child`. Such a tab has no `panel_scene` to
+## re-instance, and re-instancing was never the right unit anyway: the panel is a
+## child of the tab's scene, so the tab is what reloads.
+##
+## Scenic composition is not a style preference here. A panel that enters the tree
+## as part of its scene and one that is `add_child`ed afterwards are not
+## equivalent — the second is what kept the Bloom tab from ever running its glow
+## pass (#371). Rebuilding from the scene file keeps reload on the same path as a
+## cold open, so the two can't drift.
+func reload_tab(tab: SandboxTab) -> void:
+	var path := tab.scene_file_path
+	if path.is_empty():
+		push_warning("SandboxHost: %s has no scene file to reload from" % tab.name)
+		return
+	var scene := load(path) as PackedScene
+	if scene == null:
+		push_warning("SandboxHost: could not reload %s" % path)
+		return
+	var fresh := scene.instantiate()
+	if not (fresh is SandboxTab):
+		push_warning("SandboxHost: %s root is not a SandboxTab" % path)
+		fresh.queue_free()
+		return
+
+	var idx := tab.get_index()
+	var was_current := _tabs.current_tab == idx
+	var carried: Object = null
+	if tab.has_method(&"get_last_loaded_object"):
+		carried = tab.call(&"get_last_loaded_object")
+	# `tab_id` lives on SandboxLiveTab, not the base — reach it untyped, the same
+	# way `_register_tabs` does, so a PLAYED tab doesn't trip over it.
+	var old_id: Variant = tab.get(&"tab_id")
+	if old_id != null and old_id != &"":
+		_live_tabs.erase(old_id)
+	_tabs.remove_child(tab)
+	tab.queue_free()
+
+	_tabs.add_child(fresh)
+	_tabs.move_child(fresh, idx)
+	_tabs.set_tab_title(idx, fresh.get_tab_title())
+	var new_id: Variant = fresh.get(&"tab_id")
+	if fresh.get_mode() == SandboxTab.Mode.LIVE_EDIT and new_id != null and new_id != &"":
+		_live_tabs[new_id] = fresh
+	if was_current:
+		_tabs.current_tab = idx
+	if is_instance_valid(carried) and fresh.has_method(&"load_object"):
+		fresh.load_object(carried)
+
+
 ## Sorted list of tab scene filenames (numeric prefixes give a stable order).
 func _tab_scene_files() -> Array[String]:
 	var out: Array[String] = []
