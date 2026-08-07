@@ -113,7 +113,15 @@ everything, no gating" phase — flat placeholders, not carved art.
 
 1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass migration + scanline fix + holo dial-in, **#234** idle-loop animations (REOPENED 2026-08-05 — FanAnimation resource landed; the reopened acceptance — self-contained idle object, null = off, opt-in per unit — is implemented and in review), **#236** trace glow, **#281** addon icon placeholder.
 2. ~~**#341** RimRing: allocation dial into the shader + archetype legibility — drone-ready.~~ **CLOSED.**
-3. **#371** emissive text + composable glow (bloom) — blocked on #345's dark fill landing on every panel. All design forks settled (Layer 0/1/2 architecture; `theme_type_variation` palette; alpha stays fade channel; `background_canvas_max_layer = 100`; viewport-wide bloom deferred as fine-for-now). Breadcrule + doc already in: `.claude/rules/hdr-color.md`, `docs/domain/hdr-color.md`.
+3. ~~**#371** emissive text + composable glow (bloom)~~ — **foundation landed 2026-08-07**, `In review`. The blocker (#345's dark fill) closed. The pass is live in the root viewport and all seven sandbox SubViewports; the tier vocabulary is `ui/theme/emissive.gd` + `Tier*` variations in `theme.tres`; the judgement surface is the sandbox host's **Bloom** tab. Six file-disjoint consumer children are now `Ready`:
+   - **#388** Edge lit state emissive (replaces the alpha-dimmed `Line2D` underlay)
+   - **#389** RimRing lit-slot arcs at the alert tier — *the* visual payoff, and the breadcrumb says do it last
+   - **#390** HUD text onto tiers + panel borders
+   - **#391** `fused_panel` `glow_energy` + instance uniforms (consistency refactor, lowest urgency)
+   - **#392** attack + allocation VFX emissive pass (incl. loot-node sparkle)
+   - **#393** strikethrough toast laser-cut trace
+   
+   **Not all six are scheduled** — per rule 6, being `Ready` is eligibility, not the queue. If this lane gets pulled, take **#389** and **#388** first: they are the two the user named concretely, and they carry the whole "the graph looks alive" read. #391 can wait indefinitely. Related glow work that deliberately stayed in its own issue: #236 (fan trace tip), #140 (aura field), #257 (node shatter).
 4. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.
 5. #361 `core_panel.tscn` carries two skins — `Needs design`, blocks nothing but re-bites fan geometry. A *decision*, not a drone unit.
 
