@@ -405,6 +405,12 @@ func _build_diagnostics() -> void:
 	var world := _world.find_world_3d()
 	var registered: Environment = world.environment if world != null else null
 	_diagnostics.text = "\n".join([
+		# Compatibility always renders 2D in low dynamic range, so `use_hdr_2d` is
+		# ignored there and no amount of Environment tuning can produce a glow.
+		"renderer          %s / %s" % [
+			RenderingServer.get_current_rendering_method(),
+			RenderingServer.get_current_rendering_driver_name(),
+		],
 		"use_hdr_2d        %s" % _world.use_hdr_2d,
 		"own_world_3d      %s" % _world.own_world_3d,
 		"update_mode       %s" % _world.render_target_update_mode,

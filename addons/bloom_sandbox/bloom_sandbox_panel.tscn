@@ -71,6 +71,15 @@ custom_minimum_size = Vector2(300, 0)
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
+[node name="Diagnostics" type="Label" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+tooltip_text = "The four ways glow silently does nothing — see docs/domain/hdr-color.md"
+theme_override_colors/font_color = Color(0.55, 0.62, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "diagnostics"
+
+[node name="Sep0" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+
 [node name="Knobs" type="VBoxContainer" parent="Split/Sidebar/SidebarBox"]
 unique_name_in_owner = true
 theme_override_constants/separation = 8
@@ -106,11 +115,3 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 autowrap_mode = 2
 
-[node name="Sep3" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
-
-[node name="Diagnostics" type="Label" parent="Split/Sidebar/SidebarBox"]
-unique_name_in_owner = true
-tooltip_text = "The four ways glow silently does nothing — see docs/domain/hdr-color.md"
-theme_override_colors/font_color = Color(0.55, 0.62, 0.68, 1)
-theme_override_font_sizes/font_size = 11
-text = "diagnostics"
