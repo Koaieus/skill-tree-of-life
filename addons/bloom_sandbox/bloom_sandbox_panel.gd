@@ -126,6 +126,8 @@ class ShapeCell:
 @onready var _status: Label = %Status
 
 var _env: Environment
+## Filled in by `_probe_render_target()` one frame after the first draw.
+var _render_target_note := "probing…"
 
 
 ## No-op: the bloom chart is self-contained and routes no inspected resource.
@@ -145,6 +147,7 @@ func _ready() -> void:
 	_build_chart()
 	_build_knobs()
 	_build_diagnostics()
+	_probe_render_target()
 
 	# `edit_intensity` is the `I` slider — the ergonomic way to author an HDR
 	# colour. It is the same conversion `Emissive.at()` does in code, so a colour
@@ -311,14 +314,18 @@ func _build_knobs() -> void:
 	var enabled := CheckBox.new()
 	enabled.text = "Glow enabled"
 	enabled.button_pressed = _env.glow_enabled
-	enabled.toggled.connect(func(on: bool) -> void: _env.glow_enabled = on)
+	enabled.toggled.connect(func(on: bool) -> void:
+		_env.glow_enabled = on
+		_build_diagnostics())
 	_knobs.add_child(enabled)
 
 	var blend := OptionButton.new()
 	for i in _BLEND_MODES.size():
 		blend.add_item(_BLEND_MODES[i], i)
 	blend.selected = _env.glow_blend_mode
-	blend.item_selected.connect(func(i: int) -> void: _env.glow_blend_mode = i)
+	blend.item_selected.connect(func(i: int) -> void:
+		_env.glow_blend_mode = i
+		_build_diagnostics())
 	_knobs.add_child(_labelled("Blend mode", blend))
 
 	for spec in _SLIDERS:
@@ -340,7 +347,10 @@ func _slider(property: String, text: String, low: float, high: float, step: floa
 	slider.value = _env.get(property)
 	slider.value_changed.connect(func(v: float) -> void:
 		_env.set(property, v)
-		readout.call(v))
+		readout.call(v)
+		# Keep the threshold/intensity lines honest while you drag — a stale
+		# readout next to a live chart is worse than none.
+		_build_diagnostics())
 	box.add_child(slider)
 
 	readout.call(slider.value)
@@ -388,19 +398,50 @@ func _build_diagnostics() -> void:
 		_diagnostics.text = "NO ENVIRONMENT — %World handed back null. The packaged\nWorldEnvironment is missing or has no environment set."
 		return
 	var cached := load(_ENV_PATH) as Environment
-	var same := cached == _env
+	# The one that discriminates "the pass isn't running" from "the Environment
+	# never reached the renderer": `WorldEnvironment` registers by writing the
+	# resource onto its viewport's World3D. If this reads null, no amount of
+	# correct Environment tuning can matter — nothing is holding it.
+	var world := _world.find_world_3d()
+	var registered: Environment = world.environment if world != null else null
 	_diagnostics.text = "\n".join([
 		"use_hdr_2d        %s" % _world.use_hdr_2d,
 		"own_world_3d      %s" % _world.own_world_3d,
 		"update_mode       %s" % _world.render_target_update_mode,
 		"glow_enabled      %s" % _env.glow_enabled,
 		"blend_mode        %s" % _BLEND_MODES[_env.glow_blend_mode],
+		"threshold         %.2f" % _env.glow_hdr_threshold,
+		"intensity         %.2f" % _env.glow_intensity,
 		"env id (rendered) %s" % _env.get_instance_id(),
 		"env id (cached)   %s  %s" % [
 			cached.get_instance_id() if cached != null else "null",
-			"✓ same" if same else "✗ DIFFERENT — Save writes a copy",
+			"✓ same" if cached == _env else "✗ DIFFERENT — sliders drive an orphan",
 		],
+		"world3d env       %s" % (
+			"✓ registered" if registered == _env
+			else "✗ NOT REGISTERED — WorldEnvironment never took"
+		),
+		"render target     %s" % _render_target_note,
 	])
+
+
+## The render target's pixel format is the ground truth for `use_hdr_2d`: the flag
+## can read `true` on the node while the target was allocated 8-bit anyway, and an
+## 8-bit target clamps at 1.0, so nothing can ever exceed the threshold. Probed
+## once, after a drawn frame — the texture does not exist before then.
+func _probe_render_target() -> void:
+	await RenderingServer.frame_post_draw
+	if not is_inside_tree():
+		return
+	var texture := _world.get_texture()
+	var image := texture.get_image() if texture != null else null
+	if image == null:
+		_render_target_note = "unavailable"
+	elif image.get_format() == Image.FORMAT_RGBAH:
+		_render_target_note = "FORMAT_RGBAH  ✓ HDR"
+	else:
+		_render_target_note = "format %d  ✗ not HDR — clamps at 1.0" % image.get_format()
+	_build_diagnostics()
 
 
 # --- persistence -----------------------------------------------------------

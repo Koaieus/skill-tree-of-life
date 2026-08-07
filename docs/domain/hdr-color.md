@@ -146,15 +146,23 @@ All three fail with no error and no warning. In diagnosis order:
    *shared* world.** In the editor that is the editor's own world — it collides
    with the editor's environment and leaks between panels. Glow still works; the
    damage is elsewhere.
-4. **A saved `glow_hdr_threshold` above your content.** The dial is one shared
-   file, and the Bloom tab's Save writes it — so a tuning session that ends on
-   `glow_hdr_threshold = 1.5` leaves *every* surface in the project inert up to
-   the `ALERT` tier, with a clean `git diff` as the only trace. Check
-   `git diff ui/theme/default_game_env.tres` before believing a scene is at fault,
-   and use the tab's **Reset** to get back. (Related: the file deliberately omits
-   `glow_intensity`, so it runs at Godot's default `0.3` — low. That is the knob
-   to reach for when bloom is present but weak; the threshold is the knob that
-   makes it absent.)
+4. **A stray `glow_hdr_threshold` above your content — which the editor will
+   persist without being asked.** The dial is one shared file. The Bloom tab's
+   sliders mutate that *resource*, so the editor marks it dirty and writes it on
+   its own save cycle — **pressing the tab's Save button is not required**, and a
+   session spent scrubbing sliders can leave `glow_hdr_threshold = 1.53` on disk
+   with nothing on screen saying so. At that threshold the `VALUE` tier (linear
+   ≈1.42) is *below* the floor, so every surface in the project up to `ALERT`
+   goes inert — and with almost nothing lit, dragging Intensity or Strength then
+   appears to do nothing either, because there is nothing to amplify. Observed
+   2026-08-07; it is what the Bloom tab's "the sliders are inert" report turned
+   out to be. **Check `git diff ui/theme/default_game_env.tres` first**, before
+   believing a scene or a viewport is at fault.
+
+   Related, and the reason the failure is easy to walk into: the file omits
+   `glow_intensity`, so it runs at Godot's default `0.3` — low. Intensity is the
+   knob for *bloom present but weak*; threshold is the knob that makes it
+   **absent**. Reaching for the wrong one is how a threshold ends up at 1.53.
 
 Debug in that order, and **debug the Environment through the root viewport, never
 through a SubViewport** — a SubViewport has two extra ways to render inert, so a

@@ -9,9 +9,11 @@ extends SubViewport
 ## scene that instances it. A tuning panel therefore has no way to reach the
 ## Environment that is actually rendering — and the previous answer, "resources
 ## are cached by path, so `load()` hands back the same instance", is an
-## assumption about the resource cache rather than a fact about this tree. It is
-## what broke the Bloom tab in the editor. The scene hands the object out itself
-## instead; identity is then true by construction.
+## assumption about the resource cache rather than a fact about this tree. It was
+## never checked in the editor, which is where every tuning panel lives. The
+## scene hands the object out itself instead; identity is true by construction,
+## and the Bloom tab prints both instance ids so a future divergence is visible
+## rather than silent.
 
 
 ## The `Environment` this viewport's glow pass is running. Mutate it to drive the
