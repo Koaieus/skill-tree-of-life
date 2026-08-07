@@ -1,8 +1,8 @@
 # Handoff — TODO sweep of the 2026-08-07 WIP commit
 
 Second pass, 2026-08-07 evening: folded in the TODOs added during playtesting.
-**Everything below now points at an issue. Delete this file once #381 and #382
-are picked up** — nothing else here is load-bearing.
+**Everything below now points at an issue. Delete this file once #381 is picked
+up** — nothing else here is load-bearing.
 
 ## Open — needs a decision or a body
 
@@ -11,14 +11,21 @@ are picked up** — nothing else here is load-bearing.
   outcomes rather than the instance applying itself. Full design research is in
   the issue body — read it rather than re-deriving. Blocks further work on
   `magic_bounce_coordinator.gd`. **Untouched by both passes.**
-- **#382** (`Needs design`, P1) — magic-channel `spell_dpa` 5x below the
-  committed `tools/balance/snapshot.md`. **Now attributed** (comment,
-  2026-08-07): c996185 regenerates the committed 40/20/40/10, so the drift does
-  NOT predate that session and the WIP commit is ruled out. Combined with the
-  body's own reasoning that leaves **`ac7141b`** as the sole suspect — meaning
-  the regression is in one of the two call sites it consolidated, not the
-  harness path already inspected. Forward bisect to confirm is the next step.
-  `snapshot.md` stays **reverted, not committed**.
+
+## Closed — #382 (magic-channel `spell_dpa` drift)
+
+**Closed by the user 2026-08-07, unfixed and deliberately.** One measurement
+landed on it first: c996185 regenerates the committed 40/20/40/10, so the drift
+is *forward* of the WIP commit rather than predating it. The issue comment goes
+on to name `ac7141b` as the sole remaining suspect — **treat that as unproven.**
+It leans on the body's four-commit list, but the c996185..47ebc5e window holds
+25 commits, and "the seed alone, unmultiplied" is the signature of lost *hop*
+contributions rather than of the seeding consolidation `ac7141b` performed. A
+bisect was started and abandoned when the issue was closed.
+
+`tools/balance/snapshot.md` stays **reverted, not committed** — the suite
+regenerates it on every run, so check `git status` before committing anything
+near it.
 
 ## Filed this pass
 
