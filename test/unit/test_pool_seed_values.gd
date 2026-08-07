@@ -86,19 +86,41 @@ func test_attribute_mul_starts_at_t3() -> void:
 
 
 func test_every_flattened_entry_cost_is_legal() -> void:
-	# #326 acceptance 4 — no unrollable content. Every flattened entry across
-	# ALL packs must cost 1..8 (the ladder's span; the v3 16 dead rungs are
-	# gone with the v3 model), and debuff pools exactly -1 (single-tier refund).
+	# #326 acceptance 4 — no unrollable content. Every flattened entry across ALL
+	# packs costs a legal ladder rung: 1/2/4/8 for a buff, and the NEGATION of
+	# that rung for a debuff (it refunds budget instead of spending it).
+	#
+	# This used to demand debuffs cost exactly -1, i.e. debuffs were single-tier
+	# by decree. `StatPool.to_entries` never implemented that restriction — it
+	# has always emitted `-TierLadder.cost(t)` across the pool's whole
+	# min_tier..max_tier span — so the assert was pinning a rule only the test
+	# believed in, and any debuff pool authored past tier 1 failed it.
+	#
+	# Laddered debuffs are the intended reading (settled 2026-08-07): the CON
+	# pack's INT debuff at unit -2% runs -2% / -6% / -14% across T1..T3 (the
+	# value ladder is 1/3/7), refunding -1 / -2 / -4. A deeper debuff hurts more
+	# AND refunds more, in lockstep — so a bigger refund is never free budget.
+	var legal_rungs: Array[int] = []
+	for t in range(TierLadder.MIN_TIER, TierLadder.MAX_TIER + 1):
+		legal_rungs.append(TierLadder.cost(t))
+
 	var checked := 0
+	var debuffs_seen := 0
 	for pack in _SET.packs:
 		for sp in pack.pools:
 			var p: StatPool = sp as StatPool
 			var is_debuff := p.unit_value < 0.0
 			for e in p.to_entries():
 				checked += 1
+				assert_true(legal_rungs.has(absi(e.cost)),
+						"%s cost %d is not a ladder rung %s"
+						% [String(p.stat_id), e.cost, str(legal_rungs)])
 				if is_debuff:
-					assert_eq(e.cost, -1, "debuff %s entry cost must be exactly -1 (D9)" % String(p.stat_id))
+					debuffs_seen += 1
+					assert_lt(e.cost, 0,
+							"debuff %s must refund, not charge" % String(p.stat_id))
 				else:
-					assert_true(e.cost >= 1 and e.cost <= 8,
-							"%s T-cost %d out of legal 1..8" % [String(p.stat_id), e.cost])
+					assert_gt(e.cost, 0,
+							"buff %s must charge, not refund" % String(p.stat_id))
 	assert_gt(checked, 20, "sweep should cover the whole specimen set")
+	assert_gt(debuffs_seen, 0, "the specimen set still contains a debuff pool at all")
