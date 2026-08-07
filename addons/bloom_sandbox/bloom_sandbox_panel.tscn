@@ -1,30 +1,34 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://cu5shtiygt6fi"]
 
-[ext_resource type="Script" path="res://addons/bloom_sandbox/bloom_sandbox_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://cwfyuganmu0ts" path="res://addons/bloom_sandbox/bloom_sandbox_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
 
-[node name="BloomSandboxPanel" type="PanelContainer"]
+[node name="BloomSandboxPanel" type="PanelContainer" unique_id=172407211]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource("1_panel")
 
-[node name="Split" type="HSplitContainer" parent="."]
+[node name="Split" type="HSplitContainer" parent="." unique_id=608216351]
+layout_mode = 2
+split_offsets = PackedInt32Array(1000)
 split_offset = 1000
 
-[node name="Scroll" type="ScrollContainer" parent="Split"]
+[node name="Scroll" type="ScrollContainer" parent="Split" unique_id=871324281]
+layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ViewportContainer" type="SubViewportContainer" parent="Split/Scroll"]
+[node name="ViewportContainer" type="SubViewportContainer" parent="Split/Scroll" unique_id=975573629]
+layout_mode = 2
 
-[node name="World" parent="Split/Scroll/ViewportContainer" instance=ExtResource("2_vp")]
+[node name="World" parent="Split/Scroll/ViewportContainer" unique_id=223237885 instance=ExtResource("2_vp")]
 unique_name_in_owner = true
 handle_input_locally = false
 size = Vector2i(1290, 615)
 render_target_update_mode = 4
 
-[node name="Bg" type="ColorRect" parent="Split/Scroll/ViewportContainer/World"]
+[node name="Bg" type="ColorRect" parent="Split/Scroll/ViewportContainer/World" unique_id=508658653]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -32,7 +36,7 @@ offset_right = 1290.0
 offset_bottom = 615.0
 color = Color(0.02, 0.025, 0.035, 1)
 
-[node name="Margin" type="MarginContainer" parent="Split/Scroll/ViewportContainer/World"]
+[node name="Margin" type="MarginContainer" parent="Split/Scroll/ViewportContainer/World" unique_id=798073157]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -43,75 +47,109 @@ theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="Content" type="VBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin"]
+[node name="Content" type="VBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin" unique_id=1250809188]
+layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Rows" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content"]
+[node name="Rows" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content" unique_id=681832775]
 unique_name_in_owner = true
+layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="PickerRow" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content"]
+[node name="PickerRow" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content" unique_id=683672916]
+layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="PickerSwatch" type="ColorRect" parent="Split/Scroll/ViewportContainer/World/Margin/Content/PickerRow"]
+[node name="PickerSwatch" type="ColorRect" parent="Split/Scroll/ViewportContainer/World/Margin/Content/PickerRow" unique_id=102076201]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(180, 64)
+layout_mode = 2
+color = Color(1.1645098, 1.2221748, 1.2841113, 1)
 
-[node name="PickerText" type="Label" parent="Split/Scroll/ViewportContainer/World/Margin/Content/PickerRow"]
+[node name="PickerText" type="Label" parent="Split/Scroll/ViewportContainer/World/Margin/Content/PickerRow" unique_id=1094112511]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(300, 0)
-vertical_alignment = 1
+layout_mode = 2
+theme_override_colors/font_color = Color(1.1645098, 1.2221748, 1.2841113, 1)
 theme_override_font_sizes/font_size = 30
 text = "picked"
+vertical_alignment = 1
 
-[node name="Sidebar" type="ScrollContainer" parent="Split"]
+[node name="Sidebar" type="ScrollContainer" parent="Split" unique_id=1882815732]
 custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
 
-[node name="SidebarBox" type="VBoxContainer" parent="Split/Sidebar"]
+[node name="SidebarBox" type="VBoxContainer" parent="Split/Sidebar" unique_id=1796047202]
+layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="Diagnostics" type="Label" parent="Split/Sidebar/SidebarBox"]
+[node name="Diagnostics" type="Label" parent="Split/Sidebar/SidebarBox" unique_id=111303093]
 unique_name_in_owner = true
+layout_mode = 2
 tooltip_text = "The four ways glow silently does nothing — see docs/domain/hdr-color.md"
 theme_override_colors/font_color = Color(0.55, 0.62, 0.68, 1)
 theme_override_font_sizes/font_size = 11
-text = "diagnostics"
+text = "renderer          forward_plus / vulkan
+use_hdr_2d        true
+own_world_3d      true
+update_mode       4
+glow_enabled      true
+blend_mode        Screen
+threshold         1.00
+intensity         0.30
+env id (rendered) -9223370279340661686
+env id (cached)   -9223370279340661686  ✓ same
+world3d env       ✓ registered
+render target     format 14  ✗ not HDR — clamps at 1.0"
 
-[node name="Sep0" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+[node name="Sep0" type="HSeparator" parent="Split/Sidebar/SidebarBox" unique_id=384874884]
+layout_mode = 2
 
-[node name="Knobs" type="VBoxContainer" parent="Split/Sidebar/SidebarBox"]
+[node name="Knobs" type="VBoxContainer" parent="Split/Sidebar/SidebarBox" unique_id=1616971644]
 unique_name_in_owner = true
+layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Sep" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+[node name="Sep" type="HSeparator" parent="Split/Sidebar/SidebarBox" unique_id=1256281234]
+layout_mode = 2
 
-[node name="Buttons" type="HBoxContainer" parent="Split/Sidebar/SidebarBox"]
+[node name="Buttons" type="HBoxContainer" parent="Split/Sidebar/SidebarBox" unique_id=2059239547]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="SaveButton" type="Button" parent="Split/Sidebar/SidebarBox/Buttons"]
+[node name="SaveButton" type="Button" parent="Split/Sidebar/SidebarBox/Buttons" unique_id=1505114738]
 unique_name_in_owner = true
+layout_mode = 2
 size_flags_horizontal = 3
-text = "Save"
 tooltip_text = "Write the live values to res://ui/theme/default_game_env.tres"
+text = "Save"
 
-[node name="ResetButton" type="Button" parent="Split/Sidebar/SidebarBox/Buttons"]
+[node name="ResetButton" type="Button" parent="Split/Sidebar/SidebarBox/Buttons" unique_id=2010147210]
 unique_name_in_owner = true
+layout_mode = 2
 size_flags_horizontal = 3
-text = "Reset"
 tooltip_text = "Re-read default_game_env.tres from disk, discarding unsaved drags"
+text = "Reset"
 
-[node name="Status" type="Label" parent="Split/Sidebar/SidebarBox"]
+[node name="Status" type="Label" parent="Split/Sidebar/SidebarBox" unique_id=1119836183]
 unique_name_in_owner = true
-autowrap_mode = 2
+layout_mode = 2
 text = "Sliders edit the shared Environment live. Save writes it to disk."
-
-[node name="Sep2" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
-
-[node name="Picker" type="ColorPicker" parent="Split/Sidebar/SidebarBox"]
-unique_name_in_owner = true
-
-[node name="PickerLabel" type="Label" parent="Split/Sidebar/SidebarBox"]
-unique_name_in_owner = true
 autowrap_mode = 2
 
+[node name="Sep2" type="HSeparator" parent="Split/Sidebar/SidebarBox" unique_id=1200651839]
+layout_mode = 2
+
+[node name="Picker" type="ColorPicker" parent="Split/Sidebar/SidebarBox" unique_id=623856987]
+unique_name_in_owner = true
+layout_mode = 2
+color = Color(1.1645098, 1.2221748, 1.2841113, 1)
+
+[node name="PickerLabel" type="Label" parent="Split/Sidebar/SidebarBox" unique_id=165699289]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Color(1.1645, 1.2222, 1.2841)
+linear luminance 1.560  (threshold 1.00)
+BLOOMS"
+autowrap_mode = 2

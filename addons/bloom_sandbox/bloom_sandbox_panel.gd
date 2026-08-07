@@ -443,10 +443,18 @@ func _probe_render_target() -> void:
 	var image := texture.get_image() if texture != null else null
 	if image == null:
 		_render_target_note = "unavailable"
-	elif image.get_format() == Image.FORMAT_RGBAH:
-		_render_target_note = "FORMAT_RGBAH  ✓ HDR"
-	else:
-		_render_target_note = "format %d  ✗ not HDR — clamps at 1.0" % image.get_format()
+		_build_diagnostics()
+		return
+	# Any float format clears the 1.0 ceiling. Forward+ reports RGBH here, not the
+	# RGBAH you'd guess from "RGBA16F" — checking for one exact format reported a
+	# correct HDR target as broken.
+	var format := image.get_format()
+	var hdr := format in [
+		Image.FORMAT_RGBH, Image.FORMAT_RGBAH, Image.FORMAT_RGBF, Image.FORMAT_RGBAF,
+	]
+	_render_target_note = "format %d  %s" % [
+		format, "✓ HDR" if hdr else "✗ not HDR — clamps at 1.0",
+	]
 	_build_diagnostics()
 
 
