@@ -1,0 +1,368 @@
+@tool
+extends PanelContainer
+## Bloom sandbox — the reference chart for #371's glow pass, and the live dial
+## for tuning it.
+##
+## Two jobs:
+##
+## 1. **Reference.** Squares and text at I = −1 / 0 / +1 / +2 / +3, drawn over
+##    both a dark fill and a bright one — because the bloom threshold applies to
+##    the *composited pixel*, not to the element. The same tier over a bright
+##    world pixel blooms differently, and that is the single most confusing thing
+##    about authoring emissive content.
+##
+## 2. **The dial.** The sliders edit `default_game_env.tres` **in place** — the
+##    very resource the game and every other sandbox panel share — so what you
+##    see here is what ships. Nothing is written to disk until you press Save.
+##
+## Diagnostic worth knowing: if the +1 / +2 / +3 rows ever read as one identical
+## clipped white, the tonemapper is compressing them, and no amount of threshold
+## fiddling will separate them.
+##
+## See `docs/domain/hdr-color.md` for the stop → encoded-`Color` derivation.
+
+const _ENV_PATH := "res://ui/theme/default_game_env.tres"
+
+## The chart's rows. Note −1 is included deliberately: it is the only way to see
+## what "below the floor" looks like next to the tiers that clear it.
+const _STOPS: Array[float] = [-1.0, 0.0, 1.0, 2.0, 3.0]
+
+## Bases the chart is drawn in. Neutral first (the untinted default), then a few
+## identity hues, so you can see that a saturated base clears the threshold in
+## some channels before others.
+const _BASES: Array[Dictionary] = [
+	{"name": "neutral", "color": Color(0.8586, 0.9018, 0.9482)},
+	{"name": "cyan", "color": Color(0.0, 0.72, 0.881)},
+	{"name": "crimson", "color": Color(0.8878, 0.203, 0.2233)},
+	{"name": "gold", "color": Color(0.8909, 0.7204, 0.2596)},
+]
+
+## Slider specs: property, label, min, max, step. `glow_levels/N` are here
+## because level weights — not intensity — are what decide whether glow reads as
+## a tight core (levels 1–2) or a wide neon rim (levels 4–7).
+const _SLIDERS: Array[Array] = [
+	["glow_intensity", "Intensity", 0.0, 8.0, 0.05],
+	["glow_strength", "Strength", 0.0, 2.0, 0.01],
+	["glow_hdr_threshold", "HDR threshold", 0.0, 4.0, 0.01],
+	["glow_hdr_scale", "HDR scale", 0.0, 4.0, 0.01],
+	["glow_bloom", "Bloom (lifts ALL pixels)", 0.0, 1.0, 0.01],
+	["glow_levels/1", "Level 1 (tightest)", 0.0, 2.0, 0.05],
+	["glow_levels/2", "Level 2", 0.0, 2.0, 0.05],
+	["glow_levels/3", "Level 3", 0.0, 2.0, 0.05],
+	["glow_levels/4", "Level 4", 0.0, 2.0, 0.05],
+	["glow_levels/5", "Level 5", 0.0, 2.0, 0.05],
+	["glow_levels/6", "Level 6", 0.0, 2.0, 0.05],
+	["glow_levels/7", "Level 7 (widest)", 0.0, 2.0, 0.05],
+]
+
+const _BLEND_MODES: Array[String] = ["Additive", "Screen", "Softlight", "Replace", "Mix"]
+
+## Shapes, in ascending lit-pixel density. This axis matters as much as the stop
+## axis: bloom accumulates from *neighbouring* lit pixels, so a hairline and a
+## filled rect at the identical colour glow completely differently. Tune against
+## the row that matches the thing you are actually lighting — the rim arcs and
+## edges this project mostly wants to light are strokes, not fills.
+const _SHAPES: Array[Dictionary] = [
+	{"name": "hairline", "kind": ShapeCell.HAIRLINE},
+	{"name": "stroke", "kind": ShapeCell.STROKE},
+	{"name": "ring", "kind": ShapeCell.RING},
+	{"name": "arc", "kind": ShapeCell.ARC},
+	{"name": "disc", "kind": ShapeCell.DISC},
+	{"name": "outline", "kind": ShapeCell.OUTLINE},
+	{"name": "fill", "kind": ShapeCell.FILL},
+]
+
+
+## A single primitive drawn at one emissive value. Exists because bloom reads
+## *coverage*, and a chart made only of filled rects teaches the wrong lesson.
+class ShapeCell:
+	extends Control
+
+	enum { HAIRLINE, STROKE, RING, ARC, DISC, OUTLINE, FILL }
+
+	var kind: int = FILL
+	var tint: Color = Color.WHITE
+
+	func _init(p_kind: int, p_tint: Color) -> void:
+		kind = p_kind
+		tint = p_tint
+		custom_minimum_size = Vector2(96.0, 46.0)
+
+	func _draw() -> void:
+		var rect := Rect2(Vector2.ZERO, size)
+		var mid := size * 0.5
+		var radius: float = minf(size.x, size.y) * 0.36
+		match kind:
+			HAIRLINE:
+				draw_line(Vector2(6.0, mid.y), Vector2(size.x - 6.0, mid.y), tint, 1.0, true)
+			STROKE:
+				draw_line(Vector2(6.0, mid.y), Vector2(size.x - 6.0, mid.y), tint, 5.0, true)
+			RING:
+				draw_arc(mid, radius, 0.0, TAU, 48, tint, 2.0, true)
+			ARC:
+				# The rim-arc case specifically: a thick partial ring, which is what
+				# `rim_ring.gdshader` paints for a lit slot.
+				draw_arc(mid, radius, -0.9, 1.5, 32, tint, 6.0, true)
+			DISC:
+				draw_circle(mid, radius, tint)
+			OUTLINE:
+				draw_rect(rect.grow(-8.0), tint, false, 2.0)
+			FILL:
+				draw_rect(rect.grow(-8.0), tint)
+
+@onready var _rows: HBoxContainer = %Rows
+@onready var _knobs: VBoxContainer = %Knobs
+@onready var _picker: ColorPicker = %Picker
+## The live sample lives INSIDE the bloom viewport — a swatch in the sidebar
+## would render in the editor's own viewport and could never glow.
+@onready var _picker_swatch: ColorRect = %PickerSwatch
+@onready var _picker_text: Label = %PickerText
+## The numeric readout, in the sidebar, where it must stay inert to be legible.
+@onready var _picker_label: Label = %PickerLabel
+@onready var _save_button: Button = %SaveButton
+@onready var _status: Label = %Status
+
+var _env: Environment
+
+
+## No-op: the bloom chart is self-contained and routes no inspected resource.
+func load_object(_obj: Object) -> void:
+	pass
+
+
+func _ready() -> void:
+	_env = load(_ENV_PATH)
+	%WorldEnvironment.environment = _env
+
+	_build_chart()
+	_build_knobs()
+
+	# `edit_intensity` is the `I` slider — the ergonomic way to author an HDR
+	# colour. It is the same conversion `Emissive.at()` does in code, so a colour
+	# dialled here can be transcribed verbatim into a tier constant.
+	_picker.edit_intensity = true
+	_picker.color = Emissive.neutral(Emissive.VALUE)
+	_picker.color_changed.connect(_on_picked)
+	_on_picked(_picker.color)
+
+	_save_button.pressed.connect(_save_env)
+
+
+# --- the chart -------------------------------------------------------------
+
+## Two columns: colour on the left, coverage on the right. `%Rows` is an HBox and
+## the render target is fixed-size, so the chart never reflows and never clips —
+## the surrounding ScrollContainer handles a small panel.
+func _build_chart() -> void:
+	for child in _rows.get_children():
+		child.queue_free()
+
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 14)
+	_rows.add_child(left)
+	# The same tier composites differently against a dark fill and a lit one, and
+	# the threshold sees the composite — hence two backdrops. The bright band is
+	# neutral-only: one row makes the point, four would just cost height.
+	_add_band(left, "bases  ·  over dark fill", Color(0.04, 0.05, 0.07), _base_rows)
+	_add_band(left, "neutral  ·  over bright fill", Color(0.55, 0.58, 0.62), _neutral_row)
+
+	var right := VBoxContainer.new()
+	_rows.add_child(right)
+	# Coverage over dark only — doubling this axis across backdrops teaches
+	# nothing the left column hasn't already shown.
+	_add_band(right, "shapes  ·  neutral base, over dark fill", Color(0.04, 0.05, 0.07), _shape_rows)
+
+
+func _add_band(host: Control, title: String, backdrop: Color, rows: Callable) -> void:
+	var band := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = backdrop
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	band.add_theme_stylebox_override("panel", style)
+	host.add_child(band)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 6)
+	band.add_child(col)
+
+	var heading := Label.new()
+	heading.text = title
+	# Deliberately inert: the chrome must never compete with the samples.
+	heading.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6))
+	col.add_child(heading)
+
+	col.add_child(_stop_header())
+	for row in rows.call():
+		col.add_child(row)
+
+
+## Rows of the colour-family chart: one base per row, one tier per column.
+func _base_rows() -> Array[HBoxContainer]:
+	var out: Array[HBoxContainer] = []
+	for base_spec in _BASES:
+		out.append(_sample_row(base_spec["name"], base_spec["color"]))
+	return out
+
+
+## The bright-backdrop band: neutral only. One row carries the whole lesson —
+## that the composite, not the element, is what crosses the threshold.
+func _neutral_row() -> Array[HBoxContainer]:
+	var out: Array[HBoxContainer] = []
+	out.append(_sample_row("neutral", Emissive.NEUTRAL))
+	return out
+
+
+## Rows of the coverage chart: one primitive per row, one tier per column.
+func _shape_rows() -> Array[HBoxContainer]:
+	var out: Array[HBoxContainer] = []
+	for shape in _SHAPES:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		row.add_child(_gutter(shape["name"], Color(0.55, 0.6, 0.65)))
+		for stops in _STOPS:
+			row.add_child(ShapeCell.new(shape["kind"], Emissive.neutral(stops)))
+		out.append(row)
+	return out
+
+
+func _stop_header() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(_gutter("", Color(0.5, 0.55, 0.6)))
+	for stops in _STOPS:
+		var cell := Label.new()
+		cell.custom_minimum_size = Vector2(96.0, 0.0)
+		cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cell.text = "I = %+.0f" % stops
+		cell.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6))
+		row.add_child(cell)
+	return row
+
+
+func _sample_row(base_name: String, base: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(_gutter(base_name, Color(0.55, 0.6, 0.65)))
+	for stops in _STOPS:
+		row.add_child(_sample(base, stops))
+	return row
+
+
+func _gutter(text: String, tint: Color) -> Label:
+	var label := Label.new()
+	label.custom_minimum_size = Vector2(70.0, 0.0)
+	label.text = text
+	label.add_theme_color_override("font_color", tint)
+	return label
+
+
+## A square and a glyph at the same value — because coverage is half the effect.
+## The square emits over its whole area; the glyph only along its strokes, which
+## is why a small label blooms far less than a swatch of the identical colour.
+func _sample(base: Color, stops: float) -> VBoxContainer:
+	var value := Emissive.at(base, stops)
+
+	var cell := VBoxContainer.new()
+	cell.custom_minimum_size = Vector2(96.0, 0.0)
+	cell.add_theme_constant_override("separation", 4)
+
+	var square := ColorRect.new()
+	square.custom_minimum_size = Vector2(96.0, 36.0)
+	square.color = value
+	cell.add_child(square)
+
+	var glyph := Label.new()
+	glyph.text = "Wg 128"
+	glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	glyph.add_theme_color_override("font_color", value)
+	glyph.add_theme_font_size_override("font_size", 22)
+	cell.add_child(glyph)
+
+	return cell
+
+
+# --- the knobs -------------------------------------------------------------
+
+func _build_knobs() -> void:
+	for child in _knobs.get_children():
+		child.queue_free()
+
+	var enabled := CheckBox.new()
+	enabled.text = "Glow enabled"
+	enabled.button_pressed = _env.glow_enabled
+	enabled.toggled.connect(func(on: bool) -> void: _env.glow_enabled = on)
+	_knobs.add_child(enabled)
+
+	var blend := OptionButton.new()
+	for i in _BLEND_MODES.size():
+		blend.add_item(_BLEND_MODES[i], i)
+	blend.selected = _env.glow_blend_mode
+	blend.item_selected.connect(func(i: int) -> void: _env.glow_blend_mode = i)
+	_knobs.add_child(_labelled("Blend mode", blend))
+
+	for spec in _SLIDERS:
+		_knobs.add_child(_slider(spec[0], spec[1], spec[2], spec[3], spec[4]))
+
+
+func _slider(property: String, text: String, low: float, high: float, step: float) -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+
+	var label := Label.new()
+	var readout := func(v: float) -> void: label.text = "%s  %.2f" % [text, v]
+	box.add_child(label)
+
+	var slider := HSlider.new()
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = step
+	slider.value = _env.get(property)
+	slider.value_changed.connect(func(v: float) -> void:
+		_env.set(property, v)
+		readout.call(v))
+	box.add_child(slider)
+
+	readout.call(slider.value)
+	return box
+
+
+func _labelled(text: String, control: Control) -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	var label := Label.new()
+	label.text = text
+	box.add_child(label)
+	box.add_child(control)
+	return box
+
+
+# --- the picker ------------------------------------------------------------
+
+func _on_picked(color: Color) -> void:
+	_picker_swatch.color = color
+	_picker_text.add_theme_color_override("font_color", color)
+	# Linear luminance is what the threshold actually compares against, so print
+	# it next to the encoded channels — the encoded number alone tells you very
+	# little about whether a colour will bloom.
+	var lin := color.srgb_to_linear()
+	var luminance := 0.2126 * lin.r + 0.7152 * lin.g + 0.0722 * lin.b
+	_picker_label.text = "Color(%.4f, %.4f, %.4f)\nlinear luminance %.3f  (threshold %.2f)\n%s" % [
+		color.r, color.g, color.b, luminance, _env.glow_hdr_threshold,
+		"BLOOMS" if luminance > _env.glow_hdr_threshold else "inert",
+	]
+
+
+# --- persistence -----------------------------------------------------------
+
+## The sliders mutate the shared resource in memory; this is what makes it
+## permanent. Saving hits the file every other viewport reads, which is the
+## whole point — one dial, not a per-surface copy.
+func _save_env() -> void:
+	var err := ResourceSaver.save(_env, _ENV_PATH)
+	if err == OK:
+		_status.text = "Saved %s" % _ENV_PATH
+	else:
+		_status.text = "Save FAILED (%s)" % error_string(err)

@@ -1,0 +1,102 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/bloom_sandbox/bloom_sandbox_panel.gd" id="1_panel"]
+[ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="2_env"]
+
+[node name="BloomSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+script = ExtResource("1_panel")
+
+[node name="Split" type="HSplitContainer" parent="."]
+split_offset = 1000
+
+[node name="Scroll" type="ScrollContainer" parent="Split"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Split/Scroll"]
+
+[node name="World" type="SubViewport" parent="Split/Scroll/ViewportContainer"]
+unique_name_in_owner = true
+own_world_3d = true
+use_hdr_2d = true
+handle_input_locally = false
+size = Vector2i(1290, 615)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Split/Scroll/ViewportContainer/World"]
+unique_name_in_owner = true
+environment = ExtResource("2_env")
+
+[node name="Bg" type="ColorRect" parent="Split/Scroll/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 1290.0
+offset_bottom = 615.0
+color = Color(0.02, 0.025, 0.035, 1)
+
+[node name="Margin" type="MarginContainer" parent="Split/Scroll/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 1290.0
+offset_bottom = 615.0
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="Content" type="VBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin"]
+theme_override_constants/separation = 14
+
+[node name="Rows" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content"]
+unique_name_in_owner = true
+theme_override_constants/separation = 14
+
+[node name="PickerRow" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content"]
+theme_override_constants/separation = 12
+
+[node name="PickerSwatch" type="ColorRect" parent="Split/Scroll/ViewportContainer/World/Margin/Content/PickerRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 64)
+
+[node name="PickerText" type="Label" parent="Split/Scroll/ViewportContainer/World/Margin/Content/PickerRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 0)
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 30
+text = "picked"
+
+[node name="Sidebar" type="ScrollContainer" parent="Split"]
+custom_minimum_size = Vector2(300, 0)
+
+[node name="SidebarBox" type="VBoxContainer" parent="Split/Sidebar"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="Knobs" type="VBoxContainer" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+theme_override_constants/separation = 8
+
+[node name="Sep" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+
+[node name="SaveButton" type="Button" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+text = "Save to default_game_env.tres"
+
+[node name="Status" type="Label" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+autowrap_mode = 2
+text = "Sliders edit the shared Environment live. Save writes it to disk."
+
+[node name="Sep2" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+
+[node name="Picker" type="ColorPicker" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+
+[node name="PickerLabel" type="Label" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+autowrap_mode = 2

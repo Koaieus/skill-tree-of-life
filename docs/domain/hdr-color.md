@@ -93,8 +93,70 @@ Note these methods leave `a` untouched (alpha is always stored linear, never
 encoded — see the `Color` doc on `a`), so a translucent emissive keeps its
 alpha through the conversion.
 
+## Where the pass is mounted (landed 2026-08-07)
+
+**Bloom is one full-screen pass per *viewport*.** The `Environment` lives in
+`ui/theme/default_game_env.tres` — one file, one dial, shared by every surface.
+
+- **Root viewport:** the `WorldEnvironment` in `scenes/game_root.tscn`. All three
+  level scenes inherit it from the composition root.
+- **SubViewports** (the seven sandbox panels that render into their own `%World`)
+  need **all three** of `own_world_3d = true`, `use_hdr_2d = true`, and a
+  `WorldEnvironment` child. Copy any of them, or `gimbal_3d_showcase.tscn`.
+- **Tuning surface:** the **Bloom** tab in the sandbox host
+  (`addons/bloom_sandbox/`). Its sliders edit the shared resource *in place*, and
+  its Save button writes it back — so tuning there is tuning the real dial.
+
+### Three ways glow silently does nothing
+
+All three fail with no error and no warning. In diagnosis order:
+
+1. **`background_canvas_max_layer` defaults to `0`,** which excludes every
+   `CanvasLayer` — i.e. the entire HUD. Set to `100`: verified to include the base
+   canvas and layer 50, and to exclude layer 101 (`SceneTransition`'s black fade,
+   which must never bloom).
+2. **`use_hdr_2d` is per-viewport.** The `rendering/viewport/hdr_2d=true` project
+   setting covers the **root viewport only**. A `SubViewport` defaults to `false`
+   and renders inert no matter how correct its Environment is. Verified: own-world
+   + HDR blooms, shared-world + HDR blooms, own-world *without* HDR does not.
+3. **Without `own_world_3d`, a SubViewport's `WorldEnvironment` registers on the
+   *shared* world.** In the editor that is the editor's own world — it collides
+   with the editor's environment and leaks between panels. Glow still works; the
+   damage is elsewhere.
+
+Debug in that order, and **debug the Environment through the root viewport, never
+through a SubViewport** — a SubViewport has two extra ways to render inert, so a
+failure there tells you nothing about which of the three is wrong.
+
+### `.tres` comments do not survive
+
+The engine re-serializes an `Environment` `.tres` it touches and **strips every
+`;` comment**. Rationale for a knob belongs here or in a rule file, never in the
+resource. (General `.tres` hazards: `.claude/rules/godot-tres-authoring.md`.)
+
+### Glow levels are the shape knob, not intensity
+
+`glow_levels/1..7` are mip weights: level 1 is the tightest radius, 7 the widest.
+With only 1–4 enabled (the obvious-looking default) glow pools **inside letter
+counters and at stroke intersections** — it only accumulates where lit pixels are
+already dense, which reads as grime rather than as light. Weighting outward
+(`0.5 / 0.9 / 1.0 / 1.0 / 0.7 / 0.3`) gives a rim instead.
+
+Judge that against **thin strokes**, not solid swatches. A 100×40 filled rect at
++3 blows out into a blob under settings that look right on text and rim arcs.
+
+### Alpha is the fade channel; colour value is the dimmer
+
+Canvas blending is non-premultiplied, so what reaches the pass is `rgb × a`. To
+make something quieter, **drop a tier — don't drop alpha**. Alpha stays reserved
+for animated reveals, where the bloom ramping in with the fade is a feature.
+
 ## See also
 
+- `ui/theme/emissive.gd` — `Emissive.at(base, stops)` and the named tiers, the
+  only sanctioned way to author an emissive colour in code.
+- `theme.tres` — `TierInert` / `TierLabel` / `TierValue` / `TierAlert`
+  `theme_type_variation`s, the way to author an emissive **Label**.
 - #371 — the verdict this doc supports (bloom, not per-element SDF glow; the
   Layer 0/1/2 architecture; the Theme-resource palette home).
 - `.claude/rules/rendering-performance.md` — bloom is a fullscreen pass; cost
