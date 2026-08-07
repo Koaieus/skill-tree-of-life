@@ -77,9 +77,20 @@ theme_override_constants/separation = 8
 
 [node name="Sep" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
 
-[node name="SaveButton" type="Button" parent="Split/Sidebar/SidebarBox"]
+[node name="Buttons" type="HBoxContainer" parent="Split/Sidebar/SidebarBox"]
+theme_override_constants/separation = 6
+
+[node name="SaveButton" type="Button" parent="Split/Sidebar/SidebarBox/Buttons"]
 unique_name_in_owner = true
-text = "Save to default_game_env.tres"
+size_flags_horizontal = 3
+text = "Save"
+tooltip_text = "Write the live values to res://ui/theme/default_game_env.tres"
+
+[node name="ResetButton" type="Button" parent="Split/Sidebar/SidebarBox/Buttons"]
+unique_name_in_owner = true
+size_flags_horizontal = 3
+text = "Reset"
+tooltip_text = "Re-read default_game_env.tres from disk, discarding unsaved drags"
 
 [node name="Status" type="Label" parent="Split/Sidebar/SidebarBox"]
 unique_name_in_owner = true
@@ -94,3 +105,12 @@ unique_name_in_owner = true
 [node name="PickerLabel" type="Label" parent="Split/Sidebar/SidebarBox"]
 unique_name_in_owner = true
 autowrap_mode = 2
+
+[node name="Sep3" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+
+[node name="Diagnostics" type="Label" parent="Split/Sidebar/SidebarBox"]
+unique_name_in_owner = true
+tooltip_text = "The four ways glow silently does nothing — see docs/domain/hdr-color.md"
+theme_override_colors/font_color = Color(0.55, 0.62, 0.68, 1)
+theme_override_font_sizes/font_size = 11
+text = "diagnostics"

@@ -119,7 +119,10 @@ class ShapeCell:
 @onready var _picker_text: Label = %PickerText
 ## The numeric readout, in the sidebar, where it must stay inert to be legible.
 @onready var _picker_label: Label = %PickerLabel
+@onready var _world: SubViewport = %World
 @onready var _save_button: Button = %SaveButton
+@onready var _reset_button: Button = %ResetButton
+@onready var _diagnostics: Label = %Diagnostics
 @onready var _status: Label = %Status
 
 var _env: Environment
@@ -131,15 +134,17 @@ func load_object(_obj: Object) -> void:
 
 
 func _ready() -> void:
-	# The packaged `bloom_viewport.tscn` already carries the WorldEnvironment, and
-	# that node is internal to the instance — unreachable by unique name from here.
-	# It doesn't need to be reached: resources are cached by path, so this `load()`
-	# hands back the very instance the scene references. Mutating it from the
-	# sliders therefore drives the live pass.
-	_env = load(_ENV_PATH)
+	# Ask the viewport for the Environment its glow pass is actually running,
+	# rather than `load()`ing the path and trusting the resource cache to have
+	# handed both of us the same object. That assumption held in a game run and
+	# silently did not in the editor, which is what made every slider here inert.
+	# `%WorldEnvironment` can't cross the instance boundary, so `bloom_viewport.gd`
+	# exposes it — see `docs/domain/hdr-color.md`.
+	_env = _world.get_environment_resource()
 
 	_build_chart()
 	_build_knobs()
+	_build_diagnostics()
 
 	# `edit_intensity` is the `I` slider — the ergonomic way to author an HDR
 	# colour. It is the same conversion `Emissive.at()` does in code, so a colour
@@ -150,6 +155,7 @@ func _ready() -> void:
 	_on_picked(_picker.color)
 
 	_save_button.pressed.connect(_save_env)
+	_reset_button.pressed.connect(_reset_env)
 
 
 # --- the chart -------------------------------------------------------------
@@ -291,8 +297,16 @@ func _sample(base: Color, stops: float) -> VBoxContainer:
 # --- the knobs -------------------------------------------------------------
 
 func _build_knobs() -> void:
+	# `remove_child` before `queue_free`: Reset rebuilds these in the same frame,
+	# and a queue_free'd node is still a child until the frame ends — leaving two
+	# sets of sliders stacked, the second of which is the live one.
 	for child in _knobs.get_children():
+		_knobs.remove_child(child)
 		child.queue_free()
+	# A null env means the viewport handed back nothing; `_build_diagnostics` says
+	# so on screen. Bail rather than throwing a wall of errors over the message.
+	if _env == null:
+		return
 
 	var enabled := CheckBox.new()
 	enabled.text = "Glow enabled"
@@ -353,10 +367,40 @@ func _on_picked(color: Color) -> void:
 	# little about whether a colour will bloom.
 	var lin := color.srgb_to_linear()
 	var luminance := 0.2126 * lin.r + 0.7152 * lin.g + 0.0722 * lin.b
+	var threshold: float = _env.glow_hdr_threshold if _env != null else 1.0
 	_picker_label.text = "Color(%.4f, %.4f, %.4f)\nlinear luminance %.3f  (threshold %.2f)\n%s" % [
-		color.r, color.g, color.b, luminance, _env.glow_hdr_threshold,
-		"BLOOMS" if luminance > _env.glow_hdr_threshold else "inert",
+		color.r, color.g, color.b, luminance, threshold,
+		"BLOOMS" if luminance > threshold else "inert",
 	]
+
+
+# --- diagnostics -----------------------------------------------------------
+
+## Every silent failure mode of the glow pass, printed on open.
+##
+## This exists because the tab shipped broken and *looked* fine: the chart drew,
+## so the viewport was clearly rendering, and there was nothing on screen to say
+## which of the four ways glow does nothing was in play. All of it is cheap to
+## read and none of it is inferable by looking. The instance-id line is the one
+## that matters most — a mismatch means the sliders are driving an orphan copy.
+func _build_diagnostics() -> void:
+	if _env == null:
+		_diagnostics.text = "NO ENVIRONMENT — %World handed back null. The packaged\nWorldEnvironment is missing or has no environment set."
+		return
+	var cached := load(_ENV_PATH) as Environment
+	var same := cached == _env
+	_diagnostics.text = "\n".join([
+		"use_hdr_2d        %s" % _world.use_hdr_2d,
+		"own_world_3d      %s" % _world.own_world_3d,
+		"update_mode       %s" % _world.render_target_update_mode,
+		"glow_enabled      %s" % _env.glow_enabled,
+		"blend_mode        %s" % _BLEND_MODES[_env.glow_blend_mode],
+		"env id (rendered) %s" % _env.get_instance_id(),
+		"env id (cached)   %s  %s" % [
+			cached.get_instance_id() if cached != null else "null",
+			"✓ same" if same else "✗ DIFFERENT — Save writes a copy",
+		],
+	])
 
 
 # --- persistence -----------------------------------------------------------
@@ -365,8 +409,39 @@ func _on_picked(color: Color) -> void:
 ## permanent. Saving hits the file every other viewport reads, which is the
 ## whole point — one dial, not a per-surface copy.
 func _save_env() -> void:
+	if _env == null:
+		return
 	var err := ResourceSaver.save(_env, _ENV_PATH)
 	if err == OK:
 		_status.text = "Saved %s" % _ENV_PATH
 	else:
 		_status.text = "Save FAILED (%s)" % error_string(err)
+
+
+## Discard unsaved slider drags — the way back once you've dialled somewhere bad.
+##
+## Two things this must not do. It must not keep a second hardcoded copy of the
+## defaults (it would drift from the `.tres` the day anyone tunes). And it must
+## not reach for a plain `load()`: that returns the **already-mutated cached
+## instance**, so the reset would silently no-op. `CACHE_MODE_IGNORE` is what
+## actually re-reads the file.
+##
+## The properties are copied *onto* the live object rather than `_env` being
+## reassigned — the viewport's WorldEnvironment holds the original, and swapping
+## our reference would just orphan us again.
+func _reset_env() -> void:
+	if _env == null:
+		return
+	var pristine := ResourceLoader.load(
+		_ENV_PATH, "", ResourceLoader.CACHE_MODE_IGNORE
+	) as Environment
+	if pristine == null:
+		_status.text = "Reset FAILED — could not re-read %s" % _ENV_PATH
+		return
+	for prop in pristine.get_property_list():
+		if prop["usage"] & PROPERTY_USAGE_STORAGE:
+			_env.set(prop["name"], pristine.get(prop["name"]))
+	_build_knobs()
+	_build_diagnostics()
+	_on_picked(_picker.color)
+	_status.text = "Reset to the values on disk (nothing written)."

@@ -110,15 +110,27 @@ alpha through the conversion.
   (`gimbal_3d_showcase.tscn` predates this and rolls its own — leave it.)
 
   **Gotcha:** the packaged `WorldEnvironment` is internal, so `%WorldEnvironment`
-  does **not** resolve from the instancing scene. Don't reach for it — resources are
-  cached by path, so `load("res://ui/theme/default_game_env.tres")` returns the very
-  instance the packaged scene references, which is how the Bloom tab's sliders drive
-  the live pass.
+  does **not** resolve from the instancing scene. The scene hands it out itself —
+  `bloom_viewport.gd` exposes `get_environment_resource()`, and a tuning panel binds
+  to *that*. Do **not** substitute `load("res://ui/theme/default_game_env.tres")` and
+  trust the resource cache to have handed you the same object. That assumption held
+  in a game run, was never checked in the editor, and is the shape of bug that leaves
+  a panel's sliders driving an object nothing is rendering. Bind to the node;
+  identity is then true by construction rather than by cache behaviour.
 - **Tuning surface:** the **Bloom** tab in the sandbox host
-  (`addons/bloom_sandbox/`). Its sliders edit the shared resource *in place*, and
-  its Save button writes it back — so tuning there is tuning the real dial.
+  (`addons/bloom_sandbox/`). Its sliders edit the shared resource *in place*, its
+  Save button writes it back, and **Reset** re-reads the file — so tuning there is
+  tuning the real dial. Its sidebar prints a diagnostic block (every item in the
+  list below, plus both Environment instance ids) precisely because all of these
+  fail with nothing on screen to say which one fired.
 
-### Three ways glow silently does nothing
+  **Reset cannot use a plain `load()`** — that returns the already-mutated cached
+  instance and the reset silently no-ops. `ResourceLoader.load(path, "",
+  ResourceLoader.CACHE_MODE_IGNORE)` is what actually re-reads the file. Copy its
+  `PROPERTY_USAGE_STORAGE` properties *onto* the live object; reassigning your own
+  reference just orphans you from the one the viewport holds.
+
+### Four ways glow silently does nothing
 
 All three fail with no error and no warning. In diagnosis order:
 
@@ -134,6 +146,15 @@ All three fail with no error and no warning. In diagnosis order:
    *shared* world.** In the editor that is the editor's own world — it collides
    with the editor's environment and leaks between panels. Glow still works; the
    damage is elsewhere.
+4. **A saved `glow_hdr_threshold` above your content.** The dial is one shared
+   file, and the Bloom tab's Save writes it — so a tuning session that ends on
+   `glow_hdr_threshold = 1.5` leaves *every* surface in the project inert up to
+   the `ALERT` tier, with a clean `git diff` as the only trace. Check
+   `git diff ui/theme/default_game_env.tres` before believing a scene is at fault,
+   and use the tab's **Reset** to get back. (Related: the file deliberately omits
+   `glow_intensity`, so it runs at Godot's default `0.3` — low. That is the knob
+   to reach for when bloom is present but weak; the threshold is the knob that
+   makes it absent.)
 
 Debug in that order, and **debug the Environment through the root viewport, never
 through a SubViewport** — a SubViewport has two extra ways to render inert, so a

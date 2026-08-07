@@ -1,10 +1,12 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="1_env"]
+[ext_resource type="Script" path="res://ui/theme/bloom_viewport.gd" id="2_script"]
 
 [node name="BloomViewport" type="SubViewport"]
 own_world_3d = true
 use_hdr_2d = true
+script = ExtResource("2_script")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = ExtResource("1_env")
