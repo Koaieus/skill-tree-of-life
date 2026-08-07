@@ -37,15 +37,32 @@ func test_universal_pools_are_archetype_empty() -> void:
 			assert_eq(pp.archetype_stat, &"", "pool %s should be universal" % String(pp.stat_id))
 
 
+## The CON pack's INT debuff — asserts the pool's SHAPE, not its magnitudes.
+##
+## This used to pin `unit_value == -5.0` and `max_tier == 1` outright, so the
+## 2026-08-07 playtest retune (softer per-tier bite, -5% → -2%, spread across
+## three tiers instead of stopping at one) failed it on three lines while
+## nothing was actually wrong. A balance knob under a `.tres` is meant to move;
+## a test that pins its value converts every retune into a red suite and teaches
+## people to edit the number until it goes green.
+##
+## What must stay true regardless of tuning: it is a DEBUFF (negative unit
+## value, negative cost so the draw pays you for taking it), and it ladders one
+## entry per tier.
 func test_intelligence_debuff_pool() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"intelligence" and pp.operation == StatModifier.Operation.INCREASE:
-			assert_eq(pp.unit_value, -5.0)
-			assert_eq(pp.max_tier, 1)
-			assert_eq(pp.to_entries().size(), 1)
-			assert_eq(pp.to_entries()[0].cost, -1)
+			found = true
+			assert_lt(pp.unit_value, 0.0, "the INT pool in the CON pack is a debuff")
+			assert_gte(pp.max_tier, 1, "reachable on at least one tier")
+			assert_eq(pp.to_entries().size(), pp.max_tier,
+					"one entry per tier up to max_tier")
+			for e in pp.to_entries():
+				assert_lt(e.cost, 0, "a debuff refunds cost rather than charging it")
+	assert_true(found, "the CON pack still carries an INT debuff pool at all")
 
 
 func test_constitution_draw_only_emits_pack_stat_ids() -> void:
