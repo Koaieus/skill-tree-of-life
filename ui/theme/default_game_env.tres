@@ -1,0 +1,37 @@
+; The one glow dial for the whole game (#371).
+;
+; Bloom is a single full-screen post pass, ONE PER VIEWPORT — its cost is fixed
+; by resolution and independent of how many things glow (~0.08ms measured), which
+; is why it, and not a per-element halo shader, is how this project does emissive.
+; A thing glows iff its composited pixel exceeds `glow_hdr_threshold` in LINEAR
+; space; see docs/domain/hdr-color.md for the stop -> encoded-Color table.
+;
+; Mounted by `scenes/game_root.tscn` (root viewport, inherited by every level) and
+; by each sandbox %World SubViewport that wants the same look.
+;
+; Non-default knobs, and why:
+;   background_mode = 3 (BG_CANVAS)  - 2D-only game; there is no sky to composite.
+;   background_canvas_max_layer = 100 - THE gotcha. Defaults to 0, which silently
+;       excludes every CanvasLayer (i.e. the entire HUD) with no error and no
+;       warning; glow simply does nothing. 100 covers the live layer census
+;       (SpaceBackground -100, UI 0, AnnouncementLayer 95, GameOverStub 100) and
+;       deliberately excludes SceneTransition at 101 - that is a black fade, and
+;       it must not bloom.
+;   glow_levels/1..4 - the small-radius levels. 5-7 are wide, hazy halos.
+;
+; Left at their (already correct) defaults, stated here so nobody "fixes" them:
+;   glow_blend_mode = 1 (Screen) - additive blows out over a dark UI on a live world.
+;   glow_hdr_threshold = 1.0 - makes glow OPT-IN per colour: SDR content never blooms.
+;   glow_bloom = 0.0 - keeps "only >1 blooms" literally true.
+;   tonemap_mode = 0 (Linear) - if the sandbox swatch rows at I=+1/+2/+3 ever read
+;       as one identical clipped white, THIS is the cause, not the threshold.
+[gd_resource type="Environment" format=3 uid="uid://cw0hn1e5xg8ja"]
+
+[resource]
+background_mode = 3
+background_canvas_max_layer = 100
+glow_enabled = true
+glow_levels/1 = 1.0
+glow_levels/2 = 1.0
+glow_levels/3 = 1.0
+glow_levels/4 = 1.0
