@@ -36,12 +36,19 @@ func _effective_max_hops(attacker: Entity, source: SkillNode) -> int:
 
 ## One BFS over [param mirror], not one AStar query per candidate. Pass the
 ## entity's own [EntityNavigator] to measure hops through owned territory only.
-## Reach is unscaled (no `spell_range`) — auras don't inherit a caster stat.
-func gather(source: SkillNode, mirror: GraphMirror) -> Dictionary[SkillNode, float]:
+##
+## Reach stays unscaled (raw `max_hops`, no `spell_range`) whenever
+## [param attacker] is `null` — auras don't inherit a caster stat, and that's
+## also every pre-#385 caller, so the default keeps them bit-for-bit unchanged.
+## A non-null attacker (only [MagicAttackPlan]'s highlight cache passes one)
+## reads [method _effective_max_hops] instead, matching what [method in_range]
+## would have computed per candidate.
+func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:
 		return out
-	var depths: Dictionary[SkillNode, int] = mirror.nodes_within(source, max_hops)
+	var hops := max_hops if attacker == null else _effective_max_hops(attacker, source)
+	var depths: Dictionary[SkillNode, int] = mirror.nodes_within(source, hops)
 	for node in depths:
 		out[node] = float(depths[node])
 	return out

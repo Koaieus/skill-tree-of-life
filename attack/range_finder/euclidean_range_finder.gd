@@ -14,14 +14,17 @@ func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 
 ## One linear scan. Deliberately not a spatial index: an aura recompute runs on
 ## allocation events over a tens-of-nodes owned subgraph, not per frame over the
-## whole graph (which is what earns VisionSystem its index). Reach is unscaled.
-func gather(source: SkillNode, mirror: GraphMirror) -> Dictionary[SkillNode, float]:
+## whole graph (which is what earns VisionSystem its index). Reach stays
+## unscaled whenever [param attacker] is `null` (every pre-#385 caller) — see
+## [method RangeFinder.gather].
+func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:
 		return out
+	var reach := max_distance if attacker == null else _effective_distance(attacker, source)
 	for n in mirror.get_mirrored_nodes():
 		var d := source.global_position.distance_to(n.global_position)
-		if d <= max_distance:
+		if d <= reach:
 			out[n] = d
 	return out
 

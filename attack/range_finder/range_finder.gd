@@ -46,12 +46,17 @@ const DEFAULT_EDGE_SCENE: PackedScene = preload("res://attack/range_finder/visua
 ##
 ## The returned distance is what feeds an aura's [DistanceScale] — a bool
 ## predicate cannot express Halo's shell or the Ninja's per-hop debuff.
-func gather(source: SkillNode, mirror: GraphMirror) -> Dictionary[SkillNode, float]:
+##
+## [param attacker] (#385): default `null` preserves every existing aura call's
+## behaviour bit-for-bit (unscaled reach, exactly as before this param existed).
+## Pass a non-null attacker only to fold in [method spell_range_multiplier] —
+## [MagicAttackPlan]'s highlight cache is the one caller that does.
+func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:
 		return out
 	for n in mirror.get_mirrored_nodes():
-		if n == source or in_range(null, source, n):
+		if n == source or in_range(attacker, source, n):
 			out[n] = 0.0
 	return out
 

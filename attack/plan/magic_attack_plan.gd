@@ -14,10 +14,20 @@ var source: SkillNode = null
 var spell: SpellDef = null
 var target: SkillNode = null
 
+## Valid-target set for the current (source, spell) pair, membership-only
+## (#385 perf). Rebuilt lazily off ONE [method RangeFinder.gather] traversal
+## instead of the overlay re-deriving it with one [method Targeting.is_valid_target]
+## — and thus one AStar query on [HopRangeFinder] — PER NODE PER REPAINT.
+## Invalidated by [signal state_changed], which every source/spell/target
+## mutation below already emits.
+var _cached_valid_targets: Dictionary[SkillNode, bool] = {}
+var _target_cache_dirty: bool = true
+
 
 func _init() -> void:
 	mode = BattleSystem.AttackMode.MAGIC
 	spell = _FALLBACK_SPELL
+	state_changed.connect(_invalidate_target_cache)
 
 
 func _on_node_right_clicked(node: SkillNode) -> void:
@@ -59,7 +69,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	if target != null and node == target:
 		return HighlightRole.HOSTILE_TARGET
 	if source != null and spell != null and spell.targeting != null:
-		if spell.targeting.is_valid_target(self, source, node):
+		if _valid_targets().has(node):
 			return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
 
@@ -109,14 +119,70 @@ func _target_still_valid() -> bool:
 	return spell.targeting.is_valid_target(self, source, target)
 
 
+## Membership view onto the current (source, spell) valid-target set, rebuilt
+## on first access after invalidation (#385). See [member _cached_valid_targets].
+func _valid_targets() -> Dictionary[SkillNode, bool]:
+	if _target_cache_dirty:
+		_rebuild_target_cache()
+	return _cached_valid_targets
+
+
+func _invalidate_target_cache() -> void:
+	_target_cache_dirty = true
+
+
+## ONE traversal ([method RangeFinder.gather], BFS/linear-scan) over the global
+## mirror, then a cheap per-candidate ownership-bit test — not one
+## [method Targeting.is_valid_target] (and thus one AStar query on
+## [HopRangeFinder]) per candidate. Sound ONLY because [AStarSkillTree] flat-costs
+## every edge (see range_finder.gd's `gather` docstring) so `gather`'s hop count
+## and `in_range`'s AStar-path length agree exactly — verified when #385 was
+## filed, not re-derived here. A non-[NodeTargeting] targeting (none shipped
+## today) falls back to the O(N) [method Targeting.valid_targets] walk.
+func _rebuild_target_cache() -> void:
+	_cached_valid_targets.clear()
+	_target_cache_dirty = false
+	if source == null or spell == null or spell.targeting == null:
+		return
+	var targeting := spell.targeting
+	if not (targeting is NodeTargeting):
+		for sn in targeting.valid_targets(self, source):
+			_cached_valid_targets[sn] = true
+		return
+	var nt := targeting as NodeTargeting
+	var finder: RangeFinder = nt.range_finder
+	if finder == null:
+		# Unlimited reach: every graph node is a range candidate.
+		var graph := _graph_of(source)
+		if graph == null:
+			return
+		for sn in graph.get_skill_nodes():
+			if sn.ownership_bit(attacker) & nt.ownership_filter != 0:
+				_cached_valid_targets[sn] = true
+		return
+	# Global reach (matches HopRangeFinder.in_range / EuclideanRangeFinder.in_range,
+	# neither of which are scoped to owned territory) — the full-graph Navigator
+	# mirror, not attacker.navigator (that's the owned-subgraph EntityNavigator).
+	var graph := _graph_of(source)
+	if graph == null or graph.navigator == null:
+		return
+	for candidate in finder.gather(source, graph.navigator, attacker):
+		if candidate.ownership_bit(attacker) & nt.ownership_filter != 0:
+			_cached_valid_targets[candidate] = true
+
+
+## SkillNodes live under Graph/SkillNodes; walk parents to find it.
+func _graph_of(node: SkillNode) -> Graph:
+	var n: Node = node
+	while n != null and not (n is Graph):
+		n = n.get_parent()
+	return n as Graph
+
+
 func resolve() -> AttackOutcome:
 	if spell == null or source == null or target == null:
 		return AttackOutcome.new()
-	# Walk parents to find the Graph; SkillNodes live under Graph/SkillNodes.
-	var n: Node = source
-	while n != null and not (n is Graph):
-		n = n.get_parent()
-	var graph: Graph = n
+	var graph := _graph_of(source)
 	if graph == null:
 		return AttackOutcome.new()
 	var outcome := SpellResolver.resolve(spell, target, source, attacker, graph)
