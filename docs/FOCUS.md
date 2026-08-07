@@ -10,7 +10,7 @@ Rewritten 2026-08-03 (second time — see "When this file is wrong"). The 2026-0
 morning version listed #268 and #274 as "takeable"; both closed that same afternoon.
 That kind of drift is exactly what this file exists to stop.
 
-Patched 2026-08-05: lane A's drone-ready entries #286 + #174 superseded by the
+Patched 2026-08-05: the AI lane's drone-ready entries #286 + #174 superseded by the
 design-pass hub #378 (fog-aware tactical loop, MCMC melee, tiered scoring). The two
 units closed as folded-in; their scope is a strict subset of #378's spec. Net Ready
 count: -1 (#286, #174 closed; #378 filed).
@@ -22,6 +22,13 @@ work. #384 is the sharper one: with no faction concept, "hostile" is computed as
 as an enemy** — #378's per-candidate EV would happily score enemies attacking each
 other. #385 is the enumeration API #378's scoring needs (`Targeting.valid_targets`
 today has zero callers and runs one AStar query per node). Net Ready count: +2.
+
+Rewritten-in-place 2026-08-07 (lane order): **the glowup is lane A and the AI lane
+moves to last.** #371's bloom foundation landed, which turned nine "make this glow"
+bullets into seven `Ready`, file-disjoint units that can all be judged against a real
+pass. This is a deliberate call that how the game *looks* is what's blocking right
+now — it costs #378 its head-of-queue position, and rule 2 means the AI lane does not
+open until the glowup's scheduled work ships.
 
 ## Why this file exists
 
@@ -63,10 +70,17 @@ drone takes one and ships it.
 
 | # | What | Why it's the next thing to ship |
 |---|---|---|
+| **#389** | RimRing lit-slot arcs bloom at the alert tier | Lane A's payoff. #371's pass is live and the SDR baseline was pre-darkened for exactly this; the arcs are the one thing meant to punch through. |
+| **#388** | Edge lit state emissive, not an additive underlay | The "Temu glow" — a `Line2D` underlay at `glow_alpha_lit = 0.4`, alpha-as-dimmer, which the pass makes unnecessary. With #389, the whole "graph looks alive" read. |
+| **#392** | Emissive pass over attack + allocation VFX | Projectiles, blades, modifier-to-core particles, loot-node sparkle. File-disjoint from #388/#389 — swarms alongside them. |
+| **#390** | HUD text onto emissive tiers + panel borders | Sweeps the clusters onto `Tier*` variations. Discipline: most of the HUD stays inert or bloom stops meaning "state changed". |
+| **#236** | Tooltip V2: trace glow shader polish | Moved out of lane E — it is glow work, judged best next to the rest of it. |
+| **#393** | Strikethrough toast laser-cut trace glows | S. The trace can be a laser now instead of a bright line. |
+| **#391** | `fused_panel` `glow_energy` + instance uniforms | **Deferrable indefinitely.** Consistency refactor, not a glow blocker; the one #371 path that was reasoned rather than probed. |
 | **#362** | `test_fan_scene` trace test is run-order dependent | S. Poisons `test:one` for anyone touching fan geometry — i.e. the whole legibility lane. Cheap slot-clearer; do it first. |
 | **#384** | Ownership buckets Neutral/Mine/Ally/Hostile + `Entity.attitude_to` + `Faction` | **Blocks #378.** Without it "hostile" is `owned_by != attacker`, so every AI entity reads every other AI entity as an enemy. Also folds in #386's whole scope (closed): XP is killer-attributed and gated on hostility, one guard in `LootSystem`. Two teams, forks settled 2026-08-07. |
 | **#385** | Set-shaped targeting: gather the reachable set once, not `in_range` per node | **Blocks #378** (ranged + magic scoring; melee enumerates by blade-shape search instead). Its scoring needs candidate enumeration; `Targeting.valid_targets` has zero callers today and the live path runs one AStar query *per node per repaint*. Verified pure perf — `AStarSkillTree` costs edges flat, so BFS and `get_id_path` agree. |
-| **#378** | AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring | Lane A's v1, design-pass settled 2026-08-05. Supersedes #286 + #174 (both closed as folded-in). Recon (fog short-circuit) → tactical SP-growth (recon-pulled near-miss-enable) → AP×2 attacks with per-candidate EV across all three modes (ranged/magic enumerable, melee = MCMC blade rollouts on WorkerThreadPool — the multicore crunch) → end turn. Tier-gated scorer (`ai_tier: int`). `Events.ai_decision` signal always-emitted + `debug_trace` print toggle. Shape-locked v1 (DP=0, movement=0). Single biggest "game plays itself" gap on the board. |
+| **#378** | AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring | Lane H's v1, design-pass settled 2026-08-05. Supersedes #286 + #174 (both closed as folded-in). Recon (fog short-circuit) → tactical SP-growth (recon-pulled near-miss-enable) → AP×2 attacks with per-candidate EV across all three modes (ranged/magic enumerable, melee = MCMC blade rollouts on WorkerThreadPool — the multicore crunch) → end turn. Tier-gated scorer (`ai_tier: int`). `Events.ai_decision` signal always-emitted + `debug_trace` print toggle. Shape-locked v1 (DP=0, movement=0). Single biggest "game plays itself" gap on the board. |
 | ~~**#286**~~ | ~~AI allocation v1: spend all SP + shallow scoring~~ | **CLOSED.** Superseded by #378 — scope absorbed into tactical SP-growth steps. |
 | ~~**#174**~~ | ~~AI: evaluate melee/magic/ranged every turn~~ | **CLOSED.** Superseded by #378 — scope absorbed into AP×2 attack enumeration with per-candidate EV. |
 | ~~**#279**~~ | ~~Enemy CoreClass composability: batch stat/modifier authoring~~ | **CLOSED.** |
@@ -76,23 +90,46 @@ drone takes one and ships it.
 | **#375** | `addon_slots = base(0) + allocation_level` as a node-local Stat | First consumer of the node-local scaling plumbing. Reads `allocation_level` through the `stake_level__current` accessor (#333). Depends on #374. |
 | **#376** | Magnitude curve: linear-ladder mutator on SkillNode | The design heart of #332. SkillNode owns its modifiers, entity board holds references, a mutator runs once per al-change writing `value` in place. Linear ladder (`return float(al)`), plug-and-play body. MULTIPLY scales "add the growth part" (`1 + (X−1)×ladder`); SET opts out by default. Composition mutation covered (the "1→2 effects" case). Single-owner-SkillNode precondition asserted; **#377** is the long-term escape. |
 
-Eight units, all drone-ready as written, all gameplay. Take them in lane order below.
+Fifteen units, all drone-ready as written. Take them in lane order below — **the glowup is
+lane A now, and the AI lane is last**; rule 2 means #384/#385/#378 do not open until
+lane A's scheduled work (#389, #388, #392) ships.
 
 ## Lanes, in order — ship the playable loop
 
 Lanes are ordered by what makes the game *play*, not by completing subsystems. A
 lane is done when its scheduled work ships, not when its topic is exhausted.
 
-### A — The game plays itself (AI)
+### A — The glowup (emissive everything)
 
-The biggest needle. The sandbox is a dollhouse until the AI actually spends its
-economy and evaluates its options.
+#371's bloom pass is live, so every one of these can be judged against real light
+instead of guessed at. They are file-disjoint from each other — this lane swarms.
 
-1. **#384** Ownership buckets + `Entity.attitude_to` + `Faction` — **Ready**, and #378's hard prerequisite: today "hostile" means "not me", so AI entities are enemies to each other. Two teams (player / native graph entities), enemies don't fight each other. Absorbed #386 (closed): territory stays strictly per-entity, friendly fire stays per-spell authoring, XP is killer-attributed and hostility-gated.
-2. **#385** Set-shaped targeting — **Ready.** The candidate-enumeration API #378's per-candidate EV needs **for ranged and magic**; melee generates candidates by pivot/blade-shape search over the owned subgraph and does not route through `Targeting`. File-disjoint from #384; lands cleaner after it.
-3. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV). **Melee budget measured 2026-08-07** (see the issue comment + `test/perf/bench_blade_sim.gd`): a k=20 blade swing is ~13 ms, not µs — ~75 full-fidelity candidates per second, so the plan needs the analytic reach bound + a coarse ranking tier, and `BladeHitScan` is *not* known WorkerThreadPool-safe. Open call from #386 **settled 2026-08-07: per-entity vision, no faction sharing in v1** (#394 files the deferred lever). #378 now has no unanswered design questions.
-   - ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
-4. #47 strategy-pattern NPC controller — `Needs design`, lane A's v2. Not this lane's exit.
+1. **#389** RimRing lit-slot arcs at the alert tier — **Ready.** *The* payoff. The
+   SDR baseline was already darkened so the unallocated node reads right without
+   glow; these arcs are the one thing meant to punch through. Take it first even
+   though its own breadcrumb says "last" — that meant last *within #371*, and #371
+   is done.
+2. **#388** Edge lit state emissive — **Ready.** The "Temu glow": a wider `Line2D`
+   underlay at `glow_alpha_lit = 0.4`, i.e. alpha used as a dimmer, which is exactly
+   what the pass makes unnecessary. Together with #389 this is the whole "the graph
+   looks alive" read.
+3. **#392** attack + allocation VFX emissive pass — **Ready.** Projectiles, blades,
+   modifier-to-core particles, and the new loot-node sparkle.
+4. **#390** HUD text onto tiers + panel borders — **Ready.** Sweeps the clusters onto
+   `TierLabel`/`TierValue`/`TierAlert`. Discipline work: most of the HUD must stay
+   inert, or bloom stops meaning "state changed".
+5. **#236** fan trace glow — **Ready.** Kept its own issue rather than folding into
+   #371; the tip can now actually glow.
+6. **#393** strikethrough toast laser-cut trace — **Ready.** Small.
+7. **#391** `fused_panel` `glow_energy` + instance uniforms — **Ready**, and
+   **deferrable indefinitely.** A consistency refactor, not a glow blocker; the one
+   path in #371 that was reasoned rather than probed.
+
+Gated behind #261, not scheduled here (FOCUS doesn't catalog `Needs design`):
+**#140** aura fields span edges, **#257** node-shatter texture fragmentation. Both
+have been told the foundation is live.
+
+Lane exit: #389 + #388 + #392 shipped. The rest is polish that can trail.
 
 ### B — The missing combat verb
 
@@ -123,17 +160,9 @@ economy and evaluates its options.
 Legibility ships, fidelity defers (rule 4). All tooltip-V2 work below is the "show
 everything, no gating" phase — flat placeholders, not carved art.
 
-1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass migration + scanline fix + holo dial-in, **#234** idle-loop animations (REOPENED 2026-08-05 — FanAnimation resource landed; the reopened acceptance — self-contained idle object, null = off, opt-in per unit — is implemented and in review), **#236** trace glow, **#281** addon icon placeholder.
+1. Tooltip V2 cluster, drone-ready: **#343** stat slab spec, **#344** holo panel layout inversion, **#345** glass migration + scanline fix + holo dial-in, **#234** idle-loop animations (REOPENED 2026-08-05 — FanAnimation resource landed; the reopened acceptance — self-contained idle object, null = off, opt-in per unit — is implemented and in review), **#281** addon icon placeholder. (**#236** trace glow moved to lane A.)
 2. ~~**#341** RimRing: allocation dial into the shader + archetype legibility — drone-ready.~~ **CLOSED.**
-3. ~~**#371** emissive text + composable glow (bloom)~~ — **foundation landed 2026-08-07**, `In review`. The blocker (#345's dark fill) closed. The pass is live in the root viewport and all seven sandbox SubViewports; the tier vocabulary is `ui/theme/emissive.gd` + `Tier*` variations in `theme.tres`; the judgement surface is the sandbox host's **Bloom** tab. Six file-disjoint consumer children are now `Ready`:
-   - **#388** Edge lit state emissive (replaces the alpha-dimmed `Line2D` underlay)
-   - **#389** RimRing lit-slot arcs at the alert tier — *the* visual payoff, and the breadcrumb says do it last
-   - **#390** HUD text onto tiers + panel borders
-   - **#391** `fused_panel` `glow_energy` + instance uniforms (consistency refactor, lowest urgency)
-   - **#392** attack + allocation VFX emissive pass (incl. loot-node sparkle)
-   - **#393** strikethrough toast laser-cut trace
-   
-   **Not all six are scheduled** — per rule 6, being `Ready` is eligibility, not the queue. If this lane gets pulled, take **#389** and **#388** first: they are the two the user named concretely, and they carry the whole "the graph looks alive" read. #391 can wait indefinitely. Related glow work that deliberately stayed in its own issue: #236 (fan trace tip), #140 (aura field), #257 (node shatter).
+3. ~~**#371** emissive text + composable glow (bloom)~~ — **foundation landed 2026-08-07**, `In review`. Its seven consumer children are **lane A**, not this lane. **#236** (fan trace glow) moved there too — it is glow work, and it should be judged alongside the rest of the glow work rather than next to the tooltip layout units.
 4. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.
 5. #361 `core_panel.tscn` carries two skins — `Needs design`, blocks nothing but re-bites fan geometry. A *decision*, not a drone unit.
 
@@ -154,6 +183,20 @@ is the pinning, not the apparatus.
 Not scheduled yet — nothing here is drone-ready. Filed so the lane exists:
 #300 removable node blockers (teach combat before the first Entity), #49 tutorial.
 Both `Needs design`, P0 when scheduled.
+
+### H — The game plays itself (AI)
+
+**Moved from lane A to last, 2026-08-07** — a scheduling call, not a demotion of the
+work. #378 is still the single biggest gap on the board and the sandbox stays a
+dollhouse until the AI spends its economy and evaluates its options; the glowup just
+went ahead of it. Rule 2 applies: this lane does not open until lane A's scheduled
+work ships.
+
+1. **#384** Ownership buckets + `Entity.attitude_to` + `Faction` — **Ready**, and #378's hard prerequisite: today "hostile" means "not me", so AI entities are enemies to each other. Two teams (player / native graph entities), enemies don't fight each other. Absorbed #386 (closed): territory stays strictly per-entity, friendly fire stays per-spell authoring, XP is killer-attributed and hostility-gated.
+2. **#385** Set-shaped targeting — **Ready.** The candidate-enumeration API #378's per-candidate EV needs **for ranged and magic**; melee generates candidates by pivot/blade-shape search over the owned subgraph and does not route through `Targeting`. File-disjoint from #384; lands cleaner after it.
+3. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV). **Melee budget measured 2026-08-07** (see the issue comment + `test/perf/bench_blade_sim.gd`): a k=20 blade swing is ~13 ms, not µs — ~75 full-fidelity candidates per second, so the plan needs the analytic reach bound + a coarse ranking tier, and `BladeHitScan` is *not* known WorkerThreadPool-safe. Open call from #386 **settled 2026-08-07: per-entity vision, no faction sharing in v1** (#394 files the deferred lever). #378 now has no unanswered design questions.
+   - ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
+4. #47 strategy-pattern NPC controller — `Needs design`, lane H's v2. Not this lane's exit.
 
 ## Test coverage cluster (pull in when a lane needs it)
 
@@ -195,7 +238,7 @@ Named, not silently fixed — clearing these is a scheduling decision:
 - **Four hubs have been `In progress` for weeks** (#159, #198, #238, #249). #159 is
   20/20 closed. #238 is 1/1 — #341 closed. Both hubs fully shipped.
 - **#176 is OPEN but the board says `Done`.** Hygiene flagged it. Close it or move it back.
-- **Lane A's `In progress` count was wrong in the prior FOCUS** — it listed 5 incl. #248,
+- **The AI lane's `In progress` count was wrong in the 2026-08-03 FOCUS** — it listed 5 incl. #248,
   but #248 sits in `Needs design`, not `In progress`. Corrected here.
 
 Fixed or obsoleted by this rewrite: #268 and #274 were listed as takeable; both closed
