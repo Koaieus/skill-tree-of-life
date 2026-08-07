@@ -9,7 +9,7 @@ the divergence was invisible: every wrong call still returned a plausible int.
 
 | Call | Means | Use when |
 |---|---|---|
-| `SkillNode.get_graph_degree(graph)` | every incident edge, any owner | the rule is about board-wide connectedness (DegreeRanker, TrailBlazerStep) |
+| `SkillNode.get_graph_degree(graph)` | every incident edge, any owner | the rule is about board-wide connectedness (DegreeRanker) |
 | `SkillNode.get_entity_degree(graph, entity = null)` | degree in the induced subgraph of `entity`'s nodes; defaults to the node's own `owned_by` | **the default for gameplay rules** — territory shape is what the player reads and plays against |
 | `GraphMirror.get_degree(node)` | degree inside that mirror (`entity.navigator` = owned subgraph, `graph.navigator` = whole board) | you already hold the mirror (cast gates: `SpellBook`, `MagicAttackPlan`) |
 
@@ -80,3 +80,24 @@ degree via the navigator mirror. Leafblower therefore gated on entity degree
 and then walked on graph degree — and on a contested board a defender's
 dangling leaf is routinely adjacent to two enemy nodes, so graph degree read
 it as a hub and hid it from the very walk the spell exists to perform.
+
+**`TrailBlazerStep` was still on graph degree until 2026-08-07** — the same bug,
+missed by the same reasoning, and it survived a full sweep of this file. Its
+junction test (`degree > 2`) now reads entity degree: the spell punishes the
+DEFENDER's constellation shape, so an unrelated enemy node adjacent to the
+string must not read as a junction and stop the walk.
+
+Two layers of tests said it was fine and both were wrong in the same direction,
+which is the part worth remembering:
+
+- the **step-level** fixtures built graphs and never assigned an owner. An
+  unowned node returns 0 from `get_entity_degree` (the null guard), and 0 never
+  trips `> 2` — so they asserted graph-degree behaviour against a step that no
+  longer implemented it;
+- the **end-to-end** fixtures did assign an owner — to the whole string — and on
+  a fully-owned string entity degree and graph degree are equal by construction.
+
+**Lesson for any future degree test: a fixture that leaves nodes unowned cannot
+tell the two accessors apart, and neither can one where a single entity owns
+everything.** Distinguishing them takes a mixed-ownership fixture — a defender's
+string with a foreign node adjacent to it.

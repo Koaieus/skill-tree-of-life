@@ -24,6 +24,29 @@ func _ctx(graph: Graph) -> PropagationContext:
 	return c
 
 
+## Give EVERY node in the graph one owner and return it.
+##
+## Load-bearing, not boilerplate: `TrailBlazerStep` reads
+## [method SkillNode.get_entity_degree], which is degree within the OWNER's
+## induced subgraph. An unowned node has no owner to induce a subgraph from, so
+## the accessor's null guard returns 0 — and a 0 never trips the `> 2` junction
+## test. Before this helper, the step-level fixtures below built unowned graphs
+## and so silently asserted GRAPH-degree behaviour while the production step
+## walked entity degree. They passed for the wrong reason.
+##
+## A single owner for the whole string is also the honest model of the spell: the
+## Trailblazer punishes ONE defender's long-stretched constellation, and on a
+## fully-owned string entity degree and graph degree coincide — which is exactly
+## why the end-to-end tests further down never caught the divergence.
+func _own_all(graph: Graph) -> Entity:
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	var indices: Array = []
+	for i in graph.get_skill_nodes().size():
+		indices.append(i)
+	h.assign_owner(graph, defender, indices)
+	return defender
+
+
 func _payload(damage: float, current: SkillNode, hops: int = 5) -> CastSpell:
 	var p := CastSpell.new()
 	p.damage = damage
@@ -50,6 +73,7 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 	# node1 has degree 2 (0-1-2) → a continuation, not a slam.
 	var graph := h.make_graph([[0, 1], [1, 2]], self)
+	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
@@ -62,6 +86,7 @@ func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 func test_terminal_multiply_constant_slams_and_stops() -> void:
 	# node0 has degree 3 (star 0-1,0-2,0-3) → a junction.
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
+	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
@@ -74,6 +99,7 @@ func test_terminal_multiply_constant_slams_and_stops() -> void:
 
 func test_terminal_square() -> void:
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
+	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.SQUARE
@@ -85,12 +111,50 @@ func test_terminal_square() -> void:
 func test_terminal_multiply_by_degree_scales_with_junction() -> void:
 	# node0 degree 4 (0-1,0-2,0-3,0-4).
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3], [0, 4]], self)
+	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_BY_DEGREE
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(1.0)})
 	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
 	assert_almost_eq(out[0].damage, 24.0, 0.001, "(5 + 1) × degree 4")
+
+
+## The ONLY fixture in this file that can distinguish entity degree from graph
+## degree — see docs/domain/degree.md. Every other test either leaves nodes
+## unowned (both accessors collapse to 0 / to graph degree) or gives one entity
+## the whole graph (the two are equal by construction).
+##
+##   DEF: 0 — 1 — 2        node 1: graph degree 3, entity degree 2
+##            |
+##   ATK:     3
+##
+## A foreign node brushing the string must NOT read as a junction. On graph
+## degree node 1 is a 3 and the walk slams to a halt on the defender's own
+## chain; on entity degree it is a 2 and the walk carries on, which is the
+## spell's entire premise.
+func test_foreign_neighbour_is_not_a_junction() -> void:
+	var graph := h.make_graph([[0, 1], [1, 2], [1, 3]], self)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	h.assign_owner(graph, defender, [0, 1, 2])
+	h.assign_owner(graph, attacker, [3])
+	var nodes := graph.get_skill_nodes()
+
+	assert_eq(nodes[1].get_graph_degree(graph), 3, "graph degree sees the ATK node")
+	assert_eq(nodes[1].get_entity_degree(graph), 2, "entity degree does not")
+
+	var step := TrailBlazerStep.new()
+	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
+	step.terminal_multiplier = 2.0
+	var config := h.make_config(step, null, null,
+			{max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
+
+	var out := step.step(nodes[0], _payload(3.0, nodes[0]),
+			[nodes[1]] as Array[SkillNode], config, _ctx(graph))
+
+	assert_almost_eq(out[0].damage, 5.0, 0.001, "3 + 2 — a continuation, NOT a ×2 slam")
+	assert_eq(out[0].hops_remaining, 4, "the walk carries on past the foreign neighbour")
 
 
 func test_empty_candidates_ends_walk() -> void:
@@ -110,6 +174,7 @@ func test_empty_candidates_ends_walk() -> void:
 func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
 	# 1 and 2 both hang off seed 0 and both have degree 2 → both continue.
 	var graph := h.make_graph([[0, 1], [1, 3], [0, 2], [2, 4]], self)
+	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
@@ -130,6 +195,7 @@ func test_branch_slams_the_junction_and_continues_the_string_in_parallel() -> vo
 	# Both must be minted, each resolving on its own branch rule.
 	var graph := h.make_graph(
 		[[0, 1], [1, 3], [0, 2], [2, 4], [2, 5], [2, 6]], self)
+	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
 	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT

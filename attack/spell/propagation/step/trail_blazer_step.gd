@@ -2,11 +2,36 @@
 class_name TrailBlazerStep
 extends PropagationStep
 
-## Single-path "string walker" for The Trail Blazer, a true "Line Killer". From the seed it
-## fans to every degree-2 candidate, with the per-hop ramp provided by
-## [member PropagationConfig.hop_damage] (typically [FlatAddProgression] with
-## [code]increment = 2[/code]), until it reaches a junction (graph degree > 2)
-## — the *slam* node — where it applies [member terminal_mode] and stops.
+## Single-path "string walker" for The Trail Blazer, a true "Line Killer".
+##
+## The initial hit lands as normal. From there the walk jumps to every hostile
+## neighbour and reads its [b]entity degree[/b] — how many of its edges run to
+## nodes owned by the [b]same[/b] entity ([method SkillNode.get_entity_degree]):
+##
+## - [b]degree 2[/b] — a link in the chain. Take damage, ramp, keep walking
+##   (never back into [member CastSpell.visited]).
+## - [b]degree > 2[/b] — a junction. Slam: apply [member terminal_mode] and stop.
+##
+## So it runs down an entire trail for as long as that trail is a chain of
+## degree-2 nodes. Launched at the tip of a trail, the first jump lands on a
+## degree-2 node and the walk (and its ramp) triggers immediately.
+##
+## The read: a tool that punishes long-stretched constellations, and one that
+## stays effective even on a caster with poor stats — the damage comes from the
+## defender's own shape, not from the attacker's INT.
+##
+## [b]Entity degree is the whole point, not an implementation detail.[/b] The
+## spell is about the defender's territory shape, so an unrelated enemy node
+## sitting next to the string must not read as a junction and halt the walk.
+## This walked GRAPH degree until 2026-08-07; the step-level tests missed it
+## because their fixtures left every node unowned (see the header of
+## `test/unit/spell/test_line_killer_step.gd`) and the end-to-end ones missed it
+## because on a fully-owned string the two degrees coincide.
+##
+## The per-hop ramp comes from [member PropagationConfig.hop_damage] (typically
+## [FlatAddProgression] with [code]increment = 2[/code]), running until the walk
+## reaches a junction — the *slam* node — where [member terminal_mode] applies
+## and the walk stops.
 ##
 ## On a pure string the filter + visit cap leave exactly one candidate per hop
 ## (the unvisited next node); when multiple candidates survive, all of them get
@@ -46,7 +71,11 @@ func step(
 	# when the candidate is a junction (the slam case).
 	var result: Array[CastSpell] = []
 	for candidate in candidates:
-		var degree := candidate.get_graph_degree(ctx.graph)
+		# ENTITY degree, never graph degree. The walk is about the DEFENDER's
+		# constellation shape, so a junction means "three of THEIR nodes meet
+		# here" — an enemy node brushing past the string is not a junction and
+		# must not stop the walk. See docs/domain/degree.md.
+		var degree := candidate.get_entity_degree(ctx.graph)
 		var next := _propagate_to(candidate, payload, config)
 		if degree > 2:
 			# Junction reached — slam and terminate the walk.
