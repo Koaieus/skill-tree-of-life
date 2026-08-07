@@ -66,7 +66,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 			var d := node.global_position.distance_to(target.global_position)
 			return HighlightRole.ORIGIN if d <= _leaf_range(node) else HighlightRole.NONE
 		return HighlightRole.NONE
-	if node.owned_by != null and node.owned_by != attacker:
+	if node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE:
 		return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
 
@@ -89,7 +89,7 @@ func validate() -> Array[String]:
 	if target == null:
 		errors.append(&'No target')
 		return errors
-	if target.owned_by == attacker:
+	if target.ownership_bit(attacker) != SkillNode.Ownership.HOSTILE:
 		errors.append(&'Target node is not owned by an enemy')
 	if get_reaching_firing_positions().is_empty():
 		errors.append(&'No firing position can reach target')
@@ -99,9 +99,7 @@ func validate() -> Array[String]:
 func _is_valid_target(node: SkillNode) -> bool:
 	if node == null or attacker == null:
 		return false
-	if node.owned_by == null or node.owned_by == attacker:
-		return false
-	return true
+	return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE
 
 
 func resolve() -> AttackOutcome:

@@ -11,12 +11,20 @@ signal core_location_changed
 signal leveled_up(new_level: int)
 signal died
 
+## The player/enemy relation. Two teams for now (#384): [constant ALLIED] is
+## same-[member faction], [constant HOSTILE] is everything else. Enemies do
+## not fight each other, so a scalar faction resolves it with no attitude
+## matrix — going multi-faction later changes only [method attitude_to], not
+## its call sites.
+enum Attitude { SELF, ALLIED, HOSTILE }
+
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
-## Faction identifier for hostility checks. Single-faction MVP: player gets
-## `&"player"`, NPCs default to `&"npc"`. Hostility today still uses
-## `owned_by != attacker`; multi-faction is a one-line filter swap later.
-@export var faction: StringName = &"npc"
+## Team identity, composed like [member core_class]. NPCs default to the
+## shared [code]npc.tres[/code] faction; [method GameRoot.bind_player] swaps
+## the player onto [code]player.tres[/code]. Singular and by-reference: two
+## entities on the SAME `.tres` are allies.
+@export var faction: Faction = preload("res://entity/factions/npc.tres")
 @export var stat_board: StatBoard = null
 ## Class specialization for this entity. Applied once on _ready via
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.
@@ -40,6 +48,20 @@ func get_spellbook() -> SpellBook:
 	if spellbook == null:
 		spellbook = SpellBook.new()
 	return spellbook
+
+
+## The ONLY place the player/enemy relation is decided (#384) — every other
+## hostility test (targeting, XP gating, AI) routes through this or through
+## [method SkillNode.ownership_bit], which delegates here. Same-[member faction]
+## (by resource reference) is ALLIED; a null faction on either side never
+## matches another null, so two faction-less entities read HOSTILE rather than
+## silently allying.
+func attitude_to(other: Entity) -> Attitude:
+	if other == self:
+		return Attitude.SELF
+	if faction != null and faction == other.faction:
+		return Attitude.ALLIED
+	return Attitude.HOSTILE
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:

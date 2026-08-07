@@ -11,7 +11,7 @@
 [ext_resource type="Script" uid="uid://kvd7y10ttqsx" path="res://attack/spell/propagation/step/stat_ranker.gd" id="7_ranker"]
 [ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="8_reducer"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="9_ihn2u"]
-[ext_resource type="Script" uid="uid://x1nck4evj7ku" path="res://attack/targeting/single_hostile_node_targeting.gd" id="9_targeting"]
+[ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="9_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_bm58y"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="10_range"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="13_ihn2u"]
@@ -44,6 +44,7 @@ script = ExtResource("10_range")
 
 [sub_resource type="Resource" id="targeting"]
 script = ExtResource("9_targeting")
+ownership_filter = 8
 range_finder = SubResource("range")
 
 [resource]

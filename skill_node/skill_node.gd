@@ -456,6 +456,29 @@ func is_core() -> bool:
 	return owned_by != null and owned_by.core_location == self
 
 
+## The four mutually exclusive ownership buckets (#384), as `@export_flags`
+## bit values — see [NodeTargeting.ownership_filter] for the composites.
+enum Ownership { NEUTRAL = 1, MINE = 2, ALLY = 4, HOSTILE = 8 }
+
+
+## Exactly one set bit describing this node's relation to [param viewer]. A
+## node cannot cache "I am hostile" — hostile *to whom* — so this is a pure
+## query, never stored state. Delegates to [method Entity.attitude_to] for the
+## owned-by-someone-else case; that method is the single home for the
+## player/enemy relation.
+##
+## A null [param viewer] can't be MINE or an ALLY (there's no one to be allied
+## with), so an owned node reads HOSTILE to it.
+func ownership_bit(viewer: Entity) -> int:
+	if owned_by == null:
+		return Ownership.NEUTRAL
+	if owned_by == viewer:
+		return Ownership.MINE
+	if viewer != null and viewer.attitude_to(owned_by) == Entity.Attitude.ALLIED:
+		return Ownership.ALLY
+	return Ownership.HOSTILE
+
+
 func get_owner_color() -> Color:
 	if owned_by:
 		return owned_by.color

@@ -45,7 +45,7 @@ metadata/_custom_type_script = "uid://duy3yt7dr5o8t"
 
 [sub_resource type="Resource" id="Resource_to57e"]
 script = ExtResource("10_g1pe3")
-ownership_filter = 7
+ownership_filter = 15
 range_finder = SubResource("Resource_pu3h8")
 metadata/_custom_type_script = "uid://btpnit4nenasw"
 

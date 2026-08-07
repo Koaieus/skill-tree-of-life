@@ -12,27 +12,22 @@ extends Targeting
 ## [code]healing_beam.tres[/code] is Any *on purpose*, so mind your enemies.
 ## Hostile is merely the common case, hence the default.
 ##
-## For "owned by the attacker" as a hard constraint, see
-## [SingleAlliedNodeTargeting].
+## For "owned by the attacker" as a hard constraint, use [member ownership_filter]
+## `= Mine` (2).
 
 
-@export_flags("Neutral:1", "Friendly:2", "Hostile:4", "Allocated:6", "Any:7") var ownership_filter: int = 4
+## Four mutually exclusive buckets (#384, see [method SkillNode.ownership_bit]):
+## Neutral 1 / Mine 2 / Ally 4 / Hostile 8. `Friendly`/`Allocated`/`Any` are
+## composites, not extra bits — they let the inspector's flag checkboxes reach
+## a common OR-of-bits directly instead of hand-combining Mine+Ally each time.
+@export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
 @export var range_finder: RangeFinder
 
 
 func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool:
 	if candidate == null or source == null or plan == null or plan.attacker == null:
 		return false
-	# Exactly one bit, matching the `ownership_filter` flag layout. The three
-	# cases are mutually exclusive, so the sum is a single set bit — but keep
-	# the arithmetic form: it reads as the flag table it mirrors.
-	# (`&` binds tighter than `==` in GDScript, so the test below needs no parens.)
-	var candidate_ownership_bit: int = (
-		1 * int(not candidate.is_allocated)
-		+ 2 * int(candidate.owned_by != null and candidate.owned_by == plan.attacker)
-		+ 4 * int(candidate.owned_by != null and candidate.owned_by != plan.attacker)
-	)
-	if candidate_ownership_bit & ownership_filter == 0:
+	if candidate.ownership_bit(plan.attacker) & ownership_filter == 0:
 		return false
 	if range_finder != null and not range_finder.in_range(plan.attacker, source, candidate):
 		return false

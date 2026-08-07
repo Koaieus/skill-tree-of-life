@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="Faction" format=3]
+
+[ext_resource type="Script" path="res://entity/faction.gd" id="1_faction"]
+
+[resource]
+script = ExtResource("1_faction")
+display_name = "NPC"
+color = Color(0.95, 0.4, 0.4, 1.0)
