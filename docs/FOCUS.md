@@ -15,6 +15,14 @@ design-pass hub #378 (fog-aware tactical loop, MCMC melee, tiered scoring). The 
 units closed as folded-in; their scope is a strict subset of #378's spec. Net Ready
 count: -1 (#286, #174 closed; #378 filed).
 
+Patched 2026-08-07: **#384 + #385 inserted at the head of lane A, ahead of #378.**
+Both came out of #383's design pass and both are #378 prerequisites, not adjacent
+work. #384 is the sharper one: with no faction concept, "hostile" is computed as
+`owned_by != attacker`, so **every AI entity currently reads every other AI entity
+as an enemy** — #378's per-candidate EV would happily score enemies attacking each
+other. #385 is the enumeration API #378's scoring needs (`Targeting.valid_targets`
+today has zero callers and runs one AStar query per node). Net Ready count: +2.
+
 ## Why this file exists
 
 The board sprawls. 28 issues in `Ready`, 36 in `Needs design`, 178 open total —
@@ -56,6 +64,8 @@ drone takes one and ships it.
 | # | What | Why it's the next thing to ship |
 |---|---|---|
 | **#362** | `test_fan_scene` trace test is run-order dependent | S. Poisons `test:one` for anyone touching fan geometry — i.e. the whole legibility lane. Cheap slot-clearer; do it first. |
+| **#384** | Ownership buckets Neutral/Mine/Ally/Hostile + `Entity.attitude_to` + `Faction` | **Blocks #378.** Without it "hostile" is `owned_by != attacker`, so every AI entity reads every other AI entity as an enemy. Also folds in #386's whole scope (closed): XP is killer-attributed and gated on hostility, one guard in `LootSystem`. Two teams, forks settled 2026-08-07. |
+| **#385** | Set-shaped targeting: gather the reachable set once, not `in_range` per node | **Blocks #378.** Its scoring needs candidate enumeration; `Targeting.valid_targets` has zero callers today and the live path runs one AStar query *per node per repaint*. Verified pure perf — `AStarSkillTree` costs edges flat, so BFS and `get_id_path` agree. |
 | **#378** | AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring | Lane A's v1, design-pass settled 2026-08-05. Supersedes #286 + #174 (both closed as folded-in). Recon (fog short-circuit) → tactical SP-growth (recon-pulled near-miss-enable) → AP×2 attacks with per-candidate EV across all three modes (ranged/magic enumerable, melee = MCMC blade rollouts on WorkerThreadPool — the multicore crunch) → end turn. Tier-gated scorer (`ai_tier: int`). `Events.ai_decision` signal always-emitted + `debug_trace` print toggle. Shape-locked v1 (DP=0, movement=0). Single biggest "game plays itself" gap on the board. |
 | ~~**#286**~~ | ~~AI allocation v1: spend all SP + shallow scoring~~ | **CLOSED.** Superseded by #378 — scope absorbed into tactical SP-growth steps. |
 | ~~**#174**~~ | ~~AI: evaluate melee/magic/ranged every turn~~ | **CLOSED.** Superseded by #378 — scope absorbed into AP×2 attack enumeration with per-candidate EV. |
@@ -66,7 +76,7 @@ drone takes one and ships it.
 | **#375** | `addon_slots = base(0) + allocation_level` as a node-local Stat | First consumer of the node-local scaling plumbing. Reads `allocation_level` through the `stake_level__current` accessor (#333). Depends on #374. |
 | **#376** | Magnitude curve: linear-ladder mutator on SkillNode | The design heart of #332. SkillNode owns its modifiers, entity board holds references, a mutator runs once per al-change writing `value` in place. Linear ladder (`return float(al)`), plug-and-play body. MULTIPLY scales "add the growth part" (`1 + (X−1)×ladder`); SET opts out by default. Composition mutation covered (the "1→2 effects" case). Single-owner-SkillNode precondition asserted; **#377** is the long-term escape. |
 
-Six units, all drone-ready as written, all gameplay. Take them in lane order below.
+Eight units, all drone-ready as written, all gameplay. Take them in lane order below.
 
 ## Lanes, in order — ship the playable loop
 
@@ -78,9 +88,11 @@ lane is done when its scheduled work ships, not when its topic is exhausted.
 The biggest needle. The sandbox is a dollhouse until the AI actually spends its
 economy and evaluates its options.
 
-1. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV).
-2. ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
-3. #47 strategy-pattern NPC controller — `Needs design`, lane A's v2. Not this lane's exit.
+1. **#384** Ownership buckets + `Entity.attitude_to` + `Faction` — **Ready**, and #378's hard prerequisite: today "hostile" means "not me", so AI entities are enemies to each other. Two teams (player / native graph entities), enemies don't fight each other. Absorbed #386 (closed): territory stays strictly per-entity, friendly fire stays per-spell authoring, XP is killer-attributed and hostility-gated.
+2. **#385** Set-shaped targeting — **Ready.** The candidate-enumeration API #378's per-candidate EV needs. File-disjoint from #384; lands cleaner after it.
+3. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV). **Melee budget measured 2026-08-07** (see the issue comment + `test/perf/bench_blade_sim.gd`): a k=20 blade swing is ~13 ms, not µs — ~75 full-fidelity candidates per second, so the plan needs the analytic reach bound + a coarse ranking tier, and `BladeHitScan` is *not* known WorkerThreadPool-safe. Open call moved here from #386: does the AI camp share vision?
+   - ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
+4. #47 strategy-pattern NPC controller — `Needs design`, lane A's v2. Not this lane's exit.
 
 ### B — The missing combat verb
 
