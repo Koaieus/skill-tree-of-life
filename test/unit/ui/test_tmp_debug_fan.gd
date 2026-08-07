@@ -9,6 +9,7 @@ const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE := preload("res://entity/core/balanced_core.tres")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _ADDON_SCENES: Array[PackedScene] = [
 	preload("res://skill_node/addons/spike_ring_addon.tscn"),
 	preload("res://skill_node/addons/skill_dust_addon.tscn"),
@@ -25,7 +26,7 @@ func test_bound_content_vs_forced_axes() -> void:
 	entity.stat_board = _BOARD.duplicate(true) as StatBoard
 	entity.core_class = _BALANCED_CORE
 	entity.core_location = node
-	entity.faction = &"player"
+	entity.faction = _PLAYER_FACTION
 	entity.display_name = "Dusk"
 	entity.level = 12
 	add_child(entity)

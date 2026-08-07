@@ -143,7 +143,7 @@ func _any_enemy_visible() -> bool:
 	for node in graph.get_skill_nodes():
 		if node == null or node.owned_by == null:
 			continue
-		if node.owned_by.faction == _player.faction:
+		if _player.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
 			continue
 		if _vision_system.is_visible(node):
 			return true

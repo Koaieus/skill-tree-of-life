@@ -18,6 +18,8 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 var _graph: Graph
 var _loot: LootSystem
@@ -75,6 +77,7 @@ func before_each() -> void:
 
 	_killer = autofree(Entity.new())
 	_killer.display_name = "Killer"
+	_killer.faction = _PLAYER_FACTION  # #384/#386: HOSTILE to the victim's default npc faction
 	_killer.stat_board = _BOARD.duplicate(true) as StatBoard
 	_graph.add_child(_killer)
 
@@ -182,6 +185,46 @@ func test_self_death_grants_no_xp() -> void:
 	_victim.stat_board.health.set_current(1.0)
 	_victim.core_location.take_damage(10000.0, null)
 	assert_eq(_killer.stat_board.xp.current, before, "no killer → no XP")
+
+
+func test_ally_kill_grants_no_xp() -> void:
+	# #384/#386: the HOSTILE gate on the kill-bonus path. Same faction as the
+	# victim → ALLIED, so even a real killing blow earns nothing.
+	_killer.faction = _NPC_FACTION
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 1.0
+	var before := _killer.stat_board.xp.current
+	_kill_victim()
+	assert_eq(_killer.stat_board.xp.current, before, "an ally kill pays no XP")
+	assert_not_null(_find_dust(_nodes[1]), "SkillDust is a world drop — stays ungated")
+
+
+func test_ally_node_kill_pays_no_trickle() -> void:
+	# Same gate on the cascade trickle path (`_on_cascade_started`).
+	_killer.faction = _NPC_FACTION
+	_loot.xp_per_node_killed = 3.0
+	_tm.current_entity = _killer
+	var before := _killer.stat_board.xp.current
+	_nodes[2].take_damage(10000.0, null)
+	assert_eq(_killer.stat_board.xp.current, before, "no XP for whittling an ally's territory")
+
+
+func test_bystander_enemy_gains_no_xp_from_anothers_kill() -> void:
+	# A third HOSTILE entity must not be credited just because it's also hostile
+	# to the victim — only the entity holding the turn (the actual killer) is paid.
+	var bystander: Entity = autofree(Entity.new())
+	bystander.display_name = "Bystander"
+	bystander.faction = _PLAYER_FACTION  # hostile to the npc-faction victim too
+	bystander.stat_board = _BOARD.duplicate(true) as StatBoard
+	_graph.add_child(bystander)
+	await get_tree().process_frame
+
+	_loot.xp_per_node_killed = 1.0
+	_loot.entity_kill_bonus = 1.0
+	var bystander_before: float = bystander.stat_board.xp.current
+	_kill_victim()  # _tm.current_entity = _killer, not bystander
+	assert_eq(bystander.stat_board.xp.current, bystander_before,
+			"only the attributed killer is paid, not every hostile entity")
 
 
 func test_destroying_a_node_pays_the_trickle() -> void:

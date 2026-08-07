@@ -94,7 +94,12 @@ func _rebuild() -> void:
 		_set_hostile(false)
 		return
 	_bind_header(entity)
-	_set_hostile(entity.faction != &"player")
+	# INTERIM (#384): no viewer entity is threaded through the bind chain
+	# (FanPanel.bind(node, graph) -> FanUnit -> TooltipFan._bind_content), so
+	# this can't route through Entity.attitude_to like every other hostility
+	# test. Keeps the pre-#384 id-string comparison (now via faction_id)
+	# rather than a real relation check — see the #384 tracking issue.
+	_set_hostile(entity.faction_id != &"player")
 	_bind_radar_and_rows(entity)
 	_apply_row_stagger()
 

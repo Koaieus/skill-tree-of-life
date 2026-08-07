@@ -44,6 +44,14 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE := preload("res://entity/core/balanced_core.tres")
 const _ENEMY_CORE := preload("res://entity/core/basic_enemy_core.tres")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _NPC_FACTION := preload("res://entity/factions/npc.tres")
+## Presets author faction by StringName id (`&"player"`/`&"npc"`) for brevity —
+## no registry autoload exists, so this sandbox-local map is the resolution.
+const _FACTION_BY_ID := {
+	&"player": _PLAYER_FACTION,
+	&"npc": _NPC_FACTION,
+}
 
 ## Addon scenes the count knob draws from, cycled for counts > pool size.
 ## Deliberately excludes `clamp_addon.tscn` — the only one of the five that is
@@ -247,7 +255,7 @@ func apply_preset(name: String) -> void:
 		return
 	_current_preset = name
 	if spec.has("faction"):
-		_entity.faction = spec["faction"]
+		_entity.faction = _FACTION_BY_ID.get(spec["faction"], null)
 	if spec.has("core_class"):
 		_entity.core_class = spec["core_class"]
 	if spec.has("display_name"):

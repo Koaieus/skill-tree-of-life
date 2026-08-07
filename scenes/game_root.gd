@@ -16,6 +16,7 @@ extends Node2D
 ## this path; that's fine, `%Player` lookup ignores parent.
 
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 ## Dev shortcut (#244): `F` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
@@ -190,7 +191,7 @@ func bind_player(p: Entity) -> void:
 	player = p
 	if player == null:
 		return
-	player.faction = &"player"
+	player.faction = _PLAYER_FACTION
 	highlight_controller.player = player
 	input_ctl.player = player
 	if vision_system != null:

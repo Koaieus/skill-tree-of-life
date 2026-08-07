@@ -28,6 +28,7 @@ const _SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn
 const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _DEFAULT_BOARD: Resource = preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE: CoreClass = preload("res://entity/core/balanced_core.tres")
+const _PLAYER_FACTION: Faction = preload("res://entity/factions/player.tres")
 
 @export var victim_level: int = 3       ## scales XP award + dust payload size
 @export var str_per_node: float = 6.0
@@ -122,6 +123,7 @@ func _build_world() -> void:
 	graph.add_edge(_victim_core, _victim_nodes[1])
 
 	_attacker = _spawn_entity("Attacker", Color(0.40, 0.80, 1.00))
+	_attacker.faction = _PLAYER_FACTION  # #384/#386: HOSTILE to the victim's default npc faction
 	_victim = _spawn_entity("Victim", Color(0.95, 0.45, 0.45), _BALANCED_CORE)
 
 

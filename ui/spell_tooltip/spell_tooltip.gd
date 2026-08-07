@@ -202,10 +202,17 @@ func _resolve_range_finder() -> RangeFinder:
 
 
 func _targeting_description(t: Targeting) -> String:
-	if t is SingleHostileNodeTargeting:
-		return "Enemy-occupied node"
-	if t is SingleAlliedNodeTargeting:
-		return "Own node"
+	# #384: the two Single*NodeTargeting subclasses collapsed into one
+	# NodeTargeting keyed by ownership_filter — describe by filter value,
+	# not by subclass.
+	if t is NodeTargeting:
+		match (t as NodeTargeting).ownership_filter:
+			SkillNode.Ownership.HOSTILE:
+				return "Enemy-occupied node"
+			SkillNode.Ownership.MINE:
+				return "Own node"
+			SkillNode.Ownership.ALLY:
+				return "Ally node"
 	return "Single node"
 
 

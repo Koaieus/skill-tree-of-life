@@ -93,7 +93,7 @@ func _try_attack() -> bool:
 	return true
 
 
-## First hostile node in the graph that isn't us. Faction filter beats raw
+## First hostile node in the graph that isn't us. `attitude_to` beats raw
 ## ownership so future allies don't get shot.
 func _pick_hostile_target() -> SkillNode:
 	var graph := entity.navigator.graph if entity.navigator != null else null
@@ -103,9 +103,7 @@ func _pick_hostile_target() -> SkillNode:
 		if node == null or node.owned_by == null:
 			continue
 		var other := node.owned_by
-		if other == entity:
-			continue
-		if other.faction == entity.faction:
+		if entity.attitude_to(other) != Entity.Attitude.HOSTILE:
 			continue
 		return node
 	return null

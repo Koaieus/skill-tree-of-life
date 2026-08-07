@@ -196,6 +196,10 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 		return
 	if killer == null or killer.is_dead:
 		return
+	# #384/#386: XP is a payment for a HOSTILE kill only — an ally kill (or the
+	# self-kill `_resolve_killer` already excludes) earns nothing.
+	if killer.attitude_to(victim) != Entity.Attitude.HOSTILE:
+		return
 	# Everything this attack took off the victim, whichever side of the cascade
 	# it currently sits on, plus the core it died on. `_held_nodes` excludes
 	# the core (it answers "territory"), but for the reward the core IS a node the
@@ -243,6 +247,9 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 		return
 	var killer := _resolve_killer(defender)
 	if killer == null or killer.is_dead:
+		return
+	# #384/#386: same HOSTILE gate as the kill bonus — see `_award_kill_xp`.
+	if killer.attitude_to(defender) != Entity.Attitude.HOSTILE:
 		return
 	_grant_xp(killer, xp_per_node_killed * float(newly))
 

@@ -22,8 +22,9 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 @export var color: Color = Color.WHITE
 ## Team identity, composed like [member core_class]. NPCs default to the
 ## shared [code]npc.tres[/code] faction; [method GameRoot.bind_player] swaps
-## the player onto [code]player.tres[/code]. Singular and by-reference: two
-## entities on the SAME `.tres` are allies.
+## the player onto [code]player.tres[/code]. Singular, compared by
+## [member Faction.id]: two entities whose factions share an id are allies,
+## even across separately-loaded/duplicated resource instances.
 @export var faction: Faction = preload("res://entity/factions/npc.tres")
 @export var stat_board: StatBoard = null
 ## Class specialization for this entity. Applied once on _ready via
@@ -50,18 +51,6 @@ func get_spellbook() -> SpellBook:
 	return spellbook
 
 
-## The ONLY place the player/enemy relation is decided (#384) — every other
-## hostility test (targeting, XP gating, AI) routes through this or through
-## [method SkillNode.ownership_bit], which delegates here. Same-[member faction]
-## (by resource reference) is ALLIED; a null faction on either side never
-## matches another null, so two faction-less entities read HOSTILE rather than
-## silently allying.
-func attitude_to(other: Entity) -> Attitude:
-	if other == self:
-		return Attitude.SELF
-	if faction != null and faction == other.faction:
-		return Attitude.ALLIED
-	return Attitude.HOSTILE
 @export var core_location: SkillNode:
 	set(value):
 		if core_location == value:
@@ -77,6 +66,28 @@ func attitude_to(other: Entity) -> Attitude:
 		# GDScript, assigning a property to its own backing field inside its setter
 		# does not re-enter the setter.)
 		dispatch(&"_on_core_moved", [previous, value])
+
+## [member faction]'s [member Faction.id], or [code]&""[/code] with no faction
+## assigned. For call sites that genuinely want the identifier rather than the
+## relation — prefer [method attitude_to] for any hostility test.
+var faction_id: StringName:
+	get:
+		return faction.id if faction != null else &""
+
+## The ONLY place the player/enemy relation is decided (#384) — every other
+## hostility test (targeting, XP gating, AI) routes through this or through
+## [method SkillNode.ownership_bit], which delegates here. Same-[member faction]
+## is ALLIED, compared by [member Faction.id] (not resource reference — a
+## `.tres` loaded twice or `duplicate()`d must still compare equal). A null
+## faction or an empty id on either side never matches, so two faction-less
+## entities read HOSTILE rather than silently allying.
+func attitude_to(other: Entity) -> Attitude:
+	if other == self:
+		return Attitude.SELF
+	if faction != null and other.faction != null and faction.id != &"" \
+			and faction.id == other.faction.id:
+		return Attitude.ALLIED
+	return Attitude.HOSTILE
 
 ## Current level. A proxy onto the `level` ScalarStat on the stat board — that's
 ## the canonical store (#200) so level-scaling formula modifiers can bind to it.

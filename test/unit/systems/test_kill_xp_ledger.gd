@@ -20,6 +20,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 const _PER_NODE := 5.0
 const _BONUS := 2.0
@@ -72,6 +73,7 @@ func before_each() -> void:
 	add_child_autofree(_loot)  # _ready connects the ledger to _battle
 
 	_killer = autofree(Entity.new())
+	_killer.faction = _PLAYER_FACTION  # #384/#386: HOSTILE to the victim's default npc faction
 	_killer.stat_board = _BOARD.duplicate(true) as StatBoard
 	_graph.add_child(_killer)
 	_victim = autofree(Entity.new())

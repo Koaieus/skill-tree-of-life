@@ -4,5 +4,6 @@
 
 [resource]
 script = ExtResource("1_faction")
+id = &"player"
 display_name = "Player"
 color = Color(0.4, 0.8, 1.0, 1.0)
