@@ -94,11 +94,15 @@ func _rebuild() -> void:
 		_set_hostile(false)
 		return
 	_bind_header(entity)
-	# INTERIM (#384): no viewer entity is threaded through the bind chain
-	# (FanPanel.bind(node, graph) -> FanUnit -> TooltipFan._bind_content), so
-	# this can't route through Entity.attitude_to like every other hostility
-	# test. Keeps the pre-#384 id-string comparison (now via faction_id)
-	# rather than a real relation check — see the #384 tracking issue.
+	# This panel is the LOCAL PLAYER's HUD, not a generic per-viewer relation
+	# test — "hostile" here means "not the player's faction". Real per-viewer
+	# attitude (routing through Entity.attitude_to) needs a viewer entity
+	# threaded through the fan's bind chain (FanPanel.bind(node, graph) ->
+	# FanUnit -> TooltipFan._bind_content), which is deferred for the same
+	# reason #384 deferred ally HUD color: at two teams with a single player
+	# entity, viewer.attitude_to(owner) and faction_id != &"player" are
+	# indistinguishable on screen. Revisit once a second player-side entity
+	# ships.
 	_set_hostile(entity.faction_id != &"player")
 	_bind_radar_and_rows(entity)
 	_apply_row_stagger()
