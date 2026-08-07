@@ -8,6 +8,7 @@ script = ExtResource("2_pool")
 stat_id = &"movement_points"
 tags = Array[StringName]([&"mobility", &"flat"])
 pool_weight = 0.6
+tier_bias_k = 0.5
 max_tier = 2
 
 [sub_resource type="Resource" id="dp"]
@@ -15,6 +16,7 @@ script = ExtResource("2_pool")
 stat_id = &"deallocation_points"
 tags = Array[StringName]([&"mobility", &"flat"])
 pool_weight = 0.8
+tier_bias_k = 0.5
 max_tier = 2
 
 [resource]

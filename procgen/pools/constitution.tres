@@ -9,7 +9,7 @@ stat_id = &"constitution"
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"flat"])
 unit_value = 2.0
-pool_weight = 10.0
+pool_weight = 5.0
 
 [sub_resource type="Resource" id="inc"]
 script = ExtResource("2_pool")
@@ -18,7 +18,7 @@ operation = 1
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"percent"])
 unit_value = 7.0
-pool_weight = 3.0
+pool_weight = 1.5
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -28,6 +28,7 @@ operation = 2
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"multiply"])
 unit_value = 0.05
+pool_weight = 0.5
 min_tier = 3
 
 [sub_resource type="Resource" id="nh_inc"]
@@ -36,6 +37,7 @@ stat_id = &"node_health"
 operation = 1
 tags = Array[StringName]([&"defense", &"percent"])
 unit_value = 6.5
+pool_weight = 0.5
 max_tier = 2
 
 [sub_resource type="Resource" id="ar"]
@@ -51,9 +53,9 @@ script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1
 tags = Array[StringName]([&"int", &"percent"])
-unit_value = -5.0
+unit_value = -2.0
 pool_weight = 0.5
-max_tier = 1
+max_tier = 3
 
 [resource]
 script = ExtResource("1_sp")
