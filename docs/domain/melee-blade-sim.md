@@ -25,8 +25,9 @@ live swing. Same inputs → same outputs.
 | Need | PBD answer |
 |------|-----------|
 | Deterministic per call | Pure function of positions + constraints + drivers |
-| Cheap (100 sub-steps in µs) | Verlet integration + constraint projection, all `PackedVector2Array` |
+| Cheap *per sub-step* | Verlet integration + constraint projection, all `PackedVector2Array` |
 | Stable at any timestep | No mass/force inversion, no force explosion |
+| — | **But a whole swing is milliseconds, not µs.** See "Measured cost" below. |
 | Composable constraints | Distance, clamp, future custom — all behind one `project(positions, inv_masses)` interface |
 | One solver, two callers | `resolve()` runs it for hits; the visual swing replays the trajectory |
 
@@ -194,18 +195,25 @@ Indexed by step, each sample is the full particle position array.
 `sample(t: float)` linear-interpolates between adjacent step samples
 for arbitrary real-time playback.
 
-### `BladeHitScan.scan(trajectory, state, targets) -> Array[HitEvent]`
+### `BladeHitScan.scan(trajectory, state, space_state, collision_mask, exclude)`
 
-Pure. `targets` is `Array[[Vector2, float, Object]]` — position,
-radius, payload (the engine's `SkillNode` reference). Walks adjacent
-trajectory samples; for each particle and edge tests proximity to each
-target; per-element-per-target dedup so each blade element hits each
-target at most once per swing. Emits time-stamped `HitEvent`s.
+Returns `Array[BladeHitEvent]`. **Queries the physics server** — it takes a
+`PhysicsDirectSpaceState2D` and runs shape intersections per element per
+sample; the blade itself never enters the physics world, only the query
+shapes do. Per-element-per-collider dedup, so each particle/edge emits at
+most one event per collider across the whole sweep, on first contact.
 
-The trajectory step is fine enough (default `1/120s`) that point-vs-
-segment proximity at each sample boundary is sufficient for hit
-detection at game speeds; no full swept-volume continuous collision
-needed.
+> This section previously described a pure point-vs-circle math scan taking
+> a `targets` array. That is no longer the signature. The change matters
+> beyond bookkeeping: **`scan` is not a pure function and cannot be assumed
+> safe from a `WorkerThreadPool` task.** Space-state queries are valid during
+> physics processing; anything planning to thread blade evaluation (#378)
+> must confirm this before relying on it, or thread only `simulate` and batch
+> the scans back on the main thread.
+
+The trajectory step is fine enough (default `1/120s`) that sample-boundary
+proximity is sufficient for hit detection at game speeds; no full
+swept-volume continuous collision needed.
 
 ## Engine-side wiring
 
@@ -248,6 +256,40 @@ and `attack_plan_state_changed`:
 The ghost uses the **same** `simulate()` call shape `resolve()` does,
 so the player sees exactly the trajectory the AI scores. Hit signal is
 ignored during ghost play — no damage during preview.
+
+## Measured cost
+
+`test/perf/bench_blade_sim.gd` (headless SceneTree script; run it, don't trust
+this table after the solver changes). Solver only — no hit scan. Ryzen-class
+desktop CPU, Godot 4.7.1, 1.2s swing at `dt = 1/120`, 16 base iterations:
+
+| blade size k | chain | + adaptive iters (`velocity_iter_ref = 400`) | triangulated mesh |
+|---|---|---|---|
+| 5 | 2.9 ms | 7.7 ms | 4.7 ms |
+| 10 | 6.2 ms | 14.4 ms | 11.0 ms |
+| 20 | **13.0 ms** | 27.3 ms | 23.7 ms |
+| 30 | 20.1 ms | 39.9 ms | — |
+
+**Milliseconds per swing, not microseconds.** Cost is ≈ linear in `steps ×
+iterations × constraints`, which works out to ~0.28 µs per constraint
+projection — that is the GDScript interpreter, not the algorithm. Adaptive
+iterations roughly double it; a triangulated mesh roughly doubles it (2×
+the constraints).
+
+Cheaper knobs, k=20 chain:
+
+| config | cost | vs full |
+|---|---|---|
+| `dt=1/120`, 16 iters | 12.4 ms | 1× |
+| `dt=1/60`, 16 iters | 6.3 ms | 2× |
+| `dt=1/30`, 16 iters | 3.2 ms | 3.9× |
+| `dt=1/30`, 4 iters | **0.89 ms** | 14× |
+| `dt=1/30`, 2 iters | 0.51 ms | 24× |
+
+This is what makes a two-tier evaluation viable: a coarse sim for *ranking*
+candidates and the full-fidelity sim for the chosen few. Ranking does not need
+120 Hz — but a coarse tier ranks on a different sim than `resolve()` executes,
+so the divergence has to be deliberate and tested, not assumed harmless.
 
 ## Open questions / future work
 
