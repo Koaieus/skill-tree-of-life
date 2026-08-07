@@ -166,6 +166,7 @@ var _local_modifiers: Array[StatModifier] = []
 ## populated while an override returns an Array; the value path is drif-free
 ## by construction and keeps no state.
 var _scaled_sets: Dictionary[StatModifier, Array] = {}
+# TODO: wth is this? this smells so bad. 
 
 ## Per-addon clone ledgers (#376). An addon's [member SkillNodeAddon.local_modifiers]
 ## / [member SkillNodeAddon.entity_modifiers] are sub-resources of the addon
@@ -182,10 +183,12 @@ var _scaled_sets: Dictionary[StatModifier, Array] = {}
 ## carrier never held the original).
 var _addon_local_clones: Dictionary[SkillNodeAddon, Array] = {}
 var _addon_entity_clones: Dictionary[SkillNodeAddon, Array] = {}
+# TODO: this doesn't smell, this STINKS
 
 ## Same ledger for the effect path: effect -> scaled leaf-set applied in
 ## place of the effect's granted modifiers on the entity board.
 var _scaled_effect_sets: Dictionary[Effect, Array] = {}
+# TODO: same ledger? same smell.
 
 ## Old fill for the mutator's (old_al, new_al) pair — PoolStat.current_changed
 ## only carries the new value.
@@ -775,6 +778,16 @@ func get_graph_degree(graph: Graph) -> int:
 ## Passing an [param entity] that does NOT own this node is meaningful only if
 ## you mean it: it counts this node's [param entity]-owned neighbours, so an
 ## unowned node wedged between two of red's nodes reads 2 for red.
+##
+## [b]Two things this body deliberately does NOT do[/b] — both were tried and
+## both are wrong; see `docs/domain/degree.md` for the long form:
+##
+## 1. It does not add `2 * self_loop_count`. `Graph._adjacency` already appends
+##    BOTH endpoints of a self-loop, so the loop below visits `self` twice and
+##    the +2 falls out for free — adding it again double-counts.
+## 2. It does not delegate to `entity.navigator.get_degree(self)`. The navigator
+##    mirrors only nodes `entity` OWNS, so it answers `-1` for exactly the
+##    unowned-node reading documented three lines up.
 func get_entity_degree(graph: Graph, entity: Entity = null) -> int:
 	if entity == null:
 		entity = owned_by

@@ -32,6 +32,31 @@ Verified equal: one self-loop on a degree-2 node reads 4 from all three.
 This is what makes fortification legible: two self-loops turn a degree-2 node
 into a degree-6 node, and a downhill walk turns away from it.
 
+## Why `get_entity_degree` does not just call the navigator
+
+It looks like hand-rolled duplication of `GraphMirror.get_degree` — "why
+reinvent the wheel, badly?" — and it isn't. `entity.navigator` is an
+`EntityNavigator`, whose `_should_mirror` admits **only nodes the entity owns**.
+So on a node the entity does *not* own, `vertex_id` misses and `get_degree`
+returns **`-1`** — not the count of entity-owned neighbours that the section
+below contractually requires.
+
+Tried 2026-08-07; `test/unit/spell/test_leafblower_reach.gd` went 7/7 → 2/7,
+including a literal `[-1] expected to equal [4]`. The delegation is only
+equivalent on the subset of calls where the node is already owned by the entity
+being asked about, and the accessor exists precisely to serve the other case.
+
+Two further reasons it stays a loop: the navigator dedupes parallel edges (see
+below) and it is `null` on an `Entity` with no `Graph` ancestor, which would turn
+a documented `0` into a crash.
+
+**Corollary — do NOT add `+ 2 * self_loop_count` to this body.**
+`Graph._adjacency` appends both endpoints of a self-loop (`graph.gd:125-128`),
+so the loop already visits `self` twice and inherits the +2. Adding it again
+double-counts. This is the same reason `get_graph_degree` doesn't add it either
+and `GraphMirror.get_degree` must — AStar holds no self-edge, the adjacency
+index does.
+
 ## The one place they diverge: parallel edges
 
 `_adjacency` appends per edge; AStar dedupes by point pair. Two edges between
