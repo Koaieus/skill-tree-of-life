@@ -145,7 +145,8 @@ Lane exit: #389 + #388 + #392 shipped. The rest is polish that can trail.
    - **#374** stake_level as PoolStat + proxy props — **Ready.**
    - **#375** `addon_slots = base(0) + allocation_level` as node-local Stat — **Ready.** Depends on #374.
    - **#376** magnitude curve linear-ladder mutator on SkillNode — **Ready.** Depends on #374 + #337.
-3. #301 bladesmithing: spend blade budget on per-swing upgrades — `Needs design`.
+3. **#377** stateless `StatModifier`: drop `_board` / `_bound_sources`, move binding to the Stat/Board that owns the modifier — **`Needs design`, scheduled 2026-08-07.** Its parking condition ("until a feature needs shared instances across multiple owning entities") is **met**: the wanted behaviour is one granted modifier recalculating on *every* holding entity's board, which the binding state makes impossible. Also the root cause of the four clone ledgers on `SkillNode` (`_scaled_sets`, `_addon_local_clones`, `_addon_entity_clones`, `_scaled_effect_sets`) — its acceptance should require they be **deleted**, not tidied. Scheduled here deliberately without starting it: **swarmify in its own session**, four open forks on the issue, and it touches `StatModifier`/`Stat`/`StatBoard` broadly. Two comments on the issue (2026-08-07) carry the rationale; `.claude/rules/stats-system.md` now points here so the statelessness question stops being re-asked (three sessions and counting).
+4. #301 bladesmithing: spend blade budget on per-swing upgrades — `Needs design`.
 
 ### C — Node-local and aura mechanics actually compute
 
@@ -218,7 +219,7 @@ companion to lane B/C. **#362 (lane E's slot-clearer) is listed up top, not here
 - #347 SkillNode lab: `@export_tool_button` entry point, live editor sync, verification readouts — `Ready`. This is the "tweak a value in the editor, see it immediately" tool.
 - #349 procgen authoring DX: top-down knobs instead of six-deep nesting — `Ready`.
 - #331 harden swarm + drone skills to be harness-independent — `Ready`. Meta, but the swarm orchestrator breaks on opencode without it.
-- #377 stateless-formula refactor: drop `StatModifier._board`/`_bound_sources`, move binding to the Stat/Board owning the modifier — `Needs design`. Long-term answer to the binding-state hazard that #376 (lane B) works around with a single-owner precondition + assertion. Not on the critical path until a feature needs shared instances across multiple owning entities.
+- ~~#377 stateless-formula refactor — not on the critical path until a feature needs shared instances across multiple owning entities.~~ **TRIGGER MET 2026-08-07 — moved to lane B.** See below.
 
 ## Deliberately parked
 
