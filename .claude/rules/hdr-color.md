@@ -1,1 +1,1 @@
-`Color` has no I field; the picker's I slider stores `sRGB_encode(base × 2^I)` as plain rgb, so bloom (linear threshold) hinges on I, not on rgb>1. See docs/domain/hdr-color.md
+Glow is one `WorldEnvironment` bloom pass **per viewport** (`ui/theme/default_game_env.tres`, mounted in `scenes/game_root.tscn` + every sandbox SubViewport, tuned in the sandbox host's **Bloom** tab); a thing glows iff its colour exceeds 1.0, authored only as a named tier via `Emissive.at()` or a `Tier*` `theme_type_variation` — never a hand-picked float. See docs/domain/hdr-color.md
