@@ -6,7 +6,9 @@ extends Control
 ## with alpha ramping around the sweep — cheaper than a shader and just as
 ## rotatable (the parent [HeroSigilCard] spins the whole node every frame).
 
-@export var ring_color: Color = Color(0.9, 0.75, 0.4, 1.0):
+## VALUE tier (#390) — a thin ring needs the full stop to read at all
+## (`docs/domain/hdr-color.md`: coverage is half the effect).
+@export var ring_color: Color = Emissive.at(Color(0.9, 0.75, 0.4), Emissive.VALUE):
 	set(v):
 		ring_color = v
 		queue_redraw()

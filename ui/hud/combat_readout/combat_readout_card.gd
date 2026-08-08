@@ -20,7 +20,10 @@ extends Control
 
 @export var _board: StatBoard
 
-@export var mode_color: Color = Color(0.9, 0.75, 0.4, 1.0)
+## #390 — GlassPanel's `border_color`/`glow_color` sit inside the HUD's
+## bloom-included canvas layer, so this is a "panel border" case the tier
+## vocabulary covers same as text: VALUE for the selected-mode border.
+@export var mode_color: Color = Emissive.at(Color(0.9, 0.75, 0.4), Emissive.VALUE)
 
 
 @export var _active: bool = false:
@@ -111,7 +114,7 @@ func set_active(active: bool) -> void:
 
 func _apply_active(active: bool) -> void:
 	if _panel != null:
-		_panel.border_color = mode_color if active else Color(0.47, 0.55, 0.75, 0.16)
+		_panel.border_color = mode_color if active else Emissive.at(Color(0.47, 0.55, 0.75, 0.16), Emissive.INERT)
 		_panel.border_width = 1.8 if active else 1.0
 		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, glow_strength if active else 0.0)
 		_panel.glow_strength = glow_strength if active else 0.0

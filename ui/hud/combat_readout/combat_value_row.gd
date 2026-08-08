@@ -24,7 +24,10 @@ extends HBoxContainer
 		if _label != null:
 			_label.text = v
 
-@export var override_color: Color = Color(0.9, 0.75, 0.4, 1.0)
+## ALERT tier (#390) — a node-local override is exactly the "genuine
+## punctuation" the tier vocabulary reserves ALERT for: the value differs
+## from baseline right now.
+@export var override_color: Color = Emissive.at(Color(0.9, 0.75, 0.4), Emissive.ALERT)
 
 var _last_value: float = NAN
 var _last_suffix: String = ""

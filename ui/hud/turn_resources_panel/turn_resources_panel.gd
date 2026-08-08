@@ -122,7 +122,10 @@ func _bind_skill_points(sp: SkillPointStat) -> void:
 		_sp_bar.cell_count = float(sp.value)
 		if _sp_to_spend_value != null:
 			_sp_to_spend_value.text = str(int(sp.current))
-			_sp_to_spend_value.modulate = Color(1, 1, 1, 1) if sp.current > 0 else Color(1, 1, 1, 0.35)
+			# #390 — "glows only when > 0" is VALUE-vs-INERT, not a static
+			# alpha dimmer; alpha stays reserved for animated reveals.
+			_sp_to_spend_value.modulate = Emissive.at(Color.WHITE, Emissive.VALUE) \
+					if sp.current > 0 else Emissive.at(Color.WHITE, Emissive.INERT)
 		_refresh_legend(sp)
 		_refresh_wound_heal(sp)
 	sp.current_changed.connect(sync.unbind(1))

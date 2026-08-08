@@ -22,14 +22,19 @@ signal row_unhovered(attr_id: StringName)
 		if _label != null:
 			_label.text = v
 
+## #390 — the value label's glow rides `Emissive.at(tint_color, VALUE)`, not
+## the raw stat tint: `StatDef.tint_color` (`.claude/rules/ui-palette.md`)
+## stays the single source of truth for the *hue*, this layer only adds the
+## HDR stop so it actually blooms.
 @export var tint_color: Color = Color.WHITE:
 	set(v):
 		tint_color = v
 		if _dot != null:
 			_dot.color = v
 		if _value != null:
-			_value.add_theme_color_override(&"font_color", v)
-			_value.add_theme_color_override(&"font_shadow_color", Color(v.r, v.g, v.b, 0.7))
+			var glow := Emissive.at(v, Emissive.VALUE)
+			_value.add_theme_color_override(&"font_color", glow)
+			_value.add_theme_color_override(&"font_shadow_color", Color(glow.r, glow.g, glow.b, 0.7))
 
 @onready var _dot: ColorRect = %Dot
 @onready var _label: Label = %Label
@@ -51,7 +56,7 @@ func _ready() -> void:
 	if _dot != null:
 		_dot.color = tint_color
 	if _value != null:
-		_value.add_theme_color_override(&"font_color", tint_color)
+		_value.add_theme_color_override(&"font_color", Emissive.at(tint_color, Emissive.VALUE))
 
 
 func set_value(v: float) -> void:
