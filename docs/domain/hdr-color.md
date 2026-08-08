@@ -66,6 +66,44 @@ map onto: tiers are named by **stops**, not hand-picked floats.
 | label    | ~+0.5  | ~1.4           | ~`1.15`        |
 | value    | +1     | 2.0            | `1.353256`    |
 | alert    | +2     | 4.0            | `1.825`       |
+| peak     | +3     | 8.0            | `2.454`       |
+
+`peak` (`Emissive.PEAK`) is deliberately the only tier above `alert` — a
+momentary ignition-flash overshoot that relaxes back down, never a resting
+state. Reach for a hand-picked float above `alert` and you're re-deriving this
+tier; name it instead.
+
+### `glow_intensity` defaults to 0.3 — budget for it before tiering harder
+
+Confirmed 2026-08-08 (#391 third follow-up): `Environment.glow_intensity`'s
+class default is `0.3`, and `ui/theme/default_game_env.tres` didn't override it
+until this fix. At that intensity, a tier that is genuinely above threshold
+still reads as *faint-to-invisible* — which is easy to misdiagnose as "this
+element still isn't blooming" and "fix" by cranking the element's own EV stops
+past `alert`, one surface at a time, forever.
+
+The concrete trap: `Emissive.at(base, ALERT)` on a **non-white, mid-saturation
+base** (an archetype tint, not `Color.WHITE`) is nowhere near as bright as the
+stop table above implies — sRGB decode is steep at midtones. A channel encoded
+at `0.78` (a typical mid-tint archetype green) decodes to linear `~0.57`; at
+`alert` (×4) that's linear `~2.26` — genuinely over the `1.0` threshold, but at
+`glow_intensity = 0.3` the excess (`~1.26 × 0.3 ≈ 0.38`) barely registers.
+Bumping to `+3`/`+4` stops (linear `~4.5`/`~9.1`) pushes the *same* weak
+intensity into visible range — which is exactly the "nothing at ALERT, medium
+at +3, great at +4" ladder that first surfaces this bug. **The fix is
+`glow_intensity`, not another stop.** `default_game_env.tres` now sets it to
+`1.2`.
+
+### A thin/small element needs real pixel coverage, not just a hot colour
+
+Bloom's wider mips (`glow_levels/4..7`) are built by repeatedly *downsampling*
+the frame — a feature smaller than a handful of pixels is gone before it
+reaches them, no matter how far over threshold its colour is. A `FanTrace` pad
+sprite at an 8px texture × `0.4` scale (a ~3px dot) or a 2px `Line2D` hairline
+both under-supply coverage for a "big" glow read; #391's fix widened the line
+to 3px and grew the pad's resting scale to `0.65` (~5px) once `glow_intensity`
+was no longer the confound. Judge sprite/stroke size against the *rendered*
+pixel footprint at the scale it's actually shown, not the source texture size.
 
 ## Round-trips unclamped through `.tscn`
 

@@ -27,6 +27,8 @@ const INERT := 0.0    ## Sits exactly at threshold: visible, never blooms.
 const LABEL := 0.5    ## A whisper — supporting text, idle borders.
 const VALUE := 1.0    ## The default "this is lit" reading. Numbers, active state.
 const ALERT := 2.0    ## Full neon. Reserve it, or nothing reads as loud.
+const PEAK := 3.0     ## A momentary overshoot above ALERT — an ignition flash
+                       ## relaxing back down, never a resting state.
 
 ## Neutral base for untinted emissive content — the Arcane Terminal off-white
 ## (CON's `oklch(0.92 0.02 250)`, per `.claude/rules/ui-palette.md`). Anything with

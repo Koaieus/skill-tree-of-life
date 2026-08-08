@@ -119,7 +119,10 @@ const PHI_FRACTION := 0.382
 	set(value):
 		line_glow_stops = value
 		_apply_line_color()
-@export var line_width := 2.0:
+## #391 follow-up: 2px read as a hairline with almost no lit-pixel coverage for
+## bloom's wider mips to pick up — bumped so the trace reads as an energetic
+## powerline, not a thin wire, once [member line_glow_stops] actually blooms.
+@export var line_width := 2.5:
 	set(value):
 		line_width = value
 		if _trace:
@@ -129,11 +132,17 @@ const PHI_FRACTION := 0.382
 	set(value):
 		tip_base_color = value
 		_apply_tip_color()
-## EV stops [member tip_base_color] is raised by. The tip is a filled radial
-## sprite (real pixel coverage, unlike the line), so [constant Emissive.VALUE]
-## — the default "this is lit" reading — is enough to bloom without blowing
-## out into a blob.
-@export_range(0.0, 3.0, 0.05) var tip_glow_stops := Emissive.VALUE:
+## EV stops [member tip_base_color] is raised by. #391 follow-up: the sprite
+## used to be a big (24px), softly pre-faded radial gradient — a pre-bloom
+## "fake glow" baked into the texture itself. Stacked with real HDR tiering
+## that produced a blown-out "cannonball": only the hot centre cleared
+## threshold, the already-faded rim didn't, and the *texture's* soft edge is
+## what gave the blob its shape, not the bloom pass. The sprite is now a
+## small (10px), near-solid disc ([id=GradientTexture2D_tip] in the .tscn) —
+## real pixel coverage instead of pre-baked falloff — so bloom's own blur does
+## the softening. [constant Emissive.ALERT] is the starting point at this
+## size; retune from here.
+@export_range(0.0, 4.0, 0.05) var tip_glow_stops := Emissive.ALERT:
 	set(value):
 		tip_glow_stops = value
 		_apply_tip_color()
@@ -158,27 +167,42 @@ const PHI_FRACTION := 0.382
 	set(value):
 		pad_base_color = value
 		_apply_pad_color()
-## EV stops [member pad_base_color] is raised by. The pad is the ignition
-## flash — it's meant to read as the loudest moment in the reveal — so it
-## defaults to [constant Emissive.ALERT], same tier as the line. Its own
-## bloom-in/relax already rides `modulate.a` (the sanctioned animated-reveal
-## use of alpha, see docs/domain/hdr-color.md); this is the *peak* energy that
-## alpha ramps up to, not a second dimmer.
-@export_range(0.0, 3.0, 0.05) var pad_glow_stops := Emissive.ALERT:
+## EV stops [member pad_base_color] is raised by once settled — the resting
+## tier the pad relaxes to as the line draws away from it. The "grow" read on
+## ignition (previously a scale overshoot) now comes from bloom alone: see
+## [member pad_glow_peak_stops]. `modulate.a` still handles the bloom-in/relax
+## fade (the sanctioned animated-reveal use of alpha, docs/domain/hdr-color.md);
+## this and its peak sibling are the *intensity* ramp, a second, independent
+## channel.
+@export_range(0.0, 4.0, 0.05) var pad_glow_stops := Emissive.ALERT:
 	set(value):
 		pad_glow_stops = value
 		_apply_pad_color()
-## Size of the pad once the line is on its way — the steady "this trace starts
-## here" marker that stays for the whole settled state.
-@export_range(0.0, 3.0, 0.01) var pad_scale := 0.75:
+## EV stops the pad is raised to at the peak of ignition, before relaxing to
+## [member pad_glow_stops]. The pad sprite itself stays a fixed, small size
+## ([member pad_scale]) — a big enough bloom at this tier reads as the pad
+## visually swelling on its own, no sprite-scale animation required. Named
+## [constant Emissive.PEAK] rather than a hand-picked float — it IS the
+## sanctioned "momentary overshoot above ALERT" tier.
+@export_range(0.0, 4.0, 0.05) var pad_glow_peak_stops := Emissive.PEAK:
+	set(value):
+		pad_glow_peak_stops = value
+		_apply_progress()
+## Constant size of the pad sprite — the small "this trace starts here" solder
+## dot. #391 follow-up: same fix as the tip — the pad texture used to be a
+## big (16px), softly pre-faded radial gradient, so most of its area sat at
+## low alpha and contributed almost nothing (`rgb × a`, hdr-color.md) no
+## matter how high [member pad_glow_stops] scrubbed; only a tiny hot centre
+## ever cleared threshold, which is why it read as inert. The sprite is now a
+## small (8px), near-solid disc ([id=GradientTexture2D_pad] in the .tscn).
+## #391 second follow-up: 0.4 (a ~3px dot) was too small for bloom's wider
+## mips to see at all — the environment's `glow_intensity` was also
+## undertuned at the time (see docs/domain/hdr-color.md), compounding the
+## same failure. With intensity fixed, 0.65 (~5px) is real coverage for a
+## solder-pad dot without reading as a blob.
+@export_range(0.0, 3.0, 0.01) var pad_scale := 0.65:
 	set(value):
 		pad_scale = value
-		_apply_progress()
-## Size the pad overshoots to at the peak of ignition, before relaxing to
-## [member pad_scale]. The bloom: > pad_scale is the whole point.
-@export_range(0.0, 4.0, 0.01) var pad_flash_scale := 1.6:
-	set(value):
-		pad_flash_scale = value
 		_apply_progress()
 
 @export_group("Motion")
@@ -326,10 +350,12 @@ func _apply_progress() -> void:
 	_apply_pad(ignite_t, line_t)
 
 
-## The origin pad: blooms to [member pad_flash_scale] across the ignition band,
-## then relaxes to [member pad_scale] as the line draws. Alpha rides ignition
-## alone, so the pad is fully lit by the time the line leaves it and stays lit
-## for the whole settled state — the trace visibly comes FROM somewhere.
+## The origin pad: blooms to [member pad_glow_peak_stops] across the ignition
+## band, then relaxes to [member pad_glow_stops] as the line draws. The sprite
+## itself stays a constant [member pad_scale] throughout — bloom intensity, not
+## sprite scale, carries the "grow" read. Alpha rides ignition alone, so the pad
+## is fully lit by the time the line leaves it and stays lit for the whole
+## settled state — the trace visibly comes FROM somewhere.
 func _apply_pad(ignite_t: float, line_t: float) -> void:
 	if _pad == null:
 		return
@@ -337,12 +363,13 @@ func _apply_pad(ignite_t: float, line_t: float) -> void:
 	# ever insets its first point keeps the pad on the line rather than beside it.
 	_pad.position = _full_points[0] if not _full_points.is_empty() else from_point
 	var bloom := _ease_out(ignite_t)
-	var peak := lerpf(0.0, pad_flash_scale, bloom)
+	var peak_stops := lerpf(pad_glow_stops, pad_glow_peak_stops, bloom)
 	# The relax leg is deliberately front-loaded against the line's own ease-out:
 	# the flash is spent in the first third of the draw, so what remains for the
-	# settled state is the small steady marker, not a lingering blob.
+	# settled state is the resting tier, not a lingering blob.
 	var settle := _ease_out(minf(line_t * 3.0, 1.0))
-	_pad.scale = Vector2.ONE * lerpf(peak, pad_scale, settle)
+	_pad.scale = Vector2.ONE * pad_scale
+	_pad.self_modulate = Emissive.at(pad_base_color, lerpf(peak_stops, pad_glow_stops, settle))
 	_pad.modulate.a = bloom
 	_pad.visible = bloom > 0.0
 

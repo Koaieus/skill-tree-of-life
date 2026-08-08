@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://fwyo4is6mfsx"]
+[gd_scene format=3 uid="uid://fwyo4is6mfsx"]
 
 [ext_resource type="Script" uid="uid://c77sys8givvyk" path="res://ui/tooltip_fan/fan_live_panel.gd" id="1_panel"]
 [ext_resource type="Script" uid="uid://dmjrs65475ad5" path="res://ui/tooltip_fan/fan_live_sandbox.gd" id="2_sandbox"]
@@ -15,46 +15,24 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_panel")
 
-[node name="Split" type="HSplitContainer" parent="." unique_id=1516731560]
+[node name="Split" type="HBoxContainer" parent="." unique_id=1746919412]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-split_offsets = PackedInt32Array(640)
-split_offset = 640
-
-[node name="ViewportContainer" type="SubViewportContainer" parent="Split" unique_id=181202991]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-stretch = true
-
-[node name="World" parent="Split/ViewportContainer" unique_id=296469557 instance=ExtResource("bloom_vp")]
-unique_name_in_owner = true
-handle_input_locally = false
-size = Vector2i(1088, 960)
-render_target_update_mode = 4
-
-[node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World" unique_id=550255330]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-color = Color(0.05, 0.06, 0.08, 1)
-
-[node name="Sandbox" type="Node2D" parent="Split/ViewportContainer/World" unique_id=318413593]
-unique_name_in_owner = true
-position = Vector2(544, 787.2)
-script = ExtResource("2_sandbox")
 
 [node name="Controls" type="ScrollContainer" parent="Split" unique_id=439505156]
-custom_minimum_size = Vector2(340, 0)
+custom_minimum_size = Vector2(400, 0)
+clip_contents = false
 layout_mode = 2
+size_flags_horizontal = 0
 
 [node name="VBox" type="VBoxContainer" parent="Split/Controls" unique_id=185104057]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 4
 
 [node name="PresetHeader" type="Label" parent="Split/Controls/VBox" unique_id=945787091]
@@ -106,13 +84,11 @@ text = "FIXTURE"
 [node name="OwnedCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1452400563]
 unique_name_in_owner = true
 layout_mode = 2
-button_pressed = true
 text = "Owned by entity"
 
 [node name="CoreCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=66226709]
 unique_name_in_owner = true
 layout_mode = 2
-button_pressed = true
 text = "Core node"
 
 [node name="AddonsRow" type="HBoxContainer" parent="Split/Controls/VBox" unique_id=1940329828]
@@ -129,12 +105,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Real addon scenes attached to the fixture node (0–8)"
 max_value = 8.0
-value = 8.0
 
 [node name="FootprintCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1965479217]
 unique_name_in_owner = true
 layout_mode = 2
-button_pressed = true
 text = "Procgen footprint"
 
 [node name="ParticipationHeader" type="Label" parent="Split/Controls/VBox" unique_id=1096494684]
@@ -294,3 +268,28 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Open the benched fan scene in the 2D editor (fan.tscn has the return button)"
 text = "✎  Open fan.tscn"
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Split" unique_id=181202991]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="Split/ViewportContainer" unique_id=296469557 instance=ExtResource("bloom_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(1036, 960)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World" unique_id=550255330]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="Sandbox" type="Node2D" parent="Split/ViewportContainer/World" unique_id=318413593]
+unique_name_in_owner = true
+position = Vector2(518, 787.2)
+script = ExtResource("2_sandbox")

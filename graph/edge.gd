@@ -19,9 +19,12 @@ signal endpoints_changed
 
 ## Lit/unlit/sensed are colour TRANSFORMS applied to each endpoint's own
 ## archetype tint, not fixed overrides — see `_display_color`.
-## #388 — lit no longer lightens the SDR colour; it rides the emissive VALUE
-## tier instead (`Emissive.at(base, Emissive.VALUE)`), so an allocated edge
-## actually clears bloom threshold rather than just reading brighter in SDR.
+## #388 — lit no longer lightens the SDR colour; the Line2D's `self_modulate`
+## rides an emissive tier instead (`Emissive.at(Color.WHITE, lit_glow_stops)`,
+## see `_update_visual`), so an allocated edge actually clears bloom threshold
+## rather than just reading brighter in SDR. #391 follow-up: the lift has to
+## go through `self_modulate`, not the Gradient's own vertex colours — a
+## Gradient stop above 1.0 didn't bloom, confirmed live in dev_bloom_sandbox.
 @export_range(0.0, 1.0, 0.05) var unlit_desaturate: float = 0.45
 @export_range(0.0, 1.0, 0.05) var unlit_darken: float = 0.15
 @export_range(0.0, 1.0, 0.05) var lit_alpha: float = 1.0
@@ -31,6 +34,11 @@ signal endpoints_changed
 ## in someone's vision fade-zone, regardless of lit/unlit archetype colour.
 @export_range(0.0, 1.0, 0.05) var sensed_alpha: float = 0.35
 @export_range(0.0, 1.0, 0.05) var sensed_width_scale: float = 0.75
+## EV stops the lit colour is raised by, applied via `self_modulate` (see
+## [Emissive] and `_update_visual`). #391 follow-up confirmed the pipeline is
+## live; this is back down at [constant Emissive.ALERT], the standard "loud"
+## tier used elsewhere (e.g. [FanTrace]'s line).
+@export_range(0.0, 4.0, 0.05) var lit_glow_stops: float = Emissive.ALERT
 
 @export var from: SkillNode:
 	set(value):
@@ -149,6 +157,13 @@ func _update_visual() -> void:
 	grad.set_color(1, _display_color(to.base_type_color, lit))
 	var w := width * (sensed_width_scale if sensed else 1.0)
 	line_2d.width = w
+	# #391 follow-up: the HDR lift rides `self_modulate`, not the Gradient's
+	# vertex colours — confirmed live in dev_bloom_sandbox via a magenta/
+	# self_modulate split test (a flat SDR gradient plus self_modulate DID
+	# bloom). `_display_color` below stays SDR-only; this is the one place
+	# lit intensity is actually applied, uniformly, on top of each vertex's
+	# own archetype hue.
+	line_2d.self_modulate = Emissive.at(Color.WHITE, lit_glow_stops) if (lit and not sensed) else Color.WHITE
 
 ## Archetype tint → rendered colour. Lit rides the emissive VALUE tier
 ## (`Emissive.at`) so an allocated edge actually clears bloom threshold and
@@ -161,7 +176,8 @@ func _display_color(base: Color, lit: bool) -> Color:
 	var c := base
 	var effective_lit := lit and not sensed
 	if effective_lit:
-		c = Emissive.at(base, Emissive.VALUE)
+		# Stays SDR — `_update_visual`'s `self_modulate` carries the HDR lift
+		# uniformly, so each vertex keeps its own archetype hue underneath.
 		c.a = lit_alpha
 	else:
 		var gray := c.get_luminance()

@@ -167,25 +167,28 @@ func test_progress_zero_extinguishes_the_pad() -> void:
 	assert_false(trace._pad.visible, "nothing started -> no pad")
 
 
-func test_settled_pad_relaxes_to_its_steady_size() -> void:
+func test_settled_pad_relaxes_to_its_resting_glow() -> void:
 	var trace := _make()
 	trace.ignite_fraction = 0.25
-	trace.pad_scale = 0.75
-	trace.pad_flash_scale = 1.6
+	trace.pad_scale = 0.2
+	trace.pad_glow_stops = 3.0
+	trace.pad_glow_peak_stops = 4.0
 	await get_tree().process_frame
 	trace.progress = 1.0
-	assert_almost_eq(trace._pad.scale.x, 0.75, 0.001, "settled pad is the steady marker, not the flash")
+	assert_almost_eq(trace._pad.scale.x, 0.2, 0.001, "pad sprite size never animates — bloom carries the flash")
+	assert_eq(trace._pad.self_modulate, Emissive.at(trace.pad_base_color, 3.0), "settled pad relaxes to the resting tier, not the peak")
 	assert_almost_eq(trace._pad.modulate.a, 1.0, 0.001, "settled pad stays lit")
 
 
-func test_pad_overshoots_the_settled_size_at_the_flash() -> void:
+func test_pad_overshoots_the_resting_glow_at_the_flash() -> void:
 	var trace := _make()
 	trace.ignite_fraction = 0.25
-	trace.pad_scale = 0.75
-	trace.pad_flash_scale = 1.6
+	trace.pad_scale = 0.2
+	trace.pad_glow_stops = 3.0
+	trace.pad_glow_peak_stops = 4.0
 	await get_tree().process_frame
 	trace.progress = 0.25 # peak of ignition, before the relax leg
-	assert_gt(trace._pad.scale.x, 0.75, "the bloom overshoots the steady size")
+	assert_gt(trace._pad.self_modulate.r, Emissive.at(trace.pad_base_color, 3.0).r, "the bloom overshoots the resting tier")
 
 
 func test_zero_ignite_fraction_reveals_the_line_from_progress_zero() -> void:

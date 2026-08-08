@@ -2,26 +2,26 @@
 
 [ext_resource type="Script" uid="uid://tq8bknh8p5hu" path="res://ui/tooltip_fan/fan_trace.gd" id="1_script"]
 
-[sub_resource type="Gradient" id="Gradient_tip"]
-offsets = PackedFloat32Array(0, 0.55, 1)
-colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.5, 1, 1, 1, 0)
+[sub_resource type="Gradient" id="Gradient_pad"]
+offsets = PackedFloat32Array(0, 0.8, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_tip"]
-gradient = SubResource("Gradient_tip")
-width = 24
-height = 24
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_pad"]
+gradient = SubResource("Gradient_pad")
+width = 8
+height = 8
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
 
-[sub_resource type="Gradient" id="Gradient_pad"]
-offsets = PackedFloat32Array(0, 0.42, 1)
-colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.85, 1, 1, 1, 0)
+[sub_resource type="Gradient" id="Gradient_tip"]
+offsets = PackedFloat32Array(0, 0.8, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
 
-[sub_resource type="GradientTexture2D" id="GradientTexture2D_pad"]
-gradient = SubResource("Gradient_pad")
-width = 16
-height = 16
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_tip"]
+gradient = SubResource("Gradient_tip")
+width = 10
+height = 10
 fill = 1
 fill_from = Vector2(0.5, 0.5)
 fill_to = Vector2(1, 0.5)
@@ -31,20 +31,21 @@ script = ExtResource("1_script")
 
 [node name="Pad" type="Sprite2D" parent="." unique_id=1730637914]
 unique_name_in_owner = true
-modulate = Color(1, 1, 1, 0)
+self_modulate = Color(1.2902569, 1.8247963, 1.8247963, 1)
+scale = Vector2(0.65, 0.65)
 texture = SubResource("GradientTexture2D_pad")
 
 [node name="Trace" type="Line2D" parent="." unique_id=138168346]
 unique_name_in_owner = true
-points = PackedVector2Array(0, 0, 0, -120)
-width = 2.0
+points = PackedVector2Array(0, 0, 0, -45.84, 0, -120)
+width = 2.5
+default_color = Color(0.7557179, 1.7357064, 1.8247963, 0.9)
 joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2
 antialiased = true
 
 [node name="Tip" type="Sprite2D" parent="." unique_id=1730637913]
 unique_name_in_owner = true
 visible = false
+self_modulate = Color(1.2902569, 1.8247963, 1.8247963, 1)
 position = Vector2(0, -120)
 texture = SubResource("GradientTexture2D_tip")
