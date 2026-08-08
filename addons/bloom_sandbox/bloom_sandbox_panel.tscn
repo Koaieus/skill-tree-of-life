@@ -173,3 +173,18 @@ text = "Color(1.1645, 1.2222, 1.2841)
 linear luminance 1.560  (threshold 1.00)
 BLOOMS"
 autowrap_mode = 2
+
+[node name="Sep3" type="HSeparator" parent="Split/Sidebar/SidebarBox"]
+layout_mode = 2
+
+[node name="StrategyBox" type="VBoxContainer" parent="Split/Sidebar/SidebarBox"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="StrategyLabel" type="Label" parent="Split/Sidebar/SidebarBox/StrategyBox"]
+layout_mode = 2
+text = "Archetype equalization strategy"
+
+[node name="StrategyPicker" type="OptionButton" parent="Split/Sidebar/SidebarBox/StrategyBox"]
+unique_name_in_owner = true
+layout_mode = 2

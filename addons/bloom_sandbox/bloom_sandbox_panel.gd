@@ -137,6 +137,7 @@ class ShapeCell:
 @onready var left: VBoxContainer = %VBoxContainer
 @onready var right: VBoxContainer = %VBoxContainer2
 @onready var archetypes: VBoxContainer = %VBoxContainer3
+@onready var _strategy_picker: OptionButton = %StrategyPicker
 
 var _env: Environment
 ## Filled in by `_probe_render_target()` one frame after the first draw.
@@ -176,6 +177,7 @@ func _ready() -> void:
 
 	_build_chart()
 	_build_knobs()
+	_build_strategy_picker()
 	_build_diagnostics()
 	_probe_render_target()
 
@@ -280,15 +282,6 @@ func _build_archetype_band() -> void:
 	for child in archetypes.get_children():
 		child.queue_free()
 
-	var picker := OptionButton.new()
-	for i in _strategies.size():
-		picker.add_item(_strategies[i]["name"], i)
-	picker.selected = _strategy_index
-	picker.item_selected.connect(func(i: int) -> void:
-		_strategy_index = i
-		_build_archetype_band())
-	archetypes.add_child(picker)
-
 	var strategy: Callable = _strategies[_strategy_index]["fn"]
 	var band := PanelContainer.new()
 	var style := StyleBoxFlat.new()
@@ -315,6 +308,23 @@ func _build_archetype_band() -> void:
 		var base := def.tint_color if def != null else Color.DIM_GRAY
 		var label := def.abbrev if def != null and not def.abbrev.is_empty() else String(stat_id)
 		col.add_child(_sample_row(label, base, strategy))
+
+
+## The archetype band's strategy dropdown (`%StrategyPicker`, scene-authored
+## in the SIDEBAR, not built here) drives the chart via this wiring only.
+## It lives in the sidebar, not inside the chart it controls, because
+## `OptionButton`'s popup is a real `Window` and can't position itself
+## against content rendered inside a `SubViewport` — the symptom is a
+## dropdown that silently never opens. Every other interactive control in
+## this panel (blend mode, sliders, Save/Reset) is in the sidebar for the
+## same reason.
+func _build_strategy_picker() -> void:
+	for i in _strategies.size():
+		_strategy_picker.add_item(_strategies[i]["name"], i)
+	_strategy_picker.selected = _strategy_index
+	_strategy_picker.item_selected.connect(func(i: int) -> void:
+		_strategy_index = i
+		_build_archetype_band())
 
 
 func _stop_header() -> HBoxContainer:
