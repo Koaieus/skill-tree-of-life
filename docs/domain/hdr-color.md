@@ -120,19 +120,30 @@ error with the sandbox as the feedback loop — is the empirical middle ground
 for *this* line width; it isn't derived from anything reasoned and doesn't
 generalize to a different width without retesting.
 
-This raises two open questions this doc doesn't answer yet, because probing
-beats reasoning here same as everywhere else in this file:
+**#399 answered the first of two open questions this raised**: `Edge.width` is
+now authored in screen pixels and held constant across camera zoom —
+`graph/edge.gd`'s `_current_zoom` (updated via `Events.camera_zoom_changed`,
+broadcast once per zoom step from `GraphCamera`, not per frame) divides the
+authored width by the current zoom so the rendered `Line2D`/self-loop
+`draw_arc` width inflates in world units exactly enough to hold on-screen
+coverage constant. This turns camera zoom off as a variable in `lit_glow_stops`
+tuning: one stop value is expected to read right at every zoom level, same as
+a `Control`. Deliberately scoped to `Edge` only — `SkillNode` radius still
+scales with zoom, so nodes and edges diverge in how they respond to zoom; that
+mismatch was discussed and accepted, not revisited here.
 
-- Should a world-space element's glow (stops, or width) scale with camera
-  zoom to hold screen-pixel coverage constant, rather than picking one
-  compromise value that's under-lit at some zooms and over-lit at others?
-- Is fading out at extreme zoom-out actually *fine* — a graph zoomed out far
-  enough that lit edges are a handful of pixels each is arguably a case where
-  losing the glow (but not the SDR colour) is the correct read, not a bug.
+Still open:
+
+- Is fading out at extreme zoom-out actually *fine* for `SkillNode` — a graph
+  zoomed out far enough that lit edges are a handful of pixels each is
+  arguably a case where losing the glow (but not the SDR colour) is the
+  correct read, not a bug. `Edge` no longer fades with zoom; `SkillNode` still
+  does, un-addressed by #399's decision to scope it out.
 
 A screen-space `Control` (HUD panels, tooltip fan) doesn't have this problem —
-its size is display pixels regardless of camera state — so this only applies
-to `Graph`/`Edge`/`SkillNode` world-space visuals **at actual runtime.**
+its size is display pixels regardless of camera state — so the remaining open
+question only applies to `Graph`/`SkillNode` world-space visuals **at actual
+runtime.**
 
 ### The editor's 2D canvas zoom reintroduces the same problem for a `Control`
 

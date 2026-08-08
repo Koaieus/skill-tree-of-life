@@ -38,15 +38,13 @@ signal endpoints_changed
 ## [Emissive] and `_update_visual`). Default stays [constant Emissive.ALERT] —
 ## the standard "loud" tier — as a sane fallback for a consumer that hasn't
 ## measured its own on-screen line width. `graph/edge.tscn`'s shipped instance
-## overrides this to `2.5`, empirically tuned (2026-08-08) against its 2.5px
-## `Line2D` width across camera zoom levels: at `ALERT` the line only blooms
-## near max zoom (more on-screen pixels feed bloom's downsample mips — see
-## docs/domain/hdr-color.md's pixel-coverage-floor section); at `PEAK` (`3.0`)
-## it blooms at most zooms but blows out at max and is a named "momentary
-## overshoot" tier being used as a resting state. `2.5` was the empirical
-## middle ground, not a stop count derived from anything reasoned — retune
-## live in `dev_bloom_sandbox` if the line width ever changes.
-@export_range(0.0, 4.0, 0.05) var lit_glow_stops: float = Emissive.ALERT
+## overrides this to an empirically-tuned value (see `dev_bloom_sandbox`).
+## #399: `width` (and this line's screen coverage) is now held constant in
+## screen pixels regardless of camera zoom (see `_current_zoom` /
+## `_apply_width`), so one tuned value is expected to read right at every
+## zoom level — retune live in `dev_bloom_sandbox` only if the authored
+## `width` itself changes.
+@export_range(0.0, 6.0, 0.05) var lit_glow_stops: float = Emissive.ALERT
 
 @export var from: SkillNode:
 	set(value):
@@ -72,12 +70,24 @@ signal endpoints_changed
 		_update_visual()
 		endpoints_changed.emit()
 
+## Authored in SCREEN pixels, not world units (#399) — `_apply_width` divides
+## by `_current_zoom` to hold on-screen coverage constant across camera zoom.
+## Never write the derived world-space width back into this export: `Edge` is
+## `@tool`, and a derived value written into an `@export` gets serialized
+## into the `.tscn` and re-derived from itself on every save (see
+## `.claude/rules/gdscript-pitfalls.md`).
 @export var width: float = 2.0:
 	set(v):
 		width = v
-		_update_visual()
+		_apply_width()
 
 @onready var line_2d: Line2D = $Line2D
+
+## Last zoom broadcast via [signal Events.camera_zoom_changed]. Stays `1.0` in
+## the editor (`@tool`, no live `GraphCamera` — the 2D editor canvas has its
+## own unrelated zoom, see docs/domain/hdr-color.md's editor-canvas-zoom
+## section) and at runtime before the first camera broadcast.
+var _current_zoom: float = 1.0
 
 
 ## Sensed-but-not-clearly-visible: at least one endpoint is sensed
@@ -98,6 +108,9 @@ var is_self_loop: bool:
 	get(): return from != null and from == to
 
 func _ready() -> void:
+	if not Engine.is_editor_hint():
+		_current_zoom = GraphCamera.current_zoom
+	Events.camera_zoom_changed.connect(_on_camera_zoom_changed)
 	_update_endpoints()
 	_update_visual()
 
@@ -163,8 +176,7 @@ func _update_visual() -> void:
 		line_2d.gradient = grad
 	grad.set_color(0, _display_color(from.base_type_color, lit))
 	grad.set_color(1, _display_color(to.base_type_color, lit))
-	var w := width * (sensed_width_scale if sensed else 1.0)
-	line_2d.width = w
+	_apply_width()
 	# #391 follow-up: the HDR lift rides `self_modulate`, not the Gradient's
 	# vertex colours — confirmed live in dev_bloom_sandbox via a magenta/
 	# self_modulate split test (a flat SDR gradient plus self_modulate DID
@@ -172,6 +184,35 @@ func _update_visual() -> void:
 	# lit intensity is actually applied, uniformly, on top of each vertex's
 	# own archetype hue.
 	line_2d.self_modulate = Emissive.at(Color.WHITE, lit_glow_stops) if (lit and not sensed) else Color.WHITE
+
+## Sets `line_2d.width` from the current `width`/`sensed`/zoom state without
+## touching colour — the width-only path, called by both the `width` setter
+## and the zoom-change handler so a camera zoom step never pays for a full
+## `_update_visual()` Gradient rebuild across every live edge (#399; see
+## `.claude/rules/skill-node-scale.md`). Self-loops don't have a `Line2D` to
+## update but do need a redraw since `draw_arc`'s width won't self-invalidate
+## the way `Line2D.width =` does.
+func _apply_width() -> void:
+	if not is_node_ready():
+		return
+	if is_self_loop:
+		queue_redraw()
+		return
+	if line_2d == null:
+		return
+	line_2d.width = _screen_constant_width()
+
+## World-space line width that renders at a constant `width` SCREEN pixels
+## regardless of camera zoom (#399) — `width` is authored in screen pixels;
+## dividing by `_current_zoom` inflates it in world units exactly enough to
+## hold on-screen coverage constant. Shared by the regular `Line2D` path and
+## `_draw_self_loop`'s `draw_arc`.
+func _screen_constant_width() -> float:
+	return (width / _current_zoom) * (sensed_width_scale if sensed else 1.0)
+
+func _on_camera_zoom_changed(zoom: float) -> void:
+	_current_zoom = zoom
+	_apply_width()
 
 ## Archetype tint → rendered colour. Lit rides the emissive VALUE tier
 ## (`Emissive.at`) so an allocated edge actually clears bloom threshold and
@@ -221,7 +262,7 @@ func _draw_self_loop() -> void:
 	var loop_center := node_center + Vector2.from_angle(angle) * (r + loop_radius - SELF_LOOP_SINK)
 	var lit := is_lit()
 	var c := _display_color(from.base_type_color, lit)
-	var w := width * (sensed_width_scale if sensed else 1.0)
+	var w := _screen_constant_width()
 	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, w, false)
 
 

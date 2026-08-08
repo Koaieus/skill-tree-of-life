@@ -19,9 +19,19 @@ const MAX_ZOOM := 2.00
 var _target_zoom: float = 1.0
 var _zoom_tween: Tween = null
 
+## Last-known zoom TARGET, mirrored via [signal Events.camera_zoom_changed]
+## (#399). Static so a consumer with no live camera in its scene (bloom
+## sandbox SubViewport, headless GUT fixtures) still reads a sane default
+## instead of needing a tree lookup, and so an Edge spawned between zoom
+## steps (procgen/`Graph.add_edge` at level load) sees the current value
+## immediately rather than waiting for the next scroll tick.
+static var current_zoom: float = 1.0
+
 
 func _ready() -> void:
 	_target_zoom = zoom.x
+	current_zoom = _target_zoom
+	Events.camera_zoom_changed.emit(current_zoom)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -59,6 +69,8 @@ func _zoom_by(step: float) -> void:
 		# scroll tick would teleport.
 		_target_zoom = zoom.x
 	_target_zoom = clampf(_target_zoom + step, MIN_ZOOM, MAX_ZOOM)
+	current_zoom = _target_zoom
+	Events.camera_zoom_changed.emit(current_zoom)
 	if zoom_duration <= 0.0:
 		zoom = Vector2(_target_zoom, _target_zoom)
 		return

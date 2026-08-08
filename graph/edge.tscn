@@ -10,13 +10,13 @@ colors = PackedColorArray(0.55, 0.55, 0.6, 0.55, 0.55, 0.55, 0.6, 0.55)
 z_index = -10
 z_as_relative = false
 script = ExtResource("1_25cad")
-lit_glow_stops = 3.75
-width = 2.5
+lit_glow_stops = 4.5
+width = 3.0
 metadata/_custom_type_script = "uid://5igfp33erkyn"
 
 [node name="Line2D" type="Line2D" parent="." unique_id=288435284]
 points = PackedVector2Array(169, 0, 0, 0)
-width = 2.0
+width = 3.0
 gradient = SubResource("Gradient_edge")
 joint_mode = 2
 begin_cap_mode = 2

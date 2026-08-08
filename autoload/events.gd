@@ -90,3 +90,9 @@ signal spell_unhovered
 ## Fired by GameRoot when the player entity dies — the HUD shows the game-over
 ## overlay. No payload; the single overlay is pre-composed and just toggles visible.
 signal game_over
+
+## Fired by GraphCamera (`scenes/camera_2d.gd`) whenever a zoom step lands —
+## the tween's TARGET, not a per-frame mid-tween value. Edge listens so its
+## line width can hold constant screen-pixel coverage (#399) without every
+## edge polling the camera in `_process`.
+signal camera_zoom_changed(zoom: float)
