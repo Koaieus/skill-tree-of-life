@@ -6,6 +6,10 @@
 GH_PROJECT_NUMBER = "1"
 GH_PROJECT_OWNER = "@me"
 GH_PROJECT_ID = "PVT_kwHOAExWR84BcS99"
+# gh pages its output whenever stdout is a TTY, which hangs any agent harness
+# that runs commands under a pty (opencode). Disable it repo-wide so agents can
+# use plain `gh issue view <n> --comments` instead of guessing at --json fields.
+GH_PAGER = "cat"
 
 [tasks.check]
 description = "Headless compile-check of all project scripts (Godot editor import)"
