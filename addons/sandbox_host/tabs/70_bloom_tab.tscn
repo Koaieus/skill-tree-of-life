@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dcr01vcfbimlb"]
+[gd_scene format=3 uid="uid://do2hmh5yharvn"]
 
 [ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
 [ext_resource type="PackedScene" uid="uid://cu5shtiygt6fi" path="res://addons/bloom_sandbox/bloom_sandbox_panel.tscn" id="2_panel"]

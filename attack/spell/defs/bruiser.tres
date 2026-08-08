@@ -44,7 +44,6 @@ script = ExtResource("10_range")
 
 [sub_resource type="Resource" id="targeting"]
 script = ExtResource("9_targeting")
-ownership_filter = 8
 range_finder = SubResource("range")
 
 [resource]
