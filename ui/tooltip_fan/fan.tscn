@@ -18,29 +18,29 @@ metadata/_edit_horizontal_guides_ = [-65.0]
 position = Vector2(0, 43)
 
 [node name="IdChip" parent="." unique_id=1695165643 instance=ExtResource("3_chip")]
-position = Vector2(0, -114)
+position = Vector2(5, -127)
 
 [node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
-position = Vector2(-180, -7)
+position = Vector2(-155, -2)
 anchor_slide = 0.12
 arrival_axis = 1
 
 [node name="Addons" parent="." unique_id=79711224 instance=ExtResource("5_addons")]
-position = Vector2(122, -247)
+position = Vector2(5, -235)
 anchor_slide = 0.1
 arrival_axis = 2
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
-position = Vector2(209, 13)
-anchor_slide = 0.12
+position = Vector2(212, -289)
+anchor_slide = 0.87
 arrival_axis = 1
 
 [node name="Core" parent="." unique_id=314431141 instance=ExtResource("7_core")]
-position = Vector2(-109, -271)
-anchor_slide = 0.7
-arrival_axis = 2
+position = Vector2(156, 10)
+anchor_slide = 0.1
+arrival_axis = 1
 
 [node name="ProcgenDebug" parent="." unique_id=1540150391 instance=ExtResource("8_procgen")]
 z_index = -5
-position = Vector2(-294, -174)
+position = Vector2(-164, -166)
 anchor_slide = 0.93
