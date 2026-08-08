@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://bbcoaaq7xchhg" path="res://assets/icons/addons/addon_fortification.png" id="2_icon"]
 
 [sub_resource type="Resource" id="Resource_kv1mp"]
+resource_local_to_scene = true
 script = ExtResource("1_3e5dq")
 stat_id = &"node_health"
 operation = 3

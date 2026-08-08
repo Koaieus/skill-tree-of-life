@@ -70,10 +70,11 @@ func test_level_up_through_the_xp_pool_drives_the_bonuses() -> void:
 
 
 func test_shared_formula_survives_per_entity_duplication() -> void:
-	# CoreClass.apply() deep-duplicates each modifier. The formula must NOT be
-	# forked with it — every entity reads the one shared curve, so retuning
-	# level_scaling.tres retunes every class. Guards against the formula being
-	# inlined back into balanced_core.tres, which would break this silently.
+	# CoreClass.apply() no longer duplicates its modifiers at all (#377) — the
+	# same StatModifier instance now applies to every entity of this class, so
+	# the formula being shared, not forked, is true a fortiori. Kept for its
+	# real point: guards against the formula being inlined back into
+	# balanced_core.tres, which would fork it silently either way.
 	var a: Entity = await _make_entity()
 	var b: Entity = await _make_entity()
 	for board in [a.stat_board, b.stat_board]:
@@ -86,7 +87,10 @@ func test_shared_formula_survives_per_entity_duplication() -> void:
 
 
 func test_entities_do_not_crosstalk() -> void:
-	# The modifiers themselves DO get duplicated (they carry binding state).
+	# #377: the modifiers are NOT duplicated anymore — the same instance is
+	# shared across A and B's boards. Binding lives per-board now, so A's
+	# recompute reads A's own level and B's reads B's; a shared instance
+	# doesn't mean shared computed state.
 	var a: Entity = await _make_entity()
 	var b: Entity = await _make_entity()
 	var b_str_at_1: int = int(b.stat_board.strength.value)

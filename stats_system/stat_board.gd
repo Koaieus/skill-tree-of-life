@@ -222,7 +222,7 @@ func add_modifier(m: StatModifier) -> void:
 	# flatten() expands a CompositeStatModifier into its leaves; a plain
 	# modifier is its own singleton, so the leaf path below is unchanged (#183).
 	for leaf in m.flatten():
-		leaf.bind(self)
+		bind_modifier(leaf)
 		if StatFormula.is_accessor_token(leaf.stat_id):
 			# An accessor token (e.g. `health__current`) is a formula-read handle,
 			# not a stat id — a modifier canTarget one as well as it can target
@@ -237,7 +237,39 @@ func add_modifier(m: StatModifier) -> void:
 		if s == null:
 			push_warning("StatBoard has no stat for id %s" % leaf.stat_id)
 			continue
-		s.add_modifier(leaf)
+		s.add_modifier(leaf, self)
+
+
+## Subscribe [param m] to its formula's source stats on THIS board, so a source
+## change here recomputes it (#377). No-op when [param m] has no formula —
+## static modifiers pay zero binding cost. No storage: connections are looked
+## up again by [method unbind_modifier] via the same formula/get_stat walk, not
+## remembered, because [member _extra_stats] never erases an entry once created
+## — get_stat(id) is guaranteed to resolve the same Stat later. A modifier
+## applied to N boards gets N independent connections into its own
+## [method StatModifier._on_source_changed], one per board.
+func bind_modifier(m: StatModifier) -> void:
+	if m.formula == null:
+		return
+	for id in m.formula.get_input_ids():
+		var s := get_stat(id)
+		if s == null:
+			push_warning("StatBoard.bind_modifier: formula source stat '%s' not found in board" % id)
+			continue
+		if not s.value_changed.is_connected(m._on_source_changed):
+			s.value_changed.connect(m._on_source_changed)
+
+
+## Reverse of [method bind_modifier] — recomputes the same source list from
+## [param m]'s formula and disconnects. Safe to call on an unbound modifier
+## (formula == null, or nothing was ever connected — `is_connected` guards).
+func unbind_modifier(m: StatModifier) -> void:
+	if m.formula == null:
+		return
+	for id in m.formula.get_input_ids():
+		var s := get_stat(id)
+		if s != null and s.value_changed.is_connected(m._on_source_changed):
+			s.value_changed.disconnect(m._on_source_changed)
 
 
 ## True if applying [param m] would close a dependency cycle against the formula
@@ -352,19 +384,22 @@ func remove_modifier(m: StatModifier) -> void:
 	# Symmetric with add_modifier: flatten() returns the same stable child
 	# instances, so a composite added earlier is removed leaf-for-leaf.
 	for leaf in m.flatten():
-		leaf.unbind()
+		unbind_modifier(leaf)
 		var s := get_stat(leaf.stat_id)
 		if s == null:
 			continue
-		s.remove_modifier(leaf)
+		s.remove_modifier(leaf, self)
 
 
 ## Apply intrinsic_modifiers. Call once from Entity._ready() after the board
-## is fully wired. Entries are duplicated automatically so each entity board
-## gets its own bound instance — callers don't need to think about this.
+## is fully wired. No per-entry duplication needed (#377) — binding lives on
+## THIS board, so applying the same instance to another board's
+## intrinsic_modifiers (itself already a distinct array: Entity._ready
+## duplicates the whole board with `duplicate(true)` before calling this)
+## computes independently there too.
 func apply_intrinsics() -> void:
 	for m in intrinsic_modifiers:
-		add_modifier(m.duplicate(true))
+		add_modifier(m)
 
 
 ## The ids of every dynamically-created stat currently on this board (i.e. the

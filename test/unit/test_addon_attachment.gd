@@ -151,3 +151,39 @@ func test_every_concrete_addon_scene_gets_the_base_z() -> void:
 
 func test_skill_node_scene_has_no_addon_anchor() -> void:
 	assert_null(_node.get_node_or_null("Visuals/AddonAnchor"), "the AddonAnchor bin is gone (#334)")
+
+
+func test_two_carriers_with_the_same_addon_type_scale_independently() -> void:
+	# #377: bunker_addon.tscn's granted StatModifier sets
+	# resource_local_to_scene = true, so every instantiate() gets its own
+	# private copy with no manual clone-and-track needed. This is the exact
+	# leak scenario the old _addon_local_clones ledger existed to prevent —
+	# a live edit on one carrier's copy (what the local-scale mutator does)
+	# must not bleed into another carrier's "fresh" bunker.
+	var node_a := SKILL_NODE_SCENE.instantiate()
+	var node_b := SKILL_NODE_SCENE.instantiate()
+	autofree(node_a)
+	autofree(node_b)
+	add_child(node_a)
+	add_child(node_b)
+	await get_tree().process_frame
+
+	var addon_a := BUNKER_SCENE.instantiate() as SkillNodeAddon
+	var addon_b := BUNKER_SCENE.instantiate() as SkillNodeAddon
+	node_a.add_child(addon_a)
+	node_b.add_child(addon_b)
+
+	var mods_a := addon_a.get_local_modifiers()
+	var mods_b := addon_b.get_local_modifiers()
+	assert_eq(mods_a.size(), 1, "precondition: bunker grants exactly one local modifier")
+	assert_ne(mods_a[0], mods_b[0], "resource_local_to_scene gives each instantiate() its own copy")
+
+	assert_almost_eq(float(node_a.get_local_value(&"armor")), 5.0, 0.001, "node A starts at bunker's authored armor")
+	assert_almost_eq(float(node_b.get_local_value(&"armor")), 5.0, 0.001, "node B starts at bunker's authored armor")
+
+	# Simulate the local-scale mutator's write path (#376): mutate node A's
+	# own modifier instance directly, as _apply_local_scale would.
+	mods_a[0].value = 15.0
+
+	assert_almost_eq(float(node_a.get_local_value(&"armor")), 15.0, 0.001, "node A's own modifier scaled")
+	assert_almost_eq(float(node_b.get_local_value(&"armor")), 5.0, 0.001, "node B's fresh bunker is untouched")

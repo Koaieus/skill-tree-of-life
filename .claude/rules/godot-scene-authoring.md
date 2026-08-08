@@ -28,7 +28,9 @@ mutates it per-instance, last writer wins and every instance renders identically
 Symptom: "my per-instance tweak has no effect", no error.
 
 **Fix:** set `resource_local_to_scene = true` on the sub-resource (inspector:
-resource → Local To Scene).
+resource → Local To Scene). Concrete case: `skill_node/addons/*_addon.tscn`'s
+granted `StatModifier`s all set this (#377) — without it, one carrier's
+value-mutation would leak into every other instantiation of that addon.
 
 ## Scene-node systems wire injected deps in `initialize()`, not `_ready()`
 

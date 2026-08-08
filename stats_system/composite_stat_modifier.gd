@@ -73,10 +73,10 @@ func collect_formula_edges(out: Dictionary) -> void:
 ## flattening first (the intended paths — tooltip, loot card — do flatten).
 ## Joins each leaf's own contribution so a stray render shows the bundle, not
 ## the inherited "+1" phantom from the vestigial `value` field.
-func contribution_text() -> String:
+func contribution_text(board: StatBoard = null) -> String:
 	var parts: Array[String] = []
 	for c in flatten():
-		parts.append(c.contribution_text())
+		parts.append(c.contribution_text(board))
 	return " · ".join(parts)
 
 

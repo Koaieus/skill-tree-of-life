@@ -71,6 +71,23 @@ var _modifiers: Array[StatModifier] = []
 var bins: ModifierBins = ModifierBins.new()
 var _last_contrib: Dictionary = {}
 
+## The board this stat lives on — set the first time a caller passes one to
+## [method add_modifier] / [method remove_modifier], and remembered for
+## reactive recomputation ([method _on_dependent_modifier_changed],
+## [method _resync_bins_if_trivial]) that fires later with no board in scope.
+## Safe to hold directly (unlike the removed [code]StatModifier._board[/code]):
+## a [Stat] instance is never shared across boards — it IS the per-board
+## storage — so there is exactly one board to remember, ever (#377).
+##
+## Mirrored onto [member bins].board (in [method add_modifier] /
+## [method remove_modifier], the only writers) so [method ModifierBins.compute]
+## (a static function with no Stat in scope) can resolve each SET-winner /
+## MULTIPLY modifier against the RIGHT board when composing multiple stats'
+## bins — see [method SkillNode.get_local_value], which merges an entity
+## Stat's bins with a node Stat's bins in one call. Each source's own board
+## travels with it.
+var _board: StatBoard = null
+
 ## Shorthand for `get_value()`. Delegates so subclass overrides win — e.g.
 ## `pool.value` returns the pool's current via PoolStat's override.
 var value: Variant:
@@ -100,7 +117,16 @@ func collect_formula_edges(out: Dictionary) -> void:
 		m.collect_formula_edges(out)
 
 
-func add_modifier(m: StatModifier) -> void:
+## [param board] is the board this modifier is being applied on — remembered
+## on [member _board] for later reactive recomputation. Optional (defaults to
+## null) so a caller adding a purely static modifier directly to a bare Stat
+## (no board in scope, e.g. several unit tests) doesn't need to fabricate one;
+## a formula-bound modifier added that way degrades to its static `value`,
+## same as an always-unbound modifier did before #377.
+func add_modifier(m: StatModifier, board: StatBoard = null) -> void:
+	if board != null:
+		_board = board
+		bins.board = board
 	if m in _modifiers:
 		return
 	_modifiers.append(m)
@@ -115,14 +141,17 @@ func add_modifier(m: StatModifier) -> void:
 		StatModifier.Operation.MULTIPLY:
 			bins.multipliers.append(m)
 		_:
-			var v := m.get_effective_value()
+			var v := m.get_effective_value(_board)
 			_last_contrib[m] = v
 			_apply_bin_delta(m.operation, 0.0, v)
 	_resync_bins_if_trivial()
 	value_changed.emit()
 
 
-func remove_modifier(m: StatModifier) -> void:
+func remove_modifier(m: StatModifier, board: StatBoard = null) -> void:
+	if board != null:
+		_board = board
+		bins.board = board
 	_modifiers.erase(m)
 	var cb := _on_dependent_modifier_changed.bind(m)
 	if m.changed.is_connected(cb):
@@ -134,7 +163,7 @@ func remove_modifier(m: StatModifier) -> void:
 		StatModifier.Operation.MULTIPLY:
 			bins.multipliers.erase(m)
 		_:
-			var old: float = _last_contrib.get(m, m.get_effective_value())
+			var old: float = _last_contrib.get(m, m.get_effective_value(_board))
 			_last_contrib.erase(m)
 			_apply_bin_delta(m.operation, old, 0.0)
 	_resync_bins_if_trivial()
@@ -149,7 +178,7 @@ func _on_dependent_modifier_changed(m: StatModifier) -> void:
 	var op := m.operation
 	if op != StatModifier.Operation.SET and op != StatModifier.Operation.MULTIPLY:
 		var old: float = _last_contrib.get(m, 0.0)
-		var new_v := m.get_effective_value()
+		var new_v := m.get_effective_value(_board)
 		_last_contrib[m] = new_v
 		_apply_bin_delta(op, old, new_v)
 	value_changed.emit()
@@ -185,7 +214,7 @@ func _resync_bins_if_trivial() -> void:
 		StatModifier.Operation.MULTIPLY:
 			bins.multipliers.append(m)
 		_:
-			var v := m.get_effective_value()
+			var v := m.get_effective_value(_board)
 			_last_contrib[m] = v
 			_apply_bin_delta(m.operation, 0.0, v)
 

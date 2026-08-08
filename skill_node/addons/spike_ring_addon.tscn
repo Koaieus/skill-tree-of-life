@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://5mumfh4necgo" path="res://assets/icons/addons/addon_spikes.png" id="2_spike"]
 
 [sub_resource type="Resource" id="Resource_arix0"]
+resource_local_to_scene = true
 script = ExtResource("2_2tu4f")
 stat_id = &"blade_damage"
 operation = 2

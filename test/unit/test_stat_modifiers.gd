@@ -278,9 +278,11 @@ func test_apply_intrinsics_per_to_vision() -> void:
 	assert_eq(board.vision_range.get_value(), 504)
 
 
-func test_apply_intrinsics_duplicates_so_two_boards_dont_share_state() -> void:
-	# Both boards mount their own copy of every intrinsic — bumping DEX on
-	# one must not move the other's range.
+func test_apply_intrinsics_two_boards_dont_share_state() -> void:
+	# _board() deep-duplicates _BOARD per call, so `a` and `b` mount separate
+	# intrinsic_modifiers arrays from the start — apply_intrinsics() itself no
+	# longer duplicates (#377), and doesn't need to: bumping DEX on one must
+	# still not move the other's range.
 	var a := _board()
 	var b := _board()
 	a.apply_intrinsics()
@@ -292,3 +294,28 @@ func test_apply_intrinsics_duplicates_so_two_boards_dont_share_state() -> void:
 	a.add_modifier(bump)
 	# a.range scales with a.dex (now 60); b.range scales with b.dex (still 10).
 	assert_ne(a.range.get_value(), b.range.get_value())
+
+
+func test_same_modifier_instance_shared_across_two_boards_computes_independently() -> void:
+	# #377's actual point: ONE StatModifier instance, applied to TWO different
+	# boards via add_modifier — not two duplicated copies. Each board binds
+	# its own reactive wiring (StatBoard.bind_modifier), so each computes off
+	# its OWN source stat, and a source change on one board never touches the
+	# other's computed value.
+	var a := _board()
+	var b := _board()
+	a.dexterity.base_value = 10.0
+	b.dexterity.base_value = 100.0
+	a.strength.base_value = 0.0
+	b.strength.base_value = 0.0
+	var lf := LinearFormula.new()
+	lf.source_stat_id = &"dexterity"
+	var shared := _mod(StatModifier.Operation.ADD_BASE, 1.0, lf)
+	a.add_modifier(shared)
+	b.add_modifier(shared)
+	assert_eq(int(a.strength.get_value()), 10, "board A reads its own dexterity")
+	assert_eq(int(b.strength.get_value()), 100, "board B reads its own dexterity, not A's")
+	# A source change on board A must not touch board B's computed value.
+	a.dexterity.base_value = 999.0
+	assert_eq(int(b.strength.get_value()), 100, "board B is untouched by A's source change")
+	assert_eq(int(a.strength.get_value()), 999, "board A recomputed off its own source")

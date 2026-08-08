@@ -161,37 +161,30 @@ var _bound_owner: Entity = null
 ## [method add_local_modifier] / emptied by [method remove_local_modifier].
 var _local_modifiers: Array[StatModifier] = []
 
-## [b]The four ledgers below are a workaround with a known expiry — see #377.[/b]
-## They all exist for one reason: [StatModifier] carries binding state
-## (`_board` / `_bound_sources`), so a modifier instance cannot be shared across
-## owners. Every grant path that reaches a board from a SHARED source must
-## therefore clone the modifier and then remember the clone in order to detach it
-## again. Three grant paths, three ledgers. #377 removes the binding state, which
-## removes the clone requirement, which leaves these with nothing to remember —
-## its acceptance names all four as deletions, not tidy-ups. Don't refactor them
-## in isolation; the smell is downstream of `StatModifier`, not of `SkillNode`.
+## [b]Two of the four ledgers this comment used to describe are gone — see
+## #377.[/b] `_addon_local_clones` / `_addon_entity_clones` existed because a
+## `.tscn`-instantiated addon's `local_modifiers` / `entity_modifiers` were
+## Godot-cached sub-resources shared across every `instantiate()` of that
+## scene; the local-scale mutator's `value` writes would have leaked across
+## carriers. Fixed at the source instead of worked around: every addon
+## `.tscn` carrying a `StatModifier` sub-resource now sets
+## `resource_local_to_scene = true` (see docs/domain/resource-local-to-scene.md),
+## so each instantiation already gets its own private copy — `_attach_addon` /
+## `_detach_addon` route `a.get_local_modifiers()` / `a.entity_modifiers`
+## straight through, no clone, no ledger.
+##
+## The two below are NOT a binding-state artifact and #377 does not remove
+## them — they're composition bookkeeping for the local-scale mutator's
+## Array-override path (#376 decision 8), independent of how a modifier binds
+## to a board. Killing these needs #376's swap-the-active-leaf-set mechanism
+## itself to change (always-live leaves + a read-time scale factor instead);
+## that's a separate, unstarted redesign — see the #377 backlog follow-up.
 
 ## Composition-swap ledger (#376, decision 8): parent modifier -> the scaled
 ## leaf-set currently applied in its place on its contribution board. Only
 ## populated while an override returns an Array; the value path is drift-free
 ## by construction and keeps no state.
 var _scaled_sets: Dictionary[StatModifier, Array] = {}
-
-## Per-addon clone ledgers (#376). An addon's [member SkillNodeAddon.local_modifiers]
-## / [member SkillNodeAddon.entity_modifiers] are sub-resources of the addon
-## scene — a fresh `instantiate()` of the SAME `.tscn` hands back the SAME
-## cached Resource instance, not a private copy. The local-scale mutator writes
-## `value` on the canonical modifier it carries; mutating the shared scene
-## sub-resource would leak across instantiations and across tests (a 5×3 ramp
-## on one carrier's bunker would bake `value == 15` into the next carrier's
-## fresh bunker). To keep the scene authored state pristine, attach does a
-## deep `duplicate()` of every addon modifier and routes the CLONE through
-## [method add_local_modifier] / [method add_entity_modifier]; the original
-## never reaches a board and is never value-scaled. Detach looks up the clones
-## by the addon they came from (identity-by-original isn't useful here — the
-## carrier never held the original).
-var _addon_local_clones: Dictionary[SkillNodeAddon, Array] = {}
-var _addon_entity_clones: Dictionary[SkillNodeAddon, Array] = {}
 
 ## Same ledger for the effect path: effect -> scaled leaf-set applied in
 ## place of the effect's granted modifiers on the entity board.
@@ -633,20 +626,19 @@ func remove_entity_modifier(m: StatModifier) -> void:
 
 ## Mirror every entity-scoped modifier this node carries onto [param board].
 ## Called by [AllocationSystem] when the node becomes owned.
+##
+## No multi-board guard here (#377 removed StatModifier._board, which is what
+## made one cheap): a `board.add_modifier` on an already-applied instance is
+## idempotent by design. The local-scale mutator's single-owner assumption
+## (decision 9) still holds structurally — this node's own [member modifiers]
+## are authored per-node, not shared across SkillNodes — so #377's new
+## capability (one instance safely live on N boards) doesn't put THIS array's
+## contents on two owners at once; it only makes doing so possible elsewhere,
+## deliberately (that's the point of the issue).
 func apply_entity_modifiers_to(board: StatBoard) -> void:
 	if board == null:
 		return
 	for m in modifiers:
-		# Single-owner-SkillNode precondition (#376 decision 9): a modifier
-		# instance is applied to at most ONE entity board at a time — the
-		# local-scale mutator retunes the CANONICAL instance, so a shared
-		# instance would silently leak the retune across entities. Reallocate
-		# revokes before re-granting, so a still-foreign-bound instance here
-		# is an upstream leak, not a normal re-grant (same-board re-adds are
-		# idempotent and legal).
-		# TODO: get rid of this with 376
-		assert(m._board == null or m._board == board,
-				"SkillNode.apply_entity_modifiers_to: modifier '%s' is bound to a different board — multi-owner grant" % m.resource_path)
 		board.add_modifier(m)
 
 
@@ -696,8 +688,8 @@ func add_local_modifier(m: StatModifier) -> void:
 	# a plain modifier is its own singleton. Mirrors StatBoard.add_modifier —
 	# the node-local channel is bundle-aware too (#183).
 	for leaf in m.flatten():
-		leaf.bind(node_board)
-		_ensure_local_stat(leaf.stat_id).add_modifier(leaf)
+		node_board.bind_modifier(leaf)
+		_ensure_local_stat(leaf.stat_id).add_modifier(leaf, node_board)
 	# Canonical ledger for the local-scale mutator (#376): the PARENT instance
 	# (composites stay whole) so the walk can consult its override.
 	if not _local_modifiers.has(m):
@@ -715,10 +707,10 @@ func remove_local_modifier(m: StatModifier) -> void:
 	var set: Array = _scaled_sets.get(m, [])
 	if not set.is_empty():
 		for leaf in set:
-			leaf.unbind()
+			node_board.unbind_modifier(leaf)
 			var s: Stat = node_board.get_stat(leaf.stat_id)
 			if s != null:
-				s.remove_modifier(leaf)
+				s.remove_modifier(leaf, node_board)
 		_scaled_sets.erase(m)
 	_local_modifiers.erase(m)
 	# Symmetric with add_local_modifier: flatten() returns the same stable child
@@ -726,8 +718,8 @@ func remove_local_modifier(m: StatModifier) -> void:
 	for leaf in m.flatten():
 		var s: Stat = node_board.get_stat(leaf.stat_id)
 		if s != null:
-			leaf.unbind()
-			s.remove_modifier(leaf)
+			node_board.unbind_modifier(leaf)
+			s.remove_modifier(leaf, node_board)
 
 
 ## Increment [param tag]'s refcount, creating the entry at 1 if new.
@@ -853,7 +845,7 @@ func get_spike_power() -> float:
 		if a is SpikeRingAddon:
 			for mod in a.get_local_modifiers():
 				if mod.stat_id == &"blade_damage":
-					total += mod.get_effective_value()
+					total += mod.get_effective_value(node_board)
 	return total
 
 
@@ -1282,8 +1274,8 @@ func _restore_scaled_contribution(m: StatModifier) -> void:
 func _apply_leaf_set(board: StatBoard, leaves: Array) -> void:
 	for leaf in leaves:
 		if board == node_board:
-			leaf.bind(node_board)
-			_ensure_local_stat(leaf.stat_id).add_modifier(leaf)
+			node_board.bind_modifier(leaf)
+			_ensure_local_stat(leaf.stat_id).add_modifier(leaf, node_board)
 		else:
 			board.add_modifier(leaf)
 
@@ -1291,10 +1283,10 @@ func _apply_leaf_set(board: StatBoard, leaves: Array) -> void:
 func _remove_leaf_set(board: StatBoard, leaves: Array) -> void:
 	for leaf in leaves:
 		if board == node_board:
-			leaf.unbind()
+			node_board.unbind_modifier(leaf)
 			var s: Stat = node_board.get_stat(leaf.stat_id)
 			if s != null:
-				s.remove_modifier(leaf)
+				s.remove_modifier(leaf, node_board)
 		else:
 			board.remove_modifier(leaf)
 
@@ -1437,30 +1429,16 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 	# the addon's visuals — it just doesn't get its stats. #335 removes this
 	# guard by splitting authored from derived modifiers.
 	if not Engine.is_editor_hint():
-		# Clone the addon's modifiers IF it came from a scene (#376 — see
-		# _addon_local_clones): a `.tscn`-instantiated addon's
-		# `local_modifiers`/`entity_modifiers` are the scene's CACHED
-		# sub-resources, reused across instantiations — the mutator's `value`
-		# writes would leak across instantiations (one carrier's 5×3 ramp
-		# baking `value == 15` into the next carrier's fresh bunker). A
-		# script-built `SkillNodeAddon.new()` with `StatModifier.new()`
-		# entries doesn't share, so it routes the original through untouched
-		# and the identity contract (`node.modifiers.has(granted)`) holds.
-		# Whichever path: store what we actually added so detach removes by
-		# the same identity.
-		var scene_native := a.scene_file_path != ""
-		var added_local: Array = []
+		# No clone-and-track needed (#377): every StatModifier sub-resource an
+		# addon .tscn carries sets `resource_local_to_scene = true`, so Godot
+		# already hands each `instantiate()` its own private copy — the modifier
+		# a script-built addon builds in code was always private too. Either
+		# way `a.get_local_modifiers()` / `a.entity_modifiers` are already
+		# this carrier's own instances; detach can just ask the addon again.
 		for m in a.get_local_modifiers():
-			var r: StatModifier = (m.duplicate(true) as StatModifier) if scene_native else m
-			added_local.append(r)
-			add_local_modifier(r)
-		_addon_local_clones[a] = added_local
-		var added_entity: Array = []
+			add_local_modifier(m)
 		for m in a.entity_modifiers:
-			var r: StatModifier = (m.duplicate(true) as StatModifier) if scene_native else m
-			added_entity.append(r)
-			add_entity_modifier(r)
-		_addon_entity_clones[a] = added_entity
+			add_entity_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
 
@@ -1471,17 +1449,13 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	_addons.erase(a)
 	if Engine.is_editor_hint():
 		return
-	# Reverse whatever attach added (#376 — see _addon_local_clones): the carrier
-	# holds whatever attach routed (clones for scene-instantiated addons, the
-	# originals for script-built ones), so removal walks the per-addon ledger.
-	var local_clones: Array = _addon_local_clones.get(a, [])
-	for c in local_clones:
-		remove_local_modifier(c)
-	_addon_local_clones.erase(a)
-	var entity_clones: Array = _addon_entity_clones.get(a, [])
-	for c in entity_clones:
-		remove_entity_modifier(c)
-	_addon_entity_clones.erase(a)
+	# Reverse whatever attach added (#377): identity never changed at attach
+	# time, so `a` (still alive here — this fires from `child_exiting_tree`,
+	# before it's freed) hands back the exact same instances to remove.
+	for m in a.get_local_modifiers():
+		remove_local_modifier(m)
+	for m in a.entity_modifiers:
+		remove_entity_modifier(m)
 
 
 ## Core-movement slide-in (#21, #128). Called on the *new* core slot after

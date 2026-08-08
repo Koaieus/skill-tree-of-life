@@ -147,15 +147,15 @@ func set_base_ratcheted(v: float) -> void:
 
 # --- Modifier overrides (maintain current ≤ cap on every cap change) -------
 
-func add_modifier(m: StatModifier) -> void:
+func add_modifier(m: StatModifier, board: StatBoard = null) -> void:
 	var old_max := float(get_value())
-	super(m)
+	super(m, board)
 	_apply_max_change(old_max)
 
 
-func remove_modifier(m: StatModifier) -> void:
+func remove_modifier(m: StatModifier, board: StatBoard = null) -> void:
 	var old_max := float(get_value())
-	super(m)
+	super(m, board)
 	_apply_max_change(old_max)
 
 

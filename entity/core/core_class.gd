@@ -83,11 +83,17 @@ static func load_all() -> Array[CoreClass]:
 ##
 ## Called from `Entity._ready` once `navigator` exists and `core_location` is
 ## set — auras read the owned subgraph the moment they're granted.
+##
+## No per-entry duplication (#377) — the same shared `.tres` modifier instance
+## applies safely to every entity of this class; binding lives on each
+## entity's own board, so each computes independently. Nothing mutates a
+## CoreClass modifier's `value` at runtime (that's the #376 mutator's job,
+## scoped to SkillNode's own `modifiers`/`_local_modifiers`, never a class's).
 func apply(entity: Entity) -> void:
 	if entity.stat_board == null:
 		return
 	for m in modifiers:
-		entity.stat_board.add_modifier(m.duplicate(true))
+		entity.stat_board.add_modifier(m)
 	for e in effects:
 		entity.grant_effect(e)
 

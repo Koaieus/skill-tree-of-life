@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://uc3n7j5e5c1c" path="res://assets/icons/addons/addon_bunker.png" id="3_icon"]
 
 [sub_resource type="Resource" id="Resource_vxeh7"]
+resource_local_to_scene = true
 script = ExtResource("2_efkvd")
 stat_id = &"armor"
 operation = 3

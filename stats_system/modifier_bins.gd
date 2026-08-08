@@ -26,15 +26,21 @@ var increase_sum: float = 0.0
 var bonus_add: float = 0.0
 var multipliers: Array[StatModifier] = []
 var winning_set: StatModifier = null
+## The board these bins' modifiers are bound on — mirrored from the owning
+## [Stat]'s own `_board` (#377). [method compute] is static (no Stat in
+## scope), so a formula-bound SET/MULTIPLY modifier needs its board to travel
+## WITH its bins, not as one shared parameter: a multi-source compose (entity
+## bins + node bins) has a different correct board per source.
+var board: StatBoard = null
 
 
 ## N-source compose. SET short-circuits; otherwise sum bins, walk all
 ## multiplier lists, run the pipeline once. Callers are responsible for
 ## final type coercion via Stat._coerce.
 static func compute(base: float, sources: Array[ModifierBins]) -> float:
-	var win := _pick_set_winner(sources)
-	if win != null:
-		return win.get_effective_value()
+	var win_bins := _pick_set_winner_bins(sources)
+	if win_bins != null:
+		return win_bins.winning_set.get_effective_value(win_bins.board)
 	var add := 0.0
 	var inc := 0.0
 	var bon := 0.0
@@ -44,7 +50,7 @@ static func compute(base: float, sources: Array[ModifierBins]) -> float:
 		inc += b.increase_sum
 		bon += b.bonus_add
 		for m in b.multipliers:
-			mult *= m.get_effective_value()
+			mult *= m.get_effective_value(b.board)
 	# Clamp (1 + Σ INCREASE/100) at 0: large stacks of negative INCREASE zero
 	# the stat out rather than flipping its sign. Net inc below -100% is a
 	# legitimate gameplay state (think "nerf modifier" pool entries on INT);
@@ -56,13 +62,14 @@ static func compute(base: float, sources: Array[ModifierBins]) -> float:
 ## SET tiebreak across sources: highest priority wins; at equal priority
 ## the LAST source listed wins. Consumers order sources so the most
 ## specific scope is LAST (the combined read passes [entity.bins, node.bins] so
-## a local SET at equal priority overrides the entity-side one).
-static func _pick_set_winner(sources: Array[ModifierBins]) -> StatModifier:
-	var best: StatModifier = null
+## a local SET at equal priority overrides the entity-side one). Returns the
+## winning SOURCE (not just the modifier) so [method compute] can read its
+## `board` alongside its `winning_set`.
+static func _pick_set_winner_bins(sources: Array[ModifierBins]) -> ModifierBins:
+	var best: ModifierBins = null
 	for b in sources:
-		var c := b.winning_set
-		if c == null:
+		if b.winning_set == null:
 			continue
-		if best == null or c.priority >= best.priority:
-			best = c
+		if best == null or b.winning_set.priority >= best.winning_set.priority:
+			best = b
 	return best

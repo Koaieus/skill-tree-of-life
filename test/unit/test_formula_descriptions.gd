@@ -141,8 +141,8 @@ func test_format_keeps_the_coefficient_when_bound_to_a_board() -> void:
 	m.stat_id = &"blade_size"
 	m.value = 1.0
 	m.formula = _ratio(&"strength", 20.0)
-	m.bind(_board)
-	assert_eq(m.get_effective_value(), 3.0, "still computes live")
+	_board.bind_modifier(m)
+	assert_eq(m.get_effective_value(_board), 3.0, "still computes live")
 	assert_eq(m.format(), "+1 Blade Size per 20 STR", "sentence stays the rule")
 
 

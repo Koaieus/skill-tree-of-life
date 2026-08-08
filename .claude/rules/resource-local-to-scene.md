@@ -1,1 +1,0 @@
-An inline `.tscn` sub-resource is shared across every `instantiate()` of that scene by default — mutating it in place at runtime leaks across every instance unless it's authored with `resource_local_to_scene = true`. See docs/domain/resource-local-to-scene.md

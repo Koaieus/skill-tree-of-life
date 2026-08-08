@@ -113,9 +113,14 @@ func test_editing_shared_pack_changes_every_referencing_class() -> void:
 				"%s must see the pack's new grant too" % ent.display_name)
 
 
-# --- 5. An installed pack's children are duplicates, not shared ------------
+# --- 5. An installed pack's children are the SAME instance across entities (#377) --
 
-func test_installed_pack_children_are_duplicates_not_shared() -> void:
+func test_installed_pack_children_are_shared_not_duplicated() -> void:
+	# #377: CoreClass.apply() no longer duplicates — binding lives on each
+	# entity's own board, so the exact same modifier instance can sit in both
+	# entities' Stat._modifiers and compute independently and correctly on
+	# each. The old contract (this test's previous name) asserted the
+	# opposite; #377's whole point is that sharing is now safe.
 	var src_mod := _mod(&"strength", 10.0)
 	var pack := CompositeStatModifier.new()
 	pack.loots_as_unit = false
@@ -130,14 +135,23 @@ func test_installed_pack_children_are_duplicates_not_shared() -> void:
 	add_child(ent_b)
 	await get_tree().process_frame
 
-	for m in ent_a.stat_board.strength._modifiers:
-		assert_ne(m, src_mod, "entity A must hold a clone of the pack's child, not the source")
-	for m in ent_b.stat_board.strength._modifiers:
-		assert_ne(m, src_mod, "entity B must hold a clone of the pack's child, not the source")
+	assert_true(ent_a.stat_board.strength._modifiers.has(src_mod),
+			"entity A must hold the pack's actual child, not a clone")
+	assert_true(ent_b.stat_board.strength._modifiers.has(src_mod),
+			"entity B must hold the pack's actual child, not a clone")
 
-	# Mutating the installed clone must not perturb the shared pack or the
-	# sibling entity.
-	ent_a.stat_board.strength._modifiers[0].value = 999.0
-	assert_eq(src_mod.value, 10.0, "mutating the installed clone must not touch the shared pack")
-	assert_ne(int(ent_b.stat_board.strength.value), int(ent_a.stat_board.strength.value),
-			"mutating entity A's clone must not affect entity B")
+	# Each entity's OWN base_value still drives its OWN computed strength —
+	# sharing the modifier doesn't merge the boards.
+	ent_a.stat_board.strength.base_value = 0.0
+	ent_b.stat_board.strength.base_value = 5.0
+	assert_ne(int(ent_a.stat_board.strength.value), int(ent_b.stat_board.strength.value),
+			"boards stay independent even with a shared modifier instance")
+
+	# A live edit on the SHARED instance is now visible on both boards — that
+	# is the actual capability #377 unlocks (a modifier granted to N owners
+	# recalculates at each), not a hazard to guard against.
+	src_mod.value = 20.0
+	assert_eq(int(ent_a.stat_board.strength.value), 20,
+			"shared modifier edit reaches entity A's board")
+	assert_eq(int(ent_b.stat_board.strength.value), 25,
+			"shared modifier edit reaches entity B's board too")

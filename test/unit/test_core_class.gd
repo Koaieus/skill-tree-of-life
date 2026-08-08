@@ -2,8 +2,9 @@ extends GutTest
 
 ## CoreClass landing tests:
 ##  - apply() installs the class's modifier set on the entity's stat board.
-##  - The .tres is sharable: each entity gets a duplicated copy of every
-##    modifier (so formula-driven entries don't crosstalk).
+##  - The .tres is sharable: every entity applies the SAME modifier instances
+##    (#377 — no more per-entity duplication); binding lives on each entity's
+##    own board, so formula-driven entries still don't crosstalk.
 ##  - on_turn_started() runs from Entity._on_turn_started (default no-op).
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -36,19 +37,28 @@ func test_balanced_core_adds_ten_to_str_dex_int() -> void:
 	assert_eq(int(board.intelligence.value), int(board.intelligence.base_value + 10))
 
 
-func test_apply_duplicates_modifiers_per_entity() -> void:
-	# Same shared .tres on two entities — neither board should hold a
-	# reference to the source resource's modifier instances.
+func test_apply_shares_modifiers_across_entities() -> void:
+	# #377: CoreClass.apply() no longer duplicates — same shared .tres on two
+	# entities means both boards hold the SAME leaf modifier instances (not
+	# clones), and each still computes correctly off its own board (see
+	# test_core_class_leaf.gd's fuller version of this for the reactive
+	# proof). NOTE: _BALANCED.modifiers[0] is attribute_baseline.tres, a
+	# CompositeStatModifier PACK — the pack itself never applies (inert
+	# container, per stats-system.md); only its flatten()'d leaves do, so the
+	# leaf is what must be found, not the pack.
 	var a := _make_entity(_BALANCED)
 	var b := _make_entity(_BALANCED)
 	add_child(a)
 	add_child(b)
 	await get_tree().process_frame
-	var src_mod: StatModifier = _BALANCED.modifiers[0]
-	for m in a.stat_board.strength._modifiers:
-		assert_ne(m, src_mod, "entity A holds a clone, not the source modifier")
-	for m in b.stat_board.strength._modifiers:
-		assert_ne(m, src_mod, "entity B holds a clone, not the source modifier")
+	var src_leaf: StatModifier = null
+	for leaf in _BALANCED.modifiers[0].flatten():
+		if leaf.stat_id == &"strength":
+			src_leaf = leaf
+			break
+	assert_not_null(src_leaf, "precondition: attribute_baseline.tres grants strength")
+	assert_true(a.stat_board.strength._modifiers.has(src_leaf), "entity A holds the shared leaf, not a clone")
+	assert_true(b.stat_board.strength._modifiers.has(src_leaf), "entity B holds the shared leaf, not a clone")
 
 
 func test_on_turn_started_dispatches_through_entity() -> void:

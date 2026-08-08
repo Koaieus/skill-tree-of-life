@@ -276,14 +276,23 @@ func test_entity_grant_scales_with_fill() -> void:
 	assert_eq(int(strength.get_value()), 11, "al=1 again: STR+1 exactly")
 
 
-func test_multi_owner_grant_fires_the_assertion() -> void:
+func test_multi_owner_grant_computes_independently_on_each_board() -> void:
+	# #377: the single-owner-SkillNode assertion this test used to pin is
+	# gone — StatModifier no longer carries board-binding state, so the same
+	# instance CAN sit on two boards at once and each computes independently.
+	# `_node.apply_entity_modifiers_to` no longer distinguishes "already on a
+	# foreign board" from "already on this one"; both are legal add_modifier
+	# calls now.
 	var m := _add_mod(&"strength", 5.0)
 	_node.modifiers = [m]
 	var board_a: StatBoard = _BOARD.duplicate(true) as StatBoard
-	board_a.add_modifier(m)  # binds m to board_a — a foreign board
+	board_a.add_modifier(m)
 	var board_b: StatBoard = _BOARD.duplicate(true) as StatBoard
 	_node.apply_entity_modifiers_to(board_b)
-	assert_engine_error("multi-owner grant", "the single-owner precondition is asserted")
+	assert_eq(int(board_a.strength.value), int(board_a.strength.base_value) + 5,
+			"board A still reflects the grant")
+	assert_eq(int(board_b.strength.value), int(board_b.strength.base_value) + 5,
+			"board B reflects the same grant independently")
 
 
 # ── Performance + ratchet interaction ─────────────────────────────────────────

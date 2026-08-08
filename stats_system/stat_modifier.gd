@@ -36,10 +36,9 @@ extends Resource
 ##   MULTIPLY             : raw multiplier   (value =  1.5 →  ×1.5; 0.5 acts as ÷2)
 ##   SET                  : the result       (value = 13   →  =13, pipeline bypassed)
 ##
-## WARNING: modifiers with a non-null `formula` carry mutable binding state
-## (_board, _bound_sources, _propagating) and MUST NOT be shared across
-## entities. Call .duplicate(true) on assignment. apply_intrinsics() does this
-## automatically; manual `add_modifier` callers must handle it themselves.
+## A `StatModifier` instance can be applied to any number of `StatBoard`s at
+## once (#377) — binding state lives on the board (`StatBoard.bind_modifier`/
+## `unbind_modifier`), not here, so sharing across entities is safe.
 
 enum Operation {
 	## +X to base, before multipliers. Scales with INCREASE and MULTIPLY.
@@ -77,8 +76,10 @@ enum Operation {
 @export var priority: int = 0
 
 
-var _board: StatBoard = null
-var _bound_sources: Array[Stat] = []
+## Re-entrancy guard on THIS instance's own [method _on_source_changed] — stops
+## A→B→A from looping indefinitely within one propagation. Not board-scoped:
+## the guard is about the call stack, not which board triggered it, so it
+## doesn't move even though binding itself now lives on [StatBoard] (#377).
 var _propagating: bool = false
 
 
@@ -99,12 +100,15 @@ func _local_scale_override(_old_al: int, _new_al: int) -> Variant:
 	return null
 
 
-## Returns the modifier's effective value. When a formula is bound, scales it
-## by `value` so the same field serves both branches: bare-formula reads pass
-## through (value=1), explicit coefficients show up as the modifier's `value`.
-func get_effective_value() -> float:
-	if formula != null and _board != null:
-		return value * formula.compute(_board)
+## Returns the modifier's effective value. When a formula is present, scales
+## it by `value` so the same field serves both branches: bare-formula reads
+## pass through (value=1), explicit coefficients show up as the modifier's
+## `value`. `board` is the board to read formula inputs from — callers that
+## don't have one (a modifier not currently applied anywhere) get the static
+## fallback, same as an unbound modifier always has.
+func get_effective_value(board: StatBoard = null) -> float:
+	if formula != null and board != null:
+		return value * formula.compute(board)
 	return value
 
 
@@ -179,10 +183,12 @@ func scales_with(source_id: StringName) -> bool:
 ## sentence (stat name included) and is the single home for that grammar;
 ## this method's own op-formatting and tests are unchanged by that split.
 ## Uses get_effective_value() so a formula-bound mod shows its real
-## contribution rather than the bare coefficient. Drives the #70 floaters;
-## see the "Value scales" table above for the op semantics.
-func contribution_text() -> String:
-	var v := get_effective_value()
+## contribution rather than the bare coefficient — pass [param board] for a
+## live formula read; omit it for the same static-coefficient fallback an
+## unbound modifier always had. See the "Value scales" table above for op
+## semantics.
+func contribution_text(board: StatBoard = null) -> String:
+	var v := get_effective_value(board)
 	match operation:
 		Operation.ADD_BASE, Operation.ADD_BONUS:
 			return "%+d" % roundi(v)
@@ -270,31 +276,11 @@ static func _trim(v: float) -> String:
 	return ("%.2f" % v).trim_suffix("0")  # 1.50 → "1.5", 1.25 stays
 
 
-## Subscribe to the formula's source stats so changes there propagate to this
-## modifier (and onward to its target stat via emit_changed()). No-op when
-## formula is null — static modifiers pay zero binding cost.
-func bind(board: StatBoard) -> void:
-	_board = board
-	if formula == null:
-		return
-	for id in formula.get_input_ids():
-		var s := board.get_stat(id)
-		if s == null:
-			push_warning("StatModifier: formula source stat '%s' not found in board" % id)
-			continue
-		if not s.value_changed.is_connected(_on_source_changed):
-			s.value_changed.connect(_on_source_changed)
-		_bound_sources.append(s)
-
-
-func unbind() -> void:
-	for s in _bound_sources:
-		if s.value_changed.is_connected(_on_source_changed):
-			s.value_changed.disconnect(_on_source_changed)
-	_bound_sources.clear()
-	_board = null
-
-
+## Fired when a source stat this modifier's formula depends on changes, via a
+## connection a [StatBoard] made in [method StatBoard.bind_modifier]. Re-emits
+## `changed()` so the target stat recomputes. No board/source-list state here
+## — a modifier bound to N boards gets N independent connections into this
+## same handler, guarded by the single `_propagating` flag above.
 func _on_source_changed() -> void:
 	if _propagating:
 		return  # cycle guard: stops A→B→A from looping indefinitely

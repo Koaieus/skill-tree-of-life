@@ -235,20 +235,15 @@ class enrols it automatically — the old hand-maintained preload list could go 
 in silence. It carries a `MIN_CORE_CLASSES` vacuity floor because a directory scan
 that matches nothing passes every assertion below it.
 
-**Scope: entity boards only — and node-local formulas are inert anyway.**
-`SkillNode.add_local_modifier` calls `Stat.add_modifier` directly via
-`_ensure_local_stat`, not through `StatBoard.add_modifier`, so node-local
-modifiers are NOT gated by `would_cycle`. That is currently harmless for a
-stronger reason than scope: `add_local_modifier` **never calls `bind()`**, so a
-formula on a node-local modifier has no board, `get_effective_value()` returns
-the raw `value`, and the formula is silently ignored. There is no node-local
-dependency graph to make cyclic.
-
-**So the gate and the binding are one decision, not two.** Anything that makes
-node-local formulas actually compute (#332 — scaling a node's rolled/addon
-modifiers off its own `allocation_level`) must add the cycle gate in the same
-change. Building the binding and leaving the gate off is the failure mode this
-whole section exists to prevent.
+**Scope note, corrected (#340 already closed this, this doc had drifted):**
+`SkillNode.add_local_modifier` does NOT route through `StatBoard.add_modifier`
+(it calls `Stat.add_modifier` directly via `_ensure_local_stat`, since
+`get_stat` would silently drop a sparse-board target), but it mirrors that
+method's own cycle-check → bind → resolve-target sequence locally against
+`node_board` — `node_board.cycle_from(m)` gates it, and
+`node_board.bind_modifier(leaf)` (#377) binds each leaf. Node-local formulas
+DO compute today; they are not inert, and both halves — gate and binding —
+already ship together, matching the "one decision, not two" rule below.
 
 ## Modifier packs (#183, D-27/#279)
 
@@ -331,7 +326,7 @@ Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
 
 ## Class identity modifiers (CoreClass)
 
-Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which `duplicate(true)`s every entry in `CoreClass.modifiers` before installing — same `.tres` is safe across many entities. `BalancedCore` is the +10 STR/DEX/INT baseline (plus +1 each per level — see "Per-level class bonuses" below) against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
+Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which installs every entry in `CoreClass.modifiers` directly — **no per-entry duplication** (#377): the same `.tres` and the same modifier instances are safe across every entity of that class, since binding lives on each entity's own board (`StatBoard.bind_modifier`), not on the modifier. `BalancedCore` is the +10 STR/DEX/INT baseline (plus +1 each per level — see "Per-level class bonuses" below) against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
 
 ## Stat IDs
 
@@ -355,11 +350,11 @@ There is **no `level_up_modifiers` field and no per-level-up mutation.** A "+1 S
 
 **The curve is shared and lives in one file:** `stats_system/formulas/level_scaling.tres` is `ExpressionFormula("level - 1")`. Every class references that same file, so retuning the level curve is a one-file edit. It's `level - 1`, not `level`, so a level-1 entity sits exactly on its authored baseline (Balanced reads +10, not +11) and each level-up adds the coefficient.
 
-**Keep the formula in its own `.tres` — never inline it into a class.** `Resource.duplicate(true)` **preserves the identity of a file-backed sub-resource and copies an inline one** (verified empirically under Godot 4.4, both directions). That asymmetry is load-bearing here: `CoreClass.apply()` deep-duplicates every modifier, and the duplicate must keep pointing at the *shared* curve. Inlining the formula into `balanced_core.tres` would silently fork it per entity — the class would still work, but the shared-tuning property (and any identity check against the resource) would quietly die with no error. It also explains why `composite_stat_modifier.gd` can claim `duplicate(true)` deep-copies its `children`: those are inline.
+**Keep the formula in its own `.tres` — never inline it into a class.** `Resource.duplicate(true)` **preserves the identity of a file-backed sub-resource and copies an inline one** (verified empirically under Godot 4.4, both directions). `CoreClass.apply()` itself no longer duplicates anything (#377 — below), so inlining the formula wouldn't fork it *there*. But two other paths still duplicate the whole board/modifier and would still fork an inline formula silently: `Entity._ready`'s `stat_board = stat_board.duplicate(true)` (deep-copies `intrinsic_modifiers`, one board template shared by every entity) and `EffectContext.grant()` (still `.duplicate(true)`s once per grant). File-backed keeps the curve shared through both; inline would quietly break the shared-tuning property in either. It also explains why `composite_stat_modifier.gd` can claim `duplicate(true)` deep-copies its `children`: those are inline.
 
-Sharing one formula instance across entities is safe because `StatFormula` is stateless — all binding state (`_board`, `_bound_sources`) lives on the *modifier*, which does get duplicated. The "MUST NOT be shared" warning in `stat_modifier.gd` is about the modifier, not its formula.
+Sharing one formula instance across entities was always safe because `StatFormula` is stateless — it reads its inputs from whatever board is passed to `compute(board)`, with nothing cached on the formula itself.
 
-**Two objects, one word — don't let "stateless" answer for both.** `StatFormula` is stateless *by design*; `StatModifier` is stateful *by accident of implementation*, and that is a known defect, not a settled contract — **#377** exists to remove `_board` / `_bound_sources` so an instance can live on N boards at once. Reading only the sentence above lands on "yes, stateless" and misses that the modifier half is the thing being fixed; that misread has now cost three separate sessions. If you are here because sharing a modifier across entities would be useful (e.g. one granted modifier recalculating on every holding entity's board), that is #377's stated unpark trigger — go there rather than working around it.
+**Two objects, one word — this is now settled, not a live defect.** `StatFormula` was always stateless *by design*. `StatModifier` used to be stateful *by accident of implementation* (`_board`/`_bound_sources` cached on the instance) — **#377 removed both fields**; binding now lives entirely on `StatBoard` (`bind_modifier`/`unbind_modifier`, recomputed from the modifier's own `formula.get_input_ids()` on every call, no stored bookkeeping), so a `StatModifier` instance safely lives on N boards at once. `CoreClass.apply()` and `StatBoard.apply_intrinsics()` both dropped their defensive `.duplicate(true)` as a direct consequence — see "Class identity modifiers" above. If you're here because sharing a modifier across entities would be useful (a granted modifier recalculating on every holding entity's board), it already works — grant the same instance to each board's `add_modifier`.
 
 **Query level bonuses with `StatModifier.scales_with(&"level")`**, not a marker field or resource identity. The formula's declared `get_input_ids()` already answer "does this scale with level?", the answer survives duplication, and it stays true for a class that authors its own `ExpressionFormula("(level - 1) * dexterity")` instead of the shared curve. It asks every leaf via `flatten()`, so a composite reports true when any child scales. Two call sites use it with opposite signs — the #199 HUD listing (include) and `LootSystem._is_lootable` (exclude). Route any third through the same predicate.
 
@@ -494,7 +489,7 @@ Both are emitted per cascaded node in the same loop, so a 5-node cascade with `d
 
 - **`PoolStat.set_current` emits `value_changed`, not just `current_changed`** (`pool_stat.gd:81`). Consequence (now resolved): a formula modifier sourcing a pool **recomputes on every `current` write** — every hit, every tick — so the read had better be the right one. Pre-#333 `LinearFormula`/`RatioFormula`/`ExpressionFormula` bottoms out in `board.get_stat(id).get_value()`, which is the **cap**, so the recomputation was wasted on a wrong read. #333 split the read: `<stat_id>__<accessor>` tokens route through `Stat.read_accessor(name)`, which dispatches to a per-subclass `accessors()` map — so `health__current` reads `.current`, not the cap. `get_input_ids()` strips to base ids (`StatFormula.base_of`), so the dependency graph (and `StatBoard.cycle_from`) keep seeing `health`, not a phantom `health__current` vertex. The recompute cost is the price of correct subscription — **don't** optimize it by dropping `set_current`'s `value_changed` emit; the first formula to source `initiative` (ticks constantly) or `health` (every hit) folds it into a real perf budget, and that's a separate issue.
 - **Formula accessor tokens are NOT stats.** `<stat_id>__<accessor>` (the `__`-double-underscore join — single `_` is ambiguous: ids like `min_damage_taken` contain it) is a formula-read handle, not a stat id. No `StatDef`, no `StatRegistry` entry, no write path through the modifier pipeline, never valid as a modifier `stat_id` (rejected at `StatBoard._ensure_stat` and `StatBoard.add_modifier` with a specific push_warning). `StatFormula.is_accessor_token` is the predicate. `Stat.accessors()` is the per-subclass discovery key (PoolStat→`current`, SkillPointStat→`wounded`/`staked`/`used`, SurplusPoolStat→`surplus`/`available`) — extend it the same way `CoreClass.load_all()` replaced a hand-maintained loader list: by overriding one method, not by editing a parallel registry.
-- **Formula-driven modifiers must not be shared across entities.** Each carries mutable `_board` / `_bound_sources` binding state. Always `.duplicate(true)` before `add_modifier()`. Intrinsics are safe — `apply_intrinsics()` duplicates every entry.
+- **Formula-driven modifiers can be shared across entities/boards freely (#377).** No binding state on the modifier — `StatBoard.bind_modifier`/`unbind_modifier` own the reactive wiring per-board, recomputed from the modifier's own `formula.get_input_ids()` each call. `.duplicate(true)` before `add_modifier()` is no longer required for this reason; keep it only when you want a genuinely independent *value* per grant (loot draws, addon sub-resources without `resource_local_to_scene`) — that's a content-identity concern, not a binding one.
 - **Pool modifiers target the pool id, not a `_max` suffix.** `"health"` targets the health cap. `"health_max"` doesn't exist.
 - **To read a pool's *current* (or a subclass bin) from a formula, use the `__<accessor>` token.** `LinearFormula(source_stat_id = &"health__current")`, `RatioFormula(source_stat_id = ...)`, or an `ExpressionFormula` whose `inputs` and `formula` use `health__current`. The bare token `&"health"` still reads the cap — every shipped formula uses this, and every named accessor goes through `__`. Same `get_input_ids()` returns `health` for both, so a "scale with how full this pool is" modifier caries the same dependency edge as a cap reader.
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
