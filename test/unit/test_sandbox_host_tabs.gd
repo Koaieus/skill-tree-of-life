@@ -34,7 +34,12 @@ func test_tab_scene_exports_resolve(p = use_parameters(_params)) -> void:
 
 	if tab.get_mode() == SandboxTab.Mode.LIVE_EDIT:
 		assert_ne(tab.tab_id, &"", "%s (live) has empty tab_id" % p)
-		assert_not_null(tab.panel_scene, "%s (live) has null panel_scene" % p)
+		# Baked tabs (.claude/rules/sandbox-host.md) instance their panel inside
+		# %PanelHost and carry no panel_scene; legacy tabs still inject via the export.
+		var panel_host: Node = tab.get_node_or_null(^"%PanelHost")
+		var is_baked := panel_host != null and panel_host.get_child_count() > 0
+		assert_true(tab.panel_scene != null or is_baked,
+			"%s (live) has null panel_scene and no baked %%PanelHost child" % p)
 		assert_ne(tab.loader_method, &"", "%s (live) has empty loader_method" % p)
 	else:
 		assert_ne(tab.scene_path, "", "%s (played) has empty scene_path" % p)

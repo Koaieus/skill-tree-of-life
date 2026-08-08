@@ -30,17 +30,15 @@ extends Resource
 ##     shared, they are NOT duplicated per archetype).
 
 ## Target stat the rolled modifier writes to.
-@export var stat_id: StringName = &""
-#: # TODO: reenable ? or remove
-	#set(v):
-		#stat_id = v
-		#_update_resource_name()
-		
-@export var operation: StatModifier.Operation = StatModifier.Operation.ADD_BASE
-#:
-	#set(v):
-		#operation = v
-		#_update_resource_name()
+@export var stat_id: StringName = &"":
+	set(v):
+		stat_id = v
+		_update_resource_name()
+
+@export var operation: StatModifier.Operation = StatModifier.Operation.ADD_BASE:
+	set(v):
+		operation = v
+		_update_resource_name()
 
 
 ## Archetype affinity — matches against the node's `primary_stat`. `&""` =

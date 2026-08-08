@@ -70,13 +70,20 @@ func test_procgen_generates_full_level() -> void:
 	for a in [&"red", &"green", &"blue", &"gold", &"purple"]:
 		assert_true(a in archetype_counts, "archetype %s missing" % String(a))
 
-	# RandomBudgetBoost: exactly 10 nodes carry the anomalous role tag.
+	# RandomBudgetBoost: exactly as many nodes as the preset's own configured
+	# count carry the anomalous role tag — read from the preset rather than a
+	# hardcoded literal, since that count is a tunable design knob.
+	var expected_anomalous := 0
+	for placement in cfg_src.guaranteed_placements:
+		if placement is RandomBudgetBoost and placement.role_tag == &"anomalous":
+			expected_anomalous = placement.count
 	var anomalous_count := 0
 	for n in nodes:
 		var tags: Array = n.get_meta("role_tags", [])
 		if &"anomalous" in tags:
 			anomalous_count += 1
-	assert_eq(anomalous_count, 10, "expected 10 anomalous nodes; got %d" % anomalous_count)
+	assert_eq(anomalous_count, expected_anomalous,
+		"expected %d anomalous nodes; got %d" % [expected_anomalous, anomalous_count])
 
 	# Keystone placement: at least one node carries the xp_anchor keystone.
 	var keystone_count := 0

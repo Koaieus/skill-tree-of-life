@@ -21,6 +21,6 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 [resource]
 script = ExtResource("2_5r1b0")
 display_name = "Basic Enemy"
-description = "Landless-elite baseline (D-19): a non-territorial WIS grant so a core-only enemy still has an economy. WIS=80 is a TBD (#268) placeholder difficulty dial, not a tuned value — see D-19/D-24 in docs/design/mvp_decisions.md. xp_per_turn is no longer granted explicitly here: since #271 the board's xp_per_turn intrinsic is WIS // 2 (D-15), so WIS=80 already derives xp_per_turn=40 on its own — an explicit grant would double-count it to 80. STR/DEX/INT's flat +10 comes from the shared attribute_baseline.tres pack (D-27, #279), not hand-declared here."
+description = "Landless-elite baseline (D-19): a non-territorial WIS grant so a core-only enemy still has an economy. WIS=+80 (ADD_BONUS, stacking on the board's base WIS) is a TBD (#268) placeholder difficulty dial, not a tuned value — see D-19/D-24 in docs/design/mvp_decisions.md. xp_per_turn is no longer granted explicitly here: since #271 the board's xp_per_turn intrinsic is WIS // 2 (D-15), so the granted WIS already derives xp_per_turn on its own — an explicit grant would double-count it. STR/DEX/INT's flat +10 comes from the shared attribute_baseline.tres pack (D-27, #279), not hand-declared here."
 modifiers = Array[ExtResource("1_agu68")]([ExtResource("3_baseline"), SubResource("Resource_q2ptp"), SubResource("Resource_xm0xk")])
 metadata/_custom_type_script = "uid://ci0mmuifd3c71"

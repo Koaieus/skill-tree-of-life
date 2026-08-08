@@ -80,6 +80,9 @@ const PRESET_CORE := "core"
 ## the Owner/Core panels (faction flips the HOSTILE OWNER tag).
 const _PRESETS: Array[Dictionary] = [
 	## TODO: Replace with inner class for typing. no untyped dicts smh.
+	## FIXME: reinstating these dicts floods the editor with 100+ warnings/sec —
+	## broken on delivery (e2463fa). Root-cause and fix before uncommenting;
+	## don't just restore the literal dicts again without diagnosing that first.
 	#{
 		#"name": PRESET_UNALLOCATED, "owned": false, "core": false, "addons": 0,
 		#"footprint": false, "bare": true,

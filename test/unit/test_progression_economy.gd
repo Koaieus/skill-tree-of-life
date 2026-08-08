@@ -131,11 +131,13 @@ func test_starting_sp_is_above_1() -> void:
 
 
 ## Amendment B: basic_enemy_core.tres used to grant an explicit xp_per_turn
-## SET 40 alongside WIS 80, which was only correct while the intrinsic was
-## floor(log10(WIS)) = 1. Now that the intrinsic itself is WIS // 2, the
-## explicit grant would double the number to 80 — it's been removed, and WIS
-## 80 alone must derive xp_per_turn 40 through the ordinary intrinsic.
+## SET alongside its WIS grant, which was only correct while the intrinsic was
+## floor(log10(WIS)) = 1. Now that the intrinsic itself is WIS // 2, an
+## explicit grant would double-count it — it's been removed, and the granted
+## WIS alone must derive xp_per_turn through the ordinary intrinsic. basic_enemy_core's
+## WIS grant is a TBD (#268) difficulty dial that gets retuned, so assert the
+## relationship, not a specific number.
 func test_basic_enemy_core_xp_per_turn_derives_from_wisdom_not_double_counted() -> void:
 	var ent: Entity = await _make_entity(_ENEMY_CORE)
-	assert_eq(int(ent.stat_board.xp_per_turn.value), 40,
-			"BasicEnemyCore: WIS 80 // 2 = 40, not double-counted to 80")
+	assert_eq(int(ent.stat_board.xp_per_turn.value), int(ent.stat_board.wisdom.value) / 2,
+			"BasicEnemyCore: xp_per_turn must derive from WIS // 2, not double-counted")

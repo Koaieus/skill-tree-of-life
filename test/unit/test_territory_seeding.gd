@@ -205,12 +205,18 @@ func test_enemy_level_matches_seeded_node_count() -> void:
 # ── 6. elevated enemy WIS grants xp_per_turn == WIS // 2 (D-19, non-territorial) ─
 
 func test_enemy_core_grants_elevated_wis_and_matching_xp_per_turn() -> void:
+	var balanced := _make_entity(_graph, null)
+	await get_tree().process_frame
+	var baseline_wis: float = balanced.stat_board.wisdom.value
+
 	var entity := _make_entity(_graph, _ENEMY_CORE)
 	await get_tree().process_frame
 
-	assert_eq(entity.stat_board.wisdom.value, 80,
+	# basic_enemy_core.tres's WIS grant is a TBD (#268) difficulty dial, not a
+	# tuned value — assert the relationship (D-15), not a specific number.
+	assert_gt(entity.stat_board.wisdom.value, baseline_wis,
 			"basic_enemy_core should grant elevated WIS (TBD #268 placeholder)")
-	assert_eq(entity.stat_board.xp_per_turn.value, 40,
+	assert_eq(int(entity.stat_board.xp_per_turn.value), int(entity.stat_board.wisdom.value) / 2,
 			"xp_per_turn should track WIS // 2 (D-15) for the granted WIS")
 	assert_gt(entity.stat_board.xp_per_turn.value, 10,
 			"elevated-WIS enemy income must exceed the pinned baseline of 10")
