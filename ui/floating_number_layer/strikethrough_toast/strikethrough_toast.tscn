@@ -12,8 +12,6 @@ shader_parameter/strike_x = 0.558000026505
 shader_parameter/split_open = 0.0
 shader_parameter/split_y_start = 0.85
 shader_parameter/split_y_end = 0.15
-shader_parameter/hot_color = Color(1, 0.65, 0.1, 1)
-shader_parameter/line_color = Color(0.55, 0.55, 0.55, 1)
 shader_parameter/tip_radius = 0.06800000253148
 shader_parameter/line_half_thick = 0.03500000131324
 

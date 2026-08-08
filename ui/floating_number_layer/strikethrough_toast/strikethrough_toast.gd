@@ -10,9 +10,20 @@ extends FloaterToast
 ## the shader uniforms via tweens — no clip nodes, no coordinate math.
 ##
 ## Scene-tunable knobs live on the ShaderMaterial (inspector: Label → Material):
-## hot_color, line_color, tip_radius, line_half_thick. Timing knobs are @export on
-## this node: strike_duration, plus the inherited visible_duration /
-## fade_in_duration / fade_out_duration.
+## tip_radius, line_half_thick. Timing knobs are @export on this node:
+## strike_duration, plus the inherited visible_duration / fade_in_duration /
+## fade_out_duration.
+##
+## `hot_color`/`line_color` are shader uniforms too, but their VALUES are driven
+## from this node's [member hot_base_color]/[member hot_glow_stops] and
+## [member line_base_color]/[member line_glow_stops] (#393) — the cut is meant
+## to read as the light source, so both are genuinely emissive (>1.0), authored
+## as [Emissive] tiers rather than hand-picked floats. Both default to
+## [constant Emissive.ALERT]: the cut line is a ~1px hairline (thin strokes need
+## a materially higher tier than a filled shape to clear bloom's coverage-
+## weighted threshold, see docs/domain/hdr-color.md), and the hot tip earns its
+## "strongest at the cut head" read from its wider glow radius accumulating more
+## coverage at the same tier — not from a brighter float.
 ##
 ## The diagonal cut is NOT scene-authored: [method strike_endpoints] derives the
 ## split_y_start / split_y_end uniforms from the label's actual font metrics, so
@@ -30,6 +41,28 @@ extends FloaterToast
 ## lowercase x-height band; raise toward ~0.45 to ride higher through capitals.
 @export_range(0.0, 0.6, 0.01) var strike_height_ratio: float = 0.30
 
+@export_group("Glow")
+## Identity hue for the hot travelling tip, before glow tiering.
+@export var hot_base_color := Color(1.0, 0.65, 0.1):
+	set(value):
+		hot_base_color = value
+		_apply_glow_colors()
+## EV stops [member hot_base_color] is raised by (see [Emissive]).
+@export_range(0.0, 3.0, 0.05) var hot_glow_stops := Emissive.ALERT:
+	set(value):
+		hot_glow_stops = value
+		_apply_glow_colors()
+## Identity hue for the settled cut line, before glow tiering.
+@export var line_base_color := Color(0.55, 0.55, 0.55):
+	set(value):
+		line_base_color = value
+		_apply_glow_colors()
+## EV stops [member line_base_color] is raised by (see [Emissive]).
+@export_range(0.0, 3.0, 0.05) var line_glow_stops := Emissive.ALERT:
+	set(value):
+		line_glow_stops = value
+		_apply_glow_colors()
+
 var _mat: ShaderMaterial
 
 
@@ -38,8 +71,19 @@ func _ready() -> void:
 	# by default; parallel toasts must not share uniform state (set via the
 	# scene's resource_local_to_scene).
 	_mat = label.material as ShaderMaterial
+	_apply_glow_colors()
 	label.resized.connect(_refresh_geometry)
 	_refresh_geometry()
+
+
+## Pushes the tiered [Emissive] colours onto the shader's `hot_color` /
+## `line_color` uniforms. Setters call this before `_mat` exists (export
+## defaults assigning during scene load), so it no-ops until [method _ready].
+func _apply_glow_colors() -> void:
+	if _mat == null:
+		return
+	_mat.set_shader_parameter(&"hot_color", Emissive.at(hot_base_color, hot_glow_stops))
+	_mat.set_shader_parameter(&"line_color", Emissive.at(line_base_color, line_glow_stops))
 
 
 ## Push the current label size + recompute the diagonal endpoints. Driven by
