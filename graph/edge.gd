@@ -19,7 +19,9 @@ signal endpoints_changed
 
 ## Lit/unlit/sensed are colour TRANSFORMS applied to each endpoint's own
 ## archetype tint, not fixed overrides — see `_display_color`.
-@export_range(0.0, 1.0, 0.05) var lit_lighten: float = 0.45
+## #388 — lit no longer lightens the SDR colour; it rides the emissive VALUE
+## tier instead (`Emissive.at(base, Emissive.VALUE)`), so an allocated edge
+## actually clears bloom threshold rather than just reading brighter in SDR.
 @export_range(0.0, 1.0, 0.05) var unlit_desaturate: float = 0.45
 @export_range(0.0, 1.0, 0.05) var unlit_darken: float = 0.15
 @export_range(0.0, 1.0, 0.05) var lit_alpha: float = 1.0
@@ -29,15 +31,6 @@ signal endpoints_changed
 ## in someone's vision fade-zone, regardless of lit/unlit archetype colour.
 @export_range(0.0, 1.0, 0.05) var sensed_alpha: float = 0.35
 @export_range(0.0, 1.0, 0.05) var sensed_width_scale: float = 0.75
-
-## Additive-blend glow underlay (the `Glow` Line2D drawn behind `Line2D`).
-## On the dark game background a wide, low-alpha additive copy of the edge
-## reads as a soft light-bleed halo — contained per-edge, no global bloom.
-## Width is a multiple of the core `width`; alpha is the additive intensity,
-## brighter when lit so allocated edges glow harder than unowned topology.
-@export_range(1.0, 8.0, 0.25) var glow_width_scale: float = 4.0
-@export_range(0.0, 1.0, 0.05) var glow_alpha_lit: float = 0.4
-@export_range(0.0, 1.0, 0.05) var glow_alpha_unlit: float = 0.18
 
 @export var from: SkillNode:
 	set(value):
@@ -69,7 +62,6 @@ signal endpoints_changed
 		_update_visual()
 
 @onready var line_2d: Line2D = $Line2D
-@onready var glow: Line2D = $Glow
 
 
 ## Sensed-but-not-clearly-visible: at least one endpoint is sensed
@@ -124,22 +116,17 @@ func _update_endpoints() -> void:
 		return
 	if is_self_loop:
 		line_2d.hide()
-		glow.hide()
 		queue_redraw()
 		return
 	var seg := SkillNode.segment_between(from, to)
 	if seg.is_empty():
 		line_2d.hide()
-		glow.hide()
 		return
 	line_2d.show()
-	glow.show()
 	var a := seg[0] - global_position
 	var b := seg[1] - global_position
 	line_2d.set_point_position(0, a)
 	line_2d.set_point_position(1, b)
-	glow.set_point_position(0, a)
-	glow.set_point_position(1, b)
 
 ## Recomputes what should be on screen — Line2D gradient stops + width for
 ## regular edges, or just a redraw for self-loops (colour is resolved fresh
@@ -162,50 +149,19 @@ func _update_visual() -> void:
 	grad.set_color(1, _display_color(to.base_type_color, lit))
 	var w := width * (sensed_width_scale if sensed else 1.0)
 	line_2d.width = w
-	_update_glow(lit, w)
 
-## Additive glow underlay: same archetype gradient as the core line but wider
-## and at the additive intensity for the current state. Sensed edges skip the
-## glow entirely — a sensed edge is a faint topology breadcrumb through fog,
-## and an additive halo would blow that quiet read out (it also renders above
-## the fog overlay, where a bloom would look like a full reveal).
-func _update_glow(lit: bool, core_width: float) -> void:
-	if glow == null:
-		return
-	if sensed:
-		glow.hide()
-		return
-	glow.show()
-	var grad := glow.gradient
-	if grad == null:
-		grad = Gradient.new()
-		glow.gradient = grad
-	var a := glow_alpha_lit if lit else glow_alpha_unlit
-	var c_from := _glow_color(from.base_type_color, lit, a)
-	var c_to := _glow_color(to.base_type_color, lit, a)
-	grad.set_color(0, c_from)
-	grad.set_color(1, c_to)
-	glow.width = core_width * glow_width_scale
-
-## Glow tint: the endpoint archetype colour at full saturation (lit brightens
-## it further) carrying only the additive alpha — the desaturate/darken that
-## dims the *core* unlit line is deliberately skipped so the halo keeps the
-## node's identity hue even when unowned.
-func _glow_color(base: Color, lit: bool, alpha: float) -> Color:
-	var c := base.lightened(lit_lighten) if lit else base
-	c.a = alpha
-	return c
-
-## Archetype tint → rendered colour. Lit pushes it brighter; unlit
-## desaturates toward its own luminance grey and darkens (reads as "off").
-## Sensed forces the unlit treatment regardless of actual lit state — owner
-## identity sits above the topology gate, so a sensed-but-co-owned edge must
-## not leak "lit" through fog — then caps alpha on top at a fixed low floor.
+## Archetype tint → rendered colour. Lit rides the emissive VALUE tier
+## (`Emissive.at`) so an allocated edge actually clears bloom threshold and
+## spills onto neighbouring pixels; unlit desaturates toward its own
+## luminance grey and darkens (reads as "off") — both stay SDR. Sensed forces
+## the unlit treatment regardless of actual lit state — owner identity sits
+## above the topology gate, so a sensed-but-co-owned edge must not leak "lit"
+## through fog — then caps alpha on top at a fixed low floor.
 func _display_color(base: Color, lit: bool) -> Color:
 	var c := base
 	var effective_lit := lit and not sensed
 	if effective_lit:
-		c = c.lightened(lit_lighten)
+		c = Emissive.at(base, Emissive.VALUE)
 		c.a = lit_alpha
 	else:
 		var gray := c.get_luminance()
@@ -242,13 +198,6 @@ func _draw_self_loop() -> void:
 	var lit := is_lit()
 	var c := _display_color(from.base_type_color, lit)
 	var w := width * (sensed_width_scale if sensed else 1.0)
-	# Halo underlay to match the regular edges' additive glow (self-loops draw
-	# procedurally, so this is a plain wide translucent arc rather than an
-	# additive-material Line2D — same read on the dark background). Skipped
-	# when sensed, mirroring `_update_glow`.
-	if not sensed:
-		var glow_c := _glow_color(from.base_type_color, lit, glow_alpha_lit if lit else glow_alpha_unlit)
-		draw_arc(loop_center, loop_radius, 0.0, TAU, 24, glow_c, w * glow_width_scale, false)
 	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, w, false)
 
 
