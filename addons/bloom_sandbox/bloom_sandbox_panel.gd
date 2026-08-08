@@ -72,6 +72,8 @@ const _SHAPES: Array[Dictionary] = [
 	{"name": "fill", "kind": ShapeCell.FILL},
 ]
 
+const CHART_ROW_SEPARATION := 32  # value in pixels
+
 
 ## A single primitive drawn at one emissive value. Exists because bloom reads
 ## *coverage*, and a chart made only of filled rects teaches the wrong lesson.
@@ -124,6 +126,8 @@ class ShapeCell:
 @onready var _reset_button: Button = %ResetButton
 @onready var _diagnostics: Label = %Diagnostics
 @onready var _status: Label = %Status
+@onready var left: VBoxContainer = %VBoxContainer
+@onready var right: VBoxContainer = %VBoxContainer2
 
 var _env: Environment
 ## Filled in by `_probe_render_target()` one frame after the first draw.
@@ -167,20 +171,18 @@ func _ready() -> void:
 ## the render target is fixed-size, so the chart never reflows and never clips —
 ## the surrounding ScrollContainer handles a small panel.
 func _build_chart() -> void:
-	for child in _rows.get_children():
+	for child in left.get_children():
 		child.queue_free()
 
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 14)
-	_rows.add_child(left)
 	# The same tier composites differently against a dark fill and a lit one, and
 	# the threshold sees the composite — hence two backdrops. The bright band is
 	# neutral-only: one row makes the point, four would just cost height.
 	_add_band(left, "bases  ·  over dark fill", Color(0.04, 0.05, 0.07), _base_rows)
 	_add_band(left, "neutral  ·  over bright fill", Color(0.55, 0.58, 0.62), _neutral_row)
 
-	var right := VBoxContainer.new()
-	_rows.add_child(right)
+	for child in right.get_children():
+		child.queue_free()
+		
 	# Coverage over dark only — doubling this axis across backdrops teaches
 	# nothing the left column hasn't already shown.
 	_add_band(right, "shapes  ·  neutral base, over dark fill", Color(0.04, 0.05, 0.07), _shape_rows)
@@ -198,7 +200,7 @@ func _add_band(host: Control, title: String, backdrop: Color, rows: Callable) ->
 	host.add_child(band)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 6)
+	col.add_theme_constant_override("separation", CHART_ROW_SEPARATION)
 	band.add_child(col)
 
 	var heading := Label.new()
@@ -280,7 +282,7 @@ func _sample(base: Color, stops: float) -> VBoxContainer:
 
 	var cell := VBoxContainer.new()
 	cell.custom_minimum_size = Vector2(96.0, 0.0)
-	cell.add_theme_constant_override("separation", 4)
+	cell.add_theme_constant_override("separation", CHART_ROW_SEPARATION)
 
 	var square := ColorRect.new()
 	square.custom_minimum_size = Vector2(96.0, 36.0)

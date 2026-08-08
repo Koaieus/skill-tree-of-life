@@ -9,10 +9,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 script = ExtResource("1_panel")
 
-[node name="Split" type="HSplitContainer" parent="." unique_id=608216351]
+[node name="Split" type="HBoxContainer" parent="." unique_id=2018438391]
 layout_mode = 2
-split_offsets = PackedInt32Array(1000)
-split_offset = 1000
 
 [node name="Scroll" type="ScrollContainer" parent="Split" unique_id=871324281]
 layout_mode = 2
@@ -20,38 +18,55 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="ViewportContainer" type="SubViewportContainer" parent="Split/Scroll" unique_id=975573629]
+custom_minimum_size = Vector2(1, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="World" parent="Split/Scroll/ViewportContainer" unique_id=223237885 instance=ExtResource("2_vp")]
 unique_name_in_owner = true
 handle_input_locally = false
-size = Vector2i(1290, 615)
+size = Vector2i(1440, 1080)
 render_target_update_mode = 4
 
 [node name="Bg" type="ColorRect" parent="Split/Scroll/ViewportContainer/World" unique_id=508658653]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 1290.0
-offset_bottom = 615.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0.02, 0.025, 0.035, 1)
+metadata/_edit_lock_ = true
 
 [node name="Margin" type="MarginContainer" parent="Split/Scroll/ViewportContainer/World" unique_id=798073157]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 1290.0
-offset_bottom = 615.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
+metadata/_edit_lock_ = true
 
 [node name="Content" type="VBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin" unique_id=1250809188]
 layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
 theme_override_constants/separation = 14
 
 [node name="Rows" type="HBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content" unique_id=681832775]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content/Rows" unique_id=40101108]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="Split/Scroll/ViewportContainer/World/Margin/Content/Rows" unique_id=1734878952]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 14
@@ -97,11 +112,11 @@ update_mode       4
 glow_enabled      true
 blend_mode        Screen
 threshold         1.00
-intensity         0.30
-env id (rendered) -9223370279340661686
-env id (cached)   -9223370279340661686  ✓ same
+intensity         1.20
+env id (rendered) -9223370277562276822
+env id (cached)   -9223370277562276822  ✓ same
 world3d env       ✓ registered
-render target     format 14  ✗ not HDR — clamps at 1.0"
+render target     format 14  ✓ HDR"
 
 [node name="Sep0" type="HSeparator" parent="Split/Sidebar/SidebarBox" unique_id=384874884]
 layout_mode = 2

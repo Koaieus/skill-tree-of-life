@@ -261,7 +261,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("7_0grv6")
 definition = ExtResource("33_n8kh4")
 
-[sub_resource type="Resource" id="Resource_gomtx"]
+[sub_resource type="Resource" id="Resource_7xeoy"]
 resource_local_to_scene = true
 script = ExtResource("24_0h1mn")
 strength = SubResource("scalar_strength")
@@ -288,7 +288,7 @@ mana_per_turn = SubResource("scalar_mana_per_turn")
 blade_size = SubResource("scalar_blade_size")
 intrinsic_modifiers = Array[ExtResource("15_0n80t")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])
 
-[sub_resource type="Resource" id="Resource_w6fiw"]
+[sub_resource type="Resource" id="Resource_iha5r"]
 resource_local_to_scene = true
 script = ExtResource("35_48vjy")
 spells = Array[ExtResource("36_ofnm1")]([ExtResource("37_vtbww"), ExtResource("38_rf4ai"), ExtResource("39_4g0ds"), ExtResource("40_h8p7j"), ExtResource("41_hoxnp"), ExtResource("42_rfens"), ExtResource("43_7xeoy"), ExtResource("44_iha5r")])
@@ -485,7 +485,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("7_0grv6")
 definition = ExtResource("33_n8kh4")
 
-[sub_resource type="Resource" id="Resource_0grv6"]
+[sub_resource type="Resource" id="Resource_gomtx"]
 resource_local_to_scene = true
 script = ExtResource("24_0h1mn")
 strength = SubResource("Resource_l68re")
@@ -511,7 +511,7 @@ mana_per_turn = SubResource("Resource_jc1be")
 blade_size = SubResource("Resource_8d6i3")
 intrinsic_modifiers = Array[ExtResource("15_0n80t")]([SubResource("Resource_3ogaa"), SubResource("Resource_df164"), SubResource("Resource_qk0se"), SubResource("Resource_lwubc"), SubResource("Resource_3dypl"), SubResource("Resource_piqb8")])
 
-[sub_resource type="Resource" id="Resource_c6vki"]
+[sub_resource type="Resource" id="Resource_w6fiw"]
 resource_local_to_scene = true
 script = ExtResource("35_48vjy")
 spells = Array[ExtResource("36_ofnm1")]([ExtResource("37_vtbww"), ExtResource("38_rf4ai"), ExtResource("39_4g0ds"), ExtResource("40_h8p7j"), ExtResource("41_hoxnp"), ExtResource("42_rfens")])
@@ -531,6 +531,14 @@ value = 2.0
 script = ExtResource("15_0n80t")
 stat_id = &"health"
 value = 5.0
+
+[sub_resource type="Resource" id="Resource_0grv6"]
+resource_local_to_scene = true
+script = ExtResource("15_0n80t")
+stat_id = &"blade_damage"
+operation = 2
+value = 1.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="mod_int_2"]
 script = ExtResource("15_0n80t")
@@ -568,6 +576,14 @@ value = 100.0
 script = ExtResource("15_0n80t")
 stat_id = &"health"
 value = 3.0
+
+[sub_resource type="Resource" id="Resource_c6vki"]
+resource_local_to_scene = true
+script = ExtResource("15_0n80t")
+stat_id = &"blade_damage"
+operation = 2
+value = 1.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="mod_dex_3"]
 script = ExtResource("15_0n80t")
@@ -622,17 +638,17 @@ viewers = [NodePath("../../Graph/Entities/Player")]
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
-stat_board = SubResource("Resource_gomtx")
+stat_board = SubResource("Resource_7xeoy")
 core_class = ExtResource("34_jgy4j")
-spellbook = SubResource("Resource_w6fiw")
+spellbook = SubResource("Resource_iha5r")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" parent_id_path=PackedInt32Array(1851662701, 1129644954) index="1" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("3_7xeoy")]
 display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
-stat_board = SubResource("Resource_0grv6")
+stat_board = SubResource("Resource_gomtx")
 core_class = ExtResource("34_jgy4j")
-spellbook = SubResource("Resource_c6vki")
+spellbook = SubResource("Resource_w6fiw")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Core" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="0" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("43_78xpl")]
@@ -668,6 +684,7 @@ stake_level = 1
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Down" index="3" unique_id=1569558765 instance=ExtResource("45_8l4hc")]
 spike_color = Color(0.9, 0.2, 0.2, 1)
+local_modifiers = Array[ExtResource("15_0n80t")]([SubResource("Resource_0grv6")])
 
 [node name="Left" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="4" unique_id=1010139945 instance=ExtResource("43_78xpl")]
 z_index = 1001
@@ -796,6 +813,7 @@ stake_level = 1
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Watchtower" index="3" unique_id=1349571620 instance=ExtResource("45_8l4hc")]
 spike_color = Color(0.4117647, 0.4117647, 0.4117647, 1)
+local_modifiers = Array[ExtResource("15_0n80t")]([SubResource("Resource_c6vki")])
 
 [node name="Juggler" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="19" unique_id=9000002 instance=ExtResource("43_78xpl")]
 modulate = Color(1, 1, 1, 0.9608937)
@@ -1022,6 +1040,7 @@ from = NodePath("../../Nodes/Enemy_E")
 to = NodePath("../../Nodes/Enemy_Recon")
 
 [node name="FogOverlay" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="5" unique_id=1165041791]
+visible = false
 enabled = false
 
 [node name="AuraOverlay" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="6"]
