@@ -143,7 +143,7 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 	cell.entity.name = "Owner_%d_%d" % [row, col]
 	cell.entity.display_name = cell.entity.name
 	cell.entity.color = color
-	cell.entity.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
+	cell.entity.stat_board = _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
 	graph.entities_container.add_child(cell.entity)
 
 	# Per-cell live label (world-space; scales with the panel).

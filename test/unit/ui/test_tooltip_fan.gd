@@ -37,7 +37,7 @@ func before_each() -> void:
 	# `owned_by.stat_board.get_stat(&"health")`, so an entity without one
 	# exercises only the null guard. Same `duplicate(true)` fixture pattern as
 	# test_intent_dispatch / test_serpent_core.
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	add_child(_entity)
 
 

@@ -21,7 +21,7 @@ func before_each() -> void:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var entity: Entity = autofree(Entity.new())
-	entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.add_child(entity)
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_node.stake_level = 3

@@ -36,7 +36,7 @@ func before_each() -> void:
 	add_child_autofree(_alloc)
 
 	_player = autofree(Entity.new())
-	_player.stat_board = _BOARD.duplicate(true) as StatBoard
+	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_player)
 	await get_tree().process_frame
 	for n in _nodes:

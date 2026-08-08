@@ -147,7 +147,7 @@ func _spawn_entity(ent_name: String, color: Color, core: CoreClass = null) -> En
 	e.name = ent_name
 	e.display_name = ent_name
 	e.color = color
-	e.stat_board = _DEFAULT_BOARD.duplicate(true) as StatBoard
+	e.stat_board = _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
 	if core != null:
 		e.core_class = core
 	graph.entities_container.add_child(e)

@@ -16,7 +16,7 @@ class InertEffect extends Effect:
 func _make_entity() -> Entity:
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "T"
-	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	return ent
 
 

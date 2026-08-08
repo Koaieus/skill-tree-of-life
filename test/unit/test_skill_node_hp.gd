@@ -28,7 +28,7 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Cycler"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)
 
 	await get_tree().process_frame  # entity._ready

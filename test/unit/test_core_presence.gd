@@ -25,7 +25,7 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Coreholder"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_entity.core_class = _BALANCED_CORE
 	_entity.core_location = _node
 	_graph.add_child(_entity)

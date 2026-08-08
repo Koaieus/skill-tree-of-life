@@ -169,7 +169,7 @@ func test_looted_composite_applied_flattened_to_board() -> void:
 	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(core)
 	var collector := Entity.new()
-	collector.stat_board = _BOARD.duplicate(true) as StatBoard
+	collector.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(collector)
 	collector.core_location = core
 	var dp_before: float = collector.stat_board.deallocation_points.get_value()

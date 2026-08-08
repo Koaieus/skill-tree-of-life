@@ -78,12 +78,12 @@ func before_each() -> void:
 	_killer = autofree(Entity.new())
 	_killer.display_name = "Killer"
 	_killer.faction = _PLAYER_FACTION  # #384/#386: HOSTILE to the victim's default npc faction
-	_killer.stat_board = _BOARD.duplicate(true) as StatBoard
+	_killer.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_killer)
 
 	_victim = autofree(Entity.new())
 	_victim.display_name = "Victim"
-	_victim.stat_board = _BOARD.duplicate(true) as StatBoard
+	_victim.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_victim.core_class = _BALANCED  # +10 STR/DEX/INT — the core-mod source
 	_graph.add_child(_victim)
 
@@ -215,7 +215,7 @@ func test_bystander_enemy_gains_no_xp_from_anothers_kill() -> void:
 	var bystander: Entity = autofree(Entity.new())
 	bystander.display_name = "Bystander"
 	bystander.faction = _PLAYER_FACTION  # hostile to the npc-faction victim too
-	bystander.stat_board = _BOARD.duplicate(true) as StatBoard
+	bystander.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(bystander)
 	await get_tree().process_frame
 

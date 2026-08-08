@@ -36,7 +36,7 @@ func _make_node(n: String) -> SkillNode:
 func _spawn(core: SkillNode, owned: Array[SkillNode]) -> Entity:
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(ent)
 	await get_tree().process_frame
 	for n in owned:

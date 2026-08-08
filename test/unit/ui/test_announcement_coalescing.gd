@@ -21,7 +21,7 @@ func before_each() -> void:
 	_entity = Entity.new()
 	autofree(_entity)
 	_entity.display_name = "Leveller"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	await get_tree().process_frame
 
 
@@ -64,7 +64,7 @@ func test_a_different_entity_does_not_absorb() -> void:
 	var other := Entity.new()
 	autofree(other)
 	other.display_name = "Someone Else"
-	other.stat_board = _BOARD.duplicate(true) as StatBoard
+	other.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_layer.enqueue(LevelUpAnnouncementRequest.make_for_level_up(other, 1, 2))
 	assert_eq(_queued().size(), 1, "coalescing is keyed by entity, not by kind")
 

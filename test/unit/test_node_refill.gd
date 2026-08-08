@@ -25,7 +25,7 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Defender"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)
 
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode

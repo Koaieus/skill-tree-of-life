@@ -48,14 +48,14 @@ func before_each() -> void:
 
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as StatBoard
+	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_player)
 
 	# A second entity so we can hand the turn away from the player (otherwise
 	# the lone player immediately retakes its own turn after end_turn).
 	_other = autofree(Entity.new())
 	_other.display_name = "Other"
-	_other.stat_board = _BOARD.duplicate(true) as StatBoard
+	_other.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_other)
 
 	await get_tree().process_frame

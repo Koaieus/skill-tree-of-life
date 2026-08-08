@@ -42,7 +42,7 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new()) as Entity
 	_entity.display_name = "Phantom"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_entity.core_class = _NINJA
 	_graph.add_child(_entity)  # _ready → core_class.apply() grants modifiers + aura
 	await get_tree().process_frame

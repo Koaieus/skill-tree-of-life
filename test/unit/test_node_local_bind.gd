@@ -117,7 +117,12 @@ func test_remove_local_modifier_unbinds() -> void:
 
 func test_no_local_modifiers_leaves_extra_stats_empty() -> void:
 	var node := _node()
-	assert_null(node.node_board, "no local modifier ever added -> node_board itself stays unallocated")
+	# The board itself is scene-packaged (skill_node.tscn, resource_local_to_scene),
+	# so "sparse" is about its CONTENTS, not its existence: no local modifier ever
+	# added -> no borrowed stat was minted. Bake what the node owns, stay sparse
+	# for what it borrows (see NodeStatBoard).
+	assert_eq(node.node_board.get_dynamic_stat_ids(), [] as Array[StringName],
+			"no local modifier ever added -> no borrowed stat minted on node_board")
 
 
 func test_entity_only_value_passes_through_without_allocating_node_board() -> void:

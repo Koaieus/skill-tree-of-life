@@ -57,7 +57,7 @@ func _build_grid(g: Graph, rows: int, cols: int) -> Array[SkillNode]:
 
 func _make_entity(g: Graph, core_class: CoreClass) -> Entity:
 	var e := _ENTITY_SCENE.instantiate() as Entity
-	e.stat_board = _BOARD.duplicate(true) as StatBoard
+	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	e.core_class = core_class
 	g.entities_container.add_child(e)
 	return e

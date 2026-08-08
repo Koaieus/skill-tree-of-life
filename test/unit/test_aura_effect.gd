@@ -47,7 +47,7 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 func _spawn(core: SkillNode, owned: Array[SkillNode]) -> Entity:
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "E"
-	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(ent)
 	await get_tree().process_frame
 	for n in owned:
@@ -153,7 +153,7 @@ func test_core_class_aura_populates_via_the_spawn_entity_order() -> void:
 
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "Spawned"
-	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	ent.core_class = core_class
 	_graph.add_child(ent)                       # _ready → core_class.apply → grant
 	await get_tree().process_frame

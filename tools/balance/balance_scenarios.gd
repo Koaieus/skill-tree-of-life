@@ -469,7 +469,7 @@ static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) 
 static func _territory_growth(root: Node, level: int, core_class: CoreClass) -> Dictionary:
 	var probe := Entity.new()
 	probe.display_name = "XPProbe"
-	probe.stat_board = _BOARD.duplicate(true) as StatBoard
+	probe.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	probe.core_class = core_class
 	root.add_child(probe)
 	await root.get_tree().process_frame

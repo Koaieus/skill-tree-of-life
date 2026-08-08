@@ -40,7 +40,7 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new()) as Entity
 	_entity.display_name = "Coil"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_entity.core_class = _SERPENT
 	_graph.add_child(_entity)
 	await get_tree().process_frame

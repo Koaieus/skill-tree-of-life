@@ -59,12 +59,12 @@ func before_each() -> void:
 
 	_killer = autofree(Entity.new())
 	_killer.display_name = "Killer"
-	_killer.stat_board = _BOARD.duplicate(true) as StatBoard
+	_killer.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_killer)
 
 	_victim = autofree(Entity.new())
 	_victim.display_name = "Victim"
-	_victim.stat_board = _BOARD.duplicate(true) as StatBoard
+	_victim.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_victim.core_class = _BALANCED
 	_graph.add_child(_victim)
 

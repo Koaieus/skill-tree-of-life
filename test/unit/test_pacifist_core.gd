@@ -14,7 +14,7 @@ var _entity: Entity
 func before_each() -> void:
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Ascetic"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_entity.core_class = _PACIFIST
 	add_child_autofree(_entity)  # _ready duplicates the board, then core_class.apply()s onto it
 	await get_tree().process_frame

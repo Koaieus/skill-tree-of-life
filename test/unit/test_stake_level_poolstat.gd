@@ -21,7 +21,7 @@ func before_each() -> void:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	graph.add_child(_entity)
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	# Owned by default so _refresh_alloc_count keeps an authored fill (an

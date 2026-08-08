@@ -53,7 +53,7 @@ func test_negative_armor_amplifies_but_floor_masks_small_hits() -> void:
 func _owned_node() -> SkillNode:
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "D"
-	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	var node: SkillNode = _NODE_SCENE.instantiate()
 	autofree(node)
 	add_child(ent)

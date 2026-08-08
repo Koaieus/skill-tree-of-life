@@ -35,7 +35,7 @@ func before_each() -> void:
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
 	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)
 	_node = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child(_node)

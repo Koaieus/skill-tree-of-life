@@ -40,7 +40,7 @@ func test_bound_content_at_worst_case_keeps_every_forced_axis_satisfiable() -> v
 	var node := _NODE_SCENE.instantiate()
 	graph.add_skill_node(node)
 	var entity := Entity.new()
-	entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	entity.core_class = _PACIFIST_CORE
 	entity.core_location = node
 	entity.faction = _PLAYER_FACTION

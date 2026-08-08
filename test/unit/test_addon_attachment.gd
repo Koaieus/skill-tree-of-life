@@ -50,7 +50,7 @@ func test_adoption_orders_correctly_against_hp_binding() -> void:
 	# _refresh_hp_binding seeds it. Pin that the seeding still wins and the
 	# addon's bonus is included, rather than one clobbering the other.
 	var entity := Entity.new()
-	entity.stat_board = BOARD.duplicate(true) as StatBoard
+	entity.stat_board = BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(entity)
 	_node.add_child(FORTIFICATION_SCENE.instantiate())
 	_node.owned_by = entity

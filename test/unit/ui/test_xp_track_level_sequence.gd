@@ -28,7 +28,7 @@ func before_each() -> void:
 	_entity = Entity.new()
 	autofree(_entity)
 	_entity.display_name = "Leveller"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	add_child(_entity)
 	await get_tree().process_frame  # _ready wires xp.replenished -> level-up
 

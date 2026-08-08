@@ -16,7 +16,7 @@ func before_each() -> void:
 	_cluster = _CLUSTER.instantiate()
 	add_child_autofree(_cluster)
 	_entity = autofree(Entity.new())
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(_entity)
 	await get_tree().process_frame
 	_cluster.set(&"_player", _entity)

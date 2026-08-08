@@ -30,13 +30,13 @@ func before_each() -> void:
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Mine"
 	_entity.faction = _PLAYER_FACTION
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_entity)
 
 	_ally = autofree(Entity.new())
 	_ally.display_name = "Ally"
 	_ally.faction = _PLAYER_FACTION  # same faction → ALLIED, per attitude_to
-	_ally.stat_board = _BOARD.duplicate(true) as StatBoard
+	_ally.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_ally)
 
 	await get_tree().process_frame  # entity._ready wires navigators

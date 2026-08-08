@@ -68,7 +68,7 @@ static func build(
 
 	fx.entity = Entity.new()
 	fx.entity.display_name = "Fixture"
-	fx.entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	fx.entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	fx.entity.core_class = core_class
 	fx.graph.add_child(fx.entity)
 	await root.get_tree().process_frame

@@ -26,7 +26,7 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## [member Faction.id]: two entities whose factions share an id are allies,
 ## even across separately-loaded/duplicated resource instances.
 @export var faction: Faction = preload("res://entity/factions/npc.tres")
-@export var stat_board: StatBoard = null
+@export var stat_board: EntityStatBoard = null
 ## Class specialization for this entity. Applied once on _ready via
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.
 ## Optional — null means a plain entity with no class bonuses.

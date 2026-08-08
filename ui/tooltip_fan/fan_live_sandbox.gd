@@ -170,7 +170,7 @@ func _mount_world() -> void:
 		_graph.add_edge(_node, dummy)
 
 	_entity = Entity.new()  # TODO: replace with scene composition (also prefer entity SCENE instantiate >>> Entity.new())
-	_entity.stat_board = _ENTITY_BOARD.duplicate(true) as StatBoard # TODO: would already be included in Entity scene
+	_entity.stat_board = _ENTITY_BOARD.duplicate(true) as EntityStatBoard # TODO: would already be included in Entity scene
 	add_child(_entity)
 
 	_fan = _FAN_SCENE.instantiate()  # TODO: replace with scene composition

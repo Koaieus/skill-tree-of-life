@@ -224,7 +224,7 @@ var revealed: bool = true:
 ## a stat is only allocated when a node-local modifier targets it (via an
 ## addon) or when the node is allocated (combat health pool). See
 ## [method StatBoard._ensure_stat].
-@export var node_board: StatBoard = null
+@export var node_board: NodeStatBoard = null
 
 ## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
 ## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
@@ -1071,7 +1071,7 @@ func _reset_combat_health() -> void:
 
 func _init_node_board() -> void:
 	if node_board == null:
-		node_board = StatBoard.new()
+		node_board = NodeStatBoard.new()
 	_mint_stake_pool()
 	_mint_addon_slots()
 

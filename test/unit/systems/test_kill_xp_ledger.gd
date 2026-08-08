@@ -74,10 +74,10 @@ func before_each() -> void:
 
 	_killer = autofree(Entity.new())
 	_killer.faction = _PLAYER_FACTION  # #384/#386: HOSTILE to the victim's default npc faction
-	_killer.stat_board = _BOARD.duplicate(true) as StatBoard
+	_killer.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_killer)
 	_victim = autofree(Entity.new())
-	_victim.stat_board = _BOARD.duplicate(true) as StatBoard
+	_victim.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_victim.core_class = _BALANCED
 	_graph.add_child(_victim)
 	await get_tree().process_frame

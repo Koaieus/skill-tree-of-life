@@ -20,7 +20,7 @@ func _make_entity(core_class: CoreClass = null) -> Entity:
 	var ent := Entity.new()
 	autofree(ent)
 	ent.display_name = "T"
-	ent.stat_board = _BOARD.duplicate(true) as StatBoard
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	ent.core_class = core_class
 	add_child(ent)
 	await get_tree().process_frame

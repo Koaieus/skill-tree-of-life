@@ -27,7 +27,7 @@ func before_each() -> void:
 	_entity = Entity.new()
 	autofree(_entity)
 	_entity.display_name = "Regenerator"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	# Keep the turn upkeep from levelling up mid-test. WIS 10 gives
 	# xp_per_turn = floor(10/2) = 5 against an xp cap of exactly 5, so the very
 	# first _on_turn_started() levels the entity, which grants +1 CON, which

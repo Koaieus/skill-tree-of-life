@@ -23,7 +23,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="21_lxx12"]
 [ext_resource type="Resource" path="res://stats_system/defs/perception.tres" id="22_m7nbe"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="23_ryeeh"]
-[ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="24_0h1mn"]
+[ext_resource type="Script" uid="uid://cuw7nj5i81f8" path="res://stats_system/entity_stat_board.gd" id="1_entityboard"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="25_pld0a"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="26_qgli8"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="27_dam6k"]
@@ -263,7 +263,7 @@ definition = ExtResource("33_n8kh4")
 
 [sub_resource type="Resource" id="Resource_7xeoy"]
 resource_local_to_scene = true
-script = ExtResource("24_0h1mn")
+script = ExtResource("1_entityboard")
 strength = SubResource("scalar_strength")
 dexterity = SubResource("scalar_dexterity")
 intelligence = SubResource("scalar_intelligence")
@@ -487,7 +487,7 @@ definition = ExtResource("33_n8kh4")
 
 [sub_resource type="Resource" id="Resource_gomtx"]
 resource_local_to_scene = true
-script = ExtResource("24_0h1mn")
+script = ExtResource("1_entityboard")
 strength = SubResource("Resource_l68re")
 dexterity = SubResource("Resource_sdhs6")
 intelligence = SubResource("Resource_f58km")

@@ -14,7 +14,7 @@ var _entity: Entity
 func before_each() -> void:
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Wanderer"
-	_entity.stat_board = _BOARD.duplicate(true) as StatBoard
+	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	add_child_autofree(_entity)  # _ready duplicates the board again; read it back after
 	await get_tree().process_frame
 
