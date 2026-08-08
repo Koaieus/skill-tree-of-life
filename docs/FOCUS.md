@@ -30,6 +30,16 @@ pass. This is a deliberate call that how the game *looks* is what's blocking rig
 now — it costs #378 its head-of-queue position, and rule 2 means the AI lane does not
 open until the glowup's scheduled work ships.
 
+Patched 2026-08-08: **#384, #385, and hub #383 closed** — all code-complete with
+acceptance tests green (verified via isolated `mise run test` + `mise run check`,
+not just git log). #378's hard AI prerequisites are done; lane H still doesn't open
+until lane A's scheduled work ships (rule 2), but nothing blocks it once that happens.
+**#371's editor-bloom defect is also resolved** (root cause: `bloom_sandbox_panel` was
+`add_child`ed at runtime instead of instanced in its tab scene) — lane A glow work can
+now be judged in the editor too, not just in a running game. **#362 is NOT fixed** —
+an isolated `mise run test:one` run still shows 1 failing test (route-point overshoot
+into the panel, stale trunk-length vs. a fresh `solve_route()`); stays `Ready`, not closed.
+
 ## Why this file exists
 
 The board sprawls. 28 issues in `Ready`, 36 in `Needs design`, 178 open total —
@@ -77,9 +87,9 @@ drone takes one and ships it.
 | **#236** | Tooltip V2: trace glow shader polish | Moved out of lane E — it is glow work, judged best next to the rest of it. |
 | **#393** | Strikethrough toast laser-cut trace glows | S. The trace can be a laser now instead of a bright line. |
 | **#391** | `fused_panel` `glow_energy` + instance uniforms | **Deferrable indefinitely.** Consistency refactor, not a glow blocker; the one #371 path that was reasoned rather than probed. |
-| **#362** | `test_fan_scene` trace test is run-order dependent | S. Poisons `test:one` for anyone touching fan geometry — i.e. the whole legibility lane. Cheap slot-clearer; do it first. |
-| **#384** | Ownership buckets Neutral/Mine/Ally/Hostile + `Entity.attitude_to` + `Faction` | **Blocks #378.** Without it "hostile" is `owned_by != attacker`, so every AI entity reads every other AI entity as an enemy. Also folds in #386's whole scope (closed): XP is killer-attributed and gated on hostility, one guard in `LootSystem`. Two teams, forks settled 2026-08-07. |
-| **#385** | Set-shaped targeting: gather the reachable set once, not `in_range` per node | **Blocks #378** (ranged + magic scoring; melee enumerates by blade-shape search instead). Its scoring needs candidate enumeration; `Targeting.valid_targets` has zero callers today and the live path runs one AStar query *per node per repaint*. Verified pure perf — `AStarSkillTree` costs edges flat, so BFS and `get_id_path` agree. |
+| **#362** | `test_fan_scene` trace test is run-order dependent | S. Poisons `test:one` for anyone touching fan geometry — i.e. the whole legibility lane. Cheap slot-clearer; do it first. **Still open as of 2026-08-08** — isolated run fails (route-point overshoot, stale trunk-length vs. fresh `solve_route()`). |
+| ~~**#384**~~ | ~~Ownership buckets Neutral/Mine/Ally/Hostile + `Entity.attitude_to` + `Faction`~~ | **CLOSED 2026-08-08.** Code-complete + acceptance tests green, verified via isolated test run. |
+| ~~**#385**~~ | ~~Set-shaped targeting: gather the reachable set once, not `in_range` per node~~ | **CLOSED 2026-08-08.** Code-complete + acceptance tests green, verified via isolated test run. |
 | **#378** | AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring | Lane H's v1, design-pass settled 2026-08-05. Supersedes #286 + #174 (both closed as folded-in). Recon (fog short-circuit) → tactical SP-growth (recon-pulled near-miss-enable) → AP×2 attacks with per-candidate EV across all three modes (ranged/magic enumerable, melee = MCMC blade rollouts on WorkerThreadPool — the multicore crunch) → end turn. Tier-gated scorer (`ai_tier: int`). `Events.ai_decision` signal always-emitted + `debug_trace` print toggle. Shape-locked v1 (DP=0, movement=0). Single biggest "game plays itself" gap on the board. |
 | ~~**#286**~~ | ~~AI allocation v1: spend all SP + shallow scoring~~ | **CLOSED.** Superseded by #378 — scope absorbed into tactical SP-growth steps. |
 | ~~**#174**~~ | ~~AI: evaluate melee/magic/ranged every turn~~ | **CLOSED.** Superseded by #378 — scope absorbed into AP×2 attack enumeration with per-candidate EV. |
@@ -90,9 +100,9 @@ drone takes one and ships it.
 | **#375** | `addon_slots = base(0) + allocation_level` as a node-local Stat | First consumer of the node-local scaling plumbing. Reads `allocation_level` through the `stake_level__current` accessor (#333). Depends on #374. |
 | **#376** | Magnitude curve: linear-ladder mutator on SkillNode | The design heart of #332. SkillNode owns its modifiers, entity board holds references, a mutator runs once per al-change writing `value` in place. Linear ladder (`return float(al)`), plug-and-play body. MULTIPLY scales "add the growth part" (`1 + (X−1)×ladder`); SET opts out by default. Composition mutation covered (the "1→2 effects" case). Single-owner-SkillNode precondition asserted; **#377** is the long-term escape. |
 
-Fifteen units, all drone-ready as written. Take them in lane order below — **the glowup is
-lane A now, and the AI lane is last**; rule 2 means #384/#385/#378 do not open until
-lane A's scheduled work (#389, #388, #392) ships.
+Thirteen units, all drone-ready as written (#384/#385 closed 2026-08-08). Take them in
+lane order below — **the glowup is lane A now, and the AI lane is last**; rule 2 means
+#378 does not open until lane A's scheduled work (#389, #388, #392) ships.
 
 ## Lanes, in order — ship the playable loop
 
@@ -104,12 +114,14 @@ lane is done when its scheduled work ships, not when its topic is exhausted.
 #371's bloom pass is live, so every one of these can be judged against real light
 instead of guessed at. They are file-disjoint from each other — this lane swarms.
 
-> **Blocker on the judging surface, 2026-08-07:** the sandbox host's **Bloom** tab
-> shows no bloom *in the editor* and its sliders are inert (diagnosis on #371;
-> #371 is back to `In progress`). The pass itself is verified working in a running
-> game — this is a tab/editor problem, not an Environment problem, so **don't
-> retune `default_game_env.tres` chasing it.** Until it's fixed, judge glow work by
-> running `scenes/procgen_play_sandbox.tscn`, not in the editor.
+> **Judging-surface blocker resolved 2026-08-07.** The sandbox host's **Bloom** tab
+> now blooms in the editor too — root cause was `bloom_sandbox_panel` being
+> `add_child`ed at runtime instead of instanced in its tab scene. Glow work can be
+> judged either in the editor's Bloom tab or in a running
+> `scenes/procgen_play_sandbox.tscn`. Confirmed still uncoded: all seven units below
+> are untouched in the tree as of 2026-08-08 (checked file contents, not just issue
+> status) — none use `Emissive.at()` or a `Tier*` variation yet; #389's shader still
+> carries the TODO pointing at this now-resolved blocker.
 
 1. **#389** RimRing lit-slot arcs at the alert tier — **Ready.** *The* payoff. The
    SDR baseline was already darkened so the unallocated node reads right without
@@ -207,11 +219,13 @@ Both `Needs design`, P0 when scheduled.
 work. #378 is still the single biggest gap on the board and the sandbox stays a
 dollhouse until the AI spends its economy and evaluates its options; the glowup just
 went ahead of it. Rule 2 applies: this lane does not open until lane A's scheduled
-work ships.
+work ships. **#378's hard prerequisites, #384 and #385, closed 2026-08-08** —
+code-complete with acceptance tests green. Nothing left to do in this lane before
+#378 itself except wait for lane A.
 
-1. **#384** Ownership buckets + `Entity.attitude_to` + `Faction` — **Ready**, and #378's hard prerequisite: today "hostile" means "not me", so AI entities are enemies to each other. Two teams (player / native graph entities), enemies don't fight each other. Absorbed #386 (closed): territory stays strictly per-entity, friendly fire stays per-spell authoring, XP is killer-attributed and hostility-gated.
-2. **#385** Set-shaped targeting — **Ready.** The candidate-enumeration API #378's per-candidate EV needs **for ranged and magic**; melee generates candidates by pivot/blade-shape search over the owned subgraph and does not route through `Targeting`. File-disjoint from #384; lands cleaner after it.
-3. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV). **Melee budget measured 2026-08-07** (see the issue comment + `test/perf/bench_blade_sim.gd`): a k=20 blade swing is ~13 ms, not µs — ~75 full-fidelity candidates per second, so the plan needs the analytic reach bound + a coarse ranking tier, and `BladeHitScan` is *not* known WorkerThreadPool-safe. Open call from #386 **settled 2026-08-07: per-entity vision, no faction sharing in v1** (#394 files the deferred lever). #378 now has no unanswered design questions.
+1. ~~**#384** Ownership buckets + `Entity.attitude_to` + `Faction`~~ — **CLOSED 2026-08-08.** Two teams (player / native graph entities), enemies don't fight each other. Absorbed #386 (closed): territory stays strictly per-entity, friendly fire stays per-spell authoring, XP is killer-attributed and hostility-gated.
+2. ~~**#385** Set-shaped targeting~~ — **CLOSED 2026-08-08.** The candidate-enumeration API #378's per-candidate EV needs for ranged and magic; melee generates candidates by pivot/blade-shape search over the owned subgraph and does not route through `Targeting`.
+3. **#378** AI controller v1: fog-aware tactical loop + MCMC melee + tiered scoring — drone-ready, hard prerequisites done. Supersedes the closed #286 + #174 (their scope folded in, upgraded from shallow/fixed-priority to recon-tactical + per-candidate EV). **Melee budget measured 2026-08-07** (see the issue comment + `test/perf/bench_blade_sim.gd`): a k=20 blade swing is ~13 ms, not µs — ~75 full-fidelity candidates per second, so the plan needs the analytic reach bound + a coarse ranking tier, and `BladeHitScan` is *not* known WorkerThreadPool-safe. Open call from #386 **settled 2026-08-07: per-entity vision, no faction sharing in v1** (#394 files the deferred lever). #378 now has no unanswered design questions.
    - ~~**#279** Enemy CoreClass authoring architecture — drone-ready.~~ **CLOSED.**
 4. #47 strategy-pattern NPC controller — `Needs design`, lane H's v2. Not this lane's exit.
 
