@@ -173,8 +173,17 @@ everything, no gating" phase — flat placeholders, not carved art.
 3. ~~**#371** emissive text + composable glow (bloom)~~ — **foundation landed 2026-08-07**, `In review`. Its seven consumer children are **lane A**, not this lane. **#236** (fan trace glow) moved there too — it is glow work, and it should be judged alongside the rest of the glow work rather than next to the tooltip layout units.
 4. #354 spell preview UI (per-node damage/hit-count chips) — `Needs design`. The preview-scoped RNG snapshot is the open fork.
 5. #361 `core_panel.tscn` carries two skins — `Needs design`, blocks nothing but re-bites fan geometry. A *decision*, not a drone unit.
+6. Node state visuals need a visual clarity upgrade to become as insightful as they need to be:
+	- unallocated nodes need brighter rim, perhaps I=0. **needed because as a Player I'd want to scan the map for nodes with golden rims -- WIS nodes -- and so far it's very hard to do (all seem dark gray-ish, tinted ever so slightly)**
+	- allocated nodes get the glow-up from lane A so will pop out compared to unallocated
+	- highlight rings visual untangling:
+		- on hover: node has YELLOW outline. which is.. confusing (esp when trying to find gold-rimmed nodes), needs a good visual design think
+		- in Manage mode, nodes you can allocate are highlighted with a golden-orange highlight rings. again not the gold i'm scouring the map for
+		- in Magic/Melee/Ranged attack plans, those same rings appear, but yellow or red
+		- maybe we need to give them a visually distinct look, like a spinning reticule? we *could* also shade the hell out of these things, make them s00per f4ncy
 
-### F — Balance is tuned, not guessed
+
+### F — Balance is tuned, not guessed ** BLOCKED UNTIL ALL OTHER LANES ARE DONE [we don't want to deal with this stuff before they land; we can tune forever otherwise]
 
 The harness shipped ( #268, informative-only). #274's spell damage landed. What remains
 is the pinning, not the apparatus.

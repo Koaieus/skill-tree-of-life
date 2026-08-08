@@ -31,7 +31,17 @@ extends Resource
 
 ## Target stat the rolled modifier writes to.
 @export var stat_id: StringName = &""
+#: # TODO: reenable ? or remove
+	#set(v):
+		#stat_id = v
+		#_update_resource_name()
+		
 @export var operation: StatModifier.Operation = StatModifier.Operation.ADD_BASE
+#:
+	#set(v):
+		#operation = v
+		#_update_resource_name()
+
 
 ## Archetype affinity — matches against the node's `primary_stat`. `&""` =
 ## universal pool (drawn by every node). See D7: there is no off-archetype
@@ -80,6 +90,12 @@ extends Resource
 @export_range(1, 4) var max_tier: int = 4
 
 
+func _init() -> void:
+	_update_resource_name()
+
+func _update_resource_name():
+	resource_name = '%s %s' % [stat_id, _op_symbol()]
+
 ## Flatten into runtime entries (one per tier in `min_tier..max_tier`).
 ## Stable id per tier: `<stat_id>_<op>_<arch>_t<tier>` so weight profiles target
 ## stably across re-flattens.
@@ -121,13 +137,21 @@ func to_entries() -> Array[ModifierPoolEntry]:
 
 func _op_short() -> String:
 	match operation:
-		StatModifier.Operation.ADD_BASE: return "addb"
+		StatModifier.Operation.ADD_BASE: return "addb" # TODO: maybe switch base add (the default!) to be just `add` and let the BONUS add be `addb` instead? throughout the codebase. or is that confusing?
 		StatModifier.Operation.INCREASE: return "inc"
 		StatModifier.Operation.MULTIPLY: return "mul"
 		StatModifier.Operation.ADD_BONUS: return "addn"
 		StatModifier.Operation.SET: return "set"
 	return "op"
 
+func _op_symbol() -> String:
+	match operation:
+		StatModifier.Operation.ADD_BASE: return "+"  # TODO: when formalizing bool for flipping "which way is up" for a stat (some stats you want lowered), splice in condition to make this `-` instead
+		StatModifier.Operation.INCREASE: return "+%"
+		StatModifier.Operation.MULTIPLY: return "×"
+		StatModifier.Operation.ADD_BONUS: return "+b"
+		StatModifier.Operation.SET: return "="
+	return "??"
 
 ## Markdown-ish table for the print-tool. Caller prefixes with the pool id.
 func format_table() -> String:

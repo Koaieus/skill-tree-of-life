@@ -853,14 +853,14 @@ static func _roll_modifiers_v4(
 	# already coerces the sampled value (INCREASE → int, ADD by stat value_type,
 	# MULTIPLY/SET raw float), so aggregating the coerced values keeps the
 	# snapping semantics of ModifierPoolEntry._coerce_to_stat_type.
-	var rolled: Array[StatModifier] = []
+	var rolled := StatModifierAggregator.new()
 	var draws := 0
-
+	
 	while remaining > 0:
 		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, refunds_used, rng)
 		if entry == null:
 			break
-		rolled.append(entry.roll(rng))
+		rolled.append(entry.roll(rng), entry.cost)
 		remaining -= entry.cost  # cost < 0 → remaining increases (refund)
 		if entry.cost < 0:
 			refunds_used += 1
@@ -879,34 +879,77 @@ static func _roll_modifiers_v4(
 	# NOT \times2.30); SET max.
 	# Key by "<stat>|<op>" to dodge StringName/Dictionary quirks; emit in
 	# first-drawn order so tooltips read top-to-bottom as the draw unwound.
-	var acc: Dictionary = {}            # key -> { "stat": StringName, "op": int, "val": float }
-	var order: Array[String] = []       # first-drawn key order
-	for m in rolled:
-		var key := "%s|%d" % [String(m.stat_id), int(m.operation)]
-		if not acc.has(key):
-			acc[key] = {"stat": m.stat_id, "op": int(m.operation), "val": m.value}
-			order.append(key)
-		else:
-			var e: Dictionary = acc[key]
-			match m.operation:
-				StatModifier.Operation.MULTIPLY:
-					e["val"] = float(e["val"]) * m.value
-				StatModifier.Operation.SET:
-					e["val"] = maxf(float(e["val"]), m.value)
-				_:
-					e["val"] = float(e["val"]) + m.value
-	# Emit one StatModifier per aggregated (stat, op), in first-drawn order.
-	for key in order:
-		var e: Dictionary = acc[key]
-		var m := StatModifier.new()
-		m.stat_id = e["stat"]
-		# Enum-typed var accepts an int (enums are int-backed); the `Variant` from
-		# the dict is coerced via int() first.
-		m.operation = int(e["op"])
-		m.value = float(e["val"])
-		out.append(m)
-	return out
+	return rolled.get_aggregate()
+	
+	#var acc: Dictionary = {}            # key -> { "stat": StringName, "op": int, "val": float }
+	#var order: Array[String] = []       # first-drawn key order  # TODO: sort by total cost is better
+	#for m in rolled:
+		#var key := "%s|%d" % [String(m.stat_id), int(m.operation)]
+		#if not acc.has(key):
+			#acc[key] = {"stat": m.stat_id, "op": int(m.operation), "val": m.value}
+			#order.append(key)
+		#else:
+			#var e: Dictionary = acc[key]
+			#match m.operation:
+				#StatModifier.Operation.MULTIPLY:
+					#e["val"] = float(e["val"]) * m.value
+				#StatModifier.Operation.SET:
+					#e["val"] = maxf(float(e["val"]), m.value)
+				#_:
+					#e["val"] = float(e["val"]) + m.value
+	## Emit one StatModifier per aggregated (stat, op), in first-drawn order.
+	#for key in order:
+		#var e: Dictionary = acc[key]
+		#var m := StatModifier.new()
+		#m.stat_id = e["stat"]
+		## Enum-typed var accepts an int (enums are int-backed); the `Variant` from
+		## the dict is coerced via int() first.
+		#m.operation = int(e["op"])
+		#m.value = float(e["val"])
+		#out.append(m)
+	#return out
 
+## Typed container for StatModifiers that aggregates them as it ingests via `append`
+## Merges in new ones destructively if mergeable, fusing two StatModifiers into 1
+class StatModifierAggregator extends Resource:
+	# TODO: review this stub and promote it to something real if needed -- or revert to previous 
+	
+	var aggregated_mods: Dictionary[StatModifier, int] = {}
+	
+	func get_aggregate() -> Array[StatModifier]:
+		var agg := aggregated_mods.keys()
+		agg.sort_custom(func(a: StatModifier, b: StatModifier): return aggregated_mods[a] > aggregated_mods[b])
+		return agg
+	
+	func append(mod: StatModifier, cost: int) -> void:
+		var matching_mod := _find_match(mod)
+		if matching_mod != null:
+			# match found: merge the incoming mod into existing
+			_merge(matching_mod, mod)
+			aggregated_mods[matching_mod] += cost
+		else:
+			# missing: append to our array
+			aggregated_mods[mod] = cost
+	
+	func _find_match(needle: StatModifier) -> StatModifier:
+		for mod in aggregated_mods:
+			if needle.stat_id == mod.stat_id and needle.operation == mod.operation:
+				return mod
+		return null
+		
+	# Updates StatModifier `a` by merging in contribution of `b`
+	func _merge(a: StatModifier, b: StatModifier) -> StatModifier:
+		assert(a.stat_id == b.stat_id, "Can't merge modifiers that don't have the same Stat ID") # TODO: move this to a test
+		assert(a.operation == b.operation, "Can't merge modifiers that don't have the same operation")
+		match a.operation:
+			StatModifier.Operation.MULTIPLY:
+				a.value *= b.value
+			StatModifier.Operation.SET:
+				assert(false, "Can't merge SET value yet. No sensible outcome.")
+			_:
+				a.value += b.value
+		return a
+	
 
 ## v4 weighted pick: affordable filter (debuff-aware + refund-cap) + weight
 ## profile multiplication, then a single weighted sample. Mirrors

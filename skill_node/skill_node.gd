@@ -621,6 +621,7 @@ func apply_entity_modifiers_to(board: StatBoard) -> void:
 		# revokes before re-granting, so a still-foreign-bound instance here
 		# is an upstream leak, not a normal re-grant (same-board re-adds are
 		# idempotent and legal).
+		# TODO: get rid of this with 376
 		assert(m._board == null or m._board == board,
 				"SkillNode.apply_entity_modifiers_to: modifier '%s' is bound to a different board — multi-owner grant" % m.resource_path)
 		board.add_modifier(m)
@@ -635,9 +636,9 @@ func remove_entity_modifiers_from(board: StatBoard) -> void:
 		# A composition swap (m._scaled_sets entry) means the parent's own
 		# leaves are NOT what's applied — remove the scaled set, or it would
 		# strand on the board after the parent's (stale) leaves no-op.
-		var set: Array = _scaled_sets.get(m, [])
-		if not set.is_empty():
-			for leaf in set:
+		var _set: Array = _scaled_sets.get(m, [])
+		if not _set.is_empty():
+			for leaf in _set:
 				board.remove_modifier(leaf)
 			_scaled_sets.erase(m)
 		else:

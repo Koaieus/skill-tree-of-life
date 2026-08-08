@@ -19,8 +19,8 @@ disk_radius = 25.5
 
 [node name="RimRing" parent="ShaderStack" unique_id=346168876 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
+instance_shader_parameters/height_preset = 3
 height_preset = 3
-tint_mix = 0.5
 
 [node name="CorePresence" parent="ShaderStack" unique_id=-573062784 instance=ExtResource("9_presence")]
 unique_name_in_owner = true

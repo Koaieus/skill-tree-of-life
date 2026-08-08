@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
+resource_name = "CON +"
 script = ExtResource("2_pool")
 stat_id = &"constitution"
 archetype_stat = &"constitution"
@@ -12,49 +13,53 @@ unit_value = 2.0
 pool_weight = 5.0
 
 [sub_resource type="Resource" id="inc"]
+resource_name = "CON +%"
 script = ExtResource("2_pool")
 stat_id = &"constitution"
 operation = 1
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"percent"])
-unit_value = 7.0
+unit_value = 3.0
 pool_weight = 1.5
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
+resource_name = "CON ×"
 script = ExtResource("2_pool")
 stat_id = &"constitution"
 operation = 2
 archetype_stat = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"multiply"])
-unit_value = 0.05
+unit_value = 0.02
 pool_weight = 0.5
 min_tier = 3
 
 [sub_resource type="Resource" id="nh_inc"]
+resource_name = "node_health +%"
 script = ExtResource("2_pool")
 stat_id = &"node_health"
 operation = 1
 tags = Array[StringName]([&"defense", &"percent"])
-unit_value = 6.5
+unit_value = 2.5
 pool_weight = 0.5
 max_tier = 2
 
 [sub_resource type="Resource" id="ar"]
+resource_name = "armor +"
 script = ExtResource("2_pool")
 stat_id = &"armor"
 tags = Array[StringName]([&"defense", &"flat"])
-unit_value = 1.5
-pool_weight = 2.5
+pool_weight = 2.0
 max_tier = 3
 
 [sub_resource type="Resource" id="int_debuff"]
+resource_name = "INT -"
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = -2.0
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [resource]
