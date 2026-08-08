@@ -159,7 +159,7 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 ## here as a substitute for the edge check.
 func test_every_fan_traces_terminus_is_self_consistent() -> void:
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	for unit in inst.find_children("*", "FanUnit", true, false):
 		var trace: FanTrace = unit.get_node_or_null("%Trace")
 		var panel: FanPanel = unit.get_node_or_null("%Panel")
@@ -193,7 +193,7 @@ func test_every_fan_traces_terminus_is_self_consistent() -> void:
 ## makes the knob trustworthy for authoring — you set it and stop checking.
 func test_units_with_a_forced_arrival_axis_actually_arrive_on_that_axis() -> void:
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	var checked := 0
 	for unit in inst.find_children("*", "FanUnit", true, false):
 		var fan_unit := unit as FanUnit
@@ -250,7 +250,7 @@ func test_pin_origins_run_left_to_right() -> void:
 	# routes cross further out — see the crossing tests below, which are the
 	# ones that actually measure that.
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	var xs := _pin_xs(inst)
 	for i in range(xs.size() - 1):
 		assert_lt(xs[i], xs[i + 1], "pin %d must sit left of pin %d (%s)" % [i, i + 1, xs])
@@ -261,7 +261,7 @@ func test_pin_origins_still_run_left_to_right_with_units_suppressed() -> void:
 	# every survivor's slot, and getting that wrong would start two traces on
 	# each other's side of the node.
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	_suppress(inst, _UNOWNED_SUPPRESSED)
 	var xs := _pin_xs(inst)
 	assert_eq(xs.size(), 3, "an unowned node's fan should place three pins")
@@ -310,7 +310,7 @@ func _crossings(fan: Node) -> int:
 ## than asserting zero.
 func test_route_crossings_do_not_increase_on_the_full_fan() -> void:
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	assert_lte(_crossings(inst), 1, "route crossings must not increase beyond the known 1")
 
 
@@ -321,7 +321,7 @@ func test_route_crossings_do_not_increase_on_the_full_fan() -> void:
 ## separate scene.
 func test_an_unowned_nodes_fan_is_genuinely_crossing_free() -> void:
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	_suppress(inst, _UNOWNED_SUPPRESSED)
 	assert_eq(_crossings(inst), 0, "an unowned node's three traces must never cross")
 
@@ -340,7 +340,7 @@ func test_suppressing_units_tightens_the_spread_onto_the_survivors() -> void:
 	# panel keeps its pin" rule, stated as an assertion: if pins were held open,
 	# the survivors would sit at three of six wider slots instead.
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	_suppress(inst, _UNOWNED_SUPPRESSED)
 	var angles: Array[float] = []
 	for unit in (inst as FanAnchorDriver).units_in_fan_order():
@@ -353,7 +353,7 @@ func test_suppressing_units_tightens_the_spread_onto_the_survivors() -> void:
 
 func test_a_suppressed_unit_is_excluded_from_the_pin_order() -> void:
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	var before: int = (inst as FanAnchorDriver).units_in_fan_order().size()
 	_suppress(inst, ["Core"])
 	var after: int = (inst as FanAnchorDriver).units_in_fan_order().size()
@@ -397,8 +397,8 @@ func test_a_slot_change_eases_rather_than_snapping() -> void:
 	# SLIDE. One frame after the participating set changes, a moved pin must sit
 	# strictly between where it was and where it's going.
 	var inst := _instantiate()
-	await get_tree().process_frame
 	var driver := inst as FanAnchorDriver
+	driver.refresh()
 	# Slow the slide right down so a single frame can't complete it regardless
 	# of how long that frame took on a loaded headless runner.
 	driver.pin_slide_rate = 1.0
@@ -407,6 +407,9 @@ func test_a_slot_change_eases_rather_than_snapping() -> void:
 	_gate_out_without_refresh(inst, _UNOWNED_SUPPRESSED)
 	var target := _target_angle_of(inst, unit)
 	assert_ne(start, target, "this fixture needs %s's slot to actually move" % _SLIDING_UNIT)
+	# process_frame fires before Node._process() runs for that same frame, so
+	# one await can resume before the driver has actually ticked once.
+	await get_tree().process_frame
 	await get_tree().process_frame
 	var mid: float = unit.pin_angle
 	assert_ne(mid, target, "one frame must not land the pin on its target — that would be a snap")
@@ -418,8 +421,8 @@ func test_refresh_snaps_the_pin_all_the_way() -> void:
 	# refresh() is the tests' and the editor's entry point; it must not leave
 	# geometry mid-slide, or nothing downstream can assert against it.
 	var inst := _instantiate()
-	await get_tree().process_frame
 	var driver := inst as FanAnchorDriver
+	driver.refresh()
 	driver.pin_slide_rate = 1.0
 	var unit := inst.find_child(_SLIDING_UNIT, true, false) as FanUnit
 	_gate_out_without_refresh(inst, _UNOWNED_SUPPRESSED)
@@ -432,7 +435,7 @@ func test_the_eased_pin_reaches_its_target_and_stops() -> void:
 	# Easing must CONVERGE, not asymptote forever — the settle epsilon exists so
 	# `from_point` stops being rewritten every frame for a sub-pixel gain.
 	var inst := _instantiate()
-	await get_tree().process_frame
+	(inst as FanAnchorDriver).refresh()
 	var unit := inst.find_child(_SLIDING_UNIT, true, false) as FanUnit
 	_gate_out_without_refresh(inst, _UNOWNED_SUPPRESSED)
 	var target := _target_angle_of(inst, unit)
