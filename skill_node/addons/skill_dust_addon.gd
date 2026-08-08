@@ -60,7 +60,10 @@ extends SkillNodeAddon
 		victim_tint_mix = value
 		_sync_gold_tint()
 
-const _SPARKLE_COLOR := Color(1.0, 0.95, 0.75, 1.0)
+## VALUE tier (#392) — gold glistening, not a hand-picked float. Twinkle
+## amplitude still rides alpha below, which is the sanctioned use: an
+## animated reveal, not a static dimmer.
+static var _SPARKLE_COLOR: Color = Emissive.at(Color(1.0, 0.95, 0.75), Emissive.VALUE)
 const _SPARKLE_COUNT := 10
 
 ## Null when this addon was `.new()`'d directly instead of instanced from

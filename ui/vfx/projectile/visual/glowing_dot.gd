@@ -19,8 +19,11 @@ signal finished
 ## the visual stays alive after impact: [signal finished] fires when the
 ## oldest segment expires, telling [Projectile] it's safe to free.
 @export var segment_lifetime: float = 0.45
-@export var head_color: Color = Color(1.0, 0.85, 0.3, 0.95)
-@export var head_glow_color: Color = Color(1.0, 0.85, 0.3, 0.18)
+## Emissive tiers, not hand-picked floats (`docs/domain/hdr-color.md`): the
+## solid head reads as the lit "value", the halo a step down so the fill
+## doesn't blow out at scale (`.claude/rules/skill-node-scale.md`).
+@export var head_color: Color = Emissive.at(Color(1.0, 0.85, 0.3, 0.95), Emissive.VALUE)
+@export var head_glow_color: Color = Emissive.at(Color(1.0, 0.85, 0.3, 0.18), Emissive.LABEL)
 
 var _segments: PackedVector3Array = []
 var _emitting: bool = false
@@ -33,7 +36,8 @@ var _crit_color: Color = Color.WHITE
 func _on_crit(tier: int) -> void:
 	var t: float = clampf(tier, 1, 2)
 	_crit_scale = lerpf(1.0, 1.8, t / 2.0)
-	_crit_color = Color.ORANGE_RED.lerp(Color.RED, (t - 1.0))
+	# Crits are the genuine punctuation ALERT is reserved for.
+	_crit_color = Emissive.at(Color.ORANGE_RED.lerp(Color.RED, (t - 1.0)), Emissive.ALERT)
 	head_radius *= _crit_scale
 	head_glow_radius *= _crit_scale
 	head_color = _crit_color

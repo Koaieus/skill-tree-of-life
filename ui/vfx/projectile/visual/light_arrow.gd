@@ -16,6 +16,9 @@ signal finished
 const TINT = Color(1.0, 0.9, 0.6, 1.0)
 
 ## Set by the coordinator before the projectile launches. Read at draw time.
+## Carries the attacker's identity colour (or the fallback above) — the
+## per-instance variation the rendering-performance rule wants on `modulate`/
+## an export, never a per-node shader uniform (this visual has no shader).
 @export var tint: Color = TINT
 @export var shaft_length: float = 18.0
 @export var shaft_width: float = 2.0
@@ -73,8 +76,11 @@ func _process(_delta: float) -> void:
 # Arrow points along +X with the tail behind (negative X).
 func _draw() -> void:
 	var a := clampf(_alpha, 0.0, 1.0)
-	var col := Color(tint.r, tint.g, tint.b, tint.a * a).lightened(0.5)
-	var glow := Color(tint.r, tint.g, tint.b, tint.a * a * 0.25)
+	# Emissive tiers over the (possibly per-instance) tint, not a hand-picked
+	# `.lightened()` — VALUE for the shaft/head, a dimmer LABEL step for the
+	# halo so the coverage-heavy glow doesn't blow out at scale.
+	var col := Emissive.at(Color(tint.r, tint.g, tint.b, tint.a * a), Emissive.VALUE)
+	var glow := Emissive.at(Color(tint.r, tint.g, tint.b, tint.a * a * 0.25), Emissive.LABEL)
 	if not _arrived:
 		# Glow halo around the tip.
 		draw_circle(Vector2.ZERO, glow_radius, glow)

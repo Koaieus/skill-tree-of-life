@@ -21,7 +21,9 @@ signal endpoints_changed
 		queue_redraw()
 
 @export var width: float = 2.0
-@export var color: Color = Color(1.0, 0.184, 0.18, 1.0)
+## VALUE tier over the base hue — a thin stroke needs the full stop to read
+## as lit (`docs/domain/hdr-color.md`: coverage is half the effect).
+@export var color: Color = Emissive.at(Color(1.0, 0.184, 0.18), Emissive.VALUE)
 
 
 func _process(_delta: float) -> void:
