@@ -31,7 +31,9 @@ extends ColorRect
 		glow_strength = v
 		_push(&"glow_strength", v)
 
-## EV stops (see [Emissive]) the stroke is lifted by. Defaults to
+## EV stops (see [Emissive]) the stroke is lifted by, via [method Emissive.tint]
+## (luminance-normalized, so equal stops read as equal glow across different
+## stat hues — see the shader's own copy of this formula). Defaults to
 ## [constant Emissive.VALUE].
 @export_range(0.0, 3.0, 0.05) var glow_energy: float = Emissive.VALUE:
 	set(v):

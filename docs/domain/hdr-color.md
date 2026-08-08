@@ -132,7 +132,45 @@ beats reasoning here same as everywhere else in this file:
 
 A screen-space `Control` (HUD panels, tooltip fan) doesn't have this problem —
 its size is display pixels regardless of camera state — so this only applies
-to `Graph`/`Edge`/`SkillNode` world-space visuals.
+to `Graph`/`Edge`/`SkillNode` world-space visuals **at actual runtime.**
+
+### The editor's 2D canvas zoom reintroduces the same problem for a `Control`
+
+Confirmed 2026-08-08, tuning `ModSlabRow`/`SlabPanel`'s border glow: at 100%
+editor zoom a value read as barely-lit; at 500% the same scene went solid
+white. The claim above ("a screen-space Control's coverage is zoom-invariant")
+is only true of the *game window* — the Godot 2D editor's zoom tool scales how
+many actual framebuffer pixels a node's geometry rasterizes to within the
+editor viewport's fixed resolution, exactly like a world-space camera zoom.
+Authoring against that view reproduces the coverage-floor problem this section
+describes for `Edge`, on a widget that will never see it at runtime.
+
+**Judge glow on a screen-space `Control` at 100% editor zoom, or better, an
+actual F6 run** — never a zoomed-in canvas view. A value that only reads right
+zoomed in is over-tuned by roughly the amount the zoom inflated its coverage.
+
+### Bloom-previewing a leaf `.tscn` opened standalone
+
+A content scene like `ModSlabRow` or `SlabPanel` ships with no
+`WorldEnvironment` of its own (only `scenes/game_root.tscn` and
+`bloom_viewport.tscn` mount one, per "Where the pass is mounted" below) — so F6
+("run current scene") on the bare file renders with no bloom, tempting a
+stowaway `WorldEnvironment` node into the leaf scene itself. Don't: a scene
+instanced N times (a fan panel holds one `ModSlabRow` per modifier) would
+register N `WorldEnvironment`s in the real game's root viewport, last-writer-
+wins, silently moving the shared dial.
+
+The project sets `rendering/environment/defaults/default_environment` to
+`ui/theme/default_game_env.tres` (`project.godot`) instead — the engine's
+built-in fallback for any viewport whose `World2D` has no bound `Environment`.
+Every real level already has an explicit `WorldEnvironment` (from
+`game_root.tscn` or `bloom_viewport.tscn`), so this default only ever engages
+for a scene that currently renders with none — F6 on a leaf UI scene, chiefly.
+It costs nothing elsewhere and needs no per-scene node. It does **not** fix a
+`SandboxHost` dock tab (gotcha #5 below disables environments at the viewport-
+mode level, which a default-environment fallback can't override) — that still
+needs a `bloom_viewport.tscn`-wrapped `%World`, which some panels (e.g.
+`fan_live_panel.tscn`) already carry for their own content.
 
 ## Round-trips unclamped through `.tscn`
 
@@ -159,6 +197,45 @@ func emissive(base: Color, stops: float) -> Color:
 Note these methods leave `a` untouched (alpha is always stored linear, never
 encoded — see the `Color` doc on `a`), so a translucent emissive keeps its
 alpha through the conversion.
+
+## Equal stops, unequal glow: `Emissive.tint()` vs `Emissive.at()`
+
+`Emissive.at(base, stops)` lifts whatever channel values `base` already has —
+it does **not** equalize how bright different hues read at the same stop
+count. Bloom thresholds per channel, and Rec.709 luma weights blue ten times
+lower than green (`0.0722` vs `0.7152`), so a blue-dominant tint can sit at
+its own max channel value and still contribute far less to the glow pass than
+an evenly-spread or green/red-dominant tint at the same `stops`. Confirmed
+empirically 2026-08-08 tuning `SlabPanel`'s stroke against real `StatDef`
+archetype tints (not a placeholder grey — see the pixel-coverage section
+above for that separate confound): STR's red (`Color(0.9451, 0.2689,
+0.2453)`, linear luminance ≈0.23) and INT's blue (`Color(0.291, 0.5892,
+1.0)`, linear luminance ≈0.31) needed visibly different raw `glow_energy` to
+"properly bloom" even at the same nominal tier.
+
+`Emissive.tint(base, stops)` fixes this for a **single-tint** element: it
+rescales `base` to Rec.709 luminance 1.0 (keeping hue/chroma, discarding how
+bright the source colour happens to be) before applying the stop lift. Two
+properties fall out for free: `tint(WHITE, s) == at(WHITE, s)` exactly
+(white's luminance is already 1.0), and at `stops = 0` any hue lands at
+luminance 1.0 — the `INERT` tier definition, generalised from "white sits at
+threshold" to "any colour's luminance sits at threshold." `SlabPanel`'s
+`hot_tint` term uses the shader-side copy of this formula (`slab_panel.gdshader`)
+for exactly this reason — one stat tint per instance, so `glow_energy` now
+means the same thing regardless of which stat it's tinted by.
+
+**`Edge`'s lit-line glow cannot take this fix.** A lit edge can connect two
+*different*-archetype endpoints (the gradient's whole point), but
+`Emissive.tint()`'s normalization factor is per-hue — it would need to live
+per-vertex in the `Gradient` stops, and #391 already established that HDR
+`Gradient` stops don't reach the bloom pass correctly on a `Line2D` (that's
+*why* the lift lives in `self_modulate` — one value for the whole node —
+instead of the gradient in the first place). `self_modulate` can't carry two
+different per-endpoint normalization factors at once. `lit_glow_stops`
+therefore stays what it already was: an empirically-tuned raw value for one
+line width, not equalized across the hues it might carry — the same
+"probe, don't derive" caveat the pixel-coverage section above already gives
+it.
 
 ## Where the pass is mounted (landed 2026-08-07)
 

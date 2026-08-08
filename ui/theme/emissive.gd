@@ -58,3 +58,42 @@ static func at(base: Color, stops: float) -> Color:
 ## `at()` against the neutral off-white, for content with no identity colour.
 static func neutral(stops: float) -> Color:
 	return at(NEUTRAL, stops)
+
+
+## Rec.709 luma weights — how much each linear channel contributes to
+## perceived/bloom-extracted brightness. Blue is heavily discounted (0.0722)
+## relative to green (0.7152); a blue-dominant hue (e.g. INT's tint) can sit
+## at max channel value and still read as dim to the glow pass.
+const _LUMA := Vector3(0.2126, 0.7152, 0.0722)
+
+## Like [method at], but first rescales `base` so its Rec.709 luminance is 1.0
+## — i.e. strips out how bright/dark the identity colour *itself* happens to
+## be, keeping only its hue/chroma, before applying the stop lift.
+##
+## Use this for a hot/glow term driven by an arbitrary identity colour (a stat
+## or archetype tint) where equal `stops` should read as equal glow across
+## different hues. [method at] does not do this — two colours with the same
+## channel values but different luminance (e.g. a saturated blue vs a
+## saturated red) bloom by very different amounts at the same stop count,
+## because bloom thresholds per channel and blue is discounted 10x against
+## green. Confirmed empirically 2026-08-08 tuning `Edge`/`SlabPanel`: a
+## STR-red archetype tint (linear luminance ≈0.23) and an INT-blue one
+## (≈0.31) needed visibly different raw stops to "properly bloom" even though
+## both stayed the same nominal tier. See docs/domain/hdr-color.md.
+##
+## `tint(Color.WHITE, stops) == at(Color.WHITE, stops)` exactly — white's own
+## luminance is already 1.0, so there is nothing to rescale. And at `stops =
+## 0` any hue lands at luminance 1.0 (linear) — the [constant INERT]
+## definition, generalised from "white sits at threshold" to "any colour's
+## luminance sits at threshold."
+##
+## A fully black `base` (luminance 0) has no hue to preserve; falls back to
+## [method at] rather than dividing by zero.
+static func tint(base: Color, stops: float) -> Color:
+	var lin := base.srgb_to_linear()
+	var luminance := lin.r * _LUMA.x + lin.g * _LUMA.y + lin.b * _LUMA.z
+	if luminance <= 0.0001:
+		return at(base, stops)
+	var factor := pow(2.0, stops) / luminance
+	var out := Color(lin.r * factor, lin.g * factor, lin.b * factor, base.a)
+	return out.linear_to_srgb()

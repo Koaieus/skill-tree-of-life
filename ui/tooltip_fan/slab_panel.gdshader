@@ -29,11 +29,19 @@ uniform float fill_darkness : hint_range(0.0, 1.0, 0.01) = 0.88;
 uniform float glow_strength : hint_range(0.0, 1.0, 0.01) = 0.5;
 // EV stops (see Emissive, docs/domain/hdr-color.md) the stroke is lifted by
 // before bloom sees it. Fill stays SDR so the dark background never blooms.
-// Defaults to Emissive.VALUE (1.0); the mix below reproduces Emissive.at()
-// by hand (source_color already decoded tint_color to linear, so
-// pow(2, stops) is the whole conversion — same trick as rim_ring.gdshader's
-// #389 fix).
+// Defaults to Emissive.VALUE (1.0); the mix below reproduces Emissive.tint()
+// by hand (source_color already decoded tint_color to linear, so a Rec.709
+// luminance divide + pow(2, stops) is the whole conversion — same trick as
+// rim_ring.gdshader's #389 fix, extended 2026-08-08 with the luminance
+// normalization: a raw pow(2, stops) lift on tint_color made equal stops
+// bloom by very different amounts across archetype hues (a blue-dominant
+// tint like INT's reads far dimmer than its max channel suggests — Rec.709
+// discounts blue 10x against green), so the hue is rescaled to unit
+// luminance before the stop lift, same as Emissive.tint().
 uniform float glow_energy : hint_range(0.0, 3.0, 0.05) = 1.0;
+
+// Rec.709 luma weights — must match ui/theme/emissive.gd's Emissive.tint().
+const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // How deep the bright stroke fades into the interior, in pixels. Judge this
 // against the *rendered* pixel footprint at the row's actual on-screen
 // size, not a number that merely looks right zoomed in — bloom's wider mips
@@ -53,7 +61,11 @@ void fragment() {
 	// fill_darkness 0.85+ so rows still whisper their stat's colour. Stays
 	// SDR — only the stroke below carries the HDR lift.
 	vec3 fill = mix(tint_color.rgb, vec3(0.03, 0.04, 0.05), fill_darkness);
-	vec3 hot_tint = tint_color.rgb * pow(2.0, glow_energy);
+	// Luminance-normalized before the lift (Emissive.tint(), not .at()) so
+	// equal glow_energy reads as equal glow regardless of the stat tint's hue
+	// — see the uniform's comment above.
+	float luminance = max(dot(tint_color.rgb, LUMA), 0.0001);
+	vec3 hot_tint = (tint_color.rgb / luminance) * pow(2.0, glow_energy);
 
 	// Inward stroke hugging the edge, HDR-lifted so it actually clears bloom
 	// threshold. `-d` keeps this entirely inside the shape (d < 0 only) —

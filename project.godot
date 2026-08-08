@@ -106,3 +106,4 @@ ui_end_turn={
 [rendering]
 
 viewport/hdr_2d=true
+environment/defaults/default_environment="res://ui/theme/default_game_env.tres"

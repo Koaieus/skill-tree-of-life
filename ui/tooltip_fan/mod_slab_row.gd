@@ -45,20 +45,6 @@ extends Control
 		text_glow_stops = v
 		_refresh_label_color()
 
-## How dark the fill is: 0 = raw tint, 1 = near-black. Forwarded to the slab.
-@export_range(0.0, 1.0, 0.01) var fill_darkness: float = 0.88:
-	set(v):
-		fill_darkness = v
-		if _slab:
-			_slab.fill_darkness = v
-
-## Border glow strength. Forwarded to the slab.
-@export_range(0.0, 1.0, 0.01) var glow_strength: float = 0.5:
-	set(v):
-		glow_strength = v
-		if _slab:
-			_slab.glow_strength = v
-
 ## Vertical label inset in pixels — must match the Label node's authored
 ## top/bottom offsets so [method _get_minimum_size] reports the true height.
 const _V_INSET := 4.0
@@ -74,8 +60,6 @@ const _V_INSET := 4.0
 
 func _ready() -> void:
 	if _slab:
-		_slab.fill_darkness = fill_darkness
-		_slab.glow_strength = glow_strength
 		_refresh_label_color()
 		# The label wraps when the container changes its width — its min
 		# height then changes, so this row's min height does too.
