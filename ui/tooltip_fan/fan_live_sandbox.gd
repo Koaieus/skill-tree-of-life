@@ -80,28 +80,25 @@ const PRESET_CORE := "core"
 ## the Owner/Core panels (faction flips the HOSTILE OWNER tag).
 const _PRESETS: Array[Dictionary] = [
 	## TODO: Replace with inner class for typing. no untyped dicts smh.
-	## FIXME: reinstating these dicts floods the editor with 100+ warnings/sec —
-	## broken on delivery (e2463fa). Root-cause and fix before uncommenting;
-	## don't just restore the literal dicts again without diagnosing that first.
-	#{
-		#"name": PRESET_UNALLOCATED, "owned": false, "core": false, "addons": 0,
-		#"footprint": false, "bare": true,
-	#},
-	#{
-		#"name": PRESET_FRIENDLY, "owned": true, "core": false, "addons": 2,
-		#"footprint": false, "faction": &"player", "display_name": "Dusk",
-		#"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
-	#},
-	#{
-		#"name": PRESET_ENEMY, "owned": true, "core": false, "addons": 8,
-		#"footprint": false, "faction": &"npc", "display_name": "Grimjaw",
-		#"core_class": _ENEMY_CORE, "level": 7, "color": Color(1.0, 0.45, 0.4),
-	#},
-	#{
-		#"name": PRESET_CORE, "owned": true, "core": true, "addons": 8,
-		#"footprint": true, "faction": &"player", "display_name": "Dusk",
-		#"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
-	#},
+	{
+		"name": PRESET_UNALLOCATED, "owned": false, "core": false, "addons": 0,
+		"footprint": false, "bare": true,
+	},
+	{
+		"name": PRESET_FRIENDLY, "owned": true, "core": false, "addons": 2,
+		"footprint": false, "faction": &"player", "display_name": "Dusk",
+		"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
+	},
+	{
+		"name": PRESET_ENEMY, "owned": true, "core": false, "addons": 8,
+		"footprint": false, "faction": &"npc", "display_name": "Grimjaw",
+		"core_class": _ENEMY_CORE, "level": 7, "color": Color(1.0, 0.45, 0.4),
+	},
+	{
+		"name": PRESET_CORE, "owned": true, "core": true, "addons": 8,
+		"footprint": true, "faction": &"player", "display_name": "Dusk",
+		"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
+	},
 ]
 
 ## A `procgen_footprint` meta shaped like the one [method GraphProcgen] stamps

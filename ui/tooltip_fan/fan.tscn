@@ -27,6 +27,7 @@ arrival_axis = 1
 
 [node name="Addons" parent="." unique_id=79711224 instance=ExtResource("5_addons")]
 position = Vector2(122, -247)
+anchor_slide = 0.1
 arrival_axis = 2
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]

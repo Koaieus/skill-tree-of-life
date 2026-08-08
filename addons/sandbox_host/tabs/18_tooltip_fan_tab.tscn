@@ -6,5 +6,10 @@
 [node name="TooltipFan" instance=ExtResource("1_base")]
 tab_title = "Tooltip Fan"
 tab_id = &"tooltip_fan"
-panel_scene = ExtResource("2_panel")
 loader_method = &"noop"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Tooltip Fan"
+
+[node name="FanLivePanel" parent="Layout/Split/PanelHost" index="0" instance=ExtResource("2_panel")]
+layout_mode = 2
