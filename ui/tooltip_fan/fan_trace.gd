@@ -101,21 +101,42 @@ const PHI_FRACTION := 0.382
 		_rebuild_geometry()
 
 @export_group("Look")
-@export var line_color := Color(0.4, 0.95, 1.0, 0.9):
+## Identity hue before glow tiering — always an SDR (≤1.0) colour.
+## [member line_glow_stops] is what actually lifts the drawn line into bloom
+## range; this is the "what colour" knob, not the "how bright" one.
+@export var line_base_color := Color(0.4, 0.95, 1.0, 0.9):
 	set(value):
-		line_color = value
-		if _trace:
-			_trace.default_color = value
+		line_base_color = value
+		_apply_line_color()
+## EV stops [member line_base_color] is raised by (see [Emissive]). The trace
+## is a 2px [Line2D] — a hairline, not a filled shape — and bloom accumulates
+## from lit-pixel coverage, so a hairline needs a materially higher tier than a
+## filled shape at the same base colour to read at all under the Bloom tab's
+## stroke-coverage reference (docs/domain/hdr-color.md). Defaults to
+## [constant Emissive.ALERT] for exactly that reason; [constant Emissive.VALUE]
+## reads as barely-lit at this width.
+@export_range(0.0, 3.0, 0.05) var line_glow_stops := Emissive.ALERT:
+	set(value):
+		line_glow_stops = value
+		_apply_line_color()
 @export var line_width := 2.0:
 	set(value):
 		line_width = value
 		if _trace:
 			_trace.width = value
-@export var tip_color := Color(0.7, 1.0, 1.0, 1.0):
+## Identity hue for the traveling tip sprite, before glow tiering.
+@export var tip_base_color := Color(0.7, 1.0, 1.0, 1.0):
 	set(value):
-		tip_color = value
-		if _tip:
-			_tip.self_modulate = value
+		tip_base_color = value
+		_apply_tip_color()
+## EV stops [member tip_base_color] is raised by. The tip is a filled radial
+## sprite (real pixel coverage, unlike the line), so [constant Emissive.VALUE]
+## — the default "this is lit" reading — is enough to bloom without blowing
+## out into a blob.
+@export_range(0.0, 3.0, 0.05) var tip_glow_stops := Emissive.VALUE:
+	set(value):
+		tip_glow_stops = value
+		_apply_tip_color()
 @export var tip_scale := 1.0:
 	set(value):
 		tip_scale = value
@@ -132,11 +153,21 @@ const PHI_FRACTION := 0.382
 	set(value):
 		ignite_fraction = value
 		_apply_progress()
-@export var pad_color := Color(0.7, 1.0, 1.0, 1.0):
+## Identity hue for the origin pad, before glow tiering.
+@export var pad_base_color := Color(0.7, 1.0, 1.0, 1.0):
 	set(value):
-		pad_color = value
-		if _pad:
-			_pad.self_modulate = value
+		pad_base_color = value
+		_apply_pad_color()
+## EV stops [member pad_base_color] is raised by. The pad is the ignition
+## flash — it's meant to read as the loudest moment in the reveal — so it
+## defaults to [constant Emissive.ALERT], same tier as the line. Its own
+## bloom-in/relax already rides `modulate.a` (the sanctioned animated-reveal
+## use of alpha, see docs/domain/hdr-color.md); this is the *peak* energy that
+## alpha ramps up to, not a second dimmer.
+@export_range(0.0, 3.0, 0.05) var pad_glow_stops := Emissive.ALERT:
+	set(value):
+		pad_glow_stops = value
+		_apply_pad_color()
 ## Size of the pad once the line is on its way — the steady "this trace starts
 ## here" marker that stays for the whole settled state.
 @export_range(0.0, 3.0, 0.01) var pad_scale := 0.75:
@@ -202,10 +233,10 @@ var _erasing := false
 
 
 func _ready() -> void:
-	_trace.default_color = line_color
+	_apply_line_color()
 	_trace.width = line_width
-	_tip.self_modulate = tip_color
-	_pad.self_modulate = pad_color
+	_apply_tip_color()
+	_apply_pad_color()
 	_rebuild_geometry()
 	if Engine.is_editor_hint():
 		# Author-time: show the whole trace so panel/anchor placement is
@@ -215,6 +246,29 @@ func _ready() -> void:
 	# Runtime: start hidden; the coordinator/FanUnit calls play_in().
 	progress = 0.0
 	_tip.visible = false
+
+
+## Applies [member line_base_color] tiered by [member line_glow_stops] to the
+## drawn [Line2D]. The constant-brightness rule (#215) means this is the only
+## place the line's colour is ever written outside this pair of exports.
+func _apply_line_color() -> void:
+	if _trace:
+		_trace.default_color = Emissive.at(line_base_color, line_glow_stops)
+
+
+## Applies [member tip_base_color] tiered by [member tip_glow_stops] to the tip
+## sprite's `self_modulate`.
+func _apply_tip_color() -> void:
+	if _tip:
+		_tip.self_modulate = Emissive.at(tip_base_color, tip_glow_stops)
+
+
+## Applies [member pad_base_color] tiered by [member pad_glow_stops] to the pad
+## sprite's `self_modulate`. [method _apply_pad] separately drives `modulate.a`
+## for the ignite/relax reveal — the two never fight over the same channel.
+func _apply_pad_color() -> void:
+	if _pad:
+		_pad.self_modulate = Emissive.at(pad_base_color, pad_glow_stops)
 
 
 ## Recomputes the full polyline from the current endpoints + route exports and
