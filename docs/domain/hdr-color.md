@@ -132,7 +132,7 @@ alpha through the conversion.
 
 ### Five ways glow silently does nothing
 
-All three fail with no error and no warning. In diagnosis order:
+All five fail with no error and no warning. In diagnosis order:
 
 1. **`background_canvas_max_layer` defaults to `0`,** which excludes every
    `CanvasLayer` — i.e. the entire HUD. Set to `100`: verified to include the base
@@ -163,13 +163,32 @@ All three fail with no error and no warning. In diagnosis order:
    `glow_intensity`, so it runs at Godot's default `0.3` — low. Intensity is the
    knob for *bloom present but weak*; threshold is the knob that makes it
    **absent**. Reaching for the wrong one is how a threshold ends up at 1.53.
-5. **The viewport was `add_child`ed at runtime instead of instanced in a scene.**
-   A `SubViewport` that enters the tree as part of its `.tscn` runs its glow pass.
-   The same node, built by handing a `PackedScene` to an `@export` and
-   `add_child`ing it from `_ready`, does not — inside an editor dock. Found
-   2026-08-07 on the Bloom tab: nulling `panel_scene` on `70_bloom_tab.tscn` and
-   instancing the panel scene *inside* the tab scene fixed it outright, with no
-   other change.
+5. **A SubViewport in an editor dock inherits the editor's "environments
+   disabled".** A viewport's environment mode defaults to `INHERIT` — it takes
+   the setting from its *parent* viewport rather than deciding for itself. In a
+   game the parent chain ends at the root with environments on. In the editor the
+   parent is the editor's own window viewport, which has them **off** so the
+   editor UI is never post-processed, and every nested `SubViewport` silently
+   inherits that. The pass never runs.
+
+   **Fix, and it is the whole fix:** `bloom_viewport.gd` forces it in `_ready`.
+
+   ```gdscript
+   RenderingServer.viewport_set_environment_mode(
+       get_viewport_rid(), RenderingServer.VIEWPORT_ENVIRONMENT_ENABLED
+   )
+   ```
+
+   **History, because this line was removed once and cost a second session.**
+   6014649 added it while the Bloom panel was still `add_child`ed from an
+   `@export` — non-scenic composition in place — and the tab bloomed. 9dcc89c
+   then baked the panel into its tab scene, observed bloom (with the forcing
+   still live), concluded baking was the cause, and reverted the forcing as "a
+   guess carrying a wrong rationale". The tab went inert again; restoring the
+   forcing fixed it, verified 2026-08-08. **Scenic baking is not what makes the
+   glow pass run.** Keep baking anyway — `.claude/rules/sandbox-host.md` wants it
+   for its own reasons (`%PanelHost` adoption, reload-as-cold-open) — but never
+   credit it with this.
 
    It is the most expensive of the five to diagnose because **every reading you
    can take is green**: `use_hdr_2d`, `own_world_3d`, `render_target_update_mode`,
@@ -181,8 +200,10 @@ All three fail with no error and no warning. In diagnosis order:
    **The discriminator:** open the panel `.tscn` and look at it on the editor's
    **2D screen**. Same scene, same process, same `Environment` — if it blooms
    there and not in the dock, this is your bug, and nothing about the Environment
-   is at fault. (The 2D screen parents the scene under `EditorNode`'s scene-root
-   SubViewport; the dock lives in the editor's main window viewport.)
+   is at fault. The 2D screen parents the scene under `EditorNode`'s scene-root
+   SubViewport, which has environments **enabled**; the dock hangs off the
+   editor's main window viewport, which does not — that difference *is* the
+   mechanism, not merely a symptom of it.
 
    **Ruled out empirically, so nobody re-derives them:** parent-viewport
    `use_hdr_2d`, root-viewport `use_hdr_2d`, nine simultaneous bloom viewports

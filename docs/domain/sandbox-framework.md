@@ -164,11 +164,12 @@ Files:
 > **Bake the panel into the tab scene — `panel_scene` is the legacy path.**
 > A tab should *instance its panel scene inside its own `.tscn`*, under
 > `%PanelHost`, and leave `panel_scene` null. `_mount_panel()` adopts that child
-> (#254). Handing a `PackedScene` to the `@export` and letting `_ready`
-> `add_child` it is **not** equivalent: a `SubViewport` added that way does not
-> run its `WorldEnvironment`'s post-processing inside an editor dock, which cost
-> #371 an entire debugging session with every diagnostic reading green (see
-> `docs/domain/hdr-color.md`, failure mode 5). `70_bloom_tab.tscn` is the
+> (#254). The reasons are the ones above — the tab previews non-empty in the
+> editor, and reload takes the same path as a cold open. It is **not** a
+> post-processing fix: #371 briefly credited baking with reviving the Bloom tab's
+> glow, reverted the `VIEWPORT_ENVIRONMENT_ENABLED` forcing that was actually
+> carrying it, and lost the pass again (see `docs/domain/hdr-color.md`, failure
+> mode 5). `70_bloom_tab.tscn` is the
 > reference for the baked form; the rest are still on the export and should be
 > migrated. Reload rebuilds the **whole tab** from its `.tscn` via
 > `SandboxHost.reload_tab()`, so reload and cold open take the same path.
