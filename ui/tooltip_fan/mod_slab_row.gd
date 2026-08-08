@@ -36,6 +36,15 @@ extends Control
 		text_tint_mix = v
 		_refresh_label_color()
 
+## EV stops (see [Emissive]) the text is lifted by after the tint/white mix.
+## Defaults to [constant Emissive.VALUE] — text was previously authored
+## purely SDR (mix toward white, never past 1.0) and never cleared bloom
+## threshold regardless of [member text_tint_mix].
+@export_range(0.0, 3.0, 0.05) var text_glow_stops: float = Emissive.VALUE:
+	set(v):
+		text_glow_stops = v
+		_refresh_label_color()
+
 ## How dark the fill is: 0 = raw tint, 1 = near-black. Forwarded to the slab.
 @export_range(0.0, 1.0, 0.01) var fill_darkness: float = 0.88:
 	set(v):
@@ -67,6 +76,7 @@ func _ready() -> void:
 	if _slab:
 		_slab.fill_darkness = fill_darkness
 		_slab.glow_strength = glow_strength
+		_refresh_label_color()
 		# The label wraps when the container changes its width — its min
 		# height then changes, so this row's min height does too.
 		_label.resized.connect(update_minimum_size)
@@ -110,7 +120,8 @@ func bind(m: StatModifier) -> void:
 func _refresh_label_color() -> void:
 	if _label == null or _slab == null:
 		return
-	_label.add_theme_color_override("font_color", _slab.tint_color.lerp(Color.WHITE, text_tint_mix))
+	var mixed := _slab.tint_color.lerp(Color.WHITE, text_tint_mix)
+	_label.add_theme_color_override("font_color", Emissive.at(mixed, text_glow_stops))
 
 
 ## The row is exactly its label plus the scene's vertical insets — height is

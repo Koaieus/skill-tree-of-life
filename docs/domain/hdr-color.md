@@ -105,6 +105,35 @@ to 3px and grew the pad's resting scale to `0.65` (~5px) once `glow_intensity`
 was no longer the confound. Judge sprite/stroke size against the *rendered*
 pixel footprint at the scale it's actually shown, not the source texture size.
 
+### Coverage is on-screen pixels — a world-space element's zoom level counts
+
+The pixel-coverage floor above is about screen pixels, not world/texture
+units, so anything drawn in world space (`Graph`'s `Edge`, not a screen-space
+`Control`) changes its own coverage as the camera zooms. Confirmed empirically
+(2026-08-08, `graph/edge.gd`'s `lit_glow_stops`) on a 2.5px-wide lit `Line2D`:
+at `ALERT` (`2.0` stops) it only blooms near max camera zoom (~×2.0) — zoomed
+out to 1× or less, the same line covers too few screen pixels and reads
+inert. At `PEAK` (`3.0`) it blooms across most zoom levels but blows out at
+max zoom, and `PEAK` is a named momentary-overshoot tier (see above), not
+meant as a resting value. `2.5` stops — not a named tier, chosen by trial and
+error with the sandbox as the feedback loop — is the empirical middle ground
+for *this* line width; it isn't derived from anything reasoned and doesn't
+generalize to a different width without retesting.
+
+This raises two open questions this doc doesn't answer yet, because probing
+beats reasoning here same as everywhere else in this file:
+
+- Should a world-space element's glow (stops, or width) scale with camera
+  zoom to hold screen-pixel coverage constant, rather than picking one
+  compromise value that's under-lit at some zooms and over-lit at others?
+- Is fading out at extreme zoom-out actually *fine* — a graph zoomed out far
+  enough that lit edges are a handful of pixels each is arguably a case where
+  losing the glow (but not the SDR colour) is the correct read, not a bug.
+
+A screen-space `Control` (HUD panels, tooltip fan) doesn't have this problem —
+its size is display pixels regardless of camera state — so this only applies
+to `Graph`/`Edge`/`SkillNode` world-space visuals.
+
 ## Round-trips unclamped through `.tscn`
 
 The property, the scene format, and the picker all carry >1.0 without clamp

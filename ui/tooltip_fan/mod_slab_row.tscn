@@ -4,15 +4,17 @@
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/slab_panel.tscn" id="2_slab"]
 [ext_resource type="Shader" uid="uid://u435mfubr7b8" path="res://ui/tooltip_fan/slab_panel.gdshader" id="3_f6h3x"]
 
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_u38nb"]
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_f6h3x"]
 resource_local_to_scene = true
 shader = ExtResource("3_f6h3x")
 shader_parameter/size = Vector2(88, 22)
 shader_parameter/tint_color = Color(0.4, 0.95, 1, 1)
 shader_parameter/fill_darkness = 1.0
-shader_parameter/glow_strength = 0.04
-shader_parameter/border_width = 1.0
-shader_parameter/glow_width = 5.0
+shader_parameter/glow_strength = 0.8
+shader_parameter/glow_energy = 1.0
+shader_parameter/glow_width = 2.5
 shader_parameter/corner_radius = 7.0
 
 [node name="ModSlabRow" type="Control" unique_id=53972646]
@@ -26,7 +28,7 @@ mouse_filter = 1
 script = ExtResource("1_script")
 text_tint_mix = 0.8
 fill_darkness = 1.0
-glow_strength = 0.04
+glow_strength = 0.8
 
 [node name="PanelContainer" type="PanelContainer" parent="." unique_id=2060754773]
 layout_mode = 1
@@ -37,14 +39,14 @@ offset_left = -44.0
 offset_right = 44.0
 offset_bottom = 22.0
 grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_u38nb")
 
 [node name="Slab" parent="PanelContainer" unique_id=720400489 instance=ExtResource("2_slab")]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_f6h3x")
 layout_mode = 2
 fill_darkness = 1.0
-glow_strength = 0.04
-border_width = 1.0
+glow_strength = 0.8
 corner_radius = 7.0
 
 [node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=279512814]
@@ -61,7 +63,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 10)
 layout_mode = 2
 size_flags_horizontal = 0
-theme_override_colors/font_color = Color(1.5720325, 1.5720325, 1.5720325, 1)
 theme_override_font_sizes/font_size = 13
 text = "+123 Strength"
 vertical_alignment = 1

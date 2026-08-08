@@ -10,7 +10,7 @@ colors = PackedColorArray(0.55, 0.55, 0.6, 0.55, 0.55, 0.55, 0.6, 0.55)
 z_index = -10
 z_as_relative = false
 script = ExtResource("1_25cad")
-lit_glow_stops = 3.0
+lit_glow_stops = 2.5
 width = 2.5
 metadata/_custom_type_script = "uid://5igfp33erkyn"
 

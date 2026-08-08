@@ -24,17 +24,27 @@ extends ColorRect
 		fill_darkness = v
 		_push(&"fill_darkness", v)
 
-## 0 = hairline border, no halo; 1 = strong glow.
+## 0 = stroke invisible, 1 = fully blended in. Opacity only — see
+## [member glow_energy] for whether the stroke actually blooms.
 @export_range(0.0, 1.0, 0.01) var glow_strength: float = 0.5:
 	set(v):
 		glow_strength = v
 		_push(&"glow_strength", v)
 
-## Width of the bright inner border band, in pixels.
-@export_range(0.5, 4.0, 0.1) var border_width: float = 1.5:
+## EV stops (see [Emissive]) the stroke is lifted by. Defaults to
+## [constant Emissive.VALUE].
+@export_range(0.0, 3.0, 0.05) var glow_energy: float = Emissive.VALUE:
 	set(v):
-		border_width = v
-		_push(&"border_width", v)
+		glow_energy = v
+		_push(&"glow_energy", v)
+
+## How deep the bright inward stroke fades, in pixels. Judge against the
+## rendered pixel footprint, not what merely looks right zoomed in — see
+## docs/domain/hdr-color.md's pixel-coverage-floor section.
+@export_range(0.5, 8.0, 0.1) var glow_width: float = 2.5:
+	set(v):
+		glow_width = v
+		_push(&"glow_width", v)
 
 @export_range(0.0, 12.0, 0.5) var corner_radius: float = 4.0:
 	set(v):
@@ -60,7 +70,8 @@ func _push_all() -> void:
 	_push(&"tint_color", tint_color)
 	_push(&"fill_darkness", fill_darkness)
 	_push(&"glow_strength", glow_strength)
-	_push(&"border_width", border_width)
+	_push(&"glow_energy", glow_energy)
+	_push(&"glow_width", glow_width)
 	_push(&"corner_radius", corner_radius)
 
 

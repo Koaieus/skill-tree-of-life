@@ -35,9 +35,17 @@ signal endpoints_changed
 @export_range(0.0, 1.0, 0.05) var sensed_alpha: float = 0.35
 @export_range(0.0, 1.0, 0.05) var sensed_width_scale: float = 0.75
 ## EV stops the lit colour is raised by, applied via `self_modulate` (see
-## [Emissive] and `_update_visual`). #391 follow-up confirmed the pipeline is
-## live; this is back down at [constant Emissive.ALERT], the standard "loud"
-## tier used elsewhere (e.g. [FanTrace]'s line).
+## [Emissive] and `_update_visual`). Default stays [constant Emissive.ALERT] —
+## the standard "loud" tier — as a sane fallback for a consumer that hasn't
+## measured its own on-screen line width. `graph/edge.tscn`'s shipped instance
+## overrides this to `2.5`, empirically tuned (2026-08-08) against its 2.5px
+## `Line2D` width across camera zoom levels: at `ALERT` the line only blooms
+## near max zoom (more on-screen pixels feed bloom's downsample mips — see
+## docs/domain/hdr-color.md's pixel-coverage-floor section); at `PEAK` (`3.0`)
+## it blooms at most zooms but blows out at max and is a named "momentary
+## overshoot" tier being used as a resting state. `2.5` was the empirical
+## middle ground, not a stop count derived from anything reasoned — retune
+## live in `dev_bloom_sandbox` if the line width ever changes.
 @export_range(0.0, 4.0, 0.05) var lit_glow_stops: float = Emissive.ALERT
 
 @export var from: SkillNode:
