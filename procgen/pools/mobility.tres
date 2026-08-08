@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="mv"]
+resource_name = "movement_points +"
 script = ExtResource("2_pool")
 stat_id = &"movement_points"
 tags = Array[StringName]([&"mobility", &"flat"])
@@ -12,6 +13,7 @@ tier_bias_k = 0.5
 max_tier = 2
 
 [sub_resource type="Resource" id="dp"]
+resource_name = "deallocation_points +"
 script = ExtResource("2_pool")
 stat_id = &"deallocation_points"
 tags = Array[StringName]([&"mobility", &"flat"])

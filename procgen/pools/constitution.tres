@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
-resource_name = "CON +"
+resource_name = "constitution +"
 script = ExtResource("2_pool")
 stat_id = &"constitution"
 archetype_stat = &"constitution"
@@ -13,7 +13,7 @@ unit_value = 2.0
 pool_weight = 5.0
 
 [sub_resource type="Resource" id="inc"]
-resource_name = "CON +%"
+resource_name = "constitution +%"
 script = ExtResource("2_pool")
 stat_id = &"constitution"
 operation = 1
@@ -24,7 +24,7 @@ pool_weight = 1.5
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
-resource_name = "CON ×"
+resource_name = "constitution ×"
 script = ExtResource("2_pool")
 stat_id = &"constitution"
 operation = 2
@@ -53,7 +53,7 @@ pool_weight = 2.0
 max_tier = 3
 
 [sub_resource type="Resource" id="int_debuff"]
-resource_name = "INT -"
+resource_name = "intelligence +%"
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1

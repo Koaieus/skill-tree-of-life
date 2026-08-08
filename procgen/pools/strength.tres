@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
+resource_name = "strength +"
 script = ExtResource("2_pool")
 stat_id = &"strength"
 archetype_stat = &"strength"
@@ -12,6 +13,7 @@ unit_value = 2.0
 pool_weight = 10.0
 
 [sub_resource type="Resource" id="inc"]
+resource_name = "strength +%"
 script = ExtResource("2_pool")
 stat_id = &"strength"
 operation = 1
@@ -22,6 +24,7 @@ pool_weight = 3.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
+resource_name = "strength ×"
 script = ExtResource("2_pool")
 stat_id = &"strength"
 operation = 2

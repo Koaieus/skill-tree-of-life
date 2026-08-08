@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
+resource_name = "perception +"
 script = ExtResource("2_pool")
 stat_id = &"perception"
 archetype_stat = &"perception"
@@ -12,6 +13,7 @@ unit_value = 2.0
 pool_weight = 10.0
 
 [sub_resource type="Resource" id="inc"]
+resource_name = "perception +%"
 script = ExtResource("2_pool")
 stat_id = &"perception"
 operation = 1
@@ -22,6 +24,7 @@ pool_weight = 3.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
+resource_name = "perception ×"
 script = ExtResource("2_pool")
 stat_id = &"perception"
 operation = 2
@@ -31,6 +34,7 @@ unit_value = 0.05
 min_tier = 3
 
 [sub_resource type="Resource" id="vr_inc"]
+resource_name = "vision_range +%"
 script = ExtResource("2_pool")
 stat_id = &"vision_range"
 operation = 1
@@ -41,6 +45,7 @@ pool_weight = 2.5
 max_tier = 3
 
 [sub_resource type="Resource" id="vr_bn"]
+resource_name = "vision_range +b"
 script = ExtResource("2_pool")
 stat_id = &"vision_range"
 operation = 3
@@ -50,6 +55,7 @@ unit_value = 10.0
 max_tier = 2
 
 [sub_resource type="Resource" id="sr"]
+resource_name = "sensor_range +"
 script = ExtResource("2_pool")
 stat_id = &"sensor_range"
 archetype_stat = &"perception"

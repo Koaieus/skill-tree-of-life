@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 
 [sub_resource type="Resource" id="ab"]
+resource_name = "dexterity +"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 archetype_stat = &"dexterity"
@@ -12,6 +13,7 @@ unit_value = 2.0
 pool_weight = 10.0
 
 [sub_resource type="Resource" id="inc"]
+resource_name = "dexterity +%"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 operation = 1
@@ -22,6 +24,7 @@ pool_weight = 3.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
+resource_name = "dexterity ×"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 operation = 2
@@ -31,6 +34,7 @@ unit_value = 0.05
 min_tier = 3
 
 [sub_resource type="Resource" id="cc_inc"]
+resource_name = "crit_chance +%"
 script = ExtResource("2_pool")
 stat_id = &"crit_chance"
 operation = 1
@@ -44,6 +48,7 @@ value_overrides = Dictionary[int, float]({
 pool_weight = 1.5
 
 [sub_resource type="Resource" id="cm_inc"]
+resource_name = "crit_multiplier +%"
 script = ExtResource("2_pool")
 stat_id = &"crit_multiplier"
 operation = 1
