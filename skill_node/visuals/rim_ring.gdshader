@@ -244,19 +244,18 @@ void fragment() {
 		float dist_from_crest = abs(t - tc);
 		float dist_max = max(max(tc, 1.0 - tc), 0.0001);
 		float radial_w = pow(clamp(1.0 - dist_from_crest / dist_max, 0.0, 1.0), max(fill_crest_bias, 0.001));
-		shaded += ring_tint.rgb * (fill_glow_strength * lit * radial_w);
-		// HDR/bloom TODO (#371, see docs/domain/hdr-color.md): once a glow
-		// Environment is wired into the game viewport, this additive should
-		// author the lit arcs at the +2-stop / "alert" tier (encoded
-		// Color(1.825, 1.825, 1.825), linear 4.0) so they actually bloom —
-		// driven by fill_glow_strength (0..2 → 0..+2 stops), tinted by
-		// ring_tint so each archetype's arc inherits its hue. Currently SDR
-		// (a brighter band, not a flare) because no WorldEnvironment carries
-		// glow_enabled in the playable scenes yet — only the 3D gimbal
-		// showcase has one. Retune this block as the LAST step of #371's
-		// bloom landing. NOTE: canvas_item shader COLOR output is linear
-		// under hdr_2d=true; authored values must be sRGB_decode(target) to
-		// match a desired display brightness.
+		// #389 — alert-tier bloom (docs/domain/hdr-color.md). fill_glow_strength
+		// (0..2) IS the stop count, so this is Emissive.at(ring_tint, stops) done
+		// by hand: ring_tint.rgb arrives already srgb_to_linear()'d (the
+		// `source_color` hint auto-decodes it), so multiplying by pow(2, stops)
+		// reproduces that helper's `base.srgb_to_linear() * 2^stops` exactly —
+		// COLOR is already linear here (hdr_2d=true), so no re-encode is needed.
+		// At peak (lit==1, radial_w==1, fill_glow_strength==2.0/ALERT) a white
+		// ring_tint lands at linear 4.0, i.e. Color(1.825, 1.825, 1.825) once the
+		// renderer re-encodes it for display. lit * radial_w falls off to 0, so
+		// an unlit or off-crest pixel gets none of this term — only the ambient
+		// SDR floor above.
+		shaded += ring_tint.rgb * (pow(2.0, fill_glow_strength) * lit * radial_w);
 	}
 
 	float inside = step(inner_r, r) * step(r, outer_r);
