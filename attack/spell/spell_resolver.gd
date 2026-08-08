@@ -39,7 +39,7 @@ static func resolve(
 	seed_state.current_node = target
 	seed_state.predecessor = null
 	seed_state.source = source
-	seed_state.damage = seed_damage(spell, source)
+	seed_state.damage = impact_damage(spell, source)
 	seed_state.seed_damage = seed_state.damage
 	seed_state.hops_remaining = config.max_hops
 	seed_state.hop_index = 0
@@ -133,7 +133,7 @@ static func resolve(
 	return outcome
 
 
-## The seed hit: [code]spell_damage × SpellDef.power[/code] (D-32). **The one
+## The impact hit: [code]spell_damage × SpellDef.power[/code] (D-32). **The one
 ## home for this expression** — UI that shows a spell's damage calls this, it
 ## does not re-multiply (three copies of it had already drifted apart).
 ##
@@ -150,7 +150,7 @@ static func resolve(
 ##      before a source node is picked.
 ##   3. Neither — the stat's own default (1.0), so the row shows the raw
 ##      [member SpellDef.power] rather than a zero.
-static func seed_damage(spell: SpellDef, source: SkillNode, board: StatBoard = null) -> float:
+static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard = null) -> float:
 	if spell == null:
 		return 0.0
 	if source != null:

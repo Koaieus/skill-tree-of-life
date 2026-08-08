@@ -81,8 +81,8 @@ func _populate() -> void:
 	var eff_hops := _effective_hops()
 	var hops_dynamic := has_prop and eff_hops != base_hops
 
-	var seed := _seed_damage()
-	_add_stat_row(&"Damage", _format_num(seed), not is_equal_approx(seed, _spell.power))
+	var impact := _impact_damage()
+	_add_stat_row(&"Damage", _format_num(impact), not is_equal_approx(impact, _spell.power))
 
 	if has_prop:
 		var prop := _spell.propagation
@@ -177,13 +177,13 @@ func _scale_by_spell_range(base: int) -> int:
 	return int(round(float(base) * _spell_range_multiplier()))
 
 
-## Seed damage for the hovered caster (D-32) — delegated to
-## [method SpellResolver.seed_damage], which owns the expression. The raw
+## Impact damage for the hovered caster (D-32) — delegated to
+## [method SpellResolver.impact_damage], which owns the expression. The raw
 ## [member SpellDef.power] coefficient is meaningless on its own, so the row
 ## shows the computed number and goes gold whenever the caster moved it.
-func _seed_damage() -> float:
+func _impact_damage() -> float:
 	var board: StatBoard = _caster.stat_board if _caster != null else null
-	return SpellResolver.seed_damage(_spell, null, board)
+	return SpellResolver.impact_damage(_spell, null, board)
 
 
 ## Reach multiplier for the hovered caster — delegated to

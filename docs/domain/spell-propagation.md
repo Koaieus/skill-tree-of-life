@@ -194,7 +194,10 @@ hop n = f(hop n-1)     f = the spell's HopDamageProgression
   landing on them.
 - It is evaluated **once, at the seed**, and stamped on `CastSpell.seed_damage`
   (copied verbatim by `_propagate_to`, like `seed_node`). Re-reading per hop
-  would compound INT — INT² by hop 2.
+  would compound INT — INT² by hop 2. The formula itself lives in
+  `SpellResolver.impact_damage()` — the number the primary target takes;
+  `CastSpell.seed_damage` is the same float carried forward for hop
+  progressions to fraction themselves against (#396).
 - `PropagationConfig.seed_damage_fraction` was deleted (`1.0` in every spell;
   its "¼ power then ramp" case is a lower `power`).
 

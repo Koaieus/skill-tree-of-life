@@ -207,14 +207,14 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 # ── Shared readout computation ──────────────────────────────────────────────
 
 ## The magic channel (#366, follow-up to #268): the same mirror shape as the
-## physical channels, but the damage readout is the D-32 seed — computed by
-## the REAL production seed path (`SpellResolver.seed_damage`, i.e.
+## physical channels, but the damage readout is the D-32 impact number —
+## computed by the REAL production path (`SpellResolver.impact_damage`, i.e.
 ## `spell_damage(cast-from node) × power`) — run through the real
 ## `Mitigation.apply` against the defender's standard target node. AP cost is
 ## read as 1 for the magic channel, same as melee/ranged (see README).
 ##
-## One row per real SpellDef in the pool: every seed scales with the caster's
-## INT, so no single spell represents "the magic channel". The strongest seed
+## One row per real SpellDef in the pool: every impact scales with the caster's
+## INT, so no single spell represents "the magic channel". The strongest impact
 ## plus the parity ratio against melee are what the invariant reads.
 static func _magic_mirror(root: Node, name: String, level: int) -> Dictionary:
 	var attacker := await BalanceFixture.build(root, level, _BALANCED)
@@ -228,9 +228,9 @@ static func _magic_mirror(root: Node, name: String, level: int) -> Dictionary:
 
 	var best := 0.0
 	for spell in _SPELL_POOL:
-		var seed: float = SpellResolver.seed_damage(spell, atk_core)
+		var impact: float = SpellResolver.impact_damage(spell, atk_core)
 		var hit := DamageInstance.new()
-		hit.amount = seed
+		hit.amount = impact
 		hit.type = DamageInstance.Type.MAGIC
 		var mitigated: float = Mitigation.apply(hit, target)
 		readouts["spell_dpa_%s" % spell.name] = mitigated

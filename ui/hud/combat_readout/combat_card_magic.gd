@@ -45,7 +45,7 @@ func _refresh() -> void:
 		_reach_row.set_value(0.0)
 		_reach_row.set_sliver("")
 		return
-	_potency_row.set_value(SpellResolver.seed_damage(spell, null, _board))
+	_potency_row.set_value(SpellResolver.impact_damage(spell, null, _board))
 	var hops := spell.propagation.max_hops if spell.propagation != null else 0
 	_reach_row.set_value(float(hops), " hops")
 	_reach_row.set_sliver("rare" if hops > 0 else "")
