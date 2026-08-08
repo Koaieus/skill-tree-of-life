@@ -3,10 +3,17 @@
 [ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_58fw3"]
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_i1vuw"]
+[ext_resource type="Script" uid="uid://coe4vb0qqx4y2" path="res://stats_system/stat_board.gd" id="3_781hs"]
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
 [ext_resource type="Script" uid="uid://drxjp5sanc7cf" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
+
+[sub_resource type="Resource" id="Resource_drqyt"]
+resource_local_to_scene = true
+script = ExtResource("3_781hs")
+metadata/_custom_type_script = "uid://coe4vb0qqx4y2"
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -25,7 +32,7 @@ corner_radius_bottom_left = 6
 corner_detail = 6
 shadow_size = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3po0j"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1vuw"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -37,7 +44,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 corner_detail = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_58fw3"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_781hs"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -51,6 +58,8 @@ corner_detail = 6
 
 [node name="SkillNode" type="Area2D" unique_id=1765804138]
 script = ExtResource("1_skill")
+node_board = SubResource("Resource_drqyt")
+stake_level = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=987061496]
 visible = false
@@ -65,7 +74,6 @@ entity_tint = Color(1, 1, 1, 1)
 archetype_tint = Color(0.4117647, 0.4117647, 0.4117647, 1)
 
 [node name="BaseCircle" type="Node2D" parent="Visuals" unique_id=215651254]
-visible = false
 script = ExtResource("2_base")
 
 [node name="HoverRing" type="Node2D" parent="Visuals" unique_id=670952446]
@@ -82,7 +90,7 @@ offset_right = 31.0
 offset_bottom = -46.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_3po0j")
+theme_override_styles/fill = SubResource("StyleBoxFlat_i1vuw")
 show_percentage = false
 script = ExtResource("6_r2qlo")
 
@@ -96,7 +104,7 @@ offset_right = 35.0
 offset_bottom = -28.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
+theme_override_styles/fill = SubResource("StyleBoxFlat_781hs")
 show_percentage = false
 script = ExtResource("7_corehb")
 

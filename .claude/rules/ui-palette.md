@@ -9,6 +9,8 @@ paths:
 
 Canonical colors from `docs/design/design_handoff_game_ui/README.md`, converted OKLCH → sRGB once at authoring time (Godot `Color` has no OKLCH constructor). Source of truth for attribute/vital colors is **`StatDef.tint_color`** on the matching `.tres` in `stats_system/defs/` — don't introduce a second palette resource for those. SP-bucket colors aren't per-stat (SkillPointStat is one pool with internal buckets), so they live as `@export` defaults on the Skill Points gauge component instead.
 
+`ui/theme/editor_swatches.tres` is a `ColorPicker` "save palette" convenience (recent/frequently-used swatches, including the six attribute colors above) — an editor quality-of-life file, not a second source of truth. Don't read values back out of it; read `StatDef.tint_color`.
+
 | Name | OKLCH | sRGB `Color` | Where it lives |
 |---|---|---|---|
 | STR (Red) | `oklch(0.64 0.21 27)` | `Color(0.9451, 0.2689, 0.2453, 1)` | `stats_system/defs/strength.tres` |

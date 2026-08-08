@@ -79,6 +79,8 @@ signal depleted
 		if is_node_ready():
 			_sync_visuals()
 
+@export_tool_button('Load color from Archetype', 'ColorPickerButton') var _color_load_button = _load_type_color_from_archetype
+
 ## Constant pixel inset from [member radius] to the rim's interior bevel
 ## control point (geom_crest_r). Kept small and constant so the rim width
 ## doesn't balloon when radius grows via stake.
@@ -222,7 +224,7 @@ var revealed: bool = true:
 ## a stat is only allocated when a node-local modifier targets it (via an
 ## addon) or when the node is allocated (combat health pool). See
 ## [method StatBoard._ensure_stat].
-var node_board: StatBoard = null
+@export var node_board: StatBoard = null
 
 ## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
 ## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
@@ -413,10 +415,25 @@ func _sync_collision() -> void:
 		return
 	(_collision.shape as CircleShape2D).radius = radius
 
+func _load_type_color_from_archetype() -> void:
+	if not archetype:
+		push_warning('Cannot load color: No archetype!')
+		return
+	if not node_board:
+		push_warning('Cannot load color: No stat board!')
+		return
+	var def: StatDef = StatRegistry.get_def(archetype.primary_stat)
+	if def != null:
+		base_type_color = def.tint_color
+		notify_property_list_changed()
+	else:
+		push_warning('Stat not found: %s' % archetype.primary_stat)
+	
 
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
+		
 	# BaseCircle keeps only the faint always-on wash (legibility background for
 	# unallocated nodes, per .claude/rules/skill-node-visuals.md) plus the
 	# hit-flash / deny-tint channel — the sensed-fog outline moved onto the

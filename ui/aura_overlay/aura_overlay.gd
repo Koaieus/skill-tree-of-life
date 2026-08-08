@@ -73,12 +73,12 @@ func _ready() -> void:
 		mat.set_shader_parameter(&"intensity", intensity)
 		mat.set_shader_parameter(&"falloff", falloff)
 		mat.set_shader_parameter(&"union_smoothness", union_smoothness)
+	_refresh.call_deferred()
 	if Engine.is_editor_hint():
 		return
 	_connect_allocation()
 	if not Events.entity_died.is_connected(_on_entity_died):
 		Events.entity_died.connect(_on_entity_died)
-	_refresh()
 
 
 func _draw() -> void:

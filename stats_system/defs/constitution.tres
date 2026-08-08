@@ -1,13 +1,11 @@
-[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="StatDef" format=3 uid="uid://cj6e6uijkdjrc"]
 
-[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
 
 [resource]
 script = ExtResource("1_stat_def")
 id = &"constitution"
 display_name = "Constitution"
-abbrev = "CON"
 description = "Defensive attribute (White/reserved). Scales node_health only, at +1 HP per point of CON. Does not touch armor or min_damage_taken — those stay battlefield-found (D-11). TBD (#268): the rate is the `value` coefficient on the board's mod_con_to_node_health, over a LinearFormula passthrough — tune it there, not in a formula string. Level grants +1 CON/level via mod_level_to_con (board intrinsic, so every entity scales regardless of core class); BalancedCore contributes the +10 base grant, NOT a per-level one. Default 0 (not 10 like the other four): the +10 baseline is a CoreClass grant, so a bare board must not shift the level-1 node_health baseline away from flat 10."
-value_type = 0
-default_value = 0.0
-tint_color = Color(0.8586, 0.9018, 0.9482, 1)
+tint_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
+abbrev = "CON"

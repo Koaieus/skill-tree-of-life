@@ -108,7 +108,7 @@ func _apply_style(style: AnnouncementRequest.Style) -> void:
 	match style:
 		AnnouncementRequest.Style.MELEE: color = Color(0.9451, 0.2689, 0.2453, 1)
 		AnnouncementRequest.Style.RANGED: color = Color(0.3187, 0.7773, 0.4484, 1)
-		AnnouncementRequest.Style.MAGIC: color = Color(0.291, 0.5892, 1.0, 1)
+		AnnouncementRequest.Style.MAGIC: color = Color(0.291, 0.5892, 1.0, 1) # TODO: didn't we have a central repository for these? or is the current (the `StatDef`s themselves) the best location?
 		_: color = Color(0.95, 0.85, 1.0)
 
 	var sb := StyleBoxFlat.new()

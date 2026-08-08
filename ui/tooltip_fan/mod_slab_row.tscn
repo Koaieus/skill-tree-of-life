@@ -3,9 +3,6 @@
 [ext_resource type="Script" uid="uid://bso2j0rxvs3w3" path="res://ui/tooltip_fan/mod_slab_row.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/slab_panel.tscn" id="2_slab"]
 [ext_resource type="Shader" uid="uid://u435mfubr7b8" path="res://ui/tooltip_fan/slab_panel.gdshader" id="3_f6h3x"]
-[ext_resource type="Environment" uid="uid://cw0hn1e5xg8ja" path="res://ui/theme/default_game_env.tres" id="4_63du3"]
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_u38nb"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_f6h3x"]
 resource_local_to_scene = true
@@ -14,40 +11,38 @@ shader_parameter/size = Vector2(111, 28)
 shader_parameter/tint_color = Color(0.39999998, 0.9499999, 1, 1)
 shader_parameter/fill_darkness = 1.0
 shader_parameter/glow_strength = 1.0
-shader_parameter/glow_energy = 3.0
-shader_parameter/glow_width = 2.3
+shader_parameter/glow_energy = 2.4
+shader_parameter/glow_width = 2.0
 shader_parameter/corner_radius = 7.0
 
-[node name="ModSlabRow" type="Control" unique_id=53972646]
+[node name="ModSlabRow" type="PanelContainer" unique_id=1218328195]
 custom_minimum_size = Vector2(80, 22)
-layout_mode = 3
-anchors_preset = 0
-offset_right = 80.0
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -55.5
+offset_right = 55.5
 offset_bottom = 28.0
-size_flags_horizontal = 4
+grow_horizontal = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
 mouse_filter = 1
 script = ExtResource("1_script")
 text_tint_mix = 0.8
-text_glow_stops = 2.55
+text_glow_stops = 2.0
 
-[node name="PanelContainer" type="PanelContainer" parent="." unique_id=2060754773]
-layout_mode = 1
-offset_right = 111.0
-offset_bottom = 28.0
-theme_override_styles/panel = SubResource("StyleBoxEmpty_u38nb")
-
-[node name="Slab" parent="PanelContainer" unique_id=720400489 instance=ExtResource("2_slab")]
+[node name="Slab" parent="." unique_id=720400489 instance=ExtResource("2_slab")]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_f6h3x")
 layout_mode = 2
 tint_color = Color(0.39999998, 0.9499999, 1, 1)
 fill_darkness = 1.0
 glow_strength = 1.0
-glow_energy = 3.0
-glow_width = 2.3
+glow_energy = 2.4
+glow_width = 2.0
 corner_radius = 7.0
 
-[node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=279512814]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=279512814]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 4
@@ -56,15 +51,12 @@ theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 4
 
-[node name="Label" type="Label" parent="PanelContainer/MarginContainer" unique_id=1550844287]
+[node name="Label" type="Label" parent="MarginContainer" unique_id=1550844287]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 10)
 layout_mode = 2
 size_flags_horizontal = 0
-theme_override_colors/font_color = Color(1.8977919, 2.1275322, 2.1484175, 1)
+theme_override_colors/font_color = Color(0.39999998, 0.9499999, 1, 1)
 theme_override_font_sizes/font_size = 15
 text = "+123 Strength"
 vertical_alignment = 1
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=867212594]
-environment = ExtResource("4_63du3")
