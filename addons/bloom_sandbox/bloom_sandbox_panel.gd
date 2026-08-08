@@ -74,6 +74,14 @@ const _SHAPES: Array[Dictionary] = [
 
 const CHART_ROW_SEPARATION := 32  # value in pixels
 
+## The six real attribute `StatDef`s, read live off `StatRegistry` rather than
+## re-declaring their colours here — the "archetypes" band exists specifically
+## to catch a StatDef.tint_color edit going stale, which a hardcoded copy
+## could never do.
+const _ARCHETYPE_STATS: Array[StringName] = [
+	&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception", &"constitution",
+]
+
 
 ## A single primitive drawn at one emissive value. Exists because bloom reads
 ## *coverage*, and a chart made only of filled rects teaches the wrong lesson.
@@ -128,10 +136,21 @@ class ShapeCell:
 @onready var _status: Label = %Status
 @onready var left: VBoxContainer = %VBoxContainer
 @onready var right: VBoxContainer = %VBoxContainer2
+@onready var archetypes: VBoxContainer = %VBoxContainer3
 
 var _env: Environment
 ## Filled in by `_probe_render_target()` one frame after the first draw.
 var _render_target_note := "probing…"
+
+## Candidate `Emissive` equalization strategies, compared live in the
+## "archetypes" band — see `ui/theme/emissive.gd`'s `tint_peak`/`tint_damped`
+## doc comments for what each is trying to fix and why it's a candidate, not
+## an adopted default. Built in `_ready()`, not `const`, because a `Callable`
+## to a static method isn't a const-foldable literal.
+var _strategies: Array[Dictionary] = []
+## Index into `_strategies`. Defaults to `tint()` — the one actually in use
+## everywhere else (Edge, SlabPanel) today.
+var _strategy_index: int = 1
 
 
 ## No-op: the bloom chart is self-contained and routes no inspected resource.
@@ -147,6 +166,13 @@ func _ready() -> void:
 	# `%WorldEnvironment` can't cross the instance boundary, so `bloom_viewport.gd`
 	# exposes it — see `docs/domain/hdr-color.md`.
 	_env = _world.get_environment_resource()
+
+	_strategies = [
+		{"name": "at() — no correction", "fn": Callable(Emissive, "at")},
+		{"name": "tint() — luminance-normalized (current)", "fn": Callable(Emissive, "tint")},
+		{"name": "tint_peak() — max-channel normalized", "fn": Callable(Emissive, "tint_peak")},
+		{"name": "tint_damped() — half-luminance-normalized", "fn": Callable(Emissive, "tint_damped")},
+	]
 
 	_build_chart()
 	_build_knobs()
@@ -186,6 +212,8 @@ func _build_chart() -> void:
 	# Coverage over dark only — doubling this axis across backdrops teaches
 	# nothing the left column hasn't already shown.
 	_add_band(right, "shapes  ·  neutral base, over dark fill", Color(0.04, 0.05, 0.07), _shape_rows)
+
+	_build_archetype_band()
 
 
 func _add_band(host: Control, title: String, backdrop: Color, rows: Callable) -> void:
@@ -243,6 +271,52 @@ func _shape_rows() -> Array[HBoxContainer]:
 	return out
 
 
+## The live A/B surface for "does this equalization strategy actually read as
+## equally hot across hues" — the six real `StatDef.tint_color`s, run through
+## whichever `_strategies[_strategy_index]` is selected. Its own band (not
+## folded into `left`/`right`) so switching strategy only rebuilds this,
+## not the whole chart.
+func _build_archetype_band() -> void:
+	for child in archetypes.get_children():
+		child.queue_free()
+
+	var picker := OptionButton.new()
+	for i in _strategies.size():
+		picker.add_item(_strategies[i]["name"], i)
+	picker.selected = _strategy_index
+	picker.item_selected.connect(func(i: int) -> void:
+		_strategy_index = i
+		_build_archetype_band())
+	archetypes.add_child(picker)
+
+	var strategy: Callable = _strategies[_strategy_index]["fn"]
+	var band := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.04, 0.05, 0.07)
+	style.content_margin_left = 12.0
+	style.content_margin_right = 12.0
+	style.content_margin_top = 8.0
+	style.content_margin_bottom = 8.0
+	band.add_theme_stylebox_override("panel", style)
+	archetypes.add_child(band)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", CHART_ROW_SEPARATION)
+	band.add_child(col)
+
+	var heading := Label.new()
+	heading.text = "archetypes  ·  equalization strategy"
+	heading.add_theme_color_override("font_color", Color(0.5, 0.55, 0.6))
+	col.add_child(heading)
+
+	col.add_child(_stop_header())
+	for stat_id in _ARCHETYPE_STATS:
+		var def := StatRegistry.get_def(stat_id)
+		var base := def.tint_color if def != null else Color.DIM_GRAY
+		var label := def.abbrev if def != null and not def.abbrev.is_empty() else String(stat_id)
+		col.add_child(_sample_row(label, base, strategy))
+
+
 func _stop_header() -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -257,12 +331,14 @@ func _stop_header() -> HBoxContainer:
 	return row
 
 
-func _sample_row(base_name: String, base: Color) -> HBoxContainer:
+## `strategy` defaults to `Emissive.at` (the chart's baseline everywhere else);
+## the archetype-equalization band is the one caller that swaps it out.
+func _sample_row(base_name: String, base: Color, strategy: Callable = Callable(Emissive, "at")) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	row.add_child(_gutter(base_name, Color(0.55, 0.6, 0.65)))
 	for stops in _STOPS:
-		row.add_child(_sample(base, stops))
+		row.add_child(_sample(base, stops, strategy))
 	return row
 
 
@@ -277,8 +353,8 @@ func _gutter(text: String, tint: Color) -> Label:
 ## A square and a glyph at the same value — because coverage is half the effect.
 ## The square emits over its whole area; the glyph only along its strokes, which
 ## is why a small label blooms far less than a swatch of the identical colour.
-func _sample(base: Color, stops: float) -> VBoxContainer:
-	var value := Emissive.at(base, stops)
+func _sample(base: Color, stops: float, strategy: Callable = Callable(Emissive, "at")) -> VBoxContainer:
+	var value: Color = strategy.call(base, stops)
 
 	var cell := VBoxContainer.new()
 	cell.custom_minimum_size = Vector2(96.0, 0.0)

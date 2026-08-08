@@ -97,3 +97,47 @@ static func tint(base: Color, stops: float) -> Color:
 	var factor := pow(2.0, stops) / luminance
 	var out := Color(lin.r * factor, lin.g * factor, lin.b * factor, base.a)
 	return out.linear_to_srgb()
+
+
+## CANDIDATE, not yet adopted anywhere — compare live against [method tint] in
+## `dev_bloom_sandbox`'s archetype-equalization band before reaching for this.
+##
+## [method tint] equalizes the weighted-luminance value bloom's bright-pass
+## GATES on, but the blur/composite that follows runs on raw per-channel
+## values, not on a re-collapsed luminance scalar — so two hues at equal
+## `tint()`-luminance can still carry very different raw channel magnitudes
+## into the blur. A saturated blue's channel has to swell ~14x to reach a
+## given luminance (blue's Rec.709 weight is only 0.0722); a saturated
+## green's only needs ~1.4x (weight 0.7152) — same nominal "stops", very
+## different raw energy feeding bloom. `tint_peak()` normalizes by the base's
+## PEAK channel instead, so every hue's dominant channel lands at the same
+## absolute value — closer to what the blur actually sums, at the cost of no
+## longer landing on the named stop's nominal luminance.
+static func tint_peak(base: Color, stops: float) -> Color:
+	var lin := base.srgb_to_linear()
+	var peak: float = maxf(lin.r, maxf(lin.g, lin.b))
+	if peak <= 0.0001:
+		return at(base, stops)
+	var factor := pow(2.0, stops) / peak
+	var out := Color(lin.r * factor, lin.g * factor, lin.b * factor, base.a)
+	return out.linear_to_srgb()
+
+
+## CANDIDATE, not yet adopted anywhere — see [method tint_peak]'s caveat, same
+## "compare live before adopting" rule applies.
+##
+## A midpoint between [method at] (no correction at all — low-luminance hues
+## under-bloom) and [method tint] (full luminance correction — low-luminance
+## hues can over-bloom once the raw-channel gap above is accounted for).
+## Applies the luminance-ratio correction at HALF strength (square root) —
+## `factor = pow(2, stops) / sqrt(luminance)` — rather than the full inverse,
+## so the correction pulls low-luminance hues up without swinging as far past
+## high-luminance ones.
+static func tint_damped(base: Color, stops: float) -> Color:
+	var lin := base.srgb_to_linear()
+	var luminance := lin.r * _LUMA.x + lin.g * _LUMA.y + lin.b * _LUMA.z
+	if luminance <= 0.0001:
+		return at(base, stops)
+	var factor := pow(2.0, stops) / sqrt(luminance)
+	var out := Color(lin.r * factor, lin.g * factor, lin.b * factor, base.a)
+	return out.linear_to_srgb()
