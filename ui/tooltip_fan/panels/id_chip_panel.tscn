@@ -1,29 +1,8 @@
 [gd_scene format=3 uid="uid://dd66k4ha5tiki"]
 
 [ext_resource type="Script" uid="uid://ci24oiqjqw8sb" path="res://ui/tooltip_fan/panels/id_chip_panel.gd" id="1_script"]
-[ext_resource type="Shader" uid="uid://cplgl06jsyxbn" path="res://ui/theme/fused_panel.gdshader" id="2_alev2"]
 [ext_resource type="Script" uid="uid://d2qj2jlh3sd7" path="res://ui/tooltip_fan/panels/panel_layout.gd" id="2_layout"]
 [ext_resource type="Script" uid="uid://cjhdneidxrmsp" path="res://ui/tooltip_fan/panels/panel_content.gd" id="3_content"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_bvx2v"]
-resource_local_to_scene = true
-shader = ExtResource("2_alev2")
-shader_parameter/size = Vector2(68, 26)
-shader_parameter/fill_color = Color(0.06, 0.13, 0.17, 0.85)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/gradient_mix = 0.0
-shader_parameter/scanline_pitch = 1.6
-shader_parameter/scanline_speed = 0.35
-shader_parameter/scanline_intensity = 0.09
-shader_parameter/glow_color = Color(0.4, 0.95, 1, 1)
-shader_parameter/glow = 0.5
-shader_parameter/glow_edges = 15
-shader_parameter/glow_width = 2.0
-shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 13.0
-shader_parameter/glow_corner_softness = 0.35
 
 [node name="IdChipPanel" type="Node2D" unique_id=1630570772]
 script = ExtResource("1_script")
@@ -32,7 +11,6 @@ progress = 1.0
 
 [node name="PanelSkin" type="ColorRect" parent="." unique_id=1507223837]
 z_index = -1
-material = SubResource("ShaderMaterial_bvx2v")
 offset_left = -34.0
 offset_top = -13.0
 offset_right = 34.0
