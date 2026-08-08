@@ -282,6 +282,7 @@ size = Vector2i(1036, 960)
 render_target_update_mode = 4
 
 [node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World" unique_id=550255330]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
