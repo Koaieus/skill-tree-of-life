@@ -1,6 +1,6 @@
 # Project tasks for Skill Tree of Life (Godot 4.6).
 # `godot` is the system install (4.6.2), not mise-managed — these are just tasks.
-# Usage: `mise tasks` to list, `mise run check`, `mise run playground`, ...
+# Usage: `mise tasks -l` to list (local tasks only, skips global noise), `mise run check`, `mise run playground`, ...
 # Project board identifiers — consumed by `.mise/tasks/gh-project`.
 [env]
 GH_PROJECT_NUMBER = "1"
@@ -247,12 +247,20 @@ branch=$(git -C "$target" branch --show-current)
 git worktree remove "$target"
 echo "✓ removed worktree $target"
 
-read -r -p "Delete branch '$branch' too? [y/N] " confirm
-if [[ "$confirm" =~ ^[Yy]$ ]]; then
-  git branch -D "$branch"
-  echo "✓ deleted branch $branch"
+# Only prompt when stdin is an interactive TTY — agents/scripts run this with
+# stdin closed or piped, and `read` on EOF returns nonzero, which under `set -e`
+# used to kill the script right after the removal above, reporting a spurious
+# "task failed" for a command that had already succeeded.
+if [ -t 0 ]; then
+  read -r -p "Delete branch '$branch' too? [y/N] " confirm || confirm=""
+  if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    git branch -D "$branch"
+    echo "✓ deleted branch $branch"
+  else
+    echo "  kept branch $branch"
+  fi
 else
-  echo "  kept branch $branch"
+  echo "  kept branch $branch (non-interactive; pass nothing to delete it yourself: git branch -D $branch)"
 fi
 '''
 
