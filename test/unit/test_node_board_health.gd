@@ -8,7 +8,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
-func _board() -> StatBoard:
+func _board() -> EntityStatBoard:
 	return _BOARD.duplicate(true)
 
 
@@ -81,7 +81,7 @@ func test_node_health_pool_syncs_from_entity_baseline() -> void:
 func test_entity_node_health_change_re_syncs() -> void:
 	var ctx: Dictionary = await _setup_node(10.0)
 	var node: SkillNode = ctx.node
-	var board: StatBoard = ctx.board
+	var board: EntityStatBoard = ctx.board
 	var hp := node.node_board.get_stat(&"node_health") as PoolStat
 	assert_almost_eq(hp.value, 10.0, 0.001)
 
@@ -103,7 +103,7 @@ func test_entity_node_health_change_re_syncs() -> void:
 func test_entity_driven_cap_rise_grants_the_delta() -> void:
 	var ctx: Dictionary = await _setup_node(20.0)
 	var node: SkillNode = ctx.node
-	var board: StatBoard = ctx.board
+	var board: EntityStatBoard = ctx.board
 	var hp := node.node_board.get_stat(&"node_health") as PoolStat
 	hp.deplete(12.0)
 	assert_almost_eq(hp.current, 8.0, 0.001, "damaged to 8/20 before the CON swing")
@@ -116,7 +116,7 @@ func test_entity_driven_cap_rise_grants_the_delta() -> void:
 func test_entity_driven_cap_fall_clamps_but_never_subtracts() -> void:
 	var ctx: Dictionary = await _setup_node(20.0)
 	var node: SkillNode = ctx.node
-	var board: StatBoard = ctx.board
+	var board: EntityStatBoard = ctx.board
 	var hp := node.node_board.get_stat(&"node_health") as PoolStat
 
 	var m := _mod(StatModifier.Operation.ADD_BASE, 20.0, &"node_health")
@@ -133,7 +133,7 @@ func test_entity_driven_cap_fall_clamps_but_never_subtracts() -> void:
 func test_entity_driven_cap_fall_clamps_current_above_new_max() -> void:
 	var ctx: Dictionary = await _setup_node(20.0)
 	var node: SkillNode = ctx.node
-	var board: StatBoard = ctx.board
+	var board: EntityStatBoard = ctx.board
 	var hp := node.node_board.get_stat(&"node_health") as PoolStat
 
 	var m := _mod(StatModifier.Operation.ADD_BASE, 20.0, &"node_health")
@@ -153,7 +153,7 @@ func test_repeated_cap_growth_does_not_strand_current_near_empty() -> void:
 	# drift toward reading permanently near-empty.
 	var ctx: Dictionary = await _setup_node(10.0)
 	var node: SkillNode = ctx.node
-	var board: StatBoard = ctx.board
+	var board: EntityStatBoard = ctx.board
 	var hp := node.node_board.get_stat(&"node_health") as PoolStat
 
 	for i in 9:

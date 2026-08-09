@@ -8,12 +8,13 @@ extends GutTest
 ## replacement bench gets coverage of every gate and knob it exposes.
 
 const _SANDROB_SCRIPT := preload("res://ui/tooltip_fan/fan_live_sandbox.gd")
+const _SANDBOX_SCENE := preload("res://ui/tooltip_fan/fan_live_sandbox.tscn")
 
 var _sandbox: Node
 
 
 func before_each() -> void:
-	_sandbox = _SANDROB_SCRIPT.new()
+	_sandbox = _SANDBOX_SCENE.instantiate()
 	add_child(_sandbox)
 	autofree(_sandbox)
 

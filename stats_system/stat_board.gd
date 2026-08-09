@@ -303,12 +303,32 @@ func apply_intrinsics() -> void:
 		add_modifier(m)
 
 
-## The ids of every dynamically-created stat currently on this board (i.e. the
-## sparse [member _extra_stats] set — hardcoded @export fields are never
-## included). For a sparse board like [member SkillNode.node_board] this is the
-## only way to enumerate "what's actually on it" — read-only, creates nothing.
 ## Sorted lexicographically so repeated calls return the same order (Dictionary
 ## iteration order isn't a contract to lean on for UI row stability).
+## Every stat id LIVE on this board: non-null typed fields plus everything
+## dynamically minted. This is what a UI enumerating "what's actually on this
+## node" wants — [method get_dynamic_stat_ids] answers the strictly narrower
+## "what got minted", and promoting a stat to a typed field silently drops it
+## from that answer. Sorted lexicographically, same stability contract.
+##
+## Read-only: creates nothing, and skips a declared-but-null field (an entity
+## board with a sparse `.tres` reports only what it carries).
+func get_stat_ids() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for prop in get_property_list():
+		if not (prop.usage & PROPERTY_USAGE_STORAGE):
+			continue
+		if get(prop.name) is Stat:
+			ids.append(StringName(prop.name))
+	for id in _extra_stats:
+		ids.append(id)
+	ids.sort()
+	return ids
+
+
+## The ids of every DYNAMICALLY-created stat on this board — the sparse
+## [member _extra_stats] set only. Typed `@export` fields are never included;
+## use [method get_stat_ids] if you want everything.
 func get_dynamic_stat_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
 	for id in _extra_stats:

@@ -2,10 +2,12 @@ extends GutTest
 
 ## #375 — addon_slots = base(0) + allocation_level as a node-local Stat.
 ##
-## `addon_slots` is a Stat on the node board, minted (with its formula
-## modifier) only when the node carries addons: `addon_slots = base(0) +
-## allocation_level`, plain 1:1, the formula reading the stake pool through
-## the `stake_level__current` accessor so fill changes recompute reactively.
+## `addon_slots` is a node-OWNED Stat, so it is baked as a typed
+## NodeStatBoard field on `default_node_board.tres` (it used to be minted in
+## code when the first addon landed): `addon_slots = base(0) +
+## allocation_level`, plain 1:1, the formula authored as a board intrinsic and
+## reading the stake pool through the `stake_level__current` accessor so fill
+## changes recompute reactively.
 ## No enforcement yet (nothing caps addon attach) — the cap just exists.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -75,12 +77,23 @@ func test_authored_base_adds_on_top_of_fill() -> void:
 	assert_eq(_slots(), 3, "base(1) + allocation_level(2)")
 
 
-# --- 5. sparseness ------------------------------------------------------------
+# --- 5. baked, not minted -----------------------------------------------------
 
-func test_addonless_node_does_not_mint_addon_slots() -> void:
-	assert_null(_node.node_board.get_stat(&"addon_slots"),
-			"no addons, no authored base -> no addon_slots stat (stays sparse)")
-	assert_null(_node.node_board.get_stat(&"addon_slots"))
+func test_addonless_node_still_carries_addon_slots_baked() -> void:
+	# `addon_slots` is a node-OWNED stat, so it is baked on default_node_board.tres
+	# rather than minted when the first addon lands (it used to be the latter, and
+	# an addonless node had no such stat at all). Baking is what makes the stat
+	# authorable and its formula a one-file edit; the sparse promise now covers
+	# only BORROWED stats. See NodeStatBoard.
+	assert_not_null(_node.node_board.get_stat(&"addon_slots"),
+			"addon_slots is baked on every node board, addons or not")
+	assert_eq(_slots(), 0, "addonless, al 0 -> base(0) + allocation_level(0)")
+	# Baked, NOT minted: the node-owned stats are typed fields, so they never
+	# appear in _extra_stats. (`node_health` does — it is BORROWED from the
+	# owner's board, and allocation mints the node's combat pool for it.)
+	var dynamic := _node.node_board.get_dynamic_stat_ids()
+	assert_false(dynamic.has(&"addon_slots"), "addon_slots is a field, not a mint")
+	assert_false(dynamic.has(&"stake_level"), "stake_level is a field, not a mint")
 
 
 # --- 6. guard: the formula reads the pool, not the accessor token -------------

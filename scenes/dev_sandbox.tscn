@@ -23,7 +23,6 @@
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="22_df164"]
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="23_owpne"]
 [ext_resource type="Script" uid="uid://cuw7nj5i81f8" path="res://stats_system/entity_stat_board.gd" id="1_entityboard"]
-[ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="1_nodeboard"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="25_drqyt"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="26_lwubc"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="27_4oa4u"]
@@ -518,26 +517,18 @@ script = ExtResource("34_sdhs6")
 spells = Array[ExtResource("35_8r5xj")]([ExtResource("36_k8amt"), ExtResource("37_f58km"), ExtResource("38_arms0"), ExtResource("39_3ogaa"), ExtResource("40_sybeb"), ExtResource("41_df164")])
 metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
-[sub_resource type="Resource" id="Resource_qdlxk"]
-script = ExtResource("1_nodeboard")
 
 [sub_resource type="Resource" id="mod_dex_2"]
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_5smxi"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_str_2"]
 script = ExtResource("2_mod")
 stat_id = &"strength"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_1733n"]
-script = ExtResource("1_nodeboard")
 
 [sub_resource type="Resource" id="mod_hp_5"]
 script = ExtResource("2_mod")
@@ -550,8 +541,6 @@ stat_id = &"strength"
 value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="Resource_4wewy"]
-script = ExtResource("1_nodeboard")
 
 [sub_resource type="Resource" id="Resource_tx111"]
 resource_local_to_scene = true
@@ -566,20 +555,12 @@ script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_xhlyp"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_per_2"]
 script = ExtResource("2_mod")
 stat_id = &"perception"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_wcpfy"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_dex_1"]
 script = ExtResource("2_mod")
@@ -589,10 +570,6 @@ stat_id = &"dexterity"
 script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 
-[sub_resource type="Resource" id="Resource_0r3ny"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_str_1"]
 script = ExtResource("2_mod")
@@ -603,40 +580,11 @@ script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_1sde5"]
-script = ExtResource("1_nodeboard")
 
-[sub_resource type="Resource" id="Resource_wph1b"]
-script = ExtResource("1_nodeboard")
 
-[sub_resource type="Resource" id="Resource_ch6bb"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
-[sub_resource type="Resource" id="Resource_hk07i"]
-script = ExtResource("1_nodeboard")
 
-[sub_resource type="Resource" id="Resource_dn4kc"]
-script = ExtResource("1_nodeboard")
 
-[sub_resource type="Resource" id="Resource_ph4qk"]
-script = ExtResource("1_nodeboard")
-
-[sub_resource type="Resource" id="Resource_hosk5"]
-script = ExtResource("1_nodeboard")
-
-[sub_resource type="Resource" id="Resource_i20lm"]
-script = ExtResource("1_nodeboard")
-
-[sub_resource type="Resource" id="Resource_bjjvr"]
-script = ExtResource("1_nodeboard")
-
-[sub_resource type="Resource" id="Resource_tihqh"]
-script = ExtResource("1_nodeboard")
-
-[sub_resource type="Resource" id="Resource_7w62q"]
-script = ExtResource("1_nodeboard")
 
 [sub_resource type="Resource" id="mod_vision_100"]
 script = ExtResource("2_mod")
@@ -648,8 +596,6 @@ script = ExtResource("2_mod")
 stat_id = &"health"
 value = 3.0
 
-[sub_resource type="Resource" id="Resource_v35nn"]
-script = ExtResource("1_nodeboard")
 
 [sub_resource type="Resource" id="Resource_5ns4p"]
 resource_local_to_scene = true
@@ -664,10 +610,6 @@ script = ExtResource("2_mod")
 stat_id = &"dexterity"
 value = 3.0
 
-[sub_resource type="Resource" id="Resource_n1rav"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_sensor_1"]
 script = ExtResource("2_mod")
@@ -677,10 +619,6 @@ stat_id = &"sensor_range"
 script = ExtResource("2_mod")
 stat_id = &"perception"
 
-[sub_resource type="Resource" id="Resource_wrquo"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_int_3"]
 script = ExtResource("2_mod")
@@ -692,44 +630,23 @@ script = ExtResource("2_mod")
 stat_id = &"wisdom"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_o1gci"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
-
-[sub_resource type="Resource" id="Resource_bykwf"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_mp_1"]
 script = ExtResource("2_mod")
 stat_id = &"movement_points"
 
-[sub_resource type="Resource" id="Resource_fb1g3"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_vision_50"]
 script = ExtResource("2_mod")
 stat_id = &"vision_range"
 value = 50.0
 
-[sub_resource type="Resource" id="Resource_7yiaw"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="Resource" id="mod_sensor_2"]
 script = ExtResource("2_mod")
 stat_id = &"sensor_range"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_1oloa"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [node name="DevSandbox" unique_id=381943754 instance=ExtResource("1_base")]
 script = ExtResource("1_dev")
@@ -762,7 +679,6 @@ z_index = 1001
 z_as_relative = false
 owned_by = NodePath("../../Entities/Player")
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
-node_board = SubResource("Resource_qdlxk")
 
 [node name="Up" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="1" unique_id=1730649151 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -771,7 +687,6 @@ position = Vector2(58, -136)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_2")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
-node_board = SubResource("Resource_5smxi")
 
 [node name="Right" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="2" unique_id=1699135446 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -780,7 +695,6 @@ position = Vector2(151, 78)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
-node_board = SubResource("Resource_1733n")
 
 [node name="Down" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="3" unique_id=1425471291 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -789,7 +703,6 @@ position = Vector2(43, 148)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5"), SubResource("Resource_f63mm")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
-node_board = SubResource("Resource_4wewy")
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Down" index="3" unique_id=1569558765 instance=ExtResource("45_df164")]
 spike_color = Color(0.9, 0.2, 0.2, 1)
@@ -802,7 +715,6 @@ position = Vector2(-150, -23)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
-node_board = SubResource("Resource_xhlyp")
 
 [node name="NE" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="5" unique_id=1041223297 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -811,7 +723,6 @@ position = Vector2(163, -64)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 archetype = ExtResource("44_arch_per")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
-node_board = SubResource("Resource_wcpfy")
 
 [node name="Up_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="6" unique_id=1748015269 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -820,7 +731,6 @@ position = Vector2(145, -232)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1"), SubResource("mod_xp_1")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
-node_board = SubResource("Resource_0r3ny")
 
 [node name="Right_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="7" unique_id=1524370075 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -828,7 +738,6 @@ z_as_relative = false
 position = Vector2(261, -41)
 owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
-node_board = SubResource("Resource_1sde5")
 
 [node name="Down_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="8" unique_id=8800201 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -837,7 +746,6 @@ position = Vector2(27, 263)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2")])
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
-node_board = SubResource("Resource_wph1b")
 
 [node name="Left_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="9" unique_id=8800202 instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.9073149)
@@ -846,7 +754,6 @@ z_as_relative = false
 position = Vector2(-283, -107)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 archetype = ExtResource("44_arch_per")
-node_board = SubResource("Resource_ch6bb")
 
 [node name="SW" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="10" unique_id=8800203 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -855,7 +762,6 @@ position = Vector2(-203, 103)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
-node_board = SubResource("Resource_hk07i")
 
 [node name="ClampAddon" parent="Graph/Nodes/SW" index="3" unique_id=442806284 instance=ExtResource("48_owpne")]
 z_index = 1
@@ -868,7 +774,6 @@ owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
-node_board = SubResource("Resource_dn4kc")
 
 [node name="Bridge_S" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="12" unique_id=8800205 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -878,7 +783,6 @@ owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
 archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
-node_board = SubResource("Resource_ph4qk")
 
 [node name="Enemy_Core" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="13" unique_id=8800206 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.5651308)
@@ -886,7 +790,6 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(507, 83)
 owned_by = NodePath("../../Entities/Enemy")
-node_board = SubResource("Resource_hosk5")
 
 [node name="Enemy_N" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="14" unique_id=8800207 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.5045217)
@@ -895,13 +798,11 @@ z_as_relative = false
 position = Vector2(467, -47)
 owned_by = NodePath("../../Entities/Enemy")
 archetype = ExtResource("44_arch_con")
-node_board = SubResource("Resource_i20lm")
 
 [node name="Enemy_E" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="15" unique_id=8800208 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 position = Vector2(607, 123)
 input_pickable = false
 owned_by = NodePath("../../Entities/Enemy")
-node_board = SubResource("Resource_bjjvr")
 
 [node name="Enemy_S" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="16" unique_id=8800209 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.8422355)
@@ -911,14 +812,12 @@ position = Vector2(507, 213)
 owned_by = NodePath("../../Entities/Enemy")
 archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
-node_board = SubResource("Resource_tihqh")
 
 [node name="Enemy_W" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="17" unique_id=8800210 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(397, 143)
 owned_by = NodePath("../../Entities/Enemy")
-node_board = SubResource("Resource_7w62q")
 
 [node name="Watchtower" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="18" unique_id=9000001 instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.3)
@@ -928,7 +827,6 @@ position = Vector2(300, -260)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 archetype = ExtResource("44_arch_per")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
-node_board = SubResource("Resource_v35nn")
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Watchtower" index="3" unique_id=1349571620 instance=ExtResource("45_df164")]
 spike_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
@@ -942,14 +840,12 @@ position = Vector2(-50, -290)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_3")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
-node_board = SubResource("Resource_n1rav")
 
 [node name="Spyglass" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="20" unique_id=9000003 instance=ExtResource("9_skill")]
 position = Vector2(-380, -180)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_1"), SubResource("mod_per_1")])
 archetype = ExtResource("44_arch_per")
-node_board = SubResource("Resource_wrquo")
 
 [node name="Library" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="21" unique_id=9000004 instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.3)
@@ -959,7 +855,6 @@ position = Vector2(-380, 50)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_3"), SubResource("mod_wis_2")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
-node_board = SubResource("Resource_o1gci")
 
 [node name="Forge" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="22" unique_id=9000005 instance=ExtResource("9_skill")]
 modulate = Color(1, 1, 1, 0.3)
@@ -967,7 +862,6 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(-350, 200)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_hp_3")])
-node_board = SubResource("Resource_bykwf")
 
 [node name="Crossroads" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="23" unique_id=9000006 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -976,21 +870,18 @@ position = Vector2(359, -28)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1"), SubResource("mod_mp_1")])
 archetype = ExtResource("44_arch_wis")
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
-node_board = SubResource("Resource_fb1g3")
 
 [node name="Enemy_Tower" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="24" unique_id=9000007 instance=ExtResource("9_skill")]
 position = Vector2(650, -80)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_50")])
 archetype = ExtResource("44_arch_per")
-node_board = SubResource("Resource_7yiaw")
 
 [node name="Enemy_Recon" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="25" unique_id=9000008 instance=ExtResource("9_skill")]
 position = Vector2(750, 120)
 input_pickable = false
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2")])
 archetype = ExtResource("44_arch_per")
-node_board = SubResource("Resource_1oloa")
 
 [node name="Edge_Core_Up" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="0" unique_id=709243764 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]
 z_index = 991

@@ -55,7 +55,7 @@ func after_each() -> void:
 ## entity board. `modifiers` set on the node BEFORE this are granted. The cap
 ## is authored to 3 first so the tests can ramp the fill to 2/3 (the pool
 ## clamps fill to cap).
-func _own() -> StatBoard:
+func _own() -> EntityStatBoard:
 	_node.stake_level = 3
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
@@ -285,9 +285,9 @@ func test_multi_owner_grant_computes_independently_on_each_board() -> void:
 	# calls now.
 	var m := _add_mod(&"strength", 5.0)
 	_node.modifiers = [m]
-	var board_a: StatBoard = _BOARD.duplicate(true) as StatBoard
+	var board_a: EntityStatBoard = _BOARD.duplicate(true) as EntityStatBoard
 	board_a.add_modifier(m)
-	var board_b: StatBoard = _BOARD.duplicate(true) as StatBoard
+	var board_b: EntityStatBoard = _BOARD.duplicate(true) as EntityStatBoard
 	_node.apply_entity_modifiers_to(board_b)
 	assert_eq(int(board_a.strength.value), int(board_a.strength.base_value) + 5,
 			"board A still reflects the grant")

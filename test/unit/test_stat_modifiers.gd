@@ -29,7 +29,7 @@ func _mod(op: int, value: float, formula: StatFormula = null) -> StatModifier:
 	return m
 
 
-func _board() -> StatBoard:
+func _board() -> EntityStatBoard:
 	return _BOARD.duplicate(true)
 
 

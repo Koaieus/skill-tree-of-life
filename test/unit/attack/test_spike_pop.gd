@@ -23,7 +23,7 @@ func _spawn_node(graph: Node, nm: String) -> SkillNode:
 
 
 func _make_entity(graph: Node) -> Entity:
-	var board: StatBoard = _BOARD.duplicate(true)
+	var board: EntityStatBoard = _BOARD.duplicate(true)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
 	graph.add_child(entity)

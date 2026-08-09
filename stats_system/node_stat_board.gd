@@ -25,3 +25,51 @@ extends StatBoard
 ##   modifier actually targets them. There is nothing to author, so a field
 ##   would buy nothing and cost one Stat per node across a 500–2500-node level
 ##   (see .claude/rules/skill-node-scale.md).
+##
+## Note `node_health` stays on the borrowed side despite being the node's own
+## combat pool: the entity board carries that id too (as the ScalarStat
+## baseline the pool re-syncs from), so it is shadowed by the rule above. What
+## it needs is a different Stat CLASS per board, and that is what
+## [method _mint_stat] handles.
+
+## Per-node allocation cap and fill in one pool: `.value` (cap) is the stake
+## level — the N in the M/N dial — and `.current` is the allocation level, the
+## M. 0 = unowned, 1 = baseline, 2+ = staked (#374). The pool's own clamp is
+## the single guard keeping fill ≤ cap.
+##
+## [member SkillNode.stake_level] / [member SkillNode.allocation_level] are
+## proxy properties over this, so authors stay at SkillNode scope and never
+## open the board.
+@export var stake_level: PoolStat
+
+## How many addons this node may carry (#375). `base(0) + allocation_level`,
+## via an ADD_BASE modifier whose formula reads the `stake_level__current`
+## accessor — authored in `intrinsic_modifiers` on
+## `skill_node/default_node_board.tres`, not built in code, so the curve is a
+## one-file edit and the reactive rebind is the ordinary one.
+##
+## Advisory, not enforced: nothing caps attachment yet, and procgen mints
+## addons while nodes are unowned (`allocation_level == 0`). See #348.
+@export var addon_slots: ScalarStat
+
+
+## Node boards are the sparse side — they legitimately mint the stats they
+## borrow from their owner (`armor`, `node_healing`, `blade_damage`, …), so the
+## registry default applies. The one exception is `node_health`: the entity
+## board's `node_health` is the ScalarStat BASELINE, while the node needs a
+## combat POOL (max + current) built from the `node_combat_health` def. Same id,
+## different Stat class per board — which is precisely a fact about this board
+## class, so it lives here instead of as a hardcoded branch in
+## [method SkillNode._ensure_local_stat] reaching into `_extra_stats` directly.
+func _mint_stat(stat_id: StringName) -> Stat:
+	if stat_id != &"node_health":
+		return super(stat_id)
+	var def: StatDef = StatRegistry.get_def(&"node_combat_health")
+	if def == null:
+		push_warning("NodeStatBoard._mint_stat: node_combat_health def missing")
+		return null
+	var hp := PoolStat.new()
+	hp.definition = def
+	hp.base_value = def.default_value
+	_extra_stats[stat_id] = hp
+	return hp

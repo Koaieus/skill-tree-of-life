@@ -117,18 +117,17 @@ func test_remove_local_modifier_unbinds() -> void:
 
 func test_no_local_modifiers_leaves_extra_stats_empty() -> void:
 	var node := _node()
-	# The board itself is scene-packaged (skill_node.tscn, resource_local_to_scene),
-	# so "sparse" is about its CONTENTS, not its existence: no local modifier ever
-	# added -> no borrowed stat was minted. Bake what the node owns, stay sparse
-	# for what it borrows (see NodeStatBoard).
-	assert_eq(node.node_board.get_dynamic_stat_ids(), [] as Array[StringName],
-			"no local modifier ever added -> no borrowed stat minted on node_board")
+	# Two levels of sparseness, both live. The board itself is lazy (cloned from
+	# DEFAULT_NODE_BOARD on first write), so a node that needs nothing allocates
+	# nothing at all — and once it does exist, the stats it BORROWS stay sparse
+	# while the ones it OWNS come baked. See NodeStatBoard.
+	assert_null(node.node_board, "no local modifier ever added -> node_board is never cloned")
 
 
 func test_entity_only_value_passes_through_without_allocating_node_board() -> void:
 	var graph := preload("res://graph/graph.tscn").instantiate()
 	add_child_autofree(graph)
-	var board: StatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
+	var board: EntityStatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
 	graph.add_child(entity)
@@ -157,7 +156,7 @@ func test_entity_only_value_passes_through_without_allocating_node_board() -> vo
 # --- 6. Entity board never gains a node-only stat (regression guard) --------
 
 func test_entity_board_add_modifier_still_noops_for_unknown_id() -> void:
-	var board: StatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
+	var board: EntityStatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
 	var m := _static_mod(&"stake_level", StatModifier.Operation.ADD_BASE, 1.0)
 	board.add_modifier(m)
 	assert_false(board._extra_stats.has(&"stake_level"),

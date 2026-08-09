@@ -8,7 +8,7 @@ extends GutTest
 
 const BOARD := preload("res://entity/default_entity_board.tres")
 
-var _board: StatBoard = null
+var _board: EntityStatBoard = null
 
 
 func before_each() -> void:

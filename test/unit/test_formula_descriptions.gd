@@ -13,7 +13,7 @@ const BOARD := preload("res://entity/default_entity_board.tres")
 const BALANCED_CORE := preload("res://entity/core/balanced_core.tres")
 const LEVEL_SCALING := preload("res://stats_system/formulas/level_scaling.tres")
 
-var _board: StatBoard = null
+var _board: EntityStatBoard = null
 
 
 func before_each() -> void:

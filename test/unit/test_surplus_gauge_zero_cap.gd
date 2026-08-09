@@ -8,13 +8,13 @@ const _PANEL := preload("res://ui/hud/turn_resources_panel/turn_resources_panel.
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _panel: TurnResourcesPanel
-var _board: StatBoard
+var _board: EntityStatBoard
 
 
 func before_each() -> void:
 	_panel = _PANEL.instantiate()
 	add_child_autofree(_panel)
-	_board = _BOARD.duplicate(true) as StatBoard
+	_board = _BOARD.duplicate(true) as EntityStatBoard
 	# Emulate the Pacifist state: MP cap SET to 0, current 0, but 3 surplus
 	# purchased from restraint.
 	var mp := _board.movement_points

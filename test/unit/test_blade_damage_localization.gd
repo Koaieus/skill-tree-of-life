@@ -24,7 +24,7 @@ func _spawn_node(graph: Node, nm: String) -> SkillNode:
 func _setup() -> Dictionary:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
-	var board: StatBoard = _BOARD.duplicate(true)
+	var board: EntityStatBoard = _BOARD.duplicate(true)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
 	graph.add_child(entity)

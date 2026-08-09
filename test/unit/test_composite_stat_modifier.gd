@@ -17,8 +17,8 @@ func _leaf(id: StringName, op: int, value: float) -> StatModifier:
 	return m
 
 
-func _board() -> StatBoard:
-	return _BOARD.duplicate(true) as StatBoard
+func _board() -> EntityStatBoard:
+	return _BOARD.duplicate(true) as EntityStatBoard
 
 
 # --- flatten() seam ---------------------------------------------------------
@@ -193,7 +193,7 @@ func test_looted_composite_applied_flattened_to_board() -> void:
 
 
 func test_ninja_budget_pack_applies_both_stats_through_the_bundle() -> void:
-	var board := _BOARD.duplicate(true) as StatBoard
+	var board := _BOARD.duplicate(true) as EntityStatBoard
 	var dp_before: float = board.deallocation_points.get_value()
 	var sp_before: float = board.skill_points.get_value()
 	for m in _NINJA.modifiers:

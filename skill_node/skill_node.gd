@@ -220,11 +220,24 @@ var revealed: bool = true:
 		revealed = value
 		_apply_sensed_state()
 
-## Sparse [StatBoard] for per-node localized stats. All fields start null;
-## a stat is only allocated when a node-local modifier targets it (via an
-## addon) or when the node is allocated (combat health pool). See
-## [method StatBoard._ensure_stat].
-@export var node_board: NodeStatBoard = null
+## This node's [NodeStatBoard] — cloned from [constant DEFAULT_NODE_BOARD] on
+## first need, so the node-only stats it OWNS (`stake_level`, `addon_slots`)
+## arrive baked and authored, while every stat it BORROWS from its owner
+## (`armor`, `node_healing`, …) stays sparse and is minted only when a
+## node-local modifier targets it. See [NodeStatBoard] for why the split falls
+## along that line.
+##
+## Deliberately NOT `@export`: this is derived (a template clone plus runtime
+## mints), never authored. Exporting it would serialize a full board — every
+## baked Stat sub-resource — into every `.tscn` holding a SkillNode on each
+## editor save, which is godot-tres-authoring.md's derived-value-writeback
+## hazard at 500–2500 nodes per level. Author `stake_level` /
+## `allocation_level` through their SkillNode-scope proxy properties instead;
+## nothing else on the board was ever scene-authored (all 28 previously
+## serialized boards were empty).
+const DEFAULT_NODE_BOARD: NodeStatBoard = preload("res://skill_node/default_node_board.tres")
+
+var node_board: NodeStatBoard = null
 
 ## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
 ## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
@@ -235,7 +248,7 @@ var revealed: bool = true:
 var _tags: Dictionary[StringName, int] = {}
 
 ## Per-node allocation cap — the N in the M/N dial, and `.max` of the
-## node-board `stake_level` PoolStat (see [method _mint_stake_pool]).
+## node-board `stake_level` PoolStat (the baked [member NodeStatBoard.stake_level]).
 ## `allocation_level` is that pool's `.current`: 0 = unowned, 1 = baseline,
 ## 2+ = staked (e.g. stake_level=3 + allocation_level=1 reads as a 1/3 node).
 ## The pool's clamp is the single guard that keeps fill ≤ cap (#374).
@@ -255,8 +268,7 @@ var _tags: Dictionary[StringName, int] = {}
 ## Pure node-local — never registered with an entity StatBoard.
 @export_range(1, 4, 1, "or_greater") var stake_level: int:
 	get:
-		var pool := node_board.get_stat(&"stake_level") as PoolStat if node_board != null else null
-		return int(pool.value) if pool != null else _stake_level_backing
+		return int(node_board.stake_level.value) if node_board != null else _stake_level_backing
 	set(value):
 		if stake_level == value:
 			return
@@ -273,8 +285,7 @@ var _stake_level_backing: int = 1
 ## node is content, same as a pre-staked cap).
 @export var allocation_level: int:
 	get:
-		var pool := node_board.get_stat(&"stake_level") as PoolStat if node_board != null else null
-		return int(pool.current) if pool != null else _allocation_level_backing
+		return int(node_board.stake_level.current) if node_board != null else _allocation_level_backing
 	set(value):
 		if allocation_level == value:
 			return
@@ -321,7 +332,7 @@ func _ready() -> void:
 	# _refresh_hp_binding below when owned, or _ensure_local_stat /
 	# add_local_modifier on first need. Authored pre-_ready stake_level /
 	# allocation_level sit in their backing fields until then and are pushed
-	# into the pool by the mint (see _init_node_board / _mint_stake_pool).
+	# into the pool when the board clones (see _init_node_board).
 	# owned_by may already be non-null here — set as a scene-baked @export
 	# (dev_sandbox.tscn's pre-owned nodes), which assigns the property (and
 	# emits owner_changed into the void) before any listener is connected.
@@ -592,23 +603,12 @@ func get_local_value(stat_id: StringName) -> Variant:
 ## [param stat_id]. This IS the modifier target — callers that just need a
 ## value should use [method get_local_value] instead, which does not allocate.
 ##
-## When [param stat_id] is "node_health", a PoolStat is created (using the
-## [code]node_combat_health[/code] PoolStatDef for its settings) instead of
-## a ScalarStat — the entity board already owns the ScalarStat baseline;
-## the node board needs the combat pool (max + current).
+## The `node_health`-is-a-PoolStat-here special case moved to
+## [method NodeStatBoard._mint_stat], where it belongs — "which Stat class this
+## id takes" is a fact about the board, not about the node holding it. That also
+## retired this method's direct write into `node_board._extra_stats`.
 func _ensure_local_stat(stat_id: StringName) -> Stat:
 	_init_node_board()
-	if stat_id == &"node_health":
-		var existing := node_board.get_stat(stat_id)
-		if existing != null:
-			return existing
-		var def: StatDef = StatRegistry.get_def(&"node_combat_health")
-		if def != null:
-			var hp := PoolStat.new()
-			hp.definition = def
-			hp.base_value = def.default_value
-			node_board._extra_stats[stat_id] = hp
-			return hp
 	return node_board._ensure_stat(stat_id)
 
 
@@ -1069,83 +1069,52 @@ func _reset_combat_health() -> void:
 		hp.set_current(0.0)
 
 
+## Materialize [member node_board] from [constant DEFAULT_NODE_BOARD] — a deep
+## clone, exactly like [method Entity._ready] does with the entity template.
+## Deep because `duplicate(true)` is what gives this node its OWN `stake_level`
+## pool and `addon_slots` stat; a shallow copy (or `resource_local_to_scene` on
+## the template, the other candidate) would leave every SkillNode in the level
+## sharing one set of Stat instances, and every local modifier would apply
+## globally. `resource_local_to_scene` does NOT recurse into sub-resources —
+## each Stat would need the flag individually — which is exactly the discipline
+## the Entity pattern avoids having to remember.
+##
+## Lazy, and called from every write path (both proxy setters,
+## [method _ensure_local_stat], [method add_local_modifier]): a node that never
+## needs a board never pays for one.
 func _init_node_board() -> void:
-	if node_board == null:
-		node_board = NodeStatBoard.new()
-	_mint_stake_pool()
-	_mint_addon_slots()
-
-
-## Mint `addon_slots` — base(0) + allocation_level, plain 1:1 — on boards that
-## carry addons (#375). The formula reads the stake pool through the
-## `stake_level__current` accessor, so a fill change recomputes reactively.
-## Sparse: boards without addons never get the stat (nor the formula). The
-## formula is the #376 parallel path — the mutator skips modifiers whose
-## formula reads `stake_level`, so this never double-scales.
-func _mint_addon_slots() -> void:
-	if Engine.is_editor_hint() or _addon_slots_wired:
+	if node_board != null:
 		return
-	if _addons.is_empty():
-		return
-	_addon_slots_wired = true
-	var formula := ExpressionFormula.new()
-	formula.formula = "stake_level__current"
-	formula.inputs = [&"stake_level__current"]
-	formula.per_phrase = "allocation level"
-	var m := StatModifier.new()
-	m.stat_id = &"addon_slots"
-	m.operation = StatModifier.Operation.ADD_BASE
-	m.value = 1.0
-	m.formula = formula
-	add_local_modifier(m)
-var _addon_slots_wired: bool = false
-
-
-## Mint the `stake_level` PoolStat on [member node_board] if absent, then sync
-## its cap/current from the BACKING fields (not the proxy getters — the pool
-## must not read its own just-minted state). The pool is the reactive home of
-## the M/N pair: formulas read the fill via the `stake_level__current`
-## accessor (#375), and the local-scale mutator binds its `current_changed`
-## (#376). The cap door is [method PoolStat.set_base_ratcheted] — the def opts
-## out of heal_on_max_increase, so a cap rise never auto-fills the allocation
-## level (the player still pays SP for the fill).
-func _mint_stake_pool() -> void:
-	var pool := node_board.get_stat(&"stake_level") as PoolStat
-	if pool == null:
-		var def: StatDef = StatRegistry.get_def(&"stake_level")
-		if def == null:
-			return
-		pool = PoolStat.new()
-		pool.definition = def
-		pool.base_value = def.default_value
-		node_board._extra_stats[&"stake_level"] = pool
-		pool.current_changed.connect(_on_stake_level_changed)
-	pool.set_base_ratcheted(float(_stake_level_backing))
-	pool.set_current(float(_allocation_level_backing))
+	node_board = DEFAULT_NODE_BOARD.duplicate(true)
+	# The reactive edge feeding the #376 local-scale mutator, and the read side
+	# of the `stake_level__current` accessor. Connected here rather than in the
+	# template because a signal connection is not a resource property.
+	node_board.stake_level.current_changed.connect(_on_stake_level_changed)
+	# `addon_slots = base(0) + allocation_level` — authored on the template as
+	# an intrinsic instead of built in code, so the formula is a one-file edit
+	# and binds through the ordinary reactive path (#375). Applying intrinsics
+	# on a node board mirrors Entity._ready's apply_intrinsics() call.
+	node_board.apply_intrinsics()
+	# Push the AUTHORED backings, not the proxy getters — the getters would read
+	# the pool's just-cloned template state and overwrite what the author set.
+	node_board.stake_level.set_base_ratcheted(float(_stake_level_backing))
+	node_board.stake_level.set_current(float(_allocation_level_backing))
 
 
 ## Push the authored [member stake_level] backing into the node-board pool's
-## cap. Mints the board + pool on demand (a written cap is the pool's birth
-## event for unallocated nodes). No-op pre-mint only when nothing is written.
+## cap. Clones the board on demand (a written cap is its birth event for an
+## unallocated node); the pool itself is baked, so it is never absent after.
 func _push_stake_level() -> void:
-	if node_board == null:
-		_init_node_board()
-	var pool := node_board.get_stat(&"stake_level") as PoolStat
-	if pool == null:
-		return
-	pool.set_base_ratcheted(float(_stake_level_backing))
+	_init_node_board()
+	node_board.stake_level.set_base_ratcheted(float(_stake_level_backing))
 
 
 ## Push the [member allocation_level] backing into the node-board pool's
-## current — the pool's clamp is what keeps fill ≤ cap. Mints on demand like
-## [method _push_stake_level].
+## current — the pool's clamp is what keeps fill ≤ cap. Clones the board on
+## demand like [method _push_stake_level].
 func _push_allocation_level() -> void:
-	if node_board == null:
-		_init_node_board()
-	var pool := node_board.get_stat(&"stake_level") as PoolStat
-	if pool == null:
-		return
-	pool.set_current(float(_allocation_level_backing))
+	_init_node_board()
+	node_board.stake_level.set_current(float(_allocation_level_backing))
 
 
 ## Hooked to the stake pool's `current_changed` — the reactive edge that runs

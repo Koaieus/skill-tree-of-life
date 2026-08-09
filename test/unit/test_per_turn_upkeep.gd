@@ -7,11 +7,11 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
-var _board: StatBoard
+var _board: EntityStatBoard
 
 
 func before_each() -> void:
-	_board = _BOARD.duplicate(true) as StatBoard
+	_board = _BOARD.duplicate(true) as EntityStatBoard
 
 
 func _refill_pools() -> Array:

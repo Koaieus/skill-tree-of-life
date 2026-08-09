@@ -18,7 +18,7 @@ var _seq: PoolLevelSequencer
 func before_each() -> void:
 	# Default XP pool: cap 5, GrowablePoolStatDef with growth_flat 5 and
 	# post_grow_mode OVERFLOW — so the caps walk 5 → 10 → 15 → …
-	var board: StatBoard = _BOARD.duplicate(true)
+	var board: EntityStatBoard = _BOARD.duplicate(true)
 	_xp = board.xp
 	_seq = PoolLevelSequencer.new(float(_xp.value))
 	_xp.value_changed.connect(func(): _seq.observe(float(_xp.current), float(_xp.value)))

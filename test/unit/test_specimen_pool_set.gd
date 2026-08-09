@@ -110,7 +110,7 @@ func test_value_overrides_stay_under_repo_budget() -> void:
 func test_pipeline_clamps_negative_increase_below_minus_100() -> void:
 	# Standalone unit-test for the modifier_bins clamp. Build a board with
 	# strength=10, stack INCREASE = -120%. Effective value should be 0.
-	var board := preload("res://entity/default_entity_board.tres").duplicate(true) as StatBoard
+	var board := preload("res://entity/default_entity_board.tres").duplicate(true) as EntityStatBoard
 	board.strength.base_value = 10.0
 	var m1 := StatModifier.new()
 	m1.stat_id = &"strength"

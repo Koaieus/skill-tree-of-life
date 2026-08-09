@@ -4,16 +4,11 @@
 [ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_58fw3"]
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_i1vuw"]
-[ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="1_nodeboard"]
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
 [ext_resource type="Script" uid="uid://drxjp5sanc7cf" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
 
-[sub_resource type="Resource" id="Resource_drqyt"]
-resource_local_to_scene = true
-script = ExtResource("1_nodeboard")
-metadata/_custom_type_script = "uid://bk0uo05s658hk"
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -58,7 +53,6 @@ corner_detail = 6
 
 [node name="SkillNode" type="Area2D" unique_id=1765804138]
 script = ExtResource("1_skill")
-node_board = SubResource("Resource_drqyt")
 stake_level = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=987061496]

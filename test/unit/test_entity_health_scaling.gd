@@ -7,8 +7,8 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 
-func _board() -> StatBoard:
-	var b := _BOARD.duplicate(true) as StatBoard
+func _board() -> EntityStatBoard:
+	var b := _BOARD.duplicate(true) as EntityStatBoard
 	b.apply_intrinsics()
 	return b
 

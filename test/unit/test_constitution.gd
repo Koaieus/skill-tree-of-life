@@ -8,8 +8,8 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 
-func _board() -> StatBoard:
-	return _BOARD.duplicate(true) as StatBoard
+func _board() -> EntityStatBoard:
+	return _BOARD.duplicate(true) as EntityStatBoard
 
 
 # --- 1. constitution resolves + is present on a fresh default board --------

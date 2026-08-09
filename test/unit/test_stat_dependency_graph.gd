@@ -130,8 +130,8 @@ func test_every_authored_core_class_is_acyclic_on_top_of_the_board() -> void:
 ## array — so the
 ## fixture must apply_intrinsics() the same way Entity._ready() does, or the
 ## board carries the authored edges nowhere would_cycle can see them.
-func _board() -> StatBoard:
-	var board := BOARD.duplicate(true) as StatBoard
+func _board() -> EntityStatBoard:
+	var board := BOARD.duplicate(true) as EntityStatBoard
 	board.apply_intrinsics()
 	return board
 

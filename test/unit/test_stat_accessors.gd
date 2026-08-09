@@ -27,7 +27,7 @@ const DEALLOC_DEF := preload("res://stats_system/defs/deallocation_points.tres")
 const STRENGTH_DEF := preload("res://stats_system/defs/strength.tres")
 const HEALTH_DEF := preload("res://stats_system/defs/health.tres")
 
-var _board: StatBoard = null
+var _board: EntityStatBoard = null
 
 
 func before_each() -> void:

@@ -123,7 +123,8 @@ func _add_scalar_row(id: StringName) -> void:
 	_row_setters.append(row.set_progress)
 
 
-## Dynamic (node-local) stat ids on [member SkillNode.node_board], minus the
+## Every stat id live on [member SkillNode.node_board] — baked node-only ones
+## (`stake_level`, `addon_slots`) and dynamically minted borrowed ones — minus the
 ## offensive stats this panel deliberately excludes and the ids already
 ## rendered by [method _add_always_shown_rows]. Empty (never null) when the
 ## node has no node_board or no dynamic stats.
@@ -131,7 +132,7 @@ func _visible_dynamic_ids() -> Array[StringName]:
 	var result: Array[StringName] = []
 	if _bound_node == null or _bound_node.node_board == null:
 		return result
-	for id in _bound_node.node_board.get_dynamic_stat_ids():
+	for id in _bound_node.node_board.get_stat_ids():
 		if id in _EXCLUDED_STAT_IDS or id in _ALWAYS_SHOWN_STAT_IDS:
 			continue
 		result.append(id)
