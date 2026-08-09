@@ -86,8 +86,19 @@ func take_turn() -> void:
 			if best == null:
 				_decide("no reachable attack this turn")
 				break
+			# BattleSystem.launch_attack() has bail-outs (insufficient AP for
+			# outcome.ap_cost, insufficient mana) that return WITHOUT deducting
+			# AP or clearing the plan — _execute_candidate still reports true
+			# since it awaited the call. Without this guard the loop would
+			# re-enumerate, re-pick the same candidate, and spin forever
+			# (synchronously, at turn_delay = 0). Break on no observed AP
+			# progress instead of trusting the return value alone.
+			var ap_before := ap.current
 			if not await _execute_candidate(best):
 				_decide("attack execution failed: %s" % best.trace)
+				break
+			if entity.stat_board.action_points != null and entity.stat_board.action_points.current >= ap_before:
+				_decide("attack committed but AP unchanged — stopping: %s" % best.trace)
 				break
 			_decide(best.trace)
 			await _wait()
@@ -130,10 +141,11 @@ func _pick_frontier_node(visible_enemies: Array[SkillNode]) -> SkillNode:
 		return null
 	if visible_enemies.is_empty():
 		return frontier[0]
+	var near_miss := AiCombatScorer.near_miss_targets(entity, visible_enemies)
 	var best: SkillNode = null
 	var best_score := -INF
 	for candidate in frontier:
-		var s := AiCombatScorer.score_frontier(candidate, entity, visible_enemies)
+		var s := AiCombatScorer.score_frontier(candidate, entity, visible_enemies, near_miss)
 		if s > best_score:
 			best_score = s
 			best = candidate
@@ -185,6 +197,15 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 ## Every (known spell × owned casting source × visible hostile target)
 ## combination whose plan validates. No spellbook / no known spells -> no
 ## magic candidates, same as a naive entity that never learned one.
+##
+## Filters targets via [method AttackPlan.get_node_role] == IN_RANGE (the
+## plan's own cached [method MagicAttackPlan._valid_targets], built once per
+## (spell, source) off ONE [method RangeFinder.gather] traversal — see #385)
+## rather than [method AttackPlan.is_valid], which only checks presence, not
+## reachability: [method AttackPlan.resolve] trusts a set target unconditionally
+## (it exists to preview/commit a UI-picked target, not to re-validate one), so
+## skipping this filter would let the AI "cast" at an out-of-hop-range target
+## and still score a hit.
 func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	if entity.spellbook == null or entity.navigator == null:
@@ -195,19 +216,23 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	var owned := entity.navigator.get_mirrored_nodes()
 	for spell in spells:
 		for source in owned:
+			var probe := MagicAttackPlan.new()
+			probe.attacker = entity
+			probe.spell = spell
+			probe.source = source
 			for target in visible_enemies:
-				var plan := MagicAttackPlan.new()
-				plan.attacker = entity
-				plan.spell = spell
-				plan.source = source
-				plan.target = target
-				if not plan.is_valid():
+				if probe.get_node_role(target) != HighlightProvider.HighlightRole.IN_RANGE:
 					continue
-				var outcome := plan.resolve()
+				probe.target = target
+				if not probe.is_valid():
+					probe.target = null
+					continue
+				var outcome := probe.resolve()
 				var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier)
 				c.source_node = source
 				c.spell = spell
 				out.append(c)
+				probe.target = null
 	return out
 
 

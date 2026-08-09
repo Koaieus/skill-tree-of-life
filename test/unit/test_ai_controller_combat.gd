@@ -11,9 +11,9 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _SPARK_SPELL := preload("res://attack/spell/defs/spark.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -51,7 +51,7 @@ func before_each() -> void:
 	for i in 3:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
+		_graph.add_skill_node(sn)
 		_nodes.append(sn)
 	_add_edge(_nodes[0], _nodes[1])
 
@@ -120,11 +120,12 @@ func _on_attack_launched(mode: BattleSystem.AttackMode, _spell: SpellDef) -> voi
 	_launches.append(mode)
 
 
+## Routes through Graph.add_edge (emits edge_added) rather than a raw child-add
+## — the magic candidate tests need graph.navigator (the GLOBAL mirror
+## HopRangeFinder traverses) to actually see the edge; a raw
+## edges_container.add_child skips that signal entirely. See .claude/rules/graph.md.
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	_graph.add_edge(a, b)
 
 
 func _true_damage(target: SkillNode, amount: float) -> void:
@@ -171,8 +172,9 @@ func test_dent_then_finish_on_ap2() -> void:
 # ---------------------------------------------------------------------------
 
 func test_one_damage_floor_spends_ap_even_without_a_kill_this_turn() -> void:
-	# H0 has far more HP than either AP can remove this turn.
-	_true_damage(_nodes[2], -1000000.0) # no-op guard; H0 starts at full HP
+	# H0 starts at full HP (fixture default) — far more than either AP can
+	# remove this turn. The acceptance property is "no minimum-EV gate blocks
+	# an attack" — the assertions below are what demonstrate it, not this line.
 	var target_hp := _nodes[2].get_current_hp()
 	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
 	assert_gt(target_hp, per_shot * 2.0, "fixture should not be killable in one turn")
@@ -201,13 +203,13 @@ func test_frontier_growth_prioritizes_near_miss_enabling_leaf() -> void:
 
 	var enabling := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	enabling.name = "Enabling"
-	_graph.skill_nodes_container.add_child(enabling)
+	_graph.add_skill_node(enabling)
 	_add_edge(_nodes[1], enabling)
 	enabling.global_position = Vector2(250.0, 0.0) # within `range` (400) of H0 (600,0)
 
 	var decoy := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	decoy.name = "Decoy"
-	_graph.skill_nodes_container.add_child(decoy)
+	_graph.add_skill_node(decoy)
 	_add_edge(_nodes[1], decoy)
 	decoy.global_position = Vector2(100.0, 50.0) # closer to AI core, useless for the kill
 
@@ -227,3 +229,50 @@ func test_frontier_growth_prioritizes_near_miss_enabling_leaf() -> void:
 	assert_eq(enabling.owned_by, _enemy, "growth should prefer the leaf that lands the near-miss kill")
 	assert_gt(allocation_order.size(), 0, "at least the enabling leaf should have been allocated")
 	assert_eq(allocation_order[0], enabling, "the near-miss enabler must be allocated before the decoy")
+
+
+# ---------------------------------------------------------------------------
+# Magic candidates — the third mode, and the AP-progress guard
+# ---------------------------------------------------------------------------
+
+## Push H0 out of ranged's Euclidean `range` (so RangedAttackPlan invalidates
+## and never enters the candidate pool at all) but connect it to N1 by a
+## direct edge, so Spark's hop-based [HopRangeFinder] (3 hops, position-
+## independent) still reaches it. Isolates "can a magic candidate be gathered
+## and executed" from "does it currently out-damage ranged" — Spark's
+## resolved damage in this default board is INT-formula-driven, not the
+## flat 5 its description advertises, so it isn't reliably higher-EV than a
+## reaching ranged shot.
+func _make_ranged_unreachable_but_magic_reachable() -> void:
+	_enemy.stat_board.vision_range.base_value = 6000.0 # keep H0 fog-visible despite the move
+	_nodes[2].global_position = Vector2(5000.0, 0.0)
+	_add_edge(_nodes[1], _nodes[2])
+
+
+func test_magic_candidate_is_gathered_and_can_be_executed() -> void:
+	# N1 has degree 1 (edge to N0) >= Spark's min_degree (1).
+	_make_ranged_unreachable_but_magic_reachable()
+	_enemy.get_spellbook().learn(_SPARK_SPELL)
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_true(_launches.has(BattleSystem.AttackMode.MAGIC),
+			"the only reachable candidate this turn is magic")
+	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
+
+
+func test_magic_insufficient_mana_does_not_hang_the_turn() -> void:
+	# Magic is the only reachable mode, but launch_attack's mana check bails
+	# without deducting AP or clearing the plan — the AP-progress guard must
+	# stop the loop instead of spinning on the same candidate forever.
+	_make_ranged_unreachable_but_magic_reachable()
+	_enemy.get_spellbook().learn(_SPARK_SPELL)
+	_enemy.stat_board.mana.set_current(0.0)
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_ne(_tm.current_entity, _enemy, "turn must still end, not hang on a bailed-out cast")
+	var saw_stall := _decisions.any(func(s: String) -> bool: return s.find("AP unchanged") != -1)
+	assert_true(saw_stall, "the mana-bail stall should be visible in the decision trace: %s" % str(_decisions))

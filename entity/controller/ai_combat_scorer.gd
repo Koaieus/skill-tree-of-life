@@ -134,20 +134,51 @@ static func _armor_weakness(target: SkillNode) -> float:
 	return maxf(0.0, -float(target.get_local_value(&"armor")))
 
 
+## Which currently-visible enemies are a NEAR MISS for the attacker's
+## EXISTING ranged reach — hp survives current owned-leaf EV by no more than
+## one more shot. Compute ONCE per turn (the caller passes the result into
+## every [method score_frontier] call over the frontier candidate set) rather
+## than once per (candidate × target): the graph.md rule against O(N) reach
+## queries in a loop applies here too — a [RangedAttackPlan] build + resolve
+## per target is a real traversal, and a frontier pass is O(candidates), not
+## O(1).
+static func near_miss_targets(attacker: Entity, visible_enemies: Array[SkillNode]) -> Dictionary[SkillNode, bool]:
+	var out: Dictionary[SkillNode, bool] = {}
+	if attacker == null or attacker.stat_board == null:
+		return out
+	var per_shot: float = float(attacker.stat_board.ranged_damage.value) \
+			if attacker.stat_board.ranged_damage != null else 1.0
+	for target in visible_enemies:
+		if target == null:
+			continue
+		var current_hp := target.get_current_hp()
+		if current_hp <= 0.0:
+			continue
+		var plan := RangedAttackPlan.new()
+		plan.attacker = attacker
+		plan.target = target
+		var current_ev := expected_damage(plan.resolve()) if plan.is_valid() else 0.0
+		if current_ev >= current_hp:
+			continue # already lethal without any new leaf — nothing to enable
+		if current_hp - current_ev <= maxf(per_shot, 1.0):
+			out[target] = true
+	return out
+
+
 ## Heuristic score for a candidate frontier allocation (unowned node adjacent
-## to the attacker's territory), given the enemies currently visible. Higher
+## to the attacker's territory), given the enemies currently visible and the
+## precomputed [param near_miss] set (see [method near_miss_targets]). Higher
 ## is better. Two components:
 ##   - directional: closer to the nearest visible enemy scores higher (a
 ##     frontier pick that grows toward the fight beats one that grows away
 ##     from it).
 ##   - tactical-enable: if allocating this candidate would put a new firing
-##     position in range of a target that's currently a NEAR MISS (the
-##     attacker's existing leaves fall just short of a kill), that dominates
-##     distance entirely — see [constant _NEAR_MISS_ENABLE_BONUS].
+##     position in range of a near-miss target, that dominates distance
+##     entirely — see [constant _NEAR_MISS_ENABLE_BONUS].
 ## Returns 0.0 if [param candidate] is out of range of every visible enemy
 ## and there is nothing to enable or move toward.
 static func score_frontier(candidate: SkillNode, attacker: Entity,
-		visible_enemies: Array[SkillNode]) -> float:
+		visible_enemies: Array[SkillNode], near_miss: Dictionary[SkillNode, bool]) -> float:
 	if candidate == null or attacker == null or attacker.stat_board == null \
 			or visible_enemies.is_empty():
 		return 0.0
@@ -162,28 +193,8 @@ static func score_frontier(candidate: SkillNode, attacker: Entity,
 		nearest_distance = minf(nearest_distance, d)
 		if d > est_range:
 			continue
-		var current_hp := target.get_current_hp()
-		if current_hp <= 0.0:
-			continue
-		var current_ev := _current_ranged_ev(attacker, target)
-		if current_ev >= current_hp:
-			continue # already lethal without this candidate — nothing to enable
-		var per_shot: float = float(attacker.stat_board.ranged_damage.value) \
-				if attacker.stat_board.ranged_damage != null else 1.0
-		if current_hp - current_ev <= maxf(per_shot, 1.0):
-			enable_bonus = maxf(enable_bonus, _NEAR_MISS_ENABLE_BONUS)
+		if near_miss.has(target):
+			enable_bonus = _NEAR_MISS_ENABLE_BONUS
 	if nearest_distance == INF:
 		return 0.0
 	return enable_bonus - nearest_distance
-
-
-## Current best ranged EV against [param target] using the attacker's
-## EXISTING owned leaves — the baseline [method score_frontier] checks a
-## candidate allocation against to detect a near miss.
-static func _current_ranged_ev(attacker: Entity, target: SkillNode) -> float:
-	var plan := RangedAttackPlan.new()
-	plan.attacker = attacker
-	plan.target = target
-	if not plan.is_valid():
-		return 0.0
-	return expected_damage(plan.resolve())

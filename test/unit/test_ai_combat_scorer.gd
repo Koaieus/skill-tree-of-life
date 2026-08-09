@@ -235,8 +235,9 @@ func test_score_frontier_prefers_near_miss_enabling_candidate_over_closer_one() 
 	near_other.global_position = Vector2(115.0, 0.0) # next to H2, out of range of H0
 
 	var visible: Array[SkillNode] = [_nodes[2], _nodes[4]]
-	var enabling_score := AiCombatScorer.score_frontier(far_enabler, _ai, visible)
-	var non_enabling_score := AiCombatScorer.score_frontier(near_other, _ai, visible)
+	var near_miss := AiCombatScorer.near_miss_targets(_ai, visible)
+	var enabling_score := AiCombatScorer.score_frontier(far_enabler, _ai, visible, near_miss)
+	var non_enabling_score := AiCombatScorer.score_frontier(near_other, _ai, visible, near_miss)
 
 	assert_gt(enabling_score, non_enabling_score,
 			"a frontier pick that lands a near-miss kill must beat a merely-closer one")
@@ -256,6 +257,16 @@ func test_score_frontier_falls_back_to_directional_without_a_near_miss() -> void
 	far.global_position = Vector2(150.0, 5000.0)
 
 	var visible: Array[SkillNode] = [_nodes[2]]
-	assert_gt(AiCombatScorer.score_frontier(near, _ai, visible),
-			AiCombatScorer.score_frontier(far, _ai, visible),
+	var near_miss := AiCombatScorer.near_miss_targets(_ai, visible)
+	assert_true(near_miss.is_empty(), "H0 is at full HP — nothing to enable")
+	assert_gt(AiCombatScorer.score_frontier(near, _ai, visible, near_miss),
+			AiCombatScorer.score_frontier(far, _ai, visible, near_miss),
 			"with no near-miss to enable, closer-to-the-enemy wins")
+
+
+func test_near_miss_targets_excludes_targets_already_lethal_or_full_health() -> void:
+	# H0 at full HP, out of `range` for the fixture's single leaf -> current
+	# ranged EV against it is 0, and 0 < full HP by more than one shot: not a
+	# near miss.
+	var visible: Array[SkillNode] = [_nodes[2]]
+	assert_true(AiCombatScorer.near_miss_targets(_ai, visible).is_empty())
