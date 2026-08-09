@@ -15,8 +15,7 @@ extends Control
 const _SANDROB_SCRIPT := preload("res://ui/tooltip_fan/fan_live_sandbox.gd")
 const _FAN_SCENE_PATH := "res://ui/tooltip_fan/fan.tscn"
 
-@onready var _sandbox: Node = %Sandbox
-@onready var _viewport: SubViewport = %World
+@onready var _sandbox: Node2D = %Sandbox
 
 
 func _ready() -> void:
@@ -27,14 +26,6 @@ func _ready() -> void:
 	_wire_drive()
 	_wire_editor()
 	_sync_controls()
-
-
-func _process(_delta: float) -> void:
-	# Keep the fan anchored near the lower centre so the traces sprout up into
-	# view as the viewport resizes (Roots hang down below the node, so the
-	# anchor sits well above the bottom edge).
-	if _sandbox != null and _viewport != null:
-		_sandbox.position = Vector2(_viewport.size.x * 0.5, _viewport.size.y * 0.82)
 
 
 # --- wiring ---------------------------------------------------------------------

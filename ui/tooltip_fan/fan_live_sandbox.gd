@@ -28,19 +28,22 @@ extends Node2D
 ##     fixture node + ring), a clock scrub (writes component `progress`
 ##     directly — the doc-blessed preview scrubber), and pointer-drag on the
 ##     real units (FanAnchorDriver re-routes the traces live; this supersedes
-##     the old draggable [Marker2D] handles).
+##     the old draggable [Marker2D] handles). Grabbing the fixture node itself
+##     drags the whole rig — the live-panel way to relocate the bench, instead
+##     of hand-editing `Sandbox.position` in the `.tscn`.
 ##
-## Serialization invariants (.claude/rules/godot-workflow.md): every write this
-## script makes — unit positions while dragging, `node_radius`, the clock
-## knobs, addon children — lands on RUNTIME instances the panel scene instanti
-## at `_ready`, never on authored scene properties, so nothing here can dirty a
-## `.tscn` or `.tres`. The one exception is the fixture [SkillNode]'s addons,
-## whose modifier transfer is runtime-only in `skill_node.gd` (editor-hint
-## guarded), so attaching eight of them in-editor mutates no shared resource.
-
-const _FAN_SCENE := preload("res://ui/tooltip_fan/fan.tscn")
+## This script's scene is `fan_live_sandbox.tscn` — fixture and fan are
+## preauthored children (`%Graph`/`%SkillNode`/`%Fan`), the same "real node,
+## not a mock" convention `node_visuals_panel.gd`'s `%SkillNodeLab` already
+## established for this family of live-preview panels. `fan_live_panel.tscn`
+## instances that scene (as `Sandbox`) rather than authoring the fixture
+## inline, which is also what lets `test_fan_live_sandbox.gd` instantiate the
+## same bench standalone. It's only ever `instantiate()`d at runtime — by the
+## sandbox-host dock (`sandbox_live_tab.gd`) or by the test — never opened as
+## the editor's primary edited scene, so property writes below never round-trip
+## into the `.tscn`. The two off-screen neighbour nodes (for a real IdChip
+## degree) have no authorable content of their own and stay runtime-spawned.
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_BOARD := preload("res://entity/default_entity_board.tres")
 const _BALANCED_CORE := preload("res://entity/core/balanced_core.tres")
 const _ENEMY_CORE := preload("res://entity/core/basic_enemy_core.tres")
@@ -127,9 +130,9 @@ enum _Mode { MANUAL, LOOP, HOVER }
 ## Full-open dwell before the loop retracts.
 @export_range(0.0, 3.0, 0.05) var hold_duration := 0.7
 
-var _fan: Node = null
-var _node: SkillNode = null
-var _graph: Graph = null
+@onready var _fan: FanAnchorDriver = %Fan
+@onready var _node: SkillNode = %SkillNode
+@onready var _graph: Graph = %Graph
 var _entity: Entity = null
 
 var _mode := _Mode.MANUAL
@@ -141,6 +144,11 @@ var _open := false
 var _hovering := false
 var _drag_unit: Node = null
 var _grab_offset := Vector2.ZERO
+## Whole-rig drag: grabbing the fixture node itself (not a FanUnit panel)
+## relocates the bench — the live-panel alternative to hand-editing
+## `Sandbox.position` in the `.tscn`.
+var _drag_rig := false
+var _rig_grab_offset := Vector2.ZERO
 var _current_preset := ""
 
 
@@ -152,17 +160,13 @@ func _ready() -> void:
 	set_process(true)
 
 
-## Instantiates the whole bench: a small real [Graph] (fixture node + two
-## off-screen neighbours so the IdChip degree reads real), the fixture
-## [Entity] on a duplicated default board, and the real fan scene. Every member
-## starts hidden — FanUnit/FanPanel `_ready` leave authored content visible
-## under `@tool`, which is for editor authoring, not for the bench.
+## Wires the preauthored bench: `%Graph`/`%SkillNode`/`%Fan` are real scene
+## children (see class doc); this just adds the two off-screen neighbours (for
+## a real IdChip degree) and the fixture [Entity], which has no authorable
+## content worth preauthoring. Every member starts hidden — FanUnit/FanPanel
+## `_ready` leave authored content visible under `@tool`, which is for editor
+## authoring, not for the bench.
 func _mount_world() -> void:
-	_graph = _GRAPH_SCENE.instantiate() # TODO: replace with scene composition
-	add_child(_graph)
-
-	_node = _NODE_SCENE.instantiate() # TODO: replace with scene composition
-	_graph.add_skill_node(_node)
 	for offset in [Vector2(0, 3000), Vector2(3000, 0)]:
 		var dummy := _NODE_SCENE.instantiate() # TODO: replace with scene composition
 		dummy.position = offset
@@ -173,8 +177,6 @@ func _mount_world() -> void:
 	_entity.stat_board = _ENTITY_BOARD.duplicate(true) as EntityStatBoard # TODO: would already be included in Entity scene
 	add_child(_entity)
 
-	_fan = _FAN_SCENE.instantiate()  # TODO: replace with scene composition
-	add_child(_fan)
 	_enter_hidden_all()
 	_apply_zoom()
 
@@ -364,27 +366,23 @@ func set_zoom(v: float) -> void:
 
 func _apply_zoom() -> void:
 	if _fan != null and _node != null:
-		(_fan as FanAnchorDriver).node_radius = _node.radius * zoom
+		_fan.node_radius = _node.radius * zoom
 
 
 func set_pin_step_degrees(v: float) -> void:
-	if _fan != null:
-		(_fan as FanAnchorDriver).pin_step_degrees = v
+	_fan.pin_step_degrees = v
 
 
 func set_max_arc_degrees(v: float) -> void:
-	if _fan != null:
-		(_fan as FanAnchorDriver).max_arc_degrees = v
+	_fan.max_arc_degrees = v
 
 
 func set_pin_factor(v: float) -> void:
-	if _fan != null:
-		(_fan as FanAnchorDriver).pin_factor = v
+	_fan.pin_factor = v
 
 
 func set_pin_slide_rate(v: float) -> void:
-	if _fan != null:
-		(_fan as FanAnchorDriver).pin_slide_rate = v
+	_fan.pin_slide_rate = v
 
 
 # --- drive modes (manual / loop / hover) ---------------------------------------
@@ -534,19 +532,28 @@ func _poll_hover() -> void:
 ## from the panel's live position every frame, so the line follows without any
 ## of the old mock's Marker2D handles. Polled, not event-driven, so it works
 ## inside an embedded editor SubViewport (the same reason hover uses a
-## distance test).
+## distance test). Grabbing the fixture node itself (not a panel) drags the
+## whole rig instead — [member position] is this node's own, in the PARENT's
+## space, so that leg reads `get_parent().get_local_mouse_position()` rather
+## than the Sandbox-local `mp` the unit drag uses.
 func _poll_drag() -> void:
 	var mp := get_local_mouse_position()
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		if _drag_unit == null:
+		if _drag_unit == null and not _drag_rig:
 			var hit := hit_test(mp)
 			if hit != null:
 				_drag_unit = hit
 				_grab_offset = mp - (hit as Node2D).position
+			elif _node != null and mp.length() <= _node.radius:
+				_drag_rig = true
+				_rig_grab_offset = mp - position
 		if _drag_unit != null and is_instance_valid(_drag_unit):
 			(_drag_unit as Node2D).position = mp - _grab_offset
+		elif _drag_rig:
+			position = mp - _rig_grab_offset
 	else:
 		_drag_unit = null
+		_drag_rig = false
 
 
 ## Which [FanUnit]'s panel rect contains `p` (sandbox-local space) — visible

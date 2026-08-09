@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" uid="uid://dmjrs65475ad5" path="res://ui/tooltip_fan/fan_live_sandbox.gd" id="1_sandbox"]
+[ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="2_graph"]
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="3_node"]
+[ext_resource type="PackedScene" uid="uid://b2co3hcp5r1ba" path="res://ui/tooltip_fan/fan.tscn" id="4_fan"]
+
+[node name="Sandbox" type="Node2D"]
+script = ExtResource("1_sandbox")
+
+[node name="Graph" parent="." instance=ExtResource("2_graph")]
+unique_name_in_owner = true
+
+[node name="SkillNode" parent="Graph/Nodes" instance=ExtResource("3_node")]
+unique_name_in_owner = true
+
+[node name="Fan" parent="." instance=ExtResource("4_fan")]
+unique_name_in_owner = true

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://fwyo4is6mfsx"]
 
 [ext_resource type="Script" uid="uid://c77sys8givvyk" path="res://ui/tooltip_fan/fan_live_panel.gd" id="1_panel"]
-[ext_resource type="Script" uid="uid://dmjrs65475ad5" path="res://ui/tooltip_fan/fan_live_sandbox.gd" id="2_sandbox"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_live_sandbox.tscn" id="2_sandbox"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="bloom_vp"]
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_bb0sd"]
@@ -84,11 +84,13 @@ text = "FIXTURE"
 [node name="OwnedCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1452400563]
 unique_name_in_owner = true
 layout_mode = 2
+button_pressed = true
 text = "Owned by entity"
 
 [node name="CoreCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=66226709]
 unique_name_in_owner = true
 layout_mode = 2
+button_pressed = true
 text = "Core node"
 
 [node name="AddonsRow" type="HBoxContainer" parent="Split/Controls/VBox" unique_id=1940329828]
@@ -105,10 +107,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Real addon scenes attached to the fixture node (0–8)"
 max_value = 8.0
+value = 8.0
 
 [node name="FootprintCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1965479217]
 unique_name_in_owner = true
 layout_mode = 2
+button_pressed = true
 text = "Procgen footprint"
 
 [node name="ParticipationHeader" type="Label" parent="Split/Controls/VBox" unique_id=1096494684]
@@ -290,7 +294,6 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05, 0.06, 0.08, 1)
 
-[node name="Sandbox" type="Node2D" parent="Split/ViewportContainer/World" unique_id=318413593]
+[node name="Sandbox" parent="Split/ViewportContainer/World" unique_id=318413593 instance=ExtResource("2_sandbox")]
 unique_name_in_owner = true
-position = Vector2(518, 787.2)
-script = ExtResource("2_sandbox")
+position = Vector2(518, 523)
