@@ -95,8 +95,16 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
    exactly as scoped. **Did not** delete `_scaled_sets`/`_scaled_effect_sets` —
    that's a real, separate redesign of #376's composition-swap mechanism,
    correctly filed to Backlog as **#398** rather than scope-creeping #377.
-4. #338 CommandTray "Manage" mode player-facing surface — `Backlog`.
-5. #301 bladesmithing — `Needs design`.
+4. **#404** Formalize a shared targeting-mode system (arm/cancel/select) —
+   `Ready`, spec'd 2026-08-09. Split out of #338 during swarmify: the
+   arm/cancel/select machinery attack modes and Manage-tray verbs both need
+   turned out to be a `PlayerInputController`-level refactor, not
+   Manage-tab-specific. Take this before #338 — #338 is blocked on it.
+5. **#338** CommandTray "Manage" mode player-facing surface — `Ready`, narrowed
+   2026-08-09 to consume #404 for Stake/Extract/Deallocate/Move Core/Allocate
+   tray buttons. Blocked on #404 landing first (documented dependency, not a
+   design hold).
+6. #301 bladesmithing — `Needs design`.
 
 ### C — Node-local and aura mechanics actually compute
 
