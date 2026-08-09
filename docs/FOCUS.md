@@ -104,7 +104,15 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
    2026-08-09 to consume #404 for Stake/Extract/Deallocate/Move Core/Allocate
    tray buttons. Blocked on #404 landing first (documented dependency, not a
    design hold).
-6. #301 bladesmithing — `Needs design`.
+6. **#301** bladesmithing — swarmified 2026-08-09, hub stays `In progress`.
+   Take **#405** (addon-dispatch parity fix) first, then **#406** (the temp
+   Clamp/Spikes budget spend) — #406 also wants #404 landed first, same
+   ordering as #338 above. **#409** edge sharpeners stays `Needs design`,
+   blocked on **#407** (velocity-based blade/edge damage, `Backlog`, no shape
+   yet). **#408** (Clamp secondary use) is a parked aside, `Backlog`, not on
+   the path to anything. Full decisions are on #301's acceptance-spec comment,
+   not duplicated here — issue blockers are the DAG; read those, not this line,
+   once picking the work up.
 
 ### C — Node-local and aura mechanics actually compute
 
