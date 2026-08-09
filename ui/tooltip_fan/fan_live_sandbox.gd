@@ -182,6 +182,17 @@ func _mount_world() -> void:
 
 
 func _process(_delta: float) -> void:
+	# Gate on visibility: this node stays in the tree (and _process keeps
+	# running) even when its sandbox-host tab isn't the active one, or the
+	# whole "Sandbox" main-screen plugin is swapped out for "2D"/"3D" — both
+	# just toggle Control.visible up the chain rather than freeing anything.
+	# Input.is_mouse_button_pressed() is global editor state, unscoped to any
+	# particular viewport, so without this a click-drag anywhere in the editor
+	# would drag this panel even while it's off-screen.
+	if not is_visible_in_tree():
+		_drag_unit = null
+		_drag_rig = false
+		return
 	_poll_hover()
 	_poll_drag()
 	if Engine.is_editor_hint():
@@ -533,9 +544,13 @@ func _poll_hover() -> void:
 ## of the old mock's Marker2D handles. Polled, not event-driven, so it works
 ## inside an embedded editor SubViewport (the same reason hover uses a
 ## distance test). Grabbing the fixture node itself (not a panel) drags the
-## whole rig instead — [member position] is this node's own, in the PARENT's
-## space, so that leg reads `get_parent().get_local_mouse_position()` rather
-## than the Sandbox-local `mp` the unit drag uses.
+## whole rig instead — [member position] is this node's own, so recomputing it
+## from the Sandbox-local `mp` would feed back through this node's own
+## transform (`mp` is derived FROM `position`). That leg reads
+## [method CanvasItem.get_global_mouse_position] instead — global, so it's
+## independent of this node's own position. `get_parent()` is a [SubViewport]
+## here (embedded in `fan_live_panel.tscn`), which has no
+## `get_local_mouse_position()` (a [CanvasItem]-only method) to fall back on.
 func _poll_drag() -> void:
 	var mp := get_local_mouse_position()
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -546,11 +561,11 @@ func _poll_drag() -> void:
 				_grab_offset = mp - (hit as Node2D).position
 			elif _node != null and mp.length() <= _node.radius:
 				_drag_rig = true
-				_rig_grab_offset = mp - position
+				_rig_grab_offset = get_global_mouse_position() - position
 		if _drag_unit != null and is_instance_valid(_drag_unit):
 			(_drag_unit as Node2D).position = mp - _grab_offset
 		elif _drag_rig:
-			position = mp - _rig_grab_offset
+			position = get_global_mouse_position() - _rig_grab_offset
 	else:
 		_drag_unit = null
 		_drag_rig = false
