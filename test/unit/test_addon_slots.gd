@@ -106,3 +106,27 @@ func test_formula_input_ids_strip_to_the_base_id() -> void:
 	f.formula = "stake_level__current"
 	f.inputs = [&"stake_level__current"]
 	assert_eq(f.get_input_ids(), [&"stake_level"] as Array[StringName])
+
+
+# --- 7. the scaling formula must stay file-backed, never inlined -------------
+
+func test_allocation_scaling_formula_is_shared_across_every_node_board() -> void:
+	# `duplicate(true)` PRESERVES the identity of a file-backed sub-resource and
+	# COPIES an inline one. Inlining `allocation_scaling.tres` into
+	# default_node_board.tres would therefore fork the curve into one private
+	# ExpressionFormula per node — 2500 of them in a level — with no error, and
+	# retuning the file would silently stop reaching anything. Same contract as
+	# level_scaling.tres for core classes (stats-system.md).
+	const _TEMPLATE := preload("res://skill_node/default_node_board.tres")
+	const _SHARED := preload("res://stats_system/formulas/allocation_scaling.tres")
+	var a: NodeStatBoard = _TEMPLATE.duplicate(true)
+	var b: NodeStatBoard = _TEMPLATE.duplicate(true)
+	assert_eq(a.intrinsic_modifiers[0].formula, _SHARED,
+			"the addon_slots formula must remain the file-backed shared instance")
+	assert_eq(a.intrinsic_modifiers[0].formula, b.intrinsic_modifiers[0].formula,
+			"two cloned boards must share one formula instance, not fork it")
+	# The MODIFIER, by contrast, is deliberately inline/per-board: it is the
+	# reactive subscriber, and one shared instance would make a single node's
+	# allocation change recompute addon_slots on every node in the level.
+	assert_ne(a.intrinsic_modifiers[0], b.intrinsic_modifiers[0],
+			"each board owns its own modifier instance")

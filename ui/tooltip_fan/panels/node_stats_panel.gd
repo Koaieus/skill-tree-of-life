@@ -135,6 +135,13 @@ func _visible_dynamic_ids() -> Array[StringName]:
 	for id in _bound_node.node_board.get_stat_ids():
 		if id in _EXCLUDED_STAT_IDS or id in _ALWAYS_SHOWN_STAT_IDS:
 			continue
+		# `addon_slots` is baked on every node board now (#332) rather than minted
+		# when the first addon lands, so without this an addonless node would gain
+		# a permanent "Addon Slots 0" row it never used to have. The cap is
+		# advisory until player-managed placement exists (#348) — worth showing
+		# where addons actually are, noise everywhere else.
+		if id == &"addon_slots" and _bound_node.get_addons().is_empty():
+			continue
 		result.append(id)
 	return result
 
