@@ -19,8 +19,16 @@ const _TRACE_SCENE := preload("res://ui/tooltip_fan/fan_trace.tscn")
 const _PANEL_SCENE := preload("res://ui/tooltip_fan/fan_panel.tscn")
 
 
+## fan_unit.tscn (#380) is the inheritance base every concrete unit adds its
+## own Panel onto — it ships with no baked Panel, so tests build one the same
+## way a concrete unit scene does.
 func _make() -> FanUnit:
 	var unit := _SCENE.instantiate() as FanUnit
+	var panel := _PANEL_SCENE.instantiate()
+	panel.name = "Panel"
+	panel.unique_name_in_owner = true
+	unit.add_child(panel)
+	panel.owner = unit
 	add_child(unit)
 	autofree(unit)
 	return unit

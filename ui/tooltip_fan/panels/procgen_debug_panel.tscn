@@ -1,37 +1,26 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/procgen_debug_panel.gd" id="1_script"]
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_layout.gd" id="2_layout"]
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/panel_content.gd" id="3_content"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/tooltip_fan/panels/procgen_debug_panel.gd" id="2_script"]
 
-[node name="ProcgenDebugPanel" type="Node2D"]
-script = ExtResource("1_script")
+[node name="ProcgenDebugPanel" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
 glow = 0.35
 
-[node name="PanelSkin" type="ColorRect" parent="."]
-z_index = -1
+[node name="PanelSkin" parent="."]
 offset_left = -80.0
 offset_top = -55.0
 offset_right = 80.0
 offset_bottom = 55.0
-mouse_filter = 2
-script = ExtResource("2_layout")
-fill_color = Color(0.06, 0.13, 0.17, 0.85)
 min_size = Vector2(160, 110)
 hug_down = true
 
-[node name="Content" type="VBoxContainer" parent="PanelSkin"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-mouse_filter = 2
+[node name="Content" parent="PanelSkin"]
 theme_override_constants/separation = 1
-script = ExtResource("3_content")
 padding = Vector2(8, 8)
 
-[node name="Rows" type="VBoxContainer" parent="PanelSkin/Content"]
-unique_name_in_owner = true
-layout_mode = 2
+[node name="Header" parent="PanelSkin/Content"]
+visible = false
+
+[node name="Rows" parent="PanelSkin/Content"]
 theme_override_constants/separation = 1

@@ -1,15 +1,10 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://ui/tooltip_fan/fan_unit.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_trace"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_panel.tscn" id="3_panel"]
+[ext_resource type="Script" uid="uid://h8fsj632oxi0" path="res://ui/tooltip_fan/fan_unit.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://d0w41dfe3cu3y" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_trace"]
 
-[node name="FanUnit" type="Node2D"]
+[node name="FanUnit" type="Node2D" groups=["fan_unit"]]
 script = ExtResource("1_script")
 
 [node name="Trace" parent="." instance=ExtResource("2_trace")]
 unique_name_in_owner = true
-
-[node name="Panel" parent="." instance=ExtResource("3_panel")]
-unique_name_in_owner = true
-position = Vector2(0, -120)

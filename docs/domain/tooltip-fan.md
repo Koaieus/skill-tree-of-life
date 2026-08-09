@@ -351,8 +351,27 @@ would either leak entries or hold freed references.
   in the sandbox and reports back either way.
 - Entry-anim *style* — which reveal a panel plays is still the "owned by the
   animation setup" bucket of decision 7. *Who owns the Tween* is no longer open.
-- Panel/unit scene duplication — #380: six concrete panels each hand-recompose
-  the same chrome (skin + content + header + padding), and the six unit scenes
-  differ only by which panel they instance (their Trace child is always a bare
-  `fan_trace.tscn`, and per-unit tuning lives at the `fan.tscn` level).
-  Investigating inherited scenes / a unit base — see the issue.
+- **Panel/unit scene duplication — resolved (#380).** Both tiers are now
+  inherited scenes. `ui/tooltip_fan/panels/panel_base.tscn` carries the shared
+  chrome (`PanelSkin` → `Content` → `Header` + `Rows`); each concrete panel
+  inherits it, overriding the root's `script`, `PanelSkin`'s
+  `min_size`/`glow`/`hug_down`, `Content`'s `padding`/`separation`, and adding
+  only its own rows under `Rows`. `id_chip_panel`/`procgen_debug_panel`
+  suppress `Header` with a plain `visible = false` override — containers skip
+  hidden children, so no new export was needed. `ui/tooltip_fan/fan_unit.tscn`
+  is now the literal base every concrete unit inherits: it carries `Trace`
+  (non-editable, unchanged) but no `Panel` — Godot inherited scenes can
+  override a descendant's properties at any depth, or add a brand-new
+  instanced child, but **cannot swap which `PackedScene` an inherited child
+  instances**. That's why `Panel` couldn't be baked into the base with a
+  swappable skin the way `Trace` is: each concrete unit instead adds its own
+  `Panel` (unique-named) as a new child, same as before, just via inheritance
+  rather than hand composition. Verified against the same pattern already in
+  use for `addons/sandbox_host/sandbox_live_tab.tscn` +
+  `tabs/70_bloom_tab.tscn`. `bend_start`/`trunk_dir` stay authored directly on
+  the (now-inherited) `Trace` child rather than promoted to `FanUnit` exports
+  — `fan.tscn`'s unit-instance overrides
+  (`anchor_slide`/`arrival_axis`/`trunk_length`) remain the only knobs meant
+  to be tuned from that scene. The serialization invariant is unaffected:
+  `fan.tscn` still instances each concrete unit without editable children, so
+  the driver's per-frame writes to `%Trace` stay off-disk exactly as before.
