@@ -1,7 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/tooltip_fan/fan_panel.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
 
 [node name="FanPanel" type="Node2D"]
 script = ExtResource("1_script")
@@ -11,3 +12,11 @@ offset_left = -90.0
 offset_top = -40.0
 offset_right = 90.0
 offset_bottom = 40.0
+
+[node name="Header" parent="." instance=ExtResource("3_header")]
+unique_name_in_owner = true
+visible = false
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+visible = false

@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c0qd36wwvguhe"]
 
 [ext_resource type="PackedScene" uid="uid://c8p5xsdqblgff" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/core_panel.tscn" id="2_panel"]
+[ext_resource type="PackedScene" uid="uid://dydtf6prsgdr1" path="res://ui/tooltip_fan/panels/core_panel.tscn" id="2_panel"]
 
 [node name="CoreUnit" unique_id=1796368202 instance=ExtResource("1_base")]
 

@@ -67,6 +67,10 @@ extends Node2D
 		progress = clampf(value, 0.0, 1.0)
 		_apply_progress()
 
+
+@onready var _header: PanelHeader = %Header
+@onready var _rows: VBoxContainer = %Rows
+
 var _lifecycle_tween: Tween = null
 var _idle_tween: Tween = null
 var _idle_glow_tween: Tween = null
@@ -142,20 +146,31 @@ func has_content() -> bool:
 	return true
 
 
-## The skin scene hand-placed under this node — whichever of the swappable
-## skins ([HoloPanel] / [GlassPanel] / [FusedPanel]) comes first in tree order.
+## The skin scene hand-placed somewhere under this node — whichever of the
+## swappable skins ([HoloPanel] / [GlassPanel] / [FusedPanel]) is found first,
+## searched breadth-first.
 ##
-## Matches on skin TYPE, not on "first Control child". The positional version
-## silently mis-resolved any panel that authored its content above its skin:
-## `core_panel.tscn` lists `Content` (a VBoxContainer) first, so `get_skin()`
-## handed back the content box and [method _push_glow] fell through both of
-## its branches — the core panel's glow never rendered, with no error. Child
-## order inside a panel is a layout decision and must not silently rebind
-## which node is the skin.
+## Matches on skin TYPE, not on "first Control child" or "direct child". The
+## positional version silently mis-resolved any panel that authored its
+## content above its skin: `core_panel.tscn` lists `Content` (a VBoxContainer)
+## first, so `get_skin()` handed back the content box and [method _push_glow]
+## fell through both of its branches — the core panel's glow never rendered,
+## with no error. Child order/depth inside a panel is a layout decision and
+## must not silently rebind which node is the skin — `panel_base.tscn`'s
+## `PanelContainer` wraps the skin one level deeper than its `MarginContainer`
+## sibling, so a direct-children-only search misses it entirely.
 func get_skin() -> Control:
-	for child in get_children():
+	return _find_skin(self)
+
+
+static func _find_skin(root: Node) -> Control:
+	for child in root.get_children():
 		if child is HoloPanel or child is GlassPanel or child is FusedPanel:
 			return child as Control
+	for child in root.get_children():
+		var found := _find_skin(child)
+		if found != null:
+			return found
 	return null
 
 

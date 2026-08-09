@@ -1,25 +1,30 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://do75mjybjotrr"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
-[ext_resource type="Script" path="res://ui/tooltip_fan/panels/procgen_debug_panel.gd" id="2_script"]
+[ext_resource type="PackedScene" uid="uid://bqwejggu0vmvu" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://c47bn2qwvad48" path="res://ui/tooltip_fan/panels/procgen_debug_panel.gd" id="2_script"]
 
-[node name="ProcgenDebugPanel" instance=ExtResource("1_base")]
+[node name="ProcgenDebugPanel" unique_id=728886599 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 glow = 0.35
 
-[node name="PanelSkin" parent="."]
+[node name="PanelContainer" parent="." index="0" unique_id=882997509]
 offset_left = -80.0
 offset_top = -55.0
 offset_right = 80.0
 offset_bottom = 55.0
-min_size = Vector2(160, 110)
-hug_down = true
 
-[node name="Content" parent="PanelSkin/MarginContainer"]
+[node name="FusedPanel" parent="PanelContainer" index="0" unique_id=525977820]
+instance_shader_parameters/glow = 0.35
+instance_shader_parameters/size = Vector2(160, 110)
+custom_minimum_size = Vector2(160, 110)
+glow = 0.35
+
+[node name="Content" parent="PanelContainer/MarginContainer" parent_id_path=PackedInt32Array(607270764) index="0" unique_id=1269983304]
 theme_override_constants/separation = 1
 
-[node name="Header" parent="PanelSkin/MarginContainer/Content"]
-visible = false
+[node name="Header" parent="PanelContainer/MarginContainer/Content" index="0" unique_id=1164856017]
+header = "PROCGEN"
+subheader = "Debug info"
 
-[node name="Rows" parent="PanelSkin/MarginContainer/Content"]
+[node name="Rows" parent="PanelContainer/MarginContainer/Content" index="1" unique_id=580212173]
 theme_override_constants/separation = 1

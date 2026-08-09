@@ -1,13 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dfbaga8vkwm87"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/owner_panel.tscn" id="2_panel"]
+[ext_resource type="PackedScene" uid="uid://c8p5xsdqblgff" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://cb4aewciyca6" path="res://ui/tooltip_fan/panels/owner_panel.tscn" id="2_panel"]
 
-[node name="OwnerUnit" instance=ExtResource("1_base")]
+[node name="OwnerUnit" unique_id=2007725150 instance=ExtResource("1_base")]
 
-[node name="Trace" parent="."]
-trunk_dir = Vector2(0, -1)
-bend_start = 0.382
-
-[node name="Panel" parent="." instance=ExtResource("2_panel")]
+[node name="Panel" parent="." index="1" unique_id=1286440245 instance=ExtResource("2_panel")]
 unique_name_in_owner = true

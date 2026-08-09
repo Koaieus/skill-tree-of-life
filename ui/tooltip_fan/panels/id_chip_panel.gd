@@ -48,11 +48,9 @@ const _KEYSTONE_HALF_WIDTH := 84.0
 ## envelope rather than one text-pixel narrower.
 const _H_PADDING := 6.0
 
-@onready var _rows: VBoxContainer = %Rows
 @onready var _name_label: Label = %NameLabel
 @onready var _description_label: Label = %DescriptionLabel
 @onready var _effects_label: Label = %EffectsLabel
-@onready var _degree_label: Label = %DegreeLabel
 
 
 func _ready() -> void:
@@ -65,7 +63,6 @@ func _ready() -> void:
 	_name_label.visible = false
 	_description_label.visible = false
 	_effects_label.visible = false
-	_degree_label.text = "deg –"
 
 
 func bind(node: SkillNode, graph: Graph) -> void:
@@ -87,19 +84,9 @@ func bind(node: SkillNode, graph: Graph) -> void:
 	if _effects_label.visible:
 		_effects_label.text = "%d effect%s" % [effect_count, "" if effect_count == 1 else "s"]
 
-	_degree_label.text = _make_degree_text(node, graph)
-
-func _make_degree_text(node: SkillNode, graph: Graph) -> String:
-	var graph_degree := node.get_graph_degree(graph)
-	if node.is_allocated():
-		var entity_degree := node.get_entity_degree(graph, node.owned_by)
-		return "degree %d · (%d)" % [
-			entity_degree,
-			graph_degree
-		]
-	else:
-		return "graph degree %d" % [graph_degree]
-	#return " · ".join(texts)
+	if _header:
+		_header.header = "Degree %d" % node.get_entity_degree(graph, node.owned_by)
+		_header.subheader = "Graph Degree: %d" % node.get_graph_degree(graph)
 
 ## The keystone description's wrap column, driven from the same widened
 ## envelope the [PanelLayout] skin hugs — the prose must wrap to the WIDE

@@ -1,28 +1,17 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://3vcqxmureyy"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://bqwejggu0vmvu" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://ci24oiqjqw8sb" path="res://ui/tooltip_fan/panels/id_chip_panel.gd" id="2_script"]
 
-[node name="IdChipPanel" instance=ExtResource("1_base")]
+[node name="IdChipPanel" unique_id=868479757 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 glow = 0.5
-progress = 1.0
 
-[node name="PanelSkin" parent="."]
-offset_left = -34.0
-offset_top = -13.0
-offset_right = 34.0
-offset_bottom = 13.0
-min_size = Vector2(68, 26)
-glow = 0.5
+[node name="Header" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
+header = "DEGREE"
+subheader = "Graph Degree"
 
-[node name="Content" parent="PanelSkin/MarginContainer"]
-alignment = 1
-
-[node name="Header" parent="PanelSkin/MarginContainer/Content"]
-visible = false
-
-[node name="NameLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
+[node name="NameLabel" type="Label" parent="PanelContainer/MarginContainer/Content/Rows" parent_id_path=PackedInt32Array(580212173) index="0" unique_id=980183265]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -31,7 +20,7 @@ theme_override_font_sizes/font_size = 12
 text = "Keystone Name"
 horizontal_alignment = 1
 
-[node name="DescriptionLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
+[node name="DescriptionLabel" type="Label" parent="PanelContainer/MarginContainer/Content/Rows" parent_id_path=PackedInt32Array(580212173) index="1" unique_id=311222373]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(56, 0)
@@ -41,19 +30,11 @@ theme_override_font_sizes/font_size = 9
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="EffectsLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
+[node name="EffectsLabel" type="Label" parent="PanelContainer/MarginContainer/Content/Rows" parent_id_path=PackedInt32Array(580212173) index="2" unique_id=1221022264]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.55, 0.6, 1)
 theme_override_font_sizes/font_size = 9
 text = "0 effects"
-horizontal_alignment = 1
-
-[node name="DegreeLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
-theme_override_font_sizes/font_size = 11
-text = "deg 5"
 horizontal_alignment = 1

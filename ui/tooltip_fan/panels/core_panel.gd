@@ -35,8 +35,6 @@ extends FanPanel
 
 const _ENVELOPE_ROWS := 12
 
-@onready var _header: PanelHeader = %Header
-@onready var _rows: VBoxContainer = %Rows
 
 const _MOD_SLAB_SCENE: PackedScene = preload("res://ui/tooltip_fan/mod_slab_row.tscn")
 const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_value_row.tscn")

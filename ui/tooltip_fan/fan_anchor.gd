@@ -224,11 +224,23 @@ static func _point_on_edge(edge: FanAnchor.Edge, rect: Rect2, slide: float = 0.5
 ## parent's local space — the same space [FanTrace.to_point] is authored in).
 ## Reads the skin Control's own (position, size) rather than assuming a
 ## symmetric envelope, so an off-centre skin still measures correctly.
+##
+## Sums every Control ancestor's `position` between the skin and `panel`
+## rather than assuming the skin is a direct child — `panel_base.tscn` nests
+## it under a `PanelContainer` (the auto-hugging envelope) alongside its
+## `MarginContainer` sibling, one level deeper than [method FanPanel.get_skin]
+## used to require.
 static func panel_rect_of(panel: FanPanel) -> Rect2:
 	var skin := panel.get_skin()
 	if skin == null:
 		return Rect2(panel.position, Vector2.ZERO)
-	return Rect2(panel.position + skin.position, skin.size)
+	var offset := Vector2.ZERO
+	var node: Node = skin
+	while node != null and node != panel:
+		if node is Control:
+			offset += (node as Control).position
+		node = node.get_parent()
+	return Rect2(panel.position + offset, skin.size)
 
 
 ## True if `point` lies strictly inside `rect` — used by tests to assert a

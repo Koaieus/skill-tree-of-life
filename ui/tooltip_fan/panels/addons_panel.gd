@@ -31,9 +31,6 @@ const _ADDON_ITEM_SCENE: PackedScene = preload("res://ui/tooltip_fan/addon_item.
 const _ROW_STAGGER_STEP := 0.12
 const _ROW_STAGGER_CAP := 0.85
 
-@onready var _header: PanelHeader = %Header
-@onready var _rows: VBoxContainer = %Rows
-
 ## The node last [method bind]ed, if any — read by [method has_content].
 var _bound_node: SkillNode = null
 

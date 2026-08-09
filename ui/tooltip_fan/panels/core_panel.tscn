@@ -7,12 +7,18 @@
 script = ExtResource("2_script")
 glow = 0.8
 
-[node name="PanelSkin" parent="." index="0" unique_id=808501229]
-instance_shader_parameters/glow = 0.8
-instance_shader_parameters/size = Vector2(190, 260)
+[node name="PanelContainer" parent="." index="0" unique_id=882997509]
 offset_left = -95.0
 offset_top = -130.0
 offset_right = 95.0
 offset_bottom = 130.0
-min_size = Vector2(190, 260)
+
+[node name="FusedPanel" parent="PanelContainer" index="0" unique_id=525977820]
+instance_shader_parameters/glow = 0.8
+instance_shader_parameters/size = Vector2(190, 260)
+custom_minimum_size = Vector2(190, 260)
 glow = 0.8
+
+[node name="Header" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
+header = "ENTITY CORE"
+subheader = ""

@@ -42,8 +42,6 @@ extends Node2D
 ## the shared `set_progress(t)` contract like every other content row).
 var progress: float = 0.0
 
-@onready var _rows: VBoxContainer = %Rows
-
 var _tween: Tween = null
 
 ## The node currently rendered, if any (set by [method bind]).
@@ -78,6 +76,8 @@ const _EMPTY_TEXT := "no modifiers"
 ## reach full reveal by `progress == 1`.
 const _ROW_STAGGER_STEP := 0.12
 const _ROW_STAGGER_CAP := 0.85
+
+@onready var _rows: VBoxContainer = %Rows
 
 
 func _ready() -> void:

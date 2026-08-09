@@ -7,16 +7,18 @@
 script = ExtResource("2_script")
 glow = 0.55
 
-[node name="PanelSkin" parent="." index="0" unique_id=808501229]
-instance_shader_parameters/glow = 0.55
-instance_shader_parameters/size = Vector2(150, 130)
+[node name="PanelContainer" parent="." index="0" unique_id=882997509]
 offset_left = -75.0
 offset_top = -65.0
 offset_right = 75.0
 offset_bottom = 65.0
-min_size = Vector2(150, 130)
+
+[node name="FusedPanel" parent="PanelContainer" index="0" unique_id=525977820]
+instance_shader_parameters/glow = 0.55
+instance_shader_parameters/size = Vector2(150, 130)
+custom_minimum_size = Vector2(150, 130)
 glow = 0.55
 
-[node name="Header" parent="PanelSkin/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
+[node name="Header" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
 header = "ADDONS"
 subheader = "Some nodes on your nodes"

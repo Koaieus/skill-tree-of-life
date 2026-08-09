@@ -37,8 +37,6 @@ const _ROW_FONT_SIZE := 10
 const _HALF_WIDTH := 80.0
 const _H_PADDING := 8.0
 
-@onready var _rows: VBoxContainer = %Rows
-
 ## The node currently rendered, if any (set by [method bind]).
 var _bound_node: SkillNode = null
 

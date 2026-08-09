@@ -40,9 +40,6 @@ const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_va
 const _ROW_STAGGER_STEP := 0.12
 const _ROW_STAGGER_CAP := 0.85
 
-@onready var _header: PanelHeader = %Header
-@onready var _rows: VBoxContainer = %Rows
-
 ## The node currently rendered, if any (set by [method bind]).
 var _bound_node: SkillNode = null
 
