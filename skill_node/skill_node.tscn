@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://c1cye7r2jar3o"]
 
 [ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
+[ext_resource type="Resource" uid="uid://dq1n0dbnodebd" path="res://skill_node/default_node_board.tres" id="1_nodeboard"]
 [ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_58fw3"]
 [ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_i1vuw"]
@@ -53,6 +54,7 @@ corner_detail = 6
 
 [node name="SkillNode" type="Area2D" unique_id=1765804138]
 script = ExtResource("1_skill")
+node_board = ExtResource("1_nodeboard")
 stake_level = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=987061496]

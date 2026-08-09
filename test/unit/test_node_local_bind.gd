@@ -117,11 +117,14 @@ func test_remove_local_modifier_unbinds() -> void:
 
 func test_no_local_modifiers_leaves_extra_stats_empty() -> void:
 	var node := _node()
-	# Two levels of sparseness, both live. The board itself is lazy (cloned from
-	# DEFAULT_NODE_BOARD on first write), so a node that needs nothing allocates
-	# nothing at all — and once it does exist, the stats it BORROWS stay sparse
-	# while the ones it OWNS come baked. See NodeStatBoard.
-	assert_null(node.node_board, "no local modifier ever added -> node_board is never cloned")
+	# Two levels of sparseness, both live. `node_board` is the scene-AUTHORED
+	# template until something needs it — a node that needs nothing never pays
+	# for a clone — and once cloned, the stats it BORROWS stay sparse while the
+	# ones it OWNS come baked. See NodeStatBoard.
+	assert_false(node._node_board_ready,
+			"no local modifier ever added -> the authored board is never cloned or wired")
+	assert_eq(node.node_board, SkillNode.DEFAULT_NODE_BOARD,
+			"until then it still points at the shared authored template, unmodified")
 
 
 func test_entity_only_value_passes_through_without_allocating_node_board() -> void:

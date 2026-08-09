@@ -130,3 +130,29 @@ func test_allocation_scaling_formula_is_shared_across_every_node_board() -> void
 	# allocation change recompute addon_slots on every node in the level.
 	assert_ne(a.intrinsic_modifiers[0], b.intrinsic_modifiers[0],
 			"each board owns its own modifier instance")
+
+
+# --- 8. an AUTHORED board is initialized just like a cloned template ---------
+
+func test_scene_authored_board_still_gets_its_intrinsics_applied() -> void:
+	# `node_board` is exported and scene-composable (a level, cluster or single
+	# node may author its own), so "already non-null" must NOT be read as
+	# "already initialized". If it were, an authored board would skip
+	# apply_intrinsics() forever and addon_slots would silently stop tracking
+	# allocation level — no error, correct-looking board, dead formula.
+	var authored: NodeStatBoard = preload("res://skill_node/default_node_board.tres").duplicate(true)
+	authored.addon_slots.base_value = 2.0
+	var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	n.node_board = authored
+	add_child(n)
+	await get_tree().process_frame
+	n.stake_level = 3   # the pool clamps fill to cap, so raise the cap first
+	n.allocation_level = 3
+
+	assert_eq(int(n.get_local_value(&"addon_slots")), 5,
+			"authored base(2) + allocation_level(3) — intrinsics ran on the authored board")
+	assert_ne(n.node_board, authored,
+			"the authored resource is a template: the node runs on a deep clone of it")
+	assert_eq(authored.addon_slots.base_value, 2.0,
+			"and the authored resource is never mutated by the node using it")
+	n.free()

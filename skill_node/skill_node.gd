@@ -220,24 +220,41 @@ var revealed: bool = true:
 		revealed = value
 		_apply_sensed_state()
 
-## This node's [NodeStatBoard] — cloned from [constant DEFAULT_NODE_BOARD] on
-## first need, so the node-only stats it OWNS (`stake_level`, `addon_slots`)
-## arrive baked and authored, while every stat it BORROWS from its owner
-## (`armor`, `node_healing`, …) stays sparse and is minted only when a
-## node-local modifier targets it. See [NodeStatBoard] for why the split falls
-## along that line.
+## This node's [NodeStatBoard]. Authored here (the scene wires
+## [constant DEFAULT_NODE_BOARD]) and DEEP-CLONED at init, exactly like
+## [member Entity.stat_board] — so a level, cluster or single node may compose
+## its own board, and a saved level serializes real per-node stat state rather
+## than losing it.
 ##
-## Deliberately NOT `@export`: this is derived (a template clone plus runtime
-## mints), never authored. Exporting it would serialize a full board — every
-## baked Stat sub-resource — into every `.tscn` holding a SkillNode on each
-## editor save, which is godot-tres-authoring.md's derived-value-writeback
-## hazard at 500–2500 nodes per level. Author `stake_level` /
-## `allocation_level` through their SkillNode-scope proxy properties instead;
-## nothing else on the board was ever scene-authored (all 28 previously
-## serialized boards were empty).
+## Node-only stats it OWNS (`stake_level`, `addon_slots`) arrive baked and
+## authorable; every stat it BORROWS from its owner (`armor`, `node_healing`, …)
+## stays sparse and is minted only when a node-local modifier targets it. See
+## [NodeStatBoard] for why the split falls along that line.
+##
+## Writing the clone back into this `@export` is safe because `duplicate(true)`
+## is IDEMPOTENT — the derived-value-writeback hazard needs a *transforming*
+## function, and a deep copy round-trips to the same values. What is NOT safe is
+## treating non-null as "already initialized": a scene-authored board would then
+## skip [method StatBoard.apply_intrinsics] forever and `addon_slots` would
+## silently stop tracking allocation level. [member _node_board_ready] separates
+## "authored" from "initialized"; Entity gets the same property for free by
+## running its init exactly once in `_ready`.
 const DEFAULT_NODE_BOARD: NodeStatBoard = preload("res://skill_node/default_node_board.tres")
 
-var node_board: NodeStatBoard = null
+## Assigning this ALWAYS resets [member _node_board_ready] — the property means
+## "here is the authored board", so a fresh one (or `null`, which sandboxes use
+## to make a board-less node) must be re-cloned and re-wired on next need
+## instead of inheriting the previous board's initialization. Self-assignment
+## inside a setter does not recurse in Godot 4; [method _init_node_board] relies
+## on that and re-raises the flag after its own write.
+@export var node_board: NodeStatBoard = null:
+	set(value):
+		node_board = value
+		_node_board_ready = false
+
+## True once [method _init_node_board] has cloned + wired the board. NOT the
+## same question as `node_board != null` — see the note above.
+var _node_board_ready: bool = false
 
 ## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
 ## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
@@ -268,7 +285,7 @@ var _tags: Dictionary[StringName, int] = {}
 ## Pure node-local — never registered with an entity StatBoard.
 @export_range(1, 4, 1, "or_greater") var stake_level: int:
 	get:
-		return int(node_board.stake_level.value) if node_board != null else _stake_level_backing
+		return int(node_board.stake_level.value) if _node_board_ready else _stake_level_backing
 	set(value):
 		if stake_level == value:
 			return
@@ -285,7 +302,7 @@ var _stake_level_backing: int = 1
 ## node is content, same as a pre-staked cap).
 @export var allocation_level: int:
 	get:
-		return int(node_board.stake_level.current) if node_board != null else _allocation_level_backing
+		return int(node_board.stake_level.current) if _node_board_ready else _allocation_level_backing
 	set(value):
 		if allocation_level == value:
 			return
@@ -559,7 +576,7 @@ static func segment_between(a: SkillNode, b: SkillNode, pad: float = 0.0) -> Pac
 ## health pool, which is seeded from the owning entity's [code]node_health[/code]
 ## baseline + any node-local modifiers. 0 if unallocated.
 func get_max_hp() -> float:
-	if node_board == null:
+	if not _node_board_ready:
 		return 0.0
 	var hp := node_board.get_stat(&"node_health") as PoolStat
 	if hp == null:
@@ -569,7 +586,7 @@ func get_max_hp() -> float:
 
 ## Current combat HP for this node (ephemeral, from the pool's [member PoolStat.current]).
 func get_current_hp() -> float:
-	if node_board == null:
+	if not _node_board_ready:
 		return 0.0
 	var hp := node_board.get_stat(&"node_health") as PoolStat
 	if hp == null:
@@ -585,12 +602,12 @@ func get_local_value(stat_id: StringName) -> Variant:
 	if owned_by != null and owned_by.stat_board != null:
 		var es := owned_by.stat_board.get_stat(stat_id)
 		if es != null:
-			var ns: Stat = node_board.get_stat(stat_id) if node_board != null else null
+			var ns: Stat = node_board.get_stat(stat_id) if _node_board_ready else null
 			if ns == null:
 				return es.get_value()
 			var sources: Array[ModifierBins] = [es.bins, ns.bins]
 			return ModifierBins.compute(es.base_value, sources)
-	var ns: Stat = node_board.get_stat(stat_id) if node_board != null else null
+	var ns: Stat = node_board.get_stat(stat_id) if _node_board_ready else null
 	if ns != null:
 		return ns.get_value()
 	var def: StatDef = StatRegistry.get_def(stat_id)
@@ -716,7 +733,7 @@ func add_local_modifier(m: StatModifier) -> void:
 ## Remove a modifier previously applied by [method add_local_modifier]. Removal
 ## is by object identity, so callers must hand back the same instance.
 func remove_local_modifier(m: StatModifier) -> void:
-	if m == null or node_board == null:
+	if m == null or not _node_board_ready:
 		return
 	# A composition swap (m._scaled_sets entry) means the parent's own leaves
 	# are NOT what's applied — remove the scaled set too, or it would strand
@@ -926,7 +943,7 @@ func get_emblem_contributions() -> Array:
 ## a bug. Do not "fix" this without a design decision first — see D-9 in
 ## docs/design/mvp_decisions.md.
 func refill(silent: bool = false) -> void:
-	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:
 		return
 	var prev := hp.current
@@ -952,7 +969,7 @@ func refill(silent: bool = false) -> void:
 ## [method CoreAura.apply] / [method heal_damage] on top of whatever this
 ## method does. Folding it in here would wrongly gate it on damage-this-turn.
 func apply_turn_regen() -> void:
-	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:
 		return
 	var took_damage := _damaged_since_upkeep
@@ -987,7 +1004,7 @@ func take_damage(amount: float, source: Variant) -> void:
 	# Node-local: `armor` / `min_damage_taken` merge this node's board with its
 	# owner's, so addon + aura defensive modifiers actually land.
 	var effective: float = Mitigation.apply(raw, self)
-	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:
 		return
 	var before := hp.current
@@ -1015,7 +1032,7 @@ func take_damage(amount: float, source: Variant) -> void:
 func heal_damage(amount: float, source: Variant) -> void:
 	if owned_by == null or amount <= 0.0:
 		return
-	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:
 		return
 	var prev := hp.current
@@ -1064,7 +1081,7 @@ func _sync_combat_health_base() -> void:
 
 
 func _reset_combat_health() -> void:
-	var hp := node_board.get_stat(&"node_health") as PoolStat if node_board != null else null
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp != null:
 		hp.set_current(0.0)
 
@@ -1083,20 +1100,29 @@ func _reset_combat_health() -> void:
 ## [method _ensure_local_stat], [method add_local_modifier]): a node that never
 ## needs a board never pays for one.
 func _init_node_board() -> void:
-	if node_board != null:
+	if _node_board_ready:
 		return
-	node_board = DEFAULT_NODE_BOARD.duplicate(true)
+	# The authored board when a scene composed one, the shared template otherwise
+	# — either way a deep clone, so this node owns its Stat instances outright.
+	# Deep matters: `resource_local_to_scene` on the template would NOT recurse
+	# into sub-resources, so every SkillNode in the level would share one set of
+	# Stats and every local modifier would apply globally. Same reason
+	# Entity._ready duplicates instead of relying on the flag.
+	var source: NodeStatBoard = node_board if node_board != null else DEFAULT_NODE_BOARD
+	node_board = source.duplicate(true)   # clears the flag via the setter...
+	_node_board_ready = true              # ...so re-raise it here, after the write
 	# The reactive edge feeding the #376 local-scale mutator, and the read side
 	# of the `stake_level__current` accessor. Connected here rather than in the
 	# template because a signal connection is not a resource property.
 	node_board.stake_level.current_changed.connect(_on_stake_level_changed)
-	# `addon_slots = base(0) + allocation_level` — authored on the template as
-	# an intrinsic instead of built in code, so the formula is a one-file edit
-	# and binds through the ordinary reactive path (#375). Applying intrinsics
-	# on a node board mirrors Entity._ready's apply_intrinsics() call.
+	# `addon_slots = base(0) + allocation_level` — authored on the template as an
+	# intrinsic instead of built in code, so the formula is a one-file edit and
+	# binds through the ordinary reactive path (#375). Unconditional, mirroring
+	# Entity._ready: an authored board needs its intrinsics applied just as much
+	# as a cloned template does.
 	node_board.apply_intrinsics()
 	# Push the AUTHORED backings, not the proxy getters — the getters would read
-	# the pool's just-cloned template state and overwrite what the author set.
+	# the pool's just-cloned state and overwrite what the author set.
 	node_board.stake_level.set_base_ratcheted(float(_stake_level_backing))
 	node_board.stake_level.set_current(float(_allocation_level_backing))
 
@@ -1218,7 +1244,7 @@ func _scale_modifier(m: StatModifier, old_al: int, new_al: int) -> void:
 func _contribution_board(m: StatModifier) -> StatBoard:
 	if owned_by != null and owned_by.stat_board != null and modifiers.has(m):
 		return owned_by.stat_board
-	if node_board != null and _local_modifiers.has(m):
+	if _node_board_ready and _local_modifiers.has(m):
 		return node_board
 	return null
 
