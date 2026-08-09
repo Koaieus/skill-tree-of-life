@@ -76,7 +76,7 @@ func before_each() -> void:
 	_plan = autofree(MagicAttackPlan.new())
 	_plan.attacker = _attacker
 	_plan.spell = spell
-	_plan._on_node_right_clicked(_source)  # picks the source, emits state_changed
+	_plan._on_node_left_clicked(_source)  # picks the source, emits state_changed
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
@@ -115,7 +115,8 @@ func test_changing_source_invalidates_and_costs_one_more_traversal() -> void:
 
 	var new_source := _nodes[0]
 	new_source.owned_by = _attacker
-	_plan._on_node_right_clicked(new_source)
+	_plan.pop()  # clear the old source — re-sourcing is pop-then-push, not a direct swap
+	_plan._on_node_left_clicked(new_source)
 	assert_eq(_spy.call_count, 1, "picking a new source alone must not traverse yet")
 
 	for n in _graph.get_skill_nodes():

@@ -19,6 +19,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [first_session_walkthrough.md](first_session_walkthrough.md) | Spoiler-free, second-person walkthrough of a player's first session — boot screen → first cut-vertex snipe and dismemberment. Funny/Questionable beats called out |
 | [combat_system.md](combat_system.md) | Damage pipeline (//10 spine), six-color triangle, ranged/magic/melee (phantom blade), degree → offense, self-loops, single-phase turn (intent by input channel), islands, Breakout, loot/proliferation |
 | [combat_worked_examples.md](combat_worked_examples.md) | 3 worked fights in real numbers; the tempo axiom; the defense-function decision (battle-formula handoff doc) |
+| [click_grammar.md](click_grammar.md) | Unified left/right click grammar for targeting + allocation: left pushes/arms/resolves, right pops one level off a stack; self-targeting-as-pop; core-move deferred to #338 |
 | [core_classes.md](core_classes.md) | All entity core classes: Allround, Predator, Bulwark, Ninja, Hive, Halo, Serpent, Frontier, Harvester |
 | [stat_system.md](stat_system.md) | Stat architecture (v2 direction), modifier pipeline, canonical stat vocabulary |
 | [entity_stat_board_prototype.md](entity_stat_board_prototype.md) | Prototype stat values, SP accounting model, damage formula, class stat variations |

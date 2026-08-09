@@ -2,10 +2,12 @@ class_name MeleeAttackPlan
 extends AttackPlan
 
 ## A melee attack as an induced sub-subgraph of the attacker's owned territory:
-## one PIVOT (right-clicked) plus up to `blade_size` MEMBERS (left-clicked) that
-## must form a connected subgraph through the pivot. Deselecting any member
-## cascades — anyone newly disconnected from the pivot drops too — keeping the
-## blade well-formed at every step.
+## one PIVOT (left-click, when unset) plus up to `blade_size` MEMBERS
+## (left-click toggle, once the pivot is set) that must form a connected
+## subgraph through the pivot. Deselecting any member cascades — anyone newly
+## disconnected from the pivot drops too — keeping the blade well-formed at
+## every step. Right-click pops the pivot (and every member with it) back to
+## "no pivot yet" — see docs/design/click_grammar.md.
 
 const _BLADE_SIZE_ID: StringName = &"blade_size"
 
@@ -48,17 +50,28 @@ func _notification(what: int) -> void:
 
 # ── Input ──────────────────────────────────────────────────────────────────
 
-func _on_node_right_clicked(node: SkillNode) -> void:
-	if attacker == null or node == null or node.owned_by != attacker:
-		return
-	if node == source:
-		_clear_pivot()
-	else:
-		_set_pivot(node)
-	state_changed.emit()
+func pop() -> bool:
+	if source == null:
+		return false
+	reset()
+	return true
 
 
 func _on_node_left_clicked(node: SkillNode) -> void:
+	if attacker == null or node == null:
+		return
+	if source == null:
+		if node.owned_by != attacker:
+			return
+		_set_pivot(node)
+		state_changed.emit()
+		return
+	if node == source:
+		# Self-targeting fallthrough: the pivot is never a valid blade member,
+		# so clicking it again isn't a denial — it's "never mind", same as a
+		# right-click. See docs/design/click_grammar.md.
+		pop()
+		return
 	if not _can_be_blade(node):
 		return
 	var changed := false
@@ -145,13 +158,7 @@ func _try_select_blade(node: SkillNode) -> bool:
 func reset() -> void:
 	if source == null and blade_nodes.is_empty():
 		return
-	if _blade_mirror != null:
-		for b in blade_nodes:
-			_blade_mirror.mirror_remove(b)
-		if source != null:
-			_blade_mirror.mirror_remove(source)
-	blade_nodes.clear()
-	source = null
+	_clear_pivot()
 	state_changed.emit()
 
 

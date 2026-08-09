@@ -13,6 +13,9 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ##   - Left-click own core (no active attack)→ core-move targeting (#21)
 ##   - Attack / cast                         → AttackModeBar picks the mode,
 ##                                             then node clicks feed the plan
+##                                             (left arms/resolves, right pops
+##                                             one level — see
+##                                             docs/design/click_grammar.md)
 ##
 ## Emits [signal player_can_act_changed] so UI can mirror enabled/disabled
 ## state (AP-driven now that phases are gone).
@@ -118,9 +121,10 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_right_clicked(skill_node: SkillNode) -> void:
-	# Right-click feeds the active attack plan first (melee pivot / magic source).
-	# When no plan claims it, right-click toggles the node's pin in the context
-	# panel — re-pinning the same node unpins it.
+	# Right-click feeds the active attack plan first (pop one level off its
+	# stack, or exit the mode — docs/design/click_grammar.md). When no plan
+	# claims it, right-click toggles the node's pin in the context panel —
+	# re-pinning the same node unpins it.
 	if _route_battle_click(skill_node, false):
 		return
 	_set_pinned(null if skill_node == _pinned_node else skill_node)
@@ -205,7 +209,12 @@ func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 	if is_left:
 		plan._on_node_left_clicked(skill_node)
 	else:
-		plan._on_node_right_clicked(skill_node)
+		# Right-click always affects the attack-mode stack while a plan is
+		# armed — never falls through to pin-toggle. A pop with nothing left
+		# to clear (mode armed, no origin) exits the mode entirely instead of
+		# being swallowed silently. See docs/design/click_grammar.md.
+		if not plan._on_node_right_clicked(skill_node):
+			battle_system.cancel_attack()
 	return true
 
 

@@ -19,9 +19,13 @@ re-deriving anything.
 - **`AttackPlan`** (abstract `RefCounted`) — base for every mode. Owns
   `attacker`, `mode`, `signal state_changed`, the `HighlightRole` enum,
   and the virtual surface: `validate()`, `get_highlight_role(node)`,
-  `_on_node_left_clicked(node)`, `_on_node_right_clicked(node)`,
-  `get_node_range(node)`. Concrete plans override what they care about
-  and emit `state_changed` on any internal mutation.
+  `_on_node_left_clicked(node)`, `_on_node_right_clicked(node) -> bool`,
+  `pop() -> bool`, `get_node_range(node)`. Concrete plans override what
+  they care about and emit `state_changed` on any internal mutation.
+  Click grammar (left arms/resolves, right pops one level, self-targeting
+  falls through to a pop when invalid) is `docs/design/click_grammar.md`
+  — `pop()` is the one primitive shared by right-click and the
+  self-targeting fallthrough.
 - **`HighlightRole`** enum on `AttackPlan` — `NONE`, `ORIGIN`, `MEMBER`,
   `HOSTILE_TARGET`, `FRIENDLY_TARGET`, `IN_RANGE`, `INVALID`. Semantic,
   not literal — `ORIGIN` covers melee pivot, magic source, and ranged
@@ -43,24 +47,26 @@ re-deriving anything.
 
 ### Mode plans
 
-- **`MeleeAttackPlan`** — right-click pivot, left-click blade members
-  (cap = `attacker.stat_board.blade_size`, base 1 + `floor(STR/10)`).
-  Embeds a `GraphMirror` of `{pivot} ∪ blade_nodes`; deselecting a
-  member runs `nodes_islanded_by_removing(node, pivot)` *before* the
-  removal, then cascade-prunes anything islanded from the pivot.
-  Re-pivoting clears the blade. Mirror is freed via
+- **`MeleeAttackPlan`** — left-click sets the pivot (when unset), then
+  left-click toggles blade members (cap = `attacker.stat_board.blade_size`,
+  base 1 + `floor(STR/10)`). Right-click pops the pivot and every member
+  with it — re-pivoting is pop-then-push, not a direct reassign. Embeds a
+  `GraphMirror` of `{pivot} ∪ blade_nodes`; deselecting a member runs
+  `nodes_islanded_by_removing(node, pivot)` *before* the removal, then
+  cascade-prunes anything islanded from the pivot. Mirror is freed via
   `NOTIFICATION_PREDELETE` (Node base, plan is RefCounted).
-- **`RangedAttackPlan`** — left-click an enemy node to set the target,
-  right-click the target to clear it. Firing positions are derived from
-  `attacker.navigator.get_leaf_nodes()`; leaves within `FIRING_RANGE`
-  (280px) of the target light up as `ORIGIN`. `get_node_range()` returns
-  `FIRING_RANGE` for leaves so the overlay paints a faint reach circle
-  that brightens when active.
-- **`MagicAttackPlan`** — right-click an owned node to set the source,
-  left-click any node within reach (per spell targeting) to set the
-  target. Re-sourcing invalidates the target if it now falls out of
-  reach. Auto-equips `spark.tres` at plan creation since the spell
-  picker UI isn't built yet.
+- **`RangedAttackPlan`** — left-click an enemy node to set the target
+  (left-click a different hostile node to retarget directly — no origin
+  step to pop first). Right-click pops the target. Firing positions are
+  derived from `attacker.navigator.get_leaf_nodes()`; leaves within
+  `FIRING_RANGE` (280px) of the target light up as `ORIGIN`.
+  `get_node_range()` returns `FIRING_RANGE` for leaves so the overlay
+  paints a faint reach circle that brightens when active.
+- **`MagicAttackPlan`** — left-click an owned node to set the source
+  (when unset), then left-click any node within reach (per spell
+  targeting) to set the target. Right-click pops the source and target
+  together — re-sourcing is pop-then-push. Auto-equips `spark.tres` at
+  plan creation since the spell picker UI isn't built yet.
 
 ### Plumbing
 

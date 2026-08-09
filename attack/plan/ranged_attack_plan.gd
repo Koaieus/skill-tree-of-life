@@ -2,11 +2,13 @@ class_name RangedAttackPlan
 extends AttackPlan
 
 ## Single-target ranged attack: the player left-clicks an enemy-occupied
-## node to mark it as the target. Firing positions are derived (every leaf
-## of the attacker's owned territory). Each leaf reads its own `range` stat
-## (node-local via [member SkillNode.node_board], so per-node modifiers can extend reach); leaves whose range
-## reaches the target light up as ORIGIN. Right-click the current target
-## to clear it.
+## node to mark it as the target (left-click a different hostile node to
+## retarget directly — there's no separate origin step to pop first).
+## Firing positions are derived (every leaf of the attacker's owned
+## territory). Each leaf reads its own `range` stat (node-local via
+## [member SkillNode.node_board], so per-node modifiers can extend reach);
+## leaves whose range reaches the target light up as ORIGIN. Right-click
+## pops the target — see docs/design/click_grammar.md.
 
 var target: SkillNode = null
 
@@ -24,11 +26,11 @@ func _on_node_left_clicked(node: SkillNode) -> void:
 	state_changed.emit()
 
 
-func _on_node_right_clicked(node: SkillNode) -> void:
-	if target == null or node != target:
-		return
-	target = null
-	state_changed.emit()
+func pop() -> bool:
+	if target == null:
+		return false
+	reset()
+	return true
 
 
 func reset() -> void:

@@ -1,8 +1,10 @@
 class_name MagicAttackPlan
 extends AttackPlan
 
-## Right-click an owned node to set the casting source; left-click a valid
-## target per the equipped spell's targeting. The active spell comes from
+## Left-click an owned node to set the casting source (when unset), then
+## left-click a valid target per the equipped spell's targeting. Right-click
+## pops the source (and target with it) back to "no source yet" — see
+## docs/design/click_grammar.md. The active spell comes from
 ## [BattleSystem.selected_spell] when the plan is constructed by the system;
 ## hand-instantiated plans (tests, AI scoring) can assign [member spell]
 ## directly. Falls back to the bundled default if nothing is selected so the
@@ -30,22 +32,32 @@ func _init() -> void:
 	state_changed.connect(_invalidate_target_cache)
 
 
-func _on_node_right_clicked(node: SkillNode) -> void:
-	if attacker == null or node == null or node.owned_by != attacker:
-		return
-	if node == source:
-		source = null
-	else:
-		source = node
-	if target != null and not _target_still_valid():
-		target = null
-	state_changed.emit()
+func pop() -> bool:
+	if source == null:
+		return false
+	reset()
+	return true
 
 
 func _on_node_left_clicked(node: SkillNode) -> void:
-	if source == null or spell == null or spell.targeting == null:
+	if attacker == null or node == null:
+		return
+	if source == null:
+		if node.owned_by != attacker:
+			return
+		source = node
+		state_changed.emit()
+		return
+	if spell == null or spell.targeting == null:
 		return
 	if not spell.targeting.is_valid_target(self, source, node):
+		# Self-targeting fallthrough: if the source itself isn't a legal
+		# target for this spell (most attack spells), that's "never mind",
+		# not a denial — pop instead of silently dropping the click. A heal
+		# spell that allows self-targeting resolves normally above, no
+		# special case needed. See docs/design/click_grammar.md.
+		if node == source:
+			pop()
 		return
 	if target == node:
 		return
