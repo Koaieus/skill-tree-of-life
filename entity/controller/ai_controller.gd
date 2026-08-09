@@ -7,17 +7,36 @@ extends EntityController
 ## turn. No infinite loops — every branch exits in bounded steps.
 ##
 ## Sequence (budget-driven, not phase-driven): NPC v1 never voluntarily
-## deallocates → allocate one frontier node if any SP is available → launch one
-## ranged attack at the nearest hostile node if any AP is available and a leaf
-## can reach it. Range-finding is the existing RangedAttackPlan logic, so
-## per-leaf range/vision interactions stay live.
+## deallocates → recon pass (fog-aware, per-entity — see [AiRecon]) → spend
+## all SP on frontier growth → if no hostile is visible, end turn (growth-only
+## short-circuit); otherwise launch one ranged attack at the nearest hostile
+## node if any AP is available and a leaf can reach it. Range-finding is the
+## existing RangedAttackPlan logic, so per-leaf range/vision interactions
+## stay live.
 ##
-## Vision is intentionally NOT consulted here — fog of war is a viewer-side
-## concept. A proper per-entity vision pass is post-MVP (AI v2 territory);
-## v1 plays open-handed against the player. Faction filtering uses
-## [member Entity.faction] so future multi-faction support drops in trivially.
+## Fog-aware since #378: each AI consults [AiRecon] for its OWN visibility
+## (not the shared player-only VisionSystem instance) — settled 2026-08-07,
+## "each enemy acts only on what it personally sees", no faction-shared
+## reveal in v1. Faction filtering uses [member Entity.faction] so future
+## multi-faction support drops in trivially.
 
 @export var turn_delay: float = 0.4
+## Tier-gates the combat scorer's cut-vertex / enemy-weak-point / self-shape-
+## risk bonuses (see [AiCombatScorer], wired in #378's follow-on slice).
+## 0 = naive, picks by raw EV. Kept here (not on the scorer) since it's the
+## controller's single behavior-shaping knob.
+@export var ai_tier: int = 0
+## Verbose `print_rich` trace of candidate scoring / chosen action to the
+## console. [signal Events.ai_decision] fires regardless of this toggle —
+## this only gates the local console sink.
+@export var debug_trace: bool = false
+## Explicit injection wins over the GameRoot tree-walk — lets tests wire a
+## bare AllocationSystem / BattleSystem without composing a full
+## game_root.tscn. Unset in production (GameRoot._ensure_controllers doesn't
+## set these), so real levels keep resolving via [method _game_root_or_null]
+## unchanged.
+@export var allocation_system_override: AllocationSystem = null
+@export var battle_system_override: BattleSystem = null
 
 # Cached on first use. Walked once via _find_game_root; cheap lookup.
 var _game_root: GameRoot = null
@@ -29,21 +48,44 @@ func take_turn() -> void:
 	if not _continue():
 		return
 
-	# Allocate one frontier node if SP is available. Only pause if we actually
-	# allocated something — otherwise the AI's turn drags out as empty beats.
+	var saw_hostile := AiRecon.has_visible_hostile(entity)
+
+	# Spend all available SP on frontier growth, fog-aware or not — the
+	# fog short-circuit only gates the ATTACK step below.
 	if entity.stat_board != null:
 		var sp: SkillPointStat = entity.stat_board.skill_points
-		if sp != null and sp.current > 0 and _try_allocate_frontier():
-			await _wait()
+		if sp != null:
+			while sp.current > 0 and _continue() and _try_allocate_frontier():
+				await _wait()
+
+	if not saw_hostile:
+		_decide("no visible hostile — growth only")
+		if _continue():
+			_turn_manager.end_turn()
+		return
 
 	# Attack if AP is available and a target is reachable.
 	if _continue() and entity.stat_board != null:
 		var ap: PoolStat = entity.stat_board.action_points
-		if ap != null and ap.current > 0 and await _try_attack():
-			await _wait()
+		if ap != null and ap.current > 0:
+			var target := _pick_hostile_target()
+			if target != null and await _try_attack(target):
+				_decide("ranged attack on %s" % target.name)
+				await _wait()
+			else:
+				_decide("no reachable attack this turn")
 
 	if _continue():
 		_turn_manager.end_turn()
+
+
+## Emits [signal Events.ai_decision] unconditionally, and mirrors it to the
+## console when [member debug_trace] is on. The single seam both channels
+## (#378) go through.
+func _decide(summary: String) -> void:
+	Events.ai_decision.emit(entity, summary)
+	if debug_trace:
+		print_rich("[AIController] %s: %s" % [entity.display_name, summary])
 
 
 func _try_allocate_frontier() -> bool:
@@ -74,12 +116,9 @@ func _pick_frontier_node() -> SkillNode:
 	return null
 
 
-func _try_attack() -> bool:
+func _try_attack(target: SkillNode) -> bool:
 	var bs := _battle_system()
-	if bs == null:
-		return false
-	var target := _pick_hostile_target()
-	if target == null:
+	if bs == null or target == null:
 		return false
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
@@ -137,10 +176,14 @@ func _game_root_or_null() -> GameRoot:
 
 
 func _allocation_system() -> AllocationSystem:
+	if allocation_system_override != null:
+		return allocation_system_override
 	var gr := _game_root_or_null()
 	return gr.allocation_system if gr != null else null
 
 
 func _battle_system() -> BattleSystem:
+	if battle_system_override != null:
+		return battle_system_override
 	var gr := _game_root_or_null()
 	return gr.battle_system if gr != null else null

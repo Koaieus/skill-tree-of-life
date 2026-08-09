@@ -96,3 +96,11 @@ signal game_over
 ## line width can hold constant screen-pixel coverage (#399) without every
 ## edge polling the camera in `_process`.
 signal camera_zoom_changed(zoom: float)
+
+## Fired by [AIController] on every AI decision this turn (growth allocation,
+## attack pick, or "nothing sensible") — ALWAYS, regardless of the
+## controller's local `debug_trace` toggle. Zero consumers is a no-op; this
+## is the seam a future HUD overlay / DebugClipboard fan subscribes to
+## without touching the controller (#378). `entity` is the deciding AI,
+## `summary` a short human-readable description of the decision.
+signal ai_decision(entity: Entity, summary: String)
