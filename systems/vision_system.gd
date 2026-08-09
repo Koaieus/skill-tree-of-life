@@ -99,6 +99,21 @@ func _ready() -> void:
 	_recompute.call_deferred()
 
 
+## The vision rule, as a pure geometry test: is [param target_pos] inside the
+## union of circles at [param positions] with matching [param radii]? Single
+## source of truth — both the live per-frame recompute below (the scene's one
+## VisionSystem instance, cached radii) and one-off per-entity callers that
+## don't want a whole VisionSystem node (AiRecon, #378 — builds its circle set
+## fresh per call from `Entity.navigator`'s owned nodes) route through this,
+## so the vision rule never forks into two implementations.
+static func is_within_circles(target_pos: Vector2, positions: PackedVector2Array, radii: PackedFloat32Array) -> bool:
+	for i in positions.size():
+		var r := radii[i]
+		if target_pos.distance_squared_to(positions[i]) <= r * r:
+			return true
+	return false
+
+
 func is_visible(node: SkillNode) -> bool:
 	return _visible.has(node)
 
@@ -263,15 +278,14 @@ func _recompute() -> void:
 				else:
 					_circles[own_node].target = r
 
+		var positions := PackedVector2Array()
+		var radii := PackedFloat32Array()
+		for i in all_owned.size():
+			positions.append((all_owned[i] as SkillNode).global_position)
+			radii.append(targets[i])
 		for n in nodes:
-			for i in all_owned.size():
-				var src: SkillNode = all_owned[i]
-				var r: float = targets[i]
-				var dx: float = n.global_position.x - src.global_position.x
-				var dy: float = n.global_position.y - src.global_position.y
-				if dx * dx + dy * dy <= r * r:
-					_visible[n] = true
-					break
+			if is_within_circles(n.global_position, positions, radii):
+				_visible[n] = true
 
 		# Sensed: max-budget priority traversal seeded by every owned node
 		# with its own local sensor_range. Higher-budget probes pop first,

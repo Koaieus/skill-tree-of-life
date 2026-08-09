@@ -5,10 +5,14 @@ extends RefCounted
 ## player-only [VisionSystem] instance (game_root's `%VisionSystem`, whose
 ## `viewers` is `[player]` and drives the player's fog rendering only) —
 ## settled 2026-08-07: "each enemy acts only on what it personally sees", no
-## faction-shared reveal in v1. This module reuses VisionSystem's circle-test
-## geometry (owned node position + local `vision_range`) but evaluates it
-## fresh per AI turn, scoped to one entity, so it never touches the shared
-## singleton's cached state.
+## faction-shared reveal in v1.
+##
+## The vision RULE stays single-sourced in [VisionSystem.is_within_circles] —
+## this module only supplies the WHO (this entity's owned nodes, off
+## [member Entity.navigator], the per-entity subgraph mirror) and evaluates
+## fresh per AI turn instead of touching the shared singleton's cached
+## viewer-scoped state. Two call sites, one geometry, never two
+## implementations of "is X visible".
 ##
 ## Recon depth for the cut-vertex/island walk is bounded separately from
 ## vision range: `recon_bound()` is attack reach + 1 allocation, deliberately
@@ -31,22 +35,19 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 	var owned := entity.navigator.get_mirrored_nodes()
 	if owned.is_empty():
 		return out
+	var positions := PackedVector2Array()
+	var radii := PackedFloat32Array()
+	for src in owned:
+		positions.append(src.global_position)
+		radii.append(float(src.get_local_value(&"vision_range")))
 	for node in graph.get_skill_nodes():
 		if node == null or node.owned_by == null:
 			continue
 		if entity.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
 			continue
-		if _within_vision(node, owned):
+		if VisionSystem.is_within_circles(node.global_position, positions, radii):
 			out.append(node)
 	return out
-
-
-static func _within_vision(node: SkillNode, owned: Array[SkillNode]) -> bool:
-	for src in owned:
-		var r: float = float(src.get_local_value(&"vision_range"))
-		if src.global_position.distance_squared_to(node.global_position) <= r * r:
-			return true
-	return false
 
 
 ## Attack-reach + 1-allocation bound. [param max_reach] is the largest
