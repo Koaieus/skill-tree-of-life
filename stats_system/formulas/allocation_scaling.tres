@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ExpressionFormula" format=3 uid="uid://b8allocscaling1"]
+[gd_resource type="Resource" script_class="ExpressionFormula" format=3 uid="uid://b5b2vjwvxe44m"]
 
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="1_expr"]
 

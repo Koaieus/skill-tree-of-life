@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="2_pool"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="3_scalar"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
-[ext_resource type="Resource" path="res://stats_system/formulas/allocation_scaling.tres" id="5_alloc_scaling"]
+[ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="5_alloc_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="def_addon_slots"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="def_stake_level"]
 
@@ -12,7 +12,6 @@
 resource_name = "addon_slots"
 script = ExtResource("3_scalar")
 definition = ExtResource("def_addon_slots")
-
 
 [sub_resource type="Resource" id="Resource_m_addon_slots"]
 script = ExtResource("4_mod")
