@@ -15,12 +15,11 @@ offset_bottom = 55.0
 min_size = Vector2(160, 110)
 hug_down = true
 
-[node name="Content" parent="PanelSkin"]
+[node name="Content" parent="PanelSkin/MarginContainer"]
 theme_override_constants/separation = 1
-padding = Vector2(8, 8)
 
-[node name="Header" parent="PanelSkin/Content"]
+[node name="Header" parent="PanelSkin/MarginContainer/Content"]
 visible = false
 
-[node name="Rows" parent="PanelSkin/Content"]
+[node name="Rows" parent="PanelSkin/MarginContainer/Content"]
 theme_override_constants/separation = 1

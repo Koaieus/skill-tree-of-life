@@ -1,24 +1,18 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dydtf6prsgdr1"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://bqwejggu0vmvu" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://dr8klp6tnwxx8" path="res://ui/tooltip_fan/panels/core_panel.gd" id="2_script"]
 
-[node name="CorePanel" instance=ExtResource("1_base")]
+[node name="CorePanel" unique_id=236427677 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 glow = 0.8
-progress = 1.0
 
-[node name="PanelSkin" parent="."]
+[node name="PanelSkin" parent="." index="0" unique_id=808501229]
+instance_shader_parameters/glow = 0.8
+instance_shader_parameters/size = Vector2(190, 260)
 offset_left = -95.0
 offset_top = -130.0
 offset_right = 95.0
 offset_bottom = 130.0
 min_size = Vector2(190, 260)
 glow = 0.8
-
-[node name="Content" parent="PanelSkin"]
-theme_override_constants/separation = 2
-padding = Vector2(10, 9)
-
-[node name="Rows" parent="PanelSkin/Content"]
-theme_override_constants/separation = 1

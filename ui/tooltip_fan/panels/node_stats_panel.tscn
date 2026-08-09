@@ -14,9 +14,5 @@ offset_right = 85.0
 offset_bottom = 100.0
 min_size = Vector2(170, 200)
 
-[node name="Content" parent="PanelSkin"]
-theme_override_constants/separation = 2
-padding = Vector2(10, 9)
-
-[node name="Rows" parent="PanelSkin/Content"]
+[node name="Rows" parent="PanelSkin/MarginContainer/Content"]
 theme_override_constants/separation = 2

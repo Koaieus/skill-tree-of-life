@@ -1,10 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://c8p5xsdqblgff"]
 
 [ext_resource type="Script" uid="uid://h8fsj632oxi0" path="res://ui/tooltip_fan/fan_unit.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://d0w41dfe3cu3y" path="res://ui/tooltip_fan/fan_trace.tscn" id="2_trace"]
 
-[node name="FanUnit" type="Node2D" groups=["fan_unit"]]
+[node name="FanUnit" type="Node2D" unique_id=1218486660 groups=["fan_unit"]]
 script = ExtResource("1_script")
 
-[node name="Trace" parent="." instance=ExtResource("2_trace")]
+[node name="Trace" parent="." unique_id=879449354 instance=ExtResource("2_trace")]
 unique_name_in_owner = true
+z_index = -5

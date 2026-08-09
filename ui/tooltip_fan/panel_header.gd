@@ -34,6 +34,19 @@ extends Control
 			_subheader_label.text = subheader
 			_subheader_label.visible = not subheader.is_empty()
 
+
+## Godot applies scene-authored `header`/`subheader` overrides before
+## `_ready()` runs, so the setters above see `_header_label`/`_subheader_label`
+## still null and skip the push (their `if _label:` guard exists for exactly
+## that ordering, not to drop the value). Re-apply once the `@onready` refs
+## are live, so authoring the fields directly in the inspector — now possible
+## since #380 made `Header` a real inherited node — actually takes.
+func _ready() -> void:
+	_header_label.text = header
+	_subheader_label.text = subheader
+	_subheader_label.visible = not subheader.is_empty()
+
+
 ## Sets the all-caps header text and the optional subheader. An empty (or
 ## whitespace-only) `subheader` collapses the subheader row entirely.
 func bind(header_: String, subheader_: String = "") -> void:

@@ -1,9 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://c0qd36wwvguhe"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
-[ext_resource type="PackedScene" uid="uid://do0ss4uen1860" path="res://ui/tooltip_fan/panels/core_panel.tscn" id="2_panel"]
+[ext_resource type="PackedScene" uid="uid://c8p5xsdqblgff" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/core_panel.tscn" id="2_panel"]
 
-[node name="CoreUnit" instance=ExtResource("1_base")]
+[node name="CoreUnit" unique_id=1796368202 instance=ExtResource("1_base")]
 
-[node name="Panel" parent="." instance=ExtResource("2_panel")]
+[node name="Panel" parent="." index="1" unique_id=1664798895 instance=ExtResource("2_panel")]
 unique_name_in_owner = true

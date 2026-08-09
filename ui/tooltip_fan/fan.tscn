@@ -2,11 +2,11 @@
 
 [ext_resource type="Script" uid="uid://dtuqlxd63xtr4" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
 [ext_resource type="PackedScene" uid="uid://cfjoysc2u6djv" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
-[ext_resource type="PackedScene" uid="uid://4ugis0fif3r8" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
+[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
+[ext_resource type="PackedScene" uid="uid://bymtwcdh42pj6" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
-[ext_resource type="PackedScene" uid="uid://bx7ob3yb6gsd1" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
+[ext_resource type="PackedScene" uid="uid://c0qd36wwvguhe" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/procgen_debug_unit.tscn" id="8_procgen"]
 
 [node name="Fan" type="Node2D" unique_id=689565114]
@@ -31,7 +31,7 @@ anchor_slide = 0.1
 arrival_axis = 2
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
-position = Vector2(212, -289)
+position = Vector2(213, -286)
 anchor_slide = 0.87
 arrival_axis = 1
 

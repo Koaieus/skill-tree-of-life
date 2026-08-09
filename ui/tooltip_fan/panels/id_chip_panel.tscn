@@ -16,14 +16,13 @@ offset_bottom = 13.0
 min_size = Vector2(68, 26)
 glow = 0.5
 
-[node name="Content" parent="PanelSkin"]
+[node name="Content" parent="PanelSkin/MarginContainer"]
 alignment = 1
-padding = Vector2(6, 4)
 
-[node name="Header" parent="PanelSkin/Content"]
+[node name="Header" parent="PanelSkin/MarginContainer/Content"]
 visible = false
 
-[node name="NameLabel" type="Label" parent="PanelSkin/Content/Rows"]
+[node name="NameLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -32,7 +31,7 @@ theme_override_font_sizes/font_size = 12
 text = "Keystone Name"
 horizontal_alignment = 1
 
-[node name="DescriptionLabel" type="Label" parent="PanelSkin/Content/Rows"]
+[node name="DescriptionLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(56, 0)
@@ -42,7 +41,7 @@ theme_override_font_sizes/font_size = 9
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="EffectsLabel" type="Label" parent="PanelSkin/Content/Rows"]
+[node name="EffectsLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -51,7 +50,7 @@ theme_override_font_sizes/font_size = 9
 text = "0 effects"
 horizontal_alignment = 1
 
-[node name="DegreeLabel" type="Label" parent="PanelSkin/Content/Rows"]
+[node name="DegreeLabel" type="Label" parent="PanelSkin/MarginContainer/Content/Rows"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)

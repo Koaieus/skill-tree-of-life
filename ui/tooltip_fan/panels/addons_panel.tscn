@@ -1,14 +1,15 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dmoeuku6pgljn"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://bqwejggu0vmvu" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bxayee1wlhh5y" path="res://ui/tooltip_fan/panels/addons_panel.gd" id="2_script"]
 
-[node name="AddonsPanel" instance=ExtResource("1_base")]
+[node name="AddonsPanel" unique_id=702945487 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 glow = 0.55
-progress = 1.0
 
-[node name="PanelSkin" parent="."]
+[node name="PanelSkin" parent="." index="0" unique_id=808501229]
+instance_shader_parameters/glow = 0.55
+instance_shader_parameters/size = Vector2(150, 130)
 offset_left = -75.0
 offset_top = -65.0
 offset_right = 75.0
@@ -16,9 +17,6 @@ offset_bottom = 65.0
 min_size = Vector2(150, 130)
 glow = 0.55
 
-[node name="Content" parent="PanelSkin"]
-theme_override_constants/separation = 3
-padding = Vector2(10, 9)
-
-[node name="Rows" parent="PanelSkin/Content"]
-theme_override_constants/separation = 2
+[node name="Header" parent="PanelSkin/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
+header = "ADDONS"
+subheader = "Some nodes on your nodes"
