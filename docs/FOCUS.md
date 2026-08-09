@@ -85,10 +85,12 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
 ### B — The missing combat verb
 
 1. ~~**#337** Staking~~ — **CLOSED.** Shipped.
-2. **#332** node-local formula modifiers — children #374/~~#375~~/~~#376~~ all
-   done (#375/#376 closed 2026-08-09). Hub itself not independently re-verified
-   against its own acceptance list (binding path / cycle gate / recompute-on-change)
-   — worth a look before closing.
+2. ~~#332~~ node-local formula modifiers — **CLOSED 2026-08-09.** Re-verified
+   against master: binding path, cycle gate, formula reachability
+   (`stake_level__current`), and recompute-on-change all shipped and tested
+   (37/37 across `test_node_local_bind`/`test_addon_slots`/`test_local_scaling`/
+   `test_stake_level_poolstat`). `NodeStatBoard extends StatBoard` (owner's
+   follow-up ask) also confirmed landed (`stats_system/node_stat_board.gd`).
 3. **#377** stateless `StatModifier` refactor — **CLOSED 2026-08-08.** Shipped
    exactly as scoped. **Did not** delete `_scaled_sets`/`_scaled_effect_sets` —
    that's a real, separate redesign of #376's composition-swap mechanism,
