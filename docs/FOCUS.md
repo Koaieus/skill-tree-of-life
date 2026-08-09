@@ -37,20 +37,22 @@ forks and moves it to `Ready`. **FOCUS does not catalog `Needs design` work.**
 6. **`Ready` is a superset, not the queue.** Being `Ready` means "a drone *could*
    take this"; being named below means "a drone *should*".
 
-## The headline: lane A is most of the way shipped, lane H needs a design session
+## The headline: lane A is most of the way shipped, lane H is now Ready
 
 Lane A's stated exit was **#389 + #388 + #392 shipped**. #388 is closed. #389 and
 #392 are code-complete but **not tuned yet** — owner call, not a code question:
 glow/emission values and arc positioning on #389 still need eyeballing, and #392
 lost focus to #388/mod-slab work and hasn't been tuned. Both stay open.
 
-**#378 (the AI, lane H) sits in `Needs design`**, not `Ready` — the board bounced
-it there after a melee-search-budget comment surfaced real open questions:
-`BladeHitScan.scan` is not verified WorkerThreadPool-safe (it now queries
-`PhysicsDirectSpaceState2D`, not pure math), and the two-tier coarse/full eval
-split needs a decision on whether coarse ranking preserves top-K ordering.
-**Next action for lane H is `/swarmify #378`, not a drone dispatch** — confirmed,
-this is the lane-H entry in the ordered list below.
+**#378 (the AI, lane H) is `Ready`**, milestone `MVP playable loop` — swarmified
+2026-08-09. `BladeHitScan.scan`'s non-purity is confirmed (queries
+`PhysicsDirectSpaceState2D`), resolved by threading `BladeSim.simulate` only and
+running `scan` sequentially on the main thread against a pruned finalist set
+(reach-bound rejection + directional pivot pruning + two-tier coarse/full eval
+are now required v1 acceptance, not optional polish). Archetype/personality
+(Caster/Bruiser/Ranger) was pulled out of scope — filed as `AiWeights` follow-up
+#410, `Backlog`, blocked-by #378. **Next action for lane H is a drone dispatch
+on #378**, this is the lane-H entry in the ordered list below.
 
 ## Right now — drone-ready and scheduled
 
@@ -194,18 +196,19 @@ reusable shape). Needs a real back-and-forth design session, not a solo read.
 
 ### H — The game plays itself (AI)
 
-**Lane H — confirmed.** #378 sits in `Needs design`, not `Ready`. Its hard
-prerequisites are done:
+**Lane H — confirmed.** #378 is `Ready`. Its hard prerequisites are done:
 
 1. ~~#384 Ownership buckets + Faction~~ — **CLOSED.**
 2. ~~#385 Set-shaped targeting~~ — **CLOSED.**
-3. **#378** AI controller v1 — **`Needs design`.** Melee-budget numbers are in
-   (k=20 blade ≈ 13ms solve-only, ~75 candidates/sec single-threaded full-fidelity;
-   two-tier coarse/full eval is the biggest lever at ~14x). Per-entity vision, no
-   faction-shared reveal in v1, settled 2026-08-07 (deferred lever filed as #394).
-   Open before this can dispatch: thread-safety of `BladeHitScan.scan` and
-   whether coarse-tier ranking preserves top-K ordering against the full sim.
-   **Next step: `/swarmify #378`.**
+3. **#378** AI controller v1 — **`Ready`**, milestone `MVP playable loop`,
+   swarmified 2026-08-09. Melee-budget numbers are in (k=20 blade ≈ 13ms
+   solve-only, ~75 candidates/sec single-threaded full-fidelity; two-tier
+   coarse/full eval is the biggest lever at ~14x). Per-entity vision, no
+   faction-shared reveal in v1, settled 2026-08-07 (deferred lever filed as
+   #394). `BladeHitScan.scan` threading resolved: thread `BladeSim.simulate`
+   only, `scan` stays main-thread against a pruned finalist set. Archetype
+   personality pulled out of scope, filed as #410 (`Backlog`, blocked-by #378).
+   **Next step: dispatch to a drone.**
 4. #47 strategy-pattern NPC controller — `Needs design`, v2, not this lane's exit.
 
 ## Enablers (pull in only when a lane needs them)
