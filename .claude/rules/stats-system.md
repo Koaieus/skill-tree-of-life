@@ -395,6 +395,14 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `constitution` + `core_health_scaling` | `health` | ADD_BASE | 1 | `core_health_scaling * constitution` (D-21/D-26, #276) — the rate is the **stat**, not the coefficient (see below) |
 | `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — TBD (#268), +1 CON per level |
 
+## Intrinsic scaling (node board)
+
+Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/default_node_board.tres`) holds node-owned intrinsics the same way the entity table above does — modifier inline on the board, formula file-backed. The node board is `duplicate(true)`d **per node** (500–2500/level, `.claude/rules/skill-node-scale.md`) rather than per entity, so an inlined formula here forks that many ways instead of a handful — treat file-backing as non-negotiable for this table, not just good practice.
+
+| Input stat | Target stat | Op | value | formula |
+|---|---|---|---|---|
+| `stake_level` (current) | `addon_slots` | ADD_BASE | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` |
+
 ### Formula classes — pick the narrowest one (#289)
 
 | Class | Shape | Describes itself as |
