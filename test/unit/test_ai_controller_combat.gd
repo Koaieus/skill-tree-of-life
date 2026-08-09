@@ -262,17 +262,28 @@ func test_magic_candidate_is_gathered_and_can_be_executed() -> void:
 	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
 
 
-func test_magic_insufficient_mana_does_not_hang_the_turn() -> void:
-	# Magic is the only reachable mode, but launch_attack's mana check bails
-	# without deducting AP or clearing the plan — the AP-progress guard must
-	# stop the loop instead of spinning on the same candidate forever.
+func test_magic_insufficient_mana_is_excluded_rather_than_stalling_the_turn() -> void:
+	# Ranged is unreachable and mana can't afford the only known spell —
+	# _gather_magic_candidates filters unaffordable spells out (mana isn't
+	# gated by MagicAttackPlan.validate(), and BattleSystem.launch_attack's
+	# mana bail doesn't deduct AP or clear the plan, which would otherwise
+	# stall the AP loop with AP left unspent — the 1-damage floor requires
+	# ending the turn cleanly, not hanging on an unaffordable pick).
+	#
+	# Cost set absurdly high rather than draining `mana` to 0: turn-start
+	# upkeep ADDS `mana_per_turn` before take_turn runs (same shape as the
+	# SP-minting gotcha in .claude/rules/turn-manager.md), so a pre-turn
+	# `mana.set_current(0.0)` doesn't stay 0 by the time the AP loop reads it.
 	_make_ranged_unreachable_but_magic_reachable()
-	_enemy.get_spellbook().learn(_SPARK_SPELL)
-	_enemy.stat_board.mana.set_current(0.0)
+	var unaffordable_spark := _SPARK_SPELL.duplicate(true) as SpellDef
+	unaffordable_spark.mana_cost = 999
+	_enemy.get_spellbook().learn(unaffordable_spark)
 
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 
-	assert_ne(_tm.current_entity, _enemy, "turn must still end, not hang on a bailed-out cast")
-	var saw_stall := _decisions.any(func(s: String) -> bool: return s.find("AP unchanged") != -1)
-	assert_true(saw_stall, "the mana-bail stall should be visible in the decision trace: %s" % str(_decisions))
+	assert_ne(_tm.current_entity, _enemy, "turn must still end, not hang on an unaffordable cast")
+	assert_false(_launches.has(BattleSystem.AttackMode.MAGIC),
+			"the unaffordable spell must never be launched")
+	assert_true(_decisions.has("no reachable attack this turn"),
+			"with ranged unreachable and magic unaffordable, nothing was left to do: %s" % str(_decisions))

@@ -213,8 +213,17 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	var spells := entity.spellbook.spells
 	if spells.is_empty():
 		return out
+	var mana: PoolStat = entity.stat_board.mana if entity.stat_board != null else null
 	var owned := entity.navigator.get_mirrored_nodes()
 	for spell in spells:
+		# MagicAttackPlan.validate() deliberately doesn't gate on mana (a
+		# preview/UI concern, not a plan-shape one) — BattleSystem.launch_attack
+		# bails on insufficient mana WITHOUT deducting AP or clearing the plan,
+		# so an unaffordable spell must never win pick_best or the AP loop
+		# stalls with AP left unspent (violates the 1-damage floor). Filter
+		# here, the one place that actually knows the entity's current mana.
+		if mana != null and mana.current < float(spell.mana_cost):
+			continue
 		for source in owned:
 			var probe := MagicAttackPlan.new()
 			probe.attacker = entity
