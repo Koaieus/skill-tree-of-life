@@ -8,11 +8,15 @@ extends EntityController
 ##
 ## Sequence (budget-driven, not phase-driven): NPC v1 never voluntarily
 ## deallocates → recon pass (fog-aware, per-entity — see [AiRecon]) → spend
-## all SP on frontier growth → if no hostile is visible, end turn (growth-only
-## short-circuit); otherwise launch one ranged attack at the nearest hostile
-## node if any AP is available and a leaf can reach it. Range-finding is the
-## existing RangedAttackPlan logic, so per-leaf range/vision interactions
-## stay live.
+## all SP on frontier growth, scored via [method AiCombatScorer.score_frontier]
+## (directional-toward-enemies + a tactical-enable bonus for a pick that lands
+## a near-miss kill) → if no hostile is visible, end turn (growth-only
+## short-circuit); otherwise the AP×2 loop scores every ranged + magic
+## candidate against every visible hostile via [AiCombatScorer], executes the
+## best, and re-evaluates — the re-eval is what makes dent-then-finish and the
+## 1-damage floor fall out naturally rather than needing special-casing.
+## Melee joins the candidate pool in #378 slice C ([code]ai_blade_rollout.gd
+## [/code]).
 ##
 ## Fog-aware since #378: each AI consults [AiRecon] for its OWN visibility
 ## (not the shared player-only VisionSystem instance) — settled 2026-08-07,
@@ -21,10 +25,9 @@ extends EntityController
 ## multi-faction support drops in trivially.
 
 @export var turn_delay: float = 0.4
-## Tier-gates the combat scorer's cut-vertex / enemy-weak-point / self-shape-
-## risk bonuses (see [AiCombatScorer], wired in #378's follow-on slice).
-## 0 = naive, picks by raw EV. Kept here (not on the scorer) since it's the
-## controller's single behavior-shaping knob.
+## Tier-gates [AiCombatScorer]'s cut-vertex / enemy-weak-point / self-shape-
+## risk bonuses. 0 = naive, picks by raw EV. Kept here (not on the scorer)
+## since it's the controller's single behavior-shaping knob.
 @export var ai_tier: int = 0
 ## Verbose `print_rich` trace of candidate scoring / chosen action to the
 ## console. [signal Events.ai_decision] fires regardless of this toggle —
@@ -48,15 +51,20 @@ func take_turn() -> void:
 	if not _continue():
 		return
 
-	var saw_hostile := AiRecon.has_visible_hostile(entity)
+	var visible_enemies := AiRecon.visible_enemy_nodes(entity)
+	var saw_hostile := not visible_enemies.is_empty()
 
 	# Spend all available SP on frontier growth, fog-aware or not — the
-	# fog short-circuit only gates the ATTACK step below.
+	# fog short-circuit only gates the ATTACK step below. Territory changes
+	# each allocation, so recon is re-run each pass (a new leaf can put a
+	# previously-out-of-range hostile in vision).
 	if entity.stat_board != null:
 		var sp: SkillPointStat = entity.stat_board.skill_points
 		if sp != null:
-			while sp.current > 0 and _continue() and _try_allocate_frontier():
+			while sp.current > 0 and _continue() and _try_allocate_frontier(visible_enemies):
 				await _wait()
+				visible_enemies = AiRecon.visible_enemy_nodes(entity)
+				saw_hostile = saw_hostile or not visible_enemies.is_empty()
 
 	if not saw_hostile:
 		_decide("no visible hostile — growth only")
@@ -64,16 +72,26 @@ func take_turn() -> void:
 			_turn_manager.end_turn()
 		return
 
-	# Attack if AP is available and a target is reachable.
-	if _continue() and entity.stat_board != null:
+	# AP×2 loop: score every ranged/magic candidate against every visible
+	# hostile, execute the best, re-evaluate — the board changed (a dent, a
+	# kill), so re-running recon + enumeration each pass is what makes
+	# dent-then-finish fall out naturally instead of needing special-casing.
+	if entity.stat_board != null:
 		var ap: PoolStat = entity.stat_board.action_points
-		if ap != null and ap.current > 0:
-			var target := _pick_hostile_target()
-			if target != null and await _try_attack(target):
-				_decide("ranged attack on %s" % target.name)
-				await _wait()
-			else:
+		while ap != null and ap.current > 0 and _continue():
+			visible_enemies = AiRecon.visible_enemy_nodes(entity)
+			if visible_enemies.is_empty():
+				break
+			var best := _best_attack_candidate(visible_enemies)
+			if best == null:
 				_decide("no reachable attack this turn")
+				break
+			if not await _execute_candidate(best):
+				_decide("attack execution failed: %s" % best.trace)
+				break
+			_decide(best.trace)
+			await _wait()
+			ap = entity.stat_board.action_points
 
 	if _continue():
 		_turn_manager.end_turn()
@@ -88,64 +106,142 @@ func _decide(summary: String) -> void:
 		print_rich("[AIController] %s: %s" % [entity.display_name, summary])
 
 
-func _try_allocate_frontier() -> bool:
+func _try_allocate_frontier(visible_enemies: Array[SkillNode]) -> bool:
 	var alloc := _allocation_system()
 	if alloc == null or entity.navigator == null:
 		return false
-	var candidate := _pick_frontier_node()
+	var candidate := _pick_frontier_node(visible_enemies)
 	if candidate == null:
 		return false
 	return alloc.allocate(candidate, entity)
 
 
 ## Frontier = unowned node adjacent to a node this entity already owns.
-## Picks the first match — no scoring heuristic at v1.
-func _pick_frontier_node() -> SkillNode:
+## Scored via [method AiCombatScorer.score_frontier] — directional-toward-
+## enemies + a tactical-enable bonus for a pick that turns a near-miss ranged
+## kill into a landed one (#378 acceptance: tactical-leaf-for-near-miss-kill).
+## No visible enemies -> first match, there's nothing to score against yet.
+func _pick_frontier_node(visible_enemies: Array[SkillNode]) -> SkillNode:
 	var graph := entity.navigator.graph if entity.navigator != null else null
 	if graph == null:
 		return null
+	var frontier := _frontier_candidates(graph)
+	if frontier.is_empty():
+		return null
+	if visible_enemies.is_empty():
+		return frontier[0]
+	var best: SkillNode = null
+	var best_score := -INF
+	for candidate in frontier:
+		var s := AiCombatScorer.score_frontier(candidate, entity, visible_enemies)
+		if s > best_score:
+			best_score = s
+			best = candidate
+	return best
+
+
+## Every unowned node adjacent to one this entity already owns, deduplicated.
+func _frontier_candidates(graph: Graph) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	var seen: Dictionary[SkillNode, bool] = {}
 	for edge in graph.get_edges():
 		if edge == null or edge.from == null or edge.to == null:
 			continue
 		var a := edge.from
 		var b := edge.to
-		if a.owned_by == entity and b.owned_by == null:
-			return b
-		if b.owned_by == entity and a.owned_by == null:
-			return a
-	return null
+		if a.owned_by == entity and b.owned_by == null and not seen.has(b):
+			seen[b] = true
+			out.append(b)
+		if b.owned_by == entity and a.owned_by == null and not seen.has(a):
+			seen[a] = true
+			out.append(a)
+	return out
 
 
-func _try_attack(target: SkillNode) -> bool:
+## Every ranged + magic candidate against every visible hostile, scored via
+## [AiCombatScorer]. Melee joins this pool in slice C
+## ([code]ai_blade_rollout.gd[/code]) — the scorer itself is already
+## mode-agnostic, only the candidate builders are still ranged/magic-only.
+func _best_attack_candidate(visible_enemies: Array[SkillNode]) -> AiCombatScorer.ScoredCandidate:
+	var candidates: Array[AiCombatScorer.ScoredCandidate] = []
+	candidates.append_array(_gather_ranged_candidates(visible_enemies))
+	candidates.append_array(_gather_magic_candidates(visible_enemies))
+	return AiCombatScorer.pick_best(candidates)
+
+
+func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
+	var out: Array[AiCombatScorer.ScoredCandidate] = []
+	for target in visible_enemies:
+		var plan := RangedAttackPlan.new()
+		plan.attacker = entity
+		plan.target = target
+		if not plan.is_valid():
+			continue
+		var outcome := plan.resolve()
+		out.append(AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier))
+	return out
+
+
+## Every (known spell × owned casting source × visible hostile target)
+## combination whose plan validates. No spellbook / no known spells -> no
+## magic candidates, same as a naive entity that never learned one.
+func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
+	var out: Array[AiCombatScorer.ScoredCandidate] = []
+	if entity.spellbook == null or entity.navigator == null:
+		return out
+	var spells := entity.spellbook.spells
+	if spells.is_empty():
+		return out
+	var owned := entity.navigator.get_mirrored_nodes()
+	for spell in spells:
+		for source in owned:
+			for target in visible_enemies:
+				var plan := MagicAttackPlan.new()
+				plan.attacker = entity
+				plan.spell = spell
+				plan.source = source
+				plan.target = target
+				if not plan.is_valid():
+					continue
+				var outcome := plan.resolve()
+				var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier)
+				c.source_node = source
+				c.spell = spell
+				out.append(c)
+	return out
+
+
+## Re-requests the mode fresh off [BattleSystem] (which stamps the live
+## `attacker`) and copies the scored candidate's target/source/spell onto it,
+## rather than committing the throwaway plan [method _gather_ranged_candidates]
+## / [method _gather_magic_candidates] scored against — BattleSystem owns the
+## one live [member BattleSystem.attack_plan] and its signal-driven UI/VFX
+## seam, so scoring must not mutate it N times per turn.
+func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 	var bs := _battle_system()
-	if bs == null or target == null:
+	if bs == null or candidate == null:
 		return false
-	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	var plan := bs.attack_plan as RangedAttackPlan
-	if plan == null:
-		return false
-	plan.target = target
-	if not plan.is_valid():
+	bs.request_attack_mode(candidate.mode)
+	match candidate.mode:
+		BattleSystem.AttackMode.RANGED:
+			var plan := bs.attack_plan as RangedAttackPlan
+			if plan == null:
+				return false
+			plan.target = candidate.target
+		BattleSystem.AttackMode.MAGIC:
+			var plan := bs.attack_plan as MagicAttackPlan
+			if plan == null:
+				return false
+			plan.source = candidate.source_node
+			plan.spell = candidate.spell
+			plan.target = candidate.target
+		_:
+			return false
+	if not bs.attack_plan.is_valid():
 		bs.cancel_attack()
 		return false
 	await bs.launch_attack()
 	return true
-
-
-## First hostile node in the graph that isn't us. `attitude_to` beats raw
-## ownership so future allies don't get shot.
-func _pick_hostile_target() -> SkillNode:
-	var graph := entity.navigator.graph if entity.navigator != null else null
-	if graph == null:
-		return null
-	for node in graph.get_skill_nodes():
-		if node == null or node.owned_by == null:
-			continue
-		var other := node.owned_by
-		if entity.attitude_to(other) != Entity.Attitude.HOSTILE:
-			continue
-		return node
-	return null
 
 
 # --- helpers ---------------------------------------------------------------
