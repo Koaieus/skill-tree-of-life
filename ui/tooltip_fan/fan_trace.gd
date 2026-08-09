@@ -208,6 +208,13 @@ const PHI_FRACTION := 0.382
 @export_group("Motion")
 @export var draw_in_duration := 0.28
 @export var erase_duration := 0.18
+## Duration of the tip's dismiss flourish once the draw-in finishes: shrinks
+## to zero scale and drops from bloom tier to [constant Emissive.INERT] instead
+## of vanishing on the frame `progress` hits 1 — the bloom collapses with the
+## sprite rather than cutting instantly. 0 restores the old instant-vanish.
+## Skipped entirely when [member idle_anim] is set — idle re-lights the tip
+## for the settled pulse, so there is nothing to dismiss.
+@export_range(0.0, 0.4, 0.01) var tip_dismiss_duration := 0.12
 
 @export_group("Idle")
 ## The settled-state idle-loop settings for this trace (#234) — or `null` to
@@ -241,7 +248,13 @@ const PHI_FRACTION := 0.382
 var _full_points := PackedVector2Array()
 var _lifecycle_tween: Tween = null
 var _idle_tween: Tween = null
+var _dismiss_tween: Tween = null
 var _is_animating := false
+
+## True while the post-draw-in dismiss flourish owns the tip. Overrides the
+## `line_t`-derived visibility in [method _apply_progress] so the shrink/fade
+## tween isn't clobbered the instant `progress` settles at 1.
+var _tip_dismissing := false
 
 ## True while an OUT sequence owns the lifecycle tween. The tip is the *arrival*
 ## head — it exists to say "the signal is going somewhere". On the way out
@@ -346,7 +359,7 @@ func _apply_progress() -> void:
 		# all on the way out (see `_erasing`). Applies in editor too, so the
 		# sandbox host (#233) animates in the viewport. The idle option (below)
 		# re-lights it explicitly.
-		_tip.visible = line_t > 0.0 and line_t < 1.0 and not _erasing
+		_tip.visible = (line_t > 0.0 and line_t < 1.0 and not _erasing) or _tip_dismissing
 	_apply_pad(ignite_t, line_t)
 
 
@@ -427,10 +440,12 @@ static func _polyline_at(points: PackedVector2Array, t: float) -> Dictionary:
 ## `draw_in_duration` either way — the split is invisible to FanUnit.
 func play_in() -> Tween:
 	_kill_idle()
+	_kill_dismiss()
 	_stop_lifecycle()
 	_is_animating = true
 	_erasing = false
 	_tip.scale = Vector2.ONE * tip_scale
+	_apply_tip_color()
 	progress = 0.0
 	_lifecycle_tween = create_tween()
 	if ignite_fraction > 0.0:
@@ -448,11 +463,13 @@ func play_in() -> Tween:
 ## sequencing.
 func play_out() -> Tween:
 	_kill_idle()
+	_kill_dismiss()
 	_stop_lifecycle()
 	_is_animating = true
 	# Suppress the arrival tip for the whole retraction — including the frame
 	# this is called on, if an interrupt caught it mid-flight.
 	_erasing = true
+	_tip_dismissing = false
 	_tip.visible = false
 	_lifecycle_tween = create_tween()
 	if ignite_fraction > 0.0 and progress > ignite_fraction:
@@ -477,7 +494,32 @@ func _on_draw_in_finished() -> void:
 	# (same default_color/width) — constant by construction. If idle is on, the
 	# tip is re-lit and breathes; otherwise the settled state is the bare line.
 	progress = 1.0
+	_play_tip_dismiss()
 	_refresh_idle()
+
+
+## Shrinks the traveling tip to zero scale and drops its colour from bloom
+## tier down to [constant Emissive.INERT], so it collapses out along with its
+## own bloom instead of cutting on the frame `progress` settles at 1. No-op
+## when [member idle_anim] is set (the settled tip stays lit and pulsing —
+## there's nothing to dismiss) or when [member tip_dismiss_duration] is 0.
+func _play_tip_dismiss() -> void:
+	if idle_anim != null or tip_dismiss_duration <= 0.0 or _tip == null:
+		return
+	_tip_dismissing = true
+	_tip.visible = true
+	_dismiss_tween = create_tween()
+	_dismiss_tween.set_parallel(true)
+	_dismiss_tween.tween_property(_tip, "scale", Vector2.ZERO, tip_dismiss_duration) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_dismiss_tween.tween_property(_tip, "self_modulate",
+		Emissive.at(tip_base_color, Emissive.INERT), tip_dismiss_duration) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_dismiss_tween.chain().tween_callback(func() -> void:
+		_tip_dismissing = false
+		_tip.visible = false
+		_tip.scale = Vector2.ONE * tip_scale
+		_apply_tip_color())
 
 
 ## (Re)starts or stops the settled-state idle pulse on the tip per
@@ -508,3 +550,10 @@ func _kill_idle() -> void:
 	if _idle_tween != null and _idle_tween.is_valid():
 		_idle_tween.kill()
 	_idle_tween = null
+
+
+func _kill_dismiss() -> void:
+	if _dismiss_tween != null and _dismiss_tween.is_valid():
+		_dismiss_tween.kill()
+	_dismiss_tween = null
+	_tip_dismissing = false

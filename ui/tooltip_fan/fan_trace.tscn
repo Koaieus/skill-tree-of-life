@@ -28,6 +28,8 @@ fill_to = Vector2(1, 0.5)
 
 [node name="FanTrace" type="Node2D" unique_id=2039905775]
 script = ExtResource("1_script")
+draw_in_duration = 0.12
+tip_dismiss_duration = 0.24
 
 [node name="Pad" type="Sprite2D" parent="." unique_id=1730637914]
 unique_name_in_owner = true
