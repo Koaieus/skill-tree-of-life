@@ -22,9 +22,22 @@ paths:
 - **SET** short-circuits everything; highest `priority` wins, last-in breaks ties at equal priority. **Convention:** class-identity SETs (e.g. `pacifist_core.tres` SETting `movement_points`/`deallocation_points` to 0) author `priority = 100` so the anchor sits above any node/keystone/addon SET (those default to 0). Keep class SETs at this tier; leave node content below it.
 - **INCREASE** sums additively (PoE-style). Five +20% = ×2.0, NOT (1.2)⁵.
 
+## Board classes (#332)
+
+`StatBoard` holds **no stat fields** — it is lookup, modifier routing, binding, the cycle gate and the introspection walks. Two **siblings** carry the stats: `EntityStatBoard` (every entity stat as typed `@export` fields, `entity/default_entity_board.tres`) and `NodeStatBoard` (node-**owned** stats baked, borrowed ones sparse, `skill_node/default_node_board.tres`). Siblings, not a chain — a node board is not a specialization of an entity board. The base keeps the name, so every `board: StatBoard` parameter stays polymorphic and unchanged.
+
+Four things that fail silently if you forget them:
+
+- **Bake what the node owns; stay sparse for what it borrows.** `get_local_value` merges as `ModifierBins.compute(entity_stat.base_value, [entity.bins, node.bins])`, so for any id the entity *also* carries, the node stat's own `base_value` is **discarded** — authoring `armor = 5` on a node board does nothing, no error. Only `stake_level` and `addon_slots` are node-owned and baked; `node_health` is borrowed (the entity carries the baseline).
+- **`get_dynamic_stat_ids()` reads `_extra_stats` only** — promoting a stat to a typed field drops it from that answer. Display code wants **`get_stat_ids()`** (fields + mints); reserve the dynamic call for genuine "what got minted" assertions.
+- **`_mint_stat(id)` is the subclass seam**, `_ensure_stat` is the gate above it (accessor tokens, already-exists). `EntityStatBoard` refuses to mint — a mint attempt there is a typo. `NodeStatBoard` makes `node_health` a `PoolStat` off the `node_combat_health` def. There is deliberately **no mirror guard** on node boards: an entity-only stat there is inert, not wrong.
+- **`SkillNode.node_board` is a `duplicate(true)` of the template and is NOT `@export`ed.** `resource_local_to_scene` does not recurse into sub-resources (every node would share one set of Stats); an `@export` would serialize a full board into every scene on each editor save. Author via the `stake_level` / `allocation_level` proxy properties.
+
+Full reasoning, the sub-board-array alternative that was rejected, and the +153 ms/2500-node measurement with its breakdown: **`docs/domain/stat-board-classes.md`**.
+
 ## Local stats (per-node overrides)
 
-`SkillNode.node_board` is a sparse `StatBoard` — all fields start null, created only when a node-local modifier targets them (via `_ensure_local_stat(id)`) or when the node is allocated (combat health pool). No `LocalStat` class — the merge happens directly: `StatBoard.get_stat(id)` may differ per board, and combined reads use `ModifierBins.compute()` with bins from both the entity and node board.
+`SkillNode.node_board` is a `NodeStatBoard` — owned stats baked, borrowed ones created only when a node-local modifier targets them (via `_ensure_local_stat(id)`) or when the node is allocated (combat health pool). No `LocalStat` class — the merge happens directly: `StatBoard.get_stat(id)` may differ per board, and combined reads use `ModifierBins.compute()` with bins from both the entity and node board.
 
 Read side: `SkillNode.get_local_value(id)` returns the combined value without allocating — entity stat pass-through when the node board has no stat for that id. Modifier target side: `_ensure_local_stat(id)` creates (if needed) and returns the stat on `node_board`; addons route their `local_modifiers` here.
 
@@ -235,15 +248,11 @@ class enrols it automatically — the old hand-maintained preload list could go 
 in silence. It carries a `MIN_CORE_CLASSES` vacuity floor because a directory scan
 that matches nothing passes every assertion below it.
 
-**Scope note, corrected (#340 already closed this, this doc had drifted):**
-`SkillNode.add_local_modifier` does NOT route through `StatBoard.add_modifier`
-(it calls `Stat.add_modifier` directly via `_ensure_local_stat`, since
-`get_stat` would silently drop a sparse-board target), but it mirrors that
-method's own cycle-check → bind → resolve-target sequence locally against
-`node_board` — `node_board.cycle_from(m)` gates it, and
-`node_board.bind_modifier(leaf)` (#377) binds each leaf. Node-local formulas
-DO compute today; they are not inert, and both halves — gate and binding —
-already ship together, matching the "one decision, not two" rule below.
+**Scope note (#340):** `SkillNode.add_local_modifier` does NOT route through
+`StatBoard.add_modifier` — `get_stat` would silently drop a sparse-board target —
+but it mirrors that method's cycle-check → bind → resolve-target sequence locally
+against `node_board` (`cycle_from` gates it, `bind_modifier` binds each leaf). So
+node-local formulas do compute, and gate and binding ship together.
 
 ## Modifier packs (#183, D-27/#279)
 
@@ -354,7 +363,12 @@ There is **no `level_up_modifiers` field and no per-level-up mutation.** A "+1 S
 
 Sharing one formula instance across entities was always safe because `StatFormula` is stateless — it reads its inputs from whatever board is passed to `compute(board)`, with nothing cached on the formula itself.
 
-**Two objects, one word — this is now settled, not a live defect.** `StatFormula` was always stateless *by design*. `StatModifier` used to be stateful *by accident of implementation* (`_board`/`_bound_sources` cached on the instance) — **#377 removed both fields**; binding now lives entirely on `StatBoard` (`bind_modifier`/`unbind_modifier`, recomputed from the modifier's own `formula.get_input_ids()` on every call, no stored bookkeeping), so a `StatModifier` instance safely lives on N boards at once. `CoreClass.apply()` and `StatBoard.apply_intrinsics()` both dropped their defensive `.duplicate(true)` as a direct consequence — see "Class identity modifiers" above. If you're here because sharing a modifier across entities would be useful (a granted modifier recalculating on every holding entity's board), it already works — grant the same instance to each board's `add_modifier`.
+**A `StatModifier` instance can live on N boards at once (#377).** Both it and
+`StatFormula` are stateless — binding lives on `StatBoard` (`bind_modifier` /
+`unbind_modifier`, recomputed from `formula.get_input_ids()` each call).
+`CoreClass.apply()` and `StatBoard.apply_intrinsics()` dropped their defensive
+`.duplicate(true)` as a direct consequence. Sharing a granted modifier so it
+recalculates on every holding entity's board already works.
 
 **Query level bonuses with `StatModifier.scales_with(&"level")`**, not a marker field or resource identity. The formula's declared `get_input_ids()` already answer "does this scale with level?", the answer survives duplication, and it stays true for a class that authors its own `ExpressionFormula("(level - 1) * dexterity")` instead of the shared curve. It asks every leaf via `flatten()`, so a composite reports true when any child scales. Two call sites use it with opposite signs — the #199 HUD listing (include) and `LootSystem._is_lootable` (exclude). Route any third through the same predicate.
 
