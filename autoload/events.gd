@@ -97,6 +97,12 @@ signal game_over
 ## edge polling the camera in `_process`.
 signal camera_zoom_changed(zoom: float)
 
+## A node-targeted verb was denied by its own gate (DP/SP/AP, non-islanding,
+## etc.) — PURE fact, no presentation baggage: node + a short reason string.
+## Any verb can fire this on gate failure, not just deallocate (#404). Consumers
+## decide what "denied" looks like (PlayerInputController's blink+shake today).
+signal node_action_denied(node: SkillNode, reason: String)
+
 ## Fired by [AIController] on every AI decision this turn (growth allocation,
 ## attack pick, or "nothing sensible") — ALWAYS, regardless of the
 ## controller's local `debug_trace` toggle. Zero consumers is a no-op; this

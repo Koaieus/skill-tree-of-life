@@ -100,6 +100,11 @@ func _ready() -> void:
 
 	Events.skill_node_hovered.connect(_on_skill_node_hovered)
 	Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
+	Events.node_action_denied.connect(_on_node_action_denied)
+
+	if battle_system != null:
+		battle_system.attack_plan_changed.connect(_update_cursor.unbind(1))
+	core_move_targeting_changed.connect(_update_cursor.unbind(1))
 
 
 func _on_node_added(skill_node: SkillNode) -> void:
@@ -121,11 +126,11 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_right_clicked(skill_node: SkillNode) -> void:
-	# Right-click feeds the active attack plan first (pop one level off its
-	# stack, or exit the mode — docs/design/click_grammar.md). When no plan
-	# claims it, right-click toggles the node's pin in the context panel —
-	# re-pinning the same node unpins it.
-	if _route_battle_click(skill_node, false):
+	# Right-click pops one level off whichever mode is armed (attack plan or
+	# core-move — docs/design/click_grammar.md), ignoring which node was
+	# clicked. When nothing is armed, right-click toggles the node's pin in
+	# the context panel instead — re-pinning the same node unpins it.
+	if _pop_armed_mode():
 		return
 	_set_pinned(null if skill_node == _pinned_node else skill_node)
 
@@ -170,12 +175,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not _is_players_turn() or _hovered_node == null:
 		return
+	# D is Manage's accelerator, not a global override — gated off while any
+	# other targeting mode is armed so it can't deallocate mid-attack-plan-
+	# selection or mid-core-move (#404).
+	if _has_armed_mode():
+		return
 	if _hovered_node.owned_by == player:
 		if allocation_system.deallocate(_hovered_node, player):
 			get_viewport().set_input_as_handled()
 		else:
-			_show_deallocate_denied(_hovered_node)
+			Events.node_action_denied.emit(_hovered_node, "deallocate_denied")
 			get_viewport().set_input_as_handled()
+
+
+## `ui_cancel` (Esc) aliases the same one-level pop right-click uses. Runs
+## before [PauseMenu]'s `_unhandled_key_input` (Systems precedes UI in
+## game_root.tscn's child order, and same-phase callbacks fire in tree order)
+## so a non-empty stack pops instead of opening the pause menu; an empty
+## stack leaves the event unhandled and PauseMenu toggles exactly as today.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
+	if event.is_action_pressed(&"ui_cancel") and _pop_armed_mode():
+		get_viewport().set_input_as_handled()
 
 
 func _is_players_turn() -> bool:
@@ -183,12 +205,14 @@ func _is_players_turn() -> bool:
 			and turn_manager.current_entity == player
 
 
-## Feedback for a deallocation that was gated away (#89). If the reason is
-## islanding, the nodes that would be cut off from the core pulse danger-red;
-## the node the player actually tried to drop always gets a short "no" shake.
-## Other denials (out of DP, core node) just shake the target — there's no
-## "these get cut off" story to tell.
-func _show_deallocate_denied(node: SkillNode) -> void:
+## Feedback for a node-targeted verb that was gated away (#89, generalized
+## #404). If the reason is islanding, the nodes that would be cut off from the
+## core pulse danger-red; the node the player actually tried to act on always
+## gets a short "no" shake. Other denials (out of DP, core node) just shake
+## the target — there's no "these get cut off" story to tell. Self-subscribed
+## to [signal Events.node_action_denied] so any verb can trigger this, not
+## just deallocate.
+func _on_node_action_denied(node: SkillNode, _reason: String) -> void:
 	if player != null and player.navigator != null and player.core_location != null:
 		for islanded in player.navigator.nodes_islanded_by_removing(node, player.core_location):
 			islanded.blink_blocked()
@@ -216,6 +240,47 @@ func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 		if not plan._on_node_right_clicked(skill_node):
 			battle_system.cancel_attack()
 	return true
+
+
+## True if either an attack plan armed for this player, or core-move
+## targeting, is currently active (#404). Single source of truth for "is
+## anything armed right now" — gates the D-key channel and decides whether
+## right-click / Esc pop a level instead of falling through to pin-toggle /
+## PauseMenu.
+func _has_armed_mode() -> bool:
+	return _active_attack_plan() != null or _move_targeting_source != null
+
+
+func _active_attack_plan() -> AttackPlan:
+	if battle_system == null or battle_system.attack_plan == null:
+		return null
+	var plan := battle_system.attack_plan
+	return plan if plan.attacker == player else null
+
+
+## Node-independent stack-pop primitive shared by right-click and Esc (#404).
+## Right-click "ignores which node was clicked"
+## (docs/design/click_grammar.md), and Esc has no node at all, so this never
+## takes one. Returns true if something was armed to pop/exit.
+func _pop_armed_mode() -> bool:
+	if can_player_act():
+		var plan := _active_attack_plan()
+		if plan != null:
+			if not plan.pop():
+				battle_system.cancel_attack()
+			return true
+	if _move_targeting_source != null:
+		_set_move_targeting_source(null)
+		return true
+	return false
+
+
+## Swaps the OS cursor while any targeting mode is armed (#404) — a plain
+## shape swap, cleared on resolve/cancel. Separate from #412's viewport-wide
+## armed-mode vignette (sequenced after this issue).
+func _update_cursor() -> void:
+	Input.set_default_cursor_shape(
+			Input.CURSOR_CROSS if _has_armed_mode() else Input.CURSOR_ARROW)
 
 
 ## Core-movement (#21) click routing. Two clicks: first click on the player's

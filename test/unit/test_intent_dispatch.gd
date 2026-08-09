@@ -150,3 +150,33 @@ func test_left_click_own_core_enters_targeting() -> void:
 	_nodes[0].left_clicked.emit(_nodes[0])
 	assert_eq(sources.size(), 1, "clicking own core fires core_move_targeting_changed once")
 	assert_eq(sources[0], _nodes[0], "targeting source is the core node")
+
+
+# ── #404: right-click / D-key / Esc interplay with an armed core-move ──────
+
+func test_right_click_cancels_core_move_targeting() -> void:
+	_nodes[0].left_clicked.emit(_nodes[0])  # arm core-move on own core
+	assert_not_null(_ctl.move_targeting_source(), "precondition: core-move armed")
+	_nodes[1].right_clicked.emit(_nodes[1])  # right-click a DIFFERENT node
+	assert_null(_ctl.move_targeting_source(),
+			"right-click pops core-move regardless of which node it landed on")
+
+
+func test_esc_cancels_core_move_targeting() -> void:
+	_nodes[0].left_clicked.emit(_nodes[0])  # arm core-move
+	assert_not_null(_ctl.move_targeting_source(), "precondition: core-move armed")
+	var esc := InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	_ctl._unhandled_key_input(esc)
+	assert_null(_ctl.move_targeting_source(), "Esc pops the armed core-move")
+
+
+func test_d_gated_while_core_move_targeting_active() -> void:
+	_nodes[1].owned_by = _player  # B already allocated, otherwise deallocatable
+	_nodes[0].left_clicked.emit(_nodes[0])  # arm core-move on own core
+	assert_not_null(_ctl.move_targeting_source(), "precondition: core-move armed")
+	Events.skill_node_hovered.emit(_nodes[1])
+	_press_d()
+	assert_eq(_nodes[1].owned_by, _player,
+			"D is gated off while core-move targeting is armed (#404)")

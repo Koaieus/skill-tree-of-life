@@ -205,3 +205,112 @@ func test_right_click_with_nothing_armed_exits_attack_mode() -> void:
 
 	a.right_clicked.emit(a)  # pop 2: nothing left to pop — exits the mode
 	assert_false(bs.is_attacking, "second pop, with nothing armed, exits the mode entirely")
+
+
+# ── #404: Esc aliases the same pop primitive as right-click ────────────────
+
+func test_esc_pops_one_level_same_as_right_click() -> void:
+	var ctl := PlayerInputController.new()
+	var alloc := AllocationSystem.new()
+	alloc.graph = _graph
+	add_child_autofree(alloc)
+	var tm: TurnManager = autofree(TurnManager.new())
+	add_child(tm)
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	add_child_autofree(bs)
+
+	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	tm.start_turn(_attacker)
+	var a := _spawn(_attacker)
+
+	ctl.graph = _graph
+	ctl.allocation_system = alloc
+	ctl.turn_manager = tm
+	ctl.battle_system = bs
+	ctl.player = _attacker
+	add_child_autofree(ctl)
+
+	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	a.left_clicked.emit(a)  # arm the pivot
+	assert_eq((bs.attack_plan as MeleeAttackPlan).source, a, "precondition: pivot armed")
+
+	var esc := InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+
+	ctl._unhandled_key_input(esc)  # pop 1: clears the pivot, stays in melee mode
+	assert_true(bs.is_attacking, "Esc pop 1 clears the pivot but stays armed")
+	assert_null((bs.attack_plan as MeleeAttackPlan).source)
+
+	ctl._unhandled_key_input(esc)  # pop 2: nothing left to pop — exits the mode
+	assert_false(bs.is_attacking, "Esc pop 2, with nothing armed, exits the mode entirely")
+
+
+func test_esc_with_nothing_armed_leaves_event_unhandled() -> void:
+	var ctl := PlayerInputController.new()
+	var alloc := AllocationSystem.new()
+	alloc.graph = _graph
+	add_child_autofree(alloc)
+	var tm: TurnManager = autofree(TurnManager.new())
+	add_child(tm)
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	add_child_autofree(bs)
+
+	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	tm.start_turn(_attacker)
+
+	ctl.graph = _graph
+	ctl.allocation_system = alloc
+	ctl.turn_manager = tm
+	ctl.battle_system = bs
+	ctl.player = _attacker
+	add_child_autofree(ctl)
+
+	assert_false(bs.is_attacking, "precondition: nothing armed")
+	var esc := InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	# _pop_armed_mode() returning false means _unhandled_key_input never calls
+	# set_input_as_handled() — verified by reading the method, not asserted via
+	# viewport state here (that state isn't reliably isolated per-call outside
+	# the real input pipeline). This just proves the no-op path doesn't error
+	# or spuriously arm/cancel anything.
+	ctl._unhandled_key_input(esc)
+	assert_false(bs.is_attacking, "Esc with nothing armed still leaves nothing armed")
+
+
+func test_d_gated_while_attack_plan_armed() -> void:
+	var ctl := PlayerInputController.new()
+	var alloc := AllocationSystem.new()
+	alloc.graph = _graph
+	add_child_autofree(alloc)
+	var tm: TurnManager = autofree(TurnManager.new())
+	add_child(tm)
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	add_child_autofree(bs)
+
+	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	tm.start_turn(_attacker)
+	var a := _spawn(_attacker)
+	var b := _spawn(_attacker)
+
+	ctl.graph = _graph
+	ctl.allocation_system = alloc
+	ctl.turn_manager = tm
+	ctl.battle_system = bs
+	ctl.player = _attacker
+	add_child_autofree(ctl)
+
+	bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	a.left_clicked.emit(a)  # arm the pivot
+	assert_true(bs.is_attacking, "precondition: melee mode armed")
+
+	Events.skill_node_hovered.emit(b)
+	var d := InputEventKey.new()
+	d.physical_keycode = KEY_D
+	d.pressed = true
+	ctl._unhandled_input(d)
+	assert_eq(b.owned_by, _attacker, "D is gated off while an attack plan is armed (#404)")
