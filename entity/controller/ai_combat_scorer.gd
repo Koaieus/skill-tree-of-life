@@ -24,8 +24,9 @@ const _CUT_VERTEX_WEIGHT := 25.0
 const _ENEMY_WEAK_WEIGHT := 5.0
 ## SP-turns lost per thinned node (wound now, heals ~1/turn — see
 ## [member SkillPointStat.wound]). Scaled by [member AIController.ai_tier] like
-## every other tier-gated term; melee (slice C) is the first real source of a
-## nonzero [param thinned_nodes] into [method score].
+## every other tier-gated term; melee (slice C, [AiBladeRollout]) is the first
+## real source of a nonzero [param thinned_nodes] into [method score] — a real
+## defensive-spike pop count, not the blade's node-selection size.
 const _SHAPE_RISK_WEIGHT := 10.0
 ## Distance-dominating bonus so a tactical-enabling frontier pick always beats
 ## a merely-closer one — see [method score_frontier].
@@ -44,6 +45,8 @@ class ScoredCandidate:
 	var source_node: SkillNode = null
 	## Spell for MAGIC candidates; unused (null) for RANGED.
 	var spell: SpellDef = null
+	## Blade member selection for MELEE candidates; empty for RANGED/MAGIC.
+	var blade_nodes: Array[SkillNode] = []
 	var outcome: AttackOutcome = null
 
 	var ev: float = 0.0
@@ -71,9 +74,12 @@ static func expected_damage(outcome: AttackOutcome) -> float:
 
 
 ## Score one resolved candidate. [param thinned_nodes] is the count of the
-## attacker's own nodes this candidate would cost to execute (0 for ranged/
-## magic, which never reshape the attacker's own territory; melee passes the
-## induced-subgraph size that would be spent).
+## attacker's own blade vertices this candidate ACTUALLY lost executing (0 for
+## ranged/magic, which never reshape the attacker's own territory). Merely
+## selecting nodes for a blade doesn't wound them — only a defender's
+## defensive-spike pop does (see [BladePopResolver]) — so melee (slice C)
+## passes [member AttackOutcome.thinned_nodes] (the real per-swing pop count
+## [MeleeAttackPlan.resolve] already computes), not blade_nodes.size().
 static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target: SkillNode,
 		attacker: Entity, ai_tier: int, thinned_nodes: int = 0) -> ScoredCandidate:
 	var c := ScoredCandidate.new()

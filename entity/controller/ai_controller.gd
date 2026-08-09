@@ -15,8 +15,10 @@ extends EntityController
 ## candidate against every visible hostile via [AiCombatScorer], executes the
 ## best, and re-evaluates — the re-eval is what makes dent-then-finish and the
 ## 1-damage floor fall out naturally rather than needing special-casing.
-## Melee joins the candidate pool in #378 slice C ([code]ai_blade_rollout.gd
-## [/code]).
+## Melee candidates come from [AiBladeRollout] (#378 slice C) — a bounded
+## reach-bound-reject / steerable-proposal / two-tier-evaluation rollout
+## rather than exhaustive enumeration (the induced-subgraph space is too
+## large and a full swing resolve is milliseconds, not microseconds).
 ##
 ## Fog-aware since #378: each AI consults [AiRecon] for its OWN visibility
 ## (not the shared player-only VisionSystem instance) — settled 2026-08-07,
@@ -170,15 +172,21 @@ func _frontier_candidates(graph: Graph) -> Array[SkillNode]:
 	return out
 
 
-## Every ranged + magic candidate against every visible hostile, scored via
-## [AiCombatScorer]. Melee joins this pool in slice C
-## ([code]ai_blade_rollout.gd[/code]) — the scorer itself is already
-## mode-agnostic, only the candidate builders are still ranged/magic-only.
+## Every ranged + magic + melee candidate against every visible hostile,
+## scored via [AiCombatScorer].
 func _best_attack_candidate(visible_enemies: Array[SkillNode]) -> AiCombatScorer.ScoredCandidate:
 	var candidates: Array[AiCombatScorer.ScoredCandidate] = []
 	candidates.append_array(_gather_ranged_candidates(visible_enemies))
 	candidates.append_array(_gather_magic_candidates(visible_enemies))
+	candidates.append_array(_gather_melee_candidates(visible_enemies))
 	return AiCombatScorer.pick_best(candidates)
+
+
+## Bounded melee rollout — see [AiBladeRollout] for the reach-bound rejection
+## / steerable-proposal / two-tier-evaluation pipeline. Empty when the entity
+## has no territory to pivot from or no candidate reaches a visible enemy.
+func _gather_melee_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
+	return AiBladeRollout.gather_melee_candidates(entity, visible_enemies, ai_tier)
 
 
 func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
@@ -269,6 +277,12 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			plan.source = candidate.source_node
 			plan.spell = candidate.spell
 			plan.target = candidate.target
+		BattleSystem.AttackMode.MELEE:
+			var plan := bs.attack_plan as MeleeAttackPlan
+			if plan == null:
+				return false
+			plan.source = candidate.source_node
+			plan.blade_nodes = candidate.blade_nodes
 		_:
 			return false
 	if not bs.attack_plan.is_valid():

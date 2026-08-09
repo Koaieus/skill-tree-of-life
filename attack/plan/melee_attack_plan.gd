@@ -203,7 +203,7 @@ func resolve() -> AttackOutcome:
 	var blade_state := build_blade_state()
 	if blade_state == null:
 		return outcome
-	var drivers := _build_drivers(blade_state)
+	var drivers := build_drivers(blade_state)
 	var trajectory := BladeSim.simulate(blade_state, drivers, SWING_DURATION)
 	var space_state := source.get_world_2d().direct_space_state
 	var exclude := collect_target_excludes()
@@ -213,6 +213,7 @@ func resolve() -> AttackOutcome:
 	# whatever they sever from the handle). Gate hits by the same resolution the
 	# live swing uses so AI scoring / AP estimation matches what actually lands.
 	var pops := BladePopResolver.resolve(events, blade_state, attacker)
+	outcome.thinned_nodes = pops.dead_at.size()
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.
@@ -281,7 +282,11 @@ func get_induced_edges() -> Array:
 	return out
 
 
-func _build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
+## Public so callers can run their own [method BladeSim.simulate] pass over
+## the same drivers this plan's own [method resolve] uses (#378 slice C: the
+## AI's coarse-fidelity rollout re-simulates candidate blades before scanning
+## only the survivors at full fidelity).
+func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 	var drivers: Array[BladeDriver] = []
 	var pivot_pos := blade_state.positions[blade_state.pivot_index]
 	var seen: Dictionary = {}

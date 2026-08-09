@@ -287,3 +287,25 @@ func test_magic_insufficient_mana_is_excluded_rather_than_stalling_the_turn() ->
 			"the unaffordable spell must never be launched")
 	assert_true(_decisions.has("no reachable attack this turn"),
 			"with ranged unreachable and magic unaffordable, nothing was left to do: %s" % str(_decisions))
+
+
+# ---------------------------------------------------------------------------
+# Melee — the fourth candidate source (#378 slice C, AiBladeRollout)
+# ---------------------------------------------------------------------------
+
+## H0 sits well beyond ranged's Euclidean `range` (400) from EITHER owned
+## node, but exactly on N1's swing circle around N0 (edge length 500) — only
+## a melee swing's geometry, not the `range` stat, can reach it.
+func test_melee_candidate_is_gathered_and_can_be_executed_through_take_turn() -> void:
+	_enemy.stat_board.vision_range.base_value = 1000.0
+	_nodes[1].global_position = Vector2(500.0, 0.0)
+	_nodes[2].global_position = Vector2(0.0, 500.0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.6).timeout
+
+	assert_true(_launches.has(BattleSystem.AttackMode.MELEE),
+			"ranged is out of Euclidean range from both owned nodes; melee's swing geometry still connects")
+	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
