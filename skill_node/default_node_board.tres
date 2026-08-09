@@ -5,18 +5,13 @@
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="3_scalar"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="5_expr"]
-[ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="def_stake_level"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="def_addon_slots"]
-
-[sub_resource type="Resource" id="Resource_stake"]
-script = ExtResource("2_pool")
-definition = ExtResource("def_stake_level")
-base_value = 1.0
+[ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="def_stake_level"]
 
 [sub_resource type="Resource" id="Resource_addon_slots"]
+resource_name = "addon_slots"
 script = ExtResource("3_scalar")
 definition = ExtResource("def_addon_slots")
-base_value = 0.0
 
 [sub_resource type="Resource" id="Resource_f_alloc"]
 script = ExtResource("5_expr")
@@ -27,12 +22,16 @@ per_phrase = "allocation level"
 [sub_resource type="Resource" id="Resource_m_addon_slots"]
 script = ExtResource("4_mod")
 stat_id = &"addon_slots"
-operation = 0
-value = 1.0
 formula = SubResource("Resource_f_alloc")
+
+[sub_resource type="Resource" id="Resource_stake"]
+resource_name = "stake_level"
+script = ExtResource("2_pool")
+definition = ExtResource("def_stake_level")
+base_value = 1.0
 
 [resource]
 script = ExtResource("1_board")
-intrinsic_modifiers = Array[ExtResource("4_mod")]([SubResource("Resource_m_addon_slots")])
 stake_level = SubResource("Resource_stake")
 addon_slots = SubResource("Resource_addon_slots")
+intrinsic_modifiers = Array[ExtResource("4_mod")]([SubResource("Resource_m_addon_slots")])
