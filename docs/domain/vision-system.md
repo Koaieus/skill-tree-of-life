@@ -60,6 +60,24 @@ Per-entity, derived from each allocated node:
 | `DARKNESS` | Nothing visible. Pure fog. |
 | `ALL_ENTITIES` | Effective viewers = group("entities") sweep. |
 
+### The vision RULE is one static method, shared by every caller (#378)
+
+The scene carries exactly **one** `VisionSystem` instance, and its `viewers`
+is normally `[player]` — it drives the player's fog rendering only, not a
+general per-entity visibility oracle. AI needs its own per-entity check
+("does *this* enemy see a hostile"), which can't be answered by mutating the
+shared instance's `viewers` without breaking player fog.
+
+The fix is NOT a second vision implementation. `VisionSystem.is_within_circles
+(target_pos, positions, radii)` is a `static` method holding the actual
+circle-test geometry — the live per-frame `_recompute()` above builds its
+cached position/radius arrays from `viewers` and calls it; `AiRecon`
+(`entity/controller/ai_recon.gd`) builds its own arrays from
+`Entity.navigator.get_mirrored_nodes()` (the querying entity's own owned
+subgraph) and calls the same method. `Navigator`/`EntityNavigator` answers
+*which* nodes to test; `VisionSystem` answers whether a point is visible —
+never duplicate the geometry at a second call site.
+
 ## Input gating
 
 One lever: `SkillNode.input_pickable = is_visible(node)` toggled per

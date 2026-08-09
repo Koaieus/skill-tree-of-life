@@ -69,3 +69,37 @@ wins — `_ensure_controllers()` skips entities that already have a child
 ## Turn-start upkeep
 
 `Entity._on_turn_started` (subscribed to `turn_started`) refills `action_points` / `deallocation_points`, replenishes `xp` by `xp_per_turn`, heals `wound_heal_per_turn` wounded SP, and calls `refill()` on each owned `SkillNode` (combat HP back to max). See `.claude/rules/stats-system.md` for the full list.
+
+## Testing an EntityController in isolation (#378)
+
+Building a fixture with `TurnManager.new()` + `Entity.new()` + a controller
+child (no `game_root.tscn`) hits three gotchas together:
+
+- **`Entity._ready()` duplicates `stat_board` again** (`stat_board =
+  stat_board.duplicate(true)`, on top of whatever the fixture already
+  duplicated). Configure stat values (`set_current`, etc.) *after* the entity
+  is `add_child`ed, not before — a pre-`_ready` write lands on the object
+  `_ready` then discards, silently.
+- **First turn can mint extra SP.** `apply_per_turn_upkeep()` replenishes `xp`
+  by `xp_per_turn`; if the board's intrinsic-scaled value already crosses the
+  level-up threshold from 0, `Entity._on_xp_replenished` grants SP via
+  `skill_points.grant()` before the controller's `take_turn` even runs. Don't
+  assert an exact post-turn SP count against a fixture entity's very first
+  turn — assert the *behavior* that doesn't depend on the economy (e.g.
+  "every reachable frontier node got allocated"), or the number will drift
+  for reasons that have nothing to do with what you're testing.
+- **Add the controller child AFTER the entity enters the tree**, mirroring
+  `GameRoot._ensure_controllers()` (which runs post-`_setup_level`). This
+  makes `Entity`'s own `turn_started` connection (upkeep) register before the
+  controller's, so upkeep runs before `take_turn` on the very first turn —
+  reversed, the two race inside the same synchronous `emit()` and, with
+  `turn_delay = 0`, a single-entity fixture can recurse `take_turn` straight
+  into a stack overflow (`TurnManager._tick_until_ready` re-selecting the
+  same entity with nothing else to hand the turn to). Give the fixture a
+  second, idle entity (e.g. `PlayerController`, whose `take_turn` is a no-op)
+  so the clock has somewhere to park after the AI's turn ends.
+- **`AIController` normally resolves `AllocationSystem`/`BattleSystem` by
+  walking up to a `GameRoot` ancestor** — absent one, `_try_allocate_frontier`
+  silently no-ops. Set `allocation_system_override` / `battle_system_override`
+  directly on the controller instead of composing a full `game_root.tscn`;
+  unset in production, so real levels are unaffected.
