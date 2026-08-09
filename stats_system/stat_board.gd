@@ -10,11 +10,12 @@ extends Resource
 ## split them; the base keeps this name so nothing typed `StatBoard` churned.
 ##
 ## Property names match each Stat's `definition.id` — so [method get_stat] is
-## just `Object.get(id)`, and a subclass's fields are discovered for free by the
-## `get_property_list()` walks in [method collect_formula_edges] and
-## [method get_pool_stats]. That introspection IS the mechanism, and it is why
-## the split is inheritance rather than an array of sub-boards: sub-boards would
-## mean reimplementing discovery in five places.
+## just `Object.get(id)`, and a subclass's fields are discovered for free by
+## the introspection walk in [method _stat_property_names], cached per board
+## class and shared by [method collect_formula_edges], [method get_pool_stats]
+## and [method get_stat_ids] (#402). That introspection IS the mechanism, and
+## it is why the split is inheritance rather than an array of sub-boards:
+## sub-boards would mean reimplementing discovery in five places.
 
 ## Scaling rules intrinsic to this board — formula-driven StatModifiers that
 ## describe how stats on this board relate to each other (e.g. PER scales
@@ -31,6 +32,72 @@ extends Resource
 ## Stats that don't correspond to a hardcoded @export field — created on
 ## demand by [method _ensure_stat] for sparse boards (e.g. node-local stats).
 var _extra_stats: Dictionary = {}  # StringName → Stat
+
+
+# --- Stat-typed field discovery (cached per board class) -------------------
+
+## [Script] → PackedStringArray of that script's declared Stat-typed field
+## names. Keyed by class rather than instance because the answer is a CLASS
+## fact (which fields exist), not an instance fact (which are populated) —
+## see [method _stat_property_names].
+static var _stat_props_by_script: Dictionary = {}
+
+## Names of this board's declared `@export` fields whose type is [Stat] or a
+## subclass — computed once per board class ([method Object.get_script]) and
+## cached in [member _stat_props_by_script], since [method
+## Object.get_property_list] costs ~11us per call and this walk used to run on
+## every [method collect_formula_edges] / [method get_pool_stats] / [method
+## get_stat_ids] call, once per [SkillNode] at level-generation scale (#402).
+##
+## Deliberately keyed on the DECLARED type (`prop.class_name`, a class fact),
+## not on whether `get(prop.name) is Stat` (an instance fact) — a sparse
+## `.tres` may leave a declared field null, and two boards of the same class
+## can disagree on which fields are populated. Caching "fields non-null on the
+## first instance seen" would silently drop a stat on the second one, so every
+## call site below still does its own per-instance null check; this cache only
+## narrows which property names are worth checking.
+##
+## `key` is deliberately untyped (`:=` on [method Object.get_script] crashes
+## the script loader with "p_script->implicit_initializer is null" the first
+## time a subclass instance calls in — verified empirically; the plain `=`
+## form works fine).
+func _stat_property_names() -> PackedStringArray:
+	var key = get_script()
+	var cached = _stat_props_by_script.get(key)
+	if cached != null:
+		return cached
+	var names := PackedStringArray()
+	for prop in get_property_list():
+		if not (prop.usage & PROPERTY_USAGE_STORAGE):
+			continue
+		var cls: String = prop.class_name
+		if cls != "" and _class_extends_stat(cls):
+			names.append(prop.name)
+	_stat_props_by_script[key] = names
+	return names
+
+
+## Whether [param cls] (a global `class_name`) is [Stat] or a descendant, by
+## walking [method ProjectSettings.get_global_class_list] rather than
+## `ClassDB` — GDScript's global classes (Stat, ScalarStat, PoolStat, …) are
+## NOT registered with `ClassDB`, so `ClassDB.is_parent_class` silently
+## returns false for every one of them (verified empirically: same shape as
+## [code]test_stat_accessors.gd[/code]'s `_extends_stat` helper).
+static func _class_extends_stat(cls: String) -> bool:
+	var guard := 0
+	while cls != "" and guard < 16:
+		if cls == "Stat":
+			return true
+		var found := false
+		for entry in ProjectSettings.get_global_class_list():
+			if entry["class"] == cls:
+				cls = entry.get("base", "")
+				found = true
+				break
+		if not found:
+			return false
+		guard += 1
+	return false
 
 
 # --- Lookup + modifier routing ---------------------------------------------
@@ -216,10 +283,8 @@ func cycle_from(m: StatModifier) -> String:
 ## apply_intrinsics] attaches it. Each Stat contributes its own edges, so no
 ## intermediate modifier list and no per-stat array copy is built.
 func collect_formula_edges(out: Dictionary) -> void:
-	for prop in get_property_list():
-		if not (prop.usage & PROPERTY_USAGE_STORAGE):
-			continue
-		var v: Variant = get(prop.name)
+	for prop_name in _stat_property_names():
+		var v: Variant = get(prop_name)
 		if v is Stat:
 			v.collect_formula_edges(out)
 	for id in _extra_stats:
@@ -315,11 +380,9 @@ func apply_intrinsics() -> void:
 ## board with a sparse `.tres` reports only what it carries).
 func get_stat_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
-	for prop in get_property_list():
-		if not (prop.usage & PROPERTY_USAGE_STORAGE):
-			continue
-		if get(prop.name) is Stat:
-			ids.append(StringName(prop.name))
+	for prop_name in _stat_property_names():
+		if get(prop_name) is Stat:
+			ids.append(StringName(prop_name))
 	for id in _extra_stats:
 		ids.append(id)
 	ids.sort()
@@ -341,10 +404,8 @@ func get_dynamic_stat_ids() -> Array[StringName]:
 ## new pool needs no registration here. Includes SkillPointStat (a PoolStat).
 func get_pool_stats() -> Array[PoolStat]:
 	var pools: Array[PoolStat] = []
-	for prop in get_property_list():
-		if not (prop.usage & PROPERTY_USAGE_STORAGE):
-			continue
-		var v: Variant = get(prop.name)
+	for prop_name in _stat_property_names():
+		var v: Variant = get(prop_name)
 		if v is PoolStat:
 			pools.append(v)
 	return pools
