@@ -147,6 +147,20 @@ gh issue create --parent <n> --title "…" --body "…"    # gh ≥ 2.9x
 mise gh-project -- status <child> ready                # or needs-design if it still forks
 ```
 
+**Record a real dependency, not just prose.** `gh` (≥ 2.97) has native issue
+*dependencies* — `blockedBy`/`blocking` — distinct from the parent/sub-issue
+relation `--parent` sets. Use them whenever step 2 found a cross-issue
+dependency, so the `swarm` orchestrator can read the DAG from the API instead
+of parsing "Depends on #N" out of a body:
+
+```bash
+gh issue create --blocked-by <n1>,<n2> --title "…" --body "…"   # at creation
+gh issue edit <child> --add-blocked-by <blocker>                 # after the fact
+```
+
+Still write the dependency in the acceptance spec prose too — the structured
+relation is for tooling, the prose is for the human/agent reading the issue.
+
 Each child gets its own `## Acceptance spec`. Shared-file work (one `.tres` every
 child touches, a registry append) is **not** parcelled out — flag it as the
 orchestrator's pre-step, done in the main checkout before dispatch.
