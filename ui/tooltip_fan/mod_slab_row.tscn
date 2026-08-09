@@ -11,8 +11,8 @@ shader_parameter/size = Vector2(111, 28)
 shader_parameter/tint_color = Color(0.39999998, 0.9499999, 1, 1)
 shader_parameter/fill_darkness = 1.0
 shader_parameter/glow_strength = 1.0
-shader_parameter/glow_energy = 2.4
-shader_parameter/glow_width = 2.0
+shader_parameter/glow_energy = 3.0
+shader_parameter/glow_width = 2.5
 shader_parameter/corner_radius = 7.0
 
 [node name="ModSlabRow" type="PanelContainer" unique_id=1218328195]
@@ -28,8 +28,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 mouse_filter = 1
 script = ExtResource("1_script")
-text_tint_mix = 0.8
-text_glow_stops = 2.0
+text_tint_mix = 0.2
+text_glow_stops = 2.5
 
 [node name="Slab" parent="." unique_id=720400489 instance=ExtResource("2_slab")]
 unique_name_in_owner = true
@@ -38,8 +38,7 @@ layout_mode = 2
 tint_color = Color(0.39999998, 0.9499999, 1, 1)
 fill_darkness = 1.0
 glow_strength = 1.0
-glow_energy = 2.4
-glow_width = 2.0
+glow_energy = 3.0
 corner_radius = 7.0
 
 [node name="MarginContainer" type="MarginContainer" parent="." unique_id=279512814]
@@ -56,7 +55,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 10)
 layout_mode = 2
 size_flags_horizontal = 0
-theme_override_colors/font_color = Color(0.39999998, 0.9499999, 1, 1)
+theme_override_colors/font_color = Color(1.1286975, 2.0344834, 2.1168277, 1)
 theme_override_font_sizes/font_size = 15
 text = "+123 Strength"
 vertical_alignment = 1

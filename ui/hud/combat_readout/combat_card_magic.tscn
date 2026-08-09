@@ -2,13 +2,13 @@
 
 [ext_resource type="PackedScene" uid="uid://c55r5i8obie7o" path="res://ui/hud/combat_readout/combat_card.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bulbyf2avu6mt" path="res://ui/hud/combat_readout/combat_card_magic.gd" id="1_script"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_shader"]
 [ext_resource type="PackedScene" uid="uid://cpatx7dmbmx7c" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="3_row"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_shader"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_magic"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_o8m77"]
 resource_local_to_scene = true
 shader = ExtResource("3_shader")
-shader_parameter/size = Vector2(105, 87)
+shader_parameter/size = Vector2(129, 87)
 shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
 shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
 shader_parameter/gradient_angle_deg = 158.0
@@ -25,7 +25,7 @@ mode_color = Color(0.291, 0.5892, 1, 1)
 title = "Magic"
 
 [node name="GlassPanel" parent="." index="0" unique_id=2110722895]
-material = SubResource("ShaderMaterial_magic")
+material = SubResource("ShaderMaterial_o8m77")
 glow_color = Color(0.291, 0.5892, 1, 0)
 
 [node name="Title" parent="Padded/TitleAndBody" parent_id_path=PackedInt32Array(1458892802) index="0" unique_id=1747116291]
@@ -35,8 +35,10 @@ text = "Magic"
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Potency / instance"
+override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
 
 [node name="ReachRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=2032314071 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Hop reach"
+override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
