@@ -39,6 +39,7 @@ func _ready() -> void:
 	_target_zoom = zoom.x
 	current_zoom = _target_zoom
 	Events.camera_zoom_changed.emit(current_zoom)
+	RenderingServer.global_shader_parameter_set(&"edge_camera_zoom", current_zoom)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -99,3 +100,4 @@ func _request_zoom_broadcast() -> void:
 func _broadcast_zoom_deferred() -> void:
 	_zoom_broadcast_pending = false
 	Events.camera_zoom_changed.emit(current_zoom)
+	RenderingServer.global_shader_parameter_set(&"edge_camera_zoom", current_zoom)

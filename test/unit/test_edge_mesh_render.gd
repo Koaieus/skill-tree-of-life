@@ -27,22 +27,81 @@ func before_each() -> void:
 		_nodes.append(sn)
 
 
-func test_instance_count_tracks_added_and_removed_edges() -> void:
+## `visible_instance_count` (not `instance_count`) is the live-edge-count
+## signal — `instance_count` is buffer CAPACITY, grown by doubling and never
+## shrunk (see `Graph._grow_edge_mesh_capacity`'s docstring: any write to
+## `instance_count` discards the whole GPU buffer on a real renderer, so it's
+## touched only rarely, on purpose).
+func test_visible_instance_count_tracks_added_and_removed_edges() -> void:
 	var e1 := _graph.add_edge(_nodes[0], _nodes[1])
 	await get_tree().process_frame
-	assert_eq(_graph.edge_mesh.multimesh.instance_count, 1)
+	assert_eq(_graph.edge_mesh.multimesh.visible_instance_count, 1)
 
 	var e2 := _graph.add_edge(_nodes[1], _nodes[2])
 	await get_tree().process_frame
-	assert_eq(_graph.edge_mesh.multimesh.instance_count, 2)
+	assert_eq(_graph.edge_mesh.multimesh.visible_instance_count, 2)
 
 	_graph.remove_edge(e1)
 	await get_tree().process_frame
-	assert_eq(_graph.edge_mesh.multimesh.instance_count, 1)
+	assert_eq(_graph.edge_mesh.multimesh.visible_instance_count, 1)
 
 	_graph.remove_edge(e2)
 	await get_tree().process_frame
-	assert_eq(_graph.edge_mesh.multimesh.instance_count, 0)
+	assert_eq(_graph.edge_mesh.multimesh.visible_instance_count, 0)
+
+
+## Capacity grows to fit but never shrinks back down on removal — reallocating
+## on every edge count dip would re-trigger the same buffer-discard problem
+## `_grow_edge_mesh_capacity` exists to amortize away.
+func test_instance_count_capacity_grows_but_never_shrinks() -> void:
+	var e1 := _graph.add_edge(_nodes[0], _nodes[1])
+	await get_tree().process_frame
+	var capacity_after_one: int = _graph.edge_mesh.multimesh.instance_count
+	assert_gt(capacity_after_one, 0)
+
+	_graph.add_edge(_nodes[1], _nodes[2])
+	await get_tree().process_frame
+	assert_gte(_graph.edge_mesh.multimesh.instance_count, capacity_after_one)
+
+	_graph.remove_edge(e1)
+	await get_tree().process_frame
+	assert_eq(_graph.edge_mesh.multimesh.instance_count, capacity_after_one)
+
+
+## Regression for the #413 follow-up: the original bug was `instance_count`
+## bumped by exactly 1 per edge add, and Godot's `MultiMesh.instance_count`
+## setter reallocates (and silently DISCARDS) the whole GPU buffer on every
+## write — confirmed against a real renderer, invisible under the headless
+## dummy driver this suite runs on (see the NOTE at the bottom of this file).
+## Every edge past the first got wiped back to a zero-scale quad by the NEXT
+## edge's registration, so only the most-recently-added edge ever actually
+## rendered. A doubling capacity strategy makes growth strictly less frequent
+## than edge count once past the initial floor — assert that shape directly,
+## since it's the one thing this class of bug changes that a headless test
+## CAN see (`instance_count` is a plain int and round-trips fine).
+func test_capacity_grows_by_doubling_not_per_edge() -> void:
+	var chain: Array[SkillNode] = []
+	for i in 12:
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = "Chain%d" % i
+		sn.global_position = Vector2(i * 100.0, 500.0)
+		_graph.add_skill_node(sn)
+		autofree(sn)
+		chain.append(sn)
+
+	var capacities: Array[int] = []
+	for i in 11:
+		_graph.add_edge(chain[i], chain[i + 1])
+		await get_tree().process_frame
+		capacities.append(_graph.edge_mesh.multimesh.instance_count)
+
+	# 11 edges added one at a time; a per-edge-reallocation bug would produce
+	# 11 distinct capacity values (one bump per add). Doubling produces far
+	# fewer distinct capacities than edges added.
+	var distinct_capacities := {}
+	for c in capacities:
+		distinct_capacities[c] = true
+	assert_lt(distinct_capacities.size(), capacities.size())
 
 
 func test_transform_places_quad_between_endpoints() -> void:
@@ -107,6 +166,7 @@ func test_hidden_when_not_sensed_and_not_vision_visible() -> void:
 ## `RenderingServer.multimesh_instance_set_color` / `_get_color` round-trip
 ## returns the unset default under `--headless`. `Edge.render_transform`/
 ## `render_color_a`/`render_color_b`/`render_vis_state` exist specifically so
-## this suite has something real to assert against; `instance_count` is a
-## plain int and DOES round-trip (see the first test above), which is why
-## that one reads the multimesh directly and the rest don't.
+## this suite has something real to assert against; `instance_count` and
+## `visible_instance_count` are plain ints and DO round-trip (see the two
+## tests above), which is why those read the multimesh directly and the rest
+## don't.

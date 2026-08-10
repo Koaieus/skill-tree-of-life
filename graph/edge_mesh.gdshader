@@ -23,11 +23,17 @@ shader_type canvas_item;
 //
 // Width is a material uniform, not per-instance (#413 acceptance: every edge
 // authors the same width) — held constant in SCREEN pixels across camera
-// zoom by reading the local→canvas scale off CANVAS_MATRIX every vertex,
-// which costs nothing extra on a zoom step: no signal, no per-edge write,
-// the engine already recomputes CANVAS_MATRIX whenever the camera changes.
+// zoom via `edge_camera_zoom`, a GLOBAL uniform `GraphCamera` pushes on every
+// zoom change (`scenes/camera_2d.gd`), one O(1) write regardless of edge
+// count. NOT `CANVAS_MATRIX` — that transforms WORLD space → canvas space,
+// downstream of `MODEL_MATRIX`, and `VERTEX` here is still local/model space
+// pre-`MODEL_MATRIX`; using it collapsed every edge quad to near-zero width
+// (see #413's regression comment / docs/handoffs/edge-mesh-invisible.md).
+// Registered in `project.godot`'s `[shader_globals]` — a shader reading it
+// before registration silently gets the zero/default value, not an error.
 
 uniform float width : hint_range(0.0, 32.0) = 3.0;
+global uniform float edge_camera_zoom = 1.0;
 
 // Matches `FogOverlay._VISIBLE_DIM_FLOOR` — a visible edge in the fade zone
 // dims toward this floor instead of all the way to `vision_falloff`'s edge,
@@ -41,12 +47,12 @@ varying vec2 world_pos;
 
 void vertex() {
 	v_custom = INSTANCE_CUSTOM;
-	// CANVAS_MATRIX's X basis length is the local→canvas (screen) scale —
-	// i.e. current camera zoom in world-units-to-pixels terms. Dividing the
-	// authored screen-pixel width by it gives the LOCAL-space half-width
-	// that renders at a constant on-screen size regardless of zoom.
-	float canvas_scale = length(CANVAS_MATRIX[0].xy);
-	float half_width_local = (width * 0.5) / max(canvas_scale, 0.0001);
+	// Dividing the authored screen-pixel width by the current camera zoom
+	// gives the LOCAL-space half-width that renders at a constant on-screen
+	// size regardless of zoom — exactly `Edge._screen_constant_width()`'s old,
+	// proven math (`width / _current_zoom`), just driving one shared global
+	// uniform instead of N per-edge `Line2D` writes.
+	float half_width_local = (width * 0.5) / max(edge_camera_zoom, 0.0001);
 	// The quad's local X already spans the segment (stretched by the
 	// instance transform's x-scale, see Graph.set_edge_transform); only Y
 	// carries width, and only its SIGN survives from the base mesh — the

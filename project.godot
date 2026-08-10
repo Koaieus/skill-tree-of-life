@@ -154,3 +154,7 @@ vision_field_enabled={
 "type": "bool",
 "value": false
 }
+edge_camera_zoom={
+"type": "float",
+"value": 1.0
+}

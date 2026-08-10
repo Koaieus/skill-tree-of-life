@@ -43,6 +43,11 @@ signal edge_removed(edge: Edge)
 var _edge_slot: Dictionary[Edge, int] = {}
 var _edge_slot_owner: Array[Edge] = []
 
+## Allocated size of `edge_mesh.multimesh`'s GPU buffer — grown by doubling,
+## never shrunk. See `_grow_edge_mesh_capacity`'s docstring for why this is
+## kept separate from the live edge count.
+var _edge_mesh_capacity: int = 0
+
 # Topology index. Rebuilt lazily whenever either container gains or loses a
 # child, so it stays correct for procgen, remove_skill_node, and any direct
 # add_child. Not used in the editor: an inspector edit to `Edge.from` /
@@ -86,9 +91,11 @@ func _init_edge_mesh() -> void:
 	mm.use_custom_data = true
 	mm.mesh = QuadMesh.new()
 	mm.instance_count = 0
+	mm.visible_instance_count = 0
 	edge_mesh.multimesh = mm
 	_edge_slot.clear()
 	_edge_slot_owner.clear()
+	_edge_mesh_capacity = 0
 
 
 ## Registers a freshly added [Edge] with its render target — every edge gets
@@ -114,7 +121,8 @@ func _register_edge_slot(edge: Edge) -> void:
 	var idx := _edge_slot_owner.size()
 	_edge_slot_owner.append(edge)
 	_edge_slot[edge] = idx
-	edge_mesh.multimesh.instance_count = _edge_slot_owner.size()
+	_grow_edge_mesh_capacity(_edge_slot_owner.size())
+	edge_mesh.multimesh.visible_instance_count = _edge_slot_owner.size()
 
 
 ## Swap-with-last removal: the edge that WAS at the last slot moves into the
@@ -135,7 +143,39 @@ func _unregister_edge_slot(edge: Edge) -> void:
 		mm.set_instance_custom_data(idx, mm.get_instance_custom_data(last_idx))
 	_edge_slot_owner.remove_at(last_idx)
 	_edge_slot.erase(edge)
-	edge_mesh.multimesh.instance_count = _edge_slot_owner.size()
+	edge_mesh.multimesh.visible_instance_count = _edge_slot_owner.size()
+
+
+## `MultiMesh.instance_count` reallocates the GPU-side instance buffer and
+## silently DISCARDS every previously-written transform/color/custom-data on
+## ANY write — confirmed against a real (opengl3) renderer. Godot's headless
+## dummy driver no-ops the whole per-instance read/write path instead of
+## reproducing this, which is exactly why `_register_edge_slot` bumping
+## `instance_count` once per edge (the pre-fix code) sailed through every
+## headless probe and `mise run test` while silently zeroing out every
+## edge's transform except the most recently added one — the actual cause of
+## edges rendering invisible after #413, not the shader math a prior
+## diagnosis pass suspected (see docs/handoffs/edge-mesh-invisible.md).
+##
+## Fix: `instance_count` (buffer capacity) is grown by doubling here, rare
+## enough to afford repopulating every already-registered edge's slot from
+## its own `Edge.render_*` mirrors (always kept in sync locally, independent
+## of the GPU buffer) right after the reallocation. Day-to-day add/remove
+## instead move `visible_instance_count` — draw-range only, never
+## reallocates, never touches slots the buffer isn't discarding.
+func _grow_edge_mesh_capacity(min_count: int) -> void:
+	if min_count <= _edge_mesh_capacity:
+		return
+	var mm := edge_mesh.multimesh
+	_edge_mesh_capacity = maxi(min_count, maxi(_edge_mesh_capacity * 2, 8))
+	mm.instance_count = _edge_mesh_capacity
+	for i in range(_edge_slot_owner.size()):
+		var e := _edge_slot_owner[i]
+		mm.set_instance_transform_2d(i, e.render_transform)
+		var packed := e.render_color_b
+		packed.a = e.render_vis_state
+		mm.set_instance_color(i, e.render_color_a)
+		mm.set_instance_custom_data(i, packed)
 
 
 ## Called by [Edge] whenever its segment/endpoints change. No-op if `edge`
