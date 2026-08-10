@@ -17,7 +17,7 @@ const ZLayers = preload("res://ui/z_layers.gd")
 
 # --- Tunables ----------------------------------------------------------------
 
-const SPIKE_DURATION: float = 0.18
+const SPIKE_DURATION: float = 0.4
 # Base width = SkillNode.inner_radius * 2 (the horizontal chord through the
 # inner fill circle). Spike sits flush on the disk.
 const SPIKE_HEIGHT_FACTOR: float = 6.0  # multiplied by node radius
@@ -239,43 +239,57 @@ func _emit_modifier_floater(entity: Entity, modifier: StatModifier) -> void:
 # --- Effect spawners ---------------------------------------------------------
 
 func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
+	var container := Node2D.new()
+	add_child(container)
+	
 	var disk := _make_snapshot_disk(node.inner_radius, color)
 	disk.global_position = node.global_position
-	add_child(disk)
+	disk.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
+	container.add_child(disk)
 
 	var spike := Polygon2D.new()
 	spike.polygon = _build_needle_polygon(
 			node.inner_radius, node.radius * SPIKE_HEIGHT_FACTOR)
 	# Polygon2D.color is the draw tint — alpha here multiplies with modulate.a,
 	# so keep it opaque and animate visibility via modulate.a only.
+	var polygon_final_modulate: Color = Emissive.at(Color.WHITE, Emissive.ALERT)
+	polygon_final_modulate.a = 0.0
 	spike.color = color
 	spike.global_position = node.global_position
-	spike.modulate = Color(1.0, 1.0, 1.0, 0.0)
-	add_child(spike)
+	spike.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
+	container.add_child(spike)
 
 	# White flash: disk + spike both ramp toward a lightened tint, then settle
 	# back to the entity color. Disk is the snapshot reused from the lift VFX.
-	var flash_color := color.lightened(0.5)
+	#var flash_color := color
 	var tween := create_tween()
 	tween.set_parallel(true)
 
-	tween.tween_property(disk, "disk_color", flash_color, SPIKE_DURATION * 0.4)
-	tween.tween_property(disk, "disk_color", color, SPIKE_DURATION * 0.6)\
-			.set_delay(SPIKE_DURATION * 0.4)
+	#tween.tween_property(disk, "disk_color", flash_color, SPIKE_DURATION * 0.4)
+	#tween.tween_property(disk, "disk_color", color, SPIKE_DURATION * 0.6)\
+			#.set_delay(SPIKE_DURATION * 0.4)
 
-	# Alpha 0 → 1 → 0 (peak at midpoint).
-	tween.tween_property(spike, "modulate:a", 1.0, SPIKE_DURATION * 0.4)
-	tween.tween_property(spike, "modulate:a", 0.0, SPIKE_DURATION * 0.6)\
-			.set_delay(SPIKE_DURATION * 0.4)
+	# Alpha 0 → 1 → 0.
+	const ALPHA_RAMPUP_FRAC := 0.2
+	tween.tween_property(container, "modulate:a", 1.0, SPIKE_DURATION * ALPHA_RAMPUP_FRAC)
+	tween.tween_property(container, "modulate", polygon_final_modulate, SPIKE_DURATION * (1.0 - ALPHA_RAMPUP_FRAC))\
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)\
+			.set_delay(SPIKE_DURATION * ALPHA_RAMPUP_FRAC)
+			
+	spike.scale.y = 0.0
+	
+	# Height 0 → 1 → 0.
 	# Height collapses into the node center (poly's bottom edge is at y=0,
 	# so scaling y → 0 makes it sink in).
-	tween.tween_property(spike, "scale:y", 0.0, SPIKE_DURATION)\
-			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tween.tween_property(spike, "color", flash_color, SPIKE_DURATION * 0.4)
-	tween.tween_property(spike, "color", color, SPIKE_DURATION * 0.6)\
-			.set_delay(SPIKE_DURATION * 0.4)
-	tween.chain().tween_callback(disk.queue_free)
-	tween.chain().tween_callback(spike.queue_free)
+	const SCALE_RAMPUP_FRAC := 0.2
+	tween.tween_property(spike, "scale:y", 1.0, SPIKE_DURATION * SCALE_RAMPUP_FRAC)
+	tween.tween_property(spike, "scale:y", 0.0, SPIKE_DURATION * (1.0 - SCALE_RAMPUP_FRAC))\
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)\
+			.set_delay(SCALE_RAMPUP_FRAC)
+	#tween.tween_property(spike, "color", flash_color, SPIKE_DURATION * 0.4)
+	#tween.tween_property(spike, "color", color, SPIKE_DURATION * 0.6)\
+			#.set_delay(SPIKE_DURATION * 0.4)
+	tween.chain().tween_callback(container.queue_free)
 
 
 func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
