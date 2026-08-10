@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://d4cd1vbl585es"]
 
+[ext_resource type="Texture2D" uid="uid://b5behwp0w2ow0" path="res://assets/emblem_luts/resonator.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Texture2D" uid="uid://dv1fcbldx0ptl" path="res://assets/icons/spells/resonator.png" id="1_uku7o"]
-[ext_resource type="Texture2D" path="res://assets/emblem_luts/resonator.png" id="1_lut"]
-[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
 [ext_resource type="Script" uid="uid://bjt2kqqy3bwf6" path="res://attack/spell/crit/convergence_crit_condition.gd" id="2_crit_conv"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]

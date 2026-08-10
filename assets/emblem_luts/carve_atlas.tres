@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="CarveAtlas" format=3 uid="uid://fjpkjulgggi6"]
+[gd_resource type="Resource" script_class="CarveAtlas" format=3]
 
-[ext_resource type="Script" uid="uid://jgenkjc31hs1" path="res://skill_node/visuals/emblem/carve_atlas.gd" id="1_1rh4h"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/carve_atlas.gd" id="1_1rh4h"]
 
 [resource]
 script = ExtResource("1_1rh4h")

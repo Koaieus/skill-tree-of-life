@@ -20,9 +20,11 @@ extends CarveShape
 ## distance-to-edge (deepest interior, ramping to 0 at the silhouette edge,
 ## an intaglio dent) -> gradient by finite difference of the drop field.
 
-## Must match InnerDisk's GEM_LUT_SIZE — same LUT convention, same shared
-## sampling assumptions on the decode side.
-const LUT_SIZE := 128
+## CARVE LUT resolution, shared with the SVG pipeline in tools/bake_svg_sdf.py
+## (keep the two in lock-step — the atlas packs by this size). The gem LUT is
+## deliberately its own size (GEM_LUT_SIZE on InnerDisk); the two samplers are
+## independent and the decode side only reads depth/gradient constants.
+const LUT_SIZE := 256
 ## Max dent depth, R-channel divisor. Mirror in #247's decode constants.
 const DEPTH := 0.35
 ## Gradient magnitude divisor for the -1..1 -> 0..1 GB remap. Mirror in #247's

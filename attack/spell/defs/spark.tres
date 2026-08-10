@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://hi2w3tufav8y"]
 
 [ext_resource type="Texture2D" uid="uid://dmikkhwx58iww" path="res://assets/icons/spells/spark.png" id="1_6qevb"]
-[ext_resource type="Texture2D" path="res://assets/emblem_luts/spark.png" id="1_lut"]
-[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
+[ext_resource type="Texture2D" uid="uid://brj7obegt2fyi" path="res://assets/emblem_luts/spark.png" id="1_lut"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_numg4"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]

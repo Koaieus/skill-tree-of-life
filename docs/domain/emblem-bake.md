@@ -1,11 +1,17 @@
-# Emblem offline bake (#246): icon art → CARVE LUT
+# Emblem offline bake: icon art → CARVE LUT
 
-Offline-bake pipeline that turns an authored icon's alpha silhouette into the
-same height+gradient LUT encoding InnerDisk's gem carve already uses (see
+Offline-bake pipeline that turns an icon's silhouette into the same
+height+gradient LUT encoding InnerDisk's gem carve already uses (see
 `.claude/rules/skill-node-visuals.md`'s "diamond crown" section for why a
 LUT bake, not a per-pixel analytic formula, is the right tool once a shape
-stops being a fixed regular polygon). Lives entirely in
-`skill_node/visuals/emblem/texture_carve_shape.gd` (`TextureCarveShape`).
+stops being a fixed regular polygon).
+
+**Two bakers feed the same encoding.** The production pipeline
+(`tools/bake_svg_sdf.py`, driven by `mise run icons:update`) computes the
+LUT from the icon's **SVG source** via msdfgen's true signed distance field
+— no pixel rasterization anywhere in the path. `TextureCarveShape.bake_lut()`
+(`skill_node/visuals/emblem/texture_carve_shape.gd`) is the retained fallback
+for authored raster icons outside the SVG pipeline (editor "Bake" button).
 
 **#246 was offline-bake only** — the baked LUT asset + the shape resource that
 carries it, touching no render code. The display half (the atlas packing, the
@@ -18,6 +24,38 @@ carries it, touching no render code. The display half (the atlas packing, the
 Source icons (`assets/icons/spells/*.png`) are flat monochrome silhouettes
 with the background alpha-stripped — **only alpha is meaningful**; luminance
 carries no interior height.
+
+### SVG pipeline (production, `tools/bake_svg_sdf.py`)
+
+1. **Paths.** Parse the SVG, keep every `<path d="...">`, drop the game-icons
+   background rect (`M0 0h512v512H0z`). Concatenate the rest into a *single*
+   `<path>` — msdfgen loads only the **last** path in the file, and SVG
+   subpaths are just more `M` commands, so one element carries them all.
+2. **SDF.** `msdfgen sdf -apxrange -4 256 -autoframe -dimensions 256 256`
+   produces the true Euclidean signed distance field from the vector paths.
+   The asymmetric pixel range gives a 4px exterior budget (the smooth mask's
+   AA margin) and a 256px interior range; autoframe fits the shape to the
+   248px center — the same footprint the old raster bake had. Output via
+   `.fl32` (16-byte header + raw float32 rows, y-up → flipped to the PNG's
+   y-down).
+3. **Drop field (the dent).** Same intaglio formula as the raster baker:
+   `drop = DEPTH * (max(sdf, 0) / max_interior_sdf)`, 0 at the silhouette
+   boundary ramping to `DEPTH` at the shape's medial axis.
+4. **Gradient.** `np.gradient` of the drop field, scaled by
+   `TEXELS_PER_UNIT_P` (drop-per-unit-p, matching the shader's `-p / z_dome`
+   disk space — see #318).
+5. **Mask.** The A channel is the **signed distance itself** (1px-linear,
+   clamped): `a = clamp(sdf_px * 0.5 + 0.5, 0, 1)`. Antialiased — the #247
+   decode treats alpha as a blend weight, so the outline smooths with no
+   shader involvement.
+
+Dependencies: `msdfgen` (dev tool built once via `mise run tools:bootstrap` —
+no packaged Linux binary; needs tinyxml2/freetype/libpng dev libs) and a
+Python venv (`numpy` + `Pillow`) created by `icons:update` in the XDG cache.
+The venv's `numpy.gradient` border handling (one-sided) matches
+`_gradient_at` exactly.
+
+### Raster fallback (`TextureCarveShape.bake_lut`)
 
 1. **Inside-mask.** Sample the source's alpha at each LUT texel (nearest,
    not bilinear — keeps the silhouette boundary a crisp threshold); texels
@@ -42,11 +80,14 @@ Mirrors `InnerDisk._build_gem_lut` / `sn_gem_bump` **exactly** — this is the
 interface #247's shader decode consumes, so the two halves must stay in
 lock-step:
 
-- `FORMAT_RGBA8`, square, `LUT_SIZE = 128` (matches `InnerDisk.GEM_LUT_SIZE`),
+- `FORMAT_RGBA8`, square, `LUT_SIZE = 256` (the SVG baker and
+  `TextureCarveShape.LUT_SIZE` are in lock-step; the gem LUT on InnerDisk is
+  its own size — the two samplers are independent),
   `generate_mipmaps()`.
 - **R** = `drop / DEPTH` (0..1). Drop is positive — a dent, not a bump.
 - **GB** = `grad.xy / GRAD_SCALE`, remapped `-1..1 → 0..1`.
-- **A** = 1 inside the silhouette mask, else 0.
+- **A** = 1 inside the silhouette mask, else 0 (SVG pipeline: smooth 0..1
+  ramp from the signed distance — see above).
 
 `LUT_SIZE` / `DEPTH` / `GRAD_SCALE` / `ALPHA_THRESHOLD` are `const`s on
 `TextureCarveShape`. **If #247's decode constants (the `sn_*_bump` family's
@@ -131,9 +172,3 @@ against the art it's baked from eventually will.
 - **WIS "exudes wealth" motif:** new archetype art authoring, not this
   pipeline. This bake proves against an existing spell icon; bespoke art is a
   separate future content issue.
-- **Antialiased mask.** `bake_lut()` still writes a hard `1.0`/`0.0` alpha,
-  where the gem LUT writes an antialiased coverage ramp (`_gem_coverage`). The
-  #247 decode already treats alpha as a **blend weight** rather than a
-  `> 0.5` gate, so softening the bake is a one-sided change that antialiases
-  the outline with no shader edit — but until it happens, expect the same
-  stair-stepping the gem had before its fix.

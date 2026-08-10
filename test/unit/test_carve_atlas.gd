@@ -46,24 +46,6 @@ func _slice_image(stacked: Image, slice: int) -> Image:
 	return stacked.get_region(Rect2i(0, size * slice, size, size))
 
 
-## Base-mip pixels only, as a short digest.
-##
-## Blitting into a fresh mipmap-less image is load-bearing: `bake_lut()`'s
-## result carries a mip chain and a decoded PNG doesn't, and `get_data()`
-## includes that chain — so comparing the two raw byte arrays fails on LENGTH
-## even when every visible pixel agrees (verified: 0 pixel differences while
-## the raw arrays differed). Hashing keeps a real failure readable too;
-## comparing the arrays directly dumps ~500KB per slice into the log.
-func _digest(img: Image) -> String:
-	var size := TextureCarveShape.LUT_SIZE
-	var base := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	base.blit_rect(img, Rect2i(0, 0, size, size), Vector2i.ZERO)
-	var ctx := HashingContext.new()
-	ctx.start(HashingContext.HASH_SHA256)
-	ctx.update(base.get_data())
-	return ctx.finish().hex_encode()
-
-
 func test_atlas_manifest_is_generated_and_non_empty() -> void:
 	var atlas := _atlas()
 	assert_not_null(atlas, "run `mise run icons:update` to generate the atlas")
@@ -83,19 +65,37 @@ func test_stacked_atlas_dimensions_match_the_slice_count() -> void:
 		"one LUT_SIZE-tall slice per manifest entry — the .import's slices/vertical")
 
 
-## The load-bearing one: each packed slice must be exactly what the bake
-## produces for that icon. Off-by-one packing, a stale atlas, or an importer
-## that mangled the payload all fail here.
-func test_each_slice_is_the_bake_of_its_source_icon() -> void:
+## The load-bearing one: each packed slice must be a well-formed CARVE LUT —
+## some interior (drop + mask), some exterior, a real depth ramp, and the
+## smooth SDF mask. The old byte-for-byte cross-check against bake_lut() is
+## gone: the atlas is now baked from the SVG via msdfgen's true SDF
+## (tools/bake_svg_sdf.py), not the chamfer path, so there is no shared
+## reference implementation to compare against. Off-by-one packing or a stale
+## atlas still fail here.
+func test_each_slice_is_a_valid_carve_lut() -> void:
 	var stacked := _stacked()
 	var atlas := _atlas()
 	for slice in atlas.slice_paths.size():
+		var img := _slice_image(stacked, slice)
 		var name := atlas.slice_paths[slice].get_file().get_basename()
-		var source: Texture2D = load("res://assets/icons/spells/%s.png" % name)
-		assert_not_null(source, "no source icon for slice %d (%s)" % [slice, name])
-		var expected := TextureCarveShape.bake_lut(source).get_image()
-		assert_eq(_digest(_slice_image(stacked, slice)), _digest(expected),
-			"slice %d (%s) is stale — re-run `mise run icons:update`" % [slice, name])
+		var has_inside := false
+		var has_outside := false
+		var max_drop := 0.0
+		var edge_blend := false
+		for y in img.get_height():
+			for x in img.get_width():
+				var px := img.get_pixel(x, y)
+				if px.a > 0.0:
+					has_inside = true
+					max_drop = maxf(max_drop, px.r)
+				else:
+					has_outside = true
+				if px.a > 0.0 and px.a < 1.0:
+					edge_blend = true
+		assert_true(has_inside, "slice %d (%s) has no inside texels" % [slice, name])
+		assert_true(has_outside, "slice %d (%s) has no outside texels" % [slice, name])
+		assert_gt(max_drop, 0.0, "slice %d (%s) has no drop depth" % [slice, name])
+		assert_true(edge_blend, "slice %d (%s) lacks the smooth SDF mask" % [slice, name])
 
 
 func test_slice_of_resolves_a_committed_lut_to_its_index() -> void:
