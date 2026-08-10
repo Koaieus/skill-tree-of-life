@@ -27,6 +27,13 @@ var _zoom_tween: Tween = null
 ## immediately rather than waiting for the next scroll tick.
 static var current_zoom: float = 1.0
 
+## Coalesces same-frame `_zoom_by` calls into one broadcast — a fast scroll
+## burst (trackpad inertial scroll, a high-poll-rate wheel) can fire several
+## wheel ticks inside a single rendered frame, and each broadcast is O(live
+## Edge count) downstream. Same debounce shape as
+## `VisionSystem._request_recompute` (`systems/vision_system.gd`).
+var _zoom_broadcast_pending: bool = false
+
 
 func _ready() -> void:
 	_target_zoom = zoom.x
@@ -73,10 +80,22 @@ func _zoom_by(step: float) -> void:
 		_target_zoom = zoom.x
 	_target_zoom = clampf(_target_zoom + step, MIN_ZOOM, MAX_ZOOM)
 	current_zoom = _target_zoom
-	Events.camera_zoom_changed.emit(current_zoom)
+	_request_zoom_broadcast()
 	if zoom_duration <= 0.0:
 		zoom = Vector2(_target_zoom, _target_zoom)
 		return
 	_zoom_tween = create_tween()
 	_zoom_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_zoom_tween.tween_property(self, ^"zoom", Vector2(_target_zoom, _target_zoom), zoom_duration)
+
+
+func _request_zoom_broadcast() -> void:
+	if _zoom_broadcast_pending:
+		return
+	_zoom_broadcast_pending = true
+	_broadcast_zoom_deferred.call_deferred()
+
+
+func _broadcast_zoom_deferred() -> void:
+	_zoom_broadcast_pending = false
+	Events.camera_zoom_changed.emit(current_zoom)

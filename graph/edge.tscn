@@ -18,9 +18,9 @@ metadata/_custom_type_script = "uid://5igfp33erkyn"
 points = PackedVector2Array(169, 0, 0, 0)
 width = 3.0
 gradient = SubResource("Gradient_edge")
-joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2
+joint_mode = 0
+begin_cap_mode = 0
+end_cap_mode = 0
 
 [node name="ScreenNotifier" type="VisibleOnScreenNotifier2D" parent="."]
 rect = Rect2(-16, -16, 200, 32)
