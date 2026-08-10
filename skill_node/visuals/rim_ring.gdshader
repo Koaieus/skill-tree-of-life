@@ -61,7 +61,7 @@ instance uniform vec2 light_dir_xy = vec2(-0.35, -0.35);
 // between slots, the additive glow's strength, and how sharply it favors the
 // crest over the rest of the band.
 uniform float fill_gap_deg : hint_range(0.0, 60.0) = 12.0;
-uniform float fill_glow_strength : hint_range(0.0, 2.0) = 0.85;
+uniform float fill_glow_strength : hint_range(0.0, 6.0) = 0.85;
 uniform float fill_crest_bias : hint_range(0.25, 6.0) = 2.0;
 
 float height_level(float t) {
