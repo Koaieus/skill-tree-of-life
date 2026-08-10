@@ -59,11 +59,8 @@ geom_outer_r = 44.0
 radius = 44.0
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
 
-[node name="BaseCircle" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="1" unique_id=215651254]
-visible = true
-
-[node name="HealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="3" unique_id=1764922168]
+[node name="HealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="2" unique_id=1764922168]
 theme_override_styles/fill = SubResource("StyleBoxFlat_8ngnr")
 
-[node name="CoreHealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="4" unique_id=1764922170]
+[node name="CoreHealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="3" unique_id=1764922170]
 theme_override_styles/fill = SubResource("StyleBoxFlat_gypvs")

@@ -87,4 +87,4 @@ func test_feedback_methods_run_and_reset() -> void:
 	n._reset_feedback()
 	assert_eq(n.visuals.position, Vector2.ZERO, "shake offset reset")
 	assert_eq(n.hover_ring.position, Vector2.ZERO, "counter-translated glow reset")
-	assert_eq(n._base_circle.modulate, Color.WHITE, "danger tint reset (on body, not visuals)")
+	assert_eq(n._node_visuals.feedback_tint, Color.WHITE, "danger tint reset (on body, not visuals)")

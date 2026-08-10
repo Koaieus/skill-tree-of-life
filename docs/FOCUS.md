@@ -98,15 +98,28 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
    that's a real, separate redesign of #376's composition-swap mechanism,
    correctly filed to Backlog as **#398** rather than scope-creeping #377.
 4. **#404** Formalize a shared targeting-mode system (arm/cancel/select) —
-   `Ready`, spec'd 2026-08-09. Split out of #338 during swarmify: the
-   arm/cancel/select machinery attack modes and Manage-tray verbs both need
-   turned out to be a `PlayerInputController`-level refactor, not
-   Manage-tab-specific. Take this before #338 — #338 is blocked on it.
-5. **#338** CommandTray "Manage" mode player-facing surface — `Ready`, narrowed
+   pulled back to `Needs design` 2026-08-09: its "right-click cancels"
+   decision didn't survive scrutiny (right-click is three different things
+   today — melee/magic setup-step, ranged clear-selection, idle
+   pin/unpin — not one cancel precedent). Blocked on **#411** (click-grammar
+   design doc) settling the left/right rule, including the self-targeting
+   edge case (source == target, e.g. a heal). Re-spec #404 against #411's
+   decision once it closes, then it's back to `Ready`.
+5. **#411** Design: unify click grammar (left pushes/resolves, right pops
+   one level) — `Ready`, spec'd 2026-08-09 out of #404's swarmify pass.
+   Decision: right-click pops one level off an arm/origin/target stack
+   (mode armed → origin set → target resolved), not a flat cancel;
+   self-targeting resolves through ordinary target validity, no special
+   case. Take this before #404 — #404 is blocked on it.
+6. **#338** CommandTray "Manage" mode player-facing surface — `Ready`, narrowed
    2026-08-09 to consume #404 for Stake/Extract/Deallocate/Move Core/Allocate
    tray buttons. Blocked on #404 landing first (documented dependency, not a
-   design hold).
-6. **#301** bladesmithing — swarmified 2026-08-09, hub stays `In progress`.
+   design hold) — transitively blocked on #411 now too.
+7. **#412** HUD viewport tint for currently-armed mode — `Backlog`, filed
+   2026-08-09, not scheduled. Reuses #411's armed-mode concept once it
+   exists; not structurally blocked/blocking, just sequenced after so it
+   reads the unified state instead of `BattleSystem.attack_mode` alone.
+8. **#301** bladesmithing — swarmified 2026-08-09, hub stays `In progress`.
    Take **#405** (addon-dispatch parity fix) first, then **#406** (the temp
    Clamp/Spikes budget spend) — #406 also wants #404 landed first, same
    ordering as #338 above. **#409** edge sharpeners stays `Needs design`,

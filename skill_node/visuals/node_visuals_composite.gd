@@ -150,6 +150,21 @@ var sensed: bool = false:
 		sensed = value
 		_apply_sensed()
 
+## Transient feedback tint (hit-flash on damage, dealloc-denied blink/shake,
+## #304) — applied as THIS node's own `modulate` rather than a shared child's,
+## so [SkillNodeVisual]'s HoverRing sibling (a child of Visuals, not of this
+## composite) is never touched: a `visuals.modulate` tint would multiply the
+## hover glow down to near-black and read as "the glow vanished" (see
+## skill_node.gd's denial-feedback section). Driven by SkillNode the same way
+## `sensed` / `core_active` are, rather than SkillNode tweening a grandchild's
+## modulate directly (the old target, `_base_circle`, is what BaseCircle
+## retired).
+var feedback_tint: Color = Color.WHITE:
+	set(value):
+		feedback_tint = value
+		modulate = value
+
+
 ## Whether this node currently hosts its owner's core. Gates the core-only
 ## presence visuals — CoreHalos today (CoreSigilBloom next, #128) — so they draw
 ## on the ONE core node, not every node (the gimbal pass dropped this gate, which

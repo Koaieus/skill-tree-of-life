@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="Resource" uid="uid://dq1n0dbnodebd" path="res://skill_node/default_node_board.tres" id="1_nodeboard"]
 [ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_58fw3"]
-[ext_resource type="Script" uid="uid://cf4vda183w4tk" path="res://skill_node/base_circle.gd" id="2_base"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_i1vuw"]
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
@@ -68,9 +67,6 @@ metadata/_edit_lock_ = true
 [node name="NodeVisualsComposite" parent="Visuals" unique_id=1855738635 instance=ExtResource("2_58fw3")]
 entity_tint = Color(1, 1, 1, 1)
 archetype_tint = Color(0.4117647, 0.4117647, 0.4117647, 1)
-
-[node name="BaseCircle" type="Node2D" parent="Visuals" unique_id=215651254]
-script = ExtResource("2_base")
 
 [node name="HoverRing" type="Node2D" parent="Visuals" unique_id=670952446]
 visible = false

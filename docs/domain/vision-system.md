@@ -45,8 +45,8 @@ Per-entity, derived from each allocated node:
   (unallocated nodes are inert traversers — see "Future hooks" below).
   Sensed ∖ visible nodes are queryable (`is_sensed(node)`) and the
   `SkillNode.sensed` flag drives a faint base-type-tinted outline
-  render in `BaseCircle._draw` — archetype only, no owner colour, no
-  modifier content.
+  render in `NodeVisualsComposite`'s `SensedOutline` component (#141,
+  #304) — archetype only, no owner colour, no modifier content.
 - **Viewers** are an `Array[Entity]`. Multiple viewers compose their
   sets via union. Empty array + `empty_mode = ALL_ENTITIES` falls back
   to `group("entities")` — Entity self-joins that group at edit time
@@ -215,8 +215,9 @@ calls for it.
 When `SkillNode.sensed` flips on, `_apply_sensed_state` does three
 things in one pass:
 
-1. `BaseCircle._draw` switches to outline-only (faint base-type-tinted
-   ring; no wash, no inner disk, no flash).
+1. `NodeVisualsComposite.sensed` switches to outline-only: it hides its
+   shader stack (InnerDisk/RimRing/CorePresence) and shows `SensedOutline`
+   (faint base-type-tinted ring only).
 2. `z_as_relative = false` + `z_index = 1001` lifts the node above the
    fog overlay (which lives at `z_index=1000`) so the outline isn't
    dimmed into nothing. The exact z is a knob — bump both if the fog

@@ -69,9 +69,9 @@ signal depleted
 			_sync_visuals()
 
 ## Persistent base-type identity colour (e.g. procgen's archetype colour).
-## Drives the BaseCircle border; survives allocation. Defaults to dim grey so
-## a hand-placed node in dev_sandbox.tscn looks the same as before any procgen
-## stamping.
+## Drives NodeVisualsComposite's `archetype_tint` (rim, sensed outline);
+## survives allocation. Defaults to dim grey so a hand-placed node in
+## dev_sandbox.tscn looks the same as before any procgen stamping.
 @export var base_type_color: Color = Color.DIM_GRAY:
 	set(value):
 		base_type_color = value
@@ -106,9 +106,8 @@ const RIM_CREST_INSET := 4.0
 ## Authored radius of the inner fill disk at `stake_level == 1` — what reads as
 ## "ownership" when allocated, and what VFX sizes effects against. Authored per
 ## node so future archetypes can run flush (inner == outer) or extra-recessed;
-## pushed down to BaseCircle in _sync_visuals so BaseCircle has no inset policy
-## of its own. Same authored/derived split as [member base_radius] →
-## [member radius].
+## pushed down to NodeVisualsComposite.geom_inner_r in _sync_visuals. Same
+## authored/derived split as [member base_radius] → [member radius].
 @export var base_inner_radius: float = 24.0:
 	set(value):
 		if is_equal_approx(base_inner_radius, value):
@@ -141,7 +140,6 @@ var inner_radius: float:
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
-@onready var _base_circle: Node2D = $Visuals/BaseCircle
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 
@@ -197,8 +195,8 @@ var _scaled_effect_sets: Dictionary[Effect, Array] = {}
 var _last_allocation_level: int = 0
 
 ## Sensed-but-not-visible flag, written by VisionSystem on every recompute.
-## Drives the faint outline render on BaseCircle. Not a stat — purely a
-## per-frame render hint, no signals, no persistence.
+## Drives NodeVisualsComposite's archetype-only outline (SensedOutline, #141).
+## Not a stat — purely a per-frame render hint, no signals, no persistence.
 var sensed: bool = false:
 	set(value):
 		if sensed == value:
@@ -411,21 +409,15 @@ func _refresh_core_health_bar(is_core: bool) -> void:
 
 
 ## Mirror the `sensed` flag onto the visual stack. Three things shift:
-## the BaseCircle switches to its outline-only draw, the SkillNode is
-## promoted above the fog overlay's z so the outline isn't dimmed into
-## nothing, and owner/mechanic detail (core marker, addons) is hidden so
-## a sensed-only viewer reads archetype only. The hide is a global
-## placeholder — proper per-viewer info gating is the next layer up
-## (see docs/domain/vision-system.md).
+## NodeVisualsComposite switches to its archetype-only outline draw
+## (SensedOutline, #141), the SkillNode is promoted above the fog overlay's z
+## so the outline isn't dimmed into nothing, and owner/mechanic detail (core
+## marker, addons) is hidden so a sensed-only viewer reads archetype only. The
+## hide is a global placeholder — proper per-viewer info gating is the next
+## layer up (see docs/domain/vision-system.md).
 func _apply_sensed_state() -> void:
 	if not is_node_ready():
 		return
-	# Sensed hides BaseCircle entirely — its wash carries the OWNER colour, which
-	# must not leak through fog — and hands the archetype-only read to the
-	# composite's own sensed state (SensedOutline), rather than the old "hide the
-	# whole V2 stack and let BaseCircle stand in" path (#141).
-	if _base_circle != null:
-		_base_circle.visible = not sensed
 	if _node_visuals != null:
 		_node_visuals.sensed = sensed
 	z_as_relative = not sensed
@@ -462,15 +454,12 @@ func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
 		
-	# BaseCircle keeps only the faint always-on wash (legibility background for
-	# unallocated nodes, per .claude/rules/skill-node-visuals.md) plus the
-	# hit-flash / deny-tint channel — the sensed-fog outline moved onto the
-	# composite's SensedOutline (#141), and NodeVisualsComposite (disk + rim +
-	# rune/halo dress) is the real disk/allocation render.
-	_base_circle._radius = radius
-	_base_circle.fill_color = get_owner_color() if is_allocated() else Color.DIM_GRAY
-	_base_circle.visible = not sensed
-	_base_circle.queue_redraw()
+	# NodeVisualsComposite (disk + rim + rune/halo dress) is the whole
+	# disk/allocation render (#304) — InnerDisk and RimRing both draw opaquely
+	# across their full band regardless of allocation (dark dome / dim silver
+	# rim when unallocated), so an unallocated node already reads as a
+	# footprint with no separate wash layer needed. The sensed-fog outline is
+	# the composite's own SensedOutline (#141).
 	hover_ring.configure(radius)
 	for a in _addons:
 		a.configure_visual(radius)
@@ -1489,19 +1478,20 @@ func play_core_slide_from(world_pos: Vector2, duration: float = 0.25) -> void:
 	_node_visuals.glide_core_presence(offset, duration)
 
 
-## Brief white pulse on the BaseCircle. Auto-runs on the `damaged` signal;
+## Brief red pulse on NodeVisualsComposite. Auto-runs on the `damaged` signal;
 ## also callable externally (FloatingNumberLayer triggers it on wound/heal
 ## events so the core flashes alongside the floater).
 func play_hit_flash() -> void:
-	if _base_circle == null:
+	if not is_node_ready() or _node_visuals == null:
 		return
 	if _hit_flash_tween != null:
 		_hit_flash_tween.kill()
-	# Tweens BaseCircle.flash_amount only — leaves visuals.modulate free for
-	# other consumers (selection tint, status effects, etc.) without colliding.
-	_base_circle.flash_amount = 1.0
+	# Tweens NodeVisualsComposite.feedback_tint (#304) only — leaves
+	# visuals.modulate free for other consumers (selection tint, status
+	# effects, etc.) without colliding.
+	_node_visuals.feedback_tint = _DENY_COLOR
 	_hit_flash_tween = create_tween()
-	_hit_flash_tween.tween_property(_base_circle, "flash_amount", 0.0, 0.25)
+	_hit_flash_tween.tween_property(_node_visuals, "feedback_tint", Color.WHITE, 0.25)
 
 
 # ── Denial feedback (#89) ────────────────────────────────────────────────────
@@ -1509,14 +1499,17 @@ func play_hit_flash() -> void:
 # the nodes that WOULD be islanded pulse danger-red (blink_blocked); the node
 # the player actually tried to drop gets a short "bzzt — no" shake (shake_denied).
 #
-# The red tint lands on `_base_circle` (the node body), NOT on `visuals` — the
-# hover glow (HoverRing) is a child of `visuals`, so a `visuals.modulate` tint
-# multiplied the glow down to near-black and read as "the glow vanished". Body
-# tint keeps the hover register (a different visual meaning: "pointer is here")
-# clean. The shake offsets `visuals.position` (edges anchor on the node root, so
-# endpoints don't move); the hover glow is counter-translated to stay world-fixed
-# — the pointer isn't shaking, so its feedback shouldn't either.
+# The red tint lands on `_node_visuals` (NodeVisualsComposite, #304's
+# feedback_tint channel), NOT on `visuals` — the hover glow (HoverRing) is a
+# child of `visuals`, so a `visuals.modulate` tint multiplied the glow down to
+# near-black and read as "the glow vanished". Body tint keeps the hover
+# register (a different visual meaning: "pointer is here") clean. The shake
+# offsets `visuals.position` (edges anchor on the node root, so endpoints
+# don't move); the hover glow is counter-translated to stay world-fixed — the
+# pointer isn't shaking, so its feedback shouldn't either.
 
+## Also the hit-flash channel's color (#304) — one shared feedback-tint value
+## for both registers, since both drive [member NodeVisualsComposite.feedback_tint].
 const _DENY_COLOR := Color(1.0, 0.3, 0.3)
 const _BLINK_STEP := 0.11
 const _SHAKE_TIME := 0.30
@@ -1534,19 +1527,19 @@ func _reset_feedback() -> void:
 		hover_ring.position = Vector2.ZERO
 	for addon in _addons:
 		addon.position = Vector2.ZERO
-	if _base_circle != null:
-		_base_circle.modulate = Color.WHITE
+	if _node_visuals != null:
+		_node_visuals.feedback_tint = Color.WHITE
 
 
 ## Danger-red pulse — marks a node that a denied deallocation would island (#89).
 func blink_blocked() -> void:
-	if not is_node_ready() or _base_circle == null:
+	if not is_node_ready() or _node_visuals == null:
 		return
 	_reset_feedback()
 	var t := create_tween()
 	for i in 2:
-		t.tween_property(_base_circle, "modulate", _DENY_COLOR, _BLINK_STEP)
-		t.tween_property(_base_circle, "modulate", Color.WHITE, _BLINK_STEP)
+		t.tween_property(_node_visuals, "feedback_tint", _DENY_COLOR, _BLINK_STEP)
+		t.tween_property(_node_visuals, "feedback_tint", Color.WHITE, _BLINK_STEP)
 	_feedback_tweens.append(t)
 
 
@@ -1556,10 +1549,10 @@ func shake_denied() -> void:
 	if not is_node_ready() or visuals == null:
 		return
 	_reset_feedback()
-	if _base_circle != null:
-		_base_circle.modulate = _DENY_COLOR
+	if _node_visuals != null:
+		_node_visuals.feedback_tint = _DENY_COLOR
 		var tint := create_tween()
-		tint.tween_property(_base_circle, "modulate", Color.WHITE, _SHAKE_TIME)
+		tint.tween_property(_node_visuals, "feedback_tint", Color.WHITE, _SHAKE_TIME)
 		_feedback_tweens.append(tint)
 	var shake := create_tween()
 	var amps := [1.0, -0.72, 0.5, -0.32, 0.16, 0.0]

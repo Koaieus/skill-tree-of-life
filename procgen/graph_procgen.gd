@@ -185,8 +185,9 @@ static func generate(
 						archetype_id, archetype_primary_stat, archetype_forbid,
 						positions[i], i, budget, rng, fp)
 			sn.set_meta("procgen_footprint", fp)
-			# Border-channel stamp on BaseCircle (persistent type identity).
-			# Owner colour stays free to drive the fill channel via SkillNode.
+			# Stamps NodeVisualsComposite's archetype_tint (persistent type
+			# identity, rim/sensed-outline colour). Owner colour stays free to
+			# drive the entity_tint channel via SkillNode.
 			sn.base_type_color = archetype_color
 			# The archetype's own emblem shape (docs/domain/skillnode-emblem.md) —
 			# every archetype carries one now, so this always stamps.

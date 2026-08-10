@@ -39,8 +39,8 @@ always render above the `FogOverlay` (z=1000) and the visible/sensed nodes
 *under* a fog-promoted node, since visible nodes get z-promoted to render
 above the fog.
 
-Effects never touch the `BaseCircle` itself — that means ownership-state
-visuals (`BaseCircle.allocated`, fill color) flip the instant `owned_by`
+Effects never touch `NodeVisualsComposite` itself — that means ownership-state
+visuals (`allocation_level`, disk/rim fill color) flip the instant `owned_by`
 changes, while the cosmetic effect runs on its own timeline.
 
 ### Allocate — "skill point from the heavens"
@@ -105,9 +105,9 @@ the bridge to the core.
 All disk-shaped effects (lift, shatter, alloc-spike base) read
 `SkillNode.inner_radius` rather than computing `radius - some_inset`.
 SkillNode owns the value as a designer-exposed `@export var` and pushes it
-down to `BaseCircle.inner_radius` in `_sync_visuals`. The coordinator has
-no inset policy of its own — change `inner_radius` on a node and every
-effect resizes in lockstep.
+down to `NodeVisualsComposite.geom_inner_r` in `_sync_visuals`. The
+coordinator has no inset policy of its own — change `inner_radius` on a
+node and every effect resizes in lockstep.
 
 ## Tunables
 

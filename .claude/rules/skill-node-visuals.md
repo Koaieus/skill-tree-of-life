@@ -25,12 +25,15 @@ implementing the 6 locked-pick visuals from
 `docs/design/handoff_skill_nodes_visuals/Handoff Prep.dc.html`.
 `SkillNode` (`skill_node.tscn`) instances `node_visuals_composite.tscn` as
 `%NodeVisualsComposite` and `_sync_visuals()` is what actually drives it —
-this **is** the live disk/rim render, not a parallel preview. `base_circle.gd`
-/ `hover_ring.gd` / `core_marker.gd` stay, but `base_circle.gd` was slimmed to
-just the always-on legibility wash + the hit-flash/deny tint channel; the
-border ring and the allocated inner-disk draw retired in favor of
-RimRing/InnerDisk, and the sensed-fog outline moved onto the composite's own
-[SensedOutline] component (#141 — see the sensed section below).
+this **is** the live disk/rim render, not a parallel preview. `hover_ring.gd` /
+`core_marker.gd` stay, but `base_circle.gd` is gone (#304): InnerDisk and
+RimRing already draw opaquely across their whole band regardless of
+allocation, so the old always-on legibility wash was fully redundant, and the
+composite's own `feedback_tint` (this node's `modulate`) absorbed the
+hit-flash/deny-tint channel. The border ring and the allocated inner-disk draw
+retired in favor of RimRing/InnerDisk earlier, and the sensed-fog outline
+moved onto the composite's own [SensedOutline] component (#141 — see the
+sensed section below).
 Preview all components + the composite together via the sandbox host's
 "Node Visuals" tab (`addons/sandbox_host/tabs/15_node_visuals_tab.tscn` →
 `skill_node/visuals/panel/node_visuals_panel.tscn`).
@@ -340,9 +343,10 @@ a physical hemisphere that is switched OFF — still shiny, just dark — and
 allocation animates for free, because it's a lerp between two colors rather
 than a pop between two shapes. Don't reintroduce an `InnerDisk.visible =
 allocated` gate or an early `return SN_NEUTRAL_DARK` in the shader; both
-amputate the lit-dark branch that already exists. BaseCircle's wash is fully
-occluded by the disk+rim on a visible node and is hidden outright when `sensed`
-(its wash carries the OWNER colour, which must not leak through fog).
+amputate the lit-dark branch that already exists. This opaque-either-way draw
+(same for RimRing, see the identity contract above) is what let `base_circle.gd`'s
+always-on legibility wash retire outright (#304) — it was fully redundant on a
+visible node, since InnerDisk+RimRing already paint the whole footprint.
 
 ### Sensed (#141): a real composite state, not "hide the stack and let a legacy renderer stand in"
 
@@ -364,8 +368,7 @@ load-bearing:
    works before the node enters the tree: `instantiate()` then `sensed = true`
    hides the stack *before* the shader children's `_ready` runs, so they never
    bind a material. A `%`-name returns null until in-tree, which would leave the
-   stack visible through the children's `_ready` and claim a slot. `SkillNode`
-   also hides `BaseCircle` when sensed (owner-coloured wash). Guarded by
+   stack visible through the children's `_ready` and claim a slot. Guarded by
    `test_node_visuals_contract.gd`'s `*_sensed_*` tests.
 
 ### SHELVED (#238): RimBonuses and RuneRing are out of the composite
@@ -700,21 +703,20 @@ by collision, `edge_point`, `segment_between`, the blade sim (`sn.radius`), fog,
 and `edge.gd`. Rings are expressed *relative* to it. Don't fold ring geometry
 back into `radius`.
 
-**Filled discs are not rings** — the wash (`radius`) and the inner ownership disk
-(`inner_radius`) in `base_circle.gd` are solid `draw_circle(filled=true)` and
-don't use the convention.
+**Filled discs are not rings** — InnerDisk's dome (a shader fill, not a stroke)
+doesn't use the convention.
 
 ## Band table (inner → outer; stock `radius=32`, `inner_radius=24`)
 
 | Ring | File | `inner_offset` | `width` | span | sits |
 |---|---|---|---|---|---|
-| Archetype border | `base_circle.gd` `BORDER_INNER_OFFSET` | `-BORDER_WIDTH` (−8) | 8 | 24..32 | inset; outer edge flush at `radius` |
-| Sensed outline | `base_circle.gd` | `-SENSED_OUTLINE_WIDTH/2` (−0.75) | 1.5 | 31.25..32.75 | straddles the boundary (centerline = `radius`) |
 | Selection / status | `node_highlight_overlay.gd` `ring_inner_offset` | 4.5 | 3 | 36.5..39.5 | outside the boundary |
 
-The archetype border's inner edge (24) coincides with `inner_radius` only because
-`BORDER_WIDTH == radius − inner_radius` at stock sizing — keep that in mind if
-either constant moves.
+The archetype border and sensed-outline rows this table used to carry
+(`base_circle.gd`) are gone along with that script (#304) — both were retired
+onto RimRing / SensedOutline earlier and the table had drifted stale (its
+constant names no longer matched `base_circle.gd`'s actual, already-slimmed
+contents even before the file was deleted).
 
 ## Hover is a glow, not a ring (#73)
 

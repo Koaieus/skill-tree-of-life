@@ -130,7 +130,8 @@ func set_sources(sources: Array) -> void:
 ## zone — half the disk reads clear, the other half pure black — and the
 ## same node appears DARKER than a sensed neighbour in pitch black (sensed
 ## elements already z-promote above the fog). Sensed elements are left to
-## their own render path (BaseCircle/Edge draw at a fixed sensed alpha).
+## their own render path (NodeVisualsComposite's SensedOutline / Edge draw at
+## a fixed sensed alpha).
 func _apply_per_element_dimming() -> void:
 	if vision_system == null or vision_system.graph == null:
 		return
@@ -138,7 +139,7 @@ func _apply_per_element_dimming() -> void:
 	for n in graph.get_skill_nodes():
 		if vision_system.is_sensed(n):
 			# Sensed path: SkillNode already z-promotes; keep modulate
-			# neutral so BaseCircle's fixed-alpha outline reads through.
+			# neutral so SensedOutline's fixed-alpha outline reads through.
 			n.modulate.a = 1.0
 			continue
 		if vision_system.is_visible(n):
