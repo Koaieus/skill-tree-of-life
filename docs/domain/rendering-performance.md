@@ -144,6 +144,67 @@ recognize them:
    and vendor to vendor. A real glitch-art technique; never usable for anything
    that must look the same twice.
 
+## Self-shading beats z-order occlusion for fog-of-war-style visibility (#413)
+
+`FogOverlay` used to be the only thing that knew how dark a point in the
+world is: it painted an opaque-alpha quad over the whole graph, and anything
+that needed a DIFFERENT treatment (a visible node dimmed by distance instead
+of fully blacked out, a sensed node/edge at a fixed low alpha regardless of
+distance) had to *escape* that quad via z-index promotion, then have its own
+darkness re-computed on the CPU to match what the quad would have painted —
+`FogOverlay._apply_per_element_dimming`, an O(elements) walk that also forced
+a per-instance `z_index`/`modulate.a` write, which is exactly what blocks
+batching something into a single `MultiMeshInstance2D` (one CanvasItem, one
+`z_index`, no per-instance property writes at all).
+
+The fix for `Edge` (nodes are an explicitly out-of-scope follow-up — see the
+issue): make the circle-union darkness field itself a **shared, global**
+GPU resource instead of one material's private uniforms, so any shader can
+sample it and compute its own alpha per-fragment, with no CPU-side z dance
+and no per-element CPU darkness sampling at all:
+
+- `ui/vision_field.gdshaderinc` declares the field data (`vision_circles_tex`,
+  `vision_tile_index_tex`, `vision_grid_origin`, `vision_falloff`, …) as
+  **`global uniform`**, registered in `project.godot`'s `[shader_globals]`
+  section. `FogOverlay` is the sole writer
+  (`RenderingServer.global_shader_parameter_set`); any other shader that
+  includes the file is a reader. `vision_field_enabled` (also global) carries
+  the one bit a raw darkness value can't: "zero circles because nobody has
+  vision right now" (should read fully dark) vs. "zero circles because no fog
+  system exists in this scene at all" (should read fully lit) — the two are
+  indistinguishable from `circle_count` alone.
+- `graph/edge_mesh.gdshader` includes that file and computes its own alpha
+  per-fragment: hidden → 0, visible → the shared darkness ramp, sensed →
+  ignore the ramp entirely (a fixed alpha baked in CPU-side already).
+- The three-way hidden/visible/sensed classification itself still comes from
+  the CPU (`VisionSystem`'s hop/reachability logic isn't the same computation
+  as the raw circle field, and can't be — see `Edge.vision_visible`) but it's
+  now a single bit written once per vision tick, packed into the otherwise-
+  redundant alpha of the MultiMesh's spare colour channel, not a per-element
+  darkness *computation*.
+
+**Reusable pattern for the SkillNode follow-up:** any other self-shading
+consumer just needs `#include "res://ui/vision_field.gdshaderinc"` and a call
+to `vision_field_darkness(world_pos)` — the include is the whole contract,
+no per-shader uniform wiring beyond that.
+
+## Godot's headless dummy renderer does not implement `MultiMesh` instance-data readback
+
+`RenderingServer.multimesh_instance_set_color(rid, 0, c)` followed by
+`multimesh_instance_get_color(rid, 0)` returns the *unset default*, not `c`,
+under `--headless` — confirmed at the `RenderingServer` level, not just
+through the `MultiMesh` resource wrapper. `instance_count` and
+`get_instance_transform_2d`/`get_instance_color`/`get_instance_custom_data`
+all silently no-op the same way; only plain scalar properties like
+`instance_count` itself round-trip.
+
+**How to apply:** a GUT test can never assert against a MultiMesh's actual
+per-instance buffer. If a system pushes data into one, mirror the
+CPU-computed values in a plain script property too (see `Edge.render_transform`
+/ `render_color_a` / `render_color_b` / `render_vis_state`) purely so tests
+have something real to read — the mirror isn't redundant, it's the only
+thing `mise run test` can ever see.
+
 ## Related
 
 - [overlay-field-rendering.md](overlay-field-rendering.md) — the fullscreen

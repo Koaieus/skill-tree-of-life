@@ -4,32 +4,32 @@ extends Node2D
 
 const ZLayers = preload("res://ui/z_layers.gd")
 
-## Slack around the segment's own bounding box for `_screen_notifier.rect` —
-## covers line thickness plus enough margin that a screen-edge-adjacent edge
-## doesn't flicker in/out of "on-screen" every sub-pixel camera nudge.
-const _SCREEN_NOTIFIER_MARGIN: float = 16.0
-
-## Visible edge between two SkillNodes. Owns its rendering and listens to
-## each endpoint's `owner_changed` / `radius_changed` / `archetype_changed`
-## so it can redraw autonomously — "lit" being the common case of both
-## endpoints owned by the same entity.
+## Visible edge between two SkillNodes. Regular (non-self-loop) edges own no
+## rendering of their own (#413) — they push a transform + a pair of endpoint
+## colours into their [Graph]'s shared `edge_mesh` [MultiMeshInstance2D] slot
+## (`push_render_state` / `_push_transform` / `_push_colors`), which
+## self-shades against the world vision field per-fragment
+## (`ui/vision_field.gdshaderinc`) instead of relying on z-order to escape
+## `FogOverlay`'s opaque darkness quad. One shared draw call regardless of
+## edge count; a camera zoom step touches nothing here at all — width is
+## read from `CANVAS_MATRIX` in `graph/edge_mesh.gdshader`'s own vertex().
 ##
-## Regular edges render via the `Line2D` child, gradiented between each
-## endpoint's own `base_type_color` (archetype tint) so the edge visually
-## belongs to the nodes it connects. Self-loops (from == to, no gradient to
-## speak of) stay on procedural `_draw` — a Line2D circle-polyline buys
-## nothing extra there and arcs are cheap.
+## Self-loops (from == to, no gradient/segment to speak of) are unaffected —
+## rare, cheap procedural `_draw()` geometry, kept exactly as before,
+## including the old z-index-vs-fog dance (see `sensed`'s setter and
+## `ui/fog_overlay/fog_overlay.gd`'s self-loop branch).
 
 signal endpoints_changed
 
+## Packed into the shared MultiMesh's spare alpha channel — see
+## `graph/edge_mesh.gdshader`'s header comment. Matches the shader's own
+## named constants; keep both in lockstep if either changes.
+const VIS_HIDDEN: float = 0.0
+const VIS_VISIBLE: float = 1.0
+const VIS_SENSED: float = 2.0
+
 ## Lit/unlit/sensed are colour TRANSFORMS applied to each endpoint's own
 ## archetype tint, not fixed overrides — see `_display_color`.
-## #388 — lit no longer lightens the SDR colour; the Line2D's `self_modulate`
-## rides an emissive tier instead (`Emissive.at(Color.WHITE, lit_glow_stops)`,
-## see `_update_visual`), so an allocated edge actually clears bloom threshold
-## rather than just reading brighter in SDR. #391 follow-up: the lift has to
-## go through `self_modulate`, not the Gradient's own vertex colours — a
-## Gradient stop above 1.0 didn't bloom, confirmed live in dev_bloom_sandbox.
 @export_range(0.0, 1.0, 0.05) var unlit_desaturate: float = 0.45
 @export_range(0.0, 1.0, 0.05) var unlit_darken: float = 0.15
 @export_range(0.0, 1.0, 0.05) var lit_alpha: float = 1.0
@@ -38,17 +38,13 @@ signal endpoints_changed
 ## sensed edge in pitch-black doesn't outshine a barely-visible unlit edge
 ## in someone's vision fade-zone, regardless of lit/unlit archetype colour.
 @export_range(0.0, 1.0, 0.05) var sensed_alpha: float = 0.35
-@export_range(0.0, 1.0, 0.05) var sensed_width_scale: float = 0.75
-## EV stops the lit colour is raised by, applied via `self_modulate` (see
-## [Emissive] and `_update_visual`). Default stays [constant Emissive.ALERT] —
-## the standard "loud" tier — as a sane fallback for a consumer that hasn't
-## measured its own on-screen line width. `graph/edge.tscn`'s shipped instance
-## overrides this to an empirically-tuned value (see `dev_bloom_sandbox`).
-## #399: `width` (and this line's screen coverage) is now held constant in
-## screen pixels regardless of camera zoom (see `_current_zoom` /
-## `_apply_width`), so one tuned value is expected to read right at every
-## zoom level — retune live in `dev_bloom_sandbox` only if the authored
-## `width` itself changes.
+## EV stops the lit colour is raised by. Baked directly into the MultiMesh
+## instance colours by `_display_color_lifted` (#413 acceptance spec item 3
+## — a MultiMesh instance has no per-instance `self_modulate` to carry the
+## lift separately the way the old Line2D path did). Default stays
+## [constant Emissive.ALERT] as a sane fallback; `graph/edge_mesh_material.tres`'s
+## sibling `width` uniform and this value were tuned together in
+## `dev_bloom_sandbox` — retune there if either changes.
 @export_range(0.0, 6.0, 0.05) var lit_glow_stops: float = Emissive.ALERT
 
 @export var from: SkillNode:
@@ -75,37 +71,22 @@ signal endpoints_changed
 		_update_visual()
 		endpoints_changed.emit()
 
-## Authored in SCREEN pixels, not world units (#399) — `_apply_width` divides
-## by `_current_zoom` to hold on-screen coverage constant across camera zoom.
-## Never write the derived world-space width back into this export: `Edge` is
-## `@tool`, and a derived value written into an `@export` gets serialized
-## into the `.tscn` and re-derived from itself on every save (see
-## `.claude/rules/gdscript-pitfalls.md`).
+## Self-loop-only now (#413): regular edges' width is a single material
+## uniform shared by every edge (`graph/edge_mesh_material.tres`), authored
+## once, not per instance. Kept here purely so `_draw_self_loop` has a
+## screen-constant width knob, same as before.
 @export var width: float = 2.0:
 	set(v):
 		width = v
-		_apply_width()
+		if is_self_loop:
+			queue_redraw()
 
-@onready var line_2d: Line2D = $Line2D
-@onready var _screen_notifier: VisibleOnScreenNotifier2D = $ScreenNotifier
-
-## Last zoom broadcast via [signal Events.camera_zoom_changed]. Stays `1.0` in
-## the editor (`@tool`, no live `GraphCamera` — the 2D editor canvas has its
-## own unrelated zoom, see docs/domain/hdr-color.md's editor-canvas-zoom
-## section) and at runtime before the first camera broadcast.
+## Last zoom broadcast via [signal Events.camera_zoom_changed]. Only consumed
+## by the self-loop `_draw()` path now — regular edges get their
+## screen-constant width from `CANVAS_MATRIX` inside the shader itself, no
+## CPU zoom hook needed. Stays `1.0` in the editor (`@tool`, no live
+## `GraphCamera`) and at runtime before the first camera broadcast.
 var _current_zoom: float = 1.0
-
-## Screen-culls the width recompute a zoom step forces (see
-## `_on_camera_zoom_changed`) — at graph scale (hundreds-2000s of edges,
-## .claude/rules/skill-node-scale.md) most edges are off-screen at any given
-## moment, and `Line2D.width =` isn't free at that count. Starts `true` so an
-## edge updates eagerly until `_screen_notifier` reports otherwise (its
-## `screen_entered`/`screen_exited` ride the renderer's own AABB-vs-viewport
-## culling — no per-frame polling). Self-loops opt out: rare, cheap
-## `_draw`-based geometry, not worth tracking.
-var _on_screen: bool = true
-var _width_dirty: bool = false
-
 
 ## Sensed-but-not-clearly-visible: at least one endpoint is sensed
 ## (not visible). VisionSystem writes this every recompute. When true,
@@ -113,30 +94,73 @@ var _width_dirty: bool = false
 ## through the darkness — a topology breadcrumb, not a full reveal.
 ## See docs/design/info_gating.md for the broader info dimensions this
 ## flag will eventually plug into.
+##
+## Self-loops keep the old z-index-vs-fog dance (see `ui/z_layers.gd`);
+## regular edges fold `sensed` into their own MultiMesh colour/vis-state
+## push instead (#413) — no z_index write, since self-shading makes the
+## z-order-escape trick unnecessary for them.
 @export var sensed: bool = false:
 	set(value):
 		if sensed == value:
 			return
 		sensed = value
-		z_index = ZLayers.EDGE + ZLayers.SENSED if sensed else ZLayers.EDGE
+		if is_self_loop:
+			z_index = ZLayers.EDGE + ZLayers.SENSED if sensed else ZLayers.EDGE
 		_update_visual()
+
+## Vision-RANGE visibility (distinct from `sensed`'s hops-based sensor
+## reach) — written every vision tick by `FogOverlay` for regular edges only
+## (self-loops keep the old per-element dimming path). Defaults `true` so a
+## scene with no fog system at all (dev sandboxes, most tests) renders at
+## full brightness rather than reading the vision field's own "no data"
+## default as "hidden". See #413 and `ui/vision_field.gdshaderinc`.
+@export var vision_visible: bool = true:
+	set(value):
+		if vision_visible == value:
+			return
+		vision_visible = value
+		_push_colors()
 
 var is_self_loop: bool:
 	get(): return from != null and from == to
+
+## Transform + endpoint colours last computed for the shared MultiMesh slot —
+## mirrored here (not just written into the mesh buffer) so a bare
+## `add_child_autofree(edge)` test fixture with no live [Graph] parent can
+## still assert against them. See test/unit/test_edge_render_state.gd.
+var render_transform: Transform2D = Transform2D.IDENTITY
+var render_color_a: Color = Color.WHITE
+var render_color_b: Color = Color.WHITE
+var render_vis_state: float = VIS_VISIBLE
+
+var _render_graph: Graph = null
+
+
+## Called once by [Graph] right after this edge is added (`edge_added`) —
+## gives `_push_transform`/`_push_colors` somewhere to write besides the
+## local `render_*` mirrors. A no-op for self-loops (they never get a slot).
+func bind_render_target(graph: Graph) -> void:
+	_render_graph = graph
+
+
+## Pushes both transform and colours — called by [Graph] right after it
+## registers this edge's slot, since every `from`/`to`-triggered push before
+## that point had nowhere to go but the local mirrors.
+func push_render_state() -> void:
+	_push_transform()
+	_push_colors()
+
 
 func _ready() -> void:
 	if not Engine.is_editor_hint():
 		_current_zoom = GraphCamera.current_zoom
 	Events.camera_zoom_changed.connect(_on_camera_zoom_changed)
-	if _screen_notifier != null:
-		_screen_notifier.screen_entered.connect(_on_screen_entered)
-		_screen_notifier.screen_exited.connect(_on_screen_exited)
 	_update_endpoints()
 	_update_visual()
 
 func _draw() -> void:
-	# Regular edges are drawn by the Line2D child; only self-loops (no
-	# straight-line gradient to speak of, from == to) go through _draw.
+	# Regular edges render through Graph's shared MultiMesh; only self-loops
+	# (no straight-line gradient to speak of, from == to) go through _draw.
 	if not is_self_loop or from == null:
 		return
 	_draw_self_loop()
@@ -159,108 +183,84 @@ func refresh_endpoints() -> void:
 	queue_redraw()
 
 func _update_endpoints() -> void:
-	if not is_node_ready() or line_2d == null:
-		return
-	if from == null or to == null:
-		return
 	if is_self_loop:
-		line_2d.hide()
 		queue_redraw()
+		return
+	_push_transform()
+
+## Recomputes what should be pushed to the shared MultiMesh slot — endpoint
+## colours + vision-state for regular edges, or just a redraw for self-loops
+## (colour is resolved fresh in `_draw_self_loop`). Cheap enough to fully
+## recompute rather than diff.
+func _update_visual() -> void:
+	if is_self_loop:
+		queue_redraw()
+		return
+	_push_colors()
+
+## World-space segment between `from`/`to`, converted into the shared
+## MultiMesh's local space (== Graph's own space, since Edge/edges_container/
+## edge_mesh are all unpositioned siblings under Graph — same simplifying
+## assumption the old Line2D path made subtracting `global_position`) and
+## pushed as a quad transform: origin at the segment midpoint, x-axis along
+## the segment scaled to its length, unit y-axis (width is NOT baked in here
+## — the shader expands it from a material uniform at draw time, see
+## `graph/edge_mesh.gdshader`).
+func _push_transform() -> void:
+	if is_self_loop or from == null or to == null:
 		return
 	var seg := SkillNode.segment_between(from, to)
 	if seg.is_empty():
-		line_2d.hide()
 		return
-	line_2d.show()
-	var a := seg[0] - global_position
-	var b := seg[1] - global_position
-	line_2d.set_point_position(0, a)
-	line_2d.set_point_position(1, b)
-	if _screen_notifier != null:
-		_screen_notifier.rect = Rect2(a, Vector2.ZERO).expand(b).grow(_SCREEN_NOTIFIER_MARGIN)
+	var origin_offset := _render_graph.global_position if _render_graph != null else Vector2.ZERO
+	var a: Vector2 = seg[0] - origin_offset
+	var b: Vector2 = seg[1] - origin_offset
+	var mid := (a + b) * 0.5
+	var length := a.distance_to(b)
+	var xf := Transform2D((b - a).angle(), mid)
+	xf.x *= length
+	render_transform = xf
+	if _render_graph != null:
+		_render_graph.set_edge_transform(self, xf)
 
-## Recomputes what should be on screen — Line2D gradient stops + width for
-## regular edges, or just a redraw for self-loops (colour is resolved fresh
-## in `_draw_self_loop`) — from current endpoint archetype tints and the
-## lit/sensed state. Cheap enough to fully recompute rather than diff.
-func _update_visual() -> void:
-	if not is_node_ready() or line_2d == null:
-		return
-	if from == null or to == null:
-		return
-	if is_self_loop:
-		queue_redraw()
+## Recomputes endpoint colours + vision-state and pushes them to the shared
+## MultiMesh slot (or just the local mirrors, with no live Graph — see
+## `render_color_a`/`render_color_b`'s docstring).
+func _push_colors() -> void:
+	if is_self_loop or from == null or to == null:
 		return
 	var lit := is_lit()
-	var grad := line_2d.gradient
-	if grad == null:
-		grad = Gradient.new()
-		line_2d.gradient = grad
-	grad.set_color(0, _display_color(from.base_type_color, lit))
-	grad.set_color(1, _display_color(to.base_type_color, lit))
-	_apply_width()
-	# #391 follow-up: the HDR lift rides `self_modulate`, not the Gradient's
-	# vertex colours — confirmed live in dev_bloom_sandbox via a magenta/
-	# self_modulate split test (a flat SDR gradient plus self_modulate DID
-	# bloom). `_display_color` below stays SDR-only; this is the one place
-	# lit intensity is actually applied, uniformly, on top of each vertex's
-	# own archetype hue.
-	line_2d.self_modulate = Emissive.at(Color.WHITE, lit_glow_stops) if (lit and not sensed) else Color.WHITE
-
-## Sets `line_2d.width` from the current `width`/`sensed`/zoom state without
-## touching colour — the width-only path, called by both the `width` setter
-## and the zoom-change handler so a camera zoom step never pays for a full
-## `_update_visual()` Gradient rebuild across every live edge (#399; see
-## `.claude/rules/skill-node-scale.md`). Self-loops don't have a `Line2D` to
-## update but do need a redraw since `draw_arc`'s width won't self-invalidate
-## the way `Line2D.width =` does.
-func _apply_width() -> void:
-	if not is_node_ready():
-		return
-	if is_self_loop:
-		queue_redraw()
-		return
-	if line_2d == null:
-		return
-	line_2d.width = _screen_constant_width()
+	render_color_a = _display_color_lifted(from.base_type_color, lit)
+	render_color_b = _display_color_lifted(to.base_type_color, lit)
+	render_vis_state = VIS_SENSED if sensed else (VIS_VISIBLE if vision_visible else VIS_HIDDEN)
+	if _render_graph != null:
+		_render_graph.set_edge_colors(self, render_color_a, render_color_b, render_vis_state)
 
 ## World-space line width that renders at a constant `width` SCREEN pixels
-## regardless of camera zoom (#399) — `width` is authored in screen pixels;
-## dividing by `_current_zoom` inflates it in world units exactly enough to
-## hold on-screen coverage constant. Shared by the regular `Line2D` path and
-## `_draw_self_loop`'s `draw_arc`.
+## regardless of camera zoom — self-loop `_draw_self_loop` only now; regular
+## edges get this from `CANVAS_MATRIX` inside the shader instead (#413).
 func _screen_constant_width() -> float:
-	return (width / _current_zoom) * (sensed_width_scale if sensed else 1.0)
+	return width / _current_zoom
 
 func _on_camera_zoom_changed(zoom: float) -> void:
 	_current_zoom = zoom
-	if is_self_loop or _on_screen:
-		_apply_width()
-	else:
-		_width_dirty = true
+	if is_self_loop:
+		queue_redraw()
 
-func _on_screen_entered() -> void:
-	_on_screen = true
-	if _width_dirty:
-		_apply_width()
-		_width_dirty = false
-
-func _on_screen_exited() -> void:
-	_on_screen = false
-
-## Archetype tint → rendered colour. Lit rides the emissive VALUE tier
-## (`Emissive.at`) so an allocated edge actually clears bloom threshold and
-## spills onto neighbouring pixels; unlit desaturates toward its own
-## luminance grey and darkens (reads as "off") — both stay SDR. Sensed forces
-## the unlit treatment regardless of actual lit state — owner identity sits
-## above the topology gate, so a sensed-but-co-owned edge must not leak "lit"
-## through fog — then caps alpha on top at a fixed low floor.
+## Archetype tint → rendered colour, SDR only. Lit desaturates toward white
+## less (kept ~full alpha), unlit desaturates toward its own luminance grey
+## and darkens; sensed forces the unlit treatment regardless of actual lit
+## state — owner identity sits above the topology gate, so a sensed-but-
+## co-owned edge must not leak "lit" through fog — then caps alpha on top at
+## a fixed low floor.
+##
+## Used by the self-loop `_draw()` path (which has no per-instance HDR
+## channel the way the MultiMesh path does) — see `_display_color_lifted`
+## for the regular-edge variant that additionally bakes in the emissive lift.
 func _display_color(base: Color, lit: bool) -> Color:
 	var c := base
 	var effective_lit := lit and not sensed
 	if effective_lit:
-		# Stays SDR — `_update_visual`'s `self_modulate` carries the HDR lift
-		# uniformly, so each vertex keeps its own archetype hue underneath.
 		c.a = lit_alpha
 	else:
 		var gray := c.get_luminance()
@@ -269,6 +269,16 @@ func _display_color(base: Color, lit: bool) -> Color:
 		c.a = unlit_alpha
 	if sensed:
 		c.a = sensed_alpha
+	return c
+
+## Multimesh-path colour: bakes the HDR emissive lift directly into rgb since
+## a MultiMesh instance has no per-instance `self_modulate` to carry it
+## separately (#413 acceptance spec item 3). `_display_color` stays SDR-only
+## for the self-loop `_draw()` path, unaffected by this issue.
+func _display_color_lifted(base: Color, lit: bool) -> Color:
+	var c := _display_color(base, lit)
+	if lit and not sensed:
+		c = Emissive.at(c, lit_glow_stops)
 	return c
 
 ## Self-loop glyph: a circular ring sunk slightly into the node so its near

@@ -27,6 +27,22 @@ signal edge_removed(edge: Edge)
 @onready var skill_nodes_container: Node2D = $Nodes
 @onready var edges_container: Node2D = $Edges
 
+## Shared multimesh every regular (non-self-loop) Edge draws through (#413) —
+## one draw call, one z_index, no per-edge CanvasItem. Public (not `_edge_mesh`)
+## so tests can assert against the real GPU-facing buffer directly instead of
+## only Edge's own mirrored `render_*` fields — see
+## test/unit/test_edge_mesh_render.gd.
+@onready var edge_mesh: MultiMeshInstance2D = $EdgeMesh
+
+# Edge → its instance index in `edge_mesh.multimesh`. Built fully in code
+# (never authored in the .tscn): the multimesh buffer is per-instance RUNTIME
+# state, not something a `.tscn`/`@export` should carry — see
+# .claude/rules/gdscript-pitfalls.md. `_edge_slot_owner` is the reverse map,
+# needed because removal is swap-with-last: the edge that gets moved into the
+# freed slot must have its own `_edge_slot` entry corrected.
+var _edge_slot: Dictionary[Edge, int] = {}
+var _edge_slot_owner: Array[Edge] = []
+
 # Topology index. Rebuilt lazily whenever either container gains or loses a
 # child, so it stays correct for procgen, remove_skill_node, and any direct
 # add_child. Not used in the editor: an inspector edit to `Edge.from` /
@@ -39,6 +55,9 @@ var _topology_dirty: bool = true
 
 
 func _ready() -> void:
+	_init_edge_mesh()
+	edge_added.connect(_on_edge_added_render)
+	edge_removed.connect(_on_edge_removed_render)
 	for c: Node in [skill_nodes_container, edges_container]:
 		c.child_entered_tree.connect(_mark_topology_dirty.unbind(1))
 		c.child_exiting_tree.connect(_mark_topology_dirty.unbind(1))
@@ -51,6 +70,98 @@ func _ready() -> void:
 		node_added.emit(sn)
 	for e in get_edges():
 		edge_added.emit(e)
+
+
+## Fresh `MultiMesh` every `_ready()` (editor and runtime both) — the buffer
+## is pure runtime state, never serialized, so there's nothing to preserve
+## across a reload. One unit `QuadMesh`; per-instance transform stretches it
+## along the segment, the shader (`graph/edge_mesh.gdshader`) expands it
+## perpendicular to a screen-constant width at draw time.
+func _init_edge_mesh() -> void:
+	if edge_mesh == null:
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_2D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = QuadMesh.new()
+	mm.instance_count = 0
+	edge_mesh.multimesh = mm
+	_edge_slot.clear()
+	_edge_slot_owner.clear()
+
+
+## Registers a freshly added [Edge] with its render target — every edge gets
+## `bind_render_target` (so its `_push_transform`/`_push_colors` calls have
+## somewhere to go) whether or not it ends up with a mesh slot; self-loops
+## deliberately never get one (out of scope, #413 — they stay on their own
+## `_draw()` path) and are skipped here.
+func _on_edge_added_render(edge: Edge) -> void:
+	edge.bind_render_target(self)
+	if edge.is_self_loop:
+		return
+	_register_edge_slot(edge)
+	edge.push_render_state()
+
+
+func _on_edge_removed_render(edge: Edge) -> void:
+	_unregister_edge_slot(edge)
+
+
+func _register_edge_slot(edge: Edge) -> void:
+	if _edge_slot.has(edge):
+		return
+	var idx := _edge_slot_owner.size()
+	_edge_slot_owner.append(edge)
+	_edge_slot[edge] = idx
+	edge_mesh.multimesh.instance_count = _edge_slot_owner.size()
+
+
+## Swap-with-last removal: the edge that WAS at the last slot moves into the
+## freed one, so its buffer entry (transform + colors) must be copied down
+## and its own `_edge_slot` entry corrected to the new index.
+func _unregister_edge_slot(edge: Edge) -> void:
+	var idx: int = _edge_slot.get(edge, -1)
+	if idx == -1:
+		return
+	var last_idx := _edge_slot_owner.size() - 1
+	if idx != last_idx:
+		var moved := _edge_slot_owner[last_idx]
+		_edge_slot_owner[idx] = moved
+		_edge_slot[moved] = idx
+		var mm := edge_mesh.multimesh
+		mm.set_instance_transform_2d(idx, mm.get_instance_transform_2d(last_idx))
+		mm.set_instance_color(idx, mm.get_instance_color(last_idx))
+		mm.set_instance_custom_data(idx, mm.get_instance_custom_data(last_idx))
+	_edge_slot_owner.remove_at(last_idx)
+	_edge_slot.erase(edge)
+	edge_mesh.multimesh.instance_count = _edge_slot_owner.size()
+
+
+## Called by [Edge] whenever its segment/endpoints change. No-op if `edge`
+## has no slot (self-loop, or not yet registered).
+func set_edge_transform(edge: Edge, xform: Transform2D) -> void:
+	var idx: int = _edge_slot.get(edge, -1)
+	if idx == -1:
+		return
+	edge_mesh.multimesh.set_instance_transform_2d(idx, xform)
+
+
+## Called by [Edge] whenever its lit/sensed/vision-visible state changes.
+## `color_a`/`color_b` are the two endpoints' display colours (HDR lift
+## baked in); `vis_state` is one of [constant Edge.VIS_HIDDEN] /
+## [constant Edge.VIS_VISIBLE] / [constant Edge.VIS_SENSED], packed into the
+## otherwise-redundant alpha of the custom-data channel — see
+## `graph/edge_mesh.gdshader`'s header comment for the full packing.
+func set_edge_colors(edge: Edge, color_a: Color, color_b: Color, vis_state: float) -> void:
+	var idx: int = _edge_slot.get(edge, -1)
+	if idx == -1:
+		return
+	var mm := edge_mesh.multimesh
+	mm.set_instance_color(idx, color_a)
+	var packed := color_b
+	packed.a = vis_state
+	mm.set_instance_custom_data(idx, packed)
 
 
 ## Every [SkillNode] in the graph. Returns a private copy — callers may mutate

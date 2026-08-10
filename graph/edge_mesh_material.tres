@@ -1,0 +1,7 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://c8xg4q7n2w4qk"]
+
+[ext_resource type="Shader" path="res://graph/edge_mesh.gdshader" id="1_shader"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/width = 3.0

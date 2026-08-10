@@ -6,9 +6,15 @@ extends GutTest
 ## toggled `sensed` true then back to false, so scene-tree order (Edges after
 ## Nodes in graph.tscn) drew the edge on top. See ui/z_layers.gd for the band
 ## table and graph/edge.gd for the fix.
+##
+## #413 narrowed the z-index dance to SELF-LOOPS only: regular edges now
+## self-shade in a shared MultiMesh fragment shader instead of escaping
+## FogOverlay's opaque quad via z-order, so `sensed` no longer touches
+## `z_index` for them at all — only a self-loop (from == to) still does.
 
 const ZLayers = preload("res://ui/z_layers.gd")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
+const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 
 func test_edge_band_sits_between_aura_and_graph_default() -> void:
@@ -25,16 +31,39 @@ func test_fresh_edge_instance_rests_on_edge_band() -> void:
 	assert_eq(edge.z_index, ZLayers.EDGE)
 
 
-func test_sensed_round_trip_returns_to_edge_band_absolute() -> void:
+func test_regular_edge_sensed_round_trip_does_not_touch_z_index() -> void:
+	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	var b := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(a)
+	add_child_autofree(b)
 	var edge := _EDGE_SCENE.instantiate() as Edge
 	add_child_autofree(edge)
+	edge.from = a
+	edge.to = b
 	await get_tree().process_frame
 
+	assert_eq(edge.z_index, ZLayers.EDGE, "a regular edge starts on the EDGE band")
+	edge.sensed = true
+	assert_eq(edge.z_index, ZLayers.EDGE, "sensed no longer promotes a regular edge's z_index (#413) — it self-shades instead")
+	edge.sensed = false
+	assert_eq(edge.z_index, ZLayers.EDGE)
+
+
+func test_self_loop_sensed_round_trip_returns_to_edge_band_absolute() -> void:
+	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(a)
+	var edge := _EDGE_SCENE.instantiate() as Edge
+	add_child_autofree(edge)
+	edge.from = a
+	edge.to = a
+	await get_tree().process_frame
+
+	assert_true(edge.is_self_loop)
 	edge.sensed = true
 	assert_eq(edge.z_index, ZLayers.EDGE + ZLayers.SENSED)
 
 	# sensed's setter early-returns when unchanged, so go true -> false to
 	# actually exercise the un-sensed path (this is the regression path).
 	edge.sensed = false
-	assert_eq(edge.z_index, ZLayers.EDGE, "un-sensed edge must return to the EDGE band, not GRAPH_DEFAULT (0)")
-	assert_false(edge.z_as_relative, "un-sensed edge must stay absolute, not flip back to relative")
+	assert_eq(edge.z_index, ZLayers.EDGE, "un-sensed self-loop must return to the EDGE band, not GRAPH_DEFAULT (0)")
+	assert_false(edge.z_as_relative, "un-sensed self-loop must stay absolute, not flip back to relative")

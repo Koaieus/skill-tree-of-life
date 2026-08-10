@@ -107,3 +107,50 @@ ui_end_turn={
 
 viewport/hdr_2d=true
 environment/defaults/default_environment="res://ui/theme/default_game_env.tres"
+
+[shader_globals]
+
+vision_grid_origin={
+"type": "vec2",
+"value": Vector2(0, 0)
+}
+vision_cell_size={
+"type": "float",
+"value": 0.0
+}
+vision_grid_cols={
+"type": "int",
+"value": 0
+}
+vision_grid_rows={
+"type": "int",
+"value": 0
+}
+vision_circle_count={
+"type": "int",
+"value": 0
+}
+vision_falloff={
+"type": "float",
+"value": 0.25
+}
+vision_union_smoothness={
+"type": "float",
+"value": 0.12
+}
+vision_circles_tex={
+"type": "sampler2D",
+"value": null
+}
+vision_tile_index_tex={
+"type": "sampler2D",
+"value": null
+}
+vision_tile_indices_tex={
+"type": "sampler2D",
+"value": null
+}
+vision_field_enabled={
+"type": "bool",
+"value": false
+}

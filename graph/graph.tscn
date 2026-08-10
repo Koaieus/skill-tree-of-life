@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://l5c7l8ty7fm1" path="res://graph/graph.gd" id="1_graph"]
 [ext_resource type="Script" uid="uid://drlgxrdnh2rtd" path="res://graph/navigator.gd" id="2_nav"]
+[ext_resource type="ShaderMaterial" uid="uid://c8xg4q7n2w4qk" path="res://graph/edge_mesh_material.tres" id="3_edge_mat"]
 
 [node name="Graph" type="Node2D" unique_id=1726628961]
 script = ExtResource("1_graph")
@@ -15,3 +16,8 @@ graph = NodePath("..")
 [node name="Nodes" type="Node2D" parent="." unique_id=1428063024]
 
 [node name="Edges" type="Node2D" parent="." unique_id=983028403]
+
+[node name="EdgeMesh" type="MultiMeshInstance2D" parent="." unique_id=2847193056]
+material = ExtResource("3_edge_mat")
+z_index = -10
+z_as_relative = false

@@ -2,10 +2,6 @@
 
 [ext_resource type="Script" uid="uid://5igfp33erkyn" path="res://graph/edge.gd" id="1_25cad"]
 
-[sub_resource type="Gradient" id="Gradient_edge"]
-resource_local_to_scene = true
-colors = PackedColorArray(0.55, 0.55, 0.6, 0.55, 0.55, 0.55, 0.6, 0.55)
-
 [node name="Edge" type="Node2D" unique_id=609108157]
 z_index = -10
 z_as_relative = false
@@ -13,14 +9,3 @@ script = ExtResource("1_25cad")
 lit_glow_stops = 4.5
 width = 3.0
 metadata/_custom_type_script = "uid://5igfp33erkyn"
-
-[node name="Line2D" type="Line2D" parent="." unique_id=288435284]
-points = PackedVector2Array(169, 0, 0, 0)
-width = 3.0
-gradient = SubResource("Gradient_edge")
-joint_mode = 0
-begin_cap_mode = 0
-end_cap_mode = 0
-
-[node name="ScreenNotifier" type="VisibleOnScreenNotifier2D" parent="."]
-rect = Rect2(-16, -16, 200, 32)

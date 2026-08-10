@@ -40,19 +40,21 @@ const _VISIBLE_DIM_FLOOR := 0.30
 	set(value):
 		intensity = value
 		_apply_shader_intensity()
+## GLOBAL shader uniform (`vision_field.gdshaderinc`) — any self-shading
+## consumer (Edge's MultiMesh, #413) reads the same falloff FogOverlay paints
+## with, so this pushes to `RenderingServer` instead of its own material.
 @export_range(0.0, 1.0, 0.01) var falloff: float = 0.25:
 	set(value):
 		falloff = value
-		if material is ShaderMaterial:
-			(material as ShaderMaterial).set_shader_parameter(&"falloff", falloff)
+		RenderingServer.global_shader_parameter_set(&"vision_falloff", falloff)
 ## Blend width of the smooth union between overlapping vision circles, in
 ## normalized-distance units. 0 = plain min(), which creases along each seam
 ## and reads as a band. Also feeds `_sample_dark`, so it must reach the shader.
+## GLOBAL uniform — see `falloff` above.
 @export_range(0.0, 0.5, 0.01) var union_smoothness: float = 0.12:
 	set(value):
 		union_smoothness = value
-		if material is ShaderMaterial:
-			(material as ShaderMaterial).set_shader_parameter(&"union_smoothness", union_smoothness)
+		RenderingServer.global_shader_parameter_set(&"vision_union_smoothness", union_smoothness)
 ## World-space rect to paint. Should engulf the playable graph; over-sizing
 ## costs nothing meaningful (one ColorRect draw, fragment cost is per-pixel
 ## but those pixels were already on screen).
@@ -61,10 +63,8 @@ const _VISIBLE_DIM_FLOOR := 0.30
 
 func _ready() -> void:
 	_apply_shader_intensity()
-	if material is ShaderMaterial:
-		var mat: ShaderMaterial = material
-		mat.set_shader_parameter(&"falloff", falloff)
-		mat.set_shader_parameter(&"union_smoothness", union_smoothness)
+	RenderingServer.global_shader_parameter_set(&"vision_falloff", falloff)
+	RenderingServer.global_shader_parameter_set(&"vision_union_smoothness", union_smoothness)
 	_connect_vision()
 	_refresh()
 
@@ -79,6 +79,10 @@ func _refresh() -> void:
 	# OFF mode). Avoids the shader's "zero circles → fully dark" default
 	# kicking in and saves the fullscreen fragment pass.
 	visible = enabled and (vision_system == null or vision_system.should_render_fog())
+	# Mirrors `visible` for self-shading GPU consumers (Edge's MultiMesh,
+	# #413) that have no other way to distinguish "fog is active with zero
+	# sources" (full darkness) from "no fog system at all" (fully lit).
+	RenderingServer.global_shader_parameter_set(&"vision_field_enabled", visible)
 	if not visible:
 		return
 	set_sources(vision_system.get_vision_sources() if vision_system != null else [])
@@ -109,8 +113,9 @@ func set_sources(sources: Array) -> void:
 	# Built once per refresh, queried once per element. Without it the dimming
 	# pass below is O(elements × sources) and runs every frame while circles
 	# animate — 16.8ms at 150 sources / 300 elements. See #133. It also owns
-	# the world-space tile grid (#177) that both this CPU pass and the GPU
-	# fragment shader read, via `set_shader_parameter` below.
+	# the world-space tile grid (#177) that both this CPU pass and every
+	# self-shading GPU consumer (this material AND `vision_field.gdshaderinc`'s
+	# global uniforms — Edge's MultiMesh, #413) read.
 	_source_index.build(sources, union_smoothness)
 	var tiles := _source_index.tile_index()
 	mat.set_shader_parameter(&"circle_count", tiles.circle_count)
@@ -121,17 +126,36 @@ func set_sources(sources: Array) -> void:
 	mat.set_shader_parameter(&"circles_tex", tiles.circles_texture)
 	mat.set_shader_parameter(&"tile_index_tex", tiles.tile_index_texture)
 	mat.set_shader_parameter(&"tile_indices_tex", tiles.tile_circle_indices_texture)
+	RenderingServer.global_shader_parameter_set(&"vision_circle_count", tiles.circle_count)
+	RenderingServer.global_shader_parameter_set(&"vision_grid_origin", tiles.grid_origin)
+	RenderingServer.global_shader_parameter_set(&"vision_cell_size", tiles.cell_size)
+	RenderingServer.global_shader_parameter_set(&"vision_grid_cols", tiles.grid_cols)
+	RenderingServer.global_shader_parameter_set(&"vision_grid_rows", tiles.grid_rows)
+	if tiles.circles_texture != null:
+		RenderingServer.global_shader_parameter_set(&"vision_circles_tex", tiles.circles_texture)
+	if tiles.tile_index_texture != null:
+		RenderingServer.global_shader_parameter_set(&"vision_tile_index_tex", tiles.tile_index_texture)
+	if tiles.tile_circle_indices_texture != null:
+		RenderingServer.global_shader_parameter_set(&"vision_tile_indices_tex", tiles.tile_circle_indices_texture)
 	_apply_per_element_dimming()
 
 
-## Lift visible nodes/edges above the fog overlay and modulate their alpha
-## by the fog-darkness sampled at their CENTER (not per-fragment). Without
-## this, the per-fragment fog gradient bisects any node sitting in the fade
-## zone — half the disk reads clear, the other half pure black — and the
-## same node appears DARKER than a sensed neighbour in pitch black (sensed
-## elements already z-promote above the fog). Sensed elements are left to
-## their own render path (NodeVisualsComposite's SensedOutline / Edge draw at
-## a fixed sensed alpha).
+## Lift visible nodes above the fog overlay and modulate their alpha by the
+## fog-darkness sampled at their CENTER (not per-fragment). Without this, the
+## per-fragment fog gradient bisects any node sitting in the fade zone — half
+## the disk reads clear, the other half pure black — and the same node
+## appears DARKER than a sensed neighbour in pitch black (sensed elements
+## already z-promote above the fog). Sensed elements are left to their own
+## render path (NodeVisualsComposite's SensedOutline).
+##
+## Regular (non-self-loop) EDGES no longer go through this z-promote-and-
+## modulate dance (#413): they self-shade against the shared `vision_field`
+## globals in their own MultiMesh fragment shader, per-fragment rather than
+## sampled once at midpoint, so only the visible/hidden classification needs
+## to reach `Edge` — `sensed` is already Edge-owned (VisionSystem writes it
+## directly). Self-loop edges keep the old path unchanged: they're still a
+## real per-instance `_draw()` CanvasItem, rare enough that the O(elements)
+## cost here never mattered for them.
 func _apply_per_element_dimming() -> void:
 	if vision_system == null or vision_system.graph == null:
 		return
@@ -153,23 +177,28 @@ func _apply_per_element_dimming() -> void:
 			n.z_as_relative = true
 			n.z_index = ZLayers.GRAPH_DEFAULT
 	for e in graph.get_edges():
-		if e.sensed:
-			e.modulate.a = 1.0
+		if e.is_self_loop:
+			if e.sensed:
+				e.modulate.a = 1.0
+				continue
+			if e.from == null or e.to == null:
+				continue
+			var from_vis: bool = vision_system.is_visible(e.from)
+			var to_vis: bool = vision_system.is_visible(e.to)
+			if from_vis and to_vis:
+				var mid: Vector2 = (e.from.global_position + e.to.global_position) * 0.5
+				var dark := _dark_from_distances(_source_index.distances_near(mid))
+				e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
+				e.z_as_relative = false
+				e.z_index = ZLayers.EDGE + ZLayers.SENSED
+			else:
+				e.modulate.a = 1.0
+				e.z_as_relative = true
+				e.z_index = ZLayers.EDGE
 			continue
 		if e.from == null or e.to == null:
 			continue
-		var from_vis: bool = vision_system.is_visible(e.from)
-		var to_vis: bool = vision_system.is_visible(e.to)
-		if from_vis and to_vis:
-			var mid: Vector2 = (e.from.global_position + e.to.global_position) * 0.5
-			var dark := _dark_from_distances(_source_index.distances_near(mid))
-			e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
-			e.z_as_relative = false
-			e.z_index = ZLayers.EDGE + ZLayers.SENSED
-		else:
-			e.modulate.a = 1.0
-			e.z_as_relative = true
-			e.z_index = ZLayers.EDGE
+		e.vision_visible = vision_system.is_visible(e.from) and vision_system.is_visible(e.to)
 
 
 ## Mirrors the shader's darkness math (fog.gdshader): smooth union of the
