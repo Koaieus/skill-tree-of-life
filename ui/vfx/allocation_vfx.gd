@@ -252,8 +252,6 @@ func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
 			node.inner_radius, node.radius * SPIKE_HEIGHT_FACTOR)
 	# Polygon2D.color is the draw tint — alpha here multiplies with modulate.a,
 	# so keep it opaque and animate visibility via modulate.a only.
-	var polygon_final_modulate: Color = Emissive.at(Color.WHITE, Emissive.ALERT)
-	polygon_final_modulate.a = 0.0
 	spike.color = color
 	spike.global_position = node.global_position
 	spike.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
@@ -265,30 +263,25 @@ func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
 	var tween := create_tween()
 	tween.set_parallel(true)
 
-	#tween.tween_property(disk, "disk_color", flash_color, SPIKE_DURATION * 0.4)
-	#tween.tween_property(disk, "disk_color", color, SPIKE_DURATION * 0.6)\
-			#.set_delay(SPIKE_DURATION * 0.4)
-
-	# Alpha 0 → 1 → 0.
-	const ALPHA_RAMPUP_FRAC := 0.2
-	tween.tween_property(container, "modulate:a", 1.0, SPIKE_DURATION * ALPHA_RAMPUP_FRAC)
-	tween.tween_property(container, "modulate", polygon_final_modulate, SPIKE_DURATION * (1.0 - ALPHA_RAMPUP_FRAC))\
-			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)\
-			.set_delay(SPIKE_DURATION * ALPHA_RAMPUP_FRAC)
-			
-	spike.scale.y = 0.0
+	# Alpha 0.5 → 1 → 0.
+	container.modulate.a = 0.5
+	tween.tween_property(container, "modulate:a", 1.0, SPIKE_DURATION * 0.2)
 	
-	# Height 0 → 1 → 0.
+	# Height 0.0 → 1 → 0.
 	# Height collapses into the node center (poly's bottom edge is at y=0,
 	# so scaling y → 0 makes it sink in).
-	const SCALE_RAMPUP_FRAC := 0.2
+	const SCALE_RAMPUP_FRAC := 0.5
+	spike.scale.y = 0.0
 	tween.tween_property(spike, "scale:y", 1.0, SPIKE_DURATION * SCALE_RAMPUP_FRAC)
 	tween.tween_property(spike, "scale:y", 0.0, SPIKE_DURATION * (1.0 - SCALE_RAMPUP_FRAC))\
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)\
-			.set_delay(SCALE_RAMPUP_FRAC)
-	#tween.tween_property(spike, "color", flash_color, SPIKE_DURATION * 0.4)
-	#tween.tween_property(spike, "color", color, SPIKE_DURATION * 0.6)\
-			#.set_delay(SPIKE_DURATION * 0.4)
+			.set_delay(SPIKE_DURATION * SCALE_RAMPUP_FRAC)
+	
+	const DISK_LINGER_TIME := 0.5
+	tween.tween_property(disk, "modulate:a", 0.0, DISK_LINGER_TIME)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)\
+			.set_delay(SPIKE_DURATION)
+	
 	tween.chain().tween_callback(container.queue_free)
 
 

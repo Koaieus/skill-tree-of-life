@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dtuqlxd63xtr4" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
 [ext_resource type="PackedScene" uid="uid://cfjoysc2u6djv" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
+[ext_resource type="PackedScene" uid="uid://dx3i7dan48e0l" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
 [ext_resource type="PackedScene" uid="uid://b06dhlpqfqils" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
 [ext_resource type="PackedScene" uid="uid://bymtwcdh42pj6" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
 [ext_resource type="PackedScene" uid="uid://dfbaga8vkwm87" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
