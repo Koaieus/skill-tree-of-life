@@ -1,14 +1,12 @@
 [gd_scene format=3 uid="uid://c1cye7r2jar3o"]
 
-[ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="Resource" uid="uid://dq1n0dbnodebd" path="res://skill_node/default_node_board.tres" id="1_nodeboard"]
+[ext_resource type="Script" uid="uid://ctnepvnrfxhg3" path="res://skill_node/skill_node.gd" id="1_skill"]
 [ext_resource type="PackedScene" uid="uid://bqle6g2ebct0n" path="res://skill_node/visuals/node_visuals_composite.tscn" id="2_58fw3"]
-[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_i1vuw"]
 [ext_resource type="Script" uid="uid://cifhhiowuwsic" path="res://skill_node/hover_ring.gd" id="4_hover"]
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
 [ext_resource type="Script" uid="uid://drxjp5sanc7cf" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
-
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -27,7 +25,7 @@ corner_radius_bottom_left = 6
 corner_detail = 6
 shadow_size = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1vuw"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3po0j"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -39,7 +37,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 corner_detail = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_781hs"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_58fw3"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -82,7 +80,7 @@ offset_right = 31.0
 offset_bottom = -46.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_i1vuw")
+theme_override_styles/fill = SubResource("StyleBoxFlat_3po0j")
 show_percentage = false
 script = ExtResource("6_r2qlo")
 
@@ -96,7 +94,7 @@ offset_right = 35.0
 offset_bottom = -28.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_781hs")
+theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
 show_percentage = false
 script = ExtResource("7_corehb")
 

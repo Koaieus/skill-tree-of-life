@@ -33,7 +33,7 @@ signal state_changed(new_state: State)
 ## WHICH edge is derived by [FanAnchor] — that's what keeps the arrival leg
 ## perpendicular to the panel border, never running alongside it. This is the
 ## one authored degree of freedom on top of that.
-@export_range(0.0, 1.0, 0.01) var anchor_slide := 0.5
+@export_range(0.05, 0.95, 0.01) var anchor_slide := 0.5
 
 ## Which way this trace must ENTER its panel. `AUTO` (the default) forces
 ## nothing and leaves [FanAnchor] to derive the edge exactly as before.

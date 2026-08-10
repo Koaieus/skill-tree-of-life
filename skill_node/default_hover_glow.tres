@@ -4,5 +4,7 @@
 
 [resource]
 script = ExtResource("1_glow")
-color = Color(0.8, 0.7898667, 0.49600002, 0.627451)
-outset = 20.0
+color = Color(0.8, 0.8, 0.8, 0.627451)
+outset = 12.0
+peak_outset = 10.0
+inner_feather = 7.0

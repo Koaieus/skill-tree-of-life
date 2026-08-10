@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://c8ksp366vuva5" path="res://ui/tooltip_fan/panel_header.gd" id="1_script"]
 
 [node name="PanelHeader" type="VBoxContainer" unique_id=198214596]
-custom_minimum_size = Vector2(120, 0)
-offset_right = 120.0
+custom_minimum_size = Vector2(50, 0)
+offset_right = 50.0
 offset_bottom = 33.0
 mouse_filter = 2
 theme_override_constants/separation = 2

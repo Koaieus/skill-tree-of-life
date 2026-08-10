@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://b35hxda7mbfnk" path="res://skill_node/visuals/node_visuals_composite.gd" id="1_comp"]
 [ext_resource type="PackedScene" uid="uid://bkwwvwb1433d1" path="res://skill_node/visuals/inner_disk.tscn" id="2_disk"]
+[ext_resource type="Curve" uid="uid://du76mdn4less4" path="res://skill_node/visuals/rim_ring_curve.tres" id="4_so1hx"]
 [ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="4_wall"]
 [ext_resource type="Script" uid="uid://6ard2i6vb4br" path="res://skill_node/visuals/sensed_outline.gd" id="8_sensed"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_presence.tscn" id="9_presence"]
@@ -15,19 +16,27 @@ unique_name_in_owner = true
 
 [node name="InnerDisk" parent="ShaderStack" unique_id=1575818134 instance=ExtResource("2_disk")]
 unique_name_in_owner = true
+instance_shader_parameters/allocated = false
+instance_shader_parameters/carve_kind = 0
+instance_shader_parameters/carve_radius = 0.75
+instance_shader_parameters/carve_sides = 3.0
+instance_shader_parameters/carve_slice = -1
+instance_shader_parameters/carve_squish = 1.0
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(0.291, 0.5892, 1, 1)
+instance_shader_parameters/tint_mix = 1.0
+instance_shader_parameters/well_depth = 1.0
 disk_radius = 25.5
+well_depth = 1.0
 
 [node name="RimRing" parent="ShaderStack" unique_id=346168876 instance=ExtResource("4_wall")]
 unique_name_in_owner = true
-instance_shader_parameters/crest_r = 28.0
-instance_shader_parameters/fill_slots = Vector2(2, 2)
-instance_shader_parameters/height_preset = 3
-instance_shader_parameters/ring_tint = Color(0.67079747, 0.69411254, 0.75240004, 1)
-crest_r = 28.0
-height_preset = 3
-tint_mix = 0.3
-fill_max = 2
-fill_current = 2
+instance_shader_parameters/height_preset = 4
+instance_shader_parameters/ring_tint = Color(0.18061769, 0.8929412, 0.38152948, 1)
+rim_height_style = ExtResource("4_so1hx")
+height_preset = 4
+archetype_tint = Color(0.31764707, 0.7764706, 0.44705883, 1)
 
 [node name="CorePresence" parent="ShaderStack" unique_id=-573062784 instance=ExtResource("9_presence")]
 unique_name_in_owner = true

@@ -56,8 +56,8 @@ const DISK_RIM_OVERLAP := 1.5
 ## brightness/glow upgrade" is answered by RimRing._effective_tint's own
 ## saturate/brighten step plus the additive fill glow, not by moving this
 ## swing's numbers. Flagged for main to confirm; see the issue comment.
-const FILLED_TINT_MIX := 1.0
-const UNFILLED_TINT_MIX := 0.3
+const FILLED_TINT_MIX := 0.9
+const UNFILLED_TINT_MIX := 0.8
 
 ## Max allocation slots for this node — 1 for the ~99% common case;
 ## staked nodes go up to [const MAX_STAKE_CAP].

@@ -1,9 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dx3i7dan48e0l"]
 
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/panels/id_chip_panel.tscn" id="2_panel"]
+[ext_resource type="PackedScene" uid="uid://c8p5xsdqblgff" path="res://ui/tooltip_fan/fan_unit.tscn" id="1_base"]
+[ext_resource type="PackedScene" uid="uid://3vcqxmureyy" path="res://ui/tooltip_fan/panels/id_chip_panel.tscn" id="2_panel"]
 
-[node name="IdChipUnit" instance=ExtResource("1_base")]
+[node name="IdChipUnit" unique_id=1037525889 instance=ExtResource("1_base")]
 
-[node name="Panel" parent="." instance=ExtResource("2_panel")]
+[node name="Panel" parent="." index="1" unique_id=1576300030 instance=ExtResource("2_panel")]
 unique_name_in_owner = true

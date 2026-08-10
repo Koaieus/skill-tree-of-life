@@ -3,9 +3,9 @@
 [ext_resource type="Script" uid="uid://dtuqlxd63xtr4" path="res://ui/tooltip_fan/fan_anchor_driver.gd" id="1_driver"]
 [ext_resource type="PackedScene" uid="uid://cfjoysc2u6djv" path="res://ui/tooltip_fan/panels/granted_modifiers_root.tscn" id="2_roots"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/id_chip_unit.tscn" id="3_chip"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
+[ext_resource type="PackedScene" uid="uid://b06dhlpqfqils" path="res://ui/tooltip_fan/units/node_stats_unit.tscn" id="4_stats"]
 [ext_resource type="PackedScene" uid="uid://bymtwcdh42pj6" path="res://ui/tooltip_fan/units/addons_unit.tscn" id="5_addons"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
+[ext_resource type="PackedScene" uid="uid://dfbaga8vkwm87" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
 [ext_resource type="PackedScene" uid="uid://c0qd36wwvguhe" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/procgen_debug_unit.tscn" id="8_procgen"]
 
@@ -18,7 +18,7 @@ metadata/_edit_horizontal_guides_ = [-65.0]
 position = Vector2(0, 43)
 
 [node name="IdChip" parent="." unique_id=1695165643 instance=ExtResource("3_chip")]
-position = Vector2(5, -127)
+position = Vector2(-3, -138)
 
 [node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
 position = Vector2(-155, -2)
@@ -27,8 +27,6 @@ arrival_axis = 1
 
 [node name="Addons" parent="." unique_id=79711224 instance=ExtResource("5_addons")]
 position = Vector2(5, -235)
-anchor_slide = 0.1
-arrival_axis = 2
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
 position = Vector2(213, -286)
@@ -36,9 +34,8 @@ anchor_slide = 0.87
 arrival_axis = 1
 
 [node name="Core" parent="." unique_id=314431141 instance=ExtResource("7_core")]
-position = Vector2(156, 10)
-anchor_slide = 0.1
-arrival_axis = 1
+position = Vector2(188, 28)
+anchor_slide = 0.05
 
 [node name="ProcgenDebug" parent="." unique_id=1540150391 instance=ExtResource("8_procgen")]
 z_index = -5

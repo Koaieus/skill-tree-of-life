@@ -45,14 +45,13 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_u38nb")
 [node name="FusedPanel" type="ColorRect" parent="PanelContainer" unique_id=525977820]
 z_index = -1
 material = SubResource("ShaderMaterial_p4ij2")
-instance_shader_parameters/glow = 0.5
+instance_shader_parameters/glow = 0.3
 instance_shader_parameters/glow_edges = 15
 instance_shader_parameters/glow_energy = 1.0
 instance_shader_parameters/size = Vector2(136, 53)
-custom_minimum_size = Vector2(136, 53)
 layout_mode = 2
 script = ExtResource("3_qt2rc")
-glow = 0.5
+glow = 0.3
 metadata/_custom_type_script = "uid://dslh8d8gygiio"
 
 [node name="MarginContainer" type="MarginContainer" parent="PanelContainer" unique_id=607270764]
