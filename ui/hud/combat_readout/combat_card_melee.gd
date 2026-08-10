@@ -31,7 +31,7 @@ func _refresh() -> void:
 	var next_bp: float = (floor(str_v / STR_STEP) + 1.0) * STR_STEP
 
 	var size_v: int = int(_board.blade_size.value) if _board.blade_size != null else 0
-	_size_blips.max_count = max(size_v + 2, 5)
+	_size_blips.max_count = size_v
 	_size_blips.count = size_v
 	_size_sliver.text = "+1 / 10 STR - next @%d" % int(next_bp)
 
