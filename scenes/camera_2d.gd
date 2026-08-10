@@ -38,11 +38,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Panning: middle mouse button drag
 	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 			global_position -= event.relative / zoom
-	# Zooming: scroll wheel
-	if event is InputEventMouseButton:
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_WHEEL_UP):
+	# Zooming: scroll wheel. Each physical tick is a pressed AND a released
+	# InputEventMouseButton on the same button_index — gate on `event.pressed`
+	# (not `Input.is_mouse_button_pressed`, global state that both events see)
+	# so one tick is one `_zoom_by` call, not two.
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_zoom_by(zoom_step)
-		elif Input.is_mouse_button_pressed(MOUSE_BUTTON_WHEEL_DOWN):
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_zoom_by(-zoom_step)
 
 func _process(delta: float) -> void:

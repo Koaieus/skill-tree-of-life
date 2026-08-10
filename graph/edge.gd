@@ -4,6 +4,11 @@ extends Node2D
 
 const ZLayers = preload("res://ui/z_layers.gd")
 
+## Slack around the segment's own bounding box for `_screen_notifier.rect` —
+## covers line thickness plus enough margin that a screen-edge-adjacent edge
+## doesn't flicker in/out of "on-screen" every sub-pixel camera nudge.
+const _SCREEN_NOTIFIER_MARGIN: float = 16.0
+
 ## Visible edge between two SkillNodes. Owns its rendering and listens to
 ## each endpoint's `owner_changed` / `radius_changed` / `archetype_changed`
 ## so it can redraw autonomously — "lit" being the common case of both
@@ -82,12 +87,24 @@ signal endpoints_changed
 		_apply_width()
 
 @onready var line_2d: Line2D = $Line2D
+@onready var _screen_notifier: VisibleOnScreenNotifier2D = $ScreenNotifier
 
 ## Last zoom broadcast via [signal Events.camera_zoom_changed]. Stays `1.0` in
 ## the editor (`@tool`, no live `GraphCamera` — the 2D editor canvas has its
 ## own unrelated zoom, see docs/domain/hdr-color.md's editor-canvas-zoom
 ## section) and at runtime before the first camera broadcast.
 var _current_zoom: float = 1.0
+
+## Screen-culls the width recompute a zoom step forces (see
+## `_on_camera_zoom_changed`) — at graph scale (hundreds-2000s of edges,
+## .claude/rules/skill-node-scale.md) most edges are off-screen at any given
+## moment, and `Line2D.width =` isn't free at that count. Starts `true` so an
+## edge updates eagerly until `_screen_notifier` reports otherwise (its
+## `screen_entered`/`screen_exited` ride the renderer's own AABB-vs-viewport
+## culling — no per-frame polling). Self-loops opt out: rare, cheap
+## `_draw`-based geometry, not worth tracking.
+var _on_screen: bool = true
+var _width_dirty: bool = false
 
 
 ## Sensed-but-not-clearly-visible: at least one endpoint is sensed
@@ -111,6 +128,9 @@ func _ready() -> void:
 	if not Engine.is_editor_hint():
 		_current_zoom = GraphCamera.current_zoom
 	Events.camera_zoom_changed.connect(_on_camera_zoom_changed)
+	if _screen_notifier != null:
+		_screen_notifier.screen_entered.connect(_on_screen_entered)
+		_screen_notifier.screen_exited.connect(_on_screen_exited)
 	_update_endpoints()
 	_update_visual()
 
@@ -156,6 +176,8 @@ func _update_endpoints() -> void:
 	var b := seg[1] - global_position
 	line_2d.set_point_position(0, a)
 	line_2d.set_point_position(1, b)
+	if _screen_notifier != null:
+		_screen_notifier.rect = Rect2(a, Vector2.ZERO).expand(b).grow(_SCREEN_NOTIFIER_MARGIN)
 
 ## Recomputes what should be on screen — Line2D gradient stops + width for
 ## regular edges, or just a redraw for self-loops (colour is resolved fresh
@@ -212,7 +234,19 @@ func _screen_constant_width() -> float:
 
 func _on_camera_zoom_changed(zoom: float) -> void:
 	_current_zoom = zoom
-	_apply_width()
+	if is_self_loop or _on_screen:
+		_apply_width()
+	else:
+		_width_dirty = true
+
+func _on_screen_entered() -> void:
+	_on_screen = true
+	if _width_dirty:
+		_apply_width()
+		_width_dirty = false
+
+func _on_screen_exited() -> void:
+	_on_screen = false
 
 ## Archetype tint → rendered colour. Lit rides the emissive VALUE tier
 ## (`Emissive.at`) so an allocated edge actually clears bloom threshold and
