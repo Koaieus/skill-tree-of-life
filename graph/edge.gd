@@ -41,11 +41,16 @@ const VIS_SENSED: float = 2.0
 ## EV stops the lit colour is raised by. Baked directly into the MultiMesh
 ## instance colours by `_display_color_lifted` (#413 acceptance spec item 3
 ## — a MultiMesh instance has no per-instance `self_modulate` to carry the
-## lift separately the way the old Line2D path did). Default stays
-## [constant Emissive.ALERT] as a sane fallback; `graph/edge_mesh_material.tres`'s
-## sibling `width` uniform and this value were tuned together in
-## `dev_bloom_sandbox` — retune there if either changes.
-@export_range(0.0, 6.0, 0.05) var lit_glow_stops: float = Emissive.ALERT
+## lift separately the way the old Line2D path did). [constant Emissive.ALERT]
+## (the old default) blows every channel of most archetype colours past the
+## default `WorldEnvironment`'s hard-clamp tonemapper across the edge's WHOLE
+## line body — unlike `rim_ring.gdshader`'s additive ALERT term, which only
+## ever lights a thin crest sliver, a lit edge is 100% covered by the lift, so
+## it reads as solid white with the endpoint gradient gone (confirmed via a
+## real opengl3 screenshot of `dev_bloom_sandbox`, not just the shader math).
+## [constant Emissive.VALUE] (2x) still glows visibly brighter than an unlit
+## edge without clipping every hue to white.
+@export_range(0.0, 6.0, 0.05) var lit_glow_stops: float = Emissive.VALUE
 
 @export var from: SkillNode:
 	set(value):
@@ -275,10 +280,61 @@ func _display_color(base: Color, lit: bool) -> Color:
 ## a MultiMesh instance has no per-instance `self_modulate` to carry it
 ## separately (#413 acceptance spec item 3). `_display_color` stays SDR-only
 ## for the self-loop `_draw()` path, unaffected by this issue.
+##
+## Deliberately NOT `Emissive.at()` — that helper's final `.linear_to_srgb()`
+## re-encode exists so a `source_color`-hinted SHADER UNIFORM (e.g. rim_ring's
+## `ring_tint`) round-trips byte-identical to the ColorPicker: GDScript encodes
+## to sRGB, the engine auto-decodes it back to linear on upload because of the
+## `source_color` hint, and the shader ends up with the correct linear value.
+## `MultiMesh.set_instance_color`/`set_instance_custom_data` carry no such
+## hint — Godot uploads them as raw numbers and `graph/edge_mesh.gdshader`
+## reads them straight into `COLOR`/`INSTANCE_CUSTOM`, no auto-decode. Calling
+## `Emissive.at()` here re-encoded a value nothing downstream ever decoded
+## back — sRGB's gamma curve is sub-linear even past 1.0, so each stop's
+## intended linear overshoot got compressed before it ever reached the glow
+## pass, and `glow_hdr_threshold`'s 1.0 cutoff barely triggered regardless of
+## `lit_glow_stops` (confirmed empirically: stops up to 6.0 produced no
+## visible bloom at the project's default `glow_intensity`). Multiplying the
+## raw sRGB-numeric base directly by `pow(2, stops)` — same convention
+## `rim_ring.gdshader` uses on its already-linear-decoded `ring_tint`, just
+## without a decode step this path never had to begin with — hands the glow
+## pass the actual intended overshoot.
+##
+## The boost is applied relative to the colour's OWN gray floor
+## (`minf(r,g,b)`), not to the raw channels — scaling all three channels by
+## the same flat factor keeps their ratio constant, so at high stops the
+## WEAK channels cross the display's clip threshold right alongside the
+## dominant one and the whole line reads as solid white, hue gone (this is
+## why raising `lit_glow_stops` alone couldn't fix the earlier white-edges
+## bug — same failure mode as the flat-multiply version, just a different
+## cause). Leaving the floor unboosted and multiplying only the channel's
+## rise above it means only the dominant channel(s) blow past 1.0 while the
+## weak ones stay put — the core reads as saturated red/gold instead of
+## white, and only the very brightest pixels (where even the floor was
+## already high) go full white-hot, same as a real lightsaber/molten-metal
+## look.
+##
+## The floor itself still gets a SMALL, fixed lift ([constant Emissive.VALUE],
+## not the user-tunable `lit_glow_stops`) — an achromatic base (`r == g == b`,
+## e.g. the default unallocated `Color.DIM_GRAY`) has zero chroma to boost, so
+## without this a gray lit edge would render pixel-identical to its unlit
+## sibling no matter how high `lit_glow_stops` goes. Capping the floor's own
+## boost independent of the chroma boost keeps gray edges visibly "on" without
+## ever blowing them white the way lifting the whole floor by the full
+## user-tunable factor would.
 func _display_color_lifted(base: Color, lit: bool) -> Color:
 	var c := _display_color(base, lit)
 	if lit and not sensed:
-		c = Emissive.at(c, lit_glow_stops)
+		var chroma_boost := pow(2.0, lit_glow_stops)
+		var floor_boost := pow(2.0, Emissive.VALUE)
+		var floor_v: float = minf(c.r, minf(c.g, c.b))
+		var lifted_floor := floor_v * floor_boost
+		c = Color(
+			lifted_floor + (c.r - floor_v) * chroma_boost,
+			lifted_floor + (c.g - floor_v) * chroma_boost,
+			lifted_floor + (c.b - floor_v) * chroma_boost,
+			c.a,
+		)
 	return c
 
 ## Self-loop glyph: a circular ring sunk slightly into the node so its near
