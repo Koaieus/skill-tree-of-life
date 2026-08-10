@@ -36,18 +36,14 @@ var _sources: Dictionary[SpellDef, Array] = {}
 
 ## Add [param spell] from [param source]. When [param source] is a node, the
 ## same source re-granting the same spell is a no-op — refcount stays at 1.
-## A null [param source] means "innate / permanent" — the spell enters
-## [member spells] immediately with no ref-counting and is never removed by
-## [method remove_spell] (the caller — the core class — handles its own
-## revocation at death).
+## A null [param source] means "innate / permanent" — it's stored as a
+## pseudo-source in [member _sources] just like a node, EXCEPT
+## [method remove_spell] refuses to remove a null source (below), so once
+## added it can never be ref-counted away. That single asymmetry is what
+## makes "granting an already-innate spell from a node, then losing that
+## node" a no-op rather than an accidental un-learn — see [method permanent_spells].
 func add_spell(spell: SpellDef, source: Variant) -> void:
 	if spell == null:
-		return
-	if source == null:
-		if spell in spells:
-			return
-		spells.append(spell)
-		_notify_changed()
 		return
 	if not _sources.has(spell):
 		_sources[spell] = []
@@ -129,19 +125,20 @@ func learn(spell: SpellDef) -> void:
 
 
 ## Spells that persist across topology changes for the owner of `core`:
-## innate (null-sourced / scene-baked, in `spells` but never ref-counted)
-## + spells granted by the core node. `core in _sources[spell]` keeps a spell
-## sourced by core AND a territory node (acceptance #5). At `entity_dying` the
-## strip hasn't run, so core grants are still present in `_sources`. See #204.
+## innate (null-sourced — a permanent pseudo-source that [method remove_spell]
+## refuses to remove, see [method add_spell] — or added via [method learn],
+## which never touches [member _sources] at all) + spells granted by the core
+## node. `core in _sources[spell]` keeps a spell sourced by core AND a
+## territory node (acceptance #5). At `entity_dying` the strip hasn't run, so
+## core grants are still present in `_sources`. See #204.
 func permanent_spells(core: SkillNode) -> Array[SpellDef]:
 	var out: Array[SpellDef] = []
 	for spell in spells:
 		if spell == null:
 			continue
-		if not _sources.has(spell):
-			out.append(spell)          # innate — permanent by definition
-		elif core in _sources[spell]:
-			out.append(spell)          # core-node-sourced
+		var sources: Array = _sources.get(spell, [])
+		if sources.is_empty() or null in sources or core in sources:
+			out.append(spell)          # innate (incl. `learn`) or core-node-sourced
 	return out
 
 

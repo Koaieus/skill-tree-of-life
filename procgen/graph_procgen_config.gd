@@ -95,6 +95,12 @@ extends Resource
 ## Second-pass addon roll. Unset = no addons attached by procgen.
 @export var addon_policy: AddonPolicy
 
+## Third-pass spell-grant roll (#206). Unset (or [member spell_grant_chance]
+## 0) = no grants attached by procgen. Gated to INT-archetype nodes only —
+## see [GraphProcgenSpellGrants].
+@export var spell_grant_pool: SpellGrantPool
+@export_range(0.0, 1.0) var spell_grant_chance: float = 0.0
+
 ## Pre-roll constraints. Each runs against a [PlacementContext] and may stamp
 ## role tags (consumed by [BudgetPolicy.role_bonus]) or reserve nodes for
 ## special content. See docs/domain/procgen-v2.md "GuaranteedPlacement".

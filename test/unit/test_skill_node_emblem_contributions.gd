@@ -61,6 +61,21 @@ func test_spell_grant_effect_contributes_a_spell_carve() -> void:
 			assert_eq(spec.priority, EmblemSpec.Priority.SPELL)
 
 
+## #207: an authored SpellDef's carve_shape (a baked TextureCarveShape, not a
+## test double) must reach the contributed spec unchanged — regression target
+## is a .tres losing its carve_shape field, not new resolver logic.
+func test_authored_spell_def_carve_shape_reaches_the_contribution() -> void:
+	var spark: SpellDef = load("res://attack/spell/defs/spark.tres")
+	assert_not_null(spark.carve_shape, "spark.tres must carry an authored carve_shape (#207)")
+	var grant := SpellGrant.new()
+	grant.spell_def = spark
+	_node.effects = [grant]
+
+	var out := _node.get_emblem_contributions()
+	var spell_spec = out.filter(func(s): return s.source_kind == &"spell")[0]
+	assert_same(spell_spec.shape, spark.carve_shape, "the spell's own authored shape, not a copy")
+
+
 func test_addon_get_emblem_is_aggregated() -> void:
 	var dust := SkillDustAddon.new()
 	_node.add_child(dust)

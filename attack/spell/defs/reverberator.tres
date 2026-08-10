@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Texture2D" uid="uid://cb4s28kdpgefr" path="res://assets/icons/spells/reverberator.png" id="1_uku7o"]
+[ext_resource type="Texture2D" path="res://assets/emblem_luts/reverberator.png" id="1_lut"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
 [ext_resource type="Script" uid="uid://cxhpk80bw8mxd" path="res://attack/spell/crit/self_loop_crit_condition.gd" id="2_crit_self_loop"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
@@ -16,6 +18,11 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_uku7o"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_ww832"]
+
+[sub_resource type="Resource" id="carve_reverberator"]
+script = ExtResource("1_tcs")
+source_texture = ExtResource("1_uku7o")
+baked_lut = ExtResource("1_lut")
 
 [sub_resource type="Resource" id="crit_self_loop"]
 script = ExtResource("2_crit_self_loop")
@@ -57,6 +64,7 @@ script = ExtResource("1_spell")
 name = "Reverberator"
 description = "Fans to every enemy neighbour, ×1.5 damage per hop. Converging branches ADD — diamond shoulders and self-loops compound massively. CRIT on traversal of a self-loop edge (×2, stacks with crit_chance stat) — the spell feeds back into its own path."
 icon = ExtResource("1_uku7o")
+carve_shape = SubResource("carve_reverberator")
 min_degree = 2
 mana_cost = 5
 power = 1.0

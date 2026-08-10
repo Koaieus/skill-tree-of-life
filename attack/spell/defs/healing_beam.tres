@@ -4,6 +4,8 @@
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_bsxsi"]
 [ext_resource type="Script" uid="uid://chn11un82dn1i" path="res://attack/spell/on_hit/healing_effect.gd" id="2_heal"]
 [ext_resource type="Texture2D" uid="uid://bh7gjwa8gtjwe" path="res://assets/icons/spells/hospital_cross.png" id="3_sdixp"]
+[ext_resource type="Texture2D" path="res://assets/emblem_luts/hospital_cross.png" id="3_lut"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="3_tcs"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="3_u10h5"]
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="5_ar4gq"]
 [ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="6_lt0sj"]
@@ -14,6 +16,11 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_55cfo"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="11_lbkbe"]
 [ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="12_k06ak"]
+
+[sub_resource type="Resource" id="carve_healing_beam"]
+script = ExtResource("3_tcs")
+source_texture = ExtResource("3_sdixp")
+baked_lut = ExtResource("3_lut")
 
 [sub_resource type="Resource" id="heal_beam"]
 script = ExtResource("2_heal")
@@ -54,6 +61,7 @@ script = ExtResource("3_u10h5")
 name = "Healing Beam"
 description = "Heals your own nodes"
 icon = ExtResource("3_sdixp")
+carve_shape = SubResource("carve_healing_beam")
 min_degree = 3
 mana_cost = 5
 power = 2.0

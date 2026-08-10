@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SpellBook" format=3]
+
+[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" path="res://attack/spell/defs/spark.tres" id="2_spark"]
+[ext_resource type="Resource" path="res://attack/spell/defs/lightning_bolt.tres" id="3_lightning"]
+[ext_resource type="Resource" path="res://attack/spell/defs/bruiser.tres" id="4_bruiser"]
+[ext_resource type="Resource" path="res://attack/spell/defs/leafblower.tres" id="5_leafblower"]
+[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="6_resonator"]
+[ext_resource type="Resource" path="res://attack/spell/defs/trail_blazer.tres" id="7_trail_blazer"]
+[ext_resource type="Resource" path="res://attack/spell/defs/reverberator.tres" id="8_reverberator"]
+[ext_resource type="Resource" path="res://attack/spell/defs/healing_beam.tres" id="9_healing_beam"]
+
+[resource]
+script = ExtResource("1_book")
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam")])

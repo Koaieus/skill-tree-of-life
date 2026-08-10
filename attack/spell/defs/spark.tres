@@ -1,6 +1,8 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://hi2w3tufav8y"]
 
 [ext_resource type="Texture2D" uid="uid://dmikkhwx58iww" path="res://assets/icons/spells/spark.png" id="1_6qevb"]
+[ext_resource type="Texture2D" path="res://assets/emblem_luts/spark.png" id="1_lut"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_numg4"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
@@ -12,6 +14,11 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="7_6qevb"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="10_ds1j3"]
+
+[sub_resource type="Resource" id="carve_spark"]
+script = ExtResource("1_tcs")
+source_texture = ExtResource("1_6qevb")
+baked_lut = ExtResource("1_lut")
 
 [sub_resource type="Resource" id="dmg_spark"]
 script = ExtResource("3_dmg")
@@ -35,6 +42,7 @@ script = ExtResource("1_spell")
 name = "Spark"
 description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source via the live graph (allocation status irrelevant — hops route through whatever's connected)."
 icon = ExtResource("1_6qevb")
+carve_shape = SubResource("carve_spark")
 mana_cost = 1
 power = 1.0
 propagation = SubResource("prop_spark")

@@ -207,6 +207,9 @@ static func generate(
 		if placement_ctx.keystones[i] != null:
 			placement_ctx.keystones[i].stamp(sn)
 		_roll_and_attach_addons(sn, config, rng)
+		GraphProcgenSpellGrants.roll_and_attach(
+				sn, config.spell_grant_pool, config.spell_grant_chance,
+				archetype_primary_stat, rng)
 		nodes.append(sn)
 		if i > 0 and i % yield_every == 0:
 			# 0.45 → 0.92 over the per-node loop.

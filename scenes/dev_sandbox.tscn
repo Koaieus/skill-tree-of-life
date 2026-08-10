@@ -33,30 +33,21 @@
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="31_54w3d"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="32_v0kkn"]
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="33_woundheal"]
-[ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="34_sdhs6"]
-[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="35_8r5xj"]
-[ext_resource type="Resource" uid="uid://hi2w3tufav8y" path="res://attack/spell/defs/spark.tres" id="36_k8amt"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="36_vybhe"]
-[ext_resource type="Resource" uid="uid://22735wciupcm" path="res://attack/spell/defs/lightning_bolt.tres" id="37_f58km"]
-[ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="38_arms0"]
-[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="39_3ogaa"]
-[ext_resource type="Resource" uid="uid://d4cd1vbl585es" path="res://attack/spell/defs/resonator.tres" id="40_sybeb"]
-[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="41_df164"]
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="42_core"]
-[ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="43_drqyt"]
 [ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="43_init"]
 [ext_resource type="Resource" uid="uid://lmh5qnv0xocl" path="res://archetypes/constitution.tres" id="44_arch_con"]
 [ext_resource type="Resource" uid="uid://ws3nejquyeii" path="res://archetypes/dexterity.tres" id="44_arch_dex"]
 [ext_resource type="Resource" uid="uid://dw4xgicipm3wp" path="res://archetypes/intelligence.tres" id="44_arch_int"]
 [ext_resource type="Resource" uid="uid://b8tbru5xba2lw" path="res://archetypes/perception.tres" id="44_arch_per"]
 [ext_resource type="Resource" uid="uid://yiu2rf0g04du" path="res://archetypes/wisdom.tres" id="44_arch_wis"]
-[ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="44_lwubc"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="45_df164"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="46_d7bkb"]
 [ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="47_jc1be"]
 [ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="48_54w3d"]
 [ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/clamp_addon.tscn" id="48_owpne"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="49_v0kkn"]
+[ext_resource type="Resource" path="res://entity/spellbook_debug.tres" id="50_spellbook_debug"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -292,12 +283,6 @@ mana_per_turn = SubResource("scalar_mana_per_turn")
 blade_size = SubResource("scalar_blade_size")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])
 
-[sub_resource type="Resource" id="Resource_85b6y"]
-resource_local_to_scene = true
-script = ExtResource("34_sdhs6")
-spells = Array[ExtResource("35_8r5xj")]([ExtResource("36_k8amt"), ExtResource("37_f58km"), ExtResource("38_arms0"), ExtResource("39_3ogaa"), ExtResource("40_sybeb"), ExtResource("41_df164"), ExtResource("43_drqyt"), ExtResource("44_lwubc")])
-metadata/_custom_type_script = "uid://dgddohrmd3gn6"
-
 [sub_resource type="Resource" id="Resource_ubc5n"]
 resource_name = "action_points"
 script = ExtResource("8_umwfs")
@@ -514,12 +499,6 @@ mana = SubResource("Resource_d7bkb")
 mana_per_turn = SubResource("Resource_jc1be")
 blade_size = SubResource("Resource_8d6i3")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_3ogaa"), SubResource("Resource_df164"), SubResource("Resource_qk0se"), SubResource("Resource_lwubc"), SubResource("Resource_3dypl"), SubResource("Resource_piqb8")])
-
-[sub_resource type="Resource" id="Resource_hhwjj"]
-resource_local_to_scene = true
-script = ExtResource("34_sdhs6")
-spells = Array[ExtResource("35_8r5xj")]([ExtResource("36_k8amt"), ExtResource("37_f58km"), ExtResource("38_arms0"), ExtResource("39_3ogaa"), ExtResource("40_sybeb"), ExtResource("41_df164")])
-metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [sub_resource type="Resource" id="Resource_qdlxk"]
 resource_name = "addon_slots"
@@ -963,7 +942,7 @@ display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
 stat_board = SubResource("Resource_11lpl")
 core_class = ExtResource("42_core")
-spellbook = SubResource("Resource_85b6y")
+spellbook = ExtResource("50_spellbook_debug")
 core_location = NodePath("../../Nodes/Core")
 
 [node name="Enemy" parent="Graph/Entities" parent_id_path=PackedInt32Array(1851662701, 1129644954) index="1" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
@@ -971,7 +950,6 @@ display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
 stat_board = SubResource("Resource_3w3l3")
 core_class = ExtResource("42_core")
-spellbook = SubResource("Resource_hhwjj")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
 [node name="Core" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="0" unique_id=23072700 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]

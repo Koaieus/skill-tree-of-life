@@ -91,7 +91,9 @@ func _mk_spell(spell_name: String) -> SpellDef:
 	return s
 
 
-## Innate: appended directly to `spells`, never ref-counted (never in `_sources`).
+## Innate: null is a permanent pseudo-source in `_sources` — remove_spell
+## refuses to remove it, so it can never be ref-counted away (see
+## entity/spell_book.gd's add_spell/permanent_spells docs).
 func _grant_innate(book: SpellBook, spell: SpellDef) -> void:
 	book.add_spell(spell, null)
 
@@ -318,7 +320,7 @@ func test_innate_spell_is_offered_as_a_candidate() -> void:
 	_victim.spellbook = SpellBook.new()
 	var innate := _mk_spell("Innate")
 	_grant_innate(_victim.spellbook, innate)
-	assert_false(_victim.spellbook._sources.has(innate), "innate is absent from _sources")
+	assert_true(_victim.spellbook.source_count(innate) >= 1, "innate is tracked as a (permanent) source")
 	assert_true(innate in _victim.spellbook.spells, "innate is present in spells")
 
 	var captured: Array[SpellLootRequest] = []

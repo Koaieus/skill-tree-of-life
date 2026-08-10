@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_ef7vp"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="1_p8d3l"]
 [ext_resource type="Texture2D" uid="uid://dl1u6tr2mv3ay" path="res://assets/icons/spells/trailblazer.png" id="1_x1qvp"]
+[ext_resource type="Texture2D" path="res://assets/emblem_luts/trailblazer.png" id="1_lut"]
+[ext_resource type="Script" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="2_x1qvp"]
 [ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="3_ef7vp"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="4_bn2u6"]
@@ -17,6 +19,11 @@
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="13_qkgt4"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="14_1jkab"]
 [ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/progression/flat_add_progression.gd" id="15_prog"]
+
+[sub_resource type="Resource" id="carve_trailblazer"]
+script = ExtResource("1_tcs")
+source_texture = ExtResource("1_x1qvp")
+baked_lut = ExtResource("1_lut")
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("2_x1qvp")
@@ -58,6 +65,7 @@ script = ExtResource("9_en1rl")
 name = "The Trailblazer"
 description = "Walks a single path from the target: each degree-2 node it passes through adds +2 damage before the spell hops onward; when it reaches a junction (degree >2) it deals double the accumulated total and stops. Cast on a node at the end of a long string for maximum devastation."
 icon = ExtResource("1_x1qvp")
+carve_shape = SubResource("carve_trailblazer")
 min_degree = 3
 mana_cost = 3
 power = 1.0

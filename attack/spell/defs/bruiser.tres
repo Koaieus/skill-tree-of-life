@@ -1,9 +1,11 @@
 [gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b56spbwfkkese"]
 
+[ext_resource type="Texture2D" uid="uid://s4oabnvsa1bl" path="res://assets/emblem_luts/bruiser.png" id="1_5pwpp"]
 [ext_resource type="Texture2D" uid="uid://dvmxe1fnf6sfw" path="res://assets/icons/spells/bruiser.png" id="1_bm58y"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="1_js5d8"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="2_k4o3t"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
@@ -15,6 +17,12 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_bm58y"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="10_range"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="13_ihn2u"]
+
+[sub_resource type="Resource" id="Resource_u38nb"]
+script = ExtResource("2_k4o3t")
+source_texture = ExtResource("1_bm58y")
+baked_lut = ExtResource("1_5pwpp")
+metadata/_custom_type_script = "uid://ci08q7vcgbwdx"
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
@@ -51,6 +59,7 @@ script = ExtResource("1_spell")
 name = "Bruiser"
 description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and nicks it for low damage. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
 icon = ExtResource("1_bm58y")
+carve_shape = SubResource("Resource_u38nb")
 min_degree = 2
 mana_cost = 2
 power = 4.0

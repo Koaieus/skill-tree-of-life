@@ -162,6 +162,12 @@ func _ready() -> void:
 		navigator.graph = g
 		add_child(navigator)
 
+	# Every entity.tscn instance shares the SAME authored spellbook_default.tres
+	# resource object (ResourceLoader caches by path) unless duplicated here —
+	# same rationale as stat_board immediately below.
+	if spellbook != null:
+		spellbook = spellbook.duplicate(true)
+
 	# Initialize stat board and wiring
 	if stat_board != null:
 		stat_board = stat_board.duplicate(true)

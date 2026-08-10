@@ -27,6 +27,14 @@
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
 [ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="sp"]
 [ext_resource type="Resource" uid="uid://byxjrmwf12wt6" path="res://entity/keystone/instances/xp_anchor_keystone.tres" id="xp_keystone"]
+[ext_resource type="Script" path="res://procgen/pools/spell_grant_pool.gd" id="sgp"]
+[ext_resource type="Script" path="res://procgen/pools/spell_grant_pool_entry.gd" id="sgpe"]
+[ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="spell_bruiser"]
+[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="spell_leafblower"]
+[ext_resource type="Resource" uid="uid://d4cd1vbl585es" path="res://attack/spell/defs/resonator.tres" id="spell_resonator"]
+[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="spell_trail_blazer"]
+[ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="spell_reverberator"]
+[ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="spell_healing_beam"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_ihaem")
@@ -234,6 +242,34 @@ weights = {
 }
 }
 
+[sub_resource type="Resource" id="sgpe_bruiser"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_bruiser")
+
+[sub_resource type="Resource" id="sgpe_leafblower"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_leafblower")
+
+[sub_resource type="Resource" id="sgpe_resonator"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_resonator")
+
+[sub_resource type="Resource" id="sgpe_trail_blazer"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_trail_blazer")
+
+[sub_resource type="Resource" id="sgpe_reverberator"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_reverberator")
+
+[sub_resource type="Resource" id="sgpe_healing_beam"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_healing_beam")
+
+[sub_resource type="Resource" id="spell_grant_pool_main"]
+script = ExtResource("sgp")
+entries = Array[ExtResource("sgpe")]([SubResource("sgpe_bruiser"), SubResource("sgpe_leafblower"), SubResource("sgpe_resonator"), SubResource("sgpe_trail_blazer"), SubResource("sgpe_reverberator"), SubResource("sgpe_healing_beam")])
+
 [sub_resource type="Resource" id="rbp_main"]
 script = ExtResource("rbp")
 band_boundaries = PackedFloat32Array(0.33, 0.66)
@@ -264,4 +300,6 @@ weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_mai
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 addon_policy = SubResource("Resource_c6pvu")
+spell_grant_pool = SubResource("spell_grant_pool_main")
+spell_grant_chance = 0.05
 guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])

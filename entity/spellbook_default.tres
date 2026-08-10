@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SpellBook" format=3]
+
+[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" path="res://attack/spell/defs/spark.tres" id="2_spark"]
+[ext_resource type="Resource" path="res://attack/spell/defs/lightning_bolt.tres" id="3_lightning"]
+
+[resource]
+script = ExtResource("1_book")
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning")])
