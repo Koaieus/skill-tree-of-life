@@ -23,10 +23,11 @@ theme_override_constants/margin_right = 15
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 1
+mouse_filter = 0
+theme_override_constants/separation = 1
 
 [node name="ManageToggleButton" parent="MarginContainer/AttackModeBar" index="0" unique_id=-684525412]
 size_flags_horizontal = 3
-button_pressed = false
 
 [node name="MeleeToggleButton" parent="MarginContainer/AttackModeBar" index="1" unique_id=1205266549]
 size_flags_horizontal = 3
@@ -40,8 +41,9 @@ size_flags_horizontal = 3
 [node name="BodySlot" type="HBoxContainer" parent="." unique_id=2094750369]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 0
 alignment = 1
 
-[node name="ManageBody" parent="BodySlot" instance=ExtResource("3_manage")]
+[node name="ManageBody" parent="BodySlot" unique_id=2042771666 instance=ExtResource("3_manage")]
 
 [editable path="MarginContainer/AttackModeBar"]

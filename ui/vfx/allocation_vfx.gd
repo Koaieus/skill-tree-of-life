@@ -277,9 +277,9 @@ func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)\
 			.set_delay(SPIKE_DURATION * SCALE_RAMPUP_FRAC)
 	
-	const DISK_LINGER_TIME := 0.5
+	const DISK_LINGER_TIME := 2.
 	tween.tween_property(disk, "modulate:a", 0.0, DISK_LINGER_TIME)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)\
+			.set_trans(Tween.TRANS_QUINT).set_ease(Tween.EASE_OUT)\
 			.set_delay(SPIKE_DURATION)
 	
 	tween.chain().tween_callback(container.queue_free)
