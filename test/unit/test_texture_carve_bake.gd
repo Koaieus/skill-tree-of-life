@@ -9,6 +9,7 @@ const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
 
 const SOURCE_ICON := "res://assets/icons/spells/lightning_bolt.png"
+const COMMITTED_LUT := "res://assets/emblem_luts/lightning_bolt.png"
 
 
 func _load_source() -> Texture2D:
@@ -118,3 +119,32 @@ func test_carve_returns_a_spec_carrying_the_shape_itself() -> void:
 	assert_eq(spec.shape.baked_lut, shape.baked_lut)
 	assert_eq(spec.priority, EmblemSpec.Priority.SPELL)
 	assert_eq(spec.source_kind, &"spell")
+
+
+## The "Bake" tool button must never clobber a committed pipeline LUT: the
+## spell defs wire baked_lut to the SVG-baked assets in assets/emblem_luts/,
+## and a chamfer re-bake from the raster source would silently swap the
+## pristine SDF field for the degraded one (see docs/domain/emblem-bake.md).
+func test_bake_button_refuses_to_overwrite_a_committed_lut() -> void:
+	var shape := TextureCarveShape.new()
+	shape.source_texture = _load_source()
+	shape.baked_lut = load(COMMITTED_LUT)
+	var before_path := shape.baked_lut.resource_path
+	assert_true(not before_path.is_empty(), "the committed LUT must resolve by resource_path")
+
+	shape._bake_from_source()
+
+	assert_eq(shape.baked_lut.resource_path, before_path,
+		"the pristine pipeline LUT must survive a Bake button press")
+	assert_push_warning("refusing to overwrite committed LUT")
+
+
+func test_bake_button_without_a_committed_lut_still_bakes() -> void:
+	var shape := TextureCarveShape.new()
+	shape.source_texture = _load_source()
+
+	shape._bake_from_source()
+
+	assert_not_null(shape.baked_lut)
+	assert_true(shape.baked_lut.resource_path.is_empty(),
+		"an in-memory bake has no resource_path — it is not committed")

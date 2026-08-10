@@ -119,6 +119,13 @@ the headless-callable `static func bake_lut()`; the tool button
 (`@export_tool_button`) is a thin wrapper over it, which is also what lets
 the acceptance test drive the bake without the editor.
 
+**The button refuses to clobber a committed LUT.** The spell defs point
+`baked_lut` at the pipeline-baked assets in `assets/emblem_luts/`; if the
+button blindly re-baked, a stray click would swap the pristine SVG SDF for
+the degraded raster chamfer. When `baked_lut` already resolves to a committed
+asset (non-empty `resource_path`), the button warns and does nothing — clear
+`baked_lut` first to re-bake an authored icon from `source_texture`.
+
 ## Packing + decode (#247)
 
 The bake above produces one LUT per icon. The display side has to let *many*

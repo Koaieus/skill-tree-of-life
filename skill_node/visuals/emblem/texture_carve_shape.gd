@@ -52,6 +52,15 @@ func _bake_from_source() -> void:
 	if source_texture == null:
 		push_warning("TextureCarveShape.bake: no source_texture set")
 		return
+	if baked_lut != null and not baked_lut.resource_path.is_empty():
+		push_warning(
+			"TextureCarveShape.bake: refusing to overwrite committed LUT %s — "
+			% baked_lut.resource_path
+			+ "pipeline LUTs are baked from the SVG (tools/bake_svg_sdf.py) and must not "
+			+ "be swapped for a raster chamfer bake. Clear baked_lut first if you really "
+			+ "want to re-bake from source_texture."
+		)
+		return
 	baked_lut = bake_lut(source_texture)
 
 
