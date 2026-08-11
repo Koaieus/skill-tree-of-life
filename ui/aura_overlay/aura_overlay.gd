@@ -22,7 +22,6 @@ const _MAX_ENTITIES := 32
 # Truncation is loud, but only once per onset — _refresh runs on every
 # allocation, and a warning per node would bury the log.
 var _warned_circle_overflow: bool = false
-var _warned_entity_overflow: bool = false
 var _tile_index := OverlayFieldTileIndex.new()
 
 @export var enabled: bool = true:

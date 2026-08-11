@@ -142,12 +142,12 @@ func _fade_to(target_alpha: float) -> void:
 # ── Value tween ─────────────────────────────────────────────────────────────
 
 func _tween_value(target: float, duration: float,
-		ease: Tween.EaseType, trans: Tween.TransitionType) -> void:
+		_ease: Tween.EaseType, trans: Tween.TransitionType) -> void:
 	if _value_tween:
 		_value_tween.kill()
 	_value_tween = create_tween()
 	_value_tween.tween_property(self, "value", target, duration) \
-			.set_ease(ease).set_trans(trans)
+			.set_ease(_ease).set_trans(trans)
 
 
 # ── Color by ratio (connected via value_changed signal in scene) ────────────
@@ -155,10 +155,10 @@ func _tween_value(target: float, duration: float,
 func _on_value_changed(new_value: float) -> void:
 	if _fill_style == null:
 		return
-	var ratio := new_value / max_value if max_value > 0.0 else 0.0
-	if ratio <= 0.25:
+	var ratio_ := new_value / max_value if max_value > 0.0 else 0.0
+	if ratio_ <= 0.25:
 		_fill_style.bg_color = _COLOR_LOW
-	elif ratio <= 0.65:
+	elif ratio_ <= 0.65:
 		_fill_style.bg_color = _COLOR_MID
 	else:
 		_fill_style.bg_color = _COLOR_FULL

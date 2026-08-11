@@ -18,7 +18,7 @@ node_count_override = 0
 n_random_starters = 5
 viability_radius = 300.0
 territory_seeder = ExtResource("6_gik01")
-enemy_territory_size = 20
+enemy_territory_size = 3
 
 [node name="FogOverlay" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="6" unique_id=1165041791]
 falloff = 0.15

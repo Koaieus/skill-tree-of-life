@@ -136,10 +136,10 @@ func get_tooltip_modifiers() -> Array[StatModifier]:
 ## carve to that renderer. There is nothing to author on that shape (it takes
 ## no per-instance parameters), so this rides its shared instance rather than
 ## minting an identical Resource per relic.
-const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+const EMBLEM_SPEC = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 func get_emblem() -> Variant:
-	return GemCarveShape.SHARED.carve(EmblemSpec.Priority.LOOT, &"loot")
+	return GemCarveShape.SHARED.carve(EMBLEM_SPEC.Priority.LOOT, &"loot")
 
 
 ## Pickup == the carrier gaining an owner. Routes the core-mod candidates through

@@ -230,6 +230,7 @@ static func _find_controller(ent: Entity) -> EntityController:
 ## (dev_sandbox shape). Procgen sandboxes override to run generation + spawn
 ## entities, then assign `self.player`.
 func _setup_level() -> void:
+	if false: await get_tree().process_frame # include fake `await` to make godot see this as a coroutine
 	if has_node("%Player"):
 		player = get_node("%Player") as Entity
 

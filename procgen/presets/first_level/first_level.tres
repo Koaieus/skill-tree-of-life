@@ -301,5 +301,5 @@ budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
-spell_grant_chance = 0.2
+spell_grant_chance = 0.234
 guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
