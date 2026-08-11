@@ -14,8 +14,6 @@ extends PanelContainer
 ## an interrupted cast that Reset (health refill only) can't clear.
 signal reload_requested
 
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
-
 const _GRID_COLS: int = 4
 const _GRID_ROWS: int = 4
 const _CASTER_ZONE_W: float = 130.0
@@ -37,6 +35,8 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 @onready var caster_node: SkillNode = %CasterNode
 @onready var spell_list: OptionButton = %SpellList
 @onready var browse_button: Button = %BrowseButton
+@onready var spell_damage_slider: HSlider = %SpellDamageSlider
+@onready var spell_damage_label: Label = %SpellDamageLabel
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 
 var _spell: SpellDef = null
@@ -46,8 +46,7 @@ var _selected_target: SkillNode = null
 ## by a hit still in the air. Both buttons are gated on it rather than trying
 ## to cancel in-flight damage.
 var _casting: bool = false
-## Populated from the caster's own spellbook (the same 6 spells the .tscn
-## already preloads for CasterEntity) — no separate directory scan needed.
+## Populated from attack/spell/defs/ — every .tres SpellDef in the directory.
 var _listed_spells: Array[SpellDef] = []
 
 
@@ -55,6 +54,7 @@ func _ready() -> void:
 	cast_button.pressed.connect(_cast)
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)
+	spell_damage_slider.value_changed.connect(_on_spell_damage_changed)
 	world.size_changed.connect(_layout_world)
 	_populate_spell_list()
 	spell_list.item_selected.connect(_on_spell_list_selected)
@@ -102,24 +102,29 @@ func load_spell(spell: SpellDef) -> void:
 	_refresh_status()
 
 
-## Fills the dropdown from the caster's spellbook so any of the 6 shipped
-## spells can be previewed without leaving the Sandbox screen or round-
-## tripping through the Inspector.
+## Scans attack/spell/defs/ and adds every SpellDef .tres to the dropdown.
+## Kept separate from the caster's spellbook: the dropdown is for preview
+## selection and should show ALL spells, not just the caster's equipped set.
 func _populate_spell_list() -> void:
 	_listed_spells.clear()
 	spell_list.clear()
 	spell_list.add_item("Pick a spell…")
 	spell_list.set_item_disabled(0, true)
-	if caster_entity == null or caster_entity.spellbook == null:
+	var dir := DirAccess.open("res://attack/spell/defs/")
+	if dir == null:
 		return
-	for spell in caster_entity.spellbook.spells:
-		if spell == null:
-			continue
-		_listed_spells.append(spell)
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".tres"):
+			var res := load("res://attack/spell/defs/" + file_name) as SpellDef
+			if res != null:
+				_listed_spells.append(res)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	_listed_spells.sort_custom(func(a: SpellDef, b: SpellDef): return a.name < b.name)
+	for spell in _listed_spells:
 		spell_list.add_item(spell.name if spell.name != "" else spell.resource_path.get_file())
-	# OptionButton auto-selects the first enabled item if left untouched,
-	# which would show e.g. "Spark" while the panel still has no spell
-	# loaded. Pin it to the disabled placeholder until something is picked.
 	spell_list.select(0)
 
 
@@ -214,10 +219,7 @@ func _is_skipped(a: int, b: int) -> bool:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	graph.edges_container.add_child(e)
+	graph.add_edge(a, b)
 
 
 func _on_target_clicked(node: SkillNode) -> void:
@@ -359,6 +361,12 @@ func _reset_state() -> void:
 func _refill_all_nodes() -> void:
 	for sn in graph.get_skill_nodes():
 		sn.refill()
+
+
+func _on_spell_damage_changed(value: float) -> void:
+	spell_damage_label.text = "Spell DMG: %.1f" % value
+	if caster_entity != null and caster_entity.stat_board != null and caster_entity.stat_board.spell_damage != null:
+		caster_entity.stat_board.spell_damage.base_value = value
 
 
 ## Gate Cast + Reset for the duration of a coordinator's play. Both would

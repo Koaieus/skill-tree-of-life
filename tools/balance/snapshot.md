@@ -254,7 +254,7 @@
 | spell_dpa_Leafblower | 8.000 |
 | spell_dpa_Lightning Bolt | 8.000 |
 | spell_dpa_Resonator | 4.000 |
-| spell_dpa_Reverberator | 4.000 |
+| spell_dpa_Reverberator | 12.000 |
 | spell_dpa_Spark | 4.000 |
 | spell_dpa_The Trailblazer | 4.000 |
 | spell_dpa_best | 16.000 |
