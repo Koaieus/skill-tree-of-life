@@ -226,6 +226,46 @@ further out than `unowned.tscn` placed them. That is a real trade (the common ca
 pays for the crowded case) bought for a real gain: a panel is always in the same
 place, so you learn where Addons lives. Retuning is now a single-scene job.
 
+## Two-tier gate: hover shows Roots, Shift fans the ring (#415)
+
+The fan is the fan's own worst enemy when the mouse is moving: every hover
+erupts traces, panels *and* the mod-slab stack, then retracts them on exit. #415
+splits the fan into two independently-animated groups:
+
+- **Always on hover — the Roots.** `GrantedModifiersRoot`'s slab stack is the
+  node's primary readout (it was never panel-shaped, never clock-pinned, never
+  `has_content`-gated — the common hover's content by design), and that is now
+  *all* a plain hover shows.
+- **Held `ui_more_info` (Shift) — the FanUnit ring.** Traces + panels are bonus
+  info. They stay HIDDEN until the action is held; holding it fans them in with
+  the normal per-index stagger, releasing it retracts them in parallel.
+
+**The gate is an InputMap action, not a raw keycode.** `ui_more_info` (Shift)
+lives in `project.godot` like the other `ui_*` actions, and
+`TooltipFan._MORE_INFO_ACTION` is the only place the coordinator knows its name.
+Rebinding is a project-settings edit, no code.
+
+**Where the gate lives — at the play decisions, not in the flag.**
+`FanUnit.participating` still means exactly "has content" (the driver shares the
+clock face out among it, so the spread is identical whether or not the ring is
+showing — this is also why the pins are already in their slots the instant Shift
+lands). The gate is applied in one place, `TooltipFan._should_up(unit) =
+participating and _more_info_held`, and every play decision (`_play_in_all`,
+`_reconcile`, `_play_in_one`'s re-check) goes through it. Two questions ("has
+content", "may show") stay as separate as #314 kept binding and classifying.
+
+**Shift is polled, not evented.** `TooltipFan._process` re-reads the action every
+frame while hovering; on a change it runs the same `_refresh_content → _reconcile`
+path a live owner flip uses, so a mid-hover Shift press fans the whole ring in
+with one sweep and a release retracts it in parallel — the panels already open
+stay open, the same idempotent reconcile contract as #314. `_on_hovered` captures
+the action *synchronously* before the first `_play_in_all`, so a hover that lands
+on an already-held Shift shows the full fan from frame one instead of a
+roots-only flash.
+
+**Deferred:** the visual affordance telling the player Shift exists (#416) —
+the gate works silently in the meantime.
+
 ## Fan geometry: what is derived vs. what is authored (#307)
 
 **Exactly one quantity is authored per unit: where its panel sits.** That is the

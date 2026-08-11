@@ -38,3 +38,13 @@ re-answered on every live node change (allocation, damage, core HP) and cached i
 `FanUnit.participating`. Clock pins and stagger are shared out among the
 *participating* units only, easing to their new slots — a suppressed panel gives
 up its pin rather than holding a gap open. See docs/domain/tooltip-fan.md.
+
+**Two-tier gate (#415): hover shows only the Roots; the FanUnit ring needs the
+`ui_more_info` action (Shift) held.** `participating` still means "has content"
+only — the gate is applied at the coordinator's play decisions via
+`TooltipFan._should_up(unit)`, never by folding Shift into the flag (the driver's
+clock spread must not care who's visible). Shift is polled in
+`TooltipFan._process` (not evented) and re-runs `_refresh_content` on change;
+`_on_hovered` captures the action synchronously so a held Shift at hover shows
+the full fan from frame one. The action lives in project.godot; never hardcode a
+keycode here. Affordance tracked in #416.

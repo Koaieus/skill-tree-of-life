@@ -12,10 +12,20 @@ extends GutTest
 ## three branches are replaced by the behaviour that mattered underneath them —
 ## allocating the node you are hovering makes Owner/Core appear WITHOUT
 ## re-fanning, which the variant design could not do at all.
+##
+## Two-tier gate (#415): since the gate, hover alone shows only the Roots; the
+## [FanUnit] members also need the `ui_more_info` action (Shift) held. Tests
+## that exercise FanUnit states press/release the action via `Input.action_press`
+## / `Input.action_release` — the same state the real poll reads — and
+## `after_each` always releases it so a test that forgot to is never the next
+## one's problem. `participating` assertions need no action: that flag stays
+## content-only by design.
 
 const _FAN_SCENE := preload("res://ui/tooltip_fan/tooltip_fan.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+
+const _MORE_INFO_ACTION := &"ui_more_info"
 
 var _fan: TooltipFan
 var _node: SkillNode
@@ -44,6 +54,79 @@ func before_each() -> void:
 func after_each() -> void:
 	if is_instance_valid(_entity):
 		_entity.core_location = null
+	# Gate hygiene: a test that pressed the action must not leak it into the
+	# next test, where an unannounced gate would silently change which units
+	# play in (and fail state assertions for reasons unrelated to the test).
+	Input.action_release(_MORE_INFO_ACTION)
+
+
+# --- two-tier gate (#415) ------------------------------------------------------
+
+func test_hover_without_more_info_shows_roots_only() -> void:
+	Events.skill_node_hovered.emit(_node)
+	# Long enough for every stagger slot to have elapsed (fixture delay 0.01).
+	for _i in range(30):
+		await get_tree().process_frame
+	assert_true(_fan._current_fan.get_node("Roots").visible,
+		"the mod-slab stack is the hover's primary readout and always shows")
+	assert_eq(_unit("IdChip").state, FanUnit.State.HIDDEN,
+		"a unit with content must stay down while the gate is closed")
+
+
+func test_hovering_with_more_info_held_fans_in_from_the_first_frame() -> void:
+	Input.action_press(_MORE_INFO_ACTION)
+	Events.skill_node_hovered.emit(_node)
+	assert_true(_fan._more_info_held,
+		"the gate must be captured at hover time, not on the next poll frame")
+	# ... and the units must come up on their own, no fresh input event needed.
+	var frames := 0
+	while _unit("IdChip").state == FanUnit.State.HIDDEN and frames < 120:
+		await get_tree().process_frame
+		frames += 1
+	assert_ne(_unit("IdChip").state, FanUnit.State.HIDDEN,
+		"a hover landing on an already-held action must fan the units in with no roots-only flash")
+
+
+func test_holding_more_info_mid_hover_fans_the_units_in() -> void:
+	Events.skill_node_hovered.emit(_node)
+	for _i in range(30):
+		await get_tree().process_frame
+	assert_eq(_unit("IdChip").state, FanUnit.State.HIDDEN, "precondition: gate closed, chip down")
+
+	Input.action_press(_MORE_INFO_ACTION)
+	var frames := 0
+	while _unit("IdChip").state == FanUnit.State.HIDDEN and frames < 120:
+		await get_tree().process_frame
+		frames += 1
+	assert_ne(_unit("IdChip").state, FanUnit.State.HIDDEN,
+		"pressing the action with the pointer parked must fan the units in")
+
+
+func test_releasing_more_info_mid_hover_retracts_only_the_units() -> void:
+	Input.action_press(_MORE_INFO_ACTION)
+	Events.skill_node_hovered.emit(_node)
+	var frames := 0
+	while _unit("IdChip").state == FanUnit.State.HIDDEN and frames < 120:
+		await get_tree().process_frame
+		frames += 1
+	assert_ne(_unit("IdChip").state, FanUnit.State.HIDDEN, "precondition: chip is up")
+	# The chip's zero-delay IN can outrun Roots' stagger slot, so wait for the
+	# roots precondition too before asserting it survives the gate flip.
+	var roots := _fan._current_fan.get_node("Roots")
+	frames = 0
+	while not roots.visible and frames < 120:
+		await get_tree().process_frame
+		frames += 1
+	assert_true(roots.visible, "precondition: roots up")
+
+	Input.action_release(_MORE_INFO_ACTION)
+	frames = 0
+	while _unit("IdChip").state != FanUnit.State.HIDDEN and frames < 240:
+		await get_tree().process_frame
+		frames += 1
+	assert_eq(_unit("IdChip").state, FanUnit.State.HIDDEN,
+		"releasing the action must retract the units")
+	assert_true(roots.visible, "the roots stay up — only the bonus units are gated")
 
 
 # --- one fan scene, gated per unit --------------------------------------------
@@ -95,10 +178,14 @@ func test_a_gated_out_unit_never_plays_in() -> void:
 func test_allocating_the_hovered_node_fans_the_owner_panel_in() -> void:
 	# The case the occupancy-class variants could not serve at all: ownership
 	# flips while the pointer never moves.
+	# The gate is closed for the hover itself (Owner has no content yet); it
+	# must be OPEN by the time ownership lands, or the reconcile that makes
+	# Owner eligible would have nothing to play in.
 	Events.skill_node_hovered.emit(_node)
 	await get_tree().process_frame
 	assert_false(_unit("Owner").participating, "precondition: Owner starts gated out")
 
+	Input.action_press(_MORE_INFO_ACTION)
 	_node.owned_by = _entity
 	_node.owner_changed.emit()
 	await get_tree().process_frame
@@ -113,7 +200,9 @@ func test_allocating_the_hovered_node_fans_the_owner_panel_in() -> void:
 
 
 func test_allocating_the_hovered_node_leaves_the_open_panels_alone() -> void:
-	# "The panels already up stay up" — the whole reason this isn't a re-fan.
+	# "The panels already open stay open" — the whole reason this isn't a re-fan.
+	# Gate open so the ID chip is actually up to begin with.
+	Input.action_press(_MORE_INFO_ACTION)
 	Events.skill_node_hovered.emit(_node)
 	var frames := 0
 	while _unit("IdChip").state == FanUnit.State.HIDDEN and frames < 120:
@@ -134,6 +223,8 @@ func test_allocating_the_hovered_node_leaves_the_open_panels_alone() -> void:
 
 func test_deallocating_the_hovered_node_fans_the_owner_panel_out() -> void:
 	_node.owned_by = _entity
+	# Gate open: the owner panel can only retract if it was up to begin with.
+	Input.action_press(_MORE_INFO_ACTION)
 	Events.skill_node_hovered.emit(_node)
 	var frames := 0
 	while _unit("Owner").state == FanUnit.State.HIDDEN and frames < 120:
@@ -305,8 +396,10 @@ func test_members_are_fired_with_an_increasing_per_index_delay() -> void:
 	_fan.stagger_delay = 5.0
 	# An OWNED node, so several units participate. A bare unowned node leaves
 	# only the ID chip eligible, which makes a stagger assertion vacuous — and
-	# the stagger indexes over PARTICIPATING members (#314), not over every
-	# authored one, so those are the only members whose delay slot is defined.
+	# the stagger indexes over the UP-EVER members only (#415), so those are
+	# the only members whose delay slot is defined. Gate open, or the sweep
+	# would have just the Roots.
+	Input.action_press(_MORE_INFO_ACTION)
 	_node.owned_by = _entity
 	Events.skill_node_hovered.emit(_node)
 	await get_tree().process_frame

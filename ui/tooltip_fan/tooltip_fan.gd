@@ -28,6 +28,16 @@ extends Node2D
 ## case (no `affine_inverse()` needed there: this node has no camera transform
 ## of its own, it lives directly in the HUD's canvas).
 ##
+## TWO-TIER GATE (#415): hover alone shows only the ROOTS — [GrantedModifiersRoot]'s
+## mod-slab stack, the hover's primary readout. The [FanUnit] members (traces +
+## panels) are bonus info and stay HIDDEN until the `ui_more_info` action
+## (Shift) is held. The action state is polled every frame while hovering, so
+## pressing or releasing Shift mid-hover fans the units in or out through the
+## same [method _reconcile] path live updates use. `participating` still means
+## "has content" (the driver's clock spread depends on it); the gate is applied
+## HERE, at the play decisions, via [method _should_up]. The visual affordance
+## for the gate is tracked in #416.
+##
 ## Members are found by GROUP (`fan_unit`), never by NodePath — the mount
 ## contract's "bindings resolve by type/group, not authored NodePaths".
 ## Whether a fan shows 2 members or 6 changes nothing here but how many delays
@@ -41,6 +51,13 @@ extends Node2D
 
 const _GROUP := &"fan_unit"
 
+## The "more info" input action (project.godot: Shift). Held while hovering
+## a node, the [FanUnit] members fan out alongside the always-on Roots —
+## the two-tier gate described in the class doc. Modeled as an InputMap
+## action rather than a raw `KEY_SHIFT` poll so the binding is rebindable and
+## intent is declared in one place.
+const _MORE_INFO_ACTION := &"ui_more_info"
+
 ## The level's [Graph], injected by [method HudRoot.compose] via [method bind].
 ## Not an `@export` NodePath: the HUD is a CanvasLayer composed independently of
 ## the level content, so there is no authored path from here to the Graph — it
@@ -51,6 +68,13 @@ var graph: Graph = null
 
 var _hovered_node: SkillNode = null
 var _current_fan: Node = null
+
+## Whether the [member _MORE_INFO_ACTION] gate is currently open. Written only
+## by [method _poll_more_info] (frame-polled) and read by [method _should_up]
+## at every play decision; captured fresh in [method _on_hovered] so a hover
+## that lands on a Shift already in flight shows the full fan from frame one
+## instead of a one-frame roots-only flash.
+var _more_info_held := false
 
 ## The hovered node's owning entity's `health` pool, while hovering a CORE node
 ## that has one. Watched so the core-HP readout tracks core damage without a
@@ -79,6 +103,20 @@ func _process(_delta: float) -> void:
 	if _hovered_node != null and is_instance_valid(_hovered_node):
 		global_position = _hovered_node.get_global_transform_with_canvas().origin
 		_feed_pin_radius(_current_fan, _hovered_node)
+		_poll_more_info()
+
+
+## Re-reads the [member _MORE_INFO_ACTION] gate every frame while hovering.
+## On a change — Shift pressed or released with the pointer parked — re-runs
+## [method _refresh_content] so [method _reconcile] fans the [FanUnit] members
+## in or out exactly as if their content had changed, with the same stagger.
+## A no-op when the gate state didn't move, which is the common frame.
+func _poll_more_info() -> void:
+	var held := Input.is_action_pressed(_MORE_INFO_ACTION)
+	if held == _more_info_held:
+		return
+	_more_info_held = held
+	_refresh_content()
 
 
 func _on_hovered(node: SkillNode) -> void:
@@ -105,6 +143,10 @@ func _on_hovered(node: SkillNode) -> void:
 	# editor fallback, at whatever the real zoom happens to be — and only
 	# correct on the next frame. That's a visible pop at any zoom != 1.
 	_feed_pin_radius(instance, node)
+	# Capture the gate state NOW, not on the next `_process` poll: a hover that
+	# lands on a Shift already in flight must show the full fan from the first
+	# `_play_in_all`, or the units would arrive a frame late as a flicker.
+	_more_info_held = Input.is_action_pressed(_MORE_INFO_ACTION)
 	_bind_content(instance, node)
 	_watch_node(node)
 	_play_in_all(instance)
@@ -250,7 +292,8 @@ func _refresh_content() -> void:
 	_reconcile(_current_fan)
 
 
-## Diffs each unit's freshly-written `participating` against the state its
+## Diffs each unit's freshly-written `participating` (AND the [member
+## _more_info_held] gate, via [method _should_up]) against the state its
 ## machine is actually in, and plays only the difference. Idempotent: a unit
 ## whose eligibility didn't change is left strictly alone, which is what makes
 ## "the panels already open stay open" true rather than aspirational.
@@ -260,6 +303,11 @@ func _refresh_content() -> void:
 ## Newly-igniting units are staggered among THEMSELVES (not by their index in
 ## the whole fan), so two panels arriving together sweep rather than snap, while
 ## a lone one appears immediately.
+##
+## This is also the path a Shift press or release takes ([method
+## _poll_more_info] → [method _refresh_content]): the gate flip flips
+## `_should_up` for every participating unit at once, so a press fans the whole
+## ring in with one sweep and a release retracts it in parallel.
 func _reconcile(fan_instance: Node) -> void:
 	var igniting := 0
 	for member in _collect_members(fan_instance):
@@ -267,14 +315,28 @@ func _reconcile(fan_instance: Node) -> void:
 			continue
 		var unit := member as FanUnit
 		var is_up: bool = unit.state == FanUnit.State.IN or unit.state == FanUnit.State.LOOP
-		if unit.participating and not is_up:
+		if _should_up(unit) and not is_up:
 			_play_in_one(fan_instance, unit, igniting * stagger_delay)
 			igniting += 1
-		elif not unit.participating and is_up:
+		elif not _should_up(unit) and is_up:
 			unit.play_out()
 
 
 # --- entry ---------------------------------------------------------------------
+
+## The single decision point for whether a [FanUnit] should be UP right now:
+## it must have content AND the [member _more_info_held] gate must be open.
+## Roots ([GrantedModifiersRoot]) is deliberately NOT a FanUnit and never goes
+## through this check — the mod-slab stack is the hover's primary readout and
+## shows unconditionally; only the bonus trace+panel units are gated.
+##
+## `participating` stays content-only (the driver shares the clock face out
+## among it), so the gate lives here, at every play decision, rather than in
+## the flag itself — keeping the two questions ("has content", "may show")
+## separate in the same way #314 kept binding and classifying separate.
+func _should_up(unit: FanUnit) -> bool:
+	return unit.participating and _more_info_held
+
 
 ## Fires every participating member with an increasing per-index delay —
 ## "Fire N units, each with its own delay" from the settled clock-ownership
@@ -283,17 +345,20 @@ func _reconcile(fan_instance: Node) -> void:
 ## `fan_instance.is_queued_for_deletion()` rather than a generation counter,
 ## since each fan instance is its own scope (no shared fan-wide state to guard).
 ##
-## The stagger indexes over the PARTICIPATING members only, so the sweep has no
-## dead slots. Pre-#314 a suppressed member kept its index (and its clock pin)
-## on the theory that absence should leave the fan balanced rather than
-## reshuffled. #314 reverses that: pins now redistribute over the units actually
-## present, because a held-open gap reads as "a panel failed to load", not as a
-## deliberate omission. Stagger follows pins — the two have to agree, or the
-## sweep would visibly skip positions the fan isn't using.
+## The stagger indexes over the UP-EVER members only — participating AND gate
+## open — so the sweep has no dead slots and no hidden ones: without the
+## `ui_more_info` action this loop fans in just the Roots, and holding it mid-
+## hover lets [method _reconcile] fire the units instead. Pre-#314 a suppressed
+## member kept its index (and its clock pin) on the theory that absence should
+## leave the fan balanced rather than reshuffled. #314 reverses that: pins now
+## redistribute over the units actually present, because a held-open gap reads
+## as "a panel failed to load", not as a deliberate omission. Stagger follows
+## pins — the two have to agree, or the sweep would visibly skip positions the
+## fan isn't using.
 func _play_in_all(fan_instance: Node) -> void:
 	var index := 0
 	for member in _collect_members(fan_instance):
-		if member is FanUnit and not (member as FanUnit).participating:
+		if member is FanUnit and not _should_up(member as FanUnit):
 			continue
 		_play_in_one(fan_instance, member, index * stagger_delay)
 		index += 1
@@ -316,10 +381,11 @@ func _play_in_one(fan_instance: Node, member: Node, delay: float) -> void:
 	if not is_instance_valid(member):
 		return
 	# Re-check eligibility across the delay: a live update ([method
-	# _refresh_content]) can revoke it while this call was still waiting on its
-	# timer, and playing in a panel that has since emptied would show the very
-	# empty box `has_content` exists to prevent.
-	if member is FanUnit and not (member as FanUnit).participating:
+	# _refresh_content]) or a Shift release can revoke it while this call was
+	# still waiting on its timer, and playing in a panel that has since emptied
+	# (or been gated out) would show the very empty box `has_content` exists to
+	# prevent.
+	if member is FanUnit and not _should_up(member as FanUnit):
 		return
 	member.play_in()
 
