@@ -259,6 +259,12 @@ func build_blade_state() -> BladeState:
 	# with the live swing in skill_blade.gd.
 	for i in selection.size():
 		blade_state.vertex_damage[i] = selection[i].get_local_value(&"blade_damage")
+	# Dispatch to addons after vertex_damage is populated (mirror
+	# skill_blade.gd's build_from_skill_nodes) — keeps preview/resolve in
+	# parity with the live swing's constraint set (e.g. Clamp's weld brace).
+	for i in selection.size():
+		for addon in selection[i].get_addons():
+			addon.apply_to_blade(blade_state, i)
 	return blade_state
 
 
