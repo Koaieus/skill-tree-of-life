@@ -65,6 +65,17 @@ extends Node2D
 ## When true, at most one of this exact script class may sit on a carrier
 ## (enforced by SkillNode at child_entered_tree — duplicate is rejected).
 @export var unique: bool = false
+## Cost against MeleeAttackPlan's blade_size budget if this addon is offered
+## as a temp upgrade (#406); 0 = not offerable. Authored per addon scene —
+## single source of truth for cost, no separate id->cost table anywhere.
+@export var temp_upgrade_cost: int = 0
+
+## True when this addon was placed by the temp-upgrade UI spend (#406)
+## rather than loot/procgen/editor authoring; freed automatically at the
+## end of its swing-scoped lifetime instead of by explicit detach. Never
+## @export — only code instantiating a temp upgrade sets this, after
+## instantiate() and before add_child().
+var is_temporary: bool = false
 
 var carrier: SkillNode
 

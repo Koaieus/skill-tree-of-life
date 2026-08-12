@@ -69,26 +69,37 @@ var attack_mode: AttackMode:
 var is_attacking: bool:
 	get(): return attack_plan != null
 
+## True while resolve()..VFX-await..AP-deduction is in flight, independent
+## of whether attack_plan is still set (#406 — the plan now stays live
+## through the melee await so its temp-upgrade addons render correctly).
+## The one thing that blocks a second launch_attack() mid-swing.
+var is_launching := false
+
 func cancel_attack() -> void:
-	if is_attacking:
+	if is_attacking and not is_launching:
 		_reset()
 	else:
-		push_warning('Cannot cancel attack: not attacking')
+		push_warning('Cannot cancel attack: not attacking, or a swing is resolving')
 
 
 ## Clear the active plan's selection state without dropping the plan itself —
 ## keeps the mode set and any sticky preferences (melee swing_cw, magic spell)
 ## alive. UI's RESET button routes here.
 func reset_plan() -> void:
-	if attack_plan != null:
+	if attack_plan != null and not is_launching:
 		attack_plan.reset()
 
+## The single choke point that tears a plan down (#406) — always calls
+## reset() first, so a plan's attached temp-upgrade addons (real SkillNode
+## children, not plan-owned state) are freed no matter which path got here:
+## cancel, RESET-adjacent teardown, or post-launch.
 func _reset() -> void:
 	if attack_plan:
+		attack_plan.reset()
 		attack_plan = null
 
 func request_attack_mode(mode: AttackMode) -> void:
-	if attack_mode == mode:
+	if is_launching or attack_mode == mode:
 		return
 	match mode:
 		AttackMode.NONE:    cancel_attack()
@@ -121,12 +132,15 @@ func _ready() -> void:
 ##   2. await attack_vfx → tracers fly + apply damage on arrival
 ##   3. AP deduction + plan clear
 ##
-## AP + plan clear happen up front so the player can't spam-click during the
-## VFX await window. Without VFX, the volley call is synchronous and damage
-## lands immediately.
+## AP is deducted up front; the plan itself stays live through the whole
+## await (#406 — a melee plan's attached temp-upgrade addons must keep
+## rendering through the live swing) and is cleared in one place, after.
+## `is_launching` — not `attack_plan != null` — is what blocks a second
+## launch_attack() call during the await window. Without VFX, the volley
+## call is synchronous and damage lands immediately.
 func launch_attack() -> void:
-	if not is_attacking:
-		push_warning("BattleSystem.launch_attack: no plan")
+	if not is_attacking or is_launching:
+		push_warning("BattleSystem.launch_attack: no plan, or already launching")
 		return
 	if not attack_plan.is_valid():
 		push_warning("BattleSystem.launch_attack: invalid plan: %s" % str(attack_plan.validate()))
@@ -148,6 +162,7 @@ func launch_attack() -> void:
 		push_warning("BattleSystem.launch_attack: insufficient mana (%d < %d)" \
 				% [int(mana_pool.current), outcome.mana_cost])
 		return
+	is_launching = true
 	if ap_pool != null:
 		ap_pool.deplete(float(outcome.ap_cost))
 	if outcome.mana_cost > 0 and mana_pool != null:
@@ -158,21 +173,28 @@ func launch_attack() -> void:
 	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
 	if attack_plan.attacker != null:
 		attack_plan.attacker.dispatch(&"_on_attack_launched", [attack_plan.mode, launched_spell])
-	# Melee: hand off to the MeleePreview (which has the ghost mounted) for
-	# the live swing + damage application BEFORE clearing the plan, so the
-	# blade can read selection state during the await. Magic uses the spell's
-	# bundled coordinator scene. Ranged falls back to the default ranged volley.
+	# Melee: hand off to the MeleePreview (which has the ghost mounted) for the
+	# live swing + damage application. The plan stays live (attack_plan is NOT
+	# cleared) through the whole await — its temp-upgrade addons (#406) must
+	# stay attached and rendering through both the ghost preview loop and the
+	# actual committed swing. _reset() (which frees them) runs once, after.
 	if attack_plan is MeleeAttackPlan and melee_preview != null:
 		var melee_plan: MeleeAttackPlan = attack_plan
-		_reset()
 		await melee_preview.launch(melee_plan)
+		# is_launching flips false BEFORE _reset() (not after) — _reset()'s
+		# attack_plan = null synchronously fires attack_plan_changed, and
+		# PlayerInputController's gate-refresh listener reads is_launching
+		# the instant that signal fires. Clearing it after would have that
+		# listener observe a stale "still launching" and never re-enable
+		# AttackModeBar.
+		is_launching = false
+		_reset()
 		return
 	var coord_scene: PackedScene = null
 	if attack_plan is MagicAttackPlan:
 		var magic_plan: MagicAttackPlan = attack_plan
 		if magic_plan.spell != null:
 			coord_scene = magic_plan.spell.vfx_coordinator_scene
-	_reset()
 	if attack_vfx != null:
 		if coord_scene != null:
 			await attack_vfx.play(coord_scene, outcome)
@@ -187,6 +209,8 @@ func launch_attack() -> void:
 		for heal in outcome.heals:
 			if heal.target != null:
 				heal.target.heal_damage(heal.amount, heal)
+	is_launching = false
+	_reset()
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the

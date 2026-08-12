@@ -1398,6 +1398,22 @@ func _on_addon_removed(c: Node) -> void:
 		_detach_addon(c)
 
 
+## Whether an addon instantiated from `addon_script` would legally attach
+## right now: an open slot AND no unique-collision (#406). Read-only —
+## `_attach_addon` itself is UNCHANGED and still enforces only `unique`,
+## never slots (slot enforcement stays locally scoped to the temp-upgrade
+## gate per #406's acceptance spec; this is not #348's general-enforcement
+## work). Callers that want slot enforcement call this instead of
+## reimplementing it.
+func can_attach_addon(addon_script: Script) -> bool:
+	if get_addons().size() >= int(get_local_value(&"addon_slots")):
+		return false
+	for a in _addons:
+		if a.unique and a.get_script() == addon_script:
+			return false
+	return true
+
+
 ## Idempotent against the `_addons` ledger, NOT against call ordering — see
 ## [member _addons]. Attaching twice is a no-op, so tree re-entry can't
 ## double-apply an addon's modifiers.

@@ -41,9 +41,10 @@ func apply_to_blade(state: BladeState, particle_idx: int) -> void:
 	append_weld_braces(state, particle_idx)
 
 
-## Static so #406's temp-Clamp dispatch (BladeTempUpgrade) can reuse the exact
-## same geometry without instantiating a throwaway ClampAddon per call —
-## "temp Clamp == real Clamp" by construction, not by a duplicated formula.
+## Static so ClampAddon.apply_to_blade and any other caller building the same
+## brace geometry share one implementation — extracted for testability, not
+## for a separate dispatcher (a temp Clamp is a real ClampAddon, #406, so it
+## reaches this through apply_to_blade like any other instance).
 static func append_weld_braces(state: BladeState, particle_idx: int) -> void:
 	var neighbors: Array[int] = []
 	for e in state.edges:

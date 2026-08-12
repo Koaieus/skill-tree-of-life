@@ -31,7 +31,13 @@ origin set, selecting targets   (pivot/source locked, picking members/target)
   outlive it. A second right-click, now at "mode armed, no origin", exits
   the mode entirely back to idle/Manage. **Two pops, worst case, from
   anywhere in the stack to idle** — there is no separate flat "cancel
-  everything" shortcut, and none is needed.
+  everything" shortcut, and none is needed. **Three, worst case, in Melee
+  when a temp-upgrade card (#406) is armed** — that arm is a level nested
+  *inside* "origin set, selecting members" (waiting for a click on which
+  blade member gets the upgrade), so it's the first thing a pop clears,
+  same rule applied one level deeper: `_armed_modes` in
+  `player_input_controller.gd` orders it ahead of the attack-plan pop for
+  exactly this reason.
 - **Re-pivoting/re-sourcing mid-plan is pop-then-push**, not a shortcut:
   right-click clears the origin, then left-click the new one. The old
   behavior — right-clicking a *different* node instantly re-pivoted — let
@@ -64,6 +70,7 @@ one mechanism, not a per-mode exception.
 | Mode | Origin (left-click, unset → set) | Leaf level (left-click) | `pop()` clears |
 |---|---|---|---|
 | Melee | pivot | blade members (toggle, cap = `blade_size`) | pivot + all blade members |
+| Melee, nested (#406) | *(a temp-upgrade card armed via the command tray, e.g. Clamp/Spikes — not a left-click origin)* | a blade member (left-click, resolves the upgrade — arm stays set for repeat placement) | just the arm; a right-click here does **not** touch the pivot/members underneath |
 | Ranged | *(none — firing positions are derived, not chosen)* | target (direct left-click retarget, no origin to pop first) | target |
 | Magic | source | spell target | source + target |
 
@@ -125,5 +132,12 @@ above, happens once #338 lands, not here.
   `_on_node_right_clicked` returns `false` (nothing left to pop), it calls
   `battle_system.cancel_attack()` instead of falling through to the
   idle pin-toggle channel.
+- `systems/armed_mode.gd` (+ `attack_plan_armed_mode.gd`,
+  `core_move_armed_mode.gd`, `temp_upgrade_armed_mode.gd`) — #404's shared
+  `_pop_armed_mode()`/`_has_armed_mode()` primitive, generalized (#406) into
+  an ordered `Array[ArmedMode]` instead of a hand-written `if`/`elif` chain
+  per mode. Array order **is** the nesting order this doc describes; a
+  future mode (e.g. #338's Move-Core arm step) is one more entry, not
+  another hand-copied branch.
 - See `docs/domain/attack_plan_system.md` for the wider attack-plan
   architecture this grammar rides on.

@@ -43,6 +43,17 @@ var highlighted_indices: Array[int] = []:
 		highlighted_indices = v
 		_apply_state()
 
+## Per-filled-pip color override (#406) — index i colors the i'th filled pip
+## (0..count-1); shorter than `count` falls back to `fill_color` for the
+## remainder. Empty (the default) keeps the single-color behavior. Lets one
+## blip row mix budget "kinds" sharing the same pool (e.g. blade-member
+## spend vs. a temp Spike vs. a temp Clamp) while still reading as one
+## N-of-max gauge.
+var segment_colors: Array[Color] = []:
+	set(v):
+		segment_colors = v
+		_apply_state()
+
 func _ready() -> void:
 	_rebuild()
 
@@ -74,7 +85,7 @@ func _apply_state() -> void:
 	var children := get_children()
 	for i in children.size():
 		var pip: CapacityPip = children[i]
-		pip.fill_color = fill_color
+		pip.fill_color = segment_colors[i] if i < segment_colors.size() else fill_color
 		pip.empty_color = empty_color
 		pip.filled = i < count
 		pip.highlighted = i in highlighted_indices

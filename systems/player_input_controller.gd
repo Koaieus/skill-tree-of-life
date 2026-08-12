@@ -60,6 +60,19 @@ signal node_pinned(node: SkillNode)
 ## per transition.
 var _move_targeting_source: SkillNode = null
 
+## Which temp upgrade (a MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry) is armed
+## for placement via the command-tray card, or null when unarmed (#406).
+## Set only via `_set_temp_upgrade_arm` so the signal fires once per
+## transition.
+signal temp_upgrade_arm_changed(upgrade: Variant)
+var _temp_upgrade_arm: Variant = null
+
+## Ordered pop stack (#404's shared arm/pop primitive, generalized #406).
+## Earlier entries pop before later ones — TempUpgradeArmedMode is checked
+## first because it nests inside an already-armed attack plan and must pop
+## before the plan does. Populated in _ready().
+var _armed_modes: Array[ArmedMode] = []
+
 ## Node currently under the cursor, tracked via the Events hover bus so the
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
@@ -102,8 +115,24 @@ func _ready() -> void:
 	Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
 	Events.node_action_denied.connect(_on_node_action_denied)
 
+	_armed_modes = [
+		TempUpgradeArmedMode.new(self),
+		AttackPlanArmedMode.new(self),
+		CoreMoveArmedMode.new(self),
+	]
+
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_update_cursor.unbind(1))
+		# The arm can't outlive its plan (#406) — a plan swap or clear always
+		# invalidates whatever temp-upgrade card was armed for the old one.
+		battle_system.attack_plan_changed.connect(func(_p): _set_temp_upgrade_arm(null))
+		# can_player_act() now also reads battle_system.is_launching (#406),
+		# whose transitions have no signal of their own. attack_plan_changed
+		# fires when a swing's post-await _reset() clears the plan — the only
+		# observable moment is_launching flips back false — so AttackModeBar
+		# (gated purely off player_can_act_changed, command_tray.gd) doesn't
+		# stay disabled forever after the first swing of a turn.
+		battle_system.attack_plan_changed.connect(_emit_gate_changed.unbind(1))
 	core_move_targeting_changed.connect(_update_cursor.unbind(1))
 
 
@@ -113,6 +142,8 @@ func _on_node_added(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
+	if _route_temp_upgrade_click(skill_node):
+		return
 	if _route_battle_click(skill_node, true):
 		return
 	if _route_core_move_click(skill_node):
@@ -121,6 +152,29 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 	# SP + adjacency; deallocation is the `D`-on-hover channel, not a click.
 	if _is_players_turn() and skill_node.owned_by == null:
 		allocation_system.allocate(skill_node, player)
+
+
+## Resolves an armed temp-upgrade placement (#406) — click-to-toggle, same
+## shape as blade-member selection: clicking a node that already carries
+## this exact temp upgrade refunds it, clicking any other eligible node
+## applies a new one. Stays armed either way — apply's own gating already
+## makes a failed attempt fail gracefully with denial feedback, so there's
+## no correctness reason to force a re-click of the tray button per action.
+## Must run BEFORE _route_battle_click, which would otherwise claim the click
+## for blade-membership toggling.
+func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
+	if _temp_upgrade_arm == null or not can_player_act():
+		return false
+	var plan := _active_attack_plan() as MeleeAttackPlan
+	if plan == null:
+		return false
+	if plan.toggle_temp_upgrade(skill_node, _temp_upgrade_arm):
+		return true
+	var reason := "temp_upgrade_denied_slot_full" \
+			if not skill_node.can_attach_addon(_temp_upgrade_arm.script) \
+			else "temp_upgrade_denied_budget"
+	Events.node_action_denied.emit(skill_node, reason)
+	return true
 
 
 func _set_pinned(node: SkillNode) -> void:
@@ -247,13 +301,16 @@ func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 	return true
 
 
-## True if either an attack plan armed for this player, or core-move
-## targeting, is currently active (#404). Single source of truth for "is
+## True if any level of the armed-mode stack (#404, generalized #406 —
+## _armed_modes) is currently active. Single source of truth for "is
 ## anything armed right now" — gates the D-key channel and decides whether
 ## right-click / Esc pop a level instead of falling through to pin-toggle /
 ## PauseMenu.
 func _has_armed_mode() -> bool:
-	return _active_attack_plan() != null or _move_targeting_source != null
+	for m in _armed_modes:
+		if m.is_armed():
+			return true
+	return false
 
 
 func _active_attack_plan() -> AttackPlan:
@@ -263,20 +320,16 @@ func _active_attack_plan() -> AttackPlan:
 	return plan if plan.attacker == player else null
 
 
-## Node-independent stack-pop primitive shared by right-click and Esc (#404).
-## Right-click "ignores which node was clicked"
+## Node-independent stack-pop primitive shared by right-click and Esc (#404,
+## generalized #406). Right-click "ignores which node was clicked"
 ## (docs/design/click_grammar.md), and Esc has no node at all, so this never
-## takes one. Returns true if something was armed to pop/exit.
+## takes one. Pops the first armed level in _armed_modes — priority is array
+## order, encoding nesting (a temp-upgrade arm sits on top of an attack plan
+## and pops first). Returns true if something was armed to pop/exit.
 func _pop_armed_mode() -> bool:
-	if can_player_act():
-		var plan := _active_attack_plan()
-		if plan != null:
-			if not plan.pop():
-				battle_system.cancel_attack()
-			return true
-	if _move_targeting_source != null:
-		_set_move_targeting_source(null)
-		return true
+	for m in _armed_modes:
+		if m.is_armed():
+			return m.pop()
 	return false
 
 
@@ -496,8 +549,32 @@ func _set_move_targeting_source(value: SkillNode) -> void:
 	core_move_targeting_changed.emit(value)
 
 
+func _set_temp_upgrade_arm(upgrade: Variant) -> void:
+	if _temp_upgrade_arm == upgrade:
+		return
+	_temp_upgrade_arm = upgrade
+	temp_upgrade_arm_changed.emit(upgrade)
+	_update_cursor()
+
+
+## Arms `upgrade` (a MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry) for
+## placement, or clears the arm if it's already armed with the same one
+## (tray button acts as a toggle on top of right-click/Esc pop).
+func arm_temp_upgrade(upgrade: Variant) -> void:
+	_set_temp_upgrade_arm(null if _temp_upgrade_arm == upgrade else upgrade)
+
+
+func temp_upgrade_arm() -> Variant:
+	return _temp_upgrade_arm
+
+
 func can_player_act() -> bool:
 	if not _is_players_turn():
+		return false
+	# A swing is resolving (#406) — the plan stays live through the live-swing
+	# await so its temp-upgrade addons keep rendering, but that's not an
+	# invitation to click it mid-swing.
+	if battle_system != null and battle_system.is_launching:
 		return false
 	# AP=0 blocks further attack/cast actions; UI uses this to dim.
 	if player != null and player.stat_board != null:

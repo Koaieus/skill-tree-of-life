@@ -22,12 +22,35 @@ var source: SkillNode = null
 ## reachable from the pivot through this list + the pivot via graph edges.
 var blade_nodes: Array[SkillNode] = []
 
-## Plan-local, this-swing-only Clamp/Spikes upgrades (#406) — never a real
-## attached SkillNodeAddon. Node -> BladeTempUpgrade.CLAMP | .SPIKE. Spent from
-## the same blade_size budget as blade_nodes; cleared on reset(). Applied into
-## BladeState by BladeTempUpgrade.apply(), shared with SkillBlade's preview
-## build so resolve() and MeleePreview stay in parity by construction.
-var temp_upgrades: Dictionary = {}
+const CLAMP_UPGRADE: Dictionary = {
+	scene = preload("res://skill_node/addons/clamp_addon.tscn"),
+	script = preload("res://skill_node/addons/clamp_addon.gd"),
+}
+const SPIKE_UPGRADE: Dictionary = {
+	scene = preload("res://skill_node/addons/spike_ring_addon.tscn"),
+	script = preload("res://skill_node/addons/spike_ring_addon.gd"),
+}
+## Offerable temp-upgrade kinds (#406) — order is tray/button order. A temp
+## upgrade is a REAL SkillNodeAddon, `add_child`ed exactly like a permanent
+## one (marked `is_temporary`), spent from the same blade_size budget as
+## blade_nodes. A `script` ref rides alongside each `scene` only because
+## `SkillNode.can_attach_addon`'s uniqueness check needs the addon's Script
+## identity before an instance exists. A future "edge sharpener" is one more
+## entry, zero other code changes.
+const TEMP_UPGRADE_CATALOG: Array[Dictionary] = [CLAMP_UPGRADE, SPIKE_UPGRADE]
+
+## Lazy per-scene cost cache — instantiate once off the tree, read the
+## authored SkillNodeAddon.temp_upgrade_cost, free, cache. Needed because
+## cost lives on the addon instance but budget checks must answer "what
+## would this cost" before an instance exists.
+static var _cost_cache: Dictionary = {}
+
+static func _cost_for(scene: PackedScene) -> int:
+	if not _cost_cache.has(scene):
+		var tmp := scene.instantiate()
+		_cost_cache[scene] = (tmp as SkillNodeAddon).temp_upgrade_cost
+		tmp.free()
+	return _cost_cache[scene]
 
 ## Arc / sweep target — kept as Vector2 for now per the original sketch;
 ## targeting integration comes when previews land.
@@ -112,7 +135,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	if source != null \
 			and attacker != null \
 			and node.owned_by == attacker \
-			and blade_nodes.size() + temp_upgrade_cost_total() < max_blades() \
+			and _budget_remaining() > 0 \
 			and _is_neighbor_of_blade_set(node):
 		return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
@@ -128,73 +151,148 @@ func max_blades() -> int:
 	return int(source.get_local_value(_BLADE_SIZE_ID))
 
 
-## Sum of BladeTempUpgrade.COST across every currently-applied temp upgrade.
+## Budget left for blade-member selection AND temp upgrades — one shared
+## pool, so both callers (get_node_role / _try_select_blade / temp-upgrade
+## gating) read the same number instead of each recomputing it.
+func _budget_remaining() -> int:
+	return max_blades() - blade_nodes.size() - temp_upgrade_cost_total()
+
+
+## Sum of temp_upgrade_cost across every currently-attached is_temporary
+## addon on the pivot + selected members. Reads real addon state — no
+## separate tracked total to drift out of sync with it.
 func temp_upgrade_cost_total() -> int:
 	var total := 0
-	for upgrade in temp_upgrades.values():
-		total += BladeTempUpgrade.COST.get(upgrade, 0)
+	var nodes: Array[SkillNode] = []
+	if source != null:
+		nodes.append(source)
+	nodes.append_array(blade_nodes)
+	for node in nodes:
+		for a in node.get_addons():
+			if a.is_temporary:
+				total += a.temp_upgrade_cost
 	return total
 
 
-## True if `node` (already the pivot or a selected member) can receive
-## `upgrade`: an open addon slot, and the combined member + upgrade spend
-## stays within max_blades().
-func can_apply_temp_upgrade(node: SkillNode, upgrade: StringName) -> bool:
-	if not BladeTempUpgrade.COST.has(upgrade):
-		return false
-	if node == null or (node != source and not blade_nodes.has(node)):
-		return false
-	if temp_upgrades.has(node):
-		return false
-	if node.get_addons().size() >= int(node.get_local_value(&"addon_slots")):
-		return false
-	var cost: int = BladeTempUpgrade.COST[upgrade]
-	return blade_nodes.size() + temp_upgrade_cost_total() + cost <= max_blades()
+## Sum of temp_upgrade_cost across attached is_temporary addons matching
+## `upgrade`'s script specifically — the per-kind breakdown
+## temp_upgrade_cost_total() sums across every kind. Used by the command-tray
+## blips to show budget spend broken out by kind (#406).
+func temp_upgrade_cost_for(upgrade: Dictionary) -> int:
+	var total := 0
+	var nodes: Array[SkillNode] = []
+	if source != null:
+		nodes.append(source)
+	nodes.append_array(blade_nodes)
+	for node in nodes:
+		for a in node.get_addons():
+			if a.is_temporary and a.get_script() == upgrade.script:
+				total += a.temp_upgrade_cost
+	return total
 
 
-## Spend budget and record `upgrade` on `node`. Returns false (no-op) if
-## can_apply_temp_upgrade() rejects it.
-func apply_temp_upgrade(node: SkillNode, upgrade: StringName) -> bool:
+## True if `node` (a selected member — the pivot is never a valid target, it
+## drives the swing and has no meaningful collision area) can receive
+## `upgrade`: an open addon slot, no unique-collision, and the combined
+## member + upgrade spend stays within max_blades().
+func can_apply_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
+	if node == null or node == source or not blade_nodes.has(node):
+		return false
+	if not TEMP_UPGRADE_CATALOG.has(upgrade):
+		return false
+	if not node.can_attach_addon(upgrade.script):
+		return false
+	return _budget_remaining() >= _cost_for(upgrade.scene)
+
+
+## Whether ANY currently-eligible node could accept `upgrade` right now —
+## cheap plan-level affordability check for UI button enablement, independent
+## of which specific node gets clicked.
+func has_temp_upgrade_budget(upgrade: Dictionary) -> bool:
+	return source != null and _budget_remaining() >= _cost_for(upgrade.scene)
+
+
+## Spend budget and attach a real `upgrade` addon to `node`. Returns false
+## (no-op) if can_apply_temp_upgrade() rejects it.
+func apply_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
 	if not can_apply_temp_upgrade(node, upgrade):
 		return false
-	temp_upgrades[node] = upgrade
+	var addon := (upgrade.scene as PackedScene).instantiate() as SkillNodeAddon
+	addon.is_temporary = true
+	node.add_child(addon)
 	state_changed.emit()
 	return true
 
 
-## Refund `node`'s temp upgrade, if any.
+## Refund `node`'s temp upgrade, if any — frees the attached addon.
 func remove_temp_upgrade(node: SkillNode) -> void:
-	if temp_upgrades.erase(node):
+	if _free_temp_addons(node):
 		state_changed.emit()
+
+
+## `node`'s currently-attached is_temporary addon matching `upgrade`'s
+## script, or null.
+func _existing_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> SkillNodeAddon:
+	if node == null:
+		return null
+	for a in node.get_addons():
+		if a.is_temporary and a.get_script() == upgrade.script:
+			return a
+	return null
+
+
+## Click-to-toggle entry point for the UI (#406): if `node` already carries
+## this exact temp upgrade, refund it (same shape as a blade-member toggle);
+## otherwise try to apply a new one. Returns true if anything changed.
+func toggle_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
+	if _existing_temp_upgrade(node, upgrade) != null:
+		remove_temp_upgrade(node)
+		return true
+	return apply_temp_upgrade(node, upgrade)
+
+
+## Frees every is_temporary addon on `node`. The one place temp-upgrade
+## removal is written — every mutation site below calls this instead of
+## duplicating the free loop. Returns true if anything was freed.
+func _free_temp_addons(node: SkillNode) -> bool:
+	var freed := false
+	for a in node.get_addons():
+		if a.is_temporary:
+			node.remove_child(a)
+			a.queue_free()
+			freed = true
+	return freed
 
 
 # ── State mutations (all assume legitimacy already gated) ──────────────────
 
 func _set_pivot(node: SkillNode) -> void:
-	_ensure_mirror()
-	for b in blade_nodes:
-		_blade_mirror.mirror_remove(b)
-	blade_nodes.clear()
-	if source != null:
-		_blade_mirror.mirror_remove(source)
+	_clear_pivot()
 	source = node
+	_ensure_mirror()
 	_blade_mirror.mirror_add(node)
-	temp_upgrades.clear()
 
 
 func _clear_pivot() -> void:
 	_ensure_mirror()
+	# Mutate all plan state first, free addons last: remove_child fires
+	# _detach_addon synchronously (modifier removal touches stat-board
+	# signals), so a handler reacting to that mid-call must never see a
+	# half-updated plan.
+	var to_free: Array[SkillNode] = blade_nodes.duplicate()
 	for b in blade_nodes:
 		_blade_mirror.mirror_remove(b)
 	blade_nodes.clear()
 	if source != null:
+		to_free.append(source)
 		_blade_mirror.mirror_remove(source)
 	source = null
-	temp_upgrades.clear()
+	for n in to_free:
+		_free_temp_addons(n)
 
 
 func _try_select_blade(node: SkillNode) -> bool:
-	if blade_nodes.size() + temp_upgrade_cost_total() >= max_blades():
+	if _budget_remaining() <= 0:
 		return false
 	if not _is_neighbor_of_blade_set(node):
 		return false
@@ -220,11 +318,12 @@ func _deselect_blade(node: SkillNode) -> void:
 	var islanded := _blade_mirror.nodes_islanded_by_removing(node, source)
 	_blade_mirror.mirror_remove(node)
 	blade_nodes.erase(node)
-	temp_upgrades.erase(node)
 	for n in islanded:
 		_blade_mirror.mirror_remove(n)
 		blade_nodes.erase(n)
-		temp_upgrades.erase(n)
+	_free_temp_addons(node)
+	for n in islanded:
+		_free_temp_addons(n)
 
 
 # ── Internals ──────────────────────────────────────────────────────────────
@@ -316,9 +415,6 @@ func build_blade_state() -> BladeState:
 	for i in selection.size():
 		for addon in selection[i].get_addons():
 			addon.apply_to_blade(blade_state, i)
-	# Temp upgrades (#406) layer on top of real addon dispatch, same as they
-	# would if attached for real.
-	BladeTempUpgrade.apply(blade_state, selection, temp_upgrades)
 	return blade_state
 
 

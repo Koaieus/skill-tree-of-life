@@ -63,8 +63,7 @@ func build_from_skill_nodes(
 		skill_nodes: Array[SkillNode],
 		pivot: SkillNode,
 		induced_edges: Array,
-		owner_entity: Entity,
-		temp_upgrades: Dictionary = {}) -> void:
+		owner_entity: Entity) -> void:
 	owned_by = owner_entity
 	_clear_visuals()
 	var positions: Array[Vector2] = []
@@ -92,9 +91,6 @@ func build_from_skill_nodes(
 	for i in skill_nodes.size():
 		for addon in skill_nodes[i].get_addons():
 			addon.apply_to_blade(state, i)
-	# Temp upgrades (#406) — same dispatch MeleeAttackPlan.build_blade_state
-	# uses, so the ghost preview matches the live/resolve swing.
-	BladeTempUpgrade.apply(state, skill_nodes, temp_upgrades)
 	_spawn_visuals()
 
 
