@@ -74,13 +74,25 @@ needing the smallest change: right-click used to only pop when it landed
 on the current target (`node != target → no-op`); now, matching the
 node-independent rule above, it pops regardless of where you click.
 
-## Scope boundary: right-click needs a node under the cursor
+## Right-click is global, handled in `_unhandled_input`, not a per-node signal
 
-`right_clicked` is a per-`SkillNode` signal — "right-click pops" still
-requires the cursor to be over *some* node when it fires; there is no
-global/empty-space right-click binding here. A HUD affordance that reads
-the armed-mode state independent of cursor position is `#412`'s concern,
-not this one.
+Right-click pops regardless of what's under the cursor — including empty
+space, matching Esc. It used to be wired as a per-`SkillNode` signal
+(`right_clicked`), which meant a right-click that missed every node did
+nothing; that signal is gone. `PlayerInputController._unhandled_input` now
+owns both the pop (via `_pop_armed_mode()`, shared with Esc) and the idle
+fallback (pin-toggle on `_hovered_node`, when nothing is armed and a node is
+hovered).
+
+This also sidesteps an ordering hazard: `SkillNode`'s old physics-picking
+signal (`Area2D._on_input_event`) fires a *physics tick after*
+`_unhandled_input` for the same click, so a pop routed through it would have
+read the mode's state one click late. Routing through `_unhandled_input`
+directly, keyed off `_hovered_node` for the pin case, avoids depending on
+that cross-callback ordering at all.
+
+A HUD affordance that reads the armed-mode state independent of cursor
+position is `#412`'s concern, not this one.
 
 ## Core-move stays two-level, deliberately, until #338
 

@@ -181,9 +181,9 @@ func test_right_click_with_nothing_armed_exits_attack_mode() -> void:
 	tm.start_turn(_attacker)
 
 	# Node must exist before PlayerInputController._ready() runs (it wires
-	# left_clicked/right_clicked for the nodes present at that point; a node
-	# added straight to skill_nodes_container afterward, as _spawn does,
-	# doesn't fire Graph.node_added — see .claude/rules/graph.md).
+	# left_clicked for the nodes present at that point; a node added straight
+	# to skill_nodes_container afterward, as _spawn does, doesn't fire
+	# Graph.node_added — see .claude/rules/graph.md).
 	var a := _spawn(_attacker)
 
 	ctl.graph = _graph
@@ -199,11 +199,15 @@ func test_right_click_with_nothing_armed_exits_attack_mode() -> void:
 	a.left_clicked.emit(a)  # arm the pivot
 	assert_eq((bs.attack_plan as MeleeAttackPlan).source, a, "precondition: pivot armed")
 
-	a.right_clicked.emit(a)  # pop 1: clears the pivot, stays in melee mode
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+
+	ctl._unhandled_input(rmb)  # pop 1: clears the pivot, stays in melee mode
 	assert_true(bs.is_attacking, "first pop clears the pivot but stays armed")
 	assert_null((bs.attack_plan as MeleeAttackPlan).source)
 
-	a.right_clicked.emit(a)  # pop 2: nothing left to pop — exits the mode
+	ctl._unhandled_input(rmb)  # pop 2: nothing left to pop — exits the mode
 	assert_false(bs.is_attacking, "second pop, with nothing armed, exits the mode entirely")
 
 

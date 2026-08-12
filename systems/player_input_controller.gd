@@ -110,8 +110,6 @@ func _ready() -> void:
 func _on_node_added(skill_node: SkillNode) -> void:
 	if not skill_node.left_clicked.is_connected(_on_skill_node_left_clicked):
 		skill_node.left_clicked.connect(_on_skill_node_left_clicked)
-	if not skill_node.right_clicked.is_connected(_on_skill_node_right_clicked):
-		skill_node.right_clicked.connect(_on_skill_node_right_clicked)
 
 
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
@@ -123,16 +121,6 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 	# SP + adjacency; deallocation is the `D`-on-hover channel, not a click.
 	if _is_players_turn() and skill_node.owned_by == null:
 		allocation_system.allocate(skill_node, player)
-
-
-func _on_skill_node_right_clicked(skill_node: SkillNode) -> void:
-	# Right-click pops one level off whichever mode is armed (attack plan or
-	# core-move — docs/design/click_grammar.md), ignoring which node was
-	# clicked. When nothing is armed, right-click toggles the node's pin in
-	# the context panel instead — re-pinning the same node unpins it.
-	if _pop_armed_mode():
-		return
-	_set_pinned(null if skill_node == _pinned_node else skill_node)
 
 
 func _set_pinned(node: SkillNode) -> void:
@@ -150,11 +138,21 @@ func _on_skill_node_unhovered() -> void:
 	_hovered_node = null
 
 
-## Two channels live here:
+## Channels live here:
 ##  - Core-move DRAG (#21): once targeting is active (the player pressed their
 ##    own core), dragging the held mouse snaps a ghost core to the nearest
 ##    reachable landing and a hop badge floats by the cursor; release commits.
 ##    Click-to-move still works untouched — drag is the layered accelerator.
+##  - RIGHT-CLICK: pops one level off whichever mode is armed (attack plan or
+##    core-move — docs/design/click_grammar.md), node-independent like Esc
+##    (below). Handled here rather than via a per-`SkillNode` signal so it
+##    fires over empty space too, not just when the cursor is over a node —
+##    `SkillNode._on_input_event`'s physics picking runs a physics tick after
+##    `_unhandled_input`, so routing the pop through a node signal would read
+##    stale pre-pop armed-state on the very click that's popping it. When
+##    nothing is armed, right-click instead toggles `_hovered_node`'s pin in
+##    the context panel (re-pinning the same node unpins it) — this still
+##    needs a node, so it silently no-ops over empty space.
 ##  - DEALLOCATE: pressing `D` while hovering one of the player's own non-core
 ##    nodes deallocates it (DP + non-islanding enforced in deallocate()).
 func _unhandled_input(event: InputEvent) -> void:
@@ -168,6 +166,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed:
 			_on_core_drag_released()
+			return
+		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
+			if _pop_armed_mode():
+				get_viewport().set_input_as_handled()
+			elif _hovered_node != null:
+				_set_pinned(null if _hovered_node == _pinned_node else _hovered_node)
+				get_viewport().set_input_as_handled()
 		return
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return

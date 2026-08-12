@@ -12,7 +12,6 @@ signal radius_changed
 signal owner_changed
 signal archetype_changed
 signal left_clicked(skill_node: SkillNode)
-signal right_clicked(skill_node: SkillNode)
 ## Emitted on every take_damage call (even at 0 effective). Local twin of
 ## [signal Events.skill_node_damaged]; subscribe locally for per-node reactions
 ## (hit-flash lives right here), globally on the bus for UI like floating numbers.
@@ -1587,8 +1586,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		var mb := event as InputEventMouseButton
 		if not mb.pressed:
 			return
-		match mb.button_index:
-			MOUSE_BUTTON_LEFT:
-				left_clicked.emit(self)
-			MOUSE_BUTTON_RIGHT:
-				right_clicked.emit(self)
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			left_clicked.emit(self)
+		# Right-click is handled node-independently in
+		# PlayerInputController._unhandled_input — see the comment there.

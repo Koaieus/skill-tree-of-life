@@ -96,6 +96,13 @@ func _press_d() -> void:
 	_ctl._unhandled_input(ev)
 
 
+func _press_right_click() -> void:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_RIGHT
+	ev.pressed = true
+	_ctl._unhandled_input(ev)
+
+
 # ── Allocate channel: bare left-click on an unowned adjacent node ───────────
 
 func test_left_click_unowned_adjacent_allocates() -> void:
@@ -157,7 +164,7 @@ func test_left_click_own_core_enters_targeting() -> void:
 func test_right_click_cancels_core_move_targeting() -> void:
 	_nodes[0].left_clicked.emit(_nodes[0])  # arm core-move on own core
 	assert_not_null(_ctl.move_targeting_source(), "precondition: core-move armed")
-	_nodes[1].right_clicked.emit(_nodes[1])  # right-click a DIFFERENT node
+	_press_right_click()  # right-click — pops regardless of which/whether a node is hovered
 	assert_null(_ctl.move_targeting_source(),
 			"right-click pops core-move regardless of which node it landed on")
 
