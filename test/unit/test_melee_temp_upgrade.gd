@@ -38,7 +38,7 @@ func before_each() -> void:
 ## joint+tip as blade_nodes (source is the pivot). `budget` overrides
 ## blade_size directly (fixture entity is STR 10 / no core bonus, so the real
 ## default would be 1 — too small to exercise these checks deterministically).
-func _setup_plan(budget: float = 3.0) -> Dictionary:
+func _setup_plan(budget: float = 3.0, select_tip: bool = true) -> Dictionary:
 	_entity.stat_board.blade_size.base_value = budget
 	var source := _spawn("Source")
 	var joint := _spawn("Joint")
@@ -58,7 +58,8 @@ func _setup_plan(budget: float = 3.0) -> Dictionary:
 	# _deselect_blade depends on it.
 	plan._on_node_left_clicked(source)
 	plan._on_node_left_clicked(joint)
-	plan._on_node_left_clicked(tip)
+	if select_tip:
+		plan._on_node_left_clicked(tip)
 	return {"plan": plan, "source": source, "joint": joint, "tip": tip}
 
 
@@ -98,6 +99,23 @@ func test_apply_temp_upgrade_rejected_once_budget_already_spent() -> void:
 	assert_true(plan.apply_temp_upgrade(joint, BladeTempUpgrade.CLAMP))
 	assert_false(plan.can_apply_temp_upgrade(tip, BladeTempUpgrade.CLAMP))
 	assert_false(plan.apply_temp_upgrade(tip, BladeTempUpgrade.CLAMP))
+
+
+func test_spent_temp_upgrade_budget_blocks_a_new_member_selection() -> void:
+	# budget 3, only 1 member (joint) selected -> 2 room. Spend all of it on a
+	# Spikes upgrade; selecting a second member (tip) must now be refused even
+	# though tip is a valid neighbor with an open slot — the two spends share
+	# one pool by design (#406's confirmed decision).
+	var ctx: Dictionary = await _setup_plan(3.0, false)
+	var plan: MeleeAttackPlan = ctx.plan
+	var joint: SkillNode = ctx.joint
+	var tip: SkillNode = ctx.tip
+	assert_true(plan.apply_temp_upgrade(joint, BladeTempUpgrade.SPIKE))
+	assert_eq(plan.get_node_role(tip), HighlightProvider.HighlightRole.NONE,
+			"a node that would exceed the combined budget must not read as selectable")
+	plan._on_node_left_clicked(tip)
+	assert_false(plan.blade_nodes.has(tip),
+			"member selection must respect budget already spent on temp upgrades")
 
 
 # ── Slot gate ──────────────────────────────────────────────────────────────
@@ -193,5 +211,19 @@ func test_skill_blade_preview_matches_build_blade_state_for_temp_upgrades() -> v
 	blade.build_from_skill_nodes(
 			nodes, source, plan.get_induced_edges(), _entity, plan.temp_upgrades)
 
-	assert_eq(blade.state.constraints.size(), resolve_state.constraints.size(),
-			"preview (SkillBlade) and resolve (build_blade_state) must produce the same constraint count for identical temp upgrades")
+	assert_eq(_constraint_pairs(blade.state), _constraint_pairs(resolve_state),
+			"preview (SkillBlade) and resolve (build_blade_state) must produce the exact same constraint set for identical temp upgrades")
+
+
+## Sorted (a, b) index pairs, so two constraint arrays can be compared by
+## content rather than just by size.
+func _constraint_pairs(state: BladeState) -> Array:
+	var pairs: Array = []
+	for c in state.constraints:
+		if c is BladeDistanceConstraint:
+			var dc := c as BladeDistanceConstraint
+			var a: int = min(dc.a, dc.b)
+			var b: int = max(dc.a, dc.b)
+			pairs.append([a, b])
+	pairs.sort()
+	return pairs

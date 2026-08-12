@@ -38,6 +38,13 @@ func configure_visual(r: float) -> void:
 
 
 func apply_to_blade(state: BladeState, particle_idx: int) -> void:
+	append_weld_braces(state, particle_idx)
+
+
+## Static so #406's temp-Clamp dispatch (BladeTempUpgrade) can reuse the exact
+## same geometry without instantiating a throwaway ClampAddon per call —
+## "temp Clamp == real Clamp" by construction, not by a duplicated formula.
+static func append_weld_braces(state: BladeState, particle_idx: int) -> void:
 	var neighbors: Array[int] = []
 	for e in state.edges:
 		if e.x == particle_idx:

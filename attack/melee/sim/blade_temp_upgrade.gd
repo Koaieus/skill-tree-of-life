@@ -19,8 +19,13 @@ const COST: Dictionary = {
 	SPIKE: 2,
 }
 
-const _CLAMP_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
+
+## Lazily-resolved, process-lifetime cache of the procgen SpikeRingAddon's
+## authored blade_damage bonus — resolved once (a scene instantiate is not
+## free at SkillNode/blade scale, see .claude/rules/skill-node-scale.md),
+## never per apply() call, even though apply() runs every preview rebuild.
+static var _spike_damage_bonus: float = -1.0
 
 
 ## Dispatch every entry in `upgrades` against `state`, using `skill_nodes`'
@@ -42,13 +47,11 @@ static func apply(
 				_apply_spike(state, i)
 
 
-## Reuses ClampAddon's own weld-brace geometry (a bare, unparented instance —
-## apply_to_blade only reads state/particle_idx, never `carrier`) so temp-Clamp
-## produces identical constraints to a real one, by construction.
+## Reuses ClampAddon's own weld-brace geometry (the static twin of its
+## apply_to_blade instance method) so temp-Clamp produces identical
+## constraints to a real one, by construction — no per-call allocation.
 static func _apply_clamp(state: BladeState, particle_idx: int) -> void:
-	var clamp := _CLAMP_SCENE.instantiate() as ClampAddon
-	clamp.apply_to_blade(state, particle_idx)
-	clamp.free()
+	ClampAddon.append_weld_braces(state, particle_idx)
 
 
 ## Reuses the procgen SpikeRingAddon's own authored blade_damage bonus (single
@@ -58,10 +61,12 @@ static func _apply_clamp(state: BladeState, particle_idx: int) -> void:
 ## Spike — never attached, never stat-board-merged — adds the same flat amount
 ## straight onto the already-localized vertex_damage.
 static func _apply_spike(state: BladeState, particle_idx: int) -> void:
-	var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
-	var bonus := 0.0
-	for mod in spike.local_modifiers:
-		if mod.stat_id == &"blade_damage":
-			bonus += mod.value
-	spike.free()
-	state.vertex_damage[particle_idx] += bonus
+	if _spike_damage_bonus < 0.0:
+		var spike := _SPIKE_SCENE.instantiate() as SpikeRingAddon
+		var bonus := 0.0
+		for mod in spike.local_modifiers:
+			if mod.stat_id == &"blade_damage":
+				bonus += mod.value
+		spike.free()
+		_spike_damage_bonus = bonus
+	state.vertex_damage[particle_idx] += _spike_damage_bonus
