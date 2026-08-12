@@ -22,6 +22,13 @@ var source: SkillNode = null
 ## reachable from the pivot through this list + the pivot via graph edges.
 var blade_nodes: Array[SkillNode] = []
 
+## Plan-local, this-swing-only Clamp/Spikes upgrades (#406) — never a real
+## attached SkillNodeAddon. Node -> BladeTempUpgrade.CLAMP | .SPIKE. Spent from
+## the same blade_size budget as blade_nodes; cleared on reset(). Applied into
+## BladeState by BladeTempUpgrade.apply(), shared with SkillBlade's preview
+## build so resolve() and MeleePreview stay in parity by construction.
+var temp_upgrades: Dictionary = {}
+
 ## Arc / sweep target — kept as Vector2 for now per the original sketch;
 ## targeting integration comes when previews land.
 var blade_target: Vector2
@@ -105,7 +112,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	if source != null \
 			and attacker != null \
 			and node.owned_by == attacker \
-			and blade_nodes.size() < max_blades() \
+			and blade_nodes.size() + temp_upgrade_cost_total() < max_blades() \
 			and _is_neighbor_of_blade_set(node):
 		return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
@@ -121,6 +128,46 @@ func max_blades() -> int:
 	return int(source.get_local_value(_BLADE_SIZE_ID))
 
 
+## Sum of BladeTempUpgrade.COST across every currently-applied temp upgrade.
+func temp_upgrade_cost_total() -> int:
+	var total := 0
+	for upgrade in temp_upgrades.values():
+		total += BladeTempUpgrade.COST.get(upgrade, 0)
+	return total
+
+
+## True if `node` (already the pivot or a selected member) can receive
+## `upgrade`: an open addon slot, and the combined member + upgrade spend
+## stays within max_blades().
+func can_apply_temp_upgrade(node: SkillNode, upgrade: StringName) -> bool:
+	if not BladeTempUpgrade.COST.has(upgrade):
+		return false
+	if node == null or (node != source and not blade_nodes.has(node)):
+		return false
+	if temp_upgrades.has(node):
+		return false
+	if node.get_addons().size() >= int(node.get_local_value(&"addon_slots")):
+		return false
+	var cost: int = BladeTempUpgrade.COST[upgrade]
+	return blade_nodes.size() + temp_upgrade_cost_total() + cost <= max_blades()
+
+
+## Spend budget and record `upgrade` on `node`. Returns false (no-op) if
+## can_apply_temp_upgrade() rejects it.
+func apply_temp_upgrade(node: SkillNode, upgrade: StringName) -> bool:
+	if not can_apply_temp_upgrade(node, upgrade):
+		return false
+	temp_upgrades[node] = upgrade
+	state_changed.emit()
+	return true
+
+
+## Refund `node`'s temp upgrade, if any.
+func remove_temp_upgrade(node: SkillNode) -> void:
+	if temp_upgrades.erase(node):
+		state_changed.emit()
+
+
 # ── State mutations (all assume legitimacy already gated) ──────────────────
 
 func _set_pivot(node: SkillNode) -> void:
@@ -132,6 +179,7 @@ func _set_pivot(node: SkillNode) -> void:
 		_blade_mirror.mirror_remove(source)
 	source = node
 	_blade_mirror.mirror_add(node)
+	temp_upgrades.clear()
 
 
 func _clear_pivot() -> void:
@@ -142,10 +190,11 @@ func _clear_pivot() -> void:
 	if source != null:
 		_blade_mirror.mirror_remove(source)
 	source = null
+	temp_upgrades.clear()
 
 
 func _try_select_blade(node: SkillNode) -> bool:
-	if blade_nodes.size() >= max_blades():
+	if blade_nodes.size() + temp_upgrade_cost_total() >= max_blades():
 		return false
 	if not _is_neighbor_of_blade_set(node):
 		return false
@@ -171,9 +220,11 @@ func _deselect_blade(node: SkillNode) -> void:
 	var islanded := _blade_mirror.nodes_islanded_by_removing(node, source)
 	_blade_mirror.mirror_remove(node)
 	blade_nodes.erase(node)
+	temp_upgrades.erase(node)
 	for n in islanded:
 		_blade_mirror.mirror_remove(n)
 		blade_nodes.erase(n)
+		temp_upgrades.erase(n)
 
 
 # ── Internals ──────────────────────────────────────────────────────────────
@@ -265,6 +316,9 @@ func build_blade_state() -> BladeState:
 	for i in selection.size():
 		for addon in selection[i].get_addons():
 			addon.apply_to_blade(blade_state, i)
+	# Temp upgrades (#406) layer on top of real addon dispatch, same as they
+	# would if attached for real.
+	BladeTempUpgrade.apply(blade_state, selection, temp_upgrades)
 	return blade_state
 
 
