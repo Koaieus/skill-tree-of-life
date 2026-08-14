@@ -21,5 +21,14 @@ extends Resource
 ## on the retired enum-based predecessor (#312).
 @export var carve_shape: CarveShape = null
 
+## Read-through to the primary stat's tint. GUARDED because this class is
+## `@tool`: an unresolvable `primary_stat` (a typo, a renamed StatDef) would
+## otherwise crash the EDITOR on a property *read* — the inspector reads
+## `color` just by showing the resource.
 var color: Color:
-	get: return StatRegistry.get_def(primary_stat).tint_color
+	get:
+		var def := StatRegistry.get_def(primary_stat)
+		if def == null:
+			push_warning("Archetype '%s': no StatDef for primary_stat '%s'" % [resource_path, primary_stat])
+			return Color.WHITE
+		return def.tint_color

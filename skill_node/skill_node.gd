@@ -1406,7 +1406,9 @@ func _on_addon_removed(c: Node) -> void:
 ## work). Callers that want slot enforcement call this instead of
 ## reimplementing it.
 func can_attach_addon(addon_script: Script) -> bool:
-	if get_addons().size() >= int(get_local_value(&"addon_slots")):
+	# `_addons.size()`, not `get_addons().size()` — the accessor duplicates the
+	# whole ledger just to count it, and #406's UI calls this per candidate node.
+	if _addons.size() >= int(get_local_value(&"addon_slots")):
 		return false
 	for a in _addons:
 		if a.unique and a.get_script() == addon_script:

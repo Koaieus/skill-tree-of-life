@@ -199,8 +199,12 @@ func _play_cancel(ev: PropagationEvent, pending: Array[int]) -> void:
 	if scene == null:
 		return
 	var node := scene.instantiate()
-	if ev.target != null:
-		node.global_position = ev.target.global_position
+	# `global_position` only exists on Node2D — a `cancel_visual` overridden
+	# with a Control- or Node-rooted scene would crash on the assignment, on an
+	# untyped local that gives no hint it could.
+	var placed := node as Node2D
+	if placed != null and ev.target != null:
+		placed.global_position = ev.target.global_position
 	add_child(node)
 	pending[0] += 1
 	node.tree_exiting.connect(func() -> void:

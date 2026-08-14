@@ -139,7 +139,7 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 	var aura_class := CoreClass.new()
 	var aura := HealAura.new()
 	aura.base = 10.0
-	aura.range = 3.0
+	aura.hop_range = 3.0
 	aura_class.aura = aura
 
 	var attacker := await BalanceFixture.build(root, level, _BALANCED)

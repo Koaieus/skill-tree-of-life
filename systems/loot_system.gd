@@ -160,9 +160,11 @@ func _ready() -> void:
 	# + everything it islanded) AND the defender it came off — `owned_by` is
 	# cleared by the strip that same loop, so the fact has to be read here or not
 	# at all. BattleSystem emits this BEFORE the strip; see its `cascade_started`.
-	if battle_system != null:
-		battle_system.attack_launched.connect(_on_attack_launched)
-		battle_system.cascade_started.connect(_on_cascade_started)
+	if battle_system == null:
+		push_warning("LootSystem has no battle_system: the per-node removal trickle (#182) is off entirely")
+		return
+	battle_system.attack_launched.connect(_on_attack_launched)
+	battle_system.cascade_started.connect(_on_cascade_started)
 
 
 ## Pre-cleanup phase — corpse still owns its nodes (see Events.entity_dying).
@@ -173,6 +175,13 @@ func _on_entity_dying(victim: Entity) -> void:
 	_award_kill_xp(victim, killer)
 	_drop_skill_dust(victim)
 	_award_spell_loot(victim, killer)
+	# Retire this victim's ledger the moment it has been paid out. The other
+	# clear (`_on_attack_launched`) is wired only when `battle_system` is set,
+	# so an unset export left the ledger to accumulate across attacks while
+	# `_award_kill_xp` read it unconditionally — a later kill then counted an
+	# earlier attack's territory at the kill-bonus rate. Clearing here makes
+	# the read self-consistent no matter how the system is wired.
+	_removed_this_attack.erase(victim)
 	# Still the pre-strip world: the corpse owns its nodes, so an effect can
 	# inspect the territory it just took (the Predator's BLITZ will want this).
 	if killer != null:

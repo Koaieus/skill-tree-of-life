@@ -154,7 +154,7 @@ func test_aura_falloff_by_hop() -> void:
 	var chain := _chain(core, 3, _entity, _alloc)  # hop1, hop2, hop3
 	var aura := HealAura.new()
 	aura.base = 10.0
-	aura.range = 3.0
+	aura.hop_range = 3.0
 
 	var values := aura.values_from(core, _entity.navigator)
 	# value_at_hop(h) = base * (1 - h/range): 10, 6.667, 3.333, 0 for base 10 / range 3.
@@ -172,10 +172,10 @@ func test_aura_base_and_range_independent() -> void:
 
 	var weak := HealAura.new()
 	weak.base = 10.0
-	weak.range = 3.0
+	weak.hop_range = 3.0
 	var strong := HealAura.new()
 	strong.base = 20.0
-	strong.range = 3.0  # same range, only base doubles
+	strong.hop_range = 3.0  # same range, only base doubles
 
 	var weak_values := weak.values_from(core, _entity.navigator)
 	var strong_values := strong.values_from(core, _entity.navigator)
@@ -211,7 +211,7 @@ func test_aura_hop_distance_uses_owned_subgraph() -> void:
 
 	var aura := HealAura.new()
 	aura.base = 10.0
-	aura.range = 3.0  # would reach a global-shortcut 2-hop target, not a 4-hop one
+	aura.hop_range = 3.0  # would reach a global-shortcut 2-hop target, not a 4-hop one
 
 	var values := aura.values_from(core, _entity.navigator)
 	assert_false(values.has(target),
@@ -237,7 +237,7 @@ func test_aura_heals_through_damage_gate_and_grants_no_ramp() -> void:
 	var cc := CoreClass.new()
 	var aura := HealAura.new()
 	aura.base = 10.0
-	aura.range = 3.0
+	aura.hop_range = 3.0
 	cc.aura = aura
 	_entity.core_class = cc
 

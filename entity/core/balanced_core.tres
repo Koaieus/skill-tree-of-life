@@ -11,7 +11,7 @@
 [sub_resource type="Resource" id="heal_aura_balanced"]
 script = ExtResource("5_heal_aura")
 base = 5.0
-range = 3.0
+hop_range = 3.0
 
 [sub_resource type="Resource" id="mod_con"]
 script = ExtResource("2_mod")

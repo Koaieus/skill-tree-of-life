@@ -57,7 +57,13 @@ func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> 
 		return out
 	for n in mirror.get_mirrored_nodes():
 		if n == source or in_range(attacker, source, n):
-			out[n] = 0.0
+			# -1.0, NOT 0.0: the contract above promises the DISTANCE, and a
+			# base class with no metric of its own cannot supply one. Writing
+			# 0.0 answered "every node is exactly at the source", which a
+			# DistanceScale would read as full magnitude everywhere. Both
+			# concrete finders override this; -1.0 marks "unknown" the same way
+			# `max_reach` does, so a caller that lands here can tell.
+			out[n] = -1.0
 	return out
 
 
