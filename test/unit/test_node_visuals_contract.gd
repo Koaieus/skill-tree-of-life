@@ -7,6 +7,10 @@ extends GutTest
 ## shared [LightingStyle] object whose `changed` re-pushes — so the disk and
 ## its rim can never drift onto two different lights.
 
+## NodeVisualsComposite declares no `class_name` (leaf visual components in this
+## family deliberately do not — see .claude/rules/skill-node-visuals.md), so its
+## constants are reachable only through the script resource.
+const CompositeScript := preload("res://skill_node/visuals/node_visuals_composite.gd")
 const CompositeScene := preload("res://skill_node/visuals/node_visuals_composite.tscn")
 const DiskScene := preload("res://skill_node/visuals/inner_disk.tscn")
 ## Shelved out of the composite (#238) but still the family's clearest animating
@@ -112,19 +116,31 @@ func test_disk_and_rim_ship_no_baked_material() -> void:
 	assert_null(rim.material, "RimRing.tscn must not bake a material (re-bake regression)")
 
 
-## The rim carries archetype identity and "activates" toward it on allocation:
-## an unallocated node's rim reads mostly as its own bronze metal (tint_mix
-## 0.3), an allocated one as full archetype tint (1.0) — a second allocation
-## read alongside the disk lighting up. Guards the #172 approach-A removal,
-## which dropped the loop that used to drive this.
+## The rim carries archetype identity and "activates" toward it on allocation.
+## Guards the #172 approach-A removal, which dropped the loop that used to
+## drive this.
+##
+## Asserts against the CONSTANTS, not literals. This test used to hardcode
+## 0.3 → 1.0 and went red when the swing was retuned to 0.8 → 0.9 for
+## legibility (owner-confirmed 2026-08-14: the strongly tinted rim is what
+## makes a node readable at board zoom, and bronze-dominant did not read).
+## Hardcoding the numbers pinned a look nobody had agreed to keep; what the
+## contract actually owes is that allocation MOVES the tint and that both ends
+## stay colourful.
 func test_rim_tint_mix_tracks_allocation() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
 	var rim = comp.get_node("%RimRing")
 	comp.allocation_level = 0
-	assert_eq(rim.tint_mix, 0.3, "unallocated rim reads mostly bronze metal")
+	assert_almost_eq(rim.tint_mix, CompositeScript.UNFILLED_TINT_MIX, 0.0001,
+		"unallocated rim sits at the unfilled tint ratio")
 	comp.allocation_level = 1
-	assert_eq(rim.tint_mix, 1.0, "allocated rim reads full archetype tint")
+	assert_almost_eq(rim.tint_mix, CompositeScript.FILLED_TINT_MIX, 0.0001,
+		"allocated rim sits at the filled tint ratio")
+	assert_gt(CompositeScript.FILLED_TINT_MIX, CompositeScript.UNFILLED_TINT_MIX,
+		"allocation must move the rim TOWARD the archetype tint, not away")
+	assert_gt(CompositeScript.UNFILLED_TINT_MIX, 0.5,
+		"even unallocated, the rim stays archetype-tinted — it is the legibility read")
 
 
 ## #172: a fog-hidden node (the whole composite invisible) registers NO

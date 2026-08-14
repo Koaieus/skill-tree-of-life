@@ -30,6 +30,7 @@ terminating at the fogged node's rim. Mitigating factor: the fog quad sits at
 z=1000 and the edge at `ZLayers.EDGE = -10`, so it draws *under* the fog. If the
 stub reads as a topology leak in-game, make the floor conditional on a new
 straddle vis-state in `edge_mesh.gdshader`. **Not headless-verifiable.**
+**Filed as #418.**
 
 ### A1 — Owner smell #2 + #3 (the render/build bugs)
 
@@ -66,7 +67,7 @@ not.
 | # | Site | Change | Source | Status |
 |---|---|---|---|---|
 | A2.1 | `skill_node/visuals/node_visuals_composite.tscn:19-36`, `rim_ring.tscn:6-12`, `node_visuals_panel.tscn:91-96` | Delete every `instance_shader_parameters/*` line. Scene instantiation applies them by name via `set()`, which `_validate_property`'s STORAGE clearing does not intercept — so every node claims slots in the 4096-item global instance-uniform buffer from load, defeating the `is_visible_in_tree()` fog gate (the #172 regression, verbatim). Then extend `test_disk_and_rim_ship_no_baked_material` to assert on instance params, not just `material`. | skill-node #2, #3 | todo |
-| A2.1b | `skill_node/visuals/` — site TBD | **Scope correction, measured 2026-08-14.** `test_node_visuals_contract` fails **three** test functions, not two. A2.1 covers only the two `assert_null` instance-uniform ones (`test_fog_hidden_composite_registers_no_instance_state`, `test_unfogged_composite_syncs_on_becoming_visible`). The third, `test_rim_tint_mix_tracks_allocation:125,127`, is a **separate, undiagnosed divergence**: `tint_mix` reads 0.8 where the test wants 0.3 ("unallocated rim reads mostly bronze metal") and 0.9 where it wants 1.0 ("allocated rim reads full archetype tint"). No auditor reported this — likely the composite's `FILLED_TINT_MIX`/`UNFILLED_TINT_MIX` swing (cf. skill-node #11). **A2.1 alone will not turn this script green.** | measured | todo |
+| A2.1b | `skill_node/visuals/` — site TBD | **Scope correction, measured 2026-08-14.** `test_node_visuals_contract` fails **three** test functions, not two. A2.1 covers only the two `assert_null` instance-uniform ones (`test_fog_hidden_composite_registers_no_instance_state`, `test_unfogged_composite_syncs_on_becoming_visible`). The third, `test_rim_tint_mix_tracks_allocation:125,127`, is a **separate, undiagnosed divergence**: `tint_mix` reads 0.8 where the test wants 0.3 ("unallocated rim reads mostly bronze metal") and 0.9 where it wants 1.0 ("allocated rim reads full archetype tint"). No auditor reported this — likely the composite's `FILLED_TINT_MIX`/`UNFILLED_TINT_MIX` swing (cf. skill-node #11). **A2.1 alone will not turn this script green.** | measured | **issue #419** |
 | A2.2 | `test/unit/ui/test_fan_scene.gd` | Known-broken, parked in FOCUS lane E item 7 while still collected. Mark `pending("#<n>")` so the baseline is green and new red is unambiguous. | test-infra #2 | todo |
 
 `test_spell_defs::test_reverberator_preset_well_formed` is **not** here — it is a
@@ -154,7 +155,9 @@ the closing-paren line. Genuine count in `attack/` is **0**; in `procgen/` it is
 These eight are the only findings where a wrong guess is expensive. Everything
 else is in A or C.
 
-**B1 — Which Reverberator is the real one? → OPEN, owner is mid-design.**
+**B1 — Which Reverberator is the real one? → FILED AS #417.** Full fork,
+the owner's reasoning and the primitive mapping now live on the issue; the copy
+below is a summary. Owner is mid-design.
 The `.tres` ships `TakeTopNStep(2)` + `MaxDamageReducer` +
 `ScaledAddProgression(0.5)`; the player-facing `description` and
 `test_spell_defs.gd:70-73` both say `SumDamageReducer` + `MultiplyProgression`.
@@ -213,8 +216,7 @@ reducer in one merge. Sum → exactly 2×, then crit. Max → 1×, then crit.
    specific progression) has to carry it, and then Sum-vs-Max is a much smaller
    balance decision than it looks.
 
-Recommended next step: `/swarmify` this against #352 rather than patching the
-`.tres` — the test and the description both have to move with whatever wins, and
+Recommended next step: `/swarmify` **#417** rather than patching the `.tres` — the test and the description both have to move with whatever wins, and
 the test additionally reads a `factor` property `ScaledAddProgression` does not
 have (see the baseline error), so it needs real work under either branch.
 

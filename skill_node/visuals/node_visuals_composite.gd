@@ -51,11 +51,17 @@ const DISK_RIM_OVERLAP := 1.5
 ## the rim "activating" toward its archetype hue on allocation is a second,
 ## independent allocation read alongside the disk lighting up.
 ##
-## #341: kept these two ratios as-is (see test_rim_tint_mix_tracks_allocation,
-## which pins UNFILLED_TINT_MIX == 0.3) — the reopen's "both states need a
-## brightness/glow upgrade" is answered by RimRing._effective_tint's own
-## saturate/brighten step plus the additive fill glow, not by moving this
-## swing's numbers. Flagged for main to confirm; see the issue comment.
+## The swing WAS 0.3 → 1.0. It is now 0.8 → 0.9: both states are deliberately
+## far more colourful, because the tinted rim is what makes a node legible at
+## board zoom — bronze-dominant at 0.3 did not read. Confirmed as intended by
+## the owner 2026-08-14; the paragraph that used to sit here claimed #341 "kept
+## these two ratios as-is" and pointed at a test pinning 0.3, both of which had
+## been false since whoever retuned them for visibility.
+##
+## So allocation is now a NARROW tint step (0.8 → 0.9) carried mostly by other
+## channels — the disk lighting up, RimRing._effective_tint's saturate/brighten,
+## and the additive fill glow. Don't widen it back for contrast without checking
+## legibility at 500-2500 nodes first; the unallocated end is the constraint.
 const FILLED_TINT_MIX := 0.9
 const UNFILLED_TINT_MIX := 0.8
 

@@ -353,3 +353,55 @@ Each worktree has its own gitignored `.godot/` — confirmed empirically (#86
 spike) that a fresh worktree's cold `godot --headless --editor` import
 neither touches nor corrupts the main checkout's `.godot/`, and is fully
 independent (own import cache, own class cache).
+
+## `godot --script` does not boot autoloads — use a GUT test to inspect scene state
+
+A throwaway `godot --headless --script foo.gd` (`extends SceneTree`) is the
+obvious way to ask "what does this scene actually contain at runtime?" It runs,
+but **the autoload singletons are never registered**, so every script that
+touches `StatRegistry`, `Events`, `SceneTransition`, … fails to compile:
+
+```
+SCRIPT ERROR: Compile Error: Identifier not found: StatRegistry
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+```
+
+The trap is the failure *shape*: those errors go to stderr while your own
+`print()` never fires, so a grep for your expected output comes back empty and
+reads as "the scene has 0 edges" rather than "half the project didn't compile."
+Cost two debugging loops in one session chasing a scene that was fine.
+
+**Use a GUT test instead** — `mise run test:one` boots the project normally, so
+autoloads exist (`.claude/rules/testing.md` states this). If the thing is worth
+inspecting once it is usually worth pinning, so the test is rarely wasted work.
+
+`--script` remains fine for anything that touches no game code: probing an engine
+API, sampling a `Curve`, checking `Image` formats.
+
+## Screenshotting the running game (for anything the headless suite can't judge)
+
+Glow, z-order, fog, and shader output are invisible to GUT — the dummy renderer
+no-ops MultiMesh instance writes and never compiles GLSL. To get a real frame:
+
+```bash
+Xvfb :99 -screen 0 1600x1000x24 & sleep 3
+DISPLAY=:99 godot --path . --rendering-driver opengl3 res://scenes/dev_sandbox.tscn &
+sleep 25                       # let the scene settle
+DISPLAY=:99 import -window root shot.png
+```
+
+`--quit-after N` counts *frames*, not seconds, and will often quit before the
+scene has settled — prefer `sleep` + an explicit `kill`.
+
+For a before/after on a visual change, shoot both, then compare numerically
+rather than by eye — ImageMagick over a small crop makes it objective:
+
+```bash
+magick shot.png -crop 60x35+765+760 +repage -format "mean=%[fx:mean] max=%[fx:maxima]" info:
+```
+
+This is how the self-loop HDR lift was verified: `max` went 0.592 → 1.000
+(i.e. it now crosses `glow_hdr_threshold` at all) and the regional `mean`
+roughly doubled, which is the bloom halo bleeding into neighbouring pixels.
+A `max` below 1.0 is proof that nothing can bloom, whatever the CPU-side colour
+function returns.
