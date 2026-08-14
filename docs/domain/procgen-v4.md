@@ -50,14 +50,17 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
 
 ## Debuffs (D9)
 
-A `StatPool` with negative `unit_value` is a debuff pool. Its single tier (pin
-`max_tier = 1`) has `cost = -T` (so the draw **refunds** 1 budget when picked)
-and a negative rolled value. The draw enforces `max_refunds = 1` per node and
-only offers a debuff while `remaining ≥ 1`. The economics self-balance on an
+A `StatPool` with negative `unit_value` is a debuff pool. It ladders like any
+other pool (settled 2026-08-07): each tier `T` has `cost = -T` (so the draw
+**refunds** budget when picked) alongside its negative rolled value — a
+deeper debuff hurts more AND refunds more, in lockstep, so a bigger refund is
+never free budget. The draw enforces `max_refunds = 1` per node and only
+offers a debuff while `remaining ≥ 1`. The economics self-balance on an
 exponential ladder: a T1 debuff only pays when the refund crosses a
 power-of-two threshold into a higher tier (budget 7 → T3+T2+T1 = 11 value;
 budget 7 + T1 debuff → budget 8 → T4 = 15, −1 = 14 value). The repo's debuff
-is the universal `intelligence` INCREASE `unit_value = -5` in `constitution.tres`.
+is the `intelligence` INCREASE `unit_value = -2` (`max_tier = 3`) in
+`constitution.tres`.
 
 ## Rare content → hand-authored landmarks (D8)
 

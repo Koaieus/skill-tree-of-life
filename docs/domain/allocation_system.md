@@ -67,7 +67,8 @@ Hand-authored levels (e.g. `dev_sandbox.tscn`) set `owned_by` directly in the sc
 
 ## Signals
 
-- `allocated(node, entity)` — fires from `force_allocate` (hence from both `allocate` and `spawn_entity` via that path)
-- `deallocated(node, previous_owner)` — fires from both `deallocate` and `force_deallocate`
+- `allocated(node, entity, forced)` — fires from both `allocate` (`forced = false`) and `force_allocate` (`forced = true`)
+- `deallocated(node, previous_owner)` — fires only from `deallocate` (the voluntary path)
+- `force_deallocated(node, previous_owner)` — fires only from `force_deallocate`
 
-Listeners (UI, VisionSystem) shouldn't need to distinguish voluntary from forced — the signal shape is identical; downstream logic that cares (e.g. wound vs refund) lives in the BattleSystem cascade handler.
+Listeners that care about voluntary vs. forced can branch on `allocated`'s `forced` flag, or on which of the two deallocation signals fired; downstream logic that cares (e.g. wound vs refund) lives in the BattleSystem cascade handler, which listens for `force_deallocated`.

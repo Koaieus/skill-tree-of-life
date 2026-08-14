@@ -381,8 +381,10 @@ func resolve() -> AttackOutcome:
 	return outcome
 
 
-## Build a fresh BladeState from the current selection. Public so the
-## MeleePreview controller can share the same construction with resolve().
+## Build a fresh BladeState from the current selection. `MeleePreview` does
+## NOT call this — it builds its own via `SkillBlade.build_from_skill_nodes`
+## (see C8, the three-way construction duplication). Kept public for callers
+## within this plan.
 func build_blade_state() -> BladeState:
 	if source == null:
 		return null

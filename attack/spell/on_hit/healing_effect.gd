@@ -10,10 +10,6 @@ extends OnHitEffect
 ## present (hops); falls back to [member CastSpell.source] for the seed so
 ## the first projectile flies from the cast-from node, not from nowhere.
 
-# TODO: finish implementation of healing — nothing consumes
-#       [member AttackOutcome.heals] yet (neither BattleSystem's headless path
-#       nor MagicBounceCoordinator), so a cast produces the data and drops it.
-
 func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	if state.current_node == null or state.damage <= 0.0:
 		return

@@ -30,12 +30,12 @@ Per-entity, derived from each allocated node:
 
 - **Visible set** — Euclidean: every node whose `global_position` is
   within `vision_range` of any of the viewer's allocated nodes. The
-  radius is read per-node via `SkillNode.get_local_stat(&"vision_range")`,
+  radius is read per-node via `SkillNode.get_local_value(&"vision_range")`,
   so an addon (e.g. Spyglass) can buff sight on one node without
   touching the entity stat.
 - **Sensed set** — graph priority traversal. Every owned node seeds a
   probe with its own *local* `sensor_range` (read via
-  `SkillNode.get_local_stat(&"sensor_range")`, so an addon — e.g. a
+  `SkillNode.get_local_value(&"sensor_range")`, so an addon — e.g. a
   Sensor Tower — can pump reach on one node only). Probes pop
   highest-budget-first; a node already reached with budget ≥ B can't be
   improved by a later, weaker probe and is skipped without expansion.
@@ -196,13 +196,13 @@ them ad-hoc.
 - **Signal blockers** — per-node hop cost. Today every edge step costs
   1 budget. A node could carry a `sensor_hop_cost` local stat (default
   1, blockers raise it to 2/3/N); the traversal would subtract
-  `nb.get_local_stat(&"sensor_hop_cost").value` instead of a constant
+  `nb.get_local_value(&"sensor_hop_cost")` instead of a constant
   1 when expanding into `nb`. Falls out of the existing
   `best_remaining` dominance check unchanged.
 - **Unallocated re-radiating boosters** — a signal repeater that an
   enemy hasn't claimed yet but still amplifies any probe passing
   through. On expansion into `nb`, take `max(remaining_after_hop,
-  nb.get_local_stat(&"sensor_radiate_range").value)` as the new
+  nb.get_local_value(&"sensor_radiate_range"))` as the new
   budget (capped at most once to avoid runaway). Owned re-radiators
   are degenerate — they're already seeds with their own budget.
 

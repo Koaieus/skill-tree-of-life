@@ -880,38 +880,9 @@ static func _roll_modifiers_v4(
 
 	# Aggregate per (stat_id, operation). ADD_BASE / ADD_BONUS / INCREASE sum
 	# (PoE-additive); MULTIPLY products (\times1.15 · \times1.15 = \times1.3225,
-	# NOT \times2.30); SET max.
-	# Key by "<stat>|<op>" to dodge StringName/Dictionary quirks; emit in
-	# first-drawn order so tooltips read top-to-bottom as the draw unwound.
+	# NOT \times2.30); SET max. Emitted in descending aggregated-cost order, so
+	# tooltips read biggest-investment-first.
 	return rolled.get_aggregate()
-	
-	#var acc: Dictionary = {}            # key -> { "stat": StringName, "op": int, "val": float }
-	#var order: Array[String] = []       # first-drawn key order  # TODO: sort by total cost is better
-	#for m in rolled:
-		#var key := "%s|%d" % [String(m.stat_id), int(m.operation)]
-		#if not acc.has(key):
-			#acc[key] = {"stat": m.stat_id, "op": int(m.operation), "val": m.value}
-			#order.append(key)
-		#else:
-			#var e: Dictionary = acc[key]
-			#match m.operation:
-				#StatModifier.Operation.MULTIPLY:
-					#e["val"] = float(e["val"]) * m.value
-				#StatModifier.Operation.SET:
-					#e["val"] = maxf(float(e["val"]), m.value)
-				#_:
-					#e["val"] = float(e["val"]) + m.value
-	## Emit one StatModifier per aggregated (stat, op), in first-drawn order.
-	#for key in order:
-		#var e: Dictionary = acc[key]
-		#var m := StatModifier.new()
-		#m.stat_id = e["stat"]
-		## Enum-typed var accepts an int (enums are int-backed); the `Variant` from
-		## the dict is coerced via int() first.
-		#m.operation = int(e["op"])
-		#m.value = float(e["val"])
-		#out.append(m)
-	#return out
 
 ## Typed container for StatModifiers that aggregates them as it ingests via `append`
 ## Merges in new ones destructively if mergeable, fusing two StatModifiers into 1

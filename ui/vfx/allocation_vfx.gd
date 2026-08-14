@@ -322,7 +322,7 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 	var tween := create_tween()
 	if delay > 0.0:
 		tween.tween_interval(delay)
-	# Vibrate: tiny sine-driven offset + glow ramp.
+	# Vibrate: tiny sine-driven offset, amplitude ramping up over the duration.
 	var steps := int(SHATTER_VIBRATE_DURATION * 60.0)
 	
 	for s in steps:

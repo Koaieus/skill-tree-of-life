@@ -3,14 +3,17 @@ class_name SandboxTab
 extends MarginContainer
 ## Base for one tab in the unified sandbox host (#77 phase 1).
 ##
-## Declares the tab's execution MODE — the load-bearing live-edit vs played
-## distinction from docs/domain/sandbox-framework.md:
-##   • LIVE_EDIT — an @tool panel that reacts to the Inspector in-editor
-##     (spell / VFX / stat-board). Embedded directly; runs live.
-##   • PLAYED    — a non-@tool gameplay scene that only executes on play
-##     (allocation / loot showcases). Surfaced as a launch card, NOT embedded,
-##     because @tool-ing the gameplay systems to run them in-editor is the
-##     explicitly-rejected branch (see the design doc).
+## Declares the tab's execution MODE — the load-bearing live vs played
+## distinction from docs/domain/sandbox-framework.md is **auto-tick = played;
+## explicit-step = live**, not @tool-ness (every shipped tab is @tool since
+## #260):
+##   • LIVE_EDIT — embedded directly, runs in-editor. Either reacts to the
+##     Inspector (spell / VFX / stat-board) or hosts a gameplay world driven
+##     by explicit button-triggered beats (allocation / loot) — it never
+##     auto-runs its own scenario.
+##   • PLAYED    — surfaced as a launch card, NOT embedded; auto-drives its
+##     scenario once launched. No shipped tab uses this mode since #260 — kept
+##     for a future surface that genuinely needs continuous auto-tick loops.
 ##
 ## Concrete reusable subclasses configure themselves via setup():
 ## SandboxLiveTab, SandboxPlayedTab. The `class_name` is also the Phase-4

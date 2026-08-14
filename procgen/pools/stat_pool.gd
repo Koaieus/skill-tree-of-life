@@ -18,9 +18,10 @@ extends Resource
 ## with weight profiles, spends budget until broke, then aggregates per
 ## (stat_id, operation): ADD*/INCREASE sum, MULTIPLY product, SET max.
 ##
-## Debuffs (D9): set `unit_value` negative. The single debuff tier refunds
-## budget (`cost = -T`); pin `max_tier = 1` and the draw enforces
-## `max_refunds = 1` per node.
+## Debuffs (D9): set `unit_value` negative. Debuff pools ladder like any
+## other pool — each tier refunds budget (`cost = -T`) alongside its rolled
+## value, deeper tiers refunding more in lockstep with hurting more (settled
+## 2026-08-07). The draw enforces `max_refunds = 1` per node.
 ##
 ## Archetype affinity vs target stat:
 ##   - `stat_id`     — what the modifier writes to (e.g. `&"xp_per_turn"`).
@@ -84,7 +85,9 @@ extends Resource
 
 ## Highest tier offered. `max_tier < 4` is the honest brake that replaces the
 ## old descending weight curves: capping a flat ladder (movement, deallocation)
-## states it instead of hiding it in weights. Debuff pools pin `max_tier = 1`.
+## states it instead of hiding it in weights. Debuff pools ladder like any
+## other pool (settled 2026-08-07) — a deeper debuff hurts more and refunds
+## more, in lockstep, so there is no restriction to `max_tier = 1`.
 @export_range(1, 4) var max_tier: int = 4
 
 
@@ -187,8 +190,6 @@ func _get_configuration_warnings() -> PackedStringArray:
 		out.append("max_tier < min_tier — pool will draw nothing.")
 	if unit_value == 0.0 and value_overrides.is_empty():
 		out.append("unit_value 0 with no overrides — every tier rolls 0.")
-	if unit_value < 0.0 and hi > 1:
-		out.append("debuff pool (unit_value < 0) with max_tier > 1 — D9 pins debuffs to a single tier.")
 	var registry := TagRegistry.canonical()
 	if registry != null:
 		var unknown := registry.unknown_tags(tags)

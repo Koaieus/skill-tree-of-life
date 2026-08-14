@@ -18,7 +18,7 @@ re-deriving anything.
 
 - **`AttackPlan`** (abstract `RefCounted`) — base for every mode. Owns
   `attacker`, `mode`, `signal state_changed`, the `HighlightRole` enum,
-  and the virtual surface: `validate()`, `get_highlight_role(node)`,
+  and the virtual surface: `validate()`, `get_node_role(node)`,
   `_on_node_left_clicked(node)`, `_on_node_right_clicked(node) -> bool`,
   `pop() -> bool`, `get_node_range(node)`. Concrete plans override what
   they care about and emit `state_changed` on any internal mutation.
@@ -35,7 +35,9 @@ re-deriving anything.
   default `valid_targets()` iterates the live graph and filters via the
   predicate (enough for NODE-kind subclasses). `TargetingKind` enum on
   the base (`NODE`/`EDGE`/`POSITION`/`SELF`) for future input dispatch.
-  Concrete: `SingleHostileNodeTargeting`, `SingleAlliedNodeTargeting`.
+  Concrete: `NodeTargeting`, with an `ownership_filter` flag mask
+  (`Neutral`/`Mine`/`Ally`/`Hostile`/…) rather than one subclass per
+  ownership shape.
 - **`RangeFinder`** (abstract `Resource`) — single method
   `in_range(plan, source, candidate)`. Composed by Targeting subclasses.
   Concrete: `EuclideanRangeFinder` (max_distance), `HopRangeFinder`
@@ -271,8 +273,8 @@ together. Settled on `SpellDef + targeting: Targeting` because:
 - Targeting is orthogonal to effect. Fireball and Frostbolt share
   "single enemy node within range R" — they differ only in damage type.
   Subclassing SpellDef per spell duplicates targeting logic.
-- Targeting types are reusable across modes — a `SingleHostileNodeTargeting`
-  serves ranged-target and magic-target equally.
+- Targeting types are reusable across modes — a `NodeTargeting` with
+  `ownership_filter = Hostile` serves ranged-target and magic-target equally.
 - `Targeting` is small and easy to subclass for new shapes (EDGE,
   POSITION, AoE) without touching SpellDef.
 

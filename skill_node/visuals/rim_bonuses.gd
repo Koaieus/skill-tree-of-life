@@ -167,8 +167,9 @@ func _draw_stake_fill(rim_width: float) -> void:
 
 
 ## Fakes glow via stacked translucent strokes (same CPU technique as
-## core_halos.gd/rune_ring.gd's edge_glow) rather than a shader — no
-## project-wide glow/bloom environment exists yet to justify one.
+## core_halos.gd/rune_ring.gd's edge_glow) rather than a shader — this
+## component predates the project-wide bloom `WorldEnvironment` shipped in
+## #371 (see .claude/rules/hdr-color.md) and hasn't been migrated to it.
 func _draw_glow_arc(r: float, rim_width: float, start: float, end: float) -> void:
 	var span := end - start
 	if span <= 0.0:

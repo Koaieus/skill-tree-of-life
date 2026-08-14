@@ -105,8 +105,10 @@ signal node_action_denied(node: SkillNode, reason: String)
 
 ## Fired by [AIController] on every AI decision this turn (growth allocation,
 ## attack pick, or "nothing sensible") — ALWAYS, regardless of the
-## controller's local `debug_trace` toggle. Zero consumers is a no-op; this
-## is the seam a future HUD overlay / DebugClipboard fan subscribes to
-## without touching the controller (#378). `entity` is the deciding AI,
-## `summary` a short human-readable description of the decision.
+## controller's local `debug_trace` toggle. No production listener yet;
+## `test_ai_controller.gd` / `test_ai_controller_combat.gd` connect to pin
+## the unconditional-emit contract. This is the seam a future HUD overlay /
+## DebugClipboard fan subscribes to without touching the controller (#378).
+## `entity` is the deciding AI, `summary` a short human-readable description
+## of the decision.
 signal ai_decision(entity: Entity, summary: String)

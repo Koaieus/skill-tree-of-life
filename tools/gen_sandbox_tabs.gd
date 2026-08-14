@@ -12,11 +12,15 @@ extends SceneTree
 ## TAB SCENES ARE NOT GENERATED AT ALL — every tab is now hand-authored (#250
 ## live tabs, #260 the last played cards). A live tab is a one-node **inherited
 ## scene** of `sandbox_live_tab.tscn` (the scenic base with the breadcrumb
-## toolbar + %PanelHost slot) overriding only tab_title / tab_id / panel_scene /
-## loader_method. Inherited scenes can't be expressed via PackedScene.pack, and
-## they hand-author cleanly (path-resolved ext_resources, no uid landmines), so
-## to add a tab: copy an existing one under `addons/sandbox_host/tabs/` and swap
-## the values. There is no played-tab generator path left: generating one would
+## toolbar + %PanelHost slot) that *instances its panel scene inside itself*
+## under %PanelHost, overriding tab_title / tab_id / loader_method — never via
+## the legacy `panel_scene` export, which `add_child`s the panel at runtime
+## instead of shipping it pre-packaged (see
+## .claude/rules/sandbox-host.md). Inherited scenes can't be expressed via
+## PackedScene.pack, and they hand-author cleanly (path-resolved
+## ext_resources, no uid landmines), so to add a tab: copy an existing one
+## under `addons/sandbox_host/tabs/` (e.g. `70_bloom_tab.tscn`) and swap the
+## values. There is no played-tab generator path left: generating one would
 ## silently clobber a hand-authored live tab on the next run (the 60_toast
 ## landmine this retired, #260).
 

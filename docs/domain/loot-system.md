@@ -5,7 +5,8 @@ to `Events.entity_dying(victim)` and does two things:
 
 1. **XP reward (#68, #173, #182)** — the killer gains XP for the **territory**
    the victim held at death (its core included). Never for its level. A
-   per-node trickle rides `Events.skill_node_destroyed` alongside this.
+   per-node trickle rides `BattleSystem.cascade_started` alongside this (see
+   below — it can't ride `Events.skill_node_depleted`).
 2. **SkillDust drop (#69/#173)** — the victim's former core node becomes a
    claimable relic carrying a `SkillDustAddon`, a **pick-N-from-M** choice over
    the victim's **core** modifiers.
