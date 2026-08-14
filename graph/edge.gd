@@ -110,7 +110,19 @@ var _current_zoom: float = 1.0
 			return
 		sensed = value
 		if is_self_loop:
-			z_index = ZLayers.EDGE + ZLayers.SENSED if sensed else ZLayers.EDGE
+			# The ABSOLUTE sensed band, not `EDGE + SENSED`. SkillNode gets away
+			# with the additive idiom (`skill_node.gd:423`) only because its base
+			# band is GRAPH_DEFAULT (0), so 0 + 1001 lands on SENSED. The EDGE
+			# band is NEGATIVE, so the same pattern yielded 991 — *below* the
+			# opaque FogOverlay quad at ZLayers.FOG (1000), and a sensed
+			# self-loop was simply painted over, delivering none of the
+			# "topology breadcrumb reads through fog" contract `sensed` exists
+			# for. Tradeoff: at 1001 the loop shares its band with a sensed
+			# SkillNode and, being later in `graph.tscn`'s child order, now
+			# draws OVER the node body instead of sinking under it (see
+			# `_draw_self_loop`'s docstring). Reading through fog beats the
+			# sunk-ring look; both dissolve once self-loops join the batch.
+			z_index = ZLayers.SENSED if sensed else ZLayers.EDGE
 		_update_visual()
 
 ## Vision-RANGE visibility (distinct from `sensed`'s hops-based sensor
@@ -361,7 +373,18 @@ func _draw_self_loop() -> void:
 	var angle := _self_loop_bisector_angle()
 	var loop_center := node_center + Vector2.from_angle(angle) * (r + loop_radius - SELF_LOOP_SINK)
 	var lit := is_lit()
-	var c := _display_color(from.base_type_color, lit)
+	# `_display_color_lifted`, not `_display_color`: the latter is SDR-only by
+	# its own docstring, and it was the exact reason a lit self-loop never
+	# glowed while every lit regular edge touching the same node did. The lift
+	# is the ONLY place `pow(2, lit_glow_stops)` is applied, so the authored
+	# `lit_glow_stops = 4.5` was silently a no-op for self-loops and their
+	# colour never crossed the WorldEnvironment's 1.0 glow threshold.
+	#
+	# The raw (non-`Emissive.at()`) multiply is right here for the same reason
+	# it is right on the multimesh path: `draw_arc`'s Color carries no
+	# `source_color` hint, so nothing downstream decodes an sRGB re-encode —
+	# see `_display_color_lifted`'s docstring for the full derivation.
+	var c := _display_color_lifted(from.base_type_color, lit)
 	var w := _screen_constant_width()
 	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, w, false)
 

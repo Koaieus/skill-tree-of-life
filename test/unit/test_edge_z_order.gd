@@ -60,7 +60,13 @@ func test_self_loop_sensed_round_trip_returns_to_edge_band_absolute() -> void:
 
 	assert_true(edge.is_self_loop)
 	edge.sensed = true
-	assert_eq(edge.z_index, ZLayers.EDGE + ZLayers.SENSED)
+	# The ABSOLUTE sensed band. `EDGE + SENSED` is 991 — below the opaque
+	# FogOverlay quad at ZLayers.FOG — so the old additive value meant a sensed
+	# self-loop was painted over and read as nothing at all.
+	assert_eq(edge.z_index, ZLayers.SENSED,
+		"a sensed self-loop must sit ABOVE the fog band, or the breadcrumb never reads")
+	assert_gt(edge.z_index, ZLayers.FOG,
+		"the whole point of the sensed promotion is punching through the fog")
 
 	# sensed's setter early-returns when unchanged, so go true -> false to
 	# actually exercise the un-sensed path (this is the regression path).

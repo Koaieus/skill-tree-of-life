@@ -190,7 +190,9 @@ func _apply_per_element_dimming() -> void:
 				var dark := _dark_from_distances(_source_index.distances_near(mid))
 				e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 				e.z_as_relative = false
-				e.z_index = ZLayers.EDGE + ZLayers.SENSED
+				# Absolute SENSED band — see Edge.sensed's setter for why the
+				# additive `EDGE + SENSED` idiom lands under the fog here.
+				e.z_index = ZLayers.SENSED
 			else:
 				e.modulate.a = 1.0
 				e.z_as_relative = true

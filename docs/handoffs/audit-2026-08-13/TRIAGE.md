@@ -16,6 +16,21 @@ Status column: `todo` / `done <sha>` / `issue #n`.
 
 Batched file-disjoint. Each batch: edit → `mise run check` → `mise run test` → commit.
 
+### A0 — Owner-reported live bug, 2026-08-14 (not from the audit)
+
+| # | Site | Change | Source | Status |
+|---|---|---|---|---|
+| A0.1 | `ui/fog_overlay/fog_overlay.gd:201` | `vision_visible` was ANDed over both endpoints, so an edge with one endpoint in vision range and one outside landed in `VIS_HIDDEN` → `edge_mesh.gdshader:70` hard-zeroes alpha → **a visible node draws with no connecting edges.** The sensed channel doesn't cover it either (`vision_system.gd:355` requires *both* endpoints reached). Changed to OR; #413's `VIS_VISIBLE` branch already fades per-fragment. | owner report | **done 895fd55** |
+
+**Open follow-up on A0.1 (owner's call, needs a windowed look).** The far half
+of a straddling edge now dims to `_VISIBLE_DIM_FLOOR = 0.30` rather than to
+zero — that floor exists so a *fully visible* edge doesn't bisect into black
+mid-fade, and it is arguably wrong for a straddling one. It leaves a faint stub
+terminating at the fogged node's rim. Mitigating factor: the fog quad sits at
+z=1000 and the edge at `ZLayers.EDGE = -10`, so it draws *under* the fog. If the
+stub reads as a topology leak in-game, make the floor conditional on a new
+straddle vis-state in `edge_mesh.gdshader`. **Not headless-verifiable.**
+
 ### A1 — Owner smell #2 + #3 (the render/build bugs)
 
 | # | Site | Change | Source | Status |
@@ -33,7 +48,8 @@ regular edge on the same node.
 
 | # | Site | Change | Source | Status |
 |---|---|---|---|---|
-| A2.1 | `skill_node/visuals/node_visuals_composite.tscn:19-36`, `rim_ring.tscn:6-12`, `node_visuals_panel.tscn:91-96` | Delete every `instance_shader_parameters/*` line. Scene instantiation applies them by name via `set()`, which `_validate_property`'s STORAGE clearing does not intercept — so every node claims slots in the 4096-item global instance-uniform buffer from load, defeating the `is_visible_in_tree()` fog gate (the #172 regression, verbatim). **This is what makes `test_node_visuals_contract` ×2 red; the tests are right.** Then extend `test_disk_and_rim_ship_no_baked_material` to assert on instance params, not just `material`. | skill-node #2, #3 | todo |
+| A2.1 | `skill_node/visuals/node_visuals_composite.tscn:19-36`, `rim_ring.tscn:6-12`, `node_visuals_panel.tscn:91-96` | Delete every `instance_shader_parameters/*` line. Scene instantiation applies them by name via `set()`, which `_validate_property`'s STORAGE clearing does not intercept — so every node claims slots in the 4096-item global instance-uniform buffer from load, defeating the `is_visible_in_tree()` fog gate (the #172 regression, verbatim). Then extend `test_disk_and_rim_ship_no_baked_material` to assert on instance params, not just `material`. | skill-node #2, #3 | todo |
+| A2.1b | `skill_node/visuals/` — site TBD | **Scope correction, measured 2026-08-14.** `test_node_visuals_contract` fails **three** test functions, not two. A2.1 covers only the two `assert_null` instance-uniform ones (`test_fog_hidden_composite_registers_no_instance_state`, `test_unfogged_composite_syncs_on_becoming_visible`). The third, `test_rim_tint_mix_tracks_allocation:125,127`, is a **separate, undiagnosed divergence**: `tint_mix` reads 0.8 where the test wants 0.3 ("unallocated rim reads mostly bronze metal") and 0.9 where it wants 1.0 ("allocated rim reads full archetype tint"). No auditor reported this — likely the composite's `FILLED_TINT_MIX`/`UNFILLED_TINT_MIX` swing (cf. skill-node #11). **A2.1 alone will not turn this script green.** | measured | todo |
 | A2.2 | `test/unit/ui/test_fan_scene.gd` | Known-broken, parked in FOCUS lane E item 7 while still collected. Mark `pending("#<n>")` so the baseline is green and new red is unambiguous. | test-infra #2 | todo |
 
 `test_spell_defs::test_reverberator_preset_well_formed` is **not** here — it is a
