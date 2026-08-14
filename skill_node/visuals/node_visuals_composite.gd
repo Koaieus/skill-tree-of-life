@@ -235,12 +235,15 @@ func _apply_sensed() -> void:
 	outline.visible = sensed
 
 
-## Forwards a resolved central-emblem CARVE (see [method SkillNode.get_emblem_contributions],
-## [EmblemResolver], docs/domain/skillnode-emblem.md) to [InnerDisk] — the
-## composite doesn't interpret it, same as it doesn't interpret entity_tint
-## for its children; it just routes to the one child that renders the dome.
-func set_carve(carve: Variant) -> void:
-	_inner_disk.set_carve(carve)
+## Forwards a resolved central-emblem CARVE, plus its resolver ties (see
+## [method SkillNode.get_emblem_contributions], [EmblemResolver],
+## docs/domain/skillnode-emblem.md) to [InnerDisk] — the composite doesn't
+## interpret either, same as it doesn't interpret entity_tint for its
+## children; it just routes to the one child that renders the dome. `ties`
+## lets InnerDisk alternate a second carve when two SPELL-priority grants
+## collide on one node (#206's widened distribution can stack them).
+func set_carve(carve: Variant, ties: Array = []) -> void:
+	_inner_disk.set_carve(carve, ties)
 
 
 ## Routes [member carve_shape] down to the leaf [InnerDisk]'s own authored

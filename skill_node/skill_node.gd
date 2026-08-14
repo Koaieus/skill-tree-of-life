@@ -471,7 +471,8 @@ func _sync_visuals() -> void:
 	_node_visuals.stake_level = stake_level
 	_node_visuals.allocation_level = allocation_level
 	_node_visuals.sensed = sensed
-	_node_visuals.set_carve(EmblemResolver.resolve(get_emblem_contributions()).carve)
+	var resolution := EmblemResolver.resolve(get_emblem_contributions())
+	_node_visuals.set_carve(resolution.carve, resolution.carve_ties)
 
 
 func is_allocated() -> bool:

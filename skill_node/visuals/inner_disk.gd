@@ -180,6 +180,13 @@ var _carved_shape: CarveShape = null
 ## resolved to nothing" (an honest empty dome).
 var _has_carve: bool = false
 
+## Second competing carve — set only when [method set_carve]'s `ties` carries
+## more than one entry (two-plus SPELL-priority grants stacked on one node,
+## #206's widened distribution). No authored fallback: unlike slot A there is
+## no standalone-preview concept for a second carve, so this is always exactly
+## what the last resolve produced, including null (no second carve).
+var _carved_shape_b: CarveShape = null
+
 ## The shape that actually renders: the resolved runtime carve once
 ## [method set_carve] has run, else the authored [member carve_shape].
 func _effective_shape() -> CarveShape:
@@ -252,6 +259,23 @@ var effective_well_depth: float:
 			if override >= 0.0:
 				return override
 		return well_depth
+
+# ── Slot B: TEXTURE-only, off _carved_shape_b directly (see its doc) ────────
+# Every SpellDef.carve_shape is a TextureCarveShape (baked icon art) — a full
+# POLYGON/GEM mirror of slot A isn't needed, and the shader is already close
+# to Godot's 16 instance-uniform cap (see inner_disk.gdshader). A non-texture
+# shape in `ties[1]` (shouldn't happen given current content, but not
+# type-enforced) degrades to NO_SLICE — same "honest empty" fallback as an
+# unpacked slot-A texture shape, not a crash.
+
+var effective_carve_slice_b: int:
+	get:
+		var shape := _carved_shape_b
+		if shape is TextureCarveShape:
+			var atlas := CarveAtlas.shared()
+			if atlas != null:
+				return atlas.slice_of((shape as TextureCarveShape).baked_lut)
+		return CarveAtlas.NO_SLICE
 
 ## Shared light source (see [LightingStyle]), INJECTED AT RUNTIME by the
 ## composite — a plain `var`, deliberately NOT `@export`: it holds a
@@ -337,6 +361,7 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"carve_radius", effective_carve_radius)
 	set_instance_shader_parameter(&"well_depth", effective_well_depth)
 	set_instance_shader_parameter(&"carve_slice", effective_carve_slice)
+	set_instance_shader_parameter(&"carve_slice_b", effective_carve_slice_b)
 	queue_redraw()
 
 
@@ -352,10 +377,17 @@ func _sync_material() -> void:
 ## value into an @export" trap. NOTHING exported is written here — see
 ## [member _carved_shape]. A [TextureCarveShape] (arbitrary baked art, #246)
 ## resolves to its [CarveAtlas] slice the same way, via
-## [member effective_carve_slice].
-func set_carve(carve: Variant) -> void:
+## [member effective_carve_slice]. `ties` is the same Resolution's
+## `.carve_ties` — `carve` is always `ties[0]` when ties is non-empty (see
+## [EmblemResolver]), so a second entry means two-plus same-priority carves
+## collided on this node; that becomes slot B (see [member _carved_shape_b]),
+## alternated against slot A in inner_disk.gdshader. `ties.size() > 2` still
+## only ever shows two — a third simultaneous collision is dropped, not an
+## error.
+func set_carve(carve: Variant, ties: Array = []) -> void:
 	_carved_shape = carve.shape if carve != null else null
 	_has_carve = true
+	_carved_shape_b = ties[1].shape if ties.size() > 1 and ties[1] != null else null
 	_warn_if_unpacked()
 	_sync_material()
 
@@ -367,11 +399,16 @@ func set_carve(carve: Variant) -> void:
 ## deserves a word. Lives HERE rather than in [member effective_carve_slice]
 ## because that getter is read on every `_sync_material()` and would spam.
 func _warn_if_unpacked() -> void:
-	if not _carved_shape is TextureCarveShape:
+	_warn_if_shape_unpacked(_carved_shape, effective_carve_slice)
+	_warn_if_shape_unpacked(_carved_shape_b, effective_carve_slice_b)
+
+
+func _warn_if_shape_unpacked(shape: CarveShape, slice: int) -> void:
+	if not shape is TextureCarveShape:
 		return
-	if effective_carve_slice != CarveAtlas.NO_SLICE:
+	if slice != CarveAtlas.NO_SLICE:
 		return
-	var lut: Texture2D = (_carved_shape as TextureCarveShape).baked_lut
+	var lut: Texture2D = (shape as TextureCarveShape).baked_lut
 	if CarveAtlas.shared() == null:
 		push_warning("InnerDisk: no CarveAtlas generated — run `mise run icons:update`")
 	else:

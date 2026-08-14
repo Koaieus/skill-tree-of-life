@@ -59,11 +59,44 @@ uniform sampler2DArray carve_atlas : filter_linear_mipmap;
 // Which slice this node reads; < 0 means "no slice", the honest empty dome.
 instance uniform int carve_slice = -1;
 
+// Slot B: a second competing carve (#206's widened spell-grant distribution
+// can stack 2+ different SpellGrants on one node — EmblemResolver.Resolution
+// .carve_ties exists for exactly that, and this is the renderer half of the
+// contract it defers; see skill-node-visuals.md). TEXTURE-only, deliberately —
+// every SpellDef.carve_shape is a TextureCarveShape (baked icon art via
+// CarveAtlas), never a POLYGON/GEM shape, so a full mirror of slot A's 6
+// uniforms isn't needed; this shader is already at 11 instance uniforms
+// against Godot's hard cap of 16 (verified empirically — "Too many 'instance'
+// uniforms" is a shader COMPILE failure, invisible under the headless dummy
+// renderer, see godot-shaders.md), and a full mirror would have blown it.
+// < 0 means "no second carve" — the crossfade below then collapses to a
+// static 1.0/0.0 split and a single-carve node never reads TIME.
+instance uniform int carve_slice_b = -1;
+
+// Full A-to-B-and-back period, seconds. A tuning value, not a derived one —
+// eyeball it in the sandbox before treating it as settled.
+const float CARVE_ALTERNATE_PERIOD = 4.0;
+
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0;
 	vec3 normal = sn_dome_normal(p);
 
-	if (carve_kind == 2) {
+	// Crossfade weight between slot A and slot B. Sinusoidal ping-pong, no
+	// flat hold at either end — a hold-phase version is a possible follow-up
+	// if this reads as too blended at the midpoint; needs an eyeball pass
+	// either way (see godot-shaders.md — this can't be judged headless).
+	float mix_a = 1.0;
+	float mix_b = 0.0;
+	if (carve_slice_b >= 0) {
+		float phase = fract(TIME / CARVE_ALTERNATE_PERIOD) * TAU;
+		mix_a = 0.5 + 0.5 * cos(phase);
+		mix_b = 1.0 - mix_a;
+	}
+
+	vec2 bump_sum = vec2(0.0);
+	bool carved = false;
+
+	if (carve_kind == 2 && mix_a > 0.0) {
 		vec4 lut = texture(gem_lut, UV);
 		// lut.a is antialiased COVERAGE (see InnerDisk._gem_coverage), so it
 		// scales the perturbation instead of gating it. A `> 0.5` branch here
@@ -71,12 +104,10 @@ void fragment() {
 		// stair-stepped the gem's outline — the soft bake was being discarded.
 		if (lut.a > 0.0) {
 			vec3 bump = sn_gem_bump(lut);
-			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
-			vec2 grad_dome = -p / z_dome;
-			vec2 grad_total = grad_dome - bump.yz * lut.a;
-			normal = normalize(vec3(-grad_total, 1.0));
+			bump_sum += bump.yz * lut.a * mix_a;
+			carved = true;
 		}
-	} else if (carve_kind == 3 && carve_slice >= 0) {
+	} else if (carve_kind == 3 && carve_slice >= 0 && mix_a > 0.0) {
 		vec4 lut = texture(carve_atlas, vec3(UV, float(carve_slice)));
 		// Same blend-weight treatment as the gem branch above, deliberately:
 		// #246's bake still writes a HARD 0/1 mask here, so today this behaves
@@ -85,22 +116,33 @@ void fragment() {
 		// coverage ramp, instead of needing this shader changed too.
 		if (lut.a > 0.0) {
 			vec3 bump = sn_texture_bump(lut);
-			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
-			vec2 grad_dome = -p / z_dome;
-			vec2 grad_total = grad_dome - bump.yz * lut.a;
-			normal = normalize(vec3(-grad_total, 1.0));
+			bump_sum += bump.yz * lut.a * mix_a;
+			carved = true;
 		}
-	} else if (carve_kind == 1) {
+	} else if (carve_kind == 1 && mix_a > 0.0) {
 		vec2 wp = vec2(p.x / carve_squish, p.y);
-		vec3 bowl = sn_bowl_drop(wp, carve_sides, carve_radius, well_depth);
+		vec3 bowl = sn_bowl_drop(wp, carve_sides, carve_radius, well_depth * mix_a);
 		if (bowl.x > 0.0) {
 			// Chain rule: q.x = p.x / carve_squish, so d/d(p.x) = d/d(q.x) / carve_squish.
-			bowl.y /= carve_squish;
-			float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
-			vec2 grad_dome = -p / z_dome;
-			vec2 grad_total = grad_dome - bowl.yz;
-			normal = normalize(vec3(-grad_total, 1.0));
+			bump_sum += vec2(bowl.y / carve_squish, bowl.z);
+			carved = true;
 		}
+	}
+
+	if (carve_slice_b >= 0 && mix_b > 0.0) {
+		vec4 lut = texture(carve_atlas, vec3(UV, float(carve_slice_b)));
+		if (lut.a > 0.0) {
+			vec3 bump = sn_texture_bump(lut);
+			bump_sum += bump.yz * lut.a * mix_b;
+			carved = true;
+		}
+	}
+
+	if (carved) {
+		float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
+		vec2 grad_dome = -p / z_dome;
+		vec2 grad_total = grad_dome - bump_sum;
+		normal = normalize(vec3(-grad_total, 1.0));
 	}
 
 	vec3 light_dir = sn_light_dir(highlight_position);
