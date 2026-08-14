@@ -99,14 +99,23 @@ func register_scene_authored_ownership() -> void:
 	for n in graph.get_skill_nodes():
 		if n.owned_by == null or n.owned_by.stat_board == null:
 			continue
-		# Fill the first allocation slot — the allocate path owns fill writes
-		# (#337); this bypasses it, so it sets the 1 explicitly.
-		n.allocation_level = 1
-		if n.owned_by.stat_board.skill_points != null:
-			n.owned_by.stat_board.skill_points.claim(1)
-		# This path bypasses force_allocate, so it must grant node-borne effects
-		# itself — otherwise a hand-authored keystone node is silently inert.
+		var board := n.owned_by.stat_board
+		if board.skill_points != null:
+			board.skill_points.claim(1)
+		# This path bypasses force_allocate, so it must reproduce its side
+		# effects itself — and in the SAME order, or the #376 local-scale
+		# mutator sees a different world when the fill lands.
+		#
+		# The modifier push was missing until 2026-08-14: every hand-authored
+		# owned node's `modifiers` were inert, so dev_sandbox's Right/Down
+		# granted the player nothing. Pinned by
+		# test_allocation.gd::test_scene_authored_ownership_applies_node_modifiers.
+		n.apply_entity_modifiers_to(board)
 		_grant_node_effects(n, n.owned_by)
+		# Fill the first allocation slot LAST — the allocate path owns fill
+		# writes (#337); this bypasses it, so it sets the 1 explicitly, after
+		# the grants are applied (the mutator reads the board when it lands).
+		n.allocation_level = 1
 
 
 func can_allocate(node: SkillNode, entity: Entity) -> bool:

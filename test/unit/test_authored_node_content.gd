@@ -99,6 +99,42 @@ func test_fortification_addon_grants_node_local_health() -> void:
 	await _assert_local_modifier(_FORTIFICATION, &"node_health", 15.0)
 
 
+## A scene-authored owned node (`owned_by` baked into the .tscn, the
+## dev_sandbox shape) must reach the same board state a `force_allocate`d one
+## does. `register_scene_authored_ownership` is a THIRD setup path next to
+## `allocate` / `force_allocate` and it re-lists their side effects by hand —
+## it was missing `apply_entity_modifiers_to` outright, so dev_sandbox's
+## hand-authored owned nodes granted the player nothing at all. (The structural
+## fix is one teardown/setup atom — triage C11.)
+func test_scene_authored_ownership_applies_node_modifiers() -> void:
+	var graph: Graph = preload("res://graph/graph.tscn").instantiate()
+	add_child_autofree(graph)
+	var ent := _make_entity()
+	graph.add_child(ent)
+
+	var node: SkillNode = _NODE_SCENE.instantiate()
+	var m := StatModifier.new()
+	m.stat_id = &"strength"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = 7.0
+	node.modifiers = [m]
+	graph.skill_nodes_container.add_child(node)
+	await get_tree().process_frame
+
+	var before: float = ent.stat_board.get_stat(&"strength").value
+	node.owned_by = ent  # what the .tscn bakes
+	await get_tree().process_frame
+
+	var alloc := AllocationSystem.new()
+	autofree(alloc)
+	alloc.graph = graph
+	alloc.register_scene_authored_ownership()
+
+	assert_eq(ent.stat_board.get_stat(&"strength").value, before + 7.0,
+		"a hand-authored owned node's modifiers must reach its owner's board")
+	assert_eq(node.allocation_level, 1, "and the first allocation slot is filled")
+
+
 ## Every StatModifier authored as a sub-resource of an addon scene must be
 ## `resource_local_to_scene`, or all instances of that addon share ONE modifier
 ## object. That is not a theoretical leak: the #376 local-scale mutator writes
