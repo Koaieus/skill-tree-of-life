@@ -88,7 +88,7 @@ real bug, just no longer masking new red.
 | A3.4 | `ui/vfx/coordinator/magic_bounce_coordinator.gd:103` | `play()` starts `_play_three_clocks()` without awaiting and drains on `pending[0] > 0`, so it can return mid-timeline and `AttackVFX.play` frees the coordinator — later beats and their `take_damage`/`heal_damage` lambdas never run. `await` the clocks; seed `pending` with the total event count up front. | vfx #3 | **done** — `await` added; `pending` NOT reseeded (the per-spawn increments have early-return holes that a precomputed total would desync). Pinned deterministically via a beat-0 that spawns nothing (null `cancel_visual`) rather than the `interval > 2*flight` race, which loses to projectile linger. `.claude/rules/spell-vfx.md` already stated the drain is teardown safety, not a wave gate — the code just didn't do it. |
 | A3.5 | `ui/floating_number_layer/strikethrough_toast/strikethrough_toast.tscn:9` | `gray_amount = 1.0` / `strike_x = 0.558` are mid-animation values serialized back into the scene; every removed-modifier toast plays backwards for its first 0.2 s. Reset to 0.0 and set explicitly in `_ready`. | vfx #13 | **done f93bb51** — also set in `_ready`, so a round-trip can't re-bake it |
 | A3.6 | `addons/spell_playground/playground_panel.gd:306` | `"%.3s" % v` is a *string* precision spec on a float — `12.5` prints `12.`. Use `"%.3g"` (the vfx playground's copy is already correct). | devtools #10 | **done f93bb51** — **the triage row was wrong**: the vfx playground's `%.3g` is NOT correct, GDScript's `%` has no `g` conversion and it was pushing "unsupported format character" on every float. Both copies now use `String.num(v, 3)`. |
-| A3.7 | `skill_node/visuals/node_visuals_composite.gd:303` | `geom_crest_r` is stored and never forwarded — `_sync_stake()` never writes `crest_r`, so every in-game rim runs at the authored `0.0`, outside its own documented range. The #341 legibility sweep was judged against a rim the game does not render. | skill-node #6 | **done f93bb51** — forwarded, and rim_ring.tscn's stale authored `0.0` raised to the 28.0 default. `skill_node_lab.tscn` (36/40/44) corroborates "crest midway". **VISUAL CHANGE, not headless-verifiable** — needs an eyeball, same class as A1.1. |
+| A3.7 | `skill_node/visuals/node_visuals_composite.gd:303` | `geom_crest_r` is stored and never forwarded — `_sync_stake()` never writes `crest_r`, so every in-game rim runs at the authored `0.0`, outside its own documented range. The #341 legibility sweep was judged against a rim the game does not render. | skill-node #6 | **done f93bb51, corrected 2026-08-14** — the forward is in and the value is UNCHANGED, so it lands pixel-neutral. The first attempt raised it to 28.0 citing `skill_node_lab.tscn`'s authored 36/40/44; that was bad evidence — the lab sets `geom_crest_r` on the *composite*, i.e. the very export that was inert, so its value never rendered either. `node_visuals_panel.tscn` (where #341 was actually eyeballed) instances `rim_ring.tscn` and therefore rendered 0.0 like everything else. What crest_r should be is **B9**. |
 
 ### A4 — Correctness cleanups (mechanical)
 
@@ -275,6 +275,20 @@ hardcoded hop-linear falloff and its own BFS, dispatched from
 distance_scale` vocabulary was built for exactly this. Absorb, or keep the core
 aura special? *(vfx #2 — the auditor calls `effects/` the best-designed thing in
 that slice)*
+
+**B9 — What should `crest_r` actually be?** Nothing has ever rendered a rim
+at anything but `0.0` — below `inner_radius`, so the bevel spans the whole band
+with no flat floor, which is outside crest_r's own documented range
+(`inner_radius < crest_r <= outer_radius`). Two authored values disagree with
+that and with each other, and **both were inert**: `rim_ring.gd`'s script
+default (28.0, midway of 24/32) and `skill_node_lab.tscn`'s 40.0 (midway of
+36/44). So somebody twice authored "crest midway" and twice never saw it. The
+forward is now wired (A3.7), which makes this a one-number change with a
+board-wide effect: keep the shipped 0.0 (and fix the docstring + the two
+authored values that lie), or adopt midway and re-check legibility at
+500–2500 nodes? **Not headless-verifiable** — same class as A1.1, and the
+`Xvfb :99` + `--rendering-driver opengl3` recipe in the A1.1 note is the way to
+get a real frame. *(skill-node #6, escalated from A3.7)*
 
 **B8 — Export preset ships every dev tool.** `export_filter="all_resources"`
 with an empty `exclude_filter` packs all nine sandbox panels, GUT, `tools/`,

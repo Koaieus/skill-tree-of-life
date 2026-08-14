@@ -88,7 +88,15 @@ const UNFILLED_TINT_MIX := 0.8
 		geom_inner_r = value
 		_sync_stake()
 ## Interior bevel control point — see rim_ring.gd.
-@export_range(0.0, 128.0, 0.5) var geom_crest_r: float = 28.0:
+##
+## Defaults to 0.0, NOT to rim_ring.gd's own 28.0, and that is deliberate: this
+## export was inert until 2026-08-14 (`_sync_stake` never forwarded it), so
+## every rim the game has ever drawn ran at rim_ring.tscn's authored 0.0 —
+## including the one #341's legibility sweep was judged against. Wiring the
+## forward at 28.0 would have silently retuned every node on the board on the
+## strength of a value that had never been rendered. What crest_r SHOULD be is
+## an owner call: see triage item B9.
+@export_range(0.0, 128.0, 0.5) var geom_crest_r: float = 0.0:
 	set(value):
 		geom_crest_r = value
 		_sync_stake()
@@ -312,12 +320,9 @@ func _sync_stake() -> void:
 	# Disk tucks under the rim (see DISK_RIM_OVERLAP).
 	_inner_disk.disk_radius = geom_inner_r + DISK_RIM_OVERLAP
 	_rim_ring.inner_radius = geom_inner_r
-	# geom_crest_r was stored and never forwarded, so every in-game rim ran at
-	# rim_ring.tscn's authored 0.0 — outside crest_r's own documented range
-	# (inner_radius < crest_r <= outer_radius) and therefore a bevel across the
-	# whole band with no flat floor. The node-visuals panel authors no override
-	# and so previewed the 28.0 script default: the #341 legibility sweep was
-	# judged against a rim the game never rendered.
+	# geom_crest_r was stored and never forwarded — the export did nothing. The
+	# forward is the fix; the VALUE is untouched on purpose (see the export's
+	# doc comment and triage B9), so this lands pixel-neutral.
 	_rim_ring.crest_r = geom_crest_r
 	_rim_ring.outer_radius = geom_outer_r
 	_rim_ring.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
