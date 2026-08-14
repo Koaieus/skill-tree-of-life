@@ -66,12 +66,17 @@ not.
 
 | # | Site | Change | Source | Status |
 |---|---|---|---|---|
-| A2.1 | `skill_node/visuals/node_visuals_composite.tscn:19-36`, `rim_ring.tscn:6-12`, `node_visuals_panel.tscn:91-96` | Delete every `instance_shader_parameters/*` line. Scene instantiation applies them by name via `set()`, which `_validate_property`'s STORAGE clearing does not intercept — so every node claims slots in the 4096-item global instance-uniform buffer from load, defeating the `is_visible_in_tree()` fog gate (the #172 regression, verbatim). Then extend `test_disk_and_rim_ship_no_baked_material` to assert on instance params, not just `material`. | skill-node #2, #3 | todo |
+| A2.1 | `skill_node/visuals/node_visuals_composite.tscn:19-36`, `rim_ring.tscn:6-12`, `node_visuals_panel.tscn:91-96` | Delete every `instance_shader_parameters/*` line. Scene instantiation applies them by name via `set()`, which `_validate_property`'s STORAGE clearing does not intercept — so every node claims slots in the 4096-item global instance-uniform buffer from load, defeating the `is_visible_in_tree()` fog gate (the #172 regression, verbatim). Then extend `test_disk_and_rim_ship_no_baked_material` to assert on instance params, not just `material`. | skill-node #2, #3 | **done f69c7df** |
 | A2.1b | `skill_node/visuals/` — site TBD | **Scope correction, measured 2026-08-14.** `test_node_visuals_contract` fails **three** test functions, not two. A2.1 covers only the two `assert_null` instance-uniform ones (`test_fog_hidden_composite_registers_no_instance_state`, `test_unfogged_composite_syncs_on_becoming_visible`). The third, `test_rim_tint_mix_tracks_allocation:125,127`, is a **separate, undiagnosed divergence**: `tint_mix` reads 0.8 where the test wants 0.3 ("unallocated rim reads mostly bronze metal") and 0.9 where it wants 1.0 ("allocated rim reads full archetype tint"). No auditor reported this — likely the composite's `FILLED_TINT_MIX`/`UNFILLED_TINT_MIX` swing (cf. skill-node #11). **A2.1 alone will not turn this script green.** | measured | **done 9aeb22b** — owner confirmed the colourful swing is intended and required for legibility; the TEST was stale, not the code. #419 closed. Master 6 red -> 5. |
-| A2.2 | `test/unit/ui/test_fan_scene.gd` | Known-broken, parked in FOCUS lane E item 7 while still collected. Mark `pending("#<n>")` so the baseline is green and new red is unambiguous. | test-infra #2 | todo |
+| A2.2 | `test/unit/ui/test_fan_scene.gd` | Known-broken, parked in FOCUS lane E item 7 while still collected. Mark `pending("#<n>")` so the baseline is green and new red is unambiguous. | test-infra #2 | **done f69c7df** (#362; `pending()` does not short-circuit in GUT — needs an explicit `return`) |
+| A2.3 | `test/unit/test_tooltip_v2_accessors.gd:178` | **The sixth red, missed by every auditor and by this doc's first pass.** `test_spike_ring_keeps_its_authored_title_and_payload` asserts one modifier; #406 (`db9a0a2`) gave Spikes a second (flat +3 alongside the ×1.5) and never updated it. Both are authored payload — assert both. Same commit, same file as A3.3/A4.12; landed together. | measured 2026-08-14 | **done b1a79f3** |
 
 `test_spell_defs::test_reverberator_preset_well_formed` is **not** here — it is a
 content fork, item B1.
+
+**Master red: 6 → 1.** The only remaining failure is B1/#417, blocked on an open
+owner design fork. `test_fan_scene` is `Pending`, not passing — #362 is still a
+real bug, just no longer masking new red.
 
 ### A3 — Live bugs, no fork
 
@@ -79,7 +84,7 @@ content fork, item B1.
 |---|---|---|---|---|
 | A3.1 | `systems/allocation_system.gd:96` | `register_scene_authored_ownership` omits `node.apply_entity_modifiers_to(board)` that both `allocate()` and `force_allocate()` call — so **every hand-authored owned node's modifiers are inert**. `dev_sandbox.tscn`'s `Right`/`Down` grant the player nothing. Add the call + a pinning test. | systems #1 | todo |
 | A3.2 | `procgen/playground/node_graph_view.gd:288` | `_archetypes[idx].color` — `ArchetypePolicy` has no `color`; every `_draw` after a stamp throws. Paint Mode (the #166 headline feature) is broken on first repaint. Use `.archetype.color` with a null guard. | procgen #6 | todo |
-| A3.3 | `skill_node/addons/spike_ring_addon.tscn:16` | `Resource_u38nb` (blade_damage ADD_BASE 3.0) lacks `resource_local_to_scene = true`, so **every** SpikeRingAddon shares one instance and the #376 mutator's live `m.value` write rewrites spike damage board-wide. Add the flag + a test walking `skill_node/addons/*.tscn`. | skill-node #7 | todo |
+| A3.3 | `skill_node/addons/spike_ring_addon.tscn:16` | `Resource_u38nb` (blade_damage ADD_BASE 3.0) lacks `resource_local_to_scene = true`, so **every** SpikeRingAddon shares one instance and the #376 mutator's live `m.value` write rewrites spike damage board-wide. Add the flag + a test walking `skill_node/addons/*.tscn`. | skill-node #7 | **done b1a79f3** — confirmed real; the walk-test asserts by instance identity and was verified red first. `.claude/rules/godot-scene-authoring.md` already *claimed* these scenes all set the flag, so the rule was lying too; it now cites the test. |
 | A3.4 | `ui/vfx/coordinator/magic_bounce_coordinator.gd:103` | `play()` starts `_play_three_clocks()` without awaiting and drains on `pending[0] > 0`, so it can return mid-timeline and `AttackVFX.play` frees the coordinator — later beats and their `take_damage`/`heal_damage` lambdas never run. `await` the clocks; seed `pending` with the total event count up front. | vfx #3 | todo |
 | A3.5 | `ui/floating_number_layer/strikethrough_toast/strikethrough_toast.tscn:9` | `gray_amount = 1.0` / `strike_x = 0.558` are mid-animation values serialized back into the scene; every removed-modifier toast plays backwards for its first 0.2 s. Reset to 0.0 and set explicitly in `_ready`. | vfx #13 | todo |
 | A3.6 | `addons/spell_playground/playground_panel.gd:306` | `"%.3s" % v` is a *string* precision spec on a float — `12.5` prints `12.`. Use `"%.3g"` (the vfx playground's copy is already correct). | devtools #10 | todo |
@@ -100,7 +105,7 @@ content fork, item B1.
 | A4.9 | `systems/loot_system.gd:163-165` | `_removed_this_attack` is cleared only under `if battle_system != null` but read unconditionally, so an unset export makes kill XP count earlier attacks' territory at bonus rate. Also clear in `_on_entity_dying` after payout. | systems #9 | todo |
 | A4.10 | `ui/vfx/coordinator/magic_bounce_coordinator.gd:189` | `_play_cancel` writes `global_position` on an untyped `Node`; a `Control`-rooted override crashes. Cast `as Node2D` + guard. | vfx #22 | todo |
 | A4.11 | `effects/core_aura.gd:27` | `@export var range: float` shadows GDScript's built-in `range()` in the class and every subclass. Rename to `hop_range`. | vfx #21 | todo |
-| A4.12 | `skill_node/addons/spike_ring_addon.gd:19` | `spike_color` is a getter-only `@export` that the scene writes — the authored value is discarded and the inspector field cannot be edited. Drop `@export`, drop the scene line. | skill-node #19 | todo |
+| A4.12 | `skill_node/addons/spike_ring_addon.gd:19` | `spike_color` is a getter-only `@export` that the scene writes — the authored value is discarded and the inspector field cannot be edited. Drop `@export`, drop the scene line. | skill-node #19 | **done b1a79f3** (landed with A3.3 — same file) |
 
 ### A5 — Lies in comments, docs, and rules
 
