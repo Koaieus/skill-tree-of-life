@@ -95,11 +95,14 @@ extends Resource
 ## Second-pass addon roll. Unset = no addons attached by procgen.
 @export var addon_policy: AddonPolicy
 
-## Third-pass spell-grant roll (#206). Unset (or [member spell_grant_chance]
+## Third-pass spell-grant distribution (#206). Unset (or [member spell_grant_ratio]
 ## 0) = no grants attached by procgen. Gated to INT-archetype nodes only —
-## see [GraphProcgenSpellGrants].
+## see [GraphProcgenSpellGrants]. `ratio` is the level's grant budget as a
+## fraction of the INT-node count (1.0 = one grant per INT node on average),
+## split across the pool's entries by weight and Poisson-rolled per entry —
+## every entry in the pool is guaranteed at least one copy on the level.
 @export var spell_grant_pool: SpellGrantPool
-@export_range(0.0, 1.0) var spell_grant_chance: float = 0.0
+@export_range(0.0, 1.0) var spell_grant_ratio: float = 0.0
 
 ## Pre-roll constraints. Each runs against a [PlacementContext] and may stamp
 ## role tags (consumed by [BudgetPolicy.role_bonus]) or reserve nodes for

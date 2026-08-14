@@ -149,6 +149,11 @@ static func generate(
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
+	# INT-archetype nodes only — the eligible pool for #206's spell-grant
+	# distribution, run as a single post-loop pass once every node exists
+	# (see GraphProcgenSpellGrants.distribute; it needs the full pool size to
+	# compute the level's grant budget, not a per-node decision).
+	var int_nodes: Array[SkillNode] = []
 	# Yield ~10 times across the per-node loop so the bar moves smoothly
 	# without paying a frame per node. With 500 nodes that's every ~50.
 	var yield_every := maxi(1, positions.size() / 10)
@@ -207,14 +212,16 @@ static func generate(
 		if placement_ctx.keystones[i] != null:
 			placement_ctx.keystones[i].stamp(sn)
 		_roll_and_attach_addons(sn, config, rng)
-		GraphProcgenSpellGrants.roll_and_attach(
-				sn, config.spell_grant_pool, config.spell_grant_chance,
-				archetype_primary_stat, rng)
+		if GraphProcgenSpellGrants.is_eligible_node(archetype_primary_stat):
+			int_nodes.append(sn)
 		nodes.append(sn)
 		if i > 0 and i % yield_every == 0:
 			# 0.45 → 0.92 over the per-node loop.
 			var frac: float = 0.45 + 0.47 * (float(i) / float(positions.size()))
 			await _emit_progress(progress_cb, frac, "Rolling content")
+
+	GraphProcgenSpellGrants.distribute(
+			int_nodes, config.spell_grant_pool, config.spell_grant_ratio, rng)
 
 	await _emit_progress(progress_cb, 0.95, "Wiring edges")
 	for pair in edge_pairs:

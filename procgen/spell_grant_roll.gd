@@ -2,58 +2,105 @@
 class_name GraphProcgenSpellGrants
 extends RefCounted
 
-## Third-pass spell-grant roll (#206), split out of [GraphProcgen] to keep
-## that file from growing further — same static-helper shape as the addon
-## roll it sits beside, just simple enough not to need its own Policy
-## resource (see [SpellGrantPool]).
+## Two-stage spell-grant distribution (#206, widened). #206's original v1 was
+## a per-node independent Bernoulli roll — no coverage guarantee, so a
+## low-weight spell could land zero copies on the whole level. That starved
+## LootSystem's #204 spell draft of anything to offer (every entity shares
+## the same starter spellbook, so the only route to a genuinely new spell is
+## looting one an NPC picked up — see the #204 issue thread). Replaced with a
+## two-stage draw: decide how many copies of EACH pool entry the level gets
+## (a Poisson roll around a weighted share of the level's total grant budget,
+## floored at 1 — every spell in the pool is guaranteed to appear), then
+## place those copies on distinct INT-archetype nodes. A node CAN end up
+## hosting more than one different SpellGrant if two spells' placements
+## collide — [EmblemResolver.Resolution.carve_ties] already anticipates
+## multiple SPELL-priority carves competing on one node; the combine
+## strategy for rendering that lives in the renderer, not here.
 ##
-## v1 scope, settled with the issue owner: gated to INT-archetype nodes only
-## (spells are INT-flavoured), at most one grant per node, flat per-spell
-## weight (default 1.0, override via [member SpellGrantPoolEntry.weight]).
-## Multi-slot / per-band weighting / tier scaling are explicit follow-ups,
-## not missing pieces — see #206.
+## v1 scope: gated to INT-archetype nodes only (spells are INT-flavoured).
+## `ratio` reads as "fraction of INT nodes expected to carry a grant" (1.0 =
+## one grant per INT node on average; 0.5 = half as many) — the level's total
+## grant budget is `ratio * int_nodes.size()`, split across pool entries by
+## weight (same [member SpellGrantPoolEntry.weight] as before, still
+## overridable per entry, default 1.0).
 
 const _INT_PRIMARY_STAT := &"intelligence"
 
 
-## Rolls at most one [SpellGrant] onto `sn` and appends it to
-## `sn.effects`. No-ops when `pool` is unset, `chance` is 0, or
-## `archetype_primary_stat` isn't the INT archetype's.
-static func roll_and_attach(
-		sn: SkillNode,
+## Whether a node with this primary stat is eligible for a spell grant. The
+## one place that answers "is this an INT node" — callers building the
+## eligible-node list should route through this rather than comparing the
+## stringname directly.
+static func is_eligible_node(archetype_primary_stat: StringName) -> bool:
+	return archetype_primary_stat == _INT_PRIMARY_STAT
+
+
+## Distributes [SpellGrant]s across [param int_nodes] (nodes the caller has
+## already filtered to INT-archetype via [method is_eligible_node]). No-ops
+## when `pool` is unset, `ratio` is <= 0, or there are no eligible nodes.
+static func distribute(
+		int_nodes: Array[SkillNode],
 		pool: SpellGrantPool,
-		chance: float,
-		archetype_primary_stat: StringName,
+		ratio: float,
 		rng: RandomNumberGenerator,
 ) -> void:
-	if pool == null or chance <= 0.0:
+	if pool == null or ratio <= 0.0 or int_nodes.is_empty():
 		return
-	if archetype_primary_stat != _INT_PRIMARY_STAT:
+	var entries := _weighted_entries(pool)
+	if entries.is_empty():
 		return
-	if rng.randf() >= chance:
-		return
-	var entry := _weighted_pick(pool, rng)
-	if entry == null or entry.spell_def == null:
-		return
-	var grant := SpellGrant.new()
-	grant.spell_def = entry.spell_def
-	print_debug('[PROCGEN] Rolled SpellGrant: %s' % grant.spell_def.name)
-	sn.add_effect(grant)
+
+	var total_weight := 0.0
+	for e in entries:
+		total_weight += e.weight
+	var total_budget: float = ratio * int_nodes.size()
+
+	for e in entries:
+		var lam: float = total_budget * (e.weight / total_weight)
+		var count: int = maxi(1, _poisson(lam, rng))
+		_place(e.spell_def, count, int_nodes, rng)
 
 
-static func _weighted_pick(pool: SpellGrantPool, rng: RandomNumberGenerator) -> SpellGrantPoolEntry:
-	var total := 0.0
+static func _weighted_entries(pool: SpellGrantPool) -> Array[SpellGrantPoolEntry]:
+	var out: Array[SpellGrantPoolEntry] = []
 	for e in pool.entries:
-		if e == null or e.spell_def == null or e.weight <= 0.0:
-			continue
-		total += e.weight
-	if total <= 0.0:
-		return null
-	var r := rng.randf() * total
-	for e in pool.entries:
-		if e == null or e.spell_def == null or e.weight <= 0.0:
-			continue
-		r -= e.weight
-		if r <= 0.0:
-			return e
-	return null
+		if e != null and e.spell_def != null and e.weight > 0.0:
+			out.append(e)
+	return out
+
+
+## Knuth's algorithm — fine at the small lambdas a per-spell share of a
+## level's grant budget produces.
+static func _poisson(lam: float, rng: RandomNumberGenerator) -> int:
+	if lam <= 0.0:
+		return 0
+	var l := exp(-lam)
+	var k := 0
+	var p := 1.0
+	while true:
+		k += 1
+		p *= rng.randf()
+		if p <= l:
+			break
+	return k - 1
+
+
+## Places up to `count` copies of `spell_def` on distinct nodes drawn from
+## `int_nodes` — a partial Fisher-Yates (swap-to-front) per call, so each
+## spell's own copies never repeat a node, but different spells draw
+## independently and CAN collide onto the same node (stacking allowed).
+## Clamped to `int_nodes.size()` when `count` exceeds the eligible pool.
+static func _place(
+		spell_def: SpellDef, count: int, int_nodes: Array[SkillNode], rng: RandomNumberGenerator
+) -> void:
+	var n := int_nodes.size()
+	var take := mini(count, n)
+	for i in take:
+		var j := rng.randi_range(i, n - 1)
+		var tmp := int_nodes[i]
+		int_nodes[i] = int_nodes[j]
+		int_nodes[j] = tmp
+		var grant := SpellGrant.new()
+		grant.spell_def = spell_def
+		print_debug('[PROCGEN] Placed SpellGrant: %s on %s' % [spell_def.name, int_nodes[i].name])
+		int_nodes[i].add_effect(grant)
