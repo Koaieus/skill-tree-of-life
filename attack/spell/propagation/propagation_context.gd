@@ -3,8 +3,9 @@ extends RefCounted
 
 ## Per-cast shared state, threaded through every wave of a spell resolution.
 ## Branches read & mutate this freely; the resolver bumps
-## [member global_visit_count] after each successful merger application, and
-## [MaxVisitsFilter] reads it to gate revisits.
+## [member global_visit_count] after each successful merger application and
+## reads it back to enforce [member PropagationConfig.max_visits_per_node]
+## unconditionally, regardless of the active filter.
 ##
 ## Distinct from [CastSpell] — that's the per-branch payload (damage,
 ## hops_left, etc.); this is the per-cast ledger.

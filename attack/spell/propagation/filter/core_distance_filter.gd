@@ -5,6 +5,10 @@ extends PropagationFilter
 ## Allows only candidates that move CLOSER (or FARTHER) from the target's
 ## owner-Core. Drives Homing Decoring and Corifugal Bolt.
 ##
+## UNSHIPPED: no spell preset composes this filter yet — no production or
+## test `.tres` references [CoreDistanceFilter]. Kept for the two named
+## spells it's designed for; delete if they don't materialize.
+##
 ## Target entity = seed_node's owner (when non-caster and non-null). If
 ## the seed isn't owned by a non-caster entity, the filter degrades to
 ## allow-all — Homing on an unowned target has no semantic meaning, so

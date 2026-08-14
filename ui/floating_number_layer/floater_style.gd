@@ -11,15 +11,10 @@ extends Resource
 ## case — basic damage/heal toasts leave this unset). >0 overrides it, e.g. the
 ## mythic CORE-modifier toast at 46 (#70).
 @export var font_size: int = 0
-## Signed drift along Y. Negative drifts *down* (the "lost / removed" register).
-## Legacy drift knob — a *stacked* [FloaterToast] doesn't express free drift, so
-## this (and [member max_angle]) are not consumed by the current pipeline.
-@export var float_distance: float = 70.0
 ## On-screen hold override. 0 = inherit the toast scene's authored
 ## [member FloaterToast.visible_duration]. >0 overrides it (e.g. the mythic toast
 ## lingers at 3.6s for a build-defining beat).
 @export var float_time: float = 0.0
-@export_range(0, 90) var max_angle: int = 0
 @export var glow: bool = false
 @export var glow_color: Color = Color(1.0, 0.84, 0.3, 1.0)
 ## Optional concrete toast scene. MUST be a scene whose root extends [FloaterToast]

@@ -29,8 +29,9 @@ extends Resource
 @export var max_hops: int = 0
 
 ## Hard cap on how many times this cast can land on the SAME node. 1 = the
-## default "never revisit" (read by [MaxVisitsFilter]). INT_MAX (or any
-## large value) effectively uncaps it — Resonator territory.
+## default "never revisit" — [SpellResolver] enforces this unconditionally,
+## even with no filter set. INT_MAX (or any large value) effectively uncaps
+## it — Resonator territory.
 @export var max_visits_per_node: int = 1
 
 ## How damage evolves per hop, applied by [PropagationStep._propagate_to].

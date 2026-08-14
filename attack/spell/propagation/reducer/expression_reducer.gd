@@ -2,6 +2,11 @@
 class_name ExpressionReducer
 extends IncidentReducer
 
+## UNSHIPPED: no spell preset composes this reducer yet — no production or
+## test `.tres` references [ExpressionReducer]. Kept as the escape hatch for
+## a damage curve the fixed reducers can't express; delete if nothing needs
+## it.
+##
 ## Author a damage-resolution [Expression] inline. Available identifiers:
 ##   incident_count          — int, .size() of the incidents
 ##   damages                 — Array[float], one per incident

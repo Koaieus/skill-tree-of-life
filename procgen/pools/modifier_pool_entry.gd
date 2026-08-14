@@ -2,7 +2,7 @@
 class_name ModifierPoolEntry
 extends Resource
 
-## One pick option in a [ModifierPool]. The entry IS a tier: it carries the
+## One pick option, flattened per tier by [StatPool.to_entries]. The entry IS a tier: it carries the
 ## `(stat_id, operation, value_range)` triple plus `cost` (budget axis) and
 ## `weight` (sampling axis). [method roll] mints a fresh scalar [StatModifier]
 ## by sampling `value_range` — `StatModifier` itself stays range-free; the
@@ -21,8 +21,8 @@ extends Resource
 @export var operation: StatModifier.Operation = StatModifier.Operation.ADD_BASE
 ## Inclusive range sampled at roll time. Both ends equal → fixed value.
 @export var value_range: Vector2 = Vector2(1.0, 1.0)
-## Budget cost — see [ModifierPool.roll]. Floor of 1 keeps per-node draw count
-## bounded (no cost-0 entries).
+## Budget cost — see [GraphProcgen._v4_weighted_pick]. Floor of 1 keeps
+## per-node draw count bounded (no cost-0 entries).
 @export var cost: int = 1
 ## Base sampling weight before [WeightProfile] modulation.
 @export var weight: float = 1.0
@@ -41,18 +41,6 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 	m.value = _coerce_to_stat_type(v, operation)
 	return m
 
-
-func is_in_budget(budget: int) -> bool:
-	# v4 (#321): cost can be negative — a debuff entry refunds budget. A
-	# debuff (cost < 0) is "affordable" exactly while there is still budget
-	# to spend (`budget >= 1`); the per-node refund cap is enforced by the
-	# draw loop, not here.
-	if cost < 0:
-		return budget >= 1
-	return cost <= budget
-	
-func has_weight() -> bool:
-	return weight > 0.
 
 ## Coerces operations whose displayed value should snap to whole numbers.
 ## ADD_BASE / ADD_BONUS flow through the target stat's value_type — INT-typed

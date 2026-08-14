@@ -48,7 +48,7 @@ var incident_count: int = 1
 ## Per-branch trail of nodes visited so far. Carried for filters that need
 ## branch-local "have I been here on THIS path" semantics; the canonical
 ## revisit gate is the global ledger on [PropagationContext.global_visit_count]
-## (consulted by [MaxVisitsFilter] and the resolver's cap enforcement).
+## (consulted by [SpellResolver]'s unconditional cap enforcement).
 var visited: Array[SkillNode] = []
 ## Spell caster — for owner-relative predicates (e.g. only_enemy).
 var caster: Entity = null

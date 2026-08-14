@@ -2,6 +2,10 @@
 class_name RandomPickStep
 extends PropagationStep
 
+## UNSHIPPED: no spell preset composes this step yet — no production or test
+## `.tres` references [RandomPickStep]. Kept for a future stochastic-walk
+## spell shape; delete if nothing needs it.
+##
 ## Picks one candidate uniformly at random and propagates there. RNG is
 ## taken from [member CastSpell.rng] (threaded through every payload); null
 ## falls back to a fresh time-seeded RNG — fine for gameplay, useless for

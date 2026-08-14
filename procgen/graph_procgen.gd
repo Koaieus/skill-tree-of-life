@@ -927,9 +927,7 @@ class StatModifierAggregator extends Resource:
 	
 
 ## v4 weighted pick: affordable filter (debuff-aware + refund-cap) + weight
-## profile multiplication, then a single weighted sample. Mirrors
-## `_weighted_pick_from` but pays its own budget/debuff rules instead of the
-## v3 afford-only filter.
+## profile multiplication, then a single weighted sample.
 static func _v4_weighted_pick(
 		entries: Array[ModifierPoolEntry],
 		profiles: Array[Resource],
@@ -953,45 +951,6 @@ static func _v4_weighted_pick(
 			if remaining < 1 or refunds_used >= _MAX_DEBUFF_REFUNDS:
 				continue
 		elif e.cost > remaining:
-			continue
-		var w := e.weight
-		for p in profiles:
-			if p == null:
-				continue
-			w *= p.multiplier_for(e, context)
-			if w <= 0.0:
-				break
-		if w <= 0.0:
-			continue
-		affordable.append(e)
-		weights.append(w)
-		total += w
-	if total <= 0.0:
-		return null
-	var r := rng.randf() * total
-	for i in affordable.size():
-		r -= weights[i]
-		if r <= 0.0:
-			return affordable[i]
-	return affordable.back()
-
-
-## Picks one entry from a pre-filtered list, applying weight profiles. Shared
-## by phase 2 and phase 3 of the v3 draw.
-static func _weighted_pick_from(
-		entries: Array[ModifierPoolEntry],
-		profiles: Array[Resource],
-		context: WeightContext,
-		budget: int,
-		rng: RandomNumberGenerator,
-) -> ModifierPoolEntry:
-	var affordable: Array[ModifierPoolEntry] = []
-	var weights: Array[float] = []
-	var total := 0.0
-	for e in entries:
-		if e == null or e.cost > budget or e.weight <= 0.0:
-			continue
-		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
 			continue
 		var w := e.weight
 		for p in profiles:

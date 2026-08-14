@@ -52,9 +52,8 @@ func set_content(text: String, style: FloaterStyle) -> void:
 
 
 ## Stamp the non-colour style fields the stacked toast can express onto its
-## (already-duplicated) [param settings]. Font size and glow only; drift fields
-## ([member FloaterStyle.float_distance]/[member FloaterStyle.max_angle]) are N/A
-## for a stacked toast. Grows the slot to fit an enlarged font so it doesn't clip.
+## (already-duplicated) [param settings]. Font size and glow only. Grows the
+## slot to fit an enlarged font so it doesn't clip.
 func _apply_style(settings: LabelSettings, style: FloaterStyle) -> void:
 	if style.font_size > 0:
 		settings.font_size = style.font_size
