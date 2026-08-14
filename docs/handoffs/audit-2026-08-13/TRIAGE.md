@@ -12,6 +12,39 @@ Status column: `todo` / `done <sha>` / `issue #n`.
 
 ---
 
+## Where this stands — 2026-08-14, end of the A0–A4 pass
+
+**A0, A1, A2, A3 and A4 are landed.** What is left in bucket A is **A5** (11
+comment/doc/rule corrections) and **A6** (6 deletions). A7 stays opportunistic.
+A6.1 / A6.2 / A6.4 involve `.uid` sweeps and `mise run refresh` churn, so start
+them from a clean tree.
+
+**Master red went 6 → 1.** The one remaining failure is
+`test_spell_defs::test_reverberator_preset_well_formed` — item B1 / issue #417,
+blocked on an owner design fork. `test_fan_scene` is `Pending`, not passing.
+
+**Three things need the OWNER, and none of them shows up in a status column:**
+
+1. **B9 is new and unsettled** — what `crest_r` should be. Nothing in the game
+   has ever rendered a rim at anything but `0.0`, and two separately authored
+   "midway" values were both inert. A3.7 wired the forward; the value is a
+   one-number change with a board-wide effect.
+2. **A3.7 shipped deliberately pixel-neutral** pending B9. The plumbing bug is
+   fixed; the look is untouched. Don't read "done" as "the rim is now right".
+3. **`test_fan_scene`'s failure direction is unmeasured.** #362's title says
+   "fails in isolation" but that is about `test_no_two_panels_overlap`; the
+   function actually parked (`test_every_fan_traces_terminus_is_self_consistent`)
+   was red in a FULL-suite run. Somebody should measure it before #362 is worked.
+
+**Four triage rows turned out to be wrong, and were corrected in place** — A3.6
+(the prescribed `%.3g` does not exist in GDScript), A4.4 (the prescribed
+`_has_any_owned_node` rewrite makes the gate fail OPEN), A3.7 (bad evidence),
+and A2 as a whole (it accounted for 5 of the 6 reds; A2.3 was the missing one).
+Read a row as a lead, not as a spec: verify the claim at the site before
+applying it.
+
+---
+
 ## A — Apply directly
 
 Batched file-disjoint. Each batch: edit → `mise run check` → `mise run test` → commit.
