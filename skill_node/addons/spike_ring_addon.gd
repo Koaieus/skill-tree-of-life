@@ -16,7 +16,14 @@ extends SkillNodeAddon
 const default_color = Color.WHITE  # Color(0.95, 0.55, 0.4, 0.95)
 
 @export_range(4, 24, 1) var spike_count: int = 12
-@export var spike_color: Color:
+## Derived, never authored: the spikes take the carrier's owner colour, falling
+## back to its archetype colour and then to white. Deliberately NOT `@export` —
+## a getter-only export shows an inspector field that discards whatever is typed
+## into it, and the editor serializes the *computed* value back into the scene
+## (.claude/rules/gdscript-pitfalls.md, "never write a DERIVED value back into an
+## @export"). The scene carried exactly such a dead `spike_color` line until it
+## was dropped alongside this.
+var spike_color: Color:
 	get():
 		if carrier and carrier.owned_by:
 			return carrier.owned_by.color

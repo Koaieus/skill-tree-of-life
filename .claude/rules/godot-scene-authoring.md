@@ -30,7 +30,11 @@ Symptom: "my per-instance tweak has no effect", no error.
 **Fix:** set `resource_local_to_scene = true` on the sub-resource (inspector:
 resource → Local To Scene). Concrete case: `skill_node/addons/*_addon.tscn`'s
 granted `StatModifier`s all set this (#377) — without it, one carrier's
-value-mutation would leak into every other instantiation of that addon.
+value-mutation would leak into every other instantiation of that addon. That
+claim went false silently once (#406 added a second Spikes modifier without the
+flag), so it is now pinned by
+`test_authored_node_content.gd::test_addon_scenes_never_share_a_modifier_instance_between_carriers`,
+which walks every scene in the directory.
 
 ## Scene-node systems wire injected deps in `initialize()`, not `_ready()`
 

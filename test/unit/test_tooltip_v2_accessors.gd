@@ -174,9 +174,13 @@ func test_spike_ring_keeps_its_authored_title_and_payload() -> void:
 	var sections := sn.get_addon_tooltip_sections()
 	assert_eq(sections.size(), 1)
 	assert_eq(sections[0]["title"], "Spikes")
+	# #406 gave Spikes a SECOND blade_damage modifier (a flat +3 alongside the
+	# original ×1.5) and left this at 1 — red on master ever since. Both are
+	# authored payload, so the tooltip owes both.
 	var mods: Array = sections[0]["modifiers"]
-	assert_eq(mods.size(), 1)
-	assert_eq(String(mods[0].stat_id), "blade_damage")
+	assert_eq(mods.size(), 2)
+	for m in mods:
+		assert_eq(String(m.stat_id), "blade_damage")
 
 
 func test_skill_dust_keeps_its_authored_title_and_payload() -> void:

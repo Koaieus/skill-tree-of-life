@@ -97,3 +97,46 @@ func test_bunker_addon_grants_node_local_armor() -> void:
 
 func test_fortification_addon_grants_node_local_health() -> void:
 	await _assert_local_modifier(_FORTIFICATION, &"node_health", 15.0)
+
+
+## Every StatModifier authored as a sub-resource of an addon scene must be
+## `resource_local_to_scene`, or all instances of that addon share ONE modifier
+## object. That is not a theoretical leak: the #376 local-scale mutator writes
+## `m.value` in place — deliberately, since the boards hold references — so a
+## shared instance means scaling one node's Spikes rescales every Spikes on the
+## board (spike_ring_addon.tscn's `Resource_u38nb` shipped exactly that way).
+##
+## Asserted by identity across two instantiations rather than by reading the
+## flag, because sharing is the actual defect and `instantiate()` is the only
+## thing that honours the flag.
+func test_addon_scenes_never_share_a_modifier_instance_between_carriers() -> void:
+	for path in _addon_scene_paths():
+		var scene: PackedScene = load(path)
+		var a: SkillNodeAddon = autofree(scene.instantiate())
+		var b: SkillNodeAddon = autofree(scene.instantiate())
+		var a_mods: Array[StatModifier] = _authored_modifiers(a)
+		var b_mods: Array[StatModifier] = _authored_modifiers(b)
+		assert_eq(a_mods.size(), b_mods.size(), "%s: two instances disagree on payload size" % path)
+		for i in a_mods.size():
+			assert_true(
+				a_mods[i] != b_mods[i],
+				"%s: modifier %d ('%s') is SHARED between instances — add resource_local_to_scene = true"
+					% [path, i, a_mods[i].stat_id]
+			)
+
+
+func _authored_modifiers(a: SkillNodeAddon) -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	for m in a.local_modifiers + a.entity_modifiers:
+		if m != null:
+			out.append(m)
+	return out
+
+
+func _addon_scene_paths() -> PackedStringArray:
+	var out := PackedStringArray()
+	for f in DirAccess.get_files_at("res://skill_node/addons/"):
+		if f.ends_with(".tscn"):
+			out.append("res://skill_node/addons/".path_join(f))
+	assert_gt(out.size(), 0, "found no addon scenes to walk — did the directory move?")
+	return out
