@@ -437,13 +437,13 @@ func _real_neighbours(node: SkillNode) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if graph == null or node == null:
 		return out
-	for e in graph.get_edges():
-		if e.from == e.to:
-			continue  # self-loop never lands a move
-		if e.from == node and e.to != null:
-			out.append(e.to)
-		elif e.to == node and e.from != null:
-			out.append(e.from)
+	# `get_neighbours` is the cached adjacency index; the hand-rolled edge walk
+	# this replaced rebuilt every Edge in the level per call (graph.md). The
+	# self-loop filter stays: the index lists a self-loop as the node itself
+	# (twice), and a self-loop never lands a move.
+	for other in graph.get_neighbours(node):
+		if other != null and other != node:
+			out.append(other)
 	return out
 
 
@@ -496,6 +496,23 @@ func core_path(entity: Entity, target: SkillNode) -> Array[SkillNode]:
 
 
 func _has_any_owned_node(entity: Entity) -> bool:
+	# The navigator IS the entity's owned subgraph, so a non-empty mirror
+	# answers this in O(1) instead of scanning the whole board — and
+	# `can_allocate` is called once per node by NodeHighlightOverlay on every
+	# repaint, which made the scan quadratic in the board and re-fired on every
+	# alloc/dealloc/SP change.
+	#
+	# ONE-SIDED on purpose. An EMPTY mirror is not proof the entity owns
+	# nothing: EntityNavigator's contract is that ownership writes go through
+	# this system, and a direct `node.owned_by = X` (tests do it, and it is how
+	# scene-authored ownership arrives before `wire_to`'s bootstrap sweep)
+	# leaves the mirror stale. Trusting an empty mirror would make this return
+	# false and drop `can_allocate`'s adjacency requirement entirely — the gate
+	# failing OPEN, letting a click allocate a node nowhere near your territory.
+	# So the fast path only takes the positive answer; the negative falls back.
+	if entity != null and entity.navigator != null \
+			and not entity.navigator.get_mirrored_nodes().is_empty():
+		return true
 	if graph == null:
 		return false
 	for n in graph.get_skill_nodes():
@@ -507,14 +524,9 @@ func _has_any_owned_node(entity: Entity) -> bool:
 func _is_adjacent_to_owned(node: SkillNode, entity: Entity) -> bool:
 	if graph == null:
 		return false
-	for e in graph.get_edges():
-		var other: SkillNode = null
-		if e.from == node:
-			other = e.to
-		elif e.to == node:
-			other = e.from
-		else:
-			continue
-		if other != null and other.owned_by == entity:
+	# Cached adjacency index, not a full edge rebuild per candidate node — same
+	# quadratic-repaint path as `_has_any_owned_node` above.
+	for other in graph.get_neighbours(node):
+		if other != null and other != node and other.owned_by == entity:
 			return true
 	return false
