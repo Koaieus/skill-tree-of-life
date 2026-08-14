@@ -61,8 +61,10 @@ func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> 
 			# base class with no metric of its own cannot supply one. Writing
 			# 0.0 answered "every node is exactly at the source", which a
 			# DistanceScale would read as full magnitude everywhere. Both
-			# concrete finders override this; -1.0 marks "unknown" the same way
-			# `max_reach` does, so a caller that lands here can tell.
+			# concrete finders override this and nothing instantiates the base,
+			# so -1.0 is an unreachable "no metric here" marker. Note it is NOT
+			# the same meaning as `max_reach()`'s -1.0, which says *unbounded*;
+			# they only share the shape of an out-of-band value.
 			out[n] = -1.0
 	return out
 

@@ -160,8 +160,12 @@ func _ready() -> void:
 	# + everything it islanded) AND the defender it came off — `owned_by` is
 	# cleared by the strip that same loop, so the fact has to be read here or not
 	# at all. BattleSystem emits this BEFORE the strip; see its `cascade_started`.
+	# No warning on a null `battle_system` — the export documents it as a
+	# supported headless-fixture configuration (test_spell_loot.gd is one).
+	# What that configuration must NOT do is leave the ledger accumulating,
+	# which is why `_on_entity_dying` clears per victim rather than relying on
+	# `_on_attack_launched` alone.
 	if battle_system == null:
-		push_warning("LootSystem has no battle_system: the per-node removal trickle (#182) is off entirely")
 		return
 	battle_system.attack_launched.connect(_on_attack_launched)
 	battle_system.cascade_started.connect(_on_cascade_started)
@@ -181,6 +185,15 @@ func _on_entity_dying(victim: Entity) -> void:
 	# `_award_kill_xp` read it unconditionally — a later kill then counted an
 	# earlier attack's territory at the kill-bonus rate. Clearing here makes
 	# the read self-consistent no matter how the system is wired.
+	#
+	# ERASE, not a paid-tombstone, and that is checked rather than assumed: a
+	# LATER `cascade_started` for this same victim would rebuild the ledger from
+	# {} and re-pay those nodes at 1x on top of the bonus rate. It cannot
+	# happen. `BattleSystem._on_node_depleted` emits `cascade_started` at the
+	# TOP, before the strip loop that chips health and can kill; and once death
+	# has stripped ownership, its own `defender = node.owned_by; if defender ==
+	# null: return` guard turns every subsequent depletion for this victim into
+	# an early return. So no cascade for a victim can follow its `entity_dying`.
 	_removed_this_attack.erase(victim)
 	# Still the pre-strip world: the corpse owns its nodes, so an effect can
 	# inspect the territory it just took (the Predator's BLITZ will want this).
