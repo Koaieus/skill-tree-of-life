@@ -109,9 +109,11 @@ func test_fortification_addon_grants_node_local_health() -> void:
 func test_scene_authored_ownership_applies_node_modifiers() -> void:
 	var graph: Graph = preload("res://graph/graph.tscn").instantiate()
 	add_child_autofree(graph)
-	var ent := _make_entity()
-	graph.add_child(ent)
 
+	# Ownership is baked BEFORE the entity enters the tree, which is the load
+	# order a .tscn actually produces — and it is what makes the navigator
+	# assertion below meaningful (see the comment there).
+	var ent := _make_entity()
 	var node: SkillNode = _NODE_SCENE.instantiate()
 	var m := StatModifier.new()
 	m.stat_id = &"strength"
@@ -120,9 +122,10 @@ func test_scene_authored_ownership_applies_node_modifiers() -> void:
 	node.modifiers = [m]
 	graph.skill_nodes_container.add_child(node)
 	await get_tree().process_frame
+	node.owned_by = ent  # what the .tscn bakes
 
 	var before: float = ent.stat_board.get_stat(&"strength").value
-	node.owned_by = ent  # what the .tscn bakes
+	graph.add_child(ent)  # Entity._ready builds the navigator
 	await get_tree().process_frame
 
 	var alloc := AllocationSystem.new()
@@ -133,6 +136,15 @@ func test_scene_authored_ownership_applies_node_modifiers() -> void:
 	assert_eq(ent.stat_board.get_stat(&"strength").value, before + 7.0,
 		"a hand-authored owned node's modifiers must reach its owner's board")
 	assert_eq(node.allocation_level, 1, "and the first allocation slot is filled")
+
+	# `register_scene_authored_ownership` does NOT call `navigator.mirror_add`,
+	# unlike the other two setup paths — and it correctly doesn't have to.
+	# `EntityNavigator._ready` calls `GraphMirror.wire_to`, whose bootstrap
+	# sweep mirrors every already-owned node. Pinned because the omission looks
+	# exactly like the bug this test was written for, and the next reader will
+	# want to know it was checked rather than missed.
+	assert_true(ent.navigator.get_mirrored_nodes().has(node),
+		"the navigator's wire_to bootstrap covers scene-authored ownership")
 
 
 ## Every StatModifier authored as a sub-resource of an addon scene must be
