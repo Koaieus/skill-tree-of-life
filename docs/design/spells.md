@@ -89,7 +89,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 
 ---
 
-### Silencing Bolt [proposal: 10/10, most elegant and mechanically simple]
+### ~~Silencing Bolt~~ Reverberator [proposal: 10/10, most elegant and mechanically simple]
 
 - **target type:** node
 - **power:** high/ultra?
@@ -117,8 +117,8 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 - **power:** medium
 - **range:** medium
 - **mechanics/propagation:** single-target, no propagation. Damage = base × **target's owned degree**. A leaf takes near-zero; a degree-5 hub takes the full multiplied hit.
-- **notes:** the anti-hub precision tool. The enemy's best casting node is simultaneously the most rewarding Degree Drain target and the node they most need to protect. Pairs thematically with Silencing Bolt (Silencing travels to the highest-degree node; Degree Drain hits it hardest). Explicitly punishes sloppy targeting — firing at a leaf is a wasted action. Open: owned degree or total degree? Owned mirrors the casting-power metric; total mirrors the HP-bracing metric. Different answers produce different spells.
-- review: simple point and click should be less rewarding than e.g. landing a perfectly thought out Silencing bolt that finds and nukes a target -- we should make the cast range or damage to balance.
+- **notes:** the anti-hub precision tool. The enemy's best casting node is simultaneously the most rewarding Degree Drain target and the node they most need to protect. Pairs thematically with Reverberator (Reverberator climbs toward the highest-degree node; Degree Drain hits it hardest). Explicitly punishes sloppy targeting — firing at a leaf is a wasted action. Open: owned degree or total degree? Owned mirrors the casting-power metric; total mirrors the HP-bracing metric. Different answers produce different spells.
+- review: simple point and click should be less rewarding than e.g. landing a perfectly thought out Reverberator that finds and nukes a target -- we should make the cast range or damage to balance.
 
 ---
 
@@ -236,7 +236,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 | Crunch Bolt | high | short/med | node | Fork all, 2× rampup |
 | Heavy Bolt | high | short | node | Greedy → max armor |
 | Piercing Bolt | high | short | node | Greedy → min armor |
-| Silencing Bolt | high/ultra | medium | node | Greedy → max degree, delayed AoE |
+| Reverberator | high/ultra | medium | node | Climb ≥ own territory-degree, fan-all, **SUM merger**, self-loop crit (#417) |
 | Flood | low | medium | node | BFS fan-out (all reachable) |
 | Degree Drain | medium | medium | node | None (single-target, damage scales with degree) |
 | Topple | high | short | node | None (bonus damage + instant island on cut vertex) |
@@ -246,7 +246,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 | Supernova | ultra | short | AoE | Euclidean blast |
 | Leafblower | medium | medium | node | Downhill territory-degree filter (`<=`), rampup, payload-on-leaf |
 | Bruiser | medium | medium | node | Greedy → max HP, low base damage, single branch |
-| Resonator | high/ultra | medium | node | Max-degree fan, ×2 per hop, **SUM merger** (self-loop killer) |
+| Resonator | high/ultra | medium | node | Fan-all, flat +2/hop, **SUM merger**, crit on convergence (#352) |
 | Homing Decoring | TBD | TBD | node | Greedy → toward enemy Core |
 | Corifugal Bolt | TBD | TBD | node | Greedy → away from enemy Core |
 

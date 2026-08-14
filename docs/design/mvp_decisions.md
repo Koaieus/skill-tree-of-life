@@ -753,7 +753,13 @@ Plus: C1 followed by the owner re-allocating `X` on their turn → grace dropped
 
 ---
 
-## D-30 — Degree has three disagreeing definitions, and Resonator is authored against the wrong step
+## D-30 — Degree has three disagreeing definitions, and Resonator is authored against the wrong step [SUPERSEDED, 2026-08-15]
+
+**Superseded by #352.** The "Resonator should propagate to the largest-degree neighbour(s)" premise below predates #352, the convergence-crit Resonator that actually shipped: `FanAllStep` + `SumDamageReducer` + `ConvergenceCritCondition` is the deliberate design now — diamonds/hexagons reconverge and crit *because* it fans to every neighbour, not just the max-degree one(s) (`test_resonator.gd`, 224 lines, all green). Rewiring to `TakeTopNStep` + `DegreeRanker` would break that identity outright. Confirmed with the owner (#417 session): no shipped or planned spell currently wants max-degree-only targeting.
+
+**Degree-accessor split is still real and is now done** (#417/#296, commit `5e66031`): `GraphMirror.get_nodes_by_degree` already routes through `get_degree` (self-loop counting agrees). `DegreeRanker` silently meant true graph degree; it's now split into `GraphDegreeRanker` (explicit whole-board metric, unused today — a ready piece for a future greedy-max-degree spell, e.g. a real "Silencing Bolt") and a new `DegreeRanker` scoring entity degree, matching `DegreeFilter` and the game-wide default (`.claude/rules/degree.md`). Tracking issues #295 and #296 closed.
+
+**Original entry, kept for context:**
 
 **Question:** Resonator should propagate to the largest-degree node(s) each hop (ties → more than one). It doesn't. What is "degree" when propagation targets by it? (#240 spinoff)
 
