@@ -41,7 +41,7 @@ instance uniform float inner_r = 24.0;
 instance uniform float crest_r = 28.0;
 instance uniform float outer_r = 32.0;
 instance uniform vec4 ring_tint : source_color = vec4(0.65, 0.67, 0.72, 1.0);
-instance uniform int height_preset = 0; // 0 level, 1 terrace, 2 smooth, 3 sharpen, 4 custom (height_lut)
+instance uniform int height_preset = 0; // 0 level, 1 terrace, 2 smooth, 3 sharpen, 4 custom (height_lut), 5 mesa
 // (fill_current, fill_max) — the ONE new instance uniform this fold adds
 // (6 -> 7 of 16). Everything else the dial needs (gap width, glow strength,
 // crest bias) is a plain global uniform below: no node varies them.
@@ -80,6 +80,25 @@ float height_sharpen(float t) {
 	return t * t * t;
 }
 
+// Rise, hold, fall — the bevel climbs to full height fast (~t 0.23), plateaus,
+// then rolls back off to zero at the outer edge (~t 0.83), giving the rim a
+// rounded outer lip instead of the hard shoulder every other preset ends on.
+//
+// This is the EXACT closed form of `rim_ring_curve.tres`, which every node in
+// the game used to carry as a CUSTOM curve. That Curve is two points at y=0
+// with tangents +5.5699086 / -5.8854437; expanding the cubic Hermite for
+// p0 = p1 = 0 gives h(t) = m0*t + (-2*m0 - m1)*t^2 + (m0 + m1)*t^3, and
+// `_bake_lut` clamps the result to [0,1] — hence the clamp here. Verified
+// against `Curve.sample()` at 65 points: exact to float precision outside the
+// clamped plateau, and better than the 64-texel LUT inside it.
+//
+// Baking it as a preset is what returns those nodes to the shared material:
+// the CUSTOM path mints a private ShaderMaterial + ImageTexture per instance,
+// which at 500-2500 nodes meant one draw call per rim. See rim_ring.gd.
+float height_mesa(float t) {
+	return clamp(t * (5.5699086 + t * (-5.2543735 + t * -0.3155351)), 0.0, 1.0);
+}
+
 float sample_bevel(float local_t) {
 	local_t = clamp(local_t, 0.0, 1.0);
 	float h = height_level(local_t);
@@ -87,6 +106,7 @@ float sample_bevel(float local_t) {
 	h = mix(h, height_smooth(local_t), float(height_preset == 2));
 	h = mix(h, height_sharpen(local_t), float(height_preset == 3));
 	h = mix(h, texture(height_lut, vec2(local_t, 0.5)).r, float(height_preset == 4));
+	h = mix(h, height_mesa(local_t), float(height_preset == 5));
 	return h;
 }
 

@@ -478,7 +478,20 @@ shape that inherits. A deliberate `0.0` stays meaningful and distinct.
 
 ### Shader materials: shared + `instance uniform`, not `resource_local_to_scene`, when possible
 
-`inner_disk` and `rim_ring` (on its 4 built-in presets) each use ONE shared
+**The CUSTOM curve escape hatch now has ZERO production users, and must keep
+it.** `node_visuals_composite.tscn` used to author `height_preset = 4 (CUSTOM)`
++ `rim_height_style = rim_ring_curve.tres`, which put **every SkillNode in the
+game** on the escape hatch: a private `ShaderMaterial` + a private 64-texel
+`ImageTexture` per rim, i.e. one draw call per rim at 500-2500 nodes, with no
+`is_visible_in_tree()` gate on `_rebake_lut()` so fogged nodes paid it too. The
+whole shared-material design was inert in production. That curve is now
+`HeightPreset.MESA` — a closed-form 5th preset in `rim_ring.gdshader`, exact to
+`_bake_lut`'s clamped output and pinned by `test_rim_ring_height_presets.gd`.
+**If a new rim profile is wanted, add a preset function; do not author a Curve.**
+New presets append AFTER `CUSTOM` (index 4) — scenes and the shader's LUT branch
+both key on that number.
+
+`inner_disk` and `rim_ring` (on its 5 built-in presets) each use ONE shared
 `ShaderMaterial` (built lazily, cached in a `static var`) across every node
 instance, varying per-node via `instance uniform`s in the shader +
 `CanvasItem.set_instance_shader_parameter()` in the script. This keeps every

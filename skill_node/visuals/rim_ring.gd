@@ -34,7 +34,12 @@ extends SkillNodeRingVisual
 ## gapless single-ring special case. No spin — see rim_ring.gdshader's class
 ## doc for why the shelved version's animation isn't needed here.
 
-enum HeightPreset { LEVEL, TERRACE, SMOOTH, SHARPEN, CUSTOM }
+## MESA sits AFTER CUSTOM deliberately: `CUSTOM_PRESET_INDEX` is 4, scenes
+## already have `height_preset = 4` authored, and the shader's own comment
+## documents 4 as the LUT branch — renumbering to put MESA in the middle would
+## silently repoint every one of those. So the escape hatch keeps its index and
+## new closed-form presets append after it.
+enum HeightPreset { LEVEL, TERRACE, SMOOTH, SHARPEN, CUSTOM, MESA }
 const CUSTOM_PRESET_INDEX := 4
 const LUT_SAMPLES := 64
 
