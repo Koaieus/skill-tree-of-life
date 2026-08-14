@@ -67,10 +67,8 @@ func _ready() -> void:
 	world.handle_input_locally = true
 	# Layout must run before edges are wired: Edge captures its Line2D
 	# endpoints at connect-time and only redraws on owner/radius/archetype
-	# changes, not position — building edges first would freeze them at the
-	# nodes' pre-layout (overlapping) .tscn positions.
+	# changes, not position — edges are now pre-authored in the scene.
 	_layout_world()
-	_build_grid_edges()
 	# Hit-test clicks directly on the SubViewportContainer rather than relying
 	# on Area2D pickup through the SubViewport. In editor bottom-panel context
 	# `physics_object_picking` routing has been unreliable — events reach the
@@ -164,62 +162,29 @@ func refresh_from_spell() -> void:
 	_refresh_status()
 
 
-# A 4×4 cardinal grid alone gives 3 distinct degrees (2 / 3 / 4), and the
-# four interior nodes are all degree 4 — too uniform to read how a spell
-# behaves at hubs vs leaves. The handful of diagonal + extra edges below
-# break that into a 1..6 range without changing node positions: a
-# stand-out hub (T5 → 6), a near-hub (T10 → 5), a true leaf (T15 → 1),
-# and a couple of corners / edges that are now distinct from each other.
-const _EXTRA_EDGES: Array[Vector2i] = [
-	Vector2i(0, 5),   # corner→interior diagonal — T0 → 3, T5 +1
-	Vector2i(2, 7),   # corner→edge diagonal — T2 → 4, T7 → 4
-	Vector2i(8, 13),  # edge→interior diagonal — T8 → 4, T13 +1
-	Vector2i(5, 11),  # interior→edge shortcut — promotes T5 into a hub
-	Vector2i(3, 6),   # cross-link near NE corner — T3 → 3, T6 → 5
-]
-# Cardinal edges to skip from the regular grid — used to carve a leaf
-# (T15 isolated to a single connection) and a low-degree pocket.
-const _SKIP_CARDINAL_EDGES: Array[Vector2i] = [
-	Vector2i(11, 15),  # T15 loses its second neighbour, becomes a degree-1 leaf
-	Vector2i(12, 13),  # T12 left more isolated (degree 1 too), T13 less crowded
-]
-
-
-# Connect cardinal neighbours in the grid via Edge nodes added to
-# graph.edges_container. Grid ordering matches the .tscn — row-major,
-# 4 columns wide.
+# Edges are now PRE-AUTHORED in the .tscn under Graph/Edges — 27 of them,
+# reproducing exactly what the old `_build_grid_edges()` generated: the 4×4
+# cardinal grid, minus two skipped cardinals that carve a degree-1 leaf (T_33)
+# and a low-degree pocket (T_30), plus five diagonals/shortcuts that break the
+# too-uniform interior into a 1..6 degree range (hub at T_11, near-hub at T_22).
+# Add or remove an edge by editing the scene; nothing is generated at _ready.
+#
+# This also closes the bug that motivated the change: `_build_grid_edges` bailed
+# on `if not graph.get_edges().is_empty(): return`, so authoring ANY single edge
+# into the scene silently suppressed all 27 generated ones.
+#
 # TODO: cardinal neighbours? you mean CARDINAL SIN. THIS IS SUPPOSED TO BE A PRE-AUTHORED SCENE, ADJUSTABLE WHEN NEEDED
-# 		e.g. i need to test more stuff: parts where 2-degree nodes chain for a bit. like at least 3 links even. 
+# 		e.g. i need to test more stuff: parts where 2-degree nodes chain for a bit. like at least 3 links even.
 #		parts with degree 1, like a cardinal grid is one of the worst setups imaginable compared to real/procgen graphs
 #		ideally we also get a context menu for adding/removing edges instead of "finding" the Edge node instance (sitting at.. 0,0) and
 #		then setting its exports to the two ends -- very backward and annoying.
-func _build_grid_edges() -> void:
-	var nodes := graph.get_skill_nodes()
-	if nodes.size() < _GRID_COLS * _GRID_ROWS:
-		return
-	var existing := graph.get_edges()
-	if not existing.is_empty():
-		return  # already built (e.g. panel re-entered)
-	for r in _GRID_ROWS:
-		for c in _GRID_COLS:
-			var i := r * _GRID_COLS + c
-			if c < _GRID_COLS - 1 and not _is_skipped(i, i + 1):
-				_add_edge(nodes[i], nodes[i + 1])
-			if r < _GRID_ROWS - 1 and not _is_skipped(i, i + _GRID_COLS):
-				_add_edge(nodes[i], nodes[i + _GRID_COLS])
-	for pair in _EXTRA_EDGES:
-		_add_edge(nodes[pair.x], nodes[pair.y])
-
-
-func _is_skipped(a: int, b: int) -> bool:
-	for pair in _SKIP_CARDINAL_EDGES:
-		if (pair.x == a and pair.y == b) or (pair.x == b and pair.y == a):
-			return true
-	return false
-
-
-func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	graph.add_edge(a, b)
+#
+# STATUS on that TODO: the scene is now genuinely pre-authored and adjustable,
+# so half of it is addressed. Still open: the cardinal-grid topology itself is a
+# poor stand-in for procgen graphs (wants 3+ link chains of degree-2 nodes), and
+# there is still no context menu for adding/removing edges — you edit the .tscn.
+# `_layout_world()` also still overwrites every authored POSITION at _ready, so
+# shape (unlike topology) remains generated. Tracked as C18 in the audit triage.
 
 
 func _on_target_clicked(node: SkillNode) -> void:
