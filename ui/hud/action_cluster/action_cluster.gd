@@ -92,7 +92,7 @@ func _refresh_warning() -> void:
 	if _warning_label == null or _player == null or _player.stat_board == null:
 		return
 	var ap: PoolStat = _player.stat_board.action_points
-	if ap == null or ap.current <= 0 or not _any_enemy_visible():
+	if ap == null or ap.available() <= 0 or not _any_enemy_visible():
 		_warning_label.modulate.a = 0.0
 		return
 	_warning_label.modulate.a = 1.0
@@ -109,7 +109,7 @@ func _refresh_conversion() -> void:
 		return
 	var board := _player.stat_board
 	var ap: PoolStat = board.action_points
-	if ap == null or ap.current <= 0:
+	if ap == null or ap.available() <= 0:
 		_conversion_label.modulate.a = 0.0
 		return
 	var rate: float = board.ap_transfer_rate.get_value() if board.ap_transfer_rate != null else Entity.DEFAULT_AP_TRANSFER_RATE

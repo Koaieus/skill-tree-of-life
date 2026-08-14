@@ -152,13 +152,13 @@ func launch_attack() -> void:
 	var outcome := attack_plan.resolve()
 	var board: StatBoard = entity.stat_board
 	var ap_pool: PoolStat = board.action_points if board != null else null
-	if ap_pool != null and ap_pool.current < float(outcome.ap_cost):
+	if ap_pool != null and ap_pool.available() < outcome.ap_cost:
 		push_warning("BattleSystem.launch_attack: insufficient AP (%d < %d)" \
 				% [int(ap_pool.current), outcome.ap_cost])
 		return
 	var mana_pool: PoolStat = board.mana if board != null else null
 	if outcome.mana_cost > 0 and mana_pool != null \
-			and mana_pool.current < float(outcome.mana_cost):
+			and mana_pool.available() < outcome.mana_cost:
 		push_warning("BattleSystem.launch_attack: insufficient mana (%d < %d)" \
 				% [int(mana_pool.current), outcome.mana_cost])
 		return

@@ -579,7 +579,7 @@ func can_player_act() -> bool:
 	# AP=0 blocks further attack/cast actions; UI uses this to dim.
 	if player != null and player.stat_board != null:
 		var ap: PoolStat = player.stat_board.action_points
-		if ap != null and ap.current <= 0:
+		if ap != null and ap.available() <= 0:
 			return false
 	return true
 
