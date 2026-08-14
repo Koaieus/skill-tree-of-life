@@ -210,6 +210,40 @@ func test_edge_is_sensed_only_when_exactly_one_endpoint_is_visible() -> void:
 		"an edge with an unreached endpoint stays hidden — it would leak topology")
 
 
+## An edge straddling the vision boundary — one endpoint in vision range, the
+## other neither visible nor sensed — must still RENDER. It is not `sensed`
+## (that channel needs both endpoints reached, per the test above), so if
+## `vision_visible` also comes out false the edge lands in `VIS_HIDDEN` and
+## `edge_mesh.gdshader` hard-zeroes its alpha — a visible node then draws with
+## no connecting edges at all. `FogOverlay` used to AND the two endpoints here;
+## the shader's `VIS_VISIBLE` branch already fades the quad per-fragment against
+## the vision field, so OR is the correct gate and the far half dims itself.
+func test_edge_leaving_vision_still_renders() -> void:
+	# Default fixture spacing (2000px) vs vision_range (~504px): owning N0 makes
+	# exactly N0 visible. Budget 0 means nothing is sensed, so N1 is unreached.
+	_sensed_names(0)
+	assert_true(_vision.is_visible(_nodes[0]), "fixture: N0 is the only visible node")
+	assert_false(_vision.is_visible(_nodes[1]), "fixture: N1 is outside vision range")
+	assert_false(_vision.is_sensed(_nodes[1]), "fixture: N1 is unreached, not sensed")
+
+	var fog := preload("res://ui/fog_overlay/fog_overlay.tscn").instantiate() as FogOverlay
+	fog.vision_system = _vision
+	add_child_autofree(fog)
+	await get_tree().process_frame
+	fog._refresh()
+
+	var straddling := _edge_between(_nodes[0], _nodes[1])
+	assert_false(straddling.sensed, "one endpoint unreached — not a sensed breadcrumb")
+	assert_true(straddling.vision_visible,
+		"an edge with ONE endpoint in vision must render, or N0 looks unconnected")
+	assert_eq(straddling.render_vis_state, Edge.VIS_VISIBLE,
+		"and it must reach the shader branch that fades per-fragment, not VIS_HIDDEN")
+
+	var far := _edge_between(_nodes[2], _nodes[3])
+	assert_false(far.vision_visible,
+		"an edge with NEITHER endpoint in vision is still genuinely hidden")
+
+
 func test_edge_between_two_visible_nodes_is_not_sensed() -> void:
 	# Both endpoints visible → the edge renders normally, not as a breadcrumb.
 	_place_nodes_within_vision()

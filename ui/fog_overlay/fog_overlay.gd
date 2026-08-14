@@ -198,7 +198,15 @@ func _apply_per_element_dimming() -> void:
 			continue
 		if e.from == null or e.to == null:
 			continue
-		e.vision_visible = vision_system.is_visible(e.from) and vision_system.is_visible(e.to)
+		# OR, not AND. An edge straddling the vision boundary — one endpoint in
+		# range, the other outside — must still render, or a visible node reads
+		# as floating with no connections at all. `VIS_HIDDEN` hard-zeroes alpha
+		# in `edge_mesh.gdshader`, which would pre-empt the very thing #413 built:
+		# the `VIS_VISIBLE` branch already fades the quad PER FRAGMENT against
+		# `vision_field_darkness(world_pos)`, so the half leaving vision dims on
+		# its own down to `_VISIBLE_DIM_FLOOR`. Only an edge with NEITHER endpoint
+		# in range is genuinely hidden.
+		e.vision_visible = vision_system.is_visible(e.from) or vision_system.is_visible(e.to)
 
 
 ## Mirrors the shader's darkness math (fog.gdshader): smooth union of the
