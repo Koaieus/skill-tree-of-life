@@ -1,11 +1,12 @@
 extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
-## LootSystem's spellbook draft (#204) — the killer draft-picks a spell off the
-## victim's PERMANENT (core-node-sourced ∪ innate) spellbook, on the same
-## pre-cleanup `Events.entity_dying` phase as the SkillDust drop (#173). Fixture
-## mirrors test_loot_system.gd: a line graph, killer + victim entities, death
-## triggered via the realistic core-overflow path.
+## LootSystem's spellbook draft (#204, widened post-#204 — see loot_system.gd's
+## "#204: Spellbook loot draft" comment) — the killer draft-picks a spell off
+## the victim's FULL spellbook (core, innate, AND territory-sourced), on the
+## same pre-cleanup `Events.entity_dying` phase as the SkillDust drop (#173).
+## Fixture mirrors test_loot_system.gd: a line graph, killer + victim
+## entities, death triggered via the realistic core-overflow path.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -103,16 +104,16 @@ func _grant_from(book: SpellBook, spell: SpellDef, source_node: SkillNode) -> vo
 	book.add_spell(spell, source_node)
 
 
-# ── Acceptance #1: only core spells offered, capped at 3 ────────────────────
+# ── Acceptance #1: core AND territory spells offered, capped at 3 ───────────
 
-func test_offers_only_core_spells_capped_at_three() -> void:
+func test_offers_core_and_territory_spells_capped_at_three() -> void:
 	_victim.spellbook = SpellBook.new()
 	var core_a := _mk_spell("CoreA")
 	var core_b := _mk_spell("CoreB")
 	var territory := _mk_spell("Territory")
 	_grant_from(_victim.spellbook, core_a, _victim.core_location)
 	_grant_from(_victim.spellbook, core_b, _victim.core_location)
-	_grant_from(_victim.spellbook, territory, _nodes[2])  # territory-sourced, NOT lootable
+	_grant_from(_victim.spellbook, territory, _nodes[2])  # territory-sourced — lootable
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
@@ -123,10 +124,31 @@ func test_offers_only_core_spells_capped_at_three() -> void:
 	_kill_victim()
 
 	assert_eq(captured.size(), 1, "one spell draft fired")
-	assert_eq(captured[0].candidates.size(), 2, "only the 2 core spells offered")
+	assert_eq(captured[0].candidates.size(), 3, "all 3 known spells offered")
 	assert_true(captured[0].candidates.has(core_a))
 	assert_true(captured[0].candidates.has(core_b))
-	assert_false(captured[0].candidates.has(territory), "territory-sourced spell is not lootable")
+	assert_true(captured[0].candidates.has(territory), "territory-sourced spell is lootable")
+	Events.spell_loot_requested.disconnect(handler)
+
+
+func test_offer_capped_at_three_when_victim_knows_more() -> void:
+	_victim.spellbook = SpellBook.new()
+	var spells: Array[SpellDef] = []
+	for i in 4:
+		var s := _mk_spell("Spell%d" % i)
+		spells.append(s)
+		_grant_from(_victim.spellbook, s, _nodes[2])
+
+	var captured: Array[SpellLootRequest] = []
+	var handler := func(req: SpellLootRequest) -> void:
+		req.handled = true
+		captured.append(req)
+	Events.spell_loot_requested.connect(handler)
+
+	_kill_victim()
+
+	assert_eq(captured.size(), 1)
+	assert_eq(captured[0].candidates.size(), 3, "offer capped at 3 even with 4 known spells")
 	Events.spell_loot_requested.disconnect(handler)
 
 

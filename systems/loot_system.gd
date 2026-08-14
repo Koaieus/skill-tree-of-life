@@ -19,7 +19,8 @@ extends Node
 ##     are attached to its former core node as a [SkillDustAddon], a pick-N-from-M
 ##     relic. Node mods are NOT looted — they return to the graph. See
 ##     docs/domain/loot-system.md.
-##   * Spell draft (#204) — the victim's PERMANENT (core ∪ innate) spells,
+##   * Spell draft (#204) — every spell the victim currently knows (core,
+##     innate, AND territory-sourced — widened post-#204, see the note below),
 ##     minus what the killer already knows permanently, offered pick-1-from-M;
 ##     the chosen spell lands on the killer's core via a [SpellGrant]. See the
 ##     "#204: Spellbook loot draft" section below.
@@ -408,12 +409,20 @@ func _attach_addon(node: SkillNode, addon: SkillNodeAddon) -> void:
 	node.add_child(addon)
 
 
-# ── #204: Spellbook loot draft (core-permanent spells) ───────────────────────
-## The draft draws from the victim's PERMANENT spellbook — core-node-sourced ∪
-## innate (both survive a dealloc, both vanish with the entity; territory-node
-## spells already left the book when their node was cascade-stripped, so
-## looting them would duplicate a spell that's still live on the battlefield —
-## same anti-duplication reasoning as the core-only SkillDust draw above).
+# ── #204: Spellbook loot draft (widened to the victim's full spellbook) ──────
+## The draft draws from every spell the victim currently knows — core-sourced,
+## innate, AND territory-sourced. #204 originally restricted this to the
+## PERMANENT subset (core ∪ innate), reasoning that a territory-sourced spell
+## would "duplicate a spell still live on the battlefield" (re-obtainable by
+## allocating the same node). In practice every entity starts from the same
+## shared spellbook_default.tres and a SpellGrant landing on any given
+## entity's OWN core node is rare, so `permanent_spells` almost never diverges
+## between killer and victim — the draft had nothing to offer. Widening to the
+## full spellbook is a deliberate design change, not the original spec: the
+## killer permanently claims a spell the victim currently holds by ANY means,
+## territory included. `_exclude_known` still filters by the killer's
+## permanent set only, so a spell the killer holds temporarily (via their own
+## territory) stays offerable as an upgrade to permanent.
 ## Fires SYNCHRONOUSLY on the same `entity_dying` phase as the dust drop, so
 ## both requests reach HudRoot in the same call stack — HudRoot queues them
 ## (dust first, since it's dispatched first here).
@@ -432,7 +441,7 @@ func _award_spell_loot(victim: Entity, killer: Entity) -> void:
 	var victim_book := victim.spellbook
 	if victim_book == null or victim.core_location == null:
 		return
-	var candidates := victim_book.permanent_spells(victim.core_location)
+	var candidates := victim_book.spells.duplicate()
 	candidates = _exclude_known(candidates, killer)
 	if candidates.is_empty():
 		return
