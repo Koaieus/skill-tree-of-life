@@ -1,122 +1,188 @@
-# Codebase audit 2026-08-13 — shared brief
+# Handoff — codebase audit 2026-08-13
 
-## Phase 0 baseline
+**Status: audit ~85% delivered, zero fixes applied.** 8 of 11 slice reports are
+complete and committed under `docs/handoffs/audit-2026-08-13/`. Nothing has been
+refactored yet. A fresh session should start at **§4 What to do next**.
 
-- `mise run check`: **clean**, all scripts compile.
-- Working tree at start: 4 modified files, all owner WIP on self-loops
-  (`dev_sandbox.tscn` + `spell_playground/playground_panel.tscn` gained a self-loop
-  Edge and a `self_loops` node_path; `reverberator.tres`/`bruiser.tres` are editor
-  resave churn + one unused `rank_pass.gd` ext_resource added to bruiser).
-- Dirty-tree suite: 1443/1449 pass, **6 failures** across 4 scripts:
-  - `test/unit/spell/test_spell_defs.gd::test_reverberator_preset_well_formed`
-    ("reverberator uses SUM merger", "ramps multiplicatively")
-  - `test/unit/test_node_visuals_contract.gd` × 2 (fog composite instance state)
-  - `test/unit/test_tooltip_v2_accessors.gd::test_spike_ring_keeps_its_authored_title_and_payload`
-  - `test/unit/ui/test_fan_scene.gd::test_every_fan_traces_terminus_is_self_consistent`
-    (FOCUS lane E item 7 already knows `test_fan_scene` is broken → #362)
-- Pristine-HEAD baseline: see `pristine-test.log`.
+---
 
-## Phase 1 mechanical sweep (grep, whole first-party tree)
+## 1. Autopsy — why the token budget died
 
-Clean — **zero** violations of:
-- degree rule (`get_neighbours().size()`) — 0 hits anywhere, incl. tests
-- PoolStat raw `base_value =` writes — 0 hits outside tests
+The fan-out (11 parallel opus auditors over ~65k LOC of first-party GDScript)
+consumed **0% → 115% of a 5-hour window in under 10 minutes**. Reports were
+salvaged only because the auditors were ordered to dump partial results ~40
+seconds before the cutoff.
 
-Real hits:
-1. **6 sandbox tabs still on the legacy `panel_scene` runtime-injection path**
-   (`.claude/rules/sandbox-host.md` says this is wrong: tab previews empty, reload
-   diverges from cold open). Offenders: `tabs/10_spell_tab.tscn`,
-   `15_node_visuals_tab.tscn`, `30_statboard_tab.tscn`, `35_procgen_tab.tscn`,
-   `50_loot_tab.tscn`, `60_toast_tab.tscn`. Only `70_bloom_tab.tscn` uses the
-   blessed inherited-scene + `%PanelHost` form.
-2. **Bare `Dictionary`/`Array` without type params** — ~220 occurrences:
-   ui 40, procgen 38, attack 34, skill_node 28, tools 23, systems 21,
-   stats_system 16, entity 12, scenes 5.
-3. **Missing `-> ` return types**: attack 26, procgen 22, ui 9, skill_node 5,
-   entity 5, autoload 4. Untyped `var` is rare everywhere (≤3/dir, except tools 11).
-4. `set_shader_parameter` in per-node visuals (`skill_node/visuals/rim_ring.gd`,
-   `inner_disk.gd`) — check against `.claude/rules/rendering-performance.md`
-   (per-instance uniforms break batching at 500–2500 nodes).
+**Correct the instinct before repeating this:** the work was *not* 20% done at
+cutoff. All 8 surviving reports are complete — 20–25 ranked findings each, no
+`## Incomplete` sections. Only 3 slices (stats, tooltip-fan, hud) were lost. So
+the true cost of this fan-out was roughly **115–130% of one window**, not the
+400–500% it felt like. That is close enough to affordable that the fixes below
+bring it comfortably inside one window.
 
-## Owner-reported smells — auditors must address these explicitly
+### Root causes, in order of size
 
-1. **Graph scene has both `Edges` (Node2D) and `EdgeMesh` (MultiMeshInstance2D).**
-   Confirmed in `graph/graph.tscn`. Two parallel structures maintained. Is the
-   split model-vs-renderer (defensible, badly named) or a half-finished migration?
-   Consumers: `graph/graph.gd`, `graph/edge.gd`, `ui/fog_overlay/fog_overlay.gd`,
-   `test/unit/test_edge_mesh_render.gd`, `test/unit/test_edge_z_order.gd`.
-2. **Self-loops don't render like regular edges** — they lack the emissive glow
-   normal edges get. Suspicion: self-loops are drawn on a different path that
-   never joined the multimesh / HDR-emissive path.
-3. **Adding a self-loop in the spell playground made all other edges vanish.**
-   Suspicion: zero-length edge poisons a multimesh buffer rebuild / instance count.
-   Also check whether that tab's graph is genuinely pre-authored or rebuilt at
-   runtime (it IS a legacy `panel_scene` tab — see hit #1 above).
-4. **HDR/emissive bloom is under-applied.** Real glow now exists
-   (`.claude/rules/hdr-color.md`, `ui/theme/emissive.gd`, 63 `Emissive.` call
-   sites / 20 files) but places that *fake* glow predate it and were never
-   migrated — notably the segmented gauge UI (`ui/gauges/pool_gauge.gd`,
-   `composite_bar_gauge.gd`, `capacity_pip.gd`). Flag every faked/absent glow.
+1. **Subagents inherited the `advisor` tool. This is the big one.** `advisor`
+   forwards the calling agent's *entire transcript* to another opus model. For a
+   code auditor that transcript is every file it has read. An auditor that read
+   4000 lines and called advisor twice paid for that corpus **three times** —
+   once accumulating it, twice more re-sending it to a second opus. The
+   orchestrator already *is* the advisor for a subagent; the subagent calling one
+   is pure duplicated spend.
+   → **Every subagent prompt must say: do NOT call `advisor`.** The tool
+   description tells them to call it before substantive work and again when done,
+   so they will do it unless explicitly forbidden.
 
-## Going-in hypotheses (don't re-derive; verify or refute)
+2. **Monotonic context re-send.** An agent's context only grows as it reads, and
+   every subsequent tool call re-sends the whole thing. 40 tool calls averaging a
+   40k context ≈ 1.6M input tokens for *one* agent, before any advisor call.
+   × 11 × opus rates.
 
-- `skill_node/skill_node.gd` — 1608 lines, 34 commits in 3 weeks. God object.
-- `attack/` — 80 files for 4.6k LOC (~57 lines/file). Over-fragmentation /
-  indirection. Same shape suspected in `ui/` (123 files).
-- First-party TODOs are prior agents flagging their own shortcuts — treat as
-  pre-filed findings: `ui/vfx/coordinator/magic_bounce_coordinator.gd` ("think
-  through a class decomposition instead of `waves, beats, pending`"),
-  `effects/effect_context.gd` ("carefully review all these splits"),
-  `attack/outcome/healing_instance.gd` (shared parent with `DamageInstance`),
-  `attack/outcome/propagation_event.gd` (two vars → one typed to parent),
-  `ui/hud/combat_readout/combat_card_magic.gd` + `combat_card_defense.gd`
-  (inherited-scene refactor left half-done; `combat_card_melee.gd` reproduces
-  stale innate-modifier logic), `ui/tooltip_fan/fan_live_sandbox.gd` (untyped
-  dicts, `Entity.new()` instead of scene instantiate),
-  `attack/spell/on_hit/healing_effect.gd` (nothing consumes it),
-  `ui/announcement_layer/callout_band.gd` (hardcoded style colors).
+3. **"Read every `.gd` in scope in full" was the wrong instruction** — it
+   maximises precisely the quantity that gets re-sent every turn. Scope by
+   symptom (churn, size, the named hypotheses) and read selectively.
 
-## MANDATORY report contract (every auditor)
+4. **All-opus at 11-wide was the orchestrator's call and it was wrong.** The
+   owner's concern — a Sonnet-written module graded by Sonnet — is legitimate,
+   but the answer is *fewer opus units*, not eleven of them.
 
-You are **read-only**. Make ZERO edits to the repo. Your only write is your report
-file. Do not run `mise run test`, do not run the game, do not commit.
+### Budget rules for any future fan-out in this repo
 
-Before auditing, read: `/home/bramh/skill-tree-of-life/CLAUDE.md`, this brief, and
-every `/home/bramh/skill-tree-of-life/.claude/rules/*.md` whose `paths:` frontmatter
-covers your files. Several rules are one-line "breadcrules" pointing at
-`docs/domain/<topic>.md` — follow the pointer when it bears on your slice.
+- Forbid `advisor` in every subagent prompt, explicitly.
+- Ceiling **~6 opus subagents per 5-hour window**, or ~11 if advisor is off *and*
+  reading is scoped rather than exhaustive.
+- Reports go to **disk**, never into the orchestrator's context as return values.
+  This worked and should be kept regardless of budget.
+- Commit salvaged artifacts to the **repo**, not the scratchpad — the scratchpad
+  is session-scoped and evaporates.
+- With a 1M context, the orchestrator's own context is the *cheap* resource and
+  subagent spend is the scarce one. Prefer the orchestrator reading and fixing
+  sequentially over another fan-out.
+- "You've hit your monthly spend limit" in this account means the ordinary token
+  limit; the monthly spend limit is $0.
 
-Read every `.gd` in your scope **in full**, plus the `.tscn`/`.tres` that compose
-them. Read outside your scope only to understand a dependency.
+---
 
-What counts as a finding, small to large:
-- **NIT** — bad function split, dead code, duplicated logic, untyped `var`, missing
-  `-> ` return type, bare `Dictionary`/`Array` where a typed collection belongs,
-  magic numbers, stale/lying comments and names.
-- **MEDIUM** — wrong seam between two classes, logic in the wrong layer, a scene
-  that should be an inherited scene, a code-composed `X.new()`+`add_child` tree that
-  should be a `.tscn` instance, DI via `get_node` instead of exported NodePaths,
-  per-frame work that should be cached, a rule-file violation.
-- **LARGE** — wrong modelling of the domain, god object or the opposite (indirection
-  with no payoff), a half-finished migration leaving two parallel mechanisms, an
-  abstraction that no longer matches what the game actually does.
+## 2. Phase 0 + 1 results (done, durable)
 
-Report shape — obey exactly:
+- `mise run check`: **clean.**
+- `mise run test`: **1443/1449 — master is red**, verified identical on a pristine
+  `HEAD` worktree, so the owner's uncommitted WIP is innocent. Failures:
+  `test_spell_defs::test_reverberator_preset_well_formed`,
+  `test_node_visuals_contract` ×2, `test_tooltip_v2_accessors::test_spike_ring_…`,
+  `ui/test_fan_scene::test_every_fan_traces_terminus_is_self_consistent`.
+  **Auditors say the tests are right and the code/scenes are wrong** — see
+  audit-skill-node #3 and audit-attack #3.
+- Rules that held: **zero** `get_neighbours().size()` degree violations, **zero**
+  raw `PoolStat.base_value` writes.
+- Rules that did not: legacy sandbox `panel_scene` tabs — the grep found 6, the
+  devtools auditor found **9**.
+- ~220 bare `Dictionary`/`Array` without type params (ui 40, procgen 38, attack
+  34, skill_node 28, tools 23, systems 21). Untyped `var` is rare (≤3/dir, except
+  `tools/` at 11). Missing `-> ` return types cluster in attack (26), procgen (22).
 
-```
-### <N>. SEVERITY | path/file.gd:LINE | <=10-word title
-**Defect:** one sentence.
-**Breaks:** one sentence naming what is wrong today, or what future change this makes harder.
-**Fix:** one sentence.
-```
+Working tree still carries the owner's self-loop WIP in
+`scenes/dev_sandbox.tscn`, `addons/spell_playground/playground_panel.tscn`, and
+resave churn in `bruiser.tres` / `reverberator.tres`. **Left deliberately dirty**
+— it is the reproduction case for the bugs below. `bruiser.tres` also gained an
+unused `rank_pass.gd` ext_resource.
 
-- Max **25** findings, ranked most-severe first. 15 sharp findings beat 25 padded ones.
-- **Quality filter:** drop any finding whose only justification is style preference.
-  Every finding must name a concrete consequence.
-- No code blocks longer than 3 lines.
-- End with `## Verdict` — max 5 sentences on whether this slice is well-modelled.
+---
 
-## Excluded from all audits
+## 3. The owner's three reported smells — all diagnosed
 
-`addons/gut/`, `addons/godot-neovim/` (vendored), `.worktrees/`, and the
-scratchpad `pristine/` worktree.
+**Smell 3 — "adding one self-loop made all other edges vanish."** Root-caused
+independently by two auditors, and **the multimesh hypothesis in the brief was
+wrong**. `addons/spell_playground/playground_panel.gd:200` builds the grid edges
+at `_ready` behind an all-or-nothing guard: `if not graph.get_edges().is_empty():
+return`. The scene authors zero `Edge` children at HEAD, so the owner's one
+authored self-loop makes that check non-empty and **all 24–27 grid edges are
+never built**. They did not vanish from a renderer; they were never created.
+`dev_sandbox.tscn`, which authors its edges properly, is the control case and
+does not break. Related: that panel is half-authored/half-generated — `_layout_world`
+also overwrites every authored position, so editor-authored topology *and* shape
+are both fiction. The panel's own TODO ("THIS IS SUPPOSED TO BE A PRE-AUTHORED
+SCENE") is currently unimplementable.
+
+**Smell 2 — "self-loops don't glow."** Exact divergence point found:
+`graph/edge.gd:364`, `_draw_self_loop()` calls `_display_color()`, which its own
+docstring marks SDR-only. The multimesh path calls `_display_color_lifted()`
+(`edge.gd:325`), the only place the `pow(2, lit_glow_stops)` HDR lift is applied.
+A lit self-loop's colour never crosses 1.0, so the shared `WorldEnvironment` glow
+pass never fires, and the authored `lit_glow_stops = 4.5` is silently a no-op for
+self-loops. A **third** divergence was also found: `edge.gd:113` sets a sensed
+self-loop to z 991 (`ZLayers.EDGE + ZLayers.SENSED` = -10 + 1001), which is
+*below* the fog overlay at z 1000, so sensed self-loops are painted over.
+
+**Smell 1 — "`Edges` vs `EdgeMesh`, why two nodes?"** The auditor's answer is
+"neither" — `MultiMeshInstance2D` accepts children, so merging the *nodes* is
+cosmetic. The real duplication is **two complete render pipelines for one
+concept**: stretched-quad multimesh + `edge_mesh.gdshader` vs. per-instance
+`_draw_self_loop`; `_display_color_lifted` vs `_display_color`; per-fragment
+vision self-shading vs `FogOverlay`'s `modulate.a` + z dance. Smells 2 and 3 are
+both symptoms. #413 scoped self-loops out and never came back. Fix shape: bring
+the loop ring into the batch (second `MultiMeshInstance2D` with a ring mesh, or
+an SDF branch keyed off custom data), after which `Edges` can stop being a
+CanvasItem and become a plainly-named `Node` container.
+
+**Bonus, same cluster:** `skill_node.gd:137` `@export var self_loops: Array[Edge]`
+is a *derived runtime index that the editor serializes* — the owner's WIP baked
+`[null, NodePath(...)]` into the scene, so `self_loop_count` reads 2 for one loop
+and `GraphMirror.get_degree` over-reports degree by +2 while `Graph._ensure_topology`
+counts it correctly. Two disagreeing degree answers feeding spell `min_degree`
+gating.
+
+---
+
+## 4. What to do next
+
+**Do not fan out again.** Read the reports directly and fix sequentially.
+
+1. `ls docs/handoffs/audit-2026-08-13/` — 8 reports, ~167 findings total, each
+   ranked most-severe-first in a fixed `SEVERITY | file:line | title` /
+   **Defect** / **Breaks** / **Fix** format. Read them; they are dense and
+   already filtered for style-only noise.
+2. Write a consolidated triage doc before touching code.
+3. **Apply NITs and small fixes directly**, in file-disjoint batches,
+   `mise run check` + tests + commit per batch (standing commit-as-you-go
+   authorization).
+4. **MEDIUM findings: ask the owner once**, as a single numbered list with an
+   apply-vs-issue recommendation per item. This fork was raised and never
+   answered.
+5. **LARGE findings → GitHub issues** under one new hub, `gh issue create
+   --parent`, heredoc + `--body-file` (never `--body` with backticks).
+6. **Three slices were never audited: `stats_system/` + `skill_node/addons/`,
+   `ui/tooltip_fan/` + `ui/spell_tooltip/`, and `ui/hud/` + `ui/gauges/`.** The
+   hud one carries an unfulfilled owner ask: an explicit inventory of which HUD
+   elements use real emissive vs. faked pre-bloom glow, with `ui/gauges/`
+   (`pool_gauge`, `composite_bar_gauge`, `capacity_pip`) named directly. The
+   original prompts for all three are reconstructable from `00-brief.md`.
+
+### The LARGE findings, at a glance
+
+| Slice | LARGE findings |
+|---|---|
+| skill-node | RimRing's unbatched escape hatch on every node; committed baked instance uniforms defeat the fog gate; the 2 failing visual-contract tests are right and the scenes are wrong; `skill_node.gd` god object (5 concerns, 3 clean seams); `self_loops` exported derived state |
+| attack | blade construction written three times; parallel per-effect-kind slots instead of a hit list (cf. #381); `reverberator.tres` contradicts its own description and test |
+| procgen | 1066-line static class hiding six phases; self-flagged stub owns the content hot path; `already_rolled` permanently empty in v4; addon pass's documented pipeline does not exist; `generate` mutates the config it is handed |
+| vfx | two live panel systems, migration stalled; three parallel aura mechanisms; bounce-coordinator drain loop can end before later beats fire; verdict delivered on the `effect_context` TODO |
+| systems | scene-authored ownership never applies node modifiers; teardown duplicated across deallocate/force_deallocate; cascade authority is a second system inside BattleSystem |
+| test-infra | no fixture layer, 44 tests rebuild the world; nothing gates the suite, so the process pre-authorizes red master; Board↔Stat cycle leaks every duplicated board |
+| graph-core | two edge render paths (see §3) |
+| devtools | the self-loop edge bug (§3); playground half-authored/half-generated; **nine** legacy `panel_scene` tabs |
+
+### Cheap early wins
+
+`graph/edge.gd:364` (one-line `_display_color` → `_display_color_lifted`) and
+`graph/edge.gd:113` (z-band fix) close two of the owner's three smells. Verify on
+a real opengl3 renderer, **never headless** — `edge.gd:279-301` records that the
+headless path previously lied about exactly this.
+
+---
+
+## 5. Housekeeping
+
+- A pristine `HEAD` worktree may still exist at
+  `<scratchpad>/pristine` — `git worktree remove` it when convenient.
+- Delete this handoff and `docs/handoffs/audit-2026-08-13/` once the findings
+  have been converted to issues and fixes.
