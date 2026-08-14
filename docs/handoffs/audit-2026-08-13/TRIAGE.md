@@ -35,14 +35,31 @@ straddle vis-state in `edge_mesh.gdshader`. **Not headless-verifiable.**
 
 | # | Site | Change | Source | Status |
 |---|---|---|---|---|
-| A1.1 | `graph/edge.gd:364` | `_draw_self_loop` calls `_display_color` (SDR-only per its own docstring); switch to `_display_color_lifted` so the `pow(2, lit_glow_stops)` HDR lift applies. **Not headless-verifiable** — see note below. | graph-core #2 | **done 2945015** (not visually verified) |
+| A1.1 | `graph/edge.gd:364` | `_draw_self_loop` calls `_display_color` (SDR-only per its own docstring); switch to `_display_color_lifted` so the `pow(2, lit_glow_stops)` HDR lift applies. **Not headless-verifiable** — see note below. | graph-core #2 | **done 2945015 — VISUALLY VERIFIED** |
 | A1.2 | `graph/edge.gd:113` + `ui/fog_overlay/fog_overlay.gd:196` | `sensed` promotes to `ZLayers.EDGE + ZLayers.SENSED` = 991, *below* FogOverlay at 1000. Promote to the absolute `ZLayers.SENSED` band. Add an assertion on the promoted value to `test_edge_z_order.gd:52`. | graph-core #3 | **done 2945015** |
 | A1.3 | `addons/spell_playground/playground_panel.gd:200` | `_build_grid_edges` bails on `if not graph.get_edges().is_empty(): return`, so one authored self-loop suppresses all 24–27 generated edges. Make the guard per-pair, or author the edges into the `.tscn`. | graph-core #1, devtools #1 | **done 07868a5** (authored into the .tscn) |
 
-**A1.1 verification caveat.** `graph/edge.gd:279-301` records that the headless
-path previously lied about exactly this. A green `mise run test` does **not**
-close smell #2 — it needs a windowed run comparing a lit self-loop against a lit
-regular edge on the same node.
+**A1.1 VERIFIED 2026-08-14 — smell #2 is closed.** Measured on a real
+renderer (`Xvfb :99` + `--rendering-driver opengl3`, `dev_sandbox.tscn`, whose
+WIP self-loop on `Down_Out` is the repro), sampling the ring's pixels with the
+lift reverted vs. applied:
+
+| | mean | max |
+|---|---|---|
+| `_display_color` (SDR, before) | 0.055 | **0.592** |
+| `_display_color_lifted` (after) | 0.101 | **1.000** |
+
+Before, the ring's brightest pixel never reached 1.0, so `glow_hdr_threshold`
+could never fire — it rendered as a dim olive circle. After, it clips at 1.0 and
+the regional mean nearly doubles, which is the bloom halo spreading energy into
+neighbouring pixels. Visually: muddy dark-olive → saturated gold with a halo.
+
+This also answers the open question about whether the lift survives at all on
+this path: `_display_color_lifted`'s docstring derives everything from
+`set_instance_color` carrying no `source_color` hint, but `draw_arc` pushes its
+`Color` through the canvas item's **vertex colour** attribute instead — a
+different pipeline that could have clamped `pow(2, 4.5)` at submission. It does
+not.
 
 ### A2 — Red-master repairs (make the gate meaningful)
 

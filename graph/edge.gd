@@ -356,6 +356,14 @@ func _display_color_lifted(base: Color, lit: bool) -> Color:
 ## and the ring reads as emerging from / vanishing into the node rather than
 ## floating next to it as a separate lollipop.
 ##
+## CAVEAT: that occlusion holds only while the loop is UNSENSED. A sensed
+## self-loop is promoted to the absolute ZLayers.SENSED band (see the `sensed`
+## setter) so it can clear the fog quad at ZLayers.FOG, which puts it level
+## with the sensed SkillNode and later in `graph.tscn`'s child order — so it
+## draws OVER the node body and the sunk read is lost for exactly that state.
+## Deliberate: a breadcrumb nobody can see through the fog is worth less than
+## a correctly-sunk ring. Both go away once self-loops join the edge batch.
+##
 ## Direction is the bisector of the LARGEST angular gap between the node's
 ## other edges — keeps the self-loop visually clear of existing edges
 ## without disturbing them. Falls back to 12 o'clock when the node has no
