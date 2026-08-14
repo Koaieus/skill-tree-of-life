@@ -94,8 +94,8 @@ real bug, just no longer masking new red.
 
 | # | Site | Change | Source | Status |
 |---|---|---|---|---|
-| A4.1 | `graph/graph_mirror.gd:127` | `get_nodes_by_degree` reads bare `astar.get_point_connections().size()` while `get_degree` adds `2 * self_loop_count` — two degree definitions in one class, and `.claude/rules/degree.md` names `get_degree` canonical. Call `get_degree(node)`. | graph-core #6 | todo |
-| A4.2 | `graph/graph_mirror.gd:48` | `mirror_add` scans all of `get_edges()` per node → O(N·E) at load and a fresh O(E) on **every allocation**. Use the cached `graph.get_neighbours(node)`. | graph-core #7 | todo |
+| A4.1 | `graph/graph_mirror.gd:127` | `get_nodes_by_degree` reads bare `astar.get_point_connections().size()` while `get_degree` adds `2 * self_loop_count` — two degree definitions in one class, and `.claude/rules/degree.md` names `get_degree` canonical. Call `get_degree(node)`. | graph-core #6 | **done** — behavioural, not cosmetic: a self-looped node reported one degree to `get_degree` and another to every degree QUERY, so `RangedAttackPlan`'s `get_leaf_nodes()` treated it as a leaf. Red-green pinned. |
+| A4.2 | `graph/graph_mirror.gd:48` | `mirror_add` scans all of `get_edges()` per node → O(N·E) at load and a fresh O(E) on **every allocation**. Use the cached `graph.get_neighbours(node)`. | graph-core #7 | **done** |
 | A4.3 | `systems/allocation_system.gd:427` | `_real_neighbours` hand-rolls an edge walk; `graph.get_neighbours()` is the cached index. Keep the `n != node` self-loop filter. | systems #17 | todo |
 | A4.4 | `systems/allocation_system.gd:489,498` + `ui/.../node_highlight_overlay.gd:65` | `can_allocate` is O(N+E) and the highlight overlay calls it per node → O(N·(N+E)) per repaint, re-fired on every alloc/dealloc/SP change. `_has_any_owned_node` → `entity.navigator.get_mirrored_nodes().is_empty()`; adjacency → `get_neighbours`. | systems #4 | todo |
 | A4.5 | `systems/player_input_controller.gd:582`, `systems/battle_system.gd:155,161` | AP/mana gates read `.current`; `.claude/rules/stats-system.md:144` requires `available()` and *names these files as compliant examples* — the rule file is currently lying. Switch all three, correct the rule. | systems #6 | todo |
@@ -329,7 +329,9 @@ severity.
 | C21 | Collapse the six reducer files into one `FoldReducer` | Each is `_merge_payload_defaults` + one fold. **Counter-note for the issue body: do NOT collapse the four `HopDamageProgression` subclasses** — `flat_add_progression.gd:8-22` is an explicit trap marker recording that the class was deleted once as a "dimensional bug" and deliberately restored per the D-32 amendment. | attack #4 |
 | C22 | `AllocationVFX`: five code-composed effect trees → scenes | ~25 property assignments each plus 20 tuning constants in a 430-line file; none previewable or tunable, which is *why* all five were missed by the HDR migration. The shatter also builds ~48 chained tweeners per node. | vfx #15, #18 |
 | C23 | `TurnManager` has no death awareness | `GameRoot._on_entity_died` writes `current_entity = null` directly, past `end_turn()`, so `turn_ended` never fires when the acting entity dies on its own turn. The only guard on the invariant is an `assert` compiled out in release. | systems #12 |
-| C24 | Coverage backlog (file against #284/#357/#358/#359) | No test names `hop_range_finder`, `euclidean_range_finder`, `range_visual`, `node_targeting`, **`graph_mirror.gd`** (the `get_degree` authority the degree rule routes everyone to), `astar_skill_tree.gd`, or four propagation filters. | test-infra #7, #14 |
+| C24 | Coverage backlog (file against #284/#357/#358/#359) | No test names `hop_range_finder`, `euclidean_range_finder`, `range_visual`, `node_targeting`, **`graph_mirror.gd`** (the `get_degree` authority the degree rule routes everyone to), `astar_skill_tree.gd`, or four propagation filters. **`graph_mirror.gd` now has
+`test/unit/test_graph_mirror.gd`** (landed with A4.1/A4.2) — strike it from the
+list; the rest stand. | test-infra #7, #14 |
 
 **Lower-priority C candidates** (real, but schedule after the above): `HealthBar`/
 `CoreHealthBar` are the same class twice (skill-node #13) · `_sync_visuals`

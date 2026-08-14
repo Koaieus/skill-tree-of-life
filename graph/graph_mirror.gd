@@ -45,14 +45,12 @@ func mirror_add(node: SkillNode) -> void:
 	astar.add_point(id, node.global_position)
 	if graph == null:
 		return
-	for e in graph.get_edges():
-		var other: SkillNode = null
-		if e.from == node:
-			other = e.to
-		elif e.to == node:
-			other = e.from
-		else:
-			continue
+	# `get_neighbours` reads Graph's cached adjacency index (O(degree)); the
+	# hand-rolled `for e in graph.get_edges()` this replaced rebuilt every Edge
+	# in the level into a fresh Array, per mirrored node — O(N*E) at load and a
+	# fresh O(E) on EVERY allocation. Same class of bug as the one
+	# .claude/rules/graph.md records against VisionSystem.
+	for other in graph.get_neighbours(node):
 		var other_id := vertex_id(other)
 		# Skip self-loops (other_id == id): AStar2D rejects same-id connects.
 		if other_id >= 0 and other_id != id and not astar.are_points_connected(id, other_id):
@@ -123,8 +121,12 @@ func get_degree(node: SkillNode) -> int:
 func get_nodes_by_degree(degree: int) -> Array[SkillNode]:
 	var result: Array[SkillNode] = []
 	for node in _node_ids:
-		var id: int = _node_ids[node]
-		if astar.get_point_connections(id).size() == degree:
+		# `get_degree`, not a bare `get_point_connections().size()` — a
+		# self-loop counts +2, and this class having two answers to "what is
+		# the degree" is exactly what .claude/rules/degree.md exists to stop.
+		# It named `get_degree` canonical while its own neighbour here
+		# disagreed, so a self-looped leaf never showed up as a leaf.
+		if get_degree(node) == degree:
 			result.append(node)
 	return result
 
