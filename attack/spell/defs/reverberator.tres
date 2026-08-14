@@ -9,19 +9,18 @@
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="4_filter_base"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
+[ext_resource type="Script" uid="uid://ct4rk6dn6b43u" path="res://attack/spell/propagation/filter/degree_filter.gd" id="6_degree"]
+[ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="7_composite"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="8_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="8_ww832"]
 [ext_resource type="Script" uid="uid://bs86s2grue8eq" path="res://attack/spell/propagation/progression/scaled_add_progression.gd" id="9_qehuf"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_uku7o"]
-[ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="10_emaof"]
-[ext_resource type="Script" uid="uid://b8ryawnj6c1tg" path="res://attack/spell/propagation/step/degree_ranker.gd" id="12_bgh4h"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="10_step"]
+[ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="10_reducer"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_ww832"]
-[ext_resource type="Script" uid="uid://bdvx7u7771m3t" path="res://attack/spell/propagation/step/take_top_n_step.gd" id="13_1exbt"]
-[ext_resource type="Script" uid="uid://g0mw41xilync" path="res://attack/spell/propagation/step/rank_pass.gd" id="14_rank_pass"]
-[ext_resource type="Script" uid="uid://bqvcpwv5ccxbi" path="res://attack/spell/propagation/step/current_threshold_pass.gd" id="15_current_threshold"]
-[ext_resource type="Script" uid="uid://bu2b4l36tmoty" path="res://attack/spell/propagation/step/top_ties_pass.gd" id="16_top_ties"]
 
 [sub_resource type="Resource" id="carve_reverberator"]
 script = ExtResource("1_tcs")
@@ -37,39 +36,30 @@ script = ExtResource("3_dmg")
 [sub_resource type="Resource" id="filter_enemy"]
 script = ExtResource("5_owner")
 
+[sub_resource type="Resource" id="filter_degree"]
+script = ExtResource("6_degree")
+compare = 3
+
+[sub_resource type="Resource" id="filter_composite"]
+script = ExtResource("7_composite")
+children = Array[ExtResource("4_filter_base")]([SubResource("filter_enemy"), SubResource("filter_degree")])
+
 [sub_resource type="Resource" id="Resource_ahisb"]
 script = ExtResource("9_qehuf")
 seed_fraction_per_hop = 0.5
 metadata/_custom_type_script = "uid://bs86s2grue8eq"
 
-[sub_resource type="Resource" id="Resource_qehuf"]
-script = ExtResource("10_emaof")
-metadata/_custom_type_script = "uid://dra06averh54c"
+[sub_resource type="Resource" id="reducer_sum"]
+script = ExtResource("10_reducer")
 
-[sub_resource type="Resource" id="Resource_bgh4h"]
-script = ExtResource("12_bgh4h")
-metadata/_custom_type_script = "uid://b8ryawnj6c1tg"
-
-[sub_resource type="Resource" id="pass_threshold"]
-script = ExtResource("15_current_threshold")
-metadata/_custom_type_script = "uid://bqvcpwv5ccxbi"
-
-[sub_resource type="Resource" id="pass_topties"]
-script = ExtResource("16_top_ties")
-metadata/_custom_type_script = "uid://bu2b4l36tmoty"
-
-[sub_resource type="Resource" id="Resource_emaof"]
-script = ExtResource("13_1exbt")
-ranker = SubResource("Resource_bgh4h")
-take_count = 2
-passes = Array[ExtResource("14_rank_pass")]([SubResource("pass_threshold"), SubResource("pass_topties")])
-metadata/_custom_type_script = "uid://bdvx7u7771m3t"
+[sub_resource type="Resource" id="step_fan"]
+script = ExtResource("10_step")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
-filter = SubResource("filter_enemy")
-step = SubResource("Resource_emaof")
-reducer = SubResource("Resource_qehuf")
+filter = SubResource("filter_composite")
+step = SubResource("step_fan")
+reducer = SubResource("reducer_sum")
 max_hops = 5
 max_visits_per_node = 6
 hop_damage = SubResource("Resource_ahisb")
@@ -84,10 +74,10 @@ range_finder = SubResource("range")
 [resource]
 script = ExtResource("1_spell")
 name = "Reverberator"
-description = "Fans to every enemy neighbour, +{SEED} damage per hop. Converging branches ADD — diamond shoulders and self-loops compound massively. CRIT on traversal of a self-loop edge (×2, stacks with crit_chance stat) — the spell feeds back into its own path."
+description = "Fans to every enemy neighbour at or above the current node's territory degree — climbs toward hubs and refuses to flow downhill. Converging branches ADD, +{SEED} damage per hop. Self-loops count double, so a peak with a self-loop can't spread further outward: the walk reverberates into itself instead, doubling up on the same node. CRIT on traversal of a self-loop edge (×2, stacks with crit_chance stat) — the spell feeds back into its own path."
 icon = ExtResource("1_uku7o")
 carve_shape = SubResource("carve_reverberator")
-min_degree = 2
+min_degree = 3
 mana_cost = 5
 power = 3.0
 propagation = SubResource("prop")

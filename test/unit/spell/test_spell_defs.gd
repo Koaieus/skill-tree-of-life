@@ -67,10 +67,12 @@ func test_reverberator_preset_well_formed() -> void:
 	var s: SpellDef = _REVERBERATOR
 	_assert_well_formed(s, "reverberator.tres")
 	var p := s.propagation as PropagationConfig
+	assert_true(p.step is FanAllStep, "reverberator fans to every candidate that clears the degree filter")
+	assert_true(p.filter is CompositeFilter, "reverberator composes owner + degree filter")
 	assert_true(p.reducer is SumDamageReducer, "reverberator uses SUM merger")
 	assert_not_null(p.hop_damage, "reverberator has a hop progression")
-	assert_true(p.hop_damage is MultiplyProgression, "reverberator ramps multiplicatively")
-	assert_gt(p.hop_damage.factor, 1.0, "reverberator ramps up per hop")
+	assert_true(p.hop_damage is ScaledAddProgression, "reverberator ramps additively off the seed")
+	assert_gt(p.hop_damage.seed_fraction_per_hop, 0.0, "reverberator ramps up per hop")
 	assert_gt(p.max_visits_per_node, 1, "reverberator allows revisits to weaponise self-loops")
 
 
