@@ -88,12 +88,6 @@ allocated = true
 position = Vector2(940, 90)
 
 [node name="RimRing" parent="ViewportContainer/World/RimRingSlot" unique_id=1228394251 instance=ExtResource("5_wall")]
-instance_shader_parameters/crest_r = 0.0
-instance_shader_parameters/height_preset = 2
-instance_shader_parameters/inner_r = 24.0
-instance_shader_parameters/light_dir_xy = Vector2(-0.35, -0.35)
-instance_shader_parameters/outer_r = 32.0
-instance_shader_parameters/ring_tint = Color(0.65, 0.67, 0.72, 1)
 height_preset = 2
 
 [node name="RimBonusesSlot" type="Node2D" parent="ViewportContainer/World" unique_id=782957647]

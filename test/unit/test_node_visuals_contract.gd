@@ -109,11 +109,42 @@ func test_animating_component_accumulates_shared_clock() -> void:
 ## makes every instance, even a hidden one, claim a global instance-uniform
 ## buffer slot at load. This asserts the scene is clean; it goes red if an
 ## editor save re-bakes the material (which `_validate_property` prevents).
-func test_disk_and_rim_ship_no_baked_material() -> void:
+## A baked `material` is only half the regression. Scene instantiation also
+## applies a serialized `instance_shader_parameters/*` block by name via
+## `set()`, and that path does NOT go through `_validate_property` — so those
+## lines claim buffer slots from load just as surely, while leaving `material`
+## null and this test green. Both scenes must ship clean of both.
+func test_disk_and_rim_ship_no_baked_material_or_instance_params() -> void:
 	var disk = autofree(DiskScene.instantiate())
 	assert_null(disk.material, "InnerDisk.tscn must not bake a material (re-bake regression)")
+	assert_null(
+		disk.get_instance_shader_parameter("tint_color"),
+		"InnerDisk.tscn must not bake instance_shader_parameters/* either"
+	)
 	var rim = autofree(preload("res://skill_node/visuals/rim_ring.tscn").instantiate())
 	assert_null(rim.material, "RimRing.tscn must not bake a material (re-bake regression)")
+	assert_null(
+		rim.get_instance_shader_parameter("inner_r"),
+		"RimRing.tscn must not bake instance_shader_parameters/* either"
+	)
+
+
+## The composite is the third scene that round-trips through the editor with
+## these children instanced, so it is a third place the block can re-bake —
+## and the one that matters most, since it is what the board instantiates
+## 500–2500 times.
+func test_composite_ships_no_instance_params_on_its_shader_children() -> void:
+	var comp = autofree(CompositeScene.instantiate())
+	var disk = comp.get_node("%InnerDisk")
+	var rim = comp.get_node("%RimRing")
+	assert_null(
+		disk.get_instance_shader_parameter("tint_color"),
+		"the composite must not re-bake the disk's instance params"
+	)
+	assert_null(
+		rim.get_instance_shader_parameter("ring_tint"),
+		"the composite must not re-bake the rim's instance params"
+	)
 
 
 ## The rim carries archetype identity and "activates" toward it on allocation.
