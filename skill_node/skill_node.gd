@@ -772,6 +772,20 @@ func get_active_tags() -> Array[StringName]:
 	return out
 
 
+## Appends [param effect] to [member effects] and re-resolves the central
+## emblem so a carve added after this node's first `_sync_visuals()` (procgen's
+## post-placement spell-grant roll; a loot-granted [SpellGrant] landing on an
+## already-allocated core) actually shows up. Plain `effects.append()` misses
+## this — [member archetype] and [member keystone] have setters that resync,
+## but [member effects] is a bare array with no hook. If the node isn't ready
+## yet, its own `_ready()` → `_sync_visuals()` will read the appended effect
+## once it runs, so the guard is correct, not just defensive.
+func add_effect(effect: Effect) -> void:
+	effects.append(effect)
+	if is_node_ready():
+		_sync_visuals()
+
+
 ## Every [Effect] this node grants to an owner: its own, its keystone's, and
 ## any carried by its addons. [AllocationSystem] grants these on allocate and
 ## revokes them (keyed by this node) on deallocate.

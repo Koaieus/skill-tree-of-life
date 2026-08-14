@@ -38,7 +38,7 @@ static func roll_and_attach(
 	var grant := SpellGrant.new()
 	grant.spell_def = entry.spell_def
 	print_debug('[PROCGEN] Rolled SpellGrant: %s' % grant.spell_def.name)
-	sn.effects.append(grant)
+	sn.add_effect(grant)
 
 
 static func _weighted_pick(pool: SpellGrantPool, rng: RandomNumberGenerator) -> SpellGrantPoolEntry:

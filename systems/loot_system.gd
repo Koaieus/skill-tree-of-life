@@ -490,5 +490,5 @@ func _make_spell_resolver(killer: Entity) -> Callable:
 				continue
 			var grant := SpellGrant.new()
 			grant.spell_def = spell
-			killer.core_location.effects.append(grant)       # persist on the node
+			killer.core_location.add_effect(grant)            # persist on the node, resync the emblem
 			killer.grant_effect(grant, killer.core_location) # → book.add_spell(spell, core_node)
