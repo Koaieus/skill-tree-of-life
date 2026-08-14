@@ -99,7 +99,21 @@ func play(payload: Variant) -> void:
 	var beats: Array = waves.keys()
 	beats.sort()
 	var pending: Array[int] = [0]
-	_play_three_clocks(waves, beats, pending)
+	# AWAIT the timeline before draining. `_play_three_clocks` is a coroutine,
+	# so an un-awaited call returns at its first timer with only wave 0 spawned
+	# — and then the drain below exits as soon as wave 0's pending count hits
+	# zero, which can happen before wave 1 is even spawned. Two ways in:
+	# `beat_interval > 2 * launch_to_impact` (wave 0 lands during the early
+	# sleep), or a wave 0 that increments nothing at all — `_play_projectile`
+	# bails on a null endpoint and `_play_cancel` on a missing visual, so a
+	# first beat made only of those leaves `pending` at 0 and the drain exits
+	# on the first check, at ANY tuning.
+	#
+	# `play()` returning is what makes AttackVFX free this coordinator, taking
+	# every later beat with it: the `take_damage` / `heal_damage` lambdas on
+	# those projectiles never run, so the spell silently stops dealing damage
+	# partway down its own timeline.
+	await _play_three_clocks(waves, beats, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
 

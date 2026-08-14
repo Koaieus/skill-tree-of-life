@@ -333,6 +333,58 @@ func test_three_clocks_impact_pinned_to_beat() -> void:
 	assert_eq(events, [0, 1, 2, 3])
 
 
+## `play()` must not return until the WHOLE timeline has run. AttackVFX frees
+## the coordinator the moment `await coord.play(payload)` resolves, so an early
+## return silently drops every later beat and the `take_damage` lambdas riding
+## its projectiles.
+##
+## Driven by the deterministic trigger rather than a timing race: a first beat
+## that spawns NOTHING. `_play_cancel` returns before touching the counter when
+## `cancel_visual` is null, so `pending` is still 0 the first time the drain
+## checks it and the loop falls straight through — at any tuning, no reliance on
+## how long a projectile lingers before it frees. (The other trigger,
+## `beat_interval > 2 * launch_to_impact`, is real but races the visual's linger
+## and does not make a stable test.)
+##
+## Every other test in this file calls `play()` bare and waits on a wall-clock
+## timer, so none of them can see this — the assertion has to be on what has
+## happened *by the time play() resolves*.
+func test_play_does_not_return_before_the_last_beat() -> void:
+	var nodes := _graph.get_skill_nodes()
+	var coord := _mount_coord(0.05, 0.03)
+	coord.cancel_visual = null  # beat 0 will spawn nothing at all
+
+	var outcome := AttackOutcome.new()
+	var cancel_ev := PropagationEvent.new()
+	cancel_ev.beat = 0
+	cancel_ev.verb = PropagationEvent.Verb.CANCEL
+	cancel_ev.origin = nodes[0]
+	cancel_ev.target = nodes[1]
+	outcome.timeline.append(cancel_ev)
+	var hit_ev := PropagationEvent.new()
+	hit_ev.beat = 1
+	hit_ev.verb = PropagationEvent.Verb.EDGE
+	hit_ev.origin = nodes[1]
+	hit_ev.target = nodes[2]
+	var hit := DamageInstance.new()
+	hit.origin = nodes[1]
+	hit.target = nodes[2]
+	hit.amount = 1.0
+	hit_ev.damage = hit
+	outcome.hits.append(hit)
+	outcome.timeline.append(hit_ev)
+
+	var events: Array = []
+	coord.wave_started.connect(func(hop: int, _c: int) -> void:
+		events.append(hop))
+
+	await coord.play(outcome)
+
+	assert_eq(events, [0, 1],
+		"play() resolved after only %d of 2 beats — AttackVFX frees the " % events.size()
+			+ "coordinator here, so the rest of the timeline (and its damage) is dropped")
+
+
 # -- Helpers ------------------------------------------------------------------
 
 func _make_single_event_outcome(nodes: Array, verb: PropagationEvent.Verb) -> AttackOutcome:
