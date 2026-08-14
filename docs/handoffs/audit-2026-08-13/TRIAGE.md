@@ -37,7 +37,7 @@ straddle vis-state in `edge_mesh.gdshader`. **Not headless-verifiable.**
 |---|---|---|---|---|
 | A1.1 | `graph/edge.gd:364` | `_draw_self_loop` calls `_display_color` (SDR-only per its own docstring); switch to `_display_color_lifted` so the `pow(2, lit_glow_stops)` HDR lift applies. **Not headless-verifiable** — see note below. | graph-core #2 | todo |
 | A1.2 | `graph/edge.gd:113` + `ui/fog_overlay/fog_overlay.gd:196` | `sensed` promotes to `ZLayers.EDGE + ZLayers.SENSED` = 991, *below* FogOverlay at 1000. Promote to the absolute `ZLayers.SENSED` band. Add an assertion on the promoted value to `test_edge_z_order.gd:52`. | graph-core #3 | todo |
-| A1.3 | `addons/spell_playground/playground_panel.gd:200` | `_build_grid_edges` bails on `if not graph.get_edges().is_empty(): return`, so one authored self-loop suppresses all 24–27 generated edges. Make the guard per-pair, or author the edges into the `.tscn`. | graph-core #1, devtools #1 | todo |
+| A1.3 | `addons/spell_playground/playground_panel.gd:200` | `_build_grid_edges` bails on `if not graph.get_edges().is_empty(): return`, so one authored self-loop suppresses all 24–27 generated edges. Make the guard per-pair, or author the edges into the `.tscn`. | graph-core #1, devtools #1 | **done 07868a5** (authored into the .tscn) |
 
 **A1.1 verification caveat.** `graph/edge.gd:279-301` records that the headless
 path previously lied about exactly this. A green `mise run test` does **not**
@@ -137,15 +137,71 @@ the closing-paren line. Genuine count in `attack/` is **0**; in `procgen/` it is
 These eight are the only findings where a wrong guess is expensive. Everything
 else is in A or C.
 
-**B1 — Which Reverberator is the real one?** The `.tres` ships
-`TakeTopNStep(2)` + `MaxDamageReducer` + `ScaledAddProgression(0.5)`; the
-player-facing `description` and `test_spell_defs.gd:70-73` both say
-`SumDamageReducer` + `MultiplyProgression`. All three diverged inside commit
-`aca098b`, titled as a `TakeTopNStep` refactor. #352's Resonator/Reverberator
-design backs the description. Fix the `.tres` to match description+test, or
-rewrite both to match the data? *(attack #3 — also the 6th red test)*
+**B1 — Which Reverberator is the real one? → OPEN, owner is mid-design.**
+The `.tres` ships `TakeTopNStep(2)` + `MaxDamageReducer` +
+`ScaledAddProgression(0.5)`; the player-facing `description` and
+`test_spell_defs.gd:70-73` both say `SumDamageReducer` + `MultiplyProgression`.
+All three diverged inside commit `aca098b`, titled as a `TakeTopNStep` refactor.
+*(attack #3 — also the 6th red test)*
 
-**B2 — Is RimRing's CUSTOM height curve a deliberate design pick?** The
+The owner's answer (2026-08-14) was not "restore one of them" but a live design
+fork, recorded here so it isn't lost. **Do not edit `reverberator.tres` until
+this settles.** Their framing:
+
+> I doubt between having it 1) spread to all neighbors of equal or higher
+> degree or 2) spread to all neighbors who have highest degree amongst them.
+> The scaled add I'm not sure but I think it's better than the raw multiplier.
+> And max damage reducer or sum add reducer depends on the first question — 1
+> would fan out more and hence allow multiple incidents more often, having sum
+> as reducer then would be overpowered; 2 would spread less and sum could
+> be... well... still very strong. The perfect target is a node with
+> self-loops: from there, the self-loop would add *2 outgoing targets in the
+> spread* **which point at that very node** ***and crit doing so***. The doubly
+> propagation-to-self would trigger the reducer too, so if we sum we'd
+> effectively double the damage (and then still crit). Maybe too strong? Maybe
+> just right? Or if we make the default scaling per hop low, it would deal fuck
+> all damage to regular nodes but IF it reaches a node with a self-loop it will
+> 100% kill it.
+
+**Both options are already expressible with shipped primitives — no new
+classes needed:**
+
+- **Option 1** (all neighbours of equal-or-higher degree) = `DegreeFilter`
+  with `Compare.GREATER_OR_EQUAL` + `FanAllStep`. The enum arm exists and its
+  docstring already names it "climber".
+- **Option 2** (only the joint-highest-degree neighbours) = `RankPass` →
+  `TopTiesPass` with a `DegreeRanker`. `TopTiesPass.filter` keeps every
+  candidate tying the max, so ties fan and everything else is dropped.
+  *(`bruiser.tres`'s uncommitted WIP already gained an unused `rank_pass.gd`
+  ext_resource — the owner was wiring exactly this.)*
+
+**The self-loop reading is confirmed by the code, verbatim.**
+`self_loop_crit_condition.gd`: "A self-loop edge node-fans two copies back at
+itself; the resolver stamps `predecessor = current_node` on those hops."
+`evaluate` is `state.predecessor == target`. So two copies land, both crit, and
+`spell_resolver.gd:54` groups incidents by `SkillNode`, so both reach the
+reducer in one merge. Sum → exactly 2×, then crit. Max → 1×, then crit.
+
+**Two things the owner's sketch should account for:**
+
+1. **`DegreeFilter` measures ENTITY degree, and a self-loop counts +2 on both
+   sides.** So under Option 1 the walk is *actively attracted* to self-loop
+   nodes — they read as higher-degree, which `GREATER_OR_EQUAL` climbs toward.
+   That makes the "if it reaches a self-loop node it dies" fantasy structural
+   rather than lucky. Option 2 has the same pull for the same reason.
+2. **The Sum doubling is only 2× — the crit is the real lever.** "Low per-hop
+   scaling, but a self-loop node is a guaranteed kill" cannot come from the
+   reducer: 2 × (a deliberately tiny number) is still tiny. If the design wants
+   a low-floor/lethal-ceiling curve, the crit multiplier (and/or a self-loop-
+   specific progression) has to carry it, and then Sum-vs-Max is a much smaller
+   balance decision than it looks.
+
+Recommended next step: `/swarmify` this against #352 rather than patching the
+`.tres` — the test and the description both have to move with whatever wins, and
+the test additionally reads a `factor` property `ScaledAddProgression` does not
+have (see the baseline error), so it needs real work under either branch.
+
+**B2 — RimRing CUSTOM curve → SETTLED 2026-08-14: baked as preset 5 (MESA), aa31522.** The
 composite authors `height_preset = 4 (CUSTOM)` + `rim_height_style`, so **every**
 node in the game takes the unbatched escape hatch: a private `ShaderMaterial` +
 its own 64-texel LUT, with no `is_visible_in_tree()` gate on the rebake. The
