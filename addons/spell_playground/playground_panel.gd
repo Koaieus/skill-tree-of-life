@@ -268,7 +268,13 @@ func _format_value(v: Variant) -> String:
 	if v is bool:
 		return "true" if v else "false"
 	if v is float:
-		return "%.3s" % v
+		# `%.3s` (what this was) is a STRING precision spec — it stringifies the
+		# float and truncates to 3 characters, so 12.5 printed as "12.".
+		# `%.3g` (what the vfx playground's copy uses) is worse: GDScript's `%`
+		# has no `g` conversion at all, so it pushes "unsupported format
+		# character" errors every call. `String.num` is the one that works, and
+		# it trims trailing zeros — 12.5 -> "12.5", 3.14159 -> "3.142".
+		return String.num(v, 3)
 	if v is int:
 		return str(v)
 	if v is String:

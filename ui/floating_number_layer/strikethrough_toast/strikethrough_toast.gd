@@ -71,6 +71,13 @@ func _ready() -> void:
 	# by default; parallel toasts must not share uniform state (set via the
 	# scene's resource_local_to_scene).
 	_mat = label.material as ShaderMaterial
+	# The strike's two animated uniforms start at rest, set here rather than
+	# trusted to the scene: they had been serialized back at MID-ANIMATION
+	# values (gray_amount 1.0, strike_x 0.558) by an editor round-trip, so every
+	# removed-modifier toast rendered fully struck through for its whole
+	# fade-in, then snapped to 0 when `_run_strike` fired and swept again.
+	_mat.set_shader_parameter(&"gray_amount", 0.0)
+	_mat.set_shader_parameter(&"strike_x", 0.0)
 	_apply_glow_colors()
 	label.resized.connect(_refresh_geometry)
 	_refresh_geometry()

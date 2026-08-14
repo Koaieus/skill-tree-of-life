@@ -7,8 +7,8 @@
 resource_local_to_scene = true
 shader = ExtResource("2_shdtr")
 shader_parameter/label_size = Vector2(128, 50)
-shader_parameter/gray_amount = 1.0
-shader_parameter/strike_x = 0.558000026505
+shader_parameter/gray_amount = 0.0
+shader_parameter/strike_x = 0.0
 shader_parameter/split_open = 0.0
 shader_parameter/split_y_start = 0.85
 shader_parameter/split_y_end = 0.15

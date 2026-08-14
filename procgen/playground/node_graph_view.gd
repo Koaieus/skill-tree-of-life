@@ -285,8 +285,15 @@ func _draw_stamp_regions() -> void:
 			continue
 		var arch_color := Color(1, 1, 1, 0.3)
 		if stamp.archetype_idx >= 0 and stamp.archetype_idx < _archetypes.size():
-			arch_color = _archetypes[stamp.archetype_idx].color
-			arch_color.a = 0.25
+			# Colour lives on the Archetype resource, not the policy wrapping it
+			# — the same read-through both `paint_stamp` and `clear_stamps` do.
+			# This read said `.color` on the policy, which has no such property,
+			# so EVERY `_draw` after a stamp threw: Paint Mode (#166's headline
+			# feature) broke on its first repaint.
+			var policy: ArchetypePolicy = _archetypes[stamp.archetype_idx]
+			if policy != null and policy.archetype != null:
+				arch_color = policy.archetype.color
+				arch_color.a = 0.25
 		draw_circle(screen_center, screen_radius, arch_color)
 		draw_arc(screen_center, screen_radius, 0.0, TAU, 32, Color(1, 1, 1, 0.4), 1.0)
 

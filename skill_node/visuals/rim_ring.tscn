@@ -4,5 +4,5 @@
 
 [node name="RimRing" type="Node2D" unique_id=679133823]
 script = ExtResource("1_wall")
-crest_r = 0.0
+crest_r = 28.0
 tint_mix = 1.0

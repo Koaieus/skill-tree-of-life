@@ -85,7 +85,9 @@ func _format_value(v: Variant) -> String:
 	if v is bool:
 		return "true" if v else "false"
 	if v is float:
-		return "%.3g" % v
+		# NOT `%.3g` — GDScript's `%` has no `g` conversion, so that form pushed
+		# an "unsupported format character" error on every float formatted here.
+		return String.num(v, 3)
 	if v is Vector2:
 		return "(%.2f, %.2f)" % [v.x, v.y]
 	if v is PackedScene:
