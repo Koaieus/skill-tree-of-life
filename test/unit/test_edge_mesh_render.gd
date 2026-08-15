@@ -187,6 +187,21 @@ func test_self_loop_transform_centres_a_ring_scaled_to_its_radius() -> void:
 	assert_almost_eq(loop.render_transform.x.length(), loop.render_transform.y.length(), 0.01, "a ring's bounding quad must be scaled uniformly, not stretched like a bar")
 
 
+## Drift guard for the additive-margin fix (see `Edge.SELF_LOOP_MARGIN`'s
+## docstring): the quad's half-extent must contain the ring's true outer edge
+## — `loop_radius + half_width_world` — at the loosest zoom the camera can
+## reach (`GraphCamera.MIN_ZOOM`) with the material's authored `width`. A
+## multiplicative pad can't guarantee this for small nodes; this pins the
+## additive relationship so a future edit to `width` or `MIN_ZOOM` without
+## updating `Edge.SELF_LOOP_MARGIN` (and its shader-side twin) fails loudly
+## instead of silently mis-sizing every self-loop ring again.
+func test_self_loop_margin_covers_worst_case_stroke_width() -> void:
+	var material := load("res://graph/edge_mesh_material.tres") as ShaderMaterial
+	var width: float = material.get_shader_parameter("width")
+	var worst_case_half_width: float = (width * 0.5) / GraphCamera.MIN_ZOOM
+	assert_gt(Edge.SELF_LOOP_MARGIN, worst_case_half_width, "SELF_LOOP_MARGIN must exceed the worst-case stroke half-width, with room left for AA")
+
+
 func test_self_loop_pushes_one_colour_into_both_channels_offset_by_the_loop_marker() -> void:
 	var loop := _graph.add_edge(_nodes[0], _nodes[0])
 	await get_tree().process_frame

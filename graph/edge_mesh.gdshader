@@ -47,11 +47,15 @@ shader_type canvas_item;
 //
 // Self-loop (ring) instances: `Edge` pushes a `Transform2D` whose origin is
 // the loop's centre and whose 2×2 part is a uniform scale to
-// `2 * loop_radius * pad` (`pad` a small safety margin so the screen-constant
-// stroke never clips the instance's bounding quad — rotation doesn't matter,
-// the shape is a circle). `loop_radius_world` below recovers that radius from
-// `MODEL_MATRIX` at draw time (half the transform's x-basis length) — no
-// extra per-instance channel needed just to carry one scalar.
+// `2 * (loop_radius + margin)` (`margin` an ADDITIVE safety pad — a fixed
+// world-space amount, not proportional to loop_radius, since the
+// screen-constant stroke's local-space half-width is itself a fixed amount
+// independent of node size; see `Edge.SELF_LOOP_MARGIN`'s docstring for why a
+// multiplicative pad clipped small self-loops — rotation doesn't matter, the
+// shape is a circle). `loop_radius_world` below recovers that radius from
+// `MODEL_MATRIX` at draw time (half the transform's x-basis length, minus the
+// same margin) — no extra per-instance channel needed just to carry one
+// scalar.
 
 uniform float width : hint_range(0.0, 32.0) = 3.0;
 global uniform float edge_camera_zoom = 1.0;
@@ -63,12 +67,15 @@ const float _VISIBLE_DIM_FLOOR = 0.30;
 const float _VIS_HIDDEN = 0.0;
 const float _VIS_VISIBLE = 1.0;
 const float _VIS_LOOP_OFFSET = 10.0;
-const float _LOOP_PAD = 1.3;
+// Must match `graph/edge.gd`'s `SELF_LOOP_MARGIN` (== _SELF_LOOP_MAX_WIDTH *
+// 0.5 / GraphCamera.MIN_ZOOM + _SELF_LOOP_AA_SLACK == 3.0 * 0.5 / 0.25 + 2.0).
+const float _SELF_LOOP_MARGIN = 8.0;
 
 varying vec4 v_custom;
 varying vec2 world_pos;
 varying vec2 local_vertex;
 varying float loop_radius_world;
+varying float loop_half_extent;
 varying float is_loop;
 
 void vertex() {
@@ -79,7 +86,16 @@ void vertex() {
 		// Ring branch: leave VERTEX as the raw [-0.5, 0.5] quad — the pushed
 		// instance transform already scales it to the padded bounding square,
 		// see `Edge._push_self_loop_transform` / the header comment above.
-		loop_radius_world = length(MODEL_MATRIX[0].xy) * 0.5 / _LOOP_PAD;
+		// `loop_half_extent` is the TRUE applied scale (includes the margin) —
+		// it's what actually maps `local_vertex` to a world-space offset, so
+		// fragment() must use it for that conversion, not the de-padded
+		// `loop_radius_world` — using the de-padded value there was the actual
+		// clipping bug (see `Edge.SELF_LOOP_MARGIN`'s docstring): it put the
+		// ring's SDF centerline exactly ON the quad's flat boundary rather
+		// than inset from it, so the outer half of the stroke was clipped at
+		// the quad's 4 flat sides regardless of how much padding was applied.
+		loop_half_extent = length(MODEL_MATRIX[0].xy) * 0.5;
+		loop_radius_world = loop_half_extent - _SELF_LOOP_MARGIN;
 	} else {
 		// Bar branch (unchanged): dividing the authored screen-pixel width by
 		// the current camera zoom gives the LOCAL-space half-width that
@@ -107,9 +123,17 @@ void fragment() {
 	if (is_loop > 0.5) {
 		rgb = COLOR.rgb;
 		float half_width_world = (width * 0.5) / max(edge_camera_zoom, 0.0001);
-		float dist = length(local_vertex) * 2.0 * loop_radius_world;
+		float dist = length(local_vertex) * 2.0 * loop_half_extent;
 		float d = abs(dist - loop_radius_world) - half_width_world;
-		shape_alpha = 1.0 - clamp(d / max(fwidth(dist), 0.0001), 0.0, 1.0);
+		// Centered on the true edge (`d == 0` -> alpha 0.5), not extended
+		// purely outward from it — the old `1.0 - clamp(d / fwidth(dist), 0,
+		// 1)` held `d == 0` at full alpha 1.0 and only faded past it, so the
+		// visible stroke bulged about a full `fwidth(dist)` (~1 screen px)
+		// wider than `half_width_world` on BOTH the inner and outer edge —
+		// rendering visibly thicker than a bar edge at the same `width`,
+		// which gets no such feather at all.
+		float aa = max(fwidth(dist), 0.0001);
+		shape_alpha = 1.0 - smoothstep(-aa * 0.5, aa * 0.5, d);
 	} else {
 		rgb = mix(COLOR.rgb, v_custom.rgb, UV.x);
 	}

@@ -318,11 +318,36 @@ func _display_color_lifted(base: Color, lit: bool) -> Color:
 ## Recomputed on every push (cheap; degree ≪ 16 in practice).
 const SELF_LOOP_SINK: float = 4.0
 
-## Must match `graph/edge_mesh.gdshader`'s `_LOOP_PAD` — the shader recovers
-## the ring's true radius from the pushed transform's scale by dividing this
-## back out, so drifting the two out of lockstep silently mis-sizes every
-## self-loop ring.
-const _LOOP_PAD: float = 1.3
+## Worst-case (largest) local-space half-width the screen-constant stroke can
+## reach: `width` is fixed in SCREEN pixels, so its LOCAL-space size grows as
+## the camera zooms in (`width * 0.5 / zoom`), independent of `loop_radius`.
+## Must match `graph/edge_mesh_material.tres`'s `shader_parameter/width`.
+const _SELF_LOOP_MAX_WIDTH: float = 3.0
+
+## Padding for the self-loop's bounding quad must be ADDITIVE, not
+## multiplicative: `_SELF_LOOP_MAX_WIDTH`'s local-space half-width is a FIXED
+## amount independent of node size, so a `loop_radius * pad` quad can never
+## cover it for small enough nodes — the required pad ratio blows up as
+## `loop_radius -> 0`. This was a real bug (#413 follow-up): a multiplicative
+## `_LOOP_PAD = 1.3` clipped the ring's outer edge flat at its quad's 4
+## cardinal sides whenever the stroke's half-width exceeded ~0.3 * loop_radius
+## (small nodes, or the camera zoomed in enough) — one of the 4 clip points is
+## always hidden behind the node itself (`SELF_LOOP_SINK` sinks the near side
+## under it), so the visible artifact reads as exactly 3 flat "bumps" on the
+## ring.
+##
+## A couple of world units of extra slack on top of the worst-case half-width:
+## the stroke's antialiased edge (`fwidth(dist)` in the shader) extends
+## slightly past `loop_radius + half_width` before fading to 0, so sizing the
+## margin with zero slack still clips the outermost AA row at the zoom floor.
+const _SELF_LOOP_AA_SLACK: float = 2.0
+
+## Must match `graph/edge_mesh.gdshader`'s `_SELF_LOOP_MARGIN` — the shader
+## recovers the ring's true radius from the pushed transform's scale by
+## subtracting this back out, so drifting the two out of lockstep silently
+## mis-sizes every self-loop ring.
+const SELF_LOOP_MARGIN: float = \
+	(_SELF_LOOP_MAX_WIDTH * 0.5) / GraphCamera.MIN_ZOOM + _SELF_LOOP_AA_SLACK
 
 ## Must match `graph/edge_mesh.gdshader`'s `_VIS_LOOP_OFFSET` — added on top
 ## of the ordinary `VIS_HIDDEN`/`VIS_VISIBLE`/`VIS_SENSED` value so the
@@ -332,9 +357,10 @@ const _VIS_LOOP_OFFSET: float = 10.0
 
 ## Pushes a self-loop's ring transform: origin at the loop's world-space
 ## centre (converted to the shared MultiMesh's local space same as
-## `_push_transform`), 2×2 part a uniform scale to `2 * loop_radius * _LOOP_PAD`
-## — padded so the screen-constant stroke width never clips the instance's
-## bounding quad. Rotation is irrelevant; the shape is a circle.
+## `_push_transform`), 2×2 part a uniform scale to
+## `2 * (loop_radius + SELF_LOOP_MARGIN)` — padded so the screen-constant
+## stroke width never clips the instance's bounding quad, at any node size or
+## camera zoom. Rotation is irrelevant; the shape is a circle.
 func _push_self_loop_transform() -> void:
 	if not is_self_loop or from == null:
 		return
@@ -347,7 +373,7 @@ func _push_self_loop_transform() -> void:
 	var origin_offset := _render_graph.global_position if _render_graph != null else Vector2.ZERO
 	var loop_center := loop_center_world - origin_offset
 	var xf := Transform2D(0.0, loop_center)
-	var scale := 2.0 * loop_radius * _LOOP_PAD
+	var scale := 2.0 * (loop_radius + SELF_LOOP_MARGIN)
 	xf.x *= scale
 	xf.y *= scale
 	render_transform = xf
