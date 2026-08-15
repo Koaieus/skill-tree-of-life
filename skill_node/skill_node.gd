@@ -287,8 +287,8 @@ var _tags: Dictionary[StringName, int] = {}
 		if stake_level == value:
 			return
 		_stake_level_backing = value
-		_refresh_radius()
 		_push_stake_level()
+		_refresh_radius()
 var _stake_level_backing: int = 1
 
 ## Per-node allocation fill — the M in M/N. 0 = unowned, 1 = baseline,

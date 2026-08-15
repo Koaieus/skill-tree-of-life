@@ -69,6 +69,22 @@ func test_changing_the_delta_re_derives() -> void:
 	assert_eq(sn.radius, 72.0, "base 32 + 4 levels x 10")
 
 
+func test_stake_change_after_board_materializes_resyncs_collision() -> void:
+	# Regression: `radius` is a live getter, so asserting on IT can never catch
+	# this bug — it always reads fresh. The bug was in what got PUSHED into
+	# collision/visuals during the sync that runs while stake_level's setter
+	# is still mid-flight: once node_board exists, the setter used to call
+	# _refresh_radius() (which bakes `radius` into CollisionShape2D right then)
+	# BEFORE _push_stake_level() had written the new cap into node_board, so
+	# the sync ran against the stale cap and nothing resynced it afterward.
+	var sn := _make()
+	sn.stake_level = 2  # materializes node_board (stake_level's board-ready path)
+	var shape: CircleShape2D = sn.get_node("CollisionShape2D").shape
+	assert_eq(shape.radius, 38.0, "collision follows stake 2 once the board is live")
+	sn.stake_level = 4  # a second change, now fully on the board-ready path
+	assert_eq(shape.radius, 50.0, "collision resyncs to stake 4, not stuck at stake 2's size")
+
+
 func test_radius_change_notifies() -> void:
 	var sn := _make()
 	watch_signals(sn)
