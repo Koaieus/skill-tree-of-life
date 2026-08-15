@@ -29,6 +29,11 @@ extends HBoxContainer
 ## from baseline right now.
 @export var override_color: Color = Emissive.at(Color(0.9, 0.75, 0.4), Emissive.ALERT)
 
+## Fixed decimal places rendered in [method _render]. Default 0 keeps every
+## existing row's whole-number look; a row displaying a fine-grained stat
+## (e.g. crit chance/multiplier) can opt into more precision.
+@export_range(0, 4, 1) var decimals: int = 0
+
 var _last_value: float = NAN
 var _last_suffix: String = ""
 var _override_active: bool = false
@@ -94,11 +99,12 @@ func clear_override() -> void:
 func _render() -> void:
 	if _value == null:
 		return
+	var fmt := "%." + str(decimals) + "f%s"
 	if _override_active:
-		_value.text = "%d%s" % [int(_override_value), _last_suffix]
+		_value.text = fmt % [_override_value, _last_suffix]
 		_value.add_theme_color_override(&"font_color", override_color)
 	else:
-		_value.text = "%d%s" % [int(_last_value), _last_suffix]
+		_value.text = fmt % [_last_value, _last_suffix]
 		_value.remove_theme_color_override(&"font_color")
 	if _override_badge != null:
 		_override_badge.visible = _override_active

@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://dxqk2m6ycpvj7"]
+
+[ext_resource type="PackedScene" uid="uid://c55r5i8obie7o" path="res://ui/hud/combat_readout/combat_card.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/hud/combat_readout/combat_card_crit.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_shader"]
+[ext_resource type="PackedScene" uid="uid://cpatx7dmbmx7c" path="res://ui/hud/combat_readout/combat_value_row.tscn" id="3_row"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_crit"]
+resource_local_to_scene = true
+shader = ExtResource("3_shader")
+shader_parameter/size = Vector2(105, 87)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(0.3, 0.8, 0.25, 0)
+shader_parameter/glow_strength = 0.0
+
+[node name="CombatCardCrit" unique_id=1766223615 instance=ExtResource("1_base")]
+script = ExtResource("1_script")
+mode_color = Color(0.3, 0.8, 0.25, 1)
+title = "Crit"
+
+[node name="GlassPanel" parent="." index="0" unique_id=2110722895]
+material = SubResource("ShaderMaterial_crit")
+glow_color = Color(0.3, 0.8, 0.25, 0)
+
+[node name="Title" parent="Padded/TitleAndBody" parent_id_path=PackedInt32Array(1458892802) index="0" unique_id=1747116291]
+text = "Crit"
+
+[node name="ChanceRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="0" unique_id=1806622411 instance=ExtResource("3_row")]
+unique_name_in_owner = true
+layout_mode = 2
+row_label = "Chance"
+decimals = 2
+
+[node name="MultiplierRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=1918733522 instance=ExtResource("3_row")]
+unique_name_in_owner = true
+layout_mode = 2
+row_label = "Multiplier"
+decimals = 2

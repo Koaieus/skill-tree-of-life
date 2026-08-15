@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://cghs3fk5erpxo" path="res://ui/hud/combat_readout/combat_card_ranged.tscn" id="3_ranged"]
 [ext_resource type="PackedScene" uid="uid://coggurrlonsdx" path="res://ui/hud/combat_readout/combat_card_magic.tscn" id="4_magic"]
 [ext_resource type="PackedScene" uid="uid://bqxn8g4hyvd2r" path="res://ui/hud/combat_readout/combat_card_defense.tscn" id="5_defense"]
+[ext_resource type="PackedScene" uid="uid://dxqk2m6ycpvj7" path="res://ui/hud/combat_readout/combat_card_crit.tscn" id="6_crit"]
 
 [node name="CombatReadout" type="VBoxContainer" unique_id=853016192]
 offset_right = 220.0
@@ -24,6 +25,10 @@ layout_mode = 2
 unique_name_in_owner = true
 layout_mode = 2
 glow_strength = 0.375
+
+[node name="CritCard" parent="." unique_id=1210075919 instance=ExtResource("6_crit")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="DefenseCard" parent="." unique_id=1210075918 instance=ExtResource("5_defense")]
 unique_name_in_owner = true
