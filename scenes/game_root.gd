@@ -60,9 +60,10 @@ var player: Entity
 
 @onready var floater_director: FloaterDirector = %FloaterDirector
 @onready var fog_overlay: FogOverlay = %FogOverlay
+@onready var aura_overlay: AuraOverlay = %AuraOverlay
 
 # UI
-@onready var camera: Camera2D = %GraphCamera
+@onready var camera: GraphCamera = %GraphCamera
 @onready var hud_root: HudRoot = %HudRoot
 
 @onready var node_highlight: NodeHighlightOverlay = %NodeHighlightOverlay
@@ -324,8 +325,8 @@ func _on_node_allocated_for_toast(node: SkillNode, entity: Entity, forced: bool)
 	hud_root.gained_modifier_toast.show_gains(node.modifiers)
 
 
-## Bounds the camera pan and the fog-of-war paint rect to the graph's own
-## footprint — a hand-authored sandbox and a 3000-radius procgen level
+## Bounds the camera pan and the fog-of-war / aura paint rects to the graph's
+## own footprint — a hand-authored sandbox and a 3000-radius procgen level
 ## shouldn't share one hardcoded rect. Runs once, after `_setup_level()`
 ## has populated the graph (nodes don't exist before that — see the camera's
 ## own `_zoom_by` resync comment for the same ordering gotcha).
@@ -355,6 +356,8 @@ func _apply_graph_bounds() -> void:
 		camera.set_min_zoom_floor(min_zoom_floor)
 	if fog_overlay != null:
 		fog_overlay.bounds = bounds
+	if aura_overlay != null:
+		aura_overlay.bounds = bounds
 
 
 func _focus_camera_on_player() -> void:

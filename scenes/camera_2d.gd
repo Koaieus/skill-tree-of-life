@@ -55,6 +55,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Panning: middle mouse button drag
 	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 			global_position -= event.relative / zoom
+			_clamp_position()
 	# Zooming: scroll wheel. Each physical tick is a pressed AND a released
 	# InputEventMouseButton on the same button_index — gate on `event.pressed`
 	# (not `Input.is_mouse_button_pressed`, global state that both events see)
@@ -69,6 +70,35 @@ func _process(delta: float) -> void:
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir != Vector2.ZERO:
 		global_position += input_dir * pan_speed * delta
+		_clamp_position()
+
+
+## `limit_*` only clamps what Camera2D actually RENDERS — the screen-center it
+## computes internally — not this node's own `global_position`. Left alone, a
+## pan held past the limit keeps accumulating into `global_position` while the
+## view sits pinned at the edge; the overshoot is invisible until the player
+## reverses direction, and the camera doesn't visibly move until that hidden
+## backlog is walked off first. Clamping `global_position` itself right after
+## every pan write keeps the two in lockstep, so hitting a bound is immediate
+## in both directions.
+##
+## Reproduces Camera2D's own half-viewport clamp math (`camera_2d.cpp`
+## `_update_scroll`) rather than clamping to the bare `limit_*` rect — clamping
+## to the raw rect would fight the engine's real clamp and could disagree with
+## what's actually on screen. If the limit rect is smaller than the current
+## view (shouldn't happen once GameRoot's `set_min_zoom_floor` is honoured,
+## but this stays correct if it ever is), it centers instead of clamping
+## against an inverted range.
+func _clamp_position() -> void:
+	var view_half_size: Vector2 = (get_viewport().get_visible_rect().size / zoom) * 0.5
+	var min_x := limit_left + view_half_size.x
+	var max_x := limit_right - view_half_size.x
+	global_position.x = clampf(global_position.x, min_x, max_x) if min_x <= max_x \
+			else (limit_left + limit_right) * 0.5
+	var min_y := limit_top + view_half_size.y
+	var max_y := limit_bottom - view_half_size.y
+	global_position.y = clampf(global_position.y, min_y, max_y) if min_y <= max_y \
+			else (limit_top + limit_bottom) * 0.5
 
 
 ## Advances the zoom target by one step and retargets the tween. Killing the
