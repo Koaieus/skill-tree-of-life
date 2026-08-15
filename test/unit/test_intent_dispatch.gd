@@ -117,6 +117,27 @@ func test_left_click_non_adjacent_does_not_allocate() -> void:
 	assert_eq(_nodes[2].owned_by, null, "non-adjacent node is not allocated by a click")
 
 
+func test_left_click_owned_node_with_stake_headroom_refills() -> void:
+	# B staked to cap 2 but still filled 1 — a bare click must refill it
+	# (#337's refill is otherwise unreachable: the manage-verb dispatcher has
+	# no ALLOCATE case, and this was the only other click channel that
+	# touches allocate()).
+	_nodes[1].owned_by = _player
+	_nodes[1].stake_level = 2
+	_nodes[1].allocation_level = 1
+	_nodes[1].left_clicked.emit(_nodes[1])
+	assert_eq(_nodes[1].allocation_level, 2, "bare left-click refills a staked, owned node")
+
+
+func test_left_click_owned_full_node_does_not_refill() -> void:
+	# B owned and already at cap — nothing to refill, click is a no-op.
+	_nodes[1].owned_by = _player
+	_nodes[1].stake_level = 1
+	_nodes[1].allocation_level = 1
+	_nodes[1].left_clicked.emit(_nodes[1])
+	assert_eq(_nodes[1].allocation_level, 1, "a full node is not over-filled by a click")
+
+
 func test_left_click_not_players_turn_does_nothing() -> void:
 	# Hand the turn to the other entity so the player is no longer current.
 	_other.stat_board.initiative.restore_to_full()  # readies _other (joins ready group)

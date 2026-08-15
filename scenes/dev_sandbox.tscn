@@ -559,6 +559,11 @@ script = ExtResource("2_mod")
 stat_id = &"health"
 value = 5.0
 
+[sub_resource type="Resource" id="mod_hp_5_b"]
+script = ExtResource("2_mod")
+stat_id = &"health"
+value = 5.0
+
 [sub_resource type="Resource" id="Resource_f63mm"]
 script = ExtResource("2_mod")
 stat_id = &"strength"
@@ -600,7 +605,22 @@ script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 2.0
 
+[sub_resource type="Resource" id="mod_int_2_b"]
+script = ExtResource("2_mod")
+stat_id = &"intelligence"
+value = 2.0
+
 [sub_resource type="Resource" id="mod_per_2"]
+script = ExtResource("2_mod")
+stat_id = &"perception"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_per_2_b"]
+script = ExtResource("2_mod")
+stat_id = &"perception"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_per_2_c"]
 script = ExtResource("2_mod")
 stat_id = &"perception"
 value = 2.0
@@ -609,7 +629,15 @@ value = 2.0
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
 
+[sub_resource type="Resource" id="mod_dex_1_b"]
+script = ExtResource("2_mod")
+stat_id = &"dexterity"
+
 [sub_resource type="Resource" id="mod_xp_1"]
+script = ExtResource("2_mod")
+stat_id = &"xp_per_turn"
+
+[sub_resource type="Resource" id="mod_xp_1_b"]
 script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 
@@ -617,7 +645,16 @@ stat_id = &"xp_per_turn"
 script = ExtResource("2_mod")
 stat_id = &"strength"
 
+[sub_resource type="Resource" id="mod_str_1_b"]
+script = ExtResource("2_mod")
+stat_id = &"strength"
+
 [sub_resource type="Resource" id="mod_xp_2"]
+script = ExtResource("2_mod")
+stat_id = &"xp_per_turn"
+value = 2.0
+
+[sub_resource type="Resource" id="mod_xp_2_b"]
 script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 value = 2.0
@@ -852,6 +889,11 @@ script = ExtResource("2_mod")
 stat_id = &"health"
 value = 3.0
 
+[sub_resource type="Resource" id="mod_hp_3_b"]
+script = ExtResource("2_mod")
+stat_id = &"health"
+value = 3.0
+
 [sub_resource type="Resource" id="Resource_3ndxe"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
@@ -1026,7 +1068,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(27, 263)
 owned_by = NodePath("../../Entities/Player")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2_b")])
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
 self_loops = [NodePath("../../Edges/Edge_DownOut_self")]
 node_board = SubResource("Resource_0r3ny")
@@ -1036,14 +1078,14 @@ modulate = Color(1, 1, 1, 0.9073149)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-283, -107)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2_b")])
 archetype = ExtResource("44_arch_per")
 
 [node name="SW" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="10" unique_id=8800203 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(-203, 103)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2_b")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 node_board = SubResource("Resource_wrquo")
@@ -1056,7 +1098,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(299, 99)
 owned_by = NodePath("../../Entities/Enemy")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1_b")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
 node_board = SubResource("Resource_7yiaw")
@@ -1066,7 +1108,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(197, 223)
 owned_by = NodePath("../../Entities/Player")
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5_b")])
 archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
 node_board = SubResource("Resource_v4i6i")
@@ -1154,13 +1196,13 @@ modulate = Color(1, 1, 1, 0.3)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-350, 200)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_hp_3")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1_b"), SubResource("mod_hp_3_b")])
 
 [node name="Crossroads" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="23" unique_id=9000006 instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(359, -28)
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1"), SubResource("mod_mp_1")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_1_b"), SubResource("mod_mp_1")])
 archetype = ExtResource("44_arch_wis")
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
 
@@ -1173,7 +1215,7 @@ archetype = ExtResource("44_arch_per")
 [node name="Enemy_Recon" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="25" unique_id=9000008 instance=ExtResource("9_skill")]
 position = Vector2(750, 120)
 input_pickable = false
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_sensor_2"), SubResource("mod_per_2_c")])
 archetype = ExtResource("44_arch_per")
 
 [node name="Edge_Core_Up" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="0" unique_id=709243764 node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge_scene")]

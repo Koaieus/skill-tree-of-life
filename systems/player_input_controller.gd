@@ -161,9 +161,12 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 		return
 	if _route_core_move_click(skill_node):
 		return
-	# Allocate channel: bare left-click on an unowned node. allocate() enforces
-	# SP + adjacency; deallocation is the `D`-on-hover channel, not a click.
-	if _is_players_turn() and skill_node.owned_by == null:
+	# Allocate channel: bare left-click on an unowned node (first allocation)
+	# or a player-owned node with cap headroom from a stake (refill, #337).
+	# allocate() enforces SP + adjacency; deallocation is the `D`-on-hover
+	# channel, not a click.
+	if _is_players_turn() and (skill_node.owned_by == null \
+			or (skill_node.owned_by == player and skill_node.allocation_level < skill_node.stake_level)):
 		allocation_system.allocate(skill_node, player)
 
 
