@@ -110,6 +110,11 @@ unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 0
 
+[node name="ConstitutionRow" parent="Margin/VBoxContainer/Content/Rows" unique_id=1441043670 instance=ExtResource("4_row")]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 0
+
 [node name="SensesRow" type="HBoxContainer" parent="Margin/VBoxContainer" unique_id=919498683]
 layout_mode = 2
 size_flags_horizontal = 8

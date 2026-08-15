@@ -29,8 +29,10 @@ extends FanPanel
 
 ## Explicit authored attribute set — mirrors `ui/hud/attributes_panel/attributes_panel.gd`'s
 ## `ATTR_IDS` precedent. Deliberately NOT derived from the board.
+## Order pins Constitution to spoke index 3, the hexagon's bottom vertex
+## (AttributeRadar's angle(i) = -90deg + i*60deg for n=6 axes).
 const _ATTRIBUTE_IDS: Array[StringName] = [
-	&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception",
+	&"strength", &"dexterity", &"intelligence", &"constitution", &"wisdom", &"perception",
 ]
 
 const _STAT_VALUE_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/stat_value_row.tscn")

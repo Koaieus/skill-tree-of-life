@@ -16,14 +16,17 @@ extends Control
 ## combat_readout_card.gd for the sibling fix used where there's no
 ## overlay child to worry about.
 
+## Order pins Constitution to spoke index 3, the hexagon's bottom vertex
+## (AttributeRadar's angle(i) = -90deg + i*60deg for n=6 axes) — not row
+## display order, which stays scene-tree order in the .tscn.
 const ATTR_IDS: Array[StringName] = [
-	&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception",
+	&"strength", &"dexterity", &"intelligence", &"constitution", &"wisdom", &"perception",
 ]
 
 @onready var _margin: MarginContainer = %Margin
 @onready var _radar: AttributeRadar = %AttributeRadar
 @onready var _rows: Array[AttributeRow] = [
-	%StrengthRow, %DexterityRow, %IntelligenceRow, %WisdomRow, %PerceptionRow,
+	%StrengthRow, %DexterityRow, %IntelligenceRow, %ConstitutionRow, %WisdomRow, %PerceptionRow,
 ]
 @onready var _tooltip: PanelContainer = %Tooltip
 @onready var _tooltip_label: Label = %TooltipLabel
@@ -64,7 +67,8 @@ func bind(board: StatBoard) -> void:
 		return
 
 	var stats: Array[ScalarStat] = [
-		_board.strength, _board.dexterity, _board.intelligence, _board.wisdom, _board.perception,
+		_board.strength, _board.dexterity, _board.intelligence, _board.constitution,
+		_board.wisdom, _board.perception,
 	]
 	var specs: Array[AxisSpec] = []
 	for i in _rows.size():

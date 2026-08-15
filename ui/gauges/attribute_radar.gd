@@ -18,11 +18,11 @@ signal axis_unhovered
 ## live callers ([AttributesPanel], [OwnerPanel]) replace it via [method configure].
 @export var axes: Array[AxisSpec] = [
 	AxisSpec.for_stat(&"strength"),
+	AxisSpec.for_stat(&"dexterity"),
 	AxisSpec.for_stat(&"intelligence"),
 	AxisSpec.for_stat(&"constitution"),
 	AxisSpec.for_stat(&"wisdom"),
 	AxisSpec.for_stat(&"perception"),
-	AxisSpec.for_stat(&"dexterity"),
 ]:
 	set(v):
 		axes = v
