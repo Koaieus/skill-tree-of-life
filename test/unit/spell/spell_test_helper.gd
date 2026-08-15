@@ -177,6 +177,26 @@ func cancel_if_multi() -> CancelIfMultiReducer:
 	return CancelIfMultiReducer.new()
 
 
+func first_reducer() -> FirstReducer:
+	return FirstReducer.new()
+
+
+func expression_reducer(expression: String) -> ExpressionReducer:
+	var r := ExpressionReducer.new()
+	r.expression = expression
+	return r
+
+
+func core_distance_filter(direction: int = CoreDistanceFilter.Direction.TOWARD) -> CoreDistanceFilter:
+	var f := CoreDistanceFilter.new()
+	f.direction = direction
+	return f
+
+
+func random_pick_step() -> RandomPickStep:
+	return RandomPickStep.new()
+
+
 func multiply_progression(factor: float = 1.0) -> MultiplyProgression:
 	var p := MultiplyProgression.new()
 	p.factor = factor

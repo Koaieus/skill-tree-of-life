@@ -244,6 +244,126 @@ func test_degree_filter_strict_less_routes_downhill() -> void:
 	assert_eq(outcome.hits.size(), 4)
 
 
+# ── First-wins reducer ──────────────────────────────────────────────────────
+
+
+func test_first_reducer_keeps_earliest_arrival_on_convergence() -> void:
+	# Same diamond as the sum/max/cancel trio above — FirstReducer keeps
+	# whichever branch arrived first (node 2, edges declared before node 3's)
+	# and silently drops node 3's incident, unlike sum (adds) or max (picks
+	# the stronger).
+	var ctx := _setup_full_enemy([[0, 1], [1, 2], [1, 3], [2, 4], [3, 4]], [0], [1, 2, 3, 4])
+	var helper: SpellTestHelper = ctx[0]
+	var graph: Graph = ctx[1]
+	var atk: Entity = ctx[2]
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.first_reducer(),
+			{max_hops = 2})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	var by_node := helper.hits_by_node(outcome)
+	assert_eq((by_node[n[4]] as Array).size(), 1, "node 4 single merged hit")
+	var landing_at_4: PropagationEvent = null
+	for ev in outcome.timeline:
+		if ev.target == n[4] and ev.verb != PropagationEvent.Verb.CANCEL:
+			landing_at_4 = ev
+	assert_not_null(landing_at_4, "node 4 has a landing event")
+	assert_eq(landing_at_4.predecessor, n[2],
+			"first-arrived branch (via node 2) wins; node 3's incident is dropped")
+
+
+# ── Custom expression reducer ───────────────────────────────────────────────
+
+
+func test_expression_reducer_evaluates_custom_formula() -> void:
+	# Same diamond — a formula (avg × count) that's algebraically equal to
+	# sum only at the point of convergence, and identity everywhere a group
+	# is a singleton (the resolver calls the reducer on EVERY node, not just
+	# where branches meet — a formula that isn't identity-for-one, like a
+	# flat `sum_damage * 0.75`, would keep scaling down node 2 and node 3's
+	# solo landings too, and the closed form stops being seed_dmg × 2).
+	var ctx := _setup_full_enemy([[0, 1], [1, 2], [1, 3], [2, 4], [3, 4]], [0], [1, 2, 3, 4])
+	var helper: SpellTestHelper = ctx[0]
+	var graph: Graph = ctx[1]
+	var atk: Entity = ctx[2]
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(),
+			helper.expression_reducer("avg_damage * incident_count"), {max_hops = 2})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
+	assert_almost_eq(helper.total_damage_on(outcome, n[4]), seed_dmg * 2.0, 0.001)
+
+
+func test_expression_reducer_negative_result_cancels() -> void:
+	# Same diamond — an expression that's identity for a solo landing (so
+	# node 2/3's own hits still land) but resolves negative specifically at
+	# a 2-incident convergence, CANCELling just node 4, same contract as a
+	# stock reducer returning null.
+	var ctx := _setup_full_enemy([[0, 1], [1, 2], [1, 3], [2, 4], [3, 4]], [0], [1, 2, 3, 4])
+	var helper: SpellTestHelper = ctx[0]
+	var graph: Graph = ctx[1]
+	var atk: Entity = ctx[2]
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(),
+			helper.expression_reducer("sum_damage - (incident_count - 1) * 999999.0"), {max_hops = 2})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	var by_node := helper.hits_by_node(outcome)
+	assert_true(by_node.has(n[1]) and by_node.has(n[2]) and by_node.has(n[3]),
+			"solo landings pass through unscathed")
+	assert_false(by_node.has(n[4]), "node 4 received nothing — cancelled on convergence")
+	assert_eq(outcome.cancellations.size(), 1, "one cancellation recorded")
+	assert_eq(outcome.cancellations[0].node, n[4])
+
+
+# ── Distance-to-core filter ─────────────────────────────────────────────────
+
+
+func test_core_distance_filter_admits_closer_rejects_farther() -> void:
+	var helper := H.new()
+	var graph := helper.make_graph(_line_of(5), self)  # line of 5: 0-1-2-3-4
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	var n := graph.get_skill_nodes()
+	helper.assign_owner(graph, def, [4])
+	def.core_location = n[0]
+	var propagation_ctx := PropagationContext.new()
+	propagation_ctx.graph = graph
+	propagation_ctx.caster = atk
+	propagation_ctx.seed_node = n[4]  # owned by def, non-caster → its core is the target
+	var filter := helper.core_distance_filter()
+	assert_true(filter.allows(n[3], n[2], null, propagation_ctx),
+			"node 2 is closer to the core (n0) than node 3")
+	assert_false(filter.allows(n[3], n[4], null, propagation_ctx),
+			"node 4 is farther from the core (n0) than node 3")
+
+
+# ── Seeded random pick ───────────────────────────────────────────────────────
+
+
+func test_random_pick_step_seeded_picks_one_deterministically() -> void:
+	var ctx := _setup_full_enemy([[0, 1], [1, 2], [1, 3], [1, 4]], [0], [1, 2, 3, 4])
+	var helper: SpellTestHelper = ctx[0]
+	var graph: Graph = ctx[1]
+	var atk: Entity = ctx[2]
+	var config := helper.make_config(helper.random_pick_step(), helper.owner_enemy(), helper.max_reducer(),
+			{max_hops = 1})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+	var rng1 := RandomNumberGenerator.new()
+	rng1.seed = 42
+	var outcome1 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng1)
+	# Seed hit + exactly one randomly-picked neighbour — never all three.
+	assert_eq(outcome1.hits.size(), 2, "seed hit + exactly one random pick")
+	var picked := outcome1.hits[1].target
+	assert_true(picked in [n[2], n[3], n[4]], "picked one of the three eligible neighbours")
+	var rng2 := RandomNumberGenerator.new()
+	rng2.seed = 42
+	var outcome2 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng2)
+	assert_eq(outcome2.hits[1].target, picked, "same seed reproduces the same pick")
+
+
 # ── Edge case ──────────────────────────────────────────────────────────────
 
 
