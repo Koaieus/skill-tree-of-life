@@ -227,6 +227,19 @@ func get_edges() -> Array[Edge]:
 ##
 ## Hot path: the vision system's sensed traversal calls this once per pop, so
 ## it must not be O(edges). Returns a fresh array — callers may mutate it.
+## World-space bounding rect of every SkillNode's `global_position`. Empty
+## `Rect2()` (zero position, zero size) if the graph has no nodes — callers
+## must check `size == Vector2.ZERO` before using it as a camera/fog bound.
+func get_node_bounds() -> Rect2:
+	var nodes := get_skill_nodes()
+	if nodes.is_empty():
+		return Rect2()
+	var bounds := Rect2(nodes[0].global_position, Vector2.ZERO)
+	for i in range(1, nodes.size()):
+		bounds = bounds.expand(nodes[i].global_position)
+	return bounds
+
+
 func get_neighbours(node: SkillNode) -> Array[SkillNode]:
 	if edges_container == null or node == null:
 		return [] as Array[SkillNode]

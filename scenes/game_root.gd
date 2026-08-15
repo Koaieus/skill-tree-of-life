@@ -40,6 +40,11 @@ const _FOG_INTENSITY_DEV: float = 0.88
 ## visible regardless of owned-subgraph vision).
 @export var enable_fog: bool = true
 
+## Grown around the graph's SkillNode AABB to get the camera pan limit / fog
+## bound — breathing room so a node sitting exactly on the edge doesn't touch
+## the viewport border, tweakable per level.
+@export_range(0, 2000, 1.0, "or_greater") var graph_bounds_margin: float = 400.0
+
 # Entities — `player` may be null until _setup_level() resolves it. The default
 # hook tries to find a `%Player` unique-name node; subclasses can replace.
 var player: Entity
@@ -82,6 +87,7 @@ func _ready() -> void:
 	# synchronous overrides; procgen sandboxes that drive a loading bar
 	# return a coroutine.
 	await _setup_level()
+	_apply_graph_bounds()
 	# Invariant: every Entity must have an EntityController child so the
 	# turn loop never stalls on an uncontrolled actor. Hand-authored
 	# scenes (dev_sandbox, first_level_sandbox) historically forgot to
@@ -316,6 +322,39 @@ func _on_node_allocated_for_toast(node: SkillNode, entity: Entity, forced: bool)
 	if hud_root == null or hud_root.gained_modifier_toast == null:
 		return
 	hud_root.gained_modifier_toast.show_gains(node.modifiers)
+
+
+## Bounds the camera pan and the fog-of-war paint rect to the graph's own
+## footprint — a hand-authored sandbox and a 3000-radius procgen level
+## shouldn't share one hardcoded rect. Runs once, after `_setup_level()`
+## has populated the graph (nodes don't exist before that — see the camera's
+## own `_zoom_by` resync comment for the same ordering gotcha).
+##
+## The limit rect is exactly the AABB + margin, no bigger — so on a small
+## graph (dev_sandbox) it can end up smaller than the viewport at
+## [constant GraphCamera.MIN_ZOOM]. Rather than grow the limit rect past the
+## graph's actual footprint to cover that, push a matching zoom-out floor onto
+## the camera instead: [method Camera2D.limit_*] degenerates once the view
+## rect exceeds the limit rect, and stopping the zoom-out there keeps the two
+## in agreement without inflating what the fog paints.
+func _apply_graph_bounds() -> void:
+	if graph == null:
+		return
+	var bounds := graph.get_node_bounds()
+	if bounds.size == Vector2.ZERO:
+		return
+	bounds = bounds.grow(graph_bounds_margin)
+
+	if camera != null:
+		camera.limit_left = int(bounds.position.x)
+		camera.limit_top = int(bounds.position.y)
+		camera.limit_right = int(bounds.end.x)
+		camera.limit_bottom = int(bounds.end.y)
+		var viewport_size := get_viewport().get_visible_rect().size
+		var min_zoom_floor: float = maxf(viewport_size.x / bounds.size.x, viewport_size.y / bounds.size.y)
+		camera.set_min_zoom_floor(min_zoom_floor)
+	if fog_overlay != null:
+		fog_overlay.bounds = bounds
 
 
 func _focus_camera_on_player() -> void:

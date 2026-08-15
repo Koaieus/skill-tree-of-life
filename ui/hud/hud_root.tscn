@@ -19,6 +19,7 @@
 [ext_resource type="PackedScene" path="res://ui/loot_picker/spell_loot_picker.tscn" id="18_spell_loot"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/tooltip_fan.tscn" id="19_tooltip_fan"]
 [ext_resource type="PackedScene" path="res://ui/gained_modifier_toast/gained_modifier_toast.tscn" id="20_gain_toast"]
+[ext_resource type="PackedScene" path="res://ui/hud/minimap_panel/minimap_panel.tscn" id="21_minimap"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -149,6 +150,23 @@ offset_top = -115.0
 offset_right = 0.0
 offset_bottom = 0.0
 grow_horizontal = 0
+grow_vertical = 0
+
+[node name="MinimapSlot" type="Control" parent="MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+mouse_filter = 2
+
+[node name="MinimapPanel" parent="MarginContainer/MinimapSlot" instance=ExtResource("21_minimap")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -220.0
+offset_right = 220.0
+offset_bottom = 0.0
 grow_vertical = 0
 
 [node name="AnnouncementLayer" parent="." unique_id=394311347 instance=ExtResource("9_announcement")]

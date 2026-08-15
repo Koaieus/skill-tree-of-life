@@ -1,0 +1,38 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="1_glass"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_minimap"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+shader_parameter/size = Vector2(220, 220)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
+
+[node name="MinimapPanel" type="MarginContainer"]
+offset_right = 220.0
+offset_bottom = 220.0
+mouse_filter = 2
+
+[node name="GlassPanel" parent="." instance=ExtResource("1_glass")]
+material = SubResource("ShaderMaterial_minimap")
+layout_mode = 2
+
+[node name="Placeholder" type="CenterContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="Placeholder"]
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 14
+text = "Minimap
+(placeholder)"
+horizontal_alignment = 1

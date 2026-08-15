@@ -34,6 +34,15 @@ static var current_zoom: float = 1.0
 ## `VisionSystem._request_recompute` (`systems/vision_system.gd`).
 var _zoom_broadcast_pending: bool = false
 
+## Wheel-zoom floor, tighter than [constant MIN_ZOOM] when the level's own
+## `limit_*` rect (GameRoot._apply_graph_bounds) is smaller than the viewport
+## at [constant MIN_ZOOM] — e.g. a small hand-authored sandbox. Without this,
+## Camera2D's limit clamp degenerates once the view rect exceeds the limit
+## rect (the camera can't center inside a box smaller than what it's showing),
+## so the fix is to stop the zoom-out before that point rather than grow the
+## limit rect past the graph's actual footprint.
+var _min_zoom_floor: float = MIN_ZOOM
+
 
 func _ready() -> void:
 	_target_zoom = zoom.x
@@ -79,7 +88,7 @@ func _zoom_by(step: float) -> void:
 		# resync `_target_zoom` would still hold the stale value and the first
 		# scroll tick would teleport.
 		_target_zoom = zoom.x
-	_target_zoom = clampf(_target_zoom + step, MIN_ZOOM, MAX_ZOOM)
+	_target_zoom = clampf(_target_zoom + step, _min_zoom_floor, MAX_ZOOM)
 	current_zoom = _target_zoom
 	_request_zoom_broadcast()
 	if zoom_duration <= 0.0:
@@ -88,6 +97,24 @@ func _zoom_by(step: float) -> void:
 	_zoom_tween = create_tween()
 	_zoom_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	_zoom_tween.tween_property(self, ^"zoom", Vector2(_target_zoom, _target_zoom), zoom_duration)
+
+
+## Pushed by GameRoot after `_apply_graph_bounds` sizes `limit_*` to the
+## graph's own footprint — [param value] is the zoom at which the viewport
+## exactly fills that rect. Snaps a currently-more-zoomed-out camera back up
+## to the new floor immediately, killing any in-flight tween the same way
+## [method _zoom_by] does, so a level swap can't leave the camera showing
+## past its own limit rect for one frame.
+func set_min_zoom_floor(value: float) -> void:
+	_min_zoom_floor = clampf(value, MIN_ZOOM, MAX_ZOOM)
+	if _target_zoom >= _min_zoom_floor:
+		return
+	if _zoom_tween != null and _zoom_tween.is_valid():
+		_zoom_tween.kill()
+	_target_zoom = _min_zoom_floor
+	current_zoom = _target_zoom
+	zoom = Vector2(_target_zoom, _target_zoom)
+	_request_zoom_broadcast()
 
 
 func _request_zoom_broadcast() -> void:
