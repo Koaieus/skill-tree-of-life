@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://c8j6n5x0h1qw3"]
+[gd_scene format=3 uid="uid://c8j6n5x0h1qw3"]
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/manage_card.gd" id="1_script"]
 

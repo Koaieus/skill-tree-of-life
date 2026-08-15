@@ -15,6 +15,14 @@ bounced it to `Needs design`; #377 shipped and closed without ever hitting FOCUS
 the owner's per-issue review of that findings table — several "done" calls needed
 owner judgment code inspection can't make (is a glow *tuned*, not just present).
 
+Patched 2026-08-15: **lane H (#378, AI controller v1) shipped and closed** the
+same day as the last rewrite, after this file was last saved — three slices
+landed on master (1fdb2b6, 3339ddf, 7dfe74c) with 5 test files, wired via
+`GameRoot._ensure_controllers()`. FOCUS still called it "Ready, dispatch to a
+drone" for six days. Caught by an `Explore` check against `gh issue view` + git
+log, not a full re-audit — treat the rest of this file's dates as unverified
+since 2026-08-09.
+
 ## Why this file exists
 
 The board sprawls. This file is the antidote: it names what's actually next, and
@@ -37,22 +45,26 @@ forks and moves it to `Ready`. **FOCUS does not catalog `Needs design` work.**
 6. **`Ready` is a superset, not the queue.** Being `Ready` means "a drone *could*
    take this"; being named below means "a drone *should*".
 
-## The headline: lane A is most of the way shipped, lane H is now Ready
+## The headline: lane A is most of the way shipped, lane H is CLOSED
 
 Lane A's stated exit was **#389 + #388 + #392 shipped**. #388 is closed. #389 and
 #392 are code-complete but **not tuned yet** — owner call, not a code question:
 glow/emission values and arc positioning on #389 still need eyeballing, and #392
 lost focus to #388/mod-slab work and hasn't been tuned. Both stay open.
 
-**#378 (the AI, lane H) is `Ready`**, milestone `MVP playable loop` — swarmified
-2026-08-09. `BladeHitScan.scan`'s non-purity is confirmed (queries
-`PhysicsDirectSpaceState2D`), resolved by threading `BladeSim.simulate` only and
-running `scan` sequentially on the main thread against a pruned finalist set
-(reach-bound rejection + directional pivot pruning + two-tier coarse/full eval
-are now required v1 acceptance, not optional polish). Archetype/personality
-(Caster/Bruiser/Ranger) was pulled out of scope — filed as `AiWeights` follow-up
-#410, `Backlog`, blocked-by #378. **Next action for lane H is a drone dispatch
-on #378**, this is the lane-H entry in the ordered list below.
+**#378 (the AI, lane H) is CLOSED — shipped 2026-08-09, after this file's last
+rewrite.** Landed in three sequenced slices, all on master: `ai_recon.gd`
+(1fdb2b6, fog-aware recon short-circuit), `ai_combat_scorer.gd` (3339ddf, shared
+per-candidate EV scorer), `ai_blade_rollout.gd` (7dfe74c, melee MCMC rollout —
+commit message "closes AI v1"). `AIController` is wired in via
+`GameRoot._ensure_controllers()`, attached to entities automatically; 5 test
+files cover it (`test_ai_controller*`, `test_ai_recon`, `test_ai_combat_scorer`,
+`test_ai_blade_rollout`). The `BladeHitScan.scan` threading question (thread
+`BladeSim.simulate` only, keep `scan` main-thread against a pruned finalist set)
+shipped as scoped. Archetype/personality (Caster/Bruiser/Ranger) stays out of
+scope, filed as **#410** (`AiWeights` follow-up, `Backlog`, blocked-by #378 —
+now unblocked since #378 closed). **Lane H's exit condition is met; nothing left
+to dispatch there.**
 
 ## Right now — drone-ready and scheduled
 
@@ -84,7 +96,7 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
 
 ## Lanes, in order — ship the playable loop
 
-### B — The missing combat verb
+### B — The missing combat verb — nearly closed
 
 1. ~~**#337** Staking~~ — **CLOSED.** Shipped.
 2. ~~#332~~ node-local formula modifiers — **CLOSED 2026-08-09.** Re-verified
@@ -97,37 +109,34 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
    exactly as scoped. **Did not** delete `_scaled_sets`/`_scaled_effect_sets` —
    that's a real, separate redesign of #376's composition-swap mechanism,
    correctly filed to Backlog as **#398** rather than scope-creeping #377.
-4. **#404** Formalize a shared targeting-mode system (arm/cancel/select) —
-   pulled back to `Needs design` 2026-08-09: its "right-click cancels"
-   decision didn't survive scrutiny (right-click is three different things
-   today — melee/magic setup-step, ranged clear-selection, idle
-   pin/unpin — not one cancel precedent). Blocked on **#411** (click-grammar
-   design doc) settling the left/right rule, including the self-targeting
-   edge case (source == target, e.g. a heal). Re-spec #404 against #411's
-   decision once it closes, then it's back to `Ready`.
-5. **#411** Design: unify click grammar (left pushes/resolves, right pops
-   one level) — `Ready`, spec'd 2026-08-09 out of #404's swarmify pass.
-   Decision: right-click pops one level off an arm/origin/target stack
-   (mode armed → origin set → target resolved), not a flat cancel;
-   self-targeting resolves through ordinary target validity, no special
-   case. Take this before #404 — #404 is blocked on it.
-6. **#338** CommandTray "Manage" mode player-facing surface — `Ready`, narrowed
-   2026-08-09 to consume #404 for Stake/Extract/Deallocate/Move Core/Allocate
-   tray buttons. Blocked on #404 landing first (documented dependency, not a
-   design hold) — transitively blocked on #411 now too.
-7. **#412** HUD viewport tint for currently-armed mode — `Backlog`, filed
-   2026-08-09, not scheduled. Reuses #411's armed-mode concept once it
-   exists; not structurally blocked/blocking, just sequenced after so it
-   reads the unified state instead of `BattleSystem.attack_mode` alone.
-8. **#301** bladesmithing — swarmified 2026-08-09, hub stays `In progress`.
-   Take **#405** (addon-dispatch parity fix) first, then **#406** (the temp
-   Clamp/Spikes budget spend) — #406 also wants #404 landed first, same
-   ordering as #338 above. **#409** edge sharpeners stays `Needs design`,
-   blocked on **#407** (velocity-based blade/edge damage, `Backlog`, no shape
-   yet). **#408** (Clamp secondary use) is a parked aside, `Backlog`, not on
-   the path to anything. Full decisions are on #301's acceptance-spec comment,
-   not duplicated here — issue blockers are the DAG; read those, not this line,
-   once picking the work up.
+4. ~~**#411**~~ Design: unify click grammar — **CLOSED.** Right-click pops one
+   level off an arm/origin/target stack; self-targeting resolves through
+   ordinary target validity, no special case.
+5. ~~**#404**~~ Shared targeting-mode system (arm/cancel/select) — **CLOSED**,
+   re-spec'd against #411's decision and shipped.
+6. ~~**#405**~~ addon-dispatch parity fix (`MeleeAttackPlan.build_blade_state`)
+   — **CLOSED.**
+7. **#406** the temp Clamp/Spikes budget spend — board status **`In review`**.
+   Depended on #404 (dispatch) + #405 (parity fix), both closed; land this to
+   close #301's hub.
+8. **#338** CommandTray "Manage" mode player-facing surface — board already
+   shows **`Ready`** (its #404 blocker is closed). Acceptance spec on the issue
+   is fully written — reuses #404's dispatcher for Stake/Extract, existing
+   raw-click channels for Allocate/Move Core/Deallocate. Verify it doesn't need
+   a fresh design pass before dispatching.
+9. **#412** HUD viewport tint for currently-armed mode — `Backlog`, not
+   scheduled. Reuses #411's now-shipped armed-mode concept; not
+   structurally blocked/blocking, just sequenced after so it reads the
+   unified state instead of `BattleSystem.attack_mode` alone.
+10. **#301** bladesmithing hub — board status **`In progress`**. Closes once
+    #406 merges. **#409** edge sharpeners stays `Needs design`, blocked on
+    **#407** (velocity-based blade/edge damage, `Backlog`, no shape yet).
+    **#408** (Clamp secondary use) is a parked aside, `Backlog`. Per #301's own
+    acceptance-spec comment, #409/#407/#408 do **not** gate the hub closing.
+
+**Lane B's exit is #406 landing + #338 dispatched/shipped** — everything else
+in the lane (#412, #409, #407, #408) is explicitly deferred, not on the
+critical path.
 
 ### C — Node-local and aura mechanics actually compute
 
@@ -207,22 +216,23 @@ fruit quality, what replaces it (baked tier-cost curve vs. per-turn progress
 roll — see procgen's existing budget/tier draw loop, #326-329, as the likely
 reusable shape). Needs a real back-and-forth design session, not a solo read.
 
-### H — The game plays itself (AI)
+### H — The game plays itself (AI) — CLOSED
 
-**Lane H — confirmed.** #378 is `Ready`. Its hard prerequisites are done:
+**Lane H — done.** #378 shipped and closed 2026-08-09 (see headline). Its
+prerequisites and the unit itself:
 
 1. ~~#384 Ownership buckets + Faction~~ — **CLOSED.**
 2. ~~#385 Set-shaped targeting~~ — **CLOSED.**
-3. **#378** AI controller v1 — **`Ready`**, milestone `MVP playable loop`,
-   swarmified 2026-08-09. Melee-budget numbers are in (k=20 blade ≈ 13ms
-   solve-only, ~75 candidates/sec single-threaded full-fidelity; two-tier
-   coarse/full eval is the biggest lever at ~14x). Per-entity vision, no
-   faction-shared reveal in v1, settled 2026-08-07 (deferred lever filed as
-   #394). `BladeHitScan.scan` threading resolved: thread `BladeSim.simulate`
-   only, `scan` stays main-thread against a pruned finalist set. Archetype
-   personality pulled out of scope, filed as #410 (`Backlog`, blocked-by #378).
-   **Next step: dispatch to a drone.**
-4. #47 strategy-pattern NPC controller — `Needs design`, v2, not this lane's exit.
+3. ~~#378~~ AI controller v1 — **CLOSED.** Melee-budget numbers held up
+   (k=20 blade ≈ 13ms solve-only, ~75 candidates/sec single-threaded
+   full-fidelity; two-tier coarse/full eval the biggest lever at ~14x).
+   Per-entity vision, no faction-shared reveal in v1 (deferred lever filed as
+   #394). `BladeHitScan.scan` threading shipped as spec'd. Archetype
+   personality pulled out of scope, filed as **#410** (`Backlog`,
+   blocked-by #378 — now unblocked).
+4. #410 AiWeights archetype personality — `Backlog`, unblocked now that #378
+   is closed, not yet scheduled into a lane.
+5. #47 strategy-pattern NPC controller — `Needs design`, v2, not this lane's exit.
 
 ## Enablers (pull in only when a lane needs them)
 

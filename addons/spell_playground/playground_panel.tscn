@@ -310,473 +310,471 @@ resource_name = "xp_per_turn"
 script = ExtResource("6_0p68j")
 definition = ExtResource("36_3dnei")
 
+[sub_resource type="Resource" id="Resource_dsd85"]
+resource_local_to_scene = true
+script = ExtResource("1_entityboard")
+strength = SubResource("scalar_strength")
+dexterity = SubResource("scalar_dexterity")
+intelligence = SubResource("scalar_intelligence")
+wisdom = SubResource("scalar_wisdom")
+perception = SubResource("scalar_perception")
+health = SubResource("pool_health")
+node_health = SubResource("scalar_node_health")
+armor = SubResource("scalar_armor")
+min_damage_taken = SubResource("scalar_min_dmg_taken")
+dealloc_damage = SubResource("scalar_dealloc_damage")
+xp = SubResource("pool_xp")
+xp_per_turn = SubResource("scalar_xp_per_turn")
+skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+action_points = SubResource("pool_ap")
+initiative = SubResource("pool_initiative")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+range = SubResource("scalar_range")
+mana = SubResource("pool_mana")
+mana_per_turn = SubResource("scalar_mana_per_turn")
+spell_range = SubResource("scalar_spell_range")
+spell_damage = SubResource("scalar_spell_damage")
+blade_size = SubResource("scalar_blade_size")
+blade_damage = SubResource("scalar_blade_damage")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
+
+[sub_resource type="Resource" id="Resource_kt55k"]
+resource_local_to_scene = true
+script = ExtResource("37_oknoy")
+metadata/_custom_type_script = "uid://ci0mmuifd3c71"
+
+[sub_resource type="Resource" id="Resource_f1bso"]
+resource_local_to_scene = true
+script = ExtResource("38_x1xyy")
+spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
+
+[sub_resource type="Resource" id="Resource_imfmt"]
+resource_local_to_scene = true
+script = ExtResource("1_entityboard")
+strength = SubResource("scalar_strength")
+dexterity = SubResource("scalar_dexterity")
+intelligence = SubResource("scalar_intelligence")
+wisdom = SubResource("scalar_wisdom")
+perception = SubResource("scalar_perception")
+health = SubResource("pool_health")
+node_health = SubResource("scalar_node_health")
+armor = SubResource("scalar_armor")
+min_damage_taken = SubResource("scalar_min_dmg_taken")
+dealloc_damage = SubResource("scalar_dealloc_damage")
+xp = SubResource("pool_xp")
+xp_per_turn = SubResource("scalar_xp_per_turn")
+skill_points = SubResource("sp_skill_points")
+wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
+action_points = SubResource("pool_ap")
+initiative = SubResource("pool_initiative")
+initiative_speed = SubResource("scalar_initiative_speed")
+vision_range = SubResource("scalar_vision_range")
+sensor_range = SubResource("scalar_sensor_range")
+range = SubResource("scalar_range")
+mana = SubResource("pool_mana")
+mana_per_turn = SubResource("scalar_mana_per_turn")
+spell_range = SubResource("scalar_spell_range")
+spell_damage = SubResource("scalar_spell_damage")
+blade_size = SubResource("scalar_blade_size")
+blade_damage = SubResource("scalar_blade_damage")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
+
+[sub_resource type="Resource" id="Resource_jdqbf"]
+resource_local_to_scene = true
+script = ExtResource("37_oknoy")
+metadata/_custom_type_script = "uid://ci0mmuifd3c71"
+
 [sub_resource type="Resource" id="Resource_uvjkt"]
 resource_local_to_scene = true
-script = ExtResource("1_entityboard")
-strength = SubResource("scalar_strength")
-dexterity = SubResource("scalar_dexterity")
-intelligence = SubResource("scalar_intelligence")
-wisdom = SubResource("scalar_wisdom")
-perception = SubResource("scalar_perception")
-health = SubResource("pool_health")
-node_health = SubResource("scalar_node_health")
-armor = SubResource("scalar_armor")
-min_damage_taken = SubResource("scalar_min_dmg_taken")
-dealloc_damage = SubResource("scalar_dealloc_damage")
-xp = SubResource("pool_xp")
-xp_per_turn = SubResource("scalar_xp_per_turn")
-skill_points = SubResource("sp_skill_points")
-wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
-action_points = SubResource("pool_ap")
-initiative = SubResource("pool_initiative")
-initiative_speed = SubResource("scalar_initiative_speed")
-vision_range = SubResource("scalar_vision_range")
-sensor_range = SubResource("scalar_sensor_range")
-range = SubResource("scalar_range")
-mana = SubResource("pool_mana")
-mana_per_turn = SubResource("scalar_mana_per_turn")
-spell_range = SubResource("scalar_spell_range")
-spell_damage = SubResource("scalar_spell_damage")
-blade_size = SubResource("scalar_blade_size")
-blade_damage = SubResource("scalar_blade_damage")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
+script = ExtResource("38_x1xyy")
+spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
+metadata/_custom_type_script = "uid://dgddohrmd3gn6"
 
 [sub_resource type="Resource" id="Resource_fd1bc"]
-resource_local_to_scene = true
-script = ExtResource("37_oknoy")
-metadata/_custom_type_script = "uid://ci0mmuifd3c71"
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_mcljf"]
-resource_local_to_scene = true
-script = ExtResource("38_x1xyy")
-spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
-metadata/_custom_type_script = "uid://dgddohrmd3gn6"
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_2ld0y"]
-resource_local_to_scene = true
-script = ExtResource("1_entityboard")
-strength = SubResource("scalar_strength")
-dexterity = SubResource("scalar_dexterity")
-intelligence = SubResource("scalar_intelligence")
-wisdom = SubResource("scalar_wisdom")
-perception = SubResource("scalar_perception")
-health = SubResource("pool_health")
-node_health = SubResource("scalar_node_health")
-armor = SubResource("scalar_armor")
-min_damage_taken = SubResource("scalar_min_dmg_taken")
-dealloc_damage = SubResource("scalar_dealloc_damage")
-xp = SubResource("pool_xp")
-xp_per_turn = SubResource("scalar_xp_per_turn")
-skill_points = SubResource("sp_skill_points")
-wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
-action_points = SubResource("pool_ap")
-initiative = SubResource("pool_initiative")
-initiative_speed = SubResource("scalar_initiative_speed")
-vision_range = SubResource("scalar_vision_range")
-sensor_range = SubResource("scalar_sensor_range")
-range = SubResource("scalar_range")
-mana = SubResource("pool_mana")
-mana_per_turn = SubResource("scalar_mana_per_turn")
-spell_range = SubResource("scalar_spell_range")
-spell_damage = SubResource("scalar_spell_damage")
-blade_size = SubResource("scalar_blade_size")
-blade_damage = SubResource("scalar_blade_damage")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_5dmfi"]
-resource_local_to_scene = true
-script = ExtResource("37_oknoy")
-metadata/_custom_type_script = "uid://ci0mmuifd3c71"
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_2ld0y")
+addon_slots = SubResource("Resource_fd1bc")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_mcljf")])
 
 [sub_resource type="Resource" id="Resource_lftbw"]
-resource_local_to_scene = true
-script = ExtResource("38_x1xyy")
-spells = Array[ExtResource("39_dcn82")]([ExtResource("40_ut4r8"), ExtResource("41_21cp1"), ExtResource("42_mxixh"), ExtResource("43_xa118"), ExtResource("44_5fdyx"), ExtResource("45_oqsv1")])
-metadata/_custom_type_script = "uid://dgddohrmd3gn6"
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_36wyl"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_3o1h6"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_8pejx"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_3o1h6")
+addon_slots = SubResource("Resource_lftbw")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_36wyl")])
 
 [sub_resource type="Resource" id="Resource_bl0g4"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_8pejx")
-addon_slots = SubResource("Resource_36wyl")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_3o1h6")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_68ort"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_dk7li"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_jxucb"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_dk7li")
+addon_slots = SubResource("Resource_bl0g4")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_68ort")])
 
 [sub_resource type="Resource" id="Resource_rgchn"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_jxucb")
-addon_slots = SubResource("Resource_68ort")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_dk7li")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_tk688"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_4620p"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_fof4b"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_4620p")
+addon_slots = SubResource("Resource_rgchn")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_tk688")])
 
 [sub_resource type="Resource" id="Resource_gd887"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_fof4b")
-addon_slots = SubResource("Resource_tk688")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_4620p")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_uagdk"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_0crsu"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_t3rmt"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_0crsu")
+addon_slots = SubResource("Resource_gd887")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_uagdk")])
 
 [sub_resource type="Resource" id="Resource_3dnei"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_t3rmt")
-addon_slots = SubResource("Resource_uagdk")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_0crsu")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_oknoy"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_x1xyy"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_dcn82"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_x1xyy")
+addon_slots = SubResource("Resource_3dnei")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_oknoy")])
 
 [sub_resource type="Resource" id="Resource_ut4r8"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_dcn82")
-addon_slots = SubResource("Resource_oknoy")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_x1xyy")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_21cp1"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_mxixh"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_xa118"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_mxixh")
+addon_slots = SubResource("Resource_ut4r8")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_21cp1")])
 
 [sub_resource type="Resource" id="Resource_5fdyx"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_xa118")
-addon_slots = SubResource("Resource_21cp1")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_mxixh")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_oqsv1"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_eagb3"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_t7f1t"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_eagb3")
+addon_slots = SubResource("Resource_5fdyx")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_oqsv1")])
 
 [sub_resource type="Resource" id="Resource_jjc7h"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_t7f1t")
-addon_slots = SubResource("Resource_oqsv1")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_eagb3")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_v2xo6"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_4bpll"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_wtgei"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_4bpll")
+addon_slots = SubResource("Resource_jjc7h")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_v2xo6")])
 
 [sub_resource type="Resource" id="Resource_wppij"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_wtgei")
-addon_slots = SubResource("Resource_v2xo6")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_4bpll")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_ypniu"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_85aut"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_6v8ge"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_85aut")
+addon_slots = SubResource("Resource_wppij")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_ypniu")])
 
 [sub_resource type="Resource" id="Resource_noedk"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_6v8ge")
-addon_slots = SubResource("Resource_ypniu")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_85aut")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_u8pb7"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_2bqk0"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_vqonr"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_2bqk0")
+addon_slots = SubResource("Resource_noedk")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_u8pb7")])
 
 [sub_resource type="Resource" id="Resource_xj1tu"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_vqonr")
-addon_slots = SubResource("Resource_u8pb7")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_2bqk0")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_17hjd"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_xft0d"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_66gku"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_xft0d")
+addon_slots = SubResource("Resource_xj1tu")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_17hjd")])
 
 [sub_resource type="Resource" id="Resource_x4357"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_66gku")
-addon_slots = SubResource("Resource_17hjd")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_xft0d")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_08jcc"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_jj6b1"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_2k5w8"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_jj6b1")
+addon_slots = SubResource("Resource_x4357")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_08jcc")])
 
 [sub_resource type="Resource" id="Resource_6228h"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_2k5w8")
-addon_slots = SubResource("Resource_08jcc")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_jj6b1")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_ypkm3"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_fa44a"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_054sj"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_fa44a")
+addon_slots = SubResource("Resource_6228h")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_ypkm3")])
 
 [sub_resource type="Resource" id="Resource_ke5ju"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_054sj")
-addon_slots = SubResource("Resource_ypkm3")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_fa44a")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_rnmyn"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_1leff"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_evwvu"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_1leff")
+addon_slots = SubResource("Resource_ke5ju")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_rnmyn")])
 
 [sub_resource type="Resource" id="Resource_ng0ax"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_evwvu")
-addon_slots = SubResource("Resource_rnmyn")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_1leff")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_k8csv"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_ln204"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_kp1oj"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
+script = ExtResource("50_f1bso")
+stake_level = SubResource("Resource_ln204")
+addon_slots = SubResource("Resource_ng0ax")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_k8csv")])
 
 [sub_resource type="Resource" id="Resource_qsusk"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_kp1oj")
-addon_slots = SubResource("Resource_k8csv")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_ln204")])
+resource_name = "addon_slots"
+script = ExtResource("6_0p68j")
+definition = ExtResource("48_dsd85")
 
 [sub_resource type="Resource" id="Resource_kro7k"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+script = ExtResource("16_fd1bc")
+stat_id = &"addon_slots"
+formula = ExtResource("49_kt55k")
 
 [sub_resource type="Resource" id="Resource_mnw6w"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
+resource_name = "stake_level"
+script = ExtResource("4_lgeib")
+definition = ExtResource("51_imfmt")
+base_value = 1.0
 
 [sub_resource type="Resource" id="Resource_58k03"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
-
-[sub_resource type="Resource" id="Resource_c5giu"]
 script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_58k03")
-addon_slots = SubResource("Resource_kro7k")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_mnw6w")])
+stake_level = SubResource("Resource_mnw6w")
+addon_slots = SubResource("Resource_qsusk")
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_kro7k")])
 
-[sub_resource type="Resource" id="Resource_uilcs"]
-resource_name = "addon_slots"
-script = ExtResource("6_0p68j")
-definition = ExtResource("48_dsd85")
+[sub_resource type="QuadMesh" id="QuadMesh_c5giu"]
 
-[sub_resource type="Resource" id="Resource_vwtoe"]
-script = ExtResource("16_fd1bc")
-stat_id = &"addon_slots"
-formula = ExtResource("49_kt55k")
-
-[sub_resource type="Resource" id="Resource_ww6qv"]
-resource_name = "stake_level"
-script = ExtResource("4_lgeib")
-definition = ExtResource("51_imfmt")
-base_value = 1.0
-
-[sub_resource type="Resource" id="Resource_6dsxv"]
-script = ExtResource("50_f1bso")
-stake_level = SubResource("Resource_ww6qv")
-addon_slots = SubResource("Resource_uilcs")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("Resource_vwtoe")])
-
-[sub_resource type="QuadMesh" id="QuadMesh_6hwei"]
-
-[sub_resource type="MultiMesh" id="MultiMesh_3t0jt"]
+[sub_resource type="MultiMesh" id="MultiMesh_uilcs"]
 use_colors = true
 use_custom_data = true
-instance_count = 32
-visible_instance_count = 27
-mesh = SubResource("QuadMesh_6hwei")
-buffer = PackedFloat32Array(1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.8235294, 0.8235294, 0.8235294, 1, 0.8235294, 0.8235294, 0.8235294, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+visible_instance_count = 0
+mesh = SubResource("QuadMesh_c5giu")
 
 [node name="SpellPlaygroundPanel" type="PanelContainer" unique_id=962694820]
 custom_minimum_size = Vector2(0, 380)
@@ -921,23 +919,23 @@ color = Color(0.07, 0.07, 0.1, 1)
 unique_name_in_owner = true
 display_name = "Caster"
 color = Color(0.4, 0.8, 0.55, 1)
-stat_board = SubResource("Resource_uvjkt")
-core_class = SubResource("Resource_fd1bc")
-spellbook = SubResource("Resource_mcljf")
+stat_board = SubResource("Resource_dsd85")
+core_class = SubResource("Resource_kt55k")
+spellbook = SubResource("Resource_f1bso")
 
 [node name="DefenderEntity" parent="HBox/WorldContainer/World" unique_id=345963501 instance=ExtResource("3_ent")]
 unique_name_in_owner = true
 display_name = "Defender"
 color = Color(0.85, 0.4, 0.3, 1)
-stat_board = SubResource("Resource_2ld0y")
-core_class = SubResource("Resource_5dmfi")
-spellbook = SubResource("Resource_lftbw")
+stat_board = SubResource("Resource_imfmt")
+core_class = SubResource("Resource_jdqbf")
+spellbook = SubResource("Resource_uvjkt")
 
 [node name="CasterNode" parent="HBox/WorldContainer/World" unique_id=1567387689 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 unique_name_in_owner = true
 position = Vector2(65, 480)
 owned_by = NodePath("../CasterEntity")
-node_board = SubResource("Resource_bl0g4")
+node_board = SubResource("Resource_5dmfi")
 
 [node name="Graph" parent="HBox/WorldContainer/World" unique_id=1726628961 instance=ExtResource("47_eagb3")]
 unique_name_in_owner = true
@@ -945,198 +943,199 @@ unique_name_in_owner = true
 [node name="T_00" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="0" unique_id=1120853937 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(130, 470)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_rgchn")
+node_board = SubResource("Resource_8pejx")
 
 [node name="T_01" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="1" unique_id=1056889480 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(136.66667, 470)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_gd887")
+node_board = SubResource("Resource_jxucb")
 
 [node name="T_02" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="2" unique_id=1697755299 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(143.33333, 470)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_3dnei")
+node_board = SubResource("Resource_fof4b")
 
 [node name="T_03" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="3" unique_id=1232758408 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(150, 470)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_ut4r8")
+node_board = SubResource("Resource_t3rmt")
 
 [node name="T_10" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="4" unique_id=1718383906 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(130, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_5fdyx")
+node_board = SubResource("Resource_dcn82")
 
 [node name="T_11" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="5" unique_id=1083574726 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(136.66667, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_jjc7h")
+node_board = SubResource("Resource_xa118")
 
-[node name="T_12" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="6" unique_id=1260902422 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+[node name="T_12" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="6" unique_id=1260902422 node_paths=PackedStringArray("owned_by", "self_loops") instance=ExtResource("2_sn")]
 position = Vector2(143.33333, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_wppij")
+self_loops = [NodePath("../../Edges/Edge2")]
+node_board = SubResource("Resource_t7f1t")
 
 [node name="T_13" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="7" unique_id=652399749 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(150, 476.66666)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_noedk")
+node_board = SubResource("Resource_wtgei")
 
 [node name="T_20" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="8" unique_id=1523931166 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(130, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_xj1tu")
+node_board = SubResource("Resource_6v8ge")
 
 [node name="T_21" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="9" unique_id=760718367 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 modulate = Color(1, 0.7, 0.7, 1)
 position = Vector2(136.66667, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_x4357")
+node_board = SubResource("Resource_vqonr")
 
 [node name="T_22" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="10" unique_id=955374995 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(143.33333, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_6228h")
+node_board = SubResource("Resource_66gku")
 
 [node name="T_23" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="11" unique_id=1262088768 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(150, 483.33334)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_ke5ju")
+node_board = SubResource("Resource_2k5w8")
 
 [node name="T_30" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="12" unique_id=1772789795 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(130, 490)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_ng0ax")
+node_board = SubResource("Resource_054sj")
 
 [node name="T_31" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="13" unique_id=1314036275 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(136.66667, 490)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_qsusk")
+node_board = SubResource("Resource_evwvu")
 
 [node name="T_32" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="14" unique_id=301008163 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(143.33333, 490)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_c5giu")
+node_board = SubResource("Resource_kp1oj")
 
 [node name="T_33" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="15" unique_id=1220020722 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
 position = Vector2(150, 490)
 owned_by = NodePath("../../../DefenderEntity")
-node_board = SubResource("Resource_6dsxv")
+node_board = SubResource("Resource_58k03")
 
-[node name="Edge2" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="27" unique_id=609108157 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge2" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="0" unique_id=609108157 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_12")
 to = NodePath("../../Nodes/T_12")
 
-[node name="Edge1" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1001 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge1" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="1" unique_id=1001 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_00")
 to = NodePath("../../Nodes/T_01")
 
-[node name="Edge2a" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1002 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge2a" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="2" unique_id=1002 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_01")
 to = NodePath("../../Nodes/T_02")
 
-[node name="Edge2b" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1003 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge2b" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="3" unique_id=1003 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_02")
 to = NodePath("../../Nodes/T_03")
 
-[node name="Edge3" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1004 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge3" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="4" unique_id=1004 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_00")
 to = NodePath("../../Nodes/T_10")
 
-[node name="Edge4" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1005 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge4" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="5" unique_id=1005 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_01")
 to = NodePath("../../Nodes/T_11")
 
-[node name="Edge5" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1006 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge5" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="6" unique_id=1006 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_02")
 to = NodePath("../../Nodes/T_12")
 
-[node name="Edge6" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1007 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge6" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="7" unique_id=1007 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_03")
 to = NodePath("../../Nodes/T_13")
 
-[node name="Edge7" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1008 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge7" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="8" unique_id=1008 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_10")
 to = NodePath("../../Nodes/T_11")
 
-[node name="Edge8" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1009 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge8" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="9" unique_id=1009 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_11")
 to = NodePath("../../Nodes/T_12")
 
-[node name="Edge9" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1010 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge9" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="10" unique_id=1010 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_12")
 to = NodePath("../../Nodes/T_13")
 
-[node name="Edge10" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1011 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge10" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="11" unique_id=1011 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_10")
 to = NodePath("../../Nodes/T_20")
 
-[node name="Edge11" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1012 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge11" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="12" unique_id=1012 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_11")
 to = NodePath("../../Nodes/T_21")
 
-[node name="Edge12" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1013 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge12" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="13" unique_id=1013 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_12")
 to = NodePath("../../Nodes/T_22")
 
-[node name="Edge13" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1014 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge13" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="14" unique_id=1014 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_13")
 to = NodePath("../../Nodes/T_23")
 
-[node name="Edge14" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1015 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge14" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="15" unique_id=1015 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_20")
 to = NodePath("../../Nodes/T_21")
 
-[node name="Edge15" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1016 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge15" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="16" unique_id=1016 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_21")
 to = NodePath("../../Nodes/T_22")
 
-[node name="Edge16" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1017 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge16" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="17" unique_id=1017 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_22")
 to = NodePath("../../Nodes/T_23")
 
-[node name="Edge17" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1018 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge17" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="18" unique_id=1018 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_20")
 to = NodePath("../../Nodes/T_30")
 
-[node name="Edge18" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1019 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge18" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="19" unique_id=1019 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_21")
 to = NodePath("../../Nodes/T_31")
 
-[node name="Edge19" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1020 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge19" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="20" unique_id=1020 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_22")
 to = NodePath("../../Nodes/T_32")
 
-[node name="Edge20" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1021 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge20" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="21" unique_id=1021 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_31")
 to = NodePath("../../Nodes/T_32")
 
-[node name="Edge21" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1022 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge21" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="22" unique_id=1022 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_32")
 to = NodePath("../../Nodes/T_33")
 
-[node name="Edge22" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1023 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge22" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="23" unique_id=1023 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_00")
 to = NodePath("../../Nodes/T_11")
 
-[node name="Edge23" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1024 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge23" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="24" unique_id=1024 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_02")
 to = NodePath("../../Nodes/T_13")
 
-[node name="Edge24" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1025 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge24" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="25" unique_id=1025 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_20")
 to = NodePath("../../Nodes/T_31")
 
-[node name="Edge25" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1026 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge25" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="26" unique_id=1026 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_11")
 to = NodePath("../../Nodes/T_23")
 
-[node name="Edge26" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) unique_id=1027 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
+[node name="Edge26" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="27" unique_id=1027 node_paths=PackedStringArray("from", "to") instance=ExtResource("53_jdqbf")]
 from = NodePath("../../Nodes/T_03")
 to = NodePath("../../Nodes/T_12")
 
 [node name="EdgeMesh" parent="HBox/WorldContainer/World/Graph" index="4" unique_id=-1447774240]
-multimesh = SubResource("MultiMesh_3t0jt")
+multimesh = SubResource("MultiMesh_uilcs")
 
 [node name="FloaterDirector" parent="HBox/WorldContainer/World/Graph" unique_id=15107582 instance=ExtResource("48_float")]
 
