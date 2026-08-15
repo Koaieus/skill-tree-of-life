@@ -148,14 +148,12 @@ func set_sources(sources: Array) -> void:
 ## already z-promote above the fog). Sensed elements are left to their own
 ## render path (NodeVisualsComposite's SensedOutline).
 ##
-## Regular (non-self-loop) EDGES no longer go through this z-promote-and-
+## EDGES (self-loops included) no longer go through this z-promote-and-
 ## modulate dance (#413): they self-shade against the shared `vision_field`
 ## globals in their own MultiMesh fragment shader, per-fragment rather than
 ## sampled once at midpoint, so only the visible/hidden classification needs
 ## to reach `Edge` — `sensed` is already Edge-owned (VisionSystem writes it
-## directly). Self-loop edges keep the old path unchanged: they're still a
-## real per-instance `_draw()` CanvasItem, rare enough that the O(elements)
-## cost here never mattered for them.
+## directly).
 func _apply_per_element_dimming() -> void:
 	if vision_system == null or vision_system.graph == null:
 		return
@@ -177,27 +175,6 @@ func _apply_per_element_dimming() -> void:
 			n.z_as_relative = true
 			n.z_index = ZLayers.GRAPH_DEFAULT
 	for e in graph.get_edges():
-		if e.is_self_loop:
-			if e.sensed:
-				e.modulate.a = 1.0
-				continue
-			if e.from == null or e.to == null:
-				continue
-			var from_vis: bool = vision_system.is_visible(e.from)
-			var to_vis: bool = vision_system.is_visible(e.to)
-			if from_vis and to_vis:
-				var mid: Vector2 = (e.from.global_position + e.to.global_position) * 0.5
-				var dark := _dark_from_distances(_source_index.distances_near(mid))
-				e.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
-				e.z_as_relative = false
-				# Absolute SENSED band — see Edge.sensed's setter for why the
-				# additive `EDGE + SENSED` idiom lands under the fog here.
-				e.z_index = ZLayers.SENSED
-			else:
-				e.modulate.a = 1.0
-				e.z_as_relative = true
-				e.z_index = ZLayers.EDGE
-			continue
 		if e.from == null or e.to == null:
 			continue
 		# OR, not AND. An edge straddling the vision boundary — one endpoint in

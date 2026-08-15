@@ -2,22 +2,25 @@
 class_name Edge
 extends Node2D
 
-const ZLayers = preload("res://ui/z_layers.gd")
-
-## Visible edge between two SkillNodes. Regular (non-self-loop) edges own no
-## rendering of their own (#413) — they push a transform + a pair of endpoint
-## colours into their [Graph]'s shared `edge_mesh` [MultiMeshInstance2D] slot
-## (`push_render_state` / `_push_transform` / `_push_colors`), which
-## self-shades against the world vision field per-fragment
-## (`ui/vision_field.gdshaderinc`) instead of relying on z-order to escape
-## `FogOverlay`'s opaque darkness quad. One shared draw call regardless of
-## edge count; a camera zoom step touches nothing here at all — width is
-## read from `CANVAS_MATRIX` in `graph/edge_mesh.gdshader`'s own vertex().
+## Visible edge between two SkillNodes. No Edge owns rendering of its own
+## (#413, extended to self-loops) — every edge, including self-loops, pushes
+## a transform + colour(s) into its [Graph]'s shared `edge_mesh`
+## [MultiMeshInstance2D] slot (`push_render_state` / `_push_transform` /
+## `_push_colors`), which self-shades against the world vision field
+## per-fragment (`ui/vision_field.gdshaderinc`) instead of relying on z-order
+## to escape `FogOverlay`'s opaque darkness quad. One shared draw call
+## regardless of edge count; a camera zoom step touches nothing here at all —
+## width is read from a global uniform in `graph/edge_mesh.gdshader`'s own
+## vertex().
 ##
-## Self-loops (from == to, no gradient/segment to speak of) are unaffected —
-## rare, cheap procedural `_draw()` geometry, kept exactly as before,
-## including the old z-index-vs-fog dance (see `sensed`'s setter and
-## `ui/fog_overlay/fog_overlay.gd`'s self-loop branch).
+## Self-loops (from == to, no gradient/segment to speak of) push a ring
+## transform (see `_push_self_loop_transform`) and a single solid colour
+## (`from`'s own display colour, in both the `color_a`/`color_b` slots) — the
+## shader tells ring instances from bar instances via a +10 offset packed
+## into the vis_state channel (`graph/edge_mesh.gdshader`'s header comment).
+## They used to be CPU `draw_arc()` immediate-mode geometry; that overdrew at
+## every one of its 24 segment joints and, under non-premultiplied canvas
+## blending, visibly out-glowed a regular edge at identical settings.
 
 signal endpoints_changed
 
@@ -76,23 +79,6 @@ const VIS_SENSED: float = 2.0
 		_update_visual()
 		endpoints_changed.emit()
 
-## Self-loop-only now (#413): regular edges' width is a single material
-## uniform shared by every edge (`graph/edge_mesh_material.tres`), authored
-## once, not per instance. Kept here purely so `_draw_self_loop` has a
-## screen-constant width knob, same as before.
-@export var width: float = 2.0:
-	set(v):
-		width = v
-		if is_self_loop:
-			queue_redraw()
-
-## Last zoom broadcast via [signal Events.camera_zoom_changed]. Only consumed
-## by the self-loop `_draw()` path now — regular edges get their
-## screen-constant width from `CANVAS_MATRIX` inside the shader itself, no
-## CPU zoom hook needed. Stays `1.0` in the editor (`@tool`, no live
-## `GraphCamera`) and at runtime before the first camera broadcast.
-var _current_zoom: float = 1.0
-
 ## Sensed-but-not-clearly-visible: at least one endpoint is sensed
 ## (not visible). VisionSystem writes this every recompute. When true,
 ## the edge renders above the fog overlay so the topology hint reads
@@ -100,34 +86,18 @@ var _current_zoom: float = 1.0
 ## See docs/design/info_gating.md for the broader info dimensions this
 ## flag will eventually plug into.
 ##
-## Self-loops keep the old z-index-vs-fog dance (see `ui/z_layers.gd`);
-## regular edges fold `sensed` into their own MultiMesh colour/vis-state
-## push instead (#413) — no z_index write, since self-shading makes the
-## z-order-escape trick unnecessary for them.
+## Folds into the MultiMesh colour/vis-state push for every edge, self-loops
+## included (#413) — no z_index write anywhere, since self-shading makes the
+## old z-order-escape trick unnecessary.
 @export var sensed: bool = false:
 	set(value):
 		if sensed == value:
 			return
 		sensed = value
-		if is_self_loop:
-			# The ABSOLUTE sensed band, not `EDGE + SENSED`. SkillNode gets away
-			# with the additive idiom (`skill_node.gd:423`) only because its base
-			# band is GRAPH_DEFAULT (0), so 0 + 1001 lands on SENSED. The EDGE
-			# band is NEGATIVE, so the same pattern yielded 991 — *below* the
-			# opaque FogOverlay quad at ZLayers.FOG (1000), and a sensed
-			# self-loop was simply painted over, delivering none of the
-			# "topology breadcrumb reads through fog" contract `sensed` exists
-			# for. Tradeoff: at 1001 the loop shares its band with a sensed
-			# SkillNode and, being later in `graph.tscn`'s child order, now
-			# draws OVER the node body instead of sinking under it (see
-			# `_draw_self_loop`'s docstring). Reading through fog beats the
-			# sunk-ring look; both dissolve once self-loops join the batch.
-			z_index = ZLayers.SENSED if sensed else ZLayers.EDGE
 		_update_visual()
 
 ## Vision-RANGE visibility (distinct from `sensed`'s hops-based sensor
-## reach) — written every vision tick by `FogOverlay` for regular edges only
-## (self-loops keep the old per-element dimming path). Defaults `true` so a
+## reach) — written every vision tick by `FogOverlay`. Defaults `true` so a
 ## scene with no fog system at all (dev sandboxes, most tests) renders at
 ## full brightness rather than reading the vision field's own "no data"
 ## default as "hidden". See #413 and `ui/vision_field.gdshaderinc`.
@@ -155,7 +125,7 @@ var _render_graph: Graph = null
 
 ## Called once by [Graph] right after this edge is added (`edge_added`) —
 ## gives `_push_transform`/`_push_colors` somewhere to write besides the
-## local `render_*` mirrors. A no-op for self-loops (they never get a slot).
+## local `render_*` mirrors.
 func bind_render_target(graph: Graph) -> void:
 	_render_graph = graph
 
@@ -169,18 +139,8 @@ func push_render_state() -> void:
 
 
 func _ready() -> void:
-	if not Engine.is_editor_hint():
-		_current_zoom = GraphCamera.current_zoom
-	Events.camera_zoom_changed.connect(_on_camera_zoom_changed)
 	_update_endpoints()
 	_update_visual()
-
-func _draw() -> void:
-	# Regular edges render through Graph's shared MultiMesh; only self-loops
-	# (no straight-line gradient to speak of, from == to) go through _draw.
-	if not is_self_loop or from == null:
-		return
-	_draw_self_loop()
 
 ## Lit when both endpoints are owned by the same entity. Override in a
 ## subclass or replace the predicate later for richer states (e.g. owned
@@ -197,22 +157,13 @@ func is_lit() -> bool:
 ## segment at the endpoints' positions as of connect-time.
 func refresh_endpoints() -> void:
 	_update_endpoints()
-	queue_redraw()
 
 func _update_endpoints() -> void:
-	if is_self_loop:
-		queue_redraw()
-		return
 	_push_transform()
 
-## Recomputes what should be pushed to the shared MultiMesh slot — endpoint
-## colours + vision-state for regular edges, or just a redraw for self-loops
-## (colour is resolved fresh in `_draw_self_loop`). Cheap enough to fully
-## recompute rather than diff.
+## Recomputes endpoint colours + vision-state and pushes them to the shared
+## MultiMesh slot. Cheap enough to fully recompute rather than diff.
 func _update_visual() -> void:
-	if is_self_loop:
-		queue_redraw()
-		return
 	_push_colors()
 
 ## World-space segment between `from`/`to`, converted into the shared
@@ -222,9 +173,15 @@ func _update_visual() -> void:
 ## pushed as a quad transform: origin at the segment midpoint, x-axis along
 ## the segment scaled to its length, unit y-axis (width is NOT baked in here
 ## — the shader expands it from a material uniform at draw time, see
-## `graph/edge_mesh.gdshader`).
+## `graph/edge_mesh.gdshader`). Self-loops delegate to
+## `_push_self_loop_transform` instead — a ring has no segment to speak of.
 func _push_transform() -> void:
-	if is_self_loop or from == null or to == null:
+	if from == null:
+		return
+	if is_self_loop:
+		_push_self_loop_transform()
+		return
+	if to == null:
 		return
 	var seg := SkillNode.segment_between(from, to)
 	if seg.is_empty():
@@ -242,9 +199,15 @@ func _push_transform() -> void:
 
 ## Recomputes endpoint colours + vision-state and pushes them to the shared
 ## MultiMesh slot (or just the local mirrors, with no live Graph — see
-## `render_color_a`/`render_color_b`'s docstring).
+## `render_color_a`/`render_color_b`'s docstring). Self-loops delegate to
+## `_push_self_loop_colors` instead — one endpoint, one colour, no gradient.
 func _push_colors() -> void:
-	if is_self_loop or from == null or to == null:
+	if from == null:
+		return
+	if is_self_loop:
+		_push_self_loop_colors()
+		return
+	if to == null:
 		return
 	var lit := is_lit()
 	render_color_a = _display_color_lifted(from.base_type_color, lit)
@@ -253,17 +216,6 @@ func _push_colors() -> void:
 	if _render_graph != null:
 		_render_graph.set_edge_colors(self, render_color_a, render_color_b, render_vis_state)
 
-## World-space line width that renders at a constant `width` SCREEN pixels
-## regardless of camera zoom — self-loop `_draw_self_loop` only now; regular
-## edges get this from `CANVAS_MATRIX` inside the shader instead (#413).
-func _screen_constant_width() -> float:
-	return width / _current_zoom
-
-func _on_camera_zoom_changed(zoom: float) -> void:
-	_current_zoom = zoom
-	if is_self_loop:
-		queue_redraw()
-
 ## Archetype tint → rendered colour, SDR only. Lit desaturates toward white
 ## less (kept ~full alpha), unlit desaturates toward its own luminance grey
 ## and darkens; sensed forces the unlit treatment regardless of actual lit
@@ -271,9 +223,9 @@ func _on_camera_zoom_changed(zoom: float) -> void:
 ## co-owned edge must not leak "lit" through fog — then caps alpha on top at
 ## a fixed low floor.
 ##
-## Used by the self-loop `_draw()` path (which has no per-instance HDR
-## channel the way the MultiMesh path does) — see `_display_color_lifted`
-## for the regular-edge variant that additionally bakes in the emissive lift.
+## The SDR base every push builds on — see `_display_color_lifted` for the
+## variant that additionally bakes in the emissive lift both regular edges
+## and self-loops push into the shared MultiMesh.
 func _display_color(base: Color, lit: bool) -> Color:
 	var c := base
 	var effective_lit := lit and not sensed
@@ -290,8 +242,8 @@ func _display_color(base: Color, lit: bool) -> Color:
 
 ## Multimesh-path colour: bakes the HDR emissive lift directly into rgb since
 ## a MultiMesh instance has no per-instance `self_modulate` to carry it
-## separately (#413 acceptance spec item 3). `_display_color` stays SDR-only
-## for the self-loop `_draw()` path, unaffected by this issue.
+## separately (#413 acceptance spec item 3). Used by both `_push_colors` and
+## `_push_self_loop_colors` — `_display_color` itself stays SDR-only.
 ##
 ## Deliberately NOT `Emissive.at()` — that helper's final `.linear_to_srgb()`
 ## re-encode exists so a `source_color`-hinted SHADER UNIFORM (e.g. rim_ring's
@@ -351,18 +303,11 @@ func _display_color_lifted(base: Color, lit: bool) -> Color:
 
 ## Self-loop glyph: a circular ring sunk slightly into the node so its near
 ## tangent point sits *under* the node body instead of kissing the rim from
-## outside — the edge sits on the absolute ZLayers.EDGE band, below the
-## graph-default band SkillNode draws on, so the overlapped arc is occluded
-## and the ring reads as emerging from / vanishing into the node rather than
-## floating next to it as a separate lollipop.
-##
-## CAVEAT: that occlusion holds only while the loop is UNSENSED. A sensed
-## self-loop is promoted to the absolute ZLayers.SENSED band (see the `sensed`
-## setter) so it can clear the fog quad at ZLayers.FOG, which puts it level
-## with the sensed SkillNode and later in `graph.tscn`'s child order — so it
-## draws OVER the node body and the sunk read is lost for exactly that state.
-## Deliberate: a breadcrumb nobody can see through the fog is worth less than
-## a correctly-sunk ring. Both go away once self-loops join the edge batch.
+## outside — pure geometry (pulling the loop centre toward the node), nothing
+## to do with draw order; the ring self-shades against the vision field
+## per-fragment like every other edge, so there's no fog-quad z-order dance
+## to keep in sync for the sensed case anymore (contrast the old `_draw()`
+## path's CAVEAT, now moot).
 ##
 ## Direction is the bisector of the LARGEST angular gap between the node's
 ## other edges — keeps the self-loop visually clear of existing edges
@@ -370,40 +315,74 @@ func _display_color_lifted(base: Color, lit: bool) -> Color:
 ## other edges. Multiple self-loops on the same node share that direction
 ## but nest at growing radii (indexed via `from.self_loops`) so they read
 ## as concentric rings instead of stacking on top of each other.
-## Recomputed each draw (cheap; degree ≪ 16 in practice).
+## Recomputed on every push (cheap; degree ≪ 16 in practice).
 const SELF_LOOP_SINK: float = 4.0
 
-func _draw_self_loop() -> void:
-	var node_center := from.global_position - global_position
+## Must match `graph/edge_mesh.gdshader`'s `_LOOP_PAD` — the shader recovers
+## the ring's true radius from the pushed transform's scale by dividing this
+## back out, so drifting the two out of lockstep silently mis-sizes every
+## self-loop ring.
+const _LOOP_PAD: float = 1.3
+
+## Must match `graph/edge_mesh.gdshader`'s `_VIS_LOOP_OFFSET` — added on top
+## of the ordinary `VIS_HIDDEN`/`VIS_VISIBLE`/`VIS_SENSED` value so the
+## shader can tell a ring instance from a bar instance with one comparison,
+## no extra per-instance channel.
+const _VIS_LOOP_OFFSET: float = 10.0
+
+## Pushes a self-loop's ring transform: origin at the loop's world-space
+## centre (converted to the shared MultiMesh's local space same as
+## `_push_transform`), 2×2 part a uniform scale to `2 * loop_radius * _LOOP_PAD`
+## — padded so the screen-constant stroke width never clips the instance's
+## bounding quad. Rotation is irrelevant; the shape is a circle.
+func _push_self_loop_transform() -> void:
+	if not is_self_loop or from == null:
+		return
 	var r: float = from.radius
 	var idx: int = max(from.self_loops.find(self), 0)
 	var loop_radius: float = r * 0.55 * (1.0 + idx * 0.4)
 	var angle := _self_loop_bisector_angle()
-	var loop_center := node_center + Vector2.from_angle(angle) * (r + loop_radius - SELF_LOOP_SINK)
+	var loop_center_world: Vector2 = from.global_position \
+		+ Vector2.from_angle(angle) * (r + loop_radius - SELF_LOOP_SINK)
+	var origin_offset := _render_graph.global_position if _render_graph != null else Vector2.ZERO
+	var loop_center := loop_center_world - origin_offset
+	var xf := Transform2D(0.0, loop_center)
+	var scale := 2.0 * loop_radius * _LOOP_PAD
+	xf.x *= scale
+	xf.y *= scale
+	render_transform = xf
+	if _render_graph != null:
+		_render_graph.set_edge_transform(self, xf)
+
+## Pushes a self-loop's single solid colour (into both `color_a`/`color_b` —
+## one endpoint, no gradient to speak of) and its vis_state offset by
+## `_VIS_LOOP_OFFSET` so the shared shader draws it as a ring, not a bar.
+##
+## `_display_color_lifted`, not `_display_color`: the latter is SDR-only by
+## its own docstring, and using it here was the exact reason a lit self-loop
+## never used to glow while every lit regular edge touching the same node
+## did — the lift is the ONLY place `pow(2, lit_glow_stops)` is applied.
+func _push_self_loop_colors() -> void:
+	if not is_self_loop or from == null:
+		return
 	var lit := is_lit()
-	# `_display_color_lifted`, not `_display_color`: the latter is SDR-only by
-	# its own docstring, and it was the exact reason a lit self-loop never
-	# glowed while every lit regular edge touching the same node did. The lift
-	# is the ONLY place `pow(2, lit_glow_stops)` is applied, so the authored
-	# `lit_glow_stops = 4.5` was silently a no-op for self-loops and their
-	# colour never crossed the WorldEnvironment's 1.0 glow threshold.
-	#
-	# The raw (non-`Emissive.at()`) multiply is right here for the same reason
-	# it is right on the multimesh path: `draw_arc`'s Color carries no
-	# `source_color` hint, so nothing downstream decodes an sRGB re-encode —
-	# see `_display_color_lifted`'s docstring for the full derivation.
 	var c := _display_color_lifted(from.base_type_color, lit)
-	var w := _screen_constant_width()
-	draw_arc(loop_center, loop_radius, 0.0, TAU, 24, c, w, false)
+	render_color_a = c
+	render_color_b = c
+	render_vis_state = _VIS_LOOP_OFFSET \
+		+ (VIS_SENSED if sensed else (VIS_VISIBLE if vision_visible else VIS_HIDDEN))
+	if _render_graph != null:
+		_render_graph.set_edge_colors(self, render_color_a, render_color_b, render_vis_state)
 
 
 ## Registers `self` into `from.self_loops` the moment both endpoints make
 ## this edge a self-loop — idempotent, and independent of whoever built the
 ## edge (Graph.add_edge already does this for runtime/procgen edges, but a
 ## scene-authored self-loop sets `from`/`to` straight through these setters
-## and would otherwise never register). Without this, `_draw_self_loop`'s
-## `self_loops.find(self)` returns -1 for every scene-baked self-loop, so
-## they'd all nest at the same radius instead of spreading.
+## and would otherwise never register). Without this,
+## `_push_self_loop_transform`'s `self_loops.find(self)` returns -1 for every
+## scene-baked self-loop, so they'd all nest at the same radius instead of
+## spreading.
 func _register_self_loop() -> void:
 	if not is_self_loop:
 		return
@@ -483,7 +462,6 @@ func _on_endpoint_owner_changed() -> void:
 
 func _on_endpoint_radius_changed() -> void:
 	_update_endpoints()
-	queue_redraw()
 
 func _on_endpoint_archetype_changed() -> void:
 	_update_visual()

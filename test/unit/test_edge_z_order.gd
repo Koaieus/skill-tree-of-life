@@ -7,10 +7,12 @@ extends GutTest
 ## Nodes in graph.tscn) drew the edge on top. See ui/z_layers.gd for the band
 ## table and graph/edge.gd for the fix.
 ##
-## #413 narrowed the z-index dance to SELF-LOOPS only: regular edges now
-## self-shade in a shared MultiMesh fragment shader instead of escaping
-## FogOverlay's opaque quad via z-order, so `sensed` no longer touches
-## `z_index` for them at all — only a self-loop (from == to) still does.
+## #413, then extended to fold self-loops into the same shared MultiMesh:
+## every edge now self-shades in a shared MultiMesh fragment shader instead
+## of escaping FogOverlay's opaque quad via z-order, so `sensed` no longer
+## touches `z_index` for ANY edge, self-loops included — it folds into the
+## MultiMesh vis_state push instead (see `graph/edge_mesh.gdshader`'s header
+## comment for the +10 ring-vs-bar offset).
 
 const ZLayers = preload("res://ui/z_layers.gd")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
@@ -49,7 +51,7 @@ func test_regular_edge_sensed_round_trip_does_not_touch_z_index() -> void:
 	assert_eq(edge.z_index, ZLayers.EDGE)
 
 
-func test_self_loop_sensed_round_trip_returns_to_edge_band_absolute() -> void:
+func test_self_loop_sensed_round_trip_does_not_touch_z_index() -> void:
 	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(a)
 	var edge := _EDGE_SCENE.instantiate() as Edge
@@ -59,17 +61,27 @@ func test_self_loop_sensed_round_trip_returns_to_edge_band_absolute() -> void:
 	await get_tree().process_frame
 
 	assert_true(edge.is_self_loop)
+	assert_eq(edge.z_index, ZLayers.EDGE, "a self-loop starts on the EDGE band, same as every edge")
 	edge.sensed = true
-	# The ABSOLUTE sensed band. `EDGE + SENSED` is 991 — below the opaque
-	# FogOverlay quad at ZLayers.FOG — so the old additive value meant a sensed
-	# self-loop was painted over and read as nothing at all.
-	assert_eq(edge.z_index, ZLayers.SENSED,
-		"a sensed self-loop must sit ABOVE the fog band, or the breadcrumb never reads")
-	assert_gt(edge.z_index, ZLayers.FOG,
-		"the whole point of the sensed promotion is punching through the fog")
-
-	# sensed's setter early-returns when unchanged, so go true -> false to
-	# actually exercise the un-sensed path (this is the regression path).
+	assert_eq(edge.z_index, ZLayers.EDGE, "sensed must not touch a self-loop's z_index — it self-shades instead")
 	edge.sensed = false
-	assert_eq(edge.z_index, ZLayers.EDGE, "un-sensed self-loop must return to the EDGE band, not GRAPH_DEFAULT (0)")
-	assert_false(edge.z_as_relative, "un-sensed self-loop must stay absolute, not flip back to relative")
+	assert_eq(edge.z_index, ZLayers.EDGE)
+
+
+func test_self_loop_sensed_round_trip_offsets_vis_state_by_the_loop_marker() -> void:
+	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(a)
+	var edge := _EDGE_SCENE.instantiate() as Edge
+	add_child_autofree(edge)
+	edge.from = a
+	edge.to = a
+	await get_tree().process_frame
+
+	# +10 is the shader's ring-vs-bar marker (graph/edge_mesh.gdshader header
+	# comment) — a self-loop's vis_state must always carry it, sensed or not,
+	# or the shared shader would draw the ring as a degenerate bar instead.
+	assert_eq(edge.render_vis_state, 10.0 + Edge.VIS_VISIBLE, "a fresh self-loop is visible + loop-marked")
+	edge.sensed = true
+	assert_eq(edge.render_vis_state, 10.0 + Edge.VIS_SENSED, "a sensed self-loop stays loop-marked")
+	edge.sensed = false
+	assert_eq(edge.render_vis_state, 10.0 + Edge.VIS_VISIBLE)

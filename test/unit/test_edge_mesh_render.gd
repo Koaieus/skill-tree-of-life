@@ -1,12 +1,15 @@
 extends GutTest
 
-## #413 — regular edges no longer own a Line2D; they push a transform +
-## endpoint colours into their Graph's shared `edge_mesh` MultiMeshInstance2D
-## slot instead. Covers the acceptance spec's functional criteria: instance
-## count tracks live edges, per-instance transform places the quad between
-## endpoints, and lit/unlit/sensed/hidden all land in the right colour +
-## vis-state channel. Self-loops are unaffected (out of scope) — see
-## test_edge_z_order.gd / test_edge_zoom_width.gd for their coverage.
+## #413, extended to fold self-loops into the same batch — no Edge owns a
+## Line2D/`_draw()` of its own; every edge (including self-loops) pushes a
+## transform + colour(s) into its Graph's shared `edge_mesh`
+## MultiMeshInstance2D slot instead. Covers the acceptance spec's functional
+## criteria: instance count tracks live edges (self-loops included), regular
+## per-instance transform places the quad between endpoints, self-loop
+## transform places a ring around its node, and lit/unlit/sensed/hidden all
+## land in the right colour + vis-state channel for both shapes. See
+## test_edge_z_order.gd / test_edge_zoom_width.gd for self-loop z-order/zoom
+## coverage.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -158,6 +161,38 @@ func test_hidden_when_not_sensed_and_not_vision_visible() -> void:
 
 	edge.vision_visible = false
 	assert_eq(edge.render_vis_state, Edge.VIS_HIDDEN)
+
+
+func test_self_loop_gets_a_slot_in_the_same_shared_mesh() -> void:
+	var before: int = _graph.edge_mesh.multimesh.visible_instance_count
+	var loop := _graph.add_edge(_nodes[0], _nodes[0])
+	await get_tree().process_frame
+
+	assert_true(loop.is_self_loop)
+	assert_eq(_graph.edge_mesh.multimesh.visible_instance_count, before + 1, "a self-loop registers into the same slot bookkeeping as a regular edge")
+
+
+func test_self_loop_transform_centres_a_ring_scaled_to_its_radius() -> void:
+	var loop := _graph.add_edge(_nodes[0], _nodes[0])
+	await get_tree().process_frame
+
+	# Loop centre sits offset from the node along its bisector direction, not
+	# AT the node centre — but it must stay within a couple of node radii, and
+	# the transform's uniform scale must be positive (a degenerate/zero-size
+	# ring would mean the radius never made it into the push).
+	var dist := loop.render_transform.get_origin().distance_to(_nodes[0].global_position)
+	assert_gt(dist, 0.0)
+	assert_lt(dist, _nodes[0].radius * 3.0)
+	assert_gt(loop.render_transform.x.length(), 0.0)
+	assert_almost_eq(loop.render_transform.x.length(), loop.render_transform.y.length(), 0.01, "a ring's bounding quad must be scaled uniformly, not stretched like a bar")
+
+
+func test_self_loop_pushes_one_colour_into_both_channels_offset_by_the_loop_marker() -> void:
+	var loop := _graph.add_edge(_nodes[0], _nodes[0])
+	await get_tree().process_frame
+
+	assert_eq(loop.render_color_a, loop.render_color_b, "a self-loop has one endpoint — no gradient, both channels carry the same colour")
+	assert_eq(loop.render_vis_state, 10.0 + Edge.VIS_VISIBLE, "a self-loop's vis_state must carry the shader's +10 ring marker (graph/edge_mesh.gdshader)")
 
 
 ## NOTE: no test reads back `mm.get_instance_color`/`get_instance_transform_2d`

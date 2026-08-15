@@ -98,15 +98,13 @@ func _init_edge_mesh() -> void:
 	_edge_mesh_capacity = 0
 
 
-## Registers a freshly added [Edge] with its render target — every edge gets
-## `bind_render_target` (so its `_push_transform`/`_push_colors` calls have
-## somewhere to go) whether or not it ends up with a mesh slot; self-loops
-## deliberately never get one (out of scope, #413 — they stay on their own
-## `_draw()` path) and are skipped here.
+## Registers a freshly added [Edge] with its render target — every edge,
+## self-loops included, gets `bind_render_target` (so its `_push_transform`/
+## `_push_colors` calls have somewhere to go) and a mesh slot; self-loops push
+## a ring transform/solid colour into the same shared buffer regular edges
+## use (see `graph/edge_mesh.gdshader`'s header comment).
 func _on_edge_added_render(edge: Edge) -> void:
 	edge.bind_render_target(self)
-	if edge.is_self_loop:
-		return
 	_register_edge_slot(edge)
 	edge.push_render_state()
 
