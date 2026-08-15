@@ -67,6 +67,16 @@ var _move_targeting_source: SkillNode = null
 signal temp_upgrade_arm_changed(upgrade: Variant)
 var _temp_upgrade_arm: Variant = null
 
+## Manage-tab verbs (#338), armed via CommandTray's ManageBody cards through
+## the #404 shared dispatcher. ALLOCATE mirrors the always-on bare-click
+## fallback (arming it is cosmetic — cursor + card affordance only, no new
+## click routing); DEALLOCATE/STAKE/EXTRACT resolve through
+## [method _route_manage_click]. Move Core has no verb of its own — its card
+## calls [method enter_core_move_targeting], reusing CoreMoveArmedMode.
+enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT }
+signal manage_arm_changed(verb: ManageVerb)
+var _manage_arm: ManageVerb = ManageVerb.NONE
+
 ## Ordered pop stack (#404's shared arm/pop primitive, generalized #406).
 ## Earlier entries pop before later ones — TempUpgradeArmedMode is checked
 ## first because it nests inside an already-armed attack plan and must pop
@@ -119,6 +129,7 @@ func _ready() -> void:
 		TempUpgradeArmedMode.new(self),
 		AttackPlanArmedMode.new(self),
 		CoreMoveArmedMode.new(self),
+		ManageArmedMode.new(self),
 	]
 
 	if battle_system != null:
@@ -146,12 +157,106 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 		return
 	if _route_battle_click(skill_node, true):
 		return
+	if _route_manage_click(skill_node):
+		return
 	if _route_core_move_click(skill_node):
 		return
 	# Allocate channel: bare left-click on an unowned node. allocate() enforces
 	# SP + adjacency; deallocation is the `D`-on-hover channel, not a click.
 	if _is_players_turn() and skill_node.owned_by == null:
 		allocation_system.allocate(skill_node, player)
+
+
+## Resolves an armed Manage verb (#338, via #404). STAKE/EXTRACT/DEALLOCATE
+## consume the click whether they succeed or not (denial feedback fires on
+## failure); ALLOCATE and NONE fall through so the existing core-move /
+## bare-allocate routing below still runs unarmed. Must run BEFORE
+## _route_core_move_click — staking/extracting the core itself (0 hops still
+## counts as "within 1 hop") must not be swallowed by core-move targeting.
+func _route_manage_click(skill_node: SkillNode) -> bool:
+	if not _is_players_turn():
+		return false
+	match _manage_arm:
+		ManageVerb.STAKE:
+			_resolve_stake(skill_node)
+			return true
+		ManageVerb.EXTRACT:
+			_resolve_extract(skill_node)
+			return true
+		ManageVerb.DEALLOCATE:
+			_resolve_deallocate(skill_node)
+			return true
+	return false
+
+
+## Shared deallocate verb call (#338) — both the `D`-hover accelerator and an
+## armed-Deallocate click resolve through this. Unlike the `D` channel (which
+## pre-gates on `owned_by == player` and stays silent otherwise, see
+## _unhandled_input), this always fires denial feedback on failure — an
+## explicit click on an illegal node while armed is a deliberate attempt, not
+## an idle hover.
+func _resolve_deallocate(node: SkillNode) -> bool:
+	if allocation_system.deallocate(node, player):
+		return true
+	Events.node_action_denied.emit(node, "deallocate_denied")
+	return false
+
+
+func _resolve_stake(node: SkillNode) -> bool:
+	if allocation_system.stake(node, player):
+		return true
+	Events.node_action_denied.emit(node, _stake_denial_reason(node))
+	return false
+
+
+func _resolve_extract(node: SkillNode) -> bool:
+	if allocation_system.extract(node, player):
+		return true
+	Events.node_action_denied.emit(node, _extract_denial_reason(node))
+	return false
+
+
+## Re-derives why `can_stake` rejected [param node] as a reason string.
+## AllocationSystem.can_stake only returns a bool (#338 doesn't touch
+## allocation_system.gd), so the gate order here must mirror can_stake's.
+func _stake_denial_reason(node: SkillNode) -> String:
+	if node == null or node.owned_by != player:
+		return "stake_denied_not_owned"
+	if node.stake_level >= AllocationSystem.STAKE_CEILING:
+		return "stake_denied_at_ceiling"
+	if not _core_within_one_hop(node):
+		return "stake_denied_not_adjacent"
+	var board := player.stat_board if player != null else null
+	if board != null and board.skill_points != null and board.skill_points.available() < 1:
+		return "stake_denied_no_sp"
+	if board != null and board.action_points != null and board.action_points.available() < 1:
+		return "stake_denied_no_ap"
+	return "stake_denied"
+
+
+## Mirrors can_extract's gate order — see _stake_denial_reason.
+func _extract_denial_reason(node: SkillNode) -> String:
+	if node == null or node.owned_by != player:
+		return "extract_denied_not_owned"
+	if node.stake_level <= 1:
+		return "extract_denied_at_floor"
+	if not _core_within_one_hop(node):
+		return "extract_denied_not_adjacent"
+	var board := player.stat_board if player != null else null
+	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
+		return "extract_denied_no_dp"
+	if board != null and board.skill_points != null and board.skill_points.staked < 1:
+		return "extract_denied_no_staked_sp"
+	return "extract_denied"
+
+
+## Same "core within 1 hop over the owned subgraph" check as
+## AllocationSystem._core_within_one_hop, bound to `player` — duplicated
+## rather than reaching into that private helper.
+func _core_within_one_hop(node: SkillNode) -> bool:
+	if player == null or player.navigator == null or player.core_location == null:
+		return false
+	return player.navigator.nodes_within(player.core_location, 1).has(node)
 
 
 ## Resolves an armed temp-upgrade placement (#406) — click-to-toggle, same
@@ -240,11 +345,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _has_armed_mode():
 		return
 	if _hovered_node.owned_by == player:
-		if allocation_system.deallocate(_hovered_node, player):
-			get_viewport().set_input_as_handled()
-		else:
-			Events.node_action_denied.emit(_hovered_node, "deallocate_denied")
-			get_viewport().set_input_as_handled()
+		_resolve_deallocate(_hovered_node)
+		get_viewport().set_input_as_handled()
 
 
 ## `ui_cancel` (Esc) aliases the same one-level pop right-click uses. Runs
@@ -566,6 +668,46 @@ func arm_temp_upgrade(upgrade: Variant) -> void:
 
 func temp_upgrade_arm() -> Variant:
 	return _temp_upgrade_arm
+
+
+func _set_manage_arm(verb: ManageVerb) -> void:
+	if _manage_arm == verb:
+		return
+	_manage_arm = verb
+	manage_arm_changed.emit(verb)
+	_update_cursor()
+
+
+## Arms [param verb] for ManageBody's tray cards (#338), toggling off if it's
+## already armed (re-click to cancel, same shape as arm_temp_upgrade). Arming
+## any verb cancels an in-flight core-move targeting first — the two are
+## mutually exclusive entry points into the graph, and Move Core re-enters its
+## own targeting via [method enter_core_move_targeting] instead of a verb.
+func arm_manage_verb(verb: ManageVerb) -> void:
+	if verb != ManageVerb.NONE and _move_targeting_source != null:
+		_set_move_targeting_source(null)
+	_set_manage_arm(ManageVerb.NONE if _manage_arm == verb else verb)
+
+
+func manage_arm() -> ManageVerb:
+	return _manage_arm
+
+
+## Move Core card's entry point (#338) — arms the same click-to-move /
+## drag targeting `_route_core_move_click` already drives when the player
+## clicks their own core directly; this is just another door into it.
+## Re-pressing while already targeting cancels, mirroring the click-own-core
+## toggle. Clears any armed Manage verb first (mutual exclusion, see
+## arm_manage_verb).
+func enter_core_move_targeting() -> void:
+	if player == null or player.core_location == null:
+		return
+	if _manage_arm != ManageVerb.NONE:
+		_set_manage_arm(ManageVerb.NONE)
+	if _move_targeting_source == player.core_location:
+		_set_move_targeting_source(null)
+	else:
+		_set_move_targeting_source(player.core_location)
 
 
 func can_player_act() -> bool:

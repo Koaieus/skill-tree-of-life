@@ -70,6 +70,7 @@ func _ready() -> void:
 		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
 	if input_ctl != null:
 		input_ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
+		input_ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
 	if allocation_system != null:
 		allocation_system.allocated.connect(_on_source_changed.unbind(3))
 		allocation_system.deallocated.connect(_on_source_changed.unbind(2))
@@ -142,5 +143,8 @@ func _is_player_managing() -> bool:
 func _build_allocation_provider() -> ManagerHighlightProvider:
 	if _allocation_provider == null:
 		_allocation_provider = ManagerHighlightProvider.new()
-	_allocation_provider.configure(player, allocation_system, graph)
+	var verb := PlayerInputController.ManageVerb.ALLOCATE
+	if input_ctl != null and input_ctl.manage_arm() != PlayerInputController.ManageVerb.NONE:
+		verb = input_ctl.manage_arm()
+	_allocation_provider.configure(player, allocation_system, graph, verb)
 	return _allocation_provider
