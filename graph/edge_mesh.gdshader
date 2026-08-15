@@ -70,6 +70,12 @@ const float _VIS_LOOP_OFFSET = 10.0;
 // Must match `graph/edge.gd`'s `SELF_LOOP_MARGIN` (== _SELF_LOOP_MAX_WIDTH *
 // 0.5 / GraphCamera.MIN_ZOOM + _SELF_LOOP_AA_SLACK == 3.0 * 0.5 / 0.25 + 2.0).
 const float _SELF_LOOP_MARGIN = 8.0;
+// Pure AA slack for the bar branch's padded quad (#454) — unlike
+// `_SELF_LOOP_MARGIN`, which pads a WORLD-space quad scaled from node radius,
+// the bar quad's local Y already IS the screen-constant stroke width, so this
+// pad divides by zoom too (see vertex()) to stay a constant couple of screen
+// pixels at any zoom, same as `width` itself.
+const float _BAR_AA_PAD_PX = 2.0;
 
 varying vec4 v_custom;
 varying vec2 world_pos;
@@ -77,6 +83,7 @@ varying vec2 local_vertex;
 varying float loop_radius_world;
 varying float loop_half_extent;
 varying float is_loop;
+varying float bar_local_y;
 
 void vertex() {
 	v_custom = INSTANCE_CUSTOM;
@@ -108,7 +115,12 @@ void vertex() {
 		// instance transform's x-scale, see Graph.set_edge_transform); only Y
 		// carries width, and only its SIGN survives from the base mesh — the
 		// magnitude is entirely zoom-derived, never inherited from instance scale.
-		VERTEX.y = sign(VERTEX.y) * half_width_local;
+		// Padded past the true half-width (#454) so fragment()'s AA feather has
+		// room to fade out instead of being hard-clipped at the mesh edge —
+		// same idea as the ring branch's margin above, mirrored for a strip.
+		float aa_pad_local = _BAR_AA_PAD_PX / max(edge_camera_zoom, 0.0001);
+		VERTEX.y = sign(VERTEX.y) * (half_width_local + aa_pad_local);
+		bar_local_y = VERTEX.y;
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 }
@@ -130,12 +142,20 @@ void fragment() {
 		// 1)` held `d == 0` at full alpha 1.0 and only faded past it, so the
 		// visible stroke bulged about a full `fwidth(dist)` (~1 screen px)
 		// wider than `half_width_world` on BOTH the inner and outer edge —
-		// rendering visibly thicker than a bar edge at the same `width`,
-		// which gets no such feather at all.
+		// rendering visibly thicker than a bar edge at the same `width`
+		// (the bar branch below uses this same centered technique, #454).
 		float aa = max(fwidth(dist), 0.0001);
 		shape_alpha = 1.0 - smoothstep(-aa * 0.5, aa * 0.5, d);
 	} else {
 		rgb = mix(COLOR.rgb, v_custom.rgb, UV.x);
+		// Same centered-feather technique as the ring branch above (#454):
+		// `d == 0` at the TRUE (unpadded) half-width keeps the measured
+		// on-screen width unchanged — centering on the real edge instead of
+		// extending outward from it is what avoids the ring's old bulge bug.
+		float half_width_local = (width * 0.5) / max(edge_camera_zoom, 0.0001);
+		float d = abs(bar_local_y) - half_width_local;
+		float aa = max(fwidth(bar_local_y), 0.0001);
+		shape_alpha = 1.0 - smoothstep(-aa * 0.5, aa * 0.5, d);
 	}
 
 	float alpha;
