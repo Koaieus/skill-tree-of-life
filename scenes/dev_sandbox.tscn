@@ -1107,7 +1107,6 @@ base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 node_board = SubResource("Resource_bykwf")
 
 [node name="ClampAddon" parent="Graph/Nodes/SW" index="3" unique_id=442806284 instance=ExtResource("48_owpne")]
-z_index = 1
 
 [node name="Bridge_E" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="11" unique_id=8800204 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001

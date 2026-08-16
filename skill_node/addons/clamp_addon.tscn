@@ -1,11 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://b1addon0clamp"]
+[gd_scene format=3 uid="uid://b1addon0clamp"]
 
-[ext_resource type="Script" path="res://skill_node/addons/clamp_addon.gd" id="1_clamp"]
+[ext_resource type="Script" uid="uid://d3giab8xavty7" path="res://skill_node/addons/clamp_addon.gd" id="1_clamp"]
 [ext_resource type="Texture2D" uid="uid://buw6e5d0j8v38" path="res://assets/icons/addons/addon_clamp.png" id="2_clamp"]
 
-[node name="ClampAddon" type="Node2D"]
+[node name="ClampAddon" type="Node2D" unique_id=1193177963]
+z_index = 1
 script = ExtResource("1_clamp")
+description = "Welds this joint rigid — two arms meeting here hold their angle under blade impact instead of hinging free."
+icon = ExtResource("2_clamp")
 unique = true
 temp_upgrade_cost = 1
-icon = ExtResource("2_clamp")
-description = "Welds this joint rigid — two arms meeting here hold their angle under blade impact instead of hinging free."

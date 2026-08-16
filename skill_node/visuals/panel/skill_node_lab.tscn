@@ -12,6 +12,7 @@
 [ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="10_brdld"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="11_vevrr"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="12_rtvrv"]
+[ext_resource type="Environment" uid="uid://cw0hn1e5xg8ja" path="res://ui/theme/default_game_env.tres" id="13_o712f"]
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 script = ExtResource("3_o712f")
@@ -25,33 +26,33 @@ primary_stat = &"wisdom"
 carve_shape = SubResource("Resource_u38nb")
 metadata/_custom_type_script = "uid://cr6yvdiuavfam"
 
-[sub_resource type="Resource" id="Resource_cjnh8"]
+[sub_resource type="Resource" id="Resource_nwsy6"]
 resource_name = "addon_slots"
 script = ExtResource("7_n7a64")
 definition = ExtResource("6_n1oas")
 
-[sub_resource type="Resource" id="Resource_w4o6y"]
+[sub_resource type="Resource" id="Resource_n1oas"]
 script = ExtResource("8_pefj3")
 stat_id = &"addon_slots"
 formula = ExtResource("9_267xi")
 
-[sub_resource type="Resource" id="Resource_7r3lr"]
+[sub_resource type="Resource" id="Resource_n7a64"]
 resource_name = "stake_level"
 script = ExtResource("12_rtvrv")
 definition = ExtResource("11_vevrr")
 base_value = 3.0
 
-[sub_resource type="Resource" id="Resource_2j0fp"]
+[sub_resource type="Resource" id="Resource_pefj3"]
 script = ExtResource("10_brdld")
-stake_level = SubResource("Resource_7r3lr")
-addon_slots = SubResource("Resource_cjnh8")
-intrinsic_modifiers = Array[ExtResource("8_pefj3")]([SubResource("Resource_w4o6y")])
+stake_level = SubResource("Resource_n7a64")
+addon_slots = SubResource("Resource_nwsy6")
+intrinsic_modifiers = Array[ExtResource("8_pefj3")]([SubResource("Resource_n1oas")])
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_k3mpu"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_267xi"]
 resource_local_to_scene = true
 radius = 44.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0loq4"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_brdld"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -63,7 +64,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 corner_detail = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qthye"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vevrr"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -78,11 +79,11 @@ corner_detail = 6
 [node name="SkillNodeLab" unique_id=1465153555 instance=ExtResource("1_base")]
 archetype = SubResource("Resource_u716c")
 base_type_color = Color(0.36, 0.9, 0.585, 1)
-node_board = SubResource("Resource_2j0fp")
+node_board = SubResource("Resource_pefj3")
 stake_level = 3
 
 [node name="CollisionShape2D" parent="." index="0" unique_id=987061496]
-shape = SubResource("CircleShape2D_k3mpu")
+shape = SubResource("CircleShape2D_267xi")
 
 [node name="NodeVisualsComposite" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="0" unique_id=1855738635]
 stake_level = 3
@@ -92,8 +93,58 @@ geom_outer_r = 44.0
 radius = 44.0
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
 
+[node name="InnerDisk" parent="Visuals/NodeVisualsComposite/ShaderStack" parent_id_path=PackedInt32Array(1855738635, 463232490) index="0" unique_id=1575818134]
+instance_shader_parameters/allocated = false
+instance_shader_parameters/carve_kind = 3
+instance_shader_parameters/carve_radius = 0.75
+instance_shader_parameters/carve_sides = 3.0
+instance_shader_parameters/carve_slice = 3
+instance_shader_parameters/carve_slice_b = -1
+instance_shader_parameters/carve_squish = 1.0
+instance_shader_parameters/highlight_intensity = 0.85
+instance_shader_parameters/highlight_position = Vector2(-0.35, -0.35)
+instance_shader_parameters/tint_color = Color(1, 1, 1, 1)
+instance_shader_parameters/tint_mix = 1.0
+instance_shader_parameters/well_depth = 1.0
+disk_radius = 37.5
+radius = 44.0
+entity_tint = Color(1, 1, 1, 1)
+archetype_tint = Color(0.36, 0.9, 0.585, 1)
+
+[node name="Sprite2D" type="Sprite2D" parent="Visuals/NodeVisualsComposite/ShaderStack/InnerDisk" index="0" unique_id=1985415229]
+modulate = Color(8.715504, 8.715504, 8.715504, 0.011764706)
+scale = Vector2(0.3, 0.3)
+texture = ExtResource("4_nwsy6")
+
+[node name="RimRing" parent="Visuals/NodeVisualsComposite/ShaderStack" parent_id_path=PackedInt32Array(1855738635, 463232490) index="1" unique_id=346168876]
+instance_shader_parameters/crest_r = 40.0
+instance_shader_parameters/fill_slots = Vector2(0, 3)
+instance_shader_parameters/height_preset = 5
+instance_shader_parameters/inner_r = 36.0
+instance_shader_parameters/light_dir_xy = Vector2(-0.35, -0.35)
+instance_shader_parameters/outer_r = 44.0
+instance_shader_parameters/ring_tint = Color(0.28200004, 0.934, 0.5659999, 1)
+crest_r = 40.0
+tint_mix = 0.8
+fill_max = 3
+inner_radius = 36.0
+outer_radius = 44.0
+radius = 44.0
+entity_tint = Color(1, 1, 1, 1)
+archetype_tint = Color(0.36, 0.9, 0.585, 1)
+
+[node name="SensedOutline" parent="Visuals/NodeVisualsComposite" index="1" unique_id=834843408]
+radius = 44.0
+entity_tint = Color(1, 1, 1, 1)
+archetype_tint = Color(0.36, 0.9, 0.585, 1)
+
 [node name="HealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="2" unique_id=1764922168]
-theme_override_styles/fill = SubResource("StyleBoxFlat_0loq4")
+theme_override_styles/fill = SubResource("StyleBoxFlat_brdld")
 
 [node name="CoreHealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="3" unique_id=1764922170]
-theme_override_styles/fill = SubResource("StyleBoxFlat_qthye")
+theme_override_styles/fill = SubResource("StyleBoxFlat_vevrr")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." index="3" unique_id=786664194]
+environment = ExtResource("13_o712f")
+
+[editable path="Visuals/NodeVisualsComposite"]
