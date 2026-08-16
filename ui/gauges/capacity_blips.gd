@@ -12,7 +12,10 @@ const PIP_SCENE := preload("res://ui/gauges/capacity_pip.tscn")
 
 @export var max_count: int = 3:
 	set(v):
-		max_count = max(0, v)
+		var nv: int = max(0, v)
+		if max_count == nv:
+			return
+		max_count = nv
 		_rebuild()
 
 @export var count: int = 0:
@@ -54,6 +57,48 @@ var segment_colors: Array[Color] = []:
 		segment_colors = v
 		_apply_state()
 
+## Melee blade blips (#406 follow-up): pips as click/hover UI elements instead
+## of a pure readout. Off by default — every other CapacityBlips consumer
+## (CombatCardMelee's size gauge, the Magic spell-bar degree icon) stays a
+## non-interactive `MOUSE_FILTER_IGNORE` readout.
+@export var interactive: bool = false:
+	set(v):
+		interactive = v
+		_rebuild()
+
+## Parallel to segment_colors — the SkillNode index i's pip represents, or
+## null for a pip with no real node behind it (unspent blade capacity). Only
+## consulted when `interactive`.
+var bound_nodes: Array = []:
+	set(v):
+		bound_nodes = v
+		_apply_state()
+
+## Addon-outline colors per filled pip, parallel to segment_colors. A default
+## (fully transparent) Color at index i means "no outline of that kind" —
+## see capacity_pip.gdshader.
+var outline_colors_a: Array[Color] = []:
+	set(v):
+		outline_colors_a = v
+		_apply_state()
+
+var outline_colors_b: Array[Color] = []:
+	set(v):
+		outline_colors_b = v
+		_apply_state()
+
+## True at index i marks a player-applied (temp) upgrade on that pip's node,
+## as opposed to one that shipped from procgen — see CapacityPip.manual_marker.
+var manual_markers: Array[bool] = []:
+	set(v):
+		manual_markers = v
+		_apply_state()
+
+## Emitted on a left-click of an interactive pip with a bound node.
+signal pip_clicked(node: SkillNode)
+## Emitted when the mouse enters/exits an interactive pip with a bound node.
+signal pip_hover_changed(node: SkillNode, hovering: bool)
+
 func _ready() -> void:
 	_rebuild()
 
@@ -71,6 +116,13 @@ func _rebuild() -> void:
 		pip.name = "CapacityPip_%02d" % i
 		pip.custom_minimum_size = pip_size
 		add_child(pip)
+		if interactive:
+			pip.mouse_filter = Control.MOUSE_FILTER_STOP
+			pip.gui_input.connect(_on_pip_gui_input.bind(i))
+			pip.mouse_entered.connect(_on_pip_hover.bind(i, true))
+			pip.mouse_exited.connect(_on_pip_hover.bind(i, false))
+		else:
+			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		# Deliberately NOT stamping pip.owner in the editor: doing so let the
 		# editor bake these script-created pips into any consuming scene as
 		# persistent "editable children" overrides, which then collided with
@@ -89,3 +141,33 @@ func _apply_state() -> void:
 		pip.empty_color = empty_color
 		pip.filled = i < count
 		pip.highlighted = i in highlighted_indices
+		pip.outline_color_a = outline_colors_a[i] if i < outline_colors_a.size() else Color(0, 0, 0, 0)
+		pip.outline_color_b = outline_colors_b[i] if i < outline_colors_b.size() else Color(0, 0, 0, 0)
+		pip.manual_marker = manual_markers[i] if i < manual_markers.size() else false
+
+
+## `bound_nodes[index]` read defensively — per gdscript-pitfalls.md, a typed
+## read of a freed Object crashes at the assignment, so this stays untyped
+## until the validity check.
+func _bound_node_at(index: int) -> SkillNode:
+	if index < 0 or index >= bound_nodes.size():
+		return null
+	var stored = bound_nodes[index]
+	return stored if is_instance_valid(stored) else null
+
+
+func _on_pip_gui_input(event: InputEvent, index: int) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb := event as InputEventMouseButton
+	if not (mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT):
+		return
+	var node := _bound_node_at(index)
+	if node != null:
+		pip_clicked.emit(node)
+
+
+func _on_pip_hover(index: int, hovering: bool) -> void:
+	var node := _bound_node_at(index)
+	if node != null:
+		pip_hover_changed.emit(node, hovering)

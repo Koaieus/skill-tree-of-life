@@ -42,10 +42,23 @@ theme_override_font_sizes/font_size = 10
 modulate = Color(0.667, 0.714, 0.824, 0.6)
 text = "Blade:"
 
-[node name="Blips" parent="BodyContent/Row/Info/BladeRow" instance=ExtResource("3_blips")]
+[node name="BladeBlips" parent="BodyContent/Row/Info/BladeRow" instance=ExtResource("3_blips")]
 unique_name_in_owner = true
 layout_mode = 2
+columns = 40
 fill_color = Color(0.9451, 0.2689, 0.2453, 1)
+interactive = true
+
+[node name="Ruler" type="ColorRect" parent="BodyContent/Row/Info/BladeRow"]
+custom_minimum_size = Vector2(2, 13)
+layout_mode = 2
+color = Color(1, 1, 1, 0.18)
+
+[node name="UpgradeBlips" parent="BodyContent/Row/Info/BladeRow" instance=ExtResource("3_blips")]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 40
+interactive = true
 
 [node name="CountLabel" type="Label" parent="BodyContent/Row/Info/BladeRow"]
 unique_name_in_owner = true

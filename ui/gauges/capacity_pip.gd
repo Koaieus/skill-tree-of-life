@@ -25,6 +25,32 @@ extends ColorRect
 		empty_color = v
 		_push(&"empty_color", v)
 
+## Addon-outline colors (melee blade blips, #406 follow-up) — a transparent
+## alpha (the default) means "no outline of this kind". Two set at once split
+## the shader's outline band and rotate it; see capacity_pip.gdshader.
+@export var outline_color_a: Color = Color(0, 0, 0, 0):
+	set(v):
+		outline_color_a = v
+		_push(&"outline_color_a", v)
+		_push(&"has_outline_a", 1.0 if v.a > 0.0 else 0.0)
+
+@export var outline_color_b: Color = Color(0, 0, 0, 0):
+	set(v):
+		outline_color_b = v
+		_push(&"outline_color_b", v)
+		_push(&"has_outline_b", 1.0 if v.a > 0.0 else 0.0)
+
+## Rectangular border marking a player-applied (temp) upgrade, as opposed to
+## one that shipped from procgen — deliberately a plain rect, not another
+## shader ring, so it reads as distinct from the diamond fill/outline.
+@export var manual_marker: bool = false:
+	set(v):
+		manual_marker = v
+		if _marker_border != null:
+			_marker_border.visible = v
+
+@onready var _marker_border: Control = $MarkerBorder
+
 func _ready() -> void:
 	if material == null:
 		material = preload("res://ui/gauges/capacity_pip_material.tres").duplicate()
@@ -34,6 +60,11 @@ func _ready() -> void:
 	_push(&"highlight", 1.0 if highlighted else 0.0)
 	_push(&"fill_color", fill_color)
 	_push(&"empty_color", empty_color)
+	_push(&"outline_color_a", outline_color_a)
+	_push(&"has_outline_a", 1.0 if outline_color_a.a > 0.0 else 0.0)
+	_push(&"outline_color_b", outline_color_b)
+	_push(&"has_outline_b", 1.0 if outline_color_b.a > 0.0 else 0.0)
+	_marker_border.visible = manual_marker
 
 func _push_size() -> void:
 	_push(&"size", size)

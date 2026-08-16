@@ -325,9 +325,10 @@ func _core_within_one_hop(node: SkillNode) -> bool:
 ## applies a new one. Stays armed either way — apply's own gating already
 ## makes a failed attempt fail gracefully with denial feedback, so there's
 ## no correctness reason to force a re-click of the tray button per action.
-## Must run BEFORE _route_battle_click, which would otherwise claim the click
-## for blade-membership toggling.
-func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
+## Public so the melee command tray's blade blips (#406 follow-up) can drive
+## the exact same gating/denial path when a red blip is clicked, instead of
+## routing a synthetic graph click.
+func apply_armed_temp_upgrade_to(skill_node: SkillNode) -> bool:
 	if _temp_upgrade_arm == null or not can_player_act():
 		return false
 	var plan := _active_attack_plan() as MeleeAttackPlan
@@ -340,6 +341,12 @@ func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
 			else "temp_upgrade_denied_budget"
 	Events.node_action_denied.emit(skill_node, reason)
 	return true
+
+
+## Must run BEFORE _route_battle_click, which would otherwise claim the click
+## for blade-membership toggling.
+func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
+	return apply_armed_temp_upgrade_to(skill_node)
 
 
 func _set_pinned(node: SkillNode) -> void:

@@ -13,6 +13,18 @@ shader_parameter/highlight_color = Color(1, 1, 1, 0.9)
 shader_parameter/filled = 0.0
 shader_parameter/highlight = 0.0
 shader_parameter/glow_strength = 6.0
+shader_parameter/outline_color_a = Color(0, 0, 0, 0)
+shader_parameter/outline_color_b = Color(0, 0, 0, 0)
+shader_parameter/has_outline_a = 0.0
+shader_parameter/has_outline_b = 0.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_marker"]
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.95, 0.95, 1.0, 0.9)
 
 [node name="CapacityPip" type="ColorRect" unique_id=904865353]
 material = SubResource("ShaderMaterial_pip")
@@ -21,3 +33,10 @@ offset_right = 14.0
 offset_bottom = 14.0
 mouse_filter = 2
 script = ExtResource("1_script")
+
+[node name="MarkerBorder" type="Panel" parent="."]
+visible = false
+mouse_filter = 2
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_marker")

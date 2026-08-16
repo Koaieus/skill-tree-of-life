@@ -1602,16 +1602,41 @@ func shake_denied() -> void:
 	_feedback_tweens.append(shake)
 
 
+var _mouse_hovering: bool = false
+var _forced_hover: bool = false
+
+
 func _on_mouse_entered() -> void:
-	hover_ring.show()
+	_mouse_hovering = true
+	_sync_hover_ring()
 	if not Engine.is_editor_hint():
 		Events.skill_node_hovered.emit(self)
 
 
 func _on_mouse_exited() -> void:
-	hover_ring.hide()
+	_mouse_hovering = false
+	_sync_hover_ring()
 	if not Engine.is_editor_hint():
 		Events.skill_node_unhovered.emit()
+
+
+## Highlights this node from outside real mouse hover — e.g. the melee command
+## tray's blade blips (#406 follow-up), where hovering a blip should light up
+## the SkillNode it represents. A plain bool, not a ref-count: the one caller
+## (MeleeBody) owns exactly one hovered node at a time and clears it explicitly
+## on refresh/teardown, so there's nothing to double-count.
+func set_forced_hover(active: bool) -> void:
+	_forced_hover = active
+	_sync_hover_ring()
+
+
+func _sync_hover_ring() -> void:
+	if hover_ring == null:
+		return
+	if _mouse_hovering or _forced_hover:
+		hover_ring.show()
+	else:
+		hover_ring.hide()
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
