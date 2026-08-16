@@ -18,6 +18,7 @@ const _ADDON_SCENES := {
 	"fortification": preload("res://skill_node/addons/fortification_addon.tscn"),
 	"clamp": preload("res://skill_node/addons/clamp_addon.tscn"),
 	"skill_dust": preload("res://skill_node/addons/skill_dust_addon.tscn"),
+	"watchtower": preload("res://skill_node/addons/watchtower_addon.tscn"),
 }
 
 

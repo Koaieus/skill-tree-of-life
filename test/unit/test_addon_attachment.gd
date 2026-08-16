@@ -137,6 +137,7 @@ func test_every_concrete_addon_scene_gets_the_base_z() -> void:
 		"res://skill_node/addons/clamp_addon.tscn",
 		"res://skill_node/addons/spike_ring_addon.tscn",
 		"res://skill_node/addons/skill_dust_addon.tscn",
+		"res://skill_node/addons/watchtower_addon.tscn",
 	]
 	add_child(_node)
 	await get_tree().process_frame

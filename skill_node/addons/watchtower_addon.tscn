@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://b1addon0watch"]
+
+[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_wtwr"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_wtwr"]
+[ext_resource type="Texture2D" uid="uid://bht2acpn3022n" path="res://assets/icons/Icon set 1/1x/Asset 71.png" id="3_wtwr"]
+[ext_resource type="Texture2D" path="res://assets/icons/addons/addon_watchtower.png" id="4_icon"]
+
+[sub_resource type="Resource" id="Resource_wtwr"]
+resource_local_to_scene = true
+script = ExtResource("2_wtwr")
+stat_id = &"vision_range"
+operation = 3
+value = 250.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[node name="WatchtowerAddon" type="Node2D"]
+script = ExtResource("1_wtwr")
+local_modifiers = Array[ExtResource("2_wtwr")]([SubResource("Resource_wtwr")])
+icon = ExtResource("4_icon")
+description = "A raised lookout post — extends this node's sight radius, no matter who holds it."
+metadata/_custom_type_script = "uid://bkf87fqtgkm7a"
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.9, 0.9, 0.5, 0.4)
+scale = Vector2(0.11904764, 0.11904762)
+texture = ExtResource("3_wtwr")

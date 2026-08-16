@@ -1,25 +1,57 @@
 [gd_scene format=3 uid="uid://8ar7bikowkhm"]
 
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_base"]
-[ext_resource type="Script" uid="uid://vw4w7omwawrb" path="res://skill_node/visuals/emblem/polygon_carve_shape.gd" id="2_i6p60"]
+[ext_resource type="Texture2D" uid="uid://c1rvtca44v8cw" path="res://assets/emblem_luts/leafblower.png" id="2_m438u"]
+[ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="3_o712f"]
 [ext_resource type="Script" uid="uid://cr6yvdiuavfam" path="res://archetypes/archetype.gd" id="3_v5d4n"]
+[ext_resource type="Texture2D" uid="uid://80lg7idk3ler" path="res://assets/icons/spells/leafblower.png" id="4_nwsy6"]
+[ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="6_n1oas"]
+[ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="7_n7a64"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="8_pefj3"]
+[ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="9_267xi"]
+[ext_resource type="Script" uid="uid://bk0uo05s658hk" path="res://stats_system/node_stat_board.gd" id="10_brdld"]
+[ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="11_vevrr"]
+[ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="12_rtvrv"]
 
-[sub_resource type="Resource" id="Resource_otiot"]
-script = ExtResource("2_i6p60")
-sides = 4
-metadata/_custom_type_script = "uid://vw4w7omwawrb"
+[sub_resource type="Resource" id="Resource_u38nb"]
+script = ExtResource("3_o712f")
+source_texture = ExtResource("4_nwsy6")
+baked_lut = ExtResource("2_m438u")
+metadata/_custom_type_script = "uid://ci08q7vcgbwdx"
 
 [sub_resource type="Resource" id="Resource_u716c"]
 script = ExtResource("3_v5d4n")
 primary_stat = &"wisdom"
-carve_shape = SubResource("Resource_otiot")
+carve_shape = SubResource("Resource_u38nb")
 metadata/_custom_type_script = "uid://cr6yvdiuavfam"
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_exfcq"]
+[sub_resource type="Resource" id="Resource_cjnh8"]
+resource_name = "addon_slots"
+script = ExtResource("7_n7a64")
+definition = ExtResource("6_n1oas")
+
+[sub_resource type="Resource" id="Resource_w4o6y"]
+script = ExtResource("8_pefj3")
+stat_id = &"addon_slots"
+formula = ExtResource("9_267xi")
+
+[sub_resource type="Resource" id="Resource_7r3lr"]
+resource_name = "stake_level"
+script = ExtResource("12_rtvrv")
+definition = ExtResource("11_vevrr")
+base_value = 3.0
+
+[sub_resource type="Resource" id="Resource_2j0fp"]
+script = ExtResource("10_brdld")
+stake_level = SubResource("Resource_7r3lr")
+addon_slots = SubResource("Resource_cjnh8")
+intrinsic_modifiers = Array[ExtResource("8_pefj3")]([SubResource("Resource_w4o6y")])
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_k3mpu"]
 resource_local_to_scene = true
 radius = 44.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8ngnr"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0loq4"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -31,7 +63,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 corner_detail = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gypvs"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qthye"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -46,10 +78,11 @@ corner_detail = 6
 [node name="SkillNodeLab" unique_id=1465153555 instance=ExtResource("1_base")]
 archetype = SubResource("Resource_u716c")
 base_type_color = Color(0.36, 0.9, 0.585, 1)
+node_board = SubResource("Resource_2j0fp")
 stake_level = 3
 
 [node name="CollisionShape2D" parent="." index="0" unique_id=987061496]
-shape = SubResource("CircleShape2D_exfcq")
+shape = SubResource("CircleShape2D_k3mpu")
 
 [node name="NodeVisualsComposite" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="0" unique_id=1855738635]
 stake_level = 3
@@ -60,7 +93,7 @@ radius = 44.0
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
 
 [node name="HealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="2" unique_id=1764922168]
-theme_override_styles/fill = SubResource("StyleBoxFlat_8ngnr")
+theme_override_styles/fill = SubResource("StyleBoxFlat_0loq4")
 
 [node name="CoreHealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="3" unique_id=1764922170]
-theme_override_styles/fill = SubResource("StyleBoxFlat_gypvs")
+theme_override_styles/fill = SubResource("StyleBoxFlat_qthye")

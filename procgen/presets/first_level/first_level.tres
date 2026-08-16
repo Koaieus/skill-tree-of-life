@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/fortification_addon.tscn" id="4_xg7iw"]
 [ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="5_qrpdt"]
 [ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/bunker_addon.tscn" id="5_x1g7b"]
+[ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/watchtower_addon.tscn" id="6_watch"]
 [ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="8_rg3kx"]
 [ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetypes/archetype_policy.gd" id="ap"]
 [ext_resource type="Resource" uid="uid://lmh5qnv0xocl" path="res://archetypes/constitution.tres" id="arch_con"]
@@ -68,9 +69,17 @@ cost = 4
 weight = 50.0
 metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
 
+[sub_resource type="Resource" id="Resource_watch"]
+script = ExtResource("1_ihaem")
+id = &"watchtower"
+addon_scene = ExtResource("6_watch")
+cost = 4
+weight = 15.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
 [sub_resource type="Resource" id="Resource_3kv1o"]
 script = ExtResource("4_x1g7b")
-entries = Array[ExtResource("1_ihaem")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c")])
+entries = Array[ExtResource("1_ihaem")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch")])
 metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
 
 [sub_resource type="Resource" id="Resource_c6pvu"]
