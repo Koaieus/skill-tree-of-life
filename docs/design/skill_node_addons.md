@@ -87,6 +87,8 @@ These are established mechanics referenced consistently in the design docs.
 
 **Notes:** A cheap, legible crafting lever. Because it's an addon (loot / class / Tech Seed), spending a slot on Clamp is a real tradeoff against triangulating the same shape with extra nodes/edges — a different cost curve to the same rigidity, minus the face.
 
+**Visual:** No sprite on the carrier itself — a clamped node's incident edges render thicker near that node, tapering off toward the far endpoint. Self-loops are exempt (always normal width).
+
 ---
 
 ### Spikes *(NEW — offensive direction confirmed; defensive model + collision OPEN)*

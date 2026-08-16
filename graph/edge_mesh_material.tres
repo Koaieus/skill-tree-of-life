@@ -5,3 +5,5 @@
 [resource]
 shader = ExtResource("1_shader")
 shader_parameter/width = 3.0
+shader_parameter/clamp_widen_amount = 1.0
+shader_parameter/clamp_falloff_world = 48.0

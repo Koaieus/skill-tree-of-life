@@ -24,7 +24,14 @@ shader_type canvas_item;
 //                                    the vision-visibility state, offset by
 //                                    +10 for a self-loop instance so one
 //                                    comparison in fragment() picks the
-//                                    ring-vs-bar branch with no extra channel:
+//                                    ring-vs-bar branch with no extra channel,
+//                                    PLUS a further +100 * clamp_code (0-3,
+//                                    bit0 = `from` carries ClampAddon, bit1 =
+//                                    `to` does — see `Edge._clamp_code`) added
+//                                    ONLY for bar instances, never rings
+//                                    (`Edge._push_self_loop_colors` never adds
+//                                    it — self-loops are structurally exempt
+//                                    from widening, not a shader special-case):
 //                                      0/10  = hidden   → alpha 0, nothing drawn
 //                                      1/11  = visible  → alpha dimmed by the
 //                                                          shared vision field,
@@ -32,6 +39,10 @@ shader_type canvas_item;
 //                                      2/12  = sensed   → alpha unchanged
 //                                                          (already baked into
 //                                                          COLOR.a by Edge)
+//                                    vertex() strips the *100 term back out
+//                                    before any of the above logic runs, so it
+//                                    never sees anything but the plain 0/1/2
+//                                    (+10) values it already handled.
 //
 // Width is a material uniform, not per-instance (#413 acceptance: every edge
 // authors the same width — self-loops included, now that they share this
@@ -60,6 +71,15 @@ shader_type canvas_item;
 uniform float width : hint_range(0.0, 32.0) = 3.0;
 global uniform float edge_camera_zoom = 1.0;
 
+// ClampAddon's edge-widening visual (issue #455): how much extra width a
+// clamped endpoint adds (1.0 = edge doubles to 2x `width` at that end) and
+// how far in WORLD units the taper reaches before settling back to normal
+// width. Both shared-material uniforms, not per-instance — cheap to retune
+// from `edge_mesh_material.tres` with no code change, same pattern `width`
+// itself already uses.
+uniform float clamp_widen_amount : hint_range(0.0, 3.0) = 1.0;
+uniform float clamp_falloff_world : hint_range(1.0, 200.0) = 48.0;
+
 // Matches `FogOverlay._VISIBLE_DIM_FLOOR` — a visible edge in the fade zone
 // dims toward this floor instead of all the way to `vision_falloff`'s edge,
 // so it never bisects into pure black mid-fade the way a raw multiply would.
@@ -67,6 +87,11 @@ const float _VISIBLE_DIM_FLOOR = 0.30;
 const float _VIS_HIDDEN = 0.0;
 const float _VIS_VISIBLE = 1.0;
 const float _VIS_LOOP_OFFSET = 10.0;
+// Must match `graph/edge.gd`'s `_CLAMP_CODE_SCALE` (and its
+// `_CLAMP_A_BIT`/`_CLAMP_B_BIT` = 1.0/2.0 encoding) — the digit place packed
+// into INSTANCE_CUSTOM.a above the vis_state/loop-offset digits. See the
+// header comment above and `Edge._clamp_code`.
+const float _CLAMP_CODE_SCALE = 100.0;
 // Must match `graph/edge.gd`'s `SELF_LOOP_MARGIN` (== _SELF_LOOP_MAX_WIDTH *
 // 0.5 / GraphCamera.MIN_ZOOM + _SELF_LOOP_AA_SLACK == 3.0 * 0.5 / 0.25 + 2.0).
 const float _SELF_LOOP_MARGIN = 8.0;
@@ -84,9 +109,24 @@ varying float loop_radius_world;
 varying float loop_half_extent;
 varying float is_loop;
 varying float bar_local_y;
+// 0-3: bit0 (1) = `from` carries ClampAddon, bit1 (2) = `to` does. Always 0
+// for ring instances — see the header comment.
+varying float v_clamp_code;
+// World-space segment length, recovered from the transform's x-basis (bar
+// branch only). `MODEL_MATRIX` is a vertex-stage-only builtin in canvas_item
+// shaders — fragment() can't read it directly, so this has to ride a varying
+// the same way `loop_half_extent`/`loop_radius_world` already do for rings.
+varying float v_edge_len;
 
 void vertex() {
 	v_custom = INSTANCE_CUSTOM;
+	// Decode + strip the clamp-code digit place FIRST — it sits above the
+	// loop-offset digit, so `is_loop`'s threshold check must run against the
+	// reduced value or a clamped bar edge (code > 0 adds >= 100) would
+	// misread as a ring instance (`.claude/rules/godot-shaders.md`: this kind
+	// of ordering bug only shows up under a real GLSL compile, not GUT).
+	v_clamp_code = floor((v_custom.a + 0.5) / _CLAMP_CODE_SCALE);
+	v_custom.a -= v_clamp_code * _CLAMP_CODE_SCALE;
 	is_loop = v_custom.a >= _VIS_LOOP_OFFSET - 0.5 ? 1.0 : 0.0;
 	local_vertex = VERTEX;
 	if (is_loop > 0.5) {
@@ -104,7 +144,7 @@ void vertex() {
 		loop_half_extent = length(MODEL_MATRIX[0].xy) * 0.5;
 		loop_radius_world = loop_half_extent - _SELF_LOOP_MARGIN;
 	} else {
-		// Bar branch (unchanged): dividing the authored screen-pixel width by
+		// Bar branch: dividing the authored screen-pixel width by
 		// the current camera zoom gives the LOCAL-space half-width that
 		// renders at a constant on-screen size regardless of zoom — exactly
 		// `Edge._screen_constant_width()`'s old, proven math
@@ -119,8 +159,15 @@ void vertex() {
 		// room to fade out instead of being hard-clipped at the mesh edge —
 		// same idea as the ring branch's margin above, mirrored for a strip.
 		float aa_pad_local = _BAR_AA_PAD_PX / max(edge_camera_zoom, 0.0001);
-		VERTEX.y = sign(VERTEX.y) * (half_width_local + aa_pad_local);
+		// ClampAddon widening (#455): a QuadMesh has only 4 vertices, so the
+		// actual taper curve can't be expressed here — geometry just needs to
+		// cover the WORST-CASE width so fragment()'s per-pixel taper (against
+		// UV.x) has room to draw into. `code == 0` (the overwhelming common
+		// case) takes the exact same expression as before this feature existed.
+		float max_mult = v_clamp_code > 0.5 ? (1.0 + clamp_widen_amount) : 1.0;
+		VERTEX.y = sign(VERTEX.y) * (half_width_local * max_mult + aa_pad_local);
 		bar_local_y = VERTEX.y;
+		v_edge_len = length(MODEL_MATRIX[0].xy);
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 }
@@ -153,8 +200,30 @@ void fragment() {
 		// on-screen width unchanged — centering on the real edge instead of
 		// extending outward from it is what avoids the ring's old bulge bug.
 		float half_width_local = (width * 0.5) / max(edge_camera_zoom, 0.0001);
-		float d = abs(bar_local_y) - half_width_local;
-		float aa = max(fwidth(bar_local_y), 0.0001);
+		// ClampAddon widening (#455): per-pixel taper against UV.x, normalized
+		// into WORLD units (not raw UV.x) so the thick stub is a consistent
+		// size near a clamped node regardless of the edge's own length — a
+		// pure-UV falloff would stretch wider on long edges, narrower on short
+		// ones. UV.x == 0 is the `from`/A end, UV.x == 1 is `to`/B (matches the
+		// COLOR/v_custom endpoint-color mix just above, and Edge._push_transform's
+		// x-basis direction (b - a)). `max`, not sum, for a double-clamped edge —
+		// never overshoots 1 + clamp_widen_amount even when both falloffs overlap
+		// on a short edge.
+		float width_mult = 1.0;
+		if (v_clamp_code > 0.5) {
+			bool widen_a = v_clamp_code == 1.0 || v_clamp_code == 3.0;
+			bool widen_b = v_clamp_code == 2.0 || v_clamp_code == 3.0;
+			float falloff = max(clamp_falloff_world, 0.0001);
+			float t_a = widen_a ? clamp(1.0 - (UV.x * v_edge_len) / falloff, 0.0, 1.0) : 0.0;
+			float t_b = widen_b ? clamp(1.0 - ((1.0 - UV.x) * v_edge_len) / falloff, 0.0, 1.0) : 0.0;
+			width_mult = 1.0 + clamp_widen_amount * max(t_a, t_b);
+		}
+		float d = abs(bar_local_y) - half_width_local * width_mult;
+		// `fwidth(d)`, not `fwidth(bar_local_y)` — `d` now varies along X too
+		// (via `width_mult`), so its own screen-space derivative is what the AA
+		// feather must track; the old `bar_local_y`-only derivative would ignore
+		// the taper's slope entirely.
+		float aa = max(fwidth(d), 0.0001);
 		shape_alpha = 1.0 - smoothstep(-aa * 0.5, aa * 0.5, d);
 	}
 

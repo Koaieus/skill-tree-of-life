@@ -200,7 +200,8 @@ func _push_transform() -> void:
 ## Recomputes endpoint colours + vision-state and pushes them to the shared
 ## MultiMesh slot (or just the local mirrors, with no live Graph — see
 ## `render_color_a`/`render_color_b`'s docstring). Self-loops delegate to
-## `_push_self_loop_colors` instead — one endpoint, one colour, no gradient.
+## `_push_self_loop_colors` instead — one endpoint, one colour, no gradient
+## (and no clamp-width code either — see `_clamp_code`'s docstring).
 func _push_colors() -> void:
 	if from == null:
 		return
@@ -212,9 +213,29 @@ func _push_colors() -> void:
 	var lit := is_lit()
 	render_color_a = _display_color_lifted(from.base_type_color, lit)
 	render_color_b = _display_color_lifted(to.base_type_color, lit)
-	render_vis_state = VIS_SENSED if sensed else (VIS_VISIBLE if vision_visible else VIS_HIDDEN)
+	render_vis_state = (VIS_SENSED if sensed else (VIS_VISIBLE if vision_visible else VIS_HIDDEN)) \
+		+ _CLAMP_CODE_SCALE * _clamp_code(from, to)
 	if _render_graph != null:
 		_render_graph.set_edge_colors(self, render_color_a, render_color_b, render_vis_state)
+
+## ClampAddon's edge-width gradient (#455): packs which endpoint(s) carry
+## `ClampAddon` into a digit place above `render_vis_state`'s own 0/1/2 (and
+## the self-loop `+10` offset, which this never combines with — see
+## `_push_self_loop_colors`). Must stay numerically in lockstep with
+## `graph/edge_mesh.gdshader`'s `_CLAMP_CODE_SCALE` and its
+## `== 1.0 / == 2.0 / == 3.0` decode, same "must match" convention already
+## used for `SELF_LOOP_MARGIN`/`_VIS_LOOP_OFFSET` below.
+const _CLAMP_A_BIT: float = 1.0
+const _CLAMP_B_BIT: float = 2.0
+const _CLAMP_CODE_SCALE: float = 100.0
+
+static func _clamp_code(a: SkillNode, b: SkillNode) -> float:
+	var code := 0.0
+	if a != null and a.has_addon(ClampAddon):
+		code += _CLAMP_A_BIT
+	if b != null and b.has_addon(ClampAddon):
+		code += _CLAMP_B_BIT
+	return code
 
 ## Archetype tint → rendered colour, SDR only. Lit desaturates toward white
 ## less (kept ~full alpha), unlit desaturates toward its own luminance grey
@@ -388,6 +409,11 @@ func _push_self_loop_transform() -> void:
 ## its own docstring, and using it here was the exact reason a lit self-loop
 ## never used to glow while every lit regular edge touching the same node
 ## did — the lift is the ONLY place `pow(2, lit_glow_stops)` is applied.
+##
+## Deliberately never calls `_clamp_code` (#455) — self-loops never widen,
+## regardless of whether `from` carries ClampAddon. This is the whole
+## exemption: there is no code path here that could add the `*100` term by
+## accident, so nothing downstream needs to special-case a ring.
 func _push_self_loop_colors() -> void:
 	if not is_self_loop or from == null:
 		return
@@ -470,6 +496,8 @@ func _connect_endpoint(node: SkillNode) -> void:
 		node.radius_changed.connect(_on_endpoint_radius_changed)
 	if not node.archetype_changed.is_connected(_on_endpoint_archetype_changed):
 		node.archetype_changed.connect(_on_endpoint_archetype_changed)
+	if not node.addons_changed.is_connected(_on_endpoint_addons_changed):
+		node.addons_changed.connect(_on_endpoint_addons_changed)
 
 
 func _disconnect_endpoint(node: SkillNode) -> void:
@@ -481,6 +509,8 @@ func _disconnect_endpoint(node: SkillNode) -> void:
 		node.radius_changed.disconnect(_on_endpoint_radius_changed)
 	if node.archetype_changed.is_connected(_on_endpoint_archetype_changed):
 		node.archetype_changed.disconnect(_on_endpoint_archetype_changed)
+	if node.addons_changed.is_connected(_on_endpoint_addons_changed):
+		node.addons_changed.disconnect(_on_endpoint_addons_changed)
 
 
 func _on_endpoint_owner_changed() -> void:
@@ -490,4 +520,9 @@ func _on_endpoint_radius_changed() -> void:
 	_update_endpoints()
 
 func _on_endpoint_archetype_changed() -> void:
+	_update_visual()
+
+## ClampAddon's edge-width gradient (#455) is packed into `_push_colors`'
+## vis-state push, not the transform — see `_clamp_code`.
+func _on_endpoint_addons_changed() -> void:
 	_update_visual()

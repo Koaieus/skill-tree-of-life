@@ -19,22 +19,11 @@ extends SkillNodeAddon
 ## Degree-2 (the typical hinge case) → 1 brace; over-constraining at
 ## higher degree is tolerable, PBD converges. Already-triangulated
 ## joints get redundant constraints; redundant ≈ no-op for PBD.
-
-const _SPIKE_COLOR := Color(0.85, 0.85, 0.9, 0.95)
-
-var _radius: float = 32.0
-
-
-func _ready() -> void:
-	super._ready()
-	if carrier != null:
-		_radius = carrier.radius
-		queue_redraw()
-
-
-func configure_visual(r: float) -> void:
-	_radius = r
-	queue_redraw()
+##
+## Visual (#455): no sprite on the carrier itself — `SkillNode.has_addon`
+## lets `Edge` read a carrier's Clamp state directly, so a clamped node's
+## incident edges render thicker near that node instead. See
+## `graph/edge.gd`'s `_clamp_code` and `graph/edge_mesh.gdshader`.
 
 
 func apply_to_blade(state: BladeState, particle_idx: int) -> void:
@@ -58,24 +47,3 @@ static func append_weld_braces(state: BladeState, particle_idx: int) -> void:
 			var b := neighbors[j]
 			var rest := state.positions[a].distance_to(state.positions[b])
 			state.constraints.append(BladeDistanceConstraint.new(a, b, rest))
-
-
-# Bracket glyph: two C-shapes facing each other, sized off the carrier.
-func _draw() -> void:
-	if _radius <= 0.0:
-		return
-	var r := _radius * 0.55
-	var thickness := 3.0
-	# Left bracket "[" — three short strokes.
-	var lx := -r
-	var rx := r
-	var top := -r * 0.6
-	var bot := r * 0.6
-	var tab := r * 0.25
-	draw_line(Vector2(lx, top), Vector2(lx, bot), _SPIKE_COLOR, thickness)
-	draw_line(Vector2(lx, top), Vector2(lx + tab, top), _SPIKE_COLOR, thickness)
-	draw_line(Vector2(lx, bot), Vector2(lx + tab, bot), _SPIKE_COLOR, thickness)
-	# Right bracket "]"
-	draw_line(Vector2(rx, top), Vector2(rx, bot), _SPIKE_COLOR, thickness)
-	draw_line(Vector2(rx, top), Vector2(rx - tab, top), _SPIKE_COLOR, thickness)
-	draw_line(Vector2(rx, bot), Vector2(rx - tab, bot), _SPIKE_COLOR, thickness)

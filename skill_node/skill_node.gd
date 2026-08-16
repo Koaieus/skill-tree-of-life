@@ -11,6 +11,11 @@ const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.
 signal radius_changed
 signal owner_changed
 signal archetype_changed
+## Emitted after `_addons` gains or loses a member (never on a rejected
+## duplicate-unique attach, which returns before mutating the ledger) — see
+## `_attach_addon`/`_detach_addon`. Lets a listener (e.g. `Edge`, for
+## ClampAddon's edge-width gradient, #455) react without polling `get_addons()`.
+signal addons_changed
 signal left_clicked(skill_node: SkillNode)
 ## Emitted on every take_damage call (even at 0 effective). Local twin of
 ## [signal Events.skill_node_damaged]; subscribe locally for per-node reactions
@@ -871,6 +876,20 @@ func get_addons() -> Array[SkillNodeAddon]:
 	return _addons.duplicate()
 
 
+## Whether this node currently carries an addon of exactly `script` (e.g.
+## `has_addon(ClampAddon)`). Iterates `_addons` directly, not `get_addons()` —
+## same reasoning as `can_attach_addon` above: the accessor duplicates the
+## whole ledger just to check membership, and this is meant to be cheap enough
+## to call from `Edge`'s render-state push (#455). `get_script() == script`
+## matches `_attach_addon`'s own duplicate-unique comparison, not an `is`
+## check, so it generalizes to any addon script without a hardcoded type test.
+func has_addon(script: Script) -> bool:
+	for a in _addons:
+		if a.get_script() == script:
+			return true
+	return false
+
+
 ## Defensive sharpness of this node — the spike magnitude an enemy melee blade
 ## vertex takes when it sweeps in (0 when unspiked). Sums every SpikeRingAddon's
 ## `blade_damage` local modifier (one quantity drives both the offensive
@@ -1474,6 +1493,7 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 			add_entity_modifier(m)
 	a.visible = not sensed
 	_sync_visuals()
+	addons_changed.emit()
 
 
 func _detach_addon(a: SkillNodeAddon) -> void:
@@ -1481,6 +1501,7 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 		return
 	_addons.erase(a)
 	if Engine.is_editor_hint():
+		addons_changed.emit()
 		return
 	# Reverse whatever attach added (#377): identity never changed at attach
 	# time, so `a` (still alive here — this fires from `child_exiting_tree`,
@@ -1489,6 +1510,7 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 		remove_local_modifier(m)
 	for m in a.entity_modifiers:
 		remove_entity_modifier(m)
+	addons_changed.emit()
 
 
 ## Core-movement slide-in (#21, #128). Called on the *new* core slot after
