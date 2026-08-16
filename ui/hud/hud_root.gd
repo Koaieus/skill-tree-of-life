@@ -28,6 +28,7 @@ extends Control
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 @onready var loot_picker: LootPicker = %LootPicker
+@onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
 @onready var game_over_overlay: CanvasLayer = %GameOverOverlay
 @onready var tooltip_fan: TooltipFan = %TooltipFan
@@ -38,6 +39,7 @@ var _input_ctl: PlayerInputController
 var _battle_system: BattleSystem
 var _turn_manager: TurnManager
 var _vision_system: VisionSystem
+var _allocation_system: AllocationSystem
 
 ## Pending-pick queue (#204): a kill can fire BOTH the dust pick and the spell
 ## draft synchronously (both routed off `Events.entity_dying` inside
@@ -74,6 +76,7 @@ func compose(game_root: GameRoot) -> void:
 	_battle_system = game_root.battle_system
 	_turn_manager = game_root.turn_manager
 	_vision_system = game_root.vision_system
+	_allocation_system = game_root.allocation_system
 
 	# Before the `_player == null` bail: the fan is hover-driven and renders for
 	# unowned nodes too, so it stays useful in a level with no player entity.
@@ -113,6 +116,8 @@ func compose(game_root: GameRoot) -> void:
 		announcement_layer.bind(_battle_system)
 	_bind_announcement_layer()
 	_bind_initiative_bar()
+	if mass_action_confirm_panel != null and _allocation_system != null:
+		mass_action_confirm_panel.bind(_input_ctl, _allocation_system)
 
 
 ## Pick-N-from-M loot claim (#173). Only the PLAYER's relics get the picker —

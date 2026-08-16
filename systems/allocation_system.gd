@@ -211,26 +211,32 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 func deallocate(node: SkillNode, entity: Entity) -> bool:
 	if not can_deallocate(node, entity):
 		return false
+	_deallocate_unchecked(node, entity)
+	return true
+
+
+## Shared post-gate body of [method deallocate] and [method deallocate_set].
+## Assumes the caller has already validated ownership/core/budget — this does
+## the actual strip + refund + signal, no gating of its own.
+func _deallocate_unchecked(node: SkillNode, entity: Entity) -> void:
 	var previous := node.owned_by
-	if previous == null:
-		return false
 	# Snapshot the fill BEFORE ownership clears — owner_changed zeroes
 	# allocation_level via _refresh_alloc_count, so a read after would return
 	# 0 and under-refund the SP (the #337 ordering hazard; same shape as
 	# LootSystem's pre-cleanup snapshot). A 2/2 node refunds 2 SP.
 	var fill: int = node.allocation_level
-	var board := previous.stat_board
+	var board := entity.stat_board
 	# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
 	# applied outside the effect ledger and would strand otherwise (#376).
 	node.clear_scaled_effect_sets(board)
-	_revoke_node_effects(node, previous)
+	_revoke_node_effects(node, entity)
 	node.remove_entity_modifiers_from(board)
-	if previous.navigator != null:
-		previous.navigator.mirror_remove(node)
+	if entity.navigator != null:
+		entity.navigator.mirror_remove(node)
 	node.owned_by = null
 	# After the mirror drops the node and ownership clears — an aura recomputing
 	# here must not still see the node as its own.
-	previous.dispatch(&"_on_node_deallocated", [node, false])
+	entity.dispatch(&"_on_node_deallocated", [node, false])
 
 	if board != null:
 		if board.deallocation_points != null:
@@ -238,7 +244,6 @@ func deallocate(node: SkillNode, entity: Entity) -> bool:
 		if board.skill_points != null:
 			board.skill_points.refund(fill)
 	deallocated.emit(node, previous)
-	return true
 
 
 ## Bypass for forced deallocation by attack. Skips can_deallocate guards
@@ -266,6 +271,100 @@ func force_deallocate(node: SkillNode) -> Entity:
 	previous.dispatch(&"_on_node_deallocated", [node, true])
 	force_deallocated.emit(node, previous)
 	return previous
+
+
+# ── Mass allocate / deallocate: distant clicks + would-island confirm ───────
+#
+# A single click on an unowned node too far to allocate directly, or an owned
+# node whose deallocation would island others, no longer just no-ops/rejects —
+# PlayerInputController routes those through a confirm panel (`MassActionRequest`)
+# and, on confirm, `mass_allocate` / `deallocate_set` below. Both compose the
+# existing single-node primitives rather than reimplementing gating: allocation
+# walks `allocate()` hop by hop (each hop becomes adjacent once its predecessor
+# lands, so no bypass is needed); deallocation needs `_deallocate_unchecked`
+# because the whole cascade is pre-vetted as a set and must NOT re-run
+# `would_disconnect_from` per node mid-batch.
+
+## FULL fewest-hop route from [param entity]'s owned frontier to [param target],
+## over the GLOBAL mirror ([member navigator]). Impassable: nodes owned by
+## anyone other than [param entity], and unrevealed nodes (no vision-leak via a
+## distant-click preview). [] if [param target] is already owned, the entity has
+## no owned frontier yet (first placement has no "distant" concept), or no route
+## exists. Ordered frontier -> ... -> target (index 0 is the already-owned
+## anchor; the new nodes to pay for are [code]path[1..][/code]).
+func allocation_path(entity: Entity, target: SkillNode) -> Array[SkillNode]:
+	var empty: Array[SkillNode] = []
+	if entity == null or target == null or navigator == null or entity.navigator == null:
+		return empty
+	if target.owned_by != null:
+		return empty
+	var frontier := entity.navigator.get_mirrored_nodes()
+	if frontier.is_empty():
+		return empty
+	var blocked: Array[SkillNode] = []
+	for n in navigator.get_mirrored_nodes():
+		if (n.owned_by != null and n.owned_by != entity) or not n.revealed:
+			blocked.append(n)
+	var reversed := navigator.shortest_path_to_any(target, frontier, blocked)
+	if reversed.is_empty():
+		return empty
+	reversed.reverse()
+	return reversed
+
+
+## Executes [code]path[1 .. affordable_count][/code] via ordinary [method allocate]
+## calls in sequence — each hop becomes adjacent to the entity's territory only
+## once its predecessor has landed. Returns the count actually allocated (should
+## equal [param affordable_count] barring a concurrent state change; stops early
+## on the first unexpected failure rather than allocating out of order).
+func mass_allocate(entity: Entity, path: Array[SkillNode], affordable_count: int) -> int:
+	var allocated_count := 0
+	for i in range(1, mini(affordable_count, path.size() - 1) + 1):
+		if not allocate(path[i], entity):
+			break
+		allocated_count += 1
+	return allocated_count
+
+
+## The full doomed set a voluntary deallocate of [param node] would take with
+## it: [param node] itself plus everything [param entity]'s owned subgraph would
+## lose reachability to as a result (see [method GraphMirror.nodes_islanded_by_removing]).
+## [] if [param node] isn't [param entity]'s or is the core (never part of a cascade).
+func deallocation_cascade(node: SkillNode, entity: Entity) -> Array[SkillNode]:
+	var empty: Array[SkillNode] = []
+	if node == null or entity == null or node.owned_by != entity or node.is_core():
+		return empty
+	if entity.navigator == null:
+		var single: Array[SkillNode] = [node]
+		return single
+	var cascade: Array[SkillNode] = [node]
+	cascade.append_array(entity.navigator.nodes_islanded_by_removing(node, entity.core_location))
+	return cascade
+
+
+## DP budget check only for a pre-vetted [method deallocation_cascade] — ownership
+## / core validity was already checked when the cascade was built, this just asks
+## "can the entity afford all of it".
+func can_deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
+	if entity == null or nodes.is_empty():
+		return false
+	var board := entity.stat_board
+	if board == null or board.deallocation_points == null:
+		return false
+	return board.deallocation_points.available() >= nodes.size()
+
+
+## All-or-nothing bulk deallocate of a pre-vetted cascade (see
+## [method deallocation_cascade]). Does NOT re-run `would_disconnect_from` per
+## node — the set itself is the pre-vetted answer to "what would this take with
+## it". Returns false (no mutation) if the DP budget doesn't cover the whole set.
+func deallocate_set(nodes: Array[SkillNode], entity: Entity) -> bool:
+	if not can_deallocate_set(nodes, entity):
+		return false
+	for n in nodes:
+		if n.owned_by == entity:
+			_deallocate_unchecked(n, entity)
+	return true
 
 
 # ── Staking (#337): raise a node's cap with SP+AP, reclaim with extract ──────

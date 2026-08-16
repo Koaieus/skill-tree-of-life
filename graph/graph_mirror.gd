@@ -236,6 +236,72 @@ func nodes_islanded_by_removing(node: SkillNode, anchor: SkillNode) -> Array[Ski
 	return nodes_islanded_by_removing_set(single, anchor)
 
 
+## Shortest path from [param source] to the nearest node in [param goals],
+## treating [param blocked] as impassable (temporarily disabled, restored on
+## every exit path — same discipline as [method nodes_islanded_by_removing_set]).
+## Returns source -> ... -> goal (inclusive), or [] if [param source] isn't
+## mirrored, no goal is reachable, or [param source] itself is a goal (nothing
+## to route). Ties broken by lowest vertex id, for determinism.
+func shortest_path_to_any(source: SkillNode, goals: Array[SkillNode],
+		blocked: Array[SkillNode] = []) -> Array[SkillNode]:
+	var empty: Array[SkillNode] = []
+	var start_id := vertex_id(source)
+	if start_id < 0:
+		return empty
+	var goal_ids: Dictionary[int, bool] = {}
+	for g in goals:
+		var gid := vertex_id(g)
+		if gid >= 0 and gid != start_id:
+			goal_ids[gid] = true
+	if goal_ids.is_empty():
+		return empty
+
+	var blocked_ids: Array[int] = []
+	for b in blocked:
+		var bid := vertex_id(b)
+		if bid >= 0 and bid != start_id and not astar.is_point_disabled(bid):
+			astar.set_point_disabled(bid, true)
+			blocked_ids.append(bid)
+
+	var found_id := -1
+	var predecessor: Dictionary[int, int] = {}
+	if not astar.is_point_disabled(start_id):
+		var visited: Dictionary[int, bool] = {start_id: true}
+		var frontier: Array[int] = [start_id]
+		while not frontier.is_empty() and found_id < 0:
+			var next_frontier: Array[int] = []
+			var candidates := frontier.duplicate()
+			candidates.sort()
+			for cur in candidates:
+				var neighbours := astar.get_point_connections(cur)
+				neighbours.sort()
+				for nb in neighbours:
+					if astar.is_point_disabled(nb) or visited.has(nb):
+						continue
+					visited[nb] = true
+					predecessor[nb] = cur
+					next_frontier.append(nb)
+					if goal_ids.has(nb) and found_id < 0:
+						found_id = nb
+			frontier = next_frontier
+
+	for id in blocked_ids:
+		astar.set_point_disabled(id, false)
+
+	if found_id < 0:
+		return empty
+	var path_ids: Array[int] = [found_id]
+	var walk := found_id
+	while walk != start_id:
+		walk = predecessor[walk]
+		path_ids.append(walk)
+	path_ids.reverse()
+	var result: Array[SkillNode] = []
+	for id in path_ids:
+		result.append(node_for_id(id))
+	return result
+
+
 ## True iff removing [param node] would island any other mirrored node from
 ## [param anchor]. [param node] itself isn't counted.
 func would_disconnect_from(node: SkillNode, anchor: SkillNode) -> bool:

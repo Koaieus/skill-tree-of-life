@@ -56,6 +56,7 @@ var provider: HighlightProvider = null:
 # Reused across core-move sessions so we don't churn instances every drag.
 var _core_provider: CoreMoveHighlightProvider = null
 var _allocation_provider: ManagerHighlightProvider = null
+var _mass_action_provider: MassActionHighlightProvider = null
 
 
 func _enter_tree() -> void:
@@ -71,6 +72,7 @@ func _ready() -> void:
 	if input_ctl != null:
 		input_ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
 		input_ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
+		input_ctl.mass_action_pending_changed.connect(_on_source_changed.unbind(1))
 	if allocation_system != null:
 		allocation_system.allocated.connect(_on_source_changed.unbind(3))
 		allocation_system.deallocated.connect(_on_source_changed.unbind(2))
@@ -86,7 +88,9 @@ func _on_source_changed() -> void:
 ## rebinding + the provider_changed emit).
 func _resolve() -> void:
 	var next: HighlightProvider = null
-	if battle_system != null and battle_system.attack_plan != null:
+	if input_ctl != null and input_ctl.pending_mass_action() != null:
+		next = _build_mass_action_provider()
+	elif battle_system != null and battle_system.attack_plan != null:
 		next = battle_system.attack_plan
 	elif input_ctl != null and input_ctl.move_targeting_source() != null:
 		next = _build_core_provider()
@@ -138,6 +142,13 @@ func _on_player_sp_changed(_new_current: Variant) -> void:
 func _is_player_managing() -> bool:
 	return player != null and turn_manager != null \
 			and turn_manager.current_entity == player
+
+
+func _build_mass_action_provider() -> MassActionHighlightProvider:
+	if _mass_action_provider == null:
+		_mass_action_provider = MassActionHighlightProvider.new()
+	_mass_action_provider.configure(input_ctl.pending_mass_action(), graph)
+	return _mass_action_provider
 
 
 func _build_allocation_provider() -> ManagerHighlightProvider:

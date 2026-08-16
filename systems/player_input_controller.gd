@@ -77,6 +77,13 @@ enum ManageVerb { NONE, ALLOCATE, DEALLOCATE, STAKE, EXTRACT }
 signal manage_arm_changed(verb: ManageVerb)
 var _manage_arm: ManageVerb = ManageVerb.NONE
 
+## A distant-allocate-path or would-island-deallocate click is pending
+## confirmation (see MassActionRequest, MassActionArmedMode). Null when
+## nothing is pending. Set only via `begin_mass_action`/`cancel_mass_action`/
+## `confirm_mass_action` so the signal fires once per transition.
+signal mass_action_pending_changed(request: MassActionRequest)
+var _mass_action_request: MassActionRequest = null
+
 ## Ordered pop stack (#404's shared arm/pop primitive, generalized #406).
 ## Earlier entries pop before later ones — TempUpgradeArmedMode is checked
 ## first because it nests inside an already-armed attack plan and must pop
@@ -126,6 +133,7 @@ func _ready() -> void:
 	Events.node_action_denied.connect(_on_node_action_denied)
 
 	_armed_modes = [
+		MassActionArmedMode.new(self),
 		TempUpgradeArmedMode.new(self),
 		AttackPlanArmedMode.new(self),
 		CoreMoveArmedMode.new(self),
@@ -153,6 +161,8 @@ func _on_node_added(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
+	if _mass_action_request != null:
+		return
 	if _route_temp_upgrade_click(skill_node):
 		return
 	if _route_battle_click(skill_node, true):
@@ -165,9 +175,46 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 	# or a player-owned node with cap headroom from a stake (refill, #337).
 	# allocate() enforces SP + adjacency; deallocation is the `D`-on-hover
 	# channel, not a click.
-	if _is_players_turn() and (skill_node.owned_by == null \
-			or (skill_node.owned_by == player and skill_node.allocation_level < skill_node.stake_level)):
+	if not _is_players_turn():
+		return
+	if skill_node.owned_by == player and skill_node.allocation_level < skill_node.stake_level:
 		allocation_system.allocate(skill_node, player)
+		return
+	if skill_node.owned_by != null:
+		return
+	if allocation_system.can_allocate(skill_node, player):
+		allocation_system.allocate(skill_node, player)
+		return
+	_try_begin_mass_allocate(skill_node)
+
+
+## The bare-click fell through can_allocate — usually because [param target] is
+## unowned but not adjacent to the player's territory. Route it through the
+## multi-hop confirm flow (#... mass-action) instead of the old silent no-op.
+## Denies outright (closing that gap) when there's no route, no SP at all, or
+## the target is already owned/refillable (those are handled above and never
+## reach here).
+func _try_begin_mass_allocate(target: SkillNode) -> void:
+	var available_sp := _skill_points_available()
+	if available_sp < 1:
+		Events.node_action_denied.emit(target, "allocate_denied_unreachable")
+		return
+	var path := allocation_system.allocation_path(player, target)
+	if path.size() < 2:
+		Events.node_action_denied.emit(target, "allocate_denied_unreachable")
+		return
+	var affordable: int = mini(path.size() - 1, available_sp)
+	var request := MassActionRequest.new(player, MassActionRequest.Verb.ALLOCATE, path)
+	request.affordable_count = affordable
+	request.target = target
+	begin_mass_action(request)
+
+
+func _skill_points_available() -> int:
+	if player == null or player.stat_board == null:
+		return 0
+	var sp: PoolStat = player.stat_board.skill_points
+	return sp.available() if sp != null else 0
 
 
 ## Resolves an armed Manage verb (#338, via #404). STAKE/EXTRACT/DEALLOCATE
@@ -200,6 +247,16 @@ func _route_manage_click(skill_node: SkillNode) -> bool:
 ## an idle hover.
 func _resolve_deallocate(node: SkillNode) -> bool:
 	if allocation_system.deallocate(node, player):
+		return true
+	# would_disconnect_from rejected a plain deallocate — if that's the only
+	# reason (the node is genuinely player's, non-core), offer the full
+	# cascade via the confirm panel instead of a flat reject, regardless of
+	# whether the player can currently afford it (Confirm just stays disabled
+	# in that case — see docs/domain mass-action confirm panel).
+	var cascade := allocation_system.deallocation_cascade(node, player)
+	if cascade.size() > 1:
+		var request := MassActionRequest.new(player, MassActionRequest.Verb.DEALLOCATE, cascade)
+		begin_mass_action(request)
 		return true
 	Events.node_action_denied.emit(node, "deallocate_denied")
 	return false
@@ -694,6 +751,51 @@ func arm_manage_verb(verb: ManageVerb) -> void:
 
 func manage_arm() -> ManageVerb:
 	return _manage_arm
+
+
+func pending_mass_action() -> MassActionRequest:
+	return _mass_action_request
+
+
+## Arms a pending mass-allocate/deallocate confirmation (MassActionConfirmPanel
+## presents on this signal). Cancels any in-flight core-move targeting first,
+## same mutual-exclusion rule as arm_manage_verb.
+func begin_mass_action(request: MassActionRequest) -> void:
+	if _move_targeting_source != null:
+		_set_move_targeting_source(null)
+	_mass_action_request = request
+	mass_action_pending_changed.emit(request)
+	_update_cursor()
+
+
+## Executes the pending request via AllocationSystem, then clears it. No-op if
+## nothing is pending. Called by MassActionConfirmPanel's Confirm button, after
+## it unpauses the tree.
+func confirm_mass_action() -> void:
+	var request := _mass_action_request
+	if request == null:
+		return
+	match request.verb:
+		MassActionRequest.Verb.ALLOCATE:
+			allocation_system.mass_allocate(request.entity, request.nodes, request.affordable_count)
+		MassActionRequest.Verb.DEALLOCATE:
+			allocation_system.deallocate_set(request.nodes, request.entity)
+	_clear_mass_action()
+
+
+## Discards the pending request without executing it. Called by
+## MassActionConfirmPanel's Cancel/Esc/right-click and by
+## MassActionArmedMode.pop().
+func cancel_mass_action() -> void:
+	if _mass_action_request == null:
+		return
+	_clear_mass_action()
+
+
+func _clear_mass_action() -> void:
+	_mass_action_request = null
+	mass_action_pending_changed.emit(null)
+	_update_cursor()
 
 
 ## Move Core card's entry point (#338) — arms the same click-to-move /
