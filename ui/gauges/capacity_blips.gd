@@ -103,14 +103,21 @@ func _ready() -> void:
 	_rebuild()
 
 func _rebuild() -> void:
-	# Immediate free (not queue_free): the same names get reused below in the
-	# same call, and a deferred free leaves the old node parented (still
-	# holding its name slot) until frame end, which previously produced
-	# "Children name does not match parent name in hashtable" errors when
-	# max_count changed more than once before the deferred frees flushed.
+	# remove_child() first, unconditionally: it detaches the child and frees
+	# its name slot synchronously, so the same names are safe to reuse below
+	# in this same call regardless of when the object itself actually goes
+	# away — that's what the old "Children name does not match parent name in
+	# hashtable" bug needed, not an immediate free.
+	#
+	# queue_free() (not free()) for the object itself: a pip click now can
+	# reenter _rebuild() synchronously (pip_clicked -> apply_armed_temp_upgrade_to
+	# -> state_changed -> attack_plan_state_changed -> MeleeBody._refresh()),
+	# while that same pip's own gui_input signal is still on the call stack.
+	# An immediate free() on an object mid-signal-emission is a locked-object
+	# error; queue_free() defers the actual deletion past that emission.
 	for child in get_children():
 		remove_child(child)
-		child.free()
+		child.queue_free()
 	for i in max_count:
 		var pip: CapacityPip = PIP_SCENE.instantiate()
 		pip.name = "CapacityPip_%02d" % i
