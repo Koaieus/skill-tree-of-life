@@ -157,15 +157,16 @@ script = ExtResource("16_fd1bc")
 stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
 
-[sub_resource type="Resource" id="formula_dex_to_sensor"]
+[sub_resource type="Resource" id="formula_wis_to_sensor"]
 script = ExtResource("18_2ld0y")
-formula = "floor(float(dexterity) / 10.0)"
-inputs = Array[StringName]([&"dexterity"])
+formula = "floor(log(maxf(1.0, wisdom)))"
+inputs = Array[StringName]([&"wisdom"])
+per_phrase = "log(WIS)"
 
-[sub_resource type="Resource" id="mod_dex_to_sensor"]
+[sub_resource type="Resource" id="mod_wis_to_sensor"]
 script = ExtResource("16_fd1bc")
 stat_id = &"sensor_range"
-formula = SubResource("formula_dex_to_sensor")
+formula = SubResource("formula_wis_to_sensor")
 
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
 script = ExtResource("18_2ld0y")
@@ -339,7 +340,7 @@ spell_range = SubResource("scalar_spell_range")
 spell_damage = SubResource("scalar_spell_damage")
 blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
 
 [sub_resource type="Resource" id="Resource_kt55k"]
 resource_local_to_scene = true
@@ -381,7 +382,7 @@ spell_range = SubResource("scalar_spell_range")
 spell_damage = SubResource("scalar_spell_damage")
 blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
-intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
+intrinsic_modifiers = Array[ExtResource("16_fd1bc")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_damage")])
 
 [sub_resource type="Resource" id="Resource_jdqbf"]
 resource_local_to_scene = true

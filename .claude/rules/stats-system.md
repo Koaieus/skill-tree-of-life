@@ -386,7 +386,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `intelligence` | `mana` | ADD_BASE | 1 | RatioFormula(intelligence, 10) |
 | `intelligence` | `mana_per_turn` | ADD_BASE | 1 | `floor(log(max(1e-5, intelligence))/log(10.0))` |
 | `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **2**) |
-| `dexterity` | `sensor_range` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
+| `wisdom` | `sensor_range` | ADD_BASE | 1 | `floor(log(maxf(1.0, wisdom)))` — clear sensing scales with WIS, not DEX |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
 | `intelligence` | `spell_range` | ADD_BASE | 1 | LinearFormula(intelligence) |

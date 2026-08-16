@@ -155,15 +155,16 @@ script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
 
-[sub_resource type="Resource" id="formula_dex_to_sensor"]
+[sub_resource type="Resource" id="formula_wis_to_sensor"]
 script = ExtResource("18_f58km")
-formula = "floor(float(dexterity) / 10.0)"
-inputs = Array[StringName]([&"dexterity"])
+formula = "floor(log(maxf(1.0, wisdom)))"
+inputs = Array[StringName]([&"wisdom"])
+per_phrase = "log(WIS)"
 
-[sub_resource type="Resource" id="mod_dex_to_sensor"]
+[sub_resource type="Resource" id="mod_wis_to_sensor"]
 script = ExtResource("2_mod")
 stat_id = &"sensor_range"
-formula = SubResource("formula_dex_to_sensor")
+formula = SubResource("formula_wis_to_sensor")
 
 [sub_resource type="Resource" id="formula_str_to_blade_size"]
 script = ExtResource("18_f58km")
@@ -297,7 +298,7 @@ mana_per_turn = SubResource("scalar_mana_per_turn")
 blade_size = SubResource("scalar_blade_size")
 crit_chance = SubResource("Resource_11lpl")
 crit_multiplier = SubResource("Resource_85b6y")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_dex_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range")])
 
 [sub_resource type="Resource" id="Resource_ubc5n"]
 resource_name = "action_points"

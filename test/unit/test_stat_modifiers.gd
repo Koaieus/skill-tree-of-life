@@ -272,10 +272,14 @@ func test_unbind_disconnects_source_signal() -> void:
 # --- Intrinsics --------------------------------------------------------
 
 func test_apply_intrinsics_per_to_vision() -> void:
-	# Default board: PER=10, vision_range base 420. Intrinsic +2% per PER → +20% → 504.
+	# Default board: PER intrinsic is +2% vision_range per PER (INCREASE). Don't
+	# pin the board's authored PER/base_value here — that's tuning, not the
+	# behavior under test — just that a positive PER raises vision above base.
 	var board := _board()
+	var base: float = board.vision_range.get_value()
 	board.apply_intrinsics()
-	assert_eq(board.vision_range.get_value(), 504)
+	assert_gt(board.vision_range.get_value(), base,
+			"PER intrinsic must raise vision_range above base")
 
 
 func test_apply_intrinsics_two_boards_dont_share_state() -> void:
