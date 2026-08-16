@@ -47,10 +47,11 @@ unique_name_in_owner = true
 layout_mode = 2
 columns = 40
 fill_color = Color(0.9451, 0.2689, 0.2453, 1)
+pip_size = Vector2(15, 15)
 interactive = true
 
 [node name="Ruler" type="ColorRect" parent="BodyContent/Row/Info/BladeRow"]
-custom_minimum_size = Vector2(2, 13)
+custom_minimum_size = Vector2(2, 15)
 layout_mode = 2
 color = Color(1, 1, 1, 0.18)
 
@@ -58,6 +59,7 @@ color = Color(1, 1, 1, 0.18)
 unique_name_in_owner = true
 layout_mode = 2
 columns = 40
+pip_size = Vector2(15, 15)
 interactive = true
 
 [node name="CountLabel" type="Label" parent="BodyContent/Row/Info/BladeRow"]
