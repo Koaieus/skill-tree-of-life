@@ -43,6 +43,29 @@ var _zoom_broadcast_pending: bool = false
 ## limit rect past the graph's actual footprint.
 var _min_zoom_floor: float = MIN_ZOOM
 
+## Raw world-space AABB of the level's SkillNodes (GameRoot._apply_graph_bounds,
+## no margin) — [method set_graph_bounds] stores it and [method _update_limits]
+## grows `limit_*` around it fresh every frame.
+var _graph_bounds: Rect2 = Rect2()
+
+## Pan slack in world units at zoom == 1.0, pushed by [method set_graph_bounds].
+## [method _update_limits] divides this by the current zoom so the slack stays
+## roughly constant in SCREEN space at any zoom, instead of a fixed world-space
+## margin shrinking to nothing once the view is wide enough to swallow it —
+## which was capping how far you could pan past the graph edge much sooner
+## when zoomed out than when zoomed in.
+var _pan_margin_base: float = 400.0
+
+## Fires whenever [method _update_limits] recomputes a DIFFERENT effective
+## bounds rect (not every frame — most frames are idle, and this exists so
+## downstream consumers stay push-driven instead of polling). GameRoot
+## forwards it onto the fog/aura overlays so they always paint the same
+## zoom-scaled rect the pan limit uses, instead of a separately-computed one
+## that drifts out of sync whenever the margin math here changes.
+signal bounds_changed(bounds: Rect2)
+
+var _last_effective_bounds: Rect2 = Rect2()
+
 
 func _ready() -> void:
 	_target_zoom = zoom.x
@@ -67,10 +90,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			_zoom_by(-zoom_step)
 
 func _process(delta: float) -> void:
+	# Limits are re-derived from the zoom every frame (not just on pan/zoom-step
+	# input) because the zoom tween moves `zoom.x` continuously between steps —
+	# without this the margin would only update in discrete jumps at each step's
+	# start/end instead of tracking the glide.
+	_update_limits()
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir != Vector2.ZERO:
 		global_position += input_dir * pan_speed * delta
-		_clamp_position()
+	_clamp_position()
 
 
 ## `limit_*` only clamps what Camera2D actually RENDERS — the screen-center it
@@ -89,6 +117,33 @@ func _process(delta: float) -> void:
 ## view (shouldn't happen once GameRoot's `set_min_zoom_floor` is honoured,
 ## but this stays correct if it ever is), it centers instead of clamping
 ## against an inverted range.
+## Grows `limit_*` around [member _graph_bounds] by [member _pan_margin_base]
+## scaled by 1/zoom — see [member _pan_margin_base] for why the scaling exists.
+func _update_limits() -> void:
+	if _graph_bounds.size == Vector2.ZERO:
+		return
+	var margin: float = _pan_margin_base / zoom.x
+	var effective := _graph_bounds.grow(margin)
+	limit_left = int(effective.position.x)
+	limit_top = int(effective.position.y)
+	limit_right = int(effective.end.x)
+	limit_bottom = int(effective.end.y)
+	if effective != _last_effective_bounds:
+		_last_effective_bounds = effective
+		bounds_changed.emit(effective)
+
+
+## Pushed by GameRoot after `_apply_graph_bounds` computes the level's raw
+## SkillNode AABB. [param margin_at_zoom_1] is the fixed world-space margin
+## GameRoot also grows the fog/aura bounds by — using it as the zoom == 1.0
+## baseline here keeps the camera's pan limit matching the fog bound exactly
+## at default zoom, while [method _update_limits] scales it at other zooms.
+func set_graph_bounds(bounds: Rect2, margin_at_zoom_1: float) -> void:
+	_graph_bounds = bounds
+	_pan_margin_base = margin_at_zoom_1
+	_update_limits()
+
+
 func _clamp_position() -> void:
 	var view_half_size: Vector2 = (get_viewport().get_visible_rect().size / zoom) * 0.5
 	var min_x := limit_left + view_half_size.x
@@ -144,6 +199,7 @@ func set_min_zoom_floor(value: float) -> void:
 	_target_zoom = _min_zoom_floor
 	current_zoom = _target_zoom
 	zoom = Vector2(_target_zoom, _target_zoom)
+	_update_limits()
 	_request_zoom_broadcast()
 
 

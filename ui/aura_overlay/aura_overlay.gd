@@ -60,8 +60,14 @@ var _tile_index := OverlayFieldTileIndex.new()
 	set(value):
 		radius_multiplier = value
 		_refresh()
-## World-space rect to paint. Should engulf the playable graph.
-@export var bounds: Rect2 = Rect2(-3000, -2250, 6000, 4500)
+## World-space rect to paint. Should engulf the playable graph. GameRoot
+## updates this live as the camera's zoom-scaled pan limit changes
+## (GraphCamera.bounds_changed), so the setter must redraw rather than wait
+## for the next allocation-driven refresh.
+@export var bounds: Rect2 = Rect2(-3000, -2250, 6000, 4500):
+	set(value):
+		bounds = value
+		queue_redraw()
 
 
 func _ready() -> void:

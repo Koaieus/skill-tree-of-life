@@ -57,8 +57,13 @@ const _VISIBLE_DIM_FLOOR := 0.30
 		RenderingServer.global_shader_parameter_set(&"vision_union_smoothness", union_smoothness)
 ## World-space rect to paint. Should engulf the playable graph; over-sizing
 ## costs nothing meaningful (one ColorRect draw, fragment cost is per-pixel
-## but those pixels were already on screen).
-@export var bounds: Rect2 = Rect2(-2000, -2000, 6000, 6000)
+## but those pixels were already on screen). GameRoot updates this live as
+## the camera's zoom-scaled pan limit changes (GraphCamera.bounds_changed),
+## so the setter must redraw rather than wait for the next vision tick.
+@export var bounds: Rect2 = Rect2(-2000, -2000, 6000, 6000):
+	set(value):
+		bounds = value
+		queue_redraw()
 
 
 func _ready() -> void:

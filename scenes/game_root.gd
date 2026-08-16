@@ -40,10 +40,11 @@ const _FOG_INTENSITY_DEV: float = 0.88
 ## visible regardless of owned-subgraph vision).
 @export var enable_fog: bool = true
 
-## Grown around the graph's SkillNode AABB to get the camera pan limit / fog
-## bound — breathing room so a node sitting exactly on the edge doesn't touch
-## the viewport border, tweakable per level.
-@export_range(0, 2000, 1.0, "or_greater") var graph_bounds_margin: float = 400.0
+## Grown around the graph's SkillNode AABB to get the fog/aura bound, and
+## passed to the camera as its zoom==1.0 pan-margin baseline (GraphCamera
+## scales it by 1/zoom past that) — breathing room so a node sitting exactly
+## on the edge doesn't touch the viewport border, tweakable per level.
+@export_range(0, 2000, 1.0, "or_greater") var graph_bounds_margin: float = 900.0
 
 # Entities — `player` may be null until _setup_level() resolves it. The default
 # hook tries to find a `%Player` unique-name node; subclasses can replace.
@@ -341,19 +342,33 @@ func _on_node_allocated_for_toast(node: SkillNode, entity: Entity, forced: bool)
 func _apply_graph_bounds() -> void:
 	if graph == null:
 		return
-	var bounds := graph.get_node_bounds()
-	if bounds.size == Vector2.ZERO:
+	var raw_bounds := graph.get_node_bounds()
+	if raw_bounds.size == Vector2.ZERO:
 		return
-	bounds = bounds.grow(graph_bounds_margin)
+	var baseline_bounds := raw_bounds.grow(graph_bounds_margin)
 
 	if camera != null:
-		camera.limit_left = int(bounds.position.x)
-		camera.limit_top = int(bounds.position.y)
-		camera.limit_right = int(bounds.end.x)
-		camera.limit_bottom = int(bounds.end.y)
+		if not camera.bounds_changed.is_connected(_on_camera_bounds_changed):
+			camera.bounds_changed.connect(_on_camera_bounds_changed)
+		# Camera gets the RAW bounds + the margin as a zoom==1.0 baseline, not
+		# the pre-grown `baseline_bounds` rect — it re-derives its own pan
+		# limit every frame, scaling the margin by 1/zoom
+		# (GraphCamera._update_limits), then pushes the result back via
+		# `bounds_changed` so fog/aura paint the same zoom-scaled rect instead
+		# of a second, independently-computed one (see _on_camera_bounds_changed).
+		camera.set_graph_bounds(raw_bounds, graph_bounds_margin)
 		var viewport_size := get_viewport().get_visible_rect().size
-		var min_zoom_floor: float = maxf(viewport_size.x / bounds.size.x, viewport_size.y / bounds.size.y)
+		var min_zoom_floor: float = maxf(viewport_size.x / baseline_bounds.size.x, viewport_size.y / baseline_bounds.size.y)
 		camera.set_min_zoom_floor(min_zoom_floor)
+	else:
+		# No camera (e.g. an embedded showcase) — nothing will ever fire
+		# `bounds_changed`, so fall back to the static zoom==1.0 rect directly.
+		_on_camera_bounds_changed(baseline_bounds)
+
+
+## Mirrors GraphCamera's zoom-scaled pan limit onto the fog/aura overlays so
+## all three always agree on how far past the graph edge is visible.
+func _on_camera_bounds_changed(bounds: Rect2) -> void:
 	if fog_overlay != null:
 		fog_overlay.bounds = bounds
 	if aura_overlay != null:
