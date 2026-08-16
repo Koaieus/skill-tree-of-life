@@ -51,12 +51,17 @@ re-deriving anything.
 
 - **`MeleeAttackPlan`** — left-click sets the pivot (when unset), then
   left-click toggles blade members (cap = `attacker.stat_board.blade_size`,
-  base 1 + `floor(STR/10)`). Right-click pops the pivot and every member
-  with it — re-pivoting is pop-then-push, not a direct reassign. Embeds a
-  `GraphMirror` of `{pivot} ∪ blade_nodes`; deselecting a member runs
-  `nodes_islanded_by_removing(node, pivot)` *before* the removal, then
-  cascade-prunes anything islanded from the pivot. Mirror is freed via
-  `NOTIFICATION_PREDELETE` (Node base, plan is RefCounted).
+  base 1 + `floor(STR/10)`). Clicking a node that isn't directly adjacent to
+  the current blade set mass-selects too: `_try_select_path` runs
+  `attacker.navigator.shortest_path_to_any(node, {pivot} ∪ blade_nodes)` and
+  pulls in the whole excursion as one atomic toggle, rejected outright (no
+  partial selection) if it overruns the shared budget. Right-click pops the
+  pivot and every member with it — re-pivoting is pop-then-push, not a direct
+  reassign. Embeds a `GraphMirror` of `{pivot} ∪ blade_nodes`; deselecting a
+  member runs `nodes_islanded_by_removing(node, pivot)` *before* the removal,
+  then cascade-prunes anything islanded from the pivot (this direction
+  predates the mass-select and was already symmetric with it). Mirror is
+  freed via `NOTIFICATION_PREDELETE` (Node base, plan is RefCounted).
 - **`RangedAttackPlan`** — left-click an enemy node to set the target
   (left-click a different hostile node to retarget directly — no origin
   step to pop first). Right-click pops the target. Firing positions are

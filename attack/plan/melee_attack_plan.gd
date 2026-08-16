@@ -4,10 +4,13 @@ extends AttackPlan
 ## A melee attack as an induced sub-subgraph of the attacker's owned territory:
 ## one PIVOT (left-click, when unset) plus up to `blade_size` MEMBERS
 ## (left-click toggle, once the pivot is set) that must form a connected
-## subgraph through the pivot. Deselecting any member cascades — anyone newly
-## disconnected from the pivot drops too — keeping the blade well-formed at
-## every step. Right-click pops the pivot (and every member with it) back to
-## "no pivot yet" — see docs/design/click_grammar.md.
+## subgraph through the pivot. Left-clicking a node further out mass-selects
+## the shortest owned-territory path leading to it too (one atomic toggle,
+## rejected outright if it overruns the budget). Deselecting any member
+## cascades the other way — anyone newly disconnected from the pivot drops
+## too — keeping the blade well-formed at every step. Right-click pops the
+## pivot (and every member with it) back to "no pivot yet" — see
+## docs/design/click_grammar.md.
 
 const _BLADE_SIZE_ID: StringName = &"blade_size"
 
@@ -108,7 +111,7 @@ func _on_node_left_clicked(node: SkillNode) -> void:
 	if blade_nodes.has(node):
 		_deselect_blade(node)
 		changed = true
-	elif _try_select_blade(node):
+	elif _try_select_path(node):
 		changed = true
 	if changed:
 		state_changed.emit()
@@ -299,6 +302,33 @@ func _try_select_blade(node: SkillNode) -> bool:
 	_ensure_mirror()
 	_blade_mirror.mirror_add(node)
 	blade_nodes.append(node)
+	return true
+
+
+## Mass-select: `node` doesn't have to be adjacent to the current blade set —
+## if it's further out, select the shortest owned-territory path leading to
+## it too, as one atomic toggle. Gated by the same budget as a single member;
+## a path that doesn't fit is rejected outright (no partial selection).
+func _try_select_path(node: SkillNode) -> bool:
+	if _is_neighbor_of_blade_set(node):
+		return _try_select_blade(node)
+	if attacker == null or attacker.navigator == null:
+		return false
+	var blade_set: Array[SkillNode] = [source]
+	blade_set.append_array(blade_nodes)
+	# node -> ... -> nearest blade-set member, inclusive of both ends.
+	var path := attacker.navigator.shortest_path_to_any(node, blade_set)
+	if path.is_empty():
+		return false
+	# The last element is already selected; everyone else is the excursion.
+	var to_add := path.slice(0, path.size() - 1)
+	if to_add.size() > _budget_remaining():
+		return false
+	# Add from the blade-set end outward so every step lands adjacent to an
+	# already-selected node, same legality _try_select_blade enforces.
+	to_add.reverse()
+	for n in to_add:
+		_try_select_blade(n)
 	return true
 
 
