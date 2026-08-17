@@ -39,12 +39,14 @@ extends GutTest
 ## at ~600us and says allocation is cheap. Its max is not flat — it grows 8.4x
 ## across the ramp, and at 200 owned a worst-case allocation costs 5.9ms in
 ## `force_allocate` [i]alone[/i], before the ~9.1ms recompute. That is ~2.2
-## frames for one node claim. This is the shape lane P describes as "if the
-## rolled modifier includes PER or vision_range it drops harder still", and a
-## median is structurally blind to it. Attribution is NOT established — the
-## candidates are the #376 local-scale mutator walking effects on the 0->1
-## transition and the `_on_node_allocated` effect dispatch; picking between them
-## needs its own instrumented pass. Don't cite a cause from this table.
+## frames for one node claim, and a median is structurally blind to it.
+##
+## [b]Attribution is settled — see `bench_alloc_cost_attribution.gd`.[/b] The
+## expensive allocations are the ones granting `constitution`: `node_health` is
+## a borrowed stat and CON scales it (D-11), so one CON modifier invalidates the
+## health pool of every owned node — O(owned), categorical, exactly this
+## bimodality. It is NOT distance from core (median is flat across hop counts
+## 1-14) and NOT PER / `vision_range` (those measure *cheaper* than average).
 ##
 ## Cold vs warm is a non-issue: the first recompute of each batch is within ~10%
 ## of the median, so repeated same-value writes are not hiding cost.

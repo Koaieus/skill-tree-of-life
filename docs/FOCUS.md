@@ -309,11 +309,26 @@ accident.
   median is flat (~600us) and says claiming a node is cheap. The max grows
   **8.4x across the ramp**: at 200 owned a worst-case allocation costs 5.9ms in
   `force_allocate` alone, before the ~9.1ms recompute — **~2.2 frames for one
-  node claim.** This is the shape this lane already describes as "if the rolled
-  modifier includes PER or `vision_range` it drops harder still". **Attribution
-  is not established**; candidates are the #376 local-scale mutator walking
-  effects on the 0->1 transition, and the `_on_node_allocated` effect dispatch.
-  Instrumenting that split is a good next unit and it is cheap.
+  node claim.**
+- **Attribution settled — it is `constitution`, and the PER hypothesis is dead.**
+  `test/perf/bench_alloc_cost_attribution.gd` splits the factors. All 12 of the
+  most expensive allocations grant `constitution` (or its dependent
+  `node_health`); none of the 12 cheapest do — those grant STR/DEX/INT and sit
+  flat at ~530us *regardless of owned count*. Mechanism is documented, not
+  inferred: `node_health` is a **borrowed** stat (`.claude/rules/stats-system.md`
+  — the entity carries the baseline) and CON scales it per D-11, so one CON
+  modifier invalidates the health pool of **every owned node**. O(owned),
+  categorical, exactly the measured bimodality.
+  - **Not distance from core**: median cost is flat ~610us at every hop count
+    from 1 to 14. The pulse VFX also routes `path_between` **once** per
+    allocation, not per hop — and `force_allocate` skips pulses entirely.
+  - **Not PER / `vision_range`** — *inverted*. Over 199 allocations,
+    vision-touching mean **611us** vs **964us** for everything else. This lane's
+    "PER makes it drop harder" note is not about `force_allocate`; if it is
+    real, it lives downstream in the vision recompute or the fog render.
+  - **Follow-up**: CON needs the dirty-mark/batched-flush treatment (suspect 2
+    in this lane) more than any other stat — it is the one with O(owned) fan-out
+    on a per-allocation path.
 - **A typical allocation at 200 owned still costs 1.4 frames** of the 6.9ms
   144Hz budget — better than the 2.8x before `VisionCircles`, still over.
 - **The visibility pass still scales: 741us -> 4543us (6.1x) for 20x owned.**
