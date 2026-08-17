@@ -316,6 +316,21 @@ happen to share owner. Owner identity is above the topology gate.
   visible. See `test/perf/bench_fog_refresh_cost.gd` and
   `test/unit/ui/test_fog_overlay_classification.gd`.
 
+  **`FogOverlay` is `@tool`, so what the classifier writes can get BAKED into a
+  hand-authored scene** by an editor save with a live fog — the standard
+  derived-value-into-an-`@export` trap (`.claude/rules/gdscript-pitfalls.md`),
+  reached here through plain CanvasItem properties rather than an `@export`.
+  `dev_sandbox.tscn` and `dev_bloom_sandbox.tscn` each carried 13 baked
+  `modulate = Color(1, 1, 1, <0.3..0.96>)` lines — literally the old dimming
+  pass's output, three of them sitting exactly on the 0.30 floor — plus a
+  `z_index` on every node and edge. #414 stripped the `modulate` lines, because
+  nothing writes `modulate` anymore and a baked one is permanent dimming with no
+  path back. The baked `z_index`/`z_as_relative` were left: the classifier
+  overwrites them on the first `visibility_changed`, so they are stale rather
+  than stuck (the edges' `z_index = 991` is older still — a fossil of the
+  pre-#413 edge promotion, inert now that edges render through a MultiMesh).
+  If you save one of these scenes with fog live, re-check the diff.
+
   What no longer dims at all: a node's non-shader children — CoreHalos,
   HoverRing, the health bars, addons. They used to ride `SkillNode.modulate.a`
   (which never reached the disk or rim, since both shaders overwrite COLOR

@@ -1106,7 +1106,6 @@ value = 10.0
 theme_override_styles/fill = SubResource("StyleBoxFlat_48vjy")
 
 [node name="Left_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="9" unique_id=8800202 instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.9073149)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-283, -107)
@@ -1147,7 +1146,6 @@ base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
 node_board = SubResource("Resource_8ws7e")
 
 [node name="Enemy_Core" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="13" unique_id=8800206 node_paths=PackedStringArray("owned_by") instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.5651308)
 z_index = 1001
 z_as_relative = false
 position = Vector2(507, 83)
@@ -1155,7 +1153,6 @@ owned_by = NodePath("../../Entities/Enemy")
 node_board = SubResource("Resource_o3xh3")
 
 [node name="Enemy_N" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="14" unique_id=8800207 node_paths=PackedStringArray("owned_by") instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.5045217)
 z_index = 1001
 z_as_relative = false
 position = Vector2(467, -47)
@@ -1171,7 +1168,6 @@ owned_by = NodePath("../../Entities/Enemy")
 node_board = SubResource("Resource_78g2q")
 
 [node name="Enemy_S" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="16" unique_id=8800209 node_paths=PackedStringArray("owned_by") instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.8422355)
 z_index = 1001
 z_as_relative = false
 position = Vector2(507, 213)
@@ -1188,7 +1184,6 @@ owned_by = NodePath("../../Entities/Enemy")
 node_board = SubResource("Resource_xlu1m")
 
 [node name="Watchtower" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="18" unique_id=9000001 instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.3)
 z_index = 1001
 z_as_relative = false
 position = Vector2(300, -260)
@@ -1202,7 +1197,6 @@ spike_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 local_modifiers = Array[ExtResource("15_0n80t")]([SubResource("Resource_hvf4f")])
 
 [node name="Juggler" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="19" unique_id=9000002 instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.9608937)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-50, -290)
@@ -1218,7 +1212,6 @@ archetype = ExtResource("47_8ws7e")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
 
 [node name="Library" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="21" unique_id=9000004 instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.3)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-380, 50)
@@ -1227,7 +1220,6 @@ archetype = ExtResource("46_jwe71")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
 
 [node name="Forge" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="22" unique_id=9000005 instance=ExtResource("43_78xpl")]
-modulate = Color(1, 1, 1, 0.3)
 z_index = 1001
 z_as_relative = false
 position = Vector2(-350, 197)
@@ -1335,7 +1327,6 @@ from = NodePath("../../Nodes/Bridge_S")
 to = NodePath("../../Nodes/Enemy_W")
 
 [node name="Edge_EnemyCore_EnemyN" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="16" unique_id=8800109 node_paths=PackedStringArray("from", "to") instance=ExtResource("51_o3xh3")]
-modulate = Color(1, 1, 1, 0.5594698)
 z_index = 991
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_N")
@@ -1346,7 +1337,6 @@ from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_E")
 
 [node name="Edge_EnemyCore_EnemyS" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="18" unique_id=8800111 node_paths=PackedStringArray("from", "to") instance=ExtResource("51_o3xh3")]
-modulate = Color(1, 1, 1, 0.7533716)
 z_index = 991
 from = NodePath("../../Nodes/Enemy_Core")
 to = NodePath("../../Nodes/Enemy_S")
@@ -1372,7 +1362,6 @@ from = NodePath("../../Nodes/NE")
 to = NodePath("../../Nodes/Watchtower")
 
 [node name="Edge_UpOut_Watchtower" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="23" unique_id=9000102 node_paths=PackedStringArray("from", "to") instance=ExtResource("51_o3xh3")]
-modulate = Color(1, 1, 1, 0.74356174)
 z_index = 991
 from = NodePath("../../Nodes/Up_Out")
 to = NodePath("../../Nodes/Watchtower")
@@ -1393,13 +1382,11 @@ from = NodePath("../../Nodes/Left")
 to = NodePath("../../Nodes/Library")
 
 [node name="Edge_LeftOut_Library" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="27" unique_id=9000106 node_paths=PackedStringArray("from", "to") instance=ExtResource("51_o3xh3")]
-modulate = Color(1, 1, 1, 0.590518)
 z_index = 991
 from = NodePath("../../Nodes/Left_Out")
 to = NodePath("../../Nodes/Library")
 
 [node name="Edge_SW_Forge" parent="Graph/Edges" parent_id_path=PackedInt32Array(1851662701, 983028403) index="28" unique_id=9000107 node_paths=PackedStringArray("from", "to") instance=ExtResource("51_o3xh3")]
-modulate = Color(1, 1, 1, 0.9215043)
 z_index = 991
 from = NodePath("../../Nodes/SW")
 to = NodePath("../../Nodes/Forge")
