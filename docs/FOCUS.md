@@ -290,6 +290,40 @@ measured block above. The exit condition is **not** met: it needs the owner's
 eyeball at 1440p in the real game, and the sustained-drop mechanism is still
 unidentified.
 
+**MEASURED 2026-08-17 (second pass) — on a REAL level, and the 1.75x above was a
+fixture artifact.** `test/perf/bench_allocation_cost.gd` stands up `first_level`
+procgen at 2000 nodes (pinned seed, ~8.5s) with a real `Entity` claiming real
+modifier-carrying nodes through the shared `AllocationPolicy`. Run it with
+`mise run test:one -- res://test/perf/bench_allocation_cost.gd`; it is outside
+`.gutconfig`'s `test/unit/` and named `bench_` so nothing collects it by
+accident.
+
+| owned | `force_allocate` | vision recompute |
+|---|---|---|
+| 10 | 629 us | 3102 us |
+| 50 | 599 us | 3684 us |
+| 100 | 588 us | 5393 us |
+| 200 | 621 us | **9551 us** |
+
+- **`force_allocate` is flat and cheap** (~620us regardless of owned count).
+  Installing a real node's modifiers onto the board is not the problem. The
+  entire ramp is the vision recompute it triggers.
+- **One allocation at 200 owned still costs 1.4 frames** of the 6.9ms 144Hz
+  budget — better than the 2.8x before `VisionCircles`, still over.
+- **The visibility pass still scales: 741us -> 4543us (6.1x) for 20x owned.**
+  `VisionCircles`' grid cell is one max-radius wide, so a cell holds roughly
+  `(radius / spacing)^2` circles — at `first_level`'s 86px padding that is many,
+  and it densifies as territory grows. The synthetic fixture reported 1.75x
+  because it is spaced 150px with no node modifiers. **Follow-up: shrink the
+  cell below max radius (multi-level grid, or bucket by radius).**
+- Sensed walk 143us -> 1542us (10.8x) is the second scaling term. Node writes
+  (~750us) + edge writes (~1250us) are a ~2ms floor independent of owned count.
+
+This still does **not** reproduce the sustained 5–10s drop — the fixture has no
+FogOverlay, HUD or VFX, so the per-frame repeater remains unidentified and
+`FogOverlay` remains the lead suspect. Do not read a green bench as that being
+handled.
+
 ### M — Meta-shell & modes — LAN by 2026-08-31
 
 Full design: `/home/bramh/.claude/plans/done-a-lot-of-whimsical-noodle.md`.
@@ -369,9 +403,9 @@ clean, all four new test files pass, no forbidden file touched.
    structurally blocked/blocking, just sequenced after so it reads the
    unified state instead of `BattleSystem.attack_mode` alone.
 10. **#301** bladesmithing hub — board status **`In progress`**. Closes once
-    #406 merges. **#409** edge sharpeners stays `Needs design`, blocked on
-    **#407** (velocity-based blade/edge damage, `Backlog`, no shape yet).
-    **#408** (Clamp secondary use) is a parked aside, `Backlog`. Per #301's own
+	#406 merges. **#409** edge sharpeners stays `Needs design`, blocked on
+	**#407** (velocity-based blade/edge damage, `Backlog`, no shape yet).
+	**#408** (Clamp secondary use) is a parked aside, `Backlog`. Per #301's own
     acceptance-spec comment, #409/#407/#408 do **not** gate the hub closing.
 
 **Lane B's exit is #406 landing + #338 dispatched/shipped** — everything else
@@ -425,7 +459,7 @@ critical path.
    current approach.
 8. Node state visuals need a clarity pass (unchanged from prior FOCUS):
    - unallocated nodes need a brighter rim (WIS gold-rim scanning is hard today —
-     everything reads dark gray-ish)
+	 everything reads dark gray-ish)
    - allocated nodes get lane A's glow, which should help by contrast
    - highlight-ring language is overloaded: hover = yellow outline, Manage-mode
      allocatable = golden-orange ring, attack-plan targeting = yellow/red ring —
