@@ -43,11 +43,14 @@ shader = ExtResource("3_star")
 shader_parameter/cells_across = 24.0
 shader_parameter/density = 0.13
 shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
-shader_parameter/brightness = 0.6
+shader_parameter/brightness = 3.22000015295
 shader_parameter/twinkle_speed = 0.5
 shader_parameter/seed = 11.0
 shader_parameter/star_size_min = 0.0012
 shader_parameter/star_size_max = 0.0035
+shader_parameter/spike_threshold = 0.85
+shader_parameter/spike_length_mult = 5.47600021261
+shader_parameter/spike_width_mult = 0.31900001189262
 
 [sub_resource type="GradientTexture2D" id="tex_tile"]
 gradient = SubResource("grad_tile")
@@ -59,22 +62,28 @@ shader = ExtResource("3_star")
 shader_parameter/cells_across = 18.0
 shader_parameter/density = 0.16
 shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
-shader_parameter/brightness = 1.15
+shader_parameter/brightness = 2.0
 shader_parameter/twinkle_speed = 0.8
 shader_parameter/seed = 47.0
 shader_parameter/star_size_min = 0.0018
 shader_parameter/star_size_max = 0.005
+shader_parameter/spike_threshold = 0.85
+shader_parameter/spike_length_mult = 7.1270002910325
+shader_parameter/spike_width_mult = 0.36900001426762
 
 [sub_resource type="ShaderMaterial" id="mat_star_near"]
 shader = ExtResource("3_star")
 shader_parameter/cells_across = 12.0
 shader_parameter/density = 0.22
 shader_parameter/star_color = Color(1, 0.98, 0.94, 1)
-shader_parameter/brightness = 1.6
+shader_parameter/brightness = 5.0
 shader_parameter/twinkle_speed = 1.1
 shader_parameter/seed = 83.0
 shader_parameter/star_size_min = 0.0025
 shader_parameter/star_size_max = 0.008
+shader_parameter/spike_threshold = 0.85
+shader_parameter/spike_length_mult = 5.93600023446
+shader_parameter/spike_width_mult = 0.26100000913762
 
 [node name="SpaceBackground" type="CanvasLayer" unique_id=401631453]
 layer = -100
