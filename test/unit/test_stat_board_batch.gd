@@ -139,3 +139,61 @@ func test_unmatched_end_batch_warns_and_leaves_the_board_usable() -> void:
 	var seen := _count_emissions(b.get_stat(&"strength"))
 	b.add_modifier(_mod(&"strength", 5.0))
 	assert_eq(seen.size(), 1, "the board still notifies normally after a stray end_batch")
+
+
+# --- Pool stats inside a batch ----------------------------------------------
+#
+# PoolStat and its subclasses route their emissions through the same helper, so
+# a pool modifier installed inside a batch has its notification deferred too.
+# That is intended (one notification per settle), but the failure mode if it
+# were wrong is a gauge that silently stops updating — SP/DP/MP and the health
+# pool all bind these signals from the HUD. These pin that nothing is LOST and
+# that the ratchet still runs on the add path rather than off the signal.
+
+
+func test_a_pool_cap_modifier_in_a_batch_still_notifies_and_still_ratchets() -> void:
+	var b := _board()
+	var health := b.get_stat(&"health") as PoolStat
+	health.restore_to_full()
+	var before_max := float(health.get_value())
+	var before_current := health.current
+	var seen := _count_emissions(health)
+
+	b.begin_batch()
+	b.add_modifier(_mod(&"health", 10.0))
+	b.end_batch()
+
+	assert_almost_eq(float(health.get_value()), before_max + 10.0, 0.001,
+		"the cap must move by the modifier")
+	assert_gt(seen.size(), 0, "a deferred pool notification must still arrive at end_batch")
+	# heal_on_max_increase is on for `health` (D-21) and runs from
+	# PoolStat._apply_max_change on the ADD path — not off value_changed — so
+	# batching the signal must not swallow the grant.
+	assert_almost_eq(health.current, before_current + 10.0, 0.001,
+		"the cap-rise grant must survive batching")
+
+
+func test_movement_points_modifier_in_a_batch_still_notifies() -> void:
+	# Not hypothetical: procgen nodes really do roll `movement_points`, so this
+	# is a SurplusPoolStat being modified inside the allocation batch.
+	var b := _board()
+	var mp := b.get_stat(&"movement_points") as PoolStat
+	var before := float(mp.get_value())
+	var seen := _count_emissions(mp)
+
+	b.begin_batch()
+	b.add_modifier(_mod(&"movement_points", 2.0))
+	b.end_batch()
+
+	assert_almost_eq(float(mp.get_value()), before + 2.0, 0.001)
+	assert_gt(seen.size(), 0, "a SurplusPoolStat must not lose its notification to a batch")
+
+
+func test_skill_point_claim_outside_a_batch_is_untouched() -> void:
+	# force_allocate calls claim() BEFORE apply_entity_modifiers_to opens its
+	# batch, so SP minting is on the unbatched path. Pin that it stays there.
+	var b := _board()
+	var sp := b.get_stat(&"skill_points") as SkillPointStat
+	var seen := _count_emissions(sp)
+	sp.claim(1)
+	assert_gt(seen.size(), 0, "claim() outside a batch must notify immediately")
