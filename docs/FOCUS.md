@@ -196,6 +196,34 @@ Recovery-to-144fps rules *out* a permanent complexity increase (a steady-state
 O(owned²) walk would never recover), and rules *in* something transient but
 frame-repeated.
 
+**MEASURED 2026-08-17 — the re-entrancy suspect below is DEAD, and a real
+19.4ms recompute was found and fixed in its place.** Instrumented at the North
+Star scale (2025 nodes, 200 owned) in `test_vision_recompute_scaling.gd`:
+
+- One allocation produces **exactly one** `_recompute()`. `_recompute_pending`
+  is never re-armed during the pass. The cross-frame chain described below does
+  not exist. (It was a good hypothesis and the right shape; it just isn't what
+  the code does.)
+- But **one `_recompute()` cost 19.4ms** — 2.8x the entire 6.9ms frame budget at
+  144Hz — and 13.3ms of that was the visibility pass, a per-node linear scan
+  over every owned circle (2025 x 200 = 400k GDScript iterations). `AiRecon`
+  ran the same quadratic shape per AI turn.
+- **Fixed** by `VisionCircles` (a uniform grid, exact not approximate; shared by
+  both consumers so the vision rule stays single-sourced). **19.4ms -> 6.5ms**,
+  and cost stopped tracking owned count: 25x the owned nodes now costs 1.75x the
+  recompute, was ~5x. Regression tests pin both properties.
+
+**Still open, and this is now the lane's real question:** the *sustained* 5-10s
+drop is unexplained. The fixture has no FogOverlay, no HUD, no VFX, and its
+idle frames cost exactly as much as its post-allocation frames — so the
+per-frame repeater lives outside `vision_system.gd`. Next suspects, in order:
+**`FogOverlay._refresh`**, which runs on every `vision_render_tick` for the
+~0.9s circle animation and rebuilds a 200-entry source array each time;
+allocation VFX; StatBoard recompute repeats (suspect 2 below, still unmeasured).
+Next unit is a profile of the *real* scene, not another synthetic fixture.
+
+<details><summary>Original hypothesis, kept for the record — disproven</summary>
+
 **Prime suspect — a specific, testable re-entrancy hole (found 2026-08-17):**
 
 The owner's hypothesis was that `+1 PER` makes all ~200 owned nodes recompute
@@ -232,6 +260,9 @@ calls per allocation at ~200 owned. One → hypothesis dead, move to suspect 3.
 Hundreds spread across frames → confirmed; fix by clearing `_recompute_pending`
 *after* `_recompute()` returns, plus a guard so requests raised during a
 recompute coalesce into exactly one follow-up rather than one per emitter.
+
+</details>
+
 2. **StatBoard recompute coalescing.** A level-100 board carries a lot of
    modifiers. There is no dirty-marking / batched-flush model (the Vue-style
    "mark dirty, recompute once at flush" the owner described); there is only a
@@ -249,6 +280,11 @@ proposing a fix. A fix chosen from this list without a measurement is a guess.
 **Exit condition:** 2000-node map, 200 owned, allocation at a steady 144fps at
 1440p. **File as an epic with a diagnosis child first**, then fix children.
 Nothing else in this lane opens until the profile exists.
+
+**Progress 2026-08-17:** the vision half is done and landed on master — see the
+measured block above. The exit condition is **not** met: it needs the owner's
+eyeball at 1440p in the real game, and the sustained-drop mechanism is still
+unidentified.
 
 ### M — Meta-shell & modes — LAN by 2026-08-31
 
