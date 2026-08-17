@@ -23,6 +23,30 @@ drone" for six days. Caught by an `Explore` check against `gh issue view` + git
 log, not a full re-audit — treat the rest of this file's dates as unverified
 since 2026-08-09.
 
+Patched 2026-08-17: **two new lanes added at the top — M (meta-shell & modes) and
+P (performance)** — plus a North Star section. Lane M's Tier-S plumbing is
+already shipped in a worktree (verified, see the lane). Lane P is new and is now
+the highest-priority *unscheduled* work: a real, reproducible framerate collapse
+found in playtesting. **Nothing below lane P was re-verified this pass** — lanes
+A–H carry their 2026-08-09/15 state and their dates remain unverified.
+
+## North Star
+
+The bar this project is aiming at, so a perf or scope call has something to be
+judged against:
+
+1. **A 2000-`SkillNode` map runs smoothly at 144Hz, at 1440p.** Note the dev
+   sandbox is *not* 1440p today, so current local framerates are optimistic
+   about resolution and pessimistic about nothing. This is the number that
+   decides whether a rendering or recompute approach is acceptable — see
+   `.claude/rules/skill-node-scale.md`.
+2. **The player can control that**: windowed / fullscreen / borderless,
+   resolution, vsync, framerate cap — the standard shenanigans. The settings
+   substrate for this shipped today (lane M); the display settings themselves
+   have not been authored.
+3. **LAN-playable**: single-player, seeded runs, and hot-seat coop by
+   **2026-08-31**, with versus if it fits. See lane M.
+
 ## Why this file exists
 
 The board sprawls. This file is the antidote: it names what's actually next, and
@@ -44,6 +68,23 @@ forks and moves it to `Ready`. **FOCUS does not catalog `Needs design` work.**
 5. **Crappy-now beats correct-later for anything not on the critical path.**
 6. **`Ready` is a superset, not the queue.** Being `Ready` means "a drone *could*
    take this"; being named below means "a drone *should*".
+
+## Lane order, and what rule 2 means now (2026-08-17)
+
+Two lanes were inserted above B: **P (performance)** then **M (meta-shell)**.
+Rule 2 says one lane at a time, so state the exceptions rather than quietly
+violating it:
+
+- **Lane P outranks everything**, including M. A 6fps late game makes the LAN
+  build unshippable regardless of how good its menus are. But P opens with a
+  *diagnosis* unit, which is measurement, not implementation — M's remaining
+  units may proceed in parallel while that profile is being taken.
+- **Lane A's two open units (#389, #392) are owner-eyeball tuning**, not drone
+  work. They coexist with P and M by nature: they are not dispatchable, they are
+  you looking at glow values. Not a rule-2 violation.
+- **Lane B's tail (#406 `In review`, #338 `Ready`) is PARKED** until lane P has
+  a diagnosis. It's close to done and it is genuinely tempting, but it is not on
+  the LAN critical path and it is not the framerate.
 
 ## The headline: lane A is most of the way shipped, lane H is CLOSED
 
@@ -78,6 +119,35 @@ to dispatch there.**
 | **#240** | LifeLine grace mechanic | **Ready**, untouched, P2. |
 | **#284** | test: targeting + range-finder coverage | **Ready**, untouched. |
 
+### New this pass (2026-08-17) — from playtesting, all still to be FILED
+
+Small, diagnosed down to the line, and file-disjoint from lanes M and P. Cheap
+Sonnet-tier units once they have issue numbers.
+
+| What | Diagnosis |
+|---|---|
+| **CommandTray: two buttons lit at once** | Root cause found. `AttackModeButton.override_toggle()` uses `set_pressed_no_signal` (`attack_mode_button.gd:89`), which bypasses the `ButtonGroup`'s unpress-others pass — a raw click presses X via the group while `set_active_mode(Y)` presses Y without clearing X. Compounded: `AttackModeBar._active_mode` only updates from `BattleSystem.attack_plan_changed`, so a rejected request (no AP) never resyncs. Fix: bar becomes a pure view, re-asserting full group state after *every* press; `BattleSystem` always emits an outcome. |
+| CommandTray: icons for the 4 mode buttons | Prefix or inset, whichever reads better. |
+| Melee body: `clamp` / `spike` addon buttons | Need icons, colors, and legible active/inactive states — currently bare text. |
+| **Melee: "reform last blade"** | Store the last `AttackPlan` excerpt + a topology hash of the owned subgraph; enable only if the hash still matches (allocation-superset is fine, e.g. after a stake) and the plan fits current AP. |
+| `StatModifier.resource_name` | Inspector shows a useless "StatModifier". `stat_modifier.gd` already has `format()` (`:231`) and `contribution_text()` (`:190`) that build the right string, and `StatPool` already does this (`stat_pool.gd:97`) — wire `resource_name` off `stat_id`/`operation`/`value` change. |
+| Procgen: `@export_group` the config exports | Pure ergonomics. |
+| **Clamp edge width vs. zoom** | Widened edges out-scale the nodes when zoomed out: edge width is screen-constant via the `edge_camera_zoom` global uniform, while nodes scale with the camera. Needs a zoom-dependent clamp width factor **plus** the "bolt" dots at each connection point (edge-colored, equal or stronger bloom). `edge.gd:228-238`, `edge_mesh.gdshader:80-81`. Wants a real design pass, not just a constant. |
+
+### `Needs design` — new this pass, genuine open forks
+
+**Tier-ladder / roll redesign** (this is roughly the 8th pass at the roll model —
+it needs a `/swarmify` session with the owner, not a drone). Three tangled forks:
+(a) **decouple cost tier from value tier** — a rare `-1 min_damage_taken` should
+be able to cost 4–8 without its base value being multiplied by the t3 ladder;
+`min_tier` currently conflates the two (`stat_pool.gd:107-123`), and nobody sane
+authors "value = X/7" to compensate; (b) **roll uniformly between the previous
+tier's value and this one's** (t3 → 4.0–7.0) instead of always the exact ladder
+value, which is why the game is full of tell-tale "+7%" and "×1.75" repeats;
+(c) replace the single `tier_bias_k` exponent (`stat_pool.gd:129`) with
+composable weight-curve micro-resources plus an `Expression` escape hatch, so a
+pool can make high tiers **rarer** than low ones — impossible today.
+
 ## Lane A — the glowup: mostly shipped, two units still mid-tune
 
 | # | What | State |
@@ -95,6 +165,106 @@ issues, gated behind #261, not scheduled: **#140** aura fields span edges,
 **#257** node-shatter texture fragmentation.
 
 ## Lanes, in order — ship the playable loop
+
+### P — The framerate collapse — TOP PRIORITY, DIAGNOSIS FIRST
+
+**Found in playtesting 2026-08-17 and it is severe.** At level ~100 (≈200 owned
+SkillNodes): idle is fine at 144fps, but **allocating a node drops to ~15fps at
+100 owned and ~6fps at 200 owned**. If the rolled modifier includes `PER` or
+`vision_range`, it drops harder still. This blocks North Star #1 outright, and
+it degrades with *player progress*, which means it gets worse exactly as a run
+gets interesting.
+
+**The diagnostic anomaly, and why it's the most useful clue.** The drop is not a
+single stalled frame — it **persists for 5–10 seconds** and then recovers to
+144fps on its own. The owner's question is fair: with no threading, and given
+`call_deferred` flushes at end-of-frame rather than spreading across frames,
+what sustains a hitch across hundreds of frames? Real mechanisms that produce
+exactly this shape:
+
+- **A per-frame callback driving a recompute.** A tween / `AnimationPlayer` /
+  VFX whose frame callback triggers stat or vision recomputation costs its full
+  price every frame for the animation's duration. Multi-second recovery matches
+  an *animation length* far better than it matches any one-shot cost — this is
+  the leading hypothesis.
+- **A frame-yielding coroutine.** Anything doing `await get_tree().process_frame`
+  inside a loop spreads real work across frames by construction.
+- **Cascading re-entrant recompute.** Derived stats recomputing derived stats,
+  each re-triggering the next, with the work re-queued rather than coalesced.
+
+Recovery-to-144fps rules *out* a permanent complexity increase (a steady-state
+O(owned²) walk would never recover), and rules *in* something transient but
+frame-repeated.
+
+**Prime suspects, in order:**
+
+1. **VisionSystem.** It seeds a priority traversal from *every owned node*. At
+   200 owned over a 2000-node graph that is a large walk, and the `PER` /
+   `vision_range` correlation points straight at it. Check whether it recomputes
+   once per allocation or **once per stat change** during a derived-stat cascade.
+2. **StatBoard recompute coalescing.** A level-100 board carries a lot of
+   modifiers. There is no dirty-marking / batched-flush model (the Vue-style
+   "mark dirty, recompute once at flush" the owner described); there is only a
+   re-entrancy guard, which prevents *loops* but not **redundant repeats**. Those
+   are different problems and the guard does not solve the second.
+3. **Fog overlay uniform upload.** The vision-circle array pushed to shader
+   globals grows with owned nodes; re-uploading it per change is a per-frame CPU
+   cost that would track owned-node count.
+
+**Rule 1 of this lane: profile before touching anything.** Twice already in this
+project the culprit was a quadratic CPU walk and not the GPU — measure with the
+Godot profiler at 200 owned nodes and identify the actual hot callback *before*
+proposing a fix. A fix chosen from this list without a measurement is a guess.
+
+**Exit condition:** 2000-node map, 200 owned, allocation at a steady 144fps at
+1440p. **File as an epic with a diagnosis child first**, then fix children.
+Nothing else in this lane opens until the profile exists.
+
+### M — Meta-shell & modes — LAN by 2026-08-31
+
+Full design: `/home/bramh/.claude/plans/done-a-lot-of-whimsical-noodle.md`.
+Menus → lobby → run, a `Participant` roster, seeded runs, hot-seat coop, a win
+condition, and a serializable command bus so versus is a transport swap rather
+than a rewrite.
+
+**Tier-S plumbing: SHIPPED 2026-08-17**, in worktree `wt-meta-shell-tier-s`
+(4 commits, not yet merged to master). Verified this pass: `mise run check`
+clean, all four new test files pass, no forbidden file touched.
+
+| Unit | State |
+|---|---|
+| `SceneDirector` (absorbs + deletes the zero-caller `SceneLoader`, #212) | **Done** |
+| `session/` data classes — `Participant`, `RunConfig`, `ParticipantRoster`, `RunOutcome` | **Done** |
+| `GameSettings` + reflected settings menu + `ConfigFile` persistence | **Done** — this is the substrate North Star #2 needs |
+| `BuildInfo` + pause-menu seed/branch/worktree footer | **Done** |
+| `SkillNode.stable_id` + `Graph.get_by_stable_id` | **Done** |
+
+**Still open, in order:**
+
+1. **`GameSession` + one-shot seed resolution.** Seed 0 *does* randomise
+   (`graph_procgen.gd:83`) but the `randi()` is thrown away, so a good run can
+   never be replayed or shared; and the sentinel is resolved a *second* time,
+   differently, in `procgen_play_sandbox.gd:97` (`hash()` of a literal = a fixed
+   constant). Resolve once in `GameSession`, feed both streams. **Owner decision,
+   not a drone unit** — it is the determinism contract versus depends on.
+2. **`CommandBus`** + reroute `PlayerInputController`. Hard: 850-line file, an
+   armed-mode stack, `await` interleaving, and `bool` returns becoming signals.
+   Needs the serial queue + `is_applying` guard on day one.
+3. **Three rebind seams** (`HudRoot.rebind_player`, input transient-state reset,
+   camp-wide `VisionSystem.viewers`) + **`VictorySystem`**. Delivers hot-seat
+   coop and the first-ever win condition. **Two traps found by inspection:**
+   `game_root.gd:202` force-assigns `_PLAYER_FACTION` so a second human is
+   *hostile to its own teammate*, and `:221` hands any non-`player` entity an
+   `AIController` so player 2 plays itself.
+4. **Meta scenes, unstyled** — main menu, new game, lobby.
+5. **Display settings** (windowed/fullscreen/resolution/vsync/fps cap) authored
+   onto `GameSettings`. Cheap now that the substrate exists; North Star #2.
+6. **Versus** — `NetworkTransport`, ENet lobby. Only if 1–5 are solid. Note
+   `entity/factions/` holds only `player.tres` and `npc.tres`, so 4-player
+   versus needs camps authored or everyone reads `ALLIED`.
+
+**Merge `wt-meta-shell-tier-s` to master before opening unit 1** — it edits
+`project.godot` autoloads and will conflict with anything else that does.
 
 ### B — The missing combat verb — nearly closed
 
