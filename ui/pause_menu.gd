@@ -12,9 +12,33 @@ extends Control
 		_toggle(active)
 
 
+@onready var _build_footer: Label = %BuildFooter
+
+
 func _ready() -> void:
 	# Start hidden + unpaused regardless of the editor-saved `visible`.
 	visible = false
+	_build_footer.visible = BuildInfo.is_dev
+	if BuildInfo.is_dev:
+		_build_footer.text = _footer_text()
+		_build_footer.gui_input.connect(_on_build_footer_gui_input)
+
+
+func _footer_text() -> String:
+	var wt_part := ("wt:%s @ " % BuildInfo.worktree) if not BuildInfo.worktree.is_empty() \
+			else "%s @ " % BuildInfo.branch
+	return "seed %s  ·  %s%s" % [_current_seed_text(), wt_part, BuildInfo.short_sha]
+
+
+## TODO(meta-shell): point this at GameSession.config.seed once GameSession
+## lands (#, see done-a-lot-of-whimsical-noodle.md). Placeholder until then.
+func _current_seed_text() -> String:
+	return "—"
+
+
+func _on_build_footer_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		DisplayServer.clipboard_set(_current_seed_text())
 
 
 func _toggle(on: bool) -> void:

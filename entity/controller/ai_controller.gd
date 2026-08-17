@@ -26,7 +26,13 @@ extends EntityController
 ## reveal in v1. Faction filtering uses [member Entity.faction] so future
 ## multi-faction support drops in trivially.
 
-@export var turn_delay: float = 0.4
+const _DEFAULT_TURN_DELAY := 0.4
+
+## Synced from Settings.current.ai_turn_delay at _ready unless a caller
+## already overrode it (tests set this explicitly before add_child, to a
+## value other than the compile-time default, to control pacing/avoid
+## take_turn recursion — see .claude/rules/turn-manager.md).
+@export var turn_delay: float = _DEFAULT_TURN_DELAY
 ## Tier-gates [AiCombatScorer]'s cut-vertex / enemy-weak-point / self-shape-
 ## risk bonuses. 0 = naive, picks by raw EV. Kept here (not on the scorer)
 ## since it's the controller's single behavior-shaping knob.
@@ -45,6 +51,18 @@ extends EntityController
 
 # Cached on first use. Walked once via _find_game_root; cheap lookup.
 var _game_root: GameRoot = null
+
+
+func _ready() -> void:
+	super._ready()
+	if turn_delay == _DEFAULT_TURN_DELAY:
+		turn_delay = Settings.current.ai_turn_delay
+	Settings.changed.connect(_on_settings_changed)
+
+
+func _on_settings_changed(key: StringName, value: Variant) -> void:
+	if key == &"ai_turn_delay":
+		turn_delay = value
 
 
 func take_turn() -> void:
