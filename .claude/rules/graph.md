@@ -35,6 +35,16 @@ Fixed in c5f3e42 by adding a cached adjacency index.
   adjacency index, so it *is* O(degree). Don't hand-roll an edge walk.
 - Before adding a new accessor here, decide whether it rebuilds or caches, and
   say so in its docstring. `get_neighbours()` documents that it's on a hot path.
+- **The same quadratic has a second shape: a predicate asked per point.** Not an
+  accessor in a loop — a *test* run once per candidate against a set that never
+  changes during the sweep. `VisionSystem.is_within_circles(p, positions, radii)`
+  was a linear scan over every owned node's circle, called once per graph node:
+  2025 × 200 = 400k iterations, 13.3ms of a 19.4ms recompute, on every
+  allocation (and the identical shape in `AiRecon` per AI turn). Fixed
+  2026-08-17 by giving the set a home that can carry an index
+  (`VisionCircles`, a uniform grid) instead of passing two packed arrays around.
+  **The tell:** a `static` predicate taking a *collection* plus one point. If
+  callers ask about many points, the collection wants to be an object.
 - When profiling something that "must be the GPU", **measure the CPU first.**
   `Time.get_ticks_usec()` around the suspect functions, run the sandbox headless,
   watch which number grows with graph size. The overlay shaders were the obvious

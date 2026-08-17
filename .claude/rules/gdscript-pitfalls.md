@@ -40,6 +40,15 @@ scene-authored value is clamped against the default at load, and nothing errors.
 `skill_node/visuals/rim_ring.gd`; both were found by seeing wrong values in a
 scene, not by reading the code.
 
+## `Rect2.has_point` is half-open; a zero-size Rect2 contains nothing
+
+It excludes the bottom/right edges, so `position + size` is *outside* — and a
+zero-size rect contains not even its own origin. Fails as a wrong answer, never
+an error (two test failures in `VisionCircles`' bounds early-out).
+
+**How to apply:** for an inclusive region, keep `lo`/`hi` vectors and compare
+explicitly. `Rect2` is for layout/culling, not "is this inside?" predicates.
+
 ## Reading a freed Object
 
 - **A deferred call with a freed Object argument is silently dropped.** No error.

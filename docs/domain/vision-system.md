@@ -60,7 +60,7 @@ Per-entity, derived from each allocated node:
 | `DARKNESS` | Nothing visible. Pure fog. |
 | `ALL_ENTITIES` | Effective viewers = group("entities") sweep. |
 
-### The vision RULE is one static method, shared by every caller (#378)
+### The vision RULE is one class, shared by every caller (#378)
 
 The scene carries exactly **one** `VisionSystem` instance, and its `viewers`
 is normally `[player]` — it drives the player's fog rendering only, not a
@@ -68,15 +68,37 @@ general per-entity visibility oracle. AI needs its own per-entity check
 ("does *this* enemy see a hostile"), which can't be answered by mutating the
 shared instance's `viewers` without breaking player fog.
 
-The fix is NOT a second vision implementation. `VisionSystem.is_within_circles
-(target_pos, positions, radii)` is a `static` method holding the actual
-circle-test geometry — the live per-frame `_recompute()` above builds its
-cached position/radius arrays from `viewers` and calls it; `AiRecon`
-(`entity/controller/ai_recon.gd`) builds its own arrays from
+The fix is NOT a second vision implementation. **`VisionCircles`**
+(`systems/vision_circles.gd`) holds the circle set *and* the geometry that
+reads it: `add(pos, radius)` then `has_point(p)`. The live `_recompute()`
+above builds one per pass from `viewers`; `AiRecon`
+(`entity/controller/ai_recon.gd`) builds its own from
 `Entity.navigator.get_mirrored_nodes()` (the querying entity's own owned
-subgraph) and calls the same method. `Navigator`/`EntityNavigator` answers
-*which* nodes to test; `VisionSystem` answers whether a point is visible —
-never duplicate the geometry at a second call site.
+subgraph). `Navigator`/`EntityNavigator` answers *which* nodes to test;
+`VisionCircles` answers whether a point is visible — never duplicate the
+geometry at a second call site.
+
+**Why it's a class and not the `static is_within_circles(pos, positions, radii)`
+it replaced (2026-08-17, lane P):** every caller asks about *many* points
+against the *same* circles, so the static forced a per-point linear scan —
+O(points × circles). At the scale this project targets (~2000 nodes, ~200
+owned) that measured **13.3ms of a 19.4ms recompute**, on every allocation,
+against a 6.9ms frame budget at 144Hz. `AiRecon` ran the identical shape per AI
+turn. Owning the set lets it carry a **uniform grid**, cell size = largest
+radius, so a 3×3 neighbourhood scan is *exact* (a circle can only contain `p`
+if its centre is within `max_radius` of `p`) and points outside the union's
+bounding box — most of a fogged map — cost four float comparisons. Result:
+6.5ms, and recompute cost stopped tracking owned count (25× the owned nodes →
+1.75× the cost, was ~5×). Pinned by `test/unit/systems/test_vision_circles.gd`
+(indexed answer vs. brute force, including the degenerate sets) and
+`test_vision_recompute_scaling.gd` (the cost ratio, and "one allocation → one
+recompute").
+
+Two properties any future change here must keep: the bounds test is **inclusive
+on all four sides** (`Rect2.has_point` is not — see
+`.claude/rules/gdscript-pitfalls.md`), and a **zero-radius circle still
+contains its own centre**, because an owned node with no vision must still see
+itself.
 
 ## Input gating
 

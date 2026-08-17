@@ -218,7 +218,11 @@ drop is unexplained. The fixture has no FogOverlay, no HUD, no VFX, and its
 idle frames cost exactly as much as its post-allocation frames — so the
 per-frame repeater lives outside `vision_system.gd`. Next suspects, in order:
 **`FogOverlay._refresh`**, which runs on every `vision_render_tick` for the
-~0.9s circle animation and rebuilds a 200-entry source array each time;
+~0.9s circle animation and rebuilds a 200-entry source array each time — and
+note **#133 was already exactly this**: `_apply_per_element_dimming` was
+O(elements × sources) *per frame* off that same signal, costing 17–150ms/frame,
+with the shader blamed and innocent. A sustained multi-second drop that recovers
+on its own is the signature of that shape, not of a one-shot cost;
 allocation VFX; StatBoard recompute repeats (suspect 2 below, still unmeasured).
 Next unit is a profile of the *real* scene, not another synthetic fixture.
 

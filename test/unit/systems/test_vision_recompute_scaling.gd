@@ -148,10 +148,16 @@ func test_recompute_cost_does_not_track_the_owned_count() -> void:
 	var ratio := many / maxf(few, 1.0)
 	gut.p("recompute: %d owned = %.0fus, %d owned = %.0fus (%.2fx)"
 		% [_FEW_OWNED, few, _MANY_OWNED, many, ratio])
-	# 25x the owned nodes. Measured on the indexed pass: 1.75x, because only the
-	# genuinely-scaling work grows (per-owned stat reads, the sensed traversal's
-	# larger frontier). The linear scan measured ~5x on the same fixture. 3.0
-	# sits between them with room for a slower machine on either side.
+	# 25x the owned nodes. Measured on this fixture: 1.75x indexed, 5.03x with
+	# the index swapped back out for the old linear scan (checked by actually
+	# doing that, not by extrapolating). Only the genuinely-scaling work grows —
+	# per-owned stat reads, the sensed traversal's larger frontier. 3.0 sits
+	# between the two with room for a slower machine on either side.
+	#
+	# Caveat for whoever reads a pass here as reassurance: the ratio is diluted
+	# by the recompute's owned-count-INDEPENDENT cost (~3.3ms of the 3.3ms
+	# baseline). Add fixed work to `_recompute` and this guard gets easier to
+	# pass, not harder. It catches losing the index; it is not a cost ceiling.
 	assert_lt(ratio, 3.0,
 		"%dx the owned nodes must not cost anywhere near %dx the recompute"
 		% [_MANY_OWNED / _FEW_OWNED, _MANY_OWNED / _FEW_OWNED])
