@@ -196,12 +196,42 @@ Recovery-to-144fps rules *out* a permanent complexity increase (a steady-state
 O(owned²) walk would never recover), and rules *in* something transient but
 frame-repeated.
 
-**Prime suspects, in order:**
+**Prime suspect — a specific, testable re-entrancy hole (found 2026-08-17):**
 
-1. **VisionSystem.** It seeds a priority traversal from *every owned node*. At
-   200 owned over a 2000-node graph that is a large walk, and the `PER` /
-   `vision_range` correlation points straight at it. Check whether it recomputes
-   once per allocation or **once per stat change** during a derived-stat cascade.
+The owner's hypothesis was that `+1 PER` makes all ~200 owned nodes recompute
+their local `vision_range` and animate, one recalc per frame until they settle.
+The fan-out half is real — `_rebind_local_stats` binds *every* owned node's
+`vision_range`/`sensor_range` to `_request_recompute` — but it is **already
+absorbed**: `_request_recompute` debounces via `_recompute_pending`, and its
+docstring documents this exact bug as previously fixed. The `_process` animation
+loop is also clean; it only lerps `_circles` and never calls `_recompute`.
+
+The hole is one line away, in `_recompute_deferred`:
+
+```gdscript
+func _recompute_deferred() -> void:
+	_recompute_pending = false   # cleared BEFORE the work
+	_recompute()                 # any value_changed in here re-arms the flag
+```
+
+`_recompute()` calls `_rebind_local_stats(all_owned)` *inside itself*
+(`vision_system.gd:331`), disconnecting and reconnecting 2 stats per owned node
+— 800 signal ops at 200 owned. If anything in that pass emits `value_changed`,
+the flag re-arms and a **full recompute is deferred to the next frame**, which
+re-arms it again. That is a self-sustaining chain of one O(graph × owned)
+recompute per frame that terminates only on quiescence — and it matches all four
+symptoms: multi-second duration with no threading, full recovery, the
+`PER`/`vision_range` specificity, and superlinear scaling with owned count.
+
+Note this is **not** what the existing re-entrancy guard covers: that prevents
+recursion *within* a frame; this leaks *across* frames, which is exactly why it
+presents as though something were threaded.
+
+**The decisive experiment (do this first, it is cheap):** count `_recompute()`
+calls per allocation at ~200 owned. One → hypothesis dead, move to suspect 3.
+Hundreds spread across frames → confirmed; fix by clearing `_recompute_pending`
+*after* `_recompute()` returns, plus a guard so requests raised during a
+recompute coalesce into exactly one follow-up rather than one per emitter.
 2. **StatBoard recompute coalescing.** A level-100 board carries a lot of
    modifiers. There is no dirty-marking / batched-flush model (the Vue-style
    "mark dirty, recompute once at flush" the owner described); there is only a
