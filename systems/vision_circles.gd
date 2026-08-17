@@ -25,6 +25,25 @@ extends RefCounted
 ## comparisons, which is the common case (most of a level is fogged) and is
 ## where the win comes from.
 ##
+## [b]Do not merge this grid with [OverlayFieldTileIndex][/b] (the fog overlay's
+## tile index, via [VisionSourceIndex]). They look like the same uniform grid
+## over the same circles, and they are not — investigated and rejected
+## 2026-08-17:
+##   - Cell size differs semantically: `max_radius` here vs
+##     `(1 + union_smoothness) * max_radius` there, deliberately widened for the
+##     smin fold's reach.
+##   - Margins differ: 1x max_radius here; 2x cell_size plus a hand-tuned
+##     `1e-4 * cell_size` epsilon there, which exists to fix a MEASURED
+##     CPU/shader darkness mismatch from floor() boundary ties, with only 0.0013
+##     of headroom under the visible threshold.
+##   - Storage differs: a dense flat Array here; a sparse Dictionary there,
+##     because it must also serialize into GPU data textures in deterministic
+##     row-major order.
+##   - This answers a hard boolean union; that answers a soft field fold whose
+##     CPU walk must match the fragment shader's tile-gather order exactly.
+## A shared substrate would need parameters for every one of those and would
+## risk that epsilon. ~15-20 lines of superficial shape is not worth it.
+##
 ## Build cost is O(circles) and lazy: adding a circle only invalidates the
 ## index, so a caller may [method add] freely and pay for the grid on its first
 ## query. A set queried once still beats the linear scan for any realistic node

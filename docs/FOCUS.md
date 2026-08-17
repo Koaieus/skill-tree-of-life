@@ -374,13 +374,22 @@ as any vision circle is animating toward its target radius:
 - The bench's assert **fails today on purpose** — it is the open defect written
   as a test that turns green when fixed.
 
-**Next unit, and it is now well-specified:** stop re-dimming all 2000 elements
-every tick. Candidates, cheapest first — (a) only walk elements whose fog value
-can have changed (the animating circles' neighbourhoods, from the tile index we
-already build); (b) skip the whole pass when no circle moved this frame; (c)
-let the nodes self-shade per-fragment against the `vision_field` globals, which
-is exactly what #413 already did for edges and would delete the CPU pass
-outright. (c) is the real fix and #413 is the precedent.
+**Next unit — and it was already filed, twice.** #414 ("SkillNode fog-of-war
+visibility: self-shade like Edge") is exactly the right fix: nodes sample
+`vision_field_darkness(world_pos)` in their own shader, which **deletes** the
+CPU pass rather than optimising it, and #413 already did precisely this for
+edges. #439 item 2 describes the same work; #414 is better scoped (names the
+shader contract, carries three scope forks, records the #238 dependency) so
+**#414 owns the node port and #439 narrows to its item 1** (AuraOverlay refresh
+coalescing — a plausible second repeater, still unmeasured). Both moved
+`Backlog` -> `In progress` 2026-08-17; the measurement is on both issues.
+
+Cheaper interim options if the port is blocked behind #238: (a) only walk
+elements whose fog value can actually have changed — the animating circles'
+neighbourhoods, from the tile index already built; (b) skip the pass entirely
+on frames where no circle moved. Both leave the O(elements) walk in place.
+
+Handoff for a fresh session: `docs/handoffs/fog-per-element-dimming.md`.
 
 ### M — Meta-shell & modes — LAN by 2026-08-31
 
