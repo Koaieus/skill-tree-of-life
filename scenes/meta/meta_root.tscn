@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://rjsur8iudehy"]
+
+[ext_resource type="Script" uid="uid://doboj23vcfxlg" path="res://scenes/meta/meta_root.gd" id="1_root"]
+[ext_resource type="Script" uid="uid://y2ldco3duaef" path="res://ui/menu/splash_screen.gd" id="2_splash"]
+[ext_resource type="Script" uid="uid://5jplb0w3afdm" path="res://ui/menu/menu_stack.gd" id="3_stack"]
+
+[node name="MetaRoot" type="Control" unique_id=9143592]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_root")
+
+[node name="Splash" type="Control" parent="." unique_id=1631141904]
+unique_name_in_owner = true
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_splash")
+
+[node name="MenuStack" type="Control" parent="." unique_id=1978690813]
+unique_name_in_owner = true
+anchors_preset = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_stack")
