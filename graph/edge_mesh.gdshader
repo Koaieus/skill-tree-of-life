@@ -80,10 +80,9 @@ global uniform float edge_camera_zoom = 1.0;
 uniform float clamp_widen_amount : hint_range(0.0, 3.0) = 1.0;
 uniform float clamp_falloff_world : hint_range(1.0, 200.0) = 48.0;
 
-// Matches `FogOverlay._VISIBLE_DIM_FLOOR` — a visible edge in the fade zone
-// dims toward this floor instead of all the way to `vision_falloff`'s edge,
-// so it never bisects into pure black mid-fade the way a raw multiply would.
-const float _VISIBLE_DIM_FLOOR = 0.30;
+// The visible-in-the-fade-zone floor now lives in `vision_field.gdshaderinc`
+// as `VISION_VISIBLE_DIM_FLOOR`, shared with SkillNode's disk and rim (#414) —
+// a local copy here would be the third of three that have to agree.
 const float _VIS_HIDDEN = 0.0;
 const float _VIS_VISIBLE = 1.0;
 const float _VIS_LOOP_OFFSET = 10.0;
@@ -231,8 +230,7 @@ void fragment() {
 	if (vis_state < _VIS_HIDDEN + 0.5) {
 		alpha = 0.0;
 	} else if (vis_state < _VIS_VISIBLE + 0.5) {
-		float dark = vision_field_enabled ? vision_field_darkness(world_pos) : 0.0;
-		alpha = base_alpha * clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0);
+		alpha = base_alpha * vision_field_dim(world_pos);
 	} else {
 		// Sensed: fixed alpha, already baked into base_alpha by Edge —
 		// ignores the darkness ramp entirely (structure reads through fog).

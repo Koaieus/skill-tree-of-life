@@ -420,7 +420,7 @@ clean, all four new test files pass, no forbidden file touched.
    not a drone unit** — it is the determinism contract versus depends on.
 2. **`CommandBus`** + reroute `PlayerInputController`. Hard: 850-line file, an
    armed-mode stack, `await` interleaving, and `bool` returns becoming signals.
-   Needs the serial queue + `is_applying` guard on day one.
+   Needs the serial queue + `is_applying` guard on day one. (EDIT: sounds like we could make a reusable util for that?)
 3. **Three rebind seams** (`HudRoot.rebind_player`, input transient-state reset,
    camp-wide `VisionSystem.viewers`) + **`VictorySystem`**. Delivers hot-seat
    coop and the first-ever win condition. **Two traps found by inspection:**

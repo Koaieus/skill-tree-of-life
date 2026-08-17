@@ -1,7 +1,10 @@
 extends GutTest
 
-## [VisionSourceIndex] exists purely to make `FogOverlay._apply_per_element_dimming`
-## sub-quadratic. Since #177 it also owns the world-space tile grid the GPU
+## [VisionSourceIndex] existed to make FogOverlay's per-element dimming pass
+## sub-quadratic; #414 deleted that pass outright (every element self-shades
+## per-fragment now), so its fold survives only as the CPU reference the shader
+## is pinned against — which is what these tests are. Since #177 it also owns
+## the world-space tile grid the GPU
 ## fragment shader reads via data textures (see OverlayFieldTileIndex), so its
 ## correctness claim is now: the CPU fold must equal an INDEPENDENT
 ## transcription of the tiled shader's fold, exactly — not the pre-#177 global
@@ -150,10 +153,10 @@ func test_closest_motion_picks_the_nearest_source() -> void:
 
 
 func test_indexed_fold_stays_in_lockstep_with_the_shader() -> void:
-	# THE invariant. `_apply_per_element_dimming` dims a node by the CPU fold
-	# while the fragment shader paints the fog behind it with its own fold. If
-	# the two disagree, the node reads brighter or darker than its surroundings
-	# and nothing errors.
+	# THE invariant. This CPU fold is the reference transcription of the tiled
+	# shader's fold; `fog.gdshader` and every self-shading consumer
+	# (`vision_field.gdshaderinc`) run the GPU half. If the two disagree, an
+	# element reads brighter or darker than the fog around it and nothing errors.
 	seed(0x5EA33)
 	for trial in 30:
 		var sources: Array = []

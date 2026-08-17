@@ -36,6 +36,15 @@ global uniform float vision_union_smoothness : hint_range(0.0, 0.5);
 // can't tell those two cases apart on its own.
 global uniform bool vision_field_enabled;
 
+// A VISIBLE element in the fade zone dims toward this floor instead of being
+// bisected by the fog gradient — it must stay legible against the sensed
+// outline of a neighbour in pitch black. The ONE home for the number: edges
+// (`edge_mesh.gdshader`), SkillNode's disk and rim (#414) and the CPU
+// reference path (`FogOverlay._VISIBLE_DIM_FLOOR`, which still mirrors it for
+// `_sample_dark`'s lockstep tests) all have to agree, or a node dims by a
+// different amount than the edge leaving it.
+const float VISION_VISIBLE_DIM_FLOOR = 0.30;
+
 // Polynomial smooth-minimum — twin of `field_smin` in overlay_field.gdshaderinc,
 // duplicated (not included) because Godot shader includes don't nest cleanly
 // across two independent global-uniform-bearing files without risking a
@@ -76,4 +85,20 @@ float vision_field_darkness(vec2 _world_pos) {
 	}
 	float _fade_start = 1.0 - max(vision_falloff, 1e-4);
 	return smoothstep(_fade_start, 1.0, _min_d);
+}
+
+// The multiplier a VISIBLE element applies to its own alpha to self-shade:
+// 1.0 in the clear zone, ramping down to `VISION_VISIBLE_DIM_FLOOR` past the
+// vision edge. This is the whole self-shading contract — a consumer multiplies
+// its final alpha by this and needs to know nothing else about the fog.
+//
+// Returns 1.0 (fully lit) when no fog system is live, which is the case
+// `vision_circle_count == 0` cannot distinguish from "fog is on and nobody has
+// vision" — see `vision_field_enabled` above. Without this gate every dev
+// sandbox and most tests would render the whole board at the floor.
+float vision_field_dim(vec2 _world_pos) {
+	if (!vision_field_enabled) {
+		return 1.0;
+	}
+	return clamp(1.0 - vision_field_darkness(_world_pos), VISION_VISIBLE_DIM_FLOOR, 1.0);
 }

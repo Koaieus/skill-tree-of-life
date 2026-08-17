@@ -11,11 +11,18 @@ work** — so nobody spends another afternoon rediscovering it. See #133.
 
 ## The CPU cost was the measurable one, and it was quadratic
 
-`FogOverlay._apply_per_element_dimming` samples fog darkness once per SkillNode
+`FogOverlay._apply_per_element_dimming` sampled fog darkness once per SkillNode
 and once per Edge midpoint, and each sample folded over **every** vision source.
-`O(elements × sources)` — and it runs **per frame**, not per turn, because
+`O(elements × sources)` — and it ran **per frame**, not per turn, because
 `VisionSystem` emits `vision_render_tick` from `_process` while any circle's
 radius is animating.
+
+> **The pass itself is gone as of #414** — every element self-shades
+> per-fragment against the shared `vision_field` globals, so no CPU darkness
+> sample is taken at all. The measurements below are the #133 history and the
+> reason the tile index exists; the index still owns the grid the GPU reads.
+> Note that indexing this walk bought 14x and it still came back as a 78 ms
+> frame at 2000 nodes.
 
 | sources / elements | before | after |
 |---|---|---|
@@ -264,7 +271,7 @@ silently shipped as "no visible change."
 **CPU/GPU lockstep is unaffected.** `VisionSourceIndex.distances_near` used to
 sort candidates back into global array order specifically to match the old
 shader; it now returns tile-gather order instead — the same reorder the shader
-itself uses — so `FogOverlay._apply_per_element_dimming` and the fragment
+itself uses — so the CPU reference fold and the fragment
 shader still agree with each other exactly
 (`test_indexed_fold_stays_in_lockstep_with_the_shader`, tolerance `1e-5`). What
 changed is only the *old-vs-new absolute value*, not CPU/GPU agreement.

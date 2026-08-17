@@ -18,9 +18,10 @@ extends GutTest
 ##
 ##   1. `VisionSourceIndex.build` — rebuilds the whole tile grid + GPU data
 ##      textures from scratch, O(sources).
-##   2. `_apply_per_element_dimming` — walks EVERY SkillNode and EVERY Edge in
-##      the graph, not just the visible ones. O(nodes + edges), independent of
-##      how much is actually lit.
+##   2. (until #414) `_apply_per_element_dimming` — walked EVERY SkillNode and
+##      EVERY Edge in the graph, not just the visible ones. O(nodes + edges),
+##      independent of how much is actually lit. It is gone from this path; see
+##      the result block below.
 ##
 ## Note (2) is the shape #133 already burned this project on once
 ## (O(elements × sources), 17–150 ms/frame, with the shader blamed and
@@ -33,33 +34,55 @@ extends GutTest
 ## and says so. Everything measured here runs on the main thread in GDScript
 ## and is fully visible headless.
 ##
-## [b]Result, 2026-08-17[/b] (RX 7900 XTX, headless; 2000 nodes, 3113 edges):
+## [b]FIXED by #414 — this bench is now a guard, not a defect report.[/b]
+## RX 7900 XTX, headless; 2000 nodes, 3113 edges. `set_sources` is the whole
+## per-frame path; the second column is what it used to cost:
 ## [codeblock]
-## owned | sources | set_sources | index build | per-element dimming | frames @144Hz
-##    10 |      10 |     3444 us |       22 us |             3390 us |          0.50
-##    50 |      50 |     5296 us |       72 us |             5210 us |          0.76
-##   100 |     100 |    15097 us |      124 us |            14750 us |          2.17
-##   200 |     200 |    78659 us |      230 us |            77764 us |         11.33
+## owned | sources | set_sources | before #414 | frames @144Hz | classify
+##    10 |      10 |       31 us |     3444 us |          0.00 |  2672 us
+##    50 |      50 |       67 us |     5296 us |          0.01 |  2659 us
+##   100 |     100 |      115 us |    15097 us |          0.02 |  2657 us
+##   200 |     200 |      209 us |    78659 us |          0.03 |  2614 us
 ## [/codeblock]
 ##
-## [b]This is the reported symptom.[/b] 78.7 ms per frame at 200 owned is ~12 fps,
-## against a playtest report of 6 fps at 200 owned and 15 fps at 100 — the right
-## magnitude, on the right axis, with the right persistence (it lasts exactly as
-## long as the circle animation, then recovers). Note the shape: doubling owned
-## from 100 to 200 costs 5.3x, not 2x.
+## Read the last column as the shape of the win, not just its size: the
+## classification pass is FLAT in owned count (~2.6 ms, the pure walk over 2000
+## nodes + 3113 edges) because the O(visible x circles_per_tile) term is gone
+## outright, and it is paid once per allocation rather than once per frame.
+## 2.6 ms once is a fair next target (#439 is the family) — 78 ms every frame
+## was not survivable.
 ##
-## [b]It is entirely `_apply_per_element_dimming`[/b] — 99.7% at 200 owned. The
-## index build is 230 us and innocent. The super-linear growth has two factors
-## multiplying: more owned territory makes more nodes VISIBLE (only visible nodes
-## take the expensive `distances_near` + fold branch), and it also packs more
-## circles into each tile, so each fold is longer. So it is
-## O(visible_nodes x circles_per_tile) and both terms rise together.
+## What was left is `VisionSourceIndex.build`, which was always innocent
+## (230 us at 200 sources, 3% of a 144Hz frame). What went away is the
+## O(elements) per-element pass: SkillNode's disk and rim now self-shade
+## per-fragment against the shared `vision_field` globals (#414), exactly as
+## edges already did (#413), so nothing samples fog darkness on the CPU, and
+## the visible/sensed/hidden CLASSIFICATION that remains hangs off
+## `visibility_changed` — once per allocation — instead of every frame. It can,
+## because [VisionSystem] computes logical visibility from TARGET radii: a
+## circle animating toward its target changes which pixels are lit, never which
+## nodes are visible.
+##
+## [b]The historical numbers, kept because they are the diagnosis.[/b] 78.7 ms
+## per frame at 200 owned is ~12 fps, against a playtest report of 6 fps at 200
+## owned and 15 fps at 100 — right magnitude, right axis, right persistence (it
+## lasted exactly as long as the circle animation, then recovered). 99.7% of it
+## was `_apply_per_element_dimming`, and it grew super-linearly (100 -> 200 owned
+## cost 5.3x, not 2x) because two terms rose together: more owned territory makes
+## more nodes VISIBLE (only visible nodes took the expensive `distances_near` +
+## fold branch), and it packs more circles into each tile, so each fold was
+## longer — O(visible_nodes x circles_per_tile).
 ##
 ## Same root cause as the `VisionCircles` finding in `bench_allocation_cost.gd`:
 ## a tile whose cell is one (widened) max-radius wide holds many circles at
 ## `first_level`'s 86px node spacing. `VisionSourceIndex` removed #133's
 ## "x EVERY source" factor; it did not make the fold O(1), and the per-element
-## walk over all 2000 nodes was never removed at all.
+## walk over all 2000 nodes was never removed at all until #414 deleted it.
+##
+## [b]What this bench cannot see.[/b] It times `set_sources`, so a walk that
+## merely MOVED somewhere untimed would also make this number drop.
+## `test/unit/ui/test_fog_overlay_classification.gd` pins the structural half —
+## which signal each pass hangs off — and the two are meant to be read together.
 ##
 ## Numbers move with the machine — record the CPU alongside any result you cite.
 
@@ -126,8 +149,8 @@ func test_fog_refresh_cost_per_tick() -> void:
 
 	gut.p("graph: %d nodes, %d edges" % [_graph.get_skill_nodes().size(), _graph.get_edges().size()])
 	gut.p("")
-	gut.p("owned | sources | set_sources (median) | frames of 144Hz budget")
-	gut.p("------+---------+----------------------+-----------------------")
+	gut.p("owned | sources | set_sources (median) | frames of 144Hz budget | classify")
+	gut.p("------+---------+----------------------+------------------------+---------")
 
 	var worst := 0.0
 	for target in _OWNED_CHECKPOINTS:
@@ -137,13 +160,16 @@ func test_fog_refresh_cost_per_tick() -> void:
 		var sources: Array = _vision.get_vision_sources()
 		var usec := _median_set_sources_usec(sources)
 		worst = maxf(worst, usec)
-		gut.p("%5d | %7d | %17.0f us | %21.2f"
-			% [_owned(), sources.size(), usec, usec / _FRAME_BUDGET_USEC])
+		gut.p("%5d | %7d | %17.0f us | %22.2f | %6.0f us"
+			% [_owned(), sources.size(), usec, usec / _FRAME_BUDGET_USEC,
+				_median_classify_usec()])
 
 	gut.p("")
-	gut.p("This cost is paid EVERY FRAME while any circle animates, not once per")
-	gut.p("allocation. VisionSystem._process drives vision_render_tick until every")
-	gut.p("circle reaches its target radius.")
+	gut.p("set_sources is paid EVERY FRAME while any circle animates:")
+	gut.p("VisionSystem._process drives vision_render_tick until every circle")
+	gut.p("reaches its target radius. The classify column is the O(elements)")
+	gut.p("pass, and it is paid ONCE PER ALLOCATION (visibility_changed) — it is")
+	gut.p("reported here to keep it honest, not because it sits in the frame.")
 	assert_gt(worst, 0.0, "the bench must have measured something")
 
 	# THIS ASSERT IS EXPECTED TO FAIL TODAY. It is not a flaky bench — it is the
@@ -167,6 +193,18 @@ func _median_set_sources_usec(sources: Array, samples: int = 7) -> float:
 	for i in samples:
 		var t := Time.get_ticks_usec()
 		_fog.set_sources(sources)
+		times.append(Time.get_ticks_usec() - t)
+	times.sort()
+	return float(times[times.size() / 2])
+
+
+## The O(elements) half, on its own signal. Not part of `worst` — this one is
+## allowed to be expensive, it runs once per allocation, not once per frame.
+func _median_classify_usec(samples: int = 5) -> float:
+	var times: Array[int] = []
+	for i in samples:
+		var t := Time.get_ticks_usec()
+		_fog._apply_visibility_classification()
 		times.append(Time.get_ticks_usec() - t)
 	times.sort()
 	return float(times[times.size() / 2])

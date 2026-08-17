@@ -11,6 +11,19 @@ shader_type canvas_item;
 // so the disk and its rim read as lit from one source and neither re-derives it.
 
 #include "res://skill_node/visuals/lighting.gdshaderinc"
+// #414 — self-shade against the shared vision-darkness field, per fragment,
+// exactly as `edge_mesh.gdshader` does (#413). This REPLACES
+// `FogOverlay._apply_per_element_dimming` sampling the fog once at the node's
+// centre and writing `SkillNode.modulate.a` every frame: modulate arrives as
+// the incoming COLOR, and this shader overwrites COLOR unconditionally, so
+// that write never reached the disk at all — the dome popped to full
+// brightness at the vision edge instead of fading. It fades now.
+#include "res://ui/vision_field.gdshaderinc"
+
+// Canvas-space position of this fragment. `MODEL_MATRIX` is a vertex-stage-only
+// builtin in canvas_item shaders, so the lookup has to ride a varying — same
+// mechanism as `edge_mesh.gdshader`.
+varying vec2 world_pos;
 
 instance uniform vec4 tint_color : source_color = vec4(0.291, 0.5892, 1.0, 1.0);
 instance uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;  // TODO: this one might be a real uniform, we don't tweak it per instance
@@ -76,6 +89,11 @@ instance uniform int carve_slice_b = -1;
 // Full A-to-B-and-back period, seconds. A tuning value, not a derived one —
 // eyeball it in the sandbox before treating it as settled.
 const float CARVE_ALTERNATE_PERIOD = 4.0;
+
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+}
+
 
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0;
@@ -150,5 +168,5 @@ void fragment() {
 
 	float r2 = dot(p, p);
 	float edge_alpha = 1.0 - smoothstep(0.96, 1.0, r2);
-	COLOR = vec4(final_color, edge_alpha);
+	COLOR = vec4(final_color, edge_alpha * vision_field_dim(world_pos));
 }

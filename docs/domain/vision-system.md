@@ -291,16 +291,34 @@ happen to share owner. Owner identity is above the topology gate.
   is logically visible (clickable) but visually mostly dark. UX
   tradeoff: bias falloff small (≤ 0.15) so the gap between "I can see
   it" and "I can click it" stays narrow.
-- **Per-element dimming, not per-fragment.** FogOverlay z-promotes
-  visible nodes + edges above the fog (z=1001) and modulates their alpha
-  by the fog darkness sampled at their CENTER (`_sample_dark`,
-  `_apply_per_element_dimming`). Otherwise the per-fragment fog gradient
-  bisects any disk sitting in the fade zone — half clear, half pure
-  black — and that "half-shaded" disk reads darker than a fully-sensed
-  neighbour in pitch darkness. A `_VISIBLE_DIM_FLOOR` (= sensed outline
-  alpha) keeps the visible → sensed transition continuous: a node never
-  dims below the floor a sensed render would give it. Edges sample at
-  their midpoint; only both-endpoints-visible edges are lifted (a
-  one-visible-one-hidden edge stays at z=0 so fog covers its hidden half
-  naturally). Cost: O(N + E) per render tick, alongside the uniform
-  upload.
+- **Per-fragment self-shading, and FogOverlay only classifies.** Every
+  element that has to dim now reads `vision_field_darkness(world_pos)`
+  itself, per fragment, from the shared globals in
+  `ui/vision_field.gdshaderinc`: edges in `edge_mesh.gdshader` (#413),
+  SkillNode's disk and rim in `inner_disk.gdshader` /
+  `rim_ring.gdshader` (#414). `FogOverlay._apply_visibility_classification`
+  is left with one job — stamp a z band on each node (visible → 1001, so it
+  punches through the fog quad; hidden → 0, so the fog paints over it) and a
+  `vision_visible` boolean on each edge (OR over its endpoints, so an edge
+  straddling the boundary still renders and fades on its own).
+
+  The floor is `VISION_VISIBLE_DIM_FLOOR` (0.30) in that same include, and
+  it is what keeps the visible → sensed transition continuous: a visible
+  element never dims below the alpha a sensed render would give it.
+
+  **The classification hangs off `visibility_changed`, never
+  `vision_render_tick`, and that is load-bearing.** It is O(N + E), and
+  before #414 the whole pass (including a CPU fog sample per element) ran
+  per frame — 78 ms at 200 owned nodes on a 2000-node map, which *was* the
+  sustained framerate drop reported from playtesting. It can live on the
+  rarer signal because logical visibility is computed from TARGET radii: an
+  animating circle changes which pixels are lit, never which nodes are
+  visible. See `test/perf/bench_fog_refresh_cost.gd` and
+  `test/unit/ui/test_fog_overlay_classification.gd`.
+
+  What no longer dims at all: a node's non-shader children — CoreHalos,
+  HoverRing, the health bars, addons. They used to ride `SkillNode.modulate.a`
+  (which never reached the disk or rim, since both shaders overwrite COLOR
+  unconditionally). All of them are either core-gated, under the cursor, or
+  on a node the player is already looking at; the disk and rim are the node's
+  whole footprint and they fade properly now.

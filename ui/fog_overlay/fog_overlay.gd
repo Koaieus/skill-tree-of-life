@@ -20,12 +20,18 @@ const _MAX_CIRCLES := 20000
 # Truncation is loud, but only on the rising edge — _refresh runs on every
 # vision tick, and a warning per frame would bury the log.
 var _warned_overflow: bool = false
-# Spatial index over the current vision sources, rebuilt each _refresh. Turns
-# the per-element dimming pass from O(elements × sources) into O(elements).
+# Spatial index over the current vision sources, rebuilt each _refresh. Feeds
+# the GPU data textures every self-shading consumer samples; `distances_near`
+# is now only exercised by the CPU reference path below and its tests.
 var _source_index := VisionSourceIndex.new()
 # Visible elements in the fade zone dim toward this floor instead of being
 # bisected by the per-fragment fog gradient. Matches the sensed-outline
 # alpha so a node transitioning visible → sensed has no brightness jump.
+#
+# CPU MIRROR of `VISION_VISIBLE_DIM_FLOOR` in `ui/vision_field.gdshaderinc`,
+# which is where the number actually lives now — nothing on this side applies
+# it anymore (#414 moved every consumer onto the shader), it is kept only so
+# the reference path stays a faithful twin of what the GPU does.
 const _VISIBLE_DIM_FLOOR := 0.30
 
 @export var enabled: bool = true
@@ -35,7 +41,7 @@ const _VISIBLE_DIM_FLOOR := 0.30
 		_disconnect_vision()
 		vision_system = value
 		_connect_vision()
-		_refresh()
+		_on_visibility_changed()
 @export_range(0.0, 1.0, 0.01) var intensity: float = 1.0:
 	set(value):
 		intensity = value
@@ -71,7 +77,7 @@ func _ready() -> void:
 	RenderingServer.global_shader_parameter_set(&"vision_falloff", falloff)
 	RenderingServer.global_shader_parameter_set(&"vision_union_smoothness", union_smoothness)
 	_connect_vision()
-	_refresh()
+	_on_visibility_changed()
 
 
 func _draw() -> void:
@@ -79,6 +85,20 @@ func _draw() -> void:
 	draw_rect(bounds, Color.WHITE)
 
 
+## The `visibility_changed` path: reclassify every element, THEN push the
+## uniforms. Split from [method _refresh] (the per-frame `vision_render_tick`
+## path) because the two run at wildly different rates and only one of them is
+## O(elements) — see [method _apply_visibility_classification].
+func _on_visibility_changed() -> void:
+	_apply_visibility_classification()
+	_refresh()
+
+
+## The per-frame path. Uploads the animated circle set and nothing else: no
+## walk over the graph, no per-element sampling. [VisionSystem] fires
+## `vision_render_tick` every frame for as long as any circle is animating
+## toward its target radius, so anything O(elements) in here is paid at
+## framerate — which is exactly what #414 removed.
 func _refresh() -> void:
 	# Hide entirely when the system says no fog is meaningful (e.g. inert
 	# OFF mode). Avoids the shader's "zero circles → fully dark" default
@@ -93,7 +113,7 @@ func _refresh() -> void:
 	set_sources(vision_system.get_vision_sources() if vision_system != null else [])
 
 
-## Upload a vision-source set and re-dim the elements sitting in it. Each entry:
+## Upload a vision-source set. Each entry:
 ## `{ pos: Vector2, radius: float, motion: float }`, matching
 ## [method VisionSystem.get_vision_sources].
 ##
@@ -105,9 +125,9 @@ func set_sources(sources: Array) -> void:
 	if material == null or not material is ShaderMaterial:
 		return
 	var mat: ShaderMaterial = material
-	# Truncation here is worse than dropping a circle: `_apply_per_element_dimming`
-	# reads the FULL list, so a node lit by a dropped circle would render bright
-	# against fog the shader still paints black. Clamp both to the same set.
+	# Truncation is loud because the overlay and every self-shading consumer must
+	# read the SAME set: a node lit by a dropped circle would render bright
+	# against fog the shader still paints black. Clamp everything together.
 	if sources.size() > _MAX_CIRCLES:
 		_warn_once("FogOverlay: %d vision sources exceeds the %d-circle cap; %d are not rendered and the graph will look wrong. See #133."
 			% [sources.size(), _MAX_CIRCLES, sources.size() - _MAX_CIRCLES])
@@ -115,12 +135,12 @@ func set_sources(sources: Array) -> void:
 	else:
 		_warned_overflow = false
 
-	# Built once per refresh, queried once per element. Without it the dimming
-	# pass below is O(elements × sources) and runs every frame while circles
-	# animate — 16.8ms at 150 sources / 300 elements. See #133. It also owns
-	# the world-space tile grid (#177) that both this CPU pass and every
-	# self-shading GPU consumer (this material AND `vision_field.gdshaderinc`'s
-	# global uniforms — Edge's MultiMesh, #413) read.
+	# Owns the world-space tile grid (#177) that every self-shading GPU consumer
+	# reads — this material, and via `vision_field.gdshaderinc`'s global
+	# uniforms, Edge's MultiMesh (#413) plus SkillNode's disk and rim (#414).
+	# 230 us at 200 sources on a 2000-node map, and that is now the ENTIRE
+	# per-frame cost of a fog tick (`test/perf/bench_fog_refresh_cost.gd`); the
+	# O(elements) pass it used to feed moved to `visibility_changed`.
 	_source_index.build(sources, union_smoothness)
 	var tiles := _source_index.tile_index()
 	mat.set_shader_parameter(&"circle_count", tiles.circle_count)
@@ -142,41 +162,46 @@ func set_sources(sources: Array) -> void:
 		RenderingServer.global_shader_parameter_set(&"vision_tile_index_tex", tiles.tile_index_texture)
 	if tiles.tile_circle_indices_texture != null:
 		RenderingServer.global_shader_parameter_set(&"vision_tile_indices_tex", tiles.tile_circle_indices_texture)
-	_apply_per_element_dimming()
 
 
-## Lift visible nodes above the fog overlay and modulate their alpha by the
-## fog-darkness sampled at their CENTER (not per-fragment). Without this, the
-## per-fragment fog gradient bisects any node sitting in the fade zone — half
-## the disk reads clear, the other half pure black — and the same node
-## appears DARKER than a sensed neighbour in pitch black (sensed elements
-## already z-promote above the fog). Sensed elements are left to their own
-## render path (NodeVisualsComposite's SensedOutline).
+## Classify every element as visible / sensed / hidden and stamp the ONE piece
+## of state each needs to render itself: a z band for nodes, a boolean for
+## edges. Nothing here samples the fog — every element that needs a darkness
+## value now reads it per-fragment from the shared `vision_field` globals
+## (#413 for edges, #414 for SkillNode's disk and rim).
 ##
-## EDGES (self-loops included) no longer go through this z-promote-and-
-## modulate dance (#413): they self-shade against the shared `vision_field`
-## globals in their own MultiMesh fragment shader, per-fragment rather than
-## sampled once at midpoint, so only the visible/hidden classification needs
-## to reach `Edge` — `sensed` is already Edge-owned (VisionSystem writes it
-## directly).
-func _apply_per_element_dimming() -> void:
+## [b]This is the O(elements) pass, and it is why it hangs off
+## `visibility_changed` rather than `vision_render_tick`.[/b] It used to run
+## per-frame and cost 78 ms at 200 owned nodes on a 2000-node map — lane P's
+## sustained framerate collapse, `test/perf/bench_fog_refresh_cost.gd`. It can
+## live on the rarer signal because [VisionSystem] computes logical visibility
+## from TARGET radii, not the animated ones (see `_recompute`): a circle
+## growing toward its target changes which pixels are lit, never which nodes
+## are visible. So the classification is only ever stale between two
+## `visibility_changed` emissions, which is to say never.
+##
+## What the old version ALSO did, and no longer does, is write
+## `SkillNode.modulate.a`. That write never reached the disk or the rim:
+## `modulate` arrives as the incoming COLOR and both shaders overwrite COLOR
+## unconditionally, so the fade it was reaching for only ever applied to the
+## node's non-shader children. It applies per-fragment to the whole dome and
+## rim now, and correspondingly stops applying to CoreHalos, HoverRing, the
+## health bars and addons — see #414's commit for why that trade is the right
+## way round.
+func _apply_visibility_classification() -> void:
 	if vision_system == null or vision_system.graph == null:
 		return
 	var graph := vision_system.graph
 	for n in graph.get_skill_nodes():
 		if vision_system.is_sensed(n):
-			# Sensed path: SkillNode already z-promotes; keep modulate
-			# neutral so SensedOutline's fixed-alpha outline reads through.
-			n.modulate.a = 1.0
+			# Sensed path: SkillNode already z-promotes, and the composite
+			# swaps to SensedOutline's own fixed-alpha render. Leave it be.
 			continue
 		if vision_system.is_visible(n):
-			var dark := _dark_from_distances(_source_index.distances_near(n.global_position))
-			n.modulate.a = clamp(1.0 - dark, _VISIBLE_DIM_FLOOR, 1.0)
 			n.z_as_relative = false
 			n.z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED
 		else:
 			# Fully hidden: back to default z so the fog at z=FOG covers it.
-			n.modulate.a = 1.0
 			n.z_as_relative = true
 			n.z_index = ZLayers.GRAPH_DEFAULT
 	for e in graph.get_edges():
@@ -199,9 +224,11 @@ func _apply_per_element_dimming() -> void:
 ## center gives uniform per-element dimming. Keep in lockstep with the shader
 ## — a mismatch makes a node's dimming disagree with the fog behind it.
 ##
-## Reference implementation: folds the whole source set. `_apply_per_element_dimming`
-## uses the indexed path instead, which is required to agree with this one
-## (test_vision_source_index.gd pins that).
+## Reference implementation: folds the whole source set. Nothing in the render
+## path calls it since #414 moved every consumer onto `vision_field_darkness`
+## in the shader — it survives as the CPU twin the GPU is pinned against
+## (test_fog_overlay_sampling.gd for the math, test_vision_source_index.gd for
+## the indexed path agreeing with it). Keep it in lockstep with the shader.
 func _sample_dark(world_pos: Vector2, sources: Array) -> float:
 	var ds := PackedFloat32Array()
 	for s in sources:
@@ -253,8 +280,8 @@ func _apply_shader_intensity() -> void:
 func _connect_vision() -> void:
 	if vision_system == null:
 		return
-	if not vision_system.visibility_changed.is_connected(_refresh):
-		vision_system.visibility_changed.connect(_refresh)
+	if not vision_system.visibility_changed.is_connected(_on_visibility_changed):
+		vision_system.visibility_changed.connect(_on_visibility_changed)
 	if not vision_system.vision_render_tick.is_connected(_refresh):
 		vision_system.vision_render_tick.connect(_refresh)
 
@@ -262,7 +289,7 @@ func _connect_vision() -> void:
 func _disconnect_vision() -> void:
 	if vision_system == null:
 		return
-	if vision_system.visibility_changed.is_connected(_refresh):
-		vision_system.visibility_changed.disconnect(_refresh)
+	if vision_system.visibility_changed.is_connected(_on_visibility_changed):
+		vision_system.visibility_changed.disconnect(_on_visibility_changed)
 	if vision_system.vision_render_tick.is_connected(_refresh):
 		vision_system.vision_render_tick.disconnect(_refresh)

@@ -36,6 +36,13 @@ shader_type canvas_item;
 // paper over. Do not reintroduce TIME/fill_spin here.
 
 #include "res://skill_node/visuals/lighting.gdshaderinc"
+// #414 — see the same block in inner_disk.gdshader. Alpha, not RGB: an alpha
+// fade matches what `modulate.a` was reaching for AND leaves the fill dial's
+// HDR emissive tier (`fill_glow_strength`, #389) above the 1.0 bloom
+// threshold, which scaling the colour down would quietly extinguish.
+#include "res://ui/vision_field.gdshaderinc"
+
+varying vec2 world_pos;
 
 instance uniform float inner_r = 24.0;
 instance uniform float crest_r = 28.0;
@@ -226,6 +233,11 @@ float rim_fill_lit(float p_ang, vec2 p_slots, float p_gap_deg) {
 	return lit * in_body;
 }
 
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+}
+
+
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0 * outer_r;
 	float r = length(p);
@@ -280,5 +292,5 @@ void fragment() {
 
 	float inside = step(inner_r, r) * step(r, outer_r);
 	float edge_soft = smoothstep(inner_r - 0.75, inner_r + 0.75, r) * (1.0 - smoothstep(outer_r - 0.75, outer_r + 0.75, r));
-	COLOR = vec4(shaded, ring_tint.a * edge_soft * inside);
+	COLOR = vec4(shaded, ring_tint.a * edge_soft * inside * vision_field_dim(world_pos));
 }

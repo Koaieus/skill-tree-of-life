@@ -113,9 +113,11 @@ needing a genuinely different shader does not.
 
 ## Triage order
 
-1. **CPU logic.** Measure it first. This project has been bitten twice —
-   `Graph.get_neighbours()` (c5f3e42) and `FogOverlay._apply_per_element_dimming`
-   (#133) — both read as "the shader is slow" and both were quadratic CPU walks.
+1. **CPU logic.** Measure it first. This project has been bitten three times —
+   `Graph.get_neighbours()` (c5f3e42) and FogOverlay's per-element dimming pass
+   (#133, then again as #414) — all read as "the shader is slow" and all were
+   CPU walks. The fog one came back after being *optimised*; it stayed fixed
+   once it was deleted.
 2. **Draw call count.** Batch breaks, per-instance materials.
 3. **Overdraw.** Stacked transparent fullscreen quads multiply fragment cost
    linearly: 5 alpha layers over 1080p = 10M fragments. Blended geometry can't
@@ -152,7 +154,8 @@ that needed a DIFFERENT treatment (a visible node dimmed by distance instead
 of fully blacked out, a sensed node/edge at a fixed low alpha regardless of
 distance) had to *escape* that quad via z-index promotion, then have its own
 darkness re-computed on the CPU to match what the quad would have painted —
-`FogOverlay._apply_per_element_dimming`, an O(elements) walk that also forced
+`FogOverlay._apply_per_element_dimming`, an O(elements) walk (deleted by #414,
+see below) that also forced
 a per-instance `z_index`/`modulate.a` write, which is exactly what blocks
 batching something into a single `MultiMeshInstance2D` (one CanvasItem, one
 `z_index`, no per-instance property writes at all).
@@ -183,10 +186,30 @@ and no per-element CPU darkness sampling at all:
   redundant alpha of the MultiMesh's spare colour channel, not a per-element
   darkness *computation*.
 
-**Reusable pattern for the SkillNode follow-up:** any other self-shading
-consumer just needs `#include "res://ui/vision_field.gdshaderinc"` and a call
-to `vision_field_darkness(world_pos)` — the include is the whole contract,
-no per-shader uniform wiring beyond that.
+**The SkillNode follow-up landed (#414), and it is the same three lines.**
+`inner_disk.gdshader` and `rim_ring.gdshader` each `#include
+"res://ui/vision_field.gdshaderinc"`, carry a `varying vec2 world_pos` set in
+`vertex()` as `(MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy` (`MODEL_MATRIX` is
+vertex-stage-only in canvas_item shaders, so it has to ride a varying), and
+multiply their final **alpha** by `vision_field_dim(world_pos)`. That helper is
+the whole contract: it folds in both the `VISION_VISIBLE_DIM_FLOOR` clamp and
+the `vision_field_enabled` gate, so a consumer needs to know nothing else about
+the fog. Alpha rather than RGB, deliberately — it matches what `modulate.a` was
+reaching for, and scaling RGB would push HDR emissive tiers (RimRing's fill
+glow, #389) below the 1.0 bloom threshold.
+
+**What that bought, and the shape of it.** The per-frame fog tick went from
+78.7 ms to 0.2 ms at 200 owned nodes on a 2000-node map — the sustained
+framerate collapse reported from playtesting. Most of the win is not the
+per-fragment sampling itself but what it *unblocked*: with nothing needing a
+CPU darkness value, the surviving O(elements) pass has only a z band and a
+boolean to write, and could move off `vision_render_tick` (every frame while a
+circle animates) onto `visibility_changed` (once per allocation). **Deleting a
+per-frame pass beats optimising it** — #133 optimised this same walk and it came
+back one layer up. `test/perf/bench_fog_refresh_cost.gd` guards the number;
+`test/unit/ui/test_fog_overlay_classification.gd` guards which signal owns the
+walk, because the bench alone can't tell "deleted" from "moved somewhere
+untimed."
 
 ## Godot's headless dummy renderer does not implement `MultiMesh` instance-data readback
 
