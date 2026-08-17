@@ -22,7 +22,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 SceneTransition="*res://autoload/scene_transition.tscn"
-SceneLoader="*res://autoload/scene_loader.tscn"
+SceneDirector="*res://autoload/scene_director.gd"
 Boot="uid://g7udw4thdrta"
 Events="*res://autoload/events.gd"
 StatRegistry="*res://autoload/stat_registry.gd"
