@@ -51,7 +51,7 @@ var wound_heal_progress: float = 0.0
 			return
 		wounded = clamped
 		wounded_changed.emit()
-		value_changed.emit()
+		_emit_value_changed()
 
 @export var staked: int = 0:
 	set(v):
@@ -60,7 +60,7 @@ var wound_heal_progress: float = 0.0
 			return
 		staked = clamped
 		staked_changed.emit()
-		value_changed.emit()
+		_emit_value_changed()
 
 
 ## The three SP bins, exposed as formula accessors (see [method Stat.accessors]).
@@ -182,7 +182,7 @@ func extract(n: int) -> void:
 ## mint-max-only — don't "tidy" it into the ratcheted call.
 func claim(n: int) -> void:
 	base_value += float(n)
-	value_changed.emit()
+	_emit_value_changed()
 
 
 ## Bump max by N and raise current by N. Used by level-up — the player
@@ -191,4 +191,4 @@ func grant(n: int) -> void:
 	base_value += float(n)
 	current += float(n)
 	current_changed.emit(_coerce(current))
-	value_changed.emit()
+	_emit_value_changed()

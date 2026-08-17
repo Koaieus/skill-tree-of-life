@@ -46,7 +46,7 @@ signal value_changed
 		# Computed value moves with base_value; notify subscribers (UI, formula
 		# modifiers watching this stat) so reactive paths stay coherent when
 		# scripts write base_value directly.
-		value_changed.emit()
+		_emit_value_changed()
 
 var _modifiers: Array[StatModifier] = []
 
@@ -87,6 +87,21 @@ var _last_contrib: Dictionary = {}
 ## Stat's bins with a node Stat's bins in one call. Each source's own board
 ## travels with it.
 var _board: StatBoard = null
+
+
+## Every `value_changed` emission in this class routes through here so a board
+## can coalesce a burst of them (see [method StatBoard.begin_batch]). Outside a
+## batch this is exactly `value_changed.emit()`.
+##
+## Deferring the SIGNAL never defers the VALUE: [method get_value] recomputes
+## from the bins on every call, so a read taken mid-batch is already correct.
+## Only the notification waits.
+func _emit_value_changed() -> void:
+	if _board != null and _board.is_batching():
+		_board.mark_stat_dirty(self)
+		return
+	value_changed.emit()
+
 
 ## Shorthand for `get_value()`. Delegates so subclass overrides win — e.g.
 ## `pool.value` returns the pool's current via PoolStat's override.
@@ -145,7 +160,7 @@ func add_modifier(m: StatModifier, board: StatBoard = null) -> void:
 			_last_contrib[m] = v
 			_apply_bin_delta(m.operation, 0.0, v)
 	_resync_bins_if_trivial()
-	value_changed.emit()
+	_emit_value_changed()
 
 
 func remove_modifier(m: StatModifier, board: StatBoard = null) -> void:
@@ -167,7 +182,7 @@ func remove_modifier(m: StatModifier, board: StatBoard = null) -> void:
 			_last_contrib.erase(m)
 			_apply_bin_delta(m.operation, old, 0.0)
 	_resync_bins_if_trivial()
-	value_changed.emit()
+	_emit_value_changed()
 
 
 ## A modifier this stat depends on has changed — its `value` was edited or a
@@ -181,7 +196,7 @@ func _on_dependent_modifier_changed(m: StatModifier) -> void:
 		var new_v := m.get_effective_value(_board)
 		_last_contrib[m] = new_v
 		_apply_bin_delta(op, old, new_v)
-	value_changed.emit()
+	_emit_value_changed()
 
 
 func _apply_bin_delta(op: int, old: float, new_v: float) -> void:

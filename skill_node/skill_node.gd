@@ -673,8 +673,15 @@ func remove_entity_modifier(m: StatModifier) -> void:
 func apply_entity_modifiers_to(board: StatBoard) -> void:
 	if board == null:
 		return
+	# One allocation is ONE logical event, so it gets one notification wave.
+	# Without the batch, a node granting two modifiers that feed the same
+	# downstream stat (`constitution` and `node_health` both feed `node_health`)
+	# cascades twice — and that cascade re-syncs every owned node's combat
+	# health pool. See StatBoard.begin_batch for the measurement.
+	board.begin_batch()
 	for m in modifiers:
 		board.add_modifier(m)
+	board.end_batch()
 
 
 ## Strip this node's entity-scoped modifiers from [param board]. Called by
@@ -682,6 +689,9 @@ func apply_entity_modifiers_to(board: StatBoard) -> void:
 func remove_entity_modifiers_from(board: StatBoard) -> void:
 	if board == null:
 		return
+	# Symmetric with apply_entity_modifiers_to — a dealloc is one event too, and
+	# the same double-cascade applies on the way out.
+	board.begin_batch()
 	for m in modifiers:
 		# A composition swap (m._scaled_sets entry) means the parent's own
 		# leaves are NOT what's applied — remove the scaled set, or it would
@@ -693,6 +703,7 @@ func remove_entity_modifiers_from(board: StatBoard) -> void:
 			_scaled_sets.erase(m)
 		else:
 			board.remove_modifier(m)
+	board.end_batch()
 
 
 ## Apply [param m] to this node's [member node_board] — a node-scoped modifier,

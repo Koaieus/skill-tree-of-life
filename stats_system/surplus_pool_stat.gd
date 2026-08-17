@@ -32,7 +32,7 @@ signal surplus_changed
 			return
 		surplus = clamped
 		surplus_changed.emit()
-		value_changed.emit()
+		_emit_value_changed()
 
 
 ## The out-of-cap surplus bin plus the spendable-this-turn `available()` —

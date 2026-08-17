@@ -33,6 +33,12 @@ extends Resource
 ## demand by [method _ensure_stat] for sparse boards (e.g. node-local stats).
 var _extra_stats: Dictionary = {}  # StringName → Stat
 
+## Coalescing state — see [method begin_batch].
+const _MAX_FLUSH_ROUNDS := 16
+
+var _batch_depth: int = 0
+var _dirty_stats: Dictionary = {}  # Stat → true
+
 
 # --- Stat-typed field discovery (cached per board class) -------------------
 
@@ -363,6 +369,122 @@ func remove_modifier(m: StatModifier) -> void:
 ## intrinsic_modifiers (itself already a distinct array: Entity._ready
 ## duplicates the whole board with `duplicate(true)` before calling this)
 ## computes independently there too.
+## Coalesce `value_changed` notifications until the matching [method end_batch].
+##
+## [b]Why.[/b] Installing a node's modifiers is a loop of [method add_modifier],
+## and each one emits immediately. When two of a node's modifiers both feed the
+## same downstream stat, every listener runs the full cascade twice for one
+## logical event. Measured 2026-08-17 on a 2000-node level at 200 owned: a node
+## granting `constitution` AND `node_health` moved the entity's `node_health`
+## twice (1362 -> 1382 -> 1411), and each move re-synced the combat health pool
+## of EVERY owned node — 397 syncs for 197 nodes, 75-83% of the whole
+## allocation. Batching makes that one cascade instead of two.
+##
+## [b]This defers notification, never value.[/b] [method Stat.get_value]
+## recomputes from the bins on every call, so a read taken mid-batch is already
+## correct — only the signal waits. Pool ratcheting is likewise unaffected:
+## [method PoolStat._apply_max_change] runs on the add/remove path itself, not
+## off `value_changed`.
+##
+## Re-entrant: nested begin/end pairs flush once, at the outermost end.
+## ALWAYS pair it — an unmatched `begin_batch` silently swallows every
+## subsequent notification on this board.
+func begin_batch() -> void:
+	_batch_depth += 1
+
+
+func is_batching() -> bool:
+	return _batch_depth > 0
+
+
+## Records a stat whose notification was suppressed. Called by
+## [method Stat._emit_value_changed]; not meant for outside callers.
+func mark_stat_dirty(s: Stat) -> void:
+	_dirty_stats[s] = true
+
+
+## Close the batch and emit one `value_changed` per stat that moved.
+##
+## Flushing stays *inside* the batch (`_batch_depth` drops only at the very end)
+## because emitting is what drives formula modifiers, and those recompute
+## downstream stats. Dropping the depth first would let that second wave emit
+## per-stat immediately — reintroducing exactly the duplicate cascade this
+## exists to remove. Instead the wave lands back in `_dirty_stats` and is
+## flushed by the next loop iteration, so each stat notifies once per settle.
+##
+## The iteration cap is a safety net against a pathological oscillation, not an
+## expected path; the formula graph is already kept acyclic by
+## [method cycle_from].
+func end_batch() -> void:
+	if _batch_depth <= 0:
+		push_warning("StatBoard.end_batch called without a matching begin_batch")
+		return
+	if _batch_depth > 1:
+		_batch_depth -= 1
+		return
+	var guard := 0
+	while not _dirty_stats.is_empty() and guard < _MAX_FLUSH_ROUNDS:
+		guard += 1
+		for s in _sorted_dirty_wave():
+			# Re-check: emitting an earlier stat may already have covered this
+			# one (a formula recompute erases nothing, but a listener could).
+			if not _dirty_stats.has(s):
+				continue
+			# Erase BEFORE emitting. A dependent stat re-dirtied by this
+			# emission lands back in the set and is picked up later in the SAME
+			# wave — which is the whole point of the ordering. Erasing after
+			# would drop that re-mark and lose the notification.
+			_dirty_stats.erase(s)
+			if is_instance_valid(s):
+				s.value_changed.emit()
+	if guard >= _MAX_FLUSH_ROUNDS:
+		push_warning("StatBoard.end_batch hit the flush-round cap; a formula cascade is not settling")
+	_dirty_stats.clear()
+	_batch_depth = 0
+
+
+## The dirty set ordered so a stat is emitted only after every stat it derives
+## from — sources first, dependents last.
+##
+## This ordering is what makes the flush emit each stat exactly once. Emitting
+## `constitution` recomputes the `node_health` intrinsic and re-dirties
+## `node_health`; if `node_health` had already been emitted, that re-mark would
+## force a second round and a second full cascade — which is the duplicate this
+## whole mechanism exists to remove. Sorted, `node_health` is still pending when
+## the re-mark lands, so one emission serves both.
+##
+## Depth is over the formula dependency graph, which [method cycle_from] keeps
+## acyclic; the visited guard is belt-and-braces for a cycle that slipped in at
+## runtime, and degrades to an arbitrary-but-terminating order.
+func _sorted_dirty_wave() -> Array:
+	var edges: Dictionary = {}
+	collect_formula_edges(edges)
+	var depths: Dictionary = {}
+	var wave: Array = _dirty_stats.keys()
+	wave.sort_custom(func(a: Stat, b: Stat) -> bool:
+		return _formula_depth(_stat_id_of(a), edges, depths, {}) \
+			< _formula_depth(_stat_id_of(b), edges, depths, {}))
+	return wave
+
+
+func _stat_id_of(s: Stat) -> StringName:
+	return s.definition.id if s != null and s.definition != null else &""
+
+
+func _formula_depth(id: StringName, edges: Dictionary, memo: Dictionary, visiting: Dictionary) -> int:
+	if memo.has(id):
+		return memo[id]
+	if visiting.has(id):
+		return 0  # cycle — treat as a source rather than recursing forever
+	visiting[id] = true
+	var deepest := 0
+	for input_id in edges.get(id, []):
+		deepest = maxi(deepest, _formula_depth(input_id, edges, memo, visiting) + 1)
+	visiting.erase(id)
+	memo[id] = deepest
+	return deepest
+
+
 func apply_intrinsics() -> void:
 	for m in intrinsic_modifiers:
 		add_modifier(m)

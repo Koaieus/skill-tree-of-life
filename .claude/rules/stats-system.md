@@ -509,6 +509,32 @@ When a node's combat HP hits 0, `BattleSystem._on_node_depleted` runs the cascad
 
 Both are emitted per cascaded node in the same loop, so a 5-node cascade with `dealloc_damage = 2` deals 5 wounds + 10 HP, ignoring armor.
 
+## Notification batching (`begin_batch` / `end_batch`)
+
+`StatBoard.begin_batch()` … `end_batch()` coalesces `value_changed` into **one
+emission per stat that moved**. `SkillNode.apply_entity_modifiers_to` /
+`remove_entity_modifiers_from` wrap their loops in one — an allocation is one
+logical event, and without it a node granting both `constitution` and
+`node_health` cascaded twice, each cascade re-syncing every owned node's HP pool
+(75–83% of an allocation's cost at 200 owned; see `test/perf/bench_allocation_cost.gd`).
+
+- **Every emit site must call `Stat._emit_value_changed()`, not
+  `value_changed.emit()`** — that helper is what defers to the board. A new site
+  using the raw emit silently opts out of batching.
+- **Defers notification, never value.** `get_value()` recomputes from the bins,
+  so a mid-batch read is already correct. `PoolStat._apply_max_change` runs on
+  the add/remove path, not off `value_changed`, so ratcheting is unaffected.
+- **The flush is ordered by formula dependency depth, and that ordering is
+  load-bearing**: emitting a source re-dirties its dependents, so a dependent
+  emitted too early gets a second full cascade. `end_batch` keeps the depth up
+  during the flush and erases each stat before emitting it. Nested pairs flush
+  once, at the outermost end.
+- **Always pair it** — an unmatched `begin_batch` swallows every later
+  notification on that board.
+- Contract tests: `test/unit/test_stat_board_batch.gd`. Its ordering test dirties
+  the dependent FIRST on purpose; insertion order is otherwise accidentally
+  correct and the test passes vacuously.
+
 ## Gotchas
 
 - **`PoolStat.set_current` emits `value_changed`, not just `current_changed`** (`pool_stat.gd:81`). Consequence (now resolved): a formula modifier sourcing a pool **recomputes on every `current` write** — every hit, every tick — so the read had better be the right one. Pre-#333 `LinearFormula`/`RatioFormula`/`ExpressionFormula` bottoms out in `board.get_stat(id).get_value()`, which is the **cap**, so the recomputation was wasted on a wrong read. #333 split the read: `<stat_id>__<accessor>` tokens route through `Stat.read_accessor(name)`, which dispatches to a per-subclass `accessors()` map — so `health__current` reads `.current`, not the cap. `get_input_ids()` strips to base ids (`StatFormula.base_of`), so the dependency graph (and `StatBoard.cycle_from`) keep seeing `health`, not a phantom `health__current` vertex. The recompute cost is the price of correct subscription — **don't** optimize it by dropping `set_current`'s `value_changed` emit; the first formula to source `initiative` (ticks constantly) or `health` (every hit) folds it into a real perf budget, and that's a separate issue.

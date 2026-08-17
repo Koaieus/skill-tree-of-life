@@ -90,7 +90,7 @@ func set_current(v: float) -> void:
 	var excess: float = max(0.0, v - cap)
 	current = clamped
 	current_changed.emit(_coerce(current))
-	value_changed.emit()
+	_emit_value_changed()
 	if current <= floor_v:
 		depleted.emit()
 	elif was_below_cap and current >= cap:
