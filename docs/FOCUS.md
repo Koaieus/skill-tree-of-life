@@ -320,10 +320,10 @@ accident.
   modifier invalidates the health pool of **every owned node**. O(owned),
   categorical, exactly the measured bimodality.
   - **Not distance from core**: median cost is flat ~610us at every hop count
-    from 1 to 14. The pulse VFX also routes `path_between` **once** per
-    allocation, not per hop — and `force_allocate` skips pulses entirely.
+	from 1 to 14. The pulse VFX also routes `path_between` **once** per
+	allocation, not per hop — and `force_allocate` skips pulses entirely.
   - **Not PER / `vision_range`** — *inverted*. Over 199 allocations,
-    vision-touching mean **611us** vs **964us** for everything else. This lane's
+	vision-touching mean **611us** vs **964us** for everything else. This lane's
     "PER makes it drop harder" note is not about `force_allocate`; if it is
     real, it lives downstream in the vision recompute or the fog render.
   - **Follow-up**: CON needs the dirty-mark/batched-flush treatment (suspect 2
@@ -344,10 +344,43 @@ accident.
 - Sensed walk 143us -> 1542us (10.8x) is the second scaling term. Node writes
   (~750us) + edge writes (~1250us) are a ~2ms floor independent of owned count.
 
-This still does **not** reproduce the sustained 5–10s drop — the fixture has no
-FogOverlay, HUD or VFX, so the per-frame repeater remains unidentified and
-`FogOverlay` remains the lead suspect. Do not read a green bench as that being
-handled.
+**FOUND — the sustained drop is `FogOverlay._apply_per_element_dimming`, and it
+is the #133 shape again.** `test/perf/bench_fog_refresh_cost.gd` mounts a real
+FogOverlay on the 2000-node fixture and times `set_sources` — the entry point
+`_refresh` calls on **every** `vision_render_tick`, i.e. every frame for as long
+as any vision circle is animating toward its target radius:
+
+| owned | sources | set_sources | index build | per-element dimming | frames @144Hz |
+|---|---|---|---|---|---|
+| 10 | 10 | 3444 us | 22 us | 3390 us | 0.50 |
+| 50 | 50 | 5296 us | 72 us | 5210 us | 0.76 |
+| 100 | 100 | 15097 us | 124 us | 14750 us | 2.17 |
+| 200 | 200 | **78659 us** | 230 us | **77764 us** | **11.33** |
+
+- **78.7ms/frame at 200 owned is ~12fps** against a playtest report of 6fps at
+  200 / 15fps at 100 — right magnitude, right axis, and the right persistence:
+  it lasts exactly as long as the circle animation and then recovers, which is
+  the "sustained then recovers" signature this lane could not explain.
+- **99.7% of it is `_apply_per_element_dimming`.** The `VisionSourceIndex` build
+  is 230us and innocent. Doubling owned from 100 to 200 costs **5.3x**, not 2x,
+  because two factors rise together: more territory makes more nodes *visible*
+  (only visible nodes take the expensive `distances_near` + fold branch), and it
+  packs more circles into each tile so each fold is longer. It is
+  O(visible_nodes x circles_per_tile).
+- **Same root cause as the `VisionCircles` finding above** — a tile cell one
+  (smoothness-widened) max-radius across holds many circles at `first_level`'s
+  86px spacing. #133's fix removed the "x EVERY source" factor; it never made
+  the fold O(1), and the walk over all 2000 nodes was never removed at all.
+- The bench's assert **fails today on purpose** — it is the open defect written
+  as a test that turns green when fixed.
+
+**Next unit, and it is now well-specified:** stop re-dimming all 2000 elements
+every tick. Candidates, cheapest first — (a) only walk elements whose fog value
+can have changed (the animating circles' neighbourhoods, from the tile index we
+already build); (b) skip the whole pass when no circle moved this frame; (c)
+let the nodes self-shade per-fragment against the `vision_field` globals, which
+is exactly what #413 already did for edges and would delete the CPU pass
+outright. (c) is the real fix and #413 is the precedent.
 
 ### M — Meta-shell & modes — LAN by 2026-08-31
 
@@ -431,7 +464,7 @@ clean, all four new test files pass, no forbidden file touched.
 	#406 merges. **#409** edge sharpeners stays `Needs design`, blocked on
 	**#407** (velocity-based blade/edge damage, `Backlog`, no shape yet).
 	**#408** (Clamp secondary use) is a parked aside, `Backlog`. Per #301's own
-    acceptance-spec comment, #409/#407/#408 do **not** gate the hub closing.
+	acceptance-spec comment, #409/#407/#408 do **not** gate the hub closing.
 
 **Lane B's exit is #406 landing + #338 dispatched/shipped** — everything else
 in the lane (#412, #409, #407, #408) is explicitly deferred, not on the
@@ -487,11 +520,11 @@ critical path.
 	 everything reads dark gray-ish)
    - allocated nodes get lane A's glow, which should help by contrast
    - highlight-ring language is overloaded: hover = yellow outline, Manage-mode
-     allocatable = golden-orange ring, attack-plan targeting = yellow/red ring —
-     all three compete with the WIS gold-rim signal and need a real visual-design
-     pass, not just more colors. (Not #176 — that issue was the original
-     manage-mode highlight feature, long shipped and closed 2026-08-09; this is
-     the follow-up unification ask.)
+	 allocatable = golden-orange ring, attack-plan targeting = yellow/red ring —
+	 all three compete with the WIS gold-rim signal and need a real visual-design
+	 pass, not just more colors. (Not #176 — that issue was the original
+	 manage-mode highlight feature, long shipped and closed 2026-08-09; this is
+	 the follow-up unification ask.)
 
 ### F — Balance is tuned, not guessed — BLOCKED UNTIL ALL OTHER LANES ARE DONE
 
