@@ -12,6 +12,10 @@ extends Node
 ##    darkness mask. Sensed-only nodes are queryable via [method is_sensed]
 ##    but get no fog cutout (renderer's choice how to depict them).
 ##
+## The geometry rule itself lives in [VisionCircles] — shared with [AiRecon],
+## which builds its own per-entity set — so "is X visible" is never implemented
+## twice.
+##
 ## Sources of vision: every node owned by a viewer contributes a circle at
 ## its global_position with radius = that node's local vision_range
 ## (entity stat × node-local mods composed via node_board). Per-node so
@@ -97,21 +101,6 @@ func _ready() -> void:
 			graph.node_removed.connect(_on_allocation_changed.unbind(1))
 	_rebind_viewers()
 	_recompute.call_deferred()
-
-
-## The vision rule, as a pure geometry test: is [param target_pos] inside the
-## union of circles at [param positions] with matching [param radii]? Single
-## source of truth — both the live per-frame recompute below (the scene's one
-## VisionSystem instance, cached radii) and one-off per-entity callers that
-## don't want a whole VisionSystem node (AiRecon, #378 — builds its circle set
-## fresh per call from `Entity.navigator`'s owned nodes) route through this,
-## so the vision rule never forks into two implementations.
-static func is_within_circles(target_pos: Vector2, positions: PackedVector2Array, radii: PackedFloat32Array) -> bool:
-	for i in positions.size():
-		var r := radii[i]
-		if target_pos.distance_squared_to(positions[i]) <= r * r:
-			return true
-	return false
 
 
 func is_visible(node: SkillNode) -> bool:
@@ -278,13 +267,15 @@ func _recompute() -> void:
 				else:
 					_circles[own_node].target = r
 
-		var positions := PackedVector2Array()
-		var radii := PackedFloat32Array()
+		# A spatial index, not a scan: this is ~2000 nodes x ~200 circles at
+		# the scale this project targets, and it measured as 70% of the whole
+		# recompute (13.3ms of 19.4ms) while it was a per-point linear scan.
+		# See [VisionCircles] for why its 3x3 cell lookup is exact.
+		var circles := VisionCircles.new()
 		for i in all_owned.size():
-			positions.append((all_owned[i] as SkillNode).global_position)
-			radii.append(targets[i])
+			circles.add((all_owned[i] as SkillNode).global_position, targets[i])
 		for n in nodes:
-			if is_within_circles(n.global_position, positions, radii):
+			if circles.has_point(n.global_position):
 				_visible[n] = true
 
 		# Sensed: max-budget priority traversal seeded by every owned node
@@ -348,11 +339,17 @@ func _recompute() -> void:
 		if e.from == null or e.to == null:
 			e.sensed = false
 			continue
+		# Ordered so a fully-fogged edge — the common case on a large map —
+		# costs two dictionary lookups instead of four.
 		var from_vis: bool = _visible.has(e.from)
+		if not from_vis and not _sensed.has(e.from):
+			e.sensed = false
+			continue
 		var to_vis: bool = _visible.has(e.to)
-		var from_reached: bool = from_vis or _sensed.has(e.from)
-		var to_reached: bool = to_vis or _sensed.has(e.to)
-		e.sensed = from_reached and to_reached and not (from_vis and to_vis)
+		if not to_vis and not _sensed.has(e.to):
+			e.sensed = false
+			continue
+		e.sensed = not (from_vis and to_vis)
 
 	# Set process state so the animation loop only runs when something
 	# is actually moving. Cheap to toggle, saves a per-frame walk while idle.

@@ -7,7 +7,8 @@ extends RefCounted
 ## settled 2026-08-07: "each enemy acts only on what it personally sees", no
 ## faction-shared reveal in v1.
 ##
-## The vision RULE stays single-sourced in [VisionSystem.is_within_circles] —
+## The vision RULE stays single-sourced in [VisionCircles] (shared with
+## [VisionSystem], which builds one of the same sets per recompute) —
 ## this module only supplies the WHO (this entity's owned nodes, off
 ## [member Entity.navigator], the per-entity subgraph mirror) and evaluates
 ## fresh per AI turn instead of touching the shared singleton's cached
@@ -35,17 +36,15 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 	var owned := entity.navigator.get_mirrored_nodes()
 	if owned.is_empty():
 		return out
-	var positions := PackedVector2Array()
-	var radii := PackedFloat32Array()
+	var circles := VisionCircles.new()
 	for src in owned:
-		positions.append(src.global_position)
-		radii.append(float(src.get_local_value(&"vision_range")))
+		circles.add(src.global_position, float(src.get_local_value(&"vision_range")))
 	for node in graph.get_skill_nodes():
 		if node == null or node.owned_by == null:
 			continue
 		if entity.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
 			continue
-		if VisionSystem.is_within_circles(node.global_position, positions, radii):
+		if circles.has_point(node.global_position):
 			out.append(node)
 	return out
 
