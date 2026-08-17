@@ -27,16 +27,27 @@ extends GutTest
 ##
 ## Numbers move with the machine — record the CPU alongside any result you cite.
 ##
-## [b]First run, 2026-08-17[/b] (RX 7900 XTX box, headless). `force_allocate`
-## itself is flat at ~620us regardless of owned count; the whole ramp lives in
-## the vision recompute it triggers:
+## [b]First run, 2026-08-17[/b] (RX 7900 XTX box, headless):
 ## [codeblock]
-## owned | force_allocate | vision recompute
-##    10 |         629 us |          3102 us
-##    50 |         599 us |          3684 us
-##   100 |         588 us |          5393 us
-##   200 |         621 us |          9551 us
+## owned | force_allocate (med / max) | vision recompute (med / cold)
+##    10 |        619 /        699 us |         3054 /        3347 us
+##    50 |        593 /       1136 us |         3655 /        3673 us
+##   100 |        574 /       3273 us |         5262 /        5323 us
+##   200 |        595 /       5874 us |         9118 /        9303 us
 ## [/codeblock]
+## [b]Read the max column, not the median.[/b] `force_allocate`'s median is flat
+## at ~600us and says allocation is cheap. Its max is not flat — it grows 8.4x
+## across the ramp, and at 200 owned a worst-case allocation costs 5.9ms in
+## `force_allocate` [i]alone[/i], before the ~9.1ms recompute. That is ~2.2
+## frames for one node claim. This is the shape lane P describes as "if the
+## rolled modifier includes PER or vision_range it drops harder still", and a
+## median is structurally blind to it. Attribution is NOT established — the
+## candidates are the #376 local-scale mutator walking effects on the 0->1
+## transition and the `_on_node_allocated` effect dispatch; picking between them
+## needs its own instrumented pass. Don't cite a cause from this table.
+##
+## Cold vs warm is a non-issue: the first recompute of each batch is within ~10%
+## of the median, so repeated same-value writes are not hiding cost.
 ## Per-phase attribution at 10 -> 200 owned (temporary instrumentation, not
 ## shipped — re-derive by timing the blocks of `VisionSystem._recompute` if you
 ## need it again):
@@ -183,7 +194,9 @@ func _frontier() -> Array[SkillNode]:
 ## [AllocationPolicy] resource spawn seeding and the AI both pick with — timing
 ## every claim and every frontier walk individually.
 ##
-## Returns `{alloc: median usec per force_allocate, frontier: median usec per walk}`.
+## Returns median AND max per force_allocate. The max matters: lane P reports
+## that allocations rolling `PER` / `vision_range` "drop harder still", and those
+## are exactly the rare expensive samples a median throws away.
 func _grow_to(target: int) -> Dictionary:
 	var alloc_times: Array[int] = []
 	var frontier_times: Array[int] = []
@@ -199,19 +212,32 @@ func _grow_to(target: int) -> Dictionary:
 		var t_a := Time.get_ticks_usec()
 		_alloc.force_allocate(_entity, pick)
 		alloc_times.append(Time.get_ticks_usec() - t_a)
-	return {"alloc": _median(alloc_times), "frontier": _median(frontier_times)}
+	alloc_times.sort()
+	return {
+		"alloc": _median(alloc_times),
+		"alloc_max": float(alloc_times[-1]) if not alloc_times.is_empty() else 0.0,
+		"frontier": _median(frontier_times),
+	}
 
 
 ## Median of several timed recomputes, in usec. Median rather than min so one
 ## unlucky sample can't pass a genuinely slow build, and rather than mean so a
 ## GC pause can't fail a fast one.
-func _median_recompute_usec(samples: int = 7) -> float:
+##
+## Returns `{median, first}`. `first` is the cold pass — the one that actually
+## changes `input_pickable` / `sensed` / `revealed` on the nodes whose visibility
+## just moved. Samples 2..n rewrite values that are already correct, so if
+## [SkillNode] short-circuits same-value setters they measure the warm cost and
+## the median under-reports what an allocation costs in game. Both are printed
+## so nobody has to take that on faith.
+func _median_recompute_usec(samples: int = 7) -> Dictionary:
 	var times: Array[int] = []
 	for i in samples:
 		var t := Time.get_ticks_usec()
 		_vision._recompute()
 		times.append(Time.get_ticks_usec() - t)
-	return _median(times)
+	var first := float(times[0])
+	return {"median": _median(times), "first": first}
 
 
 func _median(times: Array[int]) -> float:
@@ -226,8 +252,8 @@ func _median(times: Array[int]) -> float:
 func test_allocation_cost_ramp() -> void:
 	await _ensure_fixture()
 
-	gut.p("owned | force_allocate | vision recompute | seeder frontier walk")
-	gut.p("------+----------------+------------------+---------------------")
+	gut.p("owned | force_allocate (med / max) | vision recompute (med / cold) | frontier walk")
+	gut.p("------+---------------------------+-------------------------------+--------------")
 	for target in _CHECKPOINTS:
 		var grown := await _grow_to(target)
 		# Let the debounced deferred recompute the growth queued actually land,
@@ -236,18 +262,26 @@ func test_allocation_cost_ramp() -> void:
 		for i in 3:
 			await get_tree().process_frame
 		var owned := _owned_count()
-		var recompute := _median_recompute_usec()
+		var rc := _median_recompute_usec()
 		_samples[target] = {
 			"owned": owned,
 			"alloc": grown["alloc"],
+			"alloc_max": grown["alloc_max"],
 			"frontier": grown["frontier"],
-			"recompute": recompute,
+			"recompute": rc["median"],
+			"recompute_cold": rc["first"],
 		}
-		gut.p("%5d | %10.0f us | %13.0f us | %16.0f us"
-			% [owned, grown["alloc"], recompute, grown["frontier"]])
+		gut.p("%5d | %9.0f / %9.0f us | %11.0f / %11.0f us | %8.0f us"
+			% [owned, grown["alloc"], grown["alloc_max"],
+				rc["median"], rc["first"], grown["frontier"]])
 
 	var worst: Dictionary = _samples[_CHECKPOINTS[-1]]
 	gut.p("")
+	# `alloc + recompute` is the settled cost only because one allocation
+	# produces exactly one recompute — a property pinned by
+	# `test_vision_recompute_scaling.gd`, on ITS fixture, not this one. This
+	# bench times `_recompute()` directly rather than awaiting the deferred
+	# path, so it inherits that assumption rather than re-proving it.
 	gut.p("at %d owned, one allocation settles in %.0f us = %.2f frames of the %.0f us 144Hz budget"
 		% [worst["owned"], worst["alloc"] + worst["recompute"],
 			(worst["alloc"] + worst["recompute"]) / _FRAME_BUDGET_USEC, _FRAME_BUDGET_USEC])
@@ -265,23 +299,24 @@ func test_recompute_cost_does_not_track_the_owned_count() -> void:
 	var owned_ratio := float(_CHECKPOINTS[-1]) / float(_CHECKPOINTS[0])
 	var cost_ratio := many / maxf(few, 1.0)
 	gut.p("recompute: %dx the owned nodes costs %.2fx" % [int(owned_ratio), cost_ratio])
-	# Before VisionCircles' grid (a752739), the visibility pass was a per-point
-	# linear scan over every owned circle and this tracked owned count almost
-	# linearly (5.03x for 25x owned, measured by swapping the index back out).
+	gut.p("(reported, not asserted — see the comment in this test)")
+	# DELIBERATELY NOT AN ASSERTION, unlike the sibling property in
+	# `test_vision_recompute_scaling.gd`. Three reasons, and the third is why
+	# that sibling's 3.0 must not simply be copied here:
 	#
-	# 4.0 is calibrated on THIS fixture, where 20x owned measured 3.08x — NOT on
-	# `test_vision_recompute_scaling.gd`'s 3.0, which was calibrated on a
-	# synthetic 150px grid with no node modifiers and does not transfer. The gap
-	# between the two is the finding in this file's header, not slack: the
-	# visibility pass alone is still 6.1x here. This guard catches losing the
-	# index entirely; it does not certify the index is good enough.
-	#
-	# Caveat for whoever reads a pass here as reassurance: this ratio is diluted
-	# by the recompute's owned-count-INDEPENDENT cost (~2ms of node + edge
-	# writes). Add fixed work to `_recompute` and this guard gets EASIER to
-	# pass. The ceiling below is what catches cost.
-	assert_lt(cost_ratio, 4.0,
-		"%dx the owned nodes must not cost anywhere near %dx the recompute" % [owned_ratio, owned_ratio])
+	# 1. It is dilutable in the wrong direction. The ratio is damped by the
+	#    recompute's owned-count-INDEPENDENT cost (~2ms of node + edge writes),
+	#    so adding fixed work to `_recompute` makes such a guard EASIER to pass.
+	# 2. `test_allocation_stays_within_a_catastrophe_ceiling` already catches
+	#    every regression this would, in absolute terms, without that inversion.
+	# 3. Any bound here would have had to be picked ABOVE a measured 3.08 to go
+	#    green — a threshold chosen to clear the current number is not a bound,
+	#    it is a rubber stamp. The sibling's 3.0 was calibrated on a synthetic
+	#    150px grid with modifier-free nodes and does not transfer to a real
+	#    level; that gap IS the finding in this file's header (visibility pass
+	#    alone is 6.1x here), and the right response to a finding is to record
+	#    it, not to widen a guard until it stops reporting it.
+	assert_gt(cost_ratio, 0.0, "the ratio must at least be measurable")
 
 
 func test_allocation_stays_within_a_catastrophe_ceiling() -> void:

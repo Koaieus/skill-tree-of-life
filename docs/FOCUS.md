@@ -298,24 +298,34 @@ modifier-carrying nodes through the shared `AllocationPolicy`. Run it with
 `.gutconfig`'s `test/unit/` and named `bench_` so nothing collects it by
 accident.
 
-| owned | `force_allocate` | vision recompute |
+| owned | `force_allocate` med / **max** | vision recompute |
 |---|---|---|
-| 10 | 629 us | 3102 us |
-| 50 | 599 us | 3684 us |
-| 100 | 588 us | 5393 us |
-| 200 | 621 us | **9551 us** |
+| 10 | 619 / **699** us | 3054 us |
+| 50 | 593 / **1136** us | 3655 us |
+| 100 | 574 / **3273** us | 5262 us |
+| 200 | 595 / **5874** us | **9118 us** |
 
-- **`force_allocate` is flat and cheap** (~620us regardless of owned count).
-  Installing a real node's modifiers onto the board is not the problem. The
-  entire ramp is the vision recompute it triggers.
-- **One allocation at 200 owned still costs 1.4 frames** of the 6.9ms 144Hz
-  budget — better than the 2.8x before `VisionCircles`, still over.
+- **The `force_allocate` max is the headline, and a median hides it.** The
+  median is flat (~600us) and says claiming a node is cheap. The max grows
+  **8.4x across the ramp**: at 200 owned a worst-case allocation costs 5.9ms in
+  `force_allocate` alone, before the ~9.1ms recompute — **~2.2 frames for one
+  node claim.** This is the shape this lane already describes as "if the rolled
+  modifier includes PER or `vision_range` it drops harder still". **Attribution
+  is not established**; candidates are the #376 local-scale mutator walking
+  effects on the 0->1 transition, and the `_on_node_allocated` effect dispatch.
+  Instrumenting that split is a good next unit and it is cheap.
+- **A typical allocation at 200 owned still costs 1.4 frames** of the 6.9ms
+  144Hz budget — better than the 2.8x before `VisionCircles`, still over.
 - **The visibility pass still scales: 741us -> 4543us (6.1x) for 20x owned.**
-  `VisionCircles`' grid cell is one max-radius wide, so a cell holds roughly
-  `(radius / spacing)^2` circles — at `first_level`'s 86px padding that is many,
-  and it densifies as territory grows. The synthetic fixture reported 1.75x
-  because it is spaced 150px with no node modifiers. **Follow-up: shrink the
-  cell below max radius (multi-level grid, or bucket by radius).**
+  Confirmed against `vision_circles.gd`, not inferred: `_build_index` sets
+  `_cell_size = max_radius`, `has_point` distance-tests *every* circle in the
+  3x3 neighbourhood with no per-cell pruning, and the bbox early-out only
+  rejects points *outside* the union — a point inside pays the full scan. So a
+  cell holds roughly `(radius / spacing)^2` circles; at `first_level`'s 86px
+  padding that is many, and it densifies as territory grows. The synthetic
+  fixture reported 1.75x because it is spaced 150px with modifier-free nodes.
+  **Follow-up: shrink the cell below max radius (multi-level grid, or bucket by
+  radius).**
 - Sensed walk 143us -> 1542us (10.8x) is the second scaling term. Node writes
   (~750us) + edge writes (~1250us) are a ~2ms floor independent of owned count.
 
