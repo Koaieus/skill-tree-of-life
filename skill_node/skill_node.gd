@@ -341,6 +341,13 @@ var _feedback_tweens: Array[Tween] = []
 var self_loop_count: int:
 	get(): return self_loops.size()
 
+## Assigned once by [method Graph._ensure_topology] the first time this node
+## is indexed — stable across a removal reshuffling the container's child
+## order. 0 means unassigned. Plain var, not @export: it's Graph-assigned
+## runtime identity, not authored content — see .claude/rules/gdscript-pitfalls.md
+## on never writing a derived value back into an @export.
+var stable_id: int = 0
+
 func _ready() -> void:
 	# No authored-radius capture here any more: `radius` is a getter over
 	# `base_radius` + stake growth, so it's correct from construction onward —

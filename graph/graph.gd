@@ -58,6 +58,13 @@ var _edges: Array[Edge] = []
 var _adjacency: Dictionary[SkillNode, Array] = {}
 var _topology_dirty: bool = true
 
+## SkillNode.stable_id -> SkillNode, for O(1) lookup that survives a
+## container-index shift (a removed node reshuffles `_nodes`, but stable_id
+## is assigned once and never reused). Rebuilt alongside the rest of the
+## topology index; see [method get_by_stable_id].
+var _by_stable_id: Dictionary[int, SkillNode] = {}
+var _next_stable_id: int = 1
+
 
 func _ready() -> void:
 	_init_edge_mesh()
@@ -246,6 +253,15 @@ func get_neighbours(node: SkillNode) -> Array[SkillNode]:
 	return adj.duplicate()
 
 
+## O(1) lookup by [member SkillNode.stable_id] — stable across a container
+## index shift (a removal reshuffles `_nodes`, ids are assigned once and
+## never reused). Commands (#stable node identity) reference stable_id,
+## never index or NodePath.
+func get_by_stable_id(id: int) -> SkillNode:
+	_ensure_topology()
+	return _by_stable_id.get(id)
+
+
 func _mark_topology_dirty() -> void:
 	_topology_dirty = true
 
@@ -266,6 +282,18 @@ func _ensure_topology() -> void:
 	for c in skill_nodes_container.get_children():
 		if c is SkillNode:
 			_nodes.append(c)
+
+	# Assign once, never reassign or reclaim — a hand-authored scene's nodes
+	# reach here with stable_id still 0 (never went through add_skill_node),
+	# procgen/runtime nodes already got theirs there. Idempotent, so re-running
+	# in the editor (see the always-rebuild note above) is safe.
+	_by_stable_id = {}
+	for n in _nodes:
+		if n.stable_id == 0:
+			n.stable_id = _next_stable_id
+			_next_stable_id += 1
+		_by_stable_id[n.stable_id] = n
+
 	_edges = []
 	for c in edges_container.get_children():
 		if c is Edge:
