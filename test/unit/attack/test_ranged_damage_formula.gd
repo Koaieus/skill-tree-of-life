@@ -62,3 +62,27 @@ func test_null_firing_node_yields_zero_amount() -> void:
 	var hit := RangedDamageFormula.compute(null, null, target)
 	assert_almost_eq(hit.amount, 0.0, 0.001)
 	assert_null(hit.origin)
+
+
+func test_farther_shot_has_later_arrival_time_than_closer_shot() -> void:
+	var target := _NODE_SCENE.instantiate() as SkillNode
+	autofree(target)
+	target.global_position = Vector2(1000, 0)
+
+	var near_firing := _owned_node()
+	near_firing.global_position = Vector2(500, 0)
+	var far_firing := _owned_node()
+	far_firing.global_position = Vector2(0, 0)
+	await get_tree().process_frame
+
+	var near_hit := RangedDamageFormula.compute(null, near_firing, target)
+	var far_hit := RangedDamageFormula.compute(null, far_firing, target)
+
+	assert_gt(far_hit.arrival_time, near_hit.arrival_time)
+
+
+func test_arrival_time_is_zero_for_null_firing_node() -> void:
+	var target := _NODE_SCENE.instantiate() as SkillNode
+	autofree(target)
+	var hit := RangedDamageFormula.compute(null, null, target)
+	assert_almost_eq(hit.arrival_time, 0.0, 0.001)
