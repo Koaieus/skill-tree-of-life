@@ -163,6 +163,8 @@ func test_ripple_starts_on_the_impact_reveal_and_keeps_its_stagger() -> void:
 	assert_false(t2.presentation_hold, "layer 1 reveals on its own stagger slot")
 	assert_eq(_visuals(t2).allocation_level, 0,
 			"the cascaded node's fill catches up at its slot, not before")
+	assert_ne(_visuals(t2).entity_tint, (ctx.hostile as Entity).color,
+			"and so does its tint — a node must never drop its fill but keep enemy colour")
 	assert_eq(alloc_vfx.get_child_count(), baseline + 2,
 			"slot 1 spawns the islanded node's shatter")
 
