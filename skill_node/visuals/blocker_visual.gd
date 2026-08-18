@@ -4,9 +4,8 @@ extends Node2D
 ## disk. Three crack stages sync to the node's combat-HP fraction (intact >
 ## 66%, cracked ≤ 66%, shattered ≤ 33%) and refresh synchronously on the
 ## node's [signal SkillNode.damaged] — no frame wait. Crack stage does lag one
-## idle frame behind a FRESH allocation (see [method _on_owner_changed_deferred]
-## for why); that only delays picking up new ownership, never a mid-life
-## damage tick.
+## idle frame behind a FRESH allocation (see `_ready`'s docstring for why);
+## that only delays picking up new ownership, never a mid-life damage tick.
 ##
 ## [b]Blocked is a LATCH, not a live predicate.[/b] The first entity to own
 ## this node (a blocker force-allocates its blocked node as its own core at
@@ -21,14 +20,14 @@ extends Node2D
 ## every read instead of remembering the one fact that actually matters (who
 ## owned this first).
 ##
-## Drives [member SkillNode.core_presence_suppressed] instead of reaching into
-## the visual composite's private tree — the boulder fully replaces the
-## CoreHalos gimbal a blocked node's force-allocated core would otherwise
-## wear, and un-suppressing on clear is what lets the node's normal core
-## presence come back once a real entity owns it. That write runs
-## SYNCHRONOUSLY, not deferred like the crack-stage refresh — see
-## [method _on_owner_changed_latch] for why the two halves of "react to
-## owner_changed" need opposite timing.
+## [b]This script does NOT touch core presence.[/b] A blocker's core presence
+## (CoreHalos) stays ACTIVE — it's cheaper to keep it on the cog-machinery
+## style than to suppress-and-restore it, and suppressing it entirely would
+## still pay the composite's own gate cost for nothing. `blocker_node.tscn`
+## pins [member SkillNode.core_halo_style] to COG statically; see that
+## export's docstring for the perf rationale (GIMBAL's per-frame quaternion
+## chain is expensive at a handful of instances, and a level can spawn
+## several blockers). The boulder simply draws over it.
 ##
 ## Fog mirrors every other owner-detail on the node (the disk, the addons):
 ## hidden while [member SkillNode.sensed]. Resynced off the node's
@@ -89,54 +88,33 @@ func _ready() -> void:
 	if _node != null:
 		if not _node.damaged.is_connected(_on_damaged):
 			_node.damaged.connect(_on_damaged)
-		# TWO separate connections on the same signal, deliberately at
-		# different priorities — see each handler's docstring for why one must
-		# run early and the other must run late.
-		if not _node.owner_changed.is_connected(_on_owner_changed_latch):
-			_node.owner_changed.connect(_on_owner_changed_latch)
-		if not _node.owner_changed.is_connected(_on_owner_changed_deferred):
-			_node.owner_changed.connect(_on_owner_changed_deferred, CONNECT_DEFERRED)
+		# CONNECT_DEFERRED, matching health_bar.gd's `_on_owner_changed`:
+		# reading combat HP needs `SkillNode._refresh_hp_binding` to have
+		# already bound this node's `node_board` to the new owner's baseline.
+		# Godot calls a child's `_ready` before its parent's, so this visual's
+		# connect call (here) lands AHEAD of `SkillNode._ready`'s own
+		# `owner_changed.connect(_refresh_hp_binding)` — a plain connection
+		# would run this handler first and read a stale/zero max, misreporting
+		# SHATTERED at full health. Deferring runs it once the same-frame
+		# synchronous listeners (including the hp binding) have all fired.
+		if not _node.owner_changed.is_connected(_on_owner_changed):
+			_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 		if not _node.sensed_changed.is_connected(_on_sensed_changed):
 			_node.sensed_changed.connect(_on_sensed_changed)
-	# Synchronous, matching `_on_owner_changed_latch` below — see its
-	# docstring. A pre-owned scene node (dev_sandbox-style) has `owned_by`
-	# already set as a baked @export by the time ANY `_ready` runs (property
-	# deserialization predates the whole `_ready` pass), so there's no signal
-	# to catch it; every node's own `_ready` re-derives from current state.
-	_on_owner_changed_latch()
-	# Deferred, matching `_on_owner_changed_deferred` below — see its
-	# docstring for why crack stage / visibility can't run inline here.
-	_on_owner_changed_deferred.call_deferred()
+	# Deferred for the same reason as the connect above. Establishes the
+	# initial latch (a freshly-spawned blocker's force_allocate already ran
+	# before this visual entered the tree, so `owned_by` is non-null here) and
+	# syncs crack stage / visibility for the first frame, once SkillNode's own
+	# `_ready` has bound the node_board.
+	_on_owner_changed.call_deferred()
 
 
 func _on_damaged(_amount: float, _source: Variant) -> void:
 	_refresh_stage_and_visibility()
 
 
-## Advances the latch + drives [member SkillNode.core_presence_suppressed].
-## Connected PLAIN (not deferred) and deliberately runs FIRST among
-## `owner_changed`'s listeners: Godot calls a child's `_ready` before its
-## parent's, so this visual's connect call (in `_ready`, above) lands ahead of
-## `SkillNode._ready`'s OWN `owner_changed.connect(_refresh_core_presence)` —
-## and `core_presence_suppressed` has no setter of its own to trigger a
-## re-sync, so it MUST already hold the right value by the time
-## `_refresh_core_presence` reads it, not merely by the time this frame ends.
-func _on_owner_changed_latch() -> void:
+func _on_owner_changed() -> void:
 	_update_latch()
-	if _node != null:
-		_node.core_presence_suppressed = _is_blocked()
-
-
-## Crack stage + visibility. Connected CONNECT_DEFERRED, matching
-## health_bar.gd's `_on_owner_changed`: reading combat HP needs
-## `SkillNode._refresh_hp_binding` to have already bound this node's
-## `node_board` to the new owner's baseline, and that handler is connected
-## AFTER this visual's own child-before-parent connect — so it hasn't run yet
-## at the moment `owner_changed` fires synchronously. Reading HP inline here
-## would see a stale/zero max and misreport SHATTERED at full health.
-## Deferring runs this once the same-frame synchronous listeners (including
-## the hp binding) have all fired.
-func _on_owner_changed_deferred() -> void:
 	_refresh_stage_and_visibility()
 
 
@@ -163,12 +141,10 @@ func _is_blocked() -> bool:
 	return not _cleared and _latched_owner != null
 
 
-## Re-derive crack stage + visibility (NOT suppression — that's
-## [method _on_owner_changed_latch]'s job, and must stay synchronous). Runs
-## off `damaged` (inline) and `owner_changed` (deferred — see
-## [method _on_owner_changed_deferred]), so `crack_stage` is correct the
-## instant a hit lands with no extra frame wait, while still reading a
-## correctly-bound HP pool on a fresh allocation.
+## Re-derive crack stage + visibility. Runs off `damaged` (inline) and
+## `owner_changed` (deferred — see `_ready`'s docstring), so `crack_stage` is
+## correct the instant a hit lands with no extra frame wait, while still
+## reading a correctly-bound HP pool on a fresh allocation.
 func _refresh_stage_and_visibility() -> void:
 	var blocked := _is_blocked()
 	if blocked:

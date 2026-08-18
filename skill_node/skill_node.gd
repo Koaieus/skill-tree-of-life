@@ -150,15 +150,25 @@ var radius: float:
 var inner_radius: float:
 	get: return base_inner_radius + _stake_growth()
 
-## Blocks the CoreHalos gimbal ([NodeVisualsComposite.core_active]) even while
-## this node IS the owner's core — everything else about being a core (the HP
-## bar via [method _refresh_core_health_bar], the entity tint, the sigil) is
-## untouched. A removable blocker (#478) force-allocates its blocked node as
-## its own core, so without this the node would wear the halo gimbal AND the
-## boulder overlay at once; the boulder is meant to fully replace that read.
-## Consulted only in [method _refresh_core_presence] — deliberately narrow, not
-## a general "hide core" switch.
-@export var core_presence_suppressed: bool = false
+## Overrides which [CoreHalos] preset a core node wears — `-1` (Default) means
+## "whatever core_presence.tscn authored" (today: GIMBAL), so leaving this
+## alone changes nothing for any existing node. Forwarded alongside
+## `core_active` / the sigil in [method _refresh_core_presence]; routes down
+## through [method NodeVisualsComposite.set_core_halo_style] rather than
+## reaching past it into CorePresence/CoreHalos by path (those live inside a
+## nested instanced scene, see .claude/rules/scene-composition.md).
+##
+## Exists for removable blockers (#478): GIMBAL is a 28-segment
+## quaternion-chained hoop stack redrawn every `_process` tick — more than a
+## handful on screen tanks fps (see .claude/rules/skill-node-scale.md), and a
+## level can spawn several blockers. `blocker_node.tscn` pins this to COG (a
+## `draw_circle` + 10 `draw_line`s, ~two orders of magnitude cheaper) so a
+## blocked node's core presence stays active — machinery/obstacle is the right
+## read for a blocker anyway — without paying gimbal cost per instance. The
+## `int` + `@export_enum` shape (not a typed enum) matches [CoreHalos] itself,
+## which deliberately carries no `class_name` (see skill-node-visuals.md).
+@export_enum("Default:-1", "None:0", "Rings:1", "Orbit:2", "Gimbal:3", "Cog:4")
+var core_halo_style: int = -1
 
 @export var self_loops: Array[Edge] = []
 
@@ -423,11 +433,12 @@ func _refresh_core_presence() -> void:
 	# gimbal (fps sink). `sensed` hiding the whole ShaderStack (CorePresence's
 	# parent) is what keeps a fogged core hidden — no separate check needed here.
 	if _node_visuals != null:
-		_node_visuals.core_active = is_core and not core_presence_suppressed
+		_node_visuals.core_active = is_core
 		var sigil: Sigil = null
 		if is_core and owned_by.core_class != null:
 			sigil = owned_by.core_class.sigil
 		_node_visuals.set_core_sigil(sigil)
+		_node_visuals.set_core_halo_style(core_halo_style)
 	_refresh_core_health_bar(is_core)
 
 

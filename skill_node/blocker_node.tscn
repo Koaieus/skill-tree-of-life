@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://ddq0dv0lsbjje" path="res://skill_node/visuals/blocker_visual.gd" id="2_blocker"]
 
 [node name="BlockerNode" instance=ExtResource("1_base")]
-core_presence_suppressed = true
+core_halo_style = 4
 
 [node name="BlockerVisual" type="Node2D" parent="Visuals" index="1"]
 script = ExtResource("2_blocker")

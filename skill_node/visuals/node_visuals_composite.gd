@@ -214,8 +214,20 @@ func _ready() -> void:
 ## Gate the core-only presence visuals ([CorePresence]: halos + bloom) on
 ## `core_active`. Nested inside ShaderStack, so `sensed` (which hides the whole
 ## stack) still wins — a fogged core shows no halo/bloom.
+##
+## ALSO gates processing, not just drawing — a hidden [Node2D] still runs
+## `_process` every frame in Godot; only `_draw` is skipped by `visible`. Every
+## non-core node (the overwhelming majority at 500-2500/level) would otherwise
+## pay for a live-but-invisible [CoreHalos] clock for nothing. `PROCESS_MODE_DISABLED`
+## freezes the whole [CorePresence] subtree (including [CoreHalos]'s `_process`
+## and its GimbalBack force-redraw, see skill-node-visuals.md); `INHERIT`
+## un-freezes it on reactivation. `glide_from`'s travel tweens (core_presence.gd)
+## are unaffected either way — a `Tween` isn't a child of this subtree and isn't
+## gated by its `process_mode`.
 func _apply_core_active() -> void:
 	_core_presence.visible = core_active
+	_core_presence.process_mode = (
+			Node.PROCESS_MODE_INHERIT if core_active else Node.PROCESS_MODE_DISABLED)
 
 
 ## Swaps between the full shader stack and the archetype-only outline. Resolves
@@ -275,6 +287,19 @@ func _apply_carve_shape() -> void:
 ## `core_active`.
 func set_core_sigil(sigil: Sigil) -> void:
 	_core_sigil_bloom.sigil = sigil
+
+
+## Forwards a [member SkillNode.core_halo_style] override to [CorePresence],
+## which owns the explicit CoreHalos-child write (see core_presence.gd —
+## `-1` is a no-op, leaving the scene-authored style alone). Routes through
+## CorePresence rather than reaching past it at `_core_halos` directly: this
+## composite already resolves `_core_halos` by direct child path because
+## CorePresence is its own reusable nested scene (see the `_core_halos`
+## `@onready` comment above), and an explicit forwarding method keeps that
+## nesting an implementation detail CorePresence owns, the same shape as
+## `set_core_sigil` for `_core_sigil_bloom`.
+func set_core_halo_style(style: int) -> void:
+	_core_presence.set_halo_style(style)
 
 
 ## Retargets the old CoreMarker glide-in tween onto [CorePresence]: slides the

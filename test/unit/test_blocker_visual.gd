@@ -3,10 +3,11 @@ extends GutTest
 ## Acceptance for #478 — the removable-blocker boulder overlay ([BlockerVisual],
 ## `skill_node/visuals/blocker_visual.gd`) and its home scene
 ## (`skill_node/blocker_node.tscn`). Covers: the scene is a real [SkillNode];
-## crack stage tracks HP synchronously off `damaged`; the core HP bar keeps its
-## ordinary visibility rule untouched by the boulder; clearing (owner stripped)
-## hides the boulder and un-suppresses core presence PERMANENTLY — a later
-## re-allocation by a normal entity must never re-show it; and procgen
+## a blocked node's live CoreHalos ends up at COG (the cheap preset, #478 perf
+## amendment) rather than GIMBAL; crack stage tracks HP synchronously off
+## `damaged`; the core HP bar keeps its ordinary visibility rule untouched by
+## the boulder; clearing (owner stripped) hides the boulder PERMANENTLY — a
+## later re-allocation by a normal entity must never re-show it; and procgen
 ## instantiates the blocker scene for exactly the nodes it places blockers on.
 
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
@@ -116,21 +117,53 @@ func test_core_health_bar_visibility_untouched_by_boulder() -> void:
 		"core HP bar keeps its ordinary revealed-and-is-core rule for a blocked node")
 
 
+# ── Core presence: COG, not suppressed (#478 perf amendment) ─────────────
+
+## GIMBAL is expensive per-instance (28-segment quaternion chain, redrawn every
+## `_process` tick — see .claude/rules/skill-node-visuals.md) and a level can
+## spawn several blockers, so a blocked node keeps its core presence ACTIVE
+## (unlike a suppress-and-restore design) but wears the cheap COG preset
+## instead. `blocker_node.tscn` pins this statically via
+## [member SkillNode.core_halo_style]; a normal entity's core (a PLAIN
+## skill_node.tscn — both `_nodes` fixture entries are themselves
+## blocker_node.tscn instances, so this needs its own node) is untouched.
+func test_blocked_node_core_halo_is_cog_not_gimbal() -> void:
+	var sn := _nodes[0]
+	await _spawn_blocker()
+	await get_tree().process_frame
+	var CoreHalosScript := preload("res://skill_node/visuals/core_halos.gd")
+	var halos = sn.get_node("Visuals/NodeVisualsComposite/ShaderStack/CorePresence/CoreHalos")
+	assert_eq(
+		halos.halo_style, CoreHalosScript.CoreHaloStyle.COG,
+		"a blocked node's core wears the cheap COG halo")
+	assert_true(sn._node_visuals.core_active, "core presence stays ACTIVE, not suppressed")
+
+	var plain := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	plain.name = "PlainCore"
+	_graph.skill_nodes_container.add_child(plain)
+	var player := await _spawn_normal_entity()
+	_alloc.force_allocate(player, plain)
+	player.core_location = plain
+	await get_tree().process_frame
+	var other_halos = plain.get_node(
+		"Visuals/NodeVisualsComposite/ShaderStack/CorePresence/CoreHalos")
+	assert_eq(
+		other_halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
+		"a normal entity's core keeps the authored GIMBAL — core_halo_style default is a no-op")
+
+
 # ── Clearing is a permanent latch ─────────────────────────────────────────
 
-func test_clearing_hides_boulder_and_restores_core_presence_permanently() -> void:
+func test_clearing_hides_boulder_permanently() -> void:
 	var sn := _nodes[0]
 	var visual := _visual(sn)
 	await _spawn_blocker()
 	await get_tree().process_frame
 	assert_true(visual.visible, "boulder shows while blocked")
-	assert_false(sn._node_visuals.core_active, "CoreHalos suppressed while blocked")
 
 	_alloc.force_deallocate(sn)
 	await get_tree().process_frame  # BlockerVisual's owner_changed handler is deferred
 	assert_false(visual.visible, "boulder hides once the blocker is stripped")
-	assert_false(
-		sn.core_presence_suppressed, "suppression lifts on clear, restoring core presence")
 
 	# A normal entity re-allocating the cleared node must never re-show the
 	# boulder — the latch is permanent, not re-derived from current ownership.

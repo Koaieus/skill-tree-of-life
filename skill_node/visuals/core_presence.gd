@@ -32,6 +32,29 @@ extends Node2D
 ## stay at relative z_index 0 so CoreHalos' own GimbalBack relative-z offset
 ## (see skill-node-visuals.md) is unaffected by this extra nesting level.
 
+## Overrides [member CoreHalos.halo_style] on the [CoreHalos] child. `style ==
+## -1` is a deliberate no-op — it leaves whatever `core_presence.tscn`
+## authored (today: GIMBAL) untouched, rather than writing anything — see
+## [member SkillNode.core_halo_style]'s docstring for the sentinel and the
+## perf motivation (a removable blocker, #478, keeps its core presence active
+## but forces the cheap COG preset instead of GIMBAL).
+##
+## EXPLICIT — a named child lookup, not duck-typed like [method glide_from]'s
+## `on_core_travel_start`/`on_core_travel_arrived` hooks above. Those hooks
+## exist so an arbitrary FUTURE core-presence register (a third child besides
+## CoreHalos/CoreSigilBloom) opts in for free without this script changing.
+## `halo_style` is not a generic per-child capability in that sense — it's a
+## property that belongs to CoreHalos specifically, so pretending every child
+## might have one via `has_method`/duck typing would just hide a real
+## dependency behind a weaker contract for no benefit.
+func set_halo_style(style: int) -> void:
+	if style < 0:
+		return
+	var halos := get_node_or_null(^"CoreHalos")
+	if halos != null:
+		halos.halo_style = style
+
+
 ## Slides children in from `local_offset` (this node's position the instant
 ## before a core move commits, expressed relative to this node — the caller
 ## already computed the world delta) — see the hook contract above. No-op

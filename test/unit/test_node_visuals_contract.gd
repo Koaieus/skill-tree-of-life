@@ -244,3 +244,57 @@ func test_unsensing_restores_shader_stack_and_hides_outline() -> void:
 	assert_true(disk.is_visible_in_tree(), "un-sensed: InnerDisk visible again")
 	assert_not_null(disk.material, "and re-binds the shared material")
 	assert_false(comp.get_node("%SensedOutline").visible, "outline hidden when not sensed")
+
+
+## #478 perf amendment: a hidden Node2D still runs `_process` every frame in
+## Godot — `visible = false` alone only skips `_draw`. CoreHalos' GIMBAL preset
+## is a 28-segment quaternion-chained hoop stack redrawn every tick (see
+## .claude/rules/skill-node-visuals.md), so a non-core node (the overwhelming
+## majority of 500-2500/level) must not merely hide CorePresence, it must stop
+## it PROCESSING — `_apply_core_active` now also drives `process_mode`.
+func test_inactive_core_presence_is_hidden_and_off_the_process_list() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	var presence = comp.get_node("%CorePresence")
+
+	comp.core_active = true
+	await get_tree().process_frame
+	assert_true(presence.visible, "active core: CorePresence shown")
+	assert_eq(
+		presence.process_mode, Node.PROCESS_MODE_INHERIT,
+		"active core: CorePresence processes normally")
+	var halos = presence.get_node("CoreHalos")
+	assert_true(halos.is_processing(), "active core: CoreHalos (GIMBAL by default) is ticking")
+
+	comp.core_active = false
+	await get_tree().process_frame
+	assert_false(presence.visible, "inactive core: CorePresence hidden")
+	assert_eq(
+		presence.process_mode, Node.PROCESS_MODE_DISABLED,
+		"inactive core: CorePresence's whole subtree stops processing")
+
+
+## #478: overriding [member SkillNode.core_halo_style] on a live node routes
+## through the composite → CorePresence → CoreHalos chain (never a hardcoded
+## grandchild path reaching past CorePresence — that scene is nested and
+## reusable, see core_presence.gd). `-1` (Default) is a deliberate no-op, so a
+## normal core's authored GIMBAL is untouched by a node that never sets this.
+func test_core_halo_style_override_routes_through_the_chain() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	var halos = comp.get_node("%CorePresence").get_node("CoreHalos")
+	var CoreHalosScript := preload("res://skill_node/visuals/core_halos.gd")
+
+	assert_eq(
+		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
+		"authored default (a normal core) is GIMBAL")
+
+	comp.set_core_halo_style(-1)
+	assert_eq(
+		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
+		"-1 (Default) is a no-op — leaves the authored style alone")
+
+	comp.set_core_halo_style(CoreHalosScript.CoreHaloStyle.COG)
+	assert_eq(
+		halos.halo_style, CoreHalosScript.CoreHaloStyle.COG,
+		"a blocked node's cheap-halo override lands on the live CoreHalos child")
