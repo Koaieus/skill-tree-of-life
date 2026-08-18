@@ -129,3 +129,47 @@ func test_model_damage_alone_floats_nothing() -> void:
 	Events.skill_node_damaged.emit(node, 7.0, null)
 	assert_eq(_toaster_children().size(), 0,
 			"model mutation alone must not float a number")
+
+
+func test_heal_shown_floats() -> void:
+	# #481/#482: the attack-heal number rides Events.heal_shown, the same arrival
+	# reveal as damage — it must appear when the heal's VFX lands, not when
+	# BattleSystem applied it.
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(node)
+	await get_tree().process_frame
+	Events.heal_shown.emit(node, 7.0)
+	var toasters := _toaster_children()
+	assert_eq(toasters.size(), 1, "a heal reveal becomes one toaster")
+	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
+	var toast := vbox.get_child(0) as FloaterToast
+	assert_eq(toast.label.text, "+7", "rounded heal amount with + prefix")
+
+
+func test_attack_heal_model_signal_floats_nothing() -> void:
+	# #481/#482: an attack heal (source is HealingInstance) is shown by heal_shown on
+	# the arrival clock. skill_node_healed at model-mutation time must NOT float
+	# it over a node the projectile hasn't reached.
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(node)
+	await get_tree().process_frame
+	var heal := HealingInstance.new()
+	heal.amount = 7.0
+	heal.target = node
+	Events.skill_node_healed.emit(node, 7.0, heal)
+	assert_eq(_toaster_children().size(), 0,
+			"an attack heal's model mutation alone must not float a number")
+
+
+func test_non_attack_heal_still_floats_immediately() -> void:
+	# #481/#482: non-attack heals (turn regen, heal aura) have no arrival schedule —
+	# their +N keeps floating at model time, as before.
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(node)
+	await get_tree().process_frame
+	Events.skill_node_healed.emit(node, 7.0, null)
+	var toasters := _toaster_children()
+	assert_eq(toasters.size(), 1, "a regen/aura heal floats immediately")
+	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
+	var toast := vbox.get_child(0) as FloaterToast
+	assert_eq(toast.label.text, "+7", "same +N display")

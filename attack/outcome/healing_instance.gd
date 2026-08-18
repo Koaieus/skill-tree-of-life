@@ -10,6 +10,10 @@ extends RefCounted
 #		can be typed to hold either, and any future subclass would fold in easily
 
 var amount: float = 0.0
+## The HP delta actually restored — stamped by [method SkillNode.heal_damage]
+## (clamped at max) so a LATER presentation reveal (`heal_shown`, #481/#482) can
+## show what the HP bar actually did instead of the raw pre-clamp amount.
+var effective_amount: float = 0.0
 ## Who/what produced this hit — [AttackPlan], [SpellDef], or any RefCounted.
 ## Routed back through the [signal Events.skill_node_damaged] payload so UI
 ## can attribute the number / decide on flash color.

@@ -163,3 +163,58 @@ func test_flush_emits_the_presentation_events_it_owes() -> void:
 	assert_signal_emitted(Events, "node_death_shown",
 			"a hit that killed the node owes a death reveal too")
 	assert_eq(get_signal_parameters(Events, "node_death_shown"), [target])
+
+
+func test_heal_target_is_held_until_heal_shown() -> void:
+	# #481/#482: a heal target's paint is withheld the same way a hit's is — the
+	# model heals synchronously inside _apply_outcome, but the HP-bar rise and
+	# the heal number wait for the VFX, released by Events.heal_shown.
+	var ctx: Dictionary = await _build(true)
+	var target: SkillNode = ctx.target
+	var bs: BattleSystem = ctx.bs
+
+	# Damage the target so the heal actually restores HP (and clamps against max).
+	target.take_damage(5.0, null)
+	assert_true(target.get_current_hp() < target.get_max_hp(),
+			"fixture: target must be below full HP for a real heal")
+
+	var heal := HealingInstance.new()
+	heal.target = target
+	heal.amount = 999.0
+	var outcome := AttackOutcome.new()
+	outcome.heals.append(heal)
+
+	bs._apply_outcome(outcome)
+
+	assert_true(target.presentation_hold,
+			"the heal target's paint must be withheld until the reveal")
+	assert_true(heal.effective_amount > 0.0 and heal.effective_amount <= 5.0,
+			"heal_damage stamps the post-clamp effective amount (#481/#482)")
+
+	Events.heal_shown.emit(target, heal.effective_amount)
+
+	assert_false(target.presentation_hold, "the heal reveal releases the hold")
+
+
+func test_flush_emits_heal_shown_for_heal_targets() -> void:
+	# #481/#482: with no coordinator the flush stands in for the heal reveal too, so
+	# the latch can never outlive the attack that set it.
+	var ctx: Dictionary = await _build(false)
+	var target: SkillNode = ctx.target
+	var bs: BattleSystem = ctx.bs
+
+	target.take_damage(5.0, null)
+	var heal := HealingInstance.new()
+	heal.target = target
+	heal.amount = 999.0
+	var outcome := AttackOutcome.new()
+	outcome.heals.append(heal)
+	watch_signals(Events)
+
+	bs._apply_outcome(outcome)
+	bs._flush_presentation(outcome)
+
+	assert_signal_emitted(Events, "heal_shown",
+			"the flush stands in for the coordinator that never ran")
+	assert_false(target.presentation_hold,
+			"a heal node must never keep its latch past the attack that set it")

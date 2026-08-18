@@ -129,6 +129,7 @@ func _ready() -> void:
 	# subscription would sweep every SkillNode on every emit (skill-node-scale).
 	Events.damage_shown.connect(_on_damage_shown)
 	Events.node_death_shown.connect(_on_node_death_shown)
+	Events.heal_shown.connect(_on_heal_shown)
 
 
 ## A hit has visually landed: let its target's withheld paint through. Held in
@@ -141,6 +142,14 @@ func _on_damage_shown(target: SkillNode, _amount: float) -> void:
 func _on_node_death_shown(node: SkillNode) -> void:
 	if node != null:
 		node.release_presentation()
+
+
+## A heal has visually landed: let its target's withheld paint through. Mirrors
+## [method _on_damage_shown] — the same single presentation latch is released by
+## whichever of the two reveals fires first (#481/#482).
+func _on_heal_shown(target: SkillNode, _amount: float) -> void:
+	if target != null:
+		target.release_presentation()
 
 
 ## Commit the active plan. Three phases:
@@ -232,16 +241,17 @@ func launch_attack() -> void:
 	_reset()
 
 
-## Make the presentation events TOTAL for this attack's direct hits (#482).
+## Make the presentation events TOTAL for this attack's direct hits and heals
+## (#482 / #481/#482).
 ##
-## The three VFX coordinators are the normal emitters, but they only run when
-## one is mounted and unmuted — headless tests, a null `attack_vfx`, a melee
-## plan with no preview, or a spell with no coordinator scene all skip them.
-## Any target still holding its paint by the time the awaits are done therefore
-## never got its reveal, so we emit it here: same signal, same subscribers
-## (SkillNode paint, AuraOverlay, AllocationVFX cascade), just at the end of the
-## attack instead of mid-flight. Without this the latch would fail *open* and
-## leave a hit node showing its pre-hit tint forever.
+## The VFX coordinators are the normal emitters, but they only run when one is
+## mounted and unmuted — headless tests, a null `attack_vfx`, a melee plan with
+## no preview, or a spell with no coordinator scene all skip them. Any target
+## still holding its paint by the time the awaits are done therefore never got
+## its reveal, so we emit it here: same signal, same subscribers (SkillNode
+## paint, AuraOverlay, AllocationVFX cascade), just at the end of the attack
+## instead of mid-flight. Without this the latch would fail *open* and leave a
+## hit node showing its pre-hit tint forever.
 ##
 ## Deduped per target — a multi-hit spell can list the same node twice, and the
 ## first emit already released it.
@@ -256,6 +266,12 @@ func _flush_presentation(outcome: AttackOutcome) -> void:
 		# Defensive: a subscriber could in principle swallow both emits without
 		# releasing. The latch must never outlive the attack that set it.
 		target.release_presentation()
+	for heal in outcome.heals:
+		var heal_target: SkillNode = heal.target
+		if heal_target == null or not heal_target.presentation_hold:
+			continue
+		Events.heal_shown.emit(heal_target, heal.effective_amount)
+		heal_target.release_presentation()
 
 
 ## The one place world mutation happens for an attack: hits, then heals —
@@ -273,6 +289,13 @@ func _apply_outcome(outcome: AttackOutcome) -> void:
 	for hit in outcome.hits:
 		if hit.target != null:
 			hit.target.take_damage(hit.amount, hit)
+	# #481/#482: hold each heal target too, so the HP-bar rise and the heal number
+	# wait for the VFX to land (released by `_on_heal_shown` / the heal pass in
+	# `_flush_presentation`). `hold_presentation` is idempotent, so a node that
+	# is both hit and healed keeps the single latch.
+	for heal in outcome.heals:
+		if heal.target != null:
+			heal.target.hold_presentation()
 	for heal in outcome.heals:
 		if heal.target != null:
 			heal.target.heal_damage(heal.amount, heal)

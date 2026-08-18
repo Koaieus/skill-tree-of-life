@@ -167,17 +167,22 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 ## propagation clock already IS the arrival schedule (impact is pinned to
 ## the beat per the three-clocks model above), so no extra timer is needed
 ## here unlike ranged's per-shot [member DamageInstance.arrival_time]. Pure
-## observer: [member PropagationEvent.damage] already landed synchronously
-## in BattleSystem._apply_outcome (#474); this only tells presentation-only
-## subscribers (HP bar, node tint, death VFX) the hit visually arrived.
+## observer: [member PropagationEvent.damage] / [member PropagationEvent.heal]
+## already landed synchronously in BattleSystem._apply_outcome (#474); this
+## only tells presentation-only subscribers (HP bar, node tint, death VFX,
+## heal number) that the event visually arrived. Heals reveal on the same
+## beat clock as damage (#481/#482).
 func _show_presentation(wave: Array) -> void:
 	for ev_v in wave:
 		var ev := ev_v as PropagationEvent
-		if ev == null or ev.damage == null or ev.target == null:
+		if ev == null or ev.target == null:
 			continue
-		Events.damage_shown.emit(ev.target, ev.damage.effective_amount)
-		if not ev.target.is_allocated():
-			Events.node_death_shown.emit(ev.target)
+		if ev.damage != null:
+			Events.damage_shown.emit(ev.target, ev.damage.effective_amount)
+			if not ev.target.is_allocated():
+				Events.node_death_shown.emit(ev.target)
+		if ev.heal != null:
+			Events.heal_shown.emit(ev.target, ev.heal.effective_amount)
 
 
 func _group_by_beat(timeline: Array[PropagationEvent]) -> Dictionary:

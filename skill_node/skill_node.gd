@@ -1222,6 +1222,11 @@ func heal_damage(amount: float, source: Variant) -> void:
 	var prev := hp.current
 	hp.set_current(min(hp.current + amount, hp.value))
 	var effective := hp.current - prev
+	# Stash the post-clamp number back onto the instance so a LATER
+	# presentation reveal (heal_shown, #481/#482) can show what actually landed
+	# instead of the raw pre-clamp amount.
+	if source is HealingInstance:
+		(source as HealingInstance).effective_amount = effective
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)

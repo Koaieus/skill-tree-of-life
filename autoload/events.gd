@@ -26,6 +26,15 @@ signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 ## HP bar actually did.
 signal damage_shown(target: SkillNode, amount: float)
 signal node_death_shown(node: SkillNode)
+## The heal mirror of [signal damage_shown] (#481/#482). Fires LATER, on the same
+## precomputed VFX-arrival schedule as the damage reveal, so a heal number
+## (and the node HP bar's rise, held by the same presentation latch) appears
+## when the heal actually lands — a magic bounce heals at its beat, not at
+## model-mutation time. Emitted by the VFX coordinators as pure observers and
+## backstopped by [BattleSystem._flush_presentation]. `amount` is
+## [member HealingInstance.effective_amount] — the post-clamp HP delta
+## heal_damage actually applied.
+signal heal_shown(target: SkillNode, amount: float)
 
 ## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).

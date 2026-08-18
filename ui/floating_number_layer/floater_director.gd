@@ -49,6 +49,7 @@ func _ready() -> void:
 	# `damage_shown` is guaranteed to fire exactly once per applied hit
 	# (BattleSystem._flush_presentation covers the no-coordinator paths).
 	Events.damage_shown.connect(_on_damage_shown)
+	Events.heal_shown.connect(_on_heal_shown)
 	Events.skill_node_healed.connect(_on_skill_node_healed)
 	Events.entity_wounded.connect(_on_entity_wounded)
 	Events.entity_healed.connect(_on_entity_healed)
@@ -64,7 +65,21 @@ func _on_damage_shown(node: SkillNode, amount: float) -> void:
 	_emit(node, "%d" % int(round(amount)), FloaterStyles.damage())
 
 
-func _on_skill_node_healed(node: SkillNode, amount: float, _source: Variant) -> void:
+## #481/#482 — the heal mirror of the damage reveal: an attack heal number appears
+## when the heal's VFX lands (the beat), not when BattleSystem applied it. Same
+## display as `_on_skill_node_healed`, but keyed off the arrival reveal.
+func _on_heal_shown(node: SkillNode, amount: float) -> void:
+	if node == null or amount <= 0.0 or not _node_visible(node):
+		return
+	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())
+
+
+func _on_skill_node_healed(node: SkillNode, amount: float, source: Variant) -> void:
+	# #481/#482: an attack heal carries a HealingInstance source — it rides
+	# `heal_shown` on the VFX arrival clock instead. Non-attack heals (turn
+	# regen, heal aura) have no arrival schedule and keep floating immediately.
+	if source is HealingInstance:
+		return
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())
