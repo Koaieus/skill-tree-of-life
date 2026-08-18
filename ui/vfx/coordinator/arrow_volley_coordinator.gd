@@ -56,8 +56,28 @@ func play(payload: Variant) -> void:
 			var v: Node = proj.get_child(0)
 			if "tint" in v:
 				v.set("tint", tint)
+		pending[0] += 1
+		_show_presentation(hit, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
+
+
+## Fires the presentation-clock reveal (#479/#481) on [member
+## DamageInstance.arrival_time] — the shot's real distance/speed timing
+## (#480), independent of this coordinator's own [member flight_time] /
+## [member stagger_per_shot] visual tuning. Pure observer: damage already
+## landed synchronously in BattleSystem._apply_outcome (#474) before [method
+## play] ever ran; this only tells presentation-only subscribers (HP bar,
+## node tint, death VFX) when the shot visually arrived. Included in
+## `pending` so [method play] doesn't return (and get torn down by
+## [AttackVFX]) before this fires.
+func _show_presentation(hit: DamageInstance, pending: Array[int]) -> void:
+	if hit.arrival_time > 0.0:
+		await get_tree().create_timer(hit.arrival_time).timeout
+	Events.damage_shown.emit(hit.target, hit.amount)
+	if not hit.target.is_allocated():
+		Events.node_death_shown.emit(hit.target)
+	pending[0] -= 1
 
 
 # Resolve attacker tint: the RangedAttackPlan is the hit source and

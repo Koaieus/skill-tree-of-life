@@ -141,6 +141,7 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 				_play_event(ev_v, pending)
 
 		wave_started.emit(beat, wave.size())
+		_show_presentation(wave)
 
 		if i < beats.size() - 1:
 			var next_wave: Array = waves[int(beats[i + 1])]
@@ -152,6 +153,23 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 			var remaining: float = maxf(0.0, interval - early)
 			if remaining > 0.0:
 				await get_tree().create_timer(remaining).timeout
+
+
+## Presentation-clock reveal (#479/#481), fired AT the beat — magic's fixed
+## propagation clock already IS the arrival schedule (impact is pinned to
+## the beat per the three-clocks model above), so no extra timer is needed
+## here unlike ranged's per-shot [member DamageInstance.arrival_time]. Pure
+## observer: [member PropagationEvent.damage] already landed synchronously
+## in BattleSystem._apply_outcome (#474); this only tells presentation-only
+## subscribers (HP bar, node tint, death VFX) the hit visually arrived.
+func _show_presentation(wave: Array) -> void:
+	for ev_v in wave:
+		var ev := ev_v as PropagationEvent
+		if ev == null or ev.damage == null or ev.target == null:
+			continue
+		Events.damage_shown.emit(ev.target, ev.damage.amount)
+		if not ev.target.is_allocated():
+			Events.node_death_shown.emit(ev.target)
 
 
 func _group_by_beat(timeline: Array[PropagationEvent]) -> Dictionary:

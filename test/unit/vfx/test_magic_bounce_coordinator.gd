@@ -162,6 +162,44 @@ func test_events_in_wave_grouped_by_beat() -> void:
 	assert_eq(events[2], [2, 1])
 
 
+func test_damage_shown_fires_per_beat_not_synchronously_with_play() -> void:
+	# #481: Events.damage_shown must fire on the propagation clock (at each
+	# beat's wave_started), not the instant play() is called — mirrors
+	# test_wave_started_fires_once_per_hop_in_order's shape.
+	var nodes := _graph.get_skill_nodes()
+	var beats := [0, 1, 1, 2]
+	var outcome := AttackOutcome.new()
+	for i in beats.size():
+		var ev := PropagationEvent.new()
+		ev.beat = int(beats[i])
+		ev.origin = nodes[0]
+		ev.target = nodes[1]
+		var hit := DamageInstance.new()
+		hit.origin = nodes[0]
+		hit.target = nodes[1]
+		hit.amount = 3.0
+		ev.damage = hit
+		outcome.hits.append(hit)
+		outcome.timeline.append(ev)
+	var coord := _mount_coord(0.04, 0.03)
+	var shown: Array = []
+	var handler := func(target: SkillNode, amount: float) -> void:
+		shown.append([target, amount])
+	Events.damage_shown.connect(handler)
+	coord.play(outcome)
+	# Beat 0 fires synchronously with play() (same as wave_started) — the
+	# reveal rides the propagation clock, not a deferred callback. What
+	# matters is beats 1 and 2 (2 more events) only show up once their
+	# later beats actually fire, not all at once here.
+	assert_eq(shown.size(), 1, "beat 0's single event reveals synchronously with its wave")
+	await get_tree().create_timer(0.04 * 4).timeout
+	Events.damage_shown.disconnect(handler)
+	assert_eq(shown.size(), 4, "one reveal per timeline event across 3 beats")
+	for entry in shown:
+		assert_eq(entry[0], nodes[1])
+		assert_eq(entry[1], 3.0)
+
+
 func test_coordinator_never_mutates_hp() -> void:
 	# #474: the coordinator is a PURE OBSERVER — BattleSystem applies the
 	# whole AttackOutcome synchronously before play() ever runs, so a

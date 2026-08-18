@@ -115,22 +115,35 @@ func _run_preview_loop(gen: int) -> void:
 
 
 ## Pure observer: damage was already applied synchronously by
-## BattleSystem off the same events this swing is replaying (#474). The
-## only remaining job here is the spike-pop VFX cue, gated the same way
-## [method MeleeAttackPlan.resolve] gated it when building the outcome.
+## BattleSystem off the same events this swing is replaying (#474). This
+## replay's own timeline (per-event [param t], already driving [method
+## SkillBlade.play]'s animation) doubles as the presentation clock (#479/#481):
+## [signal Events.damage_shown] / [signal Events.node_death_shown] fire here,
+## at the same [param t] the live swing visually lands the hit — never
+## gating the swing, never touching model state.
 func _on_live_hit(
 		hitter_idx: int,
-		_is_edge: bool,
+		is_edge: bool,
 		target: SkillNode,
 		t: float,
-		_damage: float) -> void:
+		damage: float) -> void:
 	if target == null:
 		return
+	# A popped hitter vertex never produced a DamageInstance in resolve()
+	# (same gate: `pops.is_dead(ev.particle_idx, ev.t)`) — no presentation
+	# reveal for a hit that was never landed, only the pop cue.
 	if _dead_at.has(hitter_idx) and t >= _dead_at[hitter_idx]:
 		var pop = _pending_pops.get(hitter_idx)
 		if pop != null:
 			_pending_pops.erase(hitter_idx)
 			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
+		return
+	# D-1 MVP: edges are inert (resolve() skips them too) — no reveal.
+	if is_edge:
+		return
+	Events.damage_shown.emit(target, damage)
+	if not target.is_allocated():
+		Events.node_death_shown.emit(target)
 
 
 func _teardown() -> void:

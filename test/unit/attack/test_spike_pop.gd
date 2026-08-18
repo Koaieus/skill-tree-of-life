@@ -220,3 +220,57 @@ func test_live_alive_vertex_never_mutates_hp() -> void:
 	assert_almost_eq(plain_node.get_current_hp(), before, 0.001,
 			"a live (unpopped) vertex is pure animation — damage already landed")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 0)
+
+
+# ── Presentation clock (#479/#481): damage_shown / node_death_shown ───────────
+
+func test_live_hit_emits_damage_shown_at_its_own_t() -> void:
+	# #481: the replay's own per-event `t` (already driving SkillBlade.play's
+	# animation) doubles as the presentation clock — no separate schedule.
+	var ctx: Dictionary = await _setup()
+	var plain_node: SkillNode = ctx.plain_node
+	var preview := _make_preview()
+	preview._attacker = ctx.attacker
+	preview._dead_at = {}
+	preview._pending_pops = {}
+
+	watch_signals(Events)
+	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
+	assert_signal_emit_count(Events, "damage_shown", 1)
+	assert_eq(get_signal_parameters(Events, "damage_shown"), [plain_node, 5.0])
+	assert_signal_emit_count(Events, "node_death_shown", 0)
+
+
+func test_live_hit_on_depleted_target_emits_node_death_shown() -> void:
+	# Model mutation (force_deallocate) already happened synchronously in
+	# BattleSystem before this replay ever runs (#474) — _on_live_hit only
+	# reads the already-mutated state to decide whether to reveal a death.
+	var ctx: Dictionary = await _setup()
+	var plain_node: SkillNode = ctx.plain_node
+	plain_node.owned_by = null
+	var preview := _make_preview()
+	preview._attacker = ctx.attacker
+	preview._dead_at = {}
+	preview._pending_pops = {}
+
+	watch_signals(Events)
+	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
+	assert_signal_emit_count(Events, "node_death_shown", 1)
+	assert_eq(get_signal_parameters(Events, "node_death_shown"), [plain_node])
+
+
+func test_popped_hitter_emits_no_damage_shown() -> void:
+	# A popped hitter never produced a DamageInstance in resolve() (same
+	# gate this test file already exercises for the pop signal itself) —
+	# no presentation reveal for a hit that was never landed.
+	var ctx: Dictionary = await _setup()
+	var spike_node: SkillNode = ctx.spike_node
+	var preview := _make_preview()
+	preview._attacker = ctx.attacker
+	preview._dead_at = {1: 0.3}
+	preview._pending_pops = {
+		1: BladePopResolver.Pop.new(1, 0.3, spike_node, spike_node.get_spike_power())}
+
+	watch_signals(Events)
+	preview._on_live_hit(1, false, spike_node, 0.3, 999.0)
+	assert_signal_emit_count(Events, "damage_shown", 0)

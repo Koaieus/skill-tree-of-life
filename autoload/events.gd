@@ -12,6 +12,18 @@ signal skill_node_damaged(node: SkillNode, amount: float, source: Variant)
 ## can show heal numbers. amount is the effective HP delta (always > 0).
 signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 
+## Presentation-clock reveal signals (#479/#481). Model mutation (HP, ownership)
+## already happened synchronously in BattleSystem._apply_outcome, ahead of any
+## VFX await (#474) — these fire LATER, on each hit's precomputed VFX-arrival
+## schedule (melee: BladeHitEvent.t, ranged: DamageInstance.arrival_time, magic:
+## the propagation clock), so purely-visual subscribers (HP bar, node tint,
+## death VFX) can key their reveal off "the attack visibly landed" instead of
+## "the model changed". Emitted by the VFX coordinators as pure observers —
+## never mutates state, never gates the next hop (see the spell VFX clock
+## contract rule).
+signal damage_shown(target: SkillNode, amount: float)
+signal node_death_shown(node: SkillNode)
+
 ## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
 signal skill_node_depleted(node: SkillNode)
