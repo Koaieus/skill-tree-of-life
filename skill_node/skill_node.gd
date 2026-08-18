@@ -1183,6 +1183,11 @@ func take_damage(amount: float, source: Variant) -> void:
 	# Node-local: `armor` / `min_damage_taken` merge this node's board with its
 	# owner's, so addon + aura defensive modifiers actually land.
 	var effective: float = Mitigation.apply(raw, self)
+	# Stash the post-mitigation number back onto the instance so a LATER
+	# presentation reveal (damage_shown, #479/#481) can show what actually
+	# landed instead of the attacker's raw pre-mitigation amount.
+	if source is DamageInstance:
+		(source as DamageInstance).effective_amount = effective
 	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:
 		return

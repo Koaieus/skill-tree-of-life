@@ -181,6 +181,7 @@ func test_damage_shown_fires_per_beat_not_synchronously_with_play() -> void:
 		hit.origin = nodes[0]
 		hit.target = nodes[1]
 		hit.amount = 3.0
+		hit.effective_amount = 3.0
 		ev.damage = hit
 		outcome.hits.append(hit)
 		outcome.timeline.append(ev)

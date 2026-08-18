@@ -21,6 +21,10 @@ var _gen: int = 0
 var _dead_at: Dictionary = {}
 var _pending_pops: Dictionary = {}
 var _attacker: Entity
+# FIFO of the DamageInstances resolve() actually applied (#474), consumed as
+# each live hit passes the same edge/pop filters skill_blade.gd/resolve() both
+# apply — see MeleeAttackPlan.last_hits.
+var _pending_hits: Array[DamageInstance] = []
 
 
 func _ready() -> void:
@@ -61,6 +65,7 @@ func launch(plan: MeleeAttackPlan) -> void:
 	var pops := plan.last_pops
 	_dead_at = pops.dead_at if pops != null else {}
 	_pending_pops = {}
+	_pending_hits = plan.last_hits.duplicate()
 	if pops != null:
 		for pop in pops.pops:
 			_pending_pops[pop.particle_idx] = pop
@@ -141,7 +146,16 @@ func _on_live_hit(
 	# D-1 MVP: edges are inert (resolve() skips them too) — no reveal.
 	if is_edge:
 		return
-	Events.damage_shown.emit(target, damage)
+	# Consume the next resolve()-applied hit FIFO — skill_blade.gd's own replay
+	# blade re-derives `damage` from a freshly rebuilt vertex_damage array
+	# (live stats, not what was actually applied), so it's ignored here in
+	# favour of the real effective_amount BattleSystem's take_damage stashed
+	# on the matching DamageInstance. Both traverses apply the identical
+	# edge/pop filters in the same t-order, so a straight pop_front lines up.
+	var effective: float = damage
+	if not _pending_hits.is_empty():
+		effective = _pending_hits.pop_front().effective_amount
+	Events.damage_shown.emit(target, effective)
 	if not target.is_allocated():
 		Events.node_death_shown.emit(target)
 

@@ -387,6 +387,14 @@ func _can_be_blade(node: SkillNode) -> bool:
 var last_trajectory: BladeTrajectory = null
 var last_events: Array[BladeHitEvent] = []
 var last_pops: BladePopResolver.Result = null
+## The [DamageInstance]s [method resolve] actually built from [member
+## last_events] — same filtering (edges skipped, popped vertices skipped), same
+## order. [MeleePreview] consumes these FIFO as its live replay passes each
+## event through the identical filter, so its reveal can show
+## [member DamageInstance.effective_amount] (set by [method SkillNode.take_damage]
+## when #474 applied the outcome) instead of re-deriving damage from a freshly
+## rebuilt blade state, which drifts from what actually landed.
+var last_hits: Array[DamageInstance] = []
 
 
 func resolve() -> AttackOutcome:
@@ -424,6 +432,7 @@ func resolve() -> AttackOutcome:
 		di.origin = source
 		di.source = self
 		outcome.hits.append(di)
+	last_hits = outcome.hits
 	return outcome
 
 

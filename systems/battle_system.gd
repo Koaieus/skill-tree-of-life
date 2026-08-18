@@ -250,7 +250,7 @@ func _flush_presentation(outcome: AttackOutcome) -> void:
 		var target: SkillNode = hit.target
 		if target == null or not target.presentation_hold:
 			continue
-		Events.damage_shown.emit(target, hit.amount)
+		Events.damage_shown.emit(target, hit.effective_amount)
 		if not target.is_allocated():
 			Events.node_death_shown.emit(target)
 		# Defensive: a subscriber could in principle swallow both emits without

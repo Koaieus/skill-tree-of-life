@@ -98,7 +98,7 @@ func _flight_for(hit: DamageInstance) -> float:
 func _show_presentation(hit: DamageInstance, impact_time: float, pending: Array[int]) -> void:
 	if impact_time > 0.0:
 		await get_tree().create_timer(impact_time).timeout
-	Events.damage_shown.emit(hit.target, hit.amount)
+	Events.damage_shown.emit(hit.target, hit.effective_amount)
 	if not hit.target.is_allocated():
 		Events.node_death_shown.emit(hit.target)
 	pending[0] -= 1

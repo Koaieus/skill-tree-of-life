@@ -40,6 +40,7 @@ func _hit(arrival_time: float, amount: float = 5.0) -> DamageInstance:
 	hit.origin = _origin
 	hit.target = _target
 	hit.amount = amount
+	hit.effective_amount = amount
 	hit.arrival_time = arrival_time
 	return hit
 

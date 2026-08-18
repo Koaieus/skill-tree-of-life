@@ -41,6 +41,14 @@ var crit_multiplier: float = 1.0
 ## instead of firing synchronously with model mutation (#479/#481).
 var arrival_time: float = 0.0
 
+## Post-[Mitigation] HP delta — what [method SkillNode.take_damage] actually
+## subtracted. Filled in by take_damage the instant it applies this instance
+## (still ahead of any VFX reveal), since [member amount] is the attacker's
+## raw pre-mitigation number and a reveal that shows raw would over-report
+## whenever armor/[code]min_damage_taken[/code] changed what actually landed.
+## 0.0 until take_damage runs.
+var effective_amount: float = 0.0
+
 
 func _to_string() -> String:
 	var type_name: String = Type.keys()[type]

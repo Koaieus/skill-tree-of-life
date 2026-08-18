@@ -175,7 +175,7 @@ func _show_presentation(wave: Array) -> void:
 		var ev := ev_v as PropagationEvent
 		if ev == null or ev.damage == null or ev.target == null:
 			continue
-		Events.damage_shown.emit(ev.target, ev.damage.amount)
+		Events.damage_shown.emit(ev.target, ev.damage.effective_amount)
 		if not ev.target.is_allocated():
 			Events.node_death_shown.emit(ev.target)
 

@@ -20,7 +20,10 @@ signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 ## death VFX) can key their reveal off "the attack visibly landed" instead of
 ## "the model changed". Emitted by the VFX coordinators as pure observers —
 ## never mutates state, never gates the next hop (see the spell VFX clock
-## contract rule).
+## contract rule). `amount` is [member DamageInstance.effective_amount] — the
+## post-[Mitigation] HP delta take_damage actually applied — never the
+## attacker's raw pre-mitigation number, so the number shown matches what the
+## HP bar actually did.
 signal damage_shown(target: SkillNode, amount: float)
 signal node_death_shown(node: SkillNode)
 
