@@ -15,9 +15,14 @@ extends Node
 ##     (Entity._on_xp_replenished). Don't bypass the pool — a raw `set_current`
 ##     would skip the level-up. The complementary per-node trickle rides
 ##     BattleSystem's `cascade_started` instead of this phase.
-##   * SkillDust drop — the victim's CORE modifiers (the only ones lost on death)
-##     are attached to its former core node as a [SkillDustAddon], a pick-N-from-M
-##     relic. Node mods are NOT looted — they return to the graph. See
+##   * SkillDust drop (#323 re-cut) — a weighted draw over THREE provenance
+##     buckets (node grants on the victim's owned subgraph, class/register
+##     grants, board innates) is attached to the victim's former core node as a
+##     [SkillDustAddon]. The underlying node modifiers still return to the
+##     graph on the death strip — only a duplicated COPY enters the loot pool.
+##     Offered as N rounds of pick-1-of-3, `would_cycle`-filtered per round
+##     against the collector's live board at claim time (not draw time — the
+##     claimant isn't known until someone allocates the relic). See
 ##     docs/domain/loot-system.md.
 ##   * Spell draft (#204) — every spell the victim currently knows (core,
 ##     innate, AND territory-sourced — widened post-#204, see the note below),
@@ -134,6 +139,14 @@ extends Node
 ## `SkillDustAddon.new()` when unset — the addon's visual is script-driven, so the
 ## fallback still renders.
 @export var skill_dust_scene: PackedScene = null
+
+## ── Provenance buckets (#323) ─────────────────────────────────────────────────
+## The draw is a weighted union of three source-array reads — see [method
+## _draw_payload]. All equal by default; numbers unset by design (docs — the
+## RE-CUT comment thread on #323), tune in the inspector.
+@export var weight_bucket_node: float = 1.0
+@export var weight_bucket_class: float = 1.0
+@export var weight_bucket_innate: float = 1.0
 
 
 ## ── The attack-scoped removal ledger ─────────────────────────────────────────
@@ -306,37 +319,58 @@ func _drop_skill_dust(victim: Entity) -> void:
 	if dust == null:
 		dust = SkillDustAddon.new()
 	dust.candidates = candidates
+	dust.weights = draw["weights"]
 	dust.pick_count = draw["pick_count"]
 	dust.victim_color = victim.color
 	_attach_addon(core, dust)
 
 
-## Build the CORE-ONLY loot draw. The candidate pool is the victim's core_class
-## modifier set (class-identity template) — the only modifiers genuinely lost when
-## the entity dies. Previously-looted mods are permanent board additions and are
-## not individually re-lootable (#185). Offered as pick-N-from-M: M = the
-## full core supply, N (keep-count) scales with victim level. When N >= M the
-## picker won't pop (no real choice) and the addon auto-grants all. Every entry
-## is `duplicate(true)`d so the dust owns independent copies.
-## Returns { "candidates": Array[StatModifier], "pick_count": int }.
+## Build the loot draw (#323 re-cut): a weighted union of THREE provenance
+## buckets, each a straight source-array read (no `StatBoard.modifiers[]` to
+## filter — see the RE-CUT comment on #323). `weights` is parallel to
+## `candidates` (index-aligned) so the claimant can do weighted round-robin
+## sampling per pick-1-of-3 round (see [SkillDustAddon]) without needing the
+## bucket structure itself.
+##
+## `would_cycle` is DELIBERATELY NOT checked here — the claimant (whoever
+## allocates the relic node) isn't known at draw/death time, so cycle-safety
+## is a claim-time concern, filtered per round against the collector's live
+## board (see [method SkillDustAddon._on_carrier_owner_changed]).
+##
+## `pick_count` (N rounds) scales with victim level exactly as before, now
+## against the TOTAL pool across all three buckets. When N >= supply there's
+## no real choice, so at least one candidate is always left on the table
+## (supply >= 2) — same "keep the draw a genuine choice" invariant as #173.
+## Every entry is `duplicate(true)`d so the dust owns independent copies.
+## Returns { "candidates": Array[StatModifier], "weights": Array[float],
+## "pick_count": int }.
 func _draw_payload(victim: Entity) -> Dictionary:
-	var core_mods := _expand_for_loot(_core_modifiers(victim)).filter(_is_lootable)
-	var supply := core_mods.size()
+	var candidates: Array[StatModifier] = []
+	var weights: Array[float] = []
+	var buckets := [
+		[_expand_for_loot(_node_grant_modifiers(victim)), weight_bucket_node],
+		[_expand_for_loot(_core_modifiers(victim)), weight_bucket_class],
+		[_expand_for_loot(_innate_modifiers(victim)), weight_bucket_innate],
+	]
+	for bucket in buckets:
+		var mods: Array = bucket[0]
+		var weight: float = bucket[1]
+		for m in mods:
+			candidates.append((m as StatModifier).duplicate(true))
+			weights.append(weight)
+
+	var supply := candidates.size()
 	var keep := core_keep_base + core_keep_per_level * float(maxi(0, victim.level))
 	var pick_count := clampi(roundi(keep), 0, supply)
 	# Keep the draw a genuine choice whenever one is possible. N == M is a
 	# no-choice by construction (the addon auto-grants and the picker skips it),
 	# so a keep-count that saturates the supply silently deletes the entire
-	# pick-N-from-M feature — which is exactly what a high-level victim did.
-	# Leaving at least one modifier on the table is what makes it a decision.
+	# pick-1-of-3-per-round feature — which is exactly what a high-level victim
+	# did. Leaving at least one modifier on the table is what makes it a decision.
 	if supply >= 2:
 		pick_count = mini(pick_count, supply - 1)
 
-	core_mods.shuffle()
-	var candidates: Array[StatModifier] = []
-	for m in core_mods:
-		candidates.append(m.duplicate(true))
-	return {"candidates": candidates, "pick_count": pick_count}
+	return {"candidates": candidates, "weights": weights, "pick_count": pick_count}
 
 
 ## The non-core nodes the victim still owns at death — the TERRITORY signal
@@ -355,34 +389,37 @@ func _held_nodes(victim: Entity) -> Array[SkillNode]:
 	return out
 
 
-## Level-scaled identity mods are lost on death like the rest of the core set,
-## but they are NOT lootable (#194). A `+1 STR per level` entry describes the
-## victim's *progression*, not a transferable trinket — and since `duplicate(true)`
-## keeps the shared formula, a looted copy would silently rebind to the LOOTER's
-## level and grant a scaling relic nobody designed. Filtered in [method _draw_payload]
-## rather than in [method _core_modifiers], which stays an honest answer to
-## "what vanishes on death".
-##
-## Only `level` scaling is excluded — a plain formula mod ("+2 vision per PER")
-## is ordinary class identity and stays lootable.
-func _is_lootable(m: StatModifier) -> bool:
-	return not m.scales_with(&"level")
-
-
-## Core source: class identity mods (+10 STR/DEX/INT for BalancedCore, etc.).
-## Previously-looted mods are permanent board additions (no node storage since
-## #185) — they're not individually re-lootable; the loot chain starts fresh
-## from each entity's core_class template.
-##
-## Reads [member CoreClass.modifiers] directly — a `CoreClass` `.tres` is a
-## leaf (D-27, #279); shared batches like `attribute_baseline.tres` sit inside
-## this array as a [CompositeStatModifier] entry, not via a class-to-class
-## reference.
-func _core_modifiers(victim: Entity) -> Array[StatModifier]:
+## NODE-GRANT bucket (#323): the modifiers authored on every non-core node the
+## victim still owns at death (`_held_nodes` — pre-strip, since this runs
+## during `entity_dying`). These mods are NOT removed from the node — they
+## still return to the graph on the strip exactly as before; only a
+## `duplicate(true)`d copy (done by the caller, [method _draw_payload]) enters
+## the loot pool.
+func _node_grant_modifiers(victim: Entity) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
-	if victim.core_class != null:
-		out.append_array(victim.core_class.modifiers)
+	for n in _held_nodes(victim):
+		out.append_array(n.modifiers)
 	return out
+
+
+## BOARD-INNATE bucket (#323): the victim's own [member
+## EntityStatBoard.intrinsic_modifiers] — rules true of every entity that plays
+## by this board, not this entity's particular build.
+func _innate_modifiers(victim: Entity) -> Array[StatModifier]:
+	if victim.stat_board == null:
+		return []
+	return victim.stat_board.intrinsic_modifiers
+
+
+## CLASS/REGISTER bucket (#323): [member Entity.core_modifiers] — the granted-
+## atom register. This is the ONLY bucket for anything ever permanently granted
+## onto the core: original class-template grants AND previously-looted grants
+## both live here (there is no separate "looted" bucket — see the RE-CUT
+## comment on #323). `_is_lootable`'s old `scales_with(&"level")` exclusion is
+## GONE (#323) — stealing a level-scaler is the intended roguelite loop now,
+## not a hazard to filter out.
+func _core_modifiers(victim: Entity) -> Array[StatModifier]:
+	return victim.core_modifiers
 
 
 ## Expands each [CompositeStatModifier] whose [member

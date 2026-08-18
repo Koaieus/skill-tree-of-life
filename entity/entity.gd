@@ -130,6 +130,36 @@ var navigator: EntityNavigator
 ## so revocation is exact without a provenance field on [StatModifier].
 var _effect_instances: Array[EffectInstance] = []
 
+## The granted-atom ledger for CORE modifiers (#323) — every [StatModifier]
+## ever permanently granted onto this entity's core, UNFLATTENED. Two honest
+## layers: this register is what LootSystem's draw reads from (composites stay
+## intact, so a `loots_as_unit` pack is still one atom if this entity later
+## dies); [member stat_board] is the flattened, bound leaves the board computes
+## stats from. [method grant_core_modifier] is the ONLY path that writes here —
+## same shape as [EffectContext]'s handle-owned pattern — so register/board
+## drift is impossible by construction.
+var core_modifiers: Array[StatModifier] = []
+
+
+## The only path that grants a modifier onto this entity's core permanently.
+## Appends `m` to [member core_modifiers] (register) and mirrors it onto
+## [member stat_board] (the flattened, computed layer). Both [CoreClass.apply]
+## (class-template grants) and SkillDust pickup (looted grants) route through
+## this — see #323.
+##
+## Does NOT duplicate `m` — per #377, formula binding is stateless (lives on
+## the Stat/Board, not the modifier), so the SAME shared `.tres` instance
+## already applies safely to every entity of a class, and a looted candidate
+## arrives here already an independent copy (LootSystem's draw duplicates when
+## building the payload). Duplicating again here would just be redundant work
+## on the class path and double-duplication on the loot path.
+func grant_core_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	core_modifiers.append(m)
+	if stat_board != null:
+		stat_board.add_modifier(m)
+
 ## `hook name -> Array[EffectInstance]`. Bucketed once at grant time by asking
 ## each effect which optional hooks it implements, so `dispatch` touches only
 ## interested effects rather than walking every attachment on every event.

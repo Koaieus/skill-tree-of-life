@@ -89,11 +89,17 @@ static func load_all() -> Array[CoreClass]:
 ## entity's own board, so each computes independently. Nothing mutates a
 ## CoreClass modifier's `value` at runtime (that's the #376 mutator's job,
 ## scoped to SkillNode's own `modifiers`/`_local_modifiers`, never a class's).
+##
+## Routes through [method Entity.grant_core_modifier] (#323) — the register's
+## sole write path — rather than `entity.stat_board.add_modifier` directly, so
+## a class-template grant seeds [member Entity.core_modifiers] the same way a
+## looted grant does. Still no per-entry duplication (unchanged from #377):
+## `grant_core_modifier` mirrors `m` onto the board as-is.
 func apply(entity: Entity) -> void:
 	if entity.stat_board == null:
 		return
 	for m in modifiers:
-		entity.stat_board.add_modifier(m)
+		entity.grant_core_modifier(m)
 	for e in effects:
 		entity.grant_effect(e)
 

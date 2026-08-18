@@ -10,10 +10,14 @@ extends SkillNodeAddon
 ##
 ## When ANY entity allocates that relic node, the dust pours its loot onto the
 ## ALLOCATOR'S CORE — STEAL semantics (permanent, portable core modifiers), not
-## onto the relic node itself. The loot is a pick-N-from-M choice over the dead
-## entity's CORE modifiers (#173) — the only mods lost when it dies; its owned
-## nodes merely return to the graph, so looting those would duplicate live mods.
-## The player picks via the HUD loot picker; NPCs auto-pick at random.
+## onto the relic node itself. The pool is a weighted union of three provenance
+## buckets drawn by [LootSystem] (#323 re-cut) — node grants, class/register
+## grants, board innates. Offered as N ROUNDS of pick-1-of-3 (#323): each round
+## filters the REMAINING pool by `would_cycle` against the collector's LIVE
+## board and grants the pick immediately, so a cycle a candidate would close is
+## checked against board state that already reflects every earlier round's
+## grant — not just the state at draw time. The player picks via the HUD loot
+## picker; NPCs auto-pick at random, per round.
 ## STEAL/PROLIFERATE choice and staining stay deferred (see loot-system.md).
 ##
 ## Visual (#168): scene-composed (skill_dust_addon.tscn) with a child InnerDisk
@@ -29,17 +33,30 @@ extends SkillNodeAddon
 ## bare fallback has no InnerDisk child, so it's intentionally visual-lite
 ## (sparkles only), not a bug.
 
-## The M core-mod candidates offered as a pick-N-from-M choice (#173) — the dead
-## entity's class identity + core-accreted mods, the only ones lost on its death.
-## The human player picks `pick_count` of these via the HUD's loot picker; NPCs /
-## headless get a random auto-pick. Already `duplicate(true)`d by LootSystem
-## (independent copies — formula-mod binding-state safety, see the stats rule).
+## The full drawn candidate pool (#323: all three provenance buckets, unfiltered
+## by `would_cycle` — that check happens per round at claim time, not here,
+## since the claimant isn't known at draw time). Shrinks as rounds grant picks
+## off it. Already `duplicate(true)`d by LootSystem (independent copies —
+## formula-mod binding-state safety, see the stats rule).
 @export var candidates: Array[StatModifier] = []
 
-## N — how many of `candidates` the collector keeps. When
-## `candidates.size() <= pick_count` there's no real choice, so the whole set is
-## auto-granted without ever popping the picker.
+## Bucket weight, index-aligned with [member candidates] — which provenance
+## bucket each candidate came from, expressed as its draw weight. Used for the
+## weighted "roll a bucket, then a member" sample each round (#323).
+@export var weights: Array[float] = []
+
+## N — how many pick-1-of-3 ROUNDS the collector gets (#323; used to mean "N of
+## a flat M" pre-re-cut). Each round offers up to 3 cycle-safe survivors of the
+## REMAINING pool; a round with 0 or 1 survivor has no real choice and
+## auto-grants/skips without popping the picker.
 @export var pick_count: int = 0
+
+## The entity currently claiming this relic, latched for the duration of the
+## multi-round claim flow (`_advance_round` recurses across possibly-async
+## picker confirms).
+var _collector: Entity = null
+## Rounds left to run — counts down from `pick_count`.
+var _rounds_remaining: int = 0
 
 ## The dying entity's color, injected by LootSystem before this addon enters
 ## the tree (same timing as `payload`) — mixed into the gold tint below so a
@@ -142,64 +159,138 @@ func get_emblem() -> Variant:
 	return GemCarveShape.SHARED.carve(EMBLEM_SPEC.Priority.LOOT, &"loot")
 
 
-## Pickup == the carrier gaining an owner. Routes the core-mod candidates through
-## the pick-N-from-M handshake (#173):
-##   * no real choice (empty, pick_count ≤ 0, or supply ≤ pick_count) →
-##     auto-grant everything and free — the picker never pops for a non-choice.
-##   * otherwise emit a [LootPickRequest]. A UI consumer sets `handled = true`
-##     SYNCHRONOUSLY to take over (player); if nobody does, auto-resolve a random
-##     pick right here (NPC / headless). Either way the resolver grants + frees.
-## The addon only frees once resolved — which for the player picker can be
-## seconds later (it stays on the now-owned relic until then).
+## Pickup == the carrier gaining an owner. Latches the collector and kicks off
+## the pick-1-of-3-per-round claim flow (#323) — see [method _advance_round].
 func _on_carrier_owner_changed() -> void:
 	if Engine.is_editor_hint() or carrier == null:
 		return
 	var collector := carrier.owned_by
 	if collector == null:
 		return  # death-strip / deallocation — not a pickup
+	_collector = collector
+	_rounds_remaining = pick_count
+	_advance_round()
 
-	if candidates.is_empty() or pick_count <= 0 or candidates.size() <= pick_count:
-		_grant_mods(collector, candidates)
-		candidates = []
-		queue_free()
+
+## One round of the claim flow (#323). Filters the REMAINING [member candidates]
+## by `would_cycle` against the collector's CURRENT board — not the board as it
+## stood at draw time, so a grant from an EARLIER round in this same relic is
+## already reflected. This is what structurally closes the joint-cycle gap a
+## single up-front filter would leave open (two candidates each individually
+## safe but jointly cyclic): by the time the second is considered, the first is
+## already bound and `would_cycle` sees it.
+##
+##   * no cycle-safe survivor left → stop; this relic can't grant any more.
+##   * exactly one survivor → no real choice, auto-grant it, don't pop a picker.
+##   * 2-3 survivors → weighted-sample up to 3 and offer a real pick-1 choice.
+##
+## Recurses via the round resolver ([method _grant_and_advance]) until
+## `_rounds_remaining` hits 0 or the pool runs dry — possibly across several
+## real seconds if the player is doing the picking.
+func _advance_round() -> void:
+	if not is_instance_valid(_collector) or _collector.is_dead:
+		_finish()
+		return
+	if _rounds_remaining <= 0 or candidates.is_empty():
+		_finish()
 		return
 
-	var request := LootPickRequest.new(
-			collector, candidates, pick_count, _on_pick_resolved)
+	var board := _collector.stat_board
+	var safe_indices: Array[int] = []
+	for i in candidates.size():
+		if board == null or not board.would_cycle(candidates[i]):
+			safe_indices.append(i)
+	if safe_indices.is_empty():
+		_finish()
+		return
+
+	var offer_indices := _weighted_sample(safe_indices, mini(3, safe_indices.size()))
+	if offer_indices.size() <= 1:
+		if offer_indices.size() == 1:
+			_grant_and_advance([candidates[offer_indices[0]]])
+		else:
+			_finish()
+		return
+
+	var offer: Array[StatModifier] = []
+	for i in offer_indices:
+		offer.append(candidates[i])
+
+	var request := LootPickRequest.new(_collector, offer, 1, _grant_and_advance)
 	Events.loot_pick_requested.emit(request)
 	if not request.handled:
-		# NPC / headless / no-HUD path — the DEFAULT branch. Random N of M.
-		var pool := candidates.duplicate()
+		# NPC / headless / no-HUD path — the DEFAULT branch. Random 1 of the offer.
+		var pool := offer.duplicate()
 		pool.shuffle()
-		request.resolve(pool.slice(0, pick_count))
+		request.resolve([pool[0]])
 
 
-func _on_pick_resolved(chosen: Array[StatModifier]) -> void:
-	# Fires possibly seconds later (player took time) — re-validate the collector.
-	if carrier != null and is_instance_valid(carrier.owned_by):
-		_grant_mods(carrier.owned_by, chosen)
+## Round resolver: grants the ONE chosen modifier immediately (so the next
+## round's `would_cycle` check sees it), removes it from [member candidates] so
+## it can't be re-offered, and recurses into the next round. The other 2
+## un-picked offer members are NOT removed — they stay eligible for a later
+## round's fresh 3-sample ("single pick, then new draw, the next pick is always
+## clean", per the #322 comment thread this shape came from). An empty
+## `chosen` (a request resolved with nothing picked) forfeits the round rather
+## than stalling the relic.
+func _grant_and_advance(chosen: Array[StatModifier]) -> void:
+	if is_instance_valid(_collector) and not _collector.is_dead and not chosen.is_empty():
+		var m := chosen[0]
+		_grant_mod(_collector, m)
+		var idx := candidates.find(m)
+		if idx != -1:
+			candidates.remove_at(idx)
+			weights.remove_at(idx)
+	_rounds_remaining -= 1
+	_advance_round()
+
+
+func _finish() -> void:
 	candidates = []
+	weights = []
 	queue_free()
 
 
-## Pour `mods` onto the collector's stat board — permanent additions (no removal
-## like lent node modifiers). Loot is not stored on the core node (#185); it
-## lives only on the board as an earned stat. If a provenance tag is needed later
-## (innate vs gained), add a source-type field to StatModifier.
-func _grant_mods(collector: Entity, mods: Array[StatModifier]) -> void:
-	var core := collector.core_location
-	if core == null:
+## Weighted sample WITHOUT replacement, `count` indices out of `pool_indices`
+## (each weighted by [member weights]) — "roll a bucket by weight, then a
+## member", per the #323 RE-CUT comment. `maxf(w, 0.0001)` keeps a zero-weight
+## bucket sampleable (excluded, not erased) rather than a divide-by-zero.
+func _weighted_sample(pool_indices: Array[int], count: int) -> Array[int]:
+	var remaining := pool_indices.duplicate()
+	var out: Array[int] = []
+	for _i in count:
+		if remaining.is_empty():
+			break
+		var total := 0.0
+		for idx in remaining:
+			total += maxf(weights[idx], 0.0001)
+		var roll := randf() * total
+		var chosen_pos := remaining.size() - 1
+		var acc := 0.0
+		for pos in remaining.size():
+			acc += maxf(weights[remaining[pos]], 0.0001)
+			if roll <= acc:
+				chosen_pos = pos
+				break
+		out.append(remaining[chosen_pos])
+		remaining.remove_at(chosen_pos)
+	return out
+
+
+## Pour ONE mod onto the collector. Routes through [method
+## Entity.grant_core_modifier] (#323) rather than a raw `stat_board.add_modifier`
+## — a looted grant re-enters the collector's [member Entity.core_modifiers]
+## register exactly like a class grant, which is the only thing that makes a
+## `loots_as_unit` pack survive ANOTHER loot round-trip if this collector later
+## dies (closes #185's re-lootability gap via the register).
+func _grant_mod(collector: Entity, m: StatModifier) -> void:
+	if collector.core_location == null:
 		return
-	var board := collector.stat_board
-	for m in mods:
-		# A composite is stored WHOLE on the core (stays a lootable unit if this
-		# collector later dies) but flattens onto the board via add_modifier.
-		if board != null:
-			board.add_modifier(m)
-		# #70: emit per LEAF — honest about each stat gained. A bundle's buff and
-		# debuff are separate floaters; either alone may be no "mythic" at all.
-		for leaf in m.flatten():
-			Events.stat_modifier_changed.emit(collector, leaf, ModifierBinding.Kind.CORE, true)
+	collector.grant_core_modifier(m)
+	# #70: emit per LEAF — honest about each stat gained. A bundle's buff and
+	# debuff are separate floaters; either alone may be no "mythic" at all.
+	for leaf in m.flatten():
+		Events.stat_modifier_changed.emit(collector, leaf, ModifierBinding.Kind.CORE, true)
 
 
 ## Shimmering sparkle ring (#168) — richer than the old static 8-dot draw:

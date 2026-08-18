@@ -7,33 +7,68 @@ to `Events.entity_dying(victim)` and does two things:
    the victim held at death (its core included). Never for its level. A
    per-node trickle rides `BattleSystem.cascade_started` alongside this (see
    below — it can't ride `Events.skill_node_depleted`).
-2. **SkillDust drop (#69/#173)** — the victim's former core node becomes a
-   claimable relic carrying a `SkillDustAddon`, a **pick-N-from-M** choice over
-   the victim's **core** modifiers.
+2. **SkillDust drop (#69/#173, re-cut #323)** — the victim's former core node
+   becomes a claimable relic carrying a `SkillDustAddon`, a **weighted draw
+   over three provenance buckets** offered as N **rounds of pick-1-of-3**.
 
-## Why loot draws from the core ONLY (the #173 correction)
+## Provenance, not "core-only" (the #323 re-cut)
 
-The original #69 slice also drew from the victim's **node** modifiers. That was a
-**duplication bug**: node modifiers are only *lent* by the graph — granted when a
-node is allocated, and released back to neutral when the entity dies. So a dead
-entity's node mods are **still on the battlefield**, re-claimable by whoever
-allocates those now-neutral nodes next. Copying them into loot mints a second
-copy of something that already exists and is still available.
+The original #173 correction drew from the victim's **core** modifiers only,
+excluding node grants outright — node modifiers are only *lent* by the graph
+(granted on allocation, released back to neutral on death), so looting the
+*live* modifier would have duplicated something still on the battlefield and
+re-claimable. That objection is still true, but it argued against looting the
+node's actual modifier — not against a **copy** of it ever being offered as
+loot. #323 re-cuts the axis: the meaningful question isn't "does this vanish on
+death" (the #173 test), it's **provenance** — is this modifier a rule of the
+game (board innate), part of how this build was assembled (a grant), or a
+transient effect (never offered)? The draw now reads THREE source arrays, each
+a straight provenance bucket, weighted by `@export var weight_bucket_*` (equal
+by default — tune in the inspector):
 
-A **core** modifier (class identity + anything permanently accreted onto the
-core, e.g. previously-looted mods) is the *only* thing genuinely lost when the
-entity vanishes. So that — and only that — is the loot source. A consequence
-that's also the *just* behaviour: killing a level-20 giant by **sniping its
-core** vs. **whittling its limbs first** yields comparable loot, because both
-just read the core, not the transient territory.
+| bucket | source array |
+|---|---|
+| node grants | the victim's owned subgraph's `SkillNode.modifiers`, snapshotted pre-strip (core excluded — it's its own bucket) |
+| class/register grants | `Entity.core_modifiers` — see below |
+| board innates | `EntityStatBoard.intrinsic_modifiers` |
 
-**Territory scale is rewarded as XP instead** (the empire term), so "you slew a
-sprawling empire" still pays out — just not as duplicated stats.
+Node modifiers themselves are **still untouched by looting** — the strip still
+returns them to the graph exactly as before; only a `duplicate(true)`d COPY
+enters the loot pool, so nothing is duplicated on the battlefield.
+
+**Stealing a level-scaler is now the point, not a hazard.** The old
+`_is_lootable` filter excluded any modifier whose formula read `level`, reasoning
+that a looted copy would "silently rebind to the looter's level and grant a
+scaling relic nobody designed." That filter is **deleted** (#323) — for a
+roguelite built around tuning your way into being OP, looting a piece of another
+build's growth curve is the compounding channel that makes the loop work, not a
+bug to filter out.
+
+**Territory scale is still rewarded as XP too** (the empire term) — "you slew a
+sprawling empire" pays out both ways now: XP for the scale of the kill, plus a
+richer node-grant bucket for the specific mods it was running.
+
+### `Entity.core_modifiers` — the granted-atom register
+
+Everything ever permanently granted onto an entity's core — original
+class-template grants AND previously-looted grants alike — lives in one place:
+`Entity.core_modifiers`, an **unflattened** ledger. `Entity.grant_core_modifier(m)`
+is the ONLY path that writes to it (mirrors `m` onto `stat_board` too, same
+shape as `EffectContext`'s handle-owned pattern); `CoreClass.apply()` and
+`SkillDustAddon`'s claim flow both route through it. Two honest layers: the
+register is what the loot draw reads (composites stay intact — a
+`loots_as_unit` pack survives a loot round-trip as one atom, closing #185's
+re-lootability gap); the board is the flattened, bound leaves stats compute
+from. There is deliberately no separate "looted" bucket — a looted grant
+re-enters the SAME register a class grant lands in, so it is exactly as
+re-lootable.
 
 This is the MVP slice of the design doc's *Killing Blow Resolution* /
-*Loot Resolution* (`docs/design/combat_system.md`). The **pick-N-from-M picker**
-now exists (#173, below). Deferred for now: STEAL/PROLIFERATE choice, node
-staining (`last_owner`), proliferation, the DAP bonus, BLITZ. **Staining is
+*Loot Resolution* (`docs/design/combat_system.md`). Deferred for now:
+STEAL/PROLIFERATE choice, node staining (`last_owner`), proliferation, the DAP
+bonus, BLITZ, provenance legibility in the tooltip (`"+1 STR per level (stolen
+from a Serpent)"`), and the enemy-scaling contract that makes the stolen-curve
+loop have teeth — all filed as follow-ups, not this issue's scope. **Staining is
 shelved indefinitely** — "find something better" before reviving it.
 
 ## Killer attribution — resolved here, not on Entity or the bus
@@ -190,76 +225,91 @@ The ledger is deliberately **plain state on LootSystem, not a payload on the
 bus** — it's transient per-attack bookkeeping, not a domain fact anyone else
 should be reading.
 
-## The loot draw (`_draw_payload`, #173) — core-only
+## The loot draw (`_draw_payload`, #323) — the three-bucket weighted union
 
-The candidate pool is the victim's **whole core modifier set** — `_core_modifiers`
-= `core_class.modifiers` (class identity, e.g. BalancedCore +10 STR/DEX/INT) +
-the core node's own `modifiers` (previously-looted mods, so the relic loop
-closes). Node mods are **not** drawn (they return to the graph — see above).
+The candidate pool is the union of the three provenance buckets above, each
+expanded via `_expand_for_loot` (a `loots_as_unit = false` pack splits into
+per-leaf candidates; a `true` pack, or a plain modifier, stays one candidate).
+Every candidate is `duplicate(true)`d, and each carries its bucket's weight
+(index-aligned `weights` array) for the round-by-round weighted sample at claim
+time — see below. `would_cycle` is **deliberately not checked here**: the
+claimant isn't known until someone allocates the relic, so cycle-safety is a
+claim-time concern.
 
-Offered as **pick-N-from-M**: M = the full core supply, N (keep-count) scales
-with victim level so a higher-level kill lets you keep more of their identity:
+`pick_count` (N — the number of pick-1-of-3 **rounds**, not "N of a flat M"
+since #323) still scales with victim level, now against the pool's **total**
+size across all three buckets:
 
 ```
 N = round(core_keep_base(1.0) + core_keep_per_level(0.1) · victim.level)
-    clamped to [0, core supply], then to M-1 whenever M ≥ 2
+    clamped to [0, total supply], then to supply-1 whenever supply ≥ 2
 ```
 
-At `per_level = 0.1` you keep +1 of the core per 10 levels, so you only walk off
-with a near-whole core from a much higher-level victim. Both knobs are `@export`.
-
-**Why N is capped at M-1.** `N ≥ M` is the addon's explicit *no-choice* branch:
-it auto-grants everything and the picker never pops. That's correct for a
-one-modifier core, but it also means a keep-count that merely *saturates* the
-supply silently deletes the whole pick-N-from-M feature. It did: D-19 pins an
-enemy's level to its starting node count (`enemy_territory_size`, 20), and the
-old `per_level = 0.25` gave `1 + 0.25·20 = 6` against a 5-modifier core — so
-**every** first_level kill auto-granted the full core at random and the loot
-modal never appeared. The slope retune fixes the immediate numbers; the M-1 cap
-is the structural guarantee that a choice survives any future retune.
+**Why N is capped below the supply.** A keep-count that reaches the full supply
+turns every round into a no-choice auto-grant and the picker never pops. It did
+under the old core-only draw: D-19 pins an enemy's level to its starting node
+count (`enemy_territory_size`, 20), and the old `per_level = 0.25` gave
+`1 + 0.25·20 = 6` against a 5-modifier core — so **every** first_level kill
+auto-granted the full core at random and the loot modal never appeared. The
+supply-1 cap is the structural guarantee that a choice survives any future
+retune, now over the larger three-bucket pool.
 
 > Open question: keep-count is still the only reward term scaling off
 > `victim.level`, now that kill XP scales off node count instead (below). If
 > level stops being a meaningful axis, this should follow.
 
-The returned `{ candidates, pick_count }` is written straight onto the addon.
-Every candidate is `duplicate(true)`d so the dust owns independent copies
-(formula-mod binding-state safety — see `.claude/rules/stats-system.md`).
-
-## SkillDust pickup + the pick-N-from-M picker (#173)
+## SkillDust pickup — N rounds of pick-1-of-3 (#173, re-cut #323)
 
 `SkillDustAddon extends SkillNodeAddon` sits on the neutralised relic core and
 subscribes to `carrier.owner_changed`. When **any** entity allocates the relic
-(owner goes non-null — the `owned_by == null` guard skips the death-strip so only
-a real pickup fires), it routes the `candidates` through the pick-N-from-M flow;
-the chosen mods land on the **collector's core** (`core.modifiers` append +
-`board.add_modifier` — STEAL semantics: permanent, portable core modifiers):
+(owner goes non-null — the `owned_by == null` guard skips the death-strip so
+only a real pickup fires), it runs `_advance_round` up to `pick_count` times:
 
-- **no real choice** (empty, `pick_count ≤ 0`, or `candidates.size() ≤
-  pick_count`) → auto-grant everything, `queue_free`. The picker never pops for a
-  non-choice.
-- **real choice** → emit `Events.loot_pick_requested(LootPickRequest)`.
+1. Filter the **remaining** pool by `collector.stat_board.would_cycle(m)` —
+   against the collector's **current** board, which already reflects every
+   grant an earlier round in this same relic made.
+2. **Zero cycle-safe survivors** → stop; this relic grants no more.
+3. **Exactly one** → no real choice, auto-grant it, skip the picker.
+4. **2–3 survivors** → weighted-sample up to 3 ("roll a bucket by weight, then a
+   member") and emit `Events.loot_pick_requested(LootPickRequest)` for a
+   **pick-1** choice.
+5. The chosen mod is granted **immediately**, via `Entity.grant_core_modifier`
+   (so it lands in the collector's register too — re-lootable later) — before
+   the next round's `would_cycle` check runs. The un-picked offer members are
+   NOT removed from the pool; they're eligible again in a later round's fresh
+   sample ("single pick, then new draw, the next pick is always clean").
 
-### The handshake (load-bearing)
+**Why per-round, not one up-front filter.** Two candidates can each be
+individually cycle-safe yet jointly cyclic — a single filter checked once
+against the board as it stood at draw time would let both through, and the
+second `add_modifier` would land on the board's own last-resort rejection (a
+silently smaller reward). Checking `would_cycle` again each round, against the
+board as it now stands, catches that: once round 1 binds the first candidate,
+round 2's check sees it and excludes the second before it's ever offered.
 
-`emit()` is synchronous. `LootPickRequest.handled` is the pre-emption flag:
+### The handshake (load-bearing, unchanged from #173)
+
+`emit()` is synchronous. `LootPickRequest.handled` is the pre-emption flag, now
+per-round (`pick_count` on each round's request is always 1):
 
 - **HudRoot** listens, filters `request.collector == _player`, sets
   `handled = true` **synchronously** and shows `LootPicker` (a modal — it
   **pauses the tree** and runs at `process_mode = ALWAYS`, the `PauseMenu`
   idiom; a mouse-filter alone wouldn't stop the `D`-key deallocate, which rides
-  `_unhandled_input`). On confirm it unpauses and calls `request.resolve(chosen)`.
-- **If nobody set `handled`** (NPC relic, headless test, no HUD mounted) the
-  addon **auto-resolves a random N-of-M** right after emit returns.
+  `_unhandled_input`). On confirm it unpauses and calls `request.resolve(chosen)`
+  — which drives the NEXT round's `_advance_round`, possibly real seconds later.
+- **If nobody set `handled`** (NPC relic, headless test, no HUD mounted, or an
+  enemy scavenging a dead player's relic — nothing here gates by faction) the
+  addon **auto-resolves a random 1-of-the-offer** right after emit returns, and
+  the round chain runs fully synchronously to completion.
 
 That single rule keeps NPCs, headless tests, and the no-HUD path all on the
 auto-resolve branch — **the default the test suite exercises**. Only the human
 player's relic reaches the picker.
 
-`resolve()` is **idempotent** and fires possibly seconds later (the player takes
-time), so the resolver re-validates the collector (`is_instance_valid`) before
-granting, then `queue_free`s. The addon lingers on the now-owned relic until
-resolved.
+`resolve()` is **idempotent**. The addon lingers on the relic until every round
+has resolved (possibly across several real seconds if the player is picking),
+then `queue_free`s.
 
 ## XP must route through the pool
 

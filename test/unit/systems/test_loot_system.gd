@@ -287,45 +287,67 @@ func test_skilldust_dropped_on_former_core() -> void:
 	assert_false(dust.candidates.is_empty(), "dust holds the core-mod candidates")
 
 
-func test_loot_draws_only_core_mods_never_node_mods() -> void:
-	# The #173 correction: node mods are LENT by the graph and return to it on
-	# death, so looting them would duplicate live, re-claimable mods. N2's armor
-	# (a node mod) must NEVER appear in the draw; only core-identity mods do.
+func test_loot_draws_from_all_three_provenance_buckets() -> void:
+	# #323 re-cut: provenance replaces "scales with level" as the lootability
+	# axis. N2's armor (a node grant) MUST now appear — node mods are LENT by
+	# the graph and still return to it on death (the strip is untouched), but a
+	# DUPLICATED copy is now an honest loot candidate, not excluded outright.
 	_victim.level = 5
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
+	var stat_ids: Array[StringName] = []
 	for m in dust.candidates:
-		assert_true(m.stat_id in [&"strength", &"dexterity", &"intelligence",
-				&"constitution", &"wisdom"],
-			"candidates are core-identity mods only")
-		assert_ne(m.stat_id, &"armor", "node-granted mods are not lootable")
+		stat_ids.append(m.stat_id)
+	assert_true(&"armor" in stat_ids, "node-grant bucket is now part of the draw")
+	assert_true(&"strength" in stat_ids or &"dexterity" in stat_ids
+			or &"intelligence" in stat_ids, "class/register bucket is still drawn")
+	var innate_ids: Array[StringName] = []
+	for m in _victim.stat_board.intrinsic_modifiers:
+		innate_ids.append((m as StatModifier).stat_id)
+	var saw_innate := false
+	for m in dust.candidates:
+		if m.stat_id in innate_ids:
+			saw_innate = true
+			break
+	assert_true(saw_innate, "board-innate bucket is drawn too")
+
+
+func test_lootable_supply_is_the_union_of_all_three_buckets() -> void:
+	# Supply = |node grants| + |class register| + |board innates|, expanded for
+	# loot the same way each bucket's own reader would report it. Computed from
+	# the fixture rather than a hardcoded literal, so it doesn't rot when the
+	# shared default board's intrinsic set changes.
+	var expected := _loot._expand_for_loot(_loot._node_grant_modifiers(_victim)).size() \
+			+ _loot._expand_for_loot(_loot._core_modifiers(_victim)).size() \
+			+ _loot._expand_for_loot(_loot._innate_modifiers(_victim)).size()
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	assert_eq(dust.candidates.size(), expected, "M = union of the three buckets")
 
 
 func test_keep_count_scales_with_victim_level() -> void:
-	# N = round(core_keep_base + core_keep_per_level * level), clamped to the core
-	# supply (5 identity mods since #271). M is always the full core set.
+	# N = round(core_keep_base + core_keep_per_level * level), clamped to the
+	# TOTAL pool across all three buckets.
 	_loot.core_keep_base = 1.0
 	_loot.core_keep_per_level = 0.5
 	_victim.level = 2
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 5, "M = full core supply")
 	assert_eq(dust.pick_count, 2, "N = round(1 + 0.5*2) = 2")
 
 
-func test_keep_count_never_saturates_the_core_supply() -> void:
-	# A keep-count that reaches M turns pick-N-from-M into "take everything" —
-	# SkillDustAddon's no-choice branch auto-grants and the picker never pops.
-	# That's what a D-19 level-20 enemy did against a 5-mod core (1 + 0.25*20 = 6),
-	# and it's why the loot modal looked absent in first_level. The draw now
-	# always leaves at least one modifier on the table.
+func test_keep_count_never_saturates_the_supply() -> void:
+	# A keep-count that reaches M turns pick-1-of-3-per-round into "take
+	# everything" — the picker never pops. That's what a D-19 level-20 enemy did
+	# against a small core (1 + 0.25*20 = 6), and it's why the loot modal looked
+	# absent in first_level. The draw now always leaves at least one on the table.
 	_loot.core_keep_base = 100.0  # absurdly generous — still must not saturate
 	_loot.core_keep_per_level = 1.0
 	_victim.level = 20
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 5, "M = full core supply")
-	assert_eq(dust.pick_count, 4, "N is capped at M-1 so the choice survives")
+	assert_lt(dust.pick_count, dust.candidates.size(),
+			"N is capped below M so the choice survives")
 
 
 func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
@@ -360,24 +382,25 @@ func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
 
 
 func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
-	# No HUD in this harness → the pick auto-resolves (random N of M). Exactly
-	# pick_count core mods land on the collector's board, not its core node (#185).
+	# No HUD in this harness → each round auto-resolves (random 1 of up to 3).
+	# Exactly pick_count mods land on the collector's board AND its register
+	# (#185/#323 — a looted grant is re-lootable through the register), not the
+	# relic's core node.
 	_loot.core_keep_base = 2.0
-	_loot.core_keep_per_level = 0.0  # N = 2, M = 5 → a real choice
+	_loot.core_keep_per_level = 0.0  # N = 2 rounds → a real choice
 	_victim.level = 1
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 5, "M = full core (5 identity mods)")
 	assert_eq(dust.pick_count, 2, "N = 2")
 	_killer.stat_board.skill_points.grant(5)  # ensure SP to afford the allocation
-	var attr_before := _attr_sum(_killer)
+	var reg_before := _killer.core_modifiers.size()
 	# Killer allocates the neutral relic (adjacent to its N0 core).
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer can allocate the neutral relic node")
-	var attr_gain := _attr_sum(_killer) - attr_before
-	assert_eq(attr_gain, 20.0, "exactly 2 of 5 BalancedCore mods (+10 each) were granted")
+	assert_eq(_killer.core_modifiers.size(), reg_before + 2,
+			"exactly N=2 rounds each grant one modifier into the collector's register")
 	await get_tree().process_frame  # queue_free is deferred to frame end
-	assert_null(_find_dust(_nodes[1]), "dust consumes itself on pickup")
+	assert_null(_find_dust(_nodes[1]), "dust consumes itself once every round has resolved")
 
 
 # ── #173: the pick-N-from-M handshake at claim time ──────────────────────────
@@ -387,30 +410,29 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 
 func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	# Real NPC play: nobody claims the pick → SkillDustAddon auto-resolves a
-	# RANDOM N of M. Exactly N mods must land on the board (not all M, not zero).
-	# XP is zeroed to isolate the loot grant: since #271 a level-up also moves
-	# CON (+1/level, via the board's mod_level_to_con intrinsic), which would
-	# otherwise drift _attr_sum by the killer's levels gained on this kill.
+	# RANDOM 1-of-3 each round. Exactly N rounds' worth of mods must land in the
+	# collector's register (not the whole pool, not zero). XP is zeroed so a
+	# level-up doesn't also mutate the board via mod_level_to_con mid-test.
 	_loot.xp_per_node_killed = 0.0
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0
 	_victim.level = 1
-	var attr_before := _attr_sum(_killer)
+	var reg_before := _killer.core_modifiers.size()
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.candidates.size(), 5, "M candidates offered (core identity)")
-	assert_eq(dust.pick_count, 2, "N to keep")
+	assert_eq(dust.pick_count, 2, "N rounds to run")
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer allocates the relic")
-	var attr_gain := _attr_sum(_killer) - attr_before
-	assert_eq(attr_gain, 20.0, "auto-resolve grants exactly N=2 mods onto the board (+10 each)")
+	assert_eq(_killer.core_modifiers.size(), reg_before + 2,
+			"auto-resolve grants exactly N=2 rounds' worth of mods")
 
 
 func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> void:
 	# A UI consumer sets `handled = true` synchronously → the addon must NOT
-	# auto-resolve. The loot stays pending until the picker calls resolve().
-	# XP zeroed for the same reason as above — a level-up would move CON.
+	# auto-resolve THAT ROUND. The round stays pending until the picker calls
+	# resolve() — and the NEXT round's request doesn't fire until it does,
+	# since `_grant_and_advance` (the resolver) is what drives `_advance_round`.
 	_loot.xp_per_node_killed = 0.0
 	_loot.core_keep_base = 2.0
 	_loot.core_keep_per_level = 0.0
@@ -421,23 +443,110 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 		captured.append(req)
 	Events.loot_pick_requested.connect(handler)
 
-	var attr_before := _attr_sum(_killer)
+	var reg_before := _killer.core_modifiers.size()
 	_kill_victim()
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer allocates the relic")
-	assert_eq(captured.size(), 1, "the pick request reached the handler")
-	# Nothing granted yet — auto-resolve was suppressed, the pick is pending.
-	assert_eq(_attr_sum(_killer), attr_before,
-		"handled → loot still pending, no stats granted")
+	assert_eq(captured.size(), 1, "only round 1's request reached the handler so far")
+	assert_eq(captured[0].pick_count, 1, "a round request is a pick-1 choice, not pick-N")
+	# Nothing granted yet — auto-resolve was suppressed, round 1 is pending.
+	assert_eq(_killer.core_modifiers.size(), reg_before,
+		"handled → round 1 still pending, nothing granted yet")
 	assert_false(captured[0].is_resolved(), "request awaits the player's pick")
 
-	# Now the "picker" resolves with the player's chosen N (2) → stats land.
-	var chosen: Array[StatModifier] = [captured[0].candidates[0], captured[0].candidates[1]]
-	captured[0].resolve(chosen)
-	assert_eq(_attr_sum(_killer), attr_before + 20.0,
-		"resolving the pick grants exactly N=2 mods onto the board (+10 each)")
+	# Resolve round 1 → round 2's request fires (still connected to `handler`).
+	captured[0].resolve([captured[0].candidates[0]])
+	assert_eq(_killer.core_modifiers.size(), reg_before + 1,
+		"round 1's pick landed in the register")
+	assert_eq(captured.size(), 2, "resolving round 1 drove round 2's request")
+
+	captured[1].resolve([captured[1].candidates[0]])
+	assert_eq(_killer.core_modifiers.size(), reg_before + 2,
+		"round 2's pick landed too — N=2 rounds total")
 	Events.loot_pick_requested.disconnect(handler)
+
+
+# ── #323: sequential would_cycle filtering closes the joint-cycle gap ────────
+
+func test_sequential_would_cycle_filtering_closes_the_joint_cycle_gap() -> void:
+	# Two candidates, each individually cycle-safe, but jointly cyclic:
+	# strength reads dexterity; dexterity reads strength. A single up-front
+	# filter (checked once against the board as it stood at draw time) would
+	# let BOTH through — the second `add_modifier` would then hit the board's
+	# own last-resort rejection. The per-round claim-time filter must not: once
+	# round 1 binds the first, round 2's `would_cycle` check sees it on the
+	# board and excludes the second before it's ever offered.
+	var mod_a := StatModifier.new()
+	mod_a.stat_id = &"strength"
+	var f_a := LinearFormula.new()
+	f_a.source_stat_id = &"dexterity"
+	mod_a.formula = f_a
+
+	var mod_b := StatModifier.new()
+	mod_b.stat_id = &"dexterity"
+	var f_b := LinearFormula.new()
+	f_b.source_stat_id = &"strength"
+	mod_b.formula = f_b
+
+	# A free relic adjacent to the killer's core to allocate onto.
+	var relic := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	relic.name = "Relic"
+	_graph.skill_nodes_container.add_child(relic)
+	_add_edge(_nodes[0], relic)
+
+	var dust := SkillDustAddon.new()
+	dust.candidates = [mod_a, mod_b]
+	dust.weights = [1.0, 1.0]
+	dust.pick_count = 2
+	relic.add_child(dust)
+
+	var captured: Array[LootPickRequest] = []
+	var handler := func(req: LootPickRequest) -> void:
+		req.handled = true
+		captured.append(req)
+	Events.loot_pick_requested.connect(handler)
+
+	_killer.stat_board.skill_points.grant(5)
+	var ok := _alloc.allocate(relic, _killer)
+	assert_true(ok, "killer allocates the relic")
+
+	assert_eq(captured.size(), 1, "round 1 offers a real 2-way choice")
+	assert_eq(captured[0].candidates.size(), 2, "both are individually cycle-safe at round 1")
+	captured[0].resolve([mod_a])  # bind "strength reads dexterity" first
+
+	assert_eq(_killer.core_modifiers.size(), 1, "round 1's pick landed")
+	assert_true(_killer.core_modifiers.has(mod_a))
+	assert_eq(captured.size(), 1, "round 2 never emitted a request — no cycle-safe survivor left")
+	assert_false(_killer.core_modifiers.has(mod_b),
+			"the jointly-cyclic candidate is excluded once round 1 is bound, never granted")
+
+	Events.loot_pick_requested.disconnect(handler)
+
+
+# ── #323: enemies loot from players too (symmetry, not gated by faction) ─────
+
+func test_npc_loots_a_relic_dropped_by_a_player_victim() -> void:
+	# "Do enemies loot from players?" — yes, already true by construction:
+	# SkillDust loot goes to whoever ALLOCATES the relic (`carrier.owned_by`),
+	# not the killer specifically, and nothing in the drop or claim path gates
+	# on faction (only the XP reward does — see test_ally_kill_grants_no_xp).
+	# Flip the usual fixture: the VICTIM is player-faction, the CLAIMANT is
+	# npc-faction, same as an NPC scavenging a dead player's relic.
+	_victim.faction = _PLAYER_FACTION
+	_killer.faction = _NPC_FACTION
+	_loot.core_keep_base = 1.0
+	_loot.core_keep_per_level = 0.0
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	assert_not_null(dust, "a player's death still drops a relic")
+
+	var reg_before := _killer.core_modifiers.size()
+	_killer.stat_board.skill_points.grant(5)
+	var ok := _alloc.allocate(_nodes[1], _killer)
+	assert_true(ok, "an NPC entity can allocate a relic a player dropped")
+	assert_gt(_killer.core_modifiers.size(), reg_before,
+			"the NPC claimant receives the SkillDust payload like anyone else")
 
 
 # ── D-27/#279: loots_as_unit pack expansion ───────────────────────────────────
@@ -466,11 +575,12 @@ func test_expand_for_loot_keeps_a_true_pack_as_one_candidate() -> void:
 	assert_same(expanded[0], pack, "the whole pack is the candidate, unflattened")
 
 
-func test_false_pack_with_mixed_level_scaling_children_filters_per_leaf() -> void:
-	# Before D-27, a whole bundle was excluded if any leaf scaled with level
-	# (#194's filter ran on the un-expanded entry). Expanding BEFORE the filter
-	# fixes that: the static sibling stays lootable even though the level-scaled
-	# one is dropped.
+func test_level_scaling_no_longer_excludes_a_mod_from_the_pool() -> void:
+	# #323 re-cut: `_is_lootable`'s old `scales_with(&"level")` exclusion is
+	# GONE — stealing a level-scaler is the intended roguelite loop now, not a
+	# hazard to filter out. A `+1 STR per level` child inside a `false` pack
+	# (expanded to a per-leaf candidate, same as any static sibling) survives
+	# right alongside the static one.
 	var scaled := _mk_mod(&"strength", 1.0)
 	var f := LinearFormula.new()
 	f.source_stat_id = &"level"
@@ -482,10 +592,12 @@ func test_false_pack_with_mixed_level_scaling_children_filters_per_leaf() -> voi
 	pack.children = [scaled, static_mod]
 
 	var expanded: Array[StatModifier] = [pack]
-	var filtered := _loot._expand_for_loot(expanded).filter(_loot._is_lootable)
+	var out := _loot._expand_for_loot(expanded)
 
-	assert_eq(filtered.size(), 1, "only the static child survives the per-leaf filter")
-	assert_eq(filtered[0].stat_id, &"dexterity")
+	assert_eq(out.size(), 2, "both children survive — no level filter anymore")
+	var stat_ids: Array[StringName] = [out[0].stat_id, out[1].stat_id]
+	assert_true(&"strength" in stat_ids, "the level-scaling child is now lootable")
+	assert_true(&"dexterity" in stat_ids, "the static child stays lootable too")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
