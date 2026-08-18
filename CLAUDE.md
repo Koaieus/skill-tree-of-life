@@ -53,7 +53,9 @@ Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call 
 |---|---|
 | `Boot` | Release-build entry point — on `OS.has_feature("release")` swaps to `first_level_sandbox`. No-op in the editor. |
 | `SceneTransition` | Fade in/out + loading progress bar |
-| `SceneLoader` | Async scene loading. **Currently has no callers** — scaffolding, see #212 |
+| `SceneDirector` | Scene routing + async loading. Absorbed the zero-caller `SceneLoader` (#212); `MetaRoot` and the menu shell route through `SceneDirector.goto` |
+| `Settings` | `GameSettings` + `ConfigFile` persistence, surfaced by the reflected settings menu |
+| `BuildInfo` | Seed / branch / worktree, shown in the pause-menu footer |
 | `Events` | Global signal bus (`skill_node_depleted`, etc.) |
 | `StatRegistry` | StatDef lookup by id |
 | `DebugClipboard` | Press `c` while hovering a SkillNode to copy its full state (archetype, owner, hp, modifiers, addons) to the system clipboard |
