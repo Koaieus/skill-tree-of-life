@@ -4,11 +4,14 @@ extends GutTest
 ## `skill_node/visuals/blocker_visual.gd`) and its home scene
 ## (`skill_node/blocker_node.tscn`). Covers: the scene is a real [SkillNode];
 ## a blocked node's live CoreHalos ends up at COG (the cheap preset, #478 perf
-## amendment) rather than GIMBAL; crack stage tracks HP synchronously off
-## `damaged`; the core HP bar keeps its ordinary visibility rule untouched by
-## the boulder; clearing (owner stripped) hides the boulder PERMANENTLY — a
-## later re-allocation by a normal entity must never re-show it; and procgen
-## instantiates the blocker scene for exactly the nodes it places blockers on.
+## amendment) rather than GIMBAL, and restores to GIMBAL once cleared; crack
+## stage tracks HP synchronously off `damaged` OFF-hold, and honours the
+## presentation hold (#479/#482) — withheld while held, one collapsed re-sync
+## on release, never a mid-hold advance; the core HP bar keeps its ordinary
+## visibility rule untouched by the boulder; clearing (owner stripped) hides
+## the boulder PERMANENTLY — a later re-allocation by a normal entity must
+## never re-show it; and procgen instantiates the blocker scene for exactly
+## the nodes it places blockers on.
 
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -105,6 +108,43 @@ func test_crack_stage_follows_hp_on_damaged() -> void:
 	assert_eq(visual.crack_stage, 2, "20% HP → SHATTERED")
 
 
+# ── Crack stage honours the presentation hold (#479/#482) ────────────────
+
+## Crack stage is combat paint: a hit that lands under a presentation hold
+## must not visibly crack the boulder before the projectile/swing arrives.
+func test_crack_stage_withheld_under_presentation_hold_then_syncs_on_release() -> void:
+	var sn := _nodes[0]
+	var visual := _visual(sn)
+	await _spawn_blocker()
+	await get_tree().process_frame
+
+	var max_hp := sn.get_max_hp()
+	sn.hold_presentation()
+	sn.take_damage(max_hp * 0.80, null)  # would be SHATTERED off-hold
+	assert_eq(visual.crack_stage, 0, "held: stage does not advance on the hit itself")
+
+	sn.release_presentation()
+	assert_eq(visual.crack_stage, 2, "released: stage syncs to the FINAL hp fraction")
+
+
+## A rapid multi-hit exchange under one hold must not replay each
+## intermediate stage — only the one re-sync on release, against final HP.
+func test_multiple_held_hits_collapse_to_one_release_sync() -> void:
+	var sn := _nodes[0]
+	var visual := _visual(sn)
+	await _spawn_blocker()
+	await get_tree().process_frame
+
+	var max_hp := sn.get_max_hp()
+	sn.hold_presentation()
+	sn.take_damage(max_hp * 0.40, null)
+	sn.take_damage(max_hp * 0.40, null)
+	assert_eq(visual.crack_stage, 0, "held: still no advance after a second hit")
+
+	sn.release_presentation()
+	assert_eq(visual.crack_stage, 2, "released: one sync lands on the accumulated 20% hp")
+
+
 # ── HP bar semantics: ASSERT ONLY, no behaviour change ───────────────────
 
 func test_core_health_bar_visibility_untouched_by_boulder() -> void:
@@ -164,6 +204,11 @@ func test_clearing_hides_boulder_permanently() -> void:
 	_alloc.force_deallocate(sn)
 	await get_tree().process_frame  # BlockerVisual's owner_changed handler is deferred
 	assert_false(visual.visible, "boulder hides once the blocker is stripped")
+	var CoreHalosScript := preload("res://skill_node/visuals/core_halos.gd")
+	var halos = sn.get_node("Visuals/NodeVisualsComposite/ShaderStack/CorePresence/CoreHalos")
+	assert_eq(
+		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
+		"clearing restores core_halo_style to Default (-1), which reads back as GIMBAL")
 
 	# A normal entity re-allocating the cleared node must never re-show the
 	# boulder — the latch is permanent, not re-derived from current ownership.

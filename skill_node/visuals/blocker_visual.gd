@@ -2,9 +2,19 @@ extends Node2D
 ## Boulder overlay for a removable-blocked node (#300 / #478). While the node
 ## reads as blocked, draws a neutral grey rock that dominates the node's inner
 ## disk. Three crack stages sync to the node's combat-HP fraction (intact >
-## 66%, cracked ≤ 66%, shattered ≤ 33%) and refresh synchronously on the
-## node's [signal SkillNode.damaged] — no frame wait. Crack stage does lag one
-## idle frame behind a FRESH allocation (see `_ready`'s docstring for why);
+## 66%, cracked ≤ 66%, shattered ≤ 33%).
+##
+## [b]Crack stage is combat PAINT, so it honours the presentation hold
+## (#479/#482).[/b] Model HP mutates synchronously on `take_damage`, but a
+## blocked node must not visibly crack before the hit that caused it has
+## actually landed on screen (a BattleSystem-held target withholds every other
+## repaint for exactly this reason). [method _on_damaged] no-ops while
+## [member SkillNode.presentation_hold] is true; [signal
+## SkillNode.presentation_released] re-syncs the stage once the hold lifts, so
+## a rapid multi-hit exchange still lands on the FINAL HP fraction rather than
+## replaying each intermediate stage. Off-hold, this is still synchronous — no
+## frame wait — matching every other painter's contract. Crack stage ALSO lags
+## one idle frame behind a FRESH allocation (see `_ready`'s docstring for why);
 ## that only delays picking up new ownership, never a mid-life damage tick.
 ##
 ## [b]Blocked is a LATCH, not a live predicate.[/b] The first entity to own
@@ -20,14 +30,17 @@ extends Node2D
 ## every read instead of remembering the one fact that actually matters (who
 ## owned this first).
 ##
-## [b]This script does NOT touch core presence.[/b] A blocker's core presence
-## (CoreHalos) stays ACTIVE — it's cheaper to keep it on the cog-machinery
-## style than to suppress-and-restore it, and suppressing it entirely would
-## still pay the composite's own gate cost for nothing. `blocker_node.tscn`
-## pins [member SkillNode.core_halo_style] to COG statically; see that
-## export's docstring for the perf rationale (GIMBAL's per-frame quaternion
-## chain is expensive at a handful of instances, and a level can spawn
-## several blockers). The boulder simply draws over it.
+## Drives [member SkillNode.core_halo_style] in lockstep with the latch — COG
+## (the cheap preset) while blocked, `-1` (Default, restoring whatever
+## `core_presence.tscn` authored — GIMBAL today) once cleared. Core presence
+## itself stays ACTIVE the whole time; it's cheaper to keep it on the
+## cog-machinery style than to suppress-and-restore it, and a level can spawn
+## several blockers (GIMBAL's per-frame quaternion chain is expensive at a
+## handful of instances — see that export's docstring). `blocker_node.tscn`
+## also pins the style to COG statically so a freshly-instantiated-but-not-yet-
+## allocated node never has a stray frame of GIMBAL before this script's first
+## deferred sync runs; this script's write is what makes the `-1` restore on
+## clear possible; the boulder simply draws over whichever style is live.
 ##
 ## Fog mirrors every other owner-detail on the node (the disk, the addons):
 ## hidden while [member SkillNode.sensed]. Resynced off the node's
@@ -71,6 +84,13 @@ const BOULDER_RADIUS_SCALE := 0.92
 ## How many crack lines each stage draws.
 const CRACK_COUNTS: Array[int] = [0, 2, 4]
 
+## Plain-int mirrors of [member SkillNode.core_halo_style]'s own
+## `@export_enum` values — [CoreHalos] deliberately carries no `class_name`
+## (see .claude/rules/skill-node-visuals.md), so there's no enum type to
+## reference here either; these name the two values this script actually uses.
+const _HALO_STYLE_DEFAULT := -1
+const _HALO_STYLE_COG := 4
+
 var crack_stage: CrackStage = CrackStage.INTACT
 
 var _node: SkillNode = null
@@ -101,6 +121,11 @@ func _ready() -> void:
 			_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 		if not _node.sensed_changed.is_connected(_on_sensed_changed):
 			_node.sensed_changed.connect(_on_sensed_changed)
+		# Plain (not deferred) — this fires well after any fresh-allocation HP
+		# race has already settled (it's the RELEASE of a hold, never the
+		# initial owner_changed), so there's nothing to wait out here.
+		if not _node.presentation_released.is_connected(_on_presentation_released):
+			_node.presentation_released.connect(_on_presentation_released)
 	# Deferred for the same reason as the connect above. Establishes the
 	# initial latch (a freshly-spawned blocker's force_allocate already ran
 	# before this visual entered the tree, so `owned_by` is non-null here) and
@@ -109,12 +134,24 @@ func _ready() -> void:
 	_on_owner_changed.call_deferred()
 
 
+## No-ops while the node's repaint is withheld (#479/#482) — see the class
+## docstring's presentation-hold paragraph. `presentation_released` catches
+## the deferred refresh; a rapid multi-hit exchange under one hold collapses
+## to a single re-sync against the FINAL hp fraction, not one per hit.
 func _on_damaged(_amount: float, _source: Variant) -> void:
+	if _node != null and _node.presentation_hold:
+		return
+	_refresh_stage_and_visibility()
+
+
+func _on_presentation_released() -> void:
 	_refresh_stage_and_visibility()
 
 
 func _on_owner_changed() -> void:
 	_update_latch()
+	if _node != null:
+		_node.core_halo_style = _HALO_STYLE_COG if _is_blocked() else _HALO_STYLE_DEFAULT
 	_refresh_stage_and_visibility()
 
 

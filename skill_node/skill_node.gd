@@ -167,8 +167,24 @@ var inner_radius: float:
 ## read for a blocker anyway — without paying gimbal cost per instance. The
 ## `int` + `@export_enum` shape (not a typed enum) matches [CoreHalos] itself,
 ## which deliberately carries no `class_name` (see skill-node-visuals.md).
+##
+## The setter re-runs [method _refresh_core_presence] itself (guarded on
+## `is_node_ready()`, same guard every other re-syncing setter in this file
+## uses pre-`_ready`) — a write at ANY time re-syncs the live halo, so a caller
+## (e.g. [BlockerVisual] toggling this on latch/clear) never has to race
+## `SkillNode`'s own `owner_changed` connection order the way an unsynced flag
+## would. That is what let [BlockerVisual]'s crack-stage refresh be the ONLY
+## `owner_changed` listener that still needs `CONNECT_DEFERRED` — see its
+## `_ready` docstring, which reads combat HP and genuinely does need
+## `_refresh_hp_binding` to have already run.
 @export_enum("Default:-1", "None:0", "Rings:1", "Orbit:2", "Gimbal:3", "Cog:4")
-var core_halo_style: int = -1
+var core_halo_style: int = -1:
+	set(value):
+		if core_halo_style == value:
+			return
+		core_halo_style = value
+		if is_node_ready():
+			_refresh_core_presence()
 
 @export var self_loops: Array[Edge] = []
 

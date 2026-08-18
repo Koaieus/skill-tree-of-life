@@ -32,12 +32,23 @@ extends Node2D
 ## stay at relative z_index 0 so CoreHalos' own GimbalBack relative-z offset
 ## (see skill-node-visuals.md) is unaffected by this extra nesting level.
 
+## The [CoreHalos] style as `core_presence.tscn` authored it (today: GIMBAL),
+## cached the first time [method set_halo_style] overrides it — so a later
+## `style == -1` call can hand it BACK rather than merely declining to touch
+## the (already-overridden) live value. `-1` sentinel for "not cached yet";
+## every real [CoreHalos.CoreHaloStyle] value is `>= 0`, so it can't collide
+## with a legitimately-authored `NONE` (0).
+var _authored_halo_style: int = -1
+
+
 ## Overrides [member CoreHalos.halo_style] on the [CoreHalos] child. `style ==
-## -1` is a deliberate no-op — it leaves whatever `core_presence.tscn`
-## authored (today: GIMBAL) untouched, rather than writing anything — see
+## -1` restores whatever `core_presence.tscn` authored (cached in [member
+## _authored_halo_style] on first override) — a genuine restore, not merely a
+## no-op, so a caller that overrides and later clears the override (a
+## removable blocker, #478, going COG-while-blocked → Default-once-cleared)
+## gets its normal halo back rather than staying stuck on the override. See
 ## [member SkillNode.core_halo_style]'s docstring for the sentinel and the
-## perf motivation (a removable blocker, #478, keeps its core presence active
-## but forces the cheap COG preset instead of GIMBAL).
+## perf motivation (COG instead of the expensive GIMBAL while blocked).
 ##
 ## EXPLICIT — a named child lookup, not duck-typed like [method glide_from]'s
 ## `on_core_travel_start`/`on_core_travel_arrived` hooks above. Those hooks
@@ -48,11 +59,16 @@ extends Node2D
 ## might have one via `has_method`/duck typing would just hide a real
 ## dependency behind a weaker contract for no benefit.
 func set_halo_style(style: int) -> void:
-	if style < 0:
-		return
 	var halos := get_node_or_null(^"CoreHalos")
-	if halos != null:
-		halos.halo_style = style
+	if halos == null:
+		return
+	if style < 0:
+		if _authored_halo_style >= 0:
+			halos.halo_style = _authored_halo_style
+		return
+	if _authored_halo_style < 0:
+		_authored_halo_style = halos.halo_style
+	halos.halo_style = style
 
 
 ## Slides children in from `local_offset` (this node's position the instant

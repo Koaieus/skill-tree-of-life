@@ -298,3 +298,10 @@ func test_core_halo_style_override_routes_through_the_chain() -> void:
 	assert_eq(
 		halos.halo_style, CoreHalosScript.CoreHaloStyle.COG,
 		"a blocked node's cheap-halo override lands on the live CoreHalos child")
+
+	# -1 after an override must RESTORE the authored style, not merely decline
+	# to write — a blocker clearing its latch needs its normal GIMBAL back.
+	comp.set_core_halo_style(-1)
+	assert_eq(
+		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
+		"-1 after an override restores the authored style, it doesn't just skip")
