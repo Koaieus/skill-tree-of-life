@@ -7,6 +7,10 @@ extends VFXCoordinator
 ## Each shot is staggered by [member stagger_per_shot] so a wide volley
 ## reads as a flurry of arrival impacts rather than one monolithic THWACK.
 ##
+## Pure observer (#474) — [member AttackOutcome.hits] has ALREADY landed by
+## the time [method play] runs (BattleSystem applies it synchronously before
+## any VFX await). This coordinator never calls take_damage; it only renders.
+##
 ## Uses the [LightArrow] visual by default — oriented glowing arrow that
 ## sticks into the target node and fades. Arrows are tinted by the
 ## attacker's [member Entity.color], read off [member DamageInstance.source]
@@ -38,9 +42,6 @@ func play(payload: Variant) -> void:
 		proj.flight_time = flight_time
 		proj.face_velocity = face_velocity
 		add_child(proj)
-		proj.arrived.connect(func() -> void:
-			if hit.target != null:
-				hit.target.take_damage(hit.amount, hit))
 		proj.tree_exiting.connect(func() -> void:
 			pending[0] -= 1)
 		proj.launch(

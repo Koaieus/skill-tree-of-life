@@ -129,15 +129,20 @@ func _ready() -> void:
 
 ## Commit the active plan. Three phases:
 ##   1. resolve() → AttackOutcome (pure, no side-effects on plan/world)
-##   2. await attack_vfx → tracers fly + apply damage on arrival
-##   3. AP deduction + plan clear
+##   2. apply the WHOLE outcome synchronously — hits, heals, and (via
+##      SkillNode.take_damage → Events.skill_node_depleted) the forced-dealloc
+##      cascade — before any await runs (#474: host-authoritative sync needs
+##      world state to be a pure function of the resolved outcome, never of a
+##      peer's own animation framerate)
+##   3. hand the already-applied outcome to VFX as a PURE OBSERVER — it may
+##      read `outcome`/`melee_plan.last_events` to time its playback but must
+##      never mutate; then AP/plan cleanup
 ##
 ## AP is deducted up front; the plan itself stays live through the whole
 ## await (#406 — a melee plan's attached temp-upgrade addons must keep
 ## rendering through the live swing) and is cleared in one place, after.
 ## `is_launching` — not `attack_plan != null` — is what blocks a second
-## launch_attack() call during the await window. Without VFX, the volley
-## call is synchronous and damage lands immediately.
+## launch_attack() call during the await window.
 func launch_attack() -> void:
 	if not is_attacking or is_launching:
 		push_warning("BattleSystem.launch_attack: no plan, or already launching")
@@ -173,11 +178,16 @@ func launch_attack() -> void:
 	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
 	if attack_plan.attacker != null:
 		attack_plan.attacker.dispatch(&"_on_attack_launched", [attack_plan.mode, launched_spell])
-	# Melee: hand off to the MeleePreview (which has the ghost mounted) for the
-	# live swing + damage application. The plan stays live (attack_plan is NOT
-	# cleared) through the whole await — its temp-upgrade addons (#406) must
-	# stay attached and rendering through both the ghost preview loop and the
-	# actual committed swing. _reset() (which frees them) runs once, after.
+	# World mutation happens here, synchronously, for every mode — before any
+	# VFX await starts. Whether attack_vfx/melee_preview is null or live, the
+	# resulting world state is identical (#474 acceptance).
+	_apply_outcome(outcome)
+	# Melee: hand off to the MeleePreview (which has the ghost mounted) for a
+	# PURE-ANIMATION replay of the swing already applied above. The plan stays
+	# live (attack_plan is NOT cleared) through the whole await — its
+	# temp-upgrade addons (#406) must stay attached and rendering through both
+	# the ghost preview loop and the actual committed swing. _reset() (which
+	# frees them) runs once, after.
 	if attack_plan is MeleeAttackPlan and melee_preview != null:
 		var melee_plan: MeleeAttackPlan = attack_plan
 		await melee_preview.launch(melee_plan)
@@ -200,17 +210,21 @@ func launch_attack() -> void:
 			await attack_vfx.play(coord_scene, outcome)
 		else:
 			await attack_vfx.play_ranged_volley(outcome)
-	else:
-		# Headless / no-VFX path: apply the outcome directly so tests can
-		# still observe it without a scene-attached VFX node.
-		for hit in outcome.hits:
-			if hit.target != null:
-				hit.target.take_damage(hit.amount, hit)
-		for heal in outcome.heals:
-			if heal.target != null:
-				heal.target.heal_damage(heal.amount, heal)
 	is_launching = false
 	_reset()
+
+
+## The one place world mutation happens for an attack: hits, then heals —
+## which, via take_damage → Events.skill_node_depleted → _on_node_depleted
+## (both synchronous), also runs the forced-dealloc cascade. VFX never calls
+## this; it only replays what already landed. See the class-level VFX note.
+func _apply_outcome(outcome: AttackOutcome) -> void:
+	for hit in outcome.hits:
+		if hit.target != null:
+			hit.target.take_damage(hit.amount, hit)
+	for heal in outcome.heals:
+		if heal.target != null:
+			heal.target.heal_damage(heal.amount, heal)
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the

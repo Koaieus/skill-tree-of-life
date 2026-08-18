@@ -33,6 +33,13 @@ extends VFXCoordinator
 ##   * [member cancel_visual] — CANCEL dissipate (no projectile path)
 ## Unset slots fall back to [member projectile_path] / [member visual_scene],
 ## then to built-in defaults.
+##
+## ## Pure observer (#474)
+##
+## [member PropagationEvent.damage] / [member PropagationEvent.heal] have
+## ALREADY landed by the time [method play] runs — BattleSystem applies the
+## whole [AttackOutcome] synchronously before any VFX await starts. This
+## coordinator never calls take_damage/heal_damage; it only renders.
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
 const _DEFAULT_CANCEL: PackedScene = preload("res://ui/vfx/projectile/visual/cancel_dissipate.tscn")
@@ -110,9 +117,10 @@ func play(payload: Variant) -> void:
 	# on the first check, at ANY tuning.
 	#
 	# `play()` returning is what makes AttackVFX free this coordinator, taking
-	# every later beat with it: the `take_damage` / `heal_damage` lambdas on
-	# those projectiles never run, so the spell silently stops dealing damage
-	# partway down its own timeline.
+	# every later beat's projectiles with it: the spell would silently stop
+	# rendering partway down its own timeline (damage/heal are already
+	# applied by BattleSystem before play() ever runs — see #474 — so what's
+	# at stake here is purely the visual, not a dropped mutation).
 	await _play_three_clocks(waves, beats, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
@@ -174,21 +182,6 @@ func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
 	proj.crit_tier = ev.crit_tier
 	add_child(proj)
 	pending[0] += 1
-	var hit: DamageInstance = ev.damage
-	var heal: HealingInstance = ev.heal
-	# Independent, not `elif`: a landing carrying both must land both. This is
-	# the two-slot shape showing its seams — one `damage` + one `heal` can't
-	# express two damages, and every new effect kind adds a slot and a branch
-	# here. Pending the `Array[HitInstance]` collapse.
-	if hit != null:
-		proj.arrived.connect(func() -> void:
-			if hit.target != null:
-				hit.target.take_damage(hit.amount, hit))
-	if heal != null:
-		proj.arrived.connect(func() -> void:
-			if heal.target != null:
-				heal.target.heal_damage(heal.amount, heal))
-
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
 	proj.launch(ev.origin.global_position, ev.target.global_position, 0.0)

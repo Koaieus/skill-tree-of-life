@@ -376,6 +376,19 @@ func _can_be_blade(node: SkillNode) -> bool:
 	return true
 
 
+## Scan artifacts from the most recent [method resolve] call — the exact
+## trajectory / hit events / pop resolution that produced [member last_events]'s
+## owning [AttackOutcome]. [MeleePreview] replays THESE (never a fresh rescan)
+## so the live swing's animation can't drift from the damage BattleSystem
+## already applied synchronously off [method resolve]'s outcome (#474): a
+## rescan taken after the depletion cascade would exclude nodes the cascade
+## just deallocated from [method collect_target_excludes], silently dropping
+## hits/pops the pre-cascade resolve() correctly saw.
+var last_trajectory: BladeTrajectory = null
+var last_events: Array[BladeHitEvent] = []
+var last_pops: BladePopResolver.Result = null
+
+
 func resolve() -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	if not is_valid():
@@ -394,6 +407,9 @@ func resolve() -> AttackOutcome:
 	# live swing uses so AI scoring / AP estimation matches what actually lands.
 	var pops := BladePopResolver.resolve(events, blade_state, attacker)
 	outcome.thinned_nodes = pops.dead_at.size()
+	last_trajectory = trajectory
+	last_events = events
+	last_pops = pops
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.

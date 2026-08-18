@@ -176,7 +176,11 @@ func _make_preview() -> MeleePreview:
 	return preview
 
 
-func test_live_dead_vertex_pops_once_and_deals_no_damage() -> void:
+## #474: MeleePreview._on_live_hit is a PURE OBSERVER now — BattleSystem
+## applies damage synchronously off MeleeAttackPlan.resolve()'s outcome
+## before the live-swing replay ever runs, so _on_live_hit never touches HP
+## itself in either branch. Its only remaining job is the spike-pop VFX cue.
+func test_live_dead_vertex_pops_once_and_no_more() -> void:
 	var ctx: Dictionary = await _setup()
 	var spike_node: SkillNode = ctx.spike_node
 	var plain_node: SkillNode = ctx.plain_node
@@ -191,18 +195,18 @@ func test_live_dead_vertex_pops_once_and_deals_no_damage() -> void:
 	# The killing contact: vertex 1 reaches the spiked node at its death time.
 	preview._on_live_hit(1, false, spike_node, 0.3, 999.0)
 	assert_almost_eq(spike_node.get_current_hp(), spike_hp, 0.001,
-			"the popping node takes no damage from the vertex it killed")
+			"_on_live_hit never mutates HP — damage already landed synchronously")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
 
-	# A later hit by the same (now disintegrated) vertex: no damage, no 2nd pop.
+	# A later hit by the same (now disintegrated) vertex: no 2nd pop.
 	var plain_hp := plain_node.get_current_hp()
 	preview._on_live_hit(1, false, plain_node, 0.5, 999.0)
 	assert_almost_eq(plain_node.get_current_hp(), plain_hp, 0.001,
-			"a disintegrated vertex deals no further damage")
+			"_on_live_hit never mutates HP")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
 
 
-func test_live_alive_vertex_deals_damage() -> void:
+func test_live_alive_vertex_never_mutates_hp() -> void:
 	var ctx: Dictionary = await _setup()
 	var plain_node: SkillNode = ctx.plain_node
 	var preview := _make_preview()
@@ -213,6 +217,6 @@ func test_live_alive_vertex_deals_damage() -> void:
 	watch_signals(Events)
 	var before := plain_node.get_current_hp()
 	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
-	assert_true(plain_node.get_current_hp() < before,
-			"a live vertex still applies its damage")
+	assert_almost_eq(plain_node.get_current_hp(), before, 0.001,
+			"a live (unpopped) vertex is pure animation — damage already landed")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 0)

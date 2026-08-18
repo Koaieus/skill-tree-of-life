@@ -162,10 +162,11 @@ func test_events_in_wave_grouped_by_beat() -> void:
 	assert_eq(events[2], [2, 1])
 
 
-func test_arrival_applies_event_damage_and_null_event_applies_none() -> void:
-	# The render path, not just the cadence: a projectile flies and applies
-	# `ev.damage` on arrival. A null-damage (utility) event still spawns a
-	# projectile but applies no HP. Projectile timing is CPU, so this runs
+func test_coordinator_never_mutates_hp() -> void:
+	# #474: the coordinator is a PURE OBSERVER — BattleSystem applies the
+	# whole AttackOutcome synchronously before play() ever runs, so a
+	# damage-bearing landing must NOT change HP here, and neither must a
+	# null-damage (utility) landing. Projectile timing is CPU, so this runs
 	# under the dummy renderer.
 	var nodes := _graph.get_skill_nodes()
 	var hp1_before := nodes[1].get_current_hp()
@@ -192,8 +193,8 @@ func test_arrival_applies_event_damage_and_null_event_applies_none() -> void:
 	var coord := _mount_coord(0.05, 0.03)
 	coord.play(outcome)
 	await get_tree().create_timer(0.25).timeout
-	assert_true(nodes[1].get_current_hp() < hp1_before,
-			"damage-bearing arrival dropped node 1's HP")
+	assert_eq(nodes[1].get_current_hp(), hp1_before,
+			"the coordinator must not apply the hit's damage itself")
 	assert_eq(nodes[2].get_current_hp(), hp2_before,
 			"null-damage event applied no HP to node 2")
 

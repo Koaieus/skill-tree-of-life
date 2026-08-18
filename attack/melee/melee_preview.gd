@@ -42,25 +42,28 @@ func _refresh() -> void:
 		_teardown()
 
 
-## Commit playback. Spawn a fresh live blade, run sim + scan, play with
-## damage application during the swing, fade out, free. Awaitable.
+## Pure-animation replay of a swing BattleSystem already resolved and
+## applied. Spawns a fresh live blade purely for visuals and plays back
+## [member MeleeAttackPlan.last_trajectory] / [member
+## MeleeAttackPlan.last_events] — the SAME scan [method
+## MeleeAttackPlan.resolve] already ran and BattleSystem already applied
+## synchronously. Does NOT rescan: a rescan taken here would run after the
+## depletion cascade, and [method MeleeAttackPlan.collect_target_excludes]
+## would then exclude the very nodes the cascade just deallocated (#474).
 func launch(plan: MeleeAttackPlan) -> void:
 	_spawn_blade(plan)
 	var blade := _ghost
 	if blade == null:
 		return
 	var gen := _gen
-	var traj := blade.simulate(MeleeAttackPlan.SWING_DURATION)
-	var space_state := blade.get_world_2d().direct_space_state
-	var exclude := plan.collect_target_excludes()
-	var events := BladeHitScan.scan(
-			traj, blade.state, space_state, 0xFFFFFFFF, exclude)
-	# #170: resolve defensive spike pops once, off the same scan resolve() uses.
-	var pops := BladePopResolver.resolve(events, blade.state, plan.attacker)
-	_dead_at = pops.dead_at
+	var traj := plan.last_trajectory
+	var events := plan.last_events
+	var pops := plan.last_pops
+	_dead_at = pops.dead_at if pops != null else {}
 	_pending_pops = {}
-	for pop in pops.pops:
-		_pending_pops[pop.particle_idx] = pop
+	if pops != null:
+		for pop in pops.pops:
+			_pending_pops[pop.particle_idx] = pop
 	_attacker = plan.attacker
 	blade.hit.connect(_on_live_hit)
 	await blade.play(traj, events, false)
@@ -111,27 +114,23 @@ func _run_preview_loop(gen: int) -> void:
 		blade.modulate.a = 0.35
 
 
+## Pure observer: damage was already applied synchronously by
+## BattleSystem off the same events this swing is replaying (#474). The
+## only remaining job here is the spike-pop VFX cue, gated the same way
+## [method MeleeAttackPlan.resolve] gated it when building the outcome.
 func _on_live_hit(
 		hitter_idx: int,
 		_is_edge: bool,
 		target: SkillNode,
 		t: float,
-		damage: float) -> void:
+		_damage: float) -> void:
 	if target == null:
 		return
-	# #170: a popped/disintegrated vertex deals no more damage. The first such
-	# event for a killed vertex is its killing contact — pop the spike there.
 	if _dead_at.has(hitter_idx) and t >= _dead_at[hitter_idx]:
 		var pop = _pending_pops.get(hitter_idx)
 		if pop != null:
 			_pending_pops.erase(hitter_idx)
 			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
-		return
-	var di := DamageInstance.new()
-	di.amount = damage
-	di.type = DamageInstance.Type.PHYSICAL
-	di.target = target
-	target.take_damage(damage, di)
 
 
 func _teardown() -> void:
