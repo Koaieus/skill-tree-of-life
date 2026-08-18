@@ -128,7 +128,7 @@ cluster_size_weights = {
 script = ExtResource("ap")
 id = &"white"
 archetype = ExtResource("arch_con")
-target_ratio = 0.3
+target_ratio = 0.25
 cluster_size_weights = {
 1: 0.5,
 2: 1.0,
@@ -300,6 +300,8 @@ node_count = 800
 node_padding = 86.0
 connectivity = 0.25
 self_loop_tier1_rate = 0.05
+self_loop_tier3_rate = 0.25
+self_loop_tier4_rate = 0.25
 shape_mask = SubResource("shape_circle")
 starting_points = Array[ExtResource("sp")]([SubResource("sp_core")])
 n_random_starters = 6
