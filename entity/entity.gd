@@ -44,6 +44,12 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## into the active slot happens via [member BattleSystem.selected_spell].
 @export var spellbook: SpellBook = null
 
+## Reward tier (#300): sizes the killing-blow XP bonus (`tier_xp_base × tier²`,
+## see LootSystem) and the SkillDust pick count (`victim.entity_tier`). Players
+## and ordinary NPCs keep the default 3, so nothing changes by omission;
+## removable-node blockers author 1/2/3 for small/medium/large.
+@export var entity_tier: int = 3
+
 
 ## The entity's spellbook, created empty if it doesn't have one yet. Every
 ## entity *has* a book — an empty one is a real state, not an absent one — so

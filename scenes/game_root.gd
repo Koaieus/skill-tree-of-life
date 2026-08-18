@@ -17,6 +17,23 @@ extends Node2D
 
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 
+## Removable blocker sizes (#300). Tier = size + 1 (SMALL → 1, MEDIUM → 2,
+## LARGE → 3); see [method spawn_blocker]. Procgen blocker placements carry
+## this enum's int value as the per-node `size` marker.
+enum BlockerSize { SMALL, MEDIUM, LARGE }
+
+const _BLOCKER_SCENE := preload("res://entity/blocker/blocker_entity.tscn")
+const _BLOCKER_BOARDS: Dictionary = {
+	BlockerSize.SMALL: preload("res://entity/blocker/blocker_small_board.tres"),
+	BlockerSize.MEDIUM: preload("res://entity/blocker/blocker_medium_board.tres"),
+	BlockerSize.LARGE: preload("res://entity/blocker/blocker_large_board.tres"),
+}
+const _BLOCKER_SPELLBOOKS: Dictionary = {
+	BlockerSize.SMALL: preload("res://entity/blocker/blocker_spellbook_small.tres"),
+	BlockerSize.MEDIUM: preload("res://entity/blocker/blocker_spellbook_medium.tres"),
+	BlockerSize.LARGE: preload("res://entity/blocker/blocker_spellbook_large.tres"),
+}
+
 ## Dev shortcut (#244): `F` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
 ## enemy positions through unsensed fog.
@@ -296,6 +313,27 @@ func spawn_entity(
 		var ai := AIController.new()
 		ai.name = "AIController"
 		ent.add_child(ai)
+	return ent
+
+
+## Spawn a removable blocker entity (#300) owning [param core_location]. A
+## blocker is a plain [Entity] — no controller, no [CoreClass] — whose tiered
+## board ([param size] → CON/armor/health, no initiative) and the size's
+## spellbook are authored under `entity/blocker/`. Parents under
+## `graph.entities_container` and force-allocates the core, exactly like
+## [method spawn_entity] (procgen setup, not a gameplay action). Returns the
+## entity, with [member Entity.entity_tier] set to size + 1 (1/2/3).
+func spawn_blocker(size: BlockerSize, core_location: SkillNode) -> Entity:
+	var ent := _BLOCKER_SCENE.instantiate() as Entity
+	ent.name = "Blocker_%s" % BlockerSize.keys()[size].to_lower()
+	ent.display_name = ent.name
+	ent.entity_tier = int(size) + 1
+	ent.stat_board = _BLOCKER_BOARDS[size] as EntityStatBoard
+	ent.spellbook = _BLOCKER_SPELLBOOKS[size] as SpellBook
+	graph.entities_container.add_child(ent)
+	if core_location != null:
+		allocation_system.force_allocate(ent, core_location)
+		ent.core_location = core_location
 	return ent
 
 

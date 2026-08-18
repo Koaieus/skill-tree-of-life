@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://b300blkspell03"]
+
+[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" path="res://attack/spell/defs/healing_beam.tres" id="2_healing_beam"]
+[ext_resource type="Resource" path="res://attack/spell/defs/reverberator.tres" id="3_reverberator"]
+[ext_resource type="Resource" path="res://attack/spell/defs/trail_blazer.tres" id="4_trail_blazer"]
+
+[resource]
+script = ExtResource("1_book")
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_healing_beam"), ExtResource("3_reverberator"), ExtResource("4_trail_blazer")])

@@ -55,7 +55,11 @@ func before_each() -> void:
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm  # killer attribution source
 	# XP tests set `xp_per_node_killed` / `entity_kill_bonus` explicitly; the
-	# core loot draw is level-scaled, so keep-count tests pin its knobs too.
+	# core loot draw keep-count follows `victim.entity_tier` (#300), so
+	# keep-count tests pin that. The tier bonus (`tier_xp_base × tier²`) is
+	# zeroed here — these tests pin the TERRITORY term; the tier term has its
+	# own file (test_entity_tier_rewards.gd).
+	_loot.tier_xp_base = 0.0
 	add_child_autofree(_loot)
 
 	_alloc = AllocationSystem.new()
@@ -325,25 +329,20 @@ func test_lootable_supply_is_the_union_of_all_three_buckets() -> void:
 	assert_eq(dust.candidates.size(), expected, "M = union of the three buckets")
 
 
-func test_keep_count_scales_with_victim_level() -> void:
-	# N = round(core_keep_base + core_keep_per_level * level), clamped to the
-	# TOTAL pool across all three buckets.
-	_loot.core_keep_base = 1.0
-	_loot.core_keep_per_level = 0.5
-	_victim.level = 2
+func test_keep_count_is_victim_tier() -> void:
+	# #300: N = victim.entity_tier (replaces the old level-scaled core_keep
+	# formula), clamped to the TOTAL pool across all three buckets.
+	_victim.entity_tier = 2
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.pick_count, 2, "N = round(1 + 0.5*2) = 2")
+	assert_eq(dust.pick_count, 2, "N = victim.entity_tier = 2")
 
 
 func test_keep_count_never_saturates_the_supply() -> void:
 	# A keep-count that reaches M turns pick-1-of-3-per-round into "take
-	# everything" — the picker never pops. That's what a D-19 level-20 enemy did
-	# against a small core (1 + 0.25*20 = 6), and it's why the loot modal looked
-	# absent in first_level. The draw now always leaves at least one on the table.
-	_loot.core_keep_base = 100.0  # absurdly generous — still must not saturate
-	_loot.core_keep_per_level = 1.0
-	_victim.level = 20
+	# everything" — the picker never pops. The draw must always leave at least
+	# one on the table, so an absurdly high tier is still capped below M.
+	_victim.entity_tier = 100
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	assert_lt(dust.pick_count, dust.candidates.size(),
@@ -386,9 +385,7 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	# Exactly pick_count mods land on the collector's board AND its register
 	# (#185/#323 — a looted grant is re-lootable through the register), not the
 	# relic's core node.
-	_loot.core_keep_base = 2.0
-	_loot.core_keep_per_level = 0.0  # N = 2 rounds → a real choice
-	_victim.level = 1
+	_victim.entity_tier = 2  # N = 2 rounds → a real choice
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	assert_eq(dust.pick_count, 2, "N = 2")
@@ -414,9 +411,7 @@ func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	# collector's register (not the whole pool, not zero). XP is zeroed so a
 	# level-up doesn't also mutate the board via mod_level_to_con mid-test.
 	_loot.xp_per_node_killed = 0.0
-	_loot.core_keep_base = 2.0
-	_loot.core_keep_per_level = 0.0
-	_victim.level = 1
+	_victim.entity_tier = 2
 	var reg_before := _killer.core_modifiers.size()
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
@@ -434,9 +429,7 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	# resolve() — and the NEXT round's request doesn't fire until it does,
 	# since `_grant_and_advance` (the resolver) is what drives `_advance_round`.
 	_loot.xp_per_node_killed = 0.0
-	_loot.core_keep_base = 2.0
-	_loot.core_keep_per_level = 0.0
-	_victim.level = 1
+	_victim.entity_tier = 2
 	var captured: Array[LootPickRequest] = []
 	var handler := func(req: LootPickRequest) -> void:
 		req.handled = true
@@ -535,8 +528,7 @@ func test_npc_loots_a_relic_dropped_by_a_player_victim() -> void:
 	# npc-faction, same as an NPC scavenging a dead player's relic.
 	_victim.faction = _PLAYER_FACTION
 	_killer.faction = _NPC_FACTION
-	_loot.core_keep_base = 1.0
-	_loot.core_keep_per_level = 0.0
+	_victim.entity_tier = 1
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	assert_not_null(dust, "a player's death still drops a relic")

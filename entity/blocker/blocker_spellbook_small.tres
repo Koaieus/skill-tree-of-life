@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://b300blkspell01"]
+
+[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+
+[resource]
+script = ExtResource("1_book")
+spells = Array[ExtResource("1_spell_def")]([])

@@ -141,8 +141,17 @@ per node removed    = xp_per_node_killed(5)                        (the trickle)
 entity killing blow = xp_per_node_killed(5)
                       · (|removed_this_attack ∪ held_at_death| + 1)
                       · entity_kill_bonus(2)
-                      − the trickle already paid on the ledger      (the payout)
+                      − the trickle already paid on the ledger
+                      + tier_xp_base(10) · tier²                   (the payout)
 ```
+
+The **tier bonus** (`tier_xp_base × entity_tier²`, #300) is a flat size-shaped
+reward on top of the territory term — one knob so a fixed-size victim (a
+removable blocker) is worth a predictable, tunable amount regardless of how
+much territory it held: +10 / +40 / +90 for tier 1 / 2 / 3 at the default
+`tier_xp_base` 10. Players and NPCs keep the default tier 3, so ordinary kills
+just gain a flat +90 on top of the territory term. It is paid once per kill,
+not per node, and rides the same HOSTILE gate as the territory term.
 
 - `removed_this_attack` — the **attack-scoped removal ledger**: every node the
   current attack has taken off this defender. Fed by BattleSystem's
@@ -237,13 +246,19 @@ claimant isn't known until someone allocates the relic, so cycle-safety is a
 claim-time concern.
 
 `pick_count` (N — the number of pick-1-of-3 **rounds**, not "N of a flat M"
-since #323) still scales with victim level, now against the pool's **total**
-size across all three buckets:
+since #323) is the victim's **tier** (`Entity.entity_tier`, #300), against the
+pool's **total** size across all three buckets:
 
 ```
-N = round(core_keep_base(1.0) + core_keep_per_level(0.1) · victim.level)
-    clamped to [0, total supply], then to supply-1 whenever supply ≥ 2
+N = victim.entity_tier     clamped to [0, total supply], then to supply-1 whenever supply ≥ 2
 ```
+
+Players and NPCs keep the default `entity_tier` 3, so an ordinary kill offers 3
+rounds; removable blockers author 1 / 2 / 3 for small / medium / large. This
+replaces the old level-scaled `core_keep_base + core_keep_per_level · level`
+formula — level was a stale axis for loot (see the kill-XP "why `level` is
+gone" note above), and tier gives blockers a fixed, authored keep-count without
+a per-entity formula.
 
 **Why N is capped below the supply.** A keep-count that reaches the full supply
 turns every round into a no-choice auto-grant and the picker never pops. It did
@@ -253,10 +268,6 @@ count (`enemy_territory_size`, 20), and the old `per_level = 0.25` gave
 auto-granted the full core at random and the loot modal never appeared. The
 supply-1 cap is the structural guarantee that a choice survives any future
 retune, now over the larger three-bucket pool.
-
-> Open question: keep-count is still the only reward term scaling off
-> `victim.level`, now that kill XP scales off node count instead (below). If
-> level stops being a meaningful axis, this should follow.
 
 ## SkillDust pickup — N rounds of pick-1-of-3 (#173, re-cut #323)
 

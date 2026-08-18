@@ -70,6 +70,7 @@ func before_each() -> void:
 	_loot.battle_system = _battle
 	_loot.xp_per_node_killed = _PER_NODE
 	_loot.entity_kill_bonus = _BONUS
+	_loot.tier_xp_base = 0.0  # pin the TERRITORY term; tier bonus has its own file
 	add_child_autofree(_loot)  # _ready connects the ledger to _battle
 
 	_killer = autofree(Entity.new())

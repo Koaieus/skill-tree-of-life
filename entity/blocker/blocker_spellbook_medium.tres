@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://b300blkspell02"]
+
+[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" path="res://attack/spell/defs/bruiser.tres" id="2_bruiser"]
+[ext_resource type="Resource" path="res://attack/spell/defs/leafblower.tres" id="3_leafblower"]
+[ext_resource type="Resource" path="res://attack/spell/defs/lightning_bolt.tres" id="4_lightning"]
+[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="5_resonator"]
+
+[resource]
+script = ExtResource("1_book")
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_bruiser"), ExtResource("3_leafblower"), ExtResource("4_lightning"), ExtResource("5_resonator")])

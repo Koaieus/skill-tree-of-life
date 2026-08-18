@@ -111,29 +111,24 @@ extends Node
 ## grinding the limbs.
 @export var entity_kill_bonus: float = 2.0
 
+## Flat base of the per-kill tier bonus (#300): a kill pays
+## `tier_xp_base × victim.entity_tier²` on top of the territory term. With the
+## default 10.0 that's +10 / +40 / +90 for a tier 1 / 2 / 3 victim — the axis
+## that lets a removable blocker be worth a fixed, size-shaped reward
+## (blockers land on 20/50/100 after the territory formula pays its one node).
+@export var tier_xp_base: float = 10.0
+
 ## ── Core loot draw (#173) ─────────────────────────────────────────────────────
 ## The SkillDust draw is CORE-ONLY: the victim's class-identity mods plus
 ## whatever was permanently accreted onto its core (previously-looted mods).
 ## These are the modifiers that VANISH with the entity — everything on its owned
 ## nodes merely returns to the graph, so drawing those would duplicate live mods.
 ## The whole core set is offered as pick-N-from-M candidates (M = core supply);
-## N (keep-count) scales with victim level, so a higher-level kill lets you keep
-## more of their identity. When N >= M there's no real choice → auto-grant all.
+## N (keep-count) equals the victim's [member Entity.entity_tier] (#300), so a
+## higher-tier kill lets you keep more of their identity. When N >= M there's no
+## real choice → auto-grant all.
 ##
-##   N = round(core_keep_base + core_keep_per_level * victim.level), clamp [0, M]
-
-## Flat baseline keep-count — how much of the core you keep off a level-1 kill.
-@export var core_keep_base: float = 1.0
-## Keep-count slope on victim level. Small: at 0.1 you keep +1 per 10 levels, so
-## you only walk away with a near-whole core from a much higher-level victim.
-##
-## Was 0.25, tuned when enemies were low-level. D-19 then pinned enemy level to
-## its starting node count (`ProcgenPlaySandbox.enemy_territory_size`, 20 by
-## default), so EVERY first_level kill computed keep = 1 + 0.25*20 = 6 against a
-## 5-modifier core — N >= M, the picker's explicit no-choice branch. The modal
-## never appeared and the player just received the whole core at random, which
-## read as "the new loot system isn't wired up". Knob.
-@export var core_keep_per_level: float = 0.1
+##   N = victim.entity_tier, clamp [0, M]
 
 ## Optional packed scene for the dust addon (inspector-set). Falls back to a bare
 ## `SkillDustAddon.new()` when unset — the addon's visual is script-driven, so the
@@ -254,7 +249,11 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	# sequenced.
 	var already_paid := xp_per_node_killed * float(removed.size()) \
 			if award_xp_on_node_kill else 0.0
-	_grant_xp(killer, total - already_paid)
+	# #300: tier bonus — a flat size-shaped reward on top of the territory term,
+	# paid once per kill (not per node). Scales quadratically so a large blocker
+	# is worth meaningfully more than several small ones, not just linearly more.
+	var tier_bonus := tier_xp_base * float(victim.entity_tier * victim.entity_tier)
+	_grant_xp(killer, total - already_paid + tier_bonus)
 
 
 ## A fresh attack — the ledger is scoped to one attack, so nothing carries over.
@@ -360,13 +359,12 @@ func _draw_payload(victim: Entity) -> Dictionary:
 			weights.append(weight)
 
 	var supply := candidates.size()
-	var keep := core_keep_base + core_keep_per_level * float(maxi(0, victim.level))
-	var pick_count := clampi(roundi(keep), 0, supply)
+	var pick_count := clampi(victim.entity_tier, 0, supply)
 	# Keep the draw a genuine choice whenever one is possible. N == M is a
 	# no-choice by construction (the addon auto-grants and the picker skips it),
 	# so a keep-count that saturates the supply silently deletes the entire
-	# pick-1-of-3-per-round feature — which is exactly what a high-level victim
-	# did. Leaving at least one modifier on the table is what makes it a decision.
+	# pick-1-of-3-per-round feature. Leaving at least one modifier on the table
+	# is what makes it a decision.
 	if supply >= 2:
 		pick_count = mini(pick_count, supply - 1)
 

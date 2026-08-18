@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://b300blkentity1"]
+
+[ext_resource type="Script" uid="uid://dwxok6qi3pfce" path="res://entity/entity.gd" id="1_entity"]
+
+[node name="BlockerEntity" type="Node"]
+script = ExtResource("1_entity")
+color = Color(0.55, 0.55, 0.58, 1)
