@@ -69,9 +69,11 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 
 | # | Unit | State |
 |---|---|---|
-| **#473** | **Design session: the multiplayer sync model** | `Needs design` — **do this first**, it gates #458 and #463 |
-| **#457** | `GameSession` + one-shot seed resolution | `Needs design` — **owner decision**, it is the determinism contract |
-| **#458** | `CommandBus` + reroute `PlayerInputController` | `Needs design` — **on hold behind #473**; the bus is a finding, not a decision |
+| ~~#473~~ | ~~Design session: the multiplayer sync model~~ | **Decided 2026-08-18** — `docs/domain/multiplayer-sync-model.md` |
+| **#457** | `GameSession` + one-shot seed resolution | `Needs design` — **owner decision**, it is the determinism contract. Scope grew: it must also cover combat/loot RNG, see its comment |
+| **#474** | Split world mutation from VFX in `launch_attack` | **do this first** of the sync lane — required under every model, gates #458 |
+| **#458** | `Command` + `CommandApplier` (rewritten) | behind #474. The reroute is small — nine verbs, not 850 lines |
+| **#475** | Author real faction camps | was prose inside #459/#463; gates versus, and #459 wants the allied-humans half |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready`** |
 | **#460** | `VictorySystem` — a run that can end | `Needs design` — what *is* the win condition |
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | `Needs design` |
@@ -82,10 +84,12 @@ Also in the milestone, by owner call: **#300** removable node blockers, **#403**
 Tech Seeds, **#412** armed-mode viewport tint. All three `Needs design` — "should
 be easy to get *something* going", so they want a fast swarmify, not a deep one.
 
-**Order:** #473 and #457 first — the sync model and the seed contract are the two
-decisions everything else is shaped by, and neither is a drone unit. #459, #461
-and #462 can proceed in parallel with those; #460 wants its own design pass;
-#458 waits on #473; #463 does not open until the rest is solid.
+**Order:** the sync model is settled; #457 is the one decision left that shapes
+everything else, and it is not a drone unit. Then #474 → #458, in that order.
+#459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
+#459 needs half of it. #460 wants its own design pass. #463 stays gated — it
+opens only once #474, #458 and #475 have landed and offline play is verified
+unchanged.
 
 ## Perf — as good as fixed, *for now*
 
