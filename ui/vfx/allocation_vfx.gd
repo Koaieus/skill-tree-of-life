@@ -81,6 +81,12 @@ var muted: bool = false
 # default shatter that would otherwise fire from the per-node force_deallocated
 # signal, since the cascade handler already armed a staggered shatter for it.
 var _cascade_scheduled: Dictionary[SkillNode, bool] = {}
+# Presentation clock (#483). `cascade_started` fires at model-mutation time,
+# synchronously inside `launch_attack`, long before the killing hit's VFX has
+# reached the impact node — so the ripple is snapshotted here and only *armed*
+# once `Events.node_death_shown(impact)` says the hit has visually landed.
+# Keyed by impact node (`layers[0][0]`).
+var _pending_cascades: Dictionary[SkillNode, Array] = {}
 
 
 
@@ -105,6 +111,10 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 	# allocation. Connect once (idempotent guard for repeat bind() calls).
 	if not Events.blade_vertex_popped.is_connected(_on_blade_vertex_popped):
 		Events.blade_vertex_popped.connect(_on_blade_vertex_popped)
+	# #483: the cascade ripple starts on the presentation clock, not on the
+	# model mutation. Same idempotent-connect guard.
+	if not Events.node_death_shown.is_connected(_on_node_death_shown):
+		Events.node_death_shown.connect(_on_node_death_shown)
 
 
 # --- Signal handlers ---------------------------------------------------------
@@ -151,21 +161,98 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, position: V
 	_spawn_pop_burst(position, radius, color)
 
 
+## A forced-dealloc cascade is about to run in the model. Snapshot each node's
+## position+radius NOW, before `force_deallocate` — the node lives on (only
+## ownership/visuals change) but the snapshot is what the shatter disk draws,
+## and future code may reparent on dealloc.
+##
+## Presentation clock (#483): the ripple is not armed here. `cascade_started`
+## fires synchronously during `BattleSystem._apply_outcome`, before the killing
+## hit's VFX is anywhere near the impact node, so arming now would show the
+## defender's territory collapsing ahead of the blow that caused it. Instead we
+## wait for `Events.node_death_shown(impact)` — the impact node's own reveal on
+## the coordinator's arrival schedule — and run the same
+## `layer * CASCADE_STEP` stagger from there. One rhythm, started later.
 func _on_cascade_started(layers: Array, defender: Entity) -> void:
 	if muted or defender == null or layers.is_empty():
 		return
 	var color: Color = defender.color
+	var impact: SkillNode = null
+	if not (layers[0] as Array).is_empty():
+		impact = layers[0][0]
+	var snapshots: Array[Dictionary] = []
 	for i in layers.size():
 		var layer: Array = layers[i]
-		var delay: float = float(i) * CASCADE_STEP
 		for n in layer:
 			if n == null:
 				continue
 			_cascade_scheduled[n] = true
-			# Snapshot position+radius NOW, before force_deallocate runs.
-			# Node lives on — only ownership/visuals change — but capture
-			# in case future code reparents/frees on dealloc.
-			_spawn_shatter(n.global_position, n.inner_radius, color, delay)
+			snapshots.append({
+				"node": n,
+				"delay": float(i) * CASCADE_STEP,
+				"position": n.global_position,
+				"radius": n.inner_radius,
+			})
+	# No presentation hold on the impact node means nothing is going to reveal
+	# it later: a non-combat depletion (the allocation/loot sandboxes call
+	# `take_damage` straight) never went through `BattleSystem._apply_outcome`.
+	# Fall back to the pre-#483 behaviour — arm immediately, shatter disks
+	# standing in for nodes whose fill clears this instant.
+	if impact == null or not impact.presentation_hold:
+		for snap in snapshots:
+			_spawn_shatter(snap["position"], snap["radius"], color, snap["delay"])
+		return
+	# Withhold every non-impact node's paint until its own slot. The impact node
+	# is already held by BattleSystem, which releases it on its own reveal —
+	# that reveal is what starts this whole ripple, and it IS slot 0.
+	for snap in snapshots:
+		var n: SkillNode = snap["node"]
+		if n != impact:
+			n.hold_presentation()
+	_pending_cascades[impact] = [snapshots, color]
+
+
+## The impact node's hit has visually landed (#483) — run the ripple.
+func _on_node_death_shown(node: SkillNode) -> void:
+	if node == null or not _pending_cascades.has(node):
+		return
+	var data: Array = _pending_cascades[node]
+	_pending_cascades.erase(node)
+	var snapshots: Array = data[0]
+	var color: Color = data[1]
+	for snap in snapshots:
+		_arm_cascade_slot(snap, color, node)
+
+
+## One node's slot in the ripple. Unlike the pre-#483 path this does NOT hand
+## the delay to `_spawn_shatter`: the real SkillNode is holding its paint until
+## this instant, so a snapshot disk standing in through the delay would draw on
+## top of a node that is still visibly there. Reveal and shatter land together.
+func _arm_cascade_slot(snap: Dictionary, color: Color, impact: SkillNode) -> void:
+	var node: SkillNode = snap["node"]
+	var position: Vector2 = snap["position"]
+	var radius: float = snap["radius"]
+	if snap["delay"] <= 0.0:
+		_fire_cascade_slot(node, position, radius, color, impact)
+		return
+	var tween := create_tween()
+	tween.tween_interval(snap["delay"])
+	tween.tween_callback(_fire_cascade_slot.bind(node, position, radius, color, impact))
+
+
+func _fire_cascade_slot(
+		node: SkillNode,
+		position: Vector2,
+		radius: float,
+		color: Color,
+		impact: SkillNode) -> void:
+	# The impact node's own death was already announced — that emit is what got
+	# us here. Every other cascade node's death becomes visible now, and
+	# `node_death_shown` is exactly that statement: it releases the node's
+	# withheld tint/fill and refreshes the aura at the same beat as the shatter.
+	if is_instance_valid(node) and node != impact:
+		Events.node_death_shown.emit(node)
+	_spawn_shatter(position, radius, color, 0.0)
 
 
 # --- Modifier pulses (#71) ---------------------------------------------------

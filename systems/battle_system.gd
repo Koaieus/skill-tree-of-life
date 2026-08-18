@@ -125,6 +125,22 @@ var next_melee_cw: bool = false
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
+	# Presentation clock (#482): one connection for the whole board — a per-node
+	# subscription would sweep every SkillNode on every emit (skill-node-scale).
+	Events.damage_shown.connect(_on_damage_shown)
+	Events.node_death_shown.connect(_on_node_death_shown)
+
+
+## A hit has visually landed: let its target's withheld paint through. Held in
+## [method _apply_outcome]; see the presentation-hold section of `skill_node.gd`.
+func _on_damage_shown(target: SkillNode, _amount: float) -> void:
+	if target != null:
+		target.release_presentation()
+
+
+func _on_node_death_shown(node: SkillNode) -> void:
+	if node != null:
+		node.release_presentation()
 
 
 ## Commit the active plan. Three phases:
@@ -191,6 +207,7 @@ func launch_attack() -> void:
 	if attack_plan is MeleeAttackPlan and melee_preview != null:
 		var melee_plan: MeleeAttackPlan = attack_plan
 		await melee_preview.launch(melee_plan)
+		_flush_presentation(outcome)
 		# is_launching flips false BEFORE _reset() (not after) — _reset()'s
 		# attack_plan = null synchronously fires attack_plan_changed, and
 		# PlayerInputController's gate-refresh listener reads is_launching
@@ -210,8 +227,35 @@ func launch_attack() -> void:
 			await attack_vfx.play(coord_scene, outcome)
 		else:
 			await attack_vfx.play_ranged_volley(outcome)
+	_flush_presentation(outcome)
 	is_launching = false
 	_reset()
+
+
+## Make the presentation events TOTAL for this attack's direct hits (#482).
+##
+## The three VFX coordinators are the normal emitters, but they only run when
+## one is mounted and unmuted — headless tests, a null `attack_vfx`, a melee
+## plan with no preview, or a spell with no coordinator scene all skip them.
+## Any target still holding its paint by the time the awaits are done therefore
+## never got its reveal, so we emit it here: same signal, same subscribers
+## (SkillNode paint, AuraOverlay, AllocationVFX cascade), just at the end of the
+## attack instead of mid-flight. Without this the latch would fail *open* and
+## leave a hit node showing its pre-hit tint forever.
+##
+## Deduped per target — a multi-hit spell can list the same node twice, and the
+## first emit already released it.
+func _flush_presentation(outcome: AttackOutcome) -> void:
+	for hit in outcome.hits:
+		var target: SkillNode = hit.target
+		if target == null or not target.presentation_hold:
+			continue
+		Events.damage_shown.emit(target, hit.amount)
+		if not target.is_allocated():
+			Events.node_death_shown.emit(target)
+		# Defensive: a subscriber could in principle swallow both emits without
+		# releasing. The latch must never outlive the attack that set it.
+		target.release_presentation()
 
 
 ## The one place world mutation happens for an attack: hits, then heals —
@@ -219,6 +263,13 @@ func launch_attack() -> void:
 ## (both synchronous), also runs the forced-dealloc cascade. VFX never calls
 ## this; it only replays what already landed. See the class-level VFX note.
 func _apply_outcome(outcome: AttackOutcome) -> void:
+	# Presentation clock (#482): withhold each target's paint BEFORE the model
+	# moves, so tint / allocation-fill / HP bar keep the pre-hit look until the
+	# VFX actually arrives. Released by `_on_damage_shown` / `_on_node_death_shown`
+	# — and `_flush_presentation` guarantees one of those fires.
+	for hit in outcome.hits:
+		if hit.target != null:
+			hit.target.hold_presentation()
 	for hit in outcome.hits:
 		if hit.target != null:
 			hit.target.take_damage(hit.amount, hit)

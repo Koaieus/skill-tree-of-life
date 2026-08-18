@@ -32,6 +32,9 @@ var _value_tween: Tween = null
 ## momentary alpha would let `_fade_to` early-return while a tween still drives
 ## alpha toward the *opposite* target, leaving the bar stuck (#147).
 var _fade_target: float = 0.0
+## An `owner_changed` arrived while the node's presentation was held (#482);
+## replay the rebind on release.
+var _rebind_pending: bool = false
 
 
 func _ready() -> void:
@@ -47,6 +50,7 @@ func _ready() -> void:
 		return
 
 	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
+	_skill_node.presentation_released.connect(_on_presentation_released)
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
@@ -57,6 +61,13 @@ func _ready() -> void:
 
 func _on_owner_changed() -> void:
 	if _skill_node == null:
+		return
+	# Presentation clock (#482): a killing hit flips `owned_by` to null the same
+	# frame it lands in the model, which would unbind the pool and yank the bar
+	# away before the hit is visible. Hold the rebind too — `_on_presentation_
+	# released` runs it once the reveal catches up.
+	if _skill_node.presentation_hold:
+		_rebind_pending = true
 		return
 	var hp: PoolStat = null
 	if _skill_node.is_allocated() and _skill_node.node_board != null:
@@ -83,6 +94,12 @@ func _bind_pool(pool: PoolStat) -> void:
 func _on_current_changed(_new_val: Variant) -> void:
 	if _pool == null:
 		return
+	# Presentation clock (#482): the pool already holds the post-hit value —
+	# BattleSystem applied it synchronously — but the swing/projectile/bolt is
+	# still travelling. Skip the drain; `presentation_released` replays it as an
+	# ordinary drain tween the moment the hit actually lands.
+	if _skill_node != null and _skill_node.presentation_hold:
+		return
 	var target := float(_pool.current)
 	var going_down := target < value
 	if going_down:
@@ -90,6 +107,16 @@ func _on_current_changed(_new_val: Variant) -> void:
 	else:
 		_tween_value(target, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
 	_update_visibility()
+
+
+## The withheld repaint catching up (#482). Replays whichever of the two model
+## events arrived during the hold: an owner flip (rebind + visibility) and/or a
+## drain (tween to the pool's already-current value).
+func _on_presentation_released() -> void:
+	if _rebind_pending:
+		_rebind_pending = false
+		_on_owner_changed()
+	_on_current_changed(null)
 
 
 func _on_max_changed() -> void:

@@ -29,6 +29,10 @@ signal healed(amount: float, source: Variant)
 ## [signal Events.skill_node_depleted]; BattleSystem listens on the bus for the
 ## cascade dealloc.
 signal depleted
+## Presentation clock (#479/#482): this node's withheld combat repaint has been
+## let through. Fired by [method release_presentation] — subscribers that paint
+## from model state on their own signals (the node HP bar) re-sync here.
+signal presentation_released
 
 # `owned_by` is the single source of truth for allocation:
 # null  → unallocated
@@ -374,7 +378,7 @@ func _ready() -> void:
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_presence)
 	owner_changed.connect(_refresh_hp_binding)
-	damaged.connect(play_hit_flash.unbind(2))
+	damaged.connect(_on_damaged_flash.unbind(2))
 	# Addons are plain direct children (#334) — no filing bin. Adopt the ones
 	# already present (scene-authored, or parented before we entered the tree),
 	# then listen for later arrivals. `child_entered_tree` fires for DIRECT
@@ -461,10 +465,100 @@ func _load_type_color_from_archetype() -> void:
 		push_warning('Stat not found: %s' % archetype.primary_stat)
 	
 
+## ── Presentation hold (#479 / #482) ─────────────────────────────────────────
+##
+## Model state (`hp`, `owned_by`, `allocation_level`) mutates synchronously the
+## instant an attack resolves — that is #474's host-authoritative contract and
+## is not being revisited. What this latch withholds is the *paint*: while it is
+## held, tint / allocation-fill / HP bar / hit-flash keep showing the pre-hit
+## state, so the target doesn't visibly lose HP before the projectile, swing or
+## bolt has reached it.
+##
+## [b]Whoever holds, releases.[/b] There is no timeout and no watchdog — a latch
+## that expires on wall-clock would hide a missed release behind a delay instead
+## of showing it as a stuck visual. Two holders exist, each with a guaranteed
+## release path:
+##   * [BattleSystem] holds every hit target in `_apply_outcome` and releases it
+##     when [signal Events.damage_shown] / [signal Events.node_death_shown]
+##     arrives for it. Its `_flush_presentation` at the end of `launch_attack`
+##     emits any such event a VFX coordinator didn't (headless, muted, or no
+##     coordinator at all), so the release always happens.
+##   * [AllocationVFX] holds each forced-dealloc cascade node and releases it on
+##     its own `layer * CASCADE_STEP` shatter slot. If AllocationVFX is muted or
+##     absent it never holds in the first place, so the cascade paints
+##     immediately, exactly as before.
+##
+## The node deliberately does NOT subscribe to the [Events] bus itself: a level
+## carries ~500–2500 SkillNodes, and a per-node connection to a global signal
+## would make every emit a full sweep of them (see
+## `.claude/rules/skill-node-scale.md`). Each holder keeps one connection and
+## dispatches to the node it already has a reference to.
+var presentation_hold: bool:
+	get:
+		return _presentation_hold
+var _presentation_hold: bool = false
+## A `_sync_visuals()` arrived while held and was swallowed; replay it on release.
+var _presentation_dirty: bool = false
+## A `damaged` hit-flash arrived while held; play it on release.
+var _presentation_flash_pending: bool = false
+## Owner at the instant the latch closed. `owned_by` goes null the moment the
+## cascade force-deallocates, which erases the one thing a *whole-board* painter
+## needs to keep drawing this node as enemy territory — see [method get_shown_owner].
+var _held_owner: Entity = null
+
+
+## Withhold this node's combat repaint until [method release_presentation].
+## Idempotent — a second hit on an already-held node keeps the single latch
+## (and its original owner snapshot).
+func hold_presentation() -> void:
+	if _presentation_hold:
+		return
+	_held_owner = owned_by
+	_presentation_hold = true
+
+
+## Ownership as it is currently DRAWN, which lags [member owned_by] for exactly
+## as long as this node's reveal is pending. Painters that re-derive themselves
+## from the whole board — [AuraOverlay] — must read this: `owned_by` is already
+## post-cascade, so refreshing off it would snap the defender's whole territory
+## away on the first revealed node instead of one stagger slot at a time.
+func get_shown_owner() -> Entity:
+	if _presentation_hold and is_instance_valid(_held_owner):
+		return _held_owner
+	return owned_by
+
+
+## Let the withheld repaint through, replaying whatever was swallowed. No-op
+## when nothing is held, so a coordinator emit followed by BattleSystem's flush
+## costs nothing the second time.
+func release_presentation() -> void:
+	if not _presentation_hold:
+		return
+	_presentation_hold = false
+	_held_owner = null
+	if _presentation_dirty:
+		_presentation_dirty = false
+		_sync_visuals()
+	if _presentation_flash_pending:
+		_presentation_flash_pending = false
+		play_hit_flash()
+	presentation_released.emit()
+
+
+func _on_damaged_flash() -> void:
+	if _presentation_hold:
+		_presentation_flash_pending = true
+		return
+	play_hit_flash()
+
+
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
-		
+	if _presentation_hold:
+		_presentation_dirty = true
+		return
+
 	# NodeVisualsComposite (disk + rim + rune/halo dress) is the whole
 	# disk/allocation render (#304) — InnerDisk and RimRing both draw opaquely
 	# across their full band regardless of allocation (dark dome / dim silver

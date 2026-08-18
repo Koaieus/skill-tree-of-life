@@ -106,7 +106,11 @@ func _refresh() -> void:
 
 	var owned_by_entity: Dictionary = {}
 	for sn in graph.get_skill_nodes():
-		var _owner: Entity = sn.owned_by
+		# Presentation clock (#483): ownership as DRAWN, not as modelled. A node
+		# mid-reveal is already `owned_by == null`, and reading that would snap
+		# the defender's whole cascade away on the first revealed node instead
+		# of one stagger slot at a time.
+		var _owner: Entity = sn.get_shown_owner()
 		if _owner == null or _owner.is_dead:
 			continue
 		if not owned_by_entity.has(_owner):
@@ -206,8 +210,12 @@ func _connect_allocation() -> void:
 		allocation_system.allocated.connect(_on_ownership_changed)
 	if not allocation_system.deallocated.is_connected(_on_ownership_changed):
 		allocation_system.deallocated.connect(_on_ownership_changed)
-	if not allocation_system.force_deallocated.is_connected(_on_ownership_changed):
-		allocation_system.force_deallocated.connect(_on_ownership_changed)
+	if not allocation_system.force_deallocated.is_connected(_on_force_deallocated):
+		allocation_system.force_deallocated.connect(_on_force_deallocated)
+	# #483: a node whose territory loss is being revealed on the presentation
+	# clock refreshes the aura at its reveal, not at its model mutation.
+	if not Events.node_death_shown.is_connected(_on_ownership_changed):
+		Events.node_death_shown.connect(_on_ownership_changed)
 
 
 func _disconnect_allocation() -> void:
@@ -217,9 +225,26 @@ func _disconnect_allocation() -> void:
 		allocation_system.allocated.disconnect(_on_ownership_changed)
 	if allocation_system.deallocated.is_connected(_on_ownership_changed):
 		allocation_system.deallocated.disconnect(_on_ownership_changed)
-	if allocation_system.force_deallocated.is_connected(_on_ownership_changed):
-		allocation_system.force_deallocated.disconnect(_on_ownership_changed)
+	if allocation_system.force_deallocated.is_connected(_on_force_deallocated):
+		allocation_system.force_deallocated.disconnect(_on_force_deallocated)
+	if Events.node_death_shown.is_connected(_on_ownership_changed):
+		Events.node_death_shown.disconnect(_on_ownership_changed)
 
 
 func _on_ownership_changed(_node: SkillNode, _entity_arg: Variant = null, _extra: Variant = null) -> void:
+	_refresh()
+
+
+## Forced dealloc splits two ways (#483). Combat territory loss is withheld:
+## the node is holding its paint until the killing hit's VFX lands (direct hit)
+## or until its slot in the cascade ripple (islanded neighbours), and
+## `Events.node_death_shown` refreshes us then. Everything else — the entity-
+## death strip, sandbox drivers — has no VFX to wait on and refreshes now.
+##
+## `_refresh()` re-reads the whole ownership model, so a refresh per revealed
+## node is correct even mid-cascade: each one paints the territory as it stands
+## at that beat.
+func _on_force_deallocated(node: SkillNode, _previous_owner: Entity = null) -> void:
+	if node != null and node.presentation_hold:
+		return
 	_refresh()
