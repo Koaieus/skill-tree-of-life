@@ -125,11 +125,21 @@ extends Resource
 
 # ── Removable blockers (#300) ─────────────────────────────────────────────
 
+## Safety floor for the [member blocker_per_small] / [member blocker_per_medium]
+## / [member blocker_per_large] denominators, applied at the point of use in
+## [GraphProcgen._place_blockers]. A positive denominator below this densifies
+## the tier into the hundreds (e.g. denom 1 → one blocker per node), so the
+## placement pass clamps it up to here — a joker authoring `1` in the inspector
+## still gets `5` at runtime, never "a blocker on every node".
+const MIN_BLOCKER_PER := 5
+
 ## Blocker placement density per tier (#477). [GraphProcgen] places
 ## `floor(node_count / blocker_per_<size>)` blockers of each size, sampled
 ## uniformly without replacement among regular nodes (never a starter core or
-## a keystone node). Denominator `0` disables that tier. The `size` value in
-## a returned placement is the [GameRoot.BlockerSize] int (0/1/2).
-@export var blocker_per_small: int = 10
-@export var blocker_per_medium: int = 25
-@export var blocker_per_large: int = 100
+## a keystone node). `0` disables a tier; any positive denominator below
+## [constant MIN_BLOCKER_PER] is clamped up to it at placement time. The
+## `size` value in a returned placement is the [GameRoot.BlockerSize] int
+## (0/1/2).
+@export_range(0, 200, 1, "or_greater") var blocker_per_small: int = 10
+@export_range(0, 200, 1, "or_greater") var blocker_per_medium: int = 25
+@export_range(0, 200, 1, "or_greater") var blocker_per_large: int = 100

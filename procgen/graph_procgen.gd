@@ -759,7 +759,9 @@ static func _build_placement_context(
 
 
 ## Post-content pass placing removable blockers (#477). Picks each size tier's
-## count — `floor(config.node_count / denom)`, denom 0 disables the tier — by
+## count — `floor(config.node_count / denom)`, where denom 0 disables the tier
+## and any positive denominator below
+## [constant GraphProcgenConfig.MIN_BLOCKER_PER] is clamped up to it — by
 ## sampling uniformly WITHOUT replacement from the regular nodes: every
 ## [param starting_nodes] core and every keystone node (`sn.keystone != null`)
 ## is excluded. Rides the same [param rng] stream as the rest of `generate`,
@@ -798,6 +800,10 @@ static func _place_blockers(
 		var denom: int = tier[0]
 		if denom <= 0:
 			continue
+		# Clamp positive-but-too-small denominators up to the safety floor
+		# (#477): denom 1..4 would otherwise place a blocker on nearly every
+		# node, so a joker authoring `1` still gets `5`.
+		denom = maxi(denom, GraphProcgenConfig.MIN_BLOCKER_PER)
 		var count := int(floor(float(config.node_count) / float(denom)))
 		count = mini(count, eligible.size())
 		for i in count:

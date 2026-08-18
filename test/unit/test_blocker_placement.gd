@@ -127,3 +127,17 @@ func test_denom_zero_disables_tier() -> void:
 	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 0, "small disabled")
 	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 10, "50/5 = 10 medium")
 	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 0, "large disabled")
+
+
+func test_denom_below_floor_clamps_to_min() -> void:
+	# A joker authoring denom 1 (or 2..4) must not get "one blocker per node":
+	# the placement pass clamps any positive denominator up to MIN_BLOCKER_PER.
+	var cfg := _build_config(50, 555)
+	cfg.blocker_per_small = 1
+	cfg.blocker_per_medium = 2
+	cfg.blocker_per_large = 3
+	var result: Dictionary = await _generate(cfg)
+	var counts := _counts(result.get("blockers", []))
+	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "denom 1 clamps to 5 → 50/5 = 10")
+	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 10, "denom 2 clamps to 5 → 10")
+	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 10, "denom 3 clamps to 5 → 10")
