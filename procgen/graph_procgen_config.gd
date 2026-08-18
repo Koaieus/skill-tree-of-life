@@ -127,7 +127,7 @@ extends Resource
 
 ## Safety floor for the [member blocker_per_small] / [member blocker_per_medium]
 ## / [member blocker_per_large] denominators, applied at the point of use in
-## [GraphProcgen._place_blockers]. A positive denominator below this densifies
+## [GraphProcgen._place_blocker_indices]. A positive denominator below this densifies
 ## the tier into the hundreds (e.g. denom 1 → one blocker per node), so the
 ## placement pass clamps it up to here — a joker authoring `1` in the inspector
 ## still gets `5` at runtime, never "a blocker on every node".

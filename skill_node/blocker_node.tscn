@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://ddq0dv0lsbjje" path="res://skill_node/visuals/blocker_visual.gd" id="2_blocker"]
+
+[node name="BlockerNode" instance=ExtResource("1_base")]
+core_presence_suppressed = true
+
+[node name="BlockerVisual" type="Node2D" parent="Visuals" index="1"]
+script = ExtResource("2_blocker")

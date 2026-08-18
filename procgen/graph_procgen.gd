@@ -20,6 +20,16 @@ extends RefCounted
 ## [GameRoot.BlockerSize] int) for the caller to hand to `spawn_blocker`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
+
+## Arbitrary offset mixed into the main `rng.seed` to derive [member
+## _place_blocker_indices]'s own RNG stream (#478). Blocker placement has to
+## run BEFORE the per-node content loop (so the loop can pick the right node
+## scene), which would otherwise consume draws off the shared `rng` ahead of
+## every other roll — silently reshuffling what a given seed generates
+## everywhere else. A same-seed-derived-but-independent stream keeps blocker
+## placement itself deterministic while leaving the main stream untouched.
+const _BLOCKER_RNG_SALT := 0x8477
 
 ## Poisson-disk auto-scale sizing (issue #164). The area a ShapeMask needs to
 ## comfortably hold `node_count` points at spacing `min_dist` is derived from
@@ -150,6 +160,27 @@ static func generate(
 		if placement != null:
 			placement.apply(placement_ctx)
 
+	# Removable-blocker placement (#477 / #478). Computed on INDICES before the
+	# per-node loop so a blocked node can be instantiated from
+	# [constant _BLOCKER_NODE_SCENE] (the boulder visual, #478) rather than
+	# swapped in afterwards — the edges and self-loops below wire `nodes` by
+	# reference, so a node can't be replaced once added. Eligibility mirrors
+	# the old post-loop pass: never a starter core (indices < starters.size())
+	# nor a keystone node (placement_ctx.keystones[i] != null, which is what
+	# the loop below stamps onto `sn.keystone`).
+	#
+	# Deliberately rides its OWN derived RNG, not the shared `rng` stream:
+	# running this before the per-node content loop (needed so the loop can
+	# pick the right scene) would otherwise shift every subsequent draw off
+	# `rng` — silently changing what a given seed generates for the rest of
+	# `generate` (archetype rolls, modifier rolls, self-loops, ...). Deriving
+	# from `config.seed` keeps the main stream byte-for-byte identical to
+	# before blockers existed.
+	var blocker_rng := RandomNumberGenerator.new()
+	blocker_rng.seed = rng.seed + _BLOCKER_RNG_SALT
+	var blocker_sizes := _place_blocker_indices(
+			positions.size(), starters.size(), placement_ctx.keystones, config, blocker_rng)
+
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
 	# INT-archetype nodes only — the eligible pool for #206's spell-grant
@@ -161,7 +192,11 @@ static func generate(
 	# without paying a frame per node. With 500 nodes that's every ~50.
 	var yield_every := maxi(1, positions.size() / 10)
 	for i in positions.size():
-		var sn: SkillNode = _SKILL_NODE_SCENE.instantiate()
+		var sn: SkillNode
+		if blocker_sizes.has(i):
+			sn = _BLOCKER_NODE_SCENE.instantiate()
+		else:
+			sn = _SKILL_NODE_SCENE.instantiate()
 		sn.position = positions[i]
 		sn.base_radius = config.node_radius
 		var archetype_id: StringName = &""
@@ -272,9 +307,14 @@ static func generate(
 	for i in min(starters.size(), nodes.size()):
 		starting_nodes.append(nodes[i])
 
-	# Removable-blocker placement (#477). Runs after the per-node loop so every
-	# keystone stamp is readable via `sn.keystone != null`.
-	var blockers := _place_blockers(nodes, starting_nodes, config, rng)
+	# Removable-blocker placements (#477 / #478), rebuilt from the index→size
+	# map sampled before the per-node loop. `blocker_sizes` iterates in
+	# insertion (tier) order — small, then medium, then large — matching the
+	# old post-loop pass's result order, so result shape (`{node, size}`) is
+	# unchanged.
+	var blockers: Array[Dictionary] = []
+	for idx: int in blocker_sizes:
+		blockers.append({"node": nodes[idx], "size": int(blocker_sizes[idx])})
 
 	await _emit_progress(progress_cb, 1.0, "Done")
 	return {
@@ -758,35 +798,47 @@ static func _build_placement_context(
 # ── Removable-blocker placement (#477) ───────────────────────────────────
 
 
-## Post-content pass placing removable blockers (#477). Picks each size tier's
-## count — `floor(config.node_count / denom)`, where denom 0 disables the tier
-## and any positive denominator below
-## [constant GraphProcgenConfig.MIN_BLOCKER_PER] is clamped up to it — by
-## sampling uniformly WITHOUT replacement from the regular nodes: every
-## [param starting_nodes] core and every keystone node (`sn.keystone != null`)
-## is excluded. Rides the same [param rng] stream as the rest of `generate`,
-## so placements are seed-deterministic and order-stable. Each returned entry
-## is `{"node": SkillNode, "size": int}` where `size` is the
-## [GameRoot.BlockerSize] int the caller feeds to `spawn_blocker`.
-static func _place_blockers(
-		nodes: Array[SkillNode],
-		starting_nodes: Array[SkillNode],
+## Pre-loop pass picking which node INDICES get a removable blocker (#477),
+## so `generate` can instantiate [constant _BLOCKER_NODE_SCENE] for them
+## before the edges/self-loops wire nodes by reference (#478 — a node can't be
+## swapped after that). Picks each size tier's count — `floor(config.node_count
+## / denom)`, where denom 0 disables the tier and any positive denominator
+## below [constant GraphProcgenConfig.MIN_BLOCKER_PER] is clamped up to it —
+## by sampling uniformly WITHOUT replacement from the regular node indices:
+## every starter core ([param starter_count] first indices) and every
+## keystone index ([param keystones][i] != null, the pre-roll pass's stamp
+## slot) is excluded.
+##
+## [b]The denominator basis is [param node_count] — [member
+## GraphProcgenConfig.node_count], the AUTHORED count — never [param
+## positions].size().[/b] Poisson-disk sampling routinely yields fewer points
+## than requested, and `test_blocker_placement.gd`'s density tests assert
+## exact counts against the authored value; silently switching the basis to
+## the sampled count would drift those counts for no reason a level author
+## could see in the inspector.
+##
+## Returns a [Dictionary] mapping index → [GameRoot.BlockerSize] int, in
+## insertion (tier) order. Rides its own derived [param rng] (see
+## [constant _BLOCKER_RNG_SALT]), not the shared stream the rest of `generate`
+## uses — so placements are still seed-deterministic without perturbing every
+## other roll.
+static func _place_blocker_indices(
+		positions_count: int,
+		starter_count: int,
+		keystones: Array,
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
-) -> Array[Dictionary]:
-	var blockers: Array[Dictionary] = []
-	var starter_ids := {}
-	for sn in starting_nodes:
-		starter_ids[sn.get_instance_id()] = true
-	var eligible: Array[SkillNode] = []
-	for sn in nodes:
-		if sn.keystone != null:
+) -> Dictionary:
+	var out: Dictionary = {}
+	var eligible: Array[int] = []
+	for i in positions_count:
+		if i < starter_count:
 			continue
-		if starter_ids.has(sn.get_instance_id()):
+		if i < keystones.size() and keystones[i] != null:
 			continue
-		eligible.append(sn)
+		eligible.append(i)
 	if eligible.is_empty():
-		return blockers
+		return out
 
 	# Small → medium → large (most numerous first). Each tier partial-Fisher-
 	# Yates-shuffles the front of the remaining pool and slices the winners off,
@@ -804,16 +856,17 @@ static func _place_blockers(
 		# (#477): denom 1..4 would otherwise place a blocker on nearly every
 		# node, so a joker authoring `1` still gets `5`.
 		denom = maxi(denom, GraphProcgenConfig.MIN_BLOCKER_PER)
+		# node_count, not positions_count/eligible.size() — see docstring.
 		var count := int(floor(float(config.node_count) / float(denom)))
 		count = mini(count, eligible.size())
 		for i in count:
 			var j := i + rng.randi() % (eligible.size() - i)
-			var tmp: SkillNode = eligible[i]
+			var tmp: int = eligible[i]
 			eligible[i] = eligible[j]
 			eligible[j] = tmp
-			blockers.append({"node": eligible[i], "size": int(tier[1])})
+			out[eligible[i]] = int(tier[1])
 		eligible = eligible.slice(count)
-	return blockers
+	return out
 
 
 # ── Addon roll (second pass) ─────────────────────────────────────────────

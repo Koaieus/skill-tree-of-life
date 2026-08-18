@@ -11,6 +11,13 @@ const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.
 signal radius_changed
 signal owner_changed
 signal archetype_changed
+## Emitted at the end of [method _apply_sensed_state], after `sensed` (or
+## `revealed`) has already been mirrored onto the visual stack — lets a
+## fog-reactive visual (e.g. [BlockerVisual], #478) re-sync off a signal
+## instead of polling [member sensed] every frame. `_apply_sensed_state` fires
+## for either flag changing, and early-returns before `is_node_ready()`, so a
+## pre-ready sensed/revealed write never emits this.
+signal sensed_changed
 ## Emitted after `_addons` gains or loses a member (never on a rejected
 ## duplicate-unique attach, which returns before mutating the ledger) — see
 ## `_attach_addon`/`_detach_addon`. Lets a listener (e.g. `Edge`, for
@@ -142,6 +149,16 @@ var radius: float:
 ## Live inner-disk radius, including stake growth. Read-only, see [member radius].
 var inner_radius: float:
 	get: return base_inner_radius + _stake_growth()
+
+## Blocks the CoreHalos gimbal ([NodeVisualsComposite.core_active]) even while
+## this node IS the owner's core — everything else about being a core (the HP
+## bar via [method _refresh_core_health_bar], the entity tint, the sigil) is
+## untouched. A removable blocker (#478) force-allocates its blocked node as
+## its own core, so without this the node would wear the halo gimbal AND the
+## boulder overlay at once; the boulder is meant to fully replace that read.
+## Consulted only in [method _refresh_core_presence] — deliberately narrow, not
+## a general "hide core" switch.
+@export var core_presence_suppressed: bool = false
 
 @export var self_loops: Array[Edge] = []
 
@@ -406,7 +423,7 @@ func _refresh_core_presence() -> void:
 	# gimbal (fps sink). `sensed` hiding the whole ShaderStack (CorePresence's
 	# parent) is what keeps a fogged core hidden — no separate check needed here.
 	if _node_visuals != null:
-		_node_visuals.core_active = is_core
+		_node_visuals.core_active = is_core and not core_presence_suppressed
 		var sigil: Sigil = null
 		if is_core and owned_by.core_class != null:
 			sigil = owned_by.core_class.sigil
@@ -443,6 +460,7 @@ func _apply_sensed_state() -> void:
 	core_health_bar.visible = revealed and _is_core
 	for a in _addons:
 		a.visible = not sensed
+	sensed_changed.emit()
 
 
 func _sync_collision() -> void:
