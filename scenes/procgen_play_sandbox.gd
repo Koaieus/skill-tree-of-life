@@ -76,6 +76,13 @@ func _setup_level() -> void:
 	for n in starting_nodes:
 		(n as Node).add_to_group(_STARTER_GROUP)
 
+	# Removable blockers (#477): one blocker entity per procgen placement.
+	# Spawned before territory seeding so enemy seeding skips already-blocked
+	# nodes (AllocationSystem treats them as owned by the blocker entity).
+	for placement in result.get("blockers", []):
+		spawn_blocker(placement.get("size"), placement.get("node"))
+
+
 	# Player: core only. D-16 pins starting nodes at 1 — no seeding call here.
 	player = spawn_entity("Player", player_color, starting_nodes[0], core_class)
 

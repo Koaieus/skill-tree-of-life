@@ -314,3 +314,6 @@ addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
 spell_grant_ratio = 0.234
 guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
+blocker_per_small = 10
+blocker_per_medium = 25
+blocker_per_large = 100

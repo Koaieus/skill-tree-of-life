@@ -20,6 +20,9 @@ func test_preset_loads() -> void:
 	assert_eq(cfg.weight_profiles.size(), 2, "profiles: archetype + radial (collision dropped in #321 v4)")
 	assert_not_null(cfg.budget_policy)
 	assert_eq(cfg.guaranteed_placements.size(), 3)
+	assert_eq(cfg.blocker_per_small, 10, "blocker_per_small default (#477)")
+	assert_eq(cfg.blocker_per_medium, 25, "blocker_per_medium default (#477)")
+	assert_eq(cfg.blocker_per_large, 100, "blocker_per_large default (#477)")
 
 
 func test_modifiers_rolled_on_nodes() -> void:

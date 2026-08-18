@@ -13,8 +13,11 @@ extends RefCounted
 ##   6. Instantiate SkillNodes + Edges under the [Graph].
 ##
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
-## Array[SkillNode]}` — `starting_nodes[i]` is the SkillNode that landed on
-## `config.starting_points[i]`, for the caller to wire as entity cores.
+## Array[SkillNode], starters: Array[StartingPoint], blockers:
+## Array[Dictionary]}` — `starting_nodes[i]` is the SkillNode that landed on
+## `config.starting_points[i]`, for the caller to wire as entity cores, and
+## each `blockers` entry is `{"node": SkillNode, "size": int}` (a
+## [GameRoot.BlockerSize] int) for the caller to hand to `spawn_blocker`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
@@ -269,8 +272,17 @@ static func generate(
 	for i in min(starters.size(), nodes.size()):
 		starting_nodes.append(nodes[i])
 
+	# Removable-blocker placement (#477). Runs after the per-node loop so every
+	# keystone stamp is readable via `sn.keystone != null`.
+	var blockers := _place_blockers(nodes, starting_nodes, config, rng)
+
 	await _emit_progress(progress_cb, 1.0, "Done")
-	return {"nodes": nodes, "starting_nodes": starting_nodes, "starters": starters}
+	return {
+		"nodes": nodes,
+		"starting_nodes": starting_nodes,
+		"starters": starters,
+		"blockers": blockers,
+	}
 
 
 ## Calls `progress_cb` (if valid) and yields one process_frame so the caller's
@@ -741,6 +753,61 @@ static func _build_placement_context(
 	ks.resize(positions.size())
 	ctx.keystones = ks
 	return ctx
+
+
+# ── Removable-blocker placement (#477) ───────────────────────────────────
+
+
+## Post-content pass placing removable blockers (#477). Picks each size tier's
+## count — `floor(config.node_count / denom)`, denom 0 disables the tier — by
+## sampling uniformly WITHOUT replacement from the regular nodes: every
+## [param starting_nodes] core and every keystone node (`sn.keystone != null`)
+## is excluded. Rides the same [param rng] stream as the rest of `generate`,
+## so placements are seed-deterministic and order-stable. Each returned entry
+## is `{"node": SkillNode, "size": int}` where `size` is the
+## [GameRoot.BlockerSize] int the caller feeds to `spawn_blocker`.
+static func _place_blockers(
+		nodes: Array[SkillNode],
+		starting_nodes: Array[SkillNode],
+		config: GraphProcgenConfig,
+		rng: RandomNumberGenerator,
+) -> Array[Dictionary]:
+	var blockers: Array[Dictionary] = []
+	var starter_ids := {}
+	for sn in starting_nodes:
+		starter_ids[sn.get_instance_id()] = true
+	var eligible: Array[SkillNode] = []
+	for sn in nodes:
+		if sn.keystone != null:
+			continue
+		if starter_ids.has(sn.get_instance_id()):
+			continue
+		eligible.append(sn)
+	if eligible.is_empty():
+		return blockers
+
+	# Small → medium → large (most numerous first). Each tier partial-Fisher-
+	# Yates-shuffles the front of the remaining pool and slices the winners off,
+	# so no node can be picked by two tiers.
+	var tiers: Array = [
+		[config.blocker_per_small, GameRoot.BlockerSize.SMALL],
+		[config.blocker_per_medium, GameRoot.BlockerSize.MEDIUM],
+		[config.blocker_per_large, GameRoot.BlockerSize.LARGE],
+	]
+	for tier in tiers:
+		var denom: int = tier[0]
+		if denom <= 0:
+			continue
+		var count := int(floor(float(config.node_count) / float(denom)))
+		count = mini(count, eligible.size())
+		for i in count:
+			var j := i + rng.randi() % (eligible.size() - i)
+			var tmp: SkillNode = eligible[i]
+			eligible[i] = eligible[j]
+			eligible[j] = tmp
+			blockers.append({"node": eligible[i], "size": int(tier[1])})
+		eligible = eligible.slice(count)
+	return blockers
 
 
 # ── Addon roll (second pass) ─────────────────────────────────────────────

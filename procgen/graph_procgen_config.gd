@@ -122,3 +122,14 @@ extends Resource
 ## before the content-roll loop, so overridden nodes get the new archetype's
 ## colour, primary-stat bias, and budget multipliers. See [ArchetypeStamp].
 @export var archetype_stamps: Array[ArchetypeStamp] = []
+
+# ── Removable blockers (#300) ─────────────────────────────────────────────
+
+## Blocker placement density per tier (#477). [GraphProcgen] places
+## `floor(node_count / blocker_per_<size>)` blockers of each size, sampled
+## uniformly without replacement among regular nodes (never a starter core or
+## a keystone node). Denominator `0` disables that tier. The `size` value in
+## a returned placement is the [GameRoot.BlockerSize] int (0/1/2).
+@export var blocker_per_small: int = 10
+@export var blocker_per_medium: int = 25
+@export var blocker_per_large: int = 100
