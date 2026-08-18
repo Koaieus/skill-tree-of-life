@@ -55,7 +55,7 @@ func test_damage_event_routes_through_director() -> void:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
-	Events.skill_node_damaged.emit(node, 7.0, null)
+	Events.damage_shown.emit(node, 7.0)
 	var toasters := _toaster_children()
 	assert_eq(toasters.size(), 1, "a damage fact becomes one toaster")
 	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
@@ -68,7 +68,7 @@ func test_zero_damage_makes_no_toaster() -> void:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
-	Events.skill_node_damaged.emit(node, 0.0, null)
+	Events.damage_shown.emit(node, 0.0)
 	assert_eq(_toaster_children().size(), 0, "non-positive damage is suppressed")
 
 
@@ -115,3 +115,17 @@ func test_max_stack_drops_oldest() -> void:
 	var fade_in: float = (vbox.get_child(0) as FloaterToast).fade_in_duration
 	await get_tree().create_timer(fade_in * 2.5).timeout
 	assert_eq(vbox.get_child_count(), 3, "first + 2 queued; oldest dropped")
+
+
+func test_model_damage_alone_floats_nothing() -> void:
+	# #482: the damage number is a reveal like the HP bar and the tint. It rides
+	# Events.damage_shown, which the VFX coordinators fire when the swing/arrow/
+	# bolt lands (and BattleSystem._flush_presentation backstops when no
+	# coordinator runs). Reacting to skill_node_damaged instead would float the
+	# number over a node the projectile has not reached — that was the bug.
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(node)
+	await get_tree().process_frame
+	Events.skill_node_damaged.emit(node, 7.0, null)
+	assert_eq(_toaster_children().size(), 0,
+			"model mutation alone must not float a number")

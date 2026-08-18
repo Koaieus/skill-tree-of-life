@@ -137,8 +137,16 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 		var wave: Array = waves[beat]
 
 		if i == 0:
+			# The seed's own flight was the one hop nobody waited for. Beat 0
+			# used to be announced synchronously with `play()` — same instant
+			# its projectile was spawned — so the first propagation left the
+			# target before the bolt travelling toward it had arrived. Every
+			# LATER beat was already spawned `flight` early and announced on
+			# arrival; beat 0 is now the same shape, which costs one `flight`
+			# of lead-in and puts the whole spell in cause-then-effect order.
 			for ev_v in wave:
 				_play_event(ev_v, pending)
+			await get_tree().create_timer(flight).timeout
 
 		wave_started.emit(beat, wave.size())
 		_show_presentation(wave)

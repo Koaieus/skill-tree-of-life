@@ -20,6 +20,12 @@ const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/lig
 
 @export var projectile_path: ProjectilePath
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
+## Floor on a shot's airtime, as a fraction of [member flight_time] — a
+## point-blank shot still needs enough frames to read as an arrow.
+const MIN_FLIGHT_FRACTION: float = 0.4
+
+## Fallback airtime for a shot with no [member DamageInstance.arrival_time],
+## and (scaled by [constant MIN_FLIGHT_FRACTION]) the floor for one that has.
 @export var flight_time: float = 0.45
 @export var stagger_per_shot: float = 0.08
 @export var face_velocity: bool = true
@@ -36,10 +42,12 @@ func play(payload: Variant) -> void:
 		if hit.origin == null or hit.target == null:
 			pending[0] -= 1
 			continue
+		var launch_delay: float = float(i) * stagger_per_shot
+		var flight: float = _flight_for(hit)
 		var proj := Projectile.new()
 		proj.path = _resolved_path()
 		proj.visual_scene = visual_scene
-		proj.flight_time = flight_time
+		proj.flight_time = flight
 		proj.face_velocity = face_velocity
 		add_child(proj)
 		proj.tree_exiting.connect(func() -> void:
@@ -47,7 +55,7 @@ func play(payload: Variant) -> void:
 		proj.launch(
 				hit.origin.global_position,
 				hit.target.global_position,
-				float(i) * stagger_per_shot)
+				launch_delay)
 		# Tint hook: Projectile.launch instantiates the visual synchronously
 		# as its first child. Stamp tint right after so LightArrow reads the
 		# attacker colour on first draw. Visuals without a `tint` field
@@ -57,23 +65,39 @@ func play(payload: Variant) -> void:
 			if "tint" in v:
 				v.set("tint", tint)
 		pending[0] += 1
-		_show_presentation(hit, pending)
+		_show_presentation(hit, launch_delay + flight, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
 
 
-## Fires the presentation-clock reveal (#479/#481) on [member
-## DamageInstance.arrival_time] — the shot's real distance/speed timing
-## (#480), independent of this coordinator's own [member flight_time] /
-## [member stagger_per_shot] visual tuning. Pure observer: damage already
-## landed synchronously in BattleSystem._apply_outcome (#474) before [method
-## play] ever ran; this only tells presentation-only subscribers (HP bar,
-## node tint, death VFX) when the shot visually arrived. Included in
-## `pending` so [method play] doesn't return (and get torn down by
-## [AttackVFX]) before this fires.
-func _show_presentation(hit: DamageInstance, pending: Array[int]) -> void:
-	if hit.arrival_time > 0.0:
-		await get_tree().create_timer(hit.arrival_time).timeout
+## How long shot [param hit]'s arrow is in the air. [member
+## DamageInstance.arrival_time] is the shot's real distance/speed timing (#480,
+## `distance / RangedDamageFormula.PROJECTILE_SPEED`), and the arrow flies for
+## exactly that — so a far shot takes visibly longer than a near one and the
+## reveal can ride the same number.
+##
+## [b]This used to be two clocks and that was the bug.[/b] The arrow flew for a
+## flat [member flight_time] while the reveal waited `arrival_time` from t=0,
+## ignoring the per-shot stagger entirely — so HP dropped and the damage number
+## popped while the arrow was still halfway there. `flight_time` is now the
+## floor, not a parallel schedule: it keeps a point-blank shot from being an
+## instant blink.
+func _flight_for(hit: DamageInstance) -> float:
+	if hit.arrival_time <= 0.0:
+		return flight_time
+	return maxf(hit.arrival_time, flight_time * MIN_FLIGHT_FRACTION)
+
+
+## Fires the presentation-clock reveal (#479/#481) at [param impact_time] — the
+## instant this shot's arrow actually reaches the target, launch stagger
+## included. Pure observer: damage already landed synchronously in
+## BattleSystem._apply_outcome (#474) before [method play] ever ran; this only
+## tells presentation-only subscribers (HP bar, node tint, damage number, death
+## VFX) that the shot arrived. Included in `pending` so [method play] doesn't
+## return (and get torn down by [AttackVFX]) before this fires.
+func _show_presentation(hit: DamageInstance, impact_time: float, pending: Array[int]) -> void:
+	if impact_time > 0.0:
+		await get_tree().create_timer(impact_time).timeout
 	Events.damage_shown.emit(hit.target, hit.amount)
 	if not hit.target.is_allocated():
 		Events.node_death_shown.emit(hit.target)

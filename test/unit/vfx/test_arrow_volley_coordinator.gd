@@ -103,3 +103,47 @@ func test_coordinator_never_mutates_hp() -> void:
 	await coord.play(outcome)
 	assert_eq(_target.get_current_hp(), hp_before,
 			"the coordinator must not apply the hit's damage itself")
+
+
+func test_reveal_waits_for_the_shots_own_launch_stagger() -> void:
+	# The arrow and the reveal must run on ONE clock. They used to run on two:
+	# the arrow flew for a flat `flight_time` after a `i * stagger_per_shot`
+	# launch delay, while the reveal waited `arrival_time` from t=0 with no
+	# stagger term at all — so HP dropped and the damage number popped while
+	# the later arrows were still leaving the bow.
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(_hit(0.04, 1.0))
+	outcome.hits.append(_hit(0.04, 2.0))
+	var coord := _mount_coord()
+	coord.stagger_per_shot = 0.20
+	var shown: Array = []
+	var handler := func(_target: SkillNode, amount: float) -> void:
+		shown.append(amount)
+	Events.damage_shown.connect(handler)
+	coord.play(outcome)
+
+	# Past shot 0's own impact (0.00 launch + 0.04 flight), well short of
+	# shot 1's (0.20 launch + 0.04 flight).
+	await get_tree().create_timer(0.12).timeout
+	assert_eq(shown.size(), 1,
+			"the second shot has not landed yet — its reveal must wait its turn")
+	assert_eq(shown[0], 1.0, "and the one that did land is the first shot")
+
+	await get_tree().create_timer(0.30).timeout
+	Events.damage_shown.disconnect(handler)
+	assert_eq(shown.size(), 2, "the staggered shot reveals when its own arrow arrives")
+
+
+func test_flight_matches_the_shots_arrival_time() -> void:
+	# The arrow's airtime IS the reveal's schedule — a far shot visibly takes
+	# longer than a near one, instead of every arrow flying for a flat duration
+	# while the reveals used distance/speed.
+	var coord := _mount_coord()
+	coord.flight_time = 0.10
+	assert_almost_eq(coord._flight_for(_hit(0.40)), 0.40, 0.0001,
+			"a real arrival time drives the arrow directly")
+	assert_almost_eq(coord._flight_for(_hit(0.0)), 0.10, 0.0001,
+			"no arrival time falls back to the authored flight_time")
+	assert_almost_eq(coord._flight_for(_hit(0.001)),
+			0.10 * ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION, 0.0001,
+			"a point-blank shot is floored so it still reads as an arrow")

@@ -71,8 +71,11 @@ func test_wave_started_fires_once_per_hop_in_order() -> void:
 	coord.wave_started.connect(func(hop: int, count: int) -> void:
 		events.append({"hop": hop, "count": count}))
 	coord.play(outcome)
-	# Drive the scheduler past the last hop with margin.
-	await get_tree().create_timer(0.06 * 5).timeout
+	# Drive the scheduler past the last hop with margin. The span is now
+	# `launch_to_impact + 3 * beat_interval` — beat 0 waits for the seed bolt to
+	# actually arrive before it is announced — and every sub-frame timer in here
+	# rounds up to a whole headless frame, so the margin is generous on purpose.
+	await get_tree().create_timer(0.06 * 8).timeout
 	assert_eq(events.size(), 4, "one wave per hop index 0..3")
 	for i in 4:
 		assert_eq(int(events[i].hop), i, "wave %d emitted hop_index %d" % [i, i])
@@ -187,12 +190,13 @@ func test_damage_shown_fires_per_beat_not_synchronously_with_play() -> void:
 		shown.append([target, amount])
 	Events.damage_shown.connect(handler)
 	coord.play(outcome)
-	# Beat 0 fires synchronously with play() (same as wave_started) — the
-	# reveal rides the propagation clock, not a deferred callback. What
-	# matters is beats 1 and 2 (2 more events) only show up once their
-	# later beats actually fire, not all at once here.
-	assert_eq(shown.size(), 1, "beat 0's single event reveals synchronously with its wave")
-	await get_tree().create_timer(0.04 * 4).timeout
+	# Beat 0 does NOT reveal synchronously with play(): its own bolt is still
+	# in the air. The seed hop gets the same treatment every later hop already
+	# got — spawn, fly `launch_to_impact`, then announce — so nothing is
+	# revealed at all in the frame play() was called, and the first
+	# propagation cannot leave a target the bolt hasn't reached yet.
+	assert_eq(shown.size(), 0, "no reveal before the seed bolt has flown")
+	await get_tree().create_timer(0.04 * 8).timeout
 	Events.damage_shown.disconnect(handler)
 	assert_eq(shown.size(), 4, "one reveal per timeline event across 3 beats")
 	for entry in shown:

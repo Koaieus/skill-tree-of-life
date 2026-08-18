@@ -42,7 +42,13 @@ const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd
 
 
 func _ready() -> void:
-	Events.skill_node_damaged.connect(_on_skill_node_damaged)
+	# Presentation clock (#482): the damage NUMBER is a reveal, same as the HP
+	# bar and the tint — it must appear when the swing/arrow/bolt lands, not when
+	# BattleSystem applied the hit. `skill_node_damaged` fires at model-mutation
+	# time and would float the number over a node the projectile hasn't reached.
+	# `damage_shown` is guaranteed to fire exactly once per applied hit
+	# (BattleSystem._flush_presentation covers the no-coordinator paths).
+	Events.damage_shown.connect(_on_damage_shown)
 	Events.skill_node_healed.connect(_on_skill_node_healed)
 	Events.entity_wounded.connect(_on_entity_wounded)
 	Events.entity_healed.connect(_on_entity_healed)
@@ -52,7 +58,7 @@ func _ready() -> void:
 
 # --- Domain intake → render request -----------------------------------------
 
-func _on_skill_node_damaged(node: SkillNode, amount: float, _source: Variant) -> void:
+func _on_damage_shown(node: SkillNode, amount: float) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	_emit(node, "%d" % int(round(amount)), FloaterStyles.damage())
