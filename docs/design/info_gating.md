@@ -77,6 +77,43 @@ Gaps between profiles are where mechanics live:
 
 ---
 
+## Decided: what a viewer learns about an opponent's stats
+
+**Settled 2026-08-18 in #473** (the multiplayer sync-model session), because
+versus forced the question "does every opponent know the full stat board of
+every entity?". The answer is three rules, and they are gate-vector rows rather
+than a new system. Today they are a *display* rule; under the deferred
+fog-filtered sync model they become the delta filter, unchanged.
+
+**1. Node-local stats are public whenever the node is visible.** Current/max HP,
+`armor`, `min_damage_taken` — all open at the **Vision** profile, as the table
+above already has them. This is stated as a *guarantee*, not an incidental: you
+must never attack a node and only then discover it had 50 armor. Combat
+legibility outranks the information game here, and until armour has a visual
+encoding, the readout is the only channel there is.
+
+**2. Entity-level stats are a best estimate derived from what you can see.** No
+stat board is ever synced or revealed wholesale. Node modifiers are public
+(rule 1), so a viewer *reconstructs* an opponent's build from the territory they
+have scouted: spot three nodes each granting +10 STR and the readout says
+**"+30 STR (estimate)"**. Scouting is how you learn a build — which makes the
+sensor/vision layer a genuine intelligence mechanic instead of decoration. The
+estimate is necessarily a floor: it cannot see core-class modifiers, looted
+relics, or pool `current`.
+
+**3. Seeing the core opens everything.** If a viewer can see an entity's core
+node, they get that entity's **exact** stats — no secrets. Hide your core to
+hide your build. This gives core placement a third axis on top of survivability
+and reach: it is also your information posture.
+
+**Where this surfaces:** the tooltip-V2 shift-panel (#343–#345) — hovering an
+enemy node and holding `shift` raises a panel with a stat radar. That panel
+shows **actual** values when the core is visible and **best estimate** values
+when it is not, and says which it is showing. One panel, two states, driven off
+the same gate vector.
+
+---
+
 ## Mechanics roster (current design pressure)
 
 These are the mechanics that already exist in design and need this
