@@ -9,16 +9,47 @@ const SECTION := "settings"
 
 signal changed(key: StringName, value: Variant)
 
+const _DISPLAY_KEYS: Array[StringName] = [&"window_mode", &"resolution", &"vsync_mode", &"max_fps"]
+
 var current: GameSettings = GameSettings.new()
 
 
 func _ready() -> void:
 	load_settings()
+	_apply_display_settings()
+	changed.connect(_on_changed)
 
 
 func set_value(key: StringName, value: Variant) -> void:
 	current.set(key, value)
 	changed.emit(key, value)
+
+
+func _on_changed(key: StringName, _value: Variant) -> void:
+	if _DISPLAY_KEYS.has(key):
+		_apply_display_settings()
+
+
+## No-op headless (GUT runs headless; there is no window to configure).
+func _apply_display_settings() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+
+	match current.window_mode:
+		GameSettings.WindowMode.WINDOWED:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+		GameSettings.WindowMode.FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		GameSettings.WindowMode.BORDERLESS:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+
+	if current.window_mode != GameSettings.WindowMode.FULLSCREEN:
+		DisplayServer.window_set_size(GameSettings.RESOLUTIONS[current.resolution])
+
+	DisplayServer.window_set_vsync_mode(current.vsync_mode as DisplayServer.VSyncMode)
+	Engine.max_fps = current.max_fps
 
 
 func get_value(key: StringName) -> Variant:
