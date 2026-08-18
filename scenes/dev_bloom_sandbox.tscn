@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_dypaq"]
 [ext_resource type="Script" uid="uid://cuw7nj5i81f8" path="res://stats_system/entity_stat_board.gd" id="1_entityboard"]
 [ext_resource type="Script" uid="uid://2d6x3xbm2fai" path="res://scenes/dev_sandbox.gd" id="2_wbnra"]
+[ext_resource type="Resource" path="res://entity/factions/player.tres" id="2_player_faction"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="3_7xeoy"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="4_iha5r"]
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="5_gomtx"]
@@ -994,6 +995,8 @@ viewers = [NodePath("../../Graph/Entities/Player")]
 unique_name_in_owner = true
 display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
+faction = ExtResource("2_player_faction")
+is_human_controlled = true
 stat_board = SubResource("Resource_c6vki")
 core_class = ExtResource("34_jgy4j")
 spellbook = SubResource("Resource_lqoji")

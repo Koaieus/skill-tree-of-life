@@ -19,6 +19,8 @@ const _STARTER_GROUP := &"procgen_starter"
 const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_ENEMY_CORE_CLASS := preload("res://entity/core/basic_enemy_core.tres")
 const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_seeder.tres")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 @export var preset: GraphProcgenConfig
 @export var player_color: Color = Color(0.4, 0.8, 1.0)
@@ -77,16 +79,40 @@ func _setup_level() -> void:
 	# Player: core only. D-16 pins starting nodes at 1 — no seeding call here.
 	player = spawn_entity("Player", player_color, starting_nodes[0], core_class)
 
+	# Roster-driven camp + control-kind assignment (#475) — the player and
+	# every enemy get their faction from an authored [Participant], not from
+	# GameRoot deciding "this entity is named Player". One human camp (allied,
+	# were there more local humans) versus the shared NPC camp; `apply_roster`
+	# is the same seam a real lobby's roster would feed.
+	var roster := ParticipantRoster.new()
+	var entities_by_participant_id: Dictionary = {}
+
+	var player_participant := Participant.new()
+	player_participant.id = 0
+	player_participant.kind = Participant.Kind.LOCAL_HUMAN
+	player_participant.camp = _PLAYER_FACTION
+	roster.add(player_participant)
+	entities_by_participant_id[player_participant.id] = player
+
 	var enemies: Array[Entity] = []
 	for i in range(1, starting_nodes.size()):
 		var color: Color = enemy_colors[(i - 1) % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
-		enemies.append(spawn_entity("Enemy_%d" % i, color, starting_nodes[i], enemy_core_class, true))
+		var enemy := spawn_entity("Enemy_%d" % i, color, starting_nodes[i], enemy_core_class)
+		enemies.append(enemy)
+		var enemy_participant := Participant.new()
+		enemy_participant.id = i
+		enemy_participant.kind = Participant.Kind.AI
+		enemy_participant.camp = _NPC_FACTION
+		roster.add(enemy_participant)
+		entities_by_participant_id[enemy_participant.id] = enemy
 
-	# Wire the player into the interaction layer (input / vision / highlight /
-	# faction) now that it exists — edit-time NodePaths can't bind to a node
-	# spawned at runtime. `_ready` calls `bind_player` again idempotently; doing
-	# it here too sets vision before territory seeding + the fade so the
-	# initial fog is correct.
+	GameRoot.apply_roster(entities_by_participant_id, roster)
+
+	# Wire the player into the interaction layer (input / vision / highlight)
+	# now that it exists — edit-time NodePaths can't bind to a node spawned at
+	# runtime. `_ready` calls `bind_player` again idempotently; doing it here
+	# too sets vision before territory seeding + the fade so the initial fog
+	# is correct.
 	bind_player(player)
 
 	# Derive seeding RNG from the config seed so identical `preset.seed`

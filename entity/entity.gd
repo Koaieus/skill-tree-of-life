@@ -20,12 +20,19 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 
 @export var display_name: String = "Entity"
 @export var color: Color = Color.WHITE
-## Team identity, composed like [member core_class]. NPCs default to the
-## shared [code]npc.tres[/code] faction; [method GameRoot.bind_player] swaps
-## the player onto [code]player.tres[/code]. Singular, compared by
+## Team identity, composed like [member core_class]. Defaults to the shared
+## [code]npc.tres[/code] faction; authored per-entity — a hand-authored
+## scene sets its own export override, a roster-driven spawn gets it from
+## [method GameRoot.apply_roster] (#475). Singular, compared by
 ## [member Faction.id]: two entities whose factions share an id are allies,
 ## even across separately-loaded/duplicated resource instances.
 @export var faction: Faction = preload("res://entity/factions/npc.tres")
+## Whether a human (local or remote) drives this entity — the seam
+## [method GameRoot._ensure_controllers] reads to attach [PlayerController]
+## vs [AIController]. Authored per-entity (roster-driven spawn via
+## [method GameRoot.apply_roster], or set directly on a hand-authored scene's
+## node) rather than derived from entity identity. See #475.
+@export var is_human_controlled: bool = false
 @export var stat_board: EntityStatBoard = null
 ## Class specialization for this entity. Applied once on _ready via
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.

@@ -16,7 +16,6 @@ extends Node2D
 ## this path; that's fine, `%Player` lookup ignores parent.
 
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
-const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 ## Dev shortcut (#244): `F` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
@@ -185,7 +184,10 @@ func _show_game_over() -> void:
 
 
 ## Wire a (possibly late-resolved) human player into the *player-interaction*
-## layer — faction, highlight fallback owner, input controller, vision viewer.
+## layer — highlight fallback owner, input controller, vision viewer. Faction
+## and controller kind are decided elsewhere (#475: [method apply_roster], or
+## authored directly on a hand-authored scene's node) — this only wires the
+## camera/HUD's notion of "who am I looking through".
 ## Null-safe + idempotent: GameRoot calls it once at the tail of `_ready` (after
 ## `_setup_level` has had its chance to set `player`), and a level that resolves
 ## its player asynchronously — or swaps it — can call it again.
@@ -199,7 +201,6 @@ func bind_player(p: Entity) -> void:
 	player = p
 	if player == null:
 		return
-	player.faction = _PLAYER_FACTION
 	highlight_controller.player = player
 	input_ctl.player = player
 	if vision_system != null:
@@ -207,9 +208,15 @@ func bind_player(p: Entity) -> void:
 
 
 ## Attaches a default [EntityController] child to any [Entity] in the level
-## that doesn't already have one. [PlayerController] for [member player];
-## [AIController] for everyone else. No-op if the scene/code already wired
-## a controller — explicit composition always wins.
+## that doesn't already have one: [PlayerController] where [member
+## Entity.is_human_controlled] is set, [AIController] otherwise. No-op if the
+## scene/code already wired a controller — explicit composition always wins.
+##
+## Reads [member Entity.is_human_controlled] rather than comparing identity
+## against [member player] — that authored-per-entity flag is what
+## [method apply_roster] sets from a [Participant]'s kind, and it's also what
+## a hand-authored scene (dev_sandbox) sets directly on its `%Player` node.
+## #475: this is the seam that stops assuming "the player" is singular.
 func _ensure_controllers() -> void:
 	for node in get_tree().get_nodes_in_group("entities"):
 		var ent := node as Entity
@@ -218,13 +225,30 @@ func _ensure_controllers() -> void:
 		if _find_controller(ent) != null:
 			continue
 		var ctrl: EntityController
-		if ent == player:
+		if ent.is_human_controlled:
 			ctrl = PlayerController.new()
 			ctrl.name = "PlayerController"
 		else:
 			ctrl = AIController.new()
 			ctrl.name = "AIController"
 		ent.add_child(ctrl)
+
+
+## Applies each roster participant's authored camp + control-kind onto its
+## already-spawned entity — the roster-driven replacement for deciding
+## faction or controller from "is this entity named player" (#475).
+## [param entities_by_participant_id] maps [member Participant.id] to the
+## [Entity] spawned for it; participants with no matching entry, or whose
+## [member Participant.camp] is unset, are skipped. Static + side-effect-only
+## on the entities: no dependency on a live GameRoot, so it's testable
+## against a roster built in isolation, not against lobby UI.
+static func apply_roster(entities_by_participant_id: Dictionary, roster: ParticipantRoster) -> void:
+	for participant in roster.all():
+		var ent: Entity = entities_by_participant_id.get(participant.id)
+		if ent == null or participant.camp == null:
+			continue
+		ent.faction = participant.camp
+		ent.is_human_controlled = participant.kind != Participant.Kind.AI
 
 
 static func _find_controller(ent: Entity) -> EntityController:
