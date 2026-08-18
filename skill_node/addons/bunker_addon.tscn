@@ -13,9 +13,17 @@ operation = 3
 value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
+[sub_resource type="Resource" id="Resource_u38nb"]
+script = ExtResource("2_efkvd")
+stat_id = &"min_damage_taken"
+operation = 3
+value = -5.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
 [node name="BunkerAddon" type="Node2D" unique_id=631414463]
+z_index = 1
 script = ExtResource("1_83r5f")
-local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7")])
+local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7"), SubResource("Resource_u38nb")])
 icon = ExtResource("3_icon")
 metadata/_custom_type_script = "uid://bkf87fqtgkm7a"
 
