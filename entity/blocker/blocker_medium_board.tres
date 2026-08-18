@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="EntityStatBoard" format=3 uid="uid://b300blkmedium1"]
+[gd_resource type="Resource" script_class="EntityStatBoard" format=3 uid="uid://6hd5nwdcauis"]
 
 [ext_resource type="Script" uid="uid://cuw7nj5i81f8" path="res://stats_system/entity_stat_board.gd" id="1_board"]
 [ext_resource type="Script" uid="uid://drnlaxdudvq1t" path="res://stats_system/scalar_stat.gd" id="2_scalar"]
@@ -20,8 +20,6 @@
 [ext_resource type="Resource" path="res://stats_system/defs/dealloc_damage.tres" id="def_dealloc_damage"]
 [ext_resource type="Resource" uid="uid://cw4lvh2rp4j3l" path="res://stats_system/defs/dexterity.tres" id="def_dexterity"]
 [ext_resource type="Resource" uid="uid://bqvqe5cem0wr0" path="res://stats_system/defs/health.tres" id="def_health"]
-[ext_resource type="Resource" path="res://stats_system/defs/initiative.tres" id="def_initiative"]
-[ext_resource type="Resource" path="res://stats_system/defs/initiative_speed.tres" id="def_initiative_speed"]
 [ext_resource type="Resource" uid="uid://cws6dhm8bjilt" path="res://stats_system/defs/intelligence.tres" id="def_intelligence"]
 [ext_resource type="Resource" path="res://stats_system/defs/level.tres" id="def_level"]
 [ext_resource type="Resource" uid="uid://bg6cwjkthl08d" path="res://stats_system/defs/mana.tres" id="def_mana"]
@@ -323,7 +321,6 @@ base_value = 1.0
 resource_name = "sensor_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_sensor_range")
-base_value = 0.0
 
 [sub_resource type="Resource" id="sp_skill_points"]
 resource_name = "skill_points"
@@ -359,7 +356,6 @@ base_value = 10.0
 resource_name = "vision_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_vision_range")
-base_value = 0.0
 
 [sub_resource type="Resource" id="scalar_wisdom"]
 resource_name = "wisdom"
