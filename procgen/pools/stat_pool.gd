@@ -53,11 +53,14 @@ extends Resource
 @export var tags: Array[StringName] = []
 
 ## T1 magnitude. The per-tier value is `unit_value × V[t]` (V from
-## [TierLadder]); a per-tier [member value_overrides] entry replaces that
-## default. For MULTIPLY the rolled modifier value is `1 + unit × V[t]`
-## (a "more" excess — `unit 0.05, V[T3]=7 → ×1.35`), so `unit_value` is the
-## *excess*, not the full multiplier. Negative `unit_value` marks a *debuff
-## pool* (D9): its cost is `-T` (refunds budget), value is negative.
+## [TierLadder]), indexed relative to [member min_tier] — a pool's first tier
+## is V1 (×1) whatever it costs, so `min_tier=3` rolls t3 at cost 4 with the
+## V1 magnitude and t4 at cost 8 with V2. A per-tier [member value_overrides]
+## entry replaces that default. For MULTIPLY the rolled modifier value is
+## `1 + unit × V[t]` (a "more" excess — `unit 0.05, V[T3]=7 → ×1.35`), so
+## `unit_value` is the *excess*, not the full multiplier. Negative `unit_value`
+## marks a *debuff pool* (D9): its cost is `-T` (refunds budget), value is
+## negative.
 @export var unit_value: float = 1.0
 
 ## Sparse per-tier value override (D11): `tier -> T-magnitude` — the *excess*
@@ -80,7 +83,9 @@ extends Resource
 @export var tier_bias_k: float = 1.0
 
 ## Lowest tier this pool offers (cost = [TierLadder.cost] min-1). Almost
-## always 1 — lowering it is how a pool "starts expensive."
+## always 1 — lowering it is how a pool "starts expensive." Value rungs are
+## indexed relative to this: the first tier offered is V1 (×1) regardless of
+## its cost; only the cost stays absolute.
 @export_range(1, 4) var min_tier: int = 1
 
 ## Highest tier offered. `max_tier < 4` is the honest brake that replaces the
@@ -120,7 +125,11 @@ func to_entries() -> Array[ModifierPoolEntry]:
 		# the +1 is folded in here while the ×1 base stays fixed. No per-roll
 		# jitter (deleted #326): draw count + tier spread are the variance
 		# sources — how many draws a node's budget affords *is* the variability.
-		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t)))
+		# Value is indexed relative to the pool's first tier: `min_tier=3`
+		# rolls t3 at cost 4 with the V1 magnitude (×1) and t4 at cost 8 with
+		# V2 — a pool's first tier is worth ×1 whatever it costs. Cost stays
+		# absolute; only the value rung shifts.
+		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
 		if operation == StatModifier.Operation.MULTIPLY:
 			e.value_range = Vector2(1.0 + mag, 1.0 + mag)
 		else:
@@ -165,7 +174,7 @@ func format_table() -> String:
 	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
 	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
 	for t in range(lo, hi + 1):
-		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t)))
+		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
 		var tc := TierLadder.cost(t)
 		var w := pool_weight * pow(float(tc), tier_bias_k)
 		var ttags := TierLadder.auto_tags(t)

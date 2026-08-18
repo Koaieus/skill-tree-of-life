@@ -74,15 +74,35 @@ func test_movement_points_addb_caps_at_t2() -> void:
 
 func test_attribute_mul_starts_at_t3() -> void:
 	# Seed row: attribute .mul, unit 0.05, min_tier 3, pool_weight 1 →
-	# ×1.35 ×1.75 at costs 4 8. The +1 (the "more" excess) is folded in at
-	# flatten, so the range must read as the full multiplier.
+	# ×1.05 ×1.15 at costs 4 8. Value rungs are indexed relative to min_tier
+	# (the pool's first tier is V1, ×1, whatever it costs); cost stays
+	# absolute. The +1 (the "more" excess) is folded in at flatten, so the
+	# range must read as the full multiplier.
 	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.MULTIPLY)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 2, "strength.mul offers T3..T4 only")
 	assert_eq(entries[0].cost, 4)
 	assert_eq(entries[1].cost, 8)
-	assert_almost_eq(entries[0].value_range.x, 1.35, 0.001, "T3 → ×1.35")
-	assert_almost_eq(entries[1].value_range.x, 1.75, 0.001, "T4 → ×1.75")
+	assert_almost_eq(entries[0].value_range.x, 1.05, 0.001, "T3 → ×1.05")
+	assert_almost_eq(entries[1].value_range.x, 1.15, 0.001, "T4 → ×1.15")
+
+
+func test_min_tier_indexes_value_relative_to_first_tier() -> void:
+	# The ladder rule: cost stays absolute, value rungs are indexed relative
+	# to the pool's first tier. min_tier=3 → t3 costs 4 but is V1 (×1), t4
+	# costs 8 and is V2 (×3). ADD_BASE so the magnitudes read raw.
+	var p := StatPool.new()
+	p.stat_id = &"strength"
+	p.operation = StatModifier.Operation.ADD_BASE
+	p.unit_value = 1.0
+	p.min_tier = 3
+	p.max_tier = 4
+	var entries := p.to_entries()
+	assert_eq(entries.size(), 2, "min_tier=3, max_tier=4 → T3..T4 only")
+	assert_eq(entries[0].cost, 4, "t3 cost stays absolute (2^(3-1))")
+	assert_almost_eq(entries[0].value_range.x, 1.0, 0.001, "t3 is the pool's first tier → V1 = ×1")
+	assert_eq(entries[1].cost, 8, "t4 cost stays absolute (2^(4-1))")
+	assert_almost_eq(entries[1].value_range.x, 3.0, 0.001, "t4 is the second rung → V2 = ×3")
 
 
 func test_every_flattened_entry_cost_is_legal() -> void:

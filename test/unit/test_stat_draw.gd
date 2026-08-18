@@ -104,7 +104,9 @@ func test_aggregation_sums_add_base_and_products_multiply() -> void:
 				assert_true(m.value >= 2.0, "aggregated ADD_BASE should be ≥ one T1 draw (2)")
 			elif m.operation == StatModifier.Operation.MULTIPLY:
 				saw_mul = true
-				# unit 0.05 → T3 = 0.35, T4 = 0.75; aggregate is a product, ≥ one factor.
+				# unit 0.05, min_tier 3 → value rungs indexed relative to the
+				# first tier: T3 = 0.05 (×1.05), T4 = 0.15 (×1.15); aggregate
+				# is a product, ≥ one factor.
 				assert_true(m.value >= 1.0, "MULTIPLY aggregate should be ≥ 1.0 (one ×1.35 factor at minimum)")
 	assert_true(saw_add, "expected ADD_BASE to land")
 	# MULTIPLY is min_tier 3 (cost 4) so it only lands when budget ≥ 4 and is

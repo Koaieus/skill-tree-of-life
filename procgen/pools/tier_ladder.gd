@@ -8,6 +8,13 @@ extends Resource
 ## (the original ask of #321); per-pool authoring only carries `unit_value` and
 ## optional `value_overrides` — never costs or the value curve.
 ##
+## Cost is absolute (t1 = 1, t3 = 4) but *value is indexed relative to a
+## pool's first tier*: a pool with `min_tier = 3` rolls its t3 at cost 4 with
+## the V1 magnitude (×1) — "the first tier" of that pool is worth ×1 whatever
+## it costs — and its t4 at cost 8 with V2. Pools compute this with
+## `value(t - min_tier + 1)` (see StatPool.to_entries); [method value] itself
+## stays the absolute V[t].
+##
 ## T1..T4 only. `tier` is a global cost band, stored as int — not an enum, since
 ## the draw does arithmetic on it (`cost(T)`, `V[T]`, `tier ≤ peak-1`, sorting)
 ## and #319's lesson is "don't add an enum encoding a fact another field already
