@@ -58,3 +58,19 @@ func test_skill_dust_addon_carves_the_loot_gem() -> void:
 	var disk := _disk()
 	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.GEM, "SkillDustAddon.get_emblem() -> LOOT carve -> gem dent")
 	dust.queue_free()
+
+
+## #369: once the dust is consumed (relic looted), the addon frees and the
+## LOOT carve must go with it — the gem dent can't linger on a looted node.
+func test_consuming_the_dust_clears_the_loot_gem_carve() -> void:
+	var dust := SkillDustAddon.new()
+	_node.add_child(dust)
+	await get_tree().process_frame
+	_node._sync_visuals()
+	assert_eq(_disk().effective_carve_kind, InnerDiskScript.CarveKind.GEM, "sanity: dust present -> gem carved")
+
+	dust.queue_free()
+	await get_tree().process_frame  # let the deferred free flush the child_exiting_tree detach
+
+	var disk := _disk()
+	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE, "dust consumed -> carve re-resolved, gem dent gone")

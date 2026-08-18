@@ -1518,6 +1518,11 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	if not _addons.has(a):
 		return
 	_addons.erase(a)
+	# Mirror `_attach_addon`'s `_sync_visuals()`: a departing addon stops
+	# contributing its emblem, so the carve must be re-resolved — otherwise a
+	# consumed SkillDustAddon (looted relic) leaves its LOOT gem dent behind
+	# (#369). Runs in the editor branch too, same as attach.
+	_sync_visuals()
 	if Engine.is_editor_hint():
 		addons_changed.emit()
 		return
