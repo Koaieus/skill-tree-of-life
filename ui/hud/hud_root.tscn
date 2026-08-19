@@ -197,6 +197,7 @@ grow_vertical = 2
 script = ExtResource("15_overlay")
 
 [node name="PauseMenu" parent="." unique_id=1576476463 instance=ExtResource("14_pause")]
+unique_name_in_owner = true
 visible = false
 layout_mode = 1
 

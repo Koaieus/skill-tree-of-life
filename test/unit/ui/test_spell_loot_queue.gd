@@ -2,19 +2,21 @@ extends GutTest
 
 ## HudRoot's pending-pick queue (#204, acceptance #7 in the swarm spec: "two
 ## picks on one death"). A single relic claim can fire BOTH a dust pick and the
-## spell draft — both modals pause the tree, so HudRoot must present them one
-## at a time: dust first, then the spell draft, the next only once the current
-## picker's `closed` signal fires. Since the #204 re-cut, SkillDustAddon itself
-## is what guarantees that ordering (the spell draft is its own terminal bonus
-## round, fired only after every stat round resolves — see skill_dust_addon.gd)
-## — this file drives the two events directly, back-to-back, as a stand-in for
-## that sequencing, so it stays a focused test of HudRoot's queue/serialization
-## logic itself, independent of the loot draw.
+## spell draft — both modals freeze the acting player's input channel (#486),
+## so HudRoot must present them one at a time: dust first, then the spell
+## draft, the next only once the current picker's `closed` signal fires. Since
+## the #204 re-cut, SkillDustAddon itself is what guarantees that ordering
+## (the spell draft is its own terminal bonus round, fired only after every
+## stat round resolves — see skill_dust_addon.gd) — this file drives the two
+## events directly, back-to-back, as a stand-in for that sequencing, so it
+## stays a focused test of HudRoot's queue/serialization logic itself,
+## independent of the loot draw.
 
 const _HUD_SCENE := preload("res://ui/hud/hud_root.tscn")
 
 var _hud: HudRoot
 var _player: Entity
+var _input_ctl: PlayerInputController
 
 
 func before_each() -> void:
@@ -28,11 +30,20 @@ func before_each() -> void:
 	# no true privacy, and this is the field the handlers read.
 	_hud._player = _player
 
+	# compose() isn't run here either (see above), so wire the input freeze by
+	# hand — the same bind() compose() would otherwise do.
+	_input_ctl = PlayerInputController.new()
+	add_child_autofree(_input_ctl)
+	_hud.loot_picker.bind(_input_ctl)
+	_hud.spell_loot_picker.bind(_input_ctl)
 
-func after_each() -> void:
-	# Both pickers pause the tree while open; a test that doesn't confirm must
-	# release it so paused state can't leak into the rest of the GUT run.
-	get_tree().paused = false
+
+func _loot_body() -> LootPickerBody:
+	return _hud.loot_picker._body as LootPickerBody
+
+
+func _spell_body() -> SpellLootPickerBody:
+	return _hud.spell_loot_picker._body as SpellLootPickerBody
 
 
 func _mk_stat_mod(id: StringName, v: float) -> StatModifier:
@@ -84,13 +95,15 @@ func test_spell_draft_presents_once_dust_pick_closes() -> void:
 	Events.spell_loot_requested.emit(_spell_request(spell_sink))
 
 	# Confirm the dust pick, like the player would.
-	_hud.loot_picker._cards[0].button_pressed = true
-	_hud.loot_picker._cards[0].toggled.emit(true)
+	_loot_body()._cards[0].button_pressed = true
+	_loot_body()._cards[0].toggled.emit(true)
 	_hud.loot_picker._on_confirm()
 
 	assert_false(_hud.loot_picker.visible, "dust picker closes")
 	assert_true(_hud.spell_loot_picker.visible, "spell draft presents once the queue drains")
 	assert_eq(dust_sink.size(), 1, "dust resolver fired with the chosen mod")
+	assert_true(_input_ctl._input_frozen,
+			"input stays frozen across the handoff — the spell draft re-freezes on present()")
 
 
 func test_both_requests_resolve_in_order() -> void:
@@ -100,18 +113,18 @@ func test_both_requests_resolve_in_order() -> void:
 	Events.loot_pick_requested.emit(_dust_request(dust_sink))
 	Events.spell_loot_requested.emit(spell_req)
 
-	_hud.loot_picker._cards[0].button_pressed = true
-	_hud.loot_picker._cards[0].toggled.emit(true)
+	_loot_body()._cards[0].button_pressed = true
+	_loot_body()._cards[0].toggled.emit(true)
 	_hud.loot_picker._on_confirm()
 
-	_hud.spell_loot_picker._cards[0].button_pressed = true
-	_hud.spell_loot_picker._cards[0].toggled.emit(true)
+	_spell_body()._cards[0].button_pressed = true
+	_spell_body()._cards[0].toggled.emit(true)
 	_hud.spell_loot_picker._on_confirm()
 
 	assert_false(_hud.spell_loot_picker.visible, "spell draft closes on confirm")
 	assert_eq(spell_sink.size(), 1, "spell resolver fired with the chosen spell")
 	assert_true(spell_req.is_resolved())
-	assert_false(get_tree().paused, "board unpaused once both modals have closed")
+	assert_false(_input_ctl._input_frozen, "input channel unfrozen once both modals have closed")
 
 
 func test_requests_for_a_different_collector_are_ignored() -> void:

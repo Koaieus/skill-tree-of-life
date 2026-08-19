@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3 uid="uid://c0spellpickerbody01"]
+
+[ext_resource type="Script" path="res://ui/loot_picker/spell_loot_picker_body.gd" id="1_body"]
+
+[node name="SpellLootPickerBody" type="HBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+script = ExtResource("1_body")

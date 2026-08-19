@@ -14,6 +14,15 @@ extends Control
 
 @onready var _build_footer: Label = %BuildFooter
 
+## True while a picker modal (LootPicker/SpellLootPicker, #486) is up. Esc
+## would otherwise fall through to here and open the pause menu on top of a
+## frozen pick — set by HudRoot alongside its `_picker_busy` lifecycle.
+var _blocked: bool = false
+
+
+func set_blocked(blocked: bool) -> void:
+	_blocked = blocked
+
 
 func _ready() -> void:
 	# Start hidden + unpaused regardless of the editor-saved `visible`.
@@ -84,6 +93,8 @@ func _on_continue_button_pressed() -> void:
 ## Esc toggles pause from either state. Routed through `active` so the export
 ## stays truthful. Runs in any process mode because the node is ALWAYS.
 func _unhandled_key_input(event: InputEvent) -> void:
+	if _blocked:
+		return
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		active = not active

@@ -94,6 +94,14 @@ var _armed_modes: Array[ArmedMode] = []
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
 
+## True while a full-screen modal (LootPicker/SpellLootPicker, #486) is up.
+## Replaces the old `get_tree().paused` block: freezes every player input
+## channel (click, D-key, right-click/Esc pop) without pausing the SceneTree,
+## which would also stall confirmed-command RPC dispatch under the LAN sync
+## model (docs/domain/multiplayer-sync-model.md). Set only via
+## [method set_input_frozen].
+var _input_frozen: bool = false
+
 ## Node pinned to the context panel via right-click (when no attack plan claims
 ## the click). Null when nothing is pinned.
 var _pinned_node: SkillNode = null
@@ -161,6 +169,8 @@ func _on_node_added(skill_node: SkillNode) -> void:
 
 
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
+	if _input_frozen:
+		return
 	if _mass_action_request != null:
 		return
 	if _route_temp_upgrade_click(skill_node):
@@ -384,6 +394,8 @@ func _on_skill_node_unhovered() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
+	if _input_frozen:
+		return
 	if event is InputEventMouseMotion:
 		if _move_targeting_source != null and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_update_core_drag()
@@ -423,6 +435,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## stack leaves the event unhandled and PauseMenu toggles exactly as today.
 func _unhandled_key_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
+		return
+	if _input_frozen:
 		return
 	if event.is_action_pressed(&"ui_cancel") and _pop_armed_mode():
 		get_viewport().set_input_as_handled()
@@ -820,6 +834,14 @@ func enter_core_move_targeting() -> void:
 		_set_move_targeting_source(null)
 	else:
 		_set_move_targeting_source(player.core_location)
+
+
+## Freeze/unfreeze every player input channel (#486) — called by [ModalBase]
+## around a full-screen modal pick instead of `get_tree().paused`. Distinct
+## from `can_player_act()` (AP/turn/launch gating that drives button dimming);
+## this is transient modal state, so keep the two separate.
+func set_input_frozen(frozen: bool) -> void:
+	_input_frozen = frozen
 
 
 func can_player_act() -> bool:

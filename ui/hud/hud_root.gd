@@ -31,6 +31,7 @@ extends Control
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
 @onready var game_over_overlay: CanvasLayer = %GameOverOverlay
+@onready var pause_menu: PauseMenu = %PauseMenu
 @onready var tooltip_fan: TooltipFan = %TooltipFan
 @onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
 
@@ -116,6 +117,10 @@ func compose(game_root: GameRoot) -> void:
 		announcement_layer.bind(_battle_system)
 	_bind_announcement_layer()
 	_bind_initiative_bar()
+	if loot_picker != null:
+		loot_picker.bind(_input_ctl)
+	if spell_loot_picker != null:
+		spell_loot_picker.bind(_input_ctl)
 	if mass_action_confirm_panel != null and _allocation_system != null:
 		mass_action_confirm_panel.bind(_input_ctl, _allocation_system)
 
@@ -147,14 +152,26 @@ func _enqueue_pick(show_request: Callable) -> void:
 func _drain_pending_picks() -> void:
 	if _picker_busy or _pending_picks.is_empty():
 		return
-	_picker_busy = true
+	_set_picker_busy(true)
 	var show_request: Callable = _pending_picks.pop_front()
 	show_request.call()
 
 
 func _on_picker_closed() -> void:
-	_picker_busy = false
+	_set_picker_busy(false)
 	_drain_pending_picks()
+
+
+## A picker modal is up/down (#486) — beyond the queue flag itself, this also
+## gates AnnouncementLayer (a Tween-driven banner must not draw over a frozen,
+## dimmed modal) and PauseMenu (Esc must not open the pause menu on top of a
+## pick).
+func _set_picker_busy(busy: bool) -> void:
+	_picker_busy = busy
+	if announcement_layer != null:
+		announcement_layer.set_modal_open(busy)
+	if pause_menu != null:
+		pause_menu.set_blocked(busy)
 
 
 ## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the

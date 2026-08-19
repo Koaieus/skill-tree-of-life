@@ -1,8 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://ui/loot_picker/spell_loot_picker.gd" id="1_picker"]
+[ext_resource type="PackedScene" path="res://ui/modal/modal_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/loot_picker/spell_loot_picker.gd" id="2_script"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_spell"]
 content_margin_left = 28.0
 content_margin_top = 22.0
 content_margin_right = 28.0
@@ -18,65 +19,14 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[node name="SpellLootPicker" type="Control"]
-process_mode = 3
-z_index = 4096
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("1_picker")
+[node name="SpellLootPicker" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
 
-[node name="Dim" type="ColorRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-color = Color(0, 0, 0, 0.45)
+[node name="Panel" parent="Center" index="0"]
+theme_override_styles/panel = SubResource("StyleBoxFlat_spell")
 
-[node name="Center" type="CenterContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="Panel" type="PanelContainer" parent="Center"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
-
-[node name="VBox" type="VBoxContainer" parent="Center/Panel"]
-layout_mode = 2
-theme_override_constants/separation = 14
-
-[node name="Title" type="Label" parent="Center/Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 28
+[node name="Title" parent="Center/Panel/VBox" index="0"]
 text = "SPELL DRAFT"
-horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="Center/Panel/VBox"]
-unique_name_in_owner = true
-modulate = Color(0.78, 0.78, 0.84, 1)
-layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Choose"
-horizontal_alignment = 1
-
-[node name="CardRow" type="HBoxContainer" parent="Center/Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 12
-alignment = 1
-
-[node name="ConfirmButton" type="Button" parent="Center/Panel/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-disabled = true
+[node name="ConfirmButton" parent="Center/Panel/VBox" index="3"]
 text = "LEARN"

@@ -33,6 +33,15 @@ var _current_by_kind: Dictionary = {}  # Kind -> AnnouncementRequest
 var _turn_manager: TurnManager = null
 var _battle_system: BattleSystem = null
 
+## True while a picker modal (LootPicker/SpellLootPicker, #486) is up. A
+## Tween-driven band keeps animating under `get_tree().paused`, so the old
+## pause-based modal could render a banner ON TOP of a frozen, dimmed picker
+## (this layer is its own CanvasLayer at `layer = 95`, always above the HUD's
+## `UI` layer). Blocking new dequeues here — instead of pausing/hiding this
+## layer — lets a band already mid-play finish its own timeline undisturbed;
+## it just stops anything NEW from starting until the modal closes.
+var _modal_open: bool = false
+
 
 func _ready() -> void:
 	for binding: AnnouncementVariantBinding in variant_bindings:
@@ -116,7 +125,20 @@ func clear(kind: AnnouncementRequest.Kind) -> void:
 		_queue_by_kind[kind] = []
 
 
+## Set by HudRoot alongside its picker-modal lifecycle (#486). Re-pumps every
+## kind on close so whatever queued up while blocked plays immediately.
+func set_modal_open(open: bool) -> void:
+	if _modal_open == open:
+		return
+	_modal_open = open
+	if not open:
+		for kind in _queue_by_kind.keys():
+			_pump(kind)
+
+
 func _pump(kind: AnnouncementRequest.Kind) -> void:
+	if _modal_open:
+		return
 	if _current_by_kind.get(kind) != null:
 		return
 	var queue: Array = _queue_by_kind.get(kind)
