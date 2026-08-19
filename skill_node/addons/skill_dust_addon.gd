@@ -20,6 +20,18 @@ extends SkillNodeAddon
 ## picker; NPCs auto-pick at random, per round.
 ## STEAL/PROLIFERATE choice and staining stay deferred (see loot-system.md).
 ##
+## TERMINAL SPELL ROUND (#204 re-cut): once every stat round has resolved,
+## [member spell_candidates] (if non-empty) offers ONE MORE pick — a spell the
+## victim knew, filtered against the collector's PERMANENTLY known spells —
+## before the relic frees itself. Deliberately the LAST thing this relic
+## offers, never concurrent with a stat round: it used to fire synchronously
+## on kill via a standalone `Events.spell_loot_requested` emit in LootSystem,
+## which queued it in front of the player's HUD BEFORE they'd even seen (let
+## alone claimed) the relic it was conceptually part of. Folding it into this
+## addon's own round sequencer, as the round after the last stat round, is
+## what makes "on pick, after the regular picks" true by construction instead
+## of by call-order coincidence.
+##
 ## Visual (#168): scene-composed (skill_dust_addon.tscn) with a child InnerDisk
 ## instance, per .claude/rules/scene-composition.md — the gold/mix knobs below
 ## are only actually inspector-tunable because they live on a scene, not a
@@ -50,6 +62,19 @@ extends SkillNodeAddon
 ## REMAINING pool; a round with 0 or 1 survivor has no real choice and
 ## auto-grants/skips without popping the picker.
 @export var pick_count: int = 0
+
+## The victim's full spellbook snapshot (#204 re-cut) — every spell known at
+## `entity_dying`, core/innate/territory alike, UNFILTERED (the permanent-known
+## exclusion is a claim-time concern, same reasoning as `would_cycle` above:
+## the claimant isn't known at death). Consumed as ONE terminal bonus round
+## after every stat round resolves — see [method _advance_round]. Empty when
+## the victim had no spellbook or LootSystem's spell kill-switch is off.
+@export var spell_candidates: Array[SpellDef] = []
+
+## Offer is capped at this many spell candidates (M = min(this, remaining)).
+const _SPELL_OFFER_CAP: int = 3
+## Fixed keep-count for #204's MVP — see the issue NOTES on keep-count scaling.
+const _SPELL_PICK_COUNT: int = 1
 
 ## The entity currently claiming this relic, latched for the duration of the
 ## multi-round claim flow (`_advance_round` recurses across possibly-async
@@ -245,9 +270,72 @@ func _grant_and_advance(chosen: Array[StatModifier]) -> void:
 	_advance_round()
 
 
+## Every stat round has resolved (or there were none to run) — hand off to the
+## terminal spell round before the relic actually frees itself.
 func _finish() -> void:
 	candidates = []
 	weights = []
+	_advance_spell_round()
+
+
+## The terminal bonus round (#204 re-cut). Guarded the same way [method
+## _advance_round] guards a stat round — `_collector` can already be invalid
+## here (e.g. `_advance_round`'s own dead-collector branch routed straight to
+## `_finish`), and reading `_collector.spellbook` on a freed Object crashes at
+## the typed assignment (see gdscript-pitfalls.md), not at a null check.
+func _advance_spell_round() -> void:
+	if spell_candidates.is_empty() or not is_instance_valid(_collector) or _collector.is_dead:
+		_really_finish()
+		return
+
+	var offerable := _exclude_permanently_known(spell_candidates, _collector)
+	spell_candidates = []  # single-shot bonus — consumed regardless of outcome
+	if offerable.is_empty():
+		_really_finish()
+		return
+
+	offerable.shuffle()
+	var offer_count := mini(_SPELL_OFFER_CAP, offerable.size())
+	var offer: Array[SpellDef] = offerable.slice(0, offer_count)
+
+	var request := SpellLootRequest.new(
+			_collector, offer, _SPELL_PICK_COUNT, _grant_spell_and_finish)
+	Events.spell_loot_requested.emit(request)
+	if not request.handled:
+		# NPC / headless / no-HUD path — the DEFAULT branch. Random 1 of the offer.
+		var pool := offer.duplicate()
+		pool.shuffle()
+		request.resolve([pool[0]])
+
+
+## Territory-known (temporary) spells stay offerable as an upgrade — only
+## PERMANENTLY-known spells are excluded, so the offer is a genuine addition.
+func _exclude_permanently_known(cands: Array[SpellDef], collector: Entity) -> Array[SpellDef]:
+	if collector.spellbook == null or collector.core_location == null:
+		return cands
+	var known := collector.spellbook.permanent_spells(collector.core_location)
+	var out: Array[SpellDef] = []
+	for s in cands:
+		if not known.has(s):
+			out.append(s)
+	return out
+
+
+## Spell round resolver: grants the chosen spell (#204) — a [SpellGrant] on the
+## collector's CORE node, same mechanism as an authored/earned core spell —
+## then frees the relic. There is no further round after this one.
+func _grant_spell_and_finish(chosen: Array[SpellDef]) -> void:
+	if is_instance_valid(_collector) and not _collector.is_dead and not chosen.is_empty():
+		var spell := chosen[0]
+		if spell != null and _collector.core_location != null:
+			var grant := SpellGrant.new()
+			grant.spell_def = spell
+			_collector.core_location.add_effect(grant)      # persist on the node, resync the emblem
+			_collector.grant_effect(grant, _collector.core_location) # → book.add_spell(spell, core_node)
+	_really_finish()
+
+
+func _really_finish() -> void:
 	queue_free()
 
 

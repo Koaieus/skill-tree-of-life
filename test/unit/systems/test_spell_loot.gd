@@ -1,12 +1,16 @@
 extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
-## LootSystem's spellbook draft (#204, widened post-#204 — see loot_system.gd's
-## "#204: Spellbook loot draft" comment) — the killer draft-picks a spell off
-## the victim's FULL spellbook (core, innate, AND territory-sourced), on the
-## same pre-cleanup `Events.entity_dying` phase as the SkillDust drop (#173).
-## Fixture mirrors test_loot_system.gd: a line graph, killer + victim
-## entities, death triggered via the realistic core-overflow path.
+## LootSystem's spellbook draft (#204, re-cut — see loot_system.gd's "#204:
+## Spellbook loot draft" section and skill_dust_addon.gd's "TERMINAL SPELL
+## ROUND" doc). The draft is a snapshot of the victim's FULL spellbook (core,
+## innate, AND territory-sourced), taken at the pre-cleanup `Events.entity_dying`
+## phase (same as the SkillDust drop, #173) but OFFERED LATER — as a bonus
+## round on the SAME relic, after every stat round has resolved, to whoever
+## ALLOCATES the relic (the collector, not necessarily the killer). Fixture
+## mirrors test_loot_system.gd: a line graph, killer + victim entities, death
+## triggered via the realistic core-overflow path, claim triggered by
+## allocating the relic.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -79,6 +83,8 @@ func before_each() -> void:
 	_alloc.force_allocate(_victim, _nodes[2])
 	_victim.core_location = _nodes[1]
 
+	_killer.stat_board.skill_points.grant(5)  # enough SP to claim the relic
+
 
 func _kill_victim() -> void:
 	_tm.current_entity = _killer
@@ -86,10 +92,23 @@ func _kill_victim() -> void:
 	_victim.core_location.take_damage(10000.0, null)  # overflow → health 0 → die()
 
 
+## Claims the relic LootSystem left on the victim's former core (N1) by
+## allocating it — the sole trigger for the spell draft since the re-cut.
+func _claim_relic(claimant: Entity) -> bool:
+	return _alloc.allocate(_nodes[1], claimant)
+
+
 func _mk_spell(spell_name: String) -> SpellDef:
 	var s := SpellDef.new()
 	s.name = spell_name
 	return s
+
+
+func _find_dust(node: SkillNode) -> SkillDustAddon:
+	for a in node.get_addons():
+		if a is SkillDustAddon:
+			return a as SkillDustAddon
+	return null
 
 
 ## Innate: null is a permanent pseudo-source in `_sources` — remove_spell
@@ -122,13 +141,15 @@ func test_offers_core_and_territory_spells_capped_at_three() -> void:
 	Events.spell_loot_requested.connect(handler)
 
 	_kill_victim()
+	assert_eq(captured.size(), 0, "the draft does NOT fire on kill")
+	assert_true(_claim_relic(_killer), "killer can allocate the neutral relic")
+	Events.spell_loot_requested.disconnect(handler)
 
-	assert_eq(captured.size(), 1, "one spell draft fired")
+	assert_eq(captured.size(), 1, "one spell draft fired, on claim")
 	assert_eq(captured[0].candidates.size(), 3, "all 3 known spells offered")
 	assert_true(captured[0].candidates.has(core_a))
 	assert_true(captured[0].candidates.has(core_b))
 	assert_true(captured[0].candidates.has(territory), "territory-sourced spell is lootable")
-	Events.spell_loot_requested.disconnect(handler)
 
 
 func test_offer_capped_at_three_when_victim_knows_more() -> void:
@@ -146,15 +167,16 @@ func test_offer_capped_at_three_when_victim_knows_more() -> void:
 	Events.spell_loot_requested.connect(handler)
 
 	_kill_victim()
+	_claim_relic(_killer)
+	Events.spell_loot_requested.disconnect(handler)
 
 	assert_eq(captured.size(), 1)
 	assert_eq(captured[0].candidates.size(), 3, "offer capped at 3 even with 4 known spells")
-	Events.spell_loot_requested.disconnect(handler)
 
 
-# ── Acceptance #2: chosen spell lands on killer's core, survives dealloc ────
+# ── Acceptance #2: chosen spell lands on the CLAIMANT's core, survives unrelated dealloc ──
 
-func test_chosen_spell_lands_on_killer_core_and_survives_unrelated_dealloc() -> void:
+func test_chosen_spell_lands_on_claimant_core_and_survives_unrelated_dealloc() -> void:
 	_victim.spellbook = SpellBook.new()
 	var spell := _mk_spell("Fireball")
 	_grant_from(_victim.spellbook, spell, _victim.core_location)
@@ -166,30 +188,32 @@ func test_chosen_spell_lands_on_killer_core_and_survives_unrelated_dealloc() -> 
 	Events.spell_loot_requested.connect(handler)
 
 	_kill_victim()
+	_claim_relic(_killer)
 	assert_eq(captured.size(), 1)
 	captured[0].resolve([spell])
 	Events.spell_loot_requested.disconnect(handler)
 
 	assert_true(_killer.spellbook != null and spell in _killer.spellbook.spells,
-			"chosen spell landed in the killer's spellbook")
+			"chosen spell landed in the claimant's spellbook")
 	assert_true(_killer.core_location in _killer.spellbook._sources.get(spell, []),
-			"sourced by the killer's core node")
+			"sourced by the claimant's core node")
 
 	# Deallocating an unrelated node (N3, killer's territory) must not strip it —
-	# the grant lives on the killer's CORE, not on N3.
+	# the grant lives on the claimant's CORE, not on N3.
 	_alloc.force_deallocate(_nodes[3])
 	assert_true(spell in _killer.spellbook.spells, "core-sourced spell survives unrelated dealloc")
 
 
 # ── Acceptance #3: NPC / headless auto-resolves, never hangs ────────────────
 
-func test_headless_kill_auto_resolves_a_random_pick() -> void:
+func test_headless_claim_auto_resolves_a_random_pick() -> void:
 	_victim.spellbook = SpellBook.new()
 	var spell := _mk_spell("Bolt")
 	_grant_from(_victim.spellbook, spell, _victim.core_location)
 
 	# No handler connected at all — the emitter must auto-resolve, not hang.
 	_kill_victim()
+	_claim_relic(_killer)
 
 	assert_true(_killer.spellbook != null and spell in _killer.spellbook.spells,
 			"auto-resolve granted the only candidate")
@@ -207,9 +231,10 @@ func test_kill_switch_off_neuters_spell_loot() -> void:
 	var handler := func(_req: SpellLootRequest) -> void: fired = true
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
-	assert_false(fired, "kill-switch off → no request emitted")
+	assert_false(fired, "kill-switch off → no request emitted, even on claim")
 	assert_true(_killer.spellbook == null or not (spell in _killer.spellbook.spells),
 			"kill-switch off → nothing learned")
 
@@ -219,20 +244,26 @@ func test_kill_switch_off_neuters_spell_loot() -> void:
 func test_core_spell_still_offered_at_entity_dying_despite_imminent_strip() -> void:
 	# The spell is sourced by the victim's core — AllocationSystem's `entity_died`
 	# strip (which runs AFTER entity_dying) would otherwise revoke it. Proves the
-	# draw reads the pre-strip world.
+	# SNAPSHOT (not the offer) reads the pre-strip world: the addon carries the
+	# candidate immediately after death, though the offer itself waits for claim.
 	_victim.spellbook = SpellBook.new()
 	var spell := _mk_spell("LastGasp")
 	_grant_from(_victim.spellbook, spell, _victim.core_location)
+
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	assert_not_null(dust, "the relic carries the spell snapshot")
+	assert_true(dust.spell_candidates.has(spell), "snapshot taken before the strip removed it")
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
 		req.handled = true
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
-	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
-	assert_eq(captured.size(), 1, "draft fired before the strip removed the spell")
+	assert_eq(captured.size(), 1, "draft fired on claim, from the pre-strip snapshot")
 	assert_true(captured[0].candidates.has(spell))
 
 
@@ -249,6 +280,7 @@ func test_resolve_is_idempotent_cannot_double_learn() -> void:
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
 	captured[0].resolve([spell])
@@ -258,7 +290,7 @@ func test_resolve_is_idempotent_cannot_double_learn() -> void:
 			"double-resolve doesn't double-grant (still 1 source: the killer's core)")
 
 
-# ── Acceptance #7: known-filter ──────────────────────────────────────────────
+# ── Acceptance #7: known-filter, against the CLAIMANT (not necessarily the killer) ──
 
 func test_permanently_known_spell_excluded_territory_known_offered() -> void:
 	_victim.spellbook = SpellBook.new()
@@ -267,7 +299,7 @@ func test_permanently_known_spell_excluded_territory_known_offered() -> void:
 	_grant_from(_victim.spellbook, known_spell, _victim.core_location)
 	_grant_from(_victim.spellbook, new_spell, _victim.core_location)
 
-	# Killer already knows `known_spell` PERMANENTLY (core-sourced) — must be excluded.
+	# Claimant already knows `known_spell` PERMANENTLY (core-sourced) — must be excluded.
 	_killer.spellbook = SpellBook.new()
 	_grant_from(_killer.spellbook, known_spell, _killer.core_location)
 
@@ -277,6 +309,7 @@ func test_permanently_known_spell_excluded_territory_known_offered() -> void:
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
 	assert_eq(captured.size(), 1)
@@ -289,7 +322,7 @@ func test_territory_known_spell_stays_offerable_as_upgrade() -> void:
 	var spell := _mk_spell("Upgrade")
 	_grant_from(_victim.spellbook, spell, _victim.core_location)
 
-	# Killer knows the same spell but only via a TERRITORY node — not permanent —
+	# Claimant knows the same spell but only via a TERRITORY node — not permanent —
 	# so it should still be offered (a permanent upgrade over the temporary hold).
 	_killer.spellbook = SpellBook.new()
 	_grant_from(_killer.spellbook, spell, _nodes[3])
@@ -300,6 +333,7 @@ func test_territory_known_spell_stays_offerable_as_upgrade() -> void:
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
 	assert_eq(captured.size(), 1)
@@ -314,12 +348,13 @@ func test_empty_candidates_after_filter_emits_no_request() -> void:
 	_grant_from(_victim.spellbook, spell, _victim.core_location)
 
 	_killer.spellbook = SpellBook.new()
-	_grant_from(_killer.spellbook, spell, _killer.core_location)  # killer already knows it
+	_grant_from(_killer.spellbook, spell, _killer.core_location)  # claimant already knows it
 
 	var fired := false
 	var handler := func(_req: SpellLootRequest) -> void: fired = true
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
 	assert_false(fired, "nothing left after the known-filter → no request emitted")
@@ -331,6 +366,7 @@ func test_no_spellbook_emits_no_request() -> void:
 	var handler := func(_req: SpellLootRequest) -> void: fired = true
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
 	assert_false(fired, "no spellbook → no request emitted")
@@ -351,10 +387,49 @@ func test_innate_spell_is_offered_as_a_candidate() -> void:
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
+	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
 	assert_eq(captured.size(), 1)
 	assert_true(captured[0].candidates.has(innate), "innate spell is offered")
+
+
+# ── Acceptance #10 (new): fires AFTER regular stat picks, never before ──────
+
+func test_spell_draft_fires_only_after_stat_rounds_resolve() -> void:
+	_loot.drop_skill_dust_on_death = true  # re-enable stat loot to exercise ordering
+	_victim.entity_tier = 1  # a real stat round (N=1, but M > N via node grant + innates)
+	_victim.spellbook = SpellBook.new()
+	var spell := _mk_spell("Bonus")
+	_grant_from(_victim.spellbook, spell, _victim.core_location)
+
+	var stat_requests: Array[LootPickRequest] = []
+	var spell_requests: Array[SpellLootRequest] = []
+	var stat_handler := func(req: LootPickRequest) -> void:
+		req.handled = true
+		stat_requests.append(req)
+	var spell_handler := func(req: SpellLootRequest) -> void:
+		req.handled = true
+		spell_requests.append(req)
+	Events.loot_pick_requested.connect(stat_handler)
+	Events.spell_loot_requested.connect(spell_handler)
+
+	_kill_victim()
+	_claim_relic(_killer)
+
+	assert_gt(stat_requests.size(), 0, "a stat round fired")
+	assert_eq(spell_requests.size(), 0, "spell draft has NOT fired while a stat round is pending")
+
+	# Resolve every pending stat request until the relic hands off to the spell round.
+	while spell_requests.is_empty() and not stat_requests.is_empty():
+		var req: LootPickRequest = stat_requests.pop_front()
+		req.resolve([req.candidates[0]])
+
+	Events.loot_pick_requested.disconnect(stat_handler)
+	Events.spell_loot_requested.disconnect(spell_handler)
+
+	assert_eq(spell_requests.size(), 1, "spell draft fires once every stat round has resolved")
+	assert_true(spell_requests[0].candidates.has(spell))
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

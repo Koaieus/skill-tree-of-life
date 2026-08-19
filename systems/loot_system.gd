@@ -24,11 +24,14 @@ extends Node
 ##     against the collector's live board at claim time (not draw time — the
 ##     claimant isn't known until someone allocates the relic). See
 ##     docs/domain/loot-system.md.
-##   * Spell draft (#204) — every spell the victim currently knows (core,
-##     innate, AND territory-sourced — widened post-#204, see the note below),
-##     minus what the killer already knows permanently, offered pick-1-from-M;
-##     the chosen spell lands on the killer's core via a [SpellGrant]. See the
-##     "#204: Spellbook loot draft" section below.
+##   * Spell draft (#204, re-cut #4xx) — every spell the victim currently knows
+##     (core, innate, AND territory-sourced) is snapshotted onto the SAME
+##     [SkillDustAddon] relic as a terminal BONUS round, offered AFTER every
+##     stat round has resolved. The offer is filtered against whoever actually
+##     CLAIMS the relic (allocates the node) — not the killer — minus spells
+##     that claimant already knows permanently; the chosen spell lands on the
+##     claimant's core via a [SpellGrant]. See the "#204: Spellbook loot draft"
+##     section below.
 ##
 ## KILLER ATTRIBUTION lives here, not on the entity or the bus: death fires
 ## SYNCHRONOUSLY inside the attacker's turn (core-HP overflow + cascade chip
@@ -187,7 +190,6 @@ func _on_entity_dying(victim: Entity) -> void:
 	var killer := _resolve_killer(victim)
 	_award_kill_xp(victim, killer)
 	_drop_skill_dust(victim)
-	_award_spell_loot(victim, killer)
 	# Retire this victim's ledger the moment it has been paid out. The other
 	# clear (`_on_attack_launched`) is wired only when `battle_system` is set,
 	# so an unset export left the ledger to accumulate across attacks while
@@ -302,15 +304,27 @@ func _grant_xp(entity: Entity, amount: float) -> void:
 
 # ── #69/#173: SkillDust loot drop (core-only) ─────────────────────────────────
 
+## Attaches the SkillDust relic — stat rounds (#173/#323) PLUS, as a terminal
+## bonus round, the victim's spell draft (#204). Each side is gated by its own
+## kill-switch independently (`drop_skill_dust_on_death` zeroes only the stat
+## payload, `award_spell_loot_on_death` zeroes only the spell payload) so the
+## addon still attaches — and still offers whichever half is on — when only
+## one switch is set. See [SkillDustAddon]'s terminal-round doc for why the
+## spell offer/filter/grant happens at CLAIM time instead of here: the
+## claimant isn't known until someone allocates the relic.
 func _drop_skill_dust(victim: Entity) -> void:
-	if not drop_skill_dust_on_death:
-		return
 	var core := victim.core_location
 	if core == null:
 		return
-	var draw := _draw_payload(victim)
+	var empty_draw: Dictionary = {
+		"candidates": [] as Array[StatModifier], "weights": [] as Array[float], "pick_count": 0
+	}
+	var draw := _draw_payload(victim) if drop_skill_dust_on_death else empty_draw
 	var candidates: Array[StatModifier] = draw["candidates"]
-	if candidates.is_empty():
+	var spell_candidates: Array[SpellDef] = []
+	if award_spell_loot_on_death:
+		spell_candidates = _spell_candidates(victim)
+	if candidates.is_empty() and spell_candidates.is_empty():
 		return
 	var dust: SkillDustAddon = null
 	if skill_dust_scene != null:
@@ -321,6 +335,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 	dust.weights = draw["weights"]
 	dust.pick_count = draw["pick_count"]
 	dust.victim_color = victim.color
+	dust.spell_candidates = spell_candidates
 	_attach_addon(core, dust)
 
 
@@ -444,7 +459,8 @@ func _attach_addon(node: SkillNode, addon: SkillNodeAddon) -> void:
 	node.add_child(addon)
 
 
-# ── #204: Spellbook loot draft (widened to the victim's full spellbook) ──────
+# ── #204: Spellbook loot draft (widened to the victim's full spellbook,
+# re-cut to fire on CLAIM, not on kill) ───────────────────────────────────────
 ## The draft draws from every spell the victim currently knows — core-sourced,
 ## innate, AND territory-sourced. #204 originally restricted this to the
 ## PERMANENT subset (core ∪ innate), reasoning that a territory-sourced spell
@@ -452,78 +468,19 @@ func _attach_addon(node: SkillNode, addon: SkillNodeAddon) -> void:
 ## allocating the same node). In practice every entity starts from the same
 ## shared spellbook_default.tres and a SpellGrant landing on any given
 ## entity's OWN core node is rare, so `permanent_spells` almost never diverges
-## between killer and victim — the draft had nothing to offer. Widening to the
-## full spellbook is a deliberate design change, not the original spec: the
-## killer permanently claims a spell the victim currently holds by ANY means,
-## territory included. `_exclude_known` still filters by the killer's
-## permanent set only, so a spell the killer holds temporarily (via their own
-## territory) stays offerable as an upgrade to permanent.
-## Fires SYNCHRONOUSLY on the same `entity_dying` phase as the dust drop, so
-## both requests reach HudRoot in the same call stack — HudRoot queues them
-## (dust first, since it's dispatched first here).
-
-## Offer is capped at this many candidates (M = min(this, remaining)).
-const _SPELL_OFFER_CAP: int = 3
-## Fixed keep-count for #204's MVP — see the issue NOTES on keep-count scaling.
-const _SPELL_PICK_COUNT: int = 1
-
-
-func _award_spell_loot(victim: Entity, killer: Entity) -> void:
-	if not award_spell_loot_on_death:
-		return
-	if killer == null or killer.is_dead:
-		return
+## between claimant and victim — the draft had nothing to offer. Widening to
+## the full spellbook is a deliberate design change, not the original spec:
+## whoever permanently claims the relic (allocates the node — the SAME actor
+## SkillDust's stat rounds already pay, not necessarily the killer) claims a
+## spell the victim currently held by ANY means, territory included.
+##
+## Only the SNAPSHOT happens here, at `entity_dying` (pre-strip) — reading
+## `victim.spellbook` any later would miss a core-sourced spell once
+## AllocationSystem's `entity_died` strip revokes it. The offer/filter/grant
+## itself runs on [SkillDustAddon] at claim time, as a bonus round appended
+## AFTER every stat round has resolved — see that class's doc.
+func _spell_candidates(victim: Entity) -> Array[SpellDef]:
 	var victim_book := victim.spellbook
 	if victim_book == null or victim.core_location == null:
-		return
-	var candidates := victim_book.spells.duplicate()
-	candidates = _exclude_known(candidates, killer)
-	if candidates.is_empty():
-		return
-
-	candidates.shuffle()
-	var offer_count := mini(_SPELL_OFFER_CAP, candidates.size())
-	var offered: Array[SpellDef] = []
-	for i in offer_count:
-		offered.append(candidates[i])
-
-	var request := SpellLootRequest.new(
-			killer, offered, _SPELL_PICK_COUNT, _make_spell_resolver(killer))
-	Events.spell_loot_requested.emit(request)
-	if not request.handled:
-		# NPC / headless / no-HUD path — the DEFAULT branch. Random N of M.
-		var pool := offered.duplicate()
-		pool.shuffle()
-		var auto_pick: Array[SpellDef] = []
-		for i in mini(_SPELL_PICK_COUNT, pool.size()):
-			auto_pick.append(pool[i])
-		request.resolve(auto_pick)
-
-
-## Territory-known (temporary) spells stay offerable as an upgrade — only
-## PERMANENTLY-known spells are excluded, so the offer is a genuine addition.
-func _exclude_known(candidates: Array[SpellDef], killer: Entity) -> Array[SpellDef]:
-	if killer.spellbook == null or killer.core_location == null:
-		return candidates
-	var known := killer.spellbook.permanent_spells(killer.core_location)
-	var out: Array[SpellDef] = []
-	for s in candidates:
-		if not known.has(s):
-			out.append(s)
-	return out
-
-
-## Learn mechanism (#204): a [SpellGrant] placed on the killer's CORE node,
-## same mechanism as an authored/earned core spell — symmetric, and re-lootable
-## when the killer later dies (the draw reads core-sourced spells).
-func _make_spell_resolver(killer: Entity) -> Callable:
-	return func(chosen: Array[SpellDef]) -> void:
-		if not is_instance_valid(killer) or killer.is_dead or killer.core_location == null:
-			return
-		for spell in chosen:
-			if spell == null:
-				continue
-			var grant := SpellGrant.new()
-			grant.spell_def = spell
-			killer.core_location.add_effect(grant)            # persist on the node, resync the emblem
-			killer.grant_effect(grant, killer.core_location) # → book.add_spell(spell, core_node)
+		return []
+	return victim_book.spells.duplicate()

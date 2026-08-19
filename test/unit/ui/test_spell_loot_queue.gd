@@ -1,13 +1,15 @@
 extends GutTest
 
 ## HudRoot's pending-pick queue (#204, acceptance #7 in the swarm spec: "two
-## picks on one death"). A kill can fire BOTH the dust pick and the spell
-## draft synchronously — both modals pause the tree, so HudRoot must present
-## them one at a time: dust first, then the spell draft, the next only once
-## the current picker's `closed` signal fires.
-##
-## Drives HudRoot directly (not through LootSystem) so this is a focused test
-## of the queue/serialization logic itself, independent of the loot draw.
+## picks on one death"). A single relic claim can fire BOTH a dust pick and the
+## spell draft — both modals pause the tree, so HudRoot must present them one
+## at a time: dust first, then the spell draft, the next only once the current
+## picker's `closed` signal fires. Since the #204 re-cut, SkillDustAddon itself
+## is what guarantees that ordering (the spell draft is its own terminal bonus
+## round, fired only after every stat round resolves — see skill_dust_addon.gd)
+## — this file drives the two events directly, back-to-back, as a stand-in for
+## that sequencing, so it stays a focused test of HudRoot's queue/serialization
+## logic itself, independent of the loot draw.
 
 const _HUD_SCENE := preload("res://ui/hud/hud_root.tscn")
 
