@@ -311,18 +311,18 @@ func launch_attack() -> void:
 	var timeline := last_reveal_timeline
 	if attack_plan is MeleeAttackPlan and melee_preview != null:
 		var melee_plan: MeleeAttackPlan = attack_plan
-		# Concurrent, not sequential: start the VFX replay, then await the
-		# player alongside it — awaiting the VFX to completion first would
-		# needlessly serialize two independent waits (the player's own clock
-		# doesn't depend on VFX signals). `melee_preview` is untyped here
-		# (Variant) so the static checker doesn't see `launch`'s `-> void`
-		# signature and refuse to let the coroutine's actual runtime return
-		# (a Signal, if it suspended) be awaited below.
-		var untyped_melee_preview: Variant = melee_preview
-		var vfx_task = untyped_melee_preview.launch(melee_plan)
+		# Sequential, not concurrent: GDScript can't hold a handle to a
+		# `-> void` coroutine to await later (attempting it either fails the
+		# static "cannot get return value" check or, called dynamically,
+		# errors at runtime with "Trying to call an async function without
+		# await"). `play`'s own duration (bounded by the recorded timeline,
+		# itself bounded by each hit's `arrival_time` / `CASCADE_STEP`) is
+		# ordinarily short next to the swing replay, so awaiting it after
+		# costs little; termination and correctness matter more here than
+		# shaving that overlap.
+		await melee_preview.launch(melee_plan)
 		if timeline != null and presentation_player != null:
 			await presentation_player.play(timeline)
-		await vfx_task
 		# is_launching flips false BEFORE _reset() (not after) — _reset()'s
 		# attack_plan = null synchronously fires attack_plan_changed, and
 		# PlayerInputController's gate-refresh listener reads is_launching
@@ -338,17 +338,13 @@ func launch_attack() -> void:
 		if magic_plan.spell != null:
 			coord_scene = magic_plan.spell.vfx_coordinator_scene
 	if attack_vfx != null:
-		# See the melee branch above for why this goes through an untyped
-		# reference (both `play`/`play_ranged_volley` are declared `-> void`).
-		var untyped_attack_vfx: Variant = attack_vfx
-		var vfx_task
 		if coord_scene != null:
-			vfx_task = untyped_attack_vfx.play(coord_scene, outcome)
+			await attack_vfx.play(coord_scene, outcome)
 		else:
-			vfx_task = untyped_attack_vfx.play_ranged_volley(outcome)
+			await attack_vfx.play_ranged_volley(outcome)
+		# See the melee branch above for why this runs after, not alongside.
 		if timeline != null and presentation_player != null:
 			await presentation_player.play(timeline)
-		await vfx_task
 	elif timeline != null and presentation_player != null:
 		# Headless / no VFX mounted: nothing will ever emit the
 		# damage_shown/node_death_shown reveals a coordinator would — apply

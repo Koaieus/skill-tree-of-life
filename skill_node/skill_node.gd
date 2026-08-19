@@ -631,6 +631,7 @@ var shown_owner: Entity = null
 func set_view_state(hp: float, owner: Entity) -> void:
 	shown_hp = hp
 	shown_owner = owner
+	_sync_visuals()
 	view_state_changed.emit(hp, owner)
 
 
@@ -688,9 +689,6 @@ func _on_damaged_flash() -> void:
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
-	if _presentation_hold_count > 0:
-		_presentation_dirty = true
-		return
 
 	# NodeVisualsComposite (disk + rim + rune/halo dress) is the whole
 	# disk/allocation render (#304) — InnerDisk and RimRing both draw opaquely
@@ -705,10 +703,17 @@ func _sync_visuals() -> void:
 	_node_visuals.geom_inner_r = inner_radius
 	_node_visuals.geom_crest_r = radius - RIM_CREST_INSET
 	_node_visuals.geom_outer_r = radius
-	_node_visuals.entity_tint = get_owner_color()
+	# #491: entity tint / allocation fill are drawn off `shown_owner`, not
+	# `owned_by` — a synchronous `owner_changed`-triggered call (real
+	# ownership already moved, #474) still paints the PRE-hit look until
+	# `set_view_state` pushes the reveal, which is what re-triggers this
+	# with the caught-up value. Allocation fill collapses to 0 only once the
+	# shown owner does — stake count itself never changes from a hit, only
+	# from allocate/deallocate (never reveal-gated).
+	_node_visuals.entity_tint = shown_owner.color if shown_owner != null else Color.WHITE
 	_node_visuals.archetype_tint = base_type_color
 	_node_visuals.stake_level = stake_level
-	_node_visuals.allocation_level = allocation_level
+	_node_visuals.allocation_level = allocation_level if shown_owner != null else 0
 	_node_visuals.sensed = sensed
 	var resolution := EmblemResolver.resolve(get_emblem_contributions())
 	_node_visuals.set_carve(resolution.carve, resolution.carve_ties)
