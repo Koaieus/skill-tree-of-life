@@ -51,6 +51,7 @@ func _ready() -> void:
 
 	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 	_skill_node.presentation_released.connect(_on_presentation_released)
+	_skill_node.hp_reveal_progress.connect(_on_hp_reveal_progress)
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
@@ -96,8 +97,8 @@ func _on_current_changed(_new_val: Variant) -> void:
 		return
 	# Presentation clock (#482): the pool already holds the post-hit value —
 	# BattleSystem applied it synchronously — but the swing/projectile/bolt is
-	# still travelling. Skip the drain; `presentation_released` replays it as an
-	# ordinary drain tween the moment the hit actually lands.
+	# still travelling. Skip the drain; `hp_reveal_progress` drives the tween
+	# (one step per hit, #487) the moment each hit actually lands.
 	if _skill_node != null and _skill_node.presentation_hold:
 		return
 	var target := float(_pool.current)
@@ -109,14 +110,27 @@ func _on_current_changed(_new_val: Variant) -> void:
 	_update_visibility()
 
 
-## The withheld repaint catching up (#482). Replays whichever of the two model
-## events arrived during the hold: an owner flip (rebind + visibility) and/or a
-## drain (tween to the pool's already-current value).
+## One hit's reveal has landed (#487) — tween toward the node's SHOWN hp (not
+## necessarily the pool's final value yet: a multi-hit volley steps this once
+## per arrow, only reaching the pool's real value on the last one). Fires
+## whether or not the node is still held, so this also covers the ordinary
+## single-hit case that used to run through `_on_presentation_released`.
+func _on_hp_reveal_progress(shown_value: float) -> void:
+	var going_down := shown_value < value
+	if going_down:
+		_tween_value(shown_value, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
+	else:
+		_tween_value(shown_value, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
+	_update_visibility()
+
+
+## The withheld repaint catching up (#482). `hp_reveal_progress` (connected
+## above) already drove the value tween by the time this fires — this only
+## replays the rebind an `owner_changed` arrived-while-held left pending.
 func _on_presentation_released() -> void:
 	if _rebind_pending:
 		_rebind_pending = false
 		_on_owner_changed()
-	_on_current_changed(null)
 
 
 func _on_max_changed() -> void:

@@ -15,7 +15,12 @@ class_name OutcomeApplier
 ## land every hit in append order. Two passes, same as the pre-#381
 ## hits-then-heals shape — ordering between hits no longer matters since
 ## [IncidentReducer] guarantees at most one landing per node per wave; see
-## the #381 plan's ordering fork.
+## the #381 plan's ordering fork. A ranged volley isn't wave-reduced, though —
+## several [DamageInstance]s can share one `target` (every firing leaf
+## converging on the same node), so [method SkillNode.hold_presentation] is a
+## REFCOUNT (#487): one `hold_presentation()` call per hit here, one matching
+## `release_presentation()` per hit's own reveal, never a single latch shared
+## across all of them.
 static func apply(outcome: AttackOutcome) -> void:
 	for hit in outcome.hits:
 		if hit.target != null:

@@ -245,18 +245,36 @@ func test_live_hit_on_depleted_target_emits_node_death_shown() -> void:
 	# Model mutation (force_deallocate) already happened synchronously in
 	# BattleSystem before this replay ever runs (#474) — _on_live_hit only
 	# reads the already-mutated state to decide whether to reveal a death.
+	#
+	# #487: melee_preview no longer announces the death itself (a hit-target
+	# node does that on its OWN final presentation release, once — see
+	# SkillNode.release_presentation's `announce_death`), so this replay must
+	# hold the node first, same as OutcomeApplier does in the real
+	# launch_attack path, or there's no release for _on_live_hit's
+	# Events.damage_shown emit to trigger.
 	var ctx: Dictionary = await _setup()
 	var plain_node: SkillNode = ctx.plain_node
 	plain_node.owned_by = null
+	plain_node.hold_presentation()
 	var preview := _make_preview()
 	preview._attacker = ctx.attacker
 	preview._dead_at = {}
 	preview._pending_pops = {}
 
+	# No BattleSystem in this fixture — stand in for its Events.damage_shown
+	# subscriber (the thing that actually releases the hold in production).
+	# Events is a persistent autoload across the whole GUT run, so this MUST
+	# be disconnected before the test ends, or it silently releases every
+	# other test's presentation holds for the rest of the suite.
+	var release_stub := func(target: SkillNode, amount: float) -> void:
+		target.release_presentation(-amount)
+	Events.damage_shown.connect(release_stub)
+
 	watch_signals(Events)
 	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
 	assert_signal_emit_count(Events, "node_death_shown", 1)
 	assert_eq(get_signal_parameters(Events, "node_death_shown"), [plain_node])
+	Events.damage_shown.disconnect(release_stub)
 
 
 func test_popped_hitter_emits_no_damage_shown() -> void:

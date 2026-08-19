@@ -41,6 +41,14 @@ signal heal_shown(target: SkillNode, amount: float)
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
 signal skill_node_depleted(node: SkillNode)
 
+## Presentation clock (#487): a direct hit overflowed [param node]'s (the
+## CORE node's) own combat HP into its owner's `health` pool — the mutation
+## already happened, synchronously, by the time this fires. [param delta] is
+## the signed pool change (always negative here). BattleSystem listens and
+## queues the entity's health-bar reveal to release on this SAME node's own
+## `damage_shown`/`node_death_shown` — see [method Entity.hold_health_presentation].
+signal core_health_chipped(node: SkillNode, entity: Entity, delta: float)
+
 ## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
 ## keyed by the owning entity. Entity itself does the re-emit so the global
 ## bus carries the entity reference (a stat doesn't know its owner). UI floater

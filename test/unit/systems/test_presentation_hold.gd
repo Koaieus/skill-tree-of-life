@@ -76,6 +76,14 @@ func _build(with_live_vfx: bool) -> Dictionary:
 
 	_set_stat(leaf, &"range", 100.0)
 	_set_stat(leaf, &"ranged_damage", 9999.0)  # overkill: guarantees a lethal hit
+	# `core` is ALSO a graph-theoretic leaf of this 2-node chain (both ends of
+	# core—leaf have degree 1), and `range`'s 400.0 default (stats_system/defs/
+	# range.tres) reaches `target` at distance 250 same as `leaf` does at 50 —
+	# so without this, every test below secretly fires a 2-hit volley instead
+	# of the single hit its assertions assume (#487). Zero it so only `leaf`
+	# fires; `test_multi_hit_volley_reveals_one_arrow_at_a_time` below is the
+	# one test that deliberately restores it to exercise the 2-hit case.
+	_set_stat(core, &"range", 0.0)
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
@@ -218,3 +226,105 @@ func test_flush_emits_heal_shown_for_heal_targets() -> void:
 			"the flush stands in for the coordinator that never ran")
 	assert_false(target.presentation_hold,
 			"a heal node must never keep its latch past the attack that set it")
+
+
+## #487: this is the reported bug, pinned. Two firing positions (both `core`
+## and `leaf` reach `target` — see `_build`'s comment) means TWO hits on the
+## SAME node in one outcome, so `presentation_hold` must be a refcount: the
+## first hit's reveal only steps the shown HP, and the paint/owner catch-up
+## (and the target's own death announcement) must wait for the SECOND.
+## Non-lethal per-shot damage so the node survives both hits and the
+## intermediate step is observable — a lethal fixture would make the "still
+## held after hit 1" assertion indistinguishable from "already fully dead".
+func test_multi_hit_volley_reveals_one_arrow_at_a_time() -> void:
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+
+	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	core.position = Vector2(0, 0)
+	graph.add_skill_node(core)
+
+	var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	leaf.position = Vector2(200, 0)
+	graph.add_skill_node(leaf)
+	graph.add_edge(core, leaf)
+
+	var target := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	target.position = Vector2(250, 0)
+	graph.add_skill_node(target)
+
+	var attacker := Entity.new()
+	attacker.faction = _PLAYER_FACTION
+	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	attacker.stat_board.action_points.set_base_ratcheted(2.0)
+	attacker.stat_board.action_points.current = 2.0
+	graph.add_child(attacker)
+
+	var hostile := Entity.new()
+	hostile.faction = _NPC_FACTION
+	hostile.color = Color(0.1, 0.9, 0.3)
+	hostile.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	graph.add_child(hostile)
+	await get_tree().process_frame
+
+	var alloc := AllocationSystem.new()
+	alloc.graph = graph
+	add_child_autofree(alloc)
+	alloc.force_allocate(attacker, core)
+	alloc.force_allocate(attacker, leaf)
+	attacker.core_location = core
+	alloc.force_allocate(hostile, target)
+	hostile.core_location = target
+
+	# `core`'s range stays at its 400.0 default (reaches target at 250); `leaf`
+	# explicitly reaches too (50 <= 100) — both fire, in navigator leaf order.
+	_set_stat(leaf, &"range", 100.0)
+	_set_stat(leaf, &"ranged_damage", 3.0)
+
+	var tm := TurnManager.new()
+	add_child_autofree(tm)
+	tm.current_entity = attacker
+
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	bs.allocation_system = alloc
+	bs.graph = graph
+	add_child_autofree(bs)
+
+	# A live AttackVFX so launch_attack awaits instead of flushing same-frame
+	# (a null attack_vfx skips straight to `_flush_presentation`, which would
+	# release both holds before this test ever gets to assert the mid-volley
+	# state — see `_build`'s `with_live_vfx` param above).
+	var vfx := AttackVFX.new()
+	add_child_autofree(vfx)
+	bs.attack_vfx = vfx
+
+	var pre_hit_hp := target.get_current_hp()
+	assert_true(pre_hit_hp > 6.0, "fixture: target must survive two 3-damage hits")
+
+	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	var plan := bs.attack_plan as RangedAttackPlan
+	plan._on_node_left_clicked(target)
+	assert_eq(plan.get_reaching_firing_positions().size(), 2,
+			"fixture: both core and leaf must reach target for this to be a real volley")
+	bs.launch_attack()  # not awaited — see `_fire`'s docstring above
+
+	# Model: both hits already landed (#474).
+	assert_almost_eq(target.get_current_hp(), pre_hit_hp - 6.0, 0.01,
+			"the model takes both hits synchronously, same as always")
+	assert_true(target.presentation_hold, "both hits' paint is withheld")
+	assert_almost_eq(target.get_shown_hp(), pre_hit_hp, 0.01,
+			"nothing has been revealed yet — shown HP is still the pre-hit value")
+
+	# First arrow's reveal lands.
+	Events.damage_shown.emit(target, 3.0)
+	assert_true(target.presentation_hold,
+			"one hold released, one still pending — the OLD boolean latch would fail this")
+	assert_almost_eq(target.get_shown_hp(), pre_hit_hp - 3.0, 0.01,
+			"shown HP steps down by exactly the first arrow's damage, not both hits' worth")
+
+	# Second arrow's reveal lands.
+	Events.damage_shown.emit(target, 3.0)
+	assert_false(target.presentation_hold, "the second hit's reveal is what fully releases")
+	assert_almost_eq(target.get_shown_hp(), target.get_current_hp(), 0.01,
+			"shown HP now matches the model exactly")

@@ -81,6 +81,13 @@ func _build() -> Dictionary:
 
 	_set_stat(leaf, &"range", 100.0)
 	_set_stat(leaf, &"ranged_damage", 9999.0)
+	# `core` is ALSO a graph-theoretic leaf of this 2-node chain (both ends of
+	# core—leaf have degree 1), and `range`'s 400.0 default (stats_system/defs/
+	# range.tres) reaches t1 at distance 250 same as `leaf` does at 50 — so
+	# without this, two firing positions hit t1 and this fixture is secretly
+	# testing a 2-hit volley on the impact node instead of the single-hit
+	# cascade trigger it's meant to be. Zero it so only `leaf` fires (#487).
+	_set_stat(core, &"range", 0.0)
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)

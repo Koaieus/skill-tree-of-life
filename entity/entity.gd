@@ -475,6 +475,55 @@ func release_wound_presentation() -> void:
 		_held_wound_amount = 0
 
 
+## Presentation clock (#487): the `health` pool's SHOWN value, for whoever
+## reveals it a chip/overflow source at a time — mirrors [member
+## SkillNode.presentation_hold] (refcount, "seed on first hold, snap exact on
+## last release") but scoped to the `health` PoolStat instead of node paint.
+## Model mutation stays synchronous (#474); only what [CoreHealthBar] /
+## [HeroSigilCard] SHOW is held. Two holders, each pairing with its own
+## release: a direct core-node hit holds itself (`SkillNode.take_damage`'s
+## core-overflow branch) and releases off that node's own
+## `damage_shown`/`node_death_shown`; a forced-dealloc cascade's chip damage
+## holds once per cascaded node (`BattleSystem._on_node_depleted`) and
+## releases off THAT node's own `node_death_shown` — so the core bar chips
+## down staggered, one cascade layer at a time, same as the node paint does.
+signal health_reveal_progress(shown_value: float)
+var _health_hold_count: int = 0
+var _shown_health: float = 0.0
+
+var health_presentation_held: bool:
+	get: return _health_hold_count > 0
+
+
+func hold_health_presentation() -> void:
+	if _health_hold_count == 0 and stat_board != null and stat_board.health != null:
+		_shown_health = stat_board.health.current
+	_health_hold_count += 1
+
+
+## [param delta] is the signed pool change this release reveals (negative for
+## chip/overflow damage). Idempotent past 0 — see [method
+## SkillNode.release_presentation]'s identical "whoever holds, releases" contract.
+func release_health_presentation(delta: float) -> void:
+	if _health_hold_count <= 0:
+		return
+	_health_hold_count -= 1
+	if stat_board == null or stat_board.health == null:
+		return
+	if _health_hold_count > 0:
+		_shown_health = clampf(_shown_health + delta, 0.0, stat_board.health.value)
+	else:
+		_shown_health = stat_board.health.current
+	health_reveal_progress.emit(_shown_health)
+
+
+## Combat health as currently DRAWN — see [member _shown_health].
+func get_shown_health() -> float:
+	if _health_hold_count > 0:
+		return _shown_health
+	return stat_board.health.current if stat_board != null and stat_board.health != null else 0.0
+
+
 func _emit_entity_wounded(amount: int) -> void:
 	if _wound_presentation_held:
 		_held_wound_amount += amount

@@ -62,6 +62,15 @@ var selected_spell: SpellDef = null:
 ## them. See `_on_node_depleted` / `_on_node_death_shown`.
 var _pending_wound_reveals: Dictionary[SkillNode, Entity] = {}
 
+## Presentation clock (#487): the core `health` bar's pending reveals, keyed
+## by whichever SkillNode's own reveal releases them — a cascaded node (chip
+## damage) or a core node hit directly (overflow damage, via
+## [signal Events.core_health_chipped]). Entry: `{"defender": Entity, "delta": float}`.
+## Released by [method _release_pending_health], called from both
+## `_on_damage_shown` (core overflow — the core node never emits
+## `node_death_shown`) and `_on_node_death_shown` (cascade chip).
+var _pending_health_reveals: Dictionary[SkillNode, Dictionary] = {}
+
 
 var attack_plan: AttackPlan:
 	set(value):
@@ -146,18 +155,26 @@ func _ready() -> void:
 	Events.damage_shown.connect(_on_damage_shown)
 	Events.node_death_shown.connect(_on_node_death_shown)
 	Events.heal_shown.connect(_on_heal_shown)
+	Events.core_health_chipped.connect(_on_core_health_chipped)
 
 
-## A hit has visually landed: let its target's withheld paint through. Held in
-## [method _apply_outcome]; see the presentation-hold section of `skill_node.gd`.
-func _on_damage_shown(target: SkillNode, _amount: float) -> void:
+## A hit has visually landed: let its target's withheld paint through — one
+## slot off the refcount (#487), not a full release, if a volley put more
+## than one hold on this node. `amount` is this hit's positive HP magnitude;
+## `release_presentation` wants the SIGNED pool delta, so damage steps down.
+func _on_damage_shown(target: SkillNode, amount: float) -> void:
 	if target != null:
-		target.release_presentation()
+		target.release_presentation(-amount)
+	_release_pending_health(target)
 
 
 func _on_node_death_shown(node: SkillNode) -> void:
 	if node != null:
-		node.release_presentation()
+		# announce_death=false: this call is ITSELF a response to
+		# Events.node_death_shown (whether from a coordinator, AllocationVFX's
+		# cascade ripple, or this node's own auto-announce on full release) —
+		# re-announcing here would just re-trigger this same handler (#487).
+		node.release_presentation(0.0, false)
 	# Presentation clock (#485): the impact node's reveal is also what lets
 	# the wound TOAST through — see `_on_node_depleted`'s hold and
 	# `_pending_wound_reveals`.
@@ -166,14 +183,36 @@ func _on_node_death_shown(node: SkillNode) -> void:
 		_pending_wound_reveals.erase(node)
 		if is_instance_valid(defender):
 			defender.release_wound_presentation()
+	_release_pending_health(node)
 
 
 ## A heal has visually landed: let its target's withheld paint through. Mirrors
-## [method _on_damage_shown] — the same single presentation latch is released by
-## whichever of the two reveals fires first (#481/#482).
-func _on_heal_shown(target: SkillNode, _amount: float) -> void:
+## [method _on_damage_shown] — heals step the shown HP up.
+func _on_heal_shown(target: SkillNode, amount: float) -> void:
 	if target != null:
-		target.release_presentation()
+		target.release_presentation(amount)
+
+
+## A direct hit overflowed a core node's own combat HP into its owner's
+## `health` pool (#487) — queue the core bar's reveal to release on THIS
+## node's own damage/death reveal (below), never earlier.
+func _on_core_health_chipped(node: SkillNode, entity: Entity, delta: float) -> void:
+	if node == null or entity == null:
+		return
+	_pending_health_reveals[node] = {"defender": entity, "delta": delta}
+
+
+## Release [param node]'s queued core-health chip, if any — called from both
+## `_on_damage_shown` (a direct core hit; the core node never emits
+## `node_death_shown`) and `_on_node_death_shown` (a cascaded node's chip).
+func _release_pending_health(node: SkillNode) -> void:
+	if node == null or not _pending_health_reveals.has(node):
+		return
+	var entry: Dictionary = _pending_health_reveals[node]
+	_pending_health_reveals.erase(node)
+	var defender: Entity = entry.get("defender")
+	if is_instance_valid(defender):
+		defender.release_health_presentation(float(entry.get("delta", 0.0)))
 
 
 ## Commit the active plan. Three phases:
@@ -277,8 +316,15 @@ func launch_attack() -> void:
 ## instead of mid-flight. Without this the latch would fail *open* and leave a
 ## hit node showing its pre-hit tint forever.
 ##
-## Deduped per target — a multi-hit spell can list the same node twice, and the
-## first emit already released it.
+## Deduped per target, and per HIT (#487) — a multi-hit spell/volley can list
+## the same node several times, one hold per hit; looping `outcome.hits` and
+## emitting once per hit drains exactly as many holds as were taken. The emit
+## itself is what releases (`_on_damage_shown`/`_on_heal_shown`, connected in
+## `_ready`) — no separate release call here, and no manual `node_death_shown`
+## emit either: [method SkillNode.release_presentation] announces a hit
+## target's own death itself, exactly once, on its OWN final release (see its
+## `announce_death` param) — emitting it again per-hit here is what used to
+## double-drain a multi-hit volley's refcount.
 func _flush_presentation(outcome: AttackOutcome) -> void:
 	for hit in outcome.hits:
 		var target: SkillNode = hit.target
@@ -288,11 +334,6 @@ func _flush_presentation(outcome: AttackOutcome) -> void:
 			Events.heal_shown.emit(target, hit.effective_amount)
 		else:
 			Events.damage_shown.emit(target, hit.effective_amount)
-			if not target.is_allocated():
-				Events.node_death_shown.emit(target)
-		# Defensive: a subscriber could in principle swallow both emits without
-		# releasing. The latch must never outlive the attack that set it.
-		target.release_presentation()
 
 
 ## The one place world mutation happens for an attack: every hit in
@@ -389,7 +430,18 @@ func _on_node_depleted(node: SkillNode) -> void:
 			if board.skill_points != null:
 				board.skill_points.wound(maxi(fill, 1))
 			if board.health != null and hp_per_node > 0.0:
-				board.health.deplete(hp_per_node * float(maxi(fill, 1)))
+				var dmg: float = hp_per_node * float(maxi(fill, 1))
+				# Presentation clock (#487): hold BEFORE the deplete, so the
+				# core bar's pre-cascade value is what gets snapshotted, and
+				# queue the release against THIS node's own reveal — the same
+				# `layer * CASCADE_STEP` slot AllocationVFX reveals its paint
+				# on (see `_on_node_death_shown`). Without this the core bar
+				# used to drop for every cascaded node all at once, at
+				# model-mutation time — chip damage from a node that hasn't
+				# even visually died yet.
+				defender.hold_health_presentation()
+				board.health.deplete(dmg)
+				_pending_health_reveals[n] = {"defender": defender, "delta": -dmg}
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to

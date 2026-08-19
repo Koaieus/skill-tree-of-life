@@ -112,8 +112,14 @@ func _show_presentation(hit: DamageInstance, impact_time: float, pending: Array[
 	if impact_time > 0.0:
 		await get_tree().create_timer(impact_time).timeout
 	Events.damage_shown.emit(hit.target, hit.effective_amount)
-	if not hit.target.is_allocated():
-		Events.node_death_shown.emit(hit.target)
+	# Not "if not hit.target.is_allocated(): node_death_shown" here (#487) — a
+	# lethal volley's target is unallocated in the model from the FIRST arrow's
+	# reveal onward (#474 applied every hit up front), so that check fired
+	# node_death_shown on EVERY arrow, double-draining a multi-hit volley's
+	# presentation refcount and starving whichever arrow's reveal lost the
+	# race. SkillNode.release_presentation (just called above, via
+	# Events.damage_shown → BattleSystem._on_damage_shown) announces the
+	# target's own death itself, exactly once, on its own final release.
 	pending[0] -= 1
 
 

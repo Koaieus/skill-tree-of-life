@@ -40,6 +40,12 @@ signal depleted
 ## let through. Fired by [method release_presentation] — subscribers that paint
 ## from model state on their own signals (the node HP bar) re-sync here.
 signal presentation_released
+## Presentation clock (#487): one hit's reveal has stepped [member _shown_hp]
+## toward the model's real value — fired on EVERY [method release_presentation]
+## call, not just the last. A multi-hit volley on this node needs its HP bar
+## to chip down per-arrow; [signal presentation_released] alone (fired only
+## once, on the FINAL release) can't drive that.
+signal hp_reveal_progress(shown_value: float)
 
 # `owned_by` is the single source of truth for allocation:
 # null  → unallocated
@@ -460,9 +466,11 @@ func _refresh_core_presence() -> void:
 
 func _refresh_core_health_bar(is_core: bool) -> void:
 	var pool: PoolStat = null
+	var entity: Entity = null
 	if is_core and owned_by != null and owned_by.stat_board != null:
 		pool = owned_by.stat_board.health
-	core_health_bar.bind_health(pool)
+		entity = owned_by
+	core_health_bar.bind_health(pool, entity)
 	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one, #94).
 	core_health_bar.visible = revealed and is_core
 
@@ -540,8 +548,14 @@ func _load_type_color_from_archetype() -> void:
 ## dispatches to the node it already has a reference to.
 var presentation_hold: bool:
 	get:
-		return _presentation_hold
-var _presentation_hold: bool = false
+		return _presentation_hold_count > 0
+## A REFCOUNT, not a bool (#487): a ranged/spell volley can land several hits
+## on the SAME node in one outcome (#381's Array[HitInstance] made that the
+## normal case, not an edge case), and each hit holds once via
+## [method OutcomeApplier.apply] — so a 3-hit volley needs 3 releases, not 1,
+## or the second and third hit's reveals silently no-op against an
+## already-false latch.
+var _presentation_hold_count: int = 0
 ## A `_sync_visuals()` arrived while held and was swallowed; replay it on release.
 var _presentation_dirty: bool = false
 ## A `damaged` hit-flash arrived while held; play it on release.
@@ -550,16 +564,33 @@ var _presentation_flash_pending: bool = false
 ## cascade force-deallocates, which erases the one thing a *whole-board* painter
 ## needs to keep drawing this node as enemy territory — see [method get_shown_owner].
 var _held_owner: Entity = null
+## Combat HP as currently DRAWN while held — lags the real [code]node_health[/code]
+## pool by however many of this node's hits haven't had their own reveal yet.
+## Seeded on the FIRST hold (before any of this outcome's hits have landed —
+## OutcomeApplier holds every target BEFORE landing any of them), stepped by
+## [method release_presentation]'s `hp_delta` on every reveal, and snapped
+## exactly to the pool's real value on the last one (so float drift or an
+## overkill hit's clamped intermediate value can never leave it desynced).
+var _shown_hp: float = 0.0
+
+
+func _current_node_hp() -> float:
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
+	return hp.current if hp != null else 0.0
+
+
+func _max_node_hp() -> float:
+	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
+	return hp.value if hp != null else 0.0
 
 
 ## Withhold this node's combat repaint until [method release_presentation].
-## Idempotent — a second hit on an already-held node keeps the single latch
-## (and its original owner snapshot).
+## Each call takes one slot on the refcount — see [member _presentation_hold_count].
 func hold_presentation() -> void:
-	if _presentation_hold:
-		return
-	_held_owner = owned_by
-	_presentation_hold = true
+	if _presentation_hold_count == 0:
+		_held_owner = owned_by
+		_shown_hp = _current_node_hp()
+	_presentation_hold_count += 1
 
 
 ## Ownership as it is currently DRAWN, which lags [member owned_by] for exactly
@@ -568,18 +599,39 @@ func hold_presentation() -> void:
 ## post-cascade, so refreshing off it would snap the defender's whole territory
 ## away on the first revealed node instead of one stagger slot at a time.
 func get_shown_owner() -> Entity:
-	if _presentation_hold and is_instance_valid(_held_owner):
+	if _presentation_hold_count > 0 and is_instance_valid(_held_owner):
 		return _held_owner
 	return owned_by
 
 
-## Let the withheld repaint through, replaying whatever was swallowed. No-op
-## when nothing is held, so a coordinator emit followed by BattleSystem's flush
-## costs nothing the second time.
-func release_presentation() -> void:
-	if not _presentation_hold:
+## Combat HP as currently DRAWN — see [member _shown_hp].
+func get_shown_hp() -> float:
+	if _presentation_hold_count > 0:
+		return _shown_hp
+	return _current_node_hp()
+
+
+## One hit's reveal has arrived: take one slot off the refcount. [param hp_delta]
+## is THIS hit's signed contribution to the node's combat HP (negative for
+## damage, positive for a heal) — walked into [member _shown_hp] so a
+## multi-hit volley's bar chips down one arrow at a time instead of jumping to
+## the fully-applied total on whichever reveal happens to arrive first. Only
+## the LAST release (refcount hits 0) replays the swallowed repaint/flash and
+## fires [signal presentation_released] — earlier releases just step the shown
+## HP and emit [signal hp_reveal_progress].
+##
+## [param announce_death] is false when this call is itself a response to
+## [signal Events.node_death_shown] (see [method BattleSystem._on_node_death_shown])
+## — without it, this node's own death announcement below would re-trigger itself.
+func release_presentation(hp_delta: float = 0.0, announce_death: bool = true) -> void:
+	if _presentation_hold_count <= 0:
 		return
-	_presentation_hold = false
+	_presentation_hold_count -= 1
+	if _presentation_hold_count > 0:
+		_shown_hp = clampf(_shown_hp + hp_delta, 0.0, _max_node_hp())
+		hp_reveal_progress.emit(_shown_hp)
+		return
+	_shown_hp = _current_node_hp()
 	_held_owner = null
 	if _presentation_dirty:
 		_presentation_dirty = false
@@ -587,11 +639,19 @@ func release_presentation() -> void:
 	if _presentation_flash_pending:
 		_presentation_flash_pending = false
 		play_hit_flash()
+	hp_reveal_progress.emit(_shown_hp)
 	presentation_released.emit()
+	# The single place a hit-target node announces its own death (#487) —
+	# coordinators used to emit Events.node_death_shown per-hit themselves,
+	# which double-released a multi-hit volley's latch (see the #487 fix).
+	# Cascade-ripple nodes (held by AllocationVFX, never a hit target) still
+	# get their death announced externally by AllocationVFX's own stagger.
+	if announce_death and not is_allocated():
+		Events.node_death_shown.emit(self)
 
 
 func _on_damaged_flash() -> void:
-	if _presentation_hold:
+	if _presentation_hold_count > 0:
 		_presentation_flash_pending = true
 		return
 	play_hit_flash()
@@ -600,7 +660,7 @@ func _on_damaged_flash() -> void:
 func _sync_visuals() -> void:
 	if not is_node_ready():
 		return
-	if _presentation_hold:
+	if _presentation_hold_count > 0:
 		_presentation_dirty = true
 		return
 
@@ -1219,7 +1279,16 @@ func take_damage(amount: float, source: Variant) -> void:
 	var overflow: float = effective - soaked
 	if owned_by.core_location == self:
 		if overflow > 0.0 and owned_by.stat_board != null and owned_by.stat_board.health != null:
+			# Presentation clock (#487): the core's `health` pool moves here,
+			# synchronously (#474) — but this node's OWN reveal (this hit's
+			# `Events.damage_shown`/`node_death_shown`) hasn't fired yet, so the
+			# core HP bar must not show it early either. Hold before the deplete
+			# so the pre-hit value is what gets snapshotted; BattleSystem
+			# releases it off the same reveal that releases this node's own
+			# combat-hp latch (`Events.core_health_chipped` → `_on_damage_shown`).
+			owned_by.hold_health_presentation()
 			owned_by.stat_board.health.deplete(overflow)
+			Events.core_health_chipped.emit(self, owned_by, -overflow)
 		return
 	if hp.current <= 0.0:
 		depleted.emit()
