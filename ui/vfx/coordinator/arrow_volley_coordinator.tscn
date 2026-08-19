@@ -10,4 +10,3 @@ script = ExtResource("2")
 script = ExtResource("1")
 projectile_path = SubResource("Resource_arc")
 flight_time = 1.0
-stagger_per_shot = 0.2

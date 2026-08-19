@@ -14,7 +14,7 @@ One per "shape" of action — see [docs/domain/attack_plan_system.md](../../docs
 | Coordinator | Used by | Visual | Cadence knob |
 |---|---|---|---|
 | `MagicBounceCoordinator` (`ui/vfx/coordinator/magic_bounce_coordinator.gd`) | All magic spells (`SpellDef.vfx_coordinator_scene`) | `GlowingDot` (bouncy ball) | `beat_interval` |
-| `ArrowVolleyCoordinator` (`ui/vfx/coordinator/arrow_volley_coordinator.gd`) | Ranged attacks (`AttackVFX.play_ranged_volley`) | `LightArrow` (oriented, sticks + fades) | `stagger_per_shot` |
+| `ArrowVolleyCoordinator` (`ui/vfx/coordinator/arrow_volley_coordinator.gd`) | Ranged attacks (`AttackVFX.play_ranged_volley`) | `LightArrow` (oriented, sticks + fades) | `stagger_per_shot` (defaults to `RangedDamageFormula.LAUNCH_STAGGER` — the recorded timeline's single source of truth; retempo only via the export, the reveal still rides `DamageInstance.arrival_time`) |
 
 ## The clock contract (load-bearing)
 

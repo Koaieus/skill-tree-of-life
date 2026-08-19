@@ -12,9 +12,18 @@ class_name RangedDamageFormula
 
 ## Flat flight speed (px/s) every shot travels at. No per-node/per-entity
 ## stat backs this yet — same "constant for now" stance ArrowVolleyCoordinator
-## takes with its flight_time export — so [member DamageInstance.arrival_time]
-## is purely distance-driven until a real stat is wired in.
+## takes with its flight_time export.
 const PROJECTILE_SPEED: float = 900.0
+
+## Per-shot launch offset (s) applied by RangedAttackPlan.resolve so a hit's
+## recorded [member DamageInstance.arrival_time] is the FULL time from volley
+## start (t=0) to impact: [code]index * LAUNCH_STAGGER + distance /
+## PROJECTILE_SPEED[/code]. Single home for the stagger schedule —
+## ArrowVolleyCoordinator's [code]stagger_per_shot[/code] export defaults to
+## this so VFX launches and the recorded timeline can't drift (#479/#481
+## lesson applied at the data layer: a replay reconstructs the exact volley
+## from [code]outcome.hits[/code] alone).
+const LAUNCH_STAGGER: float = 0.2
 
 static func compute(_attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
 	var hit := DamageInstance.new()

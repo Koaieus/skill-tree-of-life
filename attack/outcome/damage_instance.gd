@@ -33,10 +33,14 @@ var is_crit: bool = false
 ## Set by the resolver from the caster's crit_multiplier stat.
 var crit_multiplier: float = 1.0
 
-## Seconds from attack launch until this hit's VFX visually reaches its
-## target — the presentation-clock analogue of melee's per-event
-## [code]BladeHitEvent.t[/code] (see MeleeAttackPlan.resolve/last_events) and
-## magic's fixed propagation clock. 0.0 for hit types that don't yet compute
+## Seconds from volley start (t=0, when RangedAttackPlan.resolve returned)
+## until this hit's VFX visually reaches its target — launch stagger + flight
+## ([code]index * RangedDamageFormula.LAUNCH_STAGGER + distance /
+## PROJECTILE_SPEED[/code]), so the recorded timeline is replay-complete: the
+## whole volley's launch/impact schedule reconstructs from [code]outcome.hits[/code]
+## alone, no VFX-layer secret. The presentation-clock analogue of melee's
+## per-event [code]BladeHitEvent.t[/code] (see MeleeAttackPlan.resolve/last_events)
+## and magic's fixed propagation clock. 0.0 for hit types that don't yet compute
 ## one; a VFX coordinator reads this to schedule its delayed reveal signal
 ## instead of firing synchronously with model mutation (#479/#481).
 var arrival_time: float = 0.0

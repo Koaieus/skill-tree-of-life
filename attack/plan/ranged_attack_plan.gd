@@ -107,12 +107,17 @@ func _is_valid_target(node: SkillNode) -> bool:
 func resolve() -> AttackOutcome:
 	# One DamageInstance per reaching firing position — flat-armour-friendly,
 	# stagger-VFX-friendly. Caller (BattleSystem.launch_attack) consumes these
-	# in order; arrival is staggered by the VFX layer, not here.
+	# in order; each hit's arrival_time is stamped with its launch stagger
+	# (index * LAUNCH_STAGGER) so the recorded timeline is replay-complete:
+	# impact time = launch offset + distance/speed flight, no VFX-layer secret.
 	var outcome := AttackOutcome.new()
 	if not is_valid():
 		return outcome
+	var shot_index := 0
 	for firing in get_reaching_firing_positions():
 		var hit := RangedDamageFormula.compute(attacker, firing, target)
 		hit.source = self
+		hit.arrival_time += float(shot_index) * RangedDamageFormula.LAUNCH_STAGGER
 		outcome.hits.append(hit)
+		shot_index += 1
 	return outcome

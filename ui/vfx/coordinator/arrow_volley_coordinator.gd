@@ -27,7 +27,11 @@ const MIN_FLIGHT_FRACTION: float = 0.4
 ## Fallback airtime for a shot with no [member DamageInstance.arrival_time],
 ## and (scaled by [constant MIN_FLIGHT_FRACTION]) the floor for one that has.
 @export var flight_time: float = 0.45
-@export var stagger_per_shot: float = 0.08
+## Launch spacing between shots. Defaults to the domain stagger so VFX
+## launches and the recorded timeline share one source of truth — an override
+## retempos only the launches (the reveal still rides the recorded
+## [member DamageInstance.arrival_time], so the single clock holds).
+@export var stagger_per_shot: float = RangedDamageFormula.LAUNCH_STAGGER
 @export var face_velocity: bool = true
 
 
@@ -43,7 +47,7 @@ func play(payload: Variant) -> void:
 			pending[0] -= 1
 			continue
 		var launch_delay: float = float(i) * stagger_per_shot
-		var flight: float = _flight_for(hit)
+		var flight: float = _flight_for(hit, launch_delay)
 		var proj := Projectile.new()
 		proj.path = _resolved_path()
 		proj.visual_scene = visual_scene
@@ -71,10 +75,13 @@ func play(payload: Variant) -> void:
 
 
 ## How long shot [param hit]'s arrow is in the air. [member
-## DamageInstance.arrival_time] is the shot's real distance/speed timing (#480,
-## `distance / RangedDamageFormula.PROJECTILE_SPEED`), and the arrow flies for
-## exactly that — so a far shot takes visibly longer than a near one and the
-## reveal can ride the same number.
+## DamageInstance.arrival_time] is the shot's FULL time to impact from volley
+## start (#480 + stagger): [code]index * LAUNCH_STAGGER + distance /
+## RangedDamageFormula.PROJECTILE_SPEED[/code], stamped by RangedAttackPlan.resolve.
+## [param launch_delay] strips this shot's own launch offset back out, so the
+## arrow flies for exactly its airtime and lands (and its reveal fires) at the
+## recorded time — far shots visibly take longer than near ones, and a replay
+## reconstructs the volley from recorded data alone.
 ##
 ## [b]This used to be two clocks and that was the bug.[/b] The arrow flew for a
 ## flat [member flight_time] while the reveal waited `arrival_time` from t=0,
@@ -82,10 +89,10 @@ func play(payload: Variant) -> void:
 ## popped while the arrow was still halfway there. `flight_time` is now the
 ## floor, not a parallel schedule: it keeps a point-blank shot from being an
 ## instant blink.
-func _flight_for(hit: DamageInstance) -> float:
+func _flight_for(hit: DamageInstance, launch_delay: float) -> float:
 	if hit.arrival_time <= 0.0:
 		return flight_time
-	return maxf(hit.arrival_time, flight_time * MIN_FLIGHT_FRACTION)
+	return maxf(hit.arrival_time - launch_delay, flight_time * MIN_FLIGHT_FRACTION)
 
 
 ## Fires the presentation-clock reveal (#479/#481) at [param impact_time] — the

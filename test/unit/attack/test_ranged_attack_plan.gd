@@ -161,6 +161,28 @@ func test_resolve_default_ap_cost_is_one() -> void:
 	assert_eq(p.resolve().ap_cost, 1)
 
 
+func test_resolve_stamps_launch_stagger_onto_arrival_time() -> void:
+	# resolve() records the FULL time from volley start to impact: each hit's
+	# arrival_time = its own launch offset (index * LAUNCH_STAGGER) + its
+	# distance/speed flight. A replay reconstructs the whole volley schedule
+	# from outcome.hits alone — no VFX-layer secret. Both leaves reach here.
+	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 2)
+	var hit0: DamageInstance = outcome.hits[0]
+	var hit1: DamageInstance = outcome.hits[1]
+	var d0 := hit0.origin.global_position.distance_to(_target.global_position)
+	var d1 := hit1.origin.global_position.distance_to(_target.global_position)
+	assert_almost_eq(hit0.arrival_time, d0 / RangedDamageFormula.PROJECTILE_SPEED, 0.001,
+			"shot 0 launches at t=0 — no stagger")
+	assert_almost_eq(hit1.arrival_time - hit0.arrival_time,
+			(d1 - d0) / RangedDamageFormula.PROJECTILE_SPEED
+					+ RangedDamageFormula.LAUNCH_STAGGER, 0.001,
+			"shot 1 arrives LAUNCH_STAGGER later than pure flight would give")
+
+
 func test_resolve_on_invalid_plan_returns_empty_outcome() -> void:
 	var p := _plan()
 	assert_true(p.resolve().hits.is_empty())
