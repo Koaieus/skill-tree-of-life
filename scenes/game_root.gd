@@ -88,9 +88,15 @@ var player: Entity
 @onready var attack_vfx: AttackVFX = %AttackVFX
 @onready var allocation_vfx: AllocationVFX = %AllocationVFX
 @onready var melee_preview: MeleePreview = %MeleePreview
+@onready var presentation_player: PresentationPlayer = %PresentationPlayer
 
 
 func _ready() -> void:
+	# Presentation clock v2 (#489): static state outlives a scene change, so
+	# this must be paired with the `_exit_tree` clear below or a level reload
+	# leaves RevealRecorder.player dangling at a freed node.
+	RevealRecorder.player = presentation_player
+
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
@@ -149,6 +155,17 @@ func _ready() -> void:
 			player.stat_board.initiative.restore_to_full()
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
+
+
+## Presentation clock v2 (#489): `RevealRecorder`'s static state outlives this
+## scene, so it must be cleared here or a level reload leaves
+## `RevealRecorder.player` pointing at this (about-to-be-freed) player, and
+## any in-flight recording dangling too.
+func _exit_tree() -> void:
+	if RevealRecorder.player == presentation_player:
+		RevealRecorder.player = null
+	if RevealRecorder.is_recording:
+		RevealRecorder.end()
 
 
 func _unhandled_input(event: InputEvent) -> void:
