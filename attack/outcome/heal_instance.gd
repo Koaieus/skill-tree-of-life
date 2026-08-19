@@ -1,39 +1,21 @@
-class_name HealingInstance
-extends RefCounted
+class_name HealInstance
+extends HitInstance
 
-## A single instance of healing produced by an [AttackPlan.resolve] pass.
-## Pure data: the healer (via [member source]) declares the *raw* damage;
-## defensive mitigation is applied by [method SkillNode.take_damage] at the
-## moment of impact via [Mitigation.apply].
+## A single instance of healing produced by an [AttackPlan.resolve] pass —
+## renamed from [code]HealingInstance[/code] (#381) to parallel
+## [DamageInstance]/[HealEffect]'s naming. Heals aren't run through
+## [Mitigation], so [member HitInstance.kind] never reclassifies away from
+## [constant HitInstance.Kind.HEAL].
 
-# TODO: Make a shared parent with DamageInstance? so objects down the line 
-#		can be typed to hold either, and any future subclass would fold in easily
 
-var amount: float = 0.0
-## The HP delta actually restored — stamped by [method SkillNode.heal_damage]
-## (clamped at max) so a LATER presentation reveal (`heal_shown`, #481/#482) can
-## show what the HP bar actually did instead of the raw pre-clamp amount.
-var effective_amount: float = 0.0
-## Who/what produced this hit — [AttackPlan], [SpellDef], or any RefCounted.
-## Routed back through the [signal Events.skill_node_damaged] payload so UI
-## can attribute the number / decide on flash color.
-var source: Variant = null
-## The node this hit lands on.
-var target: SkillNode = null
-## The node the hit originated from (firing position / source node).
-## Optional; used by VFX (tracer spawn point) and future range-falloff math.
-var origin: SkillNode = null
+func _init() -> void:
+	kind = Kind.HEAL
 
-## Whether this hit was elevated to a critical heal. Set by the
-## resolver's crit pass (stat roll + condition check). The VFX layer
-## reads this for emphasis visuals.
-var is_crit: bool = false
 
-## The effective multiplier applied on a crit (default 1.0 = normal hit).
-## Set by the resolver from the caster's crit_multiplier stat.
-var crit_multiplier: float = 1.0
+func land_on(node: SkillNode) -> void:
+	node.heal_damage(amount, self)
 
 
 func _to_string() -> String:
 	var suffix: String = " CRIT" if is_crit else ""
-	return "<HealingInstance %.1f → %s%s>" % [amount, target, suffix]
+	return "<HealInstance %.1f → %s%s>" % [amount, target, suffix]
