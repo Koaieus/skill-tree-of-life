@@ -176,7 +176,7 @@ func test_two_carriers_with_the_same_addon_type_scale_independently() -> void:
 
 	var mods_a := addon_a.get_local_modifiers()
 	var mods_b := addon_b.get_local_modifiers()
-	assert_eq(mods_a.size(), 1, "precondition: bunker grants exactly one local modifier")
+	assert_eq(mods_a.size(), 2, "precondition: bunker grants its authored local modifiers")
 	assert_ne(mods_a[0], mods_b[0], "resource_local_to_scene gives each instantiate() its own copy")
 
 	assert_almost_eq(float(node_a.get_local_value(&"armor")), 5.0, 0.001, "node A starts at bunker's authored armor")

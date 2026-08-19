@@ -76,4 +76,4 @@ func test_constitution_draw_only_emits_pack_stat_ids() -> void:
 			if not (m.stat_id in ids):
 				ids.append(m.stat_id)
 	for sid in ids:
-		assert_true(sid in [&"constitution", &"node_health", &"armor", &"intelligence"], "unexpected: %s" % String(sid))
+		assert_true(sid in [&"constitution", &"node_health", &"armor", &"intelligence", &"min_damage_taken"], "unexpected: %s" % String(sid))

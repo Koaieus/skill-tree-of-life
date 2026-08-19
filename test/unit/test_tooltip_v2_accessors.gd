@@ -144,10 +144,14 @@ func test_bunker_addon_tooltip_section_regression() -> void:
 	assert_eq(sections.size(), 1)
 	assert_eq(sections[0]["title"], "Bunker")
 	var mods: Array = sections[0]["modifiers"]
-	assert_eq(mods.size(), 1)
+	# Bunker carries two authored local modifiers: +5 armor and the
+	# min_damage_taken floor. The tooltip owes both.
+	assert_eq(mods.size(), 2)
 	assert_eq(String(mods[0].stat_id), "armor")
 	assert_eq(mods[0].operation, StatModifier.Operation.ADD_BONUS)
 	assert_almost_eq(float(mods[0].value), 5.0, 0.001)
+	assert_eq(String(mods[1].stat_id), "min_damage_taken")
+	assert_almost_eq(float(mods[1].value), -5.0, 0.001)
 
 
 func test_fortification_addon_tooltip_section_regression() -> void:

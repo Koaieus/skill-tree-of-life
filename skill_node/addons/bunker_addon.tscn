@@ -14,6 +14,7 @@ value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_u38nb"]
+resource_local_to_scene = true
 script = ExtResource("2_efkvd")
 stat_id = &"min_damage_taken"
 operation = 3

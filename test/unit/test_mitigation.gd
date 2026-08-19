@@ -109,7 +109,7 @@ func test_bunker_addon_actually_armors_its_carrier() -> void:
 	node.owned_by.stat_board.min_damage_taken.base_value = 0.0
 
 	var addon: SkillNodeAddon = preload("res://skill_node/addons/bunker_addon.tscn").instantiate()
-	assert_eq(addon.local_modifiers.size(), 1, "bunker_addon lost its authored modifier")
+	assert_eq(addon.local_modifiers.size(), 2, "bunker_addon lost one of its authored modifiers")
 	node.add_child(addon)
 	await get_tree().process_frame
 

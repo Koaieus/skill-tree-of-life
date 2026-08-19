@@ -343,7 +343,7 @@ const SELF_LOOP_SINK: float = 4.0
 ## reach: `width` is fixed in SCREEN pixels, so its LOCAL-space size grows as
 ## the camera zooms in (`width * 0.5 / zoom`), independent of `loop_radius`.
 ## Must match `graph/edge_mesh_material.tres`'s `shader_parameter/width`.
-const _SELF_LOOP_MAX_WIDTH: float = 3.0
+const _SELF_LOOP_MAX_WIDTH: float = 4.0
 
 ## Padding for the self-loop's bounding quad must be ADDITIVE, not
 ## multiplicative: `_SELF_LOOP_MAX_WIDTH`'s local-space half-width is a FIXED

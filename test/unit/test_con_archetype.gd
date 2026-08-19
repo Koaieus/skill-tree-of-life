@@ -14,12 +14,14 @@ extends GutTest
 
 const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 
-## CON is "a full fifth attribute, alongside STR/DEX/INT" (D-11), so it carries
-## the same target_ratio as those three combat peers rather than the far smaller
-## specialist share WIS/PER use. Ratios are NORMALISED at read time
-## (GraphProcgen "target counts per archetype (normalised target_ratio)" and
-## ArchetypeBalancer.pick's `/ total_target`), so this is a relative share, not
-## an absolute one — the peers summing past 1.0 is fine and expected.
+## CON is "a full fifth attribute, alongside STR/DEX/INT" (D-11), so it belongs
+## to the combat-peer regime rather than the far smaller specialist share WIS/PER
+## use. Its exact share is a balance knob still in flight, so we guard the
+## regime boundary (clearly above the specialists) instead of pinning a number.
+## Ratios are NORMALISED at read time (GraphProcgen "target counts per archetype
+## (normalised target_ratio)" and ArchetypeBalancer.pick's `/ total_target`), so
+## this is a relative share, not an absolute one — the peers summing past 1.0 is
+## fine and expected.
 const _PEER_RATIO := 0.3
 
 
@@ -41,11 +43,18 @@ func test_preset_carries_a_constitution_archetype() -> void:
 	assert_eq(con.id, &"white", "CON's archetype is the white territory")
 
 
-func test_constitution_shares_the_combat_peer_ratio() -> void:
+func test_constitution_shares_the_combat_peer_regime() -> void:
 	var con := _policy_for(&"constitution")
 	assert_not_null(con)
-	assert_almost_eq(con.target_ratio, _PEER_RATIO, 0.001,
-			"CON is a full attribute (D-11) and takes the same share as STR/DEX/INT")
+	# CON sits in the full-attribute regime, not the specialist one: its share
+	# must clearly exceed the largest WIS/PER specialist share. The exact value
+	# is a balance knob (still in flight), so this only pins the boundary.
+	var specialist_max := 0.0
+	for a in _archetypes():
+		if a != null and a.primary_stat in [&"wisdom", &"perception"]:
+			specialist_max = max(specialist_max, a.target_ratio)
+	assert_gt(con.target_ratio, specialist_max,
+			"CON's share must sit in the combat-peer regime, above the WIS/PER specialist shares")
 	for peer in [&"strength", &"dexterity", &"intelligence"]:
 		var p := _policy_for(peer)
 		assert_not_null(p, "combat peer %s should still have a policy" % peer)

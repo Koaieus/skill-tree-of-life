@@ -68,16 +68,24 @@ func test_xp_anchor_lands_on_an_allocating_entity() -> void:
 
 ## `local_modifiers` are node-scoped: they hit `carrier.node_board`, never the
 ## entity board, and they apply whether or not the carrier is allocated.
+## The helper finds the authored modifier for the stat being asserted rather
+## than pinning `local_modifiers.size() == 1`, so an addon that legitimately
+## grows a second local modifier (bunker's `min_damage_taken` floor) doesn't
+## turn every one of its tests red.
 func _assert_local_modifier(scene: PackedScene, stat_id: StringName, delta: float) -> void:
 	var node := _make_node()
 	add_child(node)
 	await get_tree().process_frame
 
 	var addon: SkillNodeAddon = scene.instantiate()
-	assert_eq(addon.local_modifiers.size(), 1,
-		"%s: authored local_modifiers were stripped" % scene.resource_path)
-	assert_eq(addon.local_modifiers[0].stat_id, stat_id)
-	assert_eq(addon.local_modifiers[0].value, delta)
+	var authored: StatModifier = null
+	for m in addon.local_modifiers:
+		if m.stat_id == stat_id:
+			authored = m
+			break
+	assert_not_null(authored,
+		"%s: authored local_modifier %s was stripped" % [scene.resource_path, stat_id])
+	assert_eq(authored.value, delta)
 
 	var before: float = float(node.get_local_value(stat_id))
 	node.add_child(addon)

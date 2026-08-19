@@ -92,8 +92,8 @@ const float _VIS_LOOP_OFFSET = 10.0;
 // header comment above and `Edge._clamp_code`.
 const float _CLAMP_CODE_SCALE = 100.0;
 // Must match `graph/edge.gd`'s `SELF_LOOP_MARGIN` (== _SELF_LOOP_MAX_WIDTH *
-// 0.5 / GraphCamera.MIN_ZOOM + _SELF_LOOP_AA_SLACK == 3.0 * 0.5 / 0.25 + 2.0).
-const float _SELF_LOOP_MARGIN = 8.0;
+// 0.5 / GraphCamera.MIN_ZOOM + _SELF_LOOP_AA_SLACK == 4.0 * 0.5 / 0.25 + 2.0).
+const float _SELF_LOOP_MARGIN = 10.0;
 // Pure AA slack for the bar branch's padded quad (#454) — unlike
 // `_SELF_LOOP_MARGIN`, which pads a WORLD-space quad scaled from node radius,
 // the bar quad's local Y already IS the screen-constant stroke width, so this
