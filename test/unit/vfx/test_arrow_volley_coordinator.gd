@@ -123,7 +123,7 @@ func test_reveal_waits_for_the_shots_own_launch_stagger() -> void:
 	var coord := _mount_coord()
 	coord.stagger_per_shot = 0.20
 	var shown: Array = []
-	var handler := func(_target: SkillNode, amount: float) -> void:
+	var handler := func(_node: SkillNode, amount: float) -> void:
 		shown.append(amount)
 	Events.damage_shown.connect(handler)
 	coord.play(outcome)

@@ -5,9 +5,13 @@ extends GutTest
 ## EmblemSpec, and InnerDisk.set_carve()'s dispatch off the spec's own shape
 ## TYPE (#315 retired the CarveStyle enum that used to echo it).
 
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+@warning_ignore("shadowed_global_identifier")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
+@warning_ignore("shadowed_global_identifier")
 const GemCarveShape = preload("res://skill_node/visuals/emblem/gem_carve_shape.gd")
+@warning_ignore("shadowed_global_identifier")
 const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
 const InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 const _INNER_DISK_SCENE := preload("res://skill_node/visuals/inner_disk.tscn")
@@ -385,10 +389,10 @@ func test_composite_carve_shape_routes_into_the_disks_authored_slot() -> void:
 ## Lints the silent-.tres-strip / UID-mismatch failure mode: a broken
 ## ext_resource resolves to null with no error at all (godot-workflow.md).
 func test_every_archetype_references_a_standalone_shape() -> void:
-	for name in ["strength", "dexterity", "intelligence", "wisdom", "perception", "constitution"]:
-		var arch: Archetype = load("res://archetypes/%s.tres" % name)
-		assert_not_null(arch, "%s.tres loads" % name)
-		assert_not_null(arch.carve_shape, "%s.tres carries a carve_shape" % name)
-		assert_true(arch.carve_shape is PolygonCarveShape, "%s carves a polygon" % name)
+	for arch_name in ["strength", "dexterity", "intelligence", "wisdom", "perception", "constitution"]:
+		var arch: Archetype = load("res://archetypes/%s.tres" % arch_name)
+		assert_not_null(arch, "%s.tres loads" % arch_name)
+		assert_not_null(arch.carve_shape, "%s.tres carries a carve_shape" % arch_name)
+		assert_true(arch.carve_shape is PolygonCarveShape, "%s carves a polygon" % arch_name)
 		assert_ne(arch.carve_shape.resource_path, "",
-			"%s's shape is a standalone .tres, not an inline sub_resource" % name)
+			"%s's shape is a standalone .tres, not an inline sub_resource" % arch_name)

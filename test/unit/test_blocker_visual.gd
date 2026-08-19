@@ -221,10 +221,10 @@ func test_clearing_hides_boulder_permanently() -> void:
 
 # ── Procgen wiring ─────────────────────────────────────────────────────────
 
-func _build_config(node_count: int, seed: int) -> GraphProcgenConfig:
+func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
 	cfg.node_count = node_count
-	cfg.seed = seed
+	cfg.seed = rng_seed
 	cfg.shape_mask = CircularShapeMask.new()
 	return cfg
 

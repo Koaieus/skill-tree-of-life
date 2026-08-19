@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## #337 — Staking mechanics: raise a node's cap with SP+AP, fill it with

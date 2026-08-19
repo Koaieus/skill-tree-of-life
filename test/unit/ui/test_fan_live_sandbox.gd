@@ -19,15 +19,15 @@ func before_each() -> void:
 	autofree(_sandbox)
 
 
-func _unit(name: String) -> FanUnit:
-	return _sandbox.find_child(name, true, false) as FanUnit
+func _unit(unit_name: String) -> FanUnit:
+	return _sandbox.find_child(unit_name, true, false) as FanUnit
 
 
 ## Staggered play-ins and fade-outs run on real timers; a test that asserts on
 ## a unit's state must wait it out rather than read a mid-flight frame.
-func _wait_until_state(name: String, state: FanUnit.State, max_frames := 180) -> void:
+func _wait_until_state(unit_name: String, state: FanUnit.State, max_frames := 180) -> void:
 	var frames := 0
-	while _unit(name).state != state and frames < max_frames:
+	while _unit(unit_name).state != state and frames < max_frames:
 		await get_tree().process_frame
 		frames += 1
 

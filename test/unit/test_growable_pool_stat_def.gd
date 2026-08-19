@@ -16,7 +16,7 @@ func _def(flat: float, factor: float, mode: int) -> GrowablePoolStatDef:
 	d.id = &"test_xp"
 	d.growth_flat = flat
 	d.growth_factor = factor
-	d.post_grow_mode = mode
+	d.post_grow_mode = mode as GrowablePoolStatDef.PostGrowMode
 	return d
 
 

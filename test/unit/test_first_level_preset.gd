@@ -45,7 +45,7 @@ func test_modifiers_rolled_on_nodes() -> void:
 			with_modifiers += 1
 	# v4 (#321): all 7 packs restored — every archetype's primary pools +
 	# universal defensive/mobility pools are drawable, so most nodes roll.
-	assert_gt(with_modifiers, nodes.size() / 2, "expected most nodes to roll modifiers; got %d/%d" % [with_modifiers, nodes.size()])
+	assert_gt(with_modifiers, nodes.size() / float(2), "expected most nodes to roll modifiers; got %d/%d" % [with_modifiers, nodes.size()])
 
 
 func test_procgen_generates_full_level() -> void:

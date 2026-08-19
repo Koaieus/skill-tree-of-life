@@ -19,7 +19,7 @@ func _pool(
 ) -> StatPool:
 	var p := StatPool.new()
 	p.stat_id = stat_id
-	p.operation = op
+	p.operation = op as StatModifier.Operation
 	p.archetype_stat = archetype_stat
 	p.unit_value = unit_value
 	p.pool_weight = pool_weight
@@ -54,27 +54,27 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 	return r
 
 
-func _draw(set: ModifierPoolSet, primary_stat: StringName, budget: int, rng: RandomNumberGenerator) -> Array:
+func _draw(pool_set: ModifierPoolSet, primary_stat: StringName, budget: int, rng: RandomNumberGenerator) -> Array:
 	return _SCRIPT._roll_modifiers_v4(
-			set, [], &"strength", primary_stat, [], Vector2.ZERO, 0, budget, rng)
+			pool_set, [], &"strength", primary_stat, [], Vector2.ZERO, 0, budget, rng)
 
 
 func test_zero_budget_returns_empty() -> void:
-	var set := _make_set([
+	var pool_set := _make_set([
 		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0)]),
 	])
-	var mods := _draw(set, &"strength", 0, _rng(1))
+	var mods := _draw(pool_set, &"strength", 0, _rng(1))
 	assert_eq(mods.size(), 0)
 
 
 func test_budget_drains_into_t1_filler_never_wasted() -> void:
 	# Single pool, T1 cost 1 always affordable → remaining always hits 0.
-	var set := _make_set([
+	var pool_set := _make_set([
 		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0)]),
 	])
 	for budget in [1, 2, 3, 7, 16]:
 		var rng := _rng(budget)
-		var mods := _draw(set, &"strength", budget, rng)
+		var mods := _draw(pool_set, &"strength", budget, rng)
 		# Aggregation collapses every STR ADD_BASE draw into ONE modifier.
 		assert_eq(mods.size(), 1, "all draws aggregate into one (stat,op) entry")
 		assert_eq(mods[0].stat_id, &"strength")
@@ -88,7 +88,7 @@ func test_aggregation_sums_add_base_and_products_multiply() -> void:
 	# Two pools: strength ADD_BASE + strength MULTIPLY. With budget 4 the draw
 	# picks among T1..T4 tiers; multiple STR ADD_BASE draws SUM into one mod,
 	# and any MULTIPLY draws PRODUCT into a separate mod.
-	var set := _make_set([
+	var pool_set := _make_set([
 		_pack(&"strength", [
 			_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 10.0),
 			_pool(&"strength", StatModifier.Operation.MULTIPLY, &"strength", 0.05, 1.0, 3, 4),
@@ -97,7 +97,7 @@ func test_aggregation_sums_add_base_and_products_multiply() -> void:
 	var saw_add := false
 	var saw_mul := false
 	for seed_value in range(1, 30):
-		var mods := _draw(set, &"strength", 8, _rng(seed_value))
+		var mods := _draw(pool_set, &"strength", 8, _rng(seed_value))
 		for m in mods:
 			if m.operation == StatModifier.Operation.ADD_BASE:
 				saw_add = true
@@ -119,13 +119,13 @@ func test_universal_pool_drawn_by_any_primary() -> void:
 	# armor is universal (archetype_stat = &""); a strength-primary node draws it
 	# alongside strength. Rare/mythic content is gated by tier tag via weight
 	# profiles, not by pool role here.
-	var set := _make_set([
+	var pool_set := _make_set([
 		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 1.0)]),
 		_pack(&"", [_pool(&"armor", StatModifier.Operation.ADD_BONUS, &"", 1.5, 1.0)]),
 	])
 	var saw_armor := false
 	for seed_value in range(1, 40):
-		var mods := _draw(set, &"strength", 7, _rng(seed_value))
+		var mods := _draw(pool_set, &"strength", 7, _rng(seed_value))
 		for m in mods:
 			if m.stat_id == &"armor":
 				saw_armor = true
@@ -136,7 +136,7 @@ func test_debuff_refunds_budget_and_caps_at_one_refund() -> void:
 	# A debuff pool (unit_value < 0, max_tier 1) refunds 1 budget. The draw
 	# should be able to spend that refunded budget on more content, but only
 	# ONE refund per node.
-	var set := _make_set([
+	var pool_set := _make_set([
 		_pack(&"strength", [
 			_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 10.0),
 			# intelligence INCREASE debuff: unit -5, single tier, refunds 1.
@@ -145,7 +145,7 @@ func test_debuff_refunds_budget_and_caps_at_one_refund() -> void:
 	])
 	var saw_debuff := false
 	for seed_value in range(1, 50):
-		var mods := _draw(set, &"strength", 7, _rng(seed_value))
+		var mods := _draw(pool_set, &"strength", 7, _rng(seed_value))
 		for m in mods:
 			if m.stat_id == &"intelligence" and m.value < 0.0:
 				saw_debuff = true

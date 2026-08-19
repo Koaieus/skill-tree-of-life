@@ -90,8 +90,8 @@ func _add_edge(a: SkillNode, b: SkillNode) -> Edge:
 ## run produces, and the one that makes the union of circles densest.
 func _own_block(count: int) -> void:
 	var side := int(ceil(sqrt(float(count))))
-	var ox := (_SIDE - side) / 2
-	var oy := (_SIDE - side) / 2
+	var ox := int((_SIDE - side) / float(2))
+	var oy := int((_SIDE - side) / float(2))
 	var done := 0
 	for y in side:
 		for x in side:
@@ -111,7 +111,7 @@ func _median_recompute_usec(samples: int = 7) -> float:
 		_vision._recompute()
 		times.append(Time.get_ticks_usec() - t)
 	times.sort()
-	return float(times[times.size() / 2])
+	return float(times[int(times.size() / float(2))])
 
 
 func test_one_allocation_triggers_exactly_one_recompute() -> void:
@@ -124,7 +124,7 @@ func test_one_allocation_triggers_exactly_one_recompute() -> void:
 
 	# One more node, at the blob's edge, then a generous number of frames — a
 	# self-re-arming recompute would land one pass per frame for all of them.
-	_alloc.force_allocate(_entity, _nodes[_idx(_SIDE / 2 - 1, _SIDE / 2 - 1)])
+	_alloc.force_allocate(_entity, _nodes[_idx(int(_SIDE / float(2)) - 1, int(_SIDE / float(2)) - 1)])
 	for i in 60:
 		await get_tree().process_frame
 
@@ -160,4 +160,4 @@ func test_recompute_cost_does_not_track_the_owned_count() -> void:
 	# pass, not harder. It catches losing the index; it is not a cost ceiling.
 	assert_lt(ratio, 3.0,
 		"%dx the owned nodes must not cost anywhere near %dx the recompute"
-		% [_MANY_OWNED / _FEW_OWNED, _MANY_OWNED / _FEW_OWNED])
+		% [int(_MANY_OWNED / float(_FEW_OWNED)), int(_MANY_OWNED / float(_FEW_OWNED))])

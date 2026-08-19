@@ -5,7 +5,9 @@ extends Area2D
 const ZLayers = preload("res://ui/z_layers.gd")
 # preload, not the bare class_name — parses before an editor class-cache
 # refresh; see docs/domain/skillnode-emblem.md's "preload-not-class_name" note.
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+@warning_ignore("shadowed_global_identifier")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
 
 signal radius_changed
@@ -449,30 +451,30 @@ func _refresh_core_presence() -> void:
 		_bound_owner = owned_by
 		if _bound_owner != null:
 			_bound_owner.core_location_changed.connect(_refresh_core_presence)
-	var is_core := owned_by != null and owned_by.core_location == self
+	var _is_core := owned_by != null and owned_by.core_location == self
 	# Gate the composite's core-only presence visuals (CorePresence: CoreHalos +
 	# CoreSigilBloom, #128) to the one core node — otherwise every node draws a
 	# gimbal (fps sink). `sensed` hiding the whole ShaderStack (CorePresence's
 	# parent) is what keeps a fogged core hidden — no separate check needed here.
 	if _node_visuals != null:
-		_node_visuals.core_active = is_core
+		_node_visuals.core_active = _is_core
 		var sigil: Sigil = null
-		if is_core and owned_by.core_class != null:
+		if _is_core and owned_by.core_class != null:
 			sigil = owned_by.core_class.sigil
 		_node_visuals.set_core_sigil(sigil)
 		_node_visuals.set_core_halo_style(core_halo_style)
-	_refresh_core_health_bar(is_core)
+	_refresh_core_health_bar(_is_core)
 
 
-func _refresh_core_health_bar(is_core: bool) -> void:
+func _refresh_core_health_bar(_is_core: bool) -> void:
 	var pool: PoolStat = null
 	var entity: Entity = null
-	if is_core and owned_by != null and owned_by.stat_board != null:
+	if _is_core and owned_by != null and owned_by.stat_board != null:
 		pool = owned_by.stat_board.health
 		entity = owned_by
 	core_health_bar.bind_health(pool, entity)
 	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one, #94).
-	core_health_bar.visible = revealed and is_core
+	core_health_bar.visible = revealed and _is_core
 
 
 ## Mirror the `sensed` flag onto the visual stack. Three things shift:
@@ -799,15 +801,14 @@ func get_current_hp() -> float:
 ## orphaned). Does NOT create a stat on [member node_board] — use
 ## [method _ensure_local_stat] when you need a modifier target.
 func get_local_value(stat_id: StringName) -> Variant:
+	var ns: Stat = node_board.get_stat(stat_id) if _node_board_ready else null
 	if owned_by != null and owned_by.stat_board != null:
 		var es := owned_by.stat_board.get_stat(stat_id)
 		if es != null:
-			var ns: Stat = node_board.get_stat(stat_id) if _node_board_ready else null
 			if ns == null:
 				return es.get_value()
 			var sources: Array[ModifierBins] = [es.bins, ns.bins]
 			return ModifierBins.compute(es.base_value, sources)
-	var ns: Stat = node_board.get_stat(stat_id) if _node_board_ready else null
 	if ns != null:
 		return ns.get_value()
 	var def: StatDef = StatRegistry.get_def(stat_id)
@@ -949,9 +950,9 @@ func remove_local_modifier(m: StatModifier) -> void:
 	# A composition swap (m._scaled_sets entry) means the parent's own leaves
 	# are NOT what's applied — remove the scaled set too, or it would strand
 	# on the board.
-	var set: Array = _scaled_sets.get(m, [])
-	if not set.is_empty():
-		for leaf in set:
+	var leaves: Array = _scaled_sets.get(m, [])
+	if not leaves.is_empty():
+		for leaf in leaves:
 			node_board.unbind_modifier(leaf)
 			var s: Stat = node_board.get_stat(leaf.stat_id)
 			if s != null:
@@ -1525,7 +1526,7 @@ func _contribution_board(m: StatModifier) -> StatBoard:
 ## with the override's scaled leaf-set. The parent STAYS in its ledger (it is
 ## still the canonical authority); `_scaled_sets` tracks what the board
 ## actually holds so the restore is exact.
-func _swap_scaled_contribution(m: StatModifier, set: Array) -> void:
+func _swap_scaled_contribution(m: StatModifier, leaves: Array) -> void:
 	var board := _contribution_board(m)
 	if board == null:
 		return  # unowned / not applied: nothing to swap on the board
@@ -1534,8 +1535,8 @@ func _swap_scaled_contribution(m: StatModifier, set: Array) -> void:
 		_remove_leaf_set(board, prev)
 	else:
 		board.remove_modifier(m)
-	_apply_leaf_set(board, set)
-	_scaled_sets[m] = set
+	_apply_leaf_set(board, leaves)
+	_scaled_sets[m] = leaves
 
 
 ## Reverse of [method _swap_scaled_contribution]: put the parent's own leaves

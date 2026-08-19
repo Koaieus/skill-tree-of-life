@@ -26,7 +26,7 @@ func get_input_ids() -> Array[StringName]:
 
 ## Compute and return the modifier value. Called from
 ## [method StatModifier.get_effective_value] every time the pipeline runs.
-func compute(board: StatBoard) -> float:
+func compute(_board: StatBoard) -> float:
 	return 0.0
 
 

@@ -126,7 +126,7 @@ func take_top_n(ranker: NodeRanker, n: int = 1, direction: int = TakeTopNStep.Di
 	var s := TakeTopNStep.new()
 	s.ranker = ranker
 	s.take_count = n
-	s.direction = direction
+	s.direction = direction as TakeTopNStep.Direction
 	return s
 
 
@@ -148,19 +148,19 @@ func owner_enemy() -> OwnerFilter:
 
 func owner(scope: int) -> OwnerFilter:
 	var f := OwnerFilter.new()
-	f.scope = scope
+	f.scope = scope as OwnerFilter.Scope
 	return f
 
 
 func degree_filter(compare: int = DegreeFilter.Compare.LESS) -> DegreeFilter:
 	var f := DegreeFilter.new()
-	f.compare = compare
+	f.compare = compare as DegreeFilter.Compare
 	return f
 
 
 func composite_filter(children: Array[PropagationFilter], mode: int = CompositeFilter.Mode.AND) -> CompositeFilter:
 	var f := CompositeFilter.new()
-	f.mode = mode
+	f.mode = mode as CompositeFilter.Mode
 	f.children = children
 	return f
 
@@ -189,7 +189,7 @@ func expression_reducer(expression: String) -> ExpressionReducer:
 
 func core_distance_filter(direction: int = CoreDistanceFilter.Direction.TOWARD) -> CoreDistanceFilter:
 	var f := CoreDistanceFilter.new()
-	f.direction = direction
+	f.direction = direction as CoreDistanceFilter.Direction
 	return f
 
 

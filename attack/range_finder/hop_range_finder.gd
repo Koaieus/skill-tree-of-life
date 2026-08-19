@@ -60,8 +60,8 @@ func max_reach() -> float:
 
 func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
-	var max_hops := _effective_max_hops(attacker, source)
-	if source == null or max_hops <= 0:
+	var hops := _effective_max_hops(attacker, source)
+	if source == null or hops <= 0:
 		return visual
 	if attacker == null or attacker.navigator == null:
 		return visual
@@ -71,12 +71,12 @@ func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var nav := graph.navigator
 	if nav == null:
 		return visual
-	# Hop distances from source, capped at max_hops, via the shared mirror BFS.
-	var depths := nav.nodes_within(source, max_hops)  # {SkillNode: hops}
+	# Hop distances from source, capped at hops, via the shared mirror BFS.
+	var depths := nav.nodes_within(source, hops)  # {SkillNode: hops}
 	if depths.is_empty():
 		return visual
 	# Walk live edges; an edge is lit when traversing it from the nearer endpoint
-	# stays within max_hops. hops_remaining = budget left after that step.
+	# stays within hops. hops_remaining = budget left after that step.
 	for edge in graph.get_edges():
 		if edge == null or edge.from == null or edge.to == null:
 			continue
@@ -84,14 +84,14 @@ func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 		var has_b: bool = depths.has(edge.to)
 		if not (has_a or has_b):
 			continue
-		var d_min: int = max_hops
+		var d_min: int = hops
 		if has_a:
 			d_min = depths[edge.from]
 		if has_b:
 			d_min = min(d_min, int(depths[edge.to]))
 		var depth_of_edge := d_min + 1
-		if depth_of_edge > max_hops:
+		if depth_of_edge > hops:
 			continue
-		var hops_remaining := max_hops - depth_of_edge
-		visual.edges.append(RangeVisual.EdgeEntry.new(edge, hops_remaining, max_hops))
+		var hops_remaining := hops - depth_of_edge
+		visual.edges.append(RangeVisual.EdgeEntry.new(edge, hops_remaining, hops))
 	return visual

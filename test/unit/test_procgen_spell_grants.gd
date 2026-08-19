@@ -72,8 +72,8 @@ func test_same_spell_never_placed_twice_on_one_node() -> void:
 
 	for n in nodes:
 		var count := 0
-		for name in _spell_names_on(n):
-			if name == "Bolt":
+		for spell_name in _spell_names_on(n):
+			if spell_name == "Bolt":
 				count += 1
 		assert_true(count <= 1, "%s carries at most one copy of the same spell" % n.name)
 

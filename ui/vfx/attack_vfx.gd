@@ -25,6 +25,12 @@ func play(coordinator_scene: PackedScene, payload: Variant) -> void:
 		push_warning("AttackVFX.play: scene root is not a VFXCoordinator")
 		return
 	add_child(coord)
+	# `VFXCoordinator.play` is declared `-> void`, so the analyzer flags this
+	# await as redundant — but the concrete coordinators (arrow volley, magic
+	# bounce) are runtime coroutines that await their own timelines; skipping
+	# this would queue_free the coordinator at its first yield and cancel the
+	# whole volley/spell. Keep the await.
+	@warning_ignore("redundant_await")
 	await coord.play(payload)
 	coord.queue_free()
 

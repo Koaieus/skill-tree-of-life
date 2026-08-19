@@ -6,6 +6,7 @@ extends GutTest
 ## that can drift), and that the tab's loader actually reaches both previews.
 
 const PanelScene := preload("res://skill_node/visuals/panel/node_visuals_panel.tscn")
+@warning_ignore("shadowed_global_identifier")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 
 

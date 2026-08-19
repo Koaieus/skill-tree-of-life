@@ -23,10 +23,10 @@ func before_each() -> void:
 	_graph.add_child(_attacker)
 
 
-func _spawn(owner: Entity = null) -> SkillNode:
+func _spawn(node_owner: Entity = null) -> SkillNode:
 	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_graph.skill_nodes_container.add_child(sn)
-	sn.owned_by = owner
+	sn.owned_by = node_owner
 	return sn
 
 

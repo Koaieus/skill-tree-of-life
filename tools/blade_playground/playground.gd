@@ -248,12 +248,12 @@ func _rebuild_blade() -> void:
 	var eset := {}
 	for be in blade_edges:
 		eset[_ek(be[0], be[1])] = true
-	var n := blade.size()
-	for a in n:
-		for b in range(a + 1, n):
+	var sz := blade.size()
+	for a in sz:
+		for b in range(a + 1, sz):
 			if not eset.has(_ek(a, b)):
 				continue
-			for c in range(b + 1, n):
+			for c in range(b + 1, sz):
 				if eset.has(_ek(a, c)) and eset.has(_ek(b, c)):
 					triangles.append([a, b, c])
 

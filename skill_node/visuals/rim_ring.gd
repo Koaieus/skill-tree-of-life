@@ -74,7 +74,7 @@ static var _shared_material: ShaderMaterial
 		# what makes this instance custom — keep height_preset's inspector
 		# display in sync rather than requiring both to be set by hand.
 		if rim_height_style != null:
-			height_preset = CUSTOM_PRESET_INDEX
+			height_preset = CUSTOM_PRESET_INDEX as HeightPreset
 		_rebake_lut()
 		_sync_material()
 

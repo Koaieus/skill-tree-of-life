@@ -344,8 +344,8 @@ func _heat(t: float) -> Color:
 	if t < 0.5:
 		var u := t * 2.0
 		return Color(0.1 + 0.1 * u, 0.25 + 0.55 * u, 0.85 - 0.25 * u)
-	var u := (t - 0.5) * 2.0
-	return Color(0.25 + 0.7 * u, 0.85 - 0.45 * u, 0.55 - 0.5 * u)
+	var v := (t - 0.5) * 2.0
+	return Color(0.25 + 0.7 * v, 0.85 - 0.45 * v, 0.55 - 0.5 * v)
 
 
 func _label(pos: Vector2, text: String) -> void:

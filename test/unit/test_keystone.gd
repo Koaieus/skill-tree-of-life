@@ -19,7 +19,7 @@ func _make_entity() -> Entity:
 func _stat_keystone(stat_id: StringName, op: int, value: float) -> Keystone:
 	var m := StatModifier.new()
 	m.stat_id = stat_id
-	m.operation = op
+	m.operation = op as StatModifier.Operation
 	m.value = value
 	var fx := StatEffect.new()
 	fx.modifiers = [m]

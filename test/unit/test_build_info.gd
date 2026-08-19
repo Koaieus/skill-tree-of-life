@@ -1,5 +1,10 @@
 extends GutTest
 
+## The autoload's script type — reaching the static `parse_git_dir` through
+## the `BuildInfo` singleton instance trips the analyzer's static-called-on-
+## instance warning, so tests call it on the script itself.
+const BuildInfoScript := preload("res://autoload/build_info.gd")
+
 var _fixture_root: String
 
 
@@ -26,16 +31,16 @@ func _rm_recursive(path: String) -> void:
 	if dir == null:
 		return
 	dir.list_dir_begin()
-	var name := dir.get_next()
-	while name != "":
-		var full := path.path_join(name)
-		if name in [".", ".."]:
+	var entry := dir.get_next()
+	while entry != "":
+		var full := path.path_join(entry)
+		if entry in [".", ".."]:
 			pass
 		elif dir.current_is_dir():
 			_rm_recursive(full)
 		else:
 			DirAccess.remove_absolute(full)
-		name = dir.get_next()
+		entry = dir.get_next()
 	dir.list_dir_end()
 	DirAccess.remove_absolute(path)
 
@@ -45,7 +50,7 @@ func test_parses_main_checkout_directory_shaped_git() -> void:
 	_write(git_dir.path_join("HEAD"), "ref: refs/heads/master\n")
 	_write(git_dir.path_join("refs/heads/master"), "d8e0a06d8e0a06d8e0a06d8e0a06d8e0a06d8e0a\n")
 
-	var result := BuildInfo.parse_git_dir(git_dir)
+	var result := BuildInfoScript.parse_git_dir(git_dir)
 
 	assert_true(result.is_dev)
 	assert_eq(result.branch, "master")
@@ -65,7 +70,7 @@ func test_parses_worktree_file_shaped_git_with_packed_refs_fallback() -> void:
 	var worktree_git_file := _fixture_root.path_join("checkout/.git")
 	_write(worktree_git_file, "gitdir: %s\n" % per_worktree_dir)
 
-	var result := BuildInfo.parse_git_dir(worktree_git_file)
+	var result := BuildInfoScript.parse_git_dir(worktree_git_file)
 
 	assert_true(result.is_dev)
 	assert_eq(result.branch, "feature-x")
@@ -74,7 +79,7 @@ func test_parses_worktree_file_shaped_git_with_packed_refs_fallback() -> void:
 
 
 func test_missing_git_dir_yields_empty_non_dev_result() -> void:
-	var result := BuildInfo.parse_git_dir(_fixture_root.path_join("nonexistent/.git"))
+	var result := BuildInfoScript.parse_git_dir(_fixture_root.path_join("nonexistent/.git"))
 
 	assert_false(result.is_dev)
 	assert_eq(result.branch, "")

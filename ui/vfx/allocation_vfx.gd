@@ -153,7 +153,7 @@ func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 	_spawn_shatter(node.global_position, node.inner_radius, previous_owner.color, 0.0)
 
 
-func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, position: Vector2) -> void:
+func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vector2) -> void:
 	if muted or defender == null:
 		return
 	# Pop in the defender's colour (the node whose spikes did the popping).
@@ -161,7 +161,7 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, position: V
 			else Color(0.95, 0.55, 0.4, 0.95)
 	var power := defender.get_spike_power()
 	var radius := minf(POP_MAX_RADIUS, POP_BASE_RADIUS + power * POP_RADIUS_PER_POWER)
-	_spawn_pop_burst(position, radius, color)
+	_spawn_pop_burst(at_pos, radius, color)
 
 
 ## A forced-dealloc cascade is about to run in the model. Snapshot each node's
@@ -282,19 +282,19 @@ func _on_node_death_shown(node: SkillNode) -> void:
 ## top of a node that is still visibly there. Reveal and shatter land together.
 func _arm_cascade_slot(snap: Dictionary, color: Color, impact: SkillNode) -> void:
 	var node: SkillNode = snap["node"]
-	var position: Vector2 = snap["position"]
+	var at_pos: Vector2 = snap["position"]
 	var radius: float = snap["radius"]
 	if snap["delay"] <= 0.0:
-		_fire_cascade_slot(node, position, radius, color, impact)
+		_fire_cascade_slot(node, at_pos, radius, color, impact)
 		return
 	var tween := create_tween()
 	tween.tween_interval(snap["delay"])
-	tween.tween_callback(_fire_cascade_slot.bind(node, position, radius, color, impact))
+	tween.tween_callback(_fire_cascade_slot.bind(node, at_pos, radius, color, impact))
 
 
 func _fire_cascade_slot(
 		node: SkillNode,
-		position: Vector2,
+		at_pos: Vector2,
 		radius: float,
 		color: Color,
 		impact: SkillNode) -> void:
@@ -304,7 +304,7 @@ func _fire_cascade_slot(
 	# withheld tint/fill and refreshes the aura at the same beat as the shatter.
 	if is_instance_valid(node) and node != impact:
 		Events.node_death_shown.emit(node)
-	_spawn_shatter(position, radius, color, 0.0)
+	_spawn_shatter(at_pos, radius, color, 0.0)
 
 
 # --- Modifier pulses (#71) ---------------------------------------------------

@@ -3,6 +3,7 @@ extends GutTest
 ## quality is tuned in-editor; this pins the load-bearing wiring.
 
 const BloomScene = preload("res://skill_node/visuals/emblem/core_sigil_bloom.tscn")
+@warning_ignore("shadowed_global_identifier")
 const StarSigil = preload("res://entity/core/sigil/star_sigil.gd")
 
 

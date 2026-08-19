@@ -137,8 +137,8 @@ func test_apply_temp_upgrade_rejected_when_addon_slots_full() -> void:
 	# force_allocate gives allocation_level 1 -> addon_slots == 1. Filling it
 	# with a real addon leaves no open slot for a temp upgrade, even though
 	# budget is generous.
-	var clamp := _CLAMP_SCENE.instantiate() as ClampAddon
-	joint.add_child(clamp)
+	var clamp_addon := _CLAMP_SCENE.instantiate() as ClampAddon
+	joint.add_child(clamp_addon)
 	await get_tree().process_frame
 
 	assert_false(plan.can_apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE),

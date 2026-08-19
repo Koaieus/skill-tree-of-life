@@ -64,7 +64,7 @@ func test_agrees_with_brute_force_on_a_scattered_grid() -> void:
 	# circle at all — the case the 3x3 neighbourhood scan has to get right.
 	var circles: Array = []
 	for i in 40:
-		circles.append([Vector2((i % 8) * 300.0, (i / 8) * 300.0), 120.0 + (i % 5) * 40.0])
+		circles.append([Vector2((i % 8) * 300.0, (i / float(8)) * 300.0), 120.0 + (i % 5) * 40.0])
 	var points: Array = []
 	for x in 30:
 		for y in 30:

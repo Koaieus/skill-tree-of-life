@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## SpellResolver: the wave-based BFS driver. Should null-guard, emit hits

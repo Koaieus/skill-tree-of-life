@@ -130,10 +130,10 @@ func test_unowned_edge_pushes_unlit_visible_state() -> void:
 
 
 func test_shared_owner_lifts_both_endpoint_colours() -> void:
-	var owner := Entity.new()
-	add_child_autofree(owner)
-	_nodes[0].owned_by = owner
-	_nodes[1].owned_by = owner
+	var entity_owner := Entity.new()
+	add_child_autofree(entity_owner)
+	_nodes[0].owned_by = entity_owner
+	_nodes[1].owned_by = entity_owner
 	var edge := _graph.add_edge(_nodes[0], _nodes[1])
 	await get_tree().process_frame
 

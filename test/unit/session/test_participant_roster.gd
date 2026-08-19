@@ -49,12 +49,12 @@ func test_notify_changed_emits_participant_changed() -> void:
 
 func test_remove_unknown_id_is_a_no_op() -> void:
 	roster.add(_make(1))
-	var fired := false
-	roster.participant_left.connect(func(_p): fired = true)
+	var fired := [false]
+	roster.participant_left.connect(func(_p): fired[0] = true)
 
 	roster.remove(999)
 
-	assert_false(fired)
+	assert_false(fired[0])
 	assert_eq(roster.all().size(), 1)
 
 

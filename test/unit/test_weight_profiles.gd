@@ -52,7 +52,7 @@ func _entry(id: StringName, stat_id: StringName, tags: Array, cost: int = 1, wei
 func _modifier(stat_id: StringName, op: int = StatModifier.Operation.ADD_BASE) -> StatModifier:
 	var m := StatModifier.new()
 	m.stat_id = stat_id
-	m.operation = op
+	m.operation = op as StatModifier.Operation
 	return m
 
 

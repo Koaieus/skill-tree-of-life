@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## #385: NodeHighlightOverlay._draw() calls get_node_role(sn) once PER NODE

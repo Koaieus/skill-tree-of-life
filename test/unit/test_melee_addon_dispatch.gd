@@ -48,8 +48,8 @@ func test_build_blade_state_dispatches_clamp_addon() -> void:
 	_alloc.force_allocate(_entity, joint)
 	_alloc.force_allocate(_entity, tip)
 
-	var clamp := _CLAMP_SCENE.instantiate() as ClampAddon
-	joint.add_child(clamp)
+	var clamp_addon := _CLAMP_SCENE.instantiate() as ClampAddon
+	joint.add_child(clamp_addon)
 	await get_tree().process_frame
 
 	var plan := MeleeAttackPlan.new()

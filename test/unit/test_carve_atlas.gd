@@ -18,6 +18,7 @@ extends GutTest
 ## fix_alpha_border param exists on the 2d_array_texture importer, and
 ## compress/mode=0 is lossless).
 
+@warning_ignore("shadowed_global_identifier")
 const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
 const InnerDiskScript = preload("res://skill_node/visuals/inner_disk.gd")
 
@@ -77,7 +78,7 @@ func test_each_slice_is_a_valid_carve_lut() -> void:
 	var atlas := _atlas()
 	for slice in atlas.slice_paths.size():
 		var img := _slice_image(stacked, slice)
-		var name := atlas.slice_paths[slice].get_file().get_basename()
+		var label := atlas.slice_paths[slice].get_file().get_basename()
 		var has_inside := false
 		var has_outside := false
 		var max_drop := 0.0
@@ -92,10 +93,10 @@ func test_each_slice_is_a_valid_carve_lut() -> void:
 					has_outside = true
 				if px.a > 0.0 and px.a < 1.0:
 					edge_blend = true
-		assert_true(has_inside, "slice %d (%s) has no inside texels" % [slice, name])
-		assert_true(has_outside, "slice %d (%s) has no outside texels" % [slice, name])
-		assert_gt(max_drop, 0.0, "slice %d (%s) has no drop depth" % [slice, name])
-		assert_true(edge_blend, "slice %d (%s) lacks the smooth SDF mask" % [slice, name])
+		assert_true(has_inside, "slice %d (%s) has no inside texels" % [slice, label])
+		assert_true(has_outside, "slice %d (%s) has no outside texels" % [slice, label])
+		assert_gt(max_drop, 0.0, "slice %d (%s) has no drop depth" % [slice, label])
+		assert_true(edge_blend, "slice %d (%s) lacks the smooth SDF mask" % [slice, label])
 
 
 func test_slice_of_resolves_a_committed_lut_to_its_index() -> void:
@@ -179,8 +180,8 @@ func test_baked_gradients_are_strong_enough_to_perturb_the_normal() -> void:
 			+ "blank dome. Check _gradient_at's unit conversion (#318).")
 
 
-func _shader_const(src: String, name: String) -> float:
-	var re := RegEx.create_from_string("const\\s+float\\s+%s\\s*=\\s*([0-9.]+)" % name)
+func _shader_const(src: String, const_name: String) -> float:
+	var re := RegEx.create_from_string("const\\s+float\\s+%s\\s*=\\s*([0-9.]+)" % const_name)
 	var m := re.search(src)
-	assert_not_null(m, "%s not declared in %s" % [name, LIGHTING_INC])
+	assert_not_null(m, "%s not declared in %s" % [const_name, LIGHTING_INC])
 	return float(m.get_string(1)) if m != null else NAN

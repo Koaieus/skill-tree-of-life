@@ -13,6 +13,7 @@ extends CombatReadoutCard
 @onready var _floor_row: CombatValueRow = %FloorRow
 
 
+@warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.armor != null:
 		board.armor.value_changed.connect(_refresh)

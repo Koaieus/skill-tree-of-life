@@ -29,7 +29,7 @@ var _expr: Expression = null
 var _last_text: String = ""
 
 
-func apply(damage: float, seed: float, hop_index: int) -> float:
+func apply(damage: float, seed_damage: float, hop_index: int) -> float:
 	if _expr == null or _last_text != expression:
 		_expr = Expression.new()
 		var err := _expr.parse(expression, ["damage", "seed_damage", "hop_index"])
@@ -38,7 +38,7 @@ func apply(damage: float, seed: float, hop_index: int) -> float:
 			_expr = null
 			return damage
 		_last_text = expression
-	var result: Variant = _expr.execute([damage, seed, hop_index], null, false)
+	var result: Variant = _expr.execute([damage, seed_damage, hop_index], null, false)
 	if _expr.has_execute_failed():
 		return damage
 	return float(result)

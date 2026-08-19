@@ -15,7 +15,7 @@ func _board() -> EntityStatBoard:
 func _mod(op: int, value: float, id: StringName = &"strength") -> StatModifier:
 	var m := StatModifier.new()
 	m.stat_id = id
-	m.operation = op
+	m.operation = op as StatModifier.Operation
 	m.value = value
 	return m
 

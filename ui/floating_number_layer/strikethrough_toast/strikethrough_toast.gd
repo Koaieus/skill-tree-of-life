@@ -121,7 +121,7 @@ func _refresh_geometry() -> void:
 ## positive angle. No Font/Node deps → unit-testable headless.
 static func strike_endpoints(
 		ascent: float, total_height: float, label_size: Vector2,
-		angle_deg: float, height_ratio: float) -> Vector2:
+		deg: float, height_ratio: float) -> Vector2:
 	var h := label_size.y
 	if h <= 0.0:
 		return Vector2(0.5, 0.5)
@@ -129,7 +129,7 @@ static func strike_endpoints(
 	var center_px := baseline_px - ascent * height_ratio
 	var center_uv := center_px / h
 	# Aspect-corrected half-spread: a constant visual angle regardless of width.
-	var half := 0.5 * tan(deg_to_rad(angle_deg)) * (label_size.x / h)
+	var half := 0.5 * tan(deg_to_rad(deg)) * (label_size.x / h)
 	return Vector2(
 		clampf(center_uv + half, 0.0, 1.0),
 		clampf(center_uv - half, 0.0, 1.0))

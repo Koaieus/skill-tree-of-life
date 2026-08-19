@@ -190,6 +190,7 @@ static func generate(
 	var int_nodes: Array[SkillNode] = []
 	# Yield ~10 times across the per-node loop so the bar moves smoothly
 	# without paying a frame per node. With 500 nodes that's every ~50.
+	@warning_ignore("integer_division")
 	var yield_every := maxi(1, positions.size() / 10)
 	for i in positions.size():
 		var sn: SkillNode

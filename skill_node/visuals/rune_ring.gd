@@ -102,11 +102,11 @@ func _draw() -> void:
 	for b in count:
 		var r := start_r + b * (band_width + spacing)
 		var spin_dir := 1.0 if b % 2 == 0 else -1.0
-		var rotation := anim_time * (0.4 + b * 0.25) * spin_dir
-		_draw_band(r, band_width, rune_scale, rotation)
+		var band_rotation := anim_time * (0.4 + b * 0.25) * spin_dir
+		_draw_band(r, band_width, rune_scale, band_rotation)
 
 
-func _draw_band(r: float, width: float, rune_scale: float, rotation: float) -> void:
+func _draw_band(r: float, width: float, rune_scale: float, band_rotation: float) -> void:
 	var fill_color := Color(archetype_tint, fill_amount)
 	var rune_len := width * (1.0 - glyph_pad) * rune_scale
 
@@ -114,13 +114,13 @@ func _draw_band(r: float, width: float, rune_scale: float, rotation: float) -> v
 		draw_circle(Vector2.ZERO, r, Color(archetype_tint, edge_glow * 0.3), false, width * 1.6, true)
 
 	if blend == RuneBlend.CUTOUT:
-		_draw_cutout_band(r, width, rune_len, rotation, fill_color)
+		_draw_cutout_band(r, width, rune_len, band_rotation, fill_color)
 		return
 
 	draw_circle(Vector2.ZERO, r, fill_color, false, width, true)
 	var rune_color := Color(0.05, 0.05, 0.08, 0.9) if blend == RuneBlend.INK else Color(1.0, 1.0, 1.0, 0.9)
 	for i in RUNES_PER_BAND:
-		var theta := rotation + (TAU / RUNES_PER_BAND) * i
+		var theta := band_rotation + (TAU / RUNES_PER_BAND) * i
 		var p0 := polar_point(r - rune_len * 0.5, theta)
 		var p1 := polar_point(r + rune_len * 0.5, theta)
 		draw_line(p0, p1, rune_color, 2.0, true)
@@ -131,12 +131,12 @@ func _draw_band(r: float, width: float, rune_scale: float, rotation: float) -> v
 ## Solid band with each rune position punched to true alpha 0 — drawn as
 ## separate arcs spanning the gaps BETWEEN rune slots, so the scene/glow
 ## behind the node shows through at the rune positions themselves.
-func _draw_cutout_band(r: float, width: float, rune_len: float, rotation: float, fill_color: Color) -> void:
+func _draw_cutout_band(r: float, width: float, rune_len: float, band_rotation: float, fill_color: Color) -> void:
 	var step := TAU / RUNES_PER_BAND
 	var half_angle: float = clampf(rune_len / maxf(r, 1.0) * 0.5, 0.01, step * 0.45)
 	for i in RUNES_PER_BAND:
-		var theta := rotation + step * i
+		var theta := band_rotation + step * i
 		var solid_start := theta + half_angle
-		var solid_end := rotation + step * (i + 1) - half_angle
+		var solid_end := band_rotation + step * (i + 1) - half_angle
 		if solid_end > solid_start:
 			draw_arc(Vector2.ZERO, r, solid_start, solid_end, 6, fill_color, width, true)

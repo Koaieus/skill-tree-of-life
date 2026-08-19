@@ -38,10 +38,10 @@ func step(
 		if eligible.is_empty():
 			return []
 
-	var sign := 1.0 if direction == Direction.LOWEST else -1.0
+	var dir_sign := 1.0 if direction == Direction.LOWEST else -1.0
 	var sorted := eligible.duplicate()
 	sorted.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
-		return sign * ranker.score(a, payload, ctx) < sign * ranker.score(b, payload, ctx))
+		return dir_sign * ranker.score(a, payload, ctx) < dir_sign * ranker.score(b, payload, ctx))
 	var k: int = min(take_count, sorted.size())
 	var out: Array[CastSpell] = []
 	for i in k:

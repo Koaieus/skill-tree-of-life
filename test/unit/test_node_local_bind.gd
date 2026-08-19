@@ -19,7 +19,7 @@ func _node() -> SkillNode:
 func _static_mod(id: StringName, op: int, value: float) -> StatModifier:
 	var m := StatModifier.new()
 	m.stat_id = id
-	m.operation = op
+	m.operation = op as StatModifier.Operation
 	m.value = value
 	return m
 

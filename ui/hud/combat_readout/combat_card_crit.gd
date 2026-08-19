@@ -12,6 +12,7 @@ extends CombatReadoutCard
 @onready var _multiplier_row: CombatValueRow = %MultiplierRow
 
 
+@warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.crit_chance != null:
 		board.crit_chance.value_changed.connect(_refresh)

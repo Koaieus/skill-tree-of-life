@@ -22,6 +22,7 @@ extends SkillNodeVisual
 ## can't drift from the disk's own lighting, by construction. See
 ## .claude/rules/skill-node-visuals.md.
 
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 const SHADER := preload("res://skill_node/visuals/inner_disk.gdshader")
 

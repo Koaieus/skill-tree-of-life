@@ -30,8 +30,8 @@ extends Control
 ## Scalar form: a single signed value, e.g. `+5` / `-3`.
 func bind_scalar(stat_def: StatDef, value: float) -> void:
 	_bind_name(stat_def)
-	var sign := "+" if value >= 0.0 else ""
-	_value_label.text = sign + _val(value)
+	var prefix := "+" if value >= 0.0 else ""
+	_value_label.text = prefix + _val(value)
 
 
 ## Pool form: `current / max`, e.g. `6 / 10`. Never falls back to a bar —

@@ -18,14 +18,14 @@ const _FOG_SCENE := preload("res://ui/fog_overlay/fog_overlay.tscn")
 
 
 ## Pull `const int NAME = <int>;` out of a .gdshader's source text.
-func _shader_const(path: String, name: String) -> int:
+func _shader_const(path: String, const_name: String) -> int:
 	var f := FileAccess.open(path, FileAccess.READ)
 	assert_not_null(f, "shader source is readable at %s" % path)
 	var src := f.get_as_text()
 	var re := RegEx.new()
-	re.compile("const\\s+int\\s+%s\\s*=\\s*(\\d+)\\s*;" % name)
+	re.compile("const\\s+int\\s+%s\\s*=\\s*(\\d+)\\s*;" % const_name)
 	var m := re.search(src)
-	assert_not_null(m, "%s declares `const int %s`" % [path, name])
+	assert_not_null(m, "%s declares `const int %s`" % [path, const_name])
 	return int(m.get_string(1))
 
 

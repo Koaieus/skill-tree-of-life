@@ -84,9 +84,9 @@ func _push(param: String, value: Variant) -> void:
 		mat.set_shader_parameter(param, value)
 
 
-func override_toggle(toggled: bool) -> void:
-	active = toggled
-	set_pressed_no_signal(toggled)
+func override_toggle(is_on: bool) -> void:
+	active = is_on
+	set_pressed_no_signal(is_on)
 
 func update_label_text() -> void:
 	if not label: return

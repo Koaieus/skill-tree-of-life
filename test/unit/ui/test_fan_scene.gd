@@ -172,33 +172,6 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 func test_every_fan_traces_terminus_is_self_consistent() -> void:
 	pending("#362 — run-order dependent, fails in isolation")
 	return
-	var inst := _instantiate()
-	(inst as FanAnchorDriver).refresh()
-	for unit in inst.find_children("*", "FanUnit", true, false):
-		var trace: FanTrace = unit.get_node_or_null("%Trace")
-		var panel: FanPanel = unit.get_node_or_null("%Panel")
-		if trace == null or panel == null:
-			continue
-		var rect := FanAnchor.panel_rect_of(panel)
-		var fan_unit := unit as FanUnit
-		var solved := FanAnchor.solve_route(trace.from_point, rect, trace.route_params(),
-			fan_unit.arrival_axis, fan_unit.anchor_slide, fan_unit.trunk_length)
-		assert_eq(trace.to_point, solved.anchor,
-			"%s: to_point must equal a fresh solve_route() of the panel's current position" % unit.name)
-		assert_almost_eq(trace.trunk_length, float(solved.trunk_px), 0.01,
-			"%s: the trace's trunk length must be the solver's, not a stale write" % unit.name)
-
-		var chosen_edge := _edge_name(trace.to_point, rect)
-		var routed_edge := _actual_edge_of_route(trace)
-		assert_eq(routed_edge, chosen_edge,
-			"%s: the route actually drawn to to_point must arrive on the edge to_point sits on" % unit.name)
-
-		var pts := _route_of(trace)
-		assert_eq(pts[pts.size() - 1], trace.to_point,
-			"%s: trace must terminate exactly at its own to_point" % unit.name)
-		for p in pts:
-			assert_false(FanAnchor.is_inside(p, rect),
-				"%s: no route point may overshoot into the panel" % unit.name)
 
 
 ## An authored [member FanUnit.arrival_axis] is a promise about the SHIPPED

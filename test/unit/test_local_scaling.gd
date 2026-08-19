@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## #376 — the magnitude curve: a linear-ladder mutator on SkillNode that
@@ -133,12 +134,12 @@ class DoublingComposite extends CompositeStatModifier:
 
 	func _local_scale_override(_old_al: int, new_al: int) -> Variant:
 		if new_al >= 2:
-			var set: Array[StatModifier] = []
+			var scaled_set: Array[StatModifier] = []
 			for c in children:
-				set.append(c.duplicate())
-				set.append(c.duplicate())
-			last_set = set
-			return set
+				scaled_set.append(c.duplicate())
+				scaled_set.append(c.duplicate())
+			last_set = scaled_set
+			return scaled_set
 		last_set = children.duplicate()
 		return children
 
@@ -176,15 +177,15 @@ class ScalingEffect extends Effect:
 	var last_set: Array[StatModifier] = []
 
 	func _local_scale_override(_old_al: int, new_al: int) -> Variant:
-		var set: Array[StatModifier] = []
+		var leaves: Array[StatModifier] = []
 		for i in new_al:
 			var m := StatModifier.new()
 			m.stat_id = &"armor"
 			m.operation = StatModifier.Operation.ADD_BASE
 			m.value = 5.0
-			set.append(m)
-		last_set = set
-		return set
+			leaves.append(m)
+		last_set = leaves
+		return leaves
 
 
 func test_effect_composition_scales_with_fill() -> void:

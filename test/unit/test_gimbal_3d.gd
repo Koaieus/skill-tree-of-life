@@ -14,7 +14,7 @@ const Gimbal3D := preload("res://skill_node/visuals/gimbal_3d/gimbal_3d.gd")
 func _make(style: int, rings: int) -> Node3D:
 	var g := Gimbal3D.new()
 	g.ring_count = rings
-	g.style = style
+	g.style = style as Gimbal3D.Style
 	add_child_autofree(g)
 	return g
 

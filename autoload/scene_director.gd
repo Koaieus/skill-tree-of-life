@@ -10,7 +10,7 @@ signal scene_ready(root: Node)
 var _history: Array[String] = []
 
 
-func goto(scene: Variant, ctx: Dictionary = {}) -> void:
+func goto(scene: Variant, _ctx: Dictionary = {}) -> void:
 	var path := _resolve_path(scene)
 	if path.is_empty():
 		push_error("SceneDirector.goto: could not resolve scene %s" % [scene])

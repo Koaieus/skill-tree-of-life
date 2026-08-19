@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## Tag grant channel (#267): a refcounted, ledgered second grant target

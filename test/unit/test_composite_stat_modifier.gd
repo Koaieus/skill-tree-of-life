@@ -12,7 +12,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 func _leaf(id: StringName, op: int, value: float) -> StatModifier:
 	var m := StatModifier.new()
 	m.stat_id = id
-	m.operation = op
+	m.operation = op as StatModifier.Operation
 	m.value = value
 	return m
 

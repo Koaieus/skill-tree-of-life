@@ -195,6 +195,7 @@ func _median_set_sources_usec(sources: Array, samples: int = 7) -> float:
 		_fog.set_sources(sources)
 		times.append(Time.get_ticks_usec() - t)
 	times.sort()
+	@warning_ignore("integer_division")
 	return float(times[times.size() / 2])
 
 
@@ -207,6 +208,7 @@ func _median_classify_usec(samples: int = 5) -> float:
 		_fog._apply_visibility_classification()
 		times.append(Time.get_ticks_usec() - t)
 	times.sort()
+	@warning_ignore("integer_division")
 	return float(times[times.size() / 2])
 
 

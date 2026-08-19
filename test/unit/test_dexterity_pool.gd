@@ -34,11 +34,11 @@ func test_crit_chance_carries_t3_t4_overrides() -> void:
 				assert_almost_eq(center, [5.0, 15.0, 50.0, 100.0][i], 0.001,
 						"crit_chance T%d center" % (i + 1))
 func test_draw_only_emits_pack_stat_ids() -> void:
-	var set := ModifierPoolSet.new()
-	set.packs = [_PACK.duplicate(true)]
+	var pool_set := ModifierPoolSet.new()
+	pool_set.packs = [_PACK.duplicate(true)]
 	var ids: Array = []
 	for seed_value in range(1, 25):
-		var mods: Array = _GP._roll_modifiers_v4(set, [], &"dexterity", &"dexterity", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
+		var mods: Array = _GP._roll_modifiers_v4(pool_set, [], &"dexterity", &"dexterity", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
 		for m in mods: if not (m.stat_id in ids): ids.append(m.stat_id)
 	# every rolled stat_id must be one this pack owns
 	for sid in ids: assert_true(sid in [&"dexterity", &"crit_chance", &"crit_multiplier"], "unexpected stat_id rolled: %s" % String(sid))

@@ -7,10 +7,10 @@ extends GutTest
 ## (≥30 single loops, ≥5 doubles, ≥1 triple, none beyond the cap of 4), and
 ## the ladder scales linearly to 3000 (≥300 / ≥51 / ≥15 / ≥4).
 
-func _build_config(node_count: int, seed: int) -> GraphProcgenConfig:
+func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
 	cfg.node_count = node_count
-	cfg.seed = seed
+	cfg.seed = rng_seed
 	cfg.shape_mask = CircularShapeMask.new()
 	return cfg
 
@@ -31,15 +31,15 @@ func _loop_counts(nodes: Array) -> Array[int]:
 
 
 ## One floor assertion: at least `floor` nodes carry >= `min_loops` self-loops.
-func _assert_floor(counts: Array[int], min_loops: int, floor: int, context: String) -> void:
+func _assert_floor(counts: Array[int], min_loops: int, floor_count: int, context: String) -> void:
 	var actual := 0
 	for c in counts:
 		if c >= min_loops:
 			actual += 1
 	assert_true(
-		actual >= floor,
+		actual >= floor_count,
 		"%s: expected >= %d nodes with >= %d self-loop(s), got %d"
-				% [context, floor, min_loops, actual])
+				% [context, floor_count, min_loops, actual])
 
 
 ## The number of tier knobs IS the cap (4): no node may exceed it.
@@ -64,10 +64,10 @@ func test_default_knobs_hit_floors_at_300() -> void:
 
 
 func test_floors_hold_across_seeds() -> void:
-	for seed in [7, 424242]:
-		var result: Dictionary = await _generate(_build_config(300, seed))
+	for seed_val in [7, 424242]:
+		var result: Dictionary = await _generate(_build_config(300, seed_val))
 		var counts := _loop_counts(result.get("nodes", []))
-		var context := "seed %d @300" % seed
+		var context := "seed %d @300" % seed_val
 		_assert_floor(counts, 1, 30, context)
 		_assert_floor(counts, 2, 5, context)
 		_assert_floor(counts, 3, 1, context)

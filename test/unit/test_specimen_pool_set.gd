@@ -18,10 +18,10 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 
 
 func test_specimen_loads_all_seven_packs() -> void:
-	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	assert_eq(set.packs.size(), 7, "expected 7 packs (6 archetype + mobility universal)")
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	assert_eq(pool_set.packs.size(), 7, "expected 7 packs (6 archetype + mobility universal)")
 	var arch_ids: Array[StringName] = []
-	for p in set.packs:
+	for p in pool_set.packs:
 		arch_ids.append(p.archetype_stat)
 	for a in [&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception", &"constitution"]:
 		assert_true(a in arch_ids, "%s pack present" % String(a))
@@ -30,8 +30,8 @@ func test_specimen_loads_all_seven_packs() -> void:
 
 
 func test_specimen_flatten_for_strength_node_returns_strength_plus_universal() -> void:
-	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	var primary := set.flatten_for_node(&"strength")
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var primary := pool_set.flatten_for_node(&"strength")
 	assert_true(primary.size() > 0)
 	var stat_ids: Array[StringName] = []
 	for e in primary:
@@ -54,13 +54,13 @@ func test_procgen_draw_occasionally_produces_movement_bonus() -> void:
 	# first_level.tres (base 2..4, field-boosted up to ~16), and confirm
 	# movement_points/deallocation_points show up "occasionally" via the
 	# universal mobility pack — not forced via an inflated budget.
-	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var saw_movement := false
 	var saw_dealloc := false
 	for seed_value in range(1, 60):
 		var rng := _rng(seed_value)
 		var mods: Array = _GP._roll_modifiers_v4(
-				set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
+				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
 		for m in mods:
 			if m.stat_id == &"movement_points":
 				saw_movement = true
@@ -74,12 +74,12 @@ func test_universal_debuff_pool_is_drawable_and_refunds_budget() -> void:
 	# The intelligence INCREASE debuff (unit -5, cost -1) is universal; over
 	# enough draws at a modest budget it should land at least once, producing a
 	# negative-INCREASE modifier on intelligence.
-	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var saw_int_debuff := false
 	for seed_value in range(1, 80):
 		var rng := _rng(seed_value)
 		var mods: Array = _GP._roll_modifiers_v4(
-				set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
+				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
 		for m in mods:
 			if m.stat_id == &"intelligence" and m.operation == StatModifier.Operation.INCREASE and m.value < 0.0:
 				saw_int_debuff = true
@@ -94,10 +94,10 @@ func test_value_overrides_stay_under_repo_budget() -> void:
 	# everywhere — if it is, the global V curve is wrong and should change
 	# instead. Seed budget ≤ 6 repo-wide; today only crit_chance overrides
 	# T3/T4 (2 entries).
-	var set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var total := 0
 	var who: Array = []
-	for pack in set.packs:
+	for pack in pool_set.packs:
 		for sp in pack.pools:
 			var p: StatPool = sp as StatPool
 			for k in p.value_overrides.keys():

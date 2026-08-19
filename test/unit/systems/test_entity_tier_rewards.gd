@@ -96,9 +96,9 @@ func _grow_victim(total: int) -> void:
 		victim_nodes += 1
 
 
-func _add_node(name: String) -> void:
+func _add_node(node_name: String) -> void:
 	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	sn.name = name
+	sn.name = node_name
 	_graph.skill_nodes_container.add_child(sn)
 	_nodes.append(sn)
 

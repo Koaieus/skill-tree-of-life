@@ -165,10 +165,10 @@ func _rebuild_target_cache() -> void:
 	var finder: RangeFinder = nt.range_finder
 	if finder == null:
 		# Unlimited reach: every graph node is a range candidate.
-		var graph := _graph_of(source)
-		if graph == null:
+		var full_graph := _graph_of(source)
+		if full_graph == null:
 			return
-		for sn in graph.get_skill_nodes():
+		for sn in full_graph.get_skill_nodes():
 			if sn.ownership_bit(attacker) & nt.ownership_filter != 0:
 				_cached_valid_targets[sn] = true
 		return

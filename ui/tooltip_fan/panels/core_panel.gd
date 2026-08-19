@@ -125,12 +125,12 @@ func _add_mod_row(m: StatModifier) -> void:
 func _add_scaling_row(m: StatModifier) -> void:
 	var label := Label.new()
 	var def: StatDef = StatRegistry.get_def(m.stat_id)
-	var name: String = String(m.stat_id)
+	var label_text: String = String(m.stat_id)
 	var tint := Color.WHITE
 	if def != null:
-		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
+		label_text = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
 		tint = def.tint_color
-	label.text = "%+d %s (scales)" % [roundi(m.value), name]
+	label.text = "%+d %s (scales)" % [roundi(m.value), label_text]
 	label.add_theme_color_override("font_color", tint)
 	_rows.add_child(label)
 	_row_setters.append(func(t: float) -> void: _apply_control_reveal(label, t))

@@ -87,6 +87,7 @@ static func build(
 	for i in node_count:
 		var sn: SkillNode = _NODE_SCENE.instantiate()
 		sn.name = "N%d" % i
+		@warning_ignore("integer_division")
 		sn.position = Vector2((i % 8) * 100.0, (i / 8) * 100.0)
 		fx.graph.add_skill_node(sn)
 		fx.nodes.append(sn)
@@ -97,6 +98,7 @@ static func build(
 				fx.graph.add_edge(fx.nodes[i], fx.nodes[i + 1])
 		Topology.TREE:
 			for i in range(1, node_count):
+				@warning_ignore("integer_division")
 				var parent_idx: int = (i - 1) / branching_factor
 				fx.graph.add_edge(fx.nodes[parent_idx], fx.nodes[i])
 

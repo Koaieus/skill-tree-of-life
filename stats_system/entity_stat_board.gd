@@ -111,6 +111,7 @@ extends StatBoard
 @export var sensor_range: ScalarStat	## Topology sensor radius in hops past owned nodes.
 
 @export_group("Ranged")
+@warning_ignore("shadowed_global_identifier")
 @export var range: ScalarStat			## Per-leaf firing distance in scene pixels. Localized on leaves.
 @export var ranged_damage: ScalarStat	## Damage per shot. Base 1, +1 per 10 DEX. Node-local addons add on top per-node via node_board.
 

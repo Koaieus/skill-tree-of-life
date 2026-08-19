@@ -22,6 +22,7 @@ var _spell: SpellDef:
 	get = _get_spell, set = _set_spell 
 
 
+@warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.spell_damage != null:
 		board.spell_damage.value_changed.connect(_refresh)

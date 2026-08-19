@@ -11,6 +11,7 @@ var start_angle: float
 var sweep: float
 var duration: float
 ## Ease curve: float[0..1] -> float[0..1]. Default = sine-in-out.
+@warning_ignore("shadowed_global_identifier")
 var ease: Callable
 
 func _init(

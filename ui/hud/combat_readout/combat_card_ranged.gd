@@ -10,6 +10,7 @@ extends CombatReadoutCard
 @onready var _range_row: CombatValueRow = %RangeRow
 
 
+@warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.ranged_damage != null:
 		board.ranged_damage.value_changed.connect(_refresh)

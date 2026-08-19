@@ -129,6 +129,7 @@ func test_what_makes_an_allocation_expensive() -> void:
 	for h in hop_keys:
 		var v: Array = by_hops[h]
 		v.sort()
+		@warning_ignore("integer_division")
 		gut.p("%4d | %3d | %9d | %6d" % [h, v.size(), v[v.size() / 2], v[-1]])
 
 	# --- The 10 most expensive allocations, with both candidate causes -------
@@ -170,6 +171,7 @@ func test_what_makes_an_allocation_expensive() -> void:
 	# --- Correlate cost against each candidate separately -------------------
 	gut.p("")
 	gut.p("cheapest quartile vs most expensive quartile, by mean of each factor:")
+	@warning_ignore("integer_division")
 	var q := int(rows.size() / 4)
 	var cheap := sorted_rows.slice(sorted_rows.size() - q, sorted_rows.size())
 	var dear := sorted_rows.slice(0, q)

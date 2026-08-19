@@ -139,5 +139,6 @@ func test_starting_sp_is_above_1() -> void:
 ## relationship, not a specific number.
 func test_basic_enemy_core_xp_per_turn_derives_from_wisdom_not_double_counted() -> void:
 	var ent: Entity = await _make_entity(_ENEMY_CORE)
+	@warning_ignore("integer_division")
 	assert_eq(int(ent.stat_board.xp_per_turn.value), int(ent.stat_board.wisdom.value) / 2,
 			"BasicEnemyCore: xp_per_turn must derive from WIS // 2, not double-counted")

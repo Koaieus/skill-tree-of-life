@@ -216,6 +216,7 @@ func test_enemy_core_grants_elevated_wis_and_matching_xp_per_turn() -> void:
 	# tuned value — assert the relationship (D-15), not a specific number.
 	assert_gt(entity.stat_board.wisdom.value, baseline_wis,
 			"basic_enemy_core should grant elevated WIS (TBD #268 placeholder)")
+	@warning_ignore("integer_division")
 	assert_eq(int(entity.stat_board.xp_per_turn.value), int(entity.stat_board.wisdom.value) / 2,
 			"xp_per_turn should track WIS // 2 (D-15) for the granted WIS")
 	assert_gt(entity.stat_board.xp_per_turn.value, 10,

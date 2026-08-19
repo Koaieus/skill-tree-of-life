@@ -261,12 +261,12 @@ static func preset_names() -> Array[String]:
 ## Applies a whole-situation fixture, then re-derives participation from real
 ## `has_content()` — manual overrides are cleared by design: a preset sets the
 ## situation, the participation toggles fine-tune the occupancy on top.
-func apply_preset(name: String) -> void:
-	var spec := _preset_spec(name)
+func apply_preset(preset_name: String) -> void:
+	var spec := _preset_spec(preset_name)
 	if spec.is_empty():
-		push_warning("FanLiveSandbox: unknown preset '%s'" % name)
+		push_warning("FanLiveSandbox: unknown preset '%s'" % preset_name)
 		return
-	_current_preset = name
+	_current_preset = preset_name
 	if spec.has("faction"):
 		_entity.faction = _FACTION_BY_ID.get(spec["faction"], null)
 	if spec.has("core_class"):
@@ -290,9 +290,9 @@ func apply_preset(name: String) -> void:
 	_after_fixture_change()
 
 
-func _preset_spec(name: String) -> Dictionary:
+func _preset_spec(preset_name: String) -> Dictionary:
 	for spec in _PRESETS:
-		if spec["name"] == name:
+		if spec["name"] == preset_name:
 			return spec
 	return {}
 

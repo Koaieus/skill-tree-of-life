@@ -8,6 +8,7 @@ extends RefCounted
 
 # Referenced via preload (not the bare class_name) so the resolver runs before
 # the editor rebuilds the global class cache — see docs/domain/skillnode-emblem.md.
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 

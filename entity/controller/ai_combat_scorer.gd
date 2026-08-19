@@ -83,7 +83,7 @@ static func expected_damage(outcome: AttackOutcome) -> float:
 ## passes [member AttackOutcome.thinned_nodes] (the real per-swing pop count
 ## [MeleeAttackPlan.resolve] already computes), not blade_nodes.size().
 static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target: SkillNode,
-		attacker: Entity, ai_tier: int, thinned_nodes: int = 0) -> ScoredCandidate:
+		_attacker: Entity, ai_tier: int, thinned_nodes: int = 0) -> ScoredCandidate:
 	var c := ScoredCandidate.new()
 	c.mode = mode
 	c.target = target

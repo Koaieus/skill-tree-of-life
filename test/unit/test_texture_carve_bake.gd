@@ -5,7 +5,9 @@ extends GutTest
 ## asserts on the encoding contract InnerDisk's gem LUT already established
 ## (see .claude/rules/skill-node-visuals.md and docs/domain/emblem-bake.md).
 
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+@warning_ignore("shadowed_global_identifier")
 const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
 
 const SOURCE_ICON := "res://assets/icons/spells/lightning_bolt.png"

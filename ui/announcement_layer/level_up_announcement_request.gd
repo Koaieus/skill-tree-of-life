@@ -12,16 +12,16 @@ var skill_points_gained: int = 1
 var new_level: int = 1
 
 
-static func make_for_level_up(entity: Entity, skill_points_gained: int,
-		new_level: int) -> LevelUpAnnouncementRequest:
+static func make_for_level_up(ent: Entity, sp_gained: int,
+		lvl: int) -> LevelUpAnnouncementRequest:
 	var r := LevelUpAnnouncementRequest.new()
-	r.entity = entity
-	r.skill_points_gained = skill_points_gained
-	r.new_level = new_level
+	r.entity = ent
+	r.skill_points_gained = sp_gained
+	r.new_level = lvl
 	r.kind = Kind.TITLE
 	r.style = Style.LEVEL_UP
 	r.main_text = "LEVEL UP"
-	r.context = {&"entity": entity}
+	r.context = {&"entity": ent}
 	r._refresh_sub_text()
 	return r
 

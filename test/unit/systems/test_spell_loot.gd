@@ -227,14 +227,14 @@ func test_kill_switch_off_neuters_spell_loot() -> void:
 	var spell := _mk_spell("Bolt")
 	_grant_from(_victim.spellbook, spell, _victim.core_location)
 
-	var fired := false
-	var handler := func(_req: SpellLootRequest) -> void: fired = true
+	var fired := [false]
+	var handler := func(_req: SpellLootRequest) -> void: fired[0] = true
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
 	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
-	assert_false(fired, "kill-switch off → no request emitted, even on claim")
+	assert_false(fired[0], "kill-switch off → no request emitted, even on claim")
 	assert_true(_killer.spellbook == null or not (spell in _killer.spellbook.spells),
 			"kill-switch off → nothing learned")
 
@@ -350,26 +350,26 @@ func test_empty_candidates_after_filter_emits_no_request() -> void:
 	_killer.spellbook = SpellBook.new()
 	_grant_from(_killer.spellbook, spell, _killer.core_location)  # claimant already knows it
 
-	var fired := false
-	var handler := func(_req: SpellLootRequest) -> void: fired = true
+	var fired := [false]
+	var handler := func(_req: SpellLootRequest) -> void: fired[0] = true
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
 	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
-	assert_false(fired, "nothing left after the known-filter → no request emitted")
+	assert_false(fired[0], "nothing left after the known-filter → no request emitted")
 
 
 func test_no_spellbook_emits_no_request() -> void:
 	# Victim never had a spellbook at all — trivially empty candidates.
-	var fired := false
-	var handler := func(_req: SpellLootRequest) -> void: fired = true
+	var fired := [false]
+	var handler := func(_req: SpellLootRequest) -> void: fired[0] = true
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
 	_claim_relic(_killer)
 	Events.spell_loot_requested.disconnect(handler)
 
-	assert_false(fired, "no spellbook → no request emitted")
+	assert_false(fired[0], "no spellbook → no request emitted")
 
 
 # ── Acceptance #9: innate lootable ───────────────────────────────────────────

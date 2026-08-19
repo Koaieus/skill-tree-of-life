@@ -23,14 +23,14 @@ const _ADDON_SCENES := {
 
 
 func test_every_addon_scene_carries_a_non_null_icon() -> void:
-	for name in _ADDON_SCENES:
-		var addon: SkillNodeAddon = _ADDON_SCENES[name].instantiate()
+	for addon_name in _ADDON_SCENES:
+		var addon: SkillNodeAddon = _ADDON_SCENES[addon_name].instantiate()
 		add_child_autofree(addon)
-		assert_not_null(addon.icon, "%s addon must carry a tooltip icon" % name)
+		assert_not_null(addon.icon, "%s addon must carry a tooltip icon" % addon_name)
 
 
 func test_every_addon_icon_texture_has_image_data() -> void:
-	for name in _ADDON_SCENES:
-		var addon: SkillNodeAddon = _ADDON_SCENES[name].instantiate()
+	for addon_name in _ADDON_SCENES:
+		var addon: SkillNodeAddon = _ADDON_SCENES[addon_name].instantiate()
 		add_child_autofree(addon)
-		assert_not_null(addon.icon.get_image(), "%s icon texture must load from disk" % name)
+		assert_not_null(addon.icon.get_image(), "%s icon texture must load from disk" % addon_name)

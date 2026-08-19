@@ -7,6 +7,7 @@ extends Control
 ## code in this script builds or wires anything.
 
 
+@warning_ignore("shadowed_global_identifier")
 const CarveShape = preload("res://skill_node/visuals/emblem/carve_shape.gd")
 
 @onready var _composite := $ViewportContainer/World/CompositeSlot/Composite

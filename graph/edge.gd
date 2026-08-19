@@ -394,9 +394,9 @@ func _push_self_loop_transform() -> void:
 	var origin_offset := _render_graph.global_position if _render_graph != null else Vector2.ZERO
 	var loop_center := loop_center_world - origin_offset
 	var xf := Transform2D(0.0, loop_center)
-	var scale := 2.0 * (loop_radius + SELF_LOOP_MARGIN)
-	xf.x *= scale
-	xf.y *= scale
+	var loop_scale := 2.0 * (loop_radius + SELF_LOOP_MARGIN)
+	xf.x *= loop_scale
+	xf.y *= loop_scale
 	render_transform = xf
 	if _render_graph != null:
 		_render_graph.set_edge_transform(self, xf)

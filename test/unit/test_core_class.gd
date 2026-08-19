@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## CoreClass landing tests:

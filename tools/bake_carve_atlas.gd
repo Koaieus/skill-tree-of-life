@@ -24,7 +24,9 @@ extends SceneTree
 ## height+gradient payload, alpha is only the mask), and `compress/mode=0`
 ## keeps it lossless RGBA8.
 
+@warning_ignore("shadowed_global_identifier")
 const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
+@warning_ignore("shadowed_global_identifier")
 const CarveAtlas = preload("res://skill_node/visuals/emblem/carve_atlas.gd")
 
 const MAPPING := "res://assets/icons/spells/mapping.txt"

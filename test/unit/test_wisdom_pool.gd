@@ -19,11 +19,11 @@ func test_wisdom_pool_values() -> void:
 			# T1 magnitude = unit*V[0] = 2*1 = 2 (center of value_range)
 			assert_almost_eq((pp.to_entries()[0].value_range.x + pp.to_entries()[0].value_range.y) / 2.0, 2.0, 0.001)
 func test_draw_only_emits_pack_stat_ids() -> void:
-	var set := ModifierPoolSet.new()
-	set.packs = [_PACK.duplicate(true)]
+	var pool_set := ModifierPoolSet.new()
+	pool_set.packs = [_PACK.duplicate(true)]
 	var ids: Array = []
 	for seed_value in range(1, 25):
-		var mods: Array = _GP._roll_modifiers_v4(set, [], &"wisdom", &"wisdom", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
+		var mods: Array = _GP._roll_modifiers_v4(pool_set, [], &"wisdom", &"wisdom", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
 		for m in mods: if not (m.stat_id in ids): ids.append(m.stat_id)
 	# every rolled stat_id must be one this pack owns
 	for sid in ids: assert_true(sid in [&"wisdom", &"xp_per_turn"], "unexpected stat_id rolled: %s" % String(sid))

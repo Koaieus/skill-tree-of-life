@@ -10,6 +10,7 @@ enum Mode { SINGLE, COOP_HOTSEAT, VERSUS }
 
 @export var mode: Mode = Mode.SINGLE
 @export var level_scene: PackedScene = null
+@warning_ignore("shadowed_global_identifier")
 @export var seed: int = 0
 @export var participants: Array[Participant] = []
 ## Replaces the old n_random_starters: AI starters minus human participants.

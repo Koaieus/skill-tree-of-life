@@ -83,6 +83,7 @@ func bind(owner_entity: Entity) -> void:
 	_refresh()
 
 ## Virtual — called by `bind()` when entity/stat_board are checked; to set up the real wiring between panel and stat board
+@warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	return
 	

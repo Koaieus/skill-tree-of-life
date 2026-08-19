@@ -5,8 +5,11 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+@warning_ignore("shadowed_global_identifier")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
+@warning_ignore("shadowed_global_identifier")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 
 var _graph: Graph

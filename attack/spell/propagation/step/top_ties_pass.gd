@@ -10,7 +10,7 @@ func filter(
 		ranker: NodeRanker,
 		payload: CastSpell,
 		ctx: PropagationContext,
-		current_node: SkillNode,
+		_current_node: SkillNode,
 		direction: int
 	) -> Array[SkillNode]:
 	if candidates.is_empty():

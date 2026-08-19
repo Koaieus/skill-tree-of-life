@@ -23,7 +23,7 @@ func _stat(base: float = 0.0) -> ScalarStat:
 func _mod(op: int, value: float, formula: StatFormula = null) -> StatModifier:
 	var m := StatModifier.new()
 	m.stat_id = &"strength"
-	m.operation = op
+	m.operation = op as StatModifier.Operation
 	m.value = value
 	m.formula = formula
 	return m

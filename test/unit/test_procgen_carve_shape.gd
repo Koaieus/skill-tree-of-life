@@ -6,6 +6,7 @@ extends GutTest
 ## Archetype (and its CarveShape) onto the SkillNode it generates.
 
 const _PRESET_PATH := "res://procgen/presets/first_level/first_level.tres"
+@warning_ignore("shadowed_global_identifier")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
 
 

@@ -3,9 +3,13 @@ extends GutTest
 ## let a SkillNode show one central carve (keystone > loot > spell > archetype)
 ## while core-presence blooms ride alongside it. See docs/domain/skillnode-emblem.md.
 
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+@warning_ignore("shadowed_global_identifier")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
+@warning_ignore("shadowed_global_identifier")
 const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve_shape.gd")
+@warning_ignore("shadowed_global_identifier")
 const GemCarveShape = preload("res://skill_node/visuals/emblem/gem_carve_shape.gd")
 
 

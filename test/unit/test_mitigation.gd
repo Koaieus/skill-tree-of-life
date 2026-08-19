@@ -10,7 +10,7 @@ const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 func _raw(amount: float, type: int = DamageInstance.Type.PHYSICAL) -> DamageInstance:
 	var d := DamageInstance.new()
 	d.amount = amount
-	d.type = type
+	d.type = type as DamageInstance.Type
 	return d
 
 

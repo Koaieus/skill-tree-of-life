@@ -17,7 +17,7 @@ extends ProjectilePath
 @export var loop_direction: Vector2 = Vector2(0.0, -1.0)
 
 
-func evaluate(t: float, origin: Vector2, target: Vector2) -> Vector2:
+func evaluate(t: float, origin: Vector2, _target: Vector2) -> Vector2:
 	var up := loop_direction.normalized()
 	var right := Vector2(up.y, -up.x)
 

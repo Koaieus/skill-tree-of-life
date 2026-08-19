@@ -22,6 +22,7 @@ extends Resource
 ## `apply_to(disk)`. The renderer dispatches on the shape's type, not the other
 ## way round; inverting that is what #302 rejected.
 
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 
 

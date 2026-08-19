@@ -76,6 +76,7 @@ func run_turn_upkeep(board: StatBoard) -> void:
 ## CUSTOM-mode hook. Base no-op; stat subclasses with bespoke turn-start
 ## behaviour override this. Lives on the stat (not the def) because it
 ## manipulates the stat's own extra state — see SkillPointStat (wound-heal).
+@warning_ignore("shadowed_variable_base_class")
 func _custom_turn_upkeep(_board: StatBoard) -> void:
 	pass
 

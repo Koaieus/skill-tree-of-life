@@ -246,6 +246,7 @@ func _median(times: Array[int]) -> float:
 	if times.is_empty():
 		return 0.0
 	times.sort()
+	@warning_ignore("integer_division")
 	return float(times[times.size() / 2])
 
 
@@ -257,7 +258,7 @@ func test_allocation_cost_ramp() -> void:
 	gut.p("owned | force_allocate (med / max) | vision recompute (med / cold) | frontier walk")
 	gut.p("------+---------------------------+-------------------------------+--------------")
 	for target in _CHECKPOINTS:
-		var grown := await _grow_to(target)
+		var grown := _grow_to(target)
 		# Let the debounced deferred recompute the growth queued actually land,
 		# so the timed passes below start from settled state rather than
 		# absorbing the backlog into the first sample.

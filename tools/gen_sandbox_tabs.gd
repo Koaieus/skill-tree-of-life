@@ -35,15 +35,15 @@ func _initialize() -> void:
 
 
 func _gen_host() -> void:
-	var root := Control.new()
-	root.set_script(_HOST)
-	root.name = "SandboxHost"
+	var host := Control.new()
+	host.set_script(_HOST)
+	host.name = "SandboxHost"
 	var tabs := TabContainer.new()
 	tabs.name = "Tabs"
-	root.add_child(tabs)
-	tabs.owner = root
+	host.add_child(tabs)
+	tabs.owner = host
 	tabs.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_save(root, _DIR + "sandbox_host.tscn")
+	_save(host, _DIR + "sandbox_host.tscn")
 
 
 func _save(node: Node, path: String) -> void:

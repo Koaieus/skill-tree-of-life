@@ -36,7 +36,7 @@ extends Resource
 ## [param damage] is the parent's damage (already progressed by prior hops),
 ## [param seed] the cast's seed damage (immutable across the walk), and
 ## [param hop_index] the parent's hop index (0 at the seed).
-@abstract func apply(damage: float, seed: float, hop_index: int) -> float
+@abstract func apply(damage: float, seed_damage: float, hop_index: int) -> float
 
 
 func get_description() -> String:

@@ -76,14 +76,14 @@ func _list_tres_recursive(dir_path: String) -> Array:
 	if dir == null:
 		return out
 	dir.list_dir_begin()
-	var name := dir.get_next()
-	while name != "":
-		var full := dir_path + "/" + name
-		if dir.current_is_dir() and not name.begins_with("."):
+	var entry := dir.get_next()
+	while entry != "":
+		var full := dir_path + "/" + entry
+		if dir.current_is_dir() and not entry.begins_with("."):
 			out.append_array(_list_tres_recursive(full))
-		elif name.ends_with(".tres"):
+		elif entry.ends_with(".tres"):
 			out.append(full)
-		name = dir.get_next()
+		entry = dir.get_next()
 	dir.list_dir_end()
 	return out
 

@@ -7,6 +7,7 @@ extends Resource
 ## just take one of these and run.
 
 ## RNG seed. 0 = randomise per run.
+@warning_ignore("shadowed_global_identifier")
 @export var seed: int = 0
 
 # ── Topology ──────────────────────────────────────────────────────────────

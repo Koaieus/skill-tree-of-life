@@ -18,8 +18,8 @@ extends HopDamageProgression
 @export var seed_fraction_per_hop: float = 0.0
 
 
-func apply(damage: float, seed: float, _hop_index: int) -> float:
-	return damage + seed * seed_fraction_per_hop
+func apply(damage: float, seed_damage: float, _hop_index: int) -> float:
+	return damage + seed_damage * seed_fraction_per_hop
 
 
 func get_description() -> String:

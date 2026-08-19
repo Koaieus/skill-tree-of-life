@@ -1,3 +1,4 @@
+@tool
 extends GutTest
 
 ## Effect substrate (#4): hook bucketing + dispatch, the grant ledger, and the

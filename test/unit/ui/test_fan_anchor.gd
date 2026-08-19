@@ -264,7 +264,7 @@ func _params(trunk_dir: Vector2 = _TRUNK_DIR, trunk_frac: float = _TRUNK_FRAC) -
 	return {"trunk": trunk_frac, "trunk_dir": trunk_dir}
 
 
-func _solved_route(from: Vector2, rect: Rect2, solved: Dictionary, trunk_dir: Vector2 = _TRUNK_DIR) -> PackedVector2Array:
+func _solved_route(from: Vector2, _rect: Rect2, solved: Dictionary, trunk_dir: Vector2 = _TRUNK_DIR) -> PackedVector2Array:
 	return TraceRouter.compute_trace_points(from, solved.anchor, TraceRouter.Style.PCB, {
 		"trunk": _TRUNK_FRAC, "trunk_dir": trunk_dir, "trunk_px": solved.trunk_px,
 	})

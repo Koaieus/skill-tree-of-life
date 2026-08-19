@@ -8,7 +8,9 @@ extends GutTest
 ## covers only the GDScript-side wiring: which shape lands in which slot.
 
 const _DISK_SCENE := preload("res://skill_node/visuals/inner_disk.tscn")
+@warning_ignore("shadowed_global_identifier")
 const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
+@warning_ignore("shadowed_global_identifier")
 const TextureCarveShape = preload("res://skill_node/visuals/emblem/texture_carve_shape.gd")
 
 var _disk: Node
