@@ -8,8 +8,10 @@ extends RefCounted
 ##   2. As the commit payload — [BattleSystem.launch_attack] awaits VFX on it,
 ##      then applies each hit's damage.
 
-var hits: Array[DamageInstance] = []
-var heals: Array[HealingInstance] = []
+## Every landing this outcome produced — damage and heals together (#381),
+## in append order. Consumers that need damage specifically call
+## [method damage_hits] rather than filtering with an `is` check.
+var hits: Array[HitInstance] = []
 ## Action points consumed on commit.
 var ap_cost: int = 1
 ## Mana consumed on commit. Spell plans copy from [member SpellDef.mana_cost];
@@ -22,10 +24,11 @@ var mana_cost: int = 0
 var cancellations: Array[SpellCancellation] = []
 ## Spell-only structure over the same resolution, ordered by wave. Populated
 ## by [SpellResolver]; melee/ranged plans leave it empty. Each event's
-## [member PropagationEvent.damage] is a shared reference into [member hits]
-## (never a copy). The VFX layer ([MagicBounceCoordinator]) walks this — grouped
-## by [member PropagationEvent.beat] — rather than re-deriving waves from [member
-## hits]. See [code]docs/domain/spell-propagation.md[/code].
+## [member PropagationEvent.hits] entries are shared references into
+## [member hits] (never copies). The VFX layer ([MagicBounceCoordinator])
+## walks this — grouped by [member PropagationEvent.beat] — rather than
+## re-deriving waves from [member hits]. See
+## [code]docs/domain/spell-propagation.md[/code].
 var timeline: Array[PropagationEvent] = []
 ## Count of the ATTACKER's own blade vertices lost to a defender's defensive-
 ## spike pop during this swing (see [BladePopResolver]). Zero for every other
@@ -34,6 +37,19 @@ var timeline: Array[PropagationEvent] = []
 var thinned_nodes: int = 0
 
 
+## [member hits] filtered to [constant HitInstance.Kind.DAMAGE] and cast —
+## the "accepted cost" of unifying hits/heals into one list (#381). Reads
+## [member HitInstance.kind], not `is DamageInstance`, so a hit
+## [method SkillNode.take_damage] reclassified to a heal (Bulwark-style
+## `min_damage_taken` underflow) correctly drops out here.
+func damage_hits() -> Array[DamageInstance]:
+	var out: Array[DamageInstance] = []
+	for hit in hits:
+		if hit.kind == HitInstance.Kind.DAMAGE:
+			out.append(hit as DamageInstance)
+	return out
+
+
 func _to_string() -> String:
-	return "<AttackOutcome %d hit(s), %d heals(s), %d event(s), %d cancel(s), %d AP, %d mana>" % [
-		hits.size(), heals.size(), timeline.size(), cancellations.size(), ap_cost, mana_cost]
+	return "<AttackOutcome %d hit(s), %d event(s), %d cancel(s), %d AP, %d mana>" % [
+		hits.size(), timeline.size(), cancellations.size(), ap_cost, mana_cost]

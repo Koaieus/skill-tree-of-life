@@ -1183,16 +1183,30 @@ func take_damage(amount: float, source: Variant) -> void:
 	# Node-local: `armor` / `min_damage_taken` merge this node's board with its
 	# owner's, so addon + aura defensive modifiers actually land.
 	var effective: float = Mitigation.apply(raw, self)
-	# Stash the post-mitigation number back onto the instance so a LATER
-	# presentation reveal (damage_shown, #479/#481) can show what actually
-	# landed instead of the attacker's raw pre-mitigation amount.
-	if source is DamageInstance:
-		(source as DamageInstance).effective_amount = effective
+	# #381: a defensive `min_damage_taken` underflow (Bulwark-style) can push
+	# `effective` negative — that's a real heal, not a damage number that
+	# happened to round to nothing. Reclassify BEFORE the presentation layer
+	# reads `kind` (it only runs after this call returns). `effective == 0`
+	# stays DAMAGE — a real hit that soaked to nothing.
+	var flipped_to_heal := source is DamageInstance and effective < 0.0
+	if flipped_to_heal:
+		(source as DamageInstance).kind = HitInstance.Kind.HEAL
 	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:
 		return
 	var before := hp.current
 	hp.deplete(effective)
+	if source is DamageInstance:
+		if flipped_to_heal:
+			# Clamped delta's magnitude — same contract heal_damage uses, so a
+			# flipped hit's reveal shows what actually landed on the pool.
+			(source as DamageInstance).effective_amount = absf(hp.current - before)
+		else:
+			# Pre-#381 contract, unchanged: the post-mitigation number, NOT the
+			# post-soak delta — an overkill/core hit must still report the full
+			# mitigated amount (`damaged.emit` below carries the same number),
+			# or a killing blow's floater under-reports to whatever HP was left.
+			(source as DamageInstance).effective_amount = effective
 	var soaked: float = before - hp.current
 	if soaked > 0.0:
 		# D-9: any actual HP loss marks this node "damaged since last
@@ -1225,8 +1239,8 @@ func heal_damage(amount: float, source: Variant) -> void:
 	# Stash the post-clamp number back onto the instance so a LATER
 	# presentation reveal (heal_shown, #481/#482) can show what actually landed
 	# instead of the raw pre-clamp amount.
-	if source is HealingInstance:
-		(source as HealingInstance).effective_amount = effective
+	if source is HealInstance:
+		(source as HealInstance).effective_amount = effective
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)

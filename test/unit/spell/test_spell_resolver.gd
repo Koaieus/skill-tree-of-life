@@ -93,15 +93,17 @@ func _line_outcome() -> Array:
 
 func test_timeline_mirrors_hits_and_shares_damage_refs() -> void:
 	# Every damage-bearing landing gets exactly one event; the event's
-	# `damage` is the SAME DamageInstance object that's in `hits` (shared, not
-	# copied) — that identity is what keeps the additive timeline in sync.
+	# `hits` entry is the SAME HitInstance object that's in `outcome.hits`
+	# (shared, not copied) — that identity is what keeps the additive
+	# timeline in sync.
 	var res := _line_outcome()
 	var outcome: AttackOutcome = res[0]
 	assert_eq(outcome.timeline.size(), outcome.hits.size(),
 			"one event per hit on a no-cancel line graph")
 	for ev in outcome.timeline:
-		assert_true(outcome.hits.has(ev.damage),
-				"event.damage is a shared ref into hits, not a copy")
+		assert_eq(ev.hits.size(), 1)
+		assert_true(outcome.hits.has(ev.hits[0]),
+				"event.hits[0] is a shared ref into hits, not a copy")
 
 
 func test_seed_stamps_jump_hops_stamp_edge() -> void:
@@ -138,8 +140,30 @@ func test_cancel_folds_into_timeline_as_null_damage_event() -> void:
 			cancels.append(ev)
 	assert_eq(cancels.size(), 1, "one CANCEL event on the timeline")
 	assert_eq(cancels[0].target, n[4], "CANCEL at the fizzled node")
-	assert_null(cancels[0].damage, "CANCEL carries no damage")
+	assert_true(cancels[0].hits.is_empty(), "CANCEL carries no hits")
 	assert_eq(outcome.cancellations.size(), 1, "replay projection still populated")
+
+
+func test_landing_with_both_damage_and_heal_effects_lands_both() -> void:
+	# #381 acceptance: a landing carrying both a DamageInstance and a
+	# HealInstance must land both, not silently drop one (Evidence 2 in the
+	# issue — f48b3b1 patched exactly this bug on the old two-list shape).
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.give_big_hp(def)
+	helper.assign_owner(graph, def, [1])
+	helper.assign_owner(graph, atk, [0])
+	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var spell := helper.make_spell(config, [DamageEffect.new(), HealEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	assert_eq(outcome.hits.size(), 2, "one damage hit AND one heal hit from the single landing")
+	assert_eq(outcome.hits[0].kind, HitInstance.Kind.DAMAGE)
+	assert_eq(outcome.hits[1].kind, HitInstance.Kind.HEAL)
+	assert_eq(outcome.timeline.size(), 1, "one event for the one landing")
+	assert_eq(outcome.timeline[0].hits.size(), 2, "the event carries both hits")
 
 
 func test_zero_damage_utility_landing_still_emits_event() -> void:
@@ -158,4 +182,4 @@ func test_zero_damage_utility_landing_still_emits_event() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	assert_eq(outcome.hits.size(), 0, "zero-damage landing appends no hit")
 	assert_eq(outcome.timeline.size(), 1, "but still emits a probe event")
-	assert_null(outcome.timeline[0].damage, "event carries no damage")
+	assert_true(outcome.timeline[0].hits.is_empty(), "event carries no hits")

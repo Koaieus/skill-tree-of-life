@@ -36,9 +36,9 @@ extends VFXCoordinator
 ##
 ## ## Pure observer (#474)
 ##
-## [member PropagationEvent.damage] / [member PropagationEvent.heal] have
-## ALREADY landed by the time [method play] runs — BattleSystem applies the
-## whole [AttackOutcome] synchronously before any VFX await starts. This
+## [member PropagationEvent.hits] have ALREADY landed by the time [method play]
+## runs — BattleSystem applies the whole [AttackOutcome] synchronously before
+## any VFX await starts. This
 ## coordinator never calls take_damage/heal_damage; it only renders.
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
@@ -166,23 +166,26 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 ## Presentation-clock reveal (#479/#481), fired AT the beat — magic's fixed
 ## propagation clock already IS the arrival schedule (impact is pinned to
 ## the beat per the three-clocks model above), so no extra timer is needed
-## here unlike ranged's per-shot [member DamageInstance.arrival_time]. Pure
-## observer: [member PropagationEvent.damage] / [member PropagationEvent.heal]
-## already landed synchronously in BattleSystem._apply_outcome (#474); this
-## only tells presentation-only subscribers (HP bar, node tint, death VFX,
-## heal number) that the event visually arrived. Heals reveal on the same
-## beat clock as damage (#481/#482).
+## here unlike ranged's per-shot [member HitInstance.arrival_time]. Pure
+## observer: [member PropagationEvent.hits] already landed synchronously in
+## BattleSystem._apply_outcome (#474); this only tells presentation-only
+## subscribers (HP bar, node tint, death VFX, heal number) that the event
+## visually arrived. Heals reveal on the same beat clock as damage
+## (#481/#482); branches per-hit on [member HitInstance.kind] (#381) so a
+## damage instance BattleSystem reclassified to a heal (Bulwark-style
+## `min_damage_taken` underflow) reveals as a heal here too.
 func _show_presentation(wave: Array) -> void:
 	for ev_v in wave:
 		var ev := ev_v as PropagationEvent
 		if ev == null or ev.target == null:
 			continue
-		if ev.damage != null:
-			Events.damage_shown.emit(ev.target, ev.damage.effective_amount)
-			if not ev.target.is_allocated():
-				Events.node_death_shown.emit(ev.target)
-		if ev.heal != null:
-			Events.heal_shown.emit(ev.target, ev.heal.effective_amount)
+		for hit in ev.hits:
+			if hit.kind == HitInstance.Kind.HEAL:
+				Events.heal_shown.emit(ev.target, hit.effective_amount)
+			else:
+				Events.damage_shown.emit(ev.target, hit.effective_amount)
+				if not ev.target.is_allocated():
+					Events.node_death_shown.emit(ev.target)
 
 
 func _group_by_beat(timeline: Array[PropagationEvent]) -> Dictionary:
@@ -210,7 +213,7 @@ func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
 	proj.visual_scene = _resolved_visual(ev.verb)
 	proj.flight_time = launch_to_impact
 	proj.face_velocity = face_velocity
-	proj.crit_tier = ev.crit_tier
+	proj.crit_tier = ev.max_crit_tier()
 	add_child(proj)
 	pending[0] += 1
 	proj.tree_exiting.connect(func() -> void:

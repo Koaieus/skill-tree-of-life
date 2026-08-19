@@ -391,9 +391,12 @@ var last_pops: BladePopResolver.Result = null
 ## last_events] — same filtering (edges skipped, popped vertices skipped), same
 ## order. [MeleePreview] consumes these FIFO as its live replay passes each
 ## event through the identical filter, so its reveal can show
-## [member DamageInstance.effective_amount] (set by [method SkillNode.take_damage]
+## [member HitInstance.effective_amount] (set by [method SkillNode.take_damage]
 ## when #474 applied the outcome) instead of re-deriving damage from a freshly
-## rebuilt blade state, which drifts from what actually landed.
+## rebuilt blade state, which drifts from what actually landed. Melee only
+## ever produces [DamageInstance]s (never heals), so this stays narrowly
+## typed rather than the [AttackOutcome]-wide [code]Array[HitInstance][/code]
+## (#381).
 var last_hits: Array[DamageInstance] = []
 
 
@@ -418,6 +421,7 @@ func resolve() -> AttackOutcome:
 	last_trajectory = trajectory
 	last_events = events
 	last_pops = pops
+	var di_list: Array[DamageInstance] = []
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.
@@ -432,7 +436,8 @@ func resolve() -> AttackOutcome:
 		di.origin = source
 		di.source = self
 		outcome.hits.append(di)
-	last_hits = outcome.hits
+		di_list.append(di)
+	last_hits = di_list
 	return outcome
 
 

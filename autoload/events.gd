@@ -32,8 +32,9 @@ signal node_death_shown(node: SkillNode)
 ## when the heal actually lands — a magic bounce heals at its beat, not at
 ## model-mutation time. Emitted by the VFX coordinators as pure observers and
 ## backstopped by [BattleSystem._flush_presentation]. `amount` is
-## [member HealingInstance.effective_amount] — the post-clamp HP delta
-## heal_damage actually applied.
+## [member HitInstance.effective_amount] — the post-clamp HP delta magnitude
+## actually applied (also fires for a [DamageInstance] that
+## [method SkillNode.take_damage] reclassified to a heal, #381).
 signal heal_shown(target: SkillNode, amount: float)
 
 ## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens

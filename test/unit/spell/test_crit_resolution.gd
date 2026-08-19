@@ -148,7 +148,7 @@ func test_stat_path_no_crit_when_chance_zero() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	assert_eq(outcome.hits.size(), 1)
 	assert_false(outcome.hits[0].is_crit, "no crit when chance is 0")
-	assert_eq(outcome.timeline[0].crit_tier, 0)
+	assert_eq(outcome.timeline[0].max_crit_tier(), 0)
 
 
 func test_stat_path_crits_when_chance_one() -> void:
@@ -166,7 +166,30 @@ func test_stat_path_crits_when_chance_one() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	assert_eq(outcome.hits.size(), 1)
 	assert_true(outcome.hits[0].is_crit, "crit when chance is 1.0")
-	assert_eq(outcome.timeline[0].crit_tier, 1)
+	assert_eq(outcome.timeline[0].max_crit_tier(), 1)
+
+
+func test_heal_can_crit() -> void:
+	# #381 part 3: crit fields moved onto the base HitInstance specifically so
+	# heals can crit too — pre-#381 only outcome.hits[pre] (damage) was ever
+	# passed to the crit resolver.
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.give_big_hp(def)
+	helper.assign_owner(graph, def, [1])
+	helper.assign_owner(graph, atk, [0])
+	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
+	atk.stat_board.get_stat(&"crit_multiplier").base_value = 2.0
+	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var spell := helper.make_spell(config, [HealEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	assert_eq(outcome.hits.size(), 1)
+	assert_eq(outcome.hits[0].kind, HitInstance.Kind.HEAL)
+	assert_true(outcome.hits[0].is_crit, "a heal rolls the same crit path as damage")
+	assert_eq(outcome.hits[0].crit_multiplier, 2.0)
 
 
 func test_stat_path_multiplies_damage_on_crit() -> void:
@@ -215,7 +238,7 @@ func test_stat_path_reproduces_crits_under_seed() -> void:
 	var outcome2 := SpellResolver.resolve(spell, n[1], n[0], atk, graph, rng2)
 
 	assert_eq(outcome1.hits[0].is_crit, outcome2.hits[0].is_crit, "same seed → same crit flag")
-	assert_eq(outcome1.timeline[0].crit_tier, outcome2.timeline[0].crit_tier, "same seed → same crit_tier")
+	assert_eq(outcome1.timeline[0].max_crit_tier(), outcome2.timeline[0].max_crit_tier(), "same seed → same crit_tier")
 	assert_eq(outcome1.hits[0].amount, outcome2.hits[0].amount, "same seed → same damage")
 
 
@@ -316,7 +339,7 @@ func test_both_paths_can_fire_tier_2() -> void:
 		if ev.target == n[1]:
 			seen_n1_events += 1
 			if seen_n1_events == 2:
-				event_tier = ev.crit_tier
+				event_tier = ev.max_crit_tier()
 				break
 	assert_eq(event_tier, 2, "wave-1 self-loop traversal: both stat AND condition path → tier 2")
 
@@ -336,7 +359,7 @@ func test_zero_damage_landing_never_crits() -> void:
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	assert_eq(outcome.hits.size(), 0)
-	assert_eq(outcome.timeline[0].crit_tier, 0)
+	assert_eq(outcome.timeline[0].max_crit_tier(), 0)
 
 
 func test_entity_without_board_still_supports_condition_path() -> void:

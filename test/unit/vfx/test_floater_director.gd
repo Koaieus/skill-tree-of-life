@@ -147,13 +147,13 @@ func test_heal_shown_floats() -> void:
 
 
 func test_attack_heal_model_signal_floats_nothing() -> void:
-	# #481/#482: an attack heal (source is HealingInstance) is shown by heal_shown on
+	# #481/#482: an attack heal (source is HealInstance) is shown by heal_shown on
 	# the arrival clock. skill_node_healed at model-mutation time must NOT float
 	# it over a node the projectile hasn't reached.
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
-	var heal := HealingInstance.new()
+	var heal := HealInstance.new()
 	heal.amount = 7.0
 	heal.target = node
 	Events.skill_node_healed.emit(node, 7.0, heal)

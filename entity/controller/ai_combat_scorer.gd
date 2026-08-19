@@ -64,11 +64,13 @@ class ScoredCandidate:
 
 ## Expected damage this outcome would deal on commit — post-mitigation, summed
 ## across every hit, via the exact formula [SkillNode.take_damage] applies.
+## Filters to [method AttackOutcome.damage_hits] (#381) — [Mitigation.apply]
+## takes a [DamageInstance] specifically, and a heal shouldn't score as damage.
 static func expected_damage(outcome: AttackOutcome) -> float:
 	if outcome == null:
 		return 0.0
 	var total := 0.0
-	for hit in outcome.hits:
+	for hit in outcome.damage_hits():
 		total += Mitigation.apply(hit, hit.target)
 	return total
 

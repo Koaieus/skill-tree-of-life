@@ -75,10 +75,10 @@ func _on_heal_shown(node: SkillNode, amount: float) -> void:
 
 
 func _on_skill_node_healed(node: SkillNode, amount: float, source: Variant) -> void:
-	# #481/#482: an attack heal carries a HealingInstance source — it rides
+	# #481/#482: an attack heal carries a HealInstance source — it rides
 	# `heal_shown` on the VFX arrival clock instead. Non-attack heals (turn
 	# regen, heal aura) have no arrival schedule and keep floating immediately.
-	if source is HealingInstance:
+	if source is HealInstance:
 		return
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return

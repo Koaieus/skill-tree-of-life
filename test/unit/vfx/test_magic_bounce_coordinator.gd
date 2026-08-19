@@ -150,7 +150,7 @@ func test_events_in_wave_grouped_by_beat() -> void:
 		hit.origin = nodes[0]
 		hit.target = nodes[1]
 		hit.amount = 1.0
-		ev.damage = hit
+		ev.hits.append(hit)
 		outcome.hits.append(hit)
 		outcome.timeline.append(ev)
 	var coord := _mount_coord(0.04, 0.03)
@@ -182,7 +182,7 @@ func test_damage_shown_fires_per_beat_not_synchronously_with_play() -> void:
 		hit.target = nodes[1]
 		hit.amount = 3.0
 		hit.effective_amount = 3.0
-		ev.damage = hit
+		ev.hits.append(hit)
 		outcome.hits.append(hit)
 		outcome.timeline.append(ev)
 	var coord := _mount_coord(0.04, 0.03)
@@ -217,13 +217,13 @@ func test_heal_shown_fires_per_beat_not_synchronously_with_play() -> void:
 		ev.beat = int(beats[i])
 		ev.origin = nodes[0]
 		ev.target = nodes[1]
-		var heal := HealingInstance.new()
+		var heal := HealInstance.new()
 		heal.origin = nodes[0]
 		heal.target = nodes[1]
 		heal.amount = 3.0
 		heal.effective_amount = 3.0
-		ev.heal = heal
-		outcome.heals.append(heal)
+		ev.hits.append(heal)
+		outcome.hits.append(heal)
 		outcome.timeline.append(ev)
 	var coord := _mount_coord(0.04, 0.03)
 	var shown: Array = []
@@ -262,13 +262,12 @@ func test_coordinator_never_mutates_hp() -> void:
 	ev1.beat = 0
 	ev1.origin = nodes[0]
 	ev1.target = nodes[1]
-	ev1.damage = hit
+	ev1.hits.append(hit)
 	outcome.timeline.append(ev1)
 	var ev2 := PropagationEvent.new()  # utility landing: no damage
 	ev2.beat = 0
 	ev2.origin = nodes[0]
 	ev2.target = nodes[2]
-	ev2.damage = null
 	outcome.timeline.append(ev2)
 	var coord := _mount_coord(0.05, 0.03)
 	coord.play(outcome)
@@ -451,7 +450,7 @@ func test_play_does_not_return_before_the_last_beat() -> void:
 	hit.origin = nodes[1]
 	hit.target = nodes[2]
 	hit.amount = 1.0
-	hit_ev.damage = hit
+	hit_ev.hits.append(hit)
 	outcome.hits.append(hit)
 	outcome.timeline.append(hit_ev)
 
@@ -480,7 +479,7 @@ func _make_single_event_outcome(nodes: Array, verb: PropagationEvent.Verb) -> At
 		hit.origin = nodes[0]
 		hit.target = nodes[1]
 		hit.amount = 1.0
-		ev.damage = hit
+		ev.hits.append(hit)
 		outcome.hits.append(hit)
 	outcome.timeline.append(ev)
 	return outcome

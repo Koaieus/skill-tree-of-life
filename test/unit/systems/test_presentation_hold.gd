@@ -178,11 +178,11 @@ func test_heal_target_is_held_until_heal_shown() -> void:
 	assert_true(target.get_current_hp() < target.get_max_hp(),
 			"fixture: target must be below full HP for a real heal")
 
-	var heal := HealingInstance.new()
+	var heal := HealInstance.new()
 	heal.target = target
 	heal.amount = 999.0
 	var outcome := AttackOutcome.new()
-	outcome.heals.append(heal)
+	outcome.hits.append(heal)
 
 	bs._apply_outcome(outcome)
 
@@ -204,11 +204,11 @@ func test_flush_emits_heal_shown_for_heal_targets() -> void:
 	var bs: BattleSystem = ctx.bs
 
 	target.take_damage(5.0, null)
-	var heal := HealingInstance.new()
+	var heal := HealInstance.new()
 	heal.target = target
 	heal.amount = 999.0
 	var outcome := AttackOutcome.new()
-	outcome.heals.append(heal)
+	outcome.hits.append(heal)
 	watch_signals(Events)
 
 	bs._apply_outcome(outcome)

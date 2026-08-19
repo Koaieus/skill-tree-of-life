@@ -78,37 +78,25 @@ static func resolve(
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		for state in merged:
-			# `hits`/`heals` produced by this landing's effects belong to this
-			# event. Today only DamageEffect and HealingEffect append, each at
-			# most once per landing — so the first new entry in either list is
-			# the event's damage/heal (null if the landing was zero-damage /
-			# utility, which still gets an event so it animates).
+			# Every `HitInstance` this landing's effects append belongs to this
+			# event (#381: was two parallel lists with a ≤1-per-landing parity
+			# assert between the headless and VFX paths — dead since #474 made
+			# VFX a pure observer of an outcome BattleSystem already applied in
+			# full; see the #381 plan). Each new hit rolls its own crit.
 			var pre := outcome.hits.size()
-			var pre_heals := outcome.heals.size()
 			for eff in spell.on_hit_effects:
 				if eff != null:
 					eff.apply(state, outcome)
-			# Parity invariant: the headless path applies ALL of `hits`, but the
-			# VFX path applies only the first hit per landing (`ev.damage` below).
-			# They agree only while a landing appends ≤1 hit. Trip loudly if a
-			# future two-damage effect breaks that — teach the coordinator to
-			# apply every hit before shipping it.
-			assert(outcome.hits.size() - pre <= 1,
-					"landing appended >1 hit; VFX applies only the first")
-			var crit_tier: int = 0
-			if outcome.hits.size() > pre:
-				crit_tier = _resolve_crit(spell, state, outcome.hits[pre], ctx)
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
 			ev.verb = _verb_for(state)
-			ev.crit_tier = crit_tier
-			if outcome.hits.size() > pre:
-				ev.damage = outcome.hits[pre]
-			if outcome.heals.size() > pre_heals:
-				ev.heal = outcome.heals[pre_heals]
+			for i in range(pre, outcome.hits.size()):
+				var hit: HitInstance = outcome.hits[i]
+				_resolve_crit(spell, state, hit, ctx)
+				ev.hits.append(hit)
 			outcome.timeline.append(ev)
 			ctx.bump_visit(state.current_node)
 
@@ -165,14 +153,16 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 
 
 ## Evaluates both crit paths for one landing and applies the crit to [param hit]
-## when either (or both) fire. Returns [member PropagationEvent.crit_tier]:
-## 0 = normal hit, 1 = one path crit, 2 = both paths fired.
+## when either (or both) fire, stamping [member HitInstance.crit_tier]:
+## 0 = normal hit, 1 = one path crit, 2 = both paths fired. [param hit] is a
+## [HitInstance], not [DamageInstance] specifically (#381) — heals roll crits
+## too now, since a heal landing at the base-class level has no way to opt out.
 ## Stat path: rolls [code]crit_chance[/code] from the caster's board.
 ## Condition path: evaluates every [member SpellDef.crit_conditions] as OR.
 static func _resolve_crit(
 		spell: SpellDef,
 		state: CastSpell,
-		hit: DamageInstance,
+		hit: HitInstance,
 		ctx: PropagationContext) -> int:
 	if hit == null or hit.amount <= 0.0:
 		return 0
@@ -203,6 +193,7 @@ static func _resolve_crit(
 		hit.amount *= cm_val
 		hit.is_crit = true
 		hit.crit_multiplier = cm_val
+	hit.crit_tier = tier
 	return tier
 
 

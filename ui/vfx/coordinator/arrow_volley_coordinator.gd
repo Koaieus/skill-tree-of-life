@@ -37,12 +37,18 @@ const MIN_FLIGHT_FRACTION: float = 0.4
 
 func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
-	if outcome == null or outcome.hits.is_empty():
+	if outcome == null:
 		return
-	var tint := _resolve_tint(outcome)
-	var pending: Array[int] = [outcome.hits.size()]
-	for i in outcome.hits.size():
-		var hit: DamageInstance = outcome.hits[i]
+	# Ranged never produces heals, but `outcome.hits` is `Array[HitInstance]`
+	# (#381) — filter to damage explicitly rather than relying on every entry
+	# being a DamageInstance.
+	var hits := outcome.damage_hits()
+	if hits.is_empty():
+		return
+	var tint := _resolve_tint(hits)
+	var pending: Array[int] = [hits.size()]
+	for i in hits.size():
+		var hit: DamageInstance = hits[i]
 		if hit.origin == null or hit.target == null:
 			pending[0] -= 1
 			continue
@@ -114,8 +120,8 @@ func _show_presentation(hit: DamageInstance, impact_time: float, pending: Array[
 # Resolve attacker tint: the RangedAttackPlan is the hit source and
 # carries `attacker: Entity` with a `color`. Defensive — any non-conforming
 # source falls back to the LightArrow default.
-func _resolve_tint(outcome: AttackOutcome) -> Color:
-	for hit in outcome.hits:
+func _resolve_tint(hits: Array[DamageInstance]) -> Color:
+	for hit in hits:
 		var src: Variant = hit.source
 		if src != null and "attacker" in src:
 			var atk: Variant = src.attacker

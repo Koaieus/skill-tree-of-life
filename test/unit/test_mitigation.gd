@@ -124,3 +124,67 @@ func test_node_local_floor_applies() -> void:
 	node.owned_by.stat_board.armor.base_value = 20.0
 	node.owned_by.stat_board.min_damage_taken.base_value = 3.0
 	assert_almost_eq(Mitigation.apply(_raw(5.0), node), 3.0, 0.001)
+
+
+# ── HitInstance.kind reclassification (#381) ────────────────────────────────
+## SkillNode.take_damage reclassifies a DamageInstance to HitInstance.Kind.HEAL
+## when the post-Mitigation effective amount underflows below zero (a
+## Bulwark-style min_damage_taken floor deep enough to overshoot armor —
+## test_negative_floor_allows_healing_via_overkill_armor above pins the
+## formula; these pin take_damage's classification + HP effect on top of it).
+
+func test_take_damage_stays_damage_kind_when_effective_is_zero() -> void:
+	var node := _owned_node()
+	await get_tree().process_frame
+	node.owned_by.stat_board.armor.base_value = 10.0
+	node.owned_by.stat_board.min_damage_taken.base_value = 0.0
+	var hit := _raw(10.0)  # 10 - 10 armor = 0, exactly at the floor
+	node.take_damage(hit.amount, hit)
+	assert_eq(hit.kind, HitInstance.Kind.DAMAGE,
+		"a real hit that soaks to exactly 0 is still DAMAGE, not HEAL")
+
+
+func test_take_damage_reclassifies_to_heal_on_negative_effective() -> void:
+	var node := _owned_node()
+	await get_tree().process_frame
+	# First, deal real damage under a real defense config so HP has room for
+	# the heal-flip below to actually show.
+	node.owned_by.stat_board.armor.base_value = 0.0
+	node.owned_by.stat_board.min_damage_taken.base_value = 0.0
+	node.take_damage(5.0, null)
+	var hp_before := node.get_current_hp()
+	assert_true(hp_before < node.get_max_hp(), "fixture: node must be damaged before the flip")
+
+	# Bulwark-style underflow: 3 - 10 armor = -7, floored at -5.
+	node.owned_by.stat_board.armor.base_value = 10.0
+	node.owned_by.stat_board.min_damage_taken.base_value = -5.0
+	var hit := _raw(3.0)
+	node.take_damage(hit.amount, hit)
+
+	assert_eq(hit.kind, HitInstance.Kind.HEAL,
+		"3 - 10 armor = -7, floored at -5 → negative effective reclassifies to HEAL")
+	assert_true(node.get_current_hp() > hp_before,
+		"the negative-effective 'hit' must actually raise HP like a heal")
+	assert_almost_eq(hit.effective_amount, node.get_current_hp() - hp_before, 0.001,
+		"effective_amount is the actual clamped delta's magnitude, always positive")
+
+
+## Regression: effective_amount's contract for ordinary DAMAGE must stay the
+## post-mitigation number, not the post-soak HP delta — an overkill hit still
+## has to report the full mitigated amount (so a killing blow's floater
+## doesn't under-report to whatever HP happened to be left).
+func test_take_damage_effective_amount_is_mitigated_not_soaked_on_overkill() -> void:
+	var node := _owned_node()
+	await get_tree().process_frame
+	node.owned_by.stat_board.armor.base_value = 0.0
+	node.owned_by.stat_board.min_damage_taken.base_value = 0.0
+	node.take_damage(node.get_max_hp() - 3.0, null)
+	assert_almost_eq(node.get_current_hp(), 3.0, 0.001, "fixture: node left at 3 HP")
+
+	var hit := _raw(10.0)  # overkill: only 3 HP is left to soak
+	node.take_damage(hit.amount, hit)
+
+	assert_eq(hit.kind, HitInstance.Kind.DAMAGE)
+	assert_almost_eq(node.get_current_hp(), 0.0, 0.001)
+	assert_almost_eq(hit.effective_amount, 10.0, 0.001,
+		"effective_amount reports the full mitigated hit, not the 3 HP actually soaked")

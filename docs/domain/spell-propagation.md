@@ -360,14 +360,18 @@ tooltips. The question #46 answers is *what shape* that outcome hands to VFX.
 
 ### Two projections over one resolution
 
-- **`hits: Array[DamageInstance]`** — the **primary, universal** flat list.
-  *Every* attack type appends to it: spell `DamageEffect`, `RangedAttackPlan`,
-  `MeleeAttackPlan`. It is **not** derived from anything; it is producer-populated.
+- **`hits: Array[HitInstance]`** — the **primary, universal** flat list.
+  *Every* attack type appends to it: spell `DamageEffect`/`HealEffect`,
+  `RangedAttackPlan`, `MeleeAttackPlan`. It is **not** derived from anything;
+  it is producer-populated. `DamageInstance` and `HealInstance` both extend
+  `HitInstance` (#381 unified the old parallel `hits`/`heals` lists) — a
+  `HitInstance.kind` field (`DAMAGE`/`HEAL`) tells a consumer which.
 - **`timeline: Array[PropagationEvent]`** — **additive, spell-only** structure.
   The `SpellResolver` builds it; melee/ranged leave it empty. Each event
-  *references* the same `DamageInstance` object already in `hits` (shared, not
-  copied) via `event.damage`, which is **nullable** — a zero-damage / utility
-  landing still gets a probe event so it animates.
+  *references* the same `HitInstance` object(s) already in `hits` (shared, not
+  copied) via `event.hits`, which is empty (not null — #381 made this a list)
+  for a zero-damage / utility landing that still gets a probe event so it
+  animates.
 - **`cancellations: Array[SpellCancellation]`** — kept as a replay projection
   *alongside* the new `Verb.CANCEL` events. Additive, not replaced.
 
@@ -387,8 +391,9 @@ var verb: Verb
 var origin: SkillNode                # probe travels FROM here (predecessor ?? source)
 var target: SkillNode                # lands here (current_node)
 var predecessor: SkillNode = null    # NODE ref this pass — event→event fork-tree link deferred
-var damage: DamageInstance = null    # shared ref into `hits`; null for CANCEL / zero-damage
-var crit_tier: int = 0               # always 0 until crits land (#195 / #197)
+var hits: Array[HitInstance] = []    # shared refs into `hits`; empty for CANCEL / zero-damage
+# crit_tier lives on each HitInstance now (#381); event.max_crit_tier() derives
+# the per-event emphasis value across `hits`.
 ```
 
 **Verb is resolver-stamped, not geometry-inferred** — it *cannot* be recovered

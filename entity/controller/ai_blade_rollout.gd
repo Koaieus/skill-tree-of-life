@@ -308,7 +308,10 @@ static func _primary_target(outcome: AttackOutcome, visible_enemies: Array[Skill
 		enemy_set[e] = true
 	var best: SkillNode = null
 	var best_amount := -1.0
-	for hit in outcome.hits:
+	# Melee only ever produces damage (#381's damage_hits() filter), so this
+	# stays a no-op filter today — kept explicit so a future melee heal
+	# effect doesn't silently rank itself as "biggest hit."
+	for hit in outcome.damage_hits():
 		if hit.target == null or not enemy_set.has(hit.target):
 			continue
 		if hit.amount > best_amount:

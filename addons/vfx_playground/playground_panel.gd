@@ -170,7 +170,7 @@ func _fire() -> void:
 		ev.verb = PropagationEvent.Verb.JUMP
 		ev.origin = origin
 		ev.target = t
-		ev.damage = hit
+		ev.hits.append(hit)
 		outcome.timeline.append(ev)
 	# `duplicate()` with default flags (15) copies signals + groups + scripts +
 	# uses instantiation. `duplicate(true)` would coerce the bool to int 1 =

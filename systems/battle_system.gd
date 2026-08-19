@@ -284,45 +284,30 @@ func _flush_presentation(outcome: AttackOutcome) -> void:
 		var target: SkillNode = hit.target
 		if target == null or not target.presentation_hold:
 			continue
-		Events.damage_shown.emit(target, hit.effective_amount)
-		if not target.is_allocated():
-			Events.node_death_shown.emit(target)
+		if hit.kind == HitInstance.Kind.HEAL:
+			Events.heal_shown.emit(target, hit.effective_amount)
+		else:
+			Events.damage_shown.emit(target, hit.effective_amount)
+			if not target.is_allocated():
+				Events.node_death_shown.emit(target)
 		# Defensive: a subscriber could in principle swallow both emits without
 		# releasing. The latch must never outlive the attack that set it.
 		target.release_presentation()
-	for heal in outcome.heals:
-		var heal_target: SkillNode = heal.target
-		if heal_target == null or not heal_target.presentation_hold:
-			continue
-		Events.heal_shown.emit(heal_target, heal.effective_amount)
-		heal_target.release_presentation()
 
 
-## The one place world mutation happens for an attack: hits, then heals —
-## which, via take_damage → Events.skill_node_depleted → _on_node_depleted
-## (both synchronous), also runs the forced-dealloc cascade. VFX never calls
-## this; it only replays what already landed. See the class-level VFX note.
+## The one place world mutation happens for an attack: every hit in
+## [member AttackOutcome.hits] lands via [OutcomeApplier] — which, via
+## take_damage → Events.skill_node_depleted → _on_node_depleted (both
+## synchronous), also runs the forced-dealloc cascade. VFX never calls this;
+## it only replays what already landed. See the class-level VFX note.
+##
+## Presentation clock (#482): [OutcomeApplier] withholds each target's paint
+## BEFORE the model moves, so tint / allocation-fill / HP bar keep the
+## pre-hit look until the VFX actually arrives. Released by
+## `_on_damage_shown` / `_on_heal_shown` / `_on_node_death_shown` — and
+## `_flush_presentation` guarantees one of those fires.
 func _apply_outcome(outcome: AttackOutcome) -> void:
-	# Presentation clock (#482): withhold each target's paint BEFORE the model
-	# moves, so tint / allocation-fill / HP bar keep the pre-hit look until the
-	# VFX actually arrives. Released by `_on_damage_shown` / `_on_node_death_shown`
-	# — and `_flush_presentation` guarantees one of those fires.
-	for hit in outcome.hits:
-		if hit.target != null:
-			hit.target.hold_presentation()
-	for hit in outcome.hits:
-		if hit.target != null:
-			hit.target.take_damage(hit.amount, hit)
-	# #481/#482: hold each heal target too, so the HP-bar rise and the heal number
-	# wait for the VFX to land (released by `_on_heal_shown` / the heal pass in
-	# `_flush_presentation`). `hold_presentation` is idempotent, so a node that
-	# is both hit and healed keeps the single latch.
-	for heal in outcome.heals:
-		if heal.target != null:
-			heal.target.hold_presentation()
-	for heal in outcome.heals:
-		if heal.target != null:
-			heal.target.heal_damage(heal.amount, heal)
+	OutcomeApplier.apply(outcome)
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the

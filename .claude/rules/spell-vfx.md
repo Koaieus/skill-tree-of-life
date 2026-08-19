@@ -85,18 +85,24 @@ Tint hook: `ArrowVolleyCoordinator` stamps `tint: Color` on the visual right aft
 `MagicBounceCoordinator` walks `AttackOutcome.timeline: Array[PropagationEvent]`
 (grouped by `beat`), not `_group_by_hop(hits)`. Each event carries a movement
 `verb` (`JUMP`/`EDGE`/`SELF_LOOP`/`CANCEL` — the a/b/e/d vocabulary), its
-`origin`/`target` nodes, a **nullable** `damage` (shared ref into `hits`; null for
-`CANCEL` and zero-damage landings), and `crit_tier` (0 until crits ship).
+`origin`/`target` nodes, and `hits: Array[HitInstance]` (shared refs into
+`outcome.hits`; empty for `CANCEL` and zero-damage landings — #381 collapsed
+the old nullable `damage`/`heal` pair + event-owned `crit_tier` into this one
+list). Crit tier lives on each hit now; read `event.max_crit_tier()` for the
+per-event emphasis value.
 
 **Why the guard is `timeline.is_empty()`, not `hits.is_empty()`:** a pure-utility
-spell (`power` 0) produces events with no damage — it must still render its
+spell (`power` 0) produces events with no hits — it must still render its
 path. Gating on `hits` would silently no-op it.
 
-`hits` is still the universal flat list every attack type appends to (melee /
-ranged / spell); the timeline is **additive spell structure over the same
-`DamageInstance` objects**, not a replacement. Apply HP only when
-`event.damage != null`. Full rationale + the verb table live in
-[docs/domain/spell-propagation.md](../../docs/domain/spell-propagation.md).
+`outcome.hits` is still the universal flat list every attack type appends to
+(melee/ranged/spell, damage and heals together); the timeline is **additive
+spell structure over the same `HitInstance` objects**, not a replacement.
+Branch per-hit on `HitInstance.kind` (`DAMAGE`/`HEAL`) to route the reveal —
+`_show_presentation` in the coordinator is the reference implementation. Full
+rationale + the verb table live in
+[docs/domain/spell-propagation.md](../../docs/domain/spell-propagation.md)
+(update its `damage`/`heal` field references too).
 
 ## Spell-playground gotcha
 
