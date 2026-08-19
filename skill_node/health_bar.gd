@@ -32,9 +32,6 @@ var _value_tween: Tween = null
 ## momentary alpha would let `_fade_to` early-return while a tween still drives
 ## alpha toward the *opposite* target, leaving the bar stuck (#147).
 var _fade_target: float = 0.0
-## An `owner_changed` arrived while the node's presentation was held (#482);
-## replay the rebind on release.
-var _rebind_pending: bool = false
 
 
 func _ready() -> void:
@@ -50,8 +47,7 @@ func _ready() -> void:
 		return
 
 	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
-	_skill_node.presentation_released.connect(_on_presentation_released)
-	_skill_node.hp_reveal_progress.connect(_on_hp_reveal_progress)
+	_skill_node.view_state_changed.connect(_on_view_state_changed)
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
@@ -60,15 +56,13 @@ func _ready() -> void:
 	_on_owner_changed.call_deferred()
 
 
+## #491: only tracks the pool identity (for `max_value` + the initial bind) —
+## the drawn `value` is driven exclusively by `_on_view_state_changed` below,
+## which lags the real pool by however long [PresentationPlayer] takes to
+## reveal it. Runs immediately on every ownership change (no presentation-hold
+## gate): the pool identity itself isn't a reveal, only the HP number is.
 func _on_owner_changed() -> void:
 	if _skill_node == null:
-		return
-	# Presentation clock (#482): a killing hit flips `owned_by` to null the same
-	# frame it lands in the model, which would unbind the pool and yank the bar
-	# away before the hit is visible. Hold the rebind too — `_on_presentation_
-	# released` runs it once the reveal catches up.
-	if _skill_node.presentation_hold:
-		_rebind_pending = true
 		return
 	var hp: PoolStat = null
 	if _skill_node.is_allocated() and _skill_node.node_board != null:
@@ -80,57 +74,26 @@ func _bind_pool(pool: PoolStat) -> void:
 	if _pool == pool:
 		return
 	if _pool != null:
-		if _pool.current_changed.is_connected(_on_current_changed):
-			_pool.current_changed.disconnect(_on_current_changed)
 		if _pool.value_changed.is_connected(_on_max_changed):
 			_pool.value_changed.disconnect(_on_max_changed)
 	_pool = pool
 	if _pool != null:
-		_pool.current_changed.connect(_on_current_changed)
 		_pool.value_changed.connect(_on_max_changed)
 		_sync()
 	_update_visibility()
 
 
-func _on_current_changed(_new_val: Variant) -> void:
-	if _pool == null:
-		return
-	# Presentation clock (#482): the pool already holds the post-hit value —
-	# BattleSystem applied it synchronously — but the swing/projectile/bolt is
-	# still travelling. Skip the drain; `hp_reveal_progress` drives the tween
-	# (one step per hit, #487) the moment each hit actually lands.
-	if _skill_node != null and _skill_node.presentation_hold:
-		return
-	var target := float(_pool.current)
-	var going_down := target < value
+## The node's DRAWN hp changed — [SkillNode]'s single view-state writer is
+## [PresentationPlayer], so this fires on the exact cadence a hit should
+## visibly land, whether that's one step of a staggered cascade/volley or a
+## reveal that arrived all at once (`play_instant`, pass-through).
+func _on_view_state_changed(hp: float, _owner: Entity) -> void:
+	var going_down := hp < value
 	if going_down:
-		_tween_value(target, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
+		_tween_value(hp, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
 	else:
-		_tween_value(target, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
-	_update_visibility()
-
-
-## One hit's reveal has landed (#487) — tween toward the node's SHOWN hp (not
-## necessarily the pool's final value yet: a multi-hit volley steps this once
-## per arrow, only reaching the pool's real value on the last one). Fires
-## whether or not the node is still held, so this also covers the ordinary
-## single-hit case that used to run through `_on_presentation_released`.
-func _on_hp_reveal_progress(shown_value: float) -> void:
-	var going_down := shown_value < value
-	if going_down:
-		_tween_value(shown_value, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
-	else:
-		_tween_value(shown_value, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
-	_update_visibility()
-
-
-## The withheld repaint catching up (#482). `hp_reveal_progress` (connected
-## above) already drove the value tween by the time this fires — this only
-## replays the rebind an `owner_changed` arrived-while-held left pending.
-func _on_presentation_released() -> void:
-	if _rebind_pending:
-		_rebind_pending = false
-		_on_owner_changed()
+		_tween_value(hp, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
+	_update_visibility_for(hp)
 
 
 func _on_max_changed() -> void:
@@ -142,7 +105,7 @@ func _sync() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
-	value = float(_pool.current)
+	value = _skill_node.shown_hp if _skill_node != null else float(_pool.current)
 
 
 # ── Hover ───────────────────────────────────────────────────────────────────
@@ -162,9 +125,15 @@ func _on_unhovered() -> void:
 func _update_visibility() -> void:
 	if _pool == null:
 		return _fade_to(0.0)
-	# `current == 0` counts as damaged: a depleted node must read as an empty
-	# bar, not as no bar at all. Only a node at full HP hides itself.
-	var damaged: bool = _pool.current < _pool.value
+	_update_visibility_for(_skill_node.shown_hp if _skill_node != null else float(_pool.current))
+
+
+## `hp < max` counts as damaged: a depleted node must read as an empty bar,
+## not as no bar at all. Only a node at full (DRAWN) HP hides itself.
+func _update_visibility_for(hp: float) -> void:
+	if _pool == null:
+		return _fade_to(0.0)
+	var damaged: bool = hp < _pool.value
 	_fade_to(1.0 if (_hovered or damaged) else 0.0)
 
 

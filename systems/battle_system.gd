@@ -56,6 +56,9 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
+## #491: plays the recorded reveal timeline — the single consumer of
+## `last_reveal_timeline`, replacing `_flush_presentation` entirely.
+@export var presentation_player: PresentationPlayer
 
 ## Presentation clock (#485): entity-level wound-toast holds pending release,
 ## keyed by the impact node whose `node_death_shown` reveal is what releases
@@ -154,12 +157,13 @@ var next_melee_cw: bool = false
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
-	# Presentation clock (#482): one connection for the whole board — a per-node
-	# subscription would sweep every SkillNode on every emit (skill-node-scale).
-	Events.damage_shown.connect(_on_damage_shown)
-	Events.node_death_shown.connect(_on_node_death_shown)
-	Events.heal_shown.connect(_on_heal_shown)
-	Events.core_health_chipped.connect(_on_core_health_chipped)
+	# #491: the old presentation-hold release handlers below
+	# (_on_damage_shown / _on_node_death_shown / _on_heal_shown /
+	# _on_core_health_chipped) are dead — nothing calls hold_presentation /
+	# hold_health_presentation anymore, so there is nothing left for them to
+	# release. PresentationPlayer.play/play_instant (wired in launch_attack)
+	# is the sole consumer of the recorded timeline now. Left unconnected
+	# rather than deleted — #492 removes the bodies.
 
 
 ## A hit has visually landed: let its target's withheld paint through — one
@@ -304,10 +308,21 @@ func launch_attack() -> void:
 	# temp-upgrade addons (#406) must stay attached and rendering through both
 	# the ghost preview loop and the actual committed swing. _reset() (which
 	# frees them) runs once, after.
+	var timeline := last_reveal_timeline
 	if attack_plan is MeleeAttackPlan and melee_preview != null:
 		var melee_plan: MeleeAttackPlan = attack_plan
-		await melee_preview.launch(melee_plan)
-		_flush_presentation(outcome)
+		# Concurrent, not sequential: start the VFX replay, then await the
+		# player alongside it — awaiting the VFX to completion first would
+		# needlessly serialize two independent waits (the player's own clock
+		# doesn't depend on VFX signals). `melee_preview` is untyped here
+		# (Variant) so the static checker doesn't see `launch`'s `-> void`
+		# signature and refuse to let the coroutine's actual runtime return
+		# (a Signal, if it suspended) be awaited below.
+		var untyped_melee_preview: Variant = melee_preview
+		var vfx_task = untyped_melee_preview.launch(melee_plan)
+		if timeline != null and presentation_player != null:
+			await presentation_player.play(timeline)
+		await vfx_task
 		# is_launching flips false BEFORE _reset() (not after) — _reset()'s
 		# attack_plan = null synchronously fires attack_plan_changed, and
 		# PlayerInputController's gate-refresh listener reads is_launching
@@ -323,11 +338,22 @@ func launch_attack() -> void:
 		if magic_plan.spell != null:
 			coord_scene = magic_plan.spell.vfx_coordinator_scene
 	if attack_vfx != null:
+		# See the melee branch above for why this goes through an untyped
+		# reference (both `play`/`play_ranged_volley` are declared `-> void`).
+		var untyped_attack_vfx: Variant = attack_vfx
+		var vfx_task
 		if coord_scene != null:
-			await attack_vfx.play(coord_scene, outcome)
+			vfx_task = untyped_attack_vfx.play(coord_scene, outcome)
 		else:
-			await attack_vfx.play_ranged_volley(outcome)
-	_flush_presentation(outcome)
+			vfx_task = untyped_attack_vfx.play_ranged_volley(outcome)
+		if timeline != null and presentation_player != null:
+			await presentation_player.play(timeline)
+		await vfx_task
+	elif timeline != null and presentation_player != null:
+		# Headless / no VFX mounted: nothing will ever emit the
+		# damage_shown/node_death_shown reveals a coordinator would — apply
+		# the whole timeline at once instead of waiting on them forever.
+		presentation_player.play_instant(timeline)
 	is_launching = false
 	_reset()
 
@@ -438,36 +464,16 @@ func _on_node_depleted(node: SkillNode) -> void:
 	# owner state is what changes mid-loop.
 	var layers: Array = _cascade_layers(node, cascade)
 	cascade_started.emit(layers, defender)
-	# #485: predict whether this cascade's chip damage finishes the defender
-	# off. If so, the entity-death strip (`AllocationSystem.deallocate_all_owned`,
-	# about to run synchronously from inside the loop below via
-	# `health.deplete → depleted → die() → entity_died`) is about to force-dealloc
-	# the REST of its territory. `death_strip_scheduled` is a SEPARATE signal from
-	# `cascade_started` deliberately — `LootSystem._on_cascade_started` treats
-	# `layers` as this cascade's removal set and adds its own +1 for the core
-	# (`_award_kill_xp`'s "`_held_nodes` excludes the core" contract); folding the
-	# death strip into `layers` double-paid the core (60 XP vs 50, caught by
-	# test_kill_xp_ledger.gd). AllocationVFX is the only other subscriber and
-	# stitches this into the SAME visual ripple via its own manifest, so the
-	# separation costs nothing visually. Only covers death via THIS chip-damage
-	# path — a direct core hit that empties `health` in one blow bypasses
-	# `_on_node_depleted` entirely (core never emits `depleted`, see
-	# entity-death.md) and is not covered here.
-	if board != null and board.health != null:
-		var predicted_chip: float = 0.0
-		for n in cascade:
-			if n != null and n.owned_by == defender:
-				predicted_chip += hp_per_node * float(maxi(n.allocation_level, 1))
-		if predicted_chip >= board.health.current:
-			var extra := _remaining_owned_nodes(defender, cascade)
-			if not extra.is_empty():
-				death_strip_scheduled.emit(extra, defender, node)
-	# #485: hold the wound TOAST until this impact's reveal — see
-	# `_on_node_death_shown` / `Entity.release_wound_presentation`. Recorded
-	# even when this cascade wounds nothing (defensive; `wound()` below is
-	# what actually accumulates an amount to reveal).
-	defender.hold_wound_presentation()
-	_pending_wound_reveals[node] = defender
+	# #491: the entity-death strip no longer needs a lethality PREDICTION here
+	# — `AllocationSystem._on_entity_died` (fired synchronously by the
+	# `health.deplete → depleted → die() → entity_died` chain from inside the
+	# loop below, same as before #485) wraps its own strip in
+	# `RevealRecorder.push_strip_scope()`, so its NODE_OWNER_LOST events
+	# record with the correct staggered `t` — inherited from whatever cause
+	# scope is open at the moment `health` actually crosses 0 — with no
+	## attribution logic needed. `death_strip_scheduled` (used only by the
+	# now-deleted prediction) has no remaining subscriber; see #488's "the
+	# system predicts its own future" for what this replaces.
 	var current_base := RevealRecorder.current_t()
 	for i in range(layers.size()):
 		RevealRecorder.push_cause(current_base + i * RevealTimeline.CASCADE_STEP)
@@ -487,17 +493,19 @@ func _on_node_depleted(node: SkillNode) -> void:
 					board.skill_points.wound(maxi(fill, 1))
 				if board.health != null and hp_per_node > 0.0:
 					var dmg: float = hp_per_node * float(maxi(fill, 1))
-					# Presentation clock (#487): hold BEFORE the deplete, so the
-					# core bar's pre-cascade value is what gets snapshotted, and
-					# queue the release against THIS node's own reveal — the same
-					# `layer * CASCADE_STEP` slot AllocationVFX reveals its paint
-					# on (see `_on_node_death_shown`). Without this the core bar
-					# used to drop for every cascaded node all at once, at
-					# model-mutation time — chip damage from a node that hasn't
-					# even visually died yet.
-					defender.hold_health_presentation()
+					# #491: recorded at the SAME `t` as this layer's
+					# NODE_OWNER_LOST — the core bar chips down staggered, one
+					# cascade layer at a time, same rhythm as the node paint.
+					# A lethal deplete re-enters through die() from inside
+					# this call (health.deplete → depleted → ... → die()),
+					# which would otherwise record ENTITY_DEATH ahead of this
+					# event — record BEFORE mutating, patch `to_value` after,
+					# same pattern as SkillNode.take_damage's core-overflow
+					# branch.
+					var before_health: float = board.health.current
+					var health_event := RevealRecorder.entity_health(defender, before_health, before_health)
 					board.health.deplete(dmg)
-					_pending_health_reveals[n] = {"defender": defender, "delta": -dmg}
+					health_event.to_value = board.health.current
 		RevealRecorder.pop_cause()
 
 

@@ -41,7 +41,7 @@ graph = NodePath("../../Graph")
 navigator = NodePath("../../Graph/Navigator")
 turn_manager = NodePath("../TurnManager")
 
-[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview")]
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview", "presentation_player")]
 unique_name_in_owner = true
 script = ExtResource("6_battle")
 turn_manager = NodePath("../TurnManager")
@@ -49,6 +49,7 @@ allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 attack_vfx = NodePath("../../Graph/AttackVFX")
 melee_preview = NodePath("../../Graph/MeleePreview")
+presentation_player = NodePath("../PresentationPlayer")
 
 [node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph", "turn_manager")]
 unique_name_in_owner = true
@@ -104,10 +105,11 @@ vision_system = NodePath("../../Systems/VisionSystem")
 falloff = 0.3
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
-[node name="AuraOverlay" parent="Graph" node_paths=PackedStringArray("graph", "allocation_system") instance=ExtResource("11_aura")]
+[node name="AuraOverlay" parent="Graph" node_paths=PackedStringArray("graph", "allocation_system", "presentation_player") instance=ExtResource("11_aura")]
 unique_name_in_owner = true
 graph = NodePath("..")
 allocation_system = NodePath("../../Systems/AllocationSystem")
+presentation_player = NodePath("../../Systems/PresentationPlayer")
 bounds = Rect2(-3000, -2250, 6000, 4500)
 
 [node name="FloaterDirector" parent="Graph" unique_id=1985116673 node_paths=PackedStringArray("vision_system") instance=ExtResource("12_ywsqi")]
@@ -133,13 +135,14 @@ unique_name_in_owner = true
 script = ExtResource("15_6puu6")
 metadata/_custom_type_script = "uid://8bt4s2ii2hx2"
 
-[node name="AllocationVFX" type="Node2D" parent="Graph" unique_id=1629578950 node_paths=PackedStringArray("allocation_system", "battle_system")]
+[node name="AllocationVFX" type="Node2D" parent="Graph" unique_id=1629578950 node_paths=PackedStringArray("allocation_system", "battle_system", "presentation_player")]
 unique_name_in_owner = true
 z_index = 2000
 z_as_relative = false
 script = ExtResource("16_k6861")
 allocation_system = NodePath("../../Systems/AllocationSystem")
 battle_system = NodePath("../../Systems/BattleSystem")
+presentation_player = NodePath("../../Systems/PresentationPlayer")
 metadata/_custom_type_script = "uid://db27minejvsw1"
 
 [node name="MeleePreview" type="Node2D" parent="Graph" unique_id=813121593 node_paths=PackedStringArray("battle_system")]

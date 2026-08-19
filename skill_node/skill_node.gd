@@ -429,6 +429,12 @@ func _ready() -> void:
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_presence)
 	owner_changed.connect(_refresh_hp_binding)
+	# #491: a GAIN of ownership (allocate / force_allocate) has no reveal
+	## behind it — push the view state immediately. A LOSS (force_deallocate)
+	## is already pushed, correctly staged, by RevealRecorder's NODE_OWNER_LOST
+	## record (fired before `owned_by` goes null) — this handler no-ops for
+	## that case by construction (`owned_by == null` guard).
+	owner_changed.connect(_seed_view_state_on_ownership_gain)
 	damaged.connect(_on_damaged_flash.unbind(2))
 	# Addons are plain direct children (#334) — no filing bin. Adopt the ones
 	# already present (scene-authored, or parented before we entered the tree),
@@ -442,6 +448,7 @@ func _ready() -> void:
 	child_exiting_tree.connect(_on_addon_removed)
 	_refresh_core_presence()
 	_refresh_hp_binding()
+	set_view_state(_current_node_hp(), owned_by)
 
 
 func _refresh_core_presence() -> void:
@@ -601,16 +608,35 @@ func hold_presentation() -> void:
 ## post-cascade, so refreshing off it would snap the defender's whole territory
 ## away on the first revealed node instead of one stagger slot at a time.
 func get_shown_owner() -> Entity:
-	if _presentation_hold_count > 0 and is_instance_valid(_held_owner):
-		return _held_owner
-	return owned_by
+	return shown_owner
 
 
-## Combat HP as currently DRAWN — see [member _shown_hp].
+## Combat HP as currently DRAWN — see [member shown_hp].
 func get_shown_hp() -> float:
-	if _presentation_hold_count > 0:
-		return _shown_hp
-	return _current_node_hp()
+	return shown_hp
+
+
+## ── Presentation view state (#491) ──────────────────────────────────────────
+##
+## The DRAWN combat HP / owner — what a painter should render, as opposed to
+## [member owned_by] / the real HP pool, which mutate synchronously the
+## instant an attack resolves (#474). [PresentationPlayer] is the single
+## writer, via [method set_view_state]; these fields carry NO logic of their
+## own — see #488's invariant. `_sync_visuals()` is the repaint this drives.
+signal view_state_changed(hp: float, owner: Entity)
+var shown_hp: float = 0.0
+var shown_owner: Entity = null
+
+
+func set_view_state(hp: float, owner: Entity) -> void:
+	shown_hp = hp
+	shown_owner = owner
+	view_state_changed.emit(hp, owner)
+
+
+func _seed_view_state_on_ownership_gain() -> void:
+	if owned_by != null:
+		set_view_state(_current_node_hp(), owned_by)
 
 
 ## One hit's reveal has arrived: take one slot off the refcount. [param hp_delta]

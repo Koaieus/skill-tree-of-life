@@ -10,21 +10,14 @@ class_name OutcomeApplier
 ## model will want.
 
 
-## Withhold presentation on every target before landing anything (so the
-## whole outcome mutates as one atomic step from the VFX layer's POV), then
-## land every hit in append order. Two passes, same as the pre-#381
-## hits-then-heals shape — ordering between hits no longer matters since
+## Land every hit in append order — the view lag that used to require
+## withholding each target's paint first (#487) is now the recorded
+## timeline's job: [method RevealRecorder.push_cause] stamps each hit's own
+## `arrival_time` onto whatever it records, and [PresentationPlayer] is what
+## makes the view catch up later. Ordering between hits doesn't matter since
 ## [IncidentReducer] guarantees at most one landing per node per wave; see
-## the #381 plan's ordering fork. A ranged volley isn't wave-reduced, though —
-## several [DamageInstance]s can share one `target` (every firing leaf
-## converging on the same node), so [method SkillNode.hold_presentation] is a
-## REFCOUNT (#487): one `hold_presentation()` call per hit here, one matching
-## `release_presentation()` per hit's own reveal, never a single latch shared
-## across all of them.
+## the #381 plan's ordering fork.
 static func apply(outcome: AttackOutcome) -> void:
-	for hit in outcome.hits:
-		if hit.target != null:
-			hit.target.hold_presentation()
 	for hit in outcome.hits:
 		if hit.target != null:
 			RevealRecorder.push_cause(hit.arrival_time)

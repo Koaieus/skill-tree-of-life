@@ -238,6 +238,7 @@ func _ready() -> void:
 		# dies. The core node never emits `depleted` itself (#18).
 		if stat_board.health != null:
 			stat_board.health.depleted.connect(_on_health_depleted)
+			set_view_health(stat_board.health.current)
 
 	var tm := _find_turn_manager()
 	if tm != null:
@@ -529,19 +530,27 @@ func release_health_presentation(delta: float) -> void:
 		Events.entity_death_shown.emit(self)
 
 
-## Combat health as currently DRAWN — see [member _shown_health].
+## Combat health as currently DRAWN — see [member shown_health].
 func get_shown_health() -> float:
-	if _health_hold_count > 0:
-		return _shown_health
-	return stat_board.health.current if stat_board != null and stat_board.health != null else 0.0
+	return shown_health
+
+
+## ── Presentation view state (#491) ──────────────────────────────────────────
+##
+## The `health` pool's DRAWN value — [PresentationPlayer] is the single
+## writer, via [method set_view_health]. No logic of its own, see #488's
+## invariant.
+signal view_health_changed(shown: float)
+var shown_health: float = 0.0
+
+
+func set_view_health(v: float) -> void:
+	shown_health = v
+	view_health_changed.emit(v)
 
 
 func _emit_entity_wounded(amount: int) -> void:
 	RevealRecorder.entity_wound(self, amount)
-	if _wound_presentation_held:
-		_held_wound_amount += amount
-		return
-	Events.entity_wounded.emit(self, amount)
 
 
 func _emit_entity_healed(amount: int) -> void:

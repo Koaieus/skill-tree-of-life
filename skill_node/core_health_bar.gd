@@ -18,11 +18,10 @@ const _COLOR_LOW  := Color(0.85, 0.10, 0.10, 1.0)
 
 var _fill_style: StyleBoxFlat = null
 var _pool: PoolStat = null
-## The entity this pool belongs to — presentation-clock anchor (#487): while
-## `_entity.health_presentation_held`, a chip/overflow source has already
-## moved the pool but that source's own node reveal hasn't landed yet, so the
-## drain must wait for `health_reveal_progress` instead of following the pool
-## straight. Null is a valid bind (no entity, no gating — same as before #487).
+## The entity this pool belongs to. Only tracked here for `view_health_changed`
+## — the drawn `value` is driven exclusively by that signal, not by the pool's
+## own `current_changed`; see #491. Null is a valid bind (no entity, no drawn
+## lag — the bar just follows the pool directly).
 var _entity: Entity = null
 var _fade_tween: Tween = null
 var _value_tween: Tween = null
@@ -40,27 +39,25 @@ func _ready() -> void:
 
 
 ## Bind to an entity's health [PoolStat] (pass [code]null[/code] to detach).
-## [param entity] is the presentation-clock anchor (#487) — pass the owning
-## [Entity] so a chip/overflow source's reveal is honoured; omit it to fall
-## back to following the pool directly (pre-#487 behaviour). Fades in on
+## [param entity] is the view-state anchor (#491) — its [signal
+## Entity.view_health_changed] drives the drawn `value`, never the pool's own
+## `current_changed`, so the bar lags the pool by however long
+## [PresentationPlayer] takes to reveal a chip/overflow source. Fades in on
 ## bind, fades out on detach.
 func bind_health(pool: PoolStat, entity: Entity = null) -> void:
 	if _pool == pool and _entity == entity:
 		return
 	if _pool != null:
-		if _pool.current_changed.is_connected(_on_current_changed):
-			_pool.current_changed.disconnect(_on_current_changed)
 		if _pool.value_changed.is_connected(_on_max_changed):
 			_pool.value_changed.disconnect(_on_max_changed)
-	if _entity != null and _entity.health_reveal_progress.is_connected(_on_health_reveal_progress):
-		_entity.health_reveal_progress.disconnect(_on_health_reveal_progress)
+	if _entity != null and _entity.view_health_changed.is_connected(_on_view_health_changed):
+		_entity.view_health_changed.disconnect(_on_view_health_changed)
 	_pool = pool
 	_entity = entity
 	if _pool != null:
-		_pool.current_changed.connect(_on_current_changed)
 		_pool.value_changed.connect(_on_max_changed)
 		if _entity != null:
-			_entity.health_reveal_progress.connect(_on_health_reveal_progress)
+			_entity.view_health_changed.connect(_on_view_health_changed)
 		_sync()
 		_fade_to(1.0)
 	else:
@@ -69,27 +66,11 @@ func bind_health(pool: PoolStat, entity: Entity = null) -> void:
 
 # ── Pool signal handlers ──────────────────────────────────────────────────────
 
-func _on_current_changed(_new_val: Variant) -> void:
-	if _pool == null:
-		return
-	# Presentation clock (#487): a chip/overflow source moved the pool already
-	# (#474) but its own reveal hasn't landed — skip the drain here;
-	# `_on_health_reveal_progress` steps it instead, once per reveal.
-	if _entity != null and _entity.health_presentation_held:
-		return
-	var target := float(_pool.current)
-	var going_down := target < value
-	if going_down:
-		_tween_value(target, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
-	else:
-		_tween_value(target, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
-
-
-## One chip/overflow source's reveal has landed (#487) — step toward the
-## entity's SHOWN health, which only reaches the pool's real value once every
-## pending source has had its own reveal (a staggered cascade steps this once
-## per layer, same rhythm as the node paint ripple).
-func _on_health_reveal_progress(shown_value: float) -> void:
+## The entity's DRAWN health changed (#491) — [PresentationPlayer] is the
+## single writer, so this fires on the exact cadence a chip/overflow source
+## should visibly land (a staggered cascade steps this once per layer, same
+## rhythm as the node paint ripple).
+func _on_view_health_changed(shown_value: float) -> void:
 	var going_down := shown_value < value
 	if going_down:
 		_tween_value(shown_value, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
@@ -106,7 +87,7 @@ func _sync() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
-	value = float(_pool.current)
+	value = _entity.shown_health if _entity != null else float(_pool.current)
 
 
 # ── Fade ──────────────────────────────────────────────────────────────────────

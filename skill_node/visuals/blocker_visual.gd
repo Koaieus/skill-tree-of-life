@@ -106,8 +106,6 @@ var _cleared: bool = false
 func _ready() -> void:
 	_node = owner as SkillNode
 	if _node != null:
-		if not _node.damaged.is_connected(_on_damaged):
-			_node.damaged.connect(_on_damaged)
 		# CONNECT_DEFERRED, matching health_bar.gd's `_on_owner_changed`:
 		# reading combat HP needs `SkillNode._refresh_hp_binding` to have
 		# already bound this node's `node_board` to the new owner's baseline.
@@ -121,11 +119,11 @@ func _ready() -> void:
 			_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 		if not _node.sensed_changed.is_connected(_on_sensed_changed):
 			_node.sensed_changed.connect(_on_sensed_changed)
-		# Plain (not deferred) — this fires well after any fresh-allocation HP
-		# race has already settled (it's the RELEASE of a hold, never the
-		# initial owner_changed), so there's nothing to wait out here.
-		if not _node.presentation_released.is_connected(_on_presentation_released):
-			_node.presentation_released.connect(_on_presentation_released)
+		# #491: crack stage re-syncs off the node's own DRAWN hp, pushed by
+		# PresentationPlayer — replaces the old `damaged` + presentation-hold
+		# gate + `presentation_released` catch-up trio with one signal.
+		if not _node.view_state_changed.is_connected(_on_view_state_changed):
+			_node.view_state_changed.connect(_on_view_state_changed)
 	# Deferred for the same reason as the connect above. Establishes the
 	# initial latch (a freshly-spawned blocker's force_allocate already ran
 	# before this visual entered the tree, so `owned_by` is non-null here) and
@@ -134,17 +132,11 @@ func _ready() -> void:
 	_on_owner_changed.call_deferred()
 
 
-## No-ops while the node's repaint is withheld (#479/#482) — see the class
-## docstring's presentation-hold paragraph. `presentation_released` catches
-## the deferred refresh; a rapid multi-hit exchange under one hold collapses
-## to a single re-sync against the FINAL hp fraction, not one per hit.
-func _on_damaged(_amount: float, _source: Variant) -> void:
-	if _node != null and _node.presentation_hold:
-		return
-	_refresh_stage_and_visibility()
-
-
-func _on_presentation_released() -> void:
+## #491: the node's DRAWN hp changed — re-sync the crack stage against it.
+## Fires on PresentationPlayer's own reveal cadence, so a rapid multi-hit
+## exchange still lands on its FINAL hp fraction rather than replaying every
+## intermediate step (each push already IS the intermediate step).
+func _on_view_state_changed(_hp: float, _owner: Entity) -> void:
 	_refresh_stage_and_visibility()
 
 
@@ -212,7 +204,7 @@ func _hp_fraction() -> float:
 	var max_hp := _node.get_max_hp()
 	if max_hp <= 0.0:
 		return 0.0
-	return _node.get_current_hp() / max_hp
+	return _node.shown_hp / max_hp
 
 
 func _radius() -> float:

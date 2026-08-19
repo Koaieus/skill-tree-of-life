@@ -38,6 +38,13 @@ var _tile_index := OverlayFieldTileIndex.new()
 		allocation_system = value
 		_connect_allocation()
 		_refresh()
+## #491: territory refresh for a combat-caused loss rides the player's own
+## NODE_OWNER_LOST reveal now — see `_on_reveal`.
+@export var presentation_player: PresentationPlayer:
+	set(value):
+		_disconnect_allocation()
+		presentation_player = value
+		_connect_allocation()
 @export_range(0.0, 1.0, 0.01) var intensity: float = 0.6:
 	set(value):
 		intensity = value
@@ -204,47 +211,37 @@ func _on_entity_died(_entity: Entity) -> void:
 
 
 func _connect_allocation() -> void:
-	if allocation_system == null:
-		return
-	if not allocation_system.allocated.is_connected(_on_ownership_changed):
-		allocation_system.allocated.connect(_on_ownership_changed)
-	if not allocation_system.deallocated.is_connected(_on_ownership_changed):
-		allocation_system.deallocated.connect(_on_ownership_changed)
-	if not allocation_system.force_deallocated.is_connected(_on_force_deallocated):
-		allocation_system.force_deallocated.connect(_on_force_deallocated)
-	# #483: a node whose territory loss is being revealed on the presentation
-	# clock refreshes the aura at its reveal, not at its model mutation.
-	if not Events.node_death_shown.is_connected(_on_ownership_changed):
-		Events.node_death_shown.connect(_on_ownership_changed)
+	if allocation_system != null:
+		if not allocation_system.allocated.is_connected(_on_ownership_changed):
+			allocation_system.allocated.connect(_on_ownership_changed)
+		if not allocation_system.deallocated.is_connected(_on_ownership_changed):
+			allocation_system.deallocated.connect(_on_ownership_changed)
+	# #491: forced-dealloc territory loss (combat cascade, entity-death strip,
+	# or a standalone force-dealloc) refreshes off the player's own
+	# NODE_OWNER_LOST reveal — see `_on_reveal`. Pass-through mode reveals it
+	# immediately for a non-combat dealloc, so this covers every case
+	# uniformly with no presentation-hold-shaped gate here.
+	if presentation_player != null and not presentation_player.event_revealed.is_connected(_on_reveal):
+		presentation_player.event_revealed.connect(_on_reveal)
 
 
 func _disconnect_allocation() -> void:
-	if allocation_system == null:
-		return
-	if allocation_system.allocated.is_connected(_on_ownership_changed):
-		allocation_system.allocated.disconnect(_on_ownership_changed)
-	if allocation_system.deallocated.is_connected(_on_ownership_changed):
-		allocation_system.deallocated.disconnect(_on_ownership_changed)
-	if allocation_system.force_deallocated.is_connected(_on_force_deallocated):
-		allocation_system.force_deallocated.disconnect(_on_force_deallocated)
-	if Events.node_death_shown.is_connected(_on_ownership_changed):
-		Events.node_death_shown.disconnect(_on_ownership_changed)
+	if allocation_system != null:
+		if allocation_system.allocated.is_connected(_on_ownership_changed):
+			allocation_system.allocated.disconnect(_on_ownership_changed)
+		if allocation_system.deallocated.is_connected(_on_ownership_changed):
+			allocation_system.deallocated.disconnect(_on_ownership_changed)
+	if presentation_player != null and presentation_player.event_revealed.is_connected(_on_reveal):
+		presentation_player.event_revealed.disconnect(_on_reveal)
 
 
 func _on_ownership_changed(_node: SkillNode, _entity_arg: Variant = null, _extra: Variant = null) -> void:
 	_refresh()
 
 
-## Forced dealloc splits two ways (#483). Combat territory loss is withheld:
-## the node is holding its paint until the killing hit's VFX lands (direct hit)
-## or until its slot in the cascade ripple (islanded neighbours), and
-## `Events.node_death_shown` refreshes us then. Everything else — the entity-
-## death strip, sandbox drivers — has no VFX to wait on and refreshes now.
-##
-## `_refresh()` re-reads the whole ownership model, so a refresh per revealed
-## node is correct even mid-cascade: each one paints the territory as it stands
-## at that beat.
-func _on_force_deallocated(node: SkillNode, _previous_owner: Entity = null) -> void:
-	if node != null and node.presentation_hold:
-		return
-	_refresh()
+## #491: `_refresh()` re-reads the whole ownership model, so a refresh per
+## revealed node is correct even mid-cascade: each one paints the territory
+## as it stands at that beat.
+func _on_reveal(event: RevealEvent) -> void:
+	if event.kind == RevealEvent.Kind.NODE_OWNER_LOST:
+		_refresh()

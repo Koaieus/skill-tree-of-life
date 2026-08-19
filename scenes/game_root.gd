@@ -189,18 +189,18 @@ func _unhandled_input(event: InputEvent) -> void:
 ## (#479), so the corpse stays on screen through its own death VFX instead of
 ## vanishing at raw model-mutation time.
 ##
-## `entity.health_presentation_held` is true iff the killing hit took a
-## presentation hold before depleting `health` (every attack-caused death does,
-## see `Entity.release_health_presentation`) — if nothing is holding, there's
-## no reveal to wait for (upkeep, an effect, a test calling `die()` directly),
-## so reveal immediately, same as before #479's gate.
+## #491: the despawn/game-over reveal always arrives via
+## `_on_entity_death_shown` now — `Entity.die()` unconditionally records an
+## ENTITY_DEATH reveal (`RevealRecorder.entity_death`), and
+## `PresentationPlayer` emits `Events.entity_death_shown` for it either way:
+## staged, if a recording is open (an attack-driven death); immediately, via
+## pass-through, if not (upkeep, an effect, a test calling `die()` directly).
+## No fallback branch needed here anymore.
 func _on_entity_died(entity: Entity) -> void:
 	if entity == null:
 		return
 	if entity != player:
 		_pull_npc_from_turn_loop(entity)
-	if not entity.health_presentation_held:
-		_reveal_entity_death(entity)
 
 
 ## Pull a dead NPC out of the turn-loop groups SYNCHRONOUSLY so TurnManager's

@@ -1,18 +1,27 @@
 class_name PresentationPlayer
 extends Node
 
-## Owns the view store and is the single writer of view state (#488). Mounted
-## in `scenes/game_root.tscn` as `%PresentationPlayer`; `RevealRecorder.player`
-## is assigned during `GameRoot` composition.
+## Owns the view store and is the single writer of view state (#488/#491).
+## Mounted in `scenes/game_root.tscn` as `%PresentationPlayer`;
+## `RevealRecorder.player` is assigned during `GameRoot` composition.
 ##
-## In this child (#489) the player only updates its own store — it does not
-## yet push to `SkillNode`/`Entity` (`set_view_state` arrives in #491). Tests
-## read the store through [method shown_hp] / [method shown_owner] /
-## [method shown_health].
+## Every applied event is PUSHED into the subject's own dumb view fields
+## ([method SkillNode.set_view_state] / [method Entity.set_view_health]) —
+## the node/entity is the thing readers should bind to; [method shown_hp] /
+## [method shown_owner] / [method shown_health] stay as this class's own
+## bookkeeping (and the tie-break for `from_value` seeding) rather than the
+## primary read path. [signal event_revealed] is the generic hook for
+## consumers that react to a REVEAL as an event (a shatter, a territory
+## refresh) rather than to a continuous value (AllocationVFX, AuraOverlay).
 
 var _shown_hp: Dictionary = {}     # SkillNode -> float
 var _shown_owner: Dictionary = {}  # SkillNode -> Entity
 var _shown_health: Dictionary = {} # Entity -> float
+
+## Fired for every event this player applies — pass-through, `play_instant`,
+## or one wall-clock step of `play`. Kind-agnostic; consumers filter by
+## [member RevealEvent.kind].
+signal event_revealed(event: RevealEvent)
 
 
 ## Walks [param timeline] on the wall clock, awaiting between each event's
@@ -43,25 +52,37 @@ func play_instant(timeline: RevealTimeline) -> void:
 		apply_now(e)
 
 
-## Pass-through path (#489 has no caller yet; #490/#491 wire the recorder).
-## Applies one event's post-mutation state to the store immediately.
+## Applies one event's post-mutation state — pushed into the store AND the
+## subject's own view fields — then fires [signal event_revealed]. This is
+## both the pass-through path (`RevealRecorder._record` when nothing is
+## recording) and the per-step application `play`/`play_instant` walk into.
 func apply_now(event: RevealEvent) -> void:
 	match event.kind:
 		RevealEvent.Kind.NODE_HP:
 			if is_instance_valid(event.node):
 				_shown_hp[event.node] = event.to_value
+				_push_node(event.node)
 		RevealEvent.Kind.NODE_DEATH:
 			pass
 		RevealEvent.Kind.NODE_OWNER_LOST:
 			if is_instance_valid(event.node):
 				_shown_owner[event.node] = null
+				_push_node(event.node)
 		RevealEvent.Kind.ENTITY_HEALTH:
 			if is_instance_valid(event.entity):
 				_shown_health[event.entity] = event.to_value
+				event.entity.set_view_health(event.to_value)
 		RevealEvent.Kind.ENTITY_WOUND:
-			pass
+			if is_instance_valid(event.entity):
+				Events.entity_wounded.emit(event.entity, int(event.to_value))
 		RevealEvent.Kind.ENTITY_DEATH:
-			pass
+			if is_instance_valid(event.entity):
+				Events.entity_death_shown.emit(event.entity)
+	event_revealed.emit(event)
+
+
+func _push_node(node: SkillNode) -> void:
+	node.set_view_state(shown_hp(node), shown_owner(node))
 
 
 func shown_hp(node: SkillNode) -> float:
@@ -108,9 +129,12 @@ func _apply_seed(event: RevealEvent) -> void:
 		RevealEvent.Kind.NODE_HP:
 			if is_instance_valid(event.node):
 				_shown_hp[event.node] = event.from_value
+				_push_node(event.node)
 		RevealEvent.Kind.NODE_OWNER_LOST:
 			if is_instance_valid(event.node):
 				_shown_owner[event.node] = event.entity
+				_push_node(event.node)
 		RevealEvent.Kind.ENTITY_HEALTH:
 			if is_instance_valid(event.entity):
 				_shown_health[event.entity] = event.from_value
+				event.entity.set_view_health(event.from_value)
