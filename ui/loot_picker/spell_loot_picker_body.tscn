@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c0spellpickerbody01"]
+[gd_scene format=3 uid="uid://2wrifewecgho"]
 
 [ext_resource type="Script" path="res://ui/loot_picker/spell_loot_picker_body.gd" id="1_body"]
 

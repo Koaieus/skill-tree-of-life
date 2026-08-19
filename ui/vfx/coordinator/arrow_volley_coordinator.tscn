@@ -9,4 +9,4 @@ script = ExtResource("2")
 [node name="ArrowVolleyCoordinator" type="Node2D" unique_id=308820455]
 script = ExtResource("1")
 projectile_path = SubResource("Resource_arc")
-flight_time = 1.0
+flight_time = 2.0
