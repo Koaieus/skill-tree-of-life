@@ -69,7 +69,9 @@ func _ready() -> void:
 ## a deferred call whose Object arg is freed is dropped, orphaning the nodes
 ## (owned_by a freed entity). See test_npc_death_via_bus_deallocates_before_free.
 func _on_entity_died(entity: Entity) -> void:
+	RevealRecorder.push_strip_scope()
 	deallocate_all_owned(entity)
+	RevealRecorder.pop_strip_scope()
 
 
 ## Force-deallocate every node the entity owns, via the same `force_deallocate`
@@ -267,6 +269,7 @@ func force_deallocate(node: SkillNode) -> Entity:
 	node.remove_entity_modifiers_from(board)
 	if previous.navigator != null:
 		previous.navigator.mirror_remove(node)
+	RevealRecorder.node_owner_lost(node, previous)
 	node.owned_by = null
 	previous.dispatch(&"_on_node_deallocated", [node, true])
 	force_deallocated.emit(node, previous)

@@ -27,4 +27,6 @@ static func apply(outcome: AttackOutcome) -> void:
 			hit.target.hold_presentation()
 	for hit in outcome.hits:
 		if hit.target != null:
+			RevealRecorder.push_cause(hit.arrival_time)
 			hit.land_on(hit.target)
+			RevealRecorder.pop_cause()

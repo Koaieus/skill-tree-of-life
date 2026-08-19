@@ -437,6 +437,7 @@ func die() -> void:
 	if is_dead:
 		return
 	is_dead = true
+	RevealRecorder.entity_death(self)
 	died.emit()
 	# Before the bus phases: effects see the corpse fully intact (nodes still
 	# owned, modifiers still applied), same pre-strip world LootSystem relies on.
@@ -536,6 +537,7 @@ func get_shown_health() -> float:
 
 
 func _emit_entity_wounded(amount: int) -> void:
+	RevealRecorder.entity_wound(self, amount)
 	if _wound_presentation_held:
 		_held_wound_amount += amount
 		return

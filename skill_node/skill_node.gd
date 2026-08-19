@@ -1257,6 +1257,7 @@ func take_damage(amount: float, source: Variant) -> void:
 		return
 	var before := hp.current
 	hp.deplete(effective)
+	RevealRecorder.node_hp(self, before, hp.current)
 	if source is DamageInstance:
 		if flipped_to_heal:
 			# Clamped delta's magnitude — same contract heal_damage uses, so a
@@ -1287,11 +1288,25 @@ func take_damage(amount: float, source: Variant) -> void:
 			# so the pre-hit value is what gets snapshotted; BattleSystem
 			# releases it off the same reveal that releases this node's own
 			# combat-hp latch (`Events.core_health_chipped` → `_on_damage_shown`).
-			owned_by.hold_health_presentation()
-			owned_by.stat_board.health.deplete(overflow)
-			Events.core_health_chipped.emit(self, owned_by, -overflow)
+			# Snapshot the entity + its pool BEFORE deplete(): crossing 0 fires
+			# `health.depleted` synchronously, which can run the whole death
+			# cascade (die() -> ... -> AllocationSystem strips this very core
+			# node) before deplete() returns — re-reading `owned_by` afterward
+			# would see it already cleared to null.
+			var entity := owned_by
+			var health_pool := entity.stat_board.health
+			entity.hold_health_presentation()
+			var entity_before := health_pool.current
+			# Record BEFORE mutating (placeholder to_value, patched below) —
+			# a lethal overflow re-enters through die() from inside deplete(),
+			# which would otherwise record ENTITY_DEATH ahead of this event.
+			var health_event := RevealRecorder.entity_health(entity, entity_before, entity_before)
+			health_pool.deplete(overflow)
+			health_event.to_value = health_pool.current
+			Events.core_health_chipped.emit(self, entity, -overflow)
 		return
 	if hp.current <= 0.0:
+		RevealRecorder.node_death(self)
 		depleted.emit()
 		Events.skill_node_depleted.emit(self)
 
@@ -1306,6 +1321,7 @@ func heal_damage(amount: float, source: Variant) -> void:
 	var prev := hp.current
 	hp.set_current(min(hp.current + amount, hp.value))
 	var effective := hp.current - prev
+	RevealRecorder.node_hp(self, prev, hp.current)
 	# Stash the post-clamp number back onto the instance so a LATER
 	# presentation reveal (heal_shown, #481/#482) can show what actually landed
 	# instead of the raw pre-clamp amount.

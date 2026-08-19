@@ -77,8 +77,17 @@ static func node_owner_lost(node: SkillNode, previous_owner: Entity) -> void:
 	_record(RevealEvent.node_owner_lost(node, previous_owner))
 
 
-static func entity_health(entity: Entity, from: float, to: float) -> void:
-	_record(RevealEvent.entity_health(entity, from, to))
+## Returns the recorded event so a caller whose deplete crosses 0 (and so
+## can re-enter synchronously through [method Entity.die] before the pool
+## mutation call returns — see [SkillNode.take_damage]'s core-overflow
+## branch) can record BEFORE mutating and patch `to_value` in afterward.
+## That is what keeps ENTITY_HEALTH ahead of the ENTITY_DEATH the re-entrant
+## `die()` call records — both land at the same `t`, so only append order
+## (not the value inside the event) decides the tie.
+static func entity_health(entity: Entity, from: float, to: float) -> RevealEvent:
+	var event := RevealEvent.entity_health(entity, from, to)
+	_record(event)
+	return event
 
 
 static func entity_wound(entity: Entity, amount: float) -> void:
@@ -87,6 +96,13 @@ static func entity_wound(entity: Entity, amount: float) -> void:
 
 static func entity_death(entity: Entity) -> void:
 	_record(RevealEvent.entity_death(entity))
+
+
+## The `t` a record made right now would land on, without consuming a stagger
+## slot — lets a caller compute a nested scope's base relative to the
+## currently open one (see [BattleSystem]'s per-cascade-layer scopes).
+static func current_t() -> float:
+	return _current_t()
 
 
 static func _current_t() -> float:

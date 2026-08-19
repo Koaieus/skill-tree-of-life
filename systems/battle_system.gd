@@ -71,6 +71,10 @@ var _pending_wound_reveals: Dictionary[SkillNode, Entity] = {}
 ## `node_death_shown`) and `_on_node_death_shown` (cascade chip).
 var _pending_health_reveals: Dictionary[SkillNode, Dictionary] = {}
 
+## Presentation clock (#488): the timeline recorded off this attack's
+## synchronous mutation. Nothing consumes it yet — child 3 (#491) plays it.
+var last_reveal_timeline: RevealTimeline = null
+
 
 var attack_plan: AttackPlan:
 	set(value):
@@ -395,7 +399,9 @@ func _flush_presentation(outcome: AttackOutcome) -> void:
 ## `_on_damage_shown` / `_on_heal_shown` / `_on_node_death_shown` — and
 ## `_flush_presentation` guarantees one of those fires.
 func _apply_outcome(outcome: AttackOutcome) -> void:
+	RevealRecorder.begin(RevealTimeline.new())
 	OutcomeApplier.apply(outcome)
+	last_reveal_timeline = RevealRecorder.end()
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the
@@ -462,33 +468,37 @@ func _on_node_depleted(node: SkillNode) -> void:
 	# what actually accumulates an amount to reveal).
 	defender.hold_wound_presentation()
 	_pending_wound_reveals[node] = defender
-	for n in cascade:
-		if n == null or n.owned_by != defender:
-			continue
-		# Snapshot the fill BEFORE force_deallocate — owner_changed zeroes
-		# allocation_level via _refresh_alloc_count, so any read after the
-		# call returns 0 and the wound count / damage multiplier would silently
-		# collapse (#337; same shape as LootSystem's pre-cleanup snapshot). A
-		# 2/2 node costs 2 wounds and 2x dealloc_damage; the maxi(1, ·) floor
-		# keeps the pre-staking 1/1 costs exactly as they were.
-		var fill: int = n.allocation_level
-		allocation_system.force_deallocate(n)
-		if board != null:
-			if board.skill_points != null:
-				board.skill_points.wound(maxi(fill, 1))
-			if board.health != null and hp_per_node > 0.0:
-				var dmg: float = hp_per_node * float(maxi(fill, 1))
-				# Presentation clock (#487): hold BEFORE the deplete, so the
-				# core bar's pre-cascade value is what gets snapshotted, and
-				# queue the release against THIS node's own reveal — the same
-				# `layer * CASCADE_STEP` slot AllocationVFX reveals its paint
-				# on (see `_on_node_death_shown`). Without this the core bar
-				# used to drop for every cascaded node all at once, at
-				# model-mutation time — chip damage from a node that hasn't
-				# even visually died yet.
-				defender.hold_health_presentation()
-				board.health.deplete(dmg)
-				_pending_health_reveals[n] = {"defender": defender, "delta": -dmg}
+	var current_base := RevealRecorder.current_t()
+	for i in range(layers.size()):
+		RevealRecorder.push_cause(current_base + i * RevealTimeline.CASCADE_STEP)
+		for n in layers[i]:
+			if n == null or n.owned_by != defender:
+				continue
+			# Snapshot the fill BEFORE force_deallocate — owner_changed zeroes
+			# allocation_level via _refresh_alloc_count, so any read after the
+			# call returns 0 and the wound count / damage multiplier would silently
+			# collapse (#337; same shape as LootSystem's pre-cleanup snapshot). A
+			# 2/2 node costs 2 wounds and 2x dealloc_damage; the maxi(1, ·) floor
+			# keeps the pre-staking 1/1 costs exactly as they were.
+			var fill: int = n.allocation_level
+			allocation_system.force_deallocate(n)
+			if board != null:
+				if board.skill_points != null:
+					board.skill_points.wound(maxi(fill, 1))
+				if board.health != null and hp_per_node > 0.0:
+					var dmg: float = hp_per_node * float(maxi(fill, 1))
+					# Presentation clock (#487): hold BEFORE the deplete, so the
+					# core bar's pre-cascade value is what gets snapshotted, and
+					# queue the release against THIS node's own reveal — the same
+					# `layer * CASCADE_STEP` slot AllocationVFX reveals its paint
+					# on (see `_on_node_death_shown`). Without this the core bar
+					# used to drop for every cascaded node all at once, at
+					# model-mutation time — chip damage from a node that hasn't
+					# even visually died yet.
+					defender.hold_health_presentation()
+					board.health.deplete(dmg)
+					_pending_health_reveals[n] = {"defender": defender, "delta": -dmg}
+		RevealRecorder.pop_cause()
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to
