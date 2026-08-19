@@ -71,8 +71,9 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 |---|---|---|
 | ~~#473~~ | ~~Design session: the multiplayer sync model~~ | **Decided 2026-08-18** — `docs/domain/multiplayer-sync-model.md` |
 | **#457** | `GameSession` + one-shot seed resolution | `Needs design` — **owner decision**, it is the determinism contract. Scope grew: it must also cover combat/loot RNG, see its comment |
-| **#474** | Split world mutation from VFX in `launch_attack` | **do this first** of the sync lane — required under every model, gates #458 |
-| **#458** | `Command` + `CommandApplier` (rewritten) | behind #474. The reroute is small — nine verbs, not 850 lines |
+| ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** Mutation is synchronous at t=0; VFX is a pure observer |
+| **#488** | Presentation clock v2 — one recorded reveal timeline, delete the hold machinery | **do this first** of the sync lane. Hub, 6 children (#489→#494), all `Ready`. Supersedes #479. Its `RevealTimeline` is the shape #458's confirmed-command payload wants |
+| **#458** | `Command` + `CommandApplier` (rewritten) | behind #488. The reroute is small — nine verbs, not 850 lines |
 | **#475** | Author real faction camps | was prose inside #459/#463; gates versus, and #459 wants the allied-humans half |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready`** |
 | **#460** | `VictorySystem` — a run that can end | `Needs design` — what *is* the win condition |
@@ -85,7 +86,8 @@ Tech Seeds, **#412** armed-mode viewport tint. All three `Needs design` — "sho
 be easy to get *something* going", so they want a fast swarmify, not a deep one.
 
 **Order:** the sync model is settled; #457 is the one decision left that shapes
-everything else, and it is not a drone unit. Then #474 → #458, in that order.
+everything else, and it is not a drone unit. Then #488 → #458, in that order —
+#488's children are strictly sequential except #493, which parallels #492.
 #459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
 #459 needs half of it. #460 wants its own design pass. #463 stays gated — it
 opens only once #474, #458 and #475 have landed and offline play is verified
