@@ -155,13 +155,10 @@ func _on_live_hit(
 	var effective: float = damage
 	if not _pending_hits.is_empty():
 		effective = _pending_hits.pop_front().effective_amount
-	# Not "if not target.is_allocated(): node_death_shown" here (#487) — a
-	# multi-hit blade vertex can strike the SAME target more than once per
-	# swing, and the model reads it as dead from the first landing hit onward
-	# (#474), which would double-drain that target's presentation refcount.
-	# SkillNode.release_presentation (via BattleSystem._on_damage_shown,
-	# triggered by the emit below) announces the target's own death itself, on
-	# its own final release — see arrow_volley_coordinator's identical fix.
+	# No per-hit `node_death_shown` here — see the #487 fix in
+	# arrow_volley_coordinator.gd's `_show_presentation` for why (a blade
+	# vertex striking the same target twice in one swing would double-drain
+	# its presentation refcount).
 	Events.damage_shown.emit(target, effective)
 
 

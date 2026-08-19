@@ -183,14 +183,10 @@ func _show_presentation(wave: Array) -> void:
 			if hit.kind == HitInstance.Kind.HEAL:
 				Events.heal_shown.emit(ev.target, hit.effective_amount)
 			else:
-				# Not "if not ev.target.is_allocated(): node_death_shown" here
-				# (#487) — a multi-hit target (e.g. a self-loop bouncing back)
-				# reads as dead in the model from its FIRST hit's reveal onward
-				# (#474), so that check double-drained a multi-hit target's
-				# presentation refcount. SkillNode.release_presentation (via
-				# BattleSystem._on_damage_shown, triggered by the emit below)
-				# announces the target's own death itself, on its own final
-				# release — see arrow_volley_coordinator's identical fix.
+				# No per-hit `node_death_shown` here — see the #487 fix in
+				# arrow_volley_coordinator.gd's `_show_presentation` for why
+				# (a multi-hit target, e.g. a self-loop bouncing back, would
+				# double-drain its presentation refcount).
 				Events.damage_shown.emit(ev.target, hit.effective_amount)
 
 

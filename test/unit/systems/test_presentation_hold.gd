@@ -307,6 +307,16 @@ func test_multi_hit_volley_reveals_one_arrow_at_a_time() -> void:
 	plan._on_node_left_clicked(target)
 	assert_eq(plan.get_reaching_firing_positions().size(), 2,
 			"fixture: both core and leaf must reach target for this to be a real volley")
+	# resolve() is pure (no side effects on plan/world) — pin that the two
+	# shots actually get DIFFERENT arrival times (launch stagger + distance,
+	# #487/#480), not just different hold slots. A coordinator that emitted
+	# all reveals in the same frame would still pass every assertion below;
+	# this is what proves the two reveals are staggered in time at all.
+	var pre_outcome := plan.resolve()
+	assert_eq(pre_outcome.hits.size(), 2, "fixture: two shots, two hits")
+	assert_ne((pre_outcome.hits[0] as DamageInstance).arrival_time,
+			(pre_outcome.hits[1] as DamageInstance).arrival_time,
+			"the two shots must not be recorded to arrive at the same instant")
 	bs.launch_attack()  # not awaited — see `_fire`'s docstring above
 
 	# Model: both hits already landed (#474).
