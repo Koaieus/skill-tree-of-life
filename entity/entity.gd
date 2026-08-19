@@ -491,6 +491,11 @@ signal health_reveal_progress(shown_value: float)
 var _health_hold_count: int = 0
 var _shown_health: float = 0.0
 
+## Presentation clock (#479): one-shot latch so [signal Events.entity_death_shown]
+## fires exactly once, off whichever release is the one that visually drains
+## the bar to 0 — see [method release_health_presentation].
+var _death_reveal_shown: bool = false
+
 var health_presentation_held: bool:
 	get: return _health_hold_count > 0
 
@@ -515,6 +520,12 @@ func release_health_presentation(delta: float) -> void:
 	else:
 		_shown_health = stat_board.health.current
 	health_reveal_progress.emit(_shown_health)
+	# The killing blow's own reveal just landed — despawn/game-over waits for
+	# this instead of firing at raw model-mutation time (`entity_died`, which
+	# can be many beats earlier in a multi-hit outcome). See GameRoot._on_entity_died.
+	if is_dead and not _death_reveal_shown and _shown_health <= 0.0:
+		_death_reveal_shown = true
+		Events.entity_death_shown.emit(self)
 
 
 ## Combat health as currently DRAWN — see [member _shown_health].

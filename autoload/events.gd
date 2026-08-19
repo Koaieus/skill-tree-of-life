@@ -90,6 +90,16 @@ signal entity_dying(entity: Entity)
 ## GameRoot rides the child-before-parent ready order to fire after
 ## AllocationSystem, so the despawn never races the node strip.
 signal entity_died(entity: Entity)
+## Presentation clock (#479): the killing blow's own reveal has landed —
+## `Entity.release_health_presentation` fires this once, the moment
+## `get_shown_health()` reaches 0 for an entity that's already `is_dead`
+## (which can be many beats after `entity_died`, itself synchronous with
+## world mutation). GameRoot's despawn/game-over gates on THIS, not
+## `entity_died`, so a corpse stays on screen through its own death VFX.
+## If nothing ever held health presentation for the killing hit (no attack
+## behind the death — upkeep, a test, an effect), GameRoot falls back to
+## despawning on `entity_died` directly; see its `_on_entity_died`.
+signal entity_death_shown(entity: Entity)
 
 ## Emitted when a claimed SkillDust relic offers a node-mod pick-N-from-M choice
 ## (#173). Carries a [LootPickRequest]; a UI consumer sets `handled = true`

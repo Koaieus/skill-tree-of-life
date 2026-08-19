@@ -112,7 +112,7 @@ func _build() -> Dictionary:
 	await get_tree().process_frame
 
 	return {"bs": bs, "alloc_vfx": alloc_vfx, "hostile": hostile,
-			"t1": t1, "t2": t2, "hcore": hcore}
+			"leaf": leaf, "t1": t1, "t2": t2, "hcore": hcore}
 
 
 func _fire(ctx: Dictionary) -> void:
@@ -261,6 +261,22 @@ func test_death_strip_piggybacks_on_the_same_ripple_one_beat_later() -> void:
 
 	await wait_seconds(AllocationVFX.CASCADE_STEP + 0.15)
 	assert_false(hcore.presentation_hold, "the death strip reveals on its own trailing slot")
+
+
+## #479 — a direct core-hit kill (one hit overflows `health` to 0 in one blow,
+## bypassing `_on_node_depleted`/`cascade_started` entirely — see
+## `entity-death.md`) should still stage its death strip instead of collapsing
+## the whole territory unstaggered at model-mutation time, riding
+## `Events.damage_shown` (the core never emits `node_death_shown`).
+## TODO(#479): a live-fixture test for this (targeting `hcore` directly via
+## RangedAttackPlan) shattered all 3 territory nodes immediately instead of
+## staying gated — root cause not yet isolated (possibly the coordinator/
+## targeting path resolves a direct-core ranged hit differently than a
+## regular target; needs a debugger session, not more guessing). The
+## `_on_core_health_chipped`/`_on_death_strip_scheduled`/
+## `_on_damage_shown_for_ripple` code this exercises is unit-covered
+## indirectly (full suite green) but this specific path needs a passing
+## integration test before calling #479 fully closed.
 
 
 func test_non_combat_cascade_still_arms_immediately() -> void:

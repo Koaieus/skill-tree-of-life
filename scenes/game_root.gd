@@ -94,6 +94,9 @@ func _ready() -> void:
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
+	# Presentation clock (#479): the VISUAL consequence (despawn / game-over)
+	# waits for the killing blow's own reveal — see `_on_entity_death_shown`.
+	Events.entity_death_shown.connect(_on_entity_death_shown)
 
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
 	# _setup_level runs — procgen spawning goes through force_allocate which
@@ -163,33 +166,57 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Entity death consequence (#18). Node-stripping is AllocationSystem's job (it
-## also listens to `entity_died`); here we handle what's left: the player losing
-## ends the run (game-over stub), an NPC dying despawns from the scene. The
-## actual force-dealloc cascade + VFX already ran off the bus before this.
+## also listens to `entity_died`); here we handle the turn-loop-critical half of
+## what's left SYNCHRONOUSLY — an NPC corpse must not hold/receive a turn — and
+## defer the VISUAL half (despawn / game-over) to `_on_entity_death_shown`
+## (#479), so the corpse stays on screen through its own death VFX instead of
+## vanishing at raw model-mutation time.
+##
+## `entity.health_presentation_held` is true iff the killing hit took a
+## presentation hold before depleting `health` (every attack-caused death does,
+## see `Entity.release_health_presentation`) — if nothing is holding, there's
+## no reveal to wait for (upkeep, an effect, a test calling `die()` directly),
+## so reveal immediately, same as before #479's gate.
 func _on_entity_died(entity: Entity) -> void:
 	if entity == null:
 		return
-	if entity == player:
-		_show_game_over()
-	else:
-		_despawn_npc(entity)
+	if entity != player:
+		_pull_npc_from_turn_loop(entity)
+	if not entity.health_presentation_held:
+		_reveal_entity_death(entity)
 
 
-## Remove a dead NPC from the level. Pull it from the turn-loop groups
-## SYNCHRONOUSLY so TurnManager's tick / _tick_until_ready skip it this frame —
-## `queue_free` leaves the node valid (and group-resident) until frame end, so
-## the group removal can't wait for it. Defensive: if the corpse somehow held
-## the turn, clear `current_entity` so the loop isn't stalled on a freed actor.
-##
-## Free order is safe: AllocationSystem's death handler deallocates the corpse's
-## nodes SYNCHRONOUSLY (off the same `entity_died` emit, before this runs), so
-## `queue_free` here can't orphan them.
-func _despawn_npc(entity: Entity) -> void:
+## Pull a dead NPC out of the turn-loop groups SYNCHRONOUSLY so TurnManager's
+## tick / `_tick_until_ready` skip it this frame — `queue_free` leaves the node
+## valid (and group-resident) until frame end, or later still under #479's
+## reveal gate, so the group removal can't wait for either. Defensive: if the
+## corpse somehow held the turn, clear `current_entity` so the loop isn't
+## stalled on an actor that's about to disappear.
+func _pull_npc_from_turn_loop(entity: Entity) -> void:
 	entity.remove_from_group(Entity.GROUP)
 	entity.remove_from_group(Entity.READY_GROUP)
 	if turn_manager != null and turn_manager.current_entity == entity:
 		turn_manager.current_entity = null
-	entity.queue_free()
+
+
+## Presentation clock (#479): the killing blow's own reveal has landed (or, per
+## `_on_entity_died`, nothing was ever going to reveal one) — do the actual
+## despawn / game-over now.
+func _on_entity_death_shown(entity: Entity) -> void:
+	_reveal_entity_death(entity)
+
+
+## Free order is safe: AllocationSystem's death handler deallocates the corpse's
+## nodes SYNCHRONOUSLY (off `entity_died`, before either call path here can
+## run), so freeing the entity itself — now or after the reveal gate — can't
+## orphan them.
+func _reveal_entity_death(entity: Entity) -> void:
+	if not is_instance_valid(entity):
+		return
+	if entity == player:
+		_show_game_over()
+	else:
+		entity.queue_free()
 
 
 ## Game-over placeholder (#18). The full screen lives in the Metagame milestone;

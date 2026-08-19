@@ -201,6 +201,28 @@ func _on_core_health_chipped(node: SkillNode, entity: Entity, delta: float) -> v
 	if node == null or entity == null:
 		return
 	_pending_health_reveals[node] = {"defender": entity, "delta": delta}
+	# #479: a direct core hit that empties `health` in one blow bypasses
+	# `_on_node_depleted` entirely (the core never emits `depleted`), so the
+	# cascade-chip-damage lethality PREDICTION above never runs for this path.
+	# No prediction needed here though — `SkillNode.take_damage` already ran
+	# `health.deplete(overflow)` (which synchronously fires `depleted` →
+	# `Entity.die()`) before emitting `core_health_chipped`, so `entity.is_dead`
+	# is exact truth by the time this handler runs. Stagger the rest of the
+	# territory off THIS node's own reveal, same as the cascade path.
+	# The core ITSELF stays excluded (mirrors the cascade path excluding its
+	# impact node from `extra`) — it's already held once by [OutcomeApplier]
+	# as the direct hit target and releases off its own `damage_shown`; adding
+	# it to the death-strip snapshot list too would double the hold with no
+	# second release to match ([AllocationVFX._fire_cascade_slot] deliberately
+	# skips re-releasing the impact node), leaving its paint stuck forever.
+	# Its own shatter still happens — [AllocationSystem]'s later
+	# `force_deallocate` on the core fires the standalone (unstaggered)
+	# fallback in [AllocationVFX._on_force_deallocated], same as any
+	# non-cascade dealloc.
+	if entity.is_dead:
+		var extra := _remaining_owned_nodes(entity, [node])
+		if not extra.is_empty():
+			death_strip_scheduled.emit(extra, entity, node)
 
 
 ## Release [param node]'s queued core-health chip, if any — called from both
@@ -336,6 +358,29 @@ func _flush_presentation(outcome: AttackOutcome) -> void:
 			Events.heal_shown.emit(target, hit.effective_amount)
 		else:
 			Events.damage_shown.emit(target, hit.effective_amount)
+	# Cascade nodes (forced-dealloc'd by `_on_node_depleted`, never listed in
+	# `outcome.hits`) are held by THIS system, not [OutcomeApplier] — their
+	# `_pending_wound_reveals`/`_pending_health_reveals` entries only release
+	# off `Events.node_death_shown`, which only [AllocationVFX] emits, and only
+	# when it's mounted. Same fail-open contract as the loop above: whatever's
+	# still queued when the awaits are done gets its reveal here instead of
+	# never — otherwise an unmounted-VFX attack (headless test, no `attack_vfx`)
+	# leaves the entity's health/wound presentation withheld forever, which
+	# now also means [signal Events.entity_death_shown] never fires and a dead
+	# entity's corpse never despawns (see `Entity.release_health_presentation`).
+	#
+	# Only drain a node with NOTHING left holding it (`not n.presentation_hold`)
+	# — AllocationVFX's own ripple runs on `CASCADE_STEP` timers that outlive
+	# this await, so a still-held node has a real reveal coming and force-firing
+	# here would collapse #487's staggered core-bar chip into one frame.
+	var pending_reveal_nodes: Dictionary[SkillNode, bool] = {}
+	for n in _pending_wound_reveals:
+		pending_reveal_nodes[n] = true
+	for n in _pending_health_reveals:
+		pending_reveal_nodes[n] = true
+	for n in pending_reveal_nodes:
+		if n != null and not n.presentation_hold:
+			Events.node_death_shown.emit(n)
 
 
 ## The one place world mutation happens for an attack: every hit in

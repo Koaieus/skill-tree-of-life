@@ -44,11 +44,20 @@ children, which is exactly what the phases immunise against.
    last) via the `force_deallocate` primitive — VFX shatter fires per node. This
    is the only path that force-deallocates a core. (The SkillDust addon survives
    this — it's an addon child, not a `node.modifiers` entry.)
-3. **`entity_died` → GameRoot** owns the player-vs-NPC split: player → game-over
-   stub; NPC → removed from `Entity.GROUP` / `READY_GROUP` synchronously (so
-   TurnManager skips it that frame) then `queue_free`. GameRoot fires after
-   AllocationSystem on the **child-before-parent** ready order (it's the root), so
-   the despawn never races the strip — that ordering is robust, not fragile.
+3. **`entity_died` → GameRoot** owns the player-vs-NPC split. The turn-loop-
+   critical half runs SYNCHRONOUSLY here, same as before: NPC → removed from
+   `Entity.GROUP` / `READY_GROUP` (so TurnManager skips it that frame), corpse
+   cleared off `current_entity` if it somehow held the turn. GameRoot fires
+   after AllocationSystem on the **child-before-parent** ready order (it's the
+   root), so the strip never races the group removal.
+   The VISUAL half — player game-over stub / NPC `queue_free` — is presentation-
+   clock gated (#479): it waits for `Events.entity_death_shown`, which
+   `Entity.release_health_presentation` fires once the killing blow's own
+   reveal lands (can be several VFX beats after `entity_died`, which fires at
+   raw model-mutation time). If nothing ever held health presentation for the
+   death (no attack behind it — upkeep, an effect, a direct `die()` call in a
+   test), GameRoot reveals immediately instead of waiting forever. See
+   `GameRoot._on_entity_died` / `_on_entity_death_shown`.
 
 ## Death cleanup is SYNCHRONOUS, deliberately (not deferred)
 

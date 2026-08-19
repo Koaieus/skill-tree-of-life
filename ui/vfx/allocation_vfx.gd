@@ -118,6 +118,13 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 	# model mutation. Same idempotent-connect guard.
 	if not Events.node_death_shown.is_connected(_on_node_death_shown):
 		Events.node_death_shown.connect(_on_node_death_shown)
+	# #479: a death-strip whose impact is a CORE node (direct core-hit kill,
+	# no chip-damage cascade behind it) never gets a `node_death_shown` — the
+	# core never depletes. `damage_shown` is the reveal that lands for it
+	# instead; harmless no-op for every other node since `_run_pending_cascade`
+	# only acts when `_pending_cascades` actually has an entry for it.
+	if not Events.damage_shown.is_connected(_on_damage_shown_for_ripple):
+		Events.damage_shown.connect(_on_damage_shown_for_ripple)
 
 
 # --- Signal handlers ---------------------------------------------------------
@@ -242,14 +249,20 @@ func _on_death_strip_scheduled(nodes: Array, defender: Entity, impact: SkillNode
 		})
 	if snapshots.is_empty():
 		return
-	if impact == null or not is_instance_valid(impact) or not impact.presentation_hold \
-			or not _pending_cascades.has(impact):
-		# No battle-cascade ripple to piggyback on (non-combat depletion, or a
-		# cascade that never got a presentation hold — same fallback shape as
+	if impact == null or not is_instance_valid(impact) or not impact.presentation_hold:
+		# No reveal to piggyback on (non-combat depletion, or an impact that
+		# never got a presentation hold — same fallback shape as
 		# `_on_cascade_started`'s own guard) — arm immediately.
 		for snap in snapshots:
 			_spawn_shatter(snap["position"], snap["radius"], color, 0.0)
 		return
+	if not _pending_cascades.has(impact):
+		# #479: a direct core-hit kill has no chip-damage cascade behind it —
+		# `_on_cascade_started` never ran for this impact, so there's no ripple
+		# to append to yet. Start one here, keyed off the same impact node
+		# whose own reveal (`damage_shown` — a core never emits
+		# `node_death_shown`, see `_on_damage_shown_for_ripple`) fires it.
+		_pending_cascades[impact] = [[], color]
 	var data: Array = _pending_cascades[impact]
 	var existing: Array = data[0]
 	var extra_delay: float = 0.0
@@ -266,6 +279,18 @@ func _on_death_strip_scheduled(nodes: Array, defender: Entity, impact: SkillNode
 
 ## The impact node's hit has visually landed (#483) — run the ripple.
 func _on_node_death_shown(node: SkillNode) -> void:
+	_run_pending_cascade(node)
+
+
+## #479: the impact-node reveal for a direct core-hit kill — a core never
+## emits `node_death_shown` (see `entity-death.md`), so its ripple (if any —
+## see `_on_death_strip_scheduled`) has to arm off its `damage_shown` instead.
+## No-op for every node without a pending entry, i.e. almost every hit.
+func _on_damage_shown_for_ripple(node: SkillNode, _amount: float) -> void:
+	_run_pending_cascade(node)
+
+
+func _run_pending_cascade(node: SkillNode) -> void:
 	if node == null or not _pending_cascades.has(node):
 		return
 	var data: Array = _pending_cascades[node]

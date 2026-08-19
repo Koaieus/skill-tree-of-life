@@ -179,3 +179,27 @@ func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:
 	assert_false(npc.is_in_group(Entity.READY_GROUP), "and the ready group")
 	assert_true(npc.is_queued_for_deletion(), "NPC corpse should be freed")
 	await get_tree().process_frame  # let the deferred free run before teardown
+
+
+## Presentation clock (#479): a death caused by a hit whose health reveal is
+## still withheld must not despawn until that reveal lands — otherwise the
+## corpse vanishes at raw model-mutation time, ahead of its own death VFX.
+func test_gameroot_npc_despawn_waits_for_health_reveal_then_frees() -> void:
+	var gr := GameRoot.new()
+	autofree(gr)
+	gr.player = autofree(Entity.new())  # someone else is the player
+	# GameRoot.new() is never added to the tree here (its _ready expects a full
+	# level scene's %UniqueName children), so wire the one signal this test
+	# needs by hand instead of going through _ready.
+	Events.entity_death_shown.connect(gr._on_entity_death_shown)
+	_entity.hold_health_presentation()
+	_entity.stat_board.health.deplete(_entity.stat_board.health.current)
+	assert_true(_entity.is_dead, "health reaching 0 should kill the entity")
+	gr._on_entity_died(_entity)
+	assert_false(_entity.is_queued_for_deletion(),
+			"despawn must wait for the killing blow's reveal, not fire at mutation time")
+	_entity.release_health_presentation(0.0)
+	assert_true(_entity.is_queued_for_deletion(),
+			"despawn should fire once the reveal lands")
+	Events.entity_death_shown.disconnect(gr._on_entity_death_shown)
+	await get_tree().process_frame
