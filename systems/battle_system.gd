@@ -179,9 +179,10 @@ func _on_node_death_shown(node: SkillNode) -> void:
 	# the wound TOAST through — see `_on_node_depleted`'s hold and
 	# `_pending_wound_reveals`.
 	if node != null and _pending_wound_reveals.has(node):
-		var defender: Entity = _pending_wound_reveals[node]
+		var stored_defender = _pending_wound_reveals[node]
 		_pending_wound_reveals.erase(node)
-		if is_instance_valid(defender):
+		if is_instance_valid(stored_defender):
+			var defender: Entity = stored_defender
 			defender.release_wound_presentation()
 	_release_pending_health(node)
 
@@ -210,8 +211,9 @@ func _release_pending_health(node: SkillNode) -> void:
 		return
 	var entry: Dictionary = _pending_health_reveals[node]
 	_pending_health_reveals.erase(node)
-	var defender: Entity = entry.get("defender")
-	if is_instance_valid(defender):
+	var stored_defender = entry.get("defender")
+	if is_instance_valid(stored_defender):
+		var defender: Entity = stored_defender
 		defender.release_health_presentation(float(entry.get("delta", 0.0)))
 
 
