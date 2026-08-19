@@ -197,6 +197,65 @@ func test_aura_holds_the_defenders_territory_until_the_reveal() -> void:
 			"the islanded node's circle drops on its own stagger slot")
 
 
+## #485 — entity-level wound TOAST rides the same clock as the node reveal.
+## `wound()` fires synchronously inside `_on_node_depleted`, at model-mutation
+## time; the toast must not float until the impact hit's VFX lands.
+func test_wound_toast_is_not_emitted_before_the_impact_reveal() -> void:
+	var ctx: Dictionary = await _build()
+	var hostile: Entity = ctx.hostile
+	var t1: SkillNode = ctx.t1
+	var seen: Array[int] = []
+	Events.entity_wounded.connect(func(_e: Entity, amount: int) -> void: seen.append(amount))
+
+	_fire(ctx)
+
+	assert_eq(seen.size(), 0,
+			"the cascade already wounded the defender in the model, but the TOAST must wait")
+
+	Events.node_death_shown.emit(t1)
+
+	assert_eq(seen.size(), 1, "the toast releases on the impact's reveal")
+	assert_eq(seen[0], 2, "both cascaded nodes (t1, t2) wound the defender once each")
+
+
+## #485 — the entity-death strip (`AllocationSystem.deallocate_all_owned`,
+## triggered synchronously when this cascade's chip damage empties `health`)
+## rides the SAME ripple as the battle cascade instead of collapsing
+## unstaggered at t=0. Fixture: drop hostile's health to exactly the 2-node
+## cascade's chip total so this cascade is the killing blow; hcore (outside
+## the cascade set) is the death strip's only remaining node.
+func test_death_strip_piggybacks_on_the_same_ripple_one_beat_later() -> void:
+	var ctx: Dictionary = await _build()
+	var alloc_vfx: AllocationVFX = ctx.alloc_vfx
+	var hostile: Entity = ctx.hostile
+	var t1: SkillNode = ctx.t1
+	var t2: SkillNode = ctx.t2
+	var hcore: SkillNode = ctx.hcore
+	hostile.stat_board.health.set_current(2.0)
+	var baseline := alloc_vfx.get_child_count()
+
+	_fire(ctx)
+
+	assert_true(hostile.is_dead, "the 2-node cascade's chip damage is exactly lethal")
+	assert_null(hcore.owned_by, "the death strip already stripped the core in the model")
+	assert_eq(alloc_vfx.get_child_count(), baseline,
+			"nothing shatters before the killing hit has visually landed")
+	assert_true(hcore.presentation_hold, "the death strip's own node also withholds its paint")
+
+	Events.node_death_shown.emit(t1)
+	assert_true(hcore.presentation_hold,
+			"the death strip is one beat past layer 1 (t2) — it must not reveal with layer 0")
+
+	# Layer 1 (t2) takes its slot at +1 CASCADE_STEP; the death strip (hcore)
+	# is queued one CASCADE_STEP further still.
+	await wait_seconds(AllocationVFX.CASCADE_STEP + 0.15)
+	assert_true(hcore.presentation_hold,
+			"the death strip must not reveal alongside layer 1 (t2) — it's one beat further")
+
+	await wait_seconds(AllocationVFX.CASCADE_STEP + 0.15)
+	assert_false(hcore.presentation_hold, "the death strip reveals on its own trailing slot")
+
+
 func test_non_combat_cascade_still_arms_immediately() -> void:
 	var ctx: Dictionary = await _build()
 	var alloc_vfx: AllocationVFX = ctx.alloc_vfx

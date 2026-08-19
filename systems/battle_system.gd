@@ -25,6 +25,17 @@ signal attack_plan_state_changed
 ## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
 signal cascade_started(layers: Array, defender: Entity)
 
+## #485: this cascade's chip damage is about to kill [param defender], which
+## finishes the entity-death strip — [param nodes] is whatever territory that
+## strip is about to take beyond this cascade's own [signal cascade_started]
+## set (usually the core). Deliberately NOT folded into `cascade_started`'s
+## `layers` — [LootSystem] reads that signal as this cascade's removal set and
+## separately accounts for the core; see the emitter in `_on_node_depleted`
+## for the double-pay this caused when tried. [param impact] is the same
+## impact node `cascade_started` fired with, for a consumer that wants to
+## chain its stagger off the same reveal.
+signal death_strip_scheduled(nodes: Array[SkillNode], defender: Entity, impact: SkillNode)
+
 ## The currently-selected spell for magic attacks. Updated by the spell-picker
 ## UI; consumed by [method _new_plan] when constructing a [MagicAttackPlan].
 ## Null means "use the plan's bundled fallback". Live mutation is supported:
@@ -45,6 +56,11 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
+
+## Presentation clock (#485): entity-level wound-toast holds pending release,
+## keyed by the impact node whose `node_death_shown` reveal is what releases
+## them. See `_on_node_depleted` / `_on_node_death_shown`.
+var _pending_wound_reveals: Dictionary[SkillNode, Entity] = {}
 
 
 var attack_plan: AttackPlan:
@@ -142,6 +158,14 @@ func _on_damage_shown(target: SkillNode, _amount: float) -> void:
 func _on_node_death_shown(node: SkillNode) -> void:
 	if node != null:
 		node.release_presentation()
+	# Presentation clock (#485): the impact node's reveal is also what lets
+	# the wound TOAST through — see `_on_node_depleted`'s hold and
+	# `_pending_wound_reveals`.
+	if node != null and _pending_wound_reveals.has(node):
+		var defender: Entity = _pending_wound_reveals[node]
+		_pending_wound_reveals.erase(node)
+		if is_instance_valid(defender):
+			defender.release_wound_presentation()
 
 
 ## A heal has visually landed: let its target's withheld paint through. Mirrors
@@ -323,17 +347,48 @@ func _on_node_depleted(node: SkillNode) -> void:
 	if defender.navigator != null and defender.core_location != null:
 		cascade.append_array(defender.navigator.nodes_islanded_by_removing(
 				node, defender.core_location))
-	# BFS the cascade set from impact (in original graph topology) so VFX can
-	# ripple outward layer-by-layer. Computed before force_deallocate to keep
-	# the navigator state coherent — graph edges still exist either way, but
-	# owner state is what changes mid-loop.
-	cascade_started.emit(_cascade_layers(node, cascade), defender)
 	var board: StatBoard = defender.stat_board
 	# Per-cascade dealloc damage — read once, applied per cascaded node. Older
 	# hand-authored boards lacking the stat fall back to the def default (1).
 	var hp_per_node: float = 1.0
 	if board != null and board.dealloc_damage != null:
 		hp_per_node = float(board.dealloc_damage.value)
+	# BFS the cascade set from impact (in original graph topology) so VFX can
+	# ripple outward layer-by-layer. Computed before force_deallocate to keep
+	# the navigator state coherent — graph edges still exist either way, but
+	# owner state is what changes mid-loop.
+	var layers: Array = _cascade_layers(node, cascade)
+	cascade_started.emit(layers, defender)
+	# #485: predict whether this cascade's chip damage finishes the defender
+	# off. If so, the entity-death strip (`AllocationSystem.deallocate_all_owned`,
+	# about to run synchronously from inside the loop below via
+	# `health.deplete → depleted → die() → entity_died`) is about to force-dealloc
+	# the REST of its territory. `death_strip_scheduled` is a SEPARATE signal from
+	# `cascade_started` deliberately — `LootSystem._on_cascade_started` treats
+	# `layers` as this cascade's removal set and adds its own +1 for the core
+	# (`_award_kill_xp`'s "`_held_nodes` excludes the core" contract); folding the
+	# death strip into `layers` double-paid the core (60 XP vs 50, caught by
+	# test_kill_xp_ledger.gd). AllocationVFX is the only other subscriber and
+	# stitches this into the SAME visual ripple via its own manifest, so the
+	# separation costs nothing visually. Only covers death via THIS chip-damage
+	# path — a direct core hit that empties `health` in one blow bypasses
+	# `_on_node_depleted` entirely (core never emits `depleted`, see
+	# entity-death.md) and is not covered here.
+	if board != null and board.health != null:
+		var predicted_chip: float = 0.0
+		for n in cascade:
+			if n != null and n.owned_by == defender:
+				predicted_chip += hp_per_node * float(maxi(n.allocation_level, 1))
+		if predicted_chip >= board.health.current:
+			var extra := _remaining_owned_nodes(defender, cascade)
+			if not extra.is_empty():
+				death_strip_scheduled.emit(extra, defender, node)
+	# #485: hold the wound TOAST until this impact's reveal — see
+	# `_on_node_death_shown` / `Entity.release_wound_presentation`. Recorded
+	# even when this cascade wounds nothing (defensive; `wound()` below is
+	# what actually accumulates an amount to reveal).
+	defender.hold_wound_presentation()
+	_pending_wound_reveals[node] = defender
 	for n in cascade:
 		if n == null or n.owned_by != defender:
 			continue
@@ -389,3 +444,23 @@ func _cascade_layers(impact: SkillNode, cascade: Array[SkillNode]) -> Array:
 	if not orphans.is_empty():
 		layers.append(orphans)
 	return layers
+
+
+## Every node [param defender] still owns outside [param exclude] (the
+## chip-damage cascade set already accounted for). Used by #485's death-strip
+## lookahead to fold the rest of a dying entity's territory into the same
+## cascade manifest as one trailing layer. Falls back to empty when
+## [member graph] is unset (headless tests) — no worse than the pre-#485
+## unstaggered strip in that case.
+func _remaining_owned_nodes(defender: Entity, exclude: Array[SkillNode]) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	if graph == null:
+		return out
+	var excluded: Dictionary[SkillNode, bool] = {}
+	for n in exclude:
+		if n != null:
+			excluded[n] = true
+	for n in graph.get_skill_nodes():
+		if n.owned_by == defender and not excluded.has(n):
+			out.append(n)
+	return out

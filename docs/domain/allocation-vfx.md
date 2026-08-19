@@ -12,6 +12,7 @@ voluntary deallocation, forced deallocation (single + cascade). Lives in
 | `deallocated(node, previous_owner)` | `AllocationSystem` | **voluntary** dealloc only (player/AI spent a DP) | node, previous owner |
 | `force_deallocated(node, previous_owner)` | `AllocationSystem` | every forced dealloc (cascade head + every islanded follow-up) | node, previous owner |
 | `cascade_started(layers, defender)` | `BattleSystem` | **before** the force-dealloc loop runs; one emission per battle event | BFS layers ordered by graph distance from impact, defender entity |
+| `death_strip_scheduled(nodes, defender, impact)` | `BattleSystem` | #485 — only when this cascade's chip damage is about to kill `defender`, i.e. `AllocationSystem.deallocate_all_owned` is about to strip the rest of its territory | the remaining owned nodes (usually just the core), defender, the same impact node `cascade_started` fired with |
 
 The split between `deallocated` and `force_deallocated` exists so the VFX can
 play a graceful "lift-away" for voluntary releases and a shatter for kills
@@ -92,6 +93,34 @@ stat-board mutations (wound + core HP loss) all run synchronously inside
 `BattleSystem._on_node_depleted` regardless. The VFX layer just paces the
 visuals; if a second attack force-deallocs more nodes mid-cascade, both
 cascades will overlap on screen, which is fine.
+
+### Death strip (#485) — one continuous ripple, not two
+
+When this cascade's chip damage is exactly what kills the defender,
+`AllocationSystem.deallocate_all_owned` (triggered synchronously off the same
+`health.deplete → depleted → die() → entity_died` chain, from *inside* the
+force-dealloc loop below) is about to strip whatever territory this cascade's
+own BFS didn't already cover — almost always just the core. `BattleSystem`
+predicts this (comparing the cascade's total chip damage against the
+defender's current health, before mutating anything) and fires
+`death_strip_scheduled` for that remainder, **separately** from
+`cascade_started`.
+
+That separation is deliberate, not an oversight: `LootSystem._on_cascade_started`
+also reads `cascade_started`'s `layers` as this cascade's removal set and adds
+its own `+1` for the core in `_award_kill_xp` (`_held_nodes` excludes the
+core). Folding the death strip into `layers` double-paid the core — caught by
+`test_kill_xp_ledger.gd` (60 XP instead of 50) when first tried. AllocationVFX
+is the only consumer of `death_strip_scheduled`; it stitches the extra nodes
+onto the SAME `_pending_cascades[impact]` entry as one trailing layer (delay =
+the existing layers' max delay + one more `CASCADE_STEP`), so on screen it
+still reads as one continuous collapse — territory falls, then whatever's
+left dissolves one beat later — even though the two signals never touch.
+
+Only covers death via the chip-damage cascade path. A direct hit on the core
+that empties `health` in one blow bypasses `_on_node_depleted` entirely (the
+core never emits `depleted` — see `.claude/rules/entity-death.md`) and is not
+covered; that death strip still runs unstaggered.
 
 ## Why ripple closest-to-impact first
 

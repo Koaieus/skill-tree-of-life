@@ -449,7 +449,36 @@ func die() -> void:
 	Events.entity_dying.emit(self)
 	Events.entity_died.emit(self)
 
+## Presentation clock (#485): while true, [method _emit_entity_wounded]
+## accumulates instead of emitting on the bus immediately. `wound()` has
+## exactly one caller — [BattleSystem]'s forced-dealloc cascade — which holds
+## this for the duration of the cascade (model mutation stays synchronous,
+## #474; only the wound TOAST is a reveal) and releases it once the impact
+## hit's VFX has landed. Mirrors [member SkillNode.presentation_hold]'s
+## "whoever holds, releases" contract, scoped to the wound toast instead of
+## paint.
+var _wound_presentation_held: bool = false
+var _held_wound_amount: int = 0
+
+func hold_wound_presentation() -> void:
+	_wound_presentation_held = true
+
+
+## Idempotent — a release with nothing held (or already released) is a no-op,
+## so a second impact node's reveal on the same entity costs nothing.
+func release_wound_presentation() -> void:
+	if not _wound_presentation_held:
+		return
+	_wound_presentation_held = false
+	if _held_wound_amount > 0:
+		Events.entity_wounded.emit(self, _held_wound_amount)
+		_held_wound_amount = 0
+
+
 func _emit_entity_wounded(amount: int) -> void:
+	if _wound_presentation_held:
+		_held_wound_amount += amount
+		return
 	Events.entity_wounded.emit(self, amount)
 
 

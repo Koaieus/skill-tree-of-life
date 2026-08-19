@@ -107,6 +107,9 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 	if _battle_system != null:
 		battle_system = _battle_system
 		battle_system.cascade_started.connect(_on_cascade_started)
+		# #485: the entity-death strip's own trailing ripple — see the signal's
+		# docstring for why this is separate from `cascade_started`.
+		battle_system.death_strip_scheduled.connect(_on_death_strip_scheduled)
 	# #170: bus-driven, not system-bound — a spike pop is a world event, not an
 	# allocation. Connect once (idempotent guard for repeat bind() calls).
 	if not Events.blade_vertex_popped.is_connected(_on_blade_vertex_popped):
@@ -210,6 +213,55 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 		if n != impact:
 			n.hold_presentation()
 	_pending_cascades[impact] = [snapshots, color]
+
+
+## #485: the entity-death strip (`AllocationSystem.deallocate_all_owned`) is
+## about to take the rest of [param defender]'s territory beyond this
+## cascade's own set — suppress its standalone per-node shatter (same
+## `_cascade_scheduled` latch `_on_cascade_started` uses) and fold it into the
+## SAME impact's ripple as one trailing beat, so "territory falls, then the
+## rest dissolves" reads as one continuous collapse instead of two.
+##
+## Deliberately NOT routed through `cascade_started`/`_pending_cascades[impact]
+## = ...]` (an assignment, not an append) — see the signal's docstring on
+## `BattleSystem` for why a second assignment there would have clobbered the
+## battle cascade's own entry and left it stuck holding forever.
+func _on_death_strip_scheduled(nodes: Array, defender: Entity, impact: SkillNode) -> void:
+	if muted or defender == null or nodes.is_empty():
+		return
+	var color: Color = defender.color
+	var snapshots: Array[Dictionary] = []
+	for n in nodes:
+		if n == null:
+			continue
+		_cascade_scheduled[n] = true
+		snapshots.append({
+			"node": n,
+			"position": n.global_position,
+			"radius": n.inner_radius,
+		})
+	if snapshots.is_empty():
+		return
+	if impact == null or not is_instance_valid(impact) or not impact.presentation_hold \
+			or not _pending_cascades.has(impact):
+		# No battle-cascade ripple to piggyback on (non-combat depletion, or a
+		# cascade that never got a presentation hold — same fallback shape as
+		# `_on_cascade_started`'s own guard) — arm immediately.
+		for snap in snapshots:
+			_spawn_shatter(snap["position"], snap["radius"], color, 0.0)
+		return
+	var data: Array = _pending_cascades[impact]
+	var existing: Array = data[0]
+	var extra_delay: float = 0.0
+	for s in existing:
+		extra_delay = maxf(extra_delay, float(s["delay"]))
+	extra_delay += CASCADE_STEP
+	for snap in snapshots:
+		# Withhold paint until this slot, same as `_on_cascade_started` does for
+		# every non-impact node in its own snapshot loop.
+		(snap["node"] as SkillNode).hold_presentation()
+		snap["delay"] = extra_delay
+		existing.append(snap)
 
 
 ## The impact node's hit has visually landed (#483) — run the ripple.

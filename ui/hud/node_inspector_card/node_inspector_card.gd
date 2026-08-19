@@ -67,5 +67,9 @@ func _render() -> void:
 		_hp.text = "—"
 		return
 	_name.text = node.name
-	_owner.text = node.owned_by.display_name if node.owned_by != null else "Unowned"
+	# #485 audit: read as DRAWN, not as mutated — `owned_by` is already post-cascade
+	# the instant a forced-dealloc lands, so a direct read here would show the
+	# card snapping to "Unowned" before the node's own reveal does.
+	var shown_owner := node.get_shown_owner()
+	_owner.text = shown_owner.display_name if shown_owner != null else "Unowned"
 	_hp.text = "%d / %d" % [roundi(node.get_current_hp()), roundi(node.get_max_hp())]
