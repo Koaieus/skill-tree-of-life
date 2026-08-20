@@ -221,8 +221,13 @@ launch_time_i  = draw_time + lerp(0, TOTAL_STAGGER, rank_i / (n - 1))
 arrival_time_i = launch_time_i + flight_time_i
 ```
 
-- **Nearest fires first and arrives first.** The volley rolls outward from the
-  target. (Real bow infantry range in the same direction.)
+- **Nearest fires first and arrives first.** Note ranged is single-target —
+  every reaching leaf shoots the *same* node — so what ripples outward is the
+  **firing**, across the attacker's territory from nearest leaf to furthest;
+  the impacts all converge on one point, in that same order. (Real bow infantry
+  range in the same direction.) The choice therefore sets *resolution* order at
+  the target, which is what armor-reducing ammo needs, not a visual wave of
+  impacts.
 - **`TOTAL_STAGGER` is fixed**, so a 4-shot volley and a 100-shot volley take
   the same wall time. This is what makes the "blot out the sun" fantasy
   readable — a hundred arrows in the same window rather than a hundred×stagger

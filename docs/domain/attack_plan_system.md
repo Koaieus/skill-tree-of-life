@@ -3,7 +3,9 @@
 Engineering-side architecture doc for the in-turn attack flow. The
 game-design view of attacks (damage formulas, color triangle, dismemberment,
 etc.) lives in `docs/design/combat_system.md`; this doc covers the *code
-shape* the design rides on.
+shape* the design rides on. Its sibling `attack-timeline.md` covers the
+*timing* model — which world state each part of an attack reads, and at which
+clock — and is the contract every mode is being built towards.
 
 Session-handoff format: what's in, the decisions behind it (with the
 alternatives we ruled out so we don't relitigate), and the queue for the
