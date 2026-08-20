@@ -117,7 +117,7 @@ func _refresh() -> void:
 		# mid-reveal is already `owned_by == null`, and reading that would snap
 		# the defender's whole cascade away on the first revealed node instead
 		# of one stagger slot at a time.
-		var _owner: Entity = sn.get_shown_owner()
+		var _owner: Entity = sn.shown_owner
 		if _owner == null or _owner.is_dead:
 			continue
 		if not owned_by_entity.has(_owner):

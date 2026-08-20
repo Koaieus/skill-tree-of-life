@@ -235,8 +235,8 @@ func launch_attack() -> void:
 			await presentation_player.play(timeline)
 	elif timeline != null and presentation_player != null:
 		# Headless / no VFX mounted: nothing will ever emit the
-		# damage_shown/node_death_shown reveals a coordinator would — apply
-		# the whole timeline at once instead of waiting on them forever.
+		# damage_shown reveals a coordinator would — apply the whole
+		# timeline at once instead of waiting on them forever.
 		presentation_player.play_instant(timeline)
 	is_launching = false
 	_reset()

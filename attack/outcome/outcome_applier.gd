@@ -11,7 +11,7 @@ class_name OutcomeApplier
 
 
 ## Land every hit in append order — the view lag that used to require
-## withholding each target's paint first (#487) is now the recorded
+## withholding each target's paint first is now the recorded
 ## timeline's job: [method RevealRecorder.push_cause] stamps each hit's own
 ## `arrival_time` onto whatever it records, and [PresentationPlayer] is what
 ## makes the view catch up later. Ordering between hits doesn't matter since

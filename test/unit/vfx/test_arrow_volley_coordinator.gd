@@ -1,7 +1,7 @@
 extends GutTest
 
 ## ArrowVolleyCoordinator presentation-clock reveal (#479/#481):
-## Events.damage_shown / Events.node_death_shown must fire on each hit's
+## Events.damage_shown must fire on each hit's
 ## [member DamageInstance.arrival_time] — now the FULL time to impact, launch
 ## stagger included (#480's distance/speed + RangedAttackPlan's stagger stamp),
 ## not synchronously with [method play] — mirrors the magic-side clock-contract

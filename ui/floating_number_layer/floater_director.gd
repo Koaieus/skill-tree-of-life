@@ -47,7 +47,7 @@ func _ready() -> void:
 	# BattleSystem applied the hit. `skill_node_damaged` fires at model-mutation
 	# time and would float the number over a node the projectile hasn't reached.
 	# `damage_shown` is guaranteed to fire exactly once per applied hit
-	# (BattleSystem._flush_presentation covers the no-coordinator paths).
+	# (PresentationPlayer.play_instant covers the no-coordinator paths).
 	Events.damage_shown.connect(_on_damage_shown)
 	Events.heal_shown.connect(_on_heal_shown)
 	Events.skill_node_healed.connect(_on_skill_node_healed)

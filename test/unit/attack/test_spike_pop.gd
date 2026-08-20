@@ -222,7 +222,7 @@ func test_live_alive_vertex_never_mutates_hp() -> void:
 	assert_signal_emit_count(Events, "blade_vertex_popped", 0)
 
 
-# ── Presentation clock (#479/#481): damage_shown / node_death_shown ───────────
+# ── Presentation clock (#479/#481): damage_shown ──────────────────────────────
 
 func test_live_hit_emits_damage_shown_at_its_own_t() -> void:
 	# #481: the replay's own per-event `t` (already driving SkillBlade.play's
@@ -238,7 +238,6 @@ func test_live_hit_emits_damage_shown_at_its_own_t() -> void:
 	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
 	assert_signal_emit_count(Events, "damage_shown", 1)
 	assert_eq(get_signal_parameters(Events, "damage_shown"), [plain_node, 5.0])
-	assert_signal_emit_count(Events, "node_death_shown", 0)
 
 
 func test_live_hit_on_depleted_target_emits_damage_shown_only() -> void:
@@ -262,7 +261,6 @@ func test_live_hit_on_depleted_target_emits_damage_shown_only() -> void:
 	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
 	assert_signal_emit_count(Events, "damage_shown", 1)
 	assert_eq(get_signal_parameters(Events, "damage_shown"), [plain_node, 5.0])
-	assert_signal_emit_count(Events, "node_death_shown", 0)
 
 
 func test_popped_hitter_emits_no_damage_shown() -> void:

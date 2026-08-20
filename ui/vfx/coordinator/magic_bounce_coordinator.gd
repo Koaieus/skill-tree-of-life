@@ -183,10 +183,6 @@ func _show_presentation(wave: Array) -> void:
 			if hit.kind == HitInstance.Kind.HEAL:
 				Events.heal_shown.emit(ev.target, hit.effective_amount)
 			else:
-				# No per-hit `node_death_shown` here — see the #487 fix in
-				# arrow_volley_coordinator.gd's `_show_presentation` for why
-				# (a multi-hit target, e.g. a self-loop bouncing back, would
-				# double-drain its presentation refcount).
 				Events.damage_shown.emit(ev.target, hit.effective_amount)
 
 

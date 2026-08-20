@@ -122,10 +122,10 @@ func _run_preview_loop(gen: int) -> void:
 ## Pure observer: damage was already applied synchronously by
 ## BattleSystem off the same events this swing is replaying (#474). This
 ## replay's own timeline (per-event [param t], already driving [method
-## SkillBlade.play]'s animation) doubles as the presentation clock (#479/#481):
-## [signal Events.damage_shown] / [signal Events.node_death_shown] fire here,
-## at the same [param t] the live swing visually lands the hit — never
-## gating the swing, never touching model state.
+## SkillBlade.play]'s animation) doubles as the presentation clock:
+## [signal Events.damage_shown] fires here, at the same [param t] the live
+## swing visually lands the hit — never gating the swing, never touching
+## model state.
 func _on_live_hit(
 		hitter_idx: int,
 		is_edge: bool,
@@ -155,10 +155,6 @@ func _on_live_hit(
 	var effective: float = damage
 	if not _pending_hits.is_empty():
 		effective = _pending_hits.pop_front().effective_amount
-	# No per-hit `node_death_shown` here — see the #487 fix in
-	# arrow_volley_coordinator.gd's `_show_presentation` for why (a blade
-	# vertex striking the same target twice in one swing would double-drain
-	# its presentation refcount).
 	Events.damage_shown.emit(target, effective)
 
 

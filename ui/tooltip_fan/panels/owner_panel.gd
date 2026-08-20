@@ -78,12 +78,12 @@ func bind(node: SkillNode, _graph: Graph) -> void:
 ## is what makes allocating a hovered node fan this panel OUT, since the same
 ## check is re-run when the node's ownership changes.
 ##
-## #485 audit: reads AS DRAWN (`get_shown_owner()`), not `owned_by` directly —
-## a forced-dealloc clears `owned_by` at mutation time, before the node's own
+## #485 audit: reads AS DRAWN (`shown_owner`), not `owned_by` directly — a
+## forced-dealloc clears `owned_by` at mutation time, before the node's own
 ## presentation reveal, and a raw read here would fan the panel out (or hide
 ## it) ahead of that reveal.
 func has_content() -> bool:
-	return _bound_node != null and _bound_node.get_shown_owner() != null
+	return _bound_node != null and _bound_node.shown_owner != null
 
 
 func _rebuild() -> void:
@@ -93,7 +93,7 @@ func _rebuild() -> void:
 		_rows.remove_child(child)
 		child.queue_free()
 	_row_setters.clear()
-	var entity: Entity = _bound_node.get_shown_owner() if _bound_node != null else null
+	var entity: Entity = _bound_node.shown_owner if _bound_node != null else null
 	if entity == null:
 		_header.bind("Owner")
 		_set_hostile(false)

@@ -120,7 +120,7 @@ func test_max_stack_drops_oldest() -> void:
 func test_model_damage_alone_floats_nothing() -> void:
 	# #482: the damage number is a reveal like the HP bar and the tint. It rides
 	# Events.damage_shown, which the VFX coordinators fire when the swing/arrow/
-	# bolt lands (and BattleSystem._flush_presentation backstops when no
+	# bolt lands (and PresentationPlayer.play_instant backstops when no
 	# coordinator runs). Reacting to skill_node_damaged instead would float the
 	# number over a node the projectile has not reached — that was the bug.
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode

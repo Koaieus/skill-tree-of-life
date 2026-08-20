@@ -25,7 +25,6 @@ signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 ## attacker's raw pre-mitigation number, so the number shown matches what the
 ## HP bar actually did.
 signal damage_shown(target: SkillNode, amount: float)
-signal node_death_shown(node: SkillNode)
 ## The heal mirror of [signal damage_shown] (#481/#482). Fires LATER, on the same
 ## precomputed VFX-arrival schedule as the damage reveal, so a heal number
 ## (and the node HP bar's rise, held by the same presentation latch) appears
@@ -40,14 +39,6 @@ signal heal_shown(target: SkillNode, amount: float)
 ## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
 signal skill_node_depleted(node: SkillNode)
-
-## A direct hit overflowed [param node]'s (the CORE node's) own combat HP into
-## its owner's `health` pool — the mutation already happened, synchronously,
-## by the time this fires. [param delta] is the signed pool change (always
-## negative here). Presentation clock (#491): the reveal itself is recorded
-## by [method SkillNode.take_damage] via `RevealRecorder.entity_health`,
-## staged against this same hit — this signal has no subscriber of its own.
-signal core_health_chipped(node: SkillNode, entity: Entity, delta: float)
 
 ## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
 ## keyed by the owning entity. Entity itself does the re-emit so the global

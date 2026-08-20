@@ -101,10 +101,10 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 	# Presentation clock (#491): [param entity] is only ever passed for the
 	# `health` pool — model mutation is synchronous and can move it before
 	# [PresentationPlayer] has replayed this hit's reveal, so reads here go
-	# through `get_shown_health()` (the view field `PresentationPlayer` writes
-	# via `set_view_health`) instead of following `pool.current` raw.
+	# through `shown_health` (the view field `PresentationPlayer` writes via
+	# `set_view_health`) instead of following `pool.current` raw.
 	var shown := func() -> float:
-		return entity.get_shown_health() if entity != null else float(pool.current)
+		return entity.shown_health if entity != null else float(pool.current)
 	gauge.min_value = 0.0
 	gauge.max_value = float(pool.value)
 	gauge.current = shown.call()
