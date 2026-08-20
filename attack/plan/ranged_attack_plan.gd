@@ -96,7 +96,12 @@ func get_firing_schedule() -> Array[FiringShot]:
 func _ranks_before(a: SkillNode, b: SkillNode) -> bool:
 	var da := a.global_position.distance_to(target.global_position)
 	var db := b.global_position.distance_to(target.global_position)
-	if not is_equal_approx(da, db):
+	# Exact comparison, not is_equal_approx — an approximate tie test is not
+	# transitive and breaks the strict weak ordering sort_custom requires.
+	# It also buys nothing: two leaves genuinely equidistant from the target
+	# produce bit-identical distances here, so they still fall through to the
+	# stable_id tiebreak.
+	if da != db:
 		return da < db
 	return a.stable_id < b.stable_id
 

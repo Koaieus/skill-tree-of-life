@@ -42,8 +42,15 @@ static func _in_arrival_order(hits: Array[HitInstance]) -> Array[HitInstance]:
 	var decorated: Array = []
 	for i in hits.size():
 		decorated.append([hits[i].arrival_time, i, hits[i]])
+	# Exact float comparison, deliberately — NOT is_equal_approx. An
+	# approximate tie test is not transitive (a~b and b~c does not give a~c
+	# for times spaced just under the epsilon), which violates the strict
+	# weak ordering sort_custom requires and can misorder or read out of
+	# bounds. Every intended tie here is exact anyway: melee/magic hits all
+	# carry a literal 0.0, and two shots at the same rank produce the same
+	# lerp output bit-for-bit.
 	decorated.sort_custom(func(a: Array, b: Array) -> bool:
-		if not is_equal_approx(a[0], b[0]):
+		if a[0] != b[0]:
 			return a[0] < b[0]
 		return a[1] < b[1])
 	var ordered: Array[HitInstance] = []
