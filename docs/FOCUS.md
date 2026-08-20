@@ -95,10 +95,12 @@ opens only once #474, #458 and #475 have landed and offline play is verified
 unchanged. #499 is off the sync lane entirely and can be pulled whenever.
 
 **Parked behind the LAN, deliberately:** the attack-timeline contract
-(`docs/domain/attack-timeline.md`) — #498's substrate seam and the three
-per-mode moves it unblocks. It is the right model and it is written down; none
-of it gates 08-31. Owner call 2026-08-20: **the LAN issues all get done first.**
-#499 is the one piece of that work that *is* in the milestone, on its own
+(`docs/domain/attack-timeline.md`) — hub **#500** with #501 magic / #502 melee /
+#503 ranged, plus #498 for AI-preview accuracy afterwards. All `Ready` and all
+genuinely takeable; none of it gates 08-31. Owner call 2026-08-20: **the LAN
+issues all get done first**, so this is the queue that opens the moment the
+milestone burns down — FOCUS rule 6 in its purest form, `Ready` but not named.
+#499 is the one piece of that work that *is* in the LAN milestone, on its own
 merits, because allocation order changing combat outcomes is a bug today.
 
 ## Perf — as good as fixed, *for now*

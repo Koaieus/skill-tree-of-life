@@ -36,7 +36,27 @@ Two halves, both load-bearing:
 
 The gate is a **veto, not a re-plan.** A landing that fails its gate is
 dropped. Application never *discovers new targets*; that would make resolution
-a lie and break the preview.
+a lie and break the preview. Re-aiming a wasted shot at some other live target
+is explicitly out — it is the one shape of this feature that breaks the
+contract.
+
+### What a failed gate looks like — settled, and it differs per mode
+
+The three modes do not share a visual answer, because they do not share a
+failure *shape*:
+
+- **Melee: ignore it, no visual at all.** Hit-scan has no concept of a dud —
+  only "hit" or nothing. A blade sweeping over an already-dead node is
+  indistinguishable from sweeping over ground that was never allocated, and
+  should look that way.
+- **Magic: it cannot happen.** The next wave's candidate list is built by
+  querying ownership live at selection time, so a dead node is simply never a
+  candidate. There is nothing to render.
+- **Ranged: the arrow lands inert.** This is the only mode where the gate can
+  fail *after* the visual has committed — the projectile is already in flight
+  when the target dies. It arrives and plays a dud beat: desaturated, no bloom,
+  no damage number. Same visual language as a spike-popped blade vertex
+  dimming. Legible, and it shows the player their volley overkilled.
 
 ## Why: the fiction has to hold
 
@@ -50,12 +70,18 @@ get shot by the gun falling to the floor.
 
 *Magic.* A wizard lobs a bolt at a target. It lands, deals damage, and a
 smaller bolt jumps from that node to each hostile neighbour. If the first
-landing *killed* the target, the node is unallocated when the next wave picks
-its neighbours — so a spell that only propagates to hostile nodes cannot bounce
-back into the corpse it just made.
+landing *killed* the target, that node is unallocated for the rest of the
+cast — so a spell that only propagates to hostile nodes cannot bounce back into
+the corpse it just made.
+
+Mind the wave arithmetic: **wave 0** hits the seed, **wave 1** hits its
+neighbours, and **wave 2** is the first expansion where the seed can be
+selected again (it is `visited` during the 0→1 expansion, so wave 1 was never
+the risk). A test for this needs `max_hops >= 2` and a `max_visits_per_node`
+that permits a revisit, or it proves nothing.
 
 Both stories are the same rule: **kill state resolved at wave N is visible to
-wave N+1.**
+every expansion from wave N onward.**
 
 ## The clocks
 
@@ -142,18 +168,58 @@ landing. Plus the volley ramp, below.
 
 ---
 
-## The substrate seam
+## The substrate seam — for AI and previews only
 
-The contract says application re-reads live state. AI scoring and previews must
-not mutate. Both are satisfied by the same move:
+**A real attack does not need a substrate.** This is worth stating loudly,
+because it was the original framing of #498 and it was wrong.
 
-> **Resolution and application run against a *substrate*.** For a real launch
-> the substrate is the live world. For AI scoring and previews it is a shadow.
+Live re-evaluation on the real launch path is achieved by moving the gate check
+to land time and reading `is_allocated()` / `owned_by` *there*. Melee ignores
+events whose target is no longer allocated; magic queries ownership when it
+picks the next wave's candidates. Both are ordinary reads of the live world at
+the right moment. Nothing needs to be copied, and **the three per-mode moves
+are unblocked today**.
 
-`resolve()` stays side-effect-free from the caller's perspective,
-`AttackOutcome` stays a serializable wire payload, and `ai_blade_rollout.gd`'s
-purity contract survives. This is not abandoning what motivated freezing the
-candidate set — it is parameterizing *what world* the freeze happens against.
+What the substrate is for is narrower:
+
+> **AI scoring and previews must not mutate.** Today `resolve()` already gates
+> (`BladePopResolver`, propagation filters) against live state at resolve time,
+> for free, because nothing has mutated yet. Once gating moves to *apply* time,
+> the AI loses that accuracy unless it can run the applier — and it cannot run
+> the applier against the real world.
+
+So the substrate is a **follow-on that restores AI/preview accuracy**, not a
+prerequisite. `AttackOutcome` stays a serializable wire payload either way.
+
+### Why you cannot just clone the SkillNodes
+
+The obvious idea — `duplicate()` the nodes and run the real `take_damage`
+against the copies, so nothing is reimplemented — **does not isolate
+anything.** Three lines in the mutation path reach the real world regardless of
+whether `self` is a clone:
+
+- `RevealRecorder.node_hp(self, …)` — a **static** with global timeline state
+- `Events.skill_node_damaged.emit(…)` — the global bus
+- `owned_by.dispatch(&"_on_node_damaged", …)` — a duplicated node's `owned_by`
+  still points at the **real** `Entity`, so this runs real effect hooks against
+  a real board
+
+`AllocationSystem.force_deallocate` is the same: `_revoke_node_effects(node,
+previous)` and `previous.navigator.mirror_remove(node)` both act on the live
+owner.
+
+This is also the honest answer to *"how do games like Monster Train do it?"* —
+card battlers clone their battle state freely because that state is **plain
+data with no engine objects and no global emit surface**. The reason cloning is
+cheap there and not here is not object size; it is that their mutation path has
+no reach outside the state object. Ours is an `Area2D` with children, physics
+shapes, tweens, a static recorder, a global bus, and hooks that call back into
+live entities.
+
+Closing that gap — extracting per-node combat state into a plain `RefCounted`
+the `SkillNode` owns, so one implementation of `take_damage` can run against
+either — is the real content of the substrate work, and is why it is its own
+issue rather than a paragraph in a mode move.
 
 ### What the shadow must copy
 
@@ -169,13 +235,24 @@ its *values*, not merely its membership.
 
 So the shadow is a real copy of:
 
-- per-node combat HP
-- per-node ownership
-- the affected entities' stat boards
+- **every affected entity's complete owned subgraph** — HP and ownership per
+  node
+- those entities' stat boards
+- **magic only:** unallocated nodes within the spell's hop reach, which exist
+  purely as propagation conduits for spells whose filter admits them
 
 with the effect hooks able to run against it. Far cheaper than a world clone —
 no scene tree, no addons-as-children, no physics — but not free, and not a
 ledger.
+
+**Do not reach-bound the owned subgraph.** The obvious optimisation — copy only
+nodes the attack can physically touch — computes the wrong cascade.
+`BattleSystem._on_node_depleted` calls
+`defender.navigator.nodes_islanded_by_removing(node, defender.core_location)`,
+which walks the defender's *entire* territory to find what islands when a node
+leaves. A node fifty hops from the impact can be part of the cascade. Unowned
+nodes are the ones that can be skipped, and only because their sole gameplay
+function is to be a spell conduit.
 
 ### The one thing a shadow cannot hold
 
@@ -303,9 +380,7 @@ That doc needs the correction independently of this one.
 
 - `TOTAL_STAGGER` and `FLIGHT_TIME` values — feel, needs the real game.
 - `draw_time` values, and the melee analogue of a preparatory phase.
-- Whether the substrate is an explicit interface or a duck-typed pair of
-  accessors. Build it against magic first — the smallest consumer — rather than
-  designing it in the abstract.
-- What a landing that fails its gate should *look* like. Silently vanishing is
-  cheap; an arrow thunking into a dead node is more legible. Neither is
-  decided.
+- The substrate's shape (see that section). Cloning `SkillNode`s is ruled out.
+  Extracting combat state into a plain `RefCounted` is the thorough answer; a
+  narrow prediction overlay that only tracks HP and ownership is the cheap one.
+  Undecided, and not urgent — nothing is blocked on it.
