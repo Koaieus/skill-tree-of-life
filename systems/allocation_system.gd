@@ -69,9 +69,7 @@ func _ready() -> void:
 ## a deferred call whose Object arg is freed is dropped, orphaning the nodes
 ## (owned_by a freed entity). See test_npc_death_via_bus_deallocates_before_free.
 func _on_entity_died(entity: Entity) -> void:
-	RevealRecorder.push_strip_scope()
 	deallocate_all_owned(entity)
-	RevealRecorder.pop_strip_scope()
 
 
 ## Force-deallocate every node the entity owns, via the same `force_deallocate`
@@ -264,7 +262,6 @@ func force_deallocate(node: SkillNode) -> Entity:
 	# Revoke sweep + navigator mirror removal (#498 step 1): lives on the
 	# previous owner's EntityCombat slice now — see EntityCombat.revoke_node.
 	previous.get_combat().revoke_node(node)
-	RevealRecorder.node_owner_lost(node, previous)
 	node.owned_by = null
 	previous.dispatch(&"_on_node_deallocated", [node, true])
 	force_deallocated.emit(node, previous)

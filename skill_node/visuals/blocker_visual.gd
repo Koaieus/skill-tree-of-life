@@ -4,15 +4,13 @@ extends Node2D
 ## disk. Three crack stages sync to the node's combat-HP fraction (intact >
 ## 66%, cracked ≤ 66%, shattered ≤ 33%).
 ##
-## [b]Crack stage is combat PAINT, so it honours the presentation clock
-## (#479/#482/#491).[/b] Model HP mutates synchronously on `take_damage`, but a
-## blocked node must not visibly crack before the hit that caused it has
-## actually landed on screen. [method _on_view_state_changed] re-syncs the
-## stage off [signal SkillNode.view_state_changed] — [PresentationPlayer]'s own
-## reveal cadence — so a rapid multi-hit exchange still lands on the FINAL HP
-## fraction rather than replaying each intermediate stage. Crack stage ALSO
-## lags one idle frame behind a FRESH allocation (see `_ready`'s docstring for
-## why); that only delays picking up new ownership, never a mid-life damage tick.
+## [b]Crack stage is combat PAINT, and under design B (#504) the model IS the
+## presentation clock.[/b] A hit mutates the world at its own `arrival_time`
+## (see [BeatClock]), so [method _on_damaged] — bound to the node's own
+## `damaged` / `healed` — already fires exactly when the boulder should
+## visibly crack, with no view store in between. Crack stage ALSO lags one idle
+## frame behind a FRESH allocation (see `_ready`'s docstring for why); that only
+## delays picking up new ownership, never a mid-life damage tick.
 ##
 ## [b]Blocked is a LATCH, not a live predicate.[/b] The first entity to own
 ## this node (a blocker force-allocates its blocked node as its own core at
@@ -116,11 +114,13 @@ func _ready() -> void:
 			_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 		if not _node.sensed_changed.is_connected(_on_sensed_changed):
 			_node.sensed_changed.connect(_on_sensed_changed)
-			# #491: crack stage re-syncs off the node's own DRAWN hp, pushed by
-			# PresentationPlayer — replaces the old 'damaged' + hold/release
-			# catch-up trio with one signal.
-		if not _node.view_state_changed.is_connected(_on_view_state_changed):
-			_node.view_state_changed.connect(_on_view_state_changed)
+		# #504: crack stage re-syncs off the node's real combat HP. The hit that
+		# causes it lands on its own `arrival_time` (see [BeatClock]), so
+		# `damaged` already fires on the beat the boulder should visibly crack.
+		if not _node.damaged.is_connected(_on_damaged):
+			_node.damaged.connect(_on_damaged)
+		if not _node.healed.is_connected(_on_damaged):
+			_node.healed.connect(_on_damaged)
 	# Deferred for the same reason as the connect above. Establishes the
 	# initial latch (a freshly-spawned blocker's force_allocate already ran
 	# before this visual entered the tree, so `owned_by` is non-null here) and
@@ -129,11 +129,11 @@ func _ready() -> void:
 	_on_owner_changed.call_deferred()
 
 
-## #491: the node's DRAWN hp changed — re-sync the crack stage against it.
-## Fires on PresentationPlayer's own reveal cadence, so a rapid multi-hit
-## exchange still lands on its FINAL hp fraction rather than replaying every
-## intermediate step (each push already IS the intermediate step).
-func _on_view_state_changed(_hp: float, _owner: Entity) -> void:
+## #504: the node's combat HP moved — re-sync the crack stage against it.
+## Bound to both `damaged` and `healed`; each carries `(amount, source)`, both
+## ignored, because the stage is a function of the CURRENT fraction rather than
+## of the delta.
+func _on_damaged(_amount: float, _source: Variant) -> void:
 	_refresh_stage_and_visibility()
 
 
@@ -201,7 +201,7 @@ func _hp_fraction() -> float:
 	var max_hp := _node.get_max_hp()
 	if max_hp <= 0.0:
 		return 0.0
-	return _node.shown_hp / max_hp
+	return _node.get_current_hp() / max_hp
 
 
 func _radius() -> float:

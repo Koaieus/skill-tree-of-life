@@ -50,14 +50,22 @@ children, which is exactly what the phases immunise against.
    cleared off `current_entity` if it somehow held the turn. GameRoot fires
    after AllocationSystem on the **child-before-parent** ready order (it's the
    root), so the strip never races the group removal.
-   The VISUAL half — player game-over stub / NPC `queue_free` — is presentation-
-   clock gated (#479): it waits for `Events.entity_death_shown`, which
-   `Entity.release_health_presentation` fires once the killing blow's own
-   reveal lands (can be several VFX beats after `entity_died`, which fires at
-   raw model-mutation time). If nothing ever held health presentation for the
-   death (no attack behind it — upkeep, an effect, a direct `die()` call in a
-   test), GameRoot reveals immediately instead of waiting forever. See
-   `GameRoot._on_entity_died` / `_on_entity_death_shown`.
+   The VISUAL half — player game-over stub / NPC `queue_free` — rides
+   `Events.entity_death_shown`, which **`Entity.die()` emits itself, last**,
+   after both bus phases above. See `GameRoot._on_entity_died` /
+   `_on_entity_death_shown`.
+
+   **That signal is an ORDERING seam, not a delay (#504).** Under design B the
+   world mutates on the reveal clock, so the entity dies at the moment it is
+   drawn dying — there is no reveal to wait for and no fallback branch. It
+   stays a separate signal purely so despawn lands *after* AllocationSystem's
+   strip; a despawn that raced ahead would leave nodes owned by a freed entity.
+   `test_death_strips_nodes_before_the_despawn_signal_fires` pins it.
+
+   The old presentation-hold machinery (`Entity.release_health_presentation`,
+   the "if nothing ever held health presentation, reveal immediately" fallback,
+   `RevealRecorder` / `PresentationPlayer`) is **gone** — see
+   `presentation/README.md` for why those classes are parked on disk.
 
 ## Death cleanup is SYNCHRONOUS, deliberately (not deferred)
 

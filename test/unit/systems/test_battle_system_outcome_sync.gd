@@ -1,15 +1,21 @@
 extends GutTest
 
-## #474 — BattleSystem.launch_attack applies the WHOLE AttackOutcome
-## synchronously, before any VFX await starts. This test proves the two
-## halves of the acceptance:
+## #474/#504 — VFX never influences the applied world.
 ##
-##   1. World state (target HP, the forced-dealloc cascade) is IDENTICAL
-##      whether attack_vfx is null or a live AttackVFX node — i.e. it does
-##      not depend on VFX at all.
-##   2. Both land BEFORE the launch_attack() coroutine reaches its first
-##      await, so a caller can observe the fully-resolved state right after
-##      calling launch_attack() without awaiting it to completion.
+## World state (target HP, the forced-dealloc cascade) must be IDENTICAL
+## whether `attack_vfx` is null or a live AttackVFX node. That is #474's
+## acceptance and it still holds: VFX is a pure observer, and the mutation loop
+## waits on its own [BeatClock] rather than on any animation, so dropping every
+## frame of the volley cannot change what landed.
+##
+## [b]#474's second half is deliberately gone.[/b] It used to also assert that
+## everything landed before `launch_attack()` reached its first `await` — i.e.
+## that the whole outcome was observable on the line after an un-awaited call.
+## Design B (#504) spreads mutation across each hit's `arrival_time` on
+## purpose, so that is no longer true and must not be re-asserted. `is_launching`
+## is what tells a caller the world is settled; `instant_mutation` is how a
+## fixture asks for the old synchronous shape, and this test uses it so it can
+## keep testing VFX-independence rather than timing.
 ##
 ## Ranged mode: no physics scan needed (RangedAttackPlan reach is euclidean),
 ## so the fixture stays simple. Mirrors test_ranged_attack_plan.gd's chain
@@ -90,6 +96,11 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	bs.turn_manager = tm
 	bs.allocation_system = alloc
 	bs.graph = graph
+	# #504: land the outcome in one go, so this test measures VFX-independence
+	# and not the beat clock's timing. Deliberately set for BOTH scenarios —
+	# including the live-VFX one — since a flag that differed between them
+	# would be a second variable in a test with exactly one.
+	bs.instant_mutation = true
 	add_child_autofree(bs)
 
 	if with_live_vfx:
@@ -107,10 +118,10 @@ func _fire(ctx: Dictionary) -> void:
 	var plan := bs.attack_plan as RangedAttackPlan
 	plan._on_node_left_clicked(ctx.target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
-	# Deliberately NOT awaited: launch_attack() is a coroutine that runs
-	# synchronously up to its first `await` (the VFX call). Everything before
-	# that point — resolve() + _apply_outcome() + the cascade — has already
-	# happened by the time this call returns control here.
+	# Not awaited, and with `instant_mutation` set that is enough: the applier
+	# never parks, so resolve() + the whole outcome + the cascade have all run
+	# by the time this returns. Without the flag the volley would still be
+	# mid-flight here — see the class docstring.
 	bs.launch_attack()
 
 
@@ -122,7 +133,7 @@ func test_world_state_identical_with_null_and_live_attack_vfx() -> void:
 	_fire(live_vfx)
 
 	# Both targets took the lethal overkill hit and were force-deallocated by
-	# the cascade — before launch_attack() reached its first await.
+	# the cascade, identically.
 	assert_null((no_vfx.target as SkillNode).owned_by,
 			"null-vfx path: cascade already stripped the target")
 	assert_null((live_vfx.target as SkillNode).owned_by,

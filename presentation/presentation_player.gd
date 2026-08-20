@@ -1,9 +1,15 @@
 class_name PresentationPlayer
 extends Node
 
+## [b]PARKED — nothing references this class (#504). See presentation/README.md
+## before touching or deleting it.[/b] This is design A of the presentation
+## clock; the game runs design B. Kept because [RevealEvent]'s
+## `from_value`/`to_value` is the payload an authoritative or fog-gated mode
+## would want.
+##
 ## Owns the view store and is the single writer of view state (#488/#491).
-## Mounted in `scenes/game_root.tscn` as `%PresentationPlayer`;
-## `RevealRecorder.player` is assigned during `GameRoot` composition.
+## Was mounted in `scenes/game_root.tscn` as `%PresentationPlayer`;
+## `RevealRecorder.player` was assigned during `GameRoot` composition.
 ##
 ## Every applied event is PUSHED into the subject's own dumb view fields
 ## ([method SkillNode.set_view_state] / [method Entity.set_view_health]) —

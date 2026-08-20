@@ -45,14 +45,41 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
-## #491: plays the recorded reveal timeline — the sole driver of the
-## post-attack reveal now.
-@export var presentation_player: PresentationPlayer
 
-## Presentation clock (#488): the timeline recorded off this attack's
-## synchronous mutation. `presentation_player.play`/`play_instant` (in
-## `launch_attack`) is what replays it.
-var last_reveal_timeline: RevealTimeline = null
+## Design B (#504): the clock the CURRENT attack's mutation loop is walking, or
+## null between attacks. Held so [method drain_pending_mutations] can cut the
+## window short — the one mitigation for B's single real risk, a loop
+## interrupted mid-volley leaving its remaining hits permanently unlanded.
+var _beat_clock: BeatClock = null
+
+## True while an attack's VFX coroutine is parked. See `launch_attack` for why
+## the flag exists rather than a bare `await _vfx_finished`.
+##
+## [b]Load-bearing invariant: nothing may free the animating node mid-play.[/b]
+## A coroutine awaiting a freed object is silently dropped, so `_vfx_finished`
+## would never fire, `_reset()` would never run, and the plan would stay armed
+## forever — a permanent hang, not a cosmetic glitch. This is not theoretical:
+## it happened to melee while building #504 (the cascade now fires mid-swing,
+## and `MeleePreview._refresh` tore down the blade `launch()` was awaiting),
+## and `MeleePreview._live_swing` is the guard that closes it.
+##
+## Audited for the ranged/magic path as of #504: the ONLY free of a coordinator
+## is `AttackVFX.play`'s own `coord.queue_free()`, after its await returns, and
+## nothing frees the `%AttackVFX` mount outside level teardown (where
+## [method drain_pending_mutations] covers the mutation half). If a path is
+## added that can free a coordinator mid-`play`, this parks forever — give it
+## the same treatment `_live_swing` got.
+var _vfx_running: bool = false
+signal _vfx_finished
+
+## Land the whole outcome synchronously instead of on the beat clock (#504).
+## For fixtures and headless callers that read world state on the line after
+## `launch_attack`. Production leaves this false: the beat clock IS the
+## presentation clock, so turning it off makes an attack land invisibly.
+##
+## Not inferred from whether `attack_vfx` / `melee_preview` are mounted —
+## see [method _apply_outcome].
+var instant_mutation: bool = false
 
 
 var attack_plan: AttackPlan:
@@ -136,15 +163,25 @@ func _ready() -> void:
 
 
 ## Commit the active plan. Three phases:
-##   1. resolve() → AttackOutcome (pure, no side-effects on plan/world)
-##   2. apply the WHOLE outcome synchronously — hits, heals, and (via
-##      SkillNode.take_damage → Events.skill_node_depleted) the forced-dealloc
-##      cascade — before any await runs (#474: host-authoritative sync needs
-##      world state to be a pure function of the resolved outcome, never of a
-##      peer's own animation framerate)
-##   3. hand the already-applied outcome to VFX as a PURE OBSERVER — it may
-##      read `outcome`/`melee_plan.last_events` to time its playback but must
-##      never mutate; then AP/plan cleanup
+##   1. resolve() → AttackOutcome (the candidate set + attacker-side arithmetic;
+##      see docs/domain/attack-timeline.md for what is frozen here and what is
+##      re-read at land time)
+##   2. apply the outcome ON THE BEAT CLOCK — each hit's world mutation happens
+##      at its own `arrival_time`, in that order, with the forced-dealloc
+##      cascade running synchronously inside each beat (#504, design B)
+##   3. VFX runs CONCURRENTLY as a PURE OBSERVER — it reads
+##      `outcome`/`melee_plan.last_events` to time its playback and never
+##      mutates; then AP/plan cleanup
+##
+## [b]Phases 2 and 3 overlap, and that is the point.[/b] The arrow is in the
+## air while the mutation loop waits out its `arrival_time`, so the health bar,
+## the shatter, the fog and the damage number all move on the same beat — they
+## are all reading the model, and the model changes when the arrow lands.
+##
+## The rule this does not break is [b]never frame-ordered mutation[/b] — see
+## [BeatClock]. VFX still gates nothing: dropping every frame of the animation
+## leaves the applied world identical, because the loop waits on its own timer
+## and not on `attack_vfx.play`.
 ##
 ## AP is deducted up front; the plan itself stays live through the whole
 ## await (#406 — a melee plan's attached temp-upgrade addons must keep
@@ -186,60 +223,75 @@ func launch_attack() -> void:
 	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
 	if attack_plan.attacker != null:
 		attack_plan.attacker.dispatch(&"_on_attack_launched", [attack_plan.mode, launched_spell])
-	# World mutation happens here, synchronously, for every mode — before any
-	# VFX await starts. Whether attack_vfx/melee_preview is null or live, the
-	# resulting world state is identical (#474 acceptance).
-	_apply_outcome(outcome)
-	# Melee: hand off to the MeleePreview (which has the ghost mounted) for a
-	# PURE-ANIMATION replay of the swing already applied above. The plan stays
-	# live (attack_plan is NOT cleared) through the whole await — its
-	# temp-upgrade addons (#406) must stay attached and rendering through both
-	# the ghost preview loop and the actual committed swing. _reset() (which
-	# frees them) runs once, after.
-	var timeline := last_reveal_timeline
-	if attack_plan is MeleeAttackPlan and melee_preview != null:
-		var melee_plan: MeleeAttackPlan = attack_plan
-		# Sequential, not concurrent: GDScript can't hold a handle to a
-		# `-> void` coroutine to await later (attempting it either fails the
-		# static "cannot get return value" check or, called dynamically,
-		# errors at runtime with "Trying to call an async function without
-		# await"). `play`'s own duration (bounded by the recorded timeline,
-		# itself bounded by each hit's `arrival_time` / `CASCADE_STEP`) is
-		# ordinarily short next to the swing replay, so awaiting it after
-		# costs little; termination and correctness matter more here than
-		# shaving that overlap.
-		await melee_preview.launch(melee_plan)
-		if timeline != null and presentation_player != null:
-			await presentation_player.play(timeline)
-		# is_launching flips false BEFORE _reset() (not after) — _reset()'s
-		# attack_plan = null synchronously fires attack_plan_changed, and
-		# PlayerInputController's gate-refresh listener reads is_launching
-		# the instant that signal fires. Clearing it after would have that
-		# listener observe a stale "still launching" and never re-enable
-		# AttackModeBar.
-		is_launching = false
-		_reset()
-		return
-	var coord_scene: PackedScene = null
-	if attack_plan is MagicAttackPlan:
-		var magic_plan: MagicAttackPlan = attack_plan
-		if magic_plan.spell != null:
+	# VFX starts FIRST and UN-AWAITED, so it runs alongside the mutation loop
+	# below: the arrow is in the air while the loop waits out its
+	# `arrival_time`. It is still a pure observer — it reads the outcome to
+	# time itself and never mutates, and the loop waits on its own timer rather
+	# than on any animation, so a dropped frame cannot change gameplay.
+	#
+	# The un-awaited call runs synchronously up to the coroutine's first await,
+	# which is what makes `_vfx_running` trustworthy on the line after it:
+	# true means "parked, will emit later", false means "already finished".
+	# Checking it before parking on `_vfx_finished` is what keeps a
+	# fully-synchronous VFX path (a stub, a mode with nothing to draw) from
+	# emitting into no listener and hanging the launch forever.
+	_vfx_running = false
+	var melee_plan: MeleeAttackPlan = attack_plan as MeleeAttackPlan
+	if melee_plan != null and melee_preview != null:
+		# Melee: the MeleePreview (which has the ghost mounted) animates the
+		# swing on the same `BladeHitEvent.t` clock the applier lands hits on,
+		# so the blade now visibly reaches a node as that node takes its hit.
+		_run_melee_preview(melee_plan)
+	elif attack_vfx != null:
+		var coord_scene: PackedScene = null
+		var magic_plan: MagicAttackPlan = attack_plan as MagicAttackPlan
+		if magic_plan != null and magic_plan.spell != null:
 			coord_scene = magic_plan.spell.vfx_coordinator_scene
-	if attack_vfx != null:
-		if coord_scene != null:
-			await attack_vfx.play(coord_scene, outcome)
-		else:
-			await attack_vfx.play_ranged_volley(outcome)
-		# See the melee branch above for why this runs after, not alongside.
-		if timeline != null and presentation_player != null:
-			await presentation_player.play(timeline)
-	elif timeline != null and presentation_player != null:
-		# Headless / no VFX mounted: nothing will ever emit the
-		# damage_shown reveals a coordinator would — apply the whole
-		# timeline at once instead of waiting on them forever.
-		presentation_player.play_instant(timeline)
+		_run_attack_vfx(outcome, coord_scene)
+	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
+	# WORLD being finished, never on the animation.
+	await _apply_outcome(outcome)
+	# Then wait out the animation too, before releasing anything. `is_launching`
+	# spans the WHOLE action, not just the mutation: it is what blocks a second
+	# launch, and the plan stays live behind it because a melee plan's
+	# temp-upgrade addons (#406) must keep rendering through the swing. Clearing
+	# it at mutation-end would let a player arm and fire again mid-swing with
+	# the previous plan still mounted. VFX ordinarily outlasts the mutation
+	# window anyway — an arrow lingers after it lands.
+	if _vfx_running:
+		await _vfx_finished
+	# is_launching flips false BEFORE _reset() (not after) — _reset()'s
+	# attack_plan = null synchronously fires attack_plan_changed, and
+	# PlayerInputController's gate-refresh listener reads is_launching the
+	# instant that signal fires. Clearing it after would have that listener
+	# observe a stale "still launching" and never re-enable AttackModeBar.
+	# Keep these two adjacent: callers settle on `is_launching` and expect the
+	# plan to be cleared by the time it goes false.
 	is_launching = false
 	_reset()
+
+
+## Runs [MeleePreview] to completion, then reports. See `launch_attack` for why
+## this is a named coroutine rather than an inline un-awaited call: GDScript
+## cannot hold a handle to a `-> void` coroutine, so the completion report has
+## to be a signal the caller can park on.
+func _run_melee_preview(melee_plan: MeleeAttackPlan) -> void:
+	_vfx_running = true
+	await melee_preview.launch(melee_plan)
+	_vfx_running = false
+	_vfx_finished.emit()
+
+
+## Runs the ranged/magic coordinator to completion, then reports — see
+## [method _run_melee_preview].
+func _run_attack_vfx(outcome: AttackOutcome, coord_scene: PackedScene) -> void:
+	_vfx_running = true
+	if coord_scene != null:
+		await attack_vfx.play(coord_scene, outcome)
+	else:
+		await attack_vfx.play_ranged_volley(outcome)
+	_vfx_running = false
+	_vfx_finished.emit()
 
 
 ## The one place world mutation happens for an attack: every hit in
@@ -248,13 +300,30 @@ func launch_attack() -> void:
 ## synchronous), also runs the forced-dealloc cascade. VFX never calls this;
 ## it only replays what already landed. See the class-level VFX note.
 ##
-## Presentation clock (#491): [OutcomeApplier] records the reveal timeline
-## as it mutates; `PresentationPlayer.play`/`play_instant` (wired in
-## `launch_attack`) is what replays it.
+## Presentation clock (#504): the applier walks the hits on a [BeatClock],
+## landing each at its own `arrival_time`. What is drawn is the model, at every
+## beat — there is no view store and no replay.
+##
+## [member instant_mutation] is the opt-out, and it is deliberately NOT
+## inferred from whether VFX happens to be mounted. #474's acceptance is that
+## the applied world is identical whether or not `attack_vfx` is wired — so
+## making the clock depend on that is exactly the thing that must not matter.
+## A fixture that wants the whole outcome on one line says so out loud.
 func _apply_outcome(outcome: AttackOutcome) -> void:
-	RevealRecorder.begin(RevealTimeline.new())
-	OutcomeApplier.apply(outcome)
-	last_reveal_timeline = RevealRecorder.end()
+	_beat_clock = BeatClock.instant_clock() if instant_mutation \
+			else BeatClock.for_tree(get_tree())
+	@warning_ignore("redundant_await")
+	await OutcomeApplier.apply(outcome, _beat_clock)
+	_beat_clock = null
+
+
+## Land every hit the current attack has not landed yet, immediately. Called on
+## scene teardown ([method GameRoot._exit_tree]): design B's one real risk is a
+## mutation loop interrupted mid-window, which would leave the world valid but
+## permanently wrong. No-op when no attack is in flight.
+func drain_pending_mutations() -> void:
+	if _beat_clock != null:
+		_beat_clock.drain()
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the
@@ -291,18 +360,16 @@ func _on_node_depleted(node: SkillNode) -> void:
 	# owner state is what changes mid-loop.
 	var layers: Array = _cascade_layers(node, cascade)
 	cascade_started.emit(layers, defender)
-	# #491: the entity-death strip no longer needs a lethality PREDICTION here
-	# — `AllocationSystem._on_entity_died` (fired synchronously by the
-	# `health.deplete → depleted → die() → entity_died` chain from inside the
-	# loop below, same as before #485) wraps its own strip in
-	# `RevealRecorder.push_strip_scope()`, so its NODE_OWNER_LOST events
-	# record with the correct staggered `t` — inherited from whatever cause
-	# scope is open at the moment `health` actually crosses 0 — with no
-	## attribution logic needed; see #488's "the system predicts its own
-	# future" for what this replaces.
-	var current_base := RevealRecorder.current_t()
+	# #504: the cascade mutates SYNCHRONOUSLY, every layer inside this one beat,
+	# and it must stay that way. This runs from `Events.skill_node_depleted`
+	# inside `take_damage` inside a landing — and an awaiting signal handler
+	# does NOT block its emitter, so staggering the MUTATION here would unwind
+	# behind the applier's next beat, breaking both the
+	# `owned_by != defender` guard below and the synchronous-cleanup contract
+	# in `.claude/rules/entity-death.md`. The visible layer-by-layer ripple is
+	# presentation: `cascade_started` carries `layers` in BFS order and
+	# [AllocationVFX] staggers the shatter spawn off it.
 	for i in range(layers.size()):
-		RevealRecorder.push_cause(current_base + i * RevealTimeline.CASCADE_STEP)
 		for n in layers[i]:
 			if n == null or n.owned_by != defender:
 				continue
@@ -319,20 +386,10 @@ func _on_node_depleted(node: SkillNode) -> void:
 					board.skill_points.wound(maxi(fill, 1))
 				if board.health != null and hp_per_node > 0.0:
 					var dmg: float = hp_per_node * float(maxi(fill, 1))
-					# #491: recorded at the SAME `t` as this layer's
-					# NODE_OWNER_LOST — the core bar chips down staggered, one
-					# cascade layer at a time, same rhythm as the node paint.
-					# A lethal deplete re-enters through die() from inside
-					# this call (health.deplete → depleted → ... → die()),
-					# which would otherwise record ENTITY_DEATH ahead of this
-					# event — record BEFORE mutating, patch `to_value` after,
-					# same pattern as SkillNode.take_damage's core-overflow
-					# branch.
-					var before_health: float = board.health.current
-					var health_event := RevealRecorder.entity_health(defender, before_health, before_health)
+					# #504: the core bar draws `board.health` directly and
+					# hears its `current_changed`, so the chip is announced by
+					# the mutation itself — nothing to record or patch here.
 					board.health.deplete(dmg)
-					health_event.to_value = board.health.current
-		RevealRecorder.pop_cause()
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to

@@ -1,6 +1,10 @@
 class_name RevealRecorder
 extends RefCounted
 
+## [b]PARKED — nothing references this class (#504). See
+## presentation/README.md before touching or deleting it.[/b] Design A of the
+## presentation clock; the game runs design B.
+
 ## Ambient recorder (#488): a static context opened around a mutation, with a
 ## cause stack that stamps `t` onto everything it hears. Deliberately not a
 ## parameter threaded through five systems — record sites are one line each,

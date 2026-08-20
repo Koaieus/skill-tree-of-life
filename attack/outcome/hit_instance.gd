@@ -7,7 +7,7 @@ extends RefCounted
 ## polymorphic list instead of parallel damage/heal slots (#381).
 
 ## What this landing did to its target, for reveal routing
-## ([PresentationPlayer], the VFX coordinators' presentation
+## (the VFX coordinators' presentation
 ## pass) and for [method AttackOutcome.damage_hits]'s filter. Defaulted by
 ## each subclass's own [code]_init()[/code], but [b]not fixed at
 ## construction for damage[/b] — [method SkillNode.take_damage] reclassifies

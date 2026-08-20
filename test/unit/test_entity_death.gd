@@ -67,9 +67,6 @@ func before_each() -> void:
 func after_each() -> void:
 	if Events.entity_died.is_connected(_count_death):
 		Events.entity_died.disconnect(_count_death)
-	RevealRecorder.player = null
-	if RevealRecorder.is_recording:
-		RevealRecorder.end()
 
 
 func _count_death(_e: Entity) -> void:
@@ -181,24 +178,49 @@ func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:
 			"dead NPC must leave the entities group so TurnManager skips it")
 	assert_false(npc.is_in_group(Entity.READY_GROUP), "and the ready group")
 	assert_false(npc.is_queued_for_deletion(),
-			"despawn waits for the death reveal (#479/#491), not `entity_died` itself")
-	# In the real flow this is PresentationPlayer firing `entity_death_shown`
-	# once its recorded timeline plays through; this test isn't exercising
-	# that machinery, so drive the reveal directly.
+			"`entity_died` alone does not despawn — that rides `entity_death_shown`")
+	# This test drives `_on_entity_died` directly rather than through a real
+	# death, so nothing has emitted `entity_death_shown` yet. Drive it.
 	gr._on_entity_death_shown(npc)
 	assert_true(npc.is_queued_for_deletion(), "NPC corpse should be freed")
 	await get_tree().process_frame  # let the deferred free run before teardown
 
 
-## Presentation clock (#479/#491): a death caused by a hit whose reveal is
-## still queued on an open timeline must not despawn until that timeline
-## plays through — otherwise the corpse vanishes at raw model-mutation time,
-## ahead of its own death VFX. `Entity.die()` unconditionally records an
-## ENTITY_DEATH event; with a timeline open, that record queues instead of
-## firing `Events.entity_death_shown` right away (see `RevealRecorder._record`'s
-## pass-through-vs-queue split) — [PresentationPlayer] is what fires it, once
-## the recorded timeline is played.
-func test_gameroot_npc_despawn_waits_for_health_reveal_then_frees() -> void:
+## #504: the despawn seam is about ORDER, not delay.
+##
+## Design A held the corpse on screen until a recorded ENTITY_DEATH reveal
+## played, so the despawn lagged model mutation by the killing blow's flight
+## time. Under design B the entity dies at the moment it is drawn dying, so
+## there is nothing to wait for — but `entity_death_shown` still exists, and
+## still matters, because GameRoot despawns on it while AllocationSystem strips
+## the corpse's nodes on `entity_died`. `Entity.die()` emits the two in that
+## order, and this pins it: a despawn that raced ahead of the strip would leave
+## nodes owned by a freed entity (see `.claude/rules/entity-death.md`).
+func test_death_strips_nodes_before_the_despawn_signal_fires() -> void:
+	var owned_at_despawn: Array[int] = []
+	var on_shown := func(e: Entity) -> void:
+		if e != _entity:
+			return
+		var still_owned := 0
+		for sn in _nodes:
+			if sn.owned_by == _entity:
+				still_owned += 1
+		owned_at_despawn.append(still_owned)
+	Events.entity_death_shown.connect(on_shown)
+
+	_entity.stat_board.health.deplete(_entity.stat_board.health.current)
+
+	Events.entity_death_shown.disconnect(on_shown)
+	assert_true(_entity.is_dead, "health reaching 0 should kill the entity")
+	assert_eq(owned_at_despawn.size(), 1,
+			"entity_death_shown must fire exactly once for the death")
+	assert_eq(owned_at_despawn[0], 0,
+			"the corpse's nodes must already be stripped when the despawn signal fires")
+
+
+## The despawn consequence itself still rides `entity_death_shown` — GameRoot
+## frees an NPC corpse on it, and nothing else.
+func test_gameroot_npc_despawn_fires_on_the_death_shown_signal() -> void:
 	var gr := GameRoot.new()
 	autofree(gr)
 	gr.player = autofree(Entity.new())  # someone else is the player
@@ -206,18 +228,9 @@ func test_gameroot_npc_despawn_waits_for_health_reveal_then_frees() -> void:
 	# level scene's %UniqueName children), so wire the one signal this test
 	# needs by hand instead of going through _ready.
 	Events.entity_death_shown.connect(gr._on_entity_death_shown)
-	var player := PresentationPlayer.new()
-	add_child_autofree(player)
-	RevealRecorder.player = player
-	RevealRecorder.begin(RevealTimeline.new())
 	_entity.stat_board.health.deplete(_entity.stat_board.health.current)
 	assert_true(_entity.is_dead, "health reaching 0 should kill the entity")
-	var timeline := RevealRecorder.end()
-	gr._on_entity_died(_entity)
-	assert_false(_entity.is_queued_for_deletion(),
-			"despawn must wait for the killing blow's reveal, not fire at mutation time")
-	player.play_instant(timeline)
 	assert_true(_entity.is_queued_for_deletion(),
-			"despawn should fire once the reveal lands")
+			"the NPC corpse should be freed once the death is shown")
 	Events.entity_death_shown.disconnect(gr._on_entity_death_shown)
 	await get_tree().process_frame

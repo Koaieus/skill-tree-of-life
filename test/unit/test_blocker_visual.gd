@@ -45,11 +45,6 @@ func before_each() -> void:
 	await get_tree().process_frame  # _ready: navigators + health wiring
 
 
-func after_each() -> void:
-	RevealRecorder.player = null
-	if RevealRecorder.is_recording:
-		RevealRecorder.end()
-
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	var e := _EDGE_SCENE.instantiate() as Edge
@@ -102,13 +97,6 @@ func test_crack_stage_follows_hp_on_damaged() -> void:
 	await _spawn_blocker()
 	await get_tree().process_frame
 
-	# No timeline open — RevealRecorder's pass-through path (#491) applies
-	# straight to the player, synchronously, same read as the old
-	# `damaged`-driven sync used to give off-hold.
-	var player := PresentationPlayer.new()
-	add_child_autofree(player)
-	RevealRecorder.player = player
-
 	var max_hp := sn.get_max_hp()
 	assert_gt(max_hp, 0.0, "blocker board must give the node combat HP")
 	assert_eq(visual.crack_stage, 0, "full HP → INTACT")
@@ -124,52 +112,35 @@ func test_crack_stage_follows_hp_on_damaged() -> void:
 
 # ── Crack stage lags the presentation clock (#479/#482/#491) ─────────────
 
-## Crack stage is combat paint: a hit recorded on an open reveal timeline must
-## not visibly crack the boulder before [PresentationPlayer] plays that
-## timeline through — mirrors BattleSystem's real flow (record during
-## `_apply_outcome`, reveal later off the VFX clock).
-func test_crack_stage_withheld_while_recording_then_syncs_on_play() -> void:
+## Crack stage is combat paint, and under #504 the model IS the presentation
+## clock: a hit lands at its own `arrival_time`, so the boulder must crack on
+## the hit itself. This INVERTS the design-A pair this replaced, which held the
+## stage back until a recorded timeline played through.
+func test_crack_stage_advances_on_the_hit_itself() -> void:
 	var sn := _nodes[0]
 	var visual := _visual(sn)
 	await _spawn_blocker()
 	await get_tree().process_frame
 
-	var player := PresentationPlayer.new()
-	add_child_autofree(player)
-	RevealRecorder.player = player
-
 	var max_hp := sn.get_max_hp()
-	RevealRecorder.begin(RevealTimeline.new())
-	sn.take_damage(max_hp * 0.80, null)  # would be SHATTERED once revealed
-	var timeline := RevealRecorder.end()
-	assert_eq(visual.crack_stage, 0, "recording open: stage does not advance on the hit itself")
-
-	player.play_instant(timeline)
-	assert_eq(visual.crack_stage, 2, "played: stage syncs to the FINAL hp fraction")
+	sn.take_damage(max_hp * 0.80, null)
+	assert_eq(visual.crack_stage, 2,
+			"the hit that drops HP to 20% cracks the boulder as it lands")
 
 
-## A rapid multi-hit exchange recorded on the same open timeline must not
-## replay each intermediate stage as it's recorded — only once the timeline
-## plays, straight to the accumulated final HP.
-func test_multiple_recorded_hits_collapse_to_one_play_sync() -> void:
+## A rapid multi-hit exchange advances per hit, each landing on its own beat —
+## and ends on the accumulated fraction either way.
+func test_multiple_hits_land_on_the_accumulated_fraction() -> void:
 	var sn := _nodes[0]
 	var visual := _visual(sn)
 	await _spawn_blocker()
 	await get_tree().process_frame
 
-	var player := PresentationPlayer.new()
-	add_child_autofree(player)
-	RevealRecorder.player = player
-
 	var max_hp := sn.get_max_hp()
-	RevealRecorder.begin(RevealTimeline.new())
 	sn.take_damage(max_hp * 0.40, null)
+	assert_eq(visual.crack_stage, 1, "60% hp reads as CRACKED, not yet SHATTERED")
 	sn.take_damage(max_hp * 0.40, null)
-	var timeline := RevealRecorder.end()
-	assert_eq(visual.crack_stage, 0, "recording open: still no advance after a second hit")
-
-	player.play_instant(timeline)
-	assert_eq(visual.crack_stage, 2, "played: one sync lands on the accumulated 20% hp")
+	assert_eq(visual.crack_stage, 2, "the second hit takes it to 20% hp: SHATTERED")
 
 
 # ── HP bar semantics: ASSERT ONLY, no behaviour change ───────────────────

@@ -205,113 +205,68 @@ func test_persistent_pops_every_call() -> void:
 	assert_eq(second.pops.size(), 1, "spike is persistent — it pops again")
 
 
-# ── Live swing wiring: MeleePreview._on_live_hit gating + pop signal ──────────
+# ── The pop cue is a MODEL event (#504) ──────────────────────────────────────
 
-func _make_preview() -> MeleePreview:
-	var preview := MeleePreview.new()
-	add_child_autofree(preview)
-	return preview
+## This section replaces a set of tests that drove `MeleePreview._on_live_hit`
+## and asserted `Events.damage_shown`. Both are gone: under design B the swing
+## animates CONCURRENTLY with the mutation, so MeleePreview can no longer mirror
+## the applier's accepted set (it would read an empty one), and the damage
+## number rides `skill_node_damaged` off the model. The spike pop had no model
+## emitter at all — the animation was standing in for one — so it now fires from
+## [BladePopResolver.LiveGate], inside `land_on`, on the beat clock.
 
 
-## #474: MeleePreview._on_live_hit is a PURE OBSERVER now — BattleSystem
-## applies damage synchronously off MeleeAttackPlan.resolve()'s outcome
-## before the live-swing replay ever runs, so _on_live_hit never touches HP
-## itself in either branch. Its only remaining job is the spike-pop VFX cue.
-func test_live_dead_vertex_pops_once_and_no_more() -> void:
+func test_live_gate_emits_the_pop_cue_as_it_pops() -> void:
 	var ctx: Dictionary = await _setup()
-	var spike_node: SkillNode = ctx.spike_node
-	var plain_node: SkillNode = ctx.plain_node
-	var preview := _make_preview()
-	preview._attacker = ctx.attacker
-	preview._dead_at = {1: 0.3}
-	preview._pending_pops = {
-		1: BladePopResolver.Pop.new(1, 0.3, spike_node, spike_node.get_spike_power())}
+	var state := _chain_state()
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 
 	watch_signals(Events)
-	var spike_hp := spike_node.get_current_hp()
-	# The killing contact: vertex 1 reaches the spiked node at its death time.
-	preview._on_live_hit(1, false, spike_node, 0.3, 999.0)
-	assert_almost_eq(spike_node.get_current_hp(), spike_hp, 0.001,
-			"_on_live_hit never mutates HP — damage already landed synchronously")
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)),
+			"a live spike pops the vertex (no damage lands)")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
-
-	# A later hit by the same (now disintegrated) vertex: no 2nd pop.
-	var plain_hp := plain_node.get_current_hp()
-	preview._on_live_hit(1, false, plain_node, 0.5, 999.0)
-	assert_almost_eq(plain_node.get_current_hp(), plain_hp, 0.001,
-			"_on_live_hit never mutates HP")
-	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
+	var params: Array = get_signal_parameters(Events, "blade_vertex_popped")
+	assert_eq(params[0], ctx.spike_node, "the cue names the spiked defender")
+	assert_eq(params[1], ctx.attacker, "and the attacker whose blade popped")
 
 
-func test_live_alive_vertex_never_mutates_hp() -> void:
+## The pop is announced once, at the killing contact — a vertex that has
+## already disintegrated must not re-announce on a later contact.
+func test_disintegrated_vertex_emits_no_second_pop_cue() -> void:
 	var ctx: Dictionary = await _setup()
-	var plain_node: SkillNode = ctx.plain_node
-	var preview := _make_preview()
-	preview._attacker = ctx.attacker
-	preview._dead_at = {}
-	preview._pending_pops = {}
+	var state := _chain_state()
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 
 	watch_signals(Events)
-	var before := plain_node.get_current_hp()
-	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
-	assert_almost_eq(plain_node.get_current_hp(), before, 0.001,
-			"a live (unpopped) vertex is pure animation — damage already landed")
+	gate.admit(_ev(0.3, 1, ctx.spike_node))
+	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
+	gate.admit(_ev(0.5, 1, ctx.plain_node))
+	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
+
+
+## A dead target pops nothing, so it announces nothing — #502's "no dud for
+## melee", now also true of the cue.
+func test_no_pop_cue_when_the_target_is_already_dead() -> void:
+	var ctx: Dictionary = await _setup()
+	var state := _chain_state()
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
+	(ctx.spike_node as SkillNode).owned_by = null
+
+	watch_signals(Events)
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)))
 	assert_signal_emit_count(Events, "blade_vertex_popped", 0)
 
 
-# ── Presentation clock (#479/#481): damage_shown ──────────────────────────────
-
-func test_live_hit_emits_damage_shown_at_its_own_t() -> void:
-	# #481: the replay's own per-event `t` (already driving SkillBlade.play's
-	# animation) doubles as the presentation clock — no separate schedule.
+## The PURE estimate path must stay silent. `ai_blade_rollout` runs
+## [method BladePopResolver.resolve] on [WorkerThreadPool], so an emit from
+## there would put a simulation on the global bus — and off the main thread.
+func test_the_pure_resolve_path_emits_nothing() -> void:
 	var ctx: Dictionary = await _setup()
-	var plain_node: SkillNode = ctx.plain_node
-	var preview := _make_preview()
-	preview._attacker = ctx.attacker
-	preview._dead_at = {}
-	preview._pending_pops = {}
+	var state := _chain_state()
+	var events: Array[BladeHitEvent] = [_ev(0.3, 1, ctx.spike_node)]
 
 	watch_signals(Events)
-	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
-	assert_signal_emit_count(Events, "damage_shown", 1)
-	assert_eq(get_signal_parameters(Events, "damage_shown"), [plain_node, 5.0])
-
-
-func test_live_hit_on_depleted_target_emits_damage_shown_only() -> void:
-	# Model mutation (force_deallocate) already happened synchronously in
-	# BattleSystem before this replay ever runs (#474) — _on_live_hit only
-	# reads the already-mutated state, and doesn't itself decide a death
-	# reveal. #491: SkillNode death is no longer announced off a
-	# presentation-hold refcount release — the recorded timeline's
-	# NODE_OWNER_LOST/NODE_DEATH events (SkillNode.take_damage →
-	# RevealRecorder) are what PresentationPlayer replays; `_on_live_hit`'s
-	# own contract stays exactly the damage_shown reveal it always was.
-	var ctx: Dictionary = await _setup()
-	var plain_node: SkillNode = ctx.plain_node
-	plain_node.owned_by = null
-	var preview := _make_preview()
-	preview._attacker = ctx.attacker
-	preview._dead_at = {}
-	preview._pending_pops = {}
-
-	watch_signals(Events)
-	preview._on_live_hit(0, false, plain_node, 0.1, 5.0)
-	assert_signal_emit_count(Events, "damage_shown", 1)
-	assert_eq(get_signal_parameters(Events, "damage_shown"), [plain_node, 5.0])
-
-
-func test_popped_hitter_emits_no_damage_shown() -> void:
-	# A popped hitter never produced a DamageInstance in resolve() (same
-	# gate this test file already exercises for the pop signal itself) —
-	# no presentation reveal for a hit that was never landed.
-	var ctx: Dictionary = await _setup()
-	var spike_node: SkillNode = ctx.spike_node
-	var preview := _make_preview()
-	preview._attacker = ctx.attacker
-	preview._dead_at = {1: 0.3}
-	preview._pending_pops = {
-		1: BladePopResolver.Pop.new(1, 0.3, spike_node, spike_node.get_spike_power())}
-
-	watch_signals(Events)
-	preview._on_live_hit(1, false, spike_node, 0.3, 999.0)
-	assert_signal_emit_count(Events, "damage_shown", 0)
+	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	assert_eq(res.pops.size(), 1, "the estimate still records the pop")
+	assert_signal_emit_count(Events, "blade_vertex_popped", 0,
+			"but a scoring rollout must never touch the bus")

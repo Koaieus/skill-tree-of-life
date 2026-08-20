@@ -251,7 +251,6 @@ func _ready() -> void:
 		# dies. The core node never emits `depleted` itself (#18).
 		if stat_board.health != null:
 			stat_board.health.depleted.connect(_on_health_depleted)
-			set_view_health(stat_board.health.current)
 
 	var tm := _find_turn_manager()
 	if tm != null:
@@ -451,7 +450,6 @@ func die() -> void:
 	if is_dead:
 		return
 	is_dead = true
-	RevealRecorder.entity_death(self)
 	died.emit()
 	# Before the bus phases: effects see the corpse fully intact (nodes still
 	# owned, modifiers still applied), same pre-strip world LootSystem relies on.
@@ -463,23 +461,16 @@ func die() -> void:
 	# the phases sequence themselves, no tree-order dependency. See Events.
 	Events.entity_dying.emit(self)
 	Events.entity_died.emit(self)
-
-## ── Presentation view state (#491) ──────────────────────────────────────────
-##
-## The `health` pool's DRAWN value — [PresentationPlayer] is the single
-## writer, via [method set_view_health]. No logic of its own, see #488's
-## invariant.
-signal view_health_changed(shown: float)
-var shown_health: float = 0.0
-
-
-func set_view_health(v: float) -> void:
-	shown_health = v
-	view_health_changed.emit(v)
+	# #504: the death is drawn at the moment the model dies, so this fires here
+	# rather than out of a replayed timeline. LAST, after `entity_died`, because
+	# GameRoot's handler for it despawns the corpse and AllocationSystem's
+	# `entity_died` strip must have run against a still-owned world first (see
+	# `.claude/rules/entity-death.md`).
+	Events.entity_death_shown.emit(self)
 
 
 func _emit_entity_wounded(amount: int) -> void:
-	RevealRecorder.entity_wound(self, amount)
+	Events.entity_wounded.emit(self, amount)
 
 
 func _emit_entity_healed(amount: int) -> void:

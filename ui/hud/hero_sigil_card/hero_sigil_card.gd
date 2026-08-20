@@ -81,7 +81,7 @@ func bind(entity: Entity) -> void:
 	# `core_healing` is health's per-turn companion (D-25) — same "incoming next
 	# turn" band mana and XP already render, which is exactly why D-25 chose an
 	# integer heal over a sub-1 sliver: zero new UI.
-	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing, _entity)
+	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing)
 	_bind_pool(_mana_gauge, _mana_caption, board.mana, board.mana_per_turn)
 
 
@@ -94,35 +94,28 @@ func show_level(level: int) -> void:
 		_level_badge.text = str(_shown_level)
 
 
-func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: ScalarStat,
-		entity: Entity = null) -> void:
+## #504: every gauge follows its pool directly. The `health` pool used to need
+## an [Entity] alongside it, to read a `shown_health` view field that lagged the
+## model; under design B the pool itself moves on the beat clock, so one path
+## serves health and mana alike.
+func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: ScalarStat) -> void:
 	if gauge == null or pool == null:
 		return
-	# Presentation clock (#491): [param entity] is only ever passed for the
-	# `health` pool — model mutation is synchronous and can move it before
-	# [PresentationPlayer] has replayed this hit's reveal, so reads here go
-	# through `shown_health` (the view field `PresentationPlayer` writes via
-	# `set_view_health`) instead of following `pool.current` raw.
-	var shown := func() -> float:
-		return entity.shown_health if entity != null else float(pool.current)
 	gauge.min_value = 0.0
 	gauge.max_value = float(pool.value)
-	gauge.current = shown.call()
+	gauge.current = float(pool.current)
 	gauge.preview_gain = float(per_turn.value) if per_turn != null else 0.0
 	# Tweened, not hard-cut (#317) — and `animate_to` deliberately only tweens
 	# *gains*, so a wound still snaps down and leaves its drain trail behind.
 	var animate := func():
-		gauge.animate_to(shown.call(), float(pool.value))
+		gauge.animate_to(float(pool.current), float(pool.value))
 	pool.current_changed.connect(animate.unbind(1))
 	pool.value_changed.connect(animate)
-	if entity != null:
-		entity.view_health_changed.connect(
-				func(shown_value: float): gauge.animate_to(shown_value, float(pool.value)))
 	if per_turn != null:
 		per_turn.value_changed.connect(func(): gauge.preview_gain = float(per_turn.value))
 	if caption != null:
 		var refresh_caption := func():
-			var cur: float = shown.call()
+			var cur: float = float(pool.current)
 			if per_turn != null and float(per_turn.value) > 0.0:
 				caption.text = "%d/%d (+%d/t)" % [int(cur), int(pool.value), int(per_turn.value)]
 			else:
@@ -131,6 +124,4 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 		pool.value_changed.connect(refresh_caption)
 		if per_turn != null:
 			per_turn.value_changed.connect(refresh_caption)
-		if entity != null:
-			entity.view_health_changed.connect(func(_v: float): refresh_caption.call())
 		refresh_caption.call()

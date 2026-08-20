@@ -47,7 +47,6 @@ func _ready() -> void:
 		return
 
 	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
-	_skill_node.view_state_changed.connect(_on_view_state_changed)
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
@@ -56,11 +55,8 @@ func _ready() -> void:
 	_on_owner_changed.call_deferred()
 
 
-## #491: only tracks the pool identity (for `max_value` + the initial bind) —
-## the drawn `value` is driven exclusively by `_on_view_state_changed` below,
-## which lags the real pool by however long [PresentationPlayer] takes to
-## reveal it. Runs immediately on every ownership change (no presentation-hold
-## gate): the pool identity itself isn't a reveal, only the HP number is.
+## Rebind to whichever `node_health` pool this node's current owner brings.
+## The pool is the ONLY thing this bar draws (#504) — see [method _bind_pool].
 func _on_owner_changed() -> void:
 	if _skill_node == null:
 		return
@@ -70,26 +66,33 @@ func _on_owner_changed() -> void:
 	_bind_pool(hp)
 
 
+## #504: the bar binds to the real `node_health` pool and draws it — both its
+## max (`value_changed`) and its current (`current_changed`). There is no view
+## store to lag behind: [OutcomeApplier] lands each hit at its own
+## `arrival_time`, so the pool itself already changes on the beat the player is
+## watching (see [BeatClock]).
 func _bind_pool(pool: PoolStat) -> void:
 	if _pool == pool:
 		return
 	if _pool != null:
 		if _pool.value_changed.is_connected(_on_max_changed):
 			_pool.value_changed.disconnect(_on_max_changed)
+		if _pool.current_changed.is_connected(_on_current_changed):
+			_pool.current_changed.disconnect(_on_current_changed)
 	_pool = pool
 	if _pool != null:
 		_pool.value_changed.connect(_on_max_changed)
+		_pool.current_changed.connect(_on_current_changed)
 		_sync()
 	_update_visibility()
 
 
-## The node's DRAWN hp changed — [SkillNode]'s single view-state writer is
-## [PresentationPlayer], so this fires on the exact cadence a hit should
-## visibly land, whether that's one step of a staggered cascade/volley or a
-## reveal that arrived all at once (`play_instant`, pass-through).
-func _on_view_state_changed(hp: float, _owner: Entity) -> void:
-	var going_down := hp < value
-	if going_down:
+## The node's combat HP moved. Damage snaps down fast, healing eases back up —
+## the tween is pure animation over a value the model has already committed to,
+## and gates nothing.
+func _on_current_changed(new_current: Variant) -> void:
+	var hp := float(new_current)
+	if hp < value:
 		_tween_value(hp, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
 	else:
 		_tween_value(hp, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
@@ -105,7 +108,7 @@ func _sync() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
-	value = _skill_node.shown_hp if _skill_node != null else float(_pool.current)
+	value = float(_pool.current)
 
 
 # ── Hover ───────────────────────────────────────────────────────────────────
@@ -125,11 +128,11 @@ func _on_unhovered() -> void:
 func _update_visibility() -> void:
 	if _pool == null:
 		return _fade_to(0.0)
-	_update_visibility_for(_skill_node.shown_hp if _skill_node != null else float(_pool.current))
+	_update_visibility_for(float(_pool.current))
 
 
 ## `hp < max` counts as damaged: a depleted node must read as an empty bar,
-## not as no bar at all. Only a node at full (DRAWN) HP hides itself.
+## not as no bar at all. Only a node at full HP hides itself.
 func _update_visibility_for(hp: float) -> void:
 	if _pool == null:
 		return _fade_to(0.0)

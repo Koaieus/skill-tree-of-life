@@ -73,22 +73,21 @@ var muted: bool = false
 
 @export var allocation_system: AllocationSystem
 @export var battle_system: BattleSystem
-## #491: the shatter's arm signal. A [SkillNode]'s forced dealloc mutates the
-## model synchronously (`force_deallocated`, at t=0) — the shatter itself
-## waits for [PresentationPlayer] to REVEAL that same node's recorded
-## NODE_OWNER_LOST event, which already carries the correct
-## `RevealTimeline.CASCADE_STEP` stagger baked into its `t` (the recorder
-## staggers cascade layers and the entity-death strip at record time — see
-## `BattleSystem._on_node_depleted` / `AllocationSystem._on_entity_died`), so
-## this class needs no tween/timer schedule of its own anymore.
-@export var presentation_player: PresentationPlayer
-## Snapshot taken at `force_deallocated` time (position/radius/colour), kept
-## until the player reveals that node's NODE_OWNER_LOST — `_on_cascade_started`
-## overwrites a cascade node's entry with a PRE-dealloc radius (`inner_radius`
-## before allocation collapses to 0), which is otherwise already stale by the
-## time `force_deallocated` fires (`owned_by` is null and the stake/alloc
-## count has already zeroed by then — see [AllocationSystem.force_deallocate]).
-var _pending_shatter: Dictionary[SkillNode, Dictionary] = {}
+## Seconds between cascade layers' shatters. #504: the forced-dealloc cascade
+## MUTATES synchronously — all layers in one beat, and it must (see
+## `BattleSystem._on_node_depleted`) — so the layer-by-layer ripple is owned
+## here, as pure animation. Delaying a shatter spawn is not frame-ordered
+## mutation: nothing downstream reads it, and dropping it entirely would leave
+## the applied world identical.
+const CASCADE_STEP: float = 0.35
+
+## Pre-dealloc snapshot for the cascade currently unwinding: per node, the
+## position / radius / colour to draw plus this node's own `delay` slot.
+## Written by `_on_cascade_started` — which runs BEFORE `force_deallocate` and
+## so still sees an accurate `inner_radius` — and consumed once by
+## `_on_force_deallocated`, which is what actually spawns. A standalone
+## (non-cascade) force-dealloc has no entry and reads live values at zero delay.
+var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 
 
 
@@ -102,9 +101,10 @@ func _ready() -> void:
 
 func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:
 	# `_ready()` runs unguarded in the editor too (this script has no other
-	# is_editor_hint gate), and the NodePath-resolved `presentation_player`
-	# is a bare `Node` there — its script only attaches when actually
-	# running, since PresentationPlayer isn't @tool. Skip wiring entirely.
+	# is_editor_hint gate), and the NodePath-resolved systems are bare `Node`s
+	# there — their scripts only attach when actually running. Skip wiring
+	# entirely rather than touching a placeholder's signals (see
+	# `.claude/rules/gdscript-pitfalls.md`).
 	if Engine.is_editor_hint():
 		return
 	if _allocation_system != null:
@@ -114,19 +114,13 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 		allocation_system.force_deallocated.connect(_on_force_deallocated)
 	if _battle_system != null:
 		battle_system = _battle_system
-		# #491: `cascade_started` stays connected — it's still the pre-dealloc
-		# snapshot point (accurate `inner_radius` before force_deallocate
-		# collapses it), just no longer an arm-later scheduling signal.
+		# The pre-dealloc snapshot point AND where the ripple schedule is
+		# assigned — see `_on_cascade_started`.
 		battle_system.cascade_started.connect(_on_cascade_started)
 	# #170: bus-driven, not system-bound — a spike pop is a world event, not an
 	# allocation. Connect once (idempotent guard for repeat bind() calls).
 	if not Events.blade_vertex_popped.is_connected(_on_blade_vertex_popped):
 		Events.blade_vertex_popped.connect(_on_blade_vertex_popped)
-	# #491: the shatter arms off the player's own NODE_OWNER_LOST reveal —
-	# see `_pending_shatter`'s docstring.
-	if presentation_player != null \
-			and not presentation_player.event_revealed.is_connected(_on_reveal):
-		presentation_player.event_revealed.connect(_on_reveal)
 
 
 # --- Signal handlers ---------------------------------------------------------
@@ -152,20 +146,24 @@ func _on_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 		Events.stat_modifier_changed.emit(previous_owner, m, ModifierBinding.Kind.NODE, false)
 
 
-## #491: `force_deallocated` fires at t=0 (model mutation) — this only
-## SNAPSHOTS (position/radius/colour keyed by node); the shatter itself waits
-## for `_on_reveal`'s NODE_OWNER_LOST. `_on_cascade_started` may already have
-## written a more accurate (pre-dealloc-radius) snapshot for this node — don't
-## clobber it.
+## #504: `force_deallocated` fires when the node ACTUALLY changes hands — which
+## under design B is the landing's own `arrival_time` — so the shatter spawns
+## from here directly. Its only scheduling is the intra-cascade ripple delay
+## `_on_cascade_started` assigned it (0.0 for a standalone dealloc).
 func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 	if muted or node == null or previous_owner == null:
 		return
-	if not _pending_shatter.has(node):
-		_pending_shatter[node] = {
-			"position": node.global_position,
-			"radius": node.inner_radius,
-			"color": previous_owner.color,
-		}
+	var snap: Dictionary = _cascade_snapshot.get(node, {})
+	_cascade_snapshot.erase(node)
+	# Live values are the fallback, not the preference: by now `owned_by` is
+	# null and the stake/alloc count has zeroed, so `inner_radius` has already
+	# collapsed (see [AllocationSystem.force_deallocate]). A cascade node's
+	# snapshot is the accurate one.
+	_spawn_shatter(
+			snap.get("position", node.global_position),
+			snap.get("radius", node.inner_radius),
+			snap.get("color", previous_owner.color),
+			snap.get("delay", 0.0))
 
 
 func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vector2) -> void:
@@ -179,48 +177,31 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vec
 	_spawn_pop_burst(at_pos, radius, color)
 
 
-## A forced-dealloc cascade is about to run in the model. Snapshot each node's
-## position+radius NOW, before `force_deallocate` — the node lives on (only
-## ownership/visuals change) but the snapshot is what the shatter disk draws,
-## and stake/allocation collapsing to 0 on dealloc would otherwise shrink
-## `inner_radius` out from under a later read (see `_pending_shatter`'s
-## docstring). The shatter itself is armed later, off `_on_reveal`.
+## A forced-dealloc cascade is about to run in the model. Two jobs, both of
+## which need to happen BEFORE `force_deallocate`:
+##
+## 1. Snapshot each node's position/radius — the node lives on (only
+##    ownership/visuals change), but stake/allocation collapsing to 0 on
+##    dealloc shrinks `inner_radius` out from under any later read.
+## 2. Assign each node its ripple slot. `layers` arrives in BFS order from the
+##    impact, so layer `i` shatters `i * CASCADE_STEP` after the hit — the
+##    cascade reads as spreading outward rather than popping at once. #504
+##    moved this here: the mutation is synchronous and cannot be staggered
+##    (see `BattleSystem._on_node_depleted`), but the ANIMATION can.
 func _on_cascade_started(layers: Array, defender: Entity) -> void:
 	if muted or defender == null or layers.is_empty():
 		return
 	var color: Color = defender.color
-	for layer in layers:
-		for n in layer:
+	for i in range(layers.size()):
+		for n in layers[i]:
 			if n == null:
 				continue
-			_pending_shatter[n] = {
+			_cascade_snapshot[n] = {
 				"position": n.global_position,
 				"radius": n.inner_radius,
 				"color": color,
+				"delay": i * CASCADE_STEP,
 			}
-
-
-## #491: the arm signal — [PresentationPlayer] has revealed [param event]'s
-## subject losing ownership. Its recorded `t` already carries the correct
-## `RevealTimeline.CASCADE_STEP` stagger (baked in at record time by
-## `BattleSystem`/`AllocationSystem`), so this fires exactly on the node's own
-## slot with no scheduling of its own — covers the battle cascade, the
-## entity-death strip, and a standalone (non-combat) force-dealloc uniformly.
-func _on_reveal(event: RevealEvent) -> void:
-	if muted or event.kind != RevealEvent.Kind.NODE_OWNER_LOST:
-		return
-	var node: SkillNode = event.node
-	if node == null:
-		return
-	var snap: Dictionary = _pending_shatter.get(node, {})
-	_pending_shatter.erase(node)
-	var fallback_color: Color = event.entity.color if event.entity != null else Color.WHITE
-	var color: Color = snap.get("color", fallback_color)
-	var position: Vector2 = snap.get("position",
-			node.global_position if is_instance_valid(node) else Vector2.ZERO)
-	var radius: float = snap.get("radius",
-			node.inner_radius if is_instance_valid(node) else 0.0)
-	_spawn_shatter(position, radius, color, 0.0)
 
 
 # --- Modifier pulses (#71) ---------------------------------------------------

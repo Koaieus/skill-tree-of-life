@@ -67,9 +67,9 @@ func _render() -> void:
 		_hp.text = "—"
 		return
 	_name.text = node.name
-	# #485 audit: read as DRAWN, not as mutated — `owned_by` is already post-cascade
-	# the instant a forced-dealloc lands, so a direct read here would show the
-	# card snapping to "Unowned" before the node's own reveal does.
-	var shown_owner := node.shown_owner
-	_owner.text = shown_owner.display_name if shown_owner != null else "Unowned"
+	# #504: `owned_by` IS the drawn value under design B — a forced-dealloc
+	# lands at its own `arrival_time`, so the card flips to "Unowned" on the
+	# same beat the node does.
+	var current_owner := node.owned_by
+	_owner.text = current_owner.display_name if current_owner != null else "Unowned"
 	_hp.text = "%d / %d" % [roundi(node.get_current_hp()), roundi(node.get_max_hp())]

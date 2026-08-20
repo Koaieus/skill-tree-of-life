@@ -148,8 +148,13 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 				_play_event(ev_v, pending)
 			await get_tree().create_timer(flight).timeout
 
+		# #504: no `_show_presentation` pass anymore. The wave's hits land on
+		# the applier's beat clock (`hop_index * WAVE_ARRIVAL_INTERVAL`), so the
+		# HP bar, node tint and damage number all move off the model as the bolt
+		# arrives — this coordinator no longer re-announces what already
+		# happened. `wave_started` stays: it is the animation's own cadence
+		# signal, which tests assert on.
 		wave_started.emit(beat, wave.size())
-		_show_presentation(wave)
 
 		if i < beats.size() - 1:
 			var next_wave: Array = waves[int(beats[i + 1])]
@@ -167,25 +172,6 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 ## propagation clock already IS the arrival schedule (impact is pinned to
 ## the beat per the three-clocks model above), so no extra timer is needed
 ## here unlike ranged's per-shot [member HitInstance.arrival_time]. Pure
-## observer: [member PropagationEvent.hits] already landed synchronously in
-## BattleSystem._apply_outcome (#474); this only tells presentation-only
-## subscribers (HP bar, node tint, death VFX, heal number) that the event
-## visually arrived. Heals reveal on the same beat clock as damage
-## (#481/#482); branches per-hit on [member HitInstance.kind] (#381) so a
-## damage instance BattleSystem reclassified to a heal (Bulwark-style
-## `min_damage_taken` underflow) reveals as a heal here too.
-func _show_presentation(wave: Array) -> void:
-	for ev_v in wave:
-		var ev := ev_v as PropagationEvent
-		if ev == null or ev.target == null:
-			continue
-		for hit in ev.hits:
-			if hit.kind == HitInstance.Kind.HEAL:
-				Events.heal_shown.emit(ev.target, hit.effective_amount)
-			else:
-				Events.damage_shown.emit(ev.target, hit.effective_amount)
-
-
 func _group_by_beat(timeline: Array[PropagationEvent]) -> Dictionary:
 	var waves: Dictionary = {}
 	for ev in timeline:

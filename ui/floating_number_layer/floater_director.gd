@@ -42,14 +42,13 @@ const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd
 
 
 func _ready() -> void:
-	# Presentation clock (#482): the damage NUMBER is a reveal, same as the HP
-	# bar and the tint — it must appear when the swing/arrow/bolt lands, not when
-	# BattleSystem applied the hit. `skill_node_damaged` fires at model-mutation
-	# time and would float the number over a node the projectile hasn't reached.
-	# `damage_shown` is guaranteed to fire exactly once per applied hit
-	# (PresentationPlayer.play_instant covers the no-coordinator paths).
-	Events.damage_shown.connect(_on_damage_shown)
-	Events.heal_shown.connect(_on_heal_shown)
+	# #504: the damage NUMBER reads the model, same as the HP bar and the tint.
+	# It used to ride a separate `damage_shown` emitted by each VFX coordinator
+	# on its own timer, because model mutation happened at t=0 and would have
+	# floated the number over a node the projectile hadn't reached. Under design
+	# B the hit LANDS at its `arrival_time`, so `skill_node_damaged` already
+	# fires on the beat — and one clock cannot drift from itself.
+	Events.skill_node_damaged.connect(_on_skill_node_damaged)
 	Events.skill_node_healed.connect(_on_skill_node_healed)
 	Events.entity_wounded.connect(_on_entity_wounded)
 	Events.entity_healed.connect(_on_entity_healed)
@@ -59,27 +58,17 @@ func _ready() -> void:
 
 # --- Domain intake → render request -----------------------------------------
 
-func _on_damage_shown(node: SkillNode, amount: float) -> void:
+func _on_skill_node_damaged(node: SkillNode, amount: float, _source: Variant) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	_emit(node, "%d" % int(round(amount)), FloaterStyles.damage())
 
 
-## #481/#482 — the heal mirror of the damage reveal: an attack heal number appears
-## when the heal's VFX lands (the beat), not when BattleSystem applied it. Same
-## display as `_on_skill_node_healed`, but keyed off the arrival reveal.
-func _on_heal_shown(node: SkillNode, amount: float) -> void:
-	if node == null or amount <= 0.0 or not _node_visible(node):
-		return
-	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())
-
-
-func _on_skill_node_healed(node: SkillNode, amount: float, source: Variant) -> void:
-	# #481/#482: an attack heal carries a HealInstance source — it rides
-	# `heal_shown` on the VFX arrival clock instead. Non-attack heals (turn
-	# regen, heal aura) have no arrival schedule and keep floating immediately.
-	if source is HealInstance:
-		return
+## Every heal floats the same way (#504) — an attack heal used to be held back
+## here and re-announced by the coordinator on `heal_shown`, but a heal now
+## lands on its own `arrival_time` exactly like a hit, so there is nothing left
+## to distinguish it from turn regen or a heal aura.
+func _on_skill_node_healed(node: SkillNode, amount: float, _source: Variant) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())

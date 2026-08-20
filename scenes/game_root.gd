@@ -88,20 +88,14 @@ var player: Entity
 @onready var attack_vfx: AttackVFX = %AttackVFX
 @onready var allocation_vfx: AllocationVFX = %AllocationVFX
 @onready var melee_preview: MeleePreview = %MeleePreview
-@onready var presentation_player: PresentationPlayer = %PresentationPlayer
 
 
 func _ready() -> void:
-	# Presentation clock v2 (#489): static state outlives a scene change, so
-	# this must be paired with the `_exit_tree` clear below or a level reload
-	# leaves RevealRecorder.player dangling at a freed node.
-	RevealRecorder.player = presentation_player
-
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
-	# Presentation clock (#479): the VISUAL consequence (despawn / game-over)
-	# waits for the killing blow's own reveal — see `_on_entity_death_shown`.
+	# The VISUAL consequence (despawn / game-over) rides `entity_death_shown`,
+	# which `Entity.die()` emits last — see `_on_entity_death_shown`.
 	Events.entity_death_shown.connect(_on_entity_death_shown)
 
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
@@ -157,15 +151,13 @@ func _ready() -> void:
 	_focus_camera_on_player()
 
 
-## Presentation clock v2 (#489): `RevealRecorder`'s static state outlives this
-## scene, so it must be cleared here or a level reload leaves
-## `RevealRecorder.player` pointing at this (about-to-be-freed) player, and
-## any in-flight recording dangling too.
+## The drain (#504, design B). An attack's world mutation is spread across a
+## real interval, so a scene change mid-volley would strand every hit that had
+## not landed yet — a world that is valid but permanently wrong. Draining here
+## lands the rest synchronously, while the nodes involved are still alive.
 func _exit_tree() -> void:
-	if RevealRecorder.player == presentation_player:
-		RevealRecorder.player = null
-	if RevealRecorder.is_recording:
-		RevealRecorder.end()
+	if battle_system != null:
+		battle_system.drain_pending_mutations()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -185,17 +177,14 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Entity death consequence (#18). Node-stripping is AllocationSystem's job (it
 ## also listens to `entity_died`); here we handle the turn-loop-critical half of
 ## what's left SYNCHRONOUSLY — an NPC corpse must not hold/receive a turn — and
-## defer the VISUAL half (despawn / game-over) to `_on_entity_death_shown`
-## (#479), so the corpse stays on screen through its own death VFX instead of
-## vanishing at raw model-mutation time.
+## defer the VISUAL half (despawn / game-over) to `_on_entity_death_shown`.
 ##
-## #491: the despawn/game-over reveal always arrives via
-## `_on_entity_death_shown` now — `Entity.die()` unconditionally records an
-## ENTITY_DEATH reveal (`RevealRecorder.entity_death`), and
-## `PresentationPlayer` emits `Events.entity_death_shown` for it either way:
-## staged, if a recording is open (an attack-driven death); immediately, via
-## pass-through, if not (upkeep, an effect, a test calling `die()` directly).
-## No fallback branch needed here anymore.
+## #504: `Entity.die()` emits `entity_death_shown` itself, last — after both
+## bus phases, so AllocationSystem's strip has run against a still-owned world
+## before the corpse despawns. Under design B the model dies at the moment it
+## is drawn dying, so there is no reveal to wait for and no fallback branch:
+## every death path (an attack, upkeep, an effect, a test calling `die()`)
+## arrives here the same way.
 func _on_entity_died(entity: Entity) -> void:
 	if entity == null:
 		return

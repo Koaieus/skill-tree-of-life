@@ -1,6 +1,10 @@
 class_name RevealEvent
 extends RefCounted
 
+## [b]PARKED — nothing references this class (#504). See
+## presentation/README.md before touching or deleting it.[/b] Design A of the
+## presentation clock; the game runs design B.
+
 ## One recorded change to a subject's presented state, produced by
 ## [RevealRecorder] and consumed by [PresentationPlayer]. See #488 for the
 ## full design; this is the payload shape.

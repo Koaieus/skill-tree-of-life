@@ -169,7 +169,25 @@ class LiveGate extends RefCounted:
 
 	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float) -> void:
 		result.dead_at[particle_idx] = t
-		result.pops.append(Pop.new(particle_idx, t, defender, power))
+		var pop := Pop.new(particle_idx, t, defender, power)
+		result.pops.append(pop)
+		# #504: a spike pop is a MODEL event, announced where it happens. This
+		# runs inside `admit` inside `land_on` inside the applier's beat, so the
+		# cue fires on the mutation clock — the same clock the damage, the
+		# health bar and the shatter are on.
+		#
+		# It used to be re-announced by [MeleePreview] during the animation
+		# replay, which only worked because the whole outcome was applied
+		# BEFORE the replay started and `result.pops` was therefore complete.
+		# Under design B the swing animates concurrently with the mutation, so
+		# that snapshot would be empty; racing two timers at the same `t` is
+		# the disease, not the fix.
+		#
+		# Safe to emit from here: `_kill` is [LiveGate]'s alone. The pure
+		# estimate path ([method BladePopResolver.resolve], which
+		# `ai_blade_rollout` runs on [WorkerThreadPool]) has its own inline
+		# logic and never reaches this — so a rollout still cannot touch the bus.
+		Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
 		var removed: Dictionary = {}
 		for k in result.dead_at:
 			removed[k] = true

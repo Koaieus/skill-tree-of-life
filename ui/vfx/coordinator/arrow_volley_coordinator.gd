@@ -9,9 +9,15 @@ extends VFXCoordinator
 ## per-index constant — so a wide volley reads as a flurry of arrival
 ## impacts rather than one monolithic THWACK.
 ##
-## Pure observer (#474) — [member AttackOutcome.hits] has ALREADY landed by
-## the time [method play] runs (BattleSystem applies it synchronously before
-## any VFX await). This coordinator never calls take_damage; it only renders.
+## Pure observer (#474/#504) — this coordinator never calls take_damage; it
+## only renders. Note it now runs CONCURRENTLY with the mutation loop rather
+## than after it: [BattleSystem] starts [method play] un-awaited and
+## [OutcomeApplier] lands each hit at that hit's own `arrival_time`, so the
+## arrow is genuinely in flight while its damage is still pending. That is the
+## whole point — the HP bar, shatter, fog and damage number all move as the
+## arrow strikes, because they are all reading the model. Observer status is
+## unchanged: the applier waits on its own timer, never on this animation, so
+## dropping every frame here leaves the applied world identical.
 ##
 ## Uses the [LightArrow] visual by default — oriented glowing arrow that
 ## sticks into the target node and fades. Arrows are tinted by the
@@ -43,14 +49,6 @@ func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
 	if outcome == null:
 		return
-	# A ranged DamageInstance can still flip to Kind.HEAL inside take_damage
-	# (a Bulwark-style `min_damage_taken` underflow, same as any other attack
-	# mode) — `damage_hits()` correctly drops it, but nothing here ever gave
-	# it a projectile or a reveal. No dedicated visual
-	# makes sense for a hit that never had its own arrow — reveal it immediately.
-	for hit in outcome.hits:
-		if hit.kind == HitInstance.Kind.HEAL and hit.target != null:
-			Events.heal_shown.emit(hit.target, hit.effective_amount)
 	# Ranged never produces genuine heals, but `outcome.hits` is
 	# `Array[HitInstance]` (#381) — filter to damage explicitly rather than
 	# relying on every entry being a DamageInstance.
@@ -86,8 +84,6 @@ func play(payload: Variant) -> void:
 			var v: Node = proj.get_child(0)
 			if "tint" in v:
 				v.set("tint", tint)
-		pending[0] += 1
-		_show_presentation(hit, launch_delay + flight, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
 
@@ -113,22 +109,6 @@ func _flight_for(hit: DamageInstance, launch_delay: float) -> float:
 	if hit.arrival_time <= 0.0:
 		return flight_time
 	return maxf(hit.arrival_time - launch_delay, flight_time * MIN_FLIGHT_FRACTION)
-
-
-## Fires the presentation-clock reveal (#479/#481) at [param impact_time] — the
-## instant this shot's arrow actually reaches the target, launch stagger
-## included. Pure observer: damage already landed synchronously in
-## BattleSystem._apply_outcome (#474) before [method play] ever ran; this only
-## tells presentation-only subscribers (HP bar, node tint, damage number, death
-## VFX) that the shot arrived. Included in `pending` so [method play] doesn't
-## return (and get torn down by [AttackVFX]) before this fires.
-func _show_presentation(hit: DamageInstance, impact_time: float, pending: Array[int]) -> void:
-	if impact_time > 0.0:
-		await get_tree().create_timer(impact_time).timeout
-	Events.damage_shown.emit(hit.target, hit.effective_amount)
-	# `damage_shown` here is purely the floating-number/HP-bar reveal —
-	# PresentationPlayer's own recorded timeline drives the death event.
-	pending[0] -= 1
 
 
 # Resolve attacker tint: the RangedAttackPlan is the hit source and

@@ -18,11 +18,6 @@ const _COLOR_LOW  := Color(0.85, 0.10, 0.10, 1.0)
 
 var _fill_style: StyleBoxFlat = null
 var _pool: PoolStat = null
-## The entity this pool belongs to. Only tracked here for `view_health_changed`
-## — the drawn `value` is driven exclusively by that signal, not by the pool's
-## own `current_changed`; see #491. Null is a valid bind (no entity, no drawn
-## lag — the bar just follows the pool directly).
-var _entity: Entity = null
 var _fade_tween: Tween = null
 var _value_tween: Tween = null
 ## Committed fade target — see the same field in health_bar.gd (#147). Guards
@@ -39,25 +34,22 @@ func _ready() -> void:
 
 
 ## Bind to an entity's health [PoolStat] (pass [code]null[/code] to detach).
-## [param entity] is the view-state anchor (#491) — its [signal
-## Entity.view_health_changed] drives the drawn `value`, never the pool's own
-## `current_changed`, so the bar lags the pool by however long
-## [PresentationPlayer] takes to reveal a chip/overflow source. Fades in on
-## bind, fades out on detach.
-func bind_health(pool: PoolStat, entity: Entity = null) -> void:
-	if _pool == pool and _entity == entity:
+## The bar draws that pool and nothing else (#504): both its max
+## (`value_changed`) and its current (`current_changed`). Under design B a
+## chip/overflow source mutates the pool at the landing's own `arrival_time`,
+## so there is no view state to lag behind it. Fades in on bind, out on detach.
+func bind_health(pool: PoolStat) -> void:
+	if _pool == pool:
 		return
 	if _pool != null:
 		if _pool.value_changed.is_connected(_on_max_changed):
 			_pool.value_changed.disconnect(_on_max_changed)
-	if _entity != null and _entity.view_health_changed.is_connected(_on_view_health_changed):
-		_entity.view_health_changed.disconnect(_on_view_health_changed)
+		if _pool.current_changed.is_connected(_on_current_changed):
+			_pool.current_changed.disconnect(_on_current_changed)
 	_pool = pool
-	_entity = entity
 	if _pool != null:
 		_pool.value_changed.connect(_on_max_changed)
-		if _entity != null:
-			_entity.view_health_changed.connect(_on_view_health_changed)
+		_pool.current_changed.connect(_on_current_changed)
 		_sync()
 		_fade_to(1.0)
 	else:
@@ -66,16 +58,14 @@ func bind_health(pool: PoolStat, entity: Entity = null) -> void:
 
 # ── Pool signal handlers ──────────────────────────────────────────────────────
 
-## The entity's DRAWN health changed (#491) — [PresentationPlayer] is the
-## single writer, so this fires on the exact cadence a chip/overflow source
-## should visibly land (a staggered cascade steps this once per layer, same
-## rhythm as the node paint ripple).
-func _on_view_health_changed(shown_value: float) -> void:
-	var going_down := shown_value < value
-	if going_down:
-		_tween_value(shown_value, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
+## The entity's core health moved. A staggered cascade steps this once per
+## landing, the same rhythm as the node paint.
+func _on_current_changed(new_current: Variant) -> void:
+	var hp := float(new_current)
+	if hp < value:
+		_tween_value(hp, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
 	else:
-		_tween_value(shown_value, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
+		_tween_value(hp, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
 
 
 func _on_max_changed() -> void:
@@ -87,7 +77,7 @@ func _sync() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
-	value = _entity.shown_health if _entity != null else float(_pool.current)
+	value = float(_pool.current)
 
 
 # ── Fade ──────────────────────────────────────────────────────────────────────

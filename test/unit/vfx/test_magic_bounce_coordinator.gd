@@ -165,81 +165,14 @@ func test_events_in_wave_grouped_by_beat() -> void:
 	assert_eq(events[2], [2, 1])
 
 
-func test_damage_shown_fires_per_beat_not_synchronously_with_play() -> void:
-	# #481: Events.damage_shown must fire on the propagation clock (at each
-	# beat's wave_started), not the instant play() is called — mirrors
-	# test_wave_started_fires_once_per_hop_in_order's shape.
-	var nodes := _graph.get_skill_nodes()
-	var beats := [0, 1, 1, 2]
-	var outcome := AttackOutcome.new()
-	for i in beats.size():
-		var ev := PropagationEvent.new()
-		ev.beat = int(beats[i])
-		ev.origin = nodes[0]
-		ev.target = nodes[1]
-		var hit := DamageInstance.new()
-		hit.origin = nodes[0]
-		hit.target = nodes[1]
-		hit.amount = 3.0
-		hit.effective_amount = 3.0
-		ev.hits.append(hit)
-		outcome.hits.append(hit)
-		outcome.timeline.append(ev)
-	var coord := _mount_coord(0.04, 0.03)
-	var shown: Array = []
-	var handler := func(target: SkillNode, amount: float) -> void:
-		shown.append([target, amount])
-	Events.damage_shown.connect(handler)
-	coord.play(outcome)
-	# Beat 0 does NOT reveal synchronously with play(): its own bolt is still
-	# in the air. The seed hop gets the same treatment every later hop already
-	# got — spawn, fly `launch_to_impact`, then announce — so nothing is
-	# revealed at all in the frame play() was called, and the first
-	# propagation cannot leave a target the bolt hasn't reached yet.
-	assert_eq(shown.size(), 0, "no reveal before the seed bolt has flown")
-	await get_tree().create_timer(0.04 * 8).timeout
-	Events.damage_shown.disconnect(handler)
-	assert_eq(shown.size(), 4, "one reveal per timeline event across 3 beats")
-	for entry in shown:
-		assert_eq(entry[0], nodes[1])
-		assert_eq(entry[1], 3.0)
-
-
-func test_heal_shown_fires_per_beat_not_synchronously_with_play() -> void:
-	# #481/#482: Events.heal_shown is the heal mirror of damage_shown — it must fire
-	# on the propagation clock (at each beat), not the instant play() is called,
-	# so a bouncing heal number waits for the bolt carrying it to land.
-	var nodes := _graph.get_skill_nodes()
-	var beats := [0, 1, 2]
-	var outcome := AttackOutcome.new()
-	for i in beats.size():
-		var ev := PropagationEvent.new()
-		ev.beat = int(beats[i])
-		ev.origin = nodes[0]
-		ev.target = nodes[1]
-		var heal := HealInstance.new()
-		heal.origin = nodes[0]
-		heal.target = nodes[1]
-		heal.amount = 3.0
-		heal.effective_amount = 3.0
-		ev.hits.append(heal)
-		outcome.hits.append(heal)
-		outcome.timeline.append(ev)
-	var coord := _mount_coord(0.04, 0.03)
-	var shown: Array = []
-	var handler := func(target: SkillNode, amount: float) -> void:
-		shown.append([target, amount])
-	Events.heal_shown.connect(handler)
-	coord.play(outcome)
-	# Beat 0 does NOT reveal synchronously with play(): its own bolt is still
-	# in the air — same seed-hop treatment as damage.
-	assert_eq(shown.size(), 0, "no heal reveal before the seed bolt has flown")
-	await get_tree().create_timer(0.04 * 8).timeout
-	Events.heal_shown.disconnect(handler)
-	assert_eq(shown.size(), 3, "one heal reveal per timeline event across 3 beats")
-	for entry in shown:
-		assert_eq(entry[0], nodes[1])
-		assert_eq(entry[1], 3.0)
+## #504 removed this file's two `damage_shown` / `heal_shown` per-beat tests.
+## The coordinator no longer announces landings: the world mutates at each
+## hit's `arrival_time` (magic stamps `hop_index * WAVE_ARRIVAL_INTERVAL`) in
+## [OutcomeApplier], and every painter reads the model. `wave_started` above is
+## still the animation's own cadence signal and still asserted — the spell-VFX
+## clock contract (`.claude/rules/spell-vfx.md`) is unchanged. Beat-timing
+## assertions now live in `test/unit/attack/test_outcome_applier_beat_clock.gd`
+## and `test/unit/spell/test_magic_wave_apply.gd`.
 
 
 func test_coordinator_never_mutates_hp() -> void:

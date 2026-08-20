@@ -425,12 +425,6 @@ func _ready() -> void:
 	owner_changed.connect(_sync_visuals)
 	owner_changed.connect(_refresh_core_presence)
 	owner_changed.connect(_refresh_hp_binding)
-	# #491: a GAIN of ownership (allocate / force_allocate) has no reveal
-	## behind it — push the view state immediately. A LOSS (force_deallocate)
-	## is already pushed, correctly staged, by RevealRecorder's NODE_OWNER_LOST
-	## record (fired before `owned_by` goes null) — this handler no-ops for
-	## that case by construction (`owned_by == null` guard).
-	owner_changed.connect(_seed_view_state_on_ownership_gain)
 	damaged.connect(_on_damaged_flash.unbind(2))
 	# Addons are plain direct children (#334) — no filing bin. Adopt the ones
 	# already present (scene-authored, or parented before we entered the tree),
@@ -444,7 +438,7 @@ func _ready() -> void:
 	child_exiting_tree.connect(_on_addon_removed)
 	_refresh_core_presence()
 	_refresh_hp_binding()
-	set_view_state(_current_node_hp(), owned_by)
+	_sync_visuals()
 
 
 func _refresh_core_presence() -> void:
@@ -471,11 +465,9 @@ func _refresh_core_presence() -> void:
 
 func _refresh_core_health_bar(_is_core: bool) -> void:
 	var pool: PoolStat = null
-	var entity: Entity = null
 	if _is_core and owned_by != null and owned_by.stat_board != null:
 		pool = owned_by.stat_board.health
-		entity = owned_by
-	core_health_bar.bind_health(pool, entity)
+	core_health_bar.bind_health(pool)
 	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one, #94).
 	core_health_bar.visible = revealed and _is_core
 
@@ -528,30 +520,6 @@ func _current_node_hp() -> float:
 	return hp.current if hp != null else 0.0
 
 
-## ── Presentation view state (#491) ──────────────────────────────────────────
-##
-## The DRAWN combat HP / owner — what a painter should render, as opposed to
-## [member owned_by] / the real HP pool, which mutate synchronously the
-## instant an attack resolves (#474). [PresentationPlayer] is the single
-## writer, via [method set_view_state]; these fields carry NO logic of their
-## own — see #488's invariant. `_sync_visuals()` is the repaint this drives.
-signal view_state_changed(hp: float, owner: Entity)
-var shown_hp: float = 0.0
-var shown_owner: Entity = null
-
-
-func set_view_state(hp: float, owner: Entity) -> void:
-	shown_hp = hp
-	shown_owner = owner
-	_sync_visuals()
-	view_state_changed.emit(hp, owner)
-
-
-func _seed_view_state_on_ownership_gain() -> void:
-	if owned_by != null:
-		set_view_state(_current_node_hp(), owned_by)
-
-
 func _on_damaged_flash() -> void:
 	play_hit_flash()
 
@@ -573,17 +541,14 @@ func _sync_visuals() -> void:
 	_node_visuals.geom_inner_r = inner_radius
 	_node_visuals.geom_crest_r = radius - RIM_CREST_INSET
 	_node_visuals.geom_outer_r = radius
-	# #491: entity tint / allocation fill are drawn off `shown_owner`, not
-	# `owned_by` — a synchronous `owner_changed`-triggered call (real
-	# ownership already moved, #474) still paints the PRE-hit look until
-	# `set_view_state` pushes the reveal, which is what re-triggers this
-	# with the caught-up value. Allocation fill collapses to 0 only once the
-	# shown owner does — stake count itself never changes from a hit, only
-	# from allocate/deallocate (never reveal-gated).
-	_node_visuals.entity_tint = shown_owner.color if shown_owner != null else Color.WHITE
+	# #504: entity tint / allocation fill are drawn off `owned_by` — the model.
+	# There is no `shown_owner` to lag behind it: an attack's ownership loss now
+	# happens at the landing's own `arrival_time` (see [BeatClock]), so the
+	# repaint this triggers already IS the reveal.
+	_node_visuals.entity_tint = owned_by.color if owned_by != null else Color.WHITE
 	_node_visuals.archetype_tint = base_type_color
 	_node_visuals.stake_level = stake_level
-	_node_visuals.allocation_level = allocation_level if shown_owner != null else 0
+	_node_visuals.allocation_level = allocation_level if owned_by != null else 0
 	_node_visuals.sensed = sensed
 	var resolution := EmblemResolver.resolve(get_emblem_contributions())
 	_node_visuals.set_carve(resolution.carve, resolution.carve_ties)
@@ -1088,11 +1053,9 @@ func refill(silent: bool = false) -> void:
 
 
 ## Notification half of [method refill]'s state change (see [NodeCombat]).
-## Presentation clock (#491): a full refill is a real HP change same as any
-## other — record it so the DRAWN hp (HealthBar, node paint) catches up
-## through the same reveal path as damage/heal, not a bypassed jump.
+## The HP number itself needs no announcement here: [HealthBar] draws the
+## `node_health` pool and hears its `current_changed` directly (#504).
 func notify_refilled(prev: float, after: float, silent: bool) -> void:
-	RevealRecorder.node_hp(self, prev, after)
 	if not silent:
 		var delta := after - prev
 		if delta > 0.0:
@@ -1147,10 +1110,7 @@ func take_damage(amount: float, source: Variant) -> void:
 ## HP pool's values around the deplete; `effective` is the post-mitigation
 ## number (`damaged.emit` and the dispatch both carry it, matching the
 ## pre-#498 contract).
-func notify_damaged(before: float, after: float, effective: float, source: Variant) -> void:
-	# Presentation clock (#491): record BEFORE the emits, same order the
-	# pre-extraction body used.
-	RevealRecorder.node_hp(self, before, after)
+func notify_damaged(_before: float, _after: float, effective: float, source: Variant) -> void:
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
 	# Post-mitigation amount, so a defensive effect reacts to what actually landed.
@@ -1163,7 +1123,6 @@ func notify_damaged(before: float, after: float, effective: float, source: Varia
 ## as before extraction (core HP is bottomless in the death sense; see
 ## `.claude/rules/entity-death.md`).
 func notify_depleted() -> void:
-	RevealRecorder.node_death(self)
 	depleted.emit()
 	Events.skill_node_depleted.emit(self)
 
@@ -1175,8 +1134,7 @@ func heal_damage(amount: float, source: Variant) -> void:
 
 
 ## Notification half of [method heal_damage]'s state change (see [NodeCombat]).
-func notify_healed(prev: float, after: float, effective: float, source: Variant) -> void:
-	RevealRecorder.node_hp(self, prev, after)
+func notify_healed(_prev: float, _after: float, effective: float, source: Variant) -> void:
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)

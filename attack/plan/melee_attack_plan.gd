@@ -399,11 +399,18 @@ var last_pops: BladePopResolver.Result = null
 ## The LIVE gate driving the swing actually being applied — [BladeDamageInstance
 ## .land_on] calls [method BladePopResolver.LiveGate.admit] on this exact
 ## instance, once per hit, in true land order, as [OutcomeApplier] applies
-## [member last_hits]. By the time [MeleePreview.launch] reads [member
-## last_live_gate].result (after BattleSystem's synchronous apply, before the
-## animation replay), it holds what ACTUALLY happened — the applier's accepted
-## set, not a rescan and not the pre-swing estimate. Null until [method resolve]
-## runs.
+## [member last_hits]. Its `result` accumulates what ACTUALLY happened: the
+## applier's accepted set, never a rescan and never the pre-swing estimate
+## ([member last_pops]). Null until [method resolve] runs.
+##
+## [b]#504: nothing reads `result` back anymore, and that is the point.[/b]
+## [MeleePreview] used to snapshot it at the top of `launch()` to re-announce
+## spike pops on its animation clock, which only worked because the whole
+## outcome was applied BEFORE the replay began. The swing now animates
+## concurrently with the mutation, so that snapshot would be empty — the pop is
+## emitted from [BladePopResolver.LiveGate] as it happens instead. Do not
+## reintroduce a reader here that assumes this is complete at any particular
+## moment; it fills in over the beat clock.
 var last_live_gate: BladePopResolver.LiveGate = null
 ## The [DamageInstance]s (concretely [BladeDamageInstance]) [method resolve]
 ## built from [member last_events] — one per non-edge event, in order, whether

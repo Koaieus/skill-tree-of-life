@@ -1,6 +1,10 @@
 class_name RevealTimeline
 extends RefCounted
 
+## [b]PARKED — nothing references this class (#504). See
+## presentation/README.md before touching or deleting it.[/b] Design A of the
+## presentation clock; the game runs design B.
+
 ## An ordered schedule of [RevealEvent]s, built by [RevealRecorder] during a
 ## mutation and consumed by [PresentationPlayer] afterward. See #488.
 

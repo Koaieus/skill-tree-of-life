@@ -1,11 +1,17 @@
 extends GutTest
 
-## ArrowVolleyCoordinator presentation-clock reveal (#479/#481):
-## Events.damage_shown must fire on each hit's
-## [member DamageInstance.arrival_time] — now the FULL time to impact, launch
-## stagger included (#480's distance/speed + RangedAttackPlan's stagger stamp),
-## not synchronously with [method play] — mirrors the magic-side clock-contract
-## tests in test_magic_bounce_coordinator.gd.
+## ArrowVolleyCoordinator as a PURE OBSERVER (#474/#504).
+##
+## This file used to pin the coordinator's own reveal schedule: `damage_shown`
+## firing per shot at its `arrival_time`. #504 deleted that clock — the world
+## now mutates at `arrival_time` in [OutcomeApplier], and every painter reads
+## the model, so the coordinator draws arrows and announces nothing. Those
+## timing assertions moved to where the timing lives:
+## `test_outcome_applier_beat_clock.gd`.
+##
+## What remains testable here is the observer contract itself: the coordinator
+## renders a volley without ever touching the world, and does not return (and
+## so get freed by [AttackVFX]) while arrows are still in flight.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -45,57 +51,6 @@ func _hit(arrival_time: float, amount: float = 5.0) -> DamageInstance:
 	return hit
 
 
-func test_damage_shown_fires_after_arrival_time_not_synchronously() -> void:
-	var outcome := AttackOutcome.new()
-	outcome.hits.append(_hit(0.08))
-	var coord := _mount_coord()
-	var shown: Array = []
-	var handler := func(target: SkillNode, amount: float) -> void:
-		shown.append([target, amount])
-	Events.damage_shown.connect(handler)
-	coord.play(outcome)
-	assert_eq(shown.size(), 0, "no reveal synchronously with play() — must wait on arrival_time")
-	await get_tree().create_timer(0.08 * 5).timeout
-	Events.damage_shown.disconnect(handler)
-	assert_eq(shown.size(), 1, "reveal fires once arrival_time has elapsed")
-	assert_eq(shown[0][0], _target)
-	assert_eq(shown[0][1], 5.0)
-
-
-func test_farther_hit_reveals_later_than_closer_hit() -> void:
-	var near_hit := _hit(0.02)
-	var far_hit := _hit(0.10)
-	var outcome := AttackOutcome.new()
-	outcome.hits.append(far_hit)
-	outcome.hits.append(near_hit)
-	var coord := _mount_coord()
-	var order: Array = []
-	var handler := func(target: SkillNode, _amount: float) -> void:
-		order.append(target)
-	Events.damage_shown.connect(handler)
-	coord.play(outcome)
-	await get_tree().create_timer(0.05).timeout
-	assert_eq(order.size(), 1, "only the closer/faster-arriving hit has revealed so far")
-	await get_tree().create_timer(0.10 * 5).timeout
-	Events.damage_shown.disconnect(handler)
-	assert_eq(order.size(), 2, "both hits have revealed by now")
-
-
-func test_play_does_not_return_before_all_reveals_fire() -> void:
-	# AttackVFX frees the coordinator the instant play() resolves — an early
-	# return would silently drop a slow-arrival shot's reveal.
-	var outcome := AttackOutcome.new()
-	outcome.hits.append(_hit(0.03))
-	var coord := _mount_coord()
-	var shown: Array = []
-	var handler := func(target: SkillNode, _amount: float) -> void:
-		shown.append(target)
-	Events.damage_shown.connect(handler)
-	await coord.play(outcome)
-	Events.damage_shown.disconnect(handler)
-	assert_eq(shown, [_target], "play() only resolved after the reveal fired")
-
-
 func test_coordinator_never_mutates_hp() -> void:
 	var hp_before := _target.get_current_hp()
 	var outcome := AttackOutcome.new()
@@ -106,73 +61,57 @@ func test_coordinator_never_mutates_hp() -> void:
 			"the coordinator must not apply the hit's damage itself")
 
 
-func test_reveal_waits_for_the_shots_own_launch_stagger() -> void:
-	# Recorded arrival_time is the shot's FULL time from volley start
-	# (RangedAttackPlan.resolve authors it as launch_time + shot_flight_time)
-	# and the reveal must ride that recorded number: the launch offset and the
-	# reveal are ONE clock, replay-complete (a replay reconstructs the volley
-	# from the hits alone). Shot 0: launch 0.00 + flight 0.04. Shot 1: launch
-	# 0.20 + flight 0.04 → recorded 0.24. These used to run on two clocks: the
-	# arrow flew a flat `flight_time` after `i * stagger_per_shot` while the
-	# reveal waited a stagger-free `arrival_time` from t=0 — HP dropped and the
-	# damage number popped while later arrows were still leaving the bow.
+func test_one_projectile_per_shot() -> void:
 	var outcome := AttackOutcome.new()
-	outcome.hits.append(_hit(0.04, 1.0))
-	outcome.hits.append(_hit(0.24, 2.0))
+	outcome.hits.append(_hit(0.02))
+	outcome.hits.append(_hit(0.04))
+	outcome.hits.append(_hit(0.06))
 	var coord := _mount_coord()
-	coord.shot_flight_time = 0.04
-	var shown: Array = []
-	var handler := func(_node: SkillNode, amount: float) -> void:
-		shown.append(amount)
-	Events.damage_shown.connect(handler)
 	coord.play(outcome)
-
-	# Past shot 0's own impact (0.00 launch + 0.04 flight), well short of
-	# shot 1's (0.20 launch + 0.04 flight).
-	await get_tree().create_timer(0.12).timeout
-	assert_eq(shown.size(), 1,
-			"the second shot has not landed yet — its reveal must wait its turn")
-	assert_eq(shown[0], 1.0, "and the one that did land is the first shot")
-
-	await get_tree().create_timer(0.30).timeout
-	Events.damage_shown.disconnect(handler)
-	assert_eq(shown.size(), 2, "the staggered shot reveals when its own arrow arrives")
+	var projectiles := coord.get_children().filter(func(c): return c is Projectile)
+	assert_eq(projectiles.size(), 3, "one arrow per scheduled shot")
+	await coord.play(outcome)
 
 
-func test_flight_matches_the_shots_arrival_time() -> void:
-	# The arrow's airtime IS the reveal's schedule — a far shot visibly takes
-	# longer than a near one, instead of every arrow flying for a flat duration
-	# while the reveals used distance/speed. arrival_time now INCLUDES the
-	# launch stagger; _flight_for strips this shot's own launch_delay back out
-	# so the arrow lands at the recorded time.
+func test_play_does_not_return_before_arrows_drain() -> void:
+	# AttackVFX frees the coordinator the instant play() resolves, so an early
+	# return would cut the volley off mid-flight. The drain is a teardown
+	# guard, NOT a gameplay gate: BattleSystem starts play() un-awaited and the
+	# mutation loop never waits on it (see BeatClock).
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(_hit(0.03))
 	var coord := _mount_coord()
-	coord.flight_time = 0.10
-	assert_almost_eq(coord._flight_for(_hit(0.40), 0.0), 0.40, 0.0001,
-			"a real arrival time drives the arrow directly")
-	assert_almost_eq(coord._flight_for(_hit(0.0), 0.0), 0.10, 0.0001,
-			"no arrival time falls back to the authored flight_time")
-	assert_almost_eq(coord._flight_for(_hit(0.001), 0.0),
-			0.10 * ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION, 0.0001,
-			"a point-blank shot is floored so it still reads as an arrow")
-	assert_almost_eq(coord._flight_for(_hit(0.50), 0.10), 0.40, 0.0001,
-			"the shot's own launch stagger is stripped back out of the airtime")
+	await coord.play(outcome)
+	var still_flying := coord.get_children().filter(func(c): return c is Projectile)
+	assert_eq(still_flying.size(), 0, "play() only resolved once every arrow was done")
 
 
-func test_real_ramp_constants_do_not_trip_the_min_flight_clamp() -> void:
-	# The issue's "Watch" note: whatever TOTAL_STAGGER is chosen, verify the
-	# clamp in _flight_for doesn't bite — if it does, the animation silently
-	# stops matching the authored ramp. With a real ramp-produced arrival_time,
-	# launch_delay = arrival_time - shot_flight_time by construction, so
-	# arrival_time - launch_delay == shot_flight_time exactly and the clamp
-	# floor (shot_flight_time * MIN_FLIGHT_FRACTION < shot_flight_time) must
-	# never win.
-	var coord := _mount_coord()
-	coord.flight_time = RangedDamageFormula.FLIGHT_TIME
-	coord.shot_flight_time = RangedDamageFormula.FLIGHT_TIME
-	for rank_i in 5:
-		var launch_time := RangedDamageFormula.DRAW_TIME \
-				+ lerpf(0.0, RangedDamageFormula.TOTAL_STAGGER, float(rank_i) / 4.0)
-		var hit := _hit(launch_time + RangedDamageFormula.FLIGHT_TIME)
-		var launch_delay := maxf(hit.arrival_time - coord.shot_flight_time, 0.0)
-		assert_almost_eq(coord._flight_for(hit, launch_delay), RangedDamageFormula.FLIGHT_TIME,
-				0.0001, "rank %d's airtime must be the real flight duration, not the clamp floor" % rank_i)
+## docs/domain/attack-timeline.md flags `_flight_for`'s MIN_FLIGHT_FRACTION
+## clamp as the drift class #479/#481 cost five rounds of latches, and #504
+## RAISES the stakes: the arrow's flight is now the only thing keeping the
+## visual in step with a mutation that happens at `arrival_time`. If the clamp
+## bites, the arrow lands EARLY and the damage arrives after it — visibly.
+##
+## With the shipped constants it cannot: every shot flies
+## `RangedDamageFormula.FLIGHT_TIME` (0.35s) against a floor of
+## `flight_time * MIN_FLIGHT_FRACTION` (0.45 * 0.4 = 0.18s). This pins the
+## relationship so retuning either constant fails here instead of on screen.
+func test_flight_matches_arrival_time_without_the_clamp_biting() -> void:
+	var coord := ArrowVolleyCoordinator.new()
+	add_child_autofree(coord)
+	var floor_s: float = coord.flight_time * ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION
+	assert_gt(RangedDamageFormula.FLIGHT_TIME, floor_s,
+			"a shot's real airtime must clear the clamp floor, or arrows land early")
+
+	# Nearest shot (launch 0.0) and furthest (launch TOTAL_STAGGER): both fly
+	# exactly FLIGHT_TIME, so arrival order == firing order == distance order.
+	for arrival in [RangedDamageFormula.FLIGHT_TIME,
+			RangedDamageFormula.TOTAL_STAGGER + RangedDamageFormula.FLIGHT_TIME]:
+		var hit := _hit(arrival)
+		var launch_delay: float = maxf(hit.arrival_time - coord.shot_flight_time, 0.0)
+		assert_almost_eq(coord._flight_for(hit, launch_delay),
+				RangedDamageFormula.FLIGHT_TIME, 0.0001,
+				"arrow airtime must equal the authored flight time at arrival %.2f" % arrival)
+		assert_almost_eq(launch_delay + coord._flight_for(hit, launch_delay),
+				hit.arrival_time, 0.0001,
+				"the arrow must touch down exactly when its damage lands")

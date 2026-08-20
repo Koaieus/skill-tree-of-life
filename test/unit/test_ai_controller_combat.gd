@@ -66,6 +66,12 @@ func before_each() -> void:
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
+	# #504: land each attack in one go. These tests are about the AI's
+	# DECISIONS — what it targets, how it re-evaluates after a dent, whether it
+	# spends both AP — none of which is about presentation timing. On the real
+	# beat clock every `await bs.launch_attack()` inside `take_turn` would wait
+	# out the full arrival ramp, making an AI turn take seconds of wall time.
+	_bs.instant_mutation = true
 	add_child(_bs)
 
 	# Idle second entity so the clock parks somewhere after the AI ends its

@@ -15,25 +15,40 @@ class_name OutcomeApplier
 ## is the half that actually fixes allocation order leaking into combat
 ## outcome; the per-mode ramps (ranged's rank-authored schedule, magic's
 ## propagation beat, melee's `BladeHitEvent.t`) are what make the order
-## meaningful. [method RevealRecorder.push_cause] still stamps each hit's own
-## `arrival_time` onto whatever it records, and [PresentationPlayer] is what
-## makes the view catch up later.
-static func apply(outcome: AttackOutcome) -> void:
+## meaningful.
+##
+## Design B (#504): this loop is also the [b]clock[/b]. It waits out each hit's
+## `arrival_time` on [param clock] before landing it, so the world mutates when
+## the arrow arrives rather than at t=0 with the picture catching up later.
+## Everything that draws is then reading the model, on one clock, by
+## construction — there is no view store to keep in step. Pass
+## [method BeatClock.instant_clock] (the default) to land the whole outcome
+## synchronously; see [BeatClock] for why this is not frame-ordered mutation.
+static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
+	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
 	for hit in _in_arrival_order(outcome.hits):
-		if hit.target != null:
-			RevealRecorder.push_cause(hit.arrival_time)
+		if hit.target == null:
+			continue
+		# `advance_to` is declared `-> void`, so the analyzer calls this await
+		# redundant — it is a runtime coroutine (it parks on a timer) and
+		# dropping the await would land the whole volley on frame one.
+		@warning_ignore("redundant_await")
+		await beat.advance_to(hit.arrival_time)
+		# Re-checked here rather than hoisted: an earlier beat's cascade can
+		# free a target between landings.
+		if is_instance_valid(hit.target):
 			hit.land_on(hit.target)
-			RevealRecorder.pop_cause()
 
 
 ## Decorate-sort-undecorate on `(arrival_time, original_index)`.
 ## [method Array.sort_custom] is not documented stable in Godot 4.x, and
-## every melee/magic hit still carries `arrival_time == 0.0` today (#501,
-## #502 are mid-flight stamping real values on those modes) — an unstable
-## sort would permute their application order nondeterministically, which is
-## gameplay-observable here (node-local armour + synchronous force-dealloc
-## cascades both read at land time). Sorting on the original index as a
-## tiebreak makes this a provable no-op for any outcome whose hits all tie.
+## all three modes still produce genuine ties (magic stamps a whole wave at
+## one `hop_index * WAVE_ARRIVAL_INTERVAL`; a melee sim substep can land two
+## events at the same `t`) — an unstable sort would permute their application
+## order nondeterministically, which is gameplay-observable here (node-local
+## armour + synchronous force-dealloc cascades both read at land time).
+## Sorting on the original index as a tiebreak makes this a provable no-op for
+## any outcome whose hits all tie.
 ##
 ## [member SkillNode.stable_id] is NOT the tiebreak here — it's the ranged
 ## ramp's OWN rank tiebreak (see [method RangedAttackPlan.get_firing_schedule]).
@@ -46,9 +61,9 @@ static func _in_arrival_order(hits: Array[HitInstance]) -> Array[HitInstance]:
 	# approximate tie test is not transitive (a~b and b~c does not give a~c
 	# for times spaced just under the epsilon), which violates the strict
 	# weak ordering sort_custom requires and can misorder or read out of
-	# bounds. Every intended tie here is exact anyway: melee/magic hits all
-	# carry a literal 0.0, and two shots at the same rank produce the same
-	# lerp output bit-for-bit.
+	# bounds. Every intended tie here is exact anyway: a magic wave stamps one
+	# `hop_index * WAVE_ARRIVAL_INTERVAL` across the whole wave, and two shots
+	# at the same rank produce the same lerp output bit-for-bit.
 	decorated.sort_custom(func(a: Array, b: Array) -> bool:
 		if a[0] != b[0]:
 			return a[0] < b[0]

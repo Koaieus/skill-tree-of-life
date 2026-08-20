@@ -14,19 +14,19 @@ var _ghost: SkillBlade
 # Generation token so in-flight playback coroutines self-cancel when the
 # selection changes underneath them. Bump on every spawn/teardown.
 var _gen: int = 0
+# True from the first frame of a committed swing until its blade has faded out.
+# Gates `_refresh()` — see its docstring for the hang this prevents.
+var _live_swing: bool = false
 
-# #170 live-swing pop state, valid only during a launch()ed swing. `_dead_at`
-# gates which hits actually land; `_pending_pops` (particle_idx -> Pop) fires the
-# pop VFX/signal once, at the killing contact. Reset each launch(). #502:
-# sourced from MeleeAttackPlan.last_live_gate.result — the applier's ACCEPTED
-# set, read back after BattleSystem already applied it live — never a rescan.
-var _dead_at: Dictionary = {}
-var _pending_pops: Dictionary = {}
-var _attacker: Entity
-# FIFO of the DamageInstances resolve() actually applied (#474), consumed as
-# each live hit passes the same edge/pop filters skill_blade.gd/resolve() both
-# apply — see MeleeAttackPlan.last_hits.
-var _pending_hits: Array[DamageInstance] = []
+# #504: this class is now PURE ANIMATION — it holds no per-swing bookkeeping
+# at all. It used to mirror the applier's accepted set (`_dead_at`,
+# `_pending_pops`, `_pending_hits`, read from
+# `MeleeAttackPlan.last_live_gate.result`) so it could re-announce damage
+# numbers and spike pops on its own replay clock. Both are model facts now,
+# emitted where they happen: damage by `SkillNode.take_damage`, the spike pop
+# by `BladePopResolver.LiveGate._kill`. The swing and the mutation run
+# concurrently on the same `BladeHitEvent.t`, so there is nothing left to
+# mirror — and nothing left to go stale.
 
 
 func _ready() -> void:
@@ -39,7 +39,21 @@ func _on_plan_changed(_plan: AttackPlan) -> void:
 	_refresh()
 
 
+## #504: a COMMITTED swing is not a preview, and must not be refreshable.
+##
+## The mutation now runs concurrently with the swing, and mutating fires plan
+## signals (the forced-dealloc cascade invalidates the plan's own nodes), which
+## land here mid-animation. Rebuilding or tearing down the ghost at that moment
+## frees the very blade `launch()` is parked on — and a coroutine awaiting a
+## freed object is silently dropped, so `launch()` never returns, BattleSystem
+## never reaches `_reset()`, and the attack plan is never cleared. That is a
+## permanent hang, not a cosmetic glitch.
+##
+## Before design B the ordering hid this: the whole outcome was applied before
+## the replay began, so no cascade signal could arrive mid-swing.
 func _refresh() -> void:
+	if _live_swing:
+		return
 	var plan := battle_system.attack_plan
 	if plan is MeleeAttackPlan and plan.is_valid():
 		_spawn_blade(plan as MeleeAttackPlan)
@@ -48,20 +62,27 @@ func _refresh() -> void:
 		_teardown()
 
 
-## Pure-animation replay of a swing BattleSystem already resolved and
-## applied. Spawns a fresh live blade purely for visuals and plays back
+## Pure-animation playback of the swing [BattleSystem] is applying RIGHT NOW.
+## Spawns a fresh live blade purely for visuals and plays back
 ## [member MeleeAttackPlan.last_trajectory] / [member
-## MeleeAttackPlan.last_events] — the SAME scan [method
-## MeleeAttackPlan.resolve] already ran and BattleSystem already applied
-## synchronously. Does NOT rescan: a rescan taken here would run after the
-## depletion cascade and re-derive damage from a fresh blade state, drifting
-## from what [OutcomeApplier] actually landed (#474) — a bug about replaying
-## a finished mutation. #502 moved the LANDING gate itself to consumption
-## time; this replay reads its result back via [member
-## MeleeAttackPlan.last_live_gate], which [BladeDamageInstance.land_on]
-## already populated with what really happened, live, during
-## BattleSystem's synchronous apply — the applier's accepted set, not a
-## rescan and not the pre-swing estimate ([member MeleeAttackPlan.last_pops]).
+## MeleeAttackPlan.last_events] — the same scan [method
+## MeleeAttackPlan.resolve] ran.
+##
+## [b]#504: this is concurrent with the mutation, not after it.[/b]
+## `BattleSystem.launch_attack` starts this un-awaited and then walks the same
+## events on a [BeatClock], landing each hit at its `arrival_time` — which for
+## melee is that event's own `BladeHitEvent.t`. So the blade reaching a node
+## and the node taking its damage are the same moment, and everything that
+## draws (HP bar, shatter, damage number, spike-pop burst) reads the model.
+## This class announces nothing; it used to, and that mirror is gone.
+##
+## Still does NOT rescan, for the reason #474 established: a rescan here would
+## re-derive damage from a fresh blade state and drift from what
+## [OutcomeApplier] actually lands. Note the old objection to a rescan — that
+## it "would run after the depletion cascade" — described replaying a FINISHED
+## mutation, which is no longer the shape of this call; the no-rescan rule
+## survives on the drift argument alone. #502's landing gate lives in
+## [BladeDamageInstance.land_on] and needs nothing from here.
 func launch(plan: MeleeAttackPlan) -> void:
 	_spawn_blade(plan)
 	var blade := _ghost
@@ -70,18 +91,13 @@ func launch(plan: MeleeAttackPlan) -> void:
 	var gen := _gen
 	var traj := plan.last_trajectory
 	var events := plan.last_events
-	var gate := plan.last_live_gate
-	var result := gate.result if gate != null else null
-	_dead_at = result.dead_at if result != null else {}
-	_pending_pops = {}
-	_pending_hits = plan.last_hits.duplicate()
-	if result != null:
-		for pop in result.pops:
-			_pending_pops[pop.particle_idx] = pop
-	_attacker = plan.attacker
-	blade.hit.connect(_on_live_hit)
+	# Claim the ghost for the whole swing — set AFTER `_spawn_blade`, which
+	# tears the preview loop's blade down, and cleared on every exit below so a
+	# early return can't leave previews permanently frozen.
+	_live_swing = true
 	await blade.play(traj, events, false)
 	if gen != _gen or blade != _ghost:
+		_live_swing = false
 		return
 	var fade := create_tween()
 	fade.tween_property(blade, "modulate", Color(0.55, 0.55, 0.55, 0.0), 0.45)
@@ -89,6 +105,7 @@ func launch(plan: MeleeAttackPlan) -> void:
 	if blade == _ghost:
 		_ghost = null
 	blade.queue_free()
+	_live_swing = false
 
 
 func _spawn_blade(plan: MeleeAttackPlan) -> void:
@@ -126,51 +143,6 @@ func _run_preview_loop(gen: int) -> void:
 		blade.build_from_skill_nodes(
 				selection, plan.source, plan.get_induced_edges(), plan.attacker)
 		blade.modulate.a = 0.35
-
-
-## Pure observer: damage was already applied synchronously by
-## BattleSystem off the same events this swing is replaying (#474). This
-## replay's own timeline (per-event [param t], already driving [method
-## SkillBlade.play]'s animation) doubles as the presentation clock:
-## [signal Events.damage_shown] fires here, at the same [param t] the live
-## swing visually lands the hit — never gating the swing, never touching
-## model state.
-func _on_live_hit(
-		hitter_idx: int,
-		is_edge: bool,
-		target: SkillNode,
-		t: float,
-		damage: float) -> void:
-	if target == null:
-		return
-	# D-1 MVP: edges are inert (resolve() skips them too) — no reveal.
-	if is_edge:
-		return
-	# #502: resolve() now builds one DamageInstance per non-edge event
-	# (whether or not it actually lands — that's last_live_gate's call), so
-	# every branch below pops the FIFO exactly once to stay 1:1 with it.
-	var hit: DamageInstance = null
-	if not _pending_hits.is_empty():
-		hit = _pending_hits.pop_front()
-	# A live-popped hitter vertex landed no damage (BladeDamageInstance.land_on
-	# vetoed it) — no presentation reveal for a hit that was never landed,
-	# only the pop cue, fired once at the killing contact.
-	if _dead_at.has(hitter_idx) and t >= _dead_at[hitter_idx]:
-		var pop = _pending_pops.get(hitter_idx)
-		if pop != null:
-			_pending_pops.erase(hitter_idx)
-			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
-		return
-	# skill_blade.gd's own replay blade re-derives `damage` from a freshly
-	# rebuilt vertex_damage array (live stats, not what was actually applied),
-	# so it's ignored here in favour of the real effective_amount
-	# BattleSystem's take_damage stashed on the matching DamageInstance — 0.0
-	# if the live gate vetoed it (e.g. #502's already-dead target: no dud,
-	# indistinguishable from a miss).
-	var effective: float = damage
-	if hit != null:
-		effective = hit.effective_amount
-	Events.damage_shown.emit(target, effective)
 
 
 func _teardown() -> void:

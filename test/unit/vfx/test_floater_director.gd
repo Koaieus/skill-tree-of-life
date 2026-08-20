@@ -55,7 +55,7 @@ func test_damage_event_routes_through_director() -> void:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
-	Events.damage_shown.emit(node, 7.0)
+	Events.skill_node_damaged.emit(node, 7.0, null)
 	var toasters := _toaster_children()
 	assert_eq(toasters.size(), 1, "a damage fact becomes one toaster")
 	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
@@ -68,7 +68,7 @@ func test_zero_damage_makes_no_toaster() -> void:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
-	Events.damage_shown.emit(node, 0.0)
+	Events.skill_node_damaged.emit(node, 0.0, null)
 	assert_eq(_toaster_children().size(), 0, "non-positive damage is suppressed")
 
 
@@ -117,39 +117,29 @@ func test_max_stack_drops_oldest() -> void:
 	assert_eq(vbox.get_child_count(), 3, "first + 2 queued; oldest dropped")
 
 
-func test_model_damage_alone_floats_nothing() -> void:
-	# #482: the damage number is a reveal like the HP bar and the tint. It rides
-	# Events.damage_shown, which the VFX coordinators fire when the swing/arrow/
-	# bolt lands (and PresentationPlayer.play_instant backstops when no
-	# coordinator runs). Reacting to skill_node_damaged instead would float the
-	# number over a node the projectile has not reached — that was the bug.
+func test_model_damage_floats_the_number() -> void:
+	# #504 INVERTS #482. The damage number is still a reveal like the HP bar and
+	# the tint — but under design B the model itself mutates on the reveal
+	# clock, so `skill_node_damaged` fires exactly when the arrow lands. Routing
+	# through a separate `damage_shown` emitted by each coordinator would be a
+	# second clock nominally equal to this one, which is the drift this issue
+	# removed.
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
 	Events.skill_node_damaged.emit(node, 7.0, null)
-	assert_eq(_toaster_children().size(), 0,
-			"model mutation alone must not float a number")
-
-
-func test_heal_shown_floats() -> void:
-	# #481/#482: the attack-heal number rides Events.heal_shown, the same arrival
-	# reveal as damage — it must appear when the heal's VFX lands, not when
-	# BattleSystem applied it.
-	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	add_child_autofree(node)
-	await get_tree().process_frame
-	Events.heal_shown.emit(node, 7.0)
 	var toasters := _toaster_children()
-	assert_eq(toasters.size(), 1, "a heal reveal becomes one toaster")
+	assert_eq(toasters.size(), 1, "the model's own damage signal floats the number")
 	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
-	var toast := vbox.get_child(0) as FloaterToast
-	assert_eq(toast.label.text, "+7", "rounded heal amount with + prefix")
+	assert_eq((vbox.get_child(0) as FloaterToast).label.text, "7",
+			"rounded damage amount")
 
 
-func test_attack_heal_model_signal_floats_nothing() -> void:
-	# #481/#482: an attack heal (source is HealInstance) is shown by heal_shown on
-	# the arrival clock. skill_node_healed at model-mutation time must NOT float
-	# it over a node the projectile hasn't reached.
+func test_attack_heal_floats_on_the_model_signal() -> void:
+	# #504 INVERTS #481/#482: an attack heal (source is HealInstance) used to be
+	# held back here and re-announced on `heal_shown`. Its model mutation now
+	# happens at its own `arrival_time`, so there is nothing left distinguishing
+	# it from turn regen or a heal aura — one path, one clock.
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	add_child_autofree(node)
 	await get_tree().process_frame
@@ -157,8 +147,11 @@ func test_attack_heal_model_signal_floats_nothing() -> void:
 	heal.amount = 7.0
 	heal.target = node
 	Events.skill_node_healed.emit(node, 7.0, heal)
-	assert_eq(_toaster_children().size(), 0,
-			"an attack heal's model mutation alone must not float a number")
+	var toasters := _toaster_children()
+	assert_eq(toasters.size(), 1, "an attack heal floats on its own model signal")
+	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
+	assert_eq((vbox.get_child(0) as FloaterToast).label.text, "+7",
+			"rounded heal amount with + prefix")
 
 
 func test_non_attack_heal_still_floats_immediately() -> void:

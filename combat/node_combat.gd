@@ -81,22 +81,9 @@ func take_damage(amount: float, source: Variant) -> void:
 			# would see it already cleared to null.
 			var entity := host.owned_by
 			var health_pool := entity.stat_board.health
-			var entity_before := health_pool.current
-			# Record BEFORE mutating (placeholder to_value, patched below) —
-			# a lethal overflow re-enters through die() from inside deplete(),
-			# which would otherwise record ENTITY_DEATH ahead of this event.
-			# The recorder is PRESENTATION, so it is host-guarded like every
-			# other notification in this file — a hostless slice (step 2's
-			# snapshot) must chip the pool without recording a reveal. It
-			# cannot move to a `host.notify_*` call because it has to BRACKET
-			# deplete(): recorded before, patched after, for the re-entrancy
-			# reason above.
-			var health_event = null
-			if host != null:
-				health_event = RevealRecorder.entity_health(entity, entity_before, entity_before)
+			# #504: nothing to record — the pool's own `current_changed` IS the
+			# notification, and every core-health painter binds to it directly.
 			health_pool.deplete(overflow)
-			if health_event != null:
-				health_event.to_value = health_pool.current
 		return
 	if hp.current <= 0.0 and host != null:
 		host.notify_depleted()
@@ -113,8 +100,8 @@ func heal_damage(amount: float, source: Variant) -> void:
 	var prev := hp.current
 	hp.set_current(min(hp.current + amount, hp.value))
 	var effective := hp.current - prev
-	# Stash the post-clamp number back onto the instance so a LATER
-	# presentation reveal (heal_shown, #481/#482) can show what actually
+	# Stash the post-clamp number back onto the instance so a consumer reading
+	# the hit afterward (AI scoring, an outcome summary) sees what actually
 	# landed instead of the raw pre-clamp amount.
 	if source is HealInstance:
 		(source as HealInstance).effective_amount = effective
