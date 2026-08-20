@@ -2,8 +2,6 @@
 paths:
   - "attack/plan/ranged_attack_plan.gd"
   - "test/unit/**/*ranged*"
-  - "test/unit/**/test_presentation_hold.gd"
-  - "test/unit/**/test_cascade_presentation_clock.gd"
 ---
 
 # Ranged attack fixtures

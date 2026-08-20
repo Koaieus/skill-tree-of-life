@@ -1,0 +1,1 @@
+An attack's `resolve()` freezes only the *candidate set*; every landing's gate (still allocated? still hostile?) and all arithmetic are re-read at land time, so a kill on wave N is visible to wave N+1. See docs/domain/attack-timeline.md
