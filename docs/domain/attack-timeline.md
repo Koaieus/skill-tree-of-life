@@ -170,15 +170,32 @@ landing. Plus the volley ramp, below.
 
 ## The substrate seam — for AI and previews only
 
-**A real attack does not need a substrate.** This is worth stating loudly,
-because it was the original framing of #498 and it was wrong.
+**A real melee or ranged attack does not need a substrate. A real magic attack
+does.** The original framing of #498 — substrate first, it gates everything —
+was wrong; the correction that replaced it ("nothing needs a substrate") then
+over-generalised from melee to all three modes. The truth is an asymmetry, and
+it turns on **where each mode's gate lives**.
 
-Live re-evaluation on the real launch path is achieved by moving the gate check
-to land time and reading `is_allocated()` / `owned_by` *there*. Melee ignores
-events whose target is no longer allocated; magic queries ownership when it
-picks the next wave's candidates. Both are ordinary reads of the live world at
-the right moment. Nothing needs to be copied, and **the three per-mode moves
-are unblocked today**.
+- **Melee and ranged gate at *consumption* time.** The applier walks landings in
+  order and re-reads `is_allocated()` / `owned_by` per landing. That is an
+  ordinary read of the live world at the right moment; nothing is copied, and
+  both moves are unblocked today.
+- **Magic gates in *candidate selection*, which lives inside
+  `SpellResolver.resolve()`.** For wave N+1's filter to see wave N's kill,
+  `resolve()` itself must mutate. Two things then break: `OutcomeApplier.apply`
+  (called once, `systems/battle_system.gd:256`) lands every hit a **second**
+  time on a real cast, and `resolve()`'s dozen preview callers — spell tooltip,
+  spell playground, balance harness, tests — would mutate the live world just by
+  being asked what a spell *would* do.
+
+  A resolve-scoped ledger of "nodes this cast already killed", consulted ahead of
+  real `owned_by`, is not an escape: that is a second implementation of
+  ownership, and it is ruled out for the same reason as everything else here.
+
+  So magic's wave-loop move is the first real consumer of `resolve_against(slice)`
+  — live slice for the cast, shadow for the tooltip — and retiring BattleSystem's
+  second apply for magic belongs to that same step. Found while executing #501;
+  see its comment of 2026-08-20.
 
 What the substrate is for is narrower:
 
