@@ -136,6 +136,28 @@ func test_live_swing_plain_hit_deals_damage() -> void:
 			"the arm's contact must deal real damage")
 
 
+## #502: every melee HitInstance carries its BladeHitEvent.t as arrival_time —
+## it used to be hardcoded 0.0 for every mode but ranged.
+func test_last_hits_stamp_arrival_time_from_the_event() -> void:
+	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	var plan := _bs.attack_plan as MeleeAttackPlan
+	plan._on_node_left_clicked(_pivot)
+	plan._on_node_left_clicked(_arm)
+	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
+
+	var outcome := plan.resolve()
+	assert_gt(outcome.hits.size(), 0, "the coincident target must produce a hit")
+	var non_edge_ts: Array[float] = []
+	for ev in plan.last_events:
+		if not ev.is_edge_hit():
+			non_edge_ts.append(ev.t)
+	for i in plan.last_hits.size():
+		assert_eq(plan.last_hits[i].arrival_time, non_edge_ts[i],
+				"HitInstance.arrival_time mirrors the BladeHitEvent.t it came from")
+	assert_gt(plan.last_hits[0].arrival_time, 0.0,
+			"a real contact time, not the old hardcoded 0.0")
+
+
 func test_live_swing_spike_pops_the_arm() -> void:
 	_arm_spike(5.0)
 	var hp_before := _target.get_current_hp()

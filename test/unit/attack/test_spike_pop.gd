@@ -158,6 +158,43 @@ func test_attacker_own_spike_does_not_pop() -> void:
 	assert_eq(res.pops.size(), 0, "own-territory spike is not a defensive pop")
 
 
+# ── LiveGate (#502): the consumption-time gate ────────────────────────────────
+
+## Acceptance: a swing that kills a node whose islanded remainder carries
+## SpikeAddons must not pop blade vertices on that remainder. LiveGate.admit()
+## reads node.is_allocated() LIVE, at the moment each event is consumed — so a
+## real cascade (force-dealloc from an earlier hit in the SAME swing) landing
+## between two admit() calls changes the second one's answer, unlike
+## BladePopResolver.resolve()'s pure up-front pass, which sees the pre-swing
+## world for every event uniformly (see test_pop_kills_and_disconnects_downstream
+## for that estimate's behaviour on the identical events).
+func test_live_gate_admits_a_live_spiked_hit() -> void:
+	var ctx: Dictionary = await _setup()
+	var state := _chain_state()
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)),
+			"a live spike still pops (no damage lands)")
+	assert_eq(gate.result.pops.size(), 1, "the pop is recorded")
+
+
+func test_live_gate_does_not_pop_on_a_node_the_swing_already_killed() -> void:
+	var ctx: Dictionary = await _setup()
+	var state := _chain_state()
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
+	# Vertex 1 hits the plain node first — an ordinary, live-admitted contact.
+	assert_true(gate.admit(_ev(0.1, 1, ctx.plain_node)), "a live target admits")
+	# Simulate the real cascade this same swing's earlier damage would have
+	# triggered (force_deallocate on an islanded remainder) landing BEFORE
+	# vertex 1 reaches the spiked node.
+	(ctx.spike_node as SkillNode).owned_by = null
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)),
+			"dead target: no damage lands, indistinguishable from a miss")
+	assert_eq(gate.result.pops.size(), 0,
+			"a spike on an already-dead node must not pop the blade vertex")
+	assert_eq(gate.result.dead_at.size(), 0,
+			"no disintegration either — the blade never actually got popped")
+
+
 func test_persistent_pops_every_call() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()

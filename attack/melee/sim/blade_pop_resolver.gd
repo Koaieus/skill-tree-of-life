@@ -109,6 +109,63 @@ static func resolve(
 	return result
 
 
+## Incremental sibling of [method resolve] (#502): the SAME kill/disconnect
+## predicates, but fed one [BladeHitEvent] at a time, in true land order, by
+## [BladeDamageInstance.land_on] as [OutcomeApplier] walks a real swing's
+## hits. [method resolve] is pure and runs before anything lands, so its
+## `node.is_allocated()` / `owned_by` reads see the pre-swing world for every
+## event uniformly — correct for the up-front AI/preview estimate
+## ([member AttackOutcome.thinned_nodes]), wrong for the real swing, where an
+## earlier-in-time hit's cascade can deallocate a LATER event's target before
+## that event lands. [LiveGate] closes that gap by reading live state at the
+## instant each event actually consumes. See docs/domain/attack-timeline.md.
+class LiveGate extends RefCounted:
+	## Accepted pops so far, in the same shape [method resolve] returns —
+	## [MeleePreview] replays this post-application (#502's "Watch": the
+	## preview replays the applier's ACCEPTED set, never a fresh rescan).
+	var result := Result.new()
+	var _state: BladeState
+	var _attacker: Entity
+
+	func _init(state: BladeState, attacker: Entity) -> void:
+		_state = state
+		_attacker = attacker
+
+	## True if `ev`'s damage should actually land right now. Call exactly
+	## once per event, in true time order — mutates `result` when a contact
+	## turns out to be a live pop.
+	func admit(ev: BladeHitEvent) -> bool:
+		if ev.is_edge_hit():
+			return false
+		if result.is_dead(ev.particle_idx, ev.t):
+			return false  # already popped or disintegrated by an earlier LIVE kill
+		var node := ev.target as SkillNode
+		if node == null or not node.is_allocated():
+			return false  # #502: dead target, no dud — indistinguishable from a miss
+		if ev.particle_idx == _state.pivot_index:
+			return true  # pivot / handle is exempt from popping
+		if _attacker != null and node.owned_by == _attacker:
+			return true  # your own spike can't pop your own blade
+		var power := node.get_spike_power()
+		if power <= 0.0:
+			return true
+		_kill(ev.particle_idx, ev.t, node, power)
+		return false  # the popping contact itself deals no damage
+
+	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float) -> void:
+		result.dead_at[particle_idx] = t
+		result.pops.append(Pop.new(particle_idx, t, defender, power))
+		var removed: Dictionary = {}
+		for k in result.dead_at:
+			removed[k] = true
+		var reachable := BladePopResolver._reachable_from_pivot(_state, removed)
+		for v in _state.positions.size():
+			if v == _state.pivot_index or removed.has(v):
+				continue
+			if not reachable.has(v):
+				result.dead_at[v] = minf(result.dead_at.get(v, INF), t)
+
+
 ## BFS from the pivot over `state.edges`, skipping any vertex in `removed`.
 ## Returns a set (Dictionary) of reachable particle indices.
 static func _reachable_from_pivot(state: BladeState, removed: Dictionary) -> Dictionary:

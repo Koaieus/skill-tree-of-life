@@ -17,7 +17,9 @@ var _gen: int = 0
 
 # #170 live-swing pop state, valid only during a launch()ed swing. `_dead_at`
 # gates which hits actually land; `_pending_pops` (particle_idx -> Pop) fires the
-# pop VFX/signal once, at the killing contact. Reset each launch().
+# pop VFX/signal once, at the killing contact. Reset each launch(). #502:
+# sourced from MeleeAttackPlan.last_live_gate.result — the applier's ACCEPTED
+# set, read back after BattleSystem already applied it live — never a rescan.
 var _dead_at: Dictionary = {}
 var _pending_pops: Dictionary = {}
 var _attacker: Entity
@@ -52,8 +54,14 @@ func _refresh() -> void:
 ## MeleeAttackPlan.last_events] — the SAME scan [method
 ## MeleeAttackPlan.resolve] already ran and BattleSystem already applied
 ## synchronously. Does NOT rescan: a rescan taken here would run after the
-## depletion cascade, and [method MeleeAttackPlan.collect_target_excludes]
-## would then exclude the very nodes the cascade just deallocated (#474).
+## depletion cascade and re-derive damage from a fresh blade state, drifting
+## from what [OutcomeApplier] actually landed (#474) — a bug about replaying
+## a finished mutation. #502 moved the LANDING gate itself to consumption
+## time; this replay reads its result back via [member
+## MeleeAttackPlan.last_live_gate], which [BladeDamageInstance.land_on]
+## already populated with what really happened, live, during
+## BattleSystem's synchronous apply — the applier's accepted set, not a
+## rescan and not the pre-swing estimate ([member MeleeAttackPlan.last_pops]).
 func launch(plan: MeleeAttackPlan) -> void:
 	_spawn_blade(plan)
 	var blade := _ghost
@@ -62,12 +70,13 @@ func launch(plan: MeleeAttackPlan) -> void:
 	var gen := _gen
 	var traj := plan.last_trajectory
 	var events := plan.last_events
-	var pops := plan.last_pops
-	_dead_at = pops.dead_at if pops != null else {}
+	var gate := plan.last_live_gate
+	var result := gate.result if gate != null else null
+	_dead_at = result.dead_at if result != null else {}
 	_pending_pops = {}
 	_pending_hits = plan.last_hits.duplicate()
-	if pops != null:
-		for pop in pops.pops:
+	if result != null:
+		for pop in result.pops:
 			_pending_pops[pop.particle_idx] = pop
 	_attacker = plan.attacker
 	blade.hit.connect(_on_live_hit)
@@ -134,27 +143,33 @@ func _on_live_hit(
 		damage: float) -> void:
 	if target == null:
 		return
-	# A popped hitter vertex never produced a DamageInstance in resolve()
-	# (same gate: `pops.is_dead(ev.particle_idx, ev.t)`) — no presentation
-	# reveal for a hit that was never landed, only the pop cue.
+	# D-1 MVP: edges are inert (resolve() skips them too) — no reveal.
+	if is_edge:
+		return
+	# #502: resolve() now builds one DamageInstance per non-edge event
+	# (whether or not it actually lands — that's last_live_gate's call), so
+	# every branch below pops the FIFO exactly once to stay 1:1 with it.
+	var hit: DamageInstance = null
+	if not _pending_hits.is_empty():
+		hit = _pending_hits.pop_front()
+	# A live-popped hitter vertex landed no damage (BladeDamageInstance.land_on
+	# vetoed it) — no presentation reveal for a hit that was never landed,
+	# only the pop cue, fired once at the killing contact.
 	if _dead_at.has(hitter_idx) and t >= _dead_at[hitter_idx]:
 		var pop = _pending_pops.get(hitter_idx)
 		if pop != null:
 			_pending_pops.erase(hitter_idx)
 			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
 		return
-	# D-1 MVP: edges are inert (resolve() skips them too) — no reveal.
-	if is_edge:
-		return
-	# Consume the next resolve()-applied hit FIFO — skill_blade.gd's own replay
-	# blade re-derives `damage` from a freshly rebuilt vertex_damage array
-	# (live stats, not what was actually applied), so it's ignored here in
-	# favour of the real effective_amount BattleSystem's take_damage stashed
-	# on the matching DamageInstance. Both traverses apply the identical
-	# edge/pop filters in the same t-order, so a straight pop_front lines up.
+	# skill_blade.gd's own replay blade re-derives `damage` from a freshly
+	# rebuilt vertex_damage array (live stats, not what was actually applied),
+	# so it's ignored here in favour of the real effective_amount
+	# BattleSystem's take_damage stashed on the matching DamageInstance — 0.0
+	# if the live gate vetoed it (e.g. #502's already-dead target: no dud,
+	# indistinguishable from a miss).
 	var effective: float = damage
-	if not _pending_hits.is_empty():
-		effective = _pending_hits.pop_front().effective_amount
+	if hit != null:
+		effective = hit.effective_amount
 	Events.damage_shown.emit(target, effective)
 
 

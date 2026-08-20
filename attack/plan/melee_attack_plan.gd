@@ -377,26 +377,45 @@ func _can_be_blade(node: SkillNode) -> bool:
 
 
 ## Scan artifacts from the most recent [method resolve] call — the exact
-## trajectory / hit events / pop resolution that produced [member last_events]'s
-## owning [AttackOutcome]. [MeleePreview] replays THESE (never a fresh rescan)
-## so the live swing's animation can't drift from the damage BattleSystem
-## already applied synchronously off [method resolve]'s outcome (#474): a
-## rescan taken after the depletion cascade would exclude nodes the cascade
-## just deallocated from [method collect_target_excludes], silently dropping
-## hits/pops the pre-cascade resolve() correctly saw.
+## trajectory / hit events that produced [member last_events]'s owning
+## [AttackOutcome]. [MeleePreview] replays THESE (never a fresh rescan) so the
+## live swing's animation can't drift from the damage BattleSystem already
+## applied synchronously off [method resolve]'s outcome (#474): a rescan taken
+## after the depletion cascade would rebuild [method collect_target_excludes]
+## against the post-cascade world and re-derive damage from a fresh blade
+## state, drifting from what [OutcomeApplier] actually landed — a bug about
+## replaying a finished mutation, not a reason to freeze the LANDING gate
+## itself. #502 moves that gate to consumption time deliberately; see
+## [BladePopResolver.LiveGate] and docs/domain/attack-timeline.md.
 var last_trajectory: BladeTrajectory = null
 var last_events: Array[BladeHitEvent] = []
+## Pure resolve-time ESTIMATE (#502) — [BladePopResolver.resolve] run once,
+## before anything lands, so it reads the pre-swing world for every event
+## uniformly. Feeds [member AttackOutcome.thinned_nodes] for AI scoring, which
+## can't run the live applier against the real world (docs/domain/
+## attack-timeline.md's substrate section). NOT what [MeleePreview] replays
+## for a real launch — see [member last_live_gate].
 var last_pops: BladePopResolver.Result = null
-## The [DamageInstance]s [method resolve] actually built from [member
-## last_events] — same filtering (edges skipped, popped vertices skipped), same
-## order. [MeleePreview] consumes these FIFO as its live replay passes each
-## event through the identical filter, so its reveal can show
-## [member HitInstance.effective_amount] (set by [method SkillNode.take_damage]
-## when #474 applied the outcome) instead of re-deriving damage from a freshly
-## rebuilt blade state, which drifts from what actually landed. Melee only
-## ever produces [DamageInstance]s (never heals), so this stays narrowly
-## typed rather than the [AttackOutcome]-wide [code]Array[HitInstance][/code]
-## (#381).
+## The LIVE gate driving the swing actually being applied — [BladeDamageInstance
+## .land_on] calls [method BladePopResolver.LiveGate.admit] on this exact
+## instance, once per hit, in true land order, as [OutcomeApplier] applies
+## [member last_hits]. By the time [MeleePreview.launch] reads [member
+## last_live_gate].result (after BattleSystem's synchronous apply, before the
+## animation replay), it holds what ACTUALLY happened — the applier's accepted
+## set, not a rescan and not the pre-swing estimate. Null until [method resolve]
+## runs.
+var last_live_gate: BladePopResolver.LiveGate = null
+## The [DamageInstance]s (concretely [BladeDamageInstance]) [method resolve]
+## built from [member last_events] — one per non-edge event, in order, whether
+## or not it will actually land (that decision is [member last_live_gate]'s,
+## made at [method BladeDamageInstance.land_on] time). [MeleePreview] consumes
+## these FIFO as its live replay passes each event through the SAME sequence,
+## so its reveal can show [member HitInstance.effective_amount] (set by
+## [method SkillNode.take_damage] when the real applier landed it) instead of
+## re-deriving damage from a freshly rebuilt blade state, which drifts from
+## what actually landed. Melee only ever produces [DamageInstance]s (never
+## heals), so this stays narrowly typed rather than the [AttackOutcome]-wide
+## [code]Array[HitInstance][/code] (#381).
 var last_hits: Array[DamageInstance] = []
 
 
@@ -413,28 +432,34 @@ func resolve() -> AttackOutcome:
 	var exclude := collect_target_excludes()
 	var events := BladeHitScan.scan(
 			trajectory, blade_state, space_state, 0xFFFFFFFF, exclude)
-	# #170: defensive spikes pop the attacker's own vertices (and disintegrate
-	# whatever they sever from the handle). Gate hits by the same resolution the
-	# live swing uses so AI scoring / AP estimation matches what actually lands.
+	# #170/#502: pure, up-front ESTIMATE only — BladePopResolver.resolve runs
+	# before anything lands, so it can't see this swing's own cascades. Feeds
+	# thinned_nodes for AI scoring / AP estimation; the REAL gate for a live
+	# launch is last_live_gate below, re-evaluated per event at land time.
 	var pops := BladePopResolver.resolve(events, blade_state, attacker)
 	outcome.thinned_nodes = pops.dead_at.size()
 	last_trajectory = trajectory
 	last_events = events
 	last_pops = pops
+	var gate := BladePopResolver.LiveGate.new(blade_state, attacker)
+	last_live_gate = gate
 	var di_list: Array[DamageInstance] = []
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
 		# the live swing's per-event behaviour in skill_blade.gd.
 		if ev.is_edge_hit():
 			continue
-		if pops.is_dead(ev.particle_idx, ev.t):
-			continue  # this vertex was popped / disintegrated by now
-		var di := DamageInstance.new()
+		# #502: no pre-filtering by pops/allocation here — every non-edge event
+		# becomes a candidate DamageInstance. Whether it actually lands is
+		# BladeDamageInstance.land_on's call, live, when OutcomeApplier
+		# consumes it (docs/domain/attack-timeline.md).
+		var di := BladeDamageInstance.new(ev, gate)
 		di.amount = blade_state.vertex_damage[ev.particle_idx]
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
 		di.origin = source
 		di.source = self
+		di.arrival_time = ev.t
 		outcome.hits.append(di)
 		di_list.append(di)
 	last_hits = di_list
@@ -532,10 +557,14 @@ func _set_swing_cw(value: bool) -> void:
 	state_changed.emit()
 
 
-## RIDs to feed BladeHitScan as the physics-query exclude list — covers
-## the blade members themselves (don't hit their own subgraph), plus
-## unallocated nodes and nodes owned by the attacker. The scan picks up
-## everything else in the world that overlaps the swing.
+## RIDs to feed BladeHitScan as the physics-query exclude list — covers only
+## the blade members themselves (don't hit their own subgraph) and nodes
+## owned by the attacker. #502: unallocated nodes are NOT excluded here
+## anymore — the scan now sees them too, so a swing sweeping across ground
+## that just died mid-cascade produces the same events it would against
+## ground that was never allocated (no visible difference, per contract).
+## The live ownership/allocation gate moves to consumption time; see
+## [BladeDamageInstance.land_on] / [BladePopResolver.LiveGate].
 func collect_target_excludes() -> Array[RID]:
 	var out: Array[RID] = []
 	if attacker == null or attacker.navigator == null:
@@ -549,7 +578,7 @@ func collect_target_excludes() -> Array[RID]:
 	for b in blade_nodes:
 		self_set[b] = true
 	for sn in graph.get_skill_nodes():
-		if self_set.has(sn) or not sn.is_allocated() or sn.owned_by == attacker:
+		if self_set.has(sn) or sn.owned_by == attacker:
 			out.append(sn.get_rid())
 	return out
 
