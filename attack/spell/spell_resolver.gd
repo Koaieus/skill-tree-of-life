@@ -10,10 +10,38 @@ extends RefCounted
 ## before any [OnHitEffect] fires. This is what makes self-loops + diamond
 ## convergence a first-class mechanic (see Resonator).
 ##
-## Side-effect free w.r.t. world state — damage application is deferred to
-## the VFX layer (each [DamageInstance] carries .amount; the coordinator
-## applies it on projectile arrival). Safe as a preview from AI / tooltip
-## code.
+## Side-effect free w.r.t. world state, so it is safe as a preview from AI /
+## tooltip code — that purity is load-bearing and must not be traded away
+## casually: a dozen callers (SpellTooltip, the spell playground, the balance
+## harness, ~16 test assertions on raw [member HitInstance.amount]) ask this
+## what a spell WOULD do, with no real/preview flag anywhere in the chain.
+##
+## Application is [OutcomeApplier]'s job, called once by [BattleSystem] after
+## this returns. It is synchronous, at t=0, and the VFX layer is a pure
+## observer that replays what already landed (#474) — the coordinator does
+## NOT apply damage on projectile arrival, whatever an older docstring said.
+##
+## Known gap, deliberately left open: candidate selection reads pre-attack
+## ownership, so a spell can still propagate back into a node this same cast
+## killed. Closing it needs `resolve_against(slice)` from #498 step 3 — the
+## live slice for a real cast, a shadow for the tooltip. Do NOT close it with
+## a resolve-local "who died" ledger: that is a second implementation of
+## death, it cannot see [Mitigation], and a gate that disagrees with the real
+## applier is the exact drift this contract exists to prevent. See
+## docs/domain/attack-timeline.md and #501.
+
+
+## Uniform seconds-per-wave used to stamp [member HitInstance.arrival_time]
+## (#501: was 0.0 for every magic hit — a semantic lie under the staged
+## presentation clock, see docs/domain/attack-timeline.md). Chosen to match
+## [MagicBounceCoordinator]'s default `beat_interval`; the two aren't wired
+## together — [code]resolve()[/code] is a static utility with no VFX
+## instance to read — so re-check this constant if that default is ever
+## retuned. What matters for correctness is that later waves get strictly
+## greater values, not the absolute number: #499's sibling change makes
+## [OutcomeApplier] sort by `arrival_time`, and this is what keeps magic's
+## hits in wave order under that sort.
+const WAVE_ARRIVAL_INTERVAL: float = 0.4
 
 
 static func resolve(
@@ -96,6 +124,8 @@ static func resolve(
 			for i in range(pre, outcome.hits.size()):
 				var hit: HitInstance = outcome.hits[i]
 				_resolve_crit(spell, state, hit, ctx)
+				# #501: real time, not 0.0 -- later waves land strictly later.
+				hit.arrival_time = float(state.hop_index) * WAVE_ARRIVAL_INTERVAL
 				ev.hits.append(hit)
 			outcome.timeline.append(ev)
 			ctx.bump_visit(state.current_node)
