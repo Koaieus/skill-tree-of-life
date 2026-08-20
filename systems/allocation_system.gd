@@ -261,14 +261,9 @@ func force_deallocate(node: SkillNode) -> Entity:
 	var previous := node.owned_by
 	if previous == null:
 		return null
-	var board := previous.stat_board
-	# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
-	# applied outside the effect ledger and would strand otherwise (#376).
-	node.clear_scaled_effect_sets(board)
-	_revoke_node_effects(node, previous)
-	node.remove_entity_modifiers_from(board)
-	if previous.navigator != null:
-		previous.navigator.mirror_remove(node)
+	# Revoke sweep + navigator mirror removal (#498 step 1): lives on the
+	# previous owner's EntityCombat slice now — see EntityCombat.revoke_node.
+	previous.get_combat().revoke_node(node)
 	RevealRecorder.node_owner_lost(node, previous)
 	node.owned_by = null
 	previous.dispatch(&"_on_node_deallocated", [node, true])

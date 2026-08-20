@@ -188,6 +188,19 @@ var is_dead: bool = false
 ## / `revoke`, never written to directly.
 var _tags: Dictionary[StringName, int] = {}
 
+## The live combat-state slice (#498 step 1, docs/domain/attack-timeline.md).
+## Entity COMPOSES this — it owns the live one, it does not copy one.
+## Constructed here (a field initializer, not `_ready`) so it exists before
+## any pre-`_ready` caller could reach for it.
+var _combat := EntityCombat.new(self)
+
+
+## Public accessor for [member _combat] — [AllocationSystem] (a different
+## file) needs it to run the revoke sweep on a node's PREVIOUS owner; a plain
+## getter keeps `_combat` itself construction-assigned with no public setter.
+func get_combat() -> EntityCombat:
+	return _combat
+
 
 func _ready() -> void:
 	# Group membership is editor-safe and lets @tool consumers (e.g.

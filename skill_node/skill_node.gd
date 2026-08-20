@@ -393,6 +393,12 @@ var self_loop_count: int:
 ## on never writing a derived value back into an @export.
 var stable_id: int = 0
 
+## The live combat-state slice (#498 step 1, docs/domain/attack-timeline.md).
+## SkillNode COMPOSES this — it owns the live one, it does not copy one.
+## Constructed here (a field initializer, not `_ready`) so it exists for a
+## pre-`_ready` scene-authored write, same reasoning as [member _addons].
+var _combat := NodeCombat.new(self)
+
 func _ready() -> void:
 	# No authored-radius capture here any more: `radius` is a getter over
 	# `base_radius` + stake growth, so it's correct from construction onward —
@@ -584,7 +590,7 @@ func _sync_visuals() -> void:
 
 
 func is_allocated() -> bool:
-	return owned_by != null
+	return _combat.is_allocated()
 
 
 func is_core() -> bool:
@@ -1078,17 +1084,17 @@ func get_emblem_contributions() -> Array:
 ## a bug. Do not "fix" this without a design decision first — see D-9 in
 ## docs/design/mvp_decisions.md.
 func refill(silent: bool = false) -> void:
-	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
-	if hp == null:
-		return
-	var prev := hp.current
-	hp.restore_to_full()
-	# Presentation clock (#491): a full refill is a real HP change same as any
-	# other — record it so the DRAWN hp (HealthBar, node paint) catches up
-	# through the same reveal path as damage/heal, not a bypassed jump.
-	RevealRecorder.node_hp(self, prev, hp.current)
+	_combat.refill(silent)
+
+
+## Notification half of [method refill]'s state change (see [NodeCombat]).
+## Presentation clock (#491): a full refill is a real HP change same as any
+## other — record it so the DRAWN hp (HealthBar, node paint) catches up
+## through the same reveal path as damage/heal, not a bypassed jump.
+func notify_refilled(prev: float, after: float, silent: bool) -> void:
+	RevealRecorder.node_hp(self, prev, after)
 	if not silent:
-		var delta := hp.current - prev
+		var delta := after - prev
 		if delta > 0.0:
 			healed.emit(delta, null)
 			Events.skill_node_healed.emit(self, delta, null)
@@ -1132,96 +1138,45 @@ func apply_turn_regen() -> void:
 ## the owner's core node. Emits [signal damaged] (and re-emits on the global
 ## bus) so UI hooks fire even when 0 damage lands.
 func take_damage(amount: float, source: Variant) -> void:
-	if owned_by == null or amount <= 0.0:
-		return
-	var raw: DamageInstance
-	if source is DamageInstance:
-		raw = source
-	else:
-		raw = DamageInstance.new()
-		raw.amount = amount
-	# Node-local: `armor` / `min_damage_taken` merge this node's board with its
-	# owner's, so addon + aura defensive modifiers actually land.
-	var effective: float = Mitigation.apply(raw, self)
-	# #381: a defensive `min_damage_taken` underflow (Bulwark-style) can push
-	# `effective` negative — that's a real heal, not a damage number that
-	# happened to round to nothing. Reclassify BEFORE the presentation layer
-	# reads `kind` (it only runs after this call returns). `effective == 0`
-	# stays DAMAGE — a real hit that soaked to nothing.
-	var flipped_to_heal := source is DamageInstance and effective < 0.0
-	if flipped_to_heal:
-		(source as DamageInstance).kind = HitInstance.Kind.HEAL
-	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
-	if hp == null:
-		return
-	var before := hp.current
-	hp.deplete(effective)
-	RevealRecorder.node_hp(self, before, hp.current)
-	if source is DamageInstance:
-		if flipped_to_heal:
-			# Clamped delta's magnitude — same contract heal_damage uses, so a
-			# flipped hit's reveal shows what actually landed on the pool.
-			(source as DamageInstance).effective_amount = absf(hp.current - before)
-		else:
-			# Pre-#381 contract, unchanged: the post-mitigation number, NOT the
-			# post-soak delta — an overkill/core hit must still report the full
-			# mitigated amount (`damaged.emit` below carries the same number),
-			# or a killing blow's floater under-reports to whatever HP was left.
-			(source as DamageInstance).effective_amount = effective
-	var soaked: float = before - hp.current
-	if soaked > 0.0:
-		# D-9: any actual HP loss marks this node "damaged since last
-		# upkeep" — apply_turn_regen() reads and clears this at turn start.
-		_damaged_since_upkeep = true
+	_combat.take_damage(amount, source)
+
+
+## Notification half of [method take_damage]'s state change (see
+## [NodeCombat]): the local + global damage announcement and the post-
+## mitigation defensive-effect dispatch. `amount`/`before`/`after` name the
+## HP pool's values around the deplete; `effective` is the post-mitigation
+## number (`damaged.emit` and the dispatch both carry it, matching the
+## pre-#498 contract).
+func notify_damaged(before: float, after: float, effective: float, source: Variant) -> void:
+	# Presentation clock (#491): record BEFORE the emits, same order the
+	# pre-extraction body used.
+	RevealRecorder.node_hp(self, before, after)
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
 	# Post-mitigation amount, so a defensive effect reacts to what actually landed.
 	owned_by.dispatch(&"_on_node_damaged", [self, effective])
-	var overflow: float = effective - soaked
-	if owned_by.core_location == self:
-		if overflow > 0.0 and owned_by.stat_board != null and owned_by.stat_board.health != null:
-			# Presentation clock (#491): the core's `health` pool moves here,
-			# synchronously (#474) — RevealRecorder.entity_health below records
-			# the before/after so PresentationPlayer can stage this chip's
-			# reveal against this node's own hit, same rhythm the old
-			# hold/release pair used to enforce by hand.
-			# Snapshot the entity + its pool BEFORE deplete(): crossing 0 fires
-			# `health.depleted` synchronously, which can run the whole death
-			# cascade (die() -> ... -> AllocationSystem strips this very core
-			# node) before deplete() returns — re-reading `owned_by` afterward
-			# would see it already cleared to null.
-			var entity := owned_by
-			var health_pool := entity.stat_board.health
-			var entity_before := health_pool.current
-			# Record BEFORE mutating (placeholder to_value, patched below) —
-			# a lethal overflow re-enters through die() from inside deplete(),
-			# which would otherwise record ENTITY_DEATH ahead of this event.
-			var health_event := RevealRecorder.entity_health(entity, entity_before, entity_before)
-			health_pool.deplete(overflow)
-			health_event.to_value = health_pool.current
-		return
-	if hp.current <= 0.0:
-		RevealRecorder.node_death(self)
-		depleted.emit()
-		Events.skill_node_depleted.emit(self)
+
+
+## Notification half of [method take_damage]'s state change for the "HP hit
+## 0, non-core" branch (see [NodeCombat]). The core-node branch never calls
+## this — an overflowing core node returns before the depleted check, exactly
+## as before extraction (core HP is bottomless in the death sense; see
+## `.claude/rules/entity-death.md`).
+func notify_depleted() -> void:
+	RevealRecorder.node_death(self)
+	depleted.emit()
+	Events.skill_node_depleted.emit(self)
+
 
 ## Restore HP by [param amount], clamped at max. Emits [signal healed] (and
 ## re-emits on the global bus) with the effective delta actually restored.
 func heal_damage(amount: float, source: Variant) -> void:
-	if owned_by == null or amount <= 0.0:
-		return
-	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
-	if hp == null:
-		return
-	var prev := hp.current
-	hp.set_current(min(hp.current + amount, hp.value))
-	var effective := hp.current - prev
-	RevealRecorder.node_hp(self, prev, hp.current)
-	# Stash the post-clamp number back onto the instance so a LATER
-	# presentation reveal (heal_shown, #481/#482) can show what actually landed
-	# instead of the raw pre-clamp amount.
-	if source is HealInstance:
-		(source as HealInstance).effective_amount = effective
+	_combat.heal_damage(amount, source)
+
+
+## Notification half of [method heal_damage]'s state change (see [NodeCombat]).
+func notify_healed(prev: float, after: float, effective: float, source: Variant) -> void:
+	RevealRecorder.node_hp(self, prev, after)
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)
