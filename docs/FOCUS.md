@@ -80,6 +80,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | `Needs design` |
 | **#462** | Display settings (window mode, resolution, vsync, fps cap) | **`Ready`** — cheap, North Star #2 |
 | **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
+| **#499** | Ranged volley: author the arrival ramp, apply in arrival order, expose the firing list | **`Ready`** — allocation order currently changes combat outcomes; the firing list *is* #458's command payload. Independent of the sync lane, can run in parallel |
 
 Also in the milestone, by owner call: **#300** removable node blockers, **#403**
 Tech Seeds, **#412** armed-mode viewport tint. All three `Needs design` — "should
@@ -91,7 +92,14 @@ everything else, and it is not a drone unit. Then #488 → #458, in that order �
 #459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
 #459 needs half of it. #460 wants its own design pass. #463 stays gated — it
 opens only once #474, #458 and #475 have landed and offline play is verified
-unchanged.
+unchanged. #499 is off the sync lane entirely and can be pulled whenever.
+
+**Parked behind the LAN, deliberately:** the attack-timeline contract
+(`docs/domain/attack-timeline.md`) — #498's substrate seam and the three
+per-mode moves it unblocks. It is the right model and it is written down; none
+of it gates 08-31. Owner call 2026-08-20: **the LAN issues all get done first.**
+#499 is the one piece of that work that *is* in the milestone, on its own
+merits, because allocation order changing combat outcomes is a bug today.
 
 ## Perf — as good as fixed, *for now*
 

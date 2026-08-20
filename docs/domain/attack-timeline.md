@@ -218,8 +218,27 @@ than randomness, because a player could learn to exploit it.
 rank reaching leaves by euclidean distance to target, ascending
     tie-break: SkillNode.stable_id          # wire-legal, minted by Graph
 launch_time_i  = draw_time + lerp(0, TOTAL_STAGGER, rank_i / (n - 1))
-arrival_time_i = launch_time_i + flight_time_i
+arrival_time_i = launch_time_i + FLIGHT_TIME       # constant, NOT distance/speed
 ```
+
+**Flight time is a constant, not `distance / PROJECTILE_SPEED`.** Settled
+2026-08-20. The fiction is the arc: a point-blank shot is lobbed nearly
+straight up, a distant one goes nearly flat, and both take about the same time
+to come down. Arrows are *aimed*, not fired on a rail.
+
+Mechanically this is the stronger choice, which is why it wins:
+
+- **The launch span and the arrival span are identical** (both `TOTAL_STAGGER`).
+  With a constant projectile *speed* the arrival span would be
+  `TOTAL_STAGGER + (flight_far - flight_near)` — always wider, and widening
+  with the size of your territory, so a big empire's volleys would smear out
+  while a small one's stayed crisp.
+- **Arrival order == firing order == distance order**, unconditionally. No
+  ratio between stagger and flight can invert it, so armor-reducing ammo has an
+  order it can rely on without a caveat.
+- **`RangedDamageFormula.PROJECTILE_SPEED` stops being the timing authority.**
+  The animation still needs a speed — it is now *derived* per shot
+  (`distance / FLIGHT_TIME`) rather than the input the schedule is built from.
 
 - **Nearest fires first and arrives first.** Note ranged is single-target —
   every reaching leaf shoots the *same* node — so what ripples outward is the
@@ -238,13 +257,6 @@ arrival_time_i = launch_time_i + flight_time_i
   analogous preparatory phase.
 - **`t = 0` is the start of the draw**, not the first arrival. Every
   `arrival_time` is measured from the moment the action begins.
-
-**Open:** with a constant `PROJECTILE_SPEED`, `flight_time` grows with
-distance, so the arrival span is `TOTAL_STAGGER + (flight_far - flight_near)` —
-wider than the launch span. Making the two spans exactly equal requires a
-constant `flight_time` (i.e. distant arrows fly faster). Arrival order is
-monotone in distance either way, so the contract holds regardless; this is a
-feel decision, unsettled.
 
 **Watch:** `ArrowVolleyCoordinator._flight_for` clamps to
 `maxf(arrival_time - launch_delay, flight_time * MIN_FLIGHT_FRACTION)`.
@@ -289,7 +301,7 @@ That doc needs the correction independently of this one.
 
 ## Open forks
 
-- Constant projectile speed vs. constant flight time (see the ramp section).
+- `TOTAL_STAGGER` and `FLIGHT_TIME` values — feel, needs the real game.
 - `draw_time` values, and the melee analogue of a preparatory phase.
 - Whether the substrate is an explicit interface or a duck-typed pair of
   accessors. Build it against magic first — the smallest consumer — rather than
