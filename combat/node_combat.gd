@@ -85,9 +85,18 @@ func take_damage(amount: float, source: Variant) -> void:
 			# Record BEFORE mutating (placeholder to_value, patched below) —
 			# a lethal overflow re-enters through die() from inside deplete(),
 			# which would otherwise record ENTITY_DEATH ahead of this event.
-			var health_event := RevealRecorder.entity_health(entity, entity_before, entity_before)
+			# The recorder is PRESENTATION, so it is host-guarded like every
+			# other notification in this file — a hostless slice (step 2's
+			# snapshot) must chip the pool without recording a reveal. It
+			# cannot move to a `host.notify_*` call because it has to BRACKET
+			# deplete(): recorded before, patched after, for the re-entrancy
+			# reason above.
+			var health_event = null
+			if host != null:
+				health_event = RevealRecorder.entity_health(entity, entity_before, entity_before)
 			health_pool.deplete(overflow)
-			health_event.to_value = health_pool.current
+			if health_event != null:
+				health_event.to_value = health_pool.current
 		return
 	if hp.current <= 0.0 and host != null:
 		host.notify_depleted()
