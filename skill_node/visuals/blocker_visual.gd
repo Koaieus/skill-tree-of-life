@@ -4,18 +4,15 @@ extends Node2D
 ## disk. Three crack stages sync to the node's combat-HP fraction (intact >
 ## 66%, cracked ≤ 66%, shattered ≤ 33%).
 ##
-## [b]Crack stage is combat PAINT, so it honours the presentation hold
-## (#479/#482).[/b] Model HP mutates synchronously on `take_damage`, but a
+## [b]Crack stage is combat PAINT, so it honours the presentation clock
+## (#479/#482/#491).[/b] Model HP mutates synchronously on `take_damage`, but a
 ## blocked node must not visibly crack before the hit that caused it has
-## actually landed on screen (a BattleSystem-held target withholds every other
-## repaint for exactly this reason). [method _on_damaged] no-ops while
-## [member SkillNode.presentation_hold] is true; [signal
-## SkillNode.presentation_released] re-syncs the stage once the hold lifts, so
-## a rapid multi-hit exchange still lands on the FINAL HP fraction rather than
-## replaying each intermediate stage. Off-hold, this is still synchronous — no
-## frame wait — matching every other painter's contract. Crack stage ALSO lags
-## one idle frame behind a FRESH allocation (see `_ready`'s docstring for why);
-## that only delays picking up new ownership, never a mid-life damage tick.
+## actually landed on screen. [method _on_view_state_changed] re-syncs the
+## stage off [signal SkillNode.view_state_changed] — [PresentationPlayer]'s own
+## reveal cadence — so a rapid multi-hit exchange still lands on the FINAL HP
+## fraction rather than replaying each intermediate stage. Crack stage ALSO
+## lags one idle frame behind a FRESH allocation (see `_ready`'s docstring for
+## why); that only delays picking up new ownership, never a mid-life damage tick.
 ##
 ## [b]Blocked is a LATCH, not a live predicate.[/b] The first entity to own
 ## this node (a blocker force-allocates its blocked node as its own core at
@@ -119,9 +116,9 @@ func _ready() -> void:
 			_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 		if not _node.sensed_changed.is_connected(_on_sensed_changed):
 			_node.sensed_changed.connect(_on_sensed_changed)
-		# #491: crack stage re-syncs off the node's own DRAWN hp, pushed by
-		# PresentationPlayer — replaces the old `damaged` + presentation-hold
-		# gate + `presentation_released` catch-up trio with one signal.
+			# #491: crack stage re-syncs off the node's own DRAWN hp, pushed by
+			# PresentationPlayer — replaces the old 'damaged' + hold/release
+			# catch-up trio with one signal.
 		if not _node.view_state_changed.is_connected(_on_view_state_changed):
 			_node.view_state_changed.connect(_on_view_state_changed)
 	# Deferred for the same reason as the connect above. Establishes the

@@ -25,17 +25,6 @@ signal attack_plan_state_changed
 ## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
 signal cascade_started(layers: Array, defender: Entity)
 
-## #485: this cascade's chip damage is about to kill [param defender], which
-## finishes the entity-death strip — [param nodes] is whatever territory that
-## strip is about to take beyond this cascade's own [signal cascade_started]
-## set (usually the core). Deliberately NOT folded into `cascade_started`'s
-## `layers` — [LootSystem] reads that signal as this cascade's removal set and
-## separately accounts for the core; see the emitter in `_on_node_depleted`
-## for the double-pay this caused when tried. [param impact] is the same
-## impact node `cascade_started` fired with, for a consumer that wants to
-## chain its stagger off the same reveal.
-signal death_strip_scheduled(nodes: Array[SkillNode], defender: Entity, impact: SkillNode)
-
 ## The currently-selected spell for magic attacks. Updated by the spell-picker
 ## UI; consumed by [method _new_plan] when constructing a [MagicAttackPlan].
 ## Null means "use the plan's bundled fallback". Live mutation is supported:
@@ -56,26 +45,13 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
-## #491: plays the recorded reveal timeline — the single consumer of
-## `last_reveal_timeline`, replacing `_flush_presentation` entirely.
+## #491: plays the recorded reveal timeline — the sole driver of the
+## post-attack reveal now.
 @export var presentation_player: PresentationPlayer
 
-## Presentation clock (#485): entity-level wound-toast holds pending release,
-## keyed by the impact node whose `node_death_shown` reveal is what releases
-## them. See `_on_node_depleted` / `_on_node_death_shown`.
-var _pending_wound_reveals: Dictionary[SkillNode, Entity] = {}
-
-## Presentation clock (#487): the core `health` bar's pending reveals, keyed
-## by whichever SkillNode's own reveal releases them — a cascaded node (chip
-## damage) or a core node hit directly (overflow damage, via
-## [signal Events.core_health_chipped]). Entry: `{"defender": Entity, "delta": float}`.
-## Released by [method _release_pending_health], called from both
-## `_on_damage_shown` (core overflow — the core node never emits
-## `node_death_shown`) and `_on_node_death_shown` (cascade chip).
-var _pending_health_reveals: Dictionary[SkillNode, Dictionary] = {}
-
 ## Presentation clock (#488): the timeline recorded off this attack's
-## synchronous mutation. Nothing consumes it yet — child 3 (#491) plays it.
+## synchronous mutation. `presentation_player.play`/`play_instant` (in
+## `launch_attack`) is what replays it.
 var last_reveal_timeline: RevealTimeline = null
 
 
@@ -157,94 +133,6 @@ var next_melee_cw: bool = false
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
-	# #491: the old presentation-hold release handlers below
-	# (_on_damage_shown / _on_node_death_shown / _on_heal_shown /
-	# _on_core_health_chipped) are dead — nothing calls hold_presentation /
-	# hold_health_presentation anymore, so there is nothing left for them to
-	# release. PresentationPlayer.play/play_instant (wired in launch_attack)
-	# is the sole consumer of the recorded timeline now. Left unconnected
-	# rather than deleted — #492 removes the bodies.
-
-
-## A hit has visually landed: let its target's withheld paint through — one
-## slot off the refcount (#487), not a full release, if a volley put more
-## than one hold on this node. `amount` is this hit's positive HP magnitude;
-## `release_presentation` wants the SIGNED pool delta, so damage steps down.
-func _on_damage_shown(target: SkillNode, amount: float) -> void:
-	if target != null:
-		target.release_presentation(-amount)
-	_release_pending_health(target)
-
-
-func _on_node_death_shown(node: SkillNode) -> void:
-	if node != null:
-		# announce_death=false: this call is ITSELF a response to
-		# Events.node_death_shown (whether from a coordinator, AllocationVFX's
-		# cascade ripple, or this node's own auto-announce on full release) —
-		# re-announcing here would just re-trigger this same handler (#487).
-		node.release_presentation(0.0, false)
-	# Presentation clock (#485): the impact node's reveal is also what lets
-	# the wound TOAST through — see `_on_node_depleted`'s hold and
-	# `_pending_wound_reveals`.
-	if node != null and _pending_wound_reveals.has(node):
-		var stored_defender = _pending_wound_reveals[node]
-		_pending_wound_reveals.erase(node)
-		if is_instance_valid(stored_defender):
-			var defender: Entity = stored_defender
-			defender.release_wound_presentation()
-	_release_pending_health(node)
-
-
-## A heal has visually landed: let its target's withheld paint through. Mirrors
-## [method _on_damage_shown] — heals step the shown HP up.
-func _on_heal_shown(target: SkillNode, amount: float) -> void:
-	if target != null:
-		target.release_presentation(amount)
-
-
-## A direct hit overflowed a core node's own combat HP into its owner's
-## `health` pool (#487) — queue the core bar's reveal to release on THIS
-## node's own damage/death reveal (below), never earlier.
-func _on_core_health_chipped(node: SkillNode, entity: Entity, delta: float) -> void:
-	if node == null or entity == null:
-		return
-	_pending_health_reveals[node] = {"defender": entity, "delta": delta}
-	# #479: a direct core hit that empties `health` in one blow bypasses
-	# `_on_node_depleted` entirely (the core never emits `depleted`), so the
-	# cascade-chip-damage lethality PREDICTION above never runs for this path.
-	# No prediction needed here though — `SkillNode.take_damage` already ran
-	# `health.deplete(overflow)` (which synchronously fires `depleted` →
-	# `Entity.die()`) before emitting `core_health_chipped`, so `entity.is_dead`
-	# is exact truth by the time this handler runs. Stagger the rest of the
-	# territory off THIS node's own reveal, same as the cascade path.
-	# The core ITSELF stays excluded (mirrors the cascade path excluding its
-	# impact node from `extra`) — it's already held once by [OutcomeApplier]
-	# as the direct hit target and releases off its own `damage_shown`; adding
-	# it to the death-strip snapshot list too would double the hold with no
-	# second release to match ([AllocationVFX._fire_cascade_slot] deliberately
-	# skips re-releasing the impact node), leaving its paint stuck forever.
-	# Its own shatter still happens — [AllocationSystem]'s later
-	# `force_deallocate` on the core fires the standalone (unstaggered)
-	# fallback in [AllocationVFX._on_force_deallocated], same as any
-	# non-cascade dealloc.
-	if entity.is_dead:
-		var extra := _remaining_owned_nodes(entity, [node])
-		if not extra.is_empty():
-			death_strip_scheduled.emit(extra, entity, node)
-
-
-## Release [param node]'s queued core-health chip, if any — called from both
-## `_on_damage_shown` (a direct core hit; the core node never emits
-## `node_death_shown`) and `_on_node_death_shown` (a cascaded node's chip).
-func _release_pending_health(node: SkillNode) -> void:
-	if node == null or not _pending_health_reveals.has(node):
-		return
-	var entry: Dictionary = _pending_health_reveals[node]
-	_pending_health_reveals.erase(node)
-	var stored_defender = entry.get("defender")
-	if is_instance_valid(stored_defender):
-		var defender: Entity = stored_defender
-		defender.release_health_presentation(float(entry.get("delta", 0.0)))
 
 
 ## Commit the active plan. Three phases:
@@ -354,72 +242,15 @@ func launch_attack() -> void:
 	_reset()
 
 
-## Make the presentation events TOTAL for this attack's direct hits and heals
-## (#482 / #481/#482).
-##
-## The VFX coordinators are the normal emitters, but they only run when one is
-## mounted and unmuted — headless tests, a null `attack_vfx`, a melee plan with
-## no preview, or a spell with no coordinator scene all skip them. Any target
-## still holding its paint by the time the awaits are done therefore never got
-## its reveal, so we emit it here: same signal, same subscribers (SkillNode
-## paint, AuraOverlay, AllocationVFX cascade), just at the end of the attack
-## instead of mid-flight. Without this the latch would fail *open* and leave a
-## hit node showing its pre-hit tint forever.
-##
-## Deduped per target, and per HIT (#487) — a multi-hit spell/volley can list
-## the same node several times, one hold per hit; looping `outcome.hits` and
-## emitting once per hit drains exactly as many holds as were taken. The emit
-## itself is what releases (`_on_damage_shown`/`_on_heal_shown`, connected in
-## `_ready`) — no separate release call here, and no manual `node_death_shown`
-## emit either: [method SkillNode.release_presentation] announces a hit
-## target's own death itself, exactly once, on its OWN final release (see its
-## `announce_death` param) — emitting it again per-hit here is what used to
-## double-drain a multi-hit volley's refcount.
-func _flush_presentation(outcome: AttackOutcome) -> void:
-	for hit in outcome.hits:
-		var target: SkillNode = hit.target
-		if target == null or not target.presentation_hold:
-			continue
-		if hit.kind == HitInstance.Kind.HEAL:
-			Events.heal_shown.emit(target, hit.effective_amount)
-		else:
-			Events.damage_shown.emit(target, hit.effective_amount)
-	# Cascade nodes (forced-dealloc'd by `_on_node_depleted`, never listed in
-	# `outcome.hits`) are held by THIS system, not [OutcomeApplier] — their
-	# `_pending_wound_reveals`/`_pending_health_reveals` entries only release
-	# off `Events.node_death_shown`, which only [AllocationVFX] emits, and only
-	# when it's mounted. Same fail-open contract as the loop above: whatever's
-	# still queued when the awaits are done gets its reveal here instead of
-	# never — otherwise an unmounted-VFX attack (headless test, no `attack_vfx`)
-	# leaves the entity's health/wound presentation withheld forever, which
-	# now also means [signal Events.entity_death_shown] never fires and a dead
-	# entity's corpse never despawns (see `Entity.release_health_presentation`).
-	#
-	# Only drain a node with NOTHING left holding it (`not n.presentation_hold`)
-	# — AllocationVFX's own ripple runs on `CASCADE_STEP` timers that outlive
-	# this await, so a still-held node has a real reveal coming and force-firing
-	# here would collapse #487's staggered core-bar chip into one frame.
-	var pending_reveal_nodes: Dictionary[SkillNode, bool] = {}
-	for n in _pending_wound_reveals:
-		pending_reveal_nodes[n] = true
-	for n in _pending_health_reveals:
-		pending_reveal_nodes[n] = true
-	for n in pending_reveal_nodes:
-		if n != null and not n.presentation_hold:
-			Events.node_death_shown.emit(n)
-
-
 ## The one place world mutation happens for an attack: every hit in
 ## [member AttackOutcome.hits] lands via [OutcomeApplier] — which, via
 ## take_damage → Events.skill_node_depleted → _on_node_depleted (both
 ## synchronous), also runs the forced-dealloc cascade. VFX never calls this;
 ## it only replays what already landed. See the class-level VFX note.
 ##
-## Presentation clock (#482): [OutcomeApplier] withholds each target's paint
-## BEFORE the model moves, so tint / allocation-fill / HP bar keep the
-## pre-hit look until the VFX actually arrives. Released by
-## `_on_damage_shown` / `_on_heal_shown` / `_on_node_death_shown` — and
-## `_flush_presentation` guarantees one of those fires.
+## Presentation clock (#491): [OutcomeApplier] records the reveal timeline
+## as it mutates; `PresentationPlayer.play`/`play_instant` (wired in
+## `launch_attack`) is what replays it.
 func _apply_outcome(outcome: AttackOutcome) -> void:
 	RevealRecorder.begin(RevealTimeline.new())
 	OutcomeApplier.apply(outcome)
@@ -467,9 +298,8 @@ func _on_node_depleted(node: SkillNode) -> void:
 	# `RevealRecorder.push_strip_scope()`, so its NODE_OWNER_LOST events
 	# record with the correct staggered `t` — inherited from whatever cause
 	# scope is open at the moment `health` actually crosses 0 — with no
-	## attribution logic needed. `death_strip_scheduled` (used only by the
-	# now-deleted prediction) has no remaining subscriber; see #488's "the
-	# system predicts its own future" for what this replaces.
+	## attribution logic needed; see #488's "the system predicts its own
+	# future" for what this replaces.
 	var current_base := RevealRecorder.current_t()
 	for i in range(layers.size()):
 		RevealRecorder.push_cause(current_base + i * RevealTimeline.CASCADE_STEP)
@@ -544,21 +374,3 @@ func _cascade_layers(impact: SkillNode, cascade: Array[SkillNode]) -> Array:
 	return layers
 
 
-## Every node [param defender] still owns outside [param exclude] (the
-## chip-damage cascade set already accounted for). Used by #485's death-strip
-## lookahead to fold the rest of a dying entity's territory into the same
-## cascade manifest as one trailing layer. Falls back to empty when
-## [member graph] is unset (headless tests) — no worse than the pre-#485
-## unstaggered strip in that case.
-func _remaining_owned_nodes(defender: Entity, exclude: Array[SkillNode]) -> Array[SkillNode]:
-	var out: Array[SkillNode] = []
-	if graph == null:
-		return out
-	var excluded: Dictionary[SkillNode, bool] = {}
-	for n in exclude:
-		if n != null:
-			excluded[n] = true
-	for n in graph.get_skill_nodes():
-		if n.owned_by == defender and not excluded.has(n):
-			out.append(n)
-	return out

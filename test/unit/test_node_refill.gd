@@ -37,6 +37,20 @@ func before_each() -> void:
 	_node.owned_by = _entity
 	await get_tree().process_frame
 
+	# #491: SkillNode's view state (what HealthBar actually draws) is only
+	# ever written by PresentationPlayer, via RevealRecorder's pass-through
+	# path when nothing is recording a timeline — same as every other
+	# call-`take_damage`-directly fixture (test_presentation_hold.gd).
+	var player := PresentationPlayer.new()
+	add_child_autofree(player)
+	RevealRecorder.player = player
+
+
+func after_each() -> void:
+	RevealRecorder.player = null
+	if RevealRecorder.is_recording:
+		RevealRecorder.end()
+
 
 func _pool() -> PoolStat:
 	return _node.node_board.get_stat(&"node_health") as PoolStat

@@ -42,11 +42,8 @@ func play(payload: Variant) -> void:
 	# A ranged DamageInstance can still flip to Kind.HEAL inside take_damage
 	# (a Bulwark-style `min_damage_taken` underflow, same as any other attack
 	# mode) — `damage_hits()` correctly drops it, but nothing here ever gave
-	# it a projectile or a reveal (#487 made this visible: OutcomeApplier
-	# still held it, and with the hold now a refcount, that hold only drained
-	# at BattleSystem._flush_presentation, end-of-attack, instead of catching
-	# up alongside this same outcome's other hits). No dedicated visual makes
-	# sense for a hit that never had its own arrow — reveal it immediately.
+	# it a projectile or a reveal (#487 made this visible). No dedicated visual
+	# makes sense for a hit that never had its own arrow — reveal it immediately.
 	for hit in outcome.hits:
 		if hit.kind == HitInstance.Kind.HEAL and hit.target != null:
 			Events.heal_shown.emit(hit.target, hit.effective_amount)
@@ -125,12 +122,10 @@ func _show_presentation(hit: DamageInstance, impact_time: float, pending: Array[
 	Events.damage_shown.emit(hit.target, hit.effective_amount)
 	# Not "if not hit.target.is_allocated(): node_death_shown" here (#487) — a
 	# lethal volley's target is unallocated in the model from the FIRST arrow's
-	# reveal onward (#474 applied every hit up front), so that check fired
-	# node_death_shown on EVERY arrow, double-draining a multi-hit volley's
-	# presentation refcount and starving whichever arrow's reveal lost the
-	# race. SkillNode.release_presentation (just called above, via
-	# Events.damage_shown → BattleSystem._on_damage_shown) announces the
-	# target's own death itself, exactly once, on its own final release.
+	# reveal onward (#474 applied every hit up front), so that check would fire
+	# node_death_shown on EVERY arrow, double-announcing a multi-hit volley's
+	# death. `damage_shown` here is purely the floating-number/HP-bar reveal
+	# (#491: PresentationPlayer's own recorded timeline drives the death event).
 	pending[0] -= 1
 
 

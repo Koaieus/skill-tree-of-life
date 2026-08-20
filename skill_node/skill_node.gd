@@ -1219,6 +1219,10 @@ func refill(silent: bool = false) -> void:
 		return
 	var prev := hp.current
 	hp.restore_to_full()
+	# Presentation clock (#491): a full refill is a real HP change same as any
+	# other — record it so the DRAWN hp (HealthBar, node paint) catches up
+	# through the same reveal path as damage/heal, not a bypassed jump.
+	RevealRecorder.node_hp(self, prev, hp.current)
 	if not silent:
 		var delta := hp.current - prev
 		if delta > 0.0:
@@ -1312,13 +1316,11 @@ func take_damage(amount: float, source: Variant) -> void:
 	var overflow: float = effective - soaked
 	if owned_by.core_location == self:
 		if overflow > 0.0 and owned_by.stat_board != null and owned_by.stat_board.health != null:
-			# Presentation clock (#487): the core's `health` pool moves here,
-			# synchronously (#474) — but this node's OWN reveal (this hit's
-			# `Events.damage_shown`/`node_death_shown`) hasn't fired yet, so the
-			# core HP bar must not show it early either. Hold before the deplete
-			# so the pre-hit value is what gets snapshotted; BattleSystem
-			# releases it off the same reveal that releases this node's own
-			# combat-hp latch (`Events.core_health_chipped` → `_on_damage_shown`).
+			# Presentation clock (#491): the core's `health` pool moves here,
+			# synchronously (#474) — RevealRecorder.entity_health below records
+			# the before/after so PresentationPlayer can stage this chip's
+			# reveal against this node's own hit, same rhythm the old
+			# hold/release pair used to enforce by hand.
 			# Snapshot the entity + its pool BEFORE deplete(): crossing 0 fires
 			# `health.depleted` synchronously, which can run the whole death
 			# cascade (die() -> ... -> AllocationSystem strips this very core
@@ -1326,7 +1328,6 @@ func take_damage(amount: float, source: Variant) -> void:
 			# would see it already cleared to null.
 			var entity := owned_by
 			var health_pool := entity.stat_board.health
-			entity.hold_health_presentation()
 			var entity_before := health_pool.current
 			# Record BEFORE mutating (placeholder to_value, patched below) —
 			# a lethal overflow re-enters through die() from inside deplete(),

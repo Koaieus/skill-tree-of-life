@@ -30,8 +30,8 @@ signal node_death_shown(node: SkillNode)
 ## precomputed VFX-arrival schedule as the damage reveal, so a heal number
 ## (and the node HP bar's rise, held by the same presentation latch) appears
 ## when the heal actually lands — a magic bounce heals at its beat, not at
-## model-mutation time. Emitted by the VFX coordinators as pure observers and
-## backstopped by [BattleSystem._flush_presentation]. `amount` is
+## model-mutation time. Emitted by the VFX coordinators as pure observers.
+## `amount` is
 ## [member HitInstance.effective_amount] — the post-clamp HP delta magnitude
 ## actually applied (also fires for a [DamageInstance] that
 ## [method SkillNode.take_damage] reclassified to a heal, #381).
@@ -41,12 +41,12 @@ signal heal_shown(target: SkillNode, amount: float)
 ## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
 signal skill_node_depleted(node: SkillNode)
 
-## Presentation clock (#487): a direct hit overflowed [param node]'s (the
-## CORE node's) own combat HP into its owner's `health` pool — the mutation
-## already happened, synchronously, by the time this fires. [param delta] is
-## the signed pool change (always negative here). BattleSystem listens and
-## queues the entity's health-bar reveal to release on this SAME node's own
-## `damage_shown`/`node_death_shown` — see [method Entity.hold_health_presentation].
+## A direct hit overflowed [param node]'s (the CORE node's) own combat HP into
+## its owner's `health` pool — the mutation already happened, synchronously,
+## by the time this fires. [param delta] is the signed pool change (always
+## negative here). Presentation clock (#491): the reveal itself is recorded
+## by [method SkillNode.take_damage] via `RevealRecorder.entity_health`,
+## staged against this same hit — this signal has no subscriber of its own.
 signal core_health_chipped(node: SkillNode, entity: Entity, delta: float)
 
 ## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
@@ -90,15 +90,13 @@ signal entity_dying(entity: Entity)
 ## GameRoot rides the child-before-parent ready order to fire after
 ## AllocationSystem, so the despawn never races the node strip.
 signal entity_died(entity: Entity)
-## Presentation clock (#479): the killing blow's own reveal has landed —
-## `Entity.release_health_presentation` fires this once, the moment
-## `get_shown_health()` reaches 0 for an entity that's already `is_dead`
-## (which can be many beats after `entity_died`, itself synchronous with
-## world mutation). GameRoot's despawn/game-over gates on THIS, not
-## `entity_died`, so a corpse stays on screen through its own death VFX.
-## If nothing ever held health presentation for the killing hit (no attack
-## behind the death — upkeep, a test, an effect), GameRoot falls back to
-## despawning on `entity_died` directly; see its `_on_entity_died`.
+## Presentation clock (#479/#491): the killing blow's own reveal has landed —
+## [PresentationPlayer] is the sole emitter, once its replayed timeline's
+## ENTITY_DEATH event lands (or immediately, via pass-through, when nothing
+## is recording — upkeep, a test, an effect calling `die()` directly). Can be
+## many beats after `entity_died`, itself synchronous with world mutation.
+## GameRoot's despawn/game-over gates on THIS, not `entity_died`, so a corpse
+## stays on screen through its own death VFX; see its `_on_entity_death_shown`.
 signal entity_death_shown(entity: Entity)
 
 ## Emitted when a claimed SkillDust relic offers a node-mod pick-N-from-M choice

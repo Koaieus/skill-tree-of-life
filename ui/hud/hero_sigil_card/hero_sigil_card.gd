@@ -98,11 +98,11 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 		entity: Entity = null) -> void:
 	if gauge == null or pool == null:
 		return
-	# Presentation clock (#487): [param entity] is only ever passed for the
-	# `health` pool — a chip/overflow source can move it before that source's
-	# own node reveal has landed (see `Entity.hold_health_presentation`), so
-	# reads here go through `get_shown_health()` and gain a
-	# `health_reveal_progress` step instead of following `pool.current` raw.
+	# Presentation clock (#491): [param entity] is only ever passed for the
+	# `health` pool — model mutation is synchronous and can move it before
+	# [PresentationPlayer] has replayed this hit's reveal, so reads here go
+	# through `get_shown_health()` (the view field `PresentationPlayer` writes
+	# via `set_view_health`) instead of following `pool.current` raw.
 	var shown := func() -> float:
 		return entity.get_shown_health() if entity != null else float(pool.current)
 	gauge.min_value = 0.0
@@ -112,12 +112,11 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 	# Tweened, not hard-cut (#317) — and `animate_to` deliberately only tweens
 	# *gains*, so a wound still snaps down and leaves its drain trail behind.
 	var animate := func():
-		if entity == null or not entity.health_presentation_held:
-			gauge.animate_to(shown.call(), float(pool.value))
+		gauge.animate_to(shown.call(), float(pool.value))
 	pool.current_changed.connect(animate.unbind(1))
 	pool.value_changed.connect(animate)
 	if entity != null:
-		entity.health_reveal_progress.connect(
+		entity.view_health_changed.connect(
 				func(shown_value: float): gauge.animate_to(shown_value, float(pool.value)))
 	if per_turn != null:
 		per_turn.value_changed.connect(func(): gauge.preview_gain = float(per_turn.value))
@@ -133,5 +132,5 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 		if per_turn != null:
 			per_turn.value_changed.connect(refresh_caption)
 		if entity != null:
-			entity.health_reveal_progress.connect(func(_v: float): refresh_caption.call())
+			entity.view_health_changed.connect(func(_v: float): refresh_caption.call())
 		refresh_caption.call()
