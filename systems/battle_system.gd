@@ -372,5 +372,3 @@ func _cascade_layers(impact: SkillNode, cascade: Array[SkillNode]) -> Array:
 	if not orphans.is_empty():
 		layers.append(orphans)
 	return layers
-
-
