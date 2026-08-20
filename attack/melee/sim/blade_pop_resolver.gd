@@ -119,6 +119,21 @@ static func resolve(
 ## earlier-in-time hit's cascade can deallocate a LATER event's target before
 ## that event lands. [LiveGate] closes that gap by reading live state at the
 ## instant each event actually consumes. See docs/domain/attack-timeline.md.
+##
+## [b]This class and [method resolve] are two implementations of the same
+## predicates, and that is deliberate but TRANSITIONAL.[/b] They are not quite
+## interchangeable today — [method resolve] runs its kill pass fully before
+## its disconnection pass, so a vertex that disintegrates at t1 can still be
+## recorded as a pop at t2 > t1, whereas [LiveGate] treats a disintegrated
+## vertex as dead and never pops it. The live behaviour is the correct one;
+## the batch pass survives only as the up-front AI/preview estimate.
+##
+## #498 step 3 is what retires the duplication: once `resolve_against(slice)`
+## exists, the estimate runs THIS gate against a shadow slice and
+## [method resolve] is deleted outright. Do not "fix" the divergence by
+## folding one into the other before then — that would silently change the
+## AI's shape-risk signal ([member AttackOutcome.thinned_nodes]), which is a
+## separate decision from #502's landing gate.
 class LiveGate extends RefCounted:
 	## Accepted pops so far, in the same shape [method resolve] returns —
 	## [MeleePreview] replays this post-application (#502's "Watch": the
