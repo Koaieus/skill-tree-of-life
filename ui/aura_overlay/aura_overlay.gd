@@ -211,6 +211,13 @@ func _on_entity_died(_entity: Entity) -> void:
 
 
 func _connect_allocation() -> void:
+	# Export setters fire during scene deserialization too — including a
+	# non-playing editor load, where `presentation_player` resolves to a bare
+	# `Node` (its script is only attached when the game is running, since
+	# PresentationPlayer isn't @tool). Guard here rather than only in
+	# `_ready()`, since the setters below call this directly.
+	if Engine.is_editor_hint():
+		return
 	if allocation_system != null:
 		if not allocation_system.allocated.is_connected(_on_ownership_changed):
 			allocation_system.allocated.connect(_on_ownership_changed)
@@ -226,6 +233,8 @@ func _connect_allocation() -> void:
 
 
 func _disconnect_allocation() -> void:
+	if Engine.is_editor_hint():
+		return
 	if allocation_system != null:
 		if allocation_system.allocated.is_connected(_on_ownership_changed):
 			allocation_system.allocated.disconnect(_on_ownership_changed)

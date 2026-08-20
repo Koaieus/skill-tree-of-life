@@ -101,6 +101,12 @@ func _ready() -> void:
 	bind(allocation_system, battle_system)
 
 func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:
+	# `_ready()` runs unguarded in the editor too (this script has no other
+	# is_editor_hint gate), and the NodePath-resolved `presentation_player`
+	# is a bare `Node` there — its script only attaches when actually
+	# running, since PresentationPlayer isn't @tool. Skip wiring entirely.
+	if Engine.is_editor_hint():
+		return
 	if _allocation_system != null:
 		allocation_system = _allocation_system
 		allocation_system.allocated.connect(_on_allocated)
