@@ -189,37 +189,93 @@ What the substrate is for is narrower:
 > the applier against the real world.
 
 So the substrate is a **follow-on that restores AI/preview accuracy**, not a
-prerequisite. `AttackOutcome` stays a serializable wire payload either way.
+prerequisite.
 
-### Why you cannot just clone the SkillNodes
+### How wrong is an un-simulated estimate? Badly, and non-uniformly
 
-The obvious idea — `duplicate()` the nodes and run the real `take_damage`
-against the copies, so nothing is reimplemented — **does not isolate
-anything.** Three lines in the mutation path reach the real world regardless of
-whether `self` is a clone:
+The tempting cheap answer is "the gate only ever *vetoes* landings, so an
+ungated estimate is a strict upper bound — directional, bounded, discountable."
+**It is not discountable.**
 
-- `RevealRecorder.node_hp(self, …)` — a **static** with global timeline state
-- `Events.skill_node_damaged.emit(…)` — the global bus
-- `owned_by.dispatch(&"_on_node_damaged", …)` — a duplicated node's `owned_by`
-  still points at the **real** `Entity`, so this runs real effect hooks against
-  a real board
+A propagating spell with escalating per-hop damage, seeded at a local degree
+maximum, estimates `1 + 2 + 4 + … + 1024` while the real cast stops after ~20
+damage, because the nodes it needed to bounce through are dead and no longer
+valid candidates. The error scales with hop count and degree — *exactly where
+the AI thinks the value is* — so it generates rank inversions rather than a
+uniform offset. An AI using it reliably picks the worst spell target on the
+board and scores it highest.
 
-`AllocationSystem.force_deallocate` is the same: `_revoke_node_effects(node,
-previous)` and `previous.navigator.mirror_remove(node)` both act on the live
-owner.
+### The design: split state from notification
+
+Split every mutation site into **state change** (moves to a plain `RefCounted`)
+and **notification** (stays on the Node). Simulation runs the state half
+against a throwaway copy. One implementation of the logic, so sim/real
+agreement is a fact rather than a discipline.
+
+```
+SkillNode (Area2D)                    NodeCombat (RefCounted)
+├── visuals, collision, addons        ├── board: NodeStatBoard   ← Resource, duplicated
+├── signals, Events, presentation     ├── owner: EntityCombat
+└── _combat ──────────────────────────┤ host: SkillNode  (null on a shadow)
+                                      └── take_damage / heal / is_allocated
+```
+
+`SkillNode` *composes* its `NodeCombat` — it does not copy one, it owns the
+live one. A shadow has `host == null`, so the notification branch does not
+exist for it. **There is no "simulation in progress" mute flag**, and there
+should not be: a flag is something you can fail to set; a null host is
+something that cannot be reached.
+
+Two facts make this small. `StatBoard` / `NodeStatBoard` already extend
+`Resource` and are deep-duplicable — `_init_node_board()` does
+`source.duplicate(true)` today — so the stat system does not move at all. And
+`_node_board_ready` is lazy, driven from every write path rather than
+`_ready()`, so a detached slice initialises correctly with no scene tree.
+
+Full architecture, the `host` invariant, and the migration order are in #498.
+
+### Why cloning SkillNodes was the wrong answer
+
+Worth recording, because it is the obvious first idea. `duplicate()`-ing nodes
+and running the real `take_damage` against the copies leaks through the global
+broadcast surface: `Events.skill_node_damaged.emit(…)`, and
+`owned_by.dispatch(…)` — a duplicated node's `owned_by` still points at the
+**real** `Entity`. `AllocationSystem.force_deallocate` is the same, via
+`_revoke_node_effects(node, previous)` and
+`previous.navigator.mirror_remove(node)`.
+
+Cloning the *Entity* as well closes the `owned_by` half. What it cannot close
+is the bus: `LootSystem` connects to global `Events.entity_dying`
+(`loot_system.gd:170`) and resolves the killer as
+`turn_manager.current_entity`, so a simulated kill grants **real XP** and
+spawns a real `SkillDustAddon` no matter whose clone died. Cloning entity
+subtrees remains a viable cheaper fallback — bounded failure mode, a wrong
+score rather than a broken world — but its cost is Node duplication per
+rollout, which scales badly against exactly the many-rollout spell AI that
+motivates the work.
 
 This is also the honest answer to *"how do games like Monster Train do it?"* —
 card battlers clone their battle state freely because that state is **plain
 data with no engine objects and no global emit surface**. The reason cloning is
 cheap there and not here is not object size; it is that their mutation path has
-no reach outside the state object. Ours is an `Area2D` with children, physics
-shapes, tweens, a static recorder, a global bus, and hooks that call back into
-live entities.
+no reach outside the state object.
 
-Closing that gap — extracting per-node combat state into a plain `RefCounted`
-the `SkillNode` owns, so one implementation of `take_damage` can run against
-either — is the real content of the substrate work, and is why it is its own
-issue rather than a paragraph in a mode move.
+### `AttackOutcome` is the result, not a plan
+
+Under this model `resolve()` becomes `resolve_against(slice)` — the live slice
+for a real launch, a snapshot for AI and previews. Same function, same code
+path.
+
+- **`AttackPlan` holds the inputs.** Change one and the outcome is recomputable.
+- **`AttackOutcome` is *the* deterministic result** of those inputs, computable
+  at any time.
+
+`HitInstance.effective_amount`'s *"0.0 until applied"* caveat disappears — it
+is always filled, because resolving **is** applying, to a world you may throw
+away. Totals, per-node damage, kill lists and the enemy/friendly healing split
+are then accessors over `outcome.hits`, not new machinery. XP is the one
+exception: it lives in `LootSystem`, which gains a pure `preview_kill_xp` query
+that its own granting path also calls.
 
 ### What the shadow must copy
 
@@ -380,7 +436,13 @@ That doc needs the correction independently of this one.
 
 - `TOTAL_STAGGER` and `FLIGHT_TIME` values — feel, needs the real game.
 - `draw_time` values, and the melee analogue of a preparatory phase.
-- The substrate's shape (see that section). Cloning `SkillNode`s is ruled out.
-  Extracting combat state into a plain `RefCounted` is the thorough answer; a
-  narrow prediction overlay that only tracks HP and ownership is the cheap one.
-  Undecided, and not urgent — nothing is blocked on it.
+- Whether the combat slice (#498) is worth its size, or whether cloning entity
+  subtrees is the cheaper answer for now. Leaning slice; nothing is blocked on
+  it either way.
+- **Where the notification half sends its presentation call.** Master runs
+  design A (`RevealRecorder` live, `shown_hp`/`shown_owner` on `SkillNode`)
+  while #488's decision comment specifies design B (the world mutates on the
+  reveal clock, no view store). #494 owns resolving that. The state/notification
+  split is **orthogonal** to it — under A the notification half calls
+  `RevealRecorder`, under B it just emits — so #498 must not be written as
+  though either has won.
