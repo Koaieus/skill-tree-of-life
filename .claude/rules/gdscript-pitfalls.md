@@ -21,6 +21,14 @@ staying short. Add here only if it fails *silently* and applies repo-wide.
   the *computed* value, and the next load computes again from there — compounding
   on every save. Export the authored input; expose the derived value as a plain
   `var` with a getter only.
+- **A `@tool` script must not touch a signal/method on a non-`@tool` node.** In a
+  non-playing editor load that node gets a **placeholder instance** exposing only
+  its `@export`s — no signals, no methods — so `other.sig.connect(...)` throws
+  *"Invalid access to property or key"* naming the **node**, not the class
+  (`Node (Foo)`), pointing at the wrong file. `mise run test` stays green (tests
+  get real instances); only `mise run check` (`--editor`) goes red. Guard with
+  `Engine.is_editor_hint()` in the **method**, not just `_ready()` — `@export`
+  setters fire during deserialization, before `_ready()`.
 
 ## `@export` cannot be applied to a `static var`
 

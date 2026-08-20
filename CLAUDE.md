@@ -78,7 +78,7 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 **Never pass `gh --body "..."` with backticks** — the shell runs command substitution and silently deletes the span, publishing mangled text with no error. Write a heredoc to the scratchpad and use `--body-file`.
 
-**RTFC — read the fucking comments.** When working an issue, read its comments, not just the body: they often hold the actual decisions, pointers, new direction, or bug reports that outweigh the original body. `gh issue view <n> --comments` prints the body + every comment inline; that plus `--json` selectors is the way in. Use the plain form — `mise.toml` exports `GH_PAGER=cat` repo-wide, so `gh` never opens a pager even in a harness that runs commands under a pty, and reaching for `--json` to dodge a hang just makes you guess at field names.
+**RTFC — read the fucking comments.** When working an issue, read its comments, not just the body: they often hold the actual decisions, pointers, new direction, or bug reports that outweigh the original body. **`gh issue view <n>` prints the body; `--comments` prints ONLY the comments** (gh 2.97) — reading an issue is *two* calls, and `--comments` on an issue with none gives empty output and exit 0, which is not a broken pager. `mise.toml` exports `GH_PAGER=cat` repo-wide, so `gh` never pages even under a pty; reaching for `--json` to dodge a suspected hang just makes you guess at field names.
 
 ## Godot conventions
 
