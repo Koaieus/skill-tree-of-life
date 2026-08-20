@@ -31,7 +31,6 @@ func _mount_coord() -> ArrowVolleyCoordinator:
 	# Visual timing is irrelevant to the reveal schedule — keep it short so
 	# the projectile drain doesn't stretch the test.
 	coord.flight_time = 0.02
-	coord.stagger_per_shot = 0.0
 	add_child_autofree(coord)
 	return coord
 
@@ -108,20 +107,20 @@ func test_coordinator_never_mutates_hp() -> void:
 
 
 func test_reveal_waits_for_the_shots_own_launch_stagger() -> void:
-	# Recorded arrival_time now INCLUDES the launch stagger — resolve() stamps
-	# index * LAUNCH_STAGGER onto the distance/speed flight — and the reveal
-	# must ride that recorded number: the launch offset and the reveal are ONE
-	# clock, replay-complete (a replay reconstructs the volley from the hits
-	# alone). Shot 0: launch 0.00 + flight 0.04. Shot 1: launch 0.20 + flight
-	# 0.04 → recorded 0.24. These used to run on two clocks: the arrow flew a
-	# flat `flight_time` after `i * stagger_per_shot` while the reveal waited
-	# a stagger-free `arrival_time` from t=0 — HP dropped and the damage number
-	# popped while later arrows were still leaving the bow.
+	# Recorded arrival_time is the shot's FULL time from volley start
+	# (RangedAttackPlan.resolve authors it as launch_time + shot_flight_time)
+	# and the reveal must ride that recorded number: the launch offset and the
+	# reveal are ONE clock, replay-complete (a replay reconstructs the volley
+	# from the hits alone). Shot 0: launch 0.00 + flight 0.04. Shot 1: launch
+	# 0.20 + flight 0.04 → recorded 0.24. These used to run on two clocks: the
+	# arrow flew a flat `flight_time` after `i * stagger_per_shot` while the
+	# reveal waited a stagger-free `arrival_time` from t=0 — HP dropped and the
+	# damage number popped while later arrows were still leaving the bow.
 	var outcome := AttackOutcome.new()
 	outcome.hits.append(_hit(0.04, 1.0))
 	outcome.hits.append(_hit(0.24, 2.0))
 	var coord := _mount_coord()
-	coord.stagger_per_shot = 0.20
+	coord.shot_flight_time = 0.04
 	var shown: Array = []
 	var handler := func(_node: SkillNode, amount: float) -> void:
 		shown.append(amount)
@@ -157,3 +156,23 @@ func test_flight_matches_the_shots_arrival_time() -> void:
 			"a point-blank shot is floored so it still reads as an arrow")
 	assert_almost_eq(coord._flight_for(_hit(0.50), 0.10), 0.40, 0.0001,
 			"the shot's own launch stagger is stripped back out of the airtime")
+
+
+func test_real_ramp_constants_do_not_trip_the_min_flight_clamp() -> void:
+	# The issue's "Watch" note: whatever TOTAL_STAGGER is chosen, verify the
+	# clamp in _flight_for doesn't bite — if it does, the animation silently
+	# stops matching the authored ramp. With a real ramp-produced arrival_time,
+	# launch_delay = arrival_time - shot_flight_time by construction, so
+	# arrival_time - launch_delay == shot_flight_time exactly and the clamp
+	# floor (shot_flight_time * MIN_FLIGHT_FRACTION < shot_flight_time) must
+	# never win.
+	var coord := _mount_coord()
+	coord.flight_time = RangedDamageFormula.FLIGHT_TIME
+	coord.shot_flight_time = RangedDamageFormula.FLIGHT_TIME
+	for rank_i in 5:
+		var launch_time := RangedDamageFormula.DRAW_TIME \
+				+ lerpf(0.0, RangedDamageFormula.TOTAL_STAGGER, float(rank_i) / 4.0)
+		var hit := _hit(launch_time + RangedDamageFormula.FLIGHT_TIME)
+		var launch_delay := maxf(hit.arrival_time - coord.shot_flight_time, 0.0)
+		assert_almost_eq(coord._flight_for(hit, launch_delay), RangedDamageFormula.FLIGHT_TIME,
+				0.0001, "rank %d's airtime must be the real flight duration, not the clamp floor" % rank_i)

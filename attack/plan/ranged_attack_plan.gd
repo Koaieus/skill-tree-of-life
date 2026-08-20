@@ -13,6 +13,20 @@ extends AttackPlan
 var target: SkillNode = null
 
 
+## One entry of the authored firing schedule (see [method get_firing_schedule]).
+## `target` is carried explicitly alongside `firing_node` — redundant today
+## since ranged is single-target, but it makes the list a self-describing
+## wire payload rather than one that needs a side-channel target, per the
+## issue's "Explicit firing list" section.
+class FiringShot:
+	var firing_node: SkillNode
+	var target: SkillNode
+
+	func _init(p_firing_node: SkillNode, p_target: SkillNode) -> void:
+		firing_node = p_firing_node
+		target = p_target
+
+
 func _init() -> void:
 	mode = BattleSystem.AttackMode.RANGED
 
@@ -47,7 +61,11 @@ func get_firing_positions() -> Array[SkillNode]:
 
 
 ## Subset of [method get_firing_positions] whose per-leaf [code]range[/code]
-## stat reaches the current target. Empty if no target.
+## stat reaches the current target. Empty if no target. Append order comes
+## from [method get_firing_positions] (graph mirror insertion order, i.e.
+## allocation order) — callers that care about firing/arrival ORDER must use
+## [method get_firing_schedule] instead; this stays around for highlighting
+## and validation, which are order-agnostic.
 func get_reaching_firing_positions() -> Array[SkillNode]:
 	var result: Array[SkillNode] = []
 	if target == null:
@@ -56,6 +74,31 @@ func get_reaching_firing_positions() -> Array[SkillNode]:
 		if leaf.global_position.distance_to(target.global_position) <= _leaf_range(leaf):
 			result.append(leaf)
 	return result
+
+
+## The authored, ordered firing list — the ordering authority for
+## [method resolve] (docs/domain/attack-timeline.md "The ranged volley
+## ramp"). Ranked by euclidean distance to target, ascending; ties broken by
+## [member SkillNode.stable_id] (wire-legal, minted by Graph — never
+## allocation/mirror-insertion order, which is the bug this issue fixes:
+## allocation order must never influence combat outcome). Empty if no target.
+func get_firing_schedule() -> Array[FiringShot]:
+	var result: Array[FiringShot] = []
+	if target == null:
+		return result
+	var ranked := get_reaching_firing_positions()
+	ranked.sort_custom(_ranks_before)
+	for firing in ranked:
+		result.append(FiringShot.new(firing, target))
+	return result
+
+
+func _ranks_before(a: SkillNode, b: SkillNode) -> bool:
+	var da := a.global_position.distance_to(target.global_position)
+	var db := b.global_position.distance_to(target.global_position)
+	if not is_equal_approx(da, db):
+		return da < db
+	return a.stable_id < b.stable_id
 
 
 func get_node_role(node: SkillNode) -> HighlightRole:
@@ -105,19 +148,26 @@ func _is_valid_target(node: SkillNode) -> bool:
 
 
 func resolve() -> AttackOutcome:
-	# One DamageInstance per reaching firing position — flat-armour-friendly,
-	# stagger-VFX-friendly. Caller (BattleSystem.launch_attack) consumes these
-	# in order; each hit's arrival_time is stamped with its launch stagger
-	# (index * LAUNCH_STAGGER) so the recorded timeline is replay-complete:
-	# impact time = launch offset + distance/speed flight, no VFX-layer secret.
+	# One DamageInstance per scheduled shot, in the authored firing order
+	# (see get_firing_schedule) — flat-armour-friendly, stagger-VFX-friendly.
+	# Each hit's arrival_time is authored from its rank, not derived from
+	# distance/speed or append order:
+	#   launch_time = DRAW_TIME + lerp(0, TOTAL_STAGGER, rank / (n - 1))
+	#   arrival_time = launch_time + FLIGHT_TIME (constant)
+	# so the recorded timeline is the ordering authority OutcomeApplier reads
+	# (docs/domain/attack-timeline.md "The ranged volley ramp").
 	var outcome := AttackOutcome.new()
 	if not is_valid():
 		return outcome
-	var shot_index := 0
-	for firing in get_reaching_firing_positions():
-		var hit := RangedDamageFormula.compute(attacker, firing, target)
+	var schedule := get_firing_schedule()
+	var n := schedule.size()
+	for rank_i in n:
+		var shot: FiringShot = schedule[rank_i]
+		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target)
 		hit.source = self
-		hit.arrival_time += float(shot_index) * RangedDamageFormula.LAUNCH_STAGGER
+		var launch_time := RangedDamageFormula.DRAW_TIME
+		if n > 1:
+			launch_time += lerpf(0.0, RangedDamageFormula.TOTAL_STAGGER, float(rank_i) / float(n - 1))
+		hit.arrival_time = launch_time + RangedDamageFormula.FLIGHT_TIME
 		outcome.hits.append(hit)
-		shot_index += 1
 	return outcome

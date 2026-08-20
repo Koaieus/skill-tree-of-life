@@ -161,26 +161,157 @@ func test_resolve_default_ap_cost_is_one() -> void:
 	assert_eq(p.resolve().ap_cost, 1)
 
 
-func test_resolve_stamps_launch_stagger_onto_arrival_time() -> void:
-	# resolve() records the FULL time from volley start to impact: each hit's
-	# arrival_time = its own launch offset (index * LAUNCH_STAGGER) + its
-	# distance/speed flight. A replay reconstructs the whole volley schedule
-	# from outcome.hits alone — no VFX-layer secret. Both leaves reach here.
+func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
+	# resolve() authors arrival_time from RANK, not distance/speed: nearest
+	# leaf is rank 0 (launches at DRAW_TIME, arrives DRAW_TIME + FLIGHT_TIME),
+	# furthest-reaching leaf is rank (n-1) (launches DRAW_TIME + TOTAL_STAGGER
+	# later). Both leaves reach here; _leaf_near (dist 50) outranks _leaf_far
+	# (dist 450).
 	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
 	var p := _plan()
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
-	var hit0: DamageInstance = outcome.hits[0]
-	var hit1: DamageInstance = outcome.hits[1]
-	var d0 := hit0.origin.global_position.distance_to(_target.global_position)
-	var d1 := hit1.origin.global_position.distance_to(_target.global_position)
-	assert_almost_eq(hit0.arrival_time, d0 / RangedDamageFormula.PROJECTILE_SPEED, 0.001,
-			"shot 0 launches at t=0 — no stagger")
-	assert_almost_eq(hit1.arrival_time - hit0.arrival_time,
-			(d1 - d0) / RangedDamageFormula.PROJECTILE_SPEED
-					+ RangedDamageFormula.LAUNCH_STAGGER, 0.001,
-			"shot 1 arrives LAUNCH_STAGGER later than pure flight would give")
+	var near_hit: DamageInstance = outcome.hits[0]
+	var far_hit: DamageInstance = outcome.hits[1]
+	assert_eq(near_hit.origin, _leaf_near, "nearest leaf fires (and is listed) first")
+	assert_eq(far_hit.origin, _leaf_far)
+	assert_almost_eq(near_hit.arrival_time,
+			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME, 0.0001,
+			"rank 0 launches at DRAW_TIME with no ramp offset")
+	assert_almost_eq(far_hit.arrival_time,
+			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.TOTAL_STAGGER
+					+ RangedDamageFormula.FLIGHT_TIME, 0.0001,
+			"the last rank launches TOTAL_STAGGER after the first")
+
+
+func test_firing_schedule_ranks_nearest_leaf_first() -> void:
+	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var schedule := p.get_firing_schedule()
+	assert_eq(schedule.size(), 2)
+	assert_eq(schedule[0].firing_node, _leaf_near, "distance 50, closest, ranks first")
+	assert_eq(schedule[1].firing_node, _leaf_far, "distance 450, ranks last")
+	assert_eq(schedule[0].target, _target)
+
+
+func test_launch_span_equals_arrival_span_at_any_shot_count() -> void:
+	# The issue's mechanical payoff for a constant FLIGHT_TIME: launch span
+	# and arrival span are identical, so this must hold at both n=2 and n=3.
+	_set_range(_leaf_far, 500.0)
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 2)
+	var launch_span: float = (outcome.hits[1].arrival_time - RangedDamageFormula.FLIGHT_TIME) \
+			- (outcome.hits[0].arrival_time - RangedDamageFormula.FLIGHT_TIME)
+	var arrival_span: float = outcome.hits[1].arrival_time - outcome.hits[0].arrival_time
+	assert_almost_eq(launch_span, arrival_span, 0.0001)
+	assert_almost_eq(arrival_span, RangedDamageFormula.TOTAL_STAGGER, 0.0001,
+			"span between the only two ranks is the full TOTAL_STAGGER")
+
+
+func test_wall_time_is_constant_across_shot_counts() -> void:
+	# A 2-shot and a 3-shot volley must cover the same TOTAL_STAGGER window —
+	# a larger volley reads as denser, not slower.
+	_set_range(_leaf_far, 500.0)
+	var two_shot := _plan()
+	two_shot._on_node_left_clicked(_target)
+	var outcome_two := two_shot.resolve()
+	assert_eq(outcome_two.hits.size(), 2)
+	var span_two := outcome_two.hits[-1].arrival_time - outcome_two.hits[0].arrival_time
+
+	var mid_leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	mid_leaf.position = Vector2(500, 100)
+	_graph.add_skill_node(mid_leaf)
+	_graph.add_edge(mid_leaf, _mid)
+	_alloc.force_allocate(_attacker, mid_leaf)
+	_set_range(mid_leaf, 500.0)
+	var three_shot := _plan()
+	three_shot._on_node_left_clicked(_target)
+	var outcome_three := three_shot.resolve()
+	assert_eq(outcome_three.hits.size(), 3)
+	var span_three := outcome_three.hits[-1].arrival_time - outcome_three.hits[0].arrival_time
+
+	assert_almost_eq(span_two, RangedDamageFormula.TOTAL_STAGGER, 0.0001)
+	assert_almost_eq(span_three, RangedDamageFormula.TOTAL_STAGGER, 0.0001)
+
+
+func test_reordering_allocation_does_not_change_the_firing_schedule() -> void:
+	# The bug this issue fixes: RangedAttackPlan used to derive firing order
+	# from GraphMirror._node_ids insertion order, i.e. allocation order.
+	# Build the same three-leaf star twice, force_allocate-ing the leaves in
+	# opposite sequences, and assert both plans agree on rank (by distance)
+	# regardless.
+	var forward := await _build_three_leaf_star([0, 1, 2])
+	var reversed := await _build_three_leaf_star([2, 1, 0])
+	var schedule_a: Array = forward["plan"].get_firing_schedule()
+	var schedule_b: Array = reversed["plan"].get_firing_schedule()
+	assert_eq(schedule_a.size(), 3)
+	assert_eq(schedule_b.size(), 3)
+	for i in 3:
+		var da: float = schedule_a[i].firing_node.global_position.distance_to(
+				forward["target"].global_position)
+		var db: float = schedule_b[i].firing_node.global_position.distance_to(
+				reversed["target"].global_position)
+		assert_almost_eq(da, db, 0.0001, "rank %d must land on the same distance regardless of allocation order" % i)
+	var outcome_a: AttackOutcome = forward["plan"].resolve()
+	var outcome_b: AttackOutcome = reversed["plan"].resolve()
+	for i in 3:
+		assert_almost_eq(outcome_a.hits[i].arrival_time, outcome_b.hits[i].arrival_time, 0.0001)
+
+
+## Builds a fresh core+3-leaf star (leaves at distinct distances from a
+## shared target) on its own Graph/Entity, force_allocate-ing the leaves in
+## [param leaf_order] (a permutation of [0, 1, 2]). Used to prove firing
+## order is independent of allocation order.
+func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
+	var graph := _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var core := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	core.position = Vector2(0, 0)
+	graph.add_skill_node(core)
+	var offsets := [Vector2(100, 0), Vector2(0, 150), Vector2(-200, -50)]
+	var leaves: Array[SkillNode] = []
+	for offset in offsets:
+		var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		leaf.position = offset
+		graph.add_skill_node(leaf)
+		graph.add_edge(core, leaf)
+		leaves.append(leaf)
+	var target := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	target.position = Vector2(1000, 1000)
+	graph.add_skill_node(target)
+
+	var attacker := Entity.new()
+	attacker.faction = _PLAYER_FACTION
+	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	graph.add_child(attacker)
+	var hostile := Entity.new()
+	hostile.faction = _NPC_FACTION
+	hostile.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	graph.add_child(hostile)
+	await get_tree().process_frame
+
+	var alloc := AllocationSystem.new()
+	alloc.graph = graph
+	add_child_autofree(alloc)
+	alloc.force_allocate(attacker, core)
+	for i in leaf_order:
+		alloc.force_allocate(attacker, leaves[i])
+	alloc.force_allocate(hostile, target)
+	for leaf in leaves:
+		_set_range(leaf, 3000.0)
+
+	autofree(attacker)
+	autofree(hostile)
+
+	var p := RangedAttackPlan.new()
+	autofree(p)
+	p.attacker = attacker
+	p._on_node_left_clicked(target)
+	return {"plan": p, "leaves": leaves, "target": target}
 
 
 func test_resolve_on_invalid_plan_returns_empty_outcome() -> void:

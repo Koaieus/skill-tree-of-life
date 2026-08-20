@@ -1,7 +1,8 @@
 class_name RangedDamageFormula
 
 ## Pure-function damage formula for a single ranged shot. One hit per firing
-## position; the resolver loops positions and accumulates DamageInstances.
+## position; RangedAttackPlan.resolve() loops the authored firing schedule
+## and accumulates DamageInstances.
 ##
 ## Per-shot model deliberately: lets future flat armour reduce each impact
 ## instead of one big number, and supports staggered VFX hits.
@@ -9,21 +10,37 @@ class_name RangedDamageFormula
 ## Reads `ranged_damage` from the firing node's local stat board — the
 ## entity board intrinsic formula (`floor(DEX / 10.0)`) plus any node-local
 ## addons contribute to the value, so the UI and resolver stay dumb.
+##
+## Timing is NOT this function's job — see docs/domain/attack-timeline.md
+## "The ranged volley ramp". `arrival_time` used to be `distance /
+## PROJECTILE_SPEED`, which let allocation order leak into combat outcome
+## (a near leaf firing third could still land before a far leaf firing
+## first). The ramp is authored by rank instead: RangedAttackPlan.resolve()
+## ranks reaching leaves by distance to target and stamps `arrival_time`
+## from the constants below. `compute()` leaves it at the HitInstance
+## default (0.0) — it is filled in exactly once, by the caller that knows
+## the shot's rank.
 
-## Flat flight speed (px/s) every shot travels at. No per-node/per-entity
-## stat backs this yet — same "constant for now" stance ArrowVolleyCoordinator
-## takes with its flight_time export.
-const PROJECTILE_SPEED: float = 900.0
+## Constant per-shot flight duration (s) — every shot takes the same time to
+## land regardless of distance. The fiction is the arc: a point-blank shot
+## is lobbed nearly straight up, a distant one goes nearly flat, and both
+## take about the same time to come down. This is what makes arrival order
+## == firing order == distance order UNCONDITIONALLY (a distance-scaled
+## flight speed could invert it). Also the animation's per-shot speed is now
+## derived (`distance / FLIGHT_TIME`) rather than driving the schedule.
+const FLIGHT_TIME: float = 0.35
 
-## Per-shot launch offset (s) applied by RangedAttackPlan.resolve so a hit's
-## recorded [member DamageInstance.arrival_time] is the FULL time from volley
-## start (t=0) to impact: [code]index * LAUNCH_STAGGER + distance /
-## PROJECTILE_SPEED[/code]. Single home for the stagger schedule —
-## ArrowVolleyCoordinator's [code]stagger_per_shot[/code] export defaults to
-## this so VFX launches and the recorded timeline can't drift (#479/#481
-## lesson applied at the data layer: a replay reconstructs the exact volley
-## from [code]outcome.hits[/code] alone).
-const LAUNCH_STAGGER: float = 0.2
+## Total span (s) the launch ramp covers, nearest-to-target leaf to
+## furthest-reaching leaf — fixed regardless of shot count, so a 4-shot and
+## a 100-shot volley take the same wall time and stay readable rather than
+## crawling. Verified against ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION's
+## clamp in test_arrow_volley_coordinator.gd — see the issue's "Watch" note.
+const TOTAL_STAGGER: float = 0.6
+
+## Windup before the first release. 0.0 for now, per the issue's settled
+## design — authored in from the start so a draw phase can be turned on
+## without re-deriving the schedule.
+const DRAW_TIME: float = 0.0
 
 static func compute(_attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
 	var hit := DamageInstance.new()
@@ -32,7 +49,4 @@ static func compute(_attacker: Entity, firing_node: SkillNode, target: SkillNode
 	hit.origin = firing_node
 	if firing_node != null:
 		hit.amount = float(firing_node.get_local_value(&"ranged_damage"))
-	if firing_node != null and target != null:
-		var distance := firing_node.global_position.distance_to(target.global_position)
-		hit.arrival_time = distance / PROJECTILE_SPEED
 	return hit

@@ -64,25 +64,18 @@ func test_null_firing_node_yields_zero_amount() -> void:
 	assert_null(hit.origin)
 
 
-func test_farther_shot_has_later_arrival_time_than_closer_shot() -> void:
+func test_compute_leaves_arrival_time_unset() -> void:
+	# arrival_time is authored by RangedAttackPlan.resolve() from the shot's
+	# RANK in the volley ramp (docs/domain/attack-timeline.md "The ranged
+	# volley ramp") — compute() has no rank to work from, so it must not
+	# guess one from distance/speed (the old model, which is exactly what let
+	# allocation order leak into combat outcome). See test_ranged_attack_plan.gd
+	# for the ramp's own arrival_time coverage.
 	var target := _NODE_SCENE.instantiate() as SkillNode
 	autofree(target)
 	target.global_position = Vector2(1000, 0)
-
-	var near_firing := _owned_node()
-	near_firing.global_position = Vector2(500, 0)
-	var far_firing := _owned_node()
-	far_firing.global_position = Vector2(0, 0)
+	var firing := _owned_node()
+	firing.global_position = Vector2(0, 0)
 	await get_tree().process_frame
-
-	var near_hit := RangedDamageFormula.compute(null, near_firing, target)
-	var far_hit := RangedDamageFormula.compute(null, far_firing, target)
-
-	assert_gt(far_hit.arrival_time, near_hit.arrival_time)
-
-
-func test_arrival_time_is_zero_for_null_firing_node() -> void:
-	var target := _NODE_SCENE.instantiate() as SkillNode
-	autofree(target)
-	var hit := RangedDamageFormula.compute(null, null, target)
+	var hit := RangedDamageFormula.compute(null, firing, target)
 	assert_almost_eq(hit.arrival_time, 0.0, 0.001)
