@@ -94,14 +94,20 @@ everything else, and it is not a drone unit. Then #488 → #458, in that order �
 opens only once #474, #458 and #475 have landed and offline play is verified
 unchanged. #499 is off the sync lane entirely and can be pulled whenever.
 
-**Parked behind the LAN, deliberately:** the attack-timeline contract
-(`docs/domain/attack-timeline.md`) — hub **#500** with #501 magic / #502 melee /
-#503 ranged, plus #498 for AI-preview accuracy afterwards. All `Ready` and all
-genuinely takeable; none of it gates 08-31. Owner call 2026-08-20: **the LAN
-issues all get done first**, so this is the queue that opens the moment the
-milestone burns down — FOCUS rule 6 in its purest form, `Ready` but not named.
-#499 is the one piece of that work that *is* in the LAN milestone, on its own
-merits, because allocation order changing combat outcomes is a bug today.
+**The attack-timeline contract is IN the milestone** (owner call 2026-08-20,
+superseding the same-day call that parked it): `docs/domain/attack-timeline.md`,
+hub **#500** with #501 magic / #502 melee / #503 ranged, plus #498 for AI-preview
+accuracy. All moved into `LAN 2026-08-31` and being swarmed.
+
+Wave 1 is #498-step-1 / #499 / #501 / #502 — file-disjoint, four-wide. Wave 2 is
+**#503** (strictly behind #499: they share `ranged_attack_plan.gd` and
+`outcome_applier.gd`) and **#498 steps 2–3** (behind step 1, and behind the
+per-mode gates existing to resolve against).
+
+The one cross-unit seam: **#499 makes `OutcomeApplier` order hits by
+`arrival_time`**, while #501 and #502 start stamping real `arrival_time`s on
+magic and melee hits. Per-mode stamps must be monotonic in that mode's own
+intended application order, or a sibling unit's sort silently reorders it.
 
 ## Perf — as good as fixed, *for now*
 
