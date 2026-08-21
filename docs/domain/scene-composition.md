@@ -46,6 +46,24 @@ scene**, not to defensively null-guard the `@onready`s.
 Corollary for **tests**: build fixtures by `preload("res://…/foo.tscn").instantiate()`,
 not `Foo.new()` + manual child wiring. Same contract, same payoff.
 
+## A scene-wired NodePath export resolves BEFORE the target's `_ready`
+
+So a setter that *subscribes* to something the target replaces during its own
+`_ready` ends up holding the discarded object. The live case: `Entity._ready`
+does `stat_board = stat_board.duplicate(true)`, and `dev_sandbox.tscn` wires
+`PlayerInputController.player` as a NodePath — so `_set_player`'s
+`action_points.current_changed` connection landed on a board the entity threw
+away one frame later. Nothing errors; the signal simply never arrives.
+
+**How to apply:** an export setter may cache the *node*, but must re-assert any
+subscription to that node's *resources* from a later, idempotent bind call
+(`GameRoot.bind_player` is the one here). Which means **a same-value early
+return in such a setter is load-bearing in the wrong direction** — scope it to
+the state that genuinely must not be clobbered, never to the re-subscription.
+That regression is what 2fa1d9e fixed; `test/unit/scenes/test_act_gate_across_turns.gd`
+pins it, and a procgen sandbox cannot reproduce it because it spawns its player
+in `_setup_level`, after the swap.
+
 ## Where a dependency points decides where a node lives
 
 - `graph.tscn` houses what the graph **owns / is depended-on-by** topologically:
