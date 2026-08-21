@@ -145,7 +145,7 @@ describes.)*
 is called from `get_node_role` — i.e. once per node, per highlight repaint —
 alongside `get_induced_edges` (L423) and `collect_target_excludes` (L477), which
 each walk every edge or every node too.
-**Breaks:** At the 500–2500-node scale `.claude/rules/skill-node-scale.md`
+**Breaks:** At the 500–2500-node scale `.claude/rules/rendering-performance.md`
 mandates, that is a nodes × edges walk per repaint — the exact quadratic-CPU
 shape this codebase has hit before, and the shape #385 already fixed for
 `MagicAttackPlan` via `_cached_valid_targets`.
@@ -268,7 +268,7 @@ unconditional `_process` redraw.
 **Breaks:** These are spawned one-per-edge —
 `HopRangeFinder.get_visual` (L80-96) emits an `EdgeEntry` for every edge with an
 endpoint in the BFS depth map — so the count scales with reach, against
-`.claude/rules/skill-node-scale.md`; and the maintained-but-unused signal path
+`.claude/rules/rendering-performance.md`; and the maintained-but-unused signal path
 misleads the next reader into thinking redraws are event-driven.
 **Fix:** Drop `_process` and redraw on `endpoints_changed` (the wiring already
 exists), or drop the wiring and keep the honest per-frame redraw — not both.

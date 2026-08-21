@@ -399,7 +399,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 
 ## Intrinsic scaling (node board)
 
-Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/default_node_board.tres`) holds node-owned intrinsics the same way the entity table above does — modifier inline on the board, formula file-backed. The node board is `duplicate(true)`d **per node** (500–2500/level, `.claude/rules/skill-node-scale.md`) rather than per entity, so an inlined formula here forks that many ways instead of a handful — treat file-backing as non-negotiable for this table, not just good practice.
+Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/default_node_board.tres`) holds node-owned intrinsics the same way the entity table above does — modifier inline on the board, formula file-backed. The node board is `duplicate(true)`d **per node** (500–2500/level, `.claude/rules/rendering-performance.md`) rather than per entity, so an inlined formula here forks that many ways instead of a handful — treat file-backing as non-negotiable for this table, not just good practice.
 
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|

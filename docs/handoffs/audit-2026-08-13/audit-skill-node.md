@@ -51,7 +51,7 @@ scenes, `test/unit/test_node_visuals_contract.gd`, and (as dependencies)
 
 ### 9. MEDIUM | skill_node/skill_node.gd:452 | One `_sync_visuals` triggers ~25 redundant shader resyncs
 **Defect:** `_sync_visuals` writes five composite properties whose setters each call `_sync_stake()` (none of the composite's `geom_*` / `stake_level` / `allocation_level` setters has an equality guard), and each `_sync_stake()` writes five RimRing properties whose setters each call `_sync_material()`.
-**Breaks:** A *visible* node pays roughly 175 redundant `set_instance_shader_parameter` calls plus 25 `queue_redraw()`s per sync; a fog-hidden node still pays 25 function calls and 25 `is_visible_in_tree()` ancestor walks, since the gate sits inside `_sync_material` rather than before it. `_sync_visuals` runs on `_ready`, on `radius_changed`, on `owner_changed` and on every `allocation_level` write, at 500–2500 nodes (`.claude/rules/skill-node-scale.md`).
+**Breaks:** A *visible* node pays roughly 175 redundant `set_instance_shader_parameter` calls plus 25 `queue_redraw()`s per sync; a fog-hidden node still pays 25 function calls and 25 `is_visible_in_tree()` ancestor walks, since the gate sits inside `_sync_material` rather than before it. `_sync_visuals` runs on `_ready`, on `radius_changed`, on `owner_changed` and on every `allocation_level` write, at 500–2500 nodes (`.claude/rules/rendering-performance.md`).
 **Fix:** Add `if x == value: return` guards to the composite's five setters and coalesce `_sync_stake`/`_sync_shared` behind a `call_deferred` dirty flag.
 
 ### 10. MEDIUM | skill_node/visuals/node_visuals_composite.gd:20 | #238's six encoders: four KEEP, two CUT
@@ -76,7 +76,7 @@ scenes, `test/unit/test_node_visuals_contract.gd`, and (as dependencies)
 
 ### 14. MEDIUM | skill_node/skill_node.gd:474 | Emblem pipeline re-resolves on every owner change
 **Defect:** `_sync_visuals` ends with `EmblemResolver.resolve(get_emblem_contributions()).carve`; `get_emblem_contributions` calls `get_node_effects()` (which `duplicate()`s `effects` and `append_array`s per keystone and addon), mints a fresh `EmblemSpec` per contribution, and the resolver allocates a `Resolution` plus two Arrays — all re-run on `owner_changed`, which cannot change the carve.
-**Breaks:** Roughly eight heap allocations per node per sync at 500–2500 nodes (`.claude/rules/skill-node-scale.md`), for a result depending only on `archetype`, `keystone`, effects and addons.
+**Breaks:** Roughly eight heap allocations per node per sync at 500–2500 nodes (`.claude/rules/rendering-performance.md`), for a result depending only on `archetype`, `keystone`, effects and addons.
 **Fix:** Resolve the carve behind its own invalidation (archetype/keystone/effect/addon change) instead of inside the geometry-and-tint sync.
 
 ### 15. MEDIUM | skill_node/skill_node.gd:44 | TODO(#336): Keystone is a parallel authoring surface

@@ -1,1 +1,1 @@
-`owned_by == entity` asks "is this that one entity's node", never "is this mine / my ally's / my enemy's" — relation questions go through `SkillNode.ownership_bit`'s NEUTRAL/MINE/ALLY/HOSTILE bits, and a two-entity fixture can't tell the two apart. See docs/domain/ownership-vocabulary.md
+`owned_by == entity` asks "is this that one entity's node", never "is this mine / my ally's / my enemy's" — relation questions go through `SkillNode.ownership_bit`'s NEUTRAL/MINE/ALLY/HOSTILE bits. See docs/domain/ownership-vocabulary.md

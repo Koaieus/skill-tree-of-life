@@ -21,7 +21,7 @@ judged against:
 1. **A 2000-`SkillNode` map runs smoothly at 144Hz, at 1440p.** The dev sandbox
    is *not* 1440p, so local framerates are optimistic about resolution. This is
    the number that decides whether a rendering or recompute approach is
-   acceptable — see `.claude/rules/skill-node-scale.md`.
+   acceptable — see `.claude/rules/rendering-performance.md`.
 2. **The player can control that**: windowed / fullscreen / borderless,
    resolution, vsync, framerate cap. Substrate shipped; the settings are #462.
 3. **LAN-playable**: single-player, seeded runs, and hot-seat coop by

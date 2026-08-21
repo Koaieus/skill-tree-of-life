@@ -145,7 +145,7 @@ Three reasons not to want that promotion, beyond Finding 1:
    `.tres`: board → stat → bins → board. It would need excluding, so you would
    be hand-picking storage flags per field regardless.
 2. **Scale.** `node_board` is `duplicate(true)`d **per node**, 500–2500 per
-   level (`.claude/rules/skill-node-scale.md`). Every `Stat` would gain a
+   level (`.claude/rules/rendering-performance.md`). Every `Stat` would gain a
    serialized sub-resource.
 3. **It is the derived-value-into-`@export` pitfall by name.**
    `.claude/rules/gdscript-pitfalls.md`: *"Never write a DERIVED value back into

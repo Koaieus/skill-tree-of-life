@@ -391,7 +391,7 @@ both, shelved not deleted.**
   ~500-2500 SkillNodes, so an unused child is tree nodes, `_ready` work and
   potentially an instance-uniform slot on every one of them — the same argument
   that retired the RimRing2-4 placeholders in #172. See
-  `.claude/rules/skill-node-scale.md`.
+  `.claude/rules/rendering-performance.md`.
 - Re-adding the *scene* is instancing it back under `ShaderStack`. Deleting
   `rim_bonuses.tscn`/`rune_ring.tscn` permanently is equally live as an option —
   the decision was explicitly deferred, not made.

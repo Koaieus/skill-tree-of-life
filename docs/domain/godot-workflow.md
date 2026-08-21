@@ -445,3 +445,12 @@ This is how the self-loop HDR lift was verified: `max` went 0.592 → 1.000
 roughly doubled, which is the bloom halo bleeding into neighbouring pixels.
 A `max` below 1.0 is proof that nothing can bloom, whatever the CPU-side colour
 function returns.
+
+## `Rect2.has_point` is half-open; a zero-size `Rect2` contains nothing*
+
+It excludes the bottom/right edges, so `position + size` is *outside* — and a
+zero-size rect contains not even its own origin. Fails as a wrong answer, never
+an error (found via two test failures in `VisionCircles`' bounds early-out).
+
+For an inclusive region, keep `lo`/`hi` vectors and compare explicitly. `Rect2`
+is for layout/culling, not "is this inside?" predicates.
