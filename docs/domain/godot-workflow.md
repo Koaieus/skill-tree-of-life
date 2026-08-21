@@ -141,15 +141,27 @@ Known pre-existing orphan: `addons/gut/menu_manager.gd.uid`, shipped by vendored
 GUT 9.6.0 (`24da57f`) with no companion script. Left alone deliberately — don't
 diverge from a vendored addon over it.
 
-## Refreshing the class cache after class_name changes*
+## Refreshing a stale class cache — rename, rebase, or fresh worktree*
 
-After renaming a `class_name` or adding a new one, the project's
-`.godot/global_script_class_cache.cfg` is stale. Runtime parse fails with
-*"Could not find type X"* even though the source is correct. The cache
-only rebuilds when the editor enumerates the project. Force it via:
+The project's `.godot/global_script_class_cache.cfg` goes stale whenever the set
+of `class_name`s moves under it. Three triggers, one fix:
+
+- You renamed or added a `class_name`.
+- You **rebased or pulled** and *someone else's* commit did. Nothing in your own
+  working tree changed, which is what makes this one surprising.
+- You're in a **fresh worktree** — it has its own gitignored `.godot/` (see the
+  worktrees section below), so it starts with *no* cache at all.
+
+Two symptoms, and only the first is loud. Runtime parse fails with *"Could not
+find type X"* even though the source is correct — or **GUT reports a green run
+with a lower `Scripts`/`Tests` total**, because a script that can't resolve a
+type fails to parse and GUT skips the whole file silently
+(`.claude/rules/testing.md`). Don't go auditing the test file; refresh first.
+
+The cache only rebuilds when the editor enumerates the project:
 
 ```bash
-godot --headless --editor --quit
+mise run refresh      # or: godot --headless --editor --quit
 ```
 
 ## Always git status after a refresh*
