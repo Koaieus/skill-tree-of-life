@@ -82,9 +82,10 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
-Also in the milestone, by owner call: **#403** Tech Seeds and **#412** armed-mode
-viewport tint, both `Needs design` — "should be easy to get *something* going",
-so they want a fast swarmify, not a deep one. (**#300** removable node blockers
+Also in the milestone, by owner call: **#403** Tech Seeds (`Needs design`) and
+**#412** armed-mode viewport tint (**`Ready`** — swarmified 2026-08-21: inward
+border glow, attack modes only, base-of-stack decides) — "should be easy to get
+*something* going", so they want a fast swarmify, not a deep one. (**#300** removable node blockers
 shipped 2026-08-21, which unblocks #403; its deferred chokepoint-placement
 heuristic is #508, unscheduled.)
 
