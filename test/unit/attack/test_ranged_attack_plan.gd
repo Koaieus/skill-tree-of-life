@@ -424,7 +424,7 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 4, "precondition: all four leaves reach")
 
-	var handler := func(node: SkillNode) -> void:
+	var handler := func(node: SkillNode, _source: Variant) -> void:
 		if node == _target:
 			_alloc.force_deallocate(_target)
 	Events.skill_node_depleted.connect(handler)

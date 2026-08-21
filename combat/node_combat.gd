@@ -205,6 +205,15 @@ func take_damage(amount: float, source: Variant) -> void:
 		return
 	var before := hp.current
 	hp.deplete(effective)
+	if source is HitInstance:
+		# The health BAR's numbers, deliberately distinct from the FLOATER's
+		# `effective_amount` below — on an overkill they always disagree, and
+		# reconciling them into one number is a bug. See
+		# [member HitInstance.hp_before].
+		var hit := source as HitInstance
+		hit.hp_before = before
+		hit.hp_after = hp.current
+		hit.hp_max = get_max_hp()
 	if source is DamageInstance:
 		if flipped_to_heal:
 			# Clamped delta's magnitude — same contract heal_damage uses, so a
@@ -254,9 +263,16 @@ func take_damage(amount: float, source: Variant) -> void:
 			# layers and then forwards into the SAME
 			# [method EntityCombat.apply_cascade] the shadow reaches below
 			# (#518). It no longer implements a cascade of its own.
-			host.notify_depleted()
+			#
+			# Synchronous, so `source.deallocations` is populated by the time
+			# this returns — the handler records the entries back onto the hit
+			# it was handed. That is why the signal carries `source` at all.
+			host.notify_depleted(source)
 		else:
-			o.cascade_from(self)
+			# A shadow has no bus to fall through to, so it records its own.
+			var entries := o.cascade_from(self)
+			if source is HitInstance:
+				(source as HitInstance).deallocations = entries
 
 
 ## State half of [method SkillNode.heal_damage] — see that method for the

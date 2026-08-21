@@ -557,7 +557,7 @@ func drain_pending_mutations() -> void:
 ##
 ## "Forced-deallocation lives elsewhere" in AllocationSystem comments —
 ## that elsewhere is [EntityCombat]; this forwards to it.
-func _on_node_depleted(node: SkillNode) -> void:
+func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
 	if node == null or allocation_system == null:
 		return
 	var defender: Entity = node.owned_by
@@ -599,7 +599,13 @@ func _on_node_depleted(node: SkillNode) -> void:
 		for n: SkillNode in layer:
 			if n != null:
 				ordered.append(n.get_combat())
-	combat.apply_cascade(ordered, allocation_system)
+	var entries := combat.apply_cascade(ordered, allocation_system)
+	# Record the cascade back onto the hit that caused it (#518). This handler
+	# runs synchronously inside `NodeCombat.take_damage`, so the hit is still
+	# mid-application and the entries land on it before it is read by anything
+	# — the AI's scoring, or [AttackRecord]'s capture on the way to the wire.
+	if source is HitInstance:
+		(source as HitInstance).deallocations = entries
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to

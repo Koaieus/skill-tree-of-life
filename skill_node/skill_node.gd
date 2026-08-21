@@ -1107,13 +1107,16 @@ func notify_damaged(_before: float, _after: float, effective: float, source: Var
 
 
 ## Notification half of [method take_damage]'s state change for the "HP hit
-## 0, non-core" branch (see [NodeCombat]). The core-node branch never calls
+## 0, non-core" branch (see [NodeCombat]). [param source] is the [HitInstance]
+## that depleted this node, forwarded so [method BattleSystem._on_node_depleted]
+## can record the cascade it runs back onto that hit (#518) — the emit is
+## synchronous, so the record is in place before `take_damage` continues. The core-node branch never calls
 ## this — an overflowing core node returns before the depleted check, exactly
 ## as before extraction (core HP is bottomless in the death sense; see
 ## `.claude/rules/entity-death.md`).
-func notify_depleted() -> void:
+func notify_depleted(source: Variant = null) -> void:
 	depleted.emit()
-	Events.skill_node_depleted.emit(self)
+	Events.skill_node_depleted.emit(self, source)
 
 
 ## Restore HP by [param amount], clamped at max. Emits [signal healed] (and

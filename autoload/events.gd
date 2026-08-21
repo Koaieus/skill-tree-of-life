@@ -12,9 +12,17 @@ signal skill_node_damaged(node: SkillNode, amount: float, source: Variant)
 ## can show heal numbers. amount is the effective HP delta (always > 0).
 signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 
-## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens
-## and runs the forced-deallocation cascade (dealloc + wound + core HP loss).
-signal skill_node_depleted(node: SkillNode)
+## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens,
+## announces the VFX layers and forwards into [method EntityCombat.apply_cascade].
+##
+## [param source] is the [HitInstance] that did it, or null for an unattributed
+## deplete (a test, a scripted kill). It is here so the cascade can be RECORDED
+## back onto the hit that caused it (#518): the handler is synchronous, so by
+## the time `emit` returns, `source.deallocations` holds what leaving cost the
+## defender. Without it a hit could report damage totals but not the attrition
+## vector — and a node left at 1 HP versus a node killed are entirely different
+## moves to an AI.
+signal skill_node_depleted(node: SkillNode, source: Variant)
 
 ## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
 ## keyed by the owning entity. Entity itself does the re-emit so the global

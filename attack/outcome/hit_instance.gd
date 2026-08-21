@@ -62,6 +62,51 @@ var arrival_time: float = 0.0
 ## 0.0 until applied.
 var effective_amount: float = 0.0
 
+## The target's HP pool around this landing, and its cap — filled by
+## [method NodeCombat.take_damage] / [method NodeCombat.heal_damage] the
+## instant they apply (#518).
+##
+## [b]These deliberately do NOT agree with [member effective_amount] on an
+## overkill, and reconciling them would be a bug.[/b] Owner call 2026-08-21,
+## on a 3 HP node at 5 armor taking 10:
+##
+## > [i]a 3 HP node at 5 armor taking 10 damage would take 5 effective, and end
+## > up at 0 (not -2), lost 3 HP, and died -- all these numbers which makes
+## > complete sense in the game, they tell the story. if instead this a core sat
+## > on this node it wouldn't have deallocated, its HP reduced to 0 still and the
+## > core would take 2 damage, effective damage 5, total hp lost 5, of which 3
+## > node and 2 core[/i]
+##
+## So the damage FLOATER reads `effective_amount` (5) and the health BAR moves
+## `hp_before` -> `hp_after` (3), and on any overkill they always will differ.
+## Everything else derives and is not stored: node damage is
+## `hp_before - hp_after`, overflow is `effective_amount - that`, core damage is
+## the overflow when the target is its owner's core, total HP lost is the sum.
+var hp_before: float = 0.0
+var hp_after: float = 0.0
+## The target's max HP at land time. Carried per hit rather than read off the
+## owner's board because a fogged client under the filtered-delta model
+## (docs/domain/multiplayer-sync-model.md) may not hold that board at all, and a
+## bar needs a maximum as well as a current. One float, self-healing — owner
+## call 2026-08-22, choosing this over waiting for the board-subscription
+## channel in the client-fidelity unit.
+var hp_max: float = 0.0
+
+## The forced deallocations this landing caused — the depleted node plus
+## everything islanded off it, each with the SP wound and `dealloc_damage` chip
+## it cost (#518). Empty for a hit that did not kill a node, which is most of
+## them.
+##
+## Recorded rather than derived, for two independent reasons. An AI reads it
+## because entity `health` only moves through core overflow or that chip, so a
+## hit that leaves a node at 1 HP moves it by zero — damage totals alone do not
+## expose the path to eliminating an entity. A PEER reads it because
+## re-deriving the islanded set means walking the defender's navigator through
+## nodes a fogged client may not hold; this is the one place
+## `.claude/rules/multiplayer-sync.md`'s "a peer replays a recorded result"
+## was not literally true.
+var deallocations: Array[DeallocEntry] = []
+
 ## Set when a mode's land-time gate VETOED this landing (target/origin no
 ## longer allocated or hostile) instead of applying it — #503. Not the same
 ## as [code]effective_amount == 0.0[/code]: a hit that WAS applied and

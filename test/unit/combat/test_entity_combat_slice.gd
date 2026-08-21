@@ -333,3 +333,61 @@ func test_simulated_entity_death_strips_without_charging() -> void:
 	assert_eq(shadow.owned().size(), 0, "nothing is owned after a death sweep")
 	assert_eq(_sp_used(board)["wounded"], wounded_before,
 			"a death sweep must not wound — the entity is already dead")
+
+
+## Scope item 4: the hit that killed a node carries what that cost, and it is
+## the SAME loop's output on both paths. A hit exposing damage totals but not
+## deallocations does not expose the attrition vector at all — entity `health`
+## only moves through core overflow or the cascade chip, so a node left at 1 HP
+## moves it by exactly zero.
+func test_the_hit_records_the_cascade_it_caused_live_and_shadow() -> void:
+	var battle := BattleSystem.new()
+	battle.graph = _graph
+	battle.allocation_system = _alloc
+	add_child_autofree(battle)
+
+	var shadow := _entity.get_combat().snapshot()
+	_shadows.append(shadow)
+	var sim_hit := DamageInstance.new()
+	sim_hit.type = DamageInstance.Type.TRUE  # skip mitigation; this is about the record
+	sim_hit.amount = 100000.0
+	shadow._shadow_by_real[_n1].take_damage(sim_hit.amount, sim_hit)
+
+	var live_hit := DamageInstance.new()
+	live_hit.type = DamageInstance.Type.TRUE
+	live_hit.amount = 100000.0
+	_n1.take_damage(live_hit.amount, live_hit)
+
+	assert_eq(live_hit.deallocations.size(), 3,
+			"the killing hit records N1 plus the two nodes it islanded")
+	assert_eq(sim_hit.deallocations.size(), live_hit.deallocations.size(),
+			"a simulated kill records the same cascade a real one does")
+
+	var live_ids: Array[int] = []
+	for e in live_hit.deallocations:
+		live_ids.append(e.node_id)
+	var sim_ids: Array[int] = []
+	for e in sim_hit.deallocations:
+		sim_ids.append(e.node_id)
+	live_ids.sort()
+	sim_ids.sort()
+	assert_eq(sim_ids, live_ids, "and it names the same nodes, by stable id")
+	assert_false(live_ids.has(0), "every recorded entry carries a real stable id")
+
+
+## The bar's numbers and the floater's number are allowed to disagree, and on an
+## overkill they always do. Owner call 2026-08-21: a 3 HP node taking 5
+## effective "lost 3 HP, and died" — the floater still says 5.
+func test_overkill_records_the_bar_delta_and_the_floater_number_separately() -> void:
+	var hp := _n2.node_board.get_stat(&"node_health") as PoolStat
+	hp.set_current(3.0)
+	var hit := DamageInstance.new()
+	hit.type = DamageInstance.Type.TRUE
+	hit.amount = 10.0
+	_n2.take_damage(hit.amount, hit)
+
+	assert_almost_eq(hit.hp_before, 3.0, 0.01, "the bar starts where the pool was")
+	assert_almost_eq(hit.hp_after, 0.0, 0.01, "and clamps at 0, never negative")
+	assert_almost_eq(hit.effective_amount, 10.0, 0.01,
+			"the floater reports the full post-mitigation number, not the soak")
+	assert_gt(hit.hp_max, 0.0, "the bar's maximum rides along, for a fogged client")
