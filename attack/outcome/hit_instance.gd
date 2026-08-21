@@ -28,10 +28,19 @@ var target: SkillNode = null
 ## The node the hit originated from (firing position / source node).
 ## Optional; used by VFX (tracer spawn point) and future range-falloff math.
 var origin: SkillNode = null
+## The [Entity] that produced this hit — the one whose stat board the crit
+## roll reads (#507), and whose hostility a mode's land-time gate re-checks.
+## Promoted here from three private copies (ranged's `_attacker`, melee's
+## `_gate.attacker`, magic's `ctx.caster`): three accessors for one fact is
+## the parallel-mirrors trap, and the shared [CritRoll] needs exactly one.
+var attacker: Entity = null
 
-## Whether this hit was elevated to a critical strike/heal. Set by the
-## resolver's crit pass (stat roll + condition check). The VFX layer
-## reads this for emphasis visuals.
+## Whether this hit was elevated to a critical strike/heal. Decided at
+## RESOLVE by [method CritRoll.decide_all] (stat roll + magic's condition
+## check) — the VFX layer reads it for emphasis visuals before the hit lands,
+## so it cannot wait for [method land_on]. The multiplier it implies is
+## applied at land, by [method CritRoll.apply]; see [CritRoll] for why the
+## two halves sit on different clocks.
 var is_crit: bool = false
 ## The effective multiplier applied on a crit (default 1.0 = normal hit).
 var crit_multiplier: float = 1.0

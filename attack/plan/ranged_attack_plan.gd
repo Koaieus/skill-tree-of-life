@@ -162,6 +162,7 @@ func resolve() -> AttackOutcome:
 	# so the recorded timeline is the ordering authority OutcomeApplier reads
 	# (docs/domain/attack-timeline.md "The ranged volley ramp").
 	var outcome := AttackOutcome.new()
+	outcome.resolve_seed = resolve_seed
 	if not is_valid():
 		return outcome
 	var schedule := get_firing_schedule()
@@ -175,4 +176,10 @@ func resolve() -> AttackOutcome:
 			launch_time += lerpf(0.0, RangedDamageFormula.TOTAL_STAGGER, float(rank_i) / float(n - 1))
 		hit.arrival_time = launch_time + RangedDamageFormula.FLIGHT_TIME
 		outcome.hits.append(hit)
+	# Every arrow rolls its own crit (#507 — owner call: "a hit can crit"), off
+	# the stamped seed, never `randf()`. A 40-leaf empire therefore rolls 40
+	# times against one node; that is more chances for more shots, which is
+	# what a hit-based crit model means, and it was settled as intended rather
+	# than a problem to design around.
+	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed))
 	return outcome

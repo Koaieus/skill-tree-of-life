@@ -165,6 +165,226 @@ func test_a_deterministic_spell_needs_no_seed_to_reproduce() -> void:
 		"a non-stochastic, non-critting cast must be reproducible unseeded")
 
 
+# ── Melee and ranged crits (#507) ────────────────────────────────────────────
+#
+# Until #507 these two modes drew no randomness at all — `crit_chance` was a
+# universal stat that only SpellResolver read. Now all three modes roll it
+# through one shared [CritRoll], off `AttackPlan.resolve_seed`, which puts
+# melee and ranged under the same reproducibility claim as magic.
+
+const _BOARD := preload("res://entity/default_entity_board.tres")
+const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+
+
+## A real graph + AllocationSystem, because ranged reads the attacker's
+## EntityNavigator for its firing leaves and `H.assign_owner` only writes
+## `owned_by` (no mirror). Returns the pieces the two fixtures below share.
+func _make_allocated_world() -> Dictionary:
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var alloc := AllocationSystem.new()
+	alloc.graph = graph
+	add_child_autofree(alloc)
+	var attacker := Entity.new()
+	attacker.display_name = "A"
+	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Both entities default to the `npc` faction, which makes them ALLIED —
+	# and `RangedAttackPlan.validate` refuses a non-hostile target, so without
+	# this the fixture resolves to zero shots and every crit assertion below
+	# passes vacuously.
+	attacker.faction = _PLAYER_FACTION
+	graph.add_child(attacker)
+	var defender := Entity.new()
+	defender.display_name = "D"
+	defender.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	defender.stat_board.get_stat(&"node_health").base_value = 9999.0
+	graph.add_child(defender)
+	return {graph = graph, alloc = alloc, attacker = attacker, defender = defender}
+
+
+func _spawn_at(graph: Graph, nm: String, pos: Vector2) -> SkillNode:
+	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	sn.name = nm
+	graph.add_skill_node(sn)
+	sn.global_position = pos
+	return sn
+
+
+## A star of five attacker leaves around a hub, all reaching one hostile
+## target. Five reaching leaves means five shots, so five crit draws — enough
+## that a broken derivation shows up as a different pattern rather than a
+## coin flip that happens to agree.
+func _ranged_plan(crit_chance: float) -> RangedAttackPlan:
+	var w := _make_allocated_world()
+	var graph: Graph = w.graph
+	var alloc: AllocationSystem = w.alloc
+	var attacker: Entity = w.attacker
+	var hub := _spawn_at(graph, "Hub", Vector2.ZERO)
+	var leaves: Array[SkillNode] = []
+	for i in 5:
+		var leaf := _spawn_at(graph, "Leaf%d" % i, Vector2.ZERO)
+		graph.add_edge(hub, leaf)
+		leaves.append(leaf)
+	var target := _spawn_at(graph, "Target", Vector2.ZERO)
+	alloc.force_allocate(attacker, hub)
+	for leaf in leaves:
+		alloc.force_allocate(attacker, leaf)
+	attacker.core_location = hub
+	alloc.force_allocate(w.defender, target)
+	w.defender.core_location = target
+	# Non-zero offense, or every hit is amount 0 and CritRoll skips it — the
+	# test would pass while rolling nothing at all.
+	attacker.stat_board.get_stat(&"dexterity").base_value = 100.0
+	attacker.stat_board.get_stat(&"crit_chance").base_value = crit_chance
+	var plan := RangedAttackPlan.new()
+	plan.attacker = attacker
+	plan.target = target
+	return plan
+
+
+## Pivot + one arm, target coincident with the arm so the swing scans a hit
+## without depending on physics-server sync timing (same trick as
+## `test_melee_swing_characterization.gd`).
+func _melee_plan(crit_chance: float) -> MeleeAttackPlan:
+	var w := _make_allocated_world()
+	var graph: Graph = w.graph
+	var alloc: AllocationSystem = w.alloc
+	var attacker: Entity = w.attacker
+	attacker.stat_board.blade_size.base_value = 2.0
+	attacker.stat_board.get_stat(&"crit_chance").base_value = crit_chance
+	var pivot := _spawn_at(graph, "Pivot", Vector2.ZERO)
+	var arm := _spawn_at(graph, "Arm", Vector2(150, 0))
+	graph.add_edge(pivot, arm)
+	var target := _spawn_at(graph, "Target", Vector2(150, 0))
+	await get_tree().process_frame
+	alloc.force_allocate(attacker, pivot)
+	alloc.force_allocate(attacker, arm)
+	attacker.core_location = pivot
+	alloc.force_allocate(w.defender, target)
+	w.defender.core_location = target
+	await get_tree().process_frame
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = attacker
+	plan._on_node_left_clicked(pivot)
+	plan._on_node_left_clicked(arm)
+	return plan
+
+
+func _crit_flags(outcome: AttackOutcome) -> Array[bool]:
+	var out: Array[bool] = []
+	for hit in OutcomeApplier.in_arrival_order(outcome.hits):
+		out.append(hit.is_crit)
+	return out
+
+
+func test_ranged_rolls_crits_at_all() -> void:
+	# The gap #507 closed, stated positively: before it, `crit_chance` could be
+	# 1.0 and a volley still never crit. Guards the reproducibility tests below
+	# from passing vacuously on an outcome where nothing ever crits.
+	var plan := _ranged_plan(1.0)
+	plan.resolve_seed = 0xA11CE
+	var outcome := plan.resolve()
+	assert_gt(outcome.hits.size(), 0, "fixture produced no shots")
+	for hit in outcome.hits:
+		assert_true(hit.is_crit, "crit_chance 1.0 must crit every arrow")
+		assert_eq(hit.crit_multiplier, 2.0, "and carry the board's multiplier")
+		assert_eq(hit.crit_tier, 1, "stat path only — conditions stay magic-only")
+
+
+func test_ranged_reproduces_its_crit_pattern_under_a_stamped_seed() -> void:
+	var a := _ranged_plan(0.5)
+	a.resolve_seed = 0xC0FFEE
+	var b := _ranged_plan(0.5)
+	b.resolve_seed = 0xC0FFEE
+	assert_eq(fingerprint(a.resolve()), fingerprint(b.resolve()),
+		"the same stamped seed must reproduce the same volley, crits included")
+
+
+func test_ranged_crits_differ_across_seeds() -> void:
+	# The other half: if every seed produced the same pattern, the test above
+	# would prove nothing. 5 shots at 50 % — eight seeds agreeing is a 1-in-2^28
+	# accident, so a failure here is a broken derivation, not bad luck.
+	var seen := {}
+	for s in [11, 22, 33, 44, 55, 66, 77, 88]:
+		var plan := _ranged_plan(0.5)
+		plan.resolve_seed = s
+		seen[str(_crit_flags(plan.resolve()))] = true
+	assert_gt(seen.size(), 1, "the volley's crit pattern must depend on the seed")
+
+
+func test_ranged_carries_its_seed_out_on_the_outcome() -> void:
+	# Same self-describing-artifact contract magic already satisfied: a peer
+	# handed (intent + this seed) can re-resolve to a bit-identical outcome.
+	var plan := _ranged_plan(0.5)
+	plan.resolve_seed = 4242
+	assert_eq(plan.resolve().resolve_seed, 4242)
+
+
+func test_melee_rolls_crits_at_all() -> void:
+	var plan: MeleeAttackPlan = await _melee_plan(1.0)
+	plan.resolve_seed = 0xA11CE
+	var outcome := plan.resolve()
+	assert_gt(outcome.hits.size(), 0, "fixture produced no blade contacts")
+	for hit in outcome.hits:
+		assert_true(hit.is_crit, "crit_chance 1.0 must crit every blade landing")
+	assert_eq(outcome.resolve_seed, 0xA11CE, "the outcome carries its own seed")
+
+
+func test_melee_reproduces_its_crit_pattern_under_a_stamped_seed() -> void:
+	var a: MeleeAttackPlan = await _melee_plan(0.5)
+	a.resolve_seed = 0xC0FFEE
+	var b: MeleeAttackPlan = await _melee_plan(0.5)
+	b.resolve_seed = 0xC0FFEE
+	assert_eq(_crit_flags(a.resolve()), _crit_flags(b.resolve()),
+		"the same stamped seed must reproduce the same swing's crits")
+
+
+func test_the_live_melee_and_ranged_paths_resolve_under_the_stamped_seed() -> void:
+	# Structural, like `test_the_live_magic_path_resolves_under_a_stamped_seed`
+	# below: asserted against the source so a future refactor that reaches for
+	# `randf()` — the hole 8dc6f77 closed for magic — cannot land quietly.
+	for path in [
+			"res://attack/plan/melee_attack_plan.gd",
+			"res://attack/plan/ranged_attack_plan.gd"]:
+		var src := FileAccess.get_file_as_string(path)
+		assert_false(src.is_empty(), "could not read %s" % path)
+		assert_string_contains(src, "CritRoll.stream_for(resolve_seed)",
+			"%s must draw crits off the stamped seed" % path)
+		assert_string_contains(src, "outcome.resolve_seed = resolve_seed",
+			"%s's outcome must carry the seed it resolved under" % path)
+
+
+func test_crit_draws_are_consumed_in_arrival_order() -> void:
+	# The cross-mode constraint: one stream serves a whole attack, so if two
+	# modes consumed it in different orders the same seed would stop
+	# reproducing the same crits. CritRoll reuses OutcomeApplier's own sort
+	# rather than re-deriving one, which is what makes them unable to disagree.
+	var src := FileAccess.get_file_as_string("res://attack/outcome/crit_roll.gd")
+	assert_false(src.is_empty(), "could not read crit_roll.gd")
+	assert_string_contains(src, "OutcomeApplier.in_arrival_order",
+		"the crit stream must be consumed in the order the applier lands hits")
+
+
+func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
+	# The other half of the two-clock split (#507): the DECISION is at resolve
+	# so VFX can read `is_crit` on a projectile it is about to launch, but the
+	# ARITHMETIC is at land, after ranged's live `ranged_damage` re-read (#503)
+	# would otherwise have thrown a resolve-time multiply away.
+	var plan := _ranged_plan(1.0)
+	plan.resolve_seed = 7
+	var outcome := plan.resolve()
+	var hit: HitInstance = outcome.hits[0]
+	var base := hit.amount
+	assert_gt(base, 0.0, "fixture must deal real damage or this proves nothing")
+	assert_true(hit.is_crit, "decided at resolve")
+	OutcomeApplier.apply(outcome)
+	assert_almost_eq(hit.amount, base * 2.0, 0.001, "multiplied at land")
+
+
 # ── The gaps, pinned ─────────────────────────────────────────────────────────
 #
 # These assert that a known determinism hole IS STILL OPEN. They are

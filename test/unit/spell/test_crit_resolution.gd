@@ -211,6 +211,10 @@ func test_stat_path_multiplies_damage_on_crit() -> void:
 	assert_true(hit.is_crit)
 	assert_eq(hit.crit_multiplier, 3.0)
 	var seed_dmg: float = helper.seed_multiplier(n[0]) * spell.power
+	# The crit is DECIDED at resolve (above) and MULTIPLIED at land (#507), so
+	# the raw `amount` is still the base until the applier runs it.
+	assert_almost_eq(hit.amount, seed_dmg, 0.001, "resolve leaves amount unscaled")
+	helper.land(outcome)
 	assert_almost_eq(hit.amount, seed_dmg * 3.0, 0.001)
 
 
@@ -265,6 +269,8 @@ func test_condition_path_self_loop_crits() -> void:
 	spell.crit_conditions = [SelfLoopCritCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
+	helper.land(outcome)
 	var hits_by_node := H.new().hits_by_node(outcome)
 	var hits_on_1: Array = hits_by_node[n[1]]
 	# Wave 0 hit (seed) + Wave 1 hit (self-loop traversal, merged from 2 incidents).
@@ -289,6 +295,8 @@ func test_condition_path_leaf_crits() -> void:
 	spell.crit_conditions = [LeafCritCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
+	helper.land(outcome)
 	var hits_by_node := H.new().hits_by_node(outcome)
 	var hit_n2: Array = hits_by_node[n[2]]
 	assert_eq(hit_n2.size(), 1)
@@ -319,6 +327,8 @@ func test_both_paths_can_fire_tier_2() -> void:
 	spell.crit_conditions = [SelfLoopCritCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
+	helper.land(outcome)
 	var hits_by_node := H.new().hits_by_node(outcome)
 	var hits_on_1: Array = hits_by_node[n[1]]
 	# Seed at wave 0 (stat-only → tier 1) + self-loop traversal at wave 1

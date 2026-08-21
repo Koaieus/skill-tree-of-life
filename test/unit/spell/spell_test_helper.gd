@@ -234,6 +234,20 @@ func set_spell_damage(entity: Entity, value: float) -> void:
 	entity.stat_board.get_stat(&"spell_damage").add_modifier(mod)
 
 
+## Land [param outcome] on the real world the way [BattleSystem] does —
+## through [OutcomeApplier], on an instant clock, so this returns
+## synchronously.
+##
+## Needed by any test asserting a crit-MULTIPLIED [member HitInstance.amount]:
+## the crit is DECIDED at resolve but the multiplier goes on at land (#507,
+## see [CritRoll]), so `resolve()` alone leaves `amount` at its base value
+## with `is_crit` already true. Going through the applier rather than
+## multiplying by hand is the point — a `land_on` override that forgot to
+## call [method CritRoll.apply] has to fail these.
+func land(outcome: AttackOutcome) -> void:
+	OutcomeApplier.apply(outcome)
+
+
 func hits_by_node(outcome: AttackOutcome) -> Dictionary:
 	var out: Dictionary = {}
 	for hit in outcome.hits:

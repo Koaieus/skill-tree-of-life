@@ -43,7 +43,8 @@ const TOTAL_STAGGER: float = 0.6
 const DRAW_TIME: float = 0.0
 
 static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
-	var hit := RangedHitInstance.new(attacker)
+	var hit := RangedHitInstance.new()
+	hit.attacker = attacker
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
@@ -69,16 +70,11 @@ static func _read_offense(firing_node: SkillNode) -> float:
 ## called once per hit by [OutcomeApplier] in [member HitInstance.arrival_time]
 ## order (docs/domain/attack-timeline.md).
 class RangedHitInstance extends DamageInstance:
-	## The attacker this shot was fired for — needed at land time to re-check
-	## the target is still HOSTILE to them, not just still allocated (a node
-	## can be captured by a third party mid-volley).
-	var _attacker: Entity
-
-
-	func _init(attacker: Entity) -> void:
-		super._init()
-		_attacker = attacker
-
+	## The attacker this shot was fired for is [member HitInstance.attacker] —
+	## promoted to the base class in #507 so the shared [CritRoll] can read its
+	## board. Needed here at land time to re-check the target is still HOSTILE
+	## to them, not just still allocated (a node can be captured by a third
+	## party mid-volley).
 
 	## Veto — no mutation at all, per the contract's "gate is a veto, not a
 	## re-plan" — if the target is no longer allocated/hostile, or the firing
@@ -88,6 +84,11 @@ class RangedHitInstance extends DamageInstance:
 	## cascade, islanding the firing leaf). A veto marks [member
 	## HitInstance.gated] so VFX can render the dud beat distinctly from a
 	## hit that landed and fully mitigated to zero.
+	##
+	## The live offense read happens BEFORE `super`, deliberately: `super`'s
+	## first act is [method CritRoll.apply], so the crit multiplies the number
+	## this line just read rather than a resolve-time estimate that was about
+	## to be thrown away (#507).
 	func land_on(node: SkillNode) -> void:
 		if not _passes_gate(node):
 			gated = true
@@ -101,4 +102,4 @@ class RangedHitInstance extends DamageInstance:
 			return false
 		if node == null or not is_instance_valid(node) or not node.is_allocated():
 			return false
-		return node.ownership_bit(_attacker) == SkillNode.Ownership.HOSTILE
+		return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE

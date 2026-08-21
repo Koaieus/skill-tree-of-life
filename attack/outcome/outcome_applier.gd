@@ -26,7 +26,7 @@ class_name OutcomeApplier
 ## synchronously; see [BeatClock] for why this is not frame-ordered mutation.
 static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
-	for hit in _in_arrival_order(outcome.hits):
+	for hit in in_arrival_order(outcome.hits):
 		if hit.target == null:
 			continue
 		# `advance_to` is declared `-> void`, so the analyzer calls this await
@@ -46,7 +46,11 @@ static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
 			hit.land_on(hit.target)
 
 
-## Decorate-sort-undecorate on `(arrival_time, original_index)`.
+## Decorate-sort-undecorate on `(arrival_time, original_index)`. Public
+## because [method CritRoll.decide_all] must consume its seeded stream in the
+## exact order this lands hits (#507) — a second sort written to match would
+## be free to drift out of step with this one, and the symptom would be crits
+## that stop reproducing under a replayed seed.
 ## [method Array.sort_custom] is not documented stable in Godot 4.x, and
 ## all three modes still produce genuine ties (magic stamps a whole wave at
 ## one `hop_index * WAVE_ARRIVAL_INTERVAL`; a melee sim substep can land two
@@ -59,7 +63,7 @@ static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
 ## [member SkillNode.stable_id] is NOT the tiebreak here — it's the ranged
 ## ramp's OWN rank tiebreak (see [method RangedAttackPlan.get_firing_schedule]).
 ## Applied globally it would reorder magic hits out of wave order.
-static func _in_arrival_order(hits: Array[HitInstance]) -> Array[HitInstance]:
+static func in_arrival_order(hits: Array[HitInstance]) -> Array[HitInstance]:
 	var decorated: Array = []
 	for i in hits.size():
 		decorated.append([hits[i].arrival_time, i, hits[i]])

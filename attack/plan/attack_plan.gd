@@ -35,10 +35,10 @@ var mode: BattleSystem.AttackMode
 ## same order — the ordering fragility that sank lockstep in #473. A seed
 ## carried by the action it resolves has no such coupling.
 ##
-## Only magic reads it today; melee and ranged consume no randomness at all
-## (crit lives solely in [SpellResolver] — see
-## `test/unit/attack/test_attack_determinism.gd`). When crits reach those
-## modes they must draw from here, not from the global RNG.
+## All three modes read it (#507). Magic arms its propagation walk off it and
+## derives a crit stream from it; melee and ranged consume it only for crits,
+## via [method CritRoll.stream_for]. Nothing in an attack may draw from the
+## global RNG — see `test/unit/attack/test_attack_determinism.gd`.
 ##
 ## 0 = "unstamped", which resolves under a FIXED stream. That is deliberate
 ## for previews and AI scoring: a tooltip that reshuffles its crits on every

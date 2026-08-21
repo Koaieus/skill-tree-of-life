@@ -47,9 +47,13 @@ func bump_visit(node: SkillNode) -> void:
 func rng_for_crits() -> RandomNumberGenerator:
 	if crit_rng != null:
 		return crit_rng
-	crit_rng = RandomNumberGenerator.new()
 	if rng != null:
-		crit_rng.seed = rng.seed ^ 0xC217
+		# Same derivation every mode uses (#507) — melee and ranged arm their
+		# stream straight off `AttackPlan.resolve_seed`, and a cast's `rng` IS
+		# that seed, so the salt has to be the one constant or the same attack
+		# would draw different crits depending on which mode asked.
+		crit_rng = CritRoll.stream_for(rng.seed)
 	else:
+		crit_rng = RandomNumberGenerator.new()
 		crit_rng.randomize()
 	return crit_rng

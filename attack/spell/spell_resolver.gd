@@ -123,7 +123,12 @@ static func resolve(
 			ev.verb = _verb_for(state)
 			for i in range(pre, outcome.hits.size()):
 				var hit: HitInstance = outcome.hits[i]
-				_resolve_crit(spell, state, hit, ctx)
+				# The caster is stamped HERE rather than inside each
+				# OnHitEffect: every effect that appends a hit needs it (the
+				# shared crit roll reads its board), and one place that cannot
+				# be forgotten beats N places that can.
+				hit.attacker = ctx.caster
+				_stamp_crit_conditions(spell, state, hit)
 				# #501: real time, not 0.0 -- later waves land strictly later.
 				hit.arrival_time = float(state.hop_index) * WAVE_ARRIVAL_INTERVAL
 				ev.hits.append(hit)
@@ -148,6 +153,15 @@ static func resolve(
 			next_wave.append_array(config.step.step(state.current_node, state, capped, config, ctx))
 		ctx.wave_index += 1
 		wave = next_wave
+
+	# The universal stat roll, last and in one pass (#507) — the same call
+	# melee and ranged make. Deliberately AFTER the whole walk rather than
+	# per-landing inside it: `decide_all` consumes its stream in
+	# `arrival_time` order, and only a finished outcome knows that order.
+	# For magic the two coincide (arrival_time is `hop_index` × a constant,
+	# and the sort is index-stable), so a cast's crit sequence is unchanged
+	# from before this moved.
+	CritRoll.decide_all(outcome, ctx.rng_for_crits())
 	return outcome
 
 
@@ -182,60 +196,32 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 	return fallback * spell.power
 
 
-## Evaluates both crit paths for one landing and applies the crit to [param hit]
-## when either (or both) fire, stamping [member HitInstance.crit_tier]:
-## 0 = normal hit, 1 = one path crit, 2 = both paths fired. [param hit] is a
-## [HitInstance], not [DamageInstance] specifically (#381) — heals roll crits
-## too now, since a heal landing at the base-class level has no way to opt out.
-## Stat path: rolls [code]crit_chance[/code] from the caster's board.
-## Condition path: evaluates every [member SpellDef.crit_conditions] as OR.
-static func _resolve_crit(
+## Magic's OWN crit path, and the only one that is mode-specific (#507): the
+## [member SpellDef.crit_conditions] OR, evaluated per landing. It has to live
+## here because a condition reads [CastSpell] propagation state — predecessor,
+## incident_count, the node just landed on — which exists nowhere else.
+##
+## Stamps a starting [member HitInstance.crit_tier] of 1 when any condition
+## fires. The UNIVERSAL stat roll is then layered on top by
+## [method CritRoll.decide_all] once the whole cast has resolved, which is what
+## makes tier 2 ("both paths fired") mean the same thing it always did while
+## leaving exactly one implementation of the stat roll for all three modes.
+##
+## [param hit] is a [HitInstance], not a [DamageInstance] specifically (#381) —
+## heals crit too, since a heal landing at the base-class level has no way to
+## opt out.
+static func _stamp_crit_conditions(
 		spell: SpellDef,
 		state: CastSpell,
-		hit: HitInstance,
-		ctx: PropagationContext) -> int:
+		hit: HitInstance) -> void:
 	if hit == null or hit.amount <= 0.0:
-		return 0
-	var tier: int = 0
-
-	# --- Stat path ---
-	var board: StatBoard = ctx.caster.stat_board if ctx.caster != null else null
-	if board != null:
-		var cc_stat: Stat = board.get_stat(&"crit_chance")
-		var cc_val: float = cc_stat.get_value() if cc_stat != null else 0.0
-		if cc_val > 0.0:
-			# Derived crit RNG — seeded from the cast's RNG without consuming
-			# its stream, so the propagation walk reproduces and crits
-			# reproduce (#213).
-			if ctx.rng_for_crits().randf() < cc_val:
-				tier += 1
-
-	# --- Condition path ---
+		return
 	for cond in spell.crit_conditions:
 		if cond != null and cond.evaluate(state, state.current_node, null):
-			tier += 1
+			hit.crit_tier += 1
 			# One condition passing is enough to count the condition path;
 			# additional conditions don't stack the tier further.
-			break
-
-	if tier > 0:
-		var cm_val: float = _crit_multiplier(board, 2.0)
-		hit.amount *= cm_val
-		hit.is_crit = true
-		hit.crit_multiplier = cm_val
-	hit.crit_tier = tier
-	return tier
-
-
-## Reads the [code]crit_multiplier[/code] from the caster's stat board, falling
-## back to [param fallback] when the board or stat is missing.
-static func _crit_multiplier(board: StatBoard, fallback: float = 2.0) -> float:
-	if board == null:
-		return fallback
-	var cm_stat: Stat = board.get_stat(&"crit_multiplier")
-	if cm_stat == null:
-		return fallback
-	return cm_stat.get_value()
+			return
 
 
 ## Reducer is optional: null defaults to "first-wins" without instantiating

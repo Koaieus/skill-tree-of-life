@@ -12,7 +12,10 @@ func _init() -> void:
 	kind = Kind.HEAL
 
 
+## Crit multiplier applied at land, same as [method DamageInstance.land_on] —
+## see [CritRoll]. Heals crit too (#381).
 func land_on(node: SkillNode) -> void:
+	CritRoll.apply(self)
 	node.heal_damage(amount, self)
 
 
