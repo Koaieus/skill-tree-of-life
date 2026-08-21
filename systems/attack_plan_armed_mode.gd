@@ -36,27 +36,13 @@ func pop() -> bool:
 	return true
 
 
-## The armed mode's identity colour, lifted to the bloom tier (#412).
+## The armed mode's identity colour, at its authored `StatDef` value.
 ##
-## `Emissive.tint_peak`, NOT `Emissive.tint`. Both equalize loudness across
-## hues; they differ in what they do to the *off-hue* channels, and for a large
-## additive area that difference is the whole ballgame.
-##
-## `tint` normalises by Rec.709 luminance, and STR-red's luminance is only
-## 0.233 — so it scales every channel by ~17x and red at ALERT comes out
-## linear `(15.13, 1.01, 0.84)`. Green and blue at ~1.0 are full display white
-## *on their own*, before this is even added to the background: the glow reads
-## as a white frame with a red bloom halo. **Owner call 2026-08-21, testing the
-## melee glow at `band_px = 140`:** "WAY TOO MUCH WHITE".
-##
-## `tint_peak` normalises by the peak channel instead, so the dominant channel
-## lands on the tier and the rest stay proportional — red at ALERT is
-## `(4.0, 0.27, 0.22)`, a 4x cut to the off-hue channels, and it reads red.
-## This is the live comparison `emissive.gd` asked for before adopting it.
-##
-## The fix is only as good as the base hue is saturated: DEX-green and INT-blue
-## carry more off-hue channel to begin with (off-hue max ~1.2 vs red's 0.27),
-## so they whiten more than melee does even under `tint_peak`.
+## **Returned UNLIFTED — no `Emissive` call here.** How loud the glow burns is a
+## presentation decision and belongs to the thing doing the presenting, so
+## [ArmedModeGlow] owns the tier (and the `glow_stops` slider the owner tunes
+## it with). This side answers only "which hue", which is the part that is
+## actually a rule of the game.
 func tint() -> Color:
 	if not is_armed():
 		return Color.TRANSPARENT
@@ -66,4 +52,4 @@ func tint() -> Color:
 	var def := StatRegistry.get_def(stat_id)
 	if def == null:
 		return Color.TRANSPARENT
-	return Emissive.tint_peak(def.tint_color, Emissive.ALERT)
+	return def.tint_color

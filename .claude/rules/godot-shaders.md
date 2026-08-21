@@ -23,6 +23,24 @@ xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
 Empty grep = clean. opengl3 (llvmpipe) needs no GPU, and reproduces codegen bugs
 that production's Vulkan backend hits too.
 
+## `min(dx, dy)` for a border falloff creases at the corners
+
+Taking the nearer edge is a **Chebyshev** distance: its iso-contours are nested
+rectangles, so the two ramps meet at a derivative discontinuity along each
+45° diagonal. It renders as a hard seam into every corner, and mach banding
+latches onto exactly that kind of slope break. Found authoring #412's
+armed-mode border glow.
+
+**Fix:** ramp each axis independently, then take the smooth (screen) union —
+`a + b - a*b`. C1-continuous everywhere, identical to the old ramp at an edge
+midpoint where the other axis contributes ~0, and smoothly brighter into the
+corners rather than creased.
+
+**And dither a shallow ramp.** A gradient that runs slowly over many pixels
+quantises into steps once composited to 8-bit. One LSB of *static* screen-space
+hash (`fract(sin(dot(FRAGCOORD.xy, …)) * …)`, keyed on FRAGCOORD and **never**
+TIME, or it shimmers) removes it. Above ~2 LSB it reads as grain.
+
 ## A Sprite2D fed a `PlaceholderTexture2D` collapses its UVs
 
 `PlaceholderTexture2D` reports a `size` but carries no image data, so the quad

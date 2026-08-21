@@ -6,8 +6,9 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_glow"]
 resource_local_to_scene = true
 shader = ExtResource("2_shader")
-shader_parameter/band_px = 13.5130002618675
-shader_parameter/falloff = 6.0
+shader_parameter/band_px = 40.00000152
+shader_parameter/falloff = 4.00000016625
+shader_parameter/dither_lsb = 1.0
 
 [node name="ArmedModeGlow" type="CanvasLayer" unique_id=1704392792]
 script = ExtResource("1_script")

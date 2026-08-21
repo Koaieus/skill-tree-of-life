@@ -263,6 +263,16 @@ candidate awaiting exactly this live comparison.
 **Rule of thumb:** thin stroke or single widget → `tint()`. Large area, or
 additive blending → `tint_peak()`. Neither is a substitute for looking at it.
 
+**The tier is the VIEW's to pick, not the model's.** #412 first put the
+`Emissive` call in `AttackPlanArmedMode` alongside the hue lookup, which left
+no knob to turn when the result was too hot — the owner's first ask on seeing it
+was for a brightness slider. The armed stack now returns the authored
+`StatDef.tint_color` unlifted and `ArmedModeGlow` applies the tier, exposed as
+`@export_range(0.0, 3.0) var glow_stops` in **stops**, with the named tiers as
+its landmarks. Do the same anywhere a tier needs tuning: a slider in stops is
+still the sanctioned unit, and it exists so you can find out *which tier*, not
+so the shipped answer can be 1.35 forever.
+
 **It is only as good as the base hue is saturated.** DEX-green
 (`0.3187, 0.7773, 0.4484`) and INT-blue (`0.291, 0.5892, 1.0`) carry far more
 off-hue channel than red does, so at `ALERT` they still reach ~1.2 off-hue

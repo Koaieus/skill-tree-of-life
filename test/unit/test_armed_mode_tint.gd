@@ -89,12 +89,13 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	_graph.edges_container.add_child(e)
 
 
-## The colour a given attribute's identity tint should produce, derived the
-## same way production does — not a literal.
+## The colour a given attribute's identity tint should produce, read the same
+## way production does — not a literal. Unlifted: the emissive tier is
+## ArmedModeGlow's, not the armed stack's (see AttackPlanArmedMode.tint).
 func _expected(stat_id: StringName) -> Color:
 	var def := StatRegistry.get_def(stat_id)
 	assert_not_null(def, "StatRegistry has no def for %s" % stat_id)
-	return Emissive.tint_peak(def.tint_color, Emissive.ALERT)
+	return def.tint_color
 
 
 func test_nothing_armed_is_transparent() -> void:
@@ -214,3 +215,46 @@ func test_turn_ending_clears_the_glow() -> void:
 	# turn_ended must darken the glow before anyone else acts.
 	assert_signal_emitted_with_parameters(
 			_ctl, "armed_tint_changed", [Color.TRANSPARENT], 0)
+
+
+# --- the presentation half: ArmedModeGlow owns the emissive tier -------------
+
+const _GLOW_SCENE := preload("res://ui/hud/armed_mode_glow/armed_mode_glow.tscn")
+
+
+func test_the_overlay_lifts_the_identity_colour_to_its_own_tier() -> void:
+	var glow: ArmedModeGlow = _GLOW_SCENE.instantiate()
+	add_child_autofree(glow)
+	await get_tree().process_frame
+	glow.glow_stops = Emissive.VALUE
+
+	var red: Color = StatRegistry.get_def(&"strength").tint_color
+	glow._on_armed_tint_changed(red)
+
+	var rect: ColorRect = glow.get_node("%GlowRect")
+	assert_eq(rect.color, Emissive.tint_peak(red, Emissive.VALUE),
+			"the overlay, not the armed stack, applies the tier")
+	assert_true(rect.visible)
+
+	# The slider must re-lift what is already showing, not wait for a re-arm.
+	glow.glow_stops = Emissive.ALERT
+	assert_eq(rect.color, Emissive.tint_peak(red, Emissive.ALERT))
+
+	glow._on_armed_tint_changed(Color.TRANSPARENT)
+	assert_false(rect.visible, "nothing armed must not paint")
+
+
+func test_the_lift_keeps_red_red_rather_than_white() -> void:
+	# Regression for the shipped-then-fixed bug. Emissive.tint normalises by
+	# luminance, and STR-red's is only 0.233, so it scaled every channel ~17x
+	# and left green/blue at ~1.0 — full display white on their own, before the
+	# additive blend even reached the background. Owner verdict: "WAY TOO MUCH
+	# WHITE". tint_peak normalises by the peak channel, so the off-hue channels
+	# stay proportional.
+	var red: Color = StatRegistry.get_def(&"strength").tint_color
+	var lit := Emissive.tint_peak(red, Emissive.ALERT).srgb_to_linear()
+	assert_lt(maxf(lit.g, lit.b), 0.5,
+			"off-hue channels must stay well under display white, or the glow " \
+			+ "desaturates to white over any bright background")
+	assert_gt(lit.r, 1.0,
+			"the dominant channel must still clear the bloom threshold")
