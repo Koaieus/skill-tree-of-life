@@ -197,8 +197,25 @@ func resolve() -> AttackOutcome:
 	var graph := _graph_of(source)
 	if graph == null:
 		return AttackOutcome.new()
-	var outcome := SpellResolver.resolve(spell, target, source, attacker, graph)
+	# Before this, the live cast path resolved with rng == null and
+	# PropagationContext randomize()d its crit stream — a real cast was not
+	# reproducible even on one machine.
+	#
+	# Magic is the only mode that arms an RNG TODAY, which is a gap in the
+	# other two rather than a property of magic: melee and ranged are meant
+	# to roll `crit_chance` the same way and currently do not roll at all
+	# (crit is implemented solely in SpellResolver). Magic's own deviation is
+	# only the EXTRA guaranteed-crit path — SpellDef.crit_conditions, e.g.
+	# Leafblower critting on a degree-1 leaf — layered on top of the same
+	# universal stat roll.
+	#
+	# When crits reach melee and ranged they must draw from `seeded_rng()`
+	# like this, NOT from the global RNG, or they reintroduce the exact hole
+	# this line closes. See AttackPlan.resolve_seed.
+	var outcome := SpellResolver.resolve(
+		spell, target, source, attacker, graph, seeded_rng())
 	outcome.mana_cost = spell.mana_cost
+	outcome.resolve_seed = resolve_seed
 	return outcome
 
 

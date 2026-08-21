@@ -174,12 +174,18 @@ func test_a_deterministic_spell_needs_no_seed_to_reproduce() -> void:
 
 func test_gap_an_unseeded_context_mints_a_randomized_crit_stream() -> void:
 	# propagation_context.gd:54 — with no propagation seed, `rng_for_crits()`
-	# calls `randomize()`. Two casts of the same spell at the same target
-	# therefore do NOT share a crit stream, so their outcomes can differ on
-	# one machine, let alone across peers.
+	# calls `randomize()`.
 	#
-	# WHEN #457 LANDS: the run seed should reach every cast, and this test
-	# should be inverted to assert the two seeds MATCH.
+	# NARROWED, not closed. The LIVE cast path no longer reaches this:
+	# MagicAttackPlan now arms an RNG off the stamped AttackPlan.resolve_seed.
+	# But SpellResolver.resolve's `rng` is still an optional parameter, and
+	# resolve()'s other callers — spell tooltip, spell playground, balance
+	# harness — still pass nothing and land here.
+	#
+	# That is survivable (they are read-only previews, and a preview cannot
+	# predict the real cast's roll anyway) but it means an unstamped preview
+	# reshuffles its crits on every repaint. Fixing it is a matter of routing
+	# those callers through a plan, which owns the fixed-stream default.
 	var seeds := {}
 	for _i in 8:
 		seeds[PropagationContext.new().rng_for_crits().seed] = true
@@ -188,41 +194,65 @@ func test_gap_an_unseeded_context_mints_a_randomized_crit_stream() -> void:
 		"determinism contract has landed and this test must be inverted")
 
 
-func test_gap_the_live_magic_path_threads_no_seed() -> void:
-	# magic_attack_plan.gd:200 calls SpellResolver.resolve/5 — the 6th
-	# parameter (`rng`) is defaulted, so a real in-game cast runs unseeded
-	# and inherits the gap above. Only tests pass a seed today
-	# (cast_spell.gd:63's docstring says as much).
+func test_the_live_magic_path_resolves_under_a_stamped_seed() -> void:
+	# CLOSED (was a gap): the live cast path used to call
+	# SpellResolver.resolve/5, defaulting `rng` to null, so
+	# PropagationContext randomize()d its crit stream and a real cast was not
+	# reproducible even on one machine.
+	#
+	# Now BattleSystem.launch_attack stamps AttackPlan.resolve_seed from its
+	# own _seed_source before resolving, MagicAttackPlan arms an RNG off it,
+	# and the outcome carries the seed back out.
 	#
 	# Asserted structurally against the source so it cannot rot silently.
-	#
-	# WHEN #457 LANDS: this call site gains the run RNG and this test flips
-	# to assert the seed IS threaded.
-	var src := FileAccess.get_file_as_string("res://attack/plan/magic_attack_plan.gd")
-	assert_false(src.is_empty(), "could not read magic_attack_plan.gd")
-	assert_string_contains(src,
-		"SpellResolver.resolve(spell, target, source, attacker, graph)",
-		"the live magic path still resolves without an RNG — if this call " +
-		"now passes a seed, #457 has landed and this test must be inverted")
+	var plan_src := FileAccess.get_file_as_string("res://attack/plan/magic_attack_plan.gd")
+	assert_false(plan_src.is_empty(), "could not read magic_attack_plan.gd")
+	assert_string_contains(plan_src, "seeded_rng()",
+		"the live magic path must resolve under the stamped seed")
+	assert_string_contains(plan_src, "outcome.resolve_seed = resolve_seed",
+		"the outcome must carry the seed it was resolved under, or it " +
+		"cannot reproduce itself")
+	var bs_src := FileAccess.get_file_as_string("res://systems/battle_system.gd")
+	assert_false(bs_src.is_empty(), "could not read battle_system.gd")
+	assert_string_contains(bs_src, "attack_plan.resolve_seed = _seed_source.randi()",
+		"the authority must stamp a fresh seed per committed attack")
 
 
-func test_gap_relic_rolls_are_unseeded() -> void:
-	# A kill inside an attack grants loot, and the relic roll uses bare
-	# Array.shuffle() / randf() (skill_dust_addon.gd:249,297,307,355), which
-	# read Godot's global RNG. So even a perfectly reproducible hit sequence
-	# produces different relics per peer.
+func test_an_unstamped_plan_resolves_on_a_fixed_stream() -> void:
+	# The preview/AI-rollout contract: resolve_seed == 0 is not "random", it
+	# is a FIXED stream. A tooltip that reshuffles its crits on every repaint
+	# would be worse than one showing a stable representative roll.
+	# AttackPlan is @abstract, so this goes through a concrete plan. The
+	# field and `seeded_rng()` both live on the base, so any plan proves it.
+	var a := RangedAttackPlan.new()
+	var b := RangedAttackPlan.new()
+	assert_eq(a.resolve_seed, 0, "an unstamped plan reads 0")
+	assert_eq(a.seeded_rng().seed, b.seeded_rng().seed,
+		"two unstamped plans must draw from the same stream")
+	a.resolve_seed = 12345
+	assert_ne(a.seeded_rng().seed, b.seeded_rng().seed,
+		"a stamped plan must diverge from the unstamped stream")
+
+
+func test_relic_rolls_are_unseeded_and_deliberately_stay_that_way() -> void:
+	# NOT a gap, despite looking exactly like one. skill_dust_addon.gd
+	# (249,297,307,355) shuffles relic pools off Godot's global RNG, so two
+	# peers rolling the same kill would draw different relics.
 	#
-	# `docs/domain/multiplayer-sync-model.md` already answers this for
-	# versus — "loot rolls stay host-only" — but that is wiring to build, not
-	# something a deterministic outcome payload provides for free.
+	# The resolution is NOT to seed this. Per
+	# `docs/domain/multiplayer-sync-model.md`, loot rolls stay HOST-ONLY: the
+	# host draws, and the only thing crossing the wire is the CHOSEN
+	# modifier. Nothing observable depends on peers agreeing about the draw,
+	# because no peer ever performs one.
 	#
-	# WHEN #457 LANDS: the addon should draw from a seeded stream and this
-	# test should be inverted.
+	# So do NOT "fix" this by threading AttackPlan.resolve_seed into it —
+	# that would be solving a problem the authority model already deletes.
+	# What is still owed is the host-only wiring, not a seed.
 	var src := FileAccess.get_file_as_string("res://skill_node/addons/skill_dust_addon.gd")
 	assert_false(src.is_empty(), "could not read skill_dust_addon.gd")
 	assert_string_contains(src, "pool.shuffle()",
-		"relic rolls still use the global RNG — if this is now seeded, " +
-		"#457 has landed and this test must be inverted")
+		"relic rolls draw from the global RNG by design — the sync answer " +
+		"is host-only rolls, not a seeded stream")
 
 
 func test_gap_melee_hit_detection_truncates_a_physics_query() -> void:

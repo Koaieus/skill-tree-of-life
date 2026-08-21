@@ -35,6 +35,19 @@ var timeline: Array[PropagationEvent] = []
 ## plan type — melee is the only mode that can cost the attacker's own shape
 ## mid-execution, which is what [AiCombatScorer]'s self-shape-risk term reads.
 var thinned_nodes: int = 0
+## The [member AttackPlan.resolve_seed] this outcome was resolved under, so
+## the artifact is self-describing: it carries everything needed to reproduce
+## itself. A peer handed (intent + this seed) re-resolves to a bit-identical
+## outcome, which is what turns a desync check from "probably the same" into
+## an exact comparison. 0 = resolved under the unstamped fixed stream (a
+## preview or an AI rollout), never a real launch.
+##
+## [b]This does not make [AttackOutcome] wire-ready.[/b] [member hits] holds
+## [HitInstance]s whose `target` / `origin` are live [SkillNode] REFERENCES
+## and whose `source` is a [Variant]; per
+## `docs/domain/multiplayer-sync-model.md` a command may only carry
+## [member SkillNode.stable_id]. Serializing this type is its own unit.
+var resolve_seed: int = 0
 
 
 ## [member hits] filtered to [constant HitInstance.Kind.DAMAGE] and cast —

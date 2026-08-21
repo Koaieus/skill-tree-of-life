@@ -157,9 +157,23 @@ func _new_plan(plan_class: Script) -> AttackPlan:
 ## every time they switch into melee mode.
 var next_melee_cw: bool = false
 
+## Mints the per-attack [member AttackPlan.resolve_seed] stamped by
+## [method launch_attack]. The AUTHORITY owns this — under
+## `docs/domain/multiplayer-sync-model.md` the host stamps every attack's
+## seed and posts it with the outcome, so a peer can replay the attack
+## exactly rather than re-rolling its own crits.
+##
+## Randomised at `_ready` for now, which makes each RUN's attacks unique
+## while every attack WITHIN a run is individually reproducible from its
+## stamp. #457 is where this stops being self-seeded and starts deriving
+## from [member RunConfig.seed] — a one-line change here, deliberately not
+## made now so the plumbing lands without waiting on the seed policy.
+var _seed_source := RandomNumberGenerator.new()
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
+	_seed_source.randomize()
 
 
 ## Commit the active plan. Three phases:
@@ -199,6 +213,11 @@ func launch_attack() -> void:
 	if entity == null:
 		push_warning("BattleSystem.launch_attack: no current entity")
 		return
+	# Stamp BEFORE resolving: the seed is an input to this resolution, and
+	# `outcome.resolve_seed` carries it back out so the artifact can
+	# reproduce itself. Every preview and AI rollout up to this point ran on
+	# the unstamped (0) stream, so the committed roll is genuinely fresh.
+	attack_plan.resolve_seed = _seed_source.randi()
 	var outcome := attack_plan.resolve()
 	var board: StatBoard = entity.stat_board
 	var ap_pool: PoolStat = board.action_points if board != null else null

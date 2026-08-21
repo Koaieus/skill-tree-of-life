@@ -19,6 +19,43 @@ extends HighlightProvider
 var attacker: Entity
 var mode: BattleSystem.AttackMode
 
+## The RNG seed [method resolve] runs under — the one input that makes a
+## stochastic resolution reproducible.
+##
+## [b]The authority mints this, not the plan.[/b] Under
+## `docs/domain/multiplayer-sync-model.md` the host stamps a seed, resolves
+## with it, and posts it alongside the outcome; any peer handed
+## (intent + seed) can replay the attack and land on a bit-identical result.
+## That is what makes a re-resolve-and-compare desync check EXACT: without
+## the seed, a peer's crit draws differ and a mismatch cannot be told apart
+## from a genuine divergence.
+##
+## Per-ATTACK rather than a session-global stream on purpose. A global stream
+## makes every peer's result depend on having consumed prior draws in the
+## same order — the ordering fragility that sank lockstep in #473. A seed
+## carried by the action it resolves has no such coupling.
+##
+## Only magic reads it today; melee and ranged consume no randomness at all
+## (crit lives solely in [SpellResolver] — see
+## `test/unit/attack/test_attack_determinism.gd`). When crits reach those
+## modes they must draw from here, not from the global RNG.
+##
+## 0 = "unstamped", which resolves under a FIXED stream. That is deliberate
+## for previews and AI scoring: a tooltip that reshuffles its crits on every
+## repaint is worse than one showing a stable representative roll. It is
+## [b]not[/b] the same roll the real cast will make — the launch path stamps
+## a fresh seed.
+var resolve_seed: int = 0
+
+
+## The RNG [method resolve] should draw from, armed off [member resolve_seed].
+## Concrete plans with a stochastic resolution call this; deterministic ones
+## ignore it.
+func seeded_rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = resolve_seed
+	return rng
+
 
 ## error messages, empty = valid
 @abstract func validate() -> Array[String]
