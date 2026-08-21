@@ -9,6 +9,11 @@ var positions: PackedVector2Array
 var prev_positions: PackedVector2Array
 var inv_masses: PackedFloat32Array
 var radii: PackedFloat32Array
+## Inner-disk radius per particle, mirroring [member SkillNode.inner_radius] —
+## the geometric companion to [member radii] (the outer radius). Sim-inert
+## (no constraint reads it); carried purely so the visual layer can draw a
+## blade node's disc + rim band matching the SkillNode it was built from.
+var inner_radii: PackedFloat32Array
 ## Per-particle blade damage — the FULL per-contact amount for each vertex,
 ## not a delta. Zeroed in build(); the caller fills each slot from the source
 ## SkillNode's get_local_value(&"blade_damage") (which already merges the
@@ -23,16 +28,23 @@ var constraints: Array[BladeConstraint] = []
 ## Build a state from particle data and a list of edges. Seeds one
 ## BladeDistanceConstraint per edge (rest = initial distance, fully rigid).
 ## Callers can append further constraints after this returns.
+##
+## `inner_radii_` is optional — sim callers that never spawn visuals (fixtures,
+## [MeleeAttackPlan]'s headless simulate) can omit it; it then mirrors
+## `radii_` (inner == outer, i.e. no rim band), which [BladeCircle] draws as a
+## flat fill rather than a degenerate zero-width stroke.
 static func build(
 		positions_: Array[Vector2],
 		pivot_idx: int,
 		edges_: Array[Vector2i],
-		radii_: Array[float]) -> BladeState:
+		radii_: Array[float],
+		inner_radii_: Array[float] = []) -> BladeState:
 	var s := BladeState.new()
 	s.positions = PackedVector2Array(positions_)
 	s.pivot_index = pivot_idx
 	s.edges = edges_
 	s.radii = PackedFloat32Array(radii_)
+	s.inner_radii = PackedFloat32Array(inner_radii_ if not inner_radii_.is_empty() else radii_)
 	s.vertex_damage = PackedFloat32Array()
 	s.vertex_damage.resize(positions_.size())  # zero-init; caller fills per-vertex
 	s.inv_masses = PackedFloat32Array()

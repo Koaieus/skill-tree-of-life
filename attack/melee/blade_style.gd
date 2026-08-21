@@ -9,9 +9,12 @@ extends Resource
 ## rules that must not be re-implemented per visual:
 ##
 ##   * [b]Identity tint.[/b] A blade is a 1:1 copy of the wielder's own nodes, so
-##     it carries the wielder's colour: [member entity_tint] is how far the
-##     authored base is pulled toward [member Entity.color]. Disc, rim and edge
-##     stroke all read the same blend, so a tint cannot drift between them.
+##     members carry the wielder's colour: [member entity_tint] is how far the
+##     member base is pulled toward [member Entity.color]. The pivot has its own
+##     knob, [member pivot_tint], defaulting to 0 — it stays the authored
+##     [member pivot_base] so it reads as the pivot at a glance rather than
+##     blending in with the rest of the swing. Disc, rim and edge stroke all read
+##     the same blend for their part, so a tint cannot drift between them.
 ##   * [b]Disabled = the interim "pop".[/b] Until the real pop VFX exists (#256),
 ##     a blade part that died mid-swing reads as [i]de-lit[/i]: dropped below the
 ##     bloom threshold and desaturated — HDR → SDR. Owner call (2026-08-21):
@@ -33,11 +36,19 @@ extends Resource
 	set(value):
 		pivot_base = value
 		emit_changed()
-## How far the bases are pulled toward the wielder's [member Entity.color].
-## 0 = authored base only (the pre-#256 look), 1 = pure identity colour.
+## How far [member member_base] is pulled toward the wielder's
+## [member Entity.color]. 0 = authored base only (the pre-#256 look), 1 = pure
+## identity colour.
 @export_range(0.0, 1.0) var entity_tint: float = 0.55:
 	set(value):
 		entity_tint = value
+		emit_changed()
+## How far [member pivot_base] is pulled toward the wielder's
+## [member Entity.color]. Defaults to 0 — the pivot keeps its authored base so
+## it stays visually distinct from the tinted members instead of blending in.
+@export_range(0.0, 1.0) var pivot_tint: float = 0.0:
+	set(value):
+		pivot_tint = value
 		emit_changed()
 
 ## Emissive tier of the node rim. A thin stroke has low coverage and needs the
@@ -45,10 +56,6 @@ extends Resource
 @export_range(-2.0, 4.0, 0.05) var rim_tier: float = Emissive.VALUE:
 	set(value):
 		rim_tier = value
-		emit_changed()
-@export_range(0.5, 12.0, 0.5) var rim_width: float = 2.0:
-	set(value):
-		rim_width = value
 		emit_changed()
 ## Emissive tier of the node fill. A large disc blows out at the rim's tier, so
 ## it sits a step lower by default (`.claude/rules/skill-node-scale.md`).
@@ -95,9 +102,10 @@ extends Resource
 ## blade (test fixtures) and the authored base comes back untouched.
 func base_for(is_pivot: bool, entity_color: Color) -> Color:
 	var base := pivot_base if is_pivot else member_base
-	if entity_color.a <= 0.0 or entity_tint <= 0.0:
+	var tint := pivot_tint if is_pivot else entity_tint
+	if entity_color.a <= 0.0 or tint <= 0.0:
 		return base
-	var tinted := base.lerp(entity_color, entity_tint)
+	var tinted := base.lerp(entity_color, tint)
 	tinted.a = base.a
 	return tinted
 

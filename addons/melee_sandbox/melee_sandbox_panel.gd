@@ -48,9 +48,9 @@ const _FIT_MARGIN: float = 40.0
 ## Same table shape the bloom panel uses for the Environment — one row per thing
 ## worth turning, so adding a [BladeStyle] field is a one-line change here.
 const _KNOBS: Array[Array] = [
-	["entity_tint", "Wielder tint", 0.0, 1.0, 0.01],
+	["entity_tint", "Member tint", 0.0, 1.0, 0.01],
+	["pivot_tint", "Pivot tint", 0.0, 1.0, 0.01],
 	["rim_tier", "Rim tier (EV)", -2.0, 4.0, 0.05],
-	["rim_width", "Rim width", 0.5, 12.0, 0.5],
 	["fill_tier", "Fill tier (EV)", -2.0, 4.0, 0.05],
 	["fill_alpha", "Fill alpha", 0.0, 1.0, 0.01],
 	["edge_tier", "Edge tier (EV)", -2.0, 4.0, 0.05],

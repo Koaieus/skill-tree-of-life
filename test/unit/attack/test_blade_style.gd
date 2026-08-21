@@ -43,6 +43,15 @@ func test_ownerless_blade_keeps_the_authored_base() -> void:
 			"a transparent tint means 'no owner', not 'blend toward transparent'")
 
 
+func test_pivot_stays_untinted_while_members_take_the_wielder_colour() -> void:
+	var s := _style()
+	var wielder := Color(0.2, 0.5, 1.0)
+	assert_almost_eq(s.base_for(true, wielder).r, s.pivot_base.r, 0.001,
+			"default pivot_tint is 0 — the pivot must stay its authored base so it reads as the pivot")
+	assert_false(is_equal_approx(s.base_for(false, wielder).b, s.member_base.b),
+			"a member at the default entity_tint must blend toward the wielder's colour")
+
+
 # ── Lit vs de-lit ────────────────────────────────────────────────────────────
 
 func test_lit_rim_blooms_and_a_disabled_one_does_not() -> void:
@@ -89,6 +98,34 @@ func test_blade_takes_its_tint_from_the_wielder() -> void:
 	for v in visuals:
 		assert_eq(v.tint, entity.color, "every vertex gets the same identity tint")
 		assert_false(v.disabled, "a fresh blade has nothing dead on it")
+
+
+func test_blade_carries_both_radii_from_the_source_skill_nodes() -> void:
+	var graph := _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	graph.skill_nodes_container.add_child(pivot)
+	graph.skill_nodes_container.add_child(member)
+	member.position = Vector2(80.0, 0.0)
+	member.base_radius = 40.0
+	member.base_inner_radius = 30.0
+	await get_tree().process_frame
+
+	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
+	add_child_autofree(blade)
+	var nodes: Array[SkillNode] = [pivot, member]
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+
+	assert_eq(blade.state.radii[1], member.radius,
+			"BladeState.radii must mirror the source node's outer radius")
+	assert_eq(blade.state.inner_radii[1], member.inner_radius,
+			"BladeState.inner_radii must mirror the source node's inner radius")
+	var visuals := blade.get_node_visuals()
+	assert_eq(visuals[1].radius, member.radius,
+			"the spawned BladeNode's outer radius must match the source SkillNode")
+	assert_eq(visuals[1].inner_radius, member.inner_radius,
+			"the spawned BladeNode's inner radius must match the source SkillNode")
 
 
 func test_a_rebuild_clears_a_previous_swings_deaths() -> void:

@@ -12,6 +12,14 @@ const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_styl
 		radius = value
 		_reconfigure()
 
+## Inner-disk radius, mirroring [member SkillNode.base_inner_radius] (default
+## 24) so a blade node fills the same disc the SkillNode it was built from
+## does. The band between this and [member radius] is where the rim strokes.
+@export_range(1.0, 100.0, 1.0) var inner_radius: float = 24.0:
+	set(value):
+		inner_radius = value
+		_reconfigure()
+
 @export var is_pivot: bool = false:
 	set(value):
 		is_pivot = value
@@ -55,7 +63,9 @@ func _ready() -> void:
 func _reconfigure() -> void:
 	if not is_node_ready():
 		return
-	_visual.configure(radius, is_pivot, style if style != null else DEFAULT_STYLE, tint, disabled)
+	_visual.configure(
+			radius, inner_radius, is_pivot,
+			style if style != null else DEFAULT_STYLE, tint, disabled)
 
 
 ## Returns the point on this node's circumference facing `world_target`.

@@ -93,6 +93,7 @@ func build_from_skill_nodes(
 	_clear_visuals()
 	var positions: Array[Vector2] = []
 	var radii: Array[float] = []
+	var inner_radii: Array[float] = []
 	var pivot_idx := 0
 	var sn_to_idx: Dictionary = {}
 	for i in skill_nodes.size():
@@ -100,12 +101,13 @@ func build_from_skill_nodes(
 		sn_to_idx[sn] = i
 		positions.append(sn.global_position)
 		radii.append(sn.radius)
+		inner_radii.append(sn.inner_radius)
 		if sn == pivot:
 			pivot_idx = i
 	var edges_idx: Array[Vector2i] = []
 	for pair in induced_edges:
 		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
-	state = BladeState.build(positions, pivot_idx, edges_idx, radii)
+	state = BladeState.build(positions, pivot_idx, edges_idx, radii, inner_radii)
 	# Per-vertex damage is the node's own blade_damage (wielder base merged with
 	# any node-local spike modifier) — one localized read per source node.
 	for i in skill_nodes.size():
@@ -222,6 +224,7 @@ func _spawn_visuals() -> void:
 	for i in state.positions.size():
 		var bn := BLADE_NODE.instantiate() as BladeNode
 		bn.radius = state.radii[i]
+		bn.inner_radius = state.inner_radii[i]
 		bn.is_pivot = (i == state.pivot_index)
 		bn.style = style
 		bn.tint = tint
