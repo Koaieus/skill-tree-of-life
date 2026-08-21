@@ -1051,10 +1051,10 @@ mesh = SubResource("QuadMesh_cxgca")
 script = ExtResource("1_dev")
 route_to_meta_on_run_end = false
 
-[node name="PlayerInputController" parent="Systems" parent_id_path=PackedInt32Array(896007769) index="4" unique_id=2090560635 node_paths=PackedStringArray("player")]
+[node name="PlayerInputController" parent="Systems" parent_id_path=PackedInt32Array(896007769) index="5" unique_id=2090560635 node_paths=PackedStringArray("player")]
 player = NodePath("../../Graph/Entities/Player")
 
-[node name="VisionSystem" parent="Systems" parent_id_path=PackedInt32Array(896007769) index="6" unique_id=872348382 node_paths=PackedStringArray("viewers")]
+[node name="VisionSystem" parent="Systems" parent_id_path=PackedInt32Array(896007769) index="7" unique_id=872348382 node_paths=PackedStringArray("viewers")]
 viewers = [NodePath("../../Graph/Entities/Player")]
 
 [node name="Player" parent="Graph/Entities" parent_id_path=PackedInt32Array(1851662701, 1129644954) index="0" unique_id=197551442 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
@@ -1098,6 +1098,8 @@ owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
 node_board = SubResource("Resource_dn4kc")
+
+[node name="ClampAddon" parent="Graph/Nodes/Right" index="3" unique_id=1193177963 instance=ExtResource("48_owpne")]
 
 [node name="Down" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="3" unique_id=1425471291 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001

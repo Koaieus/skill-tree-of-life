@@ -125,9 +125,44 @@ func _backfill_edge_render() -> void:
 		_on_edge_added_render(e)
 
 
+## Keep the runtime MultiMesh buffer OUT of the saved `.tscn`.
+##
+## `_backfill_edge_render` runs in the editor (that's the whole point of it —
+## authored edges are invisible in a @tool panel otherwise), so the editor now
+## populates `edge_mesh.multimesh` with real instance data. That data is a node
+## property like any other, so the next scene save serializes it: a scene with
+## 34 edges picked up an `instance_count`, a `visible_instance_count` and a
+## multi-KB `buffer = PackedFloat32Array(...)` baked straight into the file.
+## Pure derived state, committed as authored state — exactly what
+## `.claude/rules/godot-tres-authoring.md` warns about, and it goes stale the
+## moment a node moves.
+##
+## `NOTIFICATION_EDITOR_PRE_SAVE`/`_POST_SAVE` is the engine's designed hook for
+## this: empty the buffer just before the writer reads the tree, refill it right
+## after so the open editor keeps drawing. Runtime never sees either
+## notification, so this costs a playing game nothing.
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_EDITOR_PRE_SAVE:
+			if edge_mesh != null and edge_mesh.multimesh != null:
+				edge_mesh.multimesh.visible_instance_count = 0
+				edge_mesh.multimesh.instance_count = 0
+		NOTIFICATION_EDITOR_POST_SAVE:
+			# Capacity was just zeroed, so the slot bookkeeping has to be rebuilt
+			# from scratch rather than resumed — `_register_edge_slot` would
+			# early-return on every edge it still believes it has a slot for.
+			_edge_slot.clear()
+			_edge_slot_owner.clear()
+			_edge_mesh_capacity = 0
+			_backfill_edge_render()
+
+
 ## Fresh `MultiMesh` every `_ready()` (editor and runtime both) — the buffer
-## is pure runtime state, never serialized, so there's nothing to preserve
-## across a reload. One unit `QuadMesh`; per-instance transform stretches it
+## is pure runtime state, so there's nothing to preserve across a reload. It
+## must also never reach the saved scene; since the editor populates it now,
+## that's enforced by `_notification`'s pre-save hook above rather than by the
+## editor simply never filling it in. One unit `QuadMesh`; per-instance
+## transform stretches it
 ## along the segment, the shader (`graph/edge_mesh.gdshader`) expands it
 ## perpendicular to a screen-constant width at draw time.
 func _init_edge_mesh() -> void:

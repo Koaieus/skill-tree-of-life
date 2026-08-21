@@ -4,8 +4,10 @@
 
 [resource]
 script = ExtResource("1_style")
-fill_tier = 2.3
+rim_tier = 4.0
+fill_tier = 1.65
 fill_alpha = 1.0
-edge_tier = 1.85
-disabled_tier = 0.20000000000000018
+edge_tier = 0.1499999999999999
+edge_width = 4.5
+disabled_tier = 0.20000000000000015
 disabled_desaturation = 0.76
