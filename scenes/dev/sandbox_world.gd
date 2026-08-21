@@ -24,6 +24,9 @@ extends Node
 const _ALLOCATION_SYSTEM_SCRIPT: Script = preload("res://systems/allocation_system.gd")
 const _BATTLE_SYSTEM_SCRIPT: Script = preload("res://systems/battle_system.gd")
 const _LOOT_SYSTEM_SCRIPT: Script = preload("res://systems/loot_system.gd")
+const _COMMAND_APPLIER_SCRIPT: Script = preload("res://command/command_applier.gd")
+const _INPUT_CONTROLLER_SCRIPT: Script = preload("res://systems/player_input_controller.gd")
+const _MELEE_PREVIEW_SCRIPT: Script = preload("res://attack/melee/melee_preview.gd")
 const _ALLOC_VFX_SCRIPT: Script = preload("res://ui/vfx/allocation_vfx.gd")
 const _FLOATER_DIRECTOR_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_director.tscn")
 
@@ -38,15 +41,27 @@ var floating_number_layer: FloaterToasterManager
 # Opt-in (null unless requested via opts).
 var turn_manager: TurnManager
 var loot_system: LootSystem
+var command_applier: CommandApplier
+var input_controller: PlayerInputController
+var melee_preview: MeleePreview
 
 
 ## Compose against [param p_graph]. `opts` keys (all default false):
-##   turn_manager — add a TurnManager (also implied by `loot`)
+##   turn_manager — add a TurnManager (also implied by `loot` / `input`)
 ##   loot         — add a LootSystem (needs a TurnManager for killer attribution)
+##   commands     — add a CommandApplier (also implied by `input`)
+##   input        — add a PlayerInputController (implies `commands` + `turn_manager`;
+##                  the caller still has to hand it a `player`)
+##   melee        — mount a MeleePreview under the graph and hand it to the
+##                  BattleSystem, which is what makes a swing DRAW at all
 func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	graph = p_graph
-	var want_tm: bool = bool(opts.get("turn_manager", false)) or bool(opts.get("loot", false))
+	var want_input: bool = bool(opts.get("input", false))
+	var want_commands: bool = bool(opts.get("commands", false)) or want_input
+	var want_tm: bool = bool(opts.get("turn_manager", false)) \
+			or bool(opts.get("loot", false)) or want_input
 	var want_loot: bool = bool(opts.get("loot", false))
+	var want_melee: bool = bool(opts.get("melee", false))
 
 	allocation_system = _ALLOCATION_SYSTEM_SCRIPT.new()
 	allocation_system.name = "AllocationSystem"
@@ -68,6 +83,37 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	battle_system.graph = graph
 	battle_system.turn_manager = turn_manager
 	add_child(battle_system)
+
+	if want_melee:
+		# Under the graph so blade coordinates line up with node positions, and
+		# handed to the BattleSystem BEFORE entering the tree: MeleePreview is
+		# `@tool`, so its `_ready` subscribes the moment it is added.
+		melee_preview = _MELEE_PREVIEW_SCRIPT.new()
+		melee_preview.name = "MeleePreview"
+		melee_preview.battle_system = battle_system
+		graph.add_child(melee_preview)
+		battle_system.melee_preview = melee_preview
+
+	if want_commands:
+		command_applier = _COMMAND_APPLIER_SCRIPT.new()
+		command_applier.name = "CommandApplier"
+		command_applier.graph = graph
+		command_applier.allocation_system = allocation_system
+		command_applier.battle_system = battle_system
+		command_applier.turn_manager = turn_manager
+		# Registers itself on the BattleSystem in its own `_ready` — the
+		# applier that calls back and the one submitted to are one object.
+		add_child(command_applier)
+
+	if want_input:
+		input_controller = _INPUT_CONTROLLER_SCRIPT.new()
+		input_controller.name = "PlayerInputController"
+		input_controller.graph = graph
+		input_controller.allocation_system = allocation_system
+		input_controller.battle_system = battle_system
+		input_controller.turn_manager = turn_manager
+		input_controller.command_applier = command_applier
+		add_child(input_controller)
 
 	if want_loot:
 		loot_system = _LOOT_SYSTEM_SCRIPT.new()

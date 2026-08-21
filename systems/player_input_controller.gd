@@ -186,6 +186,19 @@ func _on_node_added(skill_node: SkillNode) -> void:
 		skill_node.left_clicked.connect(_on_skill_node_left_clicked)
 
 
+## Route a left-click that did NOT arrive through a [SkillNode]'s own Area2D
+## pick. Same channels, same order — this is an alternate *carrier*, never an
+## alternate routing.
+##
+## Exists for the melee sandbox tab, which hit-tests its [SubViewport] by hand:
+## physics picking through an editor-hosted SubViewport is unreliable (the spell
+## playground found the same and does the same). Same precedent as
+## [method request_temp_upgrade_at] being public for the tray blips — a surface
+## that has its own way of naming a node still goes through the real channel.
+func route_left_click(skill_node: SkillNode) -> void:
+	_on_skill_node_left_clicked(skill_node)
+
+
 func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 	if _input_frozen:
 		return

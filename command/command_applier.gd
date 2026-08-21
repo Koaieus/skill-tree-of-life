@@ -1,3 +1,4 @@
+@tool
 class_name CommandApplier
 extends Node
 
@@ -92,6 +93,8 @@ var _confirmed: Command = null
 ## than by a second NodePath export on [BattleSystem] so the applier it
 ## submits to and the applier that applies for it are the same object by
 ## construction — two exports could name two.
+## `@tool` so a sandbox panel can drive the real queue in-editor (the melee tab
+## does). Nothing auto-drives: a drain only ever starts from [method submit].
 func _ready() -> void:
 	if battle_system != null:
 		battle_system.command_applier = self

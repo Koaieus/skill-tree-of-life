@@ -20,14 +20,30 @@ signal endpoints_changed
 		endpoints_changed.emit()
 		queue_redraw()
 
-@export var width: float = 2.0
-## VALUE tier over the base hue — a thin stroke needs the full stop to read
-## as lit (`docs/domain/hdr-color.md`: coverage is half the effect).
-@export var color: Color = Emissive.at(Color(1.0, 0.184, 0.18), Emissive.VALUE)
+## Look profile (#256) — width and tier come from here, same resource the
+## endpoints draw from. Falls back to [constant BladeNode.DEFAULT_STYLE].
+@export var style: BladeStyle = null:
+	set(value):
+		style = value
+		queue_redraw()
+
+## The wielder's identity colour, blended per [member BladeStyle.entity_tint].
+@export var tint: Color = Color.TRANSPARENT:
+	set(value):
+		tint = value
+		queue_redraw()
 
 
 func _process(_delta: float) -> void:
 	queue_redraw()
+
+
+## An edge is de-lit the moment either vertex it hangs off is — a severed piece
+## should not stay strung to the blade by a glowing wire. Read off the endpoints
+## rather than tracked here, so there is no second copy of "who is dead" to go
+## stale (the model's copy is [BladePopResolver.Result.dead_at]).
+func is_disabled() -> bool:
+	return (from != null and from.disabled) or (to != null and to.disabled)
 
 
 func _draw() -> void:
@@ -37,4 +53,5 @@ func _draw() -> void:
 	var b := to_local(to.edge_point(from.global_position))
 	if (b - a).length_squared() < 0.01:
 		return
-	draw_line(a, b, color, width, true)
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	draw_line(a, b, s.edge_color(tint, is_disabled()), s.edge_width, true)

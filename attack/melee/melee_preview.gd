@@ -1,3 +1,4 @@
+@tool
 class_name MeleePreview
 extends Node2D
 
@@ -91,6 +92,10 @@ func launch(plan: MeleeAttackPlan) -> void:
 	var gen := _gen
 	var traj := plan.last_trajectory
 	var events := plan.last_events
+	# The swing's own pop outcome, so a vertex that dies mid-swing goes de-lit
+	# at the `t` it died (#256's interim pop). Read off the plan, never
+	# re-derived here — same no-rescan rule the events follow.
+	blade.pop_result = plan.last_pops
 	# Claim the ghost for the whole swing — set AFTER `_spawn_blade`, which
 	# tears the preview loop's blade down, and cleared on every exit below so a
 	# early return can't leave previews permanently frozen.

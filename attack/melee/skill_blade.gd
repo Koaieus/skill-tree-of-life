@@ -1,3 +1,4 @@
+@tool
 class_name SkillBlade
 extends Node2D
 
@@ -5,6 +6,12 @@ extends Node2D
 ## and BladeEdge visuals; replays a trajectory by writing positions onto
 ## them frame-by-frame. Pure visuals — hit detection is the deterministic
 ## BladeHitScan over the trajectory, not Godot collision overlap.
+##
+## `@tool` because the melee sandbox tab (`addons/melee_sandbox/`) builds and
+## swings real blades inside the editor. Nothing here auto-drives: a swing only
+## happens when someone calls [method play], which keeps it on the live side of
+## the "auto-tick = played; explicit-step = live" line
+## (docs/domain/sandbox-framework.md).
 
 ## Emitted during non-ghost playback at the scheduled time of each hit event.
 ## hitter_idx is the particle or edge index; is_edge distinguishes the two.
@@ -16,6 +23,22 @@ const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
 const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
 
 @export var owned_by: Entity
+
+## Look profile pushed onto every [BladeNode] / [BladeEdge] this blade spawns
+## (#256). One resource per blade, so a sandbox can retune the whole swing live.
+@export var style: BladeStyle = BladeNode.DEFAULT_STYLE:
+	set(value):
+		style = value
+		_apply_style()
+
+## The swing's pop outcome, set by the caller BEFORE [method play] when one is
+## known ([member MeleeAttackPlan.last_pops]). Vertices it reports dead go
+## [member BladeNode.disabled] at exactly the `t` they died — the interim "pop"
+## look (#256). Null (the preview loop) means nothing ever de-lights.
+##
+## Read, never derived: the blade must not decide who died. That answer belongs
+## to [BladePopResolver], which the same swing's `resolve()` already ran.
+var pop_result: BladePopResolver.Result = null
 
 ## Mirror of [member MeleeAttackPlan.swing_cw]. Set by [MeleePreview] before
 ## [method simulate] so the live blade swings in the same direction the plan's
@@ -65,6 +88,8 @@ func build_from_skill_nodes(
 		induced_edges: Array,
 		owner_entity: Entity) -> void:
 	owned_by = owner_entity
+	# A rebuild is a fresh blade: last swing's deaths must not de-light it.
+	pop_result = null
 	_clear_visuals()
 	var positions: Array[Vector2] = []
 	var radii: Array[float] = []
@@ -141,6 +166,8 @@ func _apply_playback_frame(
 	for i in _node_visuals.size():
 		if i < positions.size():
 			_node_visuals[i].global_position = positions[i]
+		if pop_result != null:
+			_node_visuals[i].disabled = pop_result.is_dead(i, t)
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
@@ -191,16 +218,46 @@ func _clear_visuals() -> void:
 
 
 func _spawn_visuals() -> void:
+	var tint := entity_tint()
 	for i in state.positions.size():
 		var bn := BLADE_NODE.instantiate() as BladeNode
 		bn.radius = state.radii[i]
 		bn.is_pivot = (i == state.pivot_index)
+		bn.style = style
+		bn.tint = tint
 		_nodes_container.add_child(bn)
 		bn.global_position = state.positions[i]
 		_node_visuals.append(bn)
 	for e in state.edges:
 		var be := BLADE_EDGE.instantiate() as BladeEdge
+		be.style = style
+		be.tint = tint
 		_edges_container.add_child(be)
 		be.from = _node_visuals[e.x]
 		be.to = _node_visuals[e.y]
 		_edge_visuals.append(be)
+
+
+## The wielder's identity colour, or transparent when the blade has no owner
+## (headless fixtures) — [BladeStyle] reads that as "authored base only".
+func entity_tint() -> Color:
+	return owned_by.color if owned_by != null else Color.TRANSPARENT
+
+
+## Re-push the style (and the tint that rides with it) onto live visuals, so a
+## sandbox swapping the resource mid-swing repaints without a rebuild.
+func _apply_style() -> void:
+	var tint := entity_tint()
+	for bn in _node_visuals:
+		bn.style = style
+		bn.tint = tint
+	for be in _edge_visuals:
+		be.style = style
+		be.tint = tint
+
+
+## The spawned vertex visuals, pivot included, in [BladeState] particle order —
+## so the sandbox can force a vertex de-lit for look tuning without inventing a
+## fake [BladePopResolver.Result].
+func get_node_visuals() -> Array[BladeNode]:
+	return _node_visuals

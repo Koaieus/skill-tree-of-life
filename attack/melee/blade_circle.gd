@@ -1,26 +1,36 @@
 @tool
 extends Node2D
 
-const BORDER_WIDTH: float = 2.0
-const FILL_ALPHA: float = 0.7
+## The disc + rim of one [BladeNode]. Holds no colour policy of its own — every
+## hue, tier and width comes from the [BladeStyle] it is configured with, so the
+## blade's look is tunable from one resource (#256).
 
 var _radius: float = 32.0
 var _is_pivot: bool = false
+var _style: BladeStyle = null
+var _tint: Color = Color.TRANSPARENT
+var _disabled: bool = false
 
 
-func configure(r: float, pivot: bool) -> void:
+func configure(
+		r: float,
+		pivot: bool,
+		style: BladeStyle,
+		tint: Color = Color.TRANSPARENT,
+		disabled: bool = false) -> void:
 	_radius = r
 	_is_pivot = pivot
+	_style = style
+	_tint = tint
+	_disabled = disabled
 	queue_redraw()
 
 
 func _draw() -> void:
-	var base := Color.FIREBRICK if not _is_pivot else Color.CHOCOLATE
-	# Thin rim at VALUE (low coverage needs the full stop to read); the fill
-	# is a large disk, so it stays a dimmer LABEL step to avoid blowing out
-	# at scale (`.claude/rules/skill-node-scale.md`).
-	var border := Emissive.at(base, Emissive.VALUE)
-	var fill := Emissive.at(base, Emissive.LABEL)
-	fill.a = FILL_ALPHA
-	draw_circle(Vector2.ZERO, _radius, fill, true)
-	draw_circle(Vector2.ZERO, _radius, border, false, BORDER_WIDTH, true)
+	if _style == null:
+		return
+	draw_circle(Vector2.ZERO, _radius, _style.fill_color(_is_pivot, _tint, _disabled), true)
+	draw_circle(
+			Vector2.ZERO, _radius,
+			_style.rim_color(_is_pivot, _tint, _disabled),
+			false, _style.rim_width, true)
