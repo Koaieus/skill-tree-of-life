@@ -78,9 +78,9 @@ func test_a_launched_swing_damages_the_quarry() -> void:
 	# Instant mutation: this test reads the world on the next line, not on the
 	# presentation clock (that is what the flag exists for).
 	battle.instant_mutation = true
-	# The panel refills the quarry as it is hit ("spam the same swing at the same
+	# The panel tops the quarry up as it is hit ("spam the same swing at the same
 	# board"), which would hide the very damage this test is looking for.
-	_panel._immortal_toggle.button_pressed = false
+	_panel._topup_toggle.button_pressed = false
 	_panel._blade_size.value = 8
 	for n in ["Hilt", "Guard", "B1", "B2", "B3", "B4"]:
 		_panel._input_ctl.route_left_click(_node(n))
@@ -111,3 +111,34 @@ func test_a_dormant_tab_stops_simulating() -> void:
 	assert_false(_panel._preview.preview_enabled, "the idle ghost loop must stop")
 	_panel.set_live(true)
 	assert_true(_panel._preview.preview_enabled, "and come back on focus")
+
+
+func test_a_style_knob_reaches_the_blade_that_gets_built_next() -> void:
+	# The knob edits a resource; the blade is rebuilt from scratch every preview
+	# cycle. If the two are not connected through MeleePreview, dragging a slider
+	# tunes an orphan and the tab's whole reason to exist is gone.
+	var knob: BladeStyle = _panel._style
+	var before := knob.rim_tier
+	_panel._input_ctl.route_left_click(_node("Hilt"))
+	_panel._input_ctl.route_left_click(_node("Guard"))
+	knob.rim_tier = 2.5
+	# Force a fresh ghost the way a selection change does.
+	_panel._input_ctl.route_left_click(_node("B1"))
+	var blade: SkillBlade = _panel._preview.current_blade()
+	assert_not_null(blade, "a valid selection must have a ghost mounted")
+	assert_eq(blade.style, knob, "the blade must read the very resource the knobs edit")
+	assert_eq(blade.get_node_visuals()[0].style, knob, "and so must each vertex")
+	knob.rim_tier = before
+
+
+func test_forced_de_lit_survives_a_preview_rebuild() -> void:
+	_panel._input_ctl.route_left_click(_node("Hilt"))
+	_panel._input_ctl.route_left_click(_node("Guard"))
+	_panel._delit_spin.value = 1
+	assert_true(_panel._preview.current_blade().get_node_visuals()[-1].disabled,
+			"the tip goes de-lit immediately")
+	# The preview loop rebuilds every vertex visual each cycle; re-selecting is
+	# the same rebuild, and the decoration must come back with it.
+	_panel._input_ctl.route_left_click(_node("B1"))
+	assert_true(_panel._preview.current_blade().get_node_visuals()[-1].disabled,
+			"a rebuilt ghost must not silently drop the forced de-lit")

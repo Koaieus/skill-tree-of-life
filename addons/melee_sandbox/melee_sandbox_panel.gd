@@ -67,7 +67,7 @@ const _KNOBS: Array[Array] = [
 @onready var _blade_size: SpinBox = %BladeSizeSpin
 @onready var _delit_spin: SpinBox = %DelitSpin
 @onready var _preview_toggle: CheckBox = %PreviewToggle
-@onready var _immortal_toggle: CheckBox = %ImmortalToggle
+@onready var _topup_toggle: CheckBox = %TopUpToggle
 @onready var _rearm_toggle: CheckBox = %RearmToggle
 @onready var _reset_button: Button = %ResetBtn
 @onready var _status: Label = %StatusLabel
@@ -81,9 +81,11 @@ var _input_ctl: PlayerInputController
 var _preview: MeleePreview
 var _tray: CommandTrayBodyBase
 
-## The style every blade in this world draws from. Starts as a working COPY of
-## `default_blade_style.tres` so knob-twiddling here can't silently rewrite the
-## shipped resource; inspecting a BladeStyle routes that one in instead.
+## The style every blade in this world draws from. **The shipped
+## `default_blade_style.tres` itself, not a copy** — the same call the bloom
+## panel made about `default_game_env.tres`: what you tune here is what ships,
+## and nothing reaches disk until Godot saves the resource. A working copy would
+## be safer and useless, because every blade reads the shipped one.
 var _style: BladeStyle
 
 ## Authored ownership, captured once before anything is re-allocated — `owned_by`
@@ -96,7 +98,7 @@ var _last_selection: Array[SkillNode] = []
 
 
 func _ready() -> void:
-	_style = _DEFAULT_STYLE.duplicate(true) as BladeStyle
+	_style = _DEFAULT_STYLE
 	_build_systems()
 	_capture_authored_state()
 	_build_knobs()
@@ -132,6 +134,10 @@ func _build_systems() -> void:
 	_battle = world.battle_system
 	_input_ctl = world.input_controller
 	_preview = world.melee_preview
+	_preview.blade_style = _style
+	# Every ghost is rebuilt from scratch each preview cycle, so panel-applied
+	# decoration has to be re-applied per spawn, not once.
+	_preview.blade_spawned.connect(_on_blade_spawned)
 	_battle.attack_plan_changed.connect(_on_plan_changed)
 
 
@@ -297,20 +303,28 @@ func _on_preview_toggled(on: bool) -> void:
 ## without waiting to be popped. A real swing overwrites this from
 ## [member SkillBlade.pop_result] — the model always wins.
 func _on_delit_changed(_value: float) -> void:
-	var blade := _preview.current_blade()
+	_apply_forced_delit(_preview.current_blade())
+
+
+func _on_blade_spawned(blade: SkillBlade) -> void:
+	_apply_forced_delit(blade)
+
+
+func _apply_forced_delit(blade: SkillBlade) -> void:
 	if blade == null:
 		return
 	var visuals := blade.get_node_visuals()
 	var forced := int(_delit_spin.value)
 	for i in visuals.size():
-		visuals[i].disabled = i >= visuals.size() - forced and forced > 0
+		visuals[i].disabled = forced > 0 and i >= visuals.size() - forced
 
 
-## Keeps the quarry standing through a spam session: refill anything that took a
-## hit, so the same swing can be fired again against the same board. Off = the
-## real cascade runs and the world degrades, which is the honest behaviour.
+## Tops the quarry up through a spam session: refill anything that took a hit, so
+## the same swing can be fired again at the same board. **Not immortality** — the
+## refill is deferred, so a lethal hit still depletes and cascades before it
+## lands; this keeps survivors standing. Reset is what rebuilds a chewed-up board.
 func _on_node_damaged(node: SkillNode, _amount: float, _source: Variant) -> void:
-	if not is_instance_valid(_immortal_toggle) or not _immortal_toggle.button_pressed:
+	if not is_instance_valid(_topup_toggle) or not _topup_toggle.button_pressed:
 		return
 	if node.owned_by == _quarry:
 		node.refill.call_deferred(true)
@@ -357,6 +371,9 @@ func set_style(style: BladeStyle) -> void:
 	if style == null:
 		return
 	_style = style
+	# Through the preview, which owns blade lifetime — assigning onto the current
+	# ghost alone would last exactly one preview cycle.
+	_preview.blade_style = _style
 	var blade := _preview.current_blade()
 	if blade != null:
 		blade.style = _style

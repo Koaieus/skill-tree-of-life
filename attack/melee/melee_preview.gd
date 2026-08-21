@@ -11,6 +11,12 @@ const _FADE: float = 0.4
 
 @export var battle_system: BattleSystem
 
+## Look profile stamped onto every blade this preview spawns (#256). Null keeps
+## [SkillBlade]'s own default. Set here rather than on each blade because the
+## preview OWNS blade lifetime — it rebuilds the ghost every cycle, so anything
+## written onto a blade from outside is erased on the next rebuild.
+@export var blade_style: BladeStyle = null
+
 ## Master switch for the IDLE loop only — a committed [method launch] ignores it.
 ##
 ## The preview loop is the one part of melee that auto-drives (simulate → play →
@@ -24,6 +30,11 @@ const _FADE: float = 0.4
 		preview_enabled = value
 		if is_node_ready():
 			_refresh()
+
+## A fresh ghost was just built. For surfaces that decorate the live blade (the
+## melee sandbox forces vertices de-lit for look tuning) — the preview rebuilds
+## on every cycle, so "decorate it once" is never enough.
+signal blade_spawned(blade: SkillBlade)
 
 var _ghost: SkillBlade
 # Generation token so in-flight playback coroutines self-cancel when the
@@ -142,9 +153,14 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 	var selection: Array[SkillNode] = [plan.source]
 	selection.append_array(plan.blade_nodes)
 	blade.swing_cw = plan.swing_cw
+	if blade_style != null:
+		# Before build: `_spawn_visuals` reads the style as it creates the
+		# vertices, so a later assignment would repaint rather than author.
+		blade.style = blade_style
 	blade.build_from_skill_nodes(
 			selection, plan.source, plan.get_induced_edges(), plan.attacker)
 	_ghost = blade
+	blade_spawned.emit(blade)
 
 
 func _run_preview_loop(gen: int) -> void:
@@ -169,6 +185,9 @@ func _run_preview_loop(gen: int) -> void:
 		blade.build_from_skill_nodes(
 				selection, plan.source, plan.get_induced_edges(), plan.attacker)
 		blade.modulate.a = 0.35
+		# The rebuild freed and recreated every vertex visual, so decoration
+		# applied by a listener is gone — same event, same signal.
+		blade_spawned.emit(blade)
 
 
 func _teardown() -> void:

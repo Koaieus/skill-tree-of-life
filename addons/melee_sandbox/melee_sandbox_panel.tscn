@@ -85,12 +85,12 @@ button_pressed = true
 text = "Preview loop"
 tooltip_text = "The only auto-driving part of melee. Also forced off whenever this tab is not visible."
 
-[node name="ImmortalToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+[node name="TopUpToggle" type="CheckBox" parent="VBox/Bar/Controls"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
-text = "Immortal quarry"
-tooltip_text = "Refill enemy nodes as they are damaged, so the same swing can be spammed against the same board."
+text = "Top up quarry"
+tooltip_text = "Refill damaged enemy nodes so the same swing can be spammed at the same board. Refill is deferred, so a LETHAL hit still depletes and cascades — this tops up survivors, it does not prevent death. Reset rebuilds the board."
 
 [node name="RearmToggle" type="CheckBox" parent="VBox/Bar/Controls"]
 unique_name_in_owner = true
