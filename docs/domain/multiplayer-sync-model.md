@@ -205,6 +205,22 @@ holds. The authority does not own fog. #459's camp-wide `VisionSystem.viewers`
 becomes "my camp" on each client. Fog gains authority meaning only under the
 deferred filtered-delta model, where the host uses it to decide what to send.
 
+**The applier is `command/command_applier.gd` (#510).** One serial, **async**
+queue: `submit(cmd)` enqueues, and drains only if no drain is running. Two
+guards exist and are nested, answering different questions —
+`BattleSystem.is_launching` ("an attack is in flight", owning the plan's
+lifetime across mutation *and* VFX) and `CommandApplier.is_applying` ("a command
+is being applied", covering every verb). `PlayerInputController.can_player_act()`
+reads **both**. Outcomes come back as `command_applied(cmd, success)`, emitted
+*inside* the guard so a fallback handler that submits — the deallocate →
+cascade-offer path — queues rather than re-entering; `applying_changed` fires
+*after* the flag clears, matching `is_launching`'s deliberate ordering.
+
+Routed so far: every `PlayerInputController` mutation (#510). Still direct, by
+plan: `battle_system.launch_attack` (child C) and `ai_controller` (child D).
+`PickLootCommand` exists but is not routed — correlating `request_id` back to a
+live `LootPickRequest` needs a registry nobody has built yet.
+
 **Identifiers.** `SkillNode.stable_id` and `Entity.entity_id` are the only
 legal references on the wire. Both are minted by `Graph` — `entity_id` eagerly
 on entry to `entities_container`, resolved with `Graph.get_by_entity_id` (#509).
@@ -240,7 +256,10 @@ seam. Lobby: type-an-IP.
   inside the window. VFX observes; it never mutates and never gates a
   mutation on its own progress. See docs/domain/presentation-clock.md.
 - **Never put a `SkillNode` or `Entity` reference in a command.** `stable_id`
-  and the entity id only.
+  and the entity id only. And read a node's id with `Graph.get_stable_id(node)`,
+  never `node.stable_id` — node ids mint **lazily** (unlike `entity_id`), so a
+  container-added or hand-authored node reads `0` until something forces a
+  topology rebuild, and a command carrying `0` resolves to nothing, silently.
 - **A command raised during another command's application queues, never
   re-enters.** This is the bug class that eats a week; the guard ships on day
   one, not as a hardening pass.

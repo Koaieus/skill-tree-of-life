@@ -97,6 +97,20 @@ directly; it gets away with it only because it reads `entity.navigator` (populat
 explicitly by `AllocationSystem.force_allocate` → `mirror_add`) and never touches
 `graph.navigator`. Don't copy that shortcut into a fixture that does.
 
+## `stable_id` mints LAZILY; `entity_id` mints eagerly — never read the field
+
+`Entity.entity_id` is minted on entry to `entities_container`, so it is always
+real. `SkillNode.stable_id` is minted inside `_ensure_topology()`, which only
+runs on demand — so a node added straight to `skill_nodes_container`, or
+authored in a scene, reads **0** until something asks a topology question.
+
+**Why it matters:** a `Command` carrying node id 0 resolves to `null` at apply
+time and the verb silently does nothing. No error, no warning.
+
+**How to apply:** build commands with `graph.get_stable_id(node)` (it forces the
+rebuild first), never `node.stable_id`. Same for fixtures — a test that adds
+nodes via the container and then reads `.stable_id` gets zeros for all of them.
+
 ## Accessors return a private copy; callers may mutate it
 
 `playground_panel.gd` does `var candidates := graph.get_skill_nodes()` then

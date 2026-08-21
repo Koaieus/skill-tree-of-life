@@ -307,6 +307,24 @@ func allocation_path(entity: Entity, target: SkillNode) -> Array[SkillNode]:
 	return reversed
 
 
+## How many hops of [param path] this entity can pay for right now — the
+## [param affordable_count] [method mass_allocate] wants, computed in ONE place.
+##
+## Both callers need it and neither may own it: [PlayerInputController] shows it
+## on the confirm panel before anything is submitted, and [CommandApplier]
+## RE-computes it at apply time because [MassAllocateCommand] deliberately does
+## not carry it (a stale sender must not dictate how much the authority spends,
+## #458). Two hand-copies of `mini(path.size() - 1, sp)` would be exactly the
+## parallel-mirror this repo keeps getting bitten by.
+func affordable_allocation_count(entity: Entity, path: Array[SkillNode]) -> int:
+	if entity == null or path.size() < 2:
+		return 0
+	var board := entity.stat_board
+	if board == null or board.skill_points == null:
+		return 0
+	return mini(path.size() - 1, board.skill_points.available())
+
+
 ## Executes [code]path[1 .. affordable_count][/code] via ordinary [method allocate]
 ## calls in sequence — each hop becomes adjacent to the entity's territory only
 ## once its predecessor has landed. Returns the count actually allocated (should

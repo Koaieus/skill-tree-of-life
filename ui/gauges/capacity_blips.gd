@@ -110,11 +110,18 @@ func _rebuild() -> void:
 	# hashtable" bug needed, not an immediate free.
 	#
 	# queue_free() (not free()) for the object itself: a pip click now can
-	# reenter _rebuild() synchronously (pip_clicked -> apply_armed_temp_upgrade_to
+	# reenter _rebuild() synchronously (pip_clicked -> request_temp_upgrade_at
 	# -> state_changed -> attack_plan_state_changed -> MeleeBody._refresh()),
 	# while that same pip's own gui_input signal is still on the call stack.
 	# An immediate free() on an object mid-signal-emission is a locked-object
 	# error; queue_free() defers the actual deletion past that emission.
+	#
+	# #510 narrowed this but did not remove it. The toggle is a Command now, so
+	# the MUTATION half can no longer re-enter — `attack_plan_state_changed`
+	# fires while CommandApplier holds its guard, and a second toggle raised
+	# from this rebuild is refused by `can_player_act()` or queued behind the
+	# first (test/unit/systems/test_command_routing.gd pins both). The REBUILD
+	# still happens mid-emission, so the queue_free() above is still load-bearing.
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()

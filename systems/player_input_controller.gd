@@ -28,10 +28,6 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## stays self-contained; promote to an action if rebinding is ever wanted.
 const _DEALLOC_KEY := KEY_D
 
-## Beat between hops when committing a multi-hop core move, so the slides read as
-## a cascade. Slightly under SkillNode's slide duration (~0.25s).
-const CORE_HOP_SLIDE_DELAY := 0.18
-
 ## Core-move drag (#21). Cursor must leave the core by this many world px before
 ## a press-hold counts as a drag (so a plain click still routes to click-to-move).
 const CORE_DRAG_THRESHOLD := 10.0
@@ -43,6 +39,11 @@ const CORE_DRAG_SNAP_RADIUS := 90.0
 @export var battle_system: BattleSystem
 @export var player: Entity: set = _set_player
 @export var turn_manager: TurnManager
+## Every world mutation this controller asks for goes through here as a
+## [Command] (#510) — never a direct `allocation_system.allocate(...)` call.
+## Local plan-building (hover, pin, the armed-mode stack, the core-drag ghost,
+## attack-mode selection) deliberately does NOT: it never crosses a wire.
+@export var command_applier: CommandApplier
 
 signal player_can_act_changed(can_act: bool)
 ## Core-move targeting state (#21). `source` is the player's core node while a
@@ -169,6 +170,14 @@ func _ready() -> void:
 		# (gated purely off player_can_act_changed, command_tray.gd) doesn't
 		# stay disabled forever after the first swing of a turn.
 		battle_system.attack_plan_changed.connect(_emit_gate_changed.unbind(1))
+	if command_applier != null:
+		# Outcomes arrive here instead of as a `bool` return (#510). The four
+		# sites that used to branch on success inline — deallocate's cascade
+		# offer, stake/extract denial feedback — are now handlers.
+		command_applier.command_applied.connect(_on_command_applied)
+		# can_player_act() reads is_applying, whose transitions are otherwise
+		# unobservable — same reason attack_plan_changed feeds this gate.
+		command_applier.applying_changed.connect(_emit_gate_changed.unbind(1))
 	core_move_targeting_changed.connect(_refresh_armed_state.unbind(1))
 
 
@@ -197,12 +206,15 @@ func _on_skill_node_left_clicked(skill_node: SkillNode) -> void:
 	if not _is_players_turn():
 		return
 	if skill_node.owned_by == player and skill_node.allocation_level < skill_node.stake_level:
-		allocation_system.allocate(skill_node, player)
+		_submit(AllocateCommand.new(player.entity_id, graph.get_stable_id(skill_node)))
 		return
 	if skill_node.owned_by != null:
 		return
+	# can_allocate is still read here — not as a gate (allocate() re-gates at
+	# apply time) but as ROUTING: it decides whether this click is a plain
+	# allocate or falls through to the multi-hop confirm flow below.
 	if allocation_system.can_allocate(skill_node, player):
-		allocation_system.allocate(skill_node, player)
+		_submit(AllocateCommand.new(player.entity_id, graph.get_stable_id(skill_node)))
 		return
 	_try_begin_mass_allocate(skill_node)
 
@@ -222,9 +234,10 @@ func _try_begin_mass_allocate(target: SkillNode) -> void:
 	if path.size() < 2:
 		Events.node_action_denied.emit(target, "allocate_denied_unreachable")
 		return
-	var affordable: int = mini(path.size() - 1, available_sp)
 	var request := MassActionRequest.new(player, MassActionRequest.Verb.ALLOCATE, path)
-	request.affordable_count = affordable
+	# Display only. The applier recomputes this at apply time from the same
+	# helper — the count never travels on the command (#458).
+	request.affordable_count = allocation_system.affordable_allocation_count(player, path)
 	request.target = target
 	begin_mass_action(request)
 
@@ -264,35 +277,70 @@ func _route_manage_click(skill_node: SkillNode) -> bool:
 ## _unhandled_input), this always fires denial feedback on failure — an
 ## explicit click on an illegal node while armed is a deliberate attempt, not
 ## an idle hover.
-func _resolve_deallocate(node: SkillNode) -> bool:
-	if allocation_system.deallocate(node, player):
-		return true
-	# would_disconnect_from rejected a plain deallocate — if that's the only
-	# reason (the node is genuinely player's, non-core), offer the full
-	# cascade via the confirm panel instead of a flat reject, regardless of
-	# whether the player can currently afford it (Confirm just stays disabled
-	# in that case — see docs/domain mass-action confirm panel).
-	var cascade := allocation_system.deallocation_cascade(node, player)
-	if cascade.size() > 1:
-		var request := MassActionRequest.new(player, MassActionRequest.Verb.DEALLOCATE, cascade)
-		begin_mass_action(request)
-		return true
-	Events.node_action_denied.emit(node, "deallocate_denied")
-	return false
+##
+## No return since #510: the verb is a [DeallocateCommand] now, and its failure
+## branch (the cascade offer) lives in [method _on_command_applied]. Nothing
+## ever read the old `bool` — both callers consumed the click unconditionally.
+func _resolve_deallocate(node: SkillNode) -> void:
+	_submit(DeallocateCommand.new(player.entity_id, graph.get_stable_id(node)))
 
 
-func _resolve_stake(node: SkillNode) -> bool:
-	if allocation_system.stake(node, player):
-		return true
-	Events.node_action_denied.emit(node, _stake_denial_reason(node))
-	return false
+func _resolve_stake(node: SkillNode) -> void:
+	_submit(StakeCommand.new(player.entity_id, graph.get_stable_id(node)))
 
 
-func _resolve_extract(node: SkillNode) -> bool:
-	if allocation_system.extract(node, player):
-		return true
-	Events.node_action_denied.emit(node, _extract_denial_reason(node))
-	return false
+func _resolve_extract(node: SkillNode) -> void:
+	_submit(ExtractCommand.new(player.entity_id, graph.get_stable_id(node)))
+
+
+## Where the four `if`-gated mutation sites went (#510). A command that failed
+## its gate is a normal outcome, so this is the only place player-facing
+## feedback for a refusal is decided.
+##
+## Runs INSIDE the applier's [member CommandApplier.is_applying] guard, which is
+## the point: the deallocate branch below submits a follow-up mass action, and
+## that submission must queue rather than re-enter.
+##
+## Only reacts to this player's own commands — under
+## `docs/domain/multiplayer-sync-model.md` every peer's confirmed commands drain
+## through the same applier, and another player's refusal is not this player's
+## denial shake.
+func _on_command_applied(command: Command, success: bool) -> void:
+	if success or player == null or command.entity_id != player.entity_id:
+		return
+	var node := graph.get_by_stable_id(command.node_id) \
+			if command is NodeCommand and graph != null else null
+	if node == null:
+		return
+	if command is DeallocateCommand:
+		# would_disconnect_from rejected a plain deallocate — if that's the only
+		# reason (the node is genuinely player's, non-core), offer the full
+		# cascade via the confirm panel instead of a flat reject, regardless of
+		# whether the player can currently afford it (Confirm just stays disabled
+		# in that case — see docs/domain mass-action confirm panel).
+		var cascade := allocation_system.deallocation_cascade(node, player)
+		if cascade.size() > 1:
+			begin_mass_action(
+					MassActionRequest.new(player, MassActionRequest.Verb.DEALLOCATE, cascade))
+			return
+		Events.node_action_denied.emit(node, "deallocate_denied")
+	elif command is StakeCommand:
+		Events.node_action_denied.emit(node, _stake_denial_reason(node))
+	elif command is ExtractCommand:
+		Events.node_action_denied.emit(node, _extract_denial_reason(node))
+	# ToggleTempUpgradeCommand deliberately absent: BattleSystem announces that
+	# refusal itself, where the reason (slot full vs. budget) is knowable.
+
+
+## The one door out of this controller into the world. Drops the command with a
+## warning rather than silently swallowing it when no applier is wired — a
+## fixture that mutates without one is a fixture bug, not a no-op.
+func _submit(command: Command) -> void:
+	if command_applier == null:
+		push_warning("PlayerInputController: no CommandApplier wired; dropping '%s'" \
+				% command.type_tag())
+		return
+	command_applier.submit(command)
 
 
 ## Re-derives why `can_stake` rejected [param node] as a reason string.
@@ -338,34 +386,37 @@ func _core_within_one_hop(node: SkillNode) -> bool:
 	return player.navigator.nodes_within(player.core_location, 1).has(node)
 
 
-## Resolves an armed temp-upgrade placement (#406) — click-to-toggle, same
+## Requests an armed temp-upgrade placement (#406) — click-to-toggle, same
 ## shape as blade-member selection: clicking a node that already carries
 ## this exact temp upgrade refunds it, clicking any other eligible node
-## applies a new one. Stays armed either way — apply's own gating already
+## applies a new one. Stays armed either way — the toggle's own gating already
 ## makes a failed attempt fail gracefully with denial feedback, so there's
 ## no correctness reason to force a re-click of the tray button per action.
 ## Public so the melee command tray's blade blips (#406 follow-up) can drive
 ## the exact same gating/denial path when a red blip is clicked, instead of
 ## routing a synthetic graph click.
-func apply_armed_temp_upgrade_to(skill_node: SkillNode) -> bool:
+##
+## Replaces `apply_armed_temp_upgrade_to` (#510), which both decided and
+## performed. The toggle itself now lives on
+## [method BattleSystem.toggle_temp_upgrade_on], reached through a
+## [ToggleTempUpgradeCommand]; what stays here is the ARM — local plan state
+## that never crosses a wire — and the routing answer. The returned bool is
+## "this click was consumed", never "the upgrade landed": the outcome is
+## async now, and every caller only ever used it for routing.
+func request_temp_upgrade_at(skill_node: SkillNode) -> bool:
 	if _temp_upgrade_arm == null or not can_player_act():
 		return false
-	var plan := _active_attack_plan() as MeleeAttackPlan
-	if plan == null:
+	if _active_attack_plan() as MeleeAttackPlan == null:
 		return false
-	if plan.toggle_temp_upgrade(skill_node, _temp_upgrade_arm):
-		return true
-	var reason := "temp_upgrade_denied_slot_full" \
-			if not skill_node.can_attach_addon(_temp_upgrade_arm.script) \
-			else "temp_upgrade_denied_budget"
-	Events.node_action_denied.emit(skill_node, reason)
+	_submit(ToggleTempUpgradeCommand.new(
+			player.entity_id, graph.get_stable_id(skill_node), _temp_upgrade_arm.get("id", &"")))
 	return true
 
 
 ## Must run BEFORE _route_battle_click, which would otherwise claim the click
 ## for blade-membership toggling.
 func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
-	return apply_armed_temp_upgrade_to(skill_node)
+	return request_temp_upgrade_at(skill_node)
 
 
 func _set_pinned(node: SkillNode) -> void:
@@ -629,21 +680,24 @@ func move_targeting_source() -> SkillNode:
 	return _move_targeting_source
 
 
-## Commit a core move to [param target] by hopping along the shortest owned-edge
-## path one node at a time — each hop spends 1 MP and plays its slide. Adjacent
-## target → a single `move_core`; reachable-but-distant target → walks the BFS
-## path (`AllocationSystem.core_path`). Non-reachable / over-budget targets give
-## an empty path and no-op. Awaits a beat between hops so the multi-hop slide
-## reads as a cascade rather than one snap.
+## Commit a core move to [param target] along the shortest owned-edge path.
+## Adjacent target → a one-hop walk; reachable-but-distant target → the whole
+## BFS path (`AllocationSystem.core_path`). Non-reachable / over-budget targets
+## give an empty path and no-op.
+##
+## ONE [MoveCoreCommand] carrying the full path (#510), not one per hop — the
+## per-hop loop, the beat between hops and the stop-on-first-failure rule all
+## moved into [method CommandApplier._apply_move_core] unchanged. Splitting it
+## into N commands would put N wire messages where the player took one action.
 func _commit_core_move(target: SkillNode) -> void:
 	var path := allocation_system.core_path(player, target)
 	if path.size() < 2:
 		return
+	# path[0] is the core's current node — the hops are path[1..].
+	var hop_ids: Array[int] = []
 	for i in range(1, path.size()):
-		if not allocation_system.move_core(player, path[i]):
-			break
-		if i < path.size() - 1:
-			await get_tree().create_timer(CORE_HOP_SLIDE_DELAY).timeout
+		hop_ids.append(graph.get_stable_id(path[i]))
+	_submit(MoveCoreCommand.new(player.entity_id, hop_ids))
 
 
 ## Mouse moved with the button held while core-move targeting is active: snap a
@@ -848,11 +902,16 @@ func confirm_mass_action() -> void:
 	var request := _mass_action_request
 	if request == null:
 		return
+	var ids: Array[int] = []
+	for n in request.nodes:
+		ids.append(graph.get_stable_id(n))
 	match request.verb:
 		MassActionRequest.Verb.ALLOCATE:
-			allocation_system.mass_allocate(request.entity, request.nodes, request.affordable_count)
+			# `affordable_count` stays off the wire — the applier recomputes it
+			# from the board it is actually applying against (#458).
+			_submit(MassAllocateCommand.new(request.entity.entity_id, ids))
 		MassActionRequest.Verb.DEALLOCATE:
-			allocation_system.deallocate_set(request.nodes, request.entity)
+			_submit(DeallocateSetCommand.new(request.entity.entity_id, ids))
 	_clear_mass_action()
 
 
@@ -903,6 +962,14 @@ func can_player_act() -> bool:
 	# await so its temp-upgrade addons keep rendering, but that's not an
 	# invitation to click it mid-swing.
 	if battle_system != null and battle_system.is_launching:
+		return false
+	# A command is mid-application (#510). Nested inside, not merged with,
+	# `is_launching`: that flag answers "an attack is in flight" and keeps
+	# owning the attack plan's lifetime; this one answers "a command is being
+	# applied" and covers every verb, of which the attack is one. A player
+	# cannot act while an allocation is landing either, and until now this gate
+	# only knew about attacks.
+	if command_applier != null and command_applier.is_applying:
 		return false
 	# AP=0 blocks further attack/cast actions; UI uses this to dim.
 	if player != null and player.stat_board != null:

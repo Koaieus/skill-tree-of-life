@@ -66,7 +66,7 @@ func teardown() -> void:
 ## gating as clicking the node itself in the graph; a no-op with nothing armed.
 func _on_pip_clicked(node: SkillNode) -> void:
 	if _input_ctl != null:
-		_input_ctl.apply_armed_temp_upgrade_to(node)
+		_input_ctl.request_temp_upgrade_at(node)
 
 
 func _on_pip_hover_changed(node: SkillNode, hovering: bool) -> void:

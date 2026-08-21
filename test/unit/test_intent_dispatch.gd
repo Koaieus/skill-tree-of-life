@@ -20,6 +20,7 @@ var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
 var _ctl: PlayerInputController
+var _applier: CommandApplier
 var _player: Entity
 var _other: Entity
 var _nodes: Array[SkillNode]
@@ -49,14 +50,14 @@ func before_each() -> void:
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"
 	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_player)
+	_graph.entities_container.add_child(_player)
 
 	# A second entity so we can hand the turn away from the player (otherwise
 	# the lone player immediately retakes its own turn after end_turn).
 	_other = autofree(Entity.new())
 	_other.display_name = "Other"
 	_other.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_other)
+	_graph.entities_container.add_child(_other)
 
 	await get_tree().process_frame
 
@@ -74,10 +75,19 @@ func before_each() -> void:
 	var ap: PoolStat = _player.stat_board.action_points
 	ap.deplete(int(ap.current))
 
+	# #510: the controller asks for mutations as Commands now, so a fixture
+	# that clicks needs the applier that turns them back into system calls.
+	_applier = CommandApplier.new()
+	_applier.graph = _graph
+	_applier.allocation_system = _alloc
+	_applier.turn_manager = _tm
+	add_child_autofree(_applier)
+
 	_ctl = PlayerInputController.new()
 	_ctl.graph = _graph
 	_ctl.allocation_system = _alloc
 	_ctl.turn_manager = _tm
+	_ctl.command_applier = _applier
 	_ctl.player = _player
 	add_child_autofree(_ctl)
 

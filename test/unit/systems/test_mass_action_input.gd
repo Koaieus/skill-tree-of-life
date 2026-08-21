@@ -21,6 +21,7 @@ var _alloc: AllocationSystem
 var _battle: BattleSystem
 var _tm: TurnManager
 var _ctl: PlayerInputController
+var _applier: CommandApplier
 var _player: Entity
 var _nodes: Dictionary
 var _pending_events: Array
@@ -55,7 +56,7 @@ func before_each() -> void:
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"
 	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_player)
+	_graph.entities_container.add_child(_player)
 
 	await get_tree().process_frame
 
@@ -66,11 +67,21 @@ func before_each() -> void:
 	_player.stat_board.skill_points.grant(5)
 	_player.stat_board.deallocation_points.restore_to_full()
 
+	# #510: the controller asks for mutations as Commands now, so a fixture
+	# that clicks needs the applier that turns them back into system calls.
+	_applier = CommandApplier.new()
+	_applier.graph = _graph
+	_applier.allocation_system = _alloc
+	_applier.battle_system = _battle
+	_applier.turn_manager = _tm
+	add_child_autofree(_applier)
+
 	_ctl = PlayerInputController.new()
 	_ctl.graph = _graph
 	_ctl.allocation_system = _alloc
 	_ctl.battle_system = _battle
 	_ctl.turn_manager = _tm
+	_ctl.command_applier = _applier
 	_ctl.player = _player
 	add_child_autofree(_ctl)
 

@@ -279,6 +279,19 @@ func get_by_stable_id(id: int) -> SkillNode:
 	return _by_stable_id.get(id)
 
 
+## The other direction, and the one a [Command] builder must use. Reading
+## `node.stable_id` directly is a trap: ids are minted LAZILY here (unlike
+## `Entity.entity_id`, which mints on entry), so a hand-authored or
+## container-added node reads 0 until something forces a topology rebuild —
+## and a command carrying 0 resolves to nothing, silently. Returns 0 only for
+## null.
+func get_stable_id(node: SkillNode) -> int:
+	if node == null:
+		return 0
+	_ensure_topology()
+	return node.stable_id
+
+
 ## O(1) lookup by [member Entity.entity_id] — the entity half of
 ## [method get_by_stable_id], and the only way an applier resolves the
 ## `entity_id` a [Command] carries. Returns null for 0 (unminted) and for an

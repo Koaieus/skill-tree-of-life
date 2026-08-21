@@ -142,6 +142,40 @@ func request_attack_mode(mode: AttackMode) -> void:
 		AttackMode.RANGED:  attack_plan = _new_plan(RangedAttackPlan)
 		AttackMode.MAGIC:   attack_plan = _new_plan(MagicAttackPlan)
 
+## Toggle a temp upgrade (#406) onto [param node] of the live [MeleeAttackPlan],
+## refunding an identical one already there. Moved here from
+## `PlayerInputController.apply_armed_temp_upgrade_to` by #510 — **owner call
+## 2026-08-21:** *"BattleSystem or AttackPlan. (or a AddonManager system would be
+## cleaner … but i'm afraid that adds a lot of complexity while i want to SOLVE
+## issues and get stuff done, not create more)."* BattleSystem, because it is
+## what mounts addons on the live plan; an `AddonManager` is out of scope.
+##
+## Takes [param upgrade] EXPLICITLY rather than reading a controller's armed
+## state: the arm is local plan-building that never crosses a wire, so it stays
+## in [PlayerInputController], and [ToggleTempUpgradeCommand] carries the
+## catalog id instead (#509). Pass a
+## [constant MeleeAttackPlan.TEMP_UPGRADE_CATALOG] entry — resolve one with
+## [method MeleeAttackPlan.upgrade_by_id].
+##
+## Returns whether the toggle landed. A refusal is announced on
+## [signal Events.node_action_denied] here, where the reason is knowable —
+## whether the CLICK was consumed is a routing question the caller answers on
+## its own.
+func toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
+	var plan := attack_plan as MeleeAttackPlan
+	if plan == null or node == null or upgrade == null:
+		return false
+	if upgrade is Dictionary and (upgrade as Dictionary).is_empty():
+		return false
+	if plan.toggle_temp_upgrade(node, upgrade):
+		return true
+	var reason := "temp_upgrade_denied_slot_full" \
+			if not node.can_attach_addon(upgrade.script) \
+			else "temp_upgrade_denied_budget"
+	Events.node_action_denied.emit(node, reason)
+	return false
+
+
 func _new_plan(plan_class: Script) -> AttackPlan:
 	var p: AttackPlan = plan_class.new()
 	p.attacker = turn_manager.current_entity

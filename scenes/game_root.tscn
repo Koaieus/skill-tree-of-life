@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="9_vision"]
+[ext_resource type="Script" uid="uid://iab4mte1alr4" path="res://command/command_applier.gd" id="9_applier"]
 [ext_resource type="Script" path="res://systems/victory_system.gd" id="9_victory"]
 [ext_resource type="Script" uid="uid://dkhgm4v74h1ya" path="res://systems/highlight_controller.gd" id="10_5dyip"]
 [ext_resource type="PackedScene" path="res://ui/hud/hud_root.tscn" id="18_hud"]
@@ -67,13 +68,22 @@ turn_manager = NodePath("../TurnManager")
 battle_system = NodePath("../BattleSystem")
 skill_dust_scene = ExtResource("12_dust")
 
-[node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
+[node name="CommandApplier" type="Node" parent="Systems" unique_id=1000000510 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
+unique_name_in_owner = true
+script = ExtResource("9_applier")
+graph = NodePath("../../Graph")
+allocation_system = NodePath("../AllocationSystem")
+battle_system = NodePath("../BattleSystem")
+turn_manager = NodePath("../TurnManager")
+
+[node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "command_applier")]
 unique_name_in_owner = true
 script = ExtResource("8_input")
 graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
+command_applier = NodePath("../CommandApplier")
 
 [node name="TurnManager" type="Node" parent="Systems" unique_id=1421103909]
 unique_name_in_owner = true

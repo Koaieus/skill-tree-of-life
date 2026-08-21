@@ -37,7 +37,7 @@ func before_each() -> void:
 
 	_player = autofree(Entity.new())
 	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_player)
+	_graph.entities_container.add_child(_player)
 	await get_tree().process_frame
 	for n in _nodes:
 		n.owned_by = _player
