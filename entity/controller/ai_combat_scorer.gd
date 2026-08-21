@@ -66,11 +66,20 @@ class ScoredCandidate:
 ## across every hit, via the exact formula [SkillNode.take_damage] applies.
 ## Filters to [method AttackOutcome.damage_hits] (#381) — [Mitigation.apply]
 ## takes a [DamageInstance] specifically, and a heal shouldn't score as damage.
-static func expected_damage(outcome: AttackOutcome) -> float:
+##
+## With [param attacker] supplied, hits on nodes that aren't AI targets
+## ([method AiRecon.is_ai_target] — dormant-core blockers) contribute nothing.
+## An AoE or blade that clips a blocker must not bank EV for it, or the AI
+## still steers into scenery even though the target *list* excludes it.
+## Defaults to null (count every hit) so a test scoring a bare outcome with no
+## attacker context reads the raw sum.
+static func expected_damage(outcome: AttackOutcome, attacker: Entity = null) -> float:
 	if outcome == null:
 		return 0.0
 	var total := 0.0
 	for hit in outcome.damage_hits():
+		if attacker != null and not AiRecon.is_ai_target(attacker, hit.target):
+			continue
 		total += Mitigation.apply(hit, hit.target)
 	return total
 
@@ -83,12 +92,12 @@ static func expected_damage(outcome: AttackOutcome) -> float:
 ## passes [member AttackOutcome.thinned_nodes] (the real per-swing pop count
 ## [MeleeAttackPlan.resolve] already computes), not blade_nodes.size().
 static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target: SkillNode,
-		_attacker: Entity, ai_tier: int, thinned_nodes: int = 0) -> ScoredCandidate:
+		attacker: Entity, ai_tier: int, thinned_nodes: int = 0) -> ScoredCandidate:
 	var c := ScoredCandidate.new()
 	c.mode = mode
 	c.target = target
 	c.outcome = outcome
-	c.ev = expected_damage(outcome)
+	c.ev = expected_damage(outcome, attacker)
 	var target_hp: float = target.get_current_hp() if target != null else 0.0
 	c.is_kill = target_hp > 0.0 and c.ev >= target_hp
 	c.kill_bonus = _KILL_BONUS if c.is_kill else 0.0
@@ -165,7 +174,7 @@ static func near_miss_targets(attacker: Entity, visible_enemies: Array[SkillNode
 		var plan := RangedAttackPlan.new()
 		plan.attacker = attacker
 		plan.target = target
-		var current_ev := expected_damage(plan.resolve()) if plan.is_valid() else 0.0
+		var current_ev := expected_damage(plan.resolve(), attacker) if plan.is_valid() else 0.0
 		if current_ev >= current_hp:
 			continue # already lethal without any new leaf — nothing to enable
 		if current_hp - current_ev <= maxf(per_shot, 1.0):

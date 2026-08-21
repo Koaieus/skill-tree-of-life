@@ -48,14 +48,31 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 	for node in graph.get_skill_nodes():
 		if node == null or node.owned_by == null:
 			continue
-		if entity.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
-			continue
-		var owner_faction: Faction = node.owned_by.faction
-		if owner_faction != null and not owner_faction.targeted_by_ai:
+		if not is_ai_target(entity, node):
 			continue
 		if circles.has_point(node.global_position):
 			out.append(node)
 	return out
+
+
+## Is [param node] something [param attacker]'s brain should want to hurt?
+## HOSTILE (the relation, [method Entity.attitude_to]) AND owned by a camp
+## whose [member Faction.targeted_by_ai] is true — dormant-core blockers fail
+## the second half while staying hostile to everyone else, including the
+## player.
+##
+## THE one definition, used both to build target lists ([method
+## visible_enemy_nodes]) and to value a resolved swing ([method
+## AiCombatScorer.expected_damage]) — an AoE/blade that merely clips a blocker
+## must not score for it either, or the filter is cosmetic and the AI still
+## steers into scenery.
+static func is_ai_target(attacker: Entity, node: SkillNode) -> bool:
+	if attacker == null or node == null or node.owned_by == null:
+		return false
+	if attacker.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
+		return false
+	var owner_faction: Faction = node.owned_by.faction
+	return owner_faction == null or owner_faction.targeted_by_ai
 
 
 ## Attack-reach + 1-allocation bound. [param max_reach] is the largest
