@@ -68,6 +68,25 @@ var _move_targeting_source: SkillNode = null
 signal temp_upgrade_arm_changed(upgrade: Variant)
 var _temp_upgrade_arm: Variant = null
 
+## The last melee blade each entity successfully launched (#466), keyed by
+## `Object.get_instance_id()` — never `Entity.entity_id`, which is 0 until the
+## entity enters `entities_container`, and never the Entity itself, since a
+## freed Object compares equal to `null` (see the gdscript-pitfalls rule).
+##
+## The value is the plan's own wire form, [method MeleeAttackPlan.to_dict], so
+## there is no second representation of a blade to keep in step; only the
+## stable ids and `swing_cw` are ever read back out.
+##
+## [b]Client-local input state that never syncs.[/b] Reform is not a command:
+## it expands into an ordinary [MeleeAttackPlan] which then launches through
+## the normal path, so it adds no wire surface at all
+## (docs/domain/multiplayer-sync-model.md). It is keyed per entity rather than
+## held as one slot so a hot-seat handover (#459) cannot let the incoming
+## player reform the outgoing one's blade, and it deliberately survives
+## [method clear_transient_state] — the slot is not half-finished intent, it is
+## the memory of a completed action, and it lasts the whole run.
+var _reform_slots: Dictionary[int, Dictionary] = {}
+
 ## Manage-tab verbs (#338), armed via CommandTray's ManageBody cards through
 ## the #404 shared dispatcher. ALLOCATE mirrors the always-on bare-click
 ## fallback (arming it is cosmetic — cursor + card affordance only, no new
@@ -170,6 +189,7 @@ func _ready() -> void:
 		# (gated purely off player_can_act_changed, command_tray.gd) doesn't
 		# stay disabled forever after the first swing of a turn.
 		battle_system.attack_plan_changed.connect(_emit_gate_changed.unbind(1))
+		battle_system.attack_launched.connect(_on_attack_launched)
 	if command_applier != null:
 		# Outcomes arrive here instead of as a `bool` return (#510). The four
 		# sites that used to branch on success inline — deallocate's cascade
@@ -432,6 +452,99 @@ func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
 	return request_temp_upgrade_at(skill_node)
 
 
+# ── Reform last blade (#466) ───────────────────────────────────────────────
+
+## Capture the blade that just launched. [signal BattleSystem.attack_launched]
+## fires inside `_commit`, i.e. only AFTER `_resolve_for_launch` cleared the
+## affordability gates and while the plan is still live — so a refused launch
+## can never overwrite a good slot, which is the whole reason the capture does
+## not sit on the button press.
+##
+## Guarded on the attacker being THIS controller's player, which is also what
+## keeps AI entities out of the map: they build plans directly and have nothing
+## to reform.
+func _on_attack_launched(mode: BattleSystem.AttackMode, _spell: SpellDef) -> void:
+	if mode != BattleSystem.AttackMode.MELEE or graph == null or player == null:
+		return
+	var plan := battle_system.attack_plan as MeleeAttackPlan
+	if plan == null or plan.source == null or plan.attacker != player:
+		return
+	_reform_slots[player.get_instance_id()] = plan.to_dict(graph)
+
+
+## The stored blade for the current player, resolved from stable ids back to
+## live nodes: `pivot`, `members`, `swing_cw`. Empty when there is no slot, or
+## when any stored node is gone from the board — a member that no longer exists
+## is a refusal, never a smaller blade.
+func _reform_payload() -> Dictionary:
+	if player == null or graph == null:
+		return {}
+	var stored: Dictionary = _reform_slots.get(player.get_instance_id(), {})
+	if stored.is_empty():
+		return {}
+	var pivot := graph.get_by_stable_id(int(stored.get("source", 0)))
+	if pivot == null:
+		return {}
+	var members: Array[SkillNode] = []
+	for id in stored.get("blade", [] as Array):
+		var member := graph.get_by_stable_id(int(id))
+		if member == null:
+			return {}
+		members.append(member)
+	return {
+		pivot = pivot,
+		members = members,
+		swing_cw = bool(stored.get("swing_cw", false)),
+	}
+
+
+## Whether [method reform_blade] would succeed right now. The melee body reads
+## this to enable its button; a false answer is why the affordance greys out
+## instead of half-reforming.
+##
+## [b]No bespoke AP check.[/b] `ap_cost` is 1 for every attack, so "the stored
+## plan fits current AP" reduces to "have any AP", which `can_player_act()`
+## already answers — and `BattleSystem._resolve_for_launch` gates it again at
+## launch. Reform inherits both, which stays correct if `ap_cost` ever varies.
+func can_reform() -> bool:
+	if battle_system == null or not can_player_act():
+		return false
+	var payload := _reform_payload()
+	if payload.is_empty():
+		return false
+	var pivot: SkillNode = payload.pivot
+	var members: Array[SkillNode] = payload.members
+	return MeleeAttackPlan.can_reform_selection(player, pivot, members)
+
+
+## Rebuild the player's last launched blade — pivot, members and swing
+## direction — leaving the launch itself to them, so the shape can still be
+## tweaked (or a temp upgrade added) before it commits.
+##
+## Arms melee first when another mode (or none) is active: the keybind is a
+## global accelerator, and `request_attack_mode` early-returns when melee is
+## already up, so an in-progress selection is replaced rather than re-armed.
+func reform_blade() -> bool:
+	if not can_reform():
+		return false
+	battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	var plan := battle_system.attack_plan as MeleeAttackPlan
+	if plan == null:
+		return false
+	var payload := _reform_payload()
+	var pivot: SkillNode = payload.pivot
+	var members: Array[SkillNode] = payload.members
+	if not plan.try_reform(pivot, members):
+		return false
+	# The swing direction is BattleSystem's sticky preference, and that is what
+	# the tray's toggle label reads — setting only `plan.swing_cw` would restore
+	# the swing while the button kept advertising the old direction.
+	var cw: bool = payload.swing_cw
+	battle_system.next_melee_cw = cw
+	plan.swing_cw = cw
+	return true
+
+
 func _set_pinned(node: SkillNode) -> void:
 	if _pinned_node == node:
 		return
@@ -512,6 +625,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if _input_frozen:
 		return
 	if event.is_action_pressed(&"ui_cancel") and _pop_armed_mode():
+		get_viewport().set_input_as_handled()
+		return
+	# R re-forms the last launched blade (#466), from any mode — it arms melee
+	# itself. Unhandled when there is nothing to reform, so the key stays free
+	# for anything downstream.
+	if event.is_action_pressed(&"ui_reform_blade") and reform_blade():
 		get_viewport().set_input_as_handled()
 
 

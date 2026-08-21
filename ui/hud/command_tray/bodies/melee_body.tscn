@@ -84,6 +84,12 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "↻ Swing CCW"
 
+[node name="ReformButton" type="Button" parent="BodyContent/Row/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Rebuild the last blade you swung (R)."
+text = "⧉ Reform (R)"
+
 [node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
 layout_mode = 2

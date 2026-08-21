@@ -63,7 +63,8 @@ re-deriving anything.
   member runs `nodes_islanded_by_removing(node, pivot)` *before* the removal,
   then cascade-prunes anything islanded from the pivot (this direction
   predates the mass-select and was already symmetric with it). Mirror is
-  freed via `NOTIFICATION_PREDELETE` (Node base, plan is RefCounted).
+  freed via `NOTIFICATION_PREDELETE` (Node base, plan is RefCounted). Also
+  carries the **reform** primitives (#466) — see below.
 - **`RangedAttackPlan`** — left-click an enemy node to set the target
   (left-click a different hostile node to retarget directly — no origin
   step to pop first). Right-click pops the target. Firing positions are
@@ -227,6 +228,49 @@ firing positions to actually have things to fire at, and the Enemy
 having a board means damage flow has something to deplete on commit.
 
 ---
+
+### Reform last blade (#466)
+
+Rebuilding the same blade by hand every turn was the most repetitive thing in a
+melee run, so the last **successfully launched** melee blade is remembered and
+replayable.
+
+- **Where the slot lives:** `PlayerInputController._reform_slots`, keyed by
+  `Entity.get_instance_id()`, holding the plan's own `to_dict()` wire form. It
+  is *client-local input state and never syncs* — reform is not a command, it
+  expands into an ordinary `MeleeAttackPlan` that then launches through the
+  normal path, so it adds no wire surface. Keyed per entity so a hot-seat
+  handover can't let the incoming player reform the outgoing one's blade, and
+  deliberately excluded from `clear_transient_state()`: the slot is the memory
+  of a completed action, not half-finished intent, and it lasts the whole run.
+- **Captured on `attack_launched`**, which fires inside `_commit` — i.e. only
+  after `_resolve_for_launch` cleared the affordability gates. A refused launch
+  therefore can never overwrite a good slot.
+- **Availability is `MeleeAttackPlan.can_reform_selection()`**, a *pure*
+  simulation of `_can_be_blade`'s ownership rule plus `_try_select_blade`'s
+  budget and strict adjacency. It cannot be implemented by trial-reforming a
+  scratch plan: rollback goes through `_clear_pivot()`, which frees
+  `is_temporary` addons off the **real** SkillNodes.
+- **Replay is strict and all-or-nothing** — `try_reform()` walks the stored
+  (authoring) order through `_try_select_blade` only. **Never
+  `_try_select_path`:** that is the click path's mass-select, and on a member
+  that has drifted out of adjacency it silently pulls in a shortest path to
+  reach it, reporting success with a *different, larger* blade. Accepted
+  limitation: a blade constructible only in some other order is refused rather
+  than reordered.
+- **Restoring the swing direction writes `BattleSystem.next_melee_cw`**, not
+  just `plan.swing_cw` — the tray's toggle label reads the sticky preference.
+- Surfaced as the melee tray's Reform button and the `ui_reform_blade` action
+  (**R**). It rebuilds only; Launch stays the player's call. Temp upgrades are
+  *not* restored (a second all-or-nothing gate sharing the same budget, which
+  would need rollback semantics) — parked in the issue's NOTES.
+
+**No topology hash.** The issue originally proposed hashing the owned induced
+subgraph and tolerating an allocation superset. There is no such hash — a
+superset-tolerant digest is ill-defined — and replaying the gates answers the
+question exactly, in O(members) over `Graph`'s cached adjacency index.
+`test_reform_still_works_after_territory_grows` is the superset case the hash
+existed for.
 
 ## Decisions made — alternatives ruled out
 

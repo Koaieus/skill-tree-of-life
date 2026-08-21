@@ -12,6 +12,7 @@ extends CommandTrayBodyBase
 @onready var _count_label: Label = %CountLabel
 @onready var _upgrade_row: HBoxContainer = %UpgradeRow
 @onready var _swing_button: Button = %SwingButton
+@onready var _reform_button: Button = %ReformButton
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
@@ -33,6 +34,7 @@ var _hovered_node: SkillNode = null
 
 func _on_bound() -> void:
 	_swing_button.pressed.connect(_on_swing_pressed)
+	_reform_button.pressed.connect(_on_reform_pressed)
 	_reset_button.pressed.connect(_battle_system.reset_plan)
 	_launch_button.pressed.connect(_battle_system.launch_attack)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
@@ -106,6 +108,14 @@ func _build_upgrade_buttons() -> void:
 		_upgrade_row.add_child(btn)
 
 
+## Rebuild the last launched blade (#466) — it does NOT launch, so the shape
+## can still be re-aimed or carry a temp upgrade before it commits. The button
+## is only ever enabled when this will succeed; the R keybind is the same call.
+func _on_reform_pressed() -> void:
+	if _input_ctl != null:
+		_input_ctl.reform_blade()
+
+
 func _on_swing_pressed() -> void:
 	_battle_system.next_melee_cw = not _battle_system.next_melee_cw
 	var plan := _battle_system.attack_plan as MeleeAttackPlan
@@ -176,6 +186,14 @@ func _refresh() -> void:
 	_swing_button.text = "↻ Swing CW" if cw else "↺ Swing CCW"
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
+	# Greys out rather than half-reforming (#466): can_reform() re-runs the
+	# real selection gates against live territory, so a blade whose members
+	# have been deallocated (or that no longer fits blade_size) simply reads
+	# as unavailable. No extra signal drives this — _refresh already runs on
+	# attack_plan_state_changed and player_can_act_changed, and the latter
+	# fires whenever a command finishes applying, which covers the territory
+	# changes that flip the answer.
+	_reform_button.disabled = _input_ctl == null or not _input_ctl.can_reform()
 	var arm: Variant = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
 	for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
 		var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]

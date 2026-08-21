@@ -189,6 +189,104 @@ func _on_node_left_clicked(node: SkillNode) -> void:
 		state_changed.emit()
 
 
+# ── Reform (#466) ──────────────────────────────────────────────────────────
+
+## Whether `members` — in THIS order — would rebuild a legal blade on `pivot`
+## for `attacker`. A pure simulation of the gates a click sequence passes:
+## [method _can_be_blade]'s ownership rule plus [method _try_select_blade]'s
+## budget and strict adjacency. Touches neither the world nor any plan.
+##
+## [b]Purity is the design, not an optimisation.[/b] The tempting alternative —
+## run [method try_reform] on a scratch plan and roll it back — cannot be used,
+## because the rollback goes through [method _clear_pivot], which frees
+## `is_temporary` addons off the REAL SkillNodes it names. A feasibility
+## question must never be able to destroy a live plan's temp upgrades.
+##
+## [b]Deliberately not a topology hash[/b] of the owned subgraph, which is what
+## #466 originally sketched. Such a hash has to tolerate an allocation
+## SUPERSET — the common case, since staking grows territory without
+## invalidating an old blade — and a superset-tolerant hash is ill-defined.
+## Replaying the gates answers exactly the question asked, is exact rather than
+## a lossy proxy, and costs O(members) over `Graph`'s cached adjacency index.
+static func can_reform_selection(attacker: Entity, pivot: SkillNode,
+		members: Array[SkillNode]) -> bool:
+	if attacker == null or attacker.navigator == null:
+		return false
+	if pivot == null or not is_instance_valid(pivot):
+		return false
+	# The attacker's own view of the board, same as _is_neighbor_of_blade_set
+	# takes — never a caller-supplied Graph.
+	var graph := attacker.navigator.graph
+	if graph == null:
+		return false
+	# Pivot ownership, then validate()'s own floor: a pivot with no members is
+	# not a launchable blade, so reforming into one would be no win.
+	if pivot.owned_by != attacker or members.is_empty():
+		return false
+	# Mirrors _budget_remaining() for a FRESH selection: temp-upgrade spend is
+	# zero there, because reform always builds on a cleared plan.
+	if members.size() > int(pivot.get_local_value(_BLADE_SIZE_ID)):
+		return false
+	# Grown in the stored order, exactly as the replay grows it — so a member
+	# reachable only through one listed AFTER it is refused here too, keeping
+	# predicate and replay in lockstep. See try_reform on why no reordering.
+	var accepted: Dictionary[SkillNode, bool] = {pivot: true}
+	for m in members:
+		if m == null or not is_instance_valid(m):
+			return false
+		if m == pivot or accepted.has(m):
+			return false
+		if m.owned_by != attacker:
+			return false
+		var adjacent := false
+		for other in graph.get_neighbours(m):
+			if accepted.has(other):
+				adjacent = true
+				break
+		if not adjacent:
+			return false
+		accepted[m] = true
+	return true
+
+
+## Rebuild this plan's selection as `pivot` + `members`, replaying the stored
+## order through the STRICT single-member primitive. All-or-nothing: refused
+## outright, plan untouched, when [method can_reform_selection] says no.
+##
+## [b]Never [method _try_select_path].[/b] That is the click path's mass-select,
+## and on a member that has drifted out of adjacency it silently pulls in a
+## shortest path to reach it — reporting success while producing a DIFFERENT,
+## larger blade. #466 asks for the opposite: grey out rather than half-reform.
+## The size check below is what keeps that true if this ever gets rewired.
+##
+## The stored order is authoring order, which was chain-valid when captured, so
+## an unchanged (or merely grown) territory always replays. Accepted
+## limitation: a blade still constructible in some OTHER order is refused. No
+## reordering search — an honest refusal beats a surprising blade.
+##
+## A half-built selection is replaced, and its temp-upgrade addons are freed
+## with it (that is [method _clear_pivot]'s contract, not a new rule here).
+func try_reform(pivot: SkillNode, members: Array[SkillNode]) -> bool:
+	if not can_reform_selection(attacker, pivot, members):
+		return false
+	_clear_pivot()
+	_set_pivot(pivot)
+	for m in members:
+		if _try_select_blade(m):
+			continue
+		# can_reform_selection just cleared this, so a refusal here means the
+		# two have drifted apart. Refuse rather than keep a partial blade.
+		push_warning("MeleeAttackPlan.try_reform: gate drift on %s, refused" % m)
+		_clear_pivot()
+		return false
+	if blade_nodes.size() != members.size():
+		push_warning("MeleeAttackPlan.try_reform: rebuilt blade differs, refused")
+		_clear_pivot()
+		return false
+	state_changed.emit()
+	return true
+
+
 # ── Validation + visualization ─────────────────────────────────────────────
 
 func validate() -> Array[String]:

@@ -93,8 +93,12 @@ var _style: BladeStyle
 var _authored_owner: Dictionary = {}
 ## World-space bounds of the authored layout, for the fit transform.
 var _authored_bounds: Rect2
-## Pivot + members of the last launched swing, replayed by auto re-arm.
-var _last_selection: Array[SkillNode] = []
+## Auto re-arm asked for a replay and is waiting for the applier to go idle.
+## The swing's own [LaunchAttackCommand] is still draining at the moment the
+## plan clears (`_reset()` runs inside `_commit`), and `is_applying` gates
+## [method PlayerInputController.can_reform] — so reforming right there is
+## refused. See [method _on_applying_changed].
+var _rearm_pending: bool = false
 
 
 func _ready() -> void:
@@ -139,6 +143,8 @@ func _build_systems() -> void:
 	# decoration has to be re-applied per spawn, not once.
 	_preview.blade_spawned.connect(_on_blade_spawned)
 	_battle.attack_plan_changed.connect(_on_plan_changed)
+	if _battle.command_applier != null:
+		_battle.command_applier.applying_changed.connect(_on_applying_changed)
 
 
 ## Snapshot what the .tscn declares, before the panel starts mutating it.
@@ -181,7 +187,10 @@ func arm_world() -> void:
 	if _battle.is_launching:
 		return
 	_battle.cancel_attack()
-	_last_selection.clear()
+	# The reform slot deliberately SURVIVES a board re-arm: this restores the
+	# authored ownership on the same SkillNode instances, so the last blade is
+	# constructible again and Reset → Reform reproduces it.
+	_rearm_pending = false
 	for n in graph.get_skill_nodes():
 		if n.owned_by != null:
 			_alloc.force_deallocate(n)
@@ -411,25 +420,45 @@ func set_live(live: bool) -> void:
 # ── Status / re-arm ──────────────────────────────────────────────────────────
 
 ## A swing ended when the plan goes null (BattleSystem clears it post-launch).
-## Refill AP, put a fresh melee plan up and — if asked — replay the exact same
-## pivot + members through the real click channel, so Launch is live again with
-## zero clicks in between.
+## Refill AP, put a fresh melee plan up and — if asked — queue a reform, so
+## Launch is live again with zero clicks in between.
+##
+## The panel keeps no blade snapshot of its own since #466: the wielder's last
+## launched blade already lives in [PlayerInputController]'s per-entity reform
+## slot, captured on `attack_launched`. The old local copy replayed itself
+## through `route_left_click`, which routes into
+## [method MeleeAttackPlan._try_select_path] — so a member that had drifted out
+## of adjacency silently mass-selected a path to itself and re-armed a
+## DIFFERENT, larger blade. [method PlayerInputController.reform_blade] is
+## strict and all-or-nothing.
 func _on_plan_changed(plan: AttackPlan) -> void:
-	if plan is MeleeAttackPlan:
-		var melee := plan as MeleeAttackPlan
-		if melee.source != null:
-			_last_selection = [melee.source]
-			_last_selection.append_array(melee.blade_nodes)
+	if plan != null:
 		_refresh_status()
 		return
-	if plan != null or not is_inside_tree():
+	if not is_inside_tree():
 		return
 	_reset_board(_wielder)
 	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	if _rearm_toggle.button_pressed:
-		for n in _last_selection:
-			if is_instance_valid(n) and n.owned_by == _wielder:
-				_input_ctl.route_left_click(n)
+		_rearm_pending = true
+		# No applier means nothing to wait for — reform immediately (the shape
+		# a headless fixture sees).
+		if _battle.command_applier == null:
+			_flush_rearm()
+	_refresh_status()
+
+
+## The launch command has finished draining, so the reform gate is open again.
+func _on_applying_changed(applying: bool) -> void:
+	if not applying:
+		_flush_rearm()
+
+
+func _flush_rearm() -> void:
+	if not _rearm_pending:
+		return
+	_rearm_pending = false
+	_input_ctl.reform_blade()
 	_refresh_status()
 
 
