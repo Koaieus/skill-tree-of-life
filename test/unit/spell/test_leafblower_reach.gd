@@ -107,7 +107,7 @@ func test_leaf_wedged_between_enemies_is_still_a_leaf() -> void:
 func test_blue_nodes_are_never_hit() -> void:
 	var hit := _cast()
 	for idx in [12, 13]:
-		_assert_missed(hit, idx, "caster's own ally — OwnerFilter(ENEMY)")
+		_assert_missed(hit, idx, "the caster's OWN nodes — OwnerFilter(Hostile)")
 
 
 # ── Self-loops raise degree and turn the flow away ─────────────────────────
