@@ -72,42 +72,47 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | ~~#473~~ | ~~Design session: the multiplayer sync model~~ | **Decided 2026-08-18** — `docs/domain/multiplayer-sync-model.md` |
 | **#457** | `GameSession` + one-shot seed resolution | `Needs design` — **owner decision**, it is the determinism contract. Scope grew: it must also cover combat/loot RNG, see its comment |
 | ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** Mutation is synchronous at t=0; VFX is a pure observer |
-| **#488** | Presentation clock v2 — one recorded reveal timeline, delete the hold machinery | **do this first** of the sync lane. Hub, 6 children (#489→#494), all `Ready`. Supersedes #479. Its `RevealTimeline` is the shape #458's confirmed-command payload wants |
-| **#458** | `Command` + `CommandApplier` (rewritten) | behind #488. The reroute is small — nine verbs, not 850 lines |
+| ~~#488~~ | ~~Presentation clock v2~~ | **Shipped 2026-08-21** as design **B** — the world mutates on the reveal clock; no view store. `docs/domain/presentation-clock.md` |
+| **#458** | `Command` + `CommandApplier` (rewritten) | **now unblocked** — #488 landed. The reroute is small — nine verbs, not 850 lines. `OutcomeApplier.apply` is the seam its payload wants |
 | **#475** | Author real faction camps | was prose inside #459/#463; gates versus, and #459 wants the allied-humans half |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready`** |
 | **#460** | `VictorySystem` — a run that can end | `Needs design` — what *is* the win condition |
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | `Needs design` |
 | **#462** | Display settings (window mode, resolution, vsync, fps cap) | **`Ready`** — cheap, North Star #2 |
 | **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
-| **#499** | Ranged volley: author the arrival ramp, apply in arrival order, expose the firing list | **`Ready`** — allocation order currently changes combat outcomes; the firing list *is* #458's command payload. Independent of the sync lane, can run in parallel |
+| ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
-Also in the milestone, by owner call: **#300** removable node blockers, **#403**
-Tech Seeds, **#412** armed-mode viewport tint. All three `Needs design` — "should
-be easy to get *something* going", so they want a fast swarmify, not a deep one.
+Also in the milestone, by owner call: **#403** Tech Seeds and **#412** armed-mode
+viewport tint, both `Needs design` — "should be easy to get *something* going",
+so they want a fast swarmify, not a deep one. (**#300** removable node blockers
+shipped 2026-08-21, which unblocks #403; its deferred chokepoint-placement
+heuristic is #508, unscheduled.)
 
 **Order:** the sync model is settled; #457 is the one decision left that shapes
-everything else, and it is not a drone unit. Then #488 → #458, in that order —
-#488's children are strictly sequential except #493, which parallels #492.
+everything else, and it is not a drone unit. **#458 is next on the sync lane** —
+#488 landed, so nothing gates it but #457's contract.
 #459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
 #459 needs half of it. #460 wants its own design pass. #463 stays gated — it
 opens only once #474, #458 and #475 have landed and offline play is verified
-unchanged. #499 is off the sync lane entirely and can be pulled whenever.
+unchanged.
 
 **The attack-timeline contract is IN the milestone** (owner call 2026-08-20,
 superseding the same-day call that parked it): `docs/domain/attack-timeline.md`,
-hub **#500** with #501 magic / #502 melee / #503 ranged, plus #498 for AI-preview
-accuracy. All moved into `LAN 2026-08-31` and being swarmed.
+hub **#500**. The three mode moves — #501 magic / #502 melee / #503 ranged — all
+landed 2026-08-21. What is left under the hub is **#498** (AI-preview accuracy;
+steps 1–2 shipped, **step 3 is the outstanding work** and per its own owner call
+is plausibly the largest remaining unit in the milestone) and **#507** (crits).
 
-Wave 1 is #498-step-1 / #499 / #501 / #502 — file-disjoint, four-wide. Wave 2 is
-**#503** (strictly behind #499: they share `ranged_attack_plan.gd` and
-`outcome_applier.gd`) and **#498 steps 2–3** (behind step 1, and behind the
-per-mode gates existing to resolve against).
+**#501 shipped only half of itself.** Its wave-loop move — magic's gate lives in
+candidate selection inside `SpellResolver.resolve()`, so live selection needs
+`resolve()` to mutate something throwaway — is recorded as inherited scope on
+**#498 step 3**, along with retiring `BattleSystem`'s second apply for magic.
+Only the `arrival_time` stamping landed.
 
-The one cross-unit seam: **#499 makes `OutcomeApplier` order hits by
-`arrival_time`**, while #501 and #502 start stamping real `arrival_time`s on
-magic and melee hits. Per-mode stamps must be monotonic in that mode's own
-intended application order, or a sibling unit's sort silently reorders it.
+The cross-unit seam that governed those waves still holds for anything new:
+`OutcomeApplier` sorts hits by `arrival_time`, so **each mode's stamps must be
+monotonic in that mode's own intended application order**, or a sibling unit's
+sort silently reorders it.
 
 ## Perf — as good as fixed, *for now*
 
@@ -170,7 +175,7 @@ It wants one visual design pass, not more colours.
 + regen (P0, blocks #278), #278 spell balance pass (an owner session), #366/#367
 balance harnesses (`Ready`), #248 the hub.
 
-**Onboarding** — #49 tutorial. (#300 and #403 moved into the LAN milestone.)
+**Onboarding** — #49 tutorial. (#403 is in the LAN milestone; #300 shipped.)
 
 **AI** — v1 shipped and closed. #410 `AiWeights` archetype personality
 (unblocked, unscheduled), #47 strategy-pattern controller (v2), #394
@@ -203,13 +208,14 @@ the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
 
 ## Known board violations
 
-- **#238 is `In progress` with its only sub-issue (#341) closed — not a false
-  positive.** #238's body is a **verdict task** on the other five visual encoders
-  (RimRing, RimBonuses, RuneRing, CoreHalos/CoreSigilBloom, SensedOutline,
-  BaseCircle): each needs an explicit KEEP/MERGE/CUT applied, gated on #132 (rune
-  ring vs. rim diamonds) resolving first. Nothing in the codebase shows that
-  verdict has been made.
-- Don't trust this section's date — run `mise gh-project -- hygiene`.
+As of the wave-0 close-out pass (2026-08-21), the only rows hygiene reports are
+four issues sitting in `Ready` while still carrying the `design` label: **#457**,
+**#460**, **#461**, **#507**. The first three are genuinely open forks. #507 is
+the odd one — its four forks were settled by an owner call on 2026-08-21 in a
+comment, so its label is arguably stale, but dropping it is a design-gate call
+and not a hygiene fix.
+
+Don't trust this section's date — run `mise gh-project -- hygiene`.
 
 ## When this file is wrong
 
