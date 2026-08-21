@@ -1001,15 +1001,27 @@ func _emit_gate_changed() -> void:
 ## The no-op skip is exactly that (see the setter-recursion rule): assigning
 ## the SAME hero must not wipe a live arm, and `bind_player` is documented as
 ## idempotently re-callable, so it re-asserts the current player routinely.
+##
+## **The skip covers the transient clear ONLY — never the AP subscription.**
+## `Entity._ready` swaps `stat_board` for a `duplicate(true)`, so a scene-wired
+## `player` export (dev_sandbox points its NodePath straight at
+## `Graph/Entities/Player`) binds this setter to a board the entity then throws
+## away. `bind_player`'s idempotent re-assert is what re-binds it to the live
+## pool, and a blanket early return silently made that re-assert a no-op: the
+## gate then never learns AP was refilled, so the command tray stayed dead for
+## the rest of the run after the first turn the player spent AP on.
 func _set_player(value: Entity) -> void:
-	if player == value:
-		return
-	if player != null and player.stat_board != null:
-		var prev_ap: PoolStat = player.stat_board.action_points
-		if prev_ap != null and prev_ap.current_changed.is_connected(_on_ap_changed):
-			prev_ap.current_changed.disconnect(_on_ap_changed)
-	clear_transient_state()
-	player = value
+	var changed := player != value
+	if changed:
+		if player != null and player.stat_board != null:
+			var prev_ap: PoolStat = player.stat_board.action_points
+			if prev_ap != null and prev_ap.current_changed.is_connected(_on_ap_changed):
+				prev_ap.current_changed.disconnect(_on_ap_changed)
+		clear_transient_state()
+		player = value
+	# Unconditional. A connection left behind on a board the entity discarded
+	# is unreachable from here (`player.stat_board` is the new one) and needs no
+	# cleanup — that board is garbage, and its pools die with it.
 	if player != null and player.stat_board != null:
 		var ap: PoolStat = player.stat_board.action_points
 		if ap != null and not ap.current_changed.is_connected(_on_ap_changed):
