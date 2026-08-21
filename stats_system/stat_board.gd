@@ -536,6 +536,32 @@ func get_stat_ids() -> Array[StringName]:
 ## inside are SHARED with the source (as is `winning_set`). That is deliberate
 ## and safe — a modifier is stateless and may live on N boards at once (#377),
 ## and a shadow adds or revokes modifiers, it never edits one in place.
+## [member Stat._modifiers] and [member Stat._last_contrib] travel the same way,
+## and for a stronger reason than symmetry (#506):
+##
+## [b]The bin tally is only meaningful next to the modifier list it was folded
+## from.[/b] [method Stat.add_modifier] ends in
+## [method Stat._resync_bins_if_trivial], which WIPES every bin and rebuilds
+## from scratch whenever `_modifiers.size() <= 1`. On a clone that carried bins
+## but no `_modifiers`, the first modifier added afterwards therefore threw the
+## whole copied tally away — a board reading 40 STR came back 20 after a +10,
+## silently. `_last_contrib` is the same story on the remove side (an absent
+## entry falls back to re-deriving the contribution and then hits the same
+## wipe). Carrying both is what makes a clone a board you may go on to MUTATE,
+## rather than one you may only read.
+##
+## [b]Formula binding is deliberately NOT rebuilt here — #506 is still open and
+## this is why it is not a one-liner.[/b] The modifiers are SHARED instances, so
+## wiring the clone's stats to them cuts both ways: (a) a clone's
+## `value_changed` would drive `StatModifier._on_source_changed`, which
+## `emit_changed()`s on an instance the LIVE board is also subscribed to — so
+## simulating a CON buff on a shadow would fire recomputes and `value_changed`
+## storms on the real board, which is exactly what a shadow exists not to do;
+## and (b) a [Callable] connected to a live modifier's `changed` holds a strong
+## reference to the clone's [Stat], so every shadow would outlive itself for as
+## long as that modifier does. Making a clone react needs per-clone copies of
+## the formula-bearing modifiers (or a read-through design that clones nothing)
+## — a real decision, taken in #506, not a missing line here.
 func clone_live() -> StatBoard:
 	var dst := duplicate(true) as StatBoard
 	if dst == null:
@@ -552,12 +578,14 @@ func clone_live() -> StatBoard:
 		dst_stat.base_value = src_stat.base_value
 		if dst_stat is PoolStat and src_stat is PoolStat:
 			(dst_stat as PoolStat).current = (src_stat as PoolStat).current
+		dst_stat._board = dst
 		dst_stat.bins.base_add = src_stat.bins.base_add
 		dst_stat.bins.increase_sum = src_stat.bins.increase_sum
 		dst_stat.bins.bonus_add = src_stat.bins.bonus_add
 		dst_stat.bins.multipliers = src_stat.bins.multipliers.duplicate()
 		dst_stat.bins.winning_set = src_stat.bins.winning_set
 		dst_stat.bins.board = dst
+		dst_stat.adopt_modifier_list(src_stat)
 	return dst
 
 

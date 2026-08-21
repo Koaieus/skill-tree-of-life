@@ -132,6 +132,31 @@ func collect_formula_edges(out: Dictionary) -> void:
 		m.collect_formula_edges(out)
 
 
+## Take over [param src]'s applied-modifier list and its per-modifier
+## contribution ledger. The clone half of [method StatBoard.clone_live]'s bin
+## copy, and **not optional next to it**: the bins are a fold over `_modifiers`,
+## and [method _resync_bins_if_trivial] wipes and rebuilds them from that list
+## the moment it holds 0 or 1 entries — so a stat that carried a tally but an
+## empty list threw the tally away on the very next [method add_modifier].
+##
+## Shallow on purpose: the [StatModifier] instances are SHARED with [param src],
+## which is safe because a modifier is stateless and may live on N boards at
+## once (#377) — the same one-level-deep rule `bins.multipliers` already
+## follows. `_last_contrib` is keyed by those same instances, so a shallow
+## dictionary copy transfers intact.
+##
+## Deliberately does NOT subscribe to each modifier's `changed` — see
+## [method StatBoard.clone_live] for why (signal bleed back onto the source
+## board, plus a [Callable] that would keep this [Stat] alive for as long as the
+## shared modifier lives). A clone computes; making it REACT is #506.
+##
+## Tell-don't-ask, same reason there is no `get_modifiers()`: the list never
+## leaves the [Stat].
+func adopt_modifier_list(src: Stat) -> void:
+	_modifiers = src._modifiers.duplicate()
+	_last_contrib = src._last_contrib.duplicate()
+
+
 ## [param board] is the board this modifier is being applied on — remembered
 ## on [member _board] for later reactive recomputation. Optional (defaults to
 ## null) so a caller adding a purely static modifier directly to a bare Stat
