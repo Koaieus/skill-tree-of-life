@@ -148,6 +148,10 @@ const DEFAULT_AP_TRANSFER_RATE := 2.0
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
 
+## Latch for [method initialize] — bring-up runs exactly once per entity, from
+## `_ready` in a running game or from a live sandbox that has to ask.
+var _initialized: bool = false
+
 ## Live [Effect] attachments, in grant order. Each holds its own grant ledger,
 ## so revocation is exact without a provenance field on [StatModifier].
 var _effect_instances: Array[EffectInstance] = []
@@ -217,6 +221,22 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	if Engine.is_editor_hint():
 		return
+	initialize()
+
+
+## Bring this entity to life: navigator, board duplication + intrinsics, core
+## class, and every re-emit subscription. Idempotent — a second call is a no-op,
+## so it can never double-apply intrinsics.
+##
+## Public, and separate from [method _ready], because the editor never runs
+## `_ready` (see the guard above) and a LIVE sandbox tab hosting an *authored*
+## entity has to say when bring-up happens. Calling this is the whole difference
+## between an inert inspector object and a real entity; there is deliberately no
+## second, sandbox-flavoured copy of it.
+func initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
 	var g := _find_graph()
 	if g == null:
 		push_warning("Entity '%s' has no Graph ancestor; navigator disabled" % display_name)
@@ -226,6 +246,11 @@ func _ready() -> void:
 		navigator.entity = self
 		navigator.graph = g
 		add_child(navigator)
+		if Engine.is_editor_hint():
+			# EntityNavigator._ready deliberately no-ops in the editor (a @tool
+			# mirror must not wire itself just because a scene is open). An
+			# explicit `initialize()` is the opposite situation, so wire it here.
+			navigator.wire_to(g)
 
 	# Every entity.tscn instance shares the SAME authored spellbook_default.tres
 	# resource object (ResourceLoader caches by path) unless duplicated here —

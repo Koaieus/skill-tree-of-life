@@ -1,0 +1,127 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/melee_sandbox/melee_sandbox_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
+[ext_resource type="PackedScene" path="res://scenes/dev/melee_sandbox_graph.tscn" id="3_world"]
+
+[node name="MeleeSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_panel")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WorldContainer" type="SubViewportContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="VBox/WorldContainer" instance=ExtResource("2_vp")]
+unique_name_in_owner = true
+size = Vector2i(1280, 720)
+
+[node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="Graph" parent="VBox/WorldContainer/World" instance=ExtResource("3_world")]
+unique_name_in_owner = true
+
+[node name="Bar" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Controls" type="VBoxContainer" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BladeSizeRow" type="HBoxContainer" parent="VBox/Bar/Controls"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BladeSizeLabel" type="Label" parent="VBox/Bar/Controls/BladeSizeRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Blade size"
+
+[node name="BladeSizeSpin" type="SpinBox" parent="VBox/Bar/Controls/BladeSizeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 20.0
+value = 6.0
+tooltip_text = "Wielder blade_size — how many members the pivot may pull in."
+
+[node name="DelitRow" type="HBoxContainer" parent="VBox/Bar/Controls"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="DelitLabel" type="Label" parent="VBox/Bar/Controls/DelitRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Force de-lit"
+
+[node name="DelitSpin" type="SpinBox" parent="VBox/Bar/Controls/DelitRow"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 20.0
+tooltip_text = "Show the outermost N ghost vertices as popped (HDR → SDR). A real swing overrides this from the pop resolver."
+
+[node name="PreviewToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Preview loop"
+tooltip_text = "The only auto-driving part of melee. Also forced off whenever this tab is not visible."
+
+[node name="ImmortalToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Immortal quarry"
+tooltip_text = "Refill enemy nodes as they are damaged, so the same swing can be spammed against the same board."
+
+[node name="RearmToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Auto re-arm"
+tooltip_text = "Re-select the same pivot + members the instant a swing ends, so Launch is live again with no clicks in between."
+
+[node name="ResetBtn" type="Button" parent="VBox/Bar/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "⟲ Reset world"
+
+[node name="StatusLabel" type="Label" parent="VBox/Bar/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.725, 0.765, 0.863, 0.7)
+text = "—"
+
+[node name="TrayHost" type="MarginContainer" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="KnobScroll" type="ScrollContainer" parent="VBox/Bar"]
+custom_minimum_size = Vector2(380, 150)
+layout_mode = 2
+
+[node name="StyleKnobs" type="VBoxContainer" parent="VBox/Bar/KnobScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2

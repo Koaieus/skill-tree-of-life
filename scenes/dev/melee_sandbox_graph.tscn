@@ -1,0 +1,202 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="1_graph"]
+[ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="2_skill"]
+[ext_resource type="PackedScene" uid="uid://dgog4rl3yb7mh" path="res://graph/edge.tscn" id="3_edge"]
+[ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="4_entity"]
+[ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="5_spike"]
+
+[node name="MeleeSandboxGraph" instance=ExtResource("1_graph")]
+
+[node name="Wielder" parent="Entities" node_paths=PackedStringArray("core_location") instance=ExtResource("4_entity")]
+unique_name_in_owner = true
+display_name = "Wielder"
+color = Color(0.945, 0.269, 0.245, 1)
+is_human_controlled = true
+core_location = NodePath("../../Nodes/Hilt")
+
+[node name="Quarry" parent="Entities" node_paths=PackedStringArray("core_location") instance=ExtResource("4_entity")]
+unique_name_in_owner = true
+display_name = "Quarry"
+color = Color(0.29, 0.588, 1, 1)
+core_location = NodePath("../../Nodes/E_Core")
+
+[node name="Hilt" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(300, 380)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="Guard" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(360, 340)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="B1" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(420, 320)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="B2" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(480, 300)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="B3" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(540, 285)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="B4" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(600, 275)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="B5" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(660, 270)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="B6" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(720, 270)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="T1" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(470, 240)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="T2" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(455, 180)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="S1" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(610, 210)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="S2" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(620, 150)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="L1" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(240, 460)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="L2" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(200, 530)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="L3" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(150, 590)
+owned_by = NodePath("../../Entities/Wielder")
+base_type_color = Color(0.945, 0.269, 0.245, 1)
+
+[node name="E_Core" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(560, 560)
+owned_by = NodePath("../../Entities/Quarry")
+base_type_color = Color(0.29, 0.588, 1, 1)
+
+[node name="E_N" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(620, 470)
+owned_by = NodePath("../../Entities/Quarry")
+base_type_color = Color(0.29, 0.588, 1, 1)
+
+[node name="SpikeRingAddon" parent="Nodes/E_N" index="3" instance=ExtResource("5_spike")]
+
+[node name="E_E" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(650, 600)
+owned_by = NodePath("../../Entities/Quarry")
+base_type_color = Color(0.29, 0.588, 1, 1)
+
+[node name="E_S" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(520, 660)
+owned_by = NodePath("../../Entities/Quarry")
+base_type_color = Color(0.29, 0.588, 1, 1)
+
+[node name="SpikeRingAddon" parent="Nodes/E_S" index="3" instance=ExtResource("5_spike")]
+
+[node name="E_W" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
+position = Vector2(400, 600)
+owned_by = NodePath("../../Entities/Quarry")
+base_type_color = Color(0.29, 0.588, 1, 1)
+
+[node name="Edge_Hilt_Guard" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Hilt")
+to = NodePath("../../Nodes/Guard")
+
+[node name="Edge_Guard_B1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Guard")
+to = NodePath("../../Nodes/B1")
+
+[node name="Edge_B1_B2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B1")
+to = NodePath("../../Nodes/B2")
+
+[node name="Edge_B2_B3" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B2")
+to = NodePath("../../Nodes/B3")
+
+[node name="Edge_B3_B4" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B3")
+to = NodePath("../../Nodes/B4")
+
+[node name="Edge_B4_B5" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B4")
+to = NodePath("../../Nodes/B5")
+
+[node name="Edge_B5_B6" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B5")
+to = NodePath("../../Nodes/B6")
+
+[node name="Edge_B2_T1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B2")
+to = NodePath("../../Nodes/T1")
+
+[node name="Edge_T1_T2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/T1")
+to = NodePath("../../Nodes/T2")
+
+[node name="Edge_B4_S1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B4")
+to = NodePath("../../Nodes/S1")
+
+[node name="Edge_S1_S2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/S1")
+to = NodePath("../../Nodes/S2")
+
+[node name="Edge_Hilt_L1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/Hilt")
+to = NodePath("../../Nodes/L1")
+
+[node name="Edge_L1_L2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/L1")
+to = NodePath("../../Nodes/L2")
+
+[node name="Edge_L2_L3" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/L2")
+to = NodePath("../../Nodes/L3")
+
+[node name="Edge_ECore_EN" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/E_Core")
+to = NodePath("../../Nodes/E_N")
+
+[node name="Edge_ECore_EE" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/E_Core")
+to = NodePath("../../Nodes/E_E")
+
+[node name="Edge_ECore_ES" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/E_Core")
+to = NodePath("../../Nodes/E_S")
+
+[node name="Edge_ECore_EW" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/E_Core")
+to = NodePath("../../Nodes/E_W")
+
+[node name="Edge_EN_EE" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/E_N")
+to = NodePath("../../Nodes/E_E")

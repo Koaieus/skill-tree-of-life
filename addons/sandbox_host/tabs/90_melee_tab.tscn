@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://addons/melee_sandbox/melee_sandbox_panel.tscn" id="2_panel"]
+
+[node name="Melee" instance=ExtResource("1_base")]
+tab_title = "Melee"
+tab_id = &"melee"
+loader_method = &"load_object"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Melee"
+
+[node name="MeleeSandboxPanel" parent="Layout/Split/PanelHost" index="0" instance=ExtResource("2_panel")]
+layout_mode = 2

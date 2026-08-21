@@ -1,3 +1,4 @@
+@tool
 class_name LaunchAttackButton
 extends Button
 
@@ -8,6 +9,11 @@ extends Button
 ## As a FAB over the central viewport (per #28), the button hides entirely
 ## when there's nothing to launch — the affordance is its appearance, not
 ## its grey state. Enabled state lights up with a procedural fire shader.
+##
+## `@tool` so the Command Tray's melee body can be instanced live inside the
+## melee sandbox tab — a non-@tool script makes its node a placeholder in the
+## editor, and the tray's `set_enabled` / `pressed` wiring would throw
+## (`.claude/rules/gdscript-pitfalls.md`). Purely visual either way.
 ##
 ## Material pipeline mirrors [AttackModeButton]: one [ShaderMaterial] on the
 ## bg [ColorRect], one on the [Label], both fed by the same `_push()` so

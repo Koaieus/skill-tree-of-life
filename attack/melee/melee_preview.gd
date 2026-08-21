@@ -11,6 +11,20 @@ const _FADE: float = 0.4
 
 @export var battle_system: BattleSystem
 
+## Master switch for the IDLE loop only — a committed [method launch] ignores it.
+##
+## The preview loop is the one part of melee that auto-drives (simulate → play →
+## rebuild, forever), so anything hosting it needs a way to say "stop": the melee
+## sandbox tab drops this the moment its tab loses focus, rather than burning a
+## swing sim per frame behind a hidden panel.
+@export var preview_enabled: bool = true:
+	set(value):
+		if preview_enabled == value:
+			return
+		preview_enabled = value
+		if is_node_ready():
+			_refresh()
+
 var _ghost: SkillBlade
 # Generation token so in-flight playback coroutines self-cancel when the
 # selection changes underneath them. Bump on every spawn/teardown.
@@ -56,11 +70,18 @@ func _refresh() -> void:
 	if _live_swing:
 		return
 	var plan := battle_system.attack_plan
-	if plan is MeleeAttackPlan and plan.is_valid():
+	if preview_enabled and plan is MeleeAttackPlan and plan.is_valid():
 		_spawn_blade(plan as MeleeAttackPlan)
 		_run_preview_loop(_gen)
 	else:
 		_teardown()
+
+
+## The ghost currently mounted, or null. For a sandbox that wants to poke at the
+## live blade's visuals (force a vertex de-lit, re-push a [BladeStyle]) — nothing
+## in the game reads this.
+func current_blade() -> SkillBlade:
+	return _ghost
 
 
 ## Pure-animation playback of the swing [BattleSystem] is applying RIGHT NOW.
