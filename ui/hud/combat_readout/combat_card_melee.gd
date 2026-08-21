@@ -18,11 +18,11 @@ const STR_STEP := 10.0
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.blade_size != null:
-		board.blade_size.value_changed.connect(_refresh)
+		_binds.link(board.blade_size.value_changed, _refresh)
 	if board.blade_damage != null:
-		board.blade_damage.value_changed.connect(_refresh)
+		_binds.link(board.blade_damage.value_changed, _refresh)
 	if board.strength != null:
-		board.strength.value_changed.connect(_refresh)
+		_binds.link(board.strength.value_changed, _refresh)
 
 
 func _refresh() -> void:

@@ -13,9 +13,9 @@ extends CombatReadoutCard
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.ranged_damage != null:
-		board.ranged_damage.value_changed.connect(_refresh)
+		_binds.link(board.ranged_damage.value_changed, _refresh)
 	if board.range != null:
-		board.range.value_changed.connect(_refresh)
+		_binds.link(board.range.value_changed, _refresh)
 	
 	
 func _refresh() -> void:

@@ -26,41 +26,54 @@ extends VBoxContainer
 var _battle_system: BattleSystem
 var _player: Entity
 
+## The unmute flashes wired to the CURRENT hero's board — released as a unit
+## when [method set_player] re-points (#459 hot-seat handover).
+var _binds := BindScope.new()
 
-func bind(player: Entity, battle_system: BattleSystem) -> void:
+
+## System-lifetime wiring: the mode source and the global hover bus. Split
+## from [method set_player] because "which attack mode is selected" and "which
+## node is hovered" are facts about the level, not about whose turn it is —
+## re-running them on every handover would double-connect (#459).
+func bind(battle_system: BattleSystem) -> void:
 	_battle_system = battle_system
-	_player = player
-	var board := player.stat_board if player != null else null
-
 	if _battle_system != null:
 		# Inject battle system prior to binding
 		_magic_card._battle_system = _battle_system
-		
-		_battle_system.attack_plan_changed.connect(_on_plan_changed)
+
+		if not _battle_system.attack_plan_changed.is_connected(_on_plan_changed):
+			_battle_system.attack_plan_changed.connect(_on_plan_changed)
 		_on_plan_changed(_battle_system.attack_plan)
-		
-	for card in [_melee_card, _ranged_card, _magic_card, _crit_card, _defense_card]:
-		card.bind(player)
-		
+
 	if not Events.skill_node_hovered.is_connected(_on_skill_node_hovered):
 		Events.skill_node_hovered.connect(_on_skill_node_hovered)
 		Events.skill_node_unhovered.connect(_on_skill_node_unhovered)
 
+
+## Re-point every card at [param player]'s board. Safe to call repeatedly.
+func set_player(player: Entity) -> void:
+	_binds.release()
+	_player = player
+	var board := player.stat_board if player != null else null
+
+	for card in [_melee_card, _ranged_card, _magic_card, _crit_card, _defense_card]:
+		card.bind(player)
+
 	if board != null:
 		if board.blade_size != null:
-			board.blade_size.value_changed.connect(_melee_card.flash_unmute)
+			_binds.link(board.blade_size.value_changed, _melee_card.flash_unmute)
 		if board.blade_damage != null:
-			board.blade_damage.value_changed.connect(_melee_card.flash_unmute)
+			_binds.link(board.blade_damage.value_changed, _melee_card.flash_unmute)
 		if board.range != null:
-			board.range.value_changed.connect(_ranged_card.flash_unmute)
+			_binds.link(board.range.value_changed, _ranged_card.flash_unmute)
 		if board.spell_damage != null:
-			board.spell_damage.value_changed.connect(_magic_card.flash_unmute)
+			_binds.link(board.spell_damage.value_changed, _magic_card.flash_unmute)
 		if board.armor != null:
-			board.armor.value_changed.connect(_defense_card.flash_unmute)
+			_binds.link(board.armor.value_changed, _defense_card.flash_unmute)
 		if board.crit_chance != null:
-			board.crit_chance.value_changed.connect(_crit_card.flash_unmute)
+			_binds.link(board.crit_chance.value_changed, _crit_card.flash_unmute)
 		if board.crit_multiplier != null:
-			board.crit_multiplier.value_changed.connect(_crit_card.flash_unmute)
+			_binds.link(board.crit_multiplier.value_changed, _crit_card.flash_unmute)
 
 
 func _on_plan_changed(plan: AttackPlan) -> void:

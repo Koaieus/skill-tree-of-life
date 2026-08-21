@@ -54,6 +54,18 @@ var _allocation_system: AllocationSystem
 var _pending_picks: Array[Callable] = []
 var _picker_busy: bool = false
 
+## Latch for the system-lifetime half of [method compose]. Everything keyed to
+## a SYSTEM (the level's turn manager, battle system, hover bus) is wired once;
+## everything keyed to the PLAYER re-points on every hot-seat handover (#459).
+## Without the split, `rebind_player` would re-run `turn_manager.turn_started`
+## connections and each banner/gate would fire once per handover so far.
+var _systems_bound: bool = false
+
+## What HudRoot itself connects to the CURRENT hero's pools — just the
+## initiative bar, since every other player-keyed connection belongs to the
+## cluster that made it. Released on rebind, same as each cluster's own scope.
+var _binds := BindScope.new()
+
 
 func _ready() -> void:
 	# Loot picks route over the global bus; the handler filters to the player
@@ -69,65 +81,124 @@ func _ready() -> void:
 			spell_loot_picker.closed.connect(_on_picker_closed)
 
 
+## Let go of the hero's board when the level goes away. A Stat is a Resource
+## and outlives the Control that was listening to it, so a HUD freed while
+## still bound leaves lambdas holding freed gauges — which fire, loudly, the
+## next time that pool changes. Symmetric with [method rebind_player].
+func _exit_tree() -> void:
+	if Engine.is_editor_hint():
+		return
+	rebind_player(null)
+
+
 ## Injected by [GameRoot] once it and HudRoot are both in the tree. Every
 ## `source.signal.connect(target)` is paired with an immediate call using
 ## the source's current value.
 func compose(game_root: GameRoot) -> void:
-	_player = game_root.player
-	_input_ctl = game_root.input_ctl
-	_battle_system = game_root.battle_system
-	_turn_manager = game_root.turn_manager
-	_vision_system = game_root.vision_system
-	_allocation_system = game_root.allocation_system
+	bind_systems(game_root.graph, game_root.input_ctl, game_root.battle_system,
+			game_root.turn_manager, game_root.vision_system, game_root.allocation_system)
+	rebind_player(game_root.player)
 
-	# Before the `_player == null` bail: the fan is hover-driven and renders for
-	# unowned nodes too, so it stays useful in a level with no player entity.
+
+## The system-lifetime half of [method compose] — everything keyed to the
+## level rather than to whoever currently holds the turn. Runs once; a second
+## call is a no-op beyond re-caching the references (see [member
+## _systems_bound]).
+##
+## Takes the systems rather than the [GameRoot] that owns them so the HUD's
+## rebind seam can be exercised against hand-built systems, without a live
+## composition root — the same reason [method GameRoot.apply_roster] is static.
+func bind_systems(
+	graph: Graph,
+	input_ctl: PlayerInputController,
+	battle_system: BattleSystem,
+	turn_manager: TurnManager,
+	vision_system: VisionSystem,
+	allocation_system: AllocationSystem,
+) -> void:
+	_input_ctl = input_ctl
+	_battle_system = battle_system
+	_turn_manager = turn_manager
+	_vision_system = vision_system
+	_allocation_system = allocation_system
+	if _systems_bound:
+		return
+	_systems_bound = true
+
+	# The fan is hover-driven and renders for unowned nodes too, so it stays
+	# useful in a level with no player entity.
 	if tooltip_fan != null:
-		tooltip_fan.bind(game_root.graph)
-	# Also before the bail: the glow reads the input controller, not the player,
-	# and a level with no player entity simply never arms anything.
+		tooltip_fan.bind(graph)
+	# The glow reads the input controller, not the player, and a level with no
+	# player entity simply never arms anything.
 	if armed_mode_glow != null:
 		armed_mode_glow.bind(_input_ctl)
-
-	if _player == null:
-		return
-
-	if stat_board_overlay != null:
-		stat_board_overlay.board = _player.stat_board
-	if hero_sigil_card != null:
-		hero_sigil_card.bind(_player)
-	if xp_track != null:
-		xp_track.bind(_player)
-		# The emblem badge is the card's, but the beat that bumps it is the XP
-		# bar's — one source for badge, banner and gauge (#317/#320). It rides
-		# `level_display_changed`, not `level_reached`, so a level granted outside
-		# the XP pool still reaches the badge (see XpTrack's signal docs).
-		if hero_sigil_card != null:
-			xp_track.level_display_changed.connect(hero_sigil_card.show_level)
-			hero_sigil_card.show_level(_player.level)
-	if attributes_panel != null:
-		attributes_panel.bind(_player.stat_board)
-	if turn_resources_panel != null:
-		turn_resources_panel.bind(_player.stat_board)
-		turn_resources_panel.bind_input_ctl(_input_ctl)
-	if combat_readout != null:
-		combat_readout.bind(_player, _battle_system)
 	if node_inspector_card != null:
 		node_inspector_card.bind(_input_ctl)
+	if turn_resources_panel != null:
+		turn_resources_panel.bind_input_ctl(_input_ctl)
+	if combat_readout != null:
+		combat_readout.bind(_battle_system)
 	if action_cluster != null:
-		action_cluster.bind(_player, _turn_manager, _input_ctl, _vision_system)
+		action_cluster.bind(_turn_manager, _input_ctl, _vision_system)
 	if command_tray != null:
-		command_tray.bind(_turn_manager, _battle_system, _input_ctl, _player)
+		command_tray.bind(_battle_system, _input_ctl)
 	if announcement_layer != null:
 		announcement_layer.bind(_battle_system)
-	_bind_announcement_layer()
-	_bind_initiative_bar()
 	if loot_picker != null:
 		loot_picker.bind(_input_ctl)
 	if spell_loot_picker != null:
 		spell_loot_picker.bind(_input_ctl)
 	if mass_action_confirm_panel != null and _allocation_system != null:
 		mass_action_confirm_panel.bind(_input_ctl, _allocation_system)
+	if xp_track != null and hero_sigil_card != null:
+		# The emblem badge is the card's, but the beat that bumps it is the XP
+		# bar's — one source for badge, banner and gauge (#317/#320). It rides
+		# `level_display_changed`, not `level_reached`, so a level granted outside
+		# the XP pool still reaches the badge (see XpTrack's signal docs).
+		xp_track.level_display_changed.connect(hero_sigil_card.show_level)
+	_bind_turn_signals()
+
+
+## Re-point every player-keyed cluster at [param player]. Called by [method
+## compose] with the level's initial hero, and again on every hot-seat
+## handover (#459) by [method GameRoot.bind_player].
+##
+## Each cluster releases its own previous connections (see [BindScope]) —
+## this method only decides WHO, never bookkeeps the how. Null-safe: a level
+## with no player entity leaves the clusters unbound, exactly as before.
+func rebind_player(player: Entity) -> void:
+	if not _systems_bound:
+		# GameRoot binds the player once before HudRoot.compose runs (see its
+		# `_ready`); the compose call that follows does this properly.
+		return
+	_binds.release()
+	_player = player
+	var board: StatBoard = _player.stat_board if _player != null else null
+
+	# Null is a real argument, not a bail-out: it is how the HUD lets go of a
+	# board entirely (level teardown, see `_exit_tree`). Every binder below
+	# releases its own scope first and then handles a null gracefully, so
+	# passing it through is what makes "bound to nobody" reachable.
+	if stat_board_overlay != null:
+		stat_board_overlay.board = board
+	if hero_sigil_card != null:
+		hero_sigil_card.bind(_player)
+		if _player != null:
+			hero_sigil_card.show_level(_player.level)
+	if xp_track != null:
+		xp_track.bind(_player)
+	if attributes_panel != null:
+		attributes_panel.bind(board)
+	if turn_resources_panel != null:
+		turn_resources_panel.bind(board)
+	if combat_readout != null:
+		combat_readout.set_player(_player)
+	if action_cluster != null:
+		action_cluster.set_player(_player)
+	if command_tray != null:
+		command_tray.set_player(_player)
+	_bind_initiative_pool()
 
 
 ## Pick-N-from-M loot claim (#173). Only the PLAYER's relics get the picker —
@@ -181,11 +252,19 @@ func _set_picker_busy(busy: bool) -> void:
 
 ## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the
 ## player's turn start, "LEVEL UP" on level-up. AI turns animate silently.
-func _bind_announcement_layer() -> void:
-	if announcement_layer == null or _turn_manager == null or _player == null:
+## Also the initiative bar's show/hide beats.
+##
+## System-lifetime, despite every handler comparing against `_player`: the
+## SIGNAL is the turn manager's, and the handlers re-read `_player` when they
+## fire, so a handover needs no rewiring here. This used to bail on a null
+## player and was re-entered per compose — it is now connected exactly once,
+## before the first player is ever bound.
+func _bind_turn_signals() -> void:
+	if _turn_manager == null:
 		return
-	announcement_layer.bind_turn_manager(_turn_manager)
-	_turn_manager.turn_started.connect(_on_turn_started_for_banner)
+	if announcement_layer != null:
+		announcement_layer.bind_turn_manager(_turn_manager)
+		_turn_manager.turn_started.connect(_on_turn_started_for_banner)
 	# LEVEL UP is paced by the XP bar, not by the model (#317). `Entity.leveled_up`
 	# fires the instant XP lands — every level of a cascade in the same frame, and
 	# seconds before the bar has finished telling that story. XpTrack's
@@ -193,6 +272,9 @@ func _bind_announcement_layer() -> void:
 	# gauge actually reaches full.
 	if xp_track != null and not xp_track.level_reached.is_connected(_on_level_reached):
 		xp_track.level_reached.connect(_on_level_reached)
+	if initiative_bar != null:
+		_turn_manager.turn_started.connect(_on_turn_started_for_initiative)
+		_turn_manager.turn_ended.connect(_on_turn_ended_for_initiative)
 
 
 func _on_turn_started_for_banner(entity: Entity) -> void:
@@ -211,18 +293,20 @@ func _on_level_reached(new_level: int) -> void:
 ## (_on_owner_turn_started slides it out, _on_owner_turn_ended slides it
 ## back in) — reused verbatim, just wired the same way UIRoot.compose()
 ## wires its own copy.
-func _bind_initiative_bar() -> void:
-	if initiative_bar == null or _player == null or _player.stat_board == null or _turn_manager == null:
+##
+## The bar's own turn-manager beats are system-lifetime and live in
+## [method _bind_turn_signals]; only the POOL is per-player, so only the pool
+## is re-linked here.
+func _bind_initiative_pool() -> void:
+	if initiative_bar == null or _player == null or _player.stat_board == null:
 		return
 	var init_pool := _player.stat_board.initiative
 	if init_pool == null:
 		return
 	initiative_bar.max_initiative = float(init_pool.value)
-	init_pool.current_changed.connect(initiative_bar._on_initiative_changed)
-	init_pool.replenished.connect(initiative_bar._on_ready)
+	_binds.link(init_pool.current_changed, initiative_bar._on_initiative_changed)
+	_binds.link(init_pool.replenished, initiative_bar._on_ready)
 	initiative_bar._on_initiative_changed(float(init_pool.current))
-	_turn_manager.turn_started.connect(_on_turn_started_for_initiative)
-	_turn_manager.turn_ended.connect(_on_turn_ended_for_initiative)
 
 
 func _on_turn_started_for_initiative(entity: Entity) -> void:

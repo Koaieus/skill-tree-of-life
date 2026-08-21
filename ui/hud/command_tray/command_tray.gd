@@ -31,10 +31,13 @@ var _current_mode: int = -1
 var _current_body: CommandTrayBodyBase = null
 
 
-func bind(_turn_manager: TurnManager, battle_system: BattleSystem, input_ctl: PlayerInputController, player: Entity) -> void:
+## System-lifetime wiring: the mode source and the act gate. Split from
+## [method set_player] because both are facts about the level, not about whose
+## turn it is — re-running them on a hot-seat handover (#459) would
+## double-connect and request every mode change twice.
+func bind(battle_system: BattleSystem, input_ctl: PlayerInputController) -> void:
 	_input_ctl = input_ctl
 	_battle_system = battle_system
-	_player = player
 
 	attack_mode_bar.attack_mode_requested.connect(input_ctl.on_attack_mode_requested)
 	if _battle_system != null:
@@ -44,6 +47,26 @@ func bind(_turn_manager: TurnManager, battle_system: BattleSystem, input_ctl: Pl
 	if input_ctl != null:
 		input_ctl.player_can_act_changed.connect(attack_mode_bar.set_enabled)
 		attack_mode_bar.set_enabled(input_ctl.can_player_act())
+
+
+## Re-point the tray at [param player]. The live body reads `_player` at bind
+## time, so it is torn down and rebuilt through the existing swap path rather
+## than re-`bind()`ed in place — [method CommandTrayBodyBase.bind] connects,
+## and only `teardown()` undoes that.
+func set_player(player: Entity) -> void:
+	if _player == player:
+		return
+	_player = player
+	if _current_mode < 0:
+		return  # no body built yet — the first `_swap_body` will read `_player`
+	if not is_inside_tree():
+		# Teardown (HudRoot._exit_tree unbinds to null): a body added to a tree
+		# that is going away never gets its `_ready`, so its `@onready` refs are
+		# null when `bind` reaches them. Nothing to re-point to anyway.
+		return
+	var mode := _current_mode
+	_current_mode = -1
+	_swap_body(mode as BattleSystem.AttackMode)
 
 
 func _on_attack_plan_changed(plan: AttackPlan) -> void:

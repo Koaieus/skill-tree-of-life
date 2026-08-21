@@ -57,6 +57,14 @@ an error (two test failures in `VisionCircles`' bounds early-out).
 **How to apply:** for an inclusive region, keep `lo`/`hi` vectors and compare
 explicitly. `Rect2` is for layout/culling, not "is this inside?" predicates.
 
+## You cannot disconnect a lambda or an `unbind()` you did not keep
+
+A lambda's `Callable.get_object()` is the **GDScript**, not the node — so a
+connection's owner is unidentifiable from the outside — and `foo.unbind(1)`
+mints a fresh Callable per call, so `disconnect(foo.unbind(1))` never matches.
+Both fail as a silent no-op. Record the Callable when you connect it:
+`BindScope` (`ui/bind_scope.gd`) is the one such bookkeeper — don't add a second.
+
 ## Reading a freed Object
 
 - **A deferred call with a freed Object argument is silently dropped.** No error.

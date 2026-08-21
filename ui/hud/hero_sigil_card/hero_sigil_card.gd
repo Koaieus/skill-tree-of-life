@@ -52,6 +52,10 @@ var _entity: Entity
 ## final while the XP bar is still replaying the cascade that got there.
 var _shown_level: int = 1
 
+## Everything this card connects to the CURRENT hero's pools, released as a
+## unit when `bind` re-points at a different hero (#459 hot-seat handover).
+var _binds := BindScope.new()
+
 
 func _ready() -> void:
 	set_process(true)
@@ -63,6 +67,7 @@ func _process(delta: float) -> void:
 
 
 func bind(entity: Entity) -> void:
+	_binds.release()
 	_entity = entity
 	if _entity == null:
 		return
@@ -109,10 +114,10 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 	# *gains*, so a wound still snaps down and leaves its drain trail behind.
 	var animate := func():
 		gauge.animate_to(float(pool.current), float(pool.value))
-	pool.current_changed.connect(animate.unbind(1))
-	pool.value_changed.connect(animate)
+	_binds.link(pool.current_changed, animate.unbind(1))
+	_binds.link(pool.value_changed, animate)
 	if per_turn != null:
-		per_turn.value_changed.connect(func(): gauge.preview_gain = float(per_turn.value))
+		_binds.link(per_turn.value_changed, func(): gauge.preview_gain = float(per_turn.value))
 	if caption != null:
 		var refresh_caption := func():
 			var cur: float = float(pool.current)
@@ -120,8 +125,8 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 				caption.text = "%d/%d (+%d/t)" % [int(cur), int(pool.value), int(per_turn.value)]
 			else:
 				caption.text = "%d/%d" % [int(cur), int(pool.value)]
-		pool.current_changed.connect(refresh_caption.unbind(1))
-		pool.value_changed.connect(refresh_caption)
+		_binds.link(pool.current_changed, refresh_caption.unbind(1))
+		_binds.link(pool.value_changed, refresh_caption)
 		if per_turn != null:
-			per_turn.value_changed.connect(refresh_caption)
+			_binds.link(per_turn.value_changed, refresh_caption)
 		refresh_caption.call()

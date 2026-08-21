@@ -63,8 +63,14 @@ Per-entity, derived from each allocated node:
 ### The vision RULE is one class, shared by every caller (#378)
 
 The scene carries exactly **one** `VisionSystem` instance, and its `viewers`
-is normally `[player]` — it drives the player's fog rendering only, not a
-general per-entity visibility oracle. AI needs its own per-entity check
+is the local **camp** — every entity sharing the active player's `Faction`,
+set by `GameRoot._apply_camp_vision` (#459). In single player that is
+`[player]`; in hot-seat coop it is both allied humans, so handing the turn
+over does not re-derive fog from a different owned subgraph and flash the
+map. Note that assigning `viewers` unconditionally rebinds and recomputes, so
+the setter is only written when the camp set actually changed. Either way it
+drives the local fog rendering only, not a general per-entity visibility
+oracle. AI needs its own per-entity check
 ("does *this* enemy see a hostile"), which can't be answered by mutating the
 shared instance's `viewers` without breaking player fog.
 

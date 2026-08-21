@@ -49,6 +49,9 @@ const _BUCKET_DESC := {
 var _board: StatBoard
 var _legend_base_alpha: Dictionary[int, float] = {}
 var _mp_base_glow: Color = Color(0, 0, 0, 0)
+## Everything this panel connects to the CURRENT hero's pools, released as a
+## unit when `bind` re-points at a different board (#459 hot-seat handover).
+var _binds := BindScope.new()
 
 
 func _get_minimum_size() -> Vector2:
@@ -69,6 +72,7 @@ func _ready() -> void:
 
 
 func bind(board: StatBoard) -> void:
+	_binds.release()
 	_board = board
 	if _board == null:
 		return
@@ -107,10 +111,10 @@ func _bind_cells(gauge: PoolGauge, pool: PoolStat) -> void:
 		# DP/MP carry a transient surplus bin (#152) shown as trailing cells.
 		if surplus_gauge != null and surplus_pool != null:
 			surplus_gauge.surplus = float(surplus_pool.surplus)
-	pool.current_changed.connect(sync.unbind(1))
-	pool.value_changed.connect(sync)
+	_binds.link(pool.current_changed, sync.unbind(1))
+	_binds.link(pool.value_changed, sync)
 	if surplus_pool != null:
-		surplus_pool.surplus_changed.connect(sync)
+		_binds.link(surplus_pool.surplus_changed, sync)
 	sync.call()
 
 
@@ -128,9 +132,9 @@ func _bind_skill_points(sp: SkillPointStat) -> void:
 					if sp.current > 0 else Emissive.at(Color.WHITE, Emissive.INERT)
 		_refresh_legend(sp)
 		_refresh_wound_heal(sp)
-	sp.current_changed.connect(sync.unbind(1))
-	sp.value_changed.connect(sync)
-	sp.wound_heal_progress_changed.connect(func(_p): _refresh_wound_heal(sp))
+	_binds.link(sp.current_changed, sync.unbind(1))
+	_binds.link(sp.value_changed, sync)
+	_binds.link(sp.wound_heal_progress_changed, func(_p): _refresh_wound_heal(sp))
 	sync.call()
 
 

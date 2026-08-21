@@ -16,9 +16,9 @@ extends CombatReadoutCard
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.armor != null:
-		board.armor.value_changed.connect(_refresh)
+		_binds.link(board.armor.value_changed, _refresh)
 	if board.min_damage_taken != null:
-		board.min_damage_taken.value_changed.connect(_refresh)
+		_binds.link(board.min_damage_taken.value_changed, _refresh)
 
 
 func _refresh() -> void:

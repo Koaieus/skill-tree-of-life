@@ -25,9 +25,9 @@ var _spell: SpellDef:
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.spell_damage != null:
-		board.spell_damage.value_changed.connect(_refresh)
+		_binds.link(board.spell_damage.value_changed, _refresh)
 	if _battle_system != null:
-		_battle_system.selected_spell_changed.connect(_set_spell)
+		_binds.link(_battle_system.selected_spell_changed, _set_spell)
 
 func _get_spell() -> SpellDef:
 	if _spell != null:

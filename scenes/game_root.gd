@@ -129,6 +129,11 @@ func _ready() -> void:
 	# that keeps every sandbox playable without per-scene wiring.
 	_ensure_controllers()
 	bind_player(player)
+	# Hot-seat coop (#459): with more than one human in the roster, "the player"
+	# changes hands every turn. Connected after `_ensure_controllers` so the
+	# `is_human_controlled` flag the handler reads is already settled.
+	if turn_manager != null:
+		turn_manager.turn_started.connect(_on_turn_started_for_handover)
 	if not enable_fog:
 		if fog_overlay != null:
 			fog_overlay.visible = false
@@ -287,14 +292,68 @@ func bind_player(p: Entity) -> void:
 	if player == null:
 		return
 	highlight_controller.player = player
+	# Clears the outgoing player's armed modes / attack plan / targeting on the
+	# way in — see [method PlayerInputController._set_player].
 	input_ctl.player = player
-	if vision_system != null:
-		vision_system.viewers = [player] as Array[Entity]
+	_apply_camp_vision()
 	# #460: whose point of view `RunOutcome.local_result` is written from. Set
 	# here rather than read by VictorySystem, so "who is the local human" stays
 	# a single fact owned by this method.
 	if victory_system != null:
 		victory_system.local_camp = player.faction
+	# #91/#108 — the Hero Sigil Card's floater anchor follows the active hero
+	# too, or player 1 keeps collecting player 2's wound/heal toasts. No-op
+	# until the HUD is composed.
+	_wire_hud_floater_anchor()
+	if hud_root != null:
+		hud_root.rebind_player(player)
+	_focus_camera_on_player()
+
+
+## Fog is a CAMP-wide reveal, not a per-hero one (#459). Two allied humans on
+## one couch share what they can see, so handover doesn't re-derive vision from
+## a different owned subgraph and flash the map.
+##
+## The assignment is skipped when the set is unchanged — [member
+## VisionSystem.viewers] is a setter that unconditionally rebinds every viewer
+## stat and recomputes, and a hot-seat handover between two members of the same
+## camp produces the identical set. (A no-op skip, not a recursion guard.)
+func _apply_camp_vision() -> void:
+	if vision_system == null or player == null or player.faction == null:
+		return
+	var camp_viewers: Array[Entity] = []
+	for node in get_tree().get_nodes_in_group(Entity.GROUP):
+		var ent := node as Entity
+		if ent == null or ent.faction == null:
+			continue
+		# By `faction.id`, matching [method Entity.attitude_to] — camp fog and
+		# camp allegiance must not be two different answers to "same camp?",
+		# or a duplicated Faction resource splits vision while attitude still
+		# reads allied.
+		if ent.faction.id != &"" and ent.faction.id == player.faction.id:
+			camp_viewers.append(ent)
+	# The player itself may not be in the group yet (a level that binds during
+	# `_setup_level`, before the entity is grouped) — never end up with none.
+	if not camp_viewers.has(player):
+		camp_viewers.append(player)
+	if vision_system.viewers == camp_viewers:
+		return
+	vision_system.viewers = camp_viewers
+
+
+## Hot-seat handover (#459). "The player" is whoever's turn it is among the
+## humans — the HUD, the input channel, the camera and the victory viewpoint
+## all re-point through the one seam that already owns them.
+##
+## Reads [member Entity.is_human_controlled] (what [method apply_roster] sets
+## from a [Participant]'s kind), so an AI turn never steals the local view, and
+## a single-human run never fires this at all.
+func _on_turn_started_for_handover(entity: Entity) -> void:
+	if entity == null or entity == player:
+		return
+	if not entity.is_human_controlled:
+		return
+	bind_player(entity)
 
 
 ## Attaches a default [EntityController] child to any [Entity] in the level

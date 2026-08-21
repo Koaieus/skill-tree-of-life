@@ -992,16 +992,60 @@ func _emit_gate_changed() -> void:
 	_refresh_armed_state()
 
 
+## Hot-seat handover (#459) rides this setter, not a second public entry
+## point: `player` is an `@export`, so anything that assigns it directly —
+## GameRoot's `bind_player`, a scene's edit-time wiring, a test — has to get
+## the transient-state clear too, or player 2 inherits player 1's half-built
+## swing.
+##
+## The no-op skip is exactly that (see the setter-recursion rule): assigning
+## the SAME hero must not wipe a live arm, and `bind_player` is documented as
+## idempotently re-callable, so it re-asserts the current player routinely.
 func _set_player(value: Entity) -> void:
+	if player == value:
+		return
 	if player != null and player.stat_board != null:
 		var prev_ap: PoolStat = player.stat_board.action_points
 		if prev_ap != null and prev_ap.current_changed.is_connected(_on_ap_changed):
 			prev_ap.current_changed.disconnect(_on_ap_changed)
+	clear_transient_state()
 	player = value
 	if player != null and player.stat_board != null:
 		var ap: PoolStat = player.stat_board.action_points
 		if ap != null and not ap.current_changed.is_connected(_on_ap_changed):
 			ap.current_changed.connect(_on_ap_changed)
+
+
+## Drop every scrap of half-finished intent: armed modes, the in-flight attack
+## plan, mass-action confirmation, core-move targeting and its drag visuals,
+## hover/pin, and the modal input freeze. Everything here is state a player
+## builds up *during* their turn and that means nothing to the next one.
+##
+## The freeze is included deliberately: [ModalBase] clears it when its modal
+## closes, but a handover that happens while one is up (a loot pick resolving
+## into a death, say) would otherwise strand the incoming player with dead
+## input and no modal left to unfreeze them.
+##
+## The attack plan lives on [BattleSystem], not here, so the clear has to reach
+## across. A swing mid-resolve (`is_launching`) is left alone — tearing down a
+## plan whose landings are still being applied would strand them (see
+## [method GameRoot._exit_tree] and the attack-timeline rule); a turn cannot
+## end mid-swing anyway, so this is belt-and-braces, not a live path.
+##
+## Safe before `_ready`: `_armed_modes` is empty until then, and every setter
+## below is a no-op on already-default state.
+func clear_transient_state() -> void:
+	if battle_system != null and battle_system.is_attacking and not battle_system.is_launching:
+		battle_system.cancel_attack()
+	cancel_mass_action()
+	_set_temp_upgrade_arm(null)
+	_set_manage_arm(ManageVerb.NONE)
+	_set_move_targeting_source(null)
+	_clear_core_drag()
+	_set_pinned(null)
+	_hovered_node = null
+	_input_frozen = false
+	_refresh_armed_state()
 
 
 func _on_ap_changed(_new_current: Variant) -> void:

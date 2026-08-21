@@ -45,6 +45,11 @@ func _get_minimum_size() -> Vector2:
 	return margin.get_combined_minimum_size() if margin != null else Vector2.ZERO
 
 
+## What this panel connects to the CURRENT hero's board, released as a unit
+## when [method bind] re-points (#459 hot-seat handover).
+var _binds := BindScope.new()
+
+
 func _ready() -> void:
 	_tooltip.visible = false
 	# Re-poll the forwarded minimum size whenever the wrapped content's
@@ -60,8 +65,7 @@ func _ready() -> void:
 
 
 func bind(board: StatBoard) -> void:
-	if _board != null:
-		_disconnect_board()
+	_binds.release()
 	_board = board
 	if _board == null:
 		return
@@ -85,18 +89,21 @@ func bind(board: StatBoard) -> void:
 		var stat := stats[i]
 		if stat == null:
 			continue
-		stat.value_changed.connect(_refresh.bind(i, stat))
+		_binds.link(stat.value_changed, _refresh.bind(i, stat))
 		_refresh(i, stat)
 
 	if _board.vision_range != null:
-		_board.vision_range.value_changed.connect(_refresh_senses)
+		_binds.link(_board.vision_range.value_changed, _refresh_senses)
 	if _board.sensor_range != null:
-		_board.sensor_range.value_changed.connect(_refresh_senses)
+		_binds.link(_board.sensor_range.value_changed, _refresh_senses)
 	_refresh_senses()
 
 
-func _disconnect_board() -> void:
-	pass  # StatBoard swaps are rare (dev-only); rows/radar just rebind on next bind().
+## Rebinding used to be a no-op stub on the assumption that board swaps were
+## dev-only; hot-seat coop (#459) makes them a per-turn event, and every row +
+## both sense readouts stayed wired to the previous hero. [member _binds] is
+## the release — see [BindScope].
+
 
 
 func _refresh(i: int, stat: ScalarStat) -> void:

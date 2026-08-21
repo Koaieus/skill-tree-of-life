@@ -44,6 +44,11 @@ var _flash_tween: Tween
 var _hover_node: SkillNode = null
 var _owner_entity: Entity = null
 
+## Everything `_bind` connects to the CURRENT hero's board, released as a unit
+## when this card is re-pointed at a different one (#459 hot-seat handover).
+## Subclasses route their stat subscriptions through it — see [method _bind].
+var _binds := BindScope.new()
+
 
 @onready var _title_label: Label = %Title
 @onready var _panel: GlassPanel = %GlassPanel
@@ -73,6 +78,7 @@ func set_hover_node(node: SkillNode) -> void:
 ## [method _local_override_or_null] compare against a foreign baseline.
 ## Virtual hook `_bind()` can be overridden in concrete classes to set up bindings
 func bind(owner_entity: Entity) -> void:
+	_binds.release()
 	_owner_entity = owner_entity
 	var board: StatBoard = owner_entity.stat_board if owner_entity != null else null
 	_board = board
@@ -82,7 +88,10 @@ func bind(owner_entity: Entity) -> void:
 	_bind(board, owner_entity)
 	_refresh()
 
-## Virtual — called by `bind()` when entity/stat_board are checked; to set up the real wiring between panel and stat board
+## Virtual — called by `bind()` when entity/stat_board are checked; to set up
+## the real wiring between panel and stat board. Connect through
+## [member _binds] (`_binds.link(sig, cb)`), never `sig.connect` directly, or
+## the previous hero's stats keep driving this card after a handover.
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	return

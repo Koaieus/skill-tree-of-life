@@ -68,6 +68,10 @@ var _phase: _Phase = _Phase.IDLE
 ## by the model — `stat_board.level` is already final when the replay starts.
 var _shown_level: int = 1
 
+## What this strip connects to the CURRENT hero's XP pool, released as a unit
+## by [method _unbind] (#459 hot-seat handover).
+var _binds := BindScope.new()
+
 
 func bind(entity: Entity) -> void:
 	_unbind()
@@ -96,11 +100,11 @@ func _bind_pool(pool: PoolStat, per_turn: ScalarStat) -> void:
 	if not _gauge.fill_finished.is_connected(_on_fill_finished):
 		_gauge.fill_finished.connect(_on_fill_finished)
 		_gauge.level_segment_held.connect(_on_level_segment_held)
-	pool.current_changed.connect(_on_current_changed)
-	pool.value_changed.connect(_on_value_changed)
-	pool.replenished_by.connect(_on_gained)
+	_binds.link(pool.current_changed, _on_current_changed)
+	_binds.link(pool.value_changed, _on_value_changed)
+	_binds.link(pool.replenished_by, _on_gained)
 	if per_turn != null:
-		per_turn.value_changed.connect(_on_per_turn_changed)
+		_binds.link(per_turn.value_changed, _on_per_turn_changed)
 	_refresh_caption()
 
 
@@ -108,12 +112,7 @@ func _bind_pool(pool: PoolStat, per_turn: ScalarStat) -> void:
 ## leaving these connected would keep replaying a previous entity's XP into this
 ## strip (and the sequencer would still hold its segments).
 func _unbind() -> void:
-	if _pool != null:
-		_pool.current_changed.disconnect(_on_current_changed)
-		_pool.value_changed.disconnect(_on_value_changed)
-		_pool.replenished_by.disconnect(_on_gained)
-	if _per_turn != null:
-		_per_turn.value_changed.disconnect(_on_per_turn_changed)
+	_binds.release()
 	_entity = null
 	_pool = null
 	_per_turn = null

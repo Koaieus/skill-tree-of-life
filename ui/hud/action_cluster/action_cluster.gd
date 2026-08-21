@@ -22,12 +22,36 @@ var _turn_manager: TurnManager
 var _input_ctl: PlayerInputController
 var _vision_system: VisionSystem
 
+## What this cluster connects to the CURRENT hero's AP pool, released as a unit
+## when [method set_player] re-points (#459 hot-seat handover).
+var _binds := BindScope.new()
 
-func bind(player: Entity, turn_manager: TurnManager, input_ctl: PlayerInputController, vision_system: VisionSystem) -> void:
-	_player = player
+
+## System-lifetime wiring: the End Turn button and the turn/act gates. Split
+## from [method set_player] because these are facts about the level, not about
+## whose turn it is — re-running them on a hot-seat handover (#459) would
+## double-connect and end the turn twice per press.
+func bind(turn_manager: TurnManager, input_ctl: PlayerInputController, vision_system: VisionSystem) -> void:
 	_turn_manager = turn_manager
 	_input_ctl = input_ctl
 	_vision_system = vision_system
+
+	_end_turn_button.text = "End Turn"
+	_end_turn_button.pressed.connect(_on_end_turn_pressed)
+	_end_turn_button.confirmed.connect(_end_turn)
+
+	if _input_ctl != null:
+		_input_ctl.player_can_act_changed.connect(_refresh_end_turn_button.unbind(1))
+	if _turn_manager != null:
+		_turn_manager.turn_started.connect(_on_turn_started)
+		_turn_manager.turn_ended.connect(_on_turn_ended)
+	_refresh_end_turn_button()
+
+
+## Re-point the AP gauge at [param player]'s pool. Safe to call repeatedly.
+func set_player(player: Entity) -> void:
+	_binds.release()
+	_player = player
 	if _player == null or _player.stat_board == null:
 		return
 
@@ -42,19 +66,9 @@ func bind(player: Entity, turn_manager: TurnManager, input_ctl: PlayerInputContr
 				_value_label.text = "%d/%d" % [int(ap.current), int(ap.value)]
 			_refresh_warning()
 			_refresh_conversion()
-		ap.current_changed.connect(sync.unbind(1))
-		ap.value_changed.connect(sync)
+		_binds.link(ap.current_changed, sync.unbind(1))
+		_binds.link(ap.value_changed, sync)
 		sync.call()
-
-	_end_turn_button.text = "End Turn"
-	_end_turn_button.pressed.connect(_on_end_turn_pressed)
-	_end_turn_button.confirmed.connect(_end_turn)
-
-	if _input_ctl != null:
-		_input_ctl.player_can_act_changed.connect(_refresh_end_turn_button.unbind(1))
-	if _turn_manager != null:
-		_turn_manager.turn_started.connect(_on_turn_started)
-		_turn_manager.turn_ended.connect(_on_turn_ended)
 	_refresh_end_turn_button()
 
 
