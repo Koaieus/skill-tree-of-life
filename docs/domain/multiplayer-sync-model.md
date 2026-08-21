@@ -56,15 +56,18 @@ click / AI decision
    `AllocationSystem` entry point is synchronous, gated, `-> bool`, and takes
    `(node, entity)` — already wire-shaped once `SkillNode` becomes `stable_id`.
 
-2. **Mutation is entangled with animation, and fixing that is required under
-   *every* model.** `systems/battle_system.gd:141` resolves a pure
-   `AttackOutcome` — good — but damage then lands *inside*
-   `await attack_vfx.play(...)` / `await melee_preview.launch(...)`, and the
-   forced-dealloc cascade fires from `Events.skill_node_depleted` raised inside
-   that await. So the authoritative world change happens at animation time,
-   ordered by frames. Lockstep, host authority and state diff all need world
-   mutation to be one synchronous step with VFX as a pure observer.
-   `BattleSystem.is_launching` is already the reentrancy guard #458 asked for.
+2. **Mutation used to be entangled with animation; #504 fixed that
+   specifically, and the fix is required under *every* model.** Before design
+   B, `BattleSystem.launch_attack` resolved a pure `AttackOutcome` but landed
+   damage *inside* `await attack_vfx.play(...)` / `await melee_preview.launch(...)`,
+   so the authoritative world change happened at animation time, ordered by
+   frames — exactly what lockstep, host authority, and state diff all forbid.
+   As of #504 the VFX call is un-awaited and mutation runs on its own
+   `OutcomeApplier`/`BeatClock` loop, paced by authored `arrival_time`, not by
+   animation completion — see docs/domain/presentation-clock.md. VFX is now a
+   pure observer in fact, not just in intent, which is what this section's
+   architecture assumed all along. `BattleSystem.is_launching` is already the
+   reentrancy guard #458 asked for.
 
 3. **Combat is nearly RNG-free — but not entirely.** Initiative, allocation
    gating, mitigation, blade hit-scan and AI scoring are pure arithmetic. Three
@@ -91,13 +94,36 @@ determinism contract. It isn't, for two reasons that are not about cost:
 - **There is no authority at all**, so the later move to fog-filtered state —
   the only way hidden information becomes technically real — is a rewrite rather
   than a payload swap.
-- **`MeleeAttackPlan.resolve()` is not safely re-simulable.** It runs a 1.2s
-  blade trajectory scan, and `BladePopResolver` resolves defensive-spike pops
-  *during* that scan — so the hit **set**, not merely the damage arithmetic,
-  depends on simulation order. A divergence there is silent and catastrophic.
+- **The unseeded `Array.shuffle()` calls** in loot / skill-dust would make
+  killing-blow relics differ per client — a one-line fix (inject the seeded
+  RNG), not an architectural blocker, but a real one as the code stands today.
+- **`blade_arc_driver.gd:41`'s libm trig** is a residual caveat: transcendental
+  functions aren't guaranteed bit-identical across platforms/compilers, which
+  only matters for *bit-exact* lockstep, not for this rejection on its own.
 
-Add the AI's frame-shaped timing and the unseeded loot shuffle, and the
-determinism budget buys nothing the host could not simply tell us.
+`MeleeAttackPlan.resolve()` itself is **not** the blocker it looks like.
+`attack/melee/sim/blade_sim.gd:28-31` is a pure fixed-dt XPBD loop
+(`steps = ceil(duration/dt)`, `t = float(step)*dt`) with no frame delta and no
+RNG; `blade_hit_scan.gd:35` walks `trajectory.sample_dt`; every call site
+passes constants; `ai_blade_rollout.gd:37` already documents `simulate()` as
+pure so it can run on `WorkerThreadPool`. `BladePopResolver` resolving
+defensive-spike pops *during* the scan makes the hit set order-dependent
+within that one deterministic call — but **order-dependence inside a
+deterministic function is not a divergence risk**: given the same inputs,
+every peer's re-simulation produces the same order and the same set. That
+was the doc bug here, not a property of the sim.
+
+Add the AI's frame-shaped timing, and the determinism budget buys nothing the
+host could not simply tell us — the real blockers are hidden information and
+the absence of authority, not re-simulability.
+
+**Current information decision: every client gets full world state; hiding
+is a UI concern.** No fog gating exists anywhere in planning today, so this
+matches what the code already assumes, and it's acceptable on a LAN. If that
+ever needs to change, it's a payload swap (ship less than full state) on top
+of this model, not a rewrite of it — `RevealEvent`'s `from_value`/`to_value`
+in the parked `presentation/` classes is already the shape a fog-gated or
+authoritative-reveal payload would want; see `presentation/README.md`.
 
 ### Rejected: full state replication / snapshots
 
@@ -183,9 +209,14 @@ seam. Lobby: type-an-IP.
 
 ## Traps
 
-- **Never mutate the world from inside a VFX await.** That is the bug this
-  design exists to prevent, and `launch_attack` is where it currently lives.
-  VFX observes an already-applied outcome.
+- **Never frame-order a mutation** — never let animation completion, a
+  dropped frame, or wall-clock timing decide *when* the world changes. That
+  is the bug this design exists to prevent. This is narrower than "never
+  mutate inside an await": `OutcomeApplier.apply` awaits a fixed logical
+  `BeatClock` between landings (#504, design B) and that's fine — the
+  interval is authored, not animation-derived, and nothing else can act
+  inside the window. VFX observes; it never mutates and never gates a
+  mutation on its own progress. See docs/domain/presentation-clock.md.
 - **Never put a `SkillNode` or `Entity` reference in a command.** `stable_id`
   and the entity id only.
 - **A command raised during another command's application queues, never
