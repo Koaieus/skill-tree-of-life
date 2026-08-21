@@ -59,6 +59,11 @@ var mode: Mode = Mode.OFF
 ## one line and its absence is an infinite loop.
 var _applying_remote: bool = false
 
+## Monotonic receive counter, so a handler resuming from an await can tell
+## whether a newer command has since superseded its view of the world. Not a
+## wire field — the host never sees it.
+var _recv_seq: int = 0
+
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -127,6 +132,8 @@ func _on_remote_command(payload: Dictionary) -> void:
 	if command == null:
 		logged.emit("← undecodable payload, dropped")
 		return
+	_recv_seq += 1
+	var seq := _recv_seq
 	_applying_remote = true
 	command_applier.submit(command)
 	# `submit` may await (move_core beats, end_turn's initiative tick), so the
@@ -135,6 +142,17 @@ func _on_remote_command(payload: Dictionary) -> void:
 		await command_applier.applying_changed
 	_applying_remote = false
 	logged.emit("← %s" % command.type_tag())
+	# Only the NEWEST handler, and only once the queue is empty, may compare.
+	# Two async commands in flight (move_core's per-hop beats, end_turn's
+	# initiative tick) resume from the SAME `applying_changed` and both then see
+	# the post-both-commands world — so the earlier one would compare it against
+	# its own older fingerprint and report a divergence that never happened. A
+	# spurious ✗ poisons the only diagnostic this harness has, which is worth
+	# more than a tick per command.
+	if command_applier.is_applying or command_applier.pending_count() > 0:
+		return
+	if seq != _recv_seq:
+		return
 	_report_sync(WorldFingerprint.compute(graph), int(payload.get(KEY_FINGERPRINT, 0)), \
 			"after %s" % command.type_tag())
 

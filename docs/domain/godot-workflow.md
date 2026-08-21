@@ -164,6 +164,34 @@ The cache only rebuilds when the editor enumerates the project:
 mise run refresh      # or: godot --headless --editor --quit
 ```
 
+## The look-alike that is NOT a stale cache: `mise run check` can miss a parse error*
+
+**Symptom:** at runtime, *"Invalid call. Nonexistent function 'x' in base
+'GDScript'"* on a brand-new script — while `mise run check` says **"✓ all
+scripts compiled clean"** and `mise run refresh` says "nothing changed".
+
+It reads exactly like the stale-cache section above, and it isn't. A script with
+a parse error loads as an **empty** GDScript: the `class_name` still resolves (it
+is in the cache), so the call site compiles, and every method on it is missing at
+runtime. Chasing the cache gets you nowhere, twice.
+
+Get the real error out of the file itself:
+
+```bash
+godot --headless --path . --check-only --script network/world_fingerprint.gd
+```
+
+That prints the parse error with a line number. Ignore any *"Identifier not
+found: StatRegistry/Events"* it also emits — `--script` skips autoloads, and that
+noise is unrelated (see the crumb).
+
+Live example: `PackedInt64Array` has no `hash()`. One bad line, whole script
+empty, check green.
+
+**How to apply:** a runtime "nonexistent function" on a file you just wrote is a
+parse error until proven otherwise. `--check-only --script <file>` first, refresh
+never.
+
 ## Always git status after a refresh*
 
 **Calibrate before you read the list: the expected outcome is nothing, or

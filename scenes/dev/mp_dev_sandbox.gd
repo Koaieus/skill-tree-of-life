@@ -150,7 +150,10 @@ func _run_autopilot() -> void:
 	if target == null:
 		_write_log("autopilot: no frontier node to allocate")
 		return
-	player.stat_board.skill_points.grant(1)
+	# No SP grant here, deliberately: granting on the host only is itself an
+	# unmirrored mutation, and on a tighter scene the client's `allocate` gate
+	# would then refuse and autopilot would report a divergence it caused. It
+	# spends the SP the scene authored, same as a player would.
 	_write_log("autopilot: allocating %s" % target.name)
 	input_ctl.command_applier.submit(
 			AllocateCommand.new(player.entity_id, graph.get_stable_id(target)))
