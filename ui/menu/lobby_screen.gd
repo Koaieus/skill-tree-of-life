@@ -46,8 +46,8 @@ func _ready() -> void:
 	set_title("Lobby")
 
 	_participants = _build_participants(_mode)
-	for i in _participants.size():
-		_add_participant_row(_participants[i], _PLACEHOLDER_COLORS[i % _PLACEHOLDER_COLORS.size()])
+	for p in _participants:
+		_add_participant_row(p)
 
 	var seed_row := HBoxContainer.new()
 	seed_row.add_theme_constant_override("separation", 8)
@@ -69,13 +69,13 @@ func _ready() -> void:
 	add_option("Start Game").pressed.connect(func(): start_pressed.emit(_build_run_config()))
 
 
-func _add_participant_row(participant: Participant, color: Color) -> void:
+func _add_participant_row(participant: Participant) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	content.add_child(row)
 
 	var swatch := ColorRect.new()
-	swatch.color = color
+	swatch.color = participant.color
 	swatch.custom_minimum_size = Vector2(20, 20)
 	row.add_child(swatch)
 
@@ -92,6 +92,8 @@ static func _build_participants(mode: RunConfig.Mode) -> Array[Participant]:
 		result.append(_make_participant(2, "Player 2", _CAMP_1))
 	else:
 		result.append(_make_participant(1, "Player 1", _PLAYER_FACTION))
+	for i in result.size():
+		result[i].color = _PLACEHOLDER_COLORS[i % _PLACEHOLDER_COLORS.size()]
 	return result
 
 
