@@ -64,6 +64,15 @@ var is_applying: bool = false
 var _queue: Array[Command] = []
 
 
+## Claim the [BattleSystem] as ours to call back into. Set from here rather
+## than by a second NodePath export on [BattleSystem] so the applier it
+## submits to and the applier that applies for it are the same object by
+## construction — two exports could name two.
+func _ready() -> void:
+	if battle_system != null:
+		battle_system.command_applier = self
+
+
 ## Enqueue [param command]. Drains immediately when idle; when a drain is
 ## already running this returns at once and the in-flight drain picks the
 ## command up. Never blocks the caller — even the synchronous verbs finish
@@ -115,6 +124,11 @@ func _apply(command: Command) -> bool:
 	if command is DeallocateSetCommand:
 		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
 		return allocation_system.deallocate_set(nodes, actor)
+	if command is LaunchAttackCommand:
+		if battle_system == null:
+			return false
+		@warning_ignore("redundant_await")
+		return await battle_system.apply_launch_command(command as LaunchAttackCommand)
 	if command is EndTurnCommand:
 		if turn_manager == null:
 			return false

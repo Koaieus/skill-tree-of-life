@@ -1,1 +1,1 @@
-An attack's `resolve()` freezes only the *candidate set*; every landing's gate (still allocated? still hostile?) and all arithmetic are re-read at land time, so a kill on wave N is visible to wave N+1. See docs/domain/attack-timeline.md
+An attack's `resolve()` freezes only the *candidate set*; every landing's gate (still allocated? still hostile?) and all arithmetic are re-read at land time on the HOST, so a kill on wave N is visible to wave N+1 — a peer re-runs no gate, it replays a recorded result. See docs/domain/attack-timeline.md

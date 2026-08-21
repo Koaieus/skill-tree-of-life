@@ -39,6 +39,7 @@ range_finder = SubResource("range_3hop")
 
 [resource]
 script = ExtResource("1_spell")
+id = &"spark"
 name = "Spark"
 description = "Deal 5 damage to a single enemy-occupied node within 3 hops of the source via the live graph (allocation status irrelevant — hops route through whatever's connected)."
 icon = ExtResource("1_6qevb")

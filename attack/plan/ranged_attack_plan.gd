@@ -37,6 +37,23 @@ func _init() -> void:
 	mode = BattleSystem.AttackMode.RANGED
 
 
+## Wire form: the base fields plus the single target id. Firing positions are
+## DERIVED (every reaching leaf of the attacker's territory), so they are not
+## wire state — a peer rebuilding this plan re-derives the same schedule from
+## the same world.
+func to_dict(graph: Graph) -> Dictionary:
+	var d := super(graph)
+	d["target"] = graph.get_stable_id(target) if graph != null and target != null else 0
+	return d
+
+
+static func from_dict(d: Dictionary, graph: Graph) -> RangedAttackPlan:
+	var plan := RangedAttackPlan.new()
+	plan._read_base(d, graph)
+	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
+	return plan
+
+
 func _on_node_left_clicked(node: SkillNode) -> void:
 	if not _is_valid_target(node):
 		return

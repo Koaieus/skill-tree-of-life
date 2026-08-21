@@ -23,6 +23,19 @@ Read this before changing `resolve()` on any `AttackPlan`, before touching
 > in that order and re-evaluates each landing's gate against live state before
 > applying it.**
 
+**This is the AUTHORITY's timeline** (#511). Under
+[multiplayer-sync-model.md](multiplayer-sync-model.md) the host runs exactly
+what is written here — resolve, then `OutcomeApplier`, with every mode's
+land-time gate live against the real world. A *peer* does not: it receives
+`AttackRecord`, a post-apply record of what each landing actually did, and
+replays those deltas through the same applier loop. It re-runs no gate,
+re-reads no live offense, and computes no combat number, because it cannot —
+mitigation is node-local, an earlier beat's cascade changes what a later beat
+lands on, and a target may sit under fog it knows nothing about. Every
+"re-read at land time" sentence below describes host-side behaviour. Nothing
+about the host contract changes; the qualifier exists so a peer path is never
+built by reading this as universal.
+
 Two halves, both load-bearing:
 
 - **Resolution is still pure and still up-front.** It produces an

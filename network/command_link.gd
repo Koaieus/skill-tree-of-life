@@ -15,11 +15,12 @@ extends Node
 ##
 ## [b]What actually mirrors today:[/b] every verb [CommandApplier] handles —
 ## allocate / deallocate / deallocate_set / mass_allocate / stake / extract /
-## move_core / end_turn / toggle_temp_upgrade. [b]What does not:[/b] attacks
-## (still called straight into [BattleSystem] — #511) and loot rolls (#509's
-## [PickLootCommand] is not routed). A client will therefore diverge the moment
-## somebody swings, and the fingerprint below is how you SEE that happen instead
-## of guessing.
+## move_core / end_turn / toggle_temp_upgrade, and launch_attack since #511
+## (which rides down with an [AttackRecord] the client replays rather than
+## re-resolving). [b]What does not:[/b] loot rolls — #509's [PickLootCommand]
+## is not routed. A client will therefore diverge the moment somebody picks
+## loot, and the fingerprint below is how you SEE that happen instead of
+## guessing.
 ##
 ## See `docs/domain/multiplayer-harness.md`.
 

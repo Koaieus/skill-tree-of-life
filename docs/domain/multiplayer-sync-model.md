@@ -168,7 +168,7 @@ confirmed-command stream **is** the event log. Nothing extra to design.
 | Action | Up (intent) | Down (confirmed) | Why |
 |---|---|---|---|
 | allocate / deallocate / deallocate_set / stake / extract / move_core | the command | the same command, nothing more | Fully deterministic, no RNG — every peer re-applies it identically |
-| launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell | the command **plus a record of what the attack actually did**, captured as the host applies it | `resolve()` is already pure and side-effect free, but the swing sim is order-dependent and crits roll. Clients reconstruct the recorded effects and replay VFX; they never re-simulate and never re-derive a number |
+| launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell (`AttackPlan.to_dict`) | the same command **plus `AttackRecord`**, a post-apply record of what each landing actually did, stamped by `BattleSystem` during application (#511) | `resolve()` is already pure and side-effect free, but the swing sim is order-dependent and crits roll. Clients reconstruct the recorded effects and replay VFX; they never re-simulate and never re-derive a number |
 | loot pick / relic roll | the pick intent | the resolved result | The host rolls; the shuffles stay host-only |
 | end turn | the command | the command | The host's `TurnManager` is the clock, so `_tick_until_ready`'s group-order tiebreak stops being a hazard |
 
@@ -216,8 +216,10 @@ reads **both**. Outcomes come back as `command_applied(cmd, success)`, emitted
 cascade-offer path — queues rather than re-entering; `applying_changed` fires
 *after* the flag clears, matching `is_launching`'s deliberate ordering.
 
-Routed so far: every `PlayerInputController` mutation (#510). Still direct, by
-plan: `battle_system.launch_attack` (child C) and `ai_controller` (child D).
+Routed so far: every `PlayerInputController` mutation (#510) and
+`battle_system.launch_attack` (#511 — it builds a `LaunchAttackCommand`,
+submits it, and parks on `applying_changed`, so every existing caller still
+awaits the whole action). Still direct, by plan: `ai_controller` (child D).
 `PickLootCommand` exists but is not routed — correlating `request_id` back to a
 live `LootPickRequest` needs a registry nobody has built yet.
 
@@ -233,6 +235,26 @@ built into Godot and zero-config on a LAN, **not** because it is the only
 option: `WebSocketMultiplayerPeer`, `WebRTCMultiplayerPeer`, and raw
 `PacketPeerUDP` / `StreamPeerTCP` all exist. The transport choice is close to
 free and reversible behind the seam. Lobby: type-an-IP.
+
+**One command type, two states (#511).** `LaunchAttackCommand` is the only
+asymmetric verb in the vocabulary, and that is deliberate. An EMPTY `record`
+means *initiate*: the authority stamps the seed, resolves, gates on
+affordability, and applies naturally, then stamps the record it produced onto
+the same object — which `CommandLink` broadcasts, because it encodes on
+`command_applied`, i.e. after application. A POPULATED `record` means *replay*:
+a peer rebuilds the plan (for the animation only) and the recorded deltas (for
+the world), and lands them through the same `OutcomeApplier` on the same
+`BeatClock`. Two types would need the receiver to know its own role to refuse
+the wrong one; one type whose payload says which half of the work is already
+done needs no role at all — and when #463 adds the intent channel upward, a
+client's intent IS this command with an empty record.
+
+**A peer re-simulates to DRAW, never to derive.** Melee reforms a bit-identical
+blade from the plan (`blade_sim.gd` is a pure fixed-dt XPBD loop, no frame
+delta, no RNG) so the swing animates; the damage it shows comes off the record.
+That is not the re-simulation this model forbids — nothing is mutated and no
+number is computed. `docs/domain/attack-timeline.md`'s land-time re-read
+contract is host-side only, and now says so.
 
 **Payload size.** Most commands are a few dozen bytes. **The attack record is
 the outlier and magic is its worst case:** `trail_blazer.tres` authorises

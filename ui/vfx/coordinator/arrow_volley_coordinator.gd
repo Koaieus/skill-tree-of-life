@@ -166,16 +166,17 @@ func _flight_for(hit: DamageInstance, launch_delay: float) -> float:
 	return hit.arrival_time - launch_delay
 
 
-# Resolve attacker tint: the RangedAttackPlan is the hit source and
-# carries `attacker: Entity` with a `color`. Defensive — any non-conforming
-# source falls back to the LightArrow default.
+# Resolve attacker tint off [member HitInstance.attacker] — a typed
+# base-class field since #507. This used to duck-type through
+# `hit.source.attacker`, which only worked because a ranged hit's `source`
+# happened to be its [RangedAttackPlan]; #511 dropped `source` from the wire
+# (it is a Variant of resolve-local residue, and this was its one real
+# reader), so a replayed volley has none. Falls back to the LightArrow
+# default when no hit names an attacker.
 func _resolve_tint(hits: Array[DamageInstance]) -> Color:
 	for hit in hits:
-		var src: Variant = hit.source
-		if src != null and "attacker" in src:
-			var atk: Variant = src.attacker
-			if atk != null and "color" in atk:
-				return atk.color
+		if hit.attacker != null:
+			return hit.attacker.color
 	return Color(1.0, 0.9, 0.6, 1.0)
 
 

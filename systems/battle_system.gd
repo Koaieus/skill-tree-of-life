@@ -45,6 +45,12 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
+## The queue an attack is applied through (#511). Optional: without one,
+## [method launch_attack] applies straight, which is what every headless
+## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
+## rather than by a second NodePath export, so "the applier that will call me
+## back" and "the applier I submit to" cannot be two different objects.
+var command_applier: CommandApplier = null
 
 ## Design B (#504): the clock the CURRENT attack's mutation loop is walking, or
 ## null between attacks. Held so [method drain_pending_mutations] can cut the
@@ -210,72 +216,203 @@ func _ready() -> void:
 	_seed_source.randomize()
 
 
-## Commit the active plan. Three phases:
-##   1. resolve() → AttackOutcome (the candidate set + attacker-side arithmetic;
-##      see docs/domain/attack-timeline.md for what is frozen here and what is
-##      re-read at land time)
-##   2. apply the outcome ON THE BEAT CLOCK — each hit's world mutation happens
-##      at its own `arrival_time`, in that order, with the forced-dealloc
-##      cascade running synchronously inside each beat (#504, design B)
-##   3. VFX runs CONCURRENTLY as a PURE OBSERVER — it reads
-##      `outcome`/`melee_plan.last_events` to time its playback and never
-##      mutates; then AP/plan cleanup
+## Commit the active plan — the entry point every caller still uses (the HUD
+## launch buttons, [AiController]). Since #511 this is a thin front for a
+## [LaunchAttackCommand]: build it, submit it, and wait out the queue. The
+## work itself lives in [method apply_launch_command], which the
+## [CommandApplier] calls back — see [LaunchAttackCommand] for why one command
+## type covers both "resolve and apply this" and "replay what the authority
+## did".
 ##
-## [b]Phases 2 and 3 overlap, and that is the point.[/b] The arrow is in the
-## air while the mutation loop waits out its `arrival_time`, so the health bar,
-## the shatter, the fog and the damage number all move on the same beat — they
-## are all reading the model, and the model changes when the arrow lands.
-##
-## The rule this does not break is [b]never frame-ordered mutation[/b] — see
-## [BeatClock]. VFX still gates nothing: dropping every frame of the animation
-## leaves the applied world identical, because the loop waits on its own timer
-## and not on `attack_vfx.play`.
-##
-## AP is deducted up front; the plan itself stays live through the whole
-## await (#406 — a melee plan's attached temp-upgrade addons must keep
-## rendering through the live swing) and is cleared in one place, after.
-## `is_launching` — not `attack_plan != null` — is what blocks a second
-## launch_attack() call during the await window.
+## Awaits the whole action, not just the mutation, exactly as before.
 func launch_attack() -> void:
+	var command := build_launch_command()
+	if command == null:
+		return
+	# Routed through the applier when one is wired, so an attack is an ordinary
+	# confirmed command that [CommandLink] mirrors like every other verb. This
+	# does NOT return early: `submit` drains synchronously up to the first
+	# await inside the mutation loop, and parking on `applying_changed` after
+	# it means every existing caller — the HUD launch buttons, `await
+	# bs.launch_attack()` in [AiController] — still resumes when the WHOLE
+	# swing is done, exactly as before.
+	if command_applier != null:
+		# Wait for THIS command, not for the queue to empty. `applying_changed`
+		# would be the shorter spelling and is wrong twice: it fires when the
+		# whole drain ends (so a command queued behind this one delays the
+		# return), and a `launch_attack` raised from inside another command's
+		# application would park on a signal that cannot fire until the drain
+		# it is blocking completes — a hang. Every drained command emits
+		# `command_applied`, so this loop always makes progress.
+		var finished: Array[bool] = [false]
+		var on_applied := func(applied: Command, _ok: bool) -> void:
+			if applied == command:
+				finished[0] = true
+		command_applier.command_applied.connect(on_applied)
+		command_applier.submit(command)
+		while not finished[0] and command_applier.is_applying:
+			await command_applier.command_applied
+		command_applier.command_applied.disconnect(on_applied)
+		return
+	# No applier (headless fixtures, the editor, any level that has not mounted
+	# one): apply straight. The seam is what #511 builds; a second code path
+	# for offline is not, so this is the same method the applier would call.
+	@warning_ignore("redundant_await")
+	await apply_launch_command(command)
+
+
+## The active plan as a [LaunchAttackCommand], or null if there is nothing
+## launchable. Runs the checks that need the LIVE plan and are cheap to answer
+## before anything is queued — is there a plan, is it valid, is somebody's turn
+## — and stamps the per-attack seed.
+##
+## [b]The seed is stamped HERE, not at resolve.[/b] It is an input to the
+## resolution, and putting it on the command makes the artifact
+## self-describing: (plan + seed) is everything an authority needs to re-resolve
+## and compare. `apply_launch_command` copies it onto the plan before calling
+## [method AttackPlan.resolve], so "stamp before resolving" still holds.
+func build_launch_command() -> LaunchAttackCommand:
 	if not is_attacking or is_launching:
 		push_warning("BattleSystem.launch_attack: no plan, or already launching")
-		return
+		return null
 	if not attack_plan.is_valid():
 		push_warning("BattleSystem.launch_attack: invalid plan: %s" % str(attack_plan.validate()))
-		return
+		return null
 	var entity := turn_manager.current_entity if turn_manager != null else null
 	if entity == null:
 		push_warning("BattleSystem.launch_attack: no current entity")
-		return
+		return null
+	return LaunchAttackCommand.new(
+			entity.entity_id, attack_plan.to_dict(graph), _seed_source.randi())
+
+
+## Apply [param command] — the [CommandApplier]'s entry point, and the one
+## place an attack mutates the world.
+##
+## Two halves, and which one runs is decided by the command's payload rather
+## than by a peer role (see [LaunchAttackCommand]):
+##   * empty record — AUTHORITY. Resolve, gate on affordability, apply
+##     naturally, then stamp the record of what actually happened back onto
+##     the command so it rides out with the broadcast.
+##   * populated record — REPLAY. Rebuild the plan (for the animation) and the
+##     recorded effects (for the world), and commit those.
+func apply_launch_command(command: LaunchAttackCommand) -> bool:
+	if command == null or is_launching:
+		return false
+	if command.record.is_empty():
+		@warning_ignore("redundant_await")
+		return await _launch_as_authority(command)
+	@warning_ignore("redundant_await")
+	return await _replay_launch(command)
+
+
+## The RESOLVE half — host only. Everything up to and including the
+## affordability gates, which are the last thing that can still refuse an
+## attack. Returns null on a refusal; the world is untouched either way,
+## because nothing below resolve() mutates.
+func _resolve_for_launch(plan: AttackPlan, seed_value: int) -> AttackOutcome:
 	# Stamp BEFORE resolving: the seed is an input to this resolution, and
 	# `outcome.resolve_seed` carries it back out so the artifact can
 	# reproduce itself. Every preview and AI rollout up to this point ran on
 	# the unstamped (0) stream, so the committed roll is genuinely fresh.
-	attack_plan.resolve_seed = _seed_source.randi()
-	var outcome := attack_plan.resolve()
-	var board: StatBoard = entity.stat_board
+	plan.resolve_seed = seed_value
+	var outcome := plan.resolve()
+	var entity := plan.attacker
+	var board: StatBoard = entity.stat_board if entity != null else null
 	var ap_pool: PoolStat = board.action_points if board != null else null
 	if ap_pool != null and ap_pool.available() < outcome.ap_cost:
 		push_warning("BattleSystem.launch_attack: insufficient AP (%d < %d)" \
 				% [int(ap_pool.current), outcome.ap_cost])
-		return
+		return null
 	var mana_pool: PoolStat = board.mana if board != null else null
 	if outcome.mana_cost > 0 and mana_pool != null \
 			and mana_pool.available() < outcome.mana_cost:
 		push_warning("BattleSystem.launch_attack: insufficient mana (%d < %d)" \
 				% [int(mana_pool.current), outcome.mana_cost])
-		return
+		return null
+	return outcome
+
+
+func _launch_as_authority(command: LaunchAttackCommand) -> bool:
+	var plan := attack_plan
+	if plan == null:
+		# An initiate for a plan this peer does not hold. Rebuilding one here
+		# would be the intent-up path, which is #463 — refuse loudly instead of
+		# guessing what the sender had armed.
+		push_warning("BattleSystem: launch_attack initiate with no live plan")
+		return false
+	# Re-validated HERE, not only in `build_launch_command`: a command can sit
+	# in the queue while the world moves under it (a cascade frees the pivot,
+	# the target is captured). An invalidated plan resolves to an EMPTY
+	# outcome whose `ap_cost` still defaults to 1, so skipping this spends AP
+	# on nothing.
+	if not plan.is_valid():
+		push_warning("BattleSystem: plan went invalid before apply: %s" % str(plan.validate()))
+		return false
+	var outcome := _resolve_for_launch(plan, command.resolve_seed)
+	if outcome == null:
+		return false
+	@warning_ignore("redundant_await")
+	await _commit(plan, outcome, command)
+	return true
+
+
+## The peer half. The plan is rebuilt so the swing can be DRAWN — melee
+## reforms a bit-identical blade from the same pivot/members and re-runs the
+## pure sim for its trajectory, which mutates nothing (see [AttackRecord] on
+## why drawing is not re-simulating). The WORLD comes entirely from the
+## record.
+func _replay_launch(command: LaunchAttackCommand) -> bool:
+	var plan := AttackPlanCodec.from_dict(command.plan, graph)
+	if plan == null:
+		return false
+	var outcome := AttackRecord.rebuild(command.record, graph)
+	attack_plan = plan
+	# Melee draws off `last_trajectory` / `last_events`, which only
+	# [method MeleeAttackPlan.resolve] fills in. Its returned outcome is
+	# DISCARDED — the record is what lands. Skipped when there is no preview
+	# mounted, so a headless peer pays nothing for an animation it won't play.
+	if plan is MeleeAttackPlan and melee_preview != null:
+		plan.resolve()
+	@warning_ignore("redundant_await")
+	await _commit(plan, outcome, null)
+	return true
+
+
+## The APPLY half — what every peer runs, authority included. Identical either
+## way; the only difference is where [param outcome] came from.
+##
+## Costs are deducted up front; the plan itself stays live through the whole
+## await (#406 — a melee plan's attached temp-upgrade addons must keep
+## rendering through the live swing) and is cleared in one place, after.
+## `is_launching` — not `attack_plan != null` — is what blocks a second
+## launch during the await window.
+##
+## [b]Phases overlap, and that is the point.[/b] The arrow is in the air while
+## the mutation loop waits out its `arrival_time`, so the health bar, the
+## shatter, the fog and the damage number all move on the same beat — they are
+## all reading the model, and the model changes when the arrow lands. The rule
+## this does not break is [b]never frame-ordered mutation[/b] — see [BeatClock].
+## VFX still gates nothing: dropping every frame of the animation leaves the
+## applied world identical, because the loop waits on its own timer and not on
+## `attack_vfx.play`.
+func _commit(plan: AttackPlan, outcome: AttackOutcome,
+		command: LaunchAttackCommand) -> void:
 	is_launching = true
+	var entity := plan.attacker
+	var board: StatBoard = entity.stat_board if entity != null else null
+	var ap_pool: PoolStat = board.action_points if board != null else null
 	if ap_pool != null:
 		ap_pool.deplete(float(outcome.ap_cost))
+	var mana_pool: PoolStat = board.mana if board != null else null
 	if outcome.mana_cost > 0 and mana_pool != null:
 		mana_pool.deplete(float(outcome.mana_cost))
-	var launched_spell: SpellDef = (attack_plan as MagicAttackPlan).spell if attack_plan is MagicAttackPlan else null
-	attack_launched.emit(attack_plan.mode, launched_spell)
+	var launched_spell: SpellDef = (plan as MagicAttackPlan).spell if plan is MagicAttackPlan else null
+	attack_launched.emit(plan.mode, launched_spell)
 	# Costs are already deducted; the plan is still live, so an effect can read
 	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
-	if attack_plan.attacker != null:
-		attack_plan.attacker.dispatch(&"_on_attack_launched", [attack_plan.mode, launched_spell])
+	if plan.attacker != null:
+		plan.attacker.dispatch(&"_on_attack_launched", [plan.mode, launched_spell])
 	# VFX starts FIRST and UN-AWAITED, so it runs alongside the mutation loop
 	# below: the arrow is in the air while the loop waits out its
 	# `arrival_time`. It is still a pure observer — it reads the outcome to
@@ -289,7 +426,7 @@ func launch_attack() -> void:
 	# fully-synchronous VFX path (a stub, a mode with nothing to draw) from
 	# emitting into no listener and hanging the launch forever.
 	_vfx_running = false
-	var melee_plan: MeleeAttackPlan = attack_plan as MeleeAttackPlan
+	var melee_plan: MeleeAttackPlan = plan as MeleeAttackPlan
 	if melee_plan != null and melee_preview != null:
 		# Melee: the MeleePreview (which has the ghost mounted) animates the
 		# swing on the same `BladeHitEvent.t` clock the applier lands hits on,
@@ -297,13 +434,20 @@ func launch_attack() -> void:
 		_run_melee_preview(melee_plan)
 	elif attack_vfx != null:
 		var coord_scene: PackedScene = null
-		var magic_plan: MagicAttackPlan = attack_plan as MagicAttackPlan
+		var magic_plan: MagicAttackPlan = plan as MagicAttackPlan
 		if magic_plan != null and magic_plan.spell != null:
 			coord_scene = magic_plan.spell.vfx_coordinator_scene
 		_run_attack_vfx(outcome, coord_scene)
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
+	# Captured the instant the world is done and before anything is torn down.
+	# Every field it reads (`effective_amount`, the post-reclassification
+	# `kind`, `gated`) was filled in at land time by the code that landed it —
+	# see [AttackRecord] on why the record is post-apply rather than the
+	# resolve-time outcome.
+	if command != null:
+		command.record = AttackRecord.capture(outcome, graph)
 	# Then wait out the animation too, before releasing anything. `is_launching`
 	# spans the WHOLE action, not just the mutation: it is what blocks a second
 	# launch, and the plan stays live behind it because a melee plan's

@@ -32,6 +32,31 @@ func _init() -> void:
 	state_changed.connect(_invalidate_target_cache)
 
 
+## Wire form: the base fields plus source/target ids and the spell's
+## [member SpellDef.id]. The `_cached_*` target set is a repaint optimisation
+## rebuilt on demand from (source, spell) — never wire state.
+func to_dict(graph: Graph) -> Dictionary:
+	var d := super(graph)
+	d["source"] = graph.get_stable_id(source) if graph != null and source != null else 0
+	d["target"] = graph.get_stable_id(target) if graph != null and target != null else 0
+	d["spell"] = spell.id if spell != null else &""
+	return d
+
+
+static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
+	var plan := MagicAttackPlan.new()
+	plan._read_base(d, graph)
+	# Assigned directly, not through set_spell(): that method clears a target
+	# the new spell would reject, and rebuilding a plan must reproduce what the
+	# authority sent rather than re-adjudicate it. Order still matters — the
+	# spell lands before the target so `_target_still_valid` is never consulted
+	# against a stale one.
+	plan.spell = SpellCatalog.by_id(StringName(d.get("spell", &"")))
+	plan.source = graph.get_by_stable_id(int(d.get("source", 0))) if graph != null else null
+	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
+	return plan
+
+
 func pop() -> bool:
 	if source == null:
 		return false

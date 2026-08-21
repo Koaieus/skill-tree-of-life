@@ -40,5 +40,7 @@ static func from_dict(d: Dictionary) -> Command:
 			return PickLootCommand.from_dict(d)
 		ToggleTempUpgradeCommand.TAG:
 			return ToggleTempUpgradeCommand.from_dict(d)
+		LaunchAttackCommand.TAG:
+			return LaunchAttackCommand.from_dict(d)
 	push_warning("CommandCodec: unknown command type tag '%s'" % tag)
 	return null

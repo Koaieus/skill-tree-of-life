@@ -81,16 +81,27 @@ means it must stop applying locally and wait to be told — surgery on
 
 **Mirrors:** every verb `CommandApplier` handles — allocate, deallocate,
 deallocate_set, mass_allocate, stake, extract, move_core, end_turn,
-toggle_temp_upgrade. The host broadcasts each *confirmed* command (refused ones
-changed nothing, so there is nothing to mirror) with a world fingerprint
-attached; the client decodes via `CommandCodec`, applies through its own
-applier, and compares.
+toggle_temp_upgrade, and (since #511) launch_attack. The host broadcasts each
+*confirmed* command (refused ones changed nothing, so there is nothing to
+mirror) with a world fingerprint attached; the client decodes via
+`CommandCodec`, applies through its own applier, and compares.
 
-**Does not:** attacks, still called straight into `BattleSystem` (#511), and
-loot rolls (#509's `PickLootCommand` is unrouted). Swing in the host window and
-the client's overlay reads `✗ DIVERGED`. **That is the harness working.** The
-whole point of the fingerprint is that the two known gaps announce themselves
-instead of being discovered three weeks later as "multiplayer feels weird".
+**Attacks cross as of #511.** The command carries `AttackRecord` — a post-apply
+record of what each landing actually did — and the client replays it rather
+than re-resolving. `--autopilot` now fires a Spark after its allocate, so a
+terminal-driven pair exercises the attack path without a human clicking.
+**Read that `✓` carefully:** the fingerprint folds ownership only, so a cast
+that damages without killing anything leaves it unchanged either way. What the
+`← launch_attack` line proves is that the command decoded and applied on the
+client at all; the *effects* are pinned by
+`test/unit/attack/test_attack_record_replay.gd`, which compares node HP, AP and
+mana across two real worlds through the same wire encoding.
+
+**Does not:** loot rolls (#509's `PickLootCommand` is unrouted). Pick loot in
+the host window and the client's overlay reads `✗ DIVERGED`. **That is the
+harness working.** The whole point of the fingerprint is that a known gap
+announces itself instead of being discovered three weeks later as "multiplayer
+feels weird".
 
 ## The fingerprint
 

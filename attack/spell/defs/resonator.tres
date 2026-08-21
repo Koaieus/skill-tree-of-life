@@ -60,6 +60,7 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+id = &"resonator"
 name = "Resonator"
 description = "Constructive interference — branches fan to every enemy neighbour, adding +2 damage each hop. When two branches converge on the same node in the same wave, they ADD and the landing crits (×2). Diamonds, hexagons, and chained-diamond topologies detonate on the convergence node; straight lines and the first hit don't crit. The longer the diamond chain, the harder the last crit — build the run around a graph that feeds it."
 icon = ExtResource("1_uku7o")

@@ -434,8 +434,17 @@ func test_the_live_magic_path_resolves_under_a_stamped_seed() -> void:
 		"cannot reproduce itself")
 	var bs_src := FileAccess.get_file_as_string("res://systems/battle_system.gd")
 	assert_false(bs_src.is_empty(), "could not read battle_system.gd")
-	assert_string_contains(bs_src, "attack_plan.resolve_seed = _seed_source.randi()",
-		"the authority must stamp a fresh seed per committed attack")
+	# #511 split the stamp across two lines: the authority mints the seed when
+	# it BUILDS the command (so the command is self-describing — plan + seed is
+	# everything needed to re-resolve and compare) and copies it onto the plan
+	# immediately before resolving. Both halves are asserted, because either
+	# one alone would let the other rot: a mint nobody applies, or an apply of
+	# a seed nobody freshly minted.
+	assert_string_contains(bs_src, "_seed_source.randi()",
+		"the authority must mint a fresh seed per committed attack")
+	assert_string_contains(bs_src, "plan.resolve_seed = seed_value",
+		"and stamp it onto the plan BEFORE resolve(), or the roll it " +
+		"reproduces is not the one that was committed")
 
 
 func test_an_unstamped_plan_resolves_on_a_fixed_stream() -> void:

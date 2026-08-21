@@ -62,6 +62,7 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("9_en1rl")
+id = &"trail_blazer"
 name = "The Trailblazer"
 description = "Walks a single path from the target: each degree-2 node it passes through adds +2 damage before the spell hops onward; when it reaches a junction (degree >2) it deals double the accumulated total and stops. Cast on a node at the end of a long string for maximum devastation."
 icon = ExtResource("1_x1qvp")

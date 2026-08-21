@@ -58,6 +58,7 @@ metadata/_custom_type_script = "uid://btpnit4nenasw"
 
 [resource]
 script = ExtResource("3_u10h5")
+id = &"healing_beam"
 name = "Healing Beam"
 description = "Heals your own nodes"
 icon = ExtResource("3_sdixp")

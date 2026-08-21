@@ -57,6 +57,34 @@ func seeded_rng() -> RandomNumberGenerator:
 	return rng
 
 
+## The plan's wire form (#511) — mode, attacker id, seed. Subclasses call
+## `super(graph)` and add their own fields.
+##
+## [param graph] is required because node ids mint LAZILY: a subclass must
+## read one through [method Graph.get_stable_id], never `node.stable_id`,
+## or a hand-authored node serializes as 0 and resolves to nothing on the
+## far side, silently (`.claude/rules/multiplayer-sync.md`).
+##
+## What crosses is INPUT only. Resolution residue —
+## [member MeleeAttackPlan.last_events] and friends, the `_cached_*` target
+## sets — is rebuildable from these fields on any peer and must not ride
+## along.
+func to_dict(_graph: Graph) -> Dictionary:
+	return {
+		"mode": int(mode),
+		"attacker": attacker.entity_id if attacker != null else 0,
+		"seed": resolve_seed,
+	}
+
+
+## Read the base fields back. Subclasses call this from their own
+## `static from_dict` before filling in their mode-specific slots — see
+## [AttackPlanCodec] for why the dispatch is not a static on this class.
+func _read_base(d: Dictionary, graph: Graph) -> void:
+	attacker = graph.get_by_entity_id(int(d.get("attacker", 0))) if graph != null else null
+	resolve_seed = int(d.get("seed", 0))
+
+
 ## error messages, empty = valid
 @abstract func validate() -> Array[String]
 

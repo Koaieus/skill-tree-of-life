@@ -17,9 +17,9 @@ client applies them through its own `CommandApplier` and is otherwise a frozen
 spectator. An intent channel upward is #463, gated behind #511/#512 — don't
 open it here.
 
-**A `✗ DIVERGED` line is the harness working.** Attacks (#511) and loot (#509's
-unrouted `PickLootCommand`) never cross the wire, so the fingerprint is supposed
-to disagree after a swing. Chase divergence only on the verbs `CommandApplier`
-actually handles.
+**A `✗ DIVERGED` line is the harness working.** Loot (#509's unrouted
+`PickLootCommand`) still never crosses, so the fingerprint is supposed to
+disagree after a pick. Chase divergence only on the verbs `CommandApplier`
+actually handles — attacks now among them (#511), and `--autopilot` casts one.
 
 See docs/domain/multiplayer-harness.md.

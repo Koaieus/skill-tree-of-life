@@ -73,6 +73,7 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+id = &"reverberator"
 name = "Reverberator"
 description = "Fans to every enemy neighbour at or above the current node's territory degree — climbs toward hubs and refuses to flow downhill. Converging branches ADD, +{SEED} damage per hop. Self-loops count double, so a peak with a self-loop can't spread further outward: the walk reverberates into itself instead, doubling up on the same node. CRIT on traversal of a self-loop edge (×2, stacks with crit_chance stat) — the spell feeds back into its own path."
 icon = ExtResource("1_uku7o")

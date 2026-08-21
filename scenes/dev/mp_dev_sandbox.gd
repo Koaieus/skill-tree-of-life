@@ -157,6 +157,57 @@ func _run_autopilot() -> void:
 	_write_log("autopilot: allocating %s" % target.name)
 	input_ctl.command_applier.submit(
 			AllocateCommand.new(player.entity_id, graph.get_stable_id(target)))
+	if input_ctl.command_applier.is_applying:
+		await input_ctl.command_applier.applying_changed
+	await _autopilot_cast()
+
+
+## Second autopilot beat (#511): cast a spell at a hostile node, so the pair
+## proves the ATTACK path too. Before #511 this was the known-diverging case —
+## `launch_attack` mutated the host's world without a command, so the client
+## drifted the moment anybody swung. Now it is a `LaunchAttackCommand` carrying
+## the post-apply record, and the fingerprint after it should still agree.
+##
+## Magic rather than melee or ranged: it needs no per-node `range` stat and no
+## physics arc to intersect anything, only a hostile node within the spell's
+## hop reach — which a hand-authored two-camp sandbox has by construction.
+func _autopilot_cast() -> void:
+	await get_tree().create_timer(1.0).timeout
+	var source := _first_owned_node_near_hostile()
+	if source == null:
+		_write_log("autopilot: no owned node in reach of a hostile one; skipping the cast")
+		return
+	battle_system.selected_spell = SpellCatalog.SPARK
+	battle_system.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	var plan := battle_system.attack_plan as MagicAttackPlan
+	plan._on_node_left_clicked(source)
+	for candidate in graph.get_skill_nodes():
+		if candidate.ownership_bit(player) == SkillNode.Ownership.HOSTILE:
+			plan._on_node_left_clicked(candidate)
+			if plan.is_valid():
+				break
+	if not plan.is_valid():
+		_write_log("autopilot: no castable target (%s)" % [plan.validate()])
+		battle_system.cancel_attack()
+		return
+	_write_log("autopilot: casting %s from %s at %s"
+			% [battle_system.selected_spell.name, plan.source.name, plan.target.name])
+	await battle_system.launch_attack()
+
+
+## An owned node with at least one hostile node two hops out — enough for
+## Spark's reach without hard-coding the sandbox's topology.
+func _first_owned_node_near_hostile() -> SkillNode:
+	for node in graph.get_skill_nodes():
+		if node.owned_by != player:
+			continue
+		for neighbour in graph.get_neighbours(node):
+			if neighbour.ownership_bit(player) == SkillNode.Ownership.HOSTILE:
+				return node
+			for second in graph.get_neighbours(neighbour):
+				if second.ownership_bit(player) == SkillNode.Ownership.HOSTILE:
+					return node
+	return null
 
 
 ## First unowned node touching the local player's territory. Deliberately not

@@ -71,6 +71,7 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+id = &"leafblower"
 name = "Leafblower"
 description = "Trickles downhill: at each hop only flows into neighbours whose degree within their owner's territory is no higher than the current node's. Damage compounds (×1.5 per hop) so the leaf at the end of the chain eats the payload while intermediate hubs barely register. CRIT on leaf nodes (territory degree 1). Self-loops count double, so a fortified node turns the flow away. Perfect for sniping dangling addon-leaves through fortified topology."
 icon = ExtResource("1_y0ifm")

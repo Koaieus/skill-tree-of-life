@@ -97,6 +97,62 @@ func _notification(what: int) -> void:
 		_blade_mirror = null
 
 
+# ── Wire ───────────────────────────────────────────────────────────────────
+
+## Wire form: the base fields plus pivot id, blade member ids, sweep target and
+## direction — exactly the inputs [BladeSim] needs to reform a bit-identical
+## blade on any peer (`blade_sim.gd:28-31` is a pure fixed-dt XPBD loop with no
+## frame delta and no RNG, so re-simulating to DRAW is deterministic and
+## mutates nothing).
+##
+## The `last_*` fields are resolution residue, not plan input, and stay off the
+## wire deliberately: a peer that re-runs [method resolve] for its animation
+## rebuilds them itself, and a peer that does not has no use for them. The
+## temp-upgrade addons attached to blade members are not here either — they are
+## real [SkillNodeAddon] children put there by [ToggleTempUpgradeCommand],
+## which already crosses on its own.
+func to_dict(graph: Graph) -> Dictionary:
+	var d := super(graph)
+	d["source"] = graph.get_stable_id(source) if graph != null and source != null else 0
+	var ids: Array[int] = []
+	if graph != null:
+		for n in blade_nodes:
+			if n != null:
+				ids.append(graph.get_stable_id(n))
+	d["blade"] = ids
+	d["blade_target"] = blade_target
+	d["swing_cw"] = swing_cw
+	return d
+
+
+## Rebuilds through the same pivot/member primitives a click would drive
+## ([method _set_pivot] / the mirror add in [method _try_select_blade]), so the
+## rebuilt plan's `_blade_mirror` is populated and
+## [method get_induced_edges] answers correctly — a plan whose members were
+## appended straight to [member blade_nodes] would draw a blade with no edges.
+## The BUDGET gate is deliberately not re-run: the authority already decided
+## this blade is legal, and re-adjudicating it on a peer is exactly what host
+## authority exists to avoid.
+static func from_dict(d: Dictionary, graph: Graph) -> MeleeAttackPlan:
+	var plan := MeleeAttackPlan.new()
+	plan._read_base(d, graph)
+	plan.swing_cw = bool(d.get("swing_cw", false))
+	plan.blade_target = d.get("blade_target", Vector2.ZERO)
+	if graph == null:
+		return plan
+	var pivot := graph.get_by_stable_id(int(d.get("source", 0)))
+	if pivot == null:
+		return plan
+	plan._set_pivot(pivot)
+	for id in d.get("blade", [] as Array):
+		var member := graph.get_by_stable_id(int(id))
+		if member == null:
+			continue
+		plan._blade_mirror.mirror_add(member)
+		plan.blade_nodes.append(member)
+	return plan
+
+
 # ── Input ──────────────────────────────────────────────────────────────────
 
 func pop() -> bool:

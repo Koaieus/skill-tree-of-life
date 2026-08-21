@@ -57,6 +57,7 @@ range_finder = SubResource("range")
 
 [resource]
 script = ExtResource("1_spell")
+id = &"bruiser"
 name = "Bruiser"
 description = "Climbs the HP gradient: each hop greedily picks the neighbour with the highest current node_health and nicks it for low damage. Cannot kill on its own — softens the toughest nodes for a follow-up. Pairs with wound mechanics: damage that doesn't kill stays as wounds, slowly bracketing fat enemies."
 icon = ExtResource("1_bm58y")

@@ -56,6 +56,7 @@ range_finder = SubResource("range_lightning")
 
 [resource]
 script = ExtResource("1_spell")
+id = &"lightning_bolt"
 name = "Lightning Bolt"
 description = "Deal full damage to the target, then chain to every enemy neighbour up to 3 hops away — damage halves each hop. Overlapping branches resolve to the strongest incident (no compounding). No friendly fire."
 icon = ExtResource("1_vajd0")

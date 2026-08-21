@@ -8,6 +8,19 @@ extends Resource
 ## [PropagationStep] / [IncidentReducer]) and an array of [OnHitEffect] for
 ## what happens per node (damage is the default first entry).
 
+## Stable wire name for this spell — the only legal way to refer to a
+## [SpellDef] across a process boundary (#511). A [MagicAttackPlan] serializes
+## `spell` as this id and [method SpellCatalog.by_id] resolves it back.
+##
+## [b]Not `resource_path`[/b] (owner call 2026-08-21). This codebase uses
+## `resource_path` only for warning strings and inspector labels, never as an
+## identity key, and a rename or move of the `.tres` would break the wire form
+## silently with no error at the break. Follows the precedent
+## [constant MeleeAttackPlan.TEMP_UPGRADE_CATALOG] set one issue earlier.
+##
+## Must be unique across `attack/spell/defs/` — `test_spell_catalog.gd` pins it.
+@export var id: StringName = &""
+
 @export var name: String
 @export_multiline var description: String
 ## Spell-card iconography. Rendered in the spell picker (top, large) and in
