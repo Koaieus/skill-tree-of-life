@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://addons/mp_sandbox/mp_sandbox_panel.tscn" id="2_panel"]
+
+[node name="Multiplayer" instance=ExtResource("1_base")]
+tab_title = "Multiplayer"
+tab_id = &"multiplayer"
+loader_method = &"load_object"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Multiplayer"
+
+[node name="Split" parent="Layout" index="1"]
+split_offsets = PackedInt32Array(0)
+
+[node name="MpSandboxPanel" parent="Layout/Split/PanelHost" index="0" instance=ExtResource("2_panel")]
+layout_mode = 2

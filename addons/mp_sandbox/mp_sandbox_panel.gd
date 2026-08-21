@@ -1,0 +1,117 @@
+@tool
+extends PanelContainer
+
+## The multiplayer harness launcher — spawns two OS processes of the same scene,
+## one as host, one as client, and keeps their PIDs so you can kill both.
+##
+## [b]Two processes, not two viewports.[/b] [Events] is a process-global bus and
+## every system connects to it unconditionally, so two worlds in one process
+## would cross-wire death, loot and victory. Separate processes give separate
+## autoloads for free — which is also why this cannot be a [SandboxPlayedTab]:
+## that tab's Run button calls `EditorInterface.play_custom_scene`, which gives
+## you exactly one instance.
+##
+## What the launched pair proves, and what it does not, is spelled out in the
+## blurb this panel draws — keep the two in step. See
+## `docs/domain/multiplayer-harness.md`.
+
+## Emitted for [SandboxLiveTab]'s Reload button (#144) — a stale PID list after
+## an editor reload is worth a hard reset.
+signal reload_requested
+
+const DEFAULT_SCENE := "res://scenes/dev/mp_dev_sandbox.tscn"
+
+## Window geometry per role, so the two do not land on top of each other.
+const WINDOW_SIZE := Vector2i(960, 600)
+const HOST_POSITION := Vector2i(40, 80)
+const CLIENT_POSITION := Vector2i(1020, 80)
+
+@onready var _scene_field: LineEdit = %SceneField
+@onready var _address_field: LineEdit = %AddressField
+@onready var _port_field: SpinBox = %PortField
+@onready var _log: RichTextLabel = %Log
+
+## Live child processes, newest last. A PID here may already be dead — the OS is
+## the authority and [method OS.kill] on a dead PID is a harmless error, so this
+## list is a convenience, never a source of truth.
+var _pids: Array[int] = []
+
+
+func _ready() -> void:
+	if _scene_field.text.is_empty():
+		_scene_field.text = DEFAULT_SCENE
+	%LaunchBoth.pressed.connect(_on_launch_both)
+	%LaunchHost.pressed.connect(_on_launch_host)
+	%LaunchClient.pressed.connect(_on_launch_client)
+	%KillAll.pressed.connect(_on_kill_all)
+	_write("Ready. Launch both, then allocate a node in the HOST window.")
+
+
+## Sandbox-host contract: the tab forwards the inspected resource here. Nothing
+## to load — the launcher has no per-resource state.
+func load_object(_obj: Object) -> void:
+	pass
+
+
+func _on_launch_both() -> void:
+	if _launch(NetworkTransport.Role.HOST) == -1:
+		return
+	_launch(NetworkTransport.Role.CLIENT)
+
+
+func _on_launch_host() -> void:
+	_launch(NetworkTransport.Role.HOST)
+
+
+func _on_launch_client() -> void:
+	_launch(NetworkTransport.Role.CLIENT)
+
+
+func _on_kill_all() -> void:
+	if _pids.is_empty():
+		_write("Nothing to kill.")
+		return
+	for pid in _pids:
+		OS.kill(pid)
+	_write("Killed %d process(es)." % _pids.size())
+	_pids.clear()
+
+
+## Spawns one instance. Returns its PID, or -1 on failure.
+##
+## The role rides AFTER `--`, which is what puts it in
+## [method OS.get_cmdline_user_args] rather than in Godot's own argument
+## namespace — pass it before the separator and the engine tries to interpret it.
+func _launch(role: NetworkTransport.Role) -> int:
+	var scene := _scene_field.text.strip_edges()
+	if not ResourceLoader.exists(scene):
+		_write("[color=#e06c60]No such scene: %s[/color]" % scene)
+		return -1
+	var is_host := role == NetworkTransport.Role.HOST
+	var position := HOST_POSITION if is_host else CLIENT_POSITION
+	var args: PackedStringArray = [
+		"--path", ProjectSettings.globalize_path("res://"),
+		scene,
+		"--resolution", "%dx%d" % [WINDOW_SIZE.x, WINDOW_SIZE.y],
+		"--position", "%d,%d" % [position.x, position.y],
+		"--",
+		"--role=%s" % ("host" if is_host else "client"),
+		"--port=%d" % int(_port_field.value),
+	]
+	if not is_host:
+		args.append("--address=%s" % _address_field.text.strip_edges())
+
+	var pid := OS.create_instance(args)
+	if pid <= 0:
+		_write("[color=#e06c60]Failed to spawn %s.[/color]" \
+				% ("host" if is_host else "client"))
+		return -1
+	_pids.append(pid)
+	_write("Launched %s (pid %d) on port %d." \
+			% ["HOST" if is_host else "CLIENT", pid, int(_port_field.value)])
+	return pid
+
+
+func _write(line: String) -> void:
+	if _log != null:
+		_log.append_text(line + "\n")

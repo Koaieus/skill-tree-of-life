@@ -1,0 +1,119 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/mp_sandbox/mp_sandbox_panel.gd" id="1_panel"]
+
+[node name="MpSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_panel")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Box" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Margin/Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.85, 0.95, 0.9)
+theme_override_font_sizes/font_size = 18
+text = "Two-process multiplayer harness"
+
+[node name="Blurb" type="RichTextLabel" parent="Margin/Box"]
+custom_minimum_size = Vector2(0, 152)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+text = "Launches [b]two OS processes[/b] of the same scene — one host, one client — over ENet on 127.0.0.1. Two processes rather than two viewports because [code]Events[/code] is a process-global bus: two worlds in one process cross-wire death, loot and victory.
+
+[b]What mirrors today:[/b] every verb [code]CommandApplier[/code] handles — allocate, deallocate, mass-allocate, stake, extract, move core, end turn, temp upgrades. The host broadcasts each confirmed command with a world fingerprint; the client applies it and compares.
+
+[b]What does not:[/b] attacks (still called straight into [code]BattleSystem[/code] — #511) and loot rolls (#509's PickLootCommand is unrouted). Swing in the host window and the client's overlay will say [color=#e06c60]DIVERGED[/color] — that is the harness working, not breaking.
+
+The client is a [b]spectator[/b]: wave 0 has no intent channel upward (#463)."
+
+[node name="Sep" type="HSeparator" parent="Margin/Box"]
+layout_mode = 2
+
+[node name="Fields" type="GridContainer" parent="Margin/Box"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 6
+
+[node name="SceneLabel" type="Label" parent="Margin/Box/Fields"]
+layout_mode = 2
+text = "Scene"
+
+[node name="SceneField" type="LineEdit" parent="Margin/Box/Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+text = "res://scenes/dev/mp_dev_sandbox.tscn"
+
+[node name="AddressLabel" type="Label" parent="Margin/Box/Fields"]
+layout_mode = 2
+text = "Client dials"
+
+[node name="AddressField" type="LineEdit" parent="Margin/Box/Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+text = "127.0.0.1"
+
+[node name="PortLabel" type="Label" parent="Margin/Box/Fields"]
+layout_mode = 2
+text = "Port"
+
+[node name="PortField" type="SpinBox" parent="Margin/Box/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1024.0
+max_value = 65535.0
+value = 9099.0
+
+[node name="Buttons" type="HBoxContainer" parent="Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LaunchBoth" type="Button" parent="Margin/Box/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Spawn the host, then the client, side by side."
+text = "  ▶  Launch both  "
+
+[node name="LaunchHost" type="Button" parent="Margin/Box/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶ Host only"
+
+[node name="LaunchClient" type="Button" parent="Margin/Box/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶ Client only"
+
+[node name="Spacer" type="Control" parent="Margin/Box/Buttons"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="KillAll" type="Button" parent="Margin/Box/Buttons"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "SIGKILL every process this panel spawned."
+text = "■ Kill all"
+
+[node name="Log" type="RichTextLabel" parent="Margin/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true

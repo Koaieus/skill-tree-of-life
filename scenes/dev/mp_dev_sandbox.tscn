@@ -1,0 +1,52 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" uid="uid://ch0s7sw18mc23" path="res://scenes/dev_sandbox.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scenes/dev/mp_dev_sandbox.gd" id="2_script"]
+[ext_resource type="Script" path="res://network/enet_transport.gd" id="3_transport"]
+[ext_resource type="Script" path="res://network/command_link.gd" id="4_link"]
+
+[node name="DevSandbox" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+
+[node name="Transport" type="Node" parent="."]
+script = ExtResource("3_transport")
+
+[node name="CommandLink" type="Node" parent="." node_paths=PackedStringArray("transport", "command_applier", "graph")]
+script = ExtResource("4_link")
+transport = NodePath("../Transport")
+command_applier = NodePath("../Systems/CommandApplier")
+graph = NodePath("../Graph")
+
+[node name="NetOverlay" type="CanvasLayer" parent="."]
+layer = 128
+
+[node name="Margin" type="MarginContainer" parent="NetOverlay"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -420.0
+offset_bottom = 260.0
+grow_horizontal = 0
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Box" type="VBoxContainer" parent="NetOverlay/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="NetBanner" type="Label" parent="NetOverlay/Margin/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SOLO — no link"
+horizontal_alignment = 2
+
+[node name="NetLog" type="RichTextLabel" parent="NetOverlay/Margin/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 200)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+modulate = Color(0.78, 0.85, 0.92, 0.85)
