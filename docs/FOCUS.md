@@ -70,15 +70,15 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | # | Unit | State |
 |---|---|---|
 | ~~#473~~ | ~~Design session: the multiplayer sync model~~ | **Decided 2026-08-18** — `docs/domain/multiplayer-sync-model.md` |
-| **#457** | `GameSession` + one-shot seed resolution | `Needs design` — **owner decision**, it is the determinism contract. Scope grew: it must also cover combat/loot RNG, see its comment |
-| ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** Mutation is synchronous at t=0; VFX is a pure observer |
+| **#457** | `GameSession` + one-shot seed resolution | Sits in `Ready`, forks still open — **owner decision**. The 2026-08-21 call shrank it: the seed is a procgen input, **not** a determinism contract over combat or loot |
+| ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** VFX is a pure observer. (Mutation was at t=0 here; #504 then moved it onto the reveal clock — see the row below) |
 | ~~#488~~ | ~~Presentation clock v2~~ | **Shipped 2026-08-21** as design **B** — the world mutates on the reveal clock; no view store. `docs/domain/presentation-clock.md` |
-| **#458** | `Command` + `CommandApplier` (rewritten) | **Swarmified 2026-08-21 — now a hub, `In progress`.** Four children, all `Ready`: **#509** command types + entity ids → **#510** the applier + PIC reroute and **#511** attack plan/outcome serialization → **#512** AI reroute. Take #509 first; #510 and #511 both touch `battle_system.gd`, so run #510 before #511 |
-| **#475** | Author real faction camps | was prose inside #459/#463; gates versus, and #459 wants the allied-humans half |
-| **#459** | Hot-seat coop: the three rebind seams | **`Ready`** |
+| **#458** | `Command` + `CommandApplier` (rewritten) | **Half shipped 2026-08-21.** ~~#509~~ command vocabulary + entity ids (`b1448fe`) and ~~#510~~ the applier + PIC reroute (`50d5556`) are **in**. Left: **#511** attack plan/outcome serialization (`Ready` — its wire forks were settled 2026-08-21, read that comment before the body) and **#512** AI reroute (`Ready`, unblocked by #510). They are independent of each other |
+| ~~#475~~ | ~~Author real faction camps~~ | **Shipped 2026-08-21** — so #459's allied-humans prerequisite is met |
+| **#459** | Hot-seat coop: the three rebind seams | **`Ready` — this is the LAN commitment, and it is one issue.** Needs nothing from #511/#512/#463 |
 | ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
-| **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | `Needs design` |
-| **#462** | Display settings (window mode, resolution, vsync, fps cap) | **`Ready`** — cheap, North Star #2 |
+| **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | Sits in `Ready` but still carries open forks — see "Known board violations" |
+| ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
 | **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
@@ -89,24 +89,44 @@ deep one. (**#300** removable node blockers shipped 2026-08-21, which unblocks
 armed-mode viewport glow shipped 2026-08-21 — the glow values are owner-tunable
 `shader_parameter`s, see the glowup section.)
 
-**Order:** the sync model is settled. **#458 is next on the sync lane, and it is
-now four takeable children** (#509 → #510/#511 → #512), preceded by **#513** —
-a doc-only fix to `multiplayer-sync-model.md`'s stale RNG traps, which all four
-tell their drone to read first, so land it before them. It no longer waits on
-#457: the 2026-08-21 owner call made the seed procgen-only, and #458's entity ids
-are minted by `Graph` the way `stable_id` already is, so the two lanes are
-independent.
-#459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
-#459 needs half of it. #463 stays gated — it
-opens only once #474, #458 and #475 have landed and offline play is verified
-unchanged.
+**Order, restated 2026-08-21 after the sync lane's big day.** Multiplayer is a
+four-layer stack and **three layers are done**:
+
+1. *The model* — #473, `docs/domain/multiplayer-sync-model.md`. **Decided.**
+2. *Mutation must not be frame-ordered* — the presentation-clock v2 arc
+   (#488–#494, #504), #474, and the attack-timeline children #501/#502/#503.
+   **Shipped.** This was the real blocker: you cannot broadcast a world change
+   whose timing a dropped frame decides.
+3. *The command layer* — #458. **Half shipped** (#509, #510). There is now
+   exactly one serial path through which the world mutates, and it speaks in
+   serializable commands.
+4. *The transport* — #463. **Not started**, and still a stretch.
+
+So the remaining order is short:
+
+- **#459 is the LAN commitment and it is one issue.** Hot-seat coop needs
+  nothing from #511, #512 or a transport, and #475 (its allied-humans half)
+  landed. Pull it first.
+- **#511 and #512 are independent of each other** now that #510 is in — either
+  or both can go. They are what turn #463 into a transport swap instead of
+  surgery on `BattleSystem`.
+- **#463 stays gated** — it opens only once #511 and #512 land and offline play
+  is verified unchanged.
+- **#457 does not gate any of this.** The 2026-08-21 owner call made the seed
+  procgen-only, and #458's entity ids are minted by `Graph` the way `stable_id`
+  already is.
+
+**The LAN date's risk is not the sync stack.** It is #498 step 3 (below), plus
+#461 and #457 sitting in `Ready` with their forks still open.
 
 **The attack-timeline contract is IN the milestone** (owner call 2026-08-20,
 superseding the same-day call that parked it): `docs/domain/attack-timeline.md`,
 hub **#500**. The three mode moves — #501 magic / #502 melee / #503 ranged — all
-landed 2026-08-21. What is left under the hub is **#498** (AI-preview accuracy;
-steps 1–2 shipped, **step 3 is the outstanding work** and per its own owner call
-is plausibly the largest remaining unit in the milestone) and **#507** (crits).
+landed 2026-08-21, and **#507** (crits) closed the same day — melee and ranged
+now roll through one shared `CritRoll`. What is left under the hub is **#498**
+(AI-preview accuracy; steps 1–2 shipped, **step 3 is the outstanding work** and
+per its own owner call is plausibly the largest remaining unit in the milestone).
+#498's spun-off **#506** (a cloned `StatBoard` must react) is `In review`.
 
 **#501 shipped only half of itself.** Its wave-loop move — magic's gate lives in
 candidate selection inside `SpellResolver.resolve()`, so live selection needs
@@ -177,8 +197,8 @@ competing with the WIS gold-rim signal, while unallocated nodes read dark gray.
 It wants one visual design pass, not more colours.
 
 **Balance — deliberately last.** #373 CON→health remodel (P0), #365 mana pool max
-+ regen (P0, blocks #278), #278 spell balance pass (an owner session), #366/#367
-balance harnesses (`Ready`), #248 the hub.
++ regen (P0, blocks #278), #278 spell balance pass (an owner session), #248 the
+hub. (#366/#367, the balance harnesses, shipped.)
 
 **Onboarding** — #49 tutorial. (#403 is in the LAN milestone; #300 shipped.)
 
@@ -213,13 +233,11 @@ the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
 
 ## Known board violations
 
-As of the wave-0 close-out pass (2026-08-21), the only rows hygiene reports are
-four issues sitting in `Ready` while still carrying the `design` label: **#457**,
-**#460**, **#461**, **#507**. #460 has since shipped. #457 and #461 are
-genuinely open forks. #507 is
-the odd one — its four forks were settled by an owner call on 2026-08-21 in a
-comment, so its label is arguably stale, but dropping it is a design-gate call
-and not a hygiene fix.
+As of the evening pass (2026-08-21): **#460 and #507 both shipped**, so of the
+four rows that pass reported, **#457 and #461 remain** — both sitting in `Ready`
+while carrying the `design` label, and in both cases the label is honest. Their
+forks are genuinely open, so `Ready` is what is wrong there, not the label.
+Neither should be pulled by a drone until a `/swarmify` pass settles them.
 
 Don't trust this section's date — run `mise gh-project -- hygiene`.
 
