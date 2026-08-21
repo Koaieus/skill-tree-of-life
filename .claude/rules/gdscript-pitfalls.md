@@ -30,12 +30,6 @@ staying short. Add here only if it fails *silently* and applies repo-wide.
   `Engine.is_editor_hint()` in the **method**, not just `_ready()` — `@export`
   setters fire during deserialization, before `_ready()`.
 
-## `@export` cannot be applied to a `static var`
-
-Parse error, not a silent failure — but the design answer matters: a class-level
-fact is a `const`. `@export` serializes *per instance*, so an exported
-"class constant" would put an editable copy on every node.
-
 ## Interdependent `@export`s load in declaration order
 
 **Declare the bound ABOVE the value that clamps against it.** A setter that
@@ -72,6 +66,11 @@ Both fail as a silent no-op. Record the Callable when you connect it:
   raced `queue_free(entity)` and orphaned nodes. Do the work synchronously, or
   guarantee the free is ordered after it. See
   [entity-death.md](entity-death.md).
+- **A freed Object compares EQUAL to `null`.** So a latch holding an Object
+  reference reads back as "nothing latched yet", not "the thing I latched is
+  gone" — and the next candidate silently re-latches. Latch
+  `get_instance_id()` (an int, never reused); not the reference, and not
+  `Entity.entity_id`, which is 0 until the entity enters `entities_container`.
 - **A typed variable crashes before `is_instance_valid` can save you.**
   `var t: FooType = dict.get(key)` on a freed instance crashes at the *assignment*.
   Read into an untyped var first:
