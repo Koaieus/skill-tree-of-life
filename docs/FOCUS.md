@@ -90,7 +90,9 @@ shipped 2026-08-21, which unblocks #403; its deferred chokepoint-placement
 heuristic is #508, unscheduled.)
 
 **Order:** the sync model is settled. **#458 is next on the sync lane, and it is
-now four takeable children** (#509 → #510/#511 → #512). It no longer waits on
+now four takeable children** (#509 → #510/#511 → #512), preceded by **#513** —
+a doc-only fix to `multiplayer-sync-model.md`'s stale RNG traps, which all four
+tell their drone to read first, so land it before them. It no longer waits on
 #457: the 2026-08-21 owner call made the seed procgen-only, and #458's entity ids
 are minted by `Graph` the way `stable_id` already is, so the two lanes are
 independent.
