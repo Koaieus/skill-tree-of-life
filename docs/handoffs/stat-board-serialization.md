@@ -11,6 +11,39 @@ bigger question of *what a board's durable state even is*.
 
 ---
 
+## Settled 2026-08-21 — the COMBAT-SLICE half is answered; only save/load is left
+
+The follow-up session asked the adjacent question — *"attack previews resolve
+against a combat slice; how do we copy the stats and bins into one cleanly, and
+does that scale to ~200 slices?"* — and it is now measured and closed. Full
+numbers in the **#498** comment of 2026-08-21; the short version:
+
+- **Bins are free.** `clone_live` copies the *tally* (a handful of float writes
+  per stat); it never replays modifiers. It does not register against a
+  microsecond timer on either board class. The feared "full recalc per slice"
+  does not exist in the code and never did.
+- **`Resource.duplicate(true)` is 100% of a clone's cost** — 420 µs for an
+  entity board, 31 µs per node board. One `EntityCombat.snapshot()` at 200 owned
+  is ~10 ms. So per-candidate shadows are affordable for melee (3 finalists) and
+  not for exhaustive ranged/magic enumeration.
+- **The cheap alternative is composing, not copying**: `ModifierBins.compute` is
+  already N-source, so a slice can read `[live.bins, …, overlay.bins]` and copy
+  nothing. Recorded as the direction for #498 step 3 and as the likely subsumer
+  of #506.
+- **A real bug fell out and is fixed** (`1f95076`): a clone carried its bins but
+  not the `_modifiers` list they were folded from, and the first modifier added
+  afterwards wiped the tally. A shadow was only correct while nobody mutated it.
+
+**None of this blocks the two ASAP goals.** Per Finding 4 below, no `StatBoard`
+crosses the wire; per #498's own history note, live gate re-evaluation at land
+time (#501/#502/#503) needs no slice at all. Combat slices serve AI scoring and
+previews only.
+
+What remains genuinely open in this file is the **save/load** format (#23) and
+its forks, below.
+
+---
+
 ## The question
 
 `Stat.bins` and `StatBoard._extra_stats` are plain (non-exported) vars, so they
