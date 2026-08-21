@@ -317,3 +317,51 @@ func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
 func test_resolve_on_invalid_plan_returns_empty_outcome() -> void:
 	var p := _plan()
 	assert_true(p.resolve().hits.is_empty())
+
+
+# ── Land-time gate: overkill duds the rest of the volley (#503) ───────────
+
+## Four firing leaves off `_mid`, all reaching, 4 damage each — the target's
+## default 10 node_health dies on the 3rd shot (10 → 6 → 2 → depleted). Shots
+## 4.. must land INERT: OutcomeApplier's land-time gate re-checks allocation
+## per landing (docs/domain/attack-timeline.md), so the volley must not keep
+## applying damage to a node that died mid-flight. Stands in for
+## BattleSystem's real depleted→dealloc cascade with a direct
+## force_deallocate on the depleted signal, to keep this a pure
+## RangedAttackPlan/OutcomeApplier test.
+func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
+	var extra_a := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	var extra_b := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	extra_a.position = Vector2(420, 120)
+	extra_b.position = Vector2(440, -120)
+	_graph.add_skill_node(extra_a)
+	_graph.add_skill_node(extra_b)
+	_graph.add_edge(_mid, extra_a)
+	_graph.add_edge(_mid, extra_b)
+	_alloc.force_allocate(_attacker, extra_a)
+	_alloc.force_allocate(_attacker, extra_b)
+	for leaf in [_leaf_near, extra_a, extra_b, _leaf_far]:
+		_set_range(leaf, 600.0)
+		_set_ranged_damage(leaf, 4.0)
+
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 4, "precondition: all four leaves reach")
+
+	var handler := func(node: SkillNode) -> void:
+		if node == _target:
+			_alloc.force_deallocate(_target)
+	Events.skill_node_depleted.connect(handler)
+	OutcomeApplier.apply(outcome)
+	Events.skill_node_depleted.disconnect(handler)
+
+	assert_almost_eq(_target.get_current_hp(), 0.0, 0.001,
+			"the target must have been depleted by the 3rd shot")
+	assert_false(outcome.hits[0].gated, "shot 1 lands normally")
+	assert_false(outcome.hits[1].gated, "shot 2 lands normally")
+	assert_false(outcome.hits[2].gated, "shot 3 lands normally and kills")
+	assert_true(outcome.hits[3].gated, "shot 4 must be vetoed — the target is already dead")
+	assert_almost_eq(outcome.hits[3].effective_amount, 0.0, 0.001,
+			"a vetoed shot applies no damage")
+	assert_eq(outcome.hits[3].target, _target, "a vetoed shot is not re-aimed at another target")

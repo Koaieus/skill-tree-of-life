@@ -53,6 +53,16 @@ var arrival_time: float = 0.0
 ## 0.0 until applied.
 var effective_amount: float = 0.0
 
+## Set when a mode's land-time gate VETOED this landing (target/origin no
+## longer allocated or hostile) instead of applying it — #503. Not the same
+## as [code]effective_amount == 0.0[/code]: a hit that WAS applied and
+## fully-mitigated to nothing also reports `effective_amount == 0.0`, and
+## the two must read differently (a gated dud vs. "their armor held"). Only
+## a gating [method land_on] override sets this; a mode with no dud concept
+## (melee — see `docs/domain/attack-timeline.md` "Ranged") never touches it,
+## so it stays false there by construction.
+var gated: bool = false
+
 
 ## Land this hit on [param node]. Applying-the-world stays a SYSTEM's job
 ## (see [code]attack/outcome/outcome_applier.gd[/code]) — this virtual only

@@ -35,8 +35,14 @@ static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
 		# Re-checked here rather than hoisted: an earlier beat's cascade can
-		# free a target between landings.
-		if is_instance_valid(hit.target):
+		# free a target between landings. `origin` is checked too (#503) — a
+		# mid-volley cascade can just as easily free the FIRING node (e.g. a
+		# ranged leaf islanded by this same volley's overkill), and a mode
+		# whose live offense read needs `origin` (RangedHitInstance) must not
+		# be handed a freed one. This is instance-validity only, the coarse
+		# net; the meaningful allocated/hostile gate is each mode's own
+		# `land_on` (see RangedHitInstance, BladeDamageInstance for #502).
+		if is_instance_valid(hit.target) and (hit.origin == null or is_instance_valid(hit.origin)):
 			hit.land_on(hit.target)
 
 

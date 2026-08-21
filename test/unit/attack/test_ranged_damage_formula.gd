@@ -64,6 +64,61 @@ func test_null_firing_node_yields_zero_amount() -> void:
 	assert_null(hit.origin)
 
 
+# ── Land-time gate + live read (#503) ───────────────────────────────────
+
+func test_land_on_reads_ranged_damage_live_not_frozen_at_resolve() -> void:
+	var firing := _owned_node()
+	var target := _owned_node()
+	await get_tree().process_frame
+	_set_ranged_damage(firing, 5.0)
+	var hit := RangedDamageFormula.compute(null, firing, target)
+	assert_almost_eq(hit.amount, 5.0, 0.001, "resolve-time snapshot, for preview/AI use")
+
+	# Mid-volley: the firing node's ranged_damage changes AFTER resolve, before land.
+	_set_ranged_damage(firing, 9.0)
+	var hp_before := target.get_current_hp()
+	hit.land_on(target)
+	assert_almost_eq(hp_before - target.get_current_hp(), 9.0, 0.001,
+			"land_on must apply the LIVE ranged_damage, not the resolve-time snapshot")
+
+
+func test_land_on_vetoes_and_marks_gated_when_target_no_longer_allocated() -> void:
+	var firing := _owned_node()
+	var target := _owned_node()
+	await get_tree().process_frame
+	var hit := RangedDamageFormula.compute(null, firing, target)
+	target.owned_by = null  # e.g. force-deallocated by an earlier shot's kill
+	var hp_before := target.get_current_hp()
+	hit.land_on(target)
+	assert_almost_eq(target.get_current_hp(), hp_before, 0.001, "a vetoed shot applies no damage")
+	assert_true(hit.gated)
+	assert_eq(hit.target, target, "a vetoed shot is not re-aimed")
+
+
+func test_land_on_vetoes_and_marks_gated_when_origin_no_longer_allocated() -> void:
+	var firing := _owned_node()
+	var target := _owned_node()
+	await get_tree().process_frame
+	var hit := RangedDamageFormula.compute(null, firing, target)
+	firing.owned_by = null  # the firing leaf itself was islanded mid-volley
+	var hp_before := target.get_current_hp()
+	hit.land_on(target)
+	assert_almost_eq(target.get_current_hp(), hp_before, 0.001,
+			"the firing node dying mid-volley must also veto the shot")
+	assert_true(hit.gated)
+
+
+func test_land_on_applies_normally_and_leaves_gated_false_when_ungated() -> void:
+	var firing := _owned_node()
+	var target := _owned_node()
+	await get_tree().process_frame
+	_set_ranged_damage(firing, 5.0)
+	var hit := RangedDamageFormula.compute(null, firing, target)
+	hit.land_on(target)
+	assert_false(hit.gated)
+	assert_almost_eq(hit.effective_amount, 5.0, 0.001)
+
+
 func test_compute_leaves_arrival_time_unset() -> void:
 	# arrival_time is authored by RangedAttackPlan.resolve() from the shot's
 	# RANK in the volley ramp (docs/domain/attack-timeline.md "The ranged

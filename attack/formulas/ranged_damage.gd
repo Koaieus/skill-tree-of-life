@@ -42,11 +42,63 @@ const TOTAL_STAGGER: float = 0.6
 ## without re-deriving the schedule.
 const DRAW_TIME: float = 0.0
 
-static func compute(_attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
-	var hit := DamageInstance.new()
+static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
+	var hit := RangedHitInstance.new(attacker)
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
-	if firing_node != null:
-		hit.amount = float(firing_node.get_local_value(&"ranged_damage"))
+	hit.amount = _read_offense(firing_node)
 	return hit
+
+
+## Shared by [method compute] (the resolve-time PREVIEW read — AI scoring,
+## tooltips) and [RangedHitInstance.land_on] (the land-time LIVE read, #503)
+## so the two can never drift into two implementations of "what does this
+## firing node's shot deal".
+static func _read_offense(firing_node: SkillNode) -> float:
+	if firing_node == null:
+		return 0.0
+	return float(firing_node.get_local_value(&"ranged_damage"))
+
+
+## Ranged's land-time gate + live-offense read (#503) — the ranged sibling of
+## [BladeDamageInstance] (#502, `attack/melee/sim/blade_damage_instance.gd`).
+## [method compute] stays pure and up-front: the `amount` it stamps is only
+## ever a resolve-time PREVIEW (AI scoring, tooltips). The live re-check and
+## the live `ranged_damage` read both happen here, in [method land_on],
+## called once per hit by [OutcomeApplier] in [member HitInstance.arrival_time]
+## order (docs/domain/attack-timeline.md).
+class RangedHitInstance extends DamageInstance:
+	## The attacker this shot was fired for — needed at land time to re-check
+	## the target is still HOSTILE to them, not just still allocated (a node
+	## can be captured by a third party mid-volley).
+	var _attacker: Entity
+
+
+	func _init(attacker: Entity) -> void:
+		super._init()
+		_attacker = attacker
+
+
+	## Veto — no mutation at all, per the contract's "gate is a veto, not a
+	## re-plan" — if the target is no longer allocated/hostile, or the firing
+	## node ([member HitInstance.origin]) is no longer allocated. A mid-volley
+	## cascade can deallocate either: the target (this volley's own overkill)
+	## or the origin (a DIFFERENT attack, or this volley's own forced-dealloc
+	## cascade, islanding the firing leaf). A veto marks [member
+	## HitInstance.gated] so VFX can render the dud beat distinctly from a
+	## hit that landed and fully mitigated to zero.
+	func land_on(node: SkillNode) -> void:
+		if not _passes_gate(node):
+			gated = true
+			return
+		amount = RangedDamageFormula._read_offense(origin)
+		super.land_on(node)
+
+
+	func _passes_gate(node: SkillNode) -> bool:
+		if origin == null or not is_instance_valid(origin) or not origin.is_allocated():
+			return false
+		if node == null or not is_instance_valid(node) or not node.is_allocated():
+			return false
+		return node.ownership_bit(_attacker) == SkillNode.Ownership.HOSTILE

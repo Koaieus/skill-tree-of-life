@@ -23,6 +23,10 @@ extends VFXCoordinator
 ## sticks into the target node and fades. Arrows are tinted by the
 ## attacker's [member Entity.color], read off [member DamageInstance.source]
 ## (a [RangedAttackPlan], which carries [code]attacker[/code]).
+##
+## Every scheduled shot still flies and arrives — a shot the land-time gate
+## vetoes (#503, target overkilled mid-volley) is not skipped, it lands
+## INERT: see [method _on_arrow_arrived].
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/light_arrow.tscn")
 
@@ -72,6 +76,16 @@ func play(payload: Variant) -> void:
 		add_child(proj)
 		proj.tree_exiting.connect(func() -> void:
 			pending[0] -= 1)
+		# #503: the arrow flies on ITS OWN clock (this coordinator is a pure
+		# observer, #474/#504) while OutcomeApplier decides the gate on ITS
+		# OWN clock — both converging on `hit.arrival_time`, never coupled
+		# directly. `arrived` fires at THIS arrow's own touchdown; by
+		# construction that lands at/around the same beat the applier lands
+		# (or vetoes) `hit`, so reading `hit.gated` there is reading the
+		# model at the moment its own visual needs the answer — same
+		# discipline as the tint read below, never a second gate computed
+		# independently.
+		proj.arrived.connect(_on_arrow_arrived.bind(proj, hit, tint))
 		proj.launch(
 				hit.origin.global_position,
 				hit.target.global_position,
@@ -86,6 +100,38 @@ func play(payload: Variant) -> void:
 				v.set("tint", tint)
 	while pending[0] > 0:
 		await get_tree().process_frame
+
+
+## #503 — the dud beat. [param hit] is the SAME [HitInstance] instance
+## [OutcomeApplier] just landed (or vetoed): [member HitInstance.gated] is
+## the model telling this arrow how it actually resolved, read at the arrow's
+## own arrival rather than predicted at launch (the gate can only be known
+## once the model re-checks it live, per docs/domain/attack-timeline.md).
+##
+## A live hit needs nothing here — [member _resolve_tint]'s launch-time stamp
+## already stands. A gated one desaturates: no damage number follows (the
+## applier never called `take_damage`, so `Events.skill_node_damaged` never
+## fires for it), so the arrow itself has to carry "this overkilled" alone.
+## Named-tier only, per `.claude/rules/hdr-color.md` — never a hand-picked
+## float. [constant Emissive.INERT] is exactly the "visible, never blooms"
+## reading the issue calls for.
+##
+## A visual scene that exposes a dedicated `_on_dud()` hook gets that call
+## instead of the tint override — the clean answer, but it lives in
+## `light_arrow.gd` (outside this unit's owned files) and isn't wired yet.
+## The tint fallback below cancels [constant Emissive.VALUE], the stop
+## [LightArrow._draw] unconditionally re-applies to whatever `tint` holds, so
+## the net result reads at [constant Emissive.INERT] rather than doubling up
+## — coupled to that hardcoded choice, which is exactly why the `_on_dud()`
+## hook is the better long-term answer.
+func _on_arrow_arrived(proj: Projectile, hit: DamageInstance, tint: Color) -> void:
+	if not hit.gated or proj.get_child_count() == 0:
+		return
+	var v: Node = proj.get_child(0)
+	if v.has_method(&"_on_dud"):
+		v.call(&"_on_dud")
+	elif "tint" in v:
+		v.set("tint", Emissive.at(tint, Emissive.INERT - Emissive.VALUE))
 
 
 ## How long shot [param hit]'s arrow is in the air. [member
