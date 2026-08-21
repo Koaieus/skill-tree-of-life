@@ -24,6 +24,18 @@ extends RefCounted
 ## same [BeatClock], so arrival ordering and the forced-dealloc cascade come
 ## out of the existing machinery rather than a second implementation of it.
 ##
+## [b]Corrected by #518: the cascade's machinery is shared, its INPUT is not
+## re-derived.[/b] This doc used to claim the cascade came out of the existing
+## machinery full stop, and that was true of the machinery and false of the
+## input — a peer walked the defender's navigator to work out which nodes
+## islanded. Under the deferred filtered-delta model a fogged client may not
+## hold those nodes at all, so the walk is not merely redundant, it is wrong.
+## The record now carries the deallocation set per hit and the peer applies it
+## through the same [method EntityCombat.apply_cascade] the host used. One
+## implementation, authoritative input — and the one place
+## `.claude/rules/multiplayer-sync.md`'s "a peer re-runs no gate, it replays a
+## recorded result" was not literally true is now literally true.
+##
 ## [b]Encoding is parallel arrays of scalars, not ~100 dictionaries.[/b] Two
 ## reasons, and the first is correctness:
 ##   1. A [PropagationEvent]'s `hits` are SHARED REFERENCES into
@@ -65,6 +77,21 @@ const KEY_HIT_ATTACKER := "h_atk"
 const KEY_HIT_ARRIVAL := "h_at"
 const KEY_HIT_FLAGS := "h_flags"
 const KEY_HIT_CRIT_TIER := "h_crit"
+## Per-hit HP bar numbers (#518). Distinct from [constant KEY_HIT_AMOUNT],
+## which is the FLOATER's post-mitigation number and is allowed to differ on an
+## overkill — see [member HitInstance.hp_before].
+const KEY_HIT_HP_BEFORE := "h_hp0"
+const KEY_HIT_HP_AFTER := "h_hp1"
+const KEY_HIT_HP_MAX := "h_hpm"
+## Forced deallocations, flattened across ALL hits (#518) — one entry per
+## cascaded node, plus [constant KEY_DEALLOC_COUNT] giving how many belong to
+## each hit, in hit order. Same parallel-scalars discipline as the hit arrays:
+## a spell can produce ~100 landings and a wide cascade under each.
+const KEY_DEALLOC_COUNT := "d_n"
+const KEY_DEALLOC_NODE := "d_node"
+const KEY_DEALLOC_LEVEL := "d_lvl"
+const KEY_DEALLOC_WOUND := "d_wnd"
+const KEY_DEALLOC_CHIP := "d_chip"
 const KEY_EVENT_BEAT := "e_beat"
 const KEY_EVENT_VERB := "e_verb"
 const KEY_EVENT_ORIGIN := "e_org"
@@ -94,6 +121,15 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var arrivals := PackedFloat64Array()
 	var flags := PackedByteArray()
 	var crit_tiers := PackedInt32Array()
+	var hp_before := PackedFloat64Array()
+	var hp_after := PackedFloat64Array()
+	var hp_max := PackedFloat64Array()
+	# Flattened across all hits; `dealloc_counts` slices it back apart.
+	var dealloc_counts := PackedInt32Array()
+	var dealloc_nodes := PackedInt32Array()
+	var dealloc_levels := PackedInt32Array()
+	var dealloc_wounds := PackedInt32Array()
+	var dealloc_chips := PackedFloat64Array()
 	# Index of each hit in the flat list, so the timeline can reference it.
 	# Identity-keyed, because two landings on one node in one beat are
 	# genuinely distinct hits with equal field values.
@@ -114,6 +150,19 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			f |= FLAG_CRIT
 		flags.append(f)
 		crit_tiers.append(hit.crit_tier)
+		hp_before.append(hit.hp_before)
+		hp_after.append(hit.hp_after)
+		hp_max.append(hit.hp_max)
+		dealloc_counts.append(hit.deallocations.size())
+		for e in hit.deallocations:
+			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
+			# `_id_of` forces the topology rebuild that mints a lazy stable_id,
+			# so a node that was never asked a topology question still encodes
+			# as itself rather than as 0.
+			dealloc_nodes.append(_id_of(e.node, graph))
+			dealloc_levels.append(e.allocation_level)
+			dealloc_wounds.append(e.wound)
+			dealloc_chips.append(e.chip)
 	var beats := PackedInt32Array()
 	var verbs := PackedByteArray()
 	var event_origins := PackedInt32Array()
@@ -148,6 +197,14 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_HIT_ARRIVAL: arrivals,
 		KEY_HIT_FLAGS: flags,
 		KEY_HIT_CRIT_TIER: crit_tiers,
+		KEY_HIT_HP_BEFORE: hp_before,
+		KEY_HIT_HP_AFTER: hp_after,
+		KEY_HIT_HP_MAX: hp_max,
+		KEY_DEALLOC_COUNT: dealloc_counts,
+		KEY_DEALLOC_NODE: dealloc_nodes,
+		KEY_DEALLOC_LEVEL: dealloc_levels,
+		KEY_DEALLOC_WOUND: dealloc_wounds,
+		KEY_DEALLOC_CHIP: dealloc_chips,
 		KEY_EVENT_BEAT: beats,
 		KEY_EVENT_VERB: verbs,
 		KEY_EVENT_ORIGIN: event_origins,
@@ -184,6 +241,18 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	var arrivals: PackedFloat64Array = d.get(KEY_HIT_ARRIVAL, PackedFloat64Array())
 	var flags: PackedByteArray = d.get(KEY_HIT_FLAGS, PackedByteArray())
 	var crit_tiers: PackedInt32Array = d.get(KEY_HIT_CRIT_TIER, PackedInt32Array())
+	var hp_before: PackedFloat64Array = d.get(KEY_HIT_HP_BEFORE, PackedFloat64Array())
+	var hp_after: PackedFloat64Array = d.get(KEY_HIT_HP_AFTER, PackedFloat64Array())
+	var hp_max: PackedFloat64Array = d.get(KEY_HIT_HP_MAX, PackedFloat64Array())
+	var dealloc_counts: PackedInt32Array = d.get(KEY_DEALLOC_COUNT, PackedInt32Array())
+	var dealloc_nodes: PackedInt32Array = d.get(KEY_DEALLOC_NODE, PackedInt32Array())
+	var dealloc_levels: PackedInt32Array = d.get(KEY_DEALLOC_LEVEL, PackedInt32Array())
+	var dealloc_wounds: PackedInt32Array = d.get(KEY_DEALLOC_WOUND, PackedInt32Array())
+	var dealloc_chips: PackedFloat64Array = d.get(KEY_DEALLOC_CHIP, PackedFloat64Array())
+	# Running offset into the flattened dealloc arrays, advanced by each hit's
+	# own count. The counts array is what slices one flat run back into per-hit
+	# groups; without it the entries would all belong to hit 0.
+	var dealloc_at := 0
 	for i in kinds.size():
 		var gated := (flags[i] & FLAG_GATED) != 0
 		var amount: float = 0.0 if gated else amounts[i]
@@ -205,6 +274,29 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 		hit.crit_multiplier = 1.0
 		hit.is_crit = (flags[i] & FLAG_CRIT) != 0
 		hit.crit_tier = crit_tiers[i]
+		if i < hp_before.size():
+			hit.hp_before = hp_before[i]
+			hit.hp_after = hp_after[i]
+			hit.hp_max = hp_max[i]
+		# The cascade this landing caused, RECORDED. A peer applies exactly this
+		# set instead of walking the defender's navigator for one — under the
+		# filtered-delta model it may not hold the nodes that walk would visit,
+		# and re-deriving is the one place `.claude/rules/multiplayer-sync.md`'s
+		# "a peer replays a recorded result" was not literally true (#518).
+		if i < dealloc_counts.size():
+			var count := dealloc_counts[i]
+			var entries: Array[DeallocEntry] = []
+			for k in count:
+				var at := dealloc_at + k
+				var entry := DeallocEntry.new()
+				entry.node_id = dealloc_nodes[at]
+				entry.node = _node_of(entry.node_id, graph)
+				entry.allocation_level = dealloc_levels[at]
+				entry.wound = dealloc_wounds[at]
+				entry.chip = dealloc_chips[at]
+				entries.append(entry)
+			hit.deallocations = entries
+			dealloc_at += count
 		hit.gated = gated
 		hit.arrival_time = arrivals[i]
 		hit.target = _node_of(targets[i], graph)

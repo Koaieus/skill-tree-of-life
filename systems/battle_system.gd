@@ -564,9 +564,28 @@ func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
 	if defender == null:
 		return
 	var combat := defender.get_combat()
-	# Queried BEFORE the strip — removing the depleted node from the navigator
-	# mirror first would make its own islanded set go stale.
-	var cascade: Array[NodeCombat] = combat.cascade_set(node.get_combat())
+	# ── Recorded, or derived? ────────────────────────────────────────────────
+	# A PEER arrives here replaying an [AttackRecord], and its hit already
+	# carries the cascade the authority ran (#518). It applies THAT set rather
+	# than walking its own navigator for one: under the filtered-delta model
+	# (docs/domain/multiplayer-sync-model.md) a fogged client may not hold the
+	# nodes that walk would visit, so the derivation is not merely redundant,
+	# it is wrong. On the HOST the array is empty here — it is filled below,
+	# from what this very call produces — so the host derives, exactly once,
+	# and everyone else replays. That is the asymmetry
+	# `.claude/rules/multiplayer-sync.md` describes, made literally true.
+	var recorded: Array[DeallocEntry] = []
+	if source is HitInstance:
+		recorded = (source as HitInstance).deallocations
+	var cascade: Array[NodeCombat] = []
+	if recorded.is_empty():
+		# Queried BEFORE the strip — removing the depleted node from the
+		# navigator mirror first would make its own islanded set go stale.
+		cascade = combat.cascade_set(node.get_combat())
+	else:
+		for e in recorded:
+			if e.node != null:
+				cascade.append(e.node.get_combat())
 	var cascade_nodes: Array[SkillNode] = []
 	for n in cascade:
 		var real := combat.real_node_for(n)
@@ -604,7 +623,19 @@ func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
 	# runs synchronously inside `NodeCombat.take_damage`, so the hit is still
 	# mid-application and the entries land on it before it is read by anything
 	# — the AI's scoring, or [AttackRecord]'s capture on the way to the wire.
-	if source is HitInstance:
+	#
+	# Never on a REPLAY: the recorded entries are the authority's, and
+	# overwriting them with a peer's own would turn a replay back into a
+	# derivation on the next capture.
+	#
+	# What a peer replays is the SET; the wound and chip it charges are
+	# recomputed from the same inputs (the pre-strip fill it holds, its own
+	# `dealloc_damage`) rather than read off the record. That is deliberate and
+	# is not the derivation this issue removes — those inputs are already
+	# synchronised by the command stream, while the islanded SET depends on
+	# topology a fogged client may not hold at all. The recorded numbers ride
+	# along for AI scoring and for a client that wants to draw the toast.
+	if recorded.is_empty() and source is HitInstance:
 		(source as HitInstance).deallocations = entries
 
 

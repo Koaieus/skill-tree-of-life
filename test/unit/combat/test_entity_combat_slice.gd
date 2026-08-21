@@ -391,3 +391,90 @@ func test_overkill_records_the_bar_delta_and_the_floater_number_separately() -> 
 	assert_almost_eq(hit.effective_amount, 10.0, 0.01,
 			"the floater reports the full post-mitigation number, not the soak")
 	assert_gt(hit.hp_max, 0.0, "the bar's maximum rides along, for a fogged client")
+
+
+## Scope item 5, the wire half: the cascade a hit caused survives
+## capture -> var_to_bytes -> rebuild, as ids and numbers. Without this a peer
+## has to re-derive the islanded set by walking the defender's navigator —
+## through nodes a fogged client may not hold at all.
+func test_the_recorded_cascade_survives_the_wire() -> void:
+	var battle := BattleSystem.new()
+	battle.graph = _graph
+	battle.allocation_system = _alloc
+	add_child_autofree(battle)
+
+	var hit := DamageInstance.new()
+	hit.type = DamageInstance.Type.TRUE
+	hit.amount = 100000.0
+	hit.target = _n1
+	_n1.take_damage(hit.amount, hit)
+	assert_eq(hit.deallocations.size(), 3, "precondition: the kill cascaded three nodes")
+
+	var outcome := AttackOutcome.new()
+	outcome.hits = [hit] as Array[HitInstance]
+	var wire: Dictionary = AttackRecord.capture(outcome, _graph)
+	# Through the real encoding, not just the dictionary — a Packed*Array that
+	# does not survive var_to_bytes would pass a naive round-trip.
+	var round_tripped: Dictionary = bytes_to_var(var_to_bytes(wire))
+	var rebuilt := AttackRecord.rebuild(round_tripped, _graph)
+
+	assert_eq(rebuilt.hits.size(), 1, "one hit crossed")
+	var peer_hit := rebuilt.hits[0]
+	assert_eq(peer_hit.deallocations.size(), 3,
+			"the peer receives the cascade instead of deriving one")
+
+	var sent: Array[int] = []
+	for e in hit.deallocations:
+		sent.append(e.node_id)
+	var got: Array[int] = []
+	for e in peer_hit.deallocations:
+		got.append(e.node_id)
+	sent.sort()
+	got.sort()
+	assert_eq(got, sent, "the same nodes, by stable id, in a stable order")
+
+	for i in hit.deallocations.size():
+		assert_eq(peer_hit.deallocations[i].wound, hit.deallocations[i].wound,
+				"the wound crosses")
+		assert_almost_eq(peer_hit.deallocations[i].chip, hit.deallocations[i].chip, 0.0001,
+				"and the chip, at float64 — a peer's HP must land on the host's number")
+		assert_not_null(peer_hit.deallocations[i].node,
+				"and the id resolves back to a node on the far side")
+	assert_almost_eq(peer_hit.hp_before, hit.hp_before, 0.0001, "the bar's start crosses")
+	assert_almost_eq(peer_hit.hp_after, hit.hp_after, 0.0001, "the bar's end crosses")
+	assert_almost_eq(peer_hit.hp_max, hit.hp_max, 0.0001,
+			"and its maximum, which a fogged client cannot read off the owner's board")
+
+
+## Two hits with different cascade sizes must not bleed into each other: the
+## dealloc arrays are ONE flat run across every hit, sliced by a per-hit count.
+## An off-by-one there gives hit 0 everything and hit 1 nothing, silently.
+func test_flattened_dealloc_runs_are_sliced_back_to_the_right_hits() -> void:
+	var battle := BattleSystem.new()
+	battle.graph = _graph
+	battle.allocation_system = _alloc
+	add_child_autofree(battle)
+
+	# A hit that kills nothing, then one that cascades three.
+	var quiet := DamageInstance.new()
+	quiet.type = DamageInstance.Type.TRUE
+	quiet.amount = 1.0
+	quiet.target = _n2
+	_n2.take_damage(quiet.amount, quiet)
+	assert_eq(quiet.deallocations.size(), 0, "precondition: a scratch kills nothing")
+
+	var lethal := DamageInstance.new()
+	lethal.type = DamageInstance.Type.TRUE
+	lethal.amount = 100000.0
+	lethal.target = _n1
+	_n1.take_damage(lethal.amount, lethal)
+
+	var outcome := AttackOutcome.new()
+	outcome.hits = [quiet, lethal] as Array[HitInstance]
+	var rebuilt := AttackRecord.rebuild(
+			bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph))), _graph)
+
+	assert_eq(rebuilt.hits[0].deallocations.size(), 0,
+			"the scratch must not inherit the killer's cascade")
+	assert_eq(rebuilt.hits[1].deallocations.size(), lethal.deallocations.size(),
+			"and the killer must keep all of its own")
