@@ -18,6 +18,7 @@ const _SPARK_SPELL := preload("res://attack/spell/defs/spark.tres")
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
+var _applier: CommandApplier
 var _bs: BattleSystem
 var _player: Entity
 var _enemy: Entity
@@ -81,22 +82,31 @@ func before_each() -> void:
 	_bs.instant_mutation = true
 	add_child(_bs)
 
+	# Since #512 the AI mutates only through the applier — a fixture without
+	# one has an AI that decides and never acts.
+	_applier = CommandApplier.new()
+	_applier.graph = _graph
+	_applier.allocation_system = _alloc
+	_applier.battle_system = _bs
+	_applier.turn_manager = _tm
+	add_child_autofree(_applier)
+
 	# Idle second entity so the clock parks somewhere after the AI ends its
 	# turn (see test_ai_controller.gd's before_each for why).
 	_player = _make_entity("Player")
-	_graph.add_child(_player)
+	_graph.entities_container.add_child(_player)
 	_player.add_child(PlayerController.new())
 
 	_enemy = _make_entity("Enemy")
-	_graph.add_child(_enemy)
+	_graph.entities_container.add_child(_enemy)
 	_ai = AIController.new()
 	_ai.turn_delay = 0.0
-	_ai.allocation_system_override = _alloc
+	_ai.command_applier_override = _applier
 	_ai.battle_system_override = _bs
 	_enemy.add_child(_ai)
 
 	_hostile = _make_entity("Hostile", _PLAYER_FACTION)
-	_graph.add_child(_hostile)
+	_graph.entities_container.add_child(_hostile)
 
 	await get_tree().process_frame
 

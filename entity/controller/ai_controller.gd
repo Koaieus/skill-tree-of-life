@@ -20,6 +20,17 @@ extends EntityController
 ## rather than exhaustive enumeration (the induced-subgraph space is too
 ## large and a full swing resolve is milliseconds, not microseconds).
 ##
+## [b]The AI emits commands, it does not call systems[/b] (#512). Every
+## mutation it decides on leaves through [method _submit_and_wait] as a
+## [Command] applied by the one [CommandApplier], the same queue the player's
+## clicks feed — which is what makes the applier the ONLY mutation path rather
+## than merely one of them. Read-only system access for scoring stays
+## ([BattleSystem] for plan composition, the navigator for reachability); what
+## went is the [AllocationSystem] reference the AI could have mutated through.
+## `turn_delay` is unaffected and deliberately kept: it is host-local
+## presentation pacing with no sync meaning — see
+## `docs/domain/multiplayer-sync-model.md`.
+##
 ## Fog-aware since #378: each AI consults [AiRecon] for its OWN visibility
 ## (not the shared player-only VisionSystem instance) — settled 2026-08-07,
 ## "each enemy acts only on what it personally sees", no faction-shared
@@ -42,11 +53,14 @@ const _DEFAULT_TURN_DELAY := 0.4
 ## this only gates the local console sink.
 @export var debug_trace: bool = false
 ## Explicit injection wins over the GameRoot tree-walk — lets tests wire a
-## bare AllocationSystem / BattleSystem without composing a full
-## game_root.tscn. Unset in production (GameRoot._ensure_controllers doesn't
-## set these), so real levels keep resolving via [method _game_root_or_null]
-## unchanged.
-@export var allocation_system_override: AllocationSystem = null
+## bare CommandApplier / BattleSystem without composing a full game_root.tscn.
+## Unset in production (GameRoot._ensure_controllers doesn't set these), so
+## real levels keep resolving via [method _game_root_or_null] unchanged.
+##
+## There is deliberately no `allocation_system_override` any more (#512): the
+## AI no longer holds a reference it could mutate the world through — every
+## allocation goes out as a [Command].
+@export var command_applier_override: CommandApplier = null
 @export var battle_system_override: BattleSystem = null
 
 # Cached on first use. Walked once via _find_game_root; cheap lookup.
@@ -81,15 +95,19 @@ func take_turn() -> void:
 	if entity.stat_board != null:
 		var sp: SkillPointStat = entity.stat_board.skill_points
 		if sp != null:
-			while sp.current > 0 and _continue() and _try_allocate_frontier(visible_enemies):
+			# Same loop as before #512, un-inlined because the allocation now
+			# suspends until the applier has applied it — `await` cannot live
+			# inside a `while` condition.
+			while sp.current > 0 and _continue():
+				if not await _try_allocate_frontier(visible_enemies):
+					break
 				await _wait()
 				visible_enemies = AiRecon.visible_enemy_nodes(entity)
 				saw_hostile = saw_hostile or not visible_enemies.is_empty()
 
 	if not saw_hostile:
 		_decide("no visible hostile — growth only")
-		if _continue():
-			_turn_manager.end_turn()
+		_end_turn()
 		return
 
 	# AP×2 loop: score every ranged/magic candidate against every visible
@@ -124,8 +142,18 @@ func take_turn() -> void:
 			await _wait()
 			ap = entity.stat_board.action_points
 
+	_end_turn()
+
+
+## Hand the turn back, as an [EndTurnCommand] rather than a direct
+## [method TurnManager.end_turn] — the clock is a mutation like any other
+## (#512). Not awaited: it is the last thing this turn does, and the applier
+## running the next entity's turn inside it is exactly the shape the queue is
+## built for. Still gated on [method _continue] — an AI that died mid-turn
+## must not end someone else's.
+func _end_turn() -> void:
 	if _continue():
-		_turn_manager.end_turn()
+		_submit(EndTurnCommand.new(entity.entity_id))
 
 
 ## Emits [signal Events.ai_decision] unconditionally, and mirrors it to the
@@ -138,13 +166,14 @@ func _decide(summary: String) -> void:
 
 
 func _try_allocate_frontier(visible_enemies: Array[SkillNode]) -> bool:
-	var alloc := _allocation_system()
-	if alloc == null or entity.navigator == null:
+	var graph := _graph_or_null()
+	if graph == null:
 		return false
 	var candidate := _pick_frontier_node(visible_enemies)
 	if candidate == null:
 		return false
-	return alloc.allocate(candidate, entity)
+	return await _submit_and_wait(
+			AllocateCommand.new(entity.entity_id, graph.get_stable_id(candidate)))
 
 
 ## Frontier = unowned node adjacent to a node this entity already owns.
@@ -306,8 +335,69 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 	if not bs.attack_plan.is_valid():
 		bs.cancel_attack()
 		return false
+	# A plain call, and deliberately so: since #511 `launch_attack` IS the
+	# routing — it builds the [LaunchAttackCommand], submits it, and awaits that
+	# command's own `command_applied`. Building a command here instead would be
+	# a second implementation of one verb. Composing the plan above is likewise
+	# local composition, exactly what PlayerInputController does without a
+	# command.
+	#
+	# Why this is not a hole in #512's "no direct mutating system call" grep —
+	# **owner call 2026-08-21:** *"hmm well AI will only be ran by the host, so
+	# to me it matters little how they do it, via a command or directly.
+	# clients won't ever run AI controllers anyway."*
 	await bs.launch_attack()
 	return true
+
+
+# --- the one door out into the world ---------------------------------------
+
+## Submit [param command] and suspend until the applier has actually applied
+## it, returning the applier's own verdict — the AI's replacement for reading a
+## gated system call's return value (#512).
+##
+## Waiting is not optional: the next decision is scored against the board this
+## command changes. Two arrival shapes, both handled by the same code:
+##
+## [b]Idle applier[/b] — [method CommandApplier.submit] drains synchronously, so
+## `watch` has already fired by the time it returns and the loop never suspends.
+## Identical to the direct call this replaced, which is what makes the parity
+## test (test/unit/test_ai_command_parity.gd) hold.
+##
+## [b]Mid-drain[/b] — an AI turn started from inside an [EndTurnCommand]'s
+## application, so [member CommandApplier.is_applying] is already true and this
+## command is QUEUED behind it. Awaiting yields back up to that drain, which
+## applies the command and resumes us from inside its own
+## [signal CommandApplier.command_applied] emit. The queue is FIFO, so the
+## command we are waiting on always arrives.
+func _submit_and_wait(command: Command) -> bool:
+	var applier := _command_applier()
+	if applier == null or command == null:
+		return false
+	# An Array as the latch, not two locals: a lambda captures locals BY VALUE.
+	var verdict: Array[bool] = [false, false] # [applied, success]
+	var watch := func(applied: Command, ok: bool) -> void:
+		if applied == command:
+			verdict[0] = true
+			verdict[1] = ok
+	applier.command_applied.connect(watch)
+	applier.submit(command)
+	while not verdict[0] and applier.is_applying:
+		await applier.command_applied
+	applier.command_applied.disconnect(watch)
+	return verdict[1]
+
+
+## Fire-and-forget submit, for the one command whose verdict the AI has no use
+## for: its own end-of-turn. Warns rather than silently no-opping when nothing
+## is wired — an AI that cannot mutate is a wiring bug, not a pacifist.
+func _submit(command: Command) -> void:
+	var applier := _command_applier()
+	if applier == null:
+		push_warning("AIController: no CommandApplier wired; dropping '%s'" \
+				% command.type_tag())
+		return
+	applier.submit(command)
 
 
 # --- helpers ---------------------------------------------------------------
@@ -325,6 +415,15 @@ func _wait() -> void:
 		await get_tree().create_timer(turn_delay).timeout
 
 
+## The board, reached through the entity's own navigator (the same route
+## [method _pick_frontier_node] already uses). Needed to turn a picked
+## [SkillNode] into the [member SkillNode.stable_id] a [Command] carries —
+## reading `node.stable_id` directly is the trap [method Graph.get_stable_id]
+## documents.
+func _graph_or_null() -> Graph:
+	return entity.navigator.graph if entity != null and entity.navigator != null else null
+
+
 func _game_root_or_null() -> GameRoot:
 	if _game_root != null:
 		return _game_root
@@ -337,11 +436,11 @@ func _game_root_or_null() -> GameRoot:
 	return null
 
 
-func _allocation_system() -> AllocationSystem:
-	if allocation_system_override != null:
-		return allocation_system_override
+func _command_applier() -> CommandApplier:
+	if command_applier_override != null:
+		return command_applier_override
 	var gr := _game_root_or_null()
-	return gr.allocation_system if gr != null else null
+	return gr.command_applier if gr != null else null
 
 
 func _battle_system() -> BattleSystem:

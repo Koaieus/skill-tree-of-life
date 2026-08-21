@@ -81,6 +81,10 @@ var player: Entity
 @onready var allocation_system: AllocationSystem = %AllocationSystem
 @onready var battle_system: BattleSystem = %BattleSystem
 @onready var turn_manager: TurnManager = %TurnManager
+## The one mutation path (#510). Exposed here because [AIController] resolves it
+## by walking up to its GameRoot, the same way it resolves [member battle_system]
+## — the applier node itself has been in `game_root.tscn` since #510.
+@onready var command_applier: CommandApplier = %CommandApplier
 @onready var vision_system: VisionSystem = %VisionSystem
 @onready var victory_system: VictorySystem = %VictorySystem
 @onready var highlight_controller: HighlightController = %HighlightController

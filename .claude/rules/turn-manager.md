@@ -102,11 +102,14 @@ child (no `game_root.tscn`) hits three gotchas together:
   same entity with nothing else to hand the turn to). Give the fixture a
   second, idle entity (e.g. `PlayerController`, whose `take_turn` is a no-op)
   so the clock has somewhere to park after the AI's turn ends.
-- **`AIController` normally resolves `AllocationSystem`/`BattleSystem` by
-  walking up to a `GameRoot` ancestor** — absent one, `_try_allocate_frontier`
-  silently no-ops. Set `allocation_system_override` / `battle_system_override`
-  directly on the controller instead of composing a full `game_root.tscn`;
-  unset in production, so real levels are unaffected.
+- **`AIController` mutates only through a `CommandApplier` (#512), which it
+  resolves by walking up to a `GameRoot` ancestor** — absent one it allocates
+  nothing AND never ends its turn, so the whole loop stalls. Set
+  `command_applier_override` / `battle_system_override` on the controller
+  instead of composing a full `game_root.tscn`; unset in production. The
+  fixture also needs a `Graph` with both entities under
+  `graph.entities_container` — a command names its actor by `entity_id`, minted
+  only on entry to that container, and id 0 resolves to nothing.
 - **`SkillNode.take_damage(amount, source)` re-runs `amount` through
   `Mitigation.apply` even when you pass a raw float** — armor/floor apply
   twice if you also expect the caller's own mitigation math. To set an exact

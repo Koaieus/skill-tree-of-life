@@ -15,6 +15,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
+var _applier: CommandApplier
 var _player: Entity
 var _enemy: Entity
 var _ai: AIController
@@ -56,6 +57,14 @@ func before_each() -> void:
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
+	# Since #512 the AI mutates only through the applier — a fixture without
+	# one has an AI that decides and never acts.
+	_applier = CommandApplier.new()
+	_applier.graph = _graph
+	_applier.allocation_system = _alloc
+	_applier.turn_manager = _tm
+	add_child_autofree(_applier)
+
 	# A second (idle) entity so TurnManager has somewhere to hand the turn
 	# after the AI ends its own — PlayerController.take_turn is a no-op, so
 	# the clock parks there instead of immediately re-selecting the AI and
@@ -67,14 +76,14 @@ func before_each() -> void:
 	# before the controller's — upkeep must run before take_turn, not
 	# race it inside the same synchronous emit().
 	_player = _make_entity("Player")
-	_graph.add_child(_player)
+	_graph.entities_container.add_child(_player)
 	_player.add_child(PlayerController.new())
 
 	_enemy = _make_entity("Enemy")
-	_graph.add_child(_enemy)
+	_graph.entities_container.add_child(_enemy)
 	_ai = AIController.new()
 	_ai.turn_delay = 0.0
-	_ai.allocation_system_override = _alloc
+	_ai.command_applier_override = _applier
 	_enemy.add_child(_ai)
 
 	await get_tree().process_frame

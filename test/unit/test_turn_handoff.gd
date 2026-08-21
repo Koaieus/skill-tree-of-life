@@ -15,7 +15,10 @@ extends GutTest
 ## further down this file.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
+var _graph: Graph
+var _applier: CommandApplier
 var _tm: TurnManager
 var _player: Entity
 var _enemy: Entity
@@ -38,14 +41,28 @@ func before_each() -> void:
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
 
+	# Since #512 the AI ends its turn by submitting an EndTurnCommand, so this
+	# fixture needs the applier — and a Graph, because a command names its actor
+	# by `entity_id`, which is minted only on entry to `entities_container`
+	# (#509). Nothing here allocates, so the applier needs no AllocationSystem.
+	_graph = _GRAPH_SCENE.instantiate()
+	_graph.name = "TestGraph"
+	add_child_autofree(_graph)
+
+	_applier = CommandApplier.new()
+	_applier.graph = _graph
+	_applier.turn_manager = _tm
+	add_child_autofree(_applier)
+
 	_player = autofree(_make_entity("Player"))
-	add_child(_player)
+	_graph.entities_container.add_child(_player)
 
 	_enemy = autofree(_make_entity("Enemy"))
 	var ai := AIController.new()
 	ai.turn_delay = 0.3
+	ai.command_applier_override = _applier
 	_enemy.add_child(ai)
-	add_child(_enemy)
+	_graph.entities_container.add_child(_enemy)
 
 	await get_tree().process_frame
 
