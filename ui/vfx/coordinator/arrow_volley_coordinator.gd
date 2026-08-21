@@ -7,7 +7,9 @@ extends VFXCoordinator
 ## launch is staggered by RangedAttackPlan's authored ramp — recovered here
 ## from the shot's own recorded [member DamageInstance.arrival_time], not a
 ## per-index constant — so a wide volley reads as a flurry of arrival
-## impacts rather than one monolithic THWACK.
+## impacts rather than one monolithic THWACK. (The ramp is metric, so leaves
+## at the SAME distance genuinely do fire together; a perfectly symmetric
+## firing ring collapses back to one THWACK by construction.)
 ##
 ## Pure observer (#474/#504) — this coordinator never calls take_damage; it
 ## only renders. Note it now runs CONCURRENTLY with the mutation loop rather
@@ -133,9 +135,10 @@ func _on_arrow_arrived(proj: Projectile, hit: DamageInstance) -> void:
 
 ## How long shot [param hit]'s arrow is in the air. [member
 ## DamageInstance.arrival_time] is the shot's FULL time to impact from volley
-## start: [code]DRAW_TIME + lerp(0, TOTAL_STAGGER, rank / (n - 1)) +
-## RangedDamageFormula.FLIGHT_TIME[/code], stamped by RangedAttackPlan.resolve
-## from the rank-authored ramp (docs/domain/attack-timeline.md "The ranged
+## start: [code]DRAW_TIME + frac * TOTAL_STAGGER +
+## RangedDamageFormula.FLIGHT_TIME[/code], where `frac` is where the firing
+## leaf's distance falls in the volley's own [d_min, d_max] span — stamped by
+## RangedAttackPlan.resolve (docs/domain/attack-timeline.md "The ranged
 ## volley ramp"). [param launch_delay] strips this shot's own launch offset
 ## back out, so the arrow flies for exactly its airtime and lands (and its
 ## reveal fires) at the
