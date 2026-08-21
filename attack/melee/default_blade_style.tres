@@ -1,6 +1,11 @@
-[gd_resource type="Resource" script_class="BladeStyle" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="BladeStyle" format=3 uid="uid://bj4e46ivkk573"]
 
-[ext_resource type="Script" path="res://attack/melee/blade_style.gd" id="1_style"]
+[ext_resource type="Script" uid="uid://caneboq70qrpa" path="res://attack/melee/blade_style.gd" id="1_style"]
 
 [resource]
 script = ExtResource("1_style")
+fill_tier = 2.3
+fill_alpha = 1.0
+edge_tier = 1.85
+disabled_tier = 0.20000000000000018
+disabled_desaturation = 0.76

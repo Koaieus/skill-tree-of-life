@@ -1,10 +1,11 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://b2kkmyebipilc"]
 
-[ext_resource type="Script" path="res://addons/melee_sandbox/melee_sandbox_panel.gd" id="1_panel"]
+[ext_resource type="Script" uid="uid://celg4vkple8k" path="res://addons/melee_sandbox/melee_sandbox_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
 [ext_resource type="PackedScene" path="res://scenes/dev/melee_sandbox_graph.tscn" id="3_world"]
+[ext_resource type="Environment" uid="uid://cw0hn1e5xg8ja" path="res://ui/theme/default_game_env.tres" id="4_w6h5c"]
 
-[node name="MeleeSandboxPanel" type="PanelContainer"]
+[node name="MeleeSandboxPanel" type="PanelContainer" unique_id=178947704]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -12,22 +13,24 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_panel")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=323931537]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="WorldContainer" type="SubViewportContainer" parent="VBox"]
+[node name="WorldContainer" type="SubViewportContainer" parent="VBox" unique_id=685615061]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 stretch = true
 
-[node name="World" parent="VBox/WorldContainer" instance=ExtResource("2_vp")]
+[node name="World" parent="VBox/WorldContainer" unique_id=155177549 instance=ExtResource("2_vp")]
 unique_name_in_owner = true
-size = Vector2i(1280, 720)
+handle_input_locally = false
+size = Vector2i(1440, 754)
+render_target_update_mode = 4
 
-[node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
-layout_mode = 1
+[node name="Background" type="ColorRect" parent="VBox/WorldContainer/World" unique_id=573353630]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -35,92 +38,96 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05, 0.06, 0.08, 1)
 
-[node name="Graph" parent="VBox/WorldContainer/World" instance=ExtResource("3_world")]
+[node name="Graph" parent="VBox/WorldContainer/World" unique_id=704194287 instance=ExtResource("3_world")]
 unique_name_in_owner = true
+position = Vector2(310, 37)
 
-[node name="Bar" type="HBoxContainer" parent="VBox"]
+[node name="WorldEnvironment2" type="WorldEnvironment" parent="VBox/WorldContainer/World" unique_id=628879980]
+environment = ExtResource("4_w6h5c")
+
+[node name="Bar" type="HBoxContainer" parent="VBox" unique_id=303308714]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="Controls" type="VBoxContainer" parent="VBox/Bar"]
+[node name="Controls" type="VBoxContainer" parent="VBox/Bar" unique_id=410804031]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="BladeSizeRow" type="HBoxContainer" parent="VBox/Bar/Controls"]
+[node name="BladeSizeRow" type="HBoxContainer" parent="VBox/Bar/Controls" unique_id=158342524]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="BladeSizeLabel" type="Label" parent="VBox/Bar/Controls/BladeSizeRow"]
+[node name="BladeSizeLabel" type="Label" parent="VBox/Bar/Controls/BladeSizeRow" unique_id=1717723236]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "Blade size"
 
-[node name="BladeSizeSpin" type="SpinBox" parent="VBox/Bar/Controls/BladeSizeRow"]
+[node name="BladeSizeSpin" type="SpinBox" parent="VBox/Bar/Controls/BladeSizeRow" unique_id=273147360]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Wielder blade_size — how many members the pivot may pull in."
 min_value = 1.0
 max_value = 20.0
 value = 6.0
-tooltip_text = "Wielder blade_size — how many members the pivot may pull in."
 
-[node name="DelitRow" type="HBoxContainer" parent="VBox/Bar/Controls"]
+[node name="DelitRow" type="HBoxContainer" parent="VBox/Bar/Controls" unique_id=974798532]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="DelitLabel" type="Label" parent="VBox/Bar/Controls/DelitRow"]
+[node name="DelitLabel" type="Label" parent="VBox/Bar/Controls/DelitRow" unique_id=1060707084]
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "Force de-lit"
 
-[node name="DelitSpin" type="SpinBox" parent="VBox/Bar/Controls/DelitRow"]
+[node name="DelitSpin" type="SpinBox" parent="VBox/Bar/Controls/DelitRow" unique_id=485684406]
 unique_name_in_owner = true
 layout_mode = 2
-max_value = 20.0
 tooltip_text = "Show the outermost N ghost vertices as popped (HDR → SDR). A real swing overrides this from the pop resolver."
+max_value = 20.0
 
-[node name="PreviewToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+[node name="PreviewToggle" type="CheckBox" parent="VBox/Bar/Controls" unique_id=1330415290]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "The only auto-driving part of melee. Also forced off whenever this tab is not visible."
 button_pressed = true
 text = "Preview loop"
-tooltip_text = "The only auto-driving part of melee. Also forced off whenever this tab is not visible."
 
-[node name="TopUpToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+[node name="TopUpToggle" type="CheckBox" parent="VBox/Bar/Controls" unique_id=880694104]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Refill damaged enemy nodes so the same swing can be spammed at the same board. Refill is deferred, so a LETHAL hit still depletes and cascades — this tops up survivors, it does not prevent death. Reset rebuilds the board."
 button_pressed = true
 text = "Top up quarry"
-tooltip_text = "Refill damaged enemy nodes so the same swing can be spammed at the same board. Refill is deferred, so a LETHAL hit still depletes and cascades — this tops up survivors, it does not prevent death. Reset rebuilds the board."
 
-[node name="RearmToggle" type="CheckBox" parent="VBox/Bar/Controls"]
+[node name="RearmToggle" type="CheckBox" parent="VBox/Bar/Controls" unique_id=519141402]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Re-select the same pivot + members the instant a swing ends, so Launch is live again with no clicks in between."
 button_pressed = true
 text = "Auto re-arm"
-tooltip_text = "Re-select the same pivot + members the instant a swing ends, so Launch is live again with no clicks in between."
 
-[node name="ResetBtn" type="Button" parent="VBox/Bar/Controls"]
+[node name="ResetBtn" type="Button" parent="VBox/Bar/Controls" unique_id=1976860680]
 unique_name_in_owner = true
 layout_mode = 2
 text = "⟲ Reset world"
 
-[node name="StatusLabel" type="Label" parent="VBox/Bar/Controls"]
+[node name="StatusLabel" type="Label" parent="VBox/Bar/Controls" unique_id=1993402191]
 unique_name_in_owner = true
+modulate = Color(0.725, 0.765, 0.863, 0.7)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
-modulate = Color(0.725, 0.765, 0.863, 0.7)
-text = "—"
+text = "blade 0/2 · AP 2 · preview on"
 
-[node name="TrayHost" type="MarginContainer" parent="VBox/Bar"]
+[node name="TrayHost" type="MarginContainer" parent="VBox/Bar" unique_id=989767586]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="KnobScroll" type="ScrollContainer" parent="VBox/Bar"]
+[node name="KnobScroll" type="ScrollContainer" parent="VBox/Bar" unique_id=59115577]
 custom_minimum_size = Vector2(380, 150)
 layout_mode = 2
 
-[node name="StyleKnobs" type="VBoxContainer" parent="VBox/Bar/KnobScroll"]
+[node name="StyleKnobs" type="VBoxContainer" parent="VBox/Bar/KnobScroll" unique_id=1005641961]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
