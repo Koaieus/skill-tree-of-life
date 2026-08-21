@@ -1049,6 +1049,7 @@ mesh = SubResource("QuadMesh_cxgca")
 
 [node name="DevSandbox" unique_id=381943754 instance=ExtResource("1_base")]
 script = ExtResource("1_dev")
+route_to_meta_on_run_end = false
 
 [node name="PlayerInputController" parent="Systems" parent_id_path=PackedInt32Array(896007769) index="4" unique_id=2090560635 node_paths=PackedStringArray("player")]
 player = NodePath("../../Graph/Entities/Player")

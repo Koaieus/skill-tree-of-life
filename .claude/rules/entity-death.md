@@ -50,10 +50,17 @@ children, which is exactly what the phases immunise against.
    cleared off `current_entity` if it somehow held the turn. GameRoot fires
    after AllocationSystem on the **child-before-parent** ready order (it's the
    root), so the strip never races the group removal.
-   The VISUAL half — player game-over stub / NPC `queue_free` — rides
-   `Events.entity_death_shown`, which **`Entity.die()` emits itself, last**,
-   after both bus phases above. See `GameRoot._on_entity_died` /
-   `_on_entity_death_shown`.
+   The VISUAL half — NPC `queue_free` — rides `Events.entity_death_shown`,
+   which **`Entity.die()` emits itself, last**, after both bus phases above.
+   See `GameRoot._on_entity_died` / `_on_entity_death_shown`.
+
+   **Death no longer ends the run; `VictorySystem` decides that (#460).** The
+   player's corpse is deliberately NOT freed (the camera/HUD still point at
+   it), and `Events.game_over` is emitted by `GameRoot._on_run_ended` off the
+   outcome — not off player death — because in hot-seat coop a dead player
+   with a living ally must not end anything. VictorySystem rides the same
+   `entity_death_shown` phase, coalesced one-per-frame. See
+   `docs/domain/victory-system.md`.
 
    **That signal is an ORDERING seam, not a delay (#504).** Under design B the
    world mutates on the reveal clock, so the entity dies at the moment it is

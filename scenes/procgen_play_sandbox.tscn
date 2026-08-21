@@ -8,6 +8,7 @@
 
 [node name="ProcgenPlaySandbox" unique_id=1716671599 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
+route_to_meta_on_run_end = false
 preset = ExtResource("3_preset")
 player_color = Color(0.4, 0.8, 1, 1)
 enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1)])

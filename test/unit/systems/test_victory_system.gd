@@ -1,0 +1,153 @@
+extends GutTest
+
+## [VictorySystem] (#460) — the *when* and the *once*, against real entities on
+## the real death bus. What the rule decides is pinned separately in
+## `test/unit/session/test_victory_condition.gd`.
+
+const _PLAYER := preload("res://entity/factions/player.tres")
+const _NPC := preload("res://entity/factions/npc.tres")
+const _BLOCKER := preload("res://entity/factions/blocker.tres")
+const _BOARD := preload("res://entity/default_entity_board.tres")
+
+var _victory: VictorySystem
+var _outcomes: Array[RunOutcome] = []
+
+
+func before_each() -> void:
+	_outcomes = []
+	_victory = VictorySystem.new()
+	_victory.local_camp = _PLAYER
+	add_child_autofree(_victory)
+	_victory.run_ended.connect(func(o: RunOutcome) -> void: _outcomes.append(o))
+
+
+## A minimal live entity: in the tree (so it joins `Entity.GROUP`, which is
+## where VictorySystem reads the roster from) with a board so `_ready` wiring
+## has something to bind.
+func _spawn(ent_name: String, faction: Faction) -> Entity:
+	var e := Entity.new()
+	e.name = ent_name
+	e.display_name = ent_name
+	e.faction = faction
+	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	add_child_autofree(e)
+	return e
+
+
+## Mirrors GameRoot's synchronous turn-loop pull, which is what actually takes
+## a dead NPC out of `Entity.GROUP` in a real level.
+func _kill(e: Entity) -> void:
+	e.die()
+	e.remove_from_group(Entity.GROUP)
+
+
+func test_a_run_with_two_camps_standing_does_not_end() -> void:
+	_spawn("Player", _PLAYER)
+	var npc_a := _spawn("NpcA", _NPC)
+	_spawn("NpcB", _NPC)
+
+	_kill(npc_a)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 0, "one camp still has a living entity")
+	assert_null(_victory.outcome)
+
+
+func test_killing_the_last_entity_of_a_camp_ends_the_run() -> void:
+	_spawn("Player", _PLAYER)
+	var npc := _spawn("Npc", _NPC)
+
+	_kill(npc)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1)
+	assert_eq(_outcomes[0].winning_camp.id, &"player")
+	assert_eq(_outcomes[0].local_result, RunOutcome.LocalResult.WIN)
+	assert_eq(_victory.outcome, _outcomes[0], "the outcome is latched on the system")
+
+
+func test_blockers_left_on_the_board_do_not_keep_the_run_alive() -> void:
+	_spawn("Player", _PLAYER)
+	var npc := _spawn("Npc", _NPC)
+	_spawn("BlockerA", _BLOCKER)
+	_spawn("BlockerB", _BLOCKER)
+
+	_kill(npc)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1, "two living blockers must not hold the run open")
+	assert_eq(_outcomes[0].winning_camp.id, &"player")
+
+
+## The reason evaluation is coalesced: deaths arrive one signal at a time, so an
+## inline evaluation would see the first of a simultaneous pair leave one camp
+## standing and declare a WIN before the second death ever fired.
+func test_a_mutual_wipe_in_one_batch_is_a_draw_not_a_win() -> void:
+	var player := _spawn("Player", _PLAYER)
+	var npc := _spawn("Npc", _NPC)
+
+	_kill(npc)
+	_kill(player)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1, "one terminal announcement, not two")
+	assert_null(_outcomes[0].winning_camp)
+	assert_eq(_outcomes[0].local_result, RunOutcome.LocalResult.DRAW)
+
+
+func test_the_outcome_is_announced_exactly_once() -> void:
+	_spawn("Player", _PLAYER)
+	var npc_a := _spawn("NpcA", _NPC)
+	var npc_b := _spawn("NpcB", _NPC)
+
+	_kill(npc_a)
+	_kill(npc_b)
+	await get_tree().process_frame
+	var first: RunOutcome = _outcomes[0]
+
+	# Every later death still fires the death signal; none may re-announce.
+	_kill(_spawn("NpcC", _NPC))
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1, "the latch must survive further deaths")
+	assert_eq(_victory.outcome, first)
+
+
+func test_the_player_dying_to_a_surviving_camp_is_a_loss() -> void:
+	var player := _spawn("Player", _PLAYER)
+	_spawn("Npc", _NPC)
+
+	_kill(player)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1)
+	assert_eq(_outcomes[0].winning_camp.id, &"npc")
+	assert_eq(_outcomes[0].local_result, RunOutcome.LocalResult.LOSS)
+
+
+func test_the_outcome_reports_the_turn_count() -> void:
+	var turns := TurnManager.new()
+	add_child_autofree(turns)
+	turns.turns_taken = 9
+	_victory.turn_manager = turns
+	_spawn("Player", _PLAYER)
+	var npc := _spawn("Npc", _NPC)
+
+	_kill(npc)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes[0].turn_count, 9)
+
+
+func test_the_bus_carries_the_same_outcome() -> void:
+	var seen: Array[RunOutcome] = []
+	var handler := func(o: RunOutcome) -> void: seen.append(o)
+	Events.run_ended.connect(handler)
+
+	_spawn("Player", _PLAYER)
+	_kill(_spawn("Npc", _NPC))
+	await get_tree().process_frame
+	Events.run_ended.disconnect(handler)
+
+	assert_eq(seen.size(), 1)
+	assert_eq(seen[0], _outcomes[0])

@@ -19,6 +19,10 @@ signal turn_ended(entity: Entity)
 ## The entity currently taking its turn; null between turns.
 var current_entity: Entity = null
 
+## Turns served since the level started — every [method start_turn], across all
+## entities, not rounds. [RunOutcome.turn_count] reports it (#460).
+var turns_taken: int = 0
+
 
 ## Group used by Entity to discover the level's TurnManager without coupling
 ## to scene-tree depth. Single instance per level.
@@ -37,6 +41,7 @@ func start_turn(entity: Entity) -> void:
 	# Consume readiness: the entity must climb to its cap again for the next turn.
 	entity.remove_from_group(Entity.READY_GROUP)
 	current_entity = entity
+	turns_taken += 1
 	turn_started.emit(entity)
 
 

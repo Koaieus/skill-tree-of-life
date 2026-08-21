@@ -17,3 +17,14 @@ extends Resource
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var color: Color = Color.WHITE
+
+## Is this a camp that can win or lose a run? (#460). Authored, not inferred:
+## a hard-coded [code]if faction.id == &"npc"[/code] at the victory check would
+## be a second definition of "who is a real camp", living somewhere no designer
+## will look. [LastCampStandingCondition] ignores entities whose faction says
+## false — so a board holding nothing but dormant cores is already won.
+##
+## False only on `blocker.tres` (the dormant-core camp): removable blockers
+## (#300) are inert scenery that own a node and never act. Every playable camp
+## — `player`, `npc`, `camp_1..4` — leaves this true.
+@export var counts_for_victory: bool = true

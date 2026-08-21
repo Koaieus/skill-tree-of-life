@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
 [ext_resource type="Script" uid="uid://dnlkufr5kwkn3" path="res://systems/vision_system.gd" id="9_vision"]
+[ext_resource type="Script" path="res://systems/victory_system.gd" id="9_victory"]
 [ext_resource type="Script" uid="uid://dkhgm4v74h1ya" path="res://systems/highlight_controller.gd" id="10_5dyip"]
 [ext_resource type="PackedScene" path="res://ui/hud/hud_root.tscn" id="18_hud"]
 [ext_resource type="PackedScene" uid="uid://eqnsntb3dows" path="res://ui/fog_overlay/fog_overlay.tscn" id="11_fog"]
@@ -85,6 +86,12 @@ graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
 empty_mode = 2
 ease_rate = 2.5
+
+[node name="VictorySystem" type="Node" parent="Systems" unique_id=1000000460 node_paths=PackedStringArray("graph", "turn_manager")]
+unique_name_in_owner = true
+script = ExtResource("9_victory")
+graph = NodePath("../../Graph")
+turn_manager = NodePath("../TurnManager")
 
 [node name="Graph" parent="." unique_id=1851662701 instance=ExtResource("2_graphscene")]
 

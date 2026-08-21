@@ -95,8 +95,18 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 signal spell_hovered(spell: SpellDef, caster: Entity)
 signal spell_unhovered
 
-## Fired by GameRoot when the player entity dies — the HUD shows the game-over
-## overlay. No payload; the single overlay is pre-composed and just toggles visible.
+## The run reached a terminal state (#460). [VictorySystem] is the SOLE emitter
+## and fires this at most once per run, carrying the populated [RunOutcome].
+## Whether the local human won is on the outcome — a listener that only wants
+## "you lost" reads `local_result`, it does not get its own signal.
+signal run_ended(outcome: RunOutcome)
+
+## Presentation cue for the HUD's game-over overlay — DERIVED from
+## [signal run_ended], not a second definition of "the run ended" (#460).
+## GameRoot re-emits it when the outcome is not a local WIN; it no longer
+## fires off player death directly, so a hot-seat coop player dying with an
+## ally still alive correctly shows nothing. No payload; the single overlay is
+## pre-composed and just toggles visible.
 signal game_over
 
 ## Fired by GraphCamera (`scenes/camera_2d.gd`) whenever a zoom step lands —

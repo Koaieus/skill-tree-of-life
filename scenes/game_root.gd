@@ -17,6 +17,10 @@ extends Node2D
 
 const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
 
+## Where a finished run routes (#460). A path, not a preload: the meta-shell
+## pulls in the whole menu tree, and SceneDirector loads threaded anyway.
+const META_ROOT := "res://scenes/meta/meta_root.tscn"
+
 ## Removable blocker sizes (#300). Tier = size + 1 (SMALL → 1, MEDIUM → 2,
 ## LARGE → 3); see [method spawn_blocker]. Procgen blocker placements carry
 ## this enum's int value as the per-node `size` marker.
@@ -55,6 +59,11 @@ const _FOG_INTENSITY_DEV: float = 0.88
 ## When false, the fog overlay is hidden (a self-driven demo wants every node
 ## visible regardless of owned-subgraph vision).
 @export var enable_fog: bool = true
+## When false, a finished run announces its outcome but stays put — a sandbox
+## or a showcase must not teleport itself back to the main menu.
+@export var route_to_meta_on_run_end: bool = true
+## Seconds between the terminal outcome and the route back to the meta-shell.
+@export_range(0.0, 30.0, 0.5, "or_greater") var run_end_route_delay: float = 4.0
 
 ## Grown around the graph's SkillNode AABB to get the fog/aura bound, and
 ## passed to the camera as its zoom==1.0 pan-margin baseline (GraphCamera
@@ -73,6 +82,7 @@ var player: Entity
 @onready var battle_system: BattleSystem = %BattleSystem
 @onready var turn_manager: TurnManager = %TurnManager
 @onready var vision_system: VisionSystem = %VisionSystem
+@onready var victory_system: VictorySystem = %VictorySystem
 @onready var highlight_controller: HighlightController = %HighlightController
 
 @onready var floater_director: FloaterDirector = %FloaterDirector
@@ -97,6 +107,9 @@ func _ready() -> void:
 	# The VISUAL consequence (despawn / game-over) rides `entity_death_shown`,
 	# which `Entity.die()` emits last — see `_on_entity_death_shown`.
 	Events.entity_death_shown.connect(_on_entity_death_shown)
+	# #460: the run's terminal state. VictorySystem decides it; GameRoot only
+	# presents (the HUD cue) and routes.
+	Events.run_ended.connect(_on_run_ended)
 
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
 	# _setup_level runs — procgen spawning goes through force_allocate which
@@ -216,21 +229,37 @@ func _on_entity_death_shown(entity: Entity) -> void:
 ## nodes SYNCHRONOUSLY (off `entity_died`, before either call path here can
 ## run), so freeing the entity itself — now or after the reveal gate — can't
 ## orphan them.
+## #460: the player's corpse is NOT freed — it stays in the tree (dead, and
+## already stripped of its nodes) so the camera and HUD still have something to
+## point at while VictorySystem decides the run's fate. Whether a player death
+## ends the run is no longer GameRoot's call: in hot-seat coop an ally may still
+## be standing, and the condition is the one place that knows.
 func _reveal_entity_death(entity: Entity) -> void:
 	if not is_instance_valid(entity):
 		return
-	if entity == player:
-		_show_game_over()
-	else:
+	if entity != player:
 		entity.queue_free()
 
 
-## Game-over placeholder (#18). The full screen lives in the Metagame milestone;
-## for now a dim overlay + label is enough to make player-death visible and stop
-## the level reading as "still playable". Emits the [signal Events.game_over] bus
-## signal; HudRoot listens and toggles its pre-composed overlay visible.
-func _show_game_over() -> void:
-	Events.game_over.emit()
+## The run is over (#460) — [VictorySystem] is the sole decider; GameRoot only
+## presents and routes.
+##
+## `Events.game_over` is kept as the HUD's overlay cue but is now DERIVED from
+## the outcome instead of being emitted straight off player death — one
+## definition of "the run ended", not two. A local WIN gets no overlay; the
+## proper results screen is #461's job.
+##
+## The route back to the meta-shell is deliberately minimal per the issue ("a
+## results screen is out of scope — a minimal route is enough"), and delayed so
+## the terminal beat is legible rather than a scene-swap on the killing blow.
+func _on_run_ended(outcome: RunOutcome) -> void:
+	if outcome.local_result != RunOutcome.LocalResult.WIN:
+		Events.game_over.emit()
+	if not route_to_meta_on_run_end:
+		return
+	await get_tree().create_timer(run_end_route_delay).timeout
+	if is_inside_tree():
+		SceneDirector.goto(META_ROOT)
 
 
 ## Wire a (possibly late-resolved) human player into the *player-interaction*
@@ -255,6 +284,11 @@ func bind_player(p: Entity) -> void:
 	input_ctl.player = player
 	if vision_system != null:
 		vision_system.viewers = [player] as Array[Entity]
+	# #460: whose point of view `RunOutcome.local_result` is written from. Set
+	# here rather than read by VictorySystem, so "who is the local human" stays
+	# a single fact owned by this method.
+	if victory_system != null:
+		victory_system.local_camp = player.faction
 
 
 ## Attaches a default [EntityController] child to any [Entity] in the level
