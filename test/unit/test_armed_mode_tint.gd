@@ -94,7 +94,7 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 func _expected(stat_id: StringName) -> Color:
 	var def := StatRegistry.get_def(stat_id)
 	assert_not_null(def, "StatRegistry has no def for %s" % stat_id)
-	return Emissive.tint(def.tint_color, Emissive.ALERT)
+	return Emissive.tint_peak(def.tint_color, Emissive.ALERT)
 
 
 func test_nothing_armed_is_transparent() -> void:

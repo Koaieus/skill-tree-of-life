@@ -99,8 +99,24 @@ static func tint(base: Color, stops: float) -> Color:
 	return out.linear_to_srgb()
 
 
-## CANDIDATE, not yet adopted anywhere — compare live against [method tint] in
-## `dev_bloom_sandbox`'s archetype-equalization band before reaching for this.
+## ADOPTED 2026-08-21 by the #412 armed-mode viewport glow — the first case
+## that made the difference visible rather than theoretical. **Reach for this
+## over [method tint] whenever the emissive covers a LARGE AREA and especially
+## when it blends additively**; keep [method tint] for thin strokes and single
+## widgets, where the off-hue lift below is invisible.
+##
+## The deciding numbers, STR-red at [constant ALERT]:
+##   [method tint]      → linear `(15.13, 1.01, 0.84)`
+##   [method tint_peak] → linear `(4.00, 0.27, 0.22)`
+## Red's luminance is only 0.233, so `tint` scales every channel by ~17x and
+## the off-hue channels land at ~1.0 — full display white *on their own*,
+## before compositing. Over a wide area that reads as a white frame with a
+## coloured bloom halo, not as a coloured glow. Owner verdict on the shipped
+## `tint` version: "WAY TOO MUCH WHITE".
+##
+## Caveat: this is only as good as the base hue is saturated. DEX-green and
+## INT-blue carry more off-hue channel to begin with, so they still reach
+## ~1.2 off-hue at ALERT where red reaches 0.27.
 ##
 ## [method tint] equalizes the weighted-luminance value bloom's bright-pass
 ## GATES on, but the blur/composite that follows runs on raw per-channel

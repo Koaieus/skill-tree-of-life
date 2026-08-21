@@ -235,6 +235,40 @@ threshold" to "any colour's luminance sits at threshold." `SlabPanel`'s
 for exactly this reason — one stat tint per instance, so `glow_energy` now
 means the same thing regardless of which stat it's tinted by.
 
+### …and `tint()` is the wrong one for a large additive area — use `tint_peak()`
+
+`tint()` equalizes the **luminance** bloom's bright-pass gates on. It says
+nothing about the *off-hue* channels, and for a low-luminance hue those get
+dragged up hard. STR-red's linear luminance is 0.233, so `tint(red, ALERT)`
+scales every channel by ~17x:
+
+| STR red @ `ALERT` | linear R | G | B |
+|---|---|---|---|
+| `tint()` | 15.13 | **1.01** | **0.84** |
+| `tint_peak()` | 4.00 | 0.27 | 0.22 |
+
+Green and blue at ~1.0 are **full display white on their own**, before the
+element is composited at all. On a thin stroke nobody notices. On a wide area —
+and especially under `blend_add`, where the background is added on top of that —
+the result reads as a *white* frame with a coloured bloom halo. This is what
+sank #412's first cut of the armed-mode viewport glow at `band_px = 140`; owner
+verdict: "WAY TOO MUCH WHITE", and the only tuning that helped was collapsing
+the band to ~13px, i.e. shrinking the white rather than fixing it.
+
+`tint_peak()` normalizes by the **peak channel**, so the dominant channel lands
+on the tier and the others stay proportional — a 4x cut to the off-hue channels
+for red, and the glow reads red. Adopted 2026-08-21; it was a documented
+candidate awaiting exactly this live comparison.
+
+**Rule of thumb:** thin stroke or single widget → `tint()`. Large area, or
+additive blending → `tint_peak()`. Neither is a substitute for looking at it.
+
+**It is only as good as the base hue is saturated.** DEX-green
+(`0.3187, 0.7773, 0.4484`) and INT-blue (`0.291, 0.5892, 1.0`) carry far more
+off-hue channel than red does, so at `ALERT` they still reach ~1.2 off-hue
+where red reaches 0.27 — they whiten more, and no normalization fixes that
+without desaturating the palette entry itself.
+
 **`Edge`'s lit-line glow cannot take this fix.** A lit edge can connect two
 *different*-archetype endpoints (the gradient's whole point), but
 `Emissive.tint()`'s normalization factor is per-hue — it would need to live

@@ -16,7 +16,7 @@ render_mode blend_add, unshaded;
 // FogOverlay's own edge falloff).
 
 // How far in from the edge the glow reaches, in pixels.
-uniform float band_px : hint_range(8.0, 512.0) = 140.0;
+uniform float band_px : hint_range(8.0, 512.0) = 40.0;
 
 // Falloff curve. >1 concentrates the light at the very edge; 1.0 is linear.
 uniform float falloff : hint_range(0.5, 6.0) = 2.4;
