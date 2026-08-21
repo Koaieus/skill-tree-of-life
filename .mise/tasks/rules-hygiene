@@ -22,13 +22,30 @@ import sys
 RULES = ".claude/rules"
 ALWAYS_ON_BUDGET = 4000   # bytes across the always-on RULE tier
 CLAUDE_MD_BUDGET = 12000  # CLAUDE.md is always-on too, and is the biggest single payload
-COMBINED_BUDGET = 16000   # what a session actually pays before it reads anything
+USER_TIER_BUDGET = 3000   # ~/.claude: the memory index + global unscoped rules
+COMBINED_BUDGET = 18000   # what a session actually pays before it reads anything
 # What a scoped rule really costs is share-of-tree x size, not either alone: a
 # tiny rule on a wide glob is cheap, a fat rule on a medium glob is not. Flag the
 # product, in bytes-per-average-session.
 EXPECTED_COST_MAX = 1500
 CRUMB_MAX = 600          # a single always-on rule above this isn't a crumb
 SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's hat
+
+
+def user_always_on():
+    """Always-on bytes that live OUTSIDE the repo, so nothing else can see them:
+    the auto-memory index for this project, and any unscoped ~/.claude rule.
+    Both are injected into every turn exactly like a crumb is."""
+    home = os.path.expanduser("~/.claude")
+    slug = os.getcwd().replace("/", "-")
+    paths = [os.path.join(home, "projects", slug, "memory", "MEMORY.md")]
+    for p in sorted(glob.glob(os.path.join(home, "rules", "*.md"))):
+        head = open(p, encoding="utf-8").read(400)
+        if not (head.startswith("---") and "paths:" in head):
+            paths.append(p)
+    files = [(os.path.relpath(p, os.path.dirname(home)), os.path.getsize(p))
+             for p in paths if os.path.isfile(p)]
+    return sum(s for _, s in files), files
 
 SKIP_DIRS = (".godot/", ".claude/worktrees/", ".worktrees/", ".git/")
 
@@ -158,10 +175,12 @@ def main():
                 })
 
     claude_md = os.path.getsize("CLAUDE.md") if os.path.isfile("CLAUDE.md") else 0
-    combined = always_on_total + claude_md
+    user_tier, user_files = user_always_on()
+    combined = always_on_total + claude_md + user_tier
     for label, actual, budget, key in (
         ("always-on rule tier", always_on_total, ALWAYS_ON_BUDGET, "tier-over-budget"),
         ("CLAUDE.md", claude_md, CLAUDE_MD_BUDGET, "claude-md-over-budget"),
+        ("~/.claude user tier", user_tier, USER_TIER_BUDGET, "user-tier-over-budget"),
         ("combined always-on", combined, COMBINED_BUDGET, "always-on-over-budget"),
     ):
         if actual > budget:
@@ -183,6 +202,7 @@ def main():
     if as_json:
         print(json.dumps({"always_on_bytes": combined,
                           "rule_tier_bytes": always_on_total,
+                          "user_tier_bytes": user_tier,
                           "claude_md_bytes": claude_md, "findings": findings}, indent=2))
         return 1 if (findings and strict) else 0
 
@@ -191,6 +211,10 @@ def main():
     print(f"  {claude_md:6d}  CLAUDE.md  (budget {CLAUDE_MD_BUDGET}B)")
     print(f"  {always_on_total:6d}  rule tier, {len(always_on)} crumbs "
           f"(budget {ALWAYS_ON_BUDGET}B)")
+    print(f"  {user_tier:6d}  ~/.claude user tier, {len(user_files)} file(s) "
+          f"(budget {USER_TIER_BUDGET}B)")
+    for n, s in sorted(user_files, key=lambda x: -x[1]):
+        print(f"  {s:6d}    {n}")
     for n, s in sorted(always_on, key=lambda x: -x[1]):
         print(f"  {s:6d}  {n}")
     print(f"\nScoped: {len(scoped)} rules, {sum(s for _, s, _ in scoped)}B (loaded on demand)")

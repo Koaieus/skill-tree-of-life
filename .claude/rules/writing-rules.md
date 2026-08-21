@@ -27,7 +27,10 @@ You're reading or editing a rule / `CLAUDE.md`. Before you add a page:
 - Run **`mise run rules-hygiene`** whenever you touch this tier. It reports
   over-budget always-on rules, docs-wearing-a-rule's-hat, dead crumbs, stale
   references, and **dead globs** — a `paths:` matching zero files makes a rule that
-  silently never loads, which nothing else can catch.
+  silently never loads, which nothing else can catch. It also counts the
+  **`~/.claude` user tier** (the auto-memory index + any unscoped global rule),
+  which is always-on and lives outside the repo — so a claim duplicated between a
+  memory and a rule is paid twice, every turn.
 - Lead with the rule, then **Why:** / **How to apply:**. Small-rule discipline is
   in `CLAUDE.md` → *Knowledge accumulation*.
 

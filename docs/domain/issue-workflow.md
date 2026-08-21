@@ -1,0 +1,93 @@
+# Issue tracking & the project board
+
+The full version of `CLAUDE.md` → *Issue tracking*. Read this before running
+`mise gh-project`, filing an issue, swarmifying, or dispatching a drone.
+
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`,
+`design`, `blocked` (open upstream fork), plus defaults.
+
+## The board
+
+`mise gh-project -- list|add|status|priority|size`. `list
+[backlog|needs-design|ready|in-progress|in-review|done|all]` shows a column —
+that's how an agent finds work to pick up; add `--json` (with `mise run
+--quiet`) for machine-readable output. See `.mise/tasks/gh-project`.
+
+## The status ladder is the pipeline
+
+`Backlog` (not scheduled) → `Needs design` (scheduled, open forks — the
+`/swarmify` inbox) → `Ready` (a drone can take it) → `In progress` → `In review`
+→ `Done`.
+
+The design gate: a forked issue sits in `needs-design` → `/swarmify #n` (settle
+forks *with the user*, write acceptance, split hubs into file-disjoint children)
+→ `status <n> ready` → `swarm`/`warp` executes.
+
+**A drone never touches a non-`Ready` issue.** `Ready` *is* the swarm queue —
+there is no `swarmable` label (retired 2026-08-02: a second source of truth for
+what the status already said, and it rotted both ways). Standing hub queue:
+issue **#261**.
+
+## `Ready` and `Needs design` are filtered by [FOCUS.md](../FOCUS.md)
+
+A lane item that is `Ready` is takeable; anything else sitting in `Ready` is
+*scheduled-eligible but not scheduled*, and a drone must not pull it. Same for
+`Needs design` — being in that column means "forks are open", not "work on this
+next". FOCUS names the five ordered lanes and the WIP limit; when it and a
+status field disagree, **FOCUS wins**.
+
+This exists because status columns alone couldn't stop scope drift: they say
+what a thing's *state* is, never what's *next*.
+
+## Roadmap + hygiene
+
+`mise gh-project -- roadmap` prints milestone swim-lanes with epic progress;
+`milestone|target|start|estimate <n> [val]` set roadmap fields; `label <n>
+add|rm <name>` flips a label. `hygiene [--json]` reports board invariant
+violations and fixes nothing — run it whenever you look at the board.
+
+The headline invariant: **`Backlog` means "no live parent."** A child may sit at
+any pipeline stage under an `In progress` hub (that's what grinding a hub down
+looks like), but never parked in `Backlog`, where nobody pulls from.
+
+## Sub-issues
+
+The repo uses the parent/sub-issue model. File a child under its epic with `gh
+issue create --parent <parent-number> …` (gh ≥ 2.9x) — this nests it, distinct
+from a `Closes #` trailer.
+
+## Reading an issue is two `gh` calls
+
+**RTFC — read the fucking comments.** When working an issue, read its comments,
+not just the body: they often hold the actual decisions, pointers, new
+direction, or bug reports that outweigh the original body.
+
+**`gh issue view <n>` prints the body; `--comments` prints ONLY the comments**
+(gh 2.97) — so reading an issue is *two* calls. `--comments` on an issue with
+none gives empty output and exit 0, which is not a broken pager. `mise.toml`
+exports `GH_PAGER=cat` repo-wide, so `gh` never pages even under a pty; reaching
+for `--json` to dodge a suspected hang just makes you guess at field names.
+
+## Never pass `gh --body "..."` with backticks
+
+The shell runs command substitution and silently deletes the span, publishing
+mangled text with no error. Write a heredoc to the scratchpad and use
+`--body-file`.
+
+## Attribute owner decisions to the owner, verbatim
+
+Nearly every issue body and comment here was written by an agent, so when you
+write up a fork the owner settled, quote their words and label it an owner call
+(`**Owner call 2026-08-21:** "…"`). Never launder it into your own reasoning.
+
+**Why:** agents resolve contradictions by authority — an owner call outranks a
+later comment, which outranks a maintained doc, which outranks an agent-written
+body. A decision written up as an agent's own conclusion re-enters the record at
+the *bottom* of that ladder, so the next agent is free to argue with it and the
+record degrades into competing confident opinions. Attribution is what makes a
+decision stick.
+
+**How to apply:** quote the owner; date it; say what it supersedes if it
+reverses something. When you hit a contradiction you cannot resolve by that
+ladder, ask the owner — don't pick a side, and don't write a new comment
+arguing with an old one.
