@@ -56,3 +56,67 @@ The `addon_slots` formula is **file-backed** (`stats_system/formulas/allocation_
 
 **#402 — `get_property_list()` walk cached per board class.** The dominant term inside `apply_intrinsics` used to be `cycle_from` → `collect_formula_edges` → `get_property_list()`, 27 ms of it in `get_property_list()` alone (~11 µs per call, purely to enumerate properties) — and `get_pool_stats` / `get_stat_ids` paid the same walk on every call. `StatBoard._stat_property_names()` now caches the declared Stat-typed field names in a `static var`, keyed by `get_script()` (a board *class* fact — see its docstring for why the cache key can't be "which fields are non-null on the first instance seen"). Re-measured on the same 2500-node bench: `duplicate(true)` 51.5 ms (unaffected, as expected), `apply_intrinsics` 89 ms → **44.4 ms**, roughly halved. `get_pool_stats`/`get_stat_ids` get the same win for free since they now share `_stat_property_names()` too, though they weren't on this bench's hot path.
 
+
+### Cloning a *live* board (`clone_live`) — what it costs and what it can't carry
+
+`duplicate(true)` clones a **virgin template**; `StatBoard.clone_live()` clones an
+already-modified board. The distinction went unnoticed until #498's combat shadow
+needed the second one — every pre-#498 caller (`Entity._ready`,
+`_init_node_board`, `EffectContext.grant`) clones a template and builds it up
+afterwards. Exports-only means every `Stat.bins` comes back empty and
+`_extra_stats` (every minted stat, `node_health` among them) is gone outright,
+with no error on any path.
+
+**A bin tally is only meaningful next to the `_modifiers` list it was folded
+from.** `Stat.add_modifier` ends in `_resync_bins_if_trivial()`, which wipes the
+bins and rebuilds them from `_modifiers` whenever that list holds 0 or 1 entries.
+So `clone_live`'s original bins-only copy produced a board that was correct
+*until someone mutated it*: the first modifier added threw the whole tally away
+(measured: 40 STR → 20 after a +10), and removal mis-subtracted the same way.
+Fixed in `1f95076` — `Stat.adopt_modifier_list(src)` carries `_modifiers` and
+`_last_contrib` one level deep, the same shared-instance rule
+`bins.multipliers` already followed (safe per #377: a modifier is stateless and
+may live on N boards). Pinned by `test/unit/test_stat_board_clone_live.gd`.
+
+**A clone computes but does not react, and that is a decision (#506).** Formula
+binding is per-board signal wiring `duplicate()` cannot carry, and rebuilding it
+by calling `bind_modifier` on each applied modifier is *wrong*, not merely
+missing — the modifiers are shared instances, so the clone's `value_changed`
+would `emit_changed()` on an instance the **live** board is also subscribed to
+(a shadow firing recomputes and notification storms on the real world, which is
+exactly what #498 exists to prevent), and the connected `Callable` holds a strong
+reference that keeps every shadow `Stat` alive for as long as the shared modifier
+does. Making a clone react needs per-clone copies of the *formula-bearing*
+modifiers (static ones need no binding at all), or a read-through design that
+clones nothing. See #506.
+
+**The cost is `Resource.duplicate(true)`, and nothing else.** Measured
+2026-08-21, `test/perf/bench_combat_snapshot.gd`, real `first_level.tres` procgen
+at 2000 nodes, seed `0x57A17EE`, RX 7900 XTX box, headless:
+
+| | `duplicate(true)` | `_ensure_stat` re-mint | whole `clone_live` |
+|---|---|---|---|
+| entity board | 419 µs | — | 420 µs |
+| node board (median of 200 owned) | 25 µs | 6 µs | 31 µs |
+
+**The bin copy does not register against a microsecond timer** on either class —
+the incremental-tally design doing exactly what `modifier_bins.gd` claims: a
+clone copies the fold, it never replays the modifiers. So "copy the bins more
+cleverly" is not an available optimisation; there is nothing there to optimise.
+What that adds up to for `EntityCombat.snapshot()` (one entity board + one node
+board per owned node + a `GraphMirror` add each):
+
+```
+owned | snapshot+free (med) | board clones only | us/node | frames @144Hz
+   10 |            1255 us  |           1017 us |   125.5 |         0.18
+   50 |            2849 us  |           2431 us |    57.0 |         0.41
+  100 |            4968 us  |           4368 us |    49.7 |         0.72
+  200 |           10194 us  |           8454 us |    51.0 |         1.47
+```
+
+One snapshot at 200 owned is 1.5 frames of the whole 144Hz budget, ~83% of it
+board cloning. Affordable for melee (`AiBladeRollout` promotes 3 finalists);
+**not** affordable for the exhaustive ranged/magic candidate enumeration that
+#498 exists to make gate-accurate. The lever, if it bites: `ModifierBins.compute`
+is already N-source, so a slice can compose `[live.bins, …, overlay.bins]` and
+copy nothing at all — see the #498 comment of 2026-08-21.
