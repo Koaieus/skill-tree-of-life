@@ -145,16 +145,86 @@ func collect_formula_edges(out: Dictionary) -> void:
 ## follows. `_last_contrib` is keyed by those same instances, so a shallow
 ## dictionary copy transfers intact.
 ##
-## Deliberately does NOT subscribe to each modifier's `changed` — see
-## [method StatBoard.clone_live] for why (signal bleed back onto the source
-## board, plus a [Callable] that would keep this [Stat] alive for as long as the
-## shared modifier lives). A clone computes; making it REACT is #506.
+## Deliberately does NOT subscribe to each modifier's `changed` — subscribing to
+## a SHARED instance is what bleeds a shadow's recomputes back onto the live
+## board, and what keeps this [Stat] alive for as long as that instance lives.
+## Reactivity is restored by [method localize_formula_modifiers], which first
+## replaces the instances that need it with private copies (#506).
 ##
 ## Tell-don't-ask, same reason there is no `get_modifiers()`: the list never
 ## leaves the [Stat].
 func adopt_modifier_list(src: Stat) -> void:
 	_modifiers = src._modifiers.duplicate()
 	_last_contrib = src._last_contrib.duplicate()
+
+
+## Give this stat its OWN copy of every formula-bearing modifier it holds, and
+## subscribe to the copies. The reactivity half of [method StatBoard.clone_live]
+## (#506); [param known] is the board's `orig -> copy` map, read AND written here
+## so one original yields one copy no matter how many stats hold it.
+##
+## [b]Why copies rather than binding the shared instances.[/b] The chain a
+## formula needs is `source stat -> modifier -> target stat`. Binding a shared
+## modifier makes that chain span two boards: a shadow's `constitution` moving
+## would `emit_changed()` on an instance the LIVE board's stats are subscribed
+## to, firing real recomputes and `value_changed` storms for a simulation — and
+## the [Callable] on the live modifier's `changed` would pin this [Stat] in
+## memory for as long as the shared modifier lives, which no shadow teardown
+## could ever undo (the anchor belongs to the live board). With a private copy
+## every edge of the chain is owned by this board, so the shadow reacts fully,
+## the source board never hears a thing, and everything the clone allocated
+## stays collectable from the clone's own side.
+##
+## [b]Only formula-bearing modifiers are copied.[/b] A static modifier has no
+## source to watch, so it stays shared and unsubscribed — which means a clone
+## does NOT track later `value` edits to the live statics it borrowed. That
+## asymmetry is deliberate: a shadow is a frozen world plus its own mutations,
+## and copying all N modifiers to hear about edits nobody makes mid-rollout
+## would pay the cost #498's bench exists to avoid.
+##
+## Swaps the instance everywhere it is keyed by identity — `_modifiers`,
+## `_last_contrib`, `bins.multipliers`, `bins.winning_set`. Missing one of those
+## does not produce a wrong value (the pipeline resolves against `bins.board`
+## either way); it produces a modifier that cannot be revoked by the handle a
+## caller holds, which is worse for being invisible.
+func localize_formula_modifiers(known: Dictionary) -> void:
+	for i in _modifiers.size():
+		var orig := _modifiers[i]
+		if orig.formula == null:
+			continue
+		var copy: StatModifier = known.get(orig)
+		if copy == null:
+			# Shallow: the StatFormula is stateless (it computes against a board
+			# passed in), so sharing it costs nothing and copies nothing deep.
+			copy = orig.duplicate() as StatModifier
+			known[orig] = copy
+		_modifiers[i] = copy
+		if _last_contrib.has(orig):
+			_last_contrib[copy] = _last_contrib[orig]
+			_last_contrib.erase(orig)
+		var mi := bins.multipliers.find(orig)
+		if mi >= 0:
+			bins.multipliers[mi] = copy
+		if bins.winning_set == orig:
+			bins.winning_set = copy
+		var cb := _on_dependent_modifier_changed.bind(copy)
+		if not copy.changed.is_connected(cb):
+			copy.changed.connect(cb)
+
+
+## Drop this stat's subscription to every modifier it holds. The [Stat] half of
+## [method StatBoard.release] (#514) — tell-don't-ask again, since `_modifiers`
+## never leaves the [Stat].
+##
+## Deliberately leaves `_modifiers`, `_last_contrib` and [member bins] alone: a
+## released board is inert, not blank, and clearing the list would run
+## [method _resync_bins_if_trivial]'s wipe for no reason. This only cuts the
+## wires.
+func release_modifier_subscriptions() -> void:
+	for m in _modifiers:
+		var cb := _on_dependent_modifier_changed.bind(m)
+		if m.changed.is_connected(cb):
+			m.changed.disconnect(cb)
 
 
 ## [param board] is the board this modifier is being applied on — remembered

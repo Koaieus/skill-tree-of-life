@@ -91,9 +91,24 @@ func _notification(what: int) -> void:
 ## refcounting), after which ordinary refcounting finishes the job once the
 ## caller drops its own reference. No-op on a LIVE slice — nothing to tear
 ## down; [member host] != null never entered a cycle in the first place.
+##
+## [b]The cloned stat boards are a SECOND cycle of the same shape[/b] (#514):
+## every [Stat] backpoints at the [StatBoard] holding it, so a board dropped
+## without [method StatBoard.release] is never collected either — 122 objects
+## per entity board, measured, plus one node board per owned node. Releasing
+## them is therefore part of this teardown, not a separate call a caller could
+## forget. Done BEFORE `_owned` is cleared, which is the only order that can
+## still reach each owned node's board.
 func free_shadow() -> void:
 	if host != null:
 		return
+	for n in _owned:
+		if n._board != null:
+			n._board.release()
+			n._board = null
+	if _board != null:
+		_board.release()
+		_board = null
 	for n in _owned:
 		n._owner = null
 	_owned.clear()

@@ -158,3 +158,46 @@ func test_core_overflow_on_shadow_strips_every_owned_node() -> void:
 	assert_eq(_owned_count(), 4, "the real entity must still own everything")
 	assert_false(_entity.is_dead, "the real entity must not have died")
 	assert_eq(_events_fired, 0, "no Events traffic for a shadow's simulated death")
+
+
+# ── Teardown collects the cloned boards (#514) ──────────────────────────────
+
+func test_free_shadow_releases_every_board_it_cloned() -> void:
+	var shadow := _entity.get_combat().snapshot()
+	var entity_board := shadow.board()
+	var node_boards: Array[NodeStatBoard] = []
+	for n in shadow.owned():
+		node_boards.append(n.board())
+	assert_gt(node_boards.size(), 0, "fixture sanity: the shadow owns node boards to release")
+	# Non-vacuity: the assertions below only mean something if these were wired.
+	assert_false(entity_board._localized.is_empty(),
+			"fixture sanity: the entity board's formula intrinsics were localized")
+	assert_not_null(entity_board.get_stat(&"node_health")._board,
+			"fixture sanity: the stat backpointer that forms the cycle is set")
+
+	shadow.free_shadow()
+
+	assert_null(entity_board.get_stat(&"node_health")._board,
+			"the entity board must be RELEASED, not just dropped — a Stat backpointing "
+			+ "at its board is a RefCounted cycle nothing collects")
+	assert_true(entity_board._localized.is_empty(), "and left unwired, not merely collectable")
+	for b in node_boards:
+		for id in b.get_stat_ids():
+			assert_null(b.get_stat(id)._board,
+					"every owned node's board must be released by the same teardown, "
+					+ "never left to a caller to remember")
+
+
+func test_snapshot_and_free_shadow_leaks_nothing() -> void:
+	var live := _entity.get_combat()
+	for i in 5:  # warm up
+		live.snapshot().free_shadow()
+	var before := Performance.get_monitor(Performance.OBJECT_COUNT)
+	for i in 50:
+		var s := live.snapshot()
+		s.free_shadow()
+		s = null
+	var leaked := (Performance.get_monitor(Performance.OBJECT_COUNT) - before) / 50.0
+	assert_almost_eq(leaked, 0.0, 1.0,
+			"an AI rollout takes a shadow per candidate and drops it; a snapshot "
+			+ "that leaks turns one turn into hundreds of stranded boards")

@@ -33,6 +33,27 @@ extends Resource
 ## demand by [method _ensure_stat] for sparse boards (e.g. node-local stats).
 var _extra_stats: Dictionary = {}  # StringName → Stat
 
+## True on a board produced by [method clone_live] — a *shadow*. Flips exactly
+## one behaviour: every formula-bearing modifier admitted to this board is
+## replaced by a private copy first (see [method _localize]). Never set on a
+## live board, so the live path pays one bool test and nothing else (#506).
+var _is_clone: bool = false
+
+## `original -> this board's private copy`, for every formula-bearing modifier
+## localized by [method _localize]. Two jobs, and the second is why it is a map
+## rather than a bare "copy on the way in":
+##
+## 1. One original yields one copy per board, no matter how many stats hold it.
+## 2. [b]Revocation by the handle a caller already holds.[/b] Removal is by
+##    identity, so a caller that granted `m` to the live world and now wants it
+##    gone from a shadow — an [AuraEffect] revoke replayed against a simulation —
+##    hands over `m`, not the copy. [method remove_modifier] translates through
+##    here. Without it the removal silently does nothing.
+##
+## Chained clones carry their ancestors' keys forward, so a handle from the
+## original live board still resolves on a clone of a clone.
+var _localized: Dictionary[StatModifier, StatModifier] = {}
+
 ## Coalescing state — see [method begin_batch].
 const _MAX_FLUSH_ROUNDS := 16
 
@@ -195,7 +216,8 @@ func add_modifier(m: StatModifier) -> void:
 		return
 	# flatten() expands a CompositeStatModifier into its leaves; a plain
 	# modifier is its own singleton, so the leaf path below is unchanged (#183).
-	for leaf in m.flatten():
+	for original in m.flatten():
+		var leaf := _localize(original)
 		bind_modifier(leaf)
 		if StatFormula.is_accessor_token(leaf.stat_id):
 			# An accessor token (e.g. `health__current`) is a formula-read handle,
@@ -354,13 +376,31 @@ static func _visit_for_cycle(
 
 func remove_modifier(m: StatModifier) -> void:
 	# Symmetric with add_modifier: flatten() returns the same stable child
-	# instances, so a composite added earlier is removed leaf-for-leaf.
-	for leaf in m.flatten():
+	# instances, so a composite added earlier is removed leaf-for-leaf — and on a
+	# shadow, _localized maps each of those to the private copy that was actually
+	# applied, so the handle the caller holds is still the handle that works.
+	for original in m.flatten():
+		var leaf: StatModifier = _localized.get(original, original)
 		unbind_modifier(leaf)
 		var s := get_stat(leaf.stat_id)
 		if s == null:
 			continue
 		s.remove_modifier(leaf, self)
+
+
+## The instance of [param m] that belongs to THIS board: [param m] itself on a
+## live board or for a static modifier, a private copy on a shadow when [param m]
+## carries a formula. See [member _localized] and
+## [method Stat.localize_formula_modifiers] for why a formula-bearing modifier
+## may not be shared with the board a shadow was cloned from.
+func _localize(m: StatModifier) -> StatModifier:
+	if not _is_clone or m.formula == null:
+		return m
+	var copy: StatModifier = _localized.get(m)
+	if copy == null:
+		copy = m.duplicate() as StatModifier
+		_localized[m] = copy
+	return copy
 
 
 ## Apply intrinsic_modifiers. Call once from Entity._ready() after the board
@@ -550,22 +590,31 @@ func get_stat_ids() -> Array[StringName]:
 ## wipe). Carrying both is what makes a clone a board you may go on to MUTATE,
 ## rather than one you may only read.
 ##
-## [b]Formula binding is deliberately NOT rebuilt here — #506 is still open and
-## this is why it is not a one-liner.[/b] The modifiers are SHARED instances, so
-## wiring the clone's stats to them cuts both ways: (a) a clone's
+## [b]Formula binding IS rebuilt here, but only after every formula-bearing
+## modifier has been replaced by a private copy (#506).[/b] Binding the SHARED
+## instances — the obvious one-liner — is wrong twice over: (a) a clone's
 ## `value_changed` would drive `StatModifier._on_source_changed`, which
-## `emit_changed()`s on an instance the LIVE board is also subscribed to — so
+## `emit_changed()`s on an instance the LIVE board is also subscribed to, so
 ## simulating a CON buff on a shadow would fire recomputes and `value_changed`
-## storms on the real board, which is exactly what a shadow exists not to do;
-## and (b) a [Callable] connected to a live modifier's `changed` holds a strong
-## reference to the clone's [Stat], so every shadow would outlive itself for as
-## long as that modifier does. Making a clone react needs per-clone copies of
-## the formula-bearing modifiers (or a read-through design that clones nothing)
-## — a real decision, taken in #506, not a missing line here.
+## storms on the real board, exactly what a shadow exists not to do; and (b) a
+## [Callable] connected to a live modifier's `changed` holds a strong reference
+## to the clone's [Stat], leaking every shadow for as long as that modifier
+## lives. With copies, the whole `source stat -> modifier -> target stat` chain
+## is owned by the clone, so it reacts fully and the source board hears nothing.
+##
+## Static modifiers stay shared and unsubscribed — they have no source to watch.
+## A clone therefore does not track later `value` edits to the live statics it
+## borrowed; see [method Stat.localize_formula_modifiers] for why that asymmetry
+## is the intended trade rather than an oversight.
 func clone_live() -> StatBoard:
 	var dst := duplicate(true) as StatBoard
 	if dst == null:
 		return null
+	# Collected here rather than re-derived from dst.get_stat_ids() below: the
+	# second pass needs exactly the stats this one touched, and get_stat_ids()
+	# rebuilds and SORTS an array on every call — measurable at 200 owned, where
+	# a snapshot clones one entity board plus a node board per node.
+	var dst_stats: Array[Stat] = []
 	for id in get_stat_ids():
 		var src_stat: Stat = get_stat(id)
 		if src_stat == null:
@@ -592,7 +641,69 @@ func clone_live() -> StatBoard:
 		dst_stat.bins.winning_set = src_stat.bins.winning_set
 		dst_stat.bins.board = dst
 		dst_stat.adopt_modifier_list(src_stat)
+		dst_stats.append(dst_stat)
+
+	# Second pass, and it must be second: bind_modifier resolves each formula
+	# input through dst.get_stat(id), which only answers once the loop above has
+	# _ensure_stat'd every dynamically-minted source. Localizing inline would
+	# silently drop the binding of any modifier whose source stat had not been
+	# minted on dst yet — a push_warning at clone time, then a stat that never
+	# moves.
+	dst._is_clone = true
+	for dst_stat in dst_stats:
+		dst_stat.localize_formula_modifiers(dst._localized)
+	for copy in dst._localized.values():
+		dst.bind_modifier(copy)
+	# Chained clones: dst's map is keyed by the instances IT found, which on a
+	# clone-of-a-clone are the intermediate board's copies. Alias each ancestor
+	# key onto dst's own copy so a handle from the ORIGINAL live board still
+	# revokes here, however deep the chain runs.
+	for original in _localized:
+		var dst_copy: StatModifier = dst._localized.get(_localized[original])
+		if dst_copy != null:
+			dst._localized[original] = dst_copy
 	return dst
+
+
+## Tear down a board produced by [method clone_live], so ordinary refcounting
+## can finish collecting it. The caller's job once it is done with a shadow —
+## the [StatBoard] half of [method EntityCombat.free_shadow], which calls this
+## for the entity board and for every owned node's board.
+##
+## [b]Without it a dropped clone is never collected at all[/b] (#514). Every
+## [Stat] holds [member Stat._board] and `bins.board` pointing back at the board
+## that holds it, so a board and its stats form a reference CYCLE, and GDScript's
+## [RefCounted] has no cycle collector — the same class of problem as
+## [member NodeCombat._owner] backpointing at its [EntityCombat], and it wants
+## the same explicit answer. Measured 2026-08-21 over 200 `clone_live()` calls on
+## `default_entity_board`, sampling [constant Performance.OBJECT_COUNT]:
+## [b]122 objects leaked per clone, 0 after this[/b].
+##
+## Unbinding the localized copies is [i]not[/i] what makes collection work —
+## measured, disconnecting every one of them and leaving the backpointers moves
+## the number not at all. It is here so a released board is wholly inert rather
+## than incidentally collectable: a board nobody may read should not still be
+## wired to fire recomputes.
+##
+## Refuses on a live board. An [Entity]'s board must never be released
+## underneath it — the entity is a [Node] and is freed the ordinary way, and a
+## live board that lost `_board` would silently stop batching and stop resolving
+## SET/MULTIPLY winners against the right board in a composed read.
+func release() -> void:
+	if not _is_clone:
+		push_warning("StatBoard.release: refusing to release a LIVE board — this is only for clone_live() shadows")
+		return
+	for copy in _localized.values():
+		unbind_modifier(copy)
+	_localized.clear()
+	for id in get_stat_ids():
+		var s := get_stat(id)
+		if s == null:
+			continue
+		s.release_modifier_subscriptions()
+		s._board = null
+		s.bins.board = null
+	_dirty_stats.clear()
 
 
 ## The ids of every DYNAMICALLY-created stat on this board — the sparse

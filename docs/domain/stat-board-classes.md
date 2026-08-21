@@ -78,17 +78,95 @@ Fixed in `1f95076` — `Stat.adopt_modifier_list(src)` carries `_modifiers` and
 `bins.multipliers` already followed (safe per #377: a modifier is stateless and
 may live on N boards). Pinned by `test/unit/test_stat_board_clone_live.gd`.
 
-**A clone computes but does not react, and that is a decision (#506).** Formula
-binding is per-board signal wiring `duplicate()` cannot carry, and rebuilding it
-by calling `bind_modifier` on each applied modifier is *wrong*, not merely
-missing — the modifiers are shared instances, so the clone's `value_changed`
-would `emit_changed()` on an instance the **live** board is also subscribed to
-(a shadow firing recomputes and notification storms on the real world, which is
-exactly what #498 exists to prevent), and the connected `Callable` holds a strong
-reference that keeps every shadow `Stat` alive for as long as the shared modifier
-does. Making a clone react needs per-clone copies of the *formula-bearing*
-modifiers (static ones need no binding at all), or a read-through design that
-clones nothing. See #506.
+**A clone reacts — but only via per-clone copies of the formula-bearing
+modifiers (#506).** Formula binding is per-board signal wiring `duplicate()`
+cannot carry, and rebuilding it by calling `bind_modifier` on each *applied*
+modifier is **wrong, not merely missing**: the modifiers are shared instances, so
+the clone's `value_changed` would `emit_changed()` on an instance the **live**
+board is also subscribed to (a shadow firing recomputes and notification storms
+on the real world, exactly what #498 exists to prevent), and the connected
+`Callable` holds a strong reference that keeps every shadow `Stat` alive for as
+long as the shared modifier does — and because that anchor belongs to the *live*
+board, no shadow teardown could ever undo it.
+
+Both fall away once the modifier is the clone's own. So `clone_live` sets
+`StatBoard._is_clone`, and from then on every formula-bearing modifier admitted
+to that board is replaced by a private copy first — at clone time by
+`Stat.localize_formula_modifiers`, and afterwards by `add_modifier`, so a
+modifier granted *during* a simulation (an `AuraEffect` recompute against a
+shadow) is localized on the way in too. The whole `source stat → modifier →
+target stat` chain then belongs to one board.
+
+Four consequences:
+
+- **Static modifiers stay shared and unsubscribed.** They have no source to
+  watch, so a clone does not track later `value` edits to the live statics it
+  borrowed. Deliberate: a shadow is a frozen world plus its own mutations, and
+  copying all N modifiers to hear about edits nobody makes mid-rollout would pay
+  exactly the cost measured below.
+- **Removal is by identity, so `StatBoard._localized` maps `original → copy`**
+  and `remove_modifier` translates through it. That keeps the stated contract
+  that *the handle a caller already holds is the handle that works* — the case
+  #498 step 3's forced-dealloc cascade needs, where the revoker only ever held
+  the live instance. Aliases chain, so an original still resolves on a clone of
+  a clone.
+- **Localizing must run after the whole ensure/copy pass, never inline.**
+  `bind_modifier` resolves each formula input through `dst.get_stat(id)`; a
+  source stat the clone has not minted yet yields a `push_warning` and a
+  silently absent binding. The named `constitution → node_health` case happens
+  to survive one-pass (CON is a typed field), which is what makes the bug easy
+  to ship.
+- **`Stat._modifiers` is swapped everywhere it is keyed by identity** —
+  `_modifiers`, `_last_contrib`, `bins.multipliers`, `bins.winning_set`. Missing
+  one does not give a wrong value (the pipeline resolves against `bins.board`
+  either way); it gives a modifier that cannot be revoked, which is worse for
+  being invisible.
+
+**Reactivity costs ~40% on the clone itself**, measured the same way as the table
+below: entity board `clone_live` 507 → ~710 µs, node board 33 → ~45 µs. All of it
+is `StatModifier.duplicate()` plus the bind walk — the entity board's ~13 formula
+intrinsics. Hand-copying the five exported fields instead of `duplicate()`
+recovers only ~20% of that and silently drops any field a `StatModifier` subclass
+adds, so it was measured and rejected.
+
+**End to end it costs much less than that**, because #514's `release()` landed in
+the same change: one 200-owned `snapshot()` + `free_shadow()` went 9.9 → 12.8 ms
+with reactivity alone, then back to **~10.9 ms** once the shadow's boards are
+actually collected instead of stranded. Net ≈ +9% (1.43 → ~1.57 frames @144Hz),
+stable across runs. Reactivity is not free, but the leak was costing more than it
+was saving.
+
+### A dropped clone is never collected — `release()` is not optional (#514)
+
+Predates #506; found while measuring it. Over 200 `clone_live()` calls on
+`default_entity_board`, each result dropped, sampling
+`Performance.OBJECT_COUNT`: **108 objects leaked per clone before #506, 122
+after, 0 with `release()`.**
+
+The cycle is `StatBoard` → its `Stat`s → `Stat._board` / `bins.board` → back to
+the board, and `RefCounted` has no cycle collector — the same class of cycle
+`EntityCombat.free_shadow()` already existed to break for `NodeCombat._owner`,
+one layer down. It is **not** the localized modifiers' `changed` connections:
+disconnecting every one of those and leaving the backpointers moves the number
+not at all (122 → 122), while nulling `_board` / `bins.board` drops it to
+exactly 0 and collects the modifier copies along with everything else.
+
+So `StatBoard.release()` nulls those two fields across the board's stats, and
+`EntityCombat.free_shadow()` calls it for the entity board **and every owned
+node's board** — before it clears `_owned`, which is the only order that can
+still reach them. Not a call a caller could forget, for the same reason the
+mirror free isn't.
+
+Two properties worth keeping:
+
+- **It refuses a live board.** An `Entity`'s board is freed with the entity;
+  unwiring one would silently break batching, composed reads, and every formula
+  chain on it.
+- **A released board is inert, not blank.** `release()` also unbinds the
+  localized copies and drops each stat's modifier subscriptions — not needed for
+  collection (measured), but a board nobody may read should not still be wired
+  to fire recomputes. `_modifiers` and `bins` are deliberately left alone;
+  clearing the list would trip `_resync_bins_if_trivial`'s wipe for no reason.
 
 **The cost is `Resource.duplicate(true)`, and nothing else.** Measured
 2026-08-21, `test/perf/bench_combat_snapshot.gd`, real `first_level.tres` procgen
