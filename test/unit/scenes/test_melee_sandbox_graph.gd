@@ -50,14 +50,45 @@ func test_quarry_carries_spikes_so_the_pop_path_fires() -> void:
 			+ "which is exactly what the de-lit look exists to show")
 
 
-func test_wielder_territory_is_connected_and_reaches_the_quarry() -> void:
-	# A blade is grown hop by hop from the pivot, so a disconnected wielder node
-	# is unreachable material; and a quarry out of the swept annulus is a target
-	# no swing can ever touch. Both are silent authoring mistakes.
+## Empirical, not geometric: a swung blade WHIPS. Its far vertices lag and pull
+## inward, so effective reach is far shorter than the static span from pivot to
+## tip (measured: a 5-member blade spanning 319px only reaches ~275px, and much
+## less on the angles it has already passed). A quarry authored at the static
+## span looks reachable and is never touched — the failure that produced this
+## number. Keep the cluster inside it when editing the layout.
+const _MEASURED_REACH := 250.0
+
+
+func test_quarry_sits_inside_the_reach_a_swing_actually_has() -> void:
 	var hilt := _graph.skill_nodes_container.get_node("Hilt") as SkillNode
-	var reach := 0.0
-	for n in _owned_by("Wielder"):
-		reach = maxf(reach, hilt.position.distance_to(n.position))
 	for n in _owned_by("Quarry"):
-		assert_lt(hilt.position.distance_to(n.position), reach + n.radius,
-				"%s must sit inside the blade's sweep radius" % n.name)
+		assert_lt(hilt.position.distance_to(n.position), _MEASURED_REACH,
+				"%s must sit inside the swept reach, not merely inside the blade's span" % n.name)
+
+
+func test_wielder_material_is_one_connected_piece() -> void:
+	# A blade grows hop by hop from the pivot, so a disconnected wielder node is
+	# material no blade can ever pick up.
+	var owned: Array[SkillNode] = _owned_by("Wielder")
+	var seen: Dictionary = {}
+	var frontier: Array[SkillNode] = [_graph.skill_nodes_container.get_node("Hilt") as SkillNode]
+	while not frontier.is_empty():
+		var n: SkillNode = frontier.pop_back()
+		if seen.has(n):
+			continue
+		seen[n] = true
+		for other in _graph.get_neighbours(n):
+			if other.owned_by == n.owned_by:
+				frontier.append(other)
+	assert_eq(seen.size(), owned.size(), "every wielder node must hang off the hilt")
+
+
+func test_wielder_and_quarry_are_hostile() -> void:
+	# Both default to the `npc` faction, which reads as ALLIED — and an allied
+	# node is EXCLUDED from the hit scan before a query is ever made, so a swing
+	# silently passes through the whole quarry. Authoring the wielder's faction
+	# is the fix; this pins it.
+	var wielder := _graph.entities_container.get_node("Wielder") as Entity
+	var quarry := _graph.entities_container.get_node("Quarry") as Entity
+	assert_eq(wielder.attitude_to(quarry), Entity.Attitude.HOSTILE,
+			"a same-faction quarry is unhittable, with no error to read")

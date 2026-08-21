@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="PackedScene" uid="uid://b65gc8ce515jw" path="res://graph/graph.tscn" id="1_graph"]
 [ext_resource type="PackedScene" uid="uid://c1cye7r2jar3o" path="res://skill_node/skill_node.tscn" id="2_skill"]
 [ext_resource type="PackedScene" uid="uid://dgog4rl3yb7mh" path="res://graph/edge.tscn" id="3_edge"]
 [ext_resource type="PackedScene" uid="uid://b8gxnt7y3a1pk" path="res://entity/entity.tscn" id="4_entity"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="5_spike"]
+[ext_resource type="Resource" path="res://entity/factions/player.tres" id="6_player_faction"]
 
 [node name="MeleeSandboxGraph" instance=ExtResource("1_graph")]
 
@@ -12,6 +13,7 @@
 unique_name_in_owner = true
 display_name = "Wielder"
 color = Color(0.945, 0.269, 0.245, 1)
+faction = ExtResource("6_player_faction")
 is_human_controlled = true
 core_location = NodePath("../../Nodes/Hilt")
 
@@ -82,46 +84,46 @@ owned_by = NodePath("../../Entities/Wielder")
 base_type_color = Color(0.945, 0.269, 0.245, 1)
 
 [node name="L1" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(240, 460)
+position = Vector2(360, 440)
 owned_by = NodePath("../../Entities/Wielder")
 base_type_color = Color(0.945, 0.269, 0.245, 1)
 
 [node name="L2" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(200, 530)
+position = Vector2(420, 490)
 owned_by = NodePath("../../Entities/Wielder")
 base_type_color = Color(0.945, 0.269, 0.245, 1)
 
 [node name="L3" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(150, 590)
+position = Vector2(480, 530)
 owned_by = NodePath("../../Entities/Wielder")
 base_type_color = Color(0.945, 0.269, 0.245, 1)
 
 [node name="E_Core" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(560, 560)
+position = Vector2(170, 300)
 owned_by = NodePath("../../Entities/Quarry")
 base_type_color = Color(0.29, 0.588, 1, 1)
 
 [node name="E_N" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(620, 470)
+position = Vector2(230, 210)
 owned_by = NodePath("../../Entities/Quarry")
 base_type_color = Color(0.29, 0.588, 1, 1)
 
 [node name="SpikeRingAddon" parent="Nodes/E_N" index="3" instance=ExtResource("5_spike")]
 
 [node name="E_E" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(650, 600)
+position = Vector2(100, 350)
 owned_by = NodePath("../../Entities/Quarry")
 base_type_color = Color(0.29, 0.588, 1, 1)
 
 [node name="E_S" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(520, 660)
+position = Vector2(120, 470)
 owned_by = NodePath("../../Entities/Quarry")
 base_type_color = Color(0.29, 0.588, 1, 1)
 
 [node name="SpikeRingAddon" parent="Nodes/E_S" index="3" instance=ExtResource("5_spike")]
 
 [node name="E_W" parent="Nodes" node_paths=PackedStringArray("owned_by") instance=ExtResource("2_skill")]
-position = Vector2(400, 600)
+position = Vector2(140, 400)
 owned_by = NodePath("../../Entities/Quarry")
 base_type_color = Color(0.29, 0.588, 1, 1)
 

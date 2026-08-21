@@ -77,7 +77,7 @@ var _wielder: Entity
 var _quarry: Entity
 var _alloc: AllocationSystem
 var _battle: BattleSystem
-var _input: PlayerInputController
+var _input_ctl: PlayerInputController
 var _preview: MeleePreview
 var _tray: CommandTrayBodyBase
 
@@ -130,7 +130,7 @@ func _build_systems() -> void:
 	world.build(graph, {melee = true, input = true})
 	_alloc = world.allocation_system
 	_battle = world.battle_system
-	_input = world.input_controller
+	_input_ctl = world.input_controller
 	_preview = world.melee_preview
 	_battle.attack_plan_changed.connect(_on_plan_changed)
 
@@ -150,6 +150,9 @@ func _capture_authored_state() -> void:
 			entity.initialize()
 	_wielder = _entity_named("Wielder")
 	_quarry = _entity_named("Quarry")
+	# Who the input channels act AS. Without it every click is refused as "not
+	# the player's" — the plan's own `attacker` is not enough (#459's setter).
+	_input_ctl.player = _wielder
 
 
 func _entity_named(n: String) -> Entity:
@@ -159,7 +162,7 @@ func _entity_named(n: String) -> Entity:
 func _mount_tray() -> void:
 	_tray = _MELEE_BODY_SCENE.instantiate() as CommandTrayBodyBase
 	_tray_host.add_child(_tray)
-	_tray.bind(_wielder, _battle, _input)
+	_tray.bind(_wielder, _battle, _input_ctl)
 
 
 # ── World state ──────────────────────────────────────────────────────────────
@@ -237,7 +240,7 @@ func _on_world_gui_input(event: InputEvent) -> void:
 	var hit := _pick_node_at(graph.to_local(mb.position))
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		if hit != null:
-			_input.route_left_click(hit)
+			_input_ctl.route_left_click(hit)
 			_world_container.accept_event()
 	elif mb.button_index == MOUSE_BUTTON_RIGHT:
 		# One level off whichever plan is armed — the same primitive right-click
@@ -369,7 +372,18 @@ func set_style(style: BladeStyle) -> void:
 ## The viewport is toggled, never remounted: re-adding it is what kills the glow
 ## pass (`docs/domain/hdr-color.md`, failure mode 5).
 func _on_visibility_changed() -> void:
-	var live := is_visible_in_tree()
+	set_live(is_visible_in_tree())
+
+
+## Dormant → live and back. Public because "is this tab in front" is not always
+## a visibility question (a headless fixture has no visible tab at all), and
+## because dormancy is load-bearing enough to be assertable.
+##
+## Note what `PROCESS_MODE_DISABLED` reaches: melee hit detection is a physics
+## sweep (`BladeHitScan`), so a dormant world's nodes leave the broadphase and a
+## swing there would hit nothing. That is correct — a dormant tab must not
+## resolve anything — but it means "wake it up" is a prerequisite, not a nicety.
+func set_live(live: bool) -> void:
 	_world.render_target_update_mode = SubViewport.UPDATE_ALWAYS if live \
 			else SubViewport.UPDATE_DISABLED
 	_world.process_mode = Node.PROCESS_MODE_INHERIT if live else Node.PROCESS_MODE_DISABLED
@@ -398,7 +412,7 @@ func _on_plan_changed(plan: AttackPlan) -> void:
 	if _rearm_toggle.button_pressed:
 		for n in _last_selection:
 			if is_instance_valid(n) and n.owned_by == _wielder:
-				_input.route_left_click(n)
+				_input_ctl.route_left_click(n)
 	_refresh_status()
 
 
