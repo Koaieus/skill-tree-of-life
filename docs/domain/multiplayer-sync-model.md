@@ -231,9 +231,20 @@ their own, two clients disagree about which entity a command targets.
 single-player and hot-seat) and `ENetTransport`. ENet is chosen because it is
 built into Godot and zero-config on a LAN, **not** because it is the only
 option: `WebSocketMultiplayerPeer`, `WebRTCMultiplayerPeer`, and raw
-`PacketPeerUDP` / `StreamPeerTCP` all exist. The payload is a few hundred bytes
-per turn, so the transport choice is close to free and reversible behind the
-seam. Lobby: type-an-IP.
+`PacketPeerUDP` / `StreamPeerTCP` all exist. The transport choice is close to
+free and reversible behind the seam. Lobby: type-an-IP.
+
+**Payload size.** Most commands are a few dozen bytes. **The attack record is
+the outlier and magic is its worst case:** `trail_blazer.tres` authorises
+`max_hops = 20` and `reverberator.tres` allows `max_visits_per_node = 6`, so a
+single cast can genuinely produce ~100 landings, each carrying a
+post-mitigation amount plus its crit/gate flags. That is kilobytes, not
+hundreds of bytes — still a trivial one-shot burst on a LAN, but it is why the
+record encodes as **parallel arrays of scalars with the timeline holding
+indices into the flat hit list**, not ~100 dictionaries with string keys. The
+indices are required for correctness anyway (a `PropagationEvent`'s hits are
+shared references into `AttackOutcome.hits`, never copies); the size just makes
+the same encoding the obvious one.
 
 ---
 
