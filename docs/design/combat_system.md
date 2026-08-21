@@ -104,6 +104,41 @@ per target node:
 
 **Thorns:** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. The Halo class's aura grants thorns to shell and near-shell nodes from `thorns_base`. See `skill_node_addons.md` and `core_classes.md`.
 
+### Critical strikes — one universal roll, per HIT *(LOCKED 2026-08-21, #507)*
+
+`crit_chance` and `crit_multiplier` are **universal entity stats**: melee,
+ranged and magic all roll the same one, from the attacker's board. This was a
+gap for a long time — the stats existed and were documented as universal, but
+only spells read them, so a player investing in crit got nothing from two
+thirds of their offense with nothing on screen to say so.
+
+**A crit is decided per hit.** Owner call 2026-08-21, verbatim: *"a hit can
+crit."* No per-mode special case:
+
+- a volley of arrows is many hits, so many rolls;
+- a blade of N vertices sweeping M nodes is many rolls;
+- a spell that bounces A → B/C/D → … is one roll per landing.
+
+The obvious objection — a **wide blade** gets more lottery tickets, and a
+**40-node empire** rolls forty times against one node — was raised and
+settled: **that is fine and is not a problem to design around.** More hits
+means more chances, which is what a hit-based crit model means everywhere
+else in the genre. It makes blade width and territory size quietly
+crit-relevant, and that is a legitimate build axis rather than a leak.
+
+**Magic keeps one deviation, and only one.** `SpellDef.crit_conditions` —
+guaranteed crits on a self-loop traversal, a leaf landing, a convergence — sit
+**on top of** the universal roll, not instead of it. Both firing on the same
+landing is `crit_tier 2`. Melee and ranged have no condition analogue; a
+"crit on a cut vertex" or "crit on the killing blow" is imaginable and is a
+separate design question, not part of this.
+
+**Design tension 2 below (global vs per-type crit) resolves to global.**
+
+The implementation contract — which clock rolls, which clock multiplies, and
+why the two differ — is engineering, and lives in `CritRoll`
+(`attack/outcome/crit_roll.gd`) and `../domain/attack-timeline.md`.
+
 ---
 
 ## Attributes, Colors & the Attack Triangle
@@ -209,7 +244,8 @@ taken     = max(damage_floor, outgoing − armor − resist_g)     ← once per 
 
 **Leaf cooldown:** none. Leaves are always ready. The 1-volley/turn cap is the full economy — no per-leaf cooldown on top.
 
-**Crit:** global `crit_chance` (5%) and `crit_mult` (×2) to start.
+**Crit:** global `crit_chance` (5%) and `crit_mult` (×2) to start — rolled
+**per arrow**, so a wide volley gets one roll per shot. See "Critical strikes".
 
 ### Ranged identity — the cut-vertex sniper *(open: GitHub #11)*
 
@@ -742,7 +778,9 @@ deallocation_points = 1 / turn
 ## Design Tensions (Unresolved)
 
 1. **Armor per-hit vs per-attack — *resolved for the blade.*** A phantom-blade swing sums all contacts (edges + spikes + faces) per target and applies armor/resist **once per target node** (multiple distinct targets each subtract armor separately). Combined ranged volleys likewise apply defense once. Consistent with the scaling spine.
-2. **Crit: global vs per-type.** Leaning global to start.
+2. ~~**Crit: global vs per-type.**~~ *Resolved 2026-08-21 (#507): global — one
+   universal `crit_chance`/`crit_multiplier` rolled per hit by all three
+   modes. See "Critical strikes" under the damage pipeline.*
 3. **Triangle: emergent resist vs hardcoded baseline.** Decide alongside armor.
 4. **Dual-color attack timing.** Free per attack, or source-node-inherited?
 5. **Lifeline + Lifelink combo.** Don't design around until seen in play.

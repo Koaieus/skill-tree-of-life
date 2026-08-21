@@ -102,12 +102,41 @@ The target state. Where this differs from what the code does today, the
 | Ordering of landings | **Resolve** (authored into `arrival_time`) | ⚠️ ranged applies in append order, not arrival order; melee/magic don't set `arrival_time` at all |
 | Landing gate (target still allocated / still hostile / vertex still alive) | **Land** | ❌ frozen at resolve in all three modes |
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Land** | ❌ frozen at resolve in all three modes |
+| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Resolve** | ✅ all three modes, one shared `CritRoll` (#507) — see below |
+| Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** | ✅ all three modes, in base `DamageInstance`/`HealInstance.land_on` |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** | ✅ already live — `Mitigation.apply` runs inside `SkillNode.take_damage` |
 | Cascade / dealloc / entity death | **Land** | ✅ already live and synchronous |
 
 The old shape was **defence live, offence frozen**, which has no principle
 behind it — it is simply where `Mitigation` happened to be called from. The
 contract is **set frozen, all arithmetic live.**
+
+### The crit split — the one input that spans two clocks
+
+Crit (#507) is the only row above that appears twice, and the reason is worth
+recording because the obvious "just do it at land, like mitigation" is wrong
+in a way that is invisible until you look at the VFX layer.
+
+- **The decision cannot wait for land.** `MagicBounceCoordinator` stamps
+  `Projectile.crit_tier` when it *spawns* a bolt, and `Projectile` fires
+  `_on_crit` at flight start — both strictly before the applier lands that
+  wave. Deciding at land makes every magic projectile read tier 0. Magic's
+  `SpellDef.crit_conditions` are resolve-bound anyway: they read `CastSpell`
+  propagation state (predecessor, incident count) that exists nowhere else.
+- **The multiply cannot happen at resolve.** `RangedHitInstance.land_on`
+  overwrites `amount` with a live `ranged_damage` read, so anything resolve
+  multiplied in is discarded.
+
+So the decision is frozen with the candidate set and the **arithmetic is
+live**, which is exactly what the contract above asks for. The residual cost
+is stated plainly: `crit_chance` / `crit_multiplier` are read at resolve, so a
+mid-attack change to either is not seen by hits already in flight.
+
+One further constraint falls out of a single seeded stream serving a whole
+attack: **draws are consumed in `arrival_time` order.** `CritRoll.decide_all`
+reuses `OutcomeApplier.in_arrival_order` rather than sorting again, so the two
+cannot drift apart — and the symptom if they did would be crits that stop
+reproducing under a replayed seed, not a visible break.
 
 ## Per-mode contract
 
