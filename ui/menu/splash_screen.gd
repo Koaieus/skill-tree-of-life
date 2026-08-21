@@ -41,9 +41,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
 	var key_event := event as InputEventKey
-	var mouse_event := event as InputEventMouseButton
 	var is_key_press := key_event != null and key_event.pressed and not key_event.echo
-	var is_click := mouse_event != null and mouse_event.pressed
-	if is_key_press or is_click:
+	if is_key_press:
 		advanced.emit()
 		get_viewport().set_input_as_handled()
+
+
+func _gui_input(event: InputEvent) -> void:
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event != null and mouse_event.pressed:
+		advanced.emit()
+		accept_event()
