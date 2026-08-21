@@ -6,7 +6,6 @@
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_glow"]
 resource_local_to_scene = true
 shader = ExtResource("2_shader")
-shader_parameter/rect_size = Vector2(1920, 1080)
 shader_parameter/band_px = 140.0
 shader_parameter/falloff = 2.4
 

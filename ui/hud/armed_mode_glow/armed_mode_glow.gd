@@ -34,8 +34,6 @@ func _ready() -> void:
 	layer = LAYER
 	_rect.color = Color.TRANSPARENT
 	_rect.visible = false
-	_rect.resized.connect(_push_rect_size)
-	_push_rect_size()
 
 
 ## Injected by [HudRoot.compose]. Connects to the one signal and immediately
@@ -54,9 +52,3 @@ func _on_armed_tint_changed(tint: Color) -> void:
 	# the brightness, so a fully-opaque HDR colour is exactly what we want here.
 	_rect.color = tint
 	_rect.visible = tint.a > 0.0
-
-
-func _push_rect_size() -> void:
-	var material: ShaderMaterial = _rect.material
-	if material != null:
-		material.set_shader_parameter(&"rect_size", _rect.size)
