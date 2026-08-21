@@ -511,6 +511,56 @@ func get_stat_ids() -> Array[StringName]:
 	return ids
 
 
+## Deep-clone this board INCLUDING its live state — every modifier already
+## applied to it, and every dynamically-minted stat.
+##
+## [b]Use this, not a bare `duplicate(true)`, whenever the source board is
+## already live.[/b] `duplicate(true)` carries only EXPORTED properties, so
+## every typed `Stat`/`PoolStat` field survives as its own resource but each
+## one's [member Stat.bins] (a plain, non-exported [ModifierBins]) comes back
+## fresh and EMPTY, and [member _extra_stats] — where every dynamically-minted
+## stat lives, `node_health` among them — does not survive at all. No error
+## either way; the clone just quietly reads as an unmodified board.
+##
+## Nothing needed this before #498, which is why the gap went unnoticed: every
+## other `duplicate(true)` in the codebase clones a VIRGIN template and builds
+## its bins up live afterwards ([method apply_intrinsics], [AllocationSystem]'s
+## `add_modifier` calls). A combat shadow ([method EntityCombat.snapshot]) is
+## the first caller that must clone an already-modified board and keep what is
+## on it — there, a bare `duplicate()` silently drops every applied modifier,
+## which is the scoring inaccuracy #498 exists to fix, reintroduced one layer
+## down.
+##
+## [member ModifierBins.multipliers] is copied one level deep: the Array is the
+## clone's own, so membership changes are isolated, but the [StatModifier]s
+## inside are SHARED with the source (as is `winning_set`). That is deliberate
+## and safe — a modifier is stateless and may live on N boards at once (#377),
+## and a shadow adds or revokes modifiers, it never edits one in place.
+func clone_live() -> StatBoard:
+	var dst := duplicate(true) as StatBoard
+	if dst == null:
+		return null
+	for id in get_stat_ids():
+		var src_stat: Stat = get_stat(id)
+		if src_stat == null:
+			continue
+		# _ensure_stat, not get_stat — a dynamically-minted source stat has no
+		# counterpart on `dst` at all yet (see above).
+		var dst_stat: Stat = dst._ensure_stat(id)
+		if dst_stat == null:
+			continue
+		dst_stat.base_value = src_stat.base_value
+		if dst_stat is PoolStat and src_stat is PoolStat:
+			(dst_stat as PoolStat).current = (src_stat as PoolStat).current
+		dst_stat.bins.base_add = src_stat.bins.base_add
+		dst_stat.bins.increase_sum = src_stat.bins.increase_sum
+		dst_stat.bins.bonus_add = src_stat.bins.bonus_add
+		dst_stat.bins.multipliers = src_stat.bins.multipliers.duplicate()
+		dst_stat.bins.winning_set = src_stat.bins.winning_set
+		dst_stat.bins.board = dst
+	return dst
+
+
 ## The ids of every DYNAMICALLY-created stat on this board — the sparse
 ## [member _extra_stats] set only. Typed `@export` fields are never included;
 ## use [method get_stat_ids] if you want everything.

@@ -147,11 +147,10 @@ func snapshot() -> EntityCombat:
 	if host == null:
 		return shadow
 	if host.stat_board != null:
-		shadow._board = host.stat_board.duplicate(true) as StatBoard
-		# See NodeCombat.sync_cloned_board's doc — a bare duplicate() drops
-		# every already-applied modifier's bins, and every dynamically-minted
-		# stat outright. Same fixup, same reason, one board type up.
-		NodeCombat.sync_cloned_board(host.stat_board, shadow._board)
+		# clone_live, not duplicate(true) — see its doc: a bare duplicate
+		# silently drops every already-applied modifier's bins and every
+		# dynamically-minted stat.
+		shadow._board = host.stat_board.clone_live()
 	shadow._mirror = GraphMirror.new()
 	shadow._mirror.graph = host.navigator.graph if host.navigator != null else null
 	var real_nodes: Array[SkillNode] = host.navigator.get_mirrored_nodes() if host.navigator != null else []

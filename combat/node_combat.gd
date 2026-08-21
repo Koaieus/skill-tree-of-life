@@ -79,47 +79,9 @@ func snapshot(owner_combat: EntityCombat) -> NodeCombat:
 	shadow._owner = owner_combat
 	if host != null:
 		host._init_node_board()
-		shadow._board = host.node_board.duplicate(true) as NodeStatBoard
-		sync_cloned_board(host.node_board, shadow._board)
+		# clone_live, not duplicate(true) — see its doc on StatBoard.
+		shadow._board = host.node_board.clone_live() as NodeStatBoard
 	return shadow
-
-
-## Post-[method Resource.duplicate] fixup shared by [method snapshot] here and
-## [method EntityCombat.snapshot]. `duplicate(true)` only carries EXPORTED
-## properties: every TYPED `Stat`/`PoolStat` field on a [StatBoard] survives
-## as its own resource, but each one's [member Stat.bins] (a plain,
-## non-exported [ModifierBins]) resets to fresh/empty, and
-## [member StatBoard._extra_stats] (also plain — every DYNAMICALLY-minted
-## stat, which is where [code]node_health[/code] itself lives) doesn't survive
-## AT ALL. Nothing in the codebase needed this before #498: every existing
-## `duplicate(true)` call clones a VIRGIN template and builds its bins up live
-## afterward ([method StatBoard.apply_intrinsics], [AllocationSystem]'s
-## `add_modifier` calls); a shadow is the first thing that needs to duplicate
-## an ALREADY-LIVE, ALREADY-MODIFIED board and keep what's on it. Skipping
-## this would silently drop every already-applied modifier on snapshot —
-## exactly the scoring inaccuracy #498 exists to fix, reintroduced one layer
-## down.
-static func sync_cloned_board(src: StatBoard, dst: StatBoard) -> void:
-	if src == null or dst == null:
-		return
-	for id in src.get_stat_ids():
-		var s: Stat = src.get_stat(id)
-		if s == null:
-			continue
-		# _ensure_stat, not a bare get_stat — a dynamically-minted `src` stat
-		# has no counterpart on `dst` at all yet (see the doc above).
-		var d: Stat = dst._ensure_stat(id)
-		if d == null:
-			continue
-		d.base_value = s.base_value
-		if d is PoolStat and s is PoolStat:
-			(d as PoolStat).current = (s as PoolStat).current
-		d.bins.base_add = s.bins.base_add
-		d.bins.increase_sum = s.bins.increase_sum
-		d.bins.bonus_add = s.bins.bonus_add
-		d.bins.multipliers = s.bins.multipliers.duplicate()
-		d.bins.winning_set = s.bins.winning_set
-		d.bins.board = dst
 
 
 ## Non-allocating passthrough read — the state-half twin of
