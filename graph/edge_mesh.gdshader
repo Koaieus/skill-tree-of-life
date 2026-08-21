@@ -80,6 +80,43 @@ global uniform float edge_camera_zoom = 1.0;
 uniform float clamp_widen_amount : hint_range(0.0, 3.0) = 1.0;
 uniform float clamp_falloff_world : hint_range(1.0, 200.0) = 48.0;
 
+// How hard the widening tracks camera zoom. The problem it solves: `width` is
+// SCREEN-constant (divided by zoom below) while a SkillNode is WORLD-constant,
+// so a fixed widen multiplier drifts badly against the thing it sits next to.
+// At the shipped widen 2.0 / width 4.0, a widened end measures 12 screen px
+// against a node that is 16 px across at MIN_ZOOM 0.25 but 128 px at MAX_ZOOM
+// 2.0 — the same signal reads as 0.75 of a node zoomed out and 0.09 zoomed in,
+// an 8x swing across the range, and at zoom-out it very nearly swallows the
+// node it is pointing at.
+//
+// The effective amount is `clamp_widen_amount * pow(zoom, response)`:
+//
+//   0.0 = today's behaviour — widening is purely screen-constant.
+//   1.0 = the EXTRA width is world-proportional, so it shrinks on screen in
+//         step with the node beside it. Most geometrically consistent; also
+//         the most aggressive, quadrupling the widening between the zoom
+//         extremes.
+//   0.5 = the default. Geometric mean of the two references, which is the
+//         honest answer when the stroke is anchored to one and the node to
+//         the other. At widen 2.0 it reads ~1.0 at zoom 0.25, 2.0 at zoom 1.0
+//         and ~2.8 at zoom 2.0.
+//
+// A POWER law rather than a lerp/smoothstep between hand-picked zoom stops:
+// zoom is a multiplicative quantity (the wheel steps it by ratios, the range
+// is 0.25..2.0 around 1.0), so a power law is linear in log-zoom and therefore
+// scale-free — "zoom in 2x further" changes the widening by the same FACTOR
+// wherever you are in the range. Any curve keyed to absolute zoom stops would
+// bake in a privileged zoom level and behave differently at the ends.
+uniform float clamp_widen_zoom_response : hint_range(0.0, 1.0) = 0.5;
+
+// Shared by vertex() and fragment(): the geometry envelope and the per-pixel
+// taper MUST agree on the peak multiplier, or the quad either clips the taper
+// it is supposed to contain or pads dead space around it.
+float clamp_widen_effective() {
+	return clamp_widen_amount
+			* pow(max(edge_camera_zoom, 0.0001), clamp_widen_zoom_response);
+}
+
 // The visible-in-the-fade-zone floor now lives in `vision_field.gdshaderinc`
 // as `VISION_VISIBLE_DIM_FLOOR`, shared with SkillNode's disk and rim (#414) —
 // a local copy here would be the third of three that have to agree.
@@ -163,7 +200,7 @@ void vertex() {
 		// cover the WORST-CASE width so fragment()'s per-pixel taper (against
 		// UV.x) has room to draw into. `code == 0` (the overwhelming common
 		// case) takes the exact same expression as before this feature existed.
-		float max_mult = v_clamp_code > 0.5 ? (1.0 + clamp_widen_amount) : 1.0;
+		float max_mult = v_clamp_code > 0.5 ? (1.0 + clamp_widen_effective()) : 1.0;
 		VERTEX.y = sign(VERTEX.y) * (half_width_local * max_mult + aa_pad_local);
 		bar_local_y = VERTEX.y;
 		v_edge_len = length(MODEL_MATRIX[0].xy);
@@ -206,8 +243,8 @@ void fragment() {
 		// ones. UV.x == 0 is the `from`/A end, UV.x == 1 is `to`/B (matches the
 		// COLOR/v_custom endpoint-color mix just above, and Edge._push_transform's
 		// x-basis direction (b - a)). `max`, not sum, for a double-clamped edge —
-		// never overshoots 1 + clamp_widen_amount even when both falloffs overlap
-		// on a short edge.
+		// never overshoots the vertex envelope's `1 + clamp_widen_effective()`
+		// even when both falloffs overlap on a short edge.
 		float width_mult = 1.0;
 		if (v_clamp_code > 0.5) {
 			bool widen_a = v_clamp_code == 1.0 || v_clamp_code == 3.0;
@@ -215,7 +252,7 @@ void fragment() {
 			float falloff = max(clamp_falloff_world, 0.0001);
 			float t_a = widen_a ? clamp(1.0 - (UV.x * v_edge_len) / falloff, 0.0, 1.0) : 0.0;
 			float t_b = widen_b ? clamp(1.0 - ((1.0 - UV.x) * v_edge_len) / falloff, 0.0, 1.0) : 0.0;
-			width_mult = 1.0 + clamp_widen_amount * max(t_a, t_b);
+			width_mult = 1.0 + clamp_widen_effective() * max(t_a, t_b);
 		}
 		float d = abs(bar_local_y) - half_width_local * width_mult;
 		// `fwidth(d)`, not `fwidth(bar_local_y)` — `d` now varies along X too
