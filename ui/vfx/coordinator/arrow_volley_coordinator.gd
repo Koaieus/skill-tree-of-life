@@ -34,12 +34,11 @@ const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/lig
 
 @export var projectile_path: ProjectilePath
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
-## Floor on a shot's airtime, as a fraction of [member flight_time] — a
-## point-blank shot still needs enough frames to read as an arrow.
-const MIN_FLIGHT_FRACTION: float = 0.4 # TODO: WTH is this?! shots fire somewhat upwards initially, silly
 
-## Fallback airtime for a shot with no [member DamageInstance.arrival_time],
-## and (scaled by [constant MIN_FLIGHT_FRACTION]) the floor for one that has.
+## Fallback airtime, used ONLY for a shot with no recorded [member
+## DamageInstance.arrival_time]. A shot that has one flies for exactly
+## `arrival_time - launch_delay` and this value is not consulted — see
+## [method _flight_for].
 @export var flight_time: float = 0.45
 ## The per-shot flight duration RangedAttackPlan.resolve() baked into every
 ## `arrival_time` (`launch_time + shot_flight_time`). Defaults to the domain
@@ -140,21 +139,31 @@ func _on_arrow_arrived(proj: Projectile, hit: DamageInstance) -> void:
 ## leaf's distance falls in the volley's own [d_min, d_max] span — stamped by
 ## RangedAttackPlan.resolve (docs/domain/attack-timeline.md "The ranged
 ## volley ramp"). [param launch_delay] strips this shot's own launch offset
-## back out, so the arrow flies for exactly its airtime and lands (and its
-## reveal fires) at the
-## recorded time — far shots visibly take longer than near ones, and a replay
-## reconstructs the volley from recorded data alone.
+## back out, so `launch_delay + flight == arrival_time` holds ALGEBRAICALLY,
+## for every shot, with no clamp in the way — the arrow touches down exactly
+## when [OutcomeApplier] lands its damage.
 ##
 ## [b]This used to be two clocks and that was the bug.[/b] The arrow flew for a
 ## flat [member flight_time] while the reveal waited `arrival_time` from t=0,
 ## ignoring the per-shot stagger entirely — so HP dropped and the damage number
-## popped while the arrow was still halfway there. `flight_time` is now the
-## floor, not a parallel schedule: it keeps a point-blank shot from being an
-## instant blink.
+## popped while the arrow was still halfway there.
+##
+## [b]There is deliberately no floor here.[/b] A `MIN_FLIGHT_FRACTION` clamp
+## used to guard against a point-blank shot blinking instantly; under the
+## constant-flight-time schedule that case cannot arise. `arrival_time` is
+## `launch_time + FLIGHT_TIME` and `launch_delay` is `arrival_time -
+## shot_flight_time`, so this subtraction collapses to `shot_flight_time` —
+## a constant. The nearest leaf gets a full airtime just like the furthest;
+## the floor was a floor under a constant. Worse, it could only ever fire when
+## `shot_flight_time` had drifted from [constant
+## RangedDamageFormula.FLIGHT_TIME], and clamping is the wrong answer to
+## drift: it buys a prettier arrow by desyncing it from the model. Let the
+## subtraction speak, and let a mistuned export show up as a visibly wrong
+## landing instead of a silently absorbed one.
 func _flight_for(hit: DamageInstance, launch_delay: float) -> float:
 	if hit.arrival_time <= 0.0:
 		return flight_time
-	return maxf(hit.arrival_time - launch_delay, flight_time * MIN_FLIGHT_FRACTION)
+	return hit.arrival_time - launch_delay
 
 
 # Resolve attacker tint: the RangedAttackPlan is the hit source and

@@ -36,9 +36,9 @@ const FLIGHT_TIME: float = 0.8
 ## a 100-shot volley take the same wall time and stay readable rather than
 ## crawling. Also fixed regardless of how the leaves are DISTRIBUTED inside
 ## it: only the two extremes pin the window; everything else lands wherever
-## its own distance falls. Verified against
-## ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION's clamp in
-## test_arrow_volley_coordinator.gd — see the issue's "Watch" note.
+## its own distance falls. test_arrow_volley_coordinator.gd pins the VFX
+## against this value at both ends of the ramp, so retuning it fails there
+## rather than on screen.
 const TOTAL_STAGGER: float = 0.7
 
 ## Windup before the first release. 0.0 for now, per the issue's settled

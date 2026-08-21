@@ -455,11 +455,25 @@ Mechanically this is the stronger choice, which is why it wins:
 - **`t = 0` is the start of the draw**, not the first arrival. Every
   `arrival_time` is measured from the moment the action begins.
 
-**Watch:** `ArrowVolleyCoordinator._flight_for` clamps to
-`maxf(arrival_time - launch_delay, flight_time * MIN_FLIGHT_FRACTION)`.
-Whatever `TOTAL_STAGGER` is chosen, verify the clamp does not bite — if it
-does, the animation silently stops matching the authored ramp, which is exactly
-the drift class #479/#481 cost five rounds of latches.
+**`ArrowVolleyCoordinator._flight_for` has no floor, on purpose.** It returns
+`arrival_time - launch_delay` flat, so `launch_delay + flight == arrival_time`
+holds algebraically for every shot and the arrow cannot drift from its own
+damage. It used to clamp to `maxf(..., flight_time * MIN_FLIGHT_FRACTION)`,
+guarding a point-blank shot against blinking instantly — a case the constant
+flight time already rules out. `arrival_time` is `launch_time + FLIGHT_TIME`
+and `launch_delay` is `arrival_time - shot_flight_time`, so the subtraction
+collapses to a constant: the floor sat under a value that could never go below
+it, unless `shot_flight_time` had drifted from `FLIGHT_TIME` — and then the
+clamp *hid* the drift by desyncing the visual. Removed 2026-08-21; it had been
+biting in the shipped scene (`flight_time = 2.0` → a 0.8s floor against a 0.35s
+airtime, every arrow landing 0.45s after its damage) while
+`test_arrow_volley_coordinator.gd` stayed green by constructing the
+coordinator in code and reading the code default instead of the scene's.
+
+**Watch:** that is exactly the drift class #479/#481 cost five rounds of
+latches, so the replacement test instantiates the `.tscn`. Any test pinning a
+VFX/domain timing relationship must do the same — an export mistuned in a
+scene is invisible to a subject built with `.new()`.
 
 ### Explicit firing list
 

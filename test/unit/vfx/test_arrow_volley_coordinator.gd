@@ -15,6 +15,9 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+## The scene AttackVFX actually instantiates — the only version of this
+## coordinator whose exports are the shipped ones.
+const _COORD_SCENE := preload("res://ui/vfx/coordinator/arrow_volley_coordinator.tscn")
 
 var _graph: Graph
 var _origin: SkillNode
@@ -86,22 +89,24 @@ func test_play_does_not_return_before_arrows_drain() -> void:
 	assert_eq(still_flying.size(), 0, "play() only resolved once every arrow was done")
 
 
-## docs/domain/attack-timeline.md flags `_flight_for`'s MIN_FLIGHT_FRACTION
-## clamp as the drift class #479/#481 cost five rounds of latches, and #504
-## RAISES the stakes: the arrow's flight is now the only thing keeping the
-## visual in step with a mutation that happens at `arrival_time`. If the clamp
-## bites, the arrow lands EARLY and the damage arrives after it — visibly.
+## docs/domain/attack-timeline.md flags `_flight_for` as the drift class
+## #479/#481 cost five rounds of latches, and #504 RAISES the stakes: the
+## arrow's flight is now the only thing keeping the visual in step with a
+## mutation that happens at `arrival_time`. Miss, and the arrow lands out of
+## sync with its own damage number — visibly.
 ##
-## With the shipped constants it cannot: every shot flies
-## `RangedDamageFormula.FLIGHT_TIME` (0.35s) against a floor of
-## `flight_time * MIN_FLIGHT_FRACTION` (0.45 * 0.4 = 0.18s). This pins the
-## relationship so retuning either constant fails here instead of on screen.
-func test_flight_matches_arrival_time_without_the_clamp_biting() -> void:
-	var coord := ArrowVolleyCoordinator.new()
+## [b]This instantiates the SCENE, not `ArrowVolleyCoordinator.new()`.[/b] The
+## exports are what drift, and exports are serialized per-scene: the old
+## version of this test built the coordinator in code, read the code default
+## for `flight_time` (0.45) instead of the scene's authored 2.0, and so
+## certified a floor of 0.18s while the game ran one of 0.8s — green here
+## while every shipped arrow landed 0.45s after its own damage. A test that
+## constructs its subject cannot see a mistuned `.tscn`.
+func test_every_arrow_touches_down_exactly_when_its_damage_lands() -> void:
+	var coord := _COORD_SCENE.instantiate() as ArrowVolleyCoordinator
 	add_child_autofree(coord)
-	var floor_s: float = coord.flight_time * ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION
-	assert_gt(RangedDamageFormula.FLIGHT_TIME, floor_s,
-			"a shot's real airtime must clear the clamp floor, or arrows land early")
+	assert_almost_eq(coord.shot_flight_time, RangedDamageFormula.FLIGHT_TIME, 0.0001,
+			"the scene must not override shot_flight_time away from the domain constant")
 
 	# Nearest shot (launch 0.0) and furthest (launch TOTAL_STAGGER): both fly
 	# exactly FLIGHT_TIME, so arrival order == firing order == distance order.
