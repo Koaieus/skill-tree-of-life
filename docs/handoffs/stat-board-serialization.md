@@ -40,7 +40,10 @@ time (#501/#502/#503) needs no slice at all. Combat slices serve AI scoring and
 previews only.
 
 What remains genuinely open in this file is the **save/load** format (#23) and
-its forks, below.
+its forks, below — and those now have a durable home too: the **#23** comment of
+2026-08-21 restates them there (Fork 1 answered "persist `_modifiers`, derive the
+bins", Fork 4 flagged as the one nobody has looked at). **This file is spent the
+moment #23's remaining forks are settled — delete it then, don't maintain it.**
 
 ---
 
