@@ -1,0 +1,247 @@
+extends GutTest
+
+## Determinism of attack resolution — the invariant the multiplayer sync model
+## and the AI-preview slice both rest on.
+##
+## The claim under test: [b]a fully deterministic attack has a fully
+## deterministic result[/b]. Same inputs, same starting world → the same
+## [AttackOutcome], hit for hit, including crits and ordering. If that holds,
+## a peer handed only the attack INTENT could replay the attack locally and
+## land on a bit-identical end state; if it does not, the peer's world forks
+## silently and permanently.
+##
+## See `docs/domain/multiplayer-sync-model.md` (host-authoritative,
+## intent-up / confirmed-command-down) and `docs/domain/attack-timeline.md`
+## (set frozen at resolve, all arithmetic live).
+##
+## [b]What this file can and cannot prove.[/b] It runs in one headless
+## process, so it pins [i]reproducibility[/i] — the necessary condition —
+## not cross-machine float or physics agreement. Reproducibility failing here
+## is proof that intent-only replay is unsafe. Reproducibility passing here
+## is not proof that it is safe.
+##
+## The known gaps are pinned as characterization tests rather than left as
+## prose, so they stay visible and fail loudly the day they are closed. Each
+## one names what to flip when its issue lands.
+
+const H := preload("res://test/unit/spell/spell_test_helper.gd")
+
+
+# ── Fingerprinting ───────────────────────────────────────────────────────────
+
+## Every field of an [AttackOutcome] that a peer replaying the attack would
+## have to agree on, flattened to comparable strings in emission order.
+##
+## Ordering is deliberately significant: two resolutions that produce the same
+## SET of landings in a different ORDER are a divergence under
+## `attack-timeline.md`, because the applier walks them in order and each
+## landing's gate is re-read against the state the previous ones left behind.
+##
+## The target is keyed by [member SkillNode.stable_id] — the wire-legal
+## identifier — falling back to node name for fixtures built outside a
+## [Graph] that mints ids.
+static func fingerprint(outcome: AttackOutcome) -> Array[String]:
+	var out: Array[String] = []
+	if outcome == null:
+		return out
+	for hit: HitInstance in outcome.hits:
+		out.append("%s|%s|%.6f|%.6f|%s|%d|%.6f|%.6f|%s|%s" % [
+			_id_of(hit.target),
+			"HEAL" if hit.kind == HitInstance.Kind.HEAL else "DAMAGE",
+			hit.amount,
+			hit.effective_amount,
+			str(hit.is_crit),
+			hit.crit_tier,
+			hit.crit_multiplier,
+			hit.arrival_time,
+			str(hit.gated),
+			_id_of(hit.origin),
+		])
+	return out
+
+
+static func _id_of(node: SkillNode) -> String:
+	if node == null:
+		return "<null>"
+	var sid := str(node.stable_id)
+	return sid if not sid.is_empty() and sid != "0" else str(node.name)
+
+
+## A hub of enemy nodes: N0 is the attacker's, N1 is the seed, N2..N5 are the
+## seed's hostile neighbours. Multiple valid next-hops is what makes a
+## stochastic propagation step observable at all — without a real branch, a
+## seeded-RNG test passes vacuously.
+func _make_branching_world() -> Dictionary:
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 2], [1, 3], [1, 4], [1, 5]], self)
+	var attacker := helper.make_entity(graph, "A", Color.RED)
+	var defender := helper.make_entity(graph, "D", Color.BLUE)
+	helper.give_big_hp(defender)
+	helper.assign_owner(graph, attacker, [0])
+	helper.assign_owner(graph, defender, [1, 2, 3, 4, 5])
+	return {helper = helper, graph = graph, attacker = attacker, defender = defender}
+
+
+func _resolve_random_pick(world: Dictionary, rng: RandomNumberGenerator) -> AttackOutcome:
+	var helper: H = world.helper
+	var graph: Graph = world.graph
+	var config := helper.make_config(
+		helper.random_pick_step(), helper.owner_enemy(), null, {max_hops = 1})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var nodes: Array = graph.get_skill_nodes()
+	return SpellResolver.resolve(spell, nodes[1], nodes[0], world.attacker, graph, rng)
+
+
+func _seeded(value: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = value
+	return rng
+
+
+# ── The invariant: seeded resolution is reproducible ─────────────────────────
+
+func test_the_fingerprint_is_sensitive_to_a_different_seed() -> void:
+	# Guards every test below it. If the fingerprint could not tell two
+	# different resolutions apart, "same seed reproduces" would pass
+	# vacuously and this whole file would assert nothing.
+	var seen := {}
+	for s in [11, 22, 33, 44, 55, 66, 77, 88]:
+		var world := _make_branching_world()
+		seen[str(fingerprint(_resolve_random_pick(world, _seeded(s))))] = true
+	assert_gt(seen.size(), 1,
+		"RandomPickStep must pick differently across seeds, or this fixture " +
+		"has no observable branch and the reproducibility tests are vacuous")
+
+
+func test_same_seed_reproduces_the_same_magic_outcome() -> void:
+	# The core claim, for a stochastic spell: identical inputs and identical
+	# starting state produce an identical landing list, in identical order.
+	var a := fingerprint(_resolve_random_pick(_make_branching_world(), _seeded(0xA11CE)))
+	var b := fingerprint(_resolve_random_pick(_make_branching_world(), _seeded(0xA11CE)))
+	assert_eq(a, b, "same seed + same world must produce an identical outcome")
+	assert_false(a.is_empty(), "fixture produced no hits — the test proves nothing")
+
+
+func test_same_seed_reproduces_the_same_crit_stream() -> void:
+	# Crits are the second RNG consumer, derived from the propagation seed
+	# (`crit_rng.seed = rng.seed ^ 0xC217`, propagation_context.gd:51) so
+	# they reproduce WITHOUT consuming the propagation stream (#213). A
+	# 50% chance across a fan makes divergence overwhelmingly likely if the
+	# derivation were broken.
+	var fingerprints: Array = []
+	for _i in 2:
+		var world := _make_branching_world()
+		var helper: H = world.helper
+		var cc: Stat = world.attacker.stat_board.get_stat(&"crit_chance")
+		assert_not_null(cc, "fixture needs a crit_chance stat to roll against")
+		cc.base_value = 0.5
+		var config := helper.make_config(
+			helper.fan_all(), helper.owner_enemy(), null, {max_hops = 1})
+		var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+		var graph: Graph = world.graph
+		var nodes: Array = graph.get_skill_nodes()
+		fingerprints.append(fingerprint(SpellResolver.resolve(
+			spell, nodes[1], nodes[0], world.attacker, world.graph, _seeded(0xC0FFEE))))
+	assert_eq(fingerprints[0], fingerprints[1],
+		"a seeded cast must reproduce its crit rolls, not just its hop choices")
+
+
+func test_a_deterministic_spell_needs_no_seed_to_reproduce() -> void:
+	# The other half of the picture, and the reason the gaps below are
+	# narrow: a spell with no stochastic step and no crit chance is already
+	# fully reproducible with rng == null. Most spells are in this class.
+	var fingerprints: Array = []
+	for _i in 2:
+		var world := _make_branching_world()
+		var helper: H = world.helper
+		var config := helper.make_config(
+			helper.fan_all(), helper.owner_enemy(), null, {max_hops = 1})
+		var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+		var graph: Graph = world.graph
+		var nodes: Array = graph.get_skill_nodes()
+		fingerprints.append(fingerprint(SpellResolver.resolve(
+			spell, nodes[1], nodes[0], world.attacker, world.graph)))
+	assert_eq(fingerprints[0], fingerprints[1],
+		"a non-stochastic, non-critting cast must be reproducible unseeded")
+
+
+# ── The gaps, pinned ─────────────────────────────────────────────────────────
+#
+# These assert that a known determinism hole IS STILL OPEN. They are
+# structural, not statistical, so they are not flaky — and each one fails the
+# day its hole is closed, which is the point: closing it should have to come
+# past this file.
+
+func test_gap_an_unseeded_context_mints_a_randomized_crit_stream() -> void:
+	# propagation_context.gd:54 — with no propagation seed, `rng_for_crits()`
+	# calls `randomize()`. Two casts of the same spell at the same target
+	# therefore do NOT share a crit stream, so their outcomes can differ on
+	# one machine, let alone across peers.
+	#
+	# WHEN #457 LANDS: the run seed should reach every cast, and this test
+	# should be inverted to assert the two seeds MATCH.
+	var seeds := {}
+	for _i in 8:
+		seeds[PropagationContext.new().rng_for_crits().seed] = true
+	assert_gt(seeds.size(), 1,
+		"unseeded crit RNGs are randomize()d — if these now agree, #457's " +
+		"determinism contract has landed and this test must be inverted")
+
+
+func test_gap_the_live_magic_path_threads_no_seed() -> void:
+	# magic_attack_plan.gd:200 calls SpellResolver.resolve/5 — the 6th
+	# parameter (`rng`) is defaulted, so a real in-game cast runs unseeded
+	# and inherits the gap above. Only tests pass a seed today
+	# (cast_spell.gd:63's docstring says as much).
+	#
+	# Asserted structurally against the source so it cannot rot silently.
+	#
+	# WHEN #457 LANDS: this call site gains the run RNG and this test flips
+	# to assert the seed IS threaded.
+	var src := FileAccess.get_file_as_string("res://attack/plan/magic_attack_plan.gd")
+	assert_false(src.is_empty(), "could not read magic_attack_plan.gd")
+	assert_string_contains(src,
+		"SpellResolver.resolve(spell, target, source, attacker, graph)",
+		"the live magic path still resolves without an RNG — if this call " +
+		"now passes a seed, #457 has landed and this test must be inverted")
+
+
+func test_gap_relic_rolls_are_unseeded() -> void:
+	# A kill inside an attack grants loot, and the relic roll uses bare
+	# Array.shuffle() / randf() (skill_dust_addon.gd:249,297,307,355), which
+	# read Godot's global RNG. So even a perfectly reproducible hit sequence
+	# produces different relics per peer.
+	#
+	# `docs/domain/multiplayer-sync-model.md` already answers this for
+	# versus — "loot rolls stay host-only" — but that is wiring to build, not
+	# something a deterministic outcome payload provides for free.
+	#
+	# WHEN #457 LANDS: the addon should draw from a seeded stream and this
+	# test should be inverted.
+	var src := FileAccess.get_file_as_string("res://skill_node/addons/skill_dust_addon.gd")
+	assert_false(src.is_empty(), "could not read skill_dust_addon.gd")
+	assert_string_contains(src, "pool.shuffle()",
+		"relic rolls still use the global RNG — if this is now seeded, " +
+		"#457 has landed and this test must be inverted")
+
+
+func test_gap_melee_hit_detection_truncates_a_physics_query() -> void:
+	# The structural one, and the reason melee can never be intent-only
+	# replayed regardless of what #457 does.
+	#
+	# blade_hit_scan.gd queries `space_state.intersect_shape(params,
+	# _MAX_HITS_PER_QUERY)`. That is a CAP: when more shapes overlap the
+	# blade than the cap allows, WHICH ones come back depends on broadphase
+	# ordering, for which Godot documents no guarantee. The hit set is
+	# therefore not a function of world state alone, and no seeding fixes it.
+	#
+	# This test does not fail when a gap closes — it pins an assumption. If
+	# the cap is ever removed, or the scan stops using a physics query,
+	# revisit `docs/domain/attack-timeline.md`'s melee physics note.
+	var src := FileAccess.get_file_as_string("res://attack/melee/sim/blade_hit_scan.gd")
+	assert_false(src.is_empty(), "could not read blade_hit_scan.gd")
+	assert_string_contains(src, "_MAX_HITS_PER_QUERY",
+		"melee still truncates its physics query — see attack-timeline.md")
+	assert_string_contains(src, "intersect_shape",
+		"melee hit detection is still a physics query and cannot be replayed " +
+		"from intent alone")
