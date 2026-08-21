@@ -610,7 +610,15 @@ func collect_target_excludes() -> Array[RID]:
 	for b in blade_nodes:
 		self_set[b] = true
 	for sn in graph.get_skill_nodes():
-		if self_set.has(sn) or sn.owned_by == attacker:
+		# MINE|ALLY (#384's vocabulary), not `owned_by == attacker`: a blade
+		# must pass through a co-op partner's territory as cleanly as its own.
+		# Excluding at SCAN time — the blade never queries these colliders — is
+		# deliberate despite the land-time-gate rule (docs/domain/attack-timeline.md):
+		# faction can't change mid-swing, so the only drift is an ally node
+		# deallocating to NEUTRAL mid-cascade and us skipping a hit we could
+		# have landed. Negligible; don't add a land-time re-check for it.
+		var bit := sn.ownership_bit(attacker)
+		if self_set.has(sn) or bit == SkillNode.Ownership.MINE or bit == SkillNode.Ownership.ALLY:
 			out.append(sn.get_rid())
 	return out
 

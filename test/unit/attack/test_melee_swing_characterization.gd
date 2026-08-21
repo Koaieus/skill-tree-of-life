@@ -73,6 +73,13 @@ func before_each() -> void:
 
 	_defender = Entity.new()
 	_defender.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Explicit hostile camp. Both entities used to inherit Entity's default
+	# `npc.tres`, which reads ALLIED — harmless while melee excluded only the
+	# attacker's OWN nodes, but the blade now passes through allied territory,
+	# so a same-camp "defender" would take no hits at all.
+	var enemy_camp := Faction.new()
+	enemy_camp.id = &"characterization_enemy"
+	_defender.faction = enemy_camp
 	_graph.add_child(_defender)
 
 	_pivot = _spawn("Pivot", Vector2.ZERO)

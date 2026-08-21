@@ -386,3 +386,64 @@ func test_disconnected_island_unreachable() -> void:
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	for hit in outcome.hits:
 		assert_ne(hit.target, n[3], "orphan node never reached")
+
+
+# ── Faction-aware ENEMY scope (co-op friendly fire) ────────────────────────
+
+
+func test_enemy_scope_does_not_chain_into_an_allied_camp() -> void:
+	# Line 0-1-2-3. Attacker owns 0, a HOSTILE camp owns 1-2, and an ALLY of
+	# the attacker (same faction) owns 3. The chain must stop at 2.
+	var helper := H.new()
+	var graph := helper.make_graph(_line_of(4), self)
+	var coop := Faction.new()
+	coop.id = &"coop_camp"
+	var atk := helper.make_entity(graph, "A", Color.WHITE, coop)
+	var mate := helper.make_entity(graph, "Mate", Color.WHITE, coop)
+	var foe := helper.make_entity(graph, "D")
+	helper.give_big_hp(atk)
+	helper.give_big_hp(mate)
+	helper.give_big_hp(foe)
+	helper.assign_owner(graph, foe, [1, 2])
+	helper.assign_owner(graph, mate, [3])
+	helper.assign_owner(graph, atk, [0])
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(),
+			helper.max_reducer(), {max_hops = 3})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+
+	var hit_nodes: Array = []
+	for h in outcome.hits:
+		hit_nodes.append(h.target)
+	assert_true(n[1] in hit_nodes, "the hostile seed is hit")
+	assert_true(n[2] in hit_nodes, "the hostile neighbour is hit")
+	assert_false(n[3] in hit_nodes, "the allied partner's node is NOT")
+
+
+func test_enemy_scope_still_chains_through_a_third_hostile_camp() -> void:
+	# ENEMY is "hostile to the caster", not "the one entity I targeted" — a
+	# free-for-all board still chains across separate hostile camps.
+	var helper := H.new()
+	var graph := helper.make_graph(_line_of(4), self)
+	var atk := helper.make_entity(graph, "A")
+	var foe_a := helper.make_entity(graph, "D1")
+	var foe_b := helper.make_entity(graph, "D2")
+	helper.give_big_hp(atk)
+	helper.give_big_hp(foe_a)
+	helper.give_big_hp(foe_b)
+	helper.assign_owner(graph, foe_a, [1, 2])
+	helper.assign_owner(graph, foe_b, [3])
+	helper.assign_owner(graph, atk, [0])
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(),
+			helper.max_reducer(), {max_hops = 3})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+
+	var hit_nodes: Array = []
+	for h in outcome.hits:
+		hit_nodes.append(h.target)
+	assert_true(n[3] in hit_nodes, "a different hostile camp is still fair game")

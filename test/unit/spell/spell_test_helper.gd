@@ -55,10 +55,24 @@ func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 ## test *can* reproduce crits (see #213), but damage-math tests shouldn't
 ## need to manage a seed just to avoid noise. A crit test sets its own value
 ## explicitly (see test_crit_resolution.gd).
-func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE) -> Entity:
+## Every entity gets its OWN one-member camp unless [param faction] says
+## otherwise — so `make_entity(g, "A")` and `make_entity(g, "D")` are genuinely
+## hostile, which is what these fixtures always meant by "enemy". Without it
+## they'd both inherit `npc.tres` (Entity's default) and read ALLIED, and every
+## `owner_enemy()` propagation test would silently assert on an allied chain.
+## Pass a shared [Faction] to two entities to build the co-op case on purpose.
+func make_entity(graph: Graph, display_name: String, color: Color = Color.WHITE,
+		faction: Faction = null) -> Entity:
 	var ent := Entity.new()
 	ent.display_name = display_name
 	ent.color = color
+	if faction != null:
+		ent.faction = faction
+	else:
+		var solo := Faction.new()
+		solo.id = StringName("test_camp_%s_%d" % [display_name, ent.get_instance_id()])
+		solo.display_name = display_name
+		ent.faction = solo
 	ent.stat_board = _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
 	var cc: Stat = ent.stat_board.get_stat(&"crit_chance")
 	if cc != null:

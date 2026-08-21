@@ -7,8 +7,16 @@ extends PropagationFilter
 ## every old [SpellPropagation] subclass carried.
 
 enum Scope {
-	ENEMY,        ## owned by an entity that isn't the caster (null = neutral, NOT enemy)
-	ALLY,         ## owned by the caster
+	## Owned by an entity the caster is HOSTILE to (null = neutral, NOT enemy).
+	## Attitude, not identity: before #384 this read `owned_by != caster`, which
+	## made a co-op partner's territory look like enemy ground and let every
+	## damage spell chain straight through it. Targeting was migrated then;
+	## propagation was missed.
+	ENEMY,
+	## Owned by the CASTER specifically — not a faction ally. The name predates
+	## factions and is now misleading; a real caster-or-ally scope is a separate
+	## decision, since renaming this breaks the ints authored in every `.tres`.
+	ALLY,
 	UNALLOCATED,  ## owned_by == null
 	ANY,          ## no ownership filter (still excludes null only if asked)
 	OWNED_ANY,    ## any non-null owner (enemy OR ally)
@@ -22,7 +30,11 @@ func allows(_from: SkillNode, to: SkillNode, payload: CastSpell, _ctx: Propagati
 		return false
 	match scope:
 		Scope.ENEMY:
-			return to.owned_by != null and to.owned_by != payload.caster
+			if to.owned_by == null:
+				return false
+			if payload.caster == null:
+				return true  # no caster context — every owned node is fair game
+			return payload.caster.attitude_to(to.owned_by) == Entity.Attitude.HOSTILE
 		Scope.ALLY:
 			return to.owned_by != null and to.owned_by == payload.caster
 		Scope.UNALLOCATED:
