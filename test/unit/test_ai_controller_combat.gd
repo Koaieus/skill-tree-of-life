@@ -34,6 +34,13 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	e.name = ent_name
 	e.display_name = ent_name
 	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Zero the board's 5 % baseline crit. Since #507 ranged rolls crits off a
+	# freshly randomized per-attack seed, so a test that chips a target to
+	# EXACTLY two shots' worth and asserts the first volley leaves it alive
+	# would otherwise flake whenever a shot doubles. Same reason
+	# `SpellTestHelper.make_entity` does it: damage-math tests shouldn't have
+	# to manage a seed just to avoid noise.
+	e.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	if faction != null:
 		e.faction = faction
 	return e

@@ -66,6 +66,12 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	var attacker := Entity.new()
 	attacker.faction = _PLAYER_FACTION
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Zero the board's 5 % baseline crit. This test fires TWO independent
+	# volleys and compares the worlds they leave behind; since #507 each
+	# launch stamps its own randomized seed, so the two would roll different
+	# crits and the comparison would flake on a difference that has nothing to
+	# do with the attack_vfx wiring under test.
+	attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	attacker.stat_board.action_points.set_base_ratcheted(2.0)
 	attacker.stat_board.action_points.current = 2.0
 	graph.add_child(attacker)
