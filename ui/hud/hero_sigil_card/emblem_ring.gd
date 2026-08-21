@@ -44,10 +44,17 @@ func _ready() -> void:
 
 ## The hue actually drawn: the bound identity when there is one, else the
 ## authored fallback — lifted to the VALUE tier here rather than stored.
-## `tint`, not `tint_peak`: a 4px stroke is the thin-mark case (see Emissive).
+##
+## The two take DIFFERENT lifts on purpose. An identity colour is arbitrary, so
+## it goes through [method Emissive.tint], whose whole job is making any hue
+## read as equally lit at the same tier. The authored gold keeps [method
+## Emissive.at]: that is the exact value it shipped at, and `tint` would run it
+## ~1.3x hotter (its luminance is 0.55, so the rescale is a real lift, not a
+## no-op). Neither uses `tint_peak` — a 4px stroke is the thin-mark case.
 func _lit_color() -> Color:
-	var base := entity_tint if entity_tint.a > 0.0 else ring_color
-	return Emissive.tint(base, Emissive.VALUE)
+	if entity_tint.a > 0.0:
+		return Emissive.tint(entity_tint, Emissive.VALUE)
+	return Emissive.at(ring_color, Emissive.VALUE)
 
 
 func _draw() -> void:

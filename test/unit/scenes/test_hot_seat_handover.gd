@@ -192,10 +192,16 @@ func test_the_emblem_takes_the_active_heros_colour() -> void:
 	var ring: EmblemRing = card.get_node("%EmblemRing")
 	var sigil: SigilGlyph = card.get_node("%SigilGlyph")
 
+	# No extra `await` here: the very first bind comes from `compose` at level
+	# open, and the card's marks are `@onready`. If that bind could land before
+	# the card's own `_ready`, the tint would silently no-op and the emblem
+	# would only ever colour after the first handover.
+	assert_eq(ring.entity_tint, _p1.color, "the ring is coloured from level open")
+	assert_eq(sigil.entity_tint, _p1.color, "and so is the sigil")
+
 	_hand_turn_to(_p1)
 	await wait_physics_frames(1)
-	assert_eq(ring.entity_tint, _p1.color, "the ring opens in player 1's colour")
-	assert_eq(sigil.entity_tint, _p1.color, "and so does the sigil")
+	assert_eq(ring.entity_tint, _p1.color, "the ring holds player 1's colour")
 
 	_hand_turn_to(_p2)
 	await wait_physics_frames(1)
