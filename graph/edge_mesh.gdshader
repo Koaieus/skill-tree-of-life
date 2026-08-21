@@ -255,7 +255,27 @@ void fragment() {
 		if (v_clamp_code > 0.5) {
 			float w_a = (v_clamp_code == 1.0 || v_clamp_code == 3.0) ? 1.0 : 0.0;
 			float w_b = (v_clamp_code == 2.0 || v_clamp_code == 3.0) ? 1.0 : 0.0;
-			width_mult = 1.0 + clamp_widen_effective() * mix(w_a, w_b, UV.x);
+			// The interpolant is SMOOTHSTEPPED, not linear. It only changes the
+			// singly-clamped case — with both ends equal, easing a constant is
+			// still that constant, so the uniform-width reading above survives
+			// any monotone curve. What it buys on a single clamp:
+			//
+			//   * Zero slope AT the clamped node, so the stroke leaves the rim
+			//     with parallel sides — it reads as growing out of the node the
+			//     way a fillet does. A linear ramp is a cone whose straight
+			//     sides meet the rim's arc at a visible corner, and it holds
+			//     full width on exactly one line of pixels, so the authored
+			//     `clamp_widen_amount` never actually reads at full strength.
+			//   * Zero slope at the far end, so the taper arrives at normal
+			//     width asymptotically rather than on a constant slope — no
+			//     "where does the widening stop" line to pick out.
+			//
+			// Area-neutral against the linear version it replaces: smoothstep
+			// integrates to 0.5 over [0,1], exactly as `x` does, so this
+			// redistributes the widening toward the clamped end without the
+			// edge carrying any more ink overall.
+			float t = smoothstep(0.0, 1.0, UV.x);
+			width_mult = 1.0 + clamp_widen_effective() * mix(w_a, w_b, t);
 		}
 		float d = abs(bar_local_y) - half_width_local * width_mult;
 		// `fwidth(d)`, not `fwidth(bar_local_y)` — `d` now varies along X too
