@@ -72,13 +72,12 @@ uniform float width : hint_range(0.0, 32.0) = 3.0;
 global uniform float edge_camera_zoom = 1.0;
 
 // ClampAddon's edge-widening visual (issue #455): how much extra width a
-// clamped endpoint adds (1.0 = edge doubles to 2x `width` at that end) and
-// how far in WORLD units the taper reaches before settling back to normal
-// width. Both shared-material uniforms, not per-instance — cheap to retune
+// clamped endpoint adds (1.0 = edge doubles to 2x `width` at that end). The
+// taper's SHAPE takes no parameter — it is a lerp between the two ends, see
+// fragment(). A shared-material uniform, not per-instance — cheap to retune
 // from `edge_mesh_material.tres` with no code change, same pattern `width`
 // itself already uses.
 uniform float clamp_widen_amount : hint_range(0.0, 3.0) = 1.0;
-uniform float clamp_falloff_world : hint_range(1.0, 200.0) = 48.0;
 
 // How hard the widening tracks camera zoom. The problem it solves: `width` is
 // SCREEN-constant (divided by zoom below) while a SkillNode is WORLD-constant,
@@ -148,11 +147,6 @@ varying float bar_local_y;
 // 0-3: bit0 (1) = `from` carries ClampAddon, bit1 (2) = `to` does. Always 0
 // for ring instances — see the header comment.
 varying float v_clamp_code;
-// World-space segment length, recovered from the transform's x-basis (bar
-// branch only). `MODEL_MATRIX` is a vertex-stage-only builtin in canvas_item
-// shaders — fragment() can't read it directly, so this has to ride a varying
-// the same way `loop_half_extent`/`loop_radius_world` already do for rings.
-varying float v_edge_len;
 
 void vertex() {
 	v_custom = INSTANCE_CUSTOM;
@@ -203,7 +197,6 @@ void vertex() {
 		float max_mult = v_clamp_code > 0.5 ? (1.0 + clamp_widen_effective()) : 1.0;
 		VERTEX.y = sign(VERTEX.y) * (half_width_local * max_mult + aa_pad_local);
 		bar_local_y = VERTEX.y;
-		v_edge_len = length(MODEL_MATRIX[0].xy);
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 }
@@ -236,23 +229,33 @@ void fragment() {
 		// on-screen width unchanged — centering on the real edge instead of
 		// extending outward from it is what avoids the ring's old bulge bug.
 		float half_width_local = (width * 0.5) / max(edge_camera_zoom, 0.0001);
-		// ClampAddon widening (#455): per-pixel taper against UV.x, normalized
-		// into WORLD units (not raw UV.x) so the thick stub is a consistent
-		// size near a clamped node regardless of the edge's own length — a
-		// pure-UV falloff would stretch wider on long edges, narrower on short
-		// ones. UV.x == 0 is the `from`/A end, UV.x == 1 is `to`/B (matches the
-		// COLOR/v_custom endpoint-color mix just above, and Edge._push_transform's
-		// x-basis direction (b - a)). `max`, not sum, for a double-clamped edge —
-		// never overshoots the vertex envelope's `1 + clamp_widen_effective()`
-		// even when both falloffs overlap on a short edge.
+		// ClampAddon widening (#455): the taper is a straight lerp between the
+		// two ENDS — each endpoint contributes 1 if it carries a ClampAddon and
+		// 0 if it doesn't, and UV.x interpolates between them. UV.x == 0 is the
+		// `from`/A end, UV.x == 1 is `to`/B (matches the COLOR/v_custom endpoint
+		// mix just above, and Edge._push_transform's x-basis direction (b - a)).
+		//
+		// This replaced a world-length falloff (`clamp_falloff_world`, a fixed
+		// distance from the clamped node). That version reasoned that a pure-UV
+		// taper "stretches wider on long edges, narrower on short ones" — true,
+		// but the fixed world length was the worse failure in practice: it made
+		// the widened stub a constant slab whose SCREEN length shrank with zoom
+		// while its screen WIDTH stayed constant, so zoomed out it read as a
+		// blob rather than a taper. A UV lerp is scale-free — the widened region
+		// is the same fraction of the edge at every zoom — and it costs a
+		// uniform and a varying rather than adding one.
+		//
+		// Note the double-clamped case changed with it: A and B both clamped now
+		// interpolates 1 → 1, i.e. the edge is UNIFORMLY at full widen along its
+		// whole length, where the old `max()` of two falloffs dipped back toward
+		// normal in the middle of a long edge. Reads as "this edge is clamped at
+		// both ends" rather than as two separate stubs. Peak is still exactly
+		// `1 + clamp_widen_effective()`, so the vertex envelope still bounds it.
 		float width_mult = 1.0;
 		if (v_clamp_code > 0.5) {
-			bool widen_a = v_clamp_code == 1.0 || v_clamp_code == 3.0;
-			bool widen_b = v_clamp_code == 2.0 || v_clamp_code == 3.0;
-			float falloff = max(clamp_falloff_world, 0.0001);
-			float t_a = widen_a ? clamp(1.0 - (UV.x * v_edge_len) / falloff, 0.0, 1.0) : 0.0;
-			float t_b = widen_b ? clamp(1.0 - ((1.0 - UV.x) * v_edge_len) / falloff, 0.0, 1.0) : 0.0;
-			width_mult = 1.0 + clamp_widen_effective() * max(t_a, t_b);
+			float w_a = (v_clamp_code == 1.0 || v_clamp_code == 3.0) ? 1.0 : 0.0;
+			float w_b = (v_clamp_code == 2.0 || v_clamp_code == 3.0) ? 1.0 : 0.0;
+			width_mult = 1.0 + clamp_widen_effective() * mix(w_a, w_b, UV.x);
 		}
 		float d = abs(bar_local_y) - half_width_local * width_mult;
 		// `fwidth(d)`, not `fwidth(bar_local_y)` — `d` now varies along X too
