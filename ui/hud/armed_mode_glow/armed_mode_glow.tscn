@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/armed_mode_glow/armed_mode_glow.gd" id="1_script"]
+[ext_resource type="Shader" path="res://ui/hud/armed_mode_glow/armed_mode_glow.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_glow"]
+resource_local_to_scene = true
+shader = ExtResource("2_shader")
+shader_parameter/rect_size = Vector2(1920, 1080)
+shader_parameter/band_px = 140.0
+shader_parameter/falloff = 2.4
+
+[node name="ArmedModeGlow" type="CanvasLayer"]
+script = ExtResource("1_script")
+layer = 1
+
+[node name="GlowRect" type="ColorRect" parent="."]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_glow")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)

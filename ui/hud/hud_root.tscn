@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
 [ext_resource type="PackedScene" path="res://ui/announcement_layer/announcement_layer.tscn" id="9_announcement"]
+[ext_resource type="PackedScene" path="res://ui/hud/armed_mode_glow/armed_mode_glow.tscn" id="21_armed_glow"]
 [ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_track.tscn" id="10_xp_track"]
 [ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
 [ext_resource type="PackedScene" uid="uid://byuujrcff7ex7" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
@@ -169,6 +170,9 @@ offset_top = -220.0
 offset_right = 220.0
 offset_bottom = 0.0
 grow_vertical = 0
+
+[node name="ArmedModeGlow" parent="." instance=ExtResource("21_armed_glow")]
+unique_name_in_owner = true
 
 [node name="AnnouncementLayer" parent="." unique_id=394311347 instance=ExtResource("9_announcement")]
 unique_name_in_owner = true

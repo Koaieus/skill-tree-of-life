@@ -90,6 +90,15 @@ var _mass_action_request: MassActionRequest = null
 ## before the plan does. Populated in _ready().
 var _armed_modes: Array[ArmedMode] = []
 
+## Colour for the viewport armed-mode glow (#412), carried so the overlay is a
+## pure consumer with no knowledge of the stack. Fires on every *tint*
+## transition — deliberately not on every arm/disarm, because most armed levels
+## contribute no tint at all (see [method ArmedMode.tint]); arming a Manage verb
+## is a real mode change that correctly produces no signal here.
+signal armed_tint_changed(tint: Color)
+## Last tint emitted, so a level that re-sets the same value doesn't re-fire.
+var _armed_tint: Color = Color.TRANSPARENT
+
 ## Node currently under the cursor, tracked via the Events hover bus so the
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
@@ -149,7 +158,7 @@ func _ready() -> void:
 	]
 
 	if battle_system != null:
-		battle_system.attack_plan_changed.connect(_update_cursor.unbind(1))
+		battle_system.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
 		# The arm can't outlive its plan (#406) — a plan swap or clear always
 		# invalidates whatever temp-upgrade card was armed for the old one.
 		battle_system.attack_plan_changed.connect(func(_p): _set_temp_upgrade_arm(null))
@@ -160,7 +169,7 @@ func _ready() -> void:
 		# (gated purely off player_can_act_changed, command_tray.gd) doesn't
 		# stay disabled forever after the first swing of a turn.
 		battle_system.attack_plan_changed.connect(_emit_gate_changed.unbind(1))
-	core_move_targeting_changed.connect(_update_cursor.unbind(1))
+	core_move_targeting_changed.connect(_refresh_armed_state.unbind(1))
 
 
 func _on_node_added(skill_node: SkillNode) -> void:
@@ -517,11 +526,54 @@ func _pop_armed_mode() -> bool:
 
 
 ## Swaps the OS cursor while any targeting mode is armed (#404) — a plain
-## shape swap, cleared on resolve/cancel. Separate from #412's viewport-wide
-## armed-mode vignette (sequenced after this issue).
+## shape swap, cleared on resolve/cancel. The viewport-wide glow (#412) is the
+## other consumer of the same state; both hang off
+## [method _refresh_armed_state].
 func _update_cursor() -> void:
 	Input.set_default_cursor_shape(
 			Input.CURSOR_CROSS if _has_armed_mode() else Input.CURSOR_ARROW)
+
+
+## The colour the viewport armed-mode glow should paint (#412), or a
+## transparent colour when nothing armed contributes one.
+##
+## Walks `_armed_modes` **in reverse** — the BASE of the stack decides, which is
+## the opposite end from [method _pop_armed_mode]'s. **Owner call 2026-08-21:**
+## "in any stacked mode e.g. 'Melee -> Blade select mode -> place Spike Addon
+## mode [armed]' -> still just red outline (Melee) … so i think the root of the
+## stack (1st el?) may be decisive here". Array order *is* pop order, so the
+## outermost/base level is the LAST armed entry, not the first.
+##
+## An armed level with no colour falls through instead of blanking the glow, so
+## it can never mask a tinted level beneath it. Unreachable today —
+## [ManageArmedMode] documents that a Manage verb never coexists with an attack
+## plan — but the fall-through keeps the rule true if that ever changes.
+##
+## Pure: no side effects, no frame state. That is deliberate — glow can't be
+## judged headless (`docs/domain/godot-workflow.md`), so the resolution has to
+## live somewhere a GUT test can call directly.
+func get_armed_tint() -> Color:
+	for i in range(_armed_modes.size() - 1, -1, -1):
+		var mode := _armed_modes[i]
+		if not mode.is_armed():
+			continue
+		var color := mode.tint()
+		if color.a > 0.0:
+			return color
+	return Color.TRANSPARENT
+
+
+## Single fan-in for "the armed stack may have changed": re-reads it once and
+## pushes both consumers (cursor shape, viewport glow). Called from every
+## arm/disarm setter and from the turn/act gate, since `can_player_act()` gates
+## [method AttackPlanArmedMode.is_armed] — a turn ending disarms the glow.
+func _refresh_armed_state() -> void:
+	_update_cursor()
+	var next_tint := get_armed_tint()
+	if next_tint == _armed_tint:
+		return
+	_armed_tint = next_tint
+	armed_tint_changed.emit(next_tint)
 
 
 ## Core-movement (#21) click routing. Two clicks: first click on the player's
@@ -737,7 +789,7 @@ func _set_temp_upgrade_arm(upgrade: Variant) -> void:
 		return
 	_temp_upgrade_arm = upgrade
 	temp_upgrade_arm_changed.emit(upgrade)
-	_update_cursor()
+	_refresh_armed_state()
 
 
 ## Arms `upgrade` (a MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry) for
@@ -756,7 +808,7 @@ func _set_manage_arm(verb: ManageVerb) -> void:
 		return
 	_manage_arm = verb
 	manage_arm_changed.emit(verb)
-	_update_cursor()
+	_refresh_armed_state()
 
 
 ## Arms [param verb] for ManageBody's tray cards (#338), toggling off if it's
@@ -786,7 +838,7 @@ func begin_mass_action(request: MassActionRequest) -> void:
 		_set_move_targeting_source(null)
 	_mass_action_request = request
 	mass_action_pending_changed.emit(request)
-	_update_cursor()
+	_refresh_armed_state()
 
 
 ## Executes the pending request via AllocationSystem, then clears it. No-op if
@@ -816,7 +868,7 @@ func cancel_mass_action() -> void:
 func _clear_mass_action() -> void:
 	_mass_action_request = null
 	mass_action_pending_changed.emit(null)
-	_update_cursor()
+	_refresh_armed_state()
 
 
 ## Move Core card's entry point (#338) — arms the same click-to-move /
@@ -867,6 +919,10 @@ func on_attack_mode_requested(mode: BattleSystem.AttackMode) -> void:
 
 func _emit_gate_changed() -> void:
 	player_can_act_changed.emit(can_player_act())
+	# can_player_act() gates AttackPlanArmedMode.is_armed(), so a turn ending
+	# (or the player being swapped) silently disarms — the glow and cursor have
+	# to follow, and no arm/disarm setter runs on that path.
+	_refresh_armed_state()
 
 
 func _set_player(value: Entity) -> void:

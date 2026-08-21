@@ -144,6 +144,7 @@ battle_system = NodePath("../../Systems/BattleSystem")
 metadata/_custom_type_script = "uid://bfj2swvcuavon"
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=2075892469]
+layer = 2
 
 [node name="HudRoot" parent="UI" instance=ExtResource("18_hud")]
 unique_name_in_owner = true

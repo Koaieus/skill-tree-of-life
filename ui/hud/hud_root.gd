@@ -26,6 +26,7 @@ extends Control
 @onready var action_cluster: ActionCluster = %ActionCluster
 @onready var command_tray: CommandTray = %CommandTray
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
+@onready var armed_mode_glow: ArmedModeGlow = %ArmedModeGlow
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 @onready var loot_picker: LootPicker = %LootPicker
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
@@ -83,6 +84,10 @@ func compose(game_root: GameRoot) -> void:
 	# unowned nodes too, so it stays useful in a level with no player entity.
 	if tooltip_fan != null:
 		tooltip_fan.bind(game_root.graph)
+	# Also before the bail: the glow reads the input controller, not the player,
+	# and a level with no player entity simply never arms anything.
+	if armed_mode_glow != null:
+		armed_mode_glow.bind(_input_ctl)
 
 	if _player == null:
 		return
