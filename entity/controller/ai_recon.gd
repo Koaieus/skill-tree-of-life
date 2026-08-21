@@ -27,7 +27,13 @@ static func has_visible_hostile(entity: Entity) -> bool:
 
 
 ## Every enemy-owned [SkillNode] within vision range of any of [param entity]'s
-## owned nodes.
+## owned nodes, minus the camps that don't draw AI attention
+## ([member Faction.targeted_by_ai] — dormant-core blockers). This is the one
+## chokepoint every NPC target list flows through: growth's directional bias,
+## the `saw_hostile` short-circuit, and the ranged/magic/melee candidate
+## enumerations all consume what this returns, so the filter belongs here and
+## not in [method Entity.attitude_to] (which must keep reading HOSTILE so the
+## *player* can still clear a blocker).
 static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if entity == null or entity.navigator == null or entity.navigator.graph == null:
@@ -43,6 +49,9 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 		if node == null or node.owned_by == null:
 			continue
 		if entity.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
+			continue
+		var owner_faction: Faction = node.owned_by.faction
+		if owner_faction != null and not owner_faction.targeted_by_ai:
 			continue
 		if circles.has_point(node.global_position):
 			out.append(node)

@@ -52,6 +52,30 @@ ended every run the instant it started. A hand-built two-camp test still passes
 under that bug; only the real level breaks. If you touch faction authoring,
 check what the *live levels* actually assign, not what the names suggest.
 
+### The sibling flag: `Faction.targeted_by_ai`
+
+`blocker.tres` also authors `targeted_by_ai = false`, and the two are kept
+**separate on purpose**. "Can end the run" and "worth an NPC's AP" are
+different questions that merely coincide on one resource today; collapsing
+them into one `is_inert` bakes that coincidence into the schema.
+
+`targeted_by_ai` is filtered inside `AiRecon.visible_enemy_nodes()` — the one
+chokepoint every NPC target list flows through (growth's directional bias, the
+`saw_hostile` short-circuit, and ranged/magic/melee candidate enumeration all
+consume what it returns). It is emphatically **not** expressed in
+`Entity.attitude_to()`: a blocker must stay `HOSTILE` so the *player* can clear
+it and so damage, the forced-dealloc cascade and XP gating treat that as a real
+kill. `test_ai_recon.gd` holds a guard test asserting the relation is still
+HOSTILE, so relocating the filter into the attitude method goes red.
+
+**Known consequence, deliberately unsolved:** an NPC whose only route out of
+its region is through a blocker will never clear it, and grows in place
+forever. Blocker placement (#477) samples uniformly at random over regular
+nodes (only starters and keystones are excluded), so nothing structurally
+prevents a blocker landing on a cut vertex — this is possible, just unobserved
+so far. The fix, if it's ever needed, is an AI-side "boxed in → treat blockers
+as targets" fallback, not a change to this flag.
+
 Side effect worth knowing: giving blockers their own faction id makes them
 **hostile to the NPC camp** too, where before they were allied by sharing
 `npc`. AI opponents can now target blockers.

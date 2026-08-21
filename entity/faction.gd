@@ -28,3 +28,20 @@ extends Resource
 ## (#300) are inert scenery that own a node and never act. Every playable camp
 ## — `player`, `npc`, `camp_1..4` — leaves this true.
 @export var counts_for_victory: bool = true
+
+## Do NPC brains spend their turn shooting at this camp? False only on
+## `blocker.tres`: a dormant core is scenery a *player* may want to clear, so
+## it stays [constant Entity.Attitude.HOSTILE] — the relation is what lets
+## anyone attack it at all, and lets the forced-dealloc cascade and XP gating
+## treat a cleared blocker as a real kill. This flag is strictly about AI
+## attention: [method AiRecon.visible_enemy_nodes] drops these nodes, so the
+## whole NPC pipeline downstream of it (growth's directional bias, the
+## `saw_hostile` short-circuit, ranged/magic/melee candidate enumeration)
+## never sees them.
+##
+## Deliberately NOT folded into [member counts_for_victory] and deliberately
+## NOT expressed in [method Entity.attitude_to]: "can end the run" and "worth
+## an NPC's AP" are different questions that happen to coincide on one
+## resource today, and moving either into the attitude relation would silently
+## disarm the *player* too.
+@export var targeted_by_ai: bool = true

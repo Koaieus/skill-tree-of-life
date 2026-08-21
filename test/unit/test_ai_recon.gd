@@ -9,6 +9,7 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _BLOCKER_FACTION := preload("res://entity/factions/blocker.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -91,6 +92,45 @@ func test_allied_owned_node_never_counts_as_hostile() -> void:
 	_nodes[1].global_position = _nodes[0].global_position
 
 	assert_false(AiRecon.has_visible_hostile(_ai_entity))
+
+
+func test_blocker_faction_node_in_range_is_not_an_ai_target() -> void:
+	# Dormant cores are scenery: HOSTILE (so the player can clear them) but
+	# `targeted_by_ai = false`, so no NPC spends AP on one.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	_alloc.force_allocate(blocker, _nodes[1])
+	_nodes[1].global_position = _nodes[0].global_position + Vector2(100.0, 0.0)
+
+	assert_false(AiRecon.has_visible_hostile(_ai_entity))
+	assert_false(_nodes[1] in AiRecon.visible_enemy_nodes(_ai_entity))
+
+
+func test_blocker_stays_hostile_to_the_attitude_relation() -> void:
+	# Guard: the AI filter must NOT migrate into `attitude_to` — the relation
+	# is what lets a player (and the damage/XP paths) attack a blocker at all.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+
+	assert_eq(_hostile.attitude_to(blocker), Entity.Attitude.HOSTILE)
+	assert_eq(_ai_entity.attitude_to(blocker), Entity.Attitude.HOSTILE)
+
+
+func test_real_hostile_still_visible_alongside_a_blocker() -> void:
+	# The filter drops only the blocker — it must not short-circuit the walk.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	_alloc.force_allocate(blocker, _nodes[1])
+	_nodes[1].global_position = _nodes[0].global_position + Vector2(100.0, 0.0)
+	_nodes[2].global_position = _nodes[0].global_position + Vector2(120.0, 0.0)
+
+	var seen := AiRecon.visible_enemy_nodes(_ai_entity)
+
+	assert_true(_nodes[2] in seen, "the player-faction node is still a target")
+	assert_false(_nodes[1] in seen, "the blocker is not")
 
 
 func test_no_owned_nodes_sees_nothing() -> void:
