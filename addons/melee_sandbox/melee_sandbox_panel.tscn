@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://celg4vkple8k" path="res://addons/melee_sandbox/melee_sandbox_panel.gd" id="1_panel"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
 [ext_resource type="PackedScene" path="res://scenes/dev/melee_sandbox_graph.tscn" id="3_world"]
-[ext_resource type="Environment" uid="uid://cw0hn1e5xg8ja" path="res://ui/theme/default_game_env.tres" id="4_w6h5c"]
+[ext_resource type="PackedScene" uid="uid://c8n2r5m6qhq3f" path="res://ui/theme/bloom_reference_swatch.tscn" id="5_swatch"]
 
 [node name="MeleeSandboxPanel" type="PanelContainer" unique_id=178947704]
 anchors_preset = 15
@@ -30,7 +30,9 @@ size = Vector2i(1440, 754)
 render_target_update_mode = 4
 
 [node name="Background" type="ColorRect" parent="VBox/WorldContainer/World" unique_id=573353630]
-visible = false
+visible = true
+z_index = -100
+z_as_relative = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -42,8 +44,18 @@ color = Color(0.05, 0.06, 0.08, 1)
 unique_name_in_owner = true
 position = Vector2(310, 37)
 
-[node name="WorldEnvironment2" type="WorldEnvironment" parent="VBox/WorldContainer/World" unique_id=628879980]
-environment = ExtResource("4_w6h5c")
+[node name="BloomReferenceSwatch" parent="VBox/WorldContainer/World" unique_id=891527463 instance=ExtResource("5_swatch")]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -138.0
+offset_top = -44.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 0
 
 [node name="Bar" type="HBoxContainer" parent="VBox" unique_id=303308714]
 layout_mode = 2
