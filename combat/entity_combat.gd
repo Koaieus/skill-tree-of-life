@@ -19,7 +19,7 @@ extends RefCounted
 ## and knows nothing of this slice, so a cached read would go stale silently);
 ## a shadow falls back to its own [member _owned] / [member _core] / [member _board],
 ## populated once at [method snapshot] and kept current by
-## [method force_deallocate_owned] — the ONLY place that mutates a shadow's
+## [method apply_cascade] — the ONLY place that mutates a shadow's
 ## ownership, and it updates the [NodeCombat] backpointer and the shadow
 ## [GraphMirror] together (never one without the other, or islanding would
 ## answer a set the slice itself disagrees with).
@@ -28,15 +28,39 @@ extends RefCounted
 ## that can rot"): an [Effect] hook that changes a number belongs on
 ## [EntityCombat]; a hook that only tells someone belongs on the host. Step 1's
 ## scope was the revoke sweep's own bookkeeping, not a dispatched hook.
-## Step 2 does not extend this to `_on_node_deallocated` itself, or to
-## [AuraEffect] recompute: a shadow's forced-dealloc cascade
-## ([method force_deallocate_owned] / [method simulate_entity_death]) strips
-## OWNERSHIP AND TOPOLOGY ONLY — no [Effect]/[AuraEffect] revocation or
-## recompute runs against a shadow's board, and no SP-wound / `dealloc_damage`
-## HP-chip bookkeeping happens either (both stay real [AllocationSystem] /
-## [BattleSystem] concerns, out of this unit's owned files). This is a real,
-## deliberate scope line, not an oversight — see the #498 step 2 report for
-## why, and the follow-up it names.
+##
+## [b]The forced-dealloc cascade is ONE driver as of #518[/b] —
+## [method apply_cascade], with [method cascade_set] as its pure set query.
+## Step 2 shipped a hand-written shadow twin (`force_deallocate_owned`) beside
+## [method BattleSystem._on_node_depleted]; the two agreed on the deallocation
+## SET and disagreed on its consequences, which is the parallel-mirrors shape
+## `.claude/rules/` warns about sitting in the middle of the path #498 step 3
+## resolves against. There is now one loop body, with the design's single
+## sanctioned `if host != null` branch inside it selecting the STRIP VERB —
+## [method AllocationSystem.force_deallocate] when live, [method _strip_one]
+## when shadow. Everything around that branch (the set, the pre-strip
+## `allocation_level` read, the SP wound, the `dealloc_damage` chip, the
+## [DeallocEntry] record) is shared, and a shadow charges the wound and the
+## chip exactly as the live path does.
+##
+## [b]Still divergent on a shadow, and it is #520, not an oversight:[/b]
+## [Effect] / [AuraEffect] revocation. [method revoke_node] is live-only, and
+## the helpers it leans on ([method SkillNode.remove_entity_modifiers_from],
+## [method SkillNode.clear_scaled_effect_sets]) mutate the REAL node, so a
+## shadow cannot borrow them through its `_real_by_shadow` handle without
+## corrupting live state. Consequence, stated plainly because it is
+## observable: a shadow's wave N+1 resolves against [b]pre-cascade armour[/b].
+## Shadow attrition parity closed in #518; shadow mitigation parity has not.
+##
+## [b]The live cascade's ENTRY is still the bus[/b] — `Events.skill_node_depleted`
+## -> [method BattleSystem._on_node_depleted], which now only computes the VFX
+## layers, emits `cascade_started`, and forwards into [method apply_cascade].
+## It no longer IMPLEMENTS the cascade, which is what scope item 1 was about;
+## moving the live trigger off the bus as well would mean giving this class an
+## [AllocationSystem] reference, and every fixture that writes
+## `node.owned_by = entity` directly (~50 test files) would silently get a
+## no-op cascade. The reference is a parameter on [method apply_cascade]
+## instead, supplied by whoever is driving.
 ##
 ## A caller done with a SHADOW must call [method free_shadow] on it — see
 ## that method for why ordinary refcounting can't do it (a reference cycle
@@ -61,7 +85,7 @@ var _mirror: GraphMirror
 ## [member _mirror] is keyed by the real node (topology lives there) while
 ## every other shadow accessor is keyed by [NodeCombat] (ownership lives
 ## here). Built once at [method snapshot]; membership only ever shrinks
-## (nodes leave via [method force_deallocate_owned], nothing re-enters).
+## (nodes leave via [method apply_cascade], nothing re-enters).
 var _shadow_by_real: Dictionary[SkillNode, NodeCombat] = {}
 var _real_by_shadow: Dictionary[NodeCombat, SkillNode] = {}
 
@@ -210,33 +234,153 @@ func nodes_islanded_by_removing(node: NodeCombat, anchor: NodeCombat) -> Array[N
 	return out
 
 
-## Cascade a non-core node's depletion on a SHADOW: [param node] plus every
-## node [method nodes_islanded_by_removing] reports off it, each stripped via
-## [method _strip_one]. The live twin of this (BattleSystem._on_node_depleted
-## reacting to `Events.skill_node_depleted`) never runs for a shadow — a
-## shadow's `notify_depleted` is never reached (see [NodeCombat.take_damage]),
-## so nothing would drive the cascade without this. Ownership + topology only
-## — see the class doc for what this deliberately does NOT replicate (SP
-## wound / `dealloc_damage` chip, effect revocation).
-func force_deallocate_owned(node: NodeCombat) -> void:
-	if node == null or not _owned.has(node):
-		return
-	var cascade: Array[NodeCombat] = [node]
-	cascade.append_array(nodes_islanded_by_removing(node, _core))
-	for n in cascade:
-		_strip_one(n)
+## The nodes a depletion of [param node] takes with it: [param node] itself
+## plus everything [method nodes_islanded_by_removing] reports off it. PURE —
+## it strips nothing and charges nothing, which is what lets
+## [method BattleSystem._on_node_depleted] BFS the set into VFX layers and emit
+## `cascade_started` BEFORE the world changes under the coordinator reading it.
+##
+## Must be answered before the strip either way: removing the depleted node
+## from the navigator mirror first would make its own islanded set go stale.
+func cascade_set(node: NodeCombat) -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
+	if node == null or node.owner() != self:
+		return out
+	out.append(node)
+	out.append_array(nodes_islanded_by_removing(node, core()))
+	return out
 
 
-## Strip every node this shadow owns — the shadow twin of
-## [method AllocationSystem.deallocate_all_owned], run when the shadow's core
-## `health` pool crosses 0 (see [NodeCombat.take_damage]'s overflow branch).
+## [b]The one cascade driver[/b] (#518). Strips every node in [param nodes]
+## from this entity and charges what leaving costs: one SP wound and one
+## `dealloc_damage` chip per node, both scaled by the PRE-strip
+## `allocation_level`. Returns a [DeallocEntry] per node actually stripped —
+## the record a [HitInstance] carries and a peer replays.
+##
+## Three callers, one loop body:
+##   * [method BattleSystem._on_node_depleted] — live, passing its own
+##     [param alloc]; the set comes from [method cascade_set].
+##   * [method NodeCombat.take_damage] — shadow, via [method cascade_from].
+##   * a peer replaying an [AttackRecord] — the set arrives RECORDED rather
+##     than derived, which is the whole point of recording it (a fogged client
+##     cannot walk the defender's navigator to re-derive one).
+##
+## [param alloc] is required on a LIVE slice and ignored on a shadow. A live
+## call without one strips nothing and returns empty rather than half-applying:
+## [method AllocationSystem.force_deallocate] owns `owned_by`, the
+## `_on_node_deallocated` dispatch and the `force_deallocated` signal that
+## [AllocationVFX] draws from, and reimplementing those here is exactly the
+## second implementation this method exists to delete.
+##
+## [param charge] is the one knob, and it exists to MATCH the live path rather
+## than to add a mode: [method AllocationSystem.deallocate_all_owned] (death
+## cleanup) force-deallocates without wounding or chipping — an entity already
+## at 0 health is not further attrited — while the battle cascade does both.
+## [method simulate_entity_death] is the only caller that passes false.
+func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
+		charge: bool = true) -> Array[DeallocEntry]:
+	var entries: Array[DeallocEntry] = []
+	if nodes.is_empty():
+		return entries
+	var b := board()
+	# Read once, applied per cascaded node. Older hand-authored boards lacking
+	# the stat fall back to the StatDef default (1).
+	var hp_per_node: float = 1.0
+	var dealloc_stat: Stat = b.get_stat(&"dealloc_damage") if b != null else null
+	if dealloc_stat != null:
+		hp_per_node = float(dealloc_stat.get_value())
+	for n in nodes:
+		# Re-checked per node, never hoisted — the live twin's
+		# `if n.owned_by != defender: continue` guard, kept. The chip below can
+		# cross the owner's `health` 0 mid-loop, which fires `Events.entity_died`
+		# -> [method AllocationSystem.deallocate_all_owned] RE-ENTRANTLY and
+		# strips the rest of the set from under us. Without this, the nodes it
+		# already took would be wounded and chipped for a second time.
+		if n == null or n.owner() != self:
+			continue
+		var entry := DeallocEntry.new()
+		entry.node = real_node_for(n)
+		entry.node_id = entry.node.stable_id if entry.node != null else 0
+		# PRE-strip, always — see [member DeallocEntry.allocation_level] for the
+		# #337 collapse this ordering exists to avoid.
+		entry.allocation_level = maxi(n.get_allocation_level(), 1)
+		entry.wound = entry.allocation_level
+		entry.chip = hp_per_node * float(entry.allocation_level) if hp_per_node > 0.0 else 0.0
+		entry.was_core = core() == n
+		entry.revoked_labels = _granted_labels(entry.node)
+		# ── The one branch: which strip verb. Everything else is shared. ──
+		if host != null:
+			if alloc == null:
+				continue
+			alloc.force_deallocate(n.host)
+		else:
+			_strip_one(n)
+		if b != null and charge:
+			var sp := b.get_stat(&"skill_points") as SkillPointStat
+			if sp != null:
+				sp.wound(entry.wound)
+			if entry.chip > 0.0:
+				# get_stat, not the typed `.health` field — `board()` reads as
+				# the base [StatBoard] here (see [method NodeCombat.take_damage]
+				# for the same read and why).
+				var health_pool := b.get_stat(&"health") as PoolStat
+				if health_pool != null:
+					# #504: the core bar draws `health` directly and hears its
+					# `current_changed`, so the chip announces itself — nothing
+					# to record or patch for presentation.
+					health_pool.deplete(entry.chip)
+		entries.append(entry)
+	return entries
+
+
+## [method cascade_set] + [method apply_cascade] in one call — the shadow's
+## entry point, reached from [method NodeCombat.take_damage] when a non-core
+## node's HP crosses 0. A shadow's `notify_depleted` is never called
+## (`host == null`), so `Events.skill_node_depleted` never fires and nothing
+## would drive the cascade otherwise. The live path splits the two halves
+## instead, because its VFX layers must be announced between them.
+func cascade_from(node: NodeCombat, alloc: AllocationSystem = null) -> Array[DeallocEntry]:
+	return apply_cascade(cascade_set(node), alloc)
+
+
+## Strip every node this entity owns — the whole-entity sweep, run on a SHADOW
+## when its core `health` pool crosses 0 (see [method NodeCombat.take_damage]'s
+## overflow branch). Goes through [method apply_cascade] like everything else,
+## so a simulated entity death charges its wounds and chips too; the live twin
+## is [method AllocationSystem.deallocate_all_owned].
+##
 ## "Recursive" in the sense the acceptance criteria mean it: a core hit can
-## chip `health` to 0, which strips the whole owned set in one sweep — there
-## is nothing left to recurse into after that.
-func simulate_entity_death() -> void:
-	for n in _owned.duplicate():
-		_strip_one(n)
+## chip `health` to 0, which strips the whole owned set in one sweep — there is
+## nothing left to recurse into after that.
+func simulate_entity_death() -> Array[DeallocEntry]:
+	var entries := apply_cascade(_owned.duplicate(), null, false)
 	_core = null
+	return entries
+
+
+## The real [SkillNode] behind [param n] — [member NodeCombat.host] when live,
+## the [member _real_by_shadow] entry when shadow. Topology is the real graph
+## either way (see [method snapshot]), so a shadow's entries can still name the
+## node they stripped, which is what lets a [DeallocEntry] cross the wire.
+func real_node_for(n: NodeCombat) -> SkillNode:
+	if n == null:
+		return null
+	return n.host if n.host != null else _real_by_shadow.get(n)
+
+
+## Display names of the modifiers [param node] grants its owner — the
+## presentation half of a [DeallocEntry], for the client's "modifier lost"
+## toast. A pure READ: #518 does not revoke a shadow's grants at all (that is
+## #520), and reading names is the part that could ship without mutating the
+## real node.
+static func _granted_labels(node: SkillNode) -> PackedStringArray:
+	var out := PackedStringArray()
+	if node == null:
+		return out
+	for m: StatModifier in node.modifiers:
+		if m != null:
+			out.append(m.resource_name if not m.resource_name.is_empty() else str(m.stat_id))
+	return out
 
 
 func _strip_one(node: NodeCombat) -> void:
@@ -253,7 +397,7 @@ func _strip_one(node: NodeCombat) -> void:
 ## granted effects, entity-scoped modifiers, and the navigator mirror. Called
 ## by [method AllocationSystem.force_deallocate] on the node's previous owner,
 ## before ownership clears. LIVE-only (reaches [member host] directly) — a
-## shadow's forced-dealloc cascade goes through [method force_deallocate_owned]
+## shadow's forced-dealloc cascade goes through [method apply_cascade]
 ## instead, which deliberately does not replicate this (see the class doc).
 func revoke_node(node: SkillNode) -> void:
 	var board := host.stat_board

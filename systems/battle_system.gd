@@ -540,62 +540,66 @@ func drain_pending_mutations() -> void:
 ##   * `dealloc_damage` HP off the entity's `health` pool — bypass-mitigation
 ##     chip damage tunable per class.
 ##
+## [b]This is the live cascade's ENTRY, no longer its implementation[/b]
+## (#518). The set, the pre-strip `allocation_level` read, the wound, the chip
+## and the [DeallocEntry] record all live in [method EntityCombat.apply_cascade]
+## — one driver, which a SHADOW reaches directly (its `notify_depleted` is
+## never called, so this handler never runs for one). What stays here is what
+## the slice cannot do: the VFX layer BFS, which needs [member graph], and the
+## `cascade_started` announcement.
+##
+## [b]Order is load-bearing.[/b] The set is queried, BFS'd into layers and
+## announced BEFORE anything is stripped — [AllocationVFX] staggers its shatter
+## spawn off those layers, and a strip that ran first would hand the
+## coordinator a world that had already changed. That is also why
+## [method EntityCombat.cascade_set] is a separate, pure query rather than
+## something [method EntityCombat.apply_cascade] does for itself.
+##
 ## "Forced-deallocation lives elsewhere" in AllocationSystem comments —
-## that elsewhere is here.
+## that elsewhere is [EntityCombat]; this forwards to it.
 func _on_node_depleted(node: SkillNode) -> void:
 	if node == null or allocation_system == null:
 		return
 	var defender: Entity = node.owned_by
 	if defender == null:
 		return
-	# Cascade snapshot — must be computed BEFORE removing the depleted node
-	# from the navigator mirror, or its islanded set goes stale.
-	var cascade: Array[SkillNode] = [node]
-	if defender.navigator != null and defender.core_location != null:
-		cascade.append_array(defender.navigator.nodes_islanded_by_removing(
-				node, defender.core_location))
-	var board: StatBoard = defender.stat_board
-	# Per-cascade dealloc damage — read once, applied per cascaded node. Older
-	# hand-authored boards lacking the stat fall back to the def default (1).
-	var hp_per_node: float = 1.0
-	if board != null and board.dealloc_damage != null:
-		hp_per_node = float(board.dealloc_damage.value)
+	var combat := defender.get_combat()
+	# Queried BEFORE the strip — removing the depleted node from the navigator
+	# mirror first would make its own islanded set go stale.
+	var cascade: Array[NodeCombat] = combat.cascade_set(node.get_combat())
+	var cascade_nodes: Array[SkillNode] = []
+	for n in cascade:
+		var real := combat.real_node_for(n)
+		if real != null:
+			cascade_nodes.append(real)
 	# BFS the cascade set from impact (in original graph topology) so VFX can
-	# ripple outward layer-by-layer. Computed before force_deallocate to keep
-	# the navigator state coherent — graph edges still exist either way, but
-	# owner state is what changes mid-loop.
-	var layers: Array = _cascade_layers(node, cascade)
+	# ripple outward layer-by-layer.
+	var layers: Array = _cascade_layers(node, cascade_nodes)
 	cascade_started.emit(layers, defender)
 	# #504: the cascade mutates SYNCHRONOUSLY, every layer inside this one beat,
 	# and it must stay that way. This runs from `Events.skill_node_depleted`
 	# inside `take_damage` inside a landing — and an awaiting signal handler
 	# does NOT block its emitter, so staggering the MUTATION here would unwind
-	# behind the applier's next beat, breaking both the
-	# `owned_by != defender` guard below and the synchronous-cleanup contract
+	# behind the applier's next beat, breaking both the driver's own
+	# `owner() != self` re-entrancy guard and the synchronous-cleanup contract
 	# in `.claude/rules/entity-death.md`. The visible layer-by-layer ripple is
 	# presentation: `cascade_started` carries `layers` in BFS order and
 	# [AllocationVFX] staggers the shatter spawn off it.
-	for i in range(layers.size()):
-		for n in layers[i]:
-			if n == null or n.owned_by != defender:
-				continue
-			# Snapshot the fill BEFORE force_deallocate — owner_changed zeroes
-			# allocation_level via _refresh_alloc_count, so any read after the
-			# call returns 0 and the wound count / damage multiplier would silently
-			# collapse (#337; same shape as LootSystem's pre-cleanup snapshot). A
-			# 2/2 node costs 2 wounds and 2x dealloc_damage; the maxi(1, ·) floor
-			# keeps the pre-staking 1/1 costs exactly as they were.
-			var fill: int = n.allocation_level
-			allocation_system.force_deallocate(n)
-			if board != null:
-				if board.skill_points != null:
-					board.skill_points.wound(maxi(fill, 1))
-				if board.health != null and hp_per_node > 0.0:
-					var dmg: float = hp_per_node * float(maxi(fill, 1))
-					# #504: the core bar draws `board.health` directly and
-					# hears its `current_changed`, so the chip is announced by
-					# the mutation itself — nothing to record or patch here.
-					board.health.deplete(dmg)
+	#
+	#
+	# Applied in LAYER order, which is the order this handler has always used.
+	# It is the same SET either way, but not the same sequence, and the
+	# sequence is observable: the chip can cross the defender's `health` 0
+	# partway through, and which nodes were already stripped when
+	# `Events.entity_died` fires decides what `deallocate_all_owned` finds
+	# left. Feeding the driver the flattened layers keeps that identical
+	# rather than "identical set, near enough".
+	var ordered: Array[NodeCombat] = []
+	for layer in layers:
+		for n: SkillNode in layer:
+			if n != null:
+				ordered.append(n.get_combat())
+	combat.apply_cascade(ordered, allocation_system)
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to

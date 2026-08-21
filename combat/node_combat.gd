@@ -133,6 +133,23 @@ func get_max_hp() -> float:
 	return hp.value
 
 
+## This node's fill — state-half twin of [member SkillNode.allocation_level],
+## and the number a forced deallocation's SP wound and `dealloc_damage` chip
+## both scale by ([method EntityCombat.apply_cascade]).
+##
+## Works identically on a shadow because `allocation_level` is not a field: it
+## reads `node_board.stake_level.current` (`skill_node/skill_node.gd:350-352`),
+## a [PoolStat] on the node board, and a shadow holds its own [method StatBoard.clone_live]
+## of that board. So the cascade's pre-strip read needs no live [SkillNode] —
+## which is what let scope item 3 of #518 ship without one.
+func get_allocation_level() -> int:
+	var b := board()
+	if b == null:
+		return 0
+	var stake := b.get_stat(&"stake_level") as PoolStat
+	return int(stake.current) if stake != null else 0
+
+
 ## Current combat HP — state-half twin of [method SkillNode.get_current_hp].
 func get_current_hp() -> float:
 	var b := board()
@@ -149,7 +166,7 @@ func get_current_hp() -> float:
 ## and the depleted announcement is [method SkillNode.notify_depleted] —
 ## both reached ONLY when [member host] != null, which is the one branch this
 ## whole design has (see the class doc). A depleted SHADOW node instead calls
-## [method EntityCombat.force_deallocate_owned] directly: there is no
+## [method EntityCombat.cascade_from] directly: there is no
 ## [Events] bus reach for it to fall through to, by construction.
 func take_damage(amount: float, source: Variant) -> void:
 	var o := owner()
@@ -232,9 +249,14 @@ func take_damage(amount: float, source: Variant) -> void:
 		return
 	if hp.current <= 0.0:
 		if host != null:
+			# Presentation + the live cascade's ENTRY: the bus handler
+			# ([method BattleSystem._on_node_depleted]) announces the VFX
+			# layers and then forwards into the SAME
+			# [method EntityCombat.apply_cascade] the shadow reaches below
+			# (#518). It no longer implements a cascade of its own.
 			host.notify_depleted()
 		else:
-			o.force_deallocate_owned(self)
+			o.cascade_from(self)
 
 
 ## State half of [method SkillNode.heal_damage] — see that method for the

@@ -201,3 +201,135 @@ func test_snapshot_and_free_shadow_leaks_nothing() -> void:
 	assert_almost_eq(leaked, 0.0, 1.0,
 			"an AI rollout takes a shadow per candidate and drops it; a snapshot "
 			+ "that leaks turns one turn into hundreds of stranded boards")
+
+
+# ── #518: one cascade driver — the shadow charges what the live path charges ──
+
+
+func _sp_used(board: StatBoard) -> Dictionary:
+	var sp := board.get_stat(&"skill_points") as SkillPointStat
+	return {"wounded": sp.wounded, "used": sp.used}
+
+
+func _health(board: StatBoard) -> float:
+	return (board.get_stat(&"health") as PoolStat).current
+
+
+## Scope item 3. Before #518 a shadow's cascade stripped ownership and topology
+## and charged NOTHING, so a simulated attack could shatter the defender's
+## territory while reporting zero attrition — and since entity `health` only
+## ever moves via core overflow or this chip, the shadow's answer to "did that
+## advance me toward killing them" was always no.
+func test_shadow_cascade_charges_the_same_wound_and_chip_as_the_live_path() -> void:
+	var live_board := _entity.stat_board
+	var before_wounded: int = _sp_used(live_board)["wounded"]
+	var before_health := _health(live_board)
+
+	var shadow := _entity.get_combat().snapshot()
+	_shadows.append(shadow)
+	var shadow_board := shadow.board()
+	# The clone starts where the live board is, or the comparison is vacuous.
+	assert_eq(_sp_used(shadow_board)["wounded"], before_wounded,
+			"a fresh shadow board must start at the live wound count")
+	assert_almost_eq(_health(shadow_board), before_health, 0.01,
+			"a fresh shadow board must start at the live health")
+
+	# Kill the cut vertex on the SHADOW: N1 leaves, islanding N2 and N3 — three
+	# nodes cascade, so three wounds and three chips.
+	var shadow_n1: NodeCombat = shadow._shadow_by_real[_n1]
+	var entries := shadow.cascade_from(shadow_n1)
+
+	assert_eq(entries.size(), 3, "N1 plus the two nodes it islands")
+	var total_wound := 0
+	var total_chip := 0.0
+	for e in entries:
+		assert_true(e.allocation_level >= 1, "the pre-strip fill is floored at 1")
+		total_wound += e.wound
+		total_chip += e.chip
+	assert_gt(total_wound, 0, "a cascade must wound")
+	assert_gt(total_chip, 0.0, "a cascade must chip")
+
+	assert_eq(_sp_used(shadow_board)["wounded"], before_wounded + total_wound,
+			"the shadow board must carry the wounds its own cascade charged")
+	assert_almost_eq(_health(shadow_board), before_health - total_chip, 0.01,
+			"the shadow board must carry the chip its own cascade charged")
+	# The live world is untouched — the whole point of a shadow.
+	assert_eq(_sp_used(live_board)["wounded"], before_wounded,
+			"a simulated cascade must not wound the real entity")
+	assert_almost_eq(_health(live_board), before_health, 0.01,
+			"a simulated cascade must not chip the real entity")
+	assert_eq(_owned_count(), 4, "a simulated cascade must not strip a real node")
+
+
+## The parity claim itself, run both ways on the same fixture: the numbers the
+## shadow charges are the numbers the live cascade charges. This is what makes
+## the driver ONE implementation rather than two that happen to agree today.
+func test_shadow_and_live_cascade_charge_identical_numbers() -> void:
+	var shadow := _entity.get_combat().snapshot()
+	_shadows.append(shadow)
+	var shadow_board := shadow.board()
+	var sim_wound_before: int = _sp_used(shadow_board)["wounded"]
+	var sim_health_before := _health(shadow_board)
+	shadow.cascade_from(shadow._shadow_by_real[_n1])
+	var sim_wound: int = _sp_used(shadow_board)["wounded"] - sim_wound_before
+	var sim_chip := sim_health_before - _health(shadow_board)
+
+	# Mounted HERE, not in `before_each`: BattleSystem listens on the GLOBAL
+	# `Events.skill_node_depleted`, so a fixture-wide one would put a live
+	# cascade behind every other test in this file. This is the only test that
+	# wants the real bus path.
+	var battle := BattleSystem.new()
+	battle.graph = _graph
+	battle.allocation_system = _alloc
+	add_child_autofree(battle)
+
+	var live_board := _entity.stat_board
+	var live_wound_before: int = _sp_used(live_board)["wounded"]
+	var live_health_before := _health(live_board)
+	# The real path, through the real bus: deplete N1's HP for real.
+	_n1.take_damage(100000.0, null)
+	var live_wound: int = _sp_used(live_board)["wounded"] - live_wound_before
+	var live_chip := live_health_before - _health(live_board)
+
+	assert_eq(sim_wound, live_wound,
+			"simulated and real cascades must wound identically")
+	assert_almost_eq(sim_chip, live_chip, 0.01,
+			"simulated and real cascades must chip identically")
+
+
+## Scope item 4's input: the driver reports what it stripped, per node, with the
+## PRE-strip fill. A read after `force_deallocate` returns 0 (#337) — that
+## collapse is the reason the entry exists rather than a recomputation.
+func test_cascade_entries_name_the_nodes_and_carry_the_pre_strip_fill() -> void:
+	var driver := _entity.get_combat()
+	var n1_fill := _n1.allocation_level
+	assert_gt(n1_fill, 0, "fixture sanity: N1 is allocated before the cascade")
+	var entries := driver.cascade_from(_n1.get_combat(), _alloc)
+
+	var by_node: Dictionary[SkillNode, DeallocEntry] = {}
+	for e in entries:
+		by_node[e.node] = e
+	assert_true(by_node.has(_n1), "the depleted node is in its own cascade")
+	assert_true(by_node.has(_n2), "N2 islands off N1")
+	assert_true(by_node.has(_n3), "N3 islands off N1")
+	assert_false(by_node.has(_n0), "the core stays — it is the anchor")
+	assert_eq(by_node[_n1].allocation_level, n1_fill,
+			"the entry carries the fill from BEFORE the strip, not the zeroed one")
+	assert_eq(_n1.allocation_level, 0,
+			"fixture sanity: the live fill really does collapse to 0 after the strip")
+
+
+## Whole-entity death strips through the same driver but charges nothing —
+## matching `AllocationSystem.deallocate_all_owned`, which does not further
+## attrit an entity already at 0 health. A `charge` that defaulted the other way
+## would invent a divergence rather than remove one.
+func test_simulated_entity_death_strips_without_charging() -> void:
+	var shadow := _entity.get_combat().snapshot()
+	_shadows.append(shadow)
+	var board := shadow.board()
+	var wounded_before: int = _sp_used(board)["wounded"]
+	var entries := shadow.simulate_entity_death()
+	assert_eq(entries.size(), 4, "every owned node leaves, core included")
+	assert_eq(shadow.owned().size(), 0, "nothing is owned after a death sweep")
+	assert_eq(_sp_used(board)["wounded"], wounded_before,
+			"a death sweep must not wound — the entity is already dead")
