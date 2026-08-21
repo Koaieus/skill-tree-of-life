@@ -186,6 +186,32 @@ func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:
 	await get_tree().process_frame  # let the deferred free run before teardown
 
 
+## #460: the player corpse gets the same turn-loop pull as an NPC. It used to be
+## skipped, which was safe only while player death ended play on the spot —
+## VictorySystem decides that now, and in hot-seat coop a dead player can leave a
+## living ally, so the loop keeps running. Left in the groups, TurnManager would
+## go on replenishing a dead entity's initiative and eventually hand it the turn,
+## where PlayerController waits forever for input that cannot come.
+func test_gameroot_player_death_leaves_turn_groups_but_keeps_the_corpse() -> void:
+	var gr := GameRoot.new()
+	autofree(gr)
+	var human := Entity.new()
+	human.display_name = "Player"
+	_graph.add_child(human)  # joins Entity.GROUP via _enter_tree
+	human.add_to_group(Entity.READY_GROUP)
+	gr.player = human
+
+	gr._on_entity_died(human)
+
+	assert_false(human.is_in_group(Entity.GROUP),
+			"a dead player must leave the entities group — the loop would stall on it")
+	assert_false(human.is_in_group(Entity.READY_GROUP), "and the ready group")
+
+	gr._on_entity_death_shown(human)
+	assert_false(human.is_queued_for_deletion(),
+			"the player corpse stays in the tree — camera/HUD still point at it")
+
+
 ## #504: the despawn seam is about ORDER, not delay.
 ##
 ## Design A held the corpse on screen until a recorded ENTITY_DEATH reveal

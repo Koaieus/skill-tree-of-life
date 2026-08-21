@@ -45,9 +45,12 @@ children, which is exactly what the phases immunise against.
    is the only path that force-deallocates a core. (The SkillDust addon survives
    this — it's an addon child, not a `node.modifiers` entry.)
 3. **`entity_died` → GameRoot** owns the player-vs-NPC split. The turn-loop-
-   critical half runs SYNCHRONOUSLY here, same as before: NPC → removed from
-   `Entity.GROUP` / `READY_GROUP` (so TurnManager skips it that frame), corpse
-   cleared off `current_entity` if it somehow held the turn. GameRoot fires
+   critical half runs SYNCHRONOUSLY here, and applies to **every** corpse,
+   player included (#460): removed from `Entity.GROUP` / `READY_GROUP` (so
+   TurnManager skips it that frame), and cleared off `current_entity` if it
+   somehow held the turn. Skipping the player was safe only while player death
+   ended play on the spot; it no longer does, and a corpse left in the groups
+   stalls the loop on a `PlayerController` waiting for input. GameRoot fires
    after AllocationSystem on the **child-before-parent** ready order (it's the
    root), so the strip never races the group removal.
    The VISUAL half — NPC `queue_free` — rides `Events.entity_death_shown`,

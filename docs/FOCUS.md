@@ -76,7 +76,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#458** | `Command` + `CommandApplier` (rewritten) | **Swarmified 2026-08-21 — now a hub, `In progress`.** Four children, all `Ready`: **#509** command types + entity ids → **#510** the applier + PIC reroute and **#511** attack plan/outcome serialization → **#512** AI reroute. Take #509 first; #510 and #511 both touch `battle_system.gd`, so run #510 before #511 |
 | **#475** | Author real faction camps | was prose inside #459/#463; gates versus, and #459 wants the allied-humans half |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready`** |
-| **#460** | `VictorySystem` — a run that can end | `Needs design` — what *is* the win condition |
+| ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | `Needs design` |
 | **#462** | Display settings (window mode, resolution, vsync, fps cap) | **`Ready`** — cheap, North Star #2 |
 | **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
@@ -97,7 +97,7 @@ tell their drone to read first, so land it before them. It no longer waits on
 are minted by `Graph` the way `stable_id` already is, so the two lanes are
 independent.
 #459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
-#459 needs half of it. #460 wants its own design pass. #463 stays gated — it
+#459 needs half of it. #463 stays gated — it
 opens only once #474, #458 and #475 have landed and offline play is verified
 unchanged.
 
@@ -215,7 +215,8 @@ the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
 
 As of the wave-0 close-out pass (2026-08-21), the only rows hygiene reports are
 four issues sitting in `Ready` while still carrying the `design` label: **#457**,
-**#460**, **#461**, **#507**. The first three are genuinely open forks. #507 is
+**#460**, **#461**, **#507**. #460 has since shipped. #457 and #461 are
+genuinely open forks. #507 is
 the odd one — its four forks were settled by an owner call on 2026-08-21 in a
 comment, so its label is arguably stale, but dropping it is a design-gate call
 and not a hygiene fix.

@@ -189,8 +189,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Entity death consequence (#18). Node-stripping is AllocationSystem's job (it
 ## also listens to `entity_died`); here we handle the turn-loop-critical half of
-## what's left SYNCHRONOUSLY — an NPC corpse must not hold/receive a turn — and
-## defer the VISUAL half (despawn / game-over) to `_on_entity_death_shown`.
+## what's left SYNCHRONOUSLY — a corpse must not hold/receive a turn — and
+## defer the VISUAL half (despawn) to `_on_entity_death_shown`.
+##
+## #460: this used to skip the player, which was only safe because player death
+## ended play immediately. It no longer does — [VictorySystem] decides that, and
+## in hot-seat coop a dead player may leave a living ally — so a player corpse
+## must be pulled from the turn loop like any other, or TurnManager keeps
+## ticking its initiative and eventually hands the turn to a dead entity whose
+## PlayerController waits forever for input.
 ##
 ## #504: `Entity.die()` emits `entity_death_shown` itself, last — after both
 ## bus phases, so AllocationSystem's strip has run against a still-owned world
@@ -201,17 +208,16 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_entity_died(entity: Entity) -> void:
 	if entity == null:
 		return
-	if entity != player:
-		_pull_npc_from_turn_loop(entity)
+	_pull_from_turn_loop(entity)
 
 
-## Pull a dead NPC out of the turn-loop groups SYNCHRONOUSLY so TurnManager's
+## Pull a corpse out of the turn-loop groups SYNCHRONOUSLY so TurnManager's
 ## tick / `_tick_until_ready` skip it this frame — `queue_free` leaves the node
 ## valid (and group-resident) until frame end, or later still under #479's
 ## reveal gate, so the group removal can't wait for either. Defensive: if the
 ## corpse somehow held the turn, clear `current_entity` so the loop isn't
 ## stalled on an actor that's about to disappear.
-func _pull_npc_from_turn_loop(entity: Entity) -> void:
+func _pull_from_turn_loop(entity: Entity) -> void:
 	entity.remove_from_group(Entity.GROUP)
 	entity.remove_from_group(Entity.READY_GROUP)
 	if turn_manager != null and turn_manager.current_entity == entity:
