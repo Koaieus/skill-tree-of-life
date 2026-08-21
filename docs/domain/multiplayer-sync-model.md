@@ -168,7 +168,7 @@ confirmed-command stream **is** the event log. Nothing extra to design.
 | Action | Up (intent) | Down (confirmed) | Why |
 |---|---|---|---|
 | allocate / deallocate / deallocate_set / stake / extract / move_core | the command | the same command, nothing more | Fully deterministic, no RNG — every peer re-applies it identically |
-| launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell | the command **plus the serialized `AttackOutcome`** | `resolve()` is already pure and side-effect free, but the swing sim is order-dependent and crits roll. Clients apply the outcome and replay VFX; they never re-simulate |
+| launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell | the command **plus a record of what the attack actually did**, captured as the host applies it | `resolve()` is already pure and side-effect free, but the swing sim is order-dependent and crits roll. Clients reconstruct the recorded effects and replay VFX; they never re-simulate and never re-derive a number |
 | loot pick / relic roll | the pick intent | the resolved result | The host rolls; the shuffles stay host-only |
 | end turn | the command | the command | The host's `TurnManager` is the clock, so `_tick_until_ready`'s group-order tiebreak stops being a hazard |
 
