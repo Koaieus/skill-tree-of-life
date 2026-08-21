@@ -73,7 +73,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#457** | `GameSession` + one-shot seed resolution | `Needs design` — **owner decision**, it is the determinism contract. Scope grew: it must also cover combat/loot RNG, see its comment |
 | ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** Mutation is synchronous at t=0; VFX is a pure observer |
 | ~~#488~~ | ~~Presentation clock v2~~ | **Shipped 2026-08-21** as design **B** — the world mutates on the reveal clock; no view store. `docs/domain/presentation-clock.md` |
-| **#458** | `Command` + `CommandApplier` (rewritten) | **now unblocked** — #488 landed. The reroute is small — nine verbs, not 850 lines. `OutcomeApplier.apply` is the seam its payload wants |
+| **#458** | `Command` + `CommandApplier` (rewritten) | **Swarmified 2026-08-21 — now a hub, `In progress`.** Four children, all `Ready`: **#509** command types + entity ids → **#510** the applier + PIC reroute and **#511** attack plan/outcome serialization → **#512** AI reroute. Take #509 first; #510 and #511 both touch `battle_system.gd`, so run #510 before #511 |
 | **#475** | Author real faction camps | was prose inside #459/#463; gates versus, and #459 wants the allied-humans half |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready`** |
 | **#460** | `VictorySystem` — a run that can end | `Needs design` — what *is* the win condition |
@@ -88,9 +88,11 @@ so they want a fast swarmify, not a deep one. (**#300** removable node blockers
 shipped 2026-08-21, which unblocks #403; its deferred chokepoint-placement
 heuristic is #508, unscheduled.)
 
-**Order:** the sync model is settled; #457 is the one decision left that shapes
-everything else, and it is not a drone unit. **#458 is next on the sync lane** —
-#488 landed, so nothing gates it but #457's contract.
+**Order:** the sync model is settled. **#458 is next on the sync lane, and it is
+now four takeable children** (#509 → #510/#511 → #512). It no longer waits on
+#457: the 2026-08-21 owner call made the seed procgen-only, and #458's entity ids
+are minted by `Graph` the way `stable_id` already is, so the two lanes are
+independent.
 #459, #461 and #462 can proceed in parallel; #475 is worth pulling early since
 #459 needs half of it. #460 wants its own design pass. #463 stays gated — it
 opens only once #474, #458 and #475 have landed and offline play is verified
