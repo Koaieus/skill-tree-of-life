@@ -80,6 +80,12 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`). Labels: `core`, `des
 
 **RTFC — read the fucking comments.** When working an issue, read its comments, not just the body: they often hold the actual decisions, pointers, new direction, or bug reports that outweigh the original body. **`gh issue view <n>` prints the body; `--comments` prints ONLY the comments** (gh 2.97) — reading an issue is *two* calls, and `--comments` on an issue with none gives empty output and exit 0, which is not a broken pager. `mise.toml` exports `GH_PAGER=cat` repo-wide, so `gh` never pages even under a pty; reaching for `--json` to dodge a suspected hang just makes you guess at field names.
 
+**Attribute owner decisions to the owner, verbatim.** Nearly every issue body and comment here was written by an agent, so when you write up a fork the owner settled, quote their words and label it an owner call (`**Owner call 2026-08-21:** "…"`). Never launder it into your own reasoning.
+
+**Why:** agents resolve contradictions by authority — an owner call outranks a later comment, which outranks a maintained doc, which outranks an agent-written body. A decision written up as an agent's own conclusion re-enters the record at the *bottom* of that ladder, so the next agent is free to argue with it and the record degrades into competing confident opinions. Attribution is what makes a decision stick.
+
+**How to apply:** quote the owner; date it; say what it supersedes if it reverses something. When you hit a contradiction you cannot resolve by that ladder, ask the owner — don't pick a side, and don't write a new comment arguing with an old one.
+
 ## Godot conventions
 
 - `@tool` on `SkillNode`, `Entity`, `Graph` — they run in the editor.
