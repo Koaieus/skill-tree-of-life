@@ -19,6 +19,15 @@ extends RefCounted
 ## it on confirm (async, possibly seconds later), so the resolver must re-check
 ## that its collector is still valid.
 
+## Process-unique id, minted here rather than by any one emitter — the
+## request is raised by [SkillDustAddon] today and the issue that asked for
+## this (#509) guessed [LootSystem], so minting in `_init` covers whoever
+## raises it next. Correlates a [PickLootCommand] back to the request that
+## asked, since several can be queued at once (`ui/hud/hud_root.gd`
+## `_enqueue_pick`). Never reused; 1-based, so 0 means "no request".
+static var _next_request_id: int = 1
+var request_id: int = 0
+
 ## The entity claiming the relic — whose core the chosen mods will land on.
 var collector: Entity = null
 
@@ -38,6 +47,8 @@ var _resolved: bool = false
 
 
 func _init(collector_: Entity, candidates_: Array[StatModifier], pick_count_: int, resolver: Callable) -> void:
+	request_id = _next_request_id
+	_next_request_id += 1
 	collector = collector_
 	candidates = candidates_
 	pick_count = pick_count_

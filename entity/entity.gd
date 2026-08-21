@@ -50,6 +50,15 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## removable-node blockers author 1/2/3 for small/medium/large.
 @export var entity_tier: int = 3
 
+## Wire identity (#509) — the only legal way a [Command] refers to an entity,
+## exactly as [member SkillNode.stable_id] is for nodes. Minted once by
+## [method Graph._mint_entity_id] on entry to `entities_container` and never
+## reused; 0 means unminted (an entity built in a test and never parented
+## under a Graph). Plain var, not @export: it's Graph-assigned runtime
+## identity, not authored content — see .claude/rules/gdscript-pitfalls.md on
+## never writing a derived value back into an @export.
+var entity_id: int = 0
+
 
 ## The entity's spellbook, created empty if it doesn't have one yet. Every
 ## entity *has* a book — an empty one is a real state, not an absent one — so

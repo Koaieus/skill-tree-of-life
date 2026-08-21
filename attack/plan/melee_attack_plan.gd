@@ -26,10 +26,12 @@ var source: SkillNode = null
 var blade_nodes: Array[SkillNode] = []
 
 const CLAMP_UPGRADE: Dictionary = {
+	id = &"clamp",
 	scene = preload("res://skill_node/addons/clamp_addon.tscn"),
 	script = preload("res://skill_node/addons/clamp_addon.gd"),
 }
 const SPIKE_UPGRADE: Dictionary = {
+	id = &"spike_ring",
 	scene = preload("res://skill_node/addons/spike_ring_addon.tscn"),
 	script = preload("res://skill_node/addons/spike_ring_addon.gd"),
 }
@@ -40,7 +42,21 @@ const SPIKE_UPGRADE: Dictionary = {
 ## `SkillNode.can_attach_addon`'s uniqueness check needs the addon's Script
 ## identity before an instance exists. A future "edge sharpener" is one more
 ## entry, zero other code changes.
+## An `id` rides alongside because a catalog entry has to survive a trip over
+## the wire (#509's ToggleTempUpgradeCommand): `scene`/`script` are process-
+## local references and the catalog's *position* is not a contract.
 const TEMP_UPGRADE_CATALOG: Array[Dictionary] = [CLAMP_UPGRADE, SPIKE_UPGRADE]
+
+
+## The catalog entry named by `id`, or an empty Dictionary if there is none.
+## Returns the CONST entry itself, never a rebuilt copy, so the identity
+## checks the catalog is used with (`TEMP_UPGRADE_CATALOG.has(upgrade)` in
+## [method can_apply_temp_upgrade]) keep working on the result.
+static func upgrade_by_id(id: StringName) -> Dictionary:
+	for upgrade in TEMP_UPGRADE_CATALOG:
+		if upgrade.id == id:
+			return upgrade
+	return {}
 
 ## Lazy per-scene cost cache — instantiate once off the tree, read the
 ## authored SkillNodeAddon.temp_upgrade_cost, free, cache. Needed because

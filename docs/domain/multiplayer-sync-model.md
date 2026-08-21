@@ -205,11 +205,11 @@ holds. The authority does not own fog. #459's camp-wide `VisionSystem.viewers`
 becomes "my camp" on each client. Fog gains authority meaning only under the
 deferred filtered-delta model, where the host uses it to decide what to send.
 
-**Identifiers.** `SkillNode.stable_id` shipped for this and is the only legal
-node reference on the wire. `Entity` has no id yet (`Participant.id: int`
-exists); one gets added, and **the host mints it**, the way `Graph` mints
-`stable_id`. If peers assign their own, two clients disagree about which entity
-a command targets.
+**Identifiers.** `SkillNode.stable_id` and `Entity.entity_id` are the only
+legal references on the wire. Both are minted by `Graph` — `entity_id` eagerly
+on entry to `entities_container`, resolved with `Graph.get_by_entity_id` (#509).
+Under host authority that means *the host's* `Graph` decides; if peers assign
+their own, two clients disagree about which entity a command targets.
 
 **Transport.** A `NetworkTransport` seam with `LoopbackTransport` (the default —
 single-player and hot-seat) and `ENetTransport`. ENet is chosen because it is

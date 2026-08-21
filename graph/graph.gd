@@ -65,6 +65,15 @@ var _topology_dirty: bool = true
 var _by_stable_id: Dictionary[int, SkillNode] = {}
 var _next_stable_id: int = 1
 
+## Entity.entity_id -> Entity, the entity half of the same contract (#509).
+## Minted EAGERLY on entry to `entities_container`, unlike stable_id which
+## mints lazily inside [method _ensure_topology] — a Command built in the
+## same frame as a spawn must already carry a real id, and there is no
+## entity-side query that would force the lazy path. See
+## [method get_by_entity_id].
+var _by_entity_id: Dictionary[int, Entity] = {}
+var _next_entity_id: int = 1
+
 
 func _ready() -> void:
 	_init_edge_mesh()
@@ -73,6 +82,14 @@ func _ready() -> void:
 	for c: Node in [skill_nodes_container, edges_container]:
 		c.child_entered_tree.connect(_mark_topology_dirty.unbind(1))
 		c.child_exiting_tree.connect(_mark_topology_dirty.unbind(1))
+	entities_container.child_entered_tree.connect(_mint_entity_id)
+	entities_container.child_exiting_tree.connect(_drop_entity_id)
+	# Backfill: `child_entered_tree` only fires for children added AFTER the
+	# connect above, and a hand-authored level (dev_sandbox) parents its
+	# Player/Enemy under $Entities long before Graph._ready runs. Same
+	# authored-vs-spawned split stable_id handles in _ensure_topology.
+	for c in entities_container.get_children():
+		_mint_entity_id(c)
 	if Engine.is_editor_hint():
 		return
 	# Re-emit signals for content already authored into the scene so
@@ -260,6 +277,34 @@ func get_neighbours(node: SkillNode) -> Array[SkillNode]:
 func get_by_stable_id(id: int) -> SkillNode:
 	_ensure_topology()
 	return _by_stable_id.get(id)
+
+
+## O(1) lookup by [member Entity.entity_id] — the entity half of
+## [method get_by_stable_id], and the only way an applier resolves the
+## `entity_id` a [Command] carries. Returns null for 0 (unminted) and for an
+## entity that has left `entities_container`.
+func get_by_entity_id(id: int) -> Entity:
+	return _by_entity_id.get(id)
+
+
+## Mint-on-entry. Idempotent: an entity that already carries an id (it was
+## removed and re-added, or moved between containers) keeps it, so a command
+## in flight still resolves. Ids are never reused — `_next_entity_id` only
+## ever climbs, matching stable_id's contract.
+func _mint_entity_id(node: Node) -> void:
+	var e := node as Entity
+	if e == null:
+		return
+	if e.entity_id == 0:
+		e.entity_id = _next_entity_id
+		_next_entity_id += 1
+	_by_entity_id[e.entity_id] = e
+
+
+func _drop_entity_id(node: Node) -> void:
+	var e := node as Entity
+	if e != null:
+		_by_entity_id.erase(e.entity_id)
 
 
 func _mark_topology_dirty() -> void:
