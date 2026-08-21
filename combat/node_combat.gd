@@ -291,6 +291,15 @@ func heal_damage(amount: float, source: Variant) -> void:
 	# landed instead of the raw pre-clamp amount.
 	if source is HealInstance:
 		(source as HealInstance).effective_amount = effective
+	if source is HitInstance:
+		# Symmetric with take_damage — a heal moves a bar too, and a fogged peer
+		# needs the same three numbers to draw it. Skipping this here would send
+		# every HealInstance across the wire as 0/0/0, which reads on the far
+		# side as "no bar to draw" rather than as a bug.
+		var hit := source as HitInstance
+		hit.hp_before = prev
+		hit.hp_after = hp.current
+		hit.hp_max = get_max_hp()
 	if host != null:
 		host.notify_healed(prev, hp.current, effective, source)
 

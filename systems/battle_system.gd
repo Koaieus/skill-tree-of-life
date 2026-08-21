@@ -574,6 +574,15 @@ func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
 	# from what this very call produces — so the host derives, exactly once,
 	# and everyone else replays. That is the asymmetry
 	# `.claude/rules/multiplayer-sync.md` describes, made literally true.
+	#
+	# [b]The invariant this rests on:[/b] a non-empty `deallocations` means
+	# "this hit has already been cascaded", NOT "I am a peer". The two coincide
+	# only because a hit lands exactly ONCE. #501's blocked half is precisely
+	# about magic landing every hit a second time (`resolve()` mutating, then
+	# `OutcomeApplier` landing it again) — if that ever ships, the host would
+	# take the replay branch on the second pass and re-apply its own stale set.
+	# Retiring that second apply is #498 step 3's job; whoever touches the
+	# applier before then owns this line.
 	var recorded: Array[DeallocEntry] = []
 	if source is HitInstance:
 		recorded = (source as HitInstance).deallocations

@@ -92,6 +92,13 @@ const KEY_DEALLOC_NODE := "d_node"
 const KEY_DEALLOC_LEVEL := "d_lvl"
 const KEY_DEALLOC_WOUND := "d_wnd"
 const KEY_DEALLOC_CHIP := "d_chip"
+## Presentation half of a [DeallocEntry] — the modifier names a client may
+## toast as lost. Sliced by [constant KEY_DEALLOC_COUNT] like the rest, but
+## with its OWN flat run: an entry can grant several modifiers or none, so the
+## per-entry count lives inline in [constant KEY_DEALLOC_LABEL_COUNT].
+## A peer that ignores both still ends in the identical world.
+const KEY_DEALLOC_LABEL_COUNT := "d_lblc"
+const KEY_DEALLOC_LABEL := "d_lbl"
 const KEY_EVENT_BEAT := "e_beat"
 const KEY_EVENT_VERB := "e_verb"
 const KEY_EVENT_ORIGIN := "e_org"
@@ -130,6 +137,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var dealloc_levels := PackedInt32Array()
 	var dealloc_wounds := PackedInt32Array()
 	var dealloc_chips := PackedFloat64Array()
+	var dealloc_label_counts := PackedInt32Array()
+	var dealloc_labels := PackedStringArray()
 	# Index of each hit in the flat list, so the timeline can reference it.
 	# Identity-keyed, because two landings on one node in one beat are
 	# genuinely distinct hits with equal field values.
@@ -163,6 +172,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			dealloc_levels.append(e.allocation_level)
 			dealloc_wounds.append(e.wound)
 			dealloc_chips.append(e.chip)
+			dealloc_label_counts.append(e.revoked_labels.size())
+			dealloc_labels.append_array(e.revoked_labels)
 	var beats := PackedInt32Array()
 	var verbs := PackedByteArray()
 	var event_origins := PackedInt32Array()
@@ -205,6 +216,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_DEALLOC_LEVEL: dealloc_levels,
 		KEY_DEALLOC_WOUND: dealloc_wounds,
 		KEY_DEALLOC_CHIP: dealloc_chips,
+		KEY_DEALLOC_LABEL_COUNT: dealloc_label_counts,
+		KEY_DEALLOC_LABEL: dealloc_labels,
 		KEY_EVENT_BEAT: beats,
 		KEY_EVENT_VERB: verbs,
 		KEY_EVENT_ORIGIN: event_origins,
@@ -249,6 +262,11 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	var dealloc_levels: PackedInt32Array = d.get(KEY_DEALLOC_LEVEL, PackedInt32Array())
 	var dealloc_wounds: PackedInt32Array = d.get(KEY_DEALLOC_WOUND, PackedInt32Array())
 	var dealloc_chips: PackedFloat64Array = d.get(KEY_DEALLOC_CHIP, PackedFloat64Array())
+	var dealloc_label_counts: PackedInt32Array = d.get(KEY_DEALLOC_LABEL_COUNT, PackedInt32Array())
+	var dealloc_labels: PackedStringArray = d.get(KEY_DEALLOC_LABEL, PackedStringArray())
+	# Second running offset: labels are a flat run over ENTRIES, not over hits,
+	# so it advances independently of `dealloc_at`.
+	var label_at := 0
 	# Running offset into the flattened dealloc arrays, advanced by each hit's
 	# own count. The counts array is what slices one flat run back into per-hit
 	# groups; without it the entries would all belong to hit 0.
@@ -294,6 +312,10 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 				entry.allocation_level = dealloc_levels[at]
 				entry.wound = dealloc_wounds[at]
 				entry.chip = dealloc_chips[at]
+				if at < dealloc_label_counts.size():
+					var label_count := dealloc_label_counts[at]
+					entry.revoked_labels = dealloc_labels.slice(label_at, label_at + label_count)
+					label_at += label_count
 				entries.append(entry)
 			hit.deallocations = entries
 			dealloc_at += count

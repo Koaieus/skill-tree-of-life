@@ -478,3 +478,69 @@ func test_flattened_dealloc_runs_are_sliced_back_to_the_right_hits() -> void:
 			"the scratch must not inherit the killer's cascade")
 	assert_eq(rebuilt.hits[1].deallocations.size(), lethal.deallocations.size(),
 			"and the killer must keep all of its own")
+
+
+## A HEAL moves a bar too. capture() encodes the HP fields for every hit, so a
+## HealInstance that never filled them crosses as 0/0/0 — which reads on the far
+## side as "nothing to draw" rather than as a bug. A damage-only round-trip
+## cannot see that, which is why this test exists separately.
+func test_a_heal_carries_its_bar_numbers_across_the_wire_too() -> void:
+	var hp := _n2.node_board.get_stat(&"node_health") as PoolStat
+	hp.set_current(1.0)
+	var heal := HealInstance.new()
+	heal.amount = 3.0
+	heal.target = _n2
+	_n2.heal_damage(heal.amount, heal)
+
+	assert_almost_eq(heal.hp_before, 1.0, 0.01, "the bar starts where the pool was")
+	assert_gt(heal.hp_after, heal.hp_before, "and a heal moves it up")
+	assert_gt(heal.hp_max, 0.0, "with a maximum to draw it against")
+
+	var outcome := AttackOutcome.new()
+	outcome.hits = [heal] as Array[HitInstance]
+	var rebuilt := AttackRecord.rebuild(
+			bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph))), _graph)
+	assert_almost_eq(rebuilt.hits[0].hp_before, heal.hp_before, 0.0001, "before crosses")
+	assert_almost_eq(rebuilt.hits[0].hp_after, heal.hp_after, 0.0001, "after crosses")
+	assert_almost_eq(rebuilt.hits[0].hp_max, heal.hp_max, 0.0001, "max crosses")
+
+
+## The presentation half of a DeallocEntry must actually REACH the peer — owner
+## call 2026-08-21: "could attach whatever stat grants were revoked so the
+## clients can draw them if they so want". A field computed on the host and
+## dropped at the boundary would satisfy the class doc and not the ask.
+func test_revoked_modifier_labels_reach_the_peer() -> void:
+	var battle := BattleSystem.new()
+	battle.graph = _graph
+	battle.allocation_system = _alloc
+	add_child_autofree(battle)
+
+	var m := StatModifier.new()
+	m.stat_id = &"armor"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = 3.0
+	m.resource_name = "Ironbark"
+	_n3.modifiers.append(m)
+
+	var hit := DamageInstance.new()
+	hit.type = DamageInstance.Type.TRUE
+	hit.amount = 100000.0
+	hit.target = _n1
+	_n1.take_damage(hit.amount, hit)
+
+	var rebuilt_hit: HitInstance = AttackRecord.rebuild(
+			bytes_to_var(var_to_bytes(AttackRecord.capture(
+					_outcome_of(hit), _graph))), _graph).hits[0]
+
+	var labels: Array[String] = []
+	for e in rebuilt_hit.deallocations:
+		for l in e.revoked_labels:
+			labels.append(l)
+	assert_true(labels.has("Ironbark"),
+			"the modifier N3 was granting must arrive named, for the client's toast")
+
+
+func _outcome_of(hit: HitInstance) -> AttackOutcome:
+	var outcome := AttackOutcome.new()
+	outcome.hits = [hit] as Array[HitInstance]
+	return outcome
