@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://c8n2r5m6qhq3f"]
+[gd_scene format=3 uid="uid://c8n2r5m6qhq3f"]
 
 [ext_resource type="Script" path="res://ui/theme/bloom_reference_swatch.gd" id="1_script"]
 
