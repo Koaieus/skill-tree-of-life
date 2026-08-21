@@ -20,6 +20,9 @@ extends Targeting
 ## Neutral 1 / Mine 2 / Ally 4 / Hostile 8. `Friendly`/`Allocated`/`Any` are
 ## composites, not extra bits — they let the inspector's flag checkboxes reach
 ## a common OR-of-bits directly instead of hand-combining Mine+Ally each time.
+##
+## [OwnerFilter] (spell propagation) takes the SAME flag set: who a spell may
+## be aimed at and who it may chain into are one vocabulary. Keep them in step.
 @export_flags("Neutral:1", "Mine:2", "Ally:4", "Hostile:8", "Friendly:6", "Allocated:14", "Any:15") var ownership_filter: int = 8
 @export var range_finder: RangeFinder
 

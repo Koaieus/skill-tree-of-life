@@ -10,6 +10,11 @@ extends GutTest
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 
+## Every ownership bucket — this case is about crit bookkeeping, not targeting,
+## so the filter must not narrow the chain.
+const _ANY_OWNERSHIP := SkillNode.Ownership.NEUTRAL | SkillNode.Ownership.MINE \
+		| SkillNode.Ownership.ALLY | SkillNode.Ownership.HOSTILE
+
 
 # ── Condition predicates ─────────────────────────────────────────────────────
 
@@ -384,7 +389,7 @@ func test_entity_without_board_still_supports_condition_path() -> void:
 	helper.assign_owner(graph, atk, [0])
 	var def := helper.make_entity(graph, "D")
 	helper.assign_owner(graph, def, [1])
-	var config := helper.make_config(helper.fan_all(), helper.owner(OwnerFilter.Scope.ANY), null,
+	var config := helper.make_config(helper.fan_all(), helper.owner(_ANY_OWNERSHIP), null,
 			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	spell.crit_conditions = [SelfLoopCritCondition.new()]

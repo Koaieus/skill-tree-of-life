@@ -447,3 +447,76 @@ func test_enemy_scope_still_chains_through_a_third_hostile_camp() -> void:
 	for h in outcome.hits:
 		hit_nodes.append(h.target)
 	assert_true(n[3] in hit_nodes, "a different hostile camp is still fair game")
+
+
+func test_friendly_scope_reaches_own_and_allied_ground_but_not_the_enemy() -> void:
+	# The scope the old single-select enum could not express at all: ALLY (4)
+	# alone excludes the caster's own nodes, MINE (2) alone excludes the
+	# partner's — a heal wants both.
+	var helper := H.new()
+	var graph := helper.make_graph(_line_of(4), self)
+	var coop := Faction.new()
+	coop.id = &"coop_camp"
+	var atk := helper.make_entity(graph, "A", Color.WHITE, coop)
+	var mate := helper.make_entity(graph, "Mate", Color.WHITE, coop)
+	var foe := helper.make_entity(graph, "D")
+	helper.give_big_hp(atk)
+	helper.give_big_hp(mate)
+	helper.give_big_hp(foe)
+	helper.assign_owner(graph, atk, [0, 1])
+	helper.assign_owner(graph, mate, [2])
+	helper.assign_owner(graph, foe, [3])
+	var friendly := SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY
+	var config := helper.make_config(helper.fan_all(), helper.owner(friendly),
+			helper.max_reducer(), {max_hops = 3})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+
+	var hit_nodes: Array = []
+	for h in outcome.hits:
+		hit_nodes.append(h.target)
+	assert_true(n[1] in hit_nodes, "the caster's own node, seeded")
+	assert_true(n[2] in hit_nodes, "the partner's node, a hop away — unreachable before")
+	assert_false(n[3] in hit_nodes, "the enemy is excluded")
+
+
+func test_ally_alone_excludes_the_casters_own_nodes() -> void:
+	# Ally (4) is the camp WITHOUT me — kept distinct from Friendly (6) so a
+	# "buff everyone but yourself" spell stays authorable.
+	var helper := H.new()
+	var graph := helper.make_graph(_line_of(3), self)
+	var coop := Faction.new()
+	coop.id = &"coop_camp"
+	var atk := helper.make_entity(graph, "A", Color.WHITE, coop)
+	var mate := helper.make_entity(graph, "Mate", Color.WHITE, coop)
+	helper.give_big_hp(atk)
+	helper.give_big_hp(mate)
+	# Seeded on the PARTNER's node — the seed always lands regardless of
+	# filter, so the caster's own node has to be a hop away to be a real test.
+	helper.assign_owner(graph, atk, [0, 1])
+	helper.assign_owner(graph, mate, [2])
+	var config := helper.make_config(helper.fan_all(),
+			helper.owner(SkillNode.Ownership.ALLY), helper.max_reducer(), {max_hops = 2})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n := graph.get_skill_nodes()
+
+	var outcome := SpellResolver.resolve(spell, n[2], n[0], atk, graph)
+
+	var hit_nodes: Array = []
+	for h in outcome.hits:
+		hit_nodes.append(h.target)
+	assert_true(n[2] in hit_nodes, "the partner's node, seeded")
+	assert_false(n[1] in hit_nodes, "the caster's own node is NOT 'ally'")
+
+
+func test_description_composes_arbitrary_bit_combinations() -> void:
+	var h := H.new()
+	assert_eq(h.owner(SkillNode.Ownership.HOSTILE).get_description(), "enemy-owned only.")
+	assert_eq(h.owner(SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY).get_description(),
+			"own or allied-owned only.")
+	assert_eq(h.owner(SkillNode.Ownership.HOSTILE | SkillNode.Ownership.NEUTRAL).get_description(),
+			"enemy or unallocated-owned only.", "a combo the old match had no arm for")
+	assert_eq(h.owner(15).get_description(), "", "everything — nothing worth saying")
+	assert_eq(h.owner(0).get_description(), "Nothing (no ownership bits set).")

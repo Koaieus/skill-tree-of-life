@@ -155,14 +155,14 @@ func stat_ranker(stat_id: StringName = &"node_health") -> StatRanker:
 
 
 func owner_enemy() -> OwnerFilter:
-	var f := OwnerFilter.new()
-	f.scope = OwnerFilter.Scope.ENEMY
-	return f
+	return owner(SkillNode.Ownership.HOSTILE)
 
 
-func owner(scope: int) -> OwnerFilter:
+## [param ownership_filter] is an OR of [enum SkillNode.Ownership] bits —
+## e.g. `MINE | ALLY` for "my camp's ground". See [OwnerFilter].
+func owner(ownership_filter: int) -> OwnerFilter:
 	var f := OwnerFilter.new()
-	f.scope = scope as OwnerFilter.Scope
+	f.ownership_filter = ownership_filter
 	return f
 
 
