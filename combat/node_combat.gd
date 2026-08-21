@@ -1,35 +1,197 @@
 class_name NodeCombat
 extends RefCounted
 
-## The live combat-state slice for a [SkillNode] (#498 step 1 — see
+## The live combat-state slice for a [SkillNode] (#498 — see
 ## docs/domain/attack-timeline.md). Holds the STATE-CHANGE half of
 ## take_damage / heal_damage / refill and the `is_allocated` query; the
 ## NOTIFICATION half (signals, [Events], presentation) stays on [member host]
 ## and is reached through `host.notify_*` — see those methods on [SkillNode].
 ##
 ## [member host] is assigned once, at construction, and is never reassigned —
-## no public setter. Step 1 never constructs a hostless slice (that's #498
-## step 2's `snapshot()`), so every method here may assume [member host] is
-## non-null; the `if host != null:` guards on the notify calls exist only so
-## this file does not have to change again when step 2 introduces shadows.
+## no public setter. Two constructors populate it:
+## - [method _init], for a LIVE slice: `host` is the real [SkillNode].
+## - [method snapshot], for a SHADOW: `host` is null forever, and every method
+##   below branches on that null exactly once (`if host != null:` — never a
+##   second, preview-specific branch). Ownership and board storage do NOT
+##   move onto this class even for a shadow — [member owner] / [member board]
+##   are ACCESSORS that read through [member host] when live and fall back to
+##   [member _owner] / [member _board] only when it's null. Reading through
+##   `host` on every call (never caching) is deliberate: [AllocationSystem]
+##   writes `node.owned_by` directly and knows nothing about this slice, so a
+##   cached owner would go stale silently the moment it does.
 var host: SkillNode
+## Meaningful ONLY when [member host] == null (a shadow). Set once, by
+## [method snapshot], never reassigned afterward.
+var _owner: EntityCombat
+## Meaningful ONLY when [member host] == null (a shadow) — the shadow's own
+## deep-cloned [NodeStatBoard], standing in for [member SkillNode.node_board].
+var _board: NodeStatBoard
 
 
-func _init(p_host: SkillNode) -> void:
+func _init(p_host: SkillNode = null) -> void:
 	host = p_host
 
 
+## The owning [EntityCombat] slice. Live: [code]host.owned_by.get_combat()[/code],
+## read fresh every call — see the class doc's no-caching rule. Shadow: the
+## `_owner` set once by [method snapshot].
+func owner() -> EntityCombat:
+	if host != null:
+		# Null-guarded, not a bare `host.owned_by.get_combat()` — GDScript has
+		# no safe-navigation operator, and an unallocated live node's
+		# `owned_by` genuinely is null (that's what `is_allocated() == false`
+		# means), so calling straight through would crash on every
+		# unallocated read instead of just answering "no owner".
+		return host.owned_by.get_combat() if host.owned_by != null else null
+	return _owner
+
+
+## This node's [NodeStatBoard]. Live: [member SkillNode.node_board] (only once
+## [member SkillNode._node_board_ready] — a lazily-materialized board that
+## hasn't minted yet reads as absent, same as every other node_board read in
+## this file). Shadow: the deep clone made at [method snapshot].
+func board() -> NodeStatBoard:
+	if host != null:
+		return host.node_board if host._node_board_ready else null
+	return _board
+
+
 func is_allocated() -> bool:
-	return host.owned_by != null
+	return owner() != null
+
+
+## True iff this is its owner's core node. Live: the same
+## `owned_by.core_location == host` check [method take_damage] always ran.
+## Shadow: the equivalent question against the shadow's own [member EntityCombat.core].
+func is_core() -> bool:
+	var o := owner()
+	return o != null and o.core() == self
+
+
+## Build a detached shadow of this LIVE slice (see the class doc — never call
+## on a slice that is already a shadow), owned by [param owner_combat].
+## `host` on the result is null FOREVER. Deep-clones [member SkillNode.node_board]
+## exactly like [method SkillNode._init_node_board] clones the authored
+## template, so the shadow gets its own [PoolStat] with the live current/max —
+## "real PoolStat semantics", not a captured float.
+func snapshot(owner_combat: EntityCombat) -> NodeCombat:
+	var shadow := NodeCombat.new()
+	shadow._owner = owner_combat
+	if host != null:
+		host._init_node_board()
+		shadow._board = host.node_board.duplicate(true) as NodeStatBoard
+		sync_cloned_board(host.node_board, shadow._board)
+	return shadow
+
+
+## Post-[method Resource.duplicate] fixup shared by [method snapshot] here and
+## [method EntityCombat.snapshot]. `duplicate(true)` only carries EXPORTED
+## properties: every TYPED `Stat`/`PoolStat` field on a [StatBoard] survives
+## as its own resource, but each one's [member Stat.bins] (a plain,
+## non-exported [ModifierBins]) resets to fresh/empty, and
+## [member StatBoard._extra_stats] (also plain — every DYNAMICALLY-minted
+## stat, which is where [code]node_health[/code] itself lives) doesn't survive
+## AT ALL. Nothing in the codebase needed this before #498: every existing
+## `duplicate(true)` call clones a VIRGIN template and builds its bins up live
+## afterward ([method StatBoard.apply_intrinsics], [AllocationSystem]'s
+## `add_modifier` calls); a shadow is the first thing that needs to duplicate
+## an ALREADY-LIVE, ALREADY-MODIFIED board and keep what's on it. Skipping
+## this would silently drop every already-applied modifier on snapshot —
+## exactly the scoring inaccuracy #498 exists to fix, reintroduced one layer
+## down.
+static func sync_cloned_board(src: StatBoard, dst: StatBoard) -> void:
+	if src == null or dst == null:
+		return
+	for id in src.get_stat_ids():
+		var s: Stat = src.get_stat(id)
+		if s == null:
+			continue
+		# _ensure_stat, not a bare get_stat — a dynamically-minted `src` stat
+		# has no counterpart on `dst` at all yet (see the doc above).
+		var d: Stat = dst._ensure_stat(id)
+		if d == null:
+			continue
+		d.base_value = s.base_value
+		if d is PoolStat and s is PoolStat:
+			(d as PoolStat).current = (s as PoolStat).current
+		d.bins.base_add = s.bins.base_add
+		d.bins.increase_sum = s.bins.increase_sum
+		d.bins.bonus_add = s.bins.bonus_add
+		d.bins.multipliers = s.bins.multipliers.duplicate()
+		d.bins.winning_set = s.bins.winning_set
+		d.bins.board = dst
+
+
+## Non-allocating passthrough read — the state-half twin of
+## [method SkillNode.get_local_value], which now delegates here (#498 step 2).
+## Merges this node's board with its owner's, exactly as before; the only
+## change from the pre-extraction body is reading [method board] / [method owner]
+## instead of `node_board` / `owned_by.stat_board` directly, which is what
+## makes it correct on a shadow too (needed by [method take_damage]'s
+## mitigation math — see [Mitigation], which requires a real [SkillNode] and
+## so cannot be called on a shadow's behalf).
+func get_local_value(stat_id: StringName) -> Variant:
+	var ns: Stat = board().get_stat(stat_id) if board() != null else null
+	var o := owner()
+	if o != null and o.board() != null:
+		var es := o.board().get_stat(stat_id)
+		if es != null:
+			if ns == null:
+				return es.get_value()
+			var sources: Array[ModifierBins] = [es.bins, ns.bins]
+			return ModifierBins.compute(es.base_value, sources)
+	if ns != null:
+		return ns.get_value()
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def != null:
+		return def.default_value
+	return 0.0
+
+
+## Max combat HP — state-half twin of [method SkillNode.get_max_hp]. Live
+## reads the node board's pool, which [method SkillNode._sync_combat_health_base]
+## keeps ratcheted (PUSH, off the owner's `node_health` `value_changed` signal)
+## — untouched here. A shadow has no host, so no [SkillNode] and no signal to
+## drive that push; it re-runs the identical ratchet formula on every read
+## instead (PULL). That's what lets a modifier added to the shadow's own
+## entity board move the cap mid-"attack" with no signal machinery in play —
+## see docs/domain/attack-timeline.md's "max health is derived, not snapshotted".
+func get_max_hp() -> float:
+	var b := board()
+	if b == null:
+		return 0.0
+	var hp := b.get_stat(&"node_health") as PoolStat
+	if hp == null:
+		return 0.0
+	if host == null:
+		var o := owner()
+		var baseline: Stat = o.board().get_stat(&"node_health") if o != null and o.board() != null else null
+		if baseline != null:
+			hp.set_base_ratcheted(float(baseline.get_value()))
+	return hp.value
+
+
+## Current combat HP — state-half twin of [method SkillNode.get_current_hp].
+func get_current_hp() -> float:
+	var b := board()
+	if b == null:
+		return 0.0
+	var hp := b.get_stat(&"node_health") as PoolStat
+	return hp.current if hp != null else 0.0
 
 
 ## State half of [method SkillNode.take_damage] — see that method for the
 ## public contract. Mitigation, the HP pool deplete, and (for a core node)
 ## the overflow chip into the owner's `health` pool all happen here; the
 ## signal/Events/dispatch notification is [method SkillNode.notify_damaged],
-## and the depleted announcement is [method SkillNode.notify_depleted].
+## and the depleted announcement is [method SkillNode.notify_depleted] —
+## both reached ONLY when [member host] != null, which is the one branch this
+## whole design has (see the class doc). A depleted SHADOW node instead calls
+## [method EntityCombat.force_deallocate_owned] directly: there is no
+## [Events] bus reach for it to fall through to, by construction.
 func take_damage(amount: float, source: Variant) -> void:
-	if host.owned_by == null or amount <= 0.0:
+	var o := owner()
+	if o == null or amount <= 0.0:
 		return
 	var raw: DamageInstance
 	if source is DamageInstance:
@@ -37,7 +199,20 @@ func take_damage(amount: float, source: Variant) -> void:
 	else:
 		raw = DamageInstance.new()
 		raw.amount = amount
-	var effective: float = Mitigation.apply(raw, host)
+	var effective: float
+	if host != null:
+		effective = Mitigation.apply(raw, host)
+	else:
+		# Mitigation.apply requires a real SkillNode (it reads defensive stats
+		# via SkillNode.get_local_value) — a shadow has none. Mitigation.compute
+		# is the free-standing formula half of the same file; feed it the
+		# armor/floor read through THIS class's own get_local_value instead.
+		if raw.type == DamageInstance.Type.TRUE:
+			effective = raw.amount
+		else:
+			var armor: float = get_local_value(&"armor")
+			var floor_min: float = get_local_value(&"min_damage_taken")
+			effective = Mitigation.compute(raw.amount, armor, floor_min)
 	# #381: a defensive `min_damage_taken` underflow (Bulwark-style) can push
 	# `effective` negative — that's a real heal, not a damage number that
 	# happened to round to nothing. Reclassify BEFORE the presentation layer
@@ -46,7 +221,7 @@ func take_damage(amount: float, source: Variant) -> void:
 	var flipped_to_heal := source is DamageInstance and effective < 0.0
 	if flipped_to_heal:
 		(source as DamageInstance).kind = HitInstance.Kind.HEAL
-	var hp := host.node_board.get_stat(&"node_health") as PoolStat if host._node_board_ready else null
+	var hp := board().get_stat(&"node_health") as PoolStat if board() != null else null
 	if hp == null:
 		return
 	var before := hp.current
@@ -62,39 +237,50 @@ func take_damage(amount: float, source: Variant) -> void:
 			# mitigated amount, or a killing blow's floater under-reports.
 			(source as DamageInstance).effective_amount = effective
 	var soaked: float = before - hp.current
-	if soaked > 0.0:
+	if soaked > 0.0 and host != null:
 		# D-9: any actual HP loss marks this node "damaged since last
 		# upkeep" — apply_turn_regen() reads and clears this at turn start.
+		# Regen upkeep is a per-turn, host-only concern; a shadow never sees a
+		# turn boundary, so there is nothing for it to gate.
 		host._damaged_since_upkeep = true
 	if host != null:
 		host.notify_damaged(before, hp.current, effective, source)
-	# Re-read owned_by fresh (not cached) — a reentrant hook fired by
+	# Re-read the owner fresh (not cached) — a reentrant hook fired by
 	# notify_damaged's dispatch could in principle have changed it, same as
-	# the pre-extraction body never cached it either.
+	# the pre-extraction body never cached `owned_by` either.
+	o = owner()
 	var overflow: float = effective - soaked
-	if host.owned_by.core_location == host:
-		if overflow > 0.0 and host.owned_by.stat_board != null and host.owned_by.stat_board.health != null:
-			# Snapshot the entity + its pool BEFORE deplete(): crossing 0 fires
-			# `health.depleted` synchronously, which can run the whole death
-			# cascade (die() -> ... -> AllocationSystem strips this very core
-			# node) before deplete() returns — re-reading `owned_by` afterward
-			# would see it already cleared to null.
-			var entity := host.owned_by
-			var health_pool := entity.stat_board.health
-			# #504: nothing to record — the pool's own `current_changed` IS the
-			# notification, and every core-health painter binds to it directly.
-			health_pool.deplete(overflow)
+	if is_core():
+		if overflow > 0.0:
+			var ent_board := o.board()
+			# get_stat, not a typed `.health` field access — `board()` reads as
+			# the base `StatBoard` (a shadow's board doesn't get the narrower
+			# `EntityStatBoard` static type), and `health` only exists there.
+			var health_pool := ent_board.get_stat(&"health") as PoolStat if ent_board != null else null
+			if health_pool != null:
+				# Snapshot BEFORE deplete(): crossing 0 fires `health.depleted`
+				# synchronously on a LIVE board, which can run the whole death
+				# cascade before deplete() returns. A shadow's duplicated
+				# `health` PoolStat carries no such signal connection (Resource
+				# duplicate() doesn't copy runtime signal connections) — its
+				# equivalent is the explicit `current <= 0.0` check below.
+				health_pool.deplete(overflow)
+				if host == null and health_pool.current <= 0.0:
+					o.simulate_entity_death()
 		return
-	if hp.current <= 0.0 and host != null:
-		host.notify_depleted()
+	if hp.current <= 0.0:
+		if host != null:
+			host.notify_depleted()
+		else:
+			o.force_deallocate_owned(self)
 
 
 ## State half of [method SkillNode.heal_damage] — see that method for the
 ## public contract. The notification half is [method SkillNode.notify_healed].
 func heal_damage(amount: float, source: Variant) -> void:
-	if host.owned_by == null or amount <= 0.0:
+	if owner() == null or amount <= 0.0:
 		return
-	var hp := host.node_board.get_stat(&"node_health") as PoolStat if host._node_board_ready else null
+	var hp := board().get_stat(&"node_health") as PoolStat if board() != null else null
 	if hp == null:
 		return
 	var prev := hp.current
@@ -112,7 +298,7 @@ func heal_damage(amount: float, source: Variant) -> void:
 ## State half of [method SkillNode.refill]. The notification half is
 ## [method SkillNode.notify_refilled].
 func refill(silent: bool = false) -> void:
-	var hp := host.node_board.get_stat(&"node_health") as PoolStat if host._node_board_ready else null
+	var hp := board().get_stat(&"node_health") as PoolStat if board() != null else null
 	if hp == null:
 		return
 	var prev := hp.current

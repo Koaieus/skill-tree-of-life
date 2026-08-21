@@ -399,6 +399,15 @@ var stable_id: int = 0
 ## pre-`_ready` scene-authored write, same reasoning as [member _addons].
 var _combat := NodeCombat.new(self)
 
+
+## Public accessor for [member _combat] (#498 step 2) — [EntityCombat.snapshot]
+## needs it to build a shadow's owned [NodeCombat] set from the real navigator
+## mirror; a plain getter keeps `_combat` itself construction-assigned with no
+## public setter. Mirrors [method Entity.get_combat].
+func get_combat() -> NodeCombat:
+	return _combat
+
+
 func _ready() -> void:
 	# No authored-radius capture here any more: `radius` is a getter over
 	# `base_radius` + stake growth, so it's correct from construction onward —
@@ -640,47 +649,27 @@ static func segment_between(a: SkillNode, b: SkillNode, pad: float = 0.0) -> Pac
 
 # ── Combat HP ──────────────────────────────────────────────────────────────
 
-## Max combat HP for this node. Reads the node's [member node_board] combat
-## health pool, which is seeded from the owning entity's [code]node_health[/code]
-## baseline + any node-local modifiers. 0 if unallocated.
+## Max combat HP for this node. State half moved to [method NodeCombat.get_max_hp]
+## (#498 step 2) — see it for why a shadow needs to compute this differently
+## than a live node does. 0 if unallocated.
 func get_max_hp() -> float:
-	if not _node_board_ready:
-		return 0.0
-	var hp := node_board.get_stat(&"node_health") as PoolStat
-	if hp == null:
-		return 0.0
-	return hp.value
+	return _combat.get_max_hp()
 
 
 ## Current combat HP for this node (ephemeral, from the pool's [member PoolStat.current]).
+## State half moved to [method NodeCombat.get_current_hp].
 func get_current_hp() -> float:
-	if not _node_board_ready:
-		return 0.0
-	var hp := node_board.get_stat(&"node_health") as PoolStat
-	if hp == null:
-		return 0.0
-	return hp.current
+	return _combat.get_current_hp()
 
 
 ## Non-allocating passthrough read: returns the combined value of a stat
 ## visible to this node (entity board if owned, or StatRegistry default if
 ## orphaned). Does NOT create a stat on [member node_board] — use
-## [method _ensure_local_stat] when you need a modifier target.
+## [method _ensure_local_stat] when you need a modifier target. State half
+## moved to [method NodeCombat.get_local_value] (#498 step 2) — that's what
+## makes [Mitigation]'s armor/floor reads work on a shadow too.
 func get_local_value(stat_id: StringName) -> Variant:
-	var ns: Stat = node_board.get_stat(stat_id) if _node_board_ready else null
-	if owned_by != null and owned_by.stat_board != null:
-		var es := owned_by.stat_board.get_stat(stat_id)
-		if es != null:
-			if ns == null:
-				return es.get_value()
-			var sources: Array[ModifierBins] = [es.bins, ns.bins]
-			return ModifierBins.compute(es.base_value, sources)
-	if ns != null:
-		return ns.get_value()
-	var def: StatDef = StatRegistry.get_def(stat_id)
-	if def != null:
-		return def.default_value
-	return 0.0
+	return _combat.get_local_value(stat_id)
 
 
 ## Returns (creating if necessary) the [code]node_board[/code] stat for
