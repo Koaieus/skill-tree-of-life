@@ -168,3 +168,60 @@ func test_player_can_act_changed_fires_after_swing_reenabling_attack_mode_bar() 
 	assert_true(emissions.has(false), "player_can_act_changed must fire false while the swing is resolving")
 	assert_true(emissions.size() >= 2 and emissions[-1] == true,
 			"player_can_act_changed must fire true again once the swing completes, or AttackModeBar stays disabled forever (emissions=%s)" % [emissions])
+
+
+func test_the_command_is_confirmed_before_the_swing_animation_finishes() -> void:
+	# The lag this file's fixture is uniquely able to see. `_commit` keeps
+	# awaiting `_vfx_finished` after the world has settled (that is #406, and
+	# it stays), so mirroring off `command_applied` made a peer wait out the
+	# HOST's whole swing before it could start drawing its own — lag
+	# proportional to animation length. `command_confirmed` fires at the
+	# settle point instead, with the record already stamped.
+	# The rest of this file parents the attacker straight under the Graph,
+	# which is enough for a swing but leaves `entity_id` at 0 — and the applier
+	# resolves its actor BY that id. Re-home it first; the mint happens on
+	# entry to `entities_container`.
+	_attacker.reparent(_graph.entities_container)
+	await get_tree().process_frame
+	assert_ne(_attacker.entity_id, 0, "the applier can only resolve a minted id")
+
+	var applier := CommandApplier.new()
+	applier.graph = _graph
+	applier.allocation_system = _alloc
+	applier.battle_system = _bs
+	applier.turn_manager = _tm
+	add_child_autofree(applier)
+
+	var source := _spawn("Source")
+	var joint := _spawn("Joint")
+	_graph.add_edge(source, joint)
+	await get_tree().process_frame
+	_alloc.force_allocate(_attacker, source)
+	_alloc.force_allocate(_attacker, joint)
+
+	var confirmed_at: Array[int] = []
+	var applied_at: Array[int] = []
+	var confirmed_record: Array[Dictionary] = []
+	applier.command_confirmed.connect(func(cmd: Command) -> void:
+		confirmed_at.append(Engine.get_process_frames())
+		if cmd is LaunchAttackCommand:
+			confirmed_record.append((cmd as LaunchAttackCommand).record))
+	applier.command_applied.connect(func(_cmd: Command, _ok: bool) -> void:
+		applied_at.append(Engine.get_process_frames()))
+
+	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	var plan := _bs.attack_plan as MeleeAttackPlan
+	plan._on_node_left_clicked(source)
+	plan._on_node_left_clicked(joint)
+	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
+
+	_bs.launch_attack()
+	await _await_launch_settle()
+
+	assert_eq(confirmed_at.size(), 1, "one confirmation")
+	assert_eq(applied_at.size(), 1, "one report")
+	assert_lt(confirmed_at[0], applied_at[0],
+			"the wire is released frames before the swing finishes drawing")
+	assert_eq(confirmed_record.size(), 1, "and it was the attack that confirmed")
+	assert_false(confirmed_record[0].is_empty(),
+			"with the record already stamped — a peer receives a replay, not an initiate")

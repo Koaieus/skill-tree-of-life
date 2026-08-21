@@ -73,7 +73,7 @@ func _ready() -> void:
 		transport.message_received.connect(_on_message_received)
 		transport.link_changed.connect(func(status: String) -> void: logged.emit(status))
 	if command_applier != null:
-		command_applier.command_applied.connect(_on_command_applied)
+		command_applier.command_confirmed.connect(_on_command_confirmed)
 
 
 ## Announce our world to a freshly-connected peer. Host-side; the client's reply
@@ -88,13 +88,15 @@ func send_hello() -> void:
 	})
 
 
-func _on_command_applied(command: Command, success: bool) -> void:
+## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
+## the two are the same instant for every verb that has nothing to await after
+## its mutation, and for an attack the difference is the host's whole animation
+## tail (see that signal's note). A refused command never confirms, so the
+## "changed nothing, mirror nothing" rule is now the applier's to enforce.
+func _on_command_confirmed(command: Command) -> void:
 	if mode != Mode.BROADCAST or transport == null:
 		return
-	# A refused command changed nothing, so there is nothing to mirror. The
-	# client's own gates would refuse it too, but re-deriving that on a peer is
-	# precisely what host authority exists to avoid.
-	if not success or _applying_remote:
+	if _applying_remote:
 		return
 	transport.send({
 		KEY_KIND: KIND_COMMAND,

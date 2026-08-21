@@ -25,8 +25,10 @@ var _nodes: Dictionary = {}
 func before_each() -> void:
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
+	# "spare" is unowned and adjacent to the core — the one node in this fixture
+	# an allocate can legally take, which the interleaving test needs.
 	for entry in [["core", Vector2(0, 0)], ["leaf", Vector2(150, 0)],
-			["target", Vector2(300, 0)]]:
+			["target", Vector2(300, 0)], ["spare", Vector2(0, 150)]]:
 		var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		node.name = str(entry[0])
 		_graph.add_skill_node(node)
@@ -34,6 +36,7 @@ func before_each() -> void:
 		_nodes[entry[0]] = node
 	_graph.add_edge(_nodes.core, _nodes.leaf)
 	_graph.add_edge(_nodes.leaf, _nodes.target)
+	_graph.add_edge(_nodes.core, _nodes.spare)
 
 	_attacker = Entity.new()
 	_attacker.faction = _PLAYER_FACTION
@@ -108,19 +111,21 @@ func test_launch_attack_routes_through_the_applier() -> void:
 	assert_eq(applied[0].type_tag(), LaunchAttackCommand.TAG)
 
 
-func test_the_applied_command_carries_the_record_out() -> void:
-	# CommandLink encodes on `command_applied`, i.e. AFTER application — so a
-	# record stamped during apply rides out with the broadcast for free. If
-	# this ever went empty, every peer would silently receive an initiate.
+func test_the_confirmed_command_carries_the_record_out() -> void:
+	# CommandLink encodes on `command_confirmed`, which BattleSystem raises the
+	# instant the record is stamped — so the record rides out with the
+	# broadcast for free. If this ever went empty, every peer would silently
+	# receive an initiate. (`test_melee_launch_lifecycle.gd` pins the other
+	# half: that this fires before the swing has finished drawing.)
 	var seen: Array[LaunchAttackCommand] = []
-	_applier.command_applied.connect(func(cmd: Command, _ok: bool):
+	_applier.command_confirmed.connect(func(cmd: Command):
 		if cmd is LaunchAttackCommand:
 			seen.append(cmd as LaunchAttackCommand))
 	_arm()
 	await _bs.launch_attack()
 	assert_eq(seen.size(), 1)
 	assert_false(seen[0].record.is_empty(),
-			"the record must be stamped by the time command_applied fires")
+			"the record must be stamped by the time command_confirmed fires")
 	assert_false(seen[0].plan.is_empty(), "and the plan rides along for the peer's VFX")
 
 
@@ -155,13 +160,22 @@ func test_a_command_raised_during_an_attack_queues_rather_than_re_entering() -> 
 	var order: Array[String] = []
 	_applier.command_applied.connect(func(cmd: Command, _ok: bool):
 		order.append(str(cmd.type_tag())))
+	# The same order on the WIRE. `command_confirmed` fires mid-apply for an
+	# attack, so this is where interleaving would show up first: a command
+	# raised during the swing must still be broadcast after it, or a peer
+	# would receive the two in an order the host never applied them in.
+	var wire: Array[String] = []
+	_applier.command_confirmed.connect(func(cmd: Command):
+		wire.append(str(cmd.type_tag())))
 	_bs.attack_launched.connect(func(_mode, _spell):
 		_applier.submit(AllocateCommand.new(_attacker.entity_id,
-				_graph.get_stable_id(_nodes.target))))
+				_graph.get_stable_id(_nodes.spare))))
 	_arm()
 	await _bs.launch_attack()
 	assert_eq(order, ["launch_attack", "allocate"] as Array[String],
 			"the attack finished before the command it raised")
+	assert_eq(wire, ["launch_attack", "allocate"] as Array[String],
+			"and it crosses the wire in that same order")
 
 
 func test_an_initiate_with_no_live_plan_is_refused_rather_than_guessed() -> void:

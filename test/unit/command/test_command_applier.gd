@@ -243,3 +243,42 @@ func test_mass_allocate_recomputes_affordable_count_from_the_live_board() -> voi
 	assert_eq(_n("B").owned_by, _player)
 	assert_eq(_n("C").owned_by, _player)
 	assert_eq(_n("D").owned_by, null, "the third hop was never affordable")
+
+
+# ── command_confirmed: the mirror seam ──────────────────────────────────────
+
+func test_a_synchronous_verb_confirms_immediately_before_it_reports() -> void:
+	# The seam costs an ordinary verb nothing: with no tail to wait out, the
+	# settle point IS the end of application, so the two fire back to back.
+	var order: Array[String] = []
+	_applier.command_confirmed.connect(func(cmd): order.append("confirmed:" + str(cmd.type_tag())))
+	_applier.command_applied.connect(func(cmd, _ok): order.append("applied:" + str(cmd.type_tag())))
+	_applier.submit(_allocate("B"))
+	assert_eq(order, ["confirmed:allocate", "applied:allocate"] as Array[String],
+			"confirmed always precedes applied, for the same command")
+
+
+func test_a_refused_command_never_confirms() -> void:
+	# What CommandLink used to enforce with `if not success`. A refusal changed
+	# nothing, so there is nothing for a peer to mirror — and now that the
+	# broadcast rides confirmation, this IS that guarantee.
+	var confirmed: Array[String] = []
+	_applier.command_confirmed.connect(func(cmd): confirmed.append(str(cmd.type_tag())))
+	_applier.submit(_allocate("D"))  # three hops out — refused, see above
+	assert_eq(confirmed, [] as Array[String])
+	_applier.submit(_allocate("B"))
+	assert_eq(confirmed, ["allocate"] as Array[String], "…and a legal one still confirms")
+
+
+func test_confirm_is_idempotent_so_one_command_crosses_the_wire_once() -> void:
+	# A verb that confirms mid-apply (BattleSystem does) must not be confirmed
+	# a second time on the way out — a peer would apply the command twice. The
+	# de-dup is asserted from the far end of the same window, which is the
+	# widest it has to hold.
+	var confirmed: Array[Command] = []
+	_applier.command_confirmed.connect(func(cmd): confirmed.append(cmd))
+	var command := _allocate("B")
+	_applier.command_applied.connect(func(cmd, _ok): _applier.confirm(cmd))
+	_applier.submit(command)
+	assert_eq(confirmed.size(), 1, "exactly one confirmation for one command")
+	assert_eq(confirmed[0], command)

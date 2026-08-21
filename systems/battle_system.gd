@@ -448,6 +448,15 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome,
 	# resolve-time outcome.
 	if command != null:
 		command.record = AttackRecord.capture(outcome, graph)
+		# THE settle point, and why [signal CommandApplier.command_confirmed]
+		# exists: the payload is complete right here, but this coroutine keeps
+		# awaiting the animation tail below, and `command_applied` — which used
+		# to be what [CommandLink] mirrored off — cannot fire until it returns.
+		# A peer was therefore made to sit out the host's whole swing before
+		# starting its own. Confirming here costs the wire nothing extra and
+		# hands the peer the record the instant the world is settled.
+		if command_applier != null:
+			command_applier.confirm(command)
 	# Then wait out the animation too, before releasing anything. `is_launching`
 	# spans the WHOLE action, not just the mutation: it is what blocks a second
 	# launch, and the plan stays live behind it because a melee plan's

@@ -42,6 +42,25 @@ extends Node
 ## still true, on purpose (see above).
 signal command_applied(command: Command, success: bool)
 
+## One command's WIRE PAYLOAD is final and its world mutation is done — mirror
+## it now. Fires at most once per command, always before that command's
+## [signal command_applied], and only for a command that succeeded.
+##
+## [b]Why this is not just [signal command_applied].[/b] Application spans more
+## than mutation. [method BattleSystem._commit] deliberately keeps awaiting
+## after the world has settled — it holds `is_launching` until the animation
+## tail finishes, so a player cannot arm and fire again mid-swing. Mirroring off
+## `command_applied` therefore made a peer wait out the HOST's animation before
+## it could start its own (#511 shipped that way), which reads as lag
+## proportional to spell length. Nothing about the payload changes in that
+## window: [AttackRecord] is stamped the instant the mutation ends.
+##
+## A verb that has such a tail calls [method confirm] at its settle point; every
+## other verb needs nothing, because [method _drain] confirms on its behalf.
+## Ordering across commands is unchanged either way — the queue is serial, so a
+## mid-apply confirm still lands between its neighbours' confirms.
+signal command_confirmed(command: Command)
+
 ## [member is_applying] transitioned. Consumers gate input off this
 ## ([method PlayerInputController.can_player_act]); it is not an outcome
 ## signal.
@@ -62,6 +81,11 @@ const CORE_HOP_SLIDE_DELAY := 0.18
 var is_applying: bool = false
 
 var _queue: Array[Command] = []
+
+## The command [method confirm] has already announced, so [method _drain] does
+## not announce it twice. A single slot, not a set: the queue is serial and
+## non-re-entrant, so only one command is ever mid-apply.
+var _confirmed: Command = null
 
 
 ## Claim the [BattleSystem] as ours to call back into. Set from here rather
@@ -92,6 +116,18 @@ func pending_count() -> int:
 	return _queue.size()
 
 
+## "This command's world mutation is done and its payload is final" — called by
+## a verb that keeps awaiting afterwards, to release the mirror early. Only ever
+## call it once the verb knows it SUCCEEDED; a refused command changed nothing
+## and must not cross the wire. Idempotent, and safe to call from a verb that is
+## running without an applier only because the caller null-checks first.
+func confirm(command: Command) -> void:
+	if command == null or _confirmed == command:
+		return
+	_confirmed = command
+	command_confirmed.emit(command)
+
+
 func _drain() -> void:
 	is_applying = true
 	applying_changed.emit(true)
@@ -99,8 +135,17 @@ func _drain() -> void:
 		var command: Command = _queue.pop_front()
 		@warning_ignore("redundant_await")
 		var success: bool = await _apply(command)
+		# For everything without an animation tail this IS the settle point, so
+		# the two signals fire back to back and the seam costs nothing. A verb
+		# that already confirmed mid-apply makes this a no-op.
+		if success:
+			confirm(command)
 		# Inside the guard, deliberately — see the class note.
 		command_applied.emit(command, success)
+		# Cleared only once this command is fully reported, so the de-dup covers
+		# a `command_applied` handler that confirms too. Nothing is leaked by
+		# holding it one line longer: the next iteration overwrites it.
+		_confirmed = null
 	is_applying = false
 	applying_changed.emit(false)
 

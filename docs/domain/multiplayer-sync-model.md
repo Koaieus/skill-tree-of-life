@@ -216,6 +216,21 @@ reads **both**. Outcomes come back as `command_applied(cmd, success)`, emitted
 cascade-offer path — queues rather than re-entering; `applying_changed` fires
 *after* the flag clears, matching `is_launching`'s deliberate ordering.
 
+**`command_confirmed(cmd)` is the mirror seam, and it is not `command_applied`.**
+Application spans more than mutation: `BattleSystem._commit` keeps awaiting
+`_vfx_finished` after the world has settled, because `is_launching` owns the
+plan's lifetime through the swing (#406). Mirroring off `command_applied`
+therefore made a peer wait out the *host's animation* before it could start its
+own — lag proportional to spell length, for a payload that was final much
+earlier. So a verb with such a tail calls `applier.confirm(cmd)` at its settle
+point (BattleSystem does, on the line after `AttackRecord.capture`), and
+`CommandLink` broadcasts off that. For every other verb the drain confirms on
+its behalf, immediately before `command_applied`, so the seam costs nothing.
+`confirm` is idempotent and only ever called for a command that succeeded —
+which is where "a refused command changed nothing, so mirror nothing" now
+lives. Ordering across commands is untouched: the queue is serial, so a
+mid-apply confirm still lands between its neighbours'.
+
 Routed so far: every `PlayerInputController` mutation (#510) and
 `battle_system.launch_attack` (#511 — it builds a `LaunchAttackCommand`,
 submits it, and parks on `applying_changed`, so every existing caller still
@@ -241,7 +256,7 @@ asymmetric verb in the vocabulary, and that is deliberate. An EMPTY `record`
 means *initiate*: the authority stamps the seed, resolves, gates on
 affordability, and applies naturally, then stamps the record it produced onto
 the same object — which `CommandLink` broadcasts, because it encodes on
-`command_applied`, i.e. after application. A POPULATED `record` means *replay*:
+`command_confirmed`, raised the instant that record is stamped. A POPULATED `record` means *replay*:
 a peer rebuilds the plan (for the animation only) and the recorded deltas (for
 the world), and lands them through the same `OutcomeApplier` on the same
 `BeatClock`. Two types would need the receiver to know its own role to refuse

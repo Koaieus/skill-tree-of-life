@@ -11,8 +11,9 @@ extends Command
 ##     mode's land-time gate live against the real world. Natural logic, not a
 ##     precomputed script. It then stamps the record it just produced into
 ##     this same object, which is what [CommandLink] broadcasts (it encodes on
-##     `command_applied`, i.e. after application — so the stamp rides out for
-##     free).
+##     [signal CommandApplier.command_confirmed], which [BattleSystem] raises
+##     the instant the record is stamped — so the stamp rides out for free, and
+##     without waiting out the host's animation tail).
 ##   * [member record] POPULATED — a REPLAY. A peer reconstructs the recorded
 ##     effects; it does not re-resolve, does not re-run a gate, and never
 ##     computes a combat number.
