@@ -33,6 +33,7 @@ const TINT = Color(1.0, 0.9, 0.6, 1.0)
 var _alpha: float = 1.0
 var _arrived: bool = false
 var _done_emitted: bool = false
+var _dud: bool = false
 
 
 func _ready() -> void:
@@ -45,6 +46,17 @@ func _on_launch() -> void:
 
 
 func _on_progress(_t: float) -> void:
+	queue_redraw()
+
+
+## #503 — this shot's landing was VETOED at arrival (the target was already
+## dead or no longer hostile by the time the arrow got there). Part of the
+## visual contract alongside `_on_arrival()`: the coordinator calls it at
+## touchdown when [member HitInstance.gated] is set. The arrow still arrives
+## on schedule; it just lands spent, and no damage number follows it because
+## the applier never called `take_damage`.
+func _on_dud() -> void:
+	_dud = true
 	queue_redraw()
 
 
@@ -79,7 +91,15 @@ func _draw() -> void:
 	# Emissive tiers over the (possibly per-instance) tint, not a hand-picked
 	# `.lightened()` — VALUE for the shaft/head, a dimmer LABEL step for the
 	# halo so the coverage-heavy glow doesn't blow out at scale.
-	var col := Emissive.at(Color(tint.r, tint.g, tint.b, tint.a * a), Emissive.VALUE)
+	var base := Color(tint.r, tint.g, tint.b, tint.a * a)
+	if _dud:
+		# A spent arrow reads as spent, not merely dimmer: pull most of the
+		# saturation out toward luminance, then sit at INERT so it is still
+		# visible but cannot bloom. Same language as a spike-popped blade
+		# vertex dimming (docs/domain/attack-timeline.md, "Ranged").
+		var lum := base.get_luminance()
+		base = Color(lum, lum, lum, base.a).lerp(base, 0.25)
+	var col := Emissive.at(base, Emissive.INERT if _dud else Emissive.VALUE)
 	var glow := Emissive.at(Color(tint.r, tint.g, tint.b, tint.a * a * 0.25), Emissive.LABEL)
 	if not _arrived:
 		# Glow halo around the tip.

@@ -85,7 +85,7 @@ func play(payload: Variant) -> void:
 		# model at the moment its own visual needs the answer — same
 		# discipline as the tint read below, never a second gate computed
 		# independently.
-		proj.arrived.connect(_on_arrow_arrived.bind(proj, hit, tint))
+		proj.arrived.connect(_on_arrow_arrived.bind(proj, hit))
 		proj.launch(
 				hit.origin.global_position,
 				hit.target.global_position,
@@ -116,22 +116,19 @@ func play(payload: Variant) -> void:
 ## float. [constant Emissive.INERT] is exactly the "visible, never blooms"
 ## reading the issue calls for.
 ##
-## A visual scene that exposes a dedicated `_on_dud()` hook gets that call
-## instead of the tint override — the clean answer, but it lives in
-## `light_arrow.gd` (outside this unit's owned files) and isn't wired yet.
-## The tint fallback below cancels [constant Emissive.VALUE], the stop
-## [LightArrow._draw] unconditionally re-applies to whatever `tint` holds, so
-## the net result reads at [constant Emissive.INERT] rather than doubling up
-## — coupled to that hardcoded choice, which is exactly why the `_on_dud()`
-## hook is the better long-term answer.
-func _on_arrow_arrived(proj: Projectile, hit: DamageInstance, tint: Color) -> void:
+## `_on_dud()` is part of the duck-typed visual contract, alongside
+## `_on_launch()` / `_on_progress(t)` / `_on_arrival()` — the visual owns what
+## a dud looks like, because only it knows which tiers its own `_draw` already
+## applies. [LightArrow] desaturates and drops to [constant Emissive.INERT].
+## A visual that doesn't implement the hook simply renders no dud; the
+## coordinator does NOT reach in and retint it, which would couple this file
+## to that visual's internal emissive choices.
+func _on_arrow_arrived(proj: Projectile, hit: DamageInstance) -> void:
 	if not hit.gated or proj.get_child_count() == 0:
 		return
 	var v: Node = proj.get_child(0)
 	if v.has_method(&"_on_dud"):
 		v.call(&"_on_dud")
-	elif "tint" in v:
-		v.set("tint", Emissive.at(tint, Emissive.INERT - Emissive.VALUE))
 
 
 ## How long shot [param hit]'s arrow is in the air. [member
