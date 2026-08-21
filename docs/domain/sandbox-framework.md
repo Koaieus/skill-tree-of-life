@@ -16,7 +16,7 @@ We have several module-testing surfaces, each set up differently:
 | VFX / projectile launcher | `addons/vfx_playground/` (plugin) | live-edit |
 | Stat-board visualizer | `addons/stat_board_visualizer/` (plugin) | live-edit |
 | Allocation / dealloc / death VFX | `scenes/dev/allocation_vfx_showcase.tscn` (scene) | **played** |
-| Melee blade | `blade_playground` (scene, stale) | played |
+| Melee blade | `addons/melee_sandbox/` (live tab, #256) | **live-edit** |
 | Ranged | — (none yet) | played |
 | Loot | — (foreseen) | played |
 
@@ -53,8 +53,12 @@ So the tab base must **declare its mode**:
   the real (already-`@tool`) systems from explicit **▶ Play beat** / **▶ Kill**
   buttons in a `SubViewport` world.
 - **played tab** (launch card, runs on play): only for surfaces that genuinely
-  need the runtime-only machinery to *auto-drive* — melee, ranged, full turn
-  loops. No shipped tab uses played mode since #260; the class is kept for
+  need the runtime-only machinery to *auto-drive* — ranged, full turn
+  loops. **Melee was the headline example here and is no longer one:** a swing is
+  explicit-step (click Launch, watch a tween), so it went live. Only
+  `MeleePreview`'s idle ghost loop genuinely auto-drives, and the melee tab gates
+  that on tab focus rather than demoting the whole surface to played — which is
+  the general answer whenever a surface is *mostly* explicit-step. No shipped tab uses played mode since #260; the class is kept for
   those.
 
 "Don't promise live for everything" still holds — the line moved from "which
@@ -208,7 +212,8 @@ Files:
   Played scenes can't run in-editor because they *auto-drive* (turn loop / AI /
   `await` beat cycle) — not because their systems are non-`@tool`, which they
   aren't anymore (see the modes section above). Kept for genuinely
-  auto-driven surfaces (melee / ranged / full turn loops); **no shipped tab uses
+  auto-driven surfaces (ranged / full turn loops — melee went live, see above);
+  **no shipped tab uses
   played mode since #260**. The showcase *content* stays code-composed (its own
   docstring defends that), only the tab *wrapper* is a scene.
 - `test/unit/test_sandbox_host_tabs.gd` — lints every tab scene: loads, root is
