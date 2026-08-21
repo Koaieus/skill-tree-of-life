@@ -76,7 +76,10 @@ click / AI decision
      back to `crit_rng.randomize()` when none is injected.
    - `systems/loot_system.gd:335,449,461` and
      `skill_node/addons/skill_dust_addon.gd:173` — global unseeded
-     `Array.shuffle()`. **Killing-blow relics would differ per client.**
+     `Array.shuffle()`. **Not a hazard under the chosen model** (owner call
+     2026-08-21, below): the roll is host-only and its *result* is what crosses
+     the wire, so there is nothing for a peer to reproduce. It was a hazard
+     under lockstep, which is why it is listed here — see the rejection below.
    - `attack/spell/propagation/step/random_pick_step.gd:24-26` — same null-RNG
      fallback.
 
@@ -97,6 +100,11 @@ determinism contract. It isn't, for two reasons that are not about cost:
 - **The unseeded `Array.shuffle()` calls** in loot / skill-dust would make
   killing-blow relics differ per client — a one-line fix (inject the seeded
   RNG), not an architectural blocker, but a real one as the code stands today.
+  *This clause is specific to lockstep and no longer describes the codebase's
+  risk profile:* under the chosen model those rolls are host-only and the pick
+  travels as a result, so they need no seeding (owner call 2026-08-21, below).
+  **The rejection stands regardless** — it rests on the absence of authority,
+  not on the shuffles.
 - **`blade_arc_driver.gd:41`'s libm trig** is a residual caveat: transcendental
   functions aren't guaranteed bit-identical across platforms/compilers, which
   only matters for *bit-exact* lockstep, not for this rejection on its own.
@@ -164,6 +172,20 @@ confirmed-command stream **is** the event log. Nothing extra to design.
 | loot pick / relic roll | the pick intent | the resolved result | The host rolls; the shuffles stay host-only |
 | end turn | the command | the command | The host's `TurnManager` is the clock, so `_tick_until_ready`'s group-order tiebreak stops being a hazard |
 
+**Loot is rolled host-side and only the pick travels.** The candidate list is
+already known to whoever received the request, so the pick command carries
+`(entity_id, request_id, chosen_indices)` and nothing more (#509).
+
+> **Owner call 2026-08-21:** *"loot picks are just 'hey i picked <this
+> statmodifier>', users cannot distinguish a same-seed roll from a random roll
+> given that looting is done by 1 player and invisible to others -- the
+> resulting pick however needs to be communicated back to host so they can
+> broadcast or whatever if needed"*
+
+This supersedes the earlier reading — carried in §"Four facts" fact 3 and in the
+lockstep rejection — that the loot/skill-dust `Array.shuffle()` calls were a
+per-client divergence hazard needing a seeded RNG.
+
 **Mass actions are one atomic command, never N.** `deallocate_set` and
 mass-allocate paths serialize as a single command with a node list — splitting
 them would let a peer observe an intermediate state that never legally existed.
@@ -222,6 +244,26 @@ seam. Lobby: type-an-IP.
 - **A command raised during another command's application queues, never
   re-enters.** This is the bug class that eats a week; the guard ships on day
   one, not as a hardening pass.
-- **`Array.shuffle()` with no argument is a desync.** Every gameplay-affecting
-  roll draws from a `GameSession` sub-stream. A null rng is an assert, never a
-  `randomize()` fallback.
+- **Combat reproducibility is the per-attack seed stamp, not a run-level
+  stream.** `launch_attack` stamps `attack_plan.resolve_seed` before resolving
+  and `outcome.resolve_seed` carries it back out (`8dc6f77`); that stamp rides
+  down with the outcome so a peer can verify by re-resolving. Loot rolls are
+  **host-only** and need no determinism guarantee at all — their unseeded
+  `Array.shuffle()` calls are not a hazard under this model.
+
+  This supersedes what this section said before 2026-08-21 — *"`Array.shuffle()`
+  with no argument is a desync. Every gameplay-affecting roll draws from a
+  `GameSession` sub-stream."*
+
+  > **Owner call 2026-08-21** (`docs/handoffs/lan-wave-0.md`): *"we don't care
+  > about that seed beyond the procgen using it, for now. possibly forever."*
+
+  Consequence, and it is deliberate: **the same seed reproduces the same map,
+  not the same fights.** #457's `GameSession` seed is a procgen input; it is not
+  a determinism contract over combat or loot.
+
+- **Still never roll from a null RNG on anything a peer must reproduce.** The
+  narrower rule that survives: if a result crosses the wire as something a peer
+  re-derives rather than receives, it draws from the seed it was handed. What
+  changed is the *scope* — host-only rolls (loot, relics) are exempt, because
+  nothing re-derives them.
