@@ -34,7 +34,7 @@ const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/lig
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
 ## Floor on a shot's airtime, as a fraction of [member flight_time] — a
 ## point-blank shot still needs enough frames to read as an arrow.
-const MIN_FLIGHT_FRACTION: float = 0.4
+const MIN_FLIGHT_FRACTION: float = 0.4 # TODO: WTH is this?! shots fire somewhat upwards initially, silly
 
 ## Fallback airtime for a shot with no [member DamageInstance.arrival_time],
 ## and (scaled by [constant MIN_FLIGHT_FRACTION]) the floor for one that has.

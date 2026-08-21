@@ -17,14 +17,20 @@ var target: SkillNode = null
 ## `target` is carried explicitly alongside `firing_node` — redundant today
 ## since ranged is single-target, but it makes the list a self-describing
 ## wire payload rather than one that needs a side-channel target, per the
-## issue's "Explicit firing list" section.
+## issue's "Explicit firing list" section. `distance` is carried for the same
+## reason, and because the ramp is metric now: [method resolve] maps it to a
+## launch time directly, so recomputing it there (after the sort already
+## computed it twice per comparison) would be a third derivation of the same
+## number.
 class FiringShot:
 	var firing_node: SkillNode
 	var target: SkillNode
+	var distance: float
 
 	func _init(p_firing_node: SkillNode, p_target: SkillNode) -> void:
 		firing_node = p_firing_node
 		target = p_target
+		distance = p_firing_node.global_position.distance_to(p_target.global_position)
 
 
 func _init() -> void:
@@ -78,7 +84,8 @@ func get_reaching_firing_positions() -> Array[SkillNode]:
 
 ## The authored, ordered firing list — the ordering authority for
 ## [method resolve] (docs/domain/attack-timeline.md "The ranged volley
-## ramp"). Ranked by euclidean distance to target, ascending; ties broken by
+## ramp"), and (via [member FiringShot.distance]) its timing authority too.
+## Ranked by euclidean distance to target, ascending; ties broken by
 ## [member SkillNode.stable_id] (wire-legal, minted by Graph — never
 ## allocation/mirror-insertion order, which is the bug this issue fixes:
 ## allocation order must never influence combat outcome). Empty if no target.
@@ -155,25 +162,41 @@ func _is_valid_target(node: SkillNode) -> bool:
 func resolve() -> AttackOutcome:
 	# One DamageInstance per scheduled shot, in the authored firing order
 	# (see get_firing_schedule) — flat-armour-friendly, stagger-VFX-friendly.
-	# Each hit's arrival_time is authored from its rank, not derived from
-	# distance/speed or append order:
-	#   launch_time = DRAW_TIME + lerp(0, TOTAL_STAGGER, rank / (n - 1))
+	# Each hit's arrival_time is authored from where the firing leaf sits in
+	# the volley's own DISTANCE SPAN — never from append order, and never from
+	# distance/speed (flight time stays constant):
+	#   frac         = (distance - d_min) / (d_max - d_min)   # 0 .. 1
+	#   launch_time  = DRAW_TIME + frac * TOTAL_STAGGER
 	#   arrival_time = launch_time + FLIGHT_TIME (constant)
 	# so the recorded timeline is the ordering authority OutcomeApplier reads
 	# (docs/domain/attack-timeline.md "The ranged volley ramp").
+	#
+	# The ramp is METRIC, not ordinal (it used to lerp on rank / (n - 1)):
+	# two leaves 0.1px apart now launch 0.1px apart in the span rather than a
+	# full 1/(n-1) slice apart, so a clustered firing line reads as one salvo
+	# and a lone outlier owns the whole tail. Allocation order still cannot
+	# influence it — distance is pure geometry off `global_position`.
 	var outcome := AttackOutcome.new()
 	outcome.resolve_seed = resolve_seed
 	if not is_valid():
 		return outcome
 	var schedule := get_firing_schedule()
 	var n := schedule.size()
+	# schedule is sorted by distance ascending, so the span's ends are its ends.
+	var d_min: float = schedule[0].distance if n > 0 else 0.0
+	var span: float = (schedule[n - 1].distance - d_min) if n > 0 else 0.0
 	for rank_i in n:
 		var shot: FiringShot = schedule[rank_i]
 		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target)
 		hit.source = self
-		var launch_time := RangedDamageFormula.DRAW_TIME
-		if n > 1:
-			launch_time += lerpf(0.0, RangedDamageFormula.TOTAL_STAGGER, float(rank_i) / float(n - 1))
+		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a
+		# degenerate span is exactly the n == 1 / all-equidistant case, where
+		# every shot legitimately launches on the same beat. Dividing anyway
+		# would stamp NaN into arrival_time — which flows through the VFX
+		# `maxf` and the applier's BeatClock as garbage, with no error.
+		var frac: float = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
+		var launch_time: float = RangedDamageFormula.DRAW_TIME \
+				+ frac * RangedDamageFormula.TOTAL_STAGGER
 		hit.arrival_time = launch_time + RangedDamageFormula.FLIGHT_TIME
 		outcome.hits.append(hit)
 	# Every arrow rolls its own crit (#507 — owner call: "a hit can crit"), off

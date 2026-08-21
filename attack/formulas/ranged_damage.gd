@@ -15,11 +15,12 @@ class_name RangedDamageFormula
 ## "The ranged volley ramp". `arrival_time` used to be `distance /
 ## PROJECTILE_SPEED`, which let allocation order leak into combat outcome
 ## (a near leaf firing third could still land before a far leaf firing
-## first). The ramp is authored by rank instead: RangedAttackPlan.resolve()
-## ranks reaching leaves by distance to target and stamps `arrival_time`
-## from the constants below. `compute()` leaves it at the HitInstance
-## default (0.0) — it is filled in exactly once, by the caller that knows
-## the shot's rank.
+## first). The ramp is authored against the volley's own distance span
+## instead: RangedAttackPlan.resolve() normalizes each reaching leaf's
+## distance to target into 0..1 across [d_min, d_max] and stamps
+## `arrival_time` from the constants below. `compute()` leaves it at the
+## HitInstance default (0.0) — it is filled in exactly once, by the caller
+## that knows the whole volley's span.
 
 ## Constant per-shot flight duration (s) — every shot takes the same time to
 ## land regardless of distance. The fiction is the arc: a point-blank shot
@@ -28,14 +29,17 @@ class_name RangedDamageFormula
 ## == firing order == distance order UNCONDITIONALLY (a distance-scaled
 ## flight speed could invert it). Also the animation's per-shot speed is now
 ## derived (`distance / FLIGHT_TIME`) rather than driving the schedule.
-const FLIGHT_TIME: float = 0.35
+const FLIGHT_TIME: float = 0.8
 
 ## Total span (s) the launch ramp covers, nearest-to-target leaf to
 ## furthest-reaching leaf — fixed regardless of shot count, so a 4-shot and
 ## a 100-shot volley take the same wall time and stay readable rather than
-## crawling. Verified against ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION's
-## clamp in test_arrow_volley_coordinator.gd — see the issue's "Watch" note.
-const TOTAL_STAGGER: float = 0.6
+## crawling. Also fixed regardless of how the leaves are DISTRIBUTED inside
+## it: only the two extremes pin the window; everything else lands wherever
+## its own distance falls. Verified against
+## ArrowVolleyCoordinator.MIN_FLIGHT_FRACTION's clamp in
+## test_arrow_volley_coordinator.gd — see the issue's "Watch" note.
+const TOTAL_STAGGER: float = 0.7
 
 ## Windup before the first release. 0.0 for now, per the issue's settled
 ## design — authored in from the start so a draw phase can be turned on

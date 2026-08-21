@@ -162,11 +162,11 @@ func test_resolve_default_ap_cost_is_one() -> void:
 
 
 func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
-	# resolve() authors arrival_time from RANK, not distance/speed: nearest
-	# leaf is rank 0 (launches at DRAW_TIME, arrives DRAW_TIME + FLIGHT_TIME),
-	# furthest-reaching leaf is rank (n-1) (launches DRAW_TIME + TOTAL_STAGGER
-	# later). Both leaves reach here; _leaf_near (dist 50) outranks _leaf_far
-	# (dist 450).
+	# resolve() authors arrival_time from the volley's DISTANCE SPAN, not from
+	# distance/speed and not from append order. The two ends of the span pin
+	# the window: the nearest leaf launches at DRAW_TIME (frac 0), the
+	# furthest-reaching one DRAW_TIME + TOTAL_STAGGER later (frac 1). Both
+	# leaves reach here; _leaf_near (dist 50) outranks _leaf_far (dist 450).
 	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
 	var p := _plan()
 	p._on_node_left_clicked(_target)
@@ -183,6 +183,81 @@ func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.TOTAL_STAGGER
 					+ RangedDamageFormula.FLIGHT_TIME, 0.0001,
 			"the last rank launches TOTAL_STAGGER after the first")
+
+
+## Attaches a fresh reaching leaf to `_mid` at [param pos]. Returns it so a
+## test can name its distance in the assertion it cares about.
+func _add_reaching_leaf(pos: Vector2) -> SkillNode:
+	var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	leaf.position = pos
+	_graph.add_skill_node(leaf)
+	_graph.add_edge(leaf, _mid)
+	_alloc.force_allocate(_attacker, leaf)
+	_set_range(leaf, 1000.0)
+	return leaf
+
+
+func test_middle_shot_launches_at_its_distance_fraction_not_its_rank() -> void:
+	# The whole point of the metric ramp, and the ONLY assertion that can tell
+	# it apart from the old ordinal one — with 3 shots, rank-lerp would put the
+	# middle shot at 0.5 * TOTAL_STAGGER no matter where it stands.
+	# Distances to _target(450, 0): near 50, mid_leaf 150, far 450.
+	# span 400 → fracs 0, 0.25, 1.
+	_set_range(_leaf_far, 500.0)
+	_add_reaching_leaf(Vector2(450, 150))
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 3)
+	var base: float = RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME
+	assert_almost_eq(outcome.hits[0].arrival_time, base, 0.0001,
+			"nearest leaf pins frac 0")
+	assert_almost_eq(outcome.hits[1].arrival_time,
+			base + 0.25 * RangedDamageFormula.TOTAL_STAGGER, 0.0001,
+			"a leaf a quarter of the way across the span launches a quarter into it")
+	assert_almost_eq(outcome.hits[2].arrival_time,
+			base + RangedDamageFormula.TOTAL_STAGGER, 0.0001,
+			"furthest leaf pins frac 1")
+
+
+func test_near_identical_distances_launch_together() -> void:
+	# The reason this is a lerp and not a rank: two leaves a hair apart must
+	# read as one salvo, not as two evenly spaced slices of the window.
+	_set_range(_leaf_far, 500.0)
+	_add_reaching_leaf(Vector2(450, 200))    # distance 200
+	_add_reaching_leaf(Vector2(450, 200.1))  # distance 200.1
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 4)
+	assert_almost_eq(outcome.hits[1].arrival_time, outcome.hits[2].arrival_time,
+			0.001, "0.1px apart out of a 400px span is a shared beat")
+
+
+func test_equidistant_leaves_all_launch_on_the_same_beat() -> void:
+	# Degenerate span (d_max == d_min): the division guard. Unguarded this
+	# stamps NaN into every arrival_time and fails silently downstream.
+	_set_range(_leaf_near, 0.0)  # only the two new leaves fire
+	_add_reaching_leaf(Vector2(450, 300))
+	_add_reaching_leaf(Vector2(450, -300))
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 2)
+	var expected: float = RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME
+	for hit in outcome.hits:
+		assert_almost_eq(hit.arrival_time, expected, 0.0001,
+				"an equidistant volley has no ramp to spread across")
+
+
+func test_single_shot_volley_launches_at_draw_time() -> void:
+	# n == 1 is the other degenerate span — same guard, different cause.
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var outcome := p.resolve()
+	assert_eq(outcome.hits.size(), 1)
+	assert_almost_eq(outcome.hits[0].arrival_time,
+			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME, 0.0001)
 
 
 func test_firing_schedule_ranks_nearest_leaf_first() -> void:

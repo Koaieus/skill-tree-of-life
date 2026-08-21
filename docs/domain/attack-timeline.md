@@ -396,9 +396,27 @@ than randomness, because a player could learn to exploit it.
 ```
 rank reaching leaves by euclidean distance to target, ascending
     tie-break: SkillNode.stable_id          # wire-legal, minted by Graph
-launch_time_i  = draw_time + lerp(0, TOTAL_STAGGER, rank_i / (n - 1))
+d_min, d_max   = distance of the first and last ranked leaf
+frac_i         = (d_i - d_min) / (d_max - d_min)   # 0 .. 1; 0 if the span is 0
+launch_time_i  = draw_time + frac_i * TOTAL_STAGGER
 arrival_time_i = launch_time_i + FLIGHT_TIME       # constant, NOT distance/speed
 ```
+
+**The ramp is metric, not ordinal.** Settled 2026-08-21. It used to lerp on
+`rank_i / (n - 1)`, which spaced every shot evenly no matter where the leaves
+actually stood: two leaves 0.1px apart launched a full `1/(n-1)` slice apart,
+and a lone far outlier was just "the last rank". Normalizing on *distance*
+instead means a clustered firing line looses as one salvo and an outlier owns
+the whole tail of the window — the volley's rhythm now reads the shape of your
+territory. `d_max = d_min` (n == 1, or perfectly equidistant leaves) is a
+degenerate span, guarded exactly, not approximately: everyone fires on the
+same beat.
+
+This is not a retreat from the rule above — distance is pure geometry off
+`global_position`, so allocation order still cannot touch it, and ties are
+still broken by `stable_id` in the ranking, which `OutcomeApplier`'s stable
+`(arrival_time, original_index)` sort then preserves through equal
+`arrival_time`s.
 
 **Flight time is a constant, not `distance / PROJECTILE_SPEED`.** Settled
 2026-08-20. The fiction is the arc: a point-blank shot is lobbed nearly
