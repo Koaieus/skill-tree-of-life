@@ -82,12 +82,12 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
-Also in the milestone, by owner call: **#403** Tech Seeds (`Needs design`) and
-**#412** armed-mode viewport tint (**`Ready`** — swarmified 2026-08-21: inward
-border glow, attack modes only, base-of-stack decides) — "should be easy to get
-*something* going", so they want a fast swarmify, not a deep one. (**#300** removable node blockers
-shipped 2026-08-21, which unblocks #403; its deferred chokepoint-placement
-heuristic is #508, unscheduled.)
+Also in the milestone, by owner call: **#403** Tech Seeds, `Needs design` —
+"should be easy to get *something* going", so it wants a fast swarmify, not a
+deep one. (**#300** removable node blockers shipped 2026-08-21, which unblocks
+#403; its deferred chokepoint-placement heuristic is #508, unscheduled. **#412**
+armed-mode viewport glow shipped 2026-08-21 — the glow values are owner-tunable
+`shader_parameter`s, see the glowup section.)
 
 **Order:** the sync model is settled. **#458 is next on the sync lane, and it is
 now four takeable children** (#509 → #510/#511 → #512), preceded by **#513** —
