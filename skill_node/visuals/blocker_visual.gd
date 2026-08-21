@@ -14,8 +14,8 @@ extends Node2D
 ##
 ## [b]Blocked is a LATCH, not a live predicate.[/b] The first entity to own
 ## this node (a blocker force-allocates its blocked node as its own core at
-## spawn) is latched as `_latched_owner`; the node reads blocked for as long as
-## [member SkillNode.owned_by] stays that entity. The instant ownership
+## spawn) is latched as `_latched_owner_id`; the node reads blocked for as long
+## as [member SkillNode.owned_by] stays that entity. The instant ownership
 ## differs — including going back to null on the blocker's death — clearing is
 ## PERMANENT: a real entity re-allocating the node afterward must never
 ## re-show the boulder, even though `owned_by` briefly equals a non-blocker
@@ -24,6 +24,21 @@ extends Node2D
 ## the original blocker" from "some other null-core actor", and it re-derives
 ## every read instead of remembering the one fact that actually matters (who
 ## owned this first).
+##
+## [b]The latch holds an instance ID, never an [Entity] reference.[/b] It used
+## to hold the entity, and that was a real bug (#478 follow-up): GameRoot frees
+## the corpse on `entity_death_shown`, and in Godot a freed Object compares
+## EQUAL to null — so once the free beat the deferred `owner_changed` flush,
+## `_latched_owner == null` read true and `_update_latch` took its
+## "nothing latched yet" branch instead of its "ownership diverged" one.
+## Clearing never happened, and the next entity to allocate the node (the one
+## claiming the SkillDust relic the dead blocker dropped) RE-latched — the
+## boulder reappeared from under the loot the moment the loot was picked up.
+## `get_instance_id()` is a never-reused int, so `cur_id != _latched_owner_id`
+## stays a truthful comparison for the rest of the node's life. Note this is
+## deliberately NOT [member Entity.entity_id]: that one is minted only on entry
+## to a Graph's `entities_container` and reads 0 otherwise, so two unparented
+## entities would compare equal.
 ##
 ## Drives [member SkillNode.core_halo_style] in lockstep with the latch — COG
 ## (the cheap preset) while blocked, `-1` (Default, restoring whatever
@@ -90,10 +105,12 @@ var crack_stage: CrackStage = CrackStage.INTACT
 
 var _node: SkillNode = null
 
-## The entity latched as "the blocker" — the first non-null [member
-## SkillNode.owned_by] this node ever saw. Null until that first ownership.
-var _latched_owner: Entity = null
-## True once ownership has diverged from [member _latched_owner] even once.
+## `get_instance_id()` of the entity latched as "the blocker" — the first
+## non-null [member SkillNode.owned_by] this node ever saw. 0 until that first
+## ownership. An ID rather than the entity itself so a freed corpse can't read
+## back as "nothing latched" — see the class docstring.
+var _latched_owner_id: int = 0
+## True once ownership has diverged from [member _latched_owner_id] even once.
 ## Permanent: never reset back to false.
 var _cleared: bool = false
 
@@ -154,17 +171,21 @@ func _update_latch() -> void:
 	if _cleared or _node == null:
 		return
 	var cur := _node.owned_by
-	if _latched_owner == null:
+	if _latched_owner_id == 0:
 		if cur != null:
-			_latched_owner = cur
+			_latched_owner_id = cur.get_instance_id()
 		return
-	if cur != _latched_owner:
+	# `cur` going null covers BOTH the death strip and a freed corpse — the
+	# strip always runs first (AllocationSystem on `entity_died`, GameRoot's
+	# despawn on the later `entity_death_shown`), so by the time anyone could
+	# have freed the entity this reads 0 either way.
+	var cur_id := cur.get_instance_id() if cur != null else 0
+	if cur_id != _latched_owner_id:
 		_cleared = true
-		_latched_owner = null
 
 
 func _is_blocked() -> bool:
-	return not _cleared and _latched_owner != null
+	return not _cleared and _latched_owner_id != 0
 
 
 ## Re-derive crack stage + visibility. Runs off `damaged` (inline) and

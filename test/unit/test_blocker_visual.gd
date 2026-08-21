@@ -217,6 +217,35 @@ func test_clearing_hides_boulder_permanently() -> void:
 	assert_false(visual.visible, "boulder stays hidden after re-allocation by a normal entity")
 
 
+## The case the `force_deallocate` test above cannot reach: a blocker that
+## actually DIES gets its corpse freed by GameRoot (`entity_death_shown` →
+## `queue_free`), and the latch used to hold the [Entity] itself. A freed Object
+## compares EQUAL to null in Godot, so once the free landed ahead of the
+## deferred `owner_changed` flush, `_update_latch` read "nothing latched yet"
+## instead of "ownership diverged", never cleared, and RE-latched onto whoever
+## allocated the node next — which in the real game is the entity claiming the
+## SkillDust relic the blocker just dropped. Symptom: the boulder reappears out
+## from under the loot the moment the loot is picked up. `free()` (not
+## `queue_free`) is what pins the ordering the bug needs.
+func test_clearing_survives_the_corpse_being_freed() -> void:
+	var sn := _nodes[0]
+	var visual := _visual(sn)
+	var blocker := await _spawn_blocker()
+	await get_tree().process_frame
+	assert_true(visual.visible, "boulder shows while blocked")
+
+	# Real death: overflow past the core node's combat HP into the `health` pool.
+	sn.take_damage(sn.get_max_hp() + 9999.0, null)
+	blocker.free()
+	await get_tree().process_frame
+	assert_false(visual.visible, "boulder hides once the blocker dies")
+
+	var player := await _spawn_normal_entity()
+	_alloc.force_allocate(player, sn)
+	await get_tree().process_frame
+	assert_false(visual.visible, "claiming the node the corpse left must not re-latch the boulder")
+
+
 # ── Procgen wiring ─────────────────────────────────────────────────────────
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
