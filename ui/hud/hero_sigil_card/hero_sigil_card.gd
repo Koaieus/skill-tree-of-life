@@ -25,7 +25,7 @@ extends MarginContainer
 ## the same pattern/writeup (shared bug across all HUD cards).
 
 @onready var _panel: GlassPanel = %GlassPanel
-@onready var _emblem_ring: Control = %EmblemRing
+@onready var _emblem_ring: EmblemRing = %EmblemRing
 @onready var _emblem_glyph: Label = %EmblemGlyph
 @onready var _sigil_glyph: SigilGlyph = %SigilGlyph
 @onready var _level_badge: Label = %LevelBadge
@@ -69,6 +69,11 @@ func _process(delta: float) -> void:
 func bind(entity: Entity) -> void:
 	_binds.release()
 	_entity = entity
+	# Above the null check on purpose: null is a real argument here (level
+	# teardown, or a handover to nobody), and letting go of the hero has to let
+	# go of their colour too — otherwise the departed hero's tint stays on the
+	# emblem.
+	_apply_entity_tint(_entity.color if _entity != null else Color(0, 0, 0, 0))
 	if _entity == null:
 		return
 
@@ -88,6 +93,26 @@ func bind(entity: Entity) -> void:
 	# integer heal over a sub-1 sliver: zero new UI.
 	_bind_pool(_health_gauge, _health_caption, board.health, board.core_healing)
 	_bind_pool(_mana_gauge, _mana_caption, board.mana, board.mana_per_turn)
+
+
+## Paint the whole portrait — ring, sigil, fallback glyph — in the bound hero's
+## [member Entity.color], which is what makes the card read as *this* hero's in
+## a hot-seat handover (#459). A zero-alpha `tint` means "nobody bound" and
+## every mark returns to its authored fallback.
+##
+## Identity arrives here as plain LDR sRGB; each mark decides its own emissive
+## tier (the ring lifts to VALUE, the sigil stays at its authored weight), so no
+## caller ever hand-picks an HDR float. See `.claude/rules/hdr-color.md`.
+func _apply_entity_tint(tint: Color) -> void:
+	if _emblem_ring != null:
+		_emblem_ring.entity_tint = tint
+	if _sigil_glyph != null:
+		_sigil_glyph.entity_tint = tint
+	if _emblem_glyph != null:
+		if tint.a > 0.0:
+			_emblem_glyph.add_theme_color_override(&"font_color", Emissive.tint(tint, Emissive.VALUE))
+		else:
+			_emblem_glyph.remove_theme_color_override(&"font_color")
 
 
 ## Set the level shown on the emblem badge. Wired by [HudRoot] to

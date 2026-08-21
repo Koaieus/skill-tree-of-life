@@ -183,6 +183,31 @@ func test_the_hud_follows_the_active_hero_and_not_the_previous_one() -> void:
 			"player 2's health must drive the gauge it is now bound to")
 
 
+## The emblem carries ownership (same contract as a node's `entity_tint` on the
+## board), so on a hot-seat handover it must recolour to whoever now holds the
+## turn — otherwise the most prominent card on screen keeps flying the previous
+## hero's colours.
+func test_the_emblem_takes_the_active_heros_colour() -> void:
+	var card := _root.hud_root.hero_sigil_card
+	var ring: EmblemRing = card.get_node("%EmblemRing")
+	var sigil: SigilGlyph = card.get_node("%SigilGlyph")
+
+	_hand_turn_to(_p1)
+	await wait_physics_frames(1)
+	assert_eq(ring.entity_tint, _p1.color, "the ring opens in player 1's colour")
+	assert_eq(sigil.entity_tint, _p1.color, "and so does the sigil")
+
+	_hand_turn_to(_p2)
+	await wait_physics_frames(1)
+	assert_eq(ring.entity_tint, _p2.color, "the ring follows the incoming hero")
+	assert_eq(sigil.entity_tint, _p2.color)
+
+	# Binding nobody (level teardown) must let go of the colour too.
+	card.bind(null)
+	assert_eq(ring.entity_tint.a, 0.0, "an unbound card falls back to its authored hue")
+	assert_eq(sigil.entity_tint.a, 0.0)
+
+
 # --- Seam 2: transient input state ---------------------------------------
 
 func test_handover_clears_a_half_built_swing() -> void:
