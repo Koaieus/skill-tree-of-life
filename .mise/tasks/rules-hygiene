@@ -23,7 +23,11 @@ RULES = ".claude/rules"
 ALWAYS_ON_BUDGET = 4000   # bytes across the always-on RULE tier
 CLAUDE_MD_BUDGET = 12000  # CLAUDE.md is always-on too, and is the biggest single payload
 USER_TIER_BUDGET = 3000   # ~/.claude: the memory index + global unscoped rules
-COMBINED_BUDGET = 18000   # what a session actually pays before it reads anything
+# What a session actually pays before it reads anything. Raised 16000 -> 16500 on
+# 2026-08-21 when the ~/.claude tier became visible: it was always being paid, so
+# the ceiling moves by less than the newly-counted bytes, deliberately — the point
+# is to acknowledge the tier, not to hand out slack.
+COMBINED_BUDGET = 16500
 # What a scoped rule really costs is share-of-tree x size, not either alone: a
 # tiny rule on a wide glob is cheap, a fat rule on a medium glob is not. Flag the
 # product, in bytes-per-average-session.
@@ -35,9 +39,17 @@ SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's h
 def user_always_on():
     """Always-on bytes that live OUTSIDE the repo, so nothing else can see them:
     the auto-memory index for this project, and any unscoped ~/.claude rule.
-    Both are injected into every turn exactly like a crumb is."""
+    Both are injected into every turn exactly like a crumb is.
+
+    The memory dir is keyed by a path slug. Resolve it from the MAIN checkout, not
+    cwd: ~/.claude/projects holds exactly one entry for this repo and none for any
+    worktree (checked 2026-08-21), so a drone in .worktrees/<slug>/ keyed off cwd
+    would silently report 0 instead of the tier it is actually paying."""
     home = os.path.expanduser("~/.claude")
-    slug = os.getcwd().replace("/", "-")
+    root = subprocess.run(["git", "rev-parse", "--path-format=absolute",
+                           "--git-common-dir"], capture_output=True, text=True)
+    base = os.path.dirname(root.stdout.strip()) if root.returncode == 0 else os.getcwd()
+    slug = (base or os.getcwd()).replace("/", "-")
     paths = [os.path.join(home, "projects", slug, "memory", "MEMORY.md")]
     for p in sorted(glob.glob(os.path.join(home, "rules", "*.md"))):
         head = open(p, encoding="utf-8").read(400)

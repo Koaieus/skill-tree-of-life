@@ -454,3 +454,13 @@ an error (found via two test failures in `VisionCircles`' bounds early-out).
 
 For an inclusive region, keep `lo`/`hi` vectors and compare explicitly. `Rect2`
 is for layout/culling, not "is this inside?" predicates.
+
+## Interdependent `@export`s restore in declaration order*
+
+**Declare the bound ABOVE the value that clamps against it.** A setter that
+clamps one exported property against another (`fill_current` clamped to
+`fill_max`) reads that property's *default* if it is declared later — so every
+scene-authored value is clamped against the default at load, and nothing errors.
+
+Two live cases sit in `skill_node/visuals/rim_ring.gd`; both were found by
+seeing wrong values in a scene, not by reading the code.
