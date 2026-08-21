@@ -90,15 +90,39 @@ func _ready() -> void:
 	# authored-vs-spawned split stable_id handles in _ensure_topology.
 	for c in entities_container.get_children():
 		_mint_entity_id(c)
+	# Backfill the edge MultiMesh wiring for authored edges above the editor
+	# guard below: a `.tscn`-authored Edge never fires `edge_added` (that
+	# signal is for procgen/runtime `add_edge` calls), so without this an
+	# in-editor @tool panel (melee sandbox, spell playground) renders its
+	# SkillNodes but not a single Edge — the render wiring only ever ran on
+	# the emit below, which the editor guard skips entirely. Safe to run
+	# unconditionally: `_on_edge_added_render` only touches Graph's own state
+	# plus Edge (both @tool), unlike node_added/edge_added below, which reach
+	# non-@tool listeners (Navigator, UI) and would throw "Invalid access to
+	# property or key" if emitted during a non-playing editor load.
+	_backfill_edge_render()
 	if Engine.is_editor_hint():
 		return
 	# Re-emit signals for content already authored into the scene so
 	# late-bound listeners (Navigator, UI) can build their initial state
-	# uniformly with the procgen-add-at-runtime path.
+	# uniformly with the procgen-add-at-runtime path. This re-invokes
+	# `_on_edge_added_render` a second time per edge via the `edge_added`
+	# connection above — harmless, since `_register_edge_slot` early-returns
+	# once a slot exists and `push_render_state` just rewrites the same
+	# transform/colors into it.
 	for sn in get_skill_nodes():
 		node_added.emit(sn)
 	for e in get_edges():
 		edge_added.emit(e)
+
+
+## Wires every already-authored [Edge] into `edge_mesh` without going through
+## `edge_added` — see the call site's comment in `_ready` for why this must
+## run in both the editor and at runtime, and why it's safe to also run again
+## via the runtime-only `edge_added.emit` loop just below its call site.
+func _backfill_edge_render() -> void:
+	for e in get_edges():
+		_on_edge_added_render(e)
 
 
 ## Fresh `MultiMesh` every `_ready()` (editor and runtime both) — the buffer

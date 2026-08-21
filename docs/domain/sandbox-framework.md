@@ -238,6 +238,17 @@ warns about) instead of instancing `graph.tscn`. The host only *surfaces* this
 bug (it embeds the same panel); it doesn't cause it. Fixing the panel to build
 its world via `graph.tscn` / `SandboxWorld` is its own cleanup.
 
+**Authored edges render for free — no per-tab workaround needed.** A `@tool`
+panel that hosts a `Graph` (via `graph.tscn` or `SandboxWorld`) gets its
+`.tscn`-authored `Edge`s wired into the shared `edge_mesh` MultiMesh
+automatically: `Graph._ready` calls `_backfill_edge_render()` above the
+`Engine.is_editor_hint()` guard, so it runs whether the panel is a live editor
+tab or a running game. (Edges added at runtime via `add_edge` were already
+covered by the `edge_added` signal; the backfill exists only for edges that
+came in through the scene tree, which never fire that signal.) A future tab
+author doesn't need to do anything special to make edges show up — this is
+Graph's job, not the tab's.
+
 ## Mechanism notes (all verified Godot 4.x patterns)
 
 - **Full-screen host:** `EditorPlugin._has_main_screen()` + `_make_visible()` —

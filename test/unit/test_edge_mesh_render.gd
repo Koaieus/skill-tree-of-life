@@ -210,6 +210,34 @@ func test_self_loop_pushes_one_colour_into_both_channels_offset_by_the_loop_mark
 	assert_eq(loop.render_vis_state, 10.0 + Edge.VIS_VISIBLE, "a self-loop's vis_state must carry the shader's +10 ring marker (graph/edge_mesh.gdshader)")
 
 
+## Regression for the editor-render bug: a `.tscn`-authored Edge (added to
+## `edges_container` directly, the way the scene tree deserializes it — never
+## through `add_edge`) never fires `edge_added`, so `_on_edge_added_render`
+## never ran and the edge got no MultiMesh slot. `Graph._ready` now calls
+## `_backfill_edge_render()` unconditionally, ABOVE the
+## `Engine.is_editor_hint()` guard, specifically so an in-editor @tool panel
+## (which returns early out of `_ready` before ever reaching the
+## `edge_added.emit` re-emit loop) still gets its authored edges wired up.
+## Headless GUT tests always run with `is_editor_hint() == false`, so calling
+## `_backfill_edge_render()` here directly — rather than relying on
+## `_graph._ready()` having already run it — is what actually exercises the
+## editor code path; asserting only through `before_each`'s `_ready()` call
+## would prove nothing about the bug, since the runtime `edge_added.emit`
+## loop would paper over a broken backfill.
+func test_backfill_wires_authored_edges_without_edge_added_signal() -> void:
+	var edge := Edge.new()
+	edge.from = _nodes[0]
+	edge.to = _nodes[1]
+	_graph.edges_container.add_child(edge)
+	autofree(edge)
+	await get_tree().process_frame
+
+	# Adding straight to the container (bypassing `add_edge`) never emits
+	# `edge_added`, so without the fix this stays at 0.
+	_graph._backfill_edge_render()
+	assert_eq(_graph.edge_mesh.multimesh.visible_instance_count, 1)
+
+
 ## NOTE: no test reads back `mm.get_instance_color`/`get_instance_transform_2d`
 ## etc. — confirmed live (not just here) that Godot's headless dummy rendering
 ## backend no-ops MultiMesh instance-data writes entirely: even a bare
