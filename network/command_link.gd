@@ -10,17 +10,24 @@ extends Node
 ## is not laziness: routing a client's own input upward means the client must
 ## STOP applying locally and wait to be told, which is surgery on
 ## [PlayerInputController]'s submit path and on [BattleSystem]. That is #463,
-## and `docs/FOCUS.md` gates it behind #511 and #512. So the client here is a
-## spectator with a real applier, which is exactly enough to prove the shape.
+## which is still `Needs design`. So the client here is a spectator with a real
+## applier, which is exactly enough to prove the shape.
 ##
 ## [b]What actually mirrors today:[/b] every verb [CommandApplier] handles —
 ## allocate / deallocate / deallocate_set / mass_allocate / stake / extract /
 ## move_core / end_turn / toggle_temp_upgrade, and launch_attack since #511
 ## (which rides down with an [AttackRecord] the client replays rather than
-## re-resolving). [b]What does not:[/b] loot rolls — #509's [PickLootCommand]
-## is not routed. A client will therefore diverge the moment somebody picks
-## loot, and the fingerprint below is how you SEE that happen instead of
-## guessing.
+## re-resolving). `end_turn` only became true here on 2026-08-22: the HUD's End
+## Turn button called [method TurnManager.end_turn] directly until then, so the
+## player's hand-back was a verb that never became a command at all.
+##
+## [b]What does not:[/b] loot picks — [PickLootCommand] is not routed (#522). A
+## client will therefore diverge the moment somebody picks loot, and the
+## fingerprint below is how you SEE that happen instead of guessing.
+##
+## [b]The lesson those two share:[/b] this class mirrors whatever the applier
+## handles, so a verb missing from the wire is almost always a missing
+## submission site, not a transport gap. Check who raises the command first.
 ##
 ## See `docs/domain/multiplayer-harness.md`.
 

@@ -14,11 +14,15 @@ node/entity references and every listener connects unscoped, so world B's
 
 **One direction only, on purpose.** The host broadcasts confirmed commands; the
 client applies them through its own `CommandApplier` and is otherwise a frozen
-spectator. An intent channel upward is #463, gated behind #511/#512 — don't
-open it here.
+spectator. An intent channel upward is #463 (`Needs design`) — don't open it
+here. Two instances prove *host acts → client mirrors*, never two people playing.
 
-**A `✗ DIVERGED` line is the harness working.** Loot (#509's unrouted
-`PickLootCommand`) still never crosses, so the fingerprint is supposed to
+**A verb that does not cross is a missing submission site, not a transport gap.**
+The link mirrors everything `CommandApplier` handles — grep who raises the
+command before suspecting the wire.
+
+**A `✗ DIVERGED` line is the harness working.** Loot picks (unrouted
+`PickLootCommand`, #522) still never cross, so the fingerprint is supposed to
 disagree after a pick. Chase divergence only on the verbs `CommandApplier`
 actually handles — attacks now among them (#511), and `--autopilot` casts one.
 
