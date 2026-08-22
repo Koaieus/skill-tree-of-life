@@ -253,8 +253,12 @@ func _on_remote_command(payload: Dictionary) -> void:
 	# the PRE-command world, so a probe that ran after `submit` would compare
 	# its own re-resolution against the wrong state and report divergence that
 	# is really just ordering. Mutates nothing — see [DeterminismProbe].
+	# The settled flag is read HERE and passed down, not asked for later: by the
+	# time the probe could ask, `submit` has already started a drain and the
+	# answer is always "busy".
 	if probe != null:
-		probe.observe_before_apply(command)
+		probe.observe_before_apply(command,
+				not command_applier.is_applying and command_applier.pending_count() == 0)
 	_applying_remote = true
 	command_applier.submit(command)
 	# `submit` may await (move_core beats, end_turn's initiative tick), so the

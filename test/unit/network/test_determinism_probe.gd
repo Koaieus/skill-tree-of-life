@@ -168,6 +168,21 @@ func test_only_attacks_reach_the_resolve_column() -> void:
 	assert_string_contains(probe.report(), "nothing was re-resolvable")
 
 
+## A re-resolve that ran while an earlier command was still draining agreed
+## against a world that had not settled. The WORLD column has a guard for that
+## and the RESOLVE column cannot — re-resolving is by definition something you
+## do before applying — so it is reported instead of hidden.
+func test_an_unsettled_world_is_flagged_as_deferred() -> void:
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var probe := _probe(true)
+	probe.graph = graph
+	var command := LaunchAttackCommand.new(1, {"mode": BattleSystem.AttackMode.NONE}, 42)
+	command.record = _record()
+	probe.observe_before_apply(command, false)
+	assert_eq(probe.resolve_tally(LaunchAttackCommand.TAG)["deferred"], 1)
+
+
 ## An attack whose plan cannot be rebuilt here is `unavailable`, which is a
 ## third outcome — neither agreement nor divergence. Reporting it as either
 ## would be a lie in one direction or the other.
@@ -178,8 +193,8 @@ func test_an_unrebuildable_plan_is_unavailable_not_diverged() -> void:
 	probe.graph = graph
 	var command := LaunchAttackCommand.new(1, {"mode": BattleSystem.AttackMode.NONE}, 42)
 	command.record = _record()
-	probe.observe_before_apply(command)
+	probe.observe_before_apply(command, true)
 	assert_eq(probe.resolve_tally(LaunchAttackCommand.TAG),
-			{"agreed": 0, "diverged": 0, "unavailable": 1, "landings": 0})
+			{"agreed": 0, "diverged": 0, "unavailable": 1, "landings": 0, "deferred": 0})
 	assert_false(probe.report().contains("fields that disagreed"),
 			"a plan that never rebuilt has no fields to disagree about")

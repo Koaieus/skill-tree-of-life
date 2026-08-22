@@ -130,12 +130,23 @@ const MAX_RECORDED_DIVERGENCES := 64
 ## "nothing below resolve() mutates", the plan built here is local and never
 ## assigned to [member BattleSystem.attack_plan], and the outcome is encoded
 ## and thrown away.
-func observe_before_apply(command: Command) -> void:
+## [param world_settled] is whether this peer's applier was IDLE when the
+## command arrived. The WORLD compare has a guard for exactly this (a command
+## that arrives mid-drain is tallied `skipped`, because the fingerprint would be
+## read off an unsettled world); the RESOLVE compare cannot use that guard,
+## because the whole point is to re-resolve BEFORE applying. So it is reported
+## instead: a `deferred` agreement re-resolved against a world with another
+## command still draining through it, and is weaker evidence than a settled one.
+## Counting them separately is the difference between a claim the owner can
+## weigh and one that overstates itself.
+func observe_before_apply(command: Command, world_settled: bool = true) -> void:
 	if not enabled or command == null:
 		return
 	var attack := command as LaunchAttackCommand
 	if attack == null:
 		return
+	if not world_settled:
+		_bump(_resolve, attack.type_tag(), "deferred")
 	if attack.record.is_empty():
 		# An INITIATE, not a replay — there is no host result to compare
 		# against. Cannot happen on today's one-directional link, but the
@@ -206,6 +217,7 @@ func resolve_tally(tag: StringName) -> Dictionary:
 		"diverged": int(row.get("diverged", 0)),
 		"unavailable": int(row.get("unavailable", 0)),
 		"landings": int(row.get("landings", 0)),
+		"deferred": int(row.get("deferred", 0)),
 	}
 
 
@@ -239,13 +251,14 @@ func report() -> String:
 	if _resolve.is_empty():
 		lines.append("    no launch_attack crossed; nothing was re-resolvable.")
 	else:
-		lines.append("    %-22s %6s %8s %12s %19s"
-				% ["command", "ok", "DIVERGED", "unavailable", "landings re-derived"])
+		lines.append("    %-22s %6s %8s %12s %19s %9s" % ["command", "ok", "DIVERGED",
+				"unavailable", "landings re-derived", "deferred"])
 		for tag in _sorted_tags(_resolve):
 			var row: Dictionary = _resolve[tag]
-			lines.append("    %-22s %6d %8d %12d %19d" % [tag,
+			lines.append("    %-22s %6d %8d %12d %19d %9d" % [tag,
 					int(row.get("agreed", 0)), int(row.get("diverged", 0)),
-					int(row.get("unavailable", 0)), int(row.get("landings", 0))])
+					int(row.get("unavailable", 0)), int(row.get("landings", 0)),
+					int(row.get("deferred", 0))])
 	if not _resolve_fields.is_empty():
 		lines.append("    fields that disagreed:")
 		var fields: Array = _resolve_fields.keys()
@@ -267,6 +280,8 @@ func report() -> String:
 	lines.append("  chose not to compare (queue non-empty / superseded), not a pass.")
 	lines.append("  `landings re-derived` is the RESOLVE column's real size — an attack")
 	lines.append("  that resolved to nothing agrees trivially and proves nothing.")
+	lines.append("  `deferred` re-resolved while an earlier command was still draining, so")
+	lines.append("  it agreed against a world that had not settled — weaker evidence, not none.")
 	lines.append("─────────────────────────────────────────────────")
 	return "\n".join(lines)
 
