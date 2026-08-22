@@ -97,11 +97,22 @@ client at all; the *effects* are pinned by
 `test/unit/attack/test_attack_record_replay.gd`, which compares node HP, AP and
 mana across two real worlds through the same wire encoding.
 
-**Does not:** loot rolls (#509's `PickLootCommand` is unrouted). Pick loot in
-the host window and the client's overlay reads `✗ DIVERGED`. **That is the
-harness working.** The whole point of the fingerprint is that a known gap
-announces itself instead of being discovered three weeks later as "multiplayer
-feels weird".
+**Also does:** loot, since #522. Each round of a relic's claim rides down as a
+`LootRoundCommand` carrying what was granted BY VALUE — the same
+two-states-one-type shape as the attack, so a peer grants what is recorded
+rather than rolling its own. The ROUND is the wire unit rather than the pick
+because two of `SkillDustAddon`'s grant paths (the single-survivor auto-grant
+and the NPC auto-resolve) never raise a pick at all; a `PickLootCommand`-shaped
+vocabulary would have left every NPC claim diverging while the human-pick case
+looked fine. Note the fingerprint folds ownership only, so a loot grant does not
+move it directly — `test/unit/systems/test_loot_wire.gd` is what pins the
+grants, the same division of labour as the attack path above.
+
+**Does not:** anything travelling UPWARD. `PickLootCommand` is the one verb
+built for that direction — a remote human's answer to a parked offer — and it is
+dormant rather than unrouted: `CommandApplier` answers it for real against
+`LootPickRegistry`, but `MIRROR` never sends and the client's input is frozen.
+#463 owns the channel and the roster that says which peer seats which entity.
 
 ## The fingerprint
 

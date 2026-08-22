@@ -25,7 +25,7 @@
 [ext_resource type="PackedScene" path="res://ui/space_background/space_background.tscn" id="19_space"]
 [ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="20_env"]
 [ext_resource type="Script" path="res://scenes/camera_director.gd" id="21_camdir"]
-[ext_resource type="Script" path="res://systems/loot_pick_registry.gd" id="22_lootreg"]
+[ext_resource type="Script" uid="uid://eh0d3jiuwstk" path="res://systems/loot_pick_registry.gd" id="22_lootreg"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")

@@ -20,6 +20,16 @@ extends SkillNodeAddon
 ## picker; NPCs auto-pick at random, per round.
 ## STEAL/PROLIFERATE choice and staining stay deferred (see loot-system.md).
 ##
+## ON THE WIRE (#522): each round is a [LootRoundCommand] — the authority runs
+## it and stamps what it granted, a peer replays that record and rolls nothing.
+## The ROUND rather than the PICK is the wire unit because two of the grant
+## paths below (the single-survivor auto-grant, the NPC auto-resolve) never
+## raise a request at all. This addon is therefore HOST-GATED at
+## `_on_carrier_owner_changed`: `owned_by` flips on every peer that applies the
+## allocation, and only the authority may open a chain. A null
+## [member command_applier] means "no pipeline" (headless, editor, authored
+## sandbox relic) and runs the round inline, pre-#522 behaviour.
+##
 ## TERMINAL SPELL ROUND (#204 re-cut): once every stat round has resolved,
 ## [member spell_candidates] (if non-empty) offers ONE MORE pick — a spell the
 ## victim knew, filtered against the collector's PERMANENTLY known spells —

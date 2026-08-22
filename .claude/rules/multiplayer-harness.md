@@ -21,9 +21,10 @@ here. Two instances prove *host acts → client mirrors*, never two people playi
 The link mirrors everything `CommandApplier` handles — grep who raises the
 command before suspecting the wire.
 
-**A `✗ DIVERGED` line is the harness working.** Loot picks (unrouted
-`PickLootCommand`, #522) still never cross, so the fingerprint is supposed to
-disagree after a pick. Chase divergence only on the verbs `CommandApplier`
-actually handles — attacks now among them (#511), and `--autopilot` casts one.
+**A `✗ DIVERGED` line is the harness working.** Chase divergence only on the
+verbs `CommandApplier` actually handles — which is now every one of them:
+attacks since #511 (`--autopilot` casts one) and loot since #522. The
+fingerprint folds ownership only, so neither a cast that kills nothing nor a
+loot grant moves it; their effects are pinned by tests, not by the overlay.
 
 See docs/domain/multiplayer-harness.md.

@@ -245,8 +245,9 @@ time — see below. `would_cycle` is **deliberately not checked here**: the
 claimant isn't known until someone allocates the relic, so cycle-safety is a
 claim-time concern.
 
-`pick_count` (N — the number of pick-1-of-3 **rounds**, not "N of a flat M"
-since #323) is the victim's **tier** (`Entity.entity_tier`, #300), against the
+`rounds` (the number of pick-1-of-3 **rounds**, not "N of a flat M" since
+#323 — and named `pick_count` until 2026-08-22, when it collided with the
+per-round count that no longer exists) is the victim's **tier** (`Entity.entity_tier`, #300), against the
 pool's **total** size across all three buckets:
 
 ```
@@ -274,7 +275,8 @@ retune, now over the larger three-bucket pool.
 `SkillDustAddon extends SkillNodeAddon` sits on the neutralised relic core and
 subscribes to `carrier.owner_changed`. When **any** entity allocates the relic
 (owner goes non-null — the `owned_by == null` guard skips the death-strip so
-only a real pickup fires), it runs `_advance_round` up to `pick_count` times:
+only a real pickup fires), it runs one round per `rounds`, each as its own
+`LootRoundCommand` (see "The round is the wire unit" below):
 
 1. Filter the **remaining** pool by `collector.stat_board.would_cycle(m)` —
    against the collector's **current** board, which already reflects every
@@ -298,29 +300,73 @@ silently smaller reward). Checking `would_cycle` again each round, against the
 board as it now stands, catches that: once round 1 binds the first candidate,
 round 2's check sees it and excludes the second before it's ever offered.
 
-### The handshake (load-bearing, unchanged from #173)
+### The handshake (load-bearing, tri-state since #522)
 
-`emit()` is synchronous. `LootPickRequest.handled` is the pre-emption flag, now
-per-round (`pick_count` on each round's request is always 1):
+`emit()` is synchronous. `LootPickRequest.claim` is the pre-emption flag:
 
-- **HudRoot** listens, filters `request.collector == _player`, sets
-  `handled = true` **synchronously** and shows `LootPicker` (a modal — it
-  **pauses the tree** and runs at `process_mode = ALWAYS`, the `PauseMenu`
-  idiom; a mouse-filter alone wouldn't stop the `D`-key deallocate, which rides
-  `_unhandled_input`). On confirm it unpauses and calls `request.resolve(chosen)`
-  — which drives the NEXT round's `_advance_round`, possibly real seconds later.
-- **If nobody set `handled`** (NPC relic, headless test, no HUD mounted, or an
-  enemy scavenging a dead player's relic — nothing here gates by faction) the
-  addon **auto-resolves a random 1-of-the-offer** right after emit returns, and
-  the round chain runs fully synchronously to completion.
+- **`LOCAL`** — **HudRoot** listens, filters `request.collector == _player`, sets
+  it **synchronously** and shows `LootPicker` (a modal — it **pauses the tree**
+  and runs at `process_mode = ALWAYS`, the `PauseMenu` idiom; a mouse-filter
+  alone wouldn't stop the `D`-key deallocate, which rides `_unhandled_input`).
+  On confirm it unpauses and calls `request.resolve(chosen)`, possibly real
+  seconds later.
+- **`REMOTE`** — a human on another peer owes the answer. The host must NOT
+  auto-resolve: it parks the request in `LootPickRegistry` and waits for a
+  `PickLootCommand`. Dormant today (nothing reports a remote collector — there
+  is no upward channel and no peer roster; #463 owns both).
+- **`UNCLAIMED`** — NPC relic, headless test, no HUD mounted, or an enemy
+  scavenging a dead player's relic (nothing here gates by faction). The addon
+  **auto-resolves a random 1-of-the-offer** right after emit returns.
 
-That single rule keeps NPCs, headless tests, and the no-HUD path all on the
-auto-resolve branch — **the default the test suite exercises**. Only the human
-player's relic reaches the picker.
+That keeps NPCs, headless tests, and the no-HUD path all on the auto-resolve
+branch — **the default the test suite exercises**. It stays a host-only roll and
+is exempt from the seeding rule: a peer receives the result rather than
+reproducing it.
+
+**Why it stopped being a bool.** With `handled: bool`, a remote human's request
+read as "nobody claimed it" and the emitter random-picked on the very next
+line — before a round trip could even begin — and the pick that arrived later
+landed on an already-resolved request and was silently dropped (`resolve()` is
+idempotent). A bool cannot say "somebody IS picking, just not here".
 
 `resolve()` is **idempotent**. The addon lingers on the relic until every round
 has resolved (possibly across several real seconds if the player is picking),
 then `queue_free`s.
+
+### The round is the wire unit (#522)
+
+Each round is a `LootRoundCommand`, submitted from the previous round's
+application (the applier QUEUES rather than re-entering, by documented design).
+Two states, one type, copying `LaunchAttackCommand`:
+
+- **empty record — INITIATE.** The authority filters, samples, offers, awaits
+  the pick, grants, and stamps what it did. That stamp is what `CommandLink`
+  broadcasts.
+- **populated — REPLAY.** A peer grants exactly what is recorded. It does not
+  roll, filter, raise a request, trim its pool, or advance the chain.
+
+**Why the round and not the pick.** Steps 3 and 4's auto-paths above never raise
+a `LootPickRequest` at all, so a `PickLootCommand`-shaped vocabulary would leave
+every NPC relic claim diverging a peer while the human-pick case looked fine.
+The round covers all three uniformly; the human pick is just the one with
+latency in the middle. A final round carrying no grant and `finished = true` is
+what frees the relic on every peer — one record for all five ways the chain can
+end (collector dead, rounds exhausted, pool dry, no cycle-safe survivor, empty
+sample).
+
+**Host-gated.** A peer applies the confirmed `AllocateCommand`, `owned_by`
+flips, and `_on_carrier_owner_changed` fires *there too* — so without the gate
+(`command_applier.is_authority`) the peer would open its own round and roll its
+own offer. A null applier (headless fixture, editor, authored sandbox relic) is
+a supported configuration meaning "no pipeline": the round runs inline, exactly
+as it did pre-#522, which is why the existing suite needs no applier.
+
+**No ending the turn while picking** (owner call, 2026-08-22) needs no gate of
+its own. The round awaits the pick *inside* the command's application, so
+`CommandApplier.is_applying` stays true for the duration and
+`PlayerInputController.can_player_act` already returns false — the End Turn
+button greys out through `player_can_act_changed` rather than silently
+no-opping.
 
 ## XP must route through the pool
 

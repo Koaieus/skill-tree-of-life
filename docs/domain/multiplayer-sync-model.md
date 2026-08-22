@@ -231,12 +231,34 @@ which is where "a refused command changed nothing, so mirror nothing" now
 lives. Ordering across commands is untouched: the queue is serial, so a
 mid-apply confirm still lands between its neighbours'.
 
-Routed so far: every `PlayerInputController` mutation (#510) and
+Routed so far: every `PlayerInputController` mutation (#510),
 `battle_system.launch_attack` (#511 — it builds a `LaunchAttackCommand`,
 submits it, and parks on `applying_changed`, so every existing caller still
-awaits the whole action). Still direct, by plan: `ai_controller` (child D).
-`PickLootCommand` exists but is not routed — correlating `request_id` back to a
-live `LootPickRequest` needs a registry nobody has built yet.
+awaits the whole action), and loot (#522 — a `LootRoundCommand` per round of a
+relic's claim). Still direct, by plan: `ai_controller` (child D).
+
+`PickLootCommand` is now answered for real, against `LootPickRegistry` — which
+also took over minting `request_id`, replacing the per-process static counter
+that would have handed the same id to different requests on two peers. It stays
+dormant only because nothing sends upward yet (#463).
+
+**Why loot's wire unit is the ROUND, not the pick.** Two of `SkillDustAddon`'s
+grant paths never raise a pick — the single-cycle-safe-survivor auto-grant and
+the NPC / headless auto-resolve. Recording the round covers all three uniformly;
+the human pick is just the one with latency in the middle. The round also
+carries the five distinct ways a relic's chain can END, as one `finished`
+record, which is what frees the peer's relic.
+
+**Loot candidates travel BY VALUE** — `{stat_id, operation, value, priority}`
+plus a typed `formula` block, recursively for a `CompositeStatModifier`
+(`StatModifierCodec`). Pointing at shared state with a locator was considered
+and rejected: only `_node_grant_modifiers` is derivable from the shared seed —
+`_core_modifiers` and `_innate_modifiers` read the VICTIM's own board, which a
+peer holds partially, stale, or not at all, so an index into it is a silent
+mis-grant rather than a loud failure. By-value also carries a `StatFormula`,
+which #323 requires: stealing a level-scaler is the intended roguelite loop.
+`LootSystem._draw_payload` already minted detached copies, so this is that same
+operation with a different target.
 
 **Identifiers.** `SkillNode.stable_id` and `Entity.entity_id` are the only
 legal references on the wire. Both are minted by `Graph` — `entity_id` eagerly
