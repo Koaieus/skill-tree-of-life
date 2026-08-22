@@ -118,6 +118,24 @@ func test_a_bare_click_allocates_through_a_command() -> void:
 	assert_eq(_n("B").owned_by, _player, "and it really landed")
 
 
+## The HUD's End Turn button called `TurnManager.end_turn()` directly until
+## 2026-08-22, so the player's turn hand-back was the one verb that never became
+## a command — invisible in single-player, a desync the moment a peer mirrors.
+## ActionCluster now calls this method; it must stay a submitter.
+func test_ending_the_turn_goes_through_a_command() -> void:
+	var seen := _tags()
+	var applied: Array[bool] = [false]
+	_applier.command_applied.connect(func(cmd, ok):
+		if cmd is EndTurnCommand:
+			applied[0] = ok)
+	_ctl.request_end_turn()
+	assert_eq(seen, [&"end_turn"] as Array[StringName])
+	# This fixture has one entity, so the turn comes straight back to the same
+	# player — the clock moving is `test_turn_handoff.gd`'s business, not this
+	# file's. What matters here is that the verb reached the applier and ran.
+	assert_true(applied[0], "and the applier really ran it")
+
+
 func test_no_mutation_path_on_the_controller_returns_a_bool() -> void:
 	# The acceptance grep, as a test: the verbs are submitters now, and the
 	# outcome is a signal. A `bool` here would mean a caller could still branch

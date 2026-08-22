@@ -73,7 +73,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#457** | `GameSession` + one-shot seed resolution | Sits in `Ready`, forks still open — **owner decision**. The 2026-08-21 call shrank it: the seed is a procgen input, **not** a determinism contract over combat or loot |
 | ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** VFX is a pure observer. (Mutation was at t=0 here; #504 then moved it onto the reveal clock — see the row below) |
 | ~~#488~~ | ~~Presentation clock v2~~ | **Shipped 2026-08-21** as design **B** — the world mutates on the reveal clock; no view store. `docs/domain/presentation-clock.md` |
-| **#458** | `Command` + `CommandApplier` (rewritten) | **Half shipped 2026-08-21.** ~~#509~~ command vocabulary + entity ids (`b1448fe`) and ~~#510~~ the applier + PIC reroute (`50d5556`) are **in**. Left: **#511** attack plan/outcome serialization (`Ready` — its wire forks were settled 2026-08-21, read that comment before the body) and **#512** AI reroute (`Ready`, unblocked by #510). They are independent of each other |
+| **#458** | `Command` + `CommandApplier` (rewritten) | **All four children shipped 2026-08-21** (`b1448fe`, `50d5556`, `2e7b67a`, `6f810be`). One verb is left un-routed: **loot picks** — `CommandApplier` push-warns on `PickLootCommand` and a mirrored client diverges the moment somebody picks. **Do not re-enumerate children here** — this row rotted once by doing that; read `mise gh-project -- roadmap` for live child state |
 | ~~#475~~ | ~~Author real faction camps~~ | **Shipped 2026-08-21** — so #459's allied-humans prerequisite is met |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready` — this is the LAN commitment, and it is one issue.** Needs nothing from #511/#512/#463 |
 | ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
@@ -97,21 +97,27 @@ four-layer stack and **three layers are done**:
    (#488–#494, #504), #474, and the attack-timeline children #501/#502/#503.
    **Shipped.** This was the real blocker: you cannot broadcast a world change
    whose timing a dropped frame decides.
-3. *The command layer* — #458. **Half shipped** (#509, #510). There is now
-   exactly one serial path through which the world mutates, and it speaks in
-   serializable commands.
+3. *The command layer* — #458. **Shipped, minus loot picks.** There is now
+   exactly one serial path through which the world mutates, it speaks in
+   serializable commands, and every player and AI verb reaches it.
 4. *The transport* — #463. **Not started**, and still a stretch.
 
 So the remaining order is short:
 
 - **#459 is the LAN commitment and it is one issue.** Hot-seat coop needs
-  nothing from #511, #512 or a transport, and #475 (its allied-humans half)
-  landed. Pull it first.
-- **#511 and #512 are independent of each other** now that #510 is in — either
-  or both can go. They are what turn #463 into a transport swap instead of
-  surgery on `BattleSystem`.
-- **#463 stays gated** — it opens only once #511 and #512 land and offline play
-  is verified unchanged.
+  nothing from a transport, and #475 (its allied-humans half) landed. Pull it
+  first.
+- **A verb that never becomes a `Command` is not #463's problem, it is #458's.**
+  `CommandLink` mirrors everything the applier handles; what does not cross the
+  wire is what nothing submits. Two were found 2026-08-22 — the player's End
+  Turn button (fixed, it now goes through
+  `PlayerInputController.request_end_turn`) and loot picks (still open). When a
+  verb misbehaves in a mirrored sandbox, check the submission site before the
+  transport.
+- **#463 is the *upward* intent channel, and it stays gated.** `CommandLink`
+  wave 0 is deliberately one-directional: the client is a spectator with a real
+  applier. Two `mp_dev_sandbox` instances prove the mirror, not two people
+  playing. #463 opens once offline play is verified unchanged.
 - **#457 does not gate any of this.** The 2026-08-21 owner call made the seed
   procgen-only, and #458's entity ids are minted by `Graph` the way `stable_id`
   already is.

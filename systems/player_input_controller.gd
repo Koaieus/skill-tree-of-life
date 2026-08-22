@@ -338,6 +338,24 @@ func _resolve_extract(node: SkillNode) -> void:
 	_submit(ExtractCommand.new(player.entity_id, graph.get_stable_id(node)))
 
 
+## Hand the turn back, as an [EndTurnCommand] rather than a direct
+## [method TurnManager.end_turn] — the clock is a mutation like any other, and
+## [AiController] has ended its turns this way since #512.
+##
+## Lives here rather than on the HUD's ActionCluster because the command needs
+## BOTH the applier (a `bind_systems()`-lifetime dep) and the acting player (a
+## `rebind_player()`-lifetime one, see #459). This controller already holds and
+## rebinds both; giving a HUD cluster its own player reference is how hot-seat
+## handover breaks.
+##
+## No turn-holder gate: the applier does not check one, and neither did the
+## direct call this replaces. The button's own enabled state is the gate.
+func request_end_turn() -> void:
+	if player == null:
+		return
+	_submit(EndTurnCommand.new(player.entity_id))
+
+
 ## Where the four `if`-gated mutation sites went (#510). A command that failed
 ## its gate is a normal outcome, so this is the only place player-facing
 ## feedback for a refusal is decided.

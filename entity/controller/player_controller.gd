@@ -18,4 +18,5 @@ extends EntityController
 
 
 func take_turn() -> void:
-	pass  # UI End Turn button calls turn_manager.end_turn() directly.
+	pass  # The UI End Turn button submits an EndTurnCommand via
+	# PlayerInputController.request_end_turn().

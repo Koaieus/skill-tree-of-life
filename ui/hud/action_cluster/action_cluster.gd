@@ -178,5 +178,5 @@ func _on_end_turn_pressed() -> void:
 
 
 func _end_turn() -> void:
-	if _turn_manager != null:
-		_turn_manager.end_turn()
+	if _input_ctl != null:
+		_input_ctl.request_end_turn()
