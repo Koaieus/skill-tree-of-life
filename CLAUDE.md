@@ -32,7 +32,8 @@ A suite run costs ~110s, so **never re-run it to grep it differently.** `mise ru
 test` prints a verdict (counts, every failing test with its first assert + line,
 pending, run-health alarms) and always keeps the full console output at
 `.godot/gut-last.log` plus junit XML at `.godot/gut-last.xml`. If the summary
-elided what you need, grep the log.
+elided what you need, grep the log — `grep -F '[Failed]'`, with `-F`, since a
+bare `[Failed]` is a bracket expression that matches almost every line.
 
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 

@@ -37,6 +37,8 @@ mise run test                                     # full suite
 mise run test:one -- res://test/unit/test_foo.gd  # single file
 ```
 
+Prints a verdict; full console output is kept at `.godot/gut-last.log`.
+
 ---
 
 ## Code architecture (one-pager)

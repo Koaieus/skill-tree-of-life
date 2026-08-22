@@ -49,12 +49,20 @@ ALARM = re.compile(r"Ignoring script |Could not find type |SCRIPT ERROR|Parse Er
 
 def build_args(argv):
     """(godot gut flags, human label for what we are running)."""
-    target = argv[1] if len(argv) > 1 else ""
-    if not target:
-        return [], "suite"
+    args = argv[1:]
+    # Raw GUT flags (-gselect=…, -glog=3) pass through untouched — the old bare
+    # `godot … gut_cmdln.gd` task accepted them and wrapping one as a directory
+    # would silently run nothing.
+    passthrough = [a for a in args if a.startswith("-")]
+    targets = [a for a in args if not a.startswith("-")]
+    if len(targets) > 1:
+        sys.exit(f"✗ one target at a time, got: {' '.join(targets)}")
+    if not targets:
+        return passthrough, "suite" if not passthrough else " ".join(passthrough)
+    target = targets[0]
     if target.endswith(".gd"):
-        return [f"-gtest={target}", "-gdir="], target
-    return [f"-gdir={target}"], target
+        return [f"-gtest={target}", "-gdir=", *passthrough], target
+    return [f"-gdir={target}", *passthrough], target
 
 
 def truncate(s, n=MAX_MSG_CHARS):
@@ -129,15 +137,24 @@ def main():
         f.write(console)
 
     cases = parse_xml()
+    alarms = sorted({l.strip() for l in console.splitlines() if ALARM.search(l)})
 
-    # Three outcomes, not two: passed, tests failed, and *the run never
-    # completed*. Collapsing the third into either of the others is what costs
-    # you a re-run, so it gets its own branch and dumps the real tail.
-    if not cases:
-        print(f"✗ run did not complete (godot exit {proc.returncode}) — no test results")
+    # Four outcomes, not two: passed, tests failed, the run never completed, and
+    # *zero tests collected*. Reporting either of the last two as the other is
+    # what costs you a re-run — a bad path and a stale class cache look nothing
+    # alike, and the alarm lines are the whole diagnosis for the second.
+    if cases is None:
+        print(f"✗ run did not complete (godot exit {proc.returncode}) — no results file")
         tail = [l for l in console.splitlines()[-40:]
                 if l.strip() and not any(b in l for b in BENIGN_TRAILER)]
         print("\n".join(tail[-20:]))
+        print(f"\nfull output: {os.path.relpath(LOG, ROOT)}")
+        return 1
+    if not cases:
+        print(f"✗ 0 tests collected — bad path, or a stale class cache "
+              f"(`mise run refresh`); target was: {label}")
+        for line in alarms[:10]:
+            print(f"  {truncate(line)}")
         print(f"\nfull output: {os.path.relpath(LOG, ROOT)}")
         return 1
 
@@ -156,7 +173,6 @@ def main():
     for suite, test, status, msg in other[:5]:
         print(f"\n{status}: {suite}::{test}" + (f" — {truncate(msg, 120)}" if msg.strip() else ""))
 
-    alarms = sorted({l.strip() for l in console.splitlines() if ALARM.search(l)})
     if alarms:
         print("\nrun health:")
         for line in alarms[:10]:
@@ -170,8 +186,10 @@ def main():
         for line in unexpected[:5]:
             print(f"  {truncate(line)}")
 
+    # -F, not a bare pattern: [Failed] is a bracket expression matching any of
+    # F/a/i/l/e/d, i.e. nearly every line of a 7000-line log.
     print(f"\nfull output: {os.path.relpath(LOG, ROOT)} "
-          f"(grep '[Failed]' for every assert; {os.path.relpath(XML, ROOT)} for junit)")
+          f"(grep -F '[Failed]' for every assert; {os.path.relpath(XML, ROOT)} for junit)")
     return 1 if failing else 0
 
 
