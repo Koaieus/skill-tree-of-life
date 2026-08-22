@@ -14,6 +14,20 @@ signal attack_plan_changed(plan: AttackPlan)
 ## `spell` is the active [MagicAttackPlan]'s spell, null for melee/ranged.
 ## Consumed by [AnnouncementLayer] (#117, #135) for the mode-tinted CALLOUT FX.
 signal attack_launched(mode: AttackMode, spell: SpellDef)
+## The same moment, carrying the APPLIED outcome — for a presentation observer
+## that needs to know what the attack will touch and when (#524:
+## [CameraDirector] frames the from->to span). A sibling of
+## [signal attack_launched] rather than a widening of it: that one has six
+## production listeners and ~ten test call sites, none of which want the
+## outcome.
+##
+## Both the authority path and the peer replay path funnel through
+## [method _commit], so an observer here sees the applied outcome and never
+## intent — `.claude/rules/multiplayer-sync.md` for free.
+##
+## [param attacker] is passed explicitly rather than read off the outcome,
+## because an outcome with no hits carries no attacker.
+signal attack_committed(outcome: AttackOutcome, attacker: Entity)
 ## Fires for both plan swap and plan-internal mutation. Subscribers that
 ## care about lifecycle (mount per-mode UI) use [signal attack_plan_changed];
 ## subscribers that care about content (re-paint highlights) use this one.
@@ -409,6 +423,10 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome,
 		mana_pool.deplete(float(outcome.mana_cost))
 	var launched_spell: SpellDef = (plan as MagicAttackPlan).spell if plan is MagicAttackPlan else null
 	attack_launched.emit(plan.mode, launched_spell)
+	# Un-awaited, like every other observer on this path: `_apply_outcome`
+	# below is what waits on the beat clock, and anything awaited here would
+	# gate the mutation loop.
+	attack_committed.emit(outcome, entity)
 	# Costs are already deducted; the plan is still live, so an effect can read
 	# its targets. Replaces the issue's `_on_battle_start` — there is no battle.
 	if plan.attacker != null:

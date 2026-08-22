@@ -104,11 +104,12 @@ script = ExtResource("9_victory")
 graph = NodePath("../../Graph")
 turn_manager = NodePath("../TurnManager")
 
-[node name="CameraDirector" type="Node" parent="Systems" node_paths=PackedStringArray("camera", "vision_system")]
+[node name="CameraDirector" type="Node" parent="Systems" node_paths=PackedStringArray("camera", "vision_system", "battle_system")]
 unique_name_in_owner = true
 script = ExtResource("21_camdir")
 camera = NodePath("../../Graph/GraphCamera")
 vision_system = NodePath("../VisionSystem")
+battle_system = NodePath("../BattleSystem")
 
 [node name="Graph" parent="." unique_id=1851662701 instance=ExtResource("2_graphscene")]
 

@@ -26,10 +26,11 @@ extends Node
 ## The camera this director drives. Wired as an `@export` NodePath by
 ## `game_root.tscn` per `.claude/rules/scene-composition.md`.
 @export var camera: GraphCamera
-## The fog gate. Unused by this file's own logic — the trigger that filters
-## through it is #524's — but wired here so that issue is one file plus a
-## signal.
+## The fog gate: only what the local player can SEE may be framed.
 @export var vision_system: VisionSystem
+## The battle hook (#524): a non-local actor's committed attack frames its
+## from->to span.
+@export var battle_system: BattleSystem
 ## How long the player's hands stay on the camera after their last manual
 ## input. Without it a multi-wave spell re-steals the camera the instant they
 ## let go. The first thing here that will want tuning.
@@ -43,6 +44,8 @@ extends Node
 @export_range(0.0, 0.49, 0.01) var on_screen_inset_ratio: float = 0.15
 ## Default ease duration for a focus that does not name its own.
 @export_range(0.0, 2.0, 0.05) var default_focus_duration: float = 0.35
+## Extra seconds held after the last hit lands, before handing the camera back.
+@export_range(0.0, 2.0, 0.05) var release_tail_seconds: float = 0.25
 ## The zoom lattice the wheel walks (`GraphCamera.zoom_step`). The director
 ## snaps to it and never leaves it, which is what lets the camera restore the
 ## player's exact `_target_zoom` on release.
@@ -62,6 +65,8 @@ func _ready() -> void:
 	set_process(true)
 	if camera != null and not camera.manual_input_received.is_connected(_on_manual_input):
 		camera.manual_input_received.connect(_on_manual_input)
+	if battle_system != null and not battle_system.attack_committed.is_connected(_on_attack_committed):
+		battle_system.attack_committed.connect(_on_attack_committed)
 
 
 func _process(delta: float) -> void:
@@ -238,3 +243,50 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 	out.y = clampf(ideal.y, min_y, max_y) if min_y <= max_y \
 			else (effective.position.y + effective.end.y) * 0.5
 	return out
+
+
+## #524's trigger. See [method _build_attack_request] for the rule.
+func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
+	var request := _build_attack_request(outcome, attacker)
+	if request == null:
+		return
+	request_focus(request)
+
+
+## Frame a committed attack's from->to span, for a NON-LOCAL actor only.
+##
+## [b]The seat predicate is the whole rule.[/b] On a couch `seats()` is true
+## for every human, so a hot-seat partner's actions never yank the camera of
+## the person actually driving; behind a wire only the pinned hero is seated,
+## so AI and remote humans alike are framed (#515 decision 2). Returns null
+## when no focus should be built at all.
+##
+## The span is the AABB of every contributing node's world position, filtered
+## through [method VisionSystem.is_visible] FIRST — `is_sensed` does not count,
+## and an attack whose origin is fogged but whose target is visible frames the
+## target alone. Nothing surviving the filter is `&"fogged"`, not an error.
+func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusRequest:
+	if outcome == null or outcome.hits.is_empty():
+		return null
+	if seat_policy != null and seat_policy.seats(attacker):
+		return null
+	var points := PackedVector2Array()
+	var last_arrival := 0.0
+	for hit in outcome.hits:
+		last_arrival = maxf(last_arrival, hit.arrival_time)
+		_append_if_visible(points, hit.origin)
+		_append_if_visible(points, hit.target)
+	var request := FocusRequest.span(points, default_focus_duration,
+			last_arrival + release_tail_seconds, &"attack")
+	request.empty_reason = &"fogged"
+	return request
+
+
+func _append_if_visible(points: PackedVector2Array, node: SkillNode) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	if vision_system != null and not vision_system.is_visible(node):
+		return
+	var pos := node.global_position
+	if not points.has(pos):
+		points.append(pos)
