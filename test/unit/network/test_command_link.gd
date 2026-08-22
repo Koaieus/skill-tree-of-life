@@ -10,6 +10,18 @@ extends GutTest
 ## anything, so none of the death/loot/victory listeners that cross-wire ever
 ## fire. Add a test that kills an entity and it belongs in a separate file with
 ## one world, not here.
+##
+## [b]The death listeners are not the only tree-wide lookup.[/b]
+## [method Entity._find_turn_manager] (and [EntityController]) resolve their
+## manager with `get_first_node_in_group(TurnManager.GROUP)` — TREE-wide, not
+## world-scoped. Correct by construction in a real one-world process; here the
+## SECOND world's entity would silently bind to the FIRST world's TurnManager,
+## never receive its own `turn_started`, and so never run
+## `apply_per_turn_upkeep()` — diverging in every pool that upkeep feeds
+## (xp → level → constitution → node_health). `_build_world` scopes the group
+## while each entity binds, and `test_both_worlds_run_their_own_turn_upkeep`
+## guards it. This was invisible while [WorldFingerprint] folded ownership
+## only; it surfaced the moment #527 folded HP.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -75,7 +87,18 @@ func _build_world(label: String) -> Dictionary:
 	var player: Entity = autofree(Entity.new())
 	player.display_name = "Player_%s" % label
 	player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# See the class docstring: the entity binds its TurnManager by a TREE-wide
+	# group lookup, so hide every OTHER world's manager for the duration of the
+	# bind. Restored immediately after — `start_turn` is called on the `tm`
+	# reference directly, so group membership only matters during binding.
+	var hidden_managers: Array[Node] = []
+	for other in get_tree().get_nodes_in_group(TurnManager.GROUP):
+		if other != tm:
+			hidden_managers.append(other)
+			other.remove_from_group(TurnManager.GROUP)
 	graph.entities_container.add_child(player)
+	for other in hidden_managers:
+		other.add_to_group(TurnManager.GROUP)
 
 	await get_tree().process_frame
 
@@ -98,6 +121,22 @@ func _build_world(label: String) -> Dictionary:
 
 func _id(world: Dictionary, key: String) -> int:
 	return (world["graph"] as Graph).get_stable_id(world["nodes"][key])
+
+
+## Guards the fixture invariant the class docstring describes: each world's
+## entity must bind to ITS OWN TurnManager. When it doesn't, the symptom is not
+## an error — it is one entity silently skipping `apply_per_turn_upkeep()`, so
+## the two worlds drift apart in xp → level → constitution → node_health while
+## every ownership assertion in this file still passes. Asserting on
+## `node_health` rather than on the binding directly is deliberate: it is the
+## observable a fingerprint folding accumulated state would trip over.
+func test_both_worlds_run_their_own_turn_upkeep() -> void:
+	var host_hp: float = (_host["player"] as Entity).stat_board \
+			.get_stat(&"node_health").get_value()
+	var client_hp: float = (_client["player"] as Entity).stat_board \
+			.get_stat(&"node_health").get_value()
+	assert_eq(host_hp, client_hp,
+			"both worlds' players must receive their own turn upkeep")
 
 
 func test_two_identical_worlds_fingerprint_the_same() -> void:
