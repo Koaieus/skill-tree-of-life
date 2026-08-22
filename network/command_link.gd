@@ -45,9 +45,21 @@ const KEY_KIND := "kind"
 const KEY_COMMAND := "cmd"
 const KEY_FINGERPRINT := "fp"
 const KEY_SUMMARY := "summary"
+const KEY_SNAPSHOT := "snapshot"
+const KEY_CONFIG := "config"
+const KEY_ROSTER := "roster"
 
 const KIND_HELLO := "hello"
 const KIND_COMMAND := "command"
+## #527's join-handshake payload: an encoded [GraphSnapshot]. Additive and
+## opt-in — sent only by [method send_graph_snapshot], never by [method send_hello]
+## — so existing hello/fingerprint flows (and their tests) are untouched by a
+## client that never calls it.
+const KIND_SNAPSHOT := "snapshot"
+## #528's join-handshake payload: [RunConfig] + [ParticipantRoster], both by
+## value. Same additive shape as [constant KIND_SNAPSHOT] — sent only by
+## [method send_run_setup].
+const KIND_SETUP := "setup"
 
 enum Mode {
 	OFF,        ## Wired but idle.
@@ -115,6 +127,38 @@ func send_hello() -> void:
 	})
 
 
+## Send the whole graph to a freshly-connected peer (#527) — host-side, opt-in.
+## Not called from [method send_hello]: existing hello/fingerprint-only flows
+## (the multiplayer harness's rung 1, #532) must keep working for a client
+## that never wants a graph transferred to it. The receiving side handles
+## [constant KIND_SNAPSHOT] in [method _on_message_received] regardless of
+## `mode` — decoding a snapshot is not a mirrored command, so it isn't gated
+## behind `Mode.MIRROR` the way [method _on_remote_command] is.
+func send_graph_snapshot() -> void:
+	if transport == null or mode != Mode.BROADCAST or graph == null:
+		return
+	transport.send({KEY_KIND: KIND_SNAPSHOT, KEY_SNAPSHOT: GraphSnapshot.encode(graph)})
+	logged.emit("→ graph snapshot (%s)" % WorldFingerprint.describe(graph))
+
+
+## Send the run's shape to a freshly-connected peer (#528) — host-side,
+## opt-in, same additive shape as [method send_graph_snapshot]. [param config]
+## and [param roster] cross BY VALUE ([method RunConfig.to_dict] /
+## [method ParticipantRoster.to_dict]); the receiving peer decodes and hands
+## both to [method GameSession.apply_received], which does NOT re-resolve the
+## seed — it already is the host's resolved value.
+func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
+	if transport == null or mode != Mode.BROADCAST or config == null:
+		return
+	transport.send({
+		KEY_KIND: KIND_SETUP,
+		KEY_CONFIG: config.to_dict(),
+		KEY_ROSTER: (roster.to_dict() if roster != null else {"participants": []}),
+	})
+	logged.emit("→ run setup (seed %d, %d participants)" %
+			[config.seed, roster.all().size() if roster != null else 0])
+
+
 ## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
 ## the two are the same instant for every verb that has nothing to await after
 ## its mutation, and for an attack the difference is the host's whole animation
@@ -139,8 +183,35 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_hello(payload)
 		KIND_COMMAND:
 			_on_remote_command(payload)
+		KIND_SNAPSHOT:
+			_on_graph_snapshot(payload)
+		KIND_SETUP:
+			_on_run_setup(payload)
 		_:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
+
+
+## #527 receive side. Decodes straight into [member graph] — the caller (a
+## lobby / join flow, #531) is responsible for handing this link an EMPTY
+## graph before the host sends, same as [method GraphSnapshot.decode]'s own
+## contract; decoding twice into an already-populated graph is not this
+## method's job to make safe.
+func _on_graph_snapshot(payload: Dictionary) -> void:
+	var bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
+	if graph == null or bytes.is_empty():
+		return
+	GraphSnapshot.decode(bytes, graph)
+	logged.emit("← graph snapshot (%s)" % WorldFingerprint.describe(graph))
+
+
+## #528 receive side. Decodes [RunConfig] + [ParticipantRoster] and hands both
+## to [method GameSession.apply_received] — the seed is NOT re-resolved here,
+## it rides the wire as the host's already-resolved value.
+func _on_run_setup(payload: Dictionary) -> void:
+	var config := RunConfig.from_dict(payload.get(KEY_CONFIG, {}))
+	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
+	GameSession.apply_received(config, roster)
+	logged.emit("← run setup (seed %d, %d participants)" % [config.seed, roster.all().size()])
 
 
 ## The link-up check. A mismatch HERE — before a single command has crossed —

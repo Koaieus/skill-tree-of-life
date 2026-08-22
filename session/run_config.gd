@@ -49,3 +49,47 @@ static func default_condition_for(_mode: Mode) -> VictoryCondition:
 ## The condition actually in force for this config.
 func resolved_victory_condition() -> VictoryCondition:
 	return victory_condition if victory_condition != null else default_condition_for(mode)
+
+
+## Wire form for #528 — "the run's shape crosses the wire; each peer derives
+## its own seat" (the acceptance spec's own framing). [member level_scene] and
+## [member victory_condition] cross as resource PATHS: both are either unset
+## or point at one of a handful of authored `.tres`/`.tscn` assets, so there is
+## no per-node-scale string cost to intern away here (contrast #527's
+## per-node archetype/addon refs, where that cost is real). A
+## script-constructed [VictoryCondition] (e.g. `LastCampStandingCondition.new()`
+## from [method default_condition_for]) has no `resource_path` and crosses as
+## `""` — decoded back to `null`, which resolves to the SAME default on every
+## peer because [method default_condition_for] is a pure function of
+## [member mode]. [member seed] rides along even though the graph itself is
+## now serialized (#527) — it's no longer needed to reproduce the map, but
+## other things read it, and a peer whose session reports a different seed
+## than the host's is worth being able to see (#528's acceptance spec).
+func to_dict() -> Dictionary:
+	var participant_rows: Array = []
+	for p in participants:
+		participant_rows.append(p.to_dict())
+	return {
+		"mode": mode,
+		"level_scene": level_scene.resource_path if level_scene != null else "",
+		"seed": seed,
+		"participants": participant_rows,
+		"ai_opponent_count": ai_opponent_count,
+		"victory_condition": victory_condition.resource_path if victory_condition != null else "",
+	}
+
+
+static func from_dict(d: Dictionary) -> RunConfig:
+	var cfg := RunConfig.new()
+	cfg.mode = int(d.get("mode", Mode.SINGLE)) as Mode
+	var level_path := String(d.get("level_scene", ""))
+	cfg.level_scene = load(level_path) as PackedScene if level_path != "" else null
+	cfg.seed = int(d.get("seed", 0))
+	var parts: Array[Participant] = []
+	for row in (d.get("participants", []) as Array):
+		parts.append(Participant.from_dict(row as Dictionary))
+	cfg.participants = parts
+	cfg.ai_opponent_count = int(d.get("ai_opponent_count", 0))
+	var vc_path := String(d.get("victory_condition", ""))
+	cfg.victory_condition = load(vc_path) as VictoryCondition if vc_path != "" else null
+	return cfg

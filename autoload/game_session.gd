@@ -59,6 +59,25 @@ func start(cfg: RunConfig) -> void:
 	run_started.emit(config)
 
 
+## Accept a run's shape from the HOST — the setup half of #528's join
+## handshake, the counterpart to [method start] for a peer instead of the
+## machine that decided the run. [b]Does NOT resolve the seed[/b]: unlike
+## [method start], [param cfg.seed] already IS the host's resolved value
+## ([method RunConfig.to_dict] / [method RunConfig.from_dict] carry it as-is),
+## so re-resolving here would hand this peer a different map than everyone
+## else's. [param received_roster] is [method ParticipantRoster.from_dict]'s
+## result — this method doesn't decode the wire payload itself, so a
+## [CommandLink] caller can decode once and reuse the roster for logging
+## before handing it here.
+func apply_received(cfg: RunConfig, received_roster: ParticipantRoster) -> void:
+	assert(cfg != null, "GameSession.apply_received: null RunConfig")
+	assert(cfg.seed != 0, "GameSession.apply_received: unresolved seed (0) crossed the wire")
+	config = cfg
+	roster = received_roster if received_roster != null else ParticipantRoster.new()
+	outcome = null
+	run_started.emit(config)
+
+
 ## Start a default run if none is live, seeding it from `fallback_seed` (a
 ## level scene's authored preset seed; 0 means "randomise me" as usual).
 ##

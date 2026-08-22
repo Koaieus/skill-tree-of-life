@@ -61,3 +61,25 @@ func camps() -> Array[Faction]:
 
 func all() -> Array[Participant]:
 	return _participants.duplicate()
+
+
+## Wire form for #528 — a flat list of [method Participant.to_dict] rows. The
+## roster itself carries no other state (it's runtime bookkeeping, not
+## authored data — see the class docstring), so there is nothing else to fold in.
+func to_dict() -> Dictionary:
+	var rows: Array = []
+	for p in _participants:
+		rows.append(p.to_dict())
+	return {"participants": rows}
+
+
+## Rebuilds a roster from [method to_dict]'s payload. Goes through [method add]
+## (not a direct array write) so `participant_joined` / `roster_changed` fire
+## exactly as they would for a locally-joined participant — a lobby view
+## listening on those signals doesn't need to know whether a participant
+## arrived locally or over the wire.
+static func from_dict(d: Dictionary) -> ParticipantRoster:
+	var roster := ParticipantRoster.new()
+	for row in (d.get("participants", []) as Array):
+		roster.add(Participant.from_dict(row as Dictionary))
+	return roster

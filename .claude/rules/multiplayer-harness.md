@@ -23,8 +23,10 @@ command before suspecting the wire.
 
 **A `✗ DIVERGED` line is the harness working.** Chase divergence only on the
 verbs `CommandApplier` actually handles — which is now every one of them:
-attacks since #511 (`--autopilot` casts one) and loot since #522. The
-fingerprint folds ownership only, so neither a cast that kills nothing nor a
-loot grant moves it; their effects are pinned by tests, not by the overlay.
+attacks since #511 (`--autopilot` casts one) and loot since #522. As of #527
+the fingerprint folds ownership + topology (edges) + accumulated per-node
+state (stake/allocation/regen, HP quantized to int) — NOT derived `StatBoard`
+totals, so a stat recompute that changes nothing accumulated still won't move
+it; every effect the fold DOES cover is pinned by tests, not by the overlay.
 
 See docs/domain/multiplayer-harness.md.

@@ -90,10 +90,12 @@ mirror) with a world fingerprint attached; the client decodes via
 record of what each landing actually did — and the client replays it rather
 than re-resolving. `--autopilot` now fires a Spark after its allocate, so a
 terminal-driven pair exercises the attack path without a human clicking.
-**Read that `✓` carefully:** the fingerprint folds ownership only, so a cast
-that damages without killing anything leaves it unchanged either way. What the
-`← launch_attack` line proves is that the command decoded and applied on the
-client at all; the *effects* are pinned by
+**Read that `✓` carefully:** as of #527 the fingerprint folds ownership +
+topology + accumulated per-node state (HP included, quantized), so a cast that
+damages without killing DOES move it now — but never derived `StatBoard`
+totals (AP, mana, aura contributions), which stay outside the fold on
+purpose. What the `← launch_attack` line proves is that the command decoded
+and applied on the client at all; the *effects* are pinned by
 `test/unit/attack/test_attack_record_replay.gd`, which compares node HP, AP and
 mana across two real worlds through the same wire encoding.
 
@@ -104,9 +106,10 @@ rather than rolling its own. The ROUND is the wire unit rather than the pick
 because two of `SkillDustAddon`'s grant paths (the single-survivor auto-grant
 and the NPC auto-resolve) never raise a pick at all; a `PickLootCommand`-shaped
 vocabulary would have left every NPC claim diverging while the human-pick case
-looked fine. Note the fingerprint folds ownership only, so a loot grant does not
-move it directly — `test/unit/systems/test_loot_wire.gd` is what pins the
-grants, the same division of labour as the attack path above.
+looked fine. A grant that moves node HP or ownership now moves the fold too (#527); one
+that only touches a stat total (e.g. a pure damage-formula modifier) still
+does not — `test/unit/systems/test_loot_wire.gd` is what pins the grants
+directly, the same division of labour as the attack path above.
 
 **Does not:** anything travelling UPWARD. `PickLootCommand` is the one verb
 built for that direction — a remote human's answer to a parked offer — and it is
@@ -116,10 +119,13 @@ dormant rather than unrouted: `CommandApplier` answers it for real against
 
 ## The fingerprint
 
-`WorldFingerprint.compute(graph)` folds the sorted `(stable_id, owner
-entity_id)` pairs — exactly what the wave-0 vocabulary can change. Not HP, not
-stats: a fingerprint that moves for reasons the harness cannot sync is one
-nobody reads.
+`WorldFingerprint.compute(graph)` folds three sorted tiers (#527): ownership
+(`stable_id` → owner `entity_id`), topology (edges, endpoints normalized), and
+accumulated per-node state (stake level, allocation level, regen stacks, HP
+quantized to int). Not derived `StatBoard` totals: a fingerprint that moves
+for reasons the sync layer cannot cause is one nobody reads. `describe()`
+breaks the fold down per-tier for diagnostics, but `compute()` — the number
+peers actually compare — is one fold, not three.
 
 Two properties are load-bearing:
 
