@@ -164,6 +164,15 @@ The cache only rebuilds when the editor enumerates the project:
 mise run refresh      # or: godot --headless --editor --quit
 ```
 
+**`refresh` reporting "nothing changed" does NOT mean the cache was already
+current.** That verdict describes *file churn* — which scenes and resources the
+editor pass re-serialized — and a cache rebuild moves no tracked file, so a run
+that just fixed your build reports exactly the same "nothing changed" as a
+no-op. Read it as "nothing for you to review or restore", never as "the cache
+was fine, so this failure must be real". **Re-run the failing thing before
+concluding anything**; the ordering that misleads is refresh-says-nothing →
+assume-cache-was-fine → go hunting a phantom regression in someone's commit.
+
 ## The look-alike that is NOT a stale cache: `mise run check` can miss a parse error*
 
 **Symptom:** at runtime, *"Invalid call. Nonexistent function 'x' in base
