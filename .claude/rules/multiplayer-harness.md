@@ -29,4 +29,14 @@ state (stake/allocation/regen, HP quantized to int) — NOT derived `StatBoard`
 totals, so a stat recompute that changes nothing accumulated still won't move
 it; every effect the fold DOES cover is pinned by tests, not by the overlay.
 
-See docs/domain/multiplayer-harness.md.
+**`--probe` measures the RESOLVE half of an attack, never the LAND half (#529).**
+The client-only determinism probe re-resolves each received `launch_attack` from
+`(plan, seed)` and diffs the hit set, order, arrival clock, crit tiers, costs and
+timeline — *not* effective damage, HP numbers, the reclassified kind, the
+`FLAG_GATED` bit or the dealloc sets, which `AttackRecord`'s own contract says a
+peer cannot re-derive. So don't widen the diff to "the whole record" — that
+reports 100% divergence for structural reasons. Its `skipped` column is
+`CommandLink` declining to compare (queue non-empty / superseded), **not** a
+pass, and `exempt` is loot's host-only roll working as designed.
+
+See docs/domain/multiplayer-harness.md and docs/domain/determinism-probe.md.

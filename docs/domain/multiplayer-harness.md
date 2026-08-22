@@ -18,6 +18,7 @@ It is a harness, not the sync layer. The architecture it serves is
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
 | Applier ↔ transport bridge | `network/command_link.gd` |
 | Divergence detector | `network/world_fingerprint.gd` |
+| Determinism probe (#529) | `network/determinism_probe.gd` |
 
 From a terminal, no editor needed:
 
@@ -25,6 +26,20 @@ From a terminal, no editor needed:
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host --port=9099 --autopilot
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099
 ```
+
+`--turns=N` (host only, #529) sweeps N of Red's turns instead of one, hooked on
+`TurnManager.turn_started` — Blue's AI takes a real turn in between, so the
+signal is what knows when the loop comes back around. One sweep is ~17
+commands, which is a demo; the probe needs a few hundred before "0 diverged"
+means anything. Bare `--turns` runs until the process is killed. The default
+stays one, so #532's single-pass proof is unchanged.
+
+`--probe` (client only, #529) arms the determinism probe: the mirroring peer
+additionally re-resolves each received `launch_attack` locally and tallies, per
+command type, whether it could have *derived* what the host sent. It mutates
+nothing and changes nothing about what the client applies. Full scope — what it
+compares, what it deliberately does not, and why `skipped` is a finding rather
+than a pass — in [determinism-probe.md](determinism-probe.md).
 
 `--autopilot` (host only, #532) drives every verb `CommandApplier` handles from
 Red's opening turn — allocate, mass_allocate, stake/extract, deallocate,

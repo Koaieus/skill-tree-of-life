@@ -51,6 +51,11 @@ const DEFAULT_ADDRESS := "127.0.0.1"
 ## once, at the end of the sweep, rather than after every command.
 const PROBE_REPORT_QUIET_SECONDS := 4.0
 
+## `--turns` with no value: keep sweeping until the process is killed. There is
+## no natural end — the sandbox has no victory condition wired — so an unbounded
+## run is a stopwatch decision, not a scene one.
+const AUTOPILOT_TURNS_UNBOUNDED := -1
+
 @onready var _transport: NetworkTransport = $Transport
 @onready var _link: CommandLink = $CommandLink
 @onready var _probe: DeterminismProbe = $DeterminismProbe
@@ -77,6 +82,11 @@ var _probe_enabled: bool = false
 ## One-shot, restarted on every compared command; see [constant
 ## PROBE_REPORT_QUIET_SECONDS].
 var _probe_report_timer: Timer
+## How many of Red's turns `--autopilot` sweeps. One by default — the original
+## #532 behaviour, a single pass to prove every verb crosses. `--turns=N` (or
+## bare `--turns`) is what #529 needs; see [method _on_turn_started].
+var _autopilot_turns: int = 1
+var _autopilot_turns_run: int = 0
 
 
 func _ready() -> void:
@@ -187,6 +197,9 @@ func _parse_cmdline() -> void:
 		if arg == "--autopilot":
 			_autopilot = true
 			continue
+		if arg == "--turns":
+			_autopilot_turns = AUTOPILOT_TURNS_UNBOUNDED
+			continue
 		if arg == "--probe":
 			_probe_enabled = true
 			continue
@@ -204,12 +217,16 @@ func _parse_cmdline() -> void:
 				_address = pair[1]
 			"port":
 				_port = int(pair[1])
+			"turns":
+				_autopilot_turns = maxi(1, int(pair[1]))
 
 
 func _start_link() -> void:
 	_link.logged.connect(_write_log)
 	_transport.link_changed.connect(_refresh_banner.unbind(1))
 	_arm_probe()
+	if turn_manager != null:
+		turn_manager.turn_started.connect(_on_turn_started)
 
 	match _role:
 		NetworkTransport.Role.HOST:
@@ -282,6 +299,37 @@ func _greet_if_linked(_status: String) -> void:
 		_run_autopilot()
 
 
+## Sweep again every time the turn comes back around to Red (#529). One sweep
+## produces ~17 commands, which is a demo, not a measurement — the determinism
+## probe wants a few hundred before its "0 diverged" means anything.
+##
+## Hooked on [signal TurnManager.turn_started] rather than chained off the end
+## of [method _run_autopilot], because the turn does NOT come straight back:
+## `end_turn` ticks initiative, Blue's [AIController] takes a real turn of its
+## own, and only then is it Red's again. Waiting on the signal is waiting on
+## the actual loop; a timer would be guessing at its length.
+##
+## The default stays ONE sweep, so #532's single-pass proof is unchanged for
+## anyone not asking for more.
+func _on_turn_started(entity: Entity) -> void:
+	if not _autopilot or entity != _red:
+		return
+	if _autopilot_turns != AUTOPILOT_TURNS_UNBOUNDED \
+			and _autopilot_turns_run >= _autopilot_turns:
+		return
+	# `turn_started` fires on BOTH peers' own TurnManagers — a mirrored
+	# `end_turn` ticks the client's initiative too. Only the authority may
+	# originate, or the client would submit a second sweep of its own and
+	# diverge the very thing being measured.
+	if command_applier != null and not command_applier.is_authority:
+		return
+	# No re-boost needed: `_boost_autopilot_budget` ratchets the pools' BASE
+	# once at setup, and turn-start upkeep refills current to that cap every
+	# turn. Re-calling it here would be a mutation on a per-peer signal, which
+	# is exactly the shape a determinism probe exists to catch.
+	_run_autopilot()
+
+
 ## Headless self-check (`--autopilot` on the host, after `--`): drive every verb
 ## [CommandApplier] handles from Red's opening turn, so a terminal-driven pair
 ## proves the whole path per verb — command confirmed here, decoded and applied
@@ -290,6 +338,7 @@ func _greet_if_linked(_status: String) -> void:
 ## Red still holding the turn (see `_boost_autopilot_budget`'s note on
 ## why one turn is enough SP/AP/DP for all of it).
 func _run_autopilot() -> void:
+	_autopilot_turns_run += 1
 	await get_tree().create_timer(1.0).timeout
 	await _sweep_allocate()
 	await _sweep_mass_allocate()
