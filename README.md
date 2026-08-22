@@ -21,7 +21,16 @@ A turn-based, roguelite, PvP-on-a-skill-tree game in Godot 4.7. Player and enemi
 
 ## Running it
 
-Open the project in Godot 4.7 (no build step, no test runner beyond GUT):
+Setup is one command — [mise](https://mise.jdx.dev) installs the pinned Godot,
+`gh`, and python, and nothing else is needed (no build step, no test runner
+beyond GUT):
+
+```
+mise install        # godot 4.7.1 + gh + python, ~5s
+mise run test       # confirm you're up
+```
+
+Then, either through mise or with your own Godot 4.7 on `PATH`:
 
 ```
 godot --editor .                                  # open in editor

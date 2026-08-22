@@ -12,6 +12,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Running the Game
 
+`mise install` is the whole setup — `[tools]` in `mise.toml` pins the engine
+(exactly: it decides whether a `.tscn` loads at all), `gh`, and python. The one
+exception is msdfgen (`mise run tools:bootstrap`), which the font pipeline needs.
+
 ```
 godot --editor .                          # open project in editor
 godot --path . scenes/dev_sandbox.tscn    # hand-authored sandbox (player + small graph)

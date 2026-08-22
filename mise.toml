@@ -1,10 +1,21 @@
-# Project tasks for Skill Tree of Life (Godot 4.7).
-# There is deliberately no [tools] section: `godot` (4.7.1), `gh`, and `python3`
-# are all system installs — these are just tasks. The python file tasks under
-# .mise/tasks/ (test, refresh, rules-hygiene) are stdlib-only and want nothing
-# newer than 3.7, so pinning an interpreter would buy determinism we don't lack
-# while shadowing the system python for everything else run inside this repo.
-# Usage: `mise tasks -l` to list (local tasks only, skips global noise), `mise run check`, `mise run playground`, ...
+# Project tools + tasks for Skill Tree of Life.
+# Onboarding is `mise install` and you can run the game and the suite. Usage:
+# `mise tasks -l` to list (local tasks only, skips global noise), `mise run test`, …
+#
+# msdfgen is the one thing this can't cover — no packaged Linux binary exists,
+# so it stays a source build behind `mise run tools:bootstrap`, and only the
+# font pipeline needs it.
+[tools]
+# Pinned exactly: the engine decides whether a .tscn even loads, and a project
+# opened by a newer editor is not reopenable by an older one. Bump deliberately.
+godot = "4.7.1-stable"
+# Board tasks (.mise/tasks/gh-project) shell out to gh; auth stays in ~/.config/gh.
+gh = "2"
+# The python file tasks (test, refresh, rules-hygiene) are stdlib-only and want
+# nothing newer than 3.7 — pinned so `mise install` is the whole setup, not
+# because the version is delicate.
+python = "3.13"
+
 # Project board identifiers — consumed by `.mise/tasks/gh-project`.
 [env]
 GH_PROJECT_NUMBER = "1"
