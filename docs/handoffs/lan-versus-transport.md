@@ -116,6 +116,33 @@ way (#530 is a prerequisite, #531 is the integration).
 **Do not file the upward-channel unit before #529 reports.** Its whole content
 is the `submit()` branch, and which branch to write is the open question.
 
+### The harness ladder, filed 2026-08-22 in the same session
+
+| Rung | Issue | State |
+|---|---|---|
+| 1 — existing `mp_dev_sandbox`, no state crosses | **#532** | `Ready` |
+| 2 — procgen'd scene, graph + run settings cross | **#533** | `Backlog`, blocked-by #527/#528/#531 |
+| 3 — the client acts and it round-trips | *unfiled* | needs the upward channel |
+| 4 — the real menu sets up a lobby | #531 + #461 | — |
+
+Rung 1's value is precisely that **no state crosses by construction**, so a
+divergence there is a messaging bug and cannot be a serialization bug. That is
+what makes rung 2's failures diagnosable.
+
+**#532 found a stale justification worth knowing about:** `mp_dev_sandbox.gd`'s
+docstring and `docs/domain/multiplayer-harness.md` both say Blue must be human
+because "the AI still calls `AllocationSystem` / `BattleSystem` directly
+(#512)". #512 landed; `ai_controller.gd:156,176,384` submit commands. Restoring
+the AI exposes a real trap — `GameRoot._ensure_controllers` attaches an
+`AiController` on BOTH peers, so a mirror peer's AI would submit locally. That is
+where `CommandApplier.is_authority` finally gets its first reader.
+
+**#531 collides with the harness** — `mp_dev_sandbox.tscn` already mounts its own
+`Transport` + `CommandLink` as direct children and reads them as `$Transport` /
+`$CommandLink`, and the chain is `mp_dev_sandbox` -> `dev_sandbox` ->
+`game_root`. Warned on #531; the harness must SWAP the inherited transport, not
+add a second.
+
 ## Other board actions
 - #461: moved to `Needs design`. Owner: *"if it has open forks it should be in
   Needs design"*, and the separation from #463 is that #461 is looks/UX

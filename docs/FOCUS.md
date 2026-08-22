@@ -115,6 +115,15 @@ So the remaining order is short:
   `PlayerInputController.request_end_turn`) and loot picks (still open). When a
   verb misbehaves in a mirrored sandbox, check the submission site before the
   transport.
+- **The harness is a ladder now, and each rung defines "done" for a layer.**
+  Rung 1 **#532** (`Ready`): the existing `mp_dev_sandbox`, where no state
+  crosses by construction — so a failure there is a *messaging* bug and cannot be
+  a serialization bug. Restores the AI opponent (the "#512 makes the AI bypass
+  the applier" justification in the code and the doc is **stale** — #512 landed),
+  sweeps every verb, and asserts turn-advance + seating. Rung 2 **#533**
+  (`Backlog`, blocked-by #527/#528/#531): a procgen'd scene where the graph and
+  run settings actually cross. Rung 3 is the client acting, and waits on the
+  upward channel. Rung 4 is the real menu.
 - **#463 is open, and its sync model is decided by measurement, not argument.**
   `CommandLink` wave 0 is one-directional: the client is a spectator with a real
   applier. What replaces that is genuinely undecided — the owner pulled toward
