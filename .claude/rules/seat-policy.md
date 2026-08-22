@@ -5,7 +5,6 @@ paths:
   - "scenes/game_root.gd"
   - "scenes/dev/mp_dev_sandbox.gd"
   - "systems/vision_system.gd"
-  - "procgen/**"
 ---
 
 A run's setup has two halves. **Run shape** (how many camps, who is on them,
