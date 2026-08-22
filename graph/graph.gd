@@ -351,6 +351,22 @@ func get_stable_id(node: SkillNode) -> int:
 	return node.stable_id
 
 
+## Wire-restore only: forces [param node]'s `stable_id` to [param id] rather
+## than letting [method _ensure_topology] mint the next free one — so a peer
+## decoding a [GraphSnapshot] ends up with the SAME ids the host had, which is
+## the whole point (a [Command] carrying a mismatched id resolves to nothing,
+## silently). No-op for a null node or a non-positive id. Must run before
+## anything on [param node] is queried through [method get_stable_id] /
+## [method get_by_stable_id] — those would otherwise see `0` and mint fresh.
+func restore_stable_id(node: SkillNode, id: int) -> void:
+	if node == null or id <= 0:
+		return
+	node.stable_id = id
+	if id >= _next_stable_id:
+		_next_stable_id = id + 1
+	_mark_topology_dirty()
+
+
 ## O(1) lookup by [member Entity.entity_id] — the entity half of
 ## [method get_by_stable_id], and the only way an applier resolves the
 ## `entity_id` a [Command] carries. Returns null for 0 (unminted) and for an

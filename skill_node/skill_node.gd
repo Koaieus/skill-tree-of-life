@@ -662,6 +662,20 @@ func get_current_hp() -> float:
 	return _combat.get_current_hp()
 
 
+## Wire-restore write half of [method get_current_hp] — for [GraphSnapshot]
+## decode only. Writes straight into the `node_health` pool's `current`,
+## bypassing [method NodeCombat.take_damage] / [method heal_damage] (no
+## `damaged`/`healed` signal, no death check): a decode is reconstructing
+## ACCUMULATED state that already happened elsewhere, not re-simulating a hit.
+## Ensures the board exists first ([method _init_node_board]) so this works on
+## a freshly-decoded node whose board has never been touched.
+func restore_current_hp(value: float) -> void:
+	_init_node_board()
+	var hp := node_board.get_stat(&"node_health") as PoolStat
+	if hp != null:
+		hp.set_current(value)
+
+
 ## Non-allocating passthrough read: returns the combined value of a stat
 ## visible to this node (entity board if owned, or StatRegistry default if
 ## orphaned). Does NOT create a stat on [member node_board] — use
