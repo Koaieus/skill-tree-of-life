@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="ExcludeGroupRule" format=3]
+
+[ext_resource type="Script" path="res://session/victory/exclude_group_rule.gd" id="1_exclude_group"]
+
+[resource]
+script = ExtResource("1_exclude_group")
+group = &"scenery"

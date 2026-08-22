@@ -86,13 +86,17 @@ through `ownership_bit`, and that is the part that must never fork.
 
 ## Attitude is not the only gate
 
-A relation answers *may I*, not *should I*. Two flags on `Faction` deliberately
-sit beside it rather than inside it:
+A relation answers *may I*, not *should I*. `Faction.targeted_by_ai` — should an
+NPC brain spend AP on this camp? — deliberately sits beside `attitude_to` rather
+than inside it. It is false only on `blocker.tres`.
 
-- `counts_for_victory` — does this camp's survival decide the run?
-- `targeted_by_ai` — should an NPC brain spend AP on this camp?
+("Does this camp's survival decide the run?" used to be its sibling
+`counts_for_victory`. It left `Faction` entirely in #517 because it needed a
+per-*entity* answer: it is now a `ContestantRule` the victory condition owns,
+reading a `scenery` group off the entity's scene. See
+`docs/domain/victory-system.md`.)
 
-Both are false only on `blocker.tres`. Neither belongs in `attitude_to`: a
+Neither belongs in `attitude_to`: a
 dormant core must stay `HOSTILE` so the **player** can clear it, and so damage,
 the forced-dealloc cascade and XP gating treat that as a real kill. `targeted_by_ai`
 is filtered in `AiRecon.is_ai_target`, which is the single predicate both the AI's

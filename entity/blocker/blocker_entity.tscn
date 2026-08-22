@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://dwxok6qi3pfce" path="res://entity/entity.gd" id="1_entity"]
 [ext_resource type="Resource" path="res://entity/factions/blocker.tres" id="2_blocker_faction"]
 
-[node name="BlockerEntity" type="Node"]
+[node name="BlockerEntity" type="Node" groups=["scenery"]]
 script = ExtResource("1_entity")
 color = Color(0.55, 0.55, 0.58, 1)
 faction = ExtResource("2_blocker_faction")

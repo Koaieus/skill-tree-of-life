@@ -31,6 +31,14 @@ var kind: Kind = Kind.TITLE
 var main_text: String = ""
 var sub_text: String = ""
 var style: Style = Style.DEFAULT
+## Optional text tint overriding [member style]'s own colour. For announcements
+## whose colour is DATA rather than a semantic register — the run-end winner
+## banner is tinted [member Faction.color], and a camp's colour is authored per
+## camp, so it can't be one more [enum Style] (#517).
+##
+## Fully transparent means "no override", which is the only reading a zero-alpha
+## tint could have anyway. Check with [method has_tint], never `tint != ...`.
+var tint: Color = Color(0, 0, 0, 0)
 var stack_count: int = 1
 ## Optional staleness context. Key: `entity: Entity`. AnnouncementLayer drops
 ## the request on dequeue if a different entity is now acting.
@@ -45,6 +53,22 @@ static func make(main: String, sub: String = "", s: Style = Style.DEFAULT,
 	r.style = s
 	r.kind = k
 	return r
+
+
+## Same as [method make] but with an explicit text colour (see [member tint]).
+## Deliberately NOT [method make_for_entity]: a camp-authored line has no acting
+## entity to go stale against, and stamping one would let a turn change drop the
+## banner that says the run is over.
+static func make_tinted(main: String, sub: String, t: Color,
+		s: Style = Style.DEFAULT, k: Kind = Kind.TITLE) -> AnnouncementRequest:
+	var r := make(main, sub, s, k)
+	r.tint = t
+	return r
+
+
+## Is [member tint] an actual override, or the transparent "unset" default?
+func has_tint() -> bool:
+	return tint.a > 0.0
 
 
 ## Same as [method make] but stamps `{entity}` into [member context] so
@@ -63,7 +87,7 @@ static func make_for_entity(main: String, sub: String, s: Style, entity: Entity,
 ## coalescing entirely. Default mirrors the pre-coalescing dedup-by-drop
 ## behavior: identical kind/style/text never needs to display twice anyway.
 func coalesce_key() -> Variant:
-	return [kind, style, main_text, sub_text]
+	return [kind, style, main_text, sub_text, tint]
 
 
 ## Merge `other` (a newer request that matched [method coalesce_key]) into

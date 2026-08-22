@@ -64,7 +64,7 @@ func play(request: AnnouncementRequest) -> void:
 	if _tween and _tween.is_valid():
 		_tween.kill()
 	_label.text = request.main_text if not is_sub else request.sub_text
-	_apply_style(request.style)
+	_apply_style(request)
 	_size_label()
 	_prepare_count_badge(request.stack_count)
 
@@ -185,10 +185,15 @@ func _collapse_bg() -> void:
 	_bg.offset_bottom = 0.0
 
 
-func _apply_style(style: AnnouncementRequest.Style) -> void:
+## Backdrop + text colour for one request. The backdrop always comes from the
+## semantic [enum AnnouncementRequest.Style]; the text colour is overridden by
+## [member AnnouncementRequest.tint] when the request carries one, which is how
+## a camp-authored line (the run-end winner banner) gets its faction colour
+## without minting a Style per camp.
+func _apply_style(request: AnnouncementRequest) -> void:
 	var bg_color: Color
 	var text_color: Color
-	match style:
+	match request.style:
 		AnnouncementRequest.Style.PHASE:
 			bg_color = Color(0.06, 0.10, 0.18, 0.78)
 			text_color = Color(0.55, 0.95, 1.0)
@@ -204,6 +209,8 @@ func _apply_style(style: AnnouncementRequest.Style) -> void:
 		_:
 			bg_color = Color(0.05, 0.05, 0.08, 0.78)
 			text_color = Color(0.95, 0.85, 1.0) if is_sub else Color(1.0, 0.95, 0.85)
+	if request.has_tint():
+		text_color = request.tint
 
 	# Full-bleed bar: no rounded corners (they'd hit the viewport edges and
 	# look weird); no content margins (the Label is a sibling, not a child).

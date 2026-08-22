@@ -37,6 +37,13 @@ extends Control
 @onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
 
 var _player: Entity
+## The composition root, kept only to read [member GameRoot.seat_policy] when a
+## run ends (#517). Deliberately the ROOT and not the policy: `game_root.gd`
+## initialises a default couch policy at field-init and a roster REPLACES the
+## object during `_setup_level`, so a policy cached in [method bind_systems]
+## can be the stale pre-roster instance. Optional — a hand-built HUD fixture
+## has none, and then the run-end overlay simply behaves like a couch.
+var _game_root: GameRoot
 var _input_ctl: PlayerInputController
 var _battle_system: BattleSystem
 var _turn_manager: TurnManager
@@ -79,6 +86,11 @@ func _ready() -> void:
 	if not Engine.is_editor_hint():
 		Events.loot_pick_requested.connect(_on_loot_pick_requested)
 		Events.spell_loot_requested.connect(_on_spell_loot_requested)
+		Events.run_ended.connect(_on_run_ended)
+		# #526 owns this signal's fate. It is emitter-less since #517 moved the
+		# run-end presentation onto `run_ended`, but `test_entity_death.gd`
+		# still emits it by hand — leaving the listener is what keeps that test
+		# honest, and the two paths toggle the same overlay harmlessly.
 		Events.game_over.connect(_on_game_over)
 		if loot_picker != null:
 			loot_picker.closed.connect(_on_modal_closed)
@@ -103,7 +115,8 @@ func _exit_tree() -> void:
 ## the source's current value.
 func compose(game_root: GameRoot) -> void:
 	bind_systems(game_root.graph, game_root.input_ctl, game_root.battle_system,
-			game_root.turn_manager, game_root.vision_system, game_root.allocation_system)
+			game_root.turn_manager, game_root.vision_system, game_root.allocation_system,
+			game_root)
 	rebind_player(game_root.player)
 
 
@@ -115,6 +128,9 @@ func compose(game_root: GameRoot) -> void:
 ## Takes the systems rather than the [GameRoot] that owns them so the HUD's
 ## rebind seam can be exercised against hand-built systems, without a live
 ## composition root — the same reason [method GameRoot.apply_roster] is static.
+## [param game_root] is the one exception and stays OPTIONAL for that reason:
+## the run-end overlay needs a [SeatPolicy] and only the root has one (see
+## [member _game_root]).
 func bind_systems(
 	graph: Graph,
 	input_ctl: PlayerInputController,
@@ -122,7 +138,9 @@ func bind_systems(
 	turn_manager: TurnManager,
 	vision_system: VisionSystem,
 	allocation_system: AllocationSystem,
+	game_root: GameRoot = null,
 ) -> void:
+	_game_root = game_root
 	_input_ctl = input_ctl
 	_battle_system = battle_system
 	_turn_manager = turn_manager
@@ -353,3 +371,66 @@ func _on_turn_ended_for_initiative(entity: Entity) -> void:
 func _on_game_over() -> void:
 	if game_over_overlay != null:
 		game_over_overlay.visible = true
+
+
+## The run ended (#517). The HUD is where a POV-free [RunOutcome] becomes a
+## local reading, because the point of view is a fact about this MACHINE — the
+## outcome names one winner and every screen watching may narrate it
+## differently.
+##
+## Two separate presentations, deliberately not one:
+## - **The banner is camp-authored, never entity-authored.** Text and tint come
+##   from [member RunOutcome.winning_camp] alone, so a camp holding two living
+##   heroes announces once, as a camp. Plural phrasing ("Players win!" for coop)
+##   is then an AUTHORING choice in the faction `.tres`, not a code branch.
+## - **The overlay is gated on [SeatPolicy]** — see [method _shows_loss_overlay].
+##
+## [method AnnouncementLayer.enqueue_now] and not `enqueue`: this is the last
+## thing the run has to say, so it preempts the TITLE band rather than waiting
+## behind the killing blow's own kill toast. That toast IS stomped mid-play —
+## deliberately; nothing queued before the end of the run outranks it.
+func _on_run_ended(outcome: RunOutcome) -> void:
+	if outcome == null:
+		return
+	if announcement_layer != null:
+		announcement_layer.enqueue_now(_run_end_banner(outcome))
+	if game_over_overlay != null and _shows_loss_overlay(outcome):
+		game_over_overlay.visible = true
+
+
+func _run_end_banner(outcome: RunOutcome) -> AnnouncementRequest:
+	var camp := outcome.winning_camp
+	if camp == null:
+		return AnnouncementRequest.make("DRAW", "", AnnouncementRequest.Style.DEATH)
+	return AnnouncementRequest.make_tinted(
+			"%s wins!" % camp.display_name, "", camp.color,
+			AnnouncementRequest.Style.LEVEL_UP)
+
+
+## Does THIS screen show the loss overlay? Gated on seating, not on the bound
+## hero — which is the whole fix (#517): `rebind_player` fires on every hot-seat
+## handover (#459), so anything derived from "the current player" answered from
+## whoever acted last.
+##
+## - **DRAW** — banner only. A mutual wipe used to dim the screen, because
+##   GameRoot emitted `game_over` on anything that was not a local WIN.
+## - **COUCH** — banner only, ever. Two rivals share one screen, so there is no
+##   camp for this screen to have lost from. That is what makes the outcome
+##   independent of turn order.
+## - **SEAT** — one human, one machine, one hero: overlay iff that hero's camp
+##   did not win. Reading [member _player] is legitimate *here specifically*
+##   because [method SeatPolicy.follows_active_turn] is false under SEAT, so
+##   [method GameRoot._on_turn_started_for_handover] never re-points the player
+##   and `_player` IS the seated hero — including after it dies, which is
+##   exactly when the overlay matters and when walking [constant Entity.GROUP]
+##   for it would fail (GameRoot pulls corpses out of that group synchronously).
+func _shows_loss_overlay(outcome: RunOutcome) -> bool:
+	if outcome.winning_camp == null:
+		return false
+	var policy: SeatPolicy = _game_root.seat_policy if _game_root != null else null
+	if policy == null or policy.seating != SeatPolicy.Seating.SEAT:
+		return false
+	var camp: Faction = _player.faction if _player != null else null
+	if camp == null or camp.id == &"":
+		return false
+	return camp.id != outcome.winning_camp.id

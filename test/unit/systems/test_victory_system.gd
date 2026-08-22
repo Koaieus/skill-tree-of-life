@@ -3,6 +3,11 @@ extends GutTest
 ## [VictorySystem] (#460) — the *when* and the *once*, against real entities on
 ## the real death bus. What the rule decides is pinned separately in
 ## `test/unit/session/test_victory_condition.gd`.
+##
+## Note every entity here is built with `Entity.new()` and never through a
+## scene: contest membership (#517) is a FILTER over the one
+## [constant Entity.GROUP] walk, so a bare-constructed fixture must still be
+## evaluated for victory.
 
 const _PLAYER := preload("res://entity/factions/player.tres")
 const _NPC := preload("res://entity/factions/npc.tres")
@@ -16,7 +21,6 @@ var _outcomes: Array[RunOutcome] = []
 func before_each() -> void:
 	_outcomes = []
 	_victory = VictorySystem.new()
-	_victory.local_camp = _PLAYER
 	add_child_autofree(_victory)
 	_victory.run_ended.connect(func(o: RunOutcome) -> void: _outcomes.append(o))
 
@@ -24,12 +28,16 @@ func before_each() -> void:
 ## A minimal live entity: in the tree (so it joins `Entity.GROUP`, which is
 ## where VictorySystem reads the roster from) with a board so `_ready` wiring
 ## has something to bind.
-func _spawn(ent_name: String, faction: Faction) -> Entity:
+func _spawn(ent_name: String, faction: Faction, scenery: bool = false) -> Entity:
 	var e := Entity.new()
 	e.name = ent_name
 	e.display_name = ent_name
 	e.faction = faction
 	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	if scenery:
+		# What `blocker_entity.tscn` authors in the inspector (#517) — contest
+		# membership is a group the victory rule reads, not a faction flag.
+		e.add_to_group(&"scenery")
 	add_child_autofree(e)
 	return e
 
@@ -62,20 +70,39 @@ func test_killing_the_last_entity_of_a_camp_ends_the_run() -> void:
 
 	assert_eq(_outcomes.size(), 1)
 	assert_eq(_outcomes[0].winning_camp.id, &"player")
-	assert_eq(_outcomes[0].local_result, RunOutcome.LocalResult.WIN)
 	assert_eq(_victory.outcome, _outcomes[0], "the outcome is latched on the system")
 
 
-func test_blockers_left_on_the_board_do_not_keep_the_run_alive() -> void:
+func test_scenery_left_on_the_board_does_not_keep_the_run_alive() -> void:
 	_spawn("Player", _PLAYER)
 	var npc := _spawn("Npc", _NPC)
-	_spawn("BlockerA", _BLOCKER)
-	_spawn("BlockerB", _BLOCKER)
+	_spawn("BlockerA", _BLOCKER, true)
+	_spawn("BlockerB", _BLOCKER, true)
 
 	_kill(npc)
 	await get_tree().process_frame
 
 	assert_eq(_outcomes.size(), 1, "two living blockers must not hold the run open")
+	assert_eq(_outcomes[0].winning_camp.id, &"player")
+
+
+## The tutorial case, live on the real death bus (#517): one blocker IN the
+## contest, its same-faction siblings out. The run stays open while it lives and
+## ends when it dies — membership decided per entity, not per camp.
+func test_a_blocker_in_the_contest_keeps_the_run_open_until_it_dies() -> void:
+	_spawn("Player", _PLAYER)
+	var npc := _spawn("Npc", _NPC)
+	var contender := _spawn("Contender", _BLOCKER)
+	_spawn("Scenery", _BLOCKER, true)
+
+	_kill(npc)
+	await get_tree().process_frame
+	assert_eq(_outcomes.size(), 0, "a blocker outside `scenery` is a real camp")
+
+	_kill(contender)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 1, "its sceneried sibling must not hold the run open")
 	assert_eq(_outcomes[0].winning_camp.id, &"player")
 
 
@@ -92,7 +119,6 @@ func test_a_mutual_wipe_in_one_batch_is_a_draw_not_a_win() -> void:
 
 	assert_eq(_outcomes.size(), 1, "one terminal announcement, not two")
 	assert_null(_outcomes[0].winning_camp)
-	assert_eq(_outcomes[0].local_result, RunOutcome.LocalResult.DRAW)
 
 
 func test_the_outcome_is_announced_exactly_once() -> void:
@@ -113,7 +139,7 @@ func test_the_outcome_is_announced_exactly_once() -> void:
 	assert_eq(_victory.outcome, first)
 
 
-func test_the_player_dying_to_a_surviving_camp_is_a_loss() -> void:
+func test_the_player_dying_leaves_the_surviving_camp_the_winner() -> void:
 	var player := _spawn("Player", _PLAYER)
 	_spawn("Npc", _NPC)
 
@@ -122,7 +148,6 @@ func test_the_player_dying_to_a_surviving_camp_is_a_loss() -> void:
 
 	assert_eq(_outcomes.size(), 1)
 	assert_eq(_outcomes[0].winning_camp.id, &"npc")
-	assert_eq(_outcomes[0].local_result, RunOutcome.LocalResult.LOSS)
 
 
 func test_the_outcome_reports_the_turn_count() -> void:

@@ -10,6 +10,23 @@ extends Resource
 ## populated [RunOutcome] (the run is over) or [code]null[/code] (it continues).
 ## It must not mutate the world, emit signals, or route scenes — [VictorySystem]
 ## owns all of that, and owns the once-only latch.
+##
+## The outcome it returns is **point-of-view-free** (#517): it names the winning
+## camp and nothing else. Whether that reads as a win or a loss on some screen
+## is a presentation question, answered by [HudRoot] from the local
+## [SeatPolicy] — a run has one winner and as many points of view as there are
+## machines watching.
+
+## Who is in the contest at all (#517). Defaults to the shipped rule excluding
+## the `scenery` group, so a level that authors nothing still ignores dormant
+## cores. A script-default [Resource] is shared across every instance in Godot;
+## that is safe here precisely because a [ContestantRule] is a pure predicate
+## with no per-run state.
+##
+## A null rule means EVERYONE counts — never a crash and never a run that can
+## no longer end.
+@export var contestants: ContestantRule = preload("res://session/victory/rules/exclude_scenery.tres")
+
 
 ## Override. Return null while the run continues.
 func evaluate(_ctx: VictoryContext) -> RunOutcome:
@@ -22,13 +39,4 @@ func _outcome(ctx: VictoryContext, winner: Faction) -> RunOutcome:
 	var outcome := RunOutcome.new()
 	outcome.winning_camp = winner
 	outcome.turn_count = ctx.turn_count
-	# DRAW covers both "nobody won" and "there is no local human to have won"
-	# (an AI-only or headless run) — the run still ended and still names its
-	# winner in `winning_camp`; only the local point of view is absent.
-	if winner == null or ctx.local_camp == null:
-		outcome.local_result = RunOutcome.LocalResult.DRAW
-	elif ctx.is_local_camp(winner):
-		outcome.local_result = RunOutcome.LocalResult.WIN
-	else:
-		outcome.local_result = RunOutcome.LocalResult.LOSS
 	return outcome

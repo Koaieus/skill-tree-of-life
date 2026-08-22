@@ -99,9 +99,12 @@ why the candidate walk stays in `GameRoot`, in `Entity.GROUP` order, and why
   opinion about it.
 - **Per-machine state fidelity under fog** (#519) — what a peer is *told*, as
   opposed to what it draws.
-- **`victory_system.local_camp`**, set in `bind_player`. On a versus couch it
-  swings every handover, so the win/lose banner resolves from whoever acted
-  last. Undefined by construction; #460/#517 territory, untouched here.
+- **How a run-end reads on this screen** — *closed by #517, and it landed on
+  the seat.* `victory_system.local_camp` is gone: `RunOutcome` is
+  point-of-view-free, and `HudRoot` gates the loss overlay on `seating`
+  (COUCH → winner banner only; SEAT → overlay iff the seated hero's camp lost).
+  That is what makes the couch answer independent of turn order, which the old
+  `bind_player` assignment never was. See `docs/domain/victory-system.md`.
 
 ## Callers
 

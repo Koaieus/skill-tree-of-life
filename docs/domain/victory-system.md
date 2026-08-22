@@ -11,8 +11,9 @@ system decides the run is over, once, and says who won.
 | `VictoryCondition` | `session/victory/victory_condition.gd` | The **what**. Pure `evaluate(ctx) -> RunOutcome?`. |
 | `LastCampStandingCondition` | `session/victory/last_camp_standing_condition.gd` | The first and default rule. |
 | `VictoryContext` | `session/victory_context.gd` | Everything a condition may read, snapshotted per evaluation. |
-| `RunOutcome` | `session/run_outcome.gd` | Pure data: `winning_camp`, `local_result`, `turn_count`. |
-| `Faction.counts_for_victory` | `entity/faction.gd` | Authored inertness. |
+| `RunOutcome` | `session/run_outcome.gd` | Pure data: `winning_camp`, `turn_count`. Point-of-view-free. |
+| `ContestantRule` | `session/victory/contestant_rule.gd` | The **who**. Pure `includes(ent) -> bool`, owned by the condition. |
+| `ExcludeGroupRule` | `session/victory/exclude_group_rule.gd` | The one rule so far: everyone except a Godot group (`scenery`). |
 
 The split is the point: a mode that wants a different rule swaps a resource and
 inherits latching, signal timing and the death trigger for free.
@@ -37,27 +38,63 @@ Single-player needs no special case: the player is one counting camp and the AI
 is another, so dying is a LOSS and clearing the board is a WIN, straight out of
 the same rule.
 
-## Inertness is authored, never inferred
+## Contest membership is a rule the condition owns (#517)
 
-`Faction.counts_for_victory` is `false` on **`entity/factions/blocker.tres`**
-only — the "dormant cores" camp that removable blockers (#300) belong to. A
-hard-coded `if faction.id == &"npc"` at the check site would be a second
-definition of "who is a real camp", living somewhere no designer looks.
+*Was* `Faction.counts_for_victory`, a bool per camp. That could not express a
+**per-entity** exception without minting a faction for it, so it became a
+predicate instead.
 
-**The trap this avoids:** blockers and AI opponents both sat on `npc.tres`
-(`entity.gd`'s default faction, and what `procgen_play_sandbox.gd` hands every
-AI participant). Flipping the flag on `npc.tres` — which the issue's original
-wording said to do — would have left exactly one counting camp at spawn and
-ended every run the instant it started. A hand-built two-camp test still passes
-under that bug; only the real level breaks. If you touch faction authoring,
-check what the *live levels* actually assign, not what the names suggest.
+**Owner call 2026-08-22:** *"i feel like the game mode decides the victory
+conditions, and entities themselves just should be agnostic of all this... i
+think a predicate (customizable to any condition) would be a more useful
+construct than a single bool... i feel like victorycond would be the one to
+apply them anyway."*
+
+`VictoryCondition.contestants` is a `ContestantRule`, defaulting to
+`session/victory/rules/exclude_scenery.tres` — everyone except members of the
+Godot group `scenery`, which `entity/blocker/blocker_entity.tscn` authors on
+itself. `Entity` gains no field and learns nothing about victory; a group *is*
+the engine's per-unit tag, and it is the same shape XCOM 2 (unit traits queried
+by the mission objective) and Unreal (`AGameMode` owns match state, actors carry
+`Tags`) landed on. **A null rule means everyone counts** — never a crash, never
+a run that can no longer end.
+
+Four things to keep straight:
+
+- **The group means OUT, never IN.** `VictorySystem` lives in `game_root.tscn`,
+  so a GUT fixture or a sandbox tab has none to stamp anyone; under an "in"
+  polarity every evaluation would be an instant DRAW. Only the exception
+  authors itself, and today that is `blocker_entity.tscn` alone.
+- **It is a filter, not a second enumeration.** `build_context` walks
+  `Entity.GROUP` exactly once. A rival walk would silently drop every
+  `Entity.new()` fixture and sandbox entity out of victory evaluation.
+- **Membership is pulled at evaluation time, never pushed at spawn.** A
+  run-start sweep would have to run after `victory_system.condition` is
+  assigned — later than `_setup_level` — and would then re-stamp anything a
+  level deliberately un-stamped, because a boolean group cannot tell "not yet
+  stamped" from "deliberately out". There is also no `entity_spawned` signal and
+  four creation paths. A materialised *view* computed from the same rule stays
+  purely additive if save/replay/spectating ever wants one.
+- **Bespoke run-end logic is a `VictoryCondition` subclass**, not a cleverer
+  rule. Owner call 2026-08-22: the per-entity exception is *"a free consequence,
+  not the justification"* — take it because a group read costs the same either
+  way, but do not grow `ContestantRule` to anticipate a tutorial.
+
+**A historical trap, still worth knowing:** blockers and AI opponents both sat
+on `npc.tres` (`entity.gd`'s default faction, and what
+`procgen_play_sandbox.gd` hands every AI participant). Under the old per-camp
+flag, opting `npc.tres` out would have left one counting camp at spawn and ended
+every run instantly — invisible to a hand-built two-camp test. Per-entity
+membership removes that whole failure class: the handle is on the *scene*, not
+on a resource other entities share.
 
 ### The sibling flag: `Faction.targeted_by_ai`
 
-`blocker.tres` also authors `targeted_by_ai = false`, and the two are kept
-**separate on purpose**. "Can end the run" and "worth an NPC's AP" are
-different questions that merely coincide on one resource today; collapsing
-them into one `is_inert` bakes that coincidence into the schema.
+`blocker.tres` still authors `targeted_by_ai = false`, and it deliberately did
+NOT follow contest membership off `Faction`. "Worth an NPC's AP" is genuinely
+camp-level — you shoot at camps, not individuals. (A per-entity version reading
+the same `scenery` group would be a drop-in, since `AiRecon` already resolves
+the flag per owning entity, but that is its own decision.)
 
 `targeted_by_ai` is filtered inside `AiRecon.visible_enemy_nodes()` — the one
 chokepoint every NPC target list flows through (growth's directional bias, the
@@ -104,22 +141,49 @@ signal and must be ignored.
 
 `Events.run_ended(outcome)` is it, and `VictorySystem` is the sole emitter.
 
-`Events.game_over` survives as the HUD overlay's cue but is now **derived**:
-`GameRoot._on_run_ended` re-emits it when `local_result != WIN`. It no longer
-fires off player death directly — that was a second, competing answer to the
-same question, and it got hot-seat coop wrong (a dead player with a living ally
-would have ended the run).
+`Events.game_over` is **emitter-less since #517**. `HudRoot` listens to
+`Events.run_ended` directly and toggles the same overlay; #526 (unified run-end
+overlay) decides whether the signal survives at all. `HudRoot`'s listener stays
+in the meantime — `test_entity_death.gd` emits the signal by hand.
+
+## The outcome has no point of view (#517)
+
+`RunOutcome` names the winning camp and nothing else. There is no `local_result`
+and no `local_camp` anywhere: a run has ONE winner and as many points of view as
+there are machines watching it, so "did I lose" is a fact about a screen.
+
+`HudRoot._on_run_ended` makes that reading, and makes it from `SeatPolicy`:
+
+- **Banner** — camp-authored, always: `"%s wins!" % winning_camp.display_name`,
+  tinted `winning_camp.color` (via `AnnouncementRequest.make_tinted`, not
+  `make_for_entity` — there is no acting entity for it to go stale against). A
+  camp with two living heroes announces once, as a camp, and plural phrasing for
+  coop is an authoring choice in the faction `.tres`, not a code branch.
+- **`Seating.COUCH`** — winner banner only, no overlay, ever. Two rivals share
+  one screen; there is no camp for it to have lost from.
+- **`Seating.SEAT`** — overlay iff the seated hero's camp did not win.
+- **DRAW** — banner, no overlay. A behaviour change: GameRoot used to dim the
+  screen on anything that was not a local WIN, so a mutual wipe went dark.
+
+**Why seating and not the bound player.** `GameRoot.bind_player` set
+`victory_system.local_camp = player.faction`, and `rebind_player` fires on every
+hot-seat handover (#459) — so on a versus couch the banner resolved from
+whichever rival acted last. Deriving it from `HudRoot._player` would have moved
+the identical bug one layer down. Reading `_player` under SEAT specifically *is*
+sound, because `follows_active_turn()` is false there and the bound hero never
+re-points — including after it dies, which is why the overlay cannot be found by
+walking `Entity.GROUP` (GameRoot pulls corpses out of it synchronously).
+
+`HudRoot` binds the `GameRoot` and reads `seat_policy` at run-end time rather
+than caching the policy: `game_root.gd` initialises a default couch and a roster
+*replaces the object* during `_setup_level`, so a cached policy can be stale.
 
 ## What is deliberately not here
 
-- **`GameSession`** (#457) does not exist yet — it is an owner-decision unit
-  with open forks, and a parameter cannot be typed as a class that isn't
-  written. `VictoryContext` is the shape GameSession will populate; the
-  conditions do not change when it lands. `TODO(#457)` marks the two sites:
-  who supplies the `RunConfig`, and who records the outcome durably.
-- **`local_camp`** comes from `GameRoot.bind_player` reading `player.faction`,
-  because a run has no roster yet. `TODO(#461)` — it becomes the local
-  `Participant`'s camp once the lobby builds a real `ParticipantRoster`.
+- **`GameSession`** is an autoload now (#457). It supplies the `RunConfig` whose
+  `resolved_victory_condition()` GameRoot installs, and records the outcome as
+  the run's terminal state. `VictoryContext` is still built by `VictorySystem`,
+  not by the session — the conditions never changed shape when it landed.
 - **A results screen** is out of scope (#461). The route is a delayed
   `SceneDirector.goto(META_ROOT)`, off by default in the dev sandboxes
   (`route_to_meta_on_run_end`) so tooling does not teleport itself to the menu.

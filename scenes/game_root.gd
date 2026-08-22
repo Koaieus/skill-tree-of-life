@@ -283,17 +283,19 @@ func _reveal_entity_death(entity: Entity) -> void:
 ## The run is over (#460) — [VictorySystem] is the sole decider; GameRoot only
 ## presents and routes.
 ##
-## `Events.game_over` is kept as the HUD's overlay cue but is now DERIVED from
-## the outcome instead of being emitted straight off player death — one
-## definition of "the run ended", not two. A local WIN gets no overlay; the
-## proper results screen is #461's job.
+## GameRoot no longer decides what the run-end LOOKS like (#517). It used to
+## re-emit `Events.game_over` whenever the outcome was not a local WIN, which
+## meant the composition root held a point of view — and on a hot-seat couch
+## "the local camp" is whoever acted last, so the answer was undefined by
+## construction. [HudRoot] now listens to [signal Events.run_ended] directly and
+## gates the overlay on [member seat_policy], which is a fact about this
+## machine rather than about the turn order. That leaves `Events.game_over`
+## deliberately emitter-less; #526 owns whether the signal survives.
 ##
 ## The route back to the meta-shell is deliberately minimal per the issue ("a
 ## results screen is out of scope — a minimal route is enough"), and delayed so
 ## the terminal beat is legible rather than a scene-swap on the killing blow.
-func _on_run_ended(outcome: RunOutcome) -> void:
-	if outcome.local_result != RunOutcome.LocalResult.WIN:
-		Events.game_over.emit()
+func _on_run_ended(_outcome: RunOutcome) -> void:
 	if not route_to_meta_on_run_end:
 		return
 	await get_tree().create_timer(run_end_route_delay).timeout
@@ -328,11 +330,11 @@ func bind_player(p: Entity) -> void:
 	# way in — see [method PlayerInputController._set_player].
 	input_ctl.player = player
 	_apply_seat_vision()
-	# #460: whose point of view `RunOutcome.local_result` is written from. Set
-	# here rather than read by VictorySystem, so "who is the local human" stays
-	# a single fact owned by this method.
-	if victory_system != null:
-		victory_system.local_camp = player.faction
+	# Nothing victory-side is set from here any more (#517). A hot-seat handover
+	# re-enters this method, so anything point-of-view-ish assigned here would
+	# read from whoever acted last — which is exactly how `local_camp` came to
+	# be undefined on a versus couch. The outcome is POV-free; the HUD resolves
+	# the local reading from `seat_policy`, which a handover cannot change.
 	# #91/#108 — the Hero Sigil Card's floater anchor follows the active hero
 	# too, or player 1 keeps collecting player 2's wound/heal toasts. No-op
 	# until the HUD is composed.

@@ -40,13 +40,6 @@ signal run_ended(outcome: RunOutcome)
 ## still fires the death signal, and every one of them must be ignored.
 var outcome: RunOutcome = null
 
-## The local human's camp, for [member RunOutcome.local_result]. Injected by
-## [GameRoot] (`player.faction`) rather than resolved here: VictorySystem must
-## not carry a second notion of "who is the player".
-## TODO(#461): comes from the local [Participant] once the lobby builds a real
-## [ParticipantRoster].
-var local_camp: Faction = null
-
 var _pending: bool = false
 
 
@@ -72,7 +65,10 @@ func build_context() -> VictoryContext:
 	var ctx := VictoryContext.new()
 	ctx.graph = graph
 	ctx.turn_count = turn_manager.turns_taken if turn_manager != null else 0
-	ctx.local_camp = local_camp
+	# One enumeration, always [constant Entity.GROUP] — contest membership is a
+	# FILTER the condition applies (#517), never a second group to walk. A
+	# rival enumeration would silently drop every `Entity.new()` fixture and
+	# sandbox entity out of victory evaluation.
 	for node in get_tree().get_nodes_in_group(Entity.GROUP):
 		var ent := node as Entity
 		if ent != null:

@@ -18,17 +18,6 @@ extends Resource
 @export var display_name: String = ""
 @export var color: Color = Color.WHITE
 
-## Is this a camp that can win or lose a run? (#460). Authored, not inferred:
-## a hard-coded [code]if faction.id == &"npc"[/code] at the victory check would
-## be a second definition of "who is a real camp", living somewhere no designer
-## will look. [LastCampStandingCondition] ignores entities whose faction says
-## false — so a board holding nothing but dormant cores is already won.
-##
-## False only on `blocker.tres` (the dormant-core camp): removable blockers
-## (#300) are inert scenery that own a node and never act. Every playable camp
-## — `player`, `npc`, `camp_1..4` — leaves this true.
-@export var counts_for_victory: bool = true
-
 ## Do NPC brains spend their turn shooting at this camp? False only on
 ## `blocker.tres`: a dormant core is scenery a *player* may want to clear, so
 ## it stays [constant Entity.Attitude.HOSTILE] — the relation is what lets
@@ -39,9 +28,15 @@ extends Resource
 ## `saw_hostile` short-circuit, ranged/magic/melee candidate enumeration)
 ## never sees them.
 ##
-## Deliberately NOT folded into [member counts_for_victory] and deliberately
-## NOT expressed in [method Entity.attitude_to]: "can end the run" and "worth
-## an NPC's AP" are different questions that happen to coincide on one
-## resource today, and moving either into the attitude relation would silently
-## disarm the *player* too.
+## Deliberately NOT expressed in [method Entity.attitude_to]: "worth an NPC's
+## AP" and "may be attacked at all" are different questions, and moving this
+## into the attitude relation would silently disarm the *player* too.
+##
+## It is also NOT the sibling of contest membership any more. "Can end the run"
+## left [Faction] entirely in #517 — it is a [ContestantRule] the victory
+## condition owns, keyed on a per-entity group — because it needed a per-entity
+## answer. This flag stays camp-level on purpose: you shoot at camps, not
+## individuals. (A per-entity `targeted_by_ai` would be a drop-in on the same
+## group, since [method AiRecon.visible_enemy_nodes] already resolves this per
+## owning entity — but that is its own decision, not a consequence of #517.)
 @export var targeted_by_ai: bool = true

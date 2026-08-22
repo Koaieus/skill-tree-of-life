@@ -105,15 +105,16 @@ signal spell_unhovered
 
 ## The run reached a terminal state (#460). [VictorySystem] is the SOLE emitter
 ## and fires this at most once per run, carrying the populated [RunOutcome].
-## Whether the local human won is on the outcome — a listener that only wants
-## "you lost" reads `local_result`, it does not get its own signal.
+## The outcome is point-of-view-free (#517): it names the winning camp and
+## nothing else. "Did *I* lose" is a fact about a MACHINE, not about the run, so
+## [HudRoot] resolves it at display time from the local [SeatPolicy].
 signal run_ended(outcome: RunOutcome)
 
-## Presentation cue for the HUD's game-over overlay — DERIVED from
-## [signal run_ended], not a second definition of "the run ended" (#460).
-## GameRoot re-emits it when the outcome is not a local WIN; it no longer
-## fires off player death directly, so a hot-seat coop player dying with an
-## ally still alive correctly shows nothing. No payload; the single overlay is
+## Presentation cue for the HUD's game-over overlay. **Emitter-less since #517**
+## — the run-end presentation moved onto [signal run_ended], where the overlay
+## is gated on seating rather than on a point of view GameRoot had no honest way
+## to hold. [HudRoot] still LISTENS, and #526 decides whether this signal
+## survives the unified run-end overlay. No payload; the single overlay is
 ## pre-composed and just toggles visible.
 signal game_over
 
