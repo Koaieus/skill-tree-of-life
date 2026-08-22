@@ -79,7 +79,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | Sits in `Ready` but still carries open forks — see "Known board violations" |
 | ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
-| **#463** | Versus: `NetworkTransport` + ENet lobby | `Needs design` — **stretch**, and downstream of #473 |
+| **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. Four `Ready` children: **#527** graph snapshot, **#528** run-setup replication, **#531** mount + IP screen, **#529** determinism probe (plus **#530**, hitscan sort, which gates it). The sync model is **not** settled — see below |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
 Also in the milestone, by owner call: **#403** Tech Seeds, `Needs design` —
@@ -100,7 +100,8 @@ four-layer stack and **three layers are done**:
 3. *The command layer* — #458. **Shipped, minus loot picks.** There is now
    exactly one serial path through which the world mutates, it speaks in
    serializable commands, and every player and AI verb reaches it.
-4. *The transport* — #463. **Not started**, and still a stretch.
+4. *The transport* — #463. **Two thirds shipped without anyone noticing**, and
+   swarmified 2026-08-22 into four `Ready` children. See the row above.
 
 So the remaining order is short:
 
@@ -114,10 +115,14 @@ So the remaining order is short:
   `PlayerInputController.request_end_turn`) and loot picks (still open). When a
   verb misbehaves in a mirrored sandbox, check the submission site before the
   transport.
-- **#463 is the *upward* intent channel, and it stays gated.** `CommandLink`
-  wave 0 is deliberately one-directional: the client is a spectator with a real
-  applier. Two `mp_dev_sandbox` instances prove the mirror, not two people
-  playing. #463 opens once offline play is verified unchanged.
+- **#463 is open, and its sync model is decided by measurement, not argument.**
+  `CommandLink` wave 0 is one-directional: the client is a spectator with a real
+  applier. What replaces that is genuinely undecided — the owner pulled toward
+  **lockstep + snapshot recovery** over intent-up/confirm-down on 2026-08-22, and
+  **#529 produces the number that picks it**. #527, #528 and #531 are needed
+  under either model, so they start with no bet made; the upward-channel unit is
+  deliberately unfiled until the probe reports. Context:
+  `docs/handoffs/lan-versus-transport.md`.
 - **#457 does not gate any of this.** The 2026-08-21 owner call made the seed
   procgen-only, and #458's entity ids are minted by `Graph` the way `stable_id`
   already is.
@@ -239,11 +244,11 @@ the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
 
 ## Known board violations
 
-As of the evening pass (2026-08-21): **#460 and #507 both shipped**, so of the
-four rows that pass reported, **#457 and #461 remain** — both sitting in `Ready`
-while carrying the `design` label, and in both cases the label is honest. Their
-forks are genuinely open, so `Ready` is what is wrong there, not the label.
-Neither should be pulled by a drone until a `/swarmify` pass settles them.
+As of 2026-08-22: **#461 is fixed** — moved to `Needs design`, per the owner's
+call that an issue with open forks belongs there. **#457 remains** in `Ready`
+carrying the `design` label, and the label is honest: its forks are genuinely
+open, so `Ready` is what is wrong there. Don't let a drone pull it until a
+`/swarmify` pass settles it.
 
 Don't trust this section's date — run `mise gh-project -- hygiene`.
 

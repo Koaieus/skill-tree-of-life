@@ -1,7 +1,8 @@
 # Handoff: #463 versus transport — the swarmify pass of 2026-08-22
 
-**Spent when** #463's children are filed and the determinism probe has produced a
-number. Delete it then.
+**Spent when** #529's determinism probe has produced a number and the sync model
+is chosen. Delete it then — the children are already filed, so that half of the
+condition has fired.
 
 The **acceptance spec lives on #463** (comment of 2026-08-22) and is the
 authority for decisions 1–8. This file carries only what the spec cannot: the
@@ -97,9 +98,25 @@ pays deserialise + apply. **Recompute is strictly cheaper**, which is what the
 owner argued. #470 (dirty-mark / batched flush) is the filed fix if a slow
 machine makes it bite.
 
-## Board actions taken in this pass
+## What was filed
 
-- #463: acceptance spec posted; becomes a hub.
+| Unit | Issue | Note |
+|---|---|---|
+| Graph snapshot: wire format + join handshake | **#527** | model-independent |
+| Run-setup replication: `RunConfig` + roster | **#528** | model-independent |
+| Mount `CommandLink` in `GameRoot` + type-an-IP screen | **#531** | model-independent; carries the calendar risk (UI) and the node-path trap |
+| Determinism probe — produces the number | **#529** | blocked-by #530 |
+| Stable-sort hitscan results | **#530** | not a child; gates #529 |
+| The upward channel | *unfiled, on purpose* | #529's result picks its shape |
+
+All five are `Ready` and milestoned `LAN 2026-08-31`. #527/#528/#529 are
+sub-issues of #463; #530 and #531 are not children of the hub's DAG in the same
+way (#530 is a prerequisite, #531 is the integration).
+
+**Do not file the upward-channel unit before #529 reports.** Its whole content
+is the `submit()` branch, and which branch to write is the open question.
+
+## Other board actions
 - #461: moved to `Needs design`. Owner: *"if it has open forks it should be in
   Needs design"*, and the separation from #463 is that #461 is looks/UX
   (*"we scaffolded in some crappy menus REAL FAST ... now lets do it more
