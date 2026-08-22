@@ -31,11 +31,13 @@ Or tick both boxes on the sandbox host's **Multiplayer** tab and Launch both.
 `--probe` on a host is a no-op that says so, because a host receives no command
 to re-derive.
 
-The readout fires after `PROBE_REPORT_QUIET_SECONDS` of silence on the wire
-rather than at a command count or an end-of-sweep hook: a count would need the
-harness to know how long a sweep is, and a sweep hook would leave a human
-clicking in the window with no way to see the number at all. Quiet covers both,
-and reprints after each later burst.
+The readout fires on a `PROBE_REPORT_PERIOD_SECONDS` heartbeat **and** after
+`PROBE_REPORT_QUIET_SECONDS` of silence on the wire. Quiet alone was the
+original design and it silently failed: under `--turns` the sweeps run back to
+back, the wire never goes quiet, and a ten-minute measured run printed its last
+table two minutes in. The heartbeat means the table is never more than a period
+stale and killing the process costs at most one period. Quiet stays because it
+prints *promptly* when a sweep — or a human clicking — stops.
 
 ## Two questions, tallied apart
 

@@ -51,6 +51,14 @@ const DEFAULT_ADDRESS := "127.0.0.1"
 ## once, at the end of the sweep, rather than after every command.
 const PROBE_REPORT_QUIET_SECONDS := 4.0
 
+## And how often it prints ANYWAY while the wire is busy. Quiet alone is not
+## enough: under `--turns` the autopilot sweeps back to back and the wire never
+## goes quiet for four seconds, so a run measured for ten minutes printed its
+## last table two minutes in and the numbers that mattered were never emitted.
+## A repeating tick means the readout is always at most this stale, and killing
+## the process costs at most one period of results.
+const PROBE_REPORT_PERIOD_SECONDS := 60.0
+
 ## `--turns` with no value: keep sweeping until the process is killed. There is
 ## no natural end — the sandbox has no victory condition wired — so an unbounded
 ## run is a stopwatch decision, not a scene one.
@@ -267,11 +275,13 @@ func _start_link() -> void:
 ## re-derive, so arming it there would report an empty table and read as a
 ## clean result.
 ##
-## The readout fires on QUIET rather than on a command count or an end-of-sweep
-## hook. A count would need the harness to know how long a sweep is, and an
-## `--autopilot` hook would leave a human clicking in the window with no way to
-## see the number at all. Quiet covers both: the sweep's last verb starts the
-## timer, and so does a human's last click.
+## The readout fires on QUIET rather than on an end-of-sweep hook, because such
+## a hook would leave a human clicking in the window with no way to see the
+## number at all — quiet covers both, the sweep's last verb starting the timer
+## exactly as a human's last click does. It ALSO fires on a plain heartbeat,
+## because quiet alone silently failed: under `--turns` the sweeps run back to
+## back and the wire never goes quiet, so a ten-minute measured run printed its
+## last table two minutes in.
 func _arm_probe() -> void:
 	if _probe == null or not _probe_enabled:
 		return
@@ -285,13 +295,18 @@ func _arm_probe() -> void:
 	_probe_report_timer.wait_time = PROBE_REPORT_QUIET_SECONDS
 	_probe_report_timer.timeout.connect(_print_probe_report)
 	add_child(_probe_report_timer)
+	var heartbeat := Timer.new()
+	heartbeat.wait_time = PROBE_REPORT_PERIOD_SECONDS
+	heartbeat.timeout.connect(_print_probe_report)
+	add_child(heartbeat)
+	heartbeat.start()
 	# `sync_checked` fires once per COMPARED command; the skipped ones ride in
 	# on the same burst and are already tallied, so this is enough to keep the
 	# timer alive for as long as the wire is busy.
 	_link.sync_checked.connect(func(_a: bool, _l: int, _r: int) -> void:
 			_probe_report_timer.start())
-	_write_log("determinism probe ARMED (#529) — breakdown prints after %.0fs of quiet"
-			% PROBE_REPORT_QUIET_SECONDS)
+	_write_log("determinism probe ARMED (#529) — breakdown every %.0fs, and %.0fs after the wire goes quiet"
+			% [PROBE_REPORT_PERIOD_SECONDS, PROBE_REPORT_QUIET_SECONDS])
 
 
 func _print_probe_report() -> void:
