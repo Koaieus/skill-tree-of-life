@@ -15,6 +15,7 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CLAMP_ADDON := preload("res://skill_node/addons/clamp_addon.tscn")
+const _TITAN_KEYSTONE := preload("res://entity/keystone/instances/titan_keystone.tres")
 
 
 func _new_graph() -> Graph:
@@ -77,6 +78,11 @@ func test_non_pristine_round_trip_fingerprints_agree() -> void:
 	owned_node.regen_stacks = 3
 	owned_node.add_child(_CLAMP_ADDON.instantiate())
 	owned_node.restore_current_hp(maxf(owned_node.get_max_hp() - 15.0, 0.0))
+	# A keystone (#527's Decisions section names it explicitly in the authored
+	# tier — see graph_snapshot.gd's own docstring) on a SEPARATE node, so a
+	# lost keystone can't hide behind the addon assertion above.
+	var keystone_node: SkillNode = nodes[1]
+	keystone_node.keystone = _TITAN_KEYSTONE
 
 	var bytes := GraphSnapshot.encode(source)
 	GraphSnapshot.decode(bytes, target)
@@ -88,6 +94,11 @@ func test_non_pristine_round_trip_fingerprints_agree() -> void:
 	var decoded_node := target.get_by_stable_id(source.get_stable_id(owned_node))
 	assert_not_null(decoded_node, "decoded graph is missing the owned node's stable_id")
 	assert_true(decoded_node.has_addon(ClampAddon), "attached addon did not survive the round trip")
+
+	var decoded_keystone_node := target.get_by_stable_id(source.get_stable_id(keystone_node))
+	assert_not_null(decoded_keystone_node, "decoded graph is missing the keystone node's stable_id")
+	assert_eq(decoded_keystone_node.keystone, _TITAN_KEYSTONE,
+			"keystone did not survive the round trip — a joining client would silently lose its grant")
 
 
 ## Size guard (#527's acceptance): don't generate 2000 nodes inside the unit

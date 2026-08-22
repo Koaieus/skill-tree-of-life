@@ -9,11 +9,17 @@ extends RefCounted
 ##
 ## [b]Three tiers, split per-moment not per-system[/b] (the issue's own
 ## table):
-## - Authored (archetype, addon placements) crosses as an INTERNED REF into a
-##   resource-path table built once per snapshot. 7 archetypes / 6 addon
-##   scenes repeated per-node as full paths is the single biggest lever the
-##   issue's arithmetic calls out — ~230 KB of repeated strings collapses to a
-##   handful of bytes plus a once-sent table.
+## - Authored (archetype, addon placements, KEYSTONES — named explicitly in
+##   #527's Decisions section, plus node-direct `effects` by the same
+##   reasoning) crosses as an INTERNED REF into a resource-path table built
+##   once per snapshot. 7 archetypes / 6 addon scenes repeated per-node as full
+##   paths is the single biggest lever the issue's arithmetic calls out —
+##   ~230 KB of repeated strings collapses to a handful of bytes plus a
+##   once-sent table. A keystone or effect built via `.new()` rather than
+##   loaded from a shared `.tres` (real gameplay content never does this —
+##   only tests) has no `resource_path` and is silently dropped rather than
+##   crossing broken; that mirrors how `_encode_node` already treats an
+##   addon with no `scene_file_path`.
 ## - Accumulated (owner, HP, stake/allocation level, regen stacks, the
 ##   modifier LIST) crosses BY VALUE — no formula rederives history.
 ## - Derived ([StatBoard] totals, aura contributions, vision/fog) never
@@ -55,6 +61,8 @@ const _R_REGEN := 7
 const _R_HP := 8      ## roundi(current_hp * 100) — see WorldFingerprint's own note on why HP quantizes
 const _R_MODS := 9    ## Array of StatModifierCodec dicts — the node's own residual (non-addon-sourced) modifiers
 const _R_ADDONS := 10 ## Array[int], indices into `res`, one per attached addon in child order
+const _R_KEYSTONE := 11 ## index into `res`, -1 for none — SkillNode.keystone
+const _R_EFFECTS := 12  ## Array[int], indices into `res` — SkillNode.effects (direct grants, independent of a keystone)
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -152,8 +160,15 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	for m in node.modifiers:
 		if not addon_mod_ids.has(m.get_instance_id()):
 			residual.append(m.to_dict())
+	var keystone_idx := -1
+	if node.keystone != null and node.keystone.resource_path != "":
+		keystone_idx = table.intern(node.keystone.resource_path)
+	var effect_idx: Array = []
+	for e in node.effects:
+		if e != null and e.resource_path != "":
+			effect_idx.append(table.intern(e.resource_path))
 	var row: Array
-	row.resize(11)
+	row.resize(13)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -165,6 +180,8 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_HP] = roundi(node.get_current_hp() * 100.0)
 	row[_R_MODS] = residual
 	row[_R_ADDONS] = addon_idx
+	row[_R_KEYSTONE] = keystone_idx
+	row[_R_EFFECTS] = effect_idx
 	return row
 
 
@@ -173,6 +190,15 @@ static func _decode_node(graph: Graph, row: Array, res: Array) -> SkillNode:
 	var archetype_idx := int(row[_R_ARCHETYPE])
 	if archetype_idx >= 0:
 		node.archetype = load(String(res[archetype_idx])) as Archetype
+	var keystone_idx := int(row[_R_KEYSTONE])
+	if keystone_idx >= 0:
+		node.keystone = load(String(res[keystone_idx])) as Keystone
+	var effects: Array[Effect] = []
+	for effect_idx in (row[_R_EFFECTS] as Array):
+		var e := load(String(res[int(effect_idx)])) as Effect
+		if e != null:
+			effects.append(e)
+	node.effects = effects
 	node.position = Vector2(float(row[_R_X]), float(row[_R_Y]))
 	graph.add_skill_node(node)
 	graph.restore_stable_id(node, int(row[_R_STABLE_ID]))
