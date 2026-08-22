@@ -39,5 +39,10 @@ matches, failing as a silent no-op. Record the Callable when you connect:
 - **Declare an exported bound ABOVE the value that clamps against it** — exports
   restore in declaration order, so a later-declared bound silently clamps every
   scene-authored value against its *default*.
+- **`if Engine.is_editor_hint(): return` at the top of `_ready` is a trap for any
+  script a live sandbox tab instantiates** — the hint is true there, so the object
+  runs but every subscription below the guard is silently absent, and GUT (hint
+  false) can never see it. Guard the OS-facing lines individually:
+  `docs/domain/sandbox-framework.md`.
 - Guarding `_ready()`, never writing a derived value back into an `@export`, and
   the rest: **`docs/domain/godot-workflow.md`**.

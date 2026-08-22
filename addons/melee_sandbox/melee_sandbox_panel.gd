@@ -260,7 +260,14 @@ func _on_world_gui_input(event: InputEvent) -> void:
 	elif mb.button_index == MOUSE_BUTTON_RIGHT:
 		# One level off whichever plan is armed — the same primitive right-click
 		# pops in-game, minus the armed-mode stack this panel doesn't run.
-		if _battle.attack_plan != null:
+		#
+		# Gated on `can_player_act()` because that stack is exactly where the
+		# game's own gate lives: [method AttackPlanArmedMode.is_armed] asks it
+		# before popping, so a right-click mid-swing (or mid-drain) is refused
+		# in-game and was NOT here — this panel reached past the only gate there
+		# is and popped a plan that was still being launched. `cancel_attack`
+		# and `reset_plan` both check the same thing; raw `pop()` was the hole.
+		if _battle.attack_plan != null and _input_ctl.can_player_act():
 			_battle.attack_plan.pop()
 			_world_container.accept_event()
 	_refresh_status()

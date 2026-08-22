@@ -276,6 +276,44 @@ Graph's job, not the tab's.
   panel's silent SETUP beat replays the real primitives with cosmetics muted.
   Other VFX layers can grow the same switch as needed.
 
+## `Engine.is_editor_hint()` is TRUE inside a live tab — and no test can see it
+
+A live tab instantiates **runtime, non-`@tool` scripts from tool code**
+(`sandbox_world.gd` does `PlayerInputController.new()`). Godot runs those scripts
+normally — they are not part of an edited scene — but they run with the editor
+hint set. So any `_ready` that opens with
+
+```gdscript
+if Engine.is_editor_hint():
+    return
+```
+
+is **silently half-built in every live tab**: the object answers method calls
+(clicks route, plans build), while every signal subscription below the guard is
+absent. It reads as "feature X just doesn't work in the sandbox", with no error.
+
+This is exactly how #466's reform slot shipped dead in the melee tab: the slot is
+written from `attack_launched`, subscribed below that guard, so `can_reform()`
+could never be true there.
+
+**GUT cannot catch this.** The suite is headless, `is_editor_hint()` is false, the
+guard never fires, and the test passes for the wrong reason. There is no
+in-editor assertion to write either — so the durable protection is the shape of
+the guard itself, not a test.
+
+**How to apply:**
+
+- Never guard a whole `_ready` on the editor hint. Guard the individual things
+  that reach for **the OS or the edited scene** — `_unhandled_input`, a
+  `Input.set_default_cursor_shape` call, a subscription to a node's own physics
+  pick — at their own call sites, with a comment saying which.
+- The one thing a live tab genuinely must NOT wire is **physics picking**: the
+  panel hand-routes clicks (`route_left_click`) because picking through an
+  editor-hosted SubViewport is unreliable, and wiring both double-routes whichever
+  pick does land.
+- When a tab "does nothing", diff what its systems subscribe to against an
+  editor-hint grep of those scripts before suspecting the panel.
+
 ## Cross-refs
 
 - `docs/domain/allocation-vfx.md` — the phase-0 showcase + the VFX it exercises.

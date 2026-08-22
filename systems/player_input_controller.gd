@@ -149,18 +149,30 @@ var _core_ghost: Node2D = null
 var _core_badge: Label = null
 
 
+## [b]Only the OS-input carriers are editor-gated, never the wiring.[/b] An
+## editor-hosted sandbox (the melee tab) instantiates this non-`@tool` script
+## from tool code, so `_ready` runs there with `is_editor_hint()` TRUE — and a
+## blanket early return left the controller half-built: every `attack_launched`,
+## `applying_changed` and armed-mode subscription below silently absent, which
+## is how the #466 reform slot could never be captured in the melee sandbox
+## while every headless test stayed green (GUT has no editor hint to see).
+## Anything that reaches for the OS instead — a [SkillNode]'s own Area2D pick
+## (the sandbox hand-routes those itself), `_unhandled_input`, the mouse cursor
+## — stays gated, at its own site.
 func _ready() -> void:
-	if Engine.is_editor_hint():
-		return
 	# `player` may be wired post-_ready (procgen sandboxes spawn it during
 	# GameRoot._setup_level). Skip the player-dependent gate, not the graph
 	# subscription — clicks still connect; routing checks player at fire time.
 	if graph == null or allocation_system == null or turn_manager == null:
 		push_warning("PlayerInputController missing graph/allocation/turn_manager; clicks won't route")
 		return
-	graph.node_added.connect(_on_node_added)
-	for sn in graph.get_skill_nodes():
-		_on_node_added(sn)
+	# Physics picking through an editor-hosted SubViewport is unreliable, so the
+	# melee tab hit-tests by hand and calls [method route_left_click]. Wiring
+	# the node's own signal there too would double-route whichever pick lands.
+	if not Engine.is_editor_hint():
+		graph.node_added.connect(_on_node_added)
+		for sn in graph.get_skill_nodes():
+			_on_node_added(sn)
 
 	turn_manager.turn_started.connect(_emit_gate_changed.unbind(1))
 	turn_manager.turn_ended.connect(_emit_gate_changed.unbind(1))
@@ -713,6 +725,11 @@ func _pop_armed_mode() -> bool:
 ## other consumer of the same state; both hang off
 ## [method _refresh_armed_state].
 func _update_cursor() -> void:
+	# The cursor is the OS's, and an editor-hosted sandbox shares it with the
+	# whole editor — a tab that keeps a plan armed would leave every dock on a
+	# crosshair. Same reason the input carriers are gated, one level down.
+	if Engine.is_editor_hint():
+		return
 	Input.set_default_cursor_shape(
 			Input.CURSOR_CROSS if _has_armed_mode() else Input.CURSOR_ARROW)
 
