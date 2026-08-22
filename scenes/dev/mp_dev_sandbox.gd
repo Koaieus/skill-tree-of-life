@@ -23,12 +23,23 @@ extends "res://scenes/dev_sandbox.gd"
 ## [/codeblock]
 ## No role, or `--role=solo`, runs the scene as an ordinary offline sandbox.
 ##
-## [b]Both heroes are human here.[/b] The base scene's Blue is an AI; the AI
-## still calls [AllocationSystem] / [BattleSystem] directly (#512), so its turns
-## would mutate the host's world without ever passing through [CommandApplier]
-## and the client would silently drift. Making Blue human keeps every mutation
-## in this scene on the one path the harness mirrors. The host hot-seats between
-## the two; the client watches, bound to Blue.
+## [b]Blue stays the AI opponent (rung 1, #532).[/b] The old justification for
+## making it human — "the AI still calls [AllocationSystem] / [BattleSystem]
+## directly" — is stale: #512 landed, and [AIController] emits commands through
+## [CommandApplier] like everything else. Restoring the AI is what makes this a
+## player-against-an-opponent harness rather than two humans hot-seated.
+##
+## Restoring it exposes a real trap: [method GameRoot._ensure_controllers]
+## attaches an [AIController] to Blue on BOTH peers, and that controller
+## resolves [member GameRoot.command_applier] — its OWN peer's applier — so a
+## MIRROR peer's copy would decide and submit independently of the host's AI
+## the moment its local [TurnManager] hands Blue the turn (which a mirrored
+## [EndTurnCommand] does). Closed by gating [method AIController.take_turn] on
+## [member CommandApplier.is_authority] (`network/command_link.gd`'s `mode`
+## setter is the only writer), extending the same "a non-authority peer does
+## not originate mutations" invariant [SkillDustAddon]'s claim flow already
+## relies on. The host hot-seats between Red and Blue; the client watches,
+## bound to Blue.
 
 const DEFAULT_PORT := 9099
 const DEFAULT_ADDRESS := "127.0.0.1"
@@ -42,13 +53,49 @@ var _role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
 var _address: String = DEFAULT_ADDRESS
 var _port: int = DEFAULT_PORT
 var _blue: Entity
-## `--autopilot` (host only): fire one scripted allocate once a client links, so
+## Red — the entity every autopilot step drives. Resolved by node path rather
+## than reused off [member player], because [member player] repoints to
+## [member _blue] on the CLIENT (see [method _setup_level]) and the boost
+## below must land on the SAME entity, identically, on both peers — see
+## [method _boost_autopilot_budget].
+var _red: Entity
+## `--autopilot` (host only): run the full verb sweep once a client links, so
 ## the pair is verifiable from a terminal. See [method _run_autopilot].
 var _autopilot: bool = false
 
 
 func _ready() -> void:
 	_parse_cmdline()
+	# Authority is set HERE, before `super()`, not inside `_start_link()` where
+	# it looks like it belongs. `GameRoot._ready` is a coroutine that calls
+	# `turn_manager.start_turn(player)` (`auto_start_turn`) partway through,
+	# and returns from `super()` below at its first internal await — well
+	# before the two `await process_frame`s that gate `_start_link()`. A
+	# CLIENT's Blue already has a real [AIController] (#532: Blue stays AI),
+	# so if the opening turn lands on Blue before `_start_link()` runs,
+	# that controller's authority gate reads the library default
+	# (`CommandApplier.is_authority == true`) and Blue's AI decides and
+	# submits LOCALLY on the client — silently diverging the world before a
+	# single command has crossed the wire. Setting it early closes that
+	# window; `_start_link()` still sets `_link.mode` itself (idempotent) so
+	# it stays the one documented writer once the link is actually up.
+	if command_applier != null:
+		command_applier.is_authority = _role != NetworkTransport.Role.CLIENT
+	# GameRoot's own opening `start_turn` (`auto_start_turn`) targets [member
+	# player] — but `player` is a PER-MACHINE view pointer, re-pointed to Blue
+	# on the CLIENT for the HUD/camera (see `_setup_level`). Turn order is
+	# SHARED SIMULATION STATE, not a view concern: `SeatPolicy`'s whole
+	# contract is "never feed anything a peer must reproduce"
+	# (`.claude/rules/seat-policy.md`), and the harness's own class docstring
+	# promises the SAME graph with no seed on the wire — the opening actor is
+	# part of that same promise. Left wired to `player`, the CLIENT would open
+	# its OWN local turn on Blue while the host opens on Red, so Red's
+	# turn-start upkeep (AP/DP/mana refilled to cap) never fires on the
+	# client's own simulation — invisible until a verb spends deep enough into
+	# a budget for the missed refill to matter, which #532's sweep is the
+	# first thing to do. Disabled here; kicked off by hand on `_red` below,
+	# identically regardless of role.
+	auto_start_turn = false
 	super()
 	if Engine.is_editor_hint():
 		return
@@ -59,18 +106,31 @@ func _ready() -> void:
 	# otherwise wipe the input freeze we set below.
 	await get_tree().process_frame
 	await get_tree().process_frame
+	_start_opening_turn()
 	_start_link()
 
 
-## Both entities become human, and the CLIENT binds Blue as its local hero.
-## Runs before [method GameRoot._ensure_controllers], which is the window where
-## `is_human_controlled` still decides which controller gets attached.
+## Replicates `GameRoot._ready`'s `auto_start_turn` block, targeting `_red`
+## instead of `player` — see the note in `_ready` for why the two must not be
+## the same variable here.
+func _start_opening_turn() -> void:
+	if _red == null or turn_manager == null:
+		return
+	if _red.stat_board != null and _red.stat_board.initiative != null:
+		_red.stat_board.initiative.restore_to_full()
+	turn_manager.start_turn(_red)
+
+
+## Blue keeps whatever the base scene authored (AI, per [method
+## GameRoot._ensure_controllers] — see the class docstring). The CLIENT binds
+## Blue as its local hero anyway: a SEAT watches whoever it's pinned to, human
+## or not, and #532 rung 1 is a spectator client regardless.
 func _setup_level() -> void:
 	await super()
 	_blue = get_node_or_null(^"Graph/Entities/Enemy") as Entity
+	_red = get_node_or_null(^"Graph/Entities/Player") as Entity
 	if _blue == null:
 		return
-	_blue.is_human_controlled = true
 	if _role == NetworkTransport.Role.CLIENT:
 		player = _blue
 		# The client is a SEAT, not a couch: its view is pinned to Blue. Said
@@ -80,6 +140,31 @@ func _setup_level() -> void:
 		# COUCH on the host, which hot-seats between Red and Blue as the base
 		# scene does.
 		seat_policy = SeatPolicy.seat(_blue.entity_id)
+	_boost_autopilot_budget()
+
+
+## Rung 1's verb sweep drives every [CommandApplier] verb from ONE turn, which
+## the default per-turn budget (3 SP / 2 AP / 3 DP) cannot cover — allocate +
+## mass_allocate + stake alone already want more SP than a level-1 board grants,
+## and three attack modes plus a temp-upgrade toggle want more AP. Boosted on
+## [member _red] IDENTICALLY on every peer — this runs in [method _setup_level],
+## before any command has crossed the wire, unconditionally on role — because
+## [method CommandApplier._apply_mass_allocate] RE-derives affordability from
+## the RECEIVING peer's own board (#458: a stale sender must not dictate spend).
+## Boosting only the host's local copy would make that recompute disagree with
+## what the host actually applied, the instant a budget-gated verb crossed.
+func _boost_autopilot_budget() -> void:
+	if _red == null or _red.stat_board == null:
+		return
+	var board := _red.stat_board
+	if board.skill_points != null:
+		board.skill_points.set_base_ratcheted(30.0)
+	if board.action_points != null:
+		board.action_points.set_base_ratcheted(12.0)
+	if board.deallocation_points != null:
+		board.deallocation_points.set_base_ratcheted(10.0)
+	if board.mana != null:
+		board.mana.set_base_ratcheted(200.0)
 
 
 func _parse_cmdline() -> void:
@@ -141,85 +226,331 @@ func _greet_if_linked(_status: String) -> void:
 		_run_autopilot()
 
 
-## Headless self-check (`--autopilot` on the host, after `--`): allocate one
-## frontier node so a terminal-driven pair proves the whole path — command
-## confirmed here, decoded and applied there, fingerprints compared — without a
-## human clicking. Never fires unless asked for.
+## Headless self-check (`--autopilot` on the host, after `--`): drive every verb
+## [CommandApplier] handles from Red's opening turn, so a terminal-driven pair
+## proves the whole path per verb — command confirmed here, decoded and applied
+## there, fingerprints compared — without a human clicking. Never fires unless
+## asked for. `end_turn` runs LAST, deliberately: everything before it needs
+## Red still holding the turn (see `_boost_autopilot_budget`'s note on
+## why one turn is enough SP/AP/DP for all of it).
 func _run_autopilot() -> void:
 	await get_tree().create_timer(1.0).timeout
+	await _sweep_allocate()
+	await _sweep_mass_allocate()
+	await _sweep_stake_and_extract()
+	await _sweep_deallocate()
+	await _sweep_deallocate_set()
+	await _sweep_move_core()
+	await _sweep_magic()
+	await _sweep_ranged()
+	await _sweep_melee()
+	await _sweep_loot()
+	await _sweep_end_turn()
+	_write_log("autopilot: sweep complete")
+
+
+## Submit [param command] and suspend until the applier has actually applied
+## it, returning its verdict — same shape as [method AIController._submit_and_wait]
+## (this script has no controller to share it with).
+func _submit_and_wait(command: Command) -> bool:
+	var verdict: Array[bool] = [false, false] # [applied, success]
+	var watch := func(applied: Command, ok: bool) -> void:
+		if applied == command:
+			verdict[0] = true
+			verdict[1] = ok
+	command_applier.command_applied.connect(watch)
+	command_applier.submit(command)
+	while not verdict[0] and command_applier.is_applying:
+		await command_applier.command_applied
+	command_applier.command_applied.disconnect(watch)
+	return verdict[1]
+
+
+func _sweep_allocate() -> void:
 	var target := _first_frontier_node()
 	if target == null:
-		_write_log("autopilot: no frontier node to allocate")
+		_write_log("autopilot: allocate SKIPPED — no frontier node")
 		return
-	# No SP grant here, deliberately: granting on the host only is itself an
-	# unmirrored mutation, and on a tighter scene the client's `allocate` gate
-	# would then refuse and autopilot would report a divergence it caused. It
-	# spends the SP the scene authored, same as a player would.
 	_write_log("autopilot: allocating %s" % target.name)
-	input_ctl.command_applier.submit(
-			AllocateCommand.new(player.entity_id, graph.get_stable_id(target)))
-	if input_ctl.command_applier.is_applying:
-		await input_ctl.command_applier.applying_changed
-	await _autopilot_cast()
+	var ok := await _submit_and_wait(
+			AllocateCommand.new(_red.entity_id, graph.get_stable_id(target)))
+	_write_log("autopilot: allocate %s" % ("OK" if ok else "SKIPPED — command refused"))
 
 
-## Second autopilot beat (#511): cast a spell at a hostile node, so the pair
-## proves the ATTACK path too. Before #511 this was the known-diverging case —
-## `launch_attack` mutated the host's world without a command, so the client
-## drifted the moment anybody swung. Now it is a `LaunchAttackCommand` carrying
-## the post-apply record, and the fingerprint after it should still agree.
-##
-## Magic rather than melee or ranged: it needs no per-node `range` stat and no
-## physics arc to intersect anything, only a hostile node within the spell's
-## hop reach — which a hand-authored two-camp sandbox has by construction.
-func _autopilot_cast() -> void:
-	await get_tree().create_timer(1.0).timeout
+## A frontier node reached only THROUGH another unowned node, so the resulting
+## path exercises more than one hop — the thing plain allocate cannot prove.
+func _mass_allocate_target() -> SkillNode:
+	for node in graph.get_skill_nodes():
+		if node.owned_by != null:
+			continue
+		var adjacent_to_owned := false
+		for neighbour in graph.get_neighbours(node):
+			if neighbour.owned_by == _red:
+				adjacent_to_owned = true
+				break
+		if adjacent_to_owned:
+			continue
+		var path := allocation_system.allocation_path(_red, node)
+		if path.size() >= 3: # anchor + at least 2 hops
+			return node
+	return null
+
+
+func _sweep_mass_allocate() -> void:
+	var target := _mass_allocate_target()
+	if target == null:
+		_write_log("autopilot: mass_allocate SKIPPED — no 2+-hop frontier target")
+		return
+	var path := allocation_system.allocation_path(_red, target)
+	var affordable := allocation_system.affordable_allocation_count(_red, path)
+	if affordable < 1:
+		_write_log("autopilot: mass_allocate SKIPPED — unaffordable")
+		return
+	var ids: Array[int] = []
+	for n in path:
+		ids.append(graph.get_stable_id(n))
+	_write_log("autopilot: mass-allocating toward %s (%d hops)" % [target.name, affordable])
+	var ok := await _submit_and_wait(MassAllocateCommand.new(_red.entity_id, ids))
+	_write_log("autopilot: mass_allocate %s" % ("OK" if ok else "SKIPPED — command refused"))
+
+
+## Self-contained on Red's own core — no topology dependency, so it never
+## competes with the other steps for a scarce frontier node.
+func _sweep_stake_and_extract() -> void:
+	var core := _red.core_location
+	if core == null:
+		_write_log("autopilot: stake SKIPPED — no core_location")
+		_write_log("autopilot: extract SKIPPED — no core_location")
+		return
+	var core_id := graph.get_stable_id(core)
+	var staked := await _submit_and_wait(StakeCommand.new(_red.entity_id, core_id))
+	_write_log("autopilot: stake %s" % ("OK" if staked else "SKIPPED — command refused"))
+	if not staked:
+		_write_log("autopilot: extract SKIPPED — nothing was staked")
+		return
+	var extracted := await _submit_and_wait(ExtractCommand.new(_red.entity_id, core_id))
+	_write_log("autopilot: extract %s" % ("OK" if extracted else "SKIPPED — command refused"))
+
+
+func _owned_non_core_nodes() -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	for node in graph.get_skill_nodes():
+		if node.owned_by == _red and not node.is_core():
+			out.append(node)
+	return out
+
+
+func _sweep_deallocate() -> void:
+	var picked: SkillNode = null
+	for node in _owned_non_core_nodes():
+		if allocation_system.can_deallocate(node, _red):
+			picked = node
+			break
+	if picked == null:
+		_write_log("autopilot: deallocate SKIPPED — no safely-deallocatable node")
+		return
+	_write_log("autopilot: deallocating %s" % picked.name)
+	var ok := await _submit_and_wait(
+			DeallocateCommand.new(_red.entity_id, graph.get_stable_id(picked)))
+	_write_log("autopilot: deallocate %s" % ("OK" if ok else "SKIPPED — command refused"))
+
+
+## Any pair of owned non-core nodes whose JOINT removal still passes
+## `can_deallocate_set` — the set gate, not two individual `can_deallocate`
+## checks, since a pair can island the graph together even when each alone
+## would not.
+func _sweep_deallocate_set() -> void:
+	var candidates := _owned_non_core_nodes()
+	for a_i in candidates.size():
+		for b_i in range(a_i + 1, candidates.size()):
+			var pair: Array[SkillNode] = [candidates[a_i], candidates[b_i]]
+			if not allocation_system.can_deallocate_set(pair, _red):
+				continue
+			var ids: Array[int] = [graph.get_stable_id(pair[0]), graph.get_stable_id(pair[1])]
+			_write_log("autopilot: deallocating set {%s, %s}" % [pair[0].name, pair[1].name])
+			var ok := await _submit_and_wait(DeallocateSetCommand.new(_red.entity_id, ids))
+			_write_log("autopilot: deallocate_set %s" % ("OK" if ok else "SKIPPED — command refused"))
+			return
+	_write_log("autopilot: deallocate_set SKIPPED — no safely-deallocatable pair")
+
+
+func _sweep_move_core() -> void:
+	var core := _red.core_location
+	if core == null:
+		_write_log("autopilot: move_core SKIPPED — no core_location")
+		return
+	var target: SkillNode = null
+	for neighbour in graph.get_neighbours(core):
+		if allocation_system.can_move_core(_red, neighbour):
+			target = neighbour
+			break
+	if target == null:
+		_write_log("autopilot: move_core SKIPPED — no legal adjacent landing")
+		return
+	_write_log("autopilot: moving core to %s" % target.name)
+	var ok := await _submit_and_wait(
+			MoveCoreCommand.new(_red.entity_id, [graph.get_stable_id(target)] as Array[int]))
+	_write_log("autopilot: move_core %s" % ("OK" if ok else "SKIPPED — command refused"))
+
+
+## Magic (#511): needs no per-node `range` stat and no physics arc to
+## intersect anything, only a hostile node within the spell's hop reach —
+## which a hand-authored two-camp sandbox has by construction.
+func _sweep_magic() -> void:
 	var source := _first_owned_node_near_hostile()
 	if source == null:
-		_write_log("autopilot: no owned node in reach of a hostile one; skipping the cast")
+		_write_log("autopilot: magic SKIPPED — no owned node in reach of a hostile one")
 		return
 	battle_system.selected_spell = SpellCatalog.SPARK
 	battle_system.request_attack_mode(BattleSystem.AttackMode.MAGIC)
 	var plan := battle_system.attack_plan as MagicAttackPlan
 	plan._on_node_left_clicked(source)
 	for candidate in graph.get_skill_nodes():
-		if candidate.ownership_bit(player) == SkillNode.Ownership.HOSTILE:
+		if candidate.ownership_bit(_red) == SkillNode.Ownership.HOSTILE:
 			plan._on_node_left_clicked(candidate)
 			if plan.is_valid():
 				break
 	if not plan.is_valid():
-		_write_log("autopilot: no castable target (%s)" % [plan.validate()])
+		_write_log("autopilot: magic SKIPPED — no castable target (%s)" % [plan.validate()])
 		battle_system.cancel_attack()
 		return
 	_write_log("autopilot: casting %s from %s at %s"
 			% [battle_system.selected_spell.name, plan.source.name, plan.target.name])
 	await battle_system.launch_attack()
+	_write_log("autopilot: magic OK")
+
+
+## Ranged: `range`'s default (400) reaches almost anything at sandbox scale
+## (`.claude/rules/ranged-attack-fixtures.md`), so any owned leaf against any
+## visible hostile is enough — no scene authoring needed.
+func _sweep_ranged() -> void:
+	battle_system.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	var plan := battle_system.attack_plan as RangedAttackPlan
+	var target: SkillNode = null
+	for candidate in graph.get_skill_nodes():
+		if candidate.ownership_bit(_red) != SkillNode.Ownership.HOSTILE:
+			continue
+		plan._on_node_left_clicked(candidate)
+		if plan.is_valid():
+			target = candidate
+			break
+	if target == null:
+		_write_log("autopilot: ranged SKIPPED — no reachable hostile target")
+		battle_system.cancel_attack()
+		return
+	_write_log("autopilot: firing a ranged volley at %s" % target.name)
+	await battle_system.launch_attack()
+	_write_log("autopilot: ranged OK")
+
+
+## Melee (owner call 2026-08-22: goes in now, #530 is not a blocker). Reuses
+## [AiBladeRollout] — the SAME reach-bound-reject / steerable-proposal rollout
+## [AIController] scores its own melee candidates with — rather than hand-
+## building a blade, so this never needs arc geometry authored into the scene:
+## if the AI can find a legal swing on this graph, so can autopilot.
+func _sweep_melee() -> void:
+	var hostiles: Array[SkillNode] = []
+	for node in graph.get_skill_nodes():
+		if node.ownership_bit(_red) == SkillNode.Ownership.HOSTILE:
+			hostiles.append(node)
+	if hostiles.is_empty():
+		_write_log("autopilot: melee SKIPPED — no visible hostile")
+		return
+	var candidates := AiBladeRollout.gather_melee_candidates(_red, hostiles, 0)
+	var best := AiCombatScorer.pick_best(candidates)
+	if best == null:
+		_write_log("autopilot: melee SKIPPED — no reachable blade")
+		return
+	battle_system.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	var plan := battle_system.attack_plan as MeleeAttackPlan
+	plan.source = best.source_node
+	plan.blade_nodes = best.blade_nodes
+	if not plan.is_valid():
+		_write_log("autopilot: melee SKIPPED — the rolled blade did not validate")
+		battle_system.cancel_attack()
+		return
+	await _sweep_toggle_temp_upgrade(plan)
+	_write_log("autopilot: swinging a blade from %s (%d members)"
+			% [plan.source.name, plan.blade_nodes.size()])
+	await battle_system.launch_attack()
+	_write_log("autopilot: melee OK")
+
+
+## A real melee sub-step, not a separate combat action: `toggle_temp_upgrade`
+## only makes sense against an ARMED melee plan (`BattleSystem
+## .toggle_temp_upgrade_on` reads `battle_system.attack_plan` directly), so it
+## fires here, before the swing it augments.
+func _sweep_toggle_temp_upgrade(plan: MeleeAttackPlan) -> void:
+	var upgrade := MeleeAttackPlan.upgrade_by_id(&"clamp")
+	if upgrade.is_empty() or plan.source == null:
+		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no catalog entry or pivot")
+		return
+	if not plan.has_temp_upgrade_budget(upgrade):
+		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no blade budget left")
+		return
+	var ok := await _submit_and_wait(ToggleTempUpgradeCommand.new(
+			_red.entity_id, graph.get_stable_id(plan.source), &"clamp"))
+	_write_log("autopilot: toggle_temp_upgrade %s"
+			% ("OK — clamp on %s" % plan.source.name if ok else "SKIPPED — command refused"))
+
+
+## Loot only has something to claim once an entity actually dies (#69: the
+## relic lands on the VICTIM'S core, and nothing in this hand-authored graph
+## pre-seeds one — see the class docstring). Found by scanning for the addon
+## rather than tracked off `_blue` directly: an NPC's death frees the Entity
+## node itself (`.claude/rules/entity-death.md`), so a reference held across
+## the earlier attack steps' awaits is not safe to read back.
+func _sweep_loot() -> void:
+	var relic := _find_relic_node()
+	if relic == null:
+		_write_log("autopilot: loot SKIPPED — no entity died during the sweep " \
+				+ "(this turn's attacks did not deplete anyone's health pool)")
+		return
+	_write_log("autopilot: claiming the relic on %s" % relic.name)
+	var ok := await _submit_and_wait(
+			AllocateCommand.new(_red.entity_id, graph.get_stable_id(relic)))
+	_write_log("autopilot: loot %s"
+			% ("OK — allocate opened the claim round" if ok else "SKIPPED — allocate refused"))
+
+
+func _find_relic_node() -> SkillNode:
+	for node in graph.get_skill_nodes():
+		for addon in node.get_addons():
+			if addon is SkillDustAddon:
+				return node
+	return null
+
+
+func _sweep_end_turn() -> void:
+	_write_log("autopilot: ending turn")
+	var ok := await _submit_and_wait(EndTurnCommand.new(_red.entity_id))
+	_write_log("autopilot: end_turn %s" % ("OK" if ok else "SKIPPED — command refused"))
 
 
 ## An owned node with at least one hostile node two hops out — enough for
 ## Spark's reach without hard-coding the sandbox's topology.
 func _first_owned_node_near_hostile() -> SkillNode:
 	for node in graph.get_skill_nodes():
-		if node.owned_by != player:
+		if node.owned_by != _red:
 			continue
 		for neighbour in graph.get_neighbours(node):
-			if neighbour.ownership_bit(player) == SkillNode.Ownership.HOSTILE:
+			if neighbour.ownership_bit(_red) == SkillNode.Ownership.HOSTILE:
 				return node
 			for second in graph.get_neighbours(neighbour):
-				if second.ownership_bit(player) == SkillNode.Ownership.HOSTILE:
+				if second.ownership_bit(_red) == SkillNode.Ownership.HOSTILE:
 					return node
 	return null
 
 
-## First unowned node touching the local player's territory. Deliberately not
-## routed through [AiRecon] — this wants the dumbest possible legal target, not
-## a good one.
+## First unowned node touching Red's territory. Deliberately not routed
+## through [AiRecon] — this wants the dumbest possible legal target, not a
+## good one.
 func _first_frontier_node() -> SkillNode:
 	for node in graph.get_skill_nodes():
 		if node.owned_by != null:
 			continue
 		for neighbour in graph.get_neighbours(node):
-			if neighbour.owned_by == player:
+			if neighbour.owned_by == _red:
 				return node
 	return null
 

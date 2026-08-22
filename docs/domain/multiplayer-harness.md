@@ -26,10 +26,14 @@ godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host --port=9
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099
 ```
 
-`--autopilot` (host only) allocates one frontier node a second after the client
-links, which is the whole slice in one line of log on each side. Everything
-after `--` lands in `OS.get_cmdline_user_args()`; put it before and the engine
-tries to interpret it.
+`--autopilot` (host only, #532) drives every verb `CommandApplier` handles from
+Red's opening turn — allocate, mass_allocate, stake/extract, deallocate,
+deallocate_set, move_core, all three attack modes, a temp-upgrade toggle, a
+loot claim (when there is one to claim), then end_turn — one line of log per
+verb on each side. A verb that cannot legally fire this turn logs SKIPPED with
+the reason rather than being silently dropped. Everything after `--` lands in
+`OS.get_cmdline_user_args()`; put it before and the engine tries to interpret
+it.
 
 ## The three decisions, and why
 
@@ -57,18 +61,29 @@ which is what picks hand-authored topology over procgen. A duplicated `.tscn`
 delivers that until the first edit to the original; an inherited scene cannot
 drift.
 
-`mp_dev_sandbox.gd` changes exactly three things about the base scene:
+`mp_dev_sandbox.gd` changes two things about the base scene:
 
-1. **Blue becomes human.** The AI still calls `AllocationSystem` /
-   `BattleSystem` directly (#512), so its turns would mutate the host's world
-   without passing through `CommandApplier` and the client would silently drift.
-   Both heroes human keeps every mutation in this scene on the mirrored path.
-   The host hot-seats between them; the client stays bound to Blue.
-2. **The client binds Blue and freezes input** via `set_input_frozen` (#486) —
+1. **The client binds Blue and freezes input** via `set_input_frozen` (#486) —
    the existing "every channel off" seam, no controller change needed.
-3. **The client drops the hot-seat handover.** On a networked peer the local
+2. **The client drops the hot-seat handover.** On a networked peer the local
    view is fixed to the local hero; leaving it connected would swing the
    client's HUD onto Red.
+
+**Blue stays the AI opponent (#532).** The old justification for making it
+human — "the AI still calls `AllocationSystem` / `BattleSystem` directly" — is
+stale: #512 landed, and `AIController` emits commands through `CommandApplier`
+like everything else, so restoring the AI keeps every mutation on the mirrored
+path just as well, and turns the harness into a player-against-an-opponent
+rather than two humans hot-seated. Restoring it exposes a real trap:
+`GameRoot._ensure_controllers` attaches an `AIController` to Blue on BOTH
+peers, and that controller resolves *its own peer's* `CommandApplier` — so a
+MIRROR peer's copy would decide and submit independently of the host's AI the
+instant a mirrored `EndTurnCommand` hands Blue the turn locally. Closed by
+gating `AIController.take_turn` on `CommandApplier.is_authority`
+(`network/command_link.gd`'s `mode` setter is the only writer) — the same "a
+non-authority peer does not originate mutations" invariant `SkillDustAddon`'s
+claim flow already relies on. The host hot-seats between Red and Blue; the
+client stays bound to Blue.
 
 ### One direction: host down to client
 
@@ -88,14 +103,15 @@ mirror) with a world fingerprint attached; the client decodes via
 
 **Attacks cross as of #511.** The command carries `AttackRecord` — a post-apply
 record of what each landing actually did — and the client replays it rather
-than re-resolving. `--autopilot` now fires a Spark after its allocate, so a
-terminal-driven pair exercises the attack path without a human clicking.
-**Read that `✓` carefully:** as of #527 the fingerprint folds ownership +
-topology + accumulated per-node state (HP included, quantized), so a cast that
-damages without killing DOES move it now — but never derived `StatBoard`
-totals (AP, mana, aura contributions), which stay outside the fold on
-purpose. What the `← launch_attack` line proves is that the command decoded
-and applied on the client at all; the *effects* are pinned by
+than re-resolving. `--autopilot` fires all three modes (#532: melee included,
+scored via `AiBladeRollout` — the same rollout `AIController` uses, so it never
+needs arc geometry hand-authored into the scene). **Read every `✓` carefully:**
+as of #527 the fingerprint folds ownership + topology + accumulated per-node
+state (HP included, quantized), so a cast that damages without killing DOES
+move it now — but never derived `StatBoard` totals (AP, mana, aura
+contributions), which stay outside the fold on purpose. What the
+`← launch_attack` line proves is that the command decoded and applied on the
+client at all; the *effects* are pinned by
 `test/unit/attack/test_attack_record_replay.gd`, which compares node HP, AP and
 mana across two real worlds through the same wire encoding.
 
@@ -110,6 +126,10 @@ looked fine. A grant that moves node HP or ownership now moves the fold too (#52
 that only touches a stat total (e.g. a pure damage-formula modifier) still
 does not — `test/unit/systems/test_loot_wire.gd` is what pins the grants
 directly, the same division of labour as the attack path above.
+`--autopilot`'s loot step only has something to claim if the turn's three
+attacks actually killed Blue — this hand-authored graph seeds no relic, and a
+default-balanced opponent surviving three hits is the expected, honestly
+logged (`SKIPPED`) outcome, not a bug.
 
 **Does not:** anything travelling UPWARD. `PickLootCommand` is the one verb
 built for that direction — a remote human's answer to a parked offer — and it is

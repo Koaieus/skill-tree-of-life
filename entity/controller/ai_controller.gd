@@ -80,6 +80,18 @@ func _on_settings_changed(key: StringName, value: Variant) -> void:
 
 
 func take_turn() -> void:
+	# A non-authority peer never originates mutations (#510's contract,
+	# already enforced for SkillDustAddon's claim flow — see
+	# CommandApplier.is_authority) — and #512 made this entity's decisions
+	# real submissions, so a MIRROR peer's own copy of this controller would
+	# decide and submit independently of the host's AI the instant its local
+	# TurnManager hands this entity the turn (which a mirrored EndTurnCommand
+	# does). Bail before the decision loop runs at all: this entity's turn
+	# crosses the wire as the authority's commands, never ours.
+	var applier := _command_applier()
+	if applier != null and not applier.is_authority:
+		return
+
 	# Opening beat so the handover reads. NPC v1 never voluntarily deallocates.
 	await _wait()
 	if not _continue():
