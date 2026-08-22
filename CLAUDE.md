@@ -28,6 +28,12 @@ mise run check                                 # headless compile-check of every
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 
+A suite run costs ~110s, so **never re-run it to grep it differently.** `mise run
+test` prints a verdict (counts, every failing test with its first assert + line,
+pending, run-health alarms) and always keeps the full console output at
+`.godot/gut-last.log` plus junit XML at `.godot/gut-last.xml`. If the summary
+elided what you need, grep the log.
+
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 
 ## Architecture

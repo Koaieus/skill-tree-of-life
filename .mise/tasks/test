@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+#MISE description="Run the GUT suite headless and report a verdict: `mise run test` (add a .gd script or a dir to narrow)"
+"""
+Run GUT, then report what actually happened in ~20 lines instead of ~7000.
+
+Exists so an agent doesn't burn a second 2-minute suite run re-grepping the
+first one. The full console output is ALWAYS kept at .godot/gut-last.log and
+the machine-readable results at .godot/gut-last.xml — if this summary elides
+something you need, grep the log, never re-run. Same spirit as `mise refresh`.
+
+Usage:
+    mise run test                              # whole suite (reads .gutconfig.json)
+    mise run test -- res://test/unit/foo.gd    # one script   (alias: test:one)
+    mise run test -- res://test/unit/ui/       # one directory (alias: test:dir)
+
+Two GUT traps live in the flags below, both of which silently ran the ENTIRE
+suite instead of one script: GUT's cmdln options are `-gopt=value` (a bare
+`-gtest` with the path as a separate positional is valueless and ignored), AND
+`-gtest` alone does not override .gutconfig.json's `dirs` — `-gdir=` must clear
+them.
+"""
+import os
+import re
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+OUT_DIR = os.path.join(ROOT, ".godot")
+LOG = os.path.join(OUT_DIR, "gut-last.log")
+XML = os.path.join(OUT_DIR, "gut-last.xml")
+
+MAX_TESTS_SHOWN = 15
+MAX_MSG_CHARS = 240
+
+# Godot's exit trailer. Noisy, always present, never the thing you are looking
+# for — anything NOT matching these is passed through, because that is where a
+# real crash shows up.
+BENIGN_TRAILER = (
+    "ObjectDB instances were leaked",
+    "resources still in use at exit",
+    "Pages in use exist at exit in PagedAllocator",
+)
+# Lines that mean the run itself is broken, not that a test failed. `Ignoring
+# script` is the silent cause of the "suite count dropped after a rebase" trap
+# (see docs/domain/godot-workflow.md) — it must never be filtered away.
+ALARM = re.compile(r"Ignoring script |Could not find type |SCRIPT ERROR|Parse Error")
+
+
+def build_args(argv):
+    """(godot gut flags, human label for what we are running)."""
+    target = argv[1] if len(argv) > 1 else ""
+    if not target:
+        return [], "suite"
+    if target.endswith(".gd"):
+        return [f"-gtest={target}", "-gdir="], target
+    return [f"-gdir={target}"], target
+
+
+def truncate(s, n=MAX_MSG_CHARS):
+    s = " ".join(s.split())
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+
+def parse_xml():
+    """[(suite, test, status, message)] or None if the run never produced results."""
+    try:
+        tree = ET.parse(XML)
+    except (OSError, ET.ParseError):
+        return None
+    out = []
+    for suite in tree.getroot().iter("testsuite"):
+        suite_name = suite.get("name", "?")
+        for case in suite.iter("testcase"):
+            child = case.find("failure")
+            if child is None:
+                child = case.find("skipped")
+            msg = (child.text or child.get("message", "") or "") if child is not None else ""
+            out.append((suite_name, case.get("name", "?"), case.get("status", "?"), msg))
+    return out
+
+
+def report_failures(cases):
+    shown = 0
+    current = None
+    for suite, test, status, msg in cases:
+        if status != "fail":
+            continue
+        if shown == MAX_TESTS_SHOWN:
+            break
+        if suite != current:
+            current = suite
+            print(f"\n{suite}")
+        print(f"  {test}")
+        # GUT's XML records only the first failing assert per test; the rest are
+        # in the log. Its "at line N" tail is folded onto the message line.
+        body, _, line = msg.rpartition("at line ")
+        if body.strip() and line.strip().isdigit():
+            print(f"    {truncate(body.strip())}  (line {line.strip()})")
+        elif msg.strip():
+            print(f"    {truncate(msg)}")
+        shown += 1
+    failing = sum(1 for c in cases if c[2] == "fail")
+    if failing > shown:
+        print(f"\n  …and {failing - shown} more failing tests — see the log.")
+
+
+def main():
+    flags, label = build_args(sys.argv)
+    os.makedirs(OUT_DIR, exist_ok=True)
+    for stale in (LOG, XML):
+        try:
+            os.remove(stale)
+        except OSError:
+            pass
+
+    print(f"Running {label}… ", end="", flush=True)
+    # Merge stderr INTO stdout rather than capturing both: godot writes engine
+    # errors to stderr and GUT to stdout, and concatenating the two streams
+    # scrambles the ordering — the log stops matching what you'd see live, and
+    # the "last lines are the exit trailer" heuristic below reads stderr's tail.
+    proc = subprocess.run(
+        ["godot", "--headless", "--path", ROOT, "-s", "res://addons/gut/gut_cmdln.gd",
+         *flags, "-gdisable_colors", f"-gjunit_xml_file={XML}"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+    console = proc.stdout or ""
+    with open(LOG, "w") as f:
+        f.write(console)
+
+    cases = parse_xml()
+
+    # Three outcomes, not two: passed, tests failed, and *the run never
+    # completed*. Collapsing the third into either of the others is what costs
+    # you a re-run, so it gets its own branch and dumps the real tail.
+    if not cases:
+        print(f"✗ run did not complete (godot exit {proc.returncode}) — no test results")
+        tail = [l for l in console.splitlines()[-40:]
+                if l.strip() and not any(b in l for b in BENIGN_TRAILER)]
+        print("\n".join(tail[-20:]))
+        print(f"\nfull output: {os.path.relpath(LOG, ROOT)}")
+        return 1
+
+    failing = sum(1 for c in cases if c[2] == "fail")
+    passing = sum(1 for c in cases if c[2] == "pass")
+    other = [c for c in cases if c[2] not in ("fail", "pass")]
+    scripts = len({c[0] for c in cases})
+    elapsed = re.search(r"^Time\s+([\d.]+)s", console, re.M)
+    verdict = "✗" if failing else "✓"
+    print(f"{verdict} {failing} failing · {passing} passed · {len(other)} pending · "
+          f"{scripts} script" + ("s" if scripts != 1 else "")
+          + (f" ({elapsed.group(1)}s)" if elapsed else ""))
+
+    if failing:
+        report_failures(cases)
+    for suite, test, status, msg in other[:5]:
+        print(f"\n{status}: {suite}::{test}" + (f" — {truncate(msg, 120)}" if msg.strip() else ""))
+
+    alarms = sorted({l.strip() for l in console.splitlines() if ALARM.search(l)})
+    if alarms:
+        print("\nrun health:")
+        for line in alarms[:10]:
+            print(f"  {truncate(line)}")
+
+    unexpected = [l for l in console.splitlines()[-25:]
+                  if l.startswith(("ERROR:", "WARNING:", "CRASH"))
+                  and not any(b in l for b in BENIGN_TRAILER)]
+    if unexpected:
+        print("\nexit trailer:")
+        for line in unexpected[:5]:
+            print(f"  {truncate(line)}")
+
+    print(f"\nfull output: {os.path.relpath(LOG, ROOT)} "
+          f"(grep '[Failed]' for every assert; {os.path.relpath(XML, ROOT)} for junit)")
+    return 1 if failing else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
