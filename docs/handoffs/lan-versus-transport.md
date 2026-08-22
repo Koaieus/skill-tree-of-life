@@ -137,6 +137,12 @@ the AI exposes a real trap — `GameRoot._ensure_controllers` attaches an
 `AiController` on BOTH peers, so a mirror peer's AI would submit locally. That is
 where `CommandApplier.is_authority` finally gets its first reader.
 
+**`world_fingerprint.gd` is #527's alone.** The richer fold (ownership +
+topology + accumulated int state, HP quantized, derived totals excluded) is
+downstream of #527's tier-2 read accessors, not beside them — so #527 lands the
+whole contract and #532 writes assertions against `compute()` as-is. See
+`docs/handoffs/swarm-brief-lan-wave-1.md`.
+
 **#531 collides with the harness** — `mp_dev_sandbox.tscn` already mounts its own
 `Transport` + `CommandLink` as direct children and reads them as `$Transport` /
 `$CommandLink`, and the chain is `mp_dev_sandbox` -> `dev_sandbox` ->

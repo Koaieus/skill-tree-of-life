@@ -28,15 +28,31 @@ own `## Acceptance spec` — that comment is the worker prompt, read it in full.
   which branch `CommandApplier.submit()` takes, and #529 picks that. If a worker
   proposes writing it, stop them.
 
-## The one file overlap
+## File ownership — this wave is deliberately disjoint
 
-**`network/world_fingerprint.gd`** — #527 adds a topology fold, #532 adds an
-HP/stats fold. Not a fence: land one, rebase the other. **Do not let them invent
-two fingerprints**; the end state is one function that folds ownership +
-topology + HP/stats, because rung 2 (#533) and the probe (#529) both need all
-three.
+**`network/world_fingerprint.gd` belongs to #527 alone.** An earlier draft of
+this brief split it across #527 and #532; that was wrong. The richer fold is
+*downstream* of #527, not beside it — folding topology and accumulated state
+needs exactly the tier-2 read accessors on `graph.gd` / `skill_node.gd` that
+#527 creates. So #527 lands the whole end-state contract in one go, and **#532
+is told explicitly that it does not own that file** and writes its assertions
+against `compute()` as-is.
 
-`network/command_link.gd` is touched by #527 and #528. Ordinary sequencing.
+Consequence for #532: **per-verb assertions carry the weight there**, because
+today's `compute()` folds ownership only and cannot witness a cast that killed
+nothing. That is correct and intended — when #527's fold lands, #532's sweep
+gets stronger with no code change.
+
+The contract #527 implements, so nobody re-derives it: **one** `compute()`,
+folding ownership + topology + accumulated state (stake level, allocation level,
+regen stacks, node HP). HP folds **quantized to int** — `PoolStat.current` is a
+float and this number crosses processes, which is the FNV-1a-over-floats trap
+that file's own docstring warns about. Derived `StatBoard` totals are **not**
+folded: #527's tier table says totals never cross the wire, so folding them
+would assert agreement on something the format deliberately does not transmit.
+
+`network/command_link.gd` is touched by #527 and #528 — ordinary sequencing, and
+the only remaining overlap in the wave.
 
 ## Context every worker should read first
 
