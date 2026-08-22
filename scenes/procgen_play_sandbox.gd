@@ -114,6 +114,12 @@ func _setup_level() -> void:
 		entities_by_participant_id[enemy_participant.id] = enemy
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
+	# The other half of the same roster: `apply_roster` sets what every machine
+	# agrees on (camp, control kind), [SeatPolicy] sets what only this one
+	# does (who I play, whose eyes I draw with). One local human here, so this
+	# resolves to the default couch — it is wired anyway because a lobby-fed
+	# level (#457) differs only in the roster it hands these two calls.
+	seat_policy = SeatPolicy.from_roster(entities_by_participant_id, roster)
 
 	# Wire the player into the interaction layer (input / vision / highlight)
 	# now that it exists — edit-time NodePaths can't bind to a node spawned at

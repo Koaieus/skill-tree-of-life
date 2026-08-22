@@ -73,6 +73,13 @@ func _setup_level() -> void:
 	_blue.is_human_controlled = true
 	if _role == NetworkTransport.Role.CLIENT:
 		player = _blue
+		# The client is a SEAT, not a couch: its view is pinned to Blue. Said
+		# once, as policy — previously this was two separate un-decisions
+		# (re-point `player`, then disconnect GameRoot's handover), and the
+		# second had to be re-made after `_ready` had already wired it. Left a
+		# COUCH on the host, which hot-seats between Red and Blue as the base
+		# scene does.
+		seat_policy = SeatPolicy.seat(_blue.entity_id)
 
 
 func _parse_cmdline() -> void:
@@ -123,12 +130,6 @@ func _start_link() -> void:
 			_refresh_banner()
 			return
 
-	# On a networked peer the local view is fixed to the local hero, so the
-	# hot-seat handover GameRoot wires in `_ready` is wrong here: it would swing
-	# the host's HUD onto Blue and the client's onto Red.
-	if _role == NetworkTransport.Role.CLIENT and turn_manager != null \
-			and turn_manager.turn_started.is_connected(_on_turn_started_for_handover):
-		turn_manager.turn_started.disconnect(_on_turn_started_for_handover)
 	_refresh_banner()
 
 

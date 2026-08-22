@@ -74,6 +74,14 @@ const _FOG_INTENSITY_DEV: float = 0.88
 # Entities — `player` may be null until _setup_level() resolves it. The default
 # hook tries to find a `%Player` unique-name node; subclasses can replace.
 var player: Entity
+## Who THIS MACHINE plays and whose eyes it draws with — the per-machine half
+## of a run's setup, and the one thing here a peer is allowed to answer
+## differently. Defaults to a couch (every local human plays, the view follows
+## the turn), which is what a roster-less hand-authored scene wants; a level
+## with a roster replaces it via [method SeatPolicy.from_roster] during
+## `_setup_level`, before `bind_player` runs. Never read by anything a peer
+## must reproduce — see [SeatPolicy].
+var seat_policy: SeatPolicy = SeatPolicy.couch()
 @onready var graph: Graph = $Graph
 
 # Systems
@@ -133,9 +141,11 @@ func _ready() -> void:
 	# that keeps every sandbox playable without per-scene wiring.
 	_ensure_controllers()
 	bind_player(player)
-	# Hot-seat coop (#459): with more than one human in the roster, "the player"
-	# changes hands every turn. Connected after `_ensure_controllers` so the
-	# `is_human_controlled` flag the handler reads is already settled.
+	# Hot-seat coop (#459): on a shared couch "the player" changes hands every
+	# turn. Connected unconditionally — [member seat_policy] decides whether the
+	# handler does anything, so a networked peer stays put without un-wiring a
+	# signal. Connected after `_ensure_controllers` so the `is_human_controlled`
+	# flag the handler reads is already settled.
 	if turn_manager != null:
 		turn_manager.turn_started.connect(_on_turn_started_for_handover)
 	if not enable_fog:
@@ -299,7 +309,7 @@ func bind_player(p: Entity) -> void:
 	# Clears the outgoing player's armed modes / attack plan / targeting on the
 	# way in — see [method PlayerInputController._set_player].
 	input_ctl.player = player
-	_apply_camp_vision()
+	_apply_seat_vision()
 	# #460: whose point of view `RunOutcome.local_result` is written from. Set
 	# here rather than read by VictorySystem, so "who is the local human" stays
 	# a single fact owned by this method.
@@ -314,48 +324,51 @@ func bind_player(p: Entity) -> void:
 	_focus_camera_on_player()
 
 
-## Fog is a CAMP-wide reveal, not a per-hero one (#459). Two allied humans on
-## one couch share what they can see, so handover doesn't re-derive vision from
-## a different owned subgraph and flash the map.
+## Fog is an ALLIED-HUMANS reveal, not a per-hero one (#459) — the rule and
+## its four cases live on [method SeatPolicy.vision_group]. Coop shares
+## (handover doesn't re-derive fog from a different subgraph and flash the
+## map); versus doesn't (rivals are different camps); AI and blockers never do.
+##
+## The candidate walk stays HERE, and stays in group order, because the skip
+## below is array equality — element-wise, so order counts. Both sides of a
+## coop handover must produce the identical array or the setter reassigns and
+## the map flashes; `test_handover_does_not_re_derive_fog` pins it with
+## `is_same`.
 ##
 ## The assignment is skipped when the set is unchanged — [member
 ## VisionSystem.viewers] is a setter that unconditionally rebinds every viewer
 ## stat and recomputes, and a hot-seat handover between two members of the same
 ## camp produces the identical set. (A no-op skip, not a recursion guard.)
-func _apply_camp_vision() -> void:
+func _apply_seat_vision() -> void:
 	if vision_system == null or player == null or player.faction == null:
 		return
-	var camp_viewers: Array[Entity] = []
+	var candidates: Array[Entity] = []
 	for node in get_tree().get_nodes_in_group(Entity.GROUP):
 		var ent := node as Entity
-		if ent == null or ent.faction == null:
-			continue
-		# By `faction.id`, matching [method Entity.attitude_to] — camp fog and
-		# camp allegiance must not be two different answers to "same camp?",
-		# or a duplicated Faction resource splits vision while attitude still
-		# reads allied.
-		if ent.faction.id != &"" and ent.faction.id == player.faction.id:
-			camp_viewers.append(ent)
-	# The player itself may not be in the group yet (a level that binds during
-	# `_setup_level`, before the entity is grouped) — never end up with none.
-	if not camp_viewers.has(player):
-		camp_viewers.append(player)
-	if vision_system.viewers == camp_viewers:
+		if ent != null:
+			candidates.append(ent)
+	var viewers := SeatPolicy.vision_group(player, candidates)
+	if vision_system.viewers == viewers:
 		return
-	vision_system.viewers = camp_viewers
+	vision_system.viewers = viewers
 
 
-## Hot-seat handover (#459). "The player" is whoever's turn it is among the
-## humans — the HUD, the input channel, the camera and the victory viewpoint
-## all re-point through the one seam that already owns them.
+## Hot-seat handover (#459). On a shared couch "the player" is whoever's turn
+## it is among this machine's heroes — the HUD, the input channel, the camera
+## and the victory viewpoint all re-point through the one seam that already
+## owns them. Behind a wire the local view is pinned and this does nothing.
 ##
-## Reads [member Entity.is_human_controlled] (what [method apply_roster] sets
-## from a [Participant]'s kind), so an AI turn never steals the local view, and
-## a single-human run never fires this at all.
+## Both questions are [member seat_policy]'s: [method SeatPolicy.seats] (is
+## this one of mine — `is_human_controlled` on a couch, one `entity_id` in a
+## seat) and [method SeatPolicy.follows_active_turn]. So an AI turn never
+## steals the local view, a single-human run never fires this at all, and a
+## networked peer needs no un-wiring to stay put.
 func _on_turn_started_for_handover(entity: Entity) -> void:
 	if entity == null or entity == player:
 		return
-	if not entity.is_human_controlled:
+	if not seat_policy.follows_active_turn():
+		return
+	if not seat_policy.seats(entity):
 		return
 	bind_player(entity)
 

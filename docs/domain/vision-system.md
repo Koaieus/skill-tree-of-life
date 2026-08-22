@@ -63,12 +63,20 @@ Per-entity, derived from each allocated node:
 ### The vision RULE is one class, shared by every caller (#378)
 
 The scene carries exactly **one** `VisionSystem` instance, and its `viewers`
-is the local **camp** — every entity sharing the active player's `Faction`,
-set by `GameRoot._apply_camp_vision` (#459). In single player that is
-`[player]`; in hot-seat coop it is both allied humans, so handing the turn
-over does not re-derive fog from a different owned subgraph and flash the
-map. Note that assigning `viewers` unconditionally rebinds and recomputes, so
-the setter is only written when the camp set actually changed. Either way it
+is the **allied humans** — every *human-controlled* entity sharing the bound
+hero's `Faction`. The rule lives in `SeatPolicy.vision_group`
+(`session/seat_policy.gd`, see [seat-policy.md](seat-policy.md)); `GameRoot`
+supplies the candidates in group order and writes the result
+(`_apply_seat_vision`, #459). In single player that is `[player]`; in hot-seat
+coop it is both allied humans, so handing the turn over does not re-derive fog
+from a different owned subgraph and flash the map. In versus — local or online
+— rivals are on different camps, so each hero's group is itself and a hot-seat
+handover correctly *does* swap the fog. AI and blockers are never viewers,
+even sitting on the hero's own camp; faction-shared AI reveal is #394's
+difficulty lever, not this. Note that assigning `viewers` unconditionally
+rebinds and recomputes, so the setter is only written when the set actually
+changed — and the equality that decides that is element-wise, so the candidate
+walk must stay in a stable order. Either way it
 drives the local fog rendering only, not a general per-entity visibility
 oracle. AI needs its own per-entity check
 ("does *this* enemy see a hostile"), which can't be answered by mutating the
