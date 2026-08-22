@@ -1,5 +1,9 @@
-# Project tasks for Skill Tree of Life (Godot 4.6).
-# `godot` is the system install (4.6.2), not mise-managed — these are just tasks.
+# Project tasks for Skill Tree of Life (Godot 4.7).
+# There is deliberately no [tools] section: `godot` (4.7.1), `gh`, and `python3`
+# are all system installs — these are just tasks. The python file tasks under
+# .mise/tasks/ (test, refresh, rules-hygiene) are stdlib-only and want nothing
+# newer than 3.7, so pinning an interpreter would buy determinism we don't lack
+# while shadowing the system python for everything else run inside this repo.
 # Usage: `mise tasks -l` to list (local tasks only, skips global noise), `mise run check`, `mise run playground`, ...
 # Project board identifiers — consumed by `.mise/tasks/gh-project`.
 [env]
