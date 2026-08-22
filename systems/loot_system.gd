@@ -317,7 +317,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 	if core == null:
 		return
 	var empty_draw: Dictionary = {
-		"candidates": [] as Array[StatModifier], "weights": [] as Array[float], "pick_count": 0
+		"candidates": [] as Array[StatModifier], "weights": [] as Array[float], "rounds": 0
 	}
 	var draw := _draw_payload(victim) if drop_skill_dust_on_death else empty_draw
 	var candidates: Array[StatModifier] = draw["candidates"]
@@ -333,7 +333,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 		dust = SkillDustAddon.new()
 	dust.candidates = candidates
 	dust.weights = draw["weights"]
-	dust.pick_count = draw["pick_count"]
+	dust.rounds = draw["rounds"]
 	dust.victim_color = victim.color
 	dust.spell_candidates = spell_candidates
 	_attach_addon(core, dust)
@@ -351,13 +351,13 @@ func _drop_skill_dust(victim: Entity) -> void:
 ## is a claim-time concern, filtered per round against the collector's live
 ## board (see [method SkillDustAddon._on_carrier_owner_changed]).
 ##
-## `pick_count` (N rounds) scales with victim level exactly as before, now
+## `rounds` (how many pick-1-of-3 rounds) scales with victim level as before, now
 ## against the TOTAL pool across all three buckets. When N >= supply there's
 ## no real choice, so at least one candidate is always left on the table
 ## (supply >= 2) — same "keep the draw a genuine choice" invariant as #173.
 ## Every entry is `duplicate(true)`d so the dust owns independent copies.
 ## Returns { "candidates": Array[StatModifier], "weights": Array[float],
-## "pick_count": int }.
+## "rounds": int }.
 func _draw_payload(victim: Entity) -> Dictionary:
 	var candidates: Array[StatModifier] = []
 	var weights: Array[float] = []
@@ -374,16 +374,16 @@ func _draw_payload(victim: Entity) -> Dictionary:
 			weights.append(weight)
 
 	var supply := candidates.size()
-	var pick_count := clampi(victim.entity_tier, 0, supply)
+	var rounds := clampi(victim.entity_tier, 0, supply)
 	# Keep the draw a genuine choice whenever one is possible. N == M is a
 	# no-choice by construction (the addon auto-grants and the picker skips it),
 	# so a keep-count that saturates the supply silently deletes the entire
 	# pick-1-of-3-per-round feature. Leaving at least one modifier on the table
 	# is what makes it a decision.
 	if supply >= 2:
-		pick_count = mini(pick_count, supply - 1)
+		rounds = mini(rounds, supply - 1)
 
-	return {"candidates": candidates, "weights": weights, "pick_count": pick_count}
+	return {"candidates": candidates, "weights": weights, "rounds": rounds}
 
 
 ## The non-core nodes the victim still owns at death — the TERRITORY signal

@@ -335,7 +335,7 @@ func test_keep_count_is_victim_tier() -> void:
 	_victim.entity_tier = 2
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.pick_count, 2, "N = victim.entity_tier = 2")
+	assert_eq(dust.rounds, 2, "N = victim.entity_tier = 2")
 
 
 func test_keep_count_never_saturates_the_supply() -> void:
@@ -345,7 +345,7 @@ func test_keep_count_never_saturates_the_supply() -> void:
 	_victim.entity_tier = 100
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_lt(dust.pick_count, dust.candidates.size(),
+	assert_lt(dust.rounds, dust.candidates.size(),
 			"N is capped below M so the choice survives")
 
 
@@ -382,13 +382,13 @@ func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
 
 func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	# No HUD in this harness → each round auto-resolves (random 1 of up to 3).
-	# Exactly pick_count mods land on the collector's board AND its register
+	# Exactly `rounds` mods land on the collector's board AND its register
 	# (#185/#323 — a looted grant is re-lootable through the register), not the
 	# relic's core node.
 	_victim.entity_tier = 2  # N = 2 rounds → a real choice
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.pick_count, 2, "N = 2")
+	assert_eq(dust.rounds, 2, "N = 2")
 	_killer.stat_board.skill_points.grant(5)  # ensure SP to afford the allocation
 	var reg_before := _killer.core_modifiers.size()
 	# Killer allocates the neutral relic (adjacent to its N0 core).
@@ -415,7 +415,7 @@ func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	var reg_before := _killer.core_modifiers.size()
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.pick_count, 2, "N rounds to run")
+	assert_eq(dust.rounds, 2, "N rounds to run")
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer allocates the relic")
@@ -442,7 +442,8 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	var ok := _alloc.allocate(_nodes[1], _killer)
 	assert_true(ok, "killer allocates the relic")
 	assert_eq(captured.size(), 1, "only round 1's request reached the handler so far")
-	assert_eq(captured[0].pick_count, 1, "a round request is a pick-1 choice, not pick-N")
+	assert_gt(captured[0].candidates.size(), 1,
+		"a round offers a real choice — one survivor auto-grants instead")
 	# Nothing granted yet — auto-resolve was suppressed, round 1 is pending.
 	assert_eq(_killer.core_modifiers.size(), reg_before,
 		"handled → round 1 still pending, nothing granted yet")
@@ -491,7 +492,7 @@ func test_sequential_would_cycle_filtering_closes_the_joint_cycle_gap() -> void:
 	var dust := SkillDustAddon.new()
 	dust.candidates = [mod_a, mod_b]
 	dust.weights = [1.0, 1.0]
-	dust.pick_count = 2
+	dust.rounds = 2
 	relic.add_child(dust)
 
 	var captured: Array[LootPickRequest] = []

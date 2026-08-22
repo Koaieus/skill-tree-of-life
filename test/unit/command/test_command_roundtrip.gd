@@ -92,13 +92,21 @@ func test_end_turn_round_trips() -> void:
 
 
 func test_pick_loot_round_trips() -> void:
-	var chosen: Array[int] = [0, 2]
-	var back := _round_trip(PickLootCommand.new(7, 99, chosen)) as PickLootCommand
+	var back := _round_trip(PickLootCommand.new(7, 99, 2)) as PickLootCommand
 	assert_not_null(back)
 	assert_eq(back.entity_id, 7)
 	assert_eq(back.request_id, 99)
-	assert_eq(back.chosen_indices, chosen)
+	assert_eq(back.chosen_index, 2)
 	assert_eq(back.type_tag(), PickLootCommand.TAG)
+
+
+## A draw is a pick-ONE, so forfeiting is the only "no pick" a round can
+## express — and it has to survive the wire, or a forfeit read back as index 0
+## would silently grant the first candidate instead.
+func test_a_forfeited_pick_round_trips_as_minus_one() -> void:
+	var back := _round_trip(PickLootCommand.new(7, 99, -1)) as PickLootCommand
+	assert_not_null(back)
+	assert_eq(back.chosen_index, -1)
 
 
 func test_toggle_temp_upgrade_round_trips_including_the_upgrade_id() -> void:
@@ -114,7 +122,6 @@ func test_toggle_temp_upgrade_round_trips_including_the_upgrade_id() -> void:
 func _every_command() -> Array[Command]:
 	var node_ids: Array[int] = [1, 2]
 	var path: Array[int] = [1, 2, 3]
-	var chosen: Array[int] = [0]
 	return [
 		AllocateCommand.new(1, 2),
 		DeallocateCommand.new(1, 2),
@@ -124,7 +131,7 @@ func _every_command() -> Array[Command]:
 		ExtractCommand.new(1, 2),
 		MoveCoreCommand.new(1, path),
 		EndTurnCommand.new(1),
-		PickLootCommand.new(1, 5, chosen),
+		PickLootCommand.new(1, 5, 0),
 		ToggleTempUpgradeCommand.new(1, 2, &"spike_ring"),
 	]
 

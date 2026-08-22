@@ -57,11 +57,17 @@ extends SkillNodeAddon
 ## weighted "roll a bucket, then a member" sample each round (#323).
 @export var weights: Array[float] = []
 
-## N — how many pick-1-of-3 ROUNDS the collector gets (#323; used to mean "N of
-## a flat M" pre-re-cut). Each round offers up to 3 cycle-safe survivors of the
+## How many pick-1-of-3 ROUNDS the collector gets (#323; used to mean "N of a
+## flat M" pre-re-cut). Each round offers up to 3 cycle-safe survivors of the
 ## REMAINING pool; a round with 0 or 1 survivor has no real choice and
 ## auto-grants/skips without popping the picker.
-@export var pick_count: int = 0
+##
+## Named `pick_count` until 2026-08-22, which collided with
+## `LootPickRequest.pick_count` — the same name for "how many rounds" and "how
+## many picks per round" is what kept turning "pick 1 out of M, N times" into
+## "pick N of M" in write-ups. The per-round one is gone; this is the only
+## count, and it counts rounds.
+@export var rounds: int = 0
 
 ## The victim's full spellbook snapshot (#204 re-cut) — every spell known at
 ## `entity_dying`, core/innate/territory alike, UNFILTERED (the permanent-known
@@ -73,14 +79,12 @@ extends SkillNodeAddon
 
 ## Offer is capped at this many spell candidates (M = min(this, remaining)).
 const _SPELL_OFFER_CAP: int = 3
-## Fixed keep-count for #204's MVP — see the issue NOTES on keep-count scaling.
-const _SPELL_PICK_COUNT: int = 1
 
 ## The entity currently claiming this relic, latched for the duration of the
 ## multi-round claim flow (`_advance_round` recurses across possibly-async
 ## picker confirms).
 var _collector: Entity = null
-## Rounds left to run — counts down from `pick_count`.
+## Rounds left to run — counts down from [member rounds].
 var _rounds_remaining: int = 0
 
 ## The dying entity's color, injected by LootSystem before this addon enters
@@ -193,7 +197,7 @@ func _on_carrier_owner_changed() -> void:
 	if collector == null:
 		return  # death-strip / deallocation — not a pickup
 	_collector = collector
-	_rounds_remaining = pick_count
+	_rounds_remaining = rounds
 	_advance_round()
 
 
@@ -241,7 +245,7 @@ func _advance_round() -> void:
 	for i in offer_indices:
 		offer.append(candidates[i])
 
-	var request := LootPickRequest.new(_collector, offer, 1, _grant_and_advance)
+	var request := LootPickRequest.new(_collector, offer, _grant_and_advance)
 	Events.loot_pick_requested.emit(request)
 	if not request.handled:
 		# NPC / headless / no-HUD path — the DEFAULT branch. Random 1 of the offer.
@@ -298,8 +302,7 @@ func _advance_spell_round() -> void:
 	var offer_count := mini(_SPELL_OFFER_CAP, offerable.size())
 	var offer: Array[SpellDef] = offerable.slice(0, offer_count)
 
-	var request := SpellLootRequest.new(
-			_collector, offer, _SPELL_PICK_COUNT, _grant_spell_and_finish)
+	var request := SpellLootRequest.new(_collector, offer, _grant_spell_and_finish)
 	Events.spell_loot_requested.emit(request)
 	if not request.handled:
 		# NPC / headless / no-HUD path — the DEFAULT branch. Random 1 of the offer.

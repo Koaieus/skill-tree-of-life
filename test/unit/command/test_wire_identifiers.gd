@@ -49,7 +49,7 @@ func test_a_toggle_command_names_a_resolvable_upgrade() -> void:
 
 func _request() -> LootPickRequest:
 	var candidates: Array[StatModifier] = [_MOD.new(), _MOD.new()]
-	return LootPickRequest.new(null, candidates, 1, func(_chosen: Array) -> void: pass)
+	return LootPickRequest.new(null, candidates, func(_chosen: Array) -> void: pass)
 
 
 func test_loot_pick_requests_get_distinct_nonzero_ids() -> void:
@@ -62,10 +62,9 @@ func test_loot_pick_requests_get_distinct_nonzero_ids() -> void:
 
 func test_a_pick_command_can_answer_a_specific_request() -> void:
 	var req := _request()
-	var chosen: Array[int] = [1]
-	var cmd := PickLootCommand.new(0, req.request_id, chosen)
+	var cmd := PickLootCommand.new(0, req.request_id, 1)
 	var back := CommandCodec.from_dict(cmd.to_dict()) as PickLootCommand
 
 	assert_not_null(back)
 	assert_eq(back.request_id, req.request_id)
-	assert_eq(back.chosen_indices, chosen)
+	assert_eq(back.chosen_index, 1)

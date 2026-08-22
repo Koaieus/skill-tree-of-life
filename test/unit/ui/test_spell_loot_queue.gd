@@ -62,12 +62,12 @@ func _mk_spell(spell_name: String) -> SpellDef:
 
 func _dust_request(sink: Array) -> LootPickRequest:
 	var cands: Array[StatModifier] = [_mk_stat_mod(&"armor", 1)]
-	return LootPickRequest.new(_player, cands, 1, func(chosen): sink.append_array(chosen))
+	return LootPickRequest.new(_player, cands, func(chosen): sink.append_array(chosen))
 
 
 func _spell_request(sink: Array) -> SpellLootRequest:
 	var cands: Array[SpellDef] = [_mk_spell("Bolt")]
-	return SpellLootRequest.new(_player, cands, 1, func(chosen): sink.append_array(chosen))
+	return SpellLootRequest.new(_player, cands, func(chosen): sink.append_array(chosen))
 
 
 func test_dust_pick_presents_immediately() -> void:
@@ -132,7 +132,7 @@ func test_requests_for_a_different_collector_are_ignored() -> void:
 	autofree(other)
 	var sink: Array = []
 	var cands: Array[SpellDef] = [_mk_spell("NotForUs")]
-	var req := SpellLootRequest.new(other, cands, 1, func(chosen): sink.append_array(chosen))
+	var req := SpellLootRequest.new(other, cands, func(chosen): sink.append_array(chosen))
 	Events.spell_loot_requested.emit(req)
 	assert_false(_hud.spell_loot_picker.visible, "request for a non-player collector is ignored")
 	assert_false(req.handled, "HudRoot never claims a request that isn't the player's")

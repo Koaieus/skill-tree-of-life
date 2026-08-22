@@ -22,12 +22,9 @@ extends RefCounted
 ## The entity claiming the draft — whose core the chosen spell will land on.
 var collector: Entity = null
 
-## The M drawn spell candidates offered for the choice.
+## The M drawn spell candidates offered for the choice. Always a pick-ONE —
+## see [LootPickRequest] for why there is no pick count on either request.
 var candidates: Array[SpellDef] = []
-
-## The N the collector keeps (fixed at 1 for #204's MVP; kept general here to
-## mirror LootPickRequest's shape, in case keep-count scaling lands later).
-var pick_count: int = 0
 
 ## Set true SYNCHRONOUSLY by a consumer that takes over the pick (the player
 ## picker). Left false by everyone else → emitter auto-resolves.
@@ -37,10 +34,9 @@ var _resolver: Callable
 var _resolved: bool = false
 
 
-func _init(collector_: Entity, candidates_: Array[SpellDef], pick_count_: int, resolver: Callable) -> void:
+func _init(collector_: Entity, candidates_: Array[SpellDef], resolver: Callable) -> void:
 	collector = collector_
 	candidates = candidates_
-	pick_count = pick_count_
 	_resolver = resolver
 
 

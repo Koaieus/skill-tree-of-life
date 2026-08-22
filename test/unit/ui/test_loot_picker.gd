@@ -28,52 +28,37 @@ func _mk_mod(id: StringName, v: float) -> StatModifier:
 	return m
 
 
-func _request(candidates: Array[StatModifier], pick: int, sink: Array) -> LootPickRequest:
-	return LootPickRequest.new(null, candidates, pick, func(chosen): sink.append_array(chosen))
+func _request(candidates: Array[StatModifier], sink: Array) -> LootPickRequest:
+	return LootPickRequest.new(null, candidates, func(chosen): sink.append_array(chosen))
 
 
 func test_present_builds_a_card_per_candidate() -> void:
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2), _mk_mod(&"armor", 3)]
 	var sink: Array = []
-	_picker.present(_request(cands, 1, sink))
+	_picker.present(_request(cands, sink))
 	assert_true(_picker.visible, "picker shows on present")
 	assert_eq(_body()._cards.size(), 3, "one card per candidate (M)")
 
 
-func test_confirm_disabled_until_exactly_n_selected() -> void:
+func test_confirm_disabled_until_something_is_selected() -> void:
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2), _mk_mod(&"armor", 3)]
 	var sink: Array = []
-	_picker.present(_request(cands, 2, sink))
-	assert_true(_picker._confirm_button.disabled, "confirm off with 0 selected")
+	_picker.present(_request(cands, sink))
+	assert_true(_picker._confirm_button.disabled, "confirm off with nothing selected")
 	_body()._cards[0].button_pressed = true
 	_body()._cards[0].toggled.emit(true)
-	assert_true(_picker._confirm_button.disabled, "confirm off with 1 of 2 selected")
-	_body()._cards[1].button_pressed = true
-	_body()._cards[1].toggled.emit(true)
-	assert_false(_picker._confirm_button.disabled, "confirm on at exactly N")
+	assert_false(_picker._confirm_button.disabled, "confirm on as soon as one is picked")
 
 
-func test_selecting_n_locks_remaining_cards() -> void:
+## A draw is ALWAYS a pick-one (owner call 2026-08-22 — the loot shape is
+## "pick 1 out of M, N times", and N is rounds, not picks per draw). So the
+## cards are a plain ButtonGroup: picking a different card auto-deselects the
+## old one in a single click, no disable-then-pick-again dance, and
+## `allow_unpress` lets the selected card drop back to nothing.
+func test_a_draw_is_a_button_group_with_natural_exclusive_toggle() -> void:
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2), _mk_mod(&"armor", 3)]
 	var sink: Array = []
-	_picker.present(_request(cands, 2, sink))
-	_body()._cards[0].button_pressed = true
-	_body()._cards[0].toggled.emit(true)
-	_body()._cards[1].button_pressed = true
-	_body()._cards[1].toggled.emit(true)
-	assert_true(_body()._cards[2].disabled, "unpicked cards lock once N reached")
-	assert_false(_body()._cards[0].disabled, "picked cards stay togglable to swap")
-	assert_false(_body()._cards[1].disabled, "picked cards stay togglable to swap")
-
-
-## Pick-1 is a ButtonGroup now (#522-adjacent "toggle more easily" ask):
-## picking a different card auto-deselects the old one in a single click, no
-## disable-then-pick-again dance, and the group's `allow_unpress` lets the
-## selected card drop back to nothing.
-func test_pick_one_uses_a_button_group_for_natural_exclusive_toggle() -> void:
-	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2), _mk_mod(&"armor", 3)]
-	var sink: Array = []
-	_picker.present(_request(cands, 1, sink))
+	_picker.present(_request(cands, sink))
 
 	_body()._cards[0].button_pressed = true
 	_body()._cards[0].toggled.emit(true)
@@ -93,23 +78,21 @@ func test_pick_one_uses_a_button_group_for_natural_exclusive_toggle() -> void:
 	assert_true(_picker._confirm_button.disabled, "confirm off again with nothing selected")
 
 
-func test_confirm_resolves_with_the_chosen_subset() -> void:
+func test_confirm_resolves_with_the_chosen_candidate() -> void:
 	var a := _mk_mod(&"armor", 1)
 	var b := _mk_mod(&"strength", 2)
 	var c := _mk_mod(&"dexterity", 3)
 	var cands: Array[StatModifier] = [a, b, c]
 	var sink: Array = []
-	var req := _request(cands, 2, sink)
+	var req := _request(cands, sink)
 	_picker.present(req)
-	_body()._cards[0].button_pressed = true
-	_body()._cards[0].toggled.emit(true)
 	_body()._cards[2].button_pressed = true
 	_body()._cards[2].toggled.emit(true)
 	_picker._on_confirm()
 	assert_true(req.is_resolved(), "confirm resolves the request")
-	assert_eq(sink.size(), 2, "resolver receives exactly N mods")
-	assert_true(sink.has(a) and sink.has(c), "resolver receives the picked candidates")
-	assert_false(sink.has(b), "unpicked candidate is excluded")
+	assert_eq(sink.size(), 1, "a draw grants exactly one modifier")
+	assert_true(sink.has(c), "resolver receives the picked candidate")
+	assert_false(sink.has(a) or sink.has(b), "unpicked candidates are excluded")
 	assert_false(_picker.visible, "picker hides after confirm")
 
 
@@ -120,7 +103,7 @@ func test_composite_candidate_is_one_card_listing_its_leaves() -> void:
 	bundle.children = [_mk_mod(&"deallocation_points", 2), _mk_mod(&"skill_points", -1)]
 	var cands: Array[StatModifier] = [bundle, _mk_mod(&"armor", 5)]
 	var sink: Array = []
-	_picker.present(_request(cands, 1, sink))
+	_picker.present(_request(cands, sink))
 	assert_eq(_body()._cards.size(), 2, "the bundle is a single card, not one per leaf")
 	var text: String = _body()._cards[0].text
 	assert_true(text.contains("+2") and text.contains("-1"),
@@ -134,7 +117,7 @@ func test_confirm_resolves_a_composite_as_a_single_unit() -> void:
 	var plain := _mk_mod(&"armor", 5)
 	var cands: Array[StatModifier] = [bundle, plain]
 	var sink: Array = []
-	var req := _request(cands, 1, sink)
+	var req := _request(cands, sink)
 	_picker.present(req)
 	_body()._cards[0].button_pressed = true
 	_body()._cards[0].toggled.emit(true)
@@ -147,7 +130,7 @@ func test_confirm_resolves_a_composite_as_a_single_unit() -> void:
 func test_resolve_is_idempotent() -> void:
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2)]
 	var sink: Array = []
-	var req := _request(cands, 1, sink)
+	var req := _request(cands, sink)
 	req.resolve([cands[0]])
 	req.resolve([cands[1]])  # second call is a no-op
 	assert_eq(sink.size(), 1, "resolve fires the resolver at most once")
@@ -162,7 +145,7 @@ func test_present_freezes_input_and_confirm_unfreezes_it() -> void:
 
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1)]
 	var sink: Array = []
-	_picker.present(_request(cands, 1, sink))
+	_picker.present(_request(cands, sink))
 	assert_true(input_ctl._input_frozen, "present() freezes the input channel")
 	assert_false(get_tree().paused, "the SceneTree itself is never paused")
 

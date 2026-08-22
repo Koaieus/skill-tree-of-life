@@ -5,31 +5,24 @@ extends ModalBodyBase
 ## [LootPicker]'s swappable body (#486) — one card per [StatModifier]
 ## candidate. A [CompositeStatModifier] is a SINGLE all-or-nothing pick that
 ## lists every bundled stat in its body (#183); a plain modifier flattens to
-## one line, so both share [method _make_card]. Confirm is only ever valid
-## at exactly [member _pick_count] selected.
+## one line, so both share [method _make_card].
 ##
-## The only production caller (`SkillDustAddon`) always asks for a pick-1
-## round, and pick-1 is the shape a [ButtonGroup] fits natively: cards join
-## an `allow_unpress` group so picking a different card auto-deselects the
-## old one (no more "deselect first"), and clicking the selected card again
-## drops the pick entirely. `pick_count > 1` is still real (pinned by this
-## file's own tests) but a stock `ButtonGroup` is single-select only, so that
-## path keeps the pre-existing manual cap: once N are picked, remaining
-## cards lock so the player can't overshoot (must deselect one to swap).
+## [b]Always a pick-ONE.[/b] The loot shape is "pick 1 out of M, N times" — N
+## rounds ([member SkillDustAddon.rounds]), each raising its own request. So the
+## cards are simply a [ButtonGroup] with `allow_unpress`: choosing another card
+## auto-deselects the old one in one click, and re-clicking the choice drops it.
+## There is no cap to enforce and nothing to lock, because there is no N-per-draw
+## to overshoot.
 
 var _request: LootPickRequest = null
 var _cards: Array[Button] = []
-var _pick_count: int = 0
 var _group: ButtonGroup = null
 
 
 func populate(request: Variant) -> void:
 	_request = request as LootPickRequest
-	_pick_count = _request.pick_count
-	_group = null
-	if _pick_count == 1:
-		_group = ButtonGroup.new()
-		_group.allow_unpress = true
+	_group = ButtonGroup.new()
+	_group.allow_unpress = true
 
 	for c in _cards:
 		c.queue_free()
@@ -61,37 +54,23 @@ func _make_card(m: StatModifier) -> Button:
 	card.add_theme_color_override("font_color", tint)
 	card.add_theme_color_override("font_hover_color", tint)
 	card.add_theme_color_override("font_pressed_color", tint)
-	if _group != null:
-		card.button_group = _group
+	card.button_group = _group
 	card.toggled.connect(_on_card_toggled)
 	return card
 
 
 func _on_card_toggled(_pressed: bool) -> void:
-	# Pick-1: the group itself enforces exclusivity, nothing to lock.
-	if _group == null:
-		var selected := _selected_count()
-		var at_cap := selected >= _pick_count
-		for c in _cards:
-			c.disabled = at_cap and not c.button_pressed
+	# The group enforces exclusivity itself — this only forwards the change.
 	selection_changed.emit()
 
 
-func _selected_count() -> int:
-	var n := 0
-	for c in _cards:
-		if c.button_pressed:
-			n += 1
-	return n
-
-
 func is_selection_valid() -> bool:
-	return _selected_count() == _pick_count
+	return _group != null and _group.get_pressed_button() != null
 
 
 func status_text() -> String:
 	var total := _request.candidates.size() if _request != null else 0
-	return "Choose %d of %d  (%d selected)" % [_pick_count, total, _selected_count()]
+	return "Choose 1 of %d" % total
 
 
 func resolve() -> Array:
