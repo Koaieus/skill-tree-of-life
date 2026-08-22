@@ -77,6 +77,23 @@ const CORE_HOP_SLIDE_DELAY := 0.18
 @export var battle_system: BattleSystem
 @export var turn_manager: TurnManager
 
+## The outstanding-loot-pick book, for [PickLootCommand] (#522).
+@export var loot_pick_registry: LootPickRegistry
+
+## Is this peer the one that DECIDES, or the one that is told? True offline,
+## true on the host, false only while [member CommandLink.mode] is `MIRROR` —
+## that setter is the single writer, so nothing has to be kept in sync by hand
+## and no scene grows a second role flag.
+##
+## Almost nothing reads this: a command's application is deliberately the same
+## code on every peer, and [LaunchAttackCommand] carries which half of the work
+## is already done in its own payload rather than asking about a role. The
+## exception is a mutation a peer STARTS on its own, from a local reaction
+## rather than from a received command — [SkillDustAddon]'s claim flow opens on
+## `owner_changed`, which fires on every peer that applies the allocation. That
+## one needs gating; see its `_on_carrier_owner_changed`.
+var is_authority: bool = true
+
 ## True from the first [method submit] that starts a drain until the queue is
 ## empty — spanning every await inside every command, not just the mutation.
 var is_applying: bool = false
@@ -158,6 +175,12 @@ func _drain() -> void:
 ## AllocationSystem.allocate] and friends) are the authority offline today and
 ## stay the authority here.
 func _apply(command: Command) -> bool:
+	# Ahead of the actor lookup, deliberately: a relic's TERMINAL round runs
+	# after its collector may already be dead and freed, and it is the record
+	# that frees the relic on every peer. Resolving an actor first would drop it.
+	if command is LootRoundCommand:
+		@warning_ignore("redundant_await")
+		return await _apply_loot_round(command as LootRoundCommand)
 	var actor := graph.get_by_entity_id(command.entity_id) if graph != null else null
 	if actor == null:
 		push_warning("CommandApplier: no entity for id %d (%s)" \
@@ -183,14 +206,37 @@ func _apply(command: Command) -> bool:
 		turn_manager.end_turn()
 		return true
 	if command is PickLootCommand:
-		# Not routed yet: nothing raises a PickLootCommand, and correlating
-		# `request_id` back to its live LootPickRequest needs a registry that
-		# #510 deliberately does not build (the loot files are outside its
-		# "Files touched"). The type exists from #509; wiring it is a
-		# follow-up.
-		push_warning("CommandApplier: pick_loot is not routed through the applier yet")
-		return false
+		# The answer to a request parked for a REMOTE picker (#522). Returns
+		# false for an id that names nothing — a stale or duplicate pick is a
+		# normal outcome, not an error, and a refused command confirms nothing
+		# so nothing crosses the wire.
+		if loot_pick_registry == null:
+			return false
+		var pick := command as PickLootCommand
+		return loot_pick_registry.resolve_pick(pick.request_id, pick.chosen_index)
 	push_warning("CommandApplier: no handler for command tag '%s'" % command.type_tag())
+	return false
+
+
+## One round of a relic's claim flow (#522). The addon does the work — this
+## only resolves the carrier and hands over. INITIATE awaits the whole round,
+## the player's pick included, which is deliberate: [member is_applying] stays
+## true for the duration, so the existing
+## [method PlayerInputController.can_player_act] gate is what enforces the
+## owner's "no ending the turn while picking" rule, and the End Turn button
+## greys out through `player_can_act_changed` rather than silently no-opping.
+func _apply_loot_round(command: LootRoundCommand) -> bool:
+	var carrier := _resolve_node(command.carrier_id)
+	if carrier == null:
+		push_warning("CommandApplier: no relic node for stable_id %d (loot_round)"
+				% command.carrier_id)
+		return false
+	for addon in carrier.get_addons():
+		if addon is SkillDustAddon:
+			@warning_ignore("redundant_await")
+			return await (addon as SkillDustAddon).run_round(command)
+	push_warning("CommandApplier: node %d carries no SkillDustAddon (loot_round)"
+			% command.carrier_id)
 	return false
 
 

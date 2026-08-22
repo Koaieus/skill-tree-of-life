@@ -16,7 +16,7 @@ func _ready() -> void:
 	confirmed.connect(_on_confirmed)
 
 
-## Show the draft for a request. HudRoot has already set `request.handled` so
+## Show the draft for a request. HudRoot has already set `request.claim` so
 ## the emitter won't auto-resolve behind us.
 func present(request: SpellLootRequest) -> void:
 	_present(_BODY_SCENE, "SPELL DRAFT", request)

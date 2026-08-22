@@ -21,6 +21,23 @@ extends Resource
 
 ## Ids of all stats this formula reads. [StatModifier] subscribes to
 ## value_changed on each so the target stat can dirty itself automatically.
+## This formula's wire form. Subclasses call `super()`, stamp their own `type`
+## and add their own fields, exactly as [Command.to_dict] does. No `type` is
+## written here: this class is ABSTRACT, so every real formula on the wire is
+## one of the three concrete ones and a payload without a tag is a decode
+## error rather than a bare base formula. Decoding dispatches through
+## [StatModifierCodec] — a formula naming its own subclasses here would be the
+## same parse-time cycle [CommandCodec] exists to avoid.
+func to_dict() -> Dictionary:
+	return {"per_phrase": per_phrase}
+
+
+## Read the fields this level owns off [param d]. Subclasses override, call
+## `super(d)` first, then read theirs.
+func read_dict(d: Dictionary) -> void:
+	per_phrase = String(d.get("per_phrase", ""))
+
+
 func get_input_ids() -> Array[StringName]:
 	return []
 

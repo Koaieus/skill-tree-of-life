@@ -423,8 +423,8 @@ func test_no_handler_auto_resolves_a_strict_subset() -> void:
 			"auto-resolve grants exactly N=2 rounds' worth of mods")
 
 
-func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> void:
-	# A UI consumer sets `handled = true` synchronously → the addon must NOT
+func test_claimed_request_suppresses_auto_resolve_until_picker_resolves() -> void:
+	# A UI consumer sets `claim = LOCAL` synchronously → the addon must NOT
 	# auto-resolve THAT ROUND. The round stays pending until the picker calls
 	# resolve() — and the NEXT round's request doesn't fire until it does,
 	# since `_grant_and_advance` (the resolver) is what drives `_advance_round`.
@@ -432,7 +432,7 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	_victim.entity_tier = 2
 	var captured: Array[LootPickRequest] = []
 	var handler := func(req: LootPickRequest) -> void:
-		req.handled = true
+		req.claim = LootPickRequest.Claim.LOCAL
 		captured.append(req)
 	Events.loot_pick_requested.connect(handler)
 
@@ -446,7 +446,7 @@ func test_handled_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 		"a round offers a real choice — one survivor auto-grants instead")
 	# Nothing granted yet — auto-resolve was suppressed, round 1 is pending.
 	assert_eq(_killer.core_modifiers.size(), reg_before,
-		"handled → round 1 still pending, nothing granted yet")
+		"claimed → round 1 still pending, nothing granted yet")
 	assert_false(captured[0].is_resolved(), "request awaits the player's pick")
 
 	# Resolve round 1 → round 2's request fires (still connected to `handler`).
@@ -497,7 +497,7 @@ func test_sequential_would_cycle_filtering_closes_the_joint_cycle_gap() -> void:
 
 	var captured: Array[LootPickRequest] = []
 	var handler := func(req: LootPickRequest) -> void:
-		req.handled = true
+		req.claim = LootPickRequest.Claim.LOCAL
 		captured.append(req)
 	Events.loot_pick_requested.connect(handler)
 

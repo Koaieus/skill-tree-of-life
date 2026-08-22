@@ -135,7 +135,8 @@ func test_requests_for_a_different_collector_are_ignored() -> void:
 	var req := SpellLootRequest.new(other, cands, func(chosen): sink.append_array(chosen))
 	Events.spell_loot_requested.emit(req)
 	assert_false(_hud.spell_loot_picker.visible, "request for a non-player collector is ignored")
-	assert_false(req.handled, "HudRoot never claims a request that isn't the player's")
+	assert_eq(req.claim, SpellLootRequest.Claim.UNCLAIMED,
+			"HudRoot never claims a request that isn't the player's")
 
 
 ## Both pickers override ConfirmButton by NODE PATH, and a stale path is a

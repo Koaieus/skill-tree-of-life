@@ -213,13 +213,15 @@ func rebind_player(player: Entity) -> void:
 	_bind_initiative_pool()
 
 
-## Pick-N-from-M loot claim (#173). Only the PLAYER's relics get the picker —
-## claim `handled` SYNCHRONOUSLY (before emit() returns) so SkillDustAddon won't
+## Pick-1-of-M loot claim (#173). Only the PLAYER's relics get the picker — set
+## `claim` SYNCHRONOUSLY (before emit() returns) so SkillDustAddon won't
 ## auto-resolve behind us; NPC relics fall through untouched to their auto-pick.
+## `LOCAL` specifically: the tri-state exists to keep this case distinguishable
+## from a REMOTE human's pick, which no HUD on this machine can present (#522).
 func _on_loot_pick_requested(request: LootPickRequest) -> void:
 	if loot_picker == null or _player == null or request.collector != _player:
 		return
-	request.handled = true
+	request.claim = LootPickRequest.Claim.LOCAL
 	_enqueue_modal(func() -> void: loot_picker.present(request))
 
 
@@ -228,7 +230,7 @@ func _on_loot_pick_requested(request: LootPickRequest) -> void:
 func _on_spell_loot_requested(request: SpellLootRequest) -> void:
 	if spell_loot_picker == null or _player == null or request.collector != _player:
 		return
-	request.handled = true
+	request.claim = SpellLootRequest.Claim.LOCAL
 	_enqueue_modal(func() -> void: spell_loot_picker.present(request))
 
 

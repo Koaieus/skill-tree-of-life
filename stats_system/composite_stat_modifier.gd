@@ -51,6 +51,27 @@ extends StatModifier
 
 ## Expand to the leaf modifiers, recursively (a nested composite flattens too).
 ## Overrides [method StatModifier.flatten] — the seam described on the base.
+## Recursive, because a bundle is one loot candidate made of the same tiny
+## parts (#522). [member loots_as_unit] rides along: it decides what the loot
+## draw counts as its unit, so a peer reconstructing this pack needs it.
+func to_dict() -> Dictionary:
+	var d := super()
+	d["type"] = StatModifierCodec.TAG_COMPOSITE
+	d["loots_as_unit"] = loots_as_unit
+	var kids: Array = []
+	for c in children:
+		if c != null:
+			kids.append(c.to_dict())
+	d["children"] = kids
+	return d
+
+
+func read_dict(d: Dictionary) -> void:
+	super(d)
+	loots_as_unit = bool(d.get("loots_as_unit", true))
+	children = StatModifierCodec.array_from_dicts(d.get("children", []))
+
+
 func flatten() -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	for c in children:

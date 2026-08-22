@@ -136,7 +136,7 @@ func test_offers_core_and_territory_spells_capped_at_three() -> void:
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 
@@ -162,7 +162,7 @@ func test_offer_capped_at_three_when_victim_knows_more() -> void:
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 
@@ -183,7 +183,7 @@ func test_chosen_spell_lands_on_claimant_core_and_survives_unrelated_dealloc() -
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 
@@ -257,7 +257,7 @@ func test_core_spell_still_offered_at_entity_dying_despite_imminent_strip() -> v
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_claim_relic(_killer)
@@ -276,7 +276,7 @@ func test_resolve_is_idempotent_cannot_double_learn() -> void:
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
@@ -305,7 +305,7 @@ func test_permanently_known_spell_excluded_territory_known_offered() -> void:
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
@@ -329,7 +329,7 @@ func test_territory_known_spell_stays_offerable_as_upgrade() -> void:
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
@@ -383,7 +383,7 @@ func test_innate_spell_is_offered_as_a_candidate() -> void:
 
 	var captured: Array[SpellLootRequest] = []
 	var handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		captured.append(req)
 	Events.spell_loot_requested.connect(handler)
 	_kill_victim()
@@ -406,10 +406,10 @@ func test_spell_draft_fires_only_after_stat_rounds_resolve() -> void:
 	var stat_requests: Array[LootPickRequest] = []
 	var spell_requests: Array[SpellLootRequest] = []
 	var stat_handler := func(req: LootPickRequest) -> void:
-		req.handled = true
+		req.claim = LootPickRequest.Claim.LOCAL
 		stat_requests.append(req)
 	var spell_handler := func(req: SpellLootRequest) -> void:
-		req.handled = true
+		req.claim = SpellLootRequest.Claim.LOCAL
 		spell_requests.append(req)
 	Events.loot_pick_requested.connect(stat_handler)
 	Events.spell_loot_requested.connect(spell_handler)

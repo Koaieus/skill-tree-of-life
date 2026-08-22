@@ -13,21 +13,26 @@ extends Node
 ## which is still `Needs design`. So the client here is a spectator with a real
 ## applier, which is exactly enough to prove the shape.
 ##
-## [b]What actually mirrors today:[/b] every verb [CommandApplier] handles —
-## allocate / deallocate / deallocate_set / mass_allocate / stake / extract /
-## move_core / end_turn / toggle_temp_upgrade, and launch_attack since #511
-## (which rides down with an [AttackRecord] the client replays rather than
-## re-resolving). `end_turn` only became true here on 2026-08-22: the HUD's End
-## Turn button called [method TurnManager.end_turn] directly until then, so the
-## player's hand-back was a verb that never became a command at all.
+## [b]Every verb [CommandApplier] handles mirrors[/b] — allocate / deallocate /
+## deallocate_set / mass_allocate / stake / extract / move_core / end_turn /
+## toggle_temp_upgrade, launch_attack since #511 (which rides down with an
+## [AttackRecord] the client replays rather than re-resolving), and loot since
+## #522 (a [LootRoundCommand] per round of a relic's claim, carrying what was
+## granted BY VALUE — same two-states-one-type shape as the attack). `end_turn`
+## only became true here on 2026-08-22, and loot was the last hold-out: the
+## HUD's End Turn button called [method TurnManager.end_turn] directly until
+## then, and nothing raised a loot command at all, so both were verbs that never
+## became commands.
 ##
-## [b]What does not:[/b] loot picks — [PickLootCommand] is not routed (#522). A
-## client will therefore diverge the moment somebody picks loot, and the
-## fingerprint below is how you SEE that happen instead of guessing.
-##
-## [b]The lesson those two share:[/b] this class mirrors whatever the applier
+## [b]The lesson those three share:[/b] this class mirrors whatever the applier
 ## handles, so a verb missing from the wire is almost always a missing
 ## submission site, not a transport gap. Check who raises the command first.
+##
+## [b]What is still one-directional:[/b] the link itself. There is no intent
+## channel upward, so a client remains a spectator with a real applier — see
+## the wave-0 note above. [PickLootCommand] is the one verb built for that
+## direction and is therefore dormant, not unrouted: the applier answers it for
+## real, nothing can send it yet.
 ##
 ## See `docs/domain/multiplayer-harness.md`.
 
@@ -60,7 +65,15 @@ signal sync_checked(agrees: bool, local: int, remote: int)
 @export var command_applier: CommandApplier
 @export var graph: Graph
 
-var mode: Mode = Mode.OFF
+## Setting this is also what tells the applier whether it DECIDES or is told.
+## Single writer, so no scene has to carry a second role flag and the two can
+## never disagree — see [member CommandApplier.is_authority] for the one thing
+## that reads it.
+var mode: Mode = Mode.OFF:
+	set(value):
+		mode = value
+		if command_applier != null:
+			command_applier.is_authority = value != Mode.MIRROR
 
 ## True while a RECEIVED command is being submitted, so a client that is also
 ## broadcasting cannot echo it back. Wave 0 never sets both, but the guard is
@@ -76,6 +89,10 @@ var _recv_seq: int = 0
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
+	# The export resolves after the setter may already have run (a level scene
+	# can set `mode` before this node is ready), so re-apply it here.
+	if command_applier != null:
+		command_applier.is_authority = mode != Mode.MIRROR
 	if transport != null:
 		transport.message_received.connect(_on_message_received)
 		transport.link_changed.connect(func(status: String) -> void: logged.emit(status))

@@ -26,6 +26,20 @@ extends StatFormula
 @export var divisor: float = 10.0
 
 
+func to_dict() -> Dictionary:
+	var d := super()
+	d["type"] = StatModifierCodec.TAG_RATIO
+	d["source_stat_id"] = source_stat_id
+	d["divisor"] = divisor
+	return d
+
+
+func read_dict(d: Dictionary) -> void:
+	super(d)
+	source_stat_id = StringName(d.get("source_stat_id", &""))
+	divisor = float(d.get("divisor", 10.0))
+
+
 func get_input_ids() -> Array[StringName]:
 	return [StatFormula.base_of(source_stat_id)]
 

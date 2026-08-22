@@ -73,7 +73,7 @@ extends SkillNodeAddon
 ## `entity_dying`, core/innate/territory alike, UNFILTERED (the permanent-known
 ## exclusion is a claim-time concern, same reasoning as `would_cycle` above:
 ## the claimant isn't known at death). Consumed as ONE terminal bonus round
-## after every stat round resolves — see [method _advance_round]. Empty when
+## after every stat round resolves — see [method run_round]. Empty when
 ## the victim had no spellbook or LootSystem's spell kill-switch is off.
 @export var spell_candidates: Array[SpellDef] = []
 
@@ -81,8 +81,8 @@ extends SkillNodeAddon
 const _SPELL_OFFER_CAP: int = 3
 
 ## The entity currently claiming this relic, latched for the duration of the
-## multi-round claim flow (`_advance_round` recurses across possibly-async
-## picker confirms).
+## multi-round claim flow — one [LootRoundCommand] per round, each opening the
+## next from its own application, across possibly-async picker confirms).
 var _collector: Entity = null
 ## Rounds left to run — counts down from [member rounds].
 var _rounds_remaining: int = 0
@@ -188,41 +188,145 @@ func get_emblem() -> Variant:
 	return GemCarveShape.SHARED.carve(EMBLEM_SPEC.Priority.LOOT, &"loot")
 
 
-## Pickup == the carrier gaining an owner. Latches the collector and kicks off
-## the pick-1-of-3-per-round claim flow (#323) — see [method _advance_round].
+## Which kind of round the chain is on. Authority-side only — a peer never
+## walks this, it replays whatever arrives.
+enum Phase {
+	STAT,      ## Pick-1-of-3 stat rounds, [member rounds] of them.
+	SPELL,     ## The terminal spell draft (#204).
+	TERMINAL,  ## Nothing left to offer; free the relic.
+}
+
+var _phase: Phase = Phase.STAT
+
+## Injected by [LootSystem] at drop time (DI, not a lookup — the addon is
+## created there). Null on every path that has no command pipeline at all: a
+## headless fixture, the editor, the dev addon gallery, an authored relic in a
+## sandbox scene. That null is a supported configuration, not a degraded one —
+## the round then runs INLINE, exactly as it did before #522, which is the same
+## "no applier, apply straight" fallback [method BattleSystem.launch_attack]
+## uses and is why the existing loot suite needs no applier to stay green.
+var command_applier: CommandApplier = null
+
+## Injected by [LootSystem] alongside [member command_applier]. Only consulted
+## for a REMOTE collector, which nothing produces today — see
+## [LootPickRegistry]'s dormancy note.
+var pick_registry: LootPickRegistry = null
+
+
+## Pickup == the carrier gaining an owner. Latches the collector and opens the
+## claim flow (#323) — see [method run_round].
+##
+## [b]Host-gated (#522).[/b] A peer applies the confirmed [AllocateCommand] into
+## its own world, which flips `owned_by` and fires this locally — so without the
+## gate the peer would open its OWN round and roll its OWN offer, in parallel
+## with the host's and agreeing with it only by luck. The peer's copy of this
+## relic is driven purely by the [LootRoundCommand]s that arrive. Same shape as
+## `ed11d03`'s host-guard inside [NodeCombat].
+##
+## A forced deallocation cannot open a round: the `collector == null` early
+## return covers it, and a cascade strips to neutral rather than transferring
+## ownership — so no loot round ever opens inside a [LaunchAttackCommand]'s
+## application.
 func _on_carrier_owner_changed() -> void:
 	if Engine.is_editor_hint() or carrier == null:
 		return
 	var collector := carrier.owned_by
 	if collector == null:
 		return  # death-strip / deallocation — not a pickup
+	if command_applier != null and not command_applier.is_authority:
+		return  # a peer: its rounds arrive as replays
 	_collector = collector
 	_rounds_remaining = rounds
-	_advance_round()
+	_phase = Phase.STAT
+	_open_round()
 
 
-## One round of the claim flow (#323). Filters the REMAINING [member candidates]
-## by `would_cycle` against the collector's CURRENT board — not the board as it
+## Raise the next round as a [LootRoundCommand], so it becomes an ordinary
+## confirmed command that [CommandLink] mirrors like every other verb.
+##
+## [b]The chain is one command per round, submitted from the previous round's
+## application.[/b] That is not re-entrancy: [CommandApplier] QUEUES a command
+## raised from inside another command's application, by documented design.
+func _open_round() -> void:
+	if command_applier == null:
+		# No pipeline (headless / editor / authored sandbox relic) — same round,
+		# run straight. Pre-#522 behaviour, unchanged.
+		@warning_ignore("redundant_await")
+		await run_round(LootRoundCommand.new())
+		return
+	var collector_id := _collector.entity_id if is_instance_valid(_collector) else 0
+	var carrier_id := 0
+	if command_applier.graph != null:
+		carrier_id = command_applier.graph.get_stable_id(carrier)
+	command_applier.submit(LootRoundCommand.new(collector_id, carrier_id))
+
+
+## The [CommandApplier]'s entry point, and the one place a loot round mutates
+## the world. INITIATE runs the round for real and stamps what it did; REPLAY
+## grants exactly what was stamped. See [LootRoundCommand] for the two-states
+## split and why the ROUND rather than the PICK is the wire unit.
+func run_round(command: LootRoundCommand) -> bool:
+	if command.is_replay():
+		_replay_round(command)
+		return true
+	@warning_ignore("redundant_await")
+	return await _run_round(command)
+
+
+## Peer side: grant what the authority recorded, free the relic if it said so,
+## and touch nothing else. No rolling, no `would_cycle` filter, no request, no
+## pool bookkeeping and no advancing — the next round arrives on its own.
+##
+## The peer's [member candidates] pool is therefore never trimmed, so its
+## tooltip keeps listing an already-granted candidate for the seconds the claim
+## takes. Cosmetic and deliberate: trimming would need to match a by-value
+## modifier against a by-instance pool, and the pool is freed at `finished`
+## anyway.
+func _replay_round(command: LootRoundCommand) -> void:
+	var collector := carrier.owned_by if carrier != null else null
+	if is_instance_valid(collector) and not collector.is_dead:
+		var m := command.granted_modifier()
+		if m != null:
+			_grant_mod(collector, m)
+		var spell := command.granted_spell()
+		if spell != null:
+			_grant_spell(collector, spell)
+	if command.is_final():
+		_really_finish()
+
+
+## Authority side: run whichever round the chain is on, stamp the outcome into
+## [param command], and open the next one. Recurses on a phase change rather
+## than burning a command on it — a phase transition is bookkeeping, not a
+## mutation a peer needs told about.
+func _run_round(command: LootRoundCommand) -> bool:
+	match _phase:
+		Phase.STAT:
+			@warning_ignore("redundant_await")
+			return await _run_stat_round(command)
+		Phase.SPELL:
+			@warning_ignore("redundant_await")
+			return await _run_spell_round(command)
+		_:
+			return _run_terminal_round(command)
+
+
+## One stat round (#323). Filters the REMAINING [member candidates] by
+## `would_cycle` against the collector's CURRENT board — not the board as it
 ## stood at draw time, so a grant from an EARLIER round in this same relic is
 ## already reflected. This is what structurally closes the joint-cycle gap a
 ## single up-front filter would leave open (two candidates each individually
 ## safe but jointly cyclic): by the time the second is considered, the first is
 ## already bound and `would_cycle` sees it.
 ##
-##   * no cycle-safe survivor left → stop; this relic can't grant any more.
+##   * no cycle-safe survivor left → the stat phase is over.
 ##   * exactly one survivor → no real choice, auto-grant it, don't pop a picker.
 ##   * 2-3 survivors → weighted-sample up to 3 and offer a real pick-1 choice.
-##
-## Recurses via the round resolver ([method _grant_and_advance]) until
-## `_rounds_remaining` hits 0 or the pool runs dry — possibly across several
-## real seconds if the player is doing the picking.
-func _advance_round() -> void:
-	if not is_instance_valid(_collector) or _collector.is_dead:
-		_finish()
-		return
-	if _rounds_remaining <= 0 or candidates.is_empty():
-		_finish()
-		return
+func _run_stat_round(command: LootRoundCommand) -> bool:
+	if not is_instance_valid(_collector) or _collector.is_dead \
+			or _rounds_remaining <= 0 or candidates.is_empty():
+		@warning_ignore("redundant_await")
+		return await _enter_spell_phase(command)
 
 	var board := _collector.stat_board
 	var safe_indices: Array[int] = []
@@ -230,85 +334,160 @@ func _advance_round() -> void:
 		if board == null or not board.would_cycle(candidates[i]):
 			safe_indices.append(i)
 	if safe_indices.is_empty():
-		_finish()
-		return
+		@warning_ignore("redundant_await")
+		return await _enter_spell_phase(command)
 
 	var offer_indices := _weighted_sample(safe_indices, mini(3, safe_indices.size()))
-	if offer_indices.size() <= 1:
-		if offer_indices.size() == 1:
-			_grant_and_advance([candidates[offer_indices[0]]])
-		else:
-			_finish()
-		return
+	if offer_indices.is_empty():
+		@warning_ignore("redundant_await")
+		return await _enter_spell_phase(command)
+	if offer_indices.size() == 1:
+		_settle_stat_round(command, candidates[offer_indices[0]])
+		return true
 
 	var offer: Array[StatModifier] = []
 	for i in offer_indices:
 		offer.append(candidates[i])
 
-	var request := LootPickRequest.new(_collector, offer, _grant_and_advance)
+	var request := LootPickRequest.new(_collector, offer, Callable())
 	Events.loot_pick_requested.emit(request)
-	if not request.handled:
-		# NPC / headless / no-HUD path — the DEFAULT branch. Random 1 of the offer.
-		var pool := offer.duplicate()
-		pool.shuffle()
-		request.resolve([pool[0]])
+	@warning_ignore("redundant_await")
+	var chosen: Array = await _await_pick(request, offer)
+	_settle_stat_round(command, chosen[0] if not chosen.is_empty() else null)
+	return true
 
 
-## Round resolver: grants the ONE chosen modifier immediately (so the next
-## round's `would_cycle` check sees it), removes it from [member candidates] so
-## it can't be re-offered, and recurses into the next round. The other 2
-## un-picked offer members are NOT removed — they stay eligible for a later
-## round's fresh 3-sample ("single pick, then new draw, the next pick is always
-## clean", per the #322 comment thread this shape came from). An empty
-## `chosen` (a request resolved with nothing picked) forfeits the round rather
-## than stalling the relic.
-func _grant_and_advance(chosen: Array[StatModifier]) -> void:
-	if is_instance_valid(_collector) and not _collector.is_dead and not chosen.is_empty():
-		var m := chosen[0]
-		_grant_mod(_collector, m)
-		var idx := candidates.find(m)
+## Grant the pick (so the NEXT round's `would_cycle` check sees it), remove it
+## from [member candidates] so it can't be re-offered, stamp the record, and
+## open the next round. The other 2 un-picked offer members are NOT removed —
+## they stay eligible for a later round's fresh 3-sample ("single pick, then new
+## draw, the next pick is always clean", per the #322 comment thread this shape
+## came from). A null `chosen` (a forfeited round) burns the round rather than
+## stalling the relic.
+func _settle_stat_round(command: LootRoundCommand, chosen: StatModifier) -> void:
+	if chosen != null and is_instance_valid(_collector) and not _collector.is_dead:
+		_grant_mod(_collector, chosen)
+		var idx := candidates.find(chosen)
 		if idx != -1:
 			candidates.remove_at(idx)
 			weights.remove_at(idx)
+	else:
+		chosen = null
+	command.record(chosen, &"", false)
 	_rounds_remaining -= 1
-	_advance_round()
+	_open_round()
 
 
-## Every stat round has resolved (or there were none to run) — hand off to the
-## terminal spell round before the relic actually frees itself.
-func _finish() -> void:
+## Every stat round has resolved (or there were none to run) — move to the
+## terminal spell round, reusing THIS command rather than burning one on a
+## transition a peer does not need to hear about.
+func _enter_spell_phase(command: LootRoundCommand) -> bool:
 	candidates = []
 	weights = []
-	_advance_spell_round()
+	_phase = Phase.SPELL
+	@warning_ignore("redundant_await")
+	return await _run_round(command)
 
 
-## The terminal bonus round (#204 re-cut). Guarded the same way [method
-## _advance_round] guards a stat round — `_collector` can already be invalid
-## here (e.g. `_advance_round`'s own dead-collector branch routed straight to
-## `_finish`), and reading `_collector.spellbook` on a freed Object crashes at
-## the typed assignment (see gdscript-pitfalls.md), not at a null check.
-func _advance_spell_round() -> void:
+## The terminal bonus round (#204 re-cut). Guarded the same way a stat round is
+## — `_collector` can already be invalid here, and reading `_collector.spellbook`
+## on a freed Object crashes at the typed assignment (see gdscript-pitfalls.md),
+## not at a null check.
+func _run_spell_round(command: LootRoundCommand) -> bool:
 	if spell_candidates.is_empty() or not is_instance_valid(_collector) or _collector.is_dead:
-		_really_finish()
-		return
+		return _enter_terminal_phase(command)
 
 	var offerable := _exclude_permanently_known(spell_candidates, _collector)
 	spell_candidates = []  # single-shot bonus — consumed regardless of outcome
 	if offerable.is_empty():
-		_really_finish()
-		return
+		return _enter_terminal_phase(command)
 
 	offerable.shuffle()
 	var offer_count := mini(_SPELL_OFFER_CAP, offerable.size())
 	var offer: Array[SpellDef] = offerable.slice(0, offer_count)
 
-	var request := SpellLootRequest.new(_collector, offer, _grant_spell_and_finish)
+	var request := SpellLootRequest.new(_collector, offer, Callable())
 	Events.spell_loot_requested.emit(request)
-	if not request.handled:
-		# NPC / headless / no-HUD path — the DEFAULT branch. Random 1 of the offer.
+	@warning_ignore("redundant_await")
+	var chosen: Array = await _await_pick(request, offer)
+	_settle_spell_round(command, chosen[0] if not chosen.is_empty() else null)
+	return true
+
+
+## Spell round resolver: grants the chosen spell (#204) — a [SpellGrant] on the
+## collector's CORE node, same mechanism as an authored/earned core spell — then
+## opens the terminal round. There is no further offer after this one.
+func _settle_spell_round(command: LootRoundCommand, chosen: SpellDef) -> void:
+	if chosen != null and is_instance_valid(_collector) and not _collector.is_dead:
+		_grant_spell(_collector, chosen)
+	else:
+		chosen = null
+	command.record(null, chosen.id if chosen != null else &"", false)
+	_phase = Phase.TERMINAL
+	_open_round()
+
+
+func _enter_terminal_phase(command: LootRoundCommand) -> bool:
+	_phase = Phase.TERMINAL
+	return _run_terminal_round(command)
+
+
+## Nothing left to offer. The ONE record that frees the relic on every peer,
+## whichever of the five ways the chain ended got us here.
+func _run_terminal_round(command: LootRoundCommand) -> bool:
+	command.record(null, &"", true)
+	_really_finish()
+	return true
+
+
+## Park on the pick, whoever is making it. THE HANDSHAKE (see [LootPickRequest]):
+## a HUD that intends to present the choice claims it SYNCHRONOUSLY, inside the
+## emit above — so by the time we get here `claim` already says who is picking.
+##
+##   * `LOCAL` — a picker on this machine is up; await its confirm.
+##   * `REMOTE` — a human on another peer owes the answer; park it in the
+##     registry so the returning [PickLootCommand] can land, and await that.
+##     Dormant today (nothing reports a remote collector — see
+##     [LootPickRegistry]).
+##   * `UNCLAIMED` — NPC / headless / no HUD. Auto-resolve a random 1 of the
+##     offer. This stays a HOST-ONLY roll and is exempt from the seeding rule
+##     per `.claude/rules/multiplayer-sync.md`: the peer receives the result, it
+##     does not reproduce it.
+##
+## Awaiting here is what keeps [member CommandApplier.is_applying] true for the
+## whole pick — which is how "no ending the turn while picking" (owner call,
+## 2026-08-22) falls out of the existing `can_player_act` gate for free, with
+## the End Turn button greying out through `player_can_act_changed` rather than
+## silently no-opping.
+func _await_pick(request: Variant, offer: Array) -> Array:
+	if request.claim == LootPickRequest.Claim.UNCLAIMED \
+			and pick_registry != null and pick_registry.is_remote_collector(_collector):
+		request.claim = LootPickRequest.Claim.REMOTE
+		pick_registry.park(request)
+	if request.claim == LootPickRequest.Claim.UNCLAIMED:
 		var pool := offer.duplicate()
 		pool.shuffle()
-		request.resolve([pool[0]])
+		return [pool[0]]
+	if request.is_resolved():
+		return []
+	@warning_ignore("redundant_await")
+	return await request.settled
+
+
+func _really_finish() -> void:
+	queue_free()
+
+
+## Grant one spell onto [param collector]'s core — a [SpellGrant], the same
+## mechanism as an authored or earned core spell. Shared by the authority's own
+## round and by a peer's replay, so the two cannot drift.
+func _grant_spell(collector: Entity, spell: SpellDef) -> void:
+	if spell == null or collector.core_location == null:
+		return
+	var grant := SpellGrant.new()
+	grant.spell_def = spell
+	collector.core_location.add_effect(grant)      # persist on the node, resync the emblem
+	collector.grant_effect(grant, collector.core_location) # -> book.add_spell(spell, core_node)
 
 
 ## Territory-known (temporary) spells stay offerable as an upgrade — only
@@ -322,24 +501,6 @@ func _exclude_permanently_known(cands: Array[SpellDef], collector: Entity) -> Ar
 		if not known.has(s):
 			out.append(s)
 	return out
-
-
-## Spell round resolver: grants the chosen spell (#204) — a [SpellGrant] on the
-## collector's CORE node, same mechanism as an authored/earned core spell —
-## then frees the relic. There is no further round after this one.
-func _grant_spell_and_finish(chosen: Array[SpellDef]) -> void:
-	if is_instance_valid(_collector) and not _collector.is_dead and not chosen.is_empty():
-		var spell := chosen[0]
-		if spell != null and _collector.core_location != null:
-			var grant := SpellGrant.new()
-			grant.spell_def = spell
-			_collector.core_location.add_effect(grant)      # persist on the node, resync the emblem
-			_collector.grant_effect(grant, _collector.core_location) # → book.add_spell(spell, core_node)
-	_really_finish()
-
-
-func _really_finish() -> void:
-	queue_free()
 
 
 ## Weighted sample WITHOUT replacement, `count` indices out of `pool_indices`

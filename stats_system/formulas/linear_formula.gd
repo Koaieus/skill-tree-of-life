@@ -18,6 +18,18 @@ extends StatFormula
 @export var source_stat_id: StringName = &""
 
 
+func to_dict() -> Dictionary:
+	var d := super()
+	d["type"] = StatModifierCodec.TAG_LINEAR
+	d["source_stat_id"] = source_stat_id
+	return d
+
+
+func read_dict(d: Dictionary) -> void:
+	super(d)
+	source_stat_id = StringName(d.get("source_stat_id", &""))
+
+
 func get_input_ids() -> Array[StringName]:
 	return [StatFormula.base_of(source_stat_id)]
 

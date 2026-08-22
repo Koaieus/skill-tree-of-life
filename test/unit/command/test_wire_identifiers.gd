@@ -52,16 +52,51 @@ func _request() -> LootPickRequest:
 	return LootPickRequest.new(null, candidates, func(_chosen: Array) -> void: pass)
 
 
-func test_loot_pick_requests_get_distinct_nonzero_ids() -> void:
+func _registry() -> LootPickRegistry:
+	var registry := LootPickRegistry.new()
+	autofree(registry)
+	return registry
+
+
+## A request mints NOTHING on its own (#522). The id used to come from a
+## per-process `static var` on [LootPickRequest], which is exactly what a wire
+## id must not be — two processes hand the same id to different requests the
+## moment their request COUNTS diverge.
+func test_an_unregistered_request_has_no_id() -> void:
+	assert_eq(_request().request_id, 0, "0 keeps meaning 'no request'")
+
+
+func test_the_registry_mints_distinct_nonzero_ids() -> void:
+	var registry := _registry()
 	var a := _request()
 	var b := _request()
+
+	registry.park(a)
+	registry.park(b)
 
 	assert_ne(a.request_id, 0)
 	assert_ne(a.request_id, b.request_id)
 
 
+## The reason [SpellLootRequest] needed no second counter and
+## [PickLootCommand] needs no kind discriminator: ONE authority, ONE id space,
+## both request kinds addressed by the same field.
+func test_both_request_kinds_share_one_id_space() -> void:
+	var registry := _registry()
+	var stat_request := _request()
+	var spell_request := SpellLootRequest.new(
+			null, [] as Array[SpellDef], func(_chosen: Array) -> void: pass)
+
+	registry.park(stat_request)
+	registry.park(spell_request)
+
+	assert_ne(spell_request.request_id, 0, "a spell draft is addressable now")
+	assert_ne(stat_request.request_id, spell_request.request_id)
+
+
 func test_a_pick_command_can_answer_a_specific_request() -> void:
 	var req := _request()
+	_registry().park(req)
 	var cmd := PickLootCommand.new(0, req.request_id, 1)
 	var back := CommandCodec.from_dict(cmd.to_dict()) as PickLootCommand
 

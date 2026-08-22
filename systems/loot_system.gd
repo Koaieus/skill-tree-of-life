@@ -51,6 +51,18 @@ extends Node
 ## Null in headless fixtures that never run a cascade.
 @export var battle_system: BattleSystem
 
+## The command pipeline a relic's claim flow runs through (#522). Stamped onto
+## every [SkillDustAddon] this system drops, so the addon needs no lookup — DI,
+## per `.claude/rules/scene-composition.md`. Null is a supported configuration
+## (headless fixtures, the editor): the addon then runs its rounds inline, the
+## pre-#522 behaviour.
+@export var command_applier: CommandApplier
+
+## The outstanding-pick book, stamped onto the relic alongside the applier.
+## Only consulted for a REMOTE collector, which nothing reports today — see
+## [LootPickRegistry].
+@export var pick_registry: LootPickRegistry
+
 ## Per-side-effect kill-switches. A sandbox tab (a GameRoot-inherited scene) flips
 ## these in the inspector to neuter a reward path while keeping 1:1 wiring with
 ## the real system — ONE declarative guard at the data boundary, not guards
@@ -336,6 +348,8 @@ func _drop_skill_dust(victim: Entity) -> void:
 	dust.rounds = draw["rounds"]
 	dust.victim_color = victim.color
 	dust.spell_candidates = spell_candidates
+	dust.command_applier = command_applier
+	dust.pick_registry = pick_registry
 	_attach_addon(core, dust)
 
 

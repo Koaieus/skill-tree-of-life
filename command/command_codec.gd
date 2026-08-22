@@ -38,6 +38,8 @@ static func from_dict(d: Dictionary) -> Command:
 			return EndTurnCommand.from_dict(d)
 		PickLootCommand.TAG:
 			return PickLootCommand.from_dict(d)
+		LootRoundCommand.TAG:
+			return LootRoundCommand.from_dict(d)
 		ToggleTempUpgradeCommand.TAG:
 			return ToggleTempUpgradeCommand.from_dict(d)
 		LaunchAttackCommand.TAG:

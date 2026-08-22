@@ -27,6 +27,30 @@ extends StatFormula
 var _expr: Expression = null
 
 
+## `_expr` is deliberately NOT part of the wire form: [method compute] parses
+## lazily on first read (`if _expr == null: _parse()`), so a decoded instance
+## compiles itself the first time anyone asks it for a value.
+func to_dict() -> Dictionary:
+	var d := super()
+	d["type"] = StatModifierCodec.TAG_EXPRESSION
+	d["formula"] = formula
+	var ids: Array = []
+	for input_id in inputs:
+		ids.append(String(input_id))
+	d["inputs"] = ids
+	return d
+
+
+func read_dict(d: Dictionary) -> void:
+	super(d)
+	formula = String(d.get("formula", ""))
+	var ids: Array[StringName] = []
+	for raw in (d.get("inputs", []) as Array):
+		ids.append(StringName(raw))
+	inputs = ids
+	_invalidate()
+
+
 func get_input_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
 	out.resize(inputs.size())

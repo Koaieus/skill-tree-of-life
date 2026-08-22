@@ -25,6 +25,7 @@
 [ext_resource type="PackedScene" path="res://ui/space_background/space_background.tscn" id="19_space"]
 [ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="20_env"]
 [ext_resource type="Script" path="res://scenes/camera_director.gd" id="21_camdir"]
+[ext_resource type="Script" path="res://systems/loot_pick_registry.gd" id="22_lootreg"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -62,20 +63,27 @@ graph = NodePath("../../Graph")
 turn_manager = NodePath("../TurnManager")
 metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
 
-[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system")]
+[node name="LootPickRegistry" type="Node" parent="Systems" unique_id=1000000522]
+unique_name_in_owner = true
+script = ExtResource("22_lootreg")
+
+[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system", "command_applier", "pick_registry")]
 unique_name_in_owner = true
 script = ExtResource("12_loot")
 turn_manager = NodePath("../TurnManager")
 battle_system = NodePath("../BattleSystem")
+command_applier = NodePath("../CommandApplier")
+pick_registry = NodePath("../LootPickRegistry")
 skill_dust_scene = ExtResource("12_dust")
 
-[node name="CommandApplier" type="Node" parent="Systems" unique_id=1000000510 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager")]
+[node name="CommandApplier" type="Node" parent="Systems" unique_id=1000000510 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "loot_pick_registry")]
 unique_name_in_owner = true
 script = ExtResource("9_applier")
 graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
 battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
+loot_pick_registry = NodePath("../LootPickRegistry")
 
 [node name="PlayerInputController" type="Node" parent="Systems" unique_id=2090560635 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "command_applier")]
 unique_name_in_owner = true

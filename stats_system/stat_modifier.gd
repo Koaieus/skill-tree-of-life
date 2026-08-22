@@ -119,6 +119,48 @@ func get_effective_value(board: StatBoard = null) -> float:
 ## StatBoard.add_modifier / remove_modifier and the flattening display sites
 ## call it, while the STORAGE/authoring/loot arrays keep a composite whole (one
 ## entry, one lootable unit). A leaf pays nothing — one-element array, no state.
+## ── Wire form (#522) ─────────────────────────────────────────────────────────
+## Loot travels BY VALUE. The owner call on #522 settled this against pointing
+## at shared state with a locator: two of the three loot buckets read the
+## VICTIM'S OWN board (`Entity.core_modifiers`, `StatBoard.intrinsic_modifiers`),
+## which a peer holds only partially and possibly stale — so an index into it is
+## a silent mis-grant rather than a loud failure. Sending the modifier itself is
+## a few hundred bytes, and [method LootSystem._draw_payload] already mints
+## detached copies (`duplicate(true)`), so this is that same operation with a
+## different target.
+##
+## The `formula` is carried as its own tagged block, NOT dropped: #323 makes
+## stealing a level-scaler the intended roguelite loop, so a wire format that
+## cannot carry a [StatFormula] guts the feature rather than trimming an edge.
+##
+## Decoding lives on [StatModifierCodec] rather than here, for the same
+## parse-time-cycle reason [CommandCodec] is separate from [Command]: a
+## `StatModifier` naming `CompositeStatModifier` (which extends it) is a cycle.
+
+## This modifier's wire form. [CompositeStatModifier] overrides and adds its
+## children — the same `super()`-and-extend shape [Command.to_dict] uses.
+func to_dict() -> Dictionary:
+	return {
+		"type": StatModifierCodec.TAG_MOD,
+		"stat_id": String(stat_id),
+		"operation": int(operation),
+		"value": value,
+		"priority": priority,
+		"formula": formula.to_dict() if formula != null else null,
+	}
+
+
+## Read the fields this level owns off [param d]. Overridden by
+## [CompositeStatModifier]; called by [StatModifierCodec] after it has minted
+## the right concrete type.
+func read_dict(d: Dictionary) -> void:
+	stat_id = StringName(d.get("stat_id", &""))
+	operation = int(d.get("operation", Operation.ADD_BASE)) as Operation
+	value = float(d.get("value", 1.0))
+	priority = int(d.get("priority", 0))
+	formula = StatModifierCodec.formula_from_dict(d.get("formula"))
+
+
 func flatten() -> Array[StatModifier]:
 	return [self]
 

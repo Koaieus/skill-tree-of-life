@@ -19,7 +19,7 @@ func _ready() -> void:
 	confirmed.connect(_on_confirmed)
 
 
-## Show the chooser for a request. HudRoot has already set `request.handled` so
+## Show the chooser for a request. HudRoot has already set `request.claim` so
 ## the emitter won't auto-resolve behind us.
 func present(request: LootPickRequest) -> void:
 	_present(_BODY_SCENE, "CLAIM LOOT", request)
