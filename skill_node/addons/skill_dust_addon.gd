@@ -275,9 +275,13 @@ func _open_round() -> void:
 ## the world. INITIATE runs the round for real and stamps what it did; REPLAY
 ## grants exactly what was stamped. See [LootRoundCommand] for the two-states
 ## split and why the ROUND rather than the PICK is the wire unit.
-func run_round(command: LootRoundCommand) -> bool:
+## [param collector] is the command's `entity_id` resolved by the applier, so a
+## replay grants to the same entity the authority did. Null on the inline
+## (no-applier) path, which reads the latched `_collector` instead, and
+## legitimately null on a terminal round.
+func run_round(command: LootRoundCommand, collector: Entity = null) -> bool:
 	if command.is_replay():
-		_replay_round(command)
+		_replay_round(command, collector)
 		return true
 	@warning_ignore("redundant_await")
 	return await _run_round(command)
@@ -292,8 +296,9 @@ func run_round(command: LootRoundCommand) -> bool:
 ## takes. Cosmetic and deliberate: trimming would need to match a by-value
 ## modifier against a by-instance pool, and the pool is freed at `finished`
 ## anyway.
-func _replay_round(command: LootRoundCommand) -> void:
-	var collector := carrier.owned_by if carrier != null else null
+func _replay_round(command: LootRoundCommand, collector: Entity) -> void:
+	if collector == null and carrier != null:
+		collector = carrier.owned_by  # inline path: no applier resolved one for us
 	if is_instance_valid(collector) and not collector.is_dead:
 		var m := command.granted_modifier()
 		if m != null:

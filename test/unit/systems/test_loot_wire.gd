@@ -273,20 +273,6 @@ func test_a_stale_or_duplicate_pick_is_a_normal_outcome() -> void:
 	assert_false(registry.resolve_pick(9999, 0), "and neither does an id nobody minted")
 
 
-## The end-turn gate must read outstanding state, never a latch set when the
-## offer went out — a collector dying mid-pick would otherwise block its turn
-## forever.
-func test_outstanding_is_read_from_the_request_not_from_a_latch() -> void:
-	var registry := _registry()
-	var request := _request(func(_p: Array) -> void: pass)
-	request.collector = _collector
-	var id := registry.park(request)
-
-	assert_true(registry.has_outstanding(_collector))
-	registry.resolve_pick(id, 0)
-	assert_false(registry.has_outstanding(_collector), "answering clears it")
-
-
 func test_a_disconnect_forfeits_rather_than_deadlocking_the_table() -> void:
 	var registry := _registry()
 	var chosen: Array = [null]
@@ -302,10 +288,7 @@ func test_a_disconnect_forfeits_rather_than_deadlocking_the_table() -> void:
 
 func test_the_applier_routes_a_pick_command_for_real() -> void:
 	var registry := _registry()
-	var applier := CommandApplier.new()
-	applier.graph = _graph
-	applier.loot_pick_registry = registry
-	add_child_autofree(applier)
+	var applier := _applier(registry)
 
 	var chosen: Array = []
 	var request := _request(func(picked: Array) -> void: chosen.assign(picked))
@@ -318,7 +301,110 @@ func test_the_applier_routes_a_pick_command_for_real() -> void:
 	assert_eq(chosen[0], request.candidates[1])
 
 
+## REGRESSION: an answer must never be ENQUEUED. A round runs inside its own
+## LootRoundCommand's application, so the queue is parked on the very await the
+## answer releases — an enqueued answer can never be reached, and the drain
+## hangs forever rather than merely being delayed. `submit` therefore routes a
+## PickLootCommand past the queue. This test deadlocks the whole suite if that
+## ever regresses, which is the loudest available failure for a hang.
+func test_a_pick_answers_a_request_parked_while_the_queue_is_blocked() -> void:
+	var registry := _registry()
+	var applier := _applier(registry)
+
+	var chosen: Array = []
+	var request := _request(func(picked: Array) -> void: chosen.assign(picked))
+	var id := registry.park(request)
+
+	# Stand in for the round: hold the queue open exactly as an awaiting
+	# LootRoundCommand application does.
+	applier.is_applying = true
+	applier.submit(PickLootCommand.new(_collector.entity_id, id, 0))
+	applier.is_applying = false
+
+	assert_eq(applier.pending_count(), 0,
+			"the answer did NOT join the queue it would be waiting behind")
+	assert_eq(chosen.size(), 1, "and it landed while the queue was still blocked")
+
+
+## An answer travelling UP must not be echoed back DOWN. Bypassing the queue
+## means it never confirms, so CommandLink needs no guard of its own.
+func test_a_pick_never_confirms_and_so_never_mirrors() -> void:
+	var registry := _registry()
+	var applier := _applier(registry)
+	var confirmed: Array[Command] = []
+	applier.command_confirmed.connect(func(c: Command) -> void: confirmed.append(c))
+
+	var id := registry.park(_request(func(_p: Array) -> void: pass))
+	applier.submit(PickLootCommand.new(_collector.entity_id, id, 0))
+
+	assert_true(confirmed.is_empty(), "an intent is not a confirmed command")
+
+
+# ── The round through the applier ────────────────────────────────────────────
+
+## The primary wire path end to end: a stamped round encodes, decodes, resolves
+## its carrier by `stable_id` and its collector by `entity_id`, and grants.
+## Same shape as `test/unit/attack/test_attack_record_replay.gd` — calling
+## `run_round` directly would skip the id resolution, which is exactly where a
+## lazily-minted `stable_id` reads 0 and resolves to nothing SILENTLY.
+func test_a_round_applies_through_the_applier_after_a_wire_round_trip() -> void:
+	var applier := _applier(_registry())
+	_relic.owned_by = _collector
+	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 1.0)])
+
+	var sent := LootRoundCommand.new(
+			_collector.entity_id, _graph.get_stable_id(_relic))
+	sent.record(_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
+
+	var received := CommandCodec.from_dict(sent.to_dict())
+	applier.submit(received)
+	if applier.is_applying:
+		await applier.applying_changed
+
+	assert_eq(_collector.core_modifiers.size(), 1, "the round found its relic and its collector")
+	assert_eq(_collector.core_modifiers[0].stat_id, &"strength")
+	assert_true(is_instance_valid(dust), "a non-final round leaves the relic standing")
+
+
+func test_a_round_naming_an_unminted_carrier_is_refused_not_silent() -> void:
+	var applier := _applier(_registry())
+	var command := LootRoundCommand.new(_collector.entity_id, 0)
+	command.record(_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
+
+	applier.submit(command)
+	if applier.is_applying:
+		await applier.applying_changed
+
+	assert_eq(_collector.core_modifiers.size(), 0,
+			"carrier_id 0 grants nothing — the trap in .claude/rules/graph.md")
+
+
+## The "no ending the turn while picking" rule (owner call, 2026-08-22) needs no
+## gate of its own: the round holds the applier, and `can_player_act` already
+## reads that.
+func test_a_round_in_flight_is_what_blocks_the_player_from_acting() -> void:
+	var applier := _applier(_registry())
+	var input_ctl := PlayerInputController.new()
+	input_ctl.graph = _graph
+	input_ctl.command_applier = applier
+	input_ctl.player = _collector
+	add_child_autofree(input_ctl)
+
+	applier.is_applying = true
+	assert_false(input_ctl.can_player_act(),
+			"the End Turn button greys out through the gate that already exists")
+	applier.is_applying = false
+
+
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+func _applier(registry: LootPickRegistry) -> CommandApplier:
+	var applier := CommandApplier.new()
+	applier.graph = _graph
+	applier.loot_pick_registry = registry
+	add_child_autofree(applier)
+	return applier
+
 
 func _registry() -> LootPickRegistry:
 	var registry := LootPickRegistry.new()

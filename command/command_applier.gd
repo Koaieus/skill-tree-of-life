@@ -121,8 +121,14 @@ func _ready() -> void:
 ## already running this returns at once and the in-flight drain picks the
 ## command up. Never blocks the caller — even the synchronous verbs finish
 ## inside this call only because they happen to have nothing to await.
+##
+## [PickLootCommand] is the one exception and takes [method _answer_loot_pick]
+## instead — see there for why the queue is exactly the wrong place for it.
 func submit(command: Command) -> void:
 	if command == null:
+		return
+	if command is PickLootCommand:
+		_answer_loot_pick(command as PickLootCommand)
 		return
 	_queue.append(command)
 	if is_applying:
@@ -205,17 +211,33 @@ func _apply(command: Command) -> bool:
 			return false
 		turn_manager.end_turn()
 		return true
-	if command is PickLootCommand:
-		# The answer to a request parked for a REMOTE picker (#522). Returns
-		# false for an id that names nothing — a stale or duplicate pick is a
-		# normal outcome, not an error, and a refused command confirms nothing
-		# so nothing crosses the wire.
-		if loot_pick_registry == null:
-			return false
-		var pick := command as PickLootCommand
-		return loot_pick_registry.resolve_pick(pick.request_id, pick.chosen_index)
 	push_warning("CommandApplier: no handler for command tag '%s'" % command.type_tag())
 	return false
+
+
+## A remote picker's answer to a parked [LootPickRequest] (#522). Mutates
+## nothing itself — it releases a request that a [LootRoundCommand] is parked
+## on, and THAT command is the mutation, already mid-apply on the queue.
+##
+## [b]So it deliberately does not go through the queue.[/b] Routing it there is
+## not a delay, it is a deadlock: [method submit] appends and returns while
+## [member is_applying] is true, and the drain cannot reach the appended
+## command because the drain is parked on the very await only that command can
+## release. This file's class note already names the shape ("park on a signal
+## that cannot fire until the drain it is blocking completes — a hang"); an
+## answer to an in-flight command is the one case that walks straight into it.
+##
+## It emits neither [signal command_applied] nor [signal command_confirmed],
+## which is also correct: an intent travelling UP must not be echoed back down
+## by [CommandLink], and the grant it unblocks crosses as the round's own
+## record.
+##
+## An id that names nothing is a normal outcome — a stale or duplicate pick —
+## not an error.
+func _answer_loot_pick(command: PickLootCommand) -> bool:
+	if loot_pick_registry == null:
+		return false
+	return loot_pick_registry.resolve_pick(command.request_id, command.chosen_index)
 
 
 ## One round of a relic's claim flow (#522). The addon does the work — this
@@ -231,10 +253,15 @@ func _apply_loot_round(command: LootRoundCommand) -> bool:
 		push_warning("CommandApplier: no relic node for stable_id %d (loot_round)"
 				% command.carrier_id)
 		return false
+	# Resolved here rather than read off `carrier.owned_by` in the addon: the
+	# command names its collector by `entity_id` precisely so both peers grant
+	# to the same entity. May legitimately be null on a terminal round, whose
+	# whole job is to free the relic after its collector is gone.
+	var collector := graph.get_by_entity_id(command.entity_id) if graph != null else null
 	for addon in carrier.get_addons():
 		if addon is SkillDustAddon:
 			@warning_ignore("redundant_await")
-			return await (addon as SkillDustAddon).run_round(command)
+			return await (addon as SkillDustAddon).run_round(command, collector)
 	push_warning("CommandApplier: node %d carries no SkillDustAddon (loot_round)"
 			% command.carrier_id)
 	return false

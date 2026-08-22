@@ -29,11 +29,18 @@ extends Node
 ## saying which peer seats which entity — [SeatPolicy] is the per-machine half
 ## and deliberately never feeds anything a peer must reproduce. So
 ## [method is_remote_collector] answers `false` for everybody today and no
-## request is ever actually parked. The seam is built and correct; it cannot be
-## exercised end-to-end until #463 lands the channel and the roster. Everything
-## the harness CAN reach — a local human picking, an NPC auto-picking, a
-## headless auto-resolve — rides down as a [LootRoundCommand] and needs none of
-## this.
+## request is ever actually parked in real play. It cannot be exercised
+## end-to-end until #463 lands the channel and the roster. Everything the
+## harness CAN reach — a local human picking, an NPC auto-picking, a headless
+## auto-resolve — rides down as a [LootRoundCommand] and needs none of this.
+##
+## [b]The one thing #463 must not undo.[/b] An answer to a parked request must
+## NOT be submitted onto [CommandApplier]'s queue. A round runs inside its own
+## [LootRoundCommand]'s application, so the queue is blocked on the very await
+## the answer releases, and an enqueued answer can never be reached — a hang,
+## not a delay. [method CommandApplier._answer_loot_pick] is the door, and
+## [method CommandApplier.submit] routes [PickLootCommand] there rather than
+## enqueueing it.
 
 ## Never reused; 1-based, so 0 keeps meaning "no request". An instance member
 ## rather than a static: two worlds in one process (which the multiplayer
@@ -92,16 +99,16 @@ func resolve_pick(request_id: int, chosen_index: int) -> bool:
 	return true
 
 
-## Does [param entity] owe an answer right now? The honest read of outstanding
-## state, never a latch set when the offer went out — a collector that dies
-## mid-pick clears its own request through [SkillDustAddon]'s dead-collector
-## branch, and a gate reading a latch would then block that player's turn
-## forever.
-func has_outstanding(entity: Entity) -> bool:
-	for request: Variant in _parked.values():
-		if request.collector == entity and not request.is_resolved():
-			return true
-	return false
+## [b]There is deliberately no `has_outstanding(entity)` here[/b], though the
+## issue's acceptance sketch asked for one to gate End Turn. It would be dead
+## code: a round runs INSIDE its [LootRoundCommand]'s application, so
+## [member CommandApplier.is_applying] is true for the whole pick and
+## [method PlayerInputController.can_player_act] already returns false — the
+## End Turn button greys out through the existing `player_can_act_changed`
+## path. The same fact makes the collector-death case unreachable rather than
+## merely unlikely: no other entity can take a turn while the queue is blocked,
+## so nothing can kill a collector mid-pick. Add this back only if a round ever
+## stops holding the queue.
 
 
 ## The peer holding [param entity] dropped off the link. NOT "escaping the

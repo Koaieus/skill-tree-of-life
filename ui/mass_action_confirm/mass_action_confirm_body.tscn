@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://cmassactionbody486"]
+[gd_scene format=3 uid="uid://bbsxgwoystein"]
 
 [ext_resource type="Script" path="res://ui/mass_action_confirm/mass_action_confirm_body.gd" id="1_body"]
 

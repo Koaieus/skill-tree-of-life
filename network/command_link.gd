@@ -32,7 +32,10 @@ extends Node
 ## channel upward, so a client remains a spectator with a real applier — see
 ## the wave-0 note above. [PickLootCommand] is the one verb built for that
 ## direction and is therefore dormant, not unrouted: the applier answers it for
-## real, nothing can send it yet.
+## real (through [method CommandApplier._answer_loot_pick], deliberately NOT
+## through its queue — see there), nothing can send it yet. It is also the one
+## command that must never be broadcast back down; bypassing the queue means it
+## never confirms, so that falls out rather than needing a guard here.
 ##
 ## See `docs/domain/multiplayer-harness.md`.
 
