@@ -219,3 +219,25 @@ func test_a_point_request_never_considers_a_zoom_change() -> void:
 	var req := FocusRequest.point(Vector2(9000, 9000))
 	assert_false(req.allow_zoom_out)
 	assert_eq(_dir.decide(req, _ctx(2.0)).zoom_target, 2.0)
+
+
+# --- the scene wiring -------------------------------------------------------
+
+## Every assertion above is pure, which leaves the seam's other half — the
+## `@export` NodePaths in `game_root.tscn` and the `_ready` connects — with no
+## cover at all. A wrong path there is silently null and the whole feature is
+## dead while this file stays green.
+func test_the_director_is_mounted_and_wired_in_game_root() -> void:
+	var root: GameRoot = preload("res://scenes/game_root.tscn").instantiate()
+	add_child_autofree(root)
+	await wait_frames(2)
+	var director: CameraDirector = root.camera_director
+	assert_not_null(director, "%CameraDirector resolves")
+	assert_not_null(director.camera, "camera NodePath")
+	assert_not_null(director.vision_system, "vision_system NodePath")
+	assert_not_null(director.battle_system, "battle_system NodePath")
+	assert_true(director.camera.manual_input_received.is_connected(director._on_manual_input),
+			"the player's hands can reach the director")
+	assert_true(director.battle_system.attack_committed.is_connected(director._on_attack_committed),
+			"and a committed attack can too")
+	assert_not_null(director.seat_policy, "GameRoot pushed the seat policy after _setup_level")
