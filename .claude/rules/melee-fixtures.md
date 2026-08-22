@@ -32,9 +32,11 @@ dragged by distance constraints, so it lags and pulls inward. Measured on a
 angles the swing has already passed. A target placed at the static span is
 geometrically "inside the blade" and is never touched.
 
-**How to apply:** place targets well inside the span (the sandbox uses 250 px for
-a 319 px blade), and if a swing mysteriously misses, print each vertex's min/max
-radius over `trajectory.samples` before touching anything else.
+**How to apply:** place targets at roughly **¾ of the pivot-to-tip span**, never
+at the span itself, and if a swing mysteriously misses, print each vertex's
+min/max radius over `trajectory.samples` before touching anything else. Nothing
+asserts this — a bound on the melee sandbox's layout was tried and deleted,
+because it went red on every deliberate rearrange of a scratchpad.
 
 ## 3. Hit detection is a physics sweep, so a dormant world hits nothing
 
