@@ -32,9 +32,8 @@ signal run_ended(outcome: RunOutcome)
 @export var turn_manager: TurnManager
 ## The rule in force. Authored here so a hand-built level scene can swap it;
 ## [GameRoot] overrides it from [member RunConfig.victory_condition] when a run
-## carries one. Defaults to the mode-agnostic baseline.
-## TODO(#457): GameSession, once it exists, is what hands the RunConfig down —
-## today GameRoot has no run to read, so this export is the only source.
+## carries one — that RunConfig comes off the `GameSession` autoload (#457).
+## Defaults to the mode-agnostic baseline for a level with no live run.
 @export var condition: VictoryCondition = LastCampStandingCondition.new()
 
 ## The latch. `emits once` in the acceptance is this: every subsequent death
@@ -89,7 +88,7 @@ func _evaluate() -> void:
 	if result == null:
 		return
 	outcome = result
-	# TODO(#457): GameSession records the outcome durably; until it exists this
-	# node holds it and the bus carries it to whoever presents/routes.
+	# The bus carries it to whoever presents/routes, and to the `GameSession`
+	# autoload, which records it as the run's terminal state (#457).
 	run_ended.emit(outcome)
 	Events.run_ended.emit(outcome)

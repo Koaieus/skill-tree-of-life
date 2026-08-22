@@ -54,6 +54,12 @@ func _setup_level() -> void:
 		push_warning("ProcgenPlaySandbox: assign `preset` in inspector")
 		return
 	var cfg: GraphProcgenConfig = preset.duplicate(true)
+	# #457: one resolved seed for the whole run. A run started from the lobby
+	# already has one; a level launched directly (dev sandbox, headless test)
+	# opens a session here seeded from the preset's authored value — so either
+	# way `cfg.seed` below is concrete and recorded, never a live sentinel.
+	GameSession.ensure_started(cfg.seed)
+	cfg.seed = GameSession.config.seed
 	if node_count_override > 0:
 		cfg.node_count = node_count_override
 	cfg.n_random_starters = n_random_starters
@@ -114,6 +120,10 @@ func _setup_level() -> void:
 		entities_by_participant_id[enemy_participant.id] = enemy
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
+	# The session owns the live run, so it holds the roster the run is actually
+	# playing with. Still built here rather than read from the session: making
+	# the lobby's roster the one a level spawns from is #461/#475, not #457.
+	GameSession.roster = roster
 	# The other half of the same roster: `apply_roster` sets what every machine
 	# agrees on (camp, control kind), [SeatPolicy] sets what only this one
 	# does (who I play, whose eyes I draw with). One local human here, so this
@@ -128,12 +138,14 @@ func _setup_level() -> void:
 	# is correct.
 	bind_player(player)
 
-	# Derive seeding RNG from the config seed so identical `preset.seed`
-	# produces identical content + enemy territory. Salting with a constant
-	# keeps the seeding stream independent of the procgen content stream
-	# (so adding/removing modifier rolls upstream doesn't shift seeding).
+	# Derive seeding RNG from the run's resolved seed so identical seeds produce
+	# identical content + enemy territory. Salting with a constant keeps the
+	# seeding stream independent of the procgen content stream (so adding or
+	# removing modifier rolls upstream doesn't shift seeding). The salt is part
+	# of reproducing the MAP, so it stays; what's gone is the second sentinel
+	# resolution that used to live on this line (#457).
 	var rng := RandomNumberGenerator.new()
-	rng.seed = (cfg.seed if cfg.seed != 0 else hash("procgen_play_sandbox")) ^ 0x57AB02D
+	rng.seed = cfg.seed ^ 0x57AB02D
 	for e in enemies:
 		var achieved := territory_seeder.seed_territory(e, graph, allocation_system, enemy_territory_size, rng)
 		# D-19: enemy_level = starting_nodes. Uses the ACTUAL claimed count —

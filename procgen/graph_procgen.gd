@@ -92,8 +92,16 @@ static func generate(
 	assert(graph != null, "GraphProcgen.generate: null graph")
 	assert(config.shape_mask != null, "GraphProcgen.generate: config.shape_mask is null")
 
+	# #457: the caller resolved the sentinel already — `GameSession.start` for a
+	# real run, an explicit seed for a test or an editor preview. Generation is
+	# not a resolution site: a seed nobody recorded is a run nobody can replay.
+	# The resolve call behind the assert is the release-build floor (asserts are
+	# debug-only) and is a no-op on any already-resolved seed.
+	assert(config.seed != 0,
+			"GraphProcgen.generate: unresolved seed sentinel — resolve it once up front "
+			+ "via GameSession.start()/ensure_started() (or RunConfig.resolve_seed) (#457)")
 	var rng := RandomNumberGenerator.new()
-	rng.seed = config.seed if config.seed != 0 else randi()
+	rng.seed = RunConfig.resolve_seed(config.seed)
 
 	var min_dist := 2.0 * config.node_radius + config.node_padding
 	await _emit_progress(progress_cb, 0.02, "Preparing shape")

@@ -148,6 +148,12 @@ func _ready() -> void:
 	# mine?" before it may frame anyone's action (#524).
 	if camera_director != null:
 		camera_director.seat_policy = seat_policy
+	# The run decides how it ends (#457/#460). After `_setup_level`, which is
+	# where a directly-launched level opens its session. `resolved_...` is what
+	# falls back to the MODE's default when the run authored no condition — the
+	# scene-authored export is the source only for a level with no live run.
+	if victory_system != null and GameSession.is_active():
+		victory_system.condition = GameSession.config.resolved_victory_condition()
 	bind_player(player)
 	# Hot-seat coop (#459): on a shared couch "the player" changes hands every
 	# turn. Connected unconditionally — [member seat_policy] decides whether the
@@ -292,6 +298,10 @@ func _on_run_ended(outcome: RunOutcome) -> void:
 		return
 	await get_tree().create_timer(run_end_route_delay).timeout
 	if is_inside_tree():
+		# The run is over and we're leaving it: close the session so the next
+		# one resolves its own seed instead of inheriting a spent one (#457).
+		# The outcome it recorded is read by whoever presents it before this.
+		GameSession.end()
 		SceneDirector.goto(META_ROOT)
 
 

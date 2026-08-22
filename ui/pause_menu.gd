@@ -39,10 +39,12 @@ func _footer_text() -> String:
 	return "seed %s  ·  %s%s" % [_current_seed_text(), wt_part, BuildInfo.short_sha]
 
 
-## TODO(meta-shell): point this at GameSession.config.seed once GameSession
-## lands (#, see done-a-lot-of-whimsical-noodle.md). Placeholder until then.
+## The run's resolved seed (#457) — concrete for the whole run, so this is the
+## number to copy and type back into the lobby to replay the same map. An em
+## dash means no run is live (this menu shouldn't be reachable then, but the
+## footer must never lie about a seed it doesn't have).
 func _current_seed_text() -> String:
-	return "—"
+	return str(GameSession.config.seed) if GameSession.is_active() else "—"
 
 
 func _on_build_footer_gui_input(event: InputEvent) -> void:

@@ -64,9 +64,10 @@ func _on_new_game_pressed() -> void:
 	_stack.push(lobby)
 
 
-## `_run_config` is intentionally unread — routing it into the level needs
-## a GameSession, which doesn't exist yet (#457); this just starts the
-## sandbox level as it always has.
-func _on_start_pressed(_run_config: RunConfig) -> void:
-	# TODO(#457): route this RunConfig into the level via GameSession
+## START opens the run before the level loads (#457): `GameSession.start`
+## resolves the lobby's seed sentinel once, here, and the level reads the
+## concrete value back out. `RunConfig.level_scene` is still unread — picking
+## a level from the lobby is future work; every run is the first-level sandbox.
+func _on_start_pressed(run_config: RunConfig) -> void:
+	GameSession.start(run_config)
 	SceneDirector.goto(FIRST_LEVEL_SANDBOX)

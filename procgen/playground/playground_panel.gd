@@ -375,7 +375,9 @@ func _regenerate_graph(reuse_seed: bool = false) -> void:
 	# so the preview skips them entirely (same rationale as zeroing
 	# n_random_starters above — this graph previews the field, not placements).
 	cfg.guaranteed_placements = []
-	cfg.seed = _last_graph_seed if reuse_seed and _last_graph_seed != 0 else randi()
+	# `RunConfig.resolve_seed` is the one sentinel resolver (#457) — an editor
+	# preview is not a run, but it must not be a second place that draws one.
+	cfg.seed = RunConfig.resolve_seed(_last_graph_seed if reuse_seed else 0)
 	_last_graph_seed = cfg.seed
 	_clear_cards(_graph_cards, "Generating…")
 	await _graph_view.generate(cfg)

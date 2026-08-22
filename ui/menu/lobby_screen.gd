@@ -3,8 +3,10 @@ extends MenuScreen
 
 ## Lobby: one row per participant (name/color are static placeholders —
 ## editable name + color picking is future work) plus a seed field and a
-## Start button. The seed field is NOT wired to procgen yet (deliberately —
-## see meta_root.gd); it's a placeholder for the input, not a working knob.
+## Start button. The seed field is live (#457): START hands this screen's
+## [RunConfig] to `GameSession`, which resolves the seed once and feeds it to
+## procgen — so typing back the seed the pause-menu footer shows replays the
+## same map. Blank means "randomise me".
 ##
 ## Two shapes today (#456 LAN milestone scaffolding):
 ## - Single player: 1 row, [constant RunConfig.Mode.SINGLE], camp

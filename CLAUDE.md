@@ -68,8 +68,9 @@ Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call 
 | `SceneTransition` | Fade in/out + loading progress bar |
 | `SceneDirector` | Scene routing + async loading. Absorbed the zero-caller `SceneLoader` (#212); `MetaRoot` and the menu shell route through `SceneDirector.goto` |
 | `Settings` | `GameSettings` + `ConfigFile` persistence, surfaced by the reflected settings menu |
-| `BuildInfo` | Seed / branch / worktree, shown in the pause-menu footer |
+| `BuildInfo` | Branch / worktree / sha, shown in the pause-menu footer |
 | `Events` | Global signal bus (`skill_node_depleted`, etc.) |
+| `GameSession` | The live run — `RunConfig`, `ParticipantRoster`, `RunOutcome`; resolves the procgen seed **exactly once** up front (`.claude/rules/game-session.md`) |
 | `StatRegistry` | StatDef lookup by id |
 | `DebugClipboard` | Press `c` while hovering a SkillNode to copy its full state (archetype, owner, hp, modifiers, addons) to the system clipboard |
 

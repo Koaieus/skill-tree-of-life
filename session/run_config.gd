@@ -22,6 +22,22 @@ enum Mode { SINGLE, COOP_HOTSEAT, VERSUS }
 @export var victory_condition: VictoryCondition = null
 
 
+## The one and only place a seed sentinel resolves (#457). `0` means
+## "randomise me"; any other value passes through untouched, so the function
+## is idempotent — resolving an already-resolved seed is a no-op, which is
+## what makes "re-reading does not re-randomise" true by construction.
+##
+## Static, and living on [RunConfig] rather than on the `GameSession` autoload,
+## because `@tool` editor code (the procgen playground) has to reach it and
+## project autoloads are not in the editor's tree.
+static func resolve_seed(value: int) -> int:
+	if value != 0:
+		return value
+	var drawn := randi()
+	# 0 is the sentinel, so it must never survive as a resolved value.
+	return drawn if drawn != 0 else 1
+
+
 ## The condition a mode falls back to when none is authored. All three modes
 ## share last-camp-standing today — the switch exists because the owner's call
 ## was explicitly that they "may default differently", and a mode wanting its
