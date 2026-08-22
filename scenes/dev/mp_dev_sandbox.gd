@@ -87,6 +87,14 @@ var _probe_report_timer: Timer
 ## bare `--turns`) is what #529 needs; see [method _on_turn_started].
 var _autopilot_turns: int = 1
 var _autopilot_turns_run: int = 0
+## True for the whole of one sweep. [method _run_autopilot] is a long coroutine
+## and [EndTurnCommand]'s application spans Blue's ENTIRE AI turn (see
+## [CommandApplier]'s class note), so `turn_started(_red)` can fire while a
+## sweep is still parked in [method _submit_and_wait]. Two concurrent sweeps
+## both drive [method BattleSystem.request_attack_mode] and stomp each other's
+## `attack_plan`. Never observed in a 40-turn run — and one flag is cheaper
+## than finding out it can.
+var _autopilot_running: bool = false
 
 
 func _ready() -> void:
@@ -295,8 +303,11 @@ func _greet_if_linked(_status: String) -> void:
 	if not _transport.is_linked():
 		return
 	_link.send_hello()
+	# Through the same gate as a turn-driven sweep: `link_changed` fires again
+	# on a reconnect, and this entry point used to bypass the `--turns` budget
+	# entirely.
 	if _autopilot:
-		_run_autopilot()
+		_start_sweep_if_due()
 
 
 ## Sweep again every time the turn comes back around to Red (#529). One sweep
@@ -314,19 +325,29 @@ func _greet_if_linked(_status: String) -> void:
 func _on_turn_started(entity: Entity) -> void:
 	if not _autopilot or entity != _red:
 		return
+	_start_sweep_if_due()
+
+
+## The one gate every sweep goes through: the `--turns` budget, the
+## authority check, and the in-flight guard.
+##
+## `turn_started` fires on BOTH peers' own TurnManagers — a mirrored `end_turn`
+## ticks the client's initiative too. Only the authority may originate, or the
+## client would submit a sweep of its own and diverge the very thing being
+## measured.
+##
+## No budget re-boost here: [method _boost_autopilot_budget] ratchets the
+## pools' BASE once at setup, and turn-start upkeep refills current to that cap
+## every turn. Re-calling it per turn would be a mutation on a per-peer signal,
+## which is exactly the shape a determinism probe exists to catch.
+func _start_sweep_if_due() -> void:
+	if _autopilot_running:
+		return
 	if _autopilot_turns != AUTOPILOT_TURNS_UNBOUNDED \
 			and _autopilot_turns_run >= _autopilot_turns:
 		return
-	# `turn_started` fires on BOTH peers' own TurnManagers — a mirrored
-	# `end_turn` ticks the client's initiative too. Only the authority may
-	# originate, or the client would submit a second sweep of its own and
-	# diverge the very thing being measured.
 	if command_applier != null and not command_applier.is_authority:
 		return
-	# No re-boost needed: `_boost_autopilot_budget` ratchets the pools' BASE
-	# once at setup, and turn-start upkeep refills current to that cap every
-	# turn. Re-calling it here would be a mutation on a per-peer signal, which
-	# is exactly the shape a determinism probe exists to catch.
 	_run_autopilot()
 
 
@@ -339,6 +360,7 @@ func _on_turn_started(entity: Entity) -> void:
 ## why one turn is enough SP/AP/DP for all of it).
 func _run_autopilot() -> void:
 	_autopilot_turns_run += 1
+	_autopilot_running = true
 	await get_tree().create_timer(1.0).timeout
 	await _sweep_allocate()
 	await _sweep_mass_allocate()
@@ -351,7 +373,14 @@ func _run_autopilot() -> void:
 	await _sweep_melee()
 	await _sweep_loot()
 	await _sweep_end_turn()
-	_write_log("autopilot: sweep complete")
+	# Cleared here and not in a `defer`-alike: every step above either applies
+	# or logs SKIPPED, so the sweep always reaches this line. It must clear
+	# BEFORE Red's next `turn_started`, which it does —
+	# [method CommandApplier._apply] calls [method TurnManager.end_turn] and
+	# returns without awaiting it, so `command_applied` fires long before Blue's
+	# AI turn has played out.
+	_autopilot_running = false
+	_write_log("autopilot: sweep complete (turn %d)" % _autopilot_turns_run)
 
 
 ## Submit [param command] and suspend until the applier has actually applied

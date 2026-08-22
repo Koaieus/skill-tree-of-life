@@ -51,7 +51,13 @@ other verb carries intent only, so "re-resolving" one is just applying it and
 the WORLD column is the whole answer. The peer rebuilds the plan through
 `AttackPlanCodec`, stamps the same seed, calls `resolve()`, re-encodes through
 the same `AttackRecord.capture` the host used, and diffs. Columns:
-`ok / DIVERGED / unavailable`.
+`ok / DIVERGED / unavailable / landings re-derived`.
+
+**`landings re-derived` is what makes that row a measurement.** "5 attacks, 0
+diverged" is vacuous if all five resolved to zero hits — two empty arrays match
+trivially. An attack that produced no landings agrees for free and proves
+nothing, so the hit count is reported beside the verdict rather than left for
+the reader to assume.
 
 Nothing mutates. `BattleSystem._resolve_for_launch` documents that "nothing
 below `resolve()` mutates"; the plan built here is local and is never assigned

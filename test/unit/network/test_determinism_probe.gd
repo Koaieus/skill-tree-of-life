@@ -180,6 +180,6 @@ func test_an_unrebuildable_plan_is_unavailable_not_diverged() -> void:
 	command.record = _record()
 	probe.observe_before_apply(command)
 	assert_eq(probe.resolve_tally(LaunchAttackCommand.TAG),
-			{"agreed": 0, "diverged": 0, "unavailable": 1})
+			{"agreed": 0, "diverged": 0, "unavailable": 1, "landings": 0})
 	assert_false(probe.report().contains("fields that disagreed"),
 			"a plan that never rebuilt has no fields to disagree about")

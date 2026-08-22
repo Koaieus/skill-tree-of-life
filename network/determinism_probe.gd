@@ -145,6 +145,12 @@ func observe_before_apply(command: Command) -> void:
 	var diverging := _compare_resolve(attack)
 	if diverging.is_empty():
 		_bump(_resolve, attack.type_tag(), "agreed")
+		# Counted alongside the verdict, because "5 attacks, 0 diverged" is
+		# VACUOUS if all five resolved to zero landings — two empty arrays match
+		# trivially and the row would read clean while proving nothing. The
+		# landings number is what makes the column an actual measurement.
+		_add(_resolve, attack.type_tag(), "landings",
+				maxi(0, _length_of(attack.record.get(AttackRecord.KEY_HIT_TARGET))))
 		return
 	if diverging.size() == 1 and diverging[0] == UNRESOLVABLE:
 		_bump(_resolve, attack.type_tag(), "unavailable")
@@ -190,14 +196,16 @@ func world_tally(tag: StringName) -> Dictionary:
 	}
 
 
-## One command type's resolve tally — `agreed` / `diverged` / `unavailable`.
-## Same copy-out contract as [method world_tally].
+## One command type's resolve tally — `agreed` / `diverged` / `unavailable`,
+## plus `landings`, the number of individual hits the agreements actually
+## covered. Same copy-out contract as [method world_tally].
 func resolve_tally(tag: StringName) -> Dictionary:
 	var row: Dictionary = _resolve.get(tag, {})
 	return {
 		"agreed": int(row.get("agreed", 0)),
 		"diverged": int(row.get("diverged", 0)),
 		"unavailable": int(row.get("unavailable", 0)),
+		"landings": int(row.get("landings", 0)),
 	}
 
 
@@ -231,12 +239,13 @@ func report() -> String:
 	if _resolve.is_empty():
 		lines.append("    no launch_attack crossed; nothing was re-resolvable.")
 	else:
-		lines.append("    %-22s %6s %8s %12s" % ["command", "ok", "DIVERGED", "unavailable"])
+		lines.append("    %-22s %6s %8s %12s %19s"
+				% ["command", "ok", "DIVERGED", "unavailable", "landings re-derived"])
 		for tag in _sorted_tags(_resolve):
 			var row: Dictionary = _resolve[tag]
-			lines.append("    %-22s %6d %8d %12d" % [tag,
+			lines.append("    %-22s %6d %8d %12d %19d" % [tag,
 					int(row.get("agreed", 0)), int(row.get("diverged", 0)),
-					int(row.get("unavailable", 0))])
+					int(row.get("unavailable", 0)), int(row.get("landings", 0))])
 	if not _resolve_fields.is_empty():
 		lines.append("    fields that disagreed:")
 		var fields: Array = _resolve_fields.keys()
@@ -256,6 +265,8 @@ func report() -> String:
 	lines.append("  the gated bit, forced deallocations) — AttackRecord's own contract is")
 	lines.append("  that a peer cannot re-derive those. `skipped` is a command CommandLink")
 	lines.append("  chose not to compare (queue non-empty / superseded), not a pass.")
+	lines.append("  `landings re-derived` is the RESOLVE column's real size — an attack")
+	lines.append("  that resolved to nothing agrees trivially and proves nothing.")
 	lines.append("─────────────────────────────────────────────────")
 	return "\n".join(lines)
 
@@ -348,10 +359,14 @@ func _length_of(packed: Variant) -> int:
 
 
 func _bump(book: Dictionary, tag: StringName, bucket: String) -> void:
+	_add(book, tag, bucket, 1)
+
+
+func _add(book: Dictionary, tag: StringName, bucket: String, amount: int) -> void:
 	if not book.has(tag):
 		book[tag] = {}
 	var row: Dictionary = book[tag]
-	row[bucket] = int(row.get(bucket, 0)) + 1
+	row[bucket] = int(row.get(bucket, 0)) + amount
 
 
 func _sorted_tags(book: Dictionary) -> Array:
