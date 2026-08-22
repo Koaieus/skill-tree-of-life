@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scenes/dev/mp_dev_sandbox.gd" id="2_script"]
 [ext_resource type="Script" path="res://network/enet_transport.gd" id="3_transport"]
 [ext_resource type="Script" path="res://network/command_link.gd" id="4_link"]
+[ext_resource type="Script" path="res://network/determinism_probe.gd" id="5_probe"]
 
 [node name="DevSandbox" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -11,11 +12,16 @@ script = ExtResource("2_script")
 [node name="Transport" type="Node" parent="."]
 script = ExtResource("3_transport")
 
-[node name="CommandLink" type="Node" parent="." node_paths=PackedStringArray("transport", "command_applier", "graph")]
+[node name="DeterminismProbe" type="Node" parent="." node_paths=PackedStringArray("graph")]
+script = ExtResource("5_probe")
+graph = NodePath("../Graph")
+
+[node name="CommandLink" type="Node" parent="." node_paths=PackedStringArray("transport", "command_applier", "graph", "probe")]
 script = ExtResource("4_link")
 transport = NodePath("../Transport")
 command_applier = NodePath("../Systems/CommandApplier")
 graph = NodePath("../Graph")
+probe = NodePath("../DeterminismProbe")
 
 [node name="NetOverlay" type="CanvasLayer" parent="."]
 layer = 128

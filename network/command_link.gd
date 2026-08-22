@@ -37,7 +37,14 @@ extends Node
 ## command that must never be broadcast back down; bypassing the queue means it
 ## never confirms, so that falls out rather than needing a guard here.
 ##
-## See `docs/domain/multiplayer-harness.md`.
+## [b]#529's determinism probe hangs off the mirror path here[/b], as three
+## optional calls into [DeterminismProbe] and no logic of its own. It measures
+## whether this peer could have DERIVED what it was sent, which is the input to
+## the choice between confirm-down and lockstep — it never changes what is
+## applied, and it is off unless a harness turns it on.
+##
+## See `docs/domain/multiplayer-harness.md` and
+## `docs/domain/determinism-probe.md`.
 
 ## Wire envelope keys. The command's own dictionary is nested rather than merged
 ## so the codec keeps owning its whole namespace.
@@ -79,6 +86,13 @@ signal sync_checked(agrees: bool, local: int, remote: int)
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier
 @export var graph: Graph
+
+## #529's measurement, optional and OFF unless a harness enables it. A null
+## probe, or a disabled one, costs one branch per received command — the hooks
+## below are three calls and no logic, because the question "could a peer have
+## derived this?" is a whole subject and belongs in its own file, not smeared
+## across the verb path #463's other children are also editing.
+@export var probe: DeterminismProbe
 
 ## Setting this is also what tells the applier whether it DECIDES or is told.
 ## Single writer, so no scene has to carry a second role flag and the two can
@@ -235,6 +249,12 @@ func _on_remote_command(payload: Dictionary) -> void:
 		return
 	_recv_seq += 1
 	var seq := _recv_seq
+	# BEFORE the mutation, deliberately: the host resolved this command against
+	# the PRE-command world, so a probe that ran after `submit` would compare
+	# its own re-resolution against the wrong state and report divergence that
+	# is really just ordering. Mutates nothing — see [DeterminismProbe].
+	if probe != null:
+		probe.observe_before_apply(command)
 	_applying_remote = true
 	command_applier.submit(command)
 	# `submit` may await (move_core beats, end_turn's initiative tick), so the
@@ -250,18 +270,30 @@ func _on_remote_command(payload: Dictionary) -> void:
 	# its own older fingerprint and report a divergence that never happened. A
 	# spurious ✗ poisons the only diagnostic this harness has, which is worth
 	# more than a tick per command.
+	# Both early returns below are commands that are never compared at all —
+	# counted, not dropped, or the probe's denominator would silently be a lie
+	# ("0 diverged of 412" while only 280 were ever looked at).
 	if command_applier.is_applying or command_applier.pending_count() > 0:
+		if probe != null:
+			probe.observe_skipped(command)
 		return
 	if seq != _recv_seq:
+		if probe != null:
+			probe.observe_skipped(command)
 		return
-	_report_sync(WorldFingerprint.compute(graph), int(payload.get(KEY_FINGERPRINT, 0)), \
-			"after %s" % command.type_tag())
+	var agrees := _report_sync(WorldFingerprint.compute(graph),
+			int(payload.get(KEY_FINGERPRINT, 0)), "after %s" % command.type_tag())
+	if probe != null:
+		probe.observe_world(command, agrees)
 
 
-func _report_sync(local: int, remote: int, when: String) -> void:
+## Returns the verdict as well as announcing it, so #529's probe can attribute
+## it to the command that produced it without re-deriving the comparison.
+func _report_sync(local: int, remote: int, when: String) -> bool:
 	var agrees := local == remote
 	sync_checked.emit(agrees, local, remote)
 	if agrees:
 		logged.emit("  ✓ in sync %s (fp %d)" % [when, local])
 	else:
 		logged.emit("  ✗ DIVERGED %s — mine %d, host %d" % [when, local, remote])
+	return agrees

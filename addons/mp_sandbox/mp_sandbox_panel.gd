@@ -29,6 +29,8 @@ const CLIENT_POSITION := Vector2i(1020, 80)
 @onready var _scene_field: LineEdit = %SceneField
 @onready var _address_field: LineEdit = %AddressField
 @onready var _port_field: SpinBox = %PortField
+@onready var _autopilot_toggle: CheckBox = %AutopilotToggle
+@onready var _probe_toggle: CheckBox = %ProbeToggle
 @onready var _log: RichTextLabel = %Log
 
 ## Live child processes, newest last. A PID here may already be dead — the OS is
@@ -45,6 +47,8 @@ func _ready() -> void:
 	%LaunchClient.pressed.connect(_on_launch_client)
 	%KillAll.pressed.connect(_on_kill_all)
 	_write("Ready. Launch both, then allocate a node in the HOST window.")
+	_write("Tick both toggles for #529's measured run — the breakdown prints "
+			+ "in the CLIENT window, not here.")
 
 
 ## Sandbox-host contract: the tab forwards the inspected resource here. Nothing
@@ -98,8 +102,16 @@ func _launch(role: NetworkTransport.Role) -> int:
 		"--role=%s" % ("host" if is_host else "client"),
 		"--port=%d" % int(_port_field.value),
 	]
+	# Each flag goes to exactly the role that can act on it: `--autopilot` needs
+	# the peer that HOLDS the turn, `--probe` (#529) needs the peer that
+	# RECEIVES commands. Sent to the other one they are no-ops that log a
+	# refusal, which is noise dressed as a result.
+	if is_host and _autopilot_toggle.button_pressed:
+		args.append("--autopilot")
 	if not is_host:
 		args.append("--address=%s" % _address_field.text.strip_edges())
+		if _probe_toggle.button_pressed:
+			args.append("--probe")
 
 	var pid := OS.create_instance(args)
 	if pid <= 0:

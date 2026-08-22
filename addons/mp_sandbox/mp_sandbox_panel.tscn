@@ -110,6 +110,22 @@ layout_mode = 2
 tooltip_text = "SIGKILL every process this panel spawned."
 text = "■ Kill all"
 
+[node name="Toggles" type="HBoxContainer" parent="Margin/Box"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="AutopilotToggle" type="CheckBox" parent="Margin/Box/Toggles"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Host only. Drive every CommandApplier verb from Red's opening turn, so the pair is verifiable without clicking."
+text = "Autopilot sweep (host)"
+
+[node name="ProbeToggle" type="CheckBox" parent="Margin/Box/Toggles"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "#529. Client only. Re-resolve each received command locally and tally whether this peer could have DERIVED the host's result. Mutates nothing; the breakdown prints in the client window once the wire goes quiet."
+text = "Determinism probe (client)"
+
 [node name="Log" type="RichTextLabel" parent="Margin/Box"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)

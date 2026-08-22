@@ -44,8 +44,16 @@ extends "res://scenes/dev_sandbox.gd"
 const DEFAULT_PORT := 9099
 const DEFAULT_ADDRESS := "127.0.0.1"
 
+## How long the wire must stay quiet before the probe's breakdown is printed.
+## Comfortably longer than the slowest single verb's tail (a multi-hop core
+## walk beats at 0.18 s/hop; an attack's animation is seconds) and shorter than
+## a human's next click, so a terminal-driven `--autopilot` run prints exactly
+## once, at the end of the sweep, rather than after every command.
+const PROBE_REPORT_QUIET_SECONDS := 4.0
+
 @onready var _transport: NetworkTransport = $Transport
 @onready var _link: CommandLink = $CommandLink
+@onready var _probe: DeterminismProbe = $DeterminismProbe
 @onready var _banner: Label = %NetBanner
 @onready var _log: RichTextLabel = %NetLog
 
@@ -62,6 +70,13 @@ var _red: Entity
 ## `--autopilot` (host only): run the full verb sweep once a client links, so
 ## the pair is verifiable from a terminal. See [method _run_autopilot].
 var _autopilot: bool = false
+## `--probe` (#529, client only — a host receives nothing to re-derive): arm
+## [DeterminismProbe] and print its per-command-type breakdown once the wire
+## goes quiet. Off unless asked for, per the issue's own decision.
+var _probe_enabled: bool = false
+## One-shot, restarted on every compared command; see [constant
+## PROBE_REPORT_QUIET_SECONDS].
+var _probe_report_timer: Timer
 
 
 func _ready() -> void:
@@ -172,6 +187,9 @@ func _parse_cmdline() -> void:
 		if arg == "--autopilot":
 			_autopilot = true
 			continue
+		if arg == "--probe":
+			_probe_enabled = true
+			continue
 		var pair := arg.trim_prefix("--").split("=", true, 1)
 		if pair.size() != 2:
 			continue
@@ -191,6 +209,7 @@ func _parse_cmdline() -> void:
 func _start_link() -> void:
 	_link.logged.connect(_write_log)
 	_transport.link_changed.connect(_refresh_banner.unbind(1))
+	_arm_probe()
 
 	match _role:
 		NetworkTransport.Role.HOST:
@@ -216,6 +235,43 @@ func _start_link() -> void:
 			return
 
 	_refresh_banner()
+
+
+## #529. Armed only on the CLIENT and only with `--probe`: the probe measures
+## what a MIRRORING peer could have derived, and a host receives no command to
+## re-derive, so arming it there would report an empty table and read as a
+## clean result.
+##
+## The readout fires on QUIET rather than on a command count or an end-of-sweep
+## hook. A count would need the harness to know how long a sweep is, and an
+## `--autopilot` hook would leave a human clicking in the window with no way to
+## see the number at all. Quiet covers both: the sweep's last verb starts the
+## timer, and so does a human's last click.
+func _arm_probe() -> void:
+	if _probe == null or not _probe_enabled:
+		return
+	if _role != NetworkTransport.Role.CLIENT:
+		_write_log("--probe ignored: it measures the MIRRORING peer, and this is not one")
+		return
+	_probe.enabled = true
+	_probe.logged.connect(_write_log)
+	_probe_report_timer = Timer.new()
+	_probe_report_timer.one_shot = true
+	_probe_report_timer.wait_time = PROBE_REPORT_QUIET_SECONDS
+	_probe_report_timer.timeout.connect(_print_probe_report)
+	add_child(_probe_report_timer)
+	# `sync_checked` fires once per COMPARED command; the skipped ones ride in
+	# on the same burst and are already tallied, so this is enough to keep the
+	# timer alive for as long as the wire is busy.
+	_link.sync_checked.connect(func(_a: bool, _l: int, _r: int) -> void:
+			_probe_report_timer.start())
+	_write_log("determinism probe ARMED (#529) — breakdown prints after %.0fs of quiet"
+			% PROBE_REPORT_QUIET_SECONDS)
+
+
+func _print_probe_report() -> void:
+	for line in _probe.report().split("\n"):
+		_write_log(line)
 
 
 func _greet_if_linked(_status: String) -> void:
