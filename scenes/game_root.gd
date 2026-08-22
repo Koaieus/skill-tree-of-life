@@ -103,6 +103,9 @@ var seat_policy: SeatPolicy = SeatPolicy.couch()
 
 # UI
 @onready var camera: GraphCamera = %GraphCamera
+## The sole decider of where the camera looks (#523). GameRoot never pokes
+## `camera.position` around it.
+@onready var camera_director: CameraDirector = %CameraDirector
 @onready var hud_root: HudRoot = %HudRoot
 
 @onready var node_highlight: NodeHighlightOverlay = %NodeHighlightOverlay
@@ -140,6 +143,11 @@ func _ready() -> void:
 	# attach AIController to enemies; this defaulter is the catch-all
 	# that keeps every sandbox playable without per-scene wiring.
 	_ensure_controllers()
+	# After `_setup_level`, which is where a roster-driven level replaces the
+	# default couch policy. The director needs it to answer "is this actor
+	# mine?" before it may frame anyone's action (#524).
+	if camera_director != null:
+		camera_director.seat_policy = seat_policy
 	bind_player(player)
 	# Hot-seat coop (#459): on a shared couch "the player" changes hands every
 	# turn. Connected unconditionally — [member seat_policy] decides whether the
@@ -586,8 +594,18 @@ func _on_camera_bounds_changed(bounds: Rect2) -> void:
 		aura_overlay.bounds = bounds
 
 
+## Point the view at the bound hero — level start, and every hot-seat handover
+## (#459). Routed through [CameraDirector] (#523) so there is exactly ONE thing
+## deciding where the camera looks; the request is [b]mandatory[/b] (it bypasses
+## the grace window and the skip-if-on-screen check) and a hard cut, because a
+## seat changing hands must re-point the view unconditionally — anything softer
+## would be a behaviour change to #459.
 func _focus_camera_on_player() -> void:
-	if camera == null or player == null:
+	if player == null:
 		return
 	var target: Vector2 = player.core_location.global_position if player.core_location != null else player.position
-	camera.position = target
+	if camera_director != null:
+		camera_director.request_focus(FocusRequest.point(target, 0.0, true, &"handover"))
+		return
+	if camera != null:
+		camera.position = target

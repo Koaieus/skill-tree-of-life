@@ -64,7 +64,30 @@ var _pan_margin_base: float = 400.0
 ## that drifts out of sync whenever the margin math here changes.
 signal bounds_changed(bounds: Rect2)
 
+## Fired the instant the player touches the camera — a middle-drag, a wheel
+## tick, or a non-zero arrow-key vector — and always BEFORE the input is
+## acted on (#523). [CameraDirector] listens and cancels any focus in flight
+## synchronously, which is what makes the ordering load-bearing rather than
+## stylistic: emitting after [method _zoom_by] would let the wheel accumulate
+## onto the DIRECTOR's zoomed-out value, losing the player's own
+## [member _target_zoom] and with it the 0.25 lattice.
+##
+## The camera implements no policy of its own here — grace windows and
+## skip-if-on-screen live in the director.
+signal manual_input_received
+
 var _last_effective_bounds: Rect2 = Rect2()
+
+## True between [method begin_directed_focus] and [method end_directed_focus].
+## While set, [method _process] does not apply the arrow-key pan — a director
+## Tween on `global_position` and a per-frame `+=` on the same property fight
+## and jitter. The clamp still runs; it is never optional.
+var _directed: bool = false
+## The player's own zoom target, stashed when a focus takes the camera and
+## restored exactly on release, so their next scroll tick is not offset and
+## the 0.25 wheel lattice is never broken (#515 decision 6).
+var _stored_target_zoom: float = 1.0
+var _pan_tween: Tween = null
 
 
 func _ready() -> void:
@@ -77,6 +100,10 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Panning: middle mouse button drag
 	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+			# Announce FIRST: the director's cancel is synchronous, so by the
+			# line below the camera is the player's again and the pan lands
+			# this same event rather than a frame later.
+			manual_input_received.emit()
 			global_position -= event.relative / zoom
 			_clamp_position()
 	# Zooming: scroll wheel. Each physical tick is a pressed AND a released
@@ -85,8 +112,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	# so one tick is one `_zoom_by` call, not two.
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			manual_input_received.emit()
 			_zoom_by(zoom_step)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			manual_input_received.emit()
 			_zoom_by(-zoom_step)
 
 func _process(delta: float) -> void:
@@ -97,8 +126,68 @@ func _process(delta: float) -> void:
 	_update_limits()
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir != Vector2.ZERO:
-		global_position += input_dir * pan_speed * delta
+		# Read, announce, THEN apply-or-skip. Gating the whole branch on
+		# `_directed` would mean the signal never fires while a focus holds the
+		# camera, and arrow keys could never break in at all.
+		manual_input_received.emit()
+		if not _directed:
+			global_position += input_dir * pan_speed * delta
 	_clamp_position()
+
+
+## Ease the camera toward [param target] at [param zoom_target], on behalf of
+## [CameraDirector] (#523). The director DECIDES — where to look, whether the
+## span fits, whether the player's hands are on the camera — and this executes,
+## so `GraphCamera` stays the sole writer of `global_position` and `zoom`.
+##
+## Takes a resolved zoom rather than the span's `fit_size`: the fit policy (the
+## 0.25 lattice, the floor, the centre-of-mass fallback) is the director's, and
+## it must land as ONE discrete zoom target because
+## [signal Events.camera_zoom_changed] is O(live Edge count) and is deliberately
+## broadcast on the target rather than per tween frame.
+##
+## [param duration] of 0.0 is a hard cut. Re-calling while already directed
+## RETARGETS rather than queueing — a multi-attack turn reads as one continuous
+## follow instead of a stutter.
+func begin_directed_focus(target: Vector2, zoom_target: float, duration: float) -> void:
+	if not _directed:
+		_resync_target_zoom_if_idle()
+		_stored_target_zoom = _target_zoom
+		_directed = true
+	_apply_zoom_target(zoom_target)
+	if _pan_tween != null and _pan_tween.is_valid():
+		_pan_tween.kill()
+	if duration <= 0.0:
+		global_position = target
+		_clamp_position()
+		return
+	_pan_tween = create_tween()
+	_pan_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_pan_tween.tween_property(self, ^"global_position", target, duration)
+
+
+## Hand the camera back. POSITION stays exactly where the action ended — there
+## is no return pan and no remembered anchor (#515 decision 5). ZOOM does
+## return, to the player's own stored target, so their wheel lattice survives.
+func end_directed_focus() -> void:
+	if not _directed:
+		return
+	_directed = false
+	if _pan_tween != null and _pan_tween.is_valid():
+		_pan_tween.kill()
+	_pan_tween = null
+	_apply_zoom_target(_stored_target_zoom)
+
+
+func is_directed() -> bool:
+	return _directed
+
+
+## The player's own zoom target — what [method end_directed_focus] restores.
+## Reads through to [member _target_zoom] when nothing is directing, so a
+## caller never has to know which of the two is live.
+func player_zoom_target() -> float:
+	return _stored_target_zoom if _directed else _target_zoom
 
 
 ## `limit_*` only clamps what Camera2D actually RENDERS — the screen-center it
@@ -164,16 +253,37 @@ func _clamp_position() -> void:
 ## Takes a STEP, not an absolute target, so the caller never has to read
 ## `_target_zoom` before the resync below has had a chance to run.
 func _zoom_by(step: float) -> void:
+	_resync_target_zoom_if_idle()
+	_apply_zoom_target(_target_zoom + step)
+
+
+## Honour any external write to `zoom` since the last step, but only while
+## nothing is in flight — mid-tween `zoom.x` is a fractional, half-applied
+## value and accumulating on it silently drops steps during fast scrolling.
+## A level scene assigns `zoom` directly from `_setup_level()`, which runs
+## AFTER this node's `_ready`; without this resync `_target_zoom` would still
+## hold the stale value and the first scroll tick would teleport.
+func _resync_target_zoom_if_idle() -> void:
+	if _zoom_tween != null and _zoom_tween.is_valid():
+		return
+	_target_zoom = zoom.x
+
+
+## The one place [member _target_zoom] moves. Retargets the tween, killing the
+## previous one first — that is what makes rapid scrolling accumulate instead
+## of having two tweens fight over `zoom`, and because the new tween starts
+## from wherever the old one got to, the steps chain into one continuous glide.
+##
+## No-ops on an unchanged target. [method _request_zoom_broadcast] fans out
+## O(live Edge count), and a multi-attack turn retargets the director's focus
+## repeatedly at the same zoom.
+func _apply_zoom_target(value: float) -> void:
+	var wanted := clampf(value, _min_zoom_floor, MAX_ZOOM)
+	if is_equal_approx(wanted, _target_zoom):
+		return
 	if _zoom_tween != null and _zoom_tween.is_valid():
 		_zoom_tween.kill()
-	else:
-		# Nothing in flight, so `zoom` is authoritative — honour any external
-		# write since the last step. A level scene assigns `zoom` directly from
-		# `_setup_level()`, which runs AFTER this node's `_ready`; without this
-		# resync `_target_zoom` would still hold the stale value and the first
-		# scroll tick would teleport.
-		_target_zoom = zoom.x
-	_target_zoom = clampf(_target_zoom + step, _min_zoom_floor, MAX_ZOOM)
+	_target_zoom = wanted
 	current_zoom = _target_zoom
 	_request_zoom_broadcast()
 	if zoom_duration <= 0.0:
@@ -201,6 +311,22 @@ func set_min_zoom_floor(value: float) -> void:
 	zoom = Vector2(_target_zoom, _target_zoom)
 	_update_limits()
 	_request_zoom_broadcast()
+
+
+## The three runtime facts [CameraContext] needs and that only GameRoot has
+## pushed here: the level's zoom floor, its raw SkillNode AABB, and the pan
+## slack the limits are grown by. Exposed as reads so the director builds its
+## context from the camera without reaching into private state.
+func min_zoom_floor() -> float:
+	return _min_zoom_floor
+
+
+func graph_bounds() -> Rect2:
+	return _graph_bounds
+
+
+func pan_margin_base() -> float:
+	return _pan_margin_base
 
 
 func _request_zoom_broadcast() -> void:
