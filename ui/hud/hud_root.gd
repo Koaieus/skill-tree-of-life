@@ -156,7 +156,10 @@ func bind_systems(
 		loot_picker.bind(_input_ctl)
 	if spell_loot_picker != null:
 		spell_loot_picker.bind(_input_ctl)
-	if mass_action_confirm_panel != null and _allocation_system != null:
+	# The allocation system is the panel's affordability oracle, not its
+	# trigger — a level without one still shows the confirm (dimmed), rather
+	# than arming a request no surface ever presents.
+	if mass_action_confirm_panel != null:
 		mass_action_confirm_panel.bind_systems(_input_ctl, _allocation_system)
 		if _input_ctl != null:
 			_input_ctl.mass_action_pending_changed.connect(_on_mass_action_pending_changed)

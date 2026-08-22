@@ -136,3 +136,11 @@ func test_requests_for_a_different_collector_are_ignored() -> void:
 	Events.spell_loot_requested.emit(req)
 	assert_false(_hud.spell_loot_picker.visible, "request for a non-player collector is ignored")
 	assert_false(req.handled, "HudRoot never claims a request that isn't the player's")
+
+
+## Both pickers override ConfirmButton by NODE PATH, and a stale path is a
+## silently dropped override rather than a load failure — the tests above read
+## `%`-unique nodes, which resolve either way.
+func test_each_picker_authors_its_own_confirm_label() -> void:
+	assert_eq(_hud.spell_loot_picker._confirm_button.text, "LEARN", "a spell draft LEARNs")
+	assert_eq(_hud.loot_picker._confirm_button.text, "CLAIM", "a dust pick CLAIMs")

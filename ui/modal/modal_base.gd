@@ -158,7 +158,14 @@ func _close() -> Variant:
 ## Esc and right-click are the same "back out" gesture the armed-mode stack
 ## uses. Safe to own here: while a modal is up [PlayerInputController] is
 ## frozen and [PauseMenu] is blocked (HudRoot), so nothing else is listening.
-func _unhandled_input(event: InputEvent) -> void:
+##
+## [b]`_input`, not `_unhandled_input`[/b] — the full-screen `Dim` is a
+## `MOUSE_FILTER_STOP` ColorRect (it has to be: it's what keeps the HUD's own
+## buttons from being clicked through a modal), so a mouse button is consumed
+## as GUI input and never reaches the unhandled phase at all. Right-click would
+## silently do nothing. Keys aren't GUI-picked, so Esc worked either way; both
+## live here so there is one gesture handler, not two.
+func _input(event: InputEvent) -> void:
 	if not visible or not cancellable:
 		return
 	if event.is_action_pressed(&"ui_cancel"):

@@ -144,3 +144,48 @@ func test_a_stale_request_closes_instead_of_presenting() -> void:
 	_panel.present(stale)
 	assert_false(_panel.visible, "a request the controller no longer holds is dead")
 	assert_eq(closes.size(), 1, "and still drains the queue")
+
+
+## The inherited scene overrides Title/Subtitle by NODE PATH, and a stale path
+## is a silently dropped override rather than a load failure — every other test
+## here reads `%`-unique nodes, which resolve either way. `present()` rewrites
+## the title text, so pin the styling the scene authored around it.
+func test_the_inherited_scene_overrides_actually_applied() -> void:
+	assert_eq(_panel._title.get_theme_font_size("font_size"), 24,
+			"the confirm's title is a size smaller than a picker's")
+	assert_eq(_panel._subtitle.autowrap_mode, TextServer.AUTOWRAP_WORD,
+			"the 'reaches N of M' line has to wrap")
+	assert_true(_panel._cancel_button.visible, "a mass action is refusable")
+
+
+## Esc and right-click both back out. They ride `_input`, not
+## `_unhandled_input`: the full-screen Dim is MOUSE_FILTER_STOP, so a mouse
+## button never reaches the unhandled phase.
+func test_escape_cancels() -> void:
+	_panel.present(_allocate_request(2))
+	var esc := InputEventAction.new()
+	esc.action = &"ui_cancel"
+	esc.pressed = true
+	_panel._input(esc)
+	assert_false(_panel.visible, "Esc refuses the request")
+	assert_null(_ctl.pending_mass_action(), "and clears it")
+
+
+func test_right_click_cancels() -> void:
+	_panel.present(_allocate_request(2))
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+	_panel._input(rmb)
+	assert_false(_panel.visible, "right-click refuses the request")
+
+
+## The loot pickers are must-answer: the same gestures do nothing there.
+func test_a_non_cancellable_modal_ignores_the_back_out_gestures() -> void:
+	_panel.cancellable = false
+	_panel.present(_allocate_request(2))
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+	_panel._input(rmb)
+	assert_true(_panel.visible, "nothing to back out of when there's no Cancel")
