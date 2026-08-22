@@ -56,12 +56,41 @@ func test_confirm_disabled_until_exactly_n_selected() -> void:
 func test_selecting_n_locks_remaining_cards() -> void:
 	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2), _mk_mod(&"armor", 3)]
 	var sink: Array = []
-	_picker.present(_request(cands, 1, sink))
+	_picker.present(_request(cands, 2, sink))
 	_body()._cards[0].button_pressed = true
 	_body()._cards[0].toggled.emit(true)
-	assert_true(_body()._cards[1].disabled, "unpicked cards lock once N reached")
+	_body()._cards[1].button_pressed = true
+	_body()._cards[1].toggled.emit(true)
 	assert_true(_body()._cards[2].disabled, "unpicked cards lock once N reached")
-	assert_false(_body()._cards[0].disabled, "the picked card stays togglable to swap")
+	assert_false(_body()._cards[0].disabled, "picked cards stay togglable to swap")
+	assert_false(_body()._cards[1].disabled, "picked cards stay togglable to swap")
+
+
+## Pick-1 is a ButtonGroup now (#522-adjacent "toggle more easily" ask):
+## picking a different card auto-deselects the old one in a single click, no
+## disable-then-pick-again dance, and the group's `allow_unpress` lets the
+## selected card drop back to nothing.
+func test_pick_one_uses_a_button_group_for_natural_exclusive_toggle() -> void:
+	var cands: Array[StatModifier] = [_mk_mod(&"armor", 1), _mk_mod(&"armor", 2), _mk_mod(&"armor", 3)]
+	var sink: Array = []
+	_picker.present(_request(cands, 1, sink))
+
+	_body()._cards[0].button_pressed = true
+	_body()._cards[0].toggled.emit(true)
+	assert_false(_body()._cards[1].disabled, "no lock needed — the group makes exclusivity automatic")
+	assert_true(_picker._confirm_button.disabled == false, "confirm valid with 1 of 1 selected")
+
+	# One click on a different card switches the pick — no need to deselect first.
+	_body()._cards[1].button_pressed = true
+	_body()._cards[1].toggled.emit(true)
+	assert_false(_body()._cards[0].button_pressed, "ButtonGroup auto-deselects the previous pick")
+	assert_true(_body()._cards[1].button_pressed)
+
+	# allow_unpress: clicking the selected card again drops the pick entirely.
+	_body()._cards[1].button_pressed = false
+	_body()._cards[1].toggled.emit(false)
+	assert_false(_body()._cards[1].button_pressed)
+	assert_true(_picker._confirm_button.disabled, "confirm off again with nothing selected")
 
 
 func test_confirm_resolves_with_the_chosen_subset() -> void:
