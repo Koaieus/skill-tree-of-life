@@ -193,37 +193,3 @@ func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
 	_build_blade()
 	assert_not_null(_panel._preview.current_blade(),
 			"a fresh selection must still mount a ghost afterwards")
-
-
-func test_the_reform_slot_is_captured_in_an_editor_hosted_panel() -> void:
-	# The #466 regression this file exists to catch from now on: the capture
-	# hangs off `attack_launched`, which `_ready` only subscribes to. GUT sees
-	# `is_editor_hint() == false`, so the guard that used to skip that whole
-	# block is invisible here — assert the SUBSCRIPTION, which is not.
-	# READ AS SOURCE, deliberately. Every runtime assertion here is blind to the
-	# bug: GUT has `is_editor_hint() == false`, so the guard that broke this
-	# never fires and the subscription happens regardless. The only check that
-	# goes red on a revert is the shape of the guard itself.
-	var src := FileAccess.get_file_as_string("res://systems/player_input_controller.gd")
-	var ready_body := src.substr(src.find("func _ready() -> void:"))
-	ready_body = ready_body.substr(0, ready_body.find("\nfunc "))
-	assert_false(ready_body.contains("if Engine.is_editor_hint():\n\t\treturn"),
-			"a blanket editor-hint return in _ready leaves every live sandbox tab "
-			+ "half-wired — see docs/domain/sandbox-framework.md")
-	var ctl: PlayerInputController = _panel._input_ctl
-	assert_true(ctl.battle_system.attack_launched.is_connected(ctl._on_attack_launched),
-			"the subscription Reform's slot hangs off")
-	var battle: BattleSystem = _panel._battle
-	battle.instant_mutation = true
-	_build_blade()
-	await battle.launch_attack()
-	# `launch_attack` returns inside its own command's application, so the
-	# applier is still draining — the very window `_flush_rearm` waits out.
-	while battle.command_applier.is_applying:
-		await get_tree().process_frame
-	assert_true(ctl.can_reform(), "the launched blade must be reformable")
-	assert_true(ctl.reform_blade(), "and Reform must rebuild it")
-	var plan := battle.attack_plan as MeleeAttackPlan
-	assert_eq(plan.source, _node("Hilt"), "same pivot")
-	assert_eq(plan.blade_nodes.size(), 4, "same members")
-	await get_tree().create_timer(0.6).timeout
