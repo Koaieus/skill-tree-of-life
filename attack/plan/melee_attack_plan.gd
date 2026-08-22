@@ -608,8 +608,12 @@ func resolve() -> AttackOutcome:
 	var trajectory := BladeSim.simulate(blade_state, drivers, SWING_DURATION)
 	var space_state := source.get_world_2d().direct_space_state
 	var exclude := collect_target_excludes()
+	# #530: the scan itself stable-sorts on SkillNode.stable_id, so the hit
+	# SET a pop cascade sees below never depends on physics broadphase order —
+	# nothing here re-sorts.
 	var events := BladeHitScan.scan(
-			trajectory, blade_state, space_state, 0xFFFFFFFF, exclude)
+			trajectory, blade_state, space_state, attacker.navigator.graph,
+			0xFFFFFFFF, exclude)
 	# #170/#502: pure, up-front ESTIMATE only — BladePopResolver.resolve runs
 	# before anything lands, so it can't see this swing's own cascades. Feeds
 	# thinned_nodes for AI scoring / AP estimation; the REAL gate for a live

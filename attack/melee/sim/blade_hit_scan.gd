@@ -16,10 +16,18 @@ extends RefCounted
 ## previews work the same way because the blade never enters the physics
 ## world — only the query shapes do.
 ##
-## Note this purity is over a SINGLE machine. Result ORDER within one
-## query is broadphase-dependent, so the same claim across peers is
-## stronger than anything Godot guarantees. That is why melee cannot be
-## replayed from attack intent alone (`docs/domain/multiplayer-sync-model.md`).
+## Result ORDER within one query is broadphase-dependent, for which Godot
+## documents no guarantee (#530). Since [MeleeAttackPlan] pops defensive
+## spikes DURING its scan of these events, that raw order could make the hit
+## SET itself, not merely its arithmetic, depend on broadphase — so [method
+## scan] stable-sorts its own output before returning: `t` first (the
+## gameplay-meaningful ordering — earlier contact, earlier consequence),
+## ties broken on [member SkillNode.stable_id], a value every peer agrees
+## on, never on collider identity or query position. This closes the
+## WITHIN-one-scan nondeterminism; it does not touch the
+## [constant _MAX_HITS_PER_QUERY] gap above, which is a different failure
+## mode (a truncated query can drop a collider entirely, not just reorder
+## it) and stays open — see `test_gap_melee_hit_detection_truncates_a_physics_query`.
 ##
 ## Per-element-per-collider dedup: each particle/edge emits at most one
 ## event per collider across the whole sweep, on first contact.
@@ -58,6 +66,7 @@ static func scan(
 		trajectory: BladeTrajectory,
 		state: BladeState,
 		space_state: PhysicsDirectSpaceState2D,
+		graph: Graph,
 		collision_mask: int = 0xFFFFFFFF,
 		exclude: Array[RID] = []) -> Array[BladeHitEvent]:
 	var events: Array[BladeHitEvent] = []
@@ -127,4 +136,32 @@ static func scan(
 					hit_edge[e_idx] = seen
 				seen[collider] = true
 				events.append(BladeHitEvent.new(t, -1, e_idx, collider))
+	_stable_sort(events, graph)
 	return events
+
+
+## Total order over [param events] — see the class docstring. `t` is the
+## gameplay-meaningful primary key; a tie (two colliders newly hit in the
+## SAME query, whose relative order Godot does not define) breaks on
+## [member SkillNode.stable_id], read through [param graph] so a node added
+## straight to the containers (id still 0) forces the mint rather than
+## silently tying on zeroes (`.claude/rules/graph.md`). A further tie
+## (same `t`, same target — a particle and an edge both landing on one
+## collider in the same substep) breaks on element kind then index, which
+## is already fully deterministic since the outer scan loops in fixed order.
+static func _stable_sort(events: Array[BladeHitEvent], graph: Graph) -> void:
+	events.sort_custom(func(a: BladeHitEvent, b: BladeHitEvent) -> bool:
+		if a.t != b.t:
+			return a.t < b.t
+		if graph != null:
+			var a_id := graph.get_stable_id(a.target as SkillNode)
+			var b_id := graph.get_stable_id(b.target as SkillNode)
+			if a_id != b_id:
+				return a_id < b_id
+		if a.is_edge_hit() != b.is_edge_hit():
+			return b.is_edge_hit()  # particles before edges, deterministically
+		return _element_idx(a) < _element_idx(b))
+
+
+static func _element_idx(ev: BladeHitEvent) -> int:
+	return ev.edge_idx if ev.is_edge_hit() else ev.particle_idx
