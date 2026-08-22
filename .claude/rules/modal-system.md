@@ -1,0 +1,1 @@
+A full-screen modal is an inherited scene of `ui/modal/modal_base.tscn` + a `ModalBodyBase` body, raised through HudRoot's `_enqueue_modal` and never via `get_tree().paused`. See docs/domain/modal-system.md

@@ -74,8 +74,20 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ConfirmButton" type="Button" parent="Center/Panel/VBox"]
+[node name="ButtonRow" type="HBoxContainer" parent="Center/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="Center/Panel/VBox/ButtonRow"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "CANCEL"
+
+[node name="ConfirmButton" type="Button" parent="Center/Panel/VBox/ButtonRow"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 disabled = true
 text = "CONFIRM"

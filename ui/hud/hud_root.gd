@@ -43,16 +43,21 @@ var _turn_manager: TurnManager
 var _vision_system: VisionSystem
 var _allocation_system: AllocationSystem
 
-## Pending-pick queue (#204): a kill can fire BOTH the dust pick and the spell
-## draft synchronously (both routed off `Events.entity_dying` inside
-## LootSystem). Both modals pause the tree, so they must be serialized rather
-## than both calling `present()` — the second `present()` would just stomp the
-## first's card grid. Each entry is a zero-arg Callable that shows one request;
-## `_drain_pending_picks` shows the next only once the current picker's
-## `closed` signal fires. Dust always queues before the spell draft because
-## LootSystem dispatches `_drop_skill_dust` before `_award_spell_loot`.
-var _pending_picks: Array[Callable] = []
-var _picker_busy: bool = false
+## Pending-modal queue (#204/#486): ONE [ModalBase] is up at a time, ever.
+## A kill can fire BOTH the dust pick and the spell draft synchronously (both
+## routed off `Events.entity_dying` inside LootSystem), and a second `present()`
+## would just stomp the first's cards — worse, since #486 traded the tree pause
+## for `set_input_frozen` (a plain bool, not a counter), two overlapping modals
+## would leave the first one to close unfreezing input under the second.
+## Serializing here is what keeps that bool honest, so EVERY modal goes through
+## this queue, not just the pickers.
+##
+## Each entry is a zero-arg Callable that shows one request; `_drain_modals`
+## shows the next only once the current modal's `closed` signal fires. Dust
+## always queues before the spell draft because LootSystem dispatches
+## `_drop_skill_dust` before `_award_spell_loot`.
+var _pending_modals: Array[Callable] = []
+var _modal_busy: bool = false
 
 ## Latch for the system-lifetime half of [method compose]. Everything keyed to
 ## a SYSTEM (the level's turn manager, battle system, hover bus) is wired once;
@@ -76,9 +81,11 @@ func _ready() -> void:
 		Events.spell_loot_requested.connect(_on_spell_loot_requested)
 		Events.game_over.connect(_on_game_over)
 		if loot_picker != null:
-			loot_picker.closed.connect(_on_picker_closed)
+			loot_picker.closed.connect(_on_modal_closed)
 		if spell_loot_picker != null:
-			spell_loot_picker.closed.connect(_on_picker_closed)
+			spell_loot_picker.closed.connect(_on_modal_closed)
+		if mass_action_confirm_panel != null:
+			mass_action_confirm_panel.closed.connect(_on_modal_closed)
 
 
 ## Let go of the hero's board when the level goes away. A Stat is a Resource
@@ -150,7 +157,9 @@ func bind_systems(
 	if spell_loot_picker != null:
 		spell_loot_picker.bind(_input_ctl)
 	if mass_action_confirm_panel != null and _allocation_system != null:
-		mass_action_confirm_panel.bind(_input_ctl, _allocation_system)
+		mass_action_confirm_panel.bind_systems(_input_ctl, _allocation_system)
+		if _input_ctl != null:
+			_input_ctl.mass_action_pending_changed.connect(_on_mass_action_pending_changed)
 	if xp_track != null and hero_sigil_card != null:
 		# The emblem badge is the card's, but the beat that bumps it is the XP
 		# bar's — one source for badge, banner and gauge (#317/#320). It rides
@@ -208,42 +217,55 @@ func _on_loot_pick_requested(request: LootPickRequest) -> void:
 	if loot_picker == null or _player == null or request.collector != _player:
 		return
 	request.handled = true
-	_enqueue_pick(func() -> void: loot_picker.present(request))
+	_enqueue_modal(func() -> void: loot_picker.present(request))
 
 
 ## Pick-1-from-M spell draft (#204). Same filter + handshake as the dust pick
-## above, queued behind it (see `_pending_picks`).
+## above, queued behind it (see `_pending_modals`).
 func _on_spell_loot_requested(request: SpellLootRequest) -> void:
 	if spell_loot_picker == null or _player == null or request.collector != _player:
 		return
 	request.handled = true
-	_enqueue_pick(func() -> void: spell_loot_picker.present(request))
+	_enqueue_modal(func() -> void: spell_loot_picker.present(request))
 
 
-func _enqueue_pick(show_request: Callable) -> void:
-	_pending_picks.append(show_request)
-	_drain_pending_picks()
-
-
-func _drain_pending_picks() -> void:
-	if _picker_busy or _pending_picks.is_empty():
+## The mass allocate-path / deallocate-cascade confirm (#486). Unlike the loot
+## picks this request has a LIVE lifetime on PlayerInputController — it can be
+## revoked from outside the modal (`clear_transient_state` on level teardown),
+## which is what the null branch is: take the panel down without answering,
+## which still unfreezes input and still drains the queue.
+func _on_mass_action_pending_changed(request: MassActionRequest) -> void:
+	if mass_action_confirm_panel == null:
 		return
-	_set_picker_busy(true)
-	var show_request: Callable = _pending_picks.pop_front()
+	if request == null:
+		mass_action_confirm_panel.dismiss()
+		return
+	_enqueue_modal(func() -> void: mass_action_confirm_panel.present(request))
+
+
+func _enqueue_modal(show_request: Callable) -> void:
+	_pending_modals.append(show_request)
+	_drain_modals()
+
+
+func _drain_modals() -> void:
+	if _modal_busy or _pending_modals.is_empty():
+		return
+	_set_modal_busy(true)
+	var show_request: Callable = _pending_modals.pop_front()
 	show_request.call()
 
 
-func _on_picker_closed() -> void:
-	_set_picker_busy(false)
-	_drain_pending_picks()
+func _on_modal_closed() -> void:
+	_set_modal_busy(false)
+	_drain_modals()
 
 
-## A picker modal is up/down (#486) — beyond the queue flag itself, this also
-## gates AnnouncementLayer (a Tween-driven banner must not draw over a frozen,
-## dimmed modal) and PauseMenu (Esc must not open the pause menu on top of a
-## pick).
-func _set_picker_busy(busy: bool) -> void:
-	_picker_busy = busy
+## A modal is up/down (#486) — beyond the queue flag itself, this also gates
+## AnnouncementLayer (a Tween-driven banner must not draw over a frozen, dimmed
+## modal) and PauseMenu (Esc must not open the pause menu on top of one).
+func _set_modal_busy(busy: bool) -> void:
+	_modal_busy = busy
 	if announcement_layer != null:
 		announcement_layer.set_modal_open(busy)
 	if pause_menu != null:

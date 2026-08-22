@@ -16,7 +16,7 @@ extends Control
 
 ## True while a picker modal (LootPicker/SpellLootPicker, #486) is up. Esc
 ## would otherwise fall through to here and open the pause menu on top of a
-## frozen pick — set by HudRoot alongside its `_picker_busy` lifecycle.
+## frozen pick — set by HudRoot alongside its `_modal_busy` lifecycle.
 var _blocked: bool = false
 
 

@@ -153,3 +153,11 @@ func test_present_freezes_input_and_confirm_unfreezes_it() -> void:
 	_body()._cards[0].toggled.emit(true)
 	_picker._on_confirm()
 	assert_false(input_ctl._input_frozen, "confirm unfreezes the input channel")
+
+
+## The inherited scene overrides ConfirmButton by NODE PATH — a path that moved
+## when [ModalBase] grew a ButtonRow for the Cancel button. A stale path is a
+## silently dropped override, not a load failure, so pin the authored label.
+func test_the_inherited_scene_still_authors_its_own_confirm_label() -> void:
+	assert_eq(_picker._confirm_button.text, "CLAIM", "LootPicker claims, it does not CONFIRM")
+	assert_false(_picker._cancel_button.visible, "a loot pick is a must-answer")

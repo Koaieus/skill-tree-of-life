@@ -1,14 +1,17 @@
 class_name MassActionRequest
 extends RefCounted
 
-## A pending multi-node allocate-path or deallocate-cascade confirmation
-## (see docs/domain/... mass-action confirm panel). Built by
-## PlayerInputController when a distant/would-island click can't resolve as a
-## single-node action, handed to MassActionConfirmPanel via
-## PlayerInputController.mass_action_pending_changed. Unlike LootPickRequest
-## there's no resolve()/handled/auto-resolve handshake — this only ever
-## originates from a direct player click, never something an NPC or headless
-## test needs to auto-resolve.
+## A pending multi-node allocate-path or deallocate-cascade confirmation (see
+## docs/domain/modal-system.md). Built by PlayerInputController when a
+## distant/would-island click can't resolve as a single-node action, handed to
+## [MassActionConfirmPanel] by HudRoot off
+## `PlayerInputController.mass_action_pending_changed`.
+##
+## Unlike LootPickRequest there's no resolve()/handled/auto-resolve handshake —
+## this only ever originates from a direct player click, never something an NPC
+## or headless test needs to auto-resolve. The controller holds it as LIVE
+## state instead, so confirm and cancel both route back through the controller
+## and the request can also be revoked from outside the modal.
 
 enum Verb { ALLOCATE, DEALLOCATE }
 

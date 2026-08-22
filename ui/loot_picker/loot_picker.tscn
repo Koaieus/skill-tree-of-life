@@ -28,5 +28,5 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_loot")
 [node name="Title" parent="Center/Panel/VBox" index="0"]
 text = "CLAIM LOOT"
 
-[node name="ConfirmButton" parent="Center/Panel/VBox" index="3"]
+[node name="ConfirmButton" parent="Center/Panel/VBox/ButtonRow" index="1"]
 text = "CLAIM"

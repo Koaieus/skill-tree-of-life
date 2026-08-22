@@ -6,12 +6,13 @@ extends ArmedMode
 ## `_armed_modes` — nothing should nest inside a pending confirmation.
 ##
 ## Live cancellation while the panel is up does NOT route through this —
-## MassActionConfirmPanel pauses the tree, so PlayerInputController's own
+## [MassActionConfirmPanel] freezes the input controller for as long as it is
+## showing (`set_input_frozen`, #486), so PlayerInputController's own
 ## `_unhandled_input`/`_unhandled_key_input` (where `_pop_armed_mode` is
-## called) never fire. The panel calls `PlayerInputController.cancel_mass_action()`
-## directly on its own Esc/right-click handling instead. This mode's `pop()`
-## still matters for `_has_armed_mode()` correctness in headless tests that
-## drive state without a live paused tree.
+## called) bail out before reaching it. [ModalBase] owns Esc/right-click while
+## a cancellable modal is up and calls `cancel_mass_action()` directly. This
+## mode's `pop()` still matters for `_has_armed_mode()` correctness in headless
+## tests that drive state with no modal in the tree at all.
 
 var _ctl: PlayerInputController
 

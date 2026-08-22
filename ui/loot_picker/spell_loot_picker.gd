@@ -6,12 +6,23 @@ extends ModalBase
 ## mechanics live on [ModalBase], [SpellLootPickerBody] (`%BodySlot`) owns the
 ## [SpellDef] card-building/selection logic. Driven by
 ## `Events.spell_loot_requested`; HudRoot filters to the player and queues
-## this behind the dust [LootPicker] (see HudRoot's `_pending_picks`).
+## this behind the dust [LootPicker] (see HudRoot's `_pending_modals`).
 
 const _BODY_SCENE := preload("res://ui/loot_picker/spell_loot_picker_body.tscn")
+
+
+func _ready() -> void:
+	super()
+	confirmed.connect(_on_confirmed)
 
 
 ## Show the draft for a request. HudRoot has already set `request.handled` so
 ## the emitter won't auto-resolve behind us.
 func present(request: SpellLootRequest) -> void:
 	_present(_BODY_SCENE, "SPELL DRAFT", request)
+
+
+## A [SpellLootRequest] carries its own resolve callback — [ModalBase] never
+## calls it, this does.
+func _on_confirmed(chosen: Array, request: Variant) -> void:
+	(request as SpellLootRequest).resolve(chosen)

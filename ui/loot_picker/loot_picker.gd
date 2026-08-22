@@ -14,7 +14,18 @@ extends ModalBase
 const _BODY_SCENE := preload("res://ui/loot_picker/loot_picker_body.tscn")
 
 
+func _ready() -> void:
+	super()
+	confirmed.connect(_on_confirmed)
+
+
 ## Show the chooser for a request. HudRoot has already set `request.handled` so
 ## the emitter won't auto-resolve behind us.
 func present(request: LootPickRequest) -> void:
 	_present(_BODY_SCENE, "CLAIM LOOT", request)
+
+
+## A [LootPickRequest] carries its own resolve callback — [ModalBase] never
+## calls it, this does.
+func _on_confirmed(chosen: Array, request: Variant) -> void:
+	(request as LootPickRequest).resolve(chosen)
