@@ -1,12 +1,20 @@
 class_name AttackOutcome
 extends RefCounted
 
-## The result of [method AttackPlan.resolve] — pure data describing what the
-## attack would do. Used twice:
-##   1. As a preview (UI tooltips, AI scoring) — call [method AttackPlan.resolve]
-##      anytime to peek at current outcome.
-##   2. As the commit payload — [BattleSystem.launch_attack] awaits VFX on it,
-##      then applies each hit's damage.
+## [b]The[/b] deterministic result of an [AttackPlan]'s inputs, already landed in
+## the [CombatWorld] it was resolved against. Not a plan of what the attack
+## [i]would[/i] do — since #536 there is no such intermediate state, because
+## resolving IS applying (to a shadow you may discard). Used twice:
+##   1. As a preview (UI tooltips, AI scoring) — [method AttackPlan.resolve]
+##      resolves against a throwaway [method CombatWorld.shadow], so the numbers
+##      are post-mitigation and post-cascade, and the real world is untouched.
+##   2. As the commit payload — the authority resolves on its own shadow,
+##      captures an [AttackRecord] from this, and every machine (itself included)
+##      replays that record on the beat clock.
+##
+## The plan holds the INPUTS; this holds the RESULT of them. Change an input and
+## the outcome is recomputable — that is what makes
+## [member resolve_seed] enough to reproduce it.
 
 ## Every landing this outcome produced — damage and heals together (#381),
 ## in append order. Consumers that need damage specifically call

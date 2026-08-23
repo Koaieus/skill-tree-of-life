@@ -38,10 +38,14 @@ built by reading this as universal.
 
 Two halves, both load-bearing:
 
-- **Resolution is still pure and still up-front.** It produces an
-  `AttackOutcome` — a *plan of landings*, not a result. That is what makes it
-  usable as a preview, as AI scoring input, and as #458's wire payload. This
-  half is unchanged.
+- **Resolution is still up-front, and since #536 it is no longer *pure*.** It
+  produces an `AttackOutcome` that has **already landed** in the `CombatWorld`
+  it was handed — a result, not a plan of landings. What makes it safe as a
+  preview, as AI scoring input and as #458's wire payload is not that it
+  mutates nothing, but that the thing it mutates is a throwaway shadow (see
+  "The world is ALWAYS a shadow" below). Read that section before writing code
+  against `resolve()`; the rest of this page describes the timeline the
+  landings run on either way.
 - **Application is staged and live.** Each landing's *gate* — "is this target
   still allocated? still hostile? is this blade vertex still alive?" — is
   re-checked at the moment the landing applies, not at the moment it was
@@ -112,17 +116,73 @@ The target state. Where this differs from what the code does today, the
 | Input | Clock | Today |
 |---|---|---|
 | Candidate landing set (which nodes *could* be hit) | **Resolve** | ✅ all three modes |
-| Ordering of landings | **Resolve** (authored into `arrival_time`) | ⚠️ ranged applies in append order, not arrival order; melee/magic don't set `arrival_time` at all |
-| Landing gate (target still allocated / still hostile / vertex still alive) | **Land** | ❌ frozen at resolve in all three modes |
-| Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Land** | ❌ frozen at resolve in all three modes |
+| Ordering of landings | **Resolve** (authored into `arrival_time`) | ✅ all three modes stamp a real `arrival_time`; `OutcomeApplier` sorts on it (#499) |
+| Landing gate (target still allocated / still hostile / vertex still alive) | **Land** | ✅ all three modes (#501 / #502 / #503) |
+| Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** | ✅ all three modes — snapshotted, see below |
 | Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Resolve** | ✅ all three modes, one shared `CritRoll` (#507) — see below |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** | ✅ all three modes, in base `DamageInstance`/`HealInstance.land_on` |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** | ✅ already live — `Mitigation.apply` runs inside `SkillNode.take_damage` |
 | Cascade / dealloc / entity death | **Land** | ✅ already live and synchronous |
 
-The old shape was **defence live, offence frozen**, which has no principle
-behind it — it is simply where `Mitigation` happened to be called from. The
-contract is **set frozen, all arithmetic live.**
+### Offense is snapshotted at commit time — settled 2026-08-23
+
+This doc used to say the split was **defence live, offence frozen**, that it had
+"no principle behind it", and that the fix was to read offense at land time in
+all three modes. **That was wrong, and #503 shipped the wrong half of it.** The
+owner ruled the other way, and the three modes turn out to have been telling the
+same story all along:
+
+> **ranged** — *"snapshot damage at launch… recalculating while arrows are
+> mid-flight makes no sense. If the first 2 arrows kill the target, 1) iff we
+> were to recalculate the damage, it'd be for the remaining 3 arrows, which do
+> nothing."*
+>
+> **melee** — *"you copy a blade, then swing it around. The copy is essentially
+> disjoint from the graph and shouldn't update its damage while it swings.
+> Copy-time is where it's all at: forge blade then use it."*
+>
+> **magic** — *"the caster casts a spell, at that moment the stats of the caster
+> and/or casting node are important, beyond that it's a spell in flight — it
+> carries its own. Makes no sense for the cast spell to listen to any changes of
+> the caster while in flight."*
+>
+> — @Koaieus, 2026-08-23
+
+So the contract is **set frozen, offense frozen, defence live**:
+
+| | Clock | Because |
+|---|---|---|
+| Candidate set | Commit | resolution must not discover targets |
+| Attacker offense | Commit | the projectile / blade / spell carries what it left with |
+| Landing gate | Land | the world it arrives in decides whether it arrives at all |
+| Defender mitigation, cascade | Land | that is the defender's live state, not the attacker's |
+
+**Nothing is lost by freezing offense, and that is the load-bearing half of the
+argument.** The case that motivated a live read — a volley whose early arrows
+already killed the target, so the late ones "should" recompute — is handled by
+the **gate**, which vetoes them entirely. A stale number on an arrow that never
+lands is not an error. Where the gate lets a hit through, the target is still
+there and the attacker's own launch-time strength is the honest number.
+
+Each mode's snapshot point, concretely:
+
+- **Ranged** — `RangedDamageFormula.compute`, once per scheduled shot, all of
+  them before any landing. Its `_read_offense` is the only read; #503's
+  land-time re-read in `RangedHitInstance.land_on` was deleted.
+- **Melee** — `MeleeAttackPlan.build_blade_state()` stamps
+  `vertex_damage[i]` from each source node's `blade_damage`. Forge, then swing.
+- **Magic** — `SpellResolver.impact_damage`, once at cast. It has a second,
+  independent reason to freeze, stated at that function: a per-hop re-read would
+  compound INT (INT² by hop 2).
+
+**Ranged's freeze rests on a relationship between two constants**, and it is
+pinned rather than commented (`test_ranged_damage_formula.gd`):
+`FLIGHT_TIME` (0.8) **must stay greater than** `TOTAL_STAGGER` (0.7), so the
+last arrow launches before the first one lands. Retune `TOTAL_STAGGER` above
+`FLIGHT_TIME` and an arrow would be loosed *after* an earlier arrow had already
+cascaded the board — at which point "snapshot at launch" and "snapshot at
+resolve" stop being the same thing, silently, with no test failing and damage
+merely going stale.
 
 ### The crit split — the one input that spans two clocks
 
@@ -136,12 +196,19 @@ in a way that is invisible until you look at the VFX layer.
   wave. Deciding at land makes every magic projectile read tier 0. Magic's
   `SpellDef.crit_conditions` are resolve-bound anyway: they read `CastSpell`
   propagation state (predecessor, incident count) that exists nowhere else.
-- **The multiply cannot happen at resolve.** `RangedHitInstance.land_on`
-  overwrites `amount` with a live `ranged_damage` read, so anything resolve
-  multiplied in is discarded.
+- **The multiply still happens at land**, in base
+  `DamageInstance`/`HealInstance.land_on`. The original reason was that
+  `RangedHitInstance.land_on` overwrote `amount` with a live `ranged_damage`
+  read, discarding anything resolve had multiplied in — that read is gone as of
+  2026-08-23 (above), so the surviving reason is narrower and worth stating:
+  **a gated hit must not carry a multiplied amount.** A veto returns before
+  `super.land_on`, so a dud's `amount` stays exactly what was loosed rather
+  than a crit-inflated number no one ever took. That is also how the property
+  is now pinned, since with offense frozen the two clocks are otherwise
+  indistinguishable on a hit that lands.
 
-So the decision is frozen with the candidate set and the **arithmetic is
-live**, which is exactly what the contract above asks for. The residual cost
+So the decision is frozen with the candidate set and the multiply is applied
+at land. The residual cost
 is stated plainly: `crit_chance` / `crit_multiplier` are read at resolve, so a
 mid-attack change to either is not seen by hits already in flight.
 
@@ -159,7 +226,9 @@ not.
 1. **Emit candidates in time order**, each stamped with a real
    `HitInstance.arrival_time` in seconds from launch.
 2. **Re-evaluate ownership and liveness at land time**, per landing.
-3. **Read attacker offense at land time**, not resolve time.
+3. **Snapshot attacker offense at commit time**, and never re-read it at land
+   (see "Offense is snapshotted at commit time" above — this item said the
+   opposite until 2026-08-23).
 4. **Resolve against a substrate** (below), so AI and preview never mutate the
    real world.
 
@@ -206,7 +275,8 @@ do the job they were written for.
 ### Ranged
 
 The degenerate case: candidates sorted by `arrival_time`, gate re-checked per
-landing. Plus the volley ramp, below.
+landing, damage snapshotted at launch and never re-read. Plus the volley ramp,
+below.
 
 ---
 

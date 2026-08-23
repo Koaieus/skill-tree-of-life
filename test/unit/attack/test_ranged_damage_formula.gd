@@ -27,6 +27,26 @@ func _set_ranged_damage(node: SkillNode, value: float) -> void:
 	node.add_local_modifier(m)
 
 
+func test_every_arrow_launches_before_the_first_one_lands() -> void:
+	# This is what makes ranged's snapshot-at-launch damage correct (owner call
+	# 2026-08-23, docs/domain/attack-timeline.md "Offense is snapshotted at
+	# commit time"). `compute` reads `ranged_damage` for every shot up front;
+	# that is only the same thing as "at launch" while the LAST launch still
+	# precedes the FIRST arrival:
+	#
+	#   last launch  = DRAW_TIME + TOTAL_STAGGER
+	#   first arrival = DRAW_TIME + FLIGHT_TIME
+	#
+	# Retune TOTAL_STAGGER past FLIGHT_TIME and an arrow gets loosed AFTER an
+	# earlier arrow has already cascaded the board — at which point the frozen
+	# number is stale and nothing else in the suite would notice, because the
+	# damage would merely be wrong, never absent. Hence an assert and not a
+	# comment.
+	assert_gt(RangedDamageFormula.FLIGHT_TIME, RangedDamageFormula.TOTAL_STAGGER,
+			"a volley must fully launch before it starts landing, or "
+			+ "snapshot-at-launch damage silently goes stale")
+
+
 func test_amount_reads_firing_nodes_ranged_damage() -> void:
 	var firing := _owned_node()
 	await get_tree().process_frame
@@ -64,22 +84,33 @@ func test_null_firing_node_yields_zero_amount() -> void:
 	assert_null(hit.origin)
 
 
-# ── Land-time gate + live read (#503) ───────────────────────────────────
+# ── Land-time gate; offense frozen at launch ────────────────────────────
 
-func test_land_on_reads_ranged_damage_live_not_frozen_at_resolve() -> void:
+## Inverted 2026-08-23. This test used to be
+## `test_land_on_reads_ranged_damage_live_not_frozen_at_resolve` and pinned
+## #503's land-time re-read. The owner reversed that call — an arrow is loosed
+## with the damage it was loosed with — so the same fixture now pins the
+## opposite, deliberately kept rather than deleted so the reversal is legible
+## in `git log -L` on this function.
+##
+## Owner, 2026-08-23: "recalculating while arrows are mid-flight makes no
+## sense." See docs/domain/attack-timeline.md, "Offense is snapshotted at
+## commit time".
+func test_land_on_applies_the_amount_the_arrow_was_loosed_with() -> void:
 	var firing := _owned_node()
 	var target := _owned_node()
 	await get_tree().process_frame
 	_set_ranged_damage(firing, 5.0)
 	var hit := RangedDamageFormula.compute(null, firing, target)
-	assert_almost_eq(hit.amount, 5.0, 0.001, "resolve-time snapshot, for preview/AI use")
+	assert_almost_eq(hit.amount, 5.0, 0.001, "the launch-time read")
 
-	# Mid-volley: the firing node's ranged_damage changes AFTER resolve, before land.
+	# Mid-volley: the firing node's ranged_damage changes AFTER launch. An arrow
+	# already in flight does not consult the archer again.
 	_set_ranged_damage(firing, 9.0)
 	var hp_before := target.get_current_hp()
 	hit.land_on(target.get_combat(), CombatWorld.live())
-	assert_almost_eq(hp_before - target.get_current_hp(), 9.0, 0.001,
-			"land_on must apply the LIVE ranged_damage, not the resolve-time snapshot")
+	assert_almost_eq(hp_before - target.get_current_hp(), 5.0, 0.001,
+			"the arrow carries its loosed damage, not the archer's current stat")
 
 
 func test_land_on_vetoes_and_marks_gated_when_target_no_longer_allocated() -> void:

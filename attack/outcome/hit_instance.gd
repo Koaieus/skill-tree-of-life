@@ -57,9 +57,19 @@ var arrival_time: float = 0.0
 
 ## Post-mitigation / post-clamp HP delta magnitude — what actually landed,
 ## always positive regardless of [member kind]. Filled in by
-## [method SkillNode.take_damage] / [method SkillNode.heal_damage] the
+## [method NodeCombat.take_damage] / [method NodeCombat.heal_damage] the
 ## instant they apply this instance (still ahead of any VFX reveal).
-## 0.0 until applied.
+##
+## [b]Always filled by the time anyone can read it.[/b] This said "0.0 until
+## applied" from when [method AttackPlan.resolve] handed back an UNLANDED plan.
+## Since #536 resolving IS applying — to a [method CombatWorld.shadow] the
+## caller may throw away — so every outcome [method AttackPlan.resolve_against]
+## returns has already landed every hit it holds, and AI scoring reads real
+## post-mitigation numbers rather than pre-mitigation estimates.
+##
+## Still 0.0 in exactly one case: a hit whose gate vetoed it ([member gated]),
+## which never reached a mitigation pass at all. That is what [member gated]
+## exists to distinguish from "their armour held".
 var effective_amount: float = 0.0
 
 ## The target's HP pool around this landing, and its cap — filled by

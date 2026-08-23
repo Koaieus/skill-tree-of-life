@@ -56,29 +56,41 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode)
 	return hit
 
 
-## Shared by [method compute] (the resolve-time PREVIEW read — AI scoring,
-## tooltips) and [RangedHitInstance.land_on] (the land-time LIVE read, #503)
-## so the two can never drift into two implementations of "what does this
-## firing node's shot deal".
+## The one read of "what does this firing node's shot deal", called by
+## [method compute] as each shot is scheduled — i.e. at LAUNCH, before any
+## arrow in the volley has landed.
+##
+## [b]There is no land-time re-read any more (owner call 2026-08-23).[/b] #503
+## added one here; it is gone. An arrow is loosed with the damage it was loosed
+## with, and a shot already in flight does not consult the archer again:
+##
+## [i]"recalculating while arrows are mid-flight makes no sense... if the first
+## 2 arrows kill the target, it'd be for the remaining 3 arrows, which do
+## nothing"[/i]
+##
+## That last clause is why nothing is lost: a volley that overkills its target
+## does not need stale damage corrected, because [method
+## RangedHitInstance._passes_gate] vetoes those arrows outright. The GATE stays
+## live; only the arithmetic froze. See docs/domain/attack-timeline.md, "Offense
+## is snapshotted at commit time".
 ##
 ## Takes the firing node's [NodeCombat] rather than the [SkillNode] (#498 step
-## 3): the land-time read must come from whichever world the hit is landing in,
-## and [method NodeCombat.get_local_value] is the same merge
-## [method SkillNode.get_local_value] delegates to — so the resolve-time read
-## above is unchanged in value, only in spelling.
+## 3) because [method NodeCombat.get_local_value] is the same merge
+## [method SkillNode.get_local_value] delegates to — same value, one spelling.
 static func _read_offense(firing_slice: NodeCombat) -> float:
 	if firing_slice == null:
 		return 0.0
 	return float(firing_slice.get_local_value(&"ranged_damage"))
 
 
-## Ranged's land-time gate + live-offense read (#503) — the ranged sibling of
-## [BladeDamageInstance] (#502, `attack/melee/sim/blade_damage_instance.gd`).
-## [method compute] stays pure and up-front: the `amount` it stamps is only
-## ever a resolve-time PREVIEW (AI scoring, tooltips). The live re-check and
-## the live `ranged_damage` read both happen here, in [method land_on],
+## Ranged's land-time GATE (#503) — the ranged sibling of [BladeDamageInstance]
+## (#502, `attack/melee/sim/blade_damage_instance.gd`). [method land_on] is
 ## called once per hit by [OutcomeApplier] in [member HitInstance.arrival_time]
 ## order (docs/domain/attack-timeline.md).
+##
+## The gate is the ONLY live read here. The `amount` [method compute] stamped at
+## launch is the amount that lands — see [method RangedDamageFormula._read_offense]
+## for the owner call that removed the land-time re-read.
 class RangedHitInstance extends DamageInstance:
 	## The attacker this shot was fired for is [member HitInstance.attacker] —
 	## promoted to the base class in #507 so the shared [CritRoll] can read its
@@ -94,23 +106,17 @@ class RangedHitInstance extends DamageInstance:
 	## cascade, islanding the firing leaf). A veto marks [member
 	## HitInstance.gated] so VFX can render the dud beat distinctly from a
 	## hit that landed and fully mitigated to zero.
-	##
-	## The live offense read happens BEFORE `super`, deliberately: `super`'s
-	## first act is [method CritRoll.apply], so the crit multiplies the number
-	## this line just read rather than a resolve-time estimate that was about
-	## to be thrown away (#507).
 	func land_on(node: NodeCombat, world: CombatWorld) -> void:
-		# The firing node's slice in THIS world — the gate's allocation check and
-		# the live offense read must both come from the world the hit is landing
-		# in, or a shadow would read the real board and report the wrong number
-		# for a volley that has already cost the firer nodes.
+		# The firing node's slice in THIS world — the gate's allocation check
+		# must come from the world the hit is landing in, or a shadow would ask
+		# the real board whether a node this volley already cost the firer is
+		# still theirs.
 		var origin_slice: NodeCombat = null
 		if origin != null and is_instance_valid(origin):
 			origin_slice = world.combat_for(origin)
 		if not _passes_gate(node, origin_slice):
 			gated = true
 			return
-		amount = RangedDamageFormula._read_offense(origin_slice)
 		super.land_on(node, world)
 
 

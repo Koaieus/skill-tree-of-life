@@ -216,8 +216,12 @@ func _spawn_at(graph: Graph, nm: String, pos: Vector2) -> SkillNode:
 ## target. Five reaching leaves means five shots, so five crit draws — enough
 ## that a broken derivation shows up as a different pattern rather than a
 ## coin flip that happens to agree.
-func _ranged_plan(crit_chance: float) -> RangedAttackPlan:
+## [param target_health] defaults to the fixture's usual bottomless 9999 so the
+## volley never kills anything; pass something small to make the first arrival
+## lethal and the rest of the volley gated duds.
+func _ranged_plan(crit_chance: float, target_health: float = 9999.0) -> RangedAttackPlan:
 	var w := _make_allocated_world()
+	w.defender.stat_board.get_stat(&"node_health").base_value = target_health
 	var graph: Graph = w.graph
 	var alloc: AllocationSystem = w.alloc
 	var attacker: Entity = w.attacker
@@ -372,26 +376,43 @@ func test_crit_draws_are_consumed_in_arrival_order() -> void:
 func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
 	# The other half of the two-clock split (#507): the DECISION is made before
 	# anything lands, so VFX can read `is_crit` on a projectile it is about to
-	# launch, but the ARITHMETIC is at land, after ranged's live `ranged_damage`
-	# re-read (#503) would otherwise have thrown a resolve-time multiply away.
+	# launch, but the ARITHMETIC is at land.
 	#
-	# Since #536 both clocks tick inside `resolve_against`, which lands its
-	# outcome in the world it was handed — so the property is asserted by its
-	# RESULT rather than by an intermediate state that no longer exists: the
-	# number that comes out is the live offense read × the multiplier, which
-	# only a land-time multiply can produce (a resolve-time one would have been
-	# overwritten by `RangedHitInstance.land_on`'s `amount = _read_offense(...)`).
-	var plan := _ranged_plan(1.0)
+	# THE DISCRIMINATOR CHANGED ON 2026-08-23, and that is the whole reason this
+	# test looks the way it does. It used to lean on ranged's live
+	# `ranged_damage` re-read (#503), which would have thrown a resolve-time
+	# multiply away. Offense is snapshotted at launch now and that re-read is
+	# gone, so on a hit that LANDS the two clocks produce identical numbers and
+	# asserting on one proves nothing.
+	#
+	# What still separates them is a hit that does NOT land. A gate veto returns
+	# before `super.land_on`, so a dud carries exactly the amount it was loosed
+	# with. Multiply at resolve and the dud would be crit-inflated instead.
+	var plan := _ranged_plan(1.0, 1.0)  # 1 HP: the first arrival kills, the rest are duds
 	plan.resolve_seed = 7
 	var world := CombatWorld.shadow()
 	var outcome := plan.resolve_against(world)
-	var hit: HitInstance = outcome.hits[0]
-	assert_true(hit.is_crit, "decided before the landing, for the VFX to read")
 	var offense: float = RangedDamageFormula._read_offense(
-			world.combat_for(hit.origin))
+			world.combat_for(outcome.hits[0].origin))
 	assert_gt(offense, 0.0, "fixture must deal real damage or this proves nothing")
-	assert_almost_eq(hit.amount, offense * 2.0, 0.001,
-			"the live offense read, multiplied — so the multiply came after it")
+
+	var landed: Array[HitInstance] = []
+	var duds: Array[HitInstance] = []
+	for hit in outcome.hits:
+		assert_true(hit.is_crit, "decided before the landing, for the VFX to read")
+		if hit.gated:
+			duds.append(hit)
+		else:
+			landed.append(hit)
+	assert_false(landed.is_empty(), "the volley must land at least one arrow")
+	assert_false(duds.is_empty(),
+			"1 HP target: the arrows after the killing one must be gated, or "
+			+ "this test has nothing to measure")
+	assert_almost_eq(landed[0].amount, offense * 2.0, 0.001,
+			"a landed crit is the loosed amount × the multiplier")
+	assert_almost_eq(duds[0].amount, offense, 0.001,
+			"a gated dud never reached CritRoll.apply — multiplying at resolve "
+			+ "would have inflated it before the veto")
 	world.free_shadow()
 
 
