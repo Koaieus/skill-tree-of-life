@@ -259,7 +259,7 @@ func set_spell_damage(entity: Entity, value: float) -> void:
 ## multiplying by hand is the point — a `land_on` override that forgot to
 ## call [method CritRoll.apply] has to fail these.
 func land(outcome: AttackOutcome) -> void:
-	OutcomeApplier.apply(outcome)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
 
 
 func hits_by_node(outcome: AttackOutcome) -> Dictionary:

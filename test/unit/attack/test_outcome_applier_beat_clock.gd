@@ -71,7 +71,7 @@ func test_instant_clock_lands_every_hit_synchronously() -> void:
 	# Not awaited: with an instant clock the applier never parks, which is what
 	# keeps tests that read world state on the line after `launch_attack`
 	# working unmodified.
-	OutcomeApplier.apply(outcome, BeatClock.instant_clock())
+	OutcomeApplier.apply(outcome, CombatWorld.live(), BeatClock.instant_clock())
 	for i in 3:
 		assert_almost_eq(_nodes[i].get_current_hp(), before[i] - 3.0, 0.001,
 				"hit %d must have landed with no waiting" % i)
@@ -88,7 +88,7 @@ func test_real_clock_lands_each_hit_at_its_own_arrival_time() -> void:
 		_hit(_nodes[1], 3.0, 0.15),
 		_hit(_nodes[2], 3.0, 0.30),
 	])
-	OutcomeApplier.apply(outcome, BeatClock.for_tree(get_tree()))
+	OutcomeApplier.apply(outcome, CombatWorld.live(), BeatClock.for_tree(get_tree()))
 
 	assert_eq(landed.size(), 1, "only the t=0 hit lands before any waiting")
 	await get_tree().create_timer(0.20).timeout
@@ -112,7 +112,7 @@ func test_hits_land_in_arrival_order_not_append_order() -> void:
 		_hit(_nodes[0], 3.0, 0.0),
 		_hit(_nodes[1], 3.0, 0.15),
 	])
-	OutcomeApplier.apply(outcome, BeatClock.for_tree(get_tree()))
+	OutcomeApplier.apply(outcome, CombatWorld.live(), BeatClock.for_tree(get_tree()))
 	await get_tree().create_timer(0.45).timeout
 	Events.skill_node_damaged.disconnect(handler)
 	assert_eq(landed, _nodes, "arrival order wins over append order")
@@ -132,7 +132,7 @@ func test_draining_mid_window_lands_the_remaining_hits() -> void:
 		_hit(_nodes[1], 3.0, 10.0),
 		_hit(_nodes[2], 3.0, 20.0),
 	])
-	OutcomeApplier.apply(outcome, clock)
+	OutcomeApplier.apply(outcome, CombatWorld.live(), clock)
 	assert_almost_eq(_nodes[1].get_current_hp(), before[1], 0.001,
 			"precondition: the 10s hit is still pending")
 

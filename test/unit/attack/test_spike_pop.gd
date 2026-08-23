@@ -172,7 +172,7 @@ func test_live_gate_admits_a_live_spiked_hit() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
-	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)),
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live()),
 			"a live spike still pops (no damage lands)")
 	assert_eq(gate.result.pops.size(), 1, "the pop is recorded")
 
@@ -182,12 +182,12 @@ func test_live_gate_does_not_pop_on_a_node_the_swing_already_killed() -> void:
 	var state := _chain_state()
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 	# Vertex 1 hits the plain node first — an ordinary, live-admitted contact.
-	assert_true(gate.admit(_ev(0.1, 1, ctx.plain_node)), "a live target admits")
+	assert_true(gate.admit(_ev(0.1, 1, ctx.plain_node), CombatWorld.live()), "a live target admits")
 	# Simulate the real cascade this same swing's earlier damage would have
 	# triggered (force_deallocate on an islanded remainder) landing BEFORE
 	# vertex 1 reaches the spiked node.
 	(ctx.spike_node as SkillNode).owned_by = null
-	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)),
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live()),
 			"dead target: no damage lands, indistinguishable from a miss")
 	assert_eq(gate.result.pops.size(), 0,
 			"a spike on an already-dead node must not pop the blade vertex")
@@ -222,7 +222,7 @@ func test_live_gate_emits_the_pop_cue_as_it_pops() -> void:
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 
 	watch_signals(Events)
-	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)),
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live()),
 			"a live spike pops the vertex (no damage lands)")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
 	var params: Array = get_signal_parameters(Events, "blade_vertex_popped")
@@ -238,9 +238,9 @@ func test_disintegrated_vertex_emits_no_second_pop_cue() -> void:
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 
 	watch_signals(Events)
-	gate.admit(_ev(0.3, 1, ctx.spike_node))
+	gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live())
 	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
-	gate.admit(_ev(0.5, 1, ctx.plain_node))
+	gate.admit(_ev(0.5, 1, ctx.plain_node), CombatWorld.live())
 	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
 
 
@@ -253,7 +253,7 @@ func test_no_pop_cue_when_the_target_is_already_dead() -> void:
 	(ctx.spike_node as SkillNode).owned_by = null
 
 	watch_signals(Events)
-	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node)))
+	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live()))
 	assert_signal_emit_count(Events, "blade_vertex_popped", 0)
 
 

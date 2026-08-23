@@ -237,13 +237,66 @@ func test_ownership_bit_reads_the_same_through_a_shadow() -> void:
 			"and the live node still answers it the same, through the same code")
 
 
+# ── the assumption the design rests on ───────────────────────────────────────
+
+func test_a_full_shadow_resolve_changes_no_topology() -> void:
+	# LOAD-BEARING, and this is the only thing holding it up. #535 dropped the
+	# shared shadow GraphMirror on the grounds that topology never changes
+	# mid-attack — so islanding and propagation keep walking the REAL graph and
+	# only ownership and stats route through the slice. The day a mechanic
+	# severs or adds an edge mid-cascade (a displacement or a terraform
+	# mechanic), a shadow's propagation goes wrong SILENTLY, with no other test
+	# in the suite positioned to notice. Fail here first.
+	#
+	# Same standing assumption melee's physics exemption relies on
+	# (docs/domain/attack-timeline.md): BladeHitScan scans real geometry once
+	# because nothing moves nodes mid-attack.
+	var nodes_before := _graph.get_skill_nodes().size()
+	var edges_before := _graph.get_edges().size()
+	var adjacency_before: Dictionary = {}
+	for n in _graph.get_skill_nodes():
+		var names := PackedStringArray()
+		for nb in _graph.get_neighbours(n):
+			names.append(nb.name)
+		names.sort()
+		adjacency_before[n.name] = names
+
+	OutcomeApplier.apply(_killing_outcome(), _shadow())
+
+	assert_eq(_graph.get_skill_nodes().size(), nodes_before, "no node entered or left the graph")
+	assert_eq(_graph.get_edges().size(), edges_before, "and no edge did either")
+	var adjacency_after: Dictionary = {}
+	for n in _graph.get_skill_nodes():
+		var names := PackedStringArray()
+		for nb in _graph.get_neighbours(n):
+			names.append(nb.name)
+		names.sort()
+		adjacency_after[n.name] = names
+	assert_eq(adjacency_after, adjacency_before,
+			"every node's neighbour set is identical — a shadow may re-own, never re-wire")
+
+
+func test_the_live_cascade_changes_no_topology_either() -> void:
+	# The other half of the same assumption: a REAL forced-dealloc cascade
+	# un-owns nodes and leaves the graph's shape alone. If this one ever fails,
+	# the shadow's real-graph reads were never safe in the first place.
+	var edges_before := _graph.get_edges().size()
+	var nodes_before := _graph.get_skill_nodes().size()
+
+	OutcomeApplier.apply(_killing_outcome(), CombatWorld.live())
+
+	assert_eq(_graph.get_edges().size(), edges_before)
+	assert_eq(_graph.get_skill_nodes().size(), nodes_before)
+	assert_null(_d1.owned_by, "fixture check: the cascade really did run")
+
+
 # ── the acceptance: same numbers, no mutation ────────────────────────────────
 
 func test_applying_a_whole_outcome_to_a_shadow_leaves_the_real_world_untouched() -> void:
 	var hp_before := _hp_of_all()
 	var owners_before := _owners_of_all()
 
-	OutcomeApplier.apply(_killing_outcome(), null, _shadow())
+	OutcomeApplier.apply(_killing_outcome(), _shadow())
 
 	assert_eq(_hp_of_all(), hp_before, "no real node lost HP to a simulated volley")
 	assert_eq(_owners_of_all(), owners_before, "and the cascade deallocated nothing real")
@@ -256,10 +309,10 @@ func test_a_shadow_run_reports_the_same_numbers_the_live_run_produces() -> void:
 	# report identically — including each landing's HP window and the whole
 	# forced-dealloc cascade the middle hit sets off.
 	var simulated := _killing_outcome()
-	OutcomeApplier.apply(simulated, null, _shadow())
+	OutcomeApplier.apply(simulated, _shadow())
 
 	var real := _killing_outcome()
-	OutcomeApplier.apply(real)
+	OutcomeApplier.apply(real, CombatWorld.live())
 
 	assert_eq(_readout(simulated), _readout(real),
 			"preview and execution are one code path; only the world differs")
@@ -270,13 +323,13 @@ func test_the_cascade_a_shadow_charges_is_the_cascade_the_live_run_charges() -> 
 	# wound / dealloc chip each stripped node costs.
 	var simulated := _killing_outcome()
 	var w := _shadow()
-	OutcomeApplier.apply(simulated, null, w)
+	OutcomeApplier.apply(simulated, w)
 	var shadow_sp: float = (w.combat_for_entity(_defender).board()
 			.get_stat(&"skill_points") as PoolStat).current
 	var shadow_hp: float = (w.combat_for_entity(_defender).board()
 			.get_stat(&"health") as PoolStat).current
 
-	OutcomeApplier.apply(_killing_outcome())
+	OutcomeApplier.apply(_killing_outcome(), CombatWorld.live())
 	var live_sp: float = (_defender.stat_board.get_stat(&"skill_points") as PoolStat).current
 	var live_hp: float = (_defender.stat_board.get_stat(&"health") as PoolStat).current
 
@@ -286,7 +339,7 @@ func test_the_cascade_a_shadow_charges_is_the_cascade_the_live_run_charges() -> 
 
 func test_a_shadow_cascade_islands_the_far_side_without_touching_real_ownership() -> void:
 	var w := _shadow()
-	OutcomeApplier.apply(_killing_outcome(), null, w)
+	OutcomeApplier.apply(_killing_outcome(), w)
 
 	var defender_shadow := w.combat_for_entity(_defender)
 	var still_owned := PackedStringArray()
@@ -304,7 +357,7 @@ func test_the_third_hit_lands_on_a_node_the_shadow_cascade_already_freed() -> vo
 	# cascade islanded. On the shadow the target is unallocated by then, exactly
 	# as it is live — an ungated resolve would still be charging it damage.
 	var simulated := _killing_outcome()
-	OutcomeApplier.apply(simulated, null, _shadow())
+	OutcomeApplier.apply(simulated, _shadow())
 	var third: HitInstance = OutcomeApplier.in_arrival_order(simulated.hits)[2]
 	assert_eq(third.target, _d2)
 	assert_almost_eq(third.effective_amount, 0.0, 0.001,

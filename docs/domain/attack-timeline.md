@@ -331,11 +331,16 @@ look each target's state up somewhere else. That lookup is `CombatWorld`
 (`combat/combat_world.gd`):
 
 ```
-real launch / peer replay:  OutcomeApplier.apply(outcome, clock)
-                            -> CombatWorld.live(),   world mutates
-AI scoring / preview:       OutcomeApplier.apply(outcome, clock, CombatWorld.shadow())
-                            -> shadow slices,        world untouched
+real launch / peer replay:  OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
+AI scoring / preview:       OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
 ```
+
+**The world is a required parameter, never a defaulted one** (owner call
+2026-08-23). A `world = null` meaning "live" would put an implicit live branch
+back inside `OutcomeApplier` — the exact shape #498 exists to delete, and the
+thing that turns *"the sim and the real path agree by construction"* back into
+*"by discipline"*. Same rule on `BladePopResolver.LiveGate.admit`. Naming the
+world at the call site costs eleven lines repo-wide.
 
 `HitInstance.land_on(node: NodeCombat, world: CombatWorld)` — the hit's
 `target` stays a real `SkillNode`, because that is its **identity** (what a
@@ -348,6 +353,15 @@ snapshotted snapshots that owner's *whole* owned subgraph then. Late is the
 same as up front, because a shadow resolve never writes to the real world — so
 the real world is frozen for its whole duration — and it means only the
 entities an attack actually touches are paid for.
+
+**No shared shadow `GraphMirror` is needed, and that rests on one assumption.**
+Topology never changes mid-attack, so islanding and propagation keep walking the
+*real* graph; only ownership and stats route through the slice. That assumption
+is now pinned by test (`test_a_full_shadow_resolve_changes_no_topology`) rather
+than by comment: a future displacement or terraform mechanic that severs or adds
+an edge mid-cascade would otherwise corrupt shadow propagation silently, with
+nothing else in the suite positioned to notice. It is the same standing
+assumption melee's physics exemption already relies on.
 
 **What is still outstanding** is the *candidate-set* half, and it is magic's
 alone. `SpellResolver.resolve` picks its next wave through

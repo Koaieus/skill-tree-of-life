@@ -25,18 +25,24 @@ class_name OutcomeApplier
 ## [method BeatClock.instant_clock] (the default) to land the whole outcome
 ## synchronously; see [BeatClock] for why this is not frame-ordered mutation.
 ##
-## [param world] chooses WHICH world it lands in (#498 step 3). Omitted (or
-## null) means [method CombatWorld.live] — the real one, so every pre-existing
-## caller keeps its exact behaviour. Hand it a [method CombatWorld.shadow] and
-## the identical loop, the identical gates and the identical arithmetic run
-## against detached slices instead, which is what makes "the preview is the
-## execution path" a fact rather than a discipline. There is deliberately no
-## `is_preview` flag anywhere below: the only thing that differs is which
-## [NodeCombat] the lookup returns.
-static func apply(outcome: AttackOutcome, clock: BeatClock = null,
-		world: CombatWorld = null) -> void:
+## [param world] chooses WHICH world it lands in (#535). Hand it
+## [method CombatWorld.live] for a real launch or a peer replay, or a
+## [method CombatWorld.shadow] and the identical loop, the identical gates and
+## the identical arithmetic run against detached slices instead — which is what
+## makes "the preview is the execution path" a fact rather than a discipline.
+## There is deliberately no `is_preview` flag anywhere below: the only thing that
+## differs is which [NodeCombat] the lookup returns.
+##
+## [b]Required, and deliberately placed ahead of the optional [param clock].[/b]
+## Owner call 2026-08-23, on the project's own no-parallel-mirrors rule: a
+## defaulted `world = null` would put an implicit live branch back inside this
+## function, which is exactly the shape #498 exists to delete. #498's goal is
+## that "the sim and the real path agree" holds by construction; a nullable world
+## makes it hold by discipline again. Naming the world at the call site costs
+## eleven lines repo-wide and buys back the guarantee.
+static func apply(outcome: AttackOutcome, world: CombatWorld,
+		clock: BeatClock = null) -> void:
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
-	var w: CombatWorld = world if world != null else CombatWorld.live()
 	for hit in in_arrival_order(outcome.hits):
 		if hit.target == null:
 			continue
@@ -57,9 +63,9 @@ static func apply(outcome: AttackOutcome, clock: BeatClock = null,
 			# The identity -> state translation, in the one place that performs
 			# it. `hit.target` stays the real node throughout; what varies is the
 			# slice it resolves to.
-			var slice := w.combat_for(hit.target)
+			var slice := world.combat_for(hit.target)
 			if slice != null:
-				hit.land_on(slice, w)
+				hit.land_on(slice, world)
 
 
 ## Decorate-sort-undecorate on `(arrival_time, original_index)`. Public

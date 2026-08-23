@@ -381,7 +381,7 @@ func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
 	var base := hit.amount
 	assert_gt(base, 0.0, "fixture must deal real damage or this proves nothing")
 	assert_true(hit.is_crit, "decided at resolve")
-	OutcomeApplier.apply(outcome)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
 	assert_almost_eq(hit.amount, base * 2.0, 0.001, "multiplied at land")
 
 

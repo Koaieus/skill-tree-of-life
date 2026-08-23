@@ -151,10 +151,11 @@ class LiveGate extends RefCounted:
 	## turns out to be a live pop.
 	##
 	## [param world] selects which world the allocation / ownership / spike
-	## reads come from (#498 step 3); null means the live one, so a caller
-	## outside the applier reads exactly what it used to.
-	func admit(ev: BladeHitEvent, world: CombatWorld = null) -> bool:
-		var w: CombatWorld = world if world != null else CombatWorld.live()
+	## reads come from (#535). Required, not defaulted, for the same reason
+	## [method OutcomeApplier.apply]'s is — a nullable world hides an implicit
+	## live branch inside a gate whose whole job is to read one specific world.
+	func admit(ev: BladeHitEvent, world: CombatWorld) -> bool:
+		var w := world
 		if ev.is_edge_hit():
 			return false
 		if result.is_dead(ev.particle_idx, ev.t):

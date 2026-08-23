@@ -537,7 +537,7 @@ func _apply_outcome(outcome: AttackOutcome) -> void:
 	_beat_clock = BeatClock.instant_clock() if instant_mutation \
 			else BeatClock.for_tree(get_tree())
 	@warning_ignore("redundant_await")
-	await OutcomeApplier.apply(outcome, _beat_clock)
+	await OutcomeApplier.apply(outcome, CombatWorld.live(), _beat_clock)
 	_beat_clock = null
 
 

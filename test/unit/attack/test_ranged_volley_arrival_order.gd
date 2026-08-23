@@ -44,7 +44,7 @@ func test_lands_hits_in_arrival_time_order_not_append_order() -> void:
 	outcome.hits.append(late)
 	outcome.hits.append(early)
 	outcome.hits.append(mid)
-	OutcomeApplier.apply(outcome)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
 	assert_eq(log, [early, mid, late])
 
 
@@ -61,7 +61,7 @@ func test_ties_preserve_original_append_order() -> void:
 		hits.append(_hit(log, 0.0))
 	var outcome := AttackOutcome.new()
 	outcome.hits = hits
-	OutcomeApplier.apply(outcome)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
 	assert_eq(log, hits, "an all-zero-arrival outcome must land in append order")
 
 
@@ -77,5 +77,5 @@ func test_a_ranged_outcomes_hit_order_survives_the_applier() -> void:
 		hits.append(_hit(log, a))
 	var outcome := AttackOutcome.new()
 	outcome.hits = hits
-	OutcomeApplier.apply(outcome)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
 	assert_eq(log, hits, "already-ordered ranged hits must not be reshuffled")

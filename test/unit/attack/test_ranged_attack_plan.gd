@@ -428,7 +428,7 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 		if node == _target:
 			_alloc.force_deallocate(_target)
 	Events.skill_node_depleted.connect(handler)
-	OutcomeApplier.apply(outcome)
+	OutcomeApplier.apply(outcome, CombatWorld.live())
 	Events.skill_node_depleted.disconnect(handler)
 
 	assert_almost_eq(_target.get_current_hp(), 0.0, 0.001,

@@ -8,10 +8,8 @@ extends RefCounted
 ## [SkillNode] a hit NAMES into the [NodeCombat] it MUTATES.
 ##
 ## [codeblock]
-## real launch / peer replay:  OutcomeApplier.apply(outcome, clock)
-##                             -> CombatWorld.live(),   world mutates
-## AI scoring / preview:       OutcomeApplier.apply(outcome, clock, CombatWorld.shadow())
-##                             -> shadow slices,        world untouched
+## real launch / peer replay:  OutcomeApplier.apply(outcome, CombatWorld.live(), clock)
+## AI scoring / preview:       OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
 ## [/codeblock]
 ##
 ## [b]Why [member HitInstance.target] stays a [SkillNode].[/b] A hit's target is
