@@ -118,7 +118,10 @@ func _draw() -> void:
 	var seg := SkillNode.segment_between(edge.from, edge.to, endpoint_padding)
 	if seg.is_empty():
 		return
-	draw_line(seg[0] - global_position, seg[1] - global_position, tint, w, true)
+	# `to_local`, not a global-point difference: `_draw` paints in local units,
+	# and the two agree only while every ancestor sits at scale 1 (see
+	# [NodeHighlightOverlay._draw]). A sandbox tab scales its Graph to fit.
+	draw_line(to_local(seg[0]), to_local(seg[1]), tint, w, true)
 
 
 func _scale_factor() -> float:

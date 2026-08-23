@@ -130,6 +130,9 @@ func _ready() -> void:
 	# out through the loop and down the chain, and hostile, so it passes the
 	# targeting gate the way a corner of the caster's own territory would not.
 	_selected_target = graph.get_node_or_null(^"Nodes/d_hub") as SkillNode
+	# No-op until a spell is loaded (there is nothing to aim yet); `load_spell`
+	# is what first puts rings on the board.
+	_arm_plan()
 	_refresh_status()
 
 
@@ -175,6 +178,10 @@ func _capture_authored_world() -> void:
 ## coordinator to, and the panel would apply a correct cast invisibly. The
 ## turn manager is required rather than optional: [method
 ## BattleSystem.build_launch_command] refuses outright with no `current_entity`.
+## `highlight` is what makes TARGETING visible — the same [HighlightController]
+## + overlays the game runs, painting the origin, every legal target and the
+## committed one, plus the spell's reach. The panel used to state its whole
+## targeting situation in one word of a status line.
 ##
 ## No `commands` opt. [method BattleSystem.launch_attack] names the editor as a
 ## first-class no-applier caller and runs the applier's own two halves in the
@@ -184,7 +191,7 @@ func _build_systems() -> void:
 	_systems = _SANDBOX_WORLD.new()
 	_systems.name = "Systems"
 	add_child(_systems)
-	_systems.build(graph, {turn_manager = true, attack_vfx = true})
+	_systems.build(graph, {turn_manager = true, attack_vfx = true, highlight = true})
 	_alloc = _systems.allocation_system
 	_battle = _systems.battle_system
 
@@ -270,6 +277,9 @@ func load_spell(spell: SpellDef) -> void:
 		return
 	_spell = spell
 	_sync_spell_list_selection()
+	# Re-arm before the status read: a new spell is new reach and possibly a new
+	# ownership filter, so the rings and "is this seed legal" both change.
+	_arm_plan()
 	_refresh_status()
 
 
@@ -338,13 +348,59 @@ func refresh_from_spell() -> void:
 
 
 func _on_target_clicked(node: SkillNode) -> void:
-	# No targeting gate HERE — the selection is just a seed pick. The real gate
-	# is the plan's, at Cast, and it reports its refusal in the status line
-	# instead of the click silently doing nothing.
+	# No targeting gate HERE — the selection is just a seed pick, and an ILLEGAL
+	# pick is worth making. The real gate is the plan's; [method _arm_plan] offers
+	# it the pick immediately (so the rings answer at click time rather than at
+	# Cast) and [method _refresh_status] says so when it declines.
 	if node == null:
 		return
 	_selected_target = node
+	_arm_plan()
 	_refresh_status()
+
+
+## Keep a [MagicAttackPlan] armed at [member caster_node] for as long as a spell
+## is loaded — not only for the duration of a Cast.
+##
+## [b]The armed plan IS the targeting visualization.[/b] It is the
+## [HighlightProvider] the overlays read (see [method
+## MagicAttackPlan.get_node_role]), so an idle panel with no plan paints nothing:
+## no origin, no legal targets, no reach. That was this panel's state — the
+## targeting rules were fully evaluated at Cast and never shown, so the only way
+## to learn a seed was illegal was to be refused by it.
+##
+## Idempotent, and re-armed after everything that invalidates a plan: a spell
+## swap (reach changes), Reset (ownership changes), a cast ([method
+## BattleSystem._commit] drops the plan on its way out).
+##
+## Returns the armed plan, or null when there is nothing to arm.
+func _arm_plan() -> MagicAttackPlan:
+	if _casting or _battle == null:
+		return null
+	if not is_instance_valid(_spell):
+		# No spell, no targeting to show — and a plan armed with a null spell
+		# would paint a stale reach. Drop it rather than leave it lying.
+		if _battle.is_attacking:
+			_battle.cancel_attack()
+		return null
+	_battle.selected_spell = _spell
+	if _battle.attack_mode != BattleSystem.AttackMode.MAGIC:
+		_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	var plan := _battle.attack_plan as MagicAttackPlan
+	if plan == null:
+		push_warning("Spell Playground: no magic plan to arm")
+		return null
+	plan.reset()
+	plan._on_node_left_clicked(caster_node)
+	if _selected_target != null:
+		plan._on_node_left_clicked(_selected_target)
+		# A left-click on the source that the spell won't self-target pops the
+		# whole plan (the click grammar's "never mind" — see
+		# docs/design/click_grammar.md). Here the source is fixed furniture, so
+		# put it back; the seed simply stays unaccepted.
+		if plan.source == null:
+			plan._on_node_left_clicked(caster_node)
+	return plan
 
 
 func _on_world_gui_input(event: InputEvent) -> void:
@@ -380,6 +436,8 @@ func _pick_node_at(viewport_pos: Vector2) -> SkillNode:
 
 
 func _refresh_status() -> void:
+	# The tint marks the RAW pick, which the highlight rings deliberately can't:
+	# they show the plan's state, and a pick the gate refused never reaches it.
 	for sn in graph.get_skill_nodes():
 		sn.modulate = _SELECTED_TINT if sn == _selected_target else _UNSELECTED_TINT
 	if not is_instance_valid(_spell):
@@ -390,6 +448,15 @@ func _refresh_status() -> void:
 		return
 	var target_name: String = _selected_target.name if _selected_target != null else "—"
 	status_label.text = "%s · seed → %s" % [_spell.name, target_name]
+	# The gate already answered — say so now rather than at Cast. WHICH rule
+	# refused (owner, reach, source degree) is deliberately not re-derived here:
+	# that would be a second copy of the targeting rules, and the in-range rings
+	# the overlay just painted answer it better than a sentence could.
+	var plan: MagicAttackPlan = null
+	if _battle != null:
+		plan = _battle.attack_plan as MagicAttackPlan
+	if plan != null and _selected_target != null and plan.target != _selected_target:
+		status_label.text += " · not a legal target (the green rings are)"
 	cast_button.disabled = (_selected_target == null) or _casting
 	values_label.text = _build_values_text(_spell)
 
@@ -490,6 +557,9 @@ func _reset_state() -> void:
 	if _casting:
 		return
 	_arm_board()
+	# Ownership is back to what the scene authored, so the legal-target set is
+	# too — the plan armed against the post-cascade board is stale.
+	_arm_plan()
 	_refresh_status()
 
 
@@ -509,8 +579,8 @@ func _set_casting(value: bool) -> void:
 	_refresh_status()
 
 
-## Arm the plan the way the click grammar does — cast-from node first, then the
-## target — and launch it. Going through [MagicAttackPlan] rather than straight
+## Re-arm ([method _arm_plan] — the click grammar's two clicks, cast-from node
+## first) and launch. Going through [MagicAttackPlan] rather than straight
 ## to [SpellResolver] is what buys the whole production path: affordability, the
 ## seeded crit stream, the record round trip, the beat clock and the coordinator.
 ##
@@ -526,16 +596,13 @@ func _cast() -> void:
 	# The harness must never run dry: a spell costs mana and AP, and there is no
 	# turn loop here to give either back.
 	_replenish_caster()
-	_battle.selected_spell = _spell
-	if _battle.attack_mode != BattleSystem.AttackMode.MAGIC:
-		_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	var plan := _battle.attack_plan as MagicAttackPlan
+	# The plan is already armed — it has been since the spell loaded, because it
+	# is what the rings are drawn from. Re-arming here is the same two clicks
+	# against the CURRENT board, so a cast can never fire the plan a stale
+	# ownership state left behind.
+	var plan := _arm_plan()
 	if plan == null:
-		push_warning("Spell Playground: no magic plan to arm")
 		return
-	plan.reset()
-	plan._on_node_left_clicked(caster_node)
-	plan._on_node_left_clicked(_selected_target)
 	var errors := plan.validate()
 	if not errors.is_empty():
 		status_label.text = "%s · %s → refused: %s" \
@@ -556,8 +623,16 @@ func _cast() -> void:
 	# on a full node). That is the exact shape of silence this panel just spent a
 	# release in. [method BattleSystem._commit] clears the plan on its way out, so
 	# a plan still armed here means nothing launched.
+	# Read BEFORE the re-arm below, which puts a plan back on the system and would
+	# make a launched cast look like a refused one.
 	var launched := not _battle.is_attacking
 	_set_casting(false)
+	# The cast consumed the plan; re-arm so the board goes on showing what this
+	# spell can reach from the caster's hub — including how the cascade just
+	# changed it. Ordered after `_set_casting(false)` because `_arm_plan` refuses
+	# to touch a plan mid-launch.
+	_arm_plan()
+	_refresh_status()
 	if not launched:
 		status_label.text = "%s · %s → refused: unaffordable, or the plan went invalid" \
 				% [_spell.name, _selected_target.name]

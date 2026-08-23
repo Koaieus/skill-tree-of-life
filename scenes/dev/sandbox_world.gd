@@ -29,6 +29,9 @@ const _INPUT_CONTROLLER_SCRIPT: Script = preload("res://systems/player_input_con
 const _MELEE_PREVIEW_SCRIPT: Script = preload("res://attack/melee/melee_preview.gd")
 const _ATTACK_VFX_SCRIPT: Script = preload("res://ui/vfx/attack_vfx.gd")
 const _ALLOC_VFX_SCRIPT: Script = preload("res://ui/vfx/allocation_vfx.gd")
+const _HIGHLIGHT_CONTROLLER_SCRIPT: Script = preload("res://systems/highlight_controller.gd")
+const _NODE_HIGHLIGHT_SCRIPT: Script = preload("res://ui/node_highlight_overlay/node_highlight_overlay.gd")
+const _EDGE_HIGHLIGHT_SCRIPT: Script = preload("res://ui/edge_highlight_overlay/edge_highlight_overlay.gd")
 const _FLOATER_DIRECTOR_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_director.tscn")
 
 # Always built.
@@ -46,6 +49,9 @@ var command_applier: CommandApplier
 var input_controller: PlayerInputController
 var melee_preview: MeleePreview
 var attack_vfx: AttackVFX
+var highlight_controller: HighlightController
+var node_highlight: NodeHighlightOverlay
+var edge_highlight: EdgeHighlightOverlay
 
 
 ## Compose against [param p_graph]. `opts` keys (all default false):
@@ -59,6 +65,12 @@ var attack_vfx: AttackVFX
 ##   attack_vfx   — mount an AttackVFX under the graph, which is what makes a
 ##                  ranged volley / spell DRAW at all (melee's counterpart is
 ##                  `melee`; BattleSystem picks between the two per plan)
+##   highlight    — mount the HighlightController + both highlight overlays, which
+##                  is what makes TARGETING visible: origin / in-range / committed
+##                  rings and the range finder's reach. Without it a tab's plan is
+##                  armed and unreadable — the state is all there and nothing says
+##                  so. Plan-driven only in the editor (see
+##                  [method HighlightController._live_input_ctl]).
 func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	graph = p_graph
 	var want_input: bool = bool(opts.get("input", false))
@@ -68,6 +80,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	var want_loot: bool = bool(opts.get("loot", false))
 	var want_melee: bool = bool(opts.get("melee", false))
 	var want_attack_vfx: bool = bool(opts.get("attack_vfx", false))
+	var want_highlight: bool = bool(opts.get("highlight", false))
 
 	allocation_system = _ALLOCATION_SYSTEM_SCRIPT.new()
 	allocation_system.name = "AllocationSystem"
@@ -129,6 +142,33 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		input_controller.turn_manager = turn_manager
 		input_controller.command_applier = command_applier
 		add_child(input_controller)
+
+	if want_highlight:
+		# After the input controller on purpose: the controller resolves its
+		# provider in `_ready`, and core-move / manage highlights need that dep
+		# present by then. The overlays go under the graph for world coordinates,
+		# edge below node so status rings paint on top of reach edges —
+		# game_root.tscn's order. They land ABOVE the VFX nodes here rather than
+		# below (the one z-order divergence from that scene): reach rings over a
+		# projectile read fine, and hoisting them would mean index juggling.
+		highlight_controller = _HIGHLIGHT_CONTROLLER_SCRIPT.new()
+		highlight_controller.name = "HighlightController"
+		highlight_controller.graph = graph
+		highlight_controller.battle_system = battle_system
+		highlight_controller.allocation_system = allocation_system
+		highlight_controller.turn_manager = turn_manager
+		highlight_controller.input_ctl = input_controller
+		add_child(highlight_controller)
+		edge_highlight = _EDGE_HIGHLIGHT_SCRIPT.new()
+		edge_highlight.name = "EdgeHighlightOverlay"
+		edge_highlight.highlight_controller = highlight_controller
+		edge_highlight.graph = graph
+		graph.add_child(edge_highlight)
+		node_highlight = _NODE_HIGHLIGHT_SCRIPT.new()
+		node_highlight.name = "NodeHighlightOverlay"
+		node_highlight.highlight_controller = highlight_controller
+		node_highlight.graph = graph
+		graph.add_child(node_highlight)
 
 	if want_loot:
 		loot_system = _LOOT_SYSTEM_SCRIPT.new()

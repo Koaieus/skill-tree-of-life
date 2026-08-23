@@ -1,3 +1,4 @@
+@tool
 class_name EdgeHighlightOverlay
 extends Node2D
 
@@ -63,7 +64,10 @@ func _rebuild() -> void:
 		if ring == null:
 			continue
 		add_child(ring)
-		ring.configure(ring_data.position - global_position, ring_data.radius)
+		# `to_local` for the same reason [NodeHighlightOverlay] uses it: a
+		# difference of global points is a screen-space delta, and the ring is
+		# positioned in this overlay's local space.
+		ring.configure(to_local(ring_data.position), ring_data.radius)
 	for edge_data in visual.edges:
 		if edge_scene == null:
 			continue

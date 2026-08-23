@@ -1,3 +1,4 @@
+@tool
 class_name HighlightController
 extends Node
 
@@ -17,6 +18,10 @@ extends Node
 ## NodePath @exports wired in game_root.tscn — same DI style as AllocationSystem
 ## / PlayerInputController — so they're resolved before `_ready` and the signal
 ## wiring lives there. Joins [constant GROUP] for discovery.
+##
+## `@tool` because a live sandbox tab mounts it to get the real targeting rings
+## (see `scenes/dev/sandbox_world.gd`'s `highlight` opt) — which is also why
+## every [member input_ctl] touch goes through [method _live_input_ctl].
 
 const GROUP := &"highlight_controller"
 
@@ -69,10 +74,11 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_on_source_changed.unbind(1))
-	if input_ctl != null:
-		input_ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
-		input_ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
-		input_ctl.mass_action_pending_changed.connect(_on_source_changed.unbind(1))
+	var ctl := _live_input_ctl()
+	if ctl != null:
+		ctl.core_move_targeting_changed.connect(_on_source_changed.unbind(1))
+		ctl.manage_arm_changed.connect(_on_source_changed.unbind(1))
+		ctl.mass_action_pending_changed.connect(_on_source_changed.unbind(1))
 	if allocation_system != null:
 		allocation_system.allocated.connect(_on_source_changed.unbind(3))
 		allocation_system.deallocated.connect(_on_source_changed.unbind(2))
@@ -88,15 +94,35 @@ func _on_source_changed() -> void:
 ## rebinding + the provider_changed emit).
 func _resolve() -> void:
 	var next: HighlightProvider = null
-	if input_ctl != null and input_ctl.pending_mass_action() != null:
+	var ctl := _live_input_ctl()
+	if ctl != null and ctl.pending_mass_action() != null:
 		next = _build_mass_action_provider()
 	elif battle_system != null and battle_system.attack_plan != null:
 		next = battle_system.attack_plan
-	elif input_ctl != null and input_ctl.move_targeting_source() != null:
+	elif ctl != null and ctl.move_targeting_source() != null:
 		next = _build_core_provider()
 	elif _is_player_managing():
 		next = _build_allocation_provider()
 	provider = next
+
+
+## [member input_ctl], or null when touching it would throw.
+##
+## [PlayerInputController] is not `@tool` and must not become one — it would eat
+## editor input — so the copy `game_root.tscn` wires into this export is a
+## PLACEHOLDER whenever the editor merely *displays* that scene, and any
+## method/signal on it throws (`.claude/rules/gdscript-pitfalls.md`). This
+## controller IS `@tool`, so it runs there and would be the one to hit it.
+##
+## The editor hint is the whole test because the only OTHER HighlightController
+## alive in-editor is a sandbox's, and no sandbox mounts an input controller
+## beside it — plan-driven highlights are all a tab wants. Attack plans are
+## unaffected either way: they arrive on [signal BattleSystem.attack_plan_changed],
+## and BattleSystem is `@tool`. Revisit this if a live tab ever wants core-move
+## or manage-mode rings; that tab's controller is a real `.new()` instance and
+## would be usable.
+func _live_input_ctl() -> PlayerInputController:
+	return null if Engine.is_editor_hint() else input_ctl
 
 
 func _build_core_provider() -> CoreMoveHighlightProvider:
@@ -155,7 +181,8 @@ func _build_allocation_provider() -> ManagerHighlightProvider:
 	if _allocation_provider == null:
 		_allocation_provider = ManagerHighlightProvider.new()
 	var verb := PlayerInputController.ManageVerb.ALLOCATE
-	if input_ctl != null and input_ctl.manage_arm() != PlayerInputController.ManageVerb.NONE:
-		verb = input_ctl.manage_arm()
+	var ctl := _live_input_ctl()
+	if ctl != null and ctl.manage_arm() != PlayerInputController.ManageVerb.NONE:
+		verb = ctl.manage_arm()
 	_allocation_provider.configure(player, allocation_system, graph, verb)
 	return _allocation_provider

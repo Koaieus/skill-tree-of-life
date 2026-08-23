@@ -1,3 +1,4 @@
+@tool
 class_name NodeHighlightOverlay
 extends Node2D
 
@@ -7,7 +8,9 @@ extends Node2D
 ## attack plans, core-move, future hover — since they all speak the same role
 ## vocabulary via [method HighlightProvider.get_node_role].
 ##
-## Mounted programmatically by GameRoot so no scene wiring is required.
+## Wired declaratively in `game_root.tscn`; a live sandbox tab gets the same
+## overlay from `scenes/dev/sandbox_world.gd`'s `highlight` opt, which is why
+## this is `@tool`.
 
 @export var highlight_controller: HighlightController
 @export var graph: Graph
@@ -65,7 +68,12 @@ func _draw() -> void:
 		return
 	for sn in graph.get_skill_nodes():
 		var role: int = provider.get_node_role(sn)
-		var center := sn.global_position - global_position
+		# `to_local`, not `global_position - global_position`: the difference of
+		# two global points is a delta in SCREEN units, and `_draw` paints in the
+		# overlay's own local units. Identical while the Graph sits at scale 1
+		# (every level), wrong by the scale factor in a sandbox tab that fits the
+		# board to a panel — the rings landed at a multiple of their node's offset.
+		var center := to_local(sn.global_position)
 		var range_radius := provider.get_node_range(sn)
 		if range_radius > 0.0:
 			var base: Color = ROLE_COLORS.get(HighlightProvider.HighlightRole.ORIGIN, Color.WHITE)
