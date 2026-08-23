@@ -437,6 +437,14 @@ func _run_end_reading(outcome: RunOutcome) -> RunEndOverlay.Reading:
 
 ## The overlay never routes itself — [GameRoot] owns the way out, including the
 ## `route_to_meta_on_run_end` veto that keeps a neutered root in its own scene.
+##
+## Where that veto bites (both dev sandboxes set it), the press still has to do
+## SOMETHING: a full-screen dim with a dead button, over a level you were about
+## to keep poking at, is worse than the banner-only run-end it replaced. So the
+## one action means "get me out of here" and settles for the overlay when it
+## cannot have the level.
 func _on_run_end_main_menu_pressed() -> void:
-	if _game_root != null:
-		_game_root.route_to_meta_now()
+	if _game_root != null and _game_root.route_to_meta_now():
+		return
+	if run_end_overlay != null:
+		run_end_overlay.dismiss()

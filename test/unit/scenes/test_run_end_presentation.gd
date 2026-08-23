@@ -260,19 +260,32 @@ func test_not_leaving_routes_on_the_fallback_timeout() -> void:
 	assert_eq(_root.departures, 1)
 
 
-## Acceptance: a neutered GameRoot (an editor-tab showcase) never leaves its
-## scene — the export vetoes the button as well as the timeout. The action row
-## still appears; it just goes nowhere.
+## Acceptance: a neutered GameRoot (a dev sandbox, an editor-tab showcase) never
+## leaves its scene — the export vetoes the button as well as the timeout.
 func test_a_neutered_game_root_never_leaves_even_when_asked() -> void:
 	await _build(SeatPolicy.Seating.COUCH)
 	await _end_run(_CAMP_1)
+	assert_true(_overlay().action_row.visible,
+			"the row is still offered — the veto is on the route, not the UI")
 
 	_overlay().main_menu_pressed.emit()
 	await wait_seconds(0.4)
 
 	assert_eq(_root.departures, 0, "route_to_meta_on_run_end vetoes both ways out")
-	assert_true(_overlay().action_row.visible,
-			"and the row is still offered — the veto is on the route, not the UI")
+
+
+## Both dev sandboxes set the veto, and a run ends in them regularly. Without
+## this the surface would be a permanent full-screen dim over a level you were
+## still poking at, with a button that does nothing — strictly worse than the
+## banner-only run-end it replaced.
+func test_a_vetoed_press_dismisses_the_overlay_instead_of_stranding_it() -> void:
+	await _build(SeatPolicy.Seating.COUCH)
+	await _end_run(_CAMP_1)
+	assert_true(_overlay().visible, "precondition")
+
+	_overlay().main_menu_pressed.emit()
+
+	assert_false(_overlay().visible, "the one action always gets you out of something")
 
 
 # --- The banner is camp-authored -------------------------------------------

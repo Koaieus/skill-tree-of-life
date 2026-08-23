@@ -316,20 +316,22 @@ func _on_run_ended(_outcome: RunOutcome) -> void:
 ## clicking out early and then sitting past the timeout cannot `goto` twice —
 ## and cannot end the session twice, which would spend the next run's seed.
 ##
-## Vetoed wholesale by [member route_to_meta_on_run_end]. A neutered GameRoot
-## (an editor-tab showcase, a test fixture) never leaves its own scene, and that
-## holds for the button too — the action row still appears, it just goes
-## nowhere. Gating the row on the export instead would make "absent now, present
-## after the delay" untestable in exactly the fixtures that set it false.
-func route_to_meta_now() -> void:
+## Vetoed wholesale by [member route_to_meta_on_run_end]: a neutered GameRoot
+## (a dev sandbox, an editor-tab showcase) never leaves its own scene, and that
+## holds for the button too. Returns whether the route was actually taken — the
+## caller needs to know, because a vetoed press has to dismiss the overlay
+## instead of leaving a full-screen dim with a dead button on top of a sandbox
+## you were still poking at.
+func route_to_meta_now() -> bool:
 	if _run_end_routed or not route_to_meta_on_run_end:
-		return
+		return false
 	_run_end_routed = true
 	# The run is over and we're leaving it: close the session so the next one
 	# resolves its own seed instead of inheriting a spent one (#457). The
 	# outcome it recorded is read by whoever presents it before this.
 	GameSession.end()
 	_leave_for_meta()
+	return true
 
 
 ## The departure itself, split off [method route_to_meta_now] so the latch and

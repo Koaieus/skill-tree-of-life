@@ -191,4 +191,7 @@ than caching the policy: `game_root.gd` initialises a default couch and a roster
   with two callers (#526): the overlay's *to main menu* button, and
   `run_end_route_delay` as the fallback for a player who never presses it.
   `route_to_meta_on_run_end` vetoes both, so tooling does not teleport itself to
-  the menu; the action row still appears there, it just goes nowhere.
+  the menu. The action row still appears under the veto, and the press then
+  dismisses the overlay — both dev sandboxes set that export, and a permanent
+  full-screen dim with a dead button over a level you were still poking at is
+  worse than the banner-only run-end this replaced.

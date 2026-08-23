@@ -98,6 +98,14 @@ func present(run_reading: Reading, camp: Faction) -> void:
 	main_menu_button.grab_focus()
 
 
+## Get out of the way without ending anything. Only reached where there is no
+## route to take — see [method HudRoot._on_run_end_main_menu_pressed]. A run
+## that really is leaving keeps its overlay up through the fade.
+func dismiss() -> void:
+	visible = false
+	action_row.visible = false
+
+
 func _title_color(camp: Faction) -> Color:
 	if reading == Reading.DEFEAT:
 		return Emissive.at(_DEFEAT_TINT, Emissive.ALERT)
