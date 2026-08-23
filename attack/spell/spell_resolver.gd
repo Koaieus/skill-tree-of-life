@@ -54,6 +54,28 @@ extends RefCounted
 ## hits in wave order under that sort.
 const WAVE_ARRIVAL_INTERVAL: float = 0.4
 
+## Flight time of the bolt travelling INTO a wave, added ahead of every
+## `arrival_time` below.
+##
+## [b]`arrival_time` means "when the hit lands", absolutely — not "which wave it
+## belongs to".[/b] Ranged has always spelled it that way: a shot's
+## `arrival_time` is its impact moment, and [ArrowVolleyCoordinator] recovers the
+## launch delay as `arrival_time - shot_flight_time`. Magic was the one mode that
+## left the flight out, so the mutation clock ran a whole bolt-flight ahead of the
+## picture: [MagicBounceCoordinator] spawns each wave early and pins impact to the
+## beat, i.e. wave N hits at `launch_to_impact + N * beat_interval`, while
+## [OutcomeApplier] landed it at `N * beat_interval`. The damage number, HP bar
+## and node tint therefore all moved ~0.35 s before the projectile arrived — most
+## visibly on the seed, which landed at t=0 with the bolt still in the air.
+##
+## Matches [MagicBounceCoordinator]'s default `launch_to_impact`, by the same
+## unwired-constant convention (and the same caveat) as
+## [constant WAVE_ARRIVAL_INTERVAL] above. A uniform offset shifts every hit
+## equally, so wave ordering and the exact within-wave ties
+## [method OutcomeApplier.in_arrival_order] and [CritRoll]'s seeded stream depend
+## on are untouched.
+const WAVE_FLIGHT_LEAD_IN: float = 0.35
+
 
 ## [method resolve_against] on a throwaway shadow — the preview/tooltip/AI
 ## spelling, and the reason ~40 call sites did not have to learn about worlds.
@@ -168,7 +190,11 @@ static func resolve_against(
 				hit.attacker = ctx.caster
 				_stamp_crit_conditions(spell, state, hit)
 				# #501: real time, not 0.0 -- later waves land strictly later.
-				hit.arrival_time = float(state.hop_index) * WAVE_ARRIVAL_INTERVAL
+				# The lead-in is what puts the landing at the moment the bolt
+				# ARRIVES rather than the moment it was loosed — see
+				# WAVE_FLIGHT_LEAD_IN.
+				hit.arrival_time = WAVE_FLIGHT_LEAD_IN \
+						+ float(state.hop_index) * WAVE_ARRIVAL_INTERVAL
 				ev.hits.append(hit)
 			outcome.timeline.append(ev)
 			ctx.bump_visit(state.current_node)
@@ -181,7 +207,8 @@ static func resolve_against(
 		# Two passes, not one interleaved pass, so the crit stream is consumed
 		# exactly as the old single `CritRoll.decide_all` at the end of the walk
 		# consumed it: that call iterated `in_arrival_order`, which for magic is
-		# `hop_index * WAVE_ARRIVAL_INTERVAL` ascending with an index-stable
+		# `hop_index * WAVE_ARRIVAL_INTERVAL` (plus a uniform lead-in, which
+		# shifts every hit equally and so reorders nothing) ascending with an index-stable
 		# tiebreak — i.e. wave by wave, append order within a wave, which is
 		# exactly this. The draw sequence is bit-identical; only its position
 		# relative to the landings moved, and it had to, because

@@ -149,11 +149,17 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 			await get_tree().create_timer(flight).timeout
 
 		# #504: no `_show_presentation` pass anymore. The wave's hits land on
-		# the applier's beat clock (`hop_index * WAVE_ARRIVAL_INTERVAL`), so the
-		# HP bar, node tint and damage number all move off the model as the bolt
-		# arrives — this coordinator no longer re-announces what already
-		# happened. `wave_started` stays: it is the animation's own cadence
-		# signal, which tests assert on.
+		# the applier's beat clock, so the HP bar, node tint and damage number
+		# all move off the model as the bolt arrives — this coordinator no
+		# longer re-announces what already happened. `wave_started` stays: it is
+		# the animation's own cadence signal, which tests assert on.
+		#
+		# "As the bolt arrives" is an arithmetic claim, and both halves have to
+		# agree for it to hold: impact here is `launch_to_impact + N *
+		# beat_interval` (spawn early, pin to the beat), so the resolver stamps
+		# `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL`. Retune
+		# either export and re-check both constants — dropping the lead-in is
+		# what made damage numbers pop a whole flight before the projectile.
 		wave_started.emit(beat, wave.size())
 
 		if i < beats.size() - 1:

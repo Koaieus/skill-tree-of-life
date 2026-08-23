@@ -34,7 +34,12 @@ func test_arrival_time_is_stamped_and_monotonic_across_waves() -> void:
 	var hop_hit: HitInstance = by_node[nodes[2]][0]
 	assert_gt(hop_hit.arrival_time, seed_hit.arrival_time,
 			"a later wave must land strictly after an earlier one")
-	assert_eq(seed_hit.arrival_time, 0.0, "wave 0 (the seed) lands at t=0")
+	# NOT t=0. `arrival_time` is when the hit LANDS, absolutely -- and the seed's
+	# own bolt is in the air for `WAVE_FLIGHT_LEAD_IN` first. Landing it at zero
+	# put the damage number a whole flight ahead of the projectile; see that
+	# constant's doc for why magic was the odd mode out here.
+	assert_almost_eq(seed_hit.arrival_time, SpellResolver.WAVE_FLIGHT_LEAD_IN, 0.001,
+			"wave 0 (the seed) lands when its bolt arrives, not when it was loosed")
 
 
 ## Same shape, three waves deep, pins the multiplication rather than just

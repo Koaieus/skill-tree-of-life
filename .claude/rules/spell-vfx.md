@@ -37,6 +37,31 @@ Impact is pinned to the **beat**, not to launch. The coordinator spawns projecti
 
 `launch_to_impact` must be ≤ `beat_interval` for impact alignment. The old exports `per_hop_duration` / `flight_time` were renamed to reflect the semantic shift.
 
+### There is a fourth clock, and it must agree: the mutation clock
+
+`OutcomeApplier` lands each hit at its own `HitInstance.arrival_time` (#504), so
+the world changes on a clock the coordinator does not own. **`arrival_time` means
+"when the hit lands", absolutely — not "which wave it belongs to".**
+
+Impact under three-clocks is `launch_to_impact + N * beat_interval`, so
+`SpellResolver` stamps `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL`.
+The two pairs of constants are deliberately *not* wired together (`resolve()` is
+static and has no coordinator instance to read), so **retuning either export means
+re-checking both constants.**
+
+**Why the lead-in exists:** magic originally stamped `hop_index * interval`, i.e.
+it omitted the flight. The mutation clock then ran a whole bolt-flight ahead of
+the picture — the damage number, HP bar and node tint moved ~0.35 s *before* the
+projectile arrived, most visibly on the seed, which landed at t=0 with the bolt
+still in the air. Ranged never had this: a shot's `arrival_time` is its impact
+moment and `ArrowVolleyCoordinator` recovers the launch delay as
+`arrival_time - shot_flight_time`. Magic was the outlier; don't "simplify" the
+offset back out.
+
+A uniform offset shifts every hit equally, so wave ordering and the exact
+within-wave ties that `OutcomeApplier.in_arrival_order` and `CritRoll`'s seeded
+stream depend on are untouched.
+
 ## Verb → ProjectilePath mapping (#201)
 
 Each `PropagationEvent.Verb` resolves to its own path and visual. Per-verb `@export` slots on the coordinator:
