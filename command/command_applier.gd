@@ -43,23 +43,33 @@ extends Node
 ## still true, on purpose (see above).
 signal command_applied(command: Command, success: bool)
 
-## One command's WIRE PAYLOAD is final and its world mutation is done — mirror
-## it now. Fires at most once per command, always before that command's
-## [signal command_applied], and only for a command that succeeded.
+## One command's WIRE PAYLOAD is final and it is GOING to be applied — mirror it
+## now. Fires at most once per command, always before that command's
+## [signal command_applied], and never for a command that failed its gate.
 ##
-## [b]Why this is not just [signal command_applied].[/b] Application spans more
-## than mutation. [method BattleSystem._commit] deliberately keeps awaiting
-## after the world has settled — it holds `is_launching` until the animation
-## tail finishes, so a player cannot arm and fire again mid-swing. Mirroring off
-## `command_applied` therefore made a peer wait out the HOST's animation before
-## it could start its own (#511 shipped that way), which reads as lag
-## proportional to spell length. Nothing about the payload changes in that
-## window: [AttackRecord] is stamped the instant the mutation ends.
+## [b]Since #540 this fires BEFORE the mutation, not after it.[/b] That is the
+## ordering flip: [method _validate] is the gate, so "validated" already means
+## "will apply", and the authority no longer has to finish mutating before it can
+## tell anyone. Confirm-after-apply structurally put every peer one full mutation
+## window behind the authority — see #534.
 ##
-## A verb that has such a tail calls [method confirm] at its settle point; every
-## other verb needs nothing, because [method _drain] confirms on its behalf.
-## Ordering across commands is unchanged either way — the queue is serial, so a
-## mid-apply confirm still lands between its neighbours' confirms.
+## [b]Why this is not just [signal command_applied].[/b] Two separate reasons,
+## and both still hold:
+##   * Application spans more than mutation. [method BattleSystem._commit] keeps
+##     awaiting after the world has settled, holding `is_launching` until the
+##     animation tail finishes so a player cannot arm and fire again mid-swing.
+##     Mirroring off `command_applied` made a peer wait out the HOST's animation
+##     before starting its own (#511 shipped that way) — lag proportional to
+##     spell length.
+##   * `command_applied` fires for a REFUSED command too, with success false. A
+##     refusal changed nothing and must never cross the wire.
+##
+## A verb whose payload is only final mid-apply calls [method confirm] itself at
+## that point and declares [method Command.confirms_before_apply] false;
+## [LaunchAttackCommand] is the only one. Every other verb needs nothing, because
+## [method _drain] confirms on its behalf. Ordering across commands is unchanged
+## either way — the queue is serial, so a mid-apply confirm still lands between
+## its neighbours' confirms.
 signal command_confirmed(command: Command)
 
 ## [member is_applying] transitioned. Consumers gate input off this
@@ -142,11 +152,15 @@ func pending_count() -> int:
 	return _queue.size()
 
 
-## "This command's world mutation is done and its payload is final" — called by
-## a verb that keeps awaiting afterwards, to release the mirror early. Only ever
-## call it once the verb knows it SUCCEEDED; a refused command changed nothing
-## and must not cross the wire. Idempotent, and safe to call from a verb that is
-## running without an applier only because the caller null-checks first.
+## "This command's payload is final and it is going to be applied" — announce it
+## to the mirror. [method _drain] calls this for you at the flip point; a verb
+## calls it directly only when its payload is not final until mid-apply, which
+## is [LaunchAttackCommand] and nothing else.
+##
+## Only ever call it once the command is known to be GOING AHEAD — a refused
+## command changed nothing and must not cross the wire. Idempotent, and safe to
+## call from a verb that is running without an applier only because the caller
+## null-checks first.
 func confirm(command: Command) -> void:
 	if command == null or _confirmed == command:
 		return
@@ -154,19 +168,57 @@ func confirm(command: Command) -> void:
 	command_confirmed.emit(command)
 
 
+## [b]validate -> confirm -> apply[/b] (#540). The ordering flip: the authority
+## decides a command is legal, announces it, and only THEN mutates — so
+## [method _apply] is the shared post-confirmation apply every peer runs,
+## authority included, instead of the authority's mutation being what a confirm
+## reports after the fact.
+##
+## [b]The gate moved; it did not multiply.[/b] [method _validate] asks the same
+## `can_*` queries the mutating verbs already ask themselves
+## ([method AllocationSystem.can_allocate] and friends), so a command that
+## validates is a command that will apply. That is what makes confirming first
+## safe, and it is why the gate must never be re-derived here — a second copy of
+## a rule is the shape `.claude/rules/` forbids.
+##
+## The two verbs where validate cannot fully answer for apply are known and
+## deliberate: [MoveCoreCommand] can only vet its FIRST hop (a partial core walk
+## is a legal observable state, #458 decision 4), and [MassAllocateCommand]
+## re-computes its affordable count at apply time on purpose (#458 — a stale
+## sender must never dictate how much the authority spends). Both still land
+## identically on every peer, because every peer applies the same command
+## through this same method.
 func _drain() -> void:
 	is_applying = true
 	applying_changed.emit(true)
 	while not _queue.is_empty():
 		var command: Command = _queue.pop_front()
-		@warning_ignore("redundant_await")
-		var success: bool = await _apply(command)
-		# For everything without an animation tail this IS the settle point, so
-		# the two signals fire back to back and the seam costs nothing. A verb
-		# that already confirmed mid-apply makes this a no-op.
+		# Stamped BEFORE the gate, for EVERY command on EVERY peer (#540
+		# decision 4) — this is the world the command is about to be applied to,
+		# and both sides compare pre-state against pre-state. Uniform rather than
+		# staged: nothing has to unwind when [LaunchAttackCommand] stops being
+		# an exception. See [member Command.pre_fingerprint].
+		if graph != null:
+			command.pre_fingerprint = WorldFingerprint.compute(graph)
+		var success := _validate(command)
 		if success:
-			confirm(command)
-		# Inside the guard, deliberately — see the class note.
+			# THE FLIP. A verb that confirms here has its whole payload final
+			# already; [LaunchAttackCommand] does not (its record is computed
+			# inside the apply), and says so by overriding.
+			if command.confirms_before_apply():
+				confirm(command)
+			@warning_ignore("redundant_await")
+			success = await _apply(command)
+			# Still here for the verbs that confirm late — the attack today, and
+			# any verb whose payload is only final mid-apply. A command already
+			# confirmed above makes this a no-op.
+			if success:
+				confirm(command)
+		# Inside the guard, deliberately — see the class note. Fires for a
+		# validate-fail too, with success false: a refused command is a normal
+		# outcome and [method PlayerInputController._on_command_applied] is what
+		# turns it into player feedback, including the deallocate -> cascade
+		# offer. Skipping the emit on a validate-fail would silently delete that.
 		command_applied.emit(command, success)
 		# Cleared only once this command is fully reported, so the de-dup covers
 		# a `command_applied` handler that confirms too. Nothing is leaked by
@@ -176,10 +228,113 @@ func _drain() -> void:
 	applying_changed.emit(false)
 
 
-## Resolve the ids and run the verb. Returns the gated system's verdict.
-## Nothing here re-validates: the gated entry points ([method
-## AllocationSystem.allocate] and friends) are the authority offline today and
-## stay the authority here.
+## Is [param command] legal against the world as it stands right now? The gate,
+## and since #540 the ONLY gate that decides whether a command confirms.
+##
+## Dispatches exactly as [method _apply] does, and for the same reason — the two
+## must never disagree about which verb a command is. What it must not do is
+## re-implement any verb's rules: every branch below forwards to the owning
+## system's own `can_*` query, which the mutating call then asks again. That
+## second ask is not a duplicate check, it is the mutating method keeping its
+## own guarantees for its non-command callers.
+##
+## Diagnostics for an unresolvable id live HERE rather than in [method _apply],
+## because a command that fails to resolve now fails before the apply runs —
+## leaving the warning downstream would lose it.
+func _validate(command: Command) -> bool:
+	# Ahead of the actor lookup for the same reason [method _apply] is: a
+	# relic's terminal round legitimately has no live collector.
+	if command is LootRoundCommand:
+		return _validate_loot_round(command as LootRoundCommand)
+	var actor := graph.get_by_entity_id(command.entity_id) if graph != null else null
+	if actor == null:
+		push_warning("CommandApplier: no entity for id %d (%s)" \
+				% [command.entity_id, command.type_tag()])
+		return false
+	if command is NodeCommand:
+		return _validate_node_command(command as NodeCommand, actor)
+	if command is MoveCoreCommand:
+		# The FIRST hop only — see [method _drain]'s note. Later hops become
+		# legal (or not) as their predecessors land, so vetting the whole path
+		# here would refuse walks that are perfectly legal.
+		var hops := _resolve_nodes((command as MoveCoreCommand).path_ids)
+		return not hops.is_empty() and allocation_system.can_move_core(actor, hops[0])
+	if command is MassAllocateCommand:
+		# The same "can it pay for at least one hop" question [method
+		# _apply_mass_allocate] asks, through the same one implementation.
+		var path := _resolve_nodes((command as MassAllocateCommand).path_ids)
+		return allocation_system.affordable_allocation_count(actor, path) >= 1
+	if command is DeallocateSetCommand:
+		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
+		return allocation_system.can_deallocate_set(nodes, actor)
+	if command is LaunchAttackCommand:
+		# Cheap preconditions only. The attack's real gate — resolve on a shadow,
+		# then check affordability against the live board — lives in
+		# [method BattleSystem._compute_record] and runs inside the apply, which
+		# is exactly why this verb confirms late (see
+		# [method LaunchAttackCommand.confirms_before_apply]). It still refuses
+		# an unaffordable attack BEFORE anything is confirmed or deducted, so
+		# the failure mode #540 decision 2 names cannot occur here today.
+		return battle_system != null
+	if command is EndTurnCommand:
+		# No gate, deliberately: [method TurnManager.end_turn] has never had one
+		# and neither did the direct call it replaced (see
+		# [method PlayerInputController.request_end_turn]). Do not invent one.
+		return turn_manager != null
+	push_warning("CommandApplier: no validator for command tag '%s'" % command.type_tag())
+	return false
+
+
+func _validate_node_command(command: NodeCommand, actor: Entity) -> bool:
+	var node := _resolve_node(command.node_id)
+	if node == null:
+		push_warning("CommandApplier: no node for stable_id %d (%s)" \
+				% [command.node_id, command.type_tag()])
+		return false
+	if command is AllocateCommand:
+		return allocation_system.can_allocate(node, actor)
+	if command is DeallocateCommand:
+		return allocation_system.can_deallocate(node, actor)
+	if command is StakeCommand:
+		return allocation_system.can_stake(node, actor)
+	if command is ExtractCommand:
+		return allocation_system.can_extract(node, actor)
+	if command is ToggleTempUpgradeCommand:
+		if battle_system == null:
+			return false
+		var upgrade := MeleeAttackPlan.upgrade_by_id(
+				(command as ToggleTempUpgradeCommand).upgrade_id)
+		# Announces its own refusal, where the reason (slot full vs. budget) is
+		# knowable — the applier never emits gameplay denials itself. This is why
+		# the gate is a method on [BattleSystem] and not an expression here.
+		return battle_system.can_toggle_temp_upgrade_on(node, upgrade)
+	push_warning("CommandApplier: no validator for node command '%s'" % command.type_tag())
+	return false
+
+
+## A relic round is legal when its carrier still resolves and still carries the
+## addon that runs it. A null collector is NOT a failure — a terminal round's
+## whole job is to free the relic after its collector is gone.
+func _validate_loot_round(command: LootRoundCommand) -> bool:
+	var carrier := _resolve_node(command.carrier_id)
+	if carrier == null:
+		push_warning("CommandApplier: no relic node for stable_id %d (loot_round)"
+				% command.carrier_id)
+		return false
+	for addon in carrier.get_addons():
+		if addon is SkillDustAddon:
+			return true
+	push_warning("CommandApplier: node %d carries no SkillDustAddon (loot_round)"
+			% command.carrier_id)
+	return false
+
+
+## Resolve the ids and run the verb — the shared post-confirmation apply, run by
+## every peer including the authority.
+##
+## Its null-guards below are structural, not gates: [method _validate] has
+## already resolved the same ids and reported anything that failed, so these
+## return quietly rather than warning twice.
 func _apply(command: Command) -> bool:
 	# Ahead of the actor lookup, deliberately: a relic's TERMINAL round runs
 	# after its collector may already be dead and freed, and it is the record
@@ -189,8 +344,6 @@ func _apply(command: Command) -> bool:
 		return await _apply_loot_round(command as LootRoundCommand)
 	var actor := graph.get_by_entity_id(command.entity_id) if graph != null else null
 	if actor == null:
-		push_warning("CommandApplier: no entity for id %d (%s)" \
-				% [command.entity_id, command.type_tag()])
 		return false
 	if command is NodeCommand:
 		return _apply_node_command(command as NodeCommand, actor)
@@ -250,8 +403,6 @@ func _answer_loot_pick(command: PickLootCommand) -> bool:
 func _apply_loot_round(command: LootRoundCommand) -> bool:
 	var carrier := _resolve_node(command.carrier_id)
 	if carrier == null:
-		push_warning("CommandApplier: no relic node for stable_id %d (loot_round)"
-				% command.carrier_id)
 		return false
 	# Resolved here rather than read off `carrier.owned_by` in the addon: the
 	# command names its collector by `entity_id` precisely so both peers grant
@@ -262,16 +413,12 @@ func _apply_loot_round(command: LootRoundCommand) -> bool:
 		if addon is SkillDustAddon:
 			@warning_ignore("redundant_await")
 			return await (addon as SkillDustAddon).run_round(command, collector)
-	push_warning("CommandApplier: node %d carries no SkillDustAddon (loot_round)"
-			% command.carrier_id)
 	return false
 
 
 func _apply_node_command(command: NodeCommand, actor: Entity) -> bool:
 	var node := _resolve_node(command.node_id)
 	if node == null:
-		push_warning("CommandApplier: no node for stable_id %d (%s)" \
-				% [command.node_id, command.type_tag()])
 		return false
 	if command is AllocateCommand:
 		return allocation_system.allocate(node, actor)

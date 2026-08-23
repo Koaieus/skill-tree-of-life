@@ -178,16 +178,31 @@ func request_attack_mode(mode: AttackMode) -> void:
 ## [method MeleeAttackPlan.upgrade_by_id].
 ##
 ## Returns whether the toggle landed. A refusal is announced on
-## [signal Events.node_action_denied] here, where the reason is knowable —
-## whether the CLICK was consumed is a routing question the caller answers on
-## its own.
+## [signal Events.node_action_denied] by [method can_toggle_temp_upgrade_on],
+## where the reason is knowable — whether the CLICK was consumed is a routing
+## question the caller answers on its own.
 func toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
+	if not can_toggle_temp_upgrade_on(node, upgrade):
+		return false
+	return (attack_plan as MeleeAttackPlan).toggle_temp_upgrade(node, upgrade)
+
+
+## The gate half of [method toggle_temp_upgrade_on], lifted so
+## [method CommandApplier._validate] can decide a [ToggleTempUpgradeCommand]
+## before it is confirmed (#540). Not a second copy of the rule — the rule is
+## [method MeleeAttackPlan.can_toggle_temp_upgrade]; what lives here is the
+## live-plan lookup and the denial announcement.
+##
+## [b]It announces, so it must be asked exactly once per attempt.[/b] That holds
+## by construction under the applier's ordering: a validate-fail never reaches
+## the apply, and a validate-pass makes the apply's own re-ask succeed silently.
+func can_toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
 	var plan := attack_plan as MeleeAttackPlan
 	if plan == null or node == null or upgrade == null:
 		return false
-	if upgrade is Dictionary and (upgrade as Dictionary).is_empty():
+	if not (upgrade is Dictionary) or (upgrade as Dictionary).is_empty():
 		return false
-	if plan.toggle_temp_upgrade(node, upgrade):
+	if plan.can_toggle_temp_upgrade(node, upgrade):
 		return true
 	var reason := "temp_upgrade_denied_slot_full" \
 			if not node.can_attach_addon(upgrade.script) \

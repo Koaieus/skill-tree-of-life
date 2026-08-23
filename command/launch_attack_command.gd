@@ -60,6 +60,26 @@ func type_tag() -> StringName:
 	return TAG
 
 
+## [b]The one verb that still confirms AFTER it applies (#540 decision 3).[/b]
+##
+## Not a peer-role exception — a PAYLOAD one. [member record] is stamped by
+## [method BattleSystem._compute_record], which runs inside the apply. Confirming
+## first would broadcast this command with an EMPTY record, and a peer that
+## receives an empty record reads it as an INITIATE (see the class note), takes
+## the compute branch it cannot run — it holds no live plan — and refuses the
+## attack outright. Every attack would stop crossing.
+##
+## [b]Deleting this override is a one-line change; #534 is where it happens.[/b]
+## What it waits on is the compute half moving out of the apply and into
+## [method CommandApplier._validate], so the record is final before the confirm.
+## #536 already made that legal — the compute resolves against a
+## [method CombatWorld.shadow] and mutates nothing real — it just did not move
+## it, because until #540 landed decision 4 the confirm was also where
+## [CommandLink] sampled its POST-mutation fingerprint.
+func confirms_before_apply() -> bool:
+	return false
+
+
 func to_dict() -> Dictionary:
 	var d := super()
 	d["plan"] = plan

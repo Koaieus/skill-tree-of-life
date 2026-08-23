@@ -78,9 +78,10 @@ enum Mode {
 ## depends on their text.
 signal logged(line: String)
 
-## The client's post-apply comparison against the host's fingerprint.
-## [param agrees] false means the two worlds have diverged — see the class note
-## for the two known-unmirrored paths that cause it legitimately today.
+## The client's comparison against the host's fingerprint — since #540 a
+## PRE-apply one on both sides (the host stamps the world it is about to mutate,
+## the client checks the world it is about to mutate). [param agrees] false means
+## the two worlds have diverged, as of one command ago.
 signal sync_checked(agrees: bool, local: int, remote: int)
 
 @export var transport: NetworkTransport
@@ -108,11 +109,6 @@ var mode: Mode = Mode.OFF:
 ## broadcasting cannot echo it back. Wave 0 never sets both, but the guard is
 ## one line and its absence is an infinite loop.
 var _applying_remote: bool = false
-
-## Monotonic receive counter, so a handler resuming from an await can tell
-## whether a newer command has since superseded its view of the world. Not a
-## wire field — the host never sees it.
-var _recv_seq: int = 0
 
 
 func _ready() -> void:
@@ -174,10 +170,21 @@ func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
 
 
 ## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
-## the two are the same instant for every verb that has nothing to await after
-## its mutation, and for an attack the difference is the host's whole animation
-## tail (see that signal's note). A refused command never confirms, so the
-## "changed nothing, mirror nothing" rule is now the applier's to enforce.
+## a refused command never confirms, and since #540 a confirm fires BEFORE the
+## mutation for every deterministic verb — which is the whole point, because it
+## is what stops every peer being one mutation window behind the authority.
+##
+## [b]The fingerprint is READ here, never computed here (#540 decision 4).[/b]
+## [method CommandApplier._drain] stamped [member Command.pre_fingerprint] the
+## instant this command left the queue, which is the PRE-mutation world. Once the
+## authority confirms before it applies, there is no post-mutation world to
+## sample at this point — recomputing here would ship the world as it stood
+## before the command either way, but only by accident for some verbs and not
+## others. Stamping at submit makes it true uniformly, and the receiving peer
+## compares against its own pre-state in [method _on_remote_command].
+##
+## This also fixes a plain waste: the fingerprint used to be computed twice per
+## send, once for the payload and once for the log line.
 func _on_command_confirmed(command: Command) -> void:
 	if mode != Mode.BROADCAST or transport == null:
 		return
@@ -186,9 +193,9 @@ func _on_command_confirmed(command: Command) -> void:
 	transport.send({
 		KEY_KIND: KIND_COMMAND,
 		KEY_COMMAND: command.to_dict(),
-		KEY_FINGERPRINT: WorldFingerprint.compute(graph),
+		KEY_FINGERPRINT: command.pre_fingerprint,
 	})
-	logged.emit("→ %s (fp %d)" % [command.type_tag(), WorldFingerprint.compute(graph)])
+	logged.emit("→ %s (pre-fp %d)" % [command.type_tag(), command.pre_fingerprint])
 
 
 func _on_message_received(payload: Dictionary) -> void:
@@ -247,18 +254,39 @@ func _on_remote_command(payload: Dictionary) -> void:
 	if command == null:
 		logged.emit("← undecodable payload, dropped")
 		return
-	_recv_seq += 1
-	var seq := _recv_seq
-	# BEFORE the mutation, deliberately: the host resolved this command against
-	# the PRE-command world, so a probe that ran after `submit` would compare
-	# its own re-resolution against the wrong state and report divergence that
-	# is really just ordering. Mutates nothing — see [DeterminismProbe].
-	# The settled flag is read HERE and passed down, not asked for later: by the
-	# time the probe could ask, `submit` has already started a drain and the
-	# answer is always "busy".
+	# ── Compared BEFORE the mutation, on both sides (#540 decision 4) ─────────
+	# The host stamped its fingerprint when this command left ITS queue, so what
+	# rides the wire is "the world I was about to apply this to". The honest
+	# comparison against that is the same question asked here: "the world I am
+	# about to apply this to". Pre-state versus pre-state.
+	#
+	# `settled` still gates it, and for the reason the old post-apply compare
+	# needed it too: a non-empty local queue means this peer is somewhere INSIDE
+	# an earlier command, so its world is not at any command's boundary and a
+	# comparison would report a divergence that never happened. A spurious ✗
+	# poisons the only diagnostic this harness has.
+	#
+	# What DOES go away is the far larger source of skips — a compare that had to
+	# survive its own `await`, and so lost to any command that arrived meanwhile
+	# (the `_recv_seq` supersede check this replaces). Nothing awaits before the
+	# compare now.
+	#
+	# The cost, accepted and stated in the issue: divergence detection lags one
+	# command, and a run's FINAL command is never compared at all.
+	var settled := not command_applier.is_applying and command_applier.pending_count() == 0
+	# The same flag the probe needs, read once — by the time the probe could ask
+	# for itself, `submit` has started a drain and the answer is always "busy".
 	if probe != null:
-		probe.observe_before_apply(command,
-				not command_applier.is_applying and command_applier.pending_count() == 0)
+		probe.observe_before_apply(command, settled)
+	if settled:
+		var agrees := _report_sync(WorldFingerprint.compute(graph),
+				int(payload.get(KEY_FINGERPRINT, 0)), "before %s" % command.type_tag())
+		if probe != null:
+			probe.observe_world(command, agrees)
+	elif probe != null:
+		# Counted, not dropped, or the probe's denominator would silently be a
+		# lie ("0 diverged of 412" while only 280 were ever looked at).
+		probe.observe_skipped(command)
 	_applying_remote = true
 	command_applier.submit(command)
 	# `submit` may await (move_core beats, end_turn's initiative tick), so the
@@ -267,28 +295,6 @@ func _on_remote_command(payload: Dictionary) -> void:
 		await command_applier.applying_changed
 	_applying_remote = false
 	logged.emit("← %s" % command.type_tag())
-	# Only the NEWEST handler, and only once the queue is empty, may compare.
-	# Two async commands in flight (move_core's per-hop beats, end_turn's
-	# initiative tick) resume from the SAME `applying_changed` and both then see
-	# the post-both-commands world — so the earlier one would compare it against
-	# its own older fingerprint and report a divergence that never happened. A
-	# spurious ✗ poisons the only diagnostic this harness has, which is worth
-	# more than a tick per command.
-	# Both early returns below are commands that are never compared at all —
-	# counted, not dropped, or the probe's denominator would silently be a lie
-	# ("0 diverged of 412" while only 280 were ever looked at).
-	if command_applier.is_applying or command_applier.pending_count() > 0:
-		if probe != null:
-			probe.observe_skipped(command)
-		return
-	if seq != _recv_seq:
-		if probe != null:
-			probe.observe_skipped(command)
-		return
-	var agrees := _report_sync(WorldFingerprint.compute(graph),
-			int(payload.get(KEY_FINGERPRINT, 0)), "after %s" % command.type_tag())
-	if probe != null:
-		probe.observe_world(command, agrees)
 
 
 ## Returns the verdict as well as announcing it, so #529's probe can attribute

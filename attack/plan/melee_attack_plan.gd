@@ -414,6 +414,19 @@ func _existing_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> SkillNodeAd
 	return null
 
 
+## Would [method toggle_temp_upgrade] change anything? Composed from the two
+## halves that method already branches on, never a third copy of either — a
+## refund is always legal, so the only question a fresh apply has to answer is
+## `can_apply_temp_upgrade`. Lifted out so [method CommandApplier._validate] can
+## gate a [ToggleTempUpgradeCommand] before it is confirmed (#540).
+func can_toggle_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
+	if node == null or upgrade.is_empty():
+		return false
+	if _existing_temp_upgrade(node, upgrade) != null:
+		return true
+	return can_apply_temp_upgrade(node, upgrade)
+
+
 ## Click-to-toggle entry point for the UI (#406): if `node` already carries
 ## this exact temp upgrade, refund it (same shape as a blade-member toggle);
 ## otherwise try to apply a new one. Returns true if anything changed.

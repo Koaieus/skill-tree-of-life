@@ -167,6 +167,65 @@ func test_a_refused_command_is_not_broadcast() -> void:
 			+ "nothing to mirror")
 
 
+# ── The fingerprint compares pre-state against pre-state (#540 decision 4) ──
+
+func test_the_broadcast_fingerprint_is_the_pre_command_world() -> void:
+	# Once the host confirms BEFORE it applies, there is no post-mutation world
+	# to sample at confirm time. So the payload carries the world the host was
+	# about to mutate, stamped by the applier when the command left its queue.
+	var before := WorldFingerprint.compute(_host["graph"])
+	var payloads: Array[Dictionary] = []
+	(_client_link.transport as NetworkTransport).message_received.connect(
+			func(p: Dictionary) -> void: payloads.append(p))
+
+	var command := AllocateCommand.new((_host["player"] as Entity).entity_id, _id(_host, "B"))
+	(_host["applier"] as CommandApplier).submit(command)
+	await get_tree().process_frame
+
+	assert_eq(payloads.size(), 1, "exactly one command crossed")
+	assert_eq(int(payloads[0][CommandLink.KEY_FINGERPRINT]), before,
+			"the host ships the world it was ABOUT to mutate, not the one it just made")
+	assert_ne(WorldFingerprint.compute(_host["graph"]), before,
+			"and the command really did move the host's world, so the two differ")
+
+
+func test_the_client_compares_before_it_applies() -> void:
+	# The other half of the same claim. Comparing post-apply against a pre-apply
+	# fingerprint would read as divergence on every single command and take
+	# #529's WORLD column with it.
+	var verdicts: Array[bool] = []
+	var owner_at_check: Array = [&"unset"]
+	_client_link.sync_checked.connect(func(agrees: bool, _l: int, _r: int) -> void:
+		verdicts.append(agrees)
+		owner_at_check[0] = (_client["nodes"]["B"] as SkillNode).owned_by)
+
+	var command := AllocateCommand.new((_host["player"] as Entity).entity_id, _id(_host, "B"))
+	(_host["applier"] as CommandApplier).submit(command)
+	await get_tree().process_frame
+
+	assert_eq(verdicts, [true] as Array[bool],
+			"pre-state against pre-state agrees — a false here means decision 4 is wrong, " \
+			+ "not that the worlds diverged")
+	assert_null(owner_at_check[0],
+			"and the comparison ran before the client's own applier had touched B")
+
+
+func test_the_wire_carries_no_pre_fingerprint_field_in_the_command() -> void:
+	# `pre_fingerprint` is transient applier state riding the ENVELOPE. Putting
+	# it in the command dict would invalidate every committed outcome fixture
+	# (#539) — those .tres files ARE serialized command dictionaries.
+	var payloads: Array[Dictionary] = []
+	(_client_link.transport as NetworkTransport).message_received.connect(
+			func(p: Dictionary) -> void: payloads.append(p))
+
+	(_host["applier"] as CommandApplier).submit(
+			AllocateCommand.new((_host["player"] as Entity).entity_id, _id(_host, "B")))
+	await get_tree().process_frame
+
+	assert_false((payloads[0][CommandLink.KEY_COMMAND] as Dictionary).has("pre_fingerprint"),
+			"the command's own namespace stays the codec's")
+
+
 func test_the_client_does_not_echo_back() -> void:
 	var host_applier: CommandApplier = _host["applier"]
 	var seen: Array[String] = []
