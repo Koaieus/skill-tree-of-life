@@ -160,15 +160,22 @@ func _launch(role: NetworkTransport.Role) -> int:
 ## A warning and not a refusal. [member _pids] is a convenience and the OS is the
 ## authority — a PID here may already be dead, so this cannot know what is
 ## actually running, and blocking a launch on a guess is worse than saying so.
+## Both sides are stated outright rather than one being phrased as the negation
+## of the other: "pid N was launched WITHOUT --autopilot and this one is not"
+## reads as *neither has it*, inside the one line whose job is to say they
+## disagree. Pinned by `test_harness_budget_boost.gd` in both directions.
 func _warn_if_the_pair_would_be_asymmetric(sweeping: bool) -> void:
 	for pid in _pids:
-		if _sweeping_by_pid.get(pid, false) == sweeping:
+		var sibling: bool = _sweeping_by_pid.get(pid, false)
+		if sibling == sweeping:
 			continue
-		_write("[color=#e0a860]Careful: pid %d was launched %s --autopilot and this one " \
-				% [pid, "WITH" if not sweeping else "WITHOUT"] \
-				+ "is not. That flag carries Red's budget boost, so a mismatched pair " \
-				+ "reports DIVERGED for reasons that are not a sync bug. Kill all and " \
-				+ "relaunch both with the toggle settled.[/color]")
+		_write("[color=#e0a860]Careful — mismatched pair: pid %d has --autopilot=%s, " \
+				% [pid, "ON" if sibling else "OFF"] \
+				+ "this launch has --autopilot=%s. " % ("ON" if sweeping else "OFF") \
+				+ "That flag carries Red's budget boost, so the two peers will disagree " \
+				+ "about what Red can afford and the overlay will report DIVERGED for " \
+				+ "reasons that are not a sync bug. Kill all and relaunch both with the " \
+				+ "toggle settled.[/color]")
 		return
 
 

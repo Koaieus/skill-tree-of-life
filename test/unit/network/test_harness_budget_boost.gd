@@ -32,11 +32,13 @@ const BOOSTED_DEALLOC_POINTS := 10.0
 const BOOSTED_MANA := 200.0
 
 ## The scene `mp_dev_sandbox` inherits, and the baseline it is measured against.
-## Read from a live instance rather than hardcoded: Red's opening board is not
-## simply the four `.tscn` sub-resource values (skill_points settles at 8, not
-## the authored 3, once the level's own setup has run), so a literal here would
-## be a number nobody could re-derive and would go stale the first time the
-## sandbox was re-authored.
+## Read from a live instance rather than hardcoded, because Red's opening board is
+## not the four `.tscn` sub-resource values: `skill_points` opens at 8 against an
+## authored 3, since [method AllocationSystem.register_scene_authored_ownership]
+## calls `claim(1)` for every scene-authored owned node and
+## [method SkillPointStat.claim] adds to `base_value`. A literal here would be a
+## number nobody could re-derive, and it would go stale the first time someone
+## authored a sixth owned node onto Red.
 ##
 ## Comparing the two scenes is also the STRONGER assertion. "Red's base is not
 ## 30" passes again the moment someone re-tunes the boost to 40 and leaves it
@@ -138,6 +140,46 @@ func test_the_launcher_sends_no_sweep_flag_when_the_toggle_is_off() -> void:
 
 	assert_false(Array(host).has("--autopilot"), "off means off")
 	assert_false(Array(client).has("--autopilot"), "on both")
+
+
+## Both orderings of the mismatch, because the launcher's warning is built by
+## comparing two booleans and the natural way to word that — negating one clause —
+## is right in one direction and reads as "neither has it" in the other. A
+## warning that tells a human nothing is wrong is the same as no warning, and
+## this guardrail exists precisely because a mismatched pair produces a LYING
+## `DIVERGED` line.
+##
+## Driven straight through the seam rather than by spawning: `_pids` and
+## `_sweeping_by_pid` are what `_launch` would have left behind.
+func _warning_text_for(sibling_swept: bool, this_launch_sweeps: bool) -> String:
+	var panel: PanelContainer = await _panel()
+	panel._pids = [4242] as Array[int]
+	panel._sweeping_by_pid = {4242: sibling_swept}
+	panel._warn_if_the_pair_would_be_asymmetric(this_launch_sweeps)
+	return (panel.get_node("%Log") as RichTextLabel).get_parsed_text()
+
+
+func test_the_launcher_flags_a_mismatched_pair_in_both_directions() -> void:
+	# Asserted as "this pid, that state", not merely "both words appear" — the
+	# latter passes just as happily with the two sides swapped, which is a
+	# warning that sends someone to relaunch the half that was already right.
+	var swept_first: String = await _warning_text_for(true, false)
+	assert_string_contains(swept_first, "pid 4242 has --autopilot=ON")
+	assert_string_contains(swept_first, "this launch has --autopilot=OFF")
+
+	var swept_second: String = await _warning_text_for(false, true)
+	assert_string_contains(swept_second, "pid 4242 has --autopilot=OFF")
+	assert_string_contains(swept_second, "this launch has --autopilot=ON")
+
+
+func test_a_matched_pair_draws_no_warning_either_way() -> void:
+	# The other half: a guardrail that cries wolf on every launch gets ignored,
+	# and "Launch both" is the common path.
+	var both_off: String = await _warning_text_for(false, false)
+	assert_false(both_off.contains("mismatched"), "both off is a matched pair")
+
+	var both_on: String = await _warning_text_for(true, true)
+	assert_false(both_on.contains("mismatched"), "and so is both on")
 
 
 func test_the_probe_flag_by_contrast_stays_client_only() -> void:
