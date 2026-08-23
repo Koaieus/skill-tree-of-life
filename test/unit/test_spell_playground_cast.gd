@@ -20,6 +20,7 @@ extends GutTest
 
 const _PANEL := preload("res://addons/spell_playground/playground_panel.tscn")
 const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
+const _HEALING_BEAM: SpellDef = preload("res://attack/spell/defs/healing_beam.tres")
 
 var _panel: Node
 var _graph: Graph
@@ -108,6 +109,43 @@ func test_casting_spends_the_caster_action_points() -> void:
 	_panel._on_target_clicked(_node("d_hub"))
 	await _panel._cast()
 	assert_lt(ap.current, float(ap.get_value()), "launch_attack deducts the outcome's ap_cost")
+
+
+## A heal that changes nothing and a cast that was REFUSED look identical from
+## outside — both leave the board where it was. So this asserts the heal moves HP
+## upward off a wounded node rather than asserting "no error": the panel spent a
+## release doing exactly the former while looking like the latter.
+func test_casting_a_heal_restores_a_wounded_node() -> void:
+	var wounded := _node("d_hub")
+	wounded.get_combat().take_damage(5.0, null)
+	var before := wounded.get_combat().get_current_hp()
+	assert_lt(before, wounded.get_combat().get_max_hp(), "fixture: it has room to heal")
+	_panel.load_spell(_HEALING_BEAM)
+	_panel._on_target_clicked(wounded)
+	await _panel._cast()
+	assert_gt(wounded.get_combat().get_current_hp(), before,
+			"a heal that resolves but never lands is indistinguishable from a refusal")
+	assert_false(_panel.status_label.text.contains("refused"),
+			"got: %s" % _panel.status_label.text)
+
+
+## Killing the defender's core kills the ENTITY, and Reset has to survive that —
+## `_authored_owners` holds Entity references captured at `_ready`, so anything
+## that freed the corpse would leave the map dangling. A freed Object compares
+## equal to null (`.claude/rules/gdscript-pitfalls.md`), so the failure mode is
+## silence: Reset would allocate nothing and report success.
+func test_reset_restores_the_board_after_the_defender_dies() -> void:
+	var board: EntityStatBoard = _defender.stat_board
+	board.health.set_current(1.0)
+	_defender.core_location.get_combat().take_damage(9999.0, null)
+	await get_tree().process_frame
+	assert_true(_defender.is_dead, "fixture: the core died, so the entity did")
+	_panel._reset_state()
+	assert_false(_defender.is_dead, "Reset brings the defender back")
+	for sn in _graph.get_skill_nodes():
+		assert_not_null(sn.owned_by, "%s never got its authored owner back" % sn.name)
+		assert_eq(sn.allocation_level, 1, "%s came back owned but unfilled" % sn.name)
+	assert_eq(_defender.core_location, _node("d_core"), "and its core is re-seated")
 
 
 ## A seed the real targeting gate refuses is REPORTED, not swallowed. The old

@@ -546,8 +546,21 @@ func _cast() -> void:
 	await _battle.launch_attack()
 	# The panel can be torn down mid-launch (plugin disabled, tab rebuilt); its
 	# buttons are gone by then and re-enabling them would crash.
-	if is_inside_tree():
-		_set_casting(false)
+	if not is_inside_tree():
+		return
+	# `launch_attack` is `-> void` and its two remaining refusals — the plan going
+	# invalid in the queue, and the affordability gate reading the REAL board —
+	# only `push_warning`. Left alone, `_set_casting(false)` below rewrites the
+	# status line with the ordinary "spell · seed →" text, and a refused cast
+	# becomes byte-identical to a cast that legitimately changed nothing (a heal
+	# on a full node). That is the exact shape of silence this panel just spent a
+	# release in. [method BattleSystem._commit] clears the plan on its way out, so
+	# a plan still armed here means nothing launched.
+	var launched := not _battle.is_attacking
+	_set_casting(false)
+	if not launched:
+		status_label.text = "%s · %s → refused: unaffordable, or the plan went invalid" \
+				% [_spell.name, _selected_target.name]
 
 
 func _replenish_caster() -> void:

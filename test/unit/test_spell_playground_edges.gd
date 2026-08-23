@@ -38,6 +38,16 @@ func test_every_authored_edge_resolves_both_endpoints() -> void:
 		assert_not_null(e.to, "%s has an unresolved `to` NodePath" % e.name)
 
 
+## Resolving both endpoints is not the same as being DRAWN. Every regular edge
+## edge rides the Graph's shared MultiMesh (#413), which `Graph._ready` backfills;
+## the panel's `.tscn` deliberately authors no `multimesh` override, so this is
+## what says that backfill really reaches a hand-authored world.
+func test_the_authored_edges_reach_the_shared_multimesh() -> void:
+	var mm: MultiMesh = _graph.edge_mesh.multimesh
+	assert_not_null(mm, "Graph._ready mints this; an authored override would shadow it")
+	assert_eq(mm.visible_instance_count, 22, "one buffer slot per authored edge")
+
+
 ## `self_loops` is a DERIVED runtime index that the editor serializes anyway
 ## (audit finding C7). A save had once baked `[null, NodePath(...)]` onto the
 ## carrier — one real entry plus a null — which makes `self_loop_count` report 2
