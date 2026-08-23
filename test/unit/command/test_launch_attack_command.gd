@@ -112,11 +112,11 @@ func test_launch_attack_routes_through_the_applier() -> void:
 
 
 func test_the_confirmed_command_carries_the_record_out() -> void:
-	# CommandLink encodes on `command_confirmed`, which BattleSystem raises the
-	# instant the record is stamped — so the record rides out with the
-	# broadcast for free. If this ever went empty, every peer would silently
-	# receive an initiate. (`test_melee_launch_lifecycle.gd` pins the other
-	# half: that this fires before the swing has finished drawing.)
+	# CommandLink encodes on `command_confirmed`, and since #545 the record is
+	# stamped by `_validate` — so the record rides out with the broadcast for
+	# free. If this ever went empty, every peer would silently receive an
+	# initiate. (`test_melee_launch_lifecycle.gd` pins the other half: that this
+	# fires before the swing has finished drawing.)
 	var seen: Array[LaunchAttackCommand] = []
 	_applier.command_confirmed.connect(func(cmd: Command):
 		if cmd is LaunchAttackCommand:
@@ -127,6 +127,80 @@ func test_the_confirmed_command_carries_the_record_out() -> void:
 	assert_false(seen[0].record.is_empty(),
 			"the record must be stamped by the time command_confirmed fires")
 	assert_false(seen[0].plan.is_empty(), "and the plan rides along for the peer's VFX")
+
+
+func test_the_broadcast_goes_out_before_the_world_moves() -> void:
+	# #545's headline, and the reason it is asserted on WORLD STATE rather than
+	# on signal order: "confirms before it applies" is only worth anything if
+	# nothing has actually mutated yet at the moment the mirror is told. Every
+	# other verb has been symmetric since #540; this is the last one.
+	var target: SkillNode = _nodes.target
+	var hp_before := target.get_current_hp()
+	var ap_before := _attacker.stat_board.action_points.current
+	var hp_at_confirm: Array[float] = []
+	var ap_at_confirm: Array[float] = []
+	var record_at_confirm: Array[Dictionary] = []
+	_applier.command_confirmed.connect(func(cmd: Command):
+		if cmd is LaunchAttackCommand:
+			hp_at_confirm.append(target.get_current_hp())
+			ap_at_confirm.append(_attacker.stat_board.action_points.current)
+			record_at_confirm.append((cmd as LaunchAttackCommand).record))
+	_arm()
+	await _bs.launch_attack()
+
+	assert_eq(record_at_confirm.size(), 1, "exactly one confirmation")
+	assert_false(record_at_confirm[0].is_empty(),
+			"…carrying a complete record, so a peer replays rather than initiates")
+	assert_eq(hp_at_confirm[0], hp_before,
+			"the target had taken no damage yet when the mirror was told")
+	assert_eq(ap_at_confirm[0], ap_before,
+			"and the attacker had not paid for it yet — _commit deducts after")
+	assert_lt(target.get_current_hp(), hp_before, "the attack did land, after the confirm")
+
+
+func test_an_unaffordable_launch_neither_confirms_nor_crosses_the_wire() -> void:
+	# The gate that only became assertable once the resolve moved into
+	# `_validate` (#545): affordability is checked against the live board while
+	# deciding, so a launch nobody can pay for is refused BEFORE it is announced.
+	# Confirm-after-apply could not express this — the record did not exist until
+	# the costs had already been deducted.
+	_attacker.stat_board.action_points.current = 0.0
+	var confirmed: Array[Command] = []
+	_applier.command_confirmed.connect(func(cmd: Command): confirmed.append(cmd))
+	var outcomes: Array[bool] = []
+	_applier.command_applied.connect(func(_cmd: Command, ok: bool): outcomes.append(ok))
+	var hp_before: float = (_nodes.target as SkillNode).get_current_hp()
+	_arm()
+	await _bs.launch_attack()
+
+	assert_eq(confirmed, [] as Array[Command],
+			"an unaffordable attack never confirms, so it never crosses the wire")
+	assert_eq(outcomes, [false] as Array[bool],
+			"…and it is reported as a refusal, not silently dropped")
+	assert_eq((_nodes.target as SkillNode).get_current_hp(), hp_before, "the world did not move")
+	assert_false(_bs.is_launching, "and nothing is left in flight")
+
+
+func test_a_launch_by_an_unresolvable_entity_never_confirms() -> void:
+	# The other validate-fail, one layer up: `_validate`'s actor lookup. A dead
+	# attacker's id resolves to nothing, and the applier refuses before
+	# BattleSystem is ever asked.
+	var confirmed: Array[Command] = []
+	_applier.command_confirmed.connect(func(cmd: Command): confirmed.append(cmd))
+	var outcomes: Array[bool] = []
+	_applier.command_applied.connect(func(_cmd: Command, ok: bool): outcomes.append(ok))
+	_arm()
+	var command := _bs.build_launch_command()
+	assert_not_null(command, "the fixture plan must be launchable")
+	command.entity_id = 999999
+	_applier.submit(command)
+	while _applier.is_applying:
+		await _applier.applying_changed
+
+	assert_eq(confirmed, [] as Array[Command])
+	assert_eq(outcomes, [false] as Array[bool])
+	assert_true(command.record.is_empty(),
+			"refused ahead of the resolve, so nothing was even computed")
 
 
 func test_launch_attack_still_awaits_the_whole_action() -> void:

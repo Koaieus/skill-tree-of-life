@@ -6,17 +6,17 @@ extends Command
 ## the whole design, so it is stated here rather than discovered later.
 ##
 ## [b]Two states, one type.[/b]
-##   * [member record] EMPTY — an INITIATE. The authority stamps the seed,
-##     resolves, checks affordability, and applies its own outcome with every
-##     mode's land-time gate live against the real world. Natural logic, not a
-##     precomputed script. It then stamps the record it just produced into
-##     this same object, which is what [CommandLink] broadcasts (it encodes on
-##     [signal CommandApplier.command_confirmed], which [BattleSystem] raises
-##     the instant the record is stamped — so the stamp rides out for free, and
-##     without waiting out the host's animation tail).
-##   * [member record] POPULATED — a REPLAY. A peer reconstructs the recorded
-##     effects; it does not re-resolve, does not re-run a gate, and never
-##     computes a combat number.
+##   * [member record] EMPTY — an INITIATE. Nobody has computed this attack yet.
+##     [method BattleSystem.prepare_launch_command] stamps the seed, resolves on
+##     a shadow, checks affordability, and stamps the record it produced into
+##     this same object — all of it BEFORE the command confirms (#545), so
+##     [CommandLink] broadcasts a complete record and the authority mutates
+##     nothing until every peer has been told.
+##   * [member record] POPULATED — the attack is decided and what remains is a
+##     REPLAY: rebuild the recorded effects and land them. Since #545 that is
+##     the state the authority is in too by the time it applies, which is why
+##     "who computed it" is [member computed_here] and not
+##     `record.is_empty()`.
 ##
 ## Why not two command types: a peer that received an initiate would have to
 ## know it is not the authority to refuse it, which is a role split #511
@@ -37,10 +37,28 @@ const TAG: StringName = &"launch_attack"
 ## [method AttackPlanCodec.from_dict].
 var plan: Dictionary = {}
 
-## The post-apply record — [method AttackRecord.capture], replayed with
-## [method AttackRecord.rebuild]. Empty means "not applied yet"; see the class
-## note.
+## The resolved record — [method AttackRecord.capture], replayed with
+## [method AttackRecord.rebuild]. Empty means "nobody has computed this attack
+## yet"; see the class note.
 var record: Dictionary = {}
+
+## [b]Did THIS machine compute [member record][/b] — set by
+## [method BattleSystem.prepare_launch_command] when it resolves, read by
+## [method BattleSystem.apply_launch_command] to decide whether the live
+## [member BattleSystem.attack_plan] is this command's plan or whether the plan
+## has to be rebuilt from [member plan].
+##
+## [b]Transient applier state — deliberately absent from [method to_dict] and
+## [method from_dict][/b], exactly like [member Command.pre_fingerprint] and for
+## the same two reasons: a received command is by definition one this machine did
+## not compute (so false is the only correct value off the wire), and
+## `test/fixtures/outcome/*.tres` IS a serialized dictionary of this type (#539),
+## so a new wire field invalidates every committed fixture.
+##
+## It replaced `record.is_empty()` when the compute moved ahead of the confirm
+## (#545): the authority now reaches [method BattleSystem.apply_launch_command]
+## with a POPULATED record, so emptiness no longer distinguishes the halves.
+var computed_here: bool = false
 
 ## The seed the authority stamped for this attack, carried separately from
 ## [member record] because it is an INPUT to resolution, not a result of it.
@@ -58,26 +76,6 @@ func _init(entity_id_: int = 0, plan_: Dictionary = {}, resolve_seed_: int = 0) 
 
 func type_tag() -> StringName:
 	return TAG
-
-
-## [b]The one verb that still confirms AFTER it applies (#540 decision 3).[/b]
-##
-## Not a peer-role exception — a PAYLOAD one. [member record] is stamped by
-## [method BattleSystem._compute_record], which runs inside the apply. Confirming
-## first would broadcast this command with an EMPTY record, and a peer that
-## receives an empty record reads it as an INITIATE (see the class note), takes
-## the compute branch it cannot run — it holds no live plan — and refuses the
-## attack outright. Every attack would stop crossing.
-##
-## [b]Deleting this override is a one-line change; #534 is where it happens.[/b]
-## What it waits on is the compute half moving out of the apply and into
-## [method CommandApplier._validate], so the record is final before the confirm.
-## #536 already made that legal — the compute resolves against a
-## [method CombatWorld.shadow] and mutates nothing real — it just did not move
-## it, because until #540 landed decision 4 the confirm was also where
-## [CommandLink] sampled its POST-mutation fingerprint.
-func confirms_before_apply() -> bool:
-	return false
 
 
 func to_dict() -> Dictionary:

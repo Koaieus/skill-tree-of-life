@@ -64,12 +64,13 @@ signal command_applied(command: Command, success: bool)
 ##   * `command_applied` fires for a REFUSED command too, with success false. A
 ##     refusal changed nothing and must never cross the wire.
 ##
-## A verb whose payload is only final mid-apply calls [method confirm] itself at
-## that point and declares [method Command.confirms_before_apply] false;
-## [LaunchAttackCommand] is the only one. Every other verb needs nothing, because
-## [method _drain] confirms on its behalf. Ordering across commands is unchanged
-## either way — the queue is serial, so a mid-apply confirm still lands between
-## its neighbours' confirms.
+## [b]No verb opts out of this ordering (#545).[/b] [LaunchAttackCommand] was the
+## last that did — its [AttackRecord] was computed inside the apply, so
+## confirming first would have broadcast an empty record that a peer reads as an
+## initiate it cannot run. Moving that compute into
+## [method BattleSystem.prepare_launch_command], which [method _validate] calls,
+## made its payload final at the same point as everyone else's, and the hook it
+## opted out through is gone rather than left standing with no callers.
 signal command_confirmed(command: Command)
 
 ## [member is_applying] transitioned. Consumers gate input off this
@@ -118,20 +119,18 @@ var is_applying: bool = false
 ## this applier and the authority has not yet decided it is going ahead. The
 ## world has not moved and the player must not act.
 ##
-## [b]Zero-length locally for the eight deterministic verbs.[/b] [method submit]
-## drains synchronously down to [method _validate], so on a peer that DECIDES
-## this is true for a stack frame. It is not dead code: it is the round trip on a
-## peer that is told, which is what #463 opens, and it is the only phase name
-## that fits the window — [member BattleSystem.is_launching] means "an attack is
-## in flight" and [member is_applying] means "a mutation is under way", and
-## neither is true yet.
+## [b]Zero-length locally for every verb (#545).[/b] [method submit] drains
+## synchronously down to [method _validate], so on a peer that DECIDES this is
+## true for a stack frame. It is not dead code: it is the round trip on a peer
+## that is told, which is what #463 opens, and it is the only phase name that
+## fits the window — [member BattleSystem.is_launching] means "an attack is in
+## flight" and [member is_applying] means "a mutation is under way", and neither
+## is true yet.
 ##
-## [b]The attack is the exception, and it is the LONG one.[/b]
-## [LaunchAttackCommand] confirms late ([method Command.confirms_before_apply]
-## false, because its record is computed inside the apply), so this stays true
-## across the whole resolve + mutation loop — where `is_launching` had it covered
-## either way. Deleting that override is the lift that would make every verb
-## symmetric; it is a follow-up, not this flag's business.
+## The attack used to be the exception and the LONG one, spanning its whole
+## resolve + mutation loop because it confirmed late. It no longer is: its
+## resolve happens inside the validate this flag closes on, so the window is a
+## stack frame here too — the same shape, not a special case with a shorter tail.
 ##
 ## [b]Nested inside [member is_applying] everywhere but one place.[/b] The gate
 ## is an OR ([method PlayerInputController.can_player_act]) and on every path but
@@ -200,9 +199,10 @@ func pending_count() -> int:
 
 
 ## "This command's payload is final and it is going to be applied" — announce it
-## to the mirror. [method _drain] calls this for you at the flip point; a verb
-## calls it directly only when its payload is not final until mid-apply, which
-## is [LaunchAttackCommand] and nothing else.
+## to the mirror. [method _drain] calls this for every verb at the flip point,
+## and since #545 nothing else calls it in production; it stays public and
+## idempotent because that is what makes the flip point the ONLY announcement
+## even when something announces twice.
 ##
 ## Only ever call it once the command is known to be GOING AHEAD — a refused
 ## command changed nothing and must not cross the wire. Idempotent, and safe to
@@ -221,11 +221,11 @@ func confirm(command: Command) -> void:
 	command_confirmed.emit(command)
 
 
-## [b]validate -> confirm -> apply[/b] (#540). The ordering flip: the authority
-## decides a command is legal, announces it, and only THEN mutates — so
-## [method _apply] is the shared post-confirmation apply every peer runs,
-## authority included, instead of the authority's mutation being what a confirm
-## reports after the fact.
+## [b]validate -> confirm -> apply[/b] (#540), for every verb without exception
+## (#545). The ordering flip: the authority decides a command is legal, announces
+## it, and only THEN mutates — so [method _apply] is the shared
+## post-confirmation apply every peer runs, authority included, instead of the
+## authority's mutation being what a confirm reports after the fact.
 ##
 ## [b]The gate moved; it did not multiply.[/b] [method _validate] asks the same
 ## `can_*` queries the mutating verbs already ask themselves
@@ -233,6 +233,15 @@ func confirm(command: Command) -> void:
 ## validates is a command that will apply. That is what makes confirming first
 ## safe, and it is why the gate must never be re-derived here — a second copy of
 ## a rule is the shape `.claude/rules/` forbids.
+##
+## [b]One verb's validate also PRODUCES.[/b] [LaunchAttackCommand]'s gate is
+## "resolve the attack, then check the attacker can afford what came out", and
+## the resolution it has to run IS the command's wire payload. So
+## [method BattleSystem.prepare_launch_command] resolves (on a shadow — nothing
+## real moves) and stamps the record from inside the validate, which is what let
+## #545 delete the last confirm-after-apply exception. Do not read `_validate` as
+## side-effect-free; read it as "the command is final and legal, or it is
+## refused".
 ##
 ## The two verbs where validate cannot fully answer for apply are known and
 ## deliberate: [MoveCoreCommand] can only vet its FIRST hop (a partial core walk
@@ -256,18 +265,13 @@ func _drain() -> void:
 			command.pre_fingerprint = WorldFingerprint.compute(graph)
 		var success := _validate(command)
 		if success:
-			# THE FLIP. A verb that confirms here has its whole payload final
-			# already; [LaunchAttackCommand] does not (its record is computed
-			# inside the apply), and says so by overriding.
-			if command.confirms_before_apply():
-				confirm(command)
+			# THE FLIP, and since #545 there is no branch around it: every verb
+			# reaches here with its whole payload final, the attack included —
+			# [method BattleSystem.prepare_launch_command] stamped its record
+			# inside the validate above.
+			confirm(command)
 			@warning_ignore("redundant_await")
 			success = await _apply(command)
-			# Still here for the verbs that confirm late — the attack today, and
-			# any verb whose payload is only final mid-apply. A command already
-			# confirmed above makes this a no-op.
-			if success:
-				confirm(command)
 		# Inside the guard, deliberately — see the class note. Fires for a
 		# validate-fail too, with success false: a refused command is a normal
 		# outcome and [method PlayerInputController._on_command_applied] is what
@@ -309,6 +313,9 @@ func _refresh_awaiting() -> void:
 ## Is [param command] legal against the world as it stands right now? The gate,
 ## and since #540 the ONLY gate that decides whether a command confirms.
 ##
+## For [LaunchAttackCommand] it is also where the payload is produced — see
+## [method _drain]'s note, and do not assume every branch here is read-only.
+##
 ## Dispatches exactly as [method _apply] does, and for the same reason — the two
 ## must never disagree about which verb a command is. What it must not do is
 ## re-implement any verb's rules: every branch below forwards to the owning
@@ -346,14 +353,12 @@ func _validate(command: Command) -> bool:
 		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
 		return allocation_system.can_deallocate_set(nodes, actor)
 	if command is LaunchAttackCommand:
-		# Cheap preconditions only. The attack's real gate — resolve on a shadow,
-		# then check affordability against the live board — lives in
-		# [method BattleSystem._compute_record] and runs inside the apply, which
-		# is exactly why this verb confirms late (see
-		# [method LaunchAttackCommand.confirms_before_apply]). It still refuses
-		# an unaffordable attack BEFORE anything is confirmed or deducted, so
-		# the failure mode #540 decision 2 names cannot occur here today.
-		return battle_system != null
+		# The one branch that PRODUCES as well as decides — see the method note.
+		# The attack's real gate is "resolve, then check affordability", and the
+		# resolution it needs is the command's own record; #545 moved both here
+		# from the apply so the record is final before the confirm.
+		return battle_system != null \
+				and battle_system.prepare_launch_command(command as LaunchAttackCommand)
 	if command is EndTurnCommand:
 		# No gate, deliberately: [method TurnManager.end_turn] has never had one
 		# and neither did the direct call it replaced (see

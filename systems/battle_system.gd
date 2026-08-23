@@ -284,8 +284,12 @@ func launch_attack() -> void:
 		command_applier.command_applied.disconnect(on_applied)
 		return
 	# No applier (headless fixtures, the editor, any level that has not mounted
-	# one): apply straight. The seam is what #511 builds; a second code path
-	# for offline is not, so this is the same method the applier would call.
+	# one): run the applier's own two halves in the applier's own order. Not a
+	# second code path for offline — these are the same two methods
+	# [method CommandApplier._validate] and [method CommandApplier._apply] call,
+	# and `prepare` is not optional (see [method apply_launch_command]).
+	if not prepare_launch_command(command):
+		return
 	@warning_ignore("redundant_await")
 	await apply_launch_command(command)
 
@@ -315,26 +319,73 @@ func build_launch_command() -> LaunchAttackCommand:
 			entity.entity_id, attack_plan.to_dict(graph), _seed_source.randi())
 
 
+## [b]The VALIDATE half of a launch (#545)[/b] — [method CommandApplier._validate]'s
+## entry point for a [LaunchAttackCommand], and the one place an attack is
+## decided. Returns whether the command may go ahead; the world is untouched
+## either way.
+##
+## [b]This is a gate that also PRODUCES its command's payload[/b], which is what
+## makes it unlike every other branch of `_validate`. The attack's real gate —
+## resolve, then check affordability — cannot be asked without resolving, and
+## the resolution IS the payload. Since #536 resolving costs nothing real (a
+## [method CombatWorld.shadow], see [method _compute_record]), so doing it here
+## is legal; doing it here is what lets the record be final BEFORE the confirm,
+## which is what stopped the authority mutating a full window ahead of every
+## peer.
+##
+## A REPLAY (a populated record) has nothing to compute and nothing left to
+## refuse — the attack was decided on the machine that sent it.
+func prepare_launch_command(command: LaunchAttackCommand) -> bool:
+	if command == null or is_launching:
+		return false
+	if not command.record.is_empty():
+		return true
+	var plan := attack_plan
+	if plan == null:
+		# An initiate for a plan this peer does not hold. Rebuilding one here
+		# would be the intent-up path, which is #463 — refuse loudly instead of
+		# guessing what the sender had armed.
+		push_warning("BattleSystem: launch_attack initiate with no live plan")
+		return false
+	# Re-validated HERE, not only in `build_launch_command`: a command can sit in
+	# the queue while the world moves under it (a cascade frees the pivot, the
+	# target is captured). An invalidated plan resolves to an EMPTY outcome whose
+	# `ap_cost` still defaults to 1, so skipping this spends AP on nothing.
+	if not plan.is_valid():
+		push_warning("BattleSystem: plan went invalid before apply: %s" % str(plan.validate()))
+		return false
+	if not _compute_record(plan, command):
+		return false
+	# LAST, and only on the success path: it is what tells the apply half that
+	# `attack_plan` is this command's plan. See [member
+	# LaunchAttackCommand.computed_here].
+	command.computed_here = true
+	return true
+
+
 ## Apply [param command] — the [CommandApplier]'s entry point, and the one
 ## place an attack mutates the world.
 ##
 ## [b]ONE launch path (#536).[/b] There used to be two — `_launch_as_authority`,
 ## which resolved and applied its own outcome against the real world, and
-## `_replay_launch`, which reconstructed a record. The authority now does both:
+## `_replay_launch`, which reconstructed a record. Every machine now runs the
+## same half here:
 ##
 ## [codeblock]
-## empty record -> COMPUTE: resolve on a shadow, capture the record, confirm
-## every machine -> REPLAY:  rebuild that record, land it on the BeatClock
+## prepare (validate) -> COMPUTE: resolve on a shadow, capture the record
+## apply   (mutate)   -> REPLAY:  rebuild that record, land it on the BeatClock
 ## [/codeblock]
 ##
-## The confirm still fires from [method _commit], at the mutation-settle point,
-## even though the payload is finished an await earlier — see the note there.
-##
 ## Per #498: [i]"the host becomes a peer of itself; it is the only one that
-## computes, not the only one that replays."[/i] The payload still decides which
-## half runs, never a peer role (see [LaunchAttackCommand]) — an empty record
-## just means "nobody has computed this yet", and only the authority ever
-## receives one.
+## computes, not the only one that replays."[/i] Which half a machine ran is a
+## payload question, never a peer role (see [LaunchAttackCommand]) — and since
+## #545 moved the compute ahead of the confirm, the payload field that answers it
+## is [member LaunchAttackCommand.computed_here], not an empty record.
+##
+## [b]An unprepared command is refused, not quietly computed.[/b] There is no
+## compute branch left here to fall into: whoever applies must have run
+## [method prepare_launch_command] first, because that is where the confirm sits
+## between the two.
 ##
 ## [b]The round trip through capture -> rebuild is the point, not waste.[/b]
 ## Reusing the computed [AttackOutcome] object for the live pass would land the
@@ -348,27 +399,17 @@ func build_launch_command() -> LaunchAttackCommand:
 func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	if command == null or is_launching:
 		return false
+	if command.record.is_empty():
+		push_warning("BattleSystem: launch_attack applied without prepare_launch_command")
+		return false
 	var plan: AttackPlan
-	# "Did THIS machine compute the record", which is the only thing that
-	# decides who confirms — never a peer role (see [LaunchAttackCommand]).
-	var computed := command.record.is_empty()
-	if computed:
+	if command.computed_here:
+		# Re-read rather than carried over from `prepare_launch_command`, which is
+		# safe only because [method CommandApplier._drain] has NO await between
+		# validate and apply — nothing can re-arm in between. Do not add one.
 		plan = attack_plan
 		if plan == null:
-			# An initiate for a plan this peer does not hold. Rebuilding one
-			# here would be the intent-up path, which is #463 — refuse loudly
-			# instead of guessing what the sender had armed.
-			push_warning("BattleSystem: launch_attack initiate with no live plan")
-			return false
-		# Re-validated HERE, not only in `build_launch_command`: a command can
-		# sit in the queue while the world moves under it (a cascade frees the
-		# pivot, the target is captured). An invalidated plan resolves to an
-		# EMPTY outcome whose `ap_cost` still defaults to 1, so skipping this
-		# spends AP on nothing.
-		if not plan.is_valid():
-			push_warning("BattleSystem: plan went invalid before apply: %s" % str(plan.validate()))
-			return false
-		if not _compute_record(plan, command):
+			push_warning("BattleSystem: the prepared plan went away before apply")
 			return false
 	else:
 		plan = AttackPlanCodec.from_dict(command.plan, graph)
@@ -383,17 +424,18 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 		# headless peer pays nothing for an animation it won't play.
 		if plan is MeleeAttackPlan and melee_preview != null:
 			plan.resolve()
-	# Everyone, authority included, from here down. The command rides along only
-	# so the authority can confirm at its settle point — see [method _commit].
+	# Everyone, authority included, from here down.
 	var outcome := AttackRecord.rebuild(command.record, graph)
 	@warning_ignore("redundant_await")
-	await _commit(plan, outcome, command if computed else null)
+	await _commit(plan, outcome)
 	return true
 
 
 ## The COMPUTE half — authority only, and the one place in the codebase that
 ## decides what an attack does. Stamps [param command]'s record and returns
-## true, or refuses on affordability and returns false.
+## true, or refuses on affordability and returns false. Runs inside
+## [method prepare_launch_command], which is to say inside the VALIDATE half,
+## ahead of the confirm (#545) — never inside the apply.
 ##
 ## [b]Nothing real is touched here.[/b] The whole pass runs against a
 ## [method CombatWorld.shadow]: the hits land, the cascades cascade, mitigation
@@ -461,8 +503,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## VFX still gates nothing: dropping every frame of the animation leaves the
 ## applied world identical, because the loop waits on its own timer and not on
 ## `attack_vfx.play`.
-func _commit(plan: AttackPlan, outcome: AttackOutcome,
-		command: LaunchAttackCommand) -> void:
+func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	is_launching = true
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
@@ -510,25 +551,18 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome,
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
-	# Nothing is CAPTURED here anymore (#536) — the record was complete before
-	# this method was entered; it is the record this pass just replayed. The
-	# confirm did not move with it, and that is deliberate:
+	# Nothing is captured and nothing is confirmed here (#536, then #545). The
+	# record was complete before this method was entered — it is the record this
+	# pass just replayed — and the confirm went with it, up into
+	# [method CommandApplier._drain], where it fires for this verb exactly as it
+	# does for the other eight.
 	#
-	# [b]Confirmation means "applied here", not "computed here".[/b]
-	# [CommandLink] stamps `WorldFingerprint.compute(graph)` onto the payload it
-	# broadcasts from [signal CommandApplier.command_confirmed], and the
-	# receiving peer compares that against its own world AFTER applying. Confirm
-	# before the mutation and every attack would broadcast a pre-command
-	# fingerprint and report a divergence that isn't there — with nothing in the
-	# unit suite positioned to notice, since the check lives on the wire.
+	# [signal CommandApplier.command_confirmed] still earns its existence, and
+	# this method is the reason: `command_applied` cannot fire until this
+	# coroutine returns, so mirroring off THAT would make a peer sit out the
+	# host's whole swing before starting its own.
 	#
-	# Still ahead of the animation tail, which is the reason
-	# [signal CommandApplier.command_confirmed] exists at all: `command_applied`
-	# cannot fire until this coroutine returns, so mirroring off that used to
-	# make a peer sit out the host's whole swing before starting its own.
-	if command != null and command_applier != null:
-		command_applier.confirm(command)
-	# Then wait out the animation too, before releasing anything. `is_launching`
+	# Wait out the animation, then release. `is_launching`
 	# spans the WHOLE action, not just the mutation: it is what blocks a second
 	# launch, and the plan stays live behind it because a melee plan's
 	# temp-upgrade addons (#406) must keep rendering through the swing. Clearing

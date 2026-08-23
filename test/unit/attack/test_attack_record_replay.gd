@@ -149,14 +149,28 @@ func _fire_and_replay(host: Dictionary, peer: Dictionary) -> LaunchAttackCommand
 	var bs: BattleSystem = host.bs
 	var command := bs.build_launch_command()
 	assert_not_null(command, "the fixture plan must be launchable")
-	await bs.apply_launch_command(command)
+	await _fire(bs, command)
 	assert_false(command.record.is_empty(),
 			"the authority must stamp the record it produced onto the command")
 
 	var wired := _over_the_wire(command)
 	var peer_bs: BattleSystem = peer.bs
+	# No `prepare` on the peer side, deliberately: the attack was decided on the
+	# host, and the record it carries is the whole point of the replay half.
 	await peer_bs.apply_launch_command(wired)
 	return command
+
+
+## Run the two halves of a launch in the applier's own order, without an applier
+## (#545): [method BattleSystem.prepare_launch_command] resolves and stamps the
+## record — the point a real drain would confirm — and only then does
+## [method BattleSystem.apply_launch_command] mutate. Apply refuses an unprepared
+## command outright, so this is not a convenience wrapper.
+func _fire(bs: BattleSystem, command: LaunchAttackCommand) -> void:
+	assert_true(bs.prepare_launch_command(command),
+			"the fixture attack must survive validation")
+	@warning_ignore("redundant_await")
+	await bs.apply_launch_command(command)
 
 
 func _assert_worlds_agree(host: Dictionary, peer: Dictionary, what: String) -> void:
@@ -268,7 +282,7 @@ func test_the_timeline_rebuilds_its_ALIASING_not_just_its_values() -> void:
 	_arm_magic(host)
 	var bs: BattleSystem = host.bs
 	var command := bs.build_launch_command()
-	await bs.apply_launch_command(command)
+	await _fire(bs, command)
 
 	var rebuilt := AttackRecord.rebuild(command.record, host.graph)
 	assert_gt(rebuilt.timeline.size(), 0, "fixture must produce a timeline")
@@ -287,7 +301,7 @@ func test_the_record_carries_the_seed_the_attack_resolved_under() -> void:
 	var bs: BattleSystem = host.bs
 	var command := bs.build_launch_command()
 	assert_ne(command.resolve_seed, 0, "the authority mints a fresh seed per attack")
-	await bs.apply_launch_command(command)
+	await _fire(bs, command)
 	var wired := _over_the_wire(command)
 	assert_eq(wired.resolve_seed, command.resolve_seed,
 			"the seed survives the wire — it is the 'verify by re-resolving' half")
@@ -300,7 +314,7 @@ func test_no_live_reference_and_no_source_field_reaches_the_wire() -> void:
 	_arm_magic(host)
 	var bs: BattleSystem = host.bs
 	var command := bs.build_launch_command()
-	await bs.apply_launch_command(command)
+	await _fire(bs, command)
 	var d := command.to_dict()
 	# Scoped to the RECORD half. A plan legitimately carries a `source` key —
 	# that is melee's pivot / magic's cast-from node, an id. What must not
@@ -379,7 +393,7 @@ func test_the_world_the_authority_computed_is_the_world_it_ends_up_in() -> void:
 	var bs: BattleSystem = host.bs
 	var command := bs.build_launch_command()
 	assert_not_null(command, "the fixture plan must be launchable")
-	await bs.apply_launch_command(command)
+	await _fire(bs, command)
 
 	var record := AttackRecord.rebuild(command.record, host.graph)
 	assert_gt(record.hits.size(), 0, "the fixture swing must produce landings")

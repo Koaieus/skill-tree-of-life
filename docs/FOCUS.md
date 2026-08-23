@@ -162,18 +162,27 @@ gates the date: **#537** two-tier AI candidate gating and **#538**
 magic AI candidate ~150× more expensive (0.076 ms → 11.58 ms at 200 owned), and
 ranged/magic still enumerate candidates exhaustively.
 
-**Symmetric confirmation (#534) is one verb short of done.** #539 (outcome
-playground), #540 (validate → confirm → apply, fingerprint compares pre-state)
-and #541 (the input gate's third phase) landed 2026-08-22/23 and made the
-**eight non-attack verbs** symmetric. `launch_attack` still confirms after it
-applies, behind `LaunchAttackCommand.confirms_before_apply() -> false` — which
-#534 expected #536 to delete, except #536 landed first and #540 then created it.
-That is **#545** (`Ready`): move `BattleSystem._compute_record()` into
-`CommandApplier._validate`, delete the override. Both of its stated blockers are
-already gone. It does **not** gate the LAN commitment — hot-seat coop is one
-machine — it gates versus. #534 also has two acceptance items nobody has
-measured since the flip: the WORLD column and the `skipped` rate, which want an
-`mp-harness --turns` sweep.
+**Symmetric confirmation (#534) is code-complete; what is left is a
+measurement.** #539 (outcome playground), #540 (validate → confirm → apply,
+fingerprint compares pre-state) and #541 (the input gate's third phase) landed
+2026-08-22/23 and made the **eight non-attack verbs** symmetric. **#545** closed
+the ninth on 2026-08-23: `BattleSystem._compute_record()` now runs inside
+`BattleSystem.prepare_launch_command()`, which `CommandApplier._validate` calls,
+so the record is final before the confirm — and the
+`Command.confirms_before_apply()` opt-out hook is deleted outright rather than
+left with no callers. Every verb confirms before it applies; there is no
+exception left to remember.
+
+Two consequences to know: `_validate` is no longer side-effect-free (the attack's
+branch produces the payload it gates on, on a shadow), and
+`LaunchAttackCommand.computed_here` — transient, off-wire — replaced
+`record.is_empty()` as "did this machine compute it", because the authority now
+replays its own record like a peer.
+
+#534's own close still waits on the two acceptance items nobody has measured
+since the flip — the WORLD column and the `skipped` rate — which want an
+`mp-harness --turns` sweep. **No such tool exists**; #545 landed with that bullet
+unverified, deliberately, rather than growing a harness to satisfy a checkbox.
 
 The cross-unit seam that governed those waves still holds for anything new:
 `OutcomeApplier` sorts hits by `arrival_time`, so **each mode's stamps must be

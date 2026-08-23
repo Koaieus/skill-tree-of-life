@@ -227,25 +227,39 @@ Application spans more than mutation: `BattleSystem._commit` keeps awaiting
 plan's lifetime through the swing (#406). Mirroring off `command_applied`
 therefore made a peer wait out the *host's animation* before it could start its
 own — lag proportional to spell length, for a payload that was final much
-earlier. So a verb with such a tail calls `applier.confirm(cmd)` at its settle
-point, and `CommandLink` broadcasts off that.
+earlier. `_drain` confirms at the flip point instead, and `CommandLink`
+broadcasts off that. (Until #545 the attack called `applier.confirm(cmd)` itself,
+at its own mid-apply settle point; the signal outlived that arrangement because
+the animation tail it exists for is still there.)
 
-**#540 flipped when the drain confirms for everyone else.** `_drain` is now
-`validate → confirm → apply`: `CommandApplier._validate` forwards to the same
-`can_*` queries the mutating verbs ask themselves, so "validated" already means
-"will apply" and the host no longer has to finish mutating before it can tell
-anyone. `Command.confirms_before_apply()` is what a verb overrides to opt out;
-`LaunchAttackCommand` is the only one that does, because its `AttackRecord` is
-computed *inside* the apply and confirming first would broadcast an empty record
-that a peer reads as an initiate it cannot run.
+**#540 flipped when the drain confirms, and #545 made it universal.** `_drain`
+is `validate → confirm → apply` for every verb without exception:
+`CommandApplier._validate` forwards to the same `can_*` queries the mutating
+verbs ask themselves, so "validated" already means "will apply" and the host
+never has to finish mutating before it can tell anyone.
 
-**The pending phase is zero-length locally for the eight deterministic verbs,
-and that is not a reason to delete it (#541).** `submit` drains synchronously
-down to `_validate`, so on a peer that *decides*, `is_awaiting_confirmation` is
-true for a stack frame; it becomes the round trip only once #463 routes a
-client's intent upward. **The attack is the exception and it is the long one** —
-`LaunchAttackCommand` confirms late, so the flag spans its whole apply, which is
-precisely the window `is_launching` already owned. It is derived —
+`LaunchAttackCommand` was the last hold-out, behind a
+`Command.confirms_before_apply()` opt-out hook, because its `AttackRecord` was
+computed *inside* the apply and confirming first would have broadcast an empty
+record that a peer reads as an initiate it cannot run. #545 moved that compute up
+into `BattleSystem.prepare_launch_command()`, which `_validate` calls — legal
+since #536 made resolution shadow-only, and free of consequence since #540
+decision 4 stopped the confirm being a fingerprint sampling point. The hook is
+deleted rather than left standing with no callers.
+
+**One consequence worth naming: `_validate` is not side-effect-free.** For the
+attack it *produces the payload it is gating on* — the gate is "resolve, then
+check the attacker can afford what came out", and the resolution is the record.
+Nothing real moves (a `CombatWorld.shadow()`), but read `_validate` as "the
+command is final and legal, or it is refused", not as a pure query.
+
+**The pending phase is zero-length locally for every verb, and that is not a
+reason to delete it (#541).** `submit` drains synchronously down to `_validate`,
+so on a peer that *decides*, `is_awaiting_confirmation` is true for a stack
+frame; it becomes the round trip only once #463 routes a client's intent upward.
+The attack used to be the exception and the long one — it confirmed late, so the
+flag spanned its whole apply — but since #545 its resolve happens inside the
+validate the flag closes on, so its window is a stack frame too. It is derived —
 "queued, or popped and not yet confirmed" — rather than assigned, because a
 `command_applied` handler that submits opens a fresh window one line before the
 outgoing command closes one. The flag is raised in `submit` *ahead of* the
@@ -301,16 +315,23 @@ free and reversible behind the seam. Lobby: type-an-IP.
 
 **One command type, two states (#511).** `LaunchAttackCommand` is the only
 asymmetric verb in the vocabulary, and that is deliberate. An EMPTY `record`
-means *initiate*: the authority stamps the seed, resolves, gates on
-affordability, and applies naturally, then stamps the record it produced onto
-the same object — which `CommandLink` broadcasts, because it encodes on
-`command_confirmed`, raised the instant that record is stamped. A POPULATED `record` means *replay*:
-a peer rebuilds the plan (for the animation only) and the recorded deltas (for
-the world), and lands them through the same `OutcomeApplier` on the same
-`BeatClock`. Two types would need the receiver to know its own role to refuse
-the wrong one; one type whose payload says which half of the work is already
-done needs no role at all — and when #463 adds the intent channel upward, a
-client's intent IS this command with an empty record.
+means *initiate*: nobody has computed this attack yet, so the authority stamps
+the seed, resolves on a shadow, gates on affordability, and stamps the record it
+produced onto the same object — all inside `_validate`, so `CommandLink` (which
+encodes on `command_confirmed`) broadcasts a complete record before anything
+local has moved. A POPULATED `record` means *replay*: rebuild the plan (for the
+animation only) and the recorded deltas (for the world), and land them through
+the same `OutcomeApplier` on the same `BeatClock`. Two types would need the
+receiver to know its own role to refuse the wrong one; one type whose payload
+says which half of the work is already done needs no role at all — and when #463
+adds the intent channel upward, a client's intent IS this command with an empty
+record.
+
+Since #545 the authority *also* reaches the apply with a populated record — it
+replays its own, exactly as a peer does — so `record.is_empty()` no longer
+distinguishes "did I compute this". The transient `computed_here` field does, and
+it is deliberately absent from the wire: a received command is by definition one
+this machine did not compute.
 
 **A peer re-simulates to DRAW, never to derive.** Melee reforms a bit-identical
 blade from the plan (`blade_sim.gd` is a pure fixed-dt XPBD loop, no frame

@@ -40,14 +40,14 @@ var entity_id: int = 0
 ## invalidates every committed fixture. A red fixture after touching this means
 ## the field was put in the wrong place, not that the fixture is stale.
 ##
-## [b]Why pre- and not post-mutation.[/b] Once the authority confirms BEFORE it
-## applies, there is no post-mutation world to fingerprint at confirm time. So
+## [b]Why pre- and not post-mutation.[/b] The authority confirms BEFORE it
+## applies, so there is no post-mutation world to fingerprint at confirm time. So
 ## both sides compare pre-state against pre-state: the host stamps here, the
 ## receiving peer compares at [method CommandLink._on_remote_command] entry.
-## Uniform across both confirm orderings, so nothing has to unwind when
-## [LaunchAttackCommand]'s exception goes away. The honest cost is that
-## divergence detection lags one command and a run's final command is never
-## compared.
+## Uniform across every verb since #545 took the last exception away — there is
+## no second confirm ordering left for this to have to be true under. The honest
+## cost is that divergence detection lags one command and a run's final command
+## is never compared.
 var pre_fingerprint: int = 0
 
 
@@ -59,21 +59,6 @@ func _init(entity_id_: int = 0) -> void:
 ## `TAG` const; the base's empty tag never round-trips, by design.
 func type_tag() -> StringName:
 	return &""
-
-
-## Does the authority confirm this command BEFORE applying it (#540)?
-##
-## True for every deterministic verb, which is the whole point of the ordering
-## flip: [method CommandApplier._validate] is the gate, so a command that passes
-## it is going to apply, and confirming first is what makes the authority apply
-## through the same post-confirmation path as every peer (#534). The alternative
-## — confirm meaning "apply returned true" — structurally puts every peer one
-## mutation window behind the authority, forever.
-##
-## [LaunchAttackCommand] overrides this to false, and is the only type that does.
-## An override that names itself beats an `if` in the applier that hides.
-func confirms_before_apply() -> bool:
-	return true
 
 
 ## The wire form. Subclasses call `super()` and add their own fields, so
