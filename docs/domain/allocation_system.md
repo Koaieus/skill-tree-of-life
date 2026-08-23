@@ -63,7 +63,7 @@ Hand-authored levels (e.g. `dev_sandbox.tscn`) set `owned_by` directly in the sc
 
 ## Optional dependencies
 
-`graph` and `navigator` exports are optional. Without `graph`, adjacency is skipped (any unowned node can be allocated). Without `entity.navigator`, mirror updates and islanding checks are skipped. SP / DP gating still runs. This keeps headless tests and the spell playground working without standing up a full level.
+`graph` and `navigator` exports are optional. Without `graph`, adjacency is skipped (any unowned node can be allocated). Without `entity.navigator`, mirror updates and islanding checks are skipped. SP / DP gating still runs. This keeps headless tests working without standing up a full level.
 
 ## Signals
 

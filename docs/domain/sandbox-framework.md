@@ -231,12 +231,13 @@ swap is one line in `project.godot`'s `[editor_plugins] enabled=` array (host in
 the three playgrounds out — `gut` + `procgen_preview` stay). Re-adding the three
 entries restores the old bottom panels.
 
-**Known pre-existing carry-over:** the spell tab spams *"Node not found:
-Navigator/Entities/Nodes"* on load — `spell_playground/playground_panel.tscn`
-hand-authors a partial bare `Graph` (the exact anti-pattern `scene-composition.md`
-warns about) instead of instancing `graph.tscn`. The host only *surfaces* this
-bug (it embeds the same panel); it doesn't cause it. Fixing the panel to build
-its world via `graph.tscn` / `SandboxWorld` is its own cleanup.
+**Carry-over, fixed 2026-08-23:** the spell tab used to spam *"Node not found:
+Navigator/Entities/Nodes"* on load, because `spell_playground/playground_panel.tscn`
+hand-authored a partial bare `Graph` (the exact anti-pattern `scene-composition.md`
+warns about) instead of instancing `graph.tscn`. The host only ever *surfaced*
+that; it never caused it. The panel now instances `graph.tscn`, parks its entities
+in the real `Entities` container and mounts its systems through `sandbox_world.gd`
+— which is also what made a cast in that tab mutate anything at all.
 
 **Authored edges render for free — no per-tab workaround needed.** A `@tool`
 panel that hosts a `Graph` (via `graph.tscn` or `SandboxWorld`) gets its

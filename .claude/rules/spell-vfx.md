@@ -129,6 +129,12 @@ rationale + the verb table live in
 [docs/domain/spell-propagation.md](../../docs/domain/spell-propagation.md)
 (update its `damage`/`heal` field references too).
 
-## Spell-playground gotcha
+## Spell-playground gotcha — retired, do not re-add
 
-The playground's viewport is small; production `BezierArcPath.apex_height = 420` sends the projectile off-screen. `addons/spell_playground/playground_panel.gd` typechecks for `MagicBounceCoordinator` and overrides the arc to `apex_height = 70`. If you add a new coordinator type for the playground, repeat the override or projectiles disappear.
+The spell playground used to typecheck for `MagicBounceCoordinator` and patch its
+`apex_height` from 420 down to 70, because a production-scale arc left the top of
+a ~340 px panel and read as "no projectile, damage just appeared". That per-type
+override is **gone**, and a new coordinator type needs no equivalent: the panel
+now fits its world by scaling the `Graph` node rather than by moving nodes, and
+`AttackVFX` is parented under that same `Graph` — so an arc is as tall relative to
+the board as it is in game, whoever draws it.

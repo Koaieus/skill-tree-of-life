@@ -304,8 +304,8 @@ it turns on **where each mode's gate lives**.
   `resolve()` itself must mutate. Two things then break: `OutcomeApplier.apply`
   (called once, `systems/battle_system.gd:256`) lands every hit a **second**
   time on a real cast, and `resolve()`'s dozen preview callers — spell tooltip,
-  spell playground, balance harness, tests — would mutate the live world just by
-  being asked what a spell *would* do.
+  balance harness, the AI's magic candidates, tests — would mutate the live world
+  just by being asked what a spell *would* do.
 
   A resolve-scoped ledger of "nodes this cast already killed", consulted ahead of
   real `owned_by`, is not an escape: that is a second implementation of
