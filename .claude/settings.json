@@ -1,4 +1,8 @@
 {
+  "claudeMdExcludes": [
+    "**/.worktrees/**",
+    "**/.claude/worktrees/**"
+  ],
   "permissions": {
     "allow": [
       "Bash(mise run test*)",
