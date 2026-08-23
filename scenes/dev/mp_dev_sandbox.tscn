@@ -12,10 +12,10 @@ script = ExtResource("2_script")
 script = ExtResource("5_probe")
 graph = NodePath("../Graph")
 
-[node name="Transport" parent="."]
+[node name="Transport" parent="." unique_id=1000000531]
 script = ExtResource("3_transport")
 
-[node name="CommandLink" parent="." node_paths=PackedStringArray("probe")]
+[node name="CommandLink" parent="." unique_id=1000000532 node_paths=PackedStringArray("probe")]
 probe = NodePath("../DeterminismProbe")
 
 [node name="NetOverlay" type="CanvasLayer" parent="."]
