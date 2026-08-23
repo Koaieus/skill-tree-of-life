@@ -485,7 +485,7 @@ func _route_temp_upgrade_click(skill_node: SkillNode) -> bool:
 # ── Reform last blade (#466) ───────────────────────────────────────────────
 
 ## Capture the blade that just launched. [signal BattleSystem.attack_launched]
-## fires inside `_commit`, i.e. only AFTER `_resolve_for_launch` cleared the
+## fires inside `_commit`, i.e. only AFTER `_compute_record` cleared the
 ## affordability gates and while the plan is still live — so a refused launch
 ## can never overwrite a good slot, which is the whole reason the capture does
 ## not sit on the button press.
@@ -534,7 +534,7 @@ func _reform_payload() -> Dictionary:
 ##
 ## [b]No bespoke AP check.[/b] `ap_cost` is 1 for every attack, so "the stored
 ## plan fits current AP" reduces to "have any AP", which `can_player_act()`
-## already answers — and `BattleSystem._resolve_for_launch` gates it again at
+## already answers — and `BattleSystem._can_afford` gates it again at
 ## launch. Reform inherits both, which stays correct if `ap_cost` ever varies.
 func can_reform() -> bool:
 	if battle_system == null or not can_player_act():

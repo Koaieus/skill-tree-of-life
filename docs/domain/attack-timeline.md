@@ -210,7 +210,14 @@ landing. Plus the volley ramp, below.
 
 ---
 
-## The substrate seam — for AI and previews only
+## The substrate seam
+
+> **Settled by #536: every resolution runs on a shadow, for every mode.** The
+> asymmetry below is still the reason magic *forced* the issue, and worth
+> reading for that — but the answer it reaches ("live slice for the cast, shadow
+> for the tooltip") was superseded by the owner on 2026-08-23 in favour of
+> *shadow always*. See "The world is ALWAYS a shadow" below for why that deletes
+> the double-apply problem instead of managing it.
 
 **A real melee or ranged attack does not need a substrate. A real magic attack
 does.** The original framing of #498 — substrate first, it gates everything —
@@ -234,10 +241,11 @@ it turns on **where each mode's gate lives**.
   real `owned_by`, is not an escape: that is a second implementation of
   ownership, and it is ruled out for the same reason as everything else here.
 
-  So magic's wave-loop move is the first real consumer of `resolve_against(slice)`
-  — live slice for the cast, shadow for the tooltip — and retiring BattleSystem's
-  second apply for magic belongs to that same step. Found while executing #501;
-  see its comment of 2026-08-20.
+  So magic's wave-loop move is the first real consumer of `resolve_against`.
+  Found while executing #501; see its comment of 2026-08-20. **Both breakages
+  above are gone under shadow-always** — the second apply cannot happen because
+  resolution never touches the world `OutcomeApplier` lands in, and the preview
+  callers were never the special case, they were the general one.
 
 What the substrate is for is narrower:
 
@@ -248,7 +256,12 @@ What the substrate is for is narrower:
 > the applier against the real world.
 
 So the substrate is a **follow-on that restores AI/preview accuracy**, not a
-prerequisite.
+prerequisite. #536 delivered exactly that, and for free: since `resolve_against`
+lands its outcome, an AI candidate's `thinned_nodes`, kill list and
+post-mitigation numbers now come out of the real applier run against a detached
+copy, not out of a parallel estimate. Melee's `BladePopResolver.resolve` — the
+up-front batch pass that *was* that parallel estimate, and disagreed with the
+live gate about a vertex that disintegrates before it pops — was deleted.
 
 ### How wrong is an un-simulated estimate? Badly, and non-uniformly
 
@@ -331,8 +344,8 @@ look each target's state up somewhere else. That lookup is `CombatWorld`
 (`combat/combat_world.gd`):
 
 ```
-real launch / peer replay:  OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
-AI scoring / preview:       OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
+record replay (every machine): OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
+resolution, always:            OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
 ```
 
 **The world is a required parameter, never a defaulted one** (owner call
@@ -363,19 +376,83 @@ an edge mid-cascade would otherwise corrupt shadow propagation silently, with
 nothing else in the suite positioned to notice. It is the same standing
 assumption melee's physics exemption already relies on.
 
-**What is still outstanding** is the *candidate-set* half, and it is magic's
-alone. `SpellResolver.resolve` picks its next wave through
-`config.filter.allows(...)` reading pre-attack ownership, so a gate-accurate
-propagation means interleaving application into the wave loop (resolve wave N,
-land wave N, expand wave N+1). Melee and ranged need nothing further: their
-candidate sets were always allowed to be frozen at resolve, and their gates
-already run at land time against whichever world they are handed.
+### The candidate-set half shipped as `resolve_against(world)` (#536)
+
+The other half was magic's alone, and it closed the same way it was predicted
+to: `SpellResolver` **lands each wave before expanding the next one**, so
+`config.filter.allows(...)` on wave N+1 selects against a world in which wave
+N's kills have already happened. Melee and ranged needed nothing structural —
+their candidate sets were always allowed to freeze at resolve, and their gates
+already ran at land time against whichever world they were handed.
+
+Two things had to move together, and only the first is obvious:
+
+1. **The wave loop lands.** Between "reduce incidents" and "expand next wave",
+   the wave's hits go through `OutcomeApplier.land_one` — the *same* landing
+   every other path uses, extracted from `apply`'s loop so there is exactly one
+   implementation of "land a hit".
+2. **The filters ask the world, not the node.** A hit's target stays the real
+   `SkillNode` (it is identity), so `to.ownership_bit(caster)` reads a node that
+   is *still alive* no matter what the resolver did. `PropagationContext.world`
+   is where the question goes now, via `ownership_bit_of` / `is_allocated_in_world`;
+   `OwnerFilter` and `ExpressionFilter` are the two callers. Landing without
+   this changes nothing observable — that was the bug behind the bug.
+
+Magic's crit roll moved with it, from one `CritRoll.decide_all` after the walk
+to a per-wave `decide` before each wave lands. The draw sequence is unchanged
+(`decide_all` iterated arrival order, which for magic *is* wave order with an
+index-stable tiebreak); it had to move because `CritRoll.apply` multiplies at
+land time and cannot multiply by a decision not yet made.
+
+**`resolve_against(world)` returns an outcome already landed in `world`.** That
+is the contract for all three modes. `resolve()` is the convenience that mints a
+throwaway shadow, resolves, and frees it — which is what every preview, tooltip
+and AI rollout calls.
+
+### The world is ALWAYS a shadow, and the host replays itself (#536)
+
+Owner call, 2026-08-23: *"shadow always."*
+
+```
+authority: resolve on a shadow -> capture the AttackRecord -> confirm/broadcast
+every machine, authority included: rebuild that record -> land it on the BeatClock
+```
+
+`BattleSystem` has one launch path. The payload still decides which half runs —
+an empty record means "nobody has computed this yet" — but there is no longer a
+version of the apply step for the machine that computed it. Per #498: *the host
+becomes a peer of itself; it is the only one that computes, not the only one
+that replays.*
+
+**Why shadow-always rather than "live for a real cast".** Magic gates during
+candidate selection, so `resolve` must mutate. If it mutated the real world,
+`OutcomeApplier` would then land every hit a second time and the special case
+would have to be detected and suppressed — the shape #501's correction warned
+about. With shadow-always there is nothing to suppress: `OutcomeApplier`
+against `CombatWorld.live()` remains the sole mutator of the real world, and the
+only thing it ever lands there is a rebuilt record.
+
+**The capture → rebuild round trip is load-bearing, not waste.** Every land-time
+write is one-shot: `CritRoll.apply` multiplies `amount` in place, `hp_before` /
+`hp_after` get overwritten, and a `HitInstance.deallocations` left over from the
+shadow would make `BattleSystem._on_node_depleted` take its *recorded* branch and
+re-apply a stale cascade set. Rebuilding mints fresh hits, so none of that is
+possible by construction. Do not optimise it away.
+
+**One consequence worth naming: an announcement made during resolution has no
+audience.** The melee spike-pop cue used to be emitted by
+`BladePopResolver.LiveGate` as it popped; the gate now runs on the authority's
+shadow, so it *records* the pop on `HitInstance.popped_vertex` instead, the
+record carries it, and `OutcomeApplier.land_one` emits it as the hit lands. Same
+beat as before (#504's requirement), and a peer now gets the cue too — the
+animation-replay emitter this descends from could only ever fire on the machine
+that swung. Any future in-resolution announcement needs the same treatment.
 
 ### `AttackOutcome` is the result, not a plan
 
-Under this model `resolve()` becomes `resolve_against(slice)` — the live slice
-for a real launch, a snapshot for AI and previews. Same function, same code
-path.
+Under this model `resolve()` becomes `resolve_against(world)` — a throwaway
+shadow for a preview, the authority's own shadow for a launch. Same function,
+same code path, and never the real world.
 
 - **`AttackPlan` holds the inputs.** Change one and the outcome is recomputable.
 - **`AttackOutcome` is *the* deterministic result** of those inputs, computable
@@ -609,8 +686,9 @@ That doc needs the correction independently of this one.
   call of 2026-08-21 made it a networking requirement, not an optimisation: a
   fogged client cannot walk the nodes a spell bounces through, so propagation
   has to arrive as data. The landing half shipped as `CombatWorld` (#498 step
-  3) and the revocation half as #520. What remains of `resolve_against(slice)`
-  is magic's wave loop; see "The landing half shipped as `CombatWorld`" above.
+  3), the revocation half as #520, and the candidate-set half — magic's wave
+  loop, plus the collapse of the two launch paths — as #536. Step 3 is closed;
+  see the two sections above.
 - **Where the notification half sends its presentation call.** Master runs
   design A (`RevealRecorder` live, `shown_hp`/`shown_owner` on `SkillNode`)
   while #488's decision comment specifies design B (the world mutates on the

@@ -240,7 +240,7 @@ func test_a_refused_launch_does_not_overwrite_the_slot() -> void:
 	_click_build([_joint, _tip])
 	await _launch_and_settle()
 
-	# Arm a DIFFERENT blade, then starve it of AP so _resolve_for_launch
+	# Arm a DIFFERENT blade, then starve it of AP so _compute_record
 	# refuses. attack_launched never fires, so the slot must still hold the
 	# first blade.
 	_alloc.force_allocate(_attacker, _spur)

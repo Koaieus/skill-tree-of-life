@@ -126,8 +126,8 @@ const MAX_RECORDED_DIVERGENCES := 64
 ## resolved against the pre-command world, so a probe that runs after the
 ## mutation is comparing against the wrong state.
 ##
-## Mutates nothing: [method BattleSystem._resolve_for_launch] documents that
-## "nothing below resolve() mutates", the plan built here is local and never
+## Mutates nothing REAL: [method AttackPlan.resolve] lands its outcome in a
+## throwaway shadow world (#536), the plan built here is local and never
 ## assigned to [member BattleSystem.attack_plan], and the outcome is encoded
 ## and thrown away.
 ## [param world_settled] is whether this peer's applier was IDLE when the
@@ -296,7 +296,7 @@ func _compare_resolve(command: LaunchAttackCommand) -> Array[String]:
 	var plan := AttackPlanCodec.from_dict(command.plan, graph)
 	if plan == null:
 		return [UNRESOLVABLE] as Array[String]
-	# Stamped BEFORE resolving, mirroring `BattleSystem._resolve_for_launch` —
+	# Stamped BEFORE resolving, mirroring `BattleSystem._compute_record` —
 	# the seed is an INPUT to the resolution, and skipping this makes every
 	# crit tier disagree trivially.
 	plan.resolve_seed = command.resolve_seed
@@ -305,8 +305,11 @@ func _compare_resolve(command: LaunchAttackCommand) -> Array[String]:
 		return [UNRESOLVABLE] as Array[String]
 	# Re-encoded through the SAME capture the host used rather than a hand-
 	# rolled comparison of live objects: one implementation of "what a record
-	# is", never a second. The land-time fields come back as zeroes here
-	# (nothing has landed), which is exactly why they are not in RESOLVE_KEYS.
+	# is", never a second. The land-time fields are no longer zeroes here —
+	# since #536 a resolve lands in its shadow world, so this probe now holds
+	# very nearly the host's whole record. They stay out of RESOLVE_KEYS anyway:
+	# the question this asks is what a peer could have DERIVED, and a shadow
+	# built from a fogged peer's partial world is not evidence about that.
 	var mine := AttackRecord.capture(outcome, graph)
 	var diverging := diverging_fields(mine, command.record)
 	if not diverging.is_empty():
