@@ -146,8 +146,8 @@ func test_pre_fingerprint_is_the_world_before_the_command() -> void:
 
 
 func test_pre_fingerprint_is_stamped_even_when_validation_fails() -> void:
-	# Uniform across every command, deliberately: no stage flag, nothing to
-	# unwind when launch_attack stops being an exception.
+	# Uniform across every command, deliberately: no stage flag, and nothing had
+	# to unwind when #545 stopped launch_attack being an exception.
 	var command := AllocateCommand.new(_player.entity_id, _sid("D"))
 	await _run(command)
 	assert_eq(_applied, [[&"allocate", false]], "D is three hops out, so this is a refusal")
@@ -162,6 +162,21 @@ func test_pre_fingerprint_is_not_serialized() -> void:
 	command.pre_fingerprint = 123456
 	assert_false(command.to_dict().has("pre_fingerprint"),
 			"pre_fingerprint is transient applier state and must not enter the command dict")
+
+
+func test_computed_here_is_not_serialized() -> void:
+	# The second transient field, and the same tripwire (#545). It must not
+	# cross the wire for a reason beyond the fixture hazard: a RECEIVED command
+	# is by definition one this machine did not compute, so a serialized true
+	# would send a peer down the authority's branch and have it read the live
+	# `attack_plan` — someone else's plan, or none.
+	var command := LaunchAttackCommand.new(_player.entity_id, {"mode": "ranged"}, 7)
+	command.computed_here = true
+	assert_false(command.to_dict().has("computed_here"),
+			"computed_here is transient and must not enter the command dict")
+	var back := LaunchAttackCommand.from_dict(command.to_dict())
+	assert_false(back.computed_here,
+			"and a command off the wire always reads false, whatever the sender did")
 
 
 # ── One refusal per verb: none of them reach the wire ───────────────────────

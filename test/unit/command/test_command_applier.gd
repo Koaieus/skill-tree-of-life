@@ -329,10 +329,13 @@ func test_a_refused_command_never_confirms() -> void:
 
 
 func test_confirm_is_idempotent_so_one_command_crosses_the_wire_once() -> void:
-	# A verb that confirms mid-apply (BattleSystem does) must not be confirmed
-	# a second time on the way out — a peer would apply the command twice. The
-	# de-dup is asserted from the far end of the same window, which is the
-	# widest it has to hold.
+	# Idempotence is what lets `_drain`'s flip point be the ONLY announcement:
+	# anything that confirms a second time — a `command_applied` handler, a verb
+	# reaching for `confirm` directly — is a no-op rather than a peer applying
+	# the command twice. It used to guard a real caller (the attack confirmed
+	# mid-apply until #545); it now guards the possibility, and the de-dup is
+	# asserted from the far end of the same window, which is the widest it has
+	# to hold.
 	var confirmed: Array[Command] = []
 	_applier.command_confirmed.connect(func(cmd): confirmed.append(cmd))
 	var command := _allocate("B")

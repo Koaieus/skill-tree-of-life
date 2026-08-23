@@ -30,9 +30,14 @@ the networked path is already exercised.
 click / AI decision
         │
         ▼
-   Intent ──(transport)──▶ Host: validate → apply → broadcast
-                                                       │
-        ┌──────────────────────────────────────────────┘
+   Intent ──(transport)──▶ Host: validate → confirm ─────┐
+                                              │          │
+                                              ▼          │
+                                         Host applies    │
+                    (the same post-confirmation half     │
+                     every peer runs — not a private     │
+                      authority path, and not first)     │
+        ┌────────────────────────────────────────────────┘
         ▼
   ConfirmedCommand (+ resolved payload) ──▶ CommandApplier (every peer)
                                                        │
@@ -42,6 +47,11 @@ click / AI decision
                                                        ▼
                                             VFX — pure observer
 ```
+
+The confirm sits **between** validate and apply, for every verb without
+exception — that is #540, finished by #545. `validate → apply → broadcast` is
+what this diagram used to say and is the shape #534 was filed to delete: it put
+the host a full mutation window ahead of everyone it was telling.
 
 ---
 

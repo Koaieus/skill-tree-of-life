@@ -175,8 +175,12 @@ func test_the_command_is_confirmed_before_the_swing_animation_finishes() -> void
 	# awaiting `_vfx_finished` after the world has settled (that is #406, and
 	# it stays), so mirroring off `command_applied` made a peer wait out the
 	# HOST's whole swing before it could start drawing its own — lag
-	# proportional to animation length. `command_confirmed` fires at the
-	# settle point instead, with the record already stamped.
+	# proportional to animation length. `command_confirmed` fires from
+	# `_drain`'s flip point instead, with the record already stamped by
+	# `_validate` — so since #545 it is ahead of the swing STARTING, not merely
+	# ahead of it finishing. The assert stays at the weaker bound the fixture
+	# can measure reliably; `test_launch_attack_command.gd` pins the strong one
+	# on world state.
 	# The rest of this file parents the attacker straight under the Graph,
 	# which is enough for a swing but leaves `entity_id` at 0 — and the applier
 	# resolves its actor BY that id. Re-home it first; the mint happens on

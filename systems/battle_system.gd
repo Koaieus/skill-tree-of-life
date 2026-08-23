@@ -387,6 +387,15 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 ## [method prepare_launch_command] first, because that is where the confirm sits
 ## between the two.
 ##
+## [b]One refusal below is NOT pre-empted by validate[/b], and the invariant
+## "a confirmed command will apply" is that much weaker for it: on the REPLAY
+## branch a malformed [member LaunchAttackCommand.plan] fails
+## [method AttackPlanCodec.from_dict] here, having already confirmed. Vetting it
+## in [method prepare_launch_command] would mean rebuilding the plan twice per
+## replay to catch a corrupt payload that is already corrupt — not worth it, and
+## it costs nothing on the wire ([method CommandLink._on_command_confirmed]
+## broadcasts only in `BROADCAST` mode, which a replaying peer is not in).
+##
 ## [b]The round trip through capture -> rebuild is the point, not waste.[/b]
 ## Reusing the computed [AttackOutcome] object for the live pass would land the
 ## same hits a second time, and every land-time write on them is one-shot:
