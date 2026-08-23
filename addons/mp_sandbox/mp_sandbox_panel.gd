@@ -38,6 +38,11 @@ const CLIENT_POSITION := Vector2i(1020, 80)
 ## list is a convenience, never a source of truth.
 var _pids: Array[int] = []
 
+## `pid -> was it launched with --autopilot`. Only exists so
+## [method _warn_if_the_pair_would_be_asymmetric] can catch the one flag mismatch
+## that produces a lying DIVERGED line.
+var _sweeping_by_pid: Dictionary = {}
+
 
 func _ready() -> void:
 	if _scene_field.text.is_empty():
@@ -79,6 +84,7 @@ func _on_kill_all() -> void:
 		OS.kill(pid)
 	_write("Killed %d process(es)." % _pids.size())
 	_pids.clear()
+	_sweeping_by_pid.clear()
 
 
 ## The command line one instance is spawned with.
@@ -129,15 +135,41 @@ func _launch(role: NetworkTransport.Role) -> int:
 		_write("[color=#e06c60]No such scene: %s[/color]" % scene)
 		return -1
 	var is_host := role == NetworkTransport.Role.HOST
+	var sweeping := _autopilot_toggle.button_pressed
+	_warn_if_the_pair_would_be_asymmetric(sweeping)
 	var pid := OS.create_instance(build_args(role, scene))
 	if pid <= 0:
 		_write("[color=#e06c60]Failed to spawn %s.[/color]" \
 				% ("host" if is_host else "client"))
 		return -1
 	_pids.append(pid)
-	_write("Launched %s (pid %d) on port %d." \
-			% ["HOST" if is_host else "CLIENT", pid, int(_port_field.value)])
+	_sweeping_by_pid[pid] = sweeping
+	_write("Launched %s (pid %d) on port %d%s." \
+			% ["HOST" if is_host else "CLIENT", pid, int(_port_field.value),
+			" [color=#8ab4d8]--autopilot[/color]" if sweeping else ""])
 	return pid
+
+
+## "Launch host" and "Launch client" are separate buttons, so the toggle can be
+## flipped between the two halves of one pair — and `--autopilot` is the flag
+## where that matters, because it carries Red's budget boost. Boosted on one peer
+## only, the host spends a budget the client re-derives as unaffordable and the
+## overlay reports [color=#e06c60]DIVERGED[/color]: a false positive in the one
+## readout this harness exists to make trustworthy.
+##
+## A warning and not a refusal. [member _pids] is a convenience and the OS is the
+## authority — a PID here may already be dead, so this cannot know what is
+## actually running, and blocking a launch on a guess is worse than saying so.
+func _warn_if_the_pair_would_be_asymmetric(sweeping: bool) -> void:
+	for pid in _pids:
+		if _sweeping_by_pid.get(pid, false) == sweeping:
+			continue
+		_write("[color=#e0a860]Careful: pid %d was launched %s --autopilot and this one " \
+				% [pid, "WITH" if not sweeping else "WITHOUT"] \
+				+ "is not. That flag carries Red's budget boost, so a mismatched pair " \
+				+ "reports DIVERGED for reasons that are not a sync bug. Kill all and " \
+				+ "relaunch both with the toggle settled.[/color]")
+		return
 
 
 func _write(line: String) -> void:

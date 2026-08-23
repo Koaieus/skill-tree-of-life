@@ -183,7 +183,10 @@ replays its own record like a peer.
 measured since the flip were measured rather than waived. There is no
 `mp-harness` binary — the sweep is the two-process invocation documented at
 `docs/domain/determinism-probe.md`, host `--autopilot --turns=30` plus client
-`--probe`, which has existed since #529.
+`--autopilot --probe`, which has existed since #529. (The client's `--autopilot`
+was implicit at the time these were taken — the budget boost it now gates used
+to run unconditionally — so the recorded runs reproduce under the current
+recipe, not under dropping the flag from the client half.)
 
 Two sweeps were taken, at `54cfcd7` (pre-#545) and `4174f36` (post-#545). Both
 clean, and the per-verb denominators are identical across all three runs to date

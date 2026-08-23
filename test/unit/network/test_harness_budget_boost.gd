@@ -31,14 +31,36 @@ const BOOSTED_ACTION_POINTS := 12.0
 const BOOSTED_DEALLOC_POINTS := 10.0
 const BOOSTED_MANA := 200.0
 
+## The scene `mp_dev_sandbox` inherits, and the baseline it is measured against.
+## Read from a live instance rather than hardcoded: Red's opening board is not
+## simply the four `.tscn` sub-resource values (skill_points settles at 8, not
+## the authored 3, once the level's own setup has run), so a literal here would
+## be a number nobody could re-derive and would go stale the first time the
+## sandbox was re-authored.
+##
+## Comparing the two scenes is also the STRONGER assertion. "Red's base is not
+## 30" passes again the moment someone re-tunes the boost to 40 and leaves it
+## un-gated — same bug, new constants. "The harness gives Red exactly the board
+## the plain sandbox does" cannot.
+const DEV_SANDBOX := "res://scenes/dev_sandbox.tscn"
 
-## A harness whose `_ready` has run to completion — `_setup_level` is past two
-## awaits and the boost decision is made inside it.
-func _live_harness() -> Node:
-	var root: Node = preload(MP_SANDBOX).instantiate()
+## The pools the boost writes, which are therefore the ones worth comparing.
+const BUDGET_POOLS: Array[StringName] = [
+	&"skill_points", &"action_points", &"deallocation_points", &"mana",
+]
+
+
+## A level whose `_ready` has run to completion — it is a coroutine, and
+## `_setup_level` (where the boost decision is made) sits past two of its awaits.
+func _live_scene(path: String) -> Node:
+	var root: Node = load(path).instantiate()
 	add_child_autofree(root)
 	await wait_frames(8)
 	return root
+
+
+func _live_harness() -> Node:
+	return await _live_scene(MP_SANDBOX)
 
 
 func _red_board(root: Node) -> StatBoard:
@@ -49,24 +71,22 @@ func _red_board(root: Node) -> StatBoard:
 
 # --- the gate ---------------------------------------------------------------
 
-func test_a_plain_launch_leaves_red_on_the_board_the_scene_authored() -> void:
+func test_a_plain_launch_leaves_red_on_the_board_the_plain_sandbox_gives_him() -> void:
 	# No `--autopilot` on the command line, which is every launch from the tab
 	# with the toggle off, and every hand-driven `--role=solo` run.
-	var root: Node = await _live_harness()
-	var board := _red_board(root)
-	assert_not_null(board, "Red has a stat board")
-	if board == null:
+	var harness: Node = await _live_harness()
+	var plain: Node = await _live_scene(DEV_SANDBOX)
+	var boosted := _red_board(harness)
+	var baseline := _red_board(plain)
+	assert_not_null(boosted, "the harness's Red has a stat board")
+	assert_not_null(baseline, "the plain sandbox's Red has one too")
+	if boosted == null or baseline == null:
 		return
 
-	assert_ne(board.skill_points.base_value, BOOSTED_SKILL_POINTS,
-			"Red must not be carrying the autopilot skill-point boost — " \
-			+ "a human launched this to play it, not to sweep it")
-	assert_ne(board.action_points.base_value, BOOSTED_ACTION_POINTS,
-			"nor the action-point boost")
-	assert_ne(board.deallocation_points.base_value, BOOSTED_DEALLOC_POINTS,
-			"nor the deallocation-point boost")
-	assert_ne(board.mana.base_value, BOOSTED_MANA,
-			"nor the mana boost — 200 base mana is the tell people actually notice")
+	for id in BUDGET_POOLS:
+		assert_eq(boosted.get_stat(id).base_value, baseline.get_stat(id).base_value,
+				"%s: adding a network role must not change Red's budget — " % id \
+				+ "a human launched this to play it, not to sweep it")
 
 
 func test_the_boost_itself_still_does_what_the_sweep_needs() -> void:
