@@ -90,6 +90,10 @@ static func resolve_against(
 	ctx.caster = caster
 	ctx.seed_node = target
 	ctx.rng = rng
+	# The half of the gating fix the wave loop cannot do on its own: landing a
+	# wave changes the world, and this is what makes the next wave's filter
+	# READ that world instead of the untouched real nodes.
+	ctx.world = world
 
 	var seed_state := CastSpell.new()
 	seed_state.seed_node = target

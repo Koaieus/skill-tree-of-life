@@ -36,12 +36,15 @@ extends PropagationFilter
 var ownership_filter: int = 8
 
 
-func allows(_from: SkillNode, to: SkillNode, payload: CastSpell, _ctx: PropagationContext) -> bool:
+func allows(_from: SkillNode, to: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> bool:
 	if to == null:
 		return false
-	# A null caster reads HOSTILE out of ownership_bit, matching the old
-	# no-caster-context behaviour (every owned node stayed fair game).
-	return to.ownership_bit(payload.caster) & ownership_filter != 0
+	# Asked of the CAST'S WORLD, not of the node (#536) — the real node still
+	# reads as allocated after this same cast killed it, and admitting a corpse
+	# is the bug that closed. A null caster reads HOSTILE out of `ownership_bit`,
+	# matching the old no-caster-context behaviour (every owned node stayed fair
+	# game).
+	return ctx.ownership_bit_of(to) & ownership_filter != 0
 
 
 ## Composed from the set bits rather than matched against the named combos —

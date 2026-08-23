@@ -34,6 +34,35 @@ var wave_index: int = 0
 ## so crits reproduce without consuming the propagation stream (#213).
 ## Null = fresh RNG per call (match the documented fallback for [member rng]).
 var crit_rng: RandomNumberGenerator = null
+## The world this cast is walking (#536) — [method SpellResolver.resolve_against]
+## sets it, and it is where every ownership question below is answered.
+##
+## [b]This is what makes the gate see the cast's own kills.[/b] A hit's target
+## stays the real [SkillNode] throughout ([CombatWorld] explains why), so a node
+## the resolver killed on wave 0 still reads as allocated if you ask the node.
+## Asking the WORLD asks the slice the resolver actually mutated.
+##
+## Defaults to [method CombatWorld.live], so a hand-built context — a filter
+## unit test, say — asks about the real world. That is the same code path, not
+## a second branch: on a live world the lookup returns the node's own slice and
+## every answer below is identical to reading the node directly.
+var world: CombatWorld = CombatWorld.live()
+
+
+## [param node]'s ownership relation to [member caster] in [member world] —
+## exactly one [enum SkillNode.Ownership] bit. The ONE place a propagation
+## predicate asks that question, so a filter cannot accidentally read the real
+## node and miss this cast's own casualties.
+func ownership_bit_of(node: SkillNode) -> int:
+	var slice := world.combat_for(node)
+	return slice.ownership_bit(caster) if slice != null else SkillNode.Ownership.NEUTRAL
+
+
+## True if [param node] is allocated to anyone in [member world]. Twin of
+## [method ownership_bit_of] for the predicates that don't care whose it is.
+func is_allocated_in_world(node: SkillNode) -> bool:
+	var slice := world.combat_for(node)
+	return slice != null and slice.is_allocated()
 
 
 func visit_count(node: SkillNode) -> int:

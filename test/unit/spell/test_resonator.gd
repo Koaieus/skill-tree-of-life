@@ -109,8 +109,9 @@ func test_diamond_convergence_crits() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
-	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
-	helper.land(outcome)
+	# `resolve` LANDS its outcome in the world it resolved against (#536), so
+	# the crit multiplier is already on `amount` here. #507's two-clock split
+	# is intact — the land the arithmetic happens at is inside `resolve` now.
 
 	# Wave 0: seed at 1 (X).
 	# Wave 1: shoulders at 2 and 3 (X + A each).
@@ -137,8 +138,9 @@ func test_straight_line_no_crit() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
-	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
-	helper.land(outcome)
+	# `resolve` LANDS its outcome in the world it resolved against (#536), so
+	# the crit multiplier is already on `amount` here. #507's two-clock split
+	# is intact — the land the arithmetic happens at is inside `resolve` now.
 	for hit in outcome.hits:
 		assert_false(hit.is_crit, "no convergence on a line — no crit")
 
@@ -157,8 +159,9 @@ func test_triod_converges_but_crits_under_simple_rule() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
-	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
-	helper.land(outcome)
+	# `resolve` LANDS its outcome in the world it resolved against (#536), so
+	# the crit multiplier is already on `amount` here. #507's two-clock split
+	# is intact — the land the arithmetic happens at is inside `resolve` now.
 	var hits_5: Array = helper.hits_by_node(outcome).get(n[5], [])
 	# Note: Resonator's simple rule crits on ≥2 incidents; parity-rule cancel
 	# lives on #355 (Chromatic Cascade).
@@ -182,8 +185,9 @@ func test_hexagon_late_convergence_crits() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[0], n[0], atk, graph)
-	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
-	helper.land(outcome)
+	# `resolve` LANDS its outcome in the world it resolved against (#536), so
+	# the crit multiplier is already on `amount` here. #507's two-clock split
+	# is intact — the land the arithmetic happens at is inside `resolve` now.
 	var hits_3: Array = helper.hits_by_node(outcome).get(n[3], [])
 	assert_eq(hits_3.size(), 1, "hexagon opposite node merged to one hit")
 	assert_true(hits_3[0].is_crit, "hexagon convergence crits")
@@ -213,8 +217,9 @@ func test_double_diamond_compounds_additive_part() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(_RESONATOR, n[1], n[0], atk, graph)
-	# Crit multiplier goes on at land, not resolve (#507) — see CritRoll.
-	helper.land(outcome)
+	# `resolve` LANDS its outcome in the world it resolved against (#536), so
+	# the crit multiplier is already on `amount` here. #507's two-clock split
+	# is intact — the land the arithmetic happens at is inside `resolve` now.
 
 	# Diamond 1 crit (node 4): (X+2A) per incident × 2 incidents, ×2 crit.
 	var x := _x(helper, n[0])

@@ -370,19 +370,29 @@ func test_crit_draws_are_consumed_in_arrival_order() -> void:
 
 
 func test_the_crit_multiplier_is_applied_at_land_not_at_resolve() -> void:
-	# The other half of the two-clock split (#507): the DECISION is at resolve
-	# so VFX can read `is_crit` on a projectile it is about to launch, but the
-	# ARITHMETIC is at land, after ranged's live `ranged_damage` re-read (#503)
-	# would otherwise have thrown a resolve-time multiply away.
+	# The other half of the two-clock split (#507): the DECISION is made before
+	# anything lands, so VFX can read `is_crit` on a projectile it is about to
+	# launch, but the ARITHMETIC is at land, after ranged's live `ranged_damage`
+	# re-read (#503) would otherwise have thrown a resolve-time multiply away.
+	#
+	# Since #536 both clocks tick inside `resolve_against`, which lands its
+	# outcome in the world it was handed — so the property is asserted by its
+	# RESULT rather than by an intermediate state that no longer exists: the
+	# number that comes out is the live offense read × the multiplier, which
+	# only a land-time multiply can produce (a resolve-time one would have been
+	# overwritten by `RangedHitInstance.land_on`'s `amount = _read_offense(...)`).
 	var plan := _ranged_plan(1.0)
 	plan.resolve_seed = 7
-	var outcome := plan.resolve()
+	var world := CombatWorld.shadow()
+	var outcome := plan.resolve_against(world)
 	var hit: HitInstance = outcome.hits[0]
-	var base := hit.amount
-	assert_gt(base, 0.0, "fixture must deal real damage or this proves nothing")
-	assert_true(hit.is_crit, "decided at resolve")
-	OutcomeApplier.apply(outcome, CombatWorld.live())
-	assert_almost_eq(hit.amount, base * 2.0, 0.001, "multiplied at land")
+	assert_true(hit.is_crit, "decided before the landing, for the VFX to read")
+	var offense: float = RangedDamageFormula._read_offense(
+			world.combat_for(hit.origin))
+	assert_gt(offense, 0.0, "fixture must deal real damage or this proves nothing")
+	assert_almost_eq(hit.amount, offense * 2.0, 0.001,
+			"the live offense read, multiplied — so the multiply came after it")
+	world.free_shadow()
 
 
 # ── The gaps, pinned ─────────────────────────────────────────────────────────
@@ -442,8 +452,8 @@ func test_the_live_magic_path_resolves_under_a_stamped_seed() -> void:
 	# a seed nobody freshly minted.
 	assert_string_contains(bs_src, "_seed_source.randi()",
 		"the authority must mint a fresh seed per committed attack")
-	assert_string_contains(bs_src, "plan.resolve_seed = seed_value",
-		"and stamp it onto the plan BEFORE resolve(), or the roll it " +
+	assert_string_contains(bs_src, "plan.resolve_seed = command.resolve_seed",
+		"and stamp it onto the plan BEFORE resolve_against(), or the roll it " +
 		"reproduces is not the one that was committed")
 
 

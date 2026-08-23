@@ -43,8 +43,13 @@ func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: Propagation
 		to.get_graph_degree(ctx.graph),
 		from.get_entity_degree(ctx.graph),
 		to.get_entity_degree(ctx.graph),
-		to.owned_by == payload.caster,
-		to.owned_by == null,
+		# Both ownership reads go through the cast's world (#536), so a node
+		# this same cast killed reads as unallocated here — see
+		# [member PropagationContext.world]. `to_owned_by_caster` is the MINE
+		# bit rather than `to.owned_by == payload.caster`, which additionally
+		# fixes a null caster reading every unallocated node as its own.
+		ctx.ownership_bit_of(to) == SkillNode.Ownership.MINE,
+		not ctx.is_allocated_in_world(to),
 		payload.damage,
 		payload.hops_remaining,
 		payload.hop_index,
