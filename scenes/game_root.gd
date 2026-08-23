@@ -60,10 +60,14 @@ const _FOG_INTENSITY_DEV: float = 0.88
 ## visible regardless of owned-subgraph vision).
 @export var enable_fog: bool = true
 ## When false, a finished run announces its outcome but stays put — a sandbox
-## or a showcase must not teleport itself back to the main menu.
+## or a showcase must not teleport itself back to the main menu. Vetoes BOTH
+## ways out (#526): the fallback timeout below and the overlay's own button.
 @export var route_to_meta_on_run_end: bool = true
-## Seconds between the terminal outcome and the route back to the meta-shell.
-@export_range(0.0, 30.0, 0.5, "or_greater") var run_end_route_delay: float = 4.0
+## Seconds between the terminal outcome and the FALLBACK route back to the
+## meta-shell. Since #526 the run-end overlay carries a *to main menu* button,
+## so this is what catches a player who never clicks it — long enough to read
+## the outcome and decide, not the primary way out.
+@export_range(0.0, 60.0, 0.5, "or_greater") var run_end_route_delay: float = 20.0
 
 ## Grown around the graph's SkillNode AABB to get the fog/aura bound, and
 ## passed to the camera as its zoom==1.0 pan-margin baseline (GraphCamera
@@ -82,6 +86,9 @@ var player: Entity
 ## `_setup_level`, before `bind_player` runs. Never read by anything a peer
 ## must reproduce — see [SeatPolicy].
 var seat_policy: SeatPolicy = SeatPolicy.couch()
+## Latched by [method route_to_meta_now] so the run leaves the level once (#526)
+## — the overlay's button and the fallback timeout are two callers of one route.
+var _run_end_routed: bool = false
 @onready var graph: Graph = $Graph
 
 # Systems
@@ -289,22 +296,47 @@ func _reveal_entity_death(entity: Entity) -> void:
 ## "the local camp" is whoever acted last, so the answer was undefined by
 ## construction. [HudRoot] now listens to [signal Events.run_ended] directly and
 ## gates the overlay on [member seat_policy], which is a fact about this
-## machine rather than about the turn order. That leaves `Events.game_over`
-## deliberately emitter-less; #526 owns whether the signal survives.
+## machine rather than about the turn order. `Events.game_over` went with the
+## last of that (#526) — the signal is deleted, not left dangling.
 ##
 ## The route back to the meta-shell is deliberately minimal per the issue ("a
-## results screen is out of scope — a minimal route is enough"), and delayed so
-## the terminal beat is legible rather than a scene-swap on the killing blow.
+## results screen is out of scope — a minimal route is enough"). This is now the
+## FALLBACK half of it: the run-end overlay's button is the primary way out, and
+## this catches whoever never presses it.
 func _on_run_ended(_outcome: RunOutcome) -> void:
 	if not route_to_meta_on_run_end:
 		return
 	await get_tree().create_timer(run_end_route_delay).timeout
 	if is_inside_tree():
-		# The run is over and we're leaving it: close the session so the next
-		# one resolves its own seed instead of inheriting a spent one (#457).
-		# The outcome it recorded is read by whoever presents it before this.
-		GameSession.end()
-		SceneDirector.goto(META_ROOT)
+		route_to_meta_now()
+
+
+## Leave the finished run for the meta-shell. The ONE way out (#526): both the
+## overlay's button and the fallback timeout above come through here, so
+## clicking out early and then sitting past the timeout cannot `goto` twice —
+## and cannot end the session twice, which would spend the next run's seed.
+##
+## Vetoed wholesale by [member route_to_meta_on_run_end]. A neutered GameRoot
+## (an editor-tab showcase, a test fixture) never leaves its own scene, and that
+## holds for the button too — the action row still appears, it just goes
+## nowhere. Gating the row on the export instead would make "absent now, present
+## after the delay" untestable in exactly the fixtures that set it false.
+func route_to_meta_now() -> void:
+	if _run_end_routed or not route_to_meta_on_run_end:
+		return
+	_run_end_routed = true
+	# The run is over and we're leaving it: close the session so the next one
+	# resolves its own seed instead of inheriting a spent one (#457). The
+	# outcome it recorded is read by whoever presents it before this.
+	GameSession.end()
+	_leave_for_meta()
+
+
+## The departure itself, split off [method route_to_meta_now] so the latch and
+## the veto can be exercised without a test actually swapping the scene out from
+## under GUT. Overridden by `test/fixtures/route_probe_game_root.gd`.
+func _leave_for_meta() -> void:
+	SceneDirector.goto(META_ROOT)
 
 
 ## Wire a (possibly late-resolved) human player into the *player-interaction*

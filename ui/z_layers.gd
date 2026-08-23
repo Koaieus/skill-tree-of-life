@@ -27,10 +27,10 @@
 ##   ArmedModeGlow        1   #412 armed-mode border glow, frames the play area
 ##   UI (HudRoot)         2   scenes/game_root.tscn — HUD panels draw over the glow
 ##   AnnouncementLayer   95   ui/announcement_layer/
-##   GameOverOverlay    100   ui/game_over_overlay.tscn
+##   RunEndOverlay      100   ui/run_end_overlay/run_end_overlay.tscn
 ##
 ## `default_game_env.tres` sets `background_canvas_max_layer = 100`, so
-## everything through GameOverOverlay reaches the bloom pass; a layer above 100
+## everything through RunEndOverlay reaches the bloom pass; a layer above 100
 ## would silently stop glowing. These live in their own `.tscn` files rather
 ## than as constants here because Godot can't reference a script const from a
 ## scene property — this comment is the index, the scenes are the source.

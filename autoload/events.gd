@@ -110,14 +110,6 @@ signal spell_unhovered
 ## [HudRoot] resolves it at display time from the local [SeatPolicy].
 signal run_ended(outcome: RunOutcome)
 
-## Presentation cue for the HUD's game-over overlay. **Emitter-less since #517**
-## — the run-end presentation moved onto [signal run_ended], where the overlay
-## is gated on seating rather than on a point of view GameRoot had no honest way
-## to hold. [HudRoot] still LISTENS, and #526 decides whether this signal
-## survives the unified run-end overlay. No payload; the single overlay is
-## pre-composed and just toggles visible.
-signal game_over
-
 ## Fired by GraphCamera (`scenes/camera_2d.gd`) whenever a zoom step lands —
 ## the tween's TARGET, not a per-frame mid-tween value. Edge listens so its
 ## line width can hold constant screen-pixel coverage (#399) without every

@@ -154,15 +154,10 @@ func test_die_is_idempotent() -> void:
 
 # ── GameRoot player-vs-NPC branch ────────────────────────────────────────────
 
-func test_gameroot_player_death_shows_game_over_overlay() -> void:
-	# HudRoot listens to the Events.game_over signal and toggles the
-	# pre-composed GameOverOverlay visible — verify the wiring end-to-end.
-	var hud := preload("res://ui/hud/hud_root.tscn").instantiate()
-	autofree(hud)
-	add_child(hud)
-	Events.game_over.emit()
-	assert_true(hud.game_over_overlay.visible,
-			"game_over signal should make the overlay visible")
+# The old `test_gameroot_player_death_shows_game_over_overlay` went with
+# `Events.game_over` (#526). It emitted the signal by hand, so it guarded the
+# HUD's own listener and nothing about death — the real run-end wiring lives in
+# `test/unit/scenes/test_run_end_presentation.gd`, off `Events.run_ended`.
 
 
 func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:

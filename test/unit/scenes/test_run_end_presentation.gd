@@ -1,8 +1,8 @@
 extends GutTest
 
-## How a run-end reads on THIS screen (#517). The outcome is point-of-view-free,
-## so the local reading is [HudRoot]'s to make, and it makes it from
-## [SeatPolicy] — never from the bound hero.
+## How a run-end reads on THIS screen (#517), and how it lets you leave (#526).
+## The outcome is point-of-view-free, so the local reading is [HudRoot]'s to
+## make, and it makes it from [SeatPolicy] — never from the bound hero.
 ##
 ## That distinction is the bug this pins. `GameRoot.bind_player` used to set
 ## `victory_system.local_camp = player.faction`, and `rebind_player` fires on
@@ -10,16 +10,22 @@ extends GutTest
 ## resolved from whichever rival acted last. Deriving it from `HudRoot._player`
 ## instead would have moved the same bug one layer down.
 ##
-## Fixture shape copied from `test_seat_vision.gd`: a real `game_root.tscn`, a
+## **The assertions are about the READING, not about `overlay.visible`** — and
+## deliberately so. Since #526 the overlay carries the way out of the level, so
+## it comes up on every outcome; asserting visibility would make the
+## turn-order test below pass trivially and stop guarding anything.
+##
+## Fixture shape copied from `test_seat_vision.gd`: a real `game_root.tscn`
+## (through a probe subclass that counts departures instead of taking them), a
 ## two-camp roster, a hand-driven turn loop.
 
-const _GAME_ROOT := preload("res://scenes/game_root.tscn")
+const _GAME_ROOT := preload("res://test/fixtures/route_probe_game_root.tscn")
 const _SKILL_NODE := preload("res://skill_node/skill_node.tscn")
 const _BALANCED := preload("res://entity/core/balanced_core.tres")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 
-var _root: GameRoot
+var _root: RouteProbeGameRoot
 var _p1: Entity
 var _p2: Entity
 
@@ -29,10 +35,14 @@ var _p2: Entity
 func _build(seating: SeatPolicy.Seating) -> void:
 	_root = _GAME_ROOT.instantiate()
 	_root.auto_start_turn = false
-	# The run ends in here; routing away mid-test would tear the fixture down.
+	# Routing is opt-in per test: the probe never actually swaps the scene, but
+	# a live fallback timer would still fire into a torn-down fixture.
 	_root.route_to_meta_on_run_end = false
 	add_child_autofree(_root)
 	await wait_physics_frames(2)
+	# The row's reveal delay is `test_run_end_overlay.gd`'s subject, not this
+	# file's; zero it so nothing here waits on a timer it doesn't assert.
+	_root.hud_root.run_end_overlay.action_row_delay = 0.0
 
 	var nodes: Array[SkillNode] = []
 	for i in 4:
@@ -62,6 +72,12 @@ func _build(seating: SeatPolicy.Seating) -> void:
 	await wait_physics_frames(1)
 
 
+## One test starts a real session to watch the route close it; nothing here may
+## leave a live run behind for the next file.
+func after_each() -> void:
+	GameSession.end()
+
+
 ## A hot-seat handover, which is what used to decide the outcome's point of
 ## view. Only lands under COUCH — `follows_active_turn()` gates it.
 func _hand_turn_to(ent: Entity) -> void:
@@ -80,24 +96,30 @@ func _end_run(winner: Faction) -> void:
 	await wait_physics_frames(1)
 
 
-func _overlay_shown() -> bool:
-	return _root.hud_root.game_over_overlay.visible
+func _overlay() -> RunEndOverlay:
+	return _root.hud_root.run_end_overlay
 
 
-# --- Couch: banner only, whatever the turn order ---------------------------
+func _reading() -> RunEndOverlay.Reading:
+	return _overlay().reading
+
+
+# --- Couch: neutral, whatever the turn order -------------------------------
 
 ## The parked bug, from the seat-policy comment on #517: two rivals share one
 ## screen, so there is no camp for that screen to have lost from.
-func test_a_couch_never_shows_the_loss_overlay() -> void:
+func test_a_couch_reads_a_finished_run_as_neutral() -> void:
 	await _build(SeatPolicy.Seating.COUCH)
 
 	await _end_run(_CAMP_2)
 
-	assert_false(_overlay_shown(),
+	assert_eq(_reading(), RunEndOverlay.Reading.NEUTRAL,
 			"a couch narrates a winner; it has no camp to lose from")
 
 
-func test_a_couch_outcome_does_not_depend_on_who_acted_last() -> void:
+## The #517 regression guard. A reading derived from the bound hero would come
+## back DEFEAT here (P2 acted last, P2's camp lost) and VICTORY if P1 had.
+func test_a_couch_reading_does_not_depend_on_who_acted_last() -> void:
 	await _build(SeatPolicy.Seating.COUCH)
 	_hand_turn_to(_p2)
 	await wait_physics_frames(1)
@@ -105,32 +127,37 @@ func test_a_couch_outcome_does_not_depend_on_who_acted_last() -> void:
 
 	await _end_run(_CAMP_1)
 
-	assert_false(_overlay_shown(),
-			"P2 acted last and P2's camp lost — the couch still shows no overlay")
+	assert_eq(_reading(), RunEndOverlay.Reading.NEUTRAL,
+			"P2 acted last and P2's camp lost — the couch still reads neutral")
+	assert_eq(_overlay().title_label.text, "RUN OVER",
+			"and the copy follows the reading, not the turn order")
 
 
 # --- Seat: one human, one machine, one answer ------------------------------
 
-func test_a_seat_shows_the_overlay_when_its_hero_lost() -> void:
+func test_a_seat_reads_defeat_when_its_hero_lost() -> void:
 	await _build(SeatPolicy.Seating.SEAT)
 
 	await _end_run(_CAMP_2)
 
-	assert_true(_overlay_shown(), "the seated hero's camp did not win")
+	assert_eq(_reading(), RunEndOverlay.Reading.DEFEAT,
+			"the seated hero's camp did not win")
+	assert_eq(_overlay().title_label.text, "DEFEAT")
 
 
-func test_a_seat_shows_no_overlay_when_its_hero_won() -> void:
+func test_a_seat_reads_victory_when_its_hero_won() -> void:
 	await _build(SeatPolicy.Seating.SEAT)
 
 	await _end_run(_CAMP_1)
 
-	assert_false(_overlay_shown())
+	assert_eq(_reading(), RunEndOverlay.Reading.VICTORY)
+	assert_eq(_overlay().title_label.text, "VICTORY")
 
 
 ## Under SEAT `follows_active_turn()` is false, so the rival taking a turn
 ## cannot re-point the bound player — which is what makes reading `_player`
 ## legitimate there and only there.
-func test_a_seats_answer_survives_a_rivals_turn() -> void:
+func test_a_seats_reading_survives_a_rivals_turn() -> void:
 	await _build(SeatPolicy.Seating.SEAT)
 	_hand_turn_to(_p2)
 	await wait_physics_frames(1)
@@ -138,27 +165,114 @@ func test_a_seats_answer_survives_a_rivals_turn() -> void:
 
 	await _end_run(_CAMP_2)
 
-	assert_true(_overlay_shown(), "still judged from the seat, not the turn")
+	assert_eq(_reading(), RunEndOverlay.Reading.DEFEAT,
+			"still judged from the seat, not the turn")
 
 
 # --- Draw ------------------------------------------------------------------
 
-## Deliberate behaviour change: GameRoot used to emit `game_over` on anything
-## that was not a local WIN, so a mutual wipe dimmed the screen.
-func test_a_draw_shows_no_overlay_on_a_seat() -> void:
+func test_a_draw_reads_as_a_draw_on_a_seat() -> void:
 	await _build(SeatPolicy.Seating.SEAT)
 
 	await _end_run(null)
 
-	assert_false(_overlay_shown(), "a draw is a banner, not a defeat")
+	assert_eq(_reading(), RunEndOverlay.Reading.DRAW,
+			"nobody won — there is no camp to read it against")
 
 
-func test_a_draw_shows_no_overlay_on_a_couch() -> void:
+func test_a_draw_reads_as_a_draw_on_a_couch() -> void:
 	await _build(SeatPolicy.Seating.COUCH)
 
 	await _end_run(null)
 
-	assert_false(_overlay_shown())
+	assert_eq(_reading(), RunEndOverlay.Reading.DRAW)
+
+
+# --- One surface, every outcome (#526) -------------------------------------
+
+## The old stub came up only on a local loss, so a draw got a banner and no way
+## out of the level. All three now land on the same surface.
+
+func test_a_win_raises_the_overlay() -> void:
+	await _build(SeatPolicy.Seating.SEAT)
+
+	await _end_run(_CAMP_1)
+
+	assert_true(_overlay().visible, "a win still needs the way out")
+
+
+func test_a_loss_raises_the_overlay() -> void:
+	await _build(SeatPolicy.Seating.SEAT)
+
+	await _end_run(_CAMP_2)
+
+	assert_true(_overlay().visible)
+
+
+func test_a_draw_raises_the_overlay() -> void:
+	await _build(SeatPolicy.Seating.COUCH)
+
+	await _end_run(null)
+
+	assert_true(_overlay().visible,
+			"the case that had no exit at all before #526")
+
+
+# --- The way out -----------------------------------------------------------
+
+## The wiring, end to end: the overlay only ASKS to leave, and HudRoot is what
+## hands that to the GameRoot that owns the route.
+func test_the_overlays_request_routes_out_of_the_run() -> void:
+	await _build(SeatPolicy.Seating.COUCH)
+	_root.route_to_meta_on_run_end = true
+	GameSession.start(RunConfig.new())
+
+	_overlay().main_menu_pressed.emit()
+
+	assert_eq(_root.departures, 1, "clicking out leaves immediately")
+	assert_false(GameSession.is_active(), "and closes the run's session (#457)")
+
+
+## Acceptance: clicking out cancels the pending auto-route — one departure, not
+## two, and `GameSession.end()` therefore does not run twice.
+func test_leaving_early_does_not_leave_again_when_the_fallback_fires() -> void:
+	await _build(SeatPolicy.Seating.COUCH)
+	_root.route_to_meta_on_run_end = true
+	_root.run_end_route_delay = 0.15
+	await _end_run(_CAMP_1)
+
+	_overlay().main_menu_pressed.emit()
+	await wait_seconds(0.4)
+
+	assert_eq(_root.departures, 1, "the fallback timer must find it already gone")
+
+
+## Acceptance: not clicking still routes, after the fallback timeout.
+func test_not_leaving_routes_on_the_fallback_timeout() -> void:
+	await _build(SeatPolicy.Seating.COUCH)
+	_root.route_to_meta_on_run_end = true
+	_root.run_end_route_delay = 0.15
+
+	await _end_run(_CAMP_1)
+	assert_eq(_root.departures, 0, "not yet — the delay is the point")
+	await wait_seconds(0.4)
+
+	assert_eq(_root.departures, 1)
+
+
+## Acceptance: a neutered GameRoot (an editor-tab showcase) never leaves its
+## scene — the export vetoes the button as well as the timeout. The action row
+## still appears; it just goes nowhere.
+func test_a_neutered_game_root_never_leaves_even_when_asked() -> void:
+	await _build(SeatPolicy.Seating.COUCH)
+	await _end_run(_CAMP_1)
+
+	_overlay().main_menu_pressed.emit()
+	await wait_seconds(0.4)
+
+	assert_eq(_root.departures, 0, "route_to_meta_on_run_end vetoes both ways out")
+	assert_true(_overlay().action_row.visible,
+			"and the row is still offered — the veto is on the route, not the UI")
 
 
 # --- The banner is camp-authored -------------------------------------------

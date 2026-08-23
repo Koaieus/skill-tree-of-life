@@ -59,9 +59,9 @@ children, which is exactly what the phases immunise against.
 
    **Death no longer ends the run; `VictorySystem` decides that (#460).** The
    player's corpse is deliberately NOT freed (the camera/HUD still point at
-   it), and `Events.game_over` is emitted by `GameRoot._on_run_ended` off the
-   outcome — not off player death — because in hot-seat coop a dead player
-   with a living ally must not end anything. VictorySystem rides the same
+   it), and the run-end surface comes up off `Events.run_ended` — not off
+   player death — because in hot-seat coop a dead player with a living ally
+   must not end anything. VictorySystem rides the same
    `entity_death_shown` phase, coalesced one-per-frame. See
    `docs/domain/victory-system.md`.
 

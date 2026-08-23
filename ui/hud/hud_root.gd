@@ -31,7 +31,7 @@ extends Control
 @onready var loot_picker: LootPicker = %LootPicker
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
-@onready var game_over_overlay: CanvasLayer = %GameOverOverlay
+@onready var run_end_overlay: RunEndOverlay = %RunEndOverlay
 @onready var pause_menu: PauseMenu = %PauseMenu
 @onready var tooltip_fan: TooltipFan = %TooltipFan
 @onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
@@ -87,11 +87,9 @@ func _ready() -> void:
 		Events.loot_pick_requested.connect(_on_loot_pick_requested)
 		Events.spell_loot_requested.connect(_on_spell_loot_requested)
 		Events.run_ended.connect(_on_run_ended)
-		# #526 owns this signal's fate. It is emitter-less since #517 moved the
-		# run-end presentation onto `run_ended`, but `test_entity_death.gd`
-		# still emits it by hand — leaving the listener is what keeps that test
-		# honest, and the two paths toggle the same overlay harmlessly.
-		Events.game_over.connect(_on_game_over)
+		# The overlay asks to leave; GameRoot decides whether it may (#526).
+		if run_end_overlay != null:
+			run_end_overlay.main_menu_pressed.connect(_on_run_end_main_menu_pressed)
 		if loot_picker != null:
 			loot_picker.closed.connect(_on_modal_closed)
 		if spell_loot_picker != null:
@@ -368,11 +366,6 @@ func _on_turn_ended_for_initiative(entity: Entity) -> void:
 			initiative_bar._on_owner_turn_ended(float(init_pool.current))
 
 
-func _on_game_over() -> void:
-	if game_over_overlay != null:
-		game_over_overlay.visible = true
-
-
 ## The run ended (#517). The HUD is where a POV-free [RunOutcome] becomes a
 ## local reading, because the point of view is a fact about this MACHINE — the
 ## outcome names one winner and every screen watching may narrate it
@@ -383,7 +376,9 @@ func _on_game_over() -> void:
 ##   from [member RunOutcome.winning_camp] alone, so a camp holding two living
 ##   heroes announces once, as a camp. Plural phrasing ("Players win!" for coop)
 ##   is then an AUTHORING choice in the faction `.tres`, not a code branch.
-## - **The overlay is gated on [SeatPolicy]** — see [method _shows_loss_overlay].
+## - **The overlay always comes up** (#526) — it is the run's way OUT of the
+##   level, so gating it would strand a couch and a draw. [SeatPolicy] picks its
+##   copy instead; see [method _run_end_reading].
 ##
 ## [method AnnouncementLayer.enqueue_now] and not `enqueue`: this is the last
 ## thing the run has to say, so it preempts the TITLE band rather than waiting
@@ -394,8 +389,8 @@ func _on_run_ended(outcome: RunOutcome) -> void:
 		return
 	if announcement_layer != null:
 		announcement_layer.enqueue_now(_run_end_banner(outcome))
-	if game_over_overlay != null and _shows_loss_overlay(outcome):
-		game_over_overlay.visible = true
+	if run_end_overlay != null:
+		run_end_overlay.present(_run_end_reading(outcome), outcome.winning_camp)
 
 
 func _run_end_banner(outcome: RunOutcome) -> AnnouncementRequest:
@@ -407,30 +402,41 @@ func _run_end_banner(outcome: RunOutcome) -> AnnouncementRequest:
 			AnnouncementRequest.Style.LEVEL_UP)
 
 
-## Does THIS screen show the loss overlay? Gated on seating, not on the bound
-## hero — which is the whole fix (#517): `rebind_player` fires on every hot-seat
-## handover (#459), so anything derived from "the current player" answered from
-## whoever acted last.
+## How does THIS screen read the run's end? Resolved from seating, not from the
+## bound hero — which is the whole fix (#517): `rebind_player` fires on every
+## hot-seat handover (#459), so anything derived from "the current player"
+## answered from whoever acted last.
 ##
-## - **DRAW** — banner only. A mutual wipe used to dim the screen, because
-##   GameRoot emitted `game_over` on anything that was not a local WIN.
-## - **COUCH** — banner only, ever. Two rivals share one screen, so there is no
-##   camp for this screen to have lost from. That is what makes the outcome
+## The reading decides the overlay's COPY only. Since #526 the overlay itself is
+## unconditional — it carries the way out of the level, and a couch or a draw
+## needs that as much as a defeated seat does.
+##
+## - **DRAW** — nobody won; there is no camp to read it against.
+## - **COUCH** — neutral, ever. Two rivals share one screen, so there is no camp
+##   for this screen to have lost from. That is what makes the reading
 ##   independent of turn order.
-## - **SEAT** — one human, one machine, one hero: overlay iff that hero's camp
-##   did not win. Reading [member _player] is legitimate *here specifically*
-##   because [method SeatPolicy.follows_active_turn] is false under SEAT, so
+## - **SEAT** — one human, one machine, one hero: victory iff that hero's camp
+##   won. Reading [member _player] is legitimate *here specifically* because
+##   [method SeatPolicy.follows_active_turn] is false under SEAT, so
 ##   [method GameRoot._on_turn_started_for_handover] never re-points the player
 ##   and `_player` IS the seated hero — including after it dies, which is
-##   exactly when the overlay matters and when walking [constant Entity.GROUP]
-##   for it would fail (GameRoot pulls corpses out of that group synchronously).
-func _shows_loss_overlay(outcome: RunOutcome) -> bool:
+##   exactly when this matters and when walking [constant Entity.GROUP] for it
+##   would fail (GameRoot pulls corpses out of that group synchronously).
+func _run_end_reading(outcome: RunOutcome) -> RunEndOverlay.Reading:
 	if outcome.winning_camp == null:
-		return false
+		return RunEndOverlay.Reading.DRAW
 	var policy: SeatPolicy = _game_root.seat_policy if _game_root != null else null
 	if policy == null or policy.seating != SeatPolicy.Seating.SEAT:
-		return false
+		return RunEndOverlay.Reading.NEUTRAL
 	var camp: Faction = _player.faction if _player != null else null
 	if camp == null or camp.id == &"":
-		return false
-	return camp.id != outcome.winning_camp.id
+		return RunEndOverlay.Reading.NEUTRAL
+	return (RunEndOverlay.Reading.VICTORY if camp.id == outcome.winning_camp.id
+			else RunEndOverlay.Reading.DEFEAT)
+
+
+## The overlay never routes itself — [GameRoot] owns the way out, including the
+## `route_to_meta_on_run_end` veto that keeps a neutered root in its own scene.
+func _on_run_end_main_menu_pressed() -> void:
+	if _game_root != null:
+		_game_root.route_to_meta_now()

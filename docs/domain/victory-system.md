@@ -141,10 +141,10 @@ signal and must be ignored.
 
 `Events.run_ended(outcome)` is it, and `VictorySystem` is the sole emitter.
 
-`Events.game_over` is **emitter-less since #517**. `HudRoot` listens to
-`Events.run_ended` directly and toggles the same overlay; #526 (unified run-end
-overlay) decides whether the signal survives at all. `HudRoot`'s listener stays
-in the meantime — `test_entity_death.gd` emits the signal by hand.
+`Events.game_over` is **gone** (#526). It went emitter-less when #517 moved the
+run-end presentation onto `run_ended`, and #526 deleted it rather than leave a
+dangling signal — along with `test_entity_death.gd`'s hand-emitted "regression
+guard", which only ever exercised the HUD's own listener.
 
 ## The outcome has no point of view (#517)
 
@@ -159,11 +159,13 @@ there are machines watching it, so "did I lose" is a fact about a screen.
   `make_for_entity` — there is no acting entity for it to go stale against). A
   camp with two living heroes announces once, as a camp, and plural phrasing for
   coop is an authoring choice in the faction `.tres`, not a code branch.
-- **`Seating.COUCH`** — winner banner only, no overlay, ever. Two rivals share
-  one screen; there is no camp for it to have lost from.
-- **`Seating.SEAT`** — overlay iff the seated hero's camp did not win.
-- **DRAW** — banner, no overlay. A behaviour change: GameRoot used to dim the
-  screen on anything that was not a local WIN, so a mutual wipe went dark.
+- **Overlay** — `RunEndOverlay`, raised on EVERY outcome since #526, because it
+  carries the way out of the level. Seating decides its *copy*, never its
+  visibility: `Seating.COUCH` reads `NEUTRAL` ("RUN OVER" — two rivals share one
+  screen, so there is no camp for it to have lost from), `Seating.SEAT` reads
+  `VICTORY`/`DEFEAT` from the seated hero's camp, and no winner at all reads
+  `DRAW`. Gating visibility on the reading is what left a draw with a banner and
+  no exit.
 
 **Why seating and not the bound player.** `GameRoot.bind_player` set
 `victory_system.local_camp = player.faction`, and `rebind_player` fires on every
@@ -184,6 +186,9 @@ than caching the policy: `game_root.gd` initialises a default couch and a roster
   `resolved_victory_condition()` GameRoot installs, and records the outcome as
   the run's terminal state. `VictoryContext` is still built by `VictorySystem`,
   not by the session — the conditions never changed shape when it landed.
-- **A results screen** is out of scope (#461). The route is a delayed
-  `SceneDirector.goto(META_ROOT)`, off by default in the dev sandboxes
-  (`route_to_meta_on_run_end`) so tooling does not teleport itself to the menu.
+- **A results screen** is out of scope (#461). The way out is
+  `GameRoot.route_to_meta_now()` — one latched `SceneDirector.goto(META_ROOT)`
+  with two callers (#526): the overlay's *to main menu* button, and
+  `run_end_route_delay` as the fallback for a player who never presses it.
+  `route_to_meta_on_run_end` vetoes both, so tooling does not teleport itself to
+  the menu; the action row still appears there, it just goes nowhere.

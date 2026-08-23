@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/game_root.tscn" id="1_base"]
+[ext_resource type="Script" path="res://test/fixtures/route_probe_game_root.gd" id="2_script"]
+
+[node name="RouteProbeGameRoot" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
