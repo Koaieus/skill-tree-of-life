@@ -162,8 +162,8 @@ gates the date: **#537** two-tier AI candidate gating and **#538**
 magic AI candidate ~150× more expensive (0.076 ms → 11.58 ms at 200 owned), and
 ranged/magic still enumerate candidates exhaustively.
 
-**Symmetric confirmation (#534) is code-complete; what is left is a
-measurement.** #539 (outcome playground), #540 (validate → confirm → apply,
+**Symmetric confirmation (#534) is done — shipped and measured.**
+#539 (outcome playground), #540 (validate → confirm → apply,
 fingerprint compares pre-state) and #541 (the input gate's third phase) landed
 2026-08-22/23 and made the **eight non-attack verbs** symmetric. **#545** closed
 the ninth on 2026-08-23: `BattleSystem._compute_record()` now runs inside
@@ -179,10 +179,30 @@ branch produces the payload it gates on, on a shadow), and
 `record.is_empty()` as "did this machine compute it", because the authority now
 replays its own record like a peer.
 
-#534's own close still waits on the two acceptance items nobody has measured
-since the flip — the WORLD column and the `skipped` rate — which want an
-`mp-harness --turns` sweep. **No such tool exists**; #545 landed with that bullet
-unverified, deliberately, rather than growing a harness to satisfy a checkbox.
+**#534 is closed** (2026-08-23), and the two acceptance items nobody had
+measured since the flip were measured rather than waived. There is no
+`mp-harness` binary — the sweep is the two-process invocation documented at
+`docs/domain/determinism-probe.md`, host `--autopilot --turns=30` plus client
+`--probe`, which has existed since #529.
+
+Two sweeps were taken, at `54cfcd7` (pre-#545) and `4174f36` (post-#545). Both
+clean, and the per-verb denominators are identical across all three runs to date
+(114 non-`end_turn` commands, 31 attacks, 86 landings) — the autopilot is
+deterministic on that graph, so it is a controlled before/after. Final:
+**321 ok, 0 diverged, `skipped` 19 → 0** on the comparable verbs. Full tables on
+#463.
+
+**`skipped` going to zero is the useful number, and it is not hygiene.**
+`CommandLink` declines the WORLD compare when the peer's applier is busy as a
+command arrives, so a command is skipped exactly when it lands while the peer is
+still working on the previous one — which, pre-flip, was structural, since the
+host applied to completion before broadcasting. It is host/peer phase lag,
+measured, and it is now zero. Stronger than the WORLD column, which says the
+worlds agree but not that they are in step.
+
+Not claimed: the *felt* symptom. Acceptance was structural by the 2026-08-23
+re-scope, and confirming it feels right wants a human at two windows, which
+hot-seat coop does not exercise.
 
 The cross-unit seam that governed those waves still holds for anything new:
 `OutcomeApplier` sorts hits by `arrival_time`, so **each mode's stamps must be
