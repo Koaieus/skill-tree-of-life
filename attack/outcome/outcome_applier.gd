@@ -107,7 +107,7 @@ static func land_one(hit: HitInstance, world: CombatWorld) -> void:
 ## that stop reproducing under a replayed seed.
 ## [method Array.sort_custom] is not documented stable in Godot 4.x, and
 ## all three modes still produce genuine ties (magic stamps a whole wave at
-## one `hop_index * WAVE_ARRIVAL_INTERVAL`; a melee sim substep can land two
+## one `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL`; a melee sim substep can land two
 ## events at the same `t`) — an unstable sort would permute their application
 ## order nondeterministically, which is gameplay-observable here (node-local
 ## armour + synchronous force-dealloc cascades both read at land time).
@@ -126,7 +126,7 @@ static func in_arrival_order(hits: Array[HitInstance]) -> Array[HitInstance]:
 	# for times spaced just under the epsilon), which violates the strict
 	# weak ordering sort_custom requires and can misorder or read out of
 	# bounds. Every intended tie here is exact anyway: a magic wave stamps one
-	# `hop_index * WAVE_ARRIVAL_INTERVAL` across the whole wave, and two shots
+	# `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL` across the whole wave, and two shots
 	# at the same rank produce the same lerp output bit-for-bit.
 	decorated.sort_custom(func(a: Array, b: Array) -> bool:
 		if a[0] != b[0]:
