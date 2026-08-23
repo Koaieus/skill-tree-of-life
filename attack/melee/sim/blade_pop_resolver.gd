@@ -16,8 +16,18 @@ extends RefCounted
 ##
 ## Result is post-hoc: it does NOT re-simulate the swing, it only marks each
 ## dead vertex with the time it died so callers can drop that vertex's hits from
-## that moment on. Shared by MeleeAttackPlan.resolve() (headless / AI scoring)
-## and MeleePreview (the live swing) so the two can't drift.
+## that moment on.
+##
+## [b]There is exactly one implementation of these predicates: [LiveGate].[/b]
+## There used to be two — a pure `resolve()` batch pass for the AI/preview
+## estimate and [LiveGate] for the real swing — and they did not agree (the
+## batch pass ran its whole kill pass before its disconnection pass, so a vertex
+## that disintegrated at t1 could still be recorded as a pop at t2 > t1).
+## #498 step 3 retired the batch pass exactly as this file's own comment
+## promised it would: the estimate now runs THIS gate against a shadow
+## [CombatWorld], so the AI's shape-risk signal
+## ([member AttackOutcome.thinned_nodes]) is produced by the same code that
+## produces the real one, against a detached copy of the same world.
 
 ## Per-pop record. `t` is the contact time; `defender` is the spiked node that
 ## popped `particle_idx`; `position` is where to play the pop VFX.
@@ -47,93 +57,17 @@ class Result extends RefCounted:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
 
 
-## Resolve the pop/disconnect outcome for one swing. `attacker` is whose blade
-## this is — a spiked node only pops when it is allocated and NOT owned by the
-## attacker (i.e. an enemy's defensive spike).
-static func resolve(
-		events: Array[BladeHitEvent],
-		state: BladeState,
-		attacker: Entity) -> Result:
-	var result := Result.new()
-	if state == null:
-		return result
-	var pivot := state.pivot_index
-
-	# Time-order so "first contact = earliest kill" holds.
-	var ordered := events.duplicate()
-	ordered.sort_custom(func(a: BladeHitEvent, b: BladeHitEvent) -> bool:
-		return a.t < b.t)
-
-	# --- Kill pass: which vertices are popped, and when (earliest contact). ---
-	var killed_at: Dictionary = {}  # particle_idx -> t
-	for ev in ordered:
-		if ev.is_edge_hit():
-			continue
-		if ev.particle_idx == pivot:
-			continue  # pivot / handle is exempt
-		if killed_at.has(ev.particle_idx):
-			continue  # already killed earlier (ordered by t)
-		var node := ev.target as SkillNode
-		if node == null or not node.is_allocated():
-			continue
-		if attacker != null and node.owned_by == attacker:
-			continue  # your own spike can't pop your own blade
-		var power := node.get_spike_power()
-		if power <= 0.0:
-			continue
-		killed_at[ev.particle_idx] = ev.t
-		result.pops.append(Pop.new(ev.particle_idx, ev.t, node, power))
-
-	if killed_at.is_empty():
-		return result
-
-	# --- Disconnection pass: kills sever the handle; orphans disintegrate. ---
-	# Process kills earliest-first; after each, anything no longer reachable from
-	# the pivot dies at that kill's time.
-	var kill_order := killed_at.keys()
-	kill_order.sort_custom(func(a: int, b: int) -> bool:
-		return killed_at[a] < killed_at[b])
-
-	var removed: Dictionary = {}  # particle_idx -> true (killed or disintegrated)
-	for k in kill_order:
-		var t_k: float = killed_at[k]
-		result.dead_at[k] = t_k
-		removed[k] = true
-		var reachable := _reachable_from_pivot(state, removed)
-		for v in state.positions.size():
-			if v == pivot or removed.has(v):
-				continue
-			if not reachable.has(v):
-				result.dead_at[v] = minf(result.dead_at.get(v, INF), t_k)
-				removed[v] = true
-	return result
-
-
-## Incremental sibling of [method resolve] (#502): the SAME kill/disconnect
-## predicates, but fed one [BladeHitEvent] at a time, in true land order, by
-## [BladeDamageInstance.land_on] as [OutcomeApplier] walks a real swing's
-## hits. [method resolve] is pure and runs before anything lands, so its
-## `node.is_allocated()` / `owned_by` reads see the pre-swing world for every
-## event uniformly — correct for the up-front AI/preview estimate
-## ([member AttackOutcome.thinned_nodes]), wrong for the real swing, where an
-## earlier-in-time hit's cascade can deallocate a LATER event's target before
-## that event lands. [LiveGate] closes that gap by reading live state at the
-## instant each event actually consumes. See docs/domain/attack-timeline.md.
+## The pop/disconnect gate for one swing (#502): the kill/disconnect predicates
+## fed one [BladeHitEvent] at a time, in true land order, by
+## [method BladeDamageInstance.land_on] as [OutcomeApplier] walks the swing's
+## hits — so an earlier-in-time hit's cascade is visible to a later event's
+## `is_allocated()` / ownership read. See docs/domain/attack-timeline.md.
 ##
-## [b]This class and [method resolve] are two implementations of the same
-## predicates, and that is deliberate but TRANSITIONAL.[/b] They are not quite
-## interchangeable today — [method resolve] runs its kill pass fully before
-## its disconnection pass, so a vertex that disintegrates at t1 can still be
-## recorded as a pop at t2 > t1, whereas [LiveGate] treats a disintegrated
-## vertex as dead and never pops it. The live behaviour is the correct one;
-## the batch pass survives only as the up-front AI/preview estimate.
-##
-## #498 step 3 is what retires the duplication: once `resolve_against(slice)`
-## exists, the estimate runs THIS gate against a shadow slice and
-## [method resolve] is deleted outright. Do not "fix" the divergence by
-## folding one into the other before then — that would silently change the
-## AI's shape-risk signal ([member AttackOutcome.thinned_nodes]), which is a
-## separate decision from #502's landing gate.
+## [b]Which world it reads is an argument, not a mode.[/b] Handed
+## [method CombatWorld.live] it gates a live swing; handed a
+## [method CombatWorld.shadow] it gates the authority's compute pass or an AI
+## rollout against detached slices, running the identical predicates. There is
+## no preview flag anywhere below — see [method admit].
 class LiveGate extends RefCounted:
 	## Accepted pops so far, in the same shape [method resolve] returns —
 	## [MeleePreview] replays this post-application (#502's "Watch": the
@@ -141,10 +75,21 @@ class LiveGate extends RefCounted:
 	var result := Result.new()
 	var _state: BladeState
 	var _attacker: Entity
+	## The [Pop] the LAST [method admit] made, or null if it made none. Cleared
+	## on entry to every [method admit], so it answers "did THIS contact pop?" —
+	## which is the one thing a false return cannot say on its own (a dead
+	## target and a spike pop both refuse). [BladeDamageInstance] reads it to
+	## stamp [member HitInstance.popped_vertex]; see that member for why the cue
+	## is recorded rather than emitted from here (#536).
+	var _last_pop: Pop = null
 
 	func _init(state: BladeState, attacker: Entity) -> void:
 		_state = state
 		_attacker = attacker
+
+	## The [Pop] this gate's most recent [method admit] produced, or null.
+	func last_pop() -> Pop:
+		return _last_pop
 
 	## True if `ev`'s damage should actually land right now. Call exactly
 	## once per event, in true time order — mutates `result` when a contact
@@ -156,6 +101,7 @@ class LiveGate extends RefCounted:
 	## live branch inside a gate whose whole job is to read one specific world.
 	func admit(ev: BladeHitEvent, world: CombatWorld) -> bool:
 		var w := world
+		_last_pop = null
 		if ev.is_edge_hit():
 			return false
 		if result.is_dead(ev.particle_idx, ev.t):
@@ -171,37 +117,26 @@ class LiveGate extends RefCounted:
 		var power := node.get_spike_power()
 		if power <= 0.0:
 			return true
-		_kill(ev.particle_idx, ev.t, real_node, power, w)
+		_kill(ev.particle_idx, ev.t, real_node, power)
 		return false  # the popping contact itself deals no damage
 
-	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float,
-			world: CombatWorld) -> void:
+	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float) -> void:
 		result.dead_at[particle_idx] = t
 		var pop := Pop.new(particle_idx, t, defender, power)
 		result.pops.append(pop)
-		# #504: a spike pop is a MODEL event, announced where it happens. This
-		# runs inside `admit` inside `land_on` inside the applier's beat, so the
-		# cue fires on the mutation clock — the same clock the damage, the
-		# health bar and the shatter are on.
+		# #504: a spike pop is a MODEL event, announced on the mutation clock —
+		# the same clock the damage, the health bar and the shatter are on. It
+		# is not announced from HERE, though (#536): under #498 step 3 the
+		# authority runs this gate against a SHADOW world, where an emit would
+		# have no audience, and then replays its own record on the live world
+		# like any peer. So the pop is RECORDED — [BladeDamageInstance] reads
+		# `_last_pop` onto the hit, [AttackRecord] carries it, and
+		# [method OutcomeApplier.land_one] emits it as that hit lands.
 		#
-		# It used to be re-announced by [MeleePreview] during the animation
-		# replay, which only worked because the whole outcome was applied
-		# BEFORE the replay started and `result.pops` was therefore complete.
-		# Under design B the swing animates concurrently with the mutation, so
-		# that snapshot would be empty; racing two timers at the same `t` is
-		# the disease, not the fix.
-		#
-		# Safe to emit from here: `_kill` is [LiveGate]'s alone. The pure
-		# estimate path ([method BladePopResolver.resolve], which
-		# `ai_blade_rollout` runs on [WorkerThreadPool]) has its own inline
-		# logic and never reaches this — so a rollout still cannot touch the bus.
-		#
-		# The shadow guard is the SAME branch [NodeCombat] has as `host != null`,
-		# one layer out: a pop cue is a notification, and a resolve against a
-		# shadow world must make none. Note this is not a preview flag — nothing
-		# below it computes differently, the announcement simply has no audience.
-		if not world.is_shadow():
-			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
+		# That also gives a peer the cue, which it never used to get: the
+		# animation-replay emitter this replaced could only ever fire on the
+		# machine that swung.
+		_last_pop = pop
 		var removed: Dictionary = {}
 		for k in result.dead_at:
 			removed[k] = true

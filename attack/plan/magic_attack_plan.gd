@@ -216,7 +216,7 @@ func _graph_of(node: SkillNode) -> Graph:
 	return n as Graph
 
 
-func resolve() -> AttackOutcome:
+func resolve_against(world: CombatWorld) -> AttackOutcome:
 	if spell == null or source == null or target == null:
 		return AttackOutcome.new()
 	var graph := _graph_of(source)
@@ -237,8 +237,8 @@ func resolve() -> AttackOutcome:
 	# When crits reach melee and ranged they must draw from `seeded_rng()`
 	# like this, NOT from the global RNG, or they reintroduce the exact hole
 	# this line closes. See AttackPlan.resolve_seed.
-	var outcome := SpellResolver.resolve(
-		spell, target, source, attacker, graph, seeded_rng())
+	var outcome := SpellResolver.resolve_against(
+		spell, target, source, attacker, graph, world, seeded_rng())
 	outcome.mana_cost = spell.mana_cost
 	outcome.resolve_seed = resolve_seed
 	return outcome

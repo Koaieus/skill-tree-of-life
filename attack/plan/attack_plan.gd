@@ -89,11 +89,42 @@ func _read_base(d: Dictionary, graph: Graph) -> void:
 @abstract func validate() -> Array[String]
 
 
-## Pure resolution — what would happen if this plan were committed right now.
-## Called for BOTH preview (UI tooltips, AI scoring) and commit (the launch
-## flow drives VFX off these hits then applies them). Implementations should
-## be side-effect free: no state mutation on the plan, attacker, or any node.
-@abstract func resolve() -> AttackOutcome
+## Run this plan in [param world] and return what happened (#536, closing #498
+## step 3). Called for BOTH preview (UI tooltips, AI scoring) and commit — the
+## launch flow computes its record with this and then replays that record, so
+## "the preview is the execution path" is a fact rather than a discipline.
+##
+## [b]The outcome is ALREADY LANDED in [param world] when this returns.[/b] That
+## is the contract, and it is what every gate below depends on: magic's
+## candidate filter reads ownership, so wave N's kill has to be in the world
+## before wave N+1 selects, and the only honest way to put it there is to land
+## it. Ranged and melee do not gate during selection, but they land here too —
+## one contract, so a caller never has to know which mode it is holding, and so
+## every mode's post-mitigation numbers, cascades and pops are settled by the
+## same [OutcomeApplier] pass in every mode.
+##
+## [b]Which world is the caller's choice, and the real world is never it.[/b]
+## Owner call 2026-08-23 — [i]"shadow always"[/i]. Resolution mutates a
+## [method CombatWorld.shadow] and nothing else, which is what leaves
+## [OutcomeApplier] the sole mutator of the real world with nothing to suppress.
+## See [method BattleSystem.apply_launch_command] for the launch path and
+## docs/domain/attack-timeline.md for the timeline this sits in.
+@abstract func resolve_against(world: CombatWorld) -> AttackOutcome
+
+
+## [method resolve_against] on a throwaway shadow — what a preview, a tooltip
+## or an AI rollout wants, since none of them own a world and all of them must
+## leave the real one untouched.
+##
+## The shadow is freed before this returns, which is safe because an
+## [AttackOutcome] holds real [SkillNode]s throughout: a hit's target is its
+## IDENTITY, and only the STATE it was resolved against lived in the shadow (see
+## [CombatWorld]).
+func resolve() -> AttackOutcome:
+	var world := CombatWorld.shadow()
+	var outcome := resolve_against(world)
+	world.free_shadow()
+	return outcome
 
 ## all required slots filled
 func is_valid() -> bool:

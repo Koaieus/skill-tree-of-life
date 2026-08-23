@@ -10,25 +10,36 @@ extends RefCounted
 ## before any [OnHitEffect] fires. This is what makes self-loops + diamond
 ## convergence a first-class mechanic (see Resonator).
 ##
-## Side-effect free w.r.t. world state, so it is safe as a preview from AI /
-## tooltip code — that purity is load-bearing and must not be traded away
-## casually: a dozen callers (SpellTooltip, the spell playground, the balance
-## harness, ~16 test assertions on raw [member HitInstance.amount]) ask this
-## what a spell WOULD do, with no real/preview flag anywhere in the chain.
+## [b]This walk MUTATES the world it is handed, and never the real one[/b]
+## (#536, closing #498 step 3). Each wave is LANDED — through
+## [method OutcomeApplier.land_one], the same landing every other path uses —
+## between "reduce incidents" and "expand next wave", so wave N+1's
+## [PropagationFilter] selects against a world in which wave N's kills have
+## already happened. That is the whole point: the filters that decide where a
+## spell goes next ([OwnerFilter], and [ExpressionFilter] via
+## `to_owned_by_caster` / `to_unallocated`) read ownership, and a spell used to
+## be able to propagate back into a node this same cast had just killed.
 ##
-## Application is [OutcomeApplier]'s job, called once by [BattleSystem] after
-## this returns. It is synchronous, at t=0, and the VFX layer is a pure
-## observer that replays what already landed (#474) — the coordinator does
-## NOT apply damage on projectile arrival, whatever an older docstring said.
+## Closing it by landing, rather than by a resolve-local "who died" ledger, is
+## deliberate: a ledger is a second implementation of death, it cannot see
+## [Mitigation] or a forced-dealloc cascade, and a gate that disagrees with the
+## real applier is the exact drift docs/domain/attack-timeline.md exists to
+## prevent. See #501.
 ##
-## Known gap, deliberately left open: candidate selection reads pre-attack
-## ownership, so a spell can still propagate back into a node this same cast
-## killed. Closing it needs `resolve_against(slice)` from #498 step 3 — the
-## live slice for a real cast, a shadow for the tooltip. Do NOT close it with
-## a resolve-local "who died" ledger: that is a second implementation of
-## death, it cannot see [Mitigation], and a gate that disagrees with the real
-## applier is the exact drift this contract exists to prevent. See
-## docs/domain/attack-timeline.md and #501.
+## [b]So [param world] must be a shadow, and callers get one by default.[/b]
+## Owner call 2026-08-23 — [i]"shadow always"[/i]. [method resolve] mints a
+## throwaway [method CombatWorld.shadow] and frees it, which is what the dozen
+## preview callers (SpellTooltip, the spell playground, the balance harness, the
+## AI's magic candidates) want: they ask what a spell WOULD do and the real
+## world is untouched, with no real/preview flag anywhere in the chain. The
+## authority's launch path resolves against a shadow too and then replays its
+## own record on the live world exactly as a peer does, which is what leaves
+## [OutcomeApplier] the sole mutator of the real world — see
+## [method BattleSystem.apply_launch_command].
+##
+## The VFX layer stays a pure observer that replays what already landed (#474) —
+## the coordinator does NOT apply damage on projectile arrival, whatever an
+## older docstring said.
 
 
 ## Uniform seconds-per-wave used to stamp [member HitInstance.arrival_time]
@@ -44,12 +55,30 @@ extends RefCounted
 const WAVE_ARRIVAL_INTERVAL: float = 0.4
 
 
+## [method resolve_against] on a throwaway shadow — the preview/tooltip/AI
+## spelling, and the reason ~40 call sites did not have to learn about worlds.
+## Twin of [method AttackPlan.resolve]; see it for why freeing the shadow before
+## returning is safe.
 static func resolve(
 		spell: SpellDef,
 		target: SkillNode,
 		source: SkillNode,
 		caster: Entity,
 		graph: Graph,
+		rng: RandomNumberGenerator = null) -> AttackOutcome:
+	var world := CombatWorld.shadow()
+	var outcome := resolve_against(spell, target, source, caster, graph, world, rng)
+	world.free_shadow()
+	return outcome
+
+
+static func resolve_against(
+		spell: SpellDef,
+		target: SkillNode,
+		source: SkillNode,
+		caster: Entity,
+		graph: Graph,
+		world: CombatWorld,
 		rng: RandomNumberGenerator = null) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	if spell == null or spell.propagation == null or target == null or graph == null:
@@ -76,6 +105,10 @@ static func resolve(
 	seed_state.graph = graph
 	seed_state.rng = rng
 
+	# Hoisted: ONE crit stream serves the whole cast, consumed wave by wave
+	# below. See the decide/land block for why the roll moved out of the old
+	# single `decide_all` at the end.
+	var crit_rng := ctx.rng_for_crits()
 	var wave: Array[CastSpell] = [seed_state]
 	while not wave.is_empty():
 		# 1. Group incidents by target node.
@@ -105,6 +138,7 @@ static func resolve(
 			merged.append(resolved)
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
+		var wave_first := outcome.hits.size()
 		for state in merged:
 			# Every `HitInstance` this landing's effects append belongs to this
 			# event (#381: was two parallel lists with a ≤1-per-landing parity
@@ -135,6 +169,25 @@ static func resolve(
 			outcome.timeline.append(ev)
 			ctx.bump_visit(state.current_node)
 
+		# 3b. Settle this wave's crits, then LAND it — before step 4's filter
+		# asks the world anything (#536). This is the whole gating fix: a
+		# filter reading `ownership_bit` on the next line now sees a node this
+		# wave killed as dead.
+		#
+		# Two passes, not one interleaved pass, so the crit stream is consumed
+		# exactly as the old single `CritRoll.decide_all` at the end of the walk
+		# consumed it: that call iterated `in_arrival_order`, which for magic is
+		# `hop_index * WAVE_ARRIVAL_INTERVAL` ascending with an index-stable
+		# tiebreak — i.e. wave by wave, append order within a wave, which is
+		# exactly this. The draw sequence is bit-identical; only its position
+		# relative to the landings moved, and it had to, because
+		# `CritRoll.apply` multiplies at land time and cannot multiply by a
+		# decision that has not been made yet.
+		for i in range(wave_first, outcome.hits.size()):
+			CritRoll.decide(outcome.hits[i], crit_rng)
+		for i in range(wave_first, outcome.hits.size()):
+			OutcomeApplier.land_one(outcome.hits[i], world)
+
 		# 4. Expand next wave through filter + step.
 		var next_wave: Array[CastSpell] = []
 		for state in merged:
@@ -154,14 +207,6 @@ static func resolve(
 		ctx.wave_index += 1
 		wave = next_wave
 
-	# The universal stat roll, last and in one pass (#507) — the same call
-	# melee and ranged make. Deliberately AFTER the whole walk rather than
-	# per-landing inside it: `decide_all` consumes its stream in
-	# `arrival_time` order, and only a finished outcome knows that order.
-	# For magic the two coincide (arrival_time is `hop_index` × a constant,
-	# and the sort is index-stable), so a cast's crit sequence is unchanged
-	# from before this moved.
-	CritRoll.decide_all(outcome, ctx.rng_for_crits())
 	return outcome
 
 

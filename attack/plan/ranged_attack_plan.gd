@@ -176,7 +176,7 @@ func _is_valid_target(node: SkillNode) -> bool:
 	return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE
 
 
-func resolve() -> AttackOutcome:
+func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# One DamageInstance per scheduled shot, in the authored firing order
 	# (see get_firing_schedule) — flat-armour-friendly, stagger-VFX-friendly.
 	# Each hit's arrival_time is authored from where the firing leaf sits in
@@ -222,4 +222,11 @@ func resolve() -> AttackOutcome:
 	# what a hit-based crit model means, and it was settled as intended rather
 	# than a problem to design around.
 	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed))
+	# Ranged selects on pure geometry, so nothing above read `world` at all —
+	# every live read it makes is inside `RangedHitInstance.land_on`, which is
+	# what this pass runs. Un-awaited on purpose: the default clock is
+	# [method BeatClock.instant_clock], which never parks, so `apply` runs to
+	# completion synchronously and `resolve_against` stays a plain function.
+	# (Awaiting would make every `resolve()` caller a coroutine.)
+	OutcomeApplier.apply(outcome, world)
 	return outcome

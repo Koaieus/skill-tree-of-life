@@ -107,6 +107,21 @@ var hp_max: float = 0.0
 ## was not literally true.
 var deallocations: Array[DeallocEntry] = []
 
+## The spiked defender node that popped one of the attacker's blade vertices as
+## this landing was gated (#536) — null for every hit that popped nothing,
+## which is nearly all of them.
+##
+## [b]Recorded rather than announced in place[/b], for exactly the reason
+## [member deallocations] is. Under #498 step 3 the authority resolves and
+## applies on a SHADOW world, where an announcement has no audience by
+## construction ([method CombatWorld.is_shadow], the same branch [NodeCombat]
+## makes as `host != null`), and then replays its own record on the live world
+## the way every peer does. A cue emitted during that shadow pass would simply
+## be lost. Carried here, it fires from [method OutcomeApplier.land_one] as the
+## record lands — which puts it back on the mutation clock, where #504 put it,
+## and hands a peer the pop cue it never used to get at all.
+var popped_vertex: SkillNode = null
+
 ## Set when a mode's land-time gate VETOED this landing (target/origin no
 ## longer allocated or hostile) instead of applying it — #503. Not the same
 ## as [code]effective_amount == 0.0[/code]: a hit that WAS applied and

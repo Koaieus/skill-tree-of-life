@@ -83,6 +83,11 @@ const KEY_HIT_CRIT_TIER := "h_crit"
 const KEY_HIT_HP_BEFORE := "h_hp0"
 const KEY_HIT_HP_AFTER := "h_hp1"
 const KEY_HIT_HP_MAX := "h_hpm"
+## The blade vertex pop this landing caused, as the spiked defender's node id —
+## 0 for the overwhelming majority of hits (#536). One int per hit rather than a
+## flattened side list, because a landing pops at most one vertex.
+## See [member HitInstance.popped_vertex] for why a cue is on the wire at all.
+const KEY_HIT_POP := "h_pop"
 ## Forced deallocations, flattened across ALL hits (#518) — one entry per
 ## cascaded node, plus [constant KEY_DEALLOC_COUNT] giving how many belong to
 ## each hit, in hit order. Same parallel-scalars discipline as the hit arrays:
@@ -131,6 +136,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var hp_before := PackedFloat64Array()
 	var hp_after := PackedFloat64Array()
 	var hp_max := PackedFloat64Array()
+	var pops := PackedInt32Array()
 	# Flattened across all hits; `dealloc_counts` slices it back apart.
 	var dealloc_counts := PackedInt32Array()
 	var dealloc_nodes := PackedInt32Array()
@@ -162,6 +168,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		hp_before.append(hit.hp_before)
 		hp_after.append(hit.hp_after)
 		hp_max.append(hit.hp_max)
+		pops.append(_id_of(hit.popped_vertex, graph))
 		dealloc_counts.append(hit.deallocations.size())
 		for e in hit.deallocations:
 			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
@@ -211,6 +218,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_HIT_HP_BEFORE: hp_before,
 		KEY_HIT_HP_AFTER: hp_after,
 		KEY_HIT_HP_MAX: hp_max,
+		KEY_HIT_POP: pops,
 		KEY_DEALLOC_COUNT: dealloc_counts,
 		KEY_DEALLOC_NODE: dealloc_nodes,
 		KEY_DEALLOC_LEVEL: dealloc_levels,
@@ -257,6 +265,7 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	var hp_before: PackedFloat64Array = d.get(KEY_HIT_HP_BEFORE, PackedFloat64Array())
 	var hp_after: PackedFloat64Array = d.get(KEY_HIT_HP_AFTER, PackedFloat64Array())
 	var hp_max: PackedFloat64Array = d.get(KEY_HIT_HP_MAX, PackedFloat64Array())
+	var pops: PackedInt32Array = d.get(KEY_HIT_POP, PackedInt32Array())
 	var dealloc_counts: PackedInt32Array = d.get(KEY_DEALLOC_COUNT, PackedInt32Array())
 	var dealloc_nodes: PackedInt32Array = d.get(KEY_DEALLOC_NODE, PackedInt32Array())
 	var dealloc_levels: PackedInt32Array = d.get(KEY_DEALLOC_LEVEL, PackedInt32Array())
@@ -296,6 +305,9 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 			hit.hp_before = hp_before[i]
 			hit.hp_after = hp_after[i]
 			hit.hp_max = hp_max[i]
+		if i < pops.size():
+			# 0 means "popped nothing", which `_node_of` already answers as null.
+			hit.popped_vertex = _node_of(pops[i], graph)
 		# The cascade this landing caused, RECORDED. A peer applies exactly this
 		# set instead of walking the defender's navigator for one — under the
 		# filtered-delta model it may not hold the nodes that walk would visit,

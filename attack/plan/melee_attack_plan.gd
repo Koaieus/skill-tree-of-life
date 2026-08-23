@@ -559,28 +559,27 @@ func _can_be_blade(node: SkillNode) -> bool:
 ## [BladePopResolver.LiveGate] and docs/domain/attack-timeline.md.
 var last_trajectory: BladeTrajectory = null
 var last_events: Array[BladeHitEvent] = []
-## Pure resolve-time ESTIMATE (#502) — [BladePopResolver.resolve] run once,
-## before anything lands, so it reads the pre-swing world for every event
-## uniformly. Feeds [member AttackOutcome.thinned_nodes] for AI scoring, which
-## can't run the live applier against the real world (docs/domain/
-## attack-timeline.md's substrate section). NOT what [MeleePreview] replays
-## for a real launch — see [member last_live_gate].
+## What the swing's pop gate settled — [member last_live_gate]'s own `result`,
+## under the name its readers ([MeleePreview], which draws the dead vertices)
+## have always used. Complete by the time [method resolve_against] returns,
+## because that method lands the outcome before it returns; there is no longer a
+## separate pre-swing estimate for this to disagree with (#536).
 var last_pops: BladePopResolver.Result = null
-## The LIVE gate driving the swing actually being applied — [BladeDamageInstance
-## .land_on] calls [method BladePopResolver.LiveGate.admit] on this exact
-## instance, once per hit, in true land order, as [OutcomeApplier] applies
-## [member last_hits]. Its `result` accumulates what ACTUALLY happened: the
-## applier's accepted set, never a rescan and never the pre-swing estimate
-## ([member last_pops]). Null until [method resolve] runs.
+## The gate driving the swing — [method BladeDamageInstance.land_on] calls
+## [method BladePopResolver.LiveGate.admit] on this exact instance, once per
+## hit, in true land order, as [OutcomeApplier] applies [member last_hits]. Its
+## `result` accumulates what ACTUALLY happened: the applier's accepted set,
+## never a rescan. Null until [method resolve_against] runs, and complete once
+## it has.
 ##
-## [b]#504: nothing reads `result` back anymore, and that is the point.[/b]
-## [MeleePreview] used to snapshot it at the top of `launch()` to re-announce
-## spike pops on its animation clock, which only worked because the whole
-## outcome was applied BEFORE the replay began. The swing now animates
-## concurrently with the mutation, so that snapshot would be empty — the pop is
-## emitted from [BladePopResolver.LiveGate] as it happens instead. Do not
-## reintroduce a reader here that assumes this is complete at any particular
-## moment; it fills in over the beat clock.
+## [b]It is complete on return, but the pop CUE still does not come from
+## here.[/b] Under #536 this gate runs against the shadow world the authority
+## computes on, so nothing it does may announce itself (#504's requirement that
+## the cue ride the mutation clock is what that would break). The pop is
+## recorded onto the hit and emitted by [method OutcomeApplier.land_one] on the
+## live replay — see [member HitInstance.popped_vertex]. Do not reintroduce an
+## announcement here or in [MeleePreview]'s animation replay; racing two timers
+## at the same `t` is the disease, not the fix.
 var last_live_gate: BladePopResolver.LiveGate = null
 ## The [DamageInstance]s (concretely [BladeDamageInstance]) [method resolve]
 ## built from [member last_events] — one per non-edge event, in order, whether
@@ -596,7 +595,7 @@ var last_live_gate: BladePopResolver.LiveGate = null
 var last_hits: Array[DamageInstance] = []
 
 
-func resolve() -> AttackOutcome:
+func resolve_against(world: CombatWorld) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	outcome.resolve_seed = resolve_seed
 	if not is_valid():
@@ -614,17 +613,16 @@ func resolve() -> AttackOutcome:
 	var events := BladeHitScan.scan(
 			trajectory, blade_state, space_state, attacker.navigator.graph,
 			0xFFFFFFFF, exclude)
-	# #170/#502: pure, up-front ESTIMATE only — BladePopResolver.resolve runs
-	# before anything lands, so it can't see this swing's own cascades. Feeds
-	# thinned_nodes for AI scoring / AP estimation; the REAL gate for a live
-	# launch is last_live_gate below, re-evaluated per event at land time.
-	var pops := BladePopResolver.resolve(events, blade_state, attacker)
-	outcome.thinned_nodes = pops.dead_at.size()
 	last_trajectory = trajectory
 	last_events = events
-	last_pops = pops
+	# #170/#502/#536: ONE pop gate, re-evaluated per event at land time, so it
+	# sees this swing's own cascades. The up-front batch estimate it replaced
+	# could not — and disagreed with this one about a vertex that disintegrates
+	# before it pops. `thinned_nodes` is stamped from this gate's result once
+	# the apply below has run it.
 	var gate := BladePopResolver.LiveGate.new(blade_state, attacker)
 	last_live_gate = gate
+	last_pops = gate.result
 	var di_list: Array[DamageInstance] = []
 	for ev in events:
 		# D-1 MVP: edges are inert. Skip them so preview/AP estimation matches
@@ -653,6 +651,15 @@ func resolve() -> AttackOutcome:
 	# `decide_all` sorts by `arrival_time` itself, so this does not depend on
 	# BladeHitScan emitting events in `t` order.
 	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed))
+	# Melee selects on physics, so nothing above read `world`: every live read
+	# it makes is inside `BladeDamageInstance.land_on` -> `LiveGate.admit`,
+	# which is what this pass runs. Un-awaited — see the same call in
+	# [method RangedAttackPlan.resolve_against] for why that is safe.
+	OutcomeApplier.apply(outcome, world)
+	# The AI's shape-risk signal, now a RESULT of the gate rather than a
+	# separate estimate of it: how many of the attacker's own vertices this
+	# swing actually lost.
+	outcome.thinned_nodes = gate.result.dead_at.size()
 	return outcome
 
 

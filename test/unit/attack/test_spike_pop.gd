@@ -76,6 +76,22 @@ func _ev(t: float, particle_idx: int, target: SkillNode) -> BladeHitEvent:
 	return BladeHitEvent.new(t, particle_idx, -1, target)
 
 
+## Run a whole event set through the gate, in time order — what the deleted
+## batch pass (`BladePopResolver.resolve`) used to answer in one call, now asked
+## of the ONE implementation (#536). Same shape, same `Result`; the difference
+## is that each event is judged against the world as it stands when that event
+## consumes, which is the property the batch pass could not have.
+func _gate_all(events: Array[BladeHitEvent], state: BladeState,
+		attacker: Entity) -> BladePopResolver.Result:
+	var gate := BladePopResolver.LiveGate.new(state, attacker)
+	var ordered := events.duplicate()
+	ordered.sort_custom(func(a: BladeHitEvent, b: BladeHitEvent) -> bool:
+		return a.t < b.t)
+	for ev in ordered:
+		gate.admit(ev, CombatWorld.live())
+	return gate.result
+
+
 # ── Predicate ────────────────────────────────────────────────────────────────
 
 func test_get_spike_power() -> void:
@@ -93,7 +109,7 @@ func test_pop_kills_and_disconnects_downstream() -> void:
 	var state := _chain_state()
 	# Vertex 1 (A) sweeps into the spiked node at t=0.3.
 	var events: Array[BladeHitEvent] = [_ev(0.3, 1, ctx.spike_node)]
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	var res := _gate_all(events, state, ctx.attacker)
 
 	assert_eq(res.pops.size(), 1, "one killing contact")
 	assert_eq(res.pops[0].particle_idx, 1, "vertex 1 was popped")
@@ -112,7 +128,7 @@ func test_pre_kill_hits_still_land() -> void:
 	# Vertex 1 hits a plain node at t=0.1, THEN the spike at t=0.3.
 	var events: Array[BladeHitEvent] = [
 		_ev(0.1, 1, ctx.plain_node), _ev(0.3, 1, ctx.spike_node)]
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	var res := _gate_all(events, state, ctx.attacker)
 	assert_false(res.is_dead(1, 0.1), "hit before the pop still lands")
 	assert_true(res.is_dead(1, 0.3), "the killing contact and later are dropped")
 
@@ -123,7 +139,7 @@ func test_disconnected_vertex_drops_its_later_hits() -> void:
 	# A pops at 0.3; B would hit a plain node at 0.5 but is already disintegrated.
 	var events: Array[BladeHitEvent] = [
 		_ev(0.3, 1, ctx.spike_node), _ev(0.5, 2, ctx.plain_node)]
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	var res := _gate_all(events, state, ctx.attacker)
 	assert_true(res.is_dead(2, 0.5), "severed vertex deals no damage downstream")
 
 
@@ -134,7 +150,7 @@ func test_pivot_is_exempt() -> void:
 	var state := _chain_state()
 	# Pivot (0) overlapping a spiked node must not self-kill the blade.
 	var events: Array[BladeHitEvent] = [_ev(0.2, 0, ctx.spike_node)]
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	var res := _gate_all(events, state, ctx.attacker)
 	assert_eq(res.pops.size(), 0, "pivot contact produces no pop")
 	assert_false(res.is_dead(0, 1.0), "pivot stays alive")
 
@@ -143,7 +159,7 @@ func test_plain_node_does_not_pop() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var events: Array[BladeHitEvent] = [_ev(0.3, 1, ctx.plain_node)]
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	var res := _gate_all(events, state, ctx.attacker)
 	assert_eq(res.pops.size(), 0, "an unspiked enemy node never pops the blade")
 	assert_false(res.is_dead(1, 0.3), "vertex survives a plain contact")
 
@@ -154,7 +170,7 @@ func test_attacker_own_spike_does_not_pop() -> void:
 	# Re-own the spiked node to the attacker: your own spikes can't pop your blade.
 	(ctx.spike_node as SkillNode).owned_by = ctx.attacker
 	var events: Array[BladeHitEvent] = [_ev(0.3, 1, ctx.spike_node)]
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
+	var res := _gate_all(events, state, ctx.attacker)
 	assert_eq(res.pops.size(), 0, "own-territory spike is not a defensive pop")
 
 
@@ -164,10 +180,9 @@ func test_attacker_own_spike_does_not_pop() -> void:
 ## SpikeAddons must not pop blade vertices on that remainder. LiveGate.admit()
 ## reads node.is_allocated() LIVE, at the moment each event is consumed — so a
 ## real cascade (force-dealloc from an earlier hit in the SAME swing) landing
-## between two admit() calls changes the second one's answer, unlike
-## BladePopResolver.resolve()'s pure up-front pass, which sees the pre-swing
-## world for every event uniformly (see test_pop_kills_and_disconnects_downstream
-## for that estimate's behaviour on the identical events).
+## between two admit() calls changes the second one's answer. The batch pass
+## that could NOT see that is gone (#536); this is the only implementation, and
+## the tests above reach it through `_gate_all`.
 func test_live_gate_admits_a_live_spiked_hit() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
@@ -199,74 +214,77 @@ func test_persistent_pops_every_call() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var events: Array[BladeHitEvent] = [_ev(0.3, 1, ctx.spike_node)]
-	var first := BladePopResolver.resolve(events, state, ctx.attacker)
-	var second := BladePopResolver.resolve(events, state, ctx.attacker)
+	var first := _gate_all(events, state, ctx.attacker)
+	var second := _gate_all(events, state, ctx.attacker)
 	assert_eq(first.pops.size(), 1, "first swing pops")
 	assert_eq(second.pops.size(), 1, "spike is persistent — it pops again")
 
 
-# ── The pop cue is a MODEL event (#504) ──────────────────────────────────────
+# ── The pop cue is a RECORDED model event (#504, #536) ───────────────────────
 
-## This section replaces a set of tests that drove `MeleePreview._on_live_hit`
-## and asserted `Events.damage_shown`. Both are gone: under design B the swing
-## animates CONCURRENTLY with the mutation, so MeleePreview can no longer mirror
-## the applier's accepted set (it would read an empty one), and the damage
-## number rides `skill_node_damaged` off the model. The spike pop had no model
-## emitter at all — the animation was standing in for one — so it now fires from
-## [BladePopResolver.LiveGate], inside `land_on`, on the beat clock.
+## The cue used to be announced by `MeleePreview` during the animation replay,
+## which #504 replaced with an emit from [BladePopResolver.LiveGate] itself so
+## the pop lands on the mutation clock alongside the damage.
+##
+## #536 moved the emit one step further out without moving the clock: the
+## authority now runs the gate against a SHADOW world, where an announcement
+## has no audience, so the gate RECORDS the pop onto the hit
+## ([member HitInstance.popped_vertex]), [AttackRecord] carries it, and
+## [method OutcomeApplier.land_one] emits it as that hit lands on the live
+## world. Same beat, and now a peer gets the cue too — the animation-replay
+## emitter this descends from could only ever fire on the machine that swung.
 
 
-func test_live_gate_emits_the_pop_cue_as_it_pops() -> void:
+func test_the_gate_reports_the_pop_it_just_made() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 
-	watch_signals(Events)
 	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live()),
 			"a live spike pops the vertex (no damage lands)")
-	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
-	var params: Array = get_signal_parameters(Events, "blade_vertex_popped")
-	assert_eq(params[0], ctx.spike_node, "the cue names the spiked defender")
-	assert_eq(params[1], ctx.attacker, "and the attacker whose blade popped")
+	var pop: BladePopResolver.Pop = gate.last_pop()
+	assert_not_null(pop, "the refusal was a pop, and says so")
+	assert_eq(pop.defender, ctx.spike_node, "the cue names the spiked defender")
 
 
-## The pop is announced once, at the killing contact — a vertex that has
-## already disintegrated must not re-announce on a later contact.
-func test_disintegrated_vertex_emits_no_second_pop_cue() -> void:
+## `last_pop()` answers about THE LAST admit, not about the swing so far — a
+## vertex that has already disintegrated must not re-report a pop on a later
+## contact, or the cue would fire twice for one kill.
+func test_last_pop_clears_on_an_admit_that_popped_nothing() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 
-	watch_signals(Events)
 	gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live())
-	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
+	assert_not_null(gate.last_pop(), "the killing contact reports its pop")
 	gate.admit(_ev(0.5, 1, ctx.plain_node), CombatWorld.live())
-	assert_signal_emit_count(Events, "blade_vertex_popped", 1)
+	assert_null(gate.last_pop(), "an already-dead vertex reports nothing")
 
 
-## A dead target pops nothing, so it announces nothing — #502's "no dud for
-## melee", now also true of the cue.
-func test_no_pop_cue_when_the_target_is_already_dead() -> void:
+## A dead target pops nothing, so there is nothing to report — #502's "no dud
+## for melee", now also true of the cue.
+func test_no_pop_reported_when_the_target_is_already_dead() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 	(ctx.spike_node as SkillNode).owned_by = null
 
-	watch_signals(Events)
 	assert_false(gate.admit(_ev(0.3, 1, ctx.spike_node), CombatWorld.live()))
-	assert_signal_emit_count(Events, "blade_vertex_popped", 0)
+	assert_null(gate.last_pop())
 
 
-## The PURE estimate path must stay silent. `ai_blade_rollout` runs
-## [method BladePopResolver.resolve] on [WorkerThreadPool], so an emit from
-## there would put a simulation on the global bus — and off the main thread.
-func test_the_pure_resolve_path_emits_nothing() -> void:
+## The gate itself must never touch the bus. `ai_blade_rollout` drives it for
+## scoring, so an emit from in there would put a simulation on the global bus —
+## and, historically, off the main thread. The emit lives in
+## [method OutcomeApplier.land_one] now, which a rollout's shadow world silences
+## on its own.
+func test_the_gate_emits_nothing_by_itself() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	var events: Array[BladeHitEvent] = [_ev(0.3, 1, ctx.spike_node)]
 
 	watch_signals(Events)
-	var res := BladePopResolver.resolve(events, state, ctx.attacker)
-	assert_eq(res.pops.size(), 1, "the estimate still records the pop")
+	var res := _gate_all(events, state, ctx.attacker)
+	assert_eq(res.pops.size(), 1, "the gate still records the pop")
 	assert_signal_emit_count(Events, "blade_vertex_popped", 0,
-			"but a scoring rollout must never touch the bus")
+			"but announcing it is the applier's job, on the mutation clock")

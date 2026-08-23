@@ -51,21 +51,53 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
-		# Re-checked here rather than hoisted: an earlier beat's cascade can
-		# free a target between landings. `origin` is checked too (#503) — a
-		# mid-volley cascade can just as easily free the FIRING node (e.g. a
-		# ranged leaf islanded by this same volley's overkill), and a mode
-		# whose live offense read needs `origin` (RangedHitInstance) must not
-		# be handed a freed one. This is instance-validity only, the coarse
-		# net; the meaningful allocated/hostile gate is each mode's own
-		# `land_on` (see RangedHitInstance, BladeDamageInstance for #502).
-		if is_instance_valid(hit.target) and (hit.origin == null or is_instance_valid(hit.origin)):
-			# The identity -> state translation, in the one place that performs
-			# it. `hit.target` stays the real node throughout; what varies is the
-			# slice it resolves to.
-			var slice := world.combat_for(hit.target)
-			if slice != null:
-				hit.land_on(slice, world)
+		land_one(hit, world)
+
+
+## One landing, gate and cue included — the body of [method apply]'s loop, and
+## the only place a [method HitInstance.land_on] is reached from.
+##
+## Extracted (#536) because magic cannot wait for that loop: its candidate
+## filter reads ownership, so wave N's kill has to be IN the world before wave
+## N+1's filter runs, and [method SpellResolver.resolve_against] therefore lands
+## each wave mid-walk. Calling this rather than re-deriving the same four lines
+## there is what keeps "the sim and the real path agree" a structural fact —
+## there is one landing implementation, and the world it lands in is an
+## argument.
+##
+## Never [code]await[/code]s, deliberately: the clock is [method apply]'s
+## concern, so a mid-walk caller pays no coroutine and cannot accidentally
+## stagger a wave it meant to land at once.
+static func land_one(hit: HitInstance, world: CombatWorld) -> void:
+	if hit == null or hit.target == null:
+		return
+	# Re-checked here rather than hoisted: an earlier beat's cascade can
+	# free a target between landings. `origin` is checked too (#503) — a
+	# mid-volley cascade can just as easily free the FIRING node (e.g. a
+	# ranged leaf islanded by this same volley's overkill), and a mode
+	# whose live offense read needs `origin` (RangedHitInstance) must not
+	# be handed a freed one. This is instance-validity only, the coarse
+	# net; the meaningful allocated/hostile gate is each mode's own
+	# `land_on` (see RangedHitInstance, BladeDamageInstance for #502).
+	if not is_instance_valid(hit.target):
+		return
+	if hit.origin != null and not is_instance_valid(hit.origin):
+		return
+	# The identity -> state translation, in the one place that performs it.
+	# `hit.target` stays the real node throughout; what varies is the slice it
+	# resolves to.
+	var slice := world.combat_for(hit.target)
+	if slice == null:
+		return
+	hit.land_on(slice, world)
+	# The one recorded PRESENTATION cue (#536), announced on the mutation clock
+	# because this is the mutation clock. Guarded exactly like [NodeCombat]'s
+	# `host != null` branch: a shadow world has no audience, so the authority's
+	# compute pass stays silent and the cue fires on the live replay — see
+	# [member HitInstance.popped_vertex].
+	if hit.popped_vertex != null and not world.is_shadow():
+		Events.blade_vertex_popped.emit(
+				hit.popped_vertex, hit.attacker, hit.popped_vertex.global_position)
 
 
 ## Decorate-sort-undecorate on `(arrival_time, original_index)`. Public

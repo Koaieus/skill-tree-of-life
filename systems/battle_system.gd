@@ -303,98 +303,134 @@ func build_launch_command() -> LaunchAttackCommand:
 ## Apply [param command] — the [CommandApplier]'s entry point, and the one
 ## place an attack mutates the world.
 ##
-## Two halves, and which one runs is decided by the command's payload rather
-## than by a peer role (see [LaunchAttackCommand]):
-##   * empty record — AUTHORITY. Resolve, gate on affordability, apply
-##     naturally, then stamp the record of what actually happened back onto
-##     the command so it rides out with the broadcast.
-##   * populated record — REPLAY. Rebuild the plan (for the animation) and the
-##     recorded effects (for the world), and commit those.
+## [b]ONE launch path (#536).[/b] There used to be two — `_launch_as_authority`,
+## which resolved and applied its own outcome against the real world, and
+## `_replay_launch`, which reconstructed a record. The authority now does both:
+##
+## [codeblock]
+## empty record -> COMPUTE: resolve on a shadow, capture the record, confirm
+## every machine -> REPLAY:  rebuild that record, land it on the BeatClock
+## [/codeblock]
+##
+## Per #498: [i]"the host becomes a peer of itself; it is the only one that
+## computes, not the only one that replays."[/i] The payload still decides which
+## half runs, never a peer role (see [LaunchAttackCommand]) — an empty record
+## just means "nobody has computed this yet", and only the authority ever
+## receives one.
+##
+## [b]The round trip through capture -> rebuild is the point, not waste.[/b]
+## Reusing the computed [AttackOutcome] object for the live pass would land the
+## same hits a second time, and every land-time write on them is one-shot:
+## [method CritRoll.apply] multiplies `amount` in place, `hp_before`/`hp_after`
+## would be overwritten with post-cascade numbers, and — worst — a
+## [member HitInstance.deallocations] left over from the shadow would make
+## [method _on_node_depleted] take its RECORDED branch and re-apply a stale
+## cascade set. Rebuilding mints fresh hits, so none of that is possible by
+## construction rather than by discipline. Do not "optimise" it away.
 func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	if command == null or is_launching:
 		return false
+	var plan: AttackPlan
 	if command.record.is_empty():
-		@warning_ignore("redundant_await")
-		return await _launch_as_authority(command)
+		plan = attack_plan
+		if plan == null:
+			# An initiate for a plan this peer does not hold. Rebuilding one
+			# here would be the intent-up path, which is #463 — refuse loudly
+			# instead of guessing what the sender had armed.
+			push_warning("BattleSystem: launch_attack initiate with no live plan")
+			return false
+		# Re-validated HERE, not only in `build_launch_command`: a command can
+		# sit in the queue while the world moves under it (a cascade frees the
+		# pivot, the target is captured). An invalidated plan resolves to an
+		# EMPTY outcome whose `ap_cost` still defaults to 1, so skipping this
+		# spends AP on nothing.
+		if not plan.is_valid():
+			push_warning("BattleSystem: plan went invalid before apply: %s" % str(plan.validate()))
+			return false
+		if not _compute_record(plan, command):
+			return false
+		# Confirmed the instant the payload is complete, which is now BEFORE
+		# the world moves rather than after — the record is a finished artifact
+		# the moment the shadow pass ends, so a peer no longer sits out the
+		# host's animation before starting its own. Nothing downstream of here
+		# can change what crosses.
+		if command_applier != null:
+			command_applier.confirm(command)
+	else:
+		plan = AttackPlanCodec.from_dict(command.plan, graph)
+		if plan == null:
+			return false
+		attack_plan = plan
+		# Melee draws off `last_trajectory` / `last_events`, which only
+		# [method MeleeAttackPlan.resolve_against] fills in. Its returned
+		# outcome is DISCARDED — the record is what lands, and `resolve()` runs
+		# against a throwaway shadow, so re-simulating to DRAW mutates nothing
+		# (see [AttackRecord]). Skipped when there is no preview mounted, so a
+		# headless peer pays nothing for an animation it won't play.
+		if plan is MeleeAttackPlan and melee_preview != null:
+			plan.resolve()
+	# Everyone, authority included, from here down.
+	var outcome := AttackRecord.rebuild(command.record, graph)
 	@warning_ignore("redundant_await")
-	return await _replay_launch(command)
+	await _commit(plan, outcome)
+	return true
 
 
-## The RESOLVE half — host only. Everything up to and including the
-## affordability gates, which are the last thing that can still refuse an
-## attack. Returns null on a refusal; the world is untouched either way,
-## because nothing below resolve() mutates.
-func _resolve_for_launch(plan: AttackPlan, seed_value: int) -> AttackOutcome:
+## The COMPUTE half — authority only, and the one place in the codebase that
+## decides what an attack does. Stamps [param command]'s record and returns
+## true, or refuses on affordability and returns false.
+##
+## [b]Nothing real is touched here.[/b] The whole pass runs against a
+## [method CombatWorld.shadow]: the hits land, the cascades cascade, mitigation
+## is read node-locally and every mode's land-time gate fires — all on detached
+## slices. What comes out is the post-apply [AttackRecord], which
+## [method apply_launch_command] then replays on the live world exactly as a
+## peer does. Owner call 2026-08-23, [i]"shadow always"[/i]: it leaves
+## [OutcomeApplier] the sole mutator of the real world, so there is no
+## "already applied" state anywhere to detect and suppress.
+##
+## The affordability gate is the last thing that can still refuse an attack, and
+## it reads the REAL board — the costs are real even though the resolution is
+## not.
+func _compute_record(plan: AttackPlan, command: LaunchAttackCommand) -> bool:
 	# Stamp BEFORE resolving: the seed is an input to this resolution, and
 	# `outcome.resolve_seed` carries it back out so the artifact can
 	# reproduce itself. Every preview and AI rollout up to this point ran on
 	# the unstamped (0) stream, so the committed roll is genuinely fresh.
-	plan.resolve_seed = seed_value
-	var outcome := plan.resolve()
+	plan.resolve_seed = command.resolve_seed
+	var world := CombatWorld.shadow()
+	# Freed on EVERY exit below, including the refusals — a shadow holds
+	# reference cycles ([method EntityCombat.free_shadow]) and leaks without it.
+	var outcome := plan.resolve_against(world)
+	var affordable := _can_afford(plan, outcome)
+	if affordable:
+		command.record = AttackRecord.capture(outcome, graph)
+	world.free_shadow()
+	return affordable
+
+
+## Can [param plan]'s attacker pay for [param outcome]? Reads the LIVE pools —
+## an attack computed on a shadow is still paid for out of the real board.
+func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
 	var ap_pool: PoolStat = board.action_points if board != null else null
 	if ap_pool != null and ap_pool.available() < outcome.ap_cost:
 		push_warning("BattleSystem.launch_attack: insufficient AP (%d < %d)" \
 				% [int(ap_pool.current), outcome.ap_cost])
-		return null
+		return false
 	var mana_pool: PoolStat = board.mana if board != null else null
 	if outcome.mana_cost > 0 and mana_pool != null \
 			and mana_pool.available() < outcome.mana_cost:
 		push_warning("BattleSystem.launch_attack: insufficient mana (%d < %d)" \
 				% [int(mana_pool.current), outcome.mana_cost])
-		return null
-	return outcome
-
-
-func _launch_as_authority(command: LaunchAttackCommand) -> bool:
-	var plan := attack_plan
-	if plan == null:
-		# An initiate for a plan this peer does not hold. Rebuilding one here
-		# would be the intent-up path, which is #463 — refuse loudly instead of
-		# guessing what the sender had armed.
-		push_warning("BattleSystem: launch_attack initiate with no live plan")
 		return false
-	# Re-validated HERE, not only in `build_launch_command`: a command can sit
-	# in the queue while the world moves under it (a cascade frees the pivot,
-	# the target is captured). An invalidated plan resolves to an EMPTY
-	# outcome whose `ap_cost` still defaults to 1, so skipping this spends AP
-	# on nothing.
-	if not plan.is_valid():
-		push_warning("BattleSystem: plan went invalid before apply: %s" % str(plan.validate()))
-		return false
-	var outcome := _resolve_for_launch(plan, command.resolve_seed)
-	if outcome == null:
-		return false
-	@warning_ignore("redundant_await")
-	await _commit(plan, outcome, command)
 	return true
 
 
-## The peer half. The plan is rebuilt so the swing can be DRAWN — melee
-## reforms a bit-identical blade from the same pivot/members and re-runs the
-## pure sim for its trajectory, which mutates nothing (see [AttackRecord] on
-## why drawing is not re-simulating). The WORLD comes entirely from the
-## record.
-func _replay_launch(command: LaunchAttackCommand) -> bool:
-	var plan := AttackPlanCodec.from_dict(command.plan, graph)
-	if plan == null:
-		return false
-	var outcome := AttackRecord.rebuild(command.record, graph)
-	attack_plan = plan
-	# Melee draws off `last_trajectory` / `last_events`, which only
-	# [method MeleeAttackPlan.resolve] fills in. Its returned outcome is
-	# DISCARDED — the record is what lands. Skipped when there is no preview
-	# mounted, so a headless peer pays nothing for an animation it won't play.
-	if plan is MeleeAttackPlan and melee_preview != null:
-		plan.resolve()
-	@warning_ignore("redundant_await")
-	await _commit(plan, outcome, null)
-	return true
-
-
-## The APPLY half — what every peer runs, authority included. Identical either
-## way; the only difference is where [param outcome] came from.
+## The APPLY half — what every machine runs, authority included, on the outcome
+## rebuilt from the record. There is no longer a second version of this for the
+## machine that computed it.
 ##
 ## Costs are deducted up front; the plan itself stays live through the whole
 ## await (#406 — a melee plan's attached temp-upgrade addons must keep
@@ -410,8 +446,7 @@ func _replay_launch(command: LaunchAttackCommand) -> bool:
 ## VFX still gates nothing: dropping every frame of the animation leaves the
 ## applied world identical, because the loop waits on its own timer and not on
 ## `attack_vfx.play`.
-func _commit(plan: AttackPlan, outcome: AttackOutcome,
-		command: LaunchAttackCommand) -> void:
+func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	is_launching = true
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
@@ -459,22 +494,12 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome,
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
-	# Captured the instant the world is done and before anything is torn down.
-	# Every field it reads (`effective_amount`, the post-reclassification
-	# `kind`, `gated`) was filled in at land time by the code that landed it —
-	# see [AttackRecord] on why the record is post-apply rather than the
-	# resolve-time outcome.
-	if command != null:
-		command.record = AttackRecord.capture(outcome, graph)
-		# THE settle point, and why [signal CommandApplier.command_confirmed]
-		# exists: the payload is complete right here, but this coroutine keeps
-		# awaiting the animation tail below, and `command_applied` — which used
-		# to be what [CommandLink] mirrored off — cannot fire until it returns.
-		# A peer was therefore made to sit out the host's whole swing before
-		# starting its own. Confirming here costs the wire nothing extra and
-		# hands the peer the record the instant the world is settled.
-		if command_applier != null:
-			command_applier.confirm(command)
+	# Nothing is captured here anymore (#536). The record was complete before
+	# this method was ever entered — it is the record this pass just replayed —
+	# and [method apply_launch_command] confirmed it there, one await earlier
+	# than the old settle point. See that method on why the authority replays
+	# rather than reusing what it computed.
+	#
 	# Then wait out the animation too, before releasing anything. `is_launching`
 	# spans the WHOLE action, not just the mutation: it is what blocks a second
 	# launch, and the plan stays live behind it because a melee plan's
@@ -583,24 +608,31 @@ func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
 		return
 	var combat := defender.get_combat()
 	# ── Recorded, or derived? ────────────────────────────────────────────────
-	# A PEER arrives here replaying an [AttackRecord], and its hit already
-	# carries the cascade the authority ran (#518). It applies THAT set rather
-	# than walking its own navigator for one: under the filtered-delta model
+	# ANY machine replaying an [AttackRecord] arrives here with the cascade the
+	# authority ran already on its hit (#518). It applies THAT set rather than
+	# walking its own navigator for one: under the filtered-delta model
 	# (docs/domain/multiplayer-sync-model.md) a fogged client may not hold the
 	# nodes that walk would visit, so the derivation is not merely redundant,
-	# it is wrong. On the HOST the array is empty here — it is filled below,
-	# from what this very call produces — so the host derives, exactly once,
-	# and everyone else replays. That is the asymmetry
-	# `.claude/rules/multiplayer-sync.md` describes, made literally true.
+	# it is wrong.
 	#
 	# [b]The invariant this rests on:[/b] a non-empty `deallocations` means
-	# "this hit has already been cascaded", NOT "I am a peer". The two coincide
-	# only because a hit lands exactly ONCE. #501's blocked half is precisely
-	# about magic landing every hit a second time (`resolve()` mutating, then
-	# `OutcomeApplier` landing it again) — if that ever ships, the host would
-	# take the replay branch on the second pass and re-apply its own stale set.
-	# Retiring that second apply is #498 step 3's job; whoever touches the
-	# applier before then owns this line.
+	# "this hit has already been cascaded", NOT "I am a peer" — and since #536
+	# the two no longer coincide even loosely, because the authority replays a
+	# record too. Its DERIVING pass happens on a shadow world, inside
+	# [method _compute_record], where `host == null` sends
+	# [method NodeCombat.take_damage] down its own `cascade_from` branch and
+	# never reaches this handler at all.
+	#
+	# So the derive branch below is now for depletions that are not an attack
+	# replay: anything else that damages a node to zero on the live world. It
+	# stays because those exist, not as the authority's path.
+	#
+	# This is also where #501's warning landed. A hit must be applied exactly
+	# ONCE per world, or the second pass takes the replay branch and re-applies
+	# a stale set; magic now lands its waves during resolution, so the thing
+	# that keeps this true is that the authority never re-uses a computed
+	# outcome — it captures and rebuilds. See
+	# [method apply_launch_command].
 	var recorded: Array[DeallocEntry] = []
 	if source is HitInstance:
 		recorded = (source as HitInstance).deallocations
