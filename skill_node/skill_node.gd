@@ -751,26 +751,48 @@ func apply_entity_modifiers_to(board: StatBoard) -> void:
 	board.end_batch()
 
 
+## The handles this node is currently contributing to its owner's board — what
+## [method remove_entity_modifiers_from] would take off, [b]without taking
+## anything off[/b] (#520).
+##
+## Pure by design, and that is the whole point: a shadow's cascade has to revoke
+## this node's grants from ITS board, and the mutating helper below erases
+## [member _scaled_sets] on the REAL node while it works. Splitting the question
+## ("what is granted") from the verb ("un-grant it") is what lets both worlds
+## share the answer and keeps the `erase` on the live path where it belongs.
+##
+## A composition swap ([member _scaled_sets] entry) means the parent's own
+## leaves are NOT what landed — the scaled set is, so that is what this reports.
+func granted_entity_modifiers() -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	for m in modifiers:
+		var swapped: Array = _scaled_sets.get(m, [])
+		if swapped.is_empty():
+			out.append(m)
+		else:
+			for leaf in swapped:
+				out.append(leaf)
+	return out
+
+
 ## Strip this node's entity-scoped modifiers from [param board]. Called by
-## [AllocationSystem] when the node stops being owned.
+## [AllocationSystem] when the node stops being owned — i.e. the LIVE path, and
+## the only one, because of the [member _scaled_sets] erase at the end.
 func remove_entity_modifiers_from(board: StatBoard) -> void:
 	if board == null:
 		return
 	# Symmetric with apply_entity_modifiers_to — a dealloc is one event too, and
 	# the same double-cascade applies on the way out.
 	board.begin_batch()
-	for m in modifiers:
-		# A composition swap (m._scaled_sets entry) means the parent's own
-		# leaves are NOT what's applied — remove the scaled set, or it would
-		# strand on the board after the parent's (stale) leaves no-op.
-		var _set: Array = _scaled_sets.get(m, [])
-		if not _set.is_empty():
-			for leaf in _set:
-				board.remove_modifier(leaf)
-			_scaled_sets.erase(m)
-		else:
-			board.remove_modifier(m)
+	for handle in granted_entity_modifiers():
+		board.remove_modifier(handle)
 	board.end_batch()
+	# A swapped set has now left the board, so the swap record is spent. Erased
+	# after the removals, never inside the loop above — `granted_entity_modifiers`
+	# reads the same dictionary.
+	for m in modifiers:
+		if _scaled_sets.has(m):
+			_scaled_sets.erase(m)
 
 
 ## Apply [param m] to this node's [member node_board] — a node-scoped modifier,
@@ -835,23 +857,21 @@ func remove_local_modifier(m: StatModifier) -> void:
 			s.remove_modifier(leaf, node_board)
 
 
-## Increment [param tag]'s refcount, creating the entry at 1 if new.
+## Increment [param tag]'s refcount, creating the entry at 1 if new. State half
+## on [method NodeCombat.add_tag] (#520), so an aura recomputing against a
+## shadow tags the shadow instead of the real node.
 func add_tag(tag: StringName) -> void:
-	_tags[tag] = _tags.get(tag, 0) + 1
+	_combat.add_tag(tag)
 
 
 ## Decrement [param tag]'s refcount; drops the entry entirely at 0 so
 ## [method get_active_tags] only ever reports what's actually live.
 func remove_tag(tag: StringName) -> void:
-	var count: int = _tags.get(tag, 0) - 1
-	if count <= 0:
-		_tags.erase(tag)
-	else:
-		_tags[tag] = count
+	_combat.remove_tag(tag)
 
 
 func has_tag(tag: StringName) -> bool:
-	return _tags.get(tag, 0) > 0
+	return _combat.has_tag(tag)
 
 
 ## The live tag set — no [StatRegistry] entry, no board slot. Tooltips /
@@ -1449,15 +1469,31 @@ func _restore_scaled_effect(e: Effect) -> void:
 	entity.grant_effect(e, self)
 
 
+## Every leaf currently applied through a scaled effect-set — the read half of
+## [method clear_scaled_effect_sets] (#520), for the same reason
+## [method granted_entity_modifiers] exists.
+func scaled_effect_leaves() -> Array[StatModifier]:
+	var out: Array[StatModifier] = []
+	for e in _scaled_effect_sets:
+		for leaf: StatModifier in _scaled_effect_sets[e]:
+			out.append(leaf)
+	return out
+
+
 ## Strip any scaled effect-sets applied to [param board] — called by
 ## AllocationSystem just before an ownership transition revokes the effect
 ## instances, because a swapped set is applied OUTSIDE the effect ledger and
 ## would strand on the board otherwise.
+##
+## Note this one was ALREADY shadow-safe: it only ever removed leaves from the
+## board it was handed and never touched [member _scaled_effect_sets] (#520's
+## body reads it as mutating the node; it does not). Kept as the named verb, now
+## expressed over [method scaled_effect_leaves] so there is one answer to "what
+## did the swap put on the board".
 func clear_scaled_effect_sets(board: StatBoard) -> void:
 	if board == null:
 		return
-	for e in _scaled_effect_sets:
-		_remove_leaf_set(board, _scaled_effect_sets[e])
+	_remove_leaf_set(board, scaled_effect_leaves())
 	_scaled_effect_sets.clear()
 
 

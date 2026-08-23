@@ -43,14 +43,21 @@ extends RefCounted
 ## [DeallocEntry] record) is shared, and a shadow charges the wound and the
 ## chip exactly as the live path does.
 ##
-## [b]Still divergent on a shadow, and it is #520, not an oversight:[/b]
-## [Effect] / [AuraEffect] revocation. [method revoke_node] is live-only, and
-## the helpers it leans on ([method SkillNode.remove_entity_modifiers_from],
+## [b]Shadow MITIGATION parity closed in #520.[/b] [method revoke_node] is one
+## body for both worlds now: it revokes the dead node's granted modifiers and
+## its swapped effect-sets from [method board], drops the effects it sourced
+## from [method effects], and trims [method mirror] — after which
+## [method apply_cascade] dispatches `_on_node_deallocated`, so
+## [method AuraEffect.recompute] rebuilds from the set the strip just shrank.
+## A shadow's wave N+1 therefore resolves against POST-cascade armour, which is
+## the multi-wave case #498 exists to fix.
+##
+## The helpers that made this look expensive ([method SkillNode.remove_entity_modifiers_from],
 ## [method SkillNode.clear_scaled_effect_sets]) mutate the REAL node, so a
-## shadow cannot borrow them through its [method NodeCombat.real] handle without
-## corrupting live state. Consequence, stated plainly because it is
-## observable: a shadow's wave N+1 resolves against [b]pre-cascade armour[/b].
-## Shadow attrition parity closed in #518; shadow mitigation parity has not.
+## shadow does not call them — it calls their pure read halves
+## ([method SkillNode.granted_entity_modifiers], [method SkillNode.scaled_effect_leaves])
+## and removes from its OWN board. The two `_scaled_*` dictionaries on a real
+## node are never written by a shadow run.
 ##
 ## [b]The live cascade's ENTRY is still the bus[/b] — `Events.skill_node_depleted`
 ## -> [method BattleSystem._on_node_depleted], which now only computes the VFX
@@ -98,6 +105,28 @@ var _shadow_by_real: Dictionary[SkillNode, NodeCombat] = {}
 ## door to [member host]. It answers "whose territory is this" for
 ## [method NodeCombat.ownership_bit], which a landing gate asks on every hit.
 var _origin: Entity
+## Meaningful ONLY when [member host] == null — the shadow's own refcounted tag
+## set. See [member NodeCombat._tags] for why tag storage, unlike ownership,
+## genuinely has to move for a shadow.
+var _tags: Dictionary[StringName, int] = {}
+## Meaningful ONLY when [member host] == null — the shadow's stand-in for
+## [member Entity._effect_instances] (#520). Populated at [method snapshot] from
+## [method Entity.get_effects] via [method EffectInstance.clone_for], one twin
+## per live instance, each with COPIED ledger rows and a context bound to this
+## slice. Without it a shadow could strip a node's ownership but not the
+## modifiers that node's effects had granted — the pre-cascade-armour divergence
+## #518 shipped with and this closes.
+var _effects: Array[EffectInstance] = []
+## The [CombatWorld] that minted this shadow, so an [Effect] granting to a
+## [SkillNode] can find that node's slice in the SAME world. Set by
+## [method CombatWorld.combat_for_entity]; null on a live slice, where
+## [method world] answers with the live world.
+var _world: CombatWorld
+## True when THIS slice minted [member _world] itself (a bare
+## [method snapshot] with no world handed in), and so is the one that must tear
+## it down. False for a shadow a [CombatWorld] owns — there the world outlives
+## any one entity in it.
+var _owns_world: bool = false
 
 
 func _init(p_host: Entity = null) -> void:
@@ -154,6 +183,19 @@ func free_shadow() -> void:
 	_shadow_by_real.clear()
 	_core = null
 	_origin = null
+	_tags.clear()
+	# The twins hold a context that backpoints here — a third cycle of the same
+	# shape as the owned nodes and the cloned boards.
+	for inst in _effects:
+		inst.context = null
+	_effects.clear()
+	# Null the back-reference BEFORE handing back to a world we minted — that
+	# call re-enters this method, and the null is what terminates it.
+	var owned_world := _world if _owns_world else null
+	_world = null
+	_owns_world = false
+	if owned_world != null:
+		owned_world.free_shadow()
 	if _mirror != null:
 		_mirror.free()
 		_mirror = null
@@ -196,10 +238,13 @@ func core() -> NodeCombat:
 ## via [method NodeCombat.snapshot], and builds the manual-mode [member _mirror]
 ## from the real owned set — see the class doc for why a real [SkillNode] is
 ## still needed for that one piece.
-func snapshot() -> EntityCombat:
+func snapshot(into: CombatWorld = null) -> EntityCombat:
 	var shadow := EntityCombat.new()
 	if host == null:
 		return shadow
+	# Assigned before anything on the shadow can dispatch — see [method world].
+	if into != null:
+		shadow._world = into
 	shadow._origin = host
 	if host.stat_board != null:
 		# clone_live, not duplicate(true) — see its doc: a bare duplicate
@@ -216,6 +261,12 @@ func snapshot() -> EntityCombat:
 		shadow._mirror.mirror_add(real_node)
 	if host.core_location != null:
 		shadow._core = shadow._shadow_by_real.get(host.core_location)
+	shadow._tags = host._tags.duplicate()
+	# Last, so every twin's context sees a fully-populated shadow: an
+	# `_on_revoked` or a recompute fired against one reads `owned()` / `core()`
+	# / `mirror()` immediately.
+	for inst in host.get_effects():
+		shadow._effects.append(inst.clone_for(shadow))
 	return shadow
 
 
@@ -224,6 +275,107 @@ func snapshot() -> EntityCombat:
 ## entity-level twin of [method NodeCombat.real].
 func real_entity() -> Entity:
 	return host if host != null else _origin
+
+
+## The world this slice's state lives in — what lets an [EffectContext] resolve
+## a [SkillNode] grant target to the right node slice.
+##
+## A shadow NEVER falls back to the live world: that fallback is exactly how an
+## aura recomputing on a shadow would grant node-local modifiers to real nodes.
+## A bare [method snapshot] therefore mints a private world on first ask, which
+## [method free_shadow] then owns.
+func world() -> CombatWorld:
+	if host != null:
+		return CombatWorld.live()
+	if _world == null:
+		_world = CombatWorld.shadow()
+		_world.adopt(self)
+		_owns_world = true
+	return _world
+
+
+## The owned-subgraph mirror to measure over: the entity's real
+## [EntityNavigator] when live, this shadow's manual-mode [member _mirror] when
+## not. Both are keyed by real [SkillNode]s, and both track only what this
+## entity currently owns — including, on a shadow, after [method apply_cascade]
+## has taken nodes out of it, which is what makes an aura recompute against a
+## shadow read the POST-cascade set (#520).
+func mirror() -> GraphMirror:
+	return host.navigator if host != null else _mirror
+
+
+## The refcounted tag dictionary to read and write — the entity-wide twin of
+## [method NodeCombat._tag_store].
+func _tag_store() -> Dictionary[StringName, int]:
+	return host._tags if host != null else _tags
+
+
+func add_tag(tag: StringName) -> void:
+	var store := _tag_store()
+	store[tag] = store.get(tag, 0) + 1
+
+
+func remove_tag(tag: StringName) -> void:
+	var store := _tag_store()
+	var count: int = store.get(tag, 0) - 1
+	if count <= 0:
+		store.erase(tag)
+	else:
+		store[tag] = count
+
+
+func has_tag(tag: StringName) -> bool:
+	return _tag_store().get(tag, 0) > 0
+
+
+## Every [EffectInstance] currently attached to this entity — the live ledger
+## when live, the shadow twins when not.
+func effects() -> Array[EffectInstance]:
+	return host.get_effects() if host != null else _effects.duplicate()
+
+
+## Detach one effect, reverting every modifier and tag it granted. Live hands
+## back to [method Entity.revoke_effect], which also keeps the hook buckets; a
+## shadow has no buckets (it dispatches by walking [member _effects]) so it runs
+## the `_on_revoked` hook and drops the row.
+func revoke_effect(inst: EffectInstance) -> void:
+	if inst == null:
+		return
+	if host != null:
+		host.revoke_effect(inst)
+		return
+	if not _effects.has(inst):
+		return
+	inst.effect._on_revoked(inst.context)
+	_effects.erase(inst)
+
+
+## Revoke every effect [param source_node] granted — the deallocation path.
+## Iterates a copy: `_on_revoked` may revoke re-entrantly.
+func revoke_effects_from(source_node: SkillNode) -> void:
+	if host != null:
+		host.revoke_effects_from(source_node)
+		return
+	for inst in _effects.duplicate():
+		if inst.source_node == source_node:
+			revoke_effect(inst)
+
+
+## Fire [param hook] on every effect that implements it. Live goes through
+## [method Entity.dispatch] (hook buckets, so it costs nothing per unimplemented
+## hook); a shadow walks its own small ledger, which is the same set without the
+## index. This is how [method AuraEffect.recompute] is reached after a cascade
+## changes what this entity owns.
+func dispatch(hook: StringName, args: Array = []) -> void:
+	if host != null:
+		host.dispatch(hook, args)
+		return
+	for inst in _effects.duplicate():
+		if inst.effect == null or not inst.effect.implemented_hooks().has(hook):
+			continue
+		var call_args: Array = [inst.context]
+		call_args.append_array(args)
+		inst.effect.callv(hook, call_args)
 
 
 ## This shadow's real -> shadow node index, for a [CombatWorld] assembling
@@ -345,7 +497,14 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 				continue
 			alloc.force_deallocate(n.host)
 		else:
+			# The same three steps `force_deallocate` performs, in its order
+			# (#520): revoke sweep, then ownership, then the dealloc hook — and
+			# it is that hook which re-runs AuraEffect.recompute against the set
+			# this strip just shrank, so wave N+1 resolves against POST-cascade
+			# armour rather than pre-cascade armour.
+			revoke_node(entry.node)
 			_strip_one(n)
+			dispatch(&"_on_node_deallocated", [entry.node, true])
 		if b != null and charge:
 			var sp := b.get_stat(&"skill_points") as SkillPointStat
 			if sp != null:
@@ -423,18 +582,52 @@ func _strip_one(node: NodeCombat) -> void:
 		_mirror.mirror_remove(real)
 
 
-## Strip [param node]'s footprint from [member host]: swapped effect-sets,
-## granted effects, entity-scoped modifiers, and the navigator mirror. Called
-## by [method AllocationSystem.force_deallocate] on the node's previous owner,
-## before ownership clears. LIVE-only (reaches [member host] directly) — a
-## shadow's forced-dealloc cascade goes through [method apply_cascade]
-## instead, which deliberately does not replicate this (see the class doc).
+## Strip [param node]'s footprint from this entity: swapped effect-sets, granted
+## effects, entity-scoped modifiers, and the navigator mirror. Called by
+## [method AllocationSystem.force_deallocate] on the node's previous owner,
+## before ownership clears — and, since #520, by [method apply_cascade] on the
+## shadow side of its one branch, so shadow MITIGATION parity now holds the way
+## #518 made shadow ATTRITION parity hold.
+##
+## One body, two worlds, and the difference is only which board is written and
+## which mirror is trimmed:
+## [codeblock]
+##   swapped effect-set leaves  ->  board()      (via SkillNode.scaled_effect_leaves)
+##   effects sourced at node    ->  effects()    (live ledger / shadow twins)
+##   node's granted modifiers   ->  board()      (via granted_entity_modifiers)
+##   node                       ->  mirror()
+## [/codeblock]
+##
+## The two `_scaled_*` dictionaries on the real [SkillNode] are the one thing a
+## shadow must NOT touch, which is why this reads them through the pure
+## accessors and leaves the `erase` to [method SkillNode.remove_entity_modifiers_from]
+## on the live path. A shadow run therefore leaves every real node's
+## [code]_scaled_sets[/code] / [code]_scaled_effect_sets[/code] and every real
+## entity's effect ledger byte-identical.
 func revoke_node(node: SkillNode) -> void:
-	var board := host.stat_board
-	# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
-	# applied outside the effect ledger and would strand otherwise (#376).
-	node.clear_scaled_effect_sets(board)
-	host.revoke_effects_from(node)
-	node.remove_entity_modifiers_from(board)
-	if host.navigator != null:
-		host.navigator.mirror_remove(node)
+	if node == null:
+		return
+	var b := board()
+	if b != null:
+		# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
+		# applied outside the effect ledger and would strand otherwise (#376).
+		if host != null:
+			node.clear_scaled_effect_sets(b)
+		else:
+			# Same removal, aimed at the shadow's board. Not
+			# `clear_scaled_effect_sets`: its `_remove_leaf_set` branches on
+			# `board == node_board` and would reach the real node's board.
+			for leaf in node.scaled_effect_leaves():
+				b.remove_modifier(leaf)
+	revoke_effects_from(node)
+	if b != null:
+		if host != null:
+			node.remove_entity_modifiers_from(b)
+		else:
+			b.begin_batch()
+			for handle in node.granted_entity_modifiers():
+				b.remove_modifier(handle)
+			b.end_batch()
+	var m := mirror()
+	if m != null:
+		m.mirror_remove(node)

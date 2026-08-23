@@ -117,15 +117,29 @@ func combat_for_entity(entity: Entity) -> EntityCombat:
 	var known: EntityCombat = _entities.get(entity)
 	if known != null:
 		return known
-	var shadow_entity := entity.get_combat().snapshot()
-	_entities[entity] = shadow_entity
-	for real_node in shadow_entity.shadow_index():
-		# An earlier orphan wins over nothing, but an owned node can never have
-		# been minted as an orphan first — `combat_for` checks `owned_by` before
-		# it orphans, and ownership does not change under a shadow except by a
-		# cascade, which only ever un-owns.
-		_nodes[real_node] = shadow_entity.shadow_index()[real_node]
+	# `self` is handed IN rather than assigned after: an EffectContext resolves a
+	# SkillNode grant target through its slice's world, and a snapshot's effect
+	# twins are live from the moment they exist.
+	var shadow_entity := entity.get_combat().snapshot(self)
+	adopt(shadow_entity)
 	return shadow_entity
+
+
+## Register an already-built shadow [EntityCombat] and fold its owned nodes into
+## this world's index. Called by [method combat_for_entity], and by
+## [method EntityCombat.world] when a bare snapshot mints its own world.
+func adopt(shadow_entity: EntityCombat) -> void:
+	if shadow_entity == null or not _shadow:
+		return
+	var origin := shadow_entity.real_entity()
+	if origin != null:
+		_entities[origin] = shadow_entity
+	var index := shadow_entity.shadow_index()
+	for real_node in index:
+		# An owned node can never have been minted as an orphan first —
+		# `combat_for` checks `owned_by` before it orphans, and ownership does
+		# not change under a shadow except by a cascade, which only ever un-owns.
+		_nodes[real_node] = index[real_node]
 
 
 ## Release every slice this world minted. Mandatory on a shadow (see
@@ -134,7 +148,11 @@ func combat_for_entity(entity: Entity) -> EntityCombat:
 func free_shadow() -> void:
 	if not _shadow:
 		return
-	for shadow_entity in _entities.values():
+	# Taken and cleared FIRST: EntityCombat.free_shadow hands a world it minted
+	# itself back to this method, so re-entry has to find nothing left to do.
+	var entities: Array = _entities.values()
+	_entities.clear()
+	for shadow_entity in entities:
 		shadow_entity.free_shadow()
 	for orphan in _orphans:
 		if orphan._board != null:

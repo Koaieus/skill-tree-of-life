@@ -13,13 +13,30 @@ extends RefCounted
 	# as well as Effect vs EffectInstance. review: where does effect definition live, 
 	# where/when does it get applied, and reapplied, like map out the whole lifecycle
 
-var entity: Entity
+## The owner slice this context acts through (#520). NOT an [Entity]: everything
+## below that used to reach `entity.stat_board` / `entity.navigator` /
+## `node.add_local_modifier` now reaches the slice instead, so the identical
+## [Effect] code recomputes against a shadow board when handed a shadow slice.
+## There is no preview branch in this file — the world is the parameter.
+var combat: EntityCombat
 var instance: EffectInstance
 
 
-func _init(p_entity: Entity, p_instance: EffectInstance) -> void:
-	entity = p_entity
+func _init(p_combat: EntityCombat, p_instance: EffectInstance) -> void:
+	combat = p_combat
 	instance = p_instance
+
+
+## The real [Entity] behind [member combat] — IDENTITY only (attitude, display).
+## An effect that wants to CHANGE something must go through [member combat], or
+## a shadow recompute would write to the live entity.
+var entity: Entity:
+	get: return combat.real_entity() if combat != null else null
+
+## The world [member combat] belongs to, so a grant aimed at a [SkillNode] lands
+## on that node's slice in the same world rather than on the real node.
+var world: CombatWorld:
+	get: return combat.world() if combat != null else CombatWorld.live()
 
 
 ## The node that carries this effect (keystone / addon), or null for
@@ -29,11 +46,20 @@ var source_node: SkillNode:
 
 ## The entity's owned-subgraph mirror. The right scope for aura hop-distance:
 ## a path may not shortcut through territory the entity doesn't own.
-var navigator: EntityNavigator:
-	get: return entity.navigator if entity != null else null
+## Typed as the base [GraphMirror] rather than [EntityNavigator] (#520): a live
+## slice answers with the entity's real navigator, a shadow with its own
+## manual-mode mirror over the set it still owns. Both are keyed by real
+## [SkillNode]s, which is what lets an aura's whole distance computation stay in
+## real-node space regardless of which world it is running in.
+var navigator: GraphMirror:
+	get: return combat.mirror() if combat != null else null
 
 var core_location: SkillNode:
-	get: return entity.core_location if entity != null else null
+	get:
+		if combat == null:
+			return null
+		var c := combat.core()
+		return c.real() if c != null else null
 
 ## The whole-graph mirror — reach through anyone's territory. Only what an aura
 ## with GLOBAL scope wants; owned-scope work goes through [member navigator].
@@ -53,18 +79,22 @@ var graph: Graph:
 ## carry mutable per-entity binding state and must never be shared" gotcha
 ## (.claude/rules/stats-system.md) is impossible to get wrong from an effect.
 func grant(mod: StatModifier, target: Variant = null) -> StatModifier:
-	if mod == null or entity == null:
+	if mod == null or combat == null:
 		return null
 	var handle: StatModifier = mod.duplicate(true)
 	if target == null:
-		if entity.stat_board == null:
+		var board := combat.board()
+		if board == null:
 			return null
-		entity.stat_board.add_modifier(handle)
+		board.add_modifier(handle)
 	else:
 		var node: SkillNode = target
 		if not is_instance_valid(node):
 			return null
-		node.add_local_modifier(handle)
+		var slice := world.combat_for(node)
+		if slice == null:
+			return null
+		slice.add_local_modifier(handle)
 	instance.record(handle, target)
 	return handle
 
@@ -87,7 +117,7 @@ func grant_scaled(mod: StatModifier, scale: float, target: Variant = null) -> St
 ## alongside modifier grants (same [EffectInstance]), so [method revoke_all]
 ## sweeps both channels in one pass. Returns the token [method revoke] takes back.
 func grant_tag(tag: StringName, target: Variant = null) -> Variant:
-	if entity == null:
+	if combat == null:
 		return null
 	if not _apply_tag(target, tag, 1):
 		return null
@@ -129,16 +159,21 @@ func handles_for(target: Variant) -> Array[StatModifier]:
 
 
 func _detach(handle: StatModifier, target: Variant) -> void:
+	if combat == null:
+		return
 	if target == null:
-		if entity != null and entity.stat_board != null:
-			entity.stat_board.remove_modifier(handle)
+		var board := combat.board()
+		if board != null:
+			board.remove_modifier(handle)
 		return
 	# Untyped read before validity check — a typed assignment of a freed
 	# instance crashes first. See .claude/rules/godot-workflow.md.
 	if not is_instance_valid(target):
 		return
 	var node: SkillNode = target
-	node.remove_local_modifier(handle)
+	var slice := world.combat_for(node)
+	if slice != null:
+		slice.remove_local_modifier(handle)
 
 
 ## Apply [param delta] (±1) to [param tag]'s refcount on [param target] (null =
@@ -146,19 +181,22 @@ func _detach(handle: StatModifier, target: Variant) -> void:
 ## mirrors [method _detach]'s freed-node guard, since a cascade can free a node
 ## between grant and revoke.
 func _apply_tag(target: Variant, tag: StringName, delta: int) -> bool:
+	if combat == null:
+		return false
 	if target == null:
-		if entity == null:
-			return false
 		if delta > 0:
-			entity.add_tag(tag)
+			combat.add_tag(tag)
 		else:
-			entity.remove_tag(tag)
+			combat.remove_tag(tag)
 		return true
 	if not is_instance_valid(target):
 		return false
 	var node: SkillNode = target
+	var slice := world.combat_for(node)
+	if slice == null:
+		return false
 	if delta > 0:
-		node.add_tag(tag)
+		slice.add_tag(tag)
 	else:
-		node.remove_tag(tag)
+		slice.remove_tag(tag)
 	return true

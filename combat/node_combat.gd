@@ -38,6 +38,13 @@ var _owner: EntityCombat
 ## Meaningful ONLY when [member host] == null (a shadow) — the shadow's own
 ## deep-cloned [NodeStatBoard], standing in for [member SkillNode.node_board].
 var _board: NodeStatBoard
+## Meaningful ONLY when [member host] == null — the shadow's own refcounted tag
+## set (#520). Storage, unlike ownership, genuinely has to move for a shadow:
+## an [Effect] recomputing against one grants and revokes tags, and there is no
+## real node those may land on. Live reads go straight to
+## [member SkillNode._tags] through [method _tag_store], so there is still only
+## one tag dictionary per real node.
+var _tags: Dictionary[StringName, int] = {}
 
 
 func _init(p_host: SkillNode = null) -> void:
@@ -91,6 +98,7 @@ func snapshot(owner_combat: EntityCombat) -> NodeCombat:
 	shadow._owner = owner_combat
 	shadow._real = host
 	if host != null:
+		shadow._tags = host._tags.duplicate()
 		host._init_node_board()
 		# clone_live, not duplicate(true) — see its doc on StatBoard.
 		shadow._board = host.node_board.clone_live() as NodeStatBoard
@@ -329,6 +337,73 @@ func take_damage(amount: float, source: Variant) -> void:
 			var entries := o.cascade_from(self)
 			if source is HitInstance:
 				(source as HitInstance).deallocations = entries
+
+
+## The refcounted tag dictionary to read and write — the real node's when live,
+## this slice's own when shadow. One store per world, never a copy of another
+## world's.
+func _tag_store() -> Dictionary[StringName, int]:
+	return host._tags if host != null else _tags
+
+
+## State half of [method SkillNode.add_tag].
+func add_tag(tag: StringName) -> void:
+	var store := _tag_store()
+	store[tag] = store.get(tag, 0) + 1
+
+
+## State half of [method SkillNode.remove_tag].
+func remove_tag(tag: StringName) -> void:
+	var store := _tag_store()
+	var count: int = store.get(tag, 0) - 1
+	if count <= 0:
+		store.erase(tag)
+	else:
+		store[tag] = count
+
+
+func has_tag(tag: StringName) -> bool:
+	return _tag_store().get(tag, 0) > 0
+
+
+## State half of [method SkillNode.add_local_modifier] for the shadow's benefit
+## (#520) — an [AuraEffect] recomputing against a shadow grants node-local
+## modifiers, and they must land on the shadow's board.
+##
+## Live delegates to the node, which does more than a board write (formula-cycle
+## rejection, the `_local_modifiers` ledger); a shadow has no ledger to keep and
+## no cycle to introduce that the cloned board did not already contain, so it
+## binds straight through the same [method StatBoard.bind_modifier] the node
+## ends at.
+func add_local_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	if host != null:
+		host.add_local_modifier(m)
+		return
+	if _board == null:
+		return
+	for leaf in m.flatten():
+		_board.bind_modifier(leaf)
+
+
+## State half of [method SkillNode.remove_local_modifier]. Removal is by object
+## identity — on a shadow the handle a caller holds is the LIVE instance, and
+## [method StatBoard.remove_modifier] translates it through `_localized` (#506)
+## to this board's private copy.
+func remove_local_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	if host != null:
+		host.remove_local_modifier(m)
+		return
+	if _board == null:
+		return
+	for leaf in m.flatten():
+		var s: Stat = _board.get_stat(leaf.stat_id)
+		if s != null:
+			_board.unbind_modifier(leaf)
+			s.remove_modifier(leaf, _board)
 
 
 ## State half of [method SkillNode.heal_damage] — see that method for the

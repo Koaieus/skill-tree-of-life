@@ -305,7 +305,7 @@ func grant_effect(effect: Effect, source_node: SkillNode = null) -> EffectInstan
 	var inst := EffectInstance.new()
 	inst.effect = effect
 	inst.source_node = source_node
-	inst.context = EffectContext.new(self, inst)
+	inst.context = EffectContext.new(_combat, inst)
 	_effect_instances.append(inst)
 	for hook in effect.implemented_hooks():
 		if not _hook_buckets.has(hook):
@@ -352,21 +352,17 @@ func get_effects() -> Array[EffectInstance]:
 
 ## Increment [param tag]'s refcount, creating the entry at 1 if new.
 func add_tag(tag: StringName) -> void:
-	_tags[tag] = _tags.get(tag, 0) + 1
+	_combat.add_tag(tag)
 
 
 ## Decrement [param tag]'s refcount; drops the entry entirely at 0 so
 ## [method get_active_tags] only ever reports what's actually live.
 func remove_tag(tag: StringName) -> void:
-	var count: int = _tags.get(tag, 0) - 1
-	if count <= 0:
-		_tags.erase(tag)
-	else:
-		_tags[tag] = count
+	_combat.remove_tag(tag)
 
 
 func has_tag(tag: StringName) -> bool:
-	return _tags.get(tag, 0) > 0
+	return _combat.has_tag(tag)
 
 
 ## The live tag set — no [StatRegistry] entry, no board slot.

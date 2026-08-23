@@ -43,6 +43,30 @@ class TagToken extends RefCounted:
 var _grants: Array[Dictionary] = []
 
 
+## A detached twin of this instance bound to [param combat] — the shadow's
+## stand-in for a row of [member Entity._effect_instances] (#520).
+##
+## The ledger rows are COPIED, not shared, so a shadow revoking what a node
+## granted cannot shorten the real entity's ledger. The handles inside them stay
+## the LIVE [StatModifier] instances, deliberately: #506's
+## [member StatBoard._localized] maps an original to the clone's private copy,
+## so [method StatBoard.remove_modifier] translates a live handle into the
+## shadow board's own — which is exactly what makes a shadow able to revoke a
+## grant it never issued.
+##
+## [member effect] is the same shared resource on both sides. That is safe for
+## the same reason it is safe across two entities: [Effect] is stateless, and
+## the per-grant state is this ledger.
+func clone_for(combat: EntityCombat) -> EffectInstance:
+	var twin := EffectInstance.new()
+	twin.effect = effect
+	twin.source_node = source_node
+	twin.context = EffectContext.new(combat, twin)
+	for row in _grants:
+		twin._grants.append(row.duplicate())
+	return twin
+
+
 func record(handle: StatModifier, target: Variant) -> void:
 	_grants.append({&"kind": &"modifier", &"handle": handle, &"target": target})
 
