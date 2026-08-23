@@ -319,6 +319,44 @@ data with no engine objects and no global emit surface**. The reason cloning is
 cheap there and not here is not object size; it is that their mutation path has
 no reach outside the state object.
 
+### The landing half shipped as `CombatWorld` (#498 step 3, #520)
+
+`resolve_against(slice)` turned out to name two separable things, and the
+second one is already done.
+
+Because #501/#502/#503 had **already moved every gate and all arithmetic to
+land time**, "resolve against a slice" for the *landing* half is just: run the
+same `OutcomeApplier` loop, the same per-mode gates, the same mitigation, but
+look each target's state up somewhere else. That lookup is `CombatWorld`
+(`combat/combat_world.gd`):
+
+```
+real launch / peer replay:  OutcomeApplier.apply(outcome, clock)
+                            -> CombatWorld.live(),   world mutates
+AI scoring / preview:       OutcomeApplier.apply(outcome, clock, CombatWorld.shadow())
+                            -> shadow slices,        world untouched
+```
+
+`HitInstance.land_on(node: NodeCombat, world: CombatWorld)` — the hit's
+`target` stays a real `SkillNode`, because that is its **identity** (what a
+record serializes, what a fogged peer resolves by `stable_id`, what every VFX
+observer reads). Only the **state** it mutates is swappable, and the swap is
+one dictionary lookup. There is no preview flag anywhere in the chain.
+
+A shadow world grows on demand: the first hit on a node whose owner is not yet
+snapshotted snapshots that owner's *whole* owned subgraph then. Late is the
+same as up front, because a shadow resolve never writes to the real world — so
+the real world is frozen for its whole duration — and it means only the
+entities an attack actually touches are paid for.
+
+**What is still outstanding** is the *candidate-set* half, and it is magic's
+alone. `SpellResolver.resolve` picks its next wave through
+`config.filter.allows(...)` reading pre-attack ownership, so a gate-accurate
+propagation means interleaving application into the wave loop (resolve wave N,
+land wave N, expand wave N+1). Melee and ranged need nothing further: their
+candidate sets were always allowed to be frozen at resolve, and their gates
+already run at land time against whichever world they are handed.
+
 ### `AttackOutcome` is the result, not a plan
 
 Under this model `resolve()` becomes `resolve_against(slice)` — the live slice
@@ -338,7 +376,8 @@ that its own granting path also calls.
 
 ### What the shadow must copy
 
-A revocation ledger is **not sufficient**, and this is the trap:
+A revocation ledger is **not sufficient**, and this is the trap (closed in
+#520 — a shadow now re-runs `recompute`; see below):
 
 `AuraEffect._on_node_deallocated` calls `recompute(ctx)`, which does
 `ctx.revoke_all()` and then **re-derives every modifier from the current
@@ -359,6 +398,31 @@ So the shadow is a real copy of:
 with the effect hooks able to run against it. Far cheaper than a world clone —
 no scene tree, no addons-as-children, no physics — but not free, and not a
 ledger.
+
+**How the hooks run against it (#520).** `EffectContext` is addressed at an
+`EntityCombat`, not an `Entity` — its public API is unchanged, so no `Effect`
+implementer knows the difference, and the same `AuraEffect.recompute` rebuilds
+against a shadow board when handed a shadow slice. `EntityCombat` therefore
+carries the shadow's stand-ins for everything the live `Entity` owned: the
+effect ledger (`EffectInstance.clone_for` — rows copied, live handles kept,
+because `StatBoard._localized` translates them), the tag store, and the mirror
+an aura measures over. `apply_cascade`'s shadow branch does what
+`force_deallocate` does, in its order: revoke sweep, ownership, then dispatch
+`_on_node_deallocated` — and it is that last step which makes wave N+1 read
+post-cascade armour.
+
+Two rules that fall out, and both are load-bearing:
+
+- **A shadow reads the pure halves, never the mutating helpers.**
+  `SkillNode.remove_entity_modifiers_from` erases `_scaled_sets` on the *real*
+  node while it works. So the question ("what does this node grant") is split
+  from the verb ("un-grant it"): `granted_entity_modifiers()` /
+  `scaled_effect_leaves()` are pure, both worlds share them, and the erase
+  stays on the live path.
+- **A shadow slice never falls back to the live world for a node lookup.**
+  That fallback is precisely how an aura recomputing on a shadow would grant
+  node-local modifiers to real nodes. A bare `EntityCombat.snapshot()` mints a
+  private `CombatWorld` and frees it with itself.
 
 **Do not reach-bound the owned subgraph.** The obvious optimisation — copy only
 nodes the attack can physically touch — computes the wrong cascade.
@@ -527,9 +591,12 @@ That doc needs the correction independently of this one.
 
 - `TOTAL_STAGGER` and `FLIGHT_TIME` values — feel, needs the real game.
 - `draw_time` values, and the melee analogue of a preparatory phase.
-- Whether the combat slice (#498) is worth its size, or whether cloning entity
-  subtrees is the cheaper answer for now. Leaning slice; nothing is blocked on
-  it either way.
+- ~~Whether the combat slice (#498) is worth its size~~ — **settled.** The owner
+  call of 2026-08-21 made it a networking requirement, not an optimisation: a
+  fogged client cannot walk the nodes a spell bounces through, so propagation
+  has to arrive as data. The landing half shipped as `CombatWorld` (#498 step
+  3) and the revocation half as #520. What remains of `resolve_against(slice)`
+  is magic's wave loop; see "The landing half shipped as `CombatWorld`" above.
 - **Where the notification half sends its presentation call.** Master runs
   design A (`RevealRecorder` live, `shown_hp`/`shown_owner` on `SkillNode`)
   while #488's decision comment specifies design B (the world mutates on the
