@@ -44,13 +44,27 @@ func _on_single_player_pressed() -> void:
 	_stack.push(singleplayer)
 
 
+## #531 put a screen between this signal and the lobby: Multiplayer now asks
+## HOW before it asks what. All three answers land on the same hot-seat lobby —
+## the only thing that differs is the [NetworkConfig] the level will read.
 func _on_multiplayer_pressed() -> void:
-	# #456 LAN milestone scaffolding: straight to a 2-local-human hot-seat
-	# lobby, no intermediate screen. Actual peer join/leave is #463.
-	var lobby := LobbyScreen.new()
-	lobby.configure(RunConfig.Mode.COOP_HOTSEAT)
-	lobby.start_pressed.connect(_on_start_pressed)
-	_stack.push(lobby)
+	var screen := HostJoinScreen.new()
+	screen.host_pressed.connect(_on_host_pressed)
+	screen.join_pressed.connect(_on_join_pressed)
+	screen.hotseat_pressed.connect(_on_hotseat_pressed)
+	_stack.push(screen)
+
+
+func _on_host_pressed(port: int) -> void:
+	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(port))
+
+
+func _on_join_pressed(address: String, port: int) -> void:
+	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join(address, port))
+
+
+func _on_hotseat_pressed() -> void:
+	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline())
 
 
 func _on_options_pressed() -> void:
@@ -58,8 +72,18 @@ func _on_options_pressed() -> void:
 
 
 func _on_new_game_pressed() -> void:
+	_push_lobby(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+
+
+## Every route into the lobby goes through here, so the role is stated on ALL
+## of them — including the offline ones. Being explicit is what stops a player
+## who hosted, backed out, and started a solo game from silently opening a
+## socket on the way in: [method GameSession.end] clears the role when a run
+## finishes, and this re-states it when one begins.
+func _push_lobby(mode: RunConfig.Mode, network: NetworkConfig) -> void:
+	GameSession.network = network
 	var lobby := LobbyScreen.new()
-	lobby.configure(RunConfig.Mode.SINGLE)
+	lobby.configure(mode)
 	lobby.start_pressed.connect(_on_start_pressed)
 	_stack.push(lobby)
 

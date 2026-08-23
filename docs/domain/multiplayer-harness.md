@@ -15,6 +15,7 @@ It is a harness, not the sync layer. The architecture it serves is
 | **Multiplayer** tab | `addons/sandbox_host/tabs/80_multiplayer_tab.tscn` |
 | Launcher panel | `addons/mp_sandbox/mp_sandbox_panel.tscn` |
 | The scene both processes run | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
+| Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `CommandLink` (#531) |
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
 | Applier ↔ transport bridge | `network/command_link.gd` |
 | Divergence detector | `network/world_fingerprint.gd` |
@@ -49,6 +50,43 @@ verb on each side. A verb that cannot legally fire this turn logs SKIPPED with
 the reason rather than being silently dropped. Everything after `--` lands in
 `OS.get_cmdline_user_args()`; put it before and the engine tries to interpret
 it.
+
+## The mount, and why a level may only SWAP it (#531)
+
+`Transport` and `CommandLink` are direct children of `GameRoot`, so every level
+inherits them at the same two node paths. That is not tidiness: Godot's
+high-level multiplayer resolves an RPC **by node path**, so two peers running
+different scenes only reach each other if the transport sits in the same place
+in both. Mounting it in the composition root is what makes that true by
+construction instead of by convention.
+
+Three consequences, in the order they bite:
+
+- **The default is `LoopbackTransport`, and the link is mounted `Mode.OFF`.**
+  Mounted and inert — nothing is serialized, nothing is sent, so single-player
+  is unchanged. A role raises the mode; the mount never does.
+- **A level that wants a real socket overrides that node's SCRIPT.** An
+  inherited-node property override in the `.tscn`, exactly like any other:
+  ```
+  [node name="Transport" parent="."]
+  script = ExtResource("3_transport")   # enet_transport.gd
+  ```
+  `mp_dev_sandbox.tscn` does this, and so does `first_level_sandbox.tscn` — the
+  level the menu routes to, which would otherwise be asked to host over a
+  loopback and link to nobody.
+- **Never author a SECOND pair.** Before #531 the harness authored its own
+  `Transport` / `CommandLink`; once the pair is inherited, doing that gives you
+  colliding sibling names and `$Transport` resolves to whichever one Godot
+  renamed last — a dead link with no error anywhere.
+  `test/unit/network/test_link_mount.gd` asserts the *count*, not just the
+  type, for exactly this reason.
+
+Which role this machine takes is `NetworkConfig` on `GameSession` — the
+per-machine half of a run's setup, alongside `SeatPolicy` and deliberately not
+on `RunConfig`, which crosses the wire by value (`docs/domain/seat-policy.md`
+has the same argument for the same reason). `GameRoot` reads it once: the role
+is adopted at the top of `_ready` (before anything can act and diverge), the
+socket opens after `_setup_level` (so an arriving command finds a world).
 
 ## The three decisions, and why
 

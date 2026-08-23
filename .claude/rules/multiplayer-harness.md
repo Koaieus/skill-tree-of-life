@@ -15,6 +15,14 @@ two viewports in one process: `Events` is a process-global bus carrying live
 node/entity references and every listener connects unscoped, so world B's
 `VictorySystem` would latch on world A's death.
 
+**`Transport` + `CommandLink` are mounted in `scenes/game_root.tscn` (#531), and
+a level may only SWAP the transport's script, never author a second pair** — an
+RPC resolves by node path, and two pairs at colliding sibling names means
+`$Transport` picks whichever Godot renamed last, silently. The default is
+`LoopbackTransport` with the link `Mode.OFF`; the role comes from
+`GameSession.network` (`NetworkConfig`), which is per-machine and deliberately
+not on `RunConfig`.
+
 **One direction only, on purpose.** The host broadcasts confirmed commands; the
 client applies them through its own `CommandApplier` and is otherwise a frozen
 spectator. An intent channel upward is #463 (`Needs design`) — don't open it

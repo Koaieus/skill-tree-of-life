@@ -39,6 +39,16 @@ var roster: ParticipantRoster = null
 ## How the run ended, recorded off [signal Events.run_ended]. Null until then.
 var outcome: RunOutcome = null
 
+## How THIS MACHINE reaches the other one (#531). Deliberately NOT part of
+## [member config]: that crosses the wire by value, and a role is the one thing
+## every peer must answer differently — see [NetworkConfig]. Null reads as
+## offline. Written by the menu before [method start], read once by
+## [GameRoot] at level start, and cleared by [method end] along with the run
+## it belonged to. [method start] leaves it alone on purpose: the menu picks a
+## role BEFORE it picks a seed, so clearing here would erase the choice that
+## routed the player to this lobby in the first place.
+var network: NetworkConfig = null
+
 
 func _ready() -> void:
 	Events.run_ended.connect(_on_run_ended)
@@ -110,6 +120,9 @@ func ensure_started(fallback_seed: int = 0) -> void:
 func end() -> void:
 	config = null
 	roster = null
+	# The wire belonged to the run: a player who hosted once and then starts a
+	# solo game must not silently open a socket again.
+	network = null
 
 
 func _on_run_ended(run_outcome: RunOutcome) -> void:

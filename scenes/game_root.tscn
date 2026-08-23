@@ -26,6 +26,8 @@
 [ext_resource type="Environment" path="res://ui/theme/default_game_env.tres" id="20_env"]
 [ext_resource type="Script" path="res://scenes/camera_director.gd" id="21_camdir"]
 [ext_resource type="Script" uid="uid://eh0d3jiuwstk" path="res://systems/loot_pick_registry.gd" id="22_lootreg"]
+[ext_resource type="Script" path="res://network/loopback_transport.gd" id="23_transport"]
+[ext_resource type="Script" path="res://network/command_link.gd" id="24_link"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -181,6 +183,17 @@ layer = 2
 
 [node name="HudRoot" parent="UI" instance=ExtResource("18_hud")]
 unique_name_in_owner = true
+
+[node name="Transport" type="Node" parent="." unique_id=1000000531]
+unique_name_in_owner = true
+script = ExtResource("23_transport")
+
+[node name="CommandLink" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("transport", "command_applier", "graph")]
+unique_name_in_owner = true
+script = ExtResource("24_link")
+transport = NodePath("../Transport")
+command_applier = NodePath("../Systems/CommandApplier")
+graph = NodePath("../Graph")
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
 

@@ -100,6 +100,18 @@ var _run_end_routed: bool = false
 ## by walking up to its GameRoot, the same way it resolves [member battle_system]
 ## — the applier node itself has been in `game_root.tscn` since #510.
 @onready var command_applier: CommandApplier = %CommandApplier
+## The wire, mounted every level (#531). [b]The node PATH is the contract[/b] —
+## Godot resolves an RPC by node path, so `Transport` and `CommandLink` must sit
+## at the same place in every scene both peers run, which is why they live in
+## the composition root rather than in whichever level happens to be networked.
+## A level that wants a real socket overrides the mounted `Transport`'s script
+## (`scenes/dev/mp_dev_sandbox.tscn` swaps in [EnetTransport]); it must never
+## author a SECOND pair, or `$Transport` resolves to whichever one Godot named
+## first. The default is a [LoopbackTransport] with the link in
+## [constant CommandLink.Mode.OFF]: mounted and inert, so offline play is
+## unchanged — nothing is serialized until a role raises the mode.
+@onready var transport: NetworkTransport = %Transport
+@onready var command_link: CommandLink = %CommandLink
 @onready var vision_system: VisionSystem = %VisionSystem
 @onready var victory_system: VictorySystem = %VictorySystem
 @onready var highlight_controller: HighlightController = %HighlightController
@@ -123,6 +135,13 @@ var _run_end_routed: bool = false
 
 
 func _ready() -> void:
+	# BEFORE anything can act, and before `_setup_level` spawns an actor that
+	# could. Adopting the role writes `command_applier.is_authority`, and a
+	# CLIENT that learns it is not the authority only after its first AI turn
+	# has decided and submitted locally has already diverged — the exact trap
+	# `scenes/dev/mp_dev_sandbox.gd` documents at length in its own `_ready`.
+	# The socket itself opens later, in `_open_link`.
+	_adopt_network_role()
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
@@ -195,6 +214,11 @@ func _ready() -> void:
 	else:
 		$UI.visible = false
 
+	# After `_setup_level`, so a command that arrives the instant the link comes
+	# up finds a world to apply to. Split from `_adopt_network_role` for that
+	# one reason — the role has to be known far earlier than the socket may open.
+	_open_link()
+
 	if auto_start_turn and player != null and turn_manager != null:
 		# Skip the initial tick race: fill the player's clock so they act first.
 		# (start_turn clears the ready-group membership this would otherwise set.)
@@ -211,6 +235,60 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if battle_system != null:
 		battle_system.drain_pending_mutations()
+
+
+## Half one of bringing the wire up (#531): tell the link which side of it we
+## are on. [member CommandLink.mode] is the single writer of
+## [member CommandApplier.is_authority], so this one assignment is also what
+## decides whether this machine DECIDES or is TOLD.
+##
+## [b]A no-op unless the menu set a role[/b], which is what keeps offline play
+## unchanged and what lets `scenes/dev/mp_dev_sandbox.gd` keep driving its own
+## link off the command line — the harness never populates
+## [member GameSession.network], so nothing here touches the authority flag it
+## set by hand a moment earlier.
+func _adopt_network_role() -> void:
+	if command_link == null:
+		return
+	var net: NetworkConfig = GameSession.network
+	if net == null or not net.is_online():
+		return
+	command_link.mode = (CommandLink.Mode.BROADCAST
+			if net.role == NetworkTransport.Role.HOST
+			else CommandLink.Mode.MIRROR)
+
+
+## Half two: open the socket on whatever transport this level mounted.
+##
+## [b]GameRoot never picks the transport CLASS.[/b] It brings up the node at the
+## fixed path (see [member transport]) in the role it was handed, and a level
+## authored for real play swaps that node's script for [EnetTransport] —
+## `scenes/first_level_sandbox.tscn` does, the same way the harness does. Asking
+## a [LoopbackTransport] to host is therefore not an error here; it announces
+## itself and links to nobody, which is exactly what a level that never meant to
+## be networked should do.
+func _open_link() -> void:
+	if command_link == null or transport == null:
+		return
+	var net: NetworkConfig = GameSession.network
+	if net == null or not net.is_online():
+		return
+	match net.role:
+		NetworkTransport.Role.HOST:
+			# The hello is what produces the in-sync / DIVERGED verdict, and it
+			# has to wait for a peer — `start_host` only opens a socket.
+			transport.link_changed.connect(_greet_if_linked)
+			transport.start_host(net.port)
+		NetworkTransport.Role.CLIENT:
+			transport.start_client(net.address, net.port)
+
+
+## Host-side: announce our world to each peer as it arrives. `link_changed`
+## fires for disconnects too, hence the [method NetworkTransport.is_linked]
+## gate rather than greeting on every status line.
+func _greet_if_linked(_status: String) -> void:
+	if transport != null and transport.is_linked() and command_link != null:
+		command_link.send_hello()
 
 
 func _unhandled_input(event: InputEvent) -> void:
