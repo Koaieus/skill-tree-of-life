@@ -158,13 +158,21 @@ func test_a_confirmed_allocate_mirrors_to_the_client() -> void:
 
 func test_a_refused_command_is_not_broadcast() -> void:
 	# D is not adjacent to the player's only owned node, so the gate refuses it.
+	# Asserted on the PAYLOAD, not on the client's world: the client's own gate
+	# would refuse D identically, so an unowned D proves nothing about whether
+	# anything crossed.
+	var payloads: Array[Dictionary] = []
+	(_client_link.transport as NetworkTransport).message_received.connect(
+			func(p: Dictionary) -> void: payloads.append(p))
+
 	var command := AllocateCommand.new((_host["player"] as Entity).entity_id, _id(_host, "D"))
 	(_host["applier"] as CommandApplier).submit(command)
 	await get_tree().process_frame
 
+	assert_true(payloads.is_empty(),
+			"a command that fails the host's validation never confirms, so nothing is sent")
 	assert_null((_client["nodes"]["D"] as SkillNode).owned_by,
-			"a command the host's gate refused changed nothing, so there is " \
-			+ "nothing to mirror")
+			"and the client's world is untouched")
 
 
 # ── The fingerprint compares pre-state against pre-state (#540 decision 4) ──

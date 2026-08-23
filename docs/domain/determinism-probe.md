@@ -41,10 +41,19 @@ prints *promptly* when a sweep — or a human clicking — stops.
 
 ## Two questions, tallied apart
 
-**WORLD — do the two worlds agree after applying?** This is
-`WorldFingerprint.compute`, which `CommandLink` already compared; the probe only
-attributes each verdict to the command type that produced it. Columns:
-`ok / DIVERGED / skipped / exempt`.
+**WORLD — do the two worlds agree?** This is `WorldFingerprint.compute`, which
+`CommandLink` already compared; the probe only attributes each verdict to the
+command type that produced it. Columns: `ok / DIVERGED / skipped / exempt`.
+
+Since #540 the comparison is **pre-state against pre-state**, not post-apply:
+the host stamps `Command.pre_fingerprint` when the command leaves its queue and
+ships that, and the peer compares against its own world at
+`_on_remote_command` entry, *before* it submits. It had to move — once the
+authority confirms *before* it applies, there is no post-mutation world to
+sample at confirm time. The honest cost is that a divergence is attributed to
+the command *after* the one that caused it, and a run's final command is never
+compared at all; if you need the last one, compare once explicitly at
+end of sweep.
 
 **RESOLVE — could this peer have DERIVED the host's result?** Only
 `LaunchAttackCommand` can be asked: it is the one verb carrying both the inputs
@@ -92,18 +101,24 @@ scope in its own footer, because the owner is making a model decision off it.
 
 ## `skipped` is the honest denominator, not a pass
 
-`CommandLink._on_remote_command` deliberately suppresses the fingerprint
-compare while the applier's queue is non-empty or a newer command has
-superseded this one — two async commands in flight resume from the same
-`applying_changed` and the earlier would otherwise compare a post-both world
-against its own older fingerprint, reporting a divergence that never happened.
-That guard is correct and stays.
+`CommandLink._on_remote_command` deliberately suppresses the fingerprint compare
+when the applier's queue is non-empty at the moment the command arrives — a peer
+that is somewhere *inside* an earlier command is not at any command's boundary,
+so comparing would report a divergence that never happened. A spurious ✗ poisons
+the only diagnostic this harness has. That guard is correct and stays.
 
-But it means a real share of commands is **never compared**, and "0 diverged of
-412" handed to the owner while only 280 were looked at is a false clean read.
-They are counted as `skipped`. In practice the attack-heavy autopilot sweep
-skips roughly a third — if you want a tighter read, that ratio is the thing to
-attack, not the guard.
+But it means a share of commands is **never compared**, and "0 diverged of 412"
+handed to the owner while only 280 were looked at is a false clean read. They are
+counted as `skipped`.
+
+**#540 cut this substantially by moving the compare ahead of the mutation.** The
+old post-apply compare had to survive its own `await`, so it also lost to any
+command that arrived meanwhile (a `_recv_seq` supersede check, now deleted) —
+which hit the long-running verbs hardest. Measured over the same autopilot sweep,
+`launch_attack` went from 17 skipped of 31 to **3 of 31**. Note the totals move
+less than that suggests: the compare shifted from the *last* command of a burst
+to the *first*, which redistributes skips between verbs rather than only removing
+them (`allocate` went 4 → 9 over the same run).
 
 ## `exempt` is the model working
 

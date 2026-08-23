@@ -39,8 +39,24 @@ timeline — *not* effective damage, HP numbers, the reclassified kind, the
 `FLAG_GATED` bit or the dealloc sets, which `AttackRecord`'s own contract says a
 peer cannot re-derive. So don't widen the diff to "the whole record" — that
 reports 100% divergence for structural reasons. Its `skipped` column is
-`CommandLink` declining to compare (queue non-empty / superseded), **not** a
-pass, and `exempt` is loot's host-only roll working as designed.
+`CommandLink` declining to compare (the peer's queue was non-empty when the
+command arrived, so its world is not at a command boundary), **not** a pass, and
+`exempt` is loot's host-only roll working as designed.
+
+**Since #540 the WORLD compare is pre-state vs pre-state, one command behind.**
+The host ships the fingerprint of the world it was *about* to mutate
+(`Command.pre_fingerprint`, stamped in `CommandApplier._drain`) and the peer
+compares before it submits — because once the authority confirms *before* it
+applies, there is no post-mutation world to sample at confirm time. So a `✗` is
+attributed to the command AFTER the one that broke it, and a run's last command
+is never compared. Don't "fix" a fingerprint mismatch by moving the compare back
+after the apply; that reports every command as diverged.
+
+**`--turns=N` above ~10 does not do what it says.** The autopilot stops sweeping
+once Red dies (around sweep 10), because `_on_turn_started` only sweeps when
+`entity == _red` — Blue's AI then grinds solo until you kill the process. So
+`end_turn`'s probe counts are wall-clock-dependent, not run-shape-dependent, and
+are **not comparable between two runs**. Compare the sweep-driven verbs.
 
 **Suspect a replay bug? The Outcome playground tab takes the wire out of it
 (#539)** — it submits a recorded `LaunchAttackCommand` to a local

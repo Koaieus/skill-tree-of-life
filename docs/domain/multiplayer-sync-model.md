@@ -16,9 +16,11 @@ shape.
 **Host-authoritative, intent-up / confirmed-command-down.**
 
 One peer — the host — is the only thing that decides anything. A client sends an
-*intent*. The host validates it, applies it, and broadcasts the *confirmed
-command*, plus a resolved payload for anything the client cannot recompute.
-Every peer, the host included, applies world changes through one applier.
+*intent*. The host validates it, broadcasts the *confirmed command* plus a
+resolved payload for anything the client cannot recompute, and **then** applies
+it. Every peer, the host included, applies world changes through one applier —
+and since #540 through the same *post-confirmation* half of it, so the authority
+is not structurally a mutation window ahead of everyone it is telling (#534).
 
 Single-player and hot-seat are not a special case: they run the same path
 through a loopback transport. That is the whole point — if offline play works,
@@ -223,13 +225,21 @@ plan's lifetime through the swing (#406). Mirroring off `command_applied`
 therefore made a peer wait out the *host's animation* before it could start its
 own — lag proportional to spell length, for a payload that was final much
 earlier. So a verb with such a tail calls `applier.confirm(cmd)` at its settle
-point (BattleSystem does, on the line after `AttackRecord.capture`), and
-`CommandLink` broadcasts off that. For every other verb the drain confirms on
-its behalf, immediately before `command_applied`, so the seam costs nothing.
-`confirm` is idempotent and only ever called for a command that succeeded —
-which is where "a refused command changed nothing, so mirror nothing" now
-lives. Ordering across commands is untouched: the queue is serial, so a
-mid-apply confirm still lands between its neighbours'.
+point, and `CommandLink` broadcasts off that.
+
+**#540 flipped when the drain confirms for everyone else.** `_drain` is now
+`validate → confirm → apply`: `CommandApplier._validate` forwards to the same
+`can_*` queries the mutating verbs ask themselves, so "validated" already means
+"will apply" and the host no longer has to finish mutating before it can tell
+anyone. `Command.confirms_before_apply()` is what a verb overrides to opt out;
+`LaunchAttackCommand` is the only one that does, because its `AttackRecord` is
+computed *inside* the apply and confirming first would broadcast an empty record
+that a peer reads as an initiate it cannot run.
+
+`confirm` is idempotent and only ever called for a command that is going ahead —
+which is where "a refused command changed nothing, so mirror nothing" now lives.
+Ordering across commands is untouched: the queue is serial, so a mid-apply
+confirm still lands between its neighbours'.
 
 Routed so far: every `PlayerInputController` mutation (#510),
 `battle_system.launch_attack` (#511 — it builds a `LaunchAttackCommand`,
