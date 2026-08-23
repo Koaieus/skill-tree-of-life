@@ -440,3 +440,29 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 	assert_almost_eq(outcome.hits[3].effective_amount, 0.0, 0.001,
 			"a vetoed shot applies no damage")
 	assert_eq(outcome.hits[3].target, _target, "a vetoed shot is not re-aimed at another target")
+
+
+## #536, acceptance 3 for RANGED: `resolve_against` lands the volley in the
+## world it was handed, so the shot's live `ranged_damage` re-read and its
+## allocated/hostile gate both really run — and a shadow world absorbs all of
+## it. The melee half is in test_melee_swing_characterization.gd, the magic half
+## in test/unit/spell/test_wave_gating.gd.
+func test_a_shadow_resolve_lands_the_volley_without_touching_the_real_world() -> void:
+	var p := _plan()
+	p._on_node_left_clicked(_target)
+	var before := WorldFingerprint.compute(_graph)
+	var hp_before := _target.get_current_hp()
+
+	var world := CombatWorld.shadow()
+	var outcome := p.resolve_against(world)
+
+	assert_eq(outcome.hits.size(), 1, "the volley must fire or this proves nothing")
+	assert_gt(outcome.hits[0].effective_amount, 0.0,
+			"and it must have LANDED — an unapplied hit would report 0")
+	assert_lt(world.combat_for(_target).get_current_hp(), hp_before,
+			"the shadow's copy of the target took the damage")
+	assert_almost_eq(_target.get_current_hp(), hp_before, 0.001,
+			"the real target did not")
+	assert_eq(WorldFingerprint.compute(_graph), before,
+			"nothing real moved: %s" % WorldFingerprint.describe(_graph))
+	world.free_shadow()

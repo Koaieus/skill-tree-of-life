@@ -183,3 +183,32 @@ func test_live_swing_spike_pops_the_arm() -> void:
 	var hp_after := _target.get_current_hp()
 	assert_almost_eq(hp_after, hp_before, 0.001,
 			"today's live swing: the popping contact deals no damage")
+
+
+## #536, acceptance 3 for MELEE: `resolve_against` runs the whole swing —
+## the physics scan, the spike-pop gate, every landing — and if it was handed a
+## shadow, the real world does not move. The magic half of this is in
+## `test/unit/spell/test_wave_gating.gd`; the applier-level half is in
+## `test/unit/combat/test_combat_world.gd`. This is the mode whose resolve does
+## the most work outside the applier, so it gets its own.
+func test_a_shadow_resolve_runs_the_whole_swing_and_mutates_nothing_real() -> void:
+	_arm_spike(5.0)
+	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
+	var plan := _bs.attack_plan as MeleeAttackPlan
+	plan._on_node_left_clicked(_pivot)
+	plan._on_node_left_clicked(_arm)
+	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
+
+	watch_signals(Events)
+	var before := WorldFingerprint.compute(_graph)
+	var world := CombatWorld.shadow()
+	var outcome := plan.resolve_against(world)
+
+	assert_gt(outcome.hits.size(), 0, "the swing must connect or this proves nothing")
+	assert_eq(plan.last_live_gate.result.pops.size(), 1,
+			"the pop gate really ran — this is a full swing, not a dry scan")
+	assert_eq(WorldFingerprint.compute(_graph), before,
+			"a shadow resolve mutates nothing real: %s" % WorldFingerprint.describe(_graph))
+	assert_signal_emit_count(Events, "blade_vertex_popped", 0,
+			"and announces nothing — a shadow has no audience")
+	world.free_shadow()
