@@ -25,8 +25,13 @@ From a terminal, no editor needed:
 
 ```
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host --port=9099 --autopilot
-godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099
+godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099 --autopilot
 ```
+
+**`--autopilot` goes on BOTH lines even though only the host sweeps** — see
+below. Drop it from either and Red's boosted budget stops matching across the
+wire; drop it from both and you get a plain hand-driven sandbox, which is the
+right thing to launch when you want to *play* the pair.
 
 `--turns=N` (host only, #529) sweeps N of Red's turns instead of one, hooked on
 `TurnManager.turn_started` — Blue's AI takes a real turn in between, so the
@@ -42,14 +47,30 @@ nothing and changes nothing about what the client applies. Full scope — what i
 compares, what it deliberately does not, and why `skipped` is a finding rather
 than a pass — in [determinism-probe.md](determinism-probe.md).
 
-`--autopilot` (host only, #532) drives every verb `CommandApplier` handles from
-Red's opening turn — allocate, mass_allocate, stake/extract, deallocate,
+`--autopilot` (#532) drives every verb `CommandApplier` handles from Red's
+opening turn — allocate, mass_allocate, stake/extract, deallocate,
 deallocate_set, move_core, all three attack modes, a temp-upgrade toggle, a
 loot claim (when there is one to claim), then end_turn — one line of log per
 verb on each side. A verb that cannot legally fire this turn logs SKIPPED with
 the reason rather than being silently dropped. Everything after `--` lands in
 `OS.get_cmdline_user_args()`; put it before and the engine tries to interpret
 it.
+
+**Pass it to both peers, unlike every other flag here.** Only the authority ever
+sweeps (`_start_sweep_if_due` gates on `CommandApplier.is_authority`, so the
+client's copy boosts and then sits still), but the flag *also* gates the budget
+boost `_boost_autopilot_budget` puts on Red — 30 SP / 12 AP / 10 DP / 200 mana,
+because one turn on a level-1 board (3 SP / 2 AP / 3 DP / 10 mana) cannot pay
+for the whole sweep. That boost must be identical on every peer:
+`CommandApplier._apply_mass_allocate` re-derives affordability from the
+*receiving* peer's own board (#458), so a host-only boost desyncs the first
+budget-gated verb that crosses.
+
+**And the flag is the whole gate — no flag, no boost.** It used to run
+unconditionally, so a plain launch from the Multiplayer tab handed a human a
+Red with 30 skill points and 200 mana and read as a stat-system bug. If you are
+launching the pair to *play* it, leave the toggle off and Red is an ordinary
+level-1 board.
 
 ## The mount, and why a level may only SWAP it (#531)
 

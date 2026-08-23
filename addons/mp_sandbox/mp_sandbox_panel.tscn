@@ -34,9 +34,9 @@ bbcode_enabled = true
 fit_content = true
 text = "Launches [b]two OS processes[/b] of the same scene — one host, one client — over ENet on 127.0.0.1. Two processes rather than two viewports because [code]Events[/code] is a process-global bus: two worlds in one process cross-wire death, loot and victory.
 
-[b]What mirrors today:[/b] every verb [code]CommandApplier[/code] handles — allocate, deallocate, mass-allocate, stake, extract, move core, end turn, temp upgrades. The host broadcasts each confirmed command with a world fingerprint; the client applies it and compares.
+[b]What mirrors today:[/b] every verb [code]CommandApplier[/code] handles — allocate, deallocate, mass-allocate, stake, extract, move core, end turn, temp upgrades, attacks (#511) and loot (#522). The host broadcasts each confirmed command with the fingerprint of the world it was about to mutate; the client compares before applying, so a [color=#e06c60]DIVERGED[/color] line names the command AFTER the one that broke it (#540).
 
-[b]What does not:[/b] attacks (still called straight into [code]BattleSystem[/code] — #511) and loot rolls (#509's PickLootCommand is unrouted). Swing in the host window and the client's overlay will say [color=#e06c60]DIVERGED[/color] — that is the harness working, not breaking.
+[b]What the fingerprint covers:[/b] ownership, topology, and accumulated per-node state — stake, allocation, regen, HP quantized to int (#527). NOT derived [code]StatBoard[/code] totals, so a stat recompute that changes nothing accumulated will not move it.
 
 The client is a [b]spectator[/b]: wave 0 has no intent channel upward (#463)."
 
@@ -117,8 +117,8 @@ theme_override_constants/separation = 16
 [node name="AutopilotToggle" type="CheckBox" parent="Margin/Box/Toggles"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Host only. Drive every CommandApplier verb from Red's opening turn, so the pair is verifiable without clicking."
-text = "Autopilot sweep (host)"
+tooltip_text = "Drive every CommandApplier verb from Red's opening turn, so the pair is verifiable without clicking. Only the host sweeps, but the flag is sent to BOTH processes: it also fattens Red's budget (30 SP / 12 AP / 10 DP / 200 mana) so one turn can afford every verb, and that boost must match on both peers. Off, Red is an ordinary level-1 board."
+text = "Autopilot sweep"
 
 [node name="ProbeToggle" type="CheckBox" parent="Margin/Box/Toggles"]
 unique_name_in_owner = true

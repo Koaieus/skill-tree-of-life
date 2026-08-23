@@ -60,6 +60,14 @@ attributed to the command AFTER the one that broke it, and a run's last command
 is never compared. Don't "fix" a fingerprint mismatch by moving the compare back
 after the apply; that reports every command as diverged.
 
+**`--autopilot` is the only flag that goes to BOTH peers, and it is what fattens
+Red's budget** (30 SP / 12 AP / 10 DP / 200 mana, so one turn can pay for the
+whole sweep). Only the authority sweeps, but the boost must match on every peer
+or `_apply_mass_allocate`'s receiving-side affordability re-derivation disagrees
+with what the host applied. Without the flag Red is an ordinary level-1 board —
+so a plain tab launch you intend to *play* is not supposed to show inflated
+stats, and if it does, that gate broke again.
+
 **`--turns=N` above ~10 does not do what it says.** The autopilot stops sweeping
 once Red dies (around sweep 10), because `_on_turn_started` only sweeps when
 `entity == _red` — Blue's AI then grinds solo until you kill the process. So

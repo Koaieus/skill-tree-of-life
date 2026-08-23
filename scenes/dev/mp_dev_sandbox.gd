@@ -22,6 +22,9 @@ extends "res://scenes/dev_sandbox.gd"
 ## godot --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099
 ## [/codeblock]
 ## No role, or `--role=solo`, runs the scene as an ordinary offline sandbox.
+## Plain like that — from the tab or the command line — Red is an ordinary
+## level-1 board; `--autopilot` is the only thing that fattens it, and it must be
+## given to BOTH peers (see [method _boost_autopilot_budget]).
 ##
 ## [b]Blue stays the AI opponent (rung 1, #532).[/b] The old justification for
 ## making it human — "the AI still calls [AllocationSystem] / [BattleSystem]
@@ -80,8 +83,12 @@ var _blue: Entity
 ## below must land on the SAME entity, identically, on both peers — see
 ## [method _boost_autopilot_budget].
 var _red: Entity
-## `--autopilot` (host only): run the full verb sweep once a client links, so
-## the pair is verifiable from a terminal. See [method _run_autopilot].
+## `--autopilot`: run the full verb sweep once a client links, so the pair is
+## verifiable from a terminal. See [method _run_autopilot].
+##
+## Passed to BOTH peers, though only the authority ever sweeps — it doubles as
+## the gate on [method _boost_autopilot_budget], which must land identically on
+## every peer. See that method for why.
 var _autopilot: bool = false
 ## `--probe` (#529, client only — a host receives nothing to re-derive): arm
 ## [DeterminismProbe] and print its per-command-type breakdown once the wire
@@ -181,19 +188,29 @@ func _setup_level() -> void:
 		# COUCH on the host, which hot-seats between Red and Blue as the base
 		# scene does.
 		seat_policy = SeatPolicy.seat(_blue.entity_id)
-	_boost_autopilot_budget()
+	# Only for the sweep that needs it. Launched from the Multiplayer tab with
+	# the toggle off, this is an ordinary sandbox and Red is an ordinary level-1
+	# board — boosting there put 30 SP / 200 mana in front of a human who never
+	# asked for a scripted run and read as a stat-system bug.
+	if _autopilot:
+		_boost_autopilot_budget()
 
 
 ## Rung 1's verb sweep drives every [CommandApplier] verb from ONE turn, which
 ## the default per-turn budget (3 SP / 2 AP / 3 DP) cannot cover — allocate +
 ## mass_allocate + stake alone already want more SP than a level-1 board grants,
-## and three attack modes plus a temp-upgrade toggle want more AP. Boosted on
-## [member _red] IDENTICALLY on every peer — this runs in [method _setup_level],
-## before any command has crossed the wire, unconditionally on role — because
-## [method CommandApplier._apply_mass_allocate] RE-derives affordability from
-## the RECEIVING peer's own board (#458: a stale sender must not dictate spend).
-## Boosting only the host's local copy would make that recompute disagree with
-## what the host actually applied, the instant a budget-gated verb crossed.
+## and three attack modes plus a temp-upgrade toggle want more AP.
+##
+## [b]`--autopilot` is what gates this, and that is why the flag is sent to BOTH
+## peers[/b] (`addons/mp_sandbox/mp_sandbox_panel.gd`), breaking that launcher's
+## otherwise-strict "each flag goes to the one role that can act on it" rule.
+## [method CommandApplier._apply_mass_allocate] RE-derives affordability from the
+## RECEIVING peer's own board (#458: a stale sender must not dictate spend), so
+## boosting only the host's copy would make that recompute disagree with what the
+## host actually applied, the instant a budget-gated verb crossed. The client
+## boosts and then never sweeps — [method _start_sweep_if_due] gates origination
+## on [member CommandApplier.is_authority]. Called from [method _setup_level],
+## before any command has crossed the wire, so both peers land on it identically.
 func _boost_autopilot_budget() -> void:
 	if _red == null or _red.stat_board == null:
 		return
@@ -366,7 +383,8 @@ func _start_sweep_if_due() -> void:
 	_run_autopilot()
 
 
-## Headless self-check (`--autopilot` on the host, after `--`): drive every verb
+## Headless self-check (`--autopilot`, after `--`, on both peers — only the
+## authority gets past [method _start_sweep_if_due]): drive every verb
 ## [CommandApplier] handles from Red's opening turn, so a terminal-driven pair
 ## proves the whole path per verb — command confirmed here, decoded and applied
 ## there, fingerprints compared — without a human clicking. Never fires unless

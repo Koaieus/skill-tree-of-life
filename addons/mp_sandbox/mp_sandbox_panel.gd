@@ -81,16 +81,16 @@ func _on_kill_all() -> void:
 	_pids.clear()
 
 
-## Spawns one instance. Returns its PID, or -1 on failure.
+## The command line one instance is spawned with.
+##
+## Split out from [method _launch] so the peer-symmetry rule below is assertable
+## without spawning an OS process — see
+## `test/unit/network/test_harness_budget_boost.gd`.
 ##
 ## The role rides AFTER `--`, which is what puts it in
 ## [method OS.get_cmdline_user_args] rather than in Godot's own argument
 ## namespace — pass it before the separator and the engine tries to interpret it.
-func _launch(role: NetworkTransport.Role) -> int:
-	var scene := _scene_field.text.strip_edges()
-	if not ResourceLoader.exists(scene):
-		_write("[color=#e06c60]No such scene: %s[/color]" % scene)
-		return -1
+func build_args(role: NetworkTransport.Role, scene: String) -> PackedStringArray:
 	var is_host := role == NetworkTransport.Role.HOST
 	var position := HOST_POSITION if is_host else CLIENT_POSITION
 	var args: PackedStringArray = [
@@ -102,18 +102,34 @@ func _launch(role: NetworkTransport.Role) -> int:
 		"--role=%s" % ("host" if is_host else "client"),
 		"--port=%d" % int(_port_field.value),
 	]
-	# Each flag goes to exactly the role that can act on it: `--autopilot` needs
-	# the peer that HOLDS the turn, `--probe` (#529) needs the peer that
-	# RECEIVES commands. Sent to the other one they are no-ops that log a
-	# refusal, which is noise dressed as a result.
-	if is_host and _autopilot_toggle.button_pressed:
+	# `--probe` (#529) goes to exactly the role that can act on it — the peer that
+	# RECEIVES commands. Sent to a host it is a no-op that logs a refusal, which
+	# is noise dressed as a result.
+	#
+	# `--autopilot` is the deliberate exception: it goes to BOTH. Only the
+	# authority ever sweeps (`_start_sweep_if_due` gates on
+	# `CommandApplier.is_authority`), but the flag also gates the budget boost
+	# `_boost_autopilot_budget` applies to Red — and that boost must land
+	# identically on every peer, because `CommandApplier._apply_mass_allocate`
+	# re-derives affordability from the RECEIVING peer's own board. Host-only
+	# here would desync the first budget-gated verb that crossed.
+	if _autopilot_toggle.button_pressed:
 		args.append("--autopilot")
 	if not is_host:
 		args.append("--address=%s" % _address_field.text.strip_edges())
 		if _probe_toggle.button_pressed:
 			args.append("--probe")
+	return args
 
-	var pid := OS.create_instance(args)
+
+## Spawns one instance. Returns its PID, or -1 on failure.
+func _launch(role: NetworkTransport.Role) -> int:
+	var scene := _scene_field.text.strip_edges()
+	if not ResourceLoader.exists(scene):
+		_write("[color=#e06c60]No such scene: %s[/color]" % scene)
+		return -1
+	var is_host := role == NetworkTransport.Role.HOST
+	var pid := OS.create_instance(build_args(role, scene))
 	if pid <= 0:
 		_write("[color=#e06c60]Failed to spawn %s.[/color]" \
 				% ("host" if is_host else "client"))

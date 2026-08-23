@@ -19,8 +19,13 @@ From a terminal — the host sweeps, the client measures:
 
 ```
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host   --port=9099 --autopilot --turns=30
-godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099 --probe
+godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099 --autopilot --probe
 ```
+
+**`--autopilot` on the client line is not a typo.** Only the host sweeps, but
+the flag also gates Red's budget boost, which must match on both peers or the
+first budget-gated verb desyncs — see
+[multiplayer-harness.md](multiplayer-harness.md). `--turns` stays host-only.
 
 **`--turns` is not optional for a measurement.** One sweep is ~17 commands and
 then the loop stalls on Red waiting for input that never comes in headless. The
