@@ -82,10 +82,22 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	var want_attack_vfx: bool = bool(opts.get("attack_vfx", false))
 	var want_highlight: bool = bool(opts.get("highlight", false))
 
+	var navigator: Navigator = graph.get_node("Navigator")
+	# [method Navigator._ready] returns early under the editor hint — a level
+	# scene the editor merely has OPEN wants no AStar mirror rebuilding itself
+	# behind every node you drag. A live tab is the other case entirely: its graph
+	# is a real world, and every reach query in the game (targeting range, core
+	# move, allocation adjacency) reads THIS mirror — so wire it by hand. Without
+	# this the mirror is present, empty, and silent: no error, every hop query
+	# just answers "unreachable", and a spell playground refuses every seed it is
+	# offered. `wire_to` is idempotent and bootstraps the authored nodes.
+	if Engine.is_editor_hint() and navigator != null:
+		navigator.wire_to(graph)
+
 	allocation_system = _ALLOCATION_SYSTEM_SCRIPT.new()
 	allocation_system.name = "AllocationSystem"
 	allocation_system.graph = graph
-	allocation_system.navigator = graph.get_node("Navigator")
+	allocation_system.navigator = navigator
 	add_child(allocation_system)
 
 	if want_tm:
