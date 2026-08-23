@@ -1,8 +1,20 @@
 # Handoff: #463 versus transport — the swarmify pass of 2026-08-22
 
 **Spent when** #529's determinism probe has produced a number and the sync model
-is chosen. Delete it then — the children are already filed, so that half of the
-condition has fired.
+is chosen. Delete it then.
+
+**Two of the three halves have now fired.** The children are all filed *and
+closed* (#527/#528/#530/#531 landed 2026-08-23), and **the probe has reported —
+twice, clean**: 773 commands, zero divergences, `skipped: 0` on every verb, 31/31
+attacks re-derived, re-run at `4174f36` after #545. Both tables are comments on
+#463.
+
+**What is left of this file is the model choice alone**, and it is an unmade
+owner decision, not a missing measurement. Note that
+`docs/domain/multiplayer-sync-model.md` still presents lockstep as *rejected*,
+and every ground it rejected on has since been retired (#530, #512, and the
+host-only loot exemption in `.claude/rules/multiplayer-sync.md`) — see
+`docs/handoffs/domain-doc-alignment-2026-08-23.md`, item 1.
 
 The **acceptance spec lives on #463** (comment of 2026-08-22) and is the
 authority for decisions 1–8. This file carries only what the spec cannot: the
