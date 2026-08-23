@@ -210,6 +210,9 @@ func _ready() -> void:
 		# can_player_act() reads is_applying, whose transitions are otherwise
 		# unobservable — same reason attack_plan_changed feeds this gate.
 		command_applier.applying_changed.connect(_emit_gate_changed.unbind(1))
+		# The third gate (#541) rides the SAME refresh route rather than growing
+		# a second one — one `_emit_gate_changed`, four things that can move it.
+		command_applier.awaiting_confirmation_changed.connect(_emit_gate_changed.unbind(1))
 	core_move_targeting_changed.connect(_refresh_armed_state.unbind(1))
 
 
@@ -1137,6 +1140,14 @@ func can_player_act() -> bool:
 	# cannot act while an allocation is landing either, and until now this gate
 	# only knew about attacks.
 	if command_applier != null and command_applier.is_applying:
+		return false
+	# A command is submitted and the authority has not decided yet (#541) — the
+	# phase BEFORE either of the two above. Locally it is a stack frame wide;
+	# on a peer it is the round trip, and it is exactly when a second input
+	# would produce a command resolved against a world the player cannot see.
+	# Third gate rather than folded into `is_applying`: that flag answers "a
+	# mutation is under way", and here nothing has moved yet.
+	if command_applier != null and command_applier.is_awaiting_confirmation:
 		return false
 	# AP=0 blocks further attack/cast actions; UI uses this to dim.
 	if player != null and player.stat_board != null:

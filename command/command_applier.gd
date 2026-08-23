@@ -77,6 +77,12 @@ signal command_confirmed(command: Command)
 ## signal.
 signal applying_changed(applying: bool)
 
+## [member is_awaiting_confirmation] transitioned. Same job as
+## [signal applying_changed] and the same ordering guarantee — the flag is
+## already updated when this arrives — so the two feed one refresh route in
+## [PlayerInputController], never two.
+signal awaiting_confirmation_changed(awaiting: bool)
+
 ## Beat between hops of a [MoveCoreCommand], so a multi-hop walk reads as a
 ## cascade rather than one snap. Was `PlayerInputController.CORE_HOP_SLIDE_DELAY`
 ## before the walk moved in here; slightly under SkillNode's slide duration.
@@ -108,7 +114,43 @@ var is_authority: bool = true
 ## empty — spanning every await inside every command, not just the mutation.
 var is_applying: bool = false
 
+## [b]Submitted, awaiting confirmation[/b] (#541) — a command has been handed to
+## this applier and the authority has not yet decided it is going ahead. The
+## world has not moved and the player must not act.
+##
+## [b]Zero-length locally for the eight deterministic verbs.[/b] [method submit]
+## drains synchronously down to [method _validate], so on a peer that DECIDES
+## this is true for a stack frame. It is not dead code: it is the round trip on a
+## peer that is told, which is what #463 opens, and it is the only phase name
+## that fits the window — [member BattleSystem.is_launching] means "an attack is
+## in flight" and [member is_applying] means "a mutation is under way", and
+## neither is true yet.
+##
+## [b]The attack is the exception, and it is the LONG one.[/b]
+## [LaunchAttackCommand] confirms late ([method Command.confirms_before_apply]
+## false, because its record is computed inside the apply), so this stays true
+## across the whole resolve + mutation loop — where `is_launching` had it covered
+## either way. Deleting that override is the lift that would make every verb
+## symmetric; it is a follow-up, not this flag's business.
+##
+## [b]Nested inside [member is_applying] everywhere but one place.[/b] The gate
+## is an OR ([method PlayerInputController.can_player_act]) and on every path but
+## that one the OR cannot change the answer. The exception is the first
+## [method submit] of a drain: this flips true BEFORE `is_applying` does, which
+## is both the honest reading — the command is submitted, nothing is applying
+## yet — and the only moment the third gate is the sole reason the player cannot
+## act. Do not "simplify" it to a read after the pop.
+var is_awaiting_confirmation: bool = false
+
 var _queue: Array[Command] = []
+
+## The command [method _drain] has popped and not finished reporting, or null
+## between commands. Exists only so [method _refresh_awaiting] can DERIVE its
+## answer rather than have it assigned from five places — a `command_applied`
+## handler that submits (the deallocate -> cascade offer does) opens a fresh
+## pending window on the line before the outgoing command would have closed one,
+## and a derived flag gets that right without an ordering rule to remember.
+var _in_flight: Command = null
 
 ## The command [method confirm] has already announced, so [method _drain] does
 ## not announce it twice. A single slot, not a set: the queue is serial and
@@ -141,6 +183,11 @@ func submit(command: Command) -> void:
 		_answer_loot_pick(command as PickLootCommand)
 		return
 	_queue.append(command)
+	# Ahead of the `is_applying` bail, deliberately — see
+	# [member is_awaiting_confirmation]. On the first submit of a drain this is
+	# the transition that fires while nothing is applying yet, and a listener
+	# reading the gate in that handler must see it closed.
+	_refresh_awaiting()
 	if is_applying:
 		return
 	_drain()
@@ -165,6 +212,12 @@ func confirm(command: Command) -> void:
 	if command == null or _confirmed == command:
 		return
 	_confirmed = command
+	# BEFORE the announcement, so a [signal command_confirmed] handler —
+	# [CommandLink]'s broadcast is one — reads a flag that already accounts for
+	# this decision. Same hazard [signal applying_changed] documents, one signal
+	# earlier. (It stays true if something is queued behind: the flag asks
+	# "anything undecided", not "is THIS one decided".)
+	_refresh_awaiting()
 	command_confirmed.emit(command)
 
 
@@ -193,6 +246,7 @@ func _drain() -> void:
 	applying_changed.emit(true)
 	while not _queue.is_empty():
 		var command: Command = _queue.pop_front()
+		_in_flight = command
 		# Stamped BEFORE the gate, for EVERY command on EVERY peer (#540
 		# decision 4) — this is the world the command is about to be applied to,
 		# and both sides compare pre-state against pre-state. Uniform rather than
@@ -224,8 +278,32 @@ func _drain() -> void:
 		# a `command_applied` handler that confirms too. Nothing is leaked by
 		# holding it one line longer: the next iteration overwrites it.
 		_confirmed = null
+		_in_flight = null
+		# After BOTH are cleared, or the derivation below would read "in flight,
+		# unconfirmed" and re-open a window that just closed. This is where a
+		# command REFUSED by [method _validate] releases — it never confirmed, so
+		# nothing else would have.
+		_refresh_awaiting()
 	is_applying = false
 	applying_changed.emit(false)
+
+
+## Recompute [member is_awaiting_confirmation] from what the queue actually
+## holds, and announce a transition. Derived rather than assigned: "something is
+## submitted and undecided" is exactly `queued, or popped and not yet
+## confirmed`, and every call site below is a point where one of those changed.
+##
+## Flag first, emit second — [method PlayerInputController._emit_gate_changed]
+## reads the gate the instant the signal arrives, and a listener that saw a stale
+## "still pending" would leave `AttackModeBar` disabled forever (#541; the same
+## hazard `battle_system.gd:489-494` documents for `is_launching`).
+func _refresh_awaiting() -> void:
+	var awaiting := not _queue.is_empty() \
+			or (_in_flight != null and _confirmed != _in_flight)
+	if awaiting == is_awaiting_confirmation:
+		return
+	is_awaiting_confirmation = awaiting
+	awaiting_confirmation_changed.emit(awaiting)
 
 
 ## Is [param command] legal against the world as it stands right now? The gate,

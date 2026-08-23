@@ -208,12 +208,15 @@ becomes "my camp" on each client. Fog gains authority meaning only under the
 deferred filtered-delta model, where the host uses it to decide what to send.
 
 **The applier is `command/command_applier.gd` (#510).** One serial, **async**
-queue: `submit(cmd)` enqueues, and drains only if no drain is running. Two
+queue: `submit(cmd)` enqueues, and drains only if no drain is running. Three
 guards exist and are nested, answering different questions —
 `BattleSystem.is_launching` ("an attack is in flight", owning the plan's
-lifetime across mutation *and* VFX) and `CommandApplier.is_applying` ("a command
-is being applied", covering every verb). `PlayerInputController.can_player_act()`
-reads **both**. Outcomes come back as `command_applied(cmd, success)`, emitted
+lifetime across mutation *and* VFX), `CommandApplier.is_applying` ("a command
+is being applied", covering every verb), and since #541
+`CommandApplier.is_awaiting_confirmation` ("something is submitted and the
+authority has not decided", the phase *before* either of the others — the world
+has not moved at all). `PlayerInputController.can_player_act()` reads **all
+three**, off one refresh route. Outcomes come back as `command_applied(cmd, success)`, emitted
 *inside* the guard so a fallback handler that submits — the deallocate →
 cascade-offer path — queues rather than re-entering; `applying_changed` fires
 *after* the flag clears, matching `is_launching`'s deliberate ordering.
@@ -235,6 +238,19 @@ anyone. `Command.confirms_before_apply()` is what a verb overrides to opt out;
 `LaunchAttackCommand` is the only one that does, because its `AttackRecord` is
 computed *inside* the apply and confirming first would broadcast an empty record
 that a peer reads as an initiate it cannot run.
+
+**The pending phase is zero-length locally for the eight deterministic verbs,
+and that is not a reason to delete it (#541).** `submit` drains synchronously
+down to `_validate`, so on a peer that *decides*, `is_awaiting_confirmation` is
+true for a stack frame; it becomes the round trip only once #463 routes a
+client's intent upward. **The attack is the exception and it is the long one** —
+`LaunchAttackCommand` confirms late, so the flag spans its whole apply, which is
+precisely the window `is_launching` already owned. It is derived —
+"queued, or popped and not yet confirmed" — rather than assigned, because a
+`command_applied` handler that submits opens a fresh window one line before the
+outgoing command closes one. The flag is raised in `submit` *ahead of* the
+`is_applying` bail, which is the one moment the third gate is the sole reason the
+player cannot act, and is what `test_command_routing.gd` asserts against.
 
 `confirm` is idempotent and only ever called for a command that is going ahead —
 which is where "a refused command changed nothing, so mirror nothing" now lives.

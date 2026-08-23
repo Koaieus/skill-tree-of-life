@@ -323,6 +323,37 @@ func test_the_gate_signal_fires_on_both_edges_of_a_drain() -> void:
 	assert_eq(gate.back(), true, "and settles open")
 
 
+func test_can_player_act_is_false_while_a_command_awaits_confirmation() -> void:
+	# The third gate (#541), caught at the one moment it is the SOLE reason the
+	# player cannot act: the pending phase opens inside `submit`, one line before
+	# `_drain` raises `is_applying`. Every later moment is covered by the two
+	# older gates as well, which is why this is the honest place to assert it.
+	var seen: Array[int] = [-1, -1]  # [can_act?, is_applying?] — Array, not bools (lambda capture)
+	_applier.awaiting_confirmation_changed.connect(func(awaiting: bool) -> void:
+		if not awaiting or seen[0] != -1:
+			return
+		seen[0] = 1 if _ctl.can_player_act() else 0
+		seen[1] = 1 if _applier.is_applying else 0)
+	_applier.submit(AllocateCommand.new(_player.entity_id, _n("B").stable_id))
+	assert_eq(seen[0], 0, "submitted and undecided is not a moment to act")
+	assert_eq(seen[1], 0,
+			"and is_applying was still false there — the new gate is what closed it")
+	assert_true(_ctl.can_player_act(), "the gate reopens once the command confirms and drains")
+
+
+func test_the_pending_phase_reopens_the_act_gate_when_it_ends() -> void:
+	# The release #541 asks to pin. AttackModeBar (command_tray.gd) is gated
+	# purely off this signal and never polls, so a gate that closes and does not
+	# re-fire true leaves the bar disabled forever.
+	var gate: Array[bool] = []
+	_ctl.player_can_act_changed.connect(func(can_act: bool): gate.append(can_act))
+	_applier.submit(AllocateCommand.new(_player.entity_id, _n("B").stable_id))
+	assert_true(gate.has(false), "the pending phase closes the gate")
+	assert_true(gate.size() >= 2 and gate.back(),
+			"and it settles open again; %s" % str(gate))
+	assert_false(_applier.is_awaiting_confirmation)
+
+
 func test_is_launching_still_gates_independently() -> void:
 	# Nested guards, not merged (owner's clarification on #510): is_launching
 	# keeps answering "an attack is in flight" on its own.

@@ -169,6 +169,64 @@ func test_applying_changed_false_arrives_after_the_flag_cleared() -> void:
 	assert_false(flag_seen[0])
 
 
+# ── Submitted, awaiting confirmation (#541) ─────────────────────────────────
+
+func test_the_pending_phase_opens_before_anything_is_applying() -> void:
+	# `submit` refreshes ahead of the `is_applying` bail on purpose: the command
+	# is submitted and the world has not moved, which is the whole phase.
+	var applying_at_open: Array[bool] = []
+	_applier.awaiting_confirmation_changed.connect(func(awaiting: bool):
+		if awaiting:
+			applying_at_open.append(_applier.is_applying))
+	_applier.submit(_allocate("B"))
+	assert_eq(applying_at_open, [false] as Array[bool],
+			"the pending phase is the one BEFORE the mutation, not a slice of it")
+
+
+func test_confirming_is_what_closes_the_pending_phase() -> void:
+	var awaiting_at_confirm: Array[bool] = [true]
+	_applier.command_confirmed.connect(func(_cmd):
+		awaiting_at_confirm[0] = _applier.is_awaiting_confirmation)
+	_applier.submit(_allocate("B"))
+	assert_false(awaiting_at_confirm[0],
+			"the flag already accounts for the decision when the announcement fires")
+	assert_false(_applier.is_awaiting_confirmation, "and it stays closed once the queue drains")
+
+
+func test_awaiting_confirmation_changed_false_arrives_after_the_flag_cleared() -> void:
+	# The release hazard #541 names, same shape as the applying_changed one
+	# above: PIC reads the flag the instant this fires, and a stale "still
+	# pending" would leave AttackModeBar disabled forever.
+	var flag_seen: Array[bool] = [true]
+	_applier.awaiting_confirmation_changed.connect(func(awaiting: bool):
+		if not awaiting:
+			flag_seen[0] = _applier.is_awaiting_confirmation)
+	_applier.submit(_allocate("B"))
+	assert_false(flag_seen[0])
+
+
+func test_a_refused_command_releases_the_pending_phase() -> void:
+	# D is three hops out, so _validate refuses it and it never confirms —
+	# nothing else would close the window.
+	_applier.submit(_allocate("D"))
+	assert_false(_applier.is_awaiting_confirmation)
+
+
+func test_each_command_gets_its_own_pending_phase() -> void:
+	# Not one bracket for the whole drain — that is `applying_changed`'s job. A
+	# command submitted from a handler opens a fresh window on the line before
+	# the outgoing one would have closed one, which is why the flag is derived.
+	var transitions: Array[bool] = []
+	_applier.awaiting_confirmation_changed.connect(func(awaiting): transitions.append(awaiting))
+	_applier.command_applied.connect(func(_cmd, _ok):
+		if _applier.pending_count() == 0 and _n("C").owned_by == null:
+			_applier.submit(_allocate("C")))
+	_applier.submit(_allocate("B"))
+	assert_eq(transitions, [true, false, true, false] as Array[bool],
+			"one window per command, the handler's submission included")
+	assert_false(_applier.is_awaiting_confirmation)
+
+
 # ── Async commands ──────────────────────────────────────────────────────────
 
 func test_a_multi_hop_move_core_holds_the_queue_until_the_walk_settles() -> void:
