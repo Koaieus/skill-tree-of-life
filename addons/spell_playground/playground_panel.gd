@@ -1,25 +1,58 @@
-## Bottom-panel preview harness for spells. Holds a small isolated graph
-## (caster + 4×4 grid of defender-owned nodes wired with cardinal edges),
-## a control strip (Cast + status + read-only spell summary), and the VFX
-## layer the resolved outcome plays on.
+## Bottom-panel preview harness for spells. Holds a small isolated world — a
+## caster with a four-node territory wired into a defender's sixteen — plus a
+## control strip (Cast + status + read-only spell summary).
 ##
-## The spell itself lives wherever the user is editing it — this panel
-## keeps a live reference and re-reads its exports on every Cast, so the
-## inspector is the single source of truth. Damage application is deferred
-## to the VFX coordinator (DamageInstance on arrival), matching gameplay.
+## The spell itself lives wherever the user is editing it — this panel keeps a
+## live reference and re-reads its exports on every Cast, so the inspector is the
+## single source of truth.
+##
+## [b]The cast goes through the real systems (#536/#545).[/b] The panel mounts
+## `sandbox_world.gd` — the anti-drift scaffold every played sandbox uses — arms
+## a [MagicAttackPlan] with the same two left-clicks the click grammar routes in
+## game, and calls [method BattleSystem.launch_attack]. That is what makes the
+## preview an execution rather than a lookalike: the compute half resolves on a
+## [method CombatWorld.shadow] and captures an [AttackRecord], the apply half
+## rebuilds it and lands it on the live world through [OutcomeApplier] on a real
+## [BeatClock], and the coordinator that draws it is a pure observer.
+##
+## It did NOT used to. The panel called [method SpellResolver.resolve] and played
+## the coordinator itself, which was correct until "shadow always" landed: that
+## call now mints a throwaway shadow, lands the whole cast on it and frees it, so
+## the panel spent a release resolving spells perfectly and mutating nothing.
+## Reproducing the two halves here would have been a second copy of
+## [method BattleSystem.apply_launch_command]; mounting the system that owns them
+## is the version that cannot drift.
 @tool
 extends PanelContainer
 ## Emitted when the panel wants the host to discard and re-instantiate it
-## (#144) — e.g. a stuck `_casting` lock or leftover VFXLayer children from
-## an interrupted cast that Reset (health refill only) can't clear.
+## (#144) — e.g. a stuck `_casting` lock or a launch that never returned, which
+## Reset (a board re-arm) can't clear.
 signal reload_requested
 
-const _GRID_COLS: int = 4
-const _GRID_ROWS: int = 4
-const _CASTER_ZONE_W: float = 130.0
-const _GRID_MARGIN: float = 40.0
+const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
+
 const _SELECTED_TINT: Color = Color(1.0, 0.7, 0.7, 1.0)
 const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
+## Padding, in authored world units, around the node bounding box the viewport
+## fits to.
+const _WORLD_PADDING: float = 30.0
+
+## Re-established on every [method _arm_board] so a cast always starts from the
+## same board rather than from whatever the last one left behind — the same
+## contract `scenes/dev/outcome_playground_world.gd` states for its `arm()`.
+## Skill points have to cover all twenty authored claims.
+const SKILL_POINTS: float = 60.0
+const ACTION_POINTS: float = 6.0
+const MANA: float = 20.0
+
+## Flat `spell_range` bonus granted to the cast-from node, in the percent form
+## [SpellRangeRules] reads (`1.0 + spell_range / 100`). The playground exists to
+## fire a spell at an arbitrary seed, and the real targeting gate is what decides
+## whether a seed is legal — so the reach is bought with a stat rather than
+## bypassed. 900 % turns Spark's 3 hops into 30, past this graph's diameter, and
+## every other targeting rule (hostile-only, min_degree at the source) still
+## applies and still reports itself in the status line.
+const CASTER_SPELL_RANGE_BONUS: float = 900.0
 
 @onready var cast_button: Button = %CastButton
 @onready var reset_button: Button = %ResetButton
@@ -28,11 +61,11 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 @onready var values_label: RichTextLabel = %ValuesLabel
 @onready var world: SubViewport = %World
 @onready var background: ColorRect = %Background
-@onready var vfx_layer: Node2D = %VFXLayer
 @onready var graph: Graph = %Graph
 @onready var caster_entity: Entity = %CasterEntity
 @onready var defender_entity: Entity = %DefenderEntity
-@onready var caster_node: SkillNode = %CasterNode
+## The cast-from node, and the caster's core.
+@onready var caster_node: SkillNode = %C_hub
 @onready var spell_list: OptionButton = %SpellList
 @onready var browse_button: Button = %BrowseButton
 @onready var spell_damage_slider: HSlider = %SpellDamageSlider
@@ -41,25 +74,39 @@ const _UNSELECTED_TINT: Color = Color(1.0, 1.0, 1.0, 1.0)
 
 var _spell: SpellDef = null
 var _selected_target: SkillNode = null
-## True from Cast until the coordinator finishes playing. Damage lands on VFX
-## arrival, so a refill (or a second cast) during that window would be undone
-## by a hit still in the air. Both buttons are gated on it rather than trying
-## to cancel in-flight damage.
+## True from Cast until the launch returns. A re-arm (or a second cast) inside
+## that window would interleave with a mutation loop still walking its beats, so
+## both buttons are gated on it rather than trying to cancel one in flight.
 var _casting: bool = false
 ## Populated from attack/spell/defs/ — every .tres SpellDef in the directory.
 var _listed_spells: Array[SpellDef] = []
 
+## The systems this panel drives, and the pieces of them it talks to.
+var _systems: Node = null
+var _alloc: AllocationSystem = null
+var _battle: BattleSystem = null
+
+## Scene-authored ownership, captured before anything mutates. A cast can now
+## really kill a node and cascade its neighbours out of the defender's territory,
+## so `owned_by` is no longer readable off the scene once the first spell lands —
+## this is what Reset replays.
+var _authored_owners: Dictionary[SkillNode, Entity] = {}
+var _authored_cores: Dictionary[Entity, SkillNode] = {}
+## Bounding box of the authored node positions; the viewport fits to it.
+var _content_rect: Rect2 = Rect2()
+
 
 func _ready() -> void:
 	# Bring-up, before anything reads a board or resolves a spell. `Entity._ready`
-	# short-circuits under `@tool`, so in the bottom panel this is the only call
-	# that ever runs; headless (GUT) the entity already self-initialized and this
-	# is the documented no-op. Both entities carry a `graph_override` in the
-	# scene — they sit BESIDE the Graph inside the SubViewport, and without a
-	# navigator their shadow snapshots own nothing, which since #536 drops every
-	# landing onto an ownerless orphan slice and silently un-gates the wave walk.
+	# short-circuits under the editor hint, so in the bottom panel this is the
+	# only call that ever runs; headless (GUT) the entity already self-initialized
+	# and this is the documented no-op.
 	caster_entity.initialize()
 	defender_entity.initialize()
+	_capture_authored_world()
+	_build_systems()
+	_arm_board()
+	_grant_caster_reach()
 	cast_button.pressed.connect(_cast)
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)
@@ -68,33 +115,150 @@ func _ready() -> void:
 	_populate_spell_list()
 	spell_list.item_selected.connect(_on_spell_list_selected)
 	browse_button.pressed.connect(_on_browse_pressed)
-	# Belt and suspenders: SkillNode's Area2D wires `input_event → left_clicked`
-	# via signal, but Godot only routes the pick through a SubViewport when
-	# the viewport opts in to physics picking. Set it here too in case the
-	# panel scene was authored / cached without it.
-	world.physics_object_picking = true
-	world.handle_input_locally = true
-	# Layout must run before edges are wired: Edge captures its Line2D
-	# endpoints at connect-time and only redraws on owner/radius/archetype
-	# changes, not position — edges are now pre-authored in the scene.
+	# Deliberately OFF, and this is the one wiring a live tab must not do:
+	# the panel hand-routes clicks below because Area2D pickup through an
+	# editor-hosted SubViewport is unreliable, and enabling both double-routes
+	# whichever pick does land. See docs/domain/sandbox-framework.md.
+	world.physics_object_picking = false
 	_layout_world()
-	# Hit-test clicks directly on the SubViewportContainer rather than relying
-	# on Area2D pickup through the SubViewport. In editor bottom-panel context
-	# `physics_object_picking` routing has been unreliable — events reach the
-	# container, but not always the Area2D inside the SubViewport. The
-	# container is 1:1 with the SubViewport (stretch=true, no camera), so
-	# `event.position` IS world position; we walk skill nodes and pick the
-	# closest one within its `radius`. Bypasses the targeting-rule split that
-	# production gameplay applies — the playground deliberately lets any node
-	# (incl. the caster) be selected as seed.
+	# Hit-test clicks on the SubViewportContainer rather than through the
+	# SubViewport. The container is 1:1 with the viewport (stretch=true, no
+	# camera), so `event.position` is viewport space; `graph.to_local` takes it
+	# the rest of the way through the fit transform below.
 	_world_container.gui_input.connect(_on_world_gui_input)
-	# Default seed = the cell at row 2, col 1 — interior enough that a
-	# 3-hop spell reaches most of the grid; corner casts also work but
-	# undersell the BFS fan-out.
-	var nodes := graph.get_skill_nodes()
-	if nodes.size() > 9:
-		_selected_target = nodes[9]
+	# Default seed: the defender's hub. Interior enough that a 3-hop spell fans
+	# out through the loop and down the chain, and hostile, so it passes the
+	# targeting gate the way a corner of the caster's own territory would not.
+	_selected_target = graph.get_node_or_null(^"Nodes/d_hub") as SkillNode
 	_refresh_status()
+
+
+## The world's topology, ownership and shape are SCENE-AUTHORED — this only
+## records what the scene said, so Reset can put it back.
+##
+## The board is a graph, not a grid, on purpose. A 4×4 cardinal mesh made every
+## interior node degree-4 and every rule that reads topology answer the same
+## thing everywhere; nothing about it resembled a procgen level. What is authored
+## now, and what each part is FOR:
+##
+##   * `d_chain1..4 → d_tip` — four degree-2 nodes in a row. Trail Blazer's whole
+##     mechanic is accumulating through a string of them and detonating at the
+##     first junction, and the old grid had no string to walk.
+##   * `d_gate` — a cut vertex. Killing it islands `d_limb1` + `d_limb2` (they
+##     hold each other up and nothing else), which is what makes the forced
+##     dealloc cascade visible here at all.
+##   * `d_loop_a/b` and `d_loop_c/d` — two disjoint 3-hop paths from `d_hub` that
+##     re-converge on `d_join`. Simultaneous arrival at one node is what the
+##     [IncidentReducer] exists for (Resonator), and a mesh where every pair of
+##     paths converges everywhere cannot isolate it.
+##   * `d_hub` carries a self-loop, and degree 5; `d_entry`, `d_core` and `d_tip`
+##     are degree-1 leaves. The board spans degrees 1..5 so `min_degree` gating
+##     and degree-reading propagation have something to discriminate.
+##   * `d_core` sits behind `d_join`, two leaves away from anything — the
+##     defender survives ordinary casts, and killing it is a deliberate act.
+##
+## The caster's own four nodes are not scenery: [method SpellBook.is_castable]
+## measures `min_degree` over the caster's OWNED subgraph, and the deepest spell
+## in the catalog wants 3. `C_hub` has exactly three owned neighbours.
+func _capture_authored_world() -> void:
+	for sn in graph.get_skill_nodes():
+		if sn.owned_by != null:
+			_authored_owners[sn] = sn.owned_by
+	for entity in [caster_entity, defender_entity]:
+		if entity.core_location != null:
+			_authored_cores[entity] = entity.core_location
+	_capture_content_rect()
+
+
+## Mount the real systems. `attack_vfx` is what makes a spell DRAW — without one
+## [method BattleSystem._commit]'s magic branch has nothing to hand the
+## coordinator to, and the panel would apply a correct cast invisibly. The
+## turn manager is required rather than optional: [method
+## BattleSystem.build_launch_command] refuses outright with no `current_entity`.
+##
+## No `commands` opt. [method BattleSystem.launch_attack] names the editor as a
+## first-class no-applier caller and runs the applier's own two halves in the
+## applier's own order; the command queue itself has its own harness in the
+## Outcome playground tab (#539).
+func _build_systems() -> void:
+	_systems = _SANDBOX_WORLD.new()
+	_systems.name = "Systems"
+	add_child(_systems)
+	_systems.build(graph, {turn_manager = true, attack_vfx = true})
+	_alloc = _systems.allocation_system
+	_battle = _systems.battle_system
+
+
+## Restore the authored starting state through the REAL primitives: strip every
+## claim, refill, reset both boards, re-allocate what the scene authored, re-seat
+## both cores. Idempotent and total — it is the Reset button and it is also
+## bring-up, so there is one answer to "what does this board look like".
+##
+## [method AllocationSystem.register_scene_authored_ownership] is deliberately
+## NOT the call here even though the ownership IS scene-authored: it reads
+## `owned_by` off the nodes, and after the first cascade the nodes no longer
+## carry it. `force_allocate` from the captured map does the same work
+## (SP claim, entity modifiers, node effects, the fill) and survives a kill.
+##
+## [member AllocationVFX.muted] wraps it: the strips below are genuine
+## `force_deallocate` calls and would otherwise shatter the whole board on every
+## Reset.
+func _arm_board() -> void:
+	var vfx: AllocationVFX = _systems.allocation_vfx
+	if vfx != null:
+		vfx.muted = true
+	for sn in graph.get_skill_nodes():
+		if sn.owned_by != null:
+			_alloc.force_deallocate(sn)
+		sn.refill(true)
+	for entity in [caster_entity, defender_entity]:
+		entity.is_dead = false
+		entity.core_location = null
+		_reset_board(entity)
+	for sn in _authored_owners:
+		_alloc.force_allocate(_authored_owners[sn], sn)
+	for entity in _authored_cores:
+		entity.core_location = _authored_cores[entity]
+	if vfx != null:
+		vfx.muted = false
+	# Whose turn it is is part of the pre-state, not a per-cast step: the plan
+	# builder reads it. Never TICKED — writing the plain var IS the whole of "it
+	# is the caster's turn" (the standing sandbox rule).
+	if _systems.turn_manager != null:
+		_systems.turn_manager.current_entity = caster_entity
+
+
+func _reset_board(entity: Entity) -> void:
+	var board: EntityStatBoard = entity.stat_board
+	if board == null:
+		return
+	if board.skill_points != null:
+		board.skill_points.wounded = 0
+		board.skill_points.staked = 0
+		board.skill_points.base_value = SKILL_POINTS
+		board.skill_points.set_current(SKILL_POINTS)
+	if board.action_points != null:
+		board.action_points.set_base_ratcheted(ACTION_POINTS)
+		board.action_points.current = ACTION_POINTS
+	if board.mana != null:
+		board.mana.set_base_ratcheted(MANA)
+		board.mana.current = MANA
+	for pool in [board.health, board.deallocation_points]:
+		if pool != null:
+			pool.restore_to_full()
+	if board.spell_damage != null:
+		board.spell_damage.base_value = spell_damage_slider.value
+
+
+## Node-local, and applied once — `force_deallocate` revokes granted effects and
+## swapped effect-sets, but never a hand-added local modifier, so this survives
+## every Reset.
+func _grant_caster_reach() -> void:
+	var mod := StatModifier.new()
+	mod.stat_id = &"spell_range"
+	mod.operation = StatModifier.Operation.ADD_BASE
+	mod.value = CASTER_SPELL_RANGE_BONUS
+	caster_node.add_local_modifier(mod)
 
 
 ## Called by the EditorPlugin whenever a SpellDef becomes the inspected
@@ -112,6 +276,8 @@ func load_spell(spell: SpellDef) -> void:
 ## Scans attack/spell/defs/ and adds every SpellDef .tres to the dropdown.
 ## Kept separate from the caster's spellbook: the dropdown is for preview
 ## selection and should show ALL spells, not just the caster's equipped set.
+## The two never disagree at the gate — [method SpellBook.is_castable] asks about
+## the SOURCE node's degree, not about membership.
 func _populate_spell_list() -> void:
 	_listed_spells.clear()
 	spell_list.clear()
@@ -151,7 +317,7 @@ func _sync_spell_list_selection() -> void:
 
 
 ## Reveals attack/spell/defs/ in the editor's FileSystem dock — a shortcut to
-## authoring a new SpellDef .tres alongside the existing six.
+## authoring a new SpellDef .tres alongside the existing eight.
 func _on_browse_pressed() -> void:
 	if not Engine.is_editor_hint():
 		return
@@ -171,35 +337,10 @@ func refresh_from_spell() -> void:
 	_refresh_status()
 
 
-# Edges are now PRE-AUTHORED in the .tscn under Graph/Edges — 27 of them,
-# reproducing exactly what the old `_build_grid_edges()` generated: the 4×4
-# cardinal grid, minus two skipped cardinals that carve a degree-1 leaf (T_33)
-# and a low-degree pocket (T_30), plus five diagonals/shortcuts that break the
-# too-uniform interior into a 1..6 degree range (hub at T_11, near-hub at T_22).
-# Add or remove an edge by editing the scene; nothing is generated at _ready.
-#
-# This also closes the bug that motivated the change: `_build_grid_edges` bailed
-# on `if not graph.get_edges().is_empty(): return`, so authoring ANY single edge
-# into the scene silently suppressed all 27 generated ones.
-#
-# TODO: cardinal neighbours? you mean CARDINAL SIN. THIS IS SUPPOSED TO BE A PRE-AUTHORED SCENE, ADJUSTABLE WHEN NEEDED
-# 		e.g. i need to test more stuff: parts where 2-degree nodes chain for a bit. like at least 3 links even.
-#		parts with degree 1, like a cardinal grid is one of the worst setups imaginable compared to real/procgen graphs
-#		ideally we also get a context menu for adding/removing edges instead of "finding" the Edge node instance (sitting at.. 0,0) and
-#		then setting its exports to the two ends -- very backward and annoying.
-#
-# STATUS on that TODO: the scene is now genuinely pre-authored and adjustable,
-# so half of it is addressed. Still open: the cardinal-grid topology itself is a
-# poor stand-in for procgen graphs (wants 3+ link chains of degree-2 nodes), and
-# there is still no context menu for adding/removing edges — you edit the .tscn.
-# `_layout_world()` also still overwrites every authored POSITION at _ready, so
-# shape (unlike topology) remains generated. Tracked as C18 in the audit triage.
-
-
 func _on_target_clicked(node: SkillNode) -> void:
-	# No targeting-rule gate here — the playground is for *previewing* what
-	# a spell does from an arbitrary seed; the rule check belongs to gameplay
-	# casting, not to authoring inspection.
+	# No targeting gate HERE — the selection is just a seed pick. The real gate
+	# is the plan's, at Cast, and it reports its refusal in the status line
+	# instead of the click silently doing nothing.
 	if node == null:
 		return
 	_selected_target = node
@@ -219,19 +360,18 @@ func _on_world_gui_input(event: InputEvent) -> void:
 		_world_container.accept_event()
 
 
-# Find the topmost skill node whose disc covers `world_pos`. SubViewport has
-# no camera and stretch=true, so the container's local coords ARE world coords.
-# Iterates grid + caster (caster legal-as-seed per playground policy).
-func _pick_node_at(world_pos: Vector2) -> SkillNode:
+## Find the topmost skill node whose disc covers `viewport_pos`. The graph is
+## SCALED to fit the panel (see [method _layout_world]), so the position has to
+## come back through its transform before it can be compared against a radius
+## authored in world units.
+func _pick_node_at(viewport_pos: Vector2) -> SkillNode:
+	var local := graph.to_local(viewport_pos)
 	var best: SkillNode = null
 	var best_d2: float = INF
-	var candidates: Array[SkillNode] = graph.get_skill_nodes()
-	if caster_node != null:
-		candidates.append(caster_node)
-	for sn in candidates:
+	for sn in graph.get_skill_nodes():
 		if sn == null:
 			continue
-		var d2 := world_pos.distance_squared_to(sn.position)
+		var d2 := local.distance_squared_to(sn.position)
 		var r := sn.radius
 		if d2 <= r * r and d2 < best_d2:
 			best = sn
@@ -303,95 +443,118 @@ func _format_value(v: Variant) -> String:
 	return str(v)
 
 
-# Lay out caster (left strip) and 4×4 grid (right area) in the current
-# viewport. Cell pitch = min of available width/height for the grid, so
-# the layout reads correctly at any panel aspect ratio.
+## The authored node positions, as a box. Computed once: nothing moves a node
+## after `_ready` any more (see [method _layout_world]).
+func _capture_content_rect() -> void:
+	var first := true
+	for sn in graph.get_skill_nodes():
+		var r := maxf(sn.radius, 1.0)
+		var box := Rect2(sn.position - Vector2(r, r), Vector2(r, r) * 2.0)
+		_content_rect = box if first else _content_rect.merge(box)
+		first = false
+	_content_rect = _content_rect.grow(_WORLD_PADDING)
+
+
+## Fit the authored world into the current viewport by SCALING the Graph, not by
+## moving its nodes.
+##
+## This used to overwrite every authored position with a generated 4×4 grid at
+## `_ready`, which is why the scene's shape was a lie and why edges had to be
+## refreshed behind it. Scaling the Graph instead keeps the authored layout
+## intact and — the part that matters beyond tidiness — scales everything
+## parented under it by the same factor, VFX included. A [MagicBounceCoordinator]
+## arc is authored for a full-screen battlefield (apex 420 px); in a ~340 px
+## panel the projectile used to leave the top of the viewport for most of its
+## flight, read as "no projectile, damage just appeared", and the panel patched
+## the coordinator's `apex_height` by hand to hide it. Under one shared transform
+## there is nothing to patch: the arc is as tall relative to the board as it is
+## in game.
 func _layout_world() -> void:
 	if world == null or background == null:
+		return
+	if _content_rect.size.x <= 0.0 or _content_rect.size.y <= 0.0:
 		return
 	var size := Vector2(world.size)
 	if size.x <= 0.0 or size.y <= 0.0:
 		return
 	background.size = size
-	caster_node.position = Vector2(_CASTER_ZONE_W * 0.5, size.y * 0.5)
-	var grid_w := maxf(20.0, size.x - _CASTER_ZONE_W - _GRID_MARGIN)
-	var grid_h := maxf(20.0, size.y - 2.0 * _GRID_MARGIN)
-	var pitch := minf(grid_w / float(_GRID_COLS - 1), grid_h / float(_GRID_ROWS - 1))
-	var grid_center := Vector2(_CASTER_ZONE_W + grid_w * 0.5, size.y * 0.5)
-	var nodes := graph.get_skill_nodes()
-	for i in nodes.size():
-		var r := i / _GRID_COLS
-		var c := i % _GRID_COLS
-		var dx := (float(c) - (_GRID_COLS - 1) * 0.5) * pitch
-		var dy := (float(r) - (_GRID_ROWS - 1) * 0.5) * pitch
-		nodes[i].position = grid_center + Vector2(dx, dy)
-	for e in graph.get_edges():
-		e.refresh_endpoints()
+	var fit := minf(size.x / _content_rect.size.x, size.y / _content_rect.size.y)
+	graph.scale = Vector2(fit, fit)
+	graph.position = size * 0.5 - _content_rect.get_center() * fit
 
 
-## The one and only place node health is restored. Casts deliberately do NOT
-## auto-refill: damage accumulates across casts, so a node that no single spell
-## can kill still dies to three of them — which is most of what this harness is
-## for. Press Reset to get a pristine board back.
+## Restore the authored board. Casts deliberately do NOT auto-reset: damage (and
+## ownership) accumulate across casts, so a node no single spell can kill still
+## dies to three of them — which is most of what this harness is for.
 func _reset_state() -> void:
-	_refill_all_nodes()
+	if _casting:
+		return
+	_arm_board()
 	_refresh_status()
-
-
-func _refill_all_nodes() -> void:
-	for sn in graph.get_skill_nodes():
-		sn.refill()
 
 
 func _on_spell_damage_changed(value: float) -> void:
 	spell_damage_label.text = "Spell DMG: %.1f" % value
-	if caster_entity != null and caster_entity.stat_board != null and caster_entity.stat_board.spell_damage != null:
+	if caster_entity != null and caster_entity.stat_board != null \
+			and caster_entity.stat_board.spell_damage != null:
 		caster_entity.stat_board.spell_damage.base_value = value
 
 
-## Gate Cast + Reset for the duration of a coordinator's play. Both would
-## otherwise interleave with damage that only lands when the VFX arrives.
+## Gate Cast + Reset for the duration of a launch — its mutation loop walks the
+## beat clock across several frames, and both buttons would otherwise interleave
+## with hits still in the air.
 func _set_casting(value: bool) -> void:
 	_casting = value
 	reset_button.disabled = value
 	_refresh_status()
 
 
+## Arm the plan the way the click grammar does — cast-from node first, then the
+## target — and launch it. Going through [MagicAttackPlan] rather than straight
+## to [SpellResolver] is what buys the whole production path: affordability, the
+## seeded crit stream, the record round trip, the beat clock and the coordinator.
+##
+## It also means a seed can be REFUSED (a friendly node, a source whose owned
+## degree is under the spell's `min_degree`). That is not a regression from the
+## old gate-free panel — a refusal a spell author would hit in game is worth
+## seeing here, so it is reported rather than swallowed.
 func _cast() -> void:
-	if _casting:
+	if _casting or _battle == null:
 		return
 	if not is_instance_valid(_spell) or _selected_target == null:
 		return
-	if _spell.vfx_coordinator_scene == null:
-		# No headless fallback — that path would apply damage synchronously
-		# at cast time, which is the exact bug we want to make impossible.
-		# Wire a coord scene on the SpellDef.
-		push_warning("Spell Playground: spell has no vfx_coordinator_scene — Cast skipped")
+	# The harness must never run dry: a spell costs mana and AP, and there is no
+	# turn loop here to give either back.
+	_replenish_caster()
+	_battle.selected_spell = _spell
+	if _battle.attack_mode != BattleSystem.AttackMode.MAGIC:
+		_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
+	var plan := _battle.attack_plan as MagicAttackPlan
+	if plan == null:
+		push_warning("Spell Playground: no magic plan to arm")
 		return
-	var outcome := SpellResolver.resolve(
-			_spell, _selected_target, caster_node, caster_entity, graph)
-	# Guard on the timeline, not `hits`: a zero-damage utility spell still has
-	# a path to render (the coordinator reads the timeline).
-	if outcome.timeline.is_empty():
+	plan.reset()
+	plan._on_node_left_clicked(caster_node)
+	plan._on_node_left_clicked(_selected_target)
+	var errors := plan.validate()
+	if not errors.is_empty():
+		status_label.text = "%s · %s → refused: %s" \
+				% [_spell.name, _selected_target.name, ", ".join(errors)]
 		return
-	var coord := _spell.vfx_coordinator_scene.instantiate() as VFXCoordinator
-	if coord == null:
-		push_warning("Spell Playground: vfx_coordinator_scene root is not a VFXCoordinator")
-		return
-	# Production VFX defaults assume a full-screen battlefield (apex 420 px).
-	# In the playground's ~340 px viewport that arc sends the projectile off
-	# the top for most of the flight — read by the user as "no projectile,
-	# damage just appeared". Override with an arc that fits the panel.
-	if coord is MagicBounceCoordinator:
-		var mbc := coord as MagicBounceCoordinator
-		var arc := BezierArcPath.new()
-		arc.apex_height = 70.0
-		mbc.projectile_path = arc
-	vfx_layer.add_child(coord)
 	_set_casting(true)
-	await coord.play(outcome)
-	coord.queue_free()
-	# The panel can be torn down mid-play (plugin disabled, tab rebuilt); its
+	@warning_ignore("redundant_await")
+	await _battle.launch_attack()
+	# The panel can be torn down mid-launch (plugin disabled, tab rebuilt); its
 	# buttons are gone by then and re-enabling them would crash.
 	if is_inside_tree():
 		_set_casting(false)
+
+
+func _replenish_caster() -> void:
+	var board: EntityStatBoard = caster_entity.stat_board
+	if board == null:
+		return
+	if board.action_points != null:
+		board.action_points.restore_to_full()
+	if board.mana != null:
+		board.mana.restore_to_full()

@@ -1,25 +1,30 @@
 extends GutTest
 
-## The spell playground parks its two entities BESIDE the Graph, inside the
-## SubViewport — an ancestor walk can never find it from there, so they used to
-## come up with `navigator == null`.
+## The spell playground fires a REAL cast — and for a release it silently did
+## not.
 ##
-## That was invisible until #536 made the resolver LAND each wave mid-walk. A
-## shadow `EntityCombat` is built from the owner's `EntityNavigator`, so a
-## navigator-less entity snapshots an empty owned set; `CombatWorld.combat_for`
-## then falls through to an ownerless ORPHAN slice, and `NodeCombat.take_damage`
-## drops the hit on its `owner() == null` guard — a spell that propagates
-## normally and quietly gates nothing. Before it even got that far,
-## `EntityCombat.snapshot` crashed outright on the untyped-`[]` ternary.
+## The panel called [method SpellResolver.resolve] and played the coordinator
+## itself. That was correct until #536's *"shadow always"*: `resolve()` now mints
+## a throwaway [method CombatWorld.shadow], lands the whole cast on it and frees
+## it, and the VFX layer has been a pure observer since #474 — so every spell
+## resolved perfectly and mutated nothing. Nothing failed. Nothing was reported.
+## The board just never moved.
 ##
-## Both halves are pinned here: the entities get a real navigator (via the
-## scene-wired `graph_override`), and a snapshot with no navigator at all is
-## merely empty rather than fatal.
+## Two shapes of test here, and both are needed:
+##   * the WIRING the cast depends on — a navigator per entity, a minted
+##     `entity_id`, a seated core, a filled allocation level. Each of those reads
+##     as "the spell did nothing" when it is missing, from a different direction.
+##   * the OUTCOME — HP actually goes down. That is the assertion the whole class
+##     of "resolved into a world nobody kept" bugs cannot survive, and it is the
+##     one that was missing.
 
 const _PANEL := preload("res://addons/spell_playground/playground_panel.tscn")
+const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
 var _panel: Node
 var _graph: Graph
+var _caster: Entity
+var _defender: Entity
 
 
 func before_each() -> void:
@@ -28,35 +33,100 @@ func before_each() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_graph = _panel.find_child("Graph", true, false) as Graph
+	_caster = _panel.find_child("CasterEntity", true, false) as Entity
+	_defender = _panel.find_child("DefenderEntity", true, false) as Entity
 	assert_not_null(_graph, "fixture: the panel must carry a Graph")
+	assert_not_null(_caster, "fixture: the panel must carry a CasterEntity")
+	assert_not_null(_defender, "fixture: the panel must carry a DefenderEntity")
+	# The documented headless opt-out (#504): land the whole outcome on the line
+	# rather than across several frames of the beat clock. #474's acceptance is
+	# that the applied world is identical either way.
+	_panel._battle.instant_mutation = true
 
 
-func test_the_defender_mirrors_its_authored_territory() -> void:
-	var defender := _panel.find_child("DefenderEntity", true, false) as Entity
-	assert_not_null(defender, "fixture: the panel must carry a DefenderEntity")
-	assert_not_null(defender.navigator,
-			"an entity beside the Graph still needs one — that is what `graph_override` is for")
-	assert_eq(defender.navigator.get_mirrored_nodes().size(), 16,
-			"`wire_to` bootstraps the mirror from authored `owned_by`; all 16 grid cells are the defender's")
+func _node(name_: String) -> SkillNode:
+	return _graph.get_node("Nodes/%s" % name_) as SkillNode
 
 
-## The acceptance for the silent half: the shadow a cast resolves against has to
-## INDEX those nodes, or every landing lands nowhere.
-func test_a_cast_shadow_indexes_the_defender_nodes() -> void:
-	var defender := _panel.find_child("DefenderEntity", true, false) as Entity
-	var target := _graph.get_node("Nodes/T_11") as SkillNode
-	var world := CombatWorld.shadow()
-	var slice := world.combat_for(target)
-	assert_not_null(slice, "a shadow must resolve a slice for an allocated node")
-	assert_not_null(slice.owner(),
-			"resolved through the defender's snapshot, not as an ownerless orphan — an orphan drops every hit")
-	assert_eq(slice.owner(), world.combat_for_entity(defender),
-			"and it must be THE defender's slice, so a cascade sees the same territory")
-	world.free_shadow()
+## An entity has to sit in `entities_container` for [method Graph._mint_entity_id]
+## to reach it. The playground's two used to sit BESIDE the Graph, inside the
+## SubViewport, on a `graph_override` — which bought them a navigator and nothing
+## else. `entity_id` stayed 0, and a [LaunchAttackCommand] naming attacker 0
+## resolves to null on the far side of the record round trip.
+func test_both_entities_are_minted_and_mirrored() -> void:
+	for entity in [_caster, _defender]:
+		assert_ne(entity.entity_id, 0,
+				"%s must be inside entities_container to get an id" % entity.display_name)
+		assert_not_null(entity.navigator, "%s has no navigator" % entity.display_name)
+	assert_eq(_defender.navigator.get_mirrored_nodes().size(), 16,
+			"the defender's whole authored territory is in its mirror")
+	assert_eq(_caster.navigator.get_mirrored_nodes().size(), 4,
+			"and the caster's — four nodes, so `C_hub` reaches owned degree 3")
 
 
-## The raw crash, with no playground around it: an entity that genuinely has no
-## graph (a bare fixture, a stand-alone test) snapshots to an empty shadow.
+## Without a core there is no anchor for [method EntityCombat.cascade_set] to
+## island against, so a kill strips the dead node and nothing else — a cascade
+## that quietly never runs.
+func test_both_cores_are_seated() -> void:
+	assert_eq(_caster.core_location, _node("C_hub"))
+	assert_eq(_defender.core_location, _node("d_core"))
+
+
+## `owned_by` is the allocation truth; `allocation_level` is the FILL, and it is
+## written by the allocate path alone (#337). The panel authored the first and
+## never ran the second, so every node was allocated in the model and drawn as an
+## empty shell — the whole board looked dead before a single spell was cast.
+func test_every_authored_node_is_filled_not_just_owned() -> void:
+	for sn in _graph.get_skill_nodes():
+		assert_not_null(sn.owned_by, "%s lost its authored owner" % sn.name)
+		assert_eq(sn.allocation_level, 1, "%s is owned but unfilled" % sn.name)
+
+
+## The deepest `min_degree` in the catalog is 3, measured over the caster's OWN
+## subgraph — the cast-from node has to clear it or every such spell refuses.
+func test_the_cast_from_node_clears_the_deepest_min_degree() -> void:
+	assert_eq(_caster.navigator.get_degree(_node("C_hub")), 3,
+			"three owned neighbours; the global degree (4, counting `d_entry`) is not the question")
+
+
+## The acceptance: Cast moves the world.
+func test_casting_spark_damages_the_seed() -> void:
+	var seed_node := _node("d_hub")
+	var before := seed_node.get_combat().get_current_hp()
+	_panel.load_spell(_SPARK)
+	_panel._on_target_clicked(seed_node)
+	await _panel._cast()
+	assert_lt(seed_node.get_combat().get_current_hp(), before,
+			"a cast that resolves into a freed shadow leaves this untouched")
+
+
+## And it lands through the record, not around it: the plan validated, the
+## affordability gate read the real board, and the AP came off it.
+func test_casting_spends_the_caster_action_points() -> void:
+	var ap: PoolStat = _caster.stat_board.action_points
+	_panel.load_spell(_SPARK)
+	_panel._on_target_clicked(_node("d_hub"))
+	await _panel._cast()
+	assert_lt(ap.current, float(ap.get_value()), "launch_attack deducts the outcome's ap_cost")
+
+
+## A seed the real targeting gate refuses is REPORTED, not swallowed. The old
+## panel had no gate at all — it resolved from any seed including its own
+## territory, which is not a cast a spell author can ever make in game.
+func test_a_friendly_seed_is_refused_with_a_reason() -> void:
+	var friendly := _node("C_n")
+	var before := friendly.get_combat().get_current_hp()
+	_panel.load_spell(_SPARK)
+	_panel._on_target_clicked(friendly)
+	await _panel._cast()
+	assert_eq(friendly.get_combat().get_current_hp(), before, "no friendly fire")
+	assert_string_contains(_panel.status_label.text, "refused")
+
+
+## The raw crash behind the #536 bring-up (kept: it is about [EntityCombat], not
+## about this panel). An entity that genuinely has no graph — a bare fixture, a
+## stand-alone test — snapshots to an empty shadow rather than blowing up on the
+## untyped-`[]` ternary.
 func test_snapshotting_an_entity_with_no_navigator_is_empty_not_fatal() -> void:
 	var lone := Entity.new()
 	lone.display_name = "Lone"
