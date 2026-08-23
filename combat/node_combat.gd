@@ -370,11 +370,12 @@ func has_tag(tag: StringName) -> bool:
 ## (#520) — an [AuraEffect] recomputing against a shadow grants node-local
 ## modifiers, and they must land on the shadow's board.
 ##
-## Live delegates to the node, which does more than a board write (formula-cycle
-## rejection, the `_local_modifiers` ledger); a shadow has no ledger to keep and
-## no cycle to introduce that the cloned board did not already contain, so it
-## binds straight through the same [method StatBoard.bind_modifier] the node
-## ends at.
+## Live delegates to the node, which additionally keeps the `_local_modifiers`
+## ledger (the local-scale mutator's canonical list, #376) — a shadow has no
+## such mutator and no ledger to keep. What a shadow must NOT skip is the
+## second half of the per-leaf step: `bind_modifier` alone registers the
+## dependency and applies nothing, so the stat has to be ensured and the leaf
+## attached to it, exactly as [method SkillNode.add_local_modifier] does.
 func add_local_modifier(m: StatModifier) -> void:
 	if m == null:
 		return
@@ -383,8 +384,13 @@ func add_local_modifier(m: StatModifier) -> void:
 		return
 	if _board == null:
 		return
+	var cycle := _board.cycle_from(m)
+	if not cycle.is_empty():
+		push_warning("NodeCombat.add_local_modifier: rejected a modifier that would close a formula dependency cycle: %s" % cycle)
+		return
 	for leaf in m.flatten():
 		_board.bind_modifier(leaf)
+		_board._ensure_stat(leaf.stat_id).add_modifier(leaf, _board)
 
 
 ## State half of [method SkillNode.remove_local_modifier]. Removal is by object
