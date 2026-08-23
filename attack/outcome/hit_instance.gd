@@ -122,5 +122,18 @@ var gated: bool = false
 ## (see [code]attack/outcome/outcome_applier.gd[/code]) — this virtual only
 ## names the verb each subclass performs, so the applier's loop stays
 ## kind-agnostic. Base is abstract; every concrete subclass must override.
-func land_on(_node: SkillNode) -> void:
+##
+## [param node] is a [NodeCombat], not the [SkillNode] in [member target]
+## (#498 step 3). The two are the same node seen two ways: [member target] is
+## the hit's IDENTITY — what a record serializes and a peer resolves by
+## `stable_id` — while [param node] is the STATE this landing mutates, which
+## [param world] just chose. On a live world they are the same node's live
+## slice; on a shadow world [param node] is a detached clone and
+## [member target] still names the real one.
+##
+## [param world] is passed down so a mode's land-time gate can look up the
+## slice for a node it holds by reference — ranged reads [member origin]'s,
+## melee's pop gate reads each blade contact's. A gate that only needs the
+## target itself ignores it.
+func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
 	push_error("HitInstance.land_on is abstract — override on the subclass")

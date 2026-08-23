@@ -21,7 +21,11 @@ func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
 	_gate = gate
 
 
-func land_on(node: SkillNode) -> void:
-	if not _gate.admit(_event):
+func land_on(node: NodeCombat, world: CombatWorld) -> void:
+	# The gate takes the world rather than the resolved target slice: it reads
+	# the slice of each blade CONTACT's node (`_event.target`), which is not
+	# necessarily this hit's own target — a pop is decided against the node the
+	# vertex swept into.
+	if not _gate.admit(_event, world):
 		return  # target already dead, or this vertex was already popped — no dud
-	super.land_on(node)
+	super.land_on(node, world)

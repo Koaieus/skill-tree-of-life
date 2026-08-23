@@ -3,7 +3,7 @@ extends HitInstance
 
 ## A single instance of damage produced by an [AttackPlan.resolve] pass.
 ## Pure data: the attacker (via [member source]) declares the *raw* damage;
-## defensive mitigation is applied by [method SkillNode.take_damage] at the
+## defensive mitigation is applied by [method NodeCombat.take_damage] at the
 ## moment of impact via [Mitigation.apply], which may reclassify [member
 ## HitInstance.kind] to [constant HitInstance.Kind.HEAL] — see the base
 ## class docstring.
@@ -26,7 +26,7 @@ func _init() -> void:
 ## live read (`RangedHitInstance.land_on`) or vetoed the landing entirely
 ## (`BladeDamageInstance.land_on`) — both of which run before this `super`
 ## call. A normal hit multiplies by 1.0, so there is no `if is_crit` to forget.
-func land_on(node: SkillNode) -> void:
+func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	CritRoll.apply(self)
 	node.take_damage(amount, self)
 

@@ -47,7 +47,7 @@ extends RefCounted
 ## [Effect] / [AuraEffect] revocation. [method revoke_node] is live-only, and
 ## the helpers it leans on ([method SkillNode.remove_entity_modifiers_from],
 ## [method SkillNode.clear_scaled_effect_sets]) mutate the REAL node, so a
-## shadow cannot borrow them through its `_real_by_shadow` handle without
+## shadow cannot borrow them through its [method NodeCombat.real] handle without
 ## corrupting live state. Consequence, stated plainly because it is
 ## observable: a shadow's wave N+1 resolves against [b]pre-cascade armour[/b].
 ## Shadow attrition parity closed in #518; shadow mitigation parity has not.
@@ -81,13 +81,23 @@ var _core: NodeCombat
 ## primary path; see its doc for why [constant NOTIFICATION_PREDELETE] alone
 ## can't be relied on here, unlike the `_blade_mirror` precedent).
 var _mirror: GraphMirror
-## Real [SkillNode] <-> shadow [NodeCombat], both directions — needed because
-## [member _mirror] is keyed by the real node (topology lives there) while
-## every other shadow accessor is keyed by [NodeCombat] (ownership lives
-## here). Built once at [method snapshot]; membership only ever shrinks
-## (nodes leave via [method apply_cascade], nothing re-enters).
+## Real [SkillNode] -> shadow [NodeCombat] — needed because [member _mirror] is
+## keyed by the real node (topology lives there) while every other shadow
+## accessor is keyed by [NodeCombat] (ownership lives here). Built once at
+## [method snapshot]; membership never shrinks, so a node stripped by
+## [method apply_cascade] can still be translated afterwards.
+##
+## The [b]other[/b] direction is [method NodeCombat.real], not a second
+## dictionary here (#498 step 3). A shadow node already had to know its real
+## node to be nameable in a [DeallocEntry]; keeping a parallel map of the same
+## fact is the shape `.claude/rules/` warns about, and the two could go out of
+## step only in one direction — silently.
 var _shadow_by_real: Dictionary[SkillNode, NodeCombat] = {}
-var _real_by_shadow: Dictionary[NodeCombat, SkillNode] = {}
+## The [Entity] this slice stands for on a SHADOW — its IDENTITY only. Same
+## contract, and the same warning, as [member NodeCombat._real]: never a back
+## door to [member host]. It answers "whose territory is this" for
+## [method NodeCombat.ownership_bit], which a landing gate asks on every hit.
+var _origin: Entity
 
 
 func _init(p_host: Entity = null) -> void:
@@ -126,19 +136,24 @@ func _notification(what: int) -> void:
 func free_shadow() -> void:
 	if host != null:
 		return
-	for n in _owned:
+	# Over `_shadow_by_real`, not `_owned` — a node this shadow's own cascade
+	# stripped is gone from `_owned` but its cloned board is still allocated and
+	# still uncollectable (#514's cycle). `_shadow_by_real` never shrinks, which
+	# is what makes it the complete roster.
+	for n in _shadow_by_real.values():
 		if n._board != null:
 			n._board.release()
 			n._board = null
 	if _board != null:
 		_board.release()
 		_board = null
-	for n in _owned:
+	for n in _shadow_by_real.values():
 		n._owner = null
+		n._real = null
 	_owned.clear()
 	_shadow_by_real.clear()
-	_real_by_shadow.clear()
 	_core = null
+	_origin = null
 	if _mirror != null:
 		_mirror.free()
 		_mirror = null
@@ -185,6 +200,7 @@ func snapshot() -> EntityCombat:
 	var shadow := EntityCombat.new()
 	if host == null:
 		return shadow
+	shadow._origin = host
 	if host.stat_board != null:
 		# clone_live, not duplicate(true) — see its doc: a bare duplicate
 		# silently drops every already-applied modifier's bins and every
@@ -197,11 +213,26 @@ func snapshot() -> EntityCombat:
 		var node_shadow: NodeCombat = real_node.get_combat().snapshot(shadow)
 		shadow._owned.append(node_shadow)
 		shadow._shadow_by_real[real_node] = node_shadow
-		shadow._real_by_shadow[node_shadow] = real_node
 		shadow._mirror.mirror_add(real_node)
 	if host.core_location != null:
 		shadow._core = shadow._shadow_by_real.get(host.core_location)
 	return shadow
+
+
+## The [Entity] this slice stands for — [member host] when live,
+## [member _origin] when shadow. IDENTITY only; see [member _origin]. The
+## entity-level twin of [method NodeCombat.real].
+func real_entity() -> Entity:
+	return host if host != null else _origin
+
+
+## This shadow's real -> shadow node index, for a [CombatWorld] assembling
+## several entities' slices into one board-wide lookup. Empty on a live slice
+## (there is nothing to index — [method SkillNode.get_combat] already is the
+## lookup). Handed out directly rather than copied: [CombatWorld] folds it into
+## its own dictionary and never mutates this one.
+func shadow_index() -> Dictionary[SkillNode, NodeCombat]:
+	return _shadow_by_real
 
 
 ## All [NodeCombat]s that would lose reachability to [param anchor] if
@@ -209,7 +240,7 @@ func snapshot() -> EntityCombat:
 ## [method GraphMirror.nodes_islanded_by_removing]. Live delegates straight to
 ## [member Entity.navigator] (already exact); a shadow answers off
 ## [member _mirror], translating through [member _shadow_by_real] /
-## [member _real_by_shadow] at the boundary since the mirror itself is keyed
+## [method NodeCombat.real] at the boundary since the mirror itself is keyed
 ## by the real [SkillNode].
 func nodes_islanded_by_removing(node: NodeCombat, anchor: NodeCombat) -> Array[NodeCombat]:
 	var out: Array[NodeCombat] = []
@@ -223,8 +254,8 @@ func nodes_islanded_by_removing(node: NodeCombat, anchor: NodeCombat) -> Array[N
 		return out
 	if _mirror == null:
 		return out
-	var real_node: SkillNode = _real_by_shadow.get(node)
-	var real_anchor: SkillNode = _real_by_shadow.get(anchor)
+	var real_node: SkillNode = node.real()
+	var real_anchor: SkillNode = anchor.real()
 	if real_node == null or real_anchor == null:
 		return out
 	for rn in _mirror.nodes_islanded_by_removing(real_node, real_anchor):
@@ -358,14 +389,13 @@ func simulate_entity_death() -> Array[DeallocEntry]:
 	return entries
 
 
-## The real [SkillNode] behind [param n] — [member NodeCombat.host] when live,
-## the [member _real_by_shadow] entry when shadow. Topology is the real graph
-## either way (see [method snapshot]), so a shadow's entries can still name the
-## node they stripped, which is what lets a [DeallocEntry] cross the wire.
+## The real [SkillNode] behind [param n]. Topology is the real graph either way
+## (see [method snapshot]), so a shadow's entries can still name the node they
+## stripped, which is what lets a [DeallocEntry] cross the wire. Kept as a
+## method on this class for its callers' sake; the fact itself now lives on the
+## node slice ([method NodeCombat.real]).
 func real_node_for(n: NodeCombat) -> SkillNode:
-	if n == null:
-		return null
-	return n.host if n.host != null else _real_by_shadow.get(n)
+	return n.real() if n != null else null
 
 
 ## Display names of the modifiers [param node] grants its owner — the
@@ -388,7 +418,7 @@ func _strip_one(node: NodeCombat) -> void:
 		return
 	_owned.erase(node)
 	node._owner = null
-	var real: SkillNode = _real_by_shadow.get(node)
+	var real: SkillNode = node.real()
 	if real != null and _mirror != null:
 		_mirror.mirror_remove(real)
 

@@ -24,7 +24,7 @@ class _RecordingHit extends HitInstance:
 		log = p_log
 		arrival_time = p_arrival
 
-	func land_on(_node: SkillNode) -> void:
+	func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
 		log.append(self)
 
 

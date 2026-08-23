@@ -20,6 +20,18 @@ extends RefCounted
 ##   writes `node.owned_by` directly and knows nothing about this slice, so a
 ##   cached owner would go stale silently the moment it does.
 var host: SkillNode
+## The real [SkillNode] this slice stands for, on a SHADOW — its IDENTITY, never
+## its state. Set once by [method snapshot], read through [method real].
+##
+## [b]This is not a back door to [member host].[/b] The whole host-null invariant
+## is that a shadow cannot notify, and that stays true: nothing in this file
+## reaches `_real` for a `notify_*`, a signal, or a board. It exists because a
+## shadow still has to be able to NAME the node it stripped — [DeallocEntry.node]
+## is a real [SkillNode] on a shadow cascade today (#518) for exactly this reason,
+## and a wire record naming shadow objects would be meaningless. Reads that
+## legitimately go through it are static facts of the real world that no attack
+## mutates: topology, and the addon roster ([method get_spike_power]).
+var _real: SkillNode
 ## Meaningful ONLY when [member host] == null (a shadow). Set once, by
 ## [method snapshot], never reassigned afterward.
 var _owner: EntityCombat
@@ -77,11 +89,55 @@ func is_core() -> bool:
 func snapshot(owner_combat: EntityCombat) -> NodeCombat:
 	var shadow := NodeCombat.new()
 	shadow._owner = owner_combat
+	shadow._real = host
 	if host != null:
 		host._init_node_board()
 		# clone_live, not duplicate(true) — see its doc on StatBoard.
 		shadow._board = host.node_board.clone_live() as NodeStatBoard
 	return shadow
+
+
+## The real [SkillNode] behind this slice — [member host] when live,
+## [member _real] when shadow. The slice's IDENTITY, in one accessor, so a
+## caller never has to know which kind it is holding. [EntityCombat] keeps only
+## the real -> shadow direction now; this is the way back.
+func real() -> SkillNode:
+	return host if host != null else _real
+
+
+## Exactly one [enum SkillNode.Ownership] bit for this node's relation to
+## [param viewer] — the slice-side home of the question, which
+## [method SkillNode.ownership_bit] now delegates to so a landing gate asks it
+## the same way live and shadow (`.claude/rules/ownership-vocabulary.md`).
+##
+## [param viewer] stays a real [Entity]: attitude is a fact about the two real
+## entities, not about a slice, and a shadow's owner still knows which entity it
+## shadows ([method EntityCombat.real_entity]).
+func ownership_bit(viewer: Entity) -> int:
+	var o := owner()
+	if o == null:
+		return SkillNode.Ownership.NEUTRAL
+	var owner_entity := o.real_entity()
+	if owner_entity == null:
+		return SkillNode.Ownership.NEUTRAL
+	if owner_entity == viewer:
+		return SkillNode.Ownership.MINE
+	if viewer != null and viewer.attitude_to(owner_entity) == Entity.Attitude.ALLIED:
+		return SkillNode.Ownership.ALLY
+	return SkillNode.Ownership.HOSTILE
+
+
+## Defensive spike magnitude — read at melee land time by
+## [BladePopResolver.LiveGate]. Delegates to the real node on a shadow too,
+## deliberately: [method SkillNode.get_spike_power] sums the local modifiers of
+## the [SpikeRingAddon]s attached to the node, and [b]addons are not combat
+## state[/b] — no attack attaches or detaches one mid-swing. Same standing
+## assumption as melee's physics exemption ("nothing moves nodes mid-attack",
+## docs/domain/attack-timeline.md); a mechanic that adds or removes an addon
+## during an attack breaks both together.
+func get_spike_power() -> float:
+	var n := real()
+	return n.get_spike_power() if n != null else 0.0
 
 
 ## Non-allocating passthrough read — the state-half twin of

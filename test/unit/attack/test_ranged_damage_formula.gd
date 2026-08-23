@@ -77,7 +77,7 @@ func test_land_on_reads_ranged_damage_live_not_frozen_at_resolve() -> void:
 	# Mid-volley: the firing node's ranged_damage changes AFTER resolve, before land.
 	_set_ranged_damage(firing, 9.0)
 	var hp_before := target.get_current_hp()
-	hit.land_on(target)
+	hit.land_on(target.get_combat(), CombatWorld.live())
 	assert_almost_eq(hp_before - target.get_current_hp(), 9.0, 0.001,
 			"land_on must apply the LIVE ranged_damage, not the resolve-time snapshot")
 
@@ -89,7 +89,7 @@ func test_land_on_vetoes_and_marks_gated_when_target_no_longer_allocated() -> vo
 	var hit := RangedDamageFormula.compute(null, firing, target)
 	target.owned_by = null  # e.g. force-deallocated by an earlier shot's kill
 	var hp_before := target.get_current_hp()
-	hit.land_on(target)
+	hit.land_on(target.get_combat(), CombatWorld.live())
 	assert_almost_eq(target.get_current_hp(), hp_before, 0.001, "a vetoed shot applies no damage")
 	assert_true(hit.gated)
 	assert_eq(hit.target, target, "a vetoed shot is not re-aimed")
@@ -102,7 +102,7 @@ func test_land_on_vetoes_and_marks_gated_when_origin_no_longer_allocated() -> vo
 	var hit := RangedDamageFormula.compute(null, firing, target)
 	firing.owned_by = null  # the firing leaf itself was islanded mid-volley
 	var hp_before := target.get_current_hp()
-	hit.land_on(target)
+	hit.land_on(target.get_combat(), CombatWorld.live())
 	assert_almost_eq(target.get_current_hp(), hp_before, 0.001,
 			"the firing node dying mid-volley must also veto the shot")
 	assert_true(hit.gated)
@@ -114,7 +114,7 @@ func test_land_on_applies_normally_and_leaves_gated_false_when_ungated() -> void
 	await get_tree().process_frame
 	_set_ranged_damage(firing, 5.0)
 	var hit := RangedDamageFormula.compute(null, firing, target)
-	hit.land_on(target)
+	hit.land_on(target.get_combat(), CombatWorld.live())
 	assert_false(hit.gated)
 	assert_almost_eq(hit.effective_amount, 5.0, 0.001)
 

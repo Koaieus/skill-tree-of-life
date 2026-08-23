@@ -24,8 +24,19 @@ class_name OutcomeApplier
 ## construction — there is no view store to keep in step. Pass
 ## [method BeatClock.instant_clock] (the default) to land the whole outcome
 ## synchronously; see [BeatClock] for why this is not frame-ordered mutation.
-static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
+##
+## [param world] chooses WHICH world it lands in (#498 step 3). Omitted (or
+## null) means [method CombatWorld.live] — the real one, so every pre-existing
+## caller keeps its exact behaviour. Hand it a [method CombatWorld.shadow] and
+## the identical loop, the identical gates and the identical arithmetic run
+## against detached slices instead, which is what makes "the preview is the
+## execution path" a fact rather than a discipline. There is deliberately no
+## `is_preview` flag anywhere below: the only thing that differs is which
+## [NodeCombat] the lookup returns.
+static func apply(outcome: AttackOutcome, clock: BeatClock = null,
+		world: CombatWorld = null) -> void:
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
+	var w: CombatWorld = world if world != null else CombatWorld.live()
 	for hit in in_arrival_order(outcome.hits):
 		if hit.target == null:
 			continue
@@ -43,7 +54,12 @@ static func apply(outcome: AttackOutcome, clock: BeatClock = null) -> void:
 		# net; the meaningful allocated/hostile gate is each mode's own
 		# `land_on` (see RangedHitInstance, BladeDamageInstance for #502).
 		if is_instance_valid(hit.target) and (hit.origin == null or is_instance_valid(hit.origin)):
-			hit.land_on(hit.target)
+			# The identity -> state translation, in the one place that performs
+			# it. `hit.target` stays the real node throughout; what varies is the
+			# slice it resolves to.
+			var slice := w.combat_for(hit.target)
+			if slice != null:
+				hit.land_on(slice, w)
 
 
 ## Decorate-sort-undecorate on `(arrival_time, original_index)`. Public

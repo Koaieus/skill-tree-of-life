@@ -14,7 +14,7 @@ func _init() -> void:
 
 ## Crit multiplier applied at land, same as [method DamageInstance.land_on] —
 ## see [CritRoll]. Heals crit too (#381).
-func land_on(node: SkillNode) -> void:
+func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	CritRoll.apply(self)
 	node.heal_damage(amount, self)
 

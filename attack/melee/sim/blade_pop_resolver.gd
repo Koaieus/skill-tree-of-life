@@ -149,25 +149,32 @@ class LiveGate extends RefCounted:
 	## True if `ev`'s damage should actually land right now. Call exactly
 	## once per event, in true time order — mutates `result` when a contact
 	## turns out to be a live pop.
-	func admit(ev: BladeHitEvent) -> bool:
+	##
+	## [param world] selects which world the allocation / ownership / spike
+	## reads come from (#498 step 3); null means the live one, so a caller
+	## outside the applier reads exactly what it used to.
+	func admit(ev: BladeHitEvent, world: CombatWorld = null) -> bool:
+		var w: CombatWorld = world if world != null else CombatWorld.live()
 		if ev.is_edge_hit():
 			return false
 		if result.is_dead(ev.particle_idx, ev.t):
 			return false  # already popped or disintegrated by an earlier LIVE kill
-		var node := ev.target as SkillNode
+		var real_node := ev.target as SkillNode
+		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
 		if node == null or not node.is_allocated():
 			return false  # #502: dead target, no dud — indistinguishable from a miss
 		if ev.particle_idx == _state.pivot_index:
 			return true  # pivot / handle is exempt from popping
-		if _attacker != null and node.owned_by == _attacker:
+		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
 		var power := node.get_spike_power()
 		if power <= 0.0:
 			return true
-		_kill(ev.particle_idx, ev.t, node, power)
+		_kill(ev.particle_idx, ev.t, real_node, power, w)
 		return false  # the popping contact itself deals no damage
 
-	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float) -> void:
+	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float,
+			world: CombatWorld) -> void:
 		result.dead_at[particle_idx] = t
 		var pop := Pop.new(particle_idx, t, defender, power)
 		result.pops.append(pop)
@@ -187,7 +194,13 @@ class LiveGate extends RefCounted:
 		# estimate path ([method BladePopResolver.resolve], which
 		# `ai_blade_rollout` runs on [WorkerThreadPool]) has its own inline
 		# logic and never reaches this — so a rollout still cannot touch the bus.
-		Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
+		#
+		# The shadow guard is the SAME branch [NodeCombat] has as `host != null`,
+		# one layer out: a pop cue is a notification, and a resolve against a
+		# shadow world must make none. Note this is not a preview flag — nothing
+		# below it computes differently, the announcement simply has no audience.
+		if not world.is_shadow():
+			Events.blade_vertex_popped.emit(pop.defender, _attacker, pop.position)
 		var removed: Dictionary = {}
 		for k in result.dead_at:
 			removed[k] = true

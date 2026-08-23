@@ -52,7 +52,7 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode)
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
-	hit.amount = _read_offense(firing_node)
+	hit.amount = _read_offense(firing_node.get_combat() if firing_node != null else null)
 	return hit
 
 
@@ -60,10 +60,16 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode)
 ## tooltips) and [RangedHitInstance.land_on] (the land-time LIVE read, #503)
 ## so the two can never drift into two implementations of "what does this
 ## firing node's shot deal".
-static func _read_offense(firing_node: SkillNode) -> float:
-	if firing_node == null:
+##
+## Takes the firing node's [NodeCombat] rather than the [SkillNode] (#498 step
+## 3): the land-time read must come from whichever world the hit is landing in,
+## and [method NodeCombat.get_local_value] is the same merge
+## [method SkillNode.get_local_value] delegates to — so the resolve-time read
+## above is unchanged in value, only in spelling.
+static func _read_offense(firing_slice: NodeCombat) -> float:
+	if firing_slice == null:
 		return 0.0
-	return float(firing_node.get_local_value(&"ranged_damage"))
+	return float(firing_slice.get_local_value(&"ranged_damage"))
 
 
 ## Ranged's land-time gate + live-offense read (#503) — the ranged sibling of
@@ -93,17 +99,24 @@ class RangedHitInstance extends DamageInstance:
 	## first act is [method CritRoll.apply], so the crit multiplies the number
 	## this line just read rather than a resolve-time estimate that was about
 	## to be thrown away (#507).
-	func land_on(node: SkillNode) -> void:
-		if not _passes_gate(node):
+	func land_on(node: NodeCombat, world: CombatWorld) -> void:
+		# The firing node's slice in THIS world — the gate's allocation check and
+		# the live offense read must both come from the world the hit is landing
+		# in, or a shadow would read the real board and report the wrong number
+		# for a volley that has already cost the firer nodes.
+		var origin_slice: NodeCombat = null
+		if origin != null and is_instance_valid(origin):
+			origin_slice = world.combat_for(origin)
+		if not _passes_gate(node, origin_slice):
 			gated = true
 			return
-		amount = RangedDamageFormula._read_offense(origin)
-		super.land_on(node)
+		amount = RangedDamageFormula._read_offense(origin_slice)
+		super.land_on(node, world)
 
 
-	func _passes_gate(node: SkillNode) -> bool:
-		if origin == null or not is_instance_valid(origin) or not origin.is_allocated():
+	func _passes_gate(node: NodeCombat, origin_slice: NodeCombat) -> bool:
+		if origin_slice == null or not origin_slice.is_allocated():
 			return false
-		if node == null or not is_instance_valid(node) or not node.is_allocated():
+		if node == null or not node.is_allocated():
 			return false
 		return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE

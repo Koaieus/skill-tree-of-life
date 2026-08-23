@@ -584,14 +584,12 @@ enum Ownership { NEUTRAL = 1, MINE = 2, ALLY = 4, HOSTILE = 8 }
 ##
 ## A null [param viewer] can't be MINE or an ALLY (there's no one to be allied
 ## with), so an owned node reads HOSTILE to it.
+##
+## State half moved to [method NodeCombat.ownership_bit] (#498 step 3), so a
+## landing gate asks the question the same way against a shadow world as against
+## the real one.
 func ownership_bit(viewer: Entity) -> int:
-	if owned_by == null:
-		return Ownership.NEUTRAL
-	if owned_by == viewer:
-		return Ownership.MINE
-	if viewer != null and viewer.attitude_to(owned_by) == Entity.Attitude.ALLIED:
-		return Ownership.ALLY
-	return Ownership.HOSTILE
+	return _combat.ownership_bit(viewer)
 
 
 func get_owner_color() -> Color:
