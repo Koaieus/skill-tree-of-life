@@ -136,23 +136,44 @@ So the remaining order is short:
   procgen-only, and #458's entity ids are minted by `Graph` the way `stable_id`
   already is.
 
-**The LAN date's risk is not the sync stack.** It is #498 step 3 (below), plus
-#461 and #457 sitting in `Ready` with their forks still open.
+**The LAN date's risk is no longer #498 step 3.** It shipped 2026-08-23
+(#535 + #536). What is left is #461 and #457 sitting in `Ready` with their forks
+still open.
 
-**The attack-timeline contract is IN the milestone** (owner call 2026-08-20,
-superseding the same-day call that parked it): `docs/domain/attack-timeline.md`,
-hub **#500**. The three mode moves — #501 magic / #502 melee / #503 ranged — all
-landed 2026-08-21, and **#507** (crits) closed the same day — melee and ranged
-now roll through one shared `CritRoll`. What is left under the hub is **#498**
-(AI-preview accuracy; steps 1–2 shipped, **step 3 is the outstanding work** and
-per its own owner call is plausibly the largest remaining unit in the milestone).
-#498's spun-off **#506** (a cloned `StatBoard` must react) is `In review`.
+**The attack-timeline contract is DONE** — `docs/domain/attack-timeline.md`,
+hub **#500**. Every child closed: the three mode moves (#501 / #502 / #503) and
+#507 crits landed 2026-08-21; #506, #514, #518, #520 followed; and the substrate
+finished 2026-08-23 as **#535** (`CombatWorld`) + **#536** (`resolve_against`
+for all three modes, plus the `BattleSystem` collapse — the host now replays its
+own record like any peer). #501's un-shipped wave-loop half went with #536 and is
+pinned by `test/unit/spell/test_wave_gating.gd`.
 
-**#501 shipped only half of itself.** Its wave-loop move — magic's gate lives in
-candidate selection inside `SpellResolver.resolve()`, so live selection needs
-`resolve()` to mutate something throwaway — is recorded as inherited scope on
-**#498 step 3**, along with retiring `BattleSystem`'s second apply for magic.
-Only the `arrival_time` stamping landed.
+**One acceptance item was reversed rather than met** (owner call 2026-08-23,
+`e48852f`): offense is **snapshotted at commit time** in all three modes, not
+read at land time — an arrow carries the damage it was loosed with, a blade is
+forged then swung, a spell in flight carries its own. #503 had shipped the
+land-time re-read for ranged; it is deleted. Nothing is lost because the *gate*
+stays live and vetoes arrows whose target is already dead. See #500's comment and
+the doc section of that name.
+
+Two follow-ons were deliberately re-homed to `Backlog` / **AI v2**, and neither
+gates the date: **#537** two-tier AI candidate gating and **#538**
+`LootSystem.preview_kill_xp`. #537 is worth knowing about — shadow-always made a
+magic AI candidate ~150× more expensive (0.076 ms → 11.58 ms at 200 owned), and
+ranged/magic still enumerate candidates exhaustively.
+
+**Symmetric confirmation (#534) is one verb short of done.** #539 (outcome
+playground), #540 (validate → confirm → apply, fingerprint compares pre-state)
+and #541 (the input gate's third phase) landed 2026-08-22/23 and made the
+**eight non-attack verbs** symmetric. `launch_attack` still confirms after it
+applies, behind `LaunchAttackCommand.confirms_before_apply() -> false` — which
+#534 expected #536 to delete, except #536 landed first and #540 then created it.
+That is **#545** (`Ready`): move `BattleSystem._compute_record()` into
+`CommandApplier._validate`, delete the override. Both of its stated blockers are
+already gone. It does **not** gate the LAN commitment — hot-seat coop is one
+machine — it gates versus. #534 also has two acceptance items nobody has
+measured since the flip: the WORLD column and the `skipped` rate, which want an
+`mp-harness --turns` sweep.
 
 The cross-unit seam that governed those waves still holds for anything new:
 `OutcomeApplier` sorts hits by `arrival_time`, so **each mode's stamps must be
