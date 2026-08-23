@@ -1,9 +1,12 @@
 ---
-description: The two-process multiplayer harness — why two OS processes, what mirrors, what deliberately does not
+description: The two-process multiplayer harness and the no-network Outcome playground — what each proves, and what deliberately does not
 paths:
   - "network/**"
   - "addons/mp_sandbox/**"
+  - "addons/outcome_playground/**"
+  - "attack/outcome/outcome_fixture.gd"
   - "scenes/dev/mp_dev_sandbox.gd"
+  - "scenes/dev/outcome_playground_world.gd"
 ---
 
 The sandbox host's **Multiplayer** tab launches **two OS processes** of
@@ -38,5 +41,16 @@ peer cannot re-derive. So don't widen the diff to "the whole record" — that
 reports 100% divergence for structural reasons. Its `skipped` column is
 `CommandLink` declining to compare (queue non-empty / superseded), **not** a
 pass, and `exempt` is loot's host-only roll working as designed.
+
+**Suspect a replay bug? The Outcome playground tab takes the wire out of it
+(#539)** — it submits a recorded `LaunchAttackCommand` to a local
+`CommandApplier` with no `CommandLink`, so a fixture that replays there clears
+the replay path and leaves messaging as the only suspect. The world is rebuilt
+from `scenes/dev/outcome_playground_world.gd` rather than carried in the fixture
+(ids mint from per-`Graph` child order, so both sides must build it the same
+way). **Never hand-edit a `test/fixtures/outcome/*.tres`** — regenerate:
+`REGEN_OUTCOME_FIXTURE=1 mise run test:one -- res://test/unit/attack/test_outcome_fixture_replay.gd`,
+then read the diff. A moved `world_fingerprint_at_capture` means the builder
+drifted; a moved `expected_fingerprint` alone means the replay path changed.
 
 See docs/domain/multiplayer-harness.md and docs/domain/determinism-probe.md.

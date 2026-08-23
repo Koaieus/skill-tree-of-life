@@ -27,6 +27,7 @@ const _LOOT_SYSTEM_SCRIPT: Script = preload("res://systems/loot_system.gd")
 const _COMMAND_APPLIER_SCRIPT: Script = preload("res://command/command_applier.gd")
 const _INPUT_CONTROLLER_SCRIPT: Script = preload("res://systems/player_input_controller.gd")
 const _MELEE_PREVIEW_SCRIPT: Script = preload("res://attack/melee/melee_preview.gd")
+const _ATTACK_VFX_SCRIPT: Script = preload("res://ui/vfx/attack_vfx.gd")
 const _ALLOC_VFX_SCRIPT: Script = preload("res://ui/vfx/allocation_vfx.gd")
 const _FLOATER_DIRECTOR_SCENE: PackedScene = preload("res://ui/floating_number_layer/floater_director.tscn")
 
@@ -44,6 +45,7 @@ var loot_system: LootSystem
 var command_applier: CommandApplier
 var input_controller: PlayerInputController
 var melee_preview: MeleePreview
+var attack_vfx: AttackVFX
 
 
 ## Compose against [param p_graph]. `opts` keys (all default false):
@@ -54,6 +56,9 @@ var melee_preview: MeleePreview
 ##                  the caller still has to hand it a `player`)
 ##   melee        — mount a MeleePreview under the graph and hand it to the
 ##                  BattleSystem, which is what makes a swing DRAW at all
+##   attack_vfx   — mount an AttackVFX under the graph, which is what makes a
+##                  ranged volley / spell DRAW at all (melee's counterpart is
+##                  `melee`; BattleSystem picks between the two per plan)
 func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	graph = p_graph
 	var want_input: bool = bool(opts.get("input", false))
@@ -62,6 +67,7 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 			or bool(opts.get("loot", false)) or want_input
 	var want_loot: bool = bool(opts.get("loot", false))
 	var want_melee: bool = bool(opts.get("melee", false))
+	var want_attack_vfx: bool = bool(opts.get("attack_vfx", false))
 
 	allocation_system = _ALLOCATION_SYSTEM_SCRIPT.new()
 	allocation_system.name = "AllocationSystem"
@@ -93,6 +99,15 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 		melee_preview.battle_system = battle_system
 		graph.add_child(melee_preview)
 		battle_system.melee_preview = melee_preview
+
+	if want_attack_vfx:
+		# Under the graph, like game_root.tscn — every coordinator it spawns is a
+		# world-space child and has to share coordinates with the SkillNodes it
+		# targets.
+		attack_vfx = _ATTACK_VFX_SCRIPT.new()
+		attack_vfx.name = "AttackVFX"
+		graph.add_child(attack_vfx)
+		battle_system.attack_vfx = attack_vfx
 
 	if want_commands:
 		command_applier = _COMMAND_APPLIER_SCRIPT.new()

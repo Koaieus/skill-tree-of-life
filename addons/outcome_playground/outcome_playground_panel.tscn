@@ -1,0 +1,133 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/outcome_playground/outcome_playground_panel.gd" id="1_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_vp"]
+
+[node name="OutcomePlaygroundPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_panel")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="WorldContainer" type="SubViewportContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="VBox/WorldContainer" instance=ExtResource("2_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(1200, 620)
+render_target_update_mode = 4
+
+[node name="Background" type="ColorRect" parent="VBox/WorldContainer/World"]
+z_index = -100
+z_as_relative = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="WorldHost" type="Node2D" parent="VBox/WorldContainer/World"]
+unique_name_in_owner = true
+
+[node name="Bar" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="CaptureBtn" type="Button" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Fire a real attack as the authority and keep the LaunchAttackCommand it stamped its record onto."
+text = "⏺  Capture"
+
+[node name="ReplayBtn" type="Button" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Re-arm the board, then push the held command through this world's own CommandApplier — no CommandLink, no live attack."
+text = "▶  Replay"
+
+[node name="ResetBtn" type="Button" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Back to the canonical pre-state every fixture was captured against."
+text = "⟲  Reset"
+
+[node name="Sep1" type="VSeparator" parent="VBox/Bar"]
+layout_mode = 2
+
+[node name="SpellLabel" type="Label" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Spell"
+
+[node name="SpellList" type="OptionButton" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Which spell Capture casts, from a_leaf onto d_gate."
+
+[node name="InstantToggle" type="CheckBox" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "BattleSystem.instant_mutation — jump the world to its settled state without the beat clock."
+text = "Instant"
+
+[node name="TempoRow" type="HBoxContainer" parent="VBox/Bar"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TempoTitle" type="Label" parent="VBox/Bar/TempoRow"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Tempo"
+
+[node name="TempoSlider" type="HSlider" parent="VBox/Bar/TempoRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "INERT — the seam the schedule-compiler sibling plugs into later. Wired, displayed, read by nothing."
+min_value = 0.1
+max_value = 4.0
+step = 0.05
+value = 1.0
+
+[node name="TempoLabel" type="Label" parent="VBox/Bar/TempoRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "1.00× (inert)"
+
+[node name="Spacer" type="Control" parent="VBox/Bar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FixtureName" type="LineEdit" parent="VBox/Bar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+tooltip_text = "Filename stem under test/fixtures/outcome/."
+text = "spark_cascade"
+
+[node name="SaveBtn" type="Button" parent="VBox/Bar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Write the held fixture to test/fixtures/outcome/ — editor-only."
+text = "💾  Save fixture"
+
+[node name="StatusLabel" type="RichTextLabel" parent="VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 66)
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
