@@ -92,10 +92,40 @@ func give_big_hp(entity: Entity, value: float = 9999.0) -> void:
 		nh.base_value = value
 
 
+## Allocate [param indices] to [param entity], through [AllocationSystem] —
+## never by writing `owned_by` directly, which is what this used to do.
+##
+## [b]That shortcut stopped being harmless at #536.[/b] A bare `owned_by =`
+## leaves the entity's [EntityNavigator] mirror empty, and
+## [method EntityCombat.snapshot] builds a shadow from exactly that mirror — so
+## a resolve against a shadow saw a defender who owned nothing, every
+## [OwnerFilter] read NEUTRAL, and no spell propagated anywhere. The fixture was
+## always lying about ownership (`.claude/rules/graph.md` names the same trap);
+## it just had nothing to lie to before.
+##
+## The first node in [param indices] becomes the entity's `core_location`, so a
+## cascade has an anchor to island against — [method EntityCombat.cascade_set]
+## needs one, and no fixture wants its core to be the node under attack.
 func assign_owner(graph: Graph, entity: Entity, indices: Array) -> void:
 	var nodes := graph.get_skill_nodes()
+	var alloc := _allocator(graph)
 	for i in indices:
-		nodes[int(i)].owned_by = entity
+		alloc.force_allocate(entity, nodes[int(i)])
+	if entity.core_location == null and not indices.is_empty():
+		entity.core_location = nodes[int(indices[0])]
+
+
+## One [AllocationSystem] per graph, parented to it so the fixture's teardown
+## takes it too.
+func _allocator(graph: Graph) -> AllocationSystem:
+	var existing := graph.get_node_or_null(^"TestAllocationSystem") as AllocationSystem
+	if existing != null:
+		return existing
+	var alloc := AllocationSystem.new()
+	alloc.name = "TestAllocationSystem"
+	alloc.graph = graph
+	graph.add_child(alloc)
+	return alloc
 
 
 ## Build a SpellDef. `prop` is a PropagationConfig (use [method make_config]
