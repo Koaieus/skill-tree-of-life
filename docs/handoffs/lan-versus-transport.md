@@ -11,9 +11,13 @@ attacks re-derived, re-run at `4174f36` after #545. Both tables are comments on
 
 **What is left of this file is the model choice alone**, and it is an unmade
 owner decision, not a missing measurement. Note that
-`docs/domain/multiplayer-sync-model.md` still presents lockstep as *rejected*,
-and every ground it rejected on has since been retired (#530, #512, and the
-host-only loot exemption in `.claude/rules/multiplayer-sync.md`) — see
+`docs/domain/multiplayer-sync-model.md` still presents lockstep as *rejected*
+and records none of what has happened since: its reproducibility grounds are
+fixed in code (#530, #512, and the host-only loot exemption now in
+`.claude/rules/multiplayer-sync.md`), its fog ground was withdrawn by the owner
+in this very file, and its "no authority at all" ground was aimed at pure P2P
+lockstep rather than at the refereed lockstep-plus-snapshot the owner pulled
+toward. That is not the same as "lockstep wins" — see
 `docs/handoffs/domain-doc-alignment-2026-08-23.md`, item 1.
 
 The **acceptance spec lives on #463** (comment of 2026-08-22) and is the

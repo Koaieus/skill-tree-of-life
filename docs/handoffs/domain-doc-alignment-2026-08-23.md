@@ -42,14 +42,28 @@ hidden-information destination.
 - **#529's probe reported clean, twice.** 773 commands, **zero divergences**,
   `skipped: 0` on every verb, 31/31 attacks re-derived, 86/86 landings
   byte-identical. Re-run at `4174f36` after #545. Numbers are on #463.
-- **Every stated ground for the rejection has since been retired.** #530 shipped
-  the stable hitscan sort; #512 shipped the AI emitting commands (deleting the
-  frame-shaped `turn_delay` argument); the loot shuffle is now *explicitly
-  exempt* as a host-only roll in the breadcrule itself.
-- **The "no authority" argument is answered by a unit that shipped.** #527's
-  graph snapshot is the correction channel classic lockstep lacks — that is the
-  whole content of `docs/handoffs/lan-versus-transport.md`'s pivot section, and
-  the owner pulled toward **lockstep + snapshot recovery** on 2026-08-22.
+- **The reproducibility grounds are retired.** #530 shipped the stable hitscan
+  sort; #512 shipped the AI emitting commands (deleting the frame-shaped
+  `turn_delay` argument); the loot shuffle is now *explicitly exempt* as a
+  host-only roll in the breadcrule itself.
+- **The "no authority" ground was aimed at a different proposal.** It assumes
+  **pure P2P** lockstep — no referee at all. What the owner pulled toward on
+  2026-08-22 is **lockstep + snapshot recovery with the host still refereeing**,
+  so an authority survives; #527's graph snapshot is the desync-correction
+  channel classic lockstep lacks, which is a separate thing from authority and
+  does not by itself create one.
+- **The fog ground was withdrawn by the owner, on the record.**
+  `docs/handoffs/lan-versus-transport.md` ("Rotating authority forecloses fog.
+  **Withdrawn.**") records that the owner's fog vision withholds *derived* state
+  — tier 3 — which is compatible with full replication of tiers 1–2. So the
+  hidden-information destination is not the blocker the doc's rejection treats it
+  as. Rotating authority was dropped for a different reason: ~1 ms on LAN against
+  a handover-quiesce protocol.
+
+**Careful with the shape of this claim.** It is *not* "every ground is retired,
+therefore lockstep." It is: the doc's rejection rests on grounds that have either
+been fixed in code, been withdrawn by the owner, or been aimed at a proposal
+nobody is now making — and the doc records none of that.
 
 **Heading: HEADING UNCLEAR — owner decision, and it is the last one on the LAN
 critical path.** #529's spec is explicit that *"the decision is yours"*, and
@@ -249,7 +263,8 @@ several. **Not a decision — an inventory.**
 | Gap | State |
 |---|---|
 | **Upward channel (client→host intent)** | **Does not exist.** `CommandLink` sends only on `Mode.BROADCAST` (`command_link.gd:189`). Unfiled on purpose — blocked on item 1's decision |
-| **Join handshake never fires in production** | `send_graph_snapshot` / `send_run_setup` (#527/#528) have **zero non-test callers**. `GameRoot._greet_if_linked` sends `hello` only |
+| **Join handshake never fires in production** | `send_graph_snapshot` / `send_run_setup` (#527/#528) have **zero non-test callers**. `GameRoot._greet_if_linked` sends `hello` only. Survivable, per the row below |
+| **Procgen is genuinely seed-reproducible** | Checked, not assumed: every roll under `procgen/` goes through an `rng` instance — no bare `randi()`/`randf()`/`shuffle()` in the pipeline (the one global `randi()` is `playground_panel.gd:298` seeding its own dev RNG). So `HostJoinScreen`'s "both type the same seed" hint **works**, and #527's snapshot is robustness, not a hard prerequisite |
 | **Level ignores the session roster** | `procgen_play_sandbox.gd:99-125`, per item 6 |
 | **Menu forces `COOP_HOTSEAT` for networked runs** | `meta_root.gd:59/63`. `RunConfig.Mode.VERSUS` exists and is never constructed |
 | **No authority gate on human input** | `CommandApplier.is_authority` is read by `ai_controller.gd:92` and `skill_dust_addon.gd:246` — **not** by `PlayerInputController.can_player_act()`. Latent divergence on the menu path; the harness dodges it by having no human |
