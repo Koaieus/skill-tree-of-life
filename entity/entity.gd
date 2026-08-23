@@ -144,6 +144,21 @@ const GROUP := &"entities"
 ## `ap_transfer_rate` ScalarStat — see `_transfer_unused_ap_to_surplus`.
 const DEFAULT_AP_TRANSFER_RATE := 2.0
 
+## The [Graph] this entity belongs to, for a scene that cannot put it UNDER one.
+## Null (the default, and every level scene) falls back to the ancestor walk in
+## [method _find_graph].
+##
+## An `@export` rather than an `initialize()` argument, deliberately: a NodePath
+## export resolves before `_ready`, and `_ready` is what calls
+## [method initialize] — a caller passing the graph in afterwards would find
+## bring-up already latched and its argument silently ignored
+## (`.claude/rules/scene-composition.md`). The spell playground is the case that
+## needs it: it parks its entities BESIDE the Graph inside a SubViewport, so no
+## ancestor walk can ever reach it, and a navigator-less entity snapshots an
+## empty owned set — which since #536 means its nodes fall through to ownerless
+## orphan slices and a spell's landings are silently dropped.
+@export var graph_override: Graph
+
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
@@ -519,7 +534,11 @@ func _find_turn_manager() -> TurnManager:
 	return get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
 
 
+## The entity's Graph: [member graph_override] when a scene wired one, otherwise
+## the nearest Graph ancestor.
 func _find_graph() -> Graph:
+	if graph_override != null:
+		return graph_override
 	var n: Node = get_parent()
 	while n != null:
 		if n is Graph:

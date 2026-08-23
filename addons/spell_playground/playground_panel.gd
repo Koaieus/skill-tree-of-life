@@ -51,6 +51,15 @@ var _listed_spells: Array[SpellDef] = []
 
 
 func _ready() -> void:
+	# Bring-up, before anything reads a board or resolves a spell. `Entity._ready`
+	# short-circuits under `@tool`, so in the bottom panel this is the only call
+	# that ever runs; headless (GUT) the entity already self-initialized and this
+	# is the documented no-op. Both entities carry a `graph_override` in the
+	# scene — they sit BESIDE the Graph inside the SubViewport, and without a
+	# navigator their shadow snapshots own nothing, which since #536 drops every
+	# landing onto an ownerless orphan slice and silently un-gates the wave walk.
+	caster_entity.initialize()
+	defender_entity.initialize()
 	cast_button.pressed.connect(_cast)
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)

@@ -253,7 +253,13 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 		shadow._board = host.stat_board.clone_live()
 	shadow._mirror = GraphMirror.new()
 	shadow._mirror.graph = host.navigator.graph if host.navigator != null else null
-	var real_nodes: Array[SkillNode] = host.navigator.get_mirrored_nodes() if host.navigator != null else []
+	# Two statements, not `… if host.navigator != null else []` — a ternary's
+	# static type is the common supertype, so the empty branch is an UNTYPED
+	# `Array` and assigning it to `Array[SkillNode]` is a hard runtime error on
+	# exactly the null-navigator path this line exists to tolerate.
+	var real_nodes: Array[SkillNode] = []
+	if host.navigator != null:
+		real_nodes = host.navigator.get_mirrored_nodes()
 	for real_node in real_nodes:
 		var node_shadow: NodeCombat = real_node.get_combat().snapshot(shadow)
 		shadow._owned.append(node_shadow)

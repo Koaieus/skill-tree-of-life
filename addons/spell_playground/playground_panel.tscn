@@ -916,16 +916,18 @@ offset_bottom = 960.0
 mouse_filter = 2
 color = Color(0.07, 0.07, 0.1, 1)
 
-[node name="CasterEntity" parent="HBox/WorldContainer/World" unique_id=565079321 instance=ExtResource("3_ent")]
+[node name="CasterEntity" parent="HBox/WorldContainer/World" unique_id=565079321 node_paths=PackedStringArray("graph_override") instance=ExtResource("3_ent")]
 unique_name_in_owner = true
+graph_override = NodePath("../Graph")
 display_name = "Caster"
 color = Color(0.4, 0.8, 0.55, 1)
 stat_board = SubResource("Resource_dsd85")
 core_class = SubResource("Resource_kt55k")
 spellbook = SubResource("Resource_f1bso")
 
-[node name="DefenderEntity" parent="HBox/WorldContainer/World" unique_id=345963501 instance=ExtResource("3_ent")]
+[node name="DefenderEntity" parent="HBox/WorldContainer/World" unique_id=345963501 node_paths=PackedStringArray("graph_override") instance=ExtResource("3_ent")]
 unique_name_in_owner = true
+graph_override = NodePath("../Graph")
 display_name = "Defender"
 color = Color(0.85, 0.4, 0.3, 1)
 stat_board = SubResource("Resource_imfmt")
