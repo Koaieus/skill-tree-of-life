@@ -47,6 +47,19 @@ func _live_game_root() -> GameRoot:
 	return root
 
 
+## Dispose of a scene that was instantiated but never added to the tree.
+##
+## [b]`queue_free()`, never `free()`.[/b] A bare `free()` on a level-sized
+## un-parented instance takes the rest of the GUT run down with it — later
+## scripts fail to LOAD ("does not extend GutTest") and `hud_root.tscn`
+## instantiates as null, none of it attributed to the test that did it. Measured
+## on this file: `free()` red, leaking it green, `queue_free()` green at 29
+## orphans against master's 30. Deferring to the tree's own delete flush is what
+## makes it safe; the immediate free happens while the loader is mid-flight.
+func _discard(root: Node) -> void:
+	root.queue_free()
+
+
 ## Direct children carrying a [NetworkTransport] / [CommandLink] script, by
 ## name — an added-instead-of-swapped pair shows up here as `Transport2`.
 func _network_children(root: Node) -> Dictionary:
@@ -97,6 +110,7 @@ func test_the_mounted_link_is_wired_but_idle() -> void:
 func test_the_harness_swaps_the_transport_instead_of_adding_one() -> void:
 	# `instantiate()` without adding to the tree: this builds the node tree and
 	# resolves exported NodePaths without running a 71-node sandbox's `_ready`.
+	# See `_discard` for the one rule that comes with doing that.
 	var root: Node = preload(MP_SANDBOX).instantiate()
 	var found := _network_children(root)
 	assert_eq(found["transport"], [TRANSPORT_PATH],
@@ -104,7 +118,7 @@ func test_the_harness_swaps_the_transport_instead_of_adding_one() -> void:
 	assert_eq(found["link"], [LINK_PATH], "exactly one link, at the inherited name")
 	assert_true(root.get_node(TRANSPORT_PATH) is EnetTransport,
 			"and the harness's is the ENet one, got %s" % root.get_node(TRANSPORT_PATH))
-	root.free()
+	_discard(root)
 
 
 # --- the role the menu leaves behind ----------------------------------------
@@ -142,7 +156,7 @@ func test_the_level_the_menu_routes_to_can_actually_reach_a_peer() -> void:
 	assert_eq(found["transport"], [TRANSPORT_PATH], "still exactly one transport")
 	assert_true(root.get_node(TRANSPORT_PATH) is EnetTransport,
 			"and it is the ENet one, got %s" % root.get_node(TRANSPORT_PATH))
-	root.free()
+	_discard(root)
 
 
 func test_the_harness_link_still_reaches_its_probe() -> void:
@@ -153,4 +167,4 @@ func test_the_harness_link_still_reaches_its_probe() -> void:
 	var link: CommandLink = root.get_node(LINK_PATH)
 	assert_not_null(link.probe, "probe NodePath survives the inherited-node override")
 	assert_eq(link.transport, root.get_node(TRANSPORT_PATH), "and it points at the swapped transport")
-	root.free()
+	_discard(root)
