@@ -30,12 +30,17 @@ matches, failing as a silent no-op. Record the Callable when you connect:
 
 ## `@tool` (on `SkillNode`, `Entity`, `Graph`, most of `procgen/` + `ui/`)
 
-- **Never touch a signal/method on a non-`@tool` node.** In a non-playing editor
-  load that node is a **placeholder instance** exposing only its `@export`s, so
-  `other.sig.connect(...)` throws *"Invalid access to property or key"* naming the
-  **node** (`Node (Foo)`), pointing at the wrong file — and `mise run test` stays
-  green, only `check` goes red. Guard in the **method**, not just `_ready()`:
-  `@export` setters fire during deserialization, first.
+- **What the ENGINE loads from a `.tscn`/`.tres` becomes a placeholder instance**
+  when its script isn't `@tool` — only `@export`s readable, every method/signal
+  touch throws: *"Invalid access to property or key"* naming the **node**
+  (`Node (Foo)`, the wrong file), or *"placeholder instance"* naming the resource.
+  `Foo.new()` from a `@tool` caller is exempt — real instance, `_ready` and
+  methods run (how `sandbox_world` mounts non-`@tool` systems in a live tab). So
+  **everything reachable from a `.tres` an editor panel loads must be `@tool`**:
+  exports read back fine, so the panel shows the resource in full and throws on
+  the first question it asks. `check` catches only the node case; GUT neither.
+  Guard in the **method**, not just `_ready()`: `@export` setters fire during
+  deserialization, first.
 - **Declare an exported bound ABOVE the value that clamps against it** — exports
   restore in declaration order, so a later-declared bound silently clamps every
   scene-authored value against its *default*.
