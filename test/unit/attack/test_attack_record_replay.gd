@@ -357,3 +357,53 @@ func test_a_gated_landing_replays_as_a_dud_rather_than_a_hit() -> void:
 	assert_false(rebuilt.hits[1].gated)
 	assert_eq(rebuilt.hits[1].amount, 3.0,
 			"an ungated landing replays its post-mitigation amount")
+
+
+# ── The compute half agrees with the apply half (#536) ───────────────────────
+
+## Under #536 the authority computes on a SHADOW world and then replays its own
+## record on the live one, so "what the shadow decided" and "what the world
+## became" are two separate runs of the applier on one machine. Everything else
+## in this file compares two MACHINES, and that comparison got weaker when the
+## host started replaying too — both sides now run the same code on the same
+## record, so they cannot disagree. This is the claim that replaced it, and it
+## is the one the compute/replay split actually rests on.
+##
+## It is what would catch the hazards the split exists to make impossible: a
+## computed outcome re-used instead of rebuilt (`CritRoll.apply` multiplying
+## twice), a stale shadow cascade re-applied on the live pass, an `hp_after`
+## recorded against a world the replay never reproduces.
+func test_the_world_the_authority_computed_is_the_world_it_ends_up_in() -> void:
+	var host: Dictionary = await _build()
+	_arm_melee(host)
+	var bs: BattleSystem = host.bs
+	var command := bs.build_launch_command()
+	assert_not_null(command, "the fixture plan must be launchable")
+	await bs.apply_launch_command(command)
+
+	var record := AttackRecord.rebuild(command.record, host.graph)
+	assert_gt(record.hits.size(), 0, "the fixture swing must produce landings")
+	# The record's LAST word on each node — a node hit twice is only obliged to
+	# end where its final landing left it.
+	var ended_at: Dictionary = {}   # SkillNode -> hp_after
+	var freed: Dictionary = {}      # SkillNode -> true
+	var landed := 0
+	for hit in record.hits:
+		if hit.target == null or hit.gated:
+			continue
+		landed += 1
+		ended_at[hit.target] = hit.hp_after
+		for entry in hit.deallocations:
+			if entry.node != null:
+				freed[entry.node] = true
+	assert_gt(landed, 0, "at least one landing must have been admitted")
+
+	for node in ended_at:
+		if freed.has(node):
+			continue  # stripped by a cascade; its HP is no longer the claim
+		assert_almost_eq((node as SkillNode).get_current_hp(), float(ended_at[node]), 0.0001,
+				"'%s' must end where the shadow said it would" % (node as SkillNode).name)
+	for node in freed:
+		assert_null((node as SkillNode).owned_by,
+				"'%s' was cascaded on the shadow, so it must be unowned for real"
+				% (node as SkillNode).name)

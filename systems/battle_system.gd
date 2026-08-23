@@ -312,6 +312,9 @@ func build_launch_command() -> LaunchAttackCommand:
 ## every machine -> REPLAY:  rebuild that record, land it on the BeatClock
 ## [/codeblock]
 ##
+## The confirm still fires from [method _commit], at the mutation-settle point,
+## even though the payload is finished an await earlier — see the note there.
+##
 ## Per #498: [i]"the host becomes a peer of itself; it is the only one that
 ## computes, not the only one that replays."[/i] The payload still decides which
 ## half runs, never a peer role (see [LaunchAttackCommand]) — an empty record
@@ -331,7 +334,10 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	if command == null or is_launching:
 		return false
 	var plan: AttackPlan
-	if command.record.is_empty():
+	# "Did THIS machine compute the record", which is the only thing that
+	# decides who confirms — never a peer role (see [LaunchAttackCommand]).
+	var computed := command.record.is_empty()
+	if computed:
 		plan = attack_plan
 		if plan == null:
 			# An initiate for a plan this peer does not hold. Rebuilding one
@@ -349,13 +355,6 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 			return false
 		if not _compute_record(plan, command):
 			return false
-		# Confirmed the instant the payload is complete, which is now BEFORE
-		# the world moves rather than after — the record is a finished artifact
-		# the moment the shadow pass ends, so a peer no longer sits out the
-		# host's animation before starting its own. Nothing downstream of here
-		# can change what crosses.
-		if command_applier != null:
-			command_applier.confirm(command)
 	else:
 		plan = AttackPlanCodec.from_dict(command.plan, graph)
 		if plan == null:
@@ -369,10 +368,11 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 		# headless peer pays nothing for an animation it won't play.
 		if plan is MeleeAttackPlan and melee_preview != null:
 			plan.resolve()
-	# Everyone, authority included, from here down.
+	# Everyone, authority included, from here down. The command rides along only
+	# so the authority can confirm at its settle point — see [method _commit].
 	var outcome := AttackRecord.rebuild(command.record, graph)
 	@warning_ignore("redundant_await")
-	await _commit(plan, outcome)
+	await _commit(plan, outcome, command if computed else null)
 	return true
 
 
@@ -446,7 +446,8 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## VFX still gates nothing: dropping every frame of the animation leaves the
 ## applied world identical, because the loop waits on its own timer and not on
 ## `attack_vfx.play`.
-func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
+func _commit(plan: AttackPlan, outcome: AttackOutcome,
+		command: LaunchAttackCommand) -> void:
 	is_launching = true
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
@@ -494,12 +495,24 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
-	# Nothing is captured here anymore (#536). The record was complete before
-	# this method was ever entered — it is the record this pass just replayed —
-	# and [method apply_launch_command] confirmed it there, one await earlier
-	# than the old settle point. See that method on why the authority replays
-	# rather than reusing what it computed.
+	# Nothing is CAPTURED here anymore (#536) — the record was complete before
+	# this method was entered; it is the record this pass just replayed. The
+	# confirm did not move with it, and that is deliberate:
 	#
+	# [b]Confirmation means "applied here", not "computed here".[/b]
+	# [CommandLink] stamps `WorldFingerprint.compute(graph)` onto the payload it
+	# broadcasts from [signal CommandApplier.command_confirmed], and the
+	# receiving peer compares that against its own world AFTER applying. Confirm
+	# before the mutation and every attack would broadcast a pre-command
+	# fingerprint and report a divergence that isn't there — with nothing in the
+	# unit suite positioned to notice, since the check lives on the wire.
+	#
+	# Still ahead of the animation tail, which is the reason
+	# [signal CommandApplier.command_confirmed] exists at all: `command_applied`
+	# cannot fire until this coroutine returns, so mirroring off that used to
+	# make a peer sit out the host's whole swing before starting its own.
+	if command != null and command_applier != null:
+		command_applier.confirm(command)
 	# Then wait out the animation too, before releasing anything. `is_launching`
 	# spans the WHOLE action, not just the mutation: it is what blocks a second
 	# launch, and the plan stays live behind it because a melee plan's
