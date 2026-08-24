@@ -102,37 +102,19 @@ func _push_lobby(mode: RunConfig.Mode, network: NetworkConfig) -> void:
 ## a level from the lobby is future work; every run is the first-level sandbox.
 func _on_start_pressed(run_config: RunConfig) -> void:
 	GameSession.start(run_config)
-	_seat_roster(run_config)
+	_stamp_local_peer()
 	SceneDirector.goto(FIRST_LEVEL_SANDBOX)
 
 
-## Move the lobby's authored participants onto the live session (#554).
+## Which peer THIS machine is, before any socket opens.
 ##
-## [method GameSession.start] deliberately opens an EMPTY roster — it takes a
-## [RunConfig], and a roster is runtime state, not authored data. Until this
-## call existed, nothing bridged the two, so every menu-launched run arrived at
-## `procgen_play_sandbox` with an empty roster and fell into that level's
-## FALLBACK shape: one local human and one NPC camp, whatever the lobby said.
-## The bridge lives here rather than inside `start` because this is the only
-## caller that has a lobby behind it — a directly-launched sandbox's
-## [method GameSession.ensure_started] must keep getting an empty roster, which
-## is the signal that tells it to invent its own.
-##
-## Goes through [method ParticipantRoster.add] one at a time so
-## `participant_joined` fires per participant, exactly as it does for one that
-## arrives over the wire.
-static func _seat_roster(run_config: RunConfig) -> void:
-	if GameSession.roster == null:
-		GameSession.roster = ParticipantRoster.new()
-	for participant in run_config.participants:
-		GameSession.roster.add(participant)
-	# Which peer THIS machine is. A host is always id 1 under Godot's
-	# high-level multiplayer, so it is knowable here, before any socket opens —
-	# and it has to be, since the level generates from the roster before a peer
-	# has connected. A CLIENT cannot know its own id until the link is up, so it
-	# stays 0 here and the transport stamps it at level start.
+## A host is always id 1 under Godot's high-level multiplayer, so it is
+## knowable here — and it has to be, because the level generates from the
+## roster and derives its [SeatPolicy] before a peer has connected. A CLIENT
+## cannot know its own id until the link is up, so it stays 0 here and
+## [GameRoot] stamps it from the transport when the link comes up.
+static func _stamp_local_peer() -> void:
 	var net: NetworkConfig = GameSession.network
-	if net != null and net.role == NetworkTransport.Role.HOST:
-		GameSession.local_peer_id = NetworkTransport.HOST_PEER_ID
-	else:
-		GameSession.local_peer_id = 0
+	GameSession.local_peer_id = (NetworkTransport.HOST_PEER_ID
+			if net != null and net.role == NetworkTransport.Role.HOST
+			else 0)

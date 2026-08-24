@@ -155,17 +155,25 @@ func _setup_level() -> void:
 
 	var entities_by_participant_id: Dictionary = {}
 	var enemies: Array[Entity] = []
-	# Player: core only. D-16 pins starting nodes at 1 — no seeding call here.
+	# Humans: core only. D-16 pins starting nodes at 1 — no seeding call here.
+	#
+	# #554: the AI/human split is by KIND, which every peer reads identically off
+	# the same roster, and only `player` — the per-machine half — is decided by
+	# peer id. Keying the spawn shape off "is this mine" instead would seed each
+	# peer's rival with `enemy_territory_size` nodes and its own hero with one,
+	# so two peers would build different worlds from the same roster.
 	for i in spawn_count:
 		var participant: Participant = grouped_participants[i]
 		var ent: Entity
-		if participant.kind == Participant.Kind.LOCAL_HUMAN:
-			ent = spawn_entity("Player", player_color, starting_nodes[i], core_class)
-			player = ent
-		else:
+		if participant.kind == Participant.Kind.AI:
 			var color: Color = enemy_colors[enemies.size() % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
 			ent = spawn_entity("Enemy_%d" % participant.id, color, starting_nodes[i], enemy_core_class)
 			enemies.append(ent)
+		elif _is_this_machines(participant):
+			ent = spawn_entity("Player", player_color, starting_nodes[i], core_class)
+			player = ent
+		else:
+			ent = spawn_entity("Player_%d" % participant.id, player_color, starting_nodes[i], core_class)
 		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
@@ -208,6 +216,21 @@ func _setup_level() -> void:
 		e.level = achieved
 
 	SceneTransition.fade_in()
+
+
+## Is this participant the human THIS MACHINE plays (#554)?
+##
+## By [member Participant.peer_id], never by [enum Participant.Kind]: LOCAL and
+## REMOTE are a RELATION, not a fact about the participant, and the roster a
+## client receives is the HOST's — in which the client's own seat is the
+## REMOTE_HUMAN. Asking "is this a LOCAL_HUMAN" therefore left a client with no
+## [member GameRoot.player] at all, and [method SeatPolicy.from_roster] handed
+## it the spectator seat in its own run. Same shape as
+## `.claude/rules/ownership-vocabulary.md`'s rule for `owned_by`: the identity
+## question and the "is it mine" question are not the same question.
+func _is_this_machines(participant: Participant) -> bool:
+	return (participant.kind != Participant.Kind.AI
+			and participant.peer_id == GameSession.local_peer_id)
 
 
 ## The roster this level invents when there is no session roster to consume —

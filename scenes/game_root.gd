@@ -273,6 +273,10 @@ func _open_link() -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
 		return
+	# #554: both roles want the joining peer's id — the host to stamp its roster,
+	# the client to learn its own. Connected before the socket opens so no
+	# connection can beat the listener.
+	transport.peer_joined.connect(_on_peer_joined)
 	match net.role:
 		NetworkTransport.Role.HOST:
 			# The hello is what produces the in-sync / DIVERGED verdict, and it
@@ -289,6 +293,25 @@ func _open_link() -> void:
 func _greet_if_linked(_status: String) -> void:
 	if transport != null and transport.is_linked() and command_link != null:
 		command_link.send_hello()
+
+
+## #554: a peer arrived, and this is the only place in a run that learns WHICH.
+##
+## Client side, this is the first moment this machine knows its own id — the
+## menu could not stamp it, since the server mints it. Host side, the lobby
+## already seated a REMOTE_HUMAN (procgen needed its camp before anyone could
+## possibly have connected); what was outstanding was only its identity, so the
+## join stamps that seat and ships the settled roster down.
+func _on_peer_joined(peer_id: int) -> void:
+	var net: NetworkConfig = GameSession.network
+	if net == null:
+		return
+	if net.role == NetworkTransport.Role.CLIENT:
+		GameSession.local_peer_id = transport.local_peer_id()
+		return
+	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
+	if command_link != null:
+		command_link.send_run_setup(GameSession.config, GameSession.roster)
 
 
 func _unhandled_input(event: InputEvent) -> void:

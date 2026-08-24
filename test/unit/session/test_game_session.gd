@@ -140,3 +140,35 @@ func test_run_started_signal_carries_the_resolved_config() -> void:
 	var emitted: RunConfig = params[0]
 	assert_eq(emitted, GameSession.config)
 	assert_ne(emitted.seed, 0, "run_started fired before the seed was resolved")
+
+
+# --- #554: start() opens the roster the config authored ------------------
+
+## The bug this pins: `start()` used to open an EMPTY roster while
+## `apply_received` right below it set a real one. Since #553 the level treats
+## an empty roster as "no lobby ran", so every menu-launched run silently fell
+## into `procgen_play_sandbox`'s fallback shape and ignored the lobby.
+func test_start_opens_the_roster_from_the_config() -> void:
+	var cfg := _config(7)
+	var p1 := Participant.new()
+	p1.id = 1
+	p1.kind = Participant.Kind.LOCAL_HUMAN
+	var p2 := Participant.new()
+	p2.id = 2
+	p2.kind = Participant.Kind.REMOTE_HUMAN
+	p2.peer_id = 4711
+	cfg.participants = [p1, p2]
+
+	GameSession.start(cfg)
+
+	var rows := GameSession.roster.all()
+	assert_eq(rows.size(), 2, "the lobby's participants ARE the run's roster")
+	assert_eq(rows[1].peer_id, 4711)
+
+
+## `ensure_started` passes a participant-less config, and its emptiness is the
+## signal that tells a directly-launched sandbox to invent its own roster.
+func test_a_config_with_no_participants_still_opens_an_empty_roster() -> void:
+	GameSession.start(_config(7))
+	assert_true(GameSession.roster.all().is_empty(),
+			"an empty roster is what tells a level there was no lobby")

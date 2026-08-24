@@ -78,11 +78,30 @@ func is_active() -> bool:
 
 ## Begin a run. Resolves the seed sentinel once, here, and nowhere else.
 ## The lobby's START calls this immediately before routing to the level.
+##
+## [b]The roster is opened from [member RunConfig.participants] (#554).[/b] It
+## used to open EMPTY, which made this the odd one out against
+## [method apply_received] directly below — that one sets a real roster, and the
+## asymmetry was a bug with a visible symptom: since #553 the level consumes
+## [member roster] and treats an empty one as "no lobby ran", so every
+## menu-launched run silently fell into `procgen_play_sandbox`'s fallback shape
+## (one human, one NPC camp) no matter what the lobby had authored.
+##
+## A config with no participants still opens an empty roster, and must: that is
+## exactly what [method ensure_started] passes, and its emptiness is the signal
+## that tells a directly-launched sandbox to invent its own.
+##
+## Goes through [method ParticipantRoster.add] per participant rather than
+## writing the array, so `participant_joined` / `roster_changed` fire for a
+## lobby-authored participant exactly as they do for one that arrived over the
+## wire.
 func start(cfg: RunConfig) -> void:
 	assert(cfg != null, "GameSession.start: null RunConfig")
 	config = cfg
 	config.seed = RunConfig.resolve_seed(config.seed)
 	roster = ParticipantRoster.new()
+	for participant in config.participants:
+		roster.add(participant)
 	outcome = null
 	run_started.emit(config)
 
