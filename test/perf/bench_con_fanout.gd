@@ -77,6 +77,21 @@ extends GutTest
 ##    read-side ceiling is ~37% (memo alone, ~1.6x) to ~49% (memo plus a
 ##    cheaper read, ~2x) — NOT the 60x the earlier comment hoped for. Getting
 ##    past 2x means making the fan-out lazy, which means confronting item 5.
+## 8. [b]Item 5 overstated the irreducible part.[/b] `heal_on_max_increase` is
+##    literally `stat.set_current(stat.current + delta)` — one addition. It
+##    measures 3.0us because `set_current` costs 2.3us: 1.18us of that is a
+##    `get_value()` re-deriving the cap through the whole modifier pipeline,
+##    0.68us is `_coerce` + `current_changed` + `value_changed`, the rest glue.
+##    The fill branch IS taken every time (a full-hp node's cap rises and
+##    `current` lands exactly on it) and measures FREE — `on_pool_filled` is a
+##    no-op virtual and `replenished` has no listener in this harness.
+##
+##    So one `_sync_combat_health_base` runs FOUR full pipeline evaluations:
+##    the entity read, `old_max`, `new_max`, and `set_current`'s own clamp
+##    bound — and the fourth recomputes exactly what the third just produced
+##    two stack frames up. Two of the four are pure waste (hoist the entity
+##    read; pass the known cap down into `set_current`), which is ~28% of the
+##    8.4us at zero semantic risk. Only ~1.5us/node is genuinely a mutation.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
@@ -317,6 +332,39 @@ func _decompose(target: int) -> void:
 	gut.p("  (i) p.get_value()                      : %6dus  (%.2fus/node)" % [one_read, per.call(one_read)])
 	gut.p("  (j) compute() w/ hoisted source array  : %6dus  (%.2fus/node)" % [hoisted, per.call(hoisted)])
 	gut.p("  (k) fold inlined, no call, no SET scan : %6dus  (%.2fus/node)" % [inlined, per.call(inlined)])
+
+	# --- Probe 6: why is `heal_on_max_increase` 3us? -------------------------
+	# It is one addition, so it should be free. It is not, because
+	# `set_current` re-reads the cap through the WHOLE modifier pipeline (a
+	# third `get_value()` in the same callback) and then fires up to three
+	# signals plus a virtual. And these nodes sit at FULL hp, so the cap rise
+	# lands `current` exactly on the new cap every time — `was_below_cap` is
+	# true, so the fill branch is taken on every single one.
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			p.set_current(p.current)  # no-op: get_value, then early-return
+	var sc_noop := Time.get_ticks_usec() - t
+
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			p.set_current(p.current - 5.0)  # real change, DOWN: no fill branch
+	var sc_down := Time.get_ticks_usec() - t
+
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			p.set_current(p.current + 5.0)  # back up ONTO the cap: fill branch
+	var sc_up := Time.get_ticks_usec() - t
+
+	gut.p("")
+	gut.p("  --- what set_current() costs (the 'one addition') ---")
+	gut.p("  (l) set_current, no-op (get_value + bail): %6dus  (%.2fus/node)" % [sc_noop, per.call(sc_noop)])
+	gut.p("  (m) set_current down, no fill branch     : %6dus  (%.2fus/node)" % [sc_down, per.call(sc_down)])
+	gut.p("  (n) set_current up ONTO cap, fill branch : %6dus  (%.2fus/node)" % [sc_up, per.call(sc_up)])
+	gut.p("      => 2 signals + coerce (m - l)        : %6dus  (%.2fus/node)" % [sc_down - sc_noop, per.call(sc_down - sc_noop)])
+	gut.p("      => on_pool_filled + replenished (n-m): %6dus  (%.2fus/node)" % [sc_up - sc_down, per.call(sc_up - sc_down)])
 
 
 ## Disconnect every listener on the owner's `node_health` stat — the O(owned)
