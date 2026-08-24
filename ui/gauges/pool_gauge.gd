@@ -206,13 +206,20 @@ func _push_all() -> void:
 ## at the old value and fading it down is a deliberate effect, and tweening the
 ## fill under `_suppress_drain` would silently delete it. "No tween" in #317 is
 ## about the fill, not the ghost.
-func animate_to(target_current: float, target_max: float) -> void:
+## [param time_budget] caps the fill, as in [method play_level_segment]. `0` is
+## natural pace and is what an ordinary gain uses; the settle at the end of a
+## budgeted cascade passes what is left of that cascade's budget, since a replay
+## is not over until the bar has stopped moving.
+func animate_to(target_current: float, target_max: float,
+		time_budget: float = 0.0) -> void:
 	if _level_tween and _level_tween.is_valid():
 		_level_tween.kill()
 	# The duration is read against the TARGET span, so `max_value` moves first.
 	var from_value := current
 	var span_max := target_max
 	var duration := _fill_duration(from_value, target_current, span_max)
+	if time_budget > 0.0:
+		duration = minf(duration, maxf(time_budget, min_fill_time))
 	if not is_inside_tree() or target_current <= current or duration <= 0.0:
 		_suppress_drain = false
 		max_value = target_max

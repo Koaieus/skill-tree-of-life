@@ -211,18 +211,28 @@ func _play_next() -> void:
 		# This segment plus everything still queued behind it split what's left
 		# of the budget. Divided live rather than once up front: a grant landing
 		# mid-replay appends, and the segments after it take the shorter share.
-		var to_play := _seq.pending_count() + 1
-		var allotment := _cascade_budget_left / float(to_play)
+		# +1 for the settle: the replay is not over when the last level lands,
+		# it is over when the bar stops moving, so the settle draws on the same
+		# budget rather than adding its own second on top.
+		var to_play := _seq.pending_count() + 2
+		var allotment := maxf(_cascade_budget_left / float(to_play),
+				PoolGauge.MIN_SEGMENT_TIME)
+		# Debit what the gauge will actually SPEND, floor included — otherwise
+		# "left" overstates the remaining time every time the floor binds.
 		_cascade_budget_left = maxf(0.0, _cascade_budget_left - allotment)
-		_gauge.play_level_segment(segment.fill_to, segment.new_max,
-				maxf(allotment, PoolGauge.MIN_SEGMENT_TIME))
+		_gauge.play_level_segment(segment.fill_to, segment.new_max, allotment)
 		return
 	# The queue is empty, so this cascade is over and the flourish can leave —
 	# the one thing the old center banner could never know, since it did not
 	# hold the queue.
 	_release_flourish()
+	# A settle that FOLLOWS a cascade spends what the cascade left; a settle
+	# after an ordinary gain (the common case — passive per-turn income) passes
+	# 0 and keeps the rate-derived pace that says how much XP it was.
+	var after_cascade := _phase == _Phase.SEGMENT
 	_phase = _Phase.SETTLE
-	_gauge.animate_to(float(_pool.current), float(_pool.value))
+	_gauge.animate_to(float(_pool.current), float(_pool.value),
+			_cascade_budget_left if after_cascade else 0.0)
 
 
 func _on_fill_finished() -> void:

@@ -191,11 +191,21 @@ func test_a_four_level_cascade_fits_the_budget_at_shipped_timings() -> void:
 	assert_gte(beats.size(), 4, "four levels were narrated")
 	var elapsed: float = (beats[3] - started) / 1000.0
 	assert_lt(elapsed, 2.0, "the whole cascade fits the budget a player will watch")
+	# Wait for the bar to come to rest — the settle draws on the same budget,
+	# and "the replay is over" means the bar stopped moving, not the last beat.
+	while _track._phase != 0 and (float(Time.get_ticks_msec()) - started) < 6000.0:
+		await get_tree().process_frame
+	var at_rest: float = (float(Time.get_ticks_msec()) - started) / 1000.0
+	assert_lt(at_rest, 2.3, "including the settle, with a frame or two of slack")
 	# ...and it does NOT decelerate: the last gap must not dwarf the first.
 	var first_gap: float = beats[1] - beats[0]
 	var last_gap: float = beats[3] - beats[2]
 	assert_lt(last_gap, first_gap * 2.0,
 			"the replay stays even instead of dragging out on the final level")
+	# And it really was FOUR levels, not the first four of a longer cascade —
+	# which would be a different, cheaper case quietly passing the assertions
+	# above, and would make the numbers this test reports meaningless.
+	assert_eq(beats.size(), 4, "60 XP is exactly four levels off a fresh board")
 
 
 ## The pacing half: a segment handed a budget fits inside it, while a segment
