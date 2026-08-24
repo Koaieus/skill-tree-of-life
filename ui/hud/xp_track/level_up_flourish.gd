@@ -24,9 +24,12 @@ extends Control
 ## strip it decorates — same rule as [XpDeltaChip], and the same warning:
 ## never re-parent this into a Container.
 
-## The XP track's gold. Matches the gauge's `fill_color`; the emissive lift is
-## authored as a named tier, never a hand-picked float (`.claude/rules/hdr-color.md`).
-const GOLD := Color(0.8909, 0.7204, 0.2596)
+## XP's gold, read from the stat that owns it rather than re-typed here —
+## `StatDef.tint_color` is the single source of truth for a stat's colour
+## (`.claude/rules/ui-palette.md`), and gold is reserved for pure positives,
+## which a level-up is. The emissive lift on top is a named tier, never a
+## hand-picked float (`.claude/rules/hdr-color.md`).
+const _XP_DEF := preload("res://stats_system/defs/xp.tres")
 
 ## Minimum time on screen after the LAST stamp. A single level-up would
 ## otherwise flash and leave inside the wrap; a cascade re-arms this on every
@@ -65,8 +68,8 @@ func _apply_colors() -> void:
 	if _colors_applied:
 		return
 	_colors_applied = true
-	_title.add_theme_color_override(&"font_color", Emissive.at(GOLD, Emissive.ALERT))
-	_detail.add_theme_color_override(&"font_color", Emissive.at(GOLD, Emissive.VALUE))
+	_title.add_theme_color_override(&"font_color", Emissive.at(_XP_DEF.tint_color, Emissive.ALERT))
+	_detail.add_theme_color_override(&"font_color", Emissive.at(_XP_DEF.tint_color, Emissive.VALUE))
 
 
 ## Announce one level. The first call opens the flourish; every later one
