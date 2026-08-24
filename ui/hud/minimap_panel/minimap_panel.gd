@@ -15,12 +15,23 @@ extends MarginContainer
 ##   - [MinimapViewportRectLayer] — the outline. The only thing that moves with
 ##     the camera, and the only thing a pan invalidates.
 ##
-## [b]Extent[/b] is the graph AABB grown by the camera's zoom==1.0 pan margin —
-## i.e. exactly [member GraphCamera]'s effective bounds at zoom 1.0, but FIXED.
-## Following `bounds_changed` instead would be equally correct and is a one-line
-## change ([method _refit]), but it rescales the whole map on every zoom step,
-## so the board breathes underneath an outline that is itself already resizing.
-## One of the two has to hold still, and it should be the board.
+## [b]Extent[/b] is the raw SkillNode AABB plus a few percent of breathing room,
+## held FIXED. Two things it deliberately is NOT:
+##
+##  - [b]Not the camera's effective bounds.[/b] Those follow `bounds_changed`
+##    and rescale on every zoom step, so the board would breathe underneath an
+##    outline that is itself already resizing — one of the two has to hold
+##    still, and it should be the board.
+##  - [b]Not the AABB grown by [method GraphCamera.pan_margin_base].[/b] Tried
+##    first, and wrong by eye: that margin is pan SLACK, sized for how far past
+##    the graph the camera may drift, and at 400 world units a side it nearly
+##    tripled a typical level's extent — the board drew at about a third of the
+##    panel, ringed by dead black. The minimap frames the graph, not the
+##    camera's freedom of movement.
+##
+## The outline can therefore run off the board's edge when the camera is panned
+## into the slack. That is honest — you really are looking past the graph — and
+## `MapArea` clips it.
 ##
 ## v0 deliberately stops short of: sensed-only blips, archetype fill +
 ## ownership ring, per-entity territory boxes, combat pings, and minimap zoom
@@ -33,6 +44,9 @@ extends MarginContainer
 ## Colour of an edge between two unowned nodes. Fainter still than the dots —
 ## at hairline width a full-strength mesh reads as noise, not as topology.
 @export var neutral_edge_color: Color = Color(0.36, 0.41, 0.54, 0.30)
+## Breathing room around the graph AABB, as a fraction of its larger axis, so
+## dots on the outer rim are not clipped in half by the panel edge.
+@export_range(0.0, 0.5, 0.01) var bounds_padding: float = 0.04
 @export var edge_width: float = 1.0
 @export var dot_size: float = 2.0
 
@@ -145,14 +159,20 @@ func _refit() -> void:
 	_mark_geometry_dirty()
 
 
+## The graph's own AABB plus [member bounds_padding]. Prefers the camera's copy
+## only because it is already computed for the level; the two are the same rect
+## (GameRoot pushes `Graph.get_node_bounds()` into it). The padding is
+## PROPORTIONAL and taken off the larger axis, so a wide level and a tall one
+## get the same visual inset rather than the same world-unit one.
 func _resolve_world_bounds() -> Rect2:
+	var raw := Rect2()
 	if _camera != null:
-		var raw := _camera.graph_bounds()
-		if raw.size != Vector2.ZERO:
-			return raw.grow(_camera.pan_margin_base())
-	if _graph != null:
-		return _graph.get_node_bounds()
-	return Rect2()
+		raw = _camera.graph_bounds()
+	if raw.size == Vector2.ZERO and _graph != null:
+		raw = _graph.get_node_bounds()
+	if raw.size == Vector2.ZERO:
+		return raw
+	return raw.grow(maxf(raw.size.x, raw.size.y) * bounds_padding)
 
 
 ## The one place the transform is derived. Pure — takes both inputs, touches no
