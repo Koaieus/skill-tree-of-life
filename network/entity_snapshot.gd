@@ -1,0 +1,278 @@
+class_name EntitySnapshot
+extends RefCounted
+
+## The ENTITY half of the join handshake (#560), sibling to [GraphSnapshot] —
+## one encoder, one subject, composed alongside at the same handshake point
+## with its own [constant CommandLink.KIND_ENTITIES] envelope. Child of #521;
+## the tiering vocabulary and the reasons for it are [GraphSnapshot]'s docblock,
+## and this class obeys the same three tiers.
+##
+## [b]The bug this closes.[/b] [method GraphSnapshot._decode_node] sets
+## `node.owned_by` directly, bypassing [AllocationSystem], and nothing rebuilt
+## the owner's [EntityStatBoard] from that decoded ownership. A client joining
+## mid-run therefore held boards missing every allocated node's grants AND every
+## looted relic. [method NodeCombat.get_local_value] merges a node's board with
+## its OWNER's, and `node_health` is a borrowed stat — the entity carries the
+## baseline — so a missing `+5 CON` moved every health bar that entity owns at
+## once, silently, from the client's first frame.
+##
+## [b]Three tiers.[/b]
+## - Authored ([CoreClass], [Faction], [SpellBook], each granted [Effect])
+##   crosses as an INTERNED REF into a per-snapshot path table, exactly as
+##   archetypes and addons do next door.
+## - Accumulated (per-stat `base_value` and the applied modifier list, every
+##   [member PoolStat.current], [SkillPointStat]'s `wounded`/`staked`,
+##   [member SurplusPoolStat.surplus], the granted [EffectInstance]s with their
+##   source node's `stable_id`, active tags, [member Entity.entity_tier],
+##   [member Entity.core_location] by `stable_id`) crosses BY VALUE.
+## - Derived (board totals, [member Stat.bins], aura contributions, vision)
+##   NEVER crosses. The receiver recomputes.
+##
+## [b]Modifiers cross by value, not interned, and that is not a tier violation.[/b]
+## [method Entity.initialize] does `stat_board = stat_board.duplicate(true)`, and
+## a duplicated sub-resource carries no `resource_path` — so a LIVE board's
+## intrinsics and class modifiers have nothing to intern. The authored/accumulated
+## split collapses to by-value for modifiers on any board that is actually in
+## play, which is the only kind this class ever encodes.
+##
+## [b]It DECORATES; it never spawns and never mints an `entity_id` (#560 D7).[/b]
+## #528 (roster replication) and #553 (the level spawns from the session roster)
+## both shipped, so a joining client's entities exist by the time state arrives.
+## Every row resolves through [method Graph.get_by_entity_id] and a row whose
+## entity is absent is SKIPPED with a warning — mirroring how
+## [method GraphSnapshot._decode_node] decodes an unresolvable `owner_id` as
+## unowned rather than inventing an entity. A snapshot that spawned would be a
+## second entity-minting path racing the roster's.
+##
+## [b]Two passes, and the order is load-bearing (#560 D5).[/b]
+## [method decode] runs BEFORE the graph decodes (it needs no nodes);
+## [method resolve_graph_refs] runs AFTER, because `core_location` and an
+## effect's `source_node` resolve entity->node, the opposite direction from
+## [method GraphSnapshot._decode_node]'s `owner_id`. Both passes are idempotent:
+## effects are granted only if an equal grant is not already present, tags only
+## if not already held, and [method StatBoard.read_dict] reconciles rather than
+## rebuilds. That is what lets pass 2 re-run the board restore to absorb the
+## node-sourced effects it just granted.
+##
+## [b]Effects are granted BEFORE the board is restored, in each pass.[/b]
+## [method EffectContext.grant] puts a modifier on the board and records the
+## HANDLE in the [EffectInstance] ledger, which revokes by object identity. Grant
+## first, then reconcile, and the reconcile recognises the effect's own modifier
+## by wire form and leaves the handle in place — so a later
+## [method Entity.revoke_effects_from] on the client actually removes something.
+## Restoring the board first and granting after would double every effect's
+## contribution instead, which is the very failure mode this issue exists to
+## kill.
+##
+## No `var_to_bytes(obj, full_objects = true)` anywhere: it instantiates
+## arbitrary objects from script paths in the payload (#560 D6). Everything
+## object-shaped goes through [StatModifierCodec] or an interned resource path.
+
+## Entity row indices — same positional-row convention as [GraphSnapshot]'s
+## `_R_*` consts, and for the same reason (string keys roughly double a naive
+## payload).
+const _R_ENTITY_ID := 0
+const _R_BOARD := 1      ## StatBoard.to_dict() — keyed by stat id, not positional
+const _R_CORE_CLASS := 2 ## index into `res`, -1 for none
+const _R_FACTION := 3    ## index into `res`, -1 for none
+const _R_SPELLBOOK := 4  ## index into `res`, -1 for none
+const _R_TIER := 5       ## Entity.entity_tier
+const _R_CORE_LOC := 6   ## core_location's stable_id, 0 for none — pass 2 only
+const _R_EFFECTS := 7    ## Array of [res_idx, source_stable_id] (0 = entity-wide)
+const _R_TAGS := 8       ## Array[String] — active tag names, refcounts not carried
+
+
+## Build the payload for every [Entity] under `graph.entities_container`.
+static func encode(graph: Graph) -> PackedByteArray:
+	var table := GraphSnapshot._InternTable.new()
+	var rows: Array = []
+	for e in entities_of(graph):
+		rows.append(_encode_entity(graph, e, table))
+	return GraphSnapshot._pack({"res": table.paths, "entities": rows})
+
+
+## Pass 1 — everything that needs no [SkillNode]. Run this BEFORE
+## [method GraphSnapshot.decode]; run [method resolve_graph_refs] with the same
+## bytes after.
+static func decode(bytes: PackedByteArray, graph: Graph) -> void:
+	if graph == null or bytes.is_empty():
+		return
+	var payload := GraphSnapshot._unpack(bytes)
+	var res: Array = payload.get("res", [])
+	for row in (payload.get("entities", []) as Array):
+		var e := _resolve(graph, row as Array)
+		if e == null:
+			continue
+		_decode_identity(e, row as Array, res)
+		# Entity-wide grants only (source_stable_id 0) — a node-sourced effect
+		# has nothing to resolve against yet.
+		_grant_effects(e, graph, row as Array, res, false)
+		_restore_board(e, row as Array)
+
+
+## Pass 2 — the entity->node references, after [method GraphSnapshot.decode]
+## has built the nodes: `core_location`, and every effect a node granted. The
+## board is reconciled again afterwards so the modifiers those grants just put
+## on it are recognised rather than churned; see this class's docblock.
+static func resolve_graph_refs(bytes: PackedByteArray, graph: Graph) -> void:
+	if graph == null or bytes.is_empty():
+		return
+	var payload := GraphSnapshot._unpack(bytes)
+	var res: Array = payload.get("res", [])
+	for row in (payload.get("entities", []) as Array):
+		var e := _resolve(graph, row as Array)
+		if e == null:
+			continue
+		var loc_id := int((row as Array)[_R_CORE_LOC])
+		if loc_id != 0:
+			var node := graph.get_by_stable_id(loc_id)
+			if node != null:
+				e.core_location = node
+		_grant_effects(e, graph, row as Array, res, true)
+		_restore_board(e, row as Array)
+		_restore_tags(e, row as Array)
+
+
+## Bytes-per-entity at the CURRENT roster size — the sibling of
+## [method GraphSnapshot.bytes_per_node], so a size guard extrapolates rather
+## than generating a huge roster inside the unit suite. Excludes the once-sent
+## `res` table, for the same reason that one does: interning is exactly what
+## stops it being per-entity.
+static func bytes_per_entity(graph: Graph) -> float:
+	var entities := entities_of(graph)
+	if entities.is_empty():
+		return 0.0
+	var table := GraphSnapshot._InternTable.new()
+	var rows: Array = []
+	for e in entities:
+		rows.append(_encode_entity(graph, e, table))
+	return float(GraphSnapshot._pack({"entities": rows}).size()) / float(entities.size())
+
+
+## Every [Entity] under the graph's `entities_container`, in child order. Public
+## because a caller measuring or logging a snapshot wants the same set the
+## encoder walked, and re-deriving it invites the two to drift.
+static func entities_of(graph: Graph) -> Array[Entity]:
+	var out: Array[Entity] = []
+	if graph == null or graph.entities_container == null:
+		return out
+	for child in graph.entities_container.get_children():
+		if child is Entity:
+			out.append(child)
+	return out
+
+
+static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._InternTable) -> Array:
+	var effects: Array = []
+	for inst in e.get_effects():
+		if inst == null or inst.effect == null or inst.effect.resource_path == "":
+			# Same rule GraphSnapshot applies to a `.new()`-built keystone: real
+			# content is always a shared `.tres`, so a path-less resource is a
+			# test fixture and is dropped rather than crossing broken.
+			continue
+		var src := 0
+		if inst.source_node != null and is_instance_valid(inst.source_node):
+			src = graph.get_stable_id(inst.source_node)
+		effects.append([table.intern(inst.effect.resource_path), src])
+	var tags: Array = []
+	for t in e.get_active_tags():
+		tags.append(String(t))
+	var row: Array
+	row.resize(9)
+	row[_R_ENTITY_ID] = e.entity_id
+	row[_R_BOARD] = e.stat_board.to_dict() if e.stat_board != null else {}
+	row[_R_CORE_CLASS] = _intern_of(table, e.core_class)
+	row[_R_FACTION] = _intern_of(table, e.faction)
+	row[_R_SPELLBOOK] = _intern_of(table, e.spellbook)
+	row[_R_TIER] = e.entity_tier
+	row[_R_CORE_LOC] = graph.get_stable_id(e.core_location) if e.core_location != null else 0
+	row[_R_EFFECTS] = effects
+	row[_R_TAGS] = tags
+	return row
+
+
+static func _intern_of(table: GraphSnapshot._InternTable, r: Resource) -> int:
+	if r == null or r.resource_path == "":
+		return -1
+	return table.intern(r.resource_path)
+
+
+static func _resolve(graph: Graph, row: Array) -> Entity:
+	var id := int(row[_R_ENTITY_ID])
+	var e := graph.get_by_entity_id(id)
+	if e == null:
+		push_warning(
+			"EntitySnapshot: no entity with id %d to decorate — the roster (#528) must land before entity state does"
+			% id
+		)
+	return e
+
+
+## The authored tier. [member Entity.core_class] is assigned but NOT re-applied:
+## `CoreClass.apply()` pushes its identity modifiers onto the board, and those
+## already ride in the board payload by value. Applying here would double them —
+## the same trap the effect ordering avoids one method down.
+static func _decode_identity(e: Entity, row: Array, res: Array) -> void:
+	var cc := _load_interned(res, int(row[_R_CORE_CLASS])) as CoreClass
+	if cc != null:
+		e.core_class = cc
+	var f := _load_interned(res, int(row[_R_FACTION])) as Faction
+	if f != null:
+		e.faction = f
+	var sb := _load_interned(res, int(row[_R_SPELLBOOK])) as SpellBook
+	if sb != null:
+		e.spellbook = sb
+	e.entity_tier = int(row[_R_TIER])
+
+
+static func _load_interned(res: Array, idx: int) -> Resource:
+	if idx < 0 or idx >= res.size():
+		return null
+	return load(String(res[idx]))
+
+
+## Grant the rows this pass owns — [param node_sourced] false picks the
+## entity-wide grants (pass 1), true picks the node-sourced ones (pass 2).
+## Skips a grant the entity already carries, which is what makes both passes
+## re-runnable (and a #561 resync cheap).
+static func _grant_effects(
+	e: Entity, graph: Graph, row: Array, res: Array, node_sourced: bool
+) -> void:
+	for pair in (row[_R_EFFECTS] as Array):
+		var src_id := int((pair as Array)[1])
+		if (src_id != 0) != node_sourced:
+			continue
+		var effect := _load_interned(res, int((pair as Array)[0])) as Effect
+		if effect == null:
+			continue
+		var src: SkillNode = graph.get_by_stable_id(src_id) if src_id != 0 else null
+		if src_id != 0 and src == null:
+			continue
+		if _has_grant(e, effect, src):
+			continue
+		e.grant_effect(effect, src)
+
+
+static func _has_grant(e: Entity, effect: Effect, src: SkillNode) -> bool:
+	for inst in e.get_effects():
+		if inst.effect == effect and inst.source_node == src:
+			return true
+	return false
+
+
+static func _restore_board(e: Entity, row: Array) -> void:
+	if e.stat_board == null:
+		return
+	e.stat_board.read_dict(row[_R_BOARD] as Dictionary)
+
+
+## Additive: a tag the entity already holds is left alone. [member Entity._tags]
+## is refcounted but the count never crosses — [method Entity.get_active_tags]
+## reports names only, and an effect re-granted above has already restored its
+## own row. Restoring a count would double those. Runs in pass 2, AFTER the
+## node-sourced effects, so it only ever fills in what nothing else granted.
+static func _restore_tags(e: Entity, row: Array) -> void:
+	for t in (row[_R_TAGS] as Array):
+		var tag := StringName(t)
+		if not e.has_tag(tag):
+			e.add_tag(tag)

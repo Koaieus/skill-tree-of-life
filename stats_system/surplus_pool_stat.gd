@@ -49,6 +49,21 @@ func accessors() -> Dictionary[StringName, Callable]:
 	return d
 
 
+## Adds the out-of-cap bin to [method PoolStat.to_dict].
+func to_dict() -> Dictionary:
+	var d := super()
+	d["surplus"] = surplus
+	return d
+
+
+## Restored through the plain setter, which floors at 0 and does NOT clamp to
+## the cap — surplus sits outside it by this class's contract, so a decode must
+## not fold it back in.
+func read_dict(d: Dictionary, board: StatBoard = null) -> void:
+	super(d, board)
+	surplus = int(d.get("surplus", 0))
+
+
 ## Overwrite the surplus bin. Overwrites, never accumulates (see class contract):
 ## a turn ending with 0 unused budget writes 0, clearing last turn's surplus.
 func set_surplus(n: int) -> void:

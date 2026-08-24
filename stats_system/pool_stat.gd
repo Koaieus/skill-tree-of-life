@@ -51,6 +51,41 @@ func accessors() -> Dictionary[StringName, Callable]:
 	return d
 
 
+## Adds the ephemeral half — [member current] — to [method Stat.to_dict].
+## The CAP is not written: it is [method get_value], which is derived and
+## recomputed by the receiver from base + modifiers.
+func to_dict() -> Dictionary:
+	var d := super()
+	d["current"] = current
+	return d
+
+
+## [member current] is restored LAST, after `super()` has rebuilt base and the
+## modifier list — so it lands against the payload's cap, not the receiver's
+## stale one.
+##
+## Written RAW rather than through [method set_current], deliberately: the
+## setter's crossings fire the def's [method PoolStatDef.on_pool_filled] (an
+## `xp` pool restored at full would level the entity up on arrival) and
+## [signal depleted] (a `health` pool restored at 0 would kill it). A snapshot
+## transports a state that already happened; it must not re-run its
+## consequences. The notifications a UI needs are emitted by hand just below —
+## same split [method StatBoard.clone_live] makes for the same reason.
+func read_dict(d: Dictionary, board: StatBoard = null) -> void:
+	super(d, board)
+	current = float(d.get("current", 0.0))
+	current_changed.emit(_coerce(current))
+	_emit_value_changed()
+
+
+## Transporting a cap is not a cap CHANGE — mint it, so the def's rise/fall
+## policy does not move the `current` [method read_dict] restores verbatim one
+## line later. The fourth and last mint site, and like the other three it lives
+## inside `stats_system/` (see [method _set_base_minted]).
+func _read_base(v: float) -> void:
+	_set_base_minted(v)
+
+
 ## Apply this pool's start-of-turn replenishment, per its def's per_turn_mode.
 ## Called from StatBoard.apply_per_turn_upkeep() for every pool. `board` is
 ## needed to resolve sibling stats (ADD's companion, CUSTOM's inputs).

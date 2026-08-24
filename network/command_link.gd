@@ -55,6 +55,8 @@ const KEY_SUMMARY := "summary"
 const KEY_SNAPSHOT := "snapshot"
 const KEY_CONFIG := "config"
 const KEY_ROSTER := "roster"
+## #560's join-handshake payload: an encoded [EntitySnapshot].
+const KEY_ENTITIES := "entities"
 ## #546: which code the sender is running. Rides the hello, never a [Command] —
 ## see [method send_hello].
 const KEY_BUILD := "build"
@@ -79,6 +81,10 @@ const KIND_SNAPSHOT := "snapshot"
 ## value. Same additive shape as [constant KIND_SNAPSHOT] — sent only by
 ## [method send_run_setup].
 const KIND_SETUP := "setup"
+## #560's join-handshake payload: an encoded [EntitySnapshot] — the ENTITY half
+## of what [constant KIND_SNAPSHOT] does for the graph. Same additive, opt-in
+## shape: sent only by [method send_entity_snapshot].
+const KIND_ENTITIES := "entities"
 
 enum Mode {
 	OFF,        ## Wired but idle.
@@ -200,6 +206,19 @@ func send_graph_snapshot() -> void:
 	logged.emit("→ graph snapshot (%s)" % WorldFingerprint.describe(graph))
 
 
+## Send every entity's accumulated state to a freshly-connected peer (#560) —
+## host-side, opt-in, the sibling of [method send_graph_snapshot]. The peer
+## DECORATES the entities its roster (#528) already spawned; nothing here
+## spawns or mints an id. Send order does not matter: the receive side runs
+## [method EntitySnapshot.decode] on arrival and defers the entity->node pass
+## until a graph exists (see [method _on_entity_snapshot]).
+func send_entity_snapshot() -> void:
+	if transport == null or mode != Mode.BROADCAST or graph == null:
+		return
+	transport.send({KEY_KIND: KIND_ENTITIES, KEY_ENTITIES: EntitySnapshot.encode(graph)})
+	logged.emit("→ entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
+
+
 ## Send the run's shape to a freshly-connected peer (#528) — host-side,
 ## opt-in, same additive shape as [method send_graph_snapshot]. [param config]
 ## and [param roster] cross BY VALUE ([method RunConfig.to_dict] /
@@ -263,6 +282,8 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_graph_snapshot(payload)
 		KIND_SETUP:
 			_on_run_setup(payload)
+		KIND_ENTITIES:
+			_on_entity_snapshot(payload)
 		_:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 
@@ -277,6 +298,10 @@ func _on_graph_snapshot(payload: Dictionary) -> void:
 	if graph == null or bytes.is_empty():
 		return
 	GraphSnapshot.decode(bytes, graph)
+	# #560 pass 2: an entity snapshot that landed first parked its bytes here
+	# because `core_location` and node-sourced effects need nodes to resolve
+	# against. Now they exist.
+	_drain_pending_entities()
 	logged.emit("← graph snapshot (%s)" % WorldFingerprint.describe(graph))
 
 
@@ -288,6 +313,36 @@ func _on_run_setup(payload: Dictionary) -> void:
 	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
 	GameSession.apply_received(config, roster)
 	logged.emit("← run setup (seed %d, %d participants)" % [config.seed, roster.all().size()])
+
+
+## #560 receive side. [method EntitySnapshot.decode] is pass 1 — identity,
+## entity-wide effects, and the whole stat board, none of which needs a
+## [SkillNode]. Pass 2 (`core_location`, node-sourced effects) needs the graph,
+## so it runs immediately if one has already arrived and is otherwise parked
+## for [method _on_graph_snapshot] to drain. Both passes are idempotent, so
+## neither ordering loses anything.
+func _on_entity_snapshot(payload: Dictionary) -> void:
+	var bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
+	if graph == null or bytes.is_empty():
+		return
+	EntitySnapshot.decode(bytes, graph)
+	_pending_entities = bytes
+	if not graph.get_skill_nodes().is_empty():
+		_drain_pending_entities()
+	logged.emit("← entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
+
+
+func _drain_pending_entities() -> void:
+	if _pending_entities.is_empty() or graph == null:
+		return
+	var bytes := _pending_entities
+	_pending_entities = PackedByteArray()
+	EntitySnapshot.resolve_graph_refs(bytes, graph)
+
+
+## An entity snapshot whose pass 2 is still waiting on a graph. Cleared the
+## moment it is drained, so a later graph snapshot cannot re-run it.
+var _pending_entities: PackedByteArray = PackedByteArray()
 
 
 ## #546's build gate, run before anything in the hello is believed.

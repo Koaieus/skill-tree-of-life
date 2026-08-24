@@ -145,6 +145,102 @@ func collect_formula_edges(out: Dictionary) -> void:
 		m.collect_formula_edges(out)
 
 
+## Wire form for [EntitySnapshot] (#560): this stat's ACCUMULATED state —
+## [member base_value] plus the modifier list, each modifier by value through
+## its own [method StatModifier.to_dict]. Nothing derived crosses: no
+## [method get_value], no [member bins]. The receiver recomputes both from the
+## base and the list, which is the whole tiering contract [GraphSnapshot]'s
+## docblock states and this one obeys.
+##
+## [b]Tell-don't-ask, and that is why this lives here.[/b] [member _modifiers]
+## never leaves the [Stat] (see [method collect_formula_edges] for the failure
+## mode an escaped array buys), so the encoder cannot be a visitor on the
+## outside — the stat encodes itself. Subclasses extend by overriding and
+## calling `super()`, the same shape [CompositeStatModifier] uses.
+func to_dict() -> Dictionary:
+	return {
+		"base": base_value,
+		"mods": StatModifierCodec.to_dicts(_modifiers),
+	}
+
+
+## Restore what [method to_dict] wrote, onto a LIVE stat.
+##
+## [param board] is the board this stat belongs to, and passing it matters: a
+## modifier admitted through [method StatBoard.add_modifier] gets the formula
+## binding, the localization and the dependency-cycle gate that
+## [method add_modifier] alone does not. Omit it only for a bare board-less
+## [Stat] (a handful of unit tests).
+##
+## [b]Reconciles, never wipes-and-replays.[/b] The obvious implementation —
+## drop every modifier, mint the payload's — is wrong for a decorating snapshot
+## (#560 D7): an [EffectInstance]'s grant ledger revokes BY OBJECT IDENTITY
+## ([EffectInstance]'s own docblock), so a wipe leaves every effect on the
+## receiving entity holding a handle to a modifier no longer on the board — the
+## effect then "revokes" nothing and its buff sticks forever. So an existing
+## modifier whose wire form equals an incoming one is KEPT in place; only the
+## genuinely-new is minted and only the genuinely-absent removed. That also
+## makes a repeated resync (#561) free rather than a full board churn.
+##
+## Two identical wire forms from two different sources (two nodes each granting
+## +5 CON) may match each other's slot. They are interchangeable by value, so a
+## later revoke still removes one equal modifier — the ledger's identity
+## survives, its *provenance* may swap. Documented rather than defended against;
+## distinguishing them would need a provenance field [StatModifier] deliberately
+## does not have ([ModifierBinding], dormant).
+func read_dict(d: Dictionary, board: StatBoard = null) -> void:
+	_read_base(float(d.get("base", 0.0)))
+	_reconcile_modifiers(d.get("mods", []) as Array, board)
+
+
+## How a decoded [member base_value] lands. Plain assignment here; [PoolStat]
+## overrides it to MINT, because transporting a cap is not a cap CHANGE — the
+## def's rise/fall policy must not fire against the receiver's stale cap and
+## move a `current` the payload is about to restore verbatim. Same reasoning
+## [method StatBoard.clone_live] already spells out for a clone.
+func _read_base(v: float) -> void:
+	base_value = v
+
+
+func _reconcile_modifiers(dicts: Array, board: StatBoard) -> void:
+	var keep: Dictionary[StatModifier, bool] = {}
+	var incoming: Array[StatModifier] = []
+	for md in dicts:
+		var matched: StatModifier = null
+		# NEWEST-first, and that is load-bearing rather than a taste call. During
+		# [method EntitySnapshot.resolve_graph_refs] a node-sourced effect's grant
+		# lands on a board that already carries the DECODED copy of the same
+		# modifier from pass 1 — two equal wire forms, one payload entry, one of
+		# them about to be dropped. The later of the two is the [EffectInstance]'s
+		# ledgered handle; keeping it is what makes a subsequent
+		# `revoke_effects_from` actually take the modifier off the board.
+		for i in range(_modifiers.size() - 1, -1, -1):
+			var m := _modifiers[i]
+			if keep.has(m):
+				continue
+			if m.to_dict() == md:
+				matched = m
+				break
+		if matched != null:
+			keep[matched] = true
+			continue
+		var fresh := StatModifierCodec.from_dict(md)
+		if fresh != null:
+			incoming.append(fresh)
+	for m in _modifiers.duplicate():
+		if keep.has(m):
+			continue
+		if board != null:
+			board.remove_modifier(m)
+		else:
+			remove_modifier(m)
+	for m in incoming:
+		if board != null:
+			board.add_modifier(m)
+		else:
+			add_modifier(m)
+
+
 ## Take over [param src]'s applied-modifier list and its per-modifier
 ## contribution ledger. The clone half of [method StatBoard.clone_live]'s bin
 ## copy, and **not optional next to it**: the bins are a fold over `_modifiers`,

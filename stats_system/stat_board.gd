@@ -556,6 +556,44 @@ func get_stat_ids() -> Array[StringName]:
 	return ids
 
 
+## Wire form for [EntitySnapshot] (#560): `{stat_id: Stat.to_dict()}` over
+## every stat LIVE on this board ([method get_stat_ids] — typed fields plus
+## whatever was minted). Nothing derived crosses; see [method Stat.to_dict].
+##
+## [b]The board asks each stat, it never reaches into one.[/b] There is no
+## `Stat.get_modifiers()` and there must not be — [method Stat.collect_formula_edges]
+## explains what an escaped modifier array costs. The encoder is therefore a
+## delegation, not a visitor.
+func to_dict() -> Dictionary:
+	var out: Dictionary = {}
+	for id in get_stat_ids():
+		var s := get_stat(id)
+		if s != null:
+			out[String(id)] = s.to_dict()
+	return out
+
+
+## Restore what [method to_dict] wrote, onto this LIVE board.
+##
+## Reconciling rather than rebuilding (see [method Stat.read_dict]) is what
+## makes this safe to run on a board an [Entity] is already using: the entity's
+## signal wiring ([method Entity.initialize] connects `health.depleted`,
+## `xp.replenished`, the SP wound signals) stays attached, because the [Stat]
+## instances are never replaced. A snapshot DECORATES the entity the roster
+## spawned; it does not hand it a new board.
+##
+## Batched: a whole board's worth of modifier churn is one notification wave,
+## not one per modifier.
+func read_dict(d: Dictionary) -> void:
+	begin_batch()
+	for key in d:
+		var s := _ensure_stat(StringName(key))
+		if s == null:
+			continue
+		s.read_dict(d[key] as Dictionary, self)
+	end_batch()
+
+
 ## Deep-clone this board INCLUDING its live state — every modifier already
 ## applied to it, and every dynamically-minted stat.
 ##

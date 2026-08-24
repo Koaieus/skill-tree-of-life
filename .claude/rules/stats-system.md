@@ -620,6 +620,43 @@ logical event, and without it a node granting both `constitution` and
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
 
+## Wire form (`to_dict` / `read_dict`) — #560
+
+`StatBoard.to_dict()` → `{stat_id: Stat.to_dict()}`; `Stat.to_dict()` →
+`{"base": base_value, "mods": [StatModifier.to_dict(), …]}`, extended by
+`super()` down the pool chain (`PoolStat` adds `current`, `SkillPointStat` adds
+`wounded`/`staked`, `SurplusPoolStat` adds `surplus`). Consumed by
+`network/entity_snapshot.gd` for the join handshake. Four things that are
+deliberate and will bite if "tidied":
+
+- **Only ACCUMULATED state crosses.** Never `get_value()`, never a `bins` field,
+  never a pool's cap — the receiver recomputes all of it from base + the
+  modifier list. `used` on `SkillPointStat` is derived and therefore absent too.
+- **The board encodes ITSELF — do NOT add `Stat.get_modifiers()`.** `_modifiers`
+  never leaves the `Stat` (see `collect_formula_edges`'s own note: an escaped
+  array lets a caller append an unbound modifier that sits in the list
+  contributing nothing to `bins` — silently wrong, no error). An encoder that is
+  a visitor from outside would need that hole. `test_entity_snapshot.gd` asserts
+  neither class has such a method.
+- **`read_dict` RECONCILES, it does not wipe and replay.** An existing modifier
+  whose wire form equals an incoming one is kept in place; only genuinely-new is
+  minted, only genuinely-absent removed. That is what keeps an
+  `EffectInstance`'s grant ledger (which revokes by object IDENTITY) valid
+  across a decode — a wipe leaves every effect holding a handle to something no
+  longer on the board, so its buff sticks forever. Matching walks `_modifiers`
+  **newest-first** for the same reason: during `EntitySnapshot`'s second pass a
+  node-sourced effect's fresh grant sits next to pass 1's decoded copy of it,
+  and the later one is the ledgered handle.
+- **`PoolStat._read_base` mints, and `current` is restored RAW.**
+  `_set_base_minted` is the fourth mint site (all four inside `stats_system/`) —
+  transporting a cap is not a cap CHANGE, so the def's rise/fall policy must not
+  move the `current` the payload restores one line later. `current` skips
+  `set_current` for the mirror-image reason: its crossings would fire
+  `on_pool_filled` (a full `xp` pool levels the entity up on arrival) and
+  `depleted` (a `health` pool at 0 kills it). A snapshot transports a state that
+  already happened; it must not re-run its consequences. `current_changed` /
+  `value_changed` are emitted by hand instead, so UI still updates.
+
 ## No metadata-driven stat panel — wire each stat by id
 
 `StatDef` carries only `id`, `display_name`, `description`, `value_type`,

@@ -78,6 +78,22 @@ func accessors() -> Dictionary[StringName, Callable]:
 	return d
 
 
+## Adds the two in-cap bins to [method PoolStat.to_dict]. `used` is DERIVED
+## (`max - current - wounded - staked`) and therefore never crosses — it falls
+## out of the three numbers that do.
+func to_dict() -> Dictionary:
+	var d := super()
+	d["wounded"] = wounded
+	d["staked"] = staked
+	return d
+
+
+func read_dict(d: Dictionary, board: StatBoard = null) -> void:
+	super(d, board)
+	wounded = int(d.get("wounded", 0))
+	staked = int(d.get("staked", 0))
+
+
 ## SP locked into currently-allocated nodes. Derived so the four buckets can't
 ## drift out of sync — if you find this returning a negative number, an
 ## operation violated the invariant (or someone set wounded/staked past max).
