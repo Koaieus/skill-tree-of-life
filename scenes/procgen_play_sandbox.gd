@@ -34,16 +34,21 @@ const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 ## untouched so the same resource can serve multiple sandboxes at different
 ## sizes. 0 = inherit from preset.
 @export var node_count_override: int = 50
+## Starters to scatter on top of the preset's authored [member
+## GraphProcgenConfig.starting_points]. [b]A fallback default[/b] (#553): on the
+## legacy generation path the roster decides the count instead, because a run
+## needs exactly as many starting points as it has contenders. Still the
+## authored value for a preset whose starter count is not roster-driven.
 @export var n_random_starters: int = 1
 @export var viability_radius: float = 400.0
 
-## #461 seam: camp shape used when no [GameSession.roster] exists yet (a
-## directly-launched sandbox, no lobby). Camp 0 is always the local human;
-## every other camp is AI on the shared NPC faction — this sandbox owns only
-## two Factions, so shapes beyond 2 entries collapse every camp past the
-## first into one NPC camp until #461's roster wiring picks real per-camp
-## Factions. Ignored once a roster exists (`GameSession.roster.camps()` +
-## `.all()` decide the shape instead).
+## Camp shape for the [b]fallback[/b] roster only — the one this level builds
+## when it is launched directly (a dev sandbox, a headless test) with no
+## [GameSession.roster] to read. Camp 0 is always the local human; every other
+## camp is AI on the shared NPC faction — this sandbox owns only two Factions,
+## so shapes beyond 2 entries collapse every camp past the first into one NPC
+## camp. A run that came from the menu never reads this: the session's roster
+## decides the shape, and the roster decides how many camps procgen produces.
 @export var camp_sizes: Array[int] = [1, 1]
 
 ## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
@@ -71,31 +76,47 @@ func _setup_level() -> void:
 	cfg.seed = GameSession.config.seed
 	if node_count_override > 0:
 		cfg.node_count = node_count_override
-	cfg.n_random_starters = n_random_starters
 	cfg.viability_radius = viability_radius
 
-	# #551: decide the camp shape BEFORE generation, so a preset with a
-	# `starter_placement` (coop/versus) can place starters relative to it. A
-	# preset with none (first_level) never reads `cfg.camp_sizes` — same call,
-	# same path either way. Roster-driven camp + control-kind assignment
-	# (#475) — the player and every enemy get their faction from an authored
-	# [Participant], not from GameRoot deciding "this entity is named Player".
+	# #553: the roster is decided BEFORE generation and the level only READS it.
+	# Two things follow from that order, and both are the point of this unit:
+	# the roster tells procgen how many contenders to make room for (rather than
+	# procgen deciding how many opponents exist), and #551's `starter_placement`
+	# presets can place starters relative to the camp shape.
+	#
+	# Roster-driven camp + control-kind assignment (#475) — the player and every
+	# enemy get their faction from an authored [Participant], not from GameRoot
+	# deciding "this entity is named Player".
 	var roster: ParticipantRoster = GameSession.roster
-	if roster == null or roster.all().is_empty():
-		roster = ParticipantRoster.new()
-		var next_id := 0
-		for c in camp_sizes.size():
-			var camp_faction := _PLAYER_FACTION if c == 0 else _NPC_FACTION
-			var kind := Participant.Kind.LOCAL_HUMAN if c == 0 else Participant.Kind.AI
-			for _m in maxi(0, camp_sizes[c]):
-				var participant := Participant.new()
-				participant.id = next_id
-				participant.kind = kind
-				participant.camp = camp_faction
-				roster.add(participant)
-				next_id += 1
+	var is_fallback_roster := roster == null or roster.all().is_empty()
+	if is_fallback_roster:
+		# FALLBACK, not the default path: no lobby ever ran, so there is nothing
+		# to consume. A menu-launched run always takes the branch above — and on
+		# a client that roster came from the HOST via
+		# [method GameSession.apply_received], which is exactly why this level
+		# must not write one back over it.
+		roster = _fallback_roster()
+		GameSession.roster = roster
 	var grouped_participants := _camp_grouped_participants(roster)
 	cfg.camp_sizes = _camp_sizes(roster, grouped_participants)
+	# The roster decides how many starting points to produce, on BOTH generation
+	# paths (#551 split them in `GraphProcgen.generate`). With a
+	# `starter_placement` set, `cfg.camp_sizes` above already does it and
+	# `n_random_starters` is bypassed entirely. Without one — `first_level.tres`,
+	# which is what the menu actually launches — the starter list is the preset's
+	# authored `starting_points` plus this many, so it is this knob that has to
+	# stop being a scene @export independent of who is playing.
+	if cfg.starter_placement == null:
+		# Counted the way `GraphProcgen` counts them: it skips null entries when
+		# it seeds the starter list from `starting_points`, so counting the raw
+		# array here would over-subtract and silently under-produce starters.
+		var authored := 0
+		for sp in cfg.starting_points:
+			if sp != null:
+				authored += 1
+		cfg.n_random_starters = maxi(0, grouped_participants.size() - authored)
+	else:
+		cfg.n_random_starters = n_random_starters
 
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.
@@ -148,17 +169,17 @@ func _setup_level() -> void:
 		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
-	# The session owns the live run, so it holds the roster the run is actually
-	# playing with. Still built (or reused, if GameSession already had one)
-	# here rather than read fresh: making the lobby's roster the one a level
-	# spawns from is #461, not this.
-	GameSession.roster = roster
+	# No `GameSession.roster = roster` here any more (#553). The session owns
+	# the live run and therefore owns the roster; a level that wrote its own
+	# back would clobber what the lobby agreed — and on a client, what the HOST
+	# sent. Only the fallback branch in `_setup_level` seeds one, because there
+	# a session genuinely has none.
+	#
 	# The other half of the same roster: `apply_roster` sets what every machine
-	# agrees on (camp, control kind), [SeatPolicy] sets what only this one
-	# does (who I play, whose eyes I draw with). One local human here, so this
-	# resolves to the default couch — it is wired anyway because a lobby-fed
-	# level (#457) differs only in the roster it hands these two calls.
-	seat_policy = SeatPolicy.from_roster(entities_by_participant_id, roster)
+	# agrees on (camp, control kind), [SeatPolicy] sets what only this one does
+	# (who I play, whose eyes I draw with).
+	seat_policy = SeatPolicy.from_roster(
+			entities_by_participant_id, roster, GameSession.local_peer_id)
 
 	if player == null:
 		push_warning("ProcgenPlaySandbox: no LOCAL_HUMAN participant — nothing bound as player")
@@ -187,6 +208,29 @@ func _setup_level() -> void:
 		e.level = achieved
 
 	SceneTransition.fade_in()
+
+
+## The roster this level invents when there is no session roster to consume —
+## a directly-launched sandbox or a headless test, never a menu-launched run.
+## Shape comes from [member camp_sizes]: camp 0 is the local human, every other
+## camp is AI on the shared NPC faction.
+##
+## Kept as its own function so the branch that calls it reads as what it is: a
+## fallback, not the default path.
+func _fallback_roster() -> ParticipantRoster:
+	var roster := ParticipantRoster.new()
+	var next_id := 0
+	for c in camp_sizes.size():
+		var camp_faction := _PLAYER_FACTION if c == 0 else _NPC_FACTION
+		var kind := Participant.Kind.LOCAL_HUMAN if c == 0 else Participant.Kind.AI
+		for _m in maxi(0, camp_sizes[c]):
+			var participant := Participant.new()
+			participant.id = next_id
+			participant.kind = kind
+			participant.camp = camp_faction
+			roster.add(participant)
+			next_id += 1
+	return roster
 
 
 ## Groups roster participants by camp, in `roster.camps()` order — the shape

@@ -110,7 +110,18 @@ why the candidate walk stays in `GameRoot`, in `Entity.GROUP` order, and why
 
 `GameRoot.seat_policy` defaults to `SeatPolicy.couch()`. Live constructors
 today: `scenes/procgen_play_sandbox.gd` (`from_roster`) and
-`scenes/dev/mp_dev_sandbox.gd` (`seat()` on the client). **The menu path does
-not reach here yet** — `scenes/meta/meta_root.gd` still drops its `RunConfig`
-on the floor pending #457, which is where the lobby's roster starts reaching a
-level.
+`scenes/dev/mp_dev_sandbox.gd` (`seat()` on the client).
+
+**The menu path does reach here** — corrected 2026-08-24 (#553); the older note
+claiming otherwise was stale from the moment #457 landed. `scenes/meta/meta_root.gd`
+calls `GameSession.start(run_config)` and routes to a level, and since #553 that
+level *consumes* `GameSession.roster` rather than building its own and
+overwriting the session's with it.
+
+What is still missing is not the path but the **roster**. Every participant a
+lobby builds today is a `LOCAL_HUMAN` sharing one `peer_id`, and `from_roster`
+only returns a seat when some participant's `peer_id` differs from this
+machine's — so it resolves to `couch()` by construction, correctly. #553 added
+`GameSession.local_peer_id` and passes it; **#554** is what puts a
+`REMOTE_HUMAN` with a real `peer_id` in the roster, and `from_roster` needs no
+change when it does.

@@ -32,9 +32,27 @@ signal run_recorded(outcome: RunOutcome)
 ## (non-zero) while a run is live.
 var config: RunConfig = null
 
-## Who is in the run. Levels that build their own roster (the procgen
-## sandboxes, until #461 makes the lobby feed it) hand it back here.
+## Who is in the run — and since #553, the level [b]consumes[/b] this rather
+## than handing one back. It is authored before the level loads (by the lobby,
+## or by [method apply_received] from the host on a client) and it is what
+## decides how many contenders a level spawns and how many starting points
+## procgen is asked for. The one level that still writes here is a directly
+## launched sandbox with no lobby behind it, seeding its own fallback.
 var roster: ParticipantRoster = null
+
+## Which [member Participant.peer_id] in [member roster] is THIS machine (#553).
+## The per-machine half of the roster, and the input [method
+## SeatPolicy.from_roster] needs to tell "my human" from "the other machine's
+## human" — with every participant sharing this value, a seat policy can only
+## ever be a couch.
+##
+## [b]Zero until #554 fills it in[/b], which is deliberate rather than
+## unfinished: a real id is assigned by the transport when the link comes up,
+## and a level's `_setup_level` runs before [GameRoot] has even adopted its
+## network role. So it cannot be read live at level setup — the host stamps the
+## joining peer and the client learns its own at handshake, both of which are
+## #554's mechanism. Single-player and hot-seat correctly stay at 0 forever.
+var local_peer_id: int = 0
 
 ## How the run ended, recorded off [signal Events.run_ended]. Null until then.
 var outcome: RunOutcome = null

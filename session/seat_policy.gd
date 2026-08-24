@@ -77,9 +77,15 @@ static func seat(entity_id: int) -> SeatPolicy:
 ## pinned to this peer's first human. A roster with no human at all
 ## (a self-driven showcase) is a COUCH with nothing to drive.
 ##
-## [b]Dormant by design:[/b] the menu path does not reach here yet —
-## `scenes/meta/meta_root.gd` still drops its [RunConfig] on the floor pending
-## #457. Today's callers are the procgen sandbox and the multiplayer harness.
+## [b]Reached, but not yet discriminating.[/b] The menu path does arrive here:
+## `scenes/meta/meta_root.gd` calls [method GameSession.start] and routes to a
+## level, and since #553 that level spawns from the session's roster instead of
+## inventing one. What is still missing is a roster with more than one machine
+## in it — every participant a lobby builds today is a LOCAL_HUMAN sharing
+## [param local_peer_id], so this correctly returns [method couch] every time.
+## #554 is what puts a REMOTE_HUMAN with a real `peer_id` in the roster; this
+## function needs no change when it does. Today's callers are the procgen
+## sandbox and the multiplayer harness.
 static func from_roster(
 	entities_by_participant_id: Dictionary,
 	roster: ParticipantRoster,
