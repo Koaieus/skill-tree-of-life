@@ -7,10 +7,10 @@ extends GutTest
 ## — can't crash or accidentally crit), and that the PUNCH variant's custom
 ## entry animation still grows its slot. The latter is the trap a subclass
 ## overriding `animate()` falls into: slot growth is what pushes the rest of the
-## toaster's stack upward, so a punch toast that forgets it silently breaks
-## every other toast sharing that toaster.
+## toaster's stack upward, so a crit toast that forgets it silently breaks every
+## other toast sharing that toaster.
 ##
-## What the variants LOOK like is deliberately not asserted — that's an eyeball
+## What a crit LOOKS like is deliberately not asserted — that's an eyeball
 ## question, answered in the toast sandbox's gallery.
 
 const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
@@ -81,17 +81,17 @@ func test_stacked_crit_escalates_over_a_single_one() -> void:
 
 func test_crit_stops_are_capped() -> void:
 	# A long crit chain must not drive the bloom pass into a white blob.
-	var high := FloaterStyles.crit_heat(9)
-	var alert := FloaterStyles.crit_heat(3)
+	var high := FloaterStyles.crit(9)
+	var alert := FloaterStyles.crit(3)
 	assert_eq(high.fill_color, alert.fill_color, "the EV lift saturates at ALERT")
 
 
-# --- The punch variant's entry animation ------------------------------------
+# --- The crit toast's entry animation ----------------------------------------
 
-func test_punch_toast_still_grows_its_slot() -> void:
+func test_crit_toast_still_grows_its_slot() -> void:
 	var t: FloaterToast = PUNCH_SCENE.instantiate()
 	add_child_autofree(t)
-	t.set_content("18!", FloaterStyles.crit_punch())
+	t.set_content("18!", FloaterStyles.crit())
 	var full_height := t.custom_minimum_size.y
 	assert_gt(full_height, 0.0, "set_content sized the slot")
 
@@ -102,10 +102,10 @@ func test_punch_toast_still_grows_its_slot() -> void:
 		"the slot grew back — this is what pushes the stack up")
 
 
-func test_punch_toast_cools_back_to_the_style_colour() -> void:
+func test_crit_toast_cools_back_to_the_style_colour() -> void:
 	var t: FloaterToast = PUNCH_SCENE.instantiate()
 	add_child_autofree(t)
-	var style := FloaterStyles.crit_punch()
+	var style := FloaterStyles.crit()
 	t.set_content("18!", style)
 	t.animate()
 	var ignition: Color = t.label.label_settings.font_color

@@ -3,6 +3,7 @@ description: UI color palette ("Arcane Terminal") — source of truth per stat, 
 paths:
   - "stats_system/defs/*.tres"
   - "ui/hud/**"
+  - "ui/floating_number_layer/**"
 ---
 
 # UI color palette ("Arcane Terminal")
@@ -27,5 +28,15 @@ Canonical colors from `docs/design/design_handoff_game_ui/README.md`, converted 
 | SP staked | `oklch(0.78 0.13 75)` | `Color(0.9084, 0.6684, 0.3042, 1)` | Skill Points gauge component `@export` default |
 | SP allocated | `rgba(150,165,200,.30)` | `Color(0.588, 0.647, 0.784, 0.30)` | Skill Points gauge component `@export` default |
 | Pool surplus (#152) | — (reuses SP-staked gold) | `Color(0.9084, 0.6684, 0.3042, 0.85)` | `SurplusPoolGauge.surplus_color` `@export` default + `pool_gauge.gdshader` uniform default |
+
+## Gold is reserved for pure positives
+
+**Gold means reward, never harm.** It is already spoken for twice — `FloaterStyles.modifier_core`'s mythic build-defining pickup and `xp_gain` — so a gold *damage* register reads as a jackpot at the moment something is being hurt, and dilutes the two registers that earned the colour.
+
+Owner call, 2026-08-24, choosing the emissive-red crit toast over a gold one after seeing all three candidates side by side in the toast sandbox:
+
+> *punch crit is beautiful, keep this one. indeed the gold is better reserved for pure positive*
+
+**How to apply:** a "this is intense / rare / important" visual for something *bad* escalates on its own hue plus a second channel — emissive lift, size, and above all **motion** — never by borrowing gold. `FloaterStyles.crit` is the worked example: damage red lifted over the bloom threshold, with the intensity carried by the entry animation in `CritPunchToast`.
 
 Conversion script (Björn Ottosson's OKLab formulas) used to derive these: `/tmp/.../oklch2srgb.py` in the session that authored this table — re-derive with the same math if more design colors need converting; don't eyeball new ones.
