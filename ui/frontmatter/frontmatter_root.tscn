@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panels.tscn" id="1_panels"]
+
+[node name="FrontmatterRoot" type="Node2D"]
+
+[node name="Camera" type="Camera2D" parent="."]
+unique_name_in_owner = true
+
+[node name="GraphLayer" type="Node2D" parent="."]
+unique_name_in_owner = true
+
+[node name="PanelLayer" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+
+[node name="FrontmatterPanels" parent="PanelLayer" instance=ExtResource("1_panels")]
