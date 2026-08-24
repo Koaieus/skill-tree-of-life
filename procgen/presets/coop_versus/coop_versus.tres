@@ -1,0 +1,300 @@
+[gd_resource type="Resource" script_class="GraphProcgenConfig" format=3]
+
+[ext_resource type="Script" uid="uid://b3fhyx2c2bvat" path="res://procgen/pools/addon_pool_entry.gd" id="1_ihaem"]
+[ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="2_rg3kx"]
+[ext_resource type="PackedScene" uid="uid://b1addon0clamp" path="res://skill_node/addons/clamp_addon.tscn" id="3_xg7iw"]
+[ext_resource type="Script" uid="uid://c4jsrfudhqhuk" path="res://procgen/pools/addon_pool.gd" id="4_x1g7b"]
+[ext_resource type="PackedScene" uid="uid://duyunqwjt7qd" path="res://skill_node/addons/fortification_addon.tscn" id="4_xg7iw"]
+[ext_resource type="Script" uid="uid://bi20g047mnsv6" path="res://procgen/pools/addon_policy.gd" id="5_qrpdt"]
+[ext_resource type="PackedScene" uid="uid://cmkt6tybpv38p" path="res://skill_node/addons/bunker_addon.tscn" id="5_x1g7b"]
+[ext_resource type="PackedScene" uid="uid://b1addon0watch" path="res://skill_node/addons/watchtower_addon.tscn" id="6_watch"]
+[ext_resource type="Script" uid="uid://0rdv1h0ycc3p" path="res://procgen/archetypes/archetype_stamp.gd" id="8_rg3kx"]
+[ext_resource type="Script" uid="uid://b15avnj1k0yg" path="res://procgen/archetypes/archetype_policy.gd" id="ap"]
+[ext_resource type="Resource" uid="uid://lmh5qnv0xocl" path="res://archetypes/constitution.tres" id="arch_con"]
+[ext_resource type="Resource" uid="uid://ws3nejquyeii" path="res://archetypes/dexterity.tres" id="arch_dex"]
+[ext_resource type="Resource" uid="uid://dw4xgicipm3wp" path="res://archetypes/intelligence.tres" id="arch_int"]
+[ext_resource type="Resource" uid="uid://b8tbru5xba2lw" path="res://archetypes/perception.tres" id="arch_per"]
+[ext_resource type="Resource" uid="uid://b6s1d32mxke7q" path="res://archetypes/strength.tres" id="arch_str"]
+[ext_resource type="Resource" uid="uid://yiu2rf0g04du" path="res://archetypes/wisdom.tres" id="arch_wis"]
+[ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="awp"]
+[ext_resource type="Script" uid="uid://h1ade1x6qd2g" path="res://procgen/budget/budget_policy.gd" id="bp"]
+[ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="cfg"]
+[ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/placement/radial_gradient_field.gd" id="grad"]
+[ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/placement/keystone_placement.gd" id="kp"]
+[ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/placement/min_near_starting_points.gd" id="mnsp"]
+[ext_resource type="Resource" uid="uid://dfcrol4htjsui" path="res://procgen/pools/specimen_pool_set.tres" id="pool_set"]
+[ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/budget/random_budget_boost.gd" id="rbb"]
+[ext_resource type="Script" uid="uid://cfprsq1bfanb5" path="res://procgen/pools/spell_grant_pool.gd" id="sgp"]
+[ext_resource type="Script" uid="uid://c4f47cyl5raci" path="res://procgen/pools/spell_grant_pool_entry.gd" id="sgpe"]
+[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
+[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="sp"]
+[ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="spell_bruiser"]
+[ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="spell_healing_beam"]
+[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="spell_leafblower"]
+[ext_resource type="Resource" uid="uid://d4cd1vbl585es" path="res://attack/spell/defs/resonator.tres" id="spell_resonator"]
+[ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="spell_reverberator"]
+[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="spell_trail_blazer"]
+[ext_resource type="Resource" uid="uid://byxjrmwf12wt6" path="res://entity/keystone/instances/xp_anchor_keystone.tres" id="xp_keystone"]
+
+[sub_resource type="Resource" id="Resource_68xts"]
+script = ExtResource("1_ihaem")
+id = &"spikes"
+addon_scene = ExtResource("2_rg3kx")
+cost = 5
+weight = 80.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_2jawg"]
+script = ExtResource("1_ihaem")
+id = &"clamp"
+addon_scene = ExtResource("3_xg7iw")
+cost = 3
+weight = 40.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_qrpdt"]
+script = ExtResource("1_ihaem")
+id = &"fortification"
+addon_scene = ExtResource("4_xg7iw")
+cost = 4
+weight = 60.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_eyb1c"]
+script = ExtResource("1_ihaem")
+id = &"bunker"
+addon_scene = ExtResource("5_x1g7b")
+cost = 4
+weight = 50.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_watch"]
+script = ExtResource("1_ihaem")
+id = &"watchtower"
+addon_scene = ExtResource("6_watch")
+cost = 4
+weight = 15.0
+metadata/_custom_type_script = "uid://b3fhyx2c2bvat"
+
+[sub_resource type="Resource" id="Resource_3kv1o"]
+script = ExtResource("4_x1g7b")
+entries = Array[ExtResource("1_ihaem")]([SubResource("Resource_68xts"), SubResource("Resource_2jawg"), SubResource("Resource_qrpdt"), SubResource("Resource_eyb1c"), SubResource("Resource_watch")])
+metadata/_custom_type_script = "uid://c4jsrfudhqhuk"
+
+[sub_resource type="Resource" id="Resource_c6pvu"]
+script = ExtResource("5_qrpdt")
+pool = SubResource("Resource_3kv1o")
+weight_profiles = Array[Resource]([null])
+metadata/_custom_type_script = "uid://bi20g047mnsv6"
+
+[sub_resource type="Resource" id="ap_red"]
+script = ExtResource("ap")
+id = &"red"
+archetype = ExtResource("arch_str")
+target_ratio = 0.3
+cluster_size_weights = {
+3: 1.0,
+4: 1.0,
+5: 0.6,
+6: 0.2
+}
+
+[sub_resource type="Resource" id="ap_green"]
+script = ExtResource("ap")
+id = &"green"
+archetype = ExtResource("arch_dex")
+target_ratio = 0.3
+cluster_size_weights = {
+3: 1.0,
+4: 1.0,
+5: 0.6,
+6: 0.2
+}
+
+[sub_resource type="Resource" id="ap_blue"]
+script = ExtResource("ap")
+id = &"blue"
+archetype = ExtResource("arch_int")
+target_ratio = 0.3
+cluster_size_weights = {
+3: 1.0,
+4: 1.0,
+5: 0.6,
+6: 0.2
+}
+
+[sub_resource type="Resource" id="ap_white"]
+script = ExtResource("ap")
+id = &"white"
+archetype = ExtResource("arch_con")
+target_ratio = 0.25
+cluster_size_weights = {
+1: 0.5,
+2: 1.0,
+3: 0.5,
+4: 0.3
+}
+
+[sub_resource type="Resource" id="ap_gold"]
+script = ExtResource("ap")
+id = &"gold"
+archetype = ExtResource("arch_wis")
+target_ratio = 0.05
+cluster_size_weights = {
+1: 1.0,
+2: 0.5
+}
+cluster_jitter = 0.05
+forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"per", &"attack", &"magic", &"defense", &"vision"])
+
+[sub_resource type="Resource" id="ap_purple"]
+script = ExtResource("ap")
+id = &"purple"
+archetype = ExtResource("arch_per")
+target_ratio = 0.03
+cluster_size_weights = {
+1: 1.0,
+2: 0.3
+}
+cluster_jitter = 0.05
+forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"wis", &"attack", &"magic", &"defense", &"growth", &"xp_growth"])
+
+[sub_resource type="Resource" id="budget_field"]
+script = ExtResource("grad")
+inner_radius = 0.0
+outer_radius = 0.0
+inner_value = 4.0
+outer_value = 0.5
+
+[sub_resource type="Resource" id="bp_main"]
+script = ExtResource("bp")
+base_min = 2
+base_max = 4
+budget_field = SubResource("budget_field")
+role_bonus = {
+&"anomalous": 1.75
+}
+
+[sub_resource type="Resource" id="kp_xp"]
+script = ExtResource("kp")
+keystone = ExtResource("xp_keystone")
+
+[sub_resource type="Resource" id="mnsp_xp"]
+script = ExtResource("mnsp")
+role_tag = &"xp_growth"
+
+[sub_resource type="Resource" id="rbb_anomalous"]
+script = ExtResource("rbb")
+count = 5
+
+[sub_resource type="Resource" id="shape_circle"]
+script = ExtResource("shape")
+radius = 3000.0
+
+[sub_resource type="Resource" id="sgpe_bruiser"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_bruiser")
+
+[sub_resource type="Resource" id="sgpe_leafblower"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_leafblower")
+
+[sub_resource type="Resource" id="sgpe_resonator"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_resonator")
+
+[sub_resource type="Resource" id="sgpe_trail_blazer"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_trail_blazer")
+
+[sub_resource type="Resource" id="sgpe_reverberator"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_reverberator")
+
+[sub_resource type="Resource" id="sgpe_healing_beam"]
+script = ExtResource("sgpe")
+spell_def = ExtResource("spell_healing_beam")
+
+[sub_resource type="Resource" id="spell_grant_pool_main"]
+script = ExtResource("sgp")
+entries = Array[ExtResource("sgpe")]([SubResource("sgpe_bruiser"), SubResource("sgpe_leafblower"), SubResource("sgpe_resonator"), SubResource("sgpe_trail_blazer"), SubResource("sgpe_reverberator"), SubResource("sgpe_healing_beam")])
+
+[sub_resource type="Resource" id="sp_core"]
+script = ExtResource("sp")
+id = &"core"
+
+[sub_resource type="Resource" id="awp_main"]
+script = ExtResource("awp")
+weights = {
+&"blue": {
+&"con": 0.5,
+&"dex": 0.3,
+&"int": 3.0,
+&"per": 0.3,
+&"str": 0.2,
+&"vision": 0.3,
+&"wis": 0.3,
+&"xp_growth": 0.3
+},
+&"gold": {
+&"con": 0.4,
+&"dex": 0.3,
+&"int": 0.4,
+&"per": 0.4,
+&"str": 0.3,
+&"vision": 0.3,
+&"wis": 3.0,
+&"xp_growth": 5.0
+},
+&"green": {
+&"con": 0.5,
+&"dex": 3.0,
+&"int": 0.2,
+&"per": 0.3,
+&"str": 0.3,
+&"vision": 0.5,
+&"wis": 0.3,
+&"xp_growth": 0.3
+},
+&"purple": {
+&"con": 0.3,
+&"dex": 0.4,
+&"int": 0.3,
+&"per": 3.0,
+&"str": 0.3,
+&"vision": 5.0,
+&"wis": 0.4,
+&"xp_growth": 0.3
+},
+&"red": {
+&"con": 0.5,
+&"dex": 0.3,
+&"int": 0.2,
+&"per": 0.3,
+&"str": 3.0,
+&"vision": 0.3,
+&"wis": 0.3,
+&"xp_growth": 0.3
+}
+}
+
+[resource]
+script = ExtResource("cfg")
+node_count = 800
+node_padding = 86.0
+connectivity = 0.25
+self_loop_tier1_rate = 0.05
+self_loop_tier3_rate = 0.25
+self_loop_tier4_rate = 0.25
+shape_mask = SubResource("shape_circle")
+starting_points = Array[ExtResource("sp")]([SubResource("sp_core")])
+n_random_starters = 0
+viability_radius = 300.0
+modifier_pool_set = ExtResource("pool_set")
+weight_profiles = Array[Resource]([SubResource("awp_main")])
+budget_policy = SubResource("bp_main")
+archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
+addon_policy = SubResource("Resource_c6pvu")
+spell_grant_pool = SubResource("spell_grant_pool_main")
+spell_grant_ratio = 0.234
+guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
