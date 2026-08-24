@@ -29,6 +29,7 @@ func _record() -> Dictionary:
 		AttackRecord.KEY_HIT_ARRIVAL: PackedFloat64Array([0.0, 0.4]),
 		AttackRecord.KEY_HIT_FLAGS: PackedByteArray([AttackRecord.FLAG_CRIT, 0]),
 		AttackRecord.KEY_HIT_CRIT_TIER: PackedInt32Array([1, 0]),
+		AttackRecord.KEY_HIT_POP: PackedInt32Array([0, 0]),
 		AttackRecord.KEY_HIT_HP_BEFORE: PackedFloat64Array([20.0, 8.0]),
 		AttackRecord.KEY_HIT_HP_AFTER: PackedFloat64Array([8.5, 4.75]),
 		AttackRecord.KEY_HIT_HP_MAX: PackedFloat64Array([20.0, 8.0]),
@@ -52,13 +53,14 @@ func test_an_identical_record_diverges_on_nothing() -> void:
 	assert_eq(DeterminismProbe.diverging_fields(_record(), _record()), [] as Array[String])
 
 
-## The whole reason the probe is not "diff the record": [AttackRecord]'s own
-## contract is that a peer CANNOT re-derive these — mitigation is read
-## node-locally at land time, an earlier beat's cascade changes what a later
-## beat lands on, and a fogged target may not be held at all. Counting them
-## would report divergence that the sync model expects and the number would say
-## nothing about determinism.
-func test_land_time_arithmetic_is_not_counted_as_divergence() -> void:
+## The whole reason the probe is not "diff the record": RESOLVE asks what the
+## PLAN and the SEED determine, and land-time arithmetic is not that — it is
+## read off the world as each landing arrives. Mixing the two would answer two
+## questions with one number and neither would be usable.
+##
+## These are not uncounted, they are counted ELSEWHERE — see
+## [method DeterminismProbe.diverging_land_fields] and the test below.
+func test_land_time_arithmetic_is_not_counted_as_a_resolve_divergence() -> void:
 	var theirs := _record()
 	theirs[AttackRecord.KEY_HIT_AMOUNT] = PackedFloat64Array([99.0, 0.0])
 	theirs[AttackRecord.KEY_HIT_KIND] = PackedByteArray([1, 1])
@@ -112,6 +114,78 @@ func test_a_different_timeline_is_reported() -> void:
 	theirs[AttackRecord.KEY_EVENT_HITS] = [PackedInt32Array([0]), PackedInt32Array([0, 1])]
 	assert_eq(DeterminismProbe.diverging_fields(_record(), theirs),
 			[AttackRecord.KEY_EVENT_TARGET, AttackRecord.KEY_EVENT_HITS] as Array[String])
+
+
+## The two columns must PARTITION the record: a field in neither is silently
+## unmeasured, and a field in both would be double-counted. This is the test
+## that catches a new [method AttackRecord.capture] field being added without
+## anyone deciding which half it belongs to — the failure mode that would let a
+## real desync pass clean.
+func test_the_two_columns_partition_every_recorded_field() -> void:
+	var resolve_keys := DeterminismProbe.RESOLVE_KEYS
+	var land_keys := DeterminismProbe.LAND_KEYS
+	for key in resolve_keys:
+		assert_false(land_keys.has(key), "%s is in BOTH columns" % key)
+	for key in _record():
+		if key == AttackRecord.KEY_HIT_FLAGS:
+			# The one field deliberately split BETWEEN the columns: the crit bit
+			# is a seeded roll (RESOLVE), the gated bit is decided at land time.
+			continue
+		assert_true(resolve_keys.has(key) or land_keys.has(key),
+				"%s belongs to neither column — it would never be measured" % key)
+
+
+func test_an_identical_record_has_no_land_divergence() -> void:
+	assert_eq(DeterminismProbe.diverging_land_fields(_record(), _record()),
+			[] as Array[String])
+
+
+## The mirror of [method test_land_time_arithmetic_is_not_counted_as_a_resolve_divergence]:
+## the fields RESOLVE ignores are exactly the ones LAND reports. Together the
+## two assertions pin the partition from both sides.
+func test_land_time_arithmetic_is_reported_by_field() -> void:
+	var theirs := _record()
+	theirs[AttackRecord.KEY_HIT_AMOUNT] = PackedFloat64Array([99.0, 0.0])
+	theirs[AttackRecord.KEY_HIT_HP_AFTER] = PackedFloat64Array([0.0, 0.0])
+	assert_eq(DeterminismProbe.diverging_land_fields(_record(), theirs),
+			[AttackRecord.KEY_HIT_AMOUNT, AttackRecord.KEY_HIT_HP_AFTER] as Array[String])
+
+
+## The derived MAX is the field the owner's health-bar question turns on: a peer
+## that recomputed a node's max health differently after a cascade would land
+## its damage against a different bar. It is in LAND, so the probe reports it.
+func test_a_recomputed_max_health_is_a_land_divergence() -> void:
+	var theirs := _record()
+	theirs[AttackRecord.KEY_HIT_HP_MAX] = PackedFloat64Array([14.0, 8.0])
+	assert_eq(DeterminismProbe.diverging_land_fields(_record(), theirs),
+			[AttackRecord.KEY_HIT_HP_MAX] as Array[String])
+
+
+## A cascade that freed a different set of nodes is the widest-blast-radius
+## divergence there is — every later beat lands on a different board.
+func test_a_different_dealloc_cascade_is_a_land_divergence() -> void:
+	var theirs := _record()
+	theirs[AttackRecord.KEY_DEALLOC_COUNT] = PackedInt32Array([1, 1])
+	theirs[AttackRecord.KEY_DEALLOC_NODE] = PackedInt32Array([7, 9])
+	assert_eq(DeterminismProbe.diverging_land_fields(_record(), theirs),
+			[AttackRecord.KEY_DEALLOC_COUNT, AttackRecord.KEY_DEALLOC_NODE] as Array[String])
+
+
+## The flags byte is split BETWEEN the columns, so each must take its own bit and
+## ignore the other's. RESOLVE's half is pinned above; this is LAND's.
+func test_the_land_column_takes_the_gated_bit_and_ignores_the_crit_bit() -> void:
+	var gated := _record()
+	gated[AttackRecord.KEY_HIT_FLAGS] = PackedByteArray(
+			[AttackRecord.FLAG_CRIT | AttackRecord.FLAG_GATED, 0])
+	assert_eq(DeterminismProbe.diverging_land_fields(_record(), gated),
+			["h_gated_flag"] as Array[String],
+			"FLAG_GATED is land-time and IS this column's business")
+
+	var uncritted := _record()
+	uncritted[AttackRecord.KEY_HIT_FLAGS] = PackedByteArray([0, 0])
+	assert_eq(DeterminismProbe.diverging_land_fields(_record(), uncritted),
+			[] as Array[String],
+			"the crit bit is a seeded roll — RESOLVE's business, not this column's")
 
 
 func _probe(enabled: bool) -> DeterminismProbe:
@@ -196,5 +270,7 @@ func test_an_unrebuildable_plan_is_unavailable_not_diverged() -> void:
 	probe.observe_before_apply(command, true)
 	assert_eq(probe.resolve_tally(LaunchAttackCommand.TAG),
 			{"agreed": 0, "diverged": 0, "unavailable": 1, "landings": 0, "deferred": 0})
+	assert_eq(probe.land_tally(LaunchAttackCommand.TAG)["unavailable"], 1,
+			"a plan that never rebuilt is unavailable in BOTH columns, not diverged in one")
 	assert_false(probe.report().contains("fields that disagreed"),
 			"a plan that never rebuilt has no fields to disagree about")
