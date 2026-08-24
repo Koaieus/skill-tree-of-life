@@ -107,15 +107,18 @@ func test_hide_all_returns_the_stage_to_the_graph() -> void:
 		assert_false(_panels.get_panel(id).visible)
 
 
-func test_an_unknown_id_leaves_the_stage_exactly_as_it_found_it() -> void:
-	# A leaf whose panel has not landed yet must not blank whatever is up —
-	# `show_panel`'s "no-op" is a no-op in full, not a hide.
+func test_an_unlanded_panel_is_a_no_op_rather_than_a_crash() -> void:
+	# A leaf whose panel has not landed yet still routes. `shown_panel` records
+	# what was ASKED for — `test_frontmatter_layout.gd` pins exactly that
+	# against an empty container — while `has_panel` is what decides whether
+	# this layer takes the stage, so an unlanded leaf leaves the graph up.
 	_panels.show_panel(MenuGraph.PANEL_SETTINGS)
 	_panels.show_panel(&"not_a_panel")
 
 	assert_false(_panels.has_panel(&"not_a_panel"))
-	assert_eq(_panels.shown_panel, MenuGraph.PANEL_SETTINGS)
-	assert_true(_panels.get_panel(MenuGraph.PANEL_SETTINGS).visible)
+	assert_eq(_panels.shown_panel, &"not_a_panel")
+	assert_false(_panels.visible, "nothing to raise, so the graph keeps the stage")
+	assert_false(_panels.get_panel(MenuGraph.PANEL_SETTINGS).visible)
 
 
 # --- dismissal is the graph's business ---------------------------------------

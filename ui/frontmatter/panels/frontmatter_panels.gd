@@ -48,16 +48,18 @@ func _ready() -> void:
 
 
 ## Raise the panel registered under `id`, hiding any other. Unknown ids are a
-## no-op so the graph layer can route a leaf whose panel has not landed yet —
-## a no-op in full: an unknown id leaves whatever is currently up alone rather
-## than blanking the stage.
+## no-op so the graph layer can route a leaf whose panel has not landed yet.
+##
+## [member shown_panel] records what the graph ASKED for, registered or not —
+## `test/unit/ui/test_frontmatter_layout.gd` pins that against a container with
+## no panels in it at all, which is what makes an unlanded leaf a no-op rather
+## than a crash. Whether a body actually exists is [method has_panel]'s
+## question, and it is the one that decides whether this layer takes the stage.
 func show_panel(id: StringName) -> void:
-	if not has_panel(id):
-		return
 	shown_panel = id
 	for panel_id in _panels:
 		(_panels[panel_id] as FrontmatterPanel).visible = panel_id == id
-	visible = true
+	visible = has_panel(id)
 
 
 ## Return the stage to the graph layer.
