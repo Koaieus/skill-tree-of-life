@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/frontmatter/panels/exit_confirm_panel.gd" id="2_exit"]
+
+[node name="ExitConfirmPanel" instance=ExtResource("1_base")]
+script = ExtResource("2_exit")
+panel_id = &"exit_confirm"
+title = "LEAVE THE TREE?"
+back_text = "STAY"
+
+[node name="Message" type="Label" parent="Center/Frame/Column/Body" index="0"]
+layout_mode = 2
+theme_type_variation = &"TierLabel"
+text = "Nothing is allocated yet. Quitting loses nothing."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ConfirmButton" type="Button" parent="Center/Frame/Column/Body" index="1"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+text = "QUIT"

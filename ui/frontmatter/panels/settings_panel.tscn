@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/meta/settings_menu.tscn" id="2_settings"]
+
+[node name="SettingsPanel" instance=ExtResource("1_base")]
+panel_id = &"settings"
+title = "OPTIONS"
+
+[node name="Frame" parent="Center" index="0"]
+custom_minimum_size = Vector2(560, 0)
+
+[node name="SettingsMenu" parent="Center/Frame/Column/Body" index="0" instance=ExtResource("2_settings")]
+layout_mode = 2
+size_flags_vertical = 3

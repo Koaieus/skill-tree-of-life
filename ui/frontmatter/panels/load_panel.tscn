@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
+
+[node name="LoadPanel" instance=ExtResource("1_base")]
+panel_id = &"load"
+title = "LOAD GAME"
+
+[node name="Empty" type="Label" parent="Center/Frame/Column/Body" index="0"]
+layout_mode = 2
+theme_type_variation = &"TierInert"
+text = "No saved runs.
+
+Saving and loading is not implemented yet."
+horizontal_alignment = 1
+autowrap_mode = 3
