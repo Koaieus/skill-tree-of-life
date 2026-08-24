@@ -203,3 +203,35 @@ func test_dragging_a_unit_reroutes_its_trace() -> void:
 	await get_tree().process_frame
 	assert_ne(trace.to_point, before,
 		"FanAnchorDriver must re-derive the terminus from the moved panel — that is the drag payoff")
+
+
+# --- on-screen liveness ------------------------------------------------------------
+
+func test_a_bench_inside_a_hidden_control_is_not_on_screen() -> void:
+	# The regression this guards: `is_visible_in_tree()` stops walking at the
+	# first non-CanvasItem ancestor, and the bench's is the SubViewport it is
+	# mounted in — so it answered `true` with the whole sandbox host hidden and
+	# every visibility gate written on it did nothing. A held mouse button
+	# anywhere in the editor then dragged the bench's panels sight-unseen.
+	var frame := Control.new()
+	add_child_autofree(frame)
+	var viewport := SubViewport.new()
+	frame.add_child(viewport)
+	var bench := Node2D.new()
+	viewport.add_child(bench)
+
+	assert_true(_SANDROB_SCRIPT.is_on_screen(bench),
+		"a bench under a visible frame is on screen")
+	assert_true(bench.is_visible_in_tree(),
+		"...and is_visible_in_tree agrees, while the frame is visible")
+
+	frame.hide()
+	assert_false(_SANDROB_SCRIPT.is_on_screen(bench),
+		"hiding the framing Control must take the bench off screen")
+	assert_true(bench.is_visible_in_tree(),
+		"...which is exactly what is_visible_in_tree cannot see across the SubViewport")
+
+
+func test_the_mounted_bench_reports_itself_on_screen() -> void:
+	assert_true(_SANDROB_SCRIPT.is_on_screen(_sandbox),
+		"the bench as actually mounted (test parent is visible) is on screen")

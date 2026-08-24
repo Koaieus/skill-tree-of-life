@@ -72,6 +72,10 @@ const _GROUP := &"fan_unit"
 ## for a sub-pixel gain.
 const _PIN_SETTLE_EPSILON := 0.0005
 
+## Per-unit latch for [method _report_unsatisfiable] — see there for why it
+## lives on the unit rather than in a driver-side map.
+const _UNSATISFIABLE_META := &"fan_arrival_unsatisfiable"
+
 ## Dev tooling (#309): from the fan scene open in the 2D editor, jump back to
 ## the sandbox host's "Tooltip Fan" tab. The tab's panel carries the outbound
 ## half ("✎ Open fan.tscn"). Editor-only — a no-op at runtime.
@@ -231,12 +235,31 @@ func _reroute(unit: Node) -> void:
 	var axis: FanAnchor.Axis = unit.arrival_axis if unit is FanUnit else FanAnchor.Axis.AUTO
 	var desired_trunk: float = unit.trunk_length if unit is FanUnit else 0.0
 	var route := FanAnchor.solve_route(trace.from_point, rect, trace.route_params(), axis, slide, desired_trunk)
+	_report_unsatisfiable(unit, route)
 	trace.to_point = route.anchor
 	# The solver's answer, not an echo of what's already on the trace — it reads
 	# only `trunk`/`trunk_dir` out of route_params() and treats trunk length as an
 	# output, so writing it back here can't feed itself. Under AUTO this is just
 	# the unit's authored length passed through (0 = keep the bend fraction).
 	trace.trunk_length = route.trunk_px
+
+
+## Warns ONCE when a unit's forced arrival axis becomes unsatisfiable and
+## [method FanAnchor.solve_route] falls back to `AUTO`, and once more if it
+## re-enters that state after recovering. [method _reroute] runs every frame per
+## unit, so warning from the solver itself spat the same line ~100×/s for as
+## long as a panel sat in the bad geometry (a dragged bench panel, in practice)
+## — the fact is an AUTHORING signal, and one line per entry is all of it.
+##
+## The flag is per-unit [method Node.set_meta] rather than a driver-side map so
+## it cannot outlive the unit it describes.
+func _report_unsatisfiable(unit: Node, route: Dictionary) -> void:
+	var bad: bool = route.get("unsatisfiable", false)
+	if bad == unit.get_meta(_UNSATISFIABLE_META, false):
+		return
+	unit.set_meta(_UNSATISFIABLE_META, bad)
+	if bad:
+		push_warning("FanAnchor [%s]: %s" % [unit.name, route.get("reason", "")])
 
 
 ## The PARTICIPATING units in ANGULAR order around the node — the order clock

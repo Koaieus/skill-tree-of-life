@@ -144,6 +144,10 @@ var _open := false
 var _hovering := false
 var _drag_unit: Node = null
 var _grab_offset := Vector2.ZERO
+## Last frame's left-button state — polling has no press EVENT, so this is what
+## turns "the button is down" into "the button went down THIS frame". Only that
+## edge may begin a grab; see [method _poll_drag].
+var _mouse_was_down := false
 ## Whole-rig drag: grabbing the fixture node itself (not a FanUnit panel)
 ## relocates the bench — the live-panel alternative to hand-editing
 ## `Sandbox.position` in the `.tscn`.
@@ -189,9 +193,12 @@ func _process(_delta: float) -> void:
 	# Input.is_mouse_button_pressed() is global editor state, unscoped to any
 	# particular viewport, so without this a click-drag anywhere in the editor
 	# would drag this panel even while it's off-screen.
-	if not is_visible_in_tree():
+	if not is_on_screen(self):
 		_drag_unit = null
 		_drag_rig = false
+		# Latch a button that is already held, so coming back on-screen
+		# mid-drag can't read as a fresh press on the first visible frame.
+		_mouse_was_down = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 		return
 	_poll_hover()
 	_poll_drag()
@@ -552,23 +559,61 @@ func _poll_hover() -> void:
 ## here (embedded in `fan_live_panel.tscn`), which has no
 ## `get_local_mouse_position()` (a [CanvasItem]-only method) to fall back on.
 func _poll_drag() -> void:
-	var mp := get_local_mouse_position()
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		if _drag_unit == null and not _drag_rig:
-			var hit := hit_test(mp)
-			if hit != null:
-				_drag_unit = hit
-				_grab_offset = mp - (hit as Node2D).position
-			elif _node != null and mp.length() <= _node.radius:
-				_drag_rig = true
-				_rig_grab_offset = get_global_mouse_position() - position
-		if _drag_unit != null and is_instance_valid(_drag_unit):
-			(_drag_unit as Node2D).position = mp - _grab_offset
-		elif _drag_rig:
-			position = get_global_mouse_position() - _rig_grab_offset
-	else:
+	var down := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var pressed_this_frame := down and not _mouse_was_down
+	_mouse_was_down = down
+	if not down:
 		_drag_unit = null
 		_drag_rig = false
+		return
+	var mp := get_local_mouse_position()
+	if _drag_unit == null and not _drag_rig:
+		# A grab may only START on the press edge, with the pointer inside the
+		# bench. Without the edge, holding the button down anywhere else in the
+		# editor and sweeping the cursor over the bench would grab whatever it
+		# passed — a held button reads identically to a fresh press when all you
+		# poll is global state.
+		if not pressed_this_frame or not _pointer_is_over_bench():
+			return
+		var hit := hit_test(mp)
+		if hit != null:
+			_drag_unit = hit
+			_grab_offset = mp - (hit as Node2D).position
+		elif _node != null and mp.length() <= _node.radius:
+			_drag_rig = true
+			_rig_grab_offset = get_global_mouse_position() - position
+	if _drag_unit != null and is_instance_valid(_drag_unit):
+		(_drag_unit as Node2D).position = mp - _grab_offset
+	elif _drag_rig:
+		position = get_global_mouse_position() - _rig_grab_offset
+
+
+## Is the pointer actually inside the [SubViewportContainer] framing this bench?
+## The bench's own local mouse position is defined everywhere — it's just a
+## transform of a global cursor — so it can never answer this; only the framing
+## Control's rect can. Standalone instantiation (the test) has no container and
+## no framing to be outside of, so it answers `true`.
+func _pointer_is_over_bench() -> bool:
+	var container := get_viewport().get_parent() as Control
+	if container == null:
+		return true
+	return container.get_rect().has_point(container.get_local_mouse_position())
+
+
+## Is this bench actually on screen? [method CanvasItem.is_visible_in_tree]
+## CANNOT answer that here: it stops walking at the first non-[CanvasItem]
+## ancestor, and this node's is the [SubViewport] it's mounted in — so it
+## reports `true` with the whole sandbox host hidden behind the 2D screen, and
+## every visibility gate written on it was a no-op. Walking EVERY ancestor's own
+## `visible` crosses the viewport boundary ([Control], [CanvasItem] and [Window]
+## each have one; a plain [Node] — [SubViewport] included — answers `null`).
+static func is_on_screen(node: Node) -> bool:
+	var n: Node = node
+	while n != null:
+		if n.get(&"visible") == false:
+			return false
+		n = n.get_parent()
+	return true
 
 
 ## Which [FanUnit]'s panel rect contains `p` (sandbox-local space) — visible

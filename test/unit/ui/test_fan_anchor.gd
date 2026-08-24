@@ -420,3 +420,32 @@ func test_forced_axis_never_overshoots_into_the_panel() -> void:
 		for p in _solved_route(from, rect, solved):
 			assert_false(FanAnchor.is_inside(p, rect),
 				"slide %s: no route point may land inside the panel" % slide)
+
+
+# --- the unsatisfiable fallback is REPORTED, never announced -------------------
+
+func test_an_unsatisfiable_forced_axis_reports_itself_in_the_route() -> void:
+	# The exact geometry a dragged bench panel produced: a panel almost directly
+	# above the pin cannot be entered horizontally. `solve_route` runs once per
+	# unit per FRAME, so it must hand this fact back for the driver to announce
+	# once — a push_warning here spammed the console at frame rate.
+	var from := Vector2(191.83, -112.8)
+	var rect := Rect2(Vector2(-88.5, -100.0), Vector2(177.0, 200.0))
+	var solved := FanAnchor.solve_route(from, rect, _params(), FanAnchor.Axis.HORIZONTAL, 0.5)
+	assert_true(bool(solved.unsatisfiable),
+		"an unsatisfiable forced axis must be flagged on the returned route")
+	assert_false(String(solved.reason).is_empty(),
+		"...with the human-readable why, so the driver need not re-derive it")
+	var auto_solved := FanAnchor.solve_route(from, rect, _params(), FanAnchor.Axis.AUTO, 0.5)
+	assert_eq(solved.anchor, auto_solved.anchor,
+		"and the fallback is still exactly the AUTO answer")
+
+
+func test_a_satisfiable_forced_axis_is_not_flagged() -> void:
+	var from := Vector2(-108.0, 98.0)
+	var rect := Rect2(Vector2(-75.0, -65.0), Vector2(150.0, 130.0))
+	var solved := FanAnchor.solve_route(from, rect, _params(), FanAnchor.Axis.HORIZONTAL, 0.5)
+	assert_false(bool(solved.unsatisfiable),
+		"a satisfiable constraint must not report a fallback")
+	assert_true(bool(FanAnchor.solve_route(from, rect, _params(), FanAnchor.Axis.AUTO, 0.5).unsatisfiable) == false,
+		"and AUTO — which forces nothing — never can")

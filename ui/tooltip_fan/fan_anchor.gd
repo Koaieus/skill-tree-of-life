@@ -83,7 +83,12 @@ const _MAX_ITER := 4
 ## (the one facing `from`), so there is no candidate->actual iteration and the
 ## 2-cycle [method derive_anchor] documents cannot occur at all.
 ##
-## Falls back to `AUTO` with a warning when the constraint is unsatisfiable: a
+## Falls back to `AUTO` when the constraint is unsatisfiable, REPORTING it in the
+## returned dict (`unsatisfiable` + a human `reason`) rather than warning here:
+## this solver is re-run every frame per unit, so a `push_warning` in it spams
+## the console at frame rate for as long as a panel sits in the bad geometry.
+## Announcing the fact is [FanAnchorDriver]'s job — it has the per-unit state to
+## warn once on ENTRY into the bad state. The unsatisfiable cases are: a
 ## panel with almost no sideways offset can't be entered horizontally, one
 ## almost beside the pin can't be entered vertically, and neither can be entered
 ## at all from a `from` that isn't on the trunk's side of it.
@@ -100,6 +105,8 @@ static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary, ax
 			"anchor": derived,
 			"trunk_px": desired_trunk_px,
 			"edge": _edge_of_route_to(from, derived, trunk_dir, trunk_frac),
+			"unsatisfiable": false,
+			"reason": "",
 		}
 
 	var want_horizontal := axis == Axis.HORIZONTAL
@@ -130,14 +137,22 @@ static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary, ax
 	else:
 		hi = span - perp - MIN_ARRIVAL_LEG
 	if span <= 0.0 or lo > hi:
-		push_warning(("FanAnchor: %s arrival is unsatisfiable for panel %s from %s "
+		var fallback := solve_route(from, panel_rect, params, Axis.AUTO, slide, desired_trunk_px)
+		fallback["unsatisfiable"] = true
+		fallback["reason"] = (("%s arrival is unsatisfiable for panel %s from %s "
 			% ["horizontal" if want_horizontal else "vertical", panel_rect, from])
 			+ "(span %.1f, perpendicular offset %.1f) — falling back to AUTO. Move the panel further %s."
 				% [span, perp, "sideways" if arrival_is_perp else "along the trunk"])
-		return solve_route(from, panel_rect, params, Axis.AUTO, slide, desired_trunk_px)
+		return fallback
 
 	var desired := desired_trunk_px if desired_trunk_px > 0.0 else trunk_frac * span
-	return {"anchor": anchor, "trunk_px": clampf(desired, maxf(lo, 0.0), hi), "edge": edge}
+	return {
+		"anchor": anchor,
+		"trunk_px": clampf(desired, maxf(lo, 0.0), hi),
+		"edge": edge,
+		"unsatisfiable": false,
+		"reason": "",
+	}
 
 
 ## Returns the point on `panel_rect`'s boundary where a PCB trace from `from`
