@@ -110,12 +110,21 @@ func test_an_unchanged_camera_does_not_redraw_the_outline() -> void:
 	add_child_autofree(layer)
 	layer.set_view_rect(Rect2(0.0, 0.0, 10.0, 10.0))
 	await get_tree().process_frame
-	var before: bool = layer.is_visible_in_tree()
-	# `set_view_rect` no-ops on an equal rect; re-asserting it must leave the
-	# layer's stored rect untouched rather than queueing a redraw per frame.
-	layer.set_view_rect(Rect2(0.0, 0.0, 10.0, 10.0))
-	assert_eq(layer._rect, Rect2(0.0, 0.0, 10.0, 10.0), "rect kept")
-	assert_true(before, "layer stayed in the tree")
+	await get_tree().process_frame
+	var before: int = layer.draw_count
+
+	# The panel polls the camera every frame and re-pushes the rect it read.
+	# Most frames it has not moved, and re-pushing an equal rect must not cost
+	# a redraw — otherwise the whole "redraw only on change" split is a fiction
+	# for the layer that redraws most often.
+	for i in 3:
+		layer.set_view_rect(Rect2(0.0, 0.0, 10.0, 10.0))
+		await get_tree().process_frame
+	assert_eq(layer.draw_count, before, "an equal rect must not queue a redraw")
+
+	layer.set_view_rect(Rect2(1.0, 0.0, 10.0, 10.0))
+	await get_tree().process_frame
+	assert_gt(layer.draw_count, before, "but a moved rect must")
 
 
 # ------------------------------------------------------------- geometry ---

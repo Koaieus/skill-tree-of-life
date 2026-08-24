@@ -14,6 +14,10 @@ extends Control
 @export var outline_color: Color = Color(1.0, 1.0, 1.0, 0.85)
 @export var outline_width: float = 1.0
 
+## Bumped on every `_draw`, the same way [MinimapGraphLayer] does it — so
+## "an unchanged camera does not redraw" is an assertion rather than a claim.
+var draw_count: int = 0
+
 var _rect: Rect2 = Rect2()
 var _has_rect: bool = false
 
@@ -38,6 +42,7 @@ func clear_view_rect() -> void:
 
 
 func _draw() -> void:
+	draw_count += 1
 	if not _has_rect:
 		return
 	draw_rect(_rect, outline_color, false, outline_width)
