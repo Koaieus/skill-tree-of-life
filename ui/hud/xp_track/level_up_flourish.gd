@@ -52,10 +52,19 @@ var _rest_captured: bool = false
 var _open: bool = false
 
 
-func _ready() -> void:
-	# Colours are set here rather than in the .tscn because they are DERIVED:
-	# `Emissive.at` is the only sanctioned way to author an HDR value, so the
-	# scene would otherwise carry two hand-typed floats nothing could re-derive.
+## Applied lazily on the first stamp, NOT in `_ready`. The colours have to be
+## written in code — `Emissive.at` is the only sanctioned way to author an HDR
+## value, so the .tscn would otherwise carry two hand-typed floats nothing could
+## re-derive — but this is a `@tool` script, and a node property written at load
+## time dirties the scene just by opening it. First stamp never happens on load.
+## Same reasoning as [XpDeltaChip]'s lazily captured rest position.
+var _colors_applied: bool = false
+
+
+func _apply_colors() -> void:
+	if _colors_applied:
+		return
+	_colors_applied = true
 	_title.add_theme_color_override(&"font_color", Emissive.at(GOLD, Emissive.ALERT))
 	_detail.add_theme_color_override(&"font_color", Emissive.at(GOLD, Emissive.VALUE))
 
@@ -69,6 +78,7 @@ func _ready() -> void:
 ## between them, asked of [method Entity.sp_minted_for_level] per level, since
 ## the milestone rule makes every 5th level worth more.
 func stamp(level: int, sp_total: int, stack: int) -> void:
+	_apply_colors()
 	if not _rest_captured:
 		_rest_position = position
 		_rest_captured = true
