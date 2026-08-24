@@ -103,9 +103,10 @@ bit. Columns: `ok / DIVERGED / ok(uns) / div(uns) / unavailable / landings`.
 
 `h_hpm` is the load-bearing one: a peer that recomputed a node's derived max
 health differently after a cascade — or clamped `current` in a different order —
-lands its damage against a different bar. That is the failure mode the
-health-bar requirement in #463's decision comment turns on, and it is why this
-column is not optional now that the model is chosen.
+lands its damage against a different bar. Since derived stats are recomputed per
+peer under the chosen model, that is a live failure mode rather than a
+hypothetical, which is what makes this column worth keeping now that it can no
+longer change anyone's mind about the model.
 
 **LAND buckets by settledness rather than annotating it.** Land-time arithmetic
 reads the peer's LIVE world, so a re-derivation taken while an earlier command

@@ -245,11 +245,14 @@ pure fixed-dt XPBD loop (`steps = ceil(duration/dt)`, `t = float(step)*dt`) with
 no frame delta and no RNG; `blade_hit_scan.gd:35` walks
 `trajectory.sample_dt`; every call site passes constants; `ai_blade_rollout.gd:37`
 already documents `simulate()` as pure so it can run on `WorkerThreadPool`.
-`BladePopResolver` resolving defensive-spike pops *during* the scan makes the hit
-set order-dependent within that one deterministic call — but **order-dependence
-inside a deterministic function is not a divergence risk**: given the same
-inputs, every peer's re-simulation produces the same order and the same set.
-That was a doc bug, not a property of the sim. The portability of the *inputs*
+The pop question is no longer part of the scan at all: since #536 a defensive
+spike is decided per landing inside `BladeDamageInstance.land_on`, off
+`BladePopResolver.LiveGate`, and rides the record as `h_pop`. It is therefore
+**land-time**, not resolve-stage, and #529's LAND column is where it is measured.
+(The old batch `BladePopResolver.resolve` answered it in one call during the
+scan; text describing that arrangement is stale.) Either way, order-dependence
+*inside* a deterministic function was never the divergence risk it was written up
+as — given the same inputs every peer produces the same order and the same set. The portability of the *inputs*
 (ground A) is the separate problem, and it is the one that bites.
 
 **Current information decision: every client gets full world state; hiding
