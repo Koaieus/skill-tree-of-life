@@ -63,6 +63,27 @@ than staying hidden. Worked example: `ui/spell_tooltip/`.
 your runtime one — re-assert the captured value instead.
 
 
+## A Control with anchor-positioned children reports minimum size ZERO
+
+Minimum size flows up from *container* children. A child with `layout_mode = 1`
+(anchors + offsets) is positioned, not measured — it contributes nothing. So a
+decorative panel whose whole content is anchored looks fine floating in a plain
+`Control` and collapses to zero height the moment someone drops it into a
+`VBoxContainer`, which sizes children by their minimum.
+
+It does not *look* broken, because the anchored grandchildren still draw outside
+the collapsed rect. What breaks is anything reading `size`: `pivot_offset =
+size * 0.5` silently becomes `(w/2, 0)`, so a scale-pop grows from the top edge
+instead of the middle. `LevelUpFlourish` spent a commit like this.
+
+**How to apply:** to move a free-floating decoration, re-anchor it — change the
+preset/offsets on the instance and give it a plain `Control` slot to anchor
+against (`XpTrack/FlourishSlot`: full rect, `mouse_filter = 2`). Reach for
+`PRESET_BOTTOM_WIDE` + `grow_vertical = END` + a positive `offset_top` to hang
+something below its parent. Never wrap it in a Container and a spacer to nudge
+it; if you must, `custom_minimum_size` is the only thing that will give it back
+a height.
+
 ## An entity's `stat_board` points at the default `.tres` — never an inline copy
 
 `Entity` is `@tool` and duplicates its board in `_ready`, so opening a scene in

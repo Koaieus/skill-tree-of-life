@@ -20,9 +20,16 @@ extends Control
 ## seconds": [method stamp] once per level, [method release] when the cascade
 ## drains. Nothing here decides when it ends.
 ##
-## Anchored inside a plain (non-container) [Control] so it cannot reflow the
-## strip it decorates — same rule as [XpDeltaChip], and the same warning:
-## never re-parent this into a Container.
+## [b]Where it hangs.[/b] Anchored inside `XpTrack/FlourishSlot`, a plain
+## (non-container) [Control] that takes the panel's whole rect and ignores the
+## mouse; the instance is `PRESET_BOTTOM_WIDE` with `grow_vertical = END` and
+## `offset_top = 5`, so it reads as an announcement *south of* the strip
+## without being able to reflow it. Same rule as [XpDeltaChip], and the same
+## warning: [b]never re-parent this into a Container.[/b] A Container would
+## also break the pop — [member Control.pivot_offset] is set from `size` on
+## every [method stamp], and this scene's own children are anchor-positioned,
+## so its minimum size is zero and a Container hands it a collapsed rect that
+## pivots the scale from a corner.
 
 ## Left the screen — nothing is being narrated any more. [XpTrack] resets the
 ## cascade's running count on this rather than at [method release], so XP that
