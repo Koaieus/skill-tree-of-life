@@ -123,3 +123,63 @@ func _draw() -> void:
 	var to_local := to_device.affine_inverse()
 	for span in _edge_rects(device, maxf(outline_width, 1.0)):
 		draw_rect(to_local * span, outline_color)
+
+
+## Dev dump for the system clipboard (`v` in [DebugClipboard]) — everything
+## needed to replay one exact on-screen situation: the window's scaling, the
+## camera, the minimap's mapping, and the DEVICE-space spans this layer is
+## actually about to rasterise.
+##
+## The last part is the point. A missing side is a question about device
+## coordinates, and reading them off a screenshot is guesswork; this prints
+## them, plus which sides fail the "contains a pixel centre" test that decides
+## whether a span renders at all.
+func debug_state(camera: GraphCamera, panel: Control) -> String:
+	var lines: PackedStringArray = []
+	lines.append("MinimapViewportRect")
+	var window := DisplayServer.window_get_size()
+	lines.append("  window: %dx%d" % [window.x, window.y])
+	lines.append("  content_scale_size: %s  factor: %.4f  stretch: %s" % [
+			get_tree().root.content_scale_size,
+			get_tree().root.content_scale_factor,
+			get_tree().root.content_scale_mode])
+	if camera != null:
+		lines.append("  camera pos: (%.4f, %.4f)  zoom: (%.4f, %.4f)" % [
+				camera.global_position.x, camera.global_position.y,
+				camera.zoom.x, camera.zoom.y])
+		lines.append("  camera view_rect: %s" % camera.view_rect())
+	if panel != null:
+		lines.append("  world_bounds: %s" % panel._world_bounds)
+		lines.append("  map_scale: %.6f  map_offset: %s" % [panel._map_scale, panel._map_offset])
+	lines.append("  layer size: %s" % size)
+	lines.append("  local rect: %s  has_rect: %s" % [_rect, _has_rect])
+	var xf := get_global_transform_with_canvas()
+	lines.append("  to_device: origin=%s scale=%s" % [xf.origin, xf.get_scale()])
+	if _has_rect and not is_zero_approx(xf.determinant()):
+		var device: Rect2 = xf * _rect
+		lines.append("  device rect (raw):    %s" % device)
+		var snapped := Rect2(device.position.round(), device.size.round().maxf(1.0))
+		lines.append("  device rect (snapped): %s" % snapped)
+		var names := ["top", "bottom", "left", "right"]
+		var spans := _edge_rects(snapped, maxf(outline_width, 1.0))
+		if spans.is_empty():
+			lines.append("  spans: NONE (degenerate box)")
+		for i in spans.size():
+			var span: Rect2 = spans[i]
+			lines.append("    %-6s device %s -> covers a pixel centre: %s" % [
+					names[i], span, _covers_a_pixel_centre(span)])
+	return "\n".join(lines)
+
+
+## Does this device-space span contain the centre of any pixel? Godot's 2D
+## canvas does not antialias filled geometry, so a span that contains no pixel
+## centre rasterises to nothing at all — which is exactly how a side goes
+## missing while every number involved still looks reasonable.
+static func _covers_a_pixel_centre(span: Rect2) -> bool:
+	var first_x := floorf(span.position.x - 0.5) + 0.5
+	if first_x < span.position.x:
+		first_x += 1.0
+	var first_y := floorf(span.position.y - 0.5) + 0.5
+	if first_y < span.position.y:
+		first_y += 1.0
+	return first_x < span.end.x and first_y < span.end.y

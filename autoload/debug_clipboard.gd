@@ -6,6 +6,9 @@ extends Node
 ## state into chat / issues / notes.
 
 const _CLIPBOARD_KEY: int = KEY_C
+## Dumps the minimap's viewport-box geometry instead of a node (#453). Needs no
+## hover — it describes the screen, not a thing under the cursor.
+const _MINIMAP_KEY: int = KEY_V
 
 var _hovered: SkillNode = null
 
@@ -21,12 +24,42 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
 		return
+	if key.keycode == _MINIMAP_KEY:
+		var dump := _minimap_dump()
+		if dump != "":
+			DisplayServer.clipboard_set(dump)
+			print(dump)
+			get_viewport().set_input_as_handled()
+		return
 	if key.keycode != _CLIPBOARD_KEY:
 		return
 	if _hovered == null:
 		return
 	DisplayServer.clipboard_set(_format(_hovered))
 	get_viewport().set_input_as_handled()
+
+
+## Walks the tree rather than taking an injected reference: this is a debug
+## autoload with no composition seam, and it runs once per key press.
+func _minimap_dump() -> String:
+	var panel := _find_first(get_tree().root, "MinimapPanel")
+	if panel == null:
+		return ""
+	var layer = panel.viewport_rect_layer
+	if layer == null:
+		return ""
+	return layer.debug_state(_find_first(get_tree().root, "GraphCamera"), panel)
+
+
+static func _find_first(from: Node, type_name: String) -> Node:
+	if from.is_class(type_name) or (from.get_script() != null
+			and from.get_script().get_global_name() == type_name):
+		return from
+	for child in from.get_children():
+		var found := _find_first(child, type_name)
+		if found != null:
+			return found
+	return null
 
 
 func _on_hovered(node: SkillNode) -> void:
