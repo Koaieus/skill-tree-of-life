@@ -44,31 +44,36 @@ extends "res://scenes/game_root.gd"
 ## own contract is that ownership resolves through the RECEIVING graph's
 ## entities, so those placeholders must already exist and be correctly ID'd.
 ##
-## [b]`core_location` is NOT on the wire.[/b] [GraphSnapshot] carries which
-## [Entity] owns each [SkillNode] (by `entity_id`), never which owned node is
-## an entity's CORE — that lives on [member Entity.core_location], off the
-## wire entirely (#527's decode note: minting a core is #528's concern, not
-## the snapshot's). This harness sidesteps needing a third wire message for
-## it by seeding NO territory beyond each entity's spawn node (no
-## `TerritorySeeder` call, unlike `procgen_play_sandbox.gd`) — so after decode
-## each entity owns EXACTLY one node, and "the node I now own" IS "my core".
-## See [method _resolve_core_locations].
+## [b]`core_location` and the receiving board ride [EntitySnapshot] (#560),
+## not [GraphSnapshot].[/b] [GraphSnapshot] carries which [Entity] owns each
+## [SkillNode] (by `entity_id`) but nothing rebuilds the OWNER's board from
+## that — #560's own framing: a client whose board never got the starting
+## node's grants shows the wrong HP/stats from its first frame, silently.
+## `CommandLink.send_entity_snapshot` is the sibling send this scene also
+## makes: it DECORATES the entities the roster already spawned (never mints
+## one — #560 D7), and its own two-pass decode is what resolves
+## `core_location` — pass 1 needs no graph, pass 2 (entity → node) runs once
+## [method CommandLink._on_graph_snapshot] has one to resolve against, or
+## immediately if the entity snapshot arrives second. Order between graph and
+## entity snapshots does NOT matter (both sides of that are idempotent); hello
+## still has to be last — see below.
 ##
-## [b]Send order matters: run_setup, snapshot, THEN hello.[/b] [method
-## CommandLink.send_hello] is what produces the "✓ in sync at link-up"
+## [b]Send order: run_setup, graph snapshot, entity snapshot, THEN hello.[/b]
+## [method CommandLink.send_hello] is what produces the "✓ in sync at link-up"
 ## verdict, comparing [WorldFingerprint] on both sides — and the CLIENT's
 ## graph is empty until the snapshot decodes. Sending hello first (rung 1's
 ## order, safe there because both peers already share a graph) would report a
 ## structural, false DIVERGED before a single real state difference could
-## exist. Sending it last makes "at link-up" mean what it says: the fold
-## folded HOST's fingerprint at hello-SEND time (always after generation) is
-## compared against the CLIENT's graph AFTER the snapshot has decoded (ENet's
-## reliable channel is ordered, so run_setup → snapshot → hello arrive in
-## that order). One accepted consequence, already called out in
-## `command_link.gd`'s own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT` are
-## handled regardless of a prior hello, so a build mismatch is NOT caught
-## until after both have already been applied. That gap is pre-existing and
-## explicitly flagged there as future work, not something this unit closes.
+## exist. Sending it last makes "at link-up" mean what it says: HOST's
+## fingerprint (stamped at hello-SEND time, always after generation) is
+## compared against the CLIENT's graph after both snapshots have decoded
+## (ENet's reliable channel is ordered, so every send before hello arrives
+## before it does). One accepted consequence, already called out in
+## `command_link.gd`'s own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT` /
+## `KIND_ENTITIES` are all handled regardless of a prior hello, so a build
+## mismatch is NOT caught until after every one of them has already been
+## applied. That gap is pre-existing and explicitly flagged there as future
+## work, not something this unit closes.
 
 const DEFAULT_PORT := 9100
 const DEFAULT_ADDRESS := "127.0.0.1"
@@ -113,10 +118,10 @@ var _rounds_run: int = 0
 var _round_running: bool = false
 var _link_refused: bool = false
 
-## Fired once a `KIND_SNAPSHOT` payload has been OBSERVED arriving — after
-## [CommandLink] has already decoded it (see [method _observe_for_snapshot]
-## for why that ordering is guaranteed, not assumed).
-signal _snapshot_arrived
+## Fired once BOTH `KIND_SNAPSHOT` and `KIND_ENTITIES` have been OBSERVED
+## arriving — after [CommandLink] has already decoded each (see [method
+## _observe_snapshots] for why that ordering is guaranteed, not assumed).
+signal _snapshots_arrived
 
 
 func _ready() -> void:
@@ -172,13 +177,18 @@ func _setup_level_as_host_or_solo() -> void:
 		# No hot-seat (class docstring) — pinned to Red instead of the couch
 		# `apply_roster` alone would otherwise leave in place.
 		seat_policy = SeatPolicy.seat(_red.entity_id)
+		# Deferred to `_greet_if_linked_and_ready`, AFTER the snapshots go
+		# out — see that method's note on why starting the opening turn here
+		# would double-apply its upkeep once a client joins.
+		return
 	_start_opening_turn()
 
 
 ## Half two: CLIENT never generates. Waits for the run's shape (#528), spawns
-## placeholders in the SAME order so `entity_id` minting matches, waits for
-## the graph itself (#527), then reconciles what the snapshot's own contract
-## leaves for the receiver to do.
+## placeholders in the SAME order so `entity_id` minting matches, then waits
+## for BOTH the graph (#527) and the entity state (#560) to decode — the
+## latter is what actually resolves `core_location` and rebuilds each board
+## from what the host granted (see the class docstring).
 func _setup_level_as_client() -> void:
 	await GameSession.run_started
 	var roster := GameSession.roster
@@ -189,6 +199,8 @@ func _setup_level_as_client() -> void:
 		var core_class: CoreClass = _CORE_CLASS_HUMAN if p.kind != Participant.Kind.AI else _CORE_CLASS_AI
 		# No `core_location` — no graph exists yet to allocate onto. Minting
 		# `entity_id` only needs entry into `entities_container` (#509).
+		# EntitySnapshot decorates this same entity once it arrives (#560 D7)
+		# — never mints a second one.
 		var ent := spawn_entity(p.display_name, p.color, null, core_class)
 		entities_by_participant_id[p.id] = ent
 		if p.id == 0:
@@ -197,25 +209,12 @@ func _setup_level_as_client() -> void:
 			_blue = ent
 	GameRoot.apply_roster(entities_by_participant_id, roster)
 
-	await _snapshot_arrived
-	_resolve_core_locations()
+	await _snapshots_arrived
 
 	player = _blue
 	if _blue != null:
 		seat_policy = SeatPolicy.seat(_blue.entity_id)
 	_start_opening_turn()
-
-
-## See the class docstring's "core_location is NOT on the wire" note. Safe
-## only because this harness seeds no territory past each entity's single
-## spawn node — a level that expanded enemy territory would need the core
-## itself named explicitly, not inferred from "the only node I own".
-func _resolve_core_locations() -> void:
-	for node in graph.get_skill_nodes():
-		if node.owned_by == _red and _red.core_location == null:
-			_red.core_location = node
-		elif node.owned_by == _blue and _blue.core_location == null:
-			_blue.core_location = node
 
 
 func _fixed_roster() -> ParticipantRoster:
@@ -249,8 +248,13 @@ func _setup_level() -> void:
 ## directly rather than `player` — turn order is shared simulation state and
 ## must start on the same entity regardless of which one this machine is
 ## bound to (rung 1's `mp_dev_sandbox.gd` makes the identical argument).
+##
+## Guarded on `current_entity == null`: `TurnManager.start_turn` ASSERTS that,
+## and `_greet_if_linked_and_ready` — this method's HOST caller — can re-fire
+## on every `link_changed` (a reconnect, or a second `is_linked()` check
+## before the first send settles).
 func _start_opening_turn() -> void:
-	if _red == null or turn_manager == null:
+	if _red == null or turn_manager == null or turn_manager.current_entity != null:
 		return
 	if _red.stat_board != null and _red.stat_board.initiative != null:
 		_red.stat_board.initiative.restore_to_full()
@@ -305,10 +309,10 @@ func _start_link() -> void:
 			input_ctl.set_input_frozen(true)
 			# ALONGSIDE CommandLink's own listener, not instead of it — both
 			# connect to the same signal, and children ready before their
-			# parent, so `_link`'s handler (which decodes the snapshot) is
+			# parent, so `_link`'s handlers (which decode each snapshot) are
 			# guaranteed to run before this one (connected here, in the
 			# root's own `_ready`). See the class docstring's send-order note.
-			_transport.message_received.connect(_observe_for_snapshot)
+			_transport.message_received.connect(_observe_snapshots)
 			_transport.start_client(_address, _port)
 		_:
 			_link.mode = CommandLink.Mode.OFF
@@ -323,24 +327,53 @@ func _start_link() -> void:
 ## returns (a client dialling in fast); re-fired on every status change, so a
 ## peer that arrives early is simply caught on the next one — nothing here
 ## needs to be told to retry.
+##
+## [b]The opening turn starts HERE, after sending, not in
+## `_setup_level_as_host_or_solo`.[/b] `TurnManager.start_turn` unconditionally
+## fires `turn_started`, which is what runs turn-start upkeep (AP/DP/SP/mana/
+## wound-heal/node-refill — see `systems/turn_manager.gd`'s own class doc).
+## Rung 1 gets away with calling it identically on both peers because its
+## graph is hand-authored and never crosses the wire — both sides start from
+## the SAME untouched baseline. Here the graph and entity state DO cross: if
+## the HOST's opening turn ran before the send, the snapshot would carry an
+## ALREADY-healed world, and the CLIENT's own (also-necessary — see
+## `_setup_level_as_client`) `start_turn` call would heal it a SECOND time on
+## top, unaccounted for by anything that crossed the wire. Sending first keeps
+## both peers' upkeep applications starting from the identical pre-turn
+## baseline, exactly like rung 1's.
 func _greet_if_linked_and_ready() -> void:
 	if not _transport.is_linked():
 		return
 	if not GameSession.is_active() or GameSession.roster == null:
 		return
-	# Run settings (#528), then the graph (#527), THEN hello — see the class
+	# Run settings (#528), then the graph (#527) and the entity state (#560,
+	# order between these two doesn't matter), THEN hello — see the class
 	# docstring's send-order note for why hello must be last here.
 	_link.send_run_setup(GameSession.config, GameSession.roster)
 	_link.send_graph_snapshot()
+	_link.send_entity_snapshot()
 	_link.send_hello()
+	_start_opening_turn()
 
 
 ## CLIENT-side observer, alongside (not instead of) `CommandLink`'s own
-## handling of the same message. Exists only to unblock [signal
-## _snapshot_arrived] — the decode itself is entirely CommandLink's.
-func _observe_for_snapshot(payload: Dictionary) -> void:
-	if String(payload.get(CommandLink.KEY_KIND, "")) == CommandLink.KIND_SNAPSHOT:
-		_snapshot_arrived.emit()
+## handling of the same messages. Exists only to unblock [signal
+## _snapshots_arrived] once BOTH have been seen — the decode itself, and the
+## `core_location` resolution it drives, are entirely `CommandLink`'s (#560).
+var _seen_graph_snapshot := false
+var _seen_entity_snapshot := false
+
+
+func _observe_snapshots(payload: Dictionary) -> void:
+	match String(payload.get(CommandLink.KEY_KIND, "")):
+		CommandLink.KIND_SNAPSHOT:
+			_seen_graph_snapshot = true
+		CommandLink.KIND_ENTITIES:
+			_seen_entity_snapshot = true
+		_:
+			return
+	if _seen_graph_snapshot and _seen_entity_snapshot:
+		_snapshots_arrived.emit()
 
 
 func _on_link_refused(_reason: String) -> void:

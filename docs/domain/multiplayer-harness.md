@@ -345,9 +345,10 @@ hand-authored `dev_sandbox.tscn`, so any divergence there is a *messaging* bug
 by construction, never a serialization one. Rung 2 (`scenes/dev/mp_procgen_sandbox.tscn`
 + `.gd`) is the first harness scene where that stops being true: the HOST
 procgens a small level from a fixed `RunConfig`, and the CLIENT receives it —
-run settings first (#528, `CommandLink.send_run_setup`), then the graph itself
-(#527, `CommandLink.send_graph_snapshot`) — rather than re-deriving either
-locally. Launch it the same way as rung 1, over `--role` / `--port` /
+run settings first (#528, `CommandLink.send_run_setup`), then the graph
+(#527, `CommandLink.send_graph_snapshot`), then every entity's accumulated
+state (#560, `CommandLink.send_entity_snapshot`) — rather than re-deriving any
+of it locally. Launch it the same way as rung 1, over `--role` / `--port` /
 `--address`:
 
 ```
@@ -391,29 +392,48 @@ arrives can ownership resolve — `GraphSnapshot.decode`'s own contract is that
 ownership resolves through the RECEIVING graph's entities, so the placeholders
 must already exist and be correctly ID'd first.
 
-**`core_location` is not on the wire, and this rung's fix is a scope
-reduction, not a protocol addition.** `GraphSnapshot` carries which `Entity`
-owns each `SkillNode` (by `entity_id`), never which owned node is that
-entity's CORE — that lives on `Entity.core_location`, off the wire entirely
-(#527's own decode note: minting a core is #528's concern, not the snapshot's).
-Rather than invent a third wire message for it, this harness seeds NO
-territory beyond each entity's spawn node — no `TerritorySeeder` call, unlike
-`procgen_play_sandbox.gd` — so after decode each entity owns exactly one node,
-and "the node I now own" IS "my core". A level that wanted real enemy
-territory here would need the core named explicitly, not inferred.
+**`core_location` and the receiving board ride `EntitySnapshot` (#560), which
+landed alongside this rung.** `GraphSnapshot` carries which `Entity` owns each
+`SkillNode` (by `entity_id`) but rebuilds nothing on the OWNER's side —
+#560's own framing: a client whose board never got the starting node's grants
+shows the wrong HP/stats from its first frame, silently. `CommandLink
+.send_entity_snapshot` is the sibling send this rung also makes: it DECORATES
+the entities the roster already spawned (never mints one — #560 D7), and its
+own two-pass decode is what resolves `core_location` — pass 1 needs no graph,
+pass 2 (entity → node) runs once a graph exists to resolve against. Order
+between the graph and entity snapshots does not matter (both passes are
+idempotent).
 
-**Send order is run_setup, snapshot, THEN hello — reversed from rung 1.**
-`CommandLink.send_hello` is what produces the "✓ in sync at link-up" verdict,
-comparing `WorldFingerprint` on both sides, and the CLIENT's graph is empty
-until the snapshot decodes. Sending hello first (rung 1's order, safe there
-because both peers already share a graph) would report a structural, false
-DIVERGED before any real state could differ. Sending it last makes "at
-link-up" mean what it says — ENet's reliable channel is ordered, so the three
-sends arrive in the order they were made. One accepted consequence, already
-called out in `command_link.gd`'s own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT`
-are handled regardless of a prior hello, so a build mismatch is not caught
-until after both have already been applied. That gap is pre-existing future
-work, not something this rung closes.
+**Send order: run_setup, graph snapshot, entity snapshot, THEN hello —
+reversed (and extended) from rung 1.** `CommandLink.send_hello` is what
+produces the "✓ in sync at link-up" verdict, comparing `WorldFingerprint` on
+both sides, and the CLIENT's graph is empty until the snapshots decode.
+Sending hello first (rung 1's order, safe there because both peers already
+share a graph) would report a structural, false DIVERGED before any real
+state could differ. Sending it last makes "at link-up" mean what it says —
+ENet's reliable channel is ordered, so every send before hello arrives before
+it does. One accepted consequence, already called out in `command_link.gd`'s
+own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT` / `KIND_ENTITIES` are all
+handled regardless of a prior hello, so a build mismatch is not caught until
+after every one of them has already been applied. That gap is pre-existing
+future work, not something this rung closes.
+
+**The opening turn starts AFTER the send, not before — a double-heal trap
+this rung's own test caught.** `TurnManager.start_turn` unconditionally fires
+`turn_started`, which runs turn-start upkeep (AP/DP/SP/mana/wound-heal/
+node-refill). Rung 1 calls it identically on both peers because its graph is
+hand-authored and never crosses the wire — both sides start from the SAME
+untouched baseline. Here the graph and entity state DO cross: starting the
+HOST's opening turn before sending bakes an ALREADY-healed world into the
+snapshot, and the CLIENT's own `start_turn` call — load-bearing on its own,
+since it's what sets `current_entity` so a later mirrored `EndTurnCommand`
+isn't a silent no-op — then heals it a SECOND time on top, unaccounted for by
+anything that actually crossed the wire. `mp_procgen_sandbox.gd` defers the
+HOST's `_start_opening_turn()` call to `_greet_if_linked_and_ready`, after
+every send, so both peers' upkeep applies exactly once, from the identical
+pre-turn baseline — the fingerprint mismatch this produced (accumulated HP
+off by the wound-heal amount, ownership and topology both fine) is what
+surfaced it while writing `test_mp_procgen_join.gd`.
 
 **Automated coverage stops at the protocol, not the scene.** Two full OS
 processes can't share a `LoopbackTransport` (the earlier reasoning still
@@ -422,11 +442,13 @@ holds: `EnetTransport` claims the SceneTree's one `MultiplayerAPI`), so
 instances in one process instead, paired through their own mounted default
 transport — the same two-worlds-in-one-process technique
 `test_command_link.gd` already established, extended to also exercise
-`send_run_setup` / `send_graph_snapshot`. It pins: ownership + topology + HP
-match once the join handshake completes, `core_location` reconstructs
-correctly, each instance ends up bound to a different participant (asserted
-as correct), and fingerprint parity survives a short scripted SEQUENCE of
-mirrored commands. It deliberately does NOT exercise `EndTurnCommand` — both
+`send_run_setup` / `send_graph_snapshot` / `send_entity_snapshot`. It pins:
+ownership + topology + HP match once the join handshake completes,
+`core_location` resolves via `EntitySnapshot`, each instance ends up bound to
+a different participant (asserted as correct), and fingerprint parity
+survives a short scripted SEQUENCE of mirrored commands — the last of those
+is what caught the opening-turn double-heal above; it started out red for
+exactly the reason described there. It deliberately does NOT exercise `EndTurnCommand` — both
 `TurnManager.end_turn` and `_tick_until_ready` read `Entity.GROUP` /
 `Entity.READY_GROUP` tree-wide, so with two worlds sharing one SceneTree they
 see BOTH worlds' entities regardless of which `TurnManager` is ticking; a real

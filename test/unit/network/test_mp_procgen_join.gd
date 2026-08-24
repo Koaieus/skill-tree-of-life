@@ -1,9 +1,10 @@
 extends GutTest
 
 ## Rung 2 of the multiplayer harness (#533): a joining peer receives its run
-## settings (#528, [method CommandLink.send_run_setup]) and its graph (#527,
-## [method CommandLink.send_graph_snapshot]) instead of re-deriving either
-## locally. See docs/domain/multiplayer-harness.md's "Rung 2" section, and
+## settings (#528, [method CommandLink.send_run_setup]), its graph (#527,
+## [method CommandLink.send_graph_snapshot]) and its entity state (#560,
+## [method CommandLink.send_entity_snapshot]) instead of re-deriving any of
+## it locally. See docs/domain/multiplayer-harness.md's "Rung 2" section, and
 ## #547's comment on #533 for why re-deriving from a shared seed is unsafe —
 ## `procgen/` leans on transcendentals whose last bit is not IEEE-754-portable
 ## across platforms' libm, so two peers "typing the same seed" can silently
@@ -131,12 +132,10 @@ func _join() -> Dictionary:
 	var red := _spawn_scoped(_host_root, "Red", _RED_COLOR, starting_nodes[0], _BALANCED)
 	var blue := _spawn_scoped(_host_root, "Blue", _BLUE_COLOR, starting_nodes[1], _BASIC_ENEMY)
 	GameRoot.apply_roster({0: red, 1: blue}, roster)
-	_host_root.turn_manager.start_turn(red)
 
 	# Captured before `apply_received` overwrites the shared GameSession
 	# singleton with the CLIENT's decoded reading (see the class docstring).
 	var host_config_dict := GameSession.config.to_dict()
-	var host_fingerprint := WorldFingerprint.compute(_host_root.graph)
 
 	# CLIENT: no procgen (#547) — placeholders in the SAME order, so Graph's
 	# per-entry entity_id minting lands on the host's numbers. No
@@ -149,18 +148,26 @@ func _join() -> Dictionary:
 	_host_root.command_link.send_run_setup(GameSession.config, GameSession.roster)
 	assert_eq(GameSession.config.to_dict(), host_config_dict,
 			"sanity: sending must not mutate the host's own config")
+	# #560: the ENTITY half of the join, sent BEFORE the graph — its own
+	# class docstring's documented order (pass 1 needs no SkillNode and runs
+	# before GraphSnapshot.decode; pass 2, entity → node, runs after). Decodes
+	# the already-spawned placeholders (never mints) and is what resolves
+	# `core_location`, the opposite direction from GraphSnapshot's
+	# `owner_id` → entity.
+	_host_root.command_link.send_entity_snapshot()
 	_host_root.command_link.send_graph_snapshot()
 
-	# core_location is NOT on the wire (GraphSnapshot's own decode contract:
-	# ownership resolves through entity_id, minting a CORE does not). This
-	# fixture seeds no territory beyond each entity's spawn node, so "the
-	# node I now own" IS "my core" — same reasoning
-	# `mp_procgen_sandbox.gd::_resolve_core_locations` documents at length.
-	for node in _client_root.graph.get_skill_nodes():
-		if node.owned_by == client_red and client_red.core_location == null:
-			client_red.core_location = node
-		elif node.owned_by == client_blue and client_blue.core_location == null:
-			client_blue.core_location = node
+	# Both peers open Red's turn AFTER the send, not before — same reasoning
+	# as `mp_procgen_sandbox.gd::_greet_if_linked_and_ready`'s docstring:
+	# `TurnManager.start_turn` unconditionally fires turn-start upkeep
+	# (wound-heal / node-refill included), and starting it on the HOST before
+	# sending would bake an already-healed world into the snapshot, which the
+	# CLIENT's own (also load-bearing — it's what sets `current_entity` so a
+	# later mirrored `EndTurnCommand` isn't a silent no-op) `start_turn` call
+	# would then heal a second time.
+	_host_root.turn_manager.start_turn(red)
+	var host_fingerprint := WorldFingerprint.compute(_host_root.graph)
+
 	GameRoot.apply_roster({0: client_red, 1: client_blue}, GameSession.roster)
 	_client_root.turn_manager.start_turn(client_red)
 
@@ -177,11 +184,11 @@ func test_ownership_topology_and_hp_match_after_the_join_handshake() -> void:
 
 	var client_red: Entity = w["client_red"]
 	var client_blue: Entity = w["client_blue"]
-	assert_not_null(client_red.core_location,
-			"core_location reconstructed from the sole node Red owns")
+	# #560: core_location rides EntitySnapshot, not GraphSnapshot — resolved
+	# entity->node in its pass 2, once a graph exists to resolve against.
+	assert_not_null(client_red.core_location, "core_location resolved via EntitySnapshot (#560)")
 	assert_eq(client_red.core_location.owned_by, client_red)
-	assert_not_null(client_blue.core_location,
-			"core_location reconstructed from the sole node Blue owns")
+	assert_not_null(client_blue.core_location, "core_location resolved via EntitySnapshot (#560)")
 	assert_eq(client_blue.core_location.owned_by, client_blue)
 
 
