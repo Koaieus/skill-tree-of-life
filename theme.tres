@@ -28,5 +28,7 @@ TierInert/base_type = &"Label"
 TierInert/colors/font_color = Color(0.8586, 0.9018, 0.9482, 1)
 TierLabel/base_type = &"Label"
 TierLabel/colors/font_color = Color(1.00053, 1.050441, 1.10405, 1)
+TierPeak/base_type = &"Label"
+TierPeak/colors/font_color = Color(2.117919, 2.220667, 2.331025, 1)
 TierValue/base_type = &"Label"
 TierValue/colors/font_color = Color(1.16451, 1.222175, 1.284111, 1)
