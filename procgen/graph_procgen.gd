@@ -949,7 +949,7 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ##      OR == &"" (universal). No off-archetype phase, no defensive/rare roles
 ##      (#321 D7, D8).
 ##   2. Spend `budget` until broke: weighted-pick an affordable entry applying
-##      weight profiles (archetype + radial), subtract its cost, repeat. Debuff
+##      weight profiles (archetype), subtract its cost, repeat. Debuff
 ##      entries (cost < 0) refund budget; `max_refunds = 1` per node (D9).
 ##      T1 always costs 1, so leftover budget always drains into T1 filler —
 ##      budget is never wasted (D3).
@@ -1116,10 +1116,10 @@ static func _v4_weighted_pick(
 	return affordable.back()
 
 
-## Fills `outer_radius` on radial fields/profiles that opted in (set to 0 or
-## negative) from the active shape mask's resolved outer extent. Lets a
-## RadialGradientField/RadialBandProfile track an auto-scaled mask without
-## the designer hard-coding the size in two places.
+## Fills `outer_radius` on radial fields that opted in (set to 0 or negative)
+## from the active shape mask's resolved outer extent. Lets a
+## RadialGradientField track an auto-scaled mask without the designer
+## hard-coding the size in two places.
 static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
 	if config.shape_mask == null:
 		return
@@ -1132,7 +1132,3 @@ static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
 		var bf := config.budget_policy.budget_field
 		if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
 			(bf as RadialGradientField).outer_radius = resolved_radius
-	# RadialBandProfile (any in the weight pipeline)
-	for p in config.weight_profiles:
-		if p is RadialBandProfile and (p as RadialBandProfile).outer_radius <= 0.0:
-			(p as RadialBandProfile).outer_radius = resolved_radius

@@ -20,10 +20,9 @@ extends Resource
 ## and #319's lesson is "don't add an enum encoding a fact another field already
 ## carries." See docs/domain/procgen-v4.md (D1, D2).
 ##
-## Tags are auto-stamped from tier at flatten time (D5) so the existing radial
-## band profile (`rbp_main`) keeps gating content that can actually be rolled:
+## Tags are auto-stamped from tier at flatten time (D5) so a [WeightProfile]
+## can key on tier without a pool re-declaring it in its own `tags`:
 ##   tier_1..tier_4   always
-##   T1, T2 -> common · T3 -> rare · T4 -> mythic
 
 const MIN_TIER := 1
 const MAX_TIER := 4
@@ -41,16 +40,7 @@ static func tier_tag(tier: int) -> StringName:
 	return StringName("tier_%d" % clampi(tier, MIN_TIER, MAX_TIER))
 
 
-## Rarity tag stamped from tier (D5): T1/T2 common, T3 rare, T4 mythic.
-static func rarity_tag(tier: int) -> StringName:
-	match clampi(tier, MIN_TIER, MAX_TIER):
-		1, 2: return &"common"
-		3: return &"rare"
-		4: return &"mythic"
-		_: return &"common"
-
-
-## All auto-stamped tags for a tier (tier_N + rarity). Appended to a pool's own
-## `tags` at flatten time so [WeightProfile]s key off stable handles.
+## All auto-stamped tags for a tier (tier_N). Appended to a pool's own `tags`
+## at flatten time so [WeightProfile]s key off stable handles.
 static func auto_tags(tier: int) -> Array[StringName]:
-	return [tier_tag(tier), rarity_tag(tier)]
+	return [tier_tag(tier)]

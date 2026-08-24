@@ -24,7 +24,6 @@
 [ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/placement/min_near_starting_points.gd" id="mnsp"]
 [ext_resource type="Resource" uid="uid://dfcrol4htjsui" path="res://procgen/pools/specimen_pool_set.tres" id="pool_set"]
 [ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/budget/random_budget_boost.gd" id="rbb"]
-[ext_resource type="Script" uid="uid://deokgpoaxy5db" path="res://procgen/placement/radial_band_profile.gd" id="rbp"]
 [ext_resource type="Script" uid="uid://cfprsq1bfanb5" path="res://procgen/pools/spell_grant_pool.gd" id="sgp"]
 [ext_resource type="Script" uid="uid://c4f47cyl5raci" path="res://procgen/pools/spell_grant_pool_entry.gd" id="sgpe"]
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
@@ -279,21 +278,6 @@ weights = {
 }
 }
 
-[sub_resource type="Resource" id="rbp_main"]
-script = ExtResource("rbp")
-band_boundaries = PackedFloat32Array(0.33, 0.66)
-weights = {
-&"inner": {
-&"common": 1.2,
-&"mythic": 0.2
-},
-&"outer": {
-&"common": 0.6,
-&"mythic": 3.0,
-&"rare": 4.0
-}
-}
-
 [resource]
 script = ExtResource("cfg")
 node_count = 800
@@ -307,7 +291,7 @@ starting_points = Array[ExtResource("sp")]([SubResource("sp_core")])
 n_random_starters = 6
 viability_radius = 300.0
 modifier_pool_set = ExtResource("pool_set")
-weight_profiles = Array[Resource]([SubResource("awp_main"), SubResource("rbp_main")])
+weight_profiles = Array[Resource]([SubResource("awp_main")])
 budget_policy = SubResource("bp_main")
 archetypes = Array[ExtResource("ap")]([SubResource("ap_red"), SubResource("ap_green"), SubResource("ap_blue"), SubResource("ap_white"), SubResource("ap_gold"), SubResource("ap_purple")])
 addon_policy = SubResource("Resource_c6pvu")

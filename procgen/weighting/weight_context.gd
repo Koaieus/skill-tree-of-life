@@ -11,8 +11,8 @@ extends RefCounted
 
 var archetype: StringName = &""
 var position: Vector2 = Vector2.ZERO
-## Set by the procgen pass once band boundaries are known. v2 step 3 ignores
-## this; [RadialBandProfile] (step 6) writes & reads it.
+## Reserved for a future positional [WeightProfile] to write & read; no
+## current profile sets it.
 var radial_band: StringName = &""
 var theme: StringName = &""
 var degree: int = 0

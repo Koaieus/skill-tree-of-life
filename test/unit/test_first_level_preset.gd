@@ -17,7 +17,7 @@ func test_preset_loads() -> void:
 	assert_eq(cfg.archetypes.size(), 6, "expected 6 archetypes (red/green/blue/white/gold/purple)")
 	assert_not_null(cfg.modifier_pool_set, "modifier_pool_set should be set")
 	assert_gt(cfg.modifier_pool_set.packs.size(), 0, "pool set should carry StatPacks")
-	assert_eq(cfg.weight_profiles.size(), 2, "profiles: archetype + radial (collision dropped in #321 v4)")
+	assert_eq(cfg.weight_profiles.size(), 1, "profiles: archetype only (radial band profile deleted in #552)")
 	assert_not_null(cfg.budget_policy)
 	assert_eq(cfg.guaranteed_placements.size(), 3)
 	assert_eq(cfg.blocker_per_small, 10, "blocker_per_small default (#477)")

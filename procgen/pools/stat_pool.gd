@@ -76,10 +76,12 @@ extends Resource
 ## within a pool is `|cost|^tier_bias_k`; the draw multiplies the two.
 @export var pool_weight: float = 1.0
 
-## Tier-weight exponent (D4): `w ∝ |cost|^k`. `k = 1.0` default. A *texture*
-## dial, not a power dial — it moves chunky-vs-granular, not balance.
+## Tier-weight exponent (D4): `w ∝ |cost|^k`. `k = 1.0` default. `value(t) =
+## 2*cost(t) - 1`, so composition is itself a power lever — spending budget
+## `B` entirely at tier `t` yields `2B - B/cost(t)`; a chunkier `k` moves
+## real balance (up to ~1.875x at a fixed budget), not just texture.
 ## Negative suppresses high tiers (reproduces the descending curves
-## `mobility` / `deallocation_points` / `rare` wrote by hand).
+## `mobility` / `deallocation_points` wrote by hand).
 @export var tier_bias_k: float = 1.0
 
 ## Lowest tier this pool offers (cost = [TierLadder.cost] min-1). Almost

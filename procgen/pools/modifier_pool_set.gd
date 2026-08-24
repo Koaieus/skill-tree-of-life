@@ -38,9 +38,9 @@ func flatten_all() -> Array[ModifierPoolEntry]:
 ## Per-node flatten. Selects every pool whose `archetype_stat` matches the
 ## node's `primary_stat` **or** is empty (`&""` = universal — armor,
 ## node_health, movement_points, … stay shared across all archetypes, D7).
-## There is no off-archetype phase and no defensive/rare phase — universal
-## pools ARE the shared content, and rare/mythic content is gated by tier tag
-## via [WeightProfile]s, not by pool role.
+## There is no off-archetype phase and no defensive phase — universal
+## pools ARE the shared content, gated by tier tag and budget, not by pool
+## role.
 func flatten_for_node(primary_stat: StringName) -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	for pack in packs:

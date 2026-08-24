@@ -117,8 +117,7 @@ func test_aggregation_sums_add_base_and_products_multiply() -> void:
 
 func test_universal_pool_drawn_by_any_primary() -> void:
 	# armor is universal (archetype_stat = &""); a strength-primary node draws it
-	# alongside strength. Rare/mythic content is gated by tier tag via weight
-	# profiles, not by pool role here.
+	# alongside strength.
 	var pool_set := _make_set([
 		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 1.0)]),
 		_pack(&"", [_pool(&"armor", StatModifier.Operation.ADD_BONUS, &"", 1.5, 1.0)]),

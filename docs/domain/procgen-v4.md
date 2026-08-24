@@ -23,10 +23,15 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   Line count on a node is bounded by the number of distinct `(stat, op)` pairs
   it drew — not by the number of draws.
 - **Tier is auto-stamped, not authored.** `TierLadder.auto_tags(t)` stamps
-  `tier_1..tier_4` always, plus rarity (`T1/T2 → common`, `T3 → rare`,
-  `T4 → mythic`). `StatPool.tags` holds only the pool's flavour tags; the
-  radial band profile (`rbp_main`) keys on the auto-stamped `common`/`rare`/
-  `mythic` to gate content by region.
+  `tier_1..tier_4` always. `StatPool.tags` holds only the pool's flavour tags;
+  a `WeightProfile` can key on the auto-stamped `tier_N` directly. `#552`
+  deleted the `common`/`rare`/`mythic` rarity tag and `RadialBandProfile`,
+  the profile that keyed on it — rarity was a lossier alias for tier (`T1`
+  and `T2` both read `common`) and, because `value(t) = 2·cost(t) − 1`,
+  composing chunkier tiers is itself a power lever (up to ~1.875x at a fixed
+  budget) — so the band profile was a second, hidden power gradient stacked
+  on top of the budget-field gradient, not a flavour/texture one. Budget is
+  now the sole radial power lever.
 
 ## What v4 deleted (vs v3)
 
@@ -115,8 +120,10 @@ con adds node_health+armor (universal) + the intelligence debuff (universal);
 ## Budget envelope (first_level.tres)
 
 `base 2..4 × RadialGradientField 1.0→4.0 × anomalous 1.75` → range 2..16,
-mean ~10, anomalous to ~28. Floor of 2 = no budget-1 dead nodes. The rim
-power ratio (~5×) is set by the budget field, not the cost ladder.
-`rbp_main` outer `mythic = 3.0` (was 8.0 — at 8.0 the rim was 86% T4; at 3.0
-it's ~70%, with mean node value unchanged). Retuning from these seeds is
-#268's job once the balance harness exists.
+mean ~10, anomalous to ~28. Floor of 2 = no budget-1 dead nodes. The
+budget field's authored 4x is the *entire* rim power ratio (#552): before,
+the deleted `RadialBandProfile` (`rbp_main`) additionally biased the rim
+toward `mythic`-tagged (T4) content, and because `value(t) = 2·cost(t) − 1`
+composition is itself a power lever, the real swing was closer to ~7.5x —
+a hidden second gradient stacked on the budget one. Retuning from these
+seeds is #268's job once the balance harness exists.
