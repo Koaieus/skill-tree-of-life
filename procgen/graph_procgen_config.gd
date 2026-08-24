@@ -70,6 +70,20 @@ extends Resource
 ## Bounded retry per random anchor. Hit it without placing → warn and skip.
 @export var random_starter_max_tries: int = 200
 
+## Camp-relative annulus placement (#551). Unset (the default) = today's
+## behaviour — [member starting_points] + [member n_random_starters] drive the
+## starter list, unchanged, so `first_level.tres` and every existing test are
+## untouched. When set, [GraphProcgen.generate] REPLACES the manual list with
+## `starter_placement.plan(camp_sizes, resolved_radius, min_dist, rng)`
+## instead of assembling it from [member starting_points].
+@export var starter_placement: StarterPlacement
+## Runtime input set on the *duplicated* config by the level (exactly as
+## [member seed] and [member n_random_starters] already are in
+## `procgen_play_sandbox.gd`) — the roster's camp shape, translated out of
+## its [Faction]s (procgen never sees a Faction). Inert unless
+## [member starter_placement] is set.
+@export var camp_sizes: Array[int] = []
+
 # ── Content: archetypes + modifiers ───────────────────────────────────────
 
 ## Phased-draw modifier content. The per-node v4 draw spends the rolled

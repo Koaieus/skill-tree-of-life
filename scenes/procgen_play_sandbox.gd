@@ -37,6 +37,15 @@ const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 @export var n_random_starters: int = 1
 @export var viability_radius: float = 400.0
 
+## #461 seam: camp shape used when no [GameSession.roster] exists yet (a
+## directly-launched sandbox, no lobby). Camp 0 is always the local human;
+## every other camp is AI on the shared NPC faction — this sandbox owns only
+## two Factions, so shapes beyond 2 entries collapse every camp past the
+## first into one NPC camp until #461's roster wiring picks real per-camp
+## Factions. Ignored once a roster exists (`GameSession.roster.camps()` +
+## `.all()` decide the shape instead).
+@export var camp_sizes: Array[int] = [1, 1]
+
 ## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
 ## Injectable so a different level scene can swap in another AllocationPolicy
 ## without touching this script.
@@ -65,6 +74,29 @@ func _setup_level() -> void:
 	cfg.n_random_starters = n_random_starters
 	cfg.viability_radius = viability_radius
 
+	# #551: decide the camp shape BEFORE generation, so a preset with a
+	# `starter_placement` (coop/versus) can place starters relative to it. A
+	# preset with none (first_level) never reads `cfg.camp_sizes` — same call,
+	# same path either way. Roster-driven camp + control-kind assignment
+	# (#475) — the player and every enemy get their faction from an authored
+	# [Participant], not from GameRoot deciding "this entity is named Player".
+	var roster: ParticipantRoster = GameSession.roster
+	if roster == null or roster.all().is_empty():
+		roster = ParticipantRoster.new()
+		var next_id := 0
+		for c in camp_sizes.size():
+			var camp_faction := _PLAYER_FACTION if c == 0 else _NPC_FACTION
+			var kind := Participant.Kind.LOCAL_HUMAN if c == 0 else Participant.Kind.AI
+			for _m in maxi(0, camp_sizes[c]):
+				var participant := Participant.new()
+				participant.id = next_id
+				participant.kind = kind
+				participant.camp = camp_faction
+				roster.add(participant)
+				next_id += 1
+	var grouped_participants := _camp_grouped_participants(roster)
+	cfg.camp_sizes = _camp_sizes(roster, grouped_participants)
+
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.
 	# `set_faded(true)` snaps to opaque-black (no fade animation needed here —
@@ -88,41 +120,38 @@ func _setup_level() -> void:
 	for placement in result.get("blockers", []):
 		spawn_blocker(placement.get("size"), placement.get("node"))
 
+	# Spawn onto the returned nodes in participant order — camp 0 member 0,
+	# camp 0 member 1, camp 1 member 0, ... (#551's `starter_placement`
+	# contract, held even when no `starter_placement` ran: `cfg.camp_sizes`
+	# is inert there). Trim to whichever list came back shorter: the legacy
+	# `n_random_starters` path sizes `starting_nodes` off a knob independent
+	# of `camp_sizes`, so outside a `starter_placement` preset the two can
+	# disagree.
+	var spawn_count: int = mini(grouped_participants.size(), starting_nodes.size())
+	if spawn_count < grouped_participants.size():
+		push_warning("ProcgenPlaySandbox: %d starting nodes for %d camp-planned participants — trimming"
+				% [starting_nodes.size(), grouped_participants.size()])
 
-	# Player: core only. D-16 pins starting nodes at 1 — no seeding call here.
-	player = spawn_entity("Player", player_color, starting_nodes[0], core_class)
-
-	# Roster-driven camp + control-kind assignment (#475) — the player and
-	# every enemy get their faction from an authored [Participant], not from
-	# GameRoot deciding "this entity is named Player". One human camp (allied,
-	# were there more local humans) versus the shared NPC camp; `apply_roster`
-	# is the same seam a real lobby's roster would feed.
-	var roster := ParticipantRoster.new()
 	var entities_by_participant_id: Dictionary = {}
-
-	var player_participant := Participant.new()
-	player_participant.id = 0
-	player_participant.kind = Participant.Kind.LOCAL_HUMAN
-	player_participant.camp = _PLAYER_FACTION
-	roster.add(player_participant)
-	entities_by_participant_id[player_participant.id] = player
-
 	var enemies: Array[Entity] = []
-	for i in range(1, starting_nodes.size()):
-		var color: Color = enemy_colors[(i - 1) % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
-		var enemy := spawn_entity("Enemy_%d" % i, color, starting_nodes[i], enemy_core_class)
-		enemies.append(enemy)
-		var enemy_participant := Participant.new()
-		enemy_participant.id = i
-		enemy_participant.kind = Participant.Kind.AI
-		enemy_participant.camp = _NPC_FACTION
-		roster.add(enemy_participant)
-		entities_by_participant_id[enemy_participant.id] = enemy
+	# Player: core only. D-16 pins starting nodes at 1 — no seeding call here.
+	for i in spawn_count:
+		var participant: Participant = grouped_participants[i]
+		var ent: Entity
+		if participant.kind == Participant.Kind.LOCAL_HUMAN:
+			ent = spawn_entity("Player", player_color, starting_nodes[i], core_class)
+			player = ent
+		else:
+			var color: Color = enemy_colors[enemies.size() % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
+			ent = spawn_entity("Enemy_%d" % participant.id, color, starting_nodes[i], enemy_core_class)
+			enemies.append(ent)
+		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
 	# The session owns the live run, so it holds the roster the run is actually
-	# playing with. Still built here rather than read from the session: making
-	# the lobby's roster the one a level spawns from is #461/#475, not #457.
+	# playing with. Still built (or reused, if GameSession already had one)
+	# here rather than read fresh: making the lobby's roster the one a level
+	# spawns from is #461, not this.
 	GameSession.roster = roster
 	# The other half of the same roster: `apply_roster` sets what every machine
 	# agrees on (camp, control kind), [SeatPolicy] sets what only this one
@@ -130,6 +159,10 @@ func _setup_level() -> void:
 	# resolves to the default couch — it is wired anyway because a lobby-fed
 	# level (#457) differs only in the roster it hands these two calls.
 	seat_policy = SeatPolicy.from_roster(entities_by_participant_id, roster)
+
+	if player == null:
+		push_warning("ProcgenPlaySandbox: no LOCAL_HUMAN participant — nothing bound as player")
+		return
 
 	# Wire the player into the interaction layer (input / vision / highlight)
 	# now that it exists — edit-time NodePaths can't bind to a node spawned at
@@ -154,3 +187,39 @@ func _setup_level() -> void:
 		e.level = achieved
 
 	SceneTransition.fade_in()
+
+
+## Groups roster participants by camp, in `roster.camps()` order — the shape
+## #551's `starter_placement.plan()` expects and the order its returned
+## `StartingPoint`s come back in (camp 0 member 0, camp 0 member 1, camp 1
+## member 0, ...).
+func _camp_grouped_participants(roster: ParticipantRoster) -> Array[Participant]:
+	var camps := roster.camps()
+	var buckets: Array[Array] = []
+	buckets.resize(camps.size())
+	for i in camps.size():
+		buckets[i] = []
+	for p in roster.all():
+		var idx := camps.find(p.camp)
+		if idx != -1:
+			(buckets[idx] as Array).append(p)
+	var flat: Array[Participant] = []
+	for b in buckets:
+		for p in b:
+			flat.append(p)
+	return flat
+
+
+## Camp sizes, in the same `roster.camps()` order [method _camp_grouped_participants]
+## flattened — the `Array[int]` shape [StarterPlacement.plan] takes.
+func _camp_sizes(roster: ParticipantRoster, grouped: Array[Participant]) -> Array[int]:
+	var camps := roster.camps()
+	var sizes: Array[int] = []
+	sizes.resize(camps.size())
+	for i in camps.size():
+		sizes[i] = 0
+	for p in grouped:
+		var idx := camps.find(p.camp)
+		if idx != -1:
+			sizes[idx] += 1
+	return sizes

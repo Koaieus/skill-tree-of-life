@@ -28,6 +28,7 @@
 [ext_resource type="Script" uid="uid://c4f47cyl5raci" path="res://procgen/pools/spell_grant_pool_entry.gd" id="sgpe"]
 [ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="shape"]
 [ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="sp"]
+[ext_resource type="Script" uid="uid://d1mtqbmhocaxb" path="res://procgen/placement/camp_annulus_starters.gd" id="cas"]
 [ext_resource type="Resource" uid="uid://b56spbwfkkese" path="res://attack/spell/defs/bruiser.tres" id="spell_bruiser"]
 [ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="spell_healing_beam"]
 [ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="spell_leafblower"]
@@ -223,6 +224,11 @@ entries = Array[ExtResource("sgpe")]([SubResource("sgpe_bruiser"), SubResource("
 script = ExtResource("sp")
 id = &"core"
 
+[sub_resource type="Resource" id="cas_grouped"]
+script = ExtResource("cas")
+arrangement = 0
+metadata/_custom_type_script = "uid://d1mtqbmhocaxb"
+
 [sub_resource type="Resource" id="awp_main"]
 script = ExtResource("awp")
 weights = {
@@ -288,6 +294,7 @@ self_loop_tier3_rate = 0.25
 self_loop_tier4_rate = 0.25
 shape_mask = SubResource("shape_circle")
 starting_points = Array[ExtResource("sp")]([SubResource("sp_core")])
+starter_placement = SubResource("cas_grouped")
 n_random_starters = 0
 viability_radius = 300.0
 modifier_pool_set = ExtResource("pool_set")

@@ -118,10 +118,20 @@ static func generate(
 	# we place. Caller reads back via `starting_nodes` in the same order, so
 	# manual vs. random can be told apart by index.
 	var starters: Array[StartingPoint] = []
-	for sp in config.starting_points:
-		if sp != null:
-			starters.append(sp)
-	_place_random_starters(starters, config, rng)
+	if config.starter_placement != null:
+		# #551: camp-relative annulus placement replaces the whole manual
+		# list. Read the resolved radius the same way _propagate_mask_radius
+		# (just above) does — the mask is already auto-scaled by this point.
+		var resolved_radius := 0.0
+		if config.shape_mask != null:
+			var mask_aabb := config.shape_mask.aabb()
+			resolved_radius = 0.5 * minf(mask_aabb.size.x, mask_aabb.size.y)
+		starters = config.starter_placement.plan(config.camp_sizes, resolved_radius, min_dist, rng)
+	else:
+		for sp in config.starting_points:
+			if sp != null:
+				starters.append(sp)
+		_place_random_starters(starters, config, rng)
 
 	var anchors: Array[Vector2] = []
 	for sp in starters:
